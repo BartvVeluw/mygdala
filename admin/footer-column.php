@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../vendor/autoload.php';
 
+require_once __DIR__ . '/_language_fields.php';
+
 use App\Service\AdminAuth;
 use App\Service\Csrf;
 use App\Repository\FooterRepository;
@@ -63,13 +65,18 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
     <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
     <input type="hidden" name="id" value="<?= (int) $column['id'] ?>">
     <section class="admin-card">
+      <?php admin_lang_tabs(); ?>
       <div class="admin-form-row admin-form-row--split">
-        <label>Titel (NL)*
-          <input type="text" name="title_nl" maxlength="100" required value="<?= $h($titleNl) ?>">
+        <?php admin_lang_pane_start('nl'); ?>
+        <label>Titel*
+          <input type="text" name="title_nl" maxlength="100" <?= admin_lang_required('nl') ?> value="<?= $h($titleNl) ?>">
         </label>
-        <label>Titel (EN)*
+        <?php admin_lang_pane_end(); ?>
+        <?php admin_lang_pane_start('en'); ?>
+        <label>Titel*
           <input type="text" name="title_en" maxlength="100" required value="<?= $h($titleEn) ?>">
         </label>
+        <?php admin_lang_pane_end(); ?>
       </div>
       <label class="admin-checkbox-label">
         <input type="checkbox" name="is_visible" value="1" <?= $isVisible ? 'checked' : '' ?>>
@@ -91,5 +98,6 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
     </form>
   </section>
 </main>
+<?php admin_lang_tabs_script(); ?>
 </body>
 </html>

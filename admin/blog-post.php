@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../vendor/autoload.php';
 require_once __DIR__ . '/_media_picker.php';
+require_once __DIR__ . '/_language_fields.php';
 require_once __DIR__ . '/_richtext_field.php';
 require_once __DIR__ . '/_save_bar.php';
 require_once __DIR__ . '/_admin_tabs.php';
@@ -181,22 +182,31 @@ $forcedTab = $errors !== [] ? 'inhoud' : null;
       <h2>Tekst</h2>
       <p class="admin-text-muted">Nederlands is de inhoud; laat je een Engels veld leeg, dan toont de site daar de Nederlandse tekst.</p>
 
+      <?php admin_lang_tabs(); ?>
       <div class="admin-form-row admin-form-row--split">
-        <label>Titel (NL)*
-          <input type="text" name="title" maxlength="<?= BlogPostService::MAX_TITLE_LENGTH ?>" required value="<?= $h($fieldValue('title')) ?>">
+        <?php admin_lang_pane_start('nl'); ?>
+        <label>Titel*
+          <input type="text" name="title" maxlength="<?= BlogPostService::MAX_TITLE_LENGTH ?>" <?= admin_lang_required('nl') ?> value="<?= $h($fieldValue('title')) ?>">
         </label>
-        <label>Titel (EN)
-          <input type="text" name="title_en" maxlength="<?= BlogPostService::MAX_TITLE_LENGTH ?>" value="<?= $h($fieldValue('title_en')) ?>" placeholder="Leeg = Nederlandse titel">
+        <?php admin_lang_pane_end(); ?>
+        <?php admin_lang_pane_start('en'); ?>
+        <label>Titel
+          <input type="text" name="title_en" maxlength="<?= BlogPostService::MAX_TITLE_LENGTH ?>" value="<?= $h($fieldValue('title_en')) ?>"<?= admin_lang_placeholder_attr('en') ?>>
         </label>
+        <?php admin_lang_pane_end(); ?>
       </div>
 
       <div class="admin-form-row admin-form-row--split">
-        <label>Samenvatting (NL)
+        <?php admin_lang_pane_start('nl'); ?>
+        <label>Samenvatting
           <textarea name="excerpt" rows="3" maxlength="<?= BlogPostService::MAX_EXCERPT_LENGTH ?>"><?= $h($fieldValue('excerpt')) ?></textarea>
         </label>
-        <label>Samenvatting (EN)
-          <textarea name="excerpt_en" rows="3" maxlength="<?= BlogPostService::MAX_EXCERPT_LENGTH ?>" placeholder="Leeg = Nederlandse tekst"><?= $h($fieldValue('excerpt_en')) ?></textarea>
+        <?php admin_lang_pane_end(); ?>
+        <?php admin_lang_pane_start('en'); ?>
+        <label>Samenvatting
+          <textarea name="excerpt_en" rows="3" maxlength="<?= BlogPostService::MAX_EXCERPT_LENGTH ?>"<?= admin_lang_placeholder_attr('en') ?>><?= $h($fieldValue('excerpt_en')) ?></textarea>
         </label>
+        <?php admin_lang_pane_end(); ?>
       </div>
       <p class="admin-text-muted">De samenvatting staat in het overzicht en in de RSS-feed. Laat je 'm leeg, dan wordt automatisch het begin van de tekst gebruikt.</p>
     </section>
@@ -389,5 +399,6 @@ $forcedTab = $errors !== [] ? 'inhoud' : null;
 <?php save_bar_script(); ?>
 <?php media_picker_script(); ?>
 <?php admin_tabs_script(); ?>
+<?php admin_lang_tabs_script(); ?>
 </body>
 </html>

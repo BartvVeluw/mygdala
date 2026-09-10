@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../vendor/autoload.php';
 
+require_once __DIR__ . '/_language_fields.php';
+
 use App\Repository\FormRepository;
 use App\Service\AdminAuth;
 use App\Service\Csrf;
@@ -135,22 +137,31 @@ $replyToCandidates = $definition === null ? [] : $definition->replyToCandidates(
         Actief (uitgevinkt = het formulier wordt nergens getoond, ook niet op pagina's waar het staat)
       </label>
 
+      <?php admin_lang_tabs(); ?>
       <div class="admin-form-row admin-form-row--split">
-        <label>Tekst op de verstuurknop (NL)
+        <?php admin_lang_pane_start('nl'); ?>
+        <label>Tekst op de verstuurknop
           <input type="text" name="submit_label_nl" maxlength="150" value="<?= $v($values, 'submit_label_nl') ?>" placeholder="Versturen">
         </label>
-        <label>Tekst op de verstuurknop (EN)
-          <input type="text" name="submit_label_en" maxlength="150" value="<?= $v($values, 'submit_label_en') ?>" placeholder="Leeg = zelfde als NL">
+        <?php admin_lang_pane_end(); ?>
+        <?php admin_lang_pane_start('en'); ?>
+        <label>Tekst op de verstuurknop
+          <input type="text" name="submit_label_en" maxlength="150" value="<?= $v($values, 'submit_label_en') ?>"<?= admin_lang_placeholder_attr('en') ?>>
         </label>
+        <?php admin_lang_pane_end(); ?>
       </div>
 
       <div class="admin-form-row admin-form-row--split">
-        <label>Bedankbericht na versturen (NL)
+        <?php admin_lang_pane_start('nl'); ?>
+        <label>Bedankbericht na versturen
           <textarea name="success_message_nl" maxlength="1000" rows="3" placeholder="Bedankt — je bericht is verstuurd."><?= $v($values, 'success_message_nl') ?></textarea>
         </label>
-        <label>Bedankbericht na versturen (EN)
-          <textarea name="success_message_en" maxlength="1000" rows="3" placeholder="Leeg = zelfde als NL"><?= $v($values, 'success_message_en') ?></textarea>
+        <?php admin_lang_pane_end(); ?>
+        <?php admin_lang_pane_start('en'); ?>
+        <label>Bedankbericht na versturen
+          <textarea name="success_message_en" maxlength="1000" rows="3"<?= admin_lang_placeholder_attr('en') ?>><?= $v($values, 'success_message_en') ?></textarea>
         </label>
+        <?php admin_lang_pane_end(); ?>
       </div>
     </section>
 
@@ -292,5 +303,6 @@ $replyToCandidates = $definition === null ? [] : $definition->replyToCandidates(
     <?php endif; ?>
   </section>
 </main>
+<?php admin_lang_tabs_script(); ?>
 </body>
 </html>

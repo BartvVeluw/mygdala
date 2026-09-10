@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../vendor/autoload.php';
 require_once __DIR__ . '/_save_bar.php';
+require_once __DIR__ . '/_language_fields.php';
 
 use App\Service\AdminAuth;
 use App\Service\Csrf;
@@ -133,13 +134,18 @@ $csrfToken = Csrf::token();
           <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
           <input type="hidden" name="item_id" value="<?= $itemId ?>">
 
+          <?php admin_lang_tabs(); ?>
           <div class="admin-form-row admin-form-row--split">
-            <label>Tekst (NL)*
-              <input type="text" name="label_nl" maxlength="100" required value="<?= htmlspecialchars((string) $item['label_nl'], ENT_QUOTES, 'UTF-8') ?>">
+            <?php admin_lang_pane_start('nl'); ?>
+            <label>Tekst*
+              <input type="text" name="label_nl" maxlength="100" <?= admin_lang_required('nl') ?> value="<?= htmlspecialchars((string) $item['label_nl'], ENT_QUOTES, 'UTF-8') ?>">
             </label>
-            <label>Tekst (EN)
-              <input type="text" name="label_en" maxlength="100" value="<?= htmlspecialchars((string) ($item['label_en'] ?? ''), ENT_QUOTES, 'UTF-8') ?>" placeholder="Leeg = zelfde als NL">
+            <?php admin_lang_pane_end(); ?>
+            <?php admin_lang_pane_start('en'); ?>
+            <label>Tekst
+              <input type="text" name="label_en" maxlength="100" value="<?= htmlspecialchars((string) ($item['label_en'] ?? ''), ENT_QUOTES, 'UTF-8') ?>"<?= admin_lang_placeholder_attr('en') ?>>
             </label>
+            <?php admin_lang_pane_end(); ?>
           </div>
 
           <label class="admin-checkbox-label">
@@ -179,13 +185,18 @@ $csrfToken = Csrf::token();
       <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
       <input type="hidden" name="section_id" value="<?= $sectionId ?>">
 
+      <?php admin_lang_tabs(); ?>
       <div class="admin-form-row admin-form-row--split">
-        <label>Tekst (NL)*
-          <input type="text" name="label_nl" maxlength="100" required>
+        <?php admin_lang_pane_start('nl'); ?>
+        <label>Tekst*
+          <input type="text" name="label_nl" maxlength="100" <?= admin_lang_required('nl') ?>>
         </label>
-        <label>Tekst (EN)
-          <input type="text" name="label_en" maxlength="100" placeholder="Leeg = zelfde als NL">
+        <?php admin_lang_pane_end(); ?>
+        <?php admin_lang_pane_start('en'); ?>
+        <label>Tekst
+          <input type="text" name="label_en" maxlength="100"<?= admin_lang_placeholder_attr('en') ?>>
         </label>
+        <?php admin_lang_pane_end(); ?>
       </div>
 
       <button type="submit">Item toevoegen</button>
@@ -194,5 +205,6 @@ $csrfToken = Csrf::token();
 </main>
 <?php save_bar(); ?>
 <?php save_bar_script(); ?>
+<?php admin_lang_tabs_script(); ?>
 </body>
 </html>

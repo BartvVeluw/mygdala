@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../vendor/autoload.php';
 require_once __DIR__ . '/_save_bar.php';
+require_once __DIR__ . '/_language_fields.php';
 
 use App\Service\AdminAuth;
 use App\Service\Csrf;
@@ -137,22 +138,31 @@ $csrfToken = Csrf::token();
           <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
           <input type="hidden" name="item_id" value="<?= $itemId ?>">
 
+          <?php admin_lang_tabs(); ?>
           <div class="admin-form-row admin-form-row--split">
-            <label>Primaire tekst (NL)*
-              <input type="text" name="primary_text_nl" maxlength="100" required value="<?= htmlspecialchars((string) $item['primary_text_nl'], ENT_QUOTES, 'UTF-8') ?>">
+            <?php admin_lang_pane_start('nl'); ?>
+            <label>Primaire tekst*
+              <input type="text" name="primary_text_nl" maxlength="100" <?= admin_lang_required('nl') ?> value="<?= htmlspecialchars((string) $item['primary_text_nl'], ENT_QUOTES, 'UTF-8') ?>">
             </label>
-            <label>Primaire tekst (EN)
-              <input type="text" name="primary_text_en" maxlength="100" value="<?= htmlspecialchars((string) ($item['primary_text_en'] ?? ''), ENT_QUOTES, 'UTF-8') ?>" placeholder="Leeg = zelfde als NL">
+            <?php admin_lang_pane_end(); ?>
+            <?php admin_lang_pane_start('en'); ?>
+            <label>Primaire tekst
+              <input type="text" name="primary_text_en" maxlength="100" value="<?= htmlspecialchars((string) ($item['primary_text_en'] ?? ''), ENT_QUOTES, 'UTF-8') ?>"<?= admin_lang_placeholder_attr('en') ?>>
             </label>
+            <?php admin_lang_pane_end(); ?>
           </div>
 
           <div class="admin-form-row admin-form-row--split">
-            <label>Secundaire tekst (NL)*
-              <input type="text" name="secondary_text_nl" maxlength="150" required value="<?= htmlspecialchars((string) $item['secondary_text_nl'], ENT_QUOTES, 'UTF-8') ?>">
+            <?php admin_lang_pane_start('nl'); ?>
+            <label>Secundaire tekst*
+              <input type="text" name="secondary_text_nl" maxlength="150" <?= admin_lang_required('nl') ?> value="<?= htmlspecialchars((string) $item['secondary_text_nl'], ENT_QUOTES, 'UTF-8') ?>">
             </label>
-            <label>Secundaire tekst (EN)
-              <input type="text" name="secondary_text_en" maxlength="150" value="<?= htmlspecialchars((string) ($item['secondary_text_en'] ?? ''), ENT_QUOTES, 'UTF-8') ?>" placeholder="Leeg = zelfde als NL">
+            <?php admin_lang_pane_end(); ?>
+            <?php admin_lang_pane_start('en'); ?>
+            <label>Secundaire tekst
+              <input type="text" name="secondary_text_en" maxlength="150" value="<?= htmlspecialchars((string) ($item['secondary_text_en'] ?? ''), ENT_QUOTES, 'UTF-8') ?>"<?= admin_lang_placeholder_attr('en') ?>>
             </label>
+            <?php admin_lang_pane_end(); ?>
           </div>
 
           <label class="admin-checkbox-label">
@@ -192,22 +202,31 @@ $csrfToken = Csrf::token();
       <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
       <input type="hidden" name="strip_id" value="<?= $stripId ?>">
 
+      <?php admin_lang_tabs(); ?>
       <div class="admin-form-row admin-form-row--split">
-        <label>Primaire tekst (NL)*
-          <input type="text" name="primary_text_nl" maxlength="100" required>
+        <?php admin_lang_pane_start('nl'); ?>
+        <label>Primaire tekst*
+          <input type="text" name="primary_text_nl" maxlength="100" <?= admin_lang_required('nl') ?>>
         </label>
-        <label>Primaire tekst (EN)
-          <input type="text" name="primary_text_en" maxlength="100" placeholder="Leeg = zelfde als NL">
+        <?php admin_lang_pane_end(); ?>
+        <?php admin_lang_pane_start('en'); ?>
+        <label>Primaire tekst
+          <input type="text" name="primary_text_en" maxlength="100"<?= admin_lang_placeholder_attr('en') ?>>
         </label>
+        <?php admin_lang_pane_end(); ?>
       </div>
 
       <div class="admin-form-row admin-form-row--split">
-        <label>Secundaire tekst (NL)*
-          <input type="text" name="secondary_text_nl" maxlength="150" required>
+        <?php admin_lang_pane_start('nl'); ?>
+        <label>Secundaire tekst*
+          <input type="text" name="secondary_text_nl" maxlength="150" <?= admin_lang_required('nl') ?>>
         </label>
-        <label>Secundaire tekst (EN)
-          <input type="text" name="secondary_text_en" maxlength="150" placeholder="Leeg = zelfde als NL">
+        <?php admin_lang_pane_end(); ?>
+        <?php admin_lang_pane_start('en'); ?>
+        <label>Secundaire tekst
+          <input type="text" name="secondary_text_en" maxlength="150"<?= admin_lang_placeholder_attr('en') ?>>
         </label>
+        <?php admin_lang_pane_end(); ?>
       </div>
 
       <button type="submit">Stat toevoegen</button>
@@ -216,5 +235,6 @@ $csrfToken = Csrf::token();
 </main>
 <?php save_bar(); ?>
 <?php save_bar_script(); ?>
+<?php admin_lang_tabs_script(); ?>
 </body>
 </html>

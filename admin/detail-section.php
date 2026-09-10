@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../vendor/autoload.php';
 require_once __DIR__ . '/_save_bar.php';
+require_once __DIR__ . '/_language_fields.php';
 require __DIR__ . '/_richtext_field.php';
 require_once __DIR__ . '/_media_picker.php';
 
@@ -159,22 +160,31 @@ function detailErrorList(array $errors): void
       <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
       <input type="hidden" name="section" value="<?= $h($sectionParam) ?>">
 
+      <?php admin_lang_tabs(); ?>
       <div class="admin-form-row admin-form-row--split">
-        <label>Titel / H2 (NL)*
-          <input type="text" name="title_nl" maxlength="255" value="<?= detailValue($values, 'title_nl') ?>" required>
+        <?php admin_lang_pane_start('nl'); ?>
+        <label>Titel / H2*
+          <input type="text" name="title_nl" maxlength="255" value="<?= detailValue($values, 'title_nl') ?>" <?= admin_lang_required('nl') ?>>
         </label>
-        <label>Titel / H2 (EN)
-          <input type="text" name="title_en" maxlength="255" value="<?= detailValue($values, 'title_en') ?>" placeholder="Leeg = zelfde als NL">
+        <?php admin_lang_pane_end(); ?>
+        <?php admin_lang_pane_start('en'); ?>
+        <label>Titel / H2
+          <input type="text" name="title_en" maxlength="255" value="<?= detailValue($values, 'title_en') ?>"<?= admin_lang_placeholder_attr('en') ?>>
         </label>
+        <?php admin_lang_pane_end(); ?>
       </div>
 
       <div class="admin-form-row admin-form-row--split">
-        <label>Lead (NL)
+        <?php admin_lang_pane_start('nl'); ?>
+        <label>Lead
           <textarea name="lead_nl" maxlength="500" rows="2" placeholder="Optioneel"><?= detailValue($values, 'lead_nl') ?></textarea>
         </label>
-        <label>Lead (EN)
-          <textarea name="lead_en" maxlength="500" rows="2" placeholder="Leeg = zelfde als NL"><?= detailValue($values, 'lead_en') ?></textarea>
+        <?php admin_lang_pane_end(); ?>
+        <?php admin_lang_pane_start('en'); ?>
+        <label>Lead
+          <textarea name="lead_en" maxlength="500" rows="2"<?= admin_lang_placeholder_attr('en') ?>><?= detailValue($values, 'lead_en') ?></textarea>
         </label>
+        <?php admin_lang_pane_end(); ?>
       </div>
 
       <?php renderRichTextField('content_html', 'Tekst (NL)', (string) ($values['content_html'] ?? ''), 'full', 'admin-richtext-editor--lg'); ?>
@@ -195,32 +205,44 @@ function detailErrorList(array $errors): void
       <p class="admin-text-muted">Een sectie met een anker is bereikbaar via <code>#anker</code> en verschijnt automatisch in de Snelnavigatie van deze pagina.</p>
 
       <div class="admin-form-row admin-form-row--split">
-        <label>Navigatielabel (NL)
+        <?php admin_lang_pane_start('nl'); ?>
+        <label>Navigatielabel
           <input type="text" name="nav_label_nl" maxlength="100" value="<?= detailValue($values, 'nav_label_nl') ?>" placeholder="Leeg = de titel hierboven">
         </label>
-        <label>Navigatielabel (EN)
-          <input type="text" name="nav_label_en" maxlength="100" value="<?= detailValue($values, 'nav_label_en') ?>" placeholder="Leeg = zelfde als NL">
+        <?php admin_lang_pane_end(); ?>
+        <?php admin_lang_pane_start('en'); ?>
+        <label>Navigatielabel
+          <input type="text" name="nav_label_en" maxlength="100" value="<?= detailValue($values, 'nav_label_en') ?>"<?= admin_lang_placeholder_attr('en') ?>>
         </label>
+        <?php admin_lang_pane_end(); ?>
       </div>
       <p class="admin-text-muted">De korte tekst in de Snelnavigatie — meestal korter dan de titel ("Hout" in plaats van "Hout graveren").</p>
 
       <div class="admin-form-row admin-form-row--split">
-        <label>Slotnotitie (NL)
+        <?php admin_lang_pane_start('nl'); ?>
+        <label>Slotnotitie
           <textarea name="closing_note_nl" maxlength="1000" rows="2" placeholder="Optioneel"><?= detailValue($values, 'closing_note_nl') ?></textarea>
         </label>
-        <label>Slotnotitie (EN)
-          <textarea name="closing_note_en" maxlength="1000" rows="2" placeholder="Leeg = zelfde als NL"><?= detailValue($values, 'closing_note_en') ?></textarea>
+        <?php admin_lang_pane_end(); ?>
+        <?php admin_lang_pane_start('en'); ?>
+        <label>Slotnotitie
+          <textarea name="closing_note_en" maxlength="1000" rows="2"<?= admin_lang_placeholder_attr('en') ?>><?= detailValue($values, 'closing_note_en') ?></textarea>
         </label>
+        <?php admin_lang_pane_end(); ?>
       </div>
       <p class="admin-text-muted">Optionele extra tekst onderaan de sectie. Leeg laten = geen slotnotitie.</p>
 
       <div class="admin-form-row admin-form-row--split">
-        <label>CTA-knoptekst (NL)
+        <?php admin_lang_pane_start('nl'); ?>
+        <label>CTA-knoptekst
           <input type="text" name="cta_label_nl" maxlength="150" value="<?= detailValue($values, 'cta_label_nl') ?>" placeholder="Optioneel">
         </label>
-        <label>CTA-knoptekst (EN)
-          <input type="text" name="cta_label_en" maxlength="150" value="<?= detailValue($values, 'cta_label_en') ?>" placeholder="Leeg = zelfde als NL">
+        <?php admin_lang_pane_end(); ?>
+        <?php admin_lang_pane_start('en'); ?>
+        <label>CTA-knoptekst
+          <input type="text" name="cta_label_en" maxlength="150" value="<?= detailValue($values, 'cta_label_en') ?>"<?= admin_lang_placeholder_attr('en') ?>>
         </label>
+        <?php admin_lang_pane_end(); ?>
       </div>
       <div class="admin-form-row">
         <label>CTA-knop URL
@@ -250,13 +272,18 @@ function detailErrorList(array $errors): void
         <?php media_picker_field('media_id', MediaService::find((int) ($section['main_media_id'] ?? 0)), 'Hoofdafbeelding', 'Kies er een uit de mediabibliotheek, of upload een nieuwe in het venster dat opent.', false); ?>
       </div>
 
+      <?php admin_lang_tabs(); ?>
       <div class="admin-form-row admin-form-row--split">
-        <label>Alt-tekst (NL)
+        <?php admin_lang_pane_start('nl'); ?>
+        <label>Alt-tekst
           <input type="text" name="main_image_alt_nl" maxlength="255" value="<?= $h((string) ($section['main_image_alt_nl'] ?? '')) ?>" placeholder="Leeg = alt-tekst uit de mediabibliotheek">
         </label>
-        <label>Alt-tekst (EN)
-          <input type="text" name="main_image_alt_en" maxlength="255" value="<?= $h((string) ($section['main_image_alt_en'] ?? '')) ?>" placeholder="Leeg = zelfde als NL">
+        <?php admin_lang_pane_end(); ?>
+        <?php admin_lang_pane_start('en'); ?>
+        <label>Alt-tekst
+          <input type="text" name="main_image_alt_en" maxlength="255" value="<?= $h((string) ($section['main_image_alt_en'] ?? '')) ?>"<?= admin_lang_placeholder_attr('en') ?>>
         </label>
+        <?php admin_lang_pane_end(); ?>
       </div>
 
       <button type="submit">Opslaan</button>
@@ -291,22 +318,31 @@ function detailErrorList(array $errors): void
           <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
           <input type="hidden" name="point_id" value="<?= $pointId ?>">
 
+          <?php admin_lang_tabs(); ?>
           <div class="admin-form-row admin-form-row--split">
-            <label>Titel (NL)*
-              <input type="text" name="title_nl" maxlength="255" value="<?= $h((string) $point['title_nl']) ?>" required>
+            <?php admin_lang_pane_start('nl'); ?>
+            <label>Titel*
+              <input type="text" name="title_nl" maxlength="255" value="<?= $h((string) $point['title_nl']) ?>" <?= admin_lang_required('nl') ?>>
             </label>
-            <label>Titel (EN)
-              <input type="text" name="title_en" maxlength="255" value="<?= $h((string) ($point['title_en'] ?? '')) ?>" placeholder="Leeg = zelfde als NL">
+            <?php admin_lang_pane_end(); ?>
+            <?php admin_lang_pane_start('en'); ?>
+            <label>Titel
+              <input type="text" name="title_en" maxlength="255" value="<?= $h((string) ($point['title_en'] ?? '')) ?>"<?= admin_lang_placeholder_attr('en') ?>>
             </label>
+            <?php admin_lang_pane_end(); ?>
           </div>
 
           <div class="admin-form-row admin-form-row--split">
-            <label>Tekst (NL)*
-              <textarea name="body_nl" maxlength="500" rows="2" required><?= $h((string) $point['body_nl']) ?></textarea>
+            <?php admin_lang_pane_start('nl'); ?>
+            <label>Tekst*
+              <textarea name="body_nl" maxlength="500" rows="2" <?= admin_lang_required('nl') ?>><?= $h((string) $point['body_nl']) ?></textarea>
             </label>
-            <label>Tekst (EN)
-              <textarea name="body_en" maxlength="500" rows="2" placeholder="Leeg = zelfde als NL"><?= $h((string) ($point['body_en'] ?? '')) ?></textarea>
+            <?php admin_lang_pane_end(); ?>
+            <?php admin_lang_pane_start('en'); ?>
+            <label>Tekst
+              <textarea name="body_en" maxlength="500" rows="2"<?= admin_lang_placeholder_attr('en') ?>><?= $h((string) ($point['body_en'] ?? '')) ?></textarea>
             </label>
+            <?php admin_lang_pane_end(); ?>
           </div>
 
           <label class="admin-checkbox-label">
@@ -346,22 +382,31 @@ function detailErrorList(array $errors): void
       <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
       <input type="hidden" name="section_id" value="<?= $sectionId ?>">
 
+      <?php admin_lang_tabs(); ?>
       <div class="admin-form-row admin-form-row--split">
-        <label>Titel (NL)*
-          <input type="text" name="title_nl" maxlength="255" required>
+        <?php admin_lang_pane_start('nl'); ?>
+        <label>Titel*
+          <input type="text" name="title_nl" maxlength="255" <?= admin_lang_required('nl') ?>>
         </label>
-        <label>Titel (EN)
-          <input type="text" name="title_en" maxlength="255" placeholder="Leeg = zelfde als NL">
+        <?php admin_lang_pane_end(); ?>
+        <?php admin_lang_pane_start('en'); ?>
+        <label>Titel
+          <input type="text" name="title_en" maxlength="255"<?= admin_lang_placeholder_attr('en') ?>>
         </label>
+        <?php admin_lang_pane_end(); ?>
       </div>
 
       <div class="admin-form-row admin-form-row--split">
-        <label>Tekst (NL)*
-          <textarea name="body_nl" maxlength="500" rows="2" required></textarea>
+        <?php admin_lang_pane_start('nl'); ?>
+        <label>Tekst*
+          <textarea name="body_nl" maxlength="500" rows="2" <?= admin_lang_required('nl') ?>></textarea>
         </label>
-        <label>Tekst (EN)
-          <textarea name="body_en" maxlength="500" rows="2" placeholder="Leeg = zelfde als NL"></textarea>
+        <?php admin_lang_pane_end(); ?>
+        <?php admin_lang_pane_start('en'); ?>
+        <label>Tekst
+          <textarea name="body_en" maxlength="500" rows="2"<?= admin_lang_placeholder_attr('en') ?>></textarea>
         </label>
+        <?php admin_lang_pane_end(); ?>
       </div>
 
       <button type="submit">Kenmerk toevoegen</button>
@@ -391,13 +436,18 @@ function detailErrorList(array $errors): void
             <?php media_picker_field('media_id', MediaService::find((int) ($image['media_id'] ?? 0)), 'Afbeelding', '', false); ?>
           </div>
 
+          <?php admin_lang_tabs(); ?>
           <div class="admin-form-row admin-form-row--split">
-            <label>Alt-tekst (NL)
+            <?php admin_lang_pane_start('nl'); ?>
+            <label>Alt-tekst
               <input type="text" name="alt_nl" maxlength="255" value="<?= $h((string) ($image['alt_nl'] ?? '')) ?>" placeholder="Leeg = alt-tekst uit de mediabibliotheek">
             </label>
-            <label>Alt-tekst (EN)
-              <input type="text" name="alt_en" maxlength="255" value="<?= $h((string) ($image['alt_en'] ?? '')) ?>" placeholder="Leeg = zelfde als NL">
+            <?php admin_lang_pane_end(); ?>
+            <?php admin_lang_pane_start('en'); ?>
+            <label>Alt-tekst
+              <input type="text" name="alt_en" maxlength="255" value="<?= $h((string) ($image['alt_en'] ?? '')) ?>"<?= admin_lang_placeholder_attr('en') ?>>
             </label>
+            <?php admin_lang_pane_end(); ?>
           </div>
 
           <button type="submit">Opslaan</button>
@@ -436,13 +486,18 @@ function detailErrorList(array $errors): void
         <?php media_picker_field('media_id', null, 'Afbeelding*', 'Kies er een uit de bibliotheek, of upload een nieuwe in het venster dat opent.', false); ?>
       </div>
 
+      <?php admin_lang_tabs(); ?>
       <div class="admin-form-row admin-form-row--split">
-        <label>Alt-tekst (NL)
+        <?php admin_lang_pane_start('nl'); ?>
+        <label>Alt-tekst
           <input type="text" name="alt_nl" maxlength="255" placeholder="Leeg = alt-tekst uit de mediabibliotheek">
         </label>
-        <label>Alt-tekst (EN)
-          <input type="text" name="alt_en" maxlength="255" placeholder="Leeg = zelfde als NL">
+        <?php admin_lang_pane_end(); ?>
+        <?php admin_lang_pane_start('en'); ?>
+        <label>Alt-tekst
+          <input type="text" name="alt_en" maxlength="255"<?= admin_lang_placeholder_attr('en') ?>>
         </label>
+        <?php admin_lang_pane_end(); ?>
       </div>
 
       <button type="submit">Afbeelding toevoegen</button>
@@ -453,5 +508,6 @@ function detailErrorList(array $errors): void
 <?php media_picker_modal(); ?>
 <?php media_picker_script(); ?>
 <?php save_bar_script(); ?>
+<?php admin_lang_tabs_script(); ?>
 </body>
 </html>

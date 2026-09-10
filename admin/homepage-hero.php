@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../vendor/autoload.php';
 require_once __DIR__ . '/_save_bar.php';
+require_once __DIR__ . '/_language_fields.php';
 
 use App\Service\AdminAuth;
 use App\Service\Csrf;
@@ -124,31 +125,44 @@ function homepageHeroValue(array $values, string $key): string
 
       <h2>Algemene inhoud</h2>
 
+      <?php admin_lang_tabs(); ?>
       <div class="admin-form-row admin-form-row--split">
-        <label>Eyebrow (NL)*
-          <input type="text" name="eyebrow_nl" maxlength="150" required value="<?= homepageHeroValue($values, 'eyebrow_nl') ?>">
+        <?php admin_lang_pane_start('nl'); ?>
+        <label>Eyebrow*
+          <input type="text" name="eyebrow_nl" maxlength="150" <?= admin_lang_required('nl') ?> value="<?= homepageHeroValue($values, 'eyebrow_nl') ?>">
         </label>
-        <label>Eyebrow (EN)
-          <input type="text" name="eyebrow_en" maxlength="150" value="<?= homepageHeroValue($values, 'eyebrow_en') ?>" placeholder="Leeg = zelfde als NL">
+        <?php admin_lang_pane_end(); ?>
+        <?php admin_lang_pane_start('en'); ?>
+        <label>Eyebrow
+          <input type="text" name="eyebrow_en" maxlength="150" value="<?= homepageHeroValue($values, 'eyebrow_en') ?>"<?= admin_lang_placeholder_attr('en') ?>>
         </label>
+        <?php admin_lang_pane_end(); ?>
       </div>
 
       <div class="admin-form-row admin-form-row--split">
-        <label>Titel / H1 (NL)*
-          <input type="text" name="title_nl" maxlength="255" required value="<?= homepageHeroValue($values, 'title_nl') ?>">
+        <?php admin_lang_pane_start('nl'); ?>
+        <label>Titel / H1*
+          <input type="text" name="title_nl" maxlength="255" <?= admin_lang_required('nl') ?> value="<?= homepageHeroValue($values, 'title_nl') ?>">
         </label>
-        <label>Titel / H1 (EN)
-          <input type="text" name="title_en" maxlength="255" value="<?= homepageHeroValue($values, 'title_en') ?>" placeholder="Leeg = zelfde als NL">
+        <?php admin_lang_pane_end(); ?>
+        <?php admin_lang_pane_start('en'); ?>
+        <label>Titel / H1
+          <input type="text" name="title_en" maxlength="255" value="<?= homepageHeroValue($values, 'title_en') ?>"<?= admin_lang_placeholder_attr('en') ?>>
         </label>
+        <?php admin_lang_pane_end(); ?>
       </div>
 
       <div class="admin-form-row admin-form-row--split">
-        <label>Highlight in titel (NL)
+        <?php admin_lang_pane_start('nl'); ?>
+        <label>Highlight in titel
           <input type="text" name="title_highlight_nl" maxlength="255" value="<?= homepageHeroValue($values, 'title_highlight_nl') ?>" placeholder="Optioneel">
         </label>
-        <label>Highlight in titel (EN)
-          <input type="text" name="title_highlight_en" maxlength="255" value="<?= homepageHeroValue($values, 'title_highlight_en') ?>" placeholder="Leeg = zelfde als NL">
+        <?php admin_lang_pane_end(); ?>
+        <?php admin_lang_pane_start('en'); ?>
+        <label>Highlight in titel
+          <input type="text" name="title_highlight_en" maxlength="255" value="<?= homepageHeroValue($values, 'title_highlight_en') ?>"<?= admin_lang_placeholder_attr('en') ?>>
         </label>
+        <?php admin_lang_pane_end(); ?>
       </div>
       <p class="admin-text-muted">Het highlight-woord/de highlight-zin wordt in de titel extra uitgelicht (cursief/gouden stijl). Moet <strong>exact</strong> (letterlijk, hoofdlettergevoelig) voorkomen in de bijbehorende titel hierboven — anders wordt niet opgeslagen. Leeg laten = geen highlight.</p>
 
@@ -171,24 +185,32 @@ function homepageHeroValue(array $values, string $key): string
       <p class="admin-text-muted" id="title_highlight_size_help">Hoe groot de highlight wordt ten opzichte van de rest van de titel — <?= HomepageHeroContent::HIGHLIGHT_SIZE_DEFAULT ?>% is even groot (de standaard). Het is een percentage, geen vaste maat: de titel schaalt al mee met de schermbreedte, en de highlight schaalt daar op desktop, tablet én mobiel gewoon in mee.</p>
 
       <div class="admin-form-row admin-form-row--split">
-        <label>Introtekst / lead (NL)
+        <?php admin_lang_pane_start('nl'); ?>
+        <label>Introtekst / lead
           <textarea name="lead_nl" maxlength="500" rows="3"><?= homepageHeroValue($values, 'lead_nl') ?></textarea>
         </label>
-        <label>Introtekst / lead (EN)
-          <textarea name="lead_en" maxlength="500" rows="3" placeholder="Leeg = zelfde als NL"><?= homepageHeroValue($values, 'lead_en') ?></textarea>
+        <?php admin_lang_pane_end(); ?>
+        <?php admin_lang_pane_start('en'); ?>
+        <label>Introtekst / lead
+          <textarea name="lead_en" maxlength="500" rows="3"<?= admin_lang_placeholder_attr('en') ?>><?= homepageHeroValue($values, 'lead_en') ?></textarea>
         </label>
+        <?php admin_lang_pane_end(); ?>
       </div>
 
       <h2 style="margin-top:2rem;">Knoppen</h2>
 
       <h3>Primaire knop*</h3>
       <div class="admin-form-row admin-form-row--split">
-        <label>Label (NL)*
-          <input type="text" name="primary_label_nl" maxlength="150" required value="<?= homepageHeroValue($values, 'primary_label_nl') ?>">
+        <?php admin_lang_pane_start('nl'); ?>
+        <label>Label*
+          <input type="text" name="primary_label_nl" maxlength="150" <?= admin_lang_required('nl') ?> value="<?= homepageHeroValue($values, 'primary_label_nl') ?>">
         </label>
-        <label>Label (EN)
-          <input type="text" name="primary_label_en" maxlength="150" value="<?= homepageHeroValue($values, 'primary_label_en') ?>" placeholder="Leeg = zelfde als NL">
+        <?php admin_lang_pane_end(); ?>
+        <?php admin_lang_pane_start('en'); ?>
+        <label>Label
+          <input type="text" name="primary_label_en" maxlength="150" value="<?= homepageHeroValue($values, 'primary_label_en') ?>"<?= admin_lang_placeholder_attr('en') ?>>
         </label>
+        <?php admin_lang_pane_end(); ?>
       </div>
       <div class="admin-form-row">
         <label>URL*
@@ -198,12 +220,16 @@ function homepageHeroValue(array $values, string $key): string
 
       <h3 style="margin-top:1.5rem;">Secundaire knop (optioneel)</h3>
       <div class="admin-form-row admin-form-row--split">
-        <label>Label (NL)
+        <?php admin_lang_pane_start('nl'); ?>
+        <label>Label
           <input type="text" name="secondary_label_nl" maxlength="150" value="<?= homepageHeroValue($values, 'secondary_label_nl') ?>">
         </label>
-        <label>Label (EN)
-          <input type="text" name="secondary_label_en" maxlength="150" value="<?= homepageHeroValue($values, 'secondary_label_en') ?>" placeholder="Leeg = zelfde als NL">
+        <?php admin_lang_pane_end(); ?>
+        <?php admin_lang_pane_start('en'); ?>
+        <label>Label
+          <input type="text" name="secondary_label_en" maxlength="150" value="<?= homepageHeroValue($values, 'secondary_label_en') ?>"<?= admin_lang_placeholder_attr('en') ?>>
         </label>
+        <?php admin_lang_pane_end(); ?>
       </div>
       <div class="admin-form-row">
         <label>URL
@@ -214,20 +240,28 @@ function homepageHeroValue(array $values, string $key): string
 
       <h2 style="margin-top:2rem;">Badge</h2>
       <div class="admin-form-row admin-form-row--split">
-        <label>Titel (NL)
+        <?php admin_lang_pane_start('nl'); ?>
+        <label>Titel
           <input type="text" name="badge_title_nl" maxlength="150" value="<?= homepageHeroValue($values, 'badge_title_nl') ?>" placeholder="Optioneel">
         </label>
-        <label>Titel (EN)
-          <input type="text" name="badge_title_en" maxlength="150" value="<?= homepageHeroValue($values, 'badge_title_en') ?>" placeholder="Leeg = zelfde als NL">
+        <?php admin_lang_pane_end(); ?>
+        <?php admin_lang_pane_start('en'); ?>
+        <label>Titel
+          <input type="text" name="badge_title_en" maxlength="150" value="<?= homepageHeroValue($values, 'badge_title_en') ?>"<?= admin_lang_placeholder_attr('en') ?>>
         </label>
+        <?php admin_lang_pane_end(); ?>
       </div>
       <div class="admin-form-row admin-form-row--split">
-        <label>Tekst (NL)
+        <?php admin_lang_pane_start('nl'); ?>
+        <label>Tekst
           <textarea name="badge_text_nl" maxlength="500" rows="2" placeholder="Optioneel"><?= homepageHeroValue($values, 'badge_text_nl') ?></textarea>
         </label>
-        <label>Tekst (EN)
-          <textarea name="badge_text_en" maxlength="500" rows="2" placeholder="Leeg = zelfde als NL"><?= homepageHeroValue($values, 'badge_text_en') ?></textarea>
+        <?php admin_lang_pane_end(); ?>
+        <?php admin_lang_pane_start('en'); ?>
+        <label>Tekst
+          <textarea name="badge_text_en" maxlength="500" rows="2"<?= admin_lang_placeholder_attr('en') ?>><?= homepageHeroValue($values, 'badge_text_en') ?></textarea>
         </label>
+        <?php admin_lang_pane_end(); ?>
       </div>
       <p class="admin-text-muted">Laat titel (NL) en/of tekst (NL) leeg om geen badge te tonen.</p>
 
@@ -301,13 +335,18 @@ function homepageHeroValue(array $values, string $key): string
         </label>
       </div>
 
+      <?php admin_lang_tabs(); ?>
       <div class="admin-form-row admin-form-row--split">
-        <label>Alt-tekst (NL)*
-          <input type="text" name="image_alt_nl" maxlength="255" required value="<?= htmlspecialchars((string) $hero['image_alt_nl'], ENT_QUOTES, 'UTF-8') ?>">
+        <?php admin_lang_pane_start('nl'); ?>
+        <label>Alt-tekst*
+          <input type="text" name="image_alt_nl" maxlength="255" <?= admin_lang_required('nl') ?> value="<?= htmlspecialchars((string) $hero['image_alt_nl'], ENT_QUOTES, 'UTF-8') ?>">
         </label>
-        <label>Alt-tekst (EN)
-          <input type="text" name="image_alt_en" maxlength="255" value="<?= htmlspecialchars((string) ($hero['image_alt_en'] ?? ''), ENT_QUOTES, 'UTF-8') ?>" placeholder="Leeg = zelfde als NL">
+        <?php admin_lang_pane_end(); ?>
+        <?php admin_lang_pane_start('en'); ?>
+        <label>Alt-tekst
+          <input type="text" name="image_alt_en" maxlength="255" value="<?= htmlspecialchars((string) ($hero['image_alt_en'] ?? ''), ENT_QUOTES, 'UTF-8') ?>"<?= admin_lang_placeholder_attr('en') ?>>
         </label>
+        <?php admin_lang_pane_end(); ?>
       </div>
 
       <button type="submit">Opslaan</button>
@@ -358,22 +397,31 @@ function homepageHeroValue(array $values, string $key): string
           <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
           <input type="hidden" name="item_id" value="<?= $statId ?>">
 
+          <?php admin_lang_tabs(); ?>
           <div class="admin-form-row admin-form-row--split">
-            <label>Primaire tekst (NL)*
-              <input type="text" name="primary_text_nl" maxlength="100" required value="<?= htmlspecialchars((string) $stat['primary_text_nl'], ENT_QUOTES, 'UTF-8') ?>">
+            <?php admin_lang_pane_start('nl'); ?>
+            <label>Primaire tekst*
+              <input type="text" name="primary_text_nl" maxlength="100" <?= admin_lang_required('nl') ?> value="<?= htmlspecialchars((string) $stat['primary_text_nl'], ENT_QUOTES, 'UTF-8') ?>">
             </label>
-            <label>Primaire tekst (EN)
-              <input type="text" name="primary_text_en" maxlength="100" value="<?= htmlspecialchars((string) ($stat['primary_text_en'] ?? ''), ENT_QUOTES, 'UTF-8') ?>" placeholder="Leeg = zelfde als NL">
+            <?php admin_lang_pane_end(); ?>
+            <?php admin_lang_pane_start('en'); ?>
+            <label>Primaire tekst
+              <input type="text" name="primary_text_en" maxlength="100" value="<?= htmlspecialchars((string) ($stat['primary_text_en'] ?? ''), ENT_QUOTES, 'UTF-8') ?>"<?= admin_lang_placeholder_attr('en') ?>>
             </label>
+            <?php admin_lang_pane_end(); ?>
           </div>
 
           <div class="admin-form-row admin-form-row--split">
-            <label>Secundaire tekst (NL)*
-              <input type="text" name="secondary_text_nl" maxlength="150" required value="<?= htmlspecialchars((string) $stat['secondary_text_nl'], ENT_QUOTES, 'UTF-8') ?>">
+            <?php admin_lang_pane_start('nl'); ?>
+            <label>Secundaire tekst*
+              <input type="text" name="secondary_text_nl" maxlength="150" <?= admin_lang_required('nl') ?> value="<?= htmlspecialchars((string) $stat['secondary_text_nl'], ENT_QUOTES, 'UTF-8') ?>">
             </label>
-            <label>Secundaire tekst (EN)
-              <input type="text" name="secondary_text_en" maxlength="150" value="<?= htmlspecialchars((string) ($stat['secondary_text_en'] ?? ''), ENT_QUOTES, 'UTF-8') ?>" placeholder="Leeg = zelfde als NL">
+            <?php admin_lang_pane_end(); ?>
+            <?php admin_lang_pane_start('en'); ?>
+            <label>Secundaire tekst
+              <input type="text" name="secondary_text_en" maxlength="150" value="<?= htmlspecialchars((string) ($stat['secondary_text_en'] ?? ''), ENT_QUOTES, 'UTF-8') ?>"<?= admin_lang_placeholder_attr('en') ?>>
             </label>
+            <?php admin_lang_pane_end(); ?>
           </div>
 
           <label class="admin-checkbox-label">
@@ -414,22 +462,31 @@ function homepageHeroValue(array $values, string $key): string
         <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
         <input type="hidden" name="hero_id" value="<?= $heroId ?>">
 
+        <?php admin_lang_tabs(); ?>
         <div class="admin-form-row admin-form-row--split">
-          <label>Primaire tekst (NL)*
-            <input type="text" name="primary_text_nl" maxlength="100" required>
+          <?php admin_lang_pane_start('nl'); ?>
+          <label>Primaire tekst*
+            <input type="text" name="primary_text_nl" maxlength="100" <?= admin_lang_required('nl') ?>>
           </label>
-          <label>Primaire tekst (EN)
-            <input type="text" name="primary_text_en" maxlength="100" placeholder="Leeg = zelfde als NL">
+          <?php admin_lang_pane_end(); ?>
+          <?php admin_lang_pane_start('en'); ?>
+          <label>Primaire tekst
+            <input type="text" name="primary_text_en" maxlength="100"<?= admin_lang_placeholder_attr('en') ?>>
           </label>
+          <?php admin_lang_pane_end(); ?>
         </div>
 
         <div class="admin-form-row admin-form-row--split">
-          <label>Secundaire tekst (NL)*
-            <input type="text" name="secondary_text_nl" maxlength="150" required>
+          <?php admin_lang_pane_start('nl'); ?>
+          <label>Secundaire tekst*
+            <input type="text" name="secondary_text_nl" maxlength="150" <?= admin_lang_required('nl') ?>>
           </label>
-          <label>Secundaire tekst (EN)
-            <input type="text" name="secondary_text_en" maxlength="150" placeholder="Leeg = zelfde als NL">
+          <?php admin_lang_pane_end(); ?>
+          <?php admin_lang_pane_start('en'); ?>
+          <label>Secundaire tekst
+            <input type="text" name="secondary_text_en" maxlength="150"<?= admin_lang_placeholder_attr('en') ?>>
           </label>
+          <?php admin_lang_pane_end(); ?>
         </div>
 
         <button type="submit">Statistiek toevoegen</button>
@@ -441,5 +498,6 @@ function homepageHeroValue(array $values, string $key): string
 </main>
 <?php save_bar(); ?>
 <?php save_bar_script(); ?>
+<?php admin_lang_tabs_script(); ?>
 </body>
 </html>

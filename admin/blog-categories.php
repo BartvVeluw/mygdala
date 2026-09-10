@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../vendor/autoload.php';
 
+require_once __DIR__ . '/_language_fields.php';
+
 use App\Repository\BlogCategoryRepository;
 use App\Repository\BlogPostRepository;
 use App\Service\AdminAuth;
@@ -99,13 +101,18 @@ unset($_SESSION['admin_blog_taxonomy_flash'], $_SESSION['admin_blog_taxonomy_err
         <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
         <input type="hidden" name="id" value="<?= $categoryId ?>">
 
+        <?php admin_lang_tabs(); ?>
         <div class="admin-form-row admin-form-row--split">
-          <label>Naam (NL)*
-            <input type="text" name="name" maxlength="150" required value="<?= $h((string) $category['name']) ?>">
+          <?php admin_lang_pane_start('nl'); ?>
+          <label>Naam*
+            <input type="text" name="name" maxlength="150" <?= admin_lang_required('nl') ?> value="<?= $h((string) $category['name']) ?>">
           </label>
-          <label>Naam (EN)
-            <input type="text" name="name_en" maxlength="150" value="<?= $h((string) ($category['name_en'] ?? '')) ?>" placeholder="Leeg = Nederlandse naam">
+          <?php admin_lang_pane_end(); ?>
+          <?php admin_lang_pane_start('en'); ?>
+          <label>Naam
+            <input type="text" name="name_en" maxlength="150" value="<?= $h((string) ($category['name_en'] ?? '')) ?>"<?= admin_lang_placeholder_attr('en') ?>>
           </label>
+          <?php admin_lang_pane_end(); ?>
         </div>
 
         <div class="admin-form-row admin-form-row--split">
@@ -118,12 +125,16 @@ unset($_SESSION['admin_blog_taxonomy_flash'], $_SESSION['admin_blog_taxonomy_err
         </div>
 
         <div class="admin-form-row admin-form-row--split">
-          <label>Korte omschrijving (NL)
+          <?php admin_lang_pane_start('nl'); ?>
+          <label>Korte omschrijving
             <textarea name="description" rows="2" maxlength="500"><?= $h((string) ($category['description'] ?? '')) ?></textarea>
           </label>
-          <label>Korte omschrijving (EN)
-            <textarea name="description_en" rows="2" maxlength="500" placeholder="Leeg = Nederlandse tekst"><?= $h((string) ($category['description_en'] ?? '')) ?></textarea>
+          <?php admin_lang_pane_end(); ?>
+          <?php admin_lang_pane_start('en'); ?>
+          <label>Korte omschrijving
+            <textarea name="description_en" rows="2" maxlength="500"<?= admin_lang_placeholder_attr('en') ?>><?= $h((string) ($category['description_en'] ?? '')) ?></textarea>
           </label>
+          <?php admin_lang_pane_end(); ?>
         </div>
         <p class="admin-text-muted">De omschrijving staat boven het categorie-archief en wordt gebruikt als meta description van die pagina.</p>
 
@@ -165,5 +176,6 @@ unset($_SESSION['admin_blog_taxonomy_flash'], $_SESSION['admin_blog_taxonomy_err
     </form>
   </section>
 </main>
+<?php admin_lang_tabs_script(); ?>
 </body>
 </html>

@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../vendor/autoload.php';
 
+require_once __DIR__ . '/_language_fields.php';
+
 use App\Repository\CollectionRepository;
 use App\Repository\ProductRepository;
 use App\Repository\ProductVariantRepository;
@@ -190,13 +192,18 @@ require __DIR__ . '/_richtext_field.php';
     <section class="admin-card">
       <h2>Basisgegevens</h2>
 
+      <?php admin_lang_tabs(); ?>
       <div class="admin-form-row admin-form-row--split">
-        <label>Naam (NL)*
-          <input type="text" name="name" maxlength="150" required data-slug-source value="<?= $h(collectionFieldValue($old, $collection, 'name')) ?>">
+        <?php admin_lang_pane_start('nl'); ?>
+        <label>Naam*
+          <input type="text" name="name" maxlength="150" <?= admin_lang_required('nl') ?> data-slug-source value="<?= $h(collectionFieldValue($old, $collection, 'name')) ?>">
         </label>
-        <label>Naam (EN)
-          <input type="text" name="name_en" maxlength="150" value="<?= $h(collectionFieldValue($old, $collection, 'name_en')) ?>" placeholder="Leeg = zelfde als NL">
+        <?php admin_lang_pane_end(); ?>
+        <?php admin_lang_pane_start('en'); ?>
+        <label>Naam
+          <input type="text" name="name_en" maxlength="150" value="<?= $h(collectionFieldValue($old, $collection, 'name_en')) ?>"<?= admin_lang_placeholder_attr('en') ?>>
         </label>
+        <?php admin_lang_pane_end(); ?>
       </div>
 
       <div class="admin-form-row">
@@ -391,5 +398,6 @@ require __DIR__ . '/_richtext_field.php';
     </section>
   <?php endif; ?>
 </main>
+<?php admin_lang_tabs_script(); ?>
 </body>
 </html>

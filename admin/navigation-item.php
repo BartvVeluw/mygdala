@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../vendor/autoload.php';
 
+require_once __DIR__ . '/_language_fields.php';
+
 use App\Service\AdminAuth;
 use App\Service\Csrf;
 use App\Service\RouteRegistry;
@@ -142,13 +144,18 @@ $pageTitle = $isNew ? ($isChild ? 'Nieuw submenu-item' : 'Nieuw menu-item') : (s
 
     <section class="admin-card">
       <h2>Label</h2>
+      <?php admin_lang_tabs(); ?>
       <div class="admin-form-row admin-form-row--split">
-        <label>Label (NL)*
-          <input type="text" name="label_nl" maxlength="100" required value="<?= $h(navFieldValue($old, $item, 'label_nl')) ?>">
+        <?php admin_lang_pane_start('nl'); ?>
+        <label>Label*
+          <input type="text" name="label_nl" maxlength="100" <?= admin_lang_required('nl') ?> value="<?= $h(navFieldValue($old, $item, 'label_nl')) ?>">
         </label>
-        <label>Label (EN)*
+        <?php admin_lang_pane_end(); ?>
+        <?php admin_lang_pane_start('en'); ?>
+        <label>Label*
           <input type="text" name="label_en" maxlength="100" required value="<?= $h(navFieldValue($old, $item, 'label_en')) ?>">
         </label>
+        <?php admin_lang_pane_end(); ?>
       </div>
       <label class="admin-checkbox-label">
         <input type="checkbox" name="is_visible" value="1" <?= $isVisible ? 'checked' : '' ?>>
@@ -228,5 +235,6 @@ $pageTitle = $isNew ? ($isChild ? 'Nieuw submenu-item' : 'Nieuw menu-item') : (s
     </section>
   <?php endif; ?>
 </main>
+<?php admin_lang_tabs_script(); ?>
 </body>
 </html>

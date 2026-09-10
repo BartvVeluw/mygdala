@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../vendor/autoload.php';
 
+require_once __DIR__ . '/_language_fields.php';
+
 use App\Repository\FormRepository;
 use App\Service\AdminAuth;
 use App\Service\Csrf;
@@ -123,31 +125,44 @@ $v = static fn (array $values, string $key): string => htmlspecialchars((string)
         </select>
       </label>
 
+      <?php admin_lang_tabs(); ?>
       <div class="admin-form-row admin-form-row--split">
-        <label>Label (NL)*
-          <input type="text" name="label_nl" maxlength="200" required value="<?= $v($values, 'label_nl') ?>">
+        <?php admin_lang_pane_start('nl'); ?>
+        <label>Label*
+          <input type="text" name="label_nl" maxlength="200" <?= admin_lang_required('nl') ?> value="<?= $v($values, 'label_nl') ?>">
         </label>
-        <label>Label (EN)
-          <input type="text" name="label_en" maxlength="200" value="<?= $v($values, 'label_en') ?>" placeholder="Leeg = zelfde als NL">
+        <?php admin_lang_pane_end(); ?>
+        <?php admin_lang_pane_start('en'); ?>
+        <label>Label
+          <input type="text" name="label_en" maxlength="200" value="<?= $v($values, 'label_en') ?>"<?= admin_lang_placeholder_attr('en') ?>>
         </label>
+        <?php admin_lang_pane_end(); ?>
       </div>
 
       <div class="admin-form-row admin-form-row--split">
-        <label>Tussenkopje / uitleg (NL)
+        <?php admin_lang_pane_start('nl'); ?>
+        <label>Tussenkopje / uitleg
           <input type="text" name="help_text_nl" maxlength="500" value="<?= $v($values, 'help_text_nl') ?>">
         </label>
-        <label>Tussenkopje / uitleg (EN)
-          <input type="text" name="help_text_en" maxlength="500" value="<?= $v($values, 'help_text_en') ?>" placeholder="Leeg = zelfde als NL">
+        <?php admin_lang_pane_end(); ?>
+        <?php admin_lang_pane_start('en'); ?>
+        <label>Tussenkopje / uitleg
+          <input type="text" name="help_text_en" maxlength="500" value="<?= $v($values, 'help_text_en') ?>"<?= admin_lang_placeholder_attr('en') ?>>
         </label>
+        <?php admin_lang_pane_end(); ?>
       </div>
 
       <div class="admin-form-row admin-form-row--split">
-        <label>Placeholder (NL)
+        <?php admin_lang_pane_start('nl'); ?>
+        <label>Placeholder
           <input type="text" name="placeholder_nl" maxlength="200" value="<?= $v($values, 'placeholder_nl') ?>">
         </label>
-        <label>Placeholder (EN)
-          <input type="text" name="placeholder_en" maxlength="200" value="<?= $v($values, 'placeholder_en') ?>" placeholder="Leeg = zelfde als NL">
+        <?php admin_lang_pane_end(); ?>
+        <?php admin_lang_pane_start('en'); ?>
+        <label>Placeholder
+          <input type="text" name="placeholder_en" maxlength="200" value="<?= $v($values, 'placeholder_en') ?>"<?= admin_lang_placeholder_attr('en') ?>>
         </label>
+        <?php admin_lang_pane_end(); ?>
       </div>
       <p class="admin-text-muted">Een placeholder heeft alleen zin bij een invulveld; bij een keuzelijst, keuzerondjes of een vinkje wordt hij genegeerd.</p>
 
@@ -190,5 +205,6 @@ $v = static fn (array $values, string $key): string => htmlspecialchars((string)
     </form>
   </section>
 </main>
+<?php admin_lang_tabs_script(); ?>
 </body>
 </html>

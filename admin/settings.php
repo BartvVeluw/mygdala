@@ -11,6 +11,7 @@ use App\Service\Media\MediaService;
 use App\Service\SiteSettings;
 
 require_once __DIR__ . '/_media_picker.php';
+require_once __DIR__ . '/_language_fields.php';
 require_once __DIR__ . '/_admin_tabs.php';
 
 AdminAuth::requireLogin();
@@ -193,22 +194,31 @@ function brandingImageField(
         </label>
       </div>
 
+      <?php admin_lang_tabs(); ?>
       <div class="admin-form-row admin-form-row--split">
-        <label>Plaats/locatie (NL)*
-          <input type="text" name="city_nl" maxlength="150" required value="<?= settingValue($values, 'city_nl') ?>">
+        <?php admin_lang_pane_start('nl'); ?>
+        <label>Plaats/locatie*
+          <input type="text" name="city_nl" maxlength="150" <?= admin_lang_required('nl') ?> value="<?= settingValue($values, 'city_nl') ?>">
         </label>
-        <label>Plaats/locatie (EN)*
+        <?php admin_lang_pane_end(); ?>
+        <?php admin_lang_pane_start('en'); ?>
+        <label>Plaats/locatie*
           <input type="text" name="city_en" maxlength="150" required value="<?= settingValue($values, 'city_en') ?>">
         </label>
+        <?php admin_lang_pane_end(); ?>
       </div>
 
       <div class="admin-form-row admin-form-row--split">
-        <label>Footer-omschrijving (NL)*
-          <textarea name="footer_description_nl" maxlength="500" required rows="3"><?= settingValue($values, 'footer_description_nl') ?></textarea>
+        <?php admin_lang_pane_start('nl'); ?>
+        <label>Footer-omschrijving*
+          <textarea name="footer_description_nl" maxlength="500" <?= admin_lang_required('nl') ?> rows="3"><?= settingValue($values, 'footer_description_nl') ?></textarea>
         </label>
-        <label>Footer-omschrijving (EN)*
+        <?php admin_lang_pane_end(); ?>
+        <?php admin_lang_pane_start('en'); ?>
+        <label>Footer-omschrijving*
           <textarea name="footer_description_en" maxlength="500" required rows="3"><?= settingValue($values, 'footer_description_en') ?></textarea>
         </label>
+        <?php admin_lang_pane_end(); ?>
       </div>
 
       <button type="submit">Opslaan</button>
@@ -266,7 +276,7 @@ function brandingImageField(
         <p class="admin-text-muted"><?= $h(\App\Service\Language\AdminTranslator::trans('language.secondary_help')) ?></p>
       </div>
 
-      <p class="admin-alert admin-alert--info"><?= $h(\App\Service\Language\AdminTranslator::trans('language.disabled_preserved')) ?></p>
+      <p class="admin-text-muted admin-lang-note"><?= $h(\App\Service\Language\AdminTranslator::trans('language.disabled_preserved')) ?></p>
 
       <button type="submit"><?= $h(\App\Service\Language\AdminTranslator::trans('common.save')) ?></button>
     </form>
@@ -507,5 +517,6 @@ function brandingImageField(
 <?php media_picker_modal(); ?>
 <?php admin_tabs_script(); ?>
 <?php media_picker_script(); ?>
+<?php admin_lang_tabs_script(); ?>
 </body>
 </html>

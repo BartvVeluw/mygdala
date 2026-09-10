@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../vendor/autoload.php';
 require_once __DIR__ . '/_save_bar.php';
+require_once __DIR__ . '/_language_fields.php';
 
 use App\Repository\ContactFormRepository;
 use App\Repository\FormRepository;
@@ -120,13 +121,18 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
       </label>
       <p class="admin-text-muted">Zonder formulier — of met een formulier dat uit staat of nog geen velden heeft — blijven alleen de kop en de kaart "Direct contact" staan.</p>
 
+      <?php admin_lang_tabs(); ?>
       <div class="admin-form-row admin-form-row--split">
-        <label>Kop boven het formulier (NL)*
-          <input type="text" name="title_nl" maxlength="255" required value="<?= $h((string) ($values['title_nl'] ?? '')) ?>">
+        <?php admin_lang_pane_start('nl'); ?>
+        <label>Kop boven het formulier*
+          <input type="text" name="title_nl" maxlength="255" <?= admin_lang_required('nl') ?> value="<?= $h((string) ($values['title_nl'] ?? '')) ?>">
         </label>
-        <label>Kop boven het formulier (EN)
-          <input type="text" name="title_en" maxlength="255" value="<?= $h((string) ($values['title_en'] ?? '')) ?>" placeholder="Leeg = zelfde als NL">
+        <?php admin_lang_pane_end(); ?>
+        <?php admin_lang_pane_start('en'); ?>
+        <label>Kop boven het formulier
+          <input type="text" name="title_en" maxlength="255" value="<?= $h((string) ($values['title_en'] ?? '')) ?>"<?= admin_lang_placeholder_attr('en') ?>>
         </label>
+        <?php admin_lang_pane_end(); ?>
       </div>
 
       <label class="admin-checkbox-label">
@@ -146,5 +152,6 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
 </main>
 <?php save_bar(); ?>
 <?php save_bar_script(); ?>
+<?php admin_lang_tabs_script(); ?>
 </body>
 </html>

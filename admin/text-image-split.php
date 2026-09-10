@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../vendor/autoload.php';
 require_once __DIR__ . '/_save_bar.php';
+require_once __DIR__ . '/_language_fields.php';
 
 use App\Service\AdminAuth;
 use App\Service\Csrf;
@@ -160,33 +161,46 @@ function tisValue(array $values, string $key): string
         </label>
       </div>
 
+      <?php admin_lang_tabs(); ?>
       <div class="admin-form-row admin-form-row--split">
-        <label>Eyebrow (NL)
+        <?php admin_lang_pane_start('nl'); ?>
+        <label>Eyebrow
           <input type="text" name="eyebrow_nl" maxlength="150" value="<?= tisValue($sectionValues, 'eyebrow_nl') ?>" placeholder="Optioneel">
         </label>
-        <label>Eyebrow (EN)
-          <input type="text" name="eyebrow_en" maxlength="150" value="<?= tisValue($sectionValues, 'eyebrow_en') ?>" placeholder="Leeg = zelfde als NL">
+        <?php admin_lang_pane_end(); ?>
+        <?php admin_lang_pane_start('en'); ?>
+        <label>Eyebrow
+          <input type="text" name="eyebrow_en" maxlength="150" value="<?= tisValue($sectionValues, 'eyebrow_en') ?>"<?= admin_lang_placeholder_attr('en') ?>>
         </label>
+        <?php admin_lang_pane_end(); ?>
       </div>
 
       <div class="admin-form-row admin-form-row--split">
-        <label>Titel / H2 (NL)
+        <?php admin_lang_pane_start('nl'); ?>
+        <label>Titel / H2
           <input type="text" name="title_nl" maxlength="255" value="<?= tisValue($sectionValues, 'title_nl') ?>" placeholder="Optioneel">
         </label>
-        <label>Titel / H2 (EN)
-          <input type="text" name="title_en" maxlength="255" value="<?= tisValue($sectionValues, 'title_en') ?>" placeholder="Leeg = zelfde als NL">
+        <?php admin_lang_pane_end(); ?>
+        <?php admin_lang_pane_start('en'); ?>
+        <label>Titel / H2
+          <input type="text" name="title_en" maxlength="255" value="<?= tisValue($sectionValues, 'title_en') ?>"<?= admin_lang_placeholder_attr('en') ?>>
         </label>
+        <?php admin_lang_pane_end(); ?>
       </div>
 
       <p class="admin-text-muted">Als er geen titel is ingevuld, krijgt de eerste alinea automatisch de grotere "lead"-stijl (zoals bij het huidige introblok).</p>
 
       <div class="admin-form-row admin-form-row--split">
-        <label>Knoptekst (NL)
+        <?php admin_lang_pane_start('nl'); ?>
+        <label>Knoptekst
           <input type="text" name="button_label_nl" maxlength="150" value="<?= tisValue($sectionValues, 'button_label_nl') ?>" placeholder="Optioneel">
         </label>
-        <label>Knoptekst (EN)
-          <input type="text" name="button_label_en" maxlength="150" value="<?= tisValue($sectionValues, 'button_label_en') ?>" placeholder="Leeg = zelfde als NL">
+        <?php admin_lang_pane_end(); ?>
+        <?php admin_lang_pane_start('en'); ?>
+        <label>Knoptekst
+          <input type="text" name="button_label_en" maxlength="150" value="<?= tisValue($sectionValues, 'button_label_en') ?>"<?= admin_lang_placeholder_attr('en') ?>>
         </label>
+        <?php admin_lang_pane_end(); ?>
       </div>
       <div class="admin-form-row">
         <label>Knop-URL
@@ -222,13 +236,18 @@ function tisValue(array $values, string $key): string
           <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
           <input type="hidden" name="paragraph_id" value="<?= $paragraphId ?>">
 
+          <?php admin_lang_tabs(); ?>
           <div class="admin-form-row admin-form-row--split">
-            <label>Tekst (NL)*
-              <textarea name="content_nl" maxlength="1000" rows="3" required><?= htmlspecialchars((string) $paragraph['content_nl'], ENT_QUOTES, 'UTF-8') ?></textarea>
+            <?php admin_lang_pane_start('nl'); ?>
+            <label>Tekst*
+              <textarea name="content_nl" maxlength="1000" rows="3" <?= admin_lang_required('nl') ?>><?= htmlspecialchars((string) $paragraph['content_nl'], ENT_QUOTES, 'UTF-8') ?></textarea>
             </label>
-            <label>Tekst (EN)
-              <textarea name="content_en" maxlength="1000" rows="3" placeholder="Leeg = zelfde als NL"><?= htmlspecialchars((string) ($paragraph['content_en'] ?? ''), ENT_QUOTES, 'UTF-8') ?></textarea>
+            <?php admin_lang_pane_end(); ?>
+            <?php admin_lang_pane_start('en'); ?>
+            <label>Tekst
+              <textarea name="content_en" maxlength="1000" rows="3"<?= admin_lang_placeholder_attr('en') ?>><?= htmlspecialchars((string) ($paragraph['content_en'] ?? ''), ENT_QUOTES, 'UTF-8') ?></textarea>
             </label>
+            <?php admin_lang_pane_end(); ?>
           </div>
 
           <button type="submit">Opslaan</button>
@@ -263,13 +282,18 @@ function tisValue(array $values, string $key): string
       <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
       <input type="hidden" name="section_id" value="<?= $splitId ?>">
 
+      <?php admin_lang_tabs(); ?>
       <div class="admin-form-row admin-form-row--split">
-        <label>Tekst (NL)*
-          <textarea name="content_nl" maxlength="1000" rows="3" required></textarea>
+        <?php admin_lang_pane_start('nl'); ?>
+        <label>Tekst*
+          <textarea name="content_nl" maxlength="1000" rows="3" <?= admin_lang_required('nl') ?>></textarea>
         </label>
-        <label>Tekst (EN)
-          <textarea name="content_en" maxlength="1000" rows="3" placeholder="Leeg = zelfde als NL"></textarea>
+        <?php admin_lang_pane_end(); ?>
+        <?php admin_lang_pane_start('en'); ?>
+        <label>Tekst
+          <textarea name="content_en" maxlength="1000" rows="3"<?= admin_lang_placeholder_attr('en') ?>></textarea>
         </label>
+        <?php admin_lang_pane_end(); ?>
       </div>
 
       <button type="submit">Alinea toevoegen</button>
@@ -299,13 +323,18 @@ function tisValue(array $values, string $key): string
             <?php media_picker_field('media_id', MediaService::find((int) ($image['media_id'] ?? 0)), 'Afbeelding', 'Kies dezelfde afbeelding gerust op meerdere plekken — hij wordt maar één keer opgeslagen.', false); ?>
           </div>
 
+          <?php admin_lang_tabs(); ?>
           <div class="admin-form-row admin-form-row--split">
-            <label>Alt-tekst (NL)
+            <?php admin_lang_pane_start('nl'); ?>
+            <label>Alt-tekst
               <input type="text" name="alt_nl" maxlength="255" value="<?= htmlspecialchars((string) ($image['alt_nl'] ?? ''), ENT_QUOTES, 'UTF-8') ?>" placeholder="Leeg = alt-tekst uit de mediabibliotheek">
             </label>
-            <label>Alt-tekst (EN)
-              <input type="text" name="alt_en" maxlength="255" value="<?= htmlspecialchars((string) ($image['alt_en'] ?? ''), ENT_QUOTES, 'UTF-8') ?>" placeholder="Leeg = zelfde als NL">
+            <?php admin_lang_pane_end(); ?>
+            <?php admin_lang_pane_start('en'); ?>
+            <label>Alt-tekst
+              <input type="text" name="alt_en" maxlength="255" value="<?= htmlspecialchars((string) ($image['alt_en'] ?? ''), ENT_QUOTES, 'UTF-8') ?>"<?= admin_lang_placeholder_attr('en') ?>>
             </label>
+            <?php admin_lang_pane_end(); ?>
           </div>
 
           <button type="submit">Opslaan</button>
@@ -344,13 +373,18 @@ function tisValue(array $values, string $key): string
         <?php media_picker_field('media_id', null, 'Afbeelding*', 'Kies er een uit de bibliotheek, of upload een nieuwe in het venster dat opent.', false); ?>
       </div>
 
+      <?php admin_lang_tabs(); ?>
       <div class="admin-form-row admin-form-row--split">
-        <label>Alt-tekst (NL)
+        <?php admin_lang_pane_start('nl'); ?>
+        <label>Alt-tekst
           <input type="text" name="alt_nl" maxlength="255" placeholder="Leeg = alt-tekst uit de mediabibliotheek">
         </label>
-        <label>Alt-tekst (EN)
-          <input type="text" name="alt_en" maxlength="255" placeholder="Leeg = zelfde als NL">
+        <?php admin_lang_pane_end(); ?>
+        <?php admin_lang_pane_start('en'); ?>
+        <label>Alt-tekst
+          <input type="text" name="alt_en" maxlength="255"<?= admin_lang_placeholder_attr('en') ?>>
         </label>
+        <?php admin_lang_pane_end(); ?>
       </div>
 
       <button type="submit">Afbeelding toevoegen</button>
@@ -361,5 +395,6 @@ function tisValue(array $values, string $key): string
 <?php media_picker_modal(); ?>
 <?php media_picker_script(); ?>
 <?php save_bar_script(); ?>
+<?php admin_lang_tabs_script(); ?>
 </body>
 </html>

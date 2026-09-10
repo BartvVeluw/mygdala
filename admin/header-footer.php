@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../vendor/autoload.php';
 
+require_once __DIR__ . '/_language_fields.php';
+
 use App\Repository\PageRepository;
 use App\Service\AdminAuth;
 use App\Service\Csrf;
@@ -119,13 +121,18 @@ $ctaWarning = $old === null ? HeaderCta::adminWarning() : null;
         Knop tonen in de header
       </label>
 
+      <?php admin_lang_tabs(); ?>
       <div class="admin-form-row admin-form-row--split">
-        <label>Tekst (NL)
+        <?php admin_lang_pane_start('nl'); ?>
+        <label>Tekst
           <input type="text" name="header_cta_label_nl" maxlength="100" value="<?= $h($value('header_cta_label_nl')) ?>">
         </label>
-        <label>Tekst (EN)
+        <?php admin_lang_pane_end(); ?>
+        <?php admin_lang_pane_start('en'); ?>
+        <label>Tekst
           <input type="text" name="header_cta_label_en" maxlength="100" value="<?= $h($value('header_cta_label_en')) ?>">
         </label>
+        <?php admin_lang_pane_end(); ?>
       </div>
       <p class="admin-text-muted">Laat de Engelse tekst leeg om de Nederlandse te gebruiken. Houd het kort: een lange tekst duwt de rest van de header opzij.</p>
 
@@ -190,12 +197,16 @@ $ctaWarning = $old === null ? HeaderCta::adminWarning() : null;
       </label>
 
       <div class="admin-form-row admin-form-row--split">
-        <label>Slotregel (NL)
+        <?php admin_lang_pane_start('nl'); ?>
+        <label>Slotregel
           <input type="text" name="footer_slogan_nl" maxlength="200" value="<?= $h($value('footer_slogan_nl')) ?>">
         </label>
-        <label>Slotregel (EN)
+        <?php admin_lang_pane_end(); ?>
+        <?php admin_lang_pane_start('en'); ?>
+        <label>Slotregel
           <input type="text" name="footer_slogan_en" maxlength="200" value="<?= $h($value('footer_slogan_en')) ?>">
         </label>
+        <?php admin_lang_pane_end(); ?>
       </div>
       <p class="admin-text-muted">Laat de Engelse tekst leeg om de Nederlandse te gebruiken.</p>
     </section>
@@ -218,5 +229,6 @@ $ctaWarning = $old === null ? HeaderCta::adminWarning() : null;
     </section>
   </form>
 </main>
+<?php admin_lang_tabs_script(); ?>
 </body>
 </html>

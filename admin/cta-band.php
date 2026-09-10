@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../vendor/autoload.php';
 require_once __DIR__ . '/_save_bar.php';
+require_once __DIR__ . '/_language_fields.php';
 
 use App\Service\AdminAuth;
 use App\Service\Csrf;
@@ -123,42 +124,59 @@ function ctaBandValue(array $values, string $key): string
       <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
       <input type="hidden" name="section" value="<?= htmlspecialchars($sectionParam, ENT_QUOTES, 'UTF-8') ?>">
 
+      <?php admin_lang_tabs(); ?>
       <div class="admin-form-row admin-form-row--split">
-        <label>Eyebrow (NL)*
-          <input type="text" name="eyebrow_nl" maxlength="150" required value="<?= ctaBandValue($values, 'eyebrow_nl') ?>">
+        <?php admin_lang_pane_start('nl'); ?>
+        <label>Eyebrow*
+          <input type="text" name="eyebrow_nl" maxlength="150" <?= admin_lang_required('nl') ?> value="<?= ctaBandValue($values, 'eyebrow_nl') ?>">
         </label>
-        <label>Eyebrow (EN)
-          <input type="text" name="eyebrow_en" maxlength="150" value="<?= ctaBandValue($values, 'eyebrow_en') ?>" placeholder="Leeg = zelfde als NL">
+        <?php admin_lang_pane_end(); ?>
+        <?php admin_lang_pane_start('en'); ?>
+        <label>Eyebrow
+          <input type="text" name="eyebrow_en" maxlength="150" value="<?= ctaBandValue($values, 'eyebrow_en') ?>"<?= admin_lang_placeholder_attr('en') ?>>
         </label>
+        <?php admin_lang_pane_end(); ?>
       </div>
 
       <div class="admin-form-row admin-form-row--split">
-        <label>Titel / H2 (NL)*
-          <input type="text" name="title_nl" maxlength="255" required value="<?= ctaBandValue($values, 'title_nl') ?>">
+        <?php admin_lang_pane_start('nl'); ?>
+        <label>Titel / H2*
+          <input type="text" name="title_nl" maxlength="255" <?= admin_lang_required('nl') ?> value="<?= ctaBandValue($values, 'title_nl') ?>">
         </label>
-        <label>Titel / H2 (EN)
-          <input type="text" name="title_en" maxlength="255" value="<?= ctaBandValue($values, 'title_en') ?>" placeholder="Leeg = zelfde als NL">
+        <?php admin_lang_pane_end(); ?>
+        <?php admin_lang_pane_start('en'); ?>
+        <label>Titel / H2
+          <input type="text" name="title_en" maxlength="255" value="<?= ctaBandValue($values, 'title_en') ?>"<?= admin_lang_placeholder_attr('en') ?>>
         </label>
+        <?php admin_lang_pane_end(); ?>
       </div>
 
       <div class="admin-form-row admin-form-row--split">
-        <label>Introtekst / lead (NL)
+        <?php admin_lang_pane_start('nl'); ?>
+        <label>Introtekst / lead
           <textarea name="lead_nl" maxlength="500" rows="3"><?= ctaBandValue($values, 'lead_nl') ?></textarea>
         </label>
-        <label>Introtekst / lead (EN)
-          <textarea name="lead_en" maxlength="500" rows="3" placeholder="Leeg = zelfde als NL"><?= ctaBandValue($values, 'lead_en') ?></textarea>
+        <?php admin_lang_pane_end(); ?>
+        <?php admin_lang_pane_start('en'); ?>
+        <label>Introtekst / lead
+          <textarea name="lead_en" maxlength="500" rows="3"<?= admin_lang_placeholder_attr('en') ?>><?= ctaBandValue($values, 'lead_en') ?></textarea>
         </label>
+        <?php admin_lang_pane_end(); ?>
       </div>
       <p class="admin-text-muted">Leeg laten (beide talen) toont geen introtekst onder de titel.</p>
 
       <h2 style="margin-top:2rem;">Primaire knop</h2>
       <div class="admin-form-row admin-form-row--split">
-        <label>Label (NL)*
-          <input type="text" name="primary_label_nl" maxlength="150" required value="<?= ctaBandValue($values, 'primary_label_nl') ?>">
+        <?php admin_lang_pane_start('nl'); ?>
+        <label>Label*
+          <input type="text" name="primary_label_nl" maxlength="150" <?= admin_lang_required('nl') ?> value="<?= ctaBandValue($values, 'primary_label_nl') ?>">
         </label>
-        <label>Label (EN)
-          <input type="text" name="primary_label_en" maxlength="150" value="<?= ctaBandValue($values, 'primary_label_en') ?>" placeholder="Leeg = zelfde als NL">
+        <?php admin_lang_pane_end(); ?>
+        <?php admin_lang_pane_start('en'); ?>
+        <label>Label
+          <input type="text" name="primary_label_en" maxlength="150" value="<?= ctaBandValue($values, 'primary_label_en') ?>"<?= admin_lang_placeholder_attr('en') ?>>
         </label>
+        <?php admin_lang_pane_end(); ?>
       </div>
       <div class="admin-form-row">
         <label>URL*
@@ -168,12 +186,16 @@ function ctaBandValue(array $values, string $key): string
 
       <h2 style="margin-top:2rem;">Secundaire knop (optioneel)</h2>
       <div class="admin-form-row admin-form-row--split">
-        <label>Label (NL)
+        <?php admin_lang_pane_start('nl'); ?>
+        <label>Label
           <input type="text" name="secondary_label_nl" maxlength="150" value="<?= ctaBandValue($values, 'secondary_label_nl') ?>">
         </label>
-        <label>Label (EN)
-          <input type="text" name="secondary_label_en" maxlength="150" value="<?= ctaBandValue($values, 'secondary_label_en') ?>" placeholder="Leeg = zelfde als NL">
+        <?php admin_lang_pane_end(); ?>
+        <?php admin_lang_pane_start('en'); ?>
+        <label>Label
+          <input type="text" name="secondary_label_en" maxlength="150" value="<?= ctaBandValue($values, 'secondary_label_en') ?>"<?= admin_lang_placeholder_attr('en') ?>>
         </label>
+        <?php admin_lang_pane_end(); ?>
       </div>
       <div class="admin-form-row">
         <label>URL
@@ -193,5 +215,6 @@ function ctaBandValue(array $values, string $key): string
 </main>
 <?php save_bar(); ?>
 <?php save_bar_script(); ?>
+<?php admin_lang_tabs_script(); ?>
 </body>
 </html>

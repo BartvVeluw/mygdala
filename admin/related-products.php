@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../vendor/autoload.php';
 
+require_once __DIR__ . '/_language_fields.php';
+
 use App\Repository\CollectionRepository;
 use App\Service\AdminAuth;
 use App\Service\Csrf;
@@ -110,13 +112,18 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
           Gerelateerde producten tonen (uitgevinkt = nergens op de site, ongeacht de instellingen hieronder)
         </label>
 
+        <?php admin_lang_tabs(); ?>
         <div class="admin-form-row admin-form-row--split">
-          <label>Titel (NL)*
-            <input type="text" name="heading_nl" maxlength="255" required value="<?= $h((string) $globals['heading_nl']) ?>">
+          <?php admin_lang_pane_start('nl'); ?>
+          <label>Titel*
+            <input type="text" name="heading_nl" maxlength="255" <?= admin_lang_required('nl') ?> value="<?= $h((string) $globals['heading_nl']) ?>">
           </label>
-          <label>Titel (EN)
-            <input type="text" name="heading_en" maxlength="255" value="<?= $h((string) $globals['heading_en']) ?>" placeholder="Leeg = zelfde als NL">
+          <?php admin_lang_pane_end(); ?>
+          <?php admin_lang_pane_start('en'); ?>
+          <label>Titel
+            <input type="text" name="heading_en" maxlength="255" value="<?= $h((string) $globals['heading_en']) ?>"<?= admin_lang_placeholder_attr('en') ?>>
           </label>
+          <?php admin_lang_pane_end(); ?>
         </div>
 
         <div class="admin-form-row">
@@ -196,5 +203,6 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
     </section>
   </form>
 </main>
+<?php admin_lang_tabs_script(); ?>
 </body>
 </html>

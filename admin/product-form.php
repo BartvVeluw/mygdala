@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../vendor/autoload.php';
 
+require_once __DIR__ . '/_language_fields.php';
+
 use App\Service\AdminAuth;
 use App\Service\Csrf;
 use App\Service\Seo;
@@ -194,13 +196,18 @@ require __DIR__ . '/_richtext_field.php';
         <input type="hidden" name="id" value="<?= (int) $product['id'] ?>">
       <?php endif; ?>
 
+      <?php admin_lang_tabs(); ?>
       <div class="admin-form-row admin-form-row--split">
-        <label>Naam (NL)*
-          <input type="text" name="name" maxlength="150" required value="<?= htmlspecialchars(fieldValue($old, $product, 'name'), ENT_QUOTES, 'UTF-8') ?>">
+        <?php admin_lang_pane_start('nl'); ?>
+        <label>Naam*
+          <input type="text" name="name" maxlength="150" <?= admin_lang_required('nl') ?> value="<?= htmlspecialchars(fieldValue($old, $product, 'name'), ENT_QUOTES, 'UTF-8') ?>">
         </label>
-        <label>Naam (EN)
+        <?php admin_lang_pane_end(); ?>
+        <?php admin_lang_pane_start('en'); ?>
+        <label>Naam
           <input type="text" name="name_en" maxlength="150" value="<?= htmlspecialchars(fieldValue($old, $product, 'name_en'), ENT_QUOTES, 'UTF-8') ?>">
         </label>
+        <?php admin_lang_pane_end(); ?>
       </div>
 
       <div class="admin-form-row admin-form-row--split">
@@ -722,5 +729,6 @@ require __DIR__ . '/_richtext_field.php';
     </section>
   <?php endif; ?>
 </main>
+<?php admin_lang_tabs_script(); ?>
 </body>
 </html>

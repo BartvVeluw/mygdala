@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../vendor/autoload.php';
 require_once __DIR__ . '/_save_bar.php';
+require_once __DIR__ . '/_language_fields.php';
 
 use App\Service\AdminAuth;
 use App\Service\Csrf;
@@ -95,32 +96,45 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
       <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
       <input type="hidden" name="section" value="<?= $h($sectionParam) ?>">
 
+      <?php admin_lang_tabs(); ?>
       <div class="admin-form-row admin-form-row--split">
-        <label>Kop (NL)*
-          <input type="text" name="title_nl" maxlength="255" required value="<?= $h((string) ($values['title_nl'] ?? '')) ?>">
+        <?php admin_lang_pane_start('nl'); ?>
+        <label>Kop*
+          <input type="text" name="title_nl" maxlength="255" <?= admin_lang_required('nl') ?> value="<?= $h((string) ($values['title_nl'] ?? '')) ?>">
         </label>
-        <label>Kop (EN)
-          <input type="text" name="title_en" maxlength="255" value="<?= $h((string) ($values['title_en'] ?? '')) ?>" placeholder="Leeg = zelfde als NL">
+        <?php admin_lang_pane_end(); ?>
+        <?php admin_lang_pane_start('en'); ?>
+        <label>Kop
+          <input type="text" name="title_en" maxlength="255" value="<?= $h((string) ($values['title_en'] ?? '')) ?>"<?= admin_lang_placeholder_attr('en') ?>>
         </label>
+        <?php admin_lang_pane_end(); ?>
       </div>
 
       <div class="admin-form-row admin-form-row--split">
-        <label>Tekst (NL)
+        <?php admin_lang_pane_start('nl'); ?>
+        <label>Tekst
           <textarea name="body_nl" maxlength="600" rows="4"><?= $h((string) ($values['body_nl'] ?? '')) ?></textarea>
         </label>
-        <label>Tekst (EN)
-          <textarea name="body_en" maxlength="600" rows="4" placeholder="Leeg = zelfde als NL"><?= $h((string) ($values['body_en'] ?? '')) ?></textarea>
+        <?php admin_lang_pane_end(); ?>
+        <?php admin_lang_pane_start('en'); ?>
+        <label>Tekst
+          <textarea name="body_en" maxlength="600" rows="4"<?= admin_lang_placeholder_attr('en') ?>><?= $h((string) ($values['body_en'] ?? '')) ?></textarea>
         </label>
+        <?php admin_lang_pane_end(); ?>
       </div>
 
       <h2 style="margin-top:2rem;">Knop</h2>
       <div class="admin-form-row admin-form-row--split">
-        <label>Label (NL)
+        <?php admin_lang_pane_start('nl'); ?>
+        <label>Label
           <input type="text" name="button_label_nl" maxlength="150" value="<?= $h((string) ($values['button_label_nl'] ?? '')) ?>">
         </label>
-        <label>Label (EN)
-          <input type="text" name="button_label_en" maxlength="150" value="<?= $h((string) ($values['button_label_en'] ?? '')) ?>" placeholder="Leeg = zelfde als NL">
+        <?php admin_lang_pane_end(); ?>
+        <?php admin_lang_pane_start('en'); ?>
+        <label>Label
+          <input type="text" name="button_label_en" maxlength="150" value="<?= $h((string) ($values['button_label_en'] ?? '')) ?>"<?= admin_lang_placeholder_attr('en') ?>>
         </label>
+        <?php admin_lang_pane_end(); ?>
       </div>
       <div class="admin-form-row">
         <label>URL
@@ -140,5 +154,6 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
 </main>
 <?php save_bar(); ?>
 <?php save_bar_script(); ?>
+<?php admin_lang_tabs_script(); ?>
 </body>
 </html>

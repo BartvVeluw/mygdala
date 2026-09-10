@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../vendor/autoload.php';
 require_once __DIR__ . '/_save_bar.php';
+require_once __DIR__ . '/_language_fields.php';
 
 use App\Service\AdminAuth;
 use App\Service\Csrf;
@@ -224,47 +225,68 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
       </label>
 
       <h2 style="margin-top:2rem;">Kop (optioneel)</h2>
+      <?php admin_lang_tabs(); ?>
       <div class="admin-form-row admin-form-row--split">
-        <label>Bovenkop (NL)
+        <?php admin_lang_pane_start('nl'); ?>
+        <label>Bovenkop
           <input type="text" name="eyebrow_nl" maxlength="255" value="<?= $h((string) ($values['eyebrow_nl'] ?? '')) ?>">
         </label>
-        <label>Bovenkop (EN)
-          <input type="text" name="eyebrow_en" maxlength="255" value="<?= $h((string) ($values['eyebrow_en'] ?? '')) ?>" placeholder="Leeg = zelfde als NL">
+        <?php admin_lang_pane_end(); ?>
+        <?php admin_lang_pane_start('en'); ?>
+        <label>Bovenkop
+          <input type="text" name="eyebrow_en" maxlength="255" value="<?= $h((string) ($values['eyebrow_en'] ?? '')) ?>"<?= admin_lang_placeholder_attr('en') ?>>
         </label>
+        <?php admin_lang_pane_end(); ?>
       </div>
       <div class="admin-form-row admin-form-row--split">
-        <label>Titel (NL)
+        <?php admin_lang_pane_start('nl'); ?>
+        <label>Titel
           <input type="text" name="title_nl" maxlength="255" value="<?= $h((string) ($values['title_nl'] ?? '')) ?>">
         </label>
-        <label>Titel (EN)
-          <input type="text" name="title_en" maxlength="255" value="<?= $h((string) ($values['title_en'] ?? '')) ?>" placeholder="Leeg = zelfde als NL">
+        <?php admin_lang_pane_end(); ?>
+        <?php admin_lang_pane_start('en'); ?>
+        <label>Titel
+          <input type="text" name="title_en" maxlength="255" value="<?= $h((string) ($values['title_en'] ?? '')) ?>"<?= admin_lang_placeholder_attr('en') ?>>
         </label>
+        <?php admin_lang_pane_end(); ?>
       </div>
       <div class="admin-form-row admin-form-row--split">
-        <label>Introtekst (NL)
+        <?php admin_lang_pane_start('nl'); ?>
+        <label>Introtekst
           <textarea name="lead_nl" maxlength="600" rows="3"><?= $h((string) ($values['lead_nl'] ?? '')) ?></textarea>
         </label>
-        <label>Introtekst (EN)
-          <textarea name="lead_en" maxlength="600" rows="3" placeholder="Leeg = zelfde als NL"><?= $h((string) ($values['lead_en'] ?? '')) ?></textarea>
+        <?php admin_lang_pane_end(); ?>
+        <?php admin_lang_pane_start('en'); ?>
+        <label>Introtekst
+          <textarea name="lead_en" maxlength="600" rows="3"<?= admin_lang_placeholder_attr('en') ?>><?= $h((string) ($values['lead_en'] ?? '')) ?></textarea>
         </label>
+        <?php admin_lang_pane_end(); ?>
       </div>
 
       <h2 style="margin-top:2rem;">Onder de galerij (optioneel)</h2>
       <div class="admin-form-row admin-form-row--split">
-        <label>Slottekst (NL)
+        <?php admin_lang_pane_start('nl'); ?>
+        <label>Slottekst
           <textarea name="footer_note_nl" maxlength="600" rows="3"><?= $h((string) ($values['footer_note_nl'] ?? '')) ?></textarea>
         </label>
-        <label>Slottekst (EN)
-          <textarea name="footer_note_en" maxlength="600" rows="3" placeholder="Leeg = zelfde als NL"><?= $h((string) ($values['footer_note_en'] ?? '')) ?></textarea>
+        <?php admin_lang_pane_end(); ?>
+        <?php admin_lang_pane_start('en'); ?>
+        <label>Slottekst
+          <textarea name="footer_note_en" maxlength="600" rows="3"<?= admin_lang_placeholder_attr('en') ?>><?= $h((string) ($values['footer_note_en'] ?? '')) ?></textarea>
         </label>
+        <?php admin_lang_pane_end(); ?>
       </div>
       <div class="admin-form-row admin-form-row--split">
-        <label>Knoplabel (NL)
+        <?php admin_lang_pane_start('nl'); ?>
+        <label>Knoplabel
           <input type="text" name="button_label_nl" maxlength="150" value="<?= $h((string) ($values['button_label_nl'] ?? '')) ?>">
         </label>
-        <label>Knoplabel (EN)
-          <input type="text" name="button_label_en" maxlength="150" value="<?= $h((string) ($values['button_label_en'] ?? '')) ?>" placeholder="Leeg = zelfde als NL">
+        <?php admin_lang_pane_end(); ?>
+        <?php admin_lang_pane_start('en'); ?>
+        <label>Knoplabel
+          <input type="text" name="button_label_en" maxlength="150" value="<?= $h((string) ($values['button_label_en'] ?? '')) ?>"<?= admin_lang_placeholder_attr('en') ?>>
         </label>
+        <?php admin_lang_pane_end(); ?>
       </div>
       <div class="admin-form-row">
         <label>Knop-URL
@@ -283,5 +305,6 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
 </main>
 <?php save_bar(); ?>
 <?php save_bar_script(); ?>
+<?php admin_lang_tabs_script(); ?>
 </body>
 </html>

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../vendor/autoload.php';
 require_once __DIR__ . '/_save_bar.php';
+require_once __DIR__ . '/_language_fields.php';
 
 use App\Service\AdminAuth;
 use App\Service\Csrf;
@@ -130,31 +131,44 @@ function cardValue(array $values, string $key): string
       <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
       <input type="hidden" name="card_id" value="<?= $cardId ?>">
 
+      <?php admin_lang_tabs(); ?>
       <div class="admin-form-row admin-form-row--split">
-        <label>Titel (NL)*
-          <input type="text" name="title_nl" maxlength="255" value="<?= cardValue($values, 'title_nl') ?>" required>
+        <?php admin_lang_pane_start('nl'); ?>
+        <label>Titel*
+          <input type="text" name="title_nl" maxlength="255" value="<?= cardValue($values, 'title_nl') ?>" <?= admin_lang_required('nl') ?>>
         </label>
-        <label>Titel (EN)
-          <input type="text" name="title_en" maxlength="255" value="<?= cardValue($values, 'title_en') ?>" placeholder="Leeg = zelfde als NL">
+        <?php admin_lang_pane_end(); ?>
+        <?php admin_lang_pane_start('en'); ?>
+        <label>Titel
+          <input type="text" name="title_en" maxlength="255" value="<?= cardValue($values, 'title_en') ?>"<?= admin_lang_placeholder_attr('en') ?>>
         </label>
+        <?php admin_lang_pane_end(); ?>
       </div>
 
       <div class="admin-form-row admin-form-row--split">
-        <label>Tekst (NL)
+        <?php admin_lang_pane_start('nl'); ?>
+        <label>Tekst
           <textarea name="body_nl" maxlength="500" rows="3" placeholder="Optioneel"><?= cardValue($values, 'body_nl') ?></textarea>
         </label>
-        <label>Tekst (EN)
-          <textarea name="body_en" maxlength="500" rows="3" placeholder="Leeg = zelfde als NL"><?= cardValue($values, 'body_en') ?></textarea>
+        <?php admin_lang_pane_end(); ?>
+        <?php admin_lang_pane_start('en'); ?>
+        <label>Tekst
+          <textarea name="body_en" maxlength="500" rows="3"<?= admin_lang_placeholder_attr('en') ?>><?= cardValue($values, 'body_en') ?></textarea>
         </label>
+        <?php admin_lang_pane_end(); ?>
       </div>
 
       <div class="admin-form-row admin-form-row--split">
-        <label>Knoptekst (NL)
+        <?php admin_lang_pane_start('nl'); ?>
+        <label>Knoptekst
           <input type="text" name="link_label_nl" maxlength="150" value="<?= cardValue($values, 'link_label_nl') ?>" placeholder="Optioneel">
         </label>
-        <label>Knoptekst (EN)
-          <input type="text" name="link_label_en" maxlength="150" value="<?= cardValue($values, 'link_label_en') ?>" placeholder="Leeg = zelfde als NL">
+        <?php admin_lang_pane_end(); ?>
+        <?php admin_lang_pane_start('en'); ?>
+        <label>Knoptekst
+          <input type="text" name="link_label_en" maxlength="150" value="<?= cardValue($values, 'link_label_en') ?>"<?= admin_lang_placeholder_attr('en') ?>>
         </label>
+        <?php admin_lang_pane_end(); ?>
       </div>
       <div class="admin-form-row">
         <label>Knop-URL
@@ -187,13 +201,18 @@ function cardValue(array $values, string $key): string
         <?php media_picker_field('media_id', $cardMedia, 'Afbeelding', 'Optioneel. Zonder afbeelding toont de kaart het vaste icoon.', false); ?>
       </div>
 
+      <?php admin_lang_tabs(); ?>
       <div class="admin-form-row admin-form-row--split">
-        <label>Alt-tekst (NL)
+        <?php admin_lang_pane_start('nl'); ?>
+        <label>Alt-tekst
           <input type="text" name="image_alt_nl" maxlength="255" value="<?= $h((string) ($card['image_alt_nl'] ?? '')) ?>" placeholder="Leeg = alt-tekst uit de mediabibliotheek">
         </label>
-        <label>Alt-tekst (EN)
-          <input type="text" name="image_alt_en" maxlength="255" value="<?= $h((string) ($card['image_alt_en'] ?? '')) ?>" placeholder="Leeg = zelfde als NL">
+        <?php admin_lang_pane_end(); ?>
+        <?php admin_lang_pane_start('en'); ?>
+        <label>Alt-tekst
+          <input type="text" name="image_alt_en" maxlength="255" value="<?= $h((string) ($card['image_alt_en'] ?? '')) ?>"<?= admin_lang_placeholder_attr('en') ?>>
         </label>
+        <?php admin_lang_pane_end(); ?>
       </div>
 
       <button type="submit">Opslaan</button>
@@ -227,13 +246,18 @@ function cardValue(array $values, string $key): string
           <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
           <input type="hidden" name="tag_id" value="<?= $tagId ?>">
 
+          <?php admin_lang_tabs(); ?>
           <div class="admin-form-row admin-form-row--split">
-            <label>Label (NL)*
-              <input type="text" name="label_nl" maxlength="60" value="<?= $h((string) $tag['label_nl']) ?>" required>
+            <?php admin_lang_pane_start('nl'); ?>
+            <label>Label*
+              <input type="text" name="label_nl" maxlength="60" value="<?= $h((string) $tag['label_nl']) ?>" <?= admin_lang_required('nl') ?>>
             </label>
-            <label>Label (EN)
-              <input type="text" name="label_en" maxlength="60" value="<?= $h((string) ($tag['label_en'] ?? '')) ?>" placeholder="Leeg = zelfde als NL">
+            <?php admin_lang_pane_end(); ?>
+            <?php admin_lang_pane_start('en'); ?>
+            <label>Label
+              <input type="text" name="label_en" maxlength="60" value="<?= $h((string) ($tag['label_en'] ?? '')) ?>"<?= admin_lang_placeholder_attr('en') ?>>
             </label>
+            <?php admin_lang_pane_end(); ?>
           </div>
 
           <button type="submit">Opslaan</button>
@@ -265,13 +289,18 @@ function cardValue(array $values, string $key): string
       <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
       <input type="hidden" name="card_id" value="<?= $cardId ?>">
 
+      <?php admin_lang_tabs(); ?>
       <div class="admin-form-row admin-form-row--split">
-        <label>Label (NL)*
-          <input type="text" name="label_nl" maxlength="60" required>
+        <?php admin_lang_pane_start('nl'); ?>
+        <label>Label*
+          <input type="text" name="label_nl" maxlength="60" <?= admin_lang_required('nl') ?>>
         </label>
-        <label>Label (EN)
-          <input type="text" name="label_en" maxlength="60" placeholder="Leeg = zelfde als NL">
+        <?php admin_lang_pane_end(); ?>
+        <?php admin_lang_pane_start('en'); ?>
+        <label>Label
+          <input type="text" name="label_en" maxlength="60"<?= admin_lang_placeholder_attr('en') ?>>
         </label>
+        <?php admin_lang_pane_end(); ?>
       </div>
 
       <button type="submit">Tag toevoegen</button>
@@ -282,5 +311,6 @@ function cardValue(array $values, string $key): string
 <?php media_picker_modal(); ?>
 <?php media_picker_script(); ?>
 <?php save_bar_script(); ?>
+<?php admin_lang_tabs_script(); ?>
 </body>
 </html>

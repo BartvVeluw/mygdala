@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../vendor/autoload.php';
 
+require_once __DIR__ . '/_language_fields.php';
+
 use App\Service\AdminAuth;
 use App\Service\Csrf;
 use App\Service\SiteSettings;
@@ -89,13 +91,18 @@ function footerLinkSummary(array $link): string
           Toon KVK-nummer
         </label>
       </div>
+      <?php admin_lang_tabs(); ?>
       <div class="admin-form-row admin-form-row--split">
-        <label>Beschrijving (NL)
+        <?php admin_lang_pane_start('nl'); ?>
+        <label>Beschrijving
           <textarea name="footer_description_nl" maxlength="500" rows="3"><?= $h(SiteSettings::get('footer_description_nl')) ?></textarea>
         </label>
-        <label>Beschrijving (EN)
+        <?php admin_lang_pane_end(); ?>
+        <?php admin_lang_pane_start('en'); ?>
+        <label>Beschrijving
           <textarea name="footer_description_en" maxlength="500" rows="3"><?= $h(SiteSettings::get('footer_description_en')) ?></textarea>
         </label>
+        <?php admin_lang_pane_end(); ?>
       </div>
       <label>Copyright-tekst
         <input type="text" name="footer_copyright_template" maxlength="300" value="<?= $h(SiteSettings::get('footer_copyright_template')) ?>">
@@ -187,5 +194,6 @@ function footerLinkSummary(array $link): string
   </section>
 </main>
 <script src="<?= \App\Service\AssetVersion::url('/admin/assets/admin.js') ?>"></script>
+<?php admin_lang_tabs_script(); ?>
 </body>
 </html>

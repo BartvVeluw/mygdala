@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../vendor/autoload.php';
 require_once __DIR__ . '/_save_bar.php';
+require_once __DIR__ . '/_language_fields.php';
 
 use App\Service\AdminAuth;
 use App\Service\Csrf;
@@ -130,22 +131,31 @@ function faqValue(array $values, string $key): string
       <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
       <input type="hidden" name="section" value="<?= htmlspecialchars($sectionKey, ENT_QUOTES, 'UTF-8') ?>">
 
+      <?php admin_lang_tabs(); ?>
       <div class="admin-form-row admin-form-row--split">
-        <label>Eyebrow (NL)*
-          <input type="text" name="eyebrow_nl" maxlength="150" required value="<?= faqValue($sectionValues, 'eyebrow_nl') ?>">
+        <?php admin_lang_pane_start('nl'); ?>
+        <label>Eyebrow*
+          <input type="text" name="eyebrow_nl" maxlength="150" <?= admin_lang_required('nl') ?> value="<?= faqValue($sectionValues, 'eyebrow_nl') ?>">
         </label>
-        <label>Eyebrow (EN)
-          <input type="text" name="eyebrow_en" maxlength="150" value="<?= faqValue($sectionValues, 'eyebrow_en') ?>" placeholder="Leeg = zelfde als NL">
+        <?php admin_lang_pane_end(); ?>
+        <?php admin_lang_pane_start('en'); ?>
+        <label>Eyebrow
+          <input type="text" name="eyebrow_en" maxlength="150" value="<?= faqValue($sectionValues, 'eyebrow_en') ?>"<?= admin_lang_placeholder_attr('en') ?>>
         </label>
+        <?php admin_lang_pane_end(); ?>
       </div>
 
       <div class="admin-form-row admin-form-row--split">
-        <label>Titel / H2 (NL)*
-          <input type="text" name="title_nl" maxlength="255" required value="<?= faqValue($sectionValues, 'title_nl') ?>">
+        <?php admin_lang_pane_start('nl'); ?>
+        <label>Titel / H2*
+          <input type="text" name="title_nl" maxlength="255" <?= admin_lang_required('nl') ?> value="<?= faqValue($sectionValues, 'title_nl') ?>">
         </label>
-        <label>Titel / H2 (EN)
-          <input type="text" name="title_en" maxlength="255" value="<?= faqValue($sectionValues, 'title_en') ?>" placeholder="Leeg = zelfde als NL">
+        <?php admin_lang_pane_end(); ?>
+        <?php admin_lang_pane_start('en'); ?>
+        <label>Titel / H2
+          <input type="text" name="title_en" maxlength="255" value="<?= faqValue($sectionValues, 'title_en') ?>"<?= admin_lang_placeholder_attr('en') ?>>
         </label>
+        <?php admin_lang_pane_end(); ?>
       </div>
 
       <label class="admin-checkbox-label">
@@ -175,22 +185,31 @@ function faqValue(array $values, string $key): string
           <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
           <input type="hidden" name="item_id" value="<?= $itemId ?>">
 
+          <?php admin_lang_tabs(); ?>
           <div class="admin-form-row admin-form-row--split">
-            <label>Vraag (NL)*
-              <input type="text" name="question_nl" maxlength="255" required value="<?= htmlspecialchars((string) $item['question_nl'], ENT_QUOTES, 'UTF-8') ?>">
+            <?php admin_lang_pane_start('nl'); ?>
+            <label>Vraag*
+              <input type="text" name="question_nl" maxlength="255" <?= admin_lang_required('nl') ?> value="<?= htmlspecialchars((string) $item['question_nl'], ENT_QUOTES, 'UTF-8') ?>">
             </label>
-            <label>Vraag (EN)
-              <input type="text" name="question_en" maxlength="255" value="<?= htmlspecialchars((string) ($item['question_en'] ?? ''), ENT_QUOTES, 'UTF-8') ?>" placeholder="Leeg = zelfde als NL">
+            <?php admin_lang_pane_end(); ?>
+            <?php admin_lang_pane_start('en'); ?>
+            <label>Vraag
+              <input type="text" name="question_en" maxlength="255" value="<?= htmlspecialchars((string) ($item['question_en'] ?? ''), ENT_QUOTES, 'UTF-8') ?>"<?= admin_lang_placeholder_attr('en') ?>>
             </label>
+            <?php admin_lang_pane_end(); ?>
           </div>
 
           <div class="admin-form-row admin-form-row--split">
-            <label>Antwoord (NL)*
-              <textarea name="answer_nl" maxlength="1000" rows="3" required><?= htmlspecialchars((string) $item['answer_nl'], ENT_QUOTES, 'UTF-8') ?></textarea>
+            <?php admin_lang_pane_start('nl'); ?>
+            <label>Antwoord*
+              <textarea name="answer_nl" maxlength="1000" rows="3" <?= admin_lang_required('nl') ?>><?= htmlspecialchars((string) $item['answer_nl'], ENT_QUOTES, 'UTF-8') ?></textarea>
             </label>
-            <label>Antwoord (EN)
-              <textarea name="answer_en" maxlength="1000" rows="3" placeholder="Leeg = zelfde als NL"><?= htmlspecialchars((string) ($item['answer_en'] ?? ''), ENT_QUOTES, 'UTF-8') ?></textarea>
+            <?php admin_lang_pane_end(); ?>
+            <?php admin_lang_pane_start('en'); ?>
+            <label>Antwoord
+              <textarea name="answer_en" maxlength="1000" rows="3"<?= admin_lang_placeholder_attr('en') ?>><?= htmlspecialchars((string) ($item['answer_en'] ?? ''), ENT_QUOTES, 'UTF-8') ?></textarea>
             </label>
+            <?php admin_lang_pane_end(); ?>
           </div>
 
           <label class="admin-checkbox-label">
@@ -230,22 +249,31 @@ function faqValue(array $values, string $key): string
       <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
       <input type="hidden" name="section_id" value="<?= $sectionId ?>">
 
+      <?php admin_lang_tabs(); ?>
       <div class="admin-form-row admin-form-row--split">
-        <label>Vraag (NL)*
-          <input type="text" name="question_nl" maxlength="255" required>
+        <?php admin_lang_pane_start('nl'); ?>
+        <label>Vraag*
+          <input type="text" name="question_nl" maxlength="255" <?= admin_lang_required('nl') ?>>
         </label>
-        <label>Vraag (EN)
-          <input type="text" name="question_en" maxlength="255" placeholder="Leeg = zelfde als NL">
+        <?php admin_lang_pane_end(); ?>
+        <?php admin_lang_pane_start('en'); ?>
+        <label>Vraag
+          <input type="text" name="question_en" maxlength="255"<?= admin_lang_placeholder_attr('en') ?>>
         </label>
+        <?php admin_lang_pane_end(); ?>
       </div>
 
       <div class="admin-form-row admin-form-row--split">
-        <label>Antwoord (NL)*
-          <textarea name="answer_nl" maxlength="1000" rows="3" required></textarea>
+        <?php admin_lang_pane_start('nl'); ?>
+        <label>Antwoord*
+          <textarea name="answer_nl" maxlength="1000" rows="3" <?= admin_lang_required('nl') ?>></textarea>
         </label>
-        <label>Antwoord (EN)
-          <textarea name="answer_en" maxlength="1000" rows="3" placeholder="Leeg = zelfde als NL"></textarea>
+        <?php admin_lang_pane_end(); ?>
+        <?php admin_lang_pane_start('en'); ?>
+        <label>Antwoord
+          <textarea name="answer_en" maxlength="1000" rows="3"<?= admin_lang_placeholder_attr('en') ?>></textarea>
         </label>
+        <?php admin_lang_pane_end(); ?>
       </div>
 
       <button type="submit">Vraag toevoegen</button>
@@ -254,5 +282,6 @@ function faqValue(array $values, string $key): string
 </main>
 <?php save_bar(); ?>
 <?php save_bar_script(); ?>
+<?php admin_lang_tabs_script(); ?>
 </body>
 </html>

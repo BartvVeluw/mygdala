@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../vendor/autoload.php';
 require_once __DIR__ . '/_save_bar.php';
+require_once __DIR__ . '/_language_fields.php';
 
 use App\Service\AdminAuth;
 use App\Service\Csrf;
@@ -118,31 +119,44 @@ function carouselValue(array $values, string $key): string
       <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
       <input type="hidden" name="section" value="<?= $h($sectionParam) ?>">
 
+      <?php admin_lang_tabs(); ?>
       <div class="admin-form-row admin-form-row--split">
-        <label>Eyebrow (NL)
+        <?php admin_lang_pane_start('nl'); ?>
+        <label>Eyebrow
           <input type="text" name="eyebrow_nl" maxlength="255" value="<?= carouselValue($values, 'eyebrow_nl') ?>" placeholder="Optioneel">
         </label>
-        <label>Eyebrow (EN)
-          <input type="text" name="eyebrow_en" maxlength="255" value="<?= carouselValue($values, 'eyebrow_en') ?>" placeholder="Leeg = zelfde als NL">
+        <?php admin_lang_pane_end(); ?>
+        <?php admin_lang_pane_start('en'); ?>
+        <label>Eyebrow
+          <input type="text" name="eyebrow_en" maxlength="255" value="<?= carouselValue($values, 'eyebrow_en') ?>"<?= admin_lang_placeholder_attr('en') ?>>
         </label>
+        <?php admin_lang_pane_end(); ?>
       </div>
 
       <div class="admin-form-row admin-form-row--split">
-        <label>Titel / H2 (NL)
+        <?php admin_lang_pane_start('nl'); ?>
+        <label>Titel / H2
           <input type="text" name="title_nl" maxlength="255" value="<?= carouselValue($values, 'title_nl') ?>" placeholder="Optioneel">
         </label>
-        <label>Titel / H2 (EN)
-          <input type="text" name="title_en" maxlength="255" value="<?= carouselValue($values, 'title_en') ?>" placeholder="Leeg = zelfde als NL">
+        <?php admin_lang_pane_end(); ?>
+        <?php admin_lang_pane_start('en'); ?>
+        <label>Titel / H2
+          <input type="text" name="title_en" maxlength="255" value="<?= carouselValue($values, 'title_en') ?>"<?= admin_lang_placeholder_attr('en') ?>>
         </label>
+        <?php admin_lang_pane_end(); ?>
       </div>
 
       <div class="admin-form-row admin-form-row--split">
-        <label>Lead (NL)
+        <?php admin_lang_pane_start('nl'); ?>
+        <label>Lead
           <textarea name="lead_nl" maxlength="1000" rows="3" placeholder="Optioneel"><?= carouselValue($values, 'lead_nl') ?></textarea>
         </label>
-        <label>Lead (EN)
-          <textarea name="lead_en" maxlength="1000" rows="3" placeholder="Leeg = zelfde als NL"><?= carouselValue($values, 'lead_en') ?></textarea>
+        <?php admin_lang_pane_end(); ?>
+        <?php admin_lang_pane_start('en'); ?>
+        <label>Lead
+          <textarea name="lead_en" maxlength="1000" rows="3"<?= admin_lang_placeholder_attr('en') ?>><?= carouselValue($values, 'lead_en') ?></textarea>
         </label>
+        <?php admin_lang_pane_end(); ?>
       </div>
       <p class="admin-text-muted">Alles hierboven is optioneel — laat je ze alle drie leeg, dan toont de carrousel alleen de kaarten.</p>
 
@@ -212,13 +226,18 @@ function carouselValue(array $values, string $key): string
       <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
       <input type="hidden" name="carousel_id" value="<?= $carouselId ?>">
 
+      <?php admin_lang_tabs(); ?>
       <div class="admin-form-row admin-form-row--split">
-        <label>Titel (NL)*
-          <input type="text" name="title_nl" maxlength="255" required>
+        <?php admin_lang_pane_start('nl'); ?>
+        <label>Titel*
+          <input type="text" name="title_nl" maxlength="255" <?= admin_lang_required('nl') ?>>
         </label>
-        <label>Titel (EN)
-          <input type="text" name="title_en" maxlength="255" placeholder="Leeg = zelfde als NL">
+        <?php admin_lang_pane_end(); ?>
+        <?php admin_lang_pane_start('en'); ?>
+        <label>Titel
+          <input type="text" name="title_en" maxlength="255"<?= admin_lang_placeholder_attr('en') ?>>
         </label>
+        <?php admin_lang_pane_end(); ?>
       </div>
 
       <button type="submit">Kaart toevoegen</button>
@@ -228,5 +247,6 @@ function carouselValue(array $values, string $key): string
 </main>
 <?php save_bar(); ?>
 <?php save_bar_script(); ?>
+<?php admin_lang_tabs_script(); ?>
 </body>
 </html>

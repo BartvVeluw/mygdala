@@ -3980,3 +3980,14 @@ body.admin-block-picker-open{ overflow: hidden; }
 }
 .admin-sidebar__account-link:hover{ color: var(--admin-text); border-bottom-color: currentColor; }
 .admin-sidebar__account-link:focus-visible{ outline: 2px solid var(--admin-accent); outline-offset: 2px; }
+
+/* The "turning a language off deletes nothing" reassurance on the Languages
+   tab. Not an alert: nothing is wrong and nothing needs acting on — it is
+   the sentence that stops an editor being afraid of a checkbox. */
+.admin-lang-note{
+  padding: var(--admin-sp-3) var(--admin-sp-4);
+  border-left: 3px solid var(--admin-border);
+  background: var(--admin-hover-tint);
+  border-radius: var(--admin-radius-sm);
+  margin: var(--admin-sp-4) 0;
+}
