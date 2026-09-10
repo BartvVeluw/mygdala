@@ -43,8 +43,14 @@ use Dotenv\Dotenv;
  * project's own sanitiser at the call site (App\Service\Translation\
  * TranslationService), because a translation service is a third party like
  * any other.
+ *
+ * DELIBERATELY NOT FINAL, and the only reason is ::post(): it is a documented
+ * test seam, so the suite can exercise every branch of this class — free
+ * versus pro, HTML versus plain, each failure mode — without ever reaching
+ * DeepL. App\Service\TurnstileVerifier is open for exactly the same reason,
+ * and nothing outside tests/ subclasses either of them.
  */
-final class DeepLProvider implements TranslationProvider
+class DeepLProvider implements TranslationProvider
 {
     public const KEY = 'deepl';
 

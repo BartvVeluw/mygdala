@@ -30,6 +30,10 @@
 
         <!-- No database, no web server. -->
         <testsuite name="unit">
+            <file>tests/Service/LanguageRegistryTest.php</file>
+            <file>tests/Service/LocalizedValueTest.php</file>
+            <file>tests/Service/AdminLocaleTest.php</file>
+            <file>tests/Service/TranslationProviderTest.php</file>
             <file>tests/Install/SetupWizardValidationTest.php</file>
             <file>tests/Mail/EmailPlaceholdersTest.php</file>
             <file>tests/Mail/OrderConfirmationBuilderTest.php</file>
@@ -76,6 +80,7 @@
              source files and assert rules about them. No database, no web
              server, so CMS content cannot affect them at all. -->
         <testsuite name="contract">
+            <file>tests/Service/MultilingualBoundaryTest.php</file>
             <file>tests/Blog/BlogModuleTest.php</file>
             <file>tests/Architecture/TestSuiteCoverageTest.php</file>
             <file>tests/Install/ExampleEnvironmentTest.php</file>
@@ -117,6 +122,11 @@
         <!-- unit + contract: everything that needs nothing but PHP. The one
              to run constantly while writing code. -->
         <testsuite name="fast">
+            <file>tests/Service/LanguageRegistryTest.php</file>
+            <file>tests/Service/LocalizedValueTest.php</file>
+            <file>tests/Service/AdminLocaleTest.php</file>
+            <file>tests/Service/TranslationProviderTest.php</file>
+            <file>tests/Service/MultilingualBoundaryTest.php</file>
             <file>tests/Architecture/TestSuiteCoverageTest.php</file>
             <file>tests/Blog/BlogModuleTest.php</file>
             <file>tests/Install/ExampleEnvironmentTest.php</file>
@@ -294,6 +304,11 @@
         </testsuite>
 
         <testsuite name="cms">
+            <file>tests/Service/LanguageRegistryTest.php</file>
+            <file>tests/Service/LocalizedValueTest.php</file>
+            <file>tests/Service/AdminLocaleTest.php</file>
+            <file>tests/Service/TranslationProviderTest.php</file>
+            <file>tests/Service/MultilingualBoundaryTest.php</file>
             <file>tests/Install/ExampleEnvironmentTest.php</file>
             <file>tests/Install/FreshInstallRenderTest.php</file>
             <file>tests/Install/FreshInstallTest.php</file>
@@ -424,6 +439,11 @@
 
         <!-- Everything, exactly once. The default, and the checkpoint. -->
         <testsuite name="full">
+            <file>tests/Service/LanguageRegistryTest.php</file>
+            <file>tests/Service/LocalizedValueTest.php</file>
+            <file>tests/Service/AdminLocaleTest.php</file>
+            <file>tests/Service/TranslationProviderTest.php</file>
+            <file>tests/Service/MultilingualBoundaryTest.php</file>
             <directory>tests</directory>
         </testsuite>
     </testsuites>

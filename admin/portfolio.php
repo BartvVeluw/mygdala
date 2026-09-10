@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../vendor/autoload.php';
 
+require_once __DIR__ . '/_language_fields.php';
+
 use App\Service\AdminAuth;
 use App\Service\Csrf;
 use App\Repository\PortfolioCategoryRepository;
@@ -168,6 +170,14 @@ $cardImageSrc = static fn (array $row): string => '/' . ltrim((string) ($row['th
     <summary>Portfolio categorieën (<?= count($categoriesWithCounts) ?>)</summary>
     <p class="admin-text-muted">Categorieën zijn direct beschikbaar in elk portfolio-item en, zodra ze in gebruik zijn door een zichtbaar item, in het filter op de publieke portfolio-pagina.</p>
 
+    <?php /* ONE tab strip for the whole list, not one per row: every category
+             is its own little form here, and a language switcher above each
+             of them would be a column of furniture. The strip is outside any
+             <form>, which admin-language-tabs.js reads as "switch every pane
+             on this screen" — exactly right when the rows are all the same
+             field in a repeat. */ ?>
+    <?php admin_lang_tabs(); ?>
+
     <?php if ($categoriesWithCounts === []): ?>
       <p class="admin-text-muted">Nog geen categorieën.</p>
     <?php else: ?>
@@ -181,8 +191,12 @@ $cardImageSrc = static fn (array $row): string => '/' . ltrim((string) ($row['th
             <form method="post" action="/api/admin/update-portfolio-category.php" class="admin-portfolio-category-row__form">
               <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
               <input type="hidden" name="category_id" value="<?= $categoryId ?>">
-              <input type="text" name="name_nl" maxlength="100" required value="<?= $h((string) $category['name_nl']) ?>" aria-label="Naam (NL)">
-              <input type="text" name="name_en" maxlength="100" value="<?= $h((string) ($category['name_en'] ?? '')) ?>" placeholder="Leeg = zelfde als NL" aria-label="Naam (EN)">
+              <?php admin_lang_pane_start('nl'); ?>
+              <input type="text" name="name_nl" maxlength="100"<?= admin_lang_required('nl') ?> value="<?= $h((string) $category['name_nl']) ?>" aria-label="Naam">
+              <?php admin_lang_pane_end(); ?>
+              <?php admin_lang_pane_start('en'); ?>
+              <input type="text" name="name_en" maxlength="100" value="<?= $h((string) ($category['name_en'] ?? '')) ?>"<?= admin_lang_placeholder_attr('en') ?> aria-label="Naam">
+              <?php admin_lang_pane_end(); ?>
               <button type="submit" class="admin-btn-text">Opslaan</button>
             </form>
             <span class="admin-text-muted admin-portfolio-category-row__count"><?= $itemCount ?> project<?= $itemCount === 1 ? '' : 'en' ?></span>
@@ -295,5 +309,6 @@ $cardImageSrc = static fn (array $row): string => '/' . ltrim((string) ($row['th
     <p class="admin-text-muted" data-portfolio-empty hidden>Geen portfolio-items gevonden voor deze zoekopdracht/filter.</p>
   <?php endif; ?>
 </main>
+<?php admin_lang_tabs_script(); ?>
 </body>
 </html>

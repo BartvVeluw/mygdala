@@ -30,12 +30,38 @@ final class AdminAccessControlTest extends TestCase
     /** Pages that are deliberately reachable without being logged in. */
     private const PUBLIC_ADMIN_SCRIPTS = ['login.php', 'logout.php'];
 
+    /**
+     * Screens and endpoints that require a LOGIN but deliberately no
+     * permission, because everything they touch belongs to the person making
+     * the request rather than to the site.
+     *
+     * The bar for this list is high and there is one thing on it. Anything
+     * that reads or writes site content, settings or another account's data
+     * needs a permission, and the rest of this class still checks that these
+     * two guard login, method and CSRF like everything else.
+     */
+    private const PERSONAL_PREFERENCE_SCRIPTS = [
+        // A person's own CMS interface language (MULTILINGUAL.md). Gating it
+        // behind a permission would mean a colleague who may only edit one
+        // block has to read the CMS in a language they do not speak. There is
+        // no user id in the form, so it can only ever write to the account
+        // that is signed in.
+        'account.php',
+        'update-account-preferences.php',
+    ];
+
     /** Shared includes rendered by other pages, never requested directly. */
     private const ADMIN_PARTIALS = [
         '_header.php',
         '_forbidden.php',
         '_labels.php',
         '_richtext_field.php',
+        // The language tabs on a content editor: a tab strip plus a wrapper
+        // around fields the calling editor already renders behind its own
+        // permission check (MULTILINGUAL.md). It reads no content of its own,
+        // and the one endpoint it points at
+        // (api/admin/translate-fields.php) checks pages.manage itself.
+        '_language_fields.php',
         '_order_personalization.php',
         '_personalization_builder.php',
         // The website-statistics block on the dashboard: rendered by
@@ -144,6 +170,10 @@ final class AdminAccessControlTest extends TestCase
 
             $this->assertStringContainsString('AdminAuth::requireLogin()', $source, $page);
 
+            if (in_array($page, self::PERSONAL_PREFERENCE_SCRIPTS, true)) {
+                continue;
+            }
+
             $permissions = $this->requiredPermissions($source);
             $this->assertNotEmpty($permissions, "{$page} must require a permission, not only a login");
 
@@ -199,6 +229,14 @@ final class AdminAccessControlTest extends TestCase
     {
         foreach (self::adminEndpoints() as $endpoint) {
             $source = $this->source('api/admin/' . $endpoint);
+
+            if (in_array($endpoint, self::PERSONAL_PREFERENCE_SCRIPTS, true)) {
+                // Still guarded, just not by a permission: login, method and
+                // CSRF are asserted for every endpoint further down.
+                $this->assertStringContainsString('AdminAuth::requireLoginForApi()', $source, $endpoint);
+                $this->assertStringContainsString('Csrf::validate(', $source, $endpoint);
+                continue;
+            }
 
             $permissions = $this->requiredPermissions($source);
             $this->assertNotEmpty($permissions, "{$endpoint} must require a permission, not only a login");
@@ -341,8 +379,16 @@ final class AdminAccessControlTest extends TestCase
      * is complete it becomes a page of links to the screens that do have
      * entries, so giving it one of its own would put a permanent menu item
      * in front of a screen nobody should open twice. See SETUP.md.
+     *
+     * My account is the second, for a related reason: it belongs to the
+     * PERSON rather than to a section of the CMS, so it is reached from the
+     * account block at the bottom of the sidebar where their name already is
+     * (MULTILINGUAL.md). A nav entry would put a personal preference among
+     * the site's content sections, and it would need a permission to be
+     * hidden by — which is exactly what this screen deliberately does not
+     * have.
      */
-    private const SIDEBAR_EXEMPT_SCRIPTS = ['setup.php'];
+    private const SIDEBAR_EXEMPT_SCRIPTS = ['setup.php', 'account.php'];
 
     public function testEveryAdminPageIsClaimedByExactlyOneSidebarEntry(): void
     {

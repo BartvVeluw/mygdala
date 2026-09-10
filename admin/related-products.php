@@ -184,14 +184,18 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
 
               <?php // Visually secondary on purpose: the checkbox is the
                     // setting that matters, the override is a nicety. ?>
+              <?php admin_lang_pane_start('nl'); ?>
               <label class="admin-related-collection-row__override">
-                <span class="admin-text-muted">Eigen titel (NL)</span>
+                <span class="admin-text-muted">Eigen titel</span>
                 <input type="text" name="collections[<?= $collectionId ?>][heading_nl]" maxlength="255" value="<?= $h($headingNl) ?>" placeholder="Leeg = algemene titel">
               </label>
+              <?php admin_lang_pane_end(); ?>
+              <?php admin_lang_pane_start('en'); ?>
               <label class="admin-related-collection-row__override">
-                <span class="admin-text-muted">Eigen titel (EN)</span>
-                <input type="text" name="collections[<?= $collectionId ?>][heading_en]" maxlength="255" value="<?= $h($headingEn) ?>" placeholder="Leeg = zelfde als NL">
+                <span class="admin-text-muted">Eigen titel</span>
+                <input type="text" name="collections[<?= $collectionId ?>][heading_en]" maxlength="255" value="<?= $h($headingEn) ?>"<?= admin_lang_placeholder_attr('en') ?>>
               </label>
+              <?php admin_lang_pane_end(); ?>
             </div>
           <?php endforeach; ?>
         </div>

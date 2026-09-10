@@ -46,6 +46,13 @@ final class AdminEditorNavigationTest extends TestCase
         'city_en' => 'algemeen',
         'footer_description_nl' => 'algemeen',
         'footer_description_en' => 'algemeen',
+        // The WEBSITE's languages (MULTILINGUAL.md). Deliberately their own
+        // tab and not part of Algemeen: they are the one setting an editor
+        // has to be able to find without already knowing this CMS, and the
+        // tab is also where the copy explains that the CMS's own language is
+        // a different, per-person choice.
+        'primary_content_language' => 'talen',
+        'secondary_content_language' => 'talen',
         'seo_default_description' => 'seo',
         'seo_robots_index_default' => 'seo',
         'company_street' => 'facturen',
@@ -520,7 +527,7 @@ final class AdminEditorNavigationTest extends TestCase
     public function testSiteSettingsIsGroupedAndKeepsEveryFieldItHad(): void
     {
         $panels = $this->panelSources('admin/settings.php');
-        $this->assertSame(['algemeen', 'seo', 'facturen', 'email', 'dashboard'], array_keys($panels));
+        $this->assertSame(['algemeen', 'talen', 'seo', 'facturen', 'email', 'dashboard'], array_keys($panels));
 
         foreach (self::SETTINGS_FIELDS as $field => $tab) {
             $found = [];
@@ -595,7 +602,7 @@ final class AdminEditorNavigationTest extends TestCase
             ModuleRegistry::overrideForTests(['shop' => $shopEnabled]);
 
             $this->assertSame(
-                ['algemeen', 'seo', 'facturen', 'email', 'dashboard'],
+                ['algemeen', 'talen', 'seo', 'facturen', 'email', 'dashboard'],
                 array_keys($this->panelSources('admin/settings.php'))
             );
             $this->assertSame(

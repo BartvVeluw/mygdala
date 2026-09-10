@@ -126,6 +126,18 @@ $steps = [
 ];
 
 $siteName = SiteSettings::get('site_name');
+
+/**
+ * What the language dropdown starts on: whatever a rejected submission chose,
+ * otherwise the project default. Never a guess from the browser's
+ * Accept-Language — a visitor's browser says nothing about which language the
+ * owner intends to publish in.
+ */
+$setupPrimaryLanguage = \App\Service\Language\AdminLocale::normalise(
+    $previous('primary_content_language') !== ''
+        ? $previous('primary_content_language')
+        : \App\Service\Language\ContentLanguages::primary()
+);
 ?>
 <!doctype html>
 <html lang="nl">
@@ -217,6 +229,29 @@ $siteName = SiteSettings::get('site_name');
             value="<?= $h($previous('site_name')) ?>">
         </label>
         <p class="admin-text-muted">Staat in de browsertitel, in de koptekst als je nog geen logo hebt, en achter elke paginatitel in Google.</p>
+      </div>
+
+      <?php /* The WEBSITE's language, and one question only. A second
+               language starts off; an owner who wants one turns it on later
+               under Instellingen. That default is what gives a new site a
+               single-language editing experience with no duplicate English
+               fields, which is the whole point of Multilingual V1
+               (MULTILINGUAL.md).
+
+               Deliberately worded "Taal van de website" and not just "Taal":
+               the language the CMS itself is shown in is a different setting,
+               it belongs to a person rather than to the site, and it lives on
+               admin/account.php. Confusing the two is exactly what this
+               feature exists to stop. */ ?>
+      <div class="admin-form-row">
+        <label for="setup-primary-language">Taal van de website
+          <select id="setup-primary-language" name="primary_content_language">
+            <?php foreach (\App\Service\Language\LanguageRegistry::contentLanguages() as $languageCode => $languageDefinition): ?>
+              <option value="<?= $h($languageCode) ?>"<?= $languageCode === $setupPrimaryLanguage ? ' selected' : '' ?>><?= $h($languageDefinition->nativeLabel) ?></option>
+            <?php endforeach; ?>
+          </select>
+        </label>
+        <p class="admin-text-muted">De taal waarin je de inhoud van deze website schrijft. Een tweede taal kun je later aanzetten bij Instellingen &rarr; Talen. De taal van het CMS zelf kies je per persoon bij Mijn account.</p>
       </div>
 
       <div class="admin-form-row">

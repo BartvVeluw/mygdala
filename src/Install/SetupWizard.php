@@ -18,6 +18,7 @@ use App\Service\PageContent;
 use App\Service\PageService;
 use App\Service\PageTemplates\PageTemplateInstaller;
 use App\Service\PageTemplates\PageTemplates;
+use App\Service\Language\ContentLanguages;
 use App\Service\SiteSettings;
 use App\Service\Theme\ThemeSettings;
 
@@ -150,6 +151,7 @@ final class SetupWizard
         $errors = [];
 
         $identity = self::validateIdentity($input, $errors);
+        $languages = self::validateLanguages($input);
         $branding = self::validateBranding($input, $errors);
         $theme = self::validateTheme($input, $errors);
         $modules = self::validateModules($input, $errors);
@@ -158,6 +160,7 @@ final class SetupWizard
         return [
             'values' => [
                 'identity' => $identity,
+                'languages' => $languages,
                 'branding' => $branding,
                 'theme' => $theme,
                 'modules' => $modules,
@@ -199,6 +202,39 @@ final class SetupWizard
     }
 
     // ----------------------------------------------------------- validation
+
+    /**
+     * Step 1: which language this WEBSITE is written in (Multilingual V1, see
+     * MULTILINGUAL.md).
+     *
+     * ONE QUESTION, not two. A brand-new site is asked for its primary
+     * language and nothing else; a second language starts OFF, which is
+     * exactly what removes the duplicate English fields that made the first
+     * real editing test confusing. Somebody who does want a bilingual site
+     * turns it on afterwards under Settings, where turning it off again is
+     * also possible — a wizard is for the answer you have on day one.
+     *
+     * NOT the CMS interface language. That is a preference of one person
+     * (App\Service\Language\AdminLocale) and it is chosen under My account.
+     * Putting the two on one screen is precisely the confusion this feature
+     * exists to end, so the wizard labels this one "Taal van de website".
+     *
+     * There is no error case: App\Service\Language\ContentLanguages::
+     * normalise() turns anything unusable into the project default, and it is
+     * the same method the settings endpoint uses, so a valid configuration
+     * means the same thing in both places.
+     *
+     * @param array<string, mixed> $input
+     *
+     * @return array<string, string>
+     */
+    private static function validateLanguages(array $input): array
+    {
+        return ContentLanguages::normalise(
+            trim((string) ($input['primary_content_language'] ?? '')),
+            [],
+        );
+    }
 
     /**
      * @param array<string, mixed>  $input
@@ -490,7 +526,7 @@ final class SetupWizard
         $db->beginTransaction();
 
         try {
-            $settings = array_merge($values['identity'], $values['branding']);
+            $settings = array_merge($values['identity'], $values['languages'], $values['branding']);
 
             // Only keys SiteSettings knows about, so a field added to the
             // form without being added to the settings can never create a
