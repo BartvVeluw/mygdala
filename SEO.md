@@ -31,6 +31,7 @@ effectieve metadata        App\Service\SeoMetadata   (read-only)
 | Shop-producten | `src/Service/ProductSeo.php` |
 | Shop-collecties | `src/Service/CollectionContent.php` |
 | Blogberichten en -archieven | `src/Service/Blog/BlogSeo.php` (`BLOG.md`) |
+| Welke taal de `<head>` als zichtbare tekst draagt | `src/Service/Language/SiteText.php` (`MULTILINGUAL.md`) |
 | Gedeelde hulpjes | `src/Service/Seo.php` (titelconventies, plain text, absolute URL's) |
 | Basis-URL | `src/Service/AppUrl.php` — `APP_URL` uit `.env`, anders `site_settings.canonical_base_url` (`SETUP.md`) |
 | Renderer | `partials/seo-head.php` |
@@ -152,9 +153,12 @@ houdt zijn `?id=`-querystring, want dát is zijn URL; die wordt uit een
 gevalideerd geheel getal gebouwd, nooit uit request-invoer, dus
 trackingparameters kunnen er niet in lekken.
 
-**Geen hreflang.** NL en EN wonen op dezelfde URL en wisselen in de browser
-via `data-nl`/`data-en`; er zijn geen aparte gelokaliseerde URL's om naar te
-verwijzen, dus er wordt er ook geen verzonnen.
+**Geen hreflang.** De talen van een site wonen op dezelfde URL en wisselen in
+de browser via `data-nl`/`data-en`; er zijn geen aparte gelokaliseerde URL's om
+naar te verwijzen, dus er wordt er ook geen verzonnen. Dat is sinds
+Multilingual V1 een *uitgestelde* keuze en geen vergeten keuze: gelokaliseerde
+URL's en hreflang zijn expliciet voor een latere stap
+(`MULTILINGUAL.md`).
 
 ## Indexeerbaarheid
 

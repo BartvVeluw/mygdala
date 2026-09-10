@@ -10,7 +10,7 @@ lettertypes zie `THEMING.md`; voor moduleslots `MODULES.md`.
 
 | Van Core, niet instelbaar | Van de beheerder |
 |---|---|
-| Skip-link, merkblok, plaats van de navigatie, mobiele menumechaniek, sticky gedrag, taalwissel, moduleslots | Menu-items (Navigatie), footerkolommen en -links (Footer), logo's (Site-instellingen), kleuren (Vormgeving) |
+| Skip-link, merkblok, plaats van de navigatie, mobiele menumechaniek, sticky gedrag, de taalwissel, moduleslots | Menu-items (Navigatie), footerkolommen en -links (Footer), logo's (Site-instellingen), kleuren (Vormgeving) |
 | Waar de knop staat, waar de slotregel staat, hoe een social-icoon eruitziet | Óf de knop er is, wat erop staat en waar hij heen gaat; óf de slotregel er is en wat er staat; welke social profielen bestaan |
 
 Er zijn geen headerregio's, geen tweede knop, geen widgetzones en geen
@@ -32,6 +32,15 @@ slepen-en-neerzetten. Dit is een CMS, geen layoutbouwer.
 `site_settings` en niet `theme_settings`: dit is wie de site *is*, niet hoe hij
 er *uitziet*. "Standaardvormgeving herstellen" mag nooit een knoptekst of een
 Instagram-adres meenemen — zie de tabel bovenaan `THEMING.md`.
+
+## De taalwissel
+
+Staat links van de knop, en verschijnt **alleen op een site die meer dan één
+taal publiceert** (`MULTILINGUAL.md`). Op een eentalige site waren het twee
+knoppen die allebei dezelfde pagina in dezelfde woorden toonden, dus daar
+rendert de header er geen — geen leeg besturingselement en geen extra
+tabstop. Welke talen erin staan en welke voorop staat komt uit
+Instellingen → Talen; de vormgeving en de plaats zijn van Core.
 
 ## De knop in de header
 

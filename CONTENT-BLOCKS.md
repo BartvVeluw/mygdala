@@ -58,9 +58,16 @@ Twee onafhankelijke schakelaars verbergen een blok, en beide tellen:
   controleert dat apart. Een blok weer aanzetten in de page builder overschrijft
   dus nooit een hide die in de blok-editor is gezet.
 
-**Taal:** NL is de inhoud, EN optioneel. De partial schrijft beide in
-`data-nl`/`data-en` en print NL als zichtbare tekst; leeg EN betekent "gelijk
-aan NL". Er wordt niets server-side vertaald.
+**Taal:** een site heeft een hóófdtaal en optioneel één tweede taal
+(`MULTILINGUAL.md`). De partial schrijft beide in `data-nl`/`data-en` via
+`App\Service\Language\SiteText::attrs()` en print de hoofdtaal als zichtbare
+tekst met `::visible()`; een lege vertaling betekent "gelijk aan de
+hoofdtaal". Er wordt niets server-side vertaald.
+
+In de **editor** zet je de twee velden in een taalpaneel
+(`admin/_language_fields.php`), zodat een eentalige site er maar één toont en
+een tweetalige site tabbladen krijgt. Een uitgezette taal blijft verborgen
+meegestuurd, dus een taal uitzetten gooit nooit een vertaling weg.
 
 ## Instantie-identiteit
 

@@ -69,6 +69,7 @@ docker exec vvld_php php vendor/bin/phpunit --testsuite fast
 | `fast` | `unit` + `contract` samen | niets |
 | `modules` | het modulesysteem: register, aan/uit, en hoe het CMS eruitziet met de Shop uit | deels testdatabase + `php_cms` |
 | `blog` | de Blog-module: berichten, taxonomie, publicatie en inplannen, SEO, feed, media en routes | testdatabase + `php_test` (+ `php_cms`) |
+| — | meertaligheid zit in `fast` en `cms`; het heeft geen eigen suite, want het is Core en raakt élk domein (`MULTILINGUAL.md`) | niets |
 | `unit` | pure logica: geen database, geen webserver | niets |
 | `contract` | architectuur- en broncode-afspraken (lezen `src/`, `admin/`, ...) | niets |
 | `blocks` | het contentblokkensysteem: register, `page_sections`, de blokken zelf | testdatabase |
@@ -176,6 +177,28 @@ De knop in de header, de slotregel, de social profielen, of de partials zelf
 `HeaderFooterRenderingTest` praat ook met `php_cms`, dus start de
 testcontainers (`docker compose --profile test up -d`) als je de CMS-only kant
 bewezen wilt zien in plaats van overgeslagen.
+
+**Wijziging aan meertaligheid**
+
+De talen van een site, de taal van het CMS, de taaltabbladen in een editor of
+automatisch vertalen (`MULTILINGUAL.md`):
+
+```
+--testsuite fast        LanguageRegistryTest (het gesloten register en de
+                        sitetalen), LocalizedValueTest (de terugvalregel, in
+                        beide richtingen), AdminLocaleTest (de CMS-taal, en
+                        dat hij de website niet raakt), TranslationProviderTest
+                        (DeepL zonder netwerk, en de vier vertaalregels) en
+                        MultilingualBoundaryTest (de grenzen) — database,
+                        webserver noch netwerk nodig
+--testsuite cms         dezelfde vijf, plus de scherm- en instellingenkant
+--testsuite blocks      als je een editor op de taaltabbladen aansloot
+```
+
+De suite praat **nooit** met een echte vertaal-API. `FakeTranslationProvider`
+en twee subklassen die de ene HTTP-methode van `DeepLProvider` vervangen
+dekken elke tak, zodat een trage of onbereikbare betaalde dienst deze tests
+nooit kan laten falen en een testrun nooit iemands quota kost.
 
 **Wijziging aan formulieren**
 

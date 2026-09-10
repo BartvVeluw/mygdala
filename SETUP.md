@@ -77,10 +77,18 @@ gewoon onder elkaar en werkt dezelfde knop.
 | Veld | Verplicht | Gaat naar |
 |---|---|---|
 | Naam van de site | **ja** | `site_settings.site_name` |
+| Taal van de website | nee | `site_settings.primary_content_language` — zie `MULTILINGUAL.md` |
 | Publiek webadres | nee | `site_settings.canonical_base_url` — zie hieronder |
 | Contact-e-mailadres | nee | `site_settings.email` |
 | Korte omschrijving | nee | `site_settings.footer_description_nl` |
 | Plaats, KVK-nummer | nee | `site_settings.city_nl`, `kvk_number` |
+
+**Taal van de website** is de hoofdtaal waarin je de inhoud schrijft. Een
+tweede taal begint **uit**, en dat is met opzet: een nieuwe site krijgt zo een
+eentalige bewerkervaring zonder dubbele velden, en wie wél een vertaling wil
+zet die later aan bij Instellingen → Talen. De taal van het **CMS** is iets
+anders — die kiest elke beheerder voor zichzelf bij Mijn account
+(`MULTILINGUAL.md`).
 
 De naam van de site is het **enige** verplichte antwoord in de hele wizard.
 Alles wat leeg blijft, blijft leeg: de footer laat de regel weg,
@@ -290,6 +298,8 @@ dingen dubbel doet.
 | Wat | Waar |
 |---|---|
 | Naam, e-mailadres, adres, KVK, logo, favicon, deel-afbeelding | Instellingen → Site-instellingen |
+| Talen van de website | Instellingen → Talen (`MULTILINGUAL.md`) |
+| Taal van het CMS, per persoon | Mijn account (`MULTILINGUAL.md`) |
 | Kleuren, lettertype, knopvorm | Instellingen → Vormgeving (`THEMING.md`) |
 | Pagina's maken, bewerken, publiceren | Pagina's (`PAGE-TEMPLATES.md`) |
 | Menu en footer | Navigatie en Footer (`HEADER-FOOTER.md`) |
