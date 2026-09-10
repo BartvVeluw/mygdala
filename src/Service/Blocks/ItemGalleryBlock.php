@@ -1,0 +1,154 @@
+<?php
+
+namespace App\Service\Blocks;
+
+use App\Repository\ItemGalleryRepository;
+use App\Service\ItemGalleryContent;
+
+require_once dirname(__DIR__, 3) . '/partials/section-item-gallery.php';
+
+/**
+ * ONE gallery block whose content source is a setting (phase 4): portfolio
+ * items, or the products of one collection. The Portfolio grid and the
+ * homepage's "greep uit eerder werk" are two instances of it, which is why it
+ * knows nothing about "portfolio" and is allowed everywhere.
+ *
+ * Its filter bar, lightbox and item cap are settings of the instance. The
+ * source list itself stays a CLOSED whitelist in ItemGalleryContent::SOURCES —
+ * a security boundary, not a style choice: a stored source key that is not on
+ * that list renders nothing rather than reaching a table of its own choosing.
+ *
+ * The items behind it are not its content: they belong to Portfolio and
+ * Collecties, which keep their own CRUD and uploaded media, so deleting this
+ * block deletes only the placement and its settings.
+ */
+final class ItemGalleryBlock extends BlockDefinition
+{
+    public function type(): string
+    {
+        return 'item_gallery';
+    }
+
+    public function meta(): array
+    {
+        return [
+            'label' => 'Portfolio-/collectiegalerij',
+            'manual_add' => true,
+            'allow_multiple' => true,
+            'max_instances' => null,
+            'allowed_pages' => null,
+            'deletable' => true,
+            'note' => 'Kies zelf wat dit blok toont: portfolio-items of de producten van één collectie. Filterbalk, lightbox en maximum aantal items zijn instellingen van dit blok; de items zelf beheer je via Portfolio of Collecties.',
+        ];
+    }
+
+    public function description(): string
+    {
+        return 'Een raster met beeld uit je portfolio of uit een collectie, met optioneel een filterbalk en een vergroting bij het aanklikken.';
+    }
+
+    public function category(): string
+    {
+        return BlockCategories::MEDIA;
+    }
+
+    public function icon(): string
+    {
+        return '<rect x="3" y="3" width="7.5" height="7.5" rx="1.5"/><rect x="13.5" y="3" width="7.5" height="7.5" rx="1.5"/><rect x="3" y="13.5" width="7.5" height="7.5" rx="1.5"/><rect x="13.5" y="13.5" width="7.5" height="7.5" rx="1.5"/>';
+    }
+
+    public function preview(): array
+    {
+        return [BlockPreview::HEADING, BlockPreview::GALLERY];
+    }
+
+    public function useCases(): array
+    {
+        return [
+            'een portfolio-overzicht',
+            'uitgelicht werk op de homepage',
+            'beeld uit een collectie tonen',
+        ];
+    }
+
+    public function create(string $pageSlug): array
+    {
+        $key = self::newSectionKey();
+
+        // Defaults to the block in its most familiar shape: the portfolio
+        // grid, with its filter bar and zoom.
+        $repository = new ItemGalleryRepository();
+        $repository->upsertSection($pageSlug, $key, [
+            'source_type' => ItemGalleryContent::SOURCE_PORTFOLIO,
+            'portfolio_scope' => ItemGalleryContent::SCOPE_ALL,
+            'show_filter_bar' => true,
+            'enable_lightbox' => true,
+            'background' => 'default',
+            'is_active' => true,
+        ]);
+
+        return [(int) $repository->findBySlugAndKey($pageSlug, $key)['id'], $key];
+    }
+
+    public function deleteContent(array $pageSection): void
+    {
+        (new ItemGalleryRepository())->deleteSection($this->sectionId($pageSection));
+    }
+
+    public function render(array $pageSection, bool $tightTop, string $revealGroup): void
+    {
+        $content = ItemGalleryContent::forSection($this->pageSlug($pageSection), $this->sectionKey($pageSection));
+        if ($content['state'] === ItemGalleryContent::STATE_HIDDEN) {
+            return;
+        }
+
+        render_section_item_gallery($content, $revealGroup);
+    }
+
+    /**
+     * Its own title if it has one, otherwise what it shows — "Portfolio-items"
+     * / a collection's name — so two galleries on one page stay tellable apart
+     * even when neither carries a heading.
+     */
+    public function instanceTitle(array $pageSection): string
+    {
+        $content = ItemGalleryContent::forSection($this->pageSlug($pageSection), $this->sectionKey($pageSection));
+
+        $title = (string) ($content['title_nl'] ?? '');
+        if ($title !== '') {
+            return $title;
+        }
+
+        return ItemGalleryContent::sourceLabel((string) $content['source_type']);
+    }
+
+    public function editUrl(array $pageSection): ?string
+    {
+        return $this->sectionEditUrl('item-gallery', $pageSection);
+    }
+
+    /**
+     * The filter bar and the lightbox. The .lightbox rules themselves stay in
+     * assets/css/core.css: portfolio-detail.php renders the same overlay for
+     * its own project lightbox, so they belong to neither owner alone.
+     */
+    public function styles(): array
+    {
+        return ['assets/css/blocks/item-gallery.css'];
+    }
+
+    public function scripts(): array
+    {
+        return ['assets/js/blocks/item-gallery.js'];
+    }
+
+    public function clearCache(): void
+    {
+        ItemGalleryContent::clearCache();
+    }
+
+    public function contentTable(): ?string
+    {
+        return 'item_galleries';
+    }
+}

@@ -1,0 +1,137 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Service\Media;
+
+use App\Service\AppUrl;
+
+/**
+ * One media item, as everything outside the Media Library sees it.
+ *
+ * This is the answer to "how does a template get a URL out of a media item"
+ * (MEDIA.md): it asks this object. No partial concatenates a filesystem path
+ * with a slash any more, no template guesses whether the stored value has a
+ * leading one, and nothing outside this class needs to know that the library
+ * stores paths WITHOUT a leading slash while the site serves them WITH one.
+ *
+ * Read-only on purpose. A media item is created and changed through
+ * App\Service\Media\MediaService; this object is what you render.
+ */
+final class MediaItem
+{
+    private function __construct(
+        public readonly int $id,
+        /** Stored form: root-relative, no leading slash. */
+        public readonly string $path,
+        public readonly ?string $thumbnailPath,
+        public readonly string $originalFilename,
+        public readonly string $mimeType,
+        public readonly ?int $width,
+        public readonly ?int $height,
+        public readonly ?int $fileSize,
+        public readonly string $altText,
+        public readonly ?string $checksum,
+        public readonly ?string $createdAt,
+        public readonly ?string $updatedAt,
+    ) {
+    }
+
+    /**
+     * @param array<string, mixed> $row a `media` row
+     */
+    public static function fromRow(array $row): self
+    {
+        return new self(
+            id: (int) $row['id'],
+            path: ltrim((string) ($row['path'] ?? ''), '/'),
+            thumbnailPath: self::nullableString($row['thumbnail_path'] ?? null),
+            originalFilename: (string) ($row['original_filename'] ?? ''),
+            mimeType: (string) ($row['mime_type'] ?? ''),
+            width: self::nullableInt($row['width'] ?? null),
+            height: self::nullableInt($row['height'] ?? null),
+            fileSize: self::nullableInt($row['file_size'] ?? null),
+            altText: (string) ($row['alt_text'] ?? ''),
+            checksum: self::nullableString($row['checksum'] ?? null),
+            createdAt: self::nullableString($row['created_at'] ?? null),
+            updatedAt: self::nullableString($row['updated_at'] ?? null),
+        );
+    }
+
+    /**
+     * The URL an ordinary <img src> uses: root-relative with exactly one
+     * leading slash, the convention every existing template in this project
+     * already follows.
+     */
+    public function publicPath(): string
+    {
+        return '/' . $this->path;
+    }
+
+    /**
+     * The small preview to show in the admin, or the image itself when this
+     * item has no generated derivative — which is the case for every legacy
+     * file adopted in place. The admin sizes it with CSS either way, so a
+     * missing thumbnail costs bandwidth, never correctness.
+     */
+    public function displayPath(): string
+    {
+        return '/' . ($this->thumbnailPath ?? $this->path);
+    }
+
+    /**
+     * The absolute URL, for the places that genuinely need one — og:image
+     * and JSON-LD. Resolved against APP_URL through App\Service\AppUrl, never
+     * against the request's Host header.
+     */
+    public function absoluteUrl(): string
+    {
+        return AppUrl::asset($this->path);
+    }
+
+    /** Where the file is on disk, whether or not it is actually there. */
+    public function absolutePath(): string
+    {
+        return dirname(__DIR__, 3) . '/' . $this->path;
+    }
+
+    /** Whether the file this row describes is still on disk. */
+    public function fileExists(): bool
+    {
+        return is_file($this->absolutePath());
+    }
+
+    /**
+     * Whether both dimensions are known, so a caller can emit width/height
+     * attributes and save the browser a reflow. Unknown for an adopted file
+     * that was already missing, and for anything getimagesize() could not
+     * read.
+     */
+    public function hasDimensions(): bool
+    {
+        return $this->width !== null && $this->width > 0
+            && $this->height !== null && $this->height > 0;
+    }
+
+    /** The name to show a human: the original filename, or the stored one. */
+    public function displayName(): string
+    {
+        return $this->originalFilename !== '' ? $this->originalFilename : basename($this->path);
+    }
+
+    private static function nullableString(mixed $value): ?string
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        $value = (string) $value;
+
+        return $value === '' ? null : $value;
+    }
+
+    private static function nullableInt(mixed $value): ?int
+    {
+        return $value === null || $value === '' ? null : (int) $value;
+    }
+}

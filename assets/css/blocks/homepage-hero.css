@@ -1,0 +1,162 @@
+/* ==========================================================================
+   Content block: homepage hero (partials/section-homepage-hero.php)
+   Asked for by App\Service\Blocks\HomepageHeroBlock::styles().
+
+   .hero__media-frame itself deliberately stays in core.css: the
+   text_image_split block reuses that frame for its own media
+   (partials/text-image-split-media.php), so it is a genuinely shared rule
+   and duplicating it here would mean two copies drifting apart. Only the
+   hero's own overrides of it live below, in their original order after it.
+   ========================================================================== */
+
+/* ==========================================================================
+   Hero
+   ========================================================================== */
+.hero{
+  position: relative;
+  padding-top: clamp(7.5rem, 8vw + 4rem, 11rem);
+  padding-bottom: var(--sp-7);
+  overflow: hidden;
+}
+.hero__grid{
+  display: grid;
+  grid-template-columns: 1.05fr 0.95fr;
+  gap: var(--sp-6);
+  align-items: center;
+}
+@media (max-width: 900px){
+  .hero__grid{ grid-template-columns: 1fr; gap: var(--sp-5); }
+}
+/* A Hero with neither an image nor a video renders no media column at all
+   (partials/section-homepage-hero.php), which is the normal state of a
+   brand-new installation until its owner picks one. Without this the content
+   would keep sitting in the left 52% of the row with nothing beside it. */
+.hero--no-media .hero__grid{
+  grid-template-columns: 1fr;
+  max-width: 760px;
+}
+.hero__eyebrow{ margin-bottom: var(--sp-3); }
+.hero h1{ margin-bottom: var(--sp-3); }
+/* The highlighted words inside the headline. `font-size` is a PERCENTAGE of
+   the H1's own size — which is `var(--fs-h1)`, a clamp() — so the highlight
+   scales with the headline on every viewport instead of needing its own
+   breakpoints; no transform/scale(), so it stays a normal inline box and
+   wraps with the rest of the sentence. The custom property is set per Hero
+   by partials/section-homepage-hero.php from the CMS
+   (`title_highlight_size`); the 100% fallback here is what makes a Hero
+   saved before that setting existed render exactly as it always did. */
+.hero h1 em{ font-style: italic; color: var(--color-primary); font-size: var(--hero-highlight-size, 100%); }
+.hero__lead{ margin-bottom: var(--sp-4); }
+.hero__actions{ display: flex; flex-wrap: wrap; gap: var(--sp-2); margin-bottom: var(--sp-5); }
+.hero__meta{ display: flex; gap: var(--sp-4); border-top: 1px solid var(--color-line); padding-top: var(--sp-3); }
+.hero__meta div{ display: flex; flex-direction: column; gap: 0.2rem; flex: 1 1 0; min-width: 0; }
+.hero__meta strong{ font-family: var(--font-display); font-size: 1.1rem; color: var(--color-primary-bright); line-height: 1.25; }
+.hero__meta span{ font-size: 0.72rem; color: var(--color-text-faint); letter-spacing: 0.02em; }
+@media (max-width: 560px){
+  .hero__meta{ flex-direction: column; gap: var(--sp-2); }
+}
+
+.hero__media{ position: relative; }
+
+
+/* Layout: media left — same two-column grid, just visually mirrored via
+   `order` so the DOM (and GSAP's .hero__media-frame timeline) stays
+   untouched; media appears first when the grid collapses to one column. */
+.hero--media-left .hero__media{ order: -1; }
+
+/* Layout: full background — the media (image or video) fills the entire
+   Hero behind the text, instead of sitting in the two-column grid. The
+   image/video markup itself is unchanged; only its containers become
+   full-bleed via position:absolute against .hero (already `position:
+   relative`), and a fixed dark gradient keeps the text/CTAs readable
+   regardless of the underlying media's own colours. */
+.hero--background{
+  min-height: min(92vh, 820px);
+  display: flex;
+  align-items: center;
+}
+.hero--background .hero__grid{
+  grid-template-columns: 1fr;
+  max-width: 640px;
+}
+/* Positioned here (not on .hero__grid) so .hero__media's position:absolute
+   below still resolves against .hero (its nearest OTHER positioned
+   ancestor) instead of being trapped inside .hero__grid. */
+.hero--background .hero__content{
+  position: relative;
+  z-index: 2;
+}
+.hero--background .hero__media{
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+}
+.hero--background .hero__media-frame{
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border-radius: 0;
+  border: none;
+  box-shadow: none;
+  aspect-ratio: auto;
+}
+.hero--background .hero__media-frame::after{
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg,
+    rgba(var(--color-media-scrim-rgb), 0.25) 0%,
+    rgba(var(--color-media-scrim-rgb), 0.6) 55%,
+    rgba(var(--color-media-scrim-rgb), 0.92) 100%);
+  pointer-events: none;
+}
+/* The badge's corner-anchor (left:-1.25rem/bottom:-1.25rem, relative to the
+   image frame) assumes a small, contained media box — once .hero__media
+   fills the entire Hero, that same anchor lands near the bottom of the
+   whole section and collides with .hero__meta above it. Rather than
+   reworking its position for one layout, it's simply not shown here; the
+   badge is decorative flavour text, not information the Hero depends on. */
+.hero--background .hero__badge{ display: none; }
+@media (max-width: 900px){
+  .hero--background{ min-height: min(100vh, 680px); align-items: flex-end; padding-bottom: var(--sp-6); }
+}
+
+.hero__badge{
+  position: absolute;
+  left: -1.25rem;
+  bottom: -1.25rem;
+  background: rgba(var(--color-surface-veil-rgb), 0.92);
+  backdrop-filter: blur(10px);
+  border: 1px solid var(--color-line-strong);
+  color: var(--color-text);
+  padding: var(--sp-3);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-soft);
+  max-width: 220px;
+  font-size: var(--fs-small);
+}
+.hero__badge strong{ display: block; font-family: var(--font-display); font-size: 1.1rem; margin-bottom: 0.25rem; color: var(--color-primary-bright); }
+@media (max-width: 640px){
+  .hero__badge{ left: 0.75rem; bottom: -1rem; max-width: 170px; padding: var(--sp-2); }
+}
+
+/* Laser beam decoration */
+.laser-line{
+  position: absolute;
+  height: 2px;
+  border-radius: 2px;
+  background: linear-gradient(90deg, transparent, var(--color-primary-bright), var(--color-primary), transparent);
+  filter: drop-shadow(0 0 6px rgba(var(--color-primary-bright-rgb), 0.6));
+  transform-origin: left center;
+}
+
+.spark-field{ position: absolute; inset: 0; pointer-events: none; overflow: hidden; z-index: 0; }
+.spark{
+  position: absolute;
+  width: 4px; height: 4px;
+  border-radius: 50%;
+  background: var(--color-primary-bright);
+  box-shadow: 0 0 8px 2px rgba(var(--color-primary-bright-rgb), 0.75);
+  opacity: 0;
+}

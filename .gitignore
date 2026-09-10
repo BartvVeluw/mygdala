@@ -1,0 +1,89 @@
+# Environment / secrets
+.env
+.env.*.local
+.env.local
+
+# Dependencies
+/vendor/
+/node_modules/
+
+# Logs
+*.log
+logs/
+
+# OS / editor cruft
+.DS_Store
+Thumbs.db
+desktop.ini
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Docker / runtime local data
+docker/mysql-data/
+docker/volumes/
+*.sqlite
+*.sqlite3
+
+# Contact-request attachments (personal data — see MAIN.MD, never committed).
+# Stored one directory above the project root by default (see
+# src/Service/ContactAttachmentStorage.php), so this normally matches
+# nothing — kept as a safety net for a CONTACT_ATTACHMENTS_PATH override
+# that points back inside the repo.
+/storage/contact-attachments/*
+
+# Customer personalization uploads (private ORDER data - see
+# src/Service/Personalization/PersonalizationUploadStorage.php). Stored one
+# directory above the project root by default, so this normally matches
+# nothing - kept as a safety net for a PERSONALIZATION_UPLOADS_PATH
+# override that points back inside the repo.
+/storage/personalization-uploads/*
+
+# CMS-uploaded Hero videos (runtime content, not source — see
+# src/Service/SectionVideoUploader.php). The uploader creates this
+# directory on demand (mkdir), so a fresh clone doesn't need it to exist.
+/assets/videos/sections/*
+
+# CMS-uploaded section images (Text + image split, Portfolio main/project
+# images, and their generated thumbs/ previews — see
+# src/Service/SectionImageUploader.php / PortfolioImageProcessor.php).
+# Runtime content, not source; the uploader creates this directory (and
+# thumbs/ within it) on demand, so a fresh clone doesn't need it to exist.
+# This folder existed uncommitted since CMS-fundament stap 10 but was never
+# added here (a known gap — see MAIN.MD); closed now, before this
+# session's optimization work adds thumbnails to the same folder.
+/assets/images/sections/*
+
+# Media Library uploads and the thumbnails generated for them (see
+# src/Service/Media/MediaUploader.php). Runtime content per installation,
+# exactly like the section images above — a second install has its own
+# photos, not this one's. The uploader creates both directories on demand.
+# Images this site already had keep their original path and are adopted in
+# place, so they are NOT in here; only what the library itself creates is.
+/assets/media/*
+
+# CMS-uploaded branding images: logo, alternate logo, favicon and the
+# default social-sharing image (see src/Service/BrandingAssetUploader.php).
+# Runtime content per installation, exactly like the section images above —
+# a second install has its own logo, not this one's. The uploader creates
+# the directory on demand.
+/assets/images/branding/*
+
+# CMS-uploaded engraving fonts (see
+# src/Service/Personalization/PersonalizationFontUploader.php). Font files are
+# runtime content with their own licensing: a face the owner is allowed to use
+# commercially is not automatically a face this repository may redistribute,
+# so the uploads stay out of git. The folder itself is committed (.gitkeep +
+# .htaccess) because the MIME-type rules there have to ship.
+/assets/fonts/personalization/*
+!/assets/fonts/personalization/.gitkeep
+!/assets/fonts/personalization/.htaccess
+
+# Temp files
+*.tmp
+*.bak
+*.orig
+
+# PHPUnit's own incremental-run cache (regenerated on every test run)
+.phpunit.result.cache

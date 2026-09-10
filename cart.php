@@ -1,0 +1,113 @@
+<?php
+require_once __DIR__ . '/vendor/autoload.php';
+// This route belongs to a module. With that module switched off the file
+// is still on disk and still reachable, so the URL must stop answering:
+// App\Module\ModuleGuard renders the site's own 404 and exits, exactly as
+// an unknown slug does. Nothing below runs.
+\App\Module\ModuleGuard::requirePublicRoute('shop');
+
+// This route has no CMS page behind it, so its SEO metadata is built here
+// — but through the same App\Service\SeoMetadata every other public page
+// uses, so the title convention, the escaping, the Open Graph copy and the
+// social-image fallback all come from one place.
+//
+// NOT INDEXABLE, and that is the point of stating it: the cart is a private,
+// per-visitor, always-empty-to-a-crawler page. Before SEO Foundation V1 this
+// page carried a canonical tag and Open Graph tags and no robots tag at all,
+// which made it a candidate for the index.
+$seoMetadata = \App\Service\SeoMetadata::create(
+    titleNl: \App\Service\Seo::routeTitle('Winkelwagen'),
+    titleEn: \App\Service\Seo::routeTitle('Shopping cart'),
+    descriptionNl: 'Bekijk en pas je winkelwagen aan voordat je afrekent.',
+    descriptionEn: 'Review and adjust your cart before checking out.',
+    canonical: \App\Service\AppUrl::canonical('cart.php'),
+    indexable: false,
+);
+
+?>
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<?php require __DIR__ . '/partials/seo-head.php'; ?>
+<?php
+// Frontend assets for this page: App\Service\PageAssets always puts Core
+// and the site shell first, and this page adds whatever it needs on top.
+\App\Service\PageAssets::requireStyle('assets/css/shop/shop.css');
+\App\Service\PageAssets::requireScript('assets/js/shop/shop.js');
+require __DIR__ . '/partials/page-assets.php';
+?>
+</head>
+<body>
+<?php
+$activeNav = 'shop';
+require __DIR__ . '/partials/header.php';
+?>
+
+
+<main id="main">
+
+  <section class="page-hero" style="padding-bottom:0;">
+    <div class="container">
+      <div class="breadcrumb">
+        <a href="index.php" data-nl="Home" data-en="Home">Home</a><span>/</span>
+        <a href="shop.php" data-nl="Shop" data-en="Shop">Shop</a><span>/</span>
+        <span data-nl="Winkelwagen" data-en="Shopping cart">Winkelwagen</span>
+      </div>
+      <p class="eyebrow" data-nl="Stap 1 van 2" data-en="Step 1 of 2">Stap 1 van 2</p>
+      <h1 style="max-width:20ch;" data-nl="Jouw winkelwagen" data-en="Your shopping cart">Jouw winkelwagen</h1>
+    </div>
+  </section>
+
+  <section>
+    <div class="container">
+      <div class="cart-layout">
+
+        <div data-reveal>
+          <div class="cart-list" data-cart-list></div>
+
+          <!-- Lege-winkelwagen staat (verborgen zolang er producten in de winkelwagen zitten) -->
+          <div class="cart-empty" data-cart-empty hidden>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 4h2l2.4 12.2a2 2 0 0 0 2 1.6h7.6a2 2 0 0 0 2-1.6L21 8H6"/><circle cx="10" cy="20" r="1.4"/><circle cx="17" cy="20" r="1.4"/></svg>
+            <h3 data-nl="Je winkelwagen is leeg" data-en="Your cart is empty">Je winkelwagen is leeg</h3>
+            <p data-nl="Nog niets toegevoegd? Bekijk de shop voor beschikbare producten." data-en="Nothing added yet? Browse the shop for available products.">Nog niets toegevoegd? Bekijk de shop voor beschikbare producten.</p>
+            <a href="shop.php" class="btn" data-nl="Naar de shop" data-en="Go to shop">Naar de shop</a>
+          </div>
+
+          <div style="margin-top:var(--sp-4);">
+            <a href="shop.php" class="btn btn--ghost btn--sm" data-nl="Verder winkelen" data-en="Continue shopping">&larr; Verder winkelen</a>
+          </div>
+        </div>
+
+        <aside class="order-summary" data-reveal>
+          <h3 data-nl="Overzicht" data-en="Summary">Overzicht</h3>
+          <div class="order-summary__row">
+            <span data-nl="Subtotaal" data-en="Subtotal">Subtotaal</span>
+            <strong data-cart-subtotal>&euro;0,00</strong>
+          </div>
+          <div class="order-summary__row">
+            <span data-nl="Verzending" data-en="Shipping">Verzending</span>
+            <strong data-nl="Bepaald bij afrekenen" data-en="Calculated at checkout">Bepaald bij afrekenen</strong>
+          </div>
+          <div class="order-summary__row order-summary__row--total">
+            <span data-nl="Totaal" data-en="Total">Totaal</span>
+            <strong data-cart-total>&euro;0,00</strong>
+          </div>
+          <a href="checkout.php" class="btn btn--block" data-nl="Afrekenen" data-en="Proceed to checkout">Afrekenen
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+          </a>
+          <p class="order-summary__note" data-nl="Betaling via iDEAL en overige methoden bij Mollie. Prijzen zijn inclusief btw." data-en="Payment via iDEAL and other methods through Mollie. Prices include VAT.">Betaling via iDEAL en overige methoden bij Mollie. Prijzen zijn inclusief btw.</p>
+        </aside>
+
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<?php require __DIR__ . '/partials/footer.php'; ?>
+
+<?php require __DIR__ . '/partials/page-scripts.php'; ?>
+</body>
+</html>

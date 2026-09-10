@@ -1,0 +1,430 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    Test suites for this project. TESTING.md explains when to run which.
+
+    Two things to know before editing:
+
+    1. tests/bootstrap.php forces every database connection onto the TEST
+       database and refuses to start if it cannot. No test connects to the
+       development database, whichever suite it runs in.
+
+    2. A test file may appear in more than one suite — "blocks" and "http"
+       overlap on purpose, for instance. The default suite is "full", so a
+       plain `phpunit` still runs everything exactly once.
+
+    Adding a test? Put it in the domain suite it belongs to (blocks / cms /
+    shop / personalization / analytics) plus, if it applies, one of unit,
+    contract or http. Tests\Architecture\TestSuiteCoverageTest fails if a
+    test file is left out of every domain suite, so this list cannot quietly
+    fall behind.
+-->
+<phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:noNamespaceSchemaLocation="https://schema.phpunit.de/10.5/phpunit.xsd"
+         bootstrap="tests/bootstrap.php"
+         defaultTestSuite="full"
+         colors="true">
+    <testsuites>
+        <!-- ============================================================
+             Tiers: how a test runs (speed, and what it needs to exist)
+             ============================================================ -->
+
+        <!-- No database, no web server. -->
+        <testsuite name="unit">
+            <file>tests/Install/SetupWizardValidationTest.php</file>
+            <file>tests/Mail/EmailPlaceholdersTest.php</file>
+            <file>tests/Mail/OrderConfirmationBuilderTest.php</file>
+            <file>tests/Repository/OrderNumberFormatTest.php</file>
+            <file>tests/Repository/OrderRepositoryAddressResolutionTest.php</file>
+            <file>tests/Service/Address/CheckoutAddressResolverTest.php</file>
+            <file>tests/Service/Address/DutchAddressLookupServiceTest.php</file>
+            <file>tests/Service/AdminPermissionsTest.php</file>
+            <file>tests/Service/AdminThemeTest.php</file>
+            <file>tests/Service/AdminUserServiceTest.php</file>
+            <file>tests/Service/Analytics/BotDetectorTest.php</file>
+            <file>tests/Service/Analytics/DeviceTypeTest.php</file>
+            <file>tests/Service/Analytics/PageViewTrackerTest.php</file>
+            <file>tests/Service/AppUrlTest.php</file>
+            <file>tests/Service/BrandingTest.php</file>
+            <file>tests/Service/DashboardAttentionTest.php</file>
+            <file>tests/Service/DashboardMetricsTest.php</file>
+            <file>tests/Service/FormFieldTypeTest.php</file>
+            <file>tests/Service/FormValidationTest.php</file>
+            <file>tests/Service/HeaderFooterSettingsTest.php</file>
+            <file>tests/Service/LegalPagesTest.php</file>
+            <file>tests/Service/NavigationServiceTest.php</file>
+            <file>tests/Service/OrderCsvExportTest.php</file>
+            <file>tests/Service/PageSeoTest.php</file>
+            <file>tests/Service/PdfInvoiceRendererTest.php</file>
+            <file>tests/Service/Personalization/MoneyTest.php</file>
+            <file>tests/Service/Personalization/PersonalizationRulesTest.php</file>
+            <file>tests/Service/Personalization/PersonalizationUploadValidatorTest.php</file>
+            <file>tests/Service/ProductSeoTest.php</file>
+            <file>tests/Service/RedirectPathTest.php</file>
+            <file>tests/Service/ReservedRoutesTest.php</file>
+            <file>tests/Service/RichTextSanitizerTest.php</file>
+            <file>tests/Service/RobotsTest.php</file>
+            <file>tests/Service/RouteRegistryTest.php</file>
+            <file>tests/Service/SeoMetadataTest.php</file>
+            <file>tests/Service/Shipping/PostNl/PostNlRateParserTest.php</file>
+            <file>tests/Service/Shipping/PostNl/PostNlRateSyncServiceTest.php</file>
+            <file>tests/Service/Shipping/ShippingCalculationServiceTest.php</file>
+            <file>tests/Service/Shipping/ShippingProfileTest.php</file>
+            <file>tests/Service/TurnstileVerifierTest.php</file>
+        </testsuite>
+
+        <!-- Architecture and source contracts: these read the project's own
+             source files and assert rules about them. No database, no web
+             server, so CMS content cannot affect them at all. -->
+        <testsuite name="contract">
+            <file>tests/Blog/BlogModuleTest.php</file>
+            <file>tests/Architecture/TestSuiteCoverageTest.php</file>
+            <file>tests/Install/ExampleEnvironmentTest.php</file>
+            <file>tests/Install/FreshSiteCopyTest.php</file>
+            <file>tests/Install/GenericDistributionTest.php</file>
+            <file>tests/Module/ModuleConfigurationTest.php</file>
+            <file>tests/Module/ModuleRegistryTest.php</file>
+            <file>tests/Module/ShopDisabledTest.php</file>
+            <file>tests/Service/AdminAccessControlTest.php</file>
+            <file>tests/Service/AdminEditorNavigationTest.php</file>
+            <file>tests/Service/AdminThemeContractTest.php</file>
+            <file>tests/Service/BlockDefinitionContractTest.php</file>
+            <file>tests/Service/BlockPickerTest.php</file>
+            <file>tests/Service/BlockPresentationTest.php</file>
+            <file>tests/Service/CollectionAdminSecurityTest.php</file>
+            <file>tests/Service/DashboardPageTest.php</file>
+            <file>tests/Service/FormBoundaryTest.php</file>
+            <file>tests/Service/FrontendAssetOwnershipTest.php</file>
+            <file>tests/Service/HeaderFooterContractTest.php</file>
+            <file>tests/Service/InvoiceAdminSecurityTest.php</file>
+            <file>tests/Service/MediaBoundaryTest.php</file>
+            <file>tests/Service/NavigationFooterSecurityTest.php</file>
+            <file>tests/Service/OrderHandlingAdminSecurityTest.php</file>
+            <file>tests/Service/PageBuilderSecurityTest.php</file>
+            <file>tests/Service/PageTemplateRegistryTest.php</file>
+            <file>tests/Service/Personalization/PersonalizationColorsTest.php</file>
+            <file>tests/Service/PersonalizationEditorContractTest.php</file>
+            <file>tests/Service/PersonalizationFrontendContractTest.php</file>
+            <file>tests/Service/ProductDeletionAdminSecurityTest.php</file>
+            <file>tests/Service/RedirectAdminSecurityTest.php</file>
+            <file>tests/Service/SeoFieldsAdminLayoutTest.php</file>
+            <file>tests/Service/SetupAccessTest.php</file>
+            <file>tests/Service/ShopSeoAdminTest.php</file>
+            <file>tests/Service/SiteIdentityTest.php</file>
+            <file>tests/Service/ThemeRenderingTest.php</file>
+            <file>tests/Service/ThemeSettingsTest.php</file>
+        </testsuite>
+
+        <!-- unit + contract: everything that needs nothing but PHP. The one
+             to run constantly while writing code. -->
+        <testsuite name="fast">
+            <file>tests/Architecture/TestSuiteCoverageTest.php</file>
+            <file>tests/Blog/BlogModuleTest.php</file>
+            <file>tests/Install/ExampleEnvironmentTest.php</file>
+            <file>tests/Install/FreshSiteCopyTest.php</file>
+            <file>tests/Install/GenericDistributionTest.php</file>
+            <file>tests/Install/SetupWizardValidationTest.php</file>
+            <file>tests/Mail/EmailPlaceholdersTest.php</file>
+            <file>tests/Mail/OrderConfirmationBuilderTest.php</file>
+            <file>tests/Module/ModuleConfigurationTest.php</file>
+            <file>tests/Module/ModuleRegistryTest.php</file>
+            <file>tests/Module/ShopDisabledTest.php</file>
+            <file>tests/Repository/OrderNumberFormatTest.php</file>
+            <file>tests/Repository/OrderRepositoryAddressResolutionTest.php</file>
+            <file>tests/Service/Address/CheckoutAddressResolverTest.php</file>
+            <file>tests/Service/Address/DutchAddressLookupServiceTest.php</file>
+            <file>tests/Service/AdminAccessControlTest.php</file>
+            <file>tests/Service/AdminEditorNavigationTest.php</file>
+            <file>tests/Service/AdminPermissionsTest.php</file>
+            <file>tests/Service/AdminThemeContractTest.php</file>
+            <file>tests/Service/AdminThemeTest.php</file>
+            <file>tests/Service/AdminUserServiceTest.php</file>
+            <file>tests/Service/Analytics/BotDetectorTest.php</file>
+            <file>tests/Service/Analytics/DeviceTypeTest.php</file>
+            <file>tests/Service/Analytics/PageViewTrackerTest.php</file>
+            <file>tests/Service/AppUrlTest.php</file>
+            <file>tests/Service/BlockDefinitionContractTest.php</file>
+            <file>tests/Service/BlockPickerTest.php</file>
+            <file>tests/Service/BlockPresentationTest.php</file>
+            <file>tests/Service/BrandingTest.php</file>
+            <file>tests/Service/CollectionAdminSecurityTest.php</file>
+            <file>tests/Service/DashboardAttentionTest.php</file>
+            <file>tests/Service/DashboardMetricsTest.php</file>
+            <file>tests/Service/DashboardPageTest.php</file>
+            <file>tests/Service/FormBoundaryTest.php</file>
+            <file>tests/Service/FormFieldTypeTest.php</file>
+            <file>tests/Service/FormValidationTest.php</file>
+            <file>tests/Service/FrontendAssetOwnershipTest.php</file>
+            <file>tests/Service/HeaderFooterContractTest.php</file>
+            <file>tests/Service/HeaderFooterSettingsTest.php</file>
+            <file>tests/Service/InvoiceAdminSecurityTest.php</file>
+            <file>tests/Service/LegalPagesTest.php</file>
+            <file>tests/Service/MediaBoundaryTest.php</file>
+            <file>tests/Service/NavigationFooterSecurityTest.php</file>
+            <file>tests/Service/NavigationServiceTest.php</file>
+            <file>tests/Service/OrderCsvExportTest.php</file>
+            <file>tests/Service/OrderHandlingAdminSecurityTest.php</file>
+            <file>tests/Service/PageBuilderSecurityTest.php</file>
+            <file>tests/Service/PageSeoTest.php</file>
+            <file>tests/Service/PageTemplateRegistryTest.php</file>
+            <file>tests/Service/PdfInvoiceRendererTest.php</file>
+            <file>tests/Service/Personalization/MoneyTest.php</file>
+            <file>tests/Service/Personalization/PersonalizationColorsTest.php</file>
+            <file>tests/Service/Personalization/PersonalizationRulesTest.php</file>
+            <file>tests/Service/Personalization/PersonalizationUploadValidatorTest.php</file>
+            <file>tests/Service/PersonalizationEditorContractTest.php</file>
+            <file>tests/Service/PersonalizationFrontendContractTest.php</file>
+            <file>tests/Service/ProductDeletionAdminSecurityTest.php</file>
+            <file>tests/Service/ProductSeoTest.php</file>
+            <file>tests/Service/RedirectAdminSecurityTest.php</file>
+            <file>tests/Service/RedirectPathTest.php</file>
+            <file>tests/Service/ReservedRoutesTest.php</file>
+            <file>tests/Service/RichTextSanitizerTest.php</file>
+            <file>tests/Service/RobotsTest.php</file>
+            <file>tests/Service/RouteRegistryTest.php</file>
+            <file>tests/Service/SeoFieldsAdminLayoutTest.php</file>
+            <file>tests/Service/SeoMetadataTest.php</file>
+            <file>tests/Service/SetupAccessTest.php</file>
+            <file>tests/Service/Shipping/PostNl/PostNlRateParserTest.php</file>
+            <file>tests/Service/Shipping/PostNl/PostNlRateSyncServiceTest.php</file>
+            <file>tests/Service/Shipping/ShippingCalculationServiceTest.php</file>
+            <file>tests/Service/Shipping/ShippingProfileTest.php</file>
+            <file>tests/Service/ShopSeoAdminTest.php</file>
+            <file>tests/Service/SiteIdentityTest.php</file>
+            <file>tests/Service/ThemeRenderingTest.php</file>
+            <file>tests/Service/ThemeSettingsTest.php</file>
+            <file>tests/Service/TurnstileVerifierTest.php</file>
+        </testsuite>
+
+        <!-- Needs a web server wired to the test database: the php_test
+             container, started through the compose profile named "test".
+             Skips itself when that is not reachable, so it never fails for
+             the wrong reason. TESTING.md has the command. -->
+        <testsuite name="http">
+            <file>tests/Blog/BlogRoutingTest.php</file>
+            <file>tests/Module/CmsOnlyHttpTest.php</file>
+            <file>tests/Service/Analytics/AnalyticsTrackingHttpTest.php</file>
+            <file>tests/Service/CollectionRoutingTest.php</file>
+            <file>tests/Service/ContentBlockArchitectureTest.php</file>
+            <file>tests/Service/FormRenderingTest.php</file>
+            <file>tests/Service/HeaderFooterRenderingTest.php</file>
+            <file>tests/Service/PageRoutingTest.php</file>
+            <file>tests/Service/PersonalizationAdminSecurityTest.php</file>
+            <file>tests/Service/PersonalizationPreviewSnapshotTest.php</file>
+            <file>tests/Service/PersonalizationProductPageTest.php</file>
+            <file>tests/Service/PersonalizationPurchaseFlowTest.php</file>
+            <file>tests/Service/PersonalizationUploadHttpTest.php</file>
+            <file>tests/Service/PersonalizationViewSeparationTest.php</file>
+            <file>tests/Service/RedirectRoutingTest.php</file>
+            <file>tests/Service/RedirectSlugChangeTest.php</file>
+            <file>tests/Service/RelatedProductsEmptyStateTest.php</file>
+            <file>tests/Service/RelatedProductsProductPageTest.php</file>
+            <file>tests/Service/ReusableBlocksPhase2Test.php</file>
+            <file>tests/Service/ReusableBlocksPhase3Test.php</file>
+            <file>tests/Service/ReusableBlocksPhase4Test.php</file>
+            <file>tests/Service/SeoRoutingTest.php</file>
+            <file>tests/Service/ShopSeoRoutingTest.php</file>
+            <file>tests/Service/SitemapRoutingTest.php</file>
+            <file>tests/Service/UnknownContentBlockTest.php</file>
+        </testsuite>
+
+        <!-- The historical migrations: proof that a backfill lost nothing.
+             Worth keeping, not worth running on every edit. The group named
+             migration-backfill runs these plus the individual "still there
+             after the migration" checks that live inside the block tests. -->
+        <testsuite name="migration">
+            <file>tests/Install/FreshInstallRenderTest.php</file>
+            <file>tests/Install/FreshInstallTest.php</file>
+            <file>tests/Install/LegacyUpgradeTest.php</file>
+            <file>tests/Install/SetupCompletionTest.php</file>
+            <file>tests/Repository/ContactFormMigrationTest.php</file>
+            <file>tests/Repository/NavigationFooterBackfillTest.php</file>
+            <file>tests/Repository/PageSectionsBackfillTest.php</file>
+            <file>tests/Repository/PagesBackfillTest.php</file>
+            <file>tests/Service/MediaAdoptionTest.php</file>
+            <file>tests/Service/UnknownContentBlockTest.php</file>
+        </testsuite>
+
+        <!-- ============================================================
+             Domains: which part of the system a test is about
+             ============================================================ -->
+
+        <!-- The first-party module system: the registry, the enable/disable
+             contract, and what the CMS looks like with the Shop switched off.
+             CmsOnlyHttpTest needs the php_cms container as well as php_test —
+             it skips itself when that is not running. -->
+        <testsuite name="modules">
+            <directory>tests/Module</directory>
+        </testsuite>
+
+        <!-- The Blog module: posts, taxonomy, its SEO and feed, its media
+             usage and its routes. Its own domain suite rather than a corner of
+             `modules`, for the reason TESTING.md gives: a module with this many
+             tests of its own earns one, and a targeted run should be able to
+             say "the Blog" without running the whole CMS. -->
+        <testsuite name="blog">
+            <directory>tests/Blog</directory>
+        </testsuite>
+
+        <testsuite name="blocks">
+            <file>tests/Repository/PageSectionRepositoryTest.php</file>
+            <file>tests/Repository/PageSectionsBackfillTest.php</file>
+            <file>tests/Service/BlockDefinitionContractTest.php</file>
+            <file>tests/Service/BlockPickerTest.php</file>
+            <file>tests/Service/BlockPresentationTest.php</file>
+            <file>tests/Service/ContentBlockArchitectureTest.php</file>
+            <file>tests/Service/FormRenderingTest.php</file>
+            <file>tests/Service/FrontendAssetOwnershipTest.php</file>
+            <file>tests/Service/GenericBlockDefaultsTest.php</file>
+            <file>tests/Service/HomepageHeroEmptyImageTest.php</file>
+            <file>tests/Service/HomepageHeroHighlightSizeTest.php</file>
+            <file>tests/Service/MediaUsageTest.php</file>
+            <file>tests/Service/PageBuilderSecurityTest.php</file>
+            <file>tests/Service/PageContentTest.php</file>
+            <file>tests/Service/PageTemplateCreationTest.php</file>
+            <file>tests/Service/PageTemplateRegistryTest.php</file>
+            <file>tests/Service/RelatedProductsAdminTest.php</file>
+            <file>tests/Service/RelatedProductsContentTest.php</file>
+            <file>tests/Service/RelatedProductsEmptyStateTest.php</file>
+            <file>tests/Service/RelatedProductsProductPageTest.php</file>
+            <file>tests/Service/ReusableBlocksPhase2Test.php</file>
+            <file>tests/Service/ReusableBlocksPhase3Test.php</file>
+            <file>tests/Service/ReusableBlocksPhase4Test.php</file>
+            <file>tests/Service/SectionRegistryTest.php</file>
+            <file>tests/Service/UnknownContentBlockTest.php</file>
+        </testsuite>
+
+        <testsuite name="cms">
+            <file>tests/Install/ExampleEnvironmentTest.php</file>
+            <file>tests/Install/FreshInstallRenderTest.php</file>
+            <file>tests/Install/FreshInstallTest.php</file>
+            <file>tests/Install/FreshSiteCopyTest.php</file>
+            <file>tests/Install/GenericDistributionTest.php</file>
+            <file>tests/Install/LegacyUpgradeTest.php</file>
+            <file>tests/Install/SetupCompletionTest.php</file>
+            <file>tests/Install/SetupWizardValidationTest.php</file>
+            <file>tests/Repository/AdminUserRepositoryIntegrationTest.php</file>
+            <file>tests/Repository/ContactFormMigrationTest.php</file>
+            <file>tests/Repository/FooterRepositoryTest.php</file>
+            <file>tests/Repository/NavigationFooterBackfillTest.php</file>
+            <file>tests/Repository/NavigationRepositoryTest.php</file>
+            <file>tests/Repository/PagesBackfillTest.php</file>
+            <file>tests/Service/AdminAccessControlTest.php</file>
+            <file>tests/Service/AdminAuthLoginTest.php</file>
+            <file>tests/Service/AdminEditorNavigationTest.php</file>
+            <file>tests/Service/AdminPermissionsTest.php</file>
+            <file>tests/Service/AdminThemeContractTest.php</file>
+            <file>tests/Service/AdminThemePersistenceTest.php</file>
+            <file>tests/Service/AdminThemeTest.php</file>
+            <file>tests/Service/AdminUserServiceTest.php</file>
+            <file>tests/Service/AppUrlTest.php</file>
+            <file>tests/Service/BrandingTest.php</file>
+            <file>tests/Service/FooterServiceTest.php</file>
+            <file>tests/Service/FormAdminTest.php</file>
+            <file>tests/Service/FormBoundaryTest.php</file>
+            <file>tests/Service/FormFieldTypeTest.php</file>
+            <file>tests/Service/FormRenderingTest.php</file>
+            <file>tests/Service/FormValidationTest.php</file>
+            <file>tests/Service/HeaderFooterContractTest.php</file>
+            <file>tests/Service/HeaderFooterRenderingTest.php</file>
+            <file>tests/Service/HeaderFooterSettingsTest.php</file>
+            <file>tests/Service/HomepageHeroEmptyImageTest.php</file>
+            <file>tests/Service/LegalPagesTest.php</file>
+            <file>tests/Service/LinkResolverTest.php</file>
+            <file>tests/Service/MediaAdoptionTest.php</file>
+            <file>tests/Service/MediaBoundaryTest.php</file>
+            <file>tests/Service/MediaLibraryTest.php</file>
+            <file>tests/Service/MediaUsageTest.php</file>
+            <file>tests/Service/NavigationFooterSecurityTest.php</file>
+            <file>tests/Service/NavigationServiceTest.php</file>
+            <file>tests/Service/PageBuilderSecurityTest.php</file>
+            <file>tests/Service/PageContentTest.php</file>
+            <file>tests/Service/PageRoutingTest.php</file>
+            <file>tests/Service/PageSeoTest.php</file>
+            <file>tests/Service/PageServiceTest.php</file>
+            <file>tests/Service/PageTemplateCreationTest.php</file>
+            <file>tests/Service/PageTemplateRegistryTest.php</file>
+            <file>tests/Service/RedirectAdminSecurityTest.php</file>
+            <file>tests/Service/RedirectPathTest.php</file>
+            <file>tests/Service/RedirectRoutingTest.php</file>
+            <file>tests/Service/RedirectSlugChangeTest.php</file>
+            <file>tests/Service/RedirectValidationTest.php</file>
+            <file>tests/Service/ReservedRoutesTest.php</file>
+            <file>tests/Service/RichTextSanitizerTest.php</file>
+            <file>tests/Service/RobotsTest.php</file>
+            <file>tests/Service/RouteRegistryTest.php</file>
+            <file>tests/Service/SeoFieldsAdminLayoutTest.php</file>
+            <file>tests/Service/SeoMetadataTest.php</file>
+            <file>tests/Service/SeoRoutingTest.php</file>
+            <file>tests/Service/SetupAccessTest.php</file>
+            <file>tests/Service/SiteIdentityTest.php</file>
+            <file>tests/Service/SitemapRoutingTest.php</file>
+            <file>tests/Service/SitemapTest.php</file>
+            <file>tests/Service/ThemePersistenceTest.php</file>
+            <file>tests/Service/ThemeRenderingTest.php</file>
+            <file>tests/Service/ThemeSettingsTest.php</file>
+        </testsuite>
+
+        <testsuite name="shop">
+            <file>tests/Mail/EmailPlaceholdersTest.php</file>
+            <file>tests/Mail/OrderConfirmationBuilderTest.php</file>
+            <file>tests/Repository/CollectionRepositoryIntegrationTest.php</file>
+            <file>tests/Repository/OrderHandlingStatusTest.php</file>
+            <file>tests/Repository/OrderNumberFormatTest.php</file>
+            <file>tests/Repository/OrderRepositoryAddressResolutionTest.php</file>
+            <file>tests/Repository/OrderSnapshotIntegrationTest.php</file>
+            <file>tests/Repository/ProductDeletionIntegrationTest.php</file>
+            <directory>tests/Service/Address</directory>
+            <file>tests/Service/CollectionAdminSecurityTest.php</file>
+            <file>tests/Service/CollectionContentTest.php</file>
+            <file>tests/Service/CollectionRoutingTest.php</file>
+            <file>tests/Service/CollectionSeoTest.php</file>
+            <file>tests/Service/CollectionServiceTest.php</file>
+            <file>tests/Service/InvoiceAdminSecurityTest.php</file>
+            <file>tests/Service/InvoiceServiceTest.php</file>
+            <file>tests/Service/OrderConfirmationInvoiceTest.php</file>
+            <file>tests/Service/OrderCsvExportTest.php</file>
+            <file>tests/Service/OrderHandlingAdminSecurityTest.php</file>
+            <file>tests/Service/OrderPaymentSyncTest.php</file>
+            <file>tests/Service/PdfInvoiceRendererTest.php</file>
+            <file>tests/Service/ProductDeletionAdminSecurityTest.php</file>
+            <file>tests/Service/ProductSeoTest.php</file>
+            <directory>tests/Service/Shipping</directory>
+            <file>tests/Service/ShopSeoAdminTest.php</file>
+            <file>tests/Service/ShopSeoRoutingTest.php</file>
+            <file>tests/Service/TurnstileVerifierTest.php</file>
+        </testsuite>
+
+        <testsuite name="personalization">
+            <file>tests/Repository/OrderPersonalizationIntegrationTest.php</file>
+            <file>tests/Repository/ProductPersonalizationRepositoryIntegrationTest.php</file>
+            <directory>tests/Service/Personalization</directory>
+            <file>tests/Service/PersonalizationAdminSecurityTest.php</file>
+            <file>tests/Service/PersonalizationCatalogTest.php</file>
+            <file>tests/Service/PersonalizationCmsSeparationTest.php</file>
+            <file>tests/Service/PersonalizationEditorContractTest.php</file>
+            <file>tests/Service/PersonalizationFrontendContractTest.php</file>
+            <file>tests/Service/PersonalizationHistoricalOrderTest.php</file>
+            <file>tests/Service/PersonalizationPreviewImageTest.php</file>
+            <file>tests/Service/PersonalizationPreviewSnapshotTest.php</file>
+            <file>tests/Service/PersonalizationProductPageTest.php</file>
+            <file>tests/Service/PersonalizationPurchaseFlowTest.php</file>
+            <file>tests/Service/PersonalizationUploadHttpTest.php</file>
+            <file>tests/Service/PersonalizationValidationTest.php</file>
+            <file>tests/Service/PersonalizationViewSeparationTest.php</file>
+        </testsuite>
+
+        <testsuite name="analytics">
+            <file>tests/Repository/DashboardRepositoryIntegrationTest.php</file>
+            <file>tests/Repository/PageViewRepositoryIntegrationTest.php</file>
+            <directory>tests/Service/Analytics</directory>
+            <file>tests/Service/DashboardAttentionTest.php</file>
+            <file>tests/Service/DashboardMetricsTest.php</file>
+            <file>tests/Service/DashboardPageTest.php</file>
+        </testsuite>
+
+        <!-- Everything, exactly once. The default, and the checkpoint. -->
+        <testsuite name="full">
+            <directory>tests</directory>
+        </testsuite>
+    </testsuites>
+</phpunit>

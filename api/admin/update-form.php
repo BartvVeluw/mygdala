@@ -1,0 +1,115 @@
+<?php
+
+/**
+ * POST /api/admin/update-form.php
+ *
+ * Saves the Algemeen and Melding sections of one form
+ * (admin/form.php?id=<id>). The FIELDS have their own endpoints — a field is
+ * created, edited, moved and deleted separately, so a slip in one of them
+ * can never take the form's settings with it.
+ *
+ * FULL-FORM HANDLER: every column it writes is on the screen it posts from.
+ * Both the recipient and the Reply-To field are validated here rather than
+ * trusted: an address that is not an address would reach a mail header, and
+ * a Reply-To naming a field that does not exist (or is not an e-mail field)
+ * would silently do nothing.
+ */
+
+declare(strict_types=1);
+
+require_once __DIR__ . '/../../vendor/autoload.php';
+
+use App\Repository\FormRepository;
+use App\Service\AdminAuth;
+use App\Service\Csrf;
+use App\Service\Forms\FormCatalog;
+use App\Service\Forms\FormFieldTypes;
+use App\Service\Forms\FormRecipient;
+
+AdminAuth::requireLoginForApi();
+AdminAuth::requirePermissionForApi('forms.manage');
+
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    header('Allow: POST');
+    http_response_code(405);
+    exit('Method not allowed');
+}
+
+if (!Csrf::validate($_POST['csrf_token'] ?? null)) {
+    http_response_code(403);
+    exit('Invalid or missing CSRF token.');
+}
+
+$id = filter_input(INPUT_POST, 'id', FILTER_VALIDATE_INT);
+if ($id === false || $id === null || $id < 1) {
+    http_response_code(400);
+    exit('Invalid form id.');
+}
+
+$repository = new FormRepository();
+
+if ($repository->find($id) === null) {
+    http_response_code(404);
+    exit('Form not found.');
+}
+
+$fields = [
+    'name' => mb_substr(trim((string) ($_POST['name'] ?? '')), 0, 150),
+    'is_active' => isset($_POST['is_active']),
+    'submit_label_nl' => mb_substr(trim((string) ($_POST['submit_label_nl'] ?? '')), 0, 150),
+    'submit_label_en' => mb_substr(trim((string) ($_POST['submit_label_en'] ?? '')), 0, 150),
+    'success_message_nl' => mb_substr(trim((string) ($_POST['success_message_nl'] ?? '')), 0, 1000),
+    'success_message_en' => mb_substr(trim((string) ($_POST['success_message_en'] ?? '')), 0, 1000),
+    'notification_email' => trim((string) ($_POST['notification_email'] ?? '')),
+    'reply_to_field_key' => trim((string) ($_POST['reply_to_field_key'] ?? '')),
+    'store_submissions' => isset($_POST['store_submissions']),
+];
+
+$errors = [];
+
+if ($fields['name'] === '') {
+    $errors[] = 'De naam van het formulier is verplicht.';
+}
+
+if ($fields['notification_email'] !== '' && FormRecipient::validAddress($fields['notification_email']) === null) {
+    $errors[] = 'Het e-mailadres voor de melding is geen geldig adres.';
+}
+
+if ($fields['reply_to_field_key'] !== '') {
+    // Only a field of this form, and only one that actually holds an e-mail
+    // address, may be the Reply-To.
+    $candidate = null;
+    foreach ($repository->fieldsFor($id) as $row) {
+        if ((string) $row['field_key'] === $fields['reply_to_field_key']) {
+            $candidate = $row;
+            break;
+        }
+    }
+
+    $type = $candidate === null ? null : FormFieldTypes::get((string) $candidate['field_type']);
+
+    if ($type === null || !$type->holdsEmailAddress()) {
+        $errors[] = 'Het gekozen antwoordadres-veld bestaat niet of is geen e-mailveld.';
+    }
+}
+
+if ($errors !== []) {
+    $_SESSION['admin_form_errors'] = $errors;
+    $_SESSION['admin_form_old'] = $fields;
+    header('Location: /admin/form.php?id=' . $id);
+    exit;
+}
+
+try {
+    $repository->update($id, $fields);
+    FormCatalog::clearCache();
+} catch (\Throwable $e) {
+    error_log('[api/admin/update-form.php] ' . $e->getMessage());
+    $_SESSION['admin_form_errors'] = ['Kon niet worden opgeslagen. Probeer het opnieuw.'];
+    $_SESSION['admin_form_old'] = $fields;
+    header('Location: /admin/form.php?id=' . $id);
+    exit;
+}
+
+header('Location: /admin/form.php?id=' . $id . '&saved=1');
+exit;

@@ -1,0 +1,3890 @@
+/* Minimal, self-contained admin styling — deliberately not the full site
+   stylesheet (this is an internal tool, not a public-facing page). */
+
+/* ---------------------------------------------------------------------------
+   THE ADMIN TOKEN LAYER — and the four dashboard themes
+
+   Everything below this block styles ONE admin interface. A theme never
+   changes a selector, a component, a layout or a template; it re-points the
+   semantic tokens declared here and nothing else. That is the whole
+   mechanism, and it is why "Ocean" and "Black" cannot drift apart from
+   "Default" in behaviour — there is one sidebar, one card, one table, one
+   save bar, and they all read these names.
+
+   :root carries the DEFAULT theme, which is this admin panel's appearance
+   exactly as it was before themes existed. It is what an admin page renders
+   when nothing overrides anything, including when the database is
+   unreachable.
+
+   [data-admin-theme="default"] shares that one block rather than repeating
+   it — two selectors, one palette, nothing to drift. It is not redundant:
+   without it, an element marked `default` inside a page running another
+   theme would inherit that theme's tokens, which is exactly what the four
+   preview sketches on the settings screen would get wrong.
+
+   Which theme a page is on comes from App\Service\AdminTheme, printed once
+   into every admin <body> as data-admin-theme="...". Nothing else in the
+   admin detects a theme.
+
+   Spacing, the radius scale and the transition are structure rather than
+   skin. A theme may re-point the radii (Classic does, for a more
+   conventional look) but nothing here changes a layout.
+   --------------------------------------------------------------------------- */
+:root,
+[data-admin-theme="default"]{
+  /* Surfaces — warm charcoal, each layer a step lighter than the one below */
+  --admin-bg: #14120d;
+  --admin-sidebar-bg: #19160f;
+  --admin-surface: #1e1a13;
+  --admin-surface-hover: #252017;
+  --admin-surface-sunken: #100e0a;
+
+  /* Borders */
+  --admin-border: #322b1e;
+  --admin-border-strong: #453b27;
+
+  /* Text */
+  --admin-text: #f1ead9;
+  --admin-text-muted: #a99b80;
+  --admin-text-faint: #7c7159;
+
+  /* Brand accent — used selectively, not for large blocks of body text.
+     The -soft/-faint/-bar variants are fills at increasing strength; the
+     -line variants are the borders that go with them. They are tokens and
+     not rgba() literals down in the rules precisely so a theme can change
+     the accent hue without leaving gold-tinted badges behind. */
+  --admin-accent: #cda34d;
+  --admin-accent-hover: #ddb765;
+  --admin-accent-soft: rgba(205, 163, 77, 0.10);
+  --admin-accent-soft-strong: rgba(205, 163, 77, 0.18);
+  --admin-accent-faint: rgba(205, 163, 77, 0.06);
+  --admin-accent-bar: rgba(205, 163, 77, 0.38);
+  --admin-accent-line: rgba(205, 163, 77, 0.4);
+  --admin-accent-line-soft: rgba(205, 163, 77, 0.35);
+  --admin-on-accent: #1a1710;
+
+  /* Status. Every theme keeps these red and green: an error that stopped
+     looking like an error would be a styling bug, not a skin. They are
+     re-tuned per theme for contrast against that theme's surfaces, never
+     re-hued. */
+  --admin-error: #e0665a;
+  --admin-error-soft: rgba(224, 102, 90, 0.12);
+  --admin-error-line: rgba(224, 102, 90, 0.4);
+  --admin-success: #7bbf6a;
+  --admin-success-soft: rgba(123, 191, 106, 0.12);
+  --admin-success-line: rgba(123, 191, 106, 0.4);
+
+  /* Interaction tints: the "slightly lifted" wash under a hovered row, nav
+     link or tab. A white wash only reads on a dark ground, so a light theme
+     inverts these rather than losing its hover states. */
+  --admin-hover-tint: rgba(255, 255, 255, 0.04);
+  --admin-hover-tint-soft: rgba(255, 255, 255, 0.03);
+  --admin-hover-tint-strong: rgba(255, 255, 255, 0.05);
+
+  /* Drawn over other things: the modal/picker backdrop, and the small
+     floating chip on top of an image (a drag handle). */
+  --admin-overlay: rgba(0, 0, 0, 0.62);
+  --admin-scrim: rgba(20, 18, 13, 0.75);
+
+  /* Spacing scale */
+  --admin-sp-1: 0.25rem;
+  --admin-sp-2: 0.5rem;
+  --admin-sp-3: 0.75rem;
+  --admin-sp-4: 1rem;
+  --admin-sp-5: 1.5rem;
+  --admin-sp-6: 2rem;
+  --admin-sp-7: 3rem;
+
+  /* Radius */
+  --admin-radius-sm: 6px;
+  --admin-radius-md: 10px;
+  --admin-radius-lg: 14px;
+  --admin-radius-pill: 999px;
+
+  /* Shadow — restrained */
+  --admin-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.35);
+  --admin-shadow-md: 0 8px 24px rgba(0, 0, 0, 0.38);
+  --admin-shadow-bar: 0 -6px 20px rgba(0, 0, 0, 0.32);
+
+  --admin-transition: 170ms ease;
+}
+
+/* CLASSIC — the traditional CMS: a light neutral ground, white cards, a
+   quiet professional blue, and tighter corners. Nothing futuristic, nothing
+   nostalgic either; this is what an administrator expects a back office to
+   look like. Body text is #1f2933 on #ffffff (about 14.6:1) and muted text
+   #54606c on white (about 6.4:1), so "calmer" is spent on colour, not on
+   contrast. */
+[data-admin-theme="classic"]{
+  --admin-bg: #eef1f5;
+  --admin-sidebar-bg: #ffffff;
+  --admin-surface: #ffffff;
+  --admin-surface-hover: #f5f7fa;
+  --admin-surface-sunken: #e4e9ef;
+
+  --admin-border: #d5dbe3;
+  --admin-border-strong: #aab4c0;
+
+  --admin-text: #1f2933;
+  --admin-text-muted: #54606c;
+  --admin-text-faint: #5f6a76;
+
+  --admin-accent: #1f5f9e;
+  --admin-accent-hover: #17497a;
+  --admin-accent-soft: rgba(31, 95, 158, 0.08);
+  --admin-accent-soft-strong: rgba(31, 95, 158, 0.14);
+  --admin-accent-faint: rgba(31, 95, 158, 0.05);
+  --admin-accent-bar: rgba(31, 95, 158, 0.35);
+  --admin-accent-line: rgba(31, 95, 158, 0.4);
+  --admin-accent-line-soft: rgba(31, 95, 158, 0.3);
+  --admin-on-accent: #ffffff;
+
+  --admin-error: #b3261e;
+  --admin-error-soft: rgba(179, 38, 30, 0.08);
+  --admin-error-line: rgba(179, 38, 30, 0.35);
+  --admin-success: #1d6f42;
+  --admin-success-soft: rgba(29, 111, 66, 0.08);
+  --admin-success-line: rgba(29, 111, 66, 0.35);
+
+  /* Inverted: a white wash on a white card is no hover state at all. */
+  --admin-hover-tint: rgba(15, 23, 42, 0.05);
+  --admin-hover-tint-soft: rgba(15, 23, 42, 0.035);
+  --admin-hover-tint-strong: rgba(15, 23, 42, 0.07);
+
+  --admin-overlay: rgba(15, 23, 42, 0.45);
+  --admin-scrim: rgba(255, 255, 255, 0.86);
+
+  /* Squarer corners than the other three. The only structural difference a
+     theme makes, and the one that carries "traditional" without a single
+     extra selector. */
+  --admin-radius-sm: 3px;
+  --admin-radius-md: 5px;
+  --admin-radius-lg: 7px;
+
+  --admin-shadow-sm: 0 1px 2px rgba(16, 24, 40, 0.08);
+  --admin-shadow-md: 0 6px 18px rgba(16, 24, 40, 0.12);
+  --admin-shadow-bar: 0 -4px 16px rgba(16, 24, 40, 0.10);
+}
+
+/* OCEAN — deep navy grounds with a teal accent. Cool where Default is warm,
+   and deliberately restrained: one accent hue at several strengths, no
+   second neon. Body text is #e8f2f8 on #12293e (about 12.9:1). */
+[data-admin-theme="ocean"]{
+  --admin-bg: #0a1a2b;
+  --admin-sidebar-bg: #0d2337;
+  --admin-surface: #12293e;
+  --admin-surface-hover: #19344c;
+  --admin-surface-sunken: #071322;
+
+  --admin-border: #21405c;
+  --admin-border-strong: #35618a;
+
+  --admin-text: #e8f2f8;
+  --admin-text-muted: #9db8cd;
+  --admin-text-faint: #7b98af;
+
+  --admin-accent: #37bccb;
+  --admin-accent-hover: #5ad3e0;
+  --admin-accent-soft: rgba(55, 188, 203, 0.12);
+  --admin-accent-soft-strong: rgba(55, 188, 203, 0.2);
+  --admin-accent-faint: rgba(55, 188, 203, 0.07);
+  --admin-accent-bar: rgba(55, 188, 203, 0.38);
+  --admin-accent-line: rgba(55, 188, 203, 0.45);
+  --admin-accent-line-soft: rgba(55, 188, 203, 0.38);
+  --admin-on-accent: #04222a;
+
+  --admin-error: #f4877a;
+  --admin-error-soft: rgba(244, 135, 122, 0.14);
+  --admin-error-line: rgba(244, 135, 122, 0.45);
+  --admin-success: #6fd39a;
+  --admin-success-soft: rgba(111, 211, 154, 0.14);
+  --admin-success-line: rgba(111, 211, 154, 0.45);
+
+  --admin-hover-tint: rgba(255, 255, 255, 0.05);
+  --admin-hover-tint-soft: rgba(255, 255, 255, 0.035);
+  --admin-hover-tint-strong: rgba(255, 255, 255, 0.07);
+
+  --admin-overlay: rgba(3, 12, 21, 0.68);
+  --admin-scrim: rgba(7, 19, 34, 0.8);
+
+  --admin-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --admin-shadow-md: 0 8px 24px rgba(0, 0, 0, 0.45);
+  --admin-shadow-bar: 0 -6px 20px rgba(0, 0, 0, 0.4);
+}
+
+/* BLACK — monochrome, for a brand that is. Greys do the work colour does
+   elsewhere: five near-black surfaces carry the hierarchy, and the accent is
+   plain white, one step brighter than body text so a link is still a link
+   (links are underlined here as everywhere else in this stylesheet, so the
+   distinction never rests on brightness alone). Not literally #000/#fff —
+   pure black surfaces would collapse the card, the sidebar and the page
+   ground into one flat plane. Status colours stay red and green: "minimal
+   use of colour" is a look, not a licence to make an error look like a
+   notice. */
+[data-admin-theme="black"]{
+  --admin-bg: #0a0a0a;
+  --admin-sidebar-bg: #101010;
+  --admin-surface: #171717;
+  --admin-surface-hover: #202020;
+  --admin-surface-sunken: #050505;
+
+  --admin-border: #2b2b2b;
+  --admin-border-strong: #454545;
+
+  --admin-text: #e6e6e6;
+  --admin-text-muted: #a3a3a3;
+  --admin-text-faint: #8a8a8a;
+
+  --admin-accent: #ffffff;
+  --admin-accent-hover: #cfcfcf;
+  --admin-accent-soft: rgba(255, 255, 255, 0.1);
+  --admin-accent-soft-strong: rgba(255, 255, 255, 0.18);
+  --admin-accent-faint: rgba(255, 255, 255, 0.06);
+  --admin-accent-bar: rgba(255, 255, 255, 0.42);
+  --admin-accent-line: rgba(255, 255, 255, 0.45);
+  --admin-accent-line-soft: rgba(255, 255, 255, 0.35);
+  --admin-on-accent: #0a0a0a;
+
+  --admin-error: #f08579;
+  --admin-error-soft: rgba(240, 133, 121, 0.14);
+  --admin-error-line: rgba(240, 133, 121, 0.45);
+  --admin-success: #79cf94;
+  --admin-success-soft: rgba(121, 207, 148, 0.14);
+  --admin-success-line: rgba(121, 207, 148, 0.45);
+
+  --admin-hover-tint: rgba(255, 255, 255, 0.06);
+  --admin-hover-tint-soft: rgba(255, 255, 255, 0.045);
+  --admin-hover-tint-strong: rgba(255, 255, 255, 0.09);
+
+  --admin-overlay: rgba(0, 0, 0, 0.72);
+  --admin-scrim: rgba(5, 5, 5, 0.8);
+
+  --admin-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.5);
+  --admin-shadow-md: 0 8px 24px rgba(0, 0, 0, 0.55);
+  --admin-shadow-bar: 0 -6px 20px rgba(0, 0, 0, 0.5);
+}
+
+*{ box-sizing: border-box; }
+
+body{
+  margin: 0;
+  background: var(--admin-bg);
+  color: var(--admin-text);
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+a{ color: var(--admin-accent); }
+
+:focus-visible{
+  outline: 2px solid var(--admin-accent);
+  outline-offset: 2px;
+  border-radius: var(--admin-radius-sm);
+}
+
+.admin-main{
+  max-width: 1200px;
+  margin-left: 248px;
+  padding: var(--admin-sp-6) var(--admin-sp-6) var(--admin-sp-7);
+}
+
+/* Persistent left sidebar (admin/_header.php) — fixed, with .admin-main
+   given a matching left margin above. No wrapping layout element needed
+   since every admin page already renders the sidebar immediately before
+   its own <main class="admin-main">. */
+.admin-sidebar{
+  position: fixed;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: 248px;
+  display: flex;
+  flex-direction: column;
+  background: var(--admin-sidebar-bg);
+  border-right: 1px solid var(--admin-border);
+  padding: var(--admin-sp-4) 0 var(--admin-sp-4);
+  overflow-y: auto;
+  z-index: 20;
+}
+
+.admin-sidebar__brand{
+  display: block;
+  padding: 0 var(--admin-sp-5) var(--admin-sp-4);
+  margin-bottom: var(--admin-sp-2);
+  border-bottom: 1px solid var(--admin-border);
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: var(--admin-text);
+  text-decoration: none;
+  letter-spacing: 0.01em;
+}
+
+.admin-sidebar__nav{
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  padding: var(--admin-sp-2) var(--admin-sp-3) 0;
+}
+
+.admin-sidebar__divider{
+  height: 1px;
+  background: var(--admin-border);
+  margin: var(--admin-sp-3) var(--admin-sp-2);
+  flex: none;
+}
+
+.admin-sidebar__link{
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.5rem 0.65rem;
+  border-radius: var(--admin-radius-sm);
+  color: var(--admin-text-muted);
+  text-decoration: none;
+  font-size: 0.9rem;
+  transition: background var(--admin-transition), color var(--admin-transition);
+}
+
+.admin-sidebar__icon{
+  flex: none;
+  width: 18px;
+  height: 18px;
+  opacity: 0.75;
+  transition: opacity var(--admin-transition), color var(--admin-transition);
+}
+
+.admin-sidebar__link:hover{ color: var(--admin-text); background: var(--admin-hover-tint); }
+.admin-sidebar__link:hover .admin-sidebar__icon{ opacity: 1; }
+
+.admin-sidebar__link.is-active{
+  color: var(--admin-text);
+  background: var(--admin-accent-soft);
+  font-weight: 600;
+}
+
+.admin-sidebar__link.is-active::before{
+  content: "";
+  position: absolute;
+  left: -0.65rem;
+  top: 0.3rem;
+  bottom: 0.3rem;
+  width: 3px;
+  border-radius: var(--admin-radius-pill);
+  background: var(--admin-accent);
+}
+
+.admin-sidebar__link.is-active .admin-sidebar__icon{ opacity: 1; color: var(--admin-accent); }
+
+/* Who am I signed in as — sits between the nav and the logout button so the
+   answer is always visible, now that the CMS has more than one account. */
+.admin-sidebar__account{
+  padding: var(--admin-sp-4) var(--admin-sp-4) 0;
+  margin-top: var(--admin-sp-2);
+  border-top: 1px solid var(--admin-border);
+}
+
+.admin-sidebar__account-name{
+  margin: 0;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--admin-text);
+  overflow-wrap: anywhere;
+}
+
+.admin-sidebar__account-role{
+  margin: 0.1rem 0 0;
+  font-size: 0.75rem;
+  color: var(--admin-text-muted);
+}
+
+.admin-sidebar__logout{
+  padding: var(--admin-sp-3) var(--admin-sp-4) 0;
+}
+
+.admin-sidebar__logout button{ width: 100%; }
+.admin-sidebar__logout button:not(:hover){ background: transparent; border: 1px solid var(--admin-border); color: var(--admin-text-muted); }
+.admin-sidebar__logout button:hover{ color: var(--admin-on-accent); }
+
+.admin-sidebar-toggle-checkbox{ position: absolute; opacity: 0; pointer-events: none; }
+.admin-sidebar-toggle{ display: none; }
+
+@media (max-width: 900px){
+  .admin-sidebar{
+    transform: translateX(-100%);
+    transition: transform 0.2s ease;
+    width: 264px;
+    box-shadow: var(--admin-shadow-md);
+  }
+
+  .admin-sidebar-toggle-checkbox:checked ~ .admin-sidebar{ transform: translateX(0); }
+
+  .admin-sidebar-toggle{
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    width: fit-content;
+    margin: var(--admin-sp-3) 0 0 var(--admin-sp-3);
+    padding: 0.5rem 0.9rem;
+    background: var(--admin-surface);
+    border: 1px solid var(--admin-border);
+    border-radius: var(--admin-radius-sm);
+    color: var(--admin-text);
+    cursor: pointer;
+  }
+
+  .admin-main{ margin-left: 0; max-width: none; padding: var(--admin-sp-4) var(--admin-sp-4) var(--admin-sp-6); }
+}
+
+.admin-main h1{ margin-top: 0; font-size: 1.4rem; }
+
+.admin-main__heading{
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--admin-sp-4);
+  margin-bottom: var(--admin-sp-5);
+}
+
+.admin-main__heading h1{ margin-bottom: 0; }
+
+/* Dynamic page-editor header (admin/pages.php) — the selected page becomes
+   the headline, with a short description and the public-page link on the
+   same row so it's obvious at a glance which page is being edited. */
+.admin-page-head{
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--admin-sp-4);
+  margin-bottom: var(--admin-sp-5);
+}
+
+.admin-page-head__title{ margin: 0 0 0.3rem; font-size: 1.5rem; }
+.admin-page-head__desc{ margin: 0; color: var(--admin-text-muted); font-size: 0.92rem; }
+.admin-page-head .admin-btn-secondary{ flex: none; margin-top: 0.2rem; }
+
+/* Buttons */
+.admin-btn-link,
+.admin-btn-primary{
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  background: var(--admin-accent);
+  color: var(--admin-on-accent);
+  padding: 0.55rem 1.1rem;
+  border-radius: var(--admin-radius-sm);
+  font-weight: 600;
+  font-size: 0.9rem;
+  text-decoration: none;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: background var(--admin-transition), filter var(--admin-transition), border-color var(--admin-transition);
+}
+
+.admin-btn-link:hover,
+.admin-btn-primary:hover{ background: var(--admin-accent-hover); }
+
+.admin-btn-secondary{
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  background: transparent;
+  color: var(--admin-text);
+  padding: 0.55rem 1.1rem;
+  border-radius: var(--admin-radius-sm);
+  border: 1px solid var(--admin-border-strong);
+  font-weight: 600;
+  font-size: 0.9rem;
+  text-decoration: none;
+  cursor: pointer;
+  transition: border-color var(--admin-transition), color var(--admin-transition), background var(--admin-transition);
+}
+
+.admin-btn-secondary:hover{ border-color: var(--admin-accent); color: var(--admin-accent); background: var(--admin-accent-soft); }
+
+.admin-card{
+  background: var(--admin-surface);
+  border: 1px solid var(--admin-border);
+  border-radius: var(--admin-radius-lg);
+  padding: var(--admin-sp-5);
+  margin-bottom: var(--admin-sp-5);
+  box-shadow: var(--admin-shadow-sm);
+}
+
+.admin-card h2{ margin-top: 0; font-size: 1rem; color: var(--admin-text); }
+
+.admin-table-wrap{ overflow-x: auto; }
+
+.admin-table{
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.admin-table th, .admin-table td{
+  text-align: left;
+  padding: 0.65rem 0.8rem;
+  border-bottom: 1px solid var(--admin-border);
+  white-space: nowrap;
+}
+
+.admin-table th{ color: var(--admin-text-muted); font-weight: 600; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.04em; }
+
+.admin-table tbody tr{ transition: background var(--admin-transition); }
+.admin-table tbody tr:hover{ background: var(--admin-hover-tint-soft); }
+
+.admin-badge{
+  display: inline-flex;
+  align-items: center;
+  padding: 0.22rem 0.65rem;
+  border-radius: var(--admin-radius-pill);
+  font-size: 0.78rem;
+  font-weight: 500;
+  border: 1px solid var(--admin-border-strong);
+  color: var(--admin-text-muted);
+  white-space: nowrap;
+}
+
+.admin-badge--paid{ color: var(--admin-success); border-color: var(--admin-success-line); background: var(--admin-success-soft); }
+.admin-badge--failed, .admin-badge--canceled, .admin-badge--expired{ color: var(--admin-error); border-color: var(--admin-error-line); background: var(--admin-error-soft); }
+.admin-badge--pending{ color: var(--admin-accent); border-color: var(--admin-accent-line); background: var(--admin-accent-soft); }
+.admin-badge--theme{ font-style: italic; }
+
+/* Section-kind badges (admin/pages.php) — consistent visual language for
+   "how editable is this piece of content", independent of order/payment
+   status badges above. */
+.admin-badge--editable{ color: var(--admin-success); border-color: var(--admin-success-line); background: var(--admin-success-soft); }
+.admin-badge--muted{ color: var(--admin-text-faint); border-color: var(--admin-border); background: transparent; }
+.admin-badge--info{ color: var(--admin-accent); border-color: var(--admin-accent-line-soft); background: var(--admin-accent-soft); }
+.admin-badge--warning{ color: var(--admin-error); border-color: var(--admin-error-line); background: var(--admin-error-soft); }
+
+/* Simple status filter tabs (admin/contact-requests.php) */
+.admin-filter-tabs{ display: flex; gap: var(--admin-sp-2); margin: 0 0 var(--admin-sp-4); flex-wrap: wrap; }
+.admin-filter-tab{
+  display: inline-flex;
+  align-items: center;
+  padding: 0.35rem 0.9rem;
+  border-radius: var(--admin-radius-pill);
+  border: 1px solid var(--admin-border-strong);
+  color: var(--admin-text-muted);
+  font-size: 0.85rem;
+  text-decoration: none;
+  transition: background var(--admin-transition), color var(--admin-transition), border-color var(--admin-transition);
+}
+.admin-filter-tab:hover{ border-color: var(--admin-accent); color: var(--admin-accent); }
+.admin-filter-tab.is-active{ color: var(--admin-on-accent); background: var(--admin-accent); border-color: var(--admin-accent); font-weight: 600; }
+
+/* Unread contact requests stand out in the list (admin/contact-requests.php) */
+.admin-row--unread{ font-weight: 600; }
+.admin-row--unread td{ background: var(--admin-accent-soft); }
+
+/* Handled orders step back visually in the order list (admin/orders.php) so
+   the "Open" working list is what draws the eye. Only the plain cell text is
+   muted — the order-number link, the status badges and the quick action keep
+   their own colours, so a handled row stays fully readable. */
+.admin-row--handled td{ color: var(--admin-text-muted); }
+
+/* Page-centric CMS overview (admin/pages.php) — one row per page section,
+   in actual page order, instead of one large mixed table. Hierarchy comes
+   from the row/card styling, not from a leading number. */
+.admin-page-sections{
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.admin-section-row{
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--admin-sp-4);
+  padding: 0.9rem 1.1rem;
+  background: var(--admin-surface-sunken);
+  border: 1px solid var(--admin-border);
+  border-radius: var(--admin-radius-md);
+  transition: border-color var(--admin-transition), background var(--admin-transition);
+}
+
+.admin-section-row.is-editable:hover{
+  border-color: var(--admin-border-strong);
+  background: var(--admin-surface-hover);
+}
+
+.admin-section-row__body{ flex: 1; min-width: 0; }
+
+.admin-section-row__name{ font-weight: 600; margin: 0 0 0.2rem; font-size: 0.95rem; }
+
+.admin-section-row__note{ margin: 0.3rem 0 0; color: var(--admin-text-muted); font-size: 0.82rem; line-height: 1.45; }
+
+.admin-section-row__actions{
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.admin-section-row__edit{
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.35rem 0.8rem;
+  border-radius: var(--admin-radius-sm);
+  border: 1px solid var(--admin-border-strong);
+  color: var(--admin-text);
+  font-size: 0.84rem;
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: border-color var(--admin-transition), color var(--admin-transition), background var(--admin-transition);
+}
+
+.admin-section-row__edit:hover{ border-color: var(--admin-accent); color: var(--admin-accent); background: var(--admin-accent-soft); }
+
+/* Dynamic page builder (admin/pages.php) — drag handle, hidden-section
+   styling and the "+ Add section" form. */
+.admin-drag-handle{
+  flex: none;
+  cursor: grab;
+  font-size: 1.2rem;
+  line-height: 1;
+  color: var(--admin-text-faint);
+  padding: 0.2rem 0.4rem;
+  border-radius: var(--admin-radius-sm);
+  user-select: none;
+}
+
+.admin-drag-handle:hover,
+.admin-drag-handle:focus-visible{ color: var(--admin-text); background: var(--admin-surface-hover); }
+
+.admin-page-section-row.is-dragging{ opacity: 0.4; }
+
+.admin-page-section-row.is-hidden-section{
+  background: transparent;
+  border-style: dashed;
+  opacity: 0.75;
+}
+
+.admin-page-section-row.is-hidden-section .admin-section-row__name{ color: var(--admin-text-muted); }
+
+/* Always the last thing under a page's block list, so it reads as "and then
+   add one more". ONE action now: it used to be a dropdown of type names plus
+   a separate confirm button, and the choosing moved into the picker panel
+   this opens (admin/_block_picker.php). Full width and dashed, so it reads
+   as the empty next row of the list rather than as a button floating under
+   it. */
+.admin-add-block{ margin-top: var(--admin-sp-4); }
+
+.admin-add-block__button{
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  width: 100%;
+  padding: var(--admin-sp-4);
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--admin-accent);
+  background: transparent;
+  border: 1px dashed var(--admin-border-strong);
+  border-radius: var(--admin-radius-md);
+  cursor: pointer;
+  transition: background var(--admin-transition), border-color var(--admin-transition), color var(--admin-transition);
+}
+
+.admin-add-block__button:hover{
+  background: var(--admin-accent-soft);
+  border-color: var(--admin-accent);
+  color: var(--admin-accent-hover);
+}
+
+/* A block that was just added and had no editor of its own to open — a
+   two-second glow so the row that appeared is the one being looked at. */
+.admin-page-section-row.is-just-added{
+  border-color: var(--admin-accent);
+  box-shadow: 0 0 0 1px var(--admin-accent-soft-strong);
+  animation: admin-just-added 2.4s ease-out 1;
+}
+
+@keyframes admin-just-added{
+  0%, 55%{ background: var(--admin-accent-soft-strong); }
+  100%{ background: transparent; }
+}
+
+@media (prefers-reduced-motion: reduce){
+  .admin-page-section-row.is-just-added{ animation: none; background: var(--admin-accent-soft); }
+}
+
+/* Global Navigation (admin/navigation.php) + Footer (admin/footer.php) —
+   same row/handle/hidden-state visuals as the page builder above, extended
+   to nav_items/footer_columns/footer_links rows, plus an indented child
+   list for a top-level nav item's submenu / a footer column's links. */
+.admin-nav-item-row.is-dragging,
+.admin-footer-column-row.is-dragging,
+.admin-footer-link-row.is-dragging{ opacity: 0.4; }
+
+.admin-nav-item-row.is-hidden-section,
+.admin-footer-column-row.is-hidden-section,
+.admin-footer-link-row.is-hidden-section{
+  background: transparent;
+  border-style: dashed;
+  opacity: 0.75;
+}
+.admin-nav-item-row.is-hidden-section .admin-section-row__name,
+.admin-footer-column-row.is-hidden-section .admin-section-row__name,
+.admin-footer-link-row.is-hidden-section .admin-section-row__name{ color: var(--admin-text-muted); }
+
+.admin-nav-children{
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin: 0.5rem 0 0 2.5rem;
+  padding-left: var(--admin-sp-4);
+  border-left: 2px solid var(--admin-border);
+}
+.admin-nav-item-row--child{ padding: 0.7rem 0.9rem; }
+.admin-nav-children__empty{ font-size: 0.82rem; margin: 0; }
+
+/* Compact segmented control for switching between pages
+   (admin/pages.php) — the selected page is unmistakably highlighted. */
+.admin-page-tabs{
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  padding: 4px;
+  background: var(--admin-surface);
+  border: 1px solid var(--admin-border);
+  border-radius: var(--admin-radius-md);
+  margin-bottom: var(--admin-sp-5);
+  width: fit-content;
+  max-width: 100%;
+}
+
+.admin-page-tabs a{
+  padding: 0.5rem 1rem;
+  border-radius: var(--admin-radius-sm);
+  color: var(--admin-text-muted);
+  text-decoration: none;
+  font-size: 0.87rem;
+  font-weight: 500;
+  white-space: nowrap;
+  transition: background var(--admin-transition), color var(--admin-transition);
+}
+
+.admin-page-tabs a:hover{ color: var(--admin-text); background: var(--admin-hover-tint-strong); }
+
+.admin-page-tabs a.is-active{
+  color: var(--admin-on-accent);
+  background: var(--admin-accent);
+  font-weight: 600;
+}
+
+@media (max-width: 640px){
+  .admin-page-tabs{
+    width: 100%;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   TABS FOR A LONG SCREEN (admin/_admin_tabs.php)
+
+   One strip of buttons over panels that were already there. The visual
+   language is the segmented control this admin already used for switching
+   pages, so a tabbed screen introduces no new shape — only real tab
+   semantics, a keyboard, and a remembered choice.
+   -------------------------------------------------------------------------- */
+.admin-tabs{ margin: 0 0 var(--admin-sp-5); }
+
+/* Hidden until the script has run. Without JavaScript every panel stays on
+   screen (the helper prints a <noscript> rule that says so) and a tab strip
+   would be a row of buttons that do nothing. */
+.admin-tabs__list{ display: none; }
+
+.admin-tabs.is-enhanced .admin-tabs__list{
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  padding: 4px;
+  background: var(--admin-surface);
+  border: 1px solid var(--admin-border);
+  border-radius: var(--admin-radius-md);
+  margin-bottom: var(--admin-sp-5);
+  width: fit-content;
+  max-width: 100%;
+}
+
+.admin-tabs__tab{
+  appearance: none;
+  -webkit-appearance: none;
+  padding: 0.55rem 1.1rem;
+  border: 0;
+  border-radius: var(--admin-radius-sm);
+  background: transparent;
+  color: var(--admin-text-muted);
+  font: inherit;
+  font-size: 0.87rem;
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background var(--admin-transition), color var(--admin-transition);
+}
+
+.admin-tabs__tab:hover{ color: var(--admin-text); background: var(--admin-hover-tint-strong); }
+.admin-tabs__tab:focus-visible{ outline: 2px solid var(--admin-accent); outline-offset: 2px; }
+
+/* Never colour alone: the open tab is the filled one, the bold one, and the
+   only one a screen reader calls selected. */
+.admin-tabs__tab[aria-selected="true"]{
+  color: var(--admin-on-accent);
+  background: var(--admin-accent);
+  font-weight: 600;
+}
+
+/* The card that is nothing but a save button, on a screen where the button
+   needs a line of explanation next to it. */
+.admin-card--actions{ display: flex; align-items: center; gap: var(--admin-sp-4); flex-wrap: wrap; }
+.admin-card--actions p{ margin: 0; }
+
+@media (max-width: 640px){
+  .admin-tabs.is-enhanced .admin-tabs__list{
+    width: 100%;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .admin-tabs__tab{ flex: 1 0 auto; text-align: center; }
+}
+
+/* --------------------------------------------------------------------------
+   COLLAPSIBLE LIST ITEMS (admin/_admin_collapse.php)
+
+   A <details> per item, so open/closed, the keyboard and what a screen
+   reader announces are the browser's job. Used by the page builder's block
+   list, where a collapsed row is one line you can scan and drag and an open
+   one carries the notes and the actions.
+   -------------------------------------------------------------------------- */
+.admin-collapse{ flex: 1; min-width: 0; }
+
+.admin-collapse__summary{
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  padding: 0.5rem 0.2rem;
+  cursor: pointer;
+  list-style: none;
+  border-radius: var(--admin-radius-sm);
+}
+
+.admin-collapse__summary::-webkit-details-marker{ display: none; }
+.admin-collapse__summary:focus-visible{ outline: 2px solid var(--admin-accent); outline-offset: 2px; }
+
+/* A rotating caret: open/closed is visible without hovering anything. */
+.admin-collapse__caret{
+  flex: 0 0 auto;
+  width: 0;
+  height: 0;
+  border-left: 5px solid currentColor;
+  border-top: 4px solid transparent;
+  border-bottom: 4px solid transparent;
+  opacity: 0.7;
+  transition: transform 0.15s ease;
+}
+
+.admin-collapse[open] > .admin-collapse__summary .admin-collapse__caret{ transform: rotate(90deg); }
+
+@media (prefers-reduced-motion: reduce){
+  .admin-collapse__caret{ transition: none; }
+}
+
+.admin-collapse__title{ margin: 0; flex: 1 1 12rem; min-width: 0; }
+
+.admin-collapse__badges{ display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap; }
+
+.admin-collapse__body{
+  margin-top: 0.35rem;
+  padding: 0.6rem 0.2rem 0.4rem;
+  border-top: 1px solid var(--admin-border);
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+/* The block list's rows hold a <details> now, so they grow downwards instead
+   of being one centred line — the handle stays level with the summary. */
+.admin-page-section-row{
+  align-items: flex-start;
+  padding: 0.35rem 1.1rem 0.35rem 0.5rem;
+}
+
+.admin-page-section-row .admin-drag-handle{ margin-top: 0.5rem; }
+.admin-page-section-row .admin-section-row__actions{ flex-wrap: wrap; }
+.admin-page-section-row .admin-section-row__body{ flex: none; }
+
+/* The shared row rule stacks its children below 900px (see the media block
+   near the end of this file) — which was right when a row was a name, a note
+   and five controls side by side. A collapsed block row is one line, so the
+   handle belongs next to it rather than on a line of its own. Written with
+   the list in the selector so it wins on specificity wherever it sits. */
+@media (max-width: 900px){
+  .admin-page-sections .admin-page-section-row{ flex-direction: row; align-items: flex-start; }
+}
+
+/* Dashboard shop overview (admin/index.php) — the figures, the "Aandacht
+   nodig" list and the section headings above the navigation cards. Built out
+   of the existing tokens and the existing .admin-card/.admin-table/
+   .admin-badge components, so this screen adds no second visual language. */
+.admin-kpi-grid{
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--admin-sp-4);
+  margin-bottom: var(--admin-sp-5);
+}
+
+.admin-kpi{
+  background: var(--admin-surface);
+  border: 1px solid var(--admin-border);
+  border-radius: var(--admin-radius-lg);
+  padding: var(--admin-sp-4) var(--admin-sp-5);
+  box-shadow: var(--admin-shadow-sm);
+}
+
+.admin-kpi__label{
+  margin: 0 0 0.35rem;
+  color: var(--admin-text-muted);
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.admin-kpi__value{
+  margin: 0;
+  font-size: 1.6rem;
+  font-weight: 600;
+  color: var(--admin-accent);
+  line-height: 1.15;
+}
+
+.admin-kpi__note{ margin: 0.4rem 0 0; color: var(--admin-text-faint); font-size: 0.78rem; line-height: 1.45; }
+
+/* Card header with an action on the right — same idea as
+   .admin-main__heading, one level down inside a card. */
+.admin-card__heading{
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--admin-sp-4);
+  margin-bottom: var(--admin-sp-4);
+}
+
+.admin-card__heading h2{ margin: 0; }
+
+.admin-attention__list{ list-style: none; margin: 0; padding: 0; }
+
+.admin-attention__item + .admin-attention__item{ border-top: 1px solid var(--admin-border); }
+
+.admin-attention__link{
+  display: block;
+  position: relative;
+  padding: 0.6rem 0.75rem 0.6rem 1.4rem;
+  border-radius: var(--admin-radius-sm);
+  color: inherit;
+  text-decoration: none;
+  transition: background var(--admin-transition);
+}
+
+/* A small dot instead of a per-type icon set: the wording already says what
+   the item is, and the colour only has to separate "someone is waiting" from
+   "something is unfinished". */
+.admin-attention__link::before{
+  content: "";
+  position: absolute;
+  left: 0.35rem;
+  top: 1.05rem;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--admin-text-faint);
+}
+
+.admin-attention__item--orders_awaiting .admin-attention__link::before{ background: var(--admin-accent); }
+.admin-attention__item--personalization_incomplete .admin-attention__link::before{ background: var(--admin-error); }
+
+.admin-attention__link:hover{ background: var(--admin-surface-hover); }
+
+.admin-attention__title{ display: block; color: var(--admin-text); font-size: 0.92rem; font-weight: 600; }
+.admin-attention__link:hover .admin-attention__title{ color: var(--admin-accent); }
+.admin-attention__detail{ display: block; margin-top: 0.15rem; color: var(--admin-text-muted); font-size: 0.82rem; line-height: 1.45; }
+
+.admin-attention__more{ margin: var(--admin-sp-3) 0 0; font-size: 0.82rem; }
+
+.admin-dashboard-heading{ margin: var(--admin-sp-6) 0 var(--admin-sp-4); font-size: 1rem; color: var(--admin-text-muted); }
+
+/* Dashboard navigation cards (admin/index.php) */
+.admin-dashboard-intro{ margin: 0 0 var(--admin-sp-5); color: var(--admin-text-muted); max-width: 60ch; }
+
+.admin-dashboard-grid{
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: var(--admin-sp-4);
+}
+
+.admin-dashboard-card{
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  background: var(--admin-surface);
+  border: 1px solid var(--admin-border);
+  border-radius: var(--admin-radius-lg);
+  padding: var(--admin-sp-5);
+  color: inherit;
+  text-decoration: none;
+  box-shadow: var(--admin-shadow-sm);
+  transition: border-color var(--admin-transition), background var(--admin-transition), transform var(--admin-transition);
+}
+
+.admin-dashboard-card:hover{
+  border-color: var(--admin-accent);
+  background: var(--admin-surface-hover);
+  transform: translateY(-1px);
+}
+
+.admin-dashboard-card__icon{
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.6rem;
+  height: 2.6rem;
+  border-radius: var(--admin-radius-md);
+  background: var(--admin-accent-soft);
+  color: var(--admin-accent);
+}
+
+.admin-dashboard-card__icon svg{ width: 22px; height: 22px; }
+
+.admin-dashboard-card__title{ margin: 0; font-size: 1.05rem; font-weight: 600; color: var(--admin-text); }
+.admin-dashboard-card__desc{ margin: 0; color: var(--admin-text-muted); font-size: 0.88rem; line-height: 1.5; flex: 1; }
+
+.admin-dashboard-card__cta{
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  color: var(--admin-accent);
+  font-size: 0.86rem;
+  font-weight: 600;
+}
+
+.admin-dashboard-card:hover .admin-dashboard-card__cta{ gap: 0.5rem; }
+
+/* ── Dashboard: website statistics ──────────────────────────────────────
+   The report block under the navigation cards (admin/_dashboard_analytics.php).
+   Reuses the surface/border/accent tokens above rather than introducing a
+   palette of its own, so the chart and the cards stay part of the same CMS.  */
+
+.admin-stats{ margin-top: var(--admin-sp-7); }
+.admin-stats__head{ margin-bottom: var(--admin-sp-4); }
+.admin-stats__head h2{ margin: 0 0 var(--admin-sp-2); font-size: 1.15rem; font-weight: 600; }
+.admin-stats__intro{ margin: 0; color: var(--admin-text-muted); font-size: 0.88rem; line-height: 1.55; max-width: 78ch; }
+
+.admin-stats__grid{
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--admin-sp-4);
+}
+
+.admin-stat-card{
+  background: var(--admin-surface);
+  border: 1px solid var(--admin-border);
+  border-radius: var(--admin-radius-lg);
+  padding: var(--admin-sp-4) var(--admin-sp-5);
+  box-shadow: var(--admin-shadow-sm);
+}
+
+.admin-stat-card__label{ margin: 0; color: var(--admin-text-muted); font-size: 0.82rem; }
+.admin-stat-card__value{ margin: 0.25rem 0 0.35rem; font-size: 1.9rem; font-weight: 600; line-height: 1.1; color: var(--admin-text); }
+.admin-stat-card__delta{ font-size: 0.8rem; font-weight: 600; }
+.admin-stat-card__delta.is-up{ color: var(--admin-success); }
+.admin-stat-card__delta.is-down{ color: var(--admin-error); }
+.admin-stat-card__delta.is-neutral{ color: var(--admin-text-faint); font-weight: 500; }
+
+.admin-stats__footnote{ margin: var(--admin-sp-3) 0 0; color: var(--admin-text-faint); font-size: 0.78rem; line-height: 1.5; max-width: 80ch; }
+
+.admin-stats__panels{
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--admin-sp-4);
+  margin-top: var(--admin-sp-5);
+}
+
+/* The chart is wide by nature; the two lists sit side by side underneath it. */
+.admin-stats__panel--chart{ grid-column: 1 / -1; }
+
+.admin-stats__panel{
+  background: var(--admin-surface);
+  border: 1px solid var(--admin-border);
+  border-radius: var(--admin-radius-lg);
+  padding: var(--admin-sp-5);
+  box-shadow: var(--admin-shadow-sm);
+  min-width: 0;
+}
+
+.admin-stats__panel h3{ margin: 0 0 var(--admin-sp-4); font-size: 0.95rem; font-weight: 600; }
+
+.admin-stats__chart{ display: block; width: 100%; height: auto; }
+.admin-stats__gridline{ stroke: var(--admin-border); stroke-width: 1; }
+.admin-stats__axis{ fill: var(--admin-text-faint); font-size: 11px; font-family: inherit; }
+/* Two series, one hue: the wide pale bar is pageviews, the narrow solid bar
+   in front of it is visitors. A second colour would read as a second subject;
+   the same accent at two strengths reads as "part of the same thing". The pale
+   value is stronger than --admin-accent-soft-strong (0.18), which disappears
+   at bar size against the panel surface. */
+.admin-stats__bar{ fill: var(--admin-accent-bar); }
+.admin-stats__bar--visitors{ fill: var(--admin-accent); }
+
+.admin-stats__legend{
+  display: flex;
+  gap: var(--admin-sp-4);
+  margin: var(--admin-sp-3) 0 0;
+  color: var(--admin-text-muted);
+  font-size: 0.8rem;
+}
+
+.admin-stats__key{ display: inline-flex; align-items: center; gap: 0.4rem; }
+
+.admin-stats__swatch{
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  background: var(--admin-accent-bar);
+}
+
+.admin-stats__swatch--visitors{ background: var(--admin-accent); }
+
+.admin-stats__table{ width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+.admin-stats__table th{
+  text-align: left;
+  padding: 0 0 var(--admin-sp-2);
+  border-bottom: 1px solid var(--admin-border);
+  color: var(--admin-text-faint);
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.admin-stats__table td{ padding: var(--admin-sp-3) 0; border-bottom: 1px solid var(--admin-border); }
+.admin-stats__table tr:last-child td{ border-bottom: 0; }
+.admin-stats__table th + th,
+.admin-stats__table td + td{ text-align: right; width: 6.5rem; white-space: nowrap; }
+/* A long path must wrap inside its cell instead of stretching the table. */
+.admin-stats__table td:first-child{ word-break: break-word; }
+
+.admin-stats__panel-note{ margin: var(--admin-sp-3) 0 0; color: var(--admin-text-faint); font-size: 0.75rem; }
+
+.admin-total{ font-size: 1.15rem; font-weight: 600; color: var(--admin-accent); }
+
+.admin-alert{
+  padding: 0.75rem 1rem;
+  border-radius: var(--admin-radius-md);
+  margin-bottom: var(--admin-sp-4);
+  font-size: 0.9rem;
+}
+
+.admin-alert--error{ background: var(--admin-error-soft); border: 1px solid var(--admin-error); color: var(--admin-error); }
+.admin-alert--success{ background: var(--admin-success-soft); border: 1px solid var(--admin-success); color: var(--admin-success); }
+/* "Saved and kept, but not doing what you think right now" — nothing was
+   refused, so not an error, and nothing went right either. */
+.admin-alert--warning{ background: var(--admin-accent-soft); border: 1px solid var(--admin-accent); color: var(--admin-accent); }
+
+.admin-fulfilment-form{ display: flex; align-items: end; gap: var(--admin-sp-4); flex-wrap: wrap; }
+.admin-fulfilment-form label{ display: flex; flex-direction: column; gap: 0.3rem; font-size: 0.85rem; color: var(--admin-text-muted); }
+
+.admin-inline-form{ display: inline; }
+
+/* Per-product photo management grid (admin/product-form.php, edit mode).
+   Thumbnails are a fixed 200x200 CSS display size only — the uploaded
+   original file is never resized/destroyed, see ProductImageUploader. */
+.admin-image-manage-grid{
+  display: grid;
+  grid-template-columns: repeat(auto-fill, 200px);
+  gap: var(--admin-sp-4);
+  margin: 0.75rem 0 var(--admin-sp-5);
+}
+
+.admin-image-card{
+  border: 1px solid var(--admin-border);
+  border-radius: var(--admin-radius-md);
+  overflow: hidden;
+  background: var(--admin-surface-sunken);
+}
+
+.admin-image-card__media{
+  position: relative;
+  width: 200px;
+  height: 200px;
+}
+
+.admin-image-card__media img{
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.admin-image-card__primary-badge{
+  position: absolute;
+  top: 0.4rem;
+  left: 0.4rem;
+  background: var(--admin-accent);
+  color: var(--admin-on-accent);
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 0.15rem 0.45rem;
+  border-radius: var(--admin-radius-sm);
+}
+
+.admin-image-card__actions{
+  padding: 0.5rem 0.6rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.8rem;
+  border-top: 1px solid var(--admin-border);
+}
+
+.admin-image-card__actions .admin-btn-text:disabled{
+  color: var(--admin-text-faint);
+  cursor: not-allowed;
+}
+
+/* Product overview grid — compact cards instead of a wide table, since a
+   product's photo is the thing an admin scans for first. */
+.admin-product-grid{
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 220px));
+  gap: var(--admin-sp-4);
+}
+
+.admin-product-card{
+  background: var(--admin-surface);
+  border: 1px solid var(--admin-border);
+  border-radius: var(--admin-radius-md);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  transition: border-color var(--admin-transition);
+}
+
+.admin-product-card:hover{ border-color: var(--admin-border-strong); }
+
+.admin-product-card__link{
+  display: block;
+  color: inherit;
+  text-decoration: none;
+}
+
+.admin-product-card__link:hover .admin-product-card__name{ color: var(--admin-accent); }
+
+.admin-product-card__media{
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  background: var(--admin-surface-sunken);
+  border-bottom: 1px solid var(--admin-border);
+}
+
+.admin-product-card__media img{
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.admin-product-card__media-empty{
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--admin-text-muted);
+  font-size: 0.8rem;
+}
+
+.admin-product-card__status{
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  background: var(--admin-surface);
+}
+
+.admin-product-card__body{ padding: 0.7rem 0.85rem; }
+
+.admin-product-card__name{
+  margin: 0 0 0.25rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  line-height: 1.3;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  transition: color var(--admin-transition);
+}
+
+.admin-product-card__price{
+  margin: 0;
+  color: var(--admin-text-muted);
+  font-size: 0.85rem;
+}
+
+.admin-product-card__footer{
+  margin-top: auto;
+  padding: 0.6rem 0.85rem;
+  border-top: 1px solid var(--admin-border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  font-size: 0.85rem;
+}
+
+.admin-btn-text{
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--admin-accent);
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+  text-decoration: underline;
+  transition: filter var(--admin-transition);
+}
+
+.admin-btn-text:hover{ filter: brightness(1.15); }
+.admin-btn-text--danger{ color: var(--admin-error); }
+
+.admin-text-muted{ color: var(--admin-text-muted); font-size: 0.85rem; }
+
+.admin-error-list{ margin: 0; padding-left: 1.2rem; }
+
+.admin-product-form{ display: flex; flex-direction: column; gap: var(--admin-sp-4); max-width: 720px; }
+
+.admin-form-row{ display: flex; flex-direction: column; gap: 0.4rem; }
+
+.admin-form-row--split{ flex-direction: row; gap: var(--admin-sp-5); flex-wrap: wrap; }
+.admin-form-row--split > label,
+.admin-form-row--split > .admin-richtext-field{ flex: 1; min-width: 220px; }
+
+.admin-product-form label{
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  font-size: 0.83rem;
+  font-weight: 500;
+  color: var(--admin-text-muted);
+}
+
+/* The rule above gives every label a display, which silently beats the
+   browser's own [hidden]{display:none} — so a field a form script hides
+   (el.hidden = true) stayed on screen. Restore the meaning of the
+   attribute; a script that hides a field is the only thing that sets it. */
+.admin-product-form [hidden]{ display: none !important; }
+
+.admin-product-form input[type="text"],
+.admin-product-form input[type="email"],
+.admin-product-form textarea,
+.admin-product-form input[type="file"]{
+  width: 100%;
+  background: var(--admin-surface-sunken);
+  border: 1px solid var(--admin-border);
+  color: var(--admin-text);
+  padding: 0.55rem 0.7rem;
+  border-radius: var(--admin-radius-sm);
+  font-family: inherit;
+  font-size: 0.92rem;
+  transition: border-color var(--admin-transition), background var(--admin-transition);
+}
+
+.admin-product-form input[type="text"]:focus,
+.admin-product-form input[type="email"]:focus,
+.admin-product-form textarea:focus{
+  border-color: var(--admin-accent);
+  outline: none;
+}
+
+.admin-product-form input[type="file"]{ padding: 0.45rem 0.6rem; cursor: pointer; }
+
+.admin-product-form textarea{ resize: vertical; min-height: 4.5rem; }
+
+.admin-richtext-field{ display: flex; flex-direction: column; gap: 0.35rem; font-size: 0.83rem; font-weight: 500; color: var(--admin-text-muted); }
+
+/* Progressive-enhancement fallback: the real, always-submitted field (see
+   admin/_richtext_field.php). Visible and fully usable on its own; hidden by
+   assets/admin.js only once Quill has actually mounted in its place. */
+.admin-richtext-fallback{ width: 100%; min-height: 6rem; resize: vertical; font-family: inherit; font-size: 0.92rem; }
+
+/* Quill toolbar: our own plain buttons (assets/admin.js builds these from a
+   preset, not Quill's default icon toolbar), so this project's admin theme
+   — not Quill's Snow chrome — controls how they look. */
+.admin-richtext-toolbar{ display: flex; flex-wrap: wrap; gap: 0.35rem; margin-bottom: 0.35rem; }
+
+.admin-richtext-toolbar button{
+  background: var(--admin-surface-sunken);
+  border: 1px solid var(--admin-border);
+  color: var(--admin-text);
+  min-width: 2rem;
+  padding: 0.3rem 0.55rem;
+  border-radius: var(--admin-radius-sm);
+  font-family: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: border-color var(--admin-transition), color var(--admin-transition);
+}
+
+.admin-richtext-toolbar button:hover{ border-color: var(--admin-accent); color: var(--admin-accent); }
+.admin-richtext-toolbar button.ql-active{ border-color: var(--admin-accent); color: var(--admin-accent); background: var(--admin-accent-soft-strong); }
+
+/* Quill container (assets/admin.js mounts Quill directly onto this element —
+   .ql-container/.ql-snow are classes Quill itself adds). Only border/
+   background/radius live here; the actual editing surface is the child
+   .ql-editor Quill creates, styled below. */
+.admin-richtext-editor.ql-container{
+  width: 100%;
+  background: var(--admin-surface-sunken);
+  border: 1px solid var(--admin-border);
+  border-radius: var(--admin-radius-sm);
+  font-family: inherit;
+  transition: border-color var(--admin-transition);
+}
+
+.admin-richtext-editor.ql-container:focus-within{ border-color: var(--admin-accent); }
+
+.admin-richtext-editor .ql-editor{
+  min-height: 6rem;
+  padding: 0.55rem 0.7rem;
+  color: var(--admin-text);
+  font-family: inherit;
+  font-size: 0.92rem;
+  line-height: 1.5;
+}
+
+.admin-richtext-editor .ql-editor.ql-blank::before{ color: var(--admin-text-faint); font-style: normal; }
+.admin-richtext-editor .ql-editor p{ margin: 0 0 0.6em; }
+.admin-richtext-editor .ql-editor p:last-child{ margin-bottom: 0; }
+.admin-richtext-editor .ql-editor a{ color: var(--admin-accent); }
+.admin-richtext-editor .ql-editor h2{ font-size: 1.15rem; font-weight: 700; margin: 0.8em 0 0.4em; }
+.admin-richtext-editor .ql-editor h3{ font-size: 1rem; font-weight: 700; margin: 0.7em 0 0.35em; }
+.admin-richtext-editor .ql-editor h2:first-child, .admin-richtext-editor .ql-editor h3:first-child{ margin-top: 0; }
+.admin-richtext-editor .ql-editor ul, .admin-richtext-editor .ql-editor ol{ margin: 0 0 0.6em; padding-left: 1.4em; }
+.admin-richtext-editor .ql-editor li{ margin-bottom: 0.25em; }
+
+/* Size modifiers — the plain product-description field keeps the 6rem
+   default above; Portfolio's longer-form fields (admin/portfolio-item.php)
+   need noticeably more room to be comfortable to write in. */
+.admin-richtext-editor--md .ql-editor{ min-height: 9.5rem; }
+.admin-richtext-editor--lg .ql-editor{ min-height: 19rem; }
+
+.admin-checkbox-label{
+  flex-direction: row !important;
+  align-items: center;
+  gap: 0.55rem !important;
+  align-self: flex-start;
+  color: var(--admin-text) !important;
+  font-size: 0.88rem !important;
+}
+
+.admin-form-row__label{
+  font-size: 0.83rem;
+  font-weight: 500;
+  color: var(--admin-text-muted);
+}
+
+/* Permission checkboxes on admin/user-form.php: one fieldset per group in
+   App\Service\AdminPermissions, each option a checkbox with its label and a
+   one-line explanation beside it. */
+.admin-permission-group{
+  margin: 0 0 var(--admin-sp-4);
+  padding: var(--admin-sp-3) var(--admin-sp-4) var(--admin-sp-4);
+  border: 1px solid var(--admin-border);
+  border-radius: var(--admin-radius-sm);
+}
+
+.admin-permission-group legend{
+  padding: 0 0.4rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--admin-text-muted);
+}
+
+/* These labels live inside a <fieldset>, not inside .admin-form-row, so they
+   don't inherit that block's flex layout — they set their own. */
+.admin-permission-option{
+  display: flex;
+  align-items: flex-start !important;
+  margin-top: var(--admin-sp-3);
+  max-width: 46rem;
+}
+
+.admin-permission-option input[type="checkbox"]{ margin-top: 0.15rem; }
+
+.admin-permission-option > span{
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.admin-permission-option .admin-text-muted{ font-size: 0.8rem; }
+
+.admin-form-actions{
+  flex-direction: row !important;
+  align-items: center;
+  gap: var(--admin-sp-4) !important;
+}
+
+/* Range slider with a live value readout beside it (Homepage Hero's
+   "Highlight grootte"). The <output> is rendered server-side with the saved
+   value and only kept in sync while dragging by assets/admin.js, so the
+   control is fully readable and usable without JavaScript. */
+.admin-range{ display: flex; align-items: center; gap: var(--admin-sp-3); }
+
+.admin-range input[type="range"]{
+  flex: 1;
+  min-width: 0;
+  accent-color: var(--admin-accent);
+  cursor: pointer;
+}
+
+.admin-range__value{
+  flex: 0 0 auto;
+  min-width: 3.25rem;
+  text-align: right;
+  font-size: 0.9rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--admin-text);
+}
+
+/* Opt out of .admin-product-form's 720px reading measure, for a block that
+   deliberately uses the full card width instead — currently the two-column
+   SEO editor below. */
+.admin-product-form--wide{ max-width: none; }
+
+/* SEO editor (admin/page.php, admin/page-new.php): one column per language,
+   each field on its own line at the full width of its column, so a meta
+   description is comfortable to write. Everything inside still uses the
+   ordinary .admin-product-form / .admin-form-row field styling — this only
+   owns the two-column arrangement. Stacks to one column at the shared
+   900px breakpoint (see the responsive block at the end of this file). */
+.admin-seo-grid{
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--admin-sp-5);
+}
+
+.admin-seo-lang{
+  display: flex;
+  flex-direction: column;
+  gap: var(--admin-sp-4);
+  min-width: 0;
+}
+
+.admin-seo-lang__title{
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--admin-text);
+}
+
+/* The search-result preview on admin/page.php: title, URL and description
+   as a visitor would meet them in Google. Deliberately a plain, sober block
+   rather than a pixel-perfect imitation of one search engine's current
+   styling — it is there to show which text WILL be used once the fallbacks
+   have run (App\Service\PageSeo resolves it, this only shows it), not to
+   promise how any particular engine will draw it. */
+.admin-seo-preview{
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: var(--admin-sp-4);
+  border: 1px solid var(--admin-border);
+  border-radius: var(--admin-radius-md);
+  background: var(--admin-surface-sunken);
+  max-width: 42rem;
+}
+
+.admin-seo-preview__url{
+  font-size: 0.8rem;
+  color: var(--admin-text-muted);
+  word-break: break-all;
+}
+
+.admin-seo-preview__title{
+  font-size: 1.05rem;
+  line-height: 1.3;
+}
+
+.admin-seo-preview__description{
+  font-size: 0.85rem;
+  color: var(--admin-text-muted);
+  line-height: 1.45;
+}
+
+/* Live "<used> / <max>" readout injected after an SEO field by
+   initSeoCharCounters() in admin.js. Informational only — nothing is ever
+   truncated or blocked because of it. */
+.admin-char-count{
+  display: block;
+  margin-top: 0.25rem;
+  font-size: 0.75rem;
+  color: var(--admin-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Preview of a product's/collection's SEO social image, next to the
+   upload/remove controls in the SEO card. */
+.admin-seo-image{
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: var(--admin-sp-4);
+}
+
+.admin-seo-image__preview{
+  flex: 0 0 auto;
+  width: 220px;
+  max-width: 100%;
+}
+
+.admin-seo-image__fields{
+  flex: 1 1 260px;
+  min-width: 0;
+}
+
+/* Segmented radio-button group (e.g. Homepage Hero's Media/Lay-out
+   pickers) — same pill-shaped look as .admin-page-tabs, but built from
+   <label><input type="radio">...</label> pairs instead of links, so it
+   reflects and submits a real form value. */
+.admin-segmented{
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  padding: 4px;
+  background: var(--admin-surface-sunken);
+  border: 1px solid var(--admin-border);
+  border-radius: var(--admin-radius-md);
+  width: fit-content;
+  max-width: 100%;
+}
+
+.admin-segmented__option{
+  flex-direction: row !important;
+  align-items: center;
+  gap: 0.45rem !important;
+  padding: 0.5rem 0.9rem;
+  border-radius: var(--admin-radius-sm);
+  color: var(--admin-text-muted) !important;
+  font-size: 0.87rem !important;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background var(--admin-transition), color var(--admin-transition);
+}
+
+.admin-segmented__option input[type="radio"]{ margin: 0; }
+
+.admin-segmented__option:hover{ color: var(--admin-text) !important; }
+
+.admin-segmented__option:has(input:checked){
+  color: var(--admin-on-accent) !important;
+  background: var(--admin-accent);
+  font-weight: 600;
+}
+
+@media (max-width: 640px){
+  .admin-segmented{ width: 100%; }
+  .admin-segmented__option{ flex: 1 1 auto; justify-content: center; }
+}
+
+select, button, input[type="text"], input[type="password"], input[type="email"]{
+  font-family: inherit;
+  font-size: 0.92rem;
+}
+
+select, input[type="text"], input[type="password"], input[type="email"]{
+  background: var(--admin-surface-sunken);
+  border: 1px solid var(--admin-border);
+  color: var(--admin-text);
+  padding: 0.55rem 0.7rem;
+  border-radius: var(--admin-radius-sm);
+  transition: border-color var(--admin-transition);
+}
+
+select:focus, input[type="text"]:focus, input[type="password"]:focus, input[type="email"]:focus{
+  outline: none;
+  border-color: var(--admin-accent);
+}
+
+button{
+  background: var(--admin-accent);
+  color: var(--admin-on-accent);
+  border: none;
+  padding: 0.55rem 1.1rem;
+  border-radius: var(--admin-radius-sm);
+  font-weight: 600;
+  cursor: pointer;
+  transition: background var(--admin-transition), filter var(--admin-transition);
+}
+
+button:hover{ background: var(--admin-accent-hover); }
+button:disabled{ background: var(--admin-border); color: var(--admin-text-faint); cursor: not-allowed; }
+
+body.admin-login-page{
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  background: var(--admin-bg);
+}
+
+.admin-login{
+  width: 100%;
+  max-width: 340px;
+  padding: var(--admin-sp-6);
+  background: var(--admin-surface);
+  border: 1px solid var(--admin-border);
+  border-radius: var(--admin-radius-lg);
+  box-shadow: var(--admin-shadow-md);
+}
+
+.admin-login h1{ font-size: 1.1rem; margin: 0 0 0.2rem; }
+.admin-login__sub{ color: var(--admin-text-muted); margin: 0 0 var(--admin-sp-5); }
+
+.admin-login__form{ display: flex; flex-direction: column; gap: var(--admin-sp-4); }
+.admin-login__form label{ display: flex; flex-direction: column; gap: 0.35rem; font-size: 0.88rem; color: var(--admin-text-muted); }
+.admin-login__form input{ width: 100%; }
+
+/* Product variants section (admin/product-form.php, edit mode): option
+   groups + their values, and the resulting variant combinations. */
+.admin-option-block{
+  border: 1px solid var(--admin-border);
+  border-radius: var(--admin-radius-md);
+  padding: 0.85rem 1rem;
+  margin-bottom: var(--admin-sp-4);
+  background: var(--admin-surface-sunken);
+}
+.admin-option-block__head{ display: flex; flex-wrap: wrap; align-items: center; gap: 0.75rem; margin-bottom: 0.6rem; }
+.admin-option-block__head input[type="text"]{ width: auto; }
+
+.admin-option-values{ list-style: none; margin: 0 0 0.75rem; padding: 0; display: flex; flex-direction: column; gap: 0.4rem; }
+.admin-option-values li{ display: flex; flex-wrap: wrap; align-items: center; gap: 0.6rem; }
+.admin-option-values li input[type="text"]{ width: auto; }
+.admin-hex-input{ width: 8em !important; font-family: monospace; text-transform: uppercase; }
+input[data-color-picker]{ width: 2.4rem; height: 2.4rem; padding: 0.15rem; border-radius: var(--admin-radius-sm); cursor: pointer; }
+
+.admin-image-card__actions .admin-inline-form{ display: flex; flex-direction: column; gap: 0.4rem; align-items: flex-start; }
+
+/* Per-variant panel (admin/product-form.php, edit mode): price/active,
+   ordering, and its own compact photo manager — a product with variants
+   manages all of its photos here instead of the product-level section. */
+.admin-variant-list{ display: flex; flex-direction: column; gap: var(--admin-sp-5); margin: 0.75rem 0 var(--admin-sp-5); }
+
+.admin-variant-panel{
+  border: 1px solid var(--admin-border);
+  border-radius: var(--admin-radius-md);
+  padding: 0.9rem 1rem;
+  background: var(--admin-surface-sunken);
+}
+
+.admin-variant-panel__head{ display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.6rem; }
+.admin-variant-panel__form{ display: flex; flex-wrap: wrap; align-items: end; gap: 0.75rem; margin-bottom: 0.6rem; }
+.admin-variant-panel__form label{ display: flex; flex-direction: column; gap: 0.3rem; font-size: 0.85rem; color: var(--admin-text-muted); }
+.admin-variant-panel__order{ display: flex; flex-wrap: wrap; gap: 0.75rem; margin-bottom: 0.9rem; }
+
+.admin-variant-panel h4{ margin: 0.75rem 0 0.5rem; font-size: 0.9rem; }
+
+/* Compact thumbnails — smaller than the product-level 200px cards, since a
+   variant panel can hold several of these plus its own form fields. */
+.admin-variant-image-grid{
+  display: grid;
+  grid-template-columns: repeat(auto-fill, 120px);
+  gap: 0.75rem;
+  margin: 0 0 0.75rem;
+}
+
+.admin-variant-image-card{
+  border: 1px solid var(--admin-border);
+  border-radius: var(--admin-radius-sm);
+  overflow: hidden;
+  background: var(--admin-surface);
+  cursor: grab;
+}
+
+.admin-variant-image-card.is-dragging{ opacity: 0.4; }
+
+.admin-variant-image-card__media{
+  position: relative;
+  width: 120px;
+  height: 120px;
+}
+
+.admin-variant-image-card__media img{
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  pointer-events: none;
+}
+
+.admin-variant-image-card__meta{
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  padding: 0.4rem;
+  border-top: 1px solid var(--admin-border);
+}
+
+.admin-variant-image-card__meta input[type="text"]{ font-size: 0.75rem; padding: 0.3rem 0.4rem; }
+.admin-variant-image-card__meta .admin-btn-text{ align-self: flex-start; }
+
+/* Portfolio categorieën manager (admin/portfolio.php) — a compact list, not
+   another giant form: each row is a small inline rename form + usage count
+   + a delete form (disabled with an explanatory title when still in use). */
+.admin-portfolio-category-list{ display: flex; flex-direction: column; gap: 0.5rem; margin: 0.75rem 0 var(--admin-sp-4); }
+
+.admin-portfolio-category-row{
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.5rem 0.7rem;
+  background: var(--admin-surface-sunken);
+  border: 1px solid var(--admin-border);
+  border-radius: var(--admin-radius-sm);
+}
+
+.admin-portfolio-category-row__form{ display: flex; align-items: center; gap: 0.5rem; flex: 1; min-width: 0; }
+.admin-portfolio-category-row__form input[type="text"]{ flex: 1; min-width: 0; }
+.admin-portfolio-category-row__count{ flex: none; white-space: nowrap; font-size: 0.8rem; }
+
+.admin-portfolio-category-row__form--new{
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.admin-portfolio-category-row__form--new input[type="text"]{ flex: 1; min-width: 180px; }
+
+/* Portfolio overview (admin/portfolio.php) — compact card grid built to stay
+   usable at 100+ items: no inline-expanded forms, only enough per card to
+   identify it and open the dedicated editor. See MAIN.MD. */
+.admin-portfolio-collapsible{ margin-bottom: var(--admin-sp-4); }
+.admin-portfolio-collapsible summary{
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: var(--admin-text);
+}
+.admin-portfolio-collapsible summary::marker{ color: var(--admin-accent); }
+.admin-portfolio-collapsible[open] summary{ margin-bottom: 0.6rem; }
+
+.admin-portfolio-toolbar{
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  align-items: center;
+  margin: var(--admin-sp-4) 0;
+}
+.admin-portfolio-toolbar [data-portfolio-search]{ flex: 1 1 220px; min-width: 180px; }
+.admin-portfolio-toolbar select{ flex: 0 0 auto; }
+.admin-portfolio-toolbar [data-portfolio-count]{ margin-left: auto; font-size: 0.8rem; white-space: nowrap; }
+
+.admin-portfolio-grid{
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 200px));
+  gap: var(--admin-sp-4);
+}
+
+.admin-portfolio-card{
+  position: relative;
+  background: var(--admin-surface);
+  border: 1px solid var(--admin-border);
+  border-radius: var(--admin-radius-md);
+  overflow: hidden;
+  transition: border-color var(--admin-transition);
+}
+.admin-portfolio-card:hover{ border-color: var(--admin-border-strong); }
+.admin-portfolio-card.is-dragging{ opacity: 0.4; }
+
+.admin-portfolio-card__handle{
+  position: absolute;
+  top: 0.35rem;
+  right: 0.35rem;
+  z-index: 1;
+  width: 1.6rem;
+  height: 1.6rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--admin-scrim);
+  color: var(--admin-text);
+  border-radius: var(--admin-radius-sm);
+  cursor: grab;
+  font-size: 0.9rem;
+  user-select: none;
+}
+.admin-portfolio-card__handle:active{ cursor: grabbing; }
+
+.admin-portfolio-card__link{
+  display: block;
+  color: inherit;
+  text-decoration: none;
+}
+.admin-portfolio-card__link:hover .admin-portfolio-card__name{ color: var(--admin-accent); }
+
+.admin-portfolio-card__media{
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  background: var(--admin-surface-sunken);
+  border-bottom: 1px solid var(--admin-border);
+}
+.admin-portfolio-card__media img{ width: 100%; height: 100%; object-fit: cover; display: block; }
+.admin-portfolio-card__status{ position: absolute; top: 0.5rem; left: 0.5rem; background: var(--admin-surface); }
+
+.admin-portfolio-card__body{ padding: 0.6rem 0.7rem; }
+.admin-portfolio-card__name{
+  margin: 0 0 0.15rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  line-height: 1.3;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  transition: color var(--admin-transition);
+}
+.admin-portfolio-card__meta{ margin: 0; font-size: 0.75rem; color: var(--admin-text-muted); }
+.admin-portfolio-card__badges{ display: flex; flex-wrap: wrap; gap: 0.3rem; margin-top: 0.4rem; }
+.admin-portfolio-card__badges .admin-badge{ font-size: 0.65rem; padding: 0.1rem 0.4rem; }
+
+/* Projectafbeeldingen (admin/portfolio-item.php) — visually identical to the
+   product variant photo grid, just a separate class name for a separate
+   entity (portfolio_item_images, not variant_images). */
+.admin-variant-image-grid,
+.admin-portfolio-image-grid{
+  display: grid;
+  grid-template-columns: repeat(auto-fill, 120px);
+  gap: 0.75rem;
+  margin: 0 0 0.75rem;
+}
+
+.admin-variant-image-card,
+.admin-portfolio-image-card{
+  border: 1px solid var(--admin-border);
+  border-radius: var(--admin-radius-sm);
+  overflow: hidden;
+  background: var(--admin-surface);
+  cursor: grab;
+}
+
+.admin-variant-image-card.is-dragging,
+.admin-portfolio-image-card.is-dragging{ opacity: 0.4; }
+
+.admin-variant-image-card__media,
+.admin-portfolio-image-card__media{
+  position: relative;
+  width: 120px;
+  height: 120px;
+}
+
+.admin-variant-image-card__media img,
+.admin-portfolio-image-card__media img{
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  pointer-events: none;
+}
+
+.admin-portfolio-image-card__meta{
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  padding: 0.4rem;
+  border-top: 1px solid var(--admin-border);
+}
+.admin-portfolio-image-card__meta input[type="text"]{ font-size: 0.75rem; padding: 0.3rem 0.4rem; }
+.admin-portfolio-image-card__meta .admin-btn-text{ align-self: flex-start; }
+
+
+/* Shop collections (admin/collections.php, admin/collection.php).
+   The overview reuses .admin-product-grid/.admin-product-card wholesale and
+   the Portfolio overview's drag handle, so only the product picker below
+   needs rules of its own. */
+.admin-collection-picker-toolbar{
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  align-items: center;
+  margin: var(--admin-sp-4) 0;
+}
+.admin-collection-picker-toolbar [data-collection-product-search]{ flex: 1 1 220px; min-width: 180px; }
+.admin-collection-picker-toolbar [data-collection-product-count]{ margin-left: auto; font-size: 0.8rem; white-space: nowrap; }
+
+.admin-collection-product-row{ gap: 0.75rem; padding: 0.5rem 0.75rem; }
+.admin-collection-product-row.is-dragging{ opacity: 0.4; }
+
+/* A selected product is the one that is actually stored in the collection —
+   marked with the same accent the rest of the admin uses for "active". */
+.admin-collection-product-row.is-selected{
+  border-color: var(--admin-accent);
+  background: var(--admin-accent-soft);
+}
+
+/* The whole row is one big click target for its checkbox, so picking a
+   product never requires hitting the box itself. */
+.admin-collection-product-row__pick{
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 0;
+  cursor: pointer;
+}
+
+.admin-collection-product-row__thumb{
+  flex: none;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--admin-radius-sm);
+  background: var(--admin-surface-sunken);
+  overflow: hidden;
+}
+.admin-collection-product-row__thumb img{ width: 100%; height: 100%; object-fit: cover; display: block; }
+
+.admin-collection-product-row .admin-section-row__body{ display: flex; flex-direction: column; gap: 0.1rem; }
+.admin-collection-product-row .admin-section-row__name{ margin: 0; }
+
+/* Only a selected row can be reordered (see collections-admin.js) — the
+   handle on an unselected row would promise something it can't do. */
+.admin-collection-product-row:not(.is-selected) .admin-drag-handle{ visibility: hidden; }
+
+/* admin/related-products.php — one row per collection: the on/off checkbox
+   with the collection's name and product count takes the space it needs, and
+   the two optional heading-override fields sit after it, deliberately
+   narrower and quieter so the checkbox stays the obvious setting. Reuses
+   .admin-section-row for the surface/border, so this adds layout only. */
+.admin-related-collection-row{ gap: 0.75rem; padding: 0.5rem 0.75rem; flex-wrap: wrap; }
+.admin-related-collection-row__pick{
+  flex: 1 1 220px;
+  min-width: 0;
+  /* .admin-checkbox-label only sets flex-*; the display:flex it relies on
+     comes from .admin-product-form label, and these rows sit outside such a
+     wrapper — so declare it here, exactly as the collection picker's own
+     __pick rule does. */
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 0;
+  cursor: pointer;
+}
+.admin-related-collection-row__pick .admin-section-row__body{ display: flex; flex-direction: column; gap: 0.1rem; }
+.admin-related-collection-row__pick .admin-section-row__name{ margin: 0; }
+.admin-related-collection-row__override{
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  flex: 0 1 200px;
+  font-size: 0.78rem;
+}
+.admin-related-collection-row__override input{
+  width: 100%;
+  background: var(--admin-surface-sunken);
+  border: 1px solid var(--admin-border);
+  color: var(--admin-text);
+  padding: 0.4rem 0.55rem;
+  border-radius: var(--admin-radius-sm);
+  font-family: inherit;
+  font-size: 0.85rem;
+}
+.admin-related-collection-row__override input:focus{ border-color: var(--admin-accent); outline: none; }
+
+
+/* Personalisatie (product editor) — the visual engraving-area editor.
+   The stage is exactly the preview image's box, so a rectangle positioned in
+   percentages lands on the same part of the product at every width; that is
+   the same coordinate system the public preview and the CMS order page use
+   (App\Service\Personalization\PersonalizationRules). */
+/* --------------------------------------------------------------------------
+   Personalisatie overview + font library (admin/personalization*.php)
+   -------------------------------------------------------------------------- */
+.admin-personalization-list__product{ display: flex; align-items: center; gap: 0.75rem; }
+
+.admin-personalization-list__thumb{
+  flex: 0 0 auto;
+  width: 48px;
+  height: 48px;
+  border-radius: var(--admin-radius-sm);
+  border: 1px solid var(--admin-border);
+  background: var(--admin-surface-sunken);
+  overflow: hidden;
+  display: block;
+}
+.admin-personalization-list__thumb img{ width: 100%; height: 100%; object-fit: cover; display: block; }
+
+.admin-personalization-list__actions{ display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; }
+
+/* The font library previews each face at a readable size — the whole point of
+   the row is judging the shapes, so it is deliberately larger than table text
+   and never wraps to two lines. */
+.admin-font-preview{
+  font-size: 1.35rem;
+  line-height: 1.3;
+  color: var(--admin-text);
+  white-space: nowrap;
+}
+
+/* --------------------------------------------------------------------------
+   Personalisatie editor (admin/_personalization_builder.php)
+
+   The editor used to be a stack of full-width rows, which turned a product
+   with two voorbeelden and four zones into a page of scrolling. Two things
+   fix that: every voorbeeld and zone is a <details> block that collapses to
+   one informative line, and the fields inside sit in a real grid instead of
+   one-per-row.
+   -------------------------------------------------------------------------- */
+.admin-pz-head{
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--admin-sp-3);
+  flex-wrap: wrap;
+}
+.admin-pz-head h2{ margin: 0; }
+.admin-pz-head__hint{ margin: 0.3rem 0 0; max-width: 62ch; }
+
+/* A collapsed block is one line you can scan; an open one is a form. */
+.admin-pz-block{
+  border: 1px solid var(--admin-border);
+  border-radius: var(--admin-radius-sm);
+  background: var(--admin-surface-sunken);
+  margin-bottom: 0.6rem;
+}
+
+.admin-pz-block__summary{
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  padding: 0.6rem 0.8rem;
+  cursor: pointer;
+  list-style: none;
+  border-radius: var(--admin-radius-sm);
+}
+.admin-pz-block__summary::-webkit-details-marker{ display: none; }
+/* A rotating caret, so open/closed is obvious without a marker glyph. */
+.admin-pz-block__summary::before{
+  content: "";
+  flex: 0 0 auto;
+  width: 0; height: 0;
+  border-left: 5px solid currentColor;
+  border-top: 4px solid transparent;
+  border-bottom: 4px solid transparent;
+  opacity: 0.7;
+  transition: transform 0.15s ease;
+}
+.admin-pz-block[open] > .admin-pz-block__summary::before{ transform: rotate(90deg); }
+.admin-pz-block__summary:hover{ background: var(--admin-hover-tint-soft); }
+.admin-pz-block__summary:focus-visible{ outline: 2px solid var(--admin-accent); outline-offset: -2px; }
+
+.admin-pz-block__title{ font-weight: 600; color: var(--admin-text); }
+.admin-pz-block__facts{ font-size: 0.82rem; color: var(--admin-text-muted); }
+.admin-pz-block__warn{ color: var(--admin-accent); }
+.admin-pz-block__summary code{ margin-left: auto; font-size: 0.75rem; }
+
+.admin-pz-block__body{
+  padding: 0 0.8rem 0.8rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+}
+
+/* A zone inside a voorbeeld is one level in — flat background so the two
+   nesting levels stay distinguishable without another border colour. */
+.admin-pz-block--zone{ background: transparent; }
+
+.admin-pz-actions{ display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; }
+
+/* THE layout fix: fields flow into as many columns as fit, instead of each
+   taking a full row with a gap under it. */
+.admin-pz-grid{
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 0.6rem 0.9rem;
+  align-items: start;
+}
+.admin-pz-grid > label{ display: flex; flex-direction: column; gap: 0.25rem; margin: 0; }
+.admin-pz-grid textarea{ min-height: 3.2rem; }
+.admin-pz-grid--settings{ align-items: center; }
+.admin-pz-grid--create{ align-items: end; }
+.admin-pz-grid__action{ display: flex; align-items: end; }
+
+/* Left / Top / Width / Height are one thought, so they are one group — four
+   across on a normal screen, two on a narrow one, never four stacked rows. */
+.admin-pz-area,
+.admin-pz-checks,
+.admin-pz-radios{
+  border: 1px solid var(--admin-border);
+  border-radius: var(--admin-radius-sm);
+  padding: 0.55rem 0.7rem 0.7rem;
+  margin: 0;
+}
+.admin-pz-area > legend,
+.admin-pz-checks > legend,
+.admin-pz-radios > legend{
+  padding: 0 0.35rem;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--admin-text-muted);
+}
+.admin-pz-area{ display: grid; grid-template-columns: repeat(4, minmax(70px, 1fr)); gap: 0.5rem; }
+.admin-pz-area > label{ display: flex; flex-direction: column; gap: 0.2rem; font-size: 0.8rem; margin: 0; }
+@media (max-width: 640px){ .admin-pz-area{ grid-template-columns: repeat(2, 1fr); } }
+
+.admin-pz-checks{ display: flex; flex-wrap: wrap; gap: 0.4rem 1.1rem; }
+.admin-pz-checks .admin-checkbox-label{ margin: 0; }
+.admin-pz-radios{ display: flex; flex-direction: column; gap: 0.3rem; }
+.admin-pz-radios .admin-checkbox-label{ margin: 0; align-items: flex-start; }
+
+/* Image + its fields side by side rather than stacked with a gap. */
+.admin-pz-image{ display: flex; gap: 0.9rem; align-items: flex-start; flex-wrap: wrap; }
+.admin-pz-image__thumb{
+  flex: 0 0 auto;
+  width: 132px;
+  border: 1px solid var(--admin-border);
+  border-radius: var(--admin-radius-sm);
+  overflow: hidden;
+  background: var(--admin-surface);
+}
+.admin-pz-image__thumb img{ display: block; width: 100%; height: auto; }
+.admin-pz-image__fields{ flex: 1 1 260px; display: flex; flex-direction: column; gap: 0.35rem; min-width: 0; }
+.admin-pz-image__fields label{ display: flex; flex-direction: column; gap: 0.25rem; margin: 0; }
+
+.admin-pz-subhead{ margin: 0.4rem 0 0; font-size: 0.85rem; color: var(--admin-text-muted); }
+.admin-pz-editor-hint{ margin: 0; }
+
+.admin-pz-create{
+  border-top: 1px solid var(--admin-border);
+  padding-top: var(--admin-sp-3);
+  margin-top: var(--admin-sp-3);
+}
+.admin-pz-create h3{ margin: 0 0 0.25rem; }
+.admin-pz-create p{ margin: 0 0 0.6rem; max-width: 62ch; }
+
+/* The drag editor keeps its size but stops eating the whole screen. */
+.admin-pz-block__body .admin-zone-editor{ margin: 0; max-width: 560px; }
+
+.admin-zone-editor{ margin: var(--admin-sp-4) 0; }
+
+.admin-zone-editor__stage{
+  position: relative;
+  display: inline-block;
+  max-width: 520px;
+  width: 100%;
+  border: 1px solid var(--admin-border);
+  border-radius: 6px;
+  overflow: hidden;
+  background: var(--admin-surface-sunken);
+  /* Stops a drag from scrolling the page / selecting the image on touch. */
+  touch-action: none;
+  user-select: none;
+}
+
+.admin-zone-editor__image{
+  display: block;
+  width: 100%;
+  height: auto;
+  pointer-events: none;
+}
+
+.admin-zone-editor__box{
+  position: absolute;
+  box-sizing: border-box;
+  /* Deliberately NOT a huge spread shadow to dim everything outside: a view
+     can carry several zones, and N stacked shadows would darken the image N
+     times and bury every zone but the last. Each zone is instead outlined in
+     its own right, with the selected one raised above the others. */
+  border: 2px dashed var(--admin-border-strong);
+  background: var(--admin-accent-faint);
+  cursor: move;
+  touch-action: none;
+}
+
+.admin-zone-editor__box.is-selected{
+  border-style: solid;
+  border-color: var(--admin-accent);
+  background: var(--admin-accent-soft-strong);
+  z-index: 2;
+}
+
+.admin-zone-editor__box:focus-visible{ outline: 2px solid var(--admin-accent-hover); outline-offset: 2px; }
+.admin-zone-editor__box.is-dragging{ border-color: var(--admin-accent-hover); }
+
+/* The zone's own name, so an administrator can tell two rectangles apart
+   without selecting them one by one. */
+.admin-zone-editor__tag{
+  position: absolute;
+  top: 0;
+  left: 0;
+  transform: translateY(-100%);
+  padding: 0.1rem 0.35rem;
+  font-size: 0.68rem;
+  line-height: 1.4;
+  white-space: nowrap;
+  color: var(--admin-on-accent);
+  background: var(--admin-accent);
+  border-radius: 3px 3px 0 0;
+  pointer-events: none;
+}
+
+/* Only the selected zone shows its handles: four sets of grips on one image
+   would be unusable. */
+.admin-zone-editor__box .admin-zone-editor__handle{ display: none; }
+.admin-zone-editor__box.is-selected .admin-zone-editor__handle{ display: block; }
+
+.admin-zone-editor__handle{
+  position: absolute;
+  /* Comfortably larger than the 8px a mouse needs — this has to be grabbable
+     with a fingertip on the phone the owner actually edits from. */
+  width: 22px;
+  height: 22px;
+  margin: -11px 0 0 -11px;
+  border-radius: 50%;
+  border: 2px solid var(--admin-on-accent);
+  background: var(--admin-accent);
+  touch-action: none;
+}
+
+.admin-zone-editor__handle--nw{ top: 0; left: 0; cursor: nwse-resize; }
+.admin-zone-editor__handle--ne{ top: 0; left: 100%; cursor: nesw-resize; }
+.admin-zone-editor__handle--sw{ top: 100%; left: 0; cursor: nesw-resize; }
+.admin-zone-editor__handle--se{ top: 100%; left: 100%; cursor: nwse-resize; }
+
+.admin-zone-fields{ display: flex; flex-wrap: wrap; gap: var(--admin-sp-4); }
+.admin-zone-fields > label{ flex: 1 1 140px; min-width: 120px; }
+
+
+/* Personalisatie inside the CMS order detail (admin/order.php +
+   admin/_order_personalization.php): the customer's text/file on the left,
+   a preview reconstructed from the order's own stored data on the right.
+   Rendered as a full-width row directly under the order line it belongs to,
+   so two personalized lines can never be confused for one another. */
+.admin-personalization-row > td{ background: var(--admin-surface-sunken); }
+
+.admin-personalization{ padding: var(--admin-sp-2) 0; }
+
+.admin-personalization__title{
+  margin: 0 0 var(--admin-sp-2);
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--admin-accent);
+}
+
+ /* STACKED, never two columns. This block sits inside a table cell, and a
+   fixed-width preview beside a column of text made that cell wider than the
+   viewport — which is what put a horizontal scrollbar on the whole order
+   screen. Facts first, pictures underneath, and a bounded width so the table
+   can never be forced open by this content. */
+.admin-personalization{ max-width: 760px; }
+
+.admin-personalization__body{
+  display: flex;
+  flex-direction: column;
+  gap: var(--admin-sp-3);
+  align-items: stretch;
+  min-width: 0;
+}
+
+.admin-personalization__facts{ min-width: 0; }
+.admin-personalization__preview{ width: 100%; max-width: 320px; }
+
+/* minmax(0, …) on both tracks: a long value must wrap inside the cell rather
+   than widen the grid, which is the other half of the same bug. */
+.admin-personalization__list{ margin: 0; display: grid; grid-template-columns: minmax(0, max-content) minmax(0, 1fr); gap: 0.2rem var(--admin-sp-3); }
+.admin-personalization__list dt{ font-size: 0.78rem; color: var(--admin-text-faint); }
+.admin-personalization__list dd{ margin: 0; font-size: 0.85rem; overflow-wrap: anywhere; }
+
+/* The palette swatch beside the colour name. */
+.admin-personalization__swatch{
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 1px solid var(--admin-border);
+  vertical-align: -1px;
+  margin-right: 0.3rem;
+}
+
+/* The composed preview: one per view, under the zones it belongs to. */
+.admin-personalization__snapshot{
+  margin-top: var(--admin-sp-3);
+  padding-top: var(--admin-sp-3);
+  border-top: 1px solid var(--admin-border);
+}
+.admin-personalization__snapshot-title{
+  margin: 0 0 0.2rem;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--admin-text-muted);
+}
+.admin-personalization__snapshot-media{
+  margin-top: 0.5rem;
+  width: 100%;
+  max-width: 320px;
+  border: 1px solid var(--admin-border);
+  border-radius: 6px;
+  overflow: hidden;
+  background: var(--admin-surface);
+}
+.admin-personalization__snapshot-media img{ display: block; width: 100%; height: auto; }
+.admin-personalization__snapshot-actions{
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin: 0.6rem 0 0;
+  font-size: 0.82rem;
+}
+
+.admin-personalization__note{ margin: 0.35rem 0 0; font-size: 0.72rem; color: var(--admin-text-faint); }
+
+.admin-personalization__stage{
+  position: relative;
+  border: 1px solid var(--admin-border);
+  border-radius: 6px;
+  overflow: hidden;
+  background: var(--admin-surface);
+}
+
+.admin-personalization__base{ display: block; width: 100%; height: auto; }
+
+.admin-personalization__zone-area{
+  position: absolute;
+  overflow: hidden;
+  outline: 1px dashed var(--admin-border-strong);
+  outline-offset: -1px;
+}
+
+/* An order line can carry several zones, optionally across several views. */
+.admin-personalization__view-title{
+  margin: var(--admin-sp-3) 0 var(--admin-sp-1);
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--admin-text-muted);
+}
+
+.admin-personalization__zone{
+  padding: var(--admin-sp-2) 0;
+  border-top: 1px solid var(--admin-border);
+}
+
+.admin-personalization__zone:first-of-type{ border-top: none; }
+
+.admin-personalization__zone-title{
+  margin: 0 0 var(--admin-sp-2);
+  font-size: 0.9rem;
+  color: var(--admin-text);
+  display: flex;
+  align-items: baseline;
+  gap: var(--admin-sp-2);
+  flex-wrap: wrap;
+}
+
+.admin-personalization__layer{
+  position: absolute;
+  transform-origin: center center;
+  max-width: none;
+}
+
+/* Deliberately NOT themed: this is the customer's own engraving drawn on
+   top of a product photo, so it must look the same in every dashboard
+   theme. It is content being previewed, not CMS chrome. */
+.admin-personalization__layer--text{
+  white-space: nowrap;
+  line-height: 1;
+  color: #f7f1e6;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.45);
+}
+
+/* Personalisatie-builder (product editor): one block per preview view, each
+   holding that view's own zones. */
+.admin-personalization-view{ margin-top: var(--admin-sp-4); }
+
+.admin-personalization-zone{
+  margin: var(--admin-sp-3) 0;
+  padding: var(--admin-sp-3);
+  border: 1px solid var(--admin-border);
+  border-radius: 6px;
+  background: var(--admin-surface-sunken);
+}
+
+.admin-personalization-fonts{
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--admin-sp-3);
+  margin-top: 0.35rem;
+}
+
+.admin-personalization-fonts .admin-checkbox-label{ margin: 0; }
+
+/* Layout-level responsive overrides. Kept at the end of the file (rather
+   than inline with each component's own rules) so these always win the
+   cascade over the equal-specificity base rules above, regardless of
+   source order within this stylesheet. */
+@media (max-width: 900px){
+  .admin-page-head{ flex-wrap: wrap; }
+
+  .admin-section-row{ flex-direction: column; align-items: stretch; }
+  .admin-section-row__actions{ justify-content: space-between; }
+
+  .admin-dashboard-grid{ grid-template-columns: 1fr; }
+
+  /* One column: two lists side by side would each be too narrow for a URL. */
+  .admin-stats__panels{ grid-template-columns: 1fr; }
+
+  /* Two figures per row on a phone rather than one: four full-width cards
+     would push the "Aandacht nodig" list below the fold. */
+  .admin-kpi-grid{ grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--admin-sp-3); }
+  .admin-kpi{ padding: var(--admin-sp-3) var(--admin-sp-4); }
+  .admin-kpi__value{ font-size: 1.3rem; }
+
+  .admin-card__heading{ flex-direction: column; align-items: flex-start; gap: var(--admin-sp-2); }
+
+  .admin-seo-grid{ grid-template-columns: 1fr; }
+
+  .admin-portfolio-toolbar [data-portfolio-count]{ margin-left: 0; flex-basis: 100%; }
+  .admin-portfolio-grid{ grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
+
+  .admin-portfolio-category-row{ flex-wrap: wrap; align-items: stretch; }
+  .admin-portfolio-category-row__form{ flex-basis: 100%; }
+
+  .admin-collection-picker-toolbar [data-collection-product-count]{ margin-left: 0; flex-basis: 100%; }
+  /* Keeps the picker row readable once the generic .admin-section-row rule
+     above switches it to a column: handle + checkbox + thumbnail + name
+     belong on one line, they are a single control, not separate actions. */
+  .admin-collection-product-row{ flex-direction: row; align-items: center; }
+}
+
+/* ==========================================================================
+   Branding images (admin/settings.php) and the theme editor
+   (admin/theme.php). Admin styling stays entirely independent of the public
+   theme: nothing here reads a --color-* token, so changing the site's
+   appearance never changes the CMS.
+   ========================================================================== */
+
+.admin-form-row--split > .admin-branding-field{ flex: 1; min-width: 240px; }
+
+.admin-branding-field{ display: flex; flex-direction: column; gap: var(--admin-sp-2); }
+.admin-branding-field > label{ display: flex; flex-direction: column; gap: var(--admin-sp-2); }
+.admin-branding-field__preview{
+  display: flex;
+  align-items: center;
+  gap: var(--admin-sp-3);
+  padding: var(--admin-sp-3);
+  background: var(--admin-surface-sunken);
+  border: 1px solid var(--admin-border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.admin-branding-field__preview img{
+  max-height: 48px;
+  max-width: 140px;
+  width: auto;
+  flex: none;
+  object-fit: contain;
+}
+.admin-branding-field__preview code{
+  font-size: 0.72rem;
+  color: var(--admin-text-faint);
+  word-break: break-all;
+  min-width: 0;
+}
+.admin-branding-field__remove{
+  display: flex;
+  align-items: center;
+  gap: var(--admin-sp-2);
+  font-size: 0.85rem;
+  color: var(--admin-text-muted);
+}
+.admin-branding-field__remove input{ width: auto; margin: 0; }
+
+.admin-theme-colors{
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: var(--admin-sp-5);
+}
+.admin-theme-color > label{ display: block; font-weight: 600; margin-bottom: var(--admin-sp-2); }
+.admin-theme-color__inputs{ display: flex; align-items: center; gap: var(--admin-sp-2); }
+.admin-theme-color__swatch{
+  flex: none;
+  width: 46px;
+  height: 40px;
+  padding: 2px;
+  background: var(--admin-surface-sunken);
+  border: 1px solid var(--admin-border-strong);
+  border-radius: 8px;
+  cursor: pointer;
+}
+.admin-theme-color__hex{ flex: 1; min-width: 0; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; text-transform: uppercase; }
+.admin-theme-color p{ margin: var(--admin-sp-2) 0 0; }
+
+.admin-theme-preview{
+  padding: var(--admin-sp-5);
+  border: 1px solid var(--admin-border);
+  border-radius: 10px;
+  background: var(--admin-surface-sunken);
+}
+.admin-theme-preview__heading{ margin: 0 0 var(--admin-sp-2); font-size: 1.3rem; font-weight: 600; }
+.admin-theme-preview__body{ margin: 0 0 var(--admin-sp-4); font-size: 0.9rem; }
+.admin-theme-preview__card{
+  padding: var(--admin-sp-4);
+  border-radius: 10px;
+  margin-bottom: var(--admin-sp-4);
+  font-size: 0.85rem;
+  opacity: 0.92;
+}
+.admin-theme-preview__btn{
+  display: inline-block;
+  padding: 0.7rem 1.5rem;
+  font-weight: 700;
+  font-size: 0.85rem;
+}
+
+.admin-theme-actions{ margin-bottom: var(--admin-sp-6); }
+.admin-theme-reset{ color: var(--admin-error); border-color: var(--admin-error); }
+.admin-theme-reset:hover{ color: var(--admin-error); border-color: var(--admin-error); background: var(--admin-error-soft); }
+
+.admin-code-block{
+  margin: 0 0 var(--admin-sp-4);
+  padding: var(--admin-sp-4);
+  background: var(--admin-surface-sunken);
+  border: 1px solid var(--admin-border);
+  border-radius: 8px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.78rem;
+  line-height: 1.6;
+  color: var(--admin-text-muted);
+  overflow-x: auto;
+}
+
+/* ============================================================
+   Media Library (admin/media.php) and the reusable Media picker
+   (admin/_media_picker.php + admin/assets/media-picker.js).
+
+   One thumbnail grid, used by both: the library screen renders it as links,
+   the picker modal builds the same cards as buttons. Sizing is CSS only —
+   the grid asks for the stored thumbnail (assets/media/thumbs/) and falls
+   back to the full image for legacy media adopted in place, so a missing
+   derivative costs bandwidth rather than a broken layout.
+   ============================================================ */
+
+.admin-visually-hidden{
+  position: absolute;
+  width: 1px; height: 1px;
+  margin: -1px; padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.admin-media-search input{ min-width: min(320px, 100%); }
+
+.admin-media-grid{
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: var(--admin-sp-4);
+  margin-top: var(--admin-sp-4);
+}
+
+.admin-media-card{
+  display: flex;
+  flex-direction: column;
+  gap: var(--admin-sp-1);
+  padding: var(--admin-sp-3);
+  background: var(--admin-surface-sunken);
+  border: 1px solid var(--admin-border);
+  border-radius: var(--admin-radius-md);
+  color: var(--admin-text);
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+  transition: border-color var(--admin-transition), background var(--admin-transition);
+}
+.admin-media-card:hover{
+  border-color: var(--admin-border-strong);
+  background: var(--admin-surface-hover);
+}
+.admin-media-card.is-missing{ border-color: var(--admin-error); }
+
+.admin-media-card__media{
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  aspect-ratio: 1 / 1;
+  overflow: hidden;
+  background: var(--admin-bg);
+  border-radius: var(--admin-radius-sm);
+}
+.admin-media-card__media img{
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.admin-media-card__warning{
+  padding: var(--admin-sp-2);
+  font-size: 0.72rem;
+  text-align: center;
+  color: var(--admin-error);
+}
+
+.admin-media-card__name{
+  margin-top: var(--admin-sp-2);
+  font-size: 0.8rem;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.admin-media-card__meta{ font-size: 0.72rem; color: var(--admin-text-faint); }
+
+.admin-media-card__usage{
+  align-self: flex-start;
+  margin-top: var(--admin-sp-1);
+  padding: 0.1rem 0.5rem;
+  font-size: 0.68rem;
+  color: var(--admin-on-accent);
+  background: var(--admin-accent);
+  border-radius: var(--admin-radius-pill);
+}
+.admin-media-card__usage.is-unused{
+  color: var(--admin-text-faint);
+  background: transparent;
+  border: 1px solid var(--admin-border);
+}
+
+.admin-pagination{
+  display: flex;
+  align-items: center;
+  gap: var(--admin-sp-4);
+  margin-top: var(--admin-sp-5);
+}
+
+/* --- One item -------------------------------------------------------- */
+
+.admin-media-detail{
+  display: grid;
+  grid-template-columns: minmax(0, 320px) minmax(0, 1fr);
+  gap: var(--admin-sp-5);
+  align-items: start;
+}
+@media (max-width: 720px){
+  .admin-media-detail{ grid-template-columns: 1fr; }
+}
+
+.admin-media-detail__preview{
+  padding: var(--admin-sp-3);
+  background: var(--admin-bg);
+  border: 1px solid var(--admin-border);
+  border-radius: var(--admin-radius-md);
+}
+.admin-media-detail__preview img{ display: block; width: 100%; height: auto; }
+
+.admin-media-detail__facts{ margin: 0; font-size: 0.85rem; }
+.admin-media-detail__facts dt{
+  margin-top: var(--admin-sp-3);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--admin-text-faint);
+}
+.admin-media-detail__facts dt:first-child{ margin-top: 0; }
+.admin-media-detail__facts dd{ margin: 0.15rem 0 0; overflow-wrap: anywhere; }
+
+.admin-media-usage{ margin: 0; padding-left: 1.1rem; font-size: 0.85rem; }
+.admin-media-usage li{ margin-top: var(--admin-sp-2); }
+
+/* --- The picker field ------------------------------------------------ */
+
+.admin-media-picker{
+  display: flex;
+  flex-direction: column;
+  gap: var(--admin-sp-2);
+  padding: var(--admin-sp-3);
+  background: var(--admin-surface-sunken);
+  border: 1px solid var(--admin-border);
+  border-radius: var(--admin-radius-md);
+}
+.admin-media-picker__label{ font-size: 0.8rem; font-weight: 600; }
+
+.admin-media-picker__preview{
+  display: flex;
+  align-items: center;
+  gap: var(--admin-sp-3);
+  min-height: 64px;
+}
+.admin-media-picker__preview img{
+  width: 84px;
+  height: 84px;
+  object-fit: contain;
+  background: var(--admin-bg);
+  border-radius: var(--admin-radius-sm);
+}
+.admin-media-picker__name{ font-size: 0.78rem; overflow-wrap: anywhere; }
+.admin-media-picker__empty{ font-size: 0.78rem; color: var(--admin-text-faint); }
+.admin-media-picker__missing{ font-size: 0.78rem; color: var(--admin-error); }
+
+.admin-media-picker__actions{ display: flex; flex-wrap: wrap; gap: var(--admin-sp-3); }
+
+/* --- The shared modal ------------------------------------------------ */
+
+body.admin-media-modal-open{ overflow: hidden; }
+
+.admin-media-modal{
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--admin-sp-4);
+}
+.admin-media-modal[hidden]{ display: none; }
+
+.admin-media-modal__backdrop{
+  position: absolute;
+  inset: 0;
+  background: var(--admin-overlay);
+}
+
+.admin-media-modal__panel{
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: min(880px, 100%);
+  max-height: min(720px, 92vh);
+  padding: var(--admin-sp-5);
+  background: var(--admin-surface);
+  border: 1px solid var(--admin-border-strong);
+  border-radius: var(--admin-radius-lg);
+  box-shadow: var(--admin-shadow-md);
+}
+
+.admin-media-modal__head{
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--admin-sp-4);
+}
+.admin-media-modal__head h2{ margin: 0; }
+
+.admin-media-modal__close{
+  padding: 0 var(--admin-sp-3);
+  font-size: 1.5rem;
+  line-height: 1;
+  color: var(--admin-text-muted);
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+.admin-media-modal__close:hover{ color: var(--admin-text); }
+
+.admin-media-modal__tools{
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--admin-sp-4);
+  align-items: end;
+  margin-top: var(--admin-sp-4);
+}
+.admin-media-modal__search{ flex: 1 1 240px; }
+.admin-media-modal__search input{ width: 100%; }
+.admin-media-modal__upload{ display: flex; flex-direction: column; gap: var(--admin-sp-1); font-size: 0.78rem; }
+
+.admin-media-modal__status{
+  margin: var(--admin-sp-3) 0 0;
+  font-size: 0.8rem;
+  color: var(--admin-text-muted);
+}
+.admin-media-modal__status.is-error{ color: var(--admin-error); }
+
+.admin-media-modal__grid{
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: var(--admin-sp-3);
+  margin-top: var(--admin-sp-4);
+  overflow-y: auto;
+}
+
+.admin-media-modal__foot{ margin-top: var(--admin-sp-4); }
+
+@media (max-width: 640px){
+  .admin-media-modal{ padding: 0; }
+  .admin-media-modal__panel{
+    width: 100%;
+    max-height: 100vh;
+    height: 100%;
+    border-radius: 0;
+  }
+}
+
+/* Page-template picker (admin/page-new.php): one selectable card per
+   starting point. Real radio inputs in real <label>s, so the whole card is
+   the hit area, keyboard arrows move between them and the choice submits
+   with the form — same reasoning as .admin-segmented, one size up. */
+.admin-template-grid{
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: var(--admin-sp-3);
+  margin-top: var(--admin-sp-4);
+}
+
+.admin-template-card{
+  display: block;
+  position: relative;
+  margin: 0;
+  cursor: pointer;
+}
+
+/* Visually hidden, never display:none — the input has to stay focusable and
+   reachable by the arrow keys that move within a radio group. */
+.admin-template-card input[type="radio"]{
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.admin-template-card__inner{
+  display: flex;
+  flex-direction: column;
+  gap: var(--admin-sp-2);
+  height: 100%;
+  padding: var(--admin-sp-4);
+  background: var(--admin-surface);
+  border: 1px solid var(--admin-border);
+  border-radius: var(--admin-radius-md);
+  transition: background var(--admin-transition), border-color var(--admin-transition);
+}
+
+.admin-template-card:hover .admin-template-card__inner{
+  background: var(--admin-surface-hover);
+  border-color: var(--admin-border-strong);
+}
+
+.admin-template-card input:checked + .admin-template-card__inner{
+  background: var(--admin-accent-soft);
+  border-color: var(--admin-accent);
+}
+
+/* Focus lives on the hidden input, so the ring has to be drawn on the card
+   it controls or keyboard users would see nothing at all. */
+.admin-template-card input:focus-visible + .admin-template-card__inner{
+  outline: 2px solid var(--admin-accent);
+  outline-offset: 2px;
+}
+
+.admin-template-card__head{
+  display: flex;
+  align-items: center;
+  gap: var(--admin-sp-2);
+}
+
+.admin-template-card__icon{
+  width: 20px;
+  height: 20px;
+  flex: none;
+  color: var(--admin-text-muted);
+}
+
+.admin-template-card input:checked + .admin-template-card__inner .admin-template-card__icon{
+  color: var(--admin-accent);
+}
+
+.admin-template-card__name{
+  font-weight: 600;
+  color: var(--admin-text);
+}
+
+.admin-template-card__desc{
+  font-size: 0.87rem;
+  line-height: 1.45;
+  color: var(--admin-text-muted);
+}
+
+.admin-template-card__blocks{
+  margin-top: auto;
+  padding-top: var(--admin-sp-2);
+  border-top: 1px solid var(--admin-border);
+  font-size: 0.78rem;
+  line-height: 1.4;
+  color: var(--admin-text-faint);
+}
+
+/* ============================================================
+   Setup Wizard (admin/setup.php + admin/assets/setup-wizard.js)
+
+   The one screen a brand-new installation opens on. It has no sidebar —
+   there is nowhere else to go until it is finished — so .admin-main loses
+   the left margin every other admin page needs, and a slim bar carries the
+   site name and the way out.
+   ============================================================ */
+
+body.admin-setup-page .admin-main{
+  margin-left: auto;
+  margin-right: auto;
+  max-width: 780px;
+}
+
+.admin-setup__bar{
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--admin-sp-4);
+  padding: var(--admin-sp-3) var(--admin-sp-5);
+  background: var(--admin-sidebar-bg);
+  border-bottom: 1px solid var(--admin-border);
+}
+
+.admin-setup__bar form{ margin: 0; }
+
+.admin-setup__brand{
+  font-weight: 600;
+  color: var(--admin-text);
+  letter-spacing: 0.01em;
+}
+
+.admin-setup h1{ font-size: 1.5rem; }
+
+/* The stepper. Numbers rather than a progress bar: a reader wants to know
+   how many steps are left, not what fraction of one is done. */
+.admin-setup__steps{
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--admin-sp-2) var(--admin-sp-4);
+  margin: 0 0 var(--admin-sp-5);
+  padding: 0;
+  list-style: none;
+}
+
+.admin-setup__steps-item{
+  display: flex;
+  align-items: center;
+  gap: var(--admin-sp-2);
+  font-size: 0.84rem;
+  color: var(--admin-text-faint);
+}
+
+.admin-setup__steps-number{
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.6rem;
+  height: 1.6rem;
+  border-radius: var(--admin-radius-pill);
+  border: 1px solid var(--admin-border-strong);
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.admin-setup__steps-item.is-current{ color: var(--admin-text); }
+.admin-setup__steps-item.is-current .admin-setup__steps-number{
+  background: var(--admin-accent);
+  border-color: var(--admin-accent);
+  color: var(--admin-on-accent);
+}
+
+.admin-setup__steps-item.is-done{ color: var(--admin-text-muted); }
+.admin-setup__steps-item.is-done .admin-setup__steps-number{
+  border-color: var(--admin-accent);
+  color: var(--admin-accent);
+}
+
+.admin-setup__panel h2{ margin-top: 0; font-size: 1.05rem; }
+
+.admin-setup__optional{
+  margin-top: var(--admin-sp-4);
+  padding: var(--admin-sp-4);
+  border: 1px solid var(--admin-border);
+  border-radius: var(--admin-radius-md);
+  background: var(--admin-surface-sunken);
+}
+
+.admin-setup__optional summary{
+  cursor: pointer;
+  font-size: 0.88rem;
+  color: var(--admin-text-muted);
+}
+
+.admin-setup__optional[open] summary{ margin-bottom: var(--admin-sp-3); }
+
+.admin-setup__module{ padding-bottom: var(--admin-sp-3); }
+.admin-setup__module + .admin-setup__module{
+  padding-top: var(--admin-sp-3);
+  border-top: 1px solid var(--admin-border);
+}
+
+.admin-setup__actions{
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--admin-sp-3);
+  align-items: center;
+  margin-bottom: var(--admin-sp-6);
+}
+
+.admin-setup__links{ margin: 0; padding-left: 1.2rem; line-height: 1.7; }
+.admin-setup__links li{ color: var(--admin-text-muted); }
+
+@media (max-width: 720px){
+  body.admin-setup-page .admin-main{
+    padding: var(--admin-sp-5) var(--admin-sp-4) var(--admin-sp-6);
+  }
+
+  .admin-setup__steps{ gap: var(--admin-sp-2); }
+
+  /* Only the step the reader is on keeps its label on a narrow screen; the
+     rest shrink to their number so the row never wraps into three lines. */
+  .admin-setup__steps-item span:not(.admin-setup__steps-number){ display: none; }
+  .admin-setup__steps-item.is-current span:not(.admin-setup__steps-number){ display: inline; }
+
+  .admin-setup__actions button{ flex: 1 1 auto; }
+}
+
+/* ====================================================================== *
+   Content blocks: the picker, the catalogue and the schematic previews
+   both of them draw (admin/_block_picker.php, admin/_block_visual.php,
+   admin/content-blocks.php).
+ * ====================================================================== */
+
+/* --- The picker panel ------------------------------------------------- */
+
+body.admin-block-picker-open{ overflow: hidden; }
+
+.admin-block-picker{
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--admin-sp-4);
+}
+.admin-block-picker[hidden]{ display: none; }
+
+.admin-block-picker__backdrop{
+  position: absolute;
+  inset: 0;
+  background: var(--admin-overlay);
+}
+
+.admin-block-picker__panel{
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: min(1000px, 100%);
+  max-height: min(780px, 92vh);
+  padding: var(--admin-sp-5);
+  background: var(--admin-surface);
+  border: 1px solid var(--admin-border-strong);
+  border-radius: var(--admin-radius-lg);
+  box-shadow: var(--admin-shadow-md);
+}
+
+.admin-block-picker__head{
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--admin-sp-4);
+}
+.admin-block-picker__head h2{ margin: 0; }
+
+.admin-block-picker__close{
+  padding: 0 var(--admin-sp-3);
+  font-size: 1.5rem;
+  line-height: 1;
+  color: var(--admin-text-muted);
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+.admin-block-picker__close:hover{ color: var(--admin-text); }
+
+.admin-block-picker__intro{
+  margin: var(--admin-sp-2) 0 0;
+  font-size: 0.85rem;
+  color: var(--admin-text-muted);
+}
+
+.admin-block-picker__tools{
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--admin-sp-3);
+  align-items: center;
+  margin-top: var(--admin-sp-4);
+}
+.admin-block-picker__search{ flex: 1 1 260px; }
+.admin-block-picker__search input{ width: 100%; }
+
+.admin-block-picker__filters{
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--admin-sp-2);
+}
+
+/* Category filters. Real buttons with aria-pressed rather than a select:
+   the whole set stays visible, so an editor can see which drawers exist
+   without opening anything, and every one is one tap on a phone. */
+.admin-chip{
+  padding: 0.35rem 0.8rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--admin-text-muted);
+  background: var(--admin-surface-sunken);
+  border: 1px solid var(--admin-border);
+  border-radius: var(--admin-radius-pill);
+  cursor: pointer;
+  transition: color var(--admin-transition), background var(--admin-transition), border-color var(--admin-transition);
+}
+.admin-chip:hover{ color: var(--admin-text); border-color: var(--admin-border-strong); }
+.admin-chip.is-active{
+  color: var(--admin-on-accent);
+  background: var(--admin-accent);
+  border-color: var(--admin-accent);
+}
+
+.admin-block-picker__status{
+  margin: var(--admin-sp-3) 0 0;
+  font-size: 0.82rem;
+  color: var(--admin-text-muted);
+}
+.admin-block-picker__status:empty{ display: none; }
+
+.admin-block-picker__body{
+  margin-top: var(--admin-sp-4);
+  overflow-y: auto;
+}
+
+.admin-block-picker__group{ margin-bottom: var(--admin-sp-5); }
+.admin-block-picker__group[hidden]{ display: none; }
+.admin-block-picker__group:last-child{ margin-bottom: 0; }
+
+.admin-block-picker__group-title{
+  margin: 0 0 var(--admin-sp-3);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--admin-text-faint);
+}
+
+.admin-block-picker__foot{
+  margin-top: var(--admin-sp-4);
+  padding-top: var(--admin-sp-3);
+  border-top: 1px solid var(--admin-border);
+}
+.admin-block-picker__foot p{ margin: 0; font-size: 0.82rem; }
+
+/* --- One block card -------------------------------------------------- */
+
+.admin-block-grid{
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: var(--admin-sp-3);
+}
+
+/* The card IS the submit button that adds the block — one click, no second
+   confirmation. Everything it says is in the markup, never in a :hover
+   state, so a touch device and a screen reader get the same card. */
+.admin-block-card{
+  display: flex;
+  flex-direction: column;
+  gap: var(--admin-sp-3);
+  padding: var(--admin-sp-3);
+  text-align: left;
+  color: var(--admin-text);
+  background: var(--admin-surface-sunken);
+  border: 1px solid var(--admin-border);
+  border-radius: var(--admin-radius-md);
+  cursor: pointer;
+  font: inherit;
+  transition: border-color var(--admin-transition), background var(--admin-transition), transform var(--admin-transition);
+}
+.admin-block-card[hidden]{ display: none; }
+.admin-block-card:hover{
+  background: var(--admin-surface-hover);
+  border-color: var(--admin-accent);
+}
+.admin-block-card:active{ transform: translateY(1px); }
+
+.admin-block-card__body{ display: flex; flex-direction: column; gap: 0.3rem; }
+
+.admin-block-card__name{
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.92rem;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.admin-block-card__icon{
+  flex: 0 0 auto;
+  width: 18px;
+  height: 18px;
+  color: var(--admin-accent);
+}
+
+.admin-block-card__desc{
+  font-size: 0.8rem;
+  line-height: 1.45;
+  color: var(--admin-text-muted);
+}
+
+.admin-block-card__add{
+  align-self: flex-start;
+  padding: 0.25rem 0.7rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--admin-accent);
+  background: var(--admin-accent-soft);
+  border-radius: var(--admin-radius-pill);
+}
+.admin-block-card:hover .admin-block-card__add{
+  color: var(--admin-on-accent);
+  background: var(--admin-accent);
+}
+
+@media (max-width: 640px){
+  .admin-block-picker{ padding: 0; }
+  .admin-block-picker__panel{
+    width: 100%;
+    height: 100%;
+    max-height: 100vh;
+    border-radius: 0;
+  }
+  .admin-block-grid{ grid-template-columns: 1fr; }
+}
+
+/* --- The schematic previews (admin/_block_visual.php) ----------------- */
+
+/* Boxes, not screenshots. Deliberately abstract: the frontend is themeable,
+   so there is no single true picture of a block, and a picture that goes
+   stale silently is worse than none. See App\Service\Blocks\BlockPreview. */
+.admin-block-visual{
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 7px;
+  background: var(--admin-bg);
+  border: 1px solid var(--admin-border);
+  border-radius: var(--admin-radius-sm);
+  overflow: hidden;
+}
+
+.admin-bp{ display: block; }
+.admin-bp i{ display: block; background: var(--admin-border-strong); border-radius: 2px; }
+
+/* Every shape below is one row of the drawing. Heights are fixed in px on
+   purpose: the whole figure has to stay the same size on every card so a
+   grid of them reads as a grid. */
+
+.admin-bp--hero{
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: 3px;
+  height: 46px;
+  padding: 6px;
+  background: var(--admin-surface-hover);
+  border-radius: 3px;
+}
+.admin-bp--hero i:nth-child(1){ width: 62%; height: 7px; background: var(--admin-accent); }
+.admin-bp--hero i:nth-child(2){ width: 84%; height: 3px; }
+.admin-bp--hero i:nth-child(3){ width: 30%; height: 8px; border-radius: 4px; background: var(--admin-text-faint); }
+
+.admin-bp--page_title{
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 6px;
+  background: var(--admin-surface-hover);
+  border-radius: 3px;
+}
+.admin-bp--page_title i:nth-child(1){ width: 22%; height: 3px; background: var(--admin-accent); }
+.admin-bp--page_title i:nth-child(2){ width: 66%; height: 7px; background: var(--admin-text-faint); }
+.admin-bp--page_title i:nth-child(3){ width: 88%; height: 3px; }
+
+.admin-bp--heading{ display: flex; flex-direction: column; align-items: center; gap: 3px; }
+.admin-bp--heading i:nth-child(1){ width: 50%; height: 6px; background: var(--admin-text-faint); }
+.admin-bp--heading i:nth-child(2){ width: 30%; height: 3px; }
+
+.admin-bp--text{ display: flex; flex-direction: column; gap: 3px; }
+.admin-bp--text i{ height: 3px; }
+.admin-bp--text i:nth-child(1){ width: 100%; }
+.admin-bp--text i:nth-child(2){ width: 96%; }
+.admin-bp--text i:nth-child(3){ width: 99%; }
+.admin-bp--text i:nth-child(4){ width: 62%; }
+
+.admin-bp--image_left{ display: flex; gap: 5px; height: 40px; }
+.admin-bp--image_left i:nth-child(1){
+  flex: 0 0 44%;
+  background: var(--admin-surface-hover);
+  border-radius: 3px;
+}
+.admin-bp--image_left i:nth-child(2){
+  flex: 1 1 auto;
+  background: repeating-linear-gradient(
+    to bottom,
+    var(--admin-border-strong) 0 3px,
+    transparent 3px 8px
+  );
+  border-radius: 0;
+}
+
+.admin-bp--columns{ display: flex; gap: 4px; height: 34px; }
+.admin-bp--columns i{
+  flex: 1 1 0;
+  background: var(--admin-surface-hover);
+  border-radius: 3px;
+  border-top: 3px solid var(--admin-accent-soft-strong);
+}
+
+.admin-bp--rows{ display: flex; flex-direction: column; gap: 4px; }
+.admin-bp--rows i{
+  height: 9px;
+  background: var(--admin-surface-hover);
+  border-radius: 3px;
+  border-right: 8px solid var(--admin-border-strong);
+}
+
+.admin-bp--numbers{ display: flex; flex-direction: column; gap: 4px; }
+.admin-bp--numbers i{
+  height: 9px;
+  background: var(--admin-surface-hover);
+  border-radius: 3px;
+  border-left: 9px solid var(--admin-accent-soft-strong);
+}
+
+.admin-bp--figures{
+  display: flex;
+  gap: 4px;
+  padding: 6px;
+  background: var(--admin-surface-hover);
+  border-radius: 3px;
+}
+.admin-bp--figures i{
+  flex: 1 1 0;
+  height: 14px;
+  background: linear-gradient(
+    to bottom,
+    var(--admin-accent) 0 7px,
+    transparent 7px 10px,
+    var(--admin-border-strong) 10px 13px,
+    transparent 13px 14px
+  );
+  border-radius: 0;
+}
+
+.admin-bp--band{
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 7px;
+  background: var(--admin-surface-hover);
+  border: 1px solid var(--admin-accent-soft-strong);
+  border-radius: 3px;
+}
+.admin-bp--band i:nth-child(1){ width: 54%; height: 6px; background: var(--admin-text-faint); }
+.admin-bp--band i:nth-child(2){ width: 74%; height: 3px; }
+.admin-bp--band i:nth-child(3){ width: 28%; height: 8px; border-radius: 4px; background: var(--admin-accent); }
+
+.admin-bp--ticker{
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 18px;
+  padding: 0 6px;
+  background: var(--admin-surface-hover);
+  border-radius: 3px;
+  overflow: hidden;
+}
+.admin-bp--ticker i{ flex: 0 0 auto; height: 4px; }
+.admin-bp--ticker i:nth-child(odd){ width: 20px; }
+.admin-bp--ticker i:nth-child(even){ width: 13px; }
+
+.admin-bp--carousel{ display: flex; align-items: center; gap: 4px; height: 40px; }
+.admin-bp--carousel i{ background: var(--admin-surface-hover); border-radius: 3px; }
+.admin-bp--carousel i:nth-child(1),
+.admin-bp--carousel i:nth-child(3){ flex: 0 0 16%; height: 26px; }
+.admin-bp--carousel i:nth-child(2){ flex: 1 1 auto; height: 40px; border: 1px solid var(--admin-accent-soft-strong); }
+
+.admin-bp--gallery{
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 4px;
+}
+.admin-bp--gallery i{ height: 17px; background: var(--admin-surface-hover); border-radius: 3px; }
+
+.admin-bp--tiles{ display: flex; gap: 4px; }
+.admin-bp--tiles i{
+  flex: 1 1 0;
+  height: 30px;
+  background: var(--admin-surface-hover);
+  border-radius: 3px;
+  border-bottom: 5px solid var(--admin-border-strong);
+}
+
+.admin-bp--products{
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 4px;
+}
+.admin-bp--products i{
+  height: 24px;
+  background: linear-gradient(
+    to bottom,
+    var(--admin-surface-hover) 0 16px,
+    transparent 16px 18px,
+    var(--admin-border-strong) 18px 21px,
+    transparent 21px 24px
+  );
+  border-radius: 3px 3px 0 0;
+}
+
+.admin-bp--fields{ display: flex; flex-direction: column; gap: 4px; }
+.admin-bp--fields i:nth-child(-n+3){
+  height: 9px;
+  background: var(--admin-surface-hover);
+  border: 1px solid var(--admin-border-strong);
+  border-radius: 3px;
+}
+.admin-bp--fields i:nth-child(4){ width: 34%; height: 8px; border-radius: 4px; background: var(--admin-accent); }
+
+.admin-bp--two_cards{ display: flex; gap: 4px; height: 40px; }
+.admin-bp--two_cards i{
+  background: var(--admin-surface-hover);
+  border-radius: 3px;
+}
+.admin-bp--two_cards i:nth-child(1){ flex: 1 1 auto; }
+.admin-bp--two_cards i:nth-child(2){ flex: 0 0 34%; border: 1px solid var(--admin-accent-soft-strong); }
+
+.admin-bp--chips{ display: flex; gap: 4px; }
+.admin-bp--chips i{ height: 10px; border-radius: 5px; background: var(--admin-surface-hover); border: 1px solid var(--admin-border-strong); }
+.admin-bp--chips i:nth-child(1){ flex: 0 0 24%; }
+.admin-bp--chips i:nth-child(2){ flex: 0 0 30%; }
+.admin-bp--chips i:nth-child(3){ flex: 0 0 21%; }
+.admin-bp--chips i:nth-child(4){ flex: 0 0 16%; }
+
+/* --- The Contentblokken catalogue (admin/content-blocks.php) ---------- */
+
+.admin-catalogue-group{ margin-bottom: var(--admin-sp-6); }
+
+.admin-catalogue-group__title{
+  margin: 0 0 var(--admin-sp-1);
+  font-size: 1.05rem;
+}
+
+.admin-catalogue-group__count{
+  margin: 0 0 var(--admin-sp-4);
+  font-size: 0.82rem;
+  color: var(--admin-text-faint);
+}
+
+.admin-catalogue-grid{
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+  gap: var(--admin-sp-4);
+}
+
+.admin-catalogue-card{
+  display: flex;
+  flex-direction: column;
+  gap: var(--admin-sp-3);
+  padding: var(--admin-sp-4);
+  background: var(--admin-surface);
+  border: 1px solid var(--admin-border);
+  border-radius: var(--admin-radius-md);
+}
+
+.admin-catalogue-card__head{
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.admin-catalogue-card__title{ margin: 0; font-size: 1rem; }
+
+.admin-catalogue-card__icon{
+  flex: 0 0 auto;
+  width: 20px;
+  height: 20px;
+  color: var(--admin-accent);
+}
+
+.admin-catalogue-card__desc{
+  margin: 0;
+  font-size: 0.87rem;
+  line-height: 1.55;
+  color: var(--admin-text-muted);
+}
+
+.admin-catalogue-card__cases-title{
+  margin: 0 0 var(--admin-sp-1);
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--admin-text-faint);
+}
+
+.admin-catalogue-card__cases{
+  margin: 0;
+  padding-left: 1.1rem;
+  font-size: 0.84rem;
+  line-height: 1.6;
+  color: var(--admin-text-muted);
+}
+
+.admin-catalogue-card .admin-block-visual{ min-height: 74px; justify-content: center; }
+
+/* ====================================================================== *
+   The save/status bar (admin/_save_bar.php)
+ * ====================================================================== */
+
+/* Reserves the height the fixed bar covers, in the normal flow at the end of
+   <main> — so only the screens that render a bar pay for it, and no rule
+   anywhere has to know which screens those are. */
+.admin-save-bar-spacer{ height: 76px; }
+
+.admin-save-bar{
+  position: fixed;
+  right: 0;
+  bottom: 0;
+  left: 248px;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--admin-sp-4);
+  padding: var(--admin-sp-3) var(--admin-sp-6);
+  background: var(--admin-sidebar-bg);
+  border-top: 1px solid var(--admin-border-strong);
+  box-shadow: var(--admin-shadow-bar);
+}
+.admin-save-bar[hidden]{ display: none; }
+
+.admin-save-bar__status{
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  margin: 0;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--admin-text-muted);
+}
+
+/* The dot is decoration; the wording next to it carries the state, so the
+   bar is never colour-only. */
+.admin-save-bar__dot{
+  flex: 0 0 auto;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--admin-success);
+}
+
+.admin-save-bar[data-save-bar-state="dirty"] .admin-save-bar__status{ color: var(--admin-text); }
+.admin-save-bar[data-save-bar-state="dirty"] .admin-save-bar__dot{ background: var(--admin-accent); }
+.admin-save-bar[data-save-bar-state="saving"] .admin-save-bar__dot{ background: var(--admin-text-faint); }
+.admin-save-bar[data-save-bar-state="error"] .admin-save-bar__status{ color: var(--admin-error); }
+.admin-save-bar[data-save-bar-state="error"] .admin-save-bar__dot{ background: var(--admin-error); }
+
+.admin-save-bar__button{
+  flex: 0 0 auto;
+  padding: 0.6rem 1.5rem;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--admin-on-accent);
+  background: var(--admin-accent);
+  border: 1px solid var(--admin-accent);
+  border-radius: var(--admin-radius-sm);
+  cursor: pointer;
+  transition: background var(--admin-transition), color var(--admin-transition), border-color var(--admin-transition);
+}
+.admin-save-bar__button:hover:not(:disabled){ background: var(--admin-accent-hover); border-color: var(--admin-accent-hover); }
+.admin-save-bar__button:disabled{
+  color: var(--admin-text-faint);
+  background: transparent;
+  border-color: var(--admin-border-strong);
+  cursor: default;
+}
+
+@media (max-width: 900px){
+  .admin-save-bar{ left: 0; padding: var(--admin-sp-3) var(--admin-sp-4); }
+}
+
+@media (max-width: 480px){
+  .admin-save-bar{ gap: var(--admin-sp-3); }
+  .admin-save-bar__status{ font-size: 0.8rem; }
+  .admin-save-bar__button{ padding: 0.6rem 1rem; }
+}
+
+/* ---------------------------------------------------------------------------
+   Dashboard uiterlijk (admin/settings.php): the four theme cards.
+
+   Each card carries a tiny schematic of the admin shell — sidebar, page
+   title, two cards, a button — drawn entirely from the tokens of the theme
+   it offers. The sketch element sets data-admin-theme itself, so the very
+   same declarations that skin a whole page skin this 150px drawing, and a
+   palette is never written down twice.
+
+   Selection is deliberately visible three ways at once: the radio itself
+   (never hidden, so it is focusable and reads correctly to a screen
+   reader), a heavier border, and the word "In gebruik". No state here rests
+   on colour alone.
+   --------------------------------------------------------------------------- */
+.admin-theme-choices{
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: var(--admin-sp-4);
+  margin: var(--admin-sp-4) 0 var(--admin-sp-5);
+  padding: 0;
+  border: 0;
+}
+
+.admin-theme-choice{
+  display: flex;
+  flex-direction: column;
+  gap: var(--admin-sp-2);
+  padding: var(--admin-sp-3);
+  border: 1px solid var(--admin-border);
+  border-radius: var(--admin-radius-md);
+  background: var(--admin-surface-sunken);
+  cursor: pointer;
+  transition: border-color var(--admin-transition), background var(--admin-transition);
+}
+
+.admin-theme-choice:hover{ border-color: var(--admin-border-strong); background: var(--admin-surface-hover); }
+.admin-theme-choice.is-current{
+  /* A ring rather than an accent wash: a tinted card under an accent-tinted
+     badge stacks two translucent layers of the same hue, and the label on top
+     loses contrast against its own background. */
+  border-color: var(--admin-accent);
+  background: var(--admin-surface);
+  box-shadow: 0 0 0 1px var(--admin-accent);
+}
+.admin-theme-choice:focus-within{ outline: 2px solid var(--admin-accent); outline-offset: 2px; }
+
+.admin-theme-choice__label{
+  display: flex;
+  align-items: center;
+  gap: var(--admin-sp-2);
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.admin-theme-choice__name{ margin-right: auto; }
+
+.admin-theme-choice__desc{
+  margin: 0;
+  color: var(--admin-text-muted);
+  font-size: 0.8rem;
+  line-height: 1.4;
+}
+
+/* The schematic itself. Every colour below is a token, so this block is
+   written once and rendered four times. */
+.admin-theme-sketch{
+  display: flex;
+  height: 96px;
+  overflow: hidden;
+  border: 1px solid var(--admin-border);
+  border-radius: var(--admin-radius-sm);
+  background: var(--admin-bg);
+}
+
+.admin-theme-sketch__side{
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  gap: 5px;
+  width: 34%;
+  padding: 7px 6px;
+  background: var(--admin-sidebar-bg);
+  border-right: 1px solid var(--admin-border);
+}
+
+.admin-theme-sketch__brand{
+  height: 6px;
+  margin-bottom: 3px;
+  border-radius: 2px;
+  background: var(--admin-text);
+  opacity: 0.75;
+}
+
+.admin-theme-sketch__nav{
+  height: 5px;
+  border-radius: 2px;
+  background: var(--admin-text-muted);
+  opacity: 0.45;
+}
+
+.admin-theme-sketch__nav.is-active{
+  background: var(--admin-accent);
+  opacity: 1;
+}
+
+.admin-theme-sketch__main{
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px;
+}
+
+.admin-theme-sketch__title{
+  width: 55%;
+  height: 6px;
+  border-radius: 2px;
+  background: var(--admin-text);
+  opacity: 0.85;
+}
+
+.admin-theme-sketch__row{ display: flex; flex: 1; gap: 6px; }
+
+.admin-theme-sketch__card{
+  flex: 1;
+  border: 1px solid var(--admin-border);
+  border-radius: var(--admin-radius-sm);
+  background: var(--admin-surface);
+}
+
+.admin-theme-sketch__btn{
+  width: 38%;
+  height: 9px;
+  border-radius: var(--admin-radius-sm);
+  background: var(--admin-accent);
+}
+
+@media (max-width: 600px){
+  .admin-theme-choices{ grid-template-columns: 1fr; }
+}

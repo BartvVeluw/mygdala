@@ -1,0 +1,31 @@
+/* ==========================================================================
+   Content block: marquee (partials/section-marquee.php)
+   Asked for by App\Service\Blocks\MarqueeBlock::styles().
+   ========================================================================== */
+
+/* Materials strip / marquee */
+.marquee{ overflow: hidden; border-block: 1px solid var(--color-line); }
+.marquee__track{
+  display: flex;
+  gap: var(--sp-6);
+  width: max-content;
+  animation: marquee var(--marquee-duration, 32s) linear infinite;
+  padding-block: var(--sp-3);
+}
+.marquee__track span{
+  font-family: var(--font-display);
+  font-size: 1.4rem;
+  color: var(--color-text-faint);
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+}
+.marquee__track span::after{ content: "\2726"; color: var(--color-primary); font-size: 1rem; }
+@keyframes marquee{
+  from{ transform: translateX(0); }
+  to{ transform: translateX(-50%); }
+}
+@media (prefers-reduced-motion: reduce){
+  .marquee__track{ animation: none; overflow-x: auto; }
+}

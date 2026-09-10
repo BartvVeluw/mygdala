@@ -1,0 +1,142 @@
+<?php
+
+namespace App\Service\Blocks;
+
+use App\Repository\PageHeroRepository;
+use App\Repository\PageRepository;
+use App\Service\PageHeroContent;
+
+require_once dirname(__DIR__, 3) . '/partials/section-page-hero.php';
+
+/**
+ * The ordinary page hero: eyebrow, H1, lead and breadcrumb label. One per
+ * page, addressed by page_slug (it predates repeatable instances and there is
+ * no second hero to tell it apart from), and denied on the homepage, which
+ * has its own richer HomepageHeroBlock.
+ */
+final class PageHeroBlock extends BlockDefinition
+{
+    /**
+     * The per-page `<h1>` line-wrap width — a purely cosmetic value that was
+     * hand-tuned per page template and never CMS content (see
+     * partials/section-page-hero.php). Pages not listed render without the
+     * inline style.
+     */
+    private const TITLE_MAX_WIDTH = [
+        'shop' => '22ch',
+        'diensten' => '18ch',
+        'portfolio' => '20ch',
+        'over-mij' => '16ch',
+        'contact' => '18ch',
+    ];
+
+    public function type(): string
+    {
+        return 'page_hero';
+    }
+
+    public function meta(): array
+    {
+        return [
+            'label' => 'Paginakop',
+            'manual_add' => true,
+            'allow_multiple' => false,
+            'max_instances' => 1,
+            'allowed_pages' => null,
+            'denied_pages' => ['index'],
+            'deletable' => true,
+        ];
+    }
+
+    public function description(): string
+    {
+        return 'De kop van een gewone pagina: een bovenschrift, de paginatitel en een korte inleidende zin. Hiermee begint een pagina normaal gesproken.';
+    }
+
+    public function category(): string
+    {
+        return BlockCategories::HERO;
+    }
+
+    public function icon(): string
+    {
+        return '<rect x="3" y="4" width="18" height="7.5" rx="1.5"/><path d="M6 15.5h12"/><path d="M6 19h8"/>';
+    }
+
+    public function preview(): array
+    {
+        return [BlockPreview::PAGE_TITLE];
+    }
+
+    public function useCases(): array
+    {
+        return [
+            'de titel en inleiding van een pagina',
+            'het begin van een nieuwe pagina',
+        ];
+    }
+
+    public function create(string $pageSlug): array
+    {
+        $pageLabel = (new PageRepository())->findByContentKey($pageSlug)['title'] ?? $pageSlug;
+
+        $repository = new PageHeroRepository();
+        $repository->upsert($pageSlug, [
+            'eyebrow_nl' => 'Nieuw',
+            'eyebrow_en' => '',
+            'title_nl' => 'Nieuwe sectie — pas deze titel aan',
+            'title_en' => '',
+            'lead_nl' => '',
+            'lead_en' => '',
+            'breadcrumb_label_nl' => $pageLabel,
+            'breadcrumb_label_en' => '',
+            'is_active' => true,
+        ]);
+
+        $row = $repository->findBySlug($pageSlug);
+
+        return [(int) $row['id'], null];
+    }
+
+    public function deleteContent(array $pageSection): void
+    {
+        (new PageHeroRepository())->deleteBySlug($this->pageSlug($pageSection));
+    }
+
+    public function render(array $pageSection, bool $tightTop, string $revealGroup): void
+    {
+        $pageSlug = $this->pageSlug($pageSection);
+
+        $content = PageHeroContent::forSlug($pageSlug);
+        if ($content['state'] === PageHeroContent::STATE_HIDDEN) {
+            return;
+        }
+
+        render_section_page_hero($content, self::TITLE_MAX_WIDTH[$pageSlug] ?? null);
+    }
+
+    public function instanceTitle(array $pageSection): string
+    {
+        return (string) (PageHeroContent::forSlug($this->pageSlug($pageSection))['title_nl'] ?? '');
+    }
+
+    public function tightensFollowingBlock(): bool
+    {
+        return true;
+    }
+
+    public function editUrl(array $pageSection): ?string
+    {
+        return '/admin/page-hero.php?slug=' . urlencode($this->pageSlug($pageSection));
+    }
+
+    public function clearCache(): void
+    {
+        PageHeroContent::clearCache();
+    }
+
+    public function contentTable(): ?string
+    {
+        return 'page_heroes';
+    }
+}

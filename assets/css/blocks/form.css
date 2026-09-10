@@ -1,0 +1,106 @@
+/* =========================================================================
+   Content block: Formulier (partials/form.php, partials/section-form.php)
+   Asked for by App\Service\Blocks\FormBlock::styles() and
+   App\Service\Blocks\ContactFormBlock::styles().
+
+   Only what is genuinely this block's own. The controls themselves — the
+   .form-grid, .form-field, .form-error, .form-status and .check-pill rules —
+   are shared with the checkout and every other form on the site and stay in
+   assets/css/core.css, which this file loads after and never repeats.
+   ========================================================================= */
+
+/* A radio group is a <fieldset> so it has one accessible name. Browsers give
+   fieldsets a border and padding of their own, which would draw a box round
+   one field in a form that has none anywhere else. */
+.vvl-form fieldset {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+/* The fieldset is the anchor the error summary links to, so it takes focus;
+   a focus ring on a whole group of radios is noise, and the ring on the
+   radio the visitor then reaches is what actually guides them. */
+.vvl-form fieldset:focus {
+  outline: none;
+}
+
+.vvl-form legend {
+  padding: 0;
+  font-weight: 700;
+  font-size: 0.9rem;
+  color: var(--color-text);
+}
+
+/* A checkbox label is a sentence, and a checkbox row is one line: without
+   this the wrapper's own column gap pushes the box away from its text. */
+.vvl-form .form-field:has(> .form-check) {
+  gap: 0.25rem;
+}
+
+/* A checkbox sits BESIDE its label rather than under it, and the two are one
+   click target. */
+.vvl-form .form-check {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.vvl-form .form-check input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  margin-top: 0.15rem;
+  flex: 0 0 auto;
+  accent-color: var(--color-primary);
+}
+
+/* The label of a .form-check is the sentence, not a heading: it must not
+   inherit the bold caption weight .form-field label carries. */
+.vvl-form .form-field label.form-check {
+  font-weight: 500;
+}
+
+.vvl-form .form-field.has-error input,
+.vvl-form .form-field.has-error select,
+.vvl-form .form-field.has-error textarea {
+  border-color: #E2685C;
+}
+
+/* The heading and introduction of the block around the form. */
+.form-block__intro {
+  margin-bottom: var(--sp-3);
+  color: var(--color-text-muted);
+  white-space: pre-line;
+}
+
+.form-block__title {
+  font-size: 1.4rem;
+  margin-bottom: var(--sp-3);
+}
+
+/* The submit button is full width inside a card; give it a little air above
+   the last field. */
+.vvl-form .btn--block {
+  margin-top: var(--sp-2);
+}
+
+/* A grid item's automatic minimum size is its MIN-CONTENT width, and an
+   <input type="file"> has a large one: the browser's own "Bestand kiezen /
+   Geen bestand gekozen" control cannot wrap. Left alone it widens the whole
+   `1fr` column past the viewport, and the page scrolls sideways on a phone —
+   which it did before this stylesheet existed too, on the contact form's
+   attachment field. Letting the fields shrink is the fix; the file control
+   then sizes to the column like every other one. */
+.vvl-form .form-field {
+  min-width: 0;
+}
+
+.vvl-form input[type="file"] {
+  max-width: 100%;
+}

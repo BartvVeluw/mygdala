@@ -1,0 +1,159 @@
+services:
+  # PHP + Apache, with Composer and Phinx available inside the container.
+  # On startup it installs Composer packages (first run only) and runs
+  # pending Phinx migrations automatically, then serves the site.
+  php:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    container_name: vvld_php
+    restart: unless-stopped
+    ports:
+      - "8000:80"
+    env_file:
+      - .env
+    environment:
+      # Inside the Docker network, MySQL/Mailpit are reachable by their service name, not 127.0.0.1.
+      DB_HOST: mysql
+      MAIL_HOST: mailpit
+    volumes:
+      - ./:/var/www/html
+      # Contact-request attachments live outside the webroot (/var/www/html)
+      # — see src/Service/ContactAttachmentStorage.php. A named volume (not
+      # a bind mount) so it isn't wiped by a plain container recreation.
+      - vvld_contact_attachments:/var/www/storage
+    depends_on:
+      mysql:
+        condition: service_healthy
+      mailpit:
+        condition: service_started
+
+  # The same site, served against the TEST database instead of the
+  # development one, so the HTTP-level tests can create pages, blocks and
+  # orders without an editor ever seeing them. Behind a Compose profile, so
+  # a plain `docker compose up -d` does not start it:
+  #   docker compose --profile test up -d
+  # See TESTING.md.
+  php_test:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    container_name: vvld_php_test
+    profiles: ["test"]
+    restart: unless-stopped
+    ports:
+      - "8001:80"
+    env_file:
+      - .env
+    environment:
+      DB_HOST: mysql
+      MAIL_HOST: mailpit
+      # Overrides .env — this container must never open the development
+      # database. Its entrypoint runs the migrations against this one.
+      DB_DATABASE: ${TEST_DB_DATABASE:-vanveluw_shop_test}
+      TEST_DB_DATABASE: ${TEST_DB_DATABASE:-vanveluw_shop_test}
+      # The Blog is the one module that defaults to OFF (BLOG.md), so the
+      # container the HTTP tier shoots at has to ask for it explicitly —
+      # otherwise every /blog test would be testing a 404. This is the same
+      # deployment switch a site owner uses, not a test-only mechanism.
+      MODULE_BLOG_ENABLED: "true"
+    volumes:
+      - ./:/var/www/html
+      - vvld_test_attachments:/var/www/storage
+    depends_on:
+      mysql:
+        condition: service_healthy
+      mailpit:
+        condition: service_started
+
+  # The same site AND the same test database, but with the Shop (and with it
+  # Personalisatie) switched off — the CMS-only deployment, so the module
+  # boundary can be proven over real HTTP instead of only in-process.
+  #
+  # It is a separate container rather than a setting the suite flips because
+  # MODULE_* is deployment configuration read from the environment: a test
+  # cannot change what an already-running web server was started with, and
+  # writing a config file would change the development site too (both mount
+  # this same directory). Same compose profile as php_test:
+  #   docker compose --profile test up -d
+  # See TESTING.md.
+  php_cms:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    container_name: vvld_php_cms
+    profiles: ["test"]
+    restart: unless-stopped
+    ports:
+      - "8002:80"
+    env_file:
+      - .env
+    environment:
+      DB_HOST: mysql
+      MAIL_HOST: mailpit
+      DB_DATABASE: ${TEST_DB_DATABASE:-vanveluw_shop_test}
+      TEST_DB_DATABASE: ${TEST_DB_DATABASE:-vanveluw_shop_test}
+      # The whole point of this container. Personalisatie depends on the Shop,
+      # so App\Module\ModuleRegistry switches it off with it; it is named here
+      # as well so the configuration says out loud what is running.
+      MODULE_SHOP_ENABLED: "false"
+      MODULE_PERSONALIZATION_ENABLED: "false"
+      # The Blog is off here as well, and it is off by simply not being asked
+      # for — this container is what proves a disabled module's public URLs
+      # answer 404 over real HTTP.
+      MODULE_BLOG_ENABLED: "false"
+    volumes:
+      - ./:/var/www/html
+      - vvld_cms_attachments:/var/www/storage
+    depends_on:
+      mysql:
+        condition: service_healthy
+      mailpit:
+        condition: service_started
+
+  mysql:
+    image: mysql:8.0
+    container_name: vvld_mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: ${DB_DATABASE}
+      MYSQL_USER: ${DB_USERNAME}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+    ports:
+      - "${DB_PORT:-3306}:3306"
+    volumes:
+      - vvld_mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${DB_ROOT_PASSWORD}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # Web-based database viewer, so you can browse tables/rows without any MySQL knowledge.
+  # Open http://localhost:8080 after `docker compose up -d`, login with the DB_* values from .env
+  # and Server: mysql (the service name above, not localhost).
+  adminer:
+    image: adminer:latest
+    container_name: vvld_adminer
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    depends_on:
+      - mysql
+
+  # Local mail testing: catches all outgoing mail instead of sending it for real.
+  # Web UI to read caught mail: http://localhost:8025. SMTP: localhost:1025.
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: vvld_mailpit
+    restart: unless-stopped
+    ports:
+      - "8025:8025"
+      - "1025:1025"
+
+volumes:
+  vvld_mysql_data:
+  vvld_contact_attachments:
+  vvld_test_attachments:
+  vvld_cms_attachments:

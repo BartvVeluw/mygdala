@@ -1,0 +1,206 @@
+/* ==========================================================================
+   Shop — the header mini-cart, and the "this line is personalized" summary
+   it shares with the cart page and the checkout summary.
+
+   Loaded on EVERY public page, because partials/header.php renders the
+   mini-cart on every public page. That is the one Core->Shop asset seam
+   left after step 4 — see App\Service\PageAssets and MODULES.md. The rest
+   of the Shop's styling is in assets/css/shop/shop.css and loads only on
+   Shop routes.
+   ========================================================================== */
+
+/* ==========================================================================
+   Cart trigger & dropdown (header)
+   ========================================================================== */
+.cart-trigger{ position: relative; }
+.cart-trigger__btn{
+  position: relative;
+  width: 44px; height: 44px;
+  border-radius: 50%;
+  border: 1.5px solid var(--color-line-strong);
+  background: transparent;
+  color: var(--color-text);
+  display: inline-flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
+}
+.cart-trigger__btn svg{ width: 20px; height: 20px; }
+.cart-trigger__btn:hover, .cart-trigger.is-open .cart-trigger__btn{ background: var(--color-primary-wash); border-color: var(--color-primary); color: var(--color-primary-bright); }
+.cart-trigger__badge{
+  position: absolute; top: -4px; right: -4px;
+  min-width: 19px; height: 19px; padding: 0 4px;
+  border-radius: 999px;
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+  font-size: 0.68rem; font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+  border: 2px solid var(--color-bg);
+  line-height: 1;
+}
+.cart-trigger__badge[hidden]{ display: none; }
+
+.cart-dropdown{
+  position: absolute;
+  top: calc(100% + 14px);
+  right: 0;
+  width: 360px;
+  max-width: 90vw;
+  background: rgba(var(--color-surface-veil-rgb), 0.98);
+  backdrop-filter: blur(16px) saturate(1.1);
+  -webkit-backdrop-filter: blur(16px) saturate(1.1);
+  border: 1px solid var(--color-line-strong);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lift);
+  padding: var(--sp-3);
+  opacity: 0; visibility: hidden; pointer-events: none;
+  transform: translateY(-8px);
+  transition: opacity var(--dur-fast) var(--ease-out), transform var(--dur-fast) var(--ease-out), visibility var(--dur-fast) linear;
+  z-index: 600;
+}
+.cart-trigger.is-open .cart-dropdown{ opacity: 1; visibility: visible; pointer-events: auto; transform: translateY(0); }
+.cart-dropdown__head{ display: flex; align-items: baseline; justify-content: space-between; gap: var(--sp-2); margin-bottom: var(--sp-2); padding-bottom: var(--sp-2); border-bottom: 1px solid var(--color-line); }
+.cart-dropdown__head p{ font-family: var(--font-display); font-size: 1.1rem; color: var(--color-text); }
+.cart-dropdown__count{ font-size: 0.78rem; color: var(--color-text-faint); white-space: nowrap; }
+.cart-dropdown__items{ display: flex; flex-direction: column; gap: var(--sp-2); max-height: 280px; overflow-y: auto; margin-bottom: var(--sp-3); }
+.cart-dropdown__item{ display: grid; grid-template-columns: 50px 1fr auto auto; gap: 0.65rem; align-items: center; }
+.cart-dropdown__item-link{ display: contents; color: inherit; text-decoration: none; }
+.cart-dropdown__item-link:hover .cart-dropdown__item-info p{ color: var(--color-primary-bright); }
+.cart-dropdown__item-link:hover .cart-dropdown__item-media{ border-color: var(--color-primary); }
+.cart-dropdown__item-media{
+  width: 50px; height: 50px; flex-shrink: 0;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-line);
+  background: radial-gradient(circle at 50% 35%, var(--color-surface-hover), var(--color-surface-2));
+  display: flex; align-items: center; justify-content: center;
+  transition: border-color var(--dur-fast);
+}
+.cart-dropdown__item-media svg{ width: 46%; height: 46%; color: var(--color-primary); }
+.cart-dropdown__item-info p{ font-size: 0.85rem; font-weight: 700; color: var(--color-text); line-height: 1.3; transition: color var(--dur-fast); }
+.cart-dropdown__item-info span{ font-size: 0.74rem; color: var(--color-text-faint); }
+.cart-dropdown__item-variant{ display: block; font-size: 0.72rem; color: var(--color-text-faint); }
+.cart-dropdown__item-price{ font-size: 0.85rem; font-weight: 700; color: var(--color-primary-bright); white-space: nowrap; }
+.cart-dropdown__item-remove{ width: 26px; height: 26px; border: none; background: transparent; color: var(--color-text-faint); cursor: pointer; display: flex; align-items: center; justify-content: center; border-radius: 50%; transition: color var(--dur-fast), background var(--dur-fast); }
+.cart-dropdown__item-remove:hover{ color: #F0897E; background: rgba(226,104,92,0.12); }
+.cart-dropdown__item-remove svg{ width: 14px; height: 14px; }
+.cart-dropdown__empty{ text-align: center; padding: var(--sp-4) var(--sp-2); color: var(--color-text-faint); font-size: 0.88rem; }
+.cart-dropdown__subtotal{ display: flex; justify-content: space-between; align-items: baseline; padding-top: var(--sp-2); border-top: 1px solid var(--color-line); margin-bottom: var(--sp-3); }
+.cart-dropdown__subtotal span{ color: var(--color-text-muted); font-size: 0.88rem; }
+.cart-dropdown__subtotal strong{ font-family: var(--font-display); font-size: 1.2rem; color: var(--color-primary-bright); }
+.cart-dropdown__actions{ display: flex; flex-direction: column; gap: 0.6rem; }
+
+@media (max-width: 900px){
+  .cart-dropdown{ position: fixed; top: auto; bottom: 0; left: 0; right: 0; width: auto; max-width: none; border-radius: var(--radius-lg) var(--radius-lg) 0 0; transform: translateY(16px); }
+  .cart-trigger.is-open .cart-dropdown{ transform: translateY(0); }
+}
+
+/* Cart icon bump — plays once whenever an item is added. */
+@keyframes cart-bump{
+  0%{ transform: scale(1); }
+  35%{ transform: scale(1.16); }
+  62%{ transform: scale(0.94); }
+  100%{ transform: scale(1); }
+}
+.cart-trigger__btn.is-bumped{ animation: cart-bump 0.5s var(--ease-out); }
+@media (prefers-reduced-motion: reduce){
+  .cart-trigger__btn.is-bumped{ animation: none; }
+}
+
+/* Add-to-cart confirmation toast — small, auto-dismissing, anchored under
+   the cart icon. Clickable (opens the cart) for its whole visible life,
+   including while fading out; hovering during the fade cancels it and
+   restores full opacity. Only once fully faded does it stop accepting
+   pointer events (see initCartFeedback for the show/hide state machine). */
+.cart-toast{
+  position: fixed;
+  width: 300px;
+  max-width: 88vw;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  background: rgba(var(--color-surface-veil-rgb), 0.98);
+  backdrop-filter: blur(16px) saturate(1.1);
+  -webkit-backdrop-filter: blur(16px) saturate(1.1);
+  border: 1px solid var(--color-line-strong);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lift);
+  padding: var(--sp-2) var(--sp-3);
+  color: inherit;
+  text-decoration: none;
+  cursor: pointer;
+  opacity: 0; visibility: hidden; pointer-events: none;
+  transform: translateY(-8px);
+  transition: opacity var(--dur-base) var(--ease-out), transform var(--dur-base) var(--ease-out);
+  z-index: 650;
+}
+.cart-toast.is-visible{ visibility: visible; pointer-events: auto; opacity: 1; transform: translateY(0); }
+.cart-toast.is-visible.is-hiding{ opacity: 0; }
+.cart-toast:hover{ border-color: var(--color-primary); }
+.cart-toast__media{
+  width: 44px; height: 44px; flex-shrink: 0;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-line);
+  background: radial-gradient(circle at 50% 35%, var(--color-surface-hover), var(--color-surface-2));
+  display: flex; align-items: center; justify-content: center;
+  overflow: hidden;
+}
+.cart-toast__media svg{ width: 46%; height: 46%; color: var(--color-primary); }
+.cart-toast__media img{ width: 100%; height: 100%; object-fit: cover; }
+.cart-toast__body p{ font-size: 0.85rem; font-weight: 700; color: var(--color-text); line-height: 1.3; margin-bottom: 0.15rem; }
+.cart-toast__body span{ font-size: 0.78rem; color: var(--color-text-faint); }
+@media (max-width: 900px){
+  .cart-toast{
+    position: fixed; top: auto; right: auto;
+    bottom: var(--sp-4); left: 50%;
+    width: calc(100vw - 2 * var(--sp-4)); max-width: 340px;
+    transform: translate(-50%, 10px);
+  }
+  .cart-toast.is-visible{ transform: translate(-50%, 0); }
+}
+@media (prefers-reduced-motion: reduce){
+  .cart-toast{ transition: opacity var(--dur-fast) linear; transform: none; }
+  .cart-toast.is-visible{ transform: none; }
+}
+
+
+/* -------------------------------------------------------------------------
+   The "this line is personalized" confirmation shared by the header cart
+   dropdown, the cart page and the checkout summary — see
+   cartPersonalizationHtml() in assets/js/shop/cart.js. A personalized line can
+   list several zones, each with its own label, so the block stacks.
+   ------------------------------------------------------------------------- */
+.cart-personalization{
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.15rem;
+  margin: 0.2rem 0 0;
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+}
+.cart-personalization--compact{ font-size: 0.72rem; }
+
+.cart-personalization__thumb{
+  width: 22px;
+  height: 22px;
+  object-fit: contain;
+  border: 1px solid var(--color-line);
+  border-radius: 3px;
+  background: var(--color-surface);
+  flex-shrink: 0;
+}
+
+.cart-personalization__heading{
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--color-text-faint);
+}
+
+.cart-personalization__zone{
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.cart-personalization__zone b{ color: var(--color-text); font-weight: 600; }
+.cart-personalization__surcharge{ color: var(--color-primary-bright); white-space: nowrap; }

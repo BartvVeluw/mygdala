@@ -1,0 +1,52 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Service\Media\Usage;
+
+use App\Database;
+use App\Service\Media\MediaUsage;
+use App\Service\Media\MediaUsageProvider;
+
+/**
+ * A CMS page's own social-sharing image (`pages.og_media_id`) — the per-page
+ * override in the SEO hierarchy described in SEO.md.
+ *
+ * One query for the whole batch, and it reads only the `pages` table: the
+ * SEO hierarchy itself is untouched by the Media Library, this provider just
+ * reports which page picked which item.
+ */
+final class PageSocialImageMediaUsage extends MediaUsageProvider
+{
+    public function key(): string
+    {
+        return 'page_social_image';
+    }
+
+    public function label(): string
+    {
+        return "Pagina's";
+    }
+
+    public function usagesFor(array $mediaIds): array
+    {
+        $ids = array_values(array_map('intval', $mediaIds));
+
+        $stmt = Database::connection()->prepare(
+            'SELECT id, title, og_media_id FROM pages WHERE og_media_id IN (' . $this->placeholders(count($ids)) . ')'
+        );
+        $stmt->execute($ids);
+
+        $usages = [];
+
+        foreach ($stmt->fetchAll() as $row) {
+            $usages[(int) $row['og_media_id']][] = new MediaUsage(
+                source: $this->key(),
+                label: 'Deel-afbeelding van "' . (string) $row['title'] . '"',
+                editUrl: '/admin/page.php?id=' . (int) $row['id'],
+            );
+        }
+
+        return $usages;
+    }
+}

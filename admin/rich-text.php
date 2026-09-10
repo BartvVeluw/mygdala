@@ -1,0 +1,119 @@
+<?php
+
+declare(strict_types=1);
+
+require_once __DIR__ . '/../vendor/autoload.php';
+require_once __DIR__ . '/_save_bar.php';
+require __DIR__ . '/_richtext_field.php';
+
+use App\Service\AdminAuth;
+use App\Service\Csrf;
+use App\Service\SectionRegistry;
+use App\Repository\PageRepository;
+use App\Repository\RichTextRepository;
+
+/**
+ * Editor for one Rich text page-builder section
+ * (?section=<page content_key>:<section_key>) — the same
+ * `<page>:<key>` addressing and the same "valid only when the page and its
+ * content row really exist" gate as the other repeater section editors
+ * (admin/faq.php, admin/feature-grid.php, ...), and the same shared Quill
+ * field (admin/_richtext_field.php) every other rich-text field in this
+ * project uses.
+ *
+ * This is where the body of the three migrated information pages is now
+ * edited. It is deliberately the ONLY rich-text page-content editor: the old
+ * admin/information-page.php combined page settings and body in one
+ * bespoke screen, which is exactly the "second page-content editor" the
+ * unified page model removes — settings now live on admin/page.php, body
+ * content is a section like any other.
+ */
+
+AdminAuth::requireLogin();
+AdminAuth::requirePermission('pages.manage');
+
+$sectionParam = (string) ($_GET['section'] ?? '');
+
+[$pageSlug, $sectionKey] = array_pad(explode(':', $sectionParam, 2), 2, null);
+
+$repository = new RichTextRepository();
+
+if ($pageSlug === null || $sectionKey === null || $pageSlug === '' || $sectionKey === ''
+    || (new PageRepository())->findByContentKey($pageSlug) === null
+    || $repository->findBySlugAndKey($pageSlug, $sectionKey) === null
+) {
+    http_response_code(404);
+    exit('Onbekende sectie.');
+}
+
+$page = (new PageRepository())->findByContentKey($pageSlug);
+$section = $repository->findBySlugAndKey($pageSlug, $sectionKey);
+
+$errors = $_SESSION['admin_rich_text_errors'] ?? [];
+$old = $_SESSION['admin_rich_text_old'] ?? null;
+unset($_SESSION['admin_rich_text_errors'], $_SESSION['admin_rich_text_old']);
+
+$saved = isset($_GET['saved']);
+
+$contentHtml = $old !== null ? (string) ($old['content_html'] ?? '') : (string) ($section['content_html'] ?? '');
+$contentHtmlEn = $old !== null ? (string) ($old['content_html_en'] ?? '') : (string) ($section['content_html_en'] ?? '');
+$isActive = $old !== null ? !empty($old['is_active']) : (bool) $section['is_active'];
+
+$csrfToken = Csrf::token();
+$h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
+?>
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tekstblok — <?= $h((string) $page['title']) ?> — Admin</title>
+<link rel="stylesheet" href="<?= \App\Service\AssetVersion::url('/admin/assets/vendor/quill/quill.snow.css') ?>">
+<link rel="stylesheet" href="<?= \App\Service\AssetVersion::url('/admin/assets/admin.css') ?>">
+<script src="<?= \App\Service\AssetVersion::url('/admin/assets/vendor/quill/quill.min.js') ?>" defer></script>
+<script src="<?= \App\Service\AssetVersion::url('/admin/assets/admin.js') ?>" defer></script>
+</head>
+<body<?= \App\Service\AdminTheme::bodyAttribute() ?>>
+<?php require __DIR__ . '/_header.php'; ?>
+<main class="admin-main">
+  <p><a href="/admin/page.php?id=<?= (int) $page['id'] ?>">&larr; Terug naar <?= $h((string) $page['title']) ?></a></p>
+  <h1><?= $h(SectionRegistry::label('rich_text')) ?></h1>
+  <p class="admin-text-muted">Sectie op de pagina "<?= $h((string) $page['title']) ?>".</p>
+
+  <?php if ($saved): ?>
+    <p class="admin-alert admin-alert--success">Opgeslagen.</p>
+  <?php endif; ?>
+  <?php if ($errors !== []): ?>
+    <div class="admin-alert admin-alert--error">
+      <ul class="admin-error-list">
+        <?php foreach ($errors as $error): ?>
+          <li><?= $h((string) $error) ?></li>
+        <?php endforeach; ?>
+      </ul>
+    </div>
+  <?php endif; ?>
+
+  <form method="post" action="/api/admin/update-rich-text-section.php">
+    <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
+    <input type="hidden" name="section" value="<?= $h($sectionParam) ?>">
+
+    <section class="admin-card">
+      <h2>Inhoud</h2>
+      <?php renderRichTextField('content_html', 'Tekst (NL)', $contentHtml, 'full', 'admin-richtext-editor--lg'); ?>
+      <?php renderRichTextField('content_html_en', 'Tekst (EN)', $contentHtmlEn, 'full', 'admin-richtext-editor--lg'); ?>
+      <p class="admin-text-muted">Laat de Engelse tekst leeg om de Nederlandse tekst ook in het Engels te tonen — dezelfde regel als bij de andere secties.</p>
+      <label class="admin-checkbox-label">
+        <input type="checkbox" name="is_active" value="1" <?= $isActive ? 'checked' : '' ?>>
+        Actief (zichtbaar op de pagina)
+      </label>
+    </section>
+
+    <section class="admin-card">
+      <button type="submit">Opslaan</button>
+    </section>
+  </form>
+</main>
+<?php save_bar(); ?>
+<?php save_bar_script(); ?>
+</body>
+</html>

@@ -1,0 +1,477 @@
+/* ==========================================================================
+   Shop — the customer's engraving workspace (partials/product-personalization.php,
+   assets/js/personalization.js).
+
+   Asked for by product.php alongside assets/js/personalization.js, which it
+   has always been paired with. Loads nowhere else, not even on the rest of
+   the Shop.
+   ========================================================================== */
+
+/* ==========================================================================
+   Product personalization — the customer's engraving workspace
+   (partials/product-personalization.php + assets/js/personalization.js).
+   Only ever on the product page, and only for a product whose CMS
+   configuration offers personalization.
+
+   ## Layout
+
+   This is a FULL-WIDTH section below the normal product area, at the site's
+   ordinary container width — not a panel inside the product-information
+   column. Personalizing is a task: it needs a large preview, room for its
+   controls and a heading of its own. Inside it, a two-column grid gives the
+   preview the larger share (1.15fr / 1fr on desktop) and the controls a fixed
+   readable maximum, and both collapse to one column on tablet and below, in
+   the order the customer works: preview, then controls, then price, then the
+   purchase action.
+
+   ## Coordinates
+
+   The stage is exactly the DEDICATED preview image's box, so an engraving
+   zone — positioned in percentages of that image — lands on the same part of
+   the product at every screen size. The zone clips its overflow, which is
+   what physically stops customer content from ever appearing outside the
+   administrator's area. The product gallery is never used as a canvas; see
+   partials/product-personalization.php.
+   ========================================================================== */
+.personalizer-section{
+  /* .bg-soft's tint would fight the related-products block that usually
+     follows it, so this section separates itself with a rule and its own
+     surface instead. */
+  border-top: 1px solid var(--color-line);
+  padding-block: var(--sp-6);
+}
+
+.personalizer{
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-lg);
+  background: linear-gradient(180deg, var(--color-surface) 0%, var(--color-surface-2) 100%);
+  box-shadow: var(--shadow-soft);
+  padding: clamp(var(--sp-3), 2.5vw, var(--sp-5));
+}
+
+.personalizer__head{ max-width: 60ch; margin-bottom: var(--sp-4); }
+
+.personalizer__eyebrow{
+  margin: 0 0 0.4rem;
+  font-size: var(--fs-eyebrow);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-primary);
+}
+
+.personalizer__title{
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--fs-h3);
+  font-weight: 500;
+  line-height: 1.15;
+}
+
+.personalizer__intro{
+  margin: var(--sp-2) 0 0;
+  font-size: 0.95rem;
+  line-height: 1.65;
+  color: var(--color-text-muted);
+}
+
+/* Preview gets the larger share: it is the thing the customer is actually
+   looking at while typing. */
+.personalizer__layout{
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(320px, 1fr);
+  gap: clamp(var(--sp-3), 3vw, var(--sp-5));
+  align-items: start;
+}
+
+@media (max-width: 900px){
+  .personalizer__layout{ grid-template-columns: minmax(0, 1fr); }
+}
+
+.personalizer__preview{
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  /* Sticks alongside the controls on a tall desktop panel, so the preview
+     stays visible while the customer scrolls through several zones. Falls
+     back to normal flow wherever there is not enough room to be useful. */
+  position: sticky;
+  top: calc(var(--sp-5) + 48px);
+}
+
+@media (max-width: 900px){
+  .personalizer__preview{ position: static; }
+}
+
+.personalizer__stages{
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background: var(--color-surface-2);
+  box-shadow: var(--shadow-soft);
+}
+
+.personalizer__stage{
+  position: relative;
+  /* A drag inside the preview positions content; it must not scroll the page. */
+  touch-action: none;
+  user-select: none;
+}
+
+.personalizer__stage[hidden]{ display: none; }
+
+.personalizer__base{ display: block; width: 100%; height: auto; pointer-events: none; }
+
+.personalizer__zone{
+  position: absolute;
+  overflow: hidden;
+  outline: 1px dashed var(--color-line-strong);
+  outline-offset: -1px;
+  border-radius: 2px;
+}
+
+.personalizer__layer{
+  position: absolute;
+  transform-origin: center center;
+  cursor: move;
+  touch-action: none;
+  max-width: none;
+}
+
+.personalizer__layer[hidden]{ display: none; }
+.personalizer__layer:focus-visible{ outline: 2px solid var(--color-primary-bright); outline-offset: 2px; }
+.personalizer__layer.is-dragging{ opacity: 0.85; }
+
+/* The engraved text has to stay readable on ANY preview image the owner
+   uploads — dark walnut and pale birch both. A single drop shadow only works
+   on one of the two, so the light fill carries a thin dark halo in every
+   direction plus the shadow underneath: on a dark ground it reads as before,
+   on a light one the halo is what separates it from the background. */
+.personalizer__layer--text{
+  white-space: nowrap;
+  line-height: 1;
+  font-family: var(--font-display);
+  color: #F7F1E6;
+  text-shadow:
+    0 0 1px rgba(27, 20, 13, 0.9),
+    1px 0 1px rgba(27, 20, 13, 0.7),
+    -1px 0 1px rgba(27, 20, 13, 0.7),
+    0 1px 1px rgba(27, 20, 13, 0.7),
+    0 -1px 1px rgba(27, 20, 13, 0.7),
+    0 2px 4px rgba(0, 0, 0, 0.45);
+}
+
+.personalizer__layer--image{ height: auto; display: block; }
+
+.personalizer__hint{
+  margin: 0;
+  font-size: 0.8rem;
+  line-height: 1.55;
+  color: var(--color-text-faint);
+}
+
+/* The view switcher (Voorkant / Achterkant). Only rendered for a product that
+   really has more than one dedicated preview image — a single-view product
+   grows no tab strip at all. It changes ONLY which preview image is shown;
+   the normal product gallery above is unrelated to it. */
+.personalizer__tabs{
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.personalizer__tab{
+  padding: 0.45rem 1rem;
+  border: 1.5px solid var(--color-line-strong);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--color-text-muted);
+  font-family: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: color var(--dur-fast), border-color var(--dur-fast), background var(--dur-fast);
+}
+
+.personalizer__tab:hover{ color: var(--color-primary-bright); border-color: var(--color-primary-bright); }
+.personalizer__tab.is-active{ background: var(--color-primary-wash); border-color: var(--color-primary); color: var(--color-primary-bright); font-weight: 700; }
+.personalizer__tab:focus-visible{ outline: 2px solid var(--color-primary-bright); outline-offset: 2px; }
+
+/* -------------------------------------------------------------------------
+   Controls
+   ------------------------------------------------------------------------- */
+.personalizer__controls{ display: flex; flex-direction: column; gap: var(--sp-3); }
+.personalizer__panel[hidden]{ display: none; }
+.personalizer__panel{ display: flex; flex-direction: column; gap: var(--sp-3); }
+
+/* One fieldset per zone: a real grouping, so a screen reader announces
+   "Naam" before the fields that belong to it. */
+.personalizer__zone-fields{
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-2);
+  padding: var(--sp-3);
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+
+.personalizer__zone-fields legend{
+  padding: 0 0.45rem;
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.personalizer__zone-name{
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+  color: var(--color-text);
+}
+
+.personalizer__required,
+.personalizer__optional{
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  border-radius: 999px;
+  padding: 0.15rem 0.5rem;
+  border: 1px solid var(--color-line-strong);
+}
+
+.personalizer__required{ color: var(--color-primary-bright); border-color: var(--color-primary); background: var(--color-primary-wash); }
+.personalizer__optional{ color: var(--color-text-faint); }
+
+.personalizer__surcharge-tag{
+  font-size: 0.72rem;
+  color: var(--color-primary-bright);
+  background: var(--color-primary-wash);
+  border-radius: 999px;
+  padding: 0.15rem 0.55rem;
+  white-space: nowrap;
+}
+
+.personalizer__zone-intro{ margin: 0; font-size: 0.85rem; line-height: 1.6; color: var(--color-text-muted); }
+
+.personalizer__field{ display: flex; flex-direction: column; gap: 0.4rem; }
+.personalizer__field[hidden]{ display: none; }
+
+.personalizer__field label{
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--color-text-faint);
+}
+
+.personalizer__field input[type="text"],
+.personalizer__field select{
+  width: 100%;
+  padding: 0.7rem 0.8rem;
+  border: 1.5px solid var(--color-line-strong);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-family: inherit;
+  font-size: 1rem;
+  transition: border-color var(--dur-fast);
+}
+
+.personalizer__field input[type="text"]:focus,
+.personalizer__field select:focus{ outline: none; border-color: var(--color-primary); }
+
+/* The font selector previews the faces it offers, so the customer picks a
+   shape rather than a name. The closed control shows the SELECTED face too —
+   set by assets/js/personalization.js, which knows the chosen stack. */
+.personalizer__font-select{ font-size: 1.05rem; }
+.personalizer__font-select option{ font-size: 1.05rem; background: var(--color-surface); color: var(--color-text); }
+
+.personalizer__field input[type="file"]{ font-size: 0.85rem; color: var(--color-text-muted); }
+
+/* The fixed text-colour palette. Radio inputs, not a picker: five choices the
+   server defined, so the swatch a customer clicks is always a value that
+   already exists on the server. */
+.personalizer__field-label{
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--color-text-faint);
+}
+
+.personalizer__colors{ display: flex; flex-wrap: wrap; gap: 0.5rem; }
+
+.personalizer__color{
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.3rem 0.6rem 0.3rem 0.35rem;
+  border: 1.5px solid var(--color-line-strong);
+  border-radius: 999px;
+  cursor: pointer;
+  font-size: 0.82rem;
+  color: var(--color-text-muted);
+  transition: border-color var(--dur-fast), color var(--dur-fast), background var(--dur-fast);
+}
+.personalizer__color:hover{ border-color: var(--color-primary-bright); color: var(--color-text); }
+
+/* The radio itself is only the accessible control; the pill is the target. */
+.personalizer__color input{ position: absolute; opacity: 0; width: 0; height: 0; }
+.personalizer__color:has(input:checked){
+  border-color: var(--color-primary);
+  background: var(--color-primary-wash);
+  color: var(--color-primary-bright);
+  font-weight: 700;
+}
+.personalizer__color:has(input:focus-visible){ outline: 2px solid var(--color-primary-bright); outline-offset: 2px; }
+
+.personalizer__color-swatch{
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 1px solid var(--color-line-strong);
+  flex: 0 0 auto;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.25);
+}
+
+/* While an image is uploading the whole section is locked: every control is
+   disabled and aria-busy is set, so the wait is announced rather than looking
+   like a UI that stopped responding. */
+.personalizer.is-busy{ position: relative; }
+.personalizer.is-busy .personalizer__controls{ opacity: 0.55; }
+.personalizer.is-busy .personalizer__layer{ cursor: default; }
+
+.personalizer__status{
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.personalizer.is-busy .personalizer__status::before{
+  content: "";
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 2px solid var(--color-line-strong);
+  border-top-color: var(--color-primary-bright);
+  animation: personalizer-spin 0.8s linear infinite;
+  flex: 0 0 auto;
+}
+
+@keyframes personalizer-spin{ to{ transform: rotate(360deg); } }
+
+@media (prefers-reduced-motion: reduce){
+  .personalizer.is-busy .personalizer__status::before{ animation: none; }
+}
+.personalizer__field input[type="range"]{ width: 100%; accent-color: var(--color-primary); }
+
+.personalizer__counter{ margin: 0; font-size: 0.75rem; color: var(--color-text-faint); font-variant-numeric: tabular-nums; text-align: right; }
+.personalizer__filename{ margin: 0; font-size: 0.8rem; color: var(--color-text-muted); word-break: break-all; }
+.personalizer__filename[hidden]{ display: none; }
+
+/* A quiet text button: clearing is a recovery action, never something that
+   should compete with "Toevoegen aan winkelwagen". */
+.personalizer__clear{
+  align-self: flex-start;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--color-text-faint);
+  font-family: inherit;
+  font-size: 0.8rem;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+.personalizer__clear:hover{ color: var(--color-primary-bright); }
+.personalizer__clear:focus-visible{ outline: 2px solid var(--color-primary-bright); outline-offset: 2px; }
+.personalizer__clear--all{ align-self: center; }
+
+.personalizer [data-personalizer-remove-image][hidden]{ display: none; }
+
+/* -------------------------------------------------------------------------
+   Summary: price, messages and — for a personalization-REQUIRED product —
+   the page's ONE purchase action. A product that may also be bought plain
+   renders its add-to-cart up beside the price instead, never both.
+   ------------------------------------------------------------------------- */
+.personalizer__summary{
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  border: 1px solid var(--color-line-strong);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  padding: var(--sp-3);
+}
+
+.personalizer__summary .product-detail__add-row{ margin-top: 0; }
+
+.personalizer__price{
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+.personalizer__price[hidden]{ display: none; }
+
+.personalizer__price-row{
+  display: flex;
+  justify-content: space-between;
+  gap: var(--sp-2);
+  font-size: 0.88rem;
+  color: var(--color-text-muted);
+}
+
+.personalizer__price-row strong{ color: var(--color-text); font-variant-numeric: tabular-nums; }
+
+.personalizer__price-row--total{
+  border-top: 1px solid var(--color-line);
+  padding-top: 0.45rem;
+  margin-top: 0.2rem;
+  color: var(--color-text);
+}
+.personalizer__price-row--total strong{ font-family: var(--font-display); font-size: 1.25rem; color: var(--color-primary-bright); }
+
+.personalizer__status{ margin: 0; font-size: 0.85rem; color: var(--color-text-muted); }
+.personalizer__status[hidden]{ display: none; }
+
+/* Never merely a disabled button: the customer is told what is missing. */
+.personalizer__error{
+  margin: 0;
+  font-size: 0.85rem;
+  line-height: 1.55;
+  color: #F0897E;
+  border-left: 3px solid #F0897E;
+  background: rgba(240, 137, 126, 0.08);
+  border-radius: var(--radius-sm);
+  padding: 0.6rem 0.75rem;
+}
+.personalizer__error[hidden]{ display: none; }
+
+/* The cue that replaces the add-to-cart button in the product column when
+   personalization is required — one purchase flow, and a pointer to it. */
+.product-detail__personalize-cue{
+  margin-top: var(--sp-3);
+  padding: var(--sp-2) var(--sp-3);
+  border-left: 3px solid var(--color-primary);
+  background: var(--color-primary-wash);
+  border-radius: var(--radius-sm);
+  font-size: 0.9rem;
+  color: var(--color-text-muted);
+}
+.product-detail__personalize-cue a{ color: var(--color-primary-bright); }
+
+@media (max-width: 560px){
+  .personalizer{ padding: var(--sp-3) var(--sp-2); }
+  .personalizer__zone-fields{ padding: var(--sp-2); }
+  .personalizer__summary{ padding: var(--sp-2); }
+  /* Full-width purchase action on a phone: the stepper and the button stop
+     competing for one line. The button's own label never wraps (.btn is
+     nowrap), so inside this narrower card its generous desktop padding is
+     what would push it past the card's edge — trimmed here rather than
+     globally, which would change every other button on the site. */
+  .personalizer__summary .product-detail__add-row{ flex-direction: column; align-items: stretch; }
+  .personalizer__summary .product-detail__add-row .qty-stepper{ align-self: flex-start; }
+  .personalizer__summary .product-detail__add-row .btn{
+    flex: 0 0 auto;
+    width: 100%;
+    min-width: 0;
+    padding-inline: var(--sp-2);
+  }
+}

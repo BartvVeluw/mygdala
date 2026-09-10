@@ -1,0 +1,13 @@
+# MIME types for the CMS-uploaded engraving fonts (see
+# App\Service\Personalization\PersonalizationFontUploader). Set explicitly
+# rather than relying on the host's mime.types being current: an older Apache
+# serves .woff2 as application/octet-stream, which some browsers refuse to
+# accept as a font. Harmless where the host already knows these types.
+#
+# Nothing else is needed here: every file in this folder is written by the
+# uploader under a server-generated name with a verified font extension, so
+# there is nothing else to serve.
+AddType font/woff2 .woff2
+AddType font/woff .woff
+AddType font/ttf .ttf
+AddType font/otf .otf

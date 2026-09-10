@@ -1,0 +1,88 @@
+/* ==========================================================================
+   Content block: item gallery (partials/section-item-gallery.php)
+   Asked for by App\Service\Blocks\ItemGalleryBlock::styles().
+
+   The .lightbox rules stay in core.css: portfolio-detail.php renders the
+   same overlay markup for its own project lightbox, so they are shared by a
+   block and a route and belong to neither.
+   ========================================================================== */
+
+/* Portfolio grid */
+.filter-bar{ display: flex; flex-wrap: wrap; gap: 0.6rem; margin-bottom: var(--sp-5); }
+.filter-bar button{
+  border: 1.5px solid var(--color-line-strong);
+  background: transparent;
+  color: var(--color-text-muted);
+  padding: 0.5rem 1.1rem;
+  border-radius: 999px;
+  font-weight: 700;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out);
+}
+.filter-bar button[aria-pressed="true"], .filter-bar button:hover{ background: var(--color-primary); color: var(--color-on-primary); border-color: var(--color-primary); }
+
+.gallery-grid{
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--sp-3);
+}
+@media (max-width: 900px){ .gallery-grid{ grid-template-columns: repeat(2,1fr); } }
+@media (max-width: 560px){ .gallery-grid{ grid-template-columns: 1fr; } }
+
+.gallery-item{
+  position: relative;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  aspect-ratio: 4/5;
+  cursor: pointer;
+  background: var(--color-surface);
+  border: 1px solid var(--color-line);
+}
+.gallery-item--wide{ aspect-ratio: 4/5; }
+.gallery-item img{ width: 100%; height: 100%; object-fit: cover; transition: transform 700ms var(--ease-out); }
+.gallery-item:hover img{ transform: scale(1.06); }
+.gallery-item:hover{ border-color: var(--color-line-strong); }
+.gallery-item__overlay{
+  position: absolute; inset: 0;
+  background: linear-gradient(0deg,
+    rgba(var(--color-media-scrim-rgb), 0.9) 0%,
+    rgba(var(--color-media-scrim-rgb), 0.15) 55%,
+    transparent 100%);
+  display: flex; align-items: flex-end;
+  padding: var(--sp-3);
+  opacity: 0;
+  transition: opacity var(--dur-base) var(--ease-out);
+}
+.gallery-item:hover .gallery-item__overlay, .gallery-item:focus-within .gallery-item__overlay{ opacity: 1; }
+.gallery-item__overlay p{ color: var(--color-text); font-weight: 700; font-size: 0.95rem; line-height: 1.3; margin: 0; }
+.gallery-item__overlay span{ display: block; color: var(--color-primary-bright); font-size: 0.8rem; margin-top: 0.45rem; }
+
+/* Clickable cards (own project detail page) get a tasteful "more content"
+   indicator; plain cards (no detail page — the lightbox-zoom behaviour
+   above stays exactly as before) never show it. See MAIN.MD. */
+.gallery-item--linked{ display: block; color: inherit; text-decoration: none; }
+.gallery-item__arrow{
+  position: absolute;
+  top: var(--sp-3);
+  right: var(--sp-3);
+  width: 2.1rem;
+  height: 2.1rem;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(var(--color-media-scrim-rgb), 0.55);
+  color: var(--color-text);
+  opacity: 0;
+  transform: translate(-4px, 4px);
+  transition: opacity var(--dur-base) var(--ease-out), transform var(--dur-base) var(--ease-out), background var(--dur-fast) var(--ease-out);
+}
+.gallery-item__arrow svg{ width: 1.1rem; height: 1.1rem; }
+.gallery-item--linked:hover .gallery-item__arrow,
+.gallery-item--linked:focus-visible .gallery-item__arrow{
+  opacity: 1;
+  transform: translate(0, 0);
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+}

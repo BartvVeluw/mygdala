@@ -1,0 +1,140 @@
+<?php
+
+namespace App\Service;
+
+use App\Repository\FooterRepository;
+
+/**
+ * Public read side of the CMS-managed footer — replaces the hardcoded
+ * columns in partials/footer.php. Composes footer_columns/footer_links
+ * (via App\Repository\FooterRepository + App\Service\LinkResolver) with the
+ * Brand/Company block, which is deliberately NOT stored here: it reads
+ * SiteSettings directly (site_name/logo_path/email/company_phone/
+ * kvk_number/footer_description_nl/en) plus this class's own small
+ * footer_show_... / footer_copyright_template settings — see
+ * db/migrations/20260907230000_add_footer_settings.php. One source of
+ * truth for company data; this class only ever decides *whether* to show
+ * each field, never stores a second copy of it.
+ *
+ * Static, try/catch-with-fallback, same convention as NavigationService —
+ * a footer problem must never break every public page.
+ */
+class FooterService
+{
+    /**
+     * @return list<array{id:int,title_nl:string,title_en:string,links:list<array<string,mixed>>}>
+     */
+    public static function columns(): array
+    {
+        try {
+            $repository = new FooterRepository();
+            $columns = $repository->findVisibleColumnsForPublic();
+            $allLinks = $repository->findAllVisibleLinks();
+        } catch (\Throwable $e) {
+            error_log('[FooterService] falling back to empty footer columns: ' . $e->getMessage());
+            return [];
+        }
+
+        $linksByColumn = [];
+        foreach ($allLinks as $link) {
+            $linksByColumn[(int) $link['column_id']][] = $link;
+        }
+
+        $result = [];
+        foreach ($columns as $column) {
+            $columnLinks = [];
+            foreach ($linksByColumn[(int) $column['id']] ?? [] as $link) {
+                $resolved = LinkResolver::resolve($link);
+                if ($resolved === null) {
+                    continue;
+                }
+
+                $columnLinks[] = [
+                    'id' => (int) $link['id'],
+                    'label_nl' => (string) $link['label_nl'],
+                    'label_en' => (string) $link['label_en'],
+                    'href' => $resolved['href'],
+                    'open_in_new_tab' => $resolved['open_in_new_tab'],
+                    'rel' => $resolved['rel'],
+                    'is_action' => $resolved['is_action'],
+                    'action_key' => $resolved['action_key'],
+                ];
+            }
+
+            if ($columnLinks === []) {
+                // A visible column with nothing resolvable left to show
+                // (every link hidden/broken) renders no heading either.
+                continue;
+            }
+
+            $result[] = [
+                'id' => (int) $column['id'],
+                'title_nl' => (string) $column['title_nl'],
+                'title_en' => (string) $column['title_en'],
+                'links' => $columnLinks,
+            ];
+        }
+
+        return $result;
+    }
+
+    /**
+     * @return array{show_logo:bool,show_company_name:bool,show_email:bool,show_phone:bool,show_kvk:bool}
+     */
+    public static function brandSettings(): array
+    {
+        return [
+            'show_logo' => SiteSettings::get('footer_show_logo') === '1',
+            'show_company_name' => SiteSettings::get('footer_show_company_name') === '1',
+            'show_email' => SiteSettings::get('footer_show_email') === '1',
+            'show_phone' => SiteSettings::get('footer_show_phone') === '1',
+            'show_kvk' => SiteSettings::get('footer_show_kvk') === '1',
+        ];
+    }
+
+    /**
+     * The footer's closing line, or null when there is nothing to show —
+     * switched off, or switched on with no Dutch text. It used to be a
+     * literal in partials/footer.php ("Ontworpen & gebouwd met zorg in
+     * Nijmegen"), which is this site's own copy and not something a second
+     * installation should inherit.
+     *
+     * Empty EN means "same as NL", resolved here rather than in the template
+     * for the same reason as everywhere else in this project: the frontend
+     * language switch only falls back when the data-en attribute is ABSENT,
+     * so an empty stored value must never reach the page as an empty one.
+     *
+     * @return array{nl: string, en: string}|null
+     */
+    public static function slogan(): ?array
+    {
+        if (SiteSettings::get('footer_slogan_enabled') !== '1') {
+            return null;
+        }
+
+        $nl = trim(SiteSettings::get('footer_slogan_nl'));
+        if ($nl === '') {
+            return null;
+        }
+
+        $en = trim(SiteSettings::get('footer_slogan_en'));
+
+        return ['nl' => $nl, 'en' => $en === '' ? $nl : $en];
+    }
+
+    /**
+     * Resolves the tiny, fixed {{year}}/{{site_name}} placeholder set in the
+     * copyright template — never arbitrary text execution, just two
+     * str_replace()s against known-safe, already-escaped values.
+     */
+    public static function renderCopyright(): string
+    {
+        $template = SiteSettings::get('footer_copyright_template');
+
+        return str_replace(
+            ['{{year}}', '{{site_name}}'],
+            [date('Y'), SiteSettings::get('site_name')],
+            $template
+        );
+    }
+}
