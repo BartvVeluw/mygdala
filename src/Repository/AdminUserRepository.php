@@ -174,6 +174,24 @@ class AdminUserRepository extends Repository
         $stmt->execute(['id' => $id, 'hash' => $passwordHash]);
     }
 
+    /**
+     * Store this account's CMS interface language (Multilingual V1).
+     *
+     * Deliberately its own statement rather than a field on update(): the
+     * user-edit screen is about who somebody IS and what they may do, and a
+     * colleague saving that form must never be able to reset the language
+     * another person reads their CMS in. App\Service\Language\AdminLocale
+     * has already normalised $language against the closed registry, so this
+     * can never store a code the CMS does not know.
+     */
+    public function updateInterfaceLanguage(int $id, string $language): void
+    {
+        $stmt = $this->db->prepare(
+            'UPDATE admin_users SET interface_language = :language, updated_at = NOW() WHERE id = :id'
+        );
+        $stmt->execute(['id' => $id, 'language' => $language]);
+    }
+
     public function touchLastLogin(int $id): void
     {
         $stmt = $this->db->prepare('UPDATE admin_users SET last_login_at = NOW() WHERE id = :id');
@@ -275,6 +293,13 @@ class AdminUserRepository extends Repository
         $row['id'] = (int) $row['id'];
         $row['is_super_admin'] = (int) $row['is_super_admin'] === 1;
         $row['is_active'] = (int) $row['is_active'] === 1;
+        // NULL means "this person has not chosen a CMS language yet", which
+        // App\Service\Language\AdminLocale turns into the project default.
+        // Kept as null rather than resolved here, so the account screen can
+        // tell "not chosen" apart from "chose Dutch".
+        $row['interface_language'] = isset($row['interface_language']) && trim((string) $row['interface_language']) !== ''
+            ? (string) $row['interface_language']
+            : null;
         $row['granted_permissions'] = $permissions;
         $row['permissions'] = AdminPermissions::expand($permissions);
 

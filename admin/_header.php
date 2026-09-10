@@ -89,11 +89,11 @@ function adminNavIcon(string $key): string
 }
 ?>
 <input type="checkbox" id="admin-sidebar-toggle" class="admin-sidebar-toggle-checkbox" hidden>
-<label for="admin-sidebar-toggle" class="admin-sidebar-toggle"><span aria-hidden="true">&#9776;</span> Menu</label>
+<label for="admin-sidebar-toggle" class="admin-sidebar-toggle"><span aria-hidden="true">&#9776;</span> <?= htmlspecialchars(\App\Service\Language\AdminTranslator::trans('shell.menu'), ENT_QUOTES, 'UTF-8') ?></label>
 <aside class="admin-sidebar" id="admin-sidebar">
   <a href="/admin/index.php" class="admin-sidebar__brand"><?= htmlspecialchars(\App\Service\SiteSettings::get('site_name'), ENT_QUOTES, 'UTF-8') ?></a>
 
-  <nav class="admin-sidebar__nav" aria-label="Admin navigatie">
+  <nav class="admin-sidebar__nav" aria-label="<?= htmlspecialchars(\App\Service\Language\AdminTranslator::trans('shell.nav_label'), ENT_QUOTES, 'UTF-8') ?>">
     <?php $previousNavGroup = null; ?>
     <?php foreach ($adminVisibleNavItems as $navItem): ?>
       <?php if ($previousNavGroup !== null && $navItem['group'] !== $previousNavGroup): ?>
@@ -106,11 +106,12 @@ function adminNavIcon(string $key): string
 
   <div class="admin-sidebar__account">
     <p class="admin-sidebar__account-name"><?= htmlspecialchars($adminCurrentUserName, ENT_QUOTES, 'UTF-8') ?></p>
-    <p class="admin-sidebar__account-role"><?= $adminCurrentUserIsSuperAdmin ? 'Super Admin' : 'CMS-gebruiker' ?></p>
+    <p class="admin-sidebar__account-role"><?= htmlspecialchars(\App\Service\Language\AdminTranslator::trans($adminCurrentUserIsSuperAdmin ? 'shell.role.super_admin' : 'shell.role.user'), ENT_QUOTES, 'UTF-8') ?></p>
+    <a href="/admin/account.php" class="admin-sidebar__account-link"><?= htmlspecialchars(\App\Service\Language\AdminTranslator::trans('shell.my_account'), ENT_QUOTES, 'UTF-8') ?></a>
   </div>
 
   <form method="post" action="/admin/logout.php" class="admin-sidebar__logout">
     <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
-    <button type="submit">Uitloggen</button>
+    <button type="submit"><?= htmlspecialchars(\App\Service\Language\AdminTranslator::trans('shell.logout'), ENT_QUOTES, 'UTF-8') ?></button>
   </form>
 </aside>

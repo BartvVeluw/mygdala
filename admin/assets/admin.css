@@ -3888,3 +3888,95 @@ body.admin-block-picker-open{ overflow: hidden; }
 @media (max-width: 600px){
   .admin-theme-choices{ grid-template-columns: 1fr; }
 }
+
+/* =========================================================================
+   Language tabs on a content editor (Multilingual V1, MULTILINGUAL.md)
+
+   Deliberately quieter than .admin-tabs: those split a whole screen into
+   sections, these switch which language a handful of fields are in. Same
+   shapes, one step smaller, so the two never compete for attention on the
+   page editor, which carries both.
+
+   On a single-language site none of this renders at all — admin/_language_
+   fields.php prints no strip — which is the entire point of the feature.
+   ========================================================================= */
+.admin-lang-tabs{
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  padding: 3px;
+  background: var(--admin-surface);
+  border: 1px solid var(--admin-border);
+  border-radius: var(--admin-radius-md);
+  margin: 0 0 var(--admin-sp-4);
+  max-width: 100%;
+}
+
+.admin-lang-tab{
+  appearance: none;
+  -webkit-appearance: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.4rem 0.9rem;
+  border: 0;
+  border-radius: var(--admin-radius-sm);
+  background: transparent;
+  color: var(--admin-text-muted);
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background var(--admin-transition), color var(--admin-transition);
+}
+
+.admin-lang-tab:hover{ color: var(--admin-text); background: var(--admin-hover-tint-strong); }
+.admin-lang-tab:focus-visible{ outline: 2px solid var(--admin-accent); outline-offset: 2px; }
+
+/* Never colour alone, same rule as everywhere else in this panel: the open
+   language is the filled one, the bold one, and the one aria-selected. */
+.admin-lang-tab.is-active{
+  color: var(--admin-on-accent);
+  background: var(--admin-accent);
+  font-weight: 600;
+}
+
+/* "This language is missing something the primary one has." Informational,
+   and it never carries meaning on its own — the tab is still labelled. */
+.admin-lang-tab__badge{
+  font-size: 1.1em;
+  line-height: 1;
+  opacity: 0.75;
+}
+
+/* A pane is a plain block: the fields inside keep whatever layout the editor
+   already gave them, so switching languages never reflows the form. */
+.admin-lang-pane{ display: block; }
+
+/* .admin-form-row--split is a two-column flex row, and a language pane
+   inside one is a column of it. It has to flex like the <label> it wraps,
+   or the visible language would sit in half the width it had before while
+   the other half stood empty. */
+.admin-form-row--split > .admin-lang-pane{ flex: 1; min-width: 220px; }
+.admin-lang-pane > label,
+.admin-lang-pane > .admin-richtext-field{ width: 100%; }
+
+@media (max-width: 640px){
+  .admin-lang-tabs{ width: 100%; }
+  .admin-lang-tab{ flex: 1 0 auto; justify-content: center; }
+}
+
+/* The link to a person's own preferences (admin/account.php), under their
+   name in the sidebar. Quiet on purpose: it is a place you go once to set
+   your CMS language, not a section of the CMS. */
+.admin-sidebar__account-link{
+  display: inline-block;
+  margin-top: var(--admin-sp-2);
+  font-size: 0.78rem;
+  color: var(--admin-text-muted);
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+}
+.admin-sidebar__account-link:hover{ color: var(--admin-text); border-bottom-color: currentColor; }
+.admin-sidebar__account-link:focus-visible{ outline: 2px solid var(--admin-accent); outline-offset: 2px; }

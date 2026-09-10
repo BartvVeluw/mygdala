@@ -107,6 +107,25 @@ class SiteSettings
         // that is not an explicit off value counts as '1'
         // (App\Service\SeoDefaults::robots()) — a typo or a missing row can
         // never take a live site out of the search index.
+        // WHICH LANGUAGES THE WEBSITE PUBLISHES (Multilingual V1, see
+        // MULTILINGUAL.md). Deliberately here and not in `theme_settings`:
+        // this is who the site IS, and "restore the default design" must
+        // never be able to change a site's languages.
+        //
+        // These two are the rare keys in this table with a NON-EMPTY code
+        // default, and that is safe for the reason HEADER-FOOTER.md gives
+        // about empty values: "no language" is not a state this CMS can
+        // render, so there is nothing an owner would want to blank out. A
+        // single Dutch language is what a FRESH install gets, which is what
+        // keeps duplicate English fields out of every editor; an existing
+        // bilingual database got explicit rows from migration 20260910140000
+        // before this default arrived, so nothing changed for it.
+        //
+        // App\Service\Language\ContentLanguages owns every rule about
+        // them — never read these keys directly.
+        'primary_content_language' => 'nl',
+        'enabled_content_languages' => 'nl',
+
         'seo_default_description' => '',
         'seo_robots_index_default' => '1',
 
