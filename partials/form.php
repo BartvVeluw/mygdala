@@ -45,8 +45,7 @@ function render_form_success(FormDefinition $form, FormRenderState $state): void
     ?>
   <div class="form-status is-visible form-status--ok" role="status" aria-live="polite" tabindex="-1"
        id="<?= $h($state->id('status')) ?>"
-       data-nl="<?= $h($form->successMessage->nl) ?>"
-       data-en="<?= $h($form->successMessage->en) ?>"><?= $h($form->successMessage->nl) ?></div>
+       <?= \App\Service\Language\SiteText::attrs($form->successMessage->nl, $form->successMessage->en) ?>><?= $h(\App\Service\Language\SiteText::visible($form->successMessage->nl, $form->successMessage->en)) ?></div>
     <?php
 }
 
@@ -103,7 +102,7 @@ function render_form(FormDefinition $form, FormRenderState $state, array $extraC
           <?php foreach ($form->fields as $field): ?>
             <?php $error = $state->errorFor($field->key); ?>
             <?php if ($error !== null): ?>
-              <li><a href="#<?= $h($state->id($field->key)) ?>" data-nl="<?= $h($error->nl) ?>" data-en="<?= $h($error->en) ?>"><?= $h($error->nl) ?></a></li>
+              <li><a href="#<?= $h($state->id($field->key)) ?>" <?= \App\Service\Language\SiteText::attrs($error->nl, $error->en) ?>><?= $h(\App\Service\Language\SiteText::visible($error->nl, $error->en)) ?></a></li>
             <?php endif; ?>
           <?php endforeach; ?>
         </ul>
@@ -121,8 +120,7 @@ function render_form(FormDefinition $form, FormRenderState $state, array $extraC
     </div>
 
     <button type="submit" class="btn btn--block"
-            data-nl="<?= $h($form->submitLabel->nl) ?>"
-            data-en="<?= $h($form->submitLabel->en) ?>"><?= $h($form->submitLabel->nl) ?>
+            <?= \App\Service\Language\SiteText::attrs($form->submitLabel->nl, $form->submitLabel->en) ?>><?= $h(\App\Service\Language\SiteText::visible($form->submitLabel->nl, $form->submitLabel->en)) ?>
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
     </button>
   </form>
@@ -192,7 +190,7 @@ function render_form_field(\App\Service\Forms\FormField $field, FormRenderState 
         // survive a language switch — here the required marker — has to be
         // its sibling rather than its content.
         ?>
-        <legend><span data-nl="<?= $h($field->label->nl) ?>" data-en="<?= $h($field->label->en) ?>"><?= $h($field->label->nl) ?></span><?php
+        <legend><span <?= \App\Service\Language\SiteText::attrs($field->label->nl, $field->label->en) ?>><?= $h(\App\Service\Language\SiteText::visible($field->label->nl, $field->label->en)) ?></span><?php
         if ($field->isRequired) {
             echo ' <span class="req" aria-hidden="true">*</span>';
         }
@@ -205,13 +203,13 @@ function render_form_field(\App\Service\Forms\FormField $field, FormRenderState 
       <?php render_form_hint($field, $hintId); ?>
       <label class="form-check" for="<?= $h($id) ?>"><?php
         $type->renderControl($control);
-        ?><span data-nl="<?= $h($field->label->nl) ?>" data-en="<?= $h($field->label->en) ?>"><?= $h($field->label->nl) ?></span><?php
+        ?><span <?= \App\Service\Language\SiteText::attrs($field->label->nl, $field->label->en) ?>><?= $h(\App\Service\Language\SiteText::visible($field->label->nl, $field->label->en)) ?></span><?php
         if ($field->isRequired) {
             echo ' <span class="req" aria-hidden="true">*</span>';
         }
         ?></label>
     <?php else: ?>
-      <label for="<?= $h($id) ?>"><span data-nl="<?= $h($field->label->nl) ?>" data-en="<?= $h($field->label->en) ?>"><?= $h($field->label->nl) ?></span><?php
+      <label for="<?= $h($id) ?>"><span <?= \App\Service\Language\SiteText::attrs($field->label->nl, $field->label->en) ?>><?= $h(\App\Service\Language\SiteText::visible($field->label->nl, $field->label->en)) ?></span><?php
         if ($field->isRequired) {
             echo ' <span class="req" aria-hidden="true">*</span>';
         }
@@ -239,6 +237,6 @@ function render_form_hint(\App\Service\Forms\FormField $field, string $hintId): 
 
     $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
     ?>
-    <span class="hint" id="<?= $h($hintId) ?>" data-nl="<?= $h($field->helpText->nl) ?>" data-en="<?= $h($field->helpText->en) ?>"><?= $h($field->helpText->nl) ?></span>
+    <span class="hint" id="<?= $h($hintId) ?>" <?= \App\Service\Language\SiteText::attrs($field->helpText->nl, $field->helpText->en) ?>><?= $h(\App\Service\Language\SiteText::visible($field->helpText->nl, $field->helpText->en)) ?></span>
     <?php
 }

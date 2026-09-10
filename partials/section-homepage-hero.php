@@ -44,21 +44,21 @@ function render_section_homepage_hero(array $hero): void
       <div class="laser-line" style="bottom: 14%; right: 0; width: 26%" aria-hidden="true"></div>
       <div class="container hero__grid">
         <div class="hero__content">
-          <p class="eyebrow hero__eyebrow" data-nl="<?= $h($hero['eyebrow_nl']) ?>" data-en="<?= $h($hero['eyebrow_en']) ?>"><?= $h($hero['eyebrow_nl']) ?></p>
+          <p class="eyebrow hero__eyebrow" <?= \App\Service\Language\SiteText::attrs($hero['eyebrow_nl'], $hero['eyebrow_en']) ?>><?= $h(\App\Service\Language\SiteText::visible($hero['eyebrow_nl'], $hero['eyebrow_en'])) ?></p>
           <h1 style="--hero-highlight-size: <?= $heroHighlightSize ?>%" data-nl="<?= $h($heroTitleFragmentNl) ?>" data-en="<?= $h($heroTitleFragmentEn) ?>"><?= $heroTitleFragmentNl ?></h1>
-          <p class="lead hero__lead" data-nl="<?= $h($hero['lead_nl']) ?>" data-en="<?= $h($hero['lead_en']) ?>"><?= $h($hero['lead_nl']) ?></p>
+          <p class="lead hero__lead" <?= \App\Service\Language\SiteText::attrs($hero['lead_nl'], $hero['lead_en']) ?>><?= $h(\App\Service\Language\SiteText::visible($hero['lead_nl'], $hero['lead_en'])) ?></p>
           <div class="hero__actions">
-            <a href="<?= $h($hero['primary_url']) ?>" class="btn" data-nl="<?= $h($hero['primary_label_nl']) ?>" data-en="<?= $h($hero['primary_label_en']) ?>"><?= $h($hero['primary_label_nl']) ?>
+            <a href="<?= $h($hero['primary_url']) ?>" class="btn" <?= \App\Service\Language\SiteText::attrs($hero['primary_label_nl'], $hero['primary_label_en']) ?>><?= $h(\App\Service\Language\SiteText::visible($hero['primary_label_nl'], $hero['primary_label_en'])) ?>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" /></svg>
             </a>
             <?php if ($hero['secondary_label_nl'] !== ''): ?>
-            <a href="<?= $h($hero['secondary_url']) ?>" class="btn btn--ghost" data-nl="<?= $h($hero['secondary_label_nl']) ?>" data-en="<?= $h($hero['secondary_label_en']) ?>"><?= $h($hero['secondary_label_nl']) ?></a>
+            <a href="<?= $h($hero['secondary_url']) ?>" class="btn btn--ghost" <?= \App\Service\Language\SiteText::attrs($hero['secondary_label_nl'], $hero['secondary_label_en']) ?>><?= $h(\App\Service\Language\SiteText::visible($hero['secondary_label_nl'], $hero['secondary_label_en'])) ?></a>
             <?php endif; ?>
           </div>
           <div class="hero__meta">
             <?php foreach ($hero['stats'] as $stat): ?>
             <div>
-              <strong data-nl="<?= $h($stat['primary_text_nl']) ?>" data-en="<?= $h($stat['primary_text_en']) ?>"><?= $h($stat['primary_text_nl']) ?></strong><span data-nl="<?= $h($stat['secondary_text_nl']) ?>" data-en="<?= $h($stat['secondary_text_en']) ?>"><?= $h($stat['secondary_text_nl']) ?></span>
+              <strong <?= \App\Service\Language\SiteText::attrs($stat['primary_text_nl'], $stat['primary_text_en']) ?>><?= $h(\App\Service\Language\SiteText::visible($stat['primary_text_nl'], $stat['primary_text_en'])) ?></strong><span <?= \App\Service\Language\SiteText::attrs($stat['secondary_text_nl'], $stat['secondary_text_en']) ?>><?= $h(\App\Service\Language\SiteText::visible($stat['secondary_text_nl'], $stat['secondary_text_en'])) ?></span>
             </div>
             <?php endforeach; ?>
           </div>
@@ -76,8 +76,8 @@ function render_section_homepage_hero(array $hero): void
           <?php endif; ?>
           <?php if ($heroHasBadge): ?>
           <div class="hero__badge">
-            <strong data-nl="<?= $h($hero['badge_title_nl']) ?>" data-en="<?= $h($hero['badge_title_en']) ?>"><?= $h($hero['badge_title_nl']) ?></strong>
-            <span data-nl="<?= $h($hero['badge_text_nl']) ?>" data-en="<?= $h($hero['badge_text_en']) ?>"><?= $h($hero['badge_text_nl']) ?></span>
+            <strong <?= \App\Service\Language\SiteText::attrs($hero['badge_title_nl'], $hero['badge_title_en']) ?>><?= $h(\App\Service\Language\SiteText::visible($hero['badge_title_nl'], $hero['badge_title_en'])) ?></strong>
+            <span <?= \App\Service\Language\SiteText::attrs($hero['badge_text_nl'], $hero['badge_text_en']) ?>><?= $h(\App\Service\Language\SiteText::visible($hero['badge_text_nl'], $hero['badge_text_en'])) ?></span>
           </div>
           <?php endif; ?>
         </div>

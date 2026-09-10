@@ -56,7 +56,7 @@ function render_related_products(array $related): void
       <div class="container">
         <?php if ($headingNl !== ''): ?>
         <div class="section-head" data-reveal>
-          <h2 data-nl="<?= $h($headingNl) ?>" data-en="<?= $h($headingEn) ?>"><?= $h($headingNl) ?></h2>
+          <h2 <?= \App\Service\Language\SiteText::attrs($headingNl, $headingEn) ?>><?= $h(\App\Service\Language\SiteText::visible($headingNl, $headingEn)) ?></h2>
         </div>
         <?php endif; ?>
 

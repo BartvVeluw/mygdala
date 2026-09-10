@@ -87,32 +87,40 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
 ?>
 <?php if ($hasChildren): ?>
         <li class="main-nav__item main-nav__item--has-children">
-          <button type="button" class="main-nav__toggle" aria-haspopup="true" aria-expanded="false" data-nl="<?= $h($item['label_nl']) ?>" data-en="<?= $h($item['label_en']) ?>">
-            <?= $h($item['label_nl']) ?>
+          <button type="button" class="main-nav__toggle" aria-haspopup="true" aria-expanded="false" <?= \App\Service\Language\SiteText::attrs($item['label_nl'], $item['label_en']) ?>>
+            <?= $h(\App\Service\Language\SiteText::visible($item['label_nl'], $item['label_en'])) ?>
             <svg class="main-nav__chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
           </button>
           <ul class="main-nav__submenu">
 <?php foreach ($item['children'] as $child): ?>
 <?php if ($child['href'] === null) continue; ?>
-            <li><a href="<?= $h($child['href']) ?>"<?= $child['open_in_new_tab'] ? ' target="_blank" rel="' . $h((string) $child['rel']) . '"' : '' ?> data-nl="<?= $h($child['label_nl']) ?>" data-en="<?= $h($child['label_en']) ?>"><?= $h($child['label_nl']) ?></a></li>
+            <li><a href="<?= $h($child['href']) ?>"<?= $child['open_in_new_tab'] ? ' target="_blank" rel="' . $h((string) $child['rel']) . '"' : '' ?> <?= \App\Service\Language\SiteText::attrs($child['label_nl'], $child['label_en']) ?>><?= $h(\App\Service\Language\SiteText::visible($child['label_nl'], $child['label_en'])) ?></a></li>
 <?php endforeach; ?>
           </ul>
         </li>
 <?php elseif ($item['href'] !== null): ?>
-        <li><a href="<?= $h($item['href']) ?>"<?= $isActive ? ' aria-current="page"' : '' ?><?= $item['open_in_new_tab'] ? ' target="_blank" rel="' . $h((string) $item['rel']) . '"' : '' ?> data-nl="<?= $h($item['label_nl']) ?>" data-en="<?= $h($item['label_en']) ?>"><?= $h($item['label_nl']) ?></a></li>
+        <li><a href="<?= $h($item['href']) ?>"<?= $isActive ? ' aria-current="page"' : '' ?><?= $item['open_in_new_tab'] ? ' target="_blank" rel="' . $h((string) $item['rel']) . '"' : '' ?> <?= \App\Service\Language\SiteText::attrs($item['label_nl'], $item['label_en']) ?>><?= $h(\App\Service\Language\SiteText::visible($item['label_nl'], $item['label_en'])) ?></a></li>
 <?php endif; ?>
 <?php endforeach; ?>
       </ul>
       <div class="header-actions">
+<?php /* The switch exists only on a site that actually publishes more than
+         one language (Multilingual V1, MULTILINGUAL.md). On a single-language
+         site both buttons would have shown the visitor the same page in the
+         same words, so there is nothing to switch between and nothing is
+         rendered — no empty control, no stray focus stop. */ ?>
+<?php if (\App\Service\Language\SiteText::showsLanguageSwitch()): ?>
         <div class="lang-switch" role="group" aria-label="Taal / Language">
-          <button type="button" data-lang="nl" aria-pressed="true">NL</button>
-          <button type="button" data-lang="en" aria-pressed="false">EN</button>
+<?php foreach (\App\Service\Language\SiteText::switchableLanguages() as $switchLanguage): ?>
+          <button type="button" data-lang="<?= $h($switchLanguage) ?>" aria-pressed="<?= $switchLanguage === \App\Service\Language\SiteText::documentLanguage() ? 'true' : 'false' ?>"><?= $h(strtoupper($switchLanguage)) ?></button>
+<?php endforeach; ?>
         </div>
+<?php endif; ?>
 <?php foreach (ModuleRegistry::collect('headerPartials') as $headerPartial): ?>
 <?php require $headerPartial; ?>
 <?php endforeach; ?>
 <?php if ($headerCta !== null): ?>
-        <a href="<?= $h($headerCta['href']) ?>" class="btn btn--sm"<?= $headerCta['open_in_new_tab'] ? ' target="_blank" rel="' . $h((string) $headerCta['rel']) . '"' : '' ?> data-nl="<?= $h($headerCta['label_nl']) ?>" data-en="<?= $h($headerCta['label_en']) ?>"><?= $h($headerCta['label_nl']) ?></a>
+        <a href="<?= $h($headerCta['href']) ?>" class="btn btn--sm"<?= $headerCta['open_in_new_tab'] ? ' target="_blank" rel="' . $h((string) $headerCta['rel']) . '"' : '' ?> <?= \App\Service\Language\SiteText::attrs($headerCta['label_nl'], $headerCta['label_en']) ?>><?= $h(\App\Service\Language\SiteText::visible($headerCta['label_nl'], $headerCta['label_en'])) ?></a>
 <?php endif; ?>
       </div>
       </div>

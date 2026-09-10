@@ -61,7 +61,7 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
         <?php if ($brand['show_company_name']): ?>
         <p class="footer-brand__name"><?= $h($siteName) ?></p>
         <?php endif; ?>
-        <p data-nl="<?= $h($footerDescriptionNl) ?>" data-en="<?= $h($footerDescriptionEn) ?>"><?= $h($footerDescriptionNl) ?></p>
+        <p <?= \App\Service\Language\SiteText::attrs($footerDescriptionNl, $footerDescriptionEn) ?>><?= $h(\App\Service\Language\SiteText::visible($footerDescriptionNl, $footerDescriptionEn)) ?></p>
         <?php if ($brand['show_email'] && $email !== ''): ?>
         <p><a href="mailto:<?= $h($email) ?>"><?= $h($email) ?></a></p>
         <?php endif; ?>
@@ -91,13 +91,13 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
       </div>
 <?php foreach ($footerColumns as $column): ?>
       <div class="footer-col">
-        <h4 data-nl="<?= $h($column['title_nl']) ?>" data-en="<?= $h($column['title_en']) ?>"><?= $h($column['title_nl']) ?></h4>
+        <h4 <?= \App\Service\Language\SiteText::attrs($column['title_nl'], $column['title_en']) ?>><?= $h(\App\Service\Language\SiteText::visible($column['title_nl'], $column['title_en'])) ?></h4>
         <ul>
 <?php foreach ($column['links'] as $link): ?>
 <?php if ($link['is_action']): ?>
-          <li><button type="button" class="footer-col__action-link" data-cookie-settings-open data-nl="<?= $h($link['label_nl']) ?>" data-en="<?= $h($link['label_en']) ?>"><?= $h($link['label_nl']) ?></button></li>
+          <li><button type="button" class="footer-col__action-link" data-cookie-settings-open <?= \App\Service\Language\SiteText::attrs($link['label_nl'], $link['label_en']) ?>><?= $h(\App\Service\Language\SiteText::visible($link['label_nl'], $link['label_en'])) ?></button></li>
 <?php else: ?>
-          <li><a href="<?= $h((string) $link['href']) ?>"<?= $link['open_in_new_tab'] ? ' target="_blank" rel="' . $h((string) $link['rel']) . '"' : '' ?> data-nl="<?= $h($link['label_nl']) ?>" data-en="<?= $h($link['label_en']) ?>"><?= $h($link['label_nl']) ?></a></li>
+          <li><a href="<?= $h((string) $link['href']) ?>"<?= $link['open_in_new_tab'] ? ' target="_blank" rel="' . $h((string) $link['rel']) . '"' : '' ?> <?= \App\Service\Language\SiteText::attrs($link['label_nl'], $link['label_en']) ?>><?= $h(\App\Service\Language\SiteText::visible($link['label_nl'], $link['label_en'])) ?></a></li>
 <?php endif; ?>
 <?php endforeach; ?>
         </ul>
@@ -107,11 +107,11 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
     <div class="footer-bottom">
       <span><?= $h($copyright) ?></span>
       <span class="footer-legal-links">
-        <a href="cookiebeleid.php" data-nl="<?= $h($cookieFooterLink['policy_label_nl']) ?>" data-en="<?= $h($cookieFooterLink['policy_label_en']) ?>"><?= $h($cookieFooterLink['policy_label_nl']) ?></a>
-        <button type="button" class="footer-legal-links__btn" data-cookie-settings-open data-nl="<?= $h($cookieFooterLink['label_nl']) ?>" data-en="<?= $h($cookieFooterLink['label_en']) ?>"><?= $h($cookieFooterLink['label_nl']) ?></button>
+        <a href="cookiebeleid.php" <?= \App\Service\Language\SiteText::attrs($cookieFooterLink['policy_label_nl'], $cookieFooterLink['policy_label_en']) ?>><?= $h(\App\Service\Language\SiteText::visible($cookieFooterLink['policy_label_nl'], $cookieFooterLink['policy_label_en'])) ?></a>
+        <button type="button" class="footer-legal-links__btn" data-cookie-settings-open <?= \App\Service\Language\SiteText::attrs($cookieFooterLink['label_nl'], $cookieFooterLink['label_en']) ?>><?= $h(\App\Service\Language\SiteText::visible($cookieFooterLink['label_nl'], $cookieFooterLink['label_en'])) ?></button>
       </span>
 <?php if ($slogan !== null): ?>
-      <span data-nl="<?= $h($slogan['nl']) ?>" data-en="<?= $h($slogan['en']) ?>"><?= $h($slogan['nl']) ?></span>
+      <span <?= \App\Service\Language\SiteText::attrs($slogan['nl'], $slogan['en']) ?>><?= $h(\App\Service\Language\SiteText::visible($slogan['nl'], $slogan['en'])) ?></span>
 <?php endif; ?>
     </div>
   </div>

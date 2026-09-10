@@ -42,13 +42,13 @@ function render_section_card_carousel(array $content): void
           <?php if ($hasHead): ?>
           <div class="section-head" data-reveal>
             <?php if ($content['eyebrow_nl'] !== ''): ?>
-            <p class="eyebrow" data-nl="<?= $h($content['eyebrow_nl']) ?>" data-en="<?= $h($content['eyebrow_en']) ?>"><?= $h($content['eyebrow_nl']) ?></p>
+            <p class="eyebrow" <?= \App\Service\Language\SiteText::attrs($content['eyebrow_nl'], $content['eyebrow_en']) ?>><?= $h(\App\Service\Language\SiteText::visible($content['eyebrow_nl'], $content['eyebrow_en'])) ?></p>
             <?php endif; ?>
             <?php if ($content['title_nl'] !== ''): ?>
-            <h2 data-nl="<?= $h($content['title_nl']) ?>" data-en="<?= $h($content['title_en']) ?>"><?= $h($content['title_nl']) ?></h2>
+            <h2 <?= \App\Service\Language\SiteText::attrs($content['title_nl'], $content['title_en']) ?>><?= $h(\App\Service\Language\SiteText::visible($content['title_nl'], $content['title_en'])) ?></h2>
             <?php endif; ?>
             <?php if ($content['lead_nl'] !== ''): ?>
-            <p class="lead" data-nl="<?= $h($content['lead_nl']) ?>" data-en="<?= $h($content['lead_en']) ?>"><?= $h($content['lead_nl']) ?></p>
+            <p class="lead" <?= \App\Service\Language\SiteText::attrs($content['lead_nl'], $content['lead_en']) ?>><?= $h(\App\Service\Language\SiteText::visible($content['lead_nl'], $content['lead_en'])) ?></p>
             <?php endif; ?>
           </div>
           <?php endif; ?>
@@ -99,15 +99,14 @@ function render_section_card_carousel(array $content): void
                     <?php endif; ?>
                     <div class="orbit-card__body">
                       <span class="service-row__index"><?= $h($card['index_label']) ?></span>
-                      <h3 data-nl="<?= $h($card['title_nl']) ?>" data-en="<?= $h($card['title_en']) ?>">
-                        <?= $h($card['title_nl']) ?>
+                      <h3 <?= \App\Service\Language\SiteText::attrs($card['title_nl'], $card['title_en']) ?>>
+                        <?= $h(\App\Service\Language\SiteText::visible($card['title_nl'], $card['title_en'])) ?>
                       </h3>
                       <?php if ($card['body_nl'] !== ''): ?>
                       <p
-                        data-nl="<?= $h($card['body_nl']) ?>"
-                        data-en="<?= $h($card['body_en']) ?>"
+                        <?= \App\Service\Language\SiteText::attrs($card['body_nl'], $card['body_en']) ?>
                       >
-                        <?= $h($card['body_nl']) ?>
+                        <?= $h(\App\Service\Language\SiteText::visible($card['body_nl'], $card['body_en'])) ?>
                       </p>
                       <?php endif; ?>
                       <?php if ($card['tags'] !== []): ?>
@@ -115,9 +114,8 @@ function render_section_card_carousel(array $content): void
                         <?php foreach ($card['tags'] as $tag): ?>
                         <span
                           class="tag"
-                          data-nl="<?= $h($tag['label_nl']) ?>"
-                          data-en="<?= $h($tag['label_en']) ?>"
-                          ><?= $h($tag['label_nl']) ?></span
+                          <?= \App\Service\Language\SiteText::attrs($tag['label_nl'], $tag['label_en']) ?>
+                          ><?= $h(\App\Service\Language\SiteText::visible($tag['label_nl'], $tag['label_en'])) ?></span
                         >
                         <?php endforeach; ?>
                       </div>
@@ -127,9 +125,8 @@ function render_section_card_carousel(array $content): void
                         href="<?= $h($card['link_url']) ?>"
                         class="btn btn--ghost btn--sm"
                         tabindex="-1"
-                        data-nl="<?= $h($card['link_label_nl']) ?>"
-                        data-en="<?= $h($card['link_label_en']) ?>"
-                        ><?= $h($card['link_label_nl']) ?>
+                        <?= \App\Service\Language\SiteText::attrs($card['link_label_nl'], $card['link_label_en']) ?>
+                        ><?= $h(\App\Service\Language\SiteText::visible($card['link_label_nl'], $card['link_label_en'])) ?>
                         <svg
                           viewBox="0 0 24 24"
                           fill="none"

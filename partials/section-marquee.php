@@ -24,7 +24,7 @@ function render_section_marquee(array $marquee): void
     <div class="marquee" aria-hidden="true">
       <div class="marquee__track" data-marquee-track>
         <?php foreach ($marquee['items'] as $item): ?>
-        <span data-nl="<?= $h($item['label_nl']) ?>" data-en="<?= $h($item['label_en']) ?>"><?= $h($item['label_nl']) ?></span>
+        <span <?= \App\Service\Language\SiteText::attrs($item['label_nl'], $item['label_en']) ?>><?= $h(\App\Service\Language\SiteText::visible($item['label_nl'], $item['label_en'])) ?></span>
         <?php endforeach; ?>
       </div>
     </div>

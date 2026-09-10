@@ -61,13 +61,13 @@ function render_section_item_gallery(array $content, string $revealGroup = 'gall
       <?php if ($hasHead): ?>
       <div class="section-head" data-reveal>
         <?php if ($content['eyebrow_nl'] !== ''): ?>
-        <p class="eyebrow" data-nl="<?= $h($content['eyebrow_nl']) ?>" data-en="<?= $h($content['eyebrow_en']) ?>"><?= $h($content['eyebrow_nl']) ?></p>
+        <p class="eyebrow" <?= \App\Service\Language\SiteText::attrs($content['eyebrow_nl'], $content['eyebrow_en']) ?>><?= $h(\App\Service\Language\SiteText::visible($content['eyebrow_nl'], $content['eyebrow_en'])) ?></p>
         <?php endif; ?>
         <?php if ($content['title_nl'] !== ''): ?>
-        <h2 data-nl="<?= $h($content['title_nl']) ?>" data-en="<?= $h($content['title_en']) ?>"><?= $h($content['title_nl']) ?></h2>
+        <h2 <?= \App\Service\Language\SiteText::attrs($content['title_nl'], $content['title_en']) ?>><?= $h(\App\Service\Language\SiteText::visible($content['title_nl'], $content['title_en'])) ?></h2>
         <?php endif; ?>
         <?php if ($content['lead_nl'] !== ''): ?>
-        <p class="lead" data-nl="<?= $h($content['lead_nl']) ?>" data-en="<?= $h($content['lead_en']) ?>"><?= $h($content['lead_nl']) ?></p>
+        <p class="lead" <?= \App\Service\Language\SiteText::attrs($content['lead_nl'], $content['lead_en']) ?>><?= $h(\App\Service\Language\SiteText::visible($content['lead_nl'], $content['lead_en'])) ?></p>
         <?php endif; ?>
       </div>
       <?php endif; ?>
@@ -76,7 +76,7 @@ function render_section_item_gallery(array $content, string $revealGroup = 'gall
       <div class="filter-bar" role="group" aria-label="Filter op categorie">
         <button type="button" data-filter="all" aria-pressed="true" data-nl="Alles" data-en="All">Alles</button>
         <?php foreach ($filterCategories as $filterCategory): ?>
-        <button type="button" data-filter="<?= $h($filterCategory['slug']) ?>" aria-pressed="false" data-nl="<?= $h($filterCategory['name_nl']) ?>" data-en="<?= $h($filterCategory['name_en']) ?>"><?= $h($filterCategory['name_nl']) ?></button>
+        <button type="button" data-filter="<?= $h($filterCategory['slug']) ?>" aria-pressed="false" <?= \App\Service\Language\SiteText::attrs($filterCategory['name_nl'], $filterCategory['name_en']) ?>><?= $h(\App\Service\Language\SiteText::visible($filterCategory['name_nl'], $filterCategory['name_en'])) ?></button>
         <?php endforeach; ?>
       </div>
       <?php endif; ?>
@@ -100,7 +100,7 @@ function render_section_item_gallery(array $content, string $revealGroup = 'gall
         <?php if ($itemUrl !== ''): ?>
         <a class="gallery-item<?= $isDetailLink ? ' gallery-item--linked' : '' ?>" href="<?= $h($itemUrl) ?>"<?= $categoryAttr ?> data-reveal data-reveal-group="<?= $h($revealGroup) ?>">
           <?= $imageTag ?>
-          <span class="gallery-item__overlay"><p data-nl="<?= $h((string) $item['title_nl']) ?>" data-en="<?= $h((string) $item['title_en']) ?>"><?= $h((string) $item['title_nl']) ?></p><span data-nl="<?= $h((string) $item['subtitle_nl']) ?>" data-en="<?= $h((string) $item['subtitle_en']) ?>"><?= $h((string) $item['subtitle_nl']) ?></span></span>
+          <span class="gallery-item__overlay"><p <?= \App\Service\Language\SiteText::attrs((string) $item['title_nl'], (string) $item['title_en']) ?>><?= $h(\App\Service\Language\SiteText::visible((string) $item['title_nl'], (string) $item['title_en'])) ?></p><span <?= \App\Service\Language\SiteText::attrs((string) $item['subtitle_nl'], (string) $item['subtitle_en']) ?>><?= $h(\App\Service\Language\SiteText::visible((string) $item['subtitle_nl'], (string) $item['subtitle_en'])) ?></span></span>
           <?php if ($isDetailLink): ?>
           <span class="gallery-item__arrow" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17 17 7M9 7h8v8"/></svg></span>
           <?php endif; ?>
@@ -108,19 +108,19 @@ function render_section_item_gallery(array $content, string $revealGroup = 'gall
         <?php else: ?>
         <div class="gallery-item"<?= $categoryAttr ?><?= $lightbox ? ' data-lightbox-item' : '' ?> data-reveal data-reveal-group="<?= $h($revealGroup) ?>">
           <?= $imageTag ?>
-          <span class="gallery-item__overlay"><p data-nl="<?= $h((string) $item['title_nl']) ?>" data-en="<?= $h((string) $item['title_en']) ?>"><?= $h((string) $item['title_nl']) ?></p><span data-nl="<?= $h((string) $item['subtitle_nl']) ?>" data-en="<?= $h((string) $item['subtitle_en']) ?>"><?= $h((string) $item['subtitle_nl']) ?></span></span>
+          <span class="gallery-item__overlay"><p <?= \App\Service\Language\SiteText::attrs((string) $item['title_nl'], (string) $item['title_en']) ?>><?= $h(\App\Service\Language\SiteText::visible((string) $item['title_nl'], (string) $item['title_en'])) ?></p><span <?= \App\Service\Language\SiteText::attrs((string) $item['subtitle_nl'], (string) $item['subtitle_en']) ?>><?= $h(\App\Service\Language\SiteText::visible((string) $item['subtitle_nl'], (string) $item['subtitle_en'])) ?></span></span>
         </div>
         <?php endif; ?>
         <?php endforeach; ?>
       </div>
 
       <?php if ($content['footer_note_nl'] !== ''): ?>
-      <p class="lead" style="margin-top:var(--sp-6); max-width: 60ch;" data-reveal data-nl="<?= $h($content['footer_note_nl']) ?>" data-en="<?= $h($content['footer_note_en']) ?>"><?= $h($content['footer_note_nl']) ?></p>
+      <p class="lead" style="margin-top:var(--sp-6); max-width: 60ch;" data-reveal <?= \App\Service\Language\SiteText::attrs($content['footer_note_nl'], $content['footer_note_en']) ?>><?= $h(\App\Service\Language\SiteText::visible($content['footer_note_nl'], $content['footer_note_en'])) ?></p>
       <?php endif; ?>
 
       <?php if ($hasButton): ?>
       <div class="text-center" style="margin-top: var(--sp-5)">
-        <a href="<?= $h($content['button_url']) ?>" class="btn btn--ghost" data-nl="<?= $h($content['button_label_nl']) ?>" data-en="<?= $h($content['button_label_en']) ?>"><?= $h($content['button_label_nl']) ?></a>
+        <a href="<?= $h($content['button_url']) ?>" class="btn btn--ghost" <?= \App\Service\Language\SiteText::attrs($content['button_label_nl'], $content['button_label_en']) ?>><?= $h(\App\Service\Language\SiteText::visible($content['button_label_nl'], $content['button_label_en'])) ?></a>
       </div>
       <?php endif; ?>
     </div>

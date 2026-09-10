@@ -18,15 +18,15 @@ function render_section_step_list(array $stepList): void
       <div class="container">
         <?php if ($hasHeading): ?>
         <div class="section-head center" data-reveal>
-          <?php if ($stepList['eyebrow_nl'] !== ''): ?><p class="eyebrow" data-nl="<?= $h($stepList['eyebrow_nl']) ?>" data-en="<?= $h($stepList['eyebrow_en']) ?>"><?= $h($stepList['eyebrow_nl']) ?></p><?php endif; ?>
-          <?php if ($stepList['title_nl'] !== ''): ?><h2 data-nl="<?= $h($stepList['title_nl']) ?>" data-en="<?= $h($stepList['title_en']) ?>"><?= $h($stepList['title_nl']) ?></h2><?php endif; ?>
+          <?php if ($stepList['eyebrow_nl'] !== ''): ?><p class="eyebrow" <?= \App\Service\Language\SiteText::attrs($stepList['eyebrow_nl'], $stepList['eyebrow_en']) ?>><?= $h(\App\Service\Language\SiteText::visible($stepList['eyebrow_nl'], $stepList['eyebrow_en'])) ?></p><?php endif; ?>
+          <?php if ($stepList['title_nl'] !== ''): ?><h2 <?= \App\Service\Language\SiteText::attrs($stepList['title_nl'], $stepList['title_en']) ?>><?= $h(\App\Service\Language\SiteText::visible($stepList['title_nl'], $stepList['title_en'])) ?></h2><?php endif; ?>
         </div>
         <?php endif; ?>
         <div class="process">
           <?php foreach ($stepList['items'] as $step): ?>
           <div class="process-step" data-reveal data-reveal-group="process">
-            <h3 data-nl="<?= $h($step['title_nl']) ?>" data-en="<?= $h($step['title_en']) ?>"><?= $h($step['title_nl']) ?></h3>
-            <p data-nl="<?= $h($step['body_nl']) ?>" data-en="<?= $h($step['body_en']) ?>"><?= $h($step['body_nl']) ?></p>
+            <h3 <?= \App\Service\Language\SiteText::attrs($step['title_nl'], $step['title_en']) ?>><?= $h(\App\Service\Language\SiteText::visible($step['title_nl'], $step['title_en'])) ?></h3>
+            <p <?= \App\Service\Language\SiteText::attrs($step['body_nl'], $step['body_en']) ?>><?= $h(\App\Service\Language\SiteText::visible($step['body_nl'], $step['body_en'])) ?></p>
           </div>
           <?php endforeach; ?>
         </div>

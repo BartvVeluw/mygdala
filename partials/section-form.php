@@ -45,11 +45,11 @@ function render_section_form(array $content, string $pageSlug, string $sectionKe
     <div class="container">
       <div class="form-block__card contact-card" data-reveal>
         <?php if ($title !== ''): ?>
-          <h2 class="form-block__title" data-nl="<?= $h($title) ?>" data-en="<?= $h((string) $content['title_en']) ?>"><?= $h($title) ?></h2>
+          <h2 class="form-block__title" <?= \App\Service\Language\SiteText::attrs($title, (string) $content['title_en']) ?>><?= $h(\App\Service\Language\SiteText::visible($title, (string) $content['title_en'])) ?></h2>
         <?php endif; ?>
 
         <?php if ($intro !== ''): ?>
-          <p class="form-block__intro" data-nl="<?= $h($intro) ?>" data-en="<?= $h((string) $content['intro_en']) ?>"><?= $h($intro) ?></p>
+          <p class="form-block__intro" <?= \App\Service\Language\SiteText::attrs($intro, (string) $content['intro_en']) ?>><?= $h(\App\Service\Language\SiteText::visible($intro, (string) $content['intro_en'])) ?></p>
         <?php endif; ?>
 
         <?php render_form($form, $state); ?>

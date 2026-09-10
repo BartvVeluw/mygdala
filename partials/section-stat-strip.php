@@ -17,7 +17,7 @@ function render_section_stat_strip(array $strip): void
         <div class="stat-strip">
           <?php foreach ($strip['items'] as $stat): ?>
           <div class="stat" data-reveal data-reveal-group="stats">
-            <strong data-nl="<?= $h($stat['primary_text_nl']) ?>" data-en="<?= $h($stat['primary_text_en']) ?>"><?= $h($stat['primary_text_nl']) ?></strong><span data-nl="<?= $h($stat['secondary_text_nl']) ?>" data-en="<?= $h($stat['secondary_text_en']) ?>"><?= $h($stat['secondary_text_nl']) ?></span>
+            <strong <?= \App\Service\Language\SiteText::attrs($stat['primary_text_nl'], $stat['primary_text_en']) ?>><?= $h(\App\Service\Language\SiteText::visible($stat['primary_text_nl'], $stat['primary_text_en'])) ?></strong><span <?= \App\Service\Language\SiteText::attrs($stat['secondary_text_nl'], $stat['secondary_text_en']) ?>><?= $h(\App\Service\Language\SiteText::visible($stat['secondary_text_nl'], $stat['secondary_text_en'])) ?></span>
           </div>
           <?php endforeach; ?>
         </div>

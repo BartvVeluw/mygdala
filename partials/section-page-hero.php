@@ -23,12 +23,12 @@ function render_section_page_hero(array $pageHero, ?string $titleMaxWidthCh = nu
     <section class="page-hero">
       <div class="container">
         <div class="breadcrumb">
-          <a href="index.php" data-nl="Home" data-en="Home">Home</a><span>/</span><span data-nl="<?= $h($pageHero['breadcrumb_label_nl']) ?>" data-en="<?= $h($pageHero['breadcrumb_label_en']) ?>"><?= $h($pageHero['breadcrumb_label_nl']) ?></span>
+          <a href="index.php" data-nl="Home" data-en="Home">Home</a><span>/</span><span <?= \App\Service\Language\SiteText::attrs($pageHero['breadcrumb_label_nl'], $pageHero['breadcrumb_label_en']) ?>><?= $h(\App\Service\Language\SiteText::visible($pageHero['breadcrumb_label_nl'], $pageHero['breadcrumb_label_en'])) ?></span>
         </div>
-        <p class="eyebrow" data-nl="<?= $h($pageHero['eyebrow_nl']) ?>" data-en="<?= $h($pageHero['eyebrow_en']) ?>"><?= $h($pageHero['eyebrow_nl']) ?></p>
-        <h1<?= $titleStyle ?> data-nl="<?= $h($pageHero['title_nl']) ?>" data-en="<?= $h($pageHero['title_en']) ?>"><?= $h($pageHero['title_nl']) ?></h1>
+        <p class="eyebrow" <?= \App\Service\Language\SiteText::attrs($pageHero['eyebrow_nl'], $pageHero['eyebrow_en']) ?>><?= $h(\App\Service\Language\SiteText::visible($pageHero['eyebrow_nl'], $pageHero['eyebrow_en'])) ?></p>
+        <h1<?= $titleStyle ?> <?= \App\Service\Language\SiteText::attrs($pageHero['title_nl'], $pageHero['title_en']) ?>><?= $h(\App\Service\Language\SiteText::visible($pageHero['title_nl'], $pageHero['title_en'])) ?></h1>
         <?php if ($pageHero['lead_nl'] !== ''): ?>
-          <p class="lead" style="margin-top:1rem;" data-nl="<?= $h($pageHero['lead_nl']) ?>" data-en="<?= $h($pageHero['lead_en']) ?>"><?= $h($pageHero['lead_nl']) ?></p>
+          <p class="lead" style="margin-top:1rem;" <?= \App\Service\Language\SiteText::attrs($pageHero['lead_nl'], $pageHero['lead_en']) ?>><?= $h(\App\Service\Language\SiteText::visible($pageHero['lead_nl'], $pageHero['lead_en'])) ?></p>
         <?php endif; ?>
       </div>
     </section>

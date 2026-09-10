@@ -27,17 +27,17 @@ function render_section_feature_grid(array $grid, string $revealGroup = 'feature
       <div class="container">
         <?php if ($hasHeading): ?>
         <div class="section-head center" data-reveal>
-          <?php if ($grid['eyebrow_nl'] !== ''): ?><p class="eyebrow" data-nl="<?= $h($grid['eyebrow_nl']) ?>" data-en="<?= $h($grid['eyebrow_en']) ?>"><?= $h($grid['eyebrow_nl']) ?></p><?php endif; ?>
-          <?php if ($grid['title_nl'] !== ''): ?><h2 data-nl="<?= $h($grid['title_nl']) ?>" data-en="<?= $h($grid['title_en']) ?>"><?= $h($grid['title_nl']) ?></h2><?php endif; ?>
-          <?php if ($grid['lead_nl'] !== ''): ?><p class="lead" style="margin-inline:auto;" data-nl="<?= $h($grid['lead_nl']) ?>" data-en="<?= $h($grid['lead_en']) ?>"><?= $h($grid['lead_nl']) ?></p><?php endif; ?>
+          <?php if ($grid['eyebrow_nl'] !== ''): ?><p class="eyebrow" <?= \App\Service\Language\SiteText::attrs($grid['eyebrow_nl'], $grid['eyebrow_en']) ?>><?= $h(\App\Service\Language\SiteText::visible($grid['eyebrow_nl'], $grid['eyebrow_en'])) ?></p><?php endif; ?>
+          <?php if ($grid['title_nl'] !== ''): ?><h2 <?= \App\Service\Language\SiteText::attrs($grid['title_nl'], $grid['title_en']) ?>><?= $h(\App\Service\Language\SiteText::visible($grid['title_nl'], $grid['title_en'])) ?></h2><?php endif; ?>
+          <?php if ($grid['lead_nl'] !== ''): ?><p class="lead" style="margin-inline:auto;" <?= \App\Service\Language\SiteText::attrs($grid['lead_nl'], $grid['lead_en']) ?>><?= $h(\App\Service\Language\SiteText::visible($grid['lead_nl'], $grid['lead_en'])) ?></p><?php endif; ?>
         </div>
         <?php endif; ?>
         <div class="feature-grid">
           <?php foreach ($grid['items'] as $item): ?>
           <div class="feature-card" data-reveal data-reveal-group="<?= $h($revealGroup) ?>">
             <div class="feature-card__icon"><?= feature_grid_icon_svg($item['icon_key']) ?></div>
-            <h3 data-nl="<?= $h($item['title_nl']) ?>" data-en="<?= $h($item['title_en']) ?>"><?= $h($item['title_nl']) ?></h3>
-            <p data-nl="<?= $h($item['body_nl']) ?>" data-en="<?= $h($item['body_en']) ?>"><?= $h($item['body_nl']) ?></p>
+            <h3 <?= \App\Service\Language\SiteText::attrs($item['title_nl'], $item['title_en']) ?>><?= $h(\App\Service\Language\SiteText::visible($item['title_nl'], $item['title_en'])) ?></h3>
+            <p <?= \App\Service\Language\SiteText::attrs($item['body_nl'], $item['body_en']) ?>><?= $h(\App\Service\Language\SiteText::visible($item['body_nl'], $item['body_en'])) ?></p>
           </div>
           <?php endforeach; ?>
         </div>

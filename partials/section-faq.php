@@ -16,15 +16,15 @@ function render_section_faq(array $faq): void
       <div class="container">
         <?php if ($hasHeading): ?>
         <div class="section-head center" data-reveal>
-          <?php if ($faq['eyebrow_nl'] !== ''): ?><p class="eyebrow" data-nl="<?= $h($faq['eyebrow_nl']) ?>" data-en="<?= $h($faq['eyebrow_en']) ?>"><?= $h($faq['eyebrow_nl']) ?></p><?php endif; ?>
-          <?php if ($faq['title_nl'] !== ''): ?><h2 data-nl="<?= $h($faq['title_nl']) ?>" data-en="<?= $h($faq['title_en']) ?>"><?= $h($faq['title_nl']) ?></h2><?php endif; ?>
+          <?php if ($faq['eyebrow_nl'] !== ''): ?><p class="eyebrow" <?= \App\Service\Language\SiteText::attrs($faq['eyebrow_nl'], $faq['eyebrow_en']) ?>><?= $h(\App\Service\Language\SiteText::visible($faq['eyebrow_nl'], $faq['eyebrow_en'])) ?></p><?php endif; ?>
+          <?php if ($faq['title_nl'] !== ''): ?><h2 <?= \App\Service\Language\SiteText::attrs($faq['title_nl'], $faq['title_en']) ?>><?= $h(\App\Service\Language\SiteText::visible($faq['title_nl'], $faq['title_en'])) ?></h2><?php endif; ?>
         </div>
         <?php endif; ?>
         <div class="faq-list" data-reveal>
           <?php foreach ($faq['items'] as $item): ?>
           <details class="faq-item">
-            <summary><span data-nl="<?= $h($item['question_nl']) ?>" data-en="<?= $h($item['question_en']) ?>"><?= $h($item['question_nl']) ?></span><span class="plus" aria-hidden="true"></span></summary>
-            <div class="faq-answer"><p data-nl="<?= $h($item['answer_nl']) ?>" data-en="<?= $h($item['answer_en']) ?>"><?= $h($item['answer_nl']) ?></p></div>
+            <summary><span <?= \App\Service\Language\SiteText::attrs($item['question_nl'], $item['question_en']) ?>><?= $h(\App\Service\Language\SiteText::visible($item['question_nl'], $item['question_en'])) ?></span><span class="plus" aria-hidden="true"></span></summary>
+            <div class="faq-answer"><p <?= \App\Service\Language\SiteText::attrs($item['answer_nl'], $item['answer_en']) ?>><?= $h(\App\Service\Language\SiteText::visible($item['answer_nl'], $item['answer_en'])) ?></p></div>
           </details>
           <?php endforeach; ?>
         </div>

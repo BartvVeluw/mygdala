@@ -45,15 +45,15 @@ function render_section_detail_section(array $content, array $markers, string $r
       <div class="service-detail__head<?= $flip ? ' service-detail__head--image-left' : '' ?>">
         <div data-reveal>
           <span class="service-row__index"><?= $h($markers['index_label']) ?></span>
-          <h2 data-nl="<?= $h($content['title_nl']) ?>" data-en="<?= $h($content['title_en']) ?>"><?= $h($content['title_nl']) ?></h2>
+          <h2 <?= \App\Service\Language\SiteText::attrs($content['title_nl'], $content['title_en']) ?>><?= $h(\App\Service\Language\SiteText::visible($content['title_nl'], $content['title_en'])) ?></h2>
           <?php if ($content['lead_nl'] !== ''): ?>
-          <p class="lead" style="margin-top:0.75rem;" data-nl="<?= $h($content['lead_nl']) ?>" data-en="<?= $h($content['lead_en']) ?>"><?= $h($content['lead_nl']) ?></p>
+          <p class="lead" style="margin-top:0.75rem;" <?= \App\Service\Language\SiteText::attrs($content['lead_nl'], $content['lead_en']) ?>><?= $h(\App\Service\Language\SiteText::visible($content['lead_nl'], $content['lead_en'])) ?></p>
           <?php endif; ?>
           <?php if ($hasBody): ?>
           <div class="rich-content service-detail__body"<?= $bodyLangAttributes ?>><?= $content['content_html'] ?></div>
           <?php endif; ?>
           <?php if ($content['cta_label_nl'] !== ''): ?>
-          <a href="<?= $h($content['cta_url']) ?>" class="btn" style="margin-top:0.5rem;" data-nl="<?= $h($content['cta_label_nl']) ?>" data-en="<?= $h($content['cta_label_en']) ?>"><?= $h($content['cta_label_nl']) ?>
+          <a href="<?= $h($content['cta_url']) ?>" class="btn" style="margin-top:0.5rem;" <?= \App\Service\Language\SiteText::attrs($content['cta_label_nl'], $content['cta_label_en']) ?>><?= $h(\App\Service\Language\SiteText::visible($content['cta_label_nl'], $content['cta_label_en'])) ?>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
           </a>
           <?php endif; ?>
@@ -69,7 +69,7 @@ function render_section_detail_section(array $content, array $markers, string $r
             <?php foreach ($content['points'] as $point): ?>
             <div class="service-detail__point">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg>
-              <div><strong data-nl="<?= $h($point['title_nl']) ?>" data-en="<?= $h($point['title_en']) ?>"><?= $h($point['title_nl']) ?></strong><p data-nl="<?= $h($point['body_nl']) ?>" data-en="<?= $h($point['body_en']) ?>"><?= $h($point['body_nl']) ?></p></div>
+              <div><strong <?= \App\Service\Language\SiteText::attrs($point['title_nl'], $point['title_en']) ?>><?= $h(\App\Service\Language\SiteText::visible($point['title_nl'], $point['title_en'])) ?></strong><p <?= \App\Service\Language\SiteText::attrs($point['body_nl'], $point['body_en']) ?>><?= $h(\App\Service\Language\SiteText::visible($point['body_nl'], $point['body_en'])) ?></p></div>
             </div>
             <?php endforeach; ?>
           </div>
@@ -84,7 +84,7 @@ function render_section_detail_section(array $content, array $markers, string $r
       </div>
       <?php endif; ?>
       <?php if ($content['closing_note_nl'] !== ''): ?>
-      <p class="service-detail__note" data-reveal data-nl="<?= $h($content['closing_note_nl']) ?>" data-en="<?= $h($content['closing_note_en']) ?>"><?= $h($content['closing_note_nl']) ?></p>
+      <p class="service-detail__note" data-reveal <?= \App\Service\Language\SiteText::attrs($content['closing_note_nl'], $content['closing_note_en']) ?>><?= $h(\App\Service\Language\SiteText::visible($content['closing_note_nl'], $content['closing_note_en'])) ?></p>
       <?php endif; ?>
     </div>
   </section>

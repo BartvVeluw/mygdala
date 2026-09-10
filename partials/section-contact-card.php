@@ -35,13 +35,13 @@ function render_section_contact_card(array $card): void
     <div class="container container--narrow">
       <div class="contact-card" data-reveal>
         <?php if ($card['title_nl'] !== ''): ?>
-        <h3 style="margin-bottom:0.75rem;" data-nl="<?= $h($card['title_nl']) ?>" data-en="<?= $h($card['title_en']) ?>"><?= $h($card['title_nl']) ?></h3>
+        <h3 style="margin-bottom:0.75rem;" <?= \App\Service\Language\SiteText::attrs($card['title_nl'], $card['title_en']) ?>><?= $h(\App\Service\Language\SiteText::visible($card['title_nl'], $card['title_en'])) ?></h3>
         <?php endif; ?>
         <?php if ($card['body_nl'] !== ''): ?>
-        <p style="color:var(--color-text-muted); font-size:0.92rem; margin-bottom:<?= $hasButton ? '1rem' : '0' ?>;" data-nl="<?= $h($card['body_nl']) ?>" data-en="<?= $h($card['body_en']) ?>"><?= $h($card['body_nl']) ?></p>
+        <p style="color:var(--color-text-muted); font-size:0.92rem; margin-bottom:<?= $hasButton ? '1rem' : '0' ?>;" <?= \App\Service\Language\SiteText::attrs($card['body_nl'], $card['body_en']) ?>><?= $h(\App\Service\Language\SiteText::visible($card['body_nl'], $card['body_en'])) ?></p>
         <?php endif; ?>
         <?php if ($hasButton): ?>
-        <a href="<?= $h($card['button_url']) ?>" class="btn btn--ghost btn--block" data-nl="<?= $h($card['button_label_nl']) ?>" data-en="<?= $h($card['button_label_en']) ?>"><?= $h($card['button_label_nl']) ?></a>
+        <a href="<?= $h($card['button_url']) ?>" class="btn btn--ghost btn--block" <?= \App\Service\Language\SiteText::attrs($card['button_label_nl'], $card['button_label_en']) ?>><?= $h(\App\Service\Language\SiteText::visible($card['button_label_nl'], $card['button_label_en'])) ?></a>
         <?php endif; ?>
       </div>
     </div>

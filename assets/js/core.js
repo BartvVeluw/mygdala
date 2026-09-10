@@ -20,11 +20,21 @@
   var prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
   /* ---------------------------------------------------------------------
-     Language switching (NL default, EN toggle)
+     Language switching
      Elements carry data-nl / data-en (innerHTML), data-nl-alt/data-en-alt,
      data-nl-placeholder/data-en-placeholder, data-nl-aria/data-en-aria.
+
+     WHICH LANGUAGE THE PAGE STARTS IN is the site's own primary language,
+     not a hardcoded "nl" (Multilingual V1, see MULTILINGUAL.md). The server
+     stamps it on <html data-primary-lang>, PHP having already printed that
+     language's text into the markup — so the first paint is correct and this
+     script only has work to do when a visitor has chosen the other one.
+
+     A single-language site renders no switch at all, so nothing below
+     changes anything on one.
      --------------------------------------------------------------------- */
   var LANG_KEY = "vvl-lang";
+  var PRIMARY_LANG = docEl.getAttribute("data-primary-lang") === "en" ? "en" : "nl";
 
   function applyLang(lang) {
     docEl.lang = lang === "en" ? "en" : "nl";
@@ -57,11 +67,21 @@
   }
 
   function initLang() {
-    var saved = "nl";
-    try { saved = localStorage.getItem(LANG_KEY) || "nl"; } catch (e) {}
-    if (saved === "en") applyLang("en");
+    var saved = PRIMARY_LANG;
+    try { saved = localStorage.getItem(LANG_KEY) || PRIMARY_LANG; } catch (e) {}
+
+    /* A stored preference for a language this site no longer publishes must
+       not blank the page: fall back to the primary one. */
+    if (!document.querySelector('.lang-switch button[data-lang="' + saved + '"]')) {
+      saved = PRIMARY_LANG;
+    }
+
+    /* Only rewrite the document when the wanted language is NOT the one the
+       server already printed. Re-applying the primary language would replace
+       every element's innerHTML for no reason on every single page view. */
+    if (saved !== PRIMARY_LANG) applyLang(saved);
     else document.querySelectorAll(".lang-switch button").forEach(function (btn) {
-      btn.setAttribute("aria-pressed", btn.dataset.lang === "nl" ? "true" : "false");
+      btn.setAttribute("aria-pressed", btn.dataset.lang === PRIMARY_LANG ? "true" : "false");
     });
 
     document.querySelectorAll(".lang-switch").forEach(function (group) {

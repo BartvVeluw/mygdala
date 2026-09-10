@@ -29,7 +29,7 @@ function render_section_quicknav(string $pageSlug): void
     <div class="container">
       <nav class="quicknav" aria-label="Snel naar sectie" data-nl-aria="Snel naar sectie" data-en-aria="Jump to section">
         <?php foreach ($items as $item): ?>
-        <a href="#<?= $h($item['anchor']) ?>" data-nl="<?= $h($item['label_nl']) ?>" data-en="<?= $h($item['label_en']) ?>"><?= $h($item['label_nl']) ?></a>
+        <a href="#<?= $h($item['anchor']) ?>" <?= \App\Service\Language\SiteText::attrs($item['label_nl'], $item['label_en']) ?>><?= $h(\App\Service\Language\SiteText::visible($item['label_nl'], $item['label_en'])) ?></a>
         <?php endforeach; ?>
       </nav>
     </div>

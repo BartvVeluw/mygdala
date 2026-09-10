@@ -51,7 +51,7 @@ function render_section_contact_form(array $content, string $pageSlug, string $s
       <div class="contact-grid">
 
         <div class="contact-card" data-reveal>
-          <h2 style="font-size:1.4rem; margin-bottom:1.5rem;" data-nl="<?= $h($content['title_nl']) ?>" data-en="<?= $h($content['title_en']) ?>"><?= $h($content['title_nl']) ?></h2>
+          <h2 style="font-size:1.4rem; margin-bottom:1.5rem;" <?= \App\Service\Language\SiteText::attrs($content['title_nl'], $content['title_en']) ?>><?= $h(\App\Service\Language\SiteText::visible($content['title_nl'], $content['title_en'])) ?></h2>
 
           <?php if ($form === null): ?>
             <?php
