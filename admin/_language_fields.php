@@ -110,6 +110,101 @@ function admin_lang_tabs(string $formId = ''): void
     }
 
     echo '</div>';
+
+    admin_lang_translate_bar();
+}
+
+/**
+ * The "translate into <language>" control that sits under the tab strip.
+ *
+ * Rendered only when this installation actually has a translation provider
+ * with credentials. Automatic translation is an optional extra
+ * (App\Service\Translation\NullTranslationProvider), and a button that cannot
+ * work is worse than no button — so a fresh Mygdala with no DeepL key simply
+ * has a plain pair of language tabs and nothing else.
+ */
+function admin_lang_translate_bar(): void
+{
+    if (!admin_lang_has_tabs()) {
+        return;
+    }
+
+    $service = new \App\Service\Translation\TranslationService();
+    $locale = AdminLocale::current();
+    $h = static fn (string $v): string => htmlspecialchars($v, ENT_QUOTES, 'UTF-8');
+
+    $targets = [];
+    foreach (ContentLanguages::secondaries() as $code) {
+        if ($service->canTranslateInto($code)) {
+            $targets[$code] = LanguageRegistry::label($code, $locale);
+        }
+    }
+
+    if ($targets === []) {
+        return;
+    }
+
+    [$entityType, $entityKey] = admin_lang_entity();
+
+    echo '<div class="admin-lang-translate" data-lang-translate'
+        . ' data-endpoint="/api/admin/translate-fields.php"'
+        . ' data-entity-type="' . $h($entityType) . '"'
+        . ' data-entity-key="' . $h($entityKey) . '"'
+        . ' data-manual-label="' . $h(AdminTranslator::trans('translate.manual')) . '"'
+        . ' data-nothing-label="' . $h(AdminTranslator::trans('translate.done')) . '"'
+        . ' data-confirm-overwrite="' . $h(AdminTranslator::trans('translate.confirm_overwrite')) . '"'
+        . ' data-busy-label="' . $h(AdminTranslator::trans('translate.busy')) . '"'
+        . ' data-done-label="' . $h(AdminTranslator::trans('translate.done')) . '">';
+
+    foreach ($targets as $code => $label) {
+        echo '<button type="button" class="admin-lang-translate__button"'
+            . ' data-translate-target="' . $h($code) . '">'
+            . $h(AdminTranslator::trans('translate.action', ['language' => $label]))
+            . '</button>';
+    }
+
+    echo '<p class="admin-lang-translate__status" role="status" aria-live="polite"></p>';
+    echo '</div>';
+}
+
+/**
+ * WHICH content row this editor screen is editing, as a (type, key) pair.
+ *
+ * Derived here rather than passed in by every editor, and that is the whole
+ * reason translation state works across ~30 screens without a line of wiring
+ * in any of them. Both halves come from the SERVER, never from the form:
+ *
+ *   type  the editor script's own filename — 'cta-band', 'blog-post'. Fixed
+ *         at deploy time, so it cannot be influenced by a request at all.
+ *   key   whatever this CMS already addresses the row by, which for a content
+ *         block is the `<page_slug>:<section_key>` pair in ?section=
+ *         (CONTENT-BLOCKS.md), and otherwise ?id=.
+ *
+ * The editor has already refused to render unless that parameter names a page
+ * and a content row that really exist — every block editor in this project
+ * does that before it prints anything. By the time this runs, the value has
+ * been validated by the screen that owns it.
+ *
+ * It is stored as DATA in one column of one table and is never concatenated
+ * into a query, a class name or a path. An empty key simply means "no state
+ * tracking on this screen", which degrades to treating every existing
+ * translation as hand-written — the protective direction.
+ *
+ * @return array{0: string, 1: string}
+ */
+function admin_lang_entity(): array
+{
+    $script = (string) ($_SERVER['SCRIPT_NAME'] ?? '');
+    $type = $script === '' ? '' : basename($script, '.php');
+
+    foreach (['section', 'id'] as $parameter) {
+        $value = trim((string) ($_GET[$parameter] ?? ''));
+        if ($value !== '' && strlen($value) <= 191) {
+            return [$type, $value];
+        }
+    }
+
+    return [$type, ''];
 }
 
 /**
@@ -199,5 +294,5 @@ function admin_lang_tabs_script(): void
 
     $GLOBALS['admin_lang_state']['script_rendered'] = true;
 
-    echo '<script src="/admin/assets/admin-language-tabs.js" defer></script>';
+    echo '<script src="' . \App\Service\AssetVersion::url('/admin/assets/admin-language-tabs.js') . '" defer></script>';
 }

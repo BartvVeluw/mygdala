@@ -23,14 +23,14 @@ final class TranslationStateRepository extends Repository
      *
      * @return array<string, array<string, mixed>>
      */
-    public function forEntity(string $entityType, int $entityId): array
+    public function forEntity(string $entityType, string $entityKey): array
     {
         $stmt = $this->db->prepare(
-            'SELECT field, language, source_hash, provider, is_manual, translated_at
+            'SELECT field, language, source_hash, translation_hash, provider, is_manual, translated_at
              FROM content_translation_state
-             WHERE entity_type = :entity_type AND entity_id = :entity_id'
+             WHERE entity_type = :entity_type AND entity_key = :entity_key'
         );
-        $stmt->execute(['entity_type' => $entityType, 'entity_id' => $entityId]);
+        $stmt->execute(['entity_type' => $entityType, 'entity_key' => $entityKey]);
 
         $states = [];
         foreach ($stmt->fetchAll() as $row) {
@@ -42,18 +42,18 @@ final class TranslationStateRepository extends Repository
     }
 
     /** @return array<string, mixed>|null */
-    public function find(string $entityType, int $entityId, string $field, string $language): ?array
+    public function find(string $entityType, string $entityKey, string $field, string $language): ?array
     {
         $stmt = $this->db->prepare(
-            'SELECT field, language, source_hash, provider, is_manual, translated_at
+            'SELECT field, language, source_hash, translation_hash, provider, is_manual, translated_at
              FROM content_translation_state
-             WHERE entity_type = :entity_type AND entity_id = :entity_id
+             WHERE entity_type = :entity_type AND entity_key = :entity_key
                AND field = :field AND language = :language
              LIMIT 1'
         );
         $stmt->execute([
             'entity_type' => $entityType,
-            'entity_id' => $entityId,
+            'entity_key' => $entityKey,
             'field' => $field,
             'language' => $language,
         ]);
@@ -78,19 +78,21 @@ final class TranslationStateRepository extends Repository
      */
     public function record(
         string $entityType,
-        int $entityId,
+        string $entityKey,
         string $field,
         string $language,
         string $sourceHash,
+        ?string $translationHash,
         ?string $provider,
         bool $isManual,
     ): void {
         $stmt = $this->db->prepare(
             'INSERT INTO content_translation_state
-                 (entity_type, entity_id, field, language, source_hash, provider, is_manual, translated_at, created_at, updated_at)
-             VALUES (:entity_type, :entity_id, :field, :language, :source_hash, :provider, :is_manual, NOW(), NOW(), NOW())
+                 (entity_type, entity_key, field, language, source_hash, translation_hash, provider, is_manual, translated_at, created_at, updated_at)
+             VALUES (:entity_type, :entity_key, :field, :language, :source_hash, :translation_hash, :provider, :is_manual, NOW(), NOW(), NOW())
              ON DUPLICATE KEY UPDATE
                  source_hash = VALUES(source_hash),
+                 translation_hash = VALUES(translation_hash),
                  provider = VALUES(provider),
                  is_manual = VALUES(is_manual),
                  translated_at = VALUES(translated_at),
@@ -99,10 +101,11 @@ final class TranslationStateRepository extends Repository
 
         $stmt->execute([
             'entity_type' => $entityType,
-            'entity_id' => $entityId,
+            'entity_key' => $entityKey,
             'field' => $field,
             'language' => $language,
             'source_hash' => $sourceHash,
+            'translation_hash' => $translationHash,
             'provider' => $provider,
             'is_manual' => $isManual ? 1 : 0,
         ]);
@@ -115,18 +118,18 @@ final class TranslationStateRepository extends Repository
      * never machine translated, so there is nothing to protect from being
      * overwritten and nothing worth a row.
      */
-    public function markManual(string $entityType, int $entityId, string $field, string $language): void
+    public function markManual(string $entityType, string $entityKey, string $field, string $language): void
     {
         $stmt = $this->db->prepare(
             'UPDATE content_translation_state
              SET is_manual = 1, updated_at = NOW()
-             WHERE entity_type = :entity_type AND entity_id = :entity_id
+             WHERE entity_type = :entity_type AND entity_key = :entity_key
                AND field = :field AND language = :language'
         );
 
         $stmt->execute([
             'entity_type' => $entityType,
-            'entity_id' => $entityId,
+            'entity_key' => $entityKey,
             'field' => $field,
             'language' => $language,
         ]);
@@ -137,13 +140,13 @@ final class TranslationStateRepository extends Repository
      *
      * Called when that row itself is deleted. State about a block that no
      * longer exists is not history, it is litter — and its (entity_type,
-     * entity_id) pair would eventually be handed to a different row.
+     * entity_key) pair would eventually be handed to a different row.
      */
-    public function deleteForEntity(string $entityType, int $entityId): void
+    public function deleteForEntity(string $entityType, string $entityKey): void
     {
         $stmt = $this->db->prepare(
-            'DELETE FROM content_translation_state WHERE entity_type = :entity_type AND entity_id = :entity_id'
+            'DELETE FROM content_translation_state WHERE entity_type = :entity_type AND entity_key = :entity_key'
         );
-        $stmt->execute(['entity_type' => $entityType, 'entity_id' => $entityId]);
+        $stmt->execute(['entity_type' => $entityType, 'entity_key' => $entityKey]);
     }
 }

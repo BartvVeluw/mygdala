@@ -86,7 +86,7 @@ final class TranslationService
      */
     public function translateEntity(
         string $entityType,
-        int $entityId,
+        string $entityKey,
         string $target,
         array $requests,
     ): TranslationResult {
@@ -97,10 +97,10 @@ final class TranslationService
         }
 
         $records = [];
-        if ($entityId > 0) {
+        if ($entityKey !== '') {
             try {
                 $records = ($this->stateRepository ?? new TranslationStateRepository())
-                    ->forEntity($entityType, $entityId);
+                    ->forEntity($entityType, $entityKey);
             } catch (\Throwable $e) {
                 // No records means every existing translation classifies as
                 // MANUAL, so an unreadable state table makes this MORE
@@ -164,7 +164,68 @@ final class TranslationService
             $translated += $translatedMarkup;
         }
 
+        $this->rememberMachineTranslations($entityType, $entityKey, $target, $toTranslate, $translated);
+
         return new TranslationResult($translated, $skipped, $this->provider()->key(), $target);
+    }
+
+    /**
+     * Write down what the provider just produced, for the fields it produced
+     * it for.
+     *
+     * WHY HERE AND NOT IN THE SAVE ENDPOINT. Recording it on save would have
+     * meant teaching all ~77 write endpoints to report which fields an editor
+     * accepted from a provider, which is a change to every content table's
+     * write path for the sake of a badge. Recording it here costs nothing and
+     * is safe, because a record only ever describes a field that had already
+     * passed the "may I overwrite this" gate — a translation somebody wrote by
+     * hand never reaches this method and so never gets a record claiming the
+     * machine owns it.
+     *
+     * An editor who translates and then abandons the form leaves a record
+     * behind. That record says "this source produced this text"; since the
+     * column does not hold that text, the next classify() sees a hash mismatch
+     * and treats the field as somebody's own. The stale record is inert.
+     *
+     * @param array<string, string> $sources field => the primary text that was sent
+     * @param array<string, string> $translations field => what came back
+     */
+    private function rememberMachineTranslations(
+        string $entityType,
+        string $entityKey,
+        string $target,
+        array $sources,
+        array $translations,
+    ): void {
+        if ($entityKey === '' || $translations === []) {
+            return;
+        }
+
+        $repository = $this->stateRepository ?? new TranslationStateRepository();
+        $provider = $this->provider()->key();
+
+        foreach ($translations as $field => $text) {
+            if (!array_key_exists($field, $sources)) {
+                continue;
+            }
+
+            try {
+                $repository->record(
+                    $entityType,
+                    $entityKey,
+                    $field,
+                    $target,
+                    TranslationState::hash($sources[$field]),
+                    TranslationState::hash($text),
+                    $provider,
+                    false,
+                );
+            } catch (\Throwable $e) {
+                // Losing a badge is cosmetic. Refusing to hand the editor
+                // their translation because of it would not be.
+                error_log('[TranslationService] could not record translation state: ' . $e->getMessage());
+            }
+        }
     }
 
     /**
@@ -181,13 +242,13 @@ final class TranslationService
      */
     public function recordMachineTranslations(
         string $entityType,
-        int $entityId,
+        string $entityKey,
         string $target,
         array $sourceTexts,
         array $machineTranslatedFields,
         ?string $provider = null,
     ): void {
-        if ($entityId < 1 || !LanguageRegistry::has($target) || $machineTranslatedFields === []) {
+        if ($entityKey === '' || !LanguageRegistry::has($target) || $machineTranslatedFields === []) {
             return;
         }
 
@@ -201,10 +262,11 @@ final class TranslationService
             try {
                 $repository->record(
                     $entityType,
-                    $entityId,
+                    $entityKey,
                     $field,
                     $target,
                     TranslationState::hash($sourceTexts[$field]),
+                    null,
                     $provider ?? $this->provider()->key(),
                     false,
                 );
@@ -222,9 +284,9 @@ final class TranslationService
      *
      * @param string[] $fields
      */
-    public function recordManualEdits(string $entityType, int $entityId, string $target, array $fields): void
+    public function recordManualEdits(string $entityType, string $entityKey, string $target, array $fields): void
     {
-        if ($entityId < 1 || !LanguageRegistry::has($target) || $fields === []) {
+        if ($entityKey === '' || !LanguageRegistry::has($target) || $fields === []) {
             return;
         }
 
@@ -232,7 +294,7 @@ final class TranslationService
 
         foreach ($fields as $field) {
             try {
-                $repository->markManual($entityType, $entityId, $field, $target);
+                $repository->markManual($entityType, $entityKey, $field, $target);
             } catch (\Throwable $e) {
                 error_log('[TranslationService] could not mark a manual edit: ' . $e->getMessage());
             }

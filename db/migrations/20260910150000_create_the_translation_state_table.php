@@ -32,10 +32,12 @@ use Phinx\Migration\AbstractMigration;
  * assignees, no review states, no per-language publication. Four facts, one
  * row per translated field.
  *
- * The identity is (entity_type, entity_id, field, language). `entity_type` is
- * the content table's own name and `field` the base column name without its
- * language suffix — both written in code by the caller, never taken from a
- * request. App\Service\Translation\TranslationState is the only writer.
+ * The identity is (entity_type, entity_key, field, language). `entity_type` is
+ * the editor that owns the content and `entity_key` whatever that editor is
+ * already addressed by — for a content block, the `<page_slug>:<section_key>`
+ * pair this CMS uses everywhere else. `field` is the base column name without
+ * its language suffix. All three are stored as DATA: nothing here is ever
+ * concatenated into a query against the table it names.
  */
 final class CreateTheTranslationStateTable extends AbstractMigration
 {
@@ -51,7 +53,13 @@ final class CreateTheTranslationStateTable extends AbstractMigration
             // different tables and a constraint per table would be a schema
             // change every time a block is added.
             ->addColumn('entity_type', 'string', ['limit' => 100])
-            ->addColumn('entity_id', 'integer', ['signed' => false])
+            // WHICH row, as this CMS already addresses it. A string and not
+            // an integer id, because the identity of a content block in this
+            // project is "(page_slug, section_key)" and not a number
+            // (CONTENT-BLOCKS.md) — an integer column would have forced every
+            // block editor to look one up just to draw a badge. Whatever the
+            // editor is already addressed by goes here verbatim.
+            ->addColumn('entity_key', 'string', ['limit' => 191])
             // The base column name without its language suffix: 'title' for
             // title_nl/title_en.
             ->addColumn('field', 'string', ['limit' => 100])
@@ -61,23 +69,31 @@ final class CreateTheTranslationStateTable extends AbstractMigration
             // Hash of the source text at the moment this translation was
             // produced. A mismatch is what "possibly outdated" means.
             ->addColumn('source_hash', 'string', ['limit' => 64])
+            // Hash of what the PROVIDER returned. This is what makes "a
+            // person edited this translation" detectable without asking all
+            // ~77 write endpoints to report what an editor changed: if the
+            // text in the column no longer hashes to this, somebody has been
+            // at it, and automatic translation leaves it alone from then on.
+            ->addColumn('translation_hash', 'string', ['limit' => 64, 'null' => true])
             // Which provider produced it, so an installation that switches
             // services can still explain where a translation came from.
             // NULL when a human wrote it without ever pressing translate.
             ->addColumn('provider', 'string', ['limit' => 40, 'null' => true])
-            // Has a person edited this translation since the machine wrote
-            // it? The flag that makes "manual edits win" enforceable.
+            // An EXPLICIT "leave this alone" a person set, as opposed to the
+            // implicit one the translation_hash comparison detects. Both mean
+            // the same thing to App\Service\Translation\TranslationState;
+            // this one survives even if the text is later reverted.
             ->addColumn('is_manual', 'boolean', ['default' => false])
             ->addColumn('translated_at', 'datetime', ['null' => true])
             ->addColumn('created_at', 'datetime', ['null' => true])
             ->addColumn('updated_at', 'datetime', ['null' => true])
-            ->addIndex(['entity_type', 'entity_id', 'field', 'language'], [
+            ->addIndex(['entity_type', 'entity_key', 'field', 'language'], [
                 'unique' => true,
                 'name' => 'uniq_translation_state_target',
             ])
             // Reading an editor screen asks for every field of one row at
             // once, which is what this index serves.
-            ->addIndex(['entity_type', 'entity_id'], ['name' => 'idx_translation_state_entity'])
+            ->addIndex(['entity_type', 'entity_key'], ['name' => 'idx_translation_state_entity'])
             ->create();
     }
 

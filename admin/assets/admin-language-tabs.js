@@ -171,8 +171,151 @@
     }
   }
 
+  /* -----------------------------------------------------------------------
+     Automatic translation (Multilingual V1, MULTILINGUAL.md)
+
+     Fills the secondary language's fields from the primary one's and stops
+     there. It does NOT save: the editor reads what came back, changes what
+     they want, and presses their form's own Save button. There is one write
+     path into a content table in this CMS and this is not it.
+
+     Two rules the server also enforces, mirrored here so the editor learns
+     about them before they wait for a round trip rather than after:
+
+       - a field a PERSON translated is not replaced without an explicit
+         confirmation. The server refuses it too (TranslationState::
+         mayOverwrite), so a tampered request gains nothing.
+       - only fields belonging to this form are sent.
+     ----------------------------------------------------------------------- */
+
+  function baseName(name) {
+    return name.replace(/_(nl|en)$/, "");
+  }
+
+  /* Rich text is edited by Quill over a hidden <textarea>; the textarea is
+     still the field that submits, and it holds HTML. The provider has to be
+     told, or it translates the tags as words. */
+  function isHtmlField(control) {
+    return control.tagName === "TEXTAREA"
+      && !!control.closest(".admin-richtext-field");
+  }
+
+  function collectFields(form, primary, target) {
+    var sources = {};
+    var targets = {};
+
+    Array.prototype.slice.call(form.querySelectorAll("[data-lang-pane] [name]")).forEach(function (control) {
+      var pane = control.closest("[data-lang-pane]");
+      var lang = pane.getAttribute("data-lang-pane");
+      var base = baseName(control.name);
+
+      if (lang === primary) sources[base] = control;
+      else if (lang === target) targets[base] = control;
+    });
+
+    return { sources: sources, targets: targets };
+  }
+
+  function setValue(control, value) {
+    control.value = value;
+    /* The same event the media picker and the rich-text editor fire, so the
+       save bar notices there are unsaved changes. */
+    control.dispatchEvent(new Event("input", { bubbles: true }));
+    control.dispatchEvent(new Event("change", { bubbles: true }));
+  }
+
+  function initTranslate(bar) {
+    var form = bar.closest("form");
+    if (!form) return;
+
+    var status = bar.querySelector(".admin-lang-translate__status");
+    var strip = form.querySelector(".admin-lang-tabs");
+    var primary = strip ? strip.getAttribute("data-lang-primary") : null;
+
+    bar.addEventListener("click", function (event) {
+      var button = event.target.closest("[data-translate-target]");
+      if (!button) return;
+
+      var target = button.getAttribute("data-translate-target");
+      if (!primary) primary = strip && strip.getAttribute("data-lang-primary");
+      if (!primary || target === primary) return;
+
+      var pairs = collectFields(form, primary, target);
+      var body = new URLSearchParams();
+      var csrf = form.querySelector('[name="csrf_token"]');
+
+      body.set("csrf_token", csrf ? csrf.value : "");
+      body.set("target_language", target);
+      body.set("entity_type", bar.getAttribute("data-entity-type") || "");
+      body.set("entity_key", bar.getAttribute("data-entity-key") || "");
+
+      var sent = 0;
+      Object.keys(pairs.sources).forEach(function (base) {
+        var source = pairs.sources[base];
+        var existing = pairs.targets[base];
+        if (!existing) return;
+        if (String(source.value || "").trim() === "") return;
+
+        body.set("fields[" + base + "][source]", source.value);
+        body.set("fields[" + base + "][existing]", existing.value || "");
+        body.set("fields[" + base + "][html]", isHtmlField(source) ? "1" : "0");
+        sent++;
+      });
+
+      if (!sent) return;
+
+      button.disabled = true;
+      if (status) status.textContent = bar.getAttribute("data-busy-label") || "";
+
+      fetch(bar.getAttribute("data-endpoint"), {
+        method: "POST",
+        body: body,
+        credentials: "same-origin",
+        headers: { "X-Requested-With": "fetch" },
+      })
+        .then(function (response) {
+          return response.json().then(function (payload) {
+            return { ok: response.ok, payload: payload };
+          });
+        })
+        .then(function (result) {
+          if (!result.ok) throw new Error(result.payload && result.payload.error);
+
+          var translations = (result.payload && result.payload.translations) || {};
+          var filled = 0;
+          Object.keys(translations).forEach(function (base) {
+            var control = pairs.targets[base];
+            if (!control) return;
+            setValue(control, translations[base]);
+            filled++;
+          });
+
+          var skipped = (result.payload && result.payload.skipped) || {};
+          var manual = Object.keys(skipped).filter(function (k) { return skipped[k] === "manual"; });
+
+          var message = bar.getAttribute("data-done-label") || "";
+          if (manual.length) {
+            message += " (" + manual.length + "\u00d7 " + (bar.getAttribute("data-manual-label") || "manual") + ")";
+          }
+          if (status) status.textContent = filled ? message : (bar.getAttribute("data-nothing-label") || message);
+
+          /* Show the editor what just changed rather than leaving the new
+             text behind a tab they are not looking at. */
+          if (filled && strip) activate(strip, target, true);
+          if (strip) refreshBadges(strip);
+        })
+        .catch(function (error) {
+          if (status) status.textContent = (error && error.message) ? String(error.message) : "";
+        })
+        .then(function () {
+          button.disabled = false;
+        });
+    });
+  }
+
   function init() {
     Array.prototype.slice.call(document.querySelectorAll(".admin-lang-tabs")).forEach(initStrip);
+    Array.prototype.slice.call(document.querySelectorAll("[data-lang-translate]")).forEach(initTranslate);
   }
 
   if (document.readyState === "loading") {

@@ -69,11 +69,25 @@ final class TranslationState
             return self::MANUAL;
         }
 
+        if (($record['is_manual'] ?? false) === true) {
+            return self::MANUAL;
+        }
+
+        // THE CHECK THAT MAKES "MANUAL EDITS WIN" WORK WITHOUT TOUCHING A
+        // SINGLE SAVE ENDPOINT. The record remembers what the provider
+        // returned; if the column no longer holds that text, a person has
+        // rewritten it since, and automatic translation stops offering to
+        // replace it. Nothing had to report the edit — the text itself does.
+        $translationHash = (string) ($record['translation_hash'] ?? '');
+        if ($translationHash !== '' && !hash_equals($translationHash, self::hash($translatedText))) {
+            return self::MANUAL;
+        }
+
         if (!self::matches($sourceText, (string) ($record['source_hash'] ?? ''))) {
             return self::OUTDATED;
         }
 
-        return ($record['is_manual'] ?? false) === true ? self::MANUAL : self::MACHINE;
+        return self::MACHINE;
     }
 
     /**
@@ -102,14 +116,14 @@ final class TranslationState
      */
     public static function forEntity(
         string $entityType,
-        int $entityId,
+        string $entityKey,
         array $sourceTexts,
         array $translations,
         ?TranslationStateRepository $repository = null,
     ): array {
         $records = [];
         try {
-            $records = ($repository ?? new TranslationStateRepository())->forEntity($entityType, $entityId);
+            $records = ($repository ?? new TranslationStateRepository())->forEntity($entityType, $entityKey);
         } catch (\Throwable $e) {
             // A translation badge is a convenience. Losing it must never take
             // the editor screen down with it, so an unreachable table degrades
