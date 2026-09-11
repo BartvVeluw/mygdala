@@ -126,7 +126,7 @@ $v = static fn (array $values, string $key): string => htmlspecialchars((string)
         </select>
       </label>
 
-      <?php admin_lang_tabs(); ?>
+      <?php admin_lang_bar(); ?>
       <div class="admin-form-row admin-form-row--split">
         <?php admin_lang_pane_start('nl'); ?>
         <label><?= admin_te('forms.label') ?>*
@@ -206,6 +206,6 @@ $v = static fn (array $values, string $key): string => htmlspecialchars((string)
     </form>
   </section>
 </main>
-<?php admin_lang_tabs_script(); ?>
+<?php admin_lang_script(); ?>
 </body>
 </html>

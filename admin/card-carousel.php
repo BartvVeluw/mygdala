@@ -120,7 +120,7 @@ function carouselValue(array $values, string $key): string
       <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
       <input type="hidden" name="section" value="<?= $h($sectionParam) ?>">
 
-      <?php admin_lang_tabs(); ?>
+      <?php admin_lang_bar(); ?>
       <div class="admin-form-row admin-form-row--split">
         <?php admin_lang_pane_start('nl'); ?>
         <label><?= admin_te('block_carousel.eyebrow') ?>
@@ -227,7 +227,7 @@ function carouselValue(array $values, string $key): string
       <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
       <input type="hidden" name="carousel_id" value="<?= $carouselId ?>">
 
-      <?php admin_lang_tabs(); ?>
+      <?php admin_lang_bar(); ?>
       <div class="admin-form-row admin-form-row--split">
         <?php admin_lang_pane_start('nl'); ?>
         <label><?= admin_te('common.title') ?>*
@@ -248,6 +248,6 @@ function carouselValue(array $values, string $key): string
 </main>
 <?php save_bar(); ?>
 <?php save_bar_script(); ?>
-<?php admin_lang_tabs_script(); ?>
+<?php admin_lang_script(); ?>
 </body>
 </html>

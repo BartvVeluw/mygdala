@@ -90,13 +90,10 @@ unset($_SESSION['admin_blog_taxonomy_flash'], $_SESSION['admin_blog_taxonomy_err
   <?php if (!$loadFailed && $tags === []): ?>
     <p><?= admin_te('blog.er_tags_ze_verschijnen') ?></p>
   <?php else: ?>
-    <?php /* One tab strip for the whole table rather than one per row: the
-             rows all carry the same two fields, and thirty strips switching
-             thirty names one at a time is not a language switcher. The strip
-             sits outside every <form>, so admin-language-tabs.js falls back
-             to the whole document and switches every row at once — which is
-             exactly what an editor wants here. */ ?>
-    <?php admin_lang_tabs(); ?>
+    <?php /* One indicator for the whole table rather than one per row: every
+             row carries the same field in the same language, and the language
+             is the CMS-wide editing language anyway. */ ?>
+    <?php admin_lang_bar(); ?>
     <div class="admin-table-wrap">
     <table class="admin-table">
       <thead>
@@ -161,6 +158,6 @@ unset($_SESSION['admin_blog_taxonomy_flash'], $_SESSION['admin_blog_taxonomy_err
     <?php endforeach; ?>
   <?php endif; ?>
 </main>
-<?php admin_lang_tabs_script(); ?>
+<?php admin_lang_script(); ?>
 </body>
 </html>

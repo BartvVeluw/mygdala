@@ -162,7 +162,7 @@ function tisValue(array $values, string $key): string
         </label>
       </div>
 
-      <?php admin_lang_tabs(); ?>
+      <?php admin_lang_bar(); ?>
       <div class="admin-form-row admin-form-row--split">
         <?php admin_lang_pane_start('nl'); ?>
         <label><?= admin_te('block_textimage.eyebrow') ?>
@@ -237,7 +237,7 @@ function tisValue(array $values, string $key): string
           <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
           <input type="hidden" name="paragraph_id" value="<?= $paragraphId ?>">
 
-          <?php admin_lang_tabs(); ?>
+          <?php admin_lang_bar(); ?>
           <div class="admin-form-row admin-form-row--split">
             <?php admin_lang_pane_start('nl'); ?>
             <label><?= admin_te('block_textimage.tekst') ?>*
@@ -283,7 +283,7 @@ function tisValue(array $values, string $key): string
       <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
       <input type="hidden" name="section_id" value="<?= $splitId ?>">
 
-      <?php admin_lang_tabs(); ?>
+      <?php admin_lang_bar(); ?>
       <div class="admin-form-row admin-form-row--split">
         <?php admin_lang_pane_start('nl'); ?>
         <label><?= admin_te('block_textimage.tekst_3') ?>*
@@ -324,7 +324,7 @@ function tisValue(array $values, string $key): string
             <?php media_picker_field('media_id', MediaService::find((int) ($image['media_id'] ?? 0)), 'Afbeelding', 'Kies dezelfde afbeelding gerust op meerdere plekken — hij wordt maar één keer opgeslagen.', false); ?>
           </div>
 
-          <?php admin_lang_tabs(); ?>
+          <?php admin_lang_bar(); ?>
           <div class="admin-form-row admin-form-row--split">
             <?php admin_lang_pane_start('nl'); ?>
             <label><?= admin_te('common.alt_text') ?>
@@ -374,7 +374,7 @@ function tisValue(array $values, string $key): string
         <?php media_picker_field('media_id', null, 'Afbeelding*', 'Kies er een uit de bibliotheek, of upload een nieuwe in het venster dat opent.', false); ?>
       </div>
 
-      <?php admin_lang_tabs(); ?>
+      <?php admin_lang_bar(); ?>
       <div class="admin-form-row admin-form-row--split">
         <?php admin_lang_pane_start('nl'); ?>
         <label><?= admin_te('common.alt_text') ?>
@@ -396,6 +396,6 @@ function tisValue(array $values, string $key): string
 <?php media_picker_modal(); ?>
 <?php media_picker_script(); ?>
 <?php save_bar_script(); ?>
-<?php admin_lang_tabs_script(); ?>
+<?php admin_lang_script(); ?>
 </body>
 </html>

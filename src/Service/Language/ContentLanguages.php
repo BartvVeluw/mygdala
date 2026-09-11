@@ -12,22 +12,34 @@ use App\Service\SiteSettings;
  * This is one of three language questions that this project deliberately
  * keeps apart (MULTILINGUAL.md):
  *
- *   - which language the CMS interface runs in   -> AdminLocale, per admin user
- *   - which language the website's content IS    -> here, per site
- *   - which extra language it is translated into -> here, per site
+ *   - which language the CMS interface runs in     -> AdminLocale, per admin user
+ *   - which language version an editor is writing  -> ContentEditingLanguage, per admin user
+ *   - which languages the website publishes        -> here, per site
  *
- * Changing the CMS interface language must never change a word of public
- * content, and vice versa. Two settings, two classes, no shared state.
+ * Changing either per-person preference must never change a word of public
+ * content, and changing the site's languages must never change either
+ * person's preference. Three states, three owners, no shared storage.
  *
  * Stored in `site_settings` and not in `theme_settings` for the reason the
  * top of THEMING.md gives: this is who the site IS, not how it looks, and
  * "restore the default design" must never be able to take a site's languages
  * with it.
  *
- * V1 supports one primary language plus at most one secondary. That ceiling
- * is enforced here and nowhere else, so lifting it later is a change to this
- * class rather than to every editor: everything downstream already asks for
- * a LIST (::enabled()) and loops over it.
+ * WHAT CHANGED AFTER V1, and why this class got smaller.
+ *
+ * V1 let an owner switch English OFF for the whole site, and that one
+ * setting was wired into three unrelated things: whether the public header
+ * offered a language switch, whether an editor could see English fields at
+ * all, and whether automatic translation was offered. The product is
+ * bilingual — Dutch and English, always — so a site that publishes only one
+ * of them is not a state this CMS has any reason to produce, and making it
+ * reachable cost editors the ability to write English at all.
+ *
+ * So ::enabled() now answers from the closed LanguageRegistry rather than
+ * from a settings row: every language this build can store content in is a
+ * language this site publishes. What remains genuinely per-site is
+ * ::primary() — which language a visitor gets before they choose, and which
+ * one every missing translation falls back to.
  */
 final class ContentLanguages
 {
@@ -35,14 +47,21 @@ final class ContentLanguages
     public const SETTING_PRIMARY = 'primary_content_language';
 
     /**
-     * Comma-separated list of every language the site publishes, primary
-     * included. A single value means a single-language site, which is what a
-     * fresh install gets and what removes the duplicate fields an editor
-     * complained about (MULTILINGUAL.md).
+     * DEPRECATED, and kept only so stored rows stay readable and writable.
+     *
+     * It used to be the list of languages the site publishes, and hiding the
+     * public language switch and the editor's English fields behind it was
+     * the mistake this step corrects. ::enabled() no longer reads it, so
+     * nothing a site has stored here can take a language away from a visitor
+     * or from an editor. The row itself is left alone rather than deleted:
+     * this project does not destroy stored language data.
+     *
+     * @deprecated Read ::enabled() instead. ::storedEnabled() exposes the raw
+     *             row for migrations and diagnostics.
      */
     public const SETTING_ENABLED = 'enabled_content_languages';
 
-    /** V1 ceiling: one primary plus at most one secondary. */
+    /** One primary plus at most one secondary — Dutch and English in V1. */
     public const MAX_ENABLED = 2;
 
     /**
@@ -67,11 +86,17 @@ final class ContentLanguages
     }
 
     /**
-     * Every enabled content language, primary first, then registry order.
+     * Every language this website publishes, primary first.
      *
-     * The primary language is ALWAYS a member, whatever the stored list says:
-     * a site that publishes nothing is not a state this CMS can render, and a
-     * settings row must not be able to create one.
+     * Answered from the closed registry, NOT from the stored
+     * `enabled_content_languages` row. The product is bilingual: Dutch and
+     * English are both always available to a visitor and to an editor, and
+     * no settings row may take one of them away. See the class docblock for
+     * why that row stopped being consulted.
+     *
+     * The primary language is ALWAYS first, because "first" is what the
+     * public switch, the editor's default and the fallback rule all mean by
+     * it.
      *
      * @return string[]
      */
@@ -79,21 +104,29 @@ final class ContentLanguages
     {
         $primary = self::primary();
 
-        $stored = LanguageRegistry::filter(
-            array_map('trim', explode(',', SiteSettings::get(self::SETTING_ENABLED)))
-        );
-
         $enabled = [$primary];
-        foreach ($stored as $code) {
-            $definition = LanguageRegistry::get($code);
-            if ($code === $primary || $definition === null || !$definition->availableAsContentLanguage) {
-                continue;
+        foreach (LanguageRegistry::contentLanguages() as $code => $definition) {
+            if ($code !== $primary) {
+                $enabled[] = $code;
             }
-
-            $enabled[] = $code;
         }
 
         return array_slice($enabled, 0, self::MAX_ENABLED);
+    }
+
+    /**
+     * The raw `enabled_content_languages` row, for migrations, diagnostics
+     * and the deprecation notice on the settings screen. Nothing in the
+     * rendering or editing path may branch on this.
+     *
+     * @return string[]
+     * @deprecated Use ::enabled().
+     */
+    public static function storedEnabled(): array
+    {
+        return LanguageRegistry::filter(
+            array_map('trim', explode(',', SiteSettings::get(self::SETTING_ENABLED)))
+        );
     }
 
     /**
@@ -146,18 +179,28 @@ final class ContentLanguages
     }
 
     /**
-     * Normalise a submitted primary language + enabled list into the two
-     * values that may be stored. The single place that decides what a valid
-     * language configuration is, used by the settings endpoint AND by the
-     * Setup Wizard so the two cannot drift.
+     * Normalise a submitted default website language into the values that
+     * may be stored. The single place that decides what a valid language
+     * configuration is, used by the settings endpoint AND by the Setup
+     * Wizard so the two cannot drift.
      *
-     * Unknown codes are dropped rather than rejected, the primary is forced
-     * into the enabled list, and the V1 ceiling is applied.
+     * An unknown code is dropped rather than rejected — a form, a settings
+     * row and a wizard step all reach this, and none of them may lock an
+     * owner out of their own site.
+     *
+     * It still writes `enabled_content_languages`, and it now always writes
+     * the full set this build publishes. That keeps the deprecated row
+     * truthful for anything that reads the database directly, and it cannot
+     * take a language away from anybody, because nothing branches on it any
+     * more.
+     *
+     * $enabled is accepted and ignored, so the wizard and the endpoint keep
+     * their existing call shape.
      *
      * @param string[] $enabled
      * @return array{primary_content_language: string, enabled_content_languages: string}
      */
-    public static function normalise(string $primary, array $enabled): array
+    public static function normalise(string $primary, array $enabled = []): array
     {
         $definition = LanguageRegistry::get(trim($primary));
         $primaryCode = ($definition !== null && $definition->availableAsContentLanguage)
@@ -165,13 +208,10 @@ final class ContentLanguages
             : LanguageRegistry::DEFAULT_LANGUAGE;
 
         $codes = [$primaryCode];
-        foreach (LanguageRegistry::filter($enabled) as $code) {
-            $candidate = LanguageRegistry::get($code);
-            if ($code === $primaryCode || $candidate === null || !$candidate->availableAsContentLanguage) {
-                continue;
+        foreach (LanguageRegistry::contentLanguages() as $code => $candidate) {
+            if ($code !== $primaryCode) {
+                $codes[] = $code;
             }
-
-            $codes[] = $code;
         }
 
         return [

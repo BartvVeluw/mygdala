@@ -134,7 +134,7 @@ $pageTitle = $isNew ? admin_t('footer.new_link') : (string) $link['label_nl'];
 
     <section class="admin-card">
       <h2><?= admin_te('footer.label') ?></h2>
-      <?php admin_lang_tabs(); ?>
+      <?php admin_lang_bar(); ?>
       <div class="admin-form-row admin-form-row--split">
         <?php admin_lang_pane_start('nl'); ?>
         <label><?= admin_te('footer.label_2') ?>*
@@ -230,6 +230,6 @@ $pageTitle = $isNew ? admin_t('footer.new_link') : (string) $link['label_nl'];
     </section>
   <?php endif; ?>
 </main>
-<?php admin_lang_tabs_script(); ?>
+<?php admin_lang_script(); ?>
 </body>
 </html>

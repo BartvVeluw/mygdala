@@ -35,10 +35,11 @@ final class AdminAccessControlTest extends TestCase
      * permission, because everything they touch belongs to the person making
      * the request rather than to the site.
      *
-     * The bar for this list is high and there is one thing on it. Anything
-     * that reads or writes site content, settings or another account's data
-     * needs a permission, and the rest of this class still checks that these
-     * two guard login, method and CSRF like everything else.
+     * The bar for this list is high and there are two things on it, both of
+     * them one person's own preference about how the CMS looks to them.
+     * Anything that reads or writes site content, settings or another
+     * account's data needs a permission, and the rest of this class still
+     * checks that these guard login, method and CSRF like everything else.
      */
     private const PERSONAL_PREFERENCE_SCRIPTS = [
         // A person's own CMS interface language (MULTILINGUAL.md). Gating it
@@ -48,6 +49,13 @@ final class AdminAccessControlTest extends TestCase
         // that is signed in.
         'account.php',
         'update-account-preferences.php',
+        // Which language version of the content this person is editing
+        // (MULTILINGUAL.md). Same argument: it writes one column on the row
+        // of the account making the request, there is no user id in the
+        // form, and gating it would mean somebody who may edit a block
+        // cannot choose which language of that block they are looking at.
+        // It changes nothing a visitor sees and nothing a colleague sees.
+        'update-content-language.php',
     ];
 
     /** Shared includes rendered by other pages, never requested directly. */

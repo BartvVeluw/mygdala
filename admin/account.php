@@ -9,6 +9,7 @@ use App\Service\AdminAuth;
 use App\Service\Csrf;
 use App\Service\Language\AdminLocale;
 use App\Service\Language\AdminTranslator;
+use App\Service\Language\ContentEditingLanguage;
 use App\Service\Language\ContentLanguages;
 use App\Service\Language\LanguageRegistry;
 
@@ -19,10 +20,20 @@ AdminAuth::requireLogin();
  * in, because everything here is about them: a CMS user who may only edit one
  * block still gets to read the panel in their own language.
  *
- * V1 holds exactly one preference — the CMS interface language. The screen
- * exists rather than a dropdown in the sidebar because this is where the next
- * personal preference will go, and because the distinction it has to explain
- * (this is not the website's language) needs a sentence, not a tooltip.
+ * TWO preferences, and keeping them apart is the point of this screen:
+ *
+ *   CMS language              which language this admin panel is shown in
+ *   Editing content           which language version of the website content
+ *                             the editor forms show
+ *
+ * They are independent in both directions. A Dutch CMS editing English
+ * content, and an English CMS editing Dutch content, are both normal and both
+ * tested (MULTILINGUAL.md). Neither of them changes anything a visitor sees.
+ *
+ * The editing language is also in the CMS shell, because it is changed often
+ * and mid-task. It is repeated here because this is the screen that has room
+ * to say what it is, and a switch with no label next to it is a switch people
+ * guess about.
  *
  * NOT a settings screen. Nothing here touches the website, and the copy says
  * so twice: once in the intro, once by pointing at Site settings for the
@@ -33,6 +44,7 @@ $user = AdminAuth::user();
 $isBreakGlass = ($user['is_break_glass'] ?? false) === true;
 
 $currentLocale = AdminLocale::current();
+$currentEditingLanguage = ContentEditingLanguage::current();
 $saved = isset($_GET['saved']);
 
 $csrfToken = Csrf::token();
@@ -82,6 +94,40 @@ $t = static fn (string $key, array $r = []): string => AdminTranslator::trans($k
               <?php foreach (AdminLocale::choices() as $code => $definition): ?>
                 <option value="<?= $h($code) ?>"<?= $code === $currentLocale ? ' selected' : '' ?>>
                   <?= $h($definition->nativeLabel) ?>
+                </option>
+              <?php endforeach; ?>
+            </select>
+          </label>
+        </div>
+
+        <button type="submit" class="admin-btn"><?= $h($t('common.save')) ?></button>
+      </form>
+    <?php endif; ?>
+  </section>
+
+  <section class="admin-card">
+    <h2><?= $h($t('account.content_language')) ?></h2>
+    <p class="admin-text-muted"><?= $h($t('account.content_language_help')) ?></p>
+
+    <?php if ($isBreakGlass): ?>
+      <p class="admin-text-muted">
+        <?= $h(LanguageRegistry::label($currentEditingLanguage, $currentLocale)) ?>
+      </p>
+    <?php else: ?>
+      <?php /* Posts to the same endpoint as the shell switch, so there is one
+               place that writes this preference and one rule that normalises
+               it. Coming back here rather than to the dashboard, because that
+               is the screen the editor is on. */ ?>
+      <form method="post" action="/api/admin/update-content-language.php" class="admin-product-form">
+        <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
+        <input type="hidden" name="return_to" value="/admin/account.php?saved=1">
+
+        <div class="admin-form-row">
+          <label for="field-content-editing-language"><?= $h($t('account.content_language')) ?>
+            <select name="content_editing_language" id="field-content-editing-language">
+              <?php foreach (ContentEditingLanguage::choices() as $definition): ?>
+                <option value="<?= $h($definition->code) ?>"<?= $definition->code === $currentEditingLanguage ? ' selected' : '' ?>>
+                  <?= $h($definition->labelIn($currentLocale)) ?>
                 </option>
               <?php endforeach; ?>
             </select>

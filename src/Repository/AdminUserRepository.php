@@ -192,6 +192,22 @@ class AdminUserRepository extends Repository
         $stmt->execute(['id' => $id, 'language' => $language]);
     }
 
+    /**
+     * Which language version of the website content this account is editing.
+     *
+     * A sibling of updateInterfaceLanguage() and deliberately a SEPARATE
+     * statement: the two preferences are independent (MULTILINGUAL.md), and
+     * one write that set both would be a place where they could start moving
+     * together by accident.
+     */
+    public function updateContentEditingLanguage(int $id, string $language): void
+    {
+        $stmt = $this->db->prepare(
+            'UPDATE admin_users SET content_editing_language = :language, updated_at = NOW() WHERE id = :id'
+        );
+        $stmt->execute(['id' => $id, 'language' => $language]);
+    }
+
     public function touchLastLogin(int $id): void
     {
         $stmt = $this->db->prepare('UPDATE admin_users SET last_login_at = NOW() WHERE id = :id');
@@ -299,6 +315,12 @@ class AdminUserRepository extends Repository
         // tell "not chosen" apart from "chose Dutch".
         $row['interface_language'] = isset($row['interface_language']) && trim((string) $row['interface_language']) !== ''
             ? (string) $row['interface_language']
+            : null;
+        // Same shape, same reason: NULL is "has not chosen a content editing
+        // language", which App\Service\Language\ContentEditingLanguage
+        // answers with the site's default website language.
+        $row['content_editing_language'] = isset($row['content_editing_language']) && trim((string) $row['content_editing_language']) !== ''
+            ? (string) $row['content_editing_language']
             : null;
         $row['granted_permissions'] = $permissions;
         $row['permissions'] = AdminPermissions::expand($permissions);

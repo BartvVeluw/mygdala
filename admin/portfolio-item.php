@@ -161,7 +161,7 @@ $cmsImageSrc = static fn (array $row): string => '/' . ltrim((string) ($row['thu
           </label>
         </div>
 
-        <?php admin_lang_tabs(); ?>
+        <?php admin_lang_bar(); ?>
         <div class="admin-form-row admin-form-row--split">
           <?php admin_lang_pane_start('nl'); ?>
           <label><?= admin_te('common.alt_text') ?>*
@@ -215,7 +215,7 @@ $cmsImageSrc = static fn (array $row): string => '/' . ltrim((string) ($row['thu
 
       <section class="admin-card">
         <h2><?= admin_te('portfolio.basisgegevens') ?></h2>
-        <?php admin_lang_tabs(); ?>
+        <?php admin_lang_bar(); ?>
         <div class="admin-form-row admin-form-row--split">
           <?php admin_lang_pane_start('nl'); ?>
           <label><?= admin_te('common.title') ?>*
@@ -348,8 +348,8 @@ $cmsImageSrc = static fn (array $row): string => '/' . ltrim((string) ($row['thu
                 <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
                 <input type="hidden" name="image_id" value="<?= $imageId ?>">
                 <input type="hidden" name="portfolio_item_id" value="<?= (int) $item['id'] ?>">
-                <?php /* No strip of its own: this little form follows the one
-                         above it (admin/assets/admin-language-tabs.js). */ ?>
+                <?php /* No indicator of its own: every pane on every screen shows
+                         the CMS-wide editing language. */ ?>
                 <?php admin_lang_pane_start('nl'); ?>
                   <input type="text" name="alt_nl" maxlength="255" placeholder="Alt-tekst" value="<?= $h((string) ($image['alt_nl'] ?? '')) ?>">
                 <?php admin_lang_pane_end(); ?>
@@ -389,6 +389,6 @@ $cmsImageSrc = static fn (array $row): string => '/' . ltrim((string) ($row['thu
     </section>
   <?php endif; ?>
 </main>
-<?php admin_lang_tabs_script(); ?>
+<?php admin_lang_script(); ?>
 </body>
 </html>

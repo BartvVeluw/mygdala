@@ -113,7 +113,7 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
           <?= admin_te('shop.gerelateerde_producten_tonen_uitgevinkt') ?>
         </label>
 
-        <?php admin_lang_tabs(); ?>
+        <?php admin_lang_bar(); ?>
         <div class="admin-form-row admin-form-row--split">
           <?php admin_lang_pane_start('nl'); ?>
           <label><?= admin_te('common.title') ?>*
@@ -208,6 +208,6 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
     </section>
   </form>
 </main>
-<?php admin_lang_tabs_script(); ?>
+<?php admin_lang_script(); ?>
 </body>
 </html>

@@ -180,19 +180,21 @@ bewezen wilt zien in plaats van overgeslagen.
 
 **Wijziging aan meertaligheid**
 
-De talen van een site, de taal van het CMS, de taaltabbladen in een editor of
-automatisch vertalen (`MULTILINGUAL.md`):
+De talen van een site, de taal van het CMS, de bewerktaal, de taalvelden in
+een editor of automatisch vertalen (`MULTILINGUAL.md`):
 
 ```
 --testsuite fast        LanguageRegistryTest (het gesloten register en de
                         sitetalen), LocalizedValueTest (de terugvalregel, in
                         beide richtingen), AdminLocaleTest (de CMS-taal, en
-                        dat hij de website niet raakt), TranslationProviderTest
+                        dat hij de website niet raakt), ThreeLanguageStatesTest
+                        (de matrix CMS-taal × bewerktaal, en dat geen van
+                        beide de bezoeker raakt), TranslationProviderTest
                         (DeepL zonder netwerk, en de vier vertaalregels) en
                         MultilingualBoundaryTest (de grenzen) — database,
                         webserver noch netwerk nodig
---testsuite cms         dezelfde vijf, plus de scherm- en instellingenkant
---testsuite blocks      als je een editor op de taaltabbladen aansloot
+--testsuite cms         dezelfde zes, plus de scherm- en instellingenkant
+--testsuite blocks      als je een editor op de taalvelden aansloot
 ```
 
 De suite praat **nooit** met een echte vertaal-API. `FakeTranslationProvider`

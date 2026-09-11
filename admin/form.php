@@ -138,7 +138,7 @@ $replyToCandidates = $definition === null ? [] : $definition->replyToCandidates(
         <?= admin_te('forms.actief_uitgevinkt_formulier_nergens') ?>
       </label>
 
-      <?php admin_lang_tabs(); ?>
+      <?php admin_lang_bar(); ?>
       <div class="admin-form-row admin-form-row--split">
         <?php admin_lang_pane_start('nl'); ?>
         <label><?= admin_te('forms.tekst_verstuurknop') ?>
@@ -304,6 +304,6 @@ $replyToCandidates = $definition === null ? [] : $definition->replyToCandidates(
     <?php endif; ?>
   </section>
 </main>
-<?php admin_lang_tabs_script(); ?>
+<?php admin_lang_script(); ?>
 </body>
 </html>

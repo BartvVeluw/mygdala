@@ -136,7 +136,7 @@ final class ShopSeoAdminTest extends TestCase
             );
             $this->assertStringContainsString("admin_lang_pane_start('nl')", $source);
             $this->assertStringContainsString("admin_lang_pane_start('en')", $source);
-            $this->assertStringContainsString('admin_lang_tabs()', $source);
+            $this->assertStringContainsString('admin_lang_bar(', $source);
         }
     }
 

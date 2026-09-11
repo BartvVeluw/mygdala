@@ -107,6 +107,6 @@ require __DIR__ . '/_personalization_builder.php';
 
   <?php renderPersonalizationBuilder($product, $personalization, $csrfToken, $personalizationFlash); ?>
 </main>
-<?php admin_lang_tabs_script(); ?>
+<?php admin_lang_script(); ?>
 </body>
 </html>

@@ -58,23 +58,37 @@ final class TranslationService
     }
 
     /**
-     * Can this site machine-translate from its primary language into $target?
+     * Can this site machine-translate into $target, from $source?
      *
-     * Three separate conditions, and all of them have to hold: a provider
-     * exists, the site actually publishes that language, and the provider can
-     * write it.
+     * $source defaults to the site's default website language, which is the
+     * V1 case and by far the common one: Dutch is written first and English
+     * is filled in from it. The parameter exists because the editor now
+     * chooses which language version they are working on, and somebody
+     * writing the Dutch version of a page that only exists in English should
+     * be able to ask for the same help in the other direction.
+     *
+     * Four separate conditions, and all of them have to hold: a provider
+     * exists, both languages are ones this site publishes, they are not the
+     * same language, and the provider can actually write that pair.
      */
-    public function canTranslateInto(string $target): bool
+    public function canTranslateInto(string $target, ?string $source = null): bool
     {
-        if (!ContentLanguages::isEnabled($target) || $target === ContentLanguages::primary()) {
+        $from = $source ?? ContentLanguages::primary();
+
+        if (!ContentLanguages::isEnabled($target) || !ContentLanguages::isEnabled($from)) {
             return false;
         }
 
-        return $this->provider()->supports(ContentLanguages::primary(), $target);
+        if ($from === $target) {
+            return false;
+        }
+
+        return $this->provider()->supports($from, $target);
     }
 
     /**
-     * Translate a set of fields of one content row into one language.
+     * Translate a set of fields of one content row into one language,
+     * from $sourceLanguage (default: the site's default website language).
      *
      * Returns only the fields that were actually translated. A field that was
      * empty, that a person had already written, or that the provider refused
@@ -89,10 +103,11 @@ final class TranslationService
         string $entityKey,
         string $target,
         array $requests,
+        ?string $sourceLanguage = null,
     ): TranslationResult {
-        $source = ContentLanguages::primary();
+        $source = $sourceLanguage ?? ContentLanguages::primary();
 
-        if (!$this->canTranslateInto($target)) {
+        if (!$this->canTranslateInto($target, $source)) {
             throw new TranslationException('This site cannot machine-translate into that language.');
         }
 

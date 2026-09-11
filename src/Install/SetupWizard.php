@@ -207,17 +207,19 @@ final class SetupWizard
      * Step 1: which language this WEBSITE is written in (Multilingual V1, see
      * MULTILINGUAL.md).
      *
-     * ONE QUESTION, not two. A brand-new site is asked for its primary
-     * language and nothing else; a second language starts OFF, which is
-     * exactly what removes the duplicate English fields that made the first
-     * real editing test confusing. Somebody who does want a bilingual site
-     * turns it on afterwards under Settings, where turning it off again is
-     * also possible — a wizard is for the answer you have on day one.
+     * ONE QUESTION, and now genuinely only one thing to ask: which language a
+     * visitor gets before they choose. The site publishes Dutch and English
+     * either way, so there is no "do you want a second language" to get wrong
+     * on day one, and no setting that could later hide the public language
+     * switch or an editor's English fields.
      *
-     * NOT the CMS interface language. That is a preference of one person
-     * (App\Service\Language\AdminLocale) and it is chosen under My account.
-     * Putting the two on one screen is precisely the confusion this feature
-     * exists to end, so the wizard labels this one "Taal van de website".
+     * NOT the CMS interface language, and not the language an administrator
+     * edits content in. Those are two preferences of one PERSON
+     * (App\Service\Language\AdminLocale and
+     * App\Service\Language\ContentEditingLanguage) and they are chosen under
+     * My account. Putting any of the three on one screen is precisely the
+     * confusion this feature exists to end, so the wizard labels this one
+     * "Taal van de website".
      *
      * There is no error case: App\Service\Language\ContentLanguages::
      * normalise() turns anything unusable into the project default, and it is
@@ -232,7 +234,6 @@ final class SetupWizard
     {
         return ContentLanguages::normalise(
             trim((string) ($input['primary_content_language'] ?? '')),
-            [],
         );
     }
 

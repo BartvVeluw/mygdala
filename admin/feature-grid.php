@@ -137,7 +137,7 @@ function featureGridValue(array $values, string $key): string
       <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
       <input type="hidden" name="section" value="<?= htmlspecialchars($sectionKey, ENT_QUOTES, 'UTF-8') ?>">
 
-      <?php admin_lang_tabs(); ?>
+      <?php admin_lang_bar(); ?>
       <div class="admin-form-row admin-form-row--split">
         <?php admin_lang_pane_start('nl'); ?>
         <label><?= admin_te('block_features.eyebrow') ?>*
@@ -231,7 +231,7 @@ function featureGridValue(array $values, string $key): string
             </label>
           </div>
 
-          <?php admin_lang_tabs(); ?>
+          <?php admin_lang_bar(); ?>
           <div class="admin-form-row admin-form-row--split">
             <?php admin_lang_pane_start('nl'); ?>
             <label><?= admin_te('common.title') ?>*
@@ -305,7 +305,7 @@ function featureGridValue(array $values, string $key): string
         </label>
       </div>
 
-      <?php admin_lang_tabs(); ?>
+      <?php admin_lang_bar(); ?>
       <div class="admin-form-row admin-form-row--split">
         <?php admin_lang_pane_start('nl'); ?>
         <label><?= admin_te('common.title') ?>*
@@ -338,6 +338,6 @@ function featureGridValue(array $values, string $key): string
 </main>
 <?php save_bar(); ?>
 <?php save_bar_script(); ?>
-<?php admin_lang_tabs_script(); ?>
+<?php admin_lang_script(); ?>
 </body>
 </html>

@@ -101,7 +101,7 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
 
     <section class="admin-card">
       <h2><?= admin_te('block_richtext.inhoud') ?></h2>
-      <?php admin_lang_tabs(); ?>
+      <?php admin_lang_bar(); ?>
       <?php admin_lang_pane_start('nl'); ?>
         <?php renderRichTextField('content_html', 'Tekst', $contentHtml, 'full', 'admin-richtext-editor--lg'); ?>
       <?php admin_lang_pane_end(); ?>
@@ -121,6 +121,6 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
 </main>
 <?php save_bar(); ?>
 <?php save_bar_script(); ?>
-<?php admin_lang_tabs_script(); ?>
+<?php admin_lang_script(); ?>
 </body>
 </html>

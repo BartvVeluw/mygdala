@@ -3890,64 +3890,104 @@ body.admin-block-picker-open{ overflow: hidden; }
 }
 
 /* =========================================================================
-   Language tabs on a content editor (Multilingual V1, MULTILINGUAL.md)
+   The CMS-wide "which language am I editing" switch, and the passive
+   indicator every editor screen prints under it (MULTILINGUAL.md)
 
-   Deliberately quieter than .admin-tabs: those split a whole screen into
-   sections, these switch which language a handful of fields are in. Same
-   shapes, one step smaller, so the two never compete for attention on the
-   page editor, which carries both.
-
-   On a single-language site none of this renders at all — admin/_language_
-   fields.php prints no strip — which is the entire point of the feature.
+   There used to be a tab strip per form here. There is one switch now, in
+   the shell, and screens only ever SAY which language they are showing. Two
+   controls that could disagree about the same state is the thing this
+   replaced, so nothing below is clickable except the switch itself.
    ========================================================================= */
-.admin-lang-tabs{
+
+/* --- the switch, in the sidebar, directly under the site name ------------
+   High in the shell on purpose: it changes what every field on every editor
+   screen contains, so it belongs with the site's identity rather than down
+   with a person's own preferences. */
+.admin-sidebar__contentlang{
+  padding: 0 var(--admin-sp-5) var(--admin-sp-4);
+  margin-bottom: var(--admin-sp-2);
+  border-bottom: 1px solid var(--admin-border);
+}
+
+.admin-sidebar__contentlang-label{
+  margin: 0 0 var(--admin-sp-2);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--admin-text-muted);
+}
+
+.admin-sidebar__contentlang-options{
   display: inline-flex;
-  flex-wrap: wrap;
   gap: 2px;
   padding: 3px;
   background: var(--admin-surface);
   border: 1px solid var(--admin-border);
   border-radius: var(--admin-radius-md);
-  margin: 0 0 var(--admin-sp-4);
   max-width: 100%;
 }
 
-.admin-lang-tab{
+.admin-sidebar__contentlang-option{
   appearance: none;
   -webkit-appearance: none;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-  padding: 0.4rem 0.9rem;
+  min-width: 2.6rem;
+  padding: 0.3rem 0.7rem;
   border: 0;
   border-radius: var(--admin-radius-sm);
   background: transparent;
   color: var(--admin-text-muted);
   font: inherit;
-  font-size: 0.82rem;
-  font-weight: 500;
-  white-space: nowrap;
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
   cursor: pointer;
   transition: background var(--admin-transition), color var(--admin-transition);
 }
 
-.admin-lang-tab:hover{ color: var(--admin-text); background: var(--admin-hover-tint-strong); }
-.admin-lang-tab:focus-visible{ outline: 2px solid var(--admin-accent); outline-offset: 2px; }
+.admin-sidebar__contentlang-option:hover{
+  color: var(--admin-text);
+  background: var(--admin-hover-tint-strong);
+}
 
-/* Never colour alone, same rule as everywhere else in this panel: the open
-   language is the filled one, the bold one, and the one aria-selected. */
-.admin-lang-tab.is-active{
+.admin-sidebar__contentlang-option:focus-visible{
+  outline: 2px solid var(--admin-accent);
+  outline-offset: 2px;
+}
+
+/* Never colour alone, same rule as everywhere else in this panel: the active
+   language is the filled one, the bold one, and the one aria-pressed. */
+.admin-sidebar__contentlang-option.is-active{
   color: var(--admin-on-accent);
   background: var(--admin-accent);
+}
+
+/* --- the passive indicator on an editor screen --------------------------
+   Quiet, and deliberately not shaped like a control: nothing here is
+   clickable, because the one place to change this is the switch above. */
+.admin-lang-bar{
+  margin: 0 0 var(--admin-sp-4);
+}
+
+.admin-lang-bar__state{
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--admin-text-muted);
+}
+
+.admin-lang-bar__label{ font-weight: 500; }
+
+.admin-lang-bar__value{
+  color: var(--admin-text);
   font-weight: 600;
 }
 
-/* "This language is missing something the primary one has." Informational,
-   and it never carries meaning on its own — the tab is still labelled. */
-.admin-lang-tab__badge{
-  font-size: 1.1em;
-  line-height: 1;
-  opacity: 0.75;
+/* What an empty field means while editing a translation: not translated yet,
+   and visitors fall back to the default language. Said once per screen. */
+.admin-lang-bar__hint{
+  margin: var(--admin-sp-1) 0 0;
+  font-size: 0.8rem;
+  color: var(--admin-text-muted);
 }
 
 /* A pane is a plain block: the fields inside keep whatever layout the editor
@@ -3963,8 +4003,8 @@ body.admin-block-picker-open{ overflow: hidden; }
 .admin-lang-pane > .admin-richtext-field{ width: 100%; }
 
 @media (max-width: 640px){
-  .admin-lang-tabs{ width: 100%; }
-  .admin-lang-tab{ flex: 1 0 auto; justify-content: center; }
+  .admin-sidebar__contentlang-options{ width: 100%; }
+  .admin-sidebar__contentlang-option{ flex: 1 0 auto; }
 }
 
 /* The link to a person's own preferences (admin/account.php), under their

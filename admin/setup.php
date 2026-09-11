@@ -227,18 +227,15 @@ $setupPrimaryLanguage = \App\Service\Language\AdminLocale::normalise(
         <p class="admin-text-muted"><?= admin_te('setup.staat_browsertitel_koptekst_logo') ?></p>
       </div>
 
-      <?php /* The WEBSITE's language, and one question only. A second
-               language starts off; an owner who wants one turns it on later
-               under Instellingen. That default is what gives a new site a
-               single-language editing experience with no duplicate English
-               fields, which is the whole point of Multilingual V1
-               (MULTILINGUAL.md).
+      <?php /* The WEBSITE's default language, and one question only. This
+               product publishes Dutch and English either way; all this
+               chooses is which of the two a visitor gets before they pick,
+               and which one a missing translation falls back to.
 
-               Deliberately worded "Taal van de website" and not just "Taal":
-               the language the CMS itself is shown in is a different setting,
-               it belongs to a person rather than to the site, and it lives on
-               admin/account.php. Confusing the two is exactly what this
-               feature exists to stop. */ ?>
+               Not the language the CMS itself is shown in, and not the
+               language an administrator edits content in - both of those are
+               preferences of one person, chosen under My account
+               (MULTILINGUAL.md). */ ?>
       <div class="admin-form-row">
         <label for="setup-primary-language"><?= admin_te('setup.taal_website') ?>
           <select id="setup-primary-language" name="primary_content_language">

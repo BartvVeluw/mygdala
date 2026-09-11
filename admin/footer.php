@@ -92,7 +92,7 @@ function footerLinkSummary(array $link): string
           <?= admin_te('footer.toon_kvk_nummer') ?>
         </label>
       </div>
-      <?php admin_lang_tabs(); ?>
+      <?php admin_lang_bar(); ?>
       <div class="admin-form-row admin-form-row--split">
         <?php admin_lang_pane_start('nl'); ?>
         <label><?= admin_te('common.description') ?>
@@ -199,6 +199,6 @@ function footerLinkSummary(array $link): string
   </section>
 </main>
 <script src="<?= \App\Service\AssetVersion::url('/admin/assets/admin.js') ?>"></script>
-<?php admin_lang_tabs_script(); ?>
+<?php admin_lang_script(); ?>
 </body>
 </html>

@@ -140,7 +140,7 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
       <p class="admin-text-muted"><?= admin_t('page.seo_title_fallback_new', ['site' => $h(\App\Service\SiteSettings::get('site_name'))]) ?></p>
       <?php /* Same language panes as the SEO block in admin/page.php —
                see the note there. */ ?>
-      <?php admin_lang_tabs(); ?>
+      <?php admin_lang_bar(); ?>
       <div class="admin-product-form admin-product-form--wide">
         <?php admin_lang_pane_start('nl'); ?>
           <div class="admin-form-row">
@@ -175,6 +175,6 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
     </section>
   </form>
 </main>
-<?php admin_lang_tabs_script(); ?>
+<?php admin_lang_script(); ?>
 </body>
 </html>

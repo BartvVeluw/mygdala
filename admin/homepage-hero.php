@@ -126,7 +126,7 @@ function homepageHeroValue(array $values, string $key): string
 
       <h2><?= admin_te('block_hero.algemene_inhoud') ?></h2>
 
-      <?php admin_lang_tabs(); ?>
+      <?php admin_lang_bar(); ?>
       <div class="admin-form-row admin-form-row--split">
         <?php admin_lang_pane_start('nl'); ?>
         <label><?= admin_te('block_hero.eyebrow') ?>*
@@ -336,7 +336,7 @@ function homepageHeroValue(array $values, string $key): string
         </label>
       </div>
 
-      <?php admin_lang_tabs(); ?>
+      <?php admin_lang_bar(); ?>
       <div class="admin-form-row admin-form-row--split">
         <?php admin_lang_pane_start('nl'); ?>
         <label><?= admin_te('common.alt_text') ?>*
@@ -398,7 +398,7 @@ function homepageHeroValue(array $values, string $key): string
           <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
           <input type="hidden" name="item_id" value="<?= $statId ?>">
 
-          <?php admin_lang_tabs(); ?>
+          <?php admin_lang_bar(); ?>
           <div class="admin-form-row admin-form-row--split">
             <?php admin_lang_pane_start('nl'); ?>
             <label><?= admin_te('block_hero.primaire_tekst') ?>*
@@ -463,7 +463,7 @@ function homepageHeroValue(array $values, string $key): string
         <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
         <input type="hidden" name="hero_id" value="<?= $heroId ?>">
 
-        <?php admin_lang_tabs(); ?>
+        <?php admin_lang_bar(); ?>
         <div class="admin-form-row admin-form-row--split">
           <?php admin_lang_pane_start('nl'); ?>
           <label><?= admin_te('block_hero.primaire_tekst_3') ?>*
@@ -499,6 +499,6 @@ function homepageHeroValue(array $values, string $key): string
 </main>
 <?php save_bar(); ?>
 <?php save_bar_script(); ?>
-<?php admin_lang_tabs_script(); ?>
+<?php admin_lang_script(); ?>
 </body>
 </html>

@@ -257,7 +257,20 @@ final class TranslationProviderTest extends TestCase
         self::assertTrue($provider->calls[1]['html']);
     }
 
-    public function testTranslatingIntoALanguageTheSiteDoesNotPublishIsRefused(): void
+    public function testTranslatingIntoALanguageThisBuildDoesNotKnowIsRefused(): void
+    {
+        // A site cannot machine-translate into a language it has nowhere to
+        // store. The old single-language settings row is NOT such a case any
+        // more: this product publishes Dutch and English regardless of it.
+        $service = new TranslationService(new FakeTranslationProvider());
+
+        $this->expectException(TranslationException::class);
+        $service->translateEntity('cta-band', '', 'de', [
+            new TranslationRequest('title', 'Hallo', ''),
+        ]);
+    }
+
+    public function testTranslatingIntoEnglishWorksWithTheOldSingleLanguageRow(): void
     {
         SiteSettings::overrideForTests([
             'primary_content_language' => 'nl',
@@ -266,20 +279,38 @@ final class TranslationProviderTest extends TestCase
 
         $service = new TranslationService(new FakeTranslationProvider());
 
-        $this->expectException(TranslationException::class);
-        $service->translateEntity('cta-band', '', 'en', [
+        $result = $service->translateEntity('cta-band', '', 'en', [
             new TranslationRequest('title', 'Hallo', ''),
         ]);
+
+        self::assertArrayHasKey('title', $result->translations);
     }
 
-    public function testTranslatingIntoThePrimaryLanguageIsRefused(): void
+    public function testTranslatingFromAndIntoTheSameLanguageIsRefused(): void
     {
         $service = new TranslationService(new FakeTranslationProvider());
 
         $this->expectException(TranslationException::class);
         $service->translateEntity('cta-band', '', 'nl', [
             new TranslationRequest('title', 'Hallo', ''),
-        ]);
+        ], 'nl');
+    }
+
+    public function testAnEditorWritingDutchMayTranslateFromEnglish(): void
+    {
+        // The reverse direction. Dutch -> English is the V1 case, but an
+        // administrator editing the Dutch version of something that only
+        // exists in English should get the same help.
+        $provider = new FakeTranslationProvider();
+        $service = new TranslationService($provider);
+
+        $result = $service->translateEntity('cta-band', '', 'nl', [
+            new TranslationRequest('title', 'Hello', ''),
+        ], 'en');
+
+        self::assertArrayHasKey('title', $result->translations);
+        self::assertSame('en', $provider->calls[0]['source']);
+        self::assertSame('nl', $provider->calls[0]['target']);
     }
 
     // ------------------------------------------------------ the four states

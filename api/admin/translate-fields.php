@@ -3,9 +3,15 @@
 /**
  * POST /api/admin/translate-fields.php
  *
- * Machine-translate the fields of ONE editor form from the site's primary
- * language into one of its other languages, and hand the result back to the
- * screen. Answers JSON; the editor's own JavaScript fills the fields in.
+ * Machine-translate the fields of ONE editor form from one of this site's
+ * languages into another, and hand the result back to the screen. Answers
+ * JSON; the editor's own JavaScript fills the fields in.
+ *
+ * The target is the language version the administrator is currently editing
+ * and the source is the other one, so the button reads "Translate from
+ * Dutch" while somebody is looking at empty English fields. Omitting
+ * `source_language` means the site's default website language, which is what
+ * every caller meant before the editor could choose.
  *
  * IT SAVES NOTHING. Not one row is written here. The editor looks at the
  * translation, changes what they want, and then presses their form's normal
@@ -65,11 +71,21 @@ if (!Csrf::validate($_POST['csrf_token'] ?? null)) {
 }
 
 $target = trim((string) ($_POST['target_language'] ?? ''));
+// Absent means "the site's default website language", which is what every
+// caller wanted before the editor could choose which version it was editing.
+$source = trim((string) ($_POST['source_language'] ?? ''));
+if ($source === '') {
+    $source = ContentLanguages::primary();
+}
 $entityType = substr(trim((string) ($_POST['entity_type'] ?? '')), 0, 100);
 $entityKey = substr(trim((string) ($_POST['entity_key'] ?? '')), 0, 191);
 
-if (!ContentLanguages::isEnabled($target) || $target === ContentLanguages::primary()) {
+if (!ContentLanguages::isEnabled($target) || !ContentLanguages::isEnabled($source)) {
     $fail(422, 'Deze site publiceert die taal niet.');
+}
+
+if ($source === $target) {
+    $fail(422, 'Bron- en doeltaal zijn dezelfde taal.');
 }
 
 $submitted = $_POST['fields'] ?? null;
@@ -115,7 +131,7 @@ if (!$service->isAvailable()) {
 }
 
 try {
-    $result = $service->translateEntity($entityType, $entityKey, $target, $requests);
+    $result = $service->translateEntity($entityType, $entityKey, $target, $requests, $source);
 } catch (TranslationException $e) {
     // The message is written for an editor and carries no key, no endpoint
     // and no submitted text — see App\Service\Translation\DeepLProvider.

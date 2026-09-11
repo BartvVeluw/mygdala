@@ -34,11 +34,13 @@ adminpaneel is.
   gewoon aan, en dat is de standaard.
 - **Personalisatie**: de klant ontwerpt tekst/afbeeldingen op een product vóór
   het bestellen.
-- **Meertalig**: een site kiest zijn hóófdtaal (NL of EN) en optioneel één
-  tweede taal; de taal van het CMS zelf is een aparte keuze, per beheerder.
-  Een eentalige site toont nergens een tweede veld. De frontend wisselt in de
-  browser via `data-nl`/`data-en`-attributen; een lege vertaling betekent
-  "gelijk aan de hoofdtaal" (`MULTILINGUAL.md`).
+- **Meertalig**: de website is NL + EN, altijd allebei, en een bezoeker heeft
+  overal een `NL | EN`-wissel. Daarnaast twee voorkeuren per beheerder, die
+  niets met elkaar of met de bezoeker te maken hebben: in welke taal het CMS
+  aan hem wordt getóónd, en welke taalversie van de inhoud hij bewérkt. De
+  frontend wisselt in de browser via `data-nl`/`data-en`-attributen; een lege
+  vertaling betekent voor de bezoeker "gelijk aan de standaardtaal" en voor de
+  redacteur een leeg veld (`MULTILINGUAL.md`).
 - **Hosting is de belangrijkste beperking**: Vimexx gedeelde hosting, PHP +
   MySQL, geen Node.js. De projectroot is de siteroot, dus alles wat niet
   publiek mag zijn staat buiten de webroot of wordt door `.htaccess` geblokt.
@@ -59,7 +61,7 @@ adminpaneel is.
 | `src/Module/` | Het moduleregister en de first-party modules (`ShopModule`, `PersonalizationModule`, `BlogModule`) |
 | `src/Service/` | Applicatielogica; `*Content`-klassen lezen blokinhoud |
 | `src/Service/Blocks/` | Eén blokdefinitie per bloktype, plus `BlockDefinitions` — dé registratielijst. `BlockCategories` en `BlockPreview` zijn de gesloten lijstjes waarmee een blok zichzelf in de blokkenkiezer presenteert |
-| `src/Service/Language/` | Meertaligheid: het gesloten talenregister, de talen van de website, de CMS-taal per beheerder, de terugvalregel en de CMS-tekstcatalogi (`MULTILINGUAL.md`) |
+| `src/Service/Language/` | Meertaligheid: het gesloten talenregister, de talen van de website, de CMS-taal en de bewerktaal per beheerder, de terugvalregel en de CMS-tekstcatalogi (`MULTILINGUAL.md`) |
 | `src/Service/Translation/` | Automatisch vertalen: het providercontract, DeepL, de dienst die editors aanroepen en de vertaalstatus (`MULTILINGUAL.md`) |
 | `src/Service/Theme/` | De vormgeving van de website: instellingen, kleurenrekenwerk, lettertypecombinaties en het CSS-overrideblok. Hoe het CMS zelf eruitziet is `Service\AdminTheme` |
 | `src/Service/Redirects/` | De Redirect Manager: padnormalisatie, bestemmingen, opslaanregels, de opzoeking bij een verzoek |
@@ -106,7 +108,7 @@ welke Core, staat in `MODULES.md`; dat document gaat over de grenzen zelf.
 | **Paginabouwer (redacteurs-UX)** | Hoe een redacteur een blok kiest, wat het CMS over een blok vertelt, of er nog iets openstaat, en hoe een lang bewerkscherm bevaarbaar blijft | `BlockDefinition::description()/category()/icon()/preview()`, `BlockCategories`, `BlockPreview`, `admin/_block_picker.php`, `admin/_block_visual.php`, `admin/_save_bar.php`, `admin/_admin_tabs.php`, `admin/_admin_collapse.php`, `admin/content-blocks.php` — zie `PAGE-EDITOR.md` |
 | **Auth/rechten** | Adminlogin, sessie, permissies, CSRF | `AdminAuth`, `AdminPermissions`, `AdminUserService`, `Csrf`, `admin/login.php`, `admin/users.php` |
 | **Instellingen/navigatie** | Site-instellingen, menu, footer, de header-knop, de slotregel, social profielen, linkresolutie | `SiteSettings`, `NavigationService`, `FooterService`, `HeaderCta`, `SocialProfiles`, `LinkResolver`, `RouteRegistry`, `admin/settings.php`, `admin/navigation.php`, `admin/footer.php`, `admin/header-footer.php` |
-| **Meertaligheid** | Welke talen de website publiceert, in welke taal een beheerder het CMS leest, de terugvalregel, de taaltabbladen in elke editor en automatisch vertalen | `Service\Language\*`, `Service\Translation\*`, `admin/_language_fields.php`, `admin/account.php` — zie `MULTILINGUAL.md` |
+| **Meertaligheid** | De drie onafhankelijke taalstaten — CMS-taal, bewerktaal, bezoekerstaal — de terugvalregel, de taalvelden in elke editor en automatisch vertalen | `Service\Language\*`, `Service\Translation\*`, `admin/_language_fields.php`, `admin/_header.php`, `admin/account.php` — zie `MULTILINGUAL.md` |
 | **Vormgeving/branding** | Kleuren, lettertypecombinatie, knopvorm; logo, tweede logo, favicon, deel-afbeelding | `Service\Theme\*`, `Branding`, `partials/head-branding.php`, `admin/theme.php` |
 | **Dashboard-thema** | Hoe het adminpaneel er voor de redactie uitziet: vier gesloten skins over één stylesheet en één set schermen | `Service\AdminTheme`, `AdminSettingRepository`, `admin/assets/admin.css`, de kaart *Dashboard uiterlijk* op `admin/settings.php` |
 | **Mediabibliotheek** | Herbruikbaar publiek sitebeeld: identiteit, alt-tekst, hergebruik, gebruiksoverzicht, veilig verwijderen | `Service\Media\*`, `MediaRepository`, `admin/media.php`, `admin/_media_picker.php` — zie `MEDIA.md` |
@@ -231,7 +233,7 @@ Bekend, ingepland, **niet** in deze stap op te lossen:
 | Blogberichten, categorieën, tags, de blogpagina of de feed | `BLOG.md` |
 | Domeingrenzen, "waar hoort dit thuis?" | `MODULES.md` |
 | Een module aan-/uitzetten of toevoegen | `MODULES.md` (+ `.env.example`) |
-| Talen van de site, de taal van het CMS, automatisch vertalen | `MULTILINGUAL.md` |
+| Talen van de site, de taal van het CMS, de bewerktaal, automatisch vertalen | `MULTILINGUAL.md` |
 | Kleuren, lettertypes, knopvorm, logo's | `THEMING.md` |
 | Hoe het CMS zelf eruitziet: dashboard-uiterlijk | `THEMING.md` |
 | Afbeeldingen uploaden, hergebruiken, alt-teksten, verwijderen | `MEDIA.md` |

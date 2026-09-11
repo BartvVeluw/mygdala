@@ -194,7 +194,7 @@ function renderPersonalizationBuilder(array $product, array $personalization, st
       </p>
     <?php endif; ?>
 
-    <?php admin_lang_tabs(); ?>
+    <?php admin_lang_bar(); ?>
     <div class="admin-pz-grid">
       <?php admin_lang_pane_start('nl'); ?>
         <label><?= admin_te('personalization.algemene_uitleg') ?>
@@ -295,7 +295,7 @@ function renderPersonalizationBuilder(array $product, array $personalization, st
           <input type="hidden" name="csrf_token" value="<?= $esc($csrfToken) ?>">
           <input type="hidden" name="view_id" value="<?= $viewId ?>">
 
-          <?php admin_lang_tabs(); ?>
+          <?php admin_lang_bar(); ?>
           <div class="admin-pz-grid">
             <?php admin_lang_pane_start('nl'); ?>
               <label><?= admin_te('personalization.naam_klant') ?>
@@ -399,9 +399,10 @@ function renderPersonalizationBuilder(array $product, array $personalization, st
     <form method="post" action="/api/admin/create-personalization-view.php" class="admin-pz-grid admin-pz-grid--create">
       <input type="hidden" name="csrf_token" value="<?= $esc($csrfToken) ?>">
       <input type="hidden" name="product_id" value="<?= $productId ?>">
-      <?php /* Its own strip: admin-language-tabs.js switches the panes of ONE
-               form, and this create form is a form of its own. */ ?>
-      <?php admin_lang_tabs(); ?>
+      <?php /* Its own call: the indicator prints once per screen, but the
+               translate button belongs to each form, and this create form is
+               a form of its own. */ ?>
+      <?php admin_lang_bar(); ?>
       <label><?= admin_te('personalization.sleutel') ?>*
         <input type="text" name="view_key" maxlength="32" required
                value="<?= $esc($viewCreateOld !== null ? (string) ($viewCreateOld['view_key'] ?? '') : '') ?>"
@@ -530,7 +531,7 @@ function renderPersonalizationZoneForm(
       <input type="hidden" name="csrf_token" value="<?= $esc($csrfToken) ?>">
       <input type="hidden" name="zone_id" value="<?= $zoneId ?>">
 
-      <?php admin_lang_tabs(); ?>
+      <?php admin_lang_bar(); ?>
       <div class="admin-pz-grid">
         <?php admin_lang_pane_start('nl'); ?>
           <label><?= admin_te('personalization.naam_klant_3') ?>
@@ -643,7 +644,7 @@ function renderPersonalizationZoneCreateForm(int $viewId, string $viewName, ?arr
 <form method="post" action="/api/admin/create-personalization-zone.php" class="admin-pz-grid admin-pz-grid--create">
   <input type="hidden" name="csrf_token" value="<?= $esc($csrfToken) ?>">
   <input type="hidden" name="view_id" value="<?= $viewId ?>">
-  <?php admin_lang_tabs(); ?>
+  <?php admin_lang_bar(); ?>
   <?php /* A new zone starts as a centred, text-and-image, optional zone. */ ?>
   <input type="hidden" name="allow_text" value="1">
   <input type="hidden" name="allow_image" value="1">

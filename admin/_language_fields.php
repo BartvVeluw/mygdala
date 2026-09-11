@@ -3,49 +3,57 @@
 declare(strict_types=1);
 
 /**
- * The one language-tabs pattern every content editor in this CMS uses.
+ * The one localized-fields pattern every content editor in this CMS uses.
  *
- * THE PROBLEM IT SOLVES. Every editor screen used to print a Dutch field and
- * an English field side by side, on every site, whether or not that site had
- * anything to say in English. On a Dutch-only website that is two fields to
- * read, two to tab past and one to wonder about for every single thing an
- * editor writes. Multilingual V1 exists because a real editor said so
- * (MULTILINGUAL.md).
+ * WHAT AN EDITOR SEES. One language at a time - whichever one the
+ * administrator picked in the CMS shell's "Editing content" switch
+ * (App\Service\Language\ContentEditingLanguage). Never Dutch and English
+ * side by side, and never a second language control of its own:
  *
- * WHAT IT DOES, in the two cases that exist:
+ *     Editing: English          <- passive, says where you are
  *
- *   one content language    the primary language's fields, and nothing else.
- *                           No tabs, no "(NL)" suffixes, no second column —
- *                           editing feels single-language, because it is.
+ *     Title      [ ................ ]
+ *     Intro      [ ................ ]
+ *     Button     [ ................ ]
  *
- *   two content languages   one tab strip per form, switching every
- *                           localized field at once. Not a tab strip per
- *                           field: a screen with eight of them is worse than
- *                           the two columns it replaced.
+ * WHY THERE IS NO TAB STRIP HERE ANY MORE. There used to be one per form,
+ * and it was the only way to reach the English version of anything. That put
+ * the language choice in the wrong place twice over: it was per screen, so an
+ * editor re-picked English on every page they opened, and it was invisible
+ * from everywhere else in the CMS. The choice is one global piece of editor
+ * state now, so this file prints a passive indicator instead of a second
+ * control that could disagree with the first one.
  *
- * WHY A DISABLED LANGUAGE IS STILL RENDERED, hidden.
- * This is the part that keeps the promise in Part Q of the brief: turning a
- * language off must never erase what is stored in it. The endpoints of this
- * project write every column of their form on every save (that is what makes
- * a partial POST dangerous here, see PAGE-EDITOR.md), so a field that is
- * simply left out of the markup would be saved as empty and the translation
- * would be gone.
+ * WHY THE LANGUAGE YOU ARE NOT EDITING IS STILL RENDERED, hidden.
+ * The endpoints of this project write every column of their form on every
+ * save (that is what makes a partial POST dangerous here, see
+ * PAGE-EDITOR.md), so a field simply left out of the markup would be saved as
+ * empty and the translation would be gone.
  *
  * So the field is still there, still carries its stored value, and still
- * submits it — it is just marked `hidden`, which takes it out of the
+ * submits it - it is just marked `hidden`, which takes it out of the
  * rendering, out of the tab order and out of the accessibility tree. Not one
  * of the ~77 write endpoints had to change, and no editor can lose a
- * translation by toggling a setting.
+ * translation by switching language.
  *
- * WHY `required` ONLY EVER APPEARS ON THE PRIMARY LANGUAGE.
- * A hidden control that is `required` and empty makes a browser refuse to
- * submit the form while being unable to show the editor what is wrong ("An
- * invalid form control is not focusable"). Only the primary language's
- * controls are ever required, and admin-language-tabs.js lifts `required`
- * off a pane while that pane is the hidden one.
+ * WHAT A TRANSLATION FIELD SHOWS IS THE STORED VALUE, NEVER THE FALLBACK.
+ * The public site falls back to the primary language when a translation is
+ * missing (App\Service\Language\LocalizedValue::in()), but an editor must
+ * see the field as EMPTY, or they cannot tell "translated" from "not
+ * translated yet" - and the next Save would write the fallback in as if it
+ * were a real translation. Editors read ::raw(); visitors read ::in().
+ *
+ * WHY `required` FOLLOWS THE VISIBLE LANGUAGE.
+ * A control that is `required`, empty and inside a `hidden` element makes a
+ * browser refuse to submit while being unable to show the editor what is
+ * wrong ("An invalid form control is not focusable"). `required` is printed
+ * only on the primary language's controls AND only while the primary language
+ * is the one on screen, so the situation cannot arise. Server-side validation
+ * is unchanged and is still the real boundary.
  */
 
 use App\Service\Language\AdminTranslator;
+use App\Service\Language\ContentEditingLanguage;
 use App\Service\Language\ContentLanguages;
 use App\Service\Language\LanguageRegistry;
 use App\Service\Language\AdminLocale;
@@ -54,16 +62,25 @@ use App\Service\Language\AdminLocale;
 // them, so the two helpers travel together.
 require_once __DIR__ . '/_translate.php';
 
-/** @var array<string, bool> guards against printing the tab script twice */
-$GLOBALS['admin_lang_state'] ??= ['tabs_rendered' => false, 'script_rendered' => false, 'pane' => null];
+/** @var array<string, bool> guards against printing the indicator or the script twice */
+$GLOBALS['admin_lang_state'] ??= ['indicator_rendered' => false, 'script_rendered' => false, 'pane' => null];
 
 /**
- * Does this screen need a language switcher at all? False on a
- * single-language site, which is the whole point.
+ * Does this site publish more than one language, and therefore does an editor
+ * screen have anything to say about languages at all?
  */
 function admin_lang_has_tabs(): bool
 {
-    return ContentLanguages::isMultilingual();
+    return count(ContentLanguages::enabled()) > 1;
+}
+
+/**
+ * The language this screen's fields are showing: the administrator's own
+ * choice from the CMS shell, not a per-screen state.
+ */
+function admin_lang_current(): string
+{
+    return ContentEditingLanguage::current();
 }
 
 /** @return string[] the languages an editor may type in, primary first */
@@ -78,39 +95,62 @@ function admin_lang_primary(): string
 }
 
 /**
- * The tab strip. Call it once per form, above the first localized field.
+ * The localized-fields bar. Call it once per form, above the first localized
+ * field.
  *
- * Prints nothing on a single-language site — a switcher between one option
- * is furniture, not navigation.
+ * It prints which language the fields below are in, and - when this
+ * installation has a translation provider - the button that fills them from
+ * the other language. It is deliberately NOT a control: the administrator
+ * changes editing language once, in the CMS shell, and every screen follows.
+ * A second switcher here could disagree with the first one, and an editor
+ * would have no way to tell which of the two the Save button believed.
+ *
+ * THE INDICATOR IS PRINTED ONCE PER SCREEN, the translate button once per
+ * FORM. Several editors here are a column of small forms - six on a detail
+ * section, five in the personalization builder - and each of them needs its
+ * own translate button, because translation reads the fields of the form it
+ * sits in. Saying "Editing: English" six times down the same page is just
+ * noise, and the CMS shell says it too.
+ *
+ * Prints nothing on a site with a single content language.
  */
-function admin_lang_tabs(string $formId = ''): void
+function admin_lang_bar(string $formId = ''): void
 {
     if (!admin_lang_has_tabs()) {
         return;
     }
 
+    if ($GLOBALS['admin_lang_state']['indicator_rendered'] ?? false) {
+        admin_lang_translate_bar();
+
+        return;
+    }
+
+    $GLOBALS['admin_lang_state']['indicator_rendered'] = true;
+
     $locale = AdminLocale::current();
-    $primary = admin_lang_primary();
+    $current = admin_lang_current();
     $h = static fn (string $v): string => htmlspecialchars($v, ENT_QUOTES, 'UTF-8');
 
-    echo '<div class="admin-lang-tabs" role="tablist" aria-label="' . $h(AdminTranslator::trans('language.tab_label')) . '"'
-        . ($formId !== '' ? ' data-lang-scope="' . $h($formId) . '"' : '') . '>';
+    echo '<div class="admin-lang-bar"'
+        . ($formId !== '' ? ' data-lang-scope="' . $h($formId) . '"' : '')
+        . ' data-lang-current="' . $h($current) . '"'
+        . ' data-lang-primary="' . $h(admin_lang_primary()) . '">';
 
-    foreach (admin_lang_codes() as $code) {
-        $definition = LanguageRegistry::get($code);
-        if ($definition === null) {
-            continue;
-        }
+    echo '<p class="admin-lang-bar__state">'
+        . '<span class="admin-lang-bar__label">' . $h(AdminTranslator::trans('language.editing_indicator')) . '</span> '
+        . '<strong class="admin-lang-bar__value">' . $h(LanguageRegistry::label($current, $locale)) . '</strong>'
+        . '</p>';
 
-        $isActive = $code === $primary;
-
-        echo '<button type="button" class="admin-lang-tab' . ($isActive ? ' is-active' : '') . '"'
-            . ' role="tab" data-lang-tab="' . $h($code) . '"'
-            . ' aria-selected="' . ($isActive ? 'true' : 'false') . '"'
-            . ' tabindex="' . ($isActive ? '0' : '-1') . '">'
-            . $h($definition->labelIn($locale))
-            . ($code === $primary ? '' : '<span class="admin-lang-tab__badge" data-lang-untranslated hidden>•</span>')
-            . '</button>';
+    // Says out loud what an empty field means here, so nobody reads a blank
+    // English input as "the CMS lost my text". The public site falls back;
+    // this form does not.
+    if ($current !== admin_lang_primary()) {
+        echo '<p class="admin-lang-bar__hint">'
+            . $h(AdminTranslator::trans('language.editing_fallback_hint', [
+                'language' => LanguageRegistry::label(admin_lang_primary(), $locale),
+            ]))
+            . '</p>';
     }
 
     echo '</div>';
@@ -119,13 +159,23 @@ function admin_lang_tabs(string $formId = ''): void
 }
 
 /**
- * The "translate into <language>" control that sits under the tab strip.
+ * The "translate from <language>" control that sits under the indicator.
+ *
+ * It only ever offers to fill the language the editor is LOOKING AT, from the
+ * other one. That is the whole interaction: you switch the CMS to English,
+ * you see empty English fields, and there is one button that offers to fill
+ * them from the Dutch you already wrote.
+ *
+ * It is never automatic. Switching editing language translates nothing - an
+ * editor who wanted machine output asks for it, and what a person wrote by
+ * hand is never silently replaced (App\Service\Translation\TranslationState
+ * ::mayOverwrite()).
  *
  * Rendered only when this installation actually has a translation provider
  * with credentials. Automatic translation is an optional extra
- * (App\Service\Translation\NullTranslationProvider), and a button that cannot
- * work is worse than no button — so a fresh Mygdala with no DeepL key simply
- * has a plain pair of language tabs and nothing else.
+ * (App\Service\Translation\NullTranslationProvider), and a button that
+ * cannot work is worse than no button - so a fresh Mygdala with no DeepL key
+ * simply shows the indicator and nothing else.
  */
 function admin_lang_translate_bar(): void
 {
@@ -137,14 +187,10 @@ function admin_lang_translate_bar(): void
     $locale = AdminLocale::current();
     $h = static fn (string $v): string => htmlspecialchars($v, ENT_QUOTES, 'UTF-8');
 
-    $targets = [];
-    foreach (ContentLanguages::secondaries() as $code) {
-        if ($service->canTranslateInto($code)) {
-            $targets[$code] = LanguageRegistry::label($code, $locale);
-        }
-    }
+    $target = admin_lang_current();
+    $source = ContentEditingLanguage::source();
 
-    if ($targets === []) {
+    if ($source === null || !$service->canTranslateInto($target, $source)) {
         return;
     }
 
@@ -154,18 +200,20 @@ function admin_lang_translate_bar(): void
         . ' data-endpoint="/api/admin/translate-fields.php"'
         . ' data-entity-type="' . $h($entityType) . '"'
         . ' data-entity-key="' . $h($entityKey) . '"'
+        . ' data-source-language="' . $h($source) . '"'
+        . ' data-target-language="' . $h($target) . '"'
         . ' data-manual-label="' . $h(AdminTranslator::trans('translate.manual')) . '"'
         . ' data-nothing-label="' . $h(AdminTranslator::trans('translate.done')) . '"'
         . ' data-confirm-overwrite="' . $h(AdminTranslator::trans('translate.confirm_overwrite')) . '"'
         . ' data-busy-label="' . $h(AdminTranslator::trans('translate.busy')) . '"'
         . ' data-done-label="' . $h(AdminTranslator::trans('translate.done')) . '">';
 
-    foreach ($targets as $code => $label) {
-        echo '<button type="button" class="admin-lang-translate__button"'
-            . ' data-translate-target="' . $h($code) . '">'
-            . $h(AdminTranslator::trans('translate.action', ['language' => $label]))
-            . '</button>';
-    }
+    echo '<button type="button" class="admin-lang-translate__button"'
+        . ' data-translate-target="' . $h($target) . '">'
+        . $h(AdminTranslator::trans('translate.action_from', [
+            'language' => LanguageRegistry::label($source, $locale),
+        ]))
+        . '</button>';
 
     echo '<p class="admin-lang-translate__status" role="status" aria-live="polite"></p>';
     echo '</div>';
@@ -221,13 +269,11 @@ function admin_lang_entity(): array
 function admin_lang_pane_start(string $code): void
 {
     $enabled = ContentLanguages::isEnabled($code);
-    $isPrimary = $code === admin_lang_primary();
 
-    // Hidden when the site does not publish this language at all, and when
-    // the site does but another tab is open. The first is a setting, the
-    // second is a UI state — but both mean "not on screen right now", and the
-    // markup does not need to tell them apart.
-    $hidden = !$enabled || !$isPrimary;
+    // Exactly one pane is on screen: the language this administrator chose to
+    // edit in. Everything else is `hidden` and still submits its stored
+    // value, which is what makes switching language lossless.
+    $hidden = !$enabled || $code !== admin_lang_current();
 
     $GLOBALS['admin_lang_state']['pane'] = $code;
 
@@ -279,24 +325,39 @@ function admin_lang_summary(array $row, string $base): string
 }
 
 /**
- * ` required`, but only for the primary language.
+ * ` required`, for the primary language AND only while it is the language on
+ * screen.
  *
- * Use this instead of writing `required` in a localized field. A translation
- * is optional by definition — the site falls back to the primary language —
- * and a required control inside a hidden pane is a form that cannot be
- * submitted and cannot say why.
+ * Use this instead of writing `required` in a localized field. Two reasons,
+ * and they are different:
+ *
+ *   a translation is optional by definition - the site falls back to the
+ *   primary language - so a translation field is never required;
+ *
+ *   a required, empty control inside a `hidden` element makes the browser
+ *   refuse to submit the form while being unable to focus the offending
+ *   field, so the primary language drops `required` too while somebody is
+ *   editing the other one.
+ *
+ * The second half used to be done by JavaScript after the fact. The server
+ * knows which pane is visible at render time, so it decides here.
  */
 function admin_lang_required(string $code): string
 {
-    return $code === admin_lang_primary() ? ' required' : '';
+    return ($code === admin_lang_primary() && $code === admin_lang_current()) ? ' required' : '';
 }
 
 /**
- * The placeholder a translation field carries: "empty = same as <primary>".
+ * The placeholder a translation field carries: what a VISITOR will get while
+ * this field is still empty.
  *
  * Built from the site's actual primary language rather than the word "NL",
  * because on an English-primary site the fallback runs the other way and a
  * hardcoded "Leeg = zelfde als NL" would be a lie.
+ *
+ * It deliberately does not say "empty = same as Dutch", which reads as if the
+ * two are equivalent. They are not: the visitor gets the Dutch words, and
+ * this field is still untranslated.
  */
 function admin_lang_fallback_placeholder(string $code): string
 {
@@ -307,9 +368,12 @@ function admin_lang_fallback_placeholder(string $code): string
     $locale = AdminLocale::current();
     $primaryLabel = LanguageRegistry::label(admin_lang_primary(), $locale);
 
+    // It describes what a VISITOR gets, not what this field holds. The field
+    // itself stays visibly empty until somebody translates it - that is the
+    // distinction the editor needs and the placeholder must not blur.
     return $locale === 'en'
-        ? 'Empty = same as ' . $primaryLabel
-        : 'Leeg = zelfde als ' . $primaryLabel;
+        ? 'Not translated - visitors see the text in ' . $primaryLabel
+        : 'Niet vertaald - bezoekers zien de tekst in het ' . $primaryLabel;
 }
 
 /** The same thing, escaped and ready to drop into an attribute. */
@@ -321,10 +385,10 @@ function admin_lang_placeholder_attr(string $code): string
 }
 
 /**
- * The script that switches the tabs. Call once, before </body>, on any screen
- * that called admin_lang_tabs().
+ * The script that drives automatic translation. Call once, before </body>,
+ * on any screen that called admin_lang_bar().
  */
-function admin_lang_tabs_script(): void
+function admin_lang_script(): void
 {
     if (!admin_lang_has_tabs() || ($GLOBALS['admin_lang_state']['script_rendered'] ?? false)) {
         return;
@@ -332,5 +396,5 @@ function admin_lang_tabs_script(): void
 
     $GLOBALS['admin_lang_state']['script_rendered'] = true;
 
-    echo '<script src="' . \App\Service\AssetVersion::url('/admin/assets/admin-language-tabs.js') . '" defer></script>';
+    echo '<script src="' . \App\Service\AssetVersion::url('/admin/assets/admin-language-translate.js') . '" defer></script>';
 }

@@ -122,7 +122,7 @@ $ctaWarning = $old === null ? HeaderCta::adminWarning() : null;
         <?= admin_te('headerfooter.knop_tonen_header') ?>
       </label>
 
-      <?php admin_lang_tabs(); ?>
+      <?php admin_lang_bar(); ?>
       <div class="admin-form-row admin-form-row--split">
         <?php admin_lang_pane_start('nl'); ?>
         <label><?= admin_te('headerfooter.tekst') ?>
@@ -230,6 +230,6 @@ $ctaWarning = $old === null ? HeaderCta::adminWarning() : null;
     </section>
   </form>
 </main>
-<?php admin_lang_tabs_script(); ?>
+<?php admin_lang_script(); ?>
 </body>
 </html>

@@ -277,7 +277,7 @@ $forcedTab = ($errors !== [] || $pagesError !== null) ? 'pagina' : null;
                stored value and is still submitted, but `hidden` — that is
                what keeps a translation alive through a save after the
                language was switched off (admin/_language_fields.php). */ ?>
-      <?php admin_lang_tabs(); ?>
+      <?php admin_lang_bar(); ?>
       <div class="admin-product-form admin-product-form--wide">
         <?php admin_lang_pane_start('nl'); ?>
           <div class="admin-form-row">
@@ -517,6 +517,6 @@ $forcedTab = ($errors !== [] || $pagesError !== null) ? 'pagina' : null;
 <?php admin_collapse_script(); ?>
 <?php save_bar_script(); ?>
 <?php media_picker_script(); ?>
-<?php admin_lang_tabs_script(); ?>
+<?php admin_lang_script(); ?>
 </body>
 </html>

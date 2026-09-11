@@ -145,7 +145,7 @@ $pageTitle = $isNew ? ($isChild ? admin_t('navigation.new_child') : admin_t('nav
 
     <section class="admin-card">
       <h2><?= admin_te('navigation.label') ?></h2>
-      <?php admin_lang_tabs(); ?>
+      <?php admin_lang_bar(); ?>
       <div class="admin-form-row admin-form-row--split">
         <?php admin_lang_pane_start('nl'); ?>
         <label><?= admin_te('navigation.label_2') ?>*
@@ -236,6 +236,6 @@ $pageTitle = $isNew ? ($isChild ? admin_t('navigation.new_child') : admin_t('nav
     </section>
   <?php endif; ?>
 </main>
-<?php admin_lang_tabs_script(); ?>
+<?php admin_lang_script(); ?>
 </body>
 </html>

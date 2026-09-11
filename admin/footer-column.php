@@ -66,7 +66,7 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
     <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
     <input type="hidden" name="id" value="<?= (int) $column['id'] ?>">
     <section class="admin-card">
-      <?php admin_lang_tabs(); ?>
+      <?php admin_lang_bar(); ?>
       <div class="admin-form-row admin-form-row--split">
         <?php admin_lang_pane_start('nl'); ?>
         <label><?= admin_te('common.title') ?>*
@@ -99,6 +99,6 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
     </form>
   </section>
 </main>
-<?php admin_lang_tabs_script(); ?>
+<?php admin_lang_script(); ?>
 </body>
 </html>

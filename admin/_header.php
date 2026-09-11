@@ -37,6 +37,9 @@
 use App\Service\AdminAuth;
 use App\Service\AdminNavigation;
 use App\Service\Csrf;
+use App\Service\Language\ContentEditingLanguage;
+use App\Service\Language\ContentLanguages;
+use App\Service\Language\LanguageRegistry;
 
 require_once __DIR__ . '/_translate.php';
 
@@ -47,6 +50,30 @@ $adminActiveGroup = AdminNavigation::activeKeyForScript($adminScriptName);
 $adminVisibleNavItems = AdminNavigation::visibleItems();
 $adminCurrentUserName = AdminAuth::userName();
 $adminCurrentUserIsSuperAdmin = AdminAuth::isSuperAdmin();
+
+/**
+ * The CMS-wide "which language version of the content am I editing" switch.
+ *
+ * It lives in the shell and nowhere else, which is the whole correction: the
+ * language an editor writes in is one piece of state for the entire CMS, not
+ * a tab strip re-chosen on every screen (MULTILINGUAL.md). Every editor form
+ * renders the fields of whatever this says, server-side.
+ *
+ * It is NOT the CMS interface language, which is a different preference on
+ * the same person and lives under My account. Both can be set either way
+ * round: a Dutch CMS editing English content is a normal Tuesday for a Dutch
+ * owner writing an English page.
+ *
+ * A break-glass session has no row to store a preference on, so it reads the
+ * site's default website language and the switch is not offered.
+ */
+$adminContentLanguages = ContentLanguages::enabled();
+$adminEditingLanguage = ContentEditingLanguage::current();
+$adminShowsContentLanguageSwitch = count($adminContentLanguages) > 1 && AdminAuth::userId() !== null;
+$adminReturnPath = (string) ($_SERVER['REQUEST_URI'] ?? '/admin/index.php');
+if (!str_starts_with($adminReturnPath, '/admin/')) {
+    $adminReturnPath = '/admin/index.php';
+}
 
 /**
  * Small inline icon set (Feather-style: 24x24, stroke-based) so the sidebar
@@ -94,6 +121,28 @@ function adminNavIcon(string $key): string
 <label for="admin-sidebar-toggle" class="admin-sidebar-toggle"><span aria-hidden="true"><?= admin_t('header.text', ['v1' => admin_te('shell.menu')]) ?></label>
 <aside class="admin-sidebar" id="admin-sidebar">
   <a href="/admin/index.php" class="admin-sidebar__brand"><?= htmlspecialchars(\App\Service\SiteSettings::get('site_name'), ENT_QUOTES, 'UTF-8') ?></a>
+
+<?php if ($adminShowsContentLanguageSwitch): ?>
+  <?php /* A form rather than links: it changes stored state, so it is a POST
+           with a CSRF token like every other write in this CMS. The return
+           path sends the editor back to the screen they were on, because
+           changing language is not navigation. */ ?>
+  <form method="post" action="/api/admin/update-content-language.php" class="admin-sidebar__contentlang">
+    <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
+    <input type="hidden" name="return_to" value="<?= htmlspecialchars($adminReturnPath, ENT_QUOTES, 'UTF-8') ?>">
+    <p class="admin-sidebar__contentlang-label" id="admin-contentlang-label"><?= admin_te('language.editing_switch') ?></p>
+    <div class="admin-sidebar__contentlang-options" role="group" aria-labelledby="admin-contentlang-label">
+      <?php foreach ($adminContentLanguages as $adminContentLanguage): ?>
+        <button type="submit" name="content_editing_language" value="<?= htmlspecialchars($adminContentLanguage, ENT_QUOTES, 'UTF-8') ?>"
+                class="admin-sidebar__contentlang-option<?= $adminContentLanguage === $adminEditingLanguage ? ' is-active' : '' ?>"
+                aria-pressed="<?= $adminContentLanguage === $adminEditingLanguage ? 'true' : 'false' ?>"
+                title="<?= htmlspecialchars(LanguageRegistry::label($adminContentLanguage, \App\Service\Language\AdminLocale::current()), ENT_QUOTES, 'UTF-8') ?>">
+          <?= htmlspecialchars(strtoupper($adminContentLanguage), ENT_QUOTES, 'UTF-8') ?>
+        </button>
+      <?php endforeach; ?>
+    </div>
+  </form>
+<?php endif; ?>
 
   <nav class="admin-sidebar__nav" aria-label="<?= admin_te('shell.nav_label') ?>">
     <?php $previousNavGroup = null; ?>

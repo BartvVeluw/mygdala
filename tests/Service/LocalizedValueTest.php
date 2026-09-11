@@ -145,14 +145,44 @@ final class LocalizedValueTest extends TestCase
         self::assertSame('en', SiteText::documentLanguage());
     }
 
-    public function testASingleLanguageSiteOffersNoLanguageSwitch(): void
+    public function testTheLanguageSwitchIsOfferedEvenWithTheOldSingleLanguageRow(): void
     {
+        // THE REGRESSION THIS STEP EXISTS FOR. A visitor of a site whose
+        // owner never turned English "on" was shown no way to ask for it,
+        // including on sites with English sitting in their `_en` columns.
         SiteSettings::overrideForTests([
             'primary_content_language' => 'nl',
             'enabled_content_languages' => 'nl',
         ]);
 
-        self::assertFalse(SiteText::showsLanguageSwitch());
-        self::assertSame(['nl'], SiteText::switchableLanguages());
+        self::assertTrue(SiteText::showsLanguageSwitch());
+        self::assertSame(['nl', 'en'], SiteText::switchableLanguages());
+    }
+
+    public function testAnEnglishPrimarySiteStillOffersDutch(): void
+    {
+        SiteSettings::overrideForTests([
+            'primary_content_language' => 'en',
+            'enabled_content_languages' => 'en',
+        ]);
+
+        self::assertTrue(SiteText::showsLanguageSwitch());
+        self::assertSame(['en', 'nl'], SiteText::switchableLanguages(), 'the default language comes first');
+    }
+
+    public function testAMissingTranslationFallsBackForAVisitorButNotForAnEditor(): void
+    {
+        // The distinction the whole editing model rests on: the public site
+        // must never show a blank heading, and the editor must never be shown
+        // words they did not write as if they were a translation.
+        SiteSettings::overrideForTests([
+            'primary_content_language' => 'nl',
+        ]);
+
+        $value = LocalizedValue::ofDutchEnglish('Neem contact op', '');
+
+        self::assertSame('Neem contact op', $value->in('en'), 'a visitor sees the Dutch words');
+        self::assertSame('', $value->raw('en'), 'the editor sees an empty field');
+        self::assertFalse($value->isTranslated('en'));
     }
 }

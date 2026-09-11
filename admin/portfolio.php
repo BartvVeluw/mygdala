@@ -171,13 +171,10 @@ $cardImageSrc = static fn (array $row): string => '/' . ltrim((string) ($row['th
     <summary><?= admin_t('portfolio.categories_count', ['count' => count($categoriesWithCounts)]) ?></summary>
     <p class="admin-text-muted"><?= admin_te('portfolio.categorie_n_direct_beschikbaar') ?></p>
 
-    <?php /* ONE tab strip for the whole list, not one per row: every category
-             is its own little form here, and a language switcher above each
-             of them would be a column of furniture. The strip is outside any
-             <form>, which admin-language-tabs.js reads as "switch every pane
-             on this screen" — exactly right when the rows are all the same
-             field in a repeat. */ ?>
-    <?php admin_lang_tabs(); ?>
+    <?php /* ONE indicator for the whole list, not one per row: every category
+             is its own little form here, and repeating "Editing: English"
+             above each of them would be a column of furniture. */ ?>
+    <?php admin_lang_bar(); ?>
 
     <?php if ($categoriesWithCounts === []): ?>
       <p class="admin-text-muted"><?= admin_te('portfolio.categorie_n') ?></p>
@@ -314,6 +311,6 @@ $cardImageSrc = static fn (array $row): string => '/' . ltrim((string) ($row['th
     <p class="admin-text-muted" data-portfolio-empty hidden><?= admin_te('portfolio.portfolio_items_gevonden_zoekopdracht') ?></p>
   <?php endif; ?>
 </main>
-<?php admin_lang_tabs_script(); ?>
+<?php admin_lang_script(); ?>
 </body>
 </html>

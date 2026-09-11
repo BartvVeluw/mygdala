@@ -19,6 +19,13 @@
  * no "are you sure you want to lose your translations", because nothing is
  * lost.
  *
+ * THE SITE'S DEFAULT WEBSITE LANGUAGE, and nothing else. It used to write an
+ * "enabled languages" list too, and hiding the public language switch and the
+ * editor's English fields behind that list was the mistake corrected here
+ * (MULTILINGUAL.md). The row is still written, always with every language
+ * this build publishes, so nothing that reads the database directly sees a
+ * stale value — and nothing branches on it any more.
+ *
  * VALIDATION IS App\Service\Language\ContentLanguages::normalise()'s, and the
  * Setup Wizard calls the same method. One definition of a valid language
  * configuration, used by both places that can produce one.
@@ -49,12 +56,13 @@ if (!Csrf::validate($_POST['csrf_token'] ?? null)) {
 }
 
 $primary = trim((string) ($_POST['primary_content_language'] ?? ''));
-$secondary = trim((string) ($_POST['secondary_content_language'] ?? ''));
 
-// An empty secondary is the normal single-language case, not an error.
-$enabled = $secondary === '' ? [] : [$secondary];
-
-$values = ContentLanguages::normalise($primary, $enabled);
+// There is no longer a "second language" question to answer: this product
+// publishes Dutch and English, always, and the only thing an owner chooses is
+// which of the two a visitor gets first. ContentLanguages::normalise() writes
+// the full set either way, so an old form posting the removed field changes
+// nothing.
+$values = ContentLanguages::normalise($primary);
 
 try {
     (new SiteSettingRepository())->upsertMany($values);

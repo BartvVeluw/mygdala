@@ -49,7 +49,6 @@ $csrfToken = Csrf::token();
  * rules.
  */
 $primaryLanguage = \App\Service\Language\ContentLanguages::primary();
-$secondaryLanguage = \App\Service\Language\ContentLanguages::secondary();
 $adminLocale = \App\Service\Language\AdminLocale::current();
 
 $languageErrors = $_SESSION['admin_language_errors'] ?? [];
@@ -195,7 +194,7 @@ function brandingImageField(
         </label>
       </div>
 
-      <?php admin_lang_tabs(); ?>
+      <?php admin_lang_bar(); ?>
       <div class="admin-form-row admin-form-row--split">
         <?php admin_lang_pane_start('nl'); ?>
         <label><?= admin_te('settings.plaats_locatie') ?>*
@@ -228,10 +227,18 @@ function brandingImageField(
   <?php admin_tab_panel_end(); ?>
 
   <?php admin_tab_panel('talen'); ?>
-  <?php /* WEBSITE languages, and only those. The language the CMS itself is
-           shown in is a preference of one PERSON and lives on
-           admin/account.php — two settings that must never be confused, so
-           they are not even on the same screen (MULTILINGUAL.md). */ ?>
+  <?php /* WEBSITE languages, and only those. The two PERSONAL language
+           preferences - which language the CMS interface runs in, and which
+           language version of the content this administrator is editing -
+           live on admin/account.php and in the CMS shell. Three states that
+           must never be confused, so they are not on the same screen
+           (MULTILINGUAL.md).
+
+           There is no "enable English" control any more, and that is the
+           correction: this product is bilingual, so a visitor can always ask
+           for either language and an editor can always write either one. All
+           that is left to configure is which of the two a visitor gets
+           first. */ ?>
   <section class="admin-card">
     <h2><?= $h(\App\Service\Language\AdminTranslator::trans('language.settings_title')) ?></h2>
     <p class="admin-text-muted"><?= $h(\App\Service\Language\AdminTranslator::trans('language.settings_intro')) ?></p>
@@ -253,31 +260,18 @@ function brandingImageField(
     <form method="post" action="/api/admin/update-language-settings.php" class="admin-product-form">
       <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
 
+      <p class="admin-text-muted admin-lang-note"><?= $h(\App\Service\Language\AdminTranslator::trans('language.always_bilingual')) ?></p>
+
       <div class="admin-form-row">
-        <label for="field-primary-language"><?= $h(\App\Service\Language\AdminTranslator::trans('language.primary')) ?>
+        <label for="field-primary-language"><?= $h(\App\Service\Language\AdminTranslator::trans('language.default_website')) ?>
           <select name="primary_content_language" id="field-primary-language">
             <?php foreach (\App\Service\Language\LanguageRegistry::contentLanguages() as $languageCode => $languageDefinition): ?>
               <option value="<?= $h($languageCode) ?>"<?= $languageCode === $primaryLanguage ? ' selected' : '' ?>><?= $h($languageDefinition->labelIn($adminLocale)) ?></option>
             <?php endforeach; ?>
           </select>
         </label>
-        <p class="admin-text-muted"><?= $h(\App\Service\Language\AdminTranslator::trans('language.primary_help')) ?></p>
+        <p class="admin-text-muted"><?= $h(\App\Service\Language\AdminTranslator::trans('language.default_website_help')) ?></p>
       </div>
-
-      <div class="admin-form-row">
-        <label for="field-secondary-language"><?= $h(\App\Service\Language\AdminTranslator::trans('language.secondary')) ?>
-          <select name="secondary_content_language" id="field-secondary-language">
-            <option value=""><?= $h(\App\Service\Language\AdminTranslator::trans('language.secondary_none')) ?></option>
-            <?php foreach (\App\Service\Language\LanguageRegistry::contentLanguages() as $languageCode => $languageDefinition): ?>
-              <?php if ($languageCode === $primaryLanguage) continue; ?>
-              <option value="<?= $h($languageCode) ?>"<?= $languageCode === $secondaryLanguage ? ' selected' : '' ?>><?= $h($languageDefinition->labelIn($adminLocale)) ?></option>
-            <?php endforeach; ?>
-          </select>
-        </label>
-        <p class="admin-text-muted"><?= $h(\App\Service\Language\AdminTranslator::trans('language.secondary_help')) ?></p>
-      </div>
-
-      <p class="admin-text-muted admin-lang-note"><?= $h(\App\Service\Language\AdminTranslator::trans('language.disabled_preserved')) ?></p>
 
       <button type="submit"><?= $h(\App\Service\Language\AdminTranslator::trans('common.save')) ?></button>
     </form>
@@ -286,6 +280,7 @@ function brandingImageField(
   <section class="admin-card">
     <h2><?= $h(\App\Service\Language\AdminTranslator::trans('language.cms')) ?></h2>
     <p class="admin-text-muted"><?= $h(\App\Service\Language\AdminTranslator::trans('account.interface_language_help')) ?></p>
+    <p class="admin-text-muted"><?= $h(\App\Service\Language\AdminTranslator::trans('account.content_language_help')) ?></p>
     <p><a href="/admin/account.php" class="admin-btn-link"><?= $h(\App\Service\Language\AdminTranslator::trans('shell.my_account')) ?> &rarr;</a></p>
   </section>
   <?php admin_tab_panel_end(); ?>
@@ -518,6 +513,6 @@ function brandingImageField(
 <?php media_picker_modal(); ?>
 <?php admin_tabs_script(); ?>
 <?php media_picker_script(); ?>
-<?php admin_lang_tabs_script(); ?>
+<?php admin_lang_script(); ?>
 </body>
 </html>

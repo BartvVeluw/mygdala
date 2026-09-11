@@ -74,7 +74,7 @@ $value = static fn (string $key, string $default = ''): string => (string) ($sto
 
     <section class="admin-card">
       <h2><?= admin_te('blog.kop_blog') ?></h2>
-      <?php admin_lang_tabs(); ?>
+      <?php admin_lang_bar(); ?>
       <?php admin_lang_pane_start('nl'); ?>
         <div class="admin-form-row">
           <label><?= admin_te('common.title') ?>
@@ -150,6 +150,6 @@ $value = static fn (string $key, string $default = ''): string => (string) ($sto
     </section>
   </form>
 </main>
-<?php admin_lang_tabs_script(); ?>
+<?php admin_lang_script(); ?>
 </body>
 </html>

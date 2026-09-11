@@ -197,7 +197,7 @@ require __DIR__ . '/_richtext_field.php';
         <input type="hidden" name="id" value="<?= (int) $product['id'] ?>">
       <?php endif; ?>
 
-      <?php admin_lang_tabs(); ?>
+      <?php admin_lang_bar(); ?>
       <div class="admin-form-row admin-form-row--split">
         <?php admin_lang_pane_start('nl'); ?>
         <label><?= admin_te('common.name') ?>*
@@ -716,6 +716,6 @@ require __DIR__ . '/_richtext_field.php';
     </section>
   <?php endif; ?>
 </main>
-<?php admin_lang_tabs_script(); ?>
+<?php admin_lang_script(); ?>
 </body>
 </html>

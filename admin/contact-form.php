@@ -122,7 +122,7 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
       </label>
       <p class="admin-text-muted"><?= admin_te('block_contactform.zonder_formulier_formulier_uit') ?></p>
 
-      <?php admin_lang_tabs(); ?>
+      <?php admin_lang_bar(); ?>
       <div class="admin-form-row admin-form-row--split">
         <?php admin_lang_pane_start('nl'); ?>
         <label><?= admin_te('block_contactform.kop_boven_formulier') ?>*
@@ -153,6 +153,6 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
 </main>
 <?php save_bar(); ?>
 <?php save_bar_script(); ?>
-<?php admin_lang_tabs_script(); ?>
+<?php admin_lang_script(); ?>
 </body>
 </html>

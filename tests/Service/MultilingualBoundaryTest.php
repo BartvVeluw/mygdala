@@ -99,7 +99,7 @@ final class MultilingualBoundaryTest extends TestCase
 
     public function testEveryTranslationEndpointCarriesTheUsualGuards(): void
     {
-        foreach (['api/admin/translate-fields.php', 'api/admin/update-language-settings.php', 'api/admin/update-account-preferences.php'] as $endpoint) {
+        foreach (['api/admin/translate-fields.php', 'api/admin/update-language-settings.php', 'api/admin/update-account-preferences.php', 'api/admin/update-content-language.php'] as $endpoint) {
             $source = self::read($endpoint);
 
             self::assertStringContainsString('AdminAuth::requireLoginForApi()', $source, $endpoint . ' checks login');
@@ -125,6 +125,85 @@ final class MultilingualBoundaryTest extends TestCase
         self::assertStringNotContainsString('AdminUserRepository', $source);
         self::assertStringNotContainsString('AdminLocale', $source);
         self::assertStringNotContainsString('interface_language', $source);
+    }
+
+    public function testChangingTheEditingLanguageCannotTouchTheWebsiteOrTheCmsLanguage(): void
+    {
+        // The third state, guarded the same way as the other two: the
+        // endpoint that records which language version an administrator is
+        // editing can reach neither the site's settings nor anybody's CMS
+        // interface language.
+        $source = self::read('api/admin/update-content-language.php');
+
+        self::assertStringNotContainsString('SiteSettingRepository', $source);
+        self::assertStringNotContainsString('AdminLocale', $source);
+        self::assertStringNotContainsString('interface_language', $source);
+    }
+
+    public function testTheEditingLanguageServiceKnowsNothingOfTheCmsLanguage(): void
+    {
+        $source = self::read('src/Service/Language/ContentEditingLanguage.php');
+
+        // The prose may name its sibling; the CODE may not call it.
+        self::assertStringNotContainsString('AdminLocale::', $source);
+        self::assertStringNotContainsString('SiteSettingRepository', $source);
+        self::assertStringNotContainsString("'interface_language'", $source);
+    }
+
+    public function testTheCmsLanguageServiceKnowsNothingOfTheEditingLanguage(): void
+    {
+        $source = self::read('src/Service/Language/AdminLocale.php');
+
+        self::assertStringNotContainsString('ContentEditingLanguage::', $source);
+        self::assertStringNotContainsString('content_editing_language', $source);
+    }
+
+    public function testTheEditingLanguageIsPersistedByItsOwnStatement(): void
+    {
+        // Two preferences on one row, and two separate writes. One statement
+        // setting both is the place where they would start moving together
+        // by accident.
+        $source = self::read('src/Repository/AdminUserRepository.php');
+
+        self::assertStringContainsString('updateInterfaceLanguage', $source);
+        self::assertStringContainsString('updateContentEditingLanguage', $source);
+        self::assertStringNotContainsString(
+            'interface_language = :language, content_editing_language',
+            $source,
+            'the two preferences must not share one UPDATE',
+        );
+    }
+
+    public function testThePublicLanguageSwitchIsNotGatedOnASetting(): void
+    {
+        // THE REGRESSION THIS GUARD EXISTS FOR. The header used to hide the
+        // switch when a settings row said the site published one language,
+        // which left visitors no way to ask for English on a site that had
+        // English content.
+        $source = self::read('src/Service/Language/SiteText.php');
+
+        self::assertStringNotContainsString(
+            'ContentLanguages::isMultilingual()',
+            $source,
+            'the public switch must not be gated on the deprecated enabled-languages setting',
+        );
+    }
+
+    public function testTheDeprecatedEnabledLanguagesSettingDecidesNothing(): void
+    {
+        // The row may still be read for diagnostics, and it is still written
+        // so it stays truthful. What it may never do again is decide which
+        // languages a visitor or an editor gets.
+        $source = self::read('src/Service/Language/ContentLanguages.php');
+
+        $enabled = substr($source, strpos($source, 'public static function enabled()'));
+        $enabled = substr($enabled, 0, strpos($enabled, 'public static function storedEnabled()'));
+
+        self::assertStringNotContainsString(
+            'SETTING_ENABLED',
+            $enabled,
+            '::enabled() must answer from the registry, not from the settings row',
+        );
     }
 
     // ---------------------------------------------- the CMS interface is curated
@@ -274,9 +353,9 @@ final class MultilingualBoundaryTest extends TestCase
                 basename($file) . ' must require the language component',
             );
             self::assertStringContainsString(
-                'admin_lang_tabs()',
+                'admin_lang_bar(',
                 $source,
-                basename($file) . ' must render a language tab strip',
+                basename($file) . ' must render the localized-fields bar',
             );
 
             // A PARTIAL has no </body> of its own and so cannot load a
@@ -293,9 +372,9 @@ final class MultilingualBoundaryTest extends TestCase
 
                 foreach ($screens as $screen) {
                     self::assertStringContainsString(
-                        'admin_lang_tabs_script()',
+                        'admin_lang_script()',
                         (string) file_get_contents($screen),
-                        basename($screen) . ' includes ' . basename($file) . ' and must load the tab script',
+                        basename($screen) . ' includes ' . basename($file) . ' and must load the language script',
                     );
                 }
 
@@ -303,9 +382,9 @@ final class MultilingualBoundaryTest extends TestCase
             }
 
             self::assertStringContainsString(
-                'admin_lang_tabs_script()',
+                'admin_lang_script()',
                 $source,
-                basename($file) . ' must load the language tab script',
+                basename($file) . ' must load the language script',
             );
         }
     }

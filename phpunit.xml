@@ -33,6 +33,7 @@
             <file>tests/Service/LanguageRegistryTest.php</file>
             <file>tests/Service/LocalizedValueTest.php</file>
             <file>tests/Service/AdminLocaleTest.php</file>
+            <file>tests/Service/ThreeLanguageStatesTest.php</file>
             <file>tests/Service/TranslationProviderTest.php</file>
             <file>tests/Install/SetupWizardValidationTest.php</file>
             <file>tests/Mail/EmailPlaceholdersTest.php</file>
@@ -125,6 +126,7 @@
             <file>tests/Service/LanguageRegistryTest.php</file>
             <file>tests/Service/LocalizedValueTest.php</file>
             <file>tests/Service/AdminLocaleTest.php</file>
+            <file>tests/Service/ThreeLanguageStatesTest.php</file>
             <file>tests/Service/TranslationProviderTest.php</file>
             <file>tests/Service/MultilingualBoundaryTest.php</file>
             <file>tests/Architecture/TestSuiteCoverageTest.php</file>
@@ -307,6 +309,7 @@
             <file>tests/Service/LanguageRegistryTest.php</file>
             <file>tests/Service/LocalizedValueTest.php</file>
             <file>tests/Service/AdminLocaleTest.php</file>
+            <file>tests/Service/ThreeLanguageStatesTest.php</file>
             <file>tests/Service/TranslationProviderTest.php</file>
             <file>tests/Service/MultilingualBoundaryTest.php</file>
             <file>tests/Install/ExampleEnvironmentTest.php</file>
@@ -442,6 +445,7 @@
             <file>tests/Service/LanguageRegistryTest.php</file>
             <file>tests/Service/LocalizedValueTest.php</file>
             <file>tests/Service/AdminLocaleTest.php</file>
+            <file>tests/Service/ThreeLanguageStatesTest.php</file>
             <file>tests/Service/TranslationProviderTest.php</file>
             <file>tests/Service/MultilingualBoundaryTest.php</file>
             <directory>tests</directory>

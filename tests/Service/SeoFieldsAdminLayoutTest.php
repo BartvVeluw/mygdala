@@ -157,8 +157,8 @@ final class SeoFieldsAdminLayoutTest extends TestCase
                 substr_count($source, "admin_lang_pane_start('en')"),
                 $editor . ' must render exactly one English pane'
             );
-            $this->assertStringContainsString('admin_lang_tabs()', $source);
-            $this->assertStringContainsString('admin_lang_tabs_script()', $source);
+            $this->assertStringContainsString('admin_lang_bar(', $source);
+            $this->assertStringContainsString('admin_lang_script()', $source);
         }
     }
 

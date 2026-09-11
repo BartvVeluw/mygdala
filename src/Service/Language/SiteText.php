@@ -84,13 +84,24 @@ final class SiteText
     /**
      * Does this site offer a language switch at all?
      *
-     * A single-language site renders none — two buttons that both mean the
-     * same thing are furniture, and one of them would have shown a visitor
-     * the same page in the same words.
+     * ALWAYS, on the bilingual product this CMS is today, and that is the
+     * point of asking it this way rather than asking a settings row.
+     *
+     * It used to be gated on an "enabled languages" setting, so a site whose
+     * owner had not explicitly turned English on showed visitors no switch —
+     * including sites that had English content sitting in their `_en`
+     * columns. A visitor who wants to read the site in English must always be
+     * able to ask for it; a field nobody has translated yet falls back to the
+     * primary language's words (App\Service\Language\LocalizedValue), so
+     * the switch can never produce a blank page.
+     *
+     * The question itself stays — a build registering a single content
+     * language would rightly render no switch — it is simply answered from
+     * what this CMS publishes rather than from a row an owner can get wrong.
      */
     public static function showsLanguageSwitch(): bool
     {
-        return ContentLanguages::isMultilingual();
+        return count(self::switchableLanguages()) > 1;
     }
 
     /** @return string[] the codes a visitor may switch between, primary first */

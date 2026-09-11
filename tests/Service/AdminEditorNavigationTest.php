@@ -52,8 +52,7 @@ final class AdminEditorNavigationTest extends TestCase
         // tab is also where the copy explains that the CMS's own language is
         // a different, per-person choice.
         'primary_content_language' => 'talen',
-        'secondary_content_language' => 'talen',
-        'seo_default_description' => 'seo',
+                'seo_default_description' => 'seo',
         'seo_robots_index_default' => 'seo',
         'company_street' => 'facturen',
         'company_house_number' => 'facturen',

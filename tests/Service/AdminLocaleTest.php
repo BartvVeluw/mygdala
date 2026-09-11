@@ -69,7 +69,7 @@ final class AdminLocaleTest extends TestCase
 
         self::assertSame('en', AdminLocale::current(), 'the CMS is in English');
         self::assertSame('nl', ContentLanguages::primary(), 'the website is still Dutch');
-        self::assertSame(['nl'], ContentLanguages::enabled());
+        self::assertSame(['nl', 'en'], ContentLanguages::enabled());
     }
 
     public function testTheWebsiteLanguageDoesNotChangeTheCmsLanguage(): void
