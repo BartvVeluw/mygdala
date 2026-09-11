@@ -74,8 +74,8 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
         </label>
         <?php admin_lang_pane_end(); ?>
         <?php admin_lang_pane_start('en'); ?>
-        <label><?= admin_te('common.title') ?>*
-          <input type="text" name="title_en" maxlength="100" required value="<?= $h($titleEn) ?>">
+        <label><?= admin_te('common.title') ?>
+          <input type="text" name="title_en" maxlength="100" value="<?= $h($titleEn) ?>"<?= admin_lang_placeholder_attr('en') ?>>
         </label>
         <?php admin_lang_pane_end(); ?>
       </div>

@@ -202,8 +202,8 @@ function brandingImageField(
         </label>
         <?php admin_lang_pane_end(); ?>
         <?php admin_lang_pane_start('en'); ?>
-        <label><?= admin_te('settings.plaats_locatie_2') ?>*
-          <input type="text" name="city_en" maxlength="150" required value="<?= settingValue($values, 'city_en') ?>">
+        <label><?= admin_te('settings.plaats_locatie_2') ?>
+          <input type="text" name="city_en" maxlength="150" value="<?= settingValue($values, 'city_en') ?>"<?= admin_lang_placeholder_attr('en') ?>>
         </label>
         <?php admin_lang_pane_end(); ?>
       </div>
@@ -215,8 +215,8 @@ function brandingImageField(
         </label>
         <?php admin_lang_pane_end(); ?>
         <?php admin_lang_pane_start('en'); ?>
-        <label><?= admin_te('settings.footer_omschrijving_2') ?>*
-          <textarea name="footer_description_en" maxlength="500" required rows="3"><?= settingValue($values, 'footer_description_en') ?></textarea>
+        <label><?= admin_te('settings.footer_omschrijving_2') ?>
+          <textarea name="footer_description_en" maxlength="500" rows="3"<?= admin_lang_placeholder_attr('en') ?>><?= settingValue($values, 'footer_description_en') ?></textarea>
         </label>
         <?php admin_lang_pane_end(); ?>
       </div>

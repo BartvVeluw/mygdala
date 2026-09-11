@@ -142,8 +142,8 @@ $pageTitle = $isNew ? admin_t('footer.new_link') : (string) $link['label_nl'];
         </label>
         <?php admin_lang_pane_end(); ?>
         <?php admin_lang_pane_start('en'); ?>
-        <label><?= admin_te('footer.label_3') ?>*
-          <input type="text" name="label_en" maxlength="100" required value="<?= $h(footerLinkFieldValue($old, $link, 'label_en')) ?>">
+        <label><?= admin_te('footer.label_3') ?>
+          <input type="text" name="label_en" maxlength="100" value="<?= $h(footerLinkFieldValue($old, $link, 'label_en')) ?>"<?= admin_lang_placeholder_attr('en') ?>>
         </label>
         <?php admin_lang_pane_end(); ?>
       </div>

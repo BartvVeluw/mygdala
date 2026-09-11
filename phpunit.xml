@@ -323,6 +323,7 @@
             <file>tests/Repository/AdminUserRepositoryIntegrationTest.php</file>
             <file>tests/Repository/ContactFormMigrationTest.php</file>
             <file>tests/Repository/FooterRepositoryTest.php</file>
+            <file>tests/Repository/LocalizedNavigationFooterPersistenceTest.php</file>
             <file>tests/Repository/NavigationFooterBackfillTest.php</file>
             <file>tests/Repository/NavigationRepositoryTest.php</file>
             <file>tests/Repository/PagesBackfillTest.php</file>

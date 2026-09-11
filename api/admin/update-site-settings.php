@@ -16,6 +16,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/../../vendor/autoload.php';
 
 use App\Service\Language\AdminTranslator;
+use App\Service\Language\LocalizedValue;
 use App\Service\AdminAuth;
 use App\Service\Branding;
 use App\Service\Csrf;
@@ -105,10 +106,41 @@ foreach (Branding::MEDIA_KEYS as $pathKey => $mediaKey) {
     $submittedKeys[] = $pathKey;
 }
 
-$required = ['site_name', 'email', 'city_nl', 'city_en', 'footer_description_nl', 'footer_description_en'];
+$required = ['site_name', 'email'];
+
+/**
+ * The localized ones, asked in the SITE'S OWN language only.
+ *
+ * A translation is optional by definition: App\Service\Language\LocalizedValue
+ * falls back to the primary language wherever one is missing, so a visitor
+ * never reads a blank. Demanding both was invisible while every editor
+ * printed both fields side by side. It stopped being invisible once an
+ * editor shows ONE language at a time (MULTILINGUAL.md): the untranslated
+ * half is off screen, so this screen refused every save with an error
+ * pointing at a field nobody could see, and an English footer description
+ * could never be saved at all. update-nav-item.php and
+ * update-footer-column.php already ask it this way.
+ */
+$requiredLocalized = ['city', 'footer_description'];
 
 foreach ($required as $key) {
     if (in_array($key, $submittedKeys, true) && $fields[$key] === '') {
+        $errors[] = AdminTranslator::trans('validation.veld_verplicht');
+        break;
+    }
+}
+
+foreach ($requiredLocalized as $base) {
+    $dutchKey = $base . '_nl';
+    $englishKey = $base . '_en';
+
+    if (!in_array($dutchKey, $submittedKeys, true) && !in_array($englishKey, $submittedKeys, true)) {
+        continue;
+    }
+
+    $localized = LocalizedValue::ofDutchEnglish($fields[$dutchKey] ?? '', $fields[$englishKey] ?? '');
+
+    if ($localized->primaryValue() === '') {
         $errors[] = AdminTranslator::trans('validation.veld_verplicht');
         break;
     }

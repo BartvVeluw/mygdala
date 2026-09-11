@@ -193,7 +193,11 @@ een editor of automatisch vertalen (`MULTILINGUAL.md`):
                         (DeepL zonder netwerk, en de vier vertaalregels) en
                         MultilingualBoundaryTest (de grenzen) — database,
                         webserver noch netwerk nodig
---testsuite cms         dezelfde zes, plus de scherm- en instellingenkant
+--testsuite cms         dezelfde zes, plus de scherm- en instellingenkant,
+                        en LocalizedNavigationFooterPersistenceTest: de
+                        bewaarmatrix van Navigatie en Footer tegen echte
+                        rijen (een taal opslaan mag de andere nooit
+                        overschrijven)
 --testsuite blocks      als je een editor op de taalvelden aansloot
 ```
 

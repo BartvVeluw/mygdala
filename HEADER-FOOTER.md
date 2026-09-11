@@ -164,3 +164,9 @@ en `HeaderFooterContractTest` (geen sitespecifieke tekst of bestemming meer in
 de gedeelde schil). `cms` voegt `HeaderFooterRenderingTest` toe: de
 CMS-paginabestemming tegen echte rijen, en wat een pagina echt rendert — ook op
 de CMS-only deployment. Zie verder `TESTING.md`.
+
+Raakte je een **taalveld** van de navigatie of de footer aan — een menulabel,
+een kolomtitel, een footerlink of de footertekst — dan is
+`Tests\Repository\LocalizedNavigationFooterPersistenceTest` (suite `cms`) de
+test die vasthoudt dat het opslaan van de ene taal de andere niet
+overschrijft, en `MULTILINGUAL.md` de regel erachter.

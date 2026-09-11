@@ -319,6 +319,91 @@ final class MultilingualBoundaryTest extends TestCase
         self::assertStringContainsString('admin_lang_primary()', $source);
     }
 
+    /**
+     * A HIDDEN LANGUAGE PANE IS ACTUALLY HIDDEN.
+     *
+     * This is the rule the Navigation/Footer bug was: `.admin-lang-pane`
+     * gives the pane a `display`, and a class that sets `display` silently
+     * beats the browser's own [hidden]{display:none}. Both languages were
+     * then on the form at once, under labels that deliberately no longer say
+     * which is which, and an editor who believed the form had switched typed
+     * their translation into the other language's field.
+     *
+     * It survived for a while because the block editors wrap their form in
+     * .admin-product-form, which restores the attribute for its own subtree.
+     * Navigation, Footer, the portfolio and the personalization builder do
+     * not use that class, and that is exactly the set of screens where the
+     * bug showed. The rule has to belong to the pane.
+     */
+    public function testAHiddenLanguagePaneIsActuallyHidden(): void
+    {
+        $css = self::read('admin/assets/admin.css');
+
+        self::assertMatchesRegularExpression(
+            '/\.admin-lang-pane\[hidden\]\s*\{[^}]*display:\s*none/',
+            $css,
+            'admin.css must give .admin-lang-pane[hidden] a display:none of its own, '
+                . 'or the language an editor is not editing stays on screen'
+        );
+    }
+
+    /**
+     * NO LOCALIZED CONTROL SPELLS `required` BY HAND.
+     *
+     * `required` on a translation is wrong twice over. A translation is
+     * optional by definition (the site falls back), and a required, empty
+     * control inside a `hidden` pane makes the browser refuse to submit while
+     * being unable to focus the field it is complaining about, so Save stops
+     * working with nothing on screen to explain it.
+     *
+     * admin_lang_required() answers both at once, and the point of this test
+     * is that every editor asks it instead of writing the attribute. The old
+     * version of this test only checked that the helper existed, which is why
+     * navigation-item.php, footer-column.php, footer-link.php and
+     * settings.php could carry a literal one for as long as they did.
+     */
+    public function testNoLocalizedFieldSpellsRequiredByHand(): void
+    {
+        $offenders = [];
+
+        foreach (self::glob('admin/*.php') as $file) {
+            $source = (string) file_get_contents($file);
+
+            // A screen with no second language on it has no pane to hide a
+            // control in, so `required` there is an ordinary required field.
+            if (in_array(basename($file), self::SCREENS_WITHOUT_A_SECOND_LANGUAGE, true)) {
+                continue;
+            }
+
+            if (!str_contains($source, 'admin_lang_pane_start')) {
+                continue;
+            }
+
+            // A tag may carry a PHP echo, whose closing angle bracket must
+            // not be read as the end of the tag.
+            preg_match_all('/<(?:input|textarea)\b(?:\?>|[^>])*>/', $source, $tags);
+
+            foreach ($tags[0] as $tag) {
+                if (preg_match(self::LOCALIZED_FIELD, $tag) !== 1) {
+                    continue;
+                }
+
+                $withoutHelper = str_replace('admin_lang_required', '', $tag);
+
+                if (preg_match('/\brequired\b/', $withoutHelper) === 1) {
+                    $offenders[] = basename($file) . ': ' . trim((string) preg_replace('/\s+/', ' ', $tag));
+                }
+            }
+        }
+
+        self::assertSame(
+            [],
+            $offenders,
+            "these localized controls are `required` regardless of which language is on screen:\n  "
+                . implode("\n  ", $offenders)
+        );
+    }
+
     public function testNoEditorStillHardcodesADutchOnlyFallbackPlaceholder(): void
     {
         // "Leeg = zelfde als NL" is wrong on an English-primary site. Every

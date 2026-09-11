@@ -153,8 +153,8 @@ $pageTitle = $isNew ? ($isChild ? admin_t('navigation.new_child') : admin_t('nav
         </label>
         <?php admin_lang_pane_end(); ?>
         <?php admin_lang_pane_start('en'); ?>
-        <label><?= admin_te('navigation.label_3') ?>*
-          <input type="text" name="label_en" maxlength="100" required value="<?= $h(navFieldValue($old, $item, 'label_en')) ?>">
+        <label><?= admin_te('navigation.label_3') ?>
+          <input type="text" name="label_en" maxlength="100" value="<?= $h(navFieldValue($old, $item, 'label_en')) ?>"<?= admin_lang_placeholder_attr('en') ?>>
         </label>
         <?php admin_lang_pane_end(); ?>
       </div>

@@ -115,7 +115,7 @@ knoppen die het over dezelfde staat oneens kunnen zijn is erger dan één.
 | Vertaalstatus | `src/Service/Translation/TranslationState.php`, `src/Repository/TranslationStateRepository.php`, tabel `content_translation_state` |
 | Vertaalendpoint | `api/admin/translate-fields.php` |
 | Migraties | `db/migrations/20260910140000_add_multilingual_language_settings.php`, `…150000_create_the_translation_state_table.php`, `20260911100000_add_the_content_editing_language_column.php` |
-| Tests | `tests/Service/LanguageRegistryTest.php`, `LocalizedValueTest.php`, `AdminLocaleTest.php`, `ThreeLanguageStatesTest.php`, `TranslationProviderTest.php`, `MultilingualBoundaryTest.php` |
+| Tests | `tests/Service/LanguageRegistryTest.php`, `LocalizedValueTest.php`, `AdminLocaleTest.php`, `ThreeLanguageStatesTest.php`, `TranslationProviderTest.php`, `MultilingualBoundaryTest.php`, `tests/Repository/LocalizedNavigationFooterPersistenceTest.php` |
 
 ## Het talenregister
 
@@ -449,6 +449,66 @@ element laat de browser weigeren te versturen zonder te kunnen aanwijzen wat
 er mis is. Dat wordt nu op de server beslist bij het renderen, niet achteraf
 door JavaScript weggehaald. De servervalidatie is ongewijzigd en blijft de
 echte grens.
+
+Een editor schrijft dat attribuut dus **nooit met de hand** in een taalveld;
+hij vraagt het aan `admin_lang_required()`.
+`Tests\Service\MultilingualBoundaryTest::testNoLocalizedFieldSpellsRequiredByHand`
+loopt over elk scherm en valt op een letterlijke `required` naast een
+`_nl`/`_en`-naam.
+
+#### Dat verborgen paneel moet ook echt verborgen zijn
+
+Dit is de regel waar Navigatie en Footer een tijd lang op stuk zijn gegaan, en
+hij is de moeite van het opschrijven waard omdat hij in CSS woont en niet in
+PHP.
+
+`.admin-lang-pane` geeft het paneel een `display`, en een klasse die `display`
+zet wint van de eigen `[hidden]{display:none}` van de browser. Zonder een
+eigen `[hidden]`-regel stond het paneel van de taal die je *niet* bewerkt dus
+gewoon naast dat van de taal die je wél bewerkt — twee tekstvelden onder
+labels die met opzet niet meer zeggen welke taal ze zijn. Een redacteur die
+net op **EN** had geklikt typte zijn vertaling in het Nederlandse veld, en de
+opslag schreef precies wat het formulier meestuurde.
+
+Het viel niet meteen op omdat de blok-editors hun `<form>` in
+`.admin-product-form` zetten, en die component herstelt het attribuut voor zijn
+eigen subtree. Navigatie, Footer, het portfolio en de personalisatiebouwer doen
+dat niet — en dat was exact de lijst schermen waar de fout zichtbaar was.
+
+```css
+.admin-lang-pane{ display: block; }
+.admin-lang-pane[hidden]{ display: none !important; }   /* hoort bij het paneel */
+```
+
+`Tests\Service\MultilingualBoundaryTest::testAHiddenLanguagePaneIsActuallyHidden`
+laat de build vallen zodra die tweede regel verdwijnt.
+
+#### Lezen, schrijven en terugvallen: de drie richtingen
+
+Eén tabel, want de fout hierboven is precies wat er gebeurt als iemand ze door
+elkaar haalt.
+
+| | Wat er gebeurt |
+|---|---|
+| **Lezen voor een bezoeker** | gevraagde taal → leeg? dan de hoofdtaal. `LocalizedValue::in()`, via `SiteText` |
+| **Lezen voor een redacteur** | de bewerktaal, **ruw**. Leeg is zichtbaar leeg. `LocalizedValue::raw()` |
+| **Schrijven vanuit een editor** | alleen de bewerktaal krijgt een nieuwe waarde; de andere kolom gaat ongewijzigd mee terug naar de database |
+
+**Een teruggevallen waarde wordt nooit opgeslagen.** Terugvallen is een
+rendering-regel; zou een editorveld hem tonen, dan schreef de eerstvolgende
+Opslaan hem weg als échte vertaling en was het verschil tussen "vertaald" en
+"nog niet vertaald" weg.
+
+Daaruit volgt ook wat een schrijf-endpoint mag eisen: **verplicht is alleen de
+hoofdtaal**. Een vertaling is per definitie optioneel — de site valt terug —
+en een endpoint dat beide talen eist maakt een scherm onopslaanbaar zodra de
+helft ervan buiten beeld staat. De vraag wordt overal hetzelfde gesteld:
+
+```php
+if (LocalizedValue::ofDutchEnglish($nl, $en)->primaryValue() === '') {
+    // pas hier is het veld echt leeg
+}
+```
 
 ### Een editor aansluiten
 

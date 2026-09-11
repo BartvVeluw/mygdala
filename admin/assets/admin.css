@@ -3994,6 +3994,23 @@ body.admin-block-picker-open{ overflow: hidden; }
    already gave them, so switching languages never reflows the form. */
 .admin-lang-pane{ display: block; }
 
+/* ...and the line above is exactly why this one has to exist. A class that
+   gives the pane a `display` silently beats the browser's own
+   [hidden]{display:none}, so the pane of the language you are NOT editing
+   stayed on screen next to the one you are. Both languages were then on the
+   form at once, under labels that no longer say which is which (the "(NL)"/
+   "(EN)" suffixes are gone on purpose, MULTILINGUAL.md), and an editor who
+   believed the form had switched typed their translation into the other
+   language's field — one save overwriting the language they meant to keep.
+
+   It only ever worked on the editors whose <form> carries
+   .admin-product-form, because that component restores the attribute for its
+   own subtree further up this file. Navigation, Footer, the portfolio and
+   the personalization builder do not use that class, which is precisely the
+   set of screens where the bug showed. The rule belongs to the pane, not to
+   whichever form happens to wrap it. */
+.admin-lang-pane[hidden]{ display: none !important; }
+
 /* .admin-form-row--split is a two-column flex row, and a language pane
    inside one is a column of it. It has to flex like the <label> it wraps,
    or the visible language would sit in half the width it had before while
