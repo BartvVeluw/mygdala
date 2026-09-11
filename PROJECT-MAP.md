@@ -246,13 +246,29 @@ Bekend, ingepland, **niet** in deze stap op te lossen:
 | Titels, meta description, canonical, sitemap, robots | `SEO.md` |
 | Een oude URL die moet blijven werken, een pagina hernoemen | `REDIRECTS.md` |
 | Tests draaien of toevoegen | `TESTING.md` |
+| De schrijfstijl van code, commentaar en CMS-teksten | `CODE-STYLE.md` |
 | Waaróm werkt een blok zo | `docs/content-blocks/ARCHITECTURE.md`, `DECISIONS.md` |
-| Historische context van een implementatie | `MAIN.MD` (en pas dan) |
 
-**Lees `MAIN.MD` niet standaard.** Het is 632 KB projecthistorie: waardevol als
-je moet weten waaróm iets ooit zo is gebouwd, en verspilde context voor elke
-andere taak. Dezelfde regel geldt voor `docs/CMS_CONTENT_AUDIT.md` en
-`docs/content-blocks/ROADMAP.md` — historie, geen huidige beschrijving.
+## Verwijzingen naar bestanden die hier niet bestaan
+
+Docblocks en oudere documenten verwijzen naar vier bestanden die **niet in
+deze repository zitten**. Ga er niet naar zoeken:
+
+| Verwijzing | Wat het was |
+|---|---|
+| `MAIN.MD` | De projecthistorie van Van Veluw Laserdesign, ±632 KB. `App\Install\FreshSiteCopyPolicy` rekent die tot site-geschiedenis, niet tot de applicatie. Staat in de Van Veluw-repository |
+| `docs/CMS_CONTENT_AUDIT.md` | De inventarisatie van de site van vóór het CMS |
+| `docs/content-blocks/ROADMAP.md` | De vier fases van de contentblok-refactor, afgerond op 2026-09-08 |
+| `docs/content-blocks/PHASE-1.md` t/m `PHASE-4.md` | De implementatie-instructies per fase |
+
+Ruim 100 PHP-docblocks noemen er een. Dat is bewust zo gelaten: die zinnen
+leggen uit waaróm iets zo werkt, en de historische bron erbij vermelden kost
+niets zolang je weet dat je hem hier niet hoeft te openen. De code en de
+docblocks zijn de referentie.
+
+Wat er blijvend uit `PHASE-1.md` t/m `PHASE-4.md` kwam staat nu in
+`docs/content-blocks/ARCHITECTURE.md` en `DECISIONS.md`. Oudere code- en
+testcommentaren die naar een fase verwijzen bedoelen die twee bestanden.
 
 Wijkt de code af van deze documenten, dan heeft de code gelijk: pas het
 document aan, niet de code.

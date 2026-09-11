@@ -1,6 +1,6 @@
 {
     "name": "vanveluwlaserdesign/webshop",
-    "description": "Database layer for the Van Veluw Laserdesign webshop (products, customers, orders, order_items)",
+    "description": "Mygdala: a PHP/MySQL CMS with an optional webshop, personalization and blog module",
     "type": "project",
     "license": "proprietary",
     "require": {
