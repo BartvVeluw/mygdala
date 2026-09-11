@@ -21,6 +21,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../../vendor/autoload.php';
 
+use App\Service\Language\AdminTranslator;
 use App\Service\AdminAuth;
 use App\Service\Csrf;
 use App\Service\ItemGalleryContent;
@@ -103,42 +104,42 @@ $storedSource = (string) ($section['source_type'] ?? '');
 if (!ItemGalleryContent::isSource($fields['source_type'])
     && !($fields['source_type'] !== '' && $fields['source_type'] === $storedSource)
 ) {
-    $errors[] = 'Kies een geldige inhoudsbron.';
+    $errors[] = AdminTranslator::trans('validation.kies_geldige_inhoudsbron');
 }
 
 if (!ItemGalleryContent::isPortfolioScope($fields['portfolio_scope'])) {
-    $errors[] = 'Kies een geldige selectie voor portfolio-items.';
+    $errors[] = AdminTranslator::trans('validation.kies_geldige_selectie_portfolio_items');
 }
 
 if (!ItemGalleryContent::isBackground($fields['background'])) {
-    $errors[] = 'Kies een geldige achtergrond.';
+    $errors[] = AdminTranslator::trans('validation.kies_geldige_achtergrond');
 }
 
 if ($fields['max_items'] !== null && ($fields['max_items'] < 1 || $fields['max_items'] > 200)) {
-    $errors[] = 'Het maximum aantal items moet tussen 1 en 200 liggen, of leeg blijven.';
+    $errors[] = AdminTranslator::trans('validation.maximum_aantal_items_tussen_1');
 }
 
 if ($fields['collection_id'] !== null) {
     try {
         if ((new CollectionRepository())->findById($fields['collection_id']) === null) {
-            $errors[] = 'De gekozen collectie bestaat niet (meer).';
+            $errors[] = AdminTranslator::trans('validation.gekozen_collectie_bestaat_meer');
         }
     } catch (\Throwable $e) {
         error_log('[api/admin/update-item-gallery.php] collection check failed: ' . $e->getMessage());
-        $errors[] = 'De collectie kon niet worden gecontroleerd. Probeer het opnieuw.';
+        $errors[] = AdminTranslator::trans('validation.collectie_kon_gecontroleerd_probeer_opnieuw');
     }
 }
 
 // Picking "een collectie" without picking WHICH one would silently render an
 // empty block; say so instead.
 if (ItemGallerySources::needsCollection($fields['source_type']) && $fields['collection_id'] === null) {
-    $errors[] = 'Kies een collectie, of zet de inhoudsbron terug op portfolio-items.';
+    $errors[] = AdminTranslator::trans('validation.kies_collectie_zet_inhoudsbron_terug');
 }
 
 // A URL without a label would be an invisible button, and a label without a
 // URL a button that goes nowhere.
 if (($fields['button_url'] !== '') !== ($fields['button_label_nl'] !== '')) {
-    $errors[] = 'Vul zowel een knoplabel als een knop-URL in, of laat ze allebei leeg.';
+    $errors[] = AdminTranslator::trans('validation.vul_zowel_knoplabel_knop_url');
 }
 
 if ($errors !== []) {

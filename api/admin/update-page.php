@@ -32,6 +32,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../../vendor/autoload.php';
 
+use App\Service\Language\AdminTranslator;
 use App\Service\AdminAuth;
 use App\Service\Csrf;
 use App\Service\PageContent;
@@ -103,11 +104,11 @@ $socialMedia = MediaService::find(
 $socialImageSubmitted = array_key_exists('og_media_id', $_POST);
 
 if ($socialImageSubmitted && $socialMedia === null && trim((string) $_POST['og_media_id']) !== '') {
-    $errors[] = 'De gekozen deel-afbeelding bestaat niet (meer) in de mediabibliotheek.';
+    $errors[] = AdminTranslator::trans('validation.gekozen_deel_afbeelding_bestaat_meer');
 }
 
 if ($title === '') {
-    $errors[] = 'Titel is verplicht.';
+    $errors[] = AdminTranslator::trans('validation.titel_verplicht');
 } elseif (mb_strlen($title) > PageService::MAX_TITLE_LENGTH) {
     $errors[] = 'Titel mag maximaal ' . PageService::MAX_TITLE_LENGTH . ' tekens zijn.';
 }
@@ -118,7 +119,7 @@ if ($isProtected) {
 } else {
     $status = $statusInput;
     if (!PageContent::isValidStatus($status)) {
-        $errors[] = 'Ongeldige status.';
+        $errors[] = AdminTranslator::trans('validation.ongeldige_status');
     }
 }
 
@@ -129,7 +130,7 @@ if ($hasFixedUrl) {
 } else {
     $slug = PageService::sanitizeSlug($slugInput);
     if ($slug === '') {
-        $errors[] = 'Slug bevat geen geldige tekens.';
+        $errors[] = AdminTranslator::trans('validation.slug_bevat_geldige_tekens');
     } else {
         $slugError = PageService::validateSlug($repository, $slug, $id);
         if ($slugError !== null) {

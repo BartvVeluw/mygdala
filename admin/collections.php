@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/../vendor/autoload.php';
+require_once __DIR__ . '/_translate.php';
 
 use App\Repository\CollectionRepository;
 use App\Service\AdminAuth;
@@ -43,7 +44,7 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Collecties — Admin</title>
+<title><?= admin_te('shop.collecties_admin') ?></title>
 <link rel="stylesheet" href="<?= \App\Service\AssetVersion::url('/admin/assets/admin.css') ?>">
 <script src="<?= \App\Service\AssetVersion::url('/admin/assets/collections-admin.js') ?>" defer></script>
 </head>
@@ -51,25 +52,25 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
 <?php require __DIR__ . '/_header.php'; ?>
 <main class="admin-main">
   <div class="admin-main__heading">
-    <h1>Collecties</h1>
-    <a href="/admin/collection.php" class="admin-btn-link">+ Nieuwe collectie</a>
+    <h1><?= admin_te('shop.collecties') ?></h1>
+    <a href="/admin/collection.php" class="admin-btn-link"><?= admin_te('shop.nieuwe_collectie') ?></a>
   </div>
-  <p class="admin-text-muted">Groepeer producten in een collectie met een eigen pagina op <code>/collecties/&lt;slug&gt;</code>. Een product kan in meerdere collecties zitten. Klik op een kaart om te bewerken; sleep aan de <strong>&#10021;</strong>-greep om de volgorde te wijzigen (die volgorde wordt ook op de shop-pagina gebruikt).</p>
+  <p class="admin-text-muted"><?= admin_t('shop.groepeer_producten_collectie_eigen') ?></p>
 
   <?php if ($created): ?>
-    <p class="admin-alert admin-alert--success">Collectie aangemaakt.</p>
+    <p class="admin-alert admin-alert--success"><?= admin_te('shop.collectie_aangemaakt') ?></p>
   <?php endif; ?>
   <?php if ($deleted): ?>
-    <p class="admin-alert admin-alert--success">Collectie verwijderd. De producten zelf zijn ongewijzigd gebleven.</p>
+    <p class="admin-alert admin-alert--success"><?= admin_te('shop.collectie_verwijderd_producten_zelf') ?></p>
   <?php endif; ?>
   <?php if ($listError !== null): ?>
     <p class="admin-alert admin-alert--error"><?= $h((string) $listError) ?></p>
   <?php endif; ?>
 
   <?php if ($collections === null): ?>
-    <p class="admin-alert admin-alert--error">Collecties konden niet worden geladen.</p>
+    <p class="admin-alert admin-alert--error"><?= admin_te('shop.collecties_konden_geladen') ?></p>
   <?php elseif ($collections === []): ?>
-    <p>Nog geen collecties. <a href="/admin/collection.php">Maak de eerste collectie aan</a>.</p>
+    <p><?= admin_t('shop.collecties_maak_eerste_collectie') ?></p>
   <?php else: ?>
     <div class="admin-product-grid"
          data-collections-grid
@@ -91,22 +92,22 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
               <?php if ($imagePath !== ''): ?>
                 <img src="/<?= $h(ltrim($imagePath, '/')) ?>" alt="" loading="lazy">
               <?php else: ?>
-                <span class="admin-product-card__media-empty">Geen afbeelding</span>
+                <span class="admin-product-card__media-empty"><?= admin_te('shop.no_image_short') ?></span>
               <?php endif; ?>
               <span class="admin-badge admin-product-card__status admin-badge--<?= $isActive ? 'paid' : 'canceled' ?>">
-                <?= $isActive ? 'Actief' : 'Inactief' ?>
+                <?= $isActive ? admin_t('common.active') : 'Inactief' ?>
               </span>
             </div>
             <div class="admin-product-card__body">
               <p class="admin-product-card__name"><?= $h($name) ?></p>
-              <p class="admin-product-card__price"><?= $productCount ?> product<?= $productCount === 1 ? '' : 'en' ?></p>
+              <p class="admin-product-card__price"><?= $productCount ?> <?= admin_t('shop.product_suffix', ['v1' => $productCount === 1 ? '' : 'en']) ?></p>
             </div>
           </a>
           <div class="admin-product-card__footer">
             <?php if ($isActive): ?>
               <a class="admin-btn-text" href="<?= $h(CollectionContent::publicPath($slug)) ?>" target="_blank" rel="noopener">Bekijken</a>
             <?php else: ?>
-              <span class="admin-text-muted" title="Een inactieve collectie is niet publiek zichtbaar.">Niet zichtbaar</span>
+              <span class="admin-text-muted" title="Een inactieve collectie is niet publiek zichtbaar."><?= admin_te('common.not_visible') ?></span>
             <?php endif; ?>
             <?php
               // Deleting a collection can never delete a product — the pivot's
@@ -118,7 +119,7 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
             <form method="post" action="/api/admin/delete-collection.php" class="admin-inline-form" onsubmit="return confirm('<?= $h($confirmMessage) ?>');">
               <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
               <input type="hidden" name="id" value="<?= $collectionId ?>">
-              <button type="submit" class="admin-btn-text admin-btn-text--danger">Verwijderen</button>
+              <button type="submit" class="admin-btn-text admin-btn-text--danger"><?= admin_te('common.delete') ?></button>
             </form>
           </div>
         </article>

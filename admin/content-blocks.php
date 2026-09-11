@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/../vendor/autoload.php';
+require_once __DIR__ . '/_translate.php';
 require_once __DIR__ . '/_block_visual.php';
 
 use App\Service\AdminAuth;
@@ -47,7 +48,7 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Contentblokken — Admin</title>
+<title><?= admin_te('blocks.contentblokken_admin') ?></title>
 <link rel="stylesheet" href="<?= \App\Service\AssetVersion::url('/admin/assets/admin.css') ?>">
 </head>
 <body<?= \App\Service\AdminTheme::bodyAttribute() ?>>
@@ -55,10 +56,10 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
 <main class="admin-main">
   <header class="admin-page-head">
     <div>
-      <h1 class="admin-page-head__title">Contentblokken</h1>
-      <p class="admin-page-head__desc">Alle bouwstenen waar je een pagina mee kunt vullen &mdash; <?= $total ?> in totaal. Je voegt ze toe vanuit een pagina zelf, met de knop <em>Contentblok toevoegen</em> onder de inhoud.</p>
+      <h1 class="admin-page-head__title"><?= admin_te('blocks.contentblokken') ?></h1>
+      <p class="admin-page-head__desc"><?= admin_t('blocks.catalogue_intro', ['count' => (int) $total]) ?></p>
     </div>
-    <a href="/admin/pages.php" class="admin-btn-secondary">Naar pagina's &#8594;</a>
+    <a href="/admin/pages.php" class="admin-btn-secondary"><?= admin_te('blocks.pagina_s') ?> &#8594;</a>
   </header>
 
   <?php foreach ($groups as $categoryKey => $blocks): ?>
@@ -83,12 +84,12 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
               <?php endif; ?>
             </div>
 
-            <p class="admin-catalogue-card__desc"><?= $h($definition->description()) ?></p>
+            <p class="admin-catalogue-card__desc"><?= $h($definition->describedFor()) ?></p>
 
-            <?php $cases = $definition->useCases(); ?>
+            <?php $cases = $definition->useCasesFor(); ?>
             <?php if ($cases !== []): ?>
               <div>
-                <p class="admin-catalogue-card__cases-title">Geschikt voor</p>
+                <p class="admin-catalogue-card__cases-title"><?= admin_te('blocks.geschikt') ?></p>
                 <ul class="admin-catalogue-card__cases">
                   <?php foreach ($cases as $case): ?>
                     <li><?= $h($case) ?></li>
@@ -98,7 +99,7 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
             <?php endif; ?>
 
             <?php foreach (SectionRegistry::types()[$type]['edit_links'] ?? [] as $editLink): ?>
-              <p class="admin-text-muted">Inhoud beheer je bij <a href="<?= $h($editLink['url']) ?>"><?= $h($editLink['label']) ?></a>.</p>
+              <p class="admin-text-muted"><?= admin_te('blocks.inhoud_beheer') ?> <a href="<?= $h($editLink['url']) ?>"><?= $h($editLink['label']) ?></a>.</p>
             <?php endforeach; ?>
           </article>
         <?php endforeach; ?>

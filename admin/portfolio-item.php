@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/../vendor/autoload.php';
+require_once __DIR__ . '/_translate.php';
 
 require_once __DIR__ . '/_language_fields.php';
 
@@ -31,7 +32,7 @@ if ($isEdit) {
 
     if ($item === null) {
         http_response_code(404);
-        exit('Portfolio-item niet gevonden.');
+        exit(admin_t('screen.portfolio_item_gevonden'));
     }
 
     $extraImages = (new PortfolioItemImageRepository())->findByPortfolioItemId($id);
@@ -79,7 +80,7 @@ $isFeaturedChecked = $item !== null && (int) $item['is_featured'] === 1;
 $hasDetailPageChecked = $item !== null && !empty($item['has_detail_page']);
 
 $csrfToken = Csrf::token();
-$pageTitle = $isEdit ? (string) $item['title_nl'] : 'Nieuw portfolio-item';
+$pageTitle = $isEdit ? (string) $item['title_nl'] : admin_t('portfolio.new_item');
 
 /**
  * @param array<int, array<string, mixed>> $categories from PortfolioCategoryRepository::findAll()
@@ -88,7 +89,7 @@ $pageTitle = $isEdit ? (string) $item['title_nl'] : 'Nieuw portfolio-item';
 function portfolioCategoryCheckboxes(array $categories, array $selectedIds): string
 {
     if ($categories === []) {
-        return '<p class="admin-text-muted">Nog geen categorie&euml;n. Maak er een aan via "Portfolio categorie&euml;n" op het portfolio-overzicht.</p>';
+        return '<p class="admin-text-muted">' . admin_t('portfolio.no_categories_yet') . '</p>';
     }
 
     $html = '';
@@ -119,7 +120,7 @@ $cmsImageSrc = static fn (array $row): string => '/' . ltrim((string) ($row['thu
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title><?= $h($pageTitle) ?> — Admin</title>
+<title><?= $h($pageTitle) ?> <?= admin_te('portfolio.admin') ?></title>
 <link rel="stylesheet" href="<?= \App\Service\AssetVersion::url('/admin/assets/vendor/quill/quill.snow.css') ?>">
 <link rel="stylesheet" href="<?= \App\Service\AssetVersion::url('/admin/assets/admin.css') ?>">
 <script src="<?= \App\Service\AssetVersion::url('/admin/assets/vendor/quill/quill.min.js') ?>" defer></script>
@@ -128,14 +129,14 @@ $cmsImageSrc = static fn (array $row): string => '/' . ltrim((string) ($row['thu
 <body<?= \App\Service\AdminTheme::bodyAttribute() ?>>
 <?php require __DIR__ . '/_header.php'; ?>
 <main class="admin-main">
-  <p><a href="<?= $h($backUrl) ?>">&larr; Terug naar portfolio</a></p>
+  <p><a href="<?= $h($backUrl) ?>"><?= admin_t('portfolio.terug_portfolio') ?></a></p>
   <h1><?= $h($pageTitle) ?></h1>
 
   <?php if ($created): ?>
-    <p class="admin-alert admin-alert--success">Portfolio-item aangemaakt. Vul hieronder de overige gegevens aan.</p>
+    <p class="admin-alert admin-alert--success"><?= admin_te('portfolio.portfolio_item_aangemaakt_vul') ?></p>
   <?php endif; ?>
   <?php if ($updated): ?>
-    <p class="admin-alert admin-alert--success">Opgeslagen.</p>
+    <p class="admin-alert admin-alert--success"><?= admin_te('common.saved') ?></p>
   <?php endif; ?>
   <?php if ($errors !== []): ?>
     <div class="admin-alert admin-alert--error">
@@ -149,13 +150,13 @@ $cmsImageSrc = static fn (array $row): string => '/' . ltrim((string) ($row['thu
 
   <?php if (!$isEdit): ?>
     <section class="admin-card">
-      <h2>Nieuw portfolio-item</h2>
-      <p class="admin-text-muted">Na het aanmaken kun je hier ook een projectpagina, introtekst en extra afbeeldingen toevoegen.</p>
+      <h2><?= admin_te('portfolio.nieuw_portfolio_item') ?></h2>
+      <p class="admin-text-muted"><?= admin_te('portfolio.na_aanmaken_hier_ook') ?></p>
       <form method="post" action="/api/admin/create-portfolio-item.php" enctype="multipart/form-data" class="admin-product-form">
         <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
 
         <div class="admin-form-row">
-          <label>Afbeelding*
+          <label><?= admin_te('common.image') ?>*
             <input type="file" name="image" accept="image/jpeg,image/png,image/webp" required>
           </label>
         </div>
@@ -163,12 +164,12 @@ $cmsImageSrc = static fn (array $row): string => '/' . ltrim((string) ($row['thu
         <?php admin_lang_tabs(); ?>
         <div class="admin-form-row admin-form-row--split">
           <?php admin_lang_pane_start('nl'); ?>
-          <label>Alt-tekst*
+          <label><?= admin_te('common.alt_text') ?>*
             <input type="text" name="alt_nl" maxlength="255" <?= admin_lang_required('nl') ?> value="<?= $h(fieldValue($old, null, 'alt_nl')) ?>">
           </label>
           <?php admin_lang_pane_end(); ?>
           <?php admin_lang_pane_start('en'); ?>
-          <label>Alt-tekst
+          <label><?= admin_te('common.alt_text') ?>
             <input type="text" name="alt_en" maxlength="255" value="<?= $h(fieldValue($old, null, 'alt_en')) ?>"<?= admin_lang_placeholder_attr('en') ?>>
           </label>
           <?php admin_lang_pane_end(); ?>
@@ -176,12 +177,12 @@ $cmsImageSrc = static fn (array $row): string => '/' . ltrim((string) ($row['thu
 
         <div class="admin-form-row admin-form-row--split">
           <?php admin_lang_pane_start('nl'); ?>
-          <label>Titel*
+          <label><?= admin_te('common.title') ?>*
             <input type="text" name="title_nl" maxlength="150" <?= admin_lang_required('nl') ?> value="<?= $h(fieldValue($old, null, 'title_nl')) ?>">
           </label>
           <?php admin_lang_pane_end(); ?>
           <?php admin_lang_pane_start('en'); ?>
-          <label>Titel
+          <label><?= admin_te('common.title') ?>
             <input type="text" name="title_en" maxlength="150" value="<?= $h(fieldValue($old, null, 'title_en')) ?>"<?= admin_lang_placeholder_attr('en') ?>>
           </label>
           <?php admin_lang_pane_end(); ?>
@@ -189,23 +190,22 @@ $cmsImageSrc = static fn (array $row): string => '/' . ltrim((string) ($row['thu
 
         <div class="admin-form-row admin-form-row--split">
           <?php admin_lang_pane_start('nl'); ?>
-          <label>Onderschrift*
+          <label><?= admin_te('portfolio.onderschrift') ?>*
             <input type="text" name="subtitle_nl" maxlength="150" <?= admin_lang_required('nl') ?> value="<?= $h(fieldValue($old, null, 'subtitle_nl')) ?>">
           </label>
           <?php admin_lang_pane_end(); ?>
           <?php admin_lang_pane_start('en'); ?>
-          <label>Onderschrift
+          <label><?= admin_te('portfolio.onderschrift_2') ?>
             <input type="text" name="subtitle_en" maxlength="150" value="<?= $h(fieldValue($old, null, 'subtitle_en')) ?>"<?= admin_lang_placeholder_attr('en') ?>>
           </label>
           <?php admin_lang_pane_end(); ?>
         </div>
 
         <div class="admin-form-row">
-          <span>Categorie&euml;n*</span><br>
-          <?= portfolioCategoryCheckboxes($allCategories, $selectedCategoryIds) ?>
+          <span><?= admin_te('portfolio.categories_field') ?><?= admin_t('portfolio.text', ['v1' => portfolioCategoryCheckboxes($allCategories, $selectedCategoryIds)]) ?>
         </div>
 
-        <button type="submit">Portfolio-item aanmaken</button>
+        <button type="submit"><?= admin_te('portfolio.portfolio_item_aanmaken') ?></button>
       </form>
     </section>
   <?php else: ?>
@@ -214,28 +214,28 @@ $cmsImageSrc = static fn (array $row): string => '/' . ltrim((string) ($row['thu
       <input type="hidden" name="item_id" value="<?= (int) $item['id'] ?>">
 
       <section class="admin-card">
-        <h2>Basisgegevens</h2>
+        <h2><?= admin_te('portfolio.basisgegevens') ?></h2>
         <?php admin_lang_tabs(); ?>
         <div class="admin-form-row admin-form-row--split">
           <?php admin_lang_pane_start('nl'); ?>
-          <label>Titel*
+          <label><?= admin_te('common.title') ?>*
             <input type="text" name="title_nl" maxlength="150" <?= admin_lang_required('nl') ?> value="<?= $h(fieldValue($old, $item, 'title_nl')) ?>">
           </label>
           <?php admin_lang_pane_end(); ?>
           <?php admin_lang_pane_start('en'); ?>
-          <label>Titel
+          <label><?= admin_te('common.title') ?>
             <input type="text" name="title_en" maxlength="150" value="<?= $h(fieldValue($old, $item, 'title_en')) ?>"<?= admin_lang_placeholder_attr('en') ?>>
           </label>
           <?php admin_lang_pane_end(); ?>
         </div>
         <div class="admin-form-row admin-form-row--split">
           <?php admin_lang_pane_start('nl'); ?>
-          <label>Onderschrift*
+          <label><?= admin_te('portfolio.onderschrift_3') ?>*
             <input type="text" name="subtitle_nl" maxlength="150" <?= admin_lang_required('nl') ?> value="<?= $h(fieldValue($old, $item, 'subtitle_nl')) ?>">
           </label>
           <?php admin_lang_pane_end(); ?>
           <?php admin_lang_pane_start('en'); ?>
-          <label>Onderschrift
+          <label><?= admin_te('portfolio.onderschrift_4') ?>
             <input type="text" name="subtitle_en" maxlength="150" value="<?= $h(fieldValue($old, $item, 'subtitle_en')) ?>"<?= admin_lang_placeholder_attr('en') ?>>
           </label>
           <?php admin_lang_pane_end(); ?>
@@ -243,25 +243,25 @@ $cmsImageSrc = static fn (array $row): string => '/' . ltrim((string) ($row['thu
       </section>
 
       <section class="admin-card">
-        <h2>Hoofdafbeelding</h2>
+        <h2><?= admin_te('portfolio.hoofdafbeelding') ?></h2>
         <div class="admin-image-card" style="max-width:220px;">
           <div class="admin-image-card__media">
             <img src="<?= $h($cmsImageSrc($item)) ?>" alt="" loading="lazy">
           </div>
         </div>
         <div class="admin-form-row" style="margin-top:0.75rem;">
-          <label>Vervangen door nieuw bestand (optioneel)
+          <label><?= admin_te('portfolio.vervangen_door_nieuw_bestand') ?>
             <input type="file" name="image" accept="image/jpeg,image/png,image/webp">
           </label>
         </div>
         <div class="admin-form-row admin-form-row--split">
           <?php admin_lang_pane_start('nl'); ?>
-          <label>Alt-tekst*
+          <label><?= admin_te('common.alt_text') ?>*
             <input type="text" name="alt_nl" maxlength="255" <?= admin_lang_required('nl') ?> value="<?= $h(fieldValue($old, $item, 'alt_nl')) ?>">
           </label>
           <?php admin_lang_pane_end(); ?>
           <?php admin_lang_pane_start('en'); ?>
-          <label>Alt-tekst
+          <label><?= admin_te('common.alt_text') ?>
             <input type="text" name="alt_en" maxlength="255" value="<?= $h(fieldValue($old, $item, 'alt_en')) ?>"<?= admin_lang_placeholder_attr('en') ?>>
           </label>
           <?php admin_lang_pane_end(); ?>
@@ -269,36 +269,35 @@ $cmsImageSrc = static fn (array $row): string => '/' . ltrim((string) ($row['thu
       </section>
 
       <section class="admin-card">
-        <h2>Zichtbaarheid &amp; categorie&euml;n</h2>
+        <h2><?= admin_t('portfolio.zichtbaarheid_categorie_n') ?></h2>
         <div class="admin-form-row">
-          <span>Categorie&euml;n*</span><br>
-          <?= portfolioCategoryCheckboxes($allCategories, $selectedCategoryIds) ?>
+          <span><?= admin_t('portfolio.categories_required', ['v1' => portfolioCategoryCheckboxes($allCategories, $selectedCategoryIds)]) ?>
         </div>
         <label class="admin-checkbox-label">
           <input type="checkbox" name="is_active" value="1" <?= $isActiveChecked ? 'checked' : '' ?>>
-          Zichtbaar op de portfolio-pagina
+          <?= admin_te('portfolio.zichtbaar_portfolio_pagina') ?>
         </label>
         <label class="admin-checkbox-label">
           <input type="checkbox" name="is_featured" value="1" <?= $isFeaturedChecked ? 'checked' : '' ?>>
-          Toon op homepage
+          <?= admin_te('portfolio.toon_homepage') ?>
         </label>
       </section>
 
       <section class="admin-card">
-        <h2>Projectpagina</h2>
+        <h2><?= admin_te('portfolio.projectpagina') ?></h2>
         <label class="admin-checkbox-label">
           <input type="checkbox" name="has_detail_page" value="1" data-detail-toggle <?= $hasDetailPageChecked ? 'checked' : '' ?>>
-          Projectpagina inschakelen
+          <?= admin_te('portfolio.projectpagina_inschakelen') ?>
         </label>
-        <p class="admin-text-muted">Ingeschakeld: de portfolio-kaart wordt klikbaar en linkt naar een eigen projectpagina met introtekst, projectbeschrijving en extra afbeeldingen.</p>
+        <p class="admin-text-muted"><?= admin_te('portfolio.ingeschakeld_portfolio_kaart_klikbaar') ?></p>
 
         <div data-detail-panel <?= $hasDetailPageChecked ? '' : 'hidden' ?>>
           <div class="admin-form-row">
-            <label>Slug (URL: /portfolio/&hellip;)
+            <label><?= admin_t('portfolio.slug_url_portfolio') ?>
               <input type="text" name="slug" maxlength="170" value="<?= $h(fieldValue($old, $item, 'slug')) ?>" placeholder="Leeg = automatisch gegenereerd uit de titel">
             </label>
             <?php if ($hasDetailPageChecked && (string) ($item['slug'] ?? '') !== ''): ?>
-              <p class="admin-text-muted">Live op: <a href="/portfolio/<?= $h((string) $item['slug']) ?>" target="_blank" rel="noopener">/portfolio/<?= $h((string) $item['slug']) ?></a></p>
+              <p class="admin-text-muted"><?= admin_te('portfolio.live') ?> <a href="/portfolio/<?= $h((string) $item['slug']) ?>" target="_blank" rel="noopener"><?= admin_t('portfolio.public_path', ['v1' => $h((string) $item['slug'])]) ?></a></p>
             <?php endif; ?>
           </div>
 
@@ -323,16 +322,16 @@ $cmsImageSrc = static fn (array $row): string => '/' . ltrim((string) ($row['thu
       </section>
 
       <section class="admin-card">
-        <button type="submit">Opslaan</button>
+        <button type="submit"><?= admin_te('common.save') ?></button>
       </section>
     </form>
 
     <section class="admin-card" data-detail-panel <?= $hasDetailPageChecked ? '' : 'hidden' ?>>
-      <h2>Projectafbeeldingen</h2>
-      <p class="admin-text-muted">Extra foto's voor de projectpagina, naast de hoofdafbeelding hierboven. Sleep om te herordenen.</p>
+      <h2><?= admin_te('portfolio.projectafbeeldingen') ?></h2>
+      <p class="admin-text-muted"><?= admin_te('portfolio.extra_foto_s_projectpagina') ?></p>
 
       <?php if ($extraImages === []): ?>
-        <p class="admin-text-muted">Nog geen extra afbeeldingen.</p>
+        <p class="admin-text-muted"><?= admin_te('portfolio.extra_afbeeldingen') ?></p>
       <?php else: ?>
         <div class="admin-portfolio-image-grid"
              data-portfolio-image-grid
@@ -357,12 +356,12 @@ $cmsImageSrc = static fn (array $row): string => '/' . ltrim((string) ($row['thu
                 <?php admin_lang_pane_start('en'); ?>
                   <input type="text" name="alt_en" maxlength="255" placeholder="Alt-tekst" value="<?= $h((string) ($image['alt_en'] ?? '')) ?>">
                 <?php admin_lang_pane_end(); ?>
-                <button type="submit" class="admin-btn-text">Opslaan</button>
+                <button type="submit" class="admin-btn-text"><?= admin_te('common.save') ?></button>
               </form>
               <form method="post" action="/api/admin/delete-portfolio-item-image.php" class="admin-inline-form" onsubmit="return confirm('Deze afbeelding verwijderen?');">
                 <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
                 <input type="hidden" name="image_id" value="<?= $imageId ?>">
-                <button type="submit" class="admin-btn-text admin-btn-text--danger">Verwijderen</button>
+                <button type="submit" class="admin-btn-text admin-btn-text--danger"><?= admin_te('common.delete') ?></button>
               </form>
             </div>
           <?php endforeach; ?>
@@ -372,20 +371,20 @@ $cmsImageSrc = static fn (array $row): string => '/' . ltrim((string) ($row['thu
       <form method="post" action="/api/admin/add-portfolio-item-images.php" enctype="multipart/form-data" class="admin-form-row" data-portfolio-add-images-form>
         <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
         <input type="hidden" name="portfolio_item_id" value="<?= (int) $item['id'] ?>">
-        <label>Afbeeldingen toevoegen (kies er meerdere tegelijk)
+        <label><?= admin_te('portfolio.afbeeldingen_toevoegen_kies_er') ?>
           <input type="file" name="images[]" multiple accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp">
         </label>
-        <button type="submit">Toevoegen</button>
+        <button type="submit"><?= admin_te('common.add') ?></button>
       </form>
     </section>
 
     <section class="admin-card">
-      <h2>Verwijderen</h2>
-      <p class="admin-text-muted">Verwijdert dit portfolio-item, de hoofdafbeelding en alle projectafbeeldingen definitief.</p>
+      <h2><?= admin_te('common.delete') ?></h2>
+      <p class="admin-text-muted"><?= admin_te('portfolio.verwijdert_portfolio_item_hoofdafbeelding') ?></p>
       <form method="post" action="/api/admin/delete-portfolio-item.php" onsubmit="return confirm('Dit portfolio-item definitief verwijderen?');">
         <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
         <input type="hidden" name="item_id" value="<?= (int) $item['id'] ?>">
-        <button type="submit" class="admin-btn-text admin-btn-text--danger">Portfolio-item verwijderen</button>
+        <button type="submit" class="admin-btn-text admin-btn-text--danger"><?= admin_te('portfolio.portfolio_item_verwijderen') ?></button>
       </form>
     </section>
   <?php endif; ?>

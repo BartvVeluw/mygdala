@@ -22,6 +22,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../../vendor/autoload.php';
 
+use App\Service\Language\AdminTranslator;
 use App\Repository\FormBlockRepository;
 use App\Repository\FormRepository;
 use App\Repository\PageRepository;
@@ -71,7 +72,7 @@ $fields = [
 $errors = [];
 
 if ($formId !== null && (new FormRepository())->find($formId) === null) {
-    $errors[] = 'Het gekozen formulier bestaat niet.';
+    $errors[] = AdminTranslator::trans('validation.gekozen_formulier_bestaat');
 }
 
 if ($errors !== []) {

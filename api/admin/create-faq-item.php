@@ -11,6 +11,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../../vendor/autoload.php';
 
+use App\Service\Language\AdminTranslator;
 use App\Service\AdminAuth;
 use App\Service\Csrf;
 use App\Service\FaqContent;
@@ -55,10 +56,10 @@ $fields = [
 
 $errors = [];
 if ($fields['question_nl'] === '') {
-    $errors[] = 'Vraag (NL) is verplicht.';
+    $errors[] = AdminTranslator::trans('validation.vraag_nl_verplicht');
 }
 if ($fields['answer_nl'] === '') {
-    $errors[] = 'Antwoord (NL) is verplicht.';
+    $errors[] = AdminTranslator::trans('validation.antwoord_nl_verplicht');
 }
 
 if ($errors !== []) {

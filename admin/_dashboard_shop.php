@@ -1,5 +1,7 @@
 <?php
 
+
+require_once __DIR__ . '/_translate.php';
 /**
  * The Shop's panel on the CMS dashboard: today's and this month's figures,
  * what still needs doing, and the last few orders.
@@ -115,7 +117,7 @@ $showsShopOverview = $canViewOrders || $canViewProducts || $canManagePersonaliza
 ?>
 
 <?php if ($shopLoadFailed): ?>
-  <p class="admin-alert admin-alert--error">De winkelgegevens konden niet worden geladen. De onderdelen hieronder werken gewoon.</p>
+  <p class="admin-alert admin-alert--error"><?= admin_te('shop.winkelgegevens_konden_geladen_onderdelen') ?></p>
 <?php endif; ?>
 
 <?php if ($summary !== null): ?>
@@ -127,15 +129,15 @@ $showsShopOverview = $canViewOrders || $canViewProducts || $canManagePersonaliza
           [
               'label' => 'Bestellingen vandaag',
               'value' => (string) $summary['today']['order_count'],
-              'note' => 'Betaalde bestellingen van vandaag.',
+              'note' => admin_t('shop.today_paid_orders'),
           ],
           [
-              'label' => 'Bestellingen deze maand',
+              'label' => admin_t('shop.orders_this_month'),
               'value' => (string) $summary['month']['order_count'],
-              'note' => 'Betaalde bestellingen sinds de 1e van deze maand.',
+              'note' => admin_t('shop.orders_since_first'),
           ],
           [
-              'label' => 'Omzet deze maand',
+              'label' => admin_t('shop.revenue_this_month'),
               'value' => '&euro; ' . $h(DashboardMetrics::formatAmount($summary['month']['revenue'])),
               'note' => $summary['month']['refunded'] > 0.0
                   ? 'Betaald minus terugbetaald (&euro; ' . $h(DashboardMetrics::formatAmount($summary['month']['refunded'])) . ' terugbetaald).'
@@ -144,7 +146,7 @@ $showsShopOverview = $canViewOrders || $canViewProducts || $canManagePersonaliza
           [
               'label' => 'Gemiddelde orderwaarde',
               'value' => '&euro; ' . $h(DashboardMetrics::formatAmount($summary['month']['average_order_value'])),
-              'note' => 'Omzet deze maand gedeeld door het aantal bestellingen.',
+              'note' => admin_t('shop.revenue_per_order'),
           ],
       ];
     ?>
@@ -160,13 +162,13 @@ $showsShopOverview = $canViewOrders || $canViewProducts || $canManagePersonaliza
 
 <?php if ($showsShopOverview): ?>
   <section class="admin-card admin-attention">
-    <h2>Aandacht nodig</h2>
+    <h2><?= admin_te('shop.aandacht_nodig') ?></h2>
 
     <?php if ($visibleAttentionItems === []): ?>
       <?php /* Deliberately neutral: this section only ever covers the
                onderdelen deze gebruiker mag zien, dus het mag niet klinken
                als een uitspraak over de hele winkel. */ ?>
-      <p class="admin-text-muted">Niets te doen — er staat op dit moment niets open.</p>
+      <p class="admin-text-muted"><?= admin_te('shop.niets_doen_er_staat') ?></p>
     <?php else: ?>
       <ul class="admin-attention__list">
         <?php foreach ($visibleAttentionItems as $item): ?>
@@ -180,7 +182,7 @@ $showsShopOverview = $canViewOrders || $canViewProducts || $canManagePersonaliza
       </ul>
       <?php if ($attentionTotal > count($visibleAttentionItems)): ?>
         <p class="admin-text-muted admin-attention__more">
-          En nog <?= $attentionTotal - count($visibleAttentionItems) ?> ander<?= $attentionTotal - count($visibleAttentionItems) === 1 ? '' : 'e' ?> punt<?= $attentionTotal - count($visibleAttentionItems) === 1 ? '' : 'en' ?>.
+          <?= admin_t('shop.ander_punt', ['v1' => $attentionTotal - count($visibleAttentionItems), 'v2' => $attentionTotal - count($visibleAttentionItems) === 1 ? '' : 'e', 'v3' => $attentionTotal - count($visibleAttentionItems) === 1 ? '' : 'en']) ?>
         </p>
       <?php endif; ?>
     <?php endif; ?>
@@ -190,12 +192,12 @@ $showsShopOverview = $canViewOrders || $canViewProducts || $canManagePersonaliza
 <?php if ($canViewOrders): ?>
   <section class="admin-card">
     <div class="admin-card__heading">
-      <h2>Recente bestellingen</h2>
-      <a class="admin-btn-text" href="/admin/orders.php">Alle bestellingen &#8594;</a>
+      <h2><?= admin_te('shop.recente_bestellingen') ?></h2>
+      <a class="admin-btn-text" href="/admin/orders.php"><?= admin_te('shop.alle_bestellingen') ?> &#8594;</a>
     </div>
 
     <?php if ($recentOrders === []): ?>
-      <p class="admin-text-muted">Er zijn nog geen bestellingen.</p>
+      <p class="admin-text-muted"><?= admin_te('shop.er_bestellingen') ?></p>
     <?php else: ?>
       <?php /* Deliberately every payment status, unlike the figures above:
                this is "wat is er net gebeurd", and a mislukte of nog niet
@@ -204,12 +206,12 @@ $showsShopOverview = $canViewOrders || $canViewProducts || $canManagePersonaliza
         <table class="admin-table">
           <thead>
             <tr>
-              <th>Order</th>
-              <th>Datum</th>
-              <th>Klant</th>
-              <th>Totaal</th>
-              <th>Betaalstatus</th>
-              <th>Afhandeling</th>
+              <th><?= admin_te('shop.order') ?></th>
+              <th><?= admin_te('common.date') ?></th>
+              <th><?= admin_te('shop.klant') ?></th>
+              <th><?= admin_te('shop.totaal') ?></th>
+              <th><?= admin_te('shop.betaalstatus') ?></th>
+              <th><?= admin_te('shop.afhandeling') ?></th>
             </tr>
           </thead>
           <tbody>
@@ -232,7 +234,7 @@ $showsShopOverview = $canViewOrders || $canViewProducts || $canManagePersonaliza
                     <?= $h($customerName) ?>
                   <?php endif; ?>
                 </td>
-                <td>&euro; <?= $h(DashboardMetrics::formatAmount((float) $order['total'])) ?></td>
+                <td><?= admin_t('shop.amount_with', ['v1' => $h(DashboardMetrics::formatAmount((float) $order['total']))]) ?></td>
                 <td><span class="admin-badge admin-badge--<?= $h($paymentStatus) ?>"><?= $h(adminPaymentStatusLabel($paymentStatus)) ?></span></td>
                 <td><span class="admin-badge admin-badge--<?= adminFulfilmentBadgeModifier($fulfilmentStatus) ?>"><?= $h($fulfilmentStatus) ?></span></td>
               </tr>

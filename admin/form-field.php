@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/../vendor/autoload.php';
+require_once __DIR__ . '/_translate.php';
 
 require_once __DIR__ . '/_language_fields.php';
 
@@ -34,7 +35,7 @@ AdminAuth::requirePermission('forms.manage');
 $id = filter_input(INPUT_GET, 'id', FILTER_VALIDATE_INT);
 if ($id === false || $id === null || $id < 1) {
     http_response_code(400);
-    exit('Ongeldig veld-id.');
+    exit(admin_t('screen.ongeldig_veld_id'));
 }
 
 try {
@@ -44,12 +45,12 @@ try {
 } catch (\Throwable $e) {
     error_log('[admin/form-field.php] ' . $e->getMessage());
     http_response_code(500);
-    exit('Veld kon niet worden geladen.');
+    exit(admin_t('screen.veld_kon_geladen'));
 }
 
 if ($field === null || $form === null) {
     http_response_code(404);
-    exit('Veld niet gevonden.');
+    exit(admin_t('screen.veld_gevonden'));
 }
 
 $formId = (int) $form['id'];
@@ -88,18 +89,18 @@ $v = static fn (array $values, string $key): string => htmlspecialchars((string)
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title><?= $h((string) $field['label_nl']) ?> — Veld — Admin</title>
+<title><?= $h((string) $field['label_nl']) ?> <?= admin_te('forms.veld_admin') ?></title>
 <link rel="stylesheet" href="<?= \App\Service\AssetVersion::url('/admin/assets/admin.css') ?>">
 </head>
 <body<?= \App\Service\AdminTheme::bodyAttribute() ?>>
 <?php require __DIR__ . '/_header.php'; ?>
 <main class="admin-main">
-  <p class="admin-text-muted"><a href="/admin/form.php?id=<?= $formId ?>">&larr; <?= $h((string) $form['name']) ?></a></p>
+  <p class="admin-text-muted"><a href="/admin/form.php?id=<?= $formId ?>"><?= admin_t('forms.text', ['v1' => $h((string) $form['name'])]) ?></a></p>
   <h1><?= $h((string) $field['label_nl']) ?></h1>
-  <p class="admin-text-muted">Veld in <strong><?= $h((string) $form['name']) ?></strong>. De postnaam <code><?= $h((string) $field['field_key']) ?></code> ligt vast: bewaarde inzendingen zijn eronder opgeslagen. De labels mag je gerust wijzigen — oude inzendingen houden de tekst waarmee ze verstuurd zijn.</p>
+  <p class="admin-text-muted"><?= admin_t('forms.veld_postnaam_ligt_vast', ['v1' => $h((string) $form['name']), 'v2' => $h((string) $field['field_key'])]) ?></p>
 
   <?php if ($saved): ?>
-    <p class="admin-alert admin-alert--success">Opgeslagen.</p>
+    <p class="admin-alert admin-alert--success"><?= admin_te('common.saved') ?></p>
   <?php endif; ?>
 
   <?php if ($errors !== []): ?>
@@ -117,7 +118,7 @@ $v = static fn (array $values, string $key): string => htmlspecialchars((string)
       <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
       <input type="hidden" name="field_id" value="<?= $id ?>">
 
-      <label>Veldtype*
+      <label><?= admin_te('forms.veldtype') ?>*
         <select name="field_type" required>
           <?php foreach (FormFieldTypes::choices() as $key => $label): ?>
             <option value="<?= $h($key) ?>" <?= ($values['field_type'] ?? '') === $key ? 'selected' : '' ?>><?= $h($label) ?></option>
@@ -128,12 +129,12 @@ $v = static fn (array $values, string $key): string => htmlspecialchars((string)
       <?php admin_lang_tabs(); ?>
       <div class="admin-form-row admin-form-row--split">
         <?php admin_lang_pane_start('nl'); ?>
-        <label>Label*
+        <label><?= admin_te('forms.label') ?>*
           <input type="text" name="label_nl" maxlength="200" <?= admin_lang_required('nl') ?> value="<?= $v($values, 'label_nl') ?>">
         </label>
         <?php admin_lang_pane_end(); ?>
         <?php admin_lang_pane_start('en'); ?>
-        <label>Label
+        <label><?= admin_te('forms.label_2') ?>
           <input type="text" name="label_en" maxlength="200" value="<?= $v($values, 'label_en') ?>"<?= admin_lang_placeholder_attr('en') ?>>
         </label>
         <?php admin_lang_pane_end(); ?>
@@ -141,12 +142,12 @@ $v = static fn (array $values, string $key): string => htmlspecialchars((string)
 
       <div class="admin-form-row admin-form-row--split">
         <?php admin_lang_pane_start('nl'); ?>
-        <label>Tussenkopje / uitleg
+        <label><?= admin_te('forms.tussenkopje_uitleg') ?>
           <input type="text" name="help_text_nl" maxlength="500" value="<?= $v($values, 'help_text_nl') ?>">
         </label>
         <?php admin_lang_pane_end(); ?>
         <?php admin_lang_pane_start('en'); ?>
-        <label>Tussenkopje / uitleg
+        <label><?= admin_te('forms.tussenkopje_uitleg_2') ?>
           <input type="text" name="help_text_en" maxlength="500" value="<?= $v($values, 'help_text_en') ?>"<?= admin_lang_placeholder_attr('en') ?>>
         </label>
         <?php admin_lang_pane_end(); ?>
@@ -154,54 +155,54 @@ $v = static fn (array $values, string $key): string => htmlspecialchars((string)
 
       <div class="admin-form-row admin-form-row--split">
         <?php admin_lang_pane_start('nl'); ?>
-        <label>Placeholder
+        <label><?= admin_te('forms.placeholder') ?>
           <input type="text" name="placeholder_nl" maxlength="200" value="<?= $v($values, 'placeholder_nl') ?>">
         </label>
         <?php admin_lang_pane_end(); ?>
         <?php admin_lang_pane_start('en'); ?>
-        <label>Placeholder
+        <label><?= admin_te('forms.placeholder_2') ?>
           <input type="text" name="placeholder_en" maxlength="200" value="<?= $v($values, 'placeholder_en') ?>"<?= admin_lang_placeholder_attr('en') ?>>
         </label>
         <?php admin_lang_pane_end(); ?>
       </div>
-      <p class="admin-text-muted">Een placeholder heeft alleen zin bij een invulveld; bij een keuzelijst, keuzerondjes of een vinkje wordt hij genegeerd.</p>
+      <p class="admin-text-muted"><?= admin_te('forms.placeholder_heeft_alleen_zin') ?></p>
 
-      <label>Opties (alleen bij een keuzelijst of keuzerondjes)
+      <label><?= admin_te('forms.opties_alleen_keuzelijst_keuzerondjes') ?>
         <textarea name="options" rows="6" placeholder="Ja|Yes&#10;Nee|No&#10;Misschien|Maybe"><?= $v($values, 'options') ?></textarea>
       </label>
-      <p class="admin-text-muted">Eén keuze per regel. Wil je ook een Engelse versie, zet die er dan achter met een <code>|</code> ertussen: <code>Ja|Yes</code>. Wat de bezoeker kiest wordt bewaard zoals het er in het Nederlands staat. Maximaal <?= FormFieldOptions::MAX_OPTIONS ?> keuzes.</p>
+      <p class="admin-text-muted"><?= admin_t('forms.e_n_keuze_per', ['v1' => FormFieldOptions::MAX_OPTIONS]) ?></p>
 
       <?php if ($currentType !== null && $currentType->usesDefaultValue()): ?>
-        <label>Standaardwaarde (alvast aangevinkt of geselecteerd)
+        <label><?= admin_te('forms.standaardwaarde_alvast_aangevinkt_geselectee') ?>
           <select name="default_value">
-            <option value="">Geen — de bezoeker kiest zelf</option>
+            <option value=""><?= admin_te('forms.bezoeker_kiest_zelf') ?></option>
             <?php foreach ($currentOptions->all() as $option): ?>
               <option value="<?= $h($option->nl) ?>" <?= ($values['default_value'] ?? '') === $option->nl ? 'selected' : '' ?>><?= $h($option->nl) ?></option>
             <?php endforeach; ?>
           </select>
         </label>
-        <p class="admin-text-muted">Je kunt alleen kiezen uit de opties hierboven; heb je die net gewijzigd, sla dan eerst op. De bezoeker kan altijd iets anders kiezen, en wat hij invulde blijft na een foutmelding gewoon staan.</p>
+        <p class="admin-text-muted"><?= admin_te('forms.alleen_kiezen_uit_opties') ?></p>
       <?php endif; ?>
 
       <label class="admin-checkbox-label">
         <input type="checkbox" name="is_required" value="1" <?= ($values['is_required'] ?? false) ? 'checked' : '' ?> <?= $currentType !== null && $currentType->requiredIsFixed() ? 'checked disabled' : '' ?>>
-        Verplicht invullen
+        <?= admin_te('forms.verplicht_invullen') ?>
       </label>
       <?php if ($currentType !== null && $currentType->requiredIsFixed()): ?>
-        <p class="admin-text-muted">Een akkoordvinkje is altijd verplicht: een akkoord dat je mag overslaan is geen akkoord.</p>
+        <p class="admin-text-muted"><?= admin_te('forms.akkoordvinkje_altijd_verplicht_akkoord') ?></p>
       <?php endif; ?>
 
-      <button type="submit">Opslaan</button>
+      <button type="submit"><?= admin_te('common.save') ?></button>
     </form>
   </section>
 
   <section class="admin-card">
-    <h2>Veld verwijderen</h2>
-    <p class="admin-text-muted">Het veld verdwijnt uit het formulier. Bewaarde inzendingen blijven gewoon leesbaar: die hebben hun eigen kopie van het label en het antwoord.</p>
+    <h2><?= admin_te('forms.veld_verwijderen') ?></h2>
+    <p class="admin-text-muted"><?= admin_te('forms.veld_verdwijnt_uit_formulier') ?></p>
     <form method="post" action="/api/admin/delete-form-field.php" onsubmit="return confirm('Dit veld verwijderen?');">
       <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
       <input type="hidden" name="field_id" value="<?= $id ?>">
-      <button type="submit">Definitief verwijderen</button>
+      <button type="submit"><?= admin_te('forms.definitief_verwijderen') ?></button>
     </form>
   </section>
 </main>

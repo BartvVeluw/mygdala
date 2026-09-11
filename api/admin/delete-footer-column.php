@@ -12,6 +12,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../../vendor/autoload.php';
 
+use App\Service\Language\AdminTranslator;
 use App\Service\AdminAuth;
 use App\Service\Csrf;
 use App\Repository\FooterRepository;
@@ -40,7 +41,7 @@ try {
     (new FooterRepository())->deleteColumn($idParam);
 } catch (\Throwable $e) {
     error_log('[api/admin/delete-footer-column.php] ' . $e->getMessage());
-    $_SESSION['admin_footer_error'] = 'Kolom kon niet worden verwijderd.';
+    $_SESSION['admin_footer_error'] = AdminTranslator::trans('validation.kolom_kon_verwijderd');
     header('Location: /admin/footer.php');
     exit;
 }

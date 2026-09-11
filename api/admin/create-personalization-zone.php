@@ -20,6 +20,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/../../vendor/autoload.php';
 require_once __DIR__ . '/_personalization_validation.php';
 
+use App\Service\Language\AdminTranslator;
 use App\Repository\ProductPersonalizationRepository;
 use App\Service\AdminAuth;
 use App\Service\Csrf;
@@ -63,13 +64,14 @@ $fields = normalizePersonalizationZoneInput($_POST, $errors);
 $zoneKey = normalizePersonalizationKey($_POST['zone_key'] ?? null, 'de zone', $errors);
 
 if ($zoneKey !== '' && $repository->zoneKeyExists($settingsId, $zoneKey)) {
-    $errors[] = 'Er bestaat al een zone met de sleutel "' . $zoneKey . '" voor dit product. '
-        . 'Een sleutel moet uniek zijn binnen het hele product, ook over weergaven heen.';
+    $errors[] = AdminTranslator::trans('validation.zone_key_exists', ['v1' => $zoneKey]);
 }
 
 if ($repository->countZonesInView($viewId) >= PersonalizationRules::MAX_ZONES_PER_VIEW) {
-    $errors[] = 'Deze weergave heeft al het maximum van '
-        . PersonalizationRules::MAX_ZONES_PER_VIEW . ' zones.';
+    $errors[] = AdminTranslator::trans(
+        'validation.max_zones_reached',
+        ['v1' => PersonalizationRules::MAX_ZONES_PER_VIEW]
+    );
 }
 
 if ($errors !== []) {

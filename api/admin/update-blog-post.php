@@ -28,6 +28,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../../vendor/autoload.php';
 
+use App\Service\Language\AdminTranslator;
 use App\Repository\BlogCategoryRepository;
 use App\Repository\BlogPostRepository;
 use App\Service\AdminAuth;
@@ -102,14 +103,14 @@ $featuredMedia = MediaService::find(
     isset($_POST['featured_media_id']) && is_numeric($_POST['featured_media_id']) ? (int) $_POST['featured_media_id'] : null
 );
 if ($featuredMedia === null && trim((string) ($_POST['featured_media_id'] ?? '')) !== '') {
-    $errors[] = 'De gekozen uitgelichte afbeelding bestaat niet (meer) in de mediabibliotheek.';
+    $errors[] = AdminTranslator::trans('validation.gekozen_uitgelichte_afbeelding_bestaat_meer');
 }
 
 $socialMedia = MediaService::find(
     isset($_POST['og_media_id']) && is_numeric($_POST['og_media_id']) ? (int) $_POST['og_media_id'] : null
 );
 if ($socialMedia === null && trim((string) ($_POST['og_media_id'] ?? '')) !== '') {
-    $errors[] = 'De gekozen deel-afbeelding bestaat niet (meer) in de mediabibliotheek.';
+    $errors[] = AdminTranslator::trans('validation.gekozen_deel_afbeelding_bestaat_meer');
 }
 
 // Category ids are checked against the categories that really exist, so a

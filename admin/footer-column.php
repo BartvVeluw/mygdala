@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/../vendor/autoload.php';
+require_once __DIR__ . '/_translate.php';
 
 require_once __DIR__ . '/_language_fields.php';
 
@@ -16,14 +17,14 @@ AdminAuth::requirePermission('pages.manage');
 $idParam = filter_input(INPUT_GET, 'id', FILTER_VALIDATE_INT);
 if ($idParam === false || $idParam === null || $idParam < 1) {
     http_response_code(404);
-    exit('Footer-kolom niet gevonden.');
+    exit(admin_t('screen.footer_kolom_gevonden'));
 }
 
 $repository = new FooterRepository();
 $column = $repository->findColumnById($idParam);
 if ($column === null) {
     http_response_code(404);
-    exit('Footer-kolom niet gevonden.');
+    exit(admin_t('screen.footer_kolom_gevonden'));
 }
 
 $errors = $_SESSION['admin_footer_column_errors'] ?? [];
@@ -42,13 +43,13 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title><?= $h((string) $column['title_nl']) ?> — Admin</title>
+<title><?= $h((string) $column['title_nl']) ?> <?= admin_te('footer.admin') ?></title>
 <link rel="stylesheet" href="<?= \App\Service\AssetVersion::url('/admin/assets/admin.css') ?>">
 </head>
 <body<?= \App\Service\AdminTheme::bodyAttribute() ?>>
 <?php require __DIR__ . '/_header.php'; ?>
 <main class="admin-main">
-  <p><a href="/admin/footer.php">&larr; Terug naar footer</a></p>
+  <p><a href="/admin/footer.php"><?= admin_t('footer.terug_footer') ?></a></p>
   <h1><?= $h((string) $column['title_nl']) ?></h1>
 
   <?php if ($errors !== []): ?>
@@ -68,33 +69,33 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
       <?php admin_lang_tabs(); ?>
       <div class="admin-form-row admin-form-row--split">
         <?php admin_lang_pane_start('nl'); ?>
-        <label>Titel*
+        <label><?= admin_te('common.title') ?>*
           <input type="text" name="title_nl" maxlength="100" <?= admin_lang_required('nl') ?> value="<?= $h($titleNl) ?>">
         </label>
         <?php admin_lang_pane_end(); ?>
         <?php admin_lang_pane_start('en'); ?>
-        <label>Titel*
+        <label><?= admin_te('common.title') ?>*
           <input type="text" name="title_en" maxlength="100" required value="<?= $h($titleEn) ?>">
         </label>
         <?php admin_lang_pane_end(); ?>
       </div>
       <label class="admin-checkbox-label">
         <input type="checkbox" name="is_visible" value="1" <?= $isVisible ? 'checked' : '' ?>>
-        Zichtbaar in de footer
+        <?= admin_te('footer.zichtbaar_footer') ?>
       </label>
     </section>
     <section class="admin-card">
-      <button type="submit">Opslaan</button>
+      <button type="submit"><?= admin_te('common.save') ?></button>
     </section>
   </form>
 
   <section class="admin-card">
-    <h2>Verwijderen</h2>
-    <p class="admin-text-muted">Verwijdert deze kolom en al zijn links definitief. Dit kan niet ongedaan worden gemaakt.</p>
+    <h2><?= admin_te('common.delete') ?></h2>
+    <p class="admin-text-muted"><?= admin_te('footer.verwijdert_kolom_al_links') ?></p>
     <form method="post" action="/api/admin/delete-footer-column.php" onsubmit="return confirm('Deze kolom en al zijn links definitief verwijderen?');">
       <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
       <input type="hidden" name="id" value="<?= (int) $column['id'] ?>">
-      <button type="submit" class="admin-btn-text admin-btn-text--danger">Kolom verwijderen</button>
+      <button type="submit" class="admin-btn-text admin-btn-text--danger"><?= admin_te('footer.kolom_verwijderen') ?></button>
     </form>
   </section>
 </main>

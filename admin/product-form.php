@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/../vendor/autoload.php';
+require_once __DIR__ . '/_translate.php';
 
 require_once __DIR__ . '/_language_fields.php';
 
@@ -43,12 +44,12 @@ if ($isEdit) {
     } catch (\Throwable $e) {
         error_log('[admin/product-form.php] ' . $e->getMessage());
         http_response_code(500);
-        exit('Product kon niet worden geladen.');
+        exit(admin_t('screen.product_kon_geladen'));
     }
 
     if ($product === null) {
         http_response_code(404);
-        exit('Product niet gevonden.');
+        exit(admin_t('screen.product_gevonden'));
     }
 }
 
@@ -150,7 +151,7 @@ $removeOgImageChecked = $old !== null && !empty($old['remove_og_image']);
 $siteName = \App\Service\SiteSettings::get('site_name');
 
 $csrfToken = Csrf::token();
-$pageTitle = $isEdit ? 'Product bewerken' : 'Nieuw product';
+$pageTitle = $isEdit ? admin_t('shop.edit_product') : admin_t('shop.new_product');
 
 // renderRichTextField() now lives in admin/_richtext_field.php, shared with
 // admin/portfolio-item.php's Introtekst/Projectbeschrijving fields — its
@@ -163,7 +164,7 @@ require __DIR__ . '/_richtext_field.php';
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title><?= htmlspecialchars($pageTitle, ENT_QUOTES, 'UTF-8') ?> — Admin</title>
+<title><?= htmlspecialchars($pageTitle, ENT_QUOTES, 'UTF-8') ?> <?= admin_te('shop.admin') ?></title>
 <link rel="stylesheet" href="<?= \App\Service\AssetVersion::url('/admin/assets/vendor/quill/quill.snow.css') ?>">
 <link rel="stylesheet" href="<?= \App\Service\AssetVersion::url('/admin/assets/admin.css') ?>">
 <script src="<?= \App\Service\AssetVersion::url('/admin/assets/vendor/quill/quill.min.js') ?>" defer></script>
@@ -172,11 +173,11 @@ require __DIR__ . '/_richtext_field.php';
 <body<?= \App\Service\AdminTheme::bodyAttribute() ?>>
 <?php require __DIR__ . '/_header.php'; ?>
 <main class="admin-main">
-  <p><a href="/admin/products.php">&larr; Terug naar producten</a></p>
+  <p><a href="/admin/products.php"><?= admin_t('shop.terug_producten') ?></a></p>
   <h1><?= htmlspecialchars($pageTitle, ENT_QUOTES, 'UTF-8') ?></h1>
 
   <?php if ($updated): ?>
-    <p class="admin-alert admin-alert--success">Product opgeslagen.</p>
+    <p class="admin-alert admin-alert--success"><?= admin_te('shop.product_opgeslagen') ?></p>
   <?php endif; ?>
 
   <?php if ($errors !== []): ?>
@@ -199,12 +200,12 @@ require __DIR__ . '/_richtext_field.php';
       <?php admin_lang_tabs(); ?>
       <div class="admin-form-row admin-form-row--split">
         <?php admin_lang_pane_start('nl'); ?>
-        <label>Naam*
+        <label><?= admin_te('common.name') ?>*
           <input type="text" name="name" maxlength="150" <?= admin_lang_required('nl') ?> value="<?= htmlspecialchars(fieldValue($old, $product, 'name'), ENT_QUOTES, 'UTF-8') ?>">
         </label>
         <?php admin_lang_pane_end(); ?>
         <?php admin_lang_pane_start('en'); ?>
-        <label>Naam
+        <label><?= admin_te('common.name') ?>
           <input type="text" name="name_en" maxlength="150" value="<?= htmlspecialchars(fieldValue($old, $product, 'name_en'), ENT_QUOTES, 'UTF-8') ?>">
         </label>
         <?php admin_lang_pane_end(); ?>
@@ -220,48 +221,41 @@ require __DIR__ . '/_richtext_field.php';
       </div>
 
       <div class="admin-form-row admin-form-row--split">
-        <label>Prijs (&euro;)*
+        <label><?= admin_t('shop.prijs') ?>*
           <input type="text" inputmode="decimal" name="price" required value="<?= htmlspecialchars($priceValue, ENT_QUOTES, 'UTF-8') ?>" placeholder="0.00">
         </label>
         <label class="admin-checkbox-label">
           <input type="checkbox" name="active" value="1" <?= $activeChecked ? 'checked' : '' ?>>
-          Actief (publiek zichtbaar)
+          <?= admin_te('shop.actief_publiek_zichtbaar') ?>
         </label>
       </div>
 
-      <h3>Waar is dit product te koop?</h3>
+      <h3><?= admin_te('shop.waar_product_koop') ?></h3>
       <div class="admin-form-row">
         <p class="admin-text-muted">
-          "Actief" hierboven is de hoofdschakelaar: staat die uit, dan is het product nergens zichtbaar. Hieronder
-          bepaal je in welke catalogus het staat. Een product kan in de shop staan, alleen bij Personaliseren, of in
-          allebei.
+          <?= admin_te('shop.actief_hierboven_hoofdschakelaar_staat') ?>
         </p>
         <label class="admin-checkbox-label">
           <input type="checkbox" name="in_shop" value="1" <?= $inShopChecked ? 'checked' : '' ?>>
-          <span><strong>In de shop</strong> — zichtbaar in het shopoverzicht, op collectiepagina's en bij gerelateerde
-          producten, en gewoon te bestellen.</span>
+          <span><strong><?= admin_t('shop.shop_zichtbaar_shopoverzicht_collectiepagina') ?></span>
         </label>
         <label class="admin-checkbox-label">
           <input type="checkbox" name="in_personalization_catalog" value="1" <?= $inPersonalizationChecked ? 'checked' : '' ?>>
-          <span><strong>In de personalisatiecatalogus</strong> — zichtbaar op
-          <a href="/personaliseren.php" target="_blank" rel="noopener">/personaliseren.php</a>, zodra dit product ook
-          echt gepersonaliseerd kan worden (zie <a href="/admin/personalization.php">Personalisatie</a>).</span>
+          <span><strong><?= admin_t('shop.personalisatiecatalogus_zichtbaar_personalis') ?></span>
         </label>
         <?php if (!$inShopChecked && $isEdit): ?>
           <p class="admin-alert admin-alert--info">
-            Dit product staat <strong>niet</strong> in de shop. Het is daarmee alleen te bestellen via een volledig
-            ingevulde personalisatie — een klant kan het niet leeg in de winkelwagen leggen, en dat wordt ook
-            server-side afgedwongen.
+            <?= admin_t('shop.product_staat_shop_daarmee') ?>
           </p>
         <?php endif; ?>
       </div>
 
-      <h3>Collecties</h3>
+      <h3><?= admin_te('shop.collecties') ?></h3>
       <div class="admin-form-row">
         <?php if ($allCollections === []): ?>
-          <p class="admin-text-muted">Nog geen collecties. Maak er een aan via <a href="/admin/collections.php">Collecties</a> — een product hoeft niet in een collectie te zitten.</p>
+          <p class="admin-text-muted"><?= admin_t('shop.collecties_maak_er_via') ?></p>
         <?php else: ?>
-          <p class="admin-text-muted">Optioneel. Dit product verschijnt op de collectiepagina van elke aangevinkte collectie en houdt altijd zijn eigen productpagina.</p>
+          <p class="admin-text-muted"><?= admin_te('shop.optioneel_product_verschijnt_collectiepagina') ?></p>
           <?php foreach ($allCollections as $collectionOption): ?>
             <?php
               $collectionOptionId = (int) $collectionOption['id'];
@@ -279,9 +273,9 @@ require __DIR__ . '/_richtext_field.php';
         <?php endif; ?>
       </div>
 
-      <h3>Verzending</h3>
+      <h3><?= admin_te('shop.verzending') ?></h3>
       <div class="admin-form-row admin-form-row--split">
-        <label>Verzendprofiel*
+        <label><?= admin_te('shop.verzendprofiel') ?>*
           <select name="shipping_profile" required>
             <?php foreach (ShippingProfile::ALL as $profileValue): ?>
               <option value="<?= htmlspecialchars($profileValue, ENT_QUOTES, 'UTF-8') ?>" <?= $shippingProfileValue === $profileValue ? 'selected' : '' ?>>
@@ -290,26 +284,26 @@ require __DIR__ . '/_richtext_field.php';
             <?php endforeach; ?>
           </select>
         </label>
-        <label>Verzendgewicht in gram*
+        <label><?= admin_te('shop.verzendgewicht_gram') ?>*
           <input type="text" inputmode="numeric" name="shipping_weight_grams" required value="<?= htmlspecialchars($shippingWeightValue, ENT_QUOTES, 'UTF-8') ?>" placeholder="0">
         </label>
       </div>
       <div class="admin-form-row">
         <label class="admin-checkbox-label">
           <input type="checkbox" name="requires_parcel" value="1" <?= $requiresParcelChecked ? 'checked' : '' ?>>
-          Altijd als pakket verzenden (negeert het verzendprofiel hierboven zodra dit product in de bestelling zit)
+          <?= admin_te('shop.altijd_pakket_verzenden_negeert') ?>
         </label>
       </div>
 
       <?php if (!$isEdit): ?>
         <div class="admin-form-row">
-          <label>Foto's (eerste foto wordt de hoofdfoto; volgorde/hoofdfoto later te wijzigen — alleen voor producten zonder varianten)
+          <label><?= admin_te('shop.foto_s_eerste_foto') ?>
             <input type="file" name="images[]" multiple accept=".jpg,.jpeg,.png,.webp,.gif,image/jpeg,image/png,image/webp,image/gif">
           </label>
         </div>
       <?php endif; ?>
 
-      <h3>SEO</h3>
+      <h3><?= admin_te('shop.seo') ?></h3>
       <?php /* Secondary to the product's own content and therefore last in
                the form: everything here is OPTIONAL. Leaving a field empty
                is not "no SEO" — it means the product's normal content is
@@ -318,11 +312,7 @@ require __DIR__ . '/_richtext_field.php';
                the CMS page editor's SEO card (admin/page.php), so the two
                screens teach each other. */ ?>
       <p class="admin-text-muted">
-        Allemaal optioneel. Laat je een veld leeg, dan gebruikt de productpagina automatisch de gewone
-        productinhoud: de SEO-titel wordt &ldquo;<em>Productnaam</em> | Shop &mdash; <?= htmlspecialchars($siteName, ENT_QUOTES, 'UTF-8') ?>&rdquo;,
-        de meta description een korte platte-tekstversie van de productbeschrijving, en de deel-afbeelding de
-        hoofdfoto van het product (of, bij varianten, de foto van de standaardvariant).
-        Een Engels veld dat leeg blijft valt terug op het Nederlandse.
+        <?= admin_t('shop.allemaal_optioneel_laat_veld', ['v1' => htmlspecialchars($siteName, ENT_QUOTES, 'UTF-8')]) ?>
       </p>
       <div class="admin-product-form admin-product-form--wide">
         <?php admin_lang_pane_start('nl'); ?>
@@ -360,34 +350,34 @@ require __DIR__ . '/_richtext_field.php';
           </div>
         <?php endif; ?>
         <div class="admin-seo-image__fields">
-          <label>Deel-afbeelding (social media)
+          <label><?= admin_te('shop.deel_afbeelding_social_media') ?>
             <input type="file" name="og_image" accept=".jpg,.jpeg,.png,.webp,.gif,image/jpeg,image/png,image/webp,image/gif">
           </label>
-          <p class="admin-text-muted">Optioneel, en alleen zichtbaar als voorbeeld bij delen op social media (WhatsApp, Facebook, LinkedIn). Zonder eigen deel-afbeelding gebruikt de pagina automatisch de gewone productfoto.</p>
+          <p class="admin-text-muted"><?= admin_te('shop.optioneel_alleen_zichtbaar_voorbeeld') ?></p>
           <?php if ($ogImageValue !== ''): ?>
             <label class="admin-checkbox-label">
               <input type="checkbox" name="remove_og_image" value="1" <?= $removeOgImageChecked ? 'checked' : '' ?>>
-              Deel-afbeelding verwijderen bij opslaan (terug naar de productfoto)
+              <?= admin_te('shop.deel_afbeelding_verwijderen_opslaan') ?>
             </label>
           <?php endif; ?>
         </div>
       </div>
 
-      <button type="submit"><?= $isEdit ? 'Opslaan' : 'Product aanmaken' ?></button>
+      <button type="submit"><?= $isEdit ? 'Opslaan' : admin_t('shop.create_product') ?></button>
     </form>
   </section>
 
   <?php if ($isEdit && $hasVariants): ?>
     <section class="admin-card">
-      <h2>Foto's</h2>
-      <p class="admin-text-muted">Dit product heeft varianten — foto's worden per variant beheerd (zie "Varianten" hieronder), niet op productniveau.</p>
+      <h2><?= admin_te('shop.foto_s') ?></h2>
+      <p class="admin-text-muted"><?= admin_te('shop.product_heeft_varianten_foto') ?></p>
     </section>
   <?php elseif ($isEdit): ?>
     <section class="admin-card">
-      <h2>Foto's</h2>
+      <h2><?= admin_te('shop.foto_s_2') ?></h2>
 
       <?php if ($images === []): ?>
-        <p class="admin-text-muted">Nog geen foto's voor dit product.</p>
+        <p class="admin-text-muted"><?= admin_te('shop.foto_s_product') ?></p>
       <?php else: ?>
         <div class="admin-image-manage-grid">
           <?php foreach ($images as $index => $image): ?>
@@ -409,7 +399,7 @@ require __DIR__ . '/_richtext_field.php';
                   <form method="post" action="/api/admin/set-primary-product-image.php" class="admin-inline-form">
                     <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
                     <input type="hidden" name="image_id" value="<?= $imageId ?>">
-                    <button type="submit" class="admin-btn-text">Maak hoofdfoto</button>
+                    <button type="submit" class="admin-btn-text"><?= admin_te('shop.maak_hoofdfoto') ?></button>
                   </form>
                 <?php endif; ?>
 
@@ -429,7 +419,7 @@ require __DIR__ . '/_richtext_field.php';
                 <form method="post" action="/api/admin/delete-product-image.php" class="admin-inline-form" onsubmit="return confirm('Deze foto verwijderen?');">
                   <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
                   <input type="hidden" name="image_id" value="<?= $imageId ?>">
-                  <button type="submit" class="admin-btn-text admin-btn-text--danger">Verwijderen</button>
+                  <button type="submit" class="admin-btn-text admin-btn-text--danger"><?= admin_te('common.delete') ?></button>
                 </form>
               </div>
             </article>
@@ -440,10 +430,10 @@ require __DIR__ . '/_richtext_field.php';
       <form method="post" action="/api/admin/add-product-images.php" enctype="multipart/form-data" class="admin-form-row">
         <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
         <input type="hidden" name="product_id" value="<?= (int) $product['id'] ?>">
-        <label>Foto's toevoegen
+        <label><?= admin_te('shop.foto_s_toevoegen') ?>
           <input type="file" name="images[]" multiple accept=".jpg,.jpeg,.png,.webp,.gif,image/jpeg,image/png,image/webp,image/gif">
         </label>
-        <button type="submit">Toevoegen</button>
+        <button type="submit"><?= admin_te('common.add') ?></button>
       </form>
     </section>
   <?php endif; ?>
@@ -455,23 +445,18 @@ require __DIR__ . '/_richtext_field.php';
              there. This card is only a signpost — there is exactly ONE editor
              for a configuration, and it is not this page. See MAIN.MD. */ ?>
     <section class="admin-card">
-      <h2>Personalisatie</h2>
+      <h2><?= admin_te('shop.personalisatie') ?></h2>
       <?php if ($personalization === null): ?>
         <p class="admin-text-muted">
-          Dit product heeft geen personalisatie. Wil je dat klanten er zelf een naam, tekst of afbeelding op kunnen
-          laten graveren? Voeg het product dan toe in
-          <a href="/admin/personalization.php">Personalisatie</a>. Er wordt geen tweede product aangemaakt — de
-          personalisatie wordt aan dit product gekoppeld.
+          <?= admin_t('shop.product_heeft_personalisatie_wil') ?>
         </p>
       <?php else: ?>
         <p class="admin-text-muted">
-          Dit product is gepersonaliseerd
-          (<?= (int) $personalization['settings']['is_enabled'] === 1 ? 'ingeschakeld' : 'nog uitgeschakeld' ?>).
-          De voorbeeldafbeeldingen, zones en aankoopregels beheer je in de eigen sectie.
+          <?= admin_t('shop.product_gepersonaliseerd_voorbeeldafbeelding', ['v1' => (int) $personalization['settings']['is_enabled'] === 1 ? 'ingeschakeld' : 'nog uitgeschakeld']) ?>
         </p>
         <p>
           <a class="admin-btn-link" href="/admin/personalization-product.php?product_id=<?= (int) $product['id'] ?>">
-            Personalisatie beheren
+            <?= admin_te('shop.personalisatie_beheren') ?>
           </a>
         </p>
       <?php endif; ?>
@@ -480,8 +465,8 @@ require __DIR__ . '/_richtext_field.php';
 
   <?php if ($isEdit): ?>
     <section class="admin-card">
-      <h2>Varianten</h2>
-      <p class="admin-text-muted">Optioneel. Voeg een optie toe (bijv. "Kleur") met waardes (bijv. "Noten", "Berken"), en maak daarna varianten aan als combinatie van die waardes. Een product zonder opties/varianten werkt precies als voorheen. Zodra een product varianten heeft, verdwijnt de gewone productfoto-sectie hierboven — foto's beheer je dan per variant, en de eerste variant (bovenaan) is de standaardvariant die in de shop en op de productpagina als eerste wordt getoond.</p>
+      <h2><?= admin_te('shop.varianten') ?></h2>
+      <p class="admin-text-muted"><?= admin_te('shop.optioneel_voeg_optie_toe') ?></p>
 
       <?php if ($variantErrors !== []): ?>
         <div class="admin-alert admin-alert--error">
@@ -493,9 +478,9 @@ require __DIR__ . '/_richtext_field.php';
         </div>
       <?php endif; ?>
 
-      <h3>Opties</h3>
+      <h3><?= admin_te('shop.opties') ?></h3>
       <?php if ($options === []): ?>
-        <p class="admin-text-muted">Nog geen opties.</p>
+        <p class="admin-text-muted"><?= admin_te('shop.opties_2') ?></p>
       <?php else: ?>
         <?php foreach ($options as $optIndex => $option): ?>
           <?php $optionId = (int) $option['id']; $optionDisplayType = (string) ($option['display_type'] ?? 'standard'); ?>
@@ -506,10 +491,10 @@ require __DIR__ . '/_richtext_field.php';
                 <input type="hidden" name="option_id" value="<?= $optionId ?>">
                 <input type="text" name="name" maxlength="100" value="<?= htmlspecialchars((string) $option['name'], ENT_QUOTES, 'UTF-8') ?>">
                 <select name="display_type">
-                  <option value="standard" <?= $optionDisplayType === 'standard' ? 'selected' : '' ?>>Standaard</option>
-                  <option value="color" <?= $optionDisplayType === 'color' ? 'selected' : '' ?>>Kleur</option>
+                  <option value="standard" <?= $optionDisplayType === 'standard' ? 'selected' : '' ?>><?= admin_te('shop.standaard') ?></option>
+                  <option value="color" <?= $optionDisplayType === 'color' ? 'selected' : '' ?>><?= admin_te('shop.kleur') ?></option>
                 </select>
-                <button type="submit" class="admin-btn-text">Opslaan</button>
+                <button type="submit" class="admin-btn-text"><?= admin_te('common.save') ?></button>
               </form>
               <form method="post" action="/api/admin/move-product-option.php" class="admin-inline-form">
                 <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
@@ -526,7 +511,7 @@ require __DIR__ . '/_richtext_field.php';
               <form method="post" action="/api/admin/delete-product-option.php" class="admin-inline-form" onsubmit="return confirm('Deze optie (met alle waardes) verwijderen?');">
                 <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
                 <input type="hidden" name="option_id" value="<?= $optionId ?>">
-                <button type="submit" class="admin-btn-text admin-btn-text--danger">Optie verwijderen</button>
+                <button type="submit" class="admin-btn-text admin-btn-text--danger"><?= admin_te('shop.optie_verwijderen') ?></button>
               </form>
             </div>
 
@@ -542,7 +527,7 @@ require __DIR__ . '/_richtext_field.php';
                       <input type="color" value="<?= htmlspecialchars($valueHex, ENT_QUOTES, 'UTF-8') ?>" data-color-picker aria-label="Kleur">
                       <input type="text" name="hex_color" maxlength="7" placeholder="#A77A49" pattern="^#[0-9A-Fa-f]{6}$" value="<?= htmlspecialchars((string) ($value['hex_color'] ?? ''), ENT_QUOTES, 'UTF-8') ?>" data-color-hex class="admin-hex-input">
                     <?php endif; ?>
-                    <button type="submit" class="admin-btn-text">Opslaan</button>
+                    <button type="submit" class="admin-btn-text"><?= admin_te('common.save') ?></button>
                   </form>
                   <form method="post" action="/api/admin/move-product-option-value.php" class="admin-inline-form">
                     <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
@@ -559,7 +544,7 @@ require __DIR__ . '/_richtext_field.php';
                   <form method="post" action="/api/admin/delete-product-option-value.php" class="admin-inline-form" onsubmit="return confirm('Deze waarde verwijderen?');">
                     <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
                     <input type="hidden" name="value_id" value="<?= $valueId ?>">
-                    <button type="submit" class="admin-btn-text admin-btn-text--danger">Verwijderen</button>
+                    <button type="submit" class="admin-btn-text admin-btn-text--danger"><?= admin_te('common.delete') ?></button>
                   </form>
                 </li>
               <?php endforeach; ?>
@@ -573,7 +558,7 @@ require __DIR__ . '/_richtext_field.php';
                 <input type="color" value="#A77A49" data-color-picker aria-label="Kleur">
                 <input type="text" name="hex_color" maxlength="7" placeholder="#A77A49" pattern="^#[0-9A-Fa-f]{6}$" data-color-hex class="admin-hex-input">
               <?php endif; ?>
-              <button type="submit">Waarde toevoegen</button>
+              <button type="submit"><?= admin_te('shop.waarde_toevoegen') ?></button>
             </form>
           </div>
         <?php endforeach; ?>
@@ -582,24 +567,24 @@ require __DIR__ . '/_richtext_field.php';
       <form method="post" action="/api/admin/create-product-option.php" class="admin-form-row">
         <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
         <input type="hidden" name="product_id" value="<?= (int) $product['id'] ?>">
-        <label>Nieuwe optie (bijv. Kleur, KM)
+        <label><?= admin_te('shop.nieuwe_optie_bijv_kleur') ?>
           <input type="text" name="name" maxlength="100" placeholder="Kleur">
         </label>
-        <label>Weergave
+        <label><?= admin_te('shop.weergave') ?>
           <select name="display_type">
-            <option value="standard" selected>Standaard</option>
-            <option value="color">Kleur</option>
+            <option value="standard" selected><?= admin_te('shop.standaard_2') ?></option>
+            <option value="color"><?= admin_te('shop.kleur_2') ?></option>
           </select>
         </label>
-        <button type="submit">Optie toevoegen</button>
+        <button type="submit"><?= admin_te('shop.optie_toevoegen') ?></button>
       </form>
 
-      <h3>Combinaties (varianten)</h3>
+      <h3><?= admin_te('shop.combinaties_varianten') ?></h3>
       <?php if ($options === []): ?>
-        <p class="admin-text-muted">Voeg eerst een optie met waardes toe om varianten te kunnen maken.</p>
+        <p class="admin-text-muted"><?= admin_te('shop.voeg_eerst_optie_waardes') ?></p>
       <?php else: ?>
         <?php if ($variants === []): ?>
-          <p class="admin-text-muted">Nog geen varianten.</p>
+          <p class="admin-text-muted"><?= admin_te('shop.varianten_2') ?></p>
         <?php else: ?>
           <div class="admin-variant-list">
             <?php foreach ($variants as $varIndex => $variant): ?>
@@ -616,21 +601,21 @@ require __DIR__ . '/_richtext_field.php';
                 <div class="admin-variant-panel__head">
                   <strong><?= htmlspecialchars($variantLabel, ENT_QUOTES, 'UTF-8') ?></strong>
                   <span class="admin-badge admin-badge--<?= $variantActive ? 'paid' : 'canceled' ?>">
-                    <?= $variantActive ? 'Actief' : 'Inactief' ?>
+                    <?= $variantActive ? admin_t('common.active') : 'Inactief' ?>
                   </span>
                 </div>
 
                 <form method="post" action="/api/admin/update-product-variant.php" class="admin-inline-form admin-variant-panel__form">
                   <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
                   <input type="hidden" name="variant_id" value="<?= $variantId ?>">
-                  <label>Prijs override (&euro;, leeg = productprijs)
+                  <label><?= admin_t('shop.prijs_override_leeg_productprijs') ?>
                     <input type="text" inputmode="decimal" name="price" value="<?= $variant['price'] !== null ? htmlspecialchars(number_format((float) $variant['price'], 2, '.', ''), ENT_QUOTES, 'UTF-8') : '' ?>" placeholder="0.00">
                   </label>
                   <label class="admin-checkbox-label">
                     <input type="checkbox" name="active" value="1" <?= $variantActive ? 'checked' : '' ?>>
-                    Actief
+                    <?= admin_te('common.active') ?>
                   </label>
-                  <button type="submit" class="admin-btn-text">Opslaan</button>
+                  <button type="submit" class="admin-btn-text"><?= admin_te('common.save') ?></button>
                 </form>
 
                 <div class="admin-variant-panel__order">
@@ -638,26 +623,26 @@ require __DIR__ . '/_richtext_field.php';
                     <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
                     <input type="hidden" name="variant_id" value="<?= $variantId ?>">
                     <input type="hidden" name="direction" value="up">
-                    <button type="submit" class="admin-btn-text" <?= $varIndex === 0 ? 'disabled' : '' ?>>&uarr; Variant</button>
+                    <button type="submit" class="admin-btn-text" <?= $varIndex === 0 ? 'disabled' : '' ?>><?= admin_t('shop.variant') ?></button>
                   </form>
                   <form method="post" action="/api/admin/move-product-variant.php" class="admin-inline-form">
                     <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
                     <input type="hidden" name="variant_id" value="<?= $variantId ?>">
                     <input type="hidden" name="direction" value="down">
-                    <button type="submit" class="admin-btn-text" <?= $varIndex === count($variants) - 1 ? 'disabled' : '' ?>>&darr; Variant</button>
+                    <button type="submit" class="admin-btn-text" <?= $varIndex === count($variants) - 1 ? 'disabled' : '' ?>><?= admin_t('shop.variant_2') ?></button>
                   </form>
 
                   <form method="post" action="/api/admin/delete-product-variant.php" class="admin-inline-form" onsubmit="return confirm('Deze variant verwijderen?');">
                     <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
                     <input type="hidden" name="variant_id" value="<?= $variantId ?>">
-                    <button type="submit" class="admin-btn-text admin-btn-text--danger">Variant verwijderen</button>
+                    <button type="submit" class="admin-btn-text admin-btn-text--danger"><?= admin_te('shop.variant_verwijderen') ?></button>
                   </form>
                 </div>
 
-                <h4>Foto's<?= $varIndex === 0 ? ' <span class="admin-text-muted">(eerste variant = standaardweergave in de shop)</span>' : '' ?></h4>
+                <h4><?= admin_t('shop.photos_suffix', ['v1' => $varIndex === 0 ? ' <span class="admin-text-muted">(eerste variant = standaardweergave in de shop)</span>' : '']) ?></h4>
 
                 <?php if ($variantImages === []): ?>
-                  <p class="admin-text-muted">Nog geen foto's voor deze variant.</p>
+                  <p class="admin-text-muted"><?= admin_te('shop.foto_s_variant') ?></p>
                 <?php else: ?>
                   <div class="admin-variant-image-grid" data-variant-image-grid data-variant-id="<?= $variantId ?>" data-reorder-url="/api/admin/reorder-variant-images.php" data-csrf-token="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
                     <?php foreach ($variantImages as $imgIndex => $vImage): ?>
@@ -675,12 +660,12 @@ require __DIR__ . '/_richtext_field.php';
                           <input type="hidden" name="product_id" value="<?= (int) $product['id'] ?>">
                           <input type="text" name="image_name" maxlength="255" placeholder="Naam" value="<?= htmlspecialchars((string) ($vImage['image_name'] ?? ''), ENT_QUOTES, 'UTF-8') ?>">
                           <input type="text" name="alt_text" maxlength="255" placeholder="Alt-tekst" value="<?= htmlspecialchars((string) ($vImage['alt_text'] ?? ''), ENT_QUOTES, 'UTF-8') ?>">
-                          <button type="submit" class="admin-btn-text">Opslaan</button>
+                          <button type="submit" class="admin-btn-text"><?= admin_te('common.save') ?></button>
                         </form>
                         <form method="post" action="/api/admin/delete-variant-image.php" class="admin-inline-form" onsubmit="return confirm('Deze foto verwijderen?');">
                           <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
                           <input type="hidden" name="image_id" value="<?= $vImageId ?>">
-                          <button type="submit" class="admin-btn-text admin-btn-text--danger">Verwijderen</button>
+                          <button type="submit" class="admin-btn-text admin-btn-text--danger"><?= admin_te('common.delete') ?></button>
                         </form>
                       </div>
                     <?php endforeach; ?>
@@ -690,18 +675,18 @@ require __DIR__ . '/_richtext_field.php';
                 <form method="post" action="/api/admin/add-variant-images.php" enctype="multipart/form-data" class="admin-form-row">
                   <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
                   <input type="hidden" name="variant_id" value="<?= $variantId ?>">
-                  <label>Foto's toevoegen (kies er meerdere tegelijk)
+                  <label><?= admin_te('shop.foto_s_toevoegen_kies') ?>
                     <input type="file" name="images[]" multiple accept=".jpg,.jpeg,.png,.webp,.gif,image/jpeg,image/png,image/webp,image/gif">
                   </label>
-                  <button type="submit">Toevoegen</button>
+                  <button type="submit"><?= admin_te('common.add') ?></button>
                 </form>
               </article>
             <?php endforeach; ?>
           </div>
         <?php endif; ?>
 
-        <h4>Nieuwe variant</h4>
-        <p class="admin-text-muted">Foto's voeg je na het aanmaken toe in de foto-sectie van de variant hierboven.</p>
+        <h4><?= admin_te('shop.nieuwe_variant') ?></h4>
+        <p class="admin-text-muted"><?= admin_te('shop.foto_s_voeg_na') ?></p>
         <form method="post" action="/api/admin/create-product-variant.php" class="admin-form-row">
           <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
           <input type="hidden" name="product_id" value="<?= (int) $product['id'] ?>">
@@ -709,7 +694,7 @@ require __DIR__ . '/_richtext_field.php';
             <label><?= htmlspecialchars((string) $option['name'], ENT_QUOTES, 'UTF-8') ?>
               <select name="value_ids[<?= (int) $option['id'] ?>]" <?= $option['values'] === [] ? 'disabled' : '' ?>>
                 <?php if ($option['values'] === []): ?>
-                  <option value="">(nog geen waardes)</option>
+                  <option value=""><?= admin_te('shop.waardes') ?></option>
                 <?php else: ?>
                   <?php foreach ($option['values'] as $value): ?>
                     <option value="<?= (int) $value['id'] ?>"><?= htmlspecialchars((string) $value['value'], ENT_QUOTES, 'UTF-8') ?></option>
@@ -718,14 +703,14 @@ require __DIR__ . '/_richtext_field.php';
               </select>
             </label>
           <?php endforeach; ?>
-          <label>Prijs override (&euro;, leeg = productprijs)
+          <label><?= admin_t('shop.prijs_override_leeg_productprijs_2') ?>
             <input type="text" inputmode="decimal" name="price" placeholder="0.00">
           </label>
           <label class="admin-checkbox-label">
             <input type="checkbox" name="active" value="1" checked>
-            Actief
+            <?= admin_te('common.active') ?>
           </label>
-          <button type="submit">Variant aanmaken</button>
+          <button type="submit"><?= admin_te('shop.variant_aanmaken') ?></button>
         </form>
       <?php endif; ?>
     </section>

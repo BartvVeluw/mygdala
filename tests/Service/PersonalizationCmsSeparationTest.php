@@ -108,9 +108,12 @@ final class PersonalizationCmsSeparationTest extends TestCase
     {
         $form = self::sourceOf('admin/product-form.php');
 
-        $this->assertStringContainsString('/admin/personalization.php', $form);
+        $this->assertStringContainsString(
+            '/admin/personalization.php',
+            self::dutchCatalogue()['shop.product_heeft_personalisatie_wil'] ?? ''
+        );
         $this->assertStringContainsString('/admin/personalization-product.php?product_id=', $form);
-        $this->assertStringContainsString('Personalisatie beheren', $form);
+        $this->assertStringContainsString('shop.personalisatie_beheren', $form);
     }
 
     /**
@@ -321,5 +324,22 @@ final class PersonalizationCmsSeparationTest extends TestCase
         }
 
         $this->assertContains('product_id', $columns);
+    }
+
+    /**
+     * A sentence that carries a link keeps that link INSIDE the catalogue
+     * string: cutting the anchor out would leave a translator with two
+     * fragments and no way to put them back in English word order
+     * (MULTILINGUAL.md). So a test about what a screen links to asks the
+     * catalogue, not the template.
+     *
+     * @return array<string, string>
+     */
+    private static function dutchCatalogue(): array
+    {
+        /** @var array<string, string> $messages */
+        $messages = require dirname(__DIR__, 2) . '/src/Service/Language/messages/nl.php';
+
+        return $messages;
     }
 }

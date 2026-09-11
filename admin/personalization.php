@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/../vendor/autoload.php';
+require_once __DIR__ . '/_translate.php';
 
 use App\Repository\ProductPersonalizationRepository;
 use App\Service\AdminAuth;
@@ -48,7 +49,7 @@ try {
     error_log('[admin/personalization.php] ' . $e->getMessage());
     $configured = [];
     $available = [];
-    $loadError = 'De personalisatie-instellingen konden niet worden geladen.';
+    $loadError = admin_t('personalization.settings_load_failed');
 }
 
 $flashErrors = $_SESSION['admin_personalization_list_errors'] ?? [];
@@ -66,32 +67,29 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Personalisatie — Admin</title>
+<title><?= admin_te('personalization.personalisatie_admin') ?></title>
 <link rel="stylesheet" href="<?= \App\Service\AssetVersion::url('/admin/assets/admin.css') ?>">
 </head>
 <body<?= \App\Service\AdminTheme::bodyAttribute() ?>>
 <?php require __DIR__ . '/_header.php'; ?>
 <main class="admin-main">
   <div class="admin-main__heading">
-    <h1>Personalisatie</h1>
-    <a href="/admin/personalization-fonts.php" class="admin-btn-link">Lettertypes beheren</a>
+    <h1><?= admin_te('personalization.personalisatie') ?></h1>
+    <a href="/admin/personalization-fonts.php" class="admin-btn-link"><?= admin_te('personalization.lettertypes_beheren') ?></a>
   </div>
 
   <p class="admin-text-muted">
-    Hier bepaal je <strong>welke bestaande shopproducten</strong> een klant zelf kan personaliseren. Een product dat
-    hier niet tussen staat, werkt gewoon als elk ander product. Het product zelf — naam, omschrijving, prijs,
-    varianten en productfoto's — blijft je in <a href="/admin/products.php">Producten</a> beheren; hier komt alleen de
-    personalisatie bij.
+    <?= admin_t('personalization.hier_bepaal_welke_bestaande') ?>
   </p>
 
   <?php if ($added): ?>
-    <p class="admin-alert admin-alert--success">Product toegevoegd aan Personalisatie. Voeg hieronder een weergave met een eigen voorbeeldafbeelding toe.</p>
+    <p class="admin-alert admin-alert--success"><?= admin_te('personalization.product_toegevoegd_personalisatie_voeg') ?></p>
   <?php endif; ?>
   <?php if ($removed): ?>
-    <p class="admin-alert admin-alert--success">Personalisatie verwijderd. Het product zelf en alle bestaande bestellingen zijn ongewijzigd gebleven.</p>
+    <p class="admin-alert admin-alert--success"><?= admin_te('personalization.personalisatie_verwijderd_product_zelf') ?></p>
   <?php endif; ?>
   <?php if ($duplicate): ?>
-    <p class="admin-alert admin-alert--error">Dat product staat al in Personalisatie. Een product kan maar één personalisatie-configuratie hebben.</p>
+    <p class="admin-alert admin-alert--error"><?= admin_te('personalization.product_staat_al_personalisatie') ?></p>
   <?php endif; ?>
   <?php if ($loadError !== null): ?>
     <p class="admin-alert admin-alert--error"><?= $h($loadError) ?></p>
@@ -107,14 +105,13 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
   <?php endif; ?>
 
   <section class="admin-card">
-    <h2>Product toevoegen</h2>
+    <h2><?= admin_te('personalization.product_toevoegen') ?></h2>
     <p class="admin-text-muted">
-      Kies een bestaand product uit de shop. Er wordt <strong>geen nieuw product aangemaakt</strong> — je koppelt
-      alleen personalisatie aan het product dat er al is. Producten die hier al staan, staan niet in de lijst.
+      <?= admin_t('personalization.kies_bestaand_product_uit') ?>
     </p>
 
     <?php if ($available === []): ?>
-      <p class="admin-text-muted">Alle producten zijn al toegevoegd.</p>
+      <p class="admin-text-muted"><?= admin_te('personalization.alle_producten_al_toegevoegd') ?></p>
     <?php else: ?>
       <?php /* A <select> with a type-ahead <datalist> alternative would need
                JavaScript; a plain select with a search-friendly size is what
@@ -122,9 +119,9 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
                and the browser's own type-to-jump already searches it. */ ?>
       <form method="post" action="/api/admin/create-product-personalization.php" class="admin-form-row admin-form-row--split">
         <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
-        <label>Product
+        <label><?= admin_te('personalization.product') ?>
           <select name="product_id" required>
-            <option value="">— Kies een product —</option>
+            <option value=""><?= admin_te('personalization.kies_product') ?></option>
             <?php foreach ($available as $product): ?>
               <option value="<?= (int) $product['id'] ?>">
                 <?= $h((string) $product['name']) ?><?= (int) $product['active'] === 1 ? '' : ' (inactief)' ?>
@@ -133,28 +130,28 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
           </select>
         </label>
         <div style="align-self:end;">
-          <button type="submit">Toevoegen</button>
+          <button type="submit"><?= admin_te('common.add') ?></button>
         </div>
       </form>
     <?php endif; ?>
   </section>
 
   <section class="admin-card">
-    <h2>Gepersonaliseerde producten</h2>
+    <h2><?= admin_te('personalization.gepersonaliseerde_producten') ?></h2>
 
     <?php if ($configured === []): ?>
-      <p class="admin-text-muted">Nog geen producten met personalisatie. Voeg er hierboven een toe.</p>
+      <p class="admin-text-muted"><?= admin_te('personalization.producten_personalisatie_voeg_er') ?></p>
     <?php else: ?>
       <div class="admin-table-wrap">
         <table class="admin-table">
           <thead>
             <tr>
-              <th>Product</th>
-              <th>Zichtbaar</th>
-              <th>Status</th>
-              <th>Aankoop</th>
-              <th>Weergaven</th>
-              <th>Zones</th>
+              <th><?= admin_te('personalization.product_2') ?></th>
+              <th><?= admin_te('common.visible') ?></th>
+              <th><?= admin_te('common.status') ?></th>
+              <th><?= admin_te('personalization.aankoop') ?></th>
+              <th><?= admin_te('personalization.weergaven') ?></th>
+              <th><?= admin_te('personalization.zones') ?></th>
               <th></th>
             </tr>
           </thead>
@@ -223,16 +220,16 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
                 <td>
                   <?php /* A personalization-only product is required by
                            construction, whatever its own setting says. */ ?>
-                  <?= $mode === PersonalizationRules::PURCHASE_REQUIRED || !$inShop ? 'Verplicht' : 'Optioneel' ?>
+                  <?= $mode === PersonalizationRules::PURCHASE_REQUIRED || !$inShop ? admin_t('personalization.required') : 'Optioneel' ?>
                   <?php if (!$inShop && $mode !== PersonalizationRules::PURCHASE_REQUIRED): ?>
-                    <br><span class="admin-text-muted">(niet in de shop)</span>
+                    <br><span class="admin-text-muted"><?= admin_te('personalization.not_in_shop') ?></span>
                   <?php endif; ?>
                 </td>
-                <td><?= $viewsWithImage ?> / <?= $viewCount ?><?php if ($viewCount > 0 && $viewsWithImage < $viewCount): ?> <span class="admin-text-muted">(met afbeelding)</span><?php endif; ?></td>
+                <td><?= $viewsWithImage ?> / <?= $viewCount ?><?php if ($viewCount > 0 && $viewsWithImage < $viewCount): ?> <span class="admin-text-muted"><?= admin_te('personalization.with_image') ?></span><?php endif; ?></td>
                 <td><?= $zoneCount ?></td>
                 <td>
                   <div class="admin-personalization-list__actions">
-                    <a class="admin-btn-text" href="/admin/personalization-product.php?product_id=<?= $productId ?>">Bewerken</a>
+                    <a class="admin-btn-text" href="/admin/personalization-product.php?product_id=<?= $productId ?>"><?= admin_te('common.edit_badge') ?></a>
                     <?php
                       $confirmMessage = 'Personalisatie voor dit product verwijderen? Het product zelf blijft gewoon bestaan en bestaande bestellingen veranderen niet.';
                     ?>
@@ -240,7 +237,7 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
                           onsubmit="return confirm('<?= $h($confirmMessage) ?>');">
                       <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
                       <input type="hidden" name="product_id" value="<?= $productId ?>">
-                      <button type="submit" class="admin-btn-text admin-btn-text--danger">Verwijderen</button>
+                      <button type="submit" class="admin-btn-text admin-btn-text--danger"><?= admin_te('common.delete') ?></button>
                     </form>
                   </div>
                 </td>

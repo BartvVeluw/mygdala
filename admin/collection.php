@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/../vendor/autoload.php';
+require_once __DIR__ . '/_translate.php';
 
 require_once __DIR__ . '/_language_fields.php';
 
@@ -47,12 +48,12 @@ if ($isEdit) {
     } catch (\Throwable $e) {
         error_log('[admin/collection.php] ' . $e->getMessage());
         http_response_code(500);
-        exit('Collectie kon niet worden geladen.');
+        exit(admin_t('screen.collectie_kon_geladen'));
     }
 
     if ($collection === null) {
         http_response_code(404);
-        exit('Collectie niet gevonden.');
+        exit(admin_t('screen.collectie_gevonden'));
     }
 }
 
@@ -132,7 +133,7 @@ foreach ($productsById as $productRow) {
 }
 
 $csrfToken = Csrf::token();
-$pageTitle = $isEdit ? (string) $collection['name'] : 'Nieuwe collectie';
+$pageTitle = $isEdit ? (string) $collection['name'] : admin_t('shop.new_collection');
 $currentImagePath = $collection !== null ? (string) ($collection['image_path'] ?? '') : '';
 
 // The SEO card's social image, and the "remove it on save" tick — which
@@ -154,7 +155,7 @@ require __DIR__ . '/_richtext_field.php';
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title><?= $h($pageTitle) ?> — Admin</title>
+<title><?= $h($pageTitle) ?> <?= admin_te('shop.admin') ?></title>
 <link rel="stylesheet" href="<?= \App\Service\AssetVersion::url('/admin/assets/vendor/quill/quill.snow.css') ?>">
 <link rel="stylesheet" href="<?= \App\Service\AssetVersion::url('/admin/assets/admin.css') ?>">
 <script src="<?= \App\Service\AssetVersion::url('/admin/assets/vendor/quill/quill.min.js') ?>" defer></script>
@@ -164,14 +165,14 @@ require __DIR__ . '/_richtext_field.php';
 <body<?= \App\Service\AdminTheme::bodyAttribute() ?>>
 <?php require __DIR__ . '/_header.php'; ?>
 <main class="admin-main">
-  <p><a href="/admin/collections.php">&larr; Terug naar collecties</a></p>
+  <p><a href="/admin/collections.php"><?= admin_t('shop.terug_collecties') ?></a></p>
   <h1><?= $h($pageTitle) ?></h1>
 
   <?php if ($created): ?>
-    <p class="admin-alert admin-alert--success">Collectie aangemaakt.</p>
+    <p class="admin-alert admin-alert--success"><?= admin_te('shop.collectie_aangemaakt') ?></p>
   <?php endif; ?>
   <?php if ($updated): ?>
-    <p class="admin-alert admin-alert--success">Collectie opgeslagen.</p>
+    <p class="admin-alert admin-alert--success"><?= admin_te('shop.collectie_opgeslagen') ?></p>
   <?php endif; ?>
   <?php if ($errors !== []): ?>
     <div class="admin-alert admin-alert--error">
@@ -190,29 +191,29 @@ require __DIR__ . '/_richtext_field.php';
     <?php endif; ?>
 
     <section class="admin-card">
-      <h2>Basisgegevens</h2>
+      <h2><?= admin_te('shop.basisgegevens') ?></h2>
 
       <?php admin_lang_tabs(); ?>
       <div class="admin-form-row admin-form-row--split">
         <?php admin_lang_pane_start('nl'); ?>
-        <label>Naam*
+        <label><?= admin_te('common.name') ?>*
           <input type="text" name="name" maxlength="150" <?= admin_lang_required('nl') ?> data-slug-source value="<?= $h(collectionFieldValue($old, $collection, 'name')) ?>">
         </label>
         <?php admin_lang_pane_end(); ?>
         <?php admin_lang_pane_start('en'); ?>
-        <label>Naam
+        <label><?= admin_te('common.name') ?>
           <input type="text" name="name_en" maxlength="150" value="<?= $h(collectionFieldValue($old, $collection, 'name_en')) ?>"<?= admin_lang_placeholder_attr('en') ?>>
         </label>
         <?php admin_lang_pane_end(); ?>
       </div>
 
       <div class="admin-form-row">
-        <label>Slug
+        <label><?= admin_te('shop.slug') ?>
           <input type="text" name="slug" maxlength="170" data-slug-target value="<?= $h($slugValue) ?>" placeholder="Leeg = automatisch gegenereerd uit de naam">
         </label>
         <?php if ($isEdit && (string) $collection['slug'] !== ''): ?>
           <p class="admin-text-muted">
-            Publieke pagina:
+            <?= admin_te('shop.publieke_pagina') ?>
             <a href="<?= $h(CollectionContent::publicPath((string) $collection['slug'])) ?>" target="_blank" rel="noopener"><?= $h(CollectionContent::publicPath((string) $collection['slug'])) ?></a>
             <?= (int) $collection['is_active'] === 1 ? '' : ' (nu niet zichtbaar — collectie staat op inactief)' ?>
           </p>
@@ -231,13 +232,13 @@ require __DIR__ . '/_richtext_field.php';
       <div class="admin-form-row">
         <label class="admin-checkbox-label">
           <input type="checkbox" name="is_active" value="1" <?= $isActiveChecked ? 'checked' : '' ?>>
-          Actief (zichtbaar op de shop-pagina en via de eigen collectiepagina)
+          <?= admin_te('shop.actief_zichtbaar_shop_pagina') ?>
         </label>
       </div>
     </section>
 
     <section class="admin-card">
-      <h2>Afbeelding</h2>
+      <h2><?= admin_te('common.image') ?></h2>
       <?php if ($currentImagePath !== ''): ?>
         <div class="admin-image-card" style="max-width:220px;">
           <div class="admin-image-card__media">
@@ -245,14 +246,14 @@ require __DIR__ . '/_richtext_field.php';
           </div>
         </div>
         <div class="admin-form-row" style="margin-top:0.75rem;">
-          <label>Vervangen door nieuw bestand (optioneel)
+          <label><?= admin_te('shop.vervangen_door_nieuw_bestand') ?>
             <input type="file" name="image" accept=".jpg,.jpeg,.png,.webp,.gif,image/jpeg,image/png,image/webp,image/gif">
           </label>
         </div>
       <?php else: ?>
-        <p class="admin-text-muted">Nog geen afbeelding. Deze wordt gebruikt op de collectiekaart in de shop en bovenaan de collectiepagina.</p>
+        <p class="admin-text-muted"><?= admin_te('shop.afbeelding_gebruikt_collectiekaart_shop') ?></p>
         <div class="admin-form-row">
-          <label>Afbeelding (optioneel)
+          <label><?= admin_te('shop.afbeelding_optioneel') ?>
             <input type="file" name="image" accept=".jpg,.jpeg,.png,.webp,.gif,image/jpeg,image/png,image/webp,image/gif">
           </label>
         </div>
@@ -260,7 +261,7 @@ require __DIR__ . '/_richtext_field.php';
     </section>
 
     <section class="admin-card">
-      <h2>SEO</h2>
+      <h2><?= admin_te('shop.seo') ?></h2>
       <?php /* Identical field names, limits and fallback wording to the
                product editor's SEO card (admin/product-form.php) and to the
                CMS page editor's (admin/page.php) — one SEO vocabulary across
@@ -268,11 +269,7 @@ require __DIR__ . '/_richtext_field.php';
                the collection's own content", see
                App\Service\CollectionContent. */ ?>
       <p class="admin-text-muted">
-        Allemaal optioneel. Laat je een veld leeg, dan gebruikt de collectiepagina automatisch de gewone inhoud:
-        de SEO-titel wordt &ldquo;<em>Collectienaam</em> | Shop &mdash; <?= $h($siteName) ?>&rdquo;, de meta description
-        een korte platte-tekstversie van de beschrijving, en de deel-afbeelding de collectie-afbeelding hierboven
-        (of anders de foto van het eerste product in deze collectie).
-        Een Engels veld dat leeg blijft valt terug op het Nederlandse.
+        <?= admin_t('shop.allemaal_optioneel_laat_veld', ['v1' => $h($siteName)]) ?>
       </p>
       <div class="admin-product-form admin-product-form--wide">
         <?php admin_lang_pane_start('nl'); ?>
@@ -310,14 +307,14 @@ require __DIR__ . '/_richtext_field.php';
           </div>
         <?php endif; ?>
         <div class="admin-seo-image__fields">
-          <label>Deel-afbeelding (social media)
+          <label><?= admin_te('shop.deel_afbeelding_social_media') ?>
             <input type="file" name="og_image" accept=".jpg,.jpeg,.png,.webp,.gif,image/jpeg,image/png,image/webp,image/gif">
           </label>
-          <p class="admin-text-muted">Optioneel, en alleen zichtbaar als voorbeeld bij delen op social media (WhatsApp, Facebook, LinkedIn). Zonder eigen deel-afbeelding gebruikt de pagina automatisch de collectie-afbeelding.</p>
+          <p class="admin-text-muted"><?= admin_te('shop.optioneel_alleen_zichtbaar_voorbeeld') ?></p>
           <?php if ($currentOgImagePath !== ''): ?>
             <label class="admin-checkbox-label">
               <input type="checkbox" name="remove_og_image" value="1" <?= $removeOgImageChecked ? 'checked' : '' ?>>
-              Deel-afbeelding verwijderen bij opslaan (terug naar de collectie-afbeelding)
+              <?= admin_te('shop.deel_afbeelding_verwijderen_opslaan') ?>
             </label>
           <?php endif; ?>
         </div>
@@ -325,11 +322,11 @@ require __DIR__ . '/_richtext_field.php';
     </section>
 
     <section class="admin-card">
-      <h2>Producten in deze collectie</h2>
-      <p class="admin-text-muted">Vink aan welke producten in deze collectie horen. Aangevinkte producten staan bovenaan; sleep aan de <strong>&#10021;</strong>-greep om hun volgorde op de collectiepagina te bepalen. Een product mag in meerdere collecties zitten en blijft altijd zijn eigen productpagina houden.</p>
+      <h2><?= admin_te('shop.producten_collectie') ?></h2>
+      <p class="admin-text-muted"><?= admin_t('shop.vink_welke_producten_collectie') ?></p>
 
       <?php if ($products === []): ?>
-        <p class="admin-text-muted">Nog geen producten in de catalogus. <a href="/admin/product-form.php">Maak eerst een product aan</a>.</p>
+        <p class="admin-text-muted"><?= admin_t('shop.producten_catalogus_maak_eerst') ?></p>
       <?php else: ?>
         <?php
           // Marks "the picker was actually rendered, so the absence of a
@@ -370,7 +367,7 @@ require __DIR__ . '/_richtext_field.php';
                 </span>
                 <span class="admin-section-row__body">
                   <span class="admin-section-row__name"><?= $h($productName) ?></span>
-                  <span class="admin-text-muted">&euro; <?= $h(number_format((float) $productRow['price'], 2, ',', '.')) ?></span>
+                  <span class="admin-text-muted"><?= admin_t('shop.amount_with', ['v1' => $h(number_format((float) $productRow['price'], 2, ',', '.'))]) ?></span>
                 </span>
               </label>
               <?php if (!$productActive): ?>
@@ -379,23 +376,23 @@ require __DIR__ . '/_richtext_field.php';
             </div>
           <?php endforeach; ?>
         </div>
-        <p class="admin-text-muted" data-collection-product-empty hidden>Geen producten gevonden voor deze zoekopdracht.</p>
+        <p class="admin-text-muted" data-collection-product-empty hidden><?= admin_te('shop.producten_gevonden_zoekopdracht') ?></p>
       <?php endif; ?>
     </section>
 
     <div class="admin-form-row">
-      <button type="submit"><?= $isEdit ? 'Opslaan' : 'Collectie aanmaken' ?></button>
+      <button type="submit"><?= $isEdit ? 'Opslaan' : admin_t('shop.create_collection') ?></button>
     </div>
   </form>
 
   <?php if ($isEdit): ?>
     <section class="admin-card">
-      <h2>Collectie verwijderen</h2>
-      <p class="admin-text-muted">Hiermee verdwijnt alleen de collectie zelf, haar afbeelding en de koppelingen met producten. <strong>De producten blijven volledig bestaan</strong>, inclusief hun eigen foto's en productpagina's.</p>
+      <h2><?= admin_te('shop.collectie_verwijderen') ?></h2>
+      <p class="admin-text-muted"><?= admin_t('shop.hiermee_verdwijnt_alleen_collectie') ?></p>
       <form method="post" action="/api/admin/delete-collection.php" onsubmit="return confirm('Weet je zeker dat je deze collectie definitief wilt verwijderen? De producten in deze collectie blijven gewoon bestaan.');">
         <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
         <input type="hidden" name="id" value="<?= (int) $collection['id'] ?>">
-        <button type="submit" class="admin-btn-text admin-btn-text--danger">Collectie verwijderen</button>
+        <button type="submit" class="admin-btn-text admin-btn-text--danger"><?= admin_te('shop.collectie_verwijderen_2') ?></button>
       </form>
     </section>
   <?php endif; ?>

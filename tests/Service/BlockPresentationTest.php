@@ -286,7 +286,7 @@ final class BlockPresentationTest extends TestCase
             }
 
             $this->assertStringContainsString(
-                '->description()',
+                '->describedFor()',
                 $source,
                 "{$screen} must read the description off the definition"
             );

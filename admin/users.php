@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/../vendor/autoload.php';
+require_once __DIR__ . '/_translate.php';
 
 use App\Repository\AdminUserRepository;
 use App\Service\AdminAuth;
@@ -42,40 +43,40 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Gebruikers — Admin</title>
+<title><?= admin_te('users.gebruikers_admin') ?></title>
 <link rel="stylesheet" href="<?= \App\Service\AssetVersion::url('/admin/assets/admin.css') ?>">
 </head>
 <body<?= \App\Service\AdminTheme::bodyAttribute() ?>>
 <?php require __DIR__ . '/_header.php'; ?>
 <main class="admin-main">
   <div class="admin-main__heading">
-    <h1>Gebruikers</h1>
-    <a href="/admin/user-form.php" class="admin-btn-link">+ Nieuwe gebruiker</a>
+    <h1><?= admin_te('users.gebruikers') ?></h1>
+    <a href="/admin/user-form.php" class="admin-btn-link"><?= admin_te('users.nieuwe_gebruiker') ?></a>
   </div>
 
   <?php if ($created): ?>
-    <p class="admin-alert admin-alert--success">Gebruiker aangemaakt.</p>
+    <p class="admin-alert admin-alert--success"><?= admin_te('users.gebruiker_aangemaakt') ?></p>
   <?php endif; ?>
   <?php if ($updated): ?>
-    <p class="admin-alert admin-alert--success">Gebruiker opgeslagen.</p>
+    <p class="admin-alert admin-alert--success"><?= admin_te('users.gebruiker_opgeslagen') ?></p>
   <?php endif; ?>
 
   <?php if ($users === null): ?>
-    <p class="admin-alert admin-alert--error">Gebruikers konden niet worden geladen.</p>
+    <p class="admin-alert admin-alert--error"><?= admin_te('users.gebruikers_konden_geladen') ?></p>
   <?php elseif ($users === []): ?>
-    <p>Nog geen CMS-gebruikers. <a href="/admin/user-form.php">Maak de eerste aan</a>.</p>
+    <p><?= admin_t('users.cms_gebruikers_maak_eerste') ?></p>
   <?php else: ?>
     <div class="admin-table-wrap">
     <table class="admin-table">
       <thead>
         <tr>
-          <th>Naam</th>
-          <th>Gebruikersnaam</th>
-          <th>E-mail</th>
-          <th>Status</th>
-          <th>Toegang</th>
-          <th>Laatst ingelogd</th>
-          <th>Actie</th>
+          <th><?= admin_te('common.name') ?></th>
+          <th><?= admin_te('common.username') ?></th>
+          <th><?= admin_te('common.email') ?></th>
+          <th><?= admin_te('common.status') ?></th>
+          <th><?= admin_te('users.toegang') ?></th>
+          <th><?= admin_te('users.laatst_ingelogd') ?></th>
+          <th><?= admin_te('common.action') ?></th>
         </tr>
       </thead>
       <tbody>
@@ -101,14 +102,14 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
             <td><?= $user['email'] !== null ? $h((string) $user['email']) : '<span class="admin-text-muted">&mdash;</span>' ?></td>
             <td>
               <span class="admin-badge admin-badge--<?= $user['is_active'] === true ? 'paid' : 'canceled' ?>">
-                <?= $user['is_active'] === true ? 'Actief' : 'Gedeactiveerd' ?>
+                <?= $user['is_active'] === true ? admin_t('common.active') : 'Gedeactiveerd' ?>
               </span>
             </td>
             <td>
               <?php if ($user['is_super_admin'] === true): ?>
                 <span class="admin-badge admin-badge--paid">Super Admin</span>
               <?php elseif ($accessLabels === []): ?>
-                <span class="admin-text-muted">Geen rechten</span>
+                <span class="admin-text-muted"><?= admin_te('users.no_permissions') ?></span>
               <?php else: ?>
                 <?= $h(implode(', ', $accessLabels)) ?>
               <?php endif; ?>
@@ -116,7 +117,7 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
             <td><?= $lastLogin !== null ? $h($lastLogin) : '<span class="admin-text-muted">Nooit</span>' ?></td>
             <td>
               <?php if ($mayEdit): ?>
-                <a href="/admin/user-form.php?id=<?= $userId ?>">Bewerken</a>
+                <a href="/admin/user-form.php?id=<?= $userId ?>"><?= admin_te('common.edit') ?></a>
               <?php else: ?>
                 <span class="admin-text-muted">&mdash;</span>
               <?php endif; ?>
@@ -129,16 +130,12 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
   <?php endif; ?>
 
   <div class="admin-card">
-    <h2>Hoe rechten werken</h2>
+    <h2><?= admin_te('users.hoe_rechten_werken') ?></h2>
     <p class="admin-text-muted">
-      Een <strong>Super Admin</strong> heeft automatisch alle rechten en kan als enige andere Super Admins
-      aanmaken of wijzigen, en als enige het recht &ldquo;Gebruikers beheren&rdquo; toekennen. Alle andere
-      accounts krijgen losse rechten per onderdeel. Niemand kan zijn eigen rechten, Super Admin-status of
-      actief/inactief-status wijzigen, en de laatste actieve Super Admin kan niet worden gedeactiveerd.
+      <?= admin_te('users.super_admin_heeft_automatisch') ?>
     </p>
     <p class="admin-text-muted">
-      Rechten gelden serverzijdig: een onderdeel waar iemand geen recht op heeft, verdwijnt niet alleen uit
-      het menu maar weigert ook een directe URL of een handmatig verstuurd formulier.
+      <?= admin_te('users.rechten_gelden_serverzijdig_onderdeel') ?>
     </p>
   </div>
 </main>

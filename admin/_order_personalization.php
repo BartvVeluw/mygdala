@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+
+require_once __DIR__ . '/_translate.php';
 use App\Service\Personalization\Money;
 use App\Service\Personalization\PersonalizationColors;
 use App\Service\Personalization\PersonalizationFonts;
@@ -146,7 +148,7 @@ function renderOrderItemPersonalizations(array $personalizations, array $snapsho
     $esc = static fn (?string $value): string => htmlspecialchars((string) $value, ENT_QUOTES, 'UTF-8');
     ?>
 <div class="admin-personalization">
-  <h4 class="admin-personalization__title">Personalisatie</h4>
+  <h4 class="admin-personalization__title"><?= admin_te('personalization.personalisatie') ?></h4>
 
   <?php foreach ($groups as $viewKey => $group): ?>
     <?php if ($showViewHeadings): ?>
@@ -189,16 +191,15 @@ function renderOrderPersonalizationSnapshot(?array $snapshot): void
     $endpoint = '/api/admin/order-preview-snapshot.php?id=' . (int) $snapshot['id'];
     ?>
 <div class="admin-personalization__snapshot">
-  <h6 class="admin-personalization__snapshot-title">Samengesteld voorbeeld</h6>
+  <h6 class="admin-personalization__snapshot-title"><?= admin_te('personalization.samengesteld_voorbeeld') ?></h6>
   <p class="admin-personalization__note">
-    Precies wat de klant zag toen ze bestelden, inclusief het gekozen lettertype en de kleur. Dit is een extra
-    bestand — de gegevens hierboven en het originele bestand van de klant blijven leidend.
+    <?= admin_te('personalization.precies_wat_klant_zag') ?>
   </p>
   <div class="admin-personalization__snapshot-media">
     <img src="<?= $esc($endpoint) ?>" alt="Samengesteld voorbeeld zoals de klant het zag" loading="lazy">
   </div>
   <p class="admin-personalization__snapshot-actions">
-    <a class="admin-btn-link" href="<?= $esc($endpoint . '&mode=download') ?>">Download voorbeeld</a>
+    <a class="admin-btn-link" href="<?= $esc($endpoint . '&mode=download') ?>"><?= admin_te('personalization.download_voorbeeld') ?></a>
     <a href="<?= $esc($endpoint) ?>" target="_blank" rel="noopener">Openen in tabblad</a>
     <?php if (!empty($snapshot['image_width']) && !empty($snapshot['image_height'])): ?>
       <span class="admin-text-muted"><?= (int) $snapshot['image_width'] ?>&times;<?= (int) $snapshot['image_height'] ?> px</span>
@@ -282,7 +283,7 @@ function renderOrderPersonalizationZone(array $row, array $snapshot): void
     <?= $esc((string) $zoneLabel) ?>
     <code class="admin-text-muted"><?= $esc((string) $row['zone_key']) ?></code>
     <?php if (!empty($zoneSnapshot['is_required'])): ?>
-      <span class="admin-text-muted">(verplicht)</span>
+      <span class="admin-text-muted"><?= admin_te('personalization.required_paren') ?></span>
     <?php endif; ?>
   </h6>
 
@@ -291,37 +292,41 @@ function renderOrderPersonalizationZone(array $row, array $snapshot): void
     <div class="admin-personalization__facts">
       <dl class="admin-personalization__list">
         <?php if ($text !== ''): ?>
-          <dt>Tekst</dt>
+          <dt><?= admin_te('personalization.tekst') ?></dt>
           <dd><strong><?= $esc($text) ?></strong></dd>
           <?php if ($fontKey !== ''): ?>
-            <dt>Lettertype</dt>
+            <dt><?= admin_te('personalization.lettertype') ?></dt>
             <dd><?= $esc($fontLabel !== '' ? $fontLabel : $fontKey) ?></dd>
           <?php endif; ?>
           <?php if ($colorKey !== ''): ?>
-            <dt>Tekstkleur</dt>
+            <dt><?= admin_te('personalization.tekstkleur') ?></dt>
             <dd>
               <span class="admin-personalization__swatch" style="background:<?= $esc($colorHex) ?>;" aria-hidden="true"></span>
               <?= $esc($colorLabel !== '' ? $colorLabel : $colorKey) ?>
             </dd>
           <?php endif; ?>
-          <dt>Tekstpositie</dt>
+          <dt><?= admin_te('personalization.tekstpositie') ?></dt>
           <dd class="admin-text-muted">
-            <?= $esc($percent($transform['text']['x'])) ?> van links,
-            <?= $esc($percent($transform['text']['y'])) ?> van boven,
-            grootte <?= $esc($percent($transform['text']['scale'])) ?><?php
+            <?= admin_t('personalization.position_line', [
+                'v1' => $esc($percent($transform['text']['x'])),
+                'v2' => $esc($percent($transform['text']['y'])),
+                'v3' => $esc($percent($transform['text']['scale'])),
+            ]) ?><?php
               if (abs($transform['text']['rotation']) > 0.01) {
-                  echo ', gedraaid ' . $esc(number_format($transform['text']['rotation'], 0, ',', '.')) . '&deg;';
+                  echo admin_t('personalization.rotated_by', [
+                      'v1' => $esc(number_format($transform['text']['rotation'], 0, ',', '.')),
+                  ]);
               }
             ?>
-            <span class="admin-personalization__note">(binnen het gravuregebied)</span>
+            <span class="admin-personalization__note"><?= admin_te('personalization.within_engraving_area') ?></span>
           </dd>
         <?php else: ?>
-          <dt>Tekst</dt>
-          <dd class="admin-text-muted">Geen tekst opgegeven.</dd>
+          <dt><?= admin_te('personalization.tekst_2') ?></dt>
+          <dd class="admin-text-muted"><?= admin_te('personalization.tekst_opgegeven') ?></dd>
         <?php endif; ?>
 
         <?php if ($hasUpload): ?>
-          <dt>Bestand van de klant</dt>
+          <dt><?= admin_te('personalization.bestand_klant') ?></dt>
           <dd>
             <strong><?= $esc((string) ($row['original_filename'] ?? '')) ?></strong>
             <span class="admin-text-muted">
@@ -335,38 +340,35 @@ function renderOrderPersonalizationZone(array $row, array $snapshot): void
               ?>)
             </span>
             <br>
-            <a href="<?= $esc($fileEndpoint . '&mode=download') ?>">Download origineel</a>
-            &middot;
-            <a href="<?= $esc($fileEndpoint) ?>" target="_blank" rel="noopener">Open origineel</a>
+            <a href="<?= $esc($fileEndpoint . '&mode=download') ?>"><?= admin_t('personalization.download_origineel') ?>
+            <a href="<?= $esc($fileEndpoint) ?>" target="_blank" rel="noopener"><?= admin_te('personalization.open_origineel') ?></a>
           </dd>
-          <dt>Afbeeldingspositie</dt>
+          <dt><?= admin_te('personalization.afbeeldingspositie') ?></dt>
           <dd class="admin-text-muted">
-            <?= $esc($percent($transform['image']['x'])) ?> van links,
-            <?= $esc($percent($transform['image']['y'])) ?> van boven,
-            grootte <?= $esc($percent($transform['image']['scale'])) ?><?php
+            <?= admin_t('personalization.position_line', [
+                'v1' => $esc($percent($transform['image']['x'])),
+                'v2' => $esc($percent($transform['image']['y'])),
+                'v3' => $esc($percent($transform['image']['scale'])),
+            ]) ?><?php
               if (abs($transform['image']['rotation']) > 0.01) {
                   echo ', gedraaid ' . $esc(number_format($transform['image']['rotation'], 0, ',', '.')) . '&deg;';
               }
             ?>
           </dd>
         <?php else: ?>
-          <dt>Bestand van de klant</dt>
-          <dd class="admin-text-muted">Geen afbeelding geüpload.</dd>
+          <dt><?= admin_te('personalization.bestand_klant_2') ?></dt>
+          <dd class="admin-text-muted"><?= admin_te('personalization.afbeelding_ge_pload') ?></dd>
         <?php endif; ?>
 
         <?php if ($surchargeCents > 0): ?>
-          <dt>Meerprijs</dt>
-          <dd><strong>&euro; <?= $esc(Money::formatDutch($surchargeCents)) ?></strong>
-            <span class="admin-text-muted">(per stuk, zoals berekend bij deze bestelling)</span></dd>
+          <dt><?= admin_t('personalization.meerprijs') ?></dt>
+          <dd><strong><?= admin_t('personalization.per_stuk_zoals_berekend', ['v1' => $esc(Money::formatDutch($surchargeCents))]) ?></span></dd>
         <?php endif; ?>
 
         <?php if ($area !== null): ?>
-          <dt>Gravuregebied bij bestelling</dt>
+          <dt><?= admin_te('personalization.gravuregebied_bestelling') ?></dt>
           <dd class="admin-text-muted">
-            <?= $esc(number_format($area['x'], 1, ',', '.')) ?>% /
-            <?= $esc(number_format($area['y'], 1, ',', '.')) ?>% &mdash;
-            <?= $esc(number_format($area['width'], 1, ',', '.')) ?>% breed,
-            <?= $esc(number_format($area['height'], 1, ',', '.')) ?>% hoog
+            <?= $esc(number_format($area['x'], 1, ',', '.')) ?><?= admin_t('personalization.breed_hoog', ['v1' => $esc(number_format($area['y'], 1, ',', '.')), 'v2' => $esc(number_format($area['width'], 1, ',', '.')), 'v3' => $esc(number_format($area['height'], 1, ',', '.'))]) ?>
           </dd>
         <?php endif; ?>
       </dl>
@@ -401,11 +403,10 @@ function renderOrderPersonalizationZone(array $row, array $snapshot): void
             <?php endif; ?>
           </div>
         </div>
-        <p class="admin-personalization__note">Nagebouwd uit de opgeslagen gegevens van deze bestelling — niet uit de huidige productinstellingen.</p>
+        <p class="admin-personalization__note"><?= admin_te('personalization.nagebouwd_uit_opgeslagen_gegevens') ?></p>
       <?php else: ?>
         <p class="admin-text-muted">
-          De voorbeeldafbeelding van deze bestelling is niet meer beschikbaar, dus het voorbeeld kan niet worden
-          nagebouwd. De tekst, het bestand en de posities hiernaast zijn volledig bewaard gebleven.
+          <?= admin_te('personalization.voorbeeldafbeelding_bestelling_meer_beschikb') ?>
         </p>
       <?php endif; ?>
     </div>

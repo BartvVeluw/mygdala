@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+
+require_once __DIR__ . '/_translate.php';
 /**
  * The website-statistics block on the CMS dashboard (admin/index.php).
  *
@@ -92,52 +94,48 @@ function adminStatsDelta(int $current, int $previous, string $periodLabel): stri
 ?>
 <section class="admin-stats" aria-labelledby="admin-stats-heading">
   <div class="admin-stats__head">
-    <h2 id="admin-stats-heading">Websitestatistieken</h2>
+    <h2 id="admin-stats-heading"><?= admin_te('analytics.websitestatistieken') ?></h2>
     <p class="admin-stats__intro">
-      Eigen meting op de server — geen Google Analytics, geen cookies en geen IP-adressen in de database.
-      Bezoekersaantallen zijn daardoor een benadering: een bezoeker die op vijf dagen terugkomt telt als vijf.
+      <?= admin_te('analytics.eigen_meting_server_google') ?>
     </p>
   </div>
 
 <?php if (!$stats['has_data']): ?>
   <p class="admin-text-muted">
-    Er zijn nog geen bezoeken geregistreerd. Zodra iemand de website bezoekt verschijnen hier de cijfers —
-    bezoeken aan het CMS zelf en herkenbare zoekmachines/robots worden bewust niet meegeteld.
+    <?= admin_te('analytics.er_bezoeken_geregistreerd_zodra') ?>
   </p>
 <?php else: ?>
 
   <div class="admin-stats__grid">
     <div class="admin-stat-card">
-      <p class="admin-stat-card__label">Weergaven vandaag</p>
+      <p class="admin-stat-card__label"><?= admin_te('analytics.weergaven_vandaag') ?></p>
       <p class="admin-stat-card__value"><?= $statsNumber($stats['today']['pageviews']) ?></p>
       <?= adminStatsDelta($stats['today']['pageviews'], $stats['yesterday']['pageviews'], 'gisteren') ?>
     </div>
     <div class="admin-stat-card">
-      <p class="admin-stat-card__label">Bezoekers vandaag</p>
+      <p class="admin-stat-card__label"><?= admin_te('analytics.bezoekers_vandaag') ?></p>
       <p class="admin-stat-card__value"><?= $statsNumber($stats['today']['visitors']) ?></p>
       <?= adminStatsDelta($stats['today']['visitors'], $stats['yesterday']['visitors'], 'gisteren') ?>
     </div>
     <div class="admin-stat-card">
-      <p class="admin-stat-card__label">Weergaven deze maand</p>
+      <p class="admin-stat-card__label"><?= admin_te('analytics.weergaven_maand') ?></p>
       <p class="admin-stat-card__value"><?= $statsNumber($stats['month']['pageviews']) ?></p>
       <?= adminStatsDelta($stats['month']['pageviews'], $stats['previous_month']['pageviews'], 'vorige maand') ?>
     </div>
     <div class="admin-stat-card">
-      <p class="admin-stat-card__label">Bezoekers deze maand</p>
+      <p class="admin-stat-card__label"><?= admin_te('analytics.bezoekers_maand') ?></p>
       <p class="admin-stat-card__value"><?= $statsNumber($stats['month']['visitors']) ?></p>
       <?= adminStatsDelta($stats['month']['visitors'], $stats['previous_month']['visitors'], 'vorige maand') ?>
     </div>
   </div>
 
   <p class="admin-stats__footnote">
-    De vergelijking gebruikt even lange periodes: vandaag tot dit tijdstip tegenover gisteren tot hetzelfde
-    tijdstip, en <?= $statsH(adminStatsMonthLabel($stats['month_label'])) ?> tot nu tegenover evenveel dagen
-    van <?= $statsH(adminStatsMonthLabel($stats['previous_month_label'])) ?>.
+    <?= admin_t('analytics.vergelijking_gebruikt_even_lange', ['v1' => $statsH(adminStatsMonthLabel($stats['month_label'])), 'v2' => $statsH(adminStatsMonthLabel($stats['previous_month_label']))]) ?>
   </p>
 
   <div class="admin-stats__panels">
     <div class="admin-stats__panel admin-stats__panel--chart">
-      <h3>Laatste <?= AnalyticsDashboard::CHART_DAYS ?> dagen</h3>
+      <h3><?= admin_t('analytics.laatste_dagen', ['v1' => AnalyticsDashboard::CHART_DAYS]) ?></h3>
       <?php
         $chart = $stats['chart'];
         $maxValue = 0;
@@ -200,19 +198,18 @@ function adminStatsDelta(int $current, int $previous, string $periodLabel): stri
       </svg>
 
       <p class="admin-stats__legend">
-        <span class="admin-stats__key"><span class="admin-stats__swatch"></span> Weergaven</span>
-        <span class="admin-stats__key"><span class="admin-stats__swatch admin-stats__swatch--visitors"></span> Bezoekers</span>
+        <span class="admin-stats__key"><span class="admin-stats__swatch"></span> <?= admin_t('analytics.weergaven_bezoekers') ?></span>
       </p>
     </div>
 
     <div class="admin-stats__panel">
-      <h3>Meest bekeken pagina's</h3>
+      <h3><?= admin_te('analytics.meest_bekeken_pagina_s') ?></h3>
       <?php if ($stats['top_pages'] === []): ?>
-        <p class="admin-text-muted">Nog geen weergaven in deze periode.</p>
+        <p class="admin-text-muted"><?= admin_te('analytics.weergaven_periode') ?></p>
       <?php else: ?>
         <table class="admin-stats__table">
           <thead>
-            <tr><th scope="col">Pagina</th><th scope="col">Weergaven</th><th scope="col">Bezoekers</th></tr>
+            <tr><th scope="col"><?= admin_te('analytics.pagina') ?></th><th scope="col"><?= admin_te('analytics.weergaven') ?></th><th scope="col"><?= admin_te('analytics.bezoekers') ?></th></tr>
           </thead>
           <tbody>
             <?php foreach ($stats['top_pages'] as $page): ?>
@@ -225,20 +222,19 @@ function adminStatsDelta(int $current, int $previous, string $periodLabel): stri
           </tbody>
         </table>
       <?php endif; ?>
-      <p class="admin-stats__panel-note">Laatste <?= AnalyticsDashboard::CHART_DAYS ?> dagen.</p>
+      <p class="admin-stats__panel-note"><?= admin_t('analytics.laatste_dagen_2', ['v1' => AnalyticsDashboard::CHART_DAYS]) ?></p>
     </div>
 
     <div class="admin-stats__panel">
-      <h3>Bezoekers komen van</h3>
+      <h3><?= admin_te('analytics.bezoekers_komen') ?></h3>
       <?php if ($stats['top_referrers'] === []): ?>
         <p class="admin-text-muted">
-          Nog geen bezoeken vanaf een andere website. Bezoekers die de site rechtstreeks openen
-          (bookmark, ingetypt adres) hebben geen herkomst.
+          <?= admin_te('analytics.bezoeken_vanaf_andere_website') ?>
         </p>
       <?php else: ?>
         <table class="admin-stats__table">
           <thead>
-            <tr><th scope="col">Website</th><th scope="col">Weergaven</th></tr>
+            <tr><th scope="col"><?= admin_te('analytics.website') ?></th><th scope="col"><?= admin_te('analytics.weergaven_2') ?></th></tr>
           </thead>
           <tbody>
             <?php foreach ($stats['top_referrers'] as $referrer): ?>
@@ -250,7 +246,7 @@ function adminStatsDelta(int $current, int $previous, string $periodLabel): stri
           </tbody>
         </table>
       <?php endif; ?>
-      <p class="admin-stats__panel-note">Laatste <?= AnalyticsDashboard::CHART_DAYS ?> dagen, alleen externe websites.</p>
+      <p class="admin-stats__panel-note"><?= admin_t('analytics.laatste_dagen_alleen_externe', ['v1' => AnalyticsDashboard::CHART_DAYS]) ?></p>
     </div>
   </div>
 

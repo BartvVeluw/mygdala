@@ -15,6 +15,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../../vendor/autoload.php';
 
+use App\Service\Language\AdminTranslator;
 use App\Repository\BlogTagRepository;
 use App\Service\AdminAuth;
 use App\Service\Blog\BlogSlug;
@@ -55,7 +56,7 @@ $slug = BlogSlug::sanitize((string) ($_POST['slug'] ?? ''));
 $errors = [];
 
 if ($name === '') {
-    $errors[] = 'Geef de tag een naam.';
+    $errors[] = AdminTranslator::trans('validation.geef_tag_naam');
 }
 
 $slugError = BlogSlug::validationError(

@@ -102,7 +102,7 @@ function brandingImageField(
         <?php /* A path this install had before the Media Library and that no
                  media item was created for — an absolute URL, for instance.
                  Still rendered by the site; shown here so it is not a mystery. */ ?>
-        <p class="admin-text-muted">Huidige waarde (nog niet in de mediabibliotheek): <code><?= $h($legacyPath) ?></code></p>
+        <p class="admin-text-muted"><?= admin_t('settings.huidige_waarde_mediabibliotheek', ['v1' => $h($legacyPath)]) ?></code></p>
       <?php endif; ?>
     </div>
     <?php
@@ -113,7 +113,7 @@ function brandingImageField(
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title><?= admin_te('settings.title') ?> — Admin</title>
+<title><?= admin_te('settings.title') ?> <?= admin_te('settings.admin') ?></title>
 <link rel="stylesheet" href="<?= \App\Service\AssetVersion::url('/admin/assets/admin.css') ?>">
 </head>
 <body<?= \App\Service\AdminTheme::bodyAttribute() ?>>
@@ -160,8 +160,8 @@ function brandingImageField(
 
   <?php admin_tab_panel('algemeen'); ?>
   <section class="admin-card">
-    <h2>Algemeen</h2>
-    <p class="admin-text-muted">Wie de site is: de naam, het beeldmerk en de contactgegevens die in de header, de footer en op de contactpagina terechtkomen.</p>
+    <h2><?= admin_te('settings.algemeen') ?></h2>
+    <p class="admin-text-muted"><?= admin_te('settings.wie_site_naam_beeldmerk') ?></p>
     <?php /* No enctype: this form no longer carries a file. The branding
              images are media references now, and uploading happens inside the
              picker (api/admin/media-upload.php). */ ?>
@@ -169,28 +169,28 @@ function brandingImageField(
       <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
 
       <div class="admin-form-row admin-form-row--split">
-        <label>Bedrijfsnaam*
+        <label><?= admin_te('settings.bedrijfsnaam') ?>*
           <input type="text" name="site_name" maxlength="150" required value="<?= settingValue($values, 'site_name') ?>">
         </label>
-        <label>KVK-nummer
+        <label><?= admin_te('settings.kvk_nummer') ?>
           <input type="text" name="kvk_number" maxlength="20" value="<?= settingValue($values, 'kvk_number') ?>">
         </label>
       </div>
 
-      <p class="admin-text-muted">Kies hieronder een afbeelding uit de <a href="/admin/media.php">mediabibliotheek</a>, of upload een nieuwe in het venster dat opent. Laat een veld ongemoeid om te houden wat er nu staat. Toegestaan: JPG, PNG, WEBP of GIF, maximaal 25 MB.</p>
+      <p class="admin-text-muted"><?= admin_t('settings.kies_hieronder_afbeelding_uit') ?></p>
 
       <div class="admin-form-row admin-form-row--split">
-        <?php brandingImageField($values, 'logo_path', 'logo', 'Logo', 'Wordt gebruikt in de header en, als er geen tweede logo is, in de footer.', false); ?>
-        <?php brandingImageField($values, 'logo_alt_path', 'logo_alt', 'Tweede logo (optioneel)', 'Wordt in de footer gebruikt als je hem instelt. Zonder tweede logo gebruikt de footer het gewone logo.', true); ?>
+        <?php brandingImageField($values, 'logo_path', 'logo', admin_t('settings.logo'), admin_t('settings.logo_help'), false); ?>
+        <?php brandingImageField($values, 'logo_alt_path', 'logo_alt', admin_t('settings.logo_alt'), admin_t('settings.logo_alt_help'), true); ?>
       </div>
 
       <div class="admin-form-row admin-form-row--split">
-        <?php brandingImageField($values, 'favicon_path', 'favicon', 'Favicon', 'Het kleine pictogram in het tabblad van de browser. Vierkant, bij voorkeur minstens 180 x 180 pixels.', false); ?>
-        <?php brandingImageField($values, 'og_image_path', 'og_image', 'Standaard deel-afbeelding', 'De preview wanneer iemand een pagina deelt op social media. Liggend, bij voorkeur 1200 x 630 pixels.', true); ?>
+        <?php brandingImageField($values, 'favicon_path', 'favicon', admin_t('settings.favicon'), admin_t('settings.favicon_help'), false); ?>
+        <?php brandingImageField($values, 'og_image_path', 'og_image', admin_t('settings.og_image'), admin_t('settings.og_image_help'), true); ?>
       </div>
 
       <div class="admin-form-row admin-form-row--split">
-        <label>E-mailadres*
+        <label><?= admin_te('common.email_address') ?>*
           <input type="email" name="email" maxlength="150" required value="<?= settingValue($values, 'email') ?>">
         </label>
       </div>
@@ -198,12 +198,12 @@ function brandingImageField(
       <?php admin_lang_tabs(); ?>
       <div class="admin-form-row admin-form-row--split">
         <?php admin_lang_pane_start('nl'); ?>
-        <label>Plaats/locatie*
+        <label><?= admin_te('settings.plaats_locatie') ?>*
           <input type="text" name="city_nl" maxlength="150" <?= admin_lang_required('nl') ?> value="<?= settingValue($values, 'city_nl') ?>">
         </label>
         <?php admin_lang_pane_end(); ?>
         <?php admin_lang_pane_start('en'); ?>
-        <label>Plaats/locatie*
+        <label><?= admin_te('settings.plaats_locatie_2') ?>*
           <input type="text" name="city_en" maxlength="150" required value="<?= settingValue($values, 'city_en') ?>">
         </label>
         <?php admin_lang_pane_end(); ?>
@@ -211,18 +211,18 @@ function brandingImageField(
 
       <div class="admin-form-row admin-form-row--split">
         <?php admin_lang_pane_start('nl'); ?>
-        <label>Footer-omschrijving*
+        <label><?= admin_te('settings.footer_omschrijving') ?>*
           <textarea name="footer_description_nl" maxlength="500" <?= admin_lang_required('nl') ?> rows="3"><?= settingValue($values, 'footer_description_nl') ?></textarea>
         </label>
         <?php admin_lang_pane_end(); ?>
         <?php admin_lang_pane_start('en'); ?>
-        <label>Footer-omschrijving*
+        <label><?= admin_te('settings.footer_omschrijving_2') ?>*
           <textarea name="footer_description_en" maxlength="500" required rows="3"><?= settingValue($values, 'footer_description_en') ?></textarea>
         </label>
         <?php admin_lang_pane_end(); ?>
       </div>
 
-      <button type="submit">Opslaan</button>
+      <button type="submit"><?= admin_te('common.save') ?></button>
     </form>
   </section>
   <?php admin_tab_panel_end(); ?>
@@ -292,16 +292,16 @@ function brandingImageField(
 
   <?php admin_tab_panel('seo'); ?>
   <section class="admin-card">
-    <h2>SEO</h2>
-    <p class="admin-text-muted">De standaarden waar elke pagina op terugvalt. De titel-achtervoegsel is de <strong>Bedrijfsnaam</strong> hierboven en de standaard deel-afbeelding is de <strong>Standaard deel-afbeelding</strong> hierboven &mdash; die staan er maar &eacute;&eacute;n keer, zodat ze niet uit elkaar kunnen lopen.</p>
+    <h2><?= admin_te('settings.seo') ?></h2>
+    <p class="admin-text-muted"><?= admin_t('settings.standaarden_waar_elke_pagina') ?></p>
     <form method="post" action="/api/admin/update-site-settings.php" class="admin-product-form">
       <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
 
       <div class="admin-form-row">
-        <label>Standaard meta description
+        <label><?= admin_te('settings.standaard_meta_description') ?>
           <textarea name="seo_default_description" maxlength="<?= \App\Service\Seo::MAX_META_DESCRIPTION_LENGTH ?>" rows="3"><?= settingValue($values, 'seo_default_description') ?></textarea>
         </label>
-        <p class="admin-text-muted">Wordt gebruikt op pagina&rsquo;s die zelf geen meta description hebben. Laat leeg om er dan helemaal geen te tonen &mdash; dat is beter dan overal dezelfde zin. Richtlijn: 120 tot 160 tekens.</p>
+        <p class="admin-text-muted"><?= admin_t('settings.gebruikt_pagina_s_zelf') ?></p>
       </div>
 
       <div class="admin-form-row">
@@ -314,136 +314,136 @@ function brandingImageField(
         <input type="hidden" name="seo_robots_index_default" value="0">
         <label class="admin-checkbox-label">
           <input type="checkbox" name="seo_robots_index_default" value="1" <?= \App\Service\SeoDefaults::indexesByDefault() ? 'checked' : '' ?>>
-          Zoekmachines mogen deze website indexeren
+          <?= admin_te('settings.zoekmachines_mogen_website_indexeren') ?>
         </label>
-        <p class="admin-text-muted">Uit betekent dat <em>elke</em> publieke pagina <code>noindex</code> krijgt. Alleen uitzetten voor een site die nog niet gevonden mag worden &mdash; laat &rsquo;m aan zodra de site live is.</p>
+        <p class="admin-text-muted"><?= admin_t('settings.uit_betekent_elke_publieke') ?></p>
       </div>
 
-      <button type="submit">Opslaan</button>
+      <button type="submit"><?= admin_te('common.save') ?></button>
     </form>
   </section>
   <?php admin_tab_panel_end(); ?>
 
   <?php admin_tab_panel('facturen'); ?>
   <section class="admin-card">
-    <h2>Bedrijfsgegevens voor facturen</h2>
-    <p class="admin-text-muted">Deze gegevens worden gebruikt op elke nieuw gegenereerde factuur. Bedrijfsnaam, logo, KVK-nummer en e-mailadres hierboven worden hergebruikt. Een al aangemaakte factuur verandert nooit mee met latere wijzigingen hier.</p>
+    <h2><?= admin_te('settings.bedrijfsgegevens_facturen') ?></h2>
+    <p class="admin-text-muted"><?= admin_te('settings.gegevens_gebruikt_elke_nieuw') ?></p>
     <form method="post" action="/api/admin/update-site-settings.php" class="admin-product-form">
       <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
 
       <div class="admin-form-row admin-form-row--split">
-        <label>Straat
+        <label><?= admin_te('settings.straat') ?>
           <input type="text" name="company_street" maxlength="150" value="<?= settingValue($values, 'company_street') ?>">
         </label>
-        <label>Huisnummer
+        <label><?= admin_te('settings.huisnummer') ?>
           <input type="text" name="company_house_number" maxlength="20" value="<?= settingValue($values, 'company_house_number') ?>">
         </label>
       </div>
 
       <div class="admin-form-row admin-form-row--split">
-        <label>Postcode
+        <label><?= admin_te('settings.postcode') ?>
           <input type="text" name="company_postal_code" maxlength="20" value="<?= settingValue($values, 'company_postal_code') ?>">
         </label>
-        <label>Plaats
+        <label><?= admin_te('settings.plaats') ?>
           <input type="text" name="company_city" maxlength="150" value="<?= settingValue($values, 'company_city') ?>">
         </label>
       </div>
 
       <div class="admin-form-row admin-form-row--split">
-        <label>Land
+        <label><?= admin_te('settings.land') ?>
           <input type="text" name="company_country" maxlength="2" value="<?= settingValue($values, 'company_country') ?>">
         </label>
-        <label>Telefoonnummer
+        <label><?= admin_te('settings.telefoonnummer') ?>
           <input type="text" name="company_phone" maxlength="30" value="<?= settingValue($values, 'company_phone') ?>">
         </label>
       </div>
 
       <div class="admin-form-row admin-form-row--split">
-        <label>Website
+        <label><?= admin_te('settings.website') ?>
           <input type="text" name="company_website" maxlength="150" value="<?= settingValue($values, 'company_website') ?>">
         </label>
-        <label>BTW-id (indien van toepassing)
+        <label><?= admin_te('settings.btw_id_indien_toepassing') ?>
           <input type="text" name="company_vat_id" maxlength="30" value="<?= settingValue($values, 'company_vat_id') ?>">
         </label>
       </div>
 
       <div class="admin-form-row admin-form-row--split">
-        <label>Factuurnummer-voorvoegsel
+        <label><?= admin_te('settings.factuurnummer_voorvoegsel') ?>
           <input type="text" name="invoice_number_prefix" maxlength="20" value="<?= settingValue($values, 'invoice_number_prefix') ?>">
         </label>
       </div>
 
       <div class="admin-form-row">
-        <label>Fiscale/juridische toelichting (bijv. KOR-vermelding)
+        <label><?= admin_te('settings.fiscale_juridische_toelichting_bijv') ?>
           <textarea name="invoice_tax_note" maxlength="500" rows="2"><?= settingValue($values, 'invoice_tax_note') ?></textarea>
         </label>
-        <p class="admin-text-muted">Leeg = geen extra tekst op de factuur. Vul dit alleen in als je fiscale regime (bijv. KOR) bekend en definitief is.</p>
+        <p class="admin-text-muted"><?= admin_te('settings.leeg_extra_tekst_factuur') ?></p>
       </div>
 
       <div class="admin-form-row">
-        <label>Betaalopmerking (optioneel)
+        <label><?= admin_te('settings.betaalopmerking_optioneel') ?>
           <textarea name="invoice_payment_note" maxlength="500" rows="2"><?= settingValue($values, 'invoice_payment_note') ?></textarea>
         </label>
       </div>
 
       <div class="admin-form-row">
-        <label>Factuur-footer
+        <label><?= admin_te('settings.factuur_footer') ?>
           <textarea name="invoice_footer_text" maxlength="500" rows="2"><?= settingValue($values, 'invoice_footer_text') ?></textarea>
         </label>
       </div>
 
-      <button type="submit">Opslaan</button>
+      <button type="submit"><?= admin_te('common.save') ?></button>
     </form>
   </section>
   <?php admin_tab_panel_end(); ?>
 
   <?php admin_tab_panel('email'); ?>
   <section class="admin-card">
-    <h2>E-mailtekst bestelbevestiging</h2>
-    <p class="admin-text-muted">Deze tekst wordt gebruikt in de bevestigingsmail die een klant na een geslaagde betaling ontvangt. Productoverzicht, aantallen, prijzen, verzendgegevens en de factuurbijlage staan hier los van en blijven altijd correct. Beschikbare plaatshouders: <code>{{customer_name}}</code>, <code>{{order_number}}</code>, <code>{{order_date}}</code>, <code>{{order_total}}</code>, <code>{{site_name}}</code>.</p>
+    <h2><?= admin_te('settings.e_mailtekst_bestelbevestiging') ?></h2>
+    <p class="admin-text-muted"><?= admin_t('settings.tekst_gebruikt_bevestigingsmail_klant') ?></p>
     <form method="post" action="/api/admin/update-site-settings.php" class="admin-product-form">
       <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
 
       <div class="admin-form-row">
-        <label>Onderwerp
+        <label><?= admin_te('settings.onderwerp') ?>
           <input type="text" name="order_email_subject" maxlength="255" value="<?= settingValue($values, 'order_email_subject') ?>">
         </label>
       </div>
 
       <div class="admin-form-row">
-        <label>Kop (heading)
+        <label><?= admin_te('settings.kop_heading') ?>
           <input type="text" name="order_email_heading" maxlength="150" value="<?= settingValue($values, 'order_email_heading') ?>">
         </label>
       </div>
 
       <div class="admin-form-row">
-        <label>Introductietekst
+        <label><?= admin_te('settings.introductietekst') ?>
           <textarea name="order_email_intro" maxlength="1000" rows="3"><?= settingValue($values, 'order_email_intro') ?></textarea>
         </label>
       </div>
 
       <div class="admin-form-row admin-form-row--split">
-        <label>Tekst vóór productoverzicht (optioneel)
+        <label><?= admin_te('settings.tekst_v_r_productoverzicht') ?>
           <textarea name="order_email_before_items" maxlength="500" rows="2"><?= settingValue($values, 'order_email_before_items') ?></textarea>
         </label>
-        <label>Tekst ná productoverzicht (optioneel)
+        <label><?= admin_te('settings.tekst_n_productoverzicht_optioneel') ?>
           <textarea name="order_email_after_items" maxlength="500" rows="2"><?= settingValue($values, 'order_email_after_items') ?></textarea>
         </label>
       </div>
 
       <div class="admin-form-row">
-        <label>Afsluittekst
+        <label><?= admin_te('settings.afsluittekst') ?>
           <textarea name="order_email_closing" maxlength="500" rows="2"><?= settingValue($values, 'order_email_closing') ?></textarea>
         </label>
       </div>
 
       <div class="admin-form-row">
-        <label>Ondertekening (optioneel)
+        <label><?= admin_te('settings.ondertekening_optioneel') ?>
           <textarea name="order_email_signature" maxlength="500" rows="2"><?= settingValue($values, 'order_email_signature') ?></textarea>
         </label>
       </div>
 
-      <button type="submit">Opslaan</button>
+      <button type="submit"><?= admin_te('common.save') ?></button>
     </form>
   </section>
   <?php admin_tab_panel_end(); ?>
@@ -455,11 +455,11 @@ function brandingImageField(
            and neither save may touch the other's values. The four skins live
            in App\Service\AdminTheme; their colours live in admin.css. */ ?>
   <section class="admin-card" id="dashboard-uiterlijk">
-    <h2>Dashboard uiterlijk</h2>
-    <p class="admin-text-muted">Hoe dit CMS eruitziet voor iedereen die ermee werkt. Dezelfde schermen, dezelfde knoppen &mdash; alleen andere kleuren. Dit staat helemaal los van de <a href="/admin/theme.php">vormgeving van de website</a>: bezoekers zien er niets van.</p>
+    <h2><?= admin_te('settings.dashboard_uiterlijk') ?></h2>
+    <p class="admin-text-muted"><?= admin_t('settings.hoe_cms_eruitziet_iedereen') ?></p>
 
     <?php if ($adminThemeSaved): ?>
-      <p class="admin-alert admin-alert--success">Dashboard uiterlijk opgeslagen: <?= htmlspecialchars(AdminTheme::label($currentAdminTheme), ENT_QUOTES, 'UTF-8') ?>.</p>
+      <p class="admin-alert admin-alert--success"><?= admin_t('settings.dashboard_uiterlijk_opgeslagen', ['v1' => htmlspecialchars(AdminTheme::label($currentAdminTheme), ENT_QUOTES, 'UTF-8')]) ?></p>
     <?php endif; ?>
 
     <?php if ($adminThemeError !== null): ?>
@@ -470,7 +470,7 @@ function brandingImageField(
       <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
 
       <fieldset class="admin-theme-choices">
-        <legend class="admin-visually-hidden">Kies een uiterlijk voor het dashboard</legend>
+        <legend class="admin-visually-hidden"><?= admin_te('settings.kies_uiterlijk_dashboard') ?></legend>
         <?php foreach (AdminTheme::all() as $themeKey => $theme): ?>
           <?php $isCurrentTheme = $themeKey === $currentAdminTheme; ?>
           <label class="admin-theme-choice<?= $isCurrentTheme ? ' is-current' : '' ?>">
@@ -496,19 +496,19 @@ function brandingImageField(
             </span>
             <span class="admin-theme-choice__label">
               <input type="radio" name="admin_theme" value="<?= htmlspecialchars($themeKey, ENT_QUOTES, 'UTF-8') ?>"<?= $isCurrentTheme ? ' checked' : '' ?>>
-              <span class="admin-theme-choice__name"><?= htmlspecialchars($theme['label'], ENT_QUOTES, 'UTF-8') ?></span>
+              <span class="admin-theme-choice__name"><?= htmlspecialchars(admin_registry_label('admintheme.' . $themeKey . '.label', (string) $theme['label']), ENT_QUOTES, 'UTF-8') ?></span>
               <?php /* Never colour alone: the card in use says so in words as
                        well as with its border and its checked radio. */ ?>
               <?php if ($isCurrentTheme): ?>
                 <span class="admin-badge admin-badge--info">In gebruik</span>
               <?php endif; ?>
             </span>
-            <span class="admin-theme-choice__desc"><?= htmlspecialchars($theme['description'], ENT_QUOTES, 'UTF-8') ?></span>
+            <span class="admin-theme-choice__desc"><?= htmlspecialchars(admin_registry_label('admintheme.' . $themeKey . '.description', (string) $theme['description']), ENT_QUOTES, 'UTF-8') ?></span>
           </label>
         <?php endforeach; ?>
       </fieldset>
 
-      <button type="submit">Uiterlijk opslaan</button>
+      <button type="submit"><?= admin_te('settings.uiterlijk_opslaan') ?></button>
     </form>
   </section>
   <?php admin_tab_panel_end(); ?>

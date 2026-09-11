@@ -20,6 +20,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../../vendor/autoload.php';
 
+use App\Service\Language\AdminTranslator;
 use App\Service\AdminAuth;
 use App\Service\Csrf;
 use App\Repository\CarrierRateRepository;
@@ -54,17 +55,17 @@ $errors = [];
 
 $mode = is_string($_POST['mode'] ?? null) ? trim($_POST['mode']) : '';
 if (!in_array($mode, ['automatic', 'manual'], true)) {
-    $errors[] = 'Kies een geldige modus (automatisch of handmatig).';
+    $errors[] = AdminTranslator::trans('validation.kies_geldige_modus_automatisch_handmatig');
 }
 
 $priceRaw = is_string($_POST['price'] ?? null) ? trim(str_replace(',', '.', $_POST['price'])) : '';
 $price = 0.0;
 if ($priceRaw === '' || !is_numeric($priceRaw)) {
-    $errors[] = 'Prijs is verplicht en moet een geldig bedrag zijn.';
+    $errors[] = AdminTranslator::trans('validation.prijs_verplicht_geldig_bedrag');
 } else {
     $price = (float) $priceRaw;
     if ($price <= 0 || $price > 9999.99) {
-        $errors[] = 'Prijs moet groter dan 0 en maximaal € 9.999,99 zijn.';
+        $errors[] = AdminTranslator::trans('validation.prijs_groter_0_maximaal_9');
     }
 }
 

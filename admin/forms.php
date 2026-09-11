@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/../vendor/autoload.php';
+require_once __DIR__ . '/_translate.php';
 
 use App\Repository\FormRepository;
 use App\Repository\FormSubmissionRepository;
@@ -59,16 +60,16 @@ $canSeeSubmissions = AdminAuth::can(AdminPermissions::FORMS_SUBMISSIONS);
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Formulieren — Admin</title>
+<title><?= admin_te('forms.formulieren_admin') ?></title>
 <link rel="stylesheet" href="<?= \App\Service\AssetVersion::url('/admin/assets/admin.css') ?>">
 </head>
 <body<?= \App\Service\AdminTheme::bodyAttribute() ?>>
 <?php require __DIR__ . '/_header.php'; ?>
 <main class="admin-main">
   <div class="admin-main__heading">
-    <h1>Formulieren</h1>
+    <h1><?= admin_t('forms.formulieren') ?></h1>
   </div>
-  <p class="admin-text-muted">Een formulier maak je hier één keer en plaats je daarna met het blok <strong>Formulier</strong> op zoveel pagina's als je wilt. De velden beheer je dus op één plek.</p>
+  <p class="admin-text-muted"><?= admin_t('forms.formulier_maak_hier_n') ?></p>
 
   <?php if ($flash !== null): ?>
     <p class="admin-alert admin-alert--success"><?= $h((string) $flash) ?></p>
@@ -85,22 +86,22 @@ $canSeeSubmissions = AdminAuth::can(AdminPermissions::FORMS_SUBMISSIONS);
   <?php endif; ?>
 
   <?php if ($loadFailed): ?>
-    <p class="admin-alert admin-alert--error">Formulieren konden niet worden geladen.</p>
+    <p class="admin-alert admin-alert--error"><?= admin_te('forms.formulieren_konden_geladen') ?></p>
   <?php endif; ?>
 
   <?php if (!$loadFailed && $forms === []): ?>
-    <p>Er zijn nog geen formulieren. Maak er hieronder een aan.</p>
+    <p><?= admin_te('forms.er_formulieren_maak_er') ?></p>
   <?php elseif ($forms !== []): ?>
     <div class="admin-table-wrap">
     <table class="admin-table">
       <thead>
         <tr>
-          <th>Naam</th>
-          <th>Velden</th>
-          <th>Bewaren</th>
-          <th>Inzendingen</th>
-          <th>Gebruikt op</th>
-          <th>Status</th>
+          <th><?= admin_te('common.name') ?></th>
+          <th><?= admin_te('forms.velden') ?></th>
+          <th><?= admin_te('forms.bewaren') ?></th>
+          <th><?= admin_te('forms.inzendingen') ?></th>
+          <th><?= admin_te('forms.gebruikt') ?></th>
+          <th><?= admin_te('common.status') ?></th>
           <th></th>
         </tr>
       </thead>
@@ -135,13 +136,13 @@ $canSeeSubmissions = AdminAuth::can(AdminPermissions::FORMS_SUBMISSIONS);
                 <?php foreach ($placements as $index => $placement): ?><?= $index > 0 ? ', ' : '' ?><?php if ($placement['edit_url'] !== ''): ?><a href="<?= $h($placement['edit_url']) ?>"><?= $h($placement['page_title']) ?></a><?php else: ?><?= $h($placement['page_title']) ?><?php endif; ?><?php endforeach; ?>
               <?php endif; ?>
             </td>
-            <td><span class="admin-badge admin-badge--<?= $isActive ? 'info' : 'muted' ?>"><?= $isActive ? 'Actief' : 'Uit' ?></span></td>
+            <td><span class="admin-badge admin-badge--<?= $isActive ? 'info' : 'muted' ?>"><?= $isActive ? admin_t('common.active') : 'Uit' ?></span></td>
             <td>
               <?php if ($blockers === []): ?>
                 <form method="post" action="/api/admin/delete-form.php" class="admin-inline-form" onsubmit="return confirm('Dit formulier definitief verwijderen?');">
                   <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
                   <input type="hidden" name="id" value="<?= $formId ?>">
-                  <button type="submit" class="admin-btn-text admin-btn-text--danger">Verwijderen</button>
+                  <button type="submit" class="admin-btn-text admin-btn-text--danger"><?= admin_te('common.delete') ?></button>
                 </form>
               <?php else: ?>
                 <span class="admin-text-muted" title="<?= $h(implode(' ', $blockers)) ?>">In gebruik</span>
@@ -155,14 +156,14 @@ $canSeeSubmissions = AdminAuth::can(AdminPermissions::FORMS_SUBMISSIONS);
   <?php endif; ?>
 
   <section class="admin-card">
-    <h2>Nieuw formulier</h2>
-    <p class="admin-text-muted">Je geeft het formulier eerst een naam; de velden voeg je daarna toe.</p>
+    <h2><?= admin_te('forms.nieuw_formulier') ?></h2>
+    <p class="admin-text-muted"><?= admin_te('forms.geeft_formulier_eerst_naam') ?></p>
     <form method="post" action="/api/admin/create-form.php" class="admin-product-form">
       <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
-      <label>Naam van het formulier*
+      <label><?= admin_te('forms.naam_formulier') ?>*
         <input type="text" name="name" maxlength="150" required placeholder="Bijvoorbeeld: Contactformulier">
       </label>
-      <button type="submit">Formulier aanmaken</button>
+      <button type="submit"><?= admin_te('forms.formulier_aanmaken') ?></button>
     </form>
   </section>
 </main>

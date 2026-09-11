@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/../vendor/autoload.php';
+require_once __DIR__ . '/_translate.php';
 
 use App\Service\AdminAuth;
 use App\Service\Csrf;
@@ -52,7 +53,7 @@ try {
 } catch (\Throwable $e) {
     error_log('[admin/personalization-fonts.php] ' . $e->getMessage());
     $fonts = [];
-    $loadError = 'De lettertypebibliotheek kon niet worden geladen.';
+    $loadError = admin_t('personalization.fonts_load_failed');
 }
 
 $errors = $_SESSION['admin_font_errors'] ?? [];
@@ -85,7 +86,7 @@ if (trim($sampleText) === '') {
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Lettertypes — Admin</title>
+<title><?= admin_te('personalization.lettertypes_admin') ?></title>
 <link rel="stylesheet" href="<?= \App\Service\AssetVersion::url('/admin/assets/admin.css') ?>">
 <?php /* The uploaded faces, so the previews below are the real thing. Built
          entirely from server-controlled values — see PersonalizationFonts::faceCss(). */ ?>
@@ -94,26 +95,24 @@ if (trim($sampleText) === '') {
 <body<?= \App\Service\AdminTheme::bodyAttribute() ?>>
 <?php require __DIR__ . '/_header.php'; ?>
 <main class="admin-main">
-  <p><a href="/admin/personalization.php">&larr; Terug naar Personalisatie</a></p>
+  <p><a href="/admin/personalization.php"><?= admin_t('personalization.terug_personalisatie') ?></a></p>
 
   <div class="admin-main__heading">
-    <h1>Lettertypes</h1>
+    <h1><?= admin_te('personalization.lettertypes') ?></h1>
   </div>
 
   <p class="admin-text-muted">
-    Dit is de <strong>globale</strong> lettertypebibliotheek voor productpersonalisatie. Elk actief lettertype hier is
-    op de hele shop beschikbaar: bij elke tekstzone van elk personaliseerbaar product kan de klant eruit kiezen. Je
-    hoeft dus nergens per product of per zone lettertypes aan te vinken.
+    <?= admin_t('personalization.globale_lettertypebibliotheek_productpersona') ?>
   </p>
 
   <?php if ($created): ?>
-    <p class="admin-alert admin-alert--success">Lettertype toegevoegd.</p>
+    <p class="admin-alert admin-alert--success"><?= admin_te('personalization.lettertype_toegevoegd') ?></p>
   <?php endif; ?>
   <?php if ($updated): ?>
-    <p class="admin-alert admin-alert--success">Lettertype opgeslagen.</p>
+    <p class="admin-alert admin-alert--success"><?= admin_te('personalization.lettertype_opgeslagen') ?></p>
   <?php endif; ?>
   <?php if ($deleted): ?>
-    <p class="admin-alert admin-alert--success">Lettertype verwijderd.</p>
+    <p class="admin-alert admin-alert--success"><?= admin_te('personalization.lettertype_verwijderd') ?></p>
   <?php endif; ?>
   <?php if ($loadError !== null): ?>
     <p class="admin-alert admin-alert--error"><?= $h($loadError) ?></p>
@@ -129,55 +128,49 @@ if (trim($sampleText) === '') {
   <?php endif; ?>
 
   <section class="admin-card">
-    <h2>Lettertype toevoegen</h2>
+    <h2><?= admin_te('personalization.lettertype_toevoegen') ?></h2>
     <p class="admin-text-muted">
-      Upload een lettertypebestand:
-      <strong><?= $h(strtoupper(implode(', ', PersonalizationFontUploader::allowedExtensions()))) ?></strong>,
-      max. <?= PersonalizationFontUploader::maxMegabytes() ?> MB. <strong>WOFF2</strong> heeft de voorkeur: dat is
-      hetzelfde lettertype in een aanzienlijk kleiner bestand, en elke moderne browser ondersteunt het. TTF en OTF
-      werken ook — die zijn alleen groter om te downloaden. Het bestand wordt op deze website zelf gehost; er wordt
-      geen enkele externe lettertypedienst gebruikt.
+      <?= admin_t('personalization.upload_lettertypebestand_max_mb', ['v1' => $h(strtoupper(implode(', ', PersonalizationFontUploader::allowedExtensions()))), 'v2' => PersonalizationFontUploader::maxMegabytes()]) ?>
     </p>
     <p class="admin-alert admin-alert--info">
-      <strong>Let op de licentie.</strong> Upload alleen lettertypes waarvan je zeker weet dat je ze commercieel én
-      als webfont mag gebruiken. Deze website controleert dat niet — dat blijft jouw verantwoordelijkheid.
+      <strong><?= admin_t('personalization.let_licentie_upload_alleen') ?>
     </p>
 
     <form method="post" action="/api/admin/create-personalization-font.php" enctype="multipart/form-data">
       <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
 
       <div class="admin-form-row admin-form-row--split">
-        <label>Naam*
+        <label><?= admin_te('common.name') ?>*
           <input type="text" name="label" maxlength="100" required
                  value="<?= $h((string) ($old['label'] ?? '')) ?>" placeholder="Bijv. Playfair Display">
-          <span class="admin-text-muted">De naam die de klant ziet.</span>
+          <span class="admin-text-muted"><?= admin_te('personalization.naam_klant_ziet') ?></span>
         </label>
-        <label>Bestand*
+        <label><?= admin_te('personalization.bestand') ?>*
           <input type="file" name="font_file" required
                  accept=".woff2,.woff,.ttf,.otf,font/woff2,font/woff,font/ttf,font/otf">
         </label>
         <div style="align-self:end;">
-          <button type="submit">Toevoegen</button>
+          <button type="submit"><?= admin_te('common.add') ?></button>
         </div>
       </div>
     </form>
   </section>
 
   <section class="admin-card">
-    <h2>Bibliotheek</h2>
+    <h2><?= admin_te('personalization.bibliotheek') ?></h2>
 
     <?php if ($fonts === []): ?>
-      <p class="admin-text-muted">Nog geen lettertypes.</p>
+      <p class="admin-text-muted"><?= admin_te('personalization.lettertypes_2') ?></p>
     <?php else: ?>
       <div class="admin-table-wrap">
         <table class="admin-table">
           <thead>
             <tr>
-              <th>Lettertype</th>
-              <th>Voorbeeld</th>
-              <th>Herkomst</th>
-              <th>Actief</th>
-              <th>Volgorde</th>
+              <th><?= admin_te('personalization.lettertype') ?></th>
+              <th><?= admin_te('personalization.voorbeeld') ?></th>
+              <th><?= admin_te('personalization.herkomst') ?></th>
+              <th><?= admin_te('common.active') ?></th>
+              <th><?= admin_te('common.order') ?></th>
               <th></th>
             </tr>
           </thead>
@@ -198,9 +191,9 @@ if (trim($sampleText) === '') {
                     <input type="text" name="label" maxlength="100" value="<?= $h((string) $font['label']) ?>" required>
                     <label class="admin-checkbox-label">
                       <input type="checkbox" name="is_active" value="1" <?= $isActive ? 'checked' : '' ?>>
-                      Actief
+                      <?= admin_te('common.active') ?>
                     </label>
-                    <button type="submit" class="admin-btn-text">Opslaan</button>
+                    <button type="submit" class="admin-btn-text"><?= admin_te('common.save') ?></button>
                   </form>
                   <code class="admin-text-muted"><?= $h((string) $font['key']) ?></code>
                   <?php if ($isUpload && $font['original_filename'] !== null): ?>
@@ -246,7 +239,7 @@ if (trim($sampleText) === '') {
                         onsubmit="return confirm('<?= $h($confirm) ?>');">
                     <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
                     <input type="hidden" name="id" value="<?= $fontId ?>">
-                    <button type="submit" class="admin-btn-text admin-btn-text--danger">Verwijderen</button>
+                    <button type="submit" class="admin-btn-text admin-btn-text--danger"><?= admin_te('common.delete') ?></button>
                   </form>
                 </td>
               </tr>
@@ -256,9 +249,7 @@ if (trim($sampleText) === '') {
       </div>
 
       <p class="admin-text-muted" style="margin-top:var(--admin-sp-4);">
-        Wil je een lettertype uit de shop halen? Zet het op <strong>niet actief</strong> — dan verdwijnt het meteen bij
-        alle producten, terwijl bestaande bestellingen gewoon blijven werken. Verwijderen kan alleen als er nog nooit
-        mee besteld is.
+        <?= admin_t('personalization.wil_lettertype_uit_shop') ?>
       </p>
     <?php endif; ?>
   </section>

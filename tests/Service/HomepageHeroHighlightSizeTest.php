@@ -245,7 +245,7 @@ final class HomepageHeroHighlightSizeTest extends TestCase
     {
         $source = $this->fileSource('admin/homepage-hero.php');
 
-        $this->assertStringContainsString('Highlight grootte', $source);
+        $this->assertStringContainsString('block_hero.highlight_grootte', $source);
         $this->assertStringContainsString('type="range"', $source);
         $this->assertStringContainsString('name="title_highlight_size"', $source);
         $this->assertStringContainsString('HomepageHeroContent::HIGHLIGHT_SIZE_MIN', $source);

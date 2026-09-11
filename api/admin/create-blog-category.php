@@ -15,6 +15,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../../vendor/autoload.php';
 
+use App\Service\Language\AdminTranslator;
 use App\Repository\BlogCategoryRepository;
 use App\Service\AdminAuth;
 use App\Service\Blog\BlogSlug;
@@ -37,7 +38,7 @@ if (!Csrf::validate($_POST['csrf_token'] ?? null)) {
 $name = trim((string) ($_POST['name'] ?? ''));
 
 if ($name === '') {
-    $_SESSION['admin_blog_taxonomy_errors'] = ['Geef de categorie een naam.'];
+    $_SESSION['admin_blog_taxonomy_errors'] = [AdminTranslator::trans('validation.geef_categorie_naam')];
     header('Location: /admin/blog-categories.php');
     exit;
 }

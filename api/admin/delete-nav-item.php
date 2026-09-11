@@ -17,6 +17,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../../vendor/autoload.php';
 
+use App\Service\Language\AdminTranslator;
 use App\Service\AdminAuth;
 use App\Service\Csrf;
 use App\Repository\NavigationRepository;
@@ -44,7 +45,7 @@ if ($idParam === false || $idParam === null || $idParam < 1) {
 $repository = new NavigationRepository();
 
 if ($repository->countChildren($idParam) > 0) {
-    $_SESSION['admin_nav_error'] = 'Dit menu-item heeft nog submenu-items. Verplaats of verwijder deze eerst.';
+    $_SESSION['admin_nav_error'] = AdminTranslator::trans('validation.menu_item_heeft_submenu_items');
     header('Location: /admin/navigation.php');
     exit;
 }
@@ -53,7 +54,7 @@ try {
     $repository->delete($idParam);
 } catch (\Throwable $e) {
     error_log('[api/admin/delete-nav-item.php] ' . $e->getMessage());
-    $_SESSION['admin_nav_error'] = 'Menu-item kon niet worden verwijderd.';
+    $_SESSION['admin_nav_error'] = AdminTranslator::trans('validation.menu_item_kon_verwijderd');
     header('Location: /admin/navigation.php');
     exit;
 }

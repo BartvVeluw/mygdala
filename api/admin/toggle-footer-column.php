@@ -6,6 +6,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../../vendor/autoload.php';
 
+use App\Service\Language\AdminTranslator;
 use App\Service\AdminAuth;
 use App\Service\Csrf;
 use App\Repository\FooterRepository;
@@ -36,7 +37,7 @@ try {
     (new FooterRepository())->setColumnVisible($idParam, $isVisible);
 } catch (\Throwable $e) {
     error_log('[api/admin/toggle-footer-column.php] ' . $e->getMessage());
-    $_SESSION['admin_footer_error'] = 'Zichtbaarheid kon niet worden opgeslagen.';
+    $_SESSION['admin_footer_error'] = AdminTranslator::trans('validation.zichtbaarheid_kon_opgeslagen');
 }
 
 header('Location: /admin/footer.php');

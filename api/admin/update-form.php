@@ -19,6 +19,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../../vendor/autoload.php';
 
+use App\Service\Language\AdminTranslator;
 use App\Repository\FormRepository;
 use App\Service\AdminAuth;
 use App\Service\Csrf;
@@ -68,11 +69,11 @@ $fields = [
 $errors = [];
 
 if ($fields['name'] === '') {
-    $errors[] = 'De naam van het formulier is verplicht.';
+    $errors[] = AdminTranslator::trans('validation.naam_formulier_verplicht');
 }
 
 if ($fields['notification_email'] !== '' && FormRecipient::validAddress($fields['notification_email']) === null) {
-    $errors[] = 'Het e-mailadres voor de melding is geen geldig adres.';
+    $errors[] = AdminTranslator::trans('validation.notification_email_invalid');
 }
 
 if ($fields['reply_to_field_key'] !== '') {
@@ -89,7 +90,7 @@ if ($fields['reply_to_field_key'] !== '') {
     $type = $candidate === null ? null : FormFieldTypes::get((string) $candidate['field_type']);
 
     if ($type === null || !$type->holdsEmailAddress()) {
-        $errors[] = 'Het gekozen antwoordadres-veld bestaat niet of is geen e-mailveld.';
+        $errors[] = AdminTranslator::trans('validation.gekozen_antwoordadres_veld_bestaat_e');
     }
 }
 

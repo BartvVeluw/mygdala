@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/../vendor/autoload.php';
+require_once __DIR__ . '/_translate.php';
 require_once __DIR__ . '/_language_fields.php';
 
 use App\Service\AdminAuth;
@@ -43,16 +44,16 @@ $value = static fn (string $key, string $default = ''): string => (string) ($sto
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Bloginstellingen — Admin</title>
+<title><?= admin_te('blog.bloginstellingen_admin') ?></title>
 <link rel="stylesheet" href="<?= \App\Service\AssetVersion::url('/admin/assets/admin.css') ?>">
 </head>
 <body<?= \App\Service\AdminTheme::bodyAttribute() ?>>
 <?php require __DIR__ . '/_header.php'; ?>
 <main class="admin-main">
   <div class="admin-main__heading">
-    <h1>Bloginstellingen</h1>
+    <h1><?= admin_te('blog.bloginstellingen') ?></h1>
   </div>
-  <p class="admin-text-muted">Hoe de blog zich voorstelt en wat er onder een bericht staat. De vormgeving zelf komt uit <a href="/admin/theme.php">Vormgeving</a>, net als bij elke andere pagina.</p>
+  <p class="admin-text-muted"><?= admin_t('blog.hoe_blog_zich_voorstelt') ?></p>
 
   <?php if ($flash !== null): ?>
     <p class="admin-alert admin-alert--success"><?= $h((string) $flash) ?></p>
@@ -72,47 +73,47 @@ $value = static fn (string $key, string $default = ''): string => (string) ($sto
     <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
 
     <section class="admin-card">
-      <h2>Kop van de blog</h2>
+      <h2><?= admin_te('blog.kop_blog') ?></h2>
       <?php admin_lang_tabs(); ?>
       <?php admin_lang_pane_start('nl'); ?>
         <div class="admin-form-row">
-          <label>Titel
+          <label><?= admin_te('common.title') ?>
             <input type="text" name="<?= BlogSettings::TITLE ?>" maxlength="<?= BlogSettings::MAX_TITLE_LENGTH ?>" value="<?= $h($value(BlogSettings::TITLE, BlogSettings::DEFAULT_TITLE)) ?>" placeholder="<?= $h(BlogSettings::DEFAULT_TITLE) ?>">
           </label>
         </div>
         <div class="admin-form-row">
-          <label>Introtekst
+          <label><?= admin_te('blog.introtekst') ?>
             <textarea name="<?= BlogSettings::INTRO ?>" rows="3" maxlength="<?= BlogSettings::MAX_INTRO_LENGTH ?>"><?= $h($value(BlogSettings::INTRO)) ?></textarea>
           </label>
         </div>
       <?php admin_lang_pane_end(); ?>
       <?php admin_lang_pane_start('en'); ?>
         <div class="admin-form-row">
-          <label>Titel
+          <label><?= admin_te('common.title') ?>
             <input type="text" name="<?= BlogSettings::TITLE_EN ?>" maxlength="<?= BlogSettings::MAX_TITLE_LENGTH ?>" value="<?= $h($value(BlogSettings::TITLE_EN)) ?>"<?= admin_lang_placeholder_attr('en') ?>>
           </label>
         </div>
         <div class="admin-form-row">
-          <label>Introtekst
+          <label><?= admin_te('blog.introtekst_2') ?>
             <textarea name="<?= BlogSettings::INTRO_EN ?>" rows="3" maxlength="<?= BlogSettings::MAX_INTRO_LENGTH ?>"<?= admin_lang_placeholder_attr('en') ?>><?= $h($value(BlogSettings::INTRO_EN)) ?></textarea>
           </label>
         </div>
       <?php admin_lang_pane_end(); ?>
-      <p class="admin-text-muted">De introtekst staat onder de titel op <a href="<?= $h(BlogUrls::indexPath()) ?>" target="_blank" rel="noopener"><?= $h(BlogUrls::indexPath()) ?></a> en is tegelijk de meta description van die pagina. Laat 'm leeg om alleen de titel te tonen.</p>
+      <p class="admin-text-muted"><?= admin_te('blog.introtekst_staat_onder_titel') ?> <a href="<?= $h(BlogUrls::indexPath()) ?>" target="_blank" rel="noopener"><?= $h(BlogUrls::indexPath()) ?></a> <?= admin_te('blog.tegelijk_meta_description_pagina') ?></p>
     </section>
 
     <section class="admin-card">
-      <h2>Overzicht</h2>
+      <h2><?= admin_te('blog.overzicht') ?></h2>
       <div class="admin-form-row">
-        <label>Berichten per pagina
+        <label><?= admin_te('blog.berichten_per_pagina') ?>
           <input type="number" name="<?= BlogSettings::POSTS_PER_PAGE ?>" min="<?= BlogSettings::MIN_POSTS_PER_PAGE ?>" max="<?= BlogSettings::MAX_POSTS_PER_PAGE ?>" value="<?= (int) BlogSettings::postsPerPage() ?>">
         </label>
       </div>
-      <p class="admin-text-muted">Tussen <?= BlogSettings::MIN_POSTS_PER_PAGE ?> en <?= BlogSettings::MAX_POSTS_PER_PAGE ?>. De rest komt op volgende pagina's; het overzicht laadt nooit alles tegelijk.</p>
+      <p class="admin-text-muted"><?= admin_t('blog.tussen_rest_komt_volgende', ['v1' => BlogSettings::MIN_POSTS_PER_PAGE, 'v2' => BlogSettings::MAX_POSTS_PER_PAGE]) ?></p>
     </section>
 
     <section class="admin-card">
-      <h2>Wat er onder een bericht staat</h2>
+      <h2><?= admin_te('blog.wat_er_onder_bericht') ?></h2>
 
       <?php /* Each switch has a hidden companion field before it: an
                unticked checkbox sends nothing at all, so without one these
@@ -120,32 +121,32 @@ $value = static fn (string $key, string $default = ''): string => (string) ($sto
       <input type="hidden" name="<?= BlogSettings::SHOW_DATE ?>" value="0">
       <label class="admin-checkbox-label">
         <input type="checkbox" name="<?= BlogSettings::SHOW_DATE ?>" value="1" <?= BlogSettings::showDate() ? 'checked' : '' ?>>
-        Publicatiedatum tonen
+        <?= admin_te('blog.publicatiedatum_tonen') ?>
       </label>
 
       <input type="hidden" name="<?= BlogSettings::SHOW_AUTHOR ?>" value="0">
       <label class="admin-checkbox-label">
         <input type="checkbox" name="<?= BlogSettings::SHOW_AUTHOR ?>" value="1" <?= BlogSettings::showAuthor() ? 'checked' : '' ?>>
-        Auteur tonen als er een is ingevuld
+        <?= admin_te('blog.auteur_tonen_er_ingevuld') ?>
       </label>
 
       <input type="hidden" name="<?= BlogSettings::RELATED_POSTS ?>" value="0">
       <label class="admin-checkbox-label">
         <input type="checkbox" name="<?= BlogSettings::RELATED_POSTS ?>" value="1" <?= BlogSettings::relatedPostsEnabled() ? 'checked' : '' ?>>
-        Gerelateerde berichten tonen
+        <?= admin_te('blog.gerelateerde_berichten_tonen') ?>
       </label>
-      <p class="admin-text-muted">Maximaal <?= BlogSettings::RELATED_POSTS_LIMIT ?> berichten die dezelfde categorie of tag delen, nieuwste eerst. Geen aanbevelingen op basis van gedrag &mdash; puur wat er inhoudelijk bij hoort.</p>
+      <p class="admin-text-muted"><?= admin_t('blog.maximaal_berichten_dezelfde_categorie', ['v1' => BlogSettings::RELATED_POSTS_LIMIT]) ?></p>
 
       <input type="hidden" name="<?= BlogSettings::RSS_ENABLED ?>" value="0">
       <label class="admin-checkbox-label">
         <input type="checkbox" name="<?= BlogSettings::RSS_ENABLED ?>" value="1" <?= BlogSettings::rssEnabled() ? 'checked' : '' ?>>
-        RSS-feed aanbieden
+        <?= admin_te('blog.rss_feed_aanbieden') ?>
       </label>
-      <p class="admin-text-muted">De feed staat op <a href="<?= $h(BlogUrls::feedPath()) ?>" target="_blank" rel="noopener"><?= $h(BlogUrls::feedPath()) ?></a> en bevat alleen gepubliceerde berichten. Uit betekent: die URL geeft een 404 en de verwijzing verdwijnt uit de <code>&lt;head&gt;</code>.</p>
+      <p class="admin-text-muted"><?= admin_te('blog.feed_staat') ?> <a href="<?= $h(BlogUrls::feedPath()) ?>" target="_blank" rel="noopener"><?= $h(BlogUrls::feedPath()) ?></a> <?= admin_t('blog.bevat_alleen_gepubliceerde_berichten') ?></p>
     </section>
 
     <section class="admin-card admin-card--actions">
-      <button type="submit">Bloginstellingen opslaan</button>
+      <button type="submit"><?= admin_te('blog.bloginstellingen_opslaan') ?></button>
     </section>
   </form>
 </main>

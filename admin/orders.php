@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/../vendor/autoload.php';
+require_once __DIR__ . '/_translate.php';
 require_once __DIR__ . '/_labels.php';
 
 use App\Service\AdminAuth;
@@ -48,16 +49,16 @@ $filters = [
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Bestellingen — Admin</title>
+<title><?= admin_te('shop.bestellingen_admin') ?></title>
 <link rel="stylesheet" href="<?= \App\Service\AssetVersion::url('/admin/assets/admin.css') ?>">
 </head>
 <body<?= \App\Service\AdminTheme::bodyAttribute() ?>>
 <?php require __DIR__ . '/_header.php'; ?>
 <main class="admin-main">
-  <h1>Bestellingen</h1>
+  <h1><?= admin_te('shop.bestellingen') ?></h1>
 
   <?php if ($updated): ?>
-    <p class="admin-alert admin-alert--success">Afhandelingsstatus bijgewerkt.</p>
+    <p class="admin-alert admin-alert--success"><?= admin_te('shop.afhandelingsstatus_bijgewerkt') ?></p>
   <?php endif; ?>
 
   <div class="admin-filter-tabs" role="tablist" aria-label="Filter op afhandeling">
@@ -67,28 +68,28 @@ $filters = [
   </div>
 
   <form method="get" action="/admin/orders-export.php" class="admin-export-form">
-    <label>Van <input type="date" name="from"></label>
-    <label>T/m <input type="date" name="to"></label>
-    <button type="submit">Exporteer CSV</button>
+    <label><?= admin_te('shop.text') ?> <input type="date" name="from"></label>
+    <label><?= admin_te('shop.t_m') ?> <input type="date" name="to"></label>
+    <button type="submit"><?= admin_te('shop.exporteer_csv') ?></button>
   </form>
 
   <?php if ($orders === null): ?>
-    <p class="admin-alert admin-alert--error">Bestellingen konden niet worden geladen.</p>
+    <p class="admin-alert admin-alert--error"><?= admin_te('shop.bestellingen_konden_geladen') ?></p>
   <?php elseif ($orders === []): ?>
-    <p>Geen bestellingen gevonden.</p>
+    <p><?= admin_te('shop.bestellingen_gevonden') ?></p>
   <?php else: ?>
     <div class="admin-table-wrap">
     <table class="admin-table">
       <thead>
         <tr>
-          <th>Order</th>
-          <th>Datum</th>
-          <th>Klant</th>
-          <th>Betaalstatus</th>
-          <th>Afhandeling</th>
-          <th>Verzendmethode</th>
-          <th>Totaal</th>
-          <th>Actie</th>
+          <th><?= admin_te('shop.order') ?></th>
+          <th><?= admin_te('common.date') ?></th>
+          <th><?= admin_te('shop.klant') ?></th>
+          <th><?= admin_te('shop.betaalstatus') ?></th>
+          <th><?= admin_te('shop.afhandeling') ?></th>
+          <th><?= admin_te('shop.verzendmethode') ?></th>
+          <th><?= admin_te('shop.totaal') ?></th>
+          <th><?= admin_te('common.action') ?></th>
         </tr>
       </thead>
       <tbody>
@@ -106,7 +107,7 @@ $filters = [
             <td><span class="admin-badge admin-badge--<?= htmlspecialchars((string) $order['status'], ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars(adminPaymentStatusLabel((string) $order['status']), ENT_QUOTES, 'UTF-8') ?></span></td>
             <td><span class="admin-badge admin-badge--<?= adminFulfilmentBadgeModifier($fulfilmentStatus) ?>"><?= htmlspecialchars($fulfilmentStatus, ENT_QUOTES, 'UTF-8') ?></span></td>
             <td><?= htmlspecialchars(adminShippingMethodLabel($order['shipping_method'] ?? null, (string) $order['shipping_cost']), ENT_QUOTES, 'UTF-8') ?></td>
-            <td>&euro; <?= htmlspecialchars(number_format((float) $order['total'], 2, ',', '.'), ENT_QUOTES, 'UTF-8') ?></td>
+            <td><?= admin_t('shop.amount_with', ['v1' => htmlspecialchars(number_format((float) $order['total'], 2, ',', '.'), ENT_QUOTES, 'UTF-8')]) ?></td>
             <td>
               <?php if ($canManageOrders && ($isHandled || $isPaid)): ?>
                 <?php /* Quick action: same POST + CSRF + server-side validation as the detail page, so no status ever changes through a GET link. */ ?>

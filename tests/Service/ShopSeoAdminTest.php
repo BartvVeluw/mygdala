@@ -258,7 +258,8 @@ final class ShopSeoAdminTest extends TestCase
      */
     private function seoSection(string $source): string
     {
-        $start = strpos($source, '<h2>SEO</h2>');
+        // The heading is a catalogue key now (admin/_translate.php).
+        $start = strpos($source, "admin_te('shop.seo')");
         if ($start === false) {
             $start = strpos($source, '<h3>SEO</h3>');
         }

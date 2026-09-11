@@ -10,6 +10,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../../vendor/autoload.php';
 
+use App\Service\Language\AdminTranslator;
 use App\Service\AdminAuth;
 use App\Service\Csrf;
 use App\Service\FeatureGridContent;
@@ -63,10 +64,10 @@ $fields = [
 
 $errors = [];
 if ($fields['title_nl'] === '') {
-    $errors[] = 'Titel (NL) is verplicht.';
+    $errors[] = AdminTranslator::trans('validation.titel_nl_verplicht');
 }
 if ($fields['body_nl'] === '') {
-    $errors[] = 'Tekst (NL) is verplicht.';
+    $errors[] = AdminTranslator::trans('validation.tekst_nl_verplicht');
 }
 
 if ($errors !== []) {

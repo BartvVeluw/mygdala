@@ -21,6 +21,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../../vendor/autoload.php';
 
+use App\Service\Language\AdminTranslator;
 use App\Repository\ContactFormRepository;
 use App\Repository\FormRepository;
 use App\Repository\PageRepository;
@@ -69,11 +70,11 @@ $fields = [
 
 $errors = [];
 if ($fields['title_nl'] === '') {
-    $errors[] = 'De kop boven het formulier is verplicht.';
+    $errors[] = AdminTranslator::trans('validation.kop_boven_formulier_verplicht');
 }
 
 if ($formId !== null && (new FormRepository())->find($formId) === null) {
-    $errors[] = 'Het gekozen formulier bestaat niet.';
+    $errors[] = AdminTranslator::trans('validation.gekozen_formulier_bestaat');
 }
 
 if ($errors !== []) {

@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/../vendor/autoload.php';
+require_once __DIR__ . '/_translate.php';
 require_once __DIR__ . '/_language_fields.php';
 
 use App\Repository\BlogPostRepository;
@@ -57,16 +58,16 @@ unset($_SESSION['admin_blog_taxonomy_flash'], $_SESSION['admin_blog_taxonomy_err
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Blogtags — Admin</title>
+<title><?= admin_te('blog.blogtags_admin') ?></title>
 <link rel="stylesheet" href="<?= \App\Service\AssetVersion::url('/admin/assets/admin.css') ?>">
 </head>
 <body<?= \App\Service\AdminTheme::bodyAttribute() ?>>
 <?php require __DIR__ . '/_header.php'; ?>
 <main class="admin-main">
   <div class="admin-main__heading">
-    <h1>Blogtags</h1>
+    <h1><?= admin_te('blog.blogtags') ?></h1>
   </div>
-  <p class="admin-text-muted">Tags maak je op een bericht zelf: typ ze in het veld <strong>Tags</strong> en wat nog niet bestaat wordt aangemaakt. Hier hernoem of verwijder je ze. Elke tag heeft een eigen pagina op <code>/<?= $h(BlogUrls::ROOT) ?>/<?= $h(BlogUrls::TAG_SEGMENT) ?>/&lt;slug&gt;</code>.</p>
+  <p class="admin-text-muted"><?= admin_t('blog.tags_maak_bericht_zelf', ['v1' => $h(BlogUrls::ROOT), 'v2' => $h(BlogUrls::TAG_SEGMENT)]) ?></p>
 
   <?php if ($flash !== null): ?>
     <p class="admin-alert admin-alert--success"><?= $h((string) $flash) ?></p>
@@ -83,11 +84,11 @@ unset($_SESSION['admin_blog_taxonomy_flash'], $_SESSION['admin_blog_taxonomy_err
   <?php endif; ?>
 
   <?php if ($loadFailed): ?>
-    <p class="admin-alert admin-alert--error">Tags konden niet worden geladen.</p>
+    <p class="admin-alert admin-alert--error"><?= admin_te('blog.tags_konden_geladen') ?></p>
   <?php endif; ?>
 
   <?php if (!$loadFailed && $tags === []): ?>
-    <p>Er zijn nog geen tags. Ze verschijnen hier zodra je ze op een bericht gebruikt.</p>
+    <p><?= admin_te('blog.er_tags_ze_verschijnen') ?></p>
   <?php else: ?>
     <?php /* One tab strip for the whole table rather than one per row: the
              rows all carry the same two fields, and thirty strips switching
@@ -100,9 +101,9 @@ unset($_SESSION['admin_blog_taxonomy_flash'], $_SESSION['admin_blog_taxonomy_err
     <table class="admin-table">
       <thead>
         <tr>
-          <th>Naam</th>
-          <th>Slug</th>
-          <th>Berichten</th>
+          <th><?= admin_te('common.name') ?></th>
+          <th><?= admin_te('blog.slug') ?></th>
+          <th><?= admin_te('blog.berichten') ?></th>
           <th></th>
           <th></th>
         </tr>
@@ -136,12 +137,12 @@ unset($_SESSION['admin_blog_taxonomy_flash'], $_SESSION['admin_blog_taxonomy_err
                 <span class="admin-text-muted">0</span>
               <?php endif; ?>
             </td>
-            <td><button type="submit" class="admin-btn-text" form="tag-form-<?= $tagId ?>">Opslaan</button></td>
+            <td><button type="submit" class="admin-btn-text" form="tag-form-<?= $tagId ?>"><?= admin_te('common.save') ?></button></td>
             <td>
               <form method="post" action="/api/admin/delete-blog-tag.php" class="admin-inline-form" onsubmit="return confirm('Deze tag verwijderen? De berichten blijven bestaan en raken alleen deze tag kwijt.');">
                 <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
                 <input type="hidden" name="id" value="<?= $tagId ?>">
-                <button type="submit" class="admin-btn-text admin-btn-text--danger">Verwijderen</button>
+                <button type="submit" class="admin-btn-text admin-btn-text--danger"><?= admin_te('common.delete') ?></button>
               </form>
             </td>
           </tr>

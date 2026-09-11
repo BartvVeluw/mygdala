@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/../vendor/autoload.php';
+require_once __DIR__ . '/_translate.php';
 require_once __DIR__ . '/_labels.php';
 require_once __DIR__ . '/_order_personalization.php';
 
@@ -25,7 +26,7 @@ $id = filter_input(INPUT_GET, 'id', FILTER_VALIDATE_INT);
 
 if ($id === false || $id === null || $id < 1) {
     http_response_code(400);
-    exit('Ongeldig ordernummer.');
+    exit(admin_t('screen.ongeldig_ordernummer'));
 }
 
 $orderRepository = new OrderRepository();
@@ -57,12 +58,12 @@ try {
 } catch (\Throwable $e) {
     error_log('[admin/order.php] ' . $e->getMessage());
     http_response_code(500);
-    exit('Bestelling kon niet worden geladen.');
+    exit(admin_t('screen.bestelling_kon_geladen'));
 }
 
 if ($order === null) {
     http_response_code(404);
-    exit('Bestelling niet gevonden.');
+    exit(admin_t('screen.bestelling_gevonden'));
 }
 
 $updated = isset($_GET['updated']);
@@ -77,7 +78,7 @@ $orderNumber = OrderRepository::formatOrderNumber((int) $order['id'], new \DateT
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Bestelling <?= htmlspecialchars($orderNumber, ENT_QUOTES, 'UTF-8') ?> — Admin</title>
+<title><?= admin_t('shop.bestelling_admin', ['v1' => htmlspecialchars($orderNumber, ENT_QUOTES, 'UTF-8')]) ?></title>
 <link rel="stylesheet" href="<?= \App\Service\AssetVersion::url('/admin/assets/admin.css') ?>">
 <?php /* Only for sizing the reconstructed personalization previews below —
          the same file the product editor's engraving-area editor uses, since
@@ -92,20 +93,20 @@ $orderNumber = OrderRepository::formatOrderNumber((int) $order['id'], new \DateT
 <body<?= \App\Service\AdminTheme::bodyAttribute() ?>>
 <?php require __DIR__ . '/_header.php'; ?>
 <main class="admin-main">
-  <p><a href="/admin/orders.php">&larr; Terug naar bestellingen</a></p>
-  <h1>Bestelling <?= htmlspecialchars($orderNumber, ENT_QUOTES, 'UTF-8') ?></h1>
+  <p><a href="/admin/orders.php"><?= admin_t('shop.terug_bestellingen') ?></a></p>
+  <h1><?= admin_t('shop.order_number', ['v1' => htmlspecialchars($orderNumber, ENT_QUOTES, 'UTF-8')]) ?></h1>
 
   <?php if ($updated): ?>
-    <p class="admin-alert admin-alert--success">Afhandelingsstatus bijgewerkt.</p>
+    <p class="admin-alert admin-alert--success"><?= admin_te('shop.afhandelingsstatus_bijgewerkt') ?></p>
   <?php endif; ?>
   <?php if ($invoiceGenerated): ?>
-    <p class="admin-alert admin-alert--success">Factuur gegenereerd.</p>
+    <p class="admin-alert admin-alert--success"><?= admin_te('shop.factuur_gegenereerd') ?></p>
   <?php endif; ?>
   <?php if ($emailResent): ?>
-    <p class="admin-alert admin-alert--success">Bevestigingsmail opnieuw verstuurd.</p>
+    <p class="admin-alert admin-alert--success"><?= admin_te('shop.bevestigingsmail_opnieuw_verstuurd') ?></p>
   <?php endif; ?>
   <?php if ($emailResendFailed): ?>
-    <p class="admin-alert admin-alert--error">Bevestigingsmail kon niet opnieuw worden verstuurd (order niet betaald of nog geen factuur).</p>
+    <p class="admin-alert admin-alert--error"><?= admin_te('shop.bevestigingsmail_kon_opnieuw_verstuurd') ?></p>
   <?php endif; ?>
 
   <?php
@@ -132,7 +133,7 @@ $orderNumber = OrderRepository::formatOrderNumber((int) $order['id'], new \DateT
   ?>
 
   <section class="admin-card">
-    <h2>Klant &amp; verzending</h2>
+    <h2><?= admin_t('shop.klant_verzending') ?></h2>
     <p>
       <?= htmlspecialchars((string) $order['customer_email'], ENT_QUOTES, 'UTF-8') ?><br>
       <?php if (!empty($order['customer_phone'])): ?>
@@ -140,24 +141,24 @@ $orderNumber = OrderRepository::formatOrderNumber((int) $order['id'], new \DateT
       <?php endif; ?>
     </p>
     <p><?= nl2br(htmlspecialchars($formatAddressBlock($shippingAddress), ENT_QUOTES, 'UTF-8')) ?></p>
-    <p>Verzendmethode: <strong><?= htmlspecialchars(adminShippingMethodLabel($order['shipping_method'] ?? null, (string) $order['shipping_cost']), ENT_QUOTES, 'UTF-8') ?></strong></p>
+    <p><?= admin_t('shop.shipping_method_is', ['v1' => htmlspecialchars(adminShippingMethodLabel($order['shipping_method'] ?? null, (string) $order['shipping_cost']), ENT_QUOTES, 'UTF-8')]) ?></strong></p>
   </section>
 
   <section class="admin-card">
-    <h2>Facturatiegegevens</h2>
+    <h2><?= admin_te('shop.facturatiegegevens') ?></h2>
     <?php if ($billingIsSameAsShipping): ?>
-      <p class="admin-text-muted">Zelfde als verzendadres.</p>
+      <p class="admin-text-muted"><?= admin_te('shop.zelfde_verzendadres') ?></p>
     <?php else: ?>
       <p><?= nl2br(htmlspecialchars($formatAddressBlock($billingAddress), ENT_QUOTES, 'UTF-8')) ?></p>
     <?php endif; ?>
   </section>
 
   <section class="admin-card">
-    <h2>Producten</h2>
+    <h2><?= admin_te('shop.producten') ?></h2>
     <div class="admin-table-wrap">
     <table class="admin-table">
       <thead>
-        <tr><th>Product</th><th>Aantal</th><th>Prijs</th><th>Subtotaal</th></tr>
+        <tr><th><?= admin_te('shop.product') ?></th><th><?= admin_te('common.count') ?></th><th><?= admin_te('common.price') ?></th><th><?= admin_te('shop.subtotaal') ?></th></tr>
       </thead>
       <tbody>
         <?php foreach ($items as $item): ?>
@@ -181,7 +182,7 @@ $orderNumber = OrderRepository::formatOrderNumber((int) $order['id'], new \DateT
                 </span>
               <?php endif; ?>
             </td>
-            <td>&euro; <?= number_format((float) $item['unit_price'] * (int) $item['quantity'], 2, ',', '.') ?></td>
+            <td><?= admin_t('shop.amount_with', ['v1' => number_format((float) $item['unit_price'] * (int) $item['quantity'], 2, ',', '.')]) ?></td>
           </tr>
           <?php
             /**
@@ -203,30 +204,30 @@ $orderNumber = OrderRepository::formatOrderNumber((int) $order['id'], new \DateT
       </tbody>
     </table>
     </div>
-    <p>Verzendkosten: &euro; <?= number_format((float) $order['shipping_cost'], 2, ',', '.') ?></p>
-    <p class="admin-total">Totaal: &euro; <?= number_format((float) $order['total'], 2, ',', '.') ?></p>
+    <p><?= admin_t('shop.verzendkosten', ['v1' => number_format((float) $order['shipping_cost'], 2, ',', '.')]) ?></p>
+    <p class="admin-total"><?= admin_t('shop.total_is', ['v1' => number_format((float) $order['total'], 2, ',', '.')]) ?></p>
   </section>
 
   <section class="admin-card">
-    <h2>Betaling (Mollie)</h2>
-    <p>Status: <strong><?= htmlspecialchars(adminPaymentStatusLabel((string) $order['status']), ENT_QUOTES, 'UTF-8') ?></strong></p>
-    <p>Mollie-status: <?= htmlspecialchars((string) ($order['mollie_status'] ?? '—'), ENT_QUOTES, 'UTF-8') ?></p>
+    <h2><?= admin_te('shop.betaling_mollie') ?></h2>
+    <p><?= admin_t('shop.status_is', ['v1' => htmlspecialchars(adminPaymentStatusLabel((string) $order['status']), ENT_QUOTES, 'UTF-8')]) ?></strong></p>
+    <p><?= admin_t('shop.mollie_status', ['v1' => htmlspecialchars((string) ($order['mollie_status'] ?? '—'), ENT_QUOTES, 'UTF-8')]) ?></p>
     <p>Mollie betalings-ID: <?php if (!empty($order['mollie_payment_id'])): ?><code><?= htmlspecialchars((string) $order['mollie_payment_id'], ENT_QUOTES, 'UTF-8') ?></code><?php else: ?>—<?php endif; ?></p>
     <?php $refundedAmount = (float) ($order['refunded_amount'] ?? 0.0); ?>
     <p>Terugbetaling: <strong><?= htmlspecialchars(adminRefundStatusLabel($refundedAmount, (float) $order['total']), ENT_QUOTES, 'UTF-8') ?></strong>
       <?php if ($refundedAmount > 0): ?>
-        (&euro; <?= number_format($refundedAmount, 2, ',', '.') ?> van &euro; <?= number_format((float) $order['total'], 2, ',', '.') ?>)
+        <?= admin_t('shop.refunded_of', ['v1' => number_format($refundedAmount, 2, ',', '.'), 'v2' => number_format((float) $order['total'], 2, ',', '.')]) ?>
       <?php endif; ?>
     </p>
     <?php if ($refunds !== []): ?>
       <div class="admin-table-wrap">
       <table class="admin-table">
-        <thead><tr><th>Datum</th><th>Bedrag</th><th>Status</th><th>Mollie refund-ID</th></tr></thead>
+        <thead><tr><th><?= admin_te('common.date') ?></th><th><?= admin_te('shop.bedrag') ?></th><th><?= admin_te('common.status') ?></th><th><?= admin_te('shop.mollie_refund_id') ?></th></tr></thead>
         <tbody>
           <?php foreach ($refunds as $refund): ?>
             <tr>
               <td><?= htmlspecialchars(date('d-m-Y H:i', strtotime((string) $refund['created_at'])), ENT_QUOTES, 'UTF-8') ?></td>
-              <td>&euro; <?= number_format((float) $refund['amount'], 2, ',', '.') ?></td>
+              <td><?= admin_t('shop.text_2', ['v1' => number_format((float) $refund['amount'], 2, ',', '.')]) ?></td>
               <td><?= htmlspecialchars(adminRefundStatusLabelFor((string) $refund['status']), ENT_QUOTES, 'UTF-8') ?></td>
               <td><code><?= htmlspecialchars((string) $refund['mollie_refund_id'], ENT_QUOTES, 'UTF-8') ?></code></td>
             </tr>
@@ -238,33 +239,32 @@ $orderNumber = OrderRepository::formatOrderNumber((int) $order['id'], new \DateT
   </section>
 
   <section class="admin-card">
-    <h2>Factuur</h2>
+    <h2><?= admin_te('shop.factuur') ?></h2>
     <?php if ($invoice !== null): ?>
-      <p>Factuurnummer: <strong><?= htmlspecialchars((string) $invoice['invoice_number'], ENT_QUOTES, 'UTF-8') ?></strong></p>
-      <p>Factuurdatum: <?= htmlspecialchars(date('d-m-Y', strtotime((string) $invoice['invoice_date'])), ENT_QUOTES, 'UTF-8') ?></p>
+      <p><?= admin_t('shop.factuurnummer', ['v1' => htmlspecialchars((string) $invoice['invoice_number'], ENT_QUOTES, 'UTF-8')]) ?></strong></p>
+      <p><?= admin_t('shop.factuurdatum', ['v1' => htmlspecialchars(date('d-m-Y', strtotime((string) $invoice['invoice_date'])), ENT_QUOTES, 'UTF-8')]) ?></p>
       <p>
-        <a href="/api/admin/invoice-download.php?order_id=<?= (int) $order['id'] ?>" target="_blank" rel="noopener">Bekijk factuur (PDF)</a>
-        &middot;
-        <a href="/api/admin/invoice-download.php?order_id=<?= (int) $order['id'] ?>&mode=download">Download PDF</a>
+        <a href="/api/admin/invoice-download.php?order_id=<?= (int) $order['id'] ?>" target="_blank" rel="noopener"><?= admin_t('shop.bekijk_factuur_pdf') ?>
+        <a href="/api/admin/invoice-download.php?order_id=<?= (int) $order['id'] ?>&mode=download"><?= admin_te('shop.download_pdf') ?></a>
       </p>
       <?php if ($canManageOrders): ?>
       <form method="post" action="/api/admin/resend-order-confirmation.php" class="admin-fulfilment-form">
         <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
         <input type="hidden" name="order_id" value="<?= (int) $order['id'] ?>">
-        <button type="submit">Verstuur bevestigingsmail opnieuw</button>
+        <button type="submit"><?= admin_te('shop.verstuur_bevestigingsmail_opnieuw') ?></button>
       </form>
       <?php endif; ?>
     <?php elseif ($order['status'] === 'paid'): ?>
-      <p class="admin-text-muted">Nog geen factuur voor deze bestelling.</p>
+      <p class="admin-text-muted"><?= admin_te('shop.factuur_bestelling') ?></p>
       <?php if ($canManageOrders): ?>
       <form method="post" action="/api/admin/generate-invoice.php" class="admin-fulfilment-form">
         <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
         <input type="hidden" name="order_id" value="<?= (int) $order['id'] ?>">
-        <button type="submit">Genereer factuur</button>
+        <button type="submit"><?= admin_te('shop.genereer_factuur') ?></button>
       </form>
       <?php endif; ?>
     <?php else: ?>
-      <p class="admin-text-muted">Facturen worden alleen aangemaakt voor betaalde bestellingen.</p>
+      <p class="admin-text-muted"><?= admin_te('shop.facturen_alleen_aangemaakt_betaalde') ?></p>
     <?php endif; ?>
   </section>
 
@@ -281,35 +281,35 @@ $orderNumber = OrderRepository::formatOrderNumber((int) $order['id'], new \DateT
     $isHandled = $fulfilmentStatus === OrderRepository::FULFILMENT_HANDLED;
   ?>
   <section class="admin-card">
-    <h2>Afhandeling</h2>
-    <p>Status: <span class="admin-badge admin-badge--<?= adminFulfilmentBadgeModifier($fulfilmentStatus) ?>"><?= htmlspecialchars($fulfilmentStatus, ENT_QUOTES, 'UTF-8') ?></span></p>
+    <h2><?= admin_te('shop.afhandeling') ?></h2>
+    <p><?= admin_te('shop.status') ?> <span class="admin-badge admin-badge--<?= adminFulfilmentBadgeModifier($fulfilmentStatus) ?>"><?= htmlspecialchars($fulfilmentStatus, ENT_QUOTES, 'UTF-8') ?></span></p>
 
     <?php if ($isHandled): ?>
       <p>Afgehandeld op:
         <?php if (!empty($order['handled_at'])): ?>
           <strong><?= htmlspecialchars(date('d-m-Y H:i', strtotime((string) $order['handled_at'])), ENT_QUOTES, 'UTF-8') ?></strong>
         <?php else: ?>
-          <span class="admin-text-muted">onbekend (afgehandeld voordat dit werd vastgelegd)</span>
+          <span class="admin-text-muted"><?= admin_te('shop.fulfilled_before_recorded') ?></span>
         <?php endif; ?>
       </p>
     <?php endif; ?>
 
     <?php if (!$canManageOrders): ?>
-      <p class="admin-text-muted">Je hebt alleen leesrechten voor bestellingen; de afhandelingsstatus wijzigen vereist het recht &ldquo;Bestellingen beheren&rdquo;.</p>
+      <p class="admin-text-muted"><?= admin_t('shop.hebt_alleen_leesrechten_bestellingen') ?></p>
     <?php elseif ($isHandled || $order['status'] === 'paid'): ?>
       <form method="post" action="/api/admin/update-fulfilment-status.php" class="admin-fulfilment-form">
         <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
         <input type="hidden" name="order_id" value="<?= (int) $order['id'] ?>">
         <input type="hidden" name="fulfilment_status" value="<?= htmlspecialchars($isHandled ? OrderRepository::FULFILMENT_OPEN : OrderRepository::FULFILMENT_HANDLED, ENT_QUOTES, 'UTF-8') ?>">
-        <button type="submit"><?= $isHandled ? 'Markeer opnieuw als open' : 'Markeer als afgehandeld' ?></button>
+        <button type="submit"><?= $isHandled ? admin_t('shop.mark_open') : admin_t('shop.mark_handled') ?></button>
       </form>
     <?php else: ?>
-      <p class="admin-text-muted">Alleen betaalde bestellingen kunnen als afgehandeld worden gemarkeerd.</p>
+      <p class="admin-text-muted"><?= admin_te('shop.alleen_betaalde_bestellingen_kunnen') ?></p>
     <?php endif; ?>
   </section>
 
   <section class="admin-card">
-    <h2>Beveiliging &amp; audit</h2>
+    <h2><?= admin_t('shop.beveiliging_audit') ?></h2>
     <p class="admin-text-muted">
       Algemene voorwaarden geaccepteerd:
       <?= !empty($order['terms_accepted']) ? 'Ja' : 'Nee' ?><br>

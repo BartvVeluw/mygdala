@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/../vendor/autoload.php';
+require_once __DIR__ . '/_translate.php';
 require_once __DIR__ . '/_save_bar.php';
 require __DIR__ . '/_richtext_field.php';
 require_once __DIR__ . '/_language_fields.php';
@@ -44,7 +45,7 @@ if ($pageSlug === null || $sectionKey === null || $pageSlug === '' || $sectionKe
     || $repository->findBySlugAndKey($pageSlug, $sectionKey) === null
 ) {
     http_response_code(404);
-    exit('Onbekende sectie.');
+    exit(admin_t('screen.onbekende_sectie'));
 }
 
 $page = (new PageRepository())->findByContentKey($pageSlug);
@@ -68,7 +69,7 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Tekstblok — <?= $h((string) $page['title']) ?> — Admin</title>
+<title><?= admin_t('block_richtext.tekstblok_admin', ['v1' => $h((string) $page['title'])]) ?></title>
 <link rel="stylesheet" href="<?= \App\Service\AssetVersion::url('/admin/assets/vendor/quill/quill.snow.css') ?>">
 <link rel="stylesheet" href="<?= \App\Service\AssetVersion::url('/admin/assets/admin.css') ?>">
 <script src="<?= \App\Service\AssetVersion::url('/admin/assets/vendor/quill/quill.min.js') ?>" defer></script>
@@ -77,12 +78,12 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
 <body<?= \App\Service\AdminTheme::bodyAttribute() ?>>
 <?php require __DIR__ . '/_header.php'; ?>
 <main class="admin-main">
-  <p><a href="/admin/page.php?id=<?= (int) $page['id'] ?>">&larr; Terug naar <?= $h((string) $page['title']) ?></a></p>
+  <p><a href="/admin/page.php?id=<?= (int) $page['id'] ?>"><?= admin_t('block_richtext.terug', ['v1' => $h((string) $page['title'])]) ?></a></p>
   <h1><?= $h(SectionRegistry::label('rich_text')) ?></h1>
-  <p class="admin-text-muted">Sectie op de pagina "<?= $h((string) $page['title']) ?>".</p>
+  <p class="admin-text-muted"><?= admin_t('block_richtext.sectie_pagina', ['v1' => $h((string) $page['title'])]) ?></p>
 
   <?php if ($saved): ?>
-    <p class="admin-alert admin-alert--success">Opgeslagen.</p>
+    <p class="admin-alert admin-alert--success"><?= admin_te('common.saved') ?></p>
   <?php endif; ?>
   <?php if ($errors !== []): ?>
     <div class="admin-alert admin-alert--error">
@@ -99,7 +100,7 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
     <input type="hidden" name="section" value="<?= $h($sectionParam) ?>">
 
     <section class="admin-card">
-      <h2>Inhoud</h2>
+      <h2><?= admin_te('block_richtext.inhoud') ?></h2>
       <?php admin_lang_tabs(); ?>
       <?php admin_lang_pane_start('nl'); ?>
         <?php renderRichTextField('content_html', 'Tekst', $contentHtml, 'full', 'admin-richtext-editor--lg'); ?>
@@ -109,12 +110,12 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
       <?php admin_lang_pane_end(); ?>
       <label class="admin-checkbox-label">
         <input type="checkbox" name="is_active" value="1" <?= $isActive ? 'checked' : '' ?>>
-        Actief (zichtbaar op de pagina)
+        <?= admin_te('block_richtext.actief_zichtbaar_pagina') ?>
       </label>
     </section>
 
     <section class="admin-card">
-      <button type="submit">Opslaan</button>
+      <button type="submit"><?= admin_te('common.save') ?></button>
     </section>
   </form>
 </main>

@@ -28,6 +28,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../../vendor/autoload.php';
 
+use App\Service\Language\AdminTranslator;
 use App\Service\AdminAuth;
 use App\Service\Csrf;
 use App\Service\ProductDeletionService;
@@ -57,7 +58,7 @@ try {
     $deleted = (new ProductDeletionService())->delete($id);
 } catch (\Throwable $e) {
     error_log('[api/admin/delete-product.php] ' . $e->getMessage());
-    $_SESSION['admin_product_list_error'] = 'Product kon niet worden verwijderd. Probeer het opnieuw.';
+    $_SESSION['admin_product_list_error'] = AdminTranslator::trans('validation.product_kon_verwijderd_probeer_opnieuw');
     header('Location: /admin/products.php');
     exit;
 }
@@ -65,7 +66,7 @@ try {
 if (!$deleted) {
     // Unknown or already-deleted id: nothing happened, so say so rather than
     // claiming a success. A double-submitted delete form lands here too.
-    $_SESSION['admin_product_list_error'] = 'Product niet gevonden — mogelijk is het al verwijderd.';
+    $_SESSION['admin_product_list_error'] = AdminTranslator::trans('validation.product_gevonden_mogelijk_al_verwijderd');
     header('Location: /admin/products.php');
     exit;
 }

@@ -16,6 +16,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../../vendor/autoload.php';
 
+use App\Service\Language\AdminTranslator;
 use App\Repository\BlogCategoryRepository;
 use App\Service\AdminAuth;
 use App\Service\Blog\BlogSlug;
@@ -57,7 +58,7 @@ $isActive = ($_POST['is_active'] ?? '0') === '1';
 $errors = [];
 
 if ($name === '') {
-    $errors[] = 'Geef de categorie een naam.';
+    $errors[] = AdminTranslator::trans('validation.geef_categorie_naam');
 }
 
 $slugError = BlogSlug::validationError(

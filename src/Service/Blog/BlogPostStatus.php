@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Service\Blog;
 
+use App\Service\Language\AdminTranslator;
+
 /**
  * The three states a blog post can be in, and the one rule that turns a
  * state plus a moment into "is this public right now".
@@ -66,7 +68,8 @@ final class BlogPostStatus
 
     public static function label(mixed $status): string
     {
-        return self::LABELS[self::normalize($status)];
+        // The DISPLAY word only; the stored value stays 'draft'.
+        return AdminTranslator::trans('status.blog_' . self::normalize($status));
     }
 
     /**

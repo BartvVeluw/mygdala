@@ -8,6 +8,7 @@ declare(strict_types=1);
  * apply exactly the same rules.
  */
 
+use App\Service\Language\AdminTranslator;
 use App\Repository\CarrierRateRepository;
 use App\Service\Shipping\ShippingProfile;
 
@@ -21,14 +22,14 @@ function validateShippingRateInput(array $input): array
 
     $profile = is_string($input['shipping_profile'] ?? null) ? trim($input['shipping_profile']) : '';
     if (!ShippingProfile::isValid($profile)) {
-        $errors[] = 'Kies een geldige verzendmethode.';
+        $errors[] = AdminTranslator::trans('validation.kies_geldige_verzendmethode');
     }
 
     $min = parseOptionalShippingWeight($input['min_weight_grams'] ?? null, $errors, 'Vanaf-gewicht');
     $max = parseOptionalShippingWeight($input['max_weight_grams'] ?? null, $errors, 'Tot-gewicht');
 
     if ($min !== null && $max !== null && $min > $max) {
-        $errors[] = 'Vanaf-gewicht mag niet groter zijn dan tot-gewicht.';
+        $errors[] = AdminTranslator::trans('validation.vanaf_gewicht_mag_groter_tot');
     }
 
     // A rate either links to a central carrier rate (its live price is what
@@ -39,9 +40,9 @@ function validateShippingRateInput(array $input): array
     if ($carrierRateRaw !== '') {
         $carrierRateIdCandidate = filter_var($carrierRateRaw, FILTER_VALIDATE_INT);
         if ($carrierRateIdCandidate === false || $carrierRateIdCandidate < 1) {
-            $errors[] = 'Ongeldig carrier-tarief.';
+            $errors[] = AdminTranslator::trans('validation.ongeldig_carrier_tarief');
         } elseif ((new CarrierRateRepository())->findById($carrierRateIdCandidate) === null) {
-            $errors[] = 'Gekozen carrier-tarief bestaat niet (meer).';
+            $errors[] = AdminTranslator::trans('validation.gekozen_carrier_tarief_bestaat_meer');
         } else {
             $carrierRateId = $carrierRateIdCandidate;
         }
@@ -57,11 +58,11 @@ function validateShippingRateInput(array $input): array
             $price = (float) $priceRaw;
         }
     } elseif ($priceRaw === '' || !is_numeric($priceRaw)) {
-        $errors[] = 'Prijs is verplicht en moet een geldig bedrag zijn (of kies een carrier-tarief).';
+        $errors[] = AdminTranslator::trans('validation.prijs_verplicht_geldig_bedrag_kies');
     } else {
         $price = (float) $priceRaw;
         if ($price < 0 || $price > 9999.99) {
-            $errors[] = 'Prijs moet 0 of hoger en maximaal € 9.999,99 zijn.';
+            $errors[] = AdminTranslator::trans('validation.prijs_0_hoger_maximaal_9');
         }
     }
 

@@ -10,6 +10,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../../vendor/autoload.php';
 
+use App\Service\Language\AdminTranslator;
 use App\Service\AdminAuth;
 use App\Service\Csrf;
 use App\Service\StatStripContent;
@@ -61,10 +62,10 @@ $fields = [
 
 $errors = [];
 if ($fields['primary_text_nl'] === '') {
-    $errors[] = 'Primaire tekst (NL) is verplicht.';
+    $errors[] = AdminTranslator::trans('validation.primaire_tekst_nl_verplicht');
 }
 if ($fields['secondary_text_nl'] === '') {
-    $errors[] = 'Secundaire tekst (NL) is verplicht.';
+    $errors[] = AdminTranslator::trans('validation.secundaire_tekst_nl_verplicht');
 }
 
 if ($errors !== []) {

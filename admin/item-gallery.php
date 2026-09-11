@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/../vendor/autoload.php';
+require_once __DIR__ . '/_translate.php';
 require_once __DIR__ . '/_save_bar.php';
 require_once __DIR__ . '/_language_fields.php';
 
@@ -43,7 +44,7 @@ if ($page === null || $sectionKey === null || $sectionKey === ''
     || $repository->findBySlugAndKey($pageSlug, $sectionKey) === null
 ) {
     http_response_code(404);
-    exit('Onbekende sectie.');
+    exit(admin_t('screen.onbekende_sectie'));
 }
 
 $section = $repository->findBySlugAndKey($pageSlug, $sectionKey);
@@ -122,18 +123,18 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title><?= $h(SectionRegistry::label('item_gallery')) ?> — <?= $h((string) $page['title']) ?> — Admin</title>
+<title><?= $h(SectionRegistry::label('item_gallery')) ?> <?= admin_t('block_gallery.admin', ['v1' => $h((string) $page['title'])]) ?></title>
 <link rel="stylesheet" href="<?= \App\Service\AssetVersion::url('/admin/assets/admin.css') ?>">
 </head>
 <body<?= \App\Service\AdminTheme::bodyAttribute() ?>>
 <?php require __DIR__ . '/_header.php'; ?>
 <main class="admin-main">
-  <p class="admin-text-muted"><a href="/admin/page.php?id=<?= (int) $page['id'] ?>">&larr; <?= $h((string) $page['title']) ?></a></p>
+  <p class="admin-text-muted"><a href="/admin/page.php?id=<?= (int) $page['id'] ?>"><?= admin_t('block_gallery.text', ['v1' => $h((string) $page['title'])]) ?></a></p>
   <h1><?= $h(SectionRegistry::label('item_gallery')) ?></h1>
-  <p class="admin-text-muted">Een galerij op <strong><?= $h((string) $page['title']) ?></strong>. Je kiest hier wát er getoond wordt en hoe; de items zelf beheer je via <a href="/admin/portfolio.php">Portfolio</a> of <a href="/admin/collections.php">Collecties</a>.</p>
+  <p class="admin-text-muted"><?= admin_t('block_gallery.galerij_kiest_hier_w', ['v1' => $h((string) $page['title'])]) ?></p>
 
   <?php if ($saved): ?>
-    <p class="admin-alert admin-alert--success">Opgeslagen.</p>
+    <p class="admin-alert admin-alert--success"><?= admin_te('common.saved') ?></p>
   <?php endif; ?>
   <?php if ($errors !== []): ?>
     <div class="admin-alert admin-alert--error">
@@ -145,32 +146,32 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
     </div>
   <?php endif; ?>
 
-  <p class="admin-text-muted">Deze galerij toont op dit moment <strong><?= (int) $itemCount ?></strong> item(s).</p>
+  <p class="admin-text-muted"><?= admin_t('block_gallery.galerij_toont_moment_item', ['v1' => (int) $itemCount]) ?></p>
 
   <section class="admin-card">
     <form method="post" action="/api/admin/update-item-gallery.php" class="admin-product-form">
       <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
       <input type="hidden" name="section" value="<?= $h($sectionParam) ?>">
 
-      <h2>Inhoudsbron</h2>
+      <h2><?= admin_te('block_gallery.inhoudsbron') ?></h2>
       <div class="admin-form-row admin-form-row--split">
-        <label>Toon
+        <label><?= admin_te('block_gallery.toon') ?>
           <select name="source_type">
             <?php foreach ($availableSources as $sourceKey => $source): ?>
             <option value="<?= $h($sourceKey) ?>" <?= ($values['source_type'] ?? '') === $sourceKey ? 'selected' : '' ?>><?= $h((string) $source['label']) ?></option>
             <?php endforeach; ?>
             <?php if ($storedSourceUnavailable): ?>
-            <option value="<?= $h($storedSource) ?>" selected><?= $h(ItemGallerySources::label($storedSource)) ?> &mdash; niet beschikbaar</option>
+            <option value="<?= $h($storedSource) ?>" selected><?= $h(ItemGallerySources::label($storedSource)) ?> <?= admin_t('block_gallery.beschikbaar') ?></option>
             <?php endif; ?>
           </select>
         </label>
-        <label>Maximum aantal items
+        <label><?= admin_te('block_gallery.maximum_aantal_items') ?>
           <input type="number" name="max_items" min="1" max="200" value="<?= $h((string) ($values['max_items'] ?? '')) ?>" placeholder="Leeg = alles">
         </label>
       </div>
 
       <div class="admin-form-row admin-form-row--split">
-        <label>Bij portfolio-items: welke
+        <label><?= admin_te('block_gallery.portfolio_items_welke') ?>
           <select name="portfolio_scope">
             <?php foreach (ItemGalleryContent::PORTFOLIO_SCOPES as $scopeKey => $scope): ?>
             <option value="<?= $h($scopeKey) ?>" <?= ($values['portfolio_scope'] ?? '') === $scopeKey ? 'selected' : '' ?>><?= $h($scope['label']) ?></option>
@@ -178,9 +179,9 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
           </select>
         </label>
         <?php if ($needsCollectionPicker): ?>
-        <label>Bij een collectie: welke
+        <label><?= admin_te('block_gallery.collectie_welke') ?>
           <select name="collection_id">
-            <option value="">— Kies een collectie —</option>
+            <option value=""><?= admin_te('block_gallery.kies_collectie') ?></option>
             <?php foreach ($collections as $collection): ?>
             <option value="<?= (int) $collection['id'] ?>" <?= (string) ($values['collection_id'] ?? '') === (string) $collection['id'] ? 'selected' : '' ?>><?= $h((string) $collection['name']) ?><?= (bool) $collection['is_active'] ? '' : ' (concept)' ?></option>
             <?php endforeach; ?>
@@ -190,116 +191,116 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
           <input type="hidden" name="collection_id" value="<?= $h((string) ($values['collection_id'] ?? '')) ?>">
         <?php endif; ?>
       </div>
-      <p class="admin-text-muted">Elke bron heeft zijn eigen instelling hierboven; alleen die van de gekozen bron doet iets. Een collectie op concept toont niets.</p>
+      <p class="admin-text-muted"><?= admin_te('block_gallery.elke_bron_heeft_eigen') ?></p>
       <?php if ($storedSourceUnavailable): ?>
-      <p class="admin-alert admin-alert--warning">De ingestelde inhoudsbron hoort bij een onderdeel dat op dit moment uit staat. De instellingen van dit blok blijven bewaard, maar er wordt niets getoond zolang dat onderdeel uit staat.</p>
+      <p class="admin-alert admin-alert--warning"><?= admin_te('block_gallery.ingestelde_inhoudsbron_hoort_onderdeel') ?></p>
       <?php endif; ?>
 
-      <h2 style="margin-top:2rem;">Weergave</h2>
+      <h2 style="margin-top:2rem;"><?= admin_te('block_gallery.weergave') ?></h2>
       <label class="admin-checkbox-label">
         <input type="checkbox" name="show_filter_bar" value="1" <?= ($values['show_filter_bar'] ?? false) ? 'checked' : '' ?>>
-        Filterbalk tonen (alleen bij portfolio-items — een collectie heeft geen categorieën)
+        <?= admin_te('block_gallery.filterbalk_tonen_alleen_portfolio') ?>
       </label>
       <label class="admin-checkbox-label">
         <input type="checkbox" name="enable_lightbox" value="1" <?= ($values['enable_lightbox'] ?? false) ? 'checked' : '' ?>>
-        Lightbox: klik op een kaart zonder eigen pagina vergroot de foto
+        <?= admin_te('block_gallery.lightbox_klik_kaart_zonder') ?>
       </label>
 
       <div class="admin-form-row admin-form-row--split">
-        <label>Achtergrond
+        <label><?= admin_te('block_gallery.achtergrond') ?>
           <select name="background">
             <?php foreach (ItemGalleryContent::BACKGROUNDS as $backgroundKey => $background): ?>
             <option value="<?= $h($backgroundKey) ?>" <?= ($values['background'] ?? '') === $backgroundKey ? 'selected' : '' ?>><?= $h($background['label']) ?></option>
             <?php endforeach; ?>
           </select>
         </label>
-        <label>Kaarten zonder eigen pagina linken naar
+        <label><?= admin_te('block_gallery.kaarten_zonder_eigen_pagina') ?>
           <input type="text" name="fallback_link_url" maxlength="255" value="<?= $h((string) ($values['fallback_link_url'] ?? '')) ?>" placeholder="Leeg = geen link">
         </label>
       </div>
-      <p class="admin-text-muted">Laat de link leeg om die kaarten niet aanklikbaar te maken; alleen dán kan de lightbox ze vergroten.</p>
+      <p class="admin-text-muted"><?= admin_te('block_gallery.laat_link_leeg_kaarten') ?></p>
 
       <label class="admin-checkbox-label">
         <input type="checkbox" name="tight_top" value="1" <?= ($values['tight_top'] ?? false) ? 'checked' : '' ?>>
-        Sluit aan op de sectie erboven (geen ruimte aan de bovenkant)
+        <?= admin_te('block_gallery.sluit_sectie_erboven_ruimte') ?>
       </label>
 
-      <h2 style="margin-top:2rem;">Kop (optioneel)</h2>
+      <h2 style="margin-top:2rem;"><?= admin_te('block_gallery.kop_optioneel') ?></h2>
       <?php admin_lang_tabs(); ?>
       <div class="admin-form-row admin-form-row--split">
         <?php admin_lang_pane_start('nl'); ?>
-        <label>Bovenkop
+        <label><?= admin_te('block_gallery.bovenkop') ?>
           <input type="text" name="eyebrow_nl" maxlength="255" value="<?= $h((string) ($values['eyebrow_nl'] ?? '')) ?>">
         </label>
         <?php admin_lang_pane_end(); ?>
         <?php admin_lang_pane_start('en'); ?>
-        <label>Bovenkop
+        <label><?= admin_te('block_gallery.bovenkop_2') ?>
           <input type="text" name="eyebrow_en" maxlength="255" value="<?= $h((string) ($values['eyebrow_en'] ?? '')) ?>"<?= admin_lang_placeholder_attr('en') ?>>
         </label>
         <?php admin_lang_pane_end(); ?>
       </div>
       <div class="admin-form-row admin-form-row--split">
         <?php admin_lang_pane_start('nl'); ?>
-        <label>Titel
+        <label><?= admin_te('common.title') ?>
           <input type="text" name="title_nl" maxlength="255" value="<?= $h((string) ($values['title_nl'] ?? '')) ?>">
         </label>
         <?php admin_lang_pane_end(); ?>
         <?php admin_lang_pane_start('en'); ?>
-        <label>Titel
+        <label><?= admin_te('common.title') ?>
           <input type="text" name="title_en" maxlength="255" value="<?= $h((string) ($values['title_en'] ?? '')) ?>"<?= admin_lang_placeholder_attr('en') ?>>
         </label>
         <?php admin_lang_pane_end(); ?>
       </div>
       <div class="admin-form-row admin-form-row--split">
         <?php admin_lang_pane_start('nl'); ?>
-        <label>Introtekst
+        <label><?= admin_te('block_gallery.introtekst') ?>
           <textarea name="lead_nl" maxlength="600" rows="3"><?= $h((string) ($values['lead_nl'] ?? '')) ?></textarea>
         </label>
         <?php admin_lang_pane_end(); ?>
         <?php admin_lang_pane_start('en'); ?>
-        <label>Introtekst
+        <label><?= admin_te('block_gallery.introtekst_2') ?>
           <textarea name="lead_en" maxlength="600" rows="3"<?= admin_lang_placeholder_attr('en') ?>><?= $h((string) ($values['lead_en'] ?? '')) ?></textarea>
         </label>
         <?php admin_lang_pane_end(); ?>
       </div>
 
-      <h2 style="margin-top:2rem;">Onder de galerij (optioneel)</h2>
+      <h2 style="margin-top:2rem;"><?= admin_te('block_gallery.onder_galerij_optioneel') ?></h2>
       <div class="admin-form-row admin-form-row--split">
         <?php admin_lang_pane_start('nl'); ?>
-        <label>Slottekst
+        <label><?= admin_te('block_gallery.slottekst') ?>
           <textarea name="footer_note_nl" maxlength="600" rows="3"><?= $h((string) ($values['footer_note_nl'] ?? '')) ?></textarea>
         </label>
         <?php admin_lang_pane_end(); ?>
         <?php admin_lang_pane_start('en'); ?>
-        <label>Slottekst
+        <label><?= admin_te('block_gallery.slottekst_2') ?>
           <textarea name="footer_note_en" maxlength="600" rows="3"<?= admin_lang_placeholder_attr('en') ?>><?= $h((string) ($values['footer_note_en'] ?? '')) ?></textarea>
         </label>
         <?php admin_lang_pane_end(); ?>
       </div>
       <div class="admin-form-row admin-form-row--split">
         <?php admin_lang_pane_start('nl'); ?>
-        <label>Knoplabel
+        <label><?= admin_te('block_gallery.knoplabel') ?>
           <input type="text" name="button_label_nl" maxlength="150" value="<?= $h((string) ($values['button_label_nl'] ?? '')) ?>">
         </label>
         <?php admin_lang_pane_end(); ?>
         <?php admin_lang_pane_start('en'); ?>
-        <label>Knoplabel
+        <label><?= admin_te('block_gallery.knoplabel_2') ?>
           <input type="text" name="button_label_en" maxlength="150" value="<?= $h((string) ($values['button_label_en'] ?? '')) ?>"<?= admin_lang_placeholder_attr('en') ?>>
         </label>
         <?php admin_lang_pane_end(); ?>
       </div>
       <div class="admin-form-row">
-        <label>Knop-URL
+        <label><?= admin_te('block_gallery.knop_url') ?>
           <input type="text" name="button_url" maxlength="255" value="<?= $h((string) ($values['button_url'] ?? '')) ?>" placeholder="Bijvoorbeeld /portfolio.php">
         </label>
       </div>
 
       <label class="admin-checkbox-label">
         <input type="checkbox" name="is_active" value="1" <?= ($values['is_active'] ?? true) ? 'checked' : '' ?>>
-        Actief (uitgevinkt = deze sectie wordt niet getoond op de pagina)
+        <?= admin_te('block_gallery.actief_uitgevinkt_sectie_getoond') ?>
       </label>
 
-      <button type="submit">Opslaan</button>
+      <button type="submit"><?= admin_te('common.save') ?></button>
     </form>
   </section>
 </main>

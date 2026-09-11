@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/../vendor/autoload.php';
+require_once __DIR__ . '/_translate.php';
 require_once __DIR__ . '/_save_bar.php';
 require_once __DIR__ . '/_language_fields.php';
 
@@ -29,7 +30,7 @@ if ($section === null) {
         || (new FeatureGridRepository())->findBySlugAndKey($dynPageSlug, $dynSectionKey) === null
     ) {
         http_response_code(404);
-        exit('Onbekende sectie.');
+        exit(admin_t('screen.onbekende_sectie'));
     }
     $section = [
         'page_slug' => $dynPageSlug,
@@ -95,18 +96,18 @@ function featureGridValue(array $values, string $key): string
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title><?= htmlspecialchars($section['section_label'], ENT_QUOTES, 'UTF-8') ?> — Admin</title>
+<title><?= htmlspecialchars($section['section_label'], ENT_QUOTES, 'UTF-8') ?> <?= admin_te('block_features.admin') ?></title>
 <link rel="stylesheet" href="<?= \App\Service\AssetVersion::url('/admin/assets/admin.css') ?>">
 </head>
 <body<?= \App\Service\AdminTheme::bodyAttribute() ?>>
 <?php require __DIR__ . '/_header.php'; ?>
 <main class="admin-main">
-  <p class="admin-text-muted"><a href="<?= htmlspecialchars(\App\Service\PageContent::builderUrl($pageSlug), ENT_QUOTES, 'UTF-8') ?>">&larr; <?= htmlspecialchars($section['page_label'], ENT_QUOTES, 'UTF-8') ?></a></p>
+  <p class="admin-text-muted"><a href="<?= htmlspecialchars(\App\Service\PageContent::builderUrl($pageSlug), ENT_QUOTES, 'UTF-8') ?>"><?= admin_t('block_features.text', ['v1' => htmlspecialchars($section['page_label'], ENT_QUOTES, 'UTF-8')]) ?></a></p>
   <h1><?= htmlspecialchars($section['section_label'], ENT_QUOTES, 'UTF-8') ?></h1>
-  <p class="admin-text-muted">Sectie op <strong><?= htmlspecialchars($section['page_label'], ENT_QUOTES, 'UTF-8') ?></strong>. Wijzigingen zijn direct zichtbaar op de pagina.</p>
+  <p class="admin-text-muted"><?= admin_t('block_features.sectie_wijzigingen_direct_zichtbaar', ['v1' => htmlspecialchars($section['page_label'], ENT_QUOTES, 'UTF-8')]) ?></p>
 
   <?php if ($saved): ?>
-    <p class="admin-alert admin-alert--success">Opgeslagen.</p>
+    <p class="admin-alert admin-alert--success"><?= admin_te('common.saved') ?></p>
   <?php endif; ?>
 
   <?php if ($errors !== []): ?>
@@ -131,7 +132,7 @@ function featureGridValue(array $values, string $key): string
 
   <?php if ($hasHeading): ?>
   <section class="admin-card">
-    <h2>Sectiekop</h2>
+    <h2><?= admin_te('block_features.sectiekop') ?></h2>
     <form method="post" action="/api/admin/update-feature-grid.php" class="admin-product-form">
       <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
       <input type="hidden" name="section" value="<?= htmlspecialchars($sectionKey, ENT_QUOTES, 'UTF-8') ?>">
@@ -139,12 +140,12 @@ function featureGridValue(array $values, string $key): string
       <?php admin_lang_tabs(); ?>
       <div class="admin-form-row admin-form-row--split">
         <?php admin_lang_pane_start('nl'); ?>
-        <label>Eyebrow*
+        <label><?= admin_te('block_features.eyebrow') ?>*
           <input type="text" name="eyebrow_nl" maxlength="150" <?= admin_lang_required('nl') ?> value="<?= featureGridValue($sectionValues, 'eyebrow_nl') ?>">
         </label>
         <?php admin_lang_pane_end(); ?>
         <?php admin_lang_pane_start('en'); ?>
-        <label>Eyebrow
+        <label><?= admin_te('block_features.eyebrow_2') ?>
           <input type="text" name="eyebrow_en" maxlength="150" value="<?= featureGridValue($sectionValues, 'eyebrow_en') ?>"<?= admin_lang_placeholder_attr('en') ?>>
         </label>
         <?php admin_lang_pane_end(); ?>
@@ -152,12 +153,12 @@ function featureGridValue(array $values, string $key): string
 
       <div class="admin-form-row admin-form-row--split">
         <?php admin_lang_pane_start('nl'); ?>
-        <label>Titel / H2*
+        <label><?= admin_te('block_features.titel_h2') ?>*
           <input type="text" name="title_nl" maxlength="255" <?= admin_lang_required('nl') ?> value="<?= featureGridValue($sectionValues, 'title_nl') ?>">
         </label>
         <?php admin_lang_pane_end(); ?>
         <?php admin_lang_pane_start('en'); ?>
-        <label>Titel / H2
+        <label><?= admin_te('block_features.titel_h2_2') ?>
           <input type="text" name="title_en" maxlength="255" value="<?= featureGridValue($sectionValues, 'title_en') ?>"<?= admin_lang_placeholder_attr('en') ?>>
         </label>
         <?php admin_lang_pane_end(); ?>
@@ -165,12 +166,12 @@ function featureGridValue(array $values, string $key): string
 
       <div class="admin-form-row admin-form-row--split">
         <?php admin_lang_pane_start('nl'); ?>
-        <label>Introtekst / lead
+        <label><?= admin_te('block_features.introtekst_lead') ?>
           <textarea name="lead_nl" maxlength="500" rows="3"><?= featureGridValue($sectionValues, 'lead_nl') ?></textarea>
         </label>
         <?php admin_lang_pane_end(); ?>
         <?php admin_lang_pane_start('en'); ?>
-        <label>Introtekst / lead
+        <label><?= admin_te('block_features.introtekst_lead_2') ?>
           <textarea name="lead_en" maxlength="500" rows="3"<?= admin_lang_placeholder_attr('en') ?>><?= featureGridValue($sectionValues, 'lead_en') ?></textarea>
         </label>
         <?php admin_lang_pane_end(); ?>
@@ -178,35 +179,35 @@ function featureGridValue(array $values, string $key): string
 
       <label class="admin-checkbox-label">
         <input type="checkbox" name="is_active" value="1" <?= ($sectionValues['is_active'] ?? true) ? 'checked' : '' ?>>
-        Actief (uitgevinkt = deze hele sectie — kop en kaarten — wordt niet getoond op de pagina)
+        <?= admin_te('block_features.actief_uitgevinkt_hele_sectie') ?>
       </label>
 
-      <button type="submit">Opslaan</button>
+      <button type="submit"><?= admin_te('common.save') ?></button>
     </form>
   </section>
   <?php else: ?>
   <section class="admin-card">
-    <h2>Zichtbaarheid</h2>
-    <p class="admin-text-muted">Deze sectie heeft geen eigen titel/introtekst — alleen de kaarten hieronder zijn zichtbaar.</p>
+    <h2><?= admin_te('block_features.zichtbaarheid') ?></h2>
+    <p class="admin-text-muted"><?= admin_te('block_features.sectie_heeft_eigen_titel') ?></p>
     <form method="post" action="/api/admin/update-feature-grid.php" class="admin-product-form">
       <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
       <input type="hidden" name="section" value="<?= htmlspecialchars($sectionKey, ENT_QUOTES, 'UTF-8') ?>">
 
       <label class="admin-checkbox-label">
         <input type="checkbox" name="is_active" value="1" <?= ($sectionValues['is_active'] ?? true) ? 'checked' : '' ?>>
-        Actief (uitgevinkt = deze sectie — alle kaarten — wordt niet getoond op de pagina)
+        <?= admin_te('block_features.actief_uitgevinkt_sectie_alle') ?>
       </label>
 
-      <button type="submit">Opslaan</button>
+      <button type="submit"><?= admin_te('common.save') ?></button>
     </form>
   </section>
   <?php endif; ?>
 
   <section class="admin-card">
-    <h2>Kaarten</h2>
+    <h2><?= admin_te('block_features.kaarten') ?></h2>
 
     <?php if ($items === []): ?>
-      <p class="admin-text-muted">Nog geen kaarten in deze sectie.</p>
+      <p class="admin-text-muted"><?= admin_te('block_features.kaarten_sectie') ?></p>
     <?php endif; ?>
 
     <?php foreach ($items as $index => $item): ?>
@@ -221,7 +222,7 @@ function featureGridValue(array $values, string $key): string
           <input type="hidden" name="item_id" value="<?= $itemId ?>">
 
           <div class="admin-form-row">
-            <label>Icoon
+            <label><?= admin_te('block_features.icoon') ?>
               <select name="icon_key">
                 <?php foreach (FeatureGridContent::ICON_KEYS as $key => $label): ?>
                   <option value="<?= htmlspecialchars($key, ENT_QUOTES, 'UTF-8') ?>" <?= $item['icon_key'] === $key ? 'selected' : '' ?>><?= htmlspecialchars($label, ENT_QUOTES, 'UTF-8') ?></option>
@@ -233,12 +234,12 @@ function featureGridValue(array $values, string $key): string
           <?php admin_lang_tabs(); ?>
           <div class="admin-form-row admin-form-row--split">
             <?php admin_lang_pane_start('nl'); ?>
-            <label>Titel*
+            <label><?= admin_te('common.title') ?>*
               <input type="text" name="title_nl" maxlength="255" <?= admin_lang_required('nl') ?> value="<?= htmlspecialchars((string) $item['title_nl'], ENT_QUOTES, 'UTF-8') ?>">
             </label>
             <?php admin_lang_pane_end(); ?>
             <?php admin_lang_pane_start('en'); ?>
-            <label>Titel
+            <label><?= admin_te('common.title') ?>
               <input type="text" name="title_en" maxlength="255" value="<?= htmlspecialchars((string) ($item['title_en'] ?? ''), ENT_QUOTES, 'UTF-8') ?>"<?= admin_lang_placeholder_attr('en') ?>>
             </label>
             <?php admin_lang_pane_end(); ?>
@@ -246,12 +247,12 @@ function featureGridValue(array $values, string $key): string
 
           <div class="admin-form-row admin-form-row--split">
             <?php admin_lang_pane_start('nl'); ?>
-            <label>Tekst*
+            <label><?= admin_te('block_features.tekst') ?>*
               <textarea name="body_nl" maxlength="500" rows="3" <?= admin_lang_required('nl') ?>><?= htmlspecialchars((string) $item['body_nl'], ENT_QUOTES, 'UTF-8') ?></textarea>
             </label>
             <?php admin_lang_pane_end(); ?>
             <?php admin_lang_pane_start('en'); ?>
-            <label>Tekst
+            <label><?= admin_te('block_features.tekst_2') ?>
               <textarea name="body_en" maxlength="500" rows="3"<?= admin_lang_placeholder_attr('en') ?>><?= htmlspecialchars((string) ($item['body_en'] ?? ''), ENT_QUOTES, 'UTF-8') ?></textarea>
             </label>
             <?php admin_lang_pane_end(); ?>
@@ -259,10 +260,10 @@ function featureGridValue(array $values, string $key): string
 
           <label class="admin-checkbox-label">
             <input type="checkbox" name="is_active" value="1" <?= (int) $item['is_active'] === 1 ? 'checked' : '' ?>>
-            Zichtbaar
+            <?= admin_te('common.visible') ?>
           </label>
 
-          <button type="submit">Opslaan</button>
+          <button type="submit"><?= admin_te('common.save') ?></button>
         </form>
 
         <div class="admin-image-card__actions" style="margin-top:0.75rem;">
@@ -270,18 +271,18 @@ function featureGridValue(array $values, string $key): string
             <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
             <input type="hidden" name="item_id" value="<?= $itemId ?>">
             <input type="hidden" name="direction" value="up">
-            <button type="submit" class="admin-btn-text" <?= $isFirst ? 'disabled' : '' ?>>&uarr; Omhoog</button>
+            <button type="submit" class="admin-btn-text" <?= $isFirst ? 'disabled' : '' ?>><?= admin_t('common.move_up') ?></button>
           </form>
           <form method="post" action="/api/admin/move-feature-grid-item.php" class="admin-inline-form">
             <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
             <input type="hidden" name="item_id" value="<?= $itemId ?>">
             <input type="hidden" name="direction" value="down">
-            <button type="submit" class="admin-btn-text" <?= $isLast ? 'disabled' : '' ?>>&darr; Omlaag</button>
+            <button type="submit" class="admin-btn-text" <?= $isLast ? 'disabled' : '' ?>><?= admin_t('common.move_down') ?></button>
           </form>
           <form method="post" action="/api/admin/delete-feature-grid-item.php" class="admin-inline-form" onsubmit="return confirm('Deze kaart definitief verwijderen?');">
             <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
             <input type="hidden" name="item_id" value="<?= $itemId ?>">
-            <button type="submit" class="admin-btn-text admin-btn-text--danger">Verwijderen</button>
+            <button type="submit" class="admin-btn-text admin-btn-text--danger"><?= admin_te('common.delete') ?></button>
           </form>
         </div>
       </article>
@@ -289,13 +290,13 @@ function featureGridValue(array $values, string $key): string
   </section>
 
   <section class="admin-card">
-    <h2>Nieuwe kaart toevoegen</h2>
+    <h2><?= admin_te('block_features.nieuwe_kaart_toevoegen') ?></h2>
     <form method="post" action="/api/admin/create-feature-grid-item.php" class="admin-product-form">
       <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
       <input type="hidden" name="grid_id" value="<?= $gridId ?>">
 
       <div class="admin-form-row">
-        <label>Icoon
+        <label><?= admin_te('block_features.icoon_2') ?>
           <select name="icon_key">
             <?php foreach (FeatureGridContent::ICON_KEYS as $key => $label): ?>
               <option value="<?= htmlspecialchars($key, ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars($label, ENT_QUOTES, 'UTF-8') ?></option>
@@ -307,12 +308,12 @@ function featureGridValue(array $values, string $key): string
       <?php admin_lang_tabs(); ?>
       <div class="admin-form-row admin-form-row--split">
         <?php admin_lang_pane_start('nl'); ?>
-        <label>Titel*
+        <label><?= admin_te('common.title') ?>*
           <input type="text" name="title_nl" maxlength="255" <?= admin_lang_required('nl') ?>>
         </label>
         <?php admin_lang_pane_end(); ?>
         <?php admin_lang_pane_start('en'); ?>
-        <label>Titel
+        <label><?= admin_te('common.title') ?>
           <input type="text" name="title_en" maxlength="255"<?= admin_lang_placeholder_attr('en') ?>>
         </label>
         <?php admin_lang_pane_end(); ?>
@@ -320,18 +321,18 @@ function featureGridValue(array $values, string $key): string
 
       <div class="admin-form-row admin-form-row--split">
         <?php admin_lang_pane_start('nl'); ?>
-        <label>Tekst*
+        <label><?= admin_te('block_features.tekst_3') ?>*
           <textarea name="body_nl" maxlength="500" rows="3" <?= admin_lang_required('nl') ?>></textarea>
         </label>
         <?php admin_lang_pane_end(); ?>
         <?php admin_lang_pane_start('en'); ?>
-        <label>Tekst
+        <label><?= admin_te('block_features.tekst_4') ?>
           <textarea name="body_en" maxlength="500" rows="3"<?= admin_lang_placeholder_attr('en') ?>></textarea>
         </label>
         <?php admin_lang_pane_end(); ?>
       </div>
 
-      <button type="submit">Kaart toevoegen</button>
+      <button type="submit"><?= admin_te('block_features.kaart_toevoegen') ?></button>
     </form>
   </section>
 </main>

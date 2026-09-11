@@ -69,7 +69,7 @@ AdminAuth::requirePermission('pages.manage');
 $idParam = filter_input(INPUT_GET, 'id', FILTER_VALIDATE_INT);
 if ($idParam === false || $idParam === null || $idParam < 1) {
     http_response_code(404);
-    exit('Pagina niet gevonden.');
+    exit(admin_t('screen.pagina_gevonden'));
 }
 
 $pageRepository = new PageRepository();
@@ -77,7 +77,7 @@ $page = $pageRepository->findById($idParam);
 
 if ($page === null) {
     http_response_code(404);
-    exit('Pagina niet gevonden.');
+    exit(admin_t('screen.pagina_gevonden'));
 }
 
 $pageId = (int) $page['id'];
@@ -166,29 +166,29 @@ $forcedTab = ($errors !== [] || $pagesError !== null) ? 'pagina' : null;
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title><?= $h((string) $page['title']) ?> — Admin</title>
+<title><?= $h((string) $page['title']) ?> <?= admin_te('page.admin') ?></title>
 <link rel="stylesheet" href="<?= \App\Service\AssetVersion::url('/admin/assets/admin.css') ?>">
 </head>
 <body<?= \App\Service\AdminTheme::bodyAttribute() ?>>
 <?php require __DIR__ . '/_header.php'; ?>
 <main class="admin-main">
-  <p><a href="/admin/pages.php">&larr; Terug naar pagina's</a></p>
+  <p><a href="/admin/pages.php"><?= admin_t('page.terug_pagina_s') ?></a></p>
   <header class="admin-page-head">
     <div>
       <h1 class="admin-page-head__title"><?= $h((string) $page['title']) ?></h1>
-      <p class="admin-page-head__desc">Beheer de instellingen en de inhoud van deze pagina. Sleep aan <span aria-hidden="true">&#8801;</span> om de volgorde van secties te wijzigen.</p>
+      <p class="admin-page-head__desc"><?= admin_t('page.beheer_instellingen_inhoud_pagina') ?></p>
     </div>
-    <a href="<?= $h(PageContent::publicUrl($page)) ?>" class="admin-btn-secondary" target="_blank" rel="noopener">Bekijk pagina &#8594;</a>
+    <a href="<?= $h(PageContent::publicUrl($page)) ?>" class="admin-btn-secondary" target="_blank" rel="noopener"><?= admin_te('page.bekijk_pagina') ?> &#8594;</a>
   </header>
 
   <?php if ($created): ?>
-    <p class="admin-alert admin-alert--success">Pagina aangemaakt. Voeg hieronder secties toe en publiceer 'm zodra je tevreden bent.</p>
+    <p class="admin-alert admin-alert--success"><?= admin_te('page.pagina_aangemaakt_voeg_hieronder') ?></p>
   <?php endif; ?>
   <?php if ($updated): ?>
-    <p class="admin-alert admin-alert--success">Pagina-instellingen opgeslagen.</p>
+    <p class="admin-alert admin-alert--success"><?= admin_te('page.pagina_instellingen_opgeslagen') ?></p>
   <?php endif; ?>
   <?php if ($deletedSection): ?>
-    <p class="admin-alert admin-alert--success">Sectie verwijderd.</p>
+    <p class="admin-alert admin-alert--success"><?= admin_te('page.sectie_verwijderd') ?></p>
   <?php endif; ?>
   <?php if ($pagesError !== null): ?>
     <p class="admin-alert admin-alert--error"><?= $h($pagesError) ?></p>
@@ -209,12 +209,12 @@ $forcedTab = ($errors !== [] || $pagesError !== null) ? 'pagina' : null;
            written in below, where the settings form comes first simply
            because it always did. */ ?>
   <?php admin_tabs_start('page-editor', [
-      'inhoud' => 'Inhoud',
-      'pagina' => 'Pagina',
-      'seo' => 'SEO',
+      'inhoud' => admin_t('tabs.content'),
+      'pagina' => admin_t('tabs.page'),
+      'seo' => admin_t('tabs.seo'),
   ], [
       'scope' => (string) $pageId,
-      'label' => 'Onderdelen van deze pagina',
+      'label' => admin_t('page.tabs_label'),
       'force' => $forcedTab,
   ]); ?>
 
@@ -231,20 +231,20 @@ $forcedTab = ($errors !== [] || $pagesError !== null) ? 'pagina' : null;
 
     <?php admin_tab_panel('pagina'); ?>
     <section class="admin-card">
-      <h2>Algemeen</h2>
+      <h2><?= admin_te('page.algemeen') ?></h2>
       <div class="admin-form-row admin-form-row--split">
-        <label>Titel*
+        <label><?= admin_te('common.title') ?>*
           <input type="text" name="title" maxlength="<?= PageService::MAX_TITLE_LENGTH ?>" required value="<?= $h($fieldValue('title')) ?>">
         </label>
-        <label>Slug (URL)<?= $hasFixedUrl ? '' : '*' ?>
+        <label><?= admin_t('page.slug_url', ['v1' => $hasFixedUrl ? '' : '*']) ?>
           <input type="text" name="slug" maxlength="<?= PageService::MAX_SLUG_LENGTH ?>" value="<?= $h($fieldValue('slug')) ?>" <?= $hasFixedUrl ? 'disabled' : 'required' ?>>
         </label>
       </div>
       <p class="admin-text-muted">
-        Live op:
+        <?= admin_te('page.live') ?>
         <a href="<?= $h(PageContent::publicUrl($page)) ?>" target="_blank" rel="noopener"><?= $h(PageContent::publicUrl($page)) ?></a>
         <?php if ($hasFixedUrl): ?>
-          &mdash; deze pagina wordt geserveerd op een vaste URL, die ligt daarom vast. Titel, SEO-velden en de inhoud hieronder kun je gewoon aanpassen<?= $isProtected ? '' : ', en de pagina kun je op Concept zetten of verwijderen zoals elke andere contentpagina' ?>.
+          <?= admin_t('page.fixed_url_note') ?><?= $isProtected ? '' : ', en de pagina kun je op Concept zetten of verwijderen zoals elke andere contentpagina' ?>.
         <?php endif; ?>
       </p>
       <label><?= admin_te('common.status') ?>
@@ -255,22 +255,22 @@ $forcedTab = ($errors !== [] || $pagesError !== null) ? 'pagina' : null;
         </select>
       </label>
       <?php if ($isProtected): ?>
-        <p class="admin-text-muted"><?= PageContent::isSiteRoot($page) ? 'De homepage is het startpunt van de website en blijft altijd gepubliceerd.' : 'Deze pagina bevat functionaliteit waar de webshop van afhankelijk is en blijft daarom gepubliceerd.' ?></p>
+        <p class="admin-text-muted"><?= PageContent::isSiteRoot($page) ? admin_t('page.protected_homepage') : admin_t('page.protected_shop') ?></p>
       <?php else: ?>
-        <p class="admin-text-muted">Concept betekent: wel bewerkbaar hier, maar de publieke URL geeft een 404 en links ernaartoe in de navigatie/footer worden verborgen.</p>
+        <p class="admin-text-muted"><?= admin_te('page.concept_betekent_wel_bewerkbaar') ?></p>
       <?php endif; ?>
     </section>
 
     <section class="admin-card admin-card--actions">
       <button type="submit"><?= admin_te('page.save_settings') ?></button>
-      <p class="admin-text-muted">Slaat alles op wat onder Pagina en SEO staat &mdash; het is één formulier met twee tabbladen.</p>
+      <p class="admin-text-muted"><?= admin_t('page.slaat_alles_wat_onder') ?></p>
     </section>
     <?php admin_tab_panel_end(); ?>
 
     <?php admin_tab_panel('seo'); ?>
     <section class="admin-card">
-      <h2>SEO</h2>
-      <p class="admin-text-muted">Laat de SEO-titel leeg om automatisch "<em>Titel</em> &mdash; <?= $h(\App\Service\SiteSettings::get('site_name')) ?>" te gebruiken. Vul je 'm wel in, dan is dat exact de tekst in het browsertabblad en in Google.</p>
+      <h2><?= admin_te('page.seo') ?></h2>
+      <p class="admin-text-muted"><?= admin_t('page.seo_title_fallback', ['site' => $h(\App\Service\SiteSettings::get('site_name'))]) ?></p>
       <?php /* One pane per language, not one column per language. On a
                single-language site only the site's own language is on
                screen; the other pane is still rendered, still carries its
@@ -306,7 +306,7 @@ $forcedTab = ($errors !== [] || $pagesError !== null) ? 'pagina' : null;
       </div>
 
       <h3 class="admin-seo-lang__title"><?= admin_te('page.google_preview') ?></h3>
-      <p class="admin-text-muted">Zo ziet deze pagina er ongeveer uit in een zoekresultaat, met de titel en tekst die nu zijn opgeslagen.</p>
+      <p class="admin-text-muted"><?= admin_te('page.zo_ziet_pagina_er') ?></p>
       <div class="admin-seo-preview">
         <div class="admin-seo-preview__url"><?= $h((string) ($seoPreview->canonical ?? PageContent::publicUrl($page))) ?></div>
         <div class="admin-seo-preview__title"><?= $h($seoPreview->titleNl) ?></div>
@@ -329,30 +329,30 @@ $forcedTab = ($errors !== [] || $pagesError !== null) ? 'pagina' : null;
         <input type="checkbox" name="noindex" value="1" <?= $noindexChecked ? 'checked' : '' ?>>
         <?= admin_te('page.noindex') ?>
       </label>
-      <p class="admin-text-muted">De pagina blijft gewoon bereikbaar en gepubliceerd; hij krijgt alleen <code>noindex</code> mee en verdwijnt uit de sitemap. Voor een pagina die wel online moet staan maar niet gevonden hoeft te worden &mdash; een bedankpagina bijvoorbeeld.</p>
+      <p class="admin-text-muted"><?= admin_t('page.pagina_blijft_gewoon_bereikbaar') ?></p>
 
-      <h3 class="admin-seo-lang__title">Deel-afbeelding</h3>
+      <h3 class="admin-seo-lang__title"><?= admin_te('page.deel_afbeelding') ?></h3>
       <?php media_picker_field(
           'og_media_id',
           $pageSocialMedia,
-          'Eigen deel-afbeelding (optioneel)',
-          'De preview wanneer iemand juist deze pagina deelt. Laat leeg om de Standaard deel-afbeelding uit Instellingen te gebruiken. Liggend, bij voorkeur 1200 x 630 pixels.',
+          admin_t('page.og_image'),
+          admin_t('page.og_image_help'),
           true
       ); ?>
       <?php if ($pageSocialMedia === null && $pageSocialImage !== ''): ?>
-        <p class="admin-text-muted">Huidige waarde (nog niet in de mediabibliotheek): <code><?= $h($pageSocialImage) ?></code></p>
+        <p class="admin-text-muted"><?= admin_t('page.huidige_waarde_mediabibliotheek', ['v1' => $h($pageSocialImage)]) ?></code></p>
       <?php endif; ?>
     </section>
 
     <section class="admin-card admin-card--actions">
       <button type="submit"><?= admin_te('page.save_settings') ?></button>
-      <p class="admin-text-muted">Slaat alles op wat onder Pagina en SEO staat &mdash; het is één formulier met twee tabbladen.</p>
+      <p class="admin-text-muted"><?= admin_t('page.slaat_alles_wat_onder_2') ?></p>
     </section>
     <?php admin_tab_panel_end(); ?>
   </form>
 
   <?php admin_tab_panel('inhoud'); ?>
-  <h2>Inhoud</h2>
+  <h2><?= admin_te('page.inhoud') ?></h2>
 
   <section class="admin-card">
     <?php /* Both roles on one element: the drop zone the reorder script
@@ -360,7 +360,7 @@ $forcedTab = ($errors !== [] || $pagesError !== null) ? 'pagina' : null;
              target are remembered per page (admin/_admin_collapse.php). */ ?>
     <div class="admin-page-sections" data-page-section-zone data-reorder-url="/api/admin/reorder-page-sections.php" data-csrf-token="<?= $h($csrfToken) ?>" data-page-id="<?= $pageId ?>" data-admin-collapse-group="page-blocks" data-admin-collapse-scope="<?= $pageId ?>">
       <?php if ($allSections === []): ?>
-        <p class="admin-text-muted">Nog geen secties op deze pagina.</p>
+        <p class="admin-text-muted"><?= admin_te('page.secties_pagina') ?></p>
       <?php endif; ?>
       <?php foreach ($allSections as $pageSection): ?>
         <?php
@@ -418,7 +418,7 @@ $forcedTab = ($errors !== [] || $pagesError !== null) ? 'pagina' : null;
                 <?php if ($disabledModule !== null): ?>
                   <span class="admin-badge admin-badge--info">Onderdeel uit</span>
                 <?php elseif ($isUnsupported): ?>
-                  <span class="admin-badge admin-badge--warning">Niet ondersteund</span>
+                  <span class="admin-badge admin-badge--warning"><?= admin_te('page.not_supported') ?></span>
                 <?php endif; ?>
                 <?php if ($isHidden): ?>
                   <span class="admin-badge admin-badge--muted">Verborgen</span>
@@ -431,16 +431,16 @@ $forcedTab = ($errors !== [] || $pagesError !== null) ? 'pagina' : null;
             <div class="admin-collapse__body">
               <div class="admin-section-row__body">
                 <?php if ($disabledModule !== null): ?>
-                  <p class="admin-section-row__note">Type: <code><?= $h($sectionType) ?></code> &mdash; onderdeel: <?= $h(\App\Module\ModuleRegistry::label($disabledModule)) ?></p>
-                  <p class="admin-section-row__note">Dit blok hoort bij een onderdeel dat op dit moment uit staat, en wordt daarom niet op de pagina getoond. De gegevens blijven bewaard: zodra het onderdeel weer aan staat, werkt dit blok weer zoals het was.</p>
+                  <p class="admin-section-row__note"><?= admin_t('page.type_onderdeel', ['v1' => $h($sectionType), 'v2' => $h(\App\Module\ModuleRegistry::label($disabledModule))]) ?></p>
+                  <p class="admin-section-row__note"><?= admin_te('page.blok_hoort_onderdeel_moment') ?></p>
                 <?php elseif ($isUnsupported): ?>
-                  <p class="admin-section-row__note">Type: <code><?= $h($sectionType) ?></code></p>
-                  <p class="admin-section-row__note">Dit blok kon niet geladen worden en wordt niet op de pagina getoond. De gegevens zijn bewaard. Meld dit type aan de beheerder van de site.</p>
+                  <p class="admin-section-row__note"><?= admin_t('page.type', ['v1' => $h($sectionType)]) ?></code></p>
+                  <p class="admin-section-row__note"><?= admin_te('page.blok_kon_geladen_pagina') ?></p>
                 <?php elseif ($note !== null): ?>
                   <p class="admin-section-row__note"><?= $h($note) ?></p>
                 <?php endif; ?>
                 <?php if ($isHidden): ?>
-                  <p class="admin-section-row__note">Verborgen &mdash; wordt niet getoond op de pagina.</p>
+                  <p class="admin-section-row__note"><?= admin_t('page.verborgen_getoond_pagina') ?></p>
                 <?php endif; ?>
               </div>
               <div class="admin-section-row__actions">
@@ -457,7 +457,7 @@ $forcedTab = ($errors !== [] || $pagesError !== null) ? 'pagina' : null;
                 <form method="post" action="/api/admin/delete-page-section.php" class="admin-inline-form" onsubmit="return confirm('Deze sectie en de bijbehorende inhoud definitief verwijderen? Dit kan niet ongedaan worden gemaakt.');">
                   <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
                   <input type="hidden" name="id" value="<?= (int) $pageSection['id'] ?>">
-                  <button type="submit" class="admin-btn-text admin-btn-text--danger">Verwijderen</button>
+                  <button type="submit" class="admin-btn-text admin-btn-text--danger"><?= admin_te('common.delete') ?></button>
                 </form>
                 <?php endif; ?>
               </div>
@@ -476,7 +476,7 @@ $forcedTab = ($errors !== [] || $pagesError !== null) ? 'pagina' : null;
     <?php if ($availableBlocks !== []): ?>
       <?php block_picker_button(); ?>
     <?php else: ?>
-      <p class="admin-text-muted">Er is op deze pagina op dit moment geen contentblok meer dat je kunt toevoegen.</p>
+      <p class="admin-text-muted"><?= admin_te('page.er_pagina_moment_contentblok') ?></p>
     <?php endif; ?>
   </section>
   <?php admin_tab_panel_end(); ?>
@@ -487,20 +487,17 @@ $forcedTab = ($errors !== [] || $pagesError !== null) ? 'pagina' : null;
   <?php if (!$isProtected): ?>
     <?php admin_tab_panel('pagina'); ?>
     <section class="admin-card">
-      <h2>Verwijderen</h2>
+      <h2><?= admin_te('common.delete') ?></h2>
       <?php if ($references['total'] > 0): ?>
         <p class="admin-alert admin-alert--error">
-          Deze pagina wordt gebruikt door <?= $h(PageService::describeReferences($references)) ?>.
-          Verwijder of wijzig die link(s) eerst via
-          <a href="/admin/navigation.php">Navigatie</a> / <a href="/admin/footer.php">Footer</a>;
-          daarna kan de pagina verwijderd worden.
+          <?= admin_t('page.in_use_by', ['references' => $h(PageService::describeReferences($references))]) ?>
         </p>
       <?php else: ?>
-        <p class="admin-text-muted">Verwijdert deze pagina definitief, inclusief alle secties en hun inhoud. Dit kan niet ongedaan worden gemaakt.</p>
+        <p class="admin-text-muted"><?= admin_te('page.verwijdert_pagina_definitief_inclusief') ?></p>
         <form method="post" action="/api/admin/delete-page.php" onsubmit="return confirm('Deze pagina en alle secties erop definitief verwijderen? Dit kan niet ongedaan worden gemaakt.');">
           <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
           <input type="hidden" name="id" value="<?= $pageId ?>">
-          <button type="submit" class="admin-btn-text admin-btn-text--danger">Pagina verwijderen</button>
+          <button type="submit" class="admin-btn-text admin-btn-text--danger"><?= admin_te('page.pagina_verwijderen') ?></button>
         </form>
       <?php endif; ?>
     </section>

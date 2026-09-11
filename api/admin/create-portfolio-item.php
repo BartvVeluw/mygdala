@@ -21,6 +21,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/../../vendor/autoload.php';
 require_once __DIR__ . '/_portfolio_validation.php';
 
+use App\Service\Language\AdminTranslator;
 use App\Service\AdminAuth;
 use App\Service\Csrf;
 use App\Service\PortfolioImageProcessor;
@@ -55,22 +56,22 @@ $categoryIds = validatePortfolioCategoryIds($_POST['categories'] ?? null, new Po
 
 $errors = [];
 if ($altNl === '') {
-    $errors[] = 'Alt-tekst (NL) is verplicht.';
+    $errors[] = AdminTranslator::trans('validation.alt_tekst_nl_verplicht');
 } elseif (mb_strlen($altNl) > 255 || mb_strlen($altEn) > 255) {
-    $errors[] = 'Alt-tekst mag maximaal 255 tekens zijn.';
+    $errors[] = AdminTranslator::trans('validation.alt_tekst_mag_maximaal_255');
 }
 if ($titleNl === '') {
-    $errors[] = 'Titel (NL) is verplicht.';
+    $errors[] = AdminTranslator::trans('validation.titel_nl_verplicht');
 } elseif (mb_strlen($titleNl) > 150 || mb_strlen($titleEn) > 150) {
-    $errors[] = 'Titel mag maximaal 150 tekens zijn.';
+    $errors[] = AdminTranslator::trans('validation.titel_mag_maximaal_150_tekens');
 }
 if ($subtitleNl === '') {
-    $errors[] = 'Onderschrift (NL) is verplicht.';
+    $errors[] = AdminTranslator::trans('validation.onderschrift_nl_verplicht');
 } elseif (mb_strlen($subtitleNl) > 150 || mb_strlen($subtitleEn) > 150) {
-    $errors[] = 'Onderschrift mag maximaal 150 tekens zijn.';
+    $errors[] = AdminTranslator::trans('validation.onderschrift_mag_maximaal_150_tekens');
 }
 if ($categoryIds === []) {
-    $errors[] = 'Kies minstens één categorie.';
+    $errors[] = AdminTranslator::trans('validation.kies_minstens_n_categorie');
 }
 
 $old = [

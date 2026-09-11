@@ -22,6 +22,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../../vendor/autoload.php';
 
+use App\Service\Language\AdminTranslator;
 use App\Repository\RedirectRepository;
 use App\Service\AdminAuth;
 use App\Service\Csrf;
@@ -57,7 +58,7 @@ try {
     $repository->delete($id);
 } catch (\Throwable $e) {
     error_log('[api/admin/delete-redirect.php] ' . $e->getMessage());
-    $_SESSION['admin_redirects_error'] = 'Redirect kon niet worden verwijderd. Probeer het opnieuw.';
+    $_SESSION['admin_redirects_error'] = AdminTranslator::trans('validation.redirect_kon_verwijderd_probeer_opnieuw');
     header('Location: /admin/redirects.php');
     exit;
 }

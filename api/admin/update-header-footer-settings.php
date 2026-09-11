@@ -33,6 +33,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../../vendor/autoload.php';
 
+use App\Service\Language\AdminTranslator;
 use App\Repository\PageRepository;
 use App\Repository\SiteSettingRepository;
 use App\Service\AdminAuth;
@@ -68,12 +69,12 @@ $ctaRoute = $field('header_cta_target_route');
 $ctaExternalUrl = $field('header_cta_external_url');
 
 if (!in_array($ctaLinkType, HeaderCta::LINK_TYPES, true)) {
-    $errors[] = 'Kies een geldig type bestemming voor de knop.';
+    $errors[] = AdminTranslator::trans('validation.kies_geldig_type_bestemming_knop');
     $ctaLinkType = 'page';
 }
 
 if (mb_strlen($ctaLabelNl) > 100 || mb_strlen($ctaLabelEn) > 100) {
-    $errors[] = 'De tekst van de knop mag maximaal 100 tekens lang zijn.';
+    $errors[] = AdminTranslator::trans('validation.tekst_knop_mag_maximaal_100');
 }
 
 // Only the companion field of the CHOSEN type is kept and checked; the other
@@ -107,7 +108,7 @@ $sloganNl = $field('footer_slogan_nl');
 $sloganEn = $field('footer_slogan_en');
 
 if (mb_strlen($sloganNl) > 200 || mb_strlen($sloganEn) > 200) {
-    $errors[] = 'De footer-slogan mag maximaal 200 tekens lang zijn.';
+    $errors[] = AdminTranslator::trans('validation.footer_slogan_mag_maximaal_200');
 }
 
 $socialValues = [];
@@ -156,7 +157,7 @@ try {
 } catch (\Throwable $e) {
     error_log('[api/admin/update-header-footer-settings.php] ' . $e->getMessage());
 
-    $_SESSION['admin_header_footer_errors'] = ['Instellingen konden niet worden opgeslagen. Probeer het opnieuw.'];
+    $_SESSION['admin_header_footer_errors'] = [AdminTranslator::trans('validation.instellingen_konden_opgeslagen_probeer_opnieuw')];
     $_SESSION['admin_header_footer_old'] = $values;
     header('Location: /admin/header-footer.php');
     exit;

@@ -18,6 +18,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../../vendor/autoload.php';
 
+use App\Service\Language\AdminTranslator;
 use App\Service\AdminAuth;
 use App\Service\Csrf;
 use App\Service\SectionImageUploader;
@@ -42,7 +43,7 @@ $altNl = trim((string) ($_POST['image_alt_nl'] ?? ''));
 $altEn = trim((string) ($_POST['image_alt_en'] ?? ''));
 
 if ($altNl === '') {
-    $_SESSION['admin_homepage_hero_image_errors'] = ['Alt-tekst (NL) is verplicht.'];
+    $_SESSION['admin_homepage_hero_image_errors'] = [AdminTranslator::trans('validation.alt_tekst_nl_verplicht')];
     header('Location: /admin/homepage-hero.php');
     exit;
 }
@@ -125,7 +126,7 @@ try {
     if ($newImagePath !== null) {
         $uploader->delete($newImagePath);
     }
-    $_SESSION['admin_homepage_hero_image_errors'] = ['Afbeelding kon niet worden opgeslagen. Probeer het opnieuw.'];
+    $_SESSION['admin_homepage_hero_image_errors'] = [AdminTranslator::trans('validation.afbeelding_kon_opgeslagen_probeer_opnieuw')];
     header('Location: /admin/homepage-hero.php');
     exit;
 }

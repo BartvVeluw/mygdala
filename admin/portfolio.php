@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/../vendor/autoload.php';
+require_once __DIR__ . '/_translate.php';
 
 require_once __DIR__ . '/_language_fields.php';
 
@@ -83,7 +84,7 @@ $cardImageSrc = static fn (array $row): string => '/' . ltrim((string) ($row['th
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Portfolio — Admin</title>
+<title><?= admin_te('portfolio.portfolio_admin') ?></title>
 <link rel="stylesheet" href="<?= \App\Service\AssetVersion::url('/admin/assets/admin.css') ?>">
 <script src="<?= \App\Service\AssetVersion::url('/admin/assets/portfolio-admin.js') ?>" defer></script>
 </head>
@@ -91,22 +92,22 @@ $cardImageSrc = static fn (array $row): string => '/' . ltrim((string) ($row['th
 <?php require __DIR__ . '/_header.php'; ?>
 <main class="admin-main">
   <div class="admin-main__heading">
-    <h1>Portfolio</h1>
-    <a href="/admin/portfolio-item.php" class="admin-btn-link">+ Nieuw portfolio-item</a>
+    <h1><?= admin_te('portfolio.portfolio') ?></h1>
+    <a href="/admin/portfolio-item.php" class="admin-btn-link"><?= admin_te('portfolio.nieuw_portfolio_item') ?></a>
   </div>
-  <p class="admin-text-muted">Klik op een item om het te bewerken. Sleep aan de <strong>&#10021;</strong>-greep om de volgorde te wijzigen.</p>
+  <p class="admin-text-muted"><?= admin_t('portfolio.klik_item_bewerken_sleep') ?></p>
 
   <?php if ($saved): ?>
-    <p class="admin-alert admin-alert--success">Opgeslagen.</p>
+    <p class="admin-alert admin-alert--success"><?= admin_te('common.saved') ?></p>
   <?php endif; ?>
   <?php if ($created): ?>
-    <p class="admin-alert admin-alert--success">Portfolio-item aangemaakt. Vul hieronder de overige gegevens aan.</p>
+    <p class="admin-alert admin-alert--success"><?= admin_te('portfolio.portfolio_item_aangemaakt_vul') ?></p>
   <?php endif; ?>
   <?php if ($deleted): ?>
-    <p class="admin-alert admin-alert--success">Portfolio-item verwijderd.</p>
+    <p class="admin-alert admin-alert--success"><?= admin_te('portfolio.portfolio_item_verwijderd') ?></p>
   <?php endif; ?>
   <?php if ($categorySaved): ?>
-    <p class="admin-alert admin-alert--success">Categorie opgeslagen.</p>
+    <p class="admin-alert admin-alert--success"><?= admin_te('portfolio.categorie_opgeslagen') ?></p>
   <?php endif; ?>
   <?php if ($categoryErrors !== []): ?>
     <div class="admin-alert admin-alert--error">
@@ -138,8 +139,8 @@ $cardImageSrc = static fn (array $row): string => '/' . ltrim((string) ($row['th
 
   <?php if ($featuredItems !== []): ?>
   <details class="admin-card admin-portfolio-collapsible">
-    <summary>Homepage-uitlichting (<?= count($featuredItems) ?>)</summary>
-    <p class="admin-text-muted">Volgorde van de items in de "Een greep uit eerder werk"-sectie op de homepage. Vink "Toon op homepage" bij een item aan/uit om het toe te voegen of te verwijderen.</p>
+    <summary><?= admin_t('portfolio.homepage_uitlichting', ['v1' => count($featuredItems)]) ?></summary>
+    <p class="admin-text-muted"><?= admin_te('portfolio.volgorde_items_greep_uit') ?></p>
     <?php foreach ($featuredItems as $index => $item): ?>
       <?php
         $itemId = (int) $item['id'];
@@ -167,8 +168,8 @@ $cardImageSrc = static fn (array $row): string => '/' . ltrim((string) ($row['th
   <?php endif; ?>
 
   <details class="admin-card admin-portfolio-collapsible" open>
-    <summary>Portfolio categorieën (<?= count($categoriesWithCounts) ?>)</summary>
-    <p class="admin-text-muted">Categorieën zijn direct beschikbaar in elk portfolio-item en, zodra ze in gebruik zijn door een zichtbaar item, in het filter op de publieke portfolio-pagina.</p>
+    <summary><?= admin_t('portfolio.categories_count', ['count' => count($categoriesWithCounts)]) ?></summary>
+    <p class="admin-text-muted"><?= admin_te('portfolio.categorie_n_direct_beschikbaar') ?></p>
 
     <?php /* ONE tab strip for the whole list, not one per row: every category
              is its own little form here, and a language switcher above each
@@ -179,7 +180,7 @@ $cardImageSrc = static fn (array $row): string => '/' . ltrim((string) ($row['th
     <?php admin_lang_tabs(); ?>
 
     <?php if ($categoriesWithCounts === []): ?>
-      <p class="admin-text-muted">Nog geen categorieën.</p>
+      <p class="admin-text-muted"><?= admin_te('portfolio.categorie_n') ?></p>
     <?php else: ?>
       <div class="admin-portfolio-category-list">
         <?php foreach ($categoriesWithCounts as $category): ?>
@@ -197,16 +198,16 @@ $cardImageSrc = static fn (array $row): string => '/' . ltrim((string) ($row['th
               <?php admin_lang_pane_start('en'); ?>
               <input type="text" name="name_en" maxlength="100" value="<?= $h((string) ($category['name_en'] ?? '')) ?>"<?= admin_lang_placeholder_attr('en') ?> aria-label="Naam">
               <?php admin_lang_pane_end(); ?>
-              <button type="submit" class="admin-btn-text">Opslaan</button>
+              <button type="submit" class="admin-btn-text"><?= admin_te('common.save') ?></button>
             </form>
-            <span class="admin-text-muted admin-portfolio-category-row__count"><?= $itemCount ?> project<?= $itemCount === 1 ? '' : 'en' ?></span>
+            <span class="admin-text-muted admin-portfolio-category-row__count"><?= $itemCount ?> <?= admin_t('portfolio.project', ['v1' => $itemCount === 1 ? '' : 'en']) ?></span>
             <form method="post" action="/api/admin/delete-portfolio-category.php" class="admin-inline-form" onsubmit="return confirm('Deze categorie definitief verwijderen?');">
               <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
               <input type="hidden" name="category_id" value="<?= $categoryId ?>">
               <?php if ($itemCount > 0): ?>
-                <span class="admin-text-muted" title="Nog in gebruik bij <?= $itemCount ?> portfolio-item(s) — verwijder eerst de toewijzing.">Verwijderen n.v.t.</span>
+                <span class="admin-text-muted" title="Nog in gebruik bij <?= $itemCount ?> portfolio-item(s) — verwijder eerst de toewijzing."><?= admin_te('portfolio.delete_not_applicable') ?></span>
               <?php else: ?>
-                <button type="submit" class="admin-btn-text admin-btn-text--danger">Verwijderen</button>
+                <button type="submit" class="admin-btn-text admin-btn-text--danger"><?= admin_te('common.delete') ?></button>
               <?php endif; ?>
             </form>
           </div>
@@ -222,7 +223,7 @@ $cardImageSrc = static fn (array $row): string => '/' . ltrim((string) ($row['th
       <?php admin_lang_pane_start('en'); ?>
         <input type="text" name="name_en" maxlength="100" placeholder="Nieuwe categorie" aria-label="Naam">
       <?php admin_lang_pane_end(); ?>
-      <button type="submit">+ Nieuwe categorie</button>
+      <button type="submit"><?= admin_te('portfolio.nieuwe_categorie') ?></button>
     </form>
   </details>
 
@@ -230,35 +231,35 @@ $cardImageSrc = static fn (array $row): string => '/' . ltrim((string) ($row['th
     <input type="search" placeholder="Zoek op titel…" aria-label="Zoek op titel" data-portfolio-search value="<?= $h($initialQuery) ?>">
 
     <select aria-label="Filter op categorie" data-portfolio-filter="category">
-      <option value="all">Alle categorieën</option>
+      <option value="all"><?= admin_te('portfolio.alle_categorie_n') ?></option>
       <?php foreach ($categoriesWithCounts as $category): ?>
         <option value="<?= $h((string) $category['slug']) ?>" <?= $initialCategory === $category['slug'] ? 'selected' : '' ?>><?= $h((string) $category['name_nl']) ?></option>
       <?php endforeach; ?>
     </select>
 
     <select aria-label="Filter op zichtbaarheid" data-portfolio-filter="visibility">
-      <option value="all">Zichtbaar &amp; verborgen</option>
-      <option value="visible" <?= $initialVisibility === 'visible' ? 'selected' : '' ?>>Alleen zichtbaar</option>
-      <option value="hidden" <?= $initialVisibility === 'hidden' ? 'selected' : '' ?>>Alleen verborgen</option>
+      <option value="all"><?= admin_t('portfolio.zichtbaar_verborgen') ?></option>
+      <option value="visible" <?= $initialVisibility === 'visible' ? 'selected' : '' ?>><?= admin_te('portfolio.alleen_zichtbaar') ?></option>
+      <option value="hidden" <?= $initialVisibility === 'hidden' ? 'selected' : '' ?>><?= admin_te('portfolio.alleen_verborgen') ?></option>
     </select>
 
     <select aria-label="Filter op projectpagina" data-portfolio-filter="detail">
-      <option value="all">Met &amp; zonder projectpagina</option>
-      <option value="yes" <?= $initialDetail === 'yes' ? 'selected' : '' ?>>Met projectpagina</option>
-      <option value="no" <?= $initialDetail === 'no' ? 'selected' : '' ?>>Zonder projectpagina</option>
+      <option value="all"><?= admin_t('portfolio.zonder_projectpagina') ?></option>
+      <option value="yes" <?= $initialDetail === 'yes' ? 'selected' : '' ?>><?= admin_te('portfolio.projectpagina') ?></option>
+      <option value="no" <?= $initialDetail === 'no' ? 'selected' : '' ?>><?= admin_te('portfolio.zonder_projectpagina_2') ?></option>
     </select>
 
     <select aria-label="Filter op homepage" data-portfolio-filter="home">
-      <option value="all">Wel &amp; niet op homepage</option>
-      <option value="yes" <?= $initialHome === 'yes' ? 'selected' : '' ?>>Op homepage</option>
-      <option value="no" <?= $initialHome === 'no' ? 'selected' : '' ?>>Niet op homepage</option>
+      <option value="all"><?= admin_t('portfolio.wel_homepage') ?></option>
+      <option value="yes" <?= $initialHome === 'yes' ? 'selected' : '' ?>><?= admin_te('portfolio.homepage') ?></option>
+      <option value="no" <?= $initialHome === 'no' ? 'selected' : '' ?>><?= admin_te('portfolio.homepage_2') ?></option>
     </select>
 
     <span class="admin-text-muted" data-portfolio-count></span>
   </div>
 
   <?php if ($items === []): ?>
-    <p>Nog geen portfolio-items. <a href="/admin/portfolio-item.php">Maak het eerste item aan</a>.</p>
+    <p><?= admin_t('portfolio.portfolio_items_maak_eerste') ?></p>
   <?php else: ?>
     <?php
       $categoryNameBySlug = [];
@@ -310,7 +311,7 @@ $cardImageSrc = static fn (array $row): string => '/' . ltrim((string) ($row['th
         </article>
       <?php endforeach; ?>
     </div>
-    <p class="admin-text-muted" data-portfolio-empty hidden>Geen portfolio-items gevonden voor deze zoekopdracht/filter.</p>
+    <p class="admin-text-muted" data-portfolio-empty hidden><?= admin_te('portfolio.portfolio_items_gevonden_zoekopdracht') ?></p>
   <?php endif; ?>
 </main>
 <?php admin_lang_tabs_script(); ?>

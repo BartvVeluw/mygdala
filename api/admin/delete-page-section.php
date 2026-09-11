@@ -18,6 +18,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../../vendor/autoload.php';
 
+use App\Service\Language\AdminTranslator;
 use App\Service\AdminAuth;
 use App\Service\Csrf;
 use App\Service\SectionRegistry;
@@ -59,7 +60,7 @@ try {
 } catch (\Throwable $e) {
     error_log('[api/admin/delete-page-section.php] ' . $e->getMessage());
 
-    $_SESSION['admin_pages_error'] = 'De sectie kon niet worden verwijderd. Probeer het opnieuw.';
+    $_SESSION['admin_pages_error'] = AdminTranslator::trans('validation.sectie_kon_verwijderd_probeer_opnieuw');
     header('Location: /admin/page.php?id=' . $pageId);
     exit;
 }

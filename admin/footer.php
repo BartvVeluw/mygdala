@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/../vendor/autoload.php';
+require_once __DIR__ . '/_translate.php';
 
 require_once __DIR__ . '/_language_fields.php';
 
@@ -28,7 +29,7 @@ unset($_SESSION['admin_footer_error']);
 function footerLinkSummary(array $link): string
 {
     return match ($link['link_type']) {
-        'page' => 'CMS-pagina',
+        'page' => admin_t('navigation.cms_page'),
         'route' => 'Route: ' . (string) $link['target_route'],
         'external' => (string) $link['external_url'],
         'action' => 'Actie: ' . (string) $link['action_key'],
@@ -41,7 +42,7 @@ function footerLinkSummary(array $link): string
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Footer — Admin</title>
+<title><?= admin_te('footer.footer_admin') ?></title>
 <link rel="stylesheet" href="<?= \App\Service\AssetVersion::url('/admin/assets/admin.css') ?>">
 </head>
 <body<?= \App\Service\AdminTheme::bodyAttribute() ?>>
@@ -49,74 +50,74 @@ function footerLinkSummary(array $link): string
 <main class="admin-main">
   <header class="admin-page-head">
     <div>
-      <h1 class="admin-page-head__title">Footer</h1>
-      <p class="admin-page-head__desc">Beheer de footer-kolommen, links en het bedrijfsblok. Sleep aan <span aria-hidden="true">&#8801;</span> om te herordenen.</p>
+      <h1 class="admin-page-head__title"><?= admin_te('footer.footer') ?></h1>
+      <p class="admin-page-head__desc"><?= admin_t('footer.beheer_footer_kolommen_links') ?></p>
     </div>
   </header>
 
   <?php if ($saved): ?>
-    <p class="admin-alert admin-alert--success">Opgeslagen.</p>
+    <p class="admin-alert admin-alert--success"><?= admin_te('common.saved') ?></p>
   <?php endif; ?>
   <?php if ($deleted): ?>
-    <p class="admin-alert admin-alert--success">Verwijderd.</p>
+    <p class="admin-alert admin-alert--success"><?= admin_te('footer.verwijderd') ?></p>
   <?php endif; ?>
   <?php if ($footerError !== null): ?>
     <p class="admin-alert admin-alert--error"><?= $h($footerError) ?></p>
   <?php endif; ?>
 
   <section class="admin-card">
-    <h2>Bedrijfsblok</h2>
-    <p class="admin-text-muted">Logo, naam, e-mail, telefoon en KVK komen uit Site-instellingen — hier bepaal je alleen wát er in de footer getoond wordt, niet de gegevens zelf.</p>
+    <h2><?= admin_te('footer.bedrijfsblok') ?></h2>
+    <p class="admin-text-muted"><?= admin_te('footer.logo_naam_e_mail') ?></p>
     <form method="post" action="/api/admin/update-footer-settings.php">
       <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
       <div class="admin-form-row">
         <label class="admin-checkbox-label">
           <input type="checkbox" name="footer_show_logo" value="1" <?= SiteSettings::get('footer_show_logo') === '1' ? 'checked' : '' ?>>
-          Toon logo
+          <?= admin_te('footer.toon_logo') ?>
         </label>
         <label class="admin-checkbox-label">
           <input type="checkbox" name="footer_show_company_name" value="1" <?= SiteSettings::get('footer_show_company_name') === '1' ? 'checked' : '' ?>>
-          Toon bedrijfsnaam
+          <?= admin_te('footer.toon_bedrijfsnaam') ?>
         </label>
         <label class="admin-checkbox-label">
           <input type="checkbox" name="footer_show_email" value="1" <?= SiteSettings::get('footer_show_email') === '1' ? 'checked' : '' ?>>
-          Toon e-mailadres
+          <?= admin_te('footer.toon_e_mailadres') ?>
         </label>
         <label class="admin-checkbox-label">
           <input type="checkbox" name="footer_show_phone" value="1" <?= SiteSettings::get('footer_show_phone') === '1' ? 'checked' : '' ?>>
-          Toon telefoonnummer
+          <?= admin_te('footer.toon_telefoonnummer') ?>
         </label>
         <label class="admin-checkbox-label">
           <input type="checkbox" name="footer_show_kvk" value="1" <?= SiteSettings::get('footer_show_kvk') === '1' ? 'checked' : '' ?>>
-          Toon KVK-nummer
+          <?= admin_te('footer.toon_kvk_nummer') ?>
         </label>
       </div>
       <?php admin_lang_tabs(); ?>
       <div class="admin-form-row admin-form-row--split">
         <?php admin_lang_pane_start('nl'); ?>
-        <label>Beschrijving
+        <label><?= admin_te('common.description') ?>
           <textarea name="footer_description_nl" maxlength="500" rows="3"><?= $h(SiteSettings::get('footer_description_nl')) ?></textarea>
         </label>
         <?php admin_lang_pane_end(); ?>
         <?php admin_lang_pane_start('en'); ?>
-        <label>Beschrijving
+        <label><?= admin_te('common.description') ?>
           <textarea name="footer_description_en" maxlength="500" rows="3"><?= $h(SiteSettings::get('footer_description_en')) ?></textarea>
         </label>
         <?php admin_lang_pane_end(); ?>
       </div>
-      <label>Copyright-tekst
+      <label><?= admin_te('footer.copyright_tekst') ?>
         <input type="text" name="footer_copyright_template" maxlength="300" value="<?= $h(SiteSettings::get('footer_copyright_template')) ?>">
       </label>
-      <p class="admin-text-muted">Ondersteunt <code>{{year}}</code> (huidig jaar) en <code>{{site_name}}</code>. KVK wordt automatisch toegevoegd als "Toon KVK-nummer" aan staat.</p>
-      <button type="submit">Opslaan</button>
+      <p class="admin-text-muted"><?= admin_t('footer.ondersteunt_year_huidig_jaar') ?></p>
+      <button type="submit"><?= admin_te('common.save') ?></button>
     </form>
   </section>
 
   <section class="admin-card">
-    <h2>Kolommen</h2>
+    <h2><?= admin_te('footer.kolommen') ?></h2>
     <div class="admin-page-sections" data-footer-column-zone data-reorder-url="/api/admin/reorder-footer-columns.php" data-csrf-token="<?= $h($csrfToken) ?>">
       <?php if ($columns === []): ?>
-        <p class="admin-text-muted">Nog geen footer-kolommen.</p>
+        <p class="admin-text-muted"><?= admin_te('footer.footer_kolommen') ?></p>
       <?php endif; ?>
       <?php foreach ($columns as $column): ?>
         <?php
@@ -128,11 +129,11 @@ function footerLinkSummary(array $link): string
           <span class="admin-drag-handle" draggable="true" role="button" tabindex="0" aria-label="Sleep om te herordenen">&#8801;</span>
           <div class="admin-section-row__body">
             <p class="admin-section-row__name"><?= $h(admin_lang_summary($column, 'title')) ?></p>
-            <?php if ($columnHidden): ?><p class="admin-section-row__note">Verborgen</p><?php endif; ?>
+            <?php if ($columnHidden): ?><p class="admin-section-row__note"><?= admin_te('common.hidden') ?></p><?php endif; ?>
           </div>
           <div class="admin-section-row__actions">
-            <a href="/admin/footer-column.php?id=<?= $columnId ?>" class="admin-section-row__edit">Bewerken &#8594;</a>
-            <a href="/admin/footer-link.php?column_id=<?= $columnId ?>" class="admin-btn-text">+ Link</a>
+            <a href="/admin/footer-column.php?id=<?= $columnId ?>" class="admin-section-row__edit"><?= admin_te('common.edit') ?> &#8594;</a>
+            <a href="/admin/footer-link.php?column_id=<?= $columnId ?>" class="admin-btn-text"><?= admin_te('footer.link') ?></a>
             <form method="post" action="/api/admin/toggle-footer-column.php" class="admin-inline-form">
               <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
               <input type="hidden" name="id" value="<?= $columnId ?>">
@@ -142,14 +143,14 @@ function footerLinkSummary(array $link): string
             <form method="post" action="/api/admin/delete-footer-column.php" class="admin-inline-form" onsubmit="return confirm('Deze kolom en al zijn links definitief verwijderen?');">
               <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
               <input type="hidden" name="id" value="<?= $columnId ?>">
-              <button type="submit" class="admin-btn-text admin-btn-text--danger">Verwijderen</button>
+              <button type="submit" class="admin-btn-text admin-btn-text--danger"><?= admin_te('common.delete') ?></button>
             </form>
           </div>
         </div>
 
         <div class="admin-nav-children" data-footer-link-zone data-column-id="<?= $columnId ?>" data-reorder-url="/api/admin/reorder-footer-links.php" data-csrf-token="<?= $h($csrfToken) ?>">
           <?php if ($links === []): ?>
-            <p class="admin-text-muted admin-nav-children__empty">Nog geen links in deze kolom.</p>
+            <p class="admin-text-muted admin-nav-children__empty"><?= admin_te('footer.links_kolom') ?></p>
           <?php endif; ?>
           <?php foreach ($links as $link): ?>
             <?php $linkId = (int) $link['id']; $linkHidden = !(bool) $link['is_visible']; ?>
@@ -160,7 +161,7 @@ function footerLinkSummary(array $link): string
                 <p class="admin-section-row__note"><?= $h(footerLinkSummary($link)) ?><?= $linkHidden ? ' — verborgen' : '' ?></p>
               </div>
               <div class="admin-section-row__actions">
-                <a href="/admin/footer-link.php?id=<?= $linkId ?>" class="admin-section-row__edit">Bewerken &#8594;</a>
+                <a href="/admin/footer-link.php?id=<?= $linkId ?>" class="admin-section-row__edit"><?= admin_te('common.edit') ?> &#8594;</a>
                 <form method="post" action="/api/admin/toggle-footer-link.php" class="admin-inline-form">
                   <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
                   <input type="hidden" name="id" value="<?= $linkId ?>">
@@ -170,7 +171,7 @@ function footerLinkSummary(array $link): string
                 <form method="post" action="/api/admin/delete-footer-link.php" class="admin-inline-form" onsubmit="return confirm('Deze link verwijderen?');">
                   <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
                   <input type="hidden" name="id" value="<?= $linkId ?>">
-                  <button type="submit" class="admin-btn-text admin-btn-text--danger">Verwijderen</button>
+                  <button type="submit" class="admin-btn-text admin-btn-text--danger"><?= admin_te('common.delete') ?></button>
                 </form>
               </div>
             </div>
@@ -183,17 +184,17 @@ function footerLinkSummary(array $link): string
       <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
       <?php admin_lang_pane_start('nl'); ?>
         <label class="admin-add-section-form__label">
-          <span>Titel</span>
+          <span><?= admin_te('common.title') ?></span>
           <input type="text" name="title_nl" maxlength="100"<?= admin_lang_required('nl') ?>>
         </label>
       <?php admin_lang_pane_end(); ?>
       <?php admin_lang_pane_start('en'); ?>
         <label class="admin-add-section-form__label">
-          <span>Titel</span>
+          <span><?= admin_te('common.title') ?></span>
           <input type="text" name="title_en" maxlength="100"<?= admin_lang_required('en') ?>>
         </label>
       <?php admin_lang_pane_end(); ?>
-      <button type="submit" class="admin-btn-secondary">+ Kolom toevoegen</button>
+      <button type="submit" class="admin-btn-secondary"><?= admin_te('footer.kolom_toevoegen') ?></button>
     </form>
   </section>
 </main>

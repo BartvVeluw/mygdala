@@ -15,6 +15,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../../vendor/autoload.php';
 
+use App\Service\Language\AdminTranslator;
 use App\Service\AdminAuth;
 use App\Service\ContactCardContent;
 use App\Service\Csrf;
@@ -61,14 +62,14 @@ $fields = [
 
 $errors = [];
 if ($fields['title_nl'] === '') {
-    $errors[] = 'De kop is verplicht.';
+    $errors[] = AdminTranslator::trans('validation.kop_verplicht');
 }
 
 // A URL without a label would be an invisible link; a label alone is fine —
 // an empty URL means "mail the address from Site-instellingen", which
 // App\Service\ContactCardContent resolves at render time.
 if ($fields['button_url'] !== '' && $fields['button_label_nl'] === '') {
-    $errors[] = 'Vul een label voor de knop in, of laat ook de URL leeg.';
+    $errors[] = AdminTranslator::trans('validation.vul_label_knop_laat_ook');
 }
 
 if ($errors !== []) {

@@ -279,7 +279,9 @@ final class AdminEditorNavigationTest extends TestCase
         $source = $this->sourceOf('admin/page.php');
 
         $this->assertMatchesRegularExpression(
-            "/admin_tabs_start\('page-editor', \[\s*'inhoud' => 'Inhoud',\s*'pagina' => 'Pagina',\s*'seo' => 'SEO',/",
+            // The three tabs and their order; the words themselves are catalogue
+            // keys now (MULTILINGUAL.md).
+            "/admin_tabs_start\('page-editor', \[\s*'inhoud' => admin_t\('tabs\.content'\),\s*'pagina' => admin_t\('tabs\.page'\),\s*'seo' => admin_t\('tabs\.seo'\),/",
             $source
         );
         $this->assertStringContainsString("'scope' => (string) \$pageId", $source, 'one page must not restore another\'s tab');

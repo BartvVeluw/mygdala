@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/../vendor/autoload.php';
+require_once __DIR__ . '/_translate.php';
 require_once __DIR__ . '/_labels.php';
 
 use App\Service\AdminAuth;
@@ -27,7 +28,7 @@ $deleted = isset($_GET['deleted']);
 
 $filters = [
     'all' => 'Alle',
-    'nieuw' => 'Nieuw',
+    'nieuw' => admin_t('common.new_item'),
     'gelezen' => 'Gelezen',
 ];
 ?>
@@ -36,16 +37,16 @@ $filters = [
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Contactaanvragen — Admin</title>
+<title><?= admin_te('contact.contactaanvragen_admin') ?></title>
 <link rel="stylesheet" href="<?= \App\Service\AssetVersion::url('/admin/assets/admin.css') ?>">
 </head>
 <body<?= \App\Service\AdminTheme::bodyAttribute() ?>>
 <?php require __DIR__ . '/_header.php'; ?>
 <main class="admin-main">
-  <h1>Contactaanvragen</h1>
+  <h1><?= admin_te('contact.contactaanvragen') ?></h1>
 
   <?php if ($deleted): ?>
-    <p class="admin-alert admin-alert--success">Aanvraag verwijderd.</p>
+    <p class="admin-alert admin-alert--success"><?= admin_te('contact.aanvraag_verwijderd') ?></p>
   <?php endif; ?>
 
   <div class="admin-filter-tabs" role="tablist" aria-label="Filter op status">
@@ -55,19 +56,19 @@ $filters = [
   </div>
 
   <?php if ($requests === null): ?>
-    <p class="admin-alert admin-alert--error">Aanvragen konden niet worden geladen.</p>
+    <p class="admin-alert admin-alert--error"><?= admin_te('contact.aanvragen_konden_geladen') ?></p>
   <?php elseif ($requests === []): ?>
-    <p>Geen aanvragen gevonden.</p>
+    <p><?= admin_te('contact.aanvragen_gevonden') ?></p>
   <?php else: ?>
     <div class="admin-table-wrap">
     <table class="admin-table">
       <thead>
         <tr>
-          <th>Naam</th>
-          <th>E-mail</th>
-          <th>Voor wie</th>
-          <th>Ontvangen</th>
-          <th>Status</th>
+          <th><?= admin_te('common.name') ?></th>
+          <th><?= admin_te('common.email') ?></th>
+          <th><?= admin_te('contact.wie') ?></th>
+          <th><?= admin_te('contact.ontvangen') ?></th>
+          <th><?= admin_te('common.status') ?></th>
         </tr>
       </thead>
       <tbody>

@@ -1,5 +1,7 @@
 <?php
 
+
+require_once __DIR__ . '/_translate.php';
 /**
  * The CMS's "no access" page, rendered by
  * App\Service\AdminAuth::requirePermission() / requireSuperAdmin() after a
@@ -23,22 +25,21 @@ $forbiddenUserName = AdminAuth::userName();
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Geen toegang — Admin</title>
+<title><?= admin_te('forbidden.toegang_admin') ?></title>
 <link rel="stylesheet" href="<?= \App\Service\AssetVersion::url('/admin/assets/admin.css') ?>">
 </head>
 <body<?= \App\Service\AdminTheme::bodyAttribute() ?>>
 <?php require __DIR__ . '/_header.php'; ?>
 <main class="admin-main">
-  <h1>Geen toegang</h1>
+  <h1><?= admin_te('forbidden.toegang') ?></h1>
 
   <div class="admin-card">
-    <p>Je account heeft geen rechten voor dit onderdeel van het CMS.</p>
+    <p><?= admin_te('forbidden.account_heeft_rechten_onderdeel') ?></p>
     <p class="admin-text-muted">
-      Ingelogd als <strong><?= htmlspecialchars($forbiddenUserName, ENT_QUOTES, 'UTF-8') ?></strong>.
-      Vraag de beheerder om dit recht als je het nodig hebt.
+      <?= admin_t('forbidden.ingelogd_vraag_beheerder_recht', ['v1' => htmlspecialchars($forbiddenUserName, ENT_QUOTES, 'UTF-8')]) ?>
     </p>
     <?php if ($forbiddenLandingUrl !== null): ?>
-      <p><a href="<?= htmlspecialchars($forbiddenLandingUrl, ENT_QUOTES, 'UTF-8') ?>" class="admin-btn-link">Terug naar het CMS</a></p>
+      <p><a href="<?= htmlspecialchars($forbiddenLandingUrl, ENT_QUOTES, 'UTF-8') ?>" class="admin-btn-link"><?= admin_te('forbidden.terug_cms') ?></a></p>
     <?php endif; ?>
   </div>
 </main>

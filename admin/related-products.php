@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/../vendor/autoload.php';
+require_once __DIR__ . '/_translate.php';
 
 require_once __DIR__ . '/_language_fields.php';
 
@@ -77,18 +78,18 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Gerelateerde producten — Admin</title>
+<title><?= admin_te('shop.gerelateerde_producten_admin') ?></title>
 <link rel="stylesheet" href="<?= \App\Service\AssetVersion::url('/admin/assets/admin.css') ?>">
 <script src="<?= \App\Service\AssetVersion::url('/admin/assets/admin.js') ?>" defer></script>
 </head>
 <body<?= \App\Service\AdminTheme::bodyAttribute() ?>>
 <?php require __DIR__ . '/_header.php'; ?>
 <main class="admin-main">
-  <h1>Gerelateerde producten</h1>
-  <p class="admin-text-muted">Onderaan elke productpagina kan automatisch een rijtje andere producten worden getoond. Die komen uit de <a href="/admin/collections.php">collectie</a> waar het product in zit &mdash; je hoeft dus nergens handmatig producten te koppelen. Het product dat de bezoeker bekijkt wordt uiteraard zelf overgeslagen, en de volgorde is die van de collectie.</p>
+  <h1><?= admin_te('shop.gerelateerde_producten') ?></h1>
+  <p class="admin-text-muted"><?= admin_t('shop.onderaan_elke_productpagina_automatisch') ?></p>
 
   <?php if ($saved): ?>
-    <p class="admin-alert admin-alert--success">Opgeslagen.</p>
+    <p class="admin-alert admin-alert--success"><?= admin_te('common.saved') ?></p>
   <?php endif; ?>
   <?php if ($errors !== []): ?>
     <div class="admin-alert admin-alert--error">
@@ -104,43 +105,43 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
     <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
 
     <section class="admin-card">
-      <h2>Algemene instellingen</h2>
+      <h2><?= admin_te('shop.algemene_instellingen') ?></h2>
 
       <div class="admin-product-form admin-product-form--wide">
         <label class="admin-checkbox-label">
           <input type="checkbox" name="enabled" value="1" <?= $globals['enabled'] ? 'checked' : '' ?>>
-          Gerelateerde producten tonen (uitgevinkt = nergens op de site, ongeacht de instellingen hieronder)
+          <?= admin_te('shop.gerelateerde_producten_tonen_uitgevinkt') ?>
         </label>
 
         <?php admin_lang_tabs(); ?>
         <div class="admin-form-row admin-form-row--split">
           <?php admin_lang_pane_start('nl'); ?>
-          <label>Titel*
+          <label><?= admin_te('common.title') ?>*
             <input type="text" name="heading_nl" maxlength="255" <?= admin_lang_required('nl') ?> value="<?= $h((string) $globals['heading_nl']) ?>">
           </label>
           <?php admin_lang_pane_end(); ?>
           <?php admin_lang_pane_start('en'); ?>
-          <label>Titel
+          <label><?= admin_te('common.title') ?>
             <input type="text" name="heading_en" maxlength="255" value="<?= $h((string) $globals['heading_en']) ?>"<?= admin_lang_placeholder_attr('en') ?>>
           </label>
           <?php admin_lang_pane_end(); ?>
         </div>
 
         <div class="admin-form-row">
-          <label>Maximum aantal producten*
+          <label><?= admin_te('shop.maximum_aantal_producten') ?>*
             <input type="number" name="max_items" min="<?= RelatedProductsContent::MIN_MAX_ITEMS ?>" max="<?= RelatedProductsContent::MAX_MAX_ITEMS ?>" step="1" required value="<?= $h((string) $globals['max_items']) ?>">
           </label>
-          <p class="admin-text-muted">Zijn er minder geschikte producten in de collectie, dan worden alleen die getoond &mdash; er wordt nooit aangevuld met producten uit een andere collectie.</p>
+          <p class="admin-text-muted"><?= admin_t('shop.er_minder_geschikte_producten') ?></p>
         </div>
       </div>
     </section>
 
     <section class="admin-card">
-      <h2>Per collectie</h2>
-      <p class="admin-text-muted">Zet uit voor welke collecties je g&eacute;&eacute;n gerelateerde producten wilt. Producten uit zo'n collectie tonen het blok niet. Zit een product in meerdere collecties, dan wordt de <strong>eerste collectie in deze volgorde</strong> gebruikt waarvoor het vinkje aanstaat en die zelf ook actief is. De volgorde van collecties pas je aan op <a href="/admin/collections.php">Collecties</a>.</p>
+      <h2><?= admin_te('shop.per_collectie') ?></h2>
+      <p class="admin-text-muted"><?= admin_t('shop.zet_uit_welke_collecties') ?></p>
 
       <?php if ($collections === []): ?>
-        <p class="admin-text-muted">Er zijn nog geen collecties. <a href="/admin/collection.php">Maak eerst een collectie aan</a> &mdash; zonder collecties kunnen er geen gerelateerde producten worden bepaald.</p>
+        <p class="admin-text-muted"><?= admin_t('shop.er_collecties_maak_eerst') ?></p>
       <?php else: ?>
         <?php
           // Marks "the collection list was actually rendered, so an absent
@@ -186,13 +187,13 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
                     // setting that matters, the override is a nicety. ?>
               <?php admin_lang_pane_start('nl'); ?>
               <label class="admin-related-collection-row__override">
-                <span class="admin-text-muted">Eigen titel</span>
+                <span class="admin-text-muted"><?= admin_te('shop.eigen_titel') ?></span>
                 <input type="text" name="collections[<?= $collectionId ?>][heading_nl]" maxlength="255" value="<?= $h($headingNl) ?>" placeholder="Leeg = algemene titel">
               </label>
               <?php admin_lang_pane_end(); ?>
               <?php admin_lang_pane_start('en'); ?>
               <label class="admin-related-collection-row__override">
-                <span class="admin-text-muted">Eigen titel</span>
+                <span class="admin-text-muted"><?= admin_te('shop.eigen_titel_2') ?></span>
                 <input type="text" name="collections[<?= $collectionId ?>][heading_en]" maxlength="255" value="<?= $h($headingEn) ?>"<?= admin_lang_placeholder_attr('en') ?>>
               </label>
               <?php admin_lang_pane_end(); ?>
@@ -203,7 +204,7 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
     </section>
 
     <section class="admin-card">
-      <button type="submit">Opslaan</button>
+      <button type="submit"><?= admin_te('common.save') ?></button>
     </section>
   </form>
 </main>

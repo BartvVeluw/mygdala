@@ -20,6 +20,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/_seo_validation.php';
 
+use App\Service\Language\AdminTranslator;
 use App\Service\CollectionService;
 use App\Service\RichTextSanitizer;
 
@@ -39,7 +40,7 @@ function validateCollectionInput(array $input): array
     $isActive = ($input['is_active'] ?? null) === '1';
 
     if ($name === '') {
-        $errors[] = 'Naam is verplicht.';
+        $errors[] = AdminTranslator::trans('validation.naam_verplicht');
     } elseif (mb_strlen($name) > CollectionService::MAX_NAME_LENGTH) {
         $errors[] = 'Naam mag maximaal ' . CollectionService::MAX_NAME_LENGTH . ' tekens zijn.';
     }

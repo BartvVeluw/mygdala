@@ -14,6 +14,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/../../vendor/autoload.php';
 require_once __DIR__ . '/_portfolio_validation.php';
 
+use App\Service\Language\AdminTranslator;
 use App\Service\AdminAuth;
 use App\Service\Csrf;
 use App\Repository\PortfolioCategoryRepository;
@@ -37,9 +38,9 @@ $nameEn = trim((string) ($_POST['name_en'] ?? ''));
 
 $errors = [];
 if ($nameNl === '') {
-    $errors[] = 'Naam (NL) is verplicht.';
+    $errors[] = AdminTranslator::trans('validation.naam_nl_verplicht');
 } elseif (mb_strlen($nameNl) > 100 || mb_strlen($nameEn) > 100) {
-    $errors[] = 'Naam mag maximaal 100 tekens zijn.';
+    $errors[] = AdminTranslator::trans('validation.naam_mag_maximaal_100_tekens');
 }
 
 if ($errors !== []) {

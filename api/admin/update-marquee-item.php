@@ -10,6 +10,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../../vendor/autoload.php';
 
+use App\Service\Language\AdminTranslator;
 use App\Service\AdminAuth;
 use App\Service\Csrf;
 use App\Service\MarqueeContent;
@@ -59,7 +60,7 @@ $fields = [
 
 $errors = [];
 if ($fields['label_nl'] === '') {
-    $errors[] = 'Tekst (NL) is verplicht.';
+    $errors[] = AdminTranslator::trans('validation.tekst_nl_verplicht');
 }
 
 if ($errors !== []) {

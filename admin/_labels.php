@@ -1,5 +1,7 @@
 <?php
 
+
+require_once __DIR__ . '/_translate.php';
 /**
  * Small display helpers shared by the admin order list and detail pages.
  */
@@ -17,45 +19,48 @@ function adminShippingMethodLabel(?string $shippingMethod, string $shippingCost)
     // below only exists for the (practically nonexistent, migration-backfilled)
     // case where the column is somehow still null.
     if ($shippingMethod === 'afhalen') {
-        return 'Afhalen';
+        return admin_t('status.shipping_pickup');
     }
     if ($shippingMethod !== null && ShippingProfile::isValid($shippingMethod)) {
         return ShippingProfile::label($shippingMethod);
     }
     if ($shippingMethod === 'verzenden') {
-        return 'Verzenden';
+        return admin_t('status.shipping_ship');
     }
-    return ((float) $shippingCost) > 0 ? 'Verzenden' : 'Afhalen';
+    return admin_t(((float) $shippingCost) > 0 ? 'status.shipping_ship' : 'status.shipping_pickup');
 }
 
 function adminPaymentStatusLabel(string $status): string
 {
+    // The DISPLAY word only. 'paid' stays 'paid' in the database, in every
+    // query and in the CSV export; nothing about a stored value changes
+    // because somebody reads the CMS in English.
     return match ($status) {
-        'paid' => 'Betaald',
-        'pending' => 'In afwachting',
-        'failed' => 'Mislukt',
-        'canceled' => 'Geannuleerd',
-        'expired' => 'Verlopen',
+        'paid' => admin_t('status.payment_paid'),
+        'pending' => admin_t('status.payment_pending'),
+        'failed' => admin_t('status.payment_failed'),
+        'canceled' => admin_t('status.payment_canceled'),
+        'expired' => admin_t('status.payment_expired'),
         default => $status,
     };
 }
 
 function adminContactAudienceLabel(string $audience): string
 {
-    return $audience === 'zakelijk' ? 'Zakelijk' : 'Particulier';
+    return admin_t($audience === 'zakelijk' ? 'status.audience_business' : 'status.audience_private');
 }
 
 function adminContactStatusLabel(string $status): string
 {
-    return $status === 'gelezen' ? 'Gelezen' : 'Nieuw';
+    return admin_t($status === 'gelezen' ? 'status.contact_read' : 'status.contact_new');
 }
 
 function adminWithdrawalStatusLabel(string $status): string
 {
     return match ($status) {
-        'in_behandeling' => 'In behandeling',
-        'afgehandeld' => 'Afgehandeld',
-        default => 'Nieuw',
+        'in_behandeling' => admin_t('status.withdrawal_in_progress'),
+        'afgehandeld' => admin_t('status.withdrawal_handled'),
+        default => admin_t('status.withdrawal_new'),
     };
 }
 
@@ -75,21 +80,21 @@ function adminRefundStatus(float $refundedAmount, float $total): string
 function adminRefundStatusLabel(float $refundedAmount, float $total): string
 {
     return match (adminRefundStatus($refundedAmount, $total)) {
-        'full' => 'Volledig terugbetaald',
-        'partial' => 'Deels terugbetaald',
-        default => 'Niet terugbetaald',
+        'full' => admin_t('status.refund_full'),
+        'partial' => admin_t('status.refund_partial'),
+        default => admin_t('status.refund_none'),
     };
 }
 
 function adminRefundStatusLabelFor(string $mollieRefundStatus): string
 {
     return match ($mollieRefundStatus) {
-        'refunded' => 'Terugbetaald',
-        'pending' => 'In afwachting',
-        'processing' => 'Wordt verwerkt',
-        'queued' => 'In wachtrij',
-        'failed' => 'Mislukt',
-        'canceled' => 'Geannuleerd',
+        'refunded' => admin_t('status.refund_refunded'),
+        'pending' => admin_t('status.refund_pending'),
+        'processing' => admin_t('status.refund_processing'),
+        'queued' => admin_t('status.refund_queued'),
+        'failed' => admin_t('status.refund_failed'),
+        'canceled' => admin_t('status.refund_canceled'),
         default => $mollieRefundStatus,
     };
 }

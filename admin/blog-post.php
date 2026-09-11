@@ -54,7 +54,7 @@ AdminAuth::requirePermission('blog.manage');
 $idParam = filter_input(INPUT_GET, 'id', FILTER_VALIDATE_INT);
 if ($idParam === false || $idParam === null || $idParam < 1) {
     http_response_code(404);
-    exit('Blogbericht niet gevonden.');
+    exit(admin_t('screen.blogbericht_gevonden'));
 }
 
 $repository = new BlogPostRepository();
@@ -62,7 +62,7 @@ $post = $repository->find($idParam);
 
 if ($post === null) {
     http_response_code(404);
-    exit('Blogbericht niet gevonden.');
+    exit(admin_t('screen.blogbericht_gevonden'));
 }
 
 $postId = (int) $post['id'];
@@ -120,7 +120,7 @@ $forcedTab = $errors !== [] ? 'inhoud' : null;
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title><?= $h((string) $post['title']) ?> — Admin</title>
+<title><?= $h((string) $post['title']) ?> <?= admin_te('blog.admin') ?></title>
 <link rel="stylesheet" href="<?= \App\Service\AssetVersion::url('/admin/assets/admin.css') ?>">
 <link rel="stylesheet" href="<?= \App\Service\AssetVersion::url('/admin/assets/vendor/quill/quill.snow.css') ?>">
 <script src="<?= \App\Service\AssetVersion::url('/admin/assets/vendor/quill/quill.min.js') ?>" defer></script>
@@ -129,17 +129,17 @@ $forcedTab = $errors !== [] ? 'inhoud' : null;
 <body<?= \App\Service\AdminTheme::bodyAttribute() ?>>
 <?php require __DIR__ . '/_header.php'; ?>
 <main class="admin-main">
-  <p><a href="/admin/blog.php">&larr; Terug naar blogberichten</a></p>
+  <p><a href="/admin/blog.php"><?= admin_t('blog.terug_blogberichten') ?></a></p>
   <header class="admin-page-head">
     <div>
       <h1 class="admin-page-head__title"><?= $h((string) $post['title']) ?></h1>
       <p class="admin-page-head__desc">
         <?php if ($isPublic): ?>
-          Dit bericht staat online.
+          <?= admin_te('blog.post_is_online') ?>
         <?php elseif ($isPending): ?>
-          Ingepland: dit bericht verschijnt vanzelf op <?= $h(BlogClock::forAdmin($post['published_at'])) ?>.
+          <?= admin_t('blog.scheduled_for', ['v1' => $h(BlogClock::forAdmin($post['published_at']))]) ?>
         <?php else: ?>
-          Concept: dit bericht is nergens publiek zichtbaar.
+          <?= admin_te('blog.post_is_draft') ?>
         <?php endif; ?>
       </p>
     </div>
@@ -149,10 +149,10 @@ $forcedTab = $errors !== [] ? 'inhoud' : null;
   </header>
 
   <?php if ($created): ?>
-    <p class="admin-alert admin-alert--success">Bericht aangemaakt als concept. Schrijf het hieronder en publiceer het via het tabblad Publicatie.</p>
+    <p class="admin-alert admin-alert--success"><?= admin_te('blog.bericht_aangemaakt_concept_schrijf') ?></p>
   <?php endif; ?>
   <?php if ($updated): ?>
-    <p class="admin-alert admin-alert--success">Bericht opgeslagen.</p>
+    <p class="admin-alert admin-alert--success"><?= admin_te('blog.bericht_opgeslagen') ?></p>
   <?php endif; ?>
   <?php if ($errors !== []): ?>
     <div class="admin-alert admin-alert--error">
@@ -165,12 +165,12 @@ $forcedTab = $errors !== [] ? 'inhoud' : null;
   <?php endif; ?>
 
   <?php admin_tabs_start('blog-post-editor', [
-      'inhoud' => 'Inhoud',
-      'publicatie' => 'Publicatie',
-      'seo' => 'SEO',
+      'inhoud' => admin_t('tabs.content'),
+      'publicatie' => admin_t('tabs.publication'),
+      'seo' => admin_t('tabs.seo'),
   ], [
       'scope' => (string) $postId,
-      'label' => 'Onderdelen van dit bericht',
+      'label' => admin_t('blog.tabs_label'),
       'force' => $forcedTab,
   ]); ?>
 
@@ -180,18 +180,18 @@ $forcedTab = $errors !== [] ? 'inhoud' : null;
 
     <?php admin_tab_panel('inhoud'); ?>
     <section class="admin-card">
-      <h2>Tekst</h2>
-      <p class="admin-text-muted">Nederlands is de inhoud; laat je een Engels veld leeg, dan toont de site daar de Nederlandse tekst.</p>
+      <h2><?= admin_te('blog.tekst') ?></h2>
+      <p class="admin-text-muted"><?= admin_te('blog.nederlands_inhoud_laat_engels') ?></p>
 
       <?php admin_lang_tabs(); ?>
       <div class="admin-form-row admin-form-row--split">
         <?php admin_lang_pane_start('nl'); ?>
-        <label>Titel*
+        <label><?= admin_te('common.title') ?>*
           <input type="text" name="title" maxlength="<?= BlogPostService::MAX_TITLE_LENGTH ?>" <?= admin_lang_required('nl') ?> value="<?= $h($fieldValue('title')) ?>">
         </label>
         <?php admin_lang_pane_end(); ?>
         <?php admin_lang_pane_start('en'); ?>
-        <label>Titel
+        <label><?= admin_te('common.title') ?>
           <input type="text" name="title_en" maxlength="<?= BlogPostService::MAX_TITLE_LENGTH ?>" value="<?= $h($fieldValue('title_en')) ?>"<?= admin_lang_placeholder_attr('en') ?>>
         </label>
         <?php admin_lang_pane_end(); ?>
@@ -199,21 +199,21 @@ $forcedTab = $errors !== [] ? 'inhoud' : null;
 
       <div class="admin-form-row admin-form-row--split">
         <?php admin_lang_pane_start('nl'); ?>
-        <label>Samenvatting
+        <label><?= admin_te('blog.samenvatting') ?>
           <textarea name="excerpt" rows="3" maxlength="<?= BlogPostService::MAX_EXCERPT_LENGTH ?>"><?= $h($fieldValue('excerpt')) ?></textarea>
         </label>
         <?php admin_lang_pane_end(); ?>
         <?php admin_lang_pane_start('en'); ?>
-        <label>Samenvatting
+        <label><?= admin_te('blog.samenvatting_2') ?>
           <textarea name="excerpt_en" rows="3" maxlength="<?= BlogPostService::MAX_EXCERPT_LENGTH ?>"<?= admin_lang_placeholder_attr('en') ?>><?= $h($fieldValue('excerpt_en')) ?></textarea>
         </label>
         <?php admin_lang_pane_end(); ?>
       </div>
-      <p class="admin-text-muted">De samenvatting staat in het overzicht en in de RSS-feed. Laat je 'm leeg, dan wordt automatisch het begin van de tekst gebruikt.</p>
+      <p class="admin-text-muted"><?= admin_te('blog.samenvatting_staat_overzicht_rss') ?></p>
     </section>
 
     <section class="admin-card">
-      <h2>Bericht</h2>
+      <h2><?= admin_te('blog.bericht') ?></h2>
       <?php admin_lang_pane_start('nl'); ?>
         <?php renderRichTextField('body', 'Tekst', $fieldValue('body'), 'full', 'admin-richtext-editor--lg'); ?>
       <?php admin_lang_pane_end(); ?>
@@ -223,7 +223,7 @@ $forcedTab = $errors !== [] ? 'inhoud' : null;
     </section>
 
     <section class="admin-card">
-      <h2>Uitgelichte afbeelding</h2>
+      <h2><?= admin_te('blog.uitgelichte_afbeelding') ?></h2>
       <?php media_picker_field(
           'featured_media_id',
           $featuredMedia,
@@ -234,92 +234,89 @@ $forcedTab = $errors !== [] ? 'inhoud' : null;
     </section>
 
     <section class="admin-card">
-      <h2>Categorieën en tags</h2>
+      <h2><?= admin_te('blog.categorie_n_tags') ?></h2>
       <?php if ($categories === []): ?>
-        <p class="admin-text-muted">Er zijn nog geen categorieën. Maak ze aan bij <a href="/admin/blog-categories.php">Blogcategorieën</a>.</p>
+        <p class="admin-text-muted"><?= admin_t('blog.er_categorie_n_maak') ?></p>
       <?php else: ?>
         <?php /* The same fieldset + checkbox markup the user form uses for
                  permissions — one shape for "tick as many as apply". */ ?>
         <fieldset class="admin-permission-group">
-          <legend>Categorieën</legend>
+          <legend><?= admin_te('blog.categorie_n') ?></legend>
           <?php foreach ($categories as $category): ?>
             <label class="admin-checkbox-label admin-permission-option">
               <input type="checkbox" name="categories[]" value="<?= (int) $category['id'] ?>" <?= in_array((int) $category['id'], $checkedCategoryIds, true) ? 'checked' : '' ?>>
               <span>
                 <strong><?= $h((string) $category['name']) ?></strong>
                 <?php if ((int) $category['is_active'] !== 1): ?>
-                  <span class="admin-text-muted">Inactief &mdash; het archief van deze categorie is niet publiek bereikbaar.</span>
+                  <span class="admin-text-muted"><?= admin_t('blog.category_inactive') ?></span>
                 <?php endif; ?>
               </span>
             </label>
           <?php endforeach; ?>
         </fieldset>
-        <p class="admin-text-muted">Een bericht mag in meerdere categorieën staan. De eerste in de volgorde van Blogcategorieën is degene die op de kaart getoond wordt.</p>
+        <p class="admin-text-muted"><?= admin_te('blog.bericht_mag_meerdere_categorie') ?></p>
       <?php endif; ?>
 
       <div class="admin-form-row">
-        <label>Tags
+        <label><?= admin_te('blog.tags') ?>
           <input type="text" name="tags" value="<?= $h($tagValue) ?>" placeholder="graveren, hout, cadeau">
         </label>
       </div>
-      <p class="admin-text-muted">Gescheiden door komma's, maximaal <?= BlogPostService::MAX_TAGS_PER_POST ?>. Een tag die nog niet bestaat wordt aangemaakt; een die al bestaat wordt hergebruikt, ook als je 'm net iets anders schrijft.</p>
+      <p class="admin-text-muted"><?= admin_t('blog.gescheiden_door_komma_s', ['v1' => BlogPostService::MAX_TAGS_PER_POST]) ?></p>
     </section>
 
     <section class="admin-card admin-card--actions">
-      <button type="submit">Bericht opslaan</button>
-      <p class="admin-text-muted">Slaat alle drie de tabbladen op &mdash; het is één formulier.</p>
+      <button type="submit"><?= admin_te('blog.bericht_opslaan') ?></button>
+      <p class="admin-text-muted"><?= admin_t('blog.slaat_alle_drie_tabbladen') ?></p>
     </section>
     <?php admin_tab_panel_end(); ?>
 
     <?php admin_tab_panel('publicatie'); ?>
     <section class="admin-card">
-      <h2>Publicatie</h2>
+      <h2><?= admin_te('blog.publicatie') ?></h2>
 
       <div class="admin-form-row admin-form-row--split">
-        <label>Status
+        <label><?= admin_te('common.status') ?>
           <select name="status">
-            <?php foreach (BlogPostStatus::LABELS as $statusKey => $statusLabel): ?>
+            <?php foreach (array_keys(BlogPostStatus::LABELS) as $statusKey): ?><?php $statusLabel = BlogPostStatus::label($statusKey); ?>
               <option value="<?= $h($statusKey) ?>" <?= $status === $statusKey ? 'selected' : '' ?>><?= $h($statusLabel) ?></option>
             <?php endforeach; ?>
           </select>
         </label>
-        <label>Publicatiedatum en -tijd
+        <label><?= admin_te('blog.publicatiedatum_tijd') ?>
           <input type="datetime-local" name="published_at" value="<?= $h($publishedAtInput) ?>">
         </label>
       </div>
       <p class="admin-text-muted">
-        <strong>Concept</strong> is nooit zichtbaar. <strong>Gepubliceerd</strong> zonder datum betekent: nu.
-        <strong>Ingepland</strong> verschijnt vanzelf zodra de datum bereikt is &mdash; daar draait niets voor op de achtergrond,
-        de server kijkt gewoon naar de klok bij elk bezoek.
+        <strong><?= admin_t('blog.concept_nooit_zichtbaar_gepubliceerd') ?>
       </p>
 
       <div class="admin-form-row">
-        <label>Auteur
+        <label><?= admin_te('blog.auteur') ?>
           <input type="text" name="author_name" maxlength="<?= BlogPostService::MAX_AUTHOR_LENGTH ?>" value="<?= $h($fieldValue('author_name')) ?>" placeholder="Laat leeg voor geen auteursregel">
         </label>
       </div>
-      <p class="admin-text-muted">De naam die onder het bericht staat. <?= BlogSettings::showAuthor() ? 'Auteursregels staan aan bij Bloginstellingen.' : 'Let op: auteursregels staan uit bij Bloginstellingen, dus deze naam wordt nu nergens getoond.' ?></p>
+      <p class="admin-text-muted"><?= admin_t('blog.naam_onder_bericht_staat', ['v1' => BlogSettings::showAuthor() ? admin_t('blog.author_lines_on') : admin_t('blog.author_lines_off')]) ?></p>
 
       <div class="admin-form-row">
-        <label>URL (slug)*
+        <label><?= admin_te('blog.url_slug') ?>*
           <input type="text" name="slug" maxlength="<?= \App\Service\Blog\BlogSlug::MAX_LENGTH ?>" required value="<?= $h($fieldValue('slug')) ?>">
         </label>
       </div>
       <p class="admin-text-muted">
-        Live op <a href="<?= $h(BlogUrls::postPath((string) $post['slug'])) ?>" target="_blank" rel="noopener"><?= $h(BlogUrls::postPath((string) $post['slug'])) ?></a>.
-        Wijzig je de slug van een bericht dat al online staat, dan blijft de oude URL werken via een automatische redirect.
+        <?= admin_te('blog.live') ?> <a href="<?= $h(BlogUrls::postPath((string) $post['slug'])) ?>" target="_blank" rel="noopener"><?= $h(BlogUrls::postPath((string) $post['slug'])) ?></a><?= admin_te('blog.wijzig_slug_bericht_al') ?>
       </p>
     </section>
 
     <section class="admin-card admin-card--actions">
-      <button type="submit">Bericht opslaan</button>
+      <button type="submit"><?= admin_te('blog.bericht_opslaan_2') ?></button>
     </section>
     <?php admin_tab_panel_end(); ?>
 
     <?php admin_tab_panel('seo'); ?>
     <section class="admin-card">
-      <h2>SEO</h2>
-      <p class="admin-text-muted">Laat de SEO-titel leeg om automatisch "<em>Titel</em> | <?= $h(BlogSettings::title('nl')) ?> &mdash; <?= $h(\App\Service\SiteSettings::get('site_name')) ?>" te gebruiken.</p>
+      <h2><?= admin_te('blog.seo') ?></h2>
+      <p class="admin-text-muted"><?= admin_t('blog.seo_title_fallback', ['blog' => $h(BlogSettings::title('nl')), 'site' => $h(\App\Service\SiteSettings::get('site_name'))]) ?></p>
 
       <div class="admin-product-form admin-product-form--wide">
         <?php admin_lang_pane_start('nl'); ?>
@@ -348,8 +345,8 @@ $forcedTab = $errors !== [] ? 'inhoud' : null;
         <?php admin_lang_pane_end(); ?>
       </div>
 
-      <h3 class="admin-seo-lang__title">Voorbeeld in Google</h3>
-      <p class="admin-text-muted">Met de titel en tekst die nu zijn opgeslagen. Laat je de meta description leeg, dan wordt de samenvatting gebruikt.</p>
+      <h3 class="admin-seo-lang__title"><?= admin_te('blog.voorbeeld_google') ?></h3>
+      <p class="admin-text-muted"><?= admin_te('blog.titel_tekst_nu_opgeslagen') ?></p>
       <div class="admin-seo-preview">
         <div class="admin-seo-preview__url"><?= $h((string) ($seoPreview->canonical ?? BlogUrls::post((string) $post['slug']))) ?></div>
         <div class="admin-seo-preview__title"><?= $h($seoPreview->titleNl) ?></div>
@@ -357,23 +354,23 @@ $forcedTab = $errors !== [] ? 'inhoud' : null;
           <?php if ($seoPreview->hasDescription()): ?>
             <?= $h($seoPreview->descriptionNl) ?>
           <?php else: ?>
-            <em>Geen meta description en geen samenvatting &mdash; Google kiest dan zelf een stukje tekst.</em>
+            <em><?= admin_t('blog.no_description_no_summary') ?></em>
           <?php endif; ?>
         </div>
       </div>
 
-      <h3 class="admin-seo-lang__title">Zichtbaarheid</h3>
+      <h3 class="admin-seo-lang__title"><?= admin_te('blog.zichtbaarheid') ?></h3>
       <?php /* Hidden companion field: an unticked checkbox sends nothing, so
                without it "niet indexeren" could be switched on but never off.
                PHP keeps the last value for a repeated name, so ticking wins. */ ?>
       <input type="hidden" name="noindex" value="0">
       <label class="admin-checkbox-label">
         <input type="checkbox" name="noindex" value="1" <?= $noindexChecked ? 'checked' : '' ?>>
-        Dit bericht niet laten indexeren door zoekmachines
+        <?= admin_te('blog.bericht_laten_indexeren_door') ?>
       </label>
-      <p class="admin-text-muted">Het bericht blijft gewoon bereikbaar en verdwijnt alleen uit de sitemap en uit de zoekresultaten. In de RSS-feed blijft het staan: wie zich op de blog heeft geabonneerd heeft om alle berichten gevraagd.</p>
+      <p class="admin-text-muted"><?= admin_te('blog.bericht_blijft_gewoon_bereikbaar') ?></p>
 
-      <h3 class="admin-seo-lang__title">Deel-afbeelding</h3>
+      <h3 class="admin-seo-lang__title"><?= admin_te('blog.deel_afbeelding') ?></h3>
       <?php media_picker_field(
           'og_media_id',
           $socialMedia,
@@ -382,12 +379,12 @@ $forcedTab = $errors !== [] ? 'inhoud' : null;
           true
       ); ?>
       <?php if ($socialMedia === null && $featuredMedia !== null): ?>
-        <p class="admin-text-muted">Nu in gebruik: de uitgelichte afbeelding (<code><?= $h($featuredMedia->displayName()) ?></code>).</p>
+        <p class="admin-text-muted"><?= admin_t('blog.nu_gebruik_uitgelichte_afbeelding', ['v1' => $h($featuredMedia->displayName())]) ?></p>
       <?php endif; ?>
     </section>
 
     <section class="admin-card admin-card--actions">
-      <button type="submit">Bericht opslaan</button>
+      <button type="submit"><?= admin_te('blog.bericht_opslaan_3') ?></button>
     </section>
     <?php admin_tab_panel_end(); ?>
   </form>

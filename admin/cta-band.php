@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/../vendor/autoload.php';
+require_once __DIR__ . '/_translate.php';
 require_once __DIR__ . '/_save_bar.php';
 require_once __DIR__ . '/_language_fields.php';
 
@@ -34,7 +35,7 @@ if ($page === null || $sectionKey === null || $sectionKey === ''
     || $repository->findBySlugAndKey($slug, $sectionKey) === null
 ) {
     http_response_code(404);
-    exit('Onbekende sectie.');
+    exit(admin_t('screen.onbekende_sectie'));
 }
 
 $pageId = (int) $page['id'];
@@ -95,18 +96,18 @@ function ctaBandValue(array $values, string $key): string
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>CTA band — <?= htmlspecialchars($pageLabel, ENT_QUOTES, 'UTF-8') ?> — Admin</title>
+<title><?= admin_t('block_cta.cta_band_admin', ['v1' => htmlspecialchars($pageLabel, ENT_QUOTES, 'UTF-8')]) ?></title>
 <link rel="stylesheet" href="<?= \App\Service\AssetVersion::url('/admin/assets/admin.css') ?>">
 </head>
 <body<?= \App\Service\AdminTheme::bodyAttribute() ?>>
 <?php require __DIR__ . '/_header.php'; ?>
 <main class="admin-main">
-  <p class="admin-text-muted"><a href="/admin/page.php?id=<?= $pageId ?>">&larr; <?= htmlspecialchars($pageLabel, ENT_QUOTES, 'UTF-8') ?></a></p>
-  <h1>CTA band — <?= htmlspecialchars($pageLabel, ENT_QUOTES, 'UTF-8') ?></h1>
-  <p class="admin-text-muted">Een oproep-tot-actie sectie op <strong><?= htmlspecialchars($pageLabel, ENT_QUOTES, 'UTF-8') ?></strong>. Wijzigingen zijn direct zichtbaar op de pagina.</p>
+  <p class="admin-text-muted"><a href="/admin/page.php?id=<?= $pageId ?>"><?= admin_t('block_cta.text', ['v1' => htmlspecialchars($pageLabel, ENT_QUOTES, 'UTF-8')]) ?></a></p>
+  <h1><?= admin_t('block_cta.cta_band', ['v1' => htmlspecialchars($pageLabel, ENT_QUOTES, 'UTF-8')]) ?></h1>
+  <p class="admin-text-muted"><?= admin_t('block_cta.oproep_tot_actie_sectie', ['v1' => htmlspecialchars($pageLabel, ENT_QUOTES, 'UTF-8')]) ?></p>
 
   <?php if ($saved): ?>
-    <p class="admin-alert admin-alert--success">Opgeslagen.</p>
+    <p class="admin-alert admin-alert--success"><?= admin_te('common.saved') ?></p>
   <?php endif; ?>
 
   <?php if ($errors !== []): ?>
@@ -127,12 +128,12 @@ function ctaBandValue(array $values, string $key): string
       <?php admin_lang_tabs(); ?>
       <div class="admin-form-row admin-form-row--split">
         <?php admin_lang_pane_start('nl'); ?>
-        <label>Eyebrow*
+        <label><?= admin_te('block_cta.eyebrow') ?>*
           <input type="text" name="eyebrow_nl" maxlength="150" <?= admin_lang_required('nl') ?> value="<?= ctaBandValue($values, 'eyebrow_nl') ?>">
         </label>
         <?php admin_lang_pane_end(); ?>
         <?php admin_lang_pane_start('en'); ?>
-        <label>Eyebrow
+        <label><?= admin_te('block_cta.eyebrow_2') ?>
           <input type="text" name="eyebrow_en" maxlength="150" value="<?= ctaBandValue($values, 'eyebrow_en') ?>"<?= admin_lang_placeholder_attr('en') ?>>
         </label>
         <?php admin_lang_pane_end(); ?>
@@ -140,12 +141,12 @@ function ctaBandValue(array $values, string $key): string
 
       <div class="admin-form-row admin-form-row--split">
         <?php admin_lang_pane_start('nl'); ?>
-        <label>Titel / H2*
+        <label><?= admin_te('block_cta.titel_h2') ?>*
           <input type="text" name="title_nl" maxlength="255" <?= admin_lang_required('nl') ?> value="<?= ctaBandValue($values, 'title_nl') ?>">
         </label>
         <?php admin_lang_pane_end(); ?>
         <?php admin_lang_pane_start('en'); ?>
-        <label>Titel / H2
+        <label><?= admin_te('block_cta.titel_h2_2') ?>
           <input type="text" name="title_en" maxlength="255" value="<?= ctaBandValue($values, 'title_en') ?>"<?= admin_lang_placeholder_attr('en') ?>>
         </label>
         <?php admin_lang_pane_end(); ?>
@@ -153,63 +154,63 @@ function ctaBandValue(array $values, string $key): string
 
       <div class="admin-form-row admin-form-row--split">
         <?php admin_lang_pane_start('nl'); ?>
-        <label>Introtekst / lead
+        <label><?= admin_te('block_cta.introtekst_lead') ?>
           <textarea name="lead_nl" maxlength="500" rows="3"><?= ctaBandValue($values, 'lead_nl') ?></textarea>
         </label>
         <?php admin_lang_pane_end(); ?>
         <?php admin_lang_pane_start('en'); ?>
-        <label>Introtekst / lead
+        <label><?= admin_te('block_cta.introtekst_lead_2') ?>
           <textarea name="lead_en" maxlength="500" rows="3"<?= admin_lang_placeholder_attr('en') ?>><?= ctaBandValue($values, 'lead_en') ?></textarea>
         </label>
         <?php admin_lang_pane_end(); ?>
       </div>
-      <p class="admin-text-muted">Leeg laten (beide talen) toont geen introtekst onder de titel.</p>
+      <p class="admin-text-muted"><?= admin_te('block_cta.leeg_laten_beide_talen') ?></p>
 
-      <h2 style="margin-top:2rem;">Primaire knop</h2>
+      <h2 style="margin-top:2rem;"><?= admin_te('block_cta.primaire_knop') ?></h2>
       <div class="admin-form-row admin-form-row--split">
         <?php admin_lang_pane_start('nl'); ?>
-        <label>Label*
+        <label><?= admin_te('block_cta.label') ?>*
           <input type="text" name="primary_label_nl" maxlength="150" <?= admin_lang_required('nl') ?> value="<?= ctaBandValue($values, 'primary_label_nl') ?>">
         </label>
         <?php admin_lang_pane_end(); ?>
         <?php admin_lang_pane_start('en'); ?>
-        <label>Label
+        <label><?= admin_te('block_cta.label_2') ?>
           <input type="text" name="primary_label_en" maxlength="150" value="<?= ctaBandValue($values, 'primary_label_en') ?>"<?= admin_lang_placeholder_attr('en') ?>>
         </label>
         <?php admin_lang_pane_end(); ?>
       </div>
       <div class="admin-form-row">
-        <label>URL*
+        <label><?= admin_te('common.url') ?>*
           <input type="text" name="primary_url" maxlength="255" required value="<?= ctaBandValue($values, 'primary_url') ?>">
         </label>
       </div>
 
-      <h2 style="margin-top:2rem;">Secundaire knop (optioneel)</h2>
+      <h2 style="margin-top:2rem;"><?= admin_te('block_cta.secundaire_knop_optioneel') ?></h2>
       <div class="admin-form-row admin-form-row--split">
         <?php admin_lang_pane_start('nl'); ?>
-        <label>Label
+        <label><?= admin_te('block_cta.label_3') ?>
           <input type="text" name="secondary_label_nl" maxlength="150" value="<?= ctaBandValue($values, 'secondary_label_nl') ?>">
         </label>
         <?php admin_lang_pane_end(); ?>
         <?php admin_lang_pane_start('en'); ?>
-        <label>Label
+        <label><?= admin_te('block_cta.label_4') ?>
           <input type="text" name="secondary_label_en" maxlength="150" value="<?= ctaBandValue($values, 'secondary_label_en') ?>"<?= admin_lang_placeholder_attr('en') ?>>
         </label>
         <?php admin_lang_pane_end(); ?>
       </div>
       <div class="admin-form-row">
-        <label>URL
+        <label><?= admin_te('common.url') ?>
           <input type="text" name="secondary_url" maxlength="255" value="<?= ctaBandValue($values, 'secondary_url') ?>">
         </label>
       </div>
-      <p class="admin-text-muted">Laat het label en/of de URL leeg om geen secundaire knop te tonen.</p>
+      <p class="admin-text-muted"><?= admin_te('block_cta.laat_label_url_leeg') ?></p>
 
       <label class="admin-checkbox-label">
         <input type="checkbox" name="is_active" value="1" <?= ($values['is_active'] ?? true) ? 'checked' : '' ?>>
-        Actief (uitgevinkt = deze sectie wordt niet getoond op de pagina)
+        <?= admin_te('block_cta.actief_uitgevinkt_sectie_getoond') ?>
       </label>
 
-      <button type="submit">Opslaan</button>
+      <button type="submit"><?= admin_te('common.save') ?></button>
     </form>
   </section>
 </main>

@@ -13,6 +13,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/../vendor/autoload.php';
+require_once __DIR__ . '/_translate.php';
 
 use App\Repository\OrderRepository;
 use App\Service\AdminAuth;
@@ -32,7 +33,7 @@ try {
 } catch (\Throwable $e) {
     error_log('[admin/orders-export.php] ' . $e->getMessage());
     http_response_code(500);
-    exit('Export kon niet worden gegenereerd.');
+    exit(admin_t('screen.export_kon_gegenereerd'));
 }
 
 $filename = 'bestellingen-' . date('Ymd-His') . '.csv';

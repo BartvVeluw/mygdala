@@ -8,6 +8,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../../vendor/autoload.php';
 
+use App\Service\Language\AdminTranslator;
 use App\Service\AdminAuth;
 use App\Service\Csrf;
 use App\Service\Language\LocalizedValue;
@@ -51,10 +52,10 @@ $errors = [];
 // single-language site shows one, it would make this form impossible to
 // submit at all (MULTILINGUAL.md).
 if (LocalizedValue::ofDutchEnglish($titleNl, $titleEn)->primaryValue() === '') {
-    $errors[] = 'Titel is verplicht.';
+    $errors[] = AdminTranslator::trans('validation.titel_verplicht');
 }
 if (mb_strlen($titleNl) > 100 || mb_strlen($titleEn) > 100) {
-    $errors[] = 'Titel mag maximaal 100 tekens zijn.';
+    $errors[] = AdminTranslator::trans('validation.titel_mag_maximaal_100_tekens');
 }
 
 if ($errors !== []) {

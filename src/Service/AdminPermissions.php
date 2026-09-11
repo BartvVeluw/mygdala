@@ -3,6 +3,8 @@
 namespace App\Service;
 
 use App\Module\ModuleRegistry;
+use App\Service\Language\AdminTranslator;
+use App\Service\Language\LanguageRegistry;
 
 /**
  * The single server-side registry of every CMS permission that exists.
@@ -307,6 +309,65 @@ class AdminPermissions
         }
 
         return $permission;
+    }
+
+    /**
+     * The groups as the user form RENDERS them: headings and explanations in
+     * the CMS interface language of whoever is reading.
+     *
+     * Deliberately not part of groups()/knownGroups(). Those two are read
+     * while an account is still being loaded — expand() runs inside
+     * AdminAuth::user() — and translating there would ask AdminLocale for a
+     * language before the session's account exists, which resolves to the
+     * default and then stays cached for the rest of the request. Asking only
+     * when a form is about to print them keeps that loop closed.
+     *
+     * @return list<array<string, mixed>>
+     */
+    public static function groupsForDisplay(): array
+    {
+        return array_map(self::translateGroup(...), self::groups());
+    }
+
+    /**
+     * A group's heading and every permission in it, in the CMS interface
+     * language of whoever is reading the form.
+     *
+     * Keyed on the permission name itself — `perm.pages.manage.label` — which
+     * is a constant in source and can never come from a request. Translated
+     * here, once, so Core's groups and a module's groups switch language
+     * together and no module has to know this CMS has two: a module keeps
+     * declaring a plain Dutch label, and a group with no key in the catalogue
+     * keeps the words it declared.
+     *
+     * @param array<string, mixed> $group
+     * @return array<string, mixed>
+     */
+    private static function translateGroup(array $group): array
+    {
+        $slug = preg_replace('/[^a-z0-9]+/', '_', mb_strtolower((string) $group['label']));
+        $group['label'] = self::say('perm.group.' . trim((string) $slug, '_'), (string) $group['label']);
+
+        foreach (($group['permissions'] ?? []) as $name => $meta) {
+            foreach (['label', 'description'] as $part) {
+                if (isset($meta[$part])) {
+                    $group['permissions'][$name][$part] = self::say(
+                        'perm.' . $name . '.' . $part,
+                        (string) $meta[$part]
+                    );
+                }
+            }
+        }
+
+        return $group;
+    }
+
+    /** The catalogue's words for $key, or the ones written in the registry. */
+    private static function say(string $key, string $fallback): string
+    {
+        return AdminTranslator::has($key, LanguageRegistry::DEFAULT_LANGUAGE)
+            ? AdminTranslator::trans($key)
+            : $fallback;
     }
 
     /**

@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/../vendor/autoload.php';
+require_once __DIR__ . '/_translate.php';
 require_once __DIR__ . '/_save_bar.php';
 require_once __DIR__ . '/_language_fields.php';
 
@@ -29,7 +30,7 @@ if ($section === null) {
         || (new FaqRepository())->findBySlugAndKey($dynPageSlug, $dynSectionKey) === null
     ) {
         http_response_code(404);
-        exit('Onbekende sectie.');
+        exit(admin_t('screen.onbekende_sectie'));
     }
     $section = [
         'page_slug' => $dynPageSlug,
@@ -91,18 +92,18 @@ function faqValue(array $values, string $key): string
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title><?= htmlspecialchars($section['section_label'], ENT_QUOTES, 'UTF-8') ?> — Admin</title>
+<title><?= htmlspecialchars($section['section_label'], ENT_QUOTES, 'UTF-8') ?> <?= admin_te('block_faq.admin') ?></title>
 <link rel="stylesheet" href="<?= \App\Service\AssetVersion::url('/admin/assets/admin.css') ?>">
 </head>
 <body<?= \App\Service\AdminTheme::bodyAttribute() ?>>
 <?php require __DIR__ . '/_header.php'; ?>
 <main class="admin-main">
-  <p class="admin-text-muted"><a href="<?= htmlspecialchars(\App\Service\PageContent::builderUrl($pageSlug), ENT_QUOTES, 'UTF-8') ?>">&larr; <?= htmlspecialchars($section['page_label'], ENT_QUOTES, 'UTF-8') ?></a></p>
+  <p class="admin-text-muted"><a href="<?= htmlspecialchars(\App\Service\PageContent::builderUrl($pageSlug), ENT_QUOTES, 'UTF-8') ?>"><?= admin_t('block_faq.text', ['v1' => htmlspecialchars($section['page_label'], ENT_QUOTES, 'UTF-8')]) ?></a></p>
   <h1><?= htmlspecialchars($section['section_label'], ENT_QUOTES, 'UTF-8') ?></h1>
-  <p class="admin-text-muted">Sectie op <strong><?= htmlspecialchars($section['page_label'], ENT_QUOTES, 'UTF-8') ?></strong>. Wijzigingen zijn direct zichtbaar op de pagina.</p>
+  <p class="admin-text-muted"><?= admin_t('block_faq.sectie_wijzigingen_direct_zichtbaar', ['v1' => htmlspecialchars($section['page_label'], ENT_QUOTES, 'UTF-8')]) ?></p>
 
   <?php if ($saved): ?>
-    <p class="admin-alert admin-alert--success">Opgeslagen.</p>
+    <p class="admin-alert admin-alert--success"><?= admin_te('common.saved') ?></p>
   <?php endif; ?>
 
   <?php if ($errors !== []): ?>
@@ -126,7 +127,7 @@ function faqValue(array $values, string $key): string
   <?php endif; ?>
 
   <section class="admin-card">
-    <h2>Sectiekop</h2>
+    <h2><?= admin_te('block_faq.sectiekop') ?></h2>
     <form method="post" action="/api/admin/update-faq-section.php" class="admin-product-form">
       <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
       <input type="hidden" name="section" value="<?= htmlspecialchars($sectionKey, ENT_QUOTES, 'UTF-8') ?>">
@@ -134,12 +135,12 @@ function faqValue(array $values, string $key): string
       <?php admin_lang_tabs(); ?>
       <div class="admin-form-row admin-form-row--split">
         <?php admin_lang_pane_start('nl'); ?>
-        <label>Eyebrow*
+        <label><?= admin_te('block_faq.eyebrow') ?>*
           <input type="text" name="eyebrow_nl" maxlength="150" <?= admin_lang_required('nl') ?> value="<?= faqValue($sectionValues, 'eyebrow_nl') ?>">
         </label>
         <?php admin_lang_pane_end(); ?>
         <?php admin_lang_pane_start('en'); ?>
-        <label>Eyebrow
+        <label><?= admin_te('block_faq.eyebrow_2') ?>
           <input type="text" name="eyebrow_en" maxlength="150" value="<?= faqValue($sectionValues, 'eyebrow_en') ?>"<?= admin_lang_placeholder_attr('en') ?>>
         </label>
         <?php admin_lang_pane_end(); ?>
@@ -147,12 +148,12 @@ function faqValue(array $values, string $key): string
 
       <div class="admin-form-row admin-form-row--split">
         <?php admin_lang_pane_start('nl'); ?>
-        <label>Titel / H2*
+        <label><?= admin_te('block_faq.titel_h2') ?>*
           <input type="text" name="title_nl" maxlength="255" <?= admin_lang_required('nl') ?> value="<?= faqValue($sectionValues, 'title_nl') ?>">
         </label>
         <?php admin_lang_pane_end(); ?>
         <?php admin_lang_pane_start('en'); ?>
-        <label>Titel / H2
+        <label><?= admin_te('block_faq.titel_h2_2') ?>
           <input type="text" name="title_en" maxlength="255" value="<?= faqValue($sectionValues, 'title_en') ?>"<?= admin_lang_placeholder_attr('en') ?>>
         </label>
         <?php admin_lang_pane_end(); ?>
@@ -160,18 +161,18 @@ function faqValue(array $values, string $key): string
 
       <label class="admin-checkbox-label">
         <input type="checkbox" name="is_active" value="1" <?= ($sectionValues['is_active'] ?? true) ? 'checked' : '' ?>>
-        Actief (uitgevinkt = deze hele sectie — kop en vragen — wordt niet getoond op de pagina)
+        <?= admin_te('block_faq.actief_uitgevinkt_hele_sectie') ?>
       </label>
 
-      <button type="submit">Opslaan</button>
+      <button type="submit"><?= admin_te('common.save') ?></button>
     </form>
   </section>
 
   <section class="admin-card">
-    <h2>Vragen</h2>
+    <h2><?= admin_te('block_faq.vragen') ?></h2>
 
     <?php if ($items === []): ?>
-      <p class="admin-text-muted">Nog geen vragen in deze sectie.</p>
+      <p class="admin-text-muted"><?= admin_te('block_faq.vragen_sectie') ?></p>
     <?php endif; ?>
 
     <?php foreach ($items as $index => $item): ?>
@@ -188,12 +189,12 @@ function faqValue(array $values, string $key): string
           <?php admin_lang_tabs(); ?>
           <div class="admin-form-row admin-form-row--split">
             <?php admin_lang_pane_start('nl'); ?>
-            <label>Vraag*
+            <label><?= admin_te('block_faq.vraag') ?>*
               <input type="text" name="question_nl" maxlength="255" <?= admin_lang_required('nl') ?> value="<?= htmlspecialchars((string) $item['question_nl'], ENT_QUOTES, 'UTF-8') ?>">
             </label>
             <?php admin_lang_pane_end(); ?>
             <?php admin_lang_pane_start('en'); ?>
-            <label>Vraag
+            <label><?= admin_te('block_faq.vraag_2') ?>
               <input type="text" name="question_en" maxlength="255" value="<?= htmlspecialchars((string) ($item['question_en'] ?? ''), ENT_QUOTES, 'UTF-8') ?>"<?= admin_lang_placeholder_attr('en') ?>>
             </label>
             <?php admin_lang_pane_end(); ?>
@@ -201,12 +202,12 @@ function faqValue(array $values, string $key): string
 
           <div class="admin-form-row admin-form-row--split">
             <?php admin_lang_pane_start('nl'); ?>
-            <label>Antwoord*
+            <label><?= admin_te('block_faq.antwoord') ?>*
               <textarea name="answer_nl" maxlength="1000" rows="3" <?= admin_lang_required('nl') ?>><?= htmlspecialchars((string) $item['answer_nl'], ENT_QUOTES, 'UTF-8') ?></textarea>
             </label>
             <?php admin_lang_pane_end(); ?>
             <?php admin_lang_pane_start('en'); ?>
-            <label>Antwoord
+            <label><?= admin_te('block_faq.antwoord_2') ?>
               <textarea name="answer_en" maxlength="1000" rows="3"<?= admin_lang_placeholder_attr('en') ?>><?= htmlspecialchars((string) ($item['answer_en'] ?? ''), ENT_QUOTES, 'UTF-8') ?></textarea>
             </label>
             <?php admin_lang_pane_end(); ?>
@@ -214,10 +215,10 @@ function faqValue(array $values, string $key): string
 
           <label class="admin-checkbox-label">
             <input type="checkbox" name="is_active" value="1" <?= (int) $item['is_active'] === 1 ? 'checked' : '' ?>>
-            Zichtbaar
+            <?= admin_te('common.visible') ?>
           </label>
 
-          <button type="submit">Opslaan</button>
+          <button type="submit"><?= admin_te('common.save') ?></button>
         </form>
 
         <div class="admin-image-card__actions" style="margin-top:0.75rem;">
@@ -225,18 +226,18 @@ function faqValue(array $values, string $key): string
             <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
             <input type="hidden" name="item_id" value="<?= $itemId ?>">
             <input type="hidden" name="direction" value="up">
-            <button type="submit" class="admin-btn-text" <?= $isFirst ? 'disabled' : '' ?>>&uarr; Omhoog</button>
+            <button type="submit" class="admin-btn-text" <?= $isFirst ? 'disabled' : '' ?>><?= admin_t('common.move_up') ?></button>
           </form>
           <form method="post" action="/api/admin/move-faq-item.php" class="admin-inline-form">
             <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
             <input type="hidden" name="item_id" value="<?= $itemId ?>">
             <input type="hidden" name="direction" value="down">
-            <button type="submit" class="admin-btn-text" <?= $isLast ? 'disabled' : '' ?>>&darr; Omlaag</button>
+            <button type="submit" class="admin-btn-text" <?= $isLast ? 'disabled' : '' ?>><?= admin_t('common.move_down') ?></button>
           </form>
           <form method="post" action="/api/admin/delete-faq-item.php" class="admin-inline-form" onsubmit="return confirm('Deze vraag definitief verwijderen?');">
             <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
             <input type="hidden" name="item_id" value="<?= $itemId ?>">
-            <button type="submit" class="admin-btn-text admin-btn-text--danger">Verwijderen</button>
+            <button type="submit" class="admin-btn-text admin-btn-text--danger"><?= admin_te('common.delete') ?></button>
           </form>
         </div>
       </article>
@@ -244,7 +245,7 @@ function faqValue(array $values, string $key): string
   </section>
 
   <section class="admin-card">
-    <h2>Nieuwe vraag toevoegen</h2>
+    <h2><?= admin_te('block_faq.nieuwe_vraag_toevoegen') ?></h2>
     <form method="post" action="/api/admin/create-faq-item.php" class="admin-product-form">
       <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
       <input type="hidden" name="section_id" value="<?= $sectionId ?>">
@@ -252,12 +253,12 @@ function faqValue(array $values, string $key): string
       <?php admin_lang_tabs(); ?>
       <div class="admin-form-row admin-form-row--split">
         <?php admin_lang_pane_start('nl'); ?>
-        <label>Vraag*
+        <label><?= admin_te('block_faq.vraag_3') ?>*
           <input type="text" name="question_nl" maxlength="255" <?= admin_lang_required('nl') ?>>
         </label>
         <?php admin_lang_pane_end(); ?>
         <?php admin_lang_pane_start('en'); ?>
-        <label>Vraag
+        <label><?= admin_te('block_faq.vraag_4') ?>
           <input type="text" name="question_en" maxlength="255"<?= admin_lang_placeholder_attr('en') ?>>
         </label>
         <?php admin_lang_pane_end(); ?>
@@ -265,18 +266,18 @@ function faqValue(array $values, string $key): string
 
       <div class="admin-form-row admin-form-row--split">
         <?php admin_lang_pane_start('nl'); ?>
-        <label>Antwoord*
+        <label><?= admin_te('block_faq.antwoord_3') ?>*
           <textarea name="answer_nl" maxlength="1000" rows="3" <?= admin_lang_required('nl') ?>></textarea>
         </label>
         <?php admin_lang_pane_end(); ?>
         <?php admin_lang_pane_start('en'); ?>
-        <label>Antwoord
+        <label><?= admin_te('block_faq.antwoord_4') ?>
           <textarea name="answer_en" maxlength="1000" rows="3"<?= admin_lang_placeholder_attr('en') ?>></textarea>
         </label>
         <?php admin_lang_pane_end(); ?>
       </div>
 
-      <button type="submit">Vraag toevoegen</button>
+      <button type="submit"><?= admin_te('block_faq.vraag_toevoegen') ?></button>
     </form>
   </section>
 </main>

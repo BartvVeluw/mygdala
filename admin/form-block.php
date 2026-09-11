@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/../vendor/autoload.php';
+require_once __DIR__ . '/_translate.php';
 require_once __DIR__ . '/_save_bar.php';
 require_once __DIR__ . '/_language_fields.php';
 
@@ -50,7 +51,7 @@ if ($page === null || $sectionKey === null || $sectionKey === ''
     || $repository->findBySlugAndKey($pageSlug, $sectionKey) === null
 ) {
     http_response_code(404);
-    exit('Onbekende sectie.');
+    exit(admin_t('screen.onbekende_sectie'));
 }
 
 $section = $repository->findBySlugAndKey($pageSlug, $sectionKey);
@@ -87,18 +88,18 @@ $v = static fn (array $values, string $key): string => htmlspecialchars((string)
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title><?= $h(SectionRegistry::label('form')) ?> — <?= $h((string) $page['title']) ?> — Admin</title>
+<title><?= $h(SectionRegistry::label('form')) ?> <?= admin_t('forms.admin', ['v1' => $h((string) $page['title'])]) ?></title>
 <link rel="stylesheet" href="<?= \App\Service\AssetVersion::url('/admin/assets/admin.css') ?>">
 </head>
 <body<?= \App\Service\AdminTheme::bodyAttribute() ?>>
 <?php require __DIR__ . '/_header.php'; ?>
 <main class="admin-main">
-  <p class="admin-text-muted"><a href="/admin/page.php?id=<?= (int) $page['id'] ?>">&larr; <?= $h((string) $page['title']) ?></a></p>
+  <p class="admin-text-muted"><a href="/admin/page.php?id=<?= (int) $page['id'] ?>"><?= admin_t('forms.text', ['v1' => $h((string) $page['title'])]) ?></a></p>
   <h1><?= $h(SectionRegistry::label('form')) ?></h1>
-  <p class="admin-text-muted">Sectie op <strong><?= $h((string) $page['title']) ?></strong>. Je kiest hier welk formulier op deze plek staat; de velden, het e-mailadres en het bedankbericht beheer je bij <a href="/admin/forms.php">Formulieren</a>.</p>
+  <p class="admin-text-muted"><?= admin_t('forms.sectie_kiest_hier_welk', ['v1' => $h((string) $page['title'])]) ?></p>
 
   <?php if ($saved): ?>
-    <p class="admin-alert admin-alert--success">Opgeslagen.</p>
+    <p class="admin-alert admin-alert--success"><?= admin_te('common.saved') ?></p>
   <?php endif; ?>
   <?php if ($errors !== []): ?>
     <div class="admin-alert admin-alert--error">
@@ -111,7 +112,7 @@ $v = static fn (array $values, string $key): string => htmlspecialchars((string)
   <?php endif; ?>
 
   <?php if ($forms === []): ?>
-    <p class="admin-alert admin-alert--error">Er zijn nog geen formulieren om te kiezen. Maak er eerst een aan bij <a href="/admin/forms.php">Formulieren</a>.</p>
+    <p class="admin-alert admin-alert--error"><?= admin_t('forms.er_formulieren_kiezen_maak') ?></p>
   <?php endif; ?>
 
   <section class="admin-card">
@@ -119,9 +120,9 @@ $v = static fn (array $values, string $key): string => htmlspecialchars((string)
       <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
       <input type="hidden" name="section" value="<?= $h($sectionParam) ?>">
 
-      <label>Welk formulier?
+      <label><?= admin_te('forms.welk_formulier') ?>
         <select name="form_id">
-          <option value="">— Nog geen formulier gekozen —</option>
+          <option value=""><?= admin_te('forms.formulier_gekozen') ?></option>
           <?php foreach ($forms as $form): ?>
             <option value="<?= (int) $form['id'] ?>" <?= (string) $values['form_id'] === (string) $form['id'] ? 'selected' : '' ?>>
               <?= $h((string) $form['name']) ?><?= $form['is_active'] ? '' : ' (staat uit)' ?>
@@ -129,17 +130,17 @@ $v = static fn (array $values, string $key): string => htmlspecialchars((string)
           <?php endforeach; ?>
         </select>
       </label>
-      <p class="admin-text-muted">Zolang er geen formulier is gekozen — of het gekozen formulier uit staat of nog geen velden heeft — laat dit blok op de pagina niets zien.</p>
+      <p class="admin-text-muted"><?= admin_te('forms.zolang_er_formulier_gekozen') ?></p>
 
       <?php admin_lang_tabs(); ?>
       <div class="admin-form-row admin-form-row--split">
         <?php admin_lang_pane_start('nl'); ?>
-        <label>Kop boven het formulier
+        <label><?= admin_te('forms.kop_boven_formulier') ?>
           <input type="text" name="title_nl" maxlength="255" value="<?= $v($values, 'title_nl') ?>">
         </label>
         <?php admin_lang_pane_end(); ?>
         <?php admin_lang_pane_start('en'); ?>
-        <label>Kop boven het formulier
+        <label><?= admin_te('forms.kop_boven_formulier_2') ?>
           <input type="text" name="title_en" maxlength="255" value="<?= $v($values, 'title_en') ?>"<?= admin_lang_placeholder_attr('en') ?>>
         </label>
         <?php admin_lang_pane_end(); ?>
@@ -147,12 +148,12 @@ $v = static fn (array $values, string $key): string => htmlspecialchars((string)
 
       <div class="admin-form-row admin-form-row--split">
         <?php admin_lang_pane_start('nl'); ?>
-        <label>Inleiding
+        <label><?= admin_te('forms.inleiding') ?>
           <textarea name="intro_nl" maxlength="1000" rows="3"><?= $v($values, 'intro_nl') ?></textarea>
         </label>
         <?php admin_lang_pane_end(); ?>
         <?php admin_lang_pane_start('en'); ?>
-        <label>Inleiding
+        <label><?= admin_te('forms.inleiding_2') ?>
           <textarea name="intro_en" maxlength="1000" rows="3"<?= admin_lang_placeholder_attr('en') ?>><?= $v($values, 'intro_en') ?></textarea>
         </label>
         <?php admin_lang_pane_end(); ?>
@@ -160,10 +161,10 @@ $v = static fn (array $values, string $key): string => htmlspecialchars((string)
 
       <label class="admin-checkbox-label">
         <input type="checkbox" name="is_active" value="1" <?= ($values['is_active'] ?? true) ? 'checked' : '' ?>>
-        Actief (uitgevinkt = deze sectie wordt niet getoond op de pagina)
+        <?= admin_te('forms.actief_uitgevinkt_sectie_getoond') ?>
       </label>
 
-      <button type="submit">Opslaan</button>
+      <button type="submit"><?= admin_te('common.save') ?></button>
     </form>
   </section>
 </main>

@@ -543,4 +543,133 @@ final class MultilingualBoundaryTest extends TestCase
 
         return $messages;
     }
+
+    // ------------------------------------------ no screen ships Dutch-only
+
+    /**
+     * Dutch words that give away a SENTENCE rather than a name. Deliberately
+     * function words and CMS verbs, not "every Dutch word": a proper noun, a
+     * unit, a file extension and a brand name are all legitimate literals in
+     * a template, and a guard that flagged them would be turned off within a
+     * week.
+     */
+    private const DUTCH_GIVEAWAY = '/\b(de|het|een|deze|dit|niet|geen|wordt|worden|zijn|kun|kunt'
+        . '|moet|nog|voor|van|naar|bij|waar|welke|hoe|wie|opslaan|verwijderen|bewerken|toevoegen'
+        . '|aanmaken|wijzigen|verplicht|pagina|gebruiker|afbeelding|formulier|bestand|instellingen)\b/iu';
+
+    /**
+     * Screens and strings that are Dutch on purpose.
+     *
+     * Every entry names something that is NOT CMS interface copy:
+     *   - content this CMS writes into the database for an editor to edit,
+     *   - a value stored in site settings, which is the site owner's own text,
+     *   - the catalogue files themselves, which are supposed to hold Dutch.
+     *
+     * Anything else that turns up here is a screen that would ship Dutch-only,
+     * and the way to clear it is a key, not a line in this list.
+     *
+     * @var array<string, string> file or fragment => why
+     */
+    private const DUTCH_ON_PURPOSE = [
+        '_labels.php' => 'reads the catalogue; its own literals are keys',
+        'setup.php' => 'the wizard writes starter CONTENT, not interface copy',
+    ];
+
+    /**
+     * THE GUARD. No admin screen may print a Dutch sentence as a literal.
+     *
+     * This is what stops the next screen shipping Dutch-only: the words a
+     * person reads have to come from the catalogue, and a template that spells
+     * one out fails here rather than on somebody's screen.
+     *
+     * It reads TEXT NODES only — what a browser would render — after masking
+     * PHP, comments and <script>/<style>, because everything else in an admin
+     * file is code, and a guard that read code would be noise.
+     */
+    public function testNoAdminScreenPrintsADutchSentenceOfItsOwn(): void
+    {
+        $offenders = [];
+
+        foreach (self::glob('admin/*.php') as $file) {
+            $name = basename($file);
+            if (isset(self::DUTCH_ON_PURPOSE[$name])) {
+                continue;
+            }
+
+            foreach (self::textNodes((string) file_get_contents($file)) as $text) {
+                if (preg_match(self::DUTCH_GIVEAWAY, $text) === 1) {
+                    $offenders[] = $name . ': ' . mb_substr($text, 0, 70);
+                }
+            }
+        }
+
+        self::assertSame(
+            [],
+            $offenders,
+            "these screens print Dutch instead of asking the catalogue:\n  " . implode("\n  ", $offenders)
+        );
+    }
+
+    /**
+     * The same rule for what a write endpoint hands BACK to a person.
+     *
+     * A validation message is interface copy too — it is read by the same
+     * administrator, on the same screen, in the same language.
+     */
+    public function testNoAdminEndpointAnswersWithADutchSentenceOfItsOwn(): void
+    {
+        $offenders = [];
+
+        foreach (self::glob('api/admin/*.php') as $file) {
+            $source = (string) file_get_contents($file);
+
+            preg_match_all(
+                '/(?:\$errors\[\]\s*=\s*|\$_SESSION\[\'[a-z_]+\'\]\s*=\s*)\'([^\']{8,240})\'/',
+                $source,
+                $matches
+            );
+
+            foreach ($matches[1] as $message) {
+                if (preg_match(self::DUTCH_GIVEAWAY, $message) === 1) {
+                    $offenders[] = basename($file) . ': ' . mb_substr($message, 0, 70);
+                }
+            }
+        }
+
+        self::assertSame(
+            [],
+            $offenders,
+            "these endpoints answer in Dutch instead of asking the catalogue:\n  " . implode("\n  ", $offenders)
+        );
+    }
+
+    /**
+     * What a browser would RENDER from an admin template: the text between
+     * tags, with PHP, comments and <script>/<style> masked out first.
+     *
+     * A docblock in this project carries usage examples that include `?>`, so
+     * comments are masked BEFORE the PHP blocks — otherwise the mask ends in
+     * the middle of a comment and its prose reads as page text.
+     *
+     * @return list<string>
+     */
+    private static function textNodes(string $source): array
+    {
+        $masked = preg_replace('/\/\*.*?\*\//s', ' ', $source) ?? $source;
+        $masked = preg_replace('/<\?php.*?\?>|<\?=.*?\?>|<\?php.*\z/s', "\x00", $masked) ?? $masked;
+        $masked = preg_replace('/<(script|style)\b[^<>]*>.*?<\/\1\s*>/is', "\x00", $masked) ?? $masked;
+        $masked = preg_replace('/<[^<>]*>/s', "\x00", $masked) ?? $masked;
+
+        $nodes = [];
+        foreach (explode("\x00", $masked) as $piece) {
+            $text = trim(preg_replace('/\s+/u', ' ', $piece) ?? $piece);
+            if ($text === '' || mb_strlen($text) < 4) {
+                continue;
+            }
+
+            $nodes[] = $text;
+        }
+
+        return $nodes;
+    }
 }

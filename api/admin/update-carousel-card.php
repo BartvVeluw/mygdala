@@ -12,6 +12,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../../vendor/autoload.php';
 
+use App\Service\Language\AdminTranslator;
 use App\Service\AdminAuth;
 use App\Service\Csrf;
 use App\Service\CardCarouselContent;
@@ -59,7 +60,7 @@ $fields = [
 ];
 
 if ($fields['title_nl'] === '') {
-    $_SESSION['admin_carousel_card_errors'] = ['Titel (NL) is verplicht.'];
+    $_SESSION['admin_carousel_card_errors'] = [AdminTranslator::trans('validation.titel_nl_verplicht')];
     $_SESSION['admin_carousel_card_old'] = $fields;
     header('Location: ' . $redirect);
     exit;

@@ -2,6 +2,9 @@
 
 namespace App\Service\Blocks;
 
+use App\Service\Language\AdminTranslator;
+use App\Service\Language\LanguageRegistry;
+
 /**
  * ONE content-block type, in ONE file: its CMS metadata plus every piece of
  * behaviour App\Service\SectionRegistry needs to place, render, label, edit,
@@ -60,7 +63,50 @@ abstract class BlockDefinition
      */
     public function label(): string
     {
-        return (string) ($this->meta()['label'] ?? $this->type());
+        return $this->say('label', (string) ($this->meta()['label'] ?? $this->type()));
+    }
+
+    /**
+     * The block's own words in the CMS interface language of whoever is
+     * signed in.
+     *
+     * Keyed on type() — `block.rich_text.description` — which is a fixed
+     * string in source and can never come from a request. Translated HERE
+     * rather than in each of the two dozen block classes, so a block keeps
+     * declaring a plain Dutch label and description and never has to know
+     * that this CMS runs in two languages. A block with no key in the
+     * catalogue keeps its own words (App\Service\Language\AdminTranslator).
+     */
+    private function say(string $suffix, string $fallback): string
+    {
+        $key = 'block.' . $this->type() . '.' . $suffix;
+
+        if (!AdminTranslator::has($key, LanguageRegistry::DEFAULT_LANGUAGE)) {
+            return $fallback;
+        }
+
+        return AdminTranslator::trans($key);
+    }
+
+    /** description(), in the reader's language. Editors print THIS. */
+    public function describedFor(): string
+    {
+        return $this->say('description', $this->description());
+    }
+
+    /**
+     * useCases(), in the reader's language.
+     *
+     * @return list<string>
+     */
+    public function useCasesFor(): array
+    {
+        $cases = [];
+        foreach ($this->useCases() as $index => $case) {
+            $cases[] = $this->say('use_case_' . ($index + 1), (string) $case);
+        }
+
+        return $cases;
     }
 
     /**

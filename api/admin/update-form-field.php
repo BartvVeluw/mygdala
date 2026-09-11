@@ -19,6 +19,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../../vendor/autoload.php';
 
+use App\Service\Language\AdminTranslator;
 use App\Repository\FormRepository;
 use App\Service\AdminAuth;
 use App\Service\Csrf;
@@ -77,11 +78,11 @@ $fields = [
 $errors = [];
 
 if ($fields['label_nl'] === '') {
-    $errors[] = 'Het label is verplicht.';
+    $errors[] = AdminTranslator::trans('validation.label_verplicht_2');
 }
 
 if ($type === null) {
-    $errors[] = 'Kies een geldig veldtype.';
+    $errors[] = AdminTranslator::trans('validation.kies_geldig_veldtype');
 } else {
     if ($type->requiredIsFixed()) {
         // The admin renders this checkbox as fixed, so it posts nothing;
@@ -90,7 +91,7 @@ if ($type === null) {
     }
 
     if ($type->usesOptions() && FormFieldOptions::fromStored($fields['options'])->isEmpty()) {
-        $errors[] = 'Een keuzeveld heeft minstens één optie nodig.';
+        $errors[] = AdminTranslator::trans('validation.choice_field_needs_option');
     }
 
     if (!$type->usesOptions()) {
@@ -111,7 +112,7 @@ if ($type === null) {
         FormFieldOptions::fromStored($fields['options']),
         $fields['default_value']
     )) {
-        $errors[] = 'De standaardwaarde moet een van de opties van dit veld zijn.';
+        $errors[] = AdminTranslator::trans('validation.standaardwaarde_opties_veld');
     }
 }
 

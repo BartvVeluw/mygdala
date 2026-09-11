@@ -17,6 +17,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../../vendor/autoload.php';
 
+use App\Service\Language\AdminTranslator;
 use App\Service\AdminAuth;
 use App\Service\Csrf;
 use App\Service\CardCarouselContent;
@@ -84,7 +85,7 @@ try {
 } catch (\Throwable $e) {
     error_log('[api/admin/update-carousel-card-image.php] ' . $e->getMessage());
     // Nothing to clean up: this endpoint created no file, only a reference.
-    $_SESSION['admin_carousel_card_image_errors'] = ['Afbeelding kon niet worden opgeslagen. Probeer het opnieuw.'];
+    $_SESSION['admin_carousel_card_image_errors'] = [AdminTranslator::trans('validation.afbeelding_kon_opgeslagen_probeer_opnieuw')];
     header('Location: ' . $redirect);
     exit;
 }

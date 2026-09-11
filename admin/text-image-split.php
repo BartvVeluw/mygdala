@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/../vendor/autoload.php';
+require_once __DIR__ . '/_translate.php';
 require_once __DIR__ . '/_save_bar.php';
 require_once __DIR__ . '/_language_fields.php';
 
@@ -32,7 +33,7 @@ if ($section === null) {
         || (new TextImageSplitRepository())->findBySlugAndKey($dynPageSlug, $dynSectionKey) === null
     ) {
         http_response_code(404);
-        exit('Onbekende sectie.');
+        exit(admin_t('screen.onbekende_sectie'));
     }
     $section = [
         'page_slug' => $dynPageSlug,
@@ -102,18 +103,18 @@ function tisValue(array $values, string $key): string
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title><?= htmlspecialchars($section['section_label'], ENT_QUOTES, 'UTF-8') ?> — Admin</title>
+<title><?= htmlspecialchars($section['section_label'], ENT_QUOTES, 'UTF-8') ?> <?= admin_te('block_textimage.admin') ?></title>
 <link rel="stylesheet" href="<?= \App\Service\AssetVersion::url('/admin/assets/admin.css') ?>">
 </head>
 <body<?= \App\Service\AdminTheme::bodyAttribute() ?>>
 <?php require __DIR__ . '/_header.php'; ?>
 <main class="admin-main">
-  <p class="admin-text-muted"><a href="<?= htmlspecialchars(\App\Service\PageContent::builderUrl($pageSlug), ENT_QUOTES, 'UTF-8') ?>">&larr; <?= htmlspecialchars($section['page_label'], ENT_QUOTES, 'UTF-8') ?></a></p>
+  <p class="admin-text-muted"><a href="<?= htmlspecialchars(\App\Service\PageContent::builderUrl($pageSlug), ENT_QUOTES, 'UTF-8') ?>"><?= admin_t('block_textimage.text', ['v1' => htmlspecialchars($section['page_label'], ENT_QUOTES, 'UTF-8')]) ?></a></p>
   <h1><?= htmlspecialchars($section['section_label'], ENT_QUOTES, 'UTF-8') ?></h1>
-  <p class="admin-text-muted">Sectie op <strong><?= htmlspecialchars($section['page_label'], ENT_QUOTES, 'UTF-8') ?></strong>. Wijzigingen zijn direct zichtbaar op de pagina.</p>
+  <p class="admin-text-muted"><?= admin_t('block_textimage.sectie_wijzigingen_direct_zichtbaar', ['v1' => htmlspecialchars($section['page_label'], ENT_QUOTES, 'UTF-8')]) ?></p>
 
   <?php if ($saved): ?>
-    <p class="admin-alert admin-alert--success">Opgeslagen.</p>
+    <p class="admin-alert admin-alert--success"><?= admin_te('common.saved') ?></p>
   <?php endif; ?>
 
   <?php if ($errors !== []): ?>
@@ -147,16 +148,16 @@ function tisValue(array $values, string $key): string
   <?php endif; ?>
 
   <section class="admin-card">
-    <h2>Sectie</h2>
+    <h2><?= admin_te('block_textimage.sectie') ?></h2>
     <form method="post" action="/api/admin/update-text-image-split-section.php" class="admin-product-form">
       <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
       <input type="hidden" name="section" value="<?= htmlspecialchars($sectionKey, ENT_QUOTES, 'UTF-8') ?>">
 
       <div class="admin-form-row">
-        <label>Afbeelding-positie
+        <label><?= admin_te('block_textimage.afbeelding_positie') ?>
           <select name="layout">
-            <option value="image_right" <?= $sectionValues['layout'] === 'image_right' ? 'selected' : '' ?>>Afbeelding rechts, tekst links</option>
-            <option value="image_left" <?= $sectionValues['layout'] === 'image_left' ? 'selected' : '' ?>>Afbeelding links, tekst rechts</option>
+            <option value="image_right" <?= $sectionValues['layout'] === 'image_right' ? 'selected' : '' ?>><?= admin_te('block_textimage.afbeelding_rechts_tekst_links') ?></option>
+            <option value="image_left" <?= $sectionValues['layout'] === 'image_left' ? 'selected' : '' ?>><?= admin_te('block_textimage.afbeelding_links_tekst_rechts') ?></option>
           </select>
         </label>
       </div>
@@ -164,12 +165,12 @@ function tisValue(array $values, string $key): string
       <?php admin_lang_tabs(); ?>
       <div class="admin-form-row admin-form-row--split">
         <?php admin_lang_pane_start('nl'); ?>
-        <label>Eyebrow
+        <label><?= admin_te('block_textimage.eyebrow') ?>
           <input type="text" name="eyebrow_nl" maxlength="150" value="<?= tisValue($sectionValues, 'eyebrow_nl') ?>" placeholder="Optioneel">
         </label>
         <?php admin_lang_pane_end(); ?>
         <?php admin_lang_pane_start('en'); ?>
-        <label>Eyebrow
+        <label><?= admin_te('block_textimage.eyebrow_2') ?>
           <input type="text" name="eyebrow_en" maxlength="150" value="<?= tisValue($sectionValues, 'eyebrow_en') ?>"<?= admin_lang_placeholder_attr('en') ?>>
         </label>
         <?php admin_lang_pane_end(); ?>
@@ -177,52 +178,52 @@ function tisValue(array $values, string $key): string
 
       <div class="admin-form-row admin-form-row--split">
         <?php admin_lang_pane_start('nl'); ?>
-        <label>Titel / H2
+        <label><?= admin_te('block_textimage.titel_h2') ?>
           <input type="text" name="title_nl" maxlength="255" value="<?= tisValue($sectionValues, 'title_nl') ?>" placeholder="Optioneel">
         </label>
         <?php admin_lang_pane_end(); ?>
         <?php admin_lang_pane_start('en'); ?>
-        <label>Titel / H2
+        <label><?= admin_te('block_textimage.titel_h2_2') ?>
           <input type="text" name="title_en" maxlength="255" value="<?= tisValue($sectionValues, 'title_en') ?>"<?= admin_lang_placeholder_attr('en') ?>>
         </label>
         <?php admin_lang_pane_end(); ?>
       </div>
 
-      <p class="admin-text-muted">Als er geen titel is ingevuld, krijgt de eerste alinea automatisch de grotere "lead"-stijl (zoals bij het huidige introblok).</p>
+      <p class="admin-text-muted"><?= admin_te('block_textimage.er_titel_ingevuld_krijgt') ?></p>
 
       <div class="admin-form-row admin-form-row--split">
         <?php admin_lang_pane_start('nl'); ?>
-        <label>Knoptekst
+        <label><?= admin_te('block_textimage.knoptekst') ?>
           <input type="text" name="button_label_nl" maxlength="150" value="<?= tisValue($sectionValues, 'button_label_nl') ?>" placeholder="Optioneel">
         </label>
         <?php admin_lang_pane_end(); ?>
         <?php admin_lang_pane_start('en'); ?>
-        <label>Knoptekst
+        <label><?= admin_te('block_textimage.knoptekst_2') ?>
           <input type="text" name="button_label_en" maxlength="150" value="<?= tisValue($sectionValues, 'button_label_en') ?>"<?= admin_lang_placeholder_attr('en') ?>>
         </label>
         <?php admin_lang_pane_end(); ?>
       </div>
       <div class="admin-form-row">
-        <label>Knop-URL
+        <label><?= admin_te('block_textimage.knop_url') ?>
           <input type="text" name="button_url" maxlength="255" value="<?= tisValue($sectionValues, 'button_url') ?>" placeholder="Bijv. contact.php — leeg = geen knop">
         </label>
       </div>
-      <p class="admin-text-muted">Knoptekst en URL horen bij elkaar: is er maar één van de twee ingevuld, dan wordt er geen knop getoond.</p>
+      <p class="admin-text-muted"><?= admin_te('block_textimage.knoptekst_url_horen_elkaar') ?></p>
 
       <label class="admin-checkbox-label">
         <input type="checkbox" name="is_active" value="1" <?= ($sectionValues['is_active'] ?? true) ? 'checked' : '' ?>>
-        Actief (uitgevinkt = deze hele sectie wordt niet getoond op de pagina)
+        <?= admin_te('block_textimage.actief_uitgevinkt_hele_sectie') ?>
       </label>
 
-      <button type="submit">Opslaan</button>
+      <button type="submit"><?= admin_te('common.save') ?></button>
     </form>
   </section>
 
   <section class="admin-card">
-    <h2>Alinea's</h2>
+    <h2><?= admin_te('block_textimage.alinea_s') ?></h2>
 
     <?php if ($paragraphs === []): ?>
-      <p class="admin-text-muted">Nog geen alinea's in deze sectie.</p>
+      <p class="admin-text-muted"><?= admin_te('block_textimage.alinea_s_sectie') ?></p>
     <?php endif; ?>
 
     <?php foreach ($paragraphs as $index => $paragraph): ?>
@@ -239,18 +240,18 @@ function tisValue(array $values, string $key): string
           <?php admin_lang_tabs(); ?>
           <div class="admin-form-row admin-form-row--split">
             <?php admin_lang_pane_start('nl'); ?>
-            <label>Tekst*
+            <label><?= admin_te('block_textimage.tekst') ?>*
               <textarea name="content_nl" maxlength="1000" rows="3" <?= admin_lang_required('nl') ?>><?= htmlspecialchars((string) $paragraph['content_nl'], ENT_QUOTES, 'UTF-8') ?></textarea>
             </label>
             <?php admin_lang_pane_end(); ?>
             <?php admin_lang_pane_start('en'); ?>
-            <label>Tekst
+            <label><?= admin_te('block_textimage.tekst_2') ?>
               <textarea name="content_en" maxlength="1000" rows="3"<?= admin_lang_placeholder_attr('en') ?>><?= htmlspecialchars((string) ($paragraph['content_en'] ?? ''), ENT_QUOTES, 'UTF-8') ?></textarea>
             </label>
             <?php admin_lang_pane_end(); ?>
           </div>
 
-          <button type="submit">Opslaan</button>
+          <button type="submit"><?= admin_te('common.save') ?></button>
         </form>
 
         <div class="admin-image-card__actions" style="margin-top:0.75rem;">
@@ -258,18 +259,18 @@ function tisValue(array $values, string $key): string
             <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
             <input type="hidden" name="paragraph_id" value="<?= $paragraphId ?>">
             <input type="hidden" name="direction" value="up">
-            <button type="submit" class="admin-btn-text" <?= $isFirst ? 'disabled' : '' ?>>&uarr; Omhoog</button>
+            <button type="submit" class="admin-btn-text" <?= $isFirst ? 'disabled' : '' ?>><?= admin_t('common.move_up') ?></button>
           </form>
           <form method="post" action="/api/admin/move-text-image-split-paragraph.php" class="admin-inline-form">
             <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
             <input type="hidden" name="paragraph_id" value="<?= $paragraphId ?>">
             <input type="hidden" name="direction" value="down">
-            <button type="submit" class="admin-btn-text" <?= $isLast ? 'disabled' : '' ?>>&darr; Omlaag</button>
+            <button type="submit" class="admin-btn-text" <?= $isLast ? 'disabled' : '' ?>><?= admin_t('common.move_down') ?></button>
           </form>
           <form method="post" action="/api/admin/delete-text-image-split-paragraph.php" class="admin-inline-form" onsubmit="return confirm('Deze alinea definitief verwijderen?');">
             <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
             <input type="hidden" name="paragraph_id" value="<?= $paragraphId ?>">
-            <button type="submit" class="admin-btn-text admin-btn-text--danger">Verwijderen</button>
+            <button type="submit" class="admin-btn-text admin-btn-text--danger"><?= admin_te('common.delete') ?></button>
           </form>
         </div>
       </article>
@@ -277,7 +278,7 @@ function tisValue(array $values, string $key): string
   </section>
 
   <section class="admin-card">
-    <h2>Nieuwe alinea toevoegen</h2>
+    <h2><?= admin_te('block_textimage.nieuwe_alinea_toevoegen') ?></h2>
     <form method="post" action="/api/admin/create-text-image-split-paragraph.php" class="admin-product-form">
       <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
       <input type="hidden" name="section_id" value="<?= $splitId ?>">
@@ -285,27 +286,27 @@ function tisValue(array $values, string $key): string
       <?php admin_lang_tabs(); ?>
       <div class="admin-form-row admin-form-row--split">
         <?php admin_lang_pane_start('nl'); ?>
-        <label>Tekst*
+        <label><?= admin_te('block_textimage.tekst_3') ?>*
           <textarea name="content_nl" maxlength="1000" rows="3" <?= admin_lang_required('nl') ?>></textarea>
         </label>
         <?php admin_lang_pane_end(); ?>
         <?php admin_lang_pane_start('en'); ?>
-        <label>Tekst
+        <label><?= admin_te('block_textimage.tekst_4') ?>
           <textarea name="content_en" maxlength="1000" rows="3"<?= admin_lang_placeholder_attr('en') ?>></textarea>
         </label>
         <?php admin_lang_pane_end(); ?>
       </div>
 
-      <button type="submit">Alinea toevoegen</button>
+      <button type="submit"><?= admin_te('block_textimage.alinea_toevoegen') ?></button>
     </form>
   </section>
 
   <section class="admin-card">
-    <h2>Afbeeldingen</h2>
-    <p class="admin-text-muted">1 afbeelding toont een enkele grote foto, 2 afbeeldingen tonen een mini-galerij naast elkaar.</p>
+    <h2><?= admin_te('block_textimage.afbeeldingen') ?></h2>
+    <p class="admin-text-muted"><?= admin_te('block_textimage.1_afbeelding_toont_enkele') ?></p>
 
     <?php if ($images === []): ?>
-      <p class="admin-text-muted">Nog geen afbeeldingen in deze sectie.</p>
+      <p class="admin-text-muted"><?= admin_te('block_textimage.afbeeldingen_sectie') ?></p>
     <?php endif; ?>
 
     <?php foreach ($images as $index => $image): ?>
@@ -326,18 +327,18 @@ function tisValue(array $values, string $key): string
           <?php admin_lang_tabs(); ?>
           <div class="admin-form-row admin-form-row--split">
             <?php admin_lang_pane_start('nl'); ?>
-            <label>Alt-tekst
+            <label><?= admin_te('common.alt_text') ?>
               <input type="text" name="alt_nl" maxlength="255" value="<?= htmlspecialchars((string) ($image['alt_nl'] ?? ''), ENT_QUOTES, 'UTF-8') ?>" placeholder="Leeg = alt-tekst uit de mediabibliotheek">
             </label>
             <?php admin_lang_pane_end(); ?>
             <?php admin_lang_pane_start('en'); ?>
-            <label>Alt-tekst
+            <label><?= admin_te('common.alt_text') ?>
               <input type="text" name="alt_en" maxlength="255" value="<?= htmlspecialchars((string) ($image['alt_en'] ?? ''), ENT_QUOTES, 'UTF-8') ?>"<?= admin_lang_placeholder_attr('en') ?>>
             </label>
             <?php admin_lang_pane_end(); ?>
           </div>
 
-          <button type="submit">Opslaan</button>
+          <button type="submit"><?= admin_te('common.save') ?></button>
         </form>
 
         <div class="admin-image-card__actions" style="margin-top:0.75rem;">
@@ -345,18 +346,18 @@ function tisValue(array $values, string $key): string
             <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
             <input type="hidden" name="image_id" value="<?= $imageId ?>">
             <input type="hidden" name="direction" value="up">
-            <button type="submit" class="admin-btn-text" <?= $isFirst ? 'disabled' : '' ?>>&uarr; Omhoog</button>
+            <button type="submit" class="admin-btn-text" <?= $isFirst ? 'disabled' : '' ?>><?= admin_t('common.move_up') ?></button>
           </form>
           <form method="post" action="/api/admin/move-text-image-split-image.php" class="admin-inline-form">
             <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
             <input type="hidden" name="image_id" value="<?= $imageId ?>">
             <input type="hidden" name="direction" value="down">
-            <button type="submit" class="admin-btn-text" <?= $isLast ? 'disabled' : '' ?>>&darr; Omlaag</button>
+            <button type="submit" class="admin-btn-text" <?= $isLast ? 'disabled' : '' ?>><?= admin_t('common.move_down') ?></button>
           </form>
           <form method="post" action="/api/admin/delete-text-image-split-image.php" class="admin-inline-form" onsubmit="return confirm('Deze afbeelding definitief verwijderen?');">
             <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
             <input type="hidden" name="image_id" value="<?= $imageId ?>">
-            <button type="submit" class="admin-btn-text admin-btn-text--danger">Verwijderen</button>
+            <button type="submit" class="admin-btn-text admin-btn-text--danger"><?= admin_te('common.delete') ?></button>
           </form>
         </div>
       </article>
@@ -364,7 +365,7 @@ function tisValue(array $values, string $key): string
   </section>
 
   <section class="admin-card">
-    <h2>Nieuwe afbeelding toevoegen</h2>
+    <h2><?= admin_te('block_textimage.nieuwe_afbeelding_toevoegen') ?></h2>
     <form method="post" action="/api/admin/create-text-image-split-image.php" class="admin-product-form">
       <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
       <input type="hidden" name="section_id" value="<?= $splitId ?>">
@@ -376,18 +377,18 @@ function tisValue(array $values, string $key): string
       <?php admin_lang_tabs(); ?>
       <div class="admin-form-row admin-form-row--split">
         <?php admin_lang_pane_start('nl'); ?>
-        <label>Alt-tekst
+        <label><?= admin_te('common.alt_text') ?>
           <input type="text" name="alt_nl" maxlength="255" placeholder="Leeg = alt-tekst uit de mediabibliotheek">
         </label>
         <?php admin_lang_pane_end(); ?>
         <?php admin_lang_pane_start('en'); ?>
-        <label>Alt-tekst
+        <label><?= admin_te('common.alt_text') ?>
           <input type="text" name="alt_en" maxlength="255"<?= admin_lang_placeholder_attr('en') ?>>
         </label>
         <?php admin_lang_pane_end(); ?>
       </div>
 
-      <button type="submit">Afbeelding toevoegen</button>
+      <button type="submit"><?= admin_te('block_textimage.afbeelding_toevoegen') ?></button>
     </form>
   </section>
 </main>

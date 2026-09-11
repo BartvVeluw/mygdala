@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace App\Service\Blocks;
 
+use App\Service\Language\AdminTranslator;
+use App\Service\Language\LanguageRegistry;
+
 /**
  * THE list of drawers a content block can sit in, and the only place their
  * Dutch names are written.
@@ -87,7 +90,14 @@ final class BlockCategories
      */
     public static function label(string $key): string
     {
-        return self::LABELS[$key] ?? $key;
+        $fallback = self::LABELS[$key] ?? $key;
+        $catalogue = 'blockcategory.' . $key;
+
+        // The heading a person reads, in their own CMS language; the key
+        // itself never changes (MULTILINGUAL.md).
+        return AdminTranslator::has($catalogue, LanguageRegistry::DEFAULT_LANGUAGE)
+            ? AdminTranslator::trans($catalogue)
+            : $fallback;
     }
 
     /**

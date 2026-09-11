@@ -17,6 +17,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../../vendor/autoload.php';
 
+use App\Service\Language\AdminTranslator;
 use App\Repository\MediaRepository;
 use App\Service\AdminAuth;
 use App\Service\Media\MediaItem;
@@ -46,7 +47,7 @@ try {
     error_log('[api/admin/media-list.php] ' . $e->getMessage());
 
     http_response_code(500);
-    echo json_encode(['error' => 'Mediabibliotheek kon niet worden geladen.'], JSON_UNESCAPED_SLASHES);
+    echo json_encode(['error' => AdminTranslator::trans('validation.mediabibliotheek_kon_geladen')], JSON_UNESCAPED_SLASHES);
     exit;
 }
 

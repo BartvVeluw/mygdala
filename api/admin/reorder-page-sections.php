@@ -19,6 +19,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../../vendor/autoload.php';
 
+use App\Service\Language\AdminTranslator;
 use App\Service\AdminAuth;
 use App\Service\Csrf;
 use App\Repository\PageRepository;
@@ -63,7 +64,7 @@ try {
 } catch (\Throwable $e) {
     error_log('[api/admin/reorder-page-sections.php] ' . $e->getMessage());
     http_response_code(500);
-    echo json_encode(['ok' => false, 'error' => 'Volgorde kon niet worden opgeslagen.']);
+    echo json_encode(['ok' => false, 'error' => AdminTranslator::trans('validation.volgorde_kon_opgeslagen')]);
     exit;
 }
 

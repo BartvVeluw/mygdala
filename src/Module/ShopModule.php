@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Module;
 
+use App\Service\Language\AdminTranslator;
 use App\Repository\CollectionRepository;
 use App\Repository\PortfolioGalleryRepository;
 use App\Repository\ProductRepository;
@@ -297,19 +298,19 @@ final class ShopModule extends ModuleDefinition
         return [
             [
                 'icon' => 'products',
-                'title' => 'Producten',
-                'desc' => 'Beheer producten, afbeeldingen, prijzen en varianten.',
+                'title' => AdminTranslator::trans('dashboard.card_products_title'),
+                'desc' => AdminTranslator::trans('dashboard.card_products_desc'),
                 'href' => '/admin/products.php',
-                'cta' => 'Producten beheren',
+                'cta' => AdminTranslator::trans('dashboard.card_products_cta'),
                 'permission' => self::PRODUCTS_VIEW,
                 'order' => 200,
             ],
             [
                 'icon' => 'orders',
-                'title' => 'Bestellingen',
-                'desc' => 'Bekijk en beheer binnengekomen bestellingen.',
+                'title' => AdminTranslator::trans('dashboard.card_orders_title'),
+                'desc' => AdminTranslator::trans('dashboard.card_orders_desc'),
                 'href' => '/admin/orders.php',
-                'cta' => 'Bestellingen bekijken',
+                'cta' => AdminTranslator::trans('dashboard.card_orders_cta'),
                 'permission' => self::ORDERS_VIEW,
                 'order' => 300,
             ],

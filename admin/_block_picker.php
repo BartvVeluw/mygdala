@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+
+require_once __DIR__ . '/_translate.php';
 require_once __DIR__ . '/_block_visual.php';
 
 use App\Service\Blocks\BlockCategories;
@@ -45,7 +47,7 @@ function block_picker_button(): void
     <div class="admin-add-block">
       <button type="button" class="admin-add-block__button" data-block-picker-open
               aria-haspopup="dialog" aria-expanded="false">
-        <span aria-hidden="true">+</span> Contentblok toevoegen
+        <span aria-hidden="true"><?= admin_t('blocks.contentblok_toevoegen') ?>
       </button>
     </div>
     <?php
@@ -68,20 +70,20 @@ function block_picker_modal(array $available, int $pageId, string $csrfToken): v
       <div class="admin-block-picker__backdrop" data-block-picker-close></div>
       <div class="admin-block-picker__panel">
         <header class="admin-block-picker__head">
-          <h2 id="admin-block-picker-title">Contentblok kiezen</h2>
+          <h2 id="admin-block-picker-title"><?= admin_te('blocks.contentblok_kiezen') ?></h2>
           <button type="button" class="admin-block-picker__close" data-block-picker-close aria-label="Sluiten">&times;</button>
         </header>
 
-        <p class="admin-block-picker__intro">Klik op een blok om het onderaan de pagina toe te voegen. Je kunt het daarna nog verplaatsen, verbergen of verwijderen.</p>
+        <p class="admin-block-picker__intro"><?= admin_te('blocks.klik_blok_onderaan_pagina') ?></p>
 
         <div class="admin-block-picker__tools">
           <label class="admin-block-picker__search">
-            <span class="admin-visually-hidden">Zoek een contentblok</span>
+            <span class="admin-visually-hidden"><?= admin_te('blocks.zoek_contentblok') ?></span>
             <input type="search" placeholder="Zoeken op naam of omschrijving" data-block-picker-search autocomplete="off">
           </label>
           <?php if (count($groups) > 1): ?>
             <div class="admin-block-picker__filters" role="group" aria-label="Filteren op categorie">
-              <button type="button" class="admin-chip is-active" data-block-picker-filter="" aria-pressed="true">Alles</button>
+              <button type="button" class="admin-chip is-active" data-block-picker-filter="" aria-pressed="true"><?= admin_te('common.all') ?></button>
               <?php foreach (array_keys($groups) as $categoryKey): ?>
                 <button type="button" class="admin-chip" data-block-picker-filter="<?= $h($categoryKey) ?>" aria-pressed="false"><?= $h(BlockCategories::label($categoryKey)) ?></button>
               <?php endforeach; ?>
@@ -94,7 +96,7 @@ function block_picker_modal(array $available, int $pageId, string $csrfToken): v
         <p class="admin-block-picker__status" data-block-picker-status role="status" aria-live="polite"></p>
 
         <?php if ($available === []): ?>
-          <p class="admin-text-muted">Er is op deze pagina op dit moment geen contentblok meer dat je kunt toevoegen.</p>
+          <p class="admin-text-muted"><?= admin_te('blocks.er_pagina_moment_contentblok') ?></p>
         <?php else: ?>
           <form method="post" action="/api/admin/add-page-section.php" class="admin-block-picker__body" data-no-dirty-track>
             <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
@@ -112,9 +114,9 @@ function block_picker_modal(array $available, int $pageId, string $csrfToken): v
                       // editor never sees `text_image_split`, so they can
                       // never usefully search for it either.
                       $terms = mb_strtolower(
-                          $definition->label() . ' ' . $definition->description()
+                          $definition->label() . ' ' . $definition->describedFor()
                           . ' ' . BlockCategories::label($definition->category())
-                          . ' ' . implode(' ', $definition->useCases())
+                          . ' ' . implode(' ', $definition->useCasesFor())
                       );
                     ?>
                     <button type="submit" name="section_type" value="<?= $h($type) ?>"
@@ -127,9 +129,9 @@ function block_picker_modal(array $available, int $pageId, string $csrfToken): v
                           <?php block_icon_svg($definition, 'admin-block-card__icon'); ?>
                           <span><?= $h($definition->label()) ?></span>
                         </span>
-                        <span class="admin-block-card__desc"><?= $h($definition->description()) ?></span>
+                        <span class="admin-block-card__desc"><?= $h($definition->describedFor()) ?></span>
                       </span>
-                      <span class="admin-block-card__add" aria-hidden="true">Toevoegen</span>
+                      <span class="admin-block-card__add" aria-hidden="true"><?= admin_te('common.add') ?></span>
                     </button>
                   <?php endforeach; ?>
                 </div>
@@ -139,7 +141,7 @@ function block_picker_modal(array $available, int $pageId, string $csrfToken): v
         <?php endif; ?>
 
         <footer class="admin-block-picker__foot">
-          <p class="admin-text-muted">Weten wat elk blok doet? Bekijk de <a href="/admin/content-blocks.php">Contentblokken-catalogus</a>.</p>
+          <p class="admin-text-muted"><?= admin_t('blocks.weten_wat_elk_blok') ?></p>
         </footer>
       </div>
     </div>

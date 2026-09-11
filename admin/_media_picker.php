@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+
+require_once __DIR__ . '/_translate.php';
 use App\Service\AssetVersion;
 use App\Service\Csrf;
 use App\Service\Media\MediaItem;
@@ -50,10 +52,13 @@ use App\Service\Media\MediaItem;
 function media_picker_field(
     string $name,
     ?MediaItem $selected = null,
-    string $label = 'Afbeelding',
+    string $label = '',
     string $help = '',
     bool $clearable = true
 ): void {
+    // Resolved here rather than in the signature: a PHP default value
+    // cannot call a function, and this one has to be read per request.
+    $label = $label !== '' ? $label : admin_t('common.image_label');
     $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
     $fieldId = 'media-picker-' . preg_replace('/[^a-z0-9_-]/i', '-', $name) . '-' . bin2hex(random_bytes(4));
     ?>
@@ -67,18 +72,18 @@ function media_picker_field(
           <?php if ($selected->fileExists()): ?>
             <img src="<?= $h($selected->displayPath()) ?>" alt="" loading="lazy">
           <?php else: ?>
-            <span class="admin-media-picker__missing" title="Het bestand ontbreekt op de server">Bestand ontbreekt</span>
+            <span class="admin-media-picker__missing" title="Het bestand ontbreekt op de server"><?= admin_te('common.file_missing') ?></span>
           <?php endif; ?>
           <span class="admin-media-picker__name"><?= $h($selected->displayName()) ?></span>
         <?php else: ?>
-          <span class="admin-media-picker__empty">Nog geen afbeelding gekozen.</span>
+          <span class="admin-media-picker__empty"><?= admin_te('media.no_image_chosen') ?></span>
         <?php endif; ?>
       </div>
 
       <div class="admin-media-picker__actions">
-        <button type="button" class="admin-btn-text" data-media-picker-open aria-labelledby="<?= $h($fieldId) ?>-label">Kies uit mediabibliotheek</button>
+        <button type="button" class="admin-btn-text" data-media-picker-open aria-labelledby="<?= $h($fieldId) ?>-label"><?= admin_te('media.kies_uit_mediabibliotheek') ?></button>
         <?php if ($clearable): ?>
-          <button type="button" class="admin-btn-text admin-btn-text--danger" data-media-picker-clear<?= $selected === null ? ' hidden' : '' ?>>Wissen</button>
+          <button type="button" class="admin-btn-text admin-btn-text--danger" data-media-picker-clear<?= $selected === null ? ' hidden' : '' ?>><?= admin_te('media.wissen') ?></button>
         <?php endif; ?>
       </div>
 
@@ -106,18 +111,18 @@ function media_picker_modal(): void
       <div class="admin-media-modal__backdrop" data-media-modal-close></div>
       <div class="admin-media-modal__panel">
         <header class="admin-media-modal__head">
-          <h2>Mediabibliotheek</h2>
+          <h2><?= admin_te('media.mediabibliotheek') ?></h2>
           <button type="button" class="admin-media-modal__close" data-media-modal-close aria-label="Sluiten">&times;</button>
         </header>
 
         <div class="admin-media-modal__tools">
           <label class="admin-media-modal__search">
-            <span class="admin-visually-hidden">Zoeken op bestandsnaam of alt-tekst</span>
+            <span class="admin-visually-hidden"><?= admin_te('media.zoeken_bestandsnaam_alt_tekst') ?></span>
             <input type="search" placeholder="Zoek op bestandsnaam of alt-tekst" data-media-modal-search autocomplete="off">
           </label>
 
           <label class="admin-media-modal__upload">
-            <span>Nieuwe afbeelding</span>
+            <span><?= admin_te('media.nieuwe_afbeelding') ?></span>
             <input type="file" accept="image/jpeg,image/png,image/webp,image/gif" data-media-modal-upload>
           </label>
         </div>
@@ -127,7 +132,7 @@ function media_picker_modal(): void
         <div class="admin-media-modal__grid" data-media-modal-grid></div>
 
         <footer class="admin-media-modal__foot">
-          <button type="button" class="admin-btn-text" data-media-modal-more hidden>Meer laden</button>
+          <button type="button" class="admin-btn-text" data-media-modal-more hidden><?= admin_te('media.meer_laden') ?></button>
         </footer>
       </div>
     </div>

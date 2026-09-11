@@ -19,6 +19,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/../../vendor/autoload.php';
 require_once __DIR__ . '/_personalization_validation.php';
 
+use App\Service\Language\AdminTranslator;
 use App\Repository\ProductPersonalizationRepository;
 use App\Repository\ProductRepository;
 use App\Service\AdminAuth;
@@ -70,12 +71,14 @@ try {
         ]);
 
     if ($viewKey !== '' && $repository->viewKeyExists($settingsId, $viewKey)) {
-        $errors[] = 'Er bestaat al een weergave met de sleutel "' . $viewKey . '" voor dit product.';
+        $errors[] = AdminTranslator::trans('validation.view_key_exists', ['v1' => $viewKey]);
     }
 
     if ($repository->countViews($settingsId) >= PersonalizationRules::MAX_VIEWS_PER_PRODUCT) {
-        $errors[] = 'Dit product heeft al het maximum van '
-            . PersonalizationRules::MAX_VIEWS_PER_PRODUCT . ' weergaven.';
+        $errors[] = AdminTranslator::trans(
+            'validation.max_views_reached',
+            ['v1' => PersonalizationRules::MAX_VIEWS_PER_PRODUCT]
+        );
     }
 
     if ($errors !== []) {

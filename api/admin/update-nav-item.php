@@ -16,6 +16,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../../vendor/autoload.php';
 
+use App\Service\Language\AdminTranslator;
 use App\Service\AdminAuth;
 use App\Service\Csrf;
 use App\Service\Language\LocalizedValue;
@@ -72,13 +73,13 @@ $errors = [];
 // single-language site shows one, it would make this form impossible to
 // submit at all (MULTILINGUAL.md).
 if (LocalizedValue::ofDutchEnglish($labelNl, $labelEn)->primaryValue() === '') {
-    $errors[] = 'Label is verplicht.';
+    $errors[] = AdminTranslator::trans('validation.label_verplicht');
 }
 if (mb_strlen($labelNl) > 100 || mb_strlen($labelEn) > 100) {
-    $errors[] = 'Label mag maximaal 100 tekens zijn.';
+    $errors[] = AdminTranslator::trans('validation.label_mag_maximaal_100_tekens');
 }
 if ($isChild && $linkType === 'none') {
-    $errors[] = 'Een submenu-item moet een eigen link hebben.';
+    $errors[] = AdminTranslator::trans('validation.submenu_item_eigen_link_hebben');
 }
 
 $linkError = LinkResolver::validate($linkType, $targetPageId, $targetRoute, $externalUrl, null, LinkResolver::LINK_TYPES_NAV, $pageRepository);

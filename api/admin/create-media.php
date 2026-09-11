@@ -17,6 +17,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../../vendor/autoload.php';
 
+use App\Service\Language\AdminTranslator;
 use App\Service\AdminAuth;
 use App\Service\Csrf;
 use App\Service\Media\MediaService;
@@ -52,7 +53,7 @@ try {
 } catch (\Throwable $e) {
     error_log('[api/admin/create-media.php] ' . $e->getMessage());
 
-    $_SESSION['admin_media_errors'] = ['Afbeelding kon niet worden opgeslagen. Probeer het opnieuw.'];
+    $_SESSION['admin_media_errors'] = [AdminTranslator::trans('validation.afbeelding_kon_opgeslagen_probeer_opnieuw')];
     header('Location: /admin/media.php');
     exit;
 }

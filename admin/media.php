@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/../vendor/autoload.php';
+require_once __DIR__ . '/_translate.php';
 
 use App\Repository\MediaRepository;
 use App\Service\AdminAuth;
@@ -88,7 +89,7 @@ if ($item === null) {
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title><?= $item === null ? 'Media' : 'Media — ' . $h($item->displayName()) ?> — Admin</title>
+<title><?= $item === null ? 'Media' : 'Media — ' . $h($item->displayName()) ?> <?= admin_te('media.admin') ?></title>
 <link rel="stylesheet" href="<?= AssetVersion::url('/admin/assets/admin.css') ?>">
 </head>
 <body<?= \App\Service\AdminTheme::bodyAttribute() ?>>
@@ -107,43 +108,42 @@ if ($item === null) {
 
 <?php if ($item === null): ?>
 
-  <h1>Media</h1>
+  <h1><?= admin_te('media.media') ?></h1>
   <p class="admin-text-muted">
-    Alle herbruikbare afbeeldingen van de website op één plek. Upload een afbeelding één keer en kies hem daarna
-    overal waar je hem nodig hebt — de alt-tekst hoef je maar één keer te schrijven.
+    <?= admin_te('media.alle_herbruikbare_afbeeldingen_website') ?>
   </p>
 
   <?php if ($deleted): ?>
-    <p class="admin-alert admin-alert--success">Afbeelding verwijderd.</p>
+    <p class="admin-alert admin-alert--success"><?= admin_te('media.afbeelding_verwijderd') ?></p>
   <?php endif; ?>
 
   <section class="admin-card">
-    <h2>Nieuwe afbeelding</h2>
+    <h2><?= admin_te('media.nieuwe_afbeelding') ?></h2>
     <form method="post" action="/api/admin/create-media.php" enctype="multipart/form-data" class="admin-product-form">
       <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
 
       <div class="admin-form-row admin-form-row--split">
-        <label>Bestand*
+        <label><?= admin_te('media.bestand') ?>*
           <input type="file" name="image" accept="image/jpeg,image/png,image/webp,image/gif" required>
         </label>
-        <label>Alt-tekst
+        <label><?= admin_te('common.alt_text') ?>
           <input type="text" name="alt_text" maxlength="255" placeholder="Wat is er te zien?">
         </label>
       </div>
 
-      <p class="admin-text-muted">JPG, PNG, WEBP of GIF, maximaal 25 MB. JPG, PNG en WEBP worden automatisch verkleind en geoptimaliseerd.</p>
+      <p class="admin-text-muted"><?= admin_te('media.jpg_png_webp_gif') ?></p>
 
-      <button type="submit">Toevoegen</button>
+      <button type="submit"><?= admin_te('common.add') ?></button>
     </form>
   </section>
 
   <section class="admin-card">
     <form method="get" action="/admin/media.php" class="admin-inline-form">
       <label class="admin-media-search">
-        <span class="admin-visually-hidden">Zoeken</span>
+        <span class="admin-visually-hidden"><?= admin_te('common.search') ?></span>
         <input type="search" name="q" value="<?= $h($term) ?>" placeholder="Zoek op bestandsnaam of alt-tekst">
       </label>
-      <button type="submit">Zoeken</button>
+      <button type="submit"><?= admin_te('common.search') ?></button>
       <?php if ($term !== ''): ?>
         <a class="admin-btn-text" href="/admin/media.php">Wis zoekopdracht</a>
       <?php endif; ?>
@@ -151,15 +151,15 @@ if ($item === null) {
 
     <p class="admin-text-muted">
       <?php if ($term === ''): ?>
-        <?= (int) $total ?> afbeelding<?= $total === 1 ? '' : 'en' ?> in de bibliotheek.
+        <?= $total === 1 ? admin_t('media.count_in_library_one') : admin_t('media.count_in_library', ['count' => (int) $total]) ?>
       <?php else: ?>
-        <?= (int) $total ?> resultaat<?= $total === 1 ? '' : 'en' ?> voor &ldquo;<?= $h($term) ?>&rdquo;.
+        <?= $total === 1 ? admin_t('media.results_for_one', ['v1' => $h($term)]) : admin_t('media.results_for', ['v1' => (int) $total, 'v2' => $h($term)]) ?>
       <?php endif; ?>
     </p>
 
     <?php if ($items === []): ?>
       <p class="admin-text-muted">
-        <?= $term === '' ? 'Nog geen afbeeldingen. Voeg er hierboven een toe.' : 'Niets gevonden.' ?>
+        <?= admin_te($term === '' ? 'media.empty_library' : 'media.nothing_found') ?>
       </p>
     <?php else: ?>
       <div class="admin-media-grid">
@@ -170,7 +170,7 @@ if ($item === null) {
               <?php if ($gridItem->fileExists()): ?>
                 <img src="<?= $h($gridItem->displayPath()) ?>" alt="" loading="lazy">
               <?php else: ?>
-                <span class="admin-media-card__warning">Bestand ontbreekt</span>
+                <span class="admin-media-card__warning"><?= admin_te('common.file_missing') ?></span>
               <?php endif; ?>
             </span>
             <span class="admin-media-card__name"><?= $h($gridItem->displayName()) ?></span>
@@ -189,7 +189,7 @@ if ($item === null) {
           <?php if ($page > 1): ?>
             <a class="admin-btn-text" href="/admin/media.php?<?= $h(http_build_query(['q' => $term, 'page' => $page - 1])) ?>">&larr; Vorige</a>
           <?php endif; ?>
-          <span class="admin-text-muted">Pagina <?= (int) $page ?> van <?= (int) $lastPage ?></span>
+          <span class="admin-text-muted"><?= admin_te('media.page_x_of_y', ['v1' => (int) $page, 'v2' => (int) $lastPage]) ?></span>
           <?php if ($page < $lastPage): ?>
             <a class="admin-btn-text" href="/admin/media.php?<?= $h(http_build_query(['q' => $term, 'page' => $page + 1])) ?>">Volgende &rarr;</a>
           <?php endif; ?>
@@ -200,22 +200,21 @@ if ($item === null) {
 
 <?php else: ?>
 
-  <p><a class="admin-btn-text" href="/admin/media.php">&larr; Terug naar Media</a></p>
+  <p><a class="admin-btn-text" href="/admin/media.php"><?= admin_t('media.terug_media') ?></a></p>
 
   <h1><?= $h($item->displayName()) ?></h1>
 
   <?php if ($saved): ?>
-    <p class="admin-alert admin-alert--success">Opgeslagen.</p>
+    <p class="admin-alert admin-alert--success"><?= admin_te('common.saved') ?></p>
   <?php endif; ?>
 
   <?php if ($reused): ?>
-    <p class="admin-alert admin-alert--success">Dit bestand stond al in de bibliotheek. Je bekijkt nu de bestaande afbeelding, er is geen tweede kopie gemaakt.</p>
+    <p class="admin-alert admin-alert--success"><?= admin_te('media.bestand_stond_al_bibliotheek') ?></p>
   <?php endif; ?>
 
   <?php if (!$item->fileExists()): ?>
     <p class="admin-alert admin-alert--error">
-      Het bestand van deze afbeelding staat niet meer op de server. De verwijzing bestaat nog, maar er valt niets te tonen —
-      pagina's die deze afbeelding gebruiken laten hem weg.
+      <?= admin_te('media.bestand_afbeelding_staat_meer') ?>
     </p>
   <?php endif; ?>
 
@@ -225,37 +224,36 @@ if ($item === null) {
         <?php if ($item->fileExists()): ?>
           <img src="<?= $h($item->publicPath()) ?>" alt="" loading="lazy">
         <?php else: ?>
-          <p class="admin-media-card__warning">Bestand ontbreekt</p>
+          <p class="admin-media-card__warning"><?= admin_te('media.bestand_ontbreekt') ?></p>
         <?php endif; ?>
       </div>
 
       <dl class="admin-media-detail__facts">
-        <dt>Oorspronkelijke bestandsnaam</dt>
+        <dt><?= admin_te('media.oorspronkelijke_bestandsnaam') ?></dt>
         <dd><?= $h($item->originalFilename !== '' ? $item->originalFilename : '—') ?></dd>
 
-        <dt>Opgeslagen als</dt>
+        <dt><?= admin_te('media.opgeslagen') ?></dt>
         <dd><code><?= $h($item->path) ?></code></dd>
 
-        <dt>Afmetingen</dt>
+        <dt><?= admin_te('media.afmetingen') ?></dt>
         <dd><?= $item->hasDimensions() ? (int) $item->width . ' &times; ' . (int) $item->height . ' pixels' : 'onbekend' ?></dd>
 
-        <dt>Bestandsgrootte</dt>
+        <dt><?= admin_te('media.bestandsgrootte') ?></dt>
         <dd><?= $h($formatBytes($item->fileSize)) ?></dd>
 
-        <dt>Type</dt>
+        <dt><?= admin_te('common.type') ?></dt>
         <dd><?= $h($item->mimeType !== '' ? $item->mimeType : 'onbekend') ?></dd>
 
-        <dt>Toegevoegd</dt>
+        <dt><?= admin_te('media.toegevoegd') ?></dt>
         <dd><?= $h((string) ($item->createdAt ?? 'onbekend')) ?></dd>
       </dl>
     </div>
   </section>
 
   <section class="admin-card">
-    <h2>Alt-tekst</h2>
+    <h2><?= admin_te('common.alt_text') ?></h2>
     <p class="admin-text-muted">
-      Beschrijft wat er op de afbeelding te zien is, voor bezoekers die hem niet kunnen zien en voor zoekmachines.
-      Deze tekst geldt overal waar deze afbeelding wordt gebruikt, tenzij daar een eigen alt-tekst is ingevuld.
+      <?= admin_te('media.beschrijft_wat_er_afbeelding') ?>
     </p>
 
     <?php if ($canManage): ?>
@@ -264,24 +262,24 @@ if ($item === null) {
         <input type="hidden" name="media_id" value="<?= (int) $item->id ?>">
 
         <div class="admin-form-row">
-          <label>Alt-tekst
+          <label><?= admin_te('common.alt_text') ?>
             <input type="text" name="alt_text" maxlength="255" value="<?= $h($item->altText) ?>">
           </label>
         </div>
 
-        <button type="submit">Opslaan</button>
+        <button type="submit"><?= admin_te('common.save') ?></button>
       </form>
     <?php else: ?>
       <p><?= $item->altText !== '' ? $h($item->altText) : '<em>Nog geen alt-tekst.</em>' ?></p>
-      <p class="admin-text-muted">Je hebt het recht &ldquo;Mediabibliotheek beheren&rdquo; nodig om dit te wijzigen.</p>
+      <p class="admin-text-muted"><?= admin_t('media.hebt_recht_mediabibliotheek_beheren') ?></p>
     <?php endif; ?>
   </section>
 
   <section class="admin-card">
-    <h2>Waar wordt dit gebruikt?</h2>
+    <h2><?= admin_te('media.waar_gebruikt') ?></h2>
 
     <?php if ($usages === []): ?>
-      <p class="admin-text-muted">Nergens. Deze afbeelding kan veilig verwijderd worden.</p>
+      <p class="admin-text-muted"><?= admin_te('media.nergens_afbeelding_veilig_verwijderd') ?></p>
     <?php else: ?>
       <ul class="admin-media-usage">
         <?php foreach ($usages as $usage): ?>
@@ -299,23 +297,21 @@ if ($item === null) {
 
   <?php if ($canManage): ?>
     <section class="admin-card">
-      <h2>Verwijderen</h2>
+      <h2><?= admin_te('common.delete') ?></h2>
 
       <?php if ($usages !== []): ?>
         <p class="admin-text-muted">
-          Deze afbeelding wordt nog op <?= count($usages) ?> plek<?= count($usages) === 1 ? '' : 'ken' ?> gebruikt en kan daarom niet
-          worden verwijderd. Haal hem eerst weg op de plekken hierboven.
+          <?= admin_t('media.afbeelding_plek_gebruikt_daarom', ['v1' => count($usages), 'v2' => count($usages) === 1 ? '' : 'ken']) ?>
         </p>
-        <button type="button" disabled>Verwijderen</button>
+        <button type="button" disabled><?= admin_te('common.delete') ?></button>
       <?php else: ?>
         <p class="admin-text-muted">
-          Verwijdert de afbeelding uit de bibliotheek. Het bestand zelf wordt alleen gewist als de mediabibliotheek het
-          zelf heeft aangemaakt&nbsp;— een oudere afbeelding die al op de site stond blijft op de server staan.
+          <?= admin_t('media.verwijdert_afbeelding_uit_bibliotheek') ?>
         </p>
         <form method="post" action="/api/admin/delete-media.php" onsubmit="return confirm('Deze afbeelding definitief verwijderen?');">
           <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
           <input type="hidden" name="media_id" value="<?= (int) $item->id ?>">
-          <button type="submit" class="admin-btn-text admin-btn-text--danger">Verwijderen</button>
+          <button type="submit" class="admin-btn-text admin-btn-text--danger"><?= admin_te('common.delete') ?></button>
         </form>
       <?php endif; ?>
     </section>

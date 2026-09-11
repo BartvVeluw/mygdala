@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/../vendor/autoload.php';
+require_once __DIR__ . '/_translate.php';
 
 use App\Service\AdminAuth;
 use App\Service\Csrf;
@@ -57,36 +58,36 @@ $canManageProducts = AdminAuth::can('products.manage');
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Producten — Admin</title>
+<title><?= admin_te('shop.producten_admin') ?></title>
 <link rel="stylesheet" href="<?= \App\Service\AssetVersion::url('/admin/assets/admin.css') ?>">
 </head>
 <body<?= \App\Service\AdminTheme::bodyAttribute() ?>>
 <?php require __DIR__ . '/_header.php'; ?>
 <main class="admin-main">
   <div class="admin-main__heading">
-    <h1>Producten</h1>
+    <h1><?= admin_te('shop.producten') ?></h1>
     <?php if ($canManageProducts): ?>
       <a href="/admin/product-form.php" class="admin-btn-link">+ Nieuw product</a>
     <?php endif; ?>
   </div>
 
   <?php if ($created): ?>
-    <p class="admin-alert admin-alert--success">Product aangemaakt.</p>
+    <p class="admin-alert admin-alert--success"><?= admin_te('shop.product_aangemaakt') ?></p>
   <?php endif; ?>
   <?php if ($deleted): ?>
-    <p class="admin-alert admin-alert--success">Product verwijderd.</p>
+    <p class="admin-alert admin-alert--success"><?= admin_te('shop.product_verwijderd') ?></p>
   <?php endif; ?>
   <?php if ($listError !== null): ?>
     <p class="admin-alert admin-alert--error"><?= htmlspecialchars($listError, ENT_QUOTES, 'UTF-8') ?></p>
   <?php endif; ?>
 
   <?php if ($products === null): ?>
-    <p class="admin-alert admin-alert--error">Producten konden niet worden geladen.</p>
+    <p class="admin-alert admin-alert--error"><?= admin_te('shop.producten_konden_geladen') ?></p>
   <?php elseif ($products === []): ?>
     <?php if ($canManageProducts): ?>
-      <p>Nog geen producten. <a href="/admin/product-form.php">Maak het eerste product aan</a>.</p>
+      <p><?= admin_t('shop.producten_maak_eerste_product') ?></p>
     <?php else: ?>
-      <p>Nog geen producten.</p>
+      <p><?= admin_te('shop.producten_2') ?></p>
     <?php endif; ?>
   <?php else: ?>
     <div class="admin-product-grid">
@@ -109,15 +110,15 @@ $canManageProducts = AdminAuth::can('products.manage');
               <?php if (!empty($product['image_path'])): ?>
                 <img src="/<?= htmlspecialchars(ltrim((string) $product['image_path'], '/'), ENT_QUOTES, 'UTF-8') ?>" alt="" loading="lazy">
               <?php else: ?>
-                <span class="admin-product-card__media-empty">Geen foto</span>
+                <span class="admin-product-card__media-empty"><?= admin_te('shop.no_photo') ?></span>
               <?php endif; ?>
               <span class="admin-badge admin-product-card__status admin-badge--<?= $isActive ? 'paid' : 'canceled' ?>">
-                <?= $isActive ? 'Actief' : 'Inactief' ?>
+                <?= $isActive ? admin_t('common.active') : 'Inactief' ?>
               </span>
             </div>
             <div class="admin-product-card__body">
               <p class="admin-product-card__name"><?= htmlspecialchars($name, ENT_QUOTES, 'UTF-8') ?></p>
-              <p class="admin-product-card__price">&euro; <?= htmlspecialchars(number_format((float) $product['price'], 2, ',', '.'), ENT_QUOTES, 'UTF-8') ?></p>
+              <p class="admin-product-card__price"><?= admin_t('shop.amount_with', ['v1' => htmlspecialchars(number_format((float) $product['price'], 2, ',', '.'), ENT_QUOTES, 'UTF-8')]) ?></p>
             </div>
           <?php if (!$canManageProducts): ?>
           </div>
@@ -128,7 +129,7 @@ $canManageProducts = AdminAuth::can('products.manage');
               <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
               <input type="hidden" name="id" value="<?= $productId ?>">
               <input type="hidden" name="active" value="<?= $isActive ? '0' : '1' ?>">
-              <button type="submit" class="admin-btn-text"><?= $isActive ? 'Deactiveren' : 'Activeren' ?></button>
+              <button type="submit" class="admin-btn-text"><?= $isActive ? admin_t('shop.deactiveren') : admin_t('shop.activeren') ?></button>
             </form>
             <?php
               // A product that has been ordered can be deleted too: order_items
@@ -136,13 +137,13 @@ $canManageProducts = AdminAuth::can('products.manage');
               // foreign key is ON DELETE SET NULL, so the historical order stays
               // intact. The confirm text says so when that applies.
               $confirmMessage = $inUse
-                ? 'Weet je zeker dat je dit product definitief wilt verwijderen? Bestaande bestellingen met dit product blijven ongewijzigd.'
-                : 'Weet je zeker dat je dit product definitief wilt verwijderen?';
+                ? admin_t('shop.confirm_delete_product_with_orders')
+                : admin_t('shop.confirm_delete_product');
             ?>
             <form method="post" action="/api/admin/delete-product.php" class="admin-inline-form" onsubmit="return confirm('<?= htmlspecialchars($confirmMessage, ENT_QUOTES, 'UTF-8') ?>');">
               <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
               <input type="hidden" name="id" value="<?= $productId ?>">
-              <button type="submit" class="admin-btn-text admin-btn-text--danger">Verwijderen</button>
+              <button type="submit" class="admin-btn-text admin-btn-text--danger"><?= admin_te('common.delete') ?></button>
             </form>
           </div>
           <?php endif; ?>

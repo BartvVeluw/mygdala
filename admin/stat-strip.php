@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/../vendor/autoload.php';
+require_once __DIR__ . '/_translate.php';
 require_once __DIR__ . '/_save_bar.php';
 require_once __DIR__ . '/_language_fields.php';
 
@@ -29,7 +30,7 @@ if ($section === null) {
         || (new StatStripRepository())->findBySlugAndKey($dynPageSlug, $dynSectionKey) === null
     ) {
         http_response_code(404);
-        exit('Onbekende sectie.');
+        exit(admin_t('screen.onbekende_sectie'));
     }
     $section = [
         'page_slug' => $dynPageSlug,
@@ -70,18 +71,18 @@ $csrfToken = Csrf::token();
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title><?= htmlspecialchars($section['section_label'], ENT_QUOTES, 'UTF-8') ?> — Admin</title>
+<title><?= htmlspecialchars($section['section_label'], ENT_QUOTES, 'UTF-8') ?> <?= admin_te('block_stats.admin') ?></title>
 <link rel="stylesheet" href="<?= \App\Service\AssetVersion::url('/admin/assets/admin.css') ?>">
 </head>
 <body<?= \App\Service\AdminTheme::bodyAttribute() ?>>
 <?php require __DIR__ . '/_header.php'; ?>
 <main class="admin-main">
-  <p class="admin-text-muted"><a href="<?= htmlspecialchars(\App\Service\PageContent::builderUrl($pageSlug), ENT_QUOTES, 'UTF-8') ?>">&larr; <?= htmlspecialchars($section['page_label'], ENT_QUOTES, 'UTF-8') ?></a></p>
+  <p class="admin-text-muted"><a href="<?= htmlspecialchars(\App\Service\PageContent::builderUrl($pageSlug), ENT_QUOTES, 'UTF-8') ?>"><?= admin_t('block_stats.text', ['v1' => htmlspecialchars($section['page_label'], ENT_QUOTES, 'UTF-8')]) ?></a></p>
   <h1><?= htmlspecialchars($section['section_label'], ENT_QUOTES, 'UTF-8') ?></h1>
-  <p class="admin-text-muted">Sectie op <strong><?= htmlspecialchars($section['page_label'], ENT_QUOTES, 'UTF-8') ?></strong>. Wijzigingen zijn direct zichtbaar op de pagina.</p>
+  <p class="admin-text-muted"><?= admin_t('block_stats.sectie_wijzigingen_direct_zichtbaar', ['v1' => htmlspecialchars($section['page_label'], ENT_QUOTES, 'UTF-8')]) ?></p>
 
   <?php if ($saved): ?>
-    <p class="admin-alert admin-alert--success">Opgeslagen.</p>
+    <p class="admin-alert admin-alert--success"><?= admin_te('common.saved') ?></p>
   <?php endif; ?>
 
   <?php if ($errors !== []): ?>
@@ -105,26 +106,26 @@ $csrfToken = Csrf::token();
   <?php endif; ?>
 
   <section class="admin-card">
-    <h2>Zichtbaarheid</h2>
-    <p class="admin-text-muted">Deze sectie heeft geen eigen titel/introtekst — alleen de stats hieronder zijn zichtbaar.</p>
+    <h2><?= admin_te('block_stats.zichtbaarheid') ?></h2>
+    <p class="admin-text-muted"><?= admin_te('block_stats.sectie_heeft_eigen_titel') ?></p>
     <form method="post" action="/api/admin/update-stat-strip.php" class="admin-product-form">
       <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
       <input type="hidden" name="section" value="<?= htmlspecialchars($sectionKey, ENT_QUOTES, 'UTF-8') ?>">
 
       <label class="admin-checkbox-label">
         <input type="checkbox" name="is_active" value="1" <?= (bool) $strip['is_active'] ? 'checked' : '' ?>>
-        Actief (uitgevinkt = deze sectie — alle stats — wordt niet getoond op de pagina)
+        <?= admin_te('block_stats.actief_uitgevinkt_sectie_alle') ?>
       </label>
 
-      <button type="submit">Opslaan</button>
+      <button type="submit"><?= admin_te('common.save') ?></button>
     </form>
   </section>
 
   <section class="admin-card">
-    <h2>Stats</h2>
+    <h2><?= admin_te('block_stats.stats') ?></h2>
 
     <?php if ($items === []): ?>
-      <p class="admin-text-muted">Nog geen stats in deze sectie.</p>
+      <p class="admin-text-muted"><?= admin_te('block_stats.stats_sectie') ?></p>
     <?php endif; ?>
 
     <?php foreach ($items as $index => $item): ?>
@@ -141,12 +142,12 @@ $csrfToken = Csrf::token();
           <?php admin_lang_tabs(); ?>
           <div class="admin-form-row admin-form-row--split">
             <?php admin_lang_pane_start('nl'); ?>
-            <label>Primaire tekst*
+            <label><?= admin_te('block_stats.primaire_tekst') ?>*
               <input type="text" name="primary_text_nl" maxlength="100" <?= admin_lang_required('nl') ?> value="<?= htmlspecialchars((string) $item['primary_text_nl'], ENT_QUOTES, 'UTF-8') ?>">
             </label>
             <?php admin_lang_pane_end(); ?>
             <?php admin_lang_pane_start('en'); ?>
-            <label>Primaire tekst
+            <label><?= admin_te('block_stats.primaire_tekst_2') ?>
               <input type="text" name="primary_text_en" maxlength="100" value="<?= htmlspecialchars((string) ($item['primary_text_en'] ?? ''), ENT_QUOTES, 'UTF-8') ?>"<?= admin_lang_placeholder_attr('en') ?>>
             </label>
             <?php admin_lang_pane_end(); ?>
@@ -154,12 +155,12 @@ $csrfToken = Csrf::token();
 
           <div class="admin-form-row admin-form-row--split">
             <?php admin_lang_pane_start('nl'); ?>
-            <label>Secundaire tekst*
+            <label><?= admin_te('block_stats.secundaire_tekst') ?>*
               <input type="text" name="secondary_text_nl" maxlength="150" <?= admin_lang_required('nl') ?> value="<?= htmlspecialchars((string) $item['secondary_text_nl'], ENT_QUOTES, 'UTF-8') ?>">
             </label>
             <?php admin_lang_pane_end(); ?>
             <?php admin_lang_pane_start('en'); ?>
-            <label>Secundaire tekst
+            <label><?= admin_te('block_stats.secundaire_tekst_2') ?>
               <input type="text" name="secondary_text_en" maxlength="150" value="<?= htmlspecialchars((string) ($item['secondary_text_en'] ?? ''), ENT_QUOTES, 'UTF-8') ?>"<?= admin_lang_placeholder_attr('en') ?>>
             </label>
             <?php admin_lang_pane_end(); ?>
@@ -167,10 +168,10 @@ $csrfToken = Csrf::token();
 
           <label class="admin-checkbox-label">
             <input type="checkbox" name="is_active" value="1" <?= (int) $item['is_active'] === 1 ? 'checked' : '' ?>>
-            Zichtbaar
+            <?= admin_te('common.visible') ?>
           </label>
 
-          <button type="submit">Opslaan</button>
+          <button type="submit"><?= admin_te('common.save') ?></button>
         </form>
 
         <div class="admin-image-card__actions" style="margin-top:0.75rem;">
@@ -178,18 +179,18 @@ $csrfToken = Csrf::token();
             <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
             <input type="hidden" name="item_id" value="<?= $itemId ?>">
             <input type="hidden" name="direction" value="up">
-            <button type="submit" class="admin-btn-text" <?= $isFirst ? 'disabled' : '' ?>>&uarr; Omhoog</button>
+            <button type="submit" class="admin-btn-text" <?= $isFirst ? 'disabled' : '' ?>><?= admin_t('common.move_up') ?></button>
           </form>
           <form method="post" action="/api/admin/move-stat-strip-item.php" class="admin-inline-form">
             <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
             <input type="hidden" name="item_id" value="<?= $itemId ?>">
             <input type="hidden" name="direction" value="down">
-            <button type="submit" class="admin-btn-text" <?= $isLast ? 'disabled' : '' ?>>&darr; Omlaag</button>
+            <button type="submit" class="admin-btn-text" <?= $isLast ? 'disabled' : '' ?>><?= admin_t('common.move_down') ?></button>
           </form>
           <form method="post" action="/api/admin/delete-stat-strip-item.php" class="admin-inline-form" onsubmit="return confirm('Deze stat definitief verwijderen?');">
             <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
             <input type="hidden" name="item_id" value="<?= $itemId ?>">
-            <button type="submit" class="admin-btn-text admin-btn-text--danger">Verwijderen</button>
+            <button type="submit" class="admin-btn-text admin-btn-text--danger"><?= admin_te('common.delete') ?></button>
           </form>
         </div>
       </article>
@@ -197,7 +198,7 @@ $csrfToken = Csrf::token();
   </section>
 
   <section class="admin-card">
-    <h2>Nieuwe stat toevoegen</h2>
+    <h2><?= admin_te('block_stats.nieuwe_stat_toevoegen') ?></h2>
     <form method="post" action="/api/admin/create-stat-strip-item.php" class="admin-product-form">
       <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
       <input type="hidden" name="strip_id" value="<?= $stripId ?>">
@@ -205,12 +206,12 @@ $csrfToken = Csrf::token();
       <?php admin_lang_tabs(); ?>
       <div class="admin-form-row admin-form-row--split">
         <?php admin_lang_pane_start('nl'); ?>
-        <label>Primaire tekst*
+        <label><?= admin_te('block_stats.primaire_tekst_3') ?>*
           <input type="text" name="primary_text_nl" maxlength="100" <?= admin_lang_required('nl') ?>>
         </label>
         <?php admin_lang_pane_end(); ?>
         <?php admin_lang_pane_start('en'); ?>
-        <label>Primaire tekst
+        <label><?= admin_te('block_stats.primaire_tekst_4') ?>
           <input type="text" name="primary_text_en" maxlength="100"<?= admin_lang_placeholder_attr('en') ?>>
         </label>
         <?php admin_lang_pane_end(); ?>
@@ -218,18 +219,18 @@ $csrfToken = Csrf::token();
 
       <div class="admin-form-row admin-form-row--split">
         <?php admin_lang_pane_start('nl'); ?>
-        <label>Secundaire tekst*
+        <label><?= admin_te('block_stats.secundaire_tekst_3') ?>*
           <input type="text" name="secondary_text_nl" maxlength="150" <?= admin_lang_required('nl') ?>>
         </label>
         <?php admin_lang_pane_end(); ?>
         <?php admin_lang_pane_start('en'); ?>
-        <label>Secundaire tekst
+        <label><?= admin_te('block_stats.secundaire_tekst_4') ?>
           <input type="text" name="secondary_text_en" maxlength="150"<?= admin_lang_placeholder_attr('en') ?>>
         </label>
         <?php admin_lang_pane_end(); ?>
       </div>
 
-      <button type="submit">Stat toevoegen</button>
+      <button type="submit"><?= admin_te('block_stats.stat_toevoegen') ?></button>
     </form>
   </section>
 </main>

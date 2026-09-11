@@ -256,8 +256,8 @@ class UnknownContentBlockTest extends TestCase
         $this->assertIsString($builder);
 
         $this->assertStringContainsString('SectionRegistry::exists($sectionType)', $builder);
-        $this->assertStringContainsString('Niet-ondersteund contentblok', $builder);
-        $this->assertStringContainsString('De gegevens zijn bewaard', $builder);
+        $this->assertStringContainsString('page.not_supported', $builder);
+        $this->assertStringContainsString('page.blok_kon_geladen_pagina', $builder);
     }
 
     /* ------------------------------------------------------------------ */

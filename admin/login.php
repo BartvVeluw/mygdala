@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/../vendor/autoload.php';
+require_once __DIR__ . '/_translate.php';
 
 use App\Service\AdminAuth;
 use App\Service\Csrf;
@@ -50,25 +51,25 @@ $loginSiteName = \App\Service\SiteSettings::get('site_name');
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Admin login — <?= htmlspecialchars($loginSiteName, ENT_QUOTES, 'UTF-8') ?></title>
+<title><?= admin_t('login.admin_login_site', ['v1' => htmlspecialchars($loginSiteName, ENT_QUOTES, 'UTF-8')]) ?></title>
 <link rel="stylesheet" href="<?= \App\Service\AssetVersion::url('/admin/assets/admin.css') ?>">
 </head>
 <body class="admin-login-page"<?= \App\Service\AdminTheme::bodyAttribute() ?>>
   <main class="admin-login">
     <h1><?= htmlspecialchars($loginSiteName, ENT_QUOTES, 'UTF-8') ?></h1>
-    <p class="admin-login__sub">Admin login</p>
+    <p class="admin-login__sub"><?= admin_te('login.admin_login') ?></p>
     <?php if ($error !== null): ?>
       <p class="admin-alert admin-alert--error"><?= htmlspecialchars($error, ENT_QUOTES, 'UTF-8') ?></p>
     <?php endif; ?>
     <form method="post" action="/admin/login.php" class="admin-login__form">
       <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
-      <label>Gebruikersnaam of e-mailadres
+      <label><?= admin_te('login.gebruikersnaam_e_mailadres') ?>
         <input type="text" name="username" autocomplete="username" required autofocus>
       </label>
-      <label>Wachtwoord
+      <label><?= admin_te('common.password') ?>
         <input type="password" name="password" autocomplete="current-password" required>
       </label>
-      <button type="submit">Inloggen</button>
+      <button type="submit"><?= admin_te('login.inloggen') ?></button>
     </form>
   </main>
 </body>

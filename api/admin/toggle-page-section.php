@@ -16,6 +16,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../../vendor/autoload.php';
 
+use App\Service\Language\AdminTranslator;
 use App\Service\AdminAuth;
 use App\Service\Csrf;
 use App\Repository\PageSectionRepository;
@@ -52,7 +53,7 @@ try {
 } catch (\Throwable $e) {
     error_log('[api/admin/toggle-page-section.php] ' . $e->getMessage());
 
-    $_SESSION['admin_pages_error'] = 'De zichtbaarheid kon niet worden opgeslagen. Probeer het opnieuw.';
+    $_SESSION['admin_pages_error'] = AdminTranslator::trans('validation.zichtbaarheid_kon_opgeslagen_probeer_opnieuw');
     header('Location: /admin/page.php?id=' . $pageId);
     exit;
 }

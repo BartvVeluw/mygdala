@@ -22,6 +22,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/../../vendor/autoload.php';
 require_once __DIR__ . '/_personalization_validation.php';
 
+use App\Service\Language\AdminTranslator;
 use App\Repository\ProductPersonalizationRepository;
 use App\Repository\ProductRepository;
 use App\Service\AdminAuth;
@@ -65,7 +66,7 @@ $instructions = trim((string) ($_POST['instructions'] ?? ''));
 $instructionsEn = trim((string) ($_POST['instructions_en'] ?? ''));
 
 if (mb_strlen($instructions) > 500 || mb_strlen($instructionsEn) > 500) {
-    $errors[] = 'De uitlegtekst mag maximaal 500 tekens zijn.';
+    $errors[] = AdminTranslator::trans('validation.uitlegtekst_mag_maximaal_500_tekens');
 }
 
 if ($errors !== []) {

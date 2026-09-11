@@ -23,6 +23,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../../vendor/autoload.php';
 
+use App\Service\Language\AdminTranslator;
 use App\Service\AdminAuth;
 use App\Service\AdminTheme;
 use App\Service\Csrf;
@@ -44,7 +45,7 @@ if (!Csrf::validate($_POST['csrf_token'] ?? null)) {
 $requested = AdminTheme::normalise(isset($_POST['admin_theme']) ? (string) $_POST['admin_theme'] : null);
 
 if ($requested === null) {
-    $_SESSION['admin_theme_choice_error'] = 'Kies een van de vier dashboardthema\'s.';
+    $_SESSION['admin_theme_choice_error'] = AdminTranslator::trans('validation.choose_dashboard_theme');
     header('Location: /admin/settings.php#dashboard-uiterlijk');
     exit;
 }
@@ -54,7 +55,7 @@ try {
 } catch (\Throwable $e) {
     error_log('[api/admin/update-admin-theme.php] ' . $e->getMessage());
 
-    $_SESSION['admin_theme_choice_error'] = 'Het uiterlijk kon niet worden opgeslagen. Probeer het opnieuw.';
+    $_SESSION['admin_theme_choice_error'] = AdminTranslator::trans('validation.uiterlijk_kon_opgeslagen_probeer_opnieuw');
     header('Location: /admin/settings.php#dashboard-uiterlijk');
     exit;
 }

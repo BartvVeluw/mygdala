@@ -18,6 +18,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../../vendor/autoload.php';
 
+use App\Service\Language\AdminTranslator;
 use App\Service\AdminAuth;
 use App\Service\Csrf;
 use App\Service\SiteSettings;
@@ -42,7 +43,7 @@ $descriptionEn = trim((string) ($_POST['footer_description_en'] ?? ''));
 $copyrightTemplate = trim((string) ($_POST['footer_copyright_template'] ?? ''));
 
 if (mb_strlen($descriptionNl) > 500 || mb_strlen($descriptionEn) > 500 || mb_strlen($copyrightTemplate) > 300) {
-    $_SESSION['admin_footer_error'] = 'Een van de velden is te lang.';
+    $_SESSION['admin_footer_error'] = AdminTranslator::trans('validation.a_field_is_too_long');
     header('Location: /admin/footer.php');
     exit;
 }
@@ -67,7 +68,7 @@ try {
     SiteSettings::clearCache();
 } catch (\Throwable $e) {
     error_log('[api/admin/update-footer-settings.php] ' . $e->getMessage());
-    $_SESSION['admin_footer_error'] = 'Instellingen konden niet worden opgeslagen.';
+    $_SESSION['admin_footer_error'] = AdminTranslator::trans('validation.instellingen_konden_opgeslagen');
     header('Location: /admin/footer.php');
     exit;
 }

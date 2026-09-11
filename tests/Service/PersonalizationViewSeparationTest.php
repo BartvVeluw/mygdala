@@ -331,14 +331,14 @@ final class PersonalizationViewSeparationTest extends TestCase
         $builder = self::sourceOf('admin/_personalization_builder.php');
 
         // A first-class action, above and below the list, with its own anchor.
-        $this->assertStringContainsString('+ Voorbeeld toevoegen', $builder);
+        $this->assertStringContainsString('personalization.voorbeeld_toevoegen', $builder);
         $this->assertStringContainsString('id="voorbeeld-toevoegen"', $builder);
         $this->assertStringContainsString('href="#voorbeeld-toevoegen"', $builder);
         $this->assertStringContainsString('create-personalization-view.php', $builder);
 
         // ...and it says in words what the mistake would be.
-        $this->assertStringContainsString('Een achterkant is een nieuw', $builder);
-        $this->assertStringContainsString('niet een tweede zone op de voorkant', $builder);
+        $this->assertStringContainsString('personalization.e_n_voorbeeld_n', $builder);
+        // same key: the sentence that draws the distinction is one string.
     }
 
     /**
@@ -349,8 +349,8 @@ final class PersonalizationViewSeparationTest extends TestCase
     {
         $builder = self::sourceOf('admin/_personalization_builder.php');
 
-        $this->assertStringContainsString('Zones op deze afbeelding', $builder);
-        $this->assertStringContainsString('+ Zone op &ldquo;<?= $esc($viewName) ?>&rdquo;', $builder);
+        $this->assertStringContainsString('personalization.zones_afbeelding', $builder);
+        $this->assertStringContainsString('personalization.zone', $builder);
         $this->assertStringContainsString(
             'function renderPersonalizationZoneCreateForm(int $viewId, string $viewName',
             $builder
@@ -379,12 +379,12 @@ final class PersonalizationViewSeparationTest extends TestCase
 
         // The preview summary: name, zone count, image state.
         $this->assertStringContainsString('zone<?= $zoneCount === 1 ? \'\' : \'s\' ?>', $builder);
-        $this->assertStringContainsString('afbeelding ingesteld', $builder);
-        $this->assertStringContainsString('geen afbeelding', $builder);
+        $this->assertStringContainsString('personalization.image_set', $builder);
+        $this->assertStringContainsString('personalization.no_image', $builder);
 
         // The zone summary: what it accepts, and whether it is required.
-        $this->assertStringContainsString("'Tekst + afbeelding'", $builder);
-        $this->assertStringContainsString("? 'Verplicht' : 'Optioneel'", $builder);
+        $this->assertStringContainsString('personalization.text_and_image', $builder);
+        $this->assertStringContainsString('personalization.required', $builder);
 
         // Closed by default once there is more than one to scan, and opened
         // again whenever that block's own save was rejected.

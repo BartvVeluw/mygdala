@@ -215,19 +215,73 @@ vijf plekken.
 
 ### Hoeveel er vertaald is
 
-**Wel:** de gedeelde schil inclusief **alle zijbalklabels** (ook die van de
-modules), het dashboard, *Pagina's* en de pagina-editor, *Site-instellingen*
-en zijn tabbladen, *Mijn account*, het tabblad *Talen*, de opslagbalk, en alle
-taal-UI in de editors. `<html lang>` volgt op elk adminscherm de CMS-taal.
+**Alles wat een beheerder normaal gesproken leest.** Het hele adminpaneel —
+84 schermen — plus wat de ruim 200 schrijf-endpoints terugmelden. De catalogi
+tellen elk ongeveer 1900 sleutels.
 
-**Nog niet:** de inhoud van de meeste instellingenpanelen, en de
-modulebeheerschermen — Blog, Shop, Personalisatie, Media, Gebruikers,
-Formulieren, Redirects, Vormgeving, Contentblokken. Die zijn Nederlands.
+Concreet: de gedeelde schil en alle zijbalklabels (ook die van de modules),
+het dashboard, *Pagina's* en de pagina-editor, alle ~17 contentblok-editors,
+*Contentblokken*, *Media*, *Formulieren* en *Inzendingen*, *Navigatie*,
+*Footer*, *Header & footer*, *Site-instellingen* met al zijn panelen,
+*Vormgeving*, *Redirects*, *Gebruikers* en hun rechten, *Portfolio*,
+*Contactaanvragen*, de installatiewizard, *Mijn account*, het tabblad *Talen*,
+de opslagbalk, en de modules **Blog**, **Shop** en **Personalisatie**.
+`<html lang>` volgt op elk adminscherm de CMS-taal.
 
-De weg naar de eindtoestand is per scherm sleutels toevoegen. Er verandert
-niets aan de architectuur, en `Tests\Service\MultilingualBoundaryTest` bewaakt
-onderweg dat de catalogi gelijk blijven lopen en dat geen scherm
-`lang="nl"` terugzet.
+Ook vertaald: **statuswoorden** (betaald, concept, gepubliceerd, geannuleerd)
+en **validatiemeldingen** van de schrijf-endpoints. Bij een status verandert
+alleen het wóórd op het scherm — de opgeslagen waarde blijft `paid`, in de
+database, in elke query en in de CSV-export. Daar is geen migratie voor nodig
+en er komt er ook geen.
+
+### Wat bewust Nederlands blijft
+
+Geen enkel scherm, maar drie soorten tekst die géén CMS-interface zijn:
+
+| Wat | Waarom |
+|---|---|
+| Startinhoud die het CMS in de database schrijft — "Nieuwe sectie — pas deze titel aan" | dat is inhoud van de website, die een redacteur zelf overschrijft |
+| Waarden uit *Site-instellingen* — de bestelbevestigingsmail, de factuurteksten | dat is de tekst van de eigenaar, niet van het CMS |
+| Protocolantwoorden — `Method not allowed`, `Invalid or missing CSRF token.` | die leest nooit iemand; ze zijn voor een misvormd verzoek |
+
+`Tests\Service\MultilingualBoundaryTest::testNoAdminScreenPrintsADutchSentenceOfItsOwn`
+en `…testNoAdminEndpointAnswersWithADutchSentenceOfItsOwn` bewaken dat: een
+nieuw scherm dat zijn zinnen zelf uitschrijft laat de build vallen. De
+uitzonderingen staan met reden in `DUTCH_ON_PURPOSE`, niet in een commentaar.
+
+De regex die daarbij hoort kijkt naar **functiewoorden en CMS-werkwoorden**,
+niet naar "elk Nederlands woord". Een eigennaam, een eenheid, een
+bestandsextensie en een merknaam zijn allemaal legitieme literals in een
+template, en een bewaker die die zou aanwijzen wordt binnen een week
+uitgezet.
+
+### Registers die hun eigen woorden meebrengen
+
+Een blok, een permissie, een paginatemplate, een lettertypecombinatie en een
+CMS-thema declareren hun naam en uitleg als gewone Nederlandse data in hun
+eigen klasse. Vertaald wordt er **op de plek die ze afdrukt**, op de sleutel
+die het register toch al heeft:
+
+| Register | Sleutel | Vertaald in |
+|---|---|---|
+| Contentblokken | `block.<type>.label` / `.description` / `.use_case_N` | `BlockDefinition::label()`, `::describedFor()`, `::useCasesFor()` |
+| Blokcategorieën | `blockcategory.<key>` | `BlockCategories::label()` |
+| Permissies | `perm.<recht>.label` / `.description`, `perm.group.<naam>` | `AdminPermissions::groupsForDisplay()` |
+| Paginatemplates | `pagetemplate.<key>.label` / `.description` | `admin_registry_label()` in de sjabloon |
+| Lettertypes en CMS-thema's | `themefont.<key>`, `admintheme.<key>.*` | idem |
+
+Waarom daar en niet in de klasse zelf: zo hoeft een module niet te weten dat
+dit CMS twee talen heeft. `App\Module\ShopModule` schrijft een Nederlands
+label op en krijgt Engels zodra de sleutel bestaat, en een register zonder
+sleutel houdt zijn eigen woorden in plaats van een kale punt-sleutel te tonen.
+
+**`AdminPermissions` vertaalt met opzet níét in `groups()`.** Die wordt
+gelezen terwijl een account nog wordt geladen — `expand()` draait binnen
+`AdminAuth::user()` — en vertalen daar zou `AdminLocale` om een taal vragen
+vóórdat de sessie een account heeft. Dat levert de standaardtaal op, die
+vervolgens het hele verzoek blijft hangen: het CMS staat dan in het Nederlands
+terwijl de voorkeur Engels zegt. Alleen `groupsForDisplay()` vertaalt, en die
+wordt pas aangeroepen als een formulier gaat afdrukken.
 
 ### De zijbalk
 

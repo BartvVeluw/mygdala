@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/../vendor/autoload.php';
+require_once __DIR__ . '/_translate.php';
 
 use App\Repository\BlogCategoryRepository;
 use App\Repository\BlogPostRepository;
@@ -86,14 +87,18 @@ $filterUrl = static function (array $overrides) use ($statusFilter, $categoryFil
     return '/admin/blog.php' . ($query === [] ? '' : '?' . http_build_query($query));
 };
 
-$statusTabs = ['' => 'Alle'] + BlogPostStatus::LABELS;
+// Through label(), so each tab carries the word in the reader's language.
+$statusTabs = ['' => admin_t('blog.filter_all')];
+foreach (array_keys(BlogPostStatus::LABELS) as $statusKey) {
+    $statusTabs[$statusKey] = BlogPostStatus::label($statusKey);
+}
 ?>
 <!doctype html>
 <html lang="<?= htmlspecialchars(\App\Service\Language\AdminLocale::current(), ENT_QUOTES, 'UTF-8') ?>">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Blogberichten — Admin</title>
+<title><?= admin_te('blog.blogberichten_admin') ?></title>
 <link rel="stylesheet" href="<?= \App\Service\AssetVersion::url('/admin/assets/admin.css') ?>">
 </head>
 <body<?= \App\Service\AdminTheme::bodyAttribute() ?>>
@@ -101,10 +106,10 @@ $statusTabs = ['' => 'Alle'] + BlogPostStatus::LABELS;
 <main class="admin-main">
   <header class="admin-page-head">
     <div>
-      <h1 class="admin-page-head__title">Blogberichten</h1>
-      <p class="admin-page-head__desc">Alles wat je schrijft. Een concept is nergens zichtbaar, een ingepland bericht verschijnt vanzelf zodra zijn publicatiedatum is bereikt.</p>
+      <h1 class="admin-page-head__title"><?= admin_te('blog.blogberichten') ?></h1>
+      <p class="admin-page-head__desc"><?= admin_te('blog.alles_wat_schrijft_concept') ?></p>
     </div>
-    <a href="<?= $h(BlogUrls::indexPath()) ?>" class="admin-btn-secondary" target="_blank" rel="noopener">Bekijk de blog &#8594;</a>
+    <a href="<?= $h(BlogUrls::indexPath()) ?>" class="admin-btn-secondary" target="_blank" rel="noopener"><?= admin_te('blog.bekijk_blog') ?> &#8594;</a>
   </header>
 
   <?php if ($flash !== null): ?>
@@ -122,25 +127,25 @@ $statusTabs = ['' => 'Alle'] + BlogPostStatus::LABELS;
   <?php endif; ?>
 
   <?php if ($loadFailed): ?>
-    <p class="admin-alert admin-alert--error">Blogberichten konden niet worden geladen.</p>
+    <p class="admin-alert admin-alert--error"><?= admin_te('blog.blogberichten_konden_geladen') ?></p>
   <?php endif; ?>
 
   <?php if ($canManage): ?>
     <section class="admin-card">
-      <h2>Nieuw bericht</h2>
-      <p class="admin-text-muted">Je geeft het bericht eerst een titel; de tekst, de afbeelding en de publicatie regel je daarna in de editor.</p>
+      <h2><?= admin_te('blog.nieuw_bericht') ?></h2>
+      <p class="admin-text-muted"><?= admin_te('blog.geeft_bericht_eerst_titel') ?></p>
       <form method="post" action="/api/admin/create-blog-post.php" class="admin-product-form">
         <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
-        <label>Titel van het bericht*
+        <label><?= admin_te('blog.titel_bericht') ?>*
           <input type="text" name="title" maxlength="200" required placeholder="Bijvoorbeeld: Hoe wij een ontwerp graveren">
         </label>
-        <button type="submit">Bericht aanmaken</button>
+        <button type="submit"><?= admin_te('blog.bericht_aanmaken') ?></button>
       </form>
     </section>
   <?php endif; ?>
 
   <section class="admin-card">
-    <h2>Filteren</h2>
+    <h2><?= admin_te('blog.filteren') ?></h2>
     <nav class="admin-filter-tabs" aria-label="Filter op status">
       <?php foreach ($statusTabs as $key => $label): ?>
         <?php $count = $key === '' ? $total : ($counts[$key] ?? 0); ?>
@@ -155,12 +160,12 @@ $statusTabs = ['' => 'Alle'] + BlogPostStatus::LABELS;
         <input type="hidden" name="status" value="<?= $h($statusFilter) ?>">
       <?php endif; ?>
       <div class="admin-form-row admin-form-row--split">
-        <label>Zoeken op titel
+        <label><?= admin_te('blog.zoeken_titel') ?>
           <input type="search" name="q" value="<?= $h($search) ?>" placeholder="Zoek in NL- en EN-titels">
         </label>
-        <label>Categorie
+        <label><?= admin_te('blog.categorie') ?>
           <select name="category">
-            <option value="">Alle categorieën</option>
+            <option value=""><?= admin_te('blog.alle_categorie_n') ?></option>
             <?php foreach ($categories as $category): ?>
               <option value="<?= (int) $category['id'] ?>" <?= $categoryFilter === (int) $category['id'] ? 'selected' : '' ?>><?= $h((string) $category['name']) ?></option>
             <?php endforeach; ?>
@@ -168,7 +173,7 @@ $statusTabs = ['' => 'Alle'] + BlogPostStatus::LABELS;
         </label>
       </div>
       <div>
-        <button type="submit">Filteren</button>
+        <button type="submit"><?= admin_te('blog.filteren_2') ?></button>
         <?php if ($statusFilter !== '' || $categoryFilter > 0 || $search !== ''): ?>
           <a href="/admin/blog.php" class="admin-btn-text">Filters wissen</a>
         <?php endif; ?>
@@ -177,17 +182,17 @@ $statusTabs = ['' => 'Alle'] + BlogPostStatus::LABELS;
   </section>
 
   <?php if (!$loadFailed && $posts === []): ?>
-    <p><?= $total > 0 ? 'Geen berichten die aan deze filters voldoen.' : 'Er zijn nog geen blogberichten.' ?></p>
+    <p><?= $total > 0 ? admin_t('blog.no_posts_for_filter') : admin_t('blog.no_posts') ?></p>
   <?php elseif ($posts !== []): ?>
     <div class="admin-table-wrap">
     <table class="admin-table">
       <thead>
         <tr>
-          <th>Titel</th>
-          <th>Status</th>
-          <th>Publicatie</th>
-          <th>Categorie</th>
-          <th>Laatst gewijzigd</th>
+          <th><?= admin_te('common.title') ?></th>
+          <th><?= admin_te('common.status') ?></th>
+          <th><?= admin_te('blog.publicatie') ?></th>
+          <th><?= admin_te('blog.categorie_2') ?></th>
+          <th><?= admin_te('blog.laatst_gewijzigd') ?></th>
           <th></th>
         </tr>
       </thead>
@@ -219,7 +224,7 @@ $statusTabs = ['' => 'Alle'] + BlogPostStatus::LABELS;
               <?php else: ?>
                 <?= $h(BlogClock::forAdmin($post['published_at'])) ?>
                 <?php if ($isPending): ?>
-                  <br><span class="admin-text-muted">nog niet zichtbaar</span>
+                  <br><span class="admin-text-muted"><?= admin_te('blog.not_visible_yet') ?></span>
                 <?php endif; ?>
               <?php endif; ?>
             </td>
@@ -240,7 +245,7 @@ $statusTabs = ['' => 'Alle'] + BlogPostStatus::LABELS;
                 <form method="post" action="/api/admin/delete-blog-post.php" class="admin-inline-form" onsubmit="return confirm('Dit blogbericht definitief verwijderen? De afbeeldingen blijven in de mediabibliotheek staan.');">
                   <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
                   <input type="hidden" name="id" value="<?= $postId ?>">
-                  <button type="submit" class="admin-btn-text admin-btn-text--danger">Verwijderen</button>
+                  <button type="submit" class="admin-btn-text admin-btn-text--danger"><?= admin_te('common.delete') ?></button>
                 </form>
               <?php endif; ?>
             </td>

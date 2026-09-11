@@ -20,6 +20,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../../vendor/autoload.php';
 
+use App\Service\Language\AdminTranslator;
 use App\Service\AdminAuth;
 use App\Service\Csrf;
 use App\Service\RichTextContent;
@@ -62,7 +63,7 @@ $old = ['content_html' => $contentRaw, 'content_html_en' => $contentEnRaw, 'is_a
 
 $errors = [];
 if (mb_strlen($contentRaw) > 50000 || mb_strlen($contentEnRaw) > 50000) {
-    $errors[] = 'De tekst is te lang.';
+    $errors[] = AdminTranslator::trans('validation.text_too_long');
 }
 
 if ($errors !== []) {

@@ -91,7 +91,7 @@ function adminNavIcon(string $key): string
 }
 ?>
 <input type="checkbox" id="admin-sidebar-toggle" class="admin-sidebar-toggle-checkbox" hidden>
-<label for="admin-sidebar-toggle" class="admin-sidebar-toggle"><span aria-hidden="true">&#9776;</span> <?= admin_te('shell.menu') ?></label>
+<label for="admin-sidebar-toggle" class="admin-sidebar-toggle"><span aria-hidden="true"><?= admin_t('header.text', ['v1' => admin_te('shell.menu')]) ?></label>
 <aside class="admin-sidebar" id="admin-sidebar">
   <a href="/admin/index.php" class="admin-sidebar__brand"><?= htmlspecialchars(\App\Service\SiteSettings::get('site_name'), ENT_QUOTES, 'UTF-8') ?></a>
 

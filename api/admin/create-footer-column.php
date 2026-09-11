@@ -9,6 +9,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../../vendor/autoload.php';
 
+use App\Service\Language\AdminTranslator;
 use App\Service\AdminAuth;
 use App\Service\Csrf;
 use App\Service\Language\LocalizedValue;
@@ -41,7 +42,7 @@ if (LocalizedValue::ofDutchEnglish($titleNl, $titleEn)->primaryValue() === ''
     || mb_strlen($titleNl) > 100
     || mb_strlen($titleEn) > 100
 ) {
-    $_SESSION['admin_footer_error'] = 'Titel is verplicht (max. 100 tekens).';
+    $_SESSION['admin_footer_error'] = AdminTranslator::trans('validation.titel_verplicht_max_100_tekens');
     header('Location: /admin/footer.php');
     exit;
 }
@@ -50,7 +51,7 @@ try {
     (new FooterRepository())->createColumn(['title_nl' => $titleNl, 'title_en' => $titleEn, 'is_visible' => true]);
 } catch (\Throwable $e) {
     error_log('[api/admin/create-footer-column.php] ' . $e->getMessage());
-    $_SESSION['admin_footer_error'] = 'Kolom kon niet worden aangemaakt.';
+    $_SESSION['admin_footer_error'] = AdminTranslator::trans('validation.kolom_kon_aangemaakt');
     header('Location: /admin/footer.php');
     exit;
 }

@@ -23,6 +23,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../../vendor/autoload.php';
 
+use App\Service\Language\AdminTranslator;
 use App\Repository\PersonalizationFontRepository;
 use App\Service\AdminAuth;
 use App\Service\Csrf;
@@ -63,9 +64,9 @@ $label = trim((string) ($_POST['label'] ?? ''));
 $errors = [];
 
 if ($label === '') {
-    $errors[] = 'Geef het lettertype een naam.';
+    $errors[] = AdminTranslator::trans('validation.geef_lettertype_naam');
 } elseif (mb_strlen($label) > 100) {
-    $errors[] = 'De naam van een lettertype mag maximaal 100 tekens zijn.';
+    $errors[] = AdminTranslator::trans('validation.naam_lettertype_mag_maximaal_100');
 }
 
 $uploader = new PersonalizationFontUploader();

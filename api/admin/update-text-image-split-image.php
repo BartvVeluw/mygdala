@@ -21,6 +21,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../../vendor/autoload.php';
 
+use App\Service\Language\AdminTranslator;
 use App\Repository\TextImageSplitRepository;
 use App\Service\AdminAuth;
 use App\Service\Csrf;
@@ -83,7 +84,7 @@ try {
 } catch (\Throwable $e) {
     error_log('[api/admin/update-text-image-split-image.php] ' . $e->getMessage());
 
-    $_SESSION['admin_tis_image_errors'] = ['Afbeelding kon niet worden opgeslagen. Probeer het opnieuw.'];
+    $_SESSION['admin_tis_image_errors'] = [AdminTranslator::trans('validation.afbeelding_kon_opgeslagen_probeer_opnieuw')];
     header('Location: ' . $redirect);
     exit;
 }

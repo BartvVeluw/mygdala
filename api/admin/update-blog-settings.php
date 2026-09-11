@@ -17,6 +17,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../../vendor/autoload.php';
 
+use App\Service\Language\AdminTranslator;
 use App\Service\AdminAuth;
 use App\Service\Blog\BlogSettings;
 use App\Service\Csrf;
@@ -53,7 +54,7 @@ try {
         BlogSettings::RSS_ENABLED => $flag(BlogSettings::RSS_ENABLED),
     ]);
 
-    $_SESSION['admin_blog_settings_flash'] = 'Bloginstellingen opgeslagen.';
+    $_SESSION['admin_blog_settings_flash'] = AdminTranslator::trans('validation.bloginstellingen_opgeslagen');
 } catch (\Throwable $e) {
     error_log('[api/admin/update-blog-settings.php] ' . $e->getMessage());
     $_SESSION['admin_blog_settings_errors'] = ['De instellingen konden niet worden opgeslagen. Probeer het opnieuw.'];

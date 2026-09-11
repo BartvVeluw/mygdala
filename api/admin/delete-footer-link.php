@@ -6,6 +6,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../../vendor/autoload.php';
 
+use App\Service\Language\AdminTranslator;
 use App\Service\AdminAuth;
 use App\Service\Csrf;
 use App\Repository\FooterRepository;
@@ -34,7 +35,7 @@ try {
     (new FooterRepository())->deleteLink($idParam);
 } catch (\Throwable $e) {
     error_log('[api/admin/delete-footer-link.php] ' . $e->getMessage());
-    $_SESSION['admin_footer_error'] = 'Link kon niet worden verwijderd.';
+    $_SESSION['admin_footer_error'] = AdminTranslator::trans('validation.link_kon_verwijderd');
     header('Location: /admin/footer.php');
     exit;
 }

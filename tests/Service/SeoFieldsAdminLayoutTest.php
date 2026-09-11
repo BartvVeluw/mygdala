@@ -223,7 +223,12 @@ final class SeoFieldsAdminLayoutTest extends TestCase
      */
     private function seoSection(string $source): string
     {
-        $start = strpos($source, '<h2>SEO');
+        // The heading is a catalogue key now, so the card is found by the key
+        // rather than by the Dutch word that used to be printed there.
+        $start = strpos($source, "admin_te('page.seo')");
+        if ($start === false) {
+            $start = strpos($source, "admin_te('page.seo_optioneel')");
+        }
         $this->assertNotFalse($start, 'the editor must still have an SEO card');
 
         $end = strpos($source, '</section>', $start);

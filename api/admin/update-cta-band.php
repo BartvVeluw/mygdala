@@ -15,6 +15,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../../vendor/autoload.php';
 
+use App\Service\Language\AdminTranslator;
 use App\Service\AdminAuth;
 use App\Service\Csrf;
 use App\Service\CtaBandContent;
@@ -69,7 +70,7 @@ $errors = [];
 
 foreach ($required as $key) {
     if ($fields[$key] === '') {
-        $errors[] = 'Dit veld is verplicht.';
+        $errors[] = AdminTranslator::trans('validation.veld_verplicht');
         break;
     }
 }
@@ -79,7 +80,7 @@ foreach ($required as $key) {
 $secondaryLabelSet = $fields['secondary_label_nl'] !== '';
 $secondaryUrlSet = $fields['secondary_url'] !== '';
 if ($secondaryLabelSet !== $secondaryUrlSet) {
-    $errors[] = 'Vul voor de secundaire knop zowel het label (NL) als de URL in, of laat beide leeg.';
+    $errors[] = AdminTranslator::trans('validation.vul_secundaire_knop_zowel_label');
 }
 
 if ($errors !== []) {

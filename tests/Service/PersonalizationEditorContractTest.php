@@ -352,12 +352,12 @@ final class PersonalizationEditorContractTest extends TestCase
         $this->assertIsInt($snapshotPos);
         $this->assertLessThan($snapshotPos, $zonesPos);
 
-        $this->assertStringContainsString('Download voorbeeld', $renderer);
+        $this->assertStringContainsString('personalization.download_voorbeeld', $renderer);
         $this->assertStringContainsString('/api/admin/order-preview-snapshot.php?id=', $renderer);
         $this->assertStringContainsString("'&mode=download'", $renderer);
 
         // The customer's ORIGINAL upload stays separately downloadable.
-        $this->assertStringContainsString('Download origineel', $renderer);
+        $this->assertStringContainsString('personalization.download_origineel', $renderer);
         $this->assertStringContainsString('/api/admin/order-personalization-file.php?id=', $renderer);
     }
 

@@ -15,6 +15,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../../vendor/autoload.php';
 
+use App\Service\Language\AdminTranslator;
 use App\Service\AdminAuth;
 use App\Service\Branding;
 use App\Service\Csrf;
@@ -108,13 +109,13 @@ $required = ['site_name', 'email', 'city_nl', 'city_en', 'footer_description_nl'
 
 foreach ($required as $key) {
     if (in_array($key, $submittedKeys, true) && $fields[$key] === '') {
-        $errors[] = 'Dit veld is verplicht.';
+        $errors[] = AdminTranslator::trans('validation.veld_verplicht');
         break;
     }
 }
 
 if ($fields['email'] !== '' && !filter_var($fields['email'], FILTER_VALIDATE_EMAIL)) {
-    $errors[] = 'Ongeldig e-mailadres.';
+    $errors[] = AdminTranslator::trans('validation.ongeldig_e_mailadres');
 }
 
 /**
@@ -155,7 +156,7 @@ try {
 } catch (\Throwable $e) {
     error_log('[api/admin/update-site-settings.php] ' . $e->getMessage());
 
-    $_SESSION['admin_settings_errors'] = ['Instellingen konden niet worden opgeslagen. Probeer het opnieuw.'];
+    $_SESSION['admin_settings_errors'] = [AdminTranslator::trans('validation.instellingen_konden_opgeslagen_probeer_opnieuw')];
     $_SESSION['admin_settings_old'] = $fields;
     header('Location: /admin/settings.php');
     exit;

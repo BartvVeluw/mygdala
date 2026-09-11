@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/../vendor/autoload.php';
+require_once __DIR__ . '/_translate.php';
 require_once __DIR__ . '/_save_bar.php';
 require_once __DIR__ . '/_language_fields.php';
 
@@ -33,7 +34,7 @@ $card = ($cardId === false || $cardId === null) ? null : $repository->findCardBy
 
 if ($card === null) {
     http_response_code(404);
-    exit('Onbekende kaart.');
+    exit(admin_t('screen.onbekende_kaart'));
 }
 
 $cardId = (int) $card['id'];
@@ -41,7 +42,7 @@ $carousel = $repository->findById((int) $card['carousel_id']);
 
 if ($carousel === null) {
     http_response_code(404);
-    exit('Onbekende carrousel.');
+    exit(admin_t('screen.onbekende_carrousel'));
 }
 
 $sectionParam = (string) $carousel['page_slug'] . ':' . (string) $carousel['section_key'];
@@ -97,20 +98,20 @@ function cardValue(array $values, string $key): string
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Kaart — Admin</title>
+<title><?= admin_te('block_carousel.kaart_admin') ?></title>
 <link rel="stylesheet" href="<?= \App\Service\AssetVersion::url('/admin/assets/admin.css') ?>">
 </head>
 <body<?= \App\Service\AdminTheme::bodyAttribute() ?>>
 <?php require __DIR__ . '/_header.php'; ?>
 <main class="admin-main">
-  <p class="admin-text-muted"><a href="/admin/card-carousel.php?section=<?= $h(urlencode($sectionParam)) ?>">&larr; Terug naar de carrousel</a></p>
-  <h1>Kaart: <?= $h((string) $card['title_nl']) ?></h1>
+  <p class="admin-text-muted"><a href="/admin/card-carousel.php?section=<?= $h(urlencode($sectionParam)) ?>"><?= admin_t('block_carousel.terug_carrousel') ?></a></p>
+  <h1><?= admin_t('block_carousel.kaart', ['v1' => $h((string) $card['title_nl'])]) ?></h1>
   <?php if ($page !== null): ?>
-    <p class="admin-text-muted">Kaart in de Kaarten-carrousel op de pagina "<?= $h((string) $page['title']) ?>".</p>
+    <p class="admin-text-muted"><?= admin_t('block_carousel.kaart_kaarten_carrousel_pagina', ['v1' => $h((string) $page['title'])]) ?></p>
   <?php endif; ?>
 
   <?php if ($saved): ?>
-    <p class="admin-alert admin-alert--success">Opgeslagen.</p>
+    <p class="admin-alert admin-alert--success"><?= admin_te('common.saved') ?></p>
   <?php endif; ?>
 
   <?php foreach ([$errors, $imageErrors, $tagErrors] as $errorList): ?>
@@ -126,7 +127,7 @@ function cardValue(array $values, string $key): string
   <?php endforeach; ?>
 
   <section class="admin-card">
-    <h2>Inhoud</h2>
+    <h2><?= admin_te('block_carousel.inhoud') ?></h2>
     <form method="post" action="/api/admin/update-carousel-card.php" class="admin-product-form">
       <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
       <input type="hidden" name="card_id" value="<?= $cardId ?>">
@@ -134,12 +135,12 @@ function cardValue(array $values, string $key): string
       <?php admin_lang_tabs(); ?>
       <div class="admin-form-row admin-form-row--split">
         <?php admin_lang_pane_start('nl'); ?>
-        <label>Titel*
+        <label><?= admin_te('common.title') ?>*
           <input type="text" name="title_nl" maxlength="255" value="<?= cardValue($values, 'title_nl') ?>" <?= admin_lang_required('nl') ?>>
         </label>
         <?php admin_lang_pane_end(); ?>
         <?php admin_lang_pane_start('en'); ?>
-        <label>Titel
+        <label><?= admin_te('common.title') ?>
           <input type="text" name="title_en" maxlength="255" value="<?= cardValue($values, 'title_en') ?>"<?= admin_lang_placeholder_attr('en') ?>>
         </label>
         <?php admin_lang_pane_end(); ?>
@@ -147,12 +148,12 @@ function cardValue(array $values, string $key): string
 
       <div class="admin-form-row admin-form-row--split">
         <?php admin_lang_pane_start('nl'); ?>
-        <label>Tekst
+        <label><?= admin_te('block_carousel.tekst') ?>
           <textarea name="body_nl" maxlength="500" rows="3" placeholder="Optioneel"><?= cardValue($values, 'body_nl') ?></textarea>
         </label>
         <?php admin_lang_pane_end(); ?>
         <?php admin_lang_pane_start('en'); ?>
-        <label>Tekst
+        <label><?= admin_te('block_carousel.tekst_2') ?>
           <textarea name="body_en" maxlength="500" rows="3"<?= admin_lang_placeholder_attr('en') ?>><?= cardValue($values, 'body_en') ?></textarea>
         </label>
         <?php admin_lang_pane_end(); ?>
@@ -160,37 +161,37 @@ function cardValue(array $values, string $key): string
 
       <div class="admin-form-row admin-form-row--split">
         <?php admin_lang_pane_start('nl'); ?>
-        <label>Knoptekst
+        <label><?= admin_te('block_carousel.knoptekst') ?>
           <input type="text" name="link_label_nl" maxlength="150" value="<?= cardValue($values, 'link_label_nl') ?>" placeholder="Optioneel">
         </label>
         <?php admin_lang_pane_end(); ?>
         <?php admin_lang_pane_start('en'); ?>
-        <label>Knoptekst
+        <label><?= admin_te('block_carousel.knoptekst_2') ?>
           <input type="text" name="link_label_en" maxlength="150" value="<?= cardValue($values, 'link_label_en') ?>"<?= admin_lang_placeholder_attr('en') ?>>
         </label>
         <?php admin_lang_pane_end(); ?>
       </div>
       <div class="admin-form-row">
-        <label>Knop-URL
+        <label><?= admin_te('block_carousel.knop_url') ?>
           <input type="text" name="link_url" maxlength="255" value="<?= cardValue($values, 'link_url') ?>" placeholder="Bijv. diensten.php#hout — leeg = geen knop">
         </label>
       </div>
-      <p class="admin-text-muted">Knoptekst en URL horen bij elkaar: is er maar één van de twee ingevuld, dan wordt er geen knop getoond.</p>
+      <p class="admin-text-muted"><?= admin_te('block_carousel.knoptekst_url_horen_elkaar') ?></p>
 
       <label class="admin-checkbox-label">
         <input type="checkbox" name="is_active" value="1" <?= ($values['is_active'] ?? true) ? 'checked' : '' ?>>
-        Actief (uitgevinkt = deze kaart wordt niet getoond in de carrousel)
+        <?= admin_te('block_carousel.actief_uitgevinkt_kaart_getoond') ?>
       </label>
 
-      <button type="submit">Opslaan</button>
+      <button type="submit"><?= admin_te('common.save') ?></button>
     </form>
   </section>
 
   <section class="admin-card">
-    <h2>Afbeelding</h2>
+    <h2><?= admin_te('common.image') ?></h2>
 
     <?php if (!$hasCardImage): ?>
-      <p class="admin-text-muted">Geen afbeelding ingesteld &mdash; de kaart toont het vaste icoon.</p>
+      <p class="admin-text-muted"><?= admin_t('block_carousel.afbeelding_ingesteld_kaart_toont') ?></p>
     <?php endif; ?>
 
     <form method="post" action="/api/admin/update-carousel-card-image.php" class="admin-product-form" style="margin-top:0.75rem;">
@@ -204,18 +205,18 @@ function cardValue(array $values, string $key): string
       <?php admin_lang_tabs(); ?>
       <div class="admin-form-row admin-form-row--split">
         <?php admin_lang_pane_start('nl'); ?>
-        <label>Alt-tekst
+        <label><?= admin_te('common.alt_text') ?>
           <input type="text" name="image_alt_nl" maxlength="255" value="<?= $h((string) ($card['image_alt_nl'] ?? '')) ?>" placeholder="Leeg = alt-tekst uit de mediabibliotheek">
         </label>
         <?php admin_lang_pane_end(); ?>
         <?php admin_lang_pane_start('en'); ?>
-        <label>Alt-tekst
+        <label><?= admin_te('common.alt_text') ?>
           <input type="text" name="image_alt_en" maxlength="255" value="<?= $h((string) ($card['image_alt_en'] ?? '')) ?>"<?= admin_lang_placeholder_attr('en') ?>>
         </label>
         <?php admin_lang_pane_end(); ?>
       </div>
 
-      <button type="submit">Opslaan</button>
+      <button type="submit"><?= admin_te('common.save') ?></button>
     </form>
 
     <?php if ($hasCardImage): ?>
@@ -223,16 +224,16 @@ function cardValue(array $values, string $key): string
         <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
         <input type="hidden" name="card_id" value="<?= $cardId ?>">
         <input type="hidden" name="remove_image" value="1">
-        <button type="submit" class="admin-btn-text admin-btn-text--danger">Afbeelding verwijderen (gebruik icoon)</button>
+        <button type="submit" class="admin-btn-text admin-btn-text--danger"><?= admin_te('block_carousel.afbeelding_verwijderen_gebruik_icoon') ?></button>
       </form>
     <?php endif; ?>
   </section>
 
   <section class="admin-card">
-    <h2>Tags</h2>
+    <h2><?= admin_te('block_carousel.tags') ?></h2>
 
     <?php if ($tags === []): ?>
-      <p class="admin-text-muted">Nog geen tags op deze kaart.</p>
+      <p class="admin-text-muted"><?= admin_te('block_carousel.tags_kaart') ?></p>
     <?php endif; ?>
 
     <?php foreach ($tags as $index => $tag): ?>
@@ -249,18 +250,18 @@ function cardValue(array $values, string $key): string
           <?php admin_lang_tabs(); ?>
           <div class="admin-form-row admin-form-row--split">
             <?php admin_lang_pane_start('nl'); ?>
-            <label>Label*
+            <label><?= admin_te('block_carousel.label') ?>*
               <input type="text" name="label_nl" maxlength="60" value="<?= $h((string) $tag['label_nl']) ?>" <?= admin_lang_required('nl') ?>>
             </label>
             <?php admin_lang_pane_end(); ?>
             <?php admin_lang_pane_start('en'); ?>
-            <label>Label
+            <label><?= admin_te('block_carousel.label_2') ?>
               <input type="text" name="label_en" maxlength="60" value="<?= $h((string) ($tag['label_en'] ?? '')) ?>"<?= admin_lang_placeholder_attr('en') ?>>
             </label>
             <?php admin_lang_pane_end(); ?>
           </div>
 
-          <button type="submit">Opslaan</button>
+          <button type="submit"><?= admin_te('common.save') ?></button>
         </form>
 
         <div class="admin-image-card__actions" style="margin-top:0.75rem;">
@@ -268,18 +269,18 @@ function cardValue(array $values, string $key): string
             <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
             <input type="hidden" name="tag_id" value="<?= $tagId ?>">
             <input type="hidden" name="direction" value="up">
-            <button type="submit" class="admin-btn-text" <?= $isFirst ? 'disabled' : '' ?>>&uarr; Omhoog</button>
+            <button type="submit" class="admin-btn-text" <?= $isFirst ? 'disabled' : '' ?>><?= admin_t('common.move_up') ?></button>
           </form>
           <form method="post" action="/api/admin/move-carousel-card-tag.php" class="admin-inline-form">
             <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
             <input type="hidden" name="tag_id" value="<?= $tagId ?>">
             <input type="hidden" name="direction" value="down">
-            <button type="submit" class="admin-btn-text" <?= $isLast ? 'disabled' : '' ?>>&darr; Omlaag</button>
+            <button type="submit" class="admin-btn-text" <?= $isLast ? 'disabled' : '' ?>><?= admin_t('common.move_down') ?></button>
           </form>
           <form method="post" action="/api/admin/delete-carousel-card-tag.php" class="admin-inline-form" onsubmit="return confirm('Deze tag definitief verwijderen?');">
             <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
             <input type="hidden" name="tag_id" value="<?= $tagId ?>">
-            <button type="submit" class="admin-btn-text admin-btn-text--danger">Verwijderen</button>
+            <button type="submit" class="admin-btn-text admin-btn-text--danger"><?= admin_te('common.delete') ?></button>
           </form>
         </div>
       </article>
@@ -292,18 +293,18 @@ function cardValue(array $values, string $key): string
       <?php admin_lang_tabs(); ?>
       <div class="admin-form-row admin-form-row--split">
         <?php admin_lang_pane_start('nl'); ?>
-        <label>Label*
+        <label><?= admin_te('block_carousel.label_3') ?>*
           <input type="text" name="label_nl" maxlength="60" <?= admin_lang_required('nl') ?>>
         </label>
         <?php admin_lang_pane_end(); ?>
         <?php admin_lang_pane_start('en'); ?>
-        <label>Label
+        <label><?= admin_te('block_carousel.label_4') ?>
           <input type="text" name="label_en" maxlength="60"<?= admin_lang_placeholder_attr('en') ?>>
         </label>
         <?php admin_lang_pane_end(); ?>
       </div>
 
-      <button type="submit">Tag toevoegen</button>
+      <button type="submit"><?= admin_te('block_carousel.tag_toevoegen') ?></button>
     </form>
   </section>
 </main>

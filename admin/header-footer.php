@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/../vendor/autoload.php';
+require_once __DIR__ . '/_translate.php';
 
 require_once __DIR__ . '/_language_fields.php';
 
@@ -78,7 +79,7 @@ $ctaWarning = $old === null ? HeaderCta::adminWarning() : null;
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Header &amp; footer — Admin</title>
+<title><?= admin_t('headerfooter.header_footer_admin') ?></title>
 <link rel="stylesheet" href="<?= \App\Service\AssetVersion::url('/admin/assets/admin.css') ?>">
 </head>
 <body<?= \App\Service\AdminTheme::bodyAttribute() ?>>
@@ -86,13 +87,13 @@ $ctaWarning = $old === null ? HeaderCta::adminWarning() : null;
 <main class="admin-main">
   <header class="admin-page-head">
     <div>
-      <h1 class="admin-page-head__title">Header &amp; footer</h1>
-      <p class="admin-page-head__desc">De knop in de header, de slotregel in de footer en je social media. Het menu beheer je onder Navigatie, de kolommen onder Footer, het logo onder Site-instellingen.</p>
+      <h1 class="admin-page-head__title"><?= admin_t('headerfooter.header_footer') ?></h1>
+      <p class="admin-page-head__desc"><?= admin_te('headerfooter.knop_header_slotregel_footer') ?></p>
     </div>
   </header>
 
   <?php if ($saved): ?>
-    <p class="admin-alert admin-alert--success">Opgeslagen.</p>
+    <p class="admin-alert admin-alert--success"><?= admin_te('common.saved') ?></p>
   <?php endif; ?>
 
   <?php if ($ctaWarning !== null): ?>
@@ -113,62 +114,62 @@ $ctaWarning = $old === null ? HeaderCta::adminWarning() : null;
     <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
 
     <section class="admin-card">
-      <h2>Knop in de header</h2>
-      <p class="admin-text-muted">De enige knop rechts in de header, naast de taalwissel. Zonder tekst of zonder werkende bestemming wordt hij niet getoond.</p>
+      <h2><?= admin_te('headerfooter.knop_header') ?></h2>
+      <p class="admin-text-muted"><?= admin_te('headerfooter.enige_knop_rechts_header') ?></p>
 
       <label class="admin-checkbox-label">
         <input type="checkbox" name="header_cta_enabled" value="1" <?= $checked('header_cta_enabled') ? 'checked' : '' ?>>
-        Knop tonen in de header
+        <?= admin_te('headerfooter.knop_tonen_header') ?>
       </label>
 
       <?php admin_lang_tabs(); ?>
       <div class="admin-form-row admin-form-row--split">
         <?php admin_lang_pane_start('nl'); ?>
-        <label>Tekst
+        <label><?= admin_te('headerfooter.tekst') ?>
           <input type="text" name="header_cta_label_nl" maxlength="100" value="<?= $h($value('header_cta_label_nl')) ?>">
         </label>
         <?php admin_lang_pane_end(); ?>
         <?php admin_lang_pane_start('en'); ?>
-        <label>Tekst
+        <label><?= admin_te('headerfooter.tekst_2') ?>
           <input type="text" name="header_cta_label_en" maxlength="100" value="<?= $h($value('header_cta_label_en')) ?>">
         </label>
         <?php admin_lang_pane_end(); ?>
       </div>
-      <p class="admin-text-muted">Laat de Engelse tekst leeg om de Nederlandse te gebruiken. Houd het kort: een lange tekst duwt de rest van de header opzij.</p>
+      <p class="admin-text-muted"><?= admin_te('headerfooter.laat_engelse_tekst_leeg') ?></p>
 
       <div class="admin-form-row admin-form-row--split">
-        <label>Bestemming
+        <label><?= admin_te('headerfooter.bestemming') ?>
           <select name="header_cta_link_type" id="cta-link-type">
-            <option value="page" <?= $linkType === 'page' ? 'selected' : '' ?>>CMS-pagina</option>
-            <option value="route" <?= $linkType === 'route' ? 'selected' : '' ?>>Applicatieroute</option>
-            <option value="external" <?= $linkType === 'external' ? 'selected' : '' ?>>Externe URL</option>
+            <option value="page" <?= $linkType === 'page' ? 'selected' : '' ?>><?= admin_te('headerfooter.cms_pagina') ?></option>
+            <option value="route" <?= $linkType === 'route' ? 'selected' : '' ?>><?= admin_te('headerfooter.applicatieroute') ?></option>
+            <option value="external" <?= $linkType === 'external' ? 'selected' : '' ?>><?= admin_te('headerfooter.externe_url') ?></option>
           </select>
         </label>
         <label class="admin-checkbox-label" style="align-self:flex-end;">
           <input type="checkbox" name="header_cta_open_in_new_tab" value="1" <?= $checked('header_cta_open_in_new_tab') ? 'checked' : '' ?>>
-          Open in nieuw tabblad
+          <?= admin_te('headerfooter.open_nieuw_tabblad') ?>
         </label>
       </div>
 
-      <label data-cta-link-field="page">CMS-pagina
+      <label data-cta-link-field="page"><?= admin_te('headerfooter.cms_pagina_2') ?>
         <select name="header_cta_target_page_id">
-          <option value="">— Kies een pagina —</option>
+          <option value=""><?= admin_te('headerfooter.kies_pagina') ?></option>
           <?php foreach ($linkablePages as $page): ?>
             <option value="<?= (int) $page['id'] ?>" <?= $value('header_cta_target_page_id') === (string) $page['id'] ? 'selected' : '' ?>><?= $h((string) $page['title']) ?><?= PageContent::isPublished($page) ? '' : ' (concept)' ?></option>
           <?php endforeach; ?>
         </select>
       </label>
 
-      <label data-cta-link-field="route">Applicatieroute
+      <label data-cta-link-field="route"><?= admin_te('headerfooter.applicatieroute_2') ?>
         <select name="header_cta_target_route">
-          <option value="">— Kies een route —</option>
+          <option value=""><?= admin_te('headerfooter.kies_route') ?></option>
           <?php foreach ($routes as $key => $route): ?>
             <option value="<?= $h($key) ?>" <?= $value('header_cta_target_route') === $key ? 'selected' : '' ?>><?= $h($route['label_nl']) ?> (<?= $h($route['url']) ?>)</option>
           <?php endforeach; ?>
         </select>
       </label>
 
-      <label data-cta-link-field="external">Externe URL
+      <label data-cta-link-field="external"><?= admin_te('headerfooter.externe_url_2') ?>
         <input type="text" name="header_cta_external_url" maxlength="2048" value="<?= $h($value('header_cta_external_url')) ?>" placeholder="https://... of /pad">
       </label>
 
@@ -188,32 +189,32 @@ $ctaWarning = $old === null ? HeaderCta::adminWarning() : null;
     </section>
 
     <section class="admin-card">
-      <h2>Slotregel in de footer</h2>
-      <p class="admin-text-muted">De laatste regel onderin, naast het copyright en de juridische links.</p>
+      <h2><?= admin_te('headerfooter.slotregel_footer') ?></h2>
+      <p class="admin-text-muted"><?= admin_te('headerfooter.laatste_regel_onderin_naast') ?></p>
 
       <label class="admin-checkbox-label">
         <input type="checkbox" name="footer_slogan_enabled" value="1" <?= $checked('footer_slogan_enabled') ? 'checked' : '' ?>>
-        Slotregel tonen
+        <?= admin_te('headerfooter.slotregel_tonen') ?>
       </label>
 
       <div class="admin-form-row admin-form-row--split">
         <?php admin_lang_pane_start('nl'); ?>
-        <label>Slotregel
+        <label><?= admin_te('headerfooter.slotregel') ?>
           <input type="text" name="footer_slogan_nl" maxlength="200" value="<?= $h($value('footer_slogan_nl')) ?>">
         </label>
         <?php admin_lang_pane_end(); ?>
         <?php admin_lang_pane_start('en'); ?>
-        <label>Slotregel
+        <label><?= admin_te('headerfooter.slotregel_2') ?>
           <input type="text" name="footer_slogan_en" maxlength="200" value="<?= $h($value('footer_slogan_en')) ?>">
         </label>
         <?php admin_lang_pane_end(); ?>
       </div>
-      <p class="admin-text-muted">Laat de Engelse tekst leeg om de Nederlandse te gebruiken.</p>
+      <p class="admin-text-muted"><?= admin_te('headerfooter.laat_engelse_tekst_leeg_2') ?></p>
     </section>
 
     <section class="admin-card">
-      <h2>Social media</h2>
-      <p class="admin-text-muted">Vul in wat je hebt en laat de rest leeg. Alleen ingevulde profielen krijgen een icoon in de footer; zonder profielen staat er niets. Plak de volledige link naar je profiel, beginnend met <code>https://</code>.</p>
+      <h2><?= admin_te('headerfooter.social_media') ?></h2>
+      <p class="admin-text-muted"><?= admin_t('headerfooter.vul_wat_hebt_laat') ?></p>
 
       <div class="admin-form-row admin-form-row--split">
         <?php foreach (SocialProfiles::networks() as $definition): ?>
@@ -225,7 +226,7 @@ $ctaWarning = $old === null ? HeaderCta::adminWarning() : null;
     </section>
 
     <section class="admin-card">
-      <button type="submit">Opslaan</button>
+      <button type="submit"><?= admin_te('common.save') ?></button>
     </section>
   </form>
 </main>

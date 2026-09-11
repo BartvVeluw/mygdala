@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/../vendor/autoload.php';
+require_once __DIR__ . '/_translate.php';
 
 use App\Repository\FormRepository;
 use App\Repository\FormSubmissionRepository;
@@ -61,17 +62,17 @@ $filters = ['all' => 'Alle', 'unread' => 'Ongelezen', 'read' => 'Gelezen'];
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Inzendingen — Admin</title>
+<title><?= admin_te('forms.inzendingen_admin') ?></title>
 <link rel="stylesheet" href="<?= \App\Service\AssetVersion::url('/admin/assets/admin.css') ?>">
 </head>
 <body<?= \App\Service\AdminTheme::bodyAttribute() ?>>
 <?php require __DIR__ . '/_header.php'; ?>
 <main class="admin-main">
-  <h1>Inzendingen</h1>
-  <p class="admin-text-muted">Wat bezoekers via de formulieren op de site hebben gestuurd. Alleen formulieren waarbij "inzendingen bewaren" aan staat, bewaren iets. Verwijderen is definitief.</p>
+  <h1><?= admin_te('forms.inzendingen') ?></h1>
+  <p class="admin-text-muted"><?= admin_te('forms.wat_bezoekers_via_formulieren') ?></p>
 
   <?php if ($deleted): ?>
-    <p class="admin-alert admin-alert--success">Inzending verwijderd.</p>
+    <p class="admin-alert admin-alert--success"><?= admin_te('forms.inzending_verwijderd') ?></p>
   <?php endif; ?>
 
   <div class="admin-filter-tabs" role="tablist" aria-label="Filter op status">
@@ -90,20 +91,20 @@ $filters = ['all' => 'Alle', 'unread' => 'Ongelezen', 'read' => 'Gelezen'];
   <?php endif; ?>
 
   <?php if ($loadFailed): ?>
-    <p class="admin-alert admin-alert--error">Inzendingen konden niet worden geladen.</p>
+    <p class="admin-alert admin-alert--error"><?= admin_te('forms.inzendingen_konden_geladen') ?></p>
   <?php elseif ($submissions === []): ?>
-    <p>Geen inzendingen gevonden.</p>
+    <p><?= admin_te('forms.inzendingen_gevonden') ?></p>
   <?php else: ?>
     <div class="admin-table-wrap">
     <table class="admin-table">
       <thead>
         <tr>
-          <th>Formulier</th>
-          <th>Eerste antwoord</th>
-          <th>Pagina</th>
-          <th>Ontvangen</th>
-          <th>Gemaild</th>
-          <th>Status</th>
+          <th><?= admin_te('forms.formulier') ?></th>
+          <th><?= admin_te('forms.eerste_antwoord') ?></th>
+          <th><?= admin_te('forms.pagina') ?></th>
+          <th><?= admin_te('forms.ontvangen') ?></th>
+          <th><?= admin_te('forms.gemaild') ?></th>
+          <th><?= admin_te('common.status') ?></th>
         </tr>
       </thead>
       <tbody>
@@ -126,7 +127,7 @@ $filters = ['all' => 'Alle', 'unread' => 'Ongelezen', 'read' => 'Gelezen'];
                 <span class="admin-badge admin-badge--info" title="De melding is niet verstuurd. De inzending is wel bewaard.">Nee</span>
               <?php endif; ?>
             </td>
-            <td><span class="admin-badge admin-badge--<?= $isUnread ? 'info' : 'muted' ?>"><?= $isUnread ? 'Nieuw' : 'Gelezen' ?></span></td>
+            <td><span class="admin-badge admin-badge--<?= $isUnread ? 'info' : 'muted' ?>"><?= $isUnread ? admin_t('common.new_item') : 'Gelezen' ?></span></td>
           </tr>
         <?php endforeach; ?>
       </tbody>

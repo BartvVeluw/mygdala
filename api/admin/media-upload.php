@@ -25,6 +25,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../../vendor/autoload.php';
 
+use App\Service\Language\AdminTranslator;
 use App\Service\AdminAuth;
 use App\Service\Csrf;
 use App\Service\Media\MediaService;
@@ -44,7 +45,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 
 if (!Csrf::validate($_POST['csrf_token'] ?? null)) {
     http_response_code(403);
-    echo json_encode(['error' => 'Ongeldig of ontbrekend beveiligingstoken. Ververs de pagina en probeer het opnieuw.']);
+    echo json_encode(['error' => AdminTranslator::trans('validation.ongeldig_ontbrekend_beveiligingstoken_ververs_pa')]);
     exit;
 }
 
@@ -67,7 +68,7 @@ try {
     error_log('[api/admin/media-upload.php] ' . $e->getMessage());
 
     http_response_code(500);
-    echo json_encode(['error' => 'Afbeelding kon niet worden opgeslagen. Probeer het opnieuw.']);
+    echo json_encode(['error' => AdminTranslator::trans('validation.afbeelding_kon_opgeslagen_probeer_opnieuw')]);
     exit;
 }
 

@@ -16,6 +16,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../../vendor/autoload.php';
 
+use App\Service\Language\AdminTranslator;
 use App\Service\AdminAuth;
 use App\Service\Csrf;
 use App\Service\HomepageHeroContent;
@@ -41,11 +42,11 @@ $layout = trim((string) ($_POST['layout'] ?? ''));
 $errors = [];
 
 if (!in_array($mediaType, HomepageHeroContent::MEDIA_TYPES, true)) {
-    $errors[] = 'Ongeldig media-type.';
+    $errors[] = AdminTranslator::trans('validation.ongeldig_media_type');
 }
 
 if (!in_array($layout, HomepageHeroContent::LAYOUTS, true)) {
-    $errors[] = 'Ongeldige lay-out.';
+    $errors[] = AdminTranslator::trans('validation.ongeldige_lay_out');
 }
 
 if ($errors !== []) {

@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/../vendor/autoload.php';
+require_once __DIR__ . '/_translate.php';
 
 use App\Service\AdminAuth;
 use App\Service\Csrf;
@@ -43,7 +44,7 @@ $t = static fn (string $key, array $r = []): string => AdminTranslator::trans($k
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title><?= $h($t('account.title')) ?> &mdash; Admin</title>
+<title><?= $h($t('account.title')) ?> <?= admin_t('account.admin') ?></title>
 <link rel="stylesheet" href="<?= \App\Service\AssetVersion::url('/admin/assets/admin.css') ?>">
 </head>
 <body<?= \App\Service\AdminTheme::bodyAttribute() ?>>

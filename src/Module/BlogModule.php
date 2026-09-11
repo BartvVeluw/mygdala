@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Module;
 
+use App\Service\Language\AdminTranslator;
 use App\Repository\BlogCategoryRepository;
 use App\Repository\BlogPostRepository;
 use App\Service\AdminPermissions;
@@ -279,10 +280,10 @@ final class BlogModule extends ModuleDefinition
         return [
             [
                 'icon' => 'blog',
-                'title' => 'Blog',
-                'desc' => 'Schrijf en publiceer blogberichten, met categorieën en tags.',
+                'title' => AdminTranslator::trans('dashboard.card_blog_title'),
+                'desc' => AdminTranslator::trans('dashboard.card_blog_desc'),
                 'href' => '/admin/blog.php',
-                'cta' => 'Naar de blog',
+                'cta' => AdminTranslator::trans('dashboard.card_blog_cta'),
                 'permission' => self::BLOG_VIEW,
                 'order' => 250,
             ],

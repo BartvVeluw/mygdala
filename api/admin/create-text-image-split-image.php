@@ -22,6 +22,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../../vendor/autoload.php';
 
+use App\Service\Language\AdminTranslator;
 use App\Repository\TextImageSplitRepository;
 use App\Service\AdminAuth;
 use App\Service\Csrf;
@@ -80,7 +81,7 @@ try {
 
     // Nothing to clean up: this endpoint created no file. The media item
     // belongs to the library and stays exactly where it is.
-    $_SESSION['admin_tis_image_errors'] = ['Afbeelding kon niet worden opgeslagen. Probeer het opnieuw.'];
+    $_SESSION['admin_tis_image_errors'] = [AdminTranslator::trans('validation.afbeelding_kon_opgeslagen_probeer_opnieuw')];
     header('Location: ' . $redirect);
     exit;
 }

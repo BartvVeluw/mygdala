@@ -15,6 +15,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../../vendor/autoload.php';
 
+use App\Service\Language\AdminTranslator;
 use App\Service\AdminAuth;
 use App\Service\Csrf;
 use App\Repository\ProductRepository;
@@ -65,7 +66,7 @@ foreach ($options as $option) {
     $submitted = filter_var($submittedValueIds[$optionId] ?? null, FILTER_VALIDATE_INT);
 
     if ($submitted === false || $submitted < 1) {
-        $errors[] = 'Kies een waarde voor "' . $option['name'] . '".';
+        $errors[] = AdminTranslator::trans('validation.choose_option_value', ['v1' => (string) $option['name']]);
         continue;
     }
 
@@ -78,7 +79,7 @@ foreach ($options as $option) {
     }
 
     if (!$matchesOption) {
-        $errors[] = 'Ongeldige waarde voor "' . $option['name'] . '".';
+        $errors[] = AdminTranslator::trans('validation.invalid_option_value', ['v1' => (string) $option['name']]);
         continue;
     }
 
@@ -89,11 +90,11 @@ $priceRaw = is_string($_POST['price'] ?? null) ? trim(str_replace(',', '.', $_PO
 $price = null;
 if ($priceRaw !== '') {
     if (!is_numeric($priceRaw)) {
-        $errors[] = 'Prijs override moet een geldig bedrag zijn.';
+        $errors[] = AdminTranslator::trans('validation.prijs_override_geldig_bedrag');
     } else {
         $price = (float) $priceRaw;
         if ($price <= 0 || $price > 99999.99) {
-            $errors[] = 'Prijs override moet groter dan 0 en maximaal € 99.999,99 zijn.';
+            $errors[] = AdminTranslator::trans('validation.prijs_override_groter_0_maximaal');
         }
     }
 }
@@ -103,7 +104,7 @@ $active = ($_POST['active'] ?? null) === '1';
 $variantRepository = new ProductVariantRepository();
 
 if ($errors === [] && $variantRepository->comboExists($productId, $valueIds)) {
-    $errors[] = 'Er bestaat al een variant met precies deze combinatie.';
+    $errors[] = AdminTranslator::trans('validation.er_bestaat_al_variant_precies');
 }
 
 if ($errors !== []) {

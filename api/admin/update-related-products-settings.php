@@ -22,6 +22,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../../vendor/autoload.php';
 
+use App\Service\Language\AdminTranslator;
 use App\Repository\CollectionRepository;
 use App\Repository\SiteSettingRepository;
 use App\Service\AdminAuth;
@@ -55,12 +56,12 @@ $fields = [
 $errors = [];
 
 if ($fields['heading_nl'] === '') {
-    $errors[] = 'Titel (NL) is verplicht.';
+    $errors[] = AdminTranslator::trans('validation.titel_nl_verplicht');
 }
 
 foreach (['heading_nl' => 255, 'heading_en' => 255] as $key => $max) {
     if (mb_strlen($fields[$key]) > $max) {
-        $errors[] = 'De titel mag maximaal ' . $max . ' tekens lang zijn.';
+        $errors[] = AdminTranslator::trans('validation.title_max_chars', ['v1' => $max]);
         break;
     }
 }
@@ -119,14 +120,14 @@ try {
 } catch (\Throwable $e) {
     error_log('[api/admin/update-related-products-settings.php] ' . $e->getMessage());
     $collections = [];
-    $errors[] = 'Instellingen konden niet worden opgeslagen. Probeer het opnieuw.';
+    $errors[] = AdminTranslator::trans('validation.instellingen_konden_opgeslagen_probeer_opnieuw');
 }
 
 $collectionInput = relatedProductsCollectionInput($_POST['collections'] ?? null, $collections);
 
 foreach ($collectionInput as $values) {
     if (mb_strlen($values['heading_nl']) > 255 || mb_strlen($values['heading_en']) > 255) {
-        $errors[] = 'Een eigen titel van een collectie mag maximaal 255 tekens lang zijn.';
+        $errors[] = AdminTranslator::trans('validation.eigen_titel_collectie_mag_maximaal');
         break;
     }
 }
@@ -167,7 +168,7 @@ try {
 } catch (\Throwable $e) {
     error_log('[api/admin/update-related-products-settings.php] ' . $e->getMessage());
 
-    $_SESSION['admin_related_products_errors'] = ['Instellingen konden niet worden opgeslagen. Probeer het opnieuw.'];
+    $_SESSION['admin_related_products_errors'] = [AdminTranslator::trans('validation.instellingen_konden_opgeslagen_probeer_opnieuw')];
     $_SESSION['admin_related_products_old'] = $fields + ['collections' => $collectionInput];
     header('Location: ' . $redirect);
     exit;

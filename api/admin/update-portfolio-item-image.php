@@ -12,6 +12,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../../vendor/autoload.php';
 
+use App\Service\Language\AdminTranslator;
 use App\Service\AdminAuth;
 use App\Service\Csrf;
 use App\Repository\PortfolioItemImageRepository;
@@ -51,7 +52,7 @@ $altNl = trim((string) ($_POST['alt_nl'] ?? ''));
 $altEn = trim((string) ($_POST['alt_en'] ?? ''));
 
 if (mb_strlen($altNl) > 255 || mb_strlen($altEn) > 255) {
-    $_SESSION['admin_portfolio_item_errors'] = ['Alt-tekst mag maximaal 255 tekens zijn.'];
+    $_SESSION['admin_portfolio_item_errors'] = [AdminTranslator::trans('validation.alt_tekst_mag_maximaal_255')];
     header('Location: /admin/portfolio-item.php?id=' . $portfolioItemId);
     exit;
 }

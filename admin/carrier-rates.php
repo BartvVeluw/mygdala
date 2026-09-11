@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/../vendor/autoload.php';
+require_once __DIR__ . '/_translate.php';
 
 use App\Service\AdminAuth;
 use App\Service\Csrf;
@@ -51,17 +52,17 @@ $csrfToken = Csrf::token();
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Carrier-tarieven — Admin</title>
+<title><?= admin_te('shop.carrier_tarieven_admin') ?></title>
 <link rel="stylesheet" href="<?= \App\Service\AssetVersion::url('/admin/assets/admin.css') ?>">
 </head>
 <body<?= \App\Service\AdminTheme::bodyAttribute() ?>>
 <?php require __DIR__ . '/_header.php'; ?>
 <main class="admin-main">
-  <h1>Carrier-tarieven</h1>
-  <p class="admin-text-muted">Centraal beheerde vervoerderstarieven (op dit moment alleen PostNL). Een verzendtarief in <a href="/admin/shipping.php">Verzendinstellingen</a> kan naar een tarief hieronder verwijzen — wijzig je hier de prijs, dan geldt dat direct voor elk verzendtarief dat ernaar verwijst.</p>
+  <h1><?= admin_te('shop.carrier_tarieven') ?></h1>
+  <p class="admin-text-muted"><?= admin_t('shop.centraal_beheerde_vervoerderstarieven_moment') ?></p>
 
   <?php if ($updated): ?>
-    <p class="admin-alert admin-alert--success">Opgeslagen.</p>
+    <p class="admin-alert admin-alert--success"><?= admin_te('common.saved') ?></p>
   <?php endif; ?>
 
   <?php if ($errors !== []): ?>
@@ -76,7 +77,7 @@ $csrfToken = Csrf::token();
 
   <?php if ($syncResult !== null): ?>
     <section class="admin-card">
-      <h2>Resultaat synchronisatie</h2>
+      <h2><?= admin_te('shop.resultaat_synchronisatie') ?></h2>
       <p class="admin-alert admin-alert--<?= $syncResult->success ? 'success' : 'error' ?>"><?= htmlspecialchars($syncResult->message, ENT_QUOTES, 'UTF-8') ?></p>
 
       <?php foreach (['Gewijzigd' => $syncResult->changed, 'Ongewijzigd' => $syncResult->unchanged, 'Handmatige modus (niet toegepast)' => $syncResult->pendingManual, 'Gemarkeerd voor controle' => $syncResult->flaggedForReview, 'Waarschuwingen' => $syncResult->warnings] as $heading => $lines): ?>
@@ -93,29 +94,30 @@ $csrfToken = Csrf::token();
   <?php endif; ?>
 
   <section class="admin-card">
-    <h2>PostNL-synchronisatie</h2>
+    <h2><?= admin_te('shop.postnl_synchronisatie') ?></h2>
     <p class="admin-text-muted">
       Laatste synchronisatie:
       <?php if ($lastRun === null): ?>
-        nog niet uitgevoerd.
+        <?= admin_te('shop.not_run_yet') ?>
       <?php else: ?>
-        <?= formatDateTime($lastRun['ran_at']) ?>
-        (<?= htmlspecialchars((string) $lastRun['status'], ENT_QUOTES, 'UTF-8') ?>,
-        <?= htmlspecialchars((string) ($lastRun['triggered_by'] ?? 'onbekend'), ENT_QUOTES, 'UTF-8') ?>)
-        — draait ook automatisch via een cronjob, zie MAIN.MD.
+        <?= admin_t('shop.sync_ran_at', [
+            'v1' => formatDateTime($lastRun['ran_at']),
+            'v2' => htmlspecialchars((string) $lastRun['status'], ENT_QUOTES, 'UTF-8'),
+            'v3' => htmlspecialchars((string) ($lastRun['triggered_by'] ?? 'onbekend'), ENT_QUOTES, 'UTF-8'),
+        ]) ?>
       <?php endif; ?>
     </p>
     <form method="post" action="/api/admin/sync-postnl-rates.php">
       <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
-      <button type="submit">PostNL-tarieven nu bijwerken</button>
+      <button type="submit"><?= admin_te('shop.postnl_tarieven_nu_bijwerken') ?></button>
     </form>
   </section>
 
   <?php if ($rates === null): ?>
-    <p class="admin-alert admin-alert--error">Carrier-tarieven konden niet worden geladen.</p>
+    <p class="admin-alert admin-alert--error"><?= admin_te('shop.carrier_tarieven_konden_geladen') ?></p>
   <?php else: ?>
     <section class="admin-card">
-      <h2>PostNL</h2>
+      <h2><?= admin_te('shop.postnl') ?></h2>
       <div class="admin-variant-list">
         <?php foreach ($rates as $rate): ?>
           <article class="admin-variant-panel">
@@ -126,7 +128,7 @@ $csrfToken = Csrf::token();
                 <?= $rate['mode'] === 'automatic' ? 'Automatisch' : 'Handmatig' ?>
               </span>
               <span class="admin-badge admin-badge--<?= $rate['is_active'] ? 'paid' : 'canceled' ?>">
-                <?= $rate['is_active'] ? 'Actief' : 'Uitgeschakeld' ?>
+                <?= $rate['is_active'] ? admin_t('common.active') : 'Uitgeschakeld' ?>
               </span>
               <?php if ($rate['needs_review']): ?>
                 <span class="admin-badge admin-badge--pending">Controle vereist</span>
@@ -134,18 +136,16 @@ $csrfToken = Csrf::token();
             </div>
 
             <p class="admin-text-muted">
-              Laatst bijgewerkt: <?= formatDateTime($rate['updated_at']) ?> —
-              laatst gecontroleerd: <?= formatDateTime($rate['last_checked_at']) ?>
+              <?= admin_t('shop.laatst_bijgewerkt_laatst_gecontroleerd', ['v1' => formatDateTime($rate['updated_at']), 'v2' => formatDateTime($rate['last_checked_at'])]) ?>
             </p>
 
             <?php if ($rate['pending_price'] !== null): ?>
               <p class="admin-alert admin-alert--<?= $rate['needs_review'] ? 'error' : 'success' ?>">
-                PostNL geeft momenteel <strong>€<?= htmlspecialchars(number_format($rate['pending_price'], 2, ',', '.'), ENT_QUOTES, 'UTF-8') ?></strong>
-                (gezien op <?= formatDateTime($rate['pending_detected_at']) ?>) — nog niet toegepast.
+                <?= admin_t('shop.postnl_geeft_momenteel_gezien', ['v1' => htmlspecialchars(number_format($rate['pending_price'], 2, ',', '.'), ENT_QUOTES, 'UTF-8'), 'v2' => formatDateTime($rate['pending_detected_at'])]) ?>
                 <form method="post" action="/api/admin/apply-carrier-rate-pending.php" class="admin-inline-form">
                   <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
                   <input type="hidden" name="carrier_rate_id" value="<?= (int) $rate['id'] ?>">
-                  <button type="submit" class="admin-btn-text">Toepassen</button>
+                  <button type="submit" class="admin-btn-text"><?= admin_te('shop.toepassen') ?></button>
                 </form>
               </p>
             <?php endif; ?>
@@ -153,20 +153,20 @@ $csrfToken = Csrf::token();
             <form method="post" action="/api/admin/update-carrier-rate.php" class="admin-inline-form admin-variant-panel__form">
               <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
               <input type="hidden" name="carrier_rate_id" value="<?= (int) $rate['id'] ?>">
-              <label>Modus
+              <label><?= admin_te('shop.modus') ?>
                 <select name="mode">
-                  <option value="automatic" <?= $rate['mode'] === 'automatic' ? 'selected' : '' ?>>Automatisch (PostNL-sync)</option>
-                  <option value="manual" <?= $rate['mode'] === 'manual' ? 'selected' : '' ?>>Handmatig</option>
+                  <option value="automatic" <?= $rate['mode'] === 'automatic' ? 'selected' : '' ?>><?= admin_te('shop.automatisch_postnl_sync') ?></option>
+                  <option value="manual" <?= $rate['mode'] === 'manual' ? 'selected' : '' ?>><?= admin_te('shop.handmatig') ?></option>
                 </select>
               </label>
-              <label>Prijs (&euro;)
+              <label><?= admin_t('shop.prijs') ?>
                 <input type="text" inputmode="decimal" name="price" value="<?= htmlspecialchars(number_format((float) $rate['price'], 2, '.', ''), ENT_QUOTES, 'UTF-8') ?>">
               </label>
               <label class="admin-checkbox-label">
                 <input type="checkbox" name="is_active" value="1" <?= $rate['is_active'] ? 'checked' : '' ?>>
-                Actief
+                <?= admin_te('common.active') ?>
               </label>
-              <button type="submit" class="admin-btn-text">Opslaan</button>
+              <button type="submit" class="admin-btn-text"><?= admin_te('common.save') ?></button>
             </form>
           </article>
         <?php endforeach; ?>

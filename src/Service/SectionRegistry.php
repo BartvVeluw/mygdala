@@ -5,6 +5,7 @@ namespace App\Service;
 use App\Repository\PageSectionRepository;
 use App\Service\Blocks\BlockDefinition;
 use App\Service\Blocks\BlockDefinitions;
+use App\Service\Language\AdminTranslator;
 
 /**
  * THE central content-block registry: the authoritative answer to which block
@@ -151,7 +152,14 @@ class SectionRegistry
 
     public static function label(string $type): string
     {
-        return self::meta($type)['label'] ?? $type;
+        // Through the block's own definition rather than off the meta array,
+        // so the label arrives in the CMS interface language of whoever is
+        // reading it (App\Service\Blocks\BlockDefinition::label()). Asked of
+        // the registry, not of self::definition(), because this method has
+        // always answered for an unknown type rather than throwing.
+        $definition = BlockDefinitions::get($type);
+
+        return $definition !== null ? $definition->label() : $type;
     }
 
     public static function allowMultiple(string $type): bool
@@ -566,7 +574,9 @@ class SectionRegistry
 
         $url = self::editUrl($pageSection);
 
-        return $url === null ? [] : [['label' => 'Bewerken', 'url' => $url]];
+        // The same word every other edit link in the CMS uses, so it changes
+        // language with the rest of the shell.
+        return $url === null ? [] : [['label' => AdminTranslator::trans('common.edit'), 'url' => $url]];
     }
 
     /**

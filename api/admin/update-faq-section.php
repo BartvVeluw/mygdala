@@ -13,6 +13,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../../vendor/autoload.php';
 
+use App\Service\Language\AdminTranslator;
 use App\Service\AdminAuth;
 use App\Service\Csrf;
 use App\Service\FaqContent;
@@ -63,7 +64,7 @@ $fields = [
 $errors = [];
 foreach (['eyebrow_nl', 'title_nl'] as $key) {
     if ($fields[$key] === '') {
-        $errors[] = 'Dit veld is verplicht.';
+        $errors[] = AdminTranslator::trans('validation.veld_verplicht');
         break;
     }
 }

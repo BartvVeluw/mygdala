@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/../vendor/autoload.php';
+require_once __DIR__ . '/_translate.php';
 require_once __DIR__ . '/_language_fields.php';
 
 use App\Repository\ProductPersonalizationRepository;
@@ -44,12 +45,12 @@ try {
 } catch (\Throwable $e) {
     error_log('[admin/personalization-product.php] ' . $e->getMessage());
     http_response_code(500);
-    exit('Personalisatie kon niet worden geladen.');
+    exit(admin_t('screen.personalisatie_kon_geladen'));
 }
 
 if ($product === null) {
     http_response_code(404);
-    exit('Product niet gevonden.');
+    exit(admin_t('screen.product_gevonden'));
 }
 
 /**
@@ -83,7 +84,7 @@ require __DIR__ . '/_personalization_builder.php';
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Personalisatie: <?= $h((string) $product['name']) ?> — Admin</title>
+<title><?= admin_t('personalization.for_product_admin', ['v1' => $h((string) $product['name'])]) ?></title>
 <link rel="stylesheet" href="<?= \App\Service\AssetVersion::url('/admin/assets/admin.css') ?>">
 <script src="<?= \App\Service\AssetVersion::url('/admin/assets/admin.js') ?>" defer></script>
 <?php /* The visual zone editor — only ever used on this screen. */ ?>
@@ -92,17 +93,16 @@ require __DIR__ . '/_personalization_builder.php';
 <body<?= \App\Service\AdminTheme::bodyAttribute() ?>>
 <?php require __DIR__ . '/_header.php'; ?>
 <main class="admin-main">
-  <p><a href="/admin/personalization.php">&larr; Terug naar Personalisatie</a></p>
+  <p><a href="/admin/personalization.php"><?= admin_t('personalization.terug_personalisatie') ?></a></p>
 
   <div class="admin-main__heading">
-    <h1>Personalisatie: <?= $h((string) $product['name']) ?></h1>
-    <a href="/admin/product-form.php?id=<?= $productId ?>" class="admin-btn-link">Product bewerken</a>
+    <h1><?= admin_t('personalization.for_product', ['v1' => $h((string) $product['name'])]) ?></h1>
+    <a href="/admin/product-form.php?id=<?= $productId ?>" class="admin-btn-link"><?= admin_te('personalization.product_bewerken') ?></a>
   </div>
 
   <p class="admin-text-muted">
-    Naam, omschrijving, prijs, varianten, productfoto's en zichtbaarheid van dit product beheer je in
-    <a href="/admin/product-form.php?id=<?= $productId ?>">Producten</a>. Op deze pagina staat alleen de
-    personalisatie: de eigen voorbeeldafbeeldingen en de zones daarop.
+    <?= admin_te('personalization.naam_omschrijving_prijs_varianten') ?>
+    <a href="/admin/product-form.php?id=<?= $productId ?>"><?= admin_t('personalization.producten_pagina_staat_alleen') ?>
   </p>
 
   <?php renderPersonalizationBuilder($product, $personalization, $csrfToken, $personalizationFlash); ?>

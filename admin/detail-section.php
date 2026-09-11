@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/../vendor/autoload.php';
+require_once __DIR__ . '/_translate.php';
 require_once __DIR__ . '/_save_bar.php';
 require_once __DIR__ . '/_language_fields.php';
 require __DIR__ . '/_richtext_field.php';
@@ -43,7 +44,7 @@ if ($pageSlug === null || $sectionKey === null || $pageSlug === '' || $sectionKe
     || $repository->findBySlugAndKey($pageSlug, $sectionKey) === null
 ) {
     http_response_code(404);
-    exit('Onbekende sectie.');
+    exit(admin_t('screen.onbekende_sectie'));
 }
 
 $page = $pages->findByContentKey($pageSlug);
@@ -132,7 +133,7 @@ function detailErrorList(array $errors): void
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title><?= $h(SectionRegistry::label('detail_section')) ?> — <?= $h((string) $page['title']) ?> — Admin</title>
+<title><?= $h(SectionRegistry::label('detail_section')) ?> <?= admin_t('block_detail.admin', ['v1' => $h((string) $page['title'])]) ?></title>
 <link rel="stylesheet" href="<?= \App\Service\AssetVersion::url('/admin/assets/vendor/quill/quill.snow.css') ?>">
 <link rel="stylesheet" href="<?= \App\Service\AssetVersion::url('/admin/assets/admin.css') ?>">
 <script src="<?= \App\Service\AssetVersion::url('/admin/assets/vendor/quill/quill.min.js') ?>" defer></script>
@@ -141,12 +142,12 @@ function detailErrorList(array $errors): void
 <body<?= \App\Service\AdminTheme::bodyAttribute() ?>>
 <?php require __DIR__ . '/_header.php'; ?>
 <main class="admin-main">
-  <p class="admin-text-muted"><a href="/admin/page.php?id=<?= (int) $page['id'] ?>">&larr; Terug naar <?= $h((string) $page['title']) ?></a></p>
+  <p class="admin-text-muted"><a href="/admin/page.php?id=<?= (int) $page['id'] ?>"><?= admin_t('block_detail.terug', ['v1' => $h((string) $page['title'])]) ?></a></p>
   <h1><?= $h(SectionRegistry::label('detail_section')) ?></h1>
-  <p class="admin-text-muted">Sectie op de pagina "<?= $h((string) $page['title']) ?>". Wijzigingen zijn direct zichtbaar op de pagina.</p>
+  <p class="admin-text-muted"><?= admin_t('block_detail.sectie_pagina_wijzigingen_direct', ['v1' => $h((string) $page['title'])]) ?></p>
 
   <?php if ($saved): ?>
-    <p class="admin-alert admin-alert--success">Opgeslagen.</p>
+    <p class="admin-alert admin-alert--success"><?= admin_te('common.saved') ?></p>
   <?php endif; ?>
 
   <?php detailErrorList($errors); ?>
@@ -155,7 +156,7 @@ function detailErrorList(array $errors): void
   <?php detailErrorList($imageErrors); ?>
 
   <section class="admin-card">
-    <h2>Algemene inhoud</h2>
+    <h2><?= admin_te('block_detail.algemene_inhoud') ?></h2>
     <form method="post" action="/api/admin/update-detail-section.php" class="admin-product-form">
       <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
       <input type="hidden" name="section" value="<?= $h($sectionParam) ?>">
@@ -163,12 +164,12 @@ function detailErrorList(array $errors): void
       <?php admin_lang_tabs(); ?>
       <div class="admin-form-row admin-form-row--split">
         <?php admin_lang_pane_start('nl'); ?>
-        <label>Titel / H2*
+        <label><?= admin_te('block_detail.titel_h2') ?>*
           <input type="text" name="title_nl" maxlength="255" value="<?= detailValue($values, 'title_nl') ?>" <?= admin_lang_required('nl') ?>>
         </label>
         <?php admin_lang_pane_end(); ?>
         <?php admin_lang_pane_start('en'); ?>
-        <label>Titel / H2
+        <label><?= admin_te('block_detail.titel_h2_2') ?>
           <input type="text" name="title_en" maxlength="255" value="<?= detailValue($values, 'title_en') ?>"<?= admin_lang_placeholder_attr('en') ?>>
         </label>
         <?php admin_lang_pane_end(); ?>
@@ -176,12 +177,12 @@ function detailErrorList(array $errors): void
 
       <div class="admin-form-row admin-form-row--split">
         <?php admin_lang_pane_start('nl'); ?>
-        <label>Lead
+        <label><?= admin_te('block_detail.lead') ?>
           <textarea name="lead_nl" maxlength="500" rows="2" placeholder="Optioneel"><?= detailValue($values, 'lead_nl') ?></textarea>
         </label>
         <?php admin_lang_pane_end(); ?>
         <?php admin_lang_pane_start('en'); ?>
-        <label>Lead
+        <label><?= admin_te('block_detail.lead_2') ?>
           <textarea name="lead_en" maxlength="500" rows="2"<?= admin_lang_placeholder_attr('en') ?>><?= detailValue($values, 'lead_en') ?></textarea>
         </label>
         <?php admin_lang_pane_end(); ?>
@@ -195,77 +196,77 @@ function detailErrorList(array $errors): void
       <?php admin_lang_pane_end(); ?>
 
       <div class="admin-form-row admin-form-row--split">
-        <label>Anker (URL-id)
+        <label><?= admin_te('block_detail.anker_url_id') ?>
           <input type="text" name="anchor" maxlength="100" value="<?= detailValue($values, 'anchor') ?>" placeholder="Bijv. hout — leeg = geen anker">
         </label>
-        <label>Beeldpositie
+        <label><?= admin_te('block_detail.beeldpositie') ?>
           <select name="image_position">
-            <option value="image_right" <?= ($values['image_position'] ?? 'image_right') === 'image_right' ? 'selected' : '' ?>>Afbeelding rechts</option>
-            <option value="image_left" <?= ($values['image_position'] ?? '') === 'image_left' ? 'selected' : '' ?>>Afbeelding links</option>
+            <option value="image_right" <?= ($values['image_position'] ?? 'image_right') === 'image_right' ? 'selected' : '' ?>><?= admin_te('block_detail.afbeelding_rechts') ?></option>
+            <option value="image_left" <?= ($values['image_position'] ?? '') === 'image_left' ? 'selected' : '' ?>><?= admin_te('block_detail.afbeelding_links') ?></option>
           </select>
         </label>
       </div>
-      <p class="admin-text-muted">Een sectie met een anker is bereikbaar via <code>#anker</code> en verschijnt automatisch in de Snelnavigatie van deze pagina.</p>
+      <p class="admin-text-muted"><?= admin_t('block_detail.sectie_anker_bereikbaar_via') ?></p>
 
       <div class="admin-form-row admin-form-row--split">
         <?php admin_lang_pane_start('nl'); ?>
-        <label>Navigatielabel
+        <label><?= admin_te('block_detail.navigatielabel') ?>
           <input type="text" name="nav_label_nl" maxlength="100" value="<?= detailValue($values, 'nav_label_nl') ?>" placeholder="Leeg = de titel hierboven">
         </label>
         <?php admin_lang_pane_end(); ?>
         <?php admin_lang_pane_start('en'); ?>
-        <label>Navigatielabel
+        <label><?= admin_te('block_detail.navigatielabel_2') ?>
           <input type="text" name="nav_label_en" maxlength="100" value="<?= detailValue($values, 'nav_label_en') ?>"<?= admin_lang_placeholder_attr('en') ?>>
         </label>
         <?php admin_lang_pane_end(); ?>
       </div>
-      <p class="admin-text-muted">De korte tekst in de Snelnavigatie — meestal korter dan de titel ("Hout" in plaats van "Hout graveren").</p>
+      <p class="admin-text-muted"><?= admin_te('block_detail.korte_tekst_snelnavigatie_meestal') ?></p>
 
       <div class="admin-form-row admin-form-row--split">
         <?php admin_lang_pane_start('nl'); ?>
-        <label>Slotnotitie
+        <label><?= admin_te('block_detail.slotnotitie') ?>
           <textarea name="closing_note_nl" maxlength="1000" rows="2" placeholder="Optioneel"><?= detailValue($values, 'closing_note_nl') ?></textarea>
         </label>
         <?php admin_lang_pane_end(); ?>
         <?php admin_lang_pane_start('en'); ?>
-        <label>Slotnotitie
+        <label><?= admin_te('block_detail.slotnotitie_2') ?>
           <textarea name="closing_note_en" maxlength="1000" rows="2"<?= admin_lang_placeholder_attr('en') ?>><?= detailValue($values, 'closing_note_en') ?></textarea>
         </label>
         <?php admin_lang_pane_end(); ?>
       </div>
-      <p class="admin-text-muted">Optionele extra tekst onderaan de sectie. Leeg laten = geen slotnotitie.</p>
+      <p class="admin-text-muted"><?= admin_te('block_detail.optionele_extra_tekst_onderaan') ?></p>
 
       <div class="admin-form-row admin-form-row--split">
         <?php admin_lang_pane_start('nl'); ?>
-        <label>CTA-knoptekst
+        <label><?= admin_te('block_detail.cta_knoptekst') ?>
           <input type="text" name="cta_label_nl" maxlength="150" value="<?= detailValue($values, 'cta_label_nl') ?>" placeholder="Optioneel">
         </label>
         <?php admin_lang_pane_end(); ?>
         <?php admin_lang_pane_start('en'); ?>
-        <label>CTA-knoptekst
+        <label><?= admin_te('block_detail.cta_knoptekst_2') ?>
           <input type="text" name="cta_label_en" maxlength="150" value="<?= detailValue($values, 'cta_label_en') ?>"<?= admin_lang_placeholder_attr('en') ?>>
         </label>
         <?php admin_lang_pane_end(); ?>
       </div>
       <div class="admin-form-row">
-        <label>CTA-knop URL
+        <label><?= admin_te('block_detail.cta_knop_url') ?>
           <input type="text" name="cta_url" maxlength="255" value="<?= detailValue($values, 'cta_url') ?>" placeholder="Bijv. contact.php — leeg = geen knop">
         </label>
       </div>
-      <p class="admin-text-muted">Knoptekst en URL horen bij elkaar: is er maar één van de twee ingevuld, dan wordt er geen knop getoond.</p>
+      <p class="admin-text-muted"><?= admin_te('block_detail.knoptekst_url_horen_elkaar') ?></p>
 
       <label class="admin-checkbox-label">
         <input type="checkbox" name="is_active" value="1" <?= ($values['is_active'] ?? true) ? 'checked' : '' ?>>
-        Actief (uitgevinkt = deze hele sectie wordt niet getoond op de pagina)
+        <?= admin_te('block_detail.actief_uitgevinkt_hele_sectie') ?>
       </label>
 
-      <button type="submit">Opslaan</button>
+      <button type="submit"><?= admin_te('common.save') ?></button>
     </form>
   </section>
 
   <section class="admin-card">
-    <h2>Hoofdafbeelding</h2>
-    <p class="admin-text-muted">Optioneel. Staat naast de tekst, aan de kant die je hierboven bij "Beeldpositie" kiest. Zonder hoofdafbeelding blijft de sectie tekst met kenmerken ernaast.</p>
+    <h2><?= admin_te('block_detail.hoofdafbeelding') ?></h2>
+    <p class="admin-text-muted"><?= admin_te('block_detail.optioneel_staat_naast_tekst') ?></p>
 
     <form method="post" action="/api/admin/update-detail-section-main-image.php" class="admin-product-form" style="margin-top:0.75rem;">
       <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
@@ -278,18 +279,18 @@ function detailErrorList(array $errors): void
       <?php admin_lang_tabs(); ?>
       <div class="admin-form-row admin-form-row--split">
         <?php admin_lang_pane_start('nl'); ?>
-        <label>Alt-tekst
+        <label><?= admin_te('common.alt_text') ?>
           <input type="text" name="main_image_alt_nl" maxlength="255" value="<?= $h((string) ($section['main_image_alt_nl'] ?? '')) ?>" placeholder="Leeg = alt-tekst uit de mediabibliotheek">
         </label>
         <?php admin_lang_pane_end(); ?>
         <?php admin_lang_pane_start('en'); ?>
-        <label>Alt-tekst
+        <label><?= admin_te('common.alt_text') ?>
           <input type="text" name="main_image_alt_en" maxlength="255" value="<?= $h((string) ($section['main_image_alt_en'] ?? '')) ?>"<?= admin_lang_placeholder_attr('en') ?>>
         </label>
         <?php admin_lang_pane_end(); ?>
       </div>
 
-      <button type="submit">Opslaan</button>
+      <button type="submit"><?= admin_te('common.save') ?></button>
     </form>
 
     <?php if ($hasMainImage): ?>
@@ -297,17 +298,17 @@ function detailErrorList(array $errors): void
         <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
         <input type="hidden" name="section" value="<?= $h($sectionParam) ?>">
         <input type="hidden" name="remove_image" value="1">
-        <button type="submit" class="admin-btn-text admin-btn-text--danger">Hoofdafbeelding verwijderen</button>
+        <button type="submit" class="admin-btn-text admin-btn-text--danger"><?= admin_te('block_detail.hoofdafbeelding_verwijderen') ?></button>
       </form>
     <?php endif; ?>
   </section>
 
   <section class="admin-card">
-    <h2>Kenmerken</h2>
-    <p class="admin-text-muted">Het vinkje-icoon staat vast en is niet instelbaar.</p>
+    <h2><?= admin_te('block_detail.kenmerken') ?></h2>
+    <p class="admin-text-muted"><?= admin_te('block_detail.vinkje_icoon_staat_vast') ?></p>
 
     <?php if ($points === []): ?>
-      <p class="admin-text-muted">Nog geen kenmerken in deze sectie.</p>
+      <p class="admin-text-muted"><?= admin_te('block_detail.kenmerken_sectie') ?></p>
     <?php endif; ?>
 
     <?php foreach ($points as $index => $point): ?>
@@ -324,12 +325,12 @@ function detailErrorList(array $errors): void
           <?php admin_lang_tabs(); ?>
           <div class="admin-form-row admin-form-row--split">
             <?php admin_lang_pane_start('nl'); ?>
-            <label>Titel*
+            <label><?= admin_te('common.title') ?>*
               <input type="text" name="title_nl" maxlength="255" value="<?= $h((string) $point['title_nl']) ?>" <?= admin_lang_required('nl') ?>>
             </label>
             <?php admin_lang_pane_end(); ?>
             <?php admin_lang_pane_start('en'); ?>
-            <label>Titel
+            <label><?= admin_te('common.title') ?>
               <input type="text" name="title_en" maxlength="255" value="<?= $h((string) ($point['title_en'] ?? '')) ?>"<?= admin_lang_placeholder_attr('en') ?>>
             </label>
             <?php admin_lang_pane_end(); ?>
@@ -337,12 +338,12 @@ function detailErrorList(array $errors): void
 
           <div class="admin-form-row admin-form-row--split">
             <?php admin_lang_pane_start('nl'); ?>
-            <label>Tekst*
+            <label><?= admin_te('block_detail.tekst') ?>*
               <textarea name="body_nl" maxlength="500" rows="2" <?= admin_lang_required('nl') ?>><?= $h((string) $point['body_nl']) ?></textarea>
             </label>
             <?php admin_lang_pane_end(); ?>
             <?php admin_lang_pane_start('en'); ?>
-            <label>Tekst
+            <label><?= admin_te('block_detail.tekst_2') ?>
               <textarea name="body_en" maxlength="500" rows="2"<?= admin_lang_placeholder_attr('en') ?>><?= $h((string) ($point['body_en'] ?? '')) ?></textarea>
             </label>
             <?php admin_lang_pane_end(); ?>
@@ -350,10 +351,10 @@ function detailErrorList(array $errors): void
 
           <label class="admin-checkbox-label">
             <input type="checkbox" name="is_active" value="1" <?= ((bool) $point['is_active']) ? 'checked' : '' ?>>
-            Actief (uitgevinkt = dit kenmerk wordt niet getoond)
+            <?= admin_te('block_detail.actief_uitgevinkt_kenmerk_getoond') ?>
           </label>
 
-          <button type="submit">Opslaan</button>
+          <button type="submit"><?= admin_te('common.save') ?></button>
         </form>
 
         <div class="admin-image-card__actions" style="margin-top:0.75rem;">
@@ -361,18 +362,18 @@ function detailErrorList(array $errors): void
             <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
             <input type="hidden" name="point_id" value="<?= $pointId ?>">
             <input type="hidden" name="direction" value="up">
-            <button type="submit" class="admin-btn-text" <?= $isFirst ? 'disabled' : '' ?>>&uarr; Omhoog</button>
+            <button type="submit" class="admin-btn-text" <?= $isFirst ? 'disabled' : '' ?>><?= admin_t('common.move_up') ?></button>
           </form>
           <form method="post" action="/api/admin/move-detail-section-point.php" class="admin-inline-form">
             <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
             <input type="hidden" name="point_id" value="<?= $pointId ?>">
             <input type="hidden" name="direction" value="down">
-            <button type="submit" class="admin-btn-text" <?= $isLast ? 'disabled' : '' ?>>&darr; Omlaag</button>
+            <button type="submit" class="admin-btn-text" <?= $isLast ? 'disabled' : '' ?>><?= admin_t('common.move_down') ?></button>
           </form>
           <form method="post" action="/api/admin/delete-detail-section-point.php" class="admin-inline-form" onsubmit="return confirm('Dit kenmerk definitief verwijderen?');">
             <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
             <input type="hidden" name="point_id" value="<?= $pointId ?>">
-            <button type="submit" class="admin-btn-text admin-btn-text--danger">Verwijderen</button>
+            <button type="submit" class="admin-btn-text admin-btn-text--danger"><?= admin_te('common.delete') ?></button>
           </form>
         </div>
       </article>
@@ -380,7 +381,7 @@ function detailErrorList(array $errors): void
   </section>
 
   <section class="admin-card">
-    <h2>Nieuw kenmerk toevoegen</h2>
+    <h2><?= admin_te('block_detail.nieuw_kenmerk_toevoegen') ?></h2>
     <form method="post" action="/api/admin/create-detail-section-point.php" class="admin-product-form">
       <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
       <input type="hidden" name="section_id" value="<?= $sectionId ?>">
@@ -388,12 +389,12 @@ function detailErrorList(array $errors): void
       <?php admin_lang_tabs(); ?>
       <div class="admin-form-row admin-form-row--split">
         <?php admin_lang_pane_start('nl'); ?>
-        <label>Titel*
+        <label><?= admin_te('common.title') ?>*
           <input type="text" name="title_nl" maxlength="255" <?= admin_lang_required('nl') ?>>
         </label>
         <?php admin_lang_pane_end(); ?>
         <?php admin_lang_pane_start('en'); ?>
-        <label>Titel
+        <label><?= admin_te('common.title') ?>
           <input type="text" name="title_en" maxlength="255"<?= admin_lang_placeholder_attr('en') ?>>
         </label>
         <?php admin_lang_pane_end(); ?>
@@ -401,27 +402,27 @@ function detailErrorList(array $errors): void
 
       <div class="admin-form-row admin-form-row--split">
         <?php admin_lang_pane_start('nl'); ?>
-        <label>Tekst*
+        <label><?= admin_te('block_detail.tekst_3') ?>*
           <textarea name="body_nl" maxlength="500" rows="2" <?= admin_lang_required('nl') ?>></textarea>
         </label>
         <?php admin_lang_pane_end(); ?>
         <?php admin_lang_pane_start('en'); ?>
-        <label>Tekst
+        <label><?= admin_te('block_detail.tekst_4') ?>
           <textarea name="body_en" maxlength="500" rows="2"<?= admin_lang_placeholder_attr('en') ?>></textarea>
         </label>
         <?php admin_lang_pane_end(); ?>
       </div>
 
-      <button type="submit">Kenmerk toevoegen</button>
+      <button type="submit"><?= admin_te('block_detail.kenmerk_toevoegen') ?></button>
     </form>
   </section>
 
   <section class="admin-card">
-    <h2>Galerij</h2>
-    <p class="admin-text-muted">Optioneel: een rij afbeeldingen onder de sectie. Sommige secties hebben er bewust geen.</p>
+    <h2><?= admin_te('block_detail.galerij') ?></h2>
+    <p class="admin-text-muted"><?= admin_te('block_detail.optioneel_rij_afbeeldingen_onder') ?></p>
 
     <?php if ($images === []): ?>
-      <p class="admin-text-muted">Nog geen afbeeldingen in deze galerij.</p>
+      <p class="admin-text-muted"><?= admin_te('block_detail.afbeeldingen_galerij') ?></p>
     <?php endif; ?>
 
     <?php foreach ($images as $index => $image): ?>
@@ -442,18 +443,18 @@ function detailErrorList(array $errors): void
           <?php admin_lang_tabs(); ?>
           <div class="admin-form-row admin-form-row--split">
             <?php admin_lang_pane_start('nl'); ?>
-            <label>Alt-tekst
+            <label><?= admin_te('common.alt_text') ?>
               <input type="text" name="alt_nl" maxlength="255" value="<?= $h((string) ($image['alt_nl'] ?? '')) ?>" placeholder="Leeg = alt-tekst uit de mediabibliotheek">
             </label>
             <?php admin_lang_pane_end(); ?>
             <?php admin_lang_pane_start('en'); ?>
-            <label>Alt-tekst
+            <label><?= admin_te('common.alt_text') ?>
               <input type="text" name="alt_en" maxlength="255" value="<?= $h((string) ($image['alt_en'] ?? '')) ?>"<?= admin_lang_placeholder_attr('en') ?>>
             </label>
             <?php admin_lang_pane_end(); ?>
           </div>
 
-          <button type="submit">Opslaan</button>
+          <button type="submit"><?= admin_te('common.save') ?></button>
         </form>
 
         <div class="admin-image-card__actions" style="margin-top:0.75rem;">
@@ -461,18 +462,18 @@ function detailErrorList(array $errors): void
             <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
             <input type="hidden" name="image_id" value="<?= $imageId ?>">
             <input type="hidden" name="direction" value="up">
-            <button type="submit" class="admin-btn-text" <?= $isFirst ? 'disabled' : '' ?>>&uarr; Omhoog</button>
+            <button type="submit" class="admin-btn-text" <?= $isFirst ? 'disabled' : '' ?>><?= admin_t('common.move_up') ?></button>
           </form>
           <form method="post" action="/api/admin/move-detail-section-image.php" class="admin-inline-form">
             <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
             <input type="hidden" name="image_id" value="<?= $imageId ?>">
             <input type="hidden" name="direction" value="down">
-            <button type="submit" class="admin-btn-text" <?= $isLast ? 'disabled' : '' ?>>&darr; Omlaag</button>
+            <button type="submit" class="admin-btn-text" <?= $isLast ? 'disabled' : '' ?>><?= admin_t('common.move_down') ?></button>
           </form>
           <form method="post" action="/api/admin/delete-detail-section-image.php" class="admin-inline-form" onsubmit="return confirm('Deze afbeelding definitief verwijderen?');">
             <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
             <input type="hidden" name="image_id" value="<?= $imageId ?>">
-            <button type="submit" class="admin-btn-text admin-btn-text--danger">Verwijderen</button>
+            <button type="submit" class="admin-btn-text admin-btn-text--danger"><?= admin_te('common.delete') ?></button>
           </form>
         </div>
       </article>
@@ -480,7 +481,7 @@ function detailErrorList(array $errors): void
   </section>
 
   <section class="admin-card">
-    <h2>Nieuwe afbeelding toevoegen</h2>
+    <h2><?= admin_te('block_detail.nieuwe_afbeelding_toevoegen') ?></h2>
     <form method="post" action="/api/admin/create-detail-section-image.php" class="admin-product-form">
       <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
       <input type="hidden" name="section_id" value="<?= $sectionId ?>">
@@ -492,18 +493,18 @@ function detailErrorList(array $errors): void
       <?php admin_lang_tabs(); ?>
       <div class="admin-form-row admin-form-row--split">
         <?php admin_lang_pane_start('nl'); ?>
-        <label>Alt-tekst
+        <label><?= admin_te('common.alt_text') ?>
           <input type="text" name="alt_nl" maxlength="255" placeholder="Leeg = alt-tekst uit de mediabibliotheek">
         </label>
         <?php admin_lang_pane_end(); ?>
         <?php admin_lang_pane_start('en'); ?>
-        <label>Alt-tekst
+        <label><?= admin_te('common.alt_text') ?>
           <input type="text" name="alt_en" maxlength="255"<?= admin_lang_placeholder_attr('en') ?>>
         </label>
         <?php admin_lang_pane_end(); ?>
       </div>
 
-      <button type="submit">Afbeelding toevoegen</button>
+      <button type="submit"><?= admin_te('block_detail.afbeelding_toevoegen') ?></button>
     </form>
   </section>
 </main>

@@ -32,6 +32,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../../vendor/autoload.php';
 
+use App\Service\Language\AdminTranslator;
 use App\Service\AdminAuth;
 use App\Service\Csrf;
 use App\Service\PageContent;
@@ -68,13 +69,13 @@ $template = PageTemplates::resolve(isset($_POST['template']) ? trim((string) $_P
 $errors = [];
 
 if ($title === '') {
-    $errors[] = 'Titel is verplicht.';
+    $errors[] = AdminTranslator::trans('validation.titel_verplicht');
 } elseif (mb_strlen($title) > PageService::MAX_TITLE_LENGTH) {
     $errors[] = 'Titel mag maximaal ' . PageService::MAX_TITLE_LENGTH . ' tekens zijn.';
 }
 
 if (!PageContent::isValidStatus($status)) {
-    $errors[] = 'Ongeldige status.';
+    $errors[] = AdminTranslator::trans('validation.ongeldige_status');
 }
 
 $slug = '';
@@ -83,7 +84,7 @@ if ($slugInput === '') {
 } else {
     $slug = PageService::sanitizeSlug($slugInput);
     if ($slug === '') {
-        $errors[] = 'Slug bevat geen geldige tekens.';
+        $errors[] = AdminTranslator::trans('validation.slug_bevat_geldige_tekens');
     } else {
         $slugError = PageService::validateSlug($repository, $slug, null);
         if ($slugError !== null) {

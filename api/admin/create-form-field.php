@@ -22,6 +22,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../../vendor/autoload.php';
 
+use App\Service\Language\AdminTranslator;
 use App\Repository\FormRepository;
 use App\Service\AdminAuth;
 use App\Service\Csrf;
@@ -61,12 +62,12 @@ $typeKey = (string) ($_POST['field_type'] ?? '');
 
 $errors = [];
 if ($label === '') {
-    $errors[] = 'Geef het veld een label.';
+    $errors[] = AdminTranslator::trans('validation.geef_veld_label');
 }
 
 $type = FormFieldTypes::get($typeKey);
 if ($type === null) {
-    $errors[] = 'Kies een geldig veldtype.';
+    $errors[] = AdminTranslator::trans('validation.kies_geldig_veldtype');
 }
 
 if ($errors !== []) {

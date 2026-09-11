@@ -10,6 +10,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../../vendor/autoload.php';
 
+use App\Service\Language\AdminTranslator;
 use App\Service\AdminAuth;
 use App\Service\Csrf;
 use App\Service\TextImageSplitContent;
@@ -57,7 +58,7 @@ $fields = [
 ];
 
 if ($fields['content_nl'] === '') {
-    $_SESSION['admin_tis_paragraph_errors'] = ['Tekst (NL) is verplicht.'];
+    $_SESSION['admin_tis_paragraph_errors'] = [AdminTranslator::trans('validation.tekst_nl_verplicht')];
     header('Location: /admin/text-image-split.php?section=' . urlencode($sectionKey));
     exit;
 }

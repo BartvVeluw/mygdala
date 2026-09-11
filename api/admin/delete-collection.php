@@ -18,6 +18,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../../vendor/autoload.php';
 
+use App\Service\Language\AdminTranslator;
 use App\Repository\CollectionRepository;
 use App\Service\AdminAuth;
 use App\Service\CollectionService;
@@ -56,7 +57,7 @@ try {
 } catch (\Throwable $e) {
     error_log('[api/admin/delete-collection.php] ' . $e->getMessage());
 
-    $_SESSION['admin_collection_list_error'] = 'Collectie kon niet worden verwijderd. Probeer het opnieuw.';
+    $_SESSION['admin_collection_list_error'] = AdminTranslator::trans('validation.collectie_kon_verwijderd_probeer_opnieuw');
     header('Location: /admin/collections.php');
     exit;
 }

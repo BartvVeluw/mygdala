@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/../vendor/autoload.php';
+require_once __DIR__ . '/_translate.php';
 require_once __DIR__ . '/_save_bar.php';
 require_once __DIR__ . '/_language_fields.php';
 
@@ -36,7 +37,7 @@ if ($page === null || $sectionKey === null || $sectionKey === ''
     || $repository->findBySlugAndKey($pageSlug, $sectionKey) === null
 ) {
     http_response_code(404);
-    exit('Onbekende sectie.');
+    exit(admin_t('screen.onbekende_sectie'));
 }
 
 $section = $repository->findBySlugAndKey($pageSlug, $sectionKey);
@@ -68,18 +69,18 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title><?= $h(SectionRegistry::label('contact_card')) ?> — <?= $h((string) $page['title']) ?> — Admin</title>
+<title><?= $h(SectionRegistry::label('contact_card')) ?> <?= admin_t('block_contactcard.admin', ['v1' => $h((string) $page['title'])]) ?></title>
 <link rel="stylesheet" href="<?= \App\Service\AssetVersion::url('/admin/assets/admin.css') ?>">
 </head>
 <body<?= \App\Service\AdminTheme::bodyAttribute() ?>>
 <?php require __DIR__ . '/_header.php'; ?>
 <main class="admin-main">
-  <p class="admin-text-muted"><a href="/admin/page.php?id=<?= (int) $page['id'] ?>">&larr; <?= $h((string) $page['title']) ?></a></p>
+  <p class="admin-text-muted"><a href="/admin/page.php?id=<?= (int) $page['id'] ?>"><?= admin_t('block_contactcard.text', ['v1' => $h((string) $page['title'])]) ?></a></p>
   <h1><?= $h(SectionRegistry::label('contact_card')) ?></h1>
-  <p class="admin-text-muted">Een kaart met een kop, een korte tekst en één knop, op <strong><?= $h((string) $page['title']) ?></strong>.</p>
+  <p class="admin-text-muted"><?= admin_t('block_contactcard.kaart_kop_korte_tekst', ['v1' => $h((string) $page['title'])]) ?></p>
 
   <?php if ($saved): ?>
-    <p class="admin-alert admin-alert--success">Opgeslagen.</p>
+    <p class="admin-alert admin-alert--success"><?= admin_te('common.saved') ?></p>
   <?php endif; ?>
   <?php if ($errors !== []): ?>
     <div class="admin-alert admin-alert--error">
@@ -99,12 +100,12 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
       <?php admin_lang_tabs(); ?>
       <div class="admin-form-row admin-form-row--split">
         <?php admin_lang_pane_start('nl'); ?>
-        <label>Kop*
+        <label><?= admin_te('block_contactcard.kop') ?>*
           <input type="text" name="title_nl" maxlength="255" <?= admin_lang_required('nl') ?> value="<?= $h((string) ($values['title_nl'] ?? '')) ?>">
         </label>
         <?php admin_lang_pane_end(); ?>
         <?php admin_lang_pane_start('en'); ?>
-        <label>Kop
+        <label><?= admin_te('block_contactcard.kop_2') ?>
           <input type="text" name="title_en" maxlength="255" value="<?= $h((string) ($values['title_en'] ?? '')) ?>"<?= admin_lang_placeholder_attr('en') ?>>
         </label>
         <?php admin_lang_pane_end(); ?>
@@ -112,43 +113,43 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
 
       <div class="admin-form-row admin-form-row--split">
         <?php admin_lang_pane_start('nl'); ?>
-        <label>Tekst
+        <label><?= admin_te('block_contactcard.tekst') ?>
           <textarea name="body_nl" maxlength="600" rows="4"><?= $h((string) ($values['body_nl'] ?? '')) ?></textarea>
         </label>
         <?php admin_lang_pane_end(); ?>
         <?php admin_lang_pane_start('en'); ?>
-        <label>Tekst
+        <label><?= admin_te('block_contactcard.tekst_2') ?>
           <textarea name="body_en" maxlength="600" rows="4"<?= admin_lang_placeholder_attr('en') ?>><?= $h((string) ($values['body_en'] ?? '')) ?></textarea>
         </label>
         <?php admin_lang_pane_end(); ?>
       </div>
 
-      <h2 style="margin-top:2rem;">Knop</h2>
+      <h2 style="margin-top:2rem;"><?= admin_te('block_contactcard.knop') ?></h2>
       <div class="admin-form-row admin-form-row--split">
         <?php admin_lang_pane_start('nl'); ?>
-        <label>Label
+        <label><?= admin_te('block_contactcard.label') ?>
           <input type="text" name="button_label_nl" maxlength="150" value="<?= $h((string) ($values['button_label_nl'] ?? '')) ?>">
         </label>
         <?php admin_lang_pane_end(); ?>
         <?php admin_lang_pane_start('en'); ?>
-        <label>Label
+        <label><?= admin_te('block_contactcard.label_2') ?>
           <input type="text" name="button_label_en" maxlength="150" value="<?= $h((string) ($values['button_label_en'] ?? '')) ?>"<?= admin_lang_placeholder_attr('en') ?>>
         </label>
         <?php admin_lang_pane_end(); ?>
       </div>
       <div class="admin-form-row">
-        <label>URL
+        <label><?= admin_te('common.url') ?>
           <input type="text" name="button_url" maxlength="255" value="<?= $h((string) ($values['button_url'] ?? '')) ?>" placeholder="Leeg = mailto:<?= $h($siteEmail) ?>">
         </label>
       </div>
-      <p class="admin-text-muted">Laat de URL leeg om te mailen naar het adres uit <a href="/admin/settings.php">Site-instellingen</a> (nu <code><?= $h($siteEmail) ?></code>) — wijzig je dat adres daar, dan volgt deze knop automatisch. Laat het label leeg om helemaal geen knop te tonen.</p>
+      <p class="admin-text-muted"><?= admin_t('block_contactcard.laat_url_leeg_mailen', ['v1' => $h($siteEmail)]) ?></p>
 
       <label class="admin-checkbox-label">
         <input type="checkbox" name="is_active" value="1" <?= ($values['is_active'] ?? true) ? 'checked' : '' ?>>
-        Actief (uitgevinkt = deze sectie wordt niet getoond op de pagina)
+        <?= admin_te('block_contactcard.actief_uitgevinkt_sectie_getoond') ?>
       </label>
 
-      <button type="submit">Opslaan</button>
+      <button type="submit"><?= admin_te('common.save') ?></button>
     </form>
   </section>
 </main>

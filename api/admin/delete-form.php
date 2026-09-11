@@ -25,6 +25,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../../vendor/autoload.php';
 
+use App\Service\Language\AdminTranslator;
 use App\Repository\FormRepository;
 use App\Service\AdminAuth;
 use App\Service\Csrf;
@@ -82,6 +83,6 @@ try {
     exit;
 }
 
-$_SESSION['admin_forms_flash'] = 'Formulier verwijderd.';
+$_SESSION['admin_forms_flash'] = AdminTranslator::trans('validation.formulier_verwijderd');
 header('Location: /admin/forms.php');
 exit;

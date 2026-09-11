@@ -47,3 +47,16 @@ if (!function_exists('admin_t')) {
         return htmlspecialchars(admin_t($key, $replacements), ENT_QUOTES, 'UTF-8');
     }
 }
+
+/**
+ * The catalogue's words for $key, or the ones a screen was handed.
+ *
+ * These three registries — page templates, typeface pairings and CMS themes
+ * — declare their names and explanations as plain Dutch data, and are
+ * translated where a screen prints them. Keyed on the registry key itself,
+ * which is a fixed string in source and never comes from a request.
+ */
+function admin_registry_label(string $key, string $fallback): string
+{
+    return admin_t($key) === $key ? $fallback : admin_t($key);
+}

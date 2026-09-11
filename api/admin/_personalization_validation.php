@@ -14,6 +14,7 @@ declare(strict_types=1);
  * them.
  */
 
+use App\Service\Language\AdminTranslator;
 use App\Service\Personalization\PersonalizationRules;
 
 /**
@@ -83,7 +84,7 @@ function normalizePersonalizationViewInput(array $input, array &$errors): array
     $labelEn = trim((string) ($input['label_en'] ?? ''));
 
     if (mb_strlen($label) > 100 || mb_strlen($labelEn) > 100) {
-        $errors[] = 'De naam van een weergave mag maximaal 100 tekens zijn.';
+        $errors[] = AdminTranslator::trans('validation.naam_weergave_mag_maximaal_100');
     }
 
     return [
@@ -110,22 +111,22 @@ function normalizePersonalizationZoneInput(array $input, array &$errors): array
     $placeholderEn = trim((string) ($input['placeholder_en'] ?? ''));
 
     if (mb_strlen($label) > 100 || mb_strlen($labelEn) > 100) {
-        $errors[] = 'De naam van een zone mag maximaal 100 tekens zijn.';
+        $errors[] = AdminTranslator::trans('validation.naam_zone_mag_maximaal_100');
     }
 
     if (mb_strlen($placeholder) > 100 || mb_strlen($placeholderEn) > 100) {
-        $errors[] = 'De voorbeeldtekst mag maximaal 100 tekens zijn.';
+        $errors[] = AdminTranslator::trans('validation.voorbeeldtekst_mag_maximaal_100_tekens');
     }
 
     if (mb_strlen($instructions) > 500 || mb_strlen($instructionsEn) > 500) {
-        $errors[] = 'De uitleg bij een zone mag maximaal 500 tekens zijn.';
+        $errors[] = AdminTranslator::trans('validation.uitleg_zone_mag_maximaal_500');
     }
 
     $allowText = ($input['allow_text'] ?? null) === '1';
     $allowImage = ($input['allow_image'] ?? null) === '1';
 
     if (!$allowText && !$allowImage) {
-        $errors[] = 'Kies wat er in deze zone mag: tekst, een afbeelding, of allebei.';
+        $errors[] = AdminTranslator::trans('validation.kies_wat_er_zone_mag');
     }
 
     $area = PersonalizationRules::validateArea([

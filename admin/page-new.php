@@ -54,15 +54,15 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Nieuwe pagina — Admin</title>
+<title><?= admin_te('page.nieuwe_pagina_admin') ?></title>
 <link rel="stylesheet" href="<?= \App\Service\AssetVersion::url('/admin/assets/admin.css') ?>">
 <script src="<?= \App\Service\AssetVersion::url('/admin/assets/admin.js') ?>" defer></script>
 </head>
 <body<?= \App\Service\AdminTheme::bodyAttribute() ?>>
 <?php require __DIR__ . '/_header.php'; ?>
 <main class="admin-main">
-  <p><a href="/admin/pages.php">&larr; Terug naar pagina's</a></p>
-  <h1>Nieuwe pagina</h1>
+  <p><a href="/admin/pages.php"><?= admin_t('page.terug_pagina_s') ?></a></p>
+  <h1><?= admin_te('page.nieuwe_pagina') ?></h1>
 
   <?php if ($errors !== []): ?>
     <div class="admin-alert admin-alert--error">
@@ -78,29 +78,29 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
     <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
 
     <section class="admin-card">
-      <h2>Algemeen</h2>
+      <h2><?= admin_te('page.algemeen') ?></h2>
       <div class="admin-form-row admin-form-row--split">
-        <label>Titel*
+        <label><?= admin_te('common.title') ?>*
           <input type="text" name="title" maxlength="<?= PageService::MAX_TITLE_LENGTH ?>" required value="<?= $h($value('title')) ?>" data-slug-source>
         </label>
-        <label>Slug (URL) — leeg = automatisch uit de titel
+        <label><?= admin_te('page.slug_url_leeg_automatisch') ?>
           <input type="text" name="slug" maxlength="<?= PageService::MAX_SLUG_LENGTH ?>" value="<?= $h($value('slug')) ?>" placeholder="bijv. veelgestelde-vragen" data-slug-target>
         </label>
       </div>
-      <p class="admin-text-muted">De pagina komt na publiceren automatisch beschikbaar op <code>/&lt;slug&gt;</code> — geen migratie of .htaccess-regel nodig.</p>
-      <label>Status
+      <p class="admin-text-muted"><?= admin_t('page.pagina_komt_na_publiceren') ?></p>
+      <label><?= admin_te('common.status') ?>
         <select name="status">
-          <?php foreach (PageContent::STATUS_LABELS as $statusKey => $statusLabel): ?>
-            <option value="<?= $h($statusKey) ?>" <?= $status === $statusKey ? 'selected' : '' ?>><?= $h($statusLabel) ?></option>
+          <?php foreach (array_keys(PageContent::STATUS_LABELS) as $statusKey): ?>
+            <option value="<?= $h($statusKey) ?>" <?= $status === $statusKey ? 'selected' : '' ?>><?= admin_te('page.status_' . $statusKey) ?></option>
           <?php endforeach; ?>
         </select>
       </label>
-      <p class="admin-text-muted">Een pagina in Concept is alleen hier zichtbaar; de publieke URL geeft een 404 tot je 'm publiceert.</p>
+      <p class="admin-text-muted"><?= admin_te('page.pagina_concept_alleen_hier') ?></p>
     </section>
 
     <section class="admin-card">
-      <h2>Template</h2>
-      <p class="admin-text-muted">Kies waarmee de pagina begint. Een template maakt alleen de eerste secties aan &mdash; daarna is het een gewone pagina die je vrij kunt aanpassen, aanvullen of leeghalen.</p>
+      <h2><?= admin_te('page.template') ?></h2>
+      <p class="admin-text-muted"><?= admin_t('page.kies_waarmee_pagina_begint') ?></p>
       <div class="admin-template-grid">
         <?php foreach (PageTemplates::all() as $templateKey => $template): ?>
           <?php
@@ -119,12 +119,12 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
                            App\Service\PageTemplates\PageTemplateDefinition::icon(). */ ?>
                   <svg class="admin-template-card__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><?= $template->icon() ?></svg>
                 <?php endif; ?>
-                <span class="admin-template-card__name"><?= $h($template->label()) ?></span>
+                <span class="admin-template-card__name"><?= $h(admin_registry_label('pagetemplate.' . $templateKey . '.label', $template->label())) ?></span>
               </span>
-              <span class="admin-template-card__desc"><?= $h($template->description()) ?></span>
+              <span class="admin-template-card__desc"><?= $h(admin_registry_label('pagetemplate.' . $templateKey . '.description', $template->description())) ?></span>
               <span class="admin-template-card__blocks">
                 <?php if ($blockLabels === []): ?>
-                  Geen secties
+                  <?= admin_te('page.no_sections_short') ?>
                 <?php else: ?>
                   <?= implode(' &middot; ', array_map($h, $blockLabels)) ?>
                 <?php endif; ?>
@@ -136,8 +136,8 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
     </section>
 
     <section class="admin-card">
-      <h2>SEO (optioneel)</h2>
-      <p class="admin-text-muted">Laat de SEO-titel leeg om automatisch "<em>Titel</em> &mdash; <?= $h(\App\Service\SiteSettings::get('site_name')) ?>" te gebruiken. Vul je 'm wel in, dan is dat exact wat er in het browsertabblad en in Google komt te staan.</p>
+      <h2><?= admin_te('page.seo_optioneel') ?></h2>
+      <p class="admin-text-muted"><?= admin_t('page.seo_title_fallback_new', ['site' => $h(\App\Service\SiteSettings::get('site_name'))]) ?></p>
       <?php /* Same language panes as the SEO block in admin/page.php —
                see the note there. */ ?>
       <?php admin_lang_tabs(); ?>
@@ -170,8 +170,8 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
     </section>
 
     <section class="admin-card">
-      <button type="submit">Pagina aanmaken</button>
-      <p class="admin-text-muted">Daarna kun je meteen secties toevoegen met de paginabouwer.</p>
+      <button type="submit"><?= admin_te('page.pagina_aanmaken') ?></button>
+      <p class="admin-text-muted"><?= admin_te('page.daarna_meteen_secties_toevoegen') ?></p>
     </section>
   </form>
 </main>

@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/../vendor/autoload.php';
+require_once __DIR__ . '/_translate.php';
 
 require_once __DIR__ . '/_language_fields.php';
 
@@ -57,16 +58,16 @@ unset($_SESSION['admin_blog_taxonomy_flash'], $_SESSION['admin_blog_taxonomy_err
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Blogcategorieën — Admin</title>
+<title><?= admin_te('blog.blogcategorie_n_admin') ?></title>
 <link rel="stylesheet" href="<?= \App\Service\AssetVersion::url('/admin/assets/admin.css') ?>">
 </head>
 <body<?= \App\Service\AdminTheme::bodyAttribute() ?>>
 <?php require __DIR__ . '/_header.php'; ?>
 <main class="admin-main">
   <div class="admin-main__heading">
-    <h1>Blogcategorieën</h1>
+    <h1><?= admin_te('blog.blogcategorie_n') ?></h1>
   </div>
-  <p class="admin-text-muted">De vaste indeling van je blog. Elke categorie krijgt een eigen pagina op <code>/<?= $h(BlogUrls::ROOT) ?>/<?= $h(BlogUrls::CATEGORY_SEGMENT) ?>/&lt;slug&gt;</code>, en de volgorde hieronder bepaalt welke categorie op een berichtkaart getoond wordt.</p>
+  <p class="admin-text-muted"><?= admin_t('blog.vaste_indeling_blog_elke', ['v1' => $h(BlogUrls::ROOT), 'v2' => $h(BlogUrls::CATEGORY_SEGMENT)]) ?></p>
 
   <?php if ($flash !== null): ?>
     <p class="admin-alert admin-alert--success"><?= $h((string) $flash) ?></p>
@@ -83,11 +84,11 @@ unset($_SESSION['admin_blog_taxonomy_flash'], $_SESSION['admin_blog_taxonomy_err
   <?php endif; ?>
 
   <?php if ($loadFailed): ?>
-    <p class="admin-alert admin-alert--error">Categorieën konden niet worden geladen.</p>
+    <p class="admin-alert admin-alert--error"><?= admin_te('blog.categorie_n_konden_geladen') ?></p>
   <?php endif; ?>
 
   <?php if (!$loadFailed && $categories === []): ?>
-    <p>Er zijn nog geen categorieën. Maak er hieronder een aan.</p>
+    <p><?= admin_t('blog.er_categorie_n_maak') ?></p>
   <?php endif; ?>
 
   <?php foreach ($categories as $category): ?>
@@ -104,52 +105,52 @@ unset($_SESSION['admin_blog_taxonomy_flash'], $_SESSION['admin_blog_taxonomy_err
         <?php admin_lang_tabs(); ?>
         <div class="admin-form-row admin-form-row--split">
           <?php admin_lang_pane_start('nl'); ?>
-          <label>Naam*
+          <label><?= admin_te('common.name') ?>*
             <input type="text" name="name" maxlength="150" <?= admin_lang_required('nl') ?> value="<?= $h((string) $category['name']) ?>">
           </label>
           <?php admin_lang_pane_end(); ?>
           <?php admin_lang_pane_start('en'); ?>
-          <label>Naam
+          <label><?= admin_te('common.name') ?>
             <input type="text" name="name_en" maxlength="150" value="<?= $h((string) ($category['name_en'] ?? '')) ?>"<?= admin_lang_placeholder_attr('en') ?>>
           </label>
           <?php admin_lang_pane_end(); ?>
         </div>
 
         <div class="admin-form-row admin-form-row--split">
-          <label>URL (slug)*
+          <label><?= admin_te('blog.url_slug') ?>*
             <input type="text" name="slug" maxlength="<?= BlogSlug::MAX_LENGTH ?>" required value="<?= $h((string) $category['slug']) ?>">
           </label>
-          <label>Volgorde
+          <label><?= admin_te('common.order') ?>
             <input type="number" name="sort_order" value="<?= (int) $category['sort_order'] ?>" step="10">
           </label>
         </div>
 
         <div class="admin-form-row admin-form-row--split">
           <?php admin_lang_pane_start('nl'); ?>
-          <label>Korte omschrijving
+          <label><?= admin_te('blog.korte_omschrijving') ?>
             <textarea name="description" rows="2" maxlength="500"><?= $h((string) ($category['description'] ?? '')) ?></textarea>
           </label>
           <?php admin_lang_pane_end(); ?>
           <?php admin_lang_pane_start('en'); ?>
-          <label>Korte omschrijving
+          <label><?= admin_te('blog.korte_omschrijving_2') ?>
             <textarea name="description_en" rows="2" maxlength="500"<?= admin_lang_placeholder_attr('en') ?>><?= $h((string) ($category['description_en'] ?? '')) ?></textarea>
           </label>
           <?php admin_lang_pane_end(); ?>
         </div>
-        <p class="admin-text-muted">De omschrijving staat boven het categorie-archief en wordt gebruikt als meta description van die pagina.</p>
+        <p class="admin-text-muted"><?= admin_te('blog.omschrijving_staat_boven_categorie') ?></p>
 
         <?php /* Hidden companion field, the same reason the noindex switch
                  has one: an unticked checkbox sends nothing at all. */ ?>
         <input type="hidden" name="is_active" value="0">
         <label class="admin-checkbox-label">
           <input type="checkbox" name="is_active" value="1" <?= (int) $category['is_active'] === 1 ? 'checked' : '' ?>>
-          Actief
+          <?= admin_te('common.active') ?>
         </label>
-        <p class="admin-text-muted">Uit betekent: het archief van deze categorie geeft een 404 en de categorie staat niet in de sitemap. De berichten erin blijven gewoon staan en blijven bereikbaar.</p>
+        <p class="admin-text-muted"><?= admin_te('blog.uit_betekent_archief_categorie') ?></p>
 
         <div>
-          <button type="submit">Categorie opslaan</button>
-          <a href="<?= $h(BlogUrls::categoryPath((string) $category['slug'])) ?>" class="admin-btn-text" target="_blank" rel="noopener">Bekijk archief &#8594;</a>
+          <button type="submit"><?= admin_te('blog.categorie_opslaan') ?></button>
+          <a href="<?= $h(BlogUrls::categoryPath((string) $category['slug'])) ?>" class="admin-btn-text" target="_blank" rel="noopener"><?= admin_te('blog.bekijk_archief') ?> &#8594;</a>
         </div>
       </form>
 
@@ -157,22 +158,22 @@ unset($_SESSION['admin_blog_taxonomy_flash'], $_SESSION['admin_blog_taxonomy_err
       <form method="post" action="/api/admin/delete-blog-category.php" class="admin-inline-form" onsubmit="return confirm('Deze categorie verwijderen? De berichten erin blijven bestaan en raken alleen deze categorie kwijt.');">
         <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
         <input type="hidden" name="id" value="<?= $categoryId ?>">
-        <button type="submit" class="admin-btn-text admin-btn-text--danger">Categorie verwijderen</button>
+        <button type="submit" class="admin-btn-text admin-btn-text--danger"><?= admin_te('blog.categorie_verwijderen') ?></button>
       </form>
     </section>
   <?php endforeach; ?>
 
   <section class="admin-card">
-    <h2>Nieuwe categorie</h2>
+    <h2><?= admin_te('blog.nieuwe_categorie') ?></h2>
     <form method="post" action="/api/admin/create-blog-category.php" class="admin-product-form">
       <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
-      <label>Naam*
+      <label><?= admin_te('common.name') ?>*
         <input type="text" name="name" maxlength="150" required placeholder="Bijvoorbeeld: Achter de schermen">
       </label>
-      <label>URL (slug)
+      <label><?= admin_te('blog.url_slug_2') ?>
         <input type="text" name="slug" maxlength="<?= BlogSlug::MAX_LENGTH ?>" placeholder="Leeg = automatisch uit de naam">
       </label>
-      <button type="submit">Categorie aanmaken</button>
+      <button type="submit"><?= admin_te('blog.categorie_aanmaken') ?></button>
     </form>
   </section>
 </main>

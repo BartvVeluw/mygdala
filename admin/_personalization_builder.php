@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+
+require_once __DIR__ . '/_translate.php';
 // The language panes below come from this component; required here as well
 // as by the screen that includes this file, so neither can forget.
 require_once __DIR__ . '/_language_fields.php';
@@ -144,7 +146,7 @@ function renderPersonalizationBuilder(array $product, array $personalization, st
     $viewsOpenByDefault = count($views) <= 1;
     ?>
 <?php if ($flash['updated']): ?>
-  <p class="admin-alert admin-alert--success">Personalisatie opgeslagen.</p>
+  <p class="admin-alert admin-alert--success"><?= admin_te('personalization.personalisatie_opgeslagen') ?></p>
 <?php endif; ?>
 
 <?php if ($flash['errors'] !== []): ?>
@@ -158,7 +160,7 @@ function renderPersonalizationBuilder(array $product, array $personalization, st
 <?php endif; ?>
 
 <section class="admin-card" id="personalisatie">
-  <h2>Instellingen</h2>
+  <h2><?= admin_te('common.settings') ?></h2>
 
   <form method="post" action="/api/admin/update-product-personalization.php" class="admin-personalization-form">
     <input type="hidden" name="csrf_token" value="<?= $esc($csrfToken) ?>">
@@ -167,62 +169,55 @@ function renderPersonalizationBuilder(array $product, array $personalization, st
     <div class="admin-pz-grid admin-pz-grid--settings">
       <label class="admin-checkbox-label">
         <input type="checkbox" name="personalization_enabled" value="1" <?= $isEnabled ? 'checked' : '' ?>>
-        <span><strong>Personalisatie inschakelen</strong><br>
-        <span class="admin-text-muted">Uit = gewone productpagina, geen personalisatieblok.</span></span>
+        <span><strong><?= admin_t('personalization.personalisatie_inschakelen_uit_gewone') ?></span></span>
       </label>
 
       <fieldset class="admin-pz-radios">
-        <legend>Aankoop</legend>
+        <legend><?= admin_te('personalization.aankoop') ?></legend>
         <label class="admin-checkbox-label">
           <input type="radio" name="personalization_mode" value="<?= $esc(PersonalizationRules::PURCHASE_OPTIONAL) ?>"
                  <?= $mode === PersonalizationRules::PURCHASE_OPTIONAL ? 'checked' : '' ?>>
-          <span>Optioneel — mag ook zonder gravure besteld worden.</span>
+          <span><?= admin_te('personalization.optioneel_mag_ook_zonder') ?></span>
         </label>
         <label class="admin-checkbox-label">
           <input type="radio" name="personalization_mode" value="<?= $esc(PersonalizationRules::PURCHASE_REQUIRED) ?>"
                  <?= $mode === PersonalizationRules::PURCHASE_REQUIRED ? 'checked' : '' ?>>
-          <span>Verplicht — alleen gepersonaliseerd te bestellen.</span>
+          <span><?= admin_te('personalization.verplicht_alleen_gepersonaliseerd_bestellen') ?></span>
         </label>
       </fieldset>
     </div>
 
     <?php if ($isPersonalizationOnly): ?>
       <p class="admin-alert admin-alert--info">
-        Dit product staat <strong>niet in de shop</strong> (zie
-        <a href="/admin/product-form.php?id=<?= $productId ?>">Producten</a>), dus personalisatie is hoe dan ook
-        verplicht: er is geen andere manier om het te bestellen. De keuze hierboven telt pas weer mee zodra je het
-        product ook in de shop zet.
+        <?= admin_t('personalization.product_staat_shop_zie') ?>
+        <a href="/admin/product-form.php?id=<?= $productId ?>"><?= admin_t('personalization.producten_dus_personalisatie_hoe') ?>
       </p>
     <?php endif; ?>
 
     <?php admin_lang_tabs(); ?>
     <div class="admin-pz-grid">
       <?php admin_lang_pane_start('nl'); ?>
-        <label>Algemene uitleg
+        <label><?= admin_te('personalization.algemene_uitleg') ?>
           <textarea name="instructions" rows="2" maxlength="500" placeholder="Bijv. Personaliseer dit product met een naam of logo."><?= $esc($instructions) ?></textarea>
         </label>
       <?php admin_lang_pane_end(); ?>
       <?php admin_lang_pane_start('en'); ?>
-        <label>Algemene uitleg
+        <label><?= admin_te('personalization.algemene_uitleg_2') ?>
           <textarea name="instructions_en" rows="2" maxlength="500"<?= admin_lang_placeholder_attr('en') ?>><?= $esc($instructionsEn) ?></textarea>
         </label>
       <?php admin_lang_pane_end(); ?>
     </div>
 
-    <button type="submit">Instellingen opslaan</button>
+    <button type="submit"><?= admin_te('personalization.instellingen_opslaan') ?></button>
   </form>
 
   <?php if ($isEnabled && $renderableViews === 0): ?>
     <p class="admin-alert admin-alert--error" style="margin-top:var(--admin-sp-3);">
-      <strong>Configuratiefout:</strong> personalisatie staat aan, maar er is niets te tonen. Er is minstens één
-      voorbeeld nodig met een <em>eigen</em> afbeelding én minstens één actieve zone. Zolang dat er niet is, laat de
-      productpagina niets zien — er wordt bewust nooit teruggevallen op een gewone productfoto.
+      <strong><?= admin_t('personalization.configuratiefout_personalisatie_staat_maar') ?>
     </p>
   <?php elseif ($viewsWithoutImage > 0): ?>
     <p class="admin-alert admin-alert--error" style="margin-top:var(--admin-sp-3);">
-      <strong>Configuratiefout:</strong> <?= $viewsWithoutImage ?> voorbeeld<?= $viewsWithoutImage === 1 ? '' : 'en' ?>
-      <?= $viewsWithoutImage === 1 ? 'heeft' : 'hebben' ?> nog geen eigen afbeelding en
-      <?= $viewsWithoutImage === 1 ? 'wordt' : 'worden' ?> daarom niet getoond in de shop.
+      <strong><?= admin_t('personalization.configuratiefout_voorbeeld_eigen_afbeelding', ['v1' => $viewsWithoutImage, 'v2' => $viewsWithoutImage === 1 ? '' : 'en', 'v3' => $viewsWithoutImage === 1 ? 'heeft' : 'hebben', 'v4' => $viewsWithoutImage === 1 ? 'wordt' : 'worden']) ?>
     </p>
   <?php endif; ?>
 </section>
@@ -230,17 +225,16 @@ function renderPersonalizationBuilder(array $product, array $personalization, st
 <section class="admin-card">
   <div class="admin-pz-head">
     <div>
-      <h2>Voorbeelden</h2>
+      <h2><?= admin_te('personalization.voorbeelden') ?></h2>
       <p class="admin-text-muted admin-pz-head__hint">
-        Eén voorbeeld = één foto van het product met zijn eigen zones. <strong>Een achterkant is een nieuw
-        voorbeeld met een eigen foto</strong> — niet een tweede zone op de voorkant.
+        <?= admin_t('personalization.e_n_voorbeeld_n') ?>
       </p>
     </div>
-    <a class="admin-btn-link" href="#voorbeeld-toevoegen">+ Voorbeeld toevoegen</a>
+    <a class="admin-btn-link" href="#voorbeeld-toevoegen"><?= admin_te('personalization.voorbeeld_toevoegen') ?></a>
   </div>
 
   <?php if ($views === []): ?>
-    <p class="admin-text-muted">Nog geen voorbeelden. Voeg er hieronder één toe en upload meteen de bijbehorende foto.</p>
+    <p class="admin-text-muted"><?= admin_te('personalization.voorbeelden_voeg_er_hieronder') ?></p>
   <?php endif; ?>
 
   <?php foreach ($views as $viewIndex => $view): ?>
@@ -267,9 +261,9 @@ function renderPersonalizationBuilder(array $product, array $personalization, st
           <?= $zoneCount ?> zone<?= $zoneCount === 1 ? '' : 's' ?>
           &middot;
           <?php if ($viewImage !== ''): ?>
-            afbeelding ingesteld
+            <?= admin_te('personalization.image_set') ?>
           <?php else: ?>
-            <span class="admin-pz-block__warn">geen afbeelding</span>
+            <span class="admin-pz-block__warn"><?= admin_te('personalization.no_image') ?></span>
           <?php endif; ?>
         </span>
         <code class="admin-text-muted"><?= $esc((string) $view['view_key']) ?></code>
@@ -293,7 +287,7 @@ function renderPersonalizationBuilder(array $product, array $personalization, st
                 onsubmit="return confirm('Dit voorbeeld en al zijn zones verwijderen? Bestaande bestellingen blijven ongewijzigd.');">
             <input type="hidden" name="csrf_token" value="<?= $esc($csrfToken) ?>">
             <input type="hidden" name="view_id" value="<?= $viewId ?>">
-            <button type="submit" class="admin-btn-text admin-btn-text--danger">Voorbeeld verwijderen</button>
+            <button type="submit" class="admin-btn-text admin-btn-text--danger"><?= admin_te('personalization.voorbeeld_verwijderen') ?></button>
           </form>
         </div>
 
@@ -304,12 +298,12 @@ function renderPersonalizationBuilder(array $product, array $personalization, st
           <?php admin_lang_tabs(); ?>
           <div class="admin-pz-grid">
             <?php admin_lang_pane_start('nl'); ?>
-              <label>Naam voor de klant
+              <label><?= admin_te('personalization.naam_klant') ?>
                 <input type="text" name="label" maxlength="100" value="<?= $esc($viewLabel) ?>" placeholder="Bijv. Voorkant">
               </label>
             <?php admin_lang_pane_end(); ?>
             <?php admin_lang_pane_start('en'); ?>
-              <label>Naam voor de klant
+              <label><?= admin_te('personalization.naam_klant_2') ?>
                 <input type="text" name="label_en" maxlength="100" value="<?= $esc($viewLabelEn) ?>"<?= admin_lang_placeholder_attr('en') ?>>
               </label>
             <?php admin_lang_pane_end(); ?>
@@ -322,31 +316,28 @@ function renderPersonalizationBuilder(array $product, array $personalization, st
               </div>
             <?php endif; ?>
             <div class="admin-pz-image__fields">
-              <label>Eigen afbeelding<?= $viewImage === '' ? '' : ' vervangen' ?>
+              <label><?= admin_t('personalization.eigen_afbeelding', ['v1' => $viewImage === '' ? '' : ' vervangen']) ?>
                 <input type="file" name="preview_image" accept=".jpg,.jpeg,.png,.webp,.gif,image/jpeg,image/png,image/webp,image/gif">
               </label>
               <p class="admin-text-muted">
-                JPG, PNG, WEBP of GIF, max. <?= $maxPreviewMb ?> MB. De zones hieronder worden opgeslagen als
-                percentages van <em>deze</em> afbeelding.
+                <?= admin_t('personalization.jpg_png_webp_gif', ['v1' => $maxPreviewMb]) ?>
               </p>
               <?php if ($viewImage !== ''): ?>
                 <label class="admin-checkbox-label">
                   <input type="checkbox" name="remove_preview_image" value="1">
-                  Afbeelding verwijderen bij opslaan
+                  <?= admin_te('personalization.afbeelding_verwijderen_opslaan') ?>
                 </label>
               <?php endif; ?>
             </div>
           </div>
 
-          <button type="submit">Voorbeeld opslaan</button>
+          <button type="submit"><?= admin_te('personalization.voorbeeld_opslaan') ?></button>
         </form>
 
         <?php /* ---- the visual multi-zone editor for this voorbeeld ---- */ ?>
         <?php if ($viewImage !== '' && $view['zones'] !== []): ?>
           <p class="admin-text-muted admin-pz-editor-hint">
-            Klik een zone aan om hem te selecteren, sleep hem naar de juiste plek en gebruik de hoekgrepen voor het
-            formaat. De percentages onder elke zone blijven leidend — je kunt ze ook intypen, en met de pijltjestoetsen
-            verplaats je de geselecteerde zone (Shift = formaat).
+            <?= admin_te('personalization.klik_zone_hem_selecteren') ?>
           </p>
           <div class="admin-zone-editor" data-zone-editor>
             <div class="admin-zone-editor__stage" data-zone-stage>
@@ -370,15 +361,14 @@ function renderPersonalizationBuilder(array $product, array $personalization, st
           </div>
         <?php elseif ($viewImage === ''): ?>
           <p class="admin-alert admin-alert--error admin-pz-editor-hint">
-            Dit voorbeeld heeft nog geen eigen afbeelding. Upload er één hierboven; daarna kun je de zones er direct
-            op aanwijzen. Er wordt nooit automatisch een productfoto gebruikt.
+            <?= admin_te('personalization.voorbeeld_heeft_eigen_afbeelding') ?>
           </p>
         <?php endif; ?>
 
         <?php /* ---- the zones of this voorbeeld ---- */ ?>
-        <h4 class="admin-pz-subhead">Zones op deze afbeelding</h4>
+        <h4 class="admin-pz-subhead"><?= admin_te('personalization.zones_afbeelding') ?></h4>
         <?php if ($view['zones'] === []): ?>
-          <p class="admin-text-muted">Nog geen zones op dit voorbeeld.</p>
+          <p class="admin-text-muted"><?= admin_te('personalization.zones_voorbeeld') ?></p>
         <?php endif; ?>
 
         <?php foreach ($view['zones'] as $zoneIndex => $zone): ?>
@@ -402,10 +392,9 @@ function renderPersonalizationBuilder(array $product, array $personalization, st
   <?php /* ---- add a voorbeeld ---- */ ?>
   <?php $viewCreateOld = $oldFor('view-create'); ?>
   <div class="admin-pz-create" id="voorbeeld-toevoegen">
-    <h3>Voorbeeld toevoegen</h3>
+    <h3><?= admin_te('personalization.voorbeeld_toevoegen_2') ?></h3>
     <p class="admin-text-muted">
-      Voor elke kant of foto van het product één voorbeeld, elk met een <strong>eigen</strong> afbeelding. Maak hem
-      hier aan en upload de foto daarna in het blok dat verschijnt.
+      <?= admin_t('personalization.elke_kant_foto_product') ?>
     </p>
     <form method="post" action="/api/admin/create-personalization-view.php" class="admin-pz-grid admin-pz-grid--create">
       <input type="hidden" name="csrf_token" value="<?= $esc($csrfToken) ?>">
@@ -413,26 +402,26 @@ function renderPersonalizationBuilder(array $product, array $personalization, st
       <?php /* Its own strip: admin-language-tabs.js switches the panes of ONE
                form, and this create form is a form of its own. */ ?>
       <?php admin_lang_tabs(); ?>
-      <label>Sleutel*
+      <label><?= admin_te('personalization.sleutel') ?>*
         <input type="text" name="view_key" maxlength="32" required
                value="<?= $esc($viewCreateOld !== null ? (string) ($viewCreateOld['view_key'] ?? '') : '') ?>"
                placeholder="achterkant">
       </label>
       <?php admin_lang_pane_start('nl'); ?>
-        <label>Naam
+        <label><?= admin_te('common.name') ?>
           <input type="text" name="label" maxlength="100"
                  value="<?= $esc($viewCreateOld !== null ? (string) ($viewCreateOld['label'] ?? '') : '') ?>"
                  placeholder="Achterkant">
         </label>
       <?php admin_lang_pane_end(); ?>
       <?php admin_lang_pane_start('en'); ?>
-        <label>Naam
+        <label><?= admin_te('common.name') ?>
           <input type="text" name="label_en" maxlength="100"
                  value="<?= $esc($viewCreateOld !== null ? (string) ($viewCreateOld['label_en'] ?? '') : '') ?>"<?= admin_lang_placeholder_attr('en') ?>>
         </label>
       <?php admin_lang_pane_end(); ?>
       <div class="admin-pz-grid__action">
-        <button type="submit">+ Voorbeeld toevoegen</button>
+        <button type="submit"><?= admin_te('personalization.voorbeeld_toevoegen_3') ?></button>
       </div>
     </form>
   </div>
@@ -496,8 +485,8 @@ function renderPersonalizationZoneForm(
     $label = $zone['label'] !== null && $zone['label'] !== '' ? (string) $zone['label'] : (string) $zone['zone_key'];
     $allowsText = $checked('allow_text', true);
     $allowsImage = $checked('allow_image', true);
-    $accepts = $allowsText && $allowsImage ? 'Tekst + afbeelding' : ($allowsImage ? 'Afbeelding' : 'Tekst');
-    $requiredLabel = $checked('is_required', false) ? 'Verplicht' : 'Optioneel';
+    $accepts = $allowsText && $allowsImage ? admin_t('personalization.text_and_image') : ($allowsImage ? admin_t('common.image_label') : admin_t('common.text'));
+    $requiredLabel = $checked('is_required', false) ? admin_t('personalization.required') : admin_t('common.optional');
     $isDisabled = !$checked('is_enabled', true);
     ?>
 <details class="admin-pz-block admin-pz-block--zone" <?= $openByDefault || $old !== null ? 'open' : '' ?>>
@@ -509,7 +498,7 @@ function renderPersonalizationZoneForm(
         &middot; + &euro;&nbsp;<?= $esc(Money::formatDutch($surchargeCents)) ?>
       <?php endif; ?>
       <?php if ($isDisabled): ?>
-        &middot; <span class="admin-pz-block__warn">niet actief</span>
+        &middot; <span class="admin-pz-block__warn"><?= admin_te('personalization.not_active') ?></span>
       <?php endif; ?>
     </span>
     <code class="admin-text-muted"><?= $esc((string) $zone['zone_key']) ?></code>
@@ -533,7 +522,7 @@ function renderPersonalizationZoneForm(
             onsubmit="return confirm('Deze zone verwijderen? Bestaande bestellingen blijven ongewijzigd.');">
         <input type="hidden" name="csrf_token" value="<?= $esc($csrfToken) ?>">
         <input type="hidden" name="zone_id" value="<?= $zoneId ?>">
-        <button type="submit" class="admin-btn-text admin-btn-text--danger">Zone verwijderen</button>
+        <button type="submit" class="admin-btn-text admin-btn-text--danger"><?= admin_te('personalization.zone_verwijderen') ?></button>
       </form>
     </div>
 
@@ -544,52 +533,52 @@ function renderPersonalizationZoneForm(
       <?php admin_lang_tabs(); ?>
       <div class="admin-pz-grid">
         <?php admin_lang_pane_start('nl'); ?>
-          <label>Naam voor de klant
+          <label><?= admin_te('personalization.naam_klant_3') ?>
             <input type="text" name="label" maxlength="100" value="<?= $esc((string) $value('label', '')) ?>" placeholder="Bijv. Naam">
           </label>
         <?php admin_lang_pane_end(); ?>
         <?php admin_lang_pane_start('en'); ?>
-          <label>Naam voor de klant
+          <label><?= admin_te('personalization.naam_klant_4') ?>
             <input type="text" name="label_en" maxlength="100" value="<?= $esc((string) $value('label_en', '')) ?>"<?= admin_lang_placeholder_attr('en') ?>>
           </label>
         <?php admin_lang_pane_end(); ?>
       </div>
 
       <fieldset class="admin-pz-checks">
-        <legend>Wat mag hier in?</legend>
+        <legend><?= admin_te('personalization.wat_mag_hier') ?></legend>
         <label class="admin-checkbox-label">
-          <input type="checkbox" name="allow_text" value="1" <?= $allowsText ? 'checked' : '' ?>> Tekst
+          <input type="checkbox" name="allow_text" value="1" <?= $allowsText ? 'checked' : '' ?>> <?= admin_te('personalization.tekst') ?>
         </label>
         <label class="admin-checkbox-label">
-          <input type="checkbox" name="allow_image" value="1" <?= $allowsImage ? 'checked' : '' ?>> Afbeelding
+          <input type="checkbox" name="allow_image" value="1" <?= $allowsImage ? 'checked' : '' ?>> <?= admin_te('common.image') ?>
         </label>
         <label class="admin-checkbox-label">
-          <input type="checkbox" name="is_required" value="1" <?= $checked('is_required', false) ? 'checked' : '' ?>> Verplicht
+          <input type="checkbox" name="is_required" value="1" <?= $checked('is_required', false) ? 'checked' : '' ?>> <?= admin_te('common.required') ?>
         </label>
         <label class="admin-checkbox-label">
-          <input type="checkbox" name="is_enabled" value="1" <?= $checked('is_enabled', true) ? 'checked' : '' ?>> Actief
+          <input type="checkbox" name="is_enabled" value="1" <?= $checked('is_enabled', true) ? 'checked' : '' ?>> <?= admin_te('common.active') ?>
         </label>
         <label class="admin-checkbox-label">
-          <input type="checkbox" name="allow_rotation" value="1" <?= $checked('allow_rotation', true) ? 'checked' : '' ?>> Draaien
+          <input type="checkbox" name="allow_rotation" value="1" <?= $checked('allow_rotation', true) ? 'checked' : '' ?>> <?= admin_te('personalization.draaien') ?>
         </label>
       </fieldset>
 
       <div class="admin-pz-grid">
-        <label>Max. tekstlengte
+        <label><?= admin_te('personalization.max_tekstlengte') ?>
           <input type="number" name="max_text_length" min="<?= PersonalizationRules::MIN_TEXT_LENGTH_SETTING ?>"
                  max="<?= PersonalizationRules::MAX_TEXT_LENGTH_SETTING ?>" step="1"
                  value="<?= (int) PersonalizationRules::clampMaxTextLength($value('max_text_length', PersonalizationRules::DEFAULT_TEXT_LENGTH_SETTING)) ?>">
         </label>
-        <label>Meerprijs (&euro;)
+        <label><?= admin_t('personalization.meerprijs') ?>
           <input type="text" inputmode="decimal" name="surcharge" value="<?= $esc(Money::format($surchargeCents)) ?>" placeholder="0.00">
         </label>
         <?php admin_lang_pane_start('nl'); ?>
-          <label>Voorbeeldtekst
+          <label><?= admin_te('personalization.voorbeeldtekst') ?>
             <input type="text" name="placeholder" maxlength="100" value="<?= $esc((string) $value('placeholder', '')) ?>" placeholder="Bijv. Bart">
           </label>
         <?php admin_lang_pane_end(); ?>
         <?php admin_lang_pane_start('en'); ?>
-          <label>Voorbeeldtekst
+          <label><?= admin_te('personalization.voorbeeldtekst_2') ?>
             <input type="text" name="placeholder_en" maxlength="100" value="<?= $esc((string) $value('placeholder_en', '')) ?>"<?= admin_lang_placeholder_attr('en') ?>>
           </label>
         <?php admin_lang_pane_end(); ?>
@@ -597,42 +586,42 @@ function renderPersonalizationZoneForm(
 
       <div class="admin-pz-grid">
         <?php admin_lang_pane_start('nl'); ?>
-          <label>Uitleg bij deze zone
+          <label><?= admin_te('personalization.uitleg_zone') ?>
             <textarea name="instructions" rows="2" maxlength="500"><?= $esc((string) $value('instructions', '')) ?></textarea>
           </label>
         <?php admin_lang_pane_end(); ?>
         <?php admin_lang_pane_start('en'); ?>
-          <label>Uitleg bij deze zone
+          <label><?= admin_te('personalization.uitleg_zone_2') ?>
             <textarea name="instructions_en" rows="2" maxlength="500"<?= admin_lang_placeholder_attr('en') ?>><?= $esc((string) $value('instructions_en', '')) ?></textarea>
           </label>
         <?php admin_lang_pane_end(); ?>
       </div>
 
       <fieldset class="admin-pz-area">
-        <legend>Gravuregebied (% van deze afbeelding)</legend>
-        <label>Links
+        <legend><?= admin_te('personalization.gravuregebied_afbeelding') ?></legend>
+        <label><?= admin_te('personalization.links') ?>
           <input type="number" name="area_x" step="0.1" min="0" max="100" required
                  data-zone-input="x" data-zone-id="<?= $zoneId ?>"
                  value="<?= $esc(number_format($area['x'], 1, '.', '')) ?>">
         </label>
-        <label>Boven
+        <label><?= admin_te('personalization.boven') ?>
           <input type="number" name="area_y" step="0.1" min="0" max="100" required
                  data-zone-input="y" data-zone-id="<?= $zoneId ?>"
                  value="<?= $esc(number_format($area['y'], 1, '.', '')) ?>">
         </label>
-        <label>Breedte
+        <label><?= admin_te('personalization.breedte') ?>
           <input type="number" name="area_width" step="0.1" min="<?= PersonalizationRules::MIN_AREA_SIZE_PERCENT ?>" max="100" required
                  data-zone-input="width" data-zone-id="<?= $zoneId ?>"
                  value="<?= $esc(number_format($area['width'], 1, '.', '')) ?>">
         </label>
-        <label>Hoogte
+        <label><?= admin_te('personalization.hoogte') ?>
           <input type="number" name="area_height" step="0.1" min="<?= PersonalizationRules::MIN_AREA_SIZE_PERCENT ?>" max="100" required
                  data-zone-input="height" data-zone-id="<?= $zoneId ?>"
                  value="<?= $esc(number_format($area['height'], 1, '.', '')) ?>">
         </label>
       </fieldset>
 
-      <button type="submit">Zone opslaan</button>
+      <button type="submit"><?= admin_te('personalization.zone_opslaan') ?></button>
     </form>
   </div>
 </details>
@@ -667,26 +656,26 @@ function renderPersonalizationZoneCreateForm(int $viewId, string $viewName, ?arr
   <input type="hidden" name="area_height" value="30">
   <input type="hidden" name="surcharge" value="0.00">
 
-  <label>Nieuwe zone — sleutel*
+  <label><?= admin_te('personalization.nieuwe_zone_sleutel') ?>*
     <input type="text" name="zone_key" maxlength="32" required
            value="<?= $esc($old !== null ? (string) ($old['zone_key'] ?? '') : '') ?>"
            placeholder="naam">
   </label>
   <?php admin_lang_pane_start('nl'); ?>
-    <label>Naam
+    <label><?= admin_te('common.name') ?>
       <input type="text" name="label" maxlength="100"
              value="<?= $esc($old !== null ? (string) ($old['label'] ?? '') : '') ?>"
              placeholder="Naam">
     </label>
   <?php admin_lang_pane_end(); ?>
   <?php admin_lang_pane_start('en'); ?>
-    <label>Naam
+    <label><?= admin_te('common.name') ?>
       <input type="text" name="label_en" maxlength="100"
              value="<?= $esc($old !== null ? (string) ($old['label_en'] ?? '') : '') ?>"<?= admin_lang_placeholder_attr('en') ?>>
     </label>
   <?php admin_lang_pane_end(); ?>
   <div class="admin-pz-grid__action">
-    <button type="submit">+ Zone op &ldquo;<?= $esc($viewName) ?>&rdquo;</button>
+    <button type="submit"><?= admin_t('personalization.zone', ['v1' => $esc($viewName)]) ?></button>
   </div>
 </form>
     <?php

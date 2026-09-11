@@ -279,11 +279,14 @@ final class PersonalizationPreviewImageTest extends TestCase
     {
         $builder = self::sourceOf('admin/_personalization_builder.php');
 
-        $this->assertStringContainsString('Configuratiefout', $builder);
-        $this->assertStringContainsString('eigen afbeelding', $builder);
+        $this->assertStringContainsString('personalization.configuratiefout_voorbeeld_eigen_afbeelding', $builder);
+        $this->assertStringContainsString('personalization.configuratiefout_personalisatie_staat_maar', $builder);
+        // The sentence itself lives in the catalogue (MULTILINGUAL.md), so the
+        // promise it makes is asserted where the words are.
+        $messages = require dirname(__DIR__, 2) . '/src/Service/Language/messages/nl.php';
         $this->assertStringContainsString(
-            'nooit automatisch een productfoto',
-            $builder,
+            'nooit teruggevallen op een gewone productfoto',
+            (string) ($messages['personalization.configuratiefout_personalisatie_staat_maar'] ?? ''),
             'the CMS must state that there is no fallback'
         );
 

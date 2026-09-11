@@ -609,7 +609,8 @@ final class PersonalizationFrontendContractTest extends TestCase
         $personalization = self::sourceOf('admin/_order_personalization.php');
         $order = self::sourceOf('admin/order.php');
 
-        $this->assertStringContainsString('Meerprijs', $personalization);
+        // The word itself is a catalogue key now (MULTILINGUAL.md).
+        $this->assertStringContainsString('personalization.meerprijs', $personalization);
         $this->assertStringContainsString("Money::toCents(\$row['surcharge'] ?? 0)", $personalization);
 
         // And the line itself explains its own unit price.
@@ -622,7 +623,7 @@ final class PersonalizationFrontendContractTest extends TestCase
         $source = self::sourceOf('admin/_order_personalization.php');
 
         $this->assertStringContainsString('/api/admin/order-personalization-file.php?id=', $source);
-        $this->assertStringContainsString('Download origineel', $source);
+        $this->assertStringContainsString('personalization.download_origineel', $source);
 
         $this->assertStringNotContainsString('/storage/', $source);
         $this->assertStringNotContainsString('stored_filename', $source);
@@ -663,8 +664,7 @@ final class PersonalizationFrontendContractTest extends TestCase
         $source = self::sourceOf('admin/_order_personalization.php');
 
         $this->assertStringContainsString('$previewExists', $source);
-        $this->assertStringContainsString('niet meer beschikbaar', $source);
-        $this->assertStringContainsString('volledig bewaard gebleven', $source);
+        $this->assertStringContainsString('personalization.voorbeeldafbeelding_bestelling_meer_beschikb', $source);
     }
 
     /**

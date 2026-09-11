@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/../vendor/autoload.php';
+require_once __DIR__ . '/_translate.php';
 require_once __DIR__ . '/_labels.php';
 
 use App\Service\AdminAuth;
@@ -25,7 +26,7 @@ try {
 
 $filters = [
     'all' => 'Alle',
-    'nieuw' => 'Nieuw',
+    'nieuw' => admin_t('common.new_item'),
     'in_behandeling' => 'In behandeling',
     'afgehandeld' => 'Afgehandeld',
 ];
@@ -35,14 +36,14 @@ $filters = [
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Retourverzoeken — Admin</title>
+<title><?= admin_te('shop.retourverzoeken_admin') ?></title>
 <link rel="stylesheet" href="<?= \App\Service\AssetVersion::url('/admin/assets/admin.css') ?>">
 </head>
 <body<?= \App\Service\AdminTheme::bodyAttribute() ?>>
 <?php require __DIR__ . '/_header.php'; ?>
 <main class="admin-main">
-  <h1>Retourverzoeken (herroepingsrecht)</h1>
-  <p class="admin-page-head__desc">Bekijk zelf per verzoek of (een deel van) de bestelling gepersonaliseerd/op maat gemaakt was voordat je een verzoek afhandelt — dit wordt niet automatisch bepaald, zie de bestelling zelf.</p>
+  <h1><?= admin_te('shop.retourverzoeken_herroepingsrecht') ?></h1>
+  <p class="admin-page-head__desc"><?= admin_te('shop.bekijk_zelf_per_verzoek') ?></p>
 
   <div class="admin-filter-tabs" role="tablist" aria-label="Filter op status">
     <?php foreach ($filters as $value => $label): ?>
@@ -51,18 +52,18 @@ $filters = [
   </div>
 
   <?php if ($requests === null): ?>
-    <p class="admin-alert admin-alert--error">Verzoeken konden niet worden geladen.</p>
+    <p class="admin-alert admin-alert--error"><?= admin_te('shop.verzoeken_konden_geladen') ?></p>
   <?php elseif ($requests === []): ?>
-    <p>Geen retourverzoeken gevonden.</p>
+    <p><?= admin_te('shop.retourverzoeken_gevonden') ?></p>
   <?php else: ?>
     <div class="admin-table-wrap">
     <table class="admin-table">
       <thead>
         <tr>
-          <th>Bestelling</th>
-          <th>E-mail</th>
-          <th>Ontvangen</th>
-          <th>Status</th>
+          <th><?= admin_te('shop.bestelling') ?></th>
+          <th><?= admin_te('common.email') ?></th>
+          <th><?= admin_te('shop.ontvangen') ?></th>
+          <th><?= admin_te('common.status') ?></th>
         </tr>
       </thead>
       <tbody>

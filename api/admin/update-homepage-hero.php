@@ -20,6 +20,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../../vendor/autoload.php';
 
+use App\Service\Language\AdminTranslator;
 use App\Service\AdminAuth;
 use App\Service\Csrf;
 use App\Service\HomepageHeroContent;
@@ -66,7 +67,7 @@ $errors = [];
 $required = ['eyebrow_nl', 'title_nl', 'primary_label_nl', 'primary_url'];
 foreach ($required as $key) {
     if ($fields[$key] === '') {
-        $errors[] = 'Dit veld is verplicht.';
+        $errors[] = AdminTranslator::trans('validation.veld_verplicht');
         break;
     }
 }
@@ -76,14 +77,14 @@ foreach ($required as $key) {
 $secondaryLabelSet = $fields['secondary_label_nl'] !== '';
 $secondaryUrlSet = $fields['secondary_url'] !== '';
 if ($secondaryLabelSet !== $secondaryUrlSet) {
-    $errors[] = 'Vul voor de secundaire knop zowel het label (NL) als de URL in, of laat beide leeg.';
+    $errors[] = AdminTranslator::trans('validation.vul_secundaire_knop_zowel_label');
 }
 
 // The badge needs both a title and a body text, or neither.
 $badgeTitleSet = $fields['badge_title_nl'] !== '';
 $badgeTextSet = $fields['badge_text_nl'] !== '';
 if ($badgeTitleSet !== $badgeTextSet) {
-    $errors[] = 'Vul voor de badge zowel de titel (NL) als de tekst (NL) in, of laat beide leeg.';
+    $errors[] = AdminTranslator::trans('validation.vul_badge_zowel_titel_nl');
 }
 
 // The highlight must occur verbatim in its title — never silently save an
@@ -91,12 +92,12 @@ if ($badgeTitleSet !== $badgeTextSet) {
 // site-wide bilingual convention), so the EN highlight is checked against
 // whichever title will actually render for EN.
 if (!HomepageHeroContent::isHighlightValid($fields['title_nl'], $fields['title_highlight_nl'])) {
-    $errors[] = 'De highlight (NL) moet exact voorkomen in de titel (NL).';
+    $errors[] = AdminTranslator::trans('validation.highlight_nl_exact_voorkomen_titel');
 }
 
 $effectiveTitleEn = $fields['title_en'] !== '' ? $fields['title_en'] : $fields['title_nl'];
 if (!HomepageHeroContent::isHighlightValid($effectiveTitleEn, $fields['title_highlight_en'])) {
-    $errors[] = 'De highlight (EN) moet exact voorkomen in de titel (EN) — of, als de titel (EN) leeg is, in de titel (NL).';
+    $errors[] = AdminTranslator::trans('validation.highlight_exact_voorkomen_titel_titel');
 }
 
 // The highlight size is a percentage of the headline's own (responsive)

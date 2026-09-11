@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/../vendor/autoload.php';
+require_once __DIR__ . '/_translate.php';
 
 use App\Install\SetupState;
 use App\Install\SetupWizard;
@@ -95,24 +96,24 @@ $baseUrlIsPinned = AppUrl::isPinnedByEnvironment();
  */
 $colorFields = [
     'primary_color' => [
-        'label' => 'Primair (accent)',
-        'help' => 'Knoppen, links, iconen en lijnen. Alles wat opvalt.',
+        'label' => admin_t('design.colour_primary'),
+        'help' => admin_t('design.colour_primary_help'),
     ],
     'on_primary_color' => [
-        'label' => 'Tekst op primair',
-        'help' => 'De tekst bovenop een gevulde knop. Moet goed leesbaar zijn op de primaire kleur.',
+        'label' => admin_t('design.colour_on_primary'),
+        'help' => admin_t('setup.colour_on_primary_help'),
     ],
     'background_color' => [
-        'label' => 'Achtergrond',
-        'help' => 'De ondergrond van elke pagina.',
+        'label' => admin_t('design.colour_background'),
+        'help' => admin_t('setup.colour_background_help'),
     ],
     'surface_color' => [
-        'label' => 'Kaartvlak',
-        'help' => 'Kaarten en panelen: één tint boven de achtergrond.',
+        'label' => admin_t('design.colour_surface'),
+        'help' => admin_t('design.colour_surface_help'),
     ],
     'text_color' => [
-        'label' => 'Tekst',
-        'help' => 'Lopende tekst en koppen.',
+        'label' => admin_t('design.colour_text'),
+        'help' => admin_t('setup.colour_text_help'),
     ],
 ];
 
@@ -144,7 +145,7 @@ $setupPrimaryLanguage = \App\Service\Language\AdminLocale::normalise(
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title><?= $isComplete ? 'Installatie voltooid' : 'Installatie' ?> — Admin</title>
+<title><?= $isComplete ? 'Installatie voltooid' : 'Installatie' ?> <?= admin_te('setup.admin') ?></title>
 <link rel="stylesheet" href="<?= AssetVersion::url('/admin/assets/admin.css') ?>">
 </head>
 <body class="admin-setup-page"<?= \App\Service\AdminTheme::bodyAttribute() ?>>
@@ -153,7 +154,7 @@ $setupPrimaryLanguage = \App\Service\Language\AdminLocale::normalise(
   <span class="admin-setup__brand"><?= $h($siteName) ?></span>
   <form method="post" action="/admin/logout.php">
     <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
-    <button type="submit" class="admin-btn-text">Uitloggen</button>
+    <button type="submit" class="admin-btn-text"><?= admin_te('setup.uitloggen') ?></button>
   </form>
 </header>
 
@@ -161,33 +162,28 @@ $setupPrimaryLanguage = \App\Service\Language\AdminLocale::normalise(
 
 <?php if ($isComplete): ?>
 
-  <h1>De installatie is al afgerond</h1>
+  <h1><?= admin_te('setup.installatie_al_afgerond') ?></h1>
   <p class="admin-text-muted">
-    Deze site is ingesteld<?= $completedAt !== null ? ' op ' . $h($completedAt) : '' ?>.
-    De installatiewizard draait daarom niet opnieuw: hij is bedoeld om te beginnen, niet om
-    later nog iets te wijzigen. Alles wat hij heeft ingesteld beheer je vanaf nu op de
-    schermen die het echt bezitten.
+    <?= admin_t('setup.site_ingesteld_installatiewizard_draait', ['v1' => $completedAt !== null ? ' op ' . $h($completedAt) : '']) ?>
   </p>
 
   <section class="admin-card">
-    <h2>Waar je nu wat aanpast</h2>
+    <h2><?= admin_te('setup.waar_nu_wat_aanpast') ?></h2>
     <ul class="admin-setup__links">
-      <li><a href="/admin/settings.php">Site-instellingen</a> — naam, e-mailadres, logo, favicon, deel-afbeelding en bedrijfsgegevens.</li>
-      <li><a href="/admin/theme.php">Vormgeving</a> — kleuren, lettertypecombinatie en knopvorm.</li>
-      <li><a href="/admin/pages.php">Pagina's</a> — pagina's maken, bewerken en publiceren.</li>
-      <li><a href="/admin/navigation.php">Navigatie</a> en <a href="/admin/footer.php">Footer</a> — het menu en de voettekst.</li>
-      <li><a href="/admin/media.php">Mediabibliotheek</a> — afbeeldingen uploaden en hergebruiken.</li>
+      <li><a href="/admin/settings.php"><?= admin_t('setup.site_instellingen_naam_e') ?></li>
+      <li><a href="/admin/theme.php"><?= admin_t('setup.vormgeving_kleuren_lettertypecombinatie_knop') ?></li>
+      <li><a href="/admin/pages.php"><?= admin_t('setup.pagina_s_pagina_s') ?></li>
+      <li><a href="/admin/navigation.php"><?= admin_t('setup.navigatie_footer_menu_voettekst') ?></li>
+      <li><a href="/admin/media.php"><?= admin_t('setup.mediabibliotheek_afbeeldingen_uploaden_herge') ?></li>
     </ul>
-    <p><a href="/admin/index.php">Terug naar het dashboard</a></p>
+    <p><a href="/admin/index.php"><?= admin_te('setup.terug_dashboard') ?></a></p>
   </section>
 
 <?php else: ?>
 
-  <h1>Welkom. Laten we deze website instellen.</h1>
+  <h1><?= admin_te('setup.welkom_laten_we_website') ?></h1>
   <p class="admin-text-muted">
-    Vijf korte stappen. Alleen de naam van de site is verplicht — al het andere mag leeg
-    blijven en is later te wijzigen. Er wordt pas iets opgeslagen wanneer je onderaan op
-    <em>Installatie afronden</em> klikt.
+    <?= admin_t('setup.vijf_korte_stappen_alleen') ?>
   </p>
 
   <?php if ($errors !== []): ?>
@@ -214,11 +210,11 @@ $setupPrimaryLanguage = \App\Service\Language\AdminLocale::normalise(
 
     <!-- ------------------------------------------------ 1. Website -->
     <section class="admin-card admin-setup__panel" data-setup-panel="1">
-      <h2>1. Website</h2>
-      <p class="admin-text-muted">Wie is deze site? Vul in wat je nu weet.</p>
+      <h2><?= admin_te('setup.1_website') ?></h2>
+      <p class="admin-text-muted"><?= admin_te('setup.wie_site_vul_wat') ?></p>
 
       <div class="admin-form-row">
-        <label for="setup-site-name"><span>Naam van de site <span aria-hidden="true">*</span></span>
+        <label for="setup-site-name"><span><?= admin_t('setup.naam_site') ?>*</span></span>
           <input
             type="text"
             id="setup-site-name"
@@ -228,7 +224,7 @@ $setupPrimaryLanguage = \App\Service\Language\AdminLocale::normalise(
             autocomplete="organization"
             value="<?= $h($previous('site_name')) ?>">
         </label>
-        <p class="admin-text-muted">Staat in de browsertitel, in de koptekst als je nog geen logo hebt, en achter elke paginatitel in Google.</p>
+        <p class="admin-text-muted"><?= admin_te('setup.staat_browsertitel_koptekst_logo') ?></p>
       </div>
 
       <?php /* The WEBSITE's language, and one question only. A second
@@ -244,18 +240,18 @@ $setupPrimaryLanguage = \App\Service\Language\AdminLocale::normalise(
                admin/account.php. Confusing the two is exactly what this
                feature exists to stop. */ ?>
       <div class="admin-form-row">
-        <label for="setup-primary-language">Taal van de website
+        <label for="setup-primary-language"><?= admin_te('setup.taal_website') ?>
           <select id="setup-primary-language" name="primary_content_language">
             <?php foreach (\App\Service\Language\LanguageRegistry::contentLanguages() as $languageCode => $languageDefinition): ?>
               <option value="<?= $h($languageCode) ?>"<?= $languageCode === $setupPrimaryLanguage ? ' selected' : '' ?>><?= $h($languageDefinition->nativeLabel) ?></option>
             <?php endforeach; ?>
           </select>
         </label>
-        <p class="admin-text-muted">De taal waarin je de inhoud van deze website schrijft. Een tweede taal kun je later aanzetten bij Instellingen &rarr; Talen. De taal van het CMS zelf kies je per persoon bij Mijn account.</p>
+        <p class="admin-text-muted"><?= admin_t('setup.taal_waarin_inhoud_website') ?></p>
       </div>
 
       <div class="admin-form-row">
-        <label for="setup-base-url">Publiek webadres
+        <label for="setup-base-url"><?= admin_te('setup.publiek_webadres') ?>
           <input
             type="url"
             id="setup-base-url"
@@ -266,10 +262,7 @@ $setupPrimaryLanguage = \App\Service\Language\AdminLocale::normalise(
         </label>
         <?php if ($baseUrlIsPinned): ?>
           <p class="admin-text-muted">
-            Dit adres staat vast in <code><?= $h(AppUrl::environmentVariableName()) ?></code> in het
-            <code>.env</code>-bestand op de server. Dat is bewust serverconfiguratie: het bepaalt de
-            canonieke adressen die zoekmachines volgen, en die mogen niet meebewegen met wie er inlogt.
-            Wijzigen kan alleen op de server.
+            <?= admin_t('setup.adres_staat_vast_env', ['v1' => $h(AppUrl::environmentVariableName())]) ?>
           </p>
         <?php else: ?>
           <p class="admin-text-muted">
@@ -282,14 +275,13 @@ $setupPrimaryLanguage = \App\Service\Language\AdminLocale::normalise(
             Laat je het leeg, dan vul je het later in bij Site-instellingen.
           </p>
           <p class="admin-text-muted">
-            Staat er later <code><?= $h(AppUrl::environmentVariableName()) ?></code> in het
-            <code>.env</code>-bestand van de server, dan wint die waarde van deze.
+            <?= admin_t('setup.staat_er_later_env', ['v1' => $h(AppUrl::environmentVariableName())]) ?>
           </p>
         <?php endif; ?>
       </div>
 
       <div class="admin-form-row">
-        <label for="setup-email">Contact-e-mailadres
+        <label for="setup-email"><?= admin_te('setup.contact_e_mailadres') ?>
           <input
             type="email"
             id="setup-email"
@@ -298,28 +290,28 @@ $setupPrimaryLanguage = \App\Service\Language\AdminLocale::normalise(
             autocomplete="email"
             value="<?= $h($previous('email')) ?>">
         </label>
-        <p class="admin-text-muted">Waar bezoekers je bereiken. Wordt gebruikt in de footer en onder uitgaande e-mail. Optioneel.</p>
+        <p class="admin-text-muted"><?= admin_te('setup.waar_bezoekers_bereiken_gebruikt') ?></p>
       </div>
 
       <div class="admin-form-row">
-        <label for="setup-description">Korte omschrijving
+        <label for="setup-description"><?= admin_te('setup.korte_omschrijving') ?>
           <textarea id="setup-description" name="footer_description_nl" rows="3" maxlength="300"><?= $h($previous('footer_description_nl')) ?></textarea>
         </label>
-        <p class="admin-text-muted">Eén of twee zinnen over wat je doet, voor in de footer. Optioneel.</p>
+        <p class="admin-text-muted"><?= admin_te('setup.e_n_twee_zinnen') ?></p>
       </div>
 
       <details class="admin-setup__optional">
-        <summary>Bedrijfsgegevens (optioneel)</summary>
-        <p class="admin-text-muted">Alleen nodig als je facturen of juridische vermeldingen wilt. Later aan te vullen bij Site-instellingen.</p>
+        <summary><?= admin_te('setup.bedrijfsgegevens_optioneel') ?></summary>
+        <p class="admin-text-muted"><?= admin_te('setup.alleen_nodig_facturen_juridische') ?></p>
 
         <div class="admin-form-row">
-          <label for="setup-city">Plaats
+          <label for="setup-city"><?= admin_te('setup.plaats') ?>
             <input type="text" id="setup-city" name="city_nl" maxlength="120" value="<?= $h($previous('city_nl')) ?>">
           </label>
         </div>
 
         <div class="admin-form-row">
-          <label for="setup-kvk">KVK-nummer
+          <label for="setup-kvk"><?= admin_te('setup.kvk_nummer') ?>
             <input type="text" id="setup-kvk" name="kvk_number" maxlength="40" value="<?= $h($previous('kvk_number')) ?>">
           </label>
         </div>
@@ -328,11 +320,9 @@ $setupPrimaryLanguage = \App\Service\Language\AdminLocale::normalise(
 
     <!-- ------------------------------------------------ 2. Merk -->
     <section class="admin-card admin-setup__panel" data-setup-panel="2" hidden>
-      <h2>2. Merk</h2>
+      <h2><?= admin_te('setup.2_merk') ?></h2>
       <p class="admin-text-muted">
-        Kies of upload je logo en pictogrammen. Alles hier is optioneel: zonder logo toont de
-        site gewoon de naam als tekst, en zonder deel-afbeelding blijft die simpelweg weg.
-        Wat je hier uploadt komt in de Mediabibliotheek te staan.
+        <?= admin_te('setup.kies_upload_logo_pictogrammen') ?>
       </p>
 
       <?php
@@ -352,19 +342,17 @@ $setupPrimaryLanguage = \App\Service\Language\AdminLocale::normalise(
 
     <!-- ------------------------------------------------ 3. Vormgeving -->
     <section class="admin-card admin-setup__panel" data-setup-panel="3" hidden>
-      <h2>3. Vormgeving</h2>
+      <h2><?= admin_te('setup.3_vormgeving') ?></h2>
       <p class="admin-text-muted">
-        Vijf kleuren, één lettertypecombinatie en de vorm van de knoppen. Randen, schaduwen en
-        hover-tinten worden hiervan afgeleid, zodat ze altijd bij elkaar passen. Je verandert dit
-        later net zo makkelijk bij Vormgeving.
+        <?= admin_te('setup.vijf_kleuren_n_lettertypecombinatie') ?>
       </p>
 
       <div class="admin-form-row">
-        <label for="theme-font_pairing">Lettertypecombinatie
+        <label for="theme-font_pairing"><?= admin_te('setup.lettertypecombinatie') ?>
           <select id="theme-font_pairing" name="font_pairing">
             <?php $selectedPairing = $previous('font_pairing', (string) $themeValues['font_pairing']); ?>
             <?php foreach (ThemeFonts::all() as $key => $pairing): ?>
-              <option value="<?= $h($key) ?>" <?= $selectedPairing === $key ? 'selected' : '' ?>><?= $h($pairing['label']) ?></option>
+              <option value="<?= $h($key) ?>" <?= $selectedPairing === $key ? 'selected' : '' ?>><?= $h(admin_registry_label('themefont.' . $key, (string) $pairing['label'])) ?></option>
             <?php endforeach; ?>
           </select>
         </label>
@@ -399,7 +387,7 @@ $setupPrimaryLanguage = \App\Service\Language\AdminLocale::normalise(
       </div>
 
       <div class="admin-form-row">
-        <label for="theme-button_shape">Knopvorm
+        <label for="theme-button_shape"><?= admin_te('setup.knopvorm') ?>
           <select id="theme-button_shape" name="button_shape">
             <?php $selectedShape = $previous('button_shape', (string) $themeValues['button_shape']); ?>
             <?php foreach (ThemeSettings::buttonShapes() as $key => $shape): ?>
@@ -410,22 +398,20 @@ $setupPrimaryLanguage = \App\Service\Language\AdminLocale::normalise(
       </div>
 
       <div class="admin-theme-preview" data-theme-preview>
-        <p class="admin-theme-preview__heading" data-theme-preview-heading>Een kop in het koplettertype</p>
-        <p class="admin-theme-preview__body">Lopende tekst zoals een bezoeker die leest, met een <span data-theme-preview-link>link</span> erin.</p>
+        <p class="admin-theme-preview__heading" data-theme-preview-heading><?= admin_te('setup.kop_koplettertype') ?></p>
+        <p class="admin-theme-preview__body"><?= admin_t('setup.lopende_tekst_zoals_bezoeker') ?></p>
         <div class="admin-theme-preview__card" data-theme-preview-card>
-          <span class="admin-theme-preview__muted">Een kaart met zachtere tekst</span>
+          <span class="admin-theme-preview__muted"><?= admin_te('setup.kaart_zachtere_tekst') ?></span>
         </div>
-        <span class="admin-theme-preview__btn" data-theme-preview-btn>Knop</span>
+        <span class="admin-theme-preview__btn" data-theme-preview-btn><?= admin_te('setup.knop') ?></span>
       </div>
     </section>
 
     <!-- ------------------------------------------------ 4. Onderdelen -->
     <section class="admin-card admin-setup__panel" data-setup-panel="4" hidden>
-      <h2>4. Onderdelen</h2>
+      <h2><?= admin_te('setup.4_onderdelen') ?></h2>
       <p class="admin-text-muted">
-        Deze site is in de kern een CMS. Zet alleen aan wat je gebruikt — uitzetten verwijdert niets
-        en is later terug te draaien. Wat uit staat, draagt niets bij: geen menu-items, geen rechten,
-        geen openbare adressen en geen extra bestanden voor de bezoeker.
+        <?= admin_te('setup.site_kern_cms_zet') ?>
       </p>
 
       <?php foreach (ModuleRegistry::all() as $moduleKey => $module): ?>
@@ -460,14 +446,12 @@ $setupPrimaryLanguage = \App\Service\Language\AdminLocale::normalise(
           <?php endif; ?>
           <?php if ($dependencies !== []): ?>
             <p class="admin-text-muted">
-              Werkt alleen samen met
-              <?= $h(implode(', ', array_map(static fn (string $key): string => ModuleRegistry::label($key), $dependencies))) ?>.
+              <?= admin_t('setup.werkt_alleen_samen', ['v1' => $h(implode(', ', array_map(static fn (string $key): string => ModuleRegistry::label($key), $dependencies)))]) ?>
             </p>
           <?php endif; ?>
           <?php if ($isPinned): ?>
             <p class="admin-text-muted">
-              Vastgezet in <code><?= $h(ModuleConfig::variableName($moduleKey)) ?></code> in het
-              <code>.env</code>-bestand op de server, en daarom hier niet te wijzigen.
+              <?= admin_t('setup.vastgezet_env_bestand_server', ['v1' => $h(ModuleConfig::variableName($moduleKey))]) ?>
             </p>
           <?php endif; ?>
         </div>
@@ -476,12 +460,9 @@ $setupPrimaryLanguage = \App\Service\Language\AdminLocale::normalise(
 
     <!-- ------------------------------------------------ 5. Pagina's -->
     <section class="admin-card admin-setup__panel" data-setup-panel="5" hidden>
-      <h2>5. Startpagina's</h2>
+      <h2><?= admin_te('setup.5_startpagina_s') ?></h2>
       <p class="admin-text-muted">
-        De homepage bestaat al. Wil je alvast een paar veelgebruikte pagina's erbij? Elke pagina
-        krijgt de blokken die zo'n pagina meestal heeft, komt als <strong>concept</strong> in je
-        pagina-overzicht te staan en krijgt een menu-item dat pas zichtbaar wordt wanneer je hem
-        publiceert. Kies gerust niets — je maakt ze later net zo eenvoudig.
+        <?= admin_t('setup.homepage_bestaat_al_wil') ?>
       </p>
 
       <?php foreach (SetupWizard::STARTER_PAGES as $key => $page): ?>
@@ -505,9 +486,9 @@ $setupPrimaryLanguage = \App\Service\Language\AdminLocale::normalise(
     </section>
 
     <div class="admin-setup__actions">
-      <button type="button" class="admin-btn-secondary" data-setup-prev hidden>Vorige</button>
-      <button type="button" data-setup-next hidden>Volgende</button>
-      <button type="submit" data-setup-finish>Installatie afronden</button>
+      <button type="button" class="admin-btn-secondary" data-setup-prev hidden><?= admin_te('setup.vorige') ?></button>
+      <button type="button" data-setup-next hidden><?= admin_te('setup.volgende') ?></button>
+      <button type="submit" data-setup-finish><?= admin_te('setup.installatie_afronden') ?></button>
     </div>
   </form>
 

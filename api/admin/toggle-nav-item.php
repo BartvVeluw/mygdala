@@ -9,6 +9,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../../vendor/autoload.php';
 
+use App\Service\Language\AdminTranslator;
 use App\Service\AdminAuth;
 use App\Service\Csrf;
 use App\Repository\NavigationRepository;
@@ -39,7 +40,7 @@ try {
     (new NavigationRepository())->setVisible($idParam, $isVisible);
 } catch (\Throwable $e) {
     error_log('[api/admin/toggle-nav-item.php] ' . $e->getMessage());
-    $_SESSION['admin_nav_error'] = 'Zichtbaarheid kon niet worden opgeslagen.';
+    $_SESSION['admin_nav_error'] = AdminTranslator::trans('validation.zichtbaarheid_kon_opgeslagen');
 }
 
 header('Location: /admin/navigation.php');

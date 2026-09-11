@@ -132,15 +132,16 @@ final class ProductDeletionAdminSecurityTest extends TestCase
         );
     }
 
-    public function testDeletionAsksForConfirmationInDutch(): void
+    public function testDeletionAsksForConfirmationFirst(): void
     {
         $source = $this->adminSource('products.php');
 
         $this->assertStringContainsString('onsubmit="return confirm(', $source);
-        $this->assertStringContainsString(
-            'Weet je zeker dat je dit product definitief wilt verwijderen?',
-            $source
-        );
+
+        // The sentence itself lives in the catalogue now (MULTILINGUAL.md), so
+        // what is asserted here is that deleting still asks, by the key that
+        // prints the question.
+        $this->assertStringContainsString('shop.confirm_delete_product', $source);
     }
 
     public function testDeletionIsVisuallyMarkedAsDestructive(): void
@@ -161,9 +162,13 @@ final class ProductDeletionAdminSecurityTest extends TestCase
         $source = $this->adminSource('products.php');
 
         $this->assertStringContainsString('method="post" action="/api/admin/update-product-status.php"', $source);
-        $this->assertStringContainsString('Deactiveren', $source);
-        $this->assertStringContainsString('Activeren', $source);
-        $this->assertStringContainsString('Verwijderen', $source);
+
+        // The words themselves live in the catalogue now (MULTILINGUAL.md), so
+        // what this asserts is that all three actions are still offered, by
+        // the key each of them prints.
+        $this->assertStringContainsString("shop.deactiveren", $source);
+        $this->assertStringContainsString("shop.activeren", $source);
+        $this->assertStringContainsString("common.delete", $source);
     }
 
     /**
