@@ -5,6 +5,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/../vendor/autoload.php';
 require_once __DIR__ . '/_media_picker.php';
 require_once __DIR__ . '/_language_fields.php';
+require_once __DIR__ . '/_translate.php';
 require_once __DIR__ . '/_richtext_field.php';
 require_once __DIR__ . '/_save_bar.php';
 require_once __DIR__ . '/_admin_tabs.php';
@@ -115,7 +116,7 @@ $isPending = BlogPostStatus::isPending($post);
 $forcedTab = $errors !== [] ? 'inhoud' : null;
 ?>
 <!doctype html>
-<html lang="nl">
+<html lang="<?= htmlspecialchars(\App\Service\Language\AdminLocale::current(), ENT_QUOTES, 'UTF-8') ?>">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -213,8 +214,12 @@ $forcedTab = $errors !== [] ? 'inhoud' : null;
 
     <section class="admin-card">
       <h2>Bericht</h2>
-      <?php renderRichTextField('body', 'Tekst (NL)', $fieldValue('body'), 'full', 'admin-richtext-editor--lg'); ?>
-      <?php renderRichTextField('body_en', 'Tekst (EN)', $fieldValue('body_en'), 'full', 'admin-richtext-editor--lg'); ?>
+      <?php admin_lang_pane_start('nl'); ?>
+        <?php renderRichTextField('body', 'Tekst', $fieldValue('body'), 'full', 'admin-richtext-editor--lg'); ?>
+      <?php admin_lang_pane_end(); ?>
+      <?php admin_lang_pane_start('en'); ?>
+        <?php renderRichTextField('body_en', 'Tekst', $fieldValue('body_en'), 'full', 'admin-richtext-editor--lg'); ?>
+      <?php admin_lang_pane_end(); ?>
     </section>
 
     <section class="admin-card">
@@ -317,34 +322,30 @@ $forcedTab = $errors !== [] ? 'inhoud' : null;
       <p class="admin-text-muted">Laat de SEO-titel leeg om automatisch "<em>Titel</em> | <?= $h(BlogSettings::title('nl')) ?> &mdash; <?= $h(\App\Service\SiteSettings::get('site_name')) ?>" te gebruiken.</p>
 
       <div class="admin-product-form admin-product-form--wide">
-        <div class="admin-seo-grid">
-          <div class="admin-seo-lang">
-            <h3 class="admin-seo-lang__title">Nederlands</h3>
-            <div class="admin-form-row">
-              <label>SEO-titel (NL)
-                <input type="text" name="meta_title" maxlength="<?= BlogPostService::MAX_META_TITLE_LENGTH ?>" value="<?= $h($fieldValue('meta_title')) ?>">
-              </label>
-            </div>
-            <div class="admin-form-row">
-              <label>Meta description (NL)
-                <textarea name="meta_description" rows="3" maxlength="<?= BlogPostService::MAX_META_DESCRIPTION_LENGTH ?>"><?= $h($fieldValue('meta_description')) ?></textarea>
-              </label>
-            </div>
+        <?php admin_lang_pane_start('nl'); ?>
+          <div class="admin-form-row">
+            <label><?= admin_te('page.meta_title') ?>
+              <input type="text" name="meta_title" maxlength="<?= BlogPostService::MAX_META_TITLE_LENGTH ?>" value="<?= $h($fieldValue('meta_title')) ?>">
+            </label>
           </div>
-          <div class="admin-seo-lang">
-            <h3 class="admin-seo-lang__title">English</h3>
-            <div class="admin-form-row">
-              <label>SEO-titel (EN)
-                <input type="text" name="meta_title_en" maxlength="<?= BlogPostService::MAX_META_TITLE_LENGTH ?>" value="<?= $h($fieldValue('meta_title_en')) ?>" placeholder="Leeg = Nederlandse titel">
-              </label>
-            </div>
-            <div class="admin-form-row">
-              <label>Meta description (EN)
-                <textarea name="meta_description_en" rows="3" maxlength="<?= BlogPostService::MAX_META_DESCRIPTION_LENGTH ?>" placeholder="Leeg = Nederlandse tekst"><?= $h($fieldValue('meta_description_en')) ?></textarea>
-              </label>
-            </div>
+          <div class="admin-form-row">
+            <label><?= admin_te('page.meta_description') ?>
+              <textarea name="meta_description" rows="3" maxlength="<?= BlogPostService::MAX_META_DESCRIPTION_LENGTH ?>"><?= $h($fieldValue('meta_description')) ?></textarea>
+            </label>
           </div>
-        </div>
+        <?php admin_lang_pane_end(); ?>
+        <?php admin_lang_pane_start('en'); ?>
+          <div class="admin-form-row">
+            <label><?= admin_te('page.meta_title') ?>
+              <input type="text" name="meta_title_en" maxlength="<?= BlogPostService::MAX_META_TITLE_LENGTH ?>" value="<?= $h($fieldValue('meta_title_en')) ?>"<?= admin_lang_placeholder_attr('en') ?>>
+            </label>
+          </div>
+          <div class="admin-form-row">
+            <label><?= admin_te('page.meta_description') ?>
+              <textarea name="meta_description_en" rows="3" maxlength="<?= BlogPostService::MAX_META_DESCRIPTION_LENGTH ?>"<?= admin_lang_placeholder_attr('en') ?>><?= $h($fieldValue('meta_description_en')) ?></textarea>
+            </label>
+          </div>
+        <?php admin_lang_pane_end(); ?>
       </div>
 
       <h3 class="admin-seo-lang__title">Voorbeeld in Google</h3>

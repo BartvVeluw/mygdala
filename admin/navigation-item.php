@@ -106,7 +106,7 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
 $pageTitle = $isNew ? ($isChild ? 'Nieuw submenu-item' : 'Nieuw menu-item') : (string) $item['label_nl'];
 ?>
 <!doctype html>
-<html lang="nl">
+<html lang="<?= htmlspecialchars(\App\Service\Language\AdminLocale::current(), ENT_QUOTES, 'UTF-8') ?>">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">

@@ -54,6 +54,8 @@ twee de ander noemt.
 | Terugvalregel op één plek | `src/Service/Language/LocalizedValue.php` |
 | Wat een publieke partial afdrukt | `src/Service/Language/SiteText.php` |
 | Taaltabbladen in het CMS | `admin/_language_fields.php`, `admin/assets/admin-language-tabs.js`, `.admin-lang-*` in `admin/assets/admin.css` |
+| CMS-tekst in een template | `admin/_translate.php` (`admin_t()` / `admin_te()`) |
+| Labels van de zijbalk | `App\Service\AdminNavigation::label()` + de `nav.*`-sleutels |
 | Scherm *Mijn account* | `admin/account.php`, `api/admin/update-account-preferences.php` |
 | Tabblad *Talen* | `admin/settings.php`, `api/admin/update-language-settings.php` |
 | Vertaalcontract | `src/Service/Translation/TranslationProvider.php` |
@@ -194,14 +196,47 @@ niet op iemands scherm.
 applicatieteksten. Automatisch vertalen geldt uitsluitend voor
 *website-inhoud*, en de twee raken elkaar nergens.
 
+### Hoe een template om een zin vraagt
+
+```php
+<?= admin_te('pages.title') ?>      // vertaald én ge-escaped, voor in markup
+admin_t('pages.delete_confirm')     // de kale string, voor in een array
+```
+
+`admin/_translate.php`, ingesloten door `admin/_header.php` en door
+`admin/_language_fields.php`. Een scherm dat een sleutel nodig heeft vóór de
+schil — in zijn `<title>` — sluit het bestand zelf in; het is
+`require_once`-veilig.
+
+Het bestaat om één reden: een template dat veertig tekens ceremonie per zin
+moet schrijven blijft stilletjes onvertaald. Dat is precies wat er gebeurde —
+de eerste versie van deze stap bouwde de hele machinerie en gebruikte hem op
+vijf plekken.
+
 ### Hoeveel er vertaald is
 
-V1 vertaalt de gedeelde schil (zijbalk, uitloggen, rolnaam) en de schermen die
-deze stap heeft aangeraakt: *Mijn account*, het tabblad *Talen* en alle
-taal-UI in de editors. De rest van het adminpaneel is nog Nederlands. De
-bedoelde eindtoestand is dat het hele normale beheer kan wisselen; de weg
-ernaartoe is per scherm sleutels toevoegen, zonder dat er iets aan de
-architectuur verandert.
+**Wel:** de gedeelde schil inclusief **alle zijbalklabels** (ook die van de
+modules), het dashboard, *Pagina's* en de pagina-editor, *Site-instellingen*
+en zijn tabbladen, *Mijn account*, het tabblad *Talen*, de opslagbalk, en alle
+taal-UI in de editors. `<html lang>` volgt op elk adminscherm de CMS-taal.
+
+**Nog niet:** de inhoud van de meeste instellingenpanelen, en de
+modulebeheerschermen — Blog, Shop, Personalisatie, Media, Gebruikers,
+Formulieren, Redirects, Vormgeving, Contentblokken. Die zijn Nederlands.
+
+De weg naar de eindtoestand is per scherm sleutels toevoegen. Er verandert
+niets aan de architectuur, en `Tests\Service\MultilingualBoundaryTest` bewaakt
+onderweg dat de catalogi gelijk blijven lopen en dat geen scherm
+`lang="nl"` terugzet.
+
+### De zijbalk
+
+De labels staan nog steeds als gewone Nederlandse strings naast hun entry, in
+`AdminNavigation::coreItems()` en in elke module. Vertaald wordt er één keer,
+in `AdminNavigation::label()`, op de `key` van de entry: `nav.pages`,
+`nav.orders`. Een module hoeft dus niet te weten dat dit CMS twee talen heeft,
+en een entry zonder sleutel houdt zijn eigen label in plaats van een kale
+punt-sleutel te tonen.
 
 ## Bewerken met één taal
 
@@ -269,7 +304,43 @@ admin_lang_tabs();                                 // één keer per <form>
 ```
 
 `Tests\Service\MultilingualBoundaryTest` faalt als een editor met panelen de
-component niet insluit, geen tabbladenrij rendert of het script vergeet.
+component niet insluit, geen tabbladenrij rendert of het script vergeet — en,
+sinds de browsertest die deze stap uitlokte, **ook andersom**: als er ergens in
+`admin/` een `_nl`- of `_en`-veld buiten een paneel staat. Dat is de test die
+er eerst niet was. Alle oude controles keken alleen naar schermen die de
+component al gebruikten, dus precies de schermen die nooit waren omgebouwd —
+de pagina-editor, het tekstblok, de blog-instellingen, de portfoliocategorieën,
+de footerkolommen, de personalisatiebouwer — werden nooit bekeken en toonden
+nog steeds twee kolommen.
+
+Twee dingen die `php -l` niet ziet en de suite nu wel:
+
+- een scherm dat `admin_lang_tabs()` aanroept zonder `_language_fields.php`
+  in te sluiten. Dat is een fatal op de eerste regel van zijn `<form>`, en
+  rendert als een halve pagina zonder melding. `admin/rich-text.php` deed dat.
+- een label dat nog `(NL)` of `(EN)` achter zich draagt. Binnen een paneel
+  zegt het tabblad al in welke taal je zit, en op een eentalige site is het
+  een vraag over een taal die de site niet publiceert.
+
+### Meer dan één formulier op een scherm
+
+Een scherm is niet altijd één formulier. Een portfolio-item heeft een klein
+formulier per afbeelding, de footer heeft een "kolom toevoegen"-formulier
+naast de lijst, en de blogtags zijn een tabel met een formulier per rij. Zes
+tabbladenrijen op één scherm zou precies het probleem zijn dat deze component
+oplost, dus:
+
+- een formulier **zonder** eigen tabbladenrij volgt de rij die er wél is;
+- alle rijen op één scherm staan op dezelfde taal. Wie bovenaan naar Engels
+  wisselt en verderop een Nederlands veld tegenkomt, krijgt te horen dat het
+  CMS de draad kwijt is.
+
+### En in de overzichten
+
+`admin_lang_summary($rij, 'label')` geeft de naam in de hoofdtaal, met
+terugval op wat er wél is ingevuld. De lijstschermen printten allebei de talen
+naast elkaar — "Contact / Contact" — wat op een eentalige site één naam twee
+keer is.
 
 ## Automatisch vertalen
 

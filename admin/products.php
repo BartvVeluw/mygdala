@@ -53,7 +53,7 @@ $csrfToken = Csrf::token();
 $canManageProducts = AdminAuth::can('products.manage');
 ?>
 <!doctype html>
-<html lang="nl">
+<html lang="<?= htmlspecialchars(\App\Service\Language\AdminLocale::current(), ENT_QUOTES, 'UTF-8') ?>">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">

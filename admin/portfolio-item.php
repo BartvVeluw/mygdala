@@ -115,7 +115,7 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
 $cmsImageSrc = static fn (array $row): string => '/' . ltrim((string) ($row['thumbnail_path'] ?: $row['image_path']), '/');
 ?>
 <!doctype html>
-<html lang="nl">
+<html lang="<?= htmlspecialchars(\App\Service\Language\AdminLocale::current(), ENT_QUOTES, 'UTF-8') ?>">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -302,14 +302,22 @@ $cmsImageSrc = static fn (array $row): string => '/' . ltrim((string) ($row['thu
             <?php endif; ?>
           </div>
 
-          <div class="admin-form-row admin-form-row--split">
-            <?php renderRichTextField('intro_nl', 'Introtekst (NL)', fieldValue($old, $item, 'intro_nl'), 'full', 'admin-richtext-editor--md'); ?>
-            <?php renderRichTextField('intro_en', 'Introtekst (EN) — leeg = zelfde als NL', fieldValue($old, $item, 'intro_en'), 'full', 'admin-richtext-editor--md'); ?>
+          <div class="admin-form-row">
+            <?php admin_lang_pane_start('nl'); ?>
+              <?php renderRichTextField('intro_nl', 'Introtekst', fieldValue($old, $item, 'intro_nl'), 'full', 'admin-richtext-editor--md'); ?>
+            <?php admin_lang_pane_end(); ?>
+            <?php admin_lang_pane_start('en'); ?>
+              <?php renderRichTextField('intro_en', 'Introtekst', fieldValue($old, $item, 'intro_en'), 'full', 'admin-richtext-editor--md'); ?>
+            <?php admin_lang_pane_end(); ?>
           </div>
 
-          <div class="admin-form-row admin-form-row--split">
-            <?php renderRichTextField('description_nl', 'Projectbeschrijving (NL)', fieldValue($old, $item, 'description_nl'), 'full', 'admin-richtext-editor--lg'); ?>
-            <?php renderRichTextField('description_en', 'Projectbeschrijving (EN) — leeg = zelfde als NL', fieldValue($old, $item, 'description_en'), 'full', 'admin-richtext-editor--lg'); ?>
+          <div class="admin-form-row">
+            <?php admin_lang_pane_start('nl'); ?>
+              <?php renderRichTextField('description_nl', 'Projectbeschrijving', fieldValue($old, $item, 'description_nl'), 'full', 'admin-richtext-editor--lg'); ?>
+            <?php admin_lang_pane_end(); ?>
+            <?php admin_lang_pane_start('en'); ?>
+              <?php renderRichTextField('description_en', 'Projectbeschrijving', fieldValue($old, $item, 'description_en'), 'full', 'admin-richtext-editor--lg'); ?>
+            <?php admin_lang_pane_end(); ?>
           </div>
         </div>
       </section>
@@ -341,8 +349,14 @@ $cmsImageSrc = static fn (array $row): string => '/' . ltrim((string) ($row['thu
                 <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
                 <input type="hidden" name="image_id" value="<?= $imageId ?>">
                 <input type="hidden" name="portfolio_item_id" value="<?= (int) $item['id'] ?>">
-                <input type="text" name="alt_nl" maxlength="255" placeholder="Alt-tekst (NL)" value="<?= $h((string) ($image['alt_nl'] ?? '')) ?>">
-                <input type="text" name="alt_en" maxlength="255" placeholder="Alt-tekst (EN)" value="<?= $h((string) ($image['alt_en'] ?? '')) ?>">
+                <?php /* No strip of its own: this little form follows the one
+                         above it (admin/assets/admin-language-tabs.js). */ ?>
+                <?php admin_lang_pane_start('nl'); ?>
+                  <input type="text" name="alt_nl" maxlength="255" placeholder="Alt-tekst" value="<?= $h((string) ($image['alt_nl'] ?? '')) ?>">
+                <?php admin_lang_pane_end(); ?>
+                <?php admin_lang_pane_start('en'); ?>
+                  <input type="text" name="alt_en" maxlength="255" placeholder="Alt-tekst" value="<?= $h((string) ($image['alt_en'] ?? '')) ?>">
+                <?php admin_lang_pane_end(); ?>
                 <button type="submit" class="admin-btn-text">Opslaan</button>
               </form>
               <form method="post" action="/api/admin/delete-portfolio-item-image.php" class="admin-inline-form" onsubmit="return confirm('Deze afbeelding verwijderen?');">

@@ -27,9 +27,25 @@
 
   var STORAGE_KEY = "mygdala-admin-lang";
 
+  /* The panes one strip governs: its own form's, plus every pane on the page
+     that no strip governs.
+
+     A screen is not always one form. A portfolio item has a small form per
+     image, the footer has an "add a column" form beside the list, and each of
+     those carries the same two localized fields as the big form above it.
+     Giving every one of them its own tab strip would put six switchers on one
+     screen, which is the thing this component exists to avoid — so an
+     unstripped form follows the strip that is there. */
   function panesFor(strip) {
-    var scope = strip.closest("form") || document;
-    return Array.prototype.slice.call(scope.querySelectorAll("[data-lang-pane]"));
+    var own = strip.closest("form");
+    var all = Array.prototype.slice.call(document.querySelectorAll("[data-lang-pane]"));
+
+    if (!own) return all;
+
+    return all.filter(function (pane) {
+      var form = pane.closest("form");
+      return form === own || !form || !form.querySelector(".admin-lang-tabs");
+    });
   }
 
   /* A pane the site does not publish at all stays hidden whatever the tabs
@@ -128,6 +144,18 @@
     });
   }
 
+  /* Every strip on the screen shows the same language.
+
+     A screen with two strips is a screen with two forms, not two languages:
+     an editor who switches the top of the page to English and then scrolls
+     into a Dutch field below has been told the CMS lost track. */
+  function activateEverywhere(code) {
+    Array.prototype.slice.call(document.querySelectorAll(".admin-lang-tabs")).forEach(function (other) {
+      activate(other, code, true);
+      refreshBadges(other);
+    });
+  }
+
   function initStrip(strip) {
     var tabs = Array.prototype.slice.call(strip.querySelectorAll("[data-lang-tab]"));
     if (tabs.length < 2) return;
@@ -144,7 +172,7 @@
     strip.addEventListener("click", function (event) {
       var tab = event.target.closest("[data-lang-tab]");
       if (!tab) return;
-      activate(strip, tab.getAttribute("data-lang-tab"), true);
+      activateEverywhere(tab.getAttribute("data-lang-tab"));
     });
 
     /* Arrow keys, Home and End — the same keyboard contract as
@@ -161,7 +189,7 @@
       if (next === null) return;
 
       event.preventDefault();
-      activate(strip, codes[next], true);
+      activateEverywhere(codes[next]);
       tabs[next].focus();
     });
 

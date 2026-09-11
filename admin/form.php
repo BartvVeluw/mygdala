@@ -83,7 +83,7 @@ $siteFallback = FormRecipient::siteFallback();
 $replyToCandidates = $definition === null ? [] : $definition->replyToCandidates();
 ?>
 <!doctype html>
-<html lang="nl">
+<html lang="<?= htmlspecialchars(\App\Service\Language\AdminLocale::current(), ENT_QUOTES, 'UTF-8') ?>">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -267,7 +267,7 @@ $replyToCandidates = $definition === null ? [] : $definition->replyToCandidates(
       <input type="hidden" name="form_id" value="<?= $id ?>">
 
       <div class="admin-form-row admin-form-row--split">
-        <label>Label (NL)*
+        <label>Label*
           <input type="text" name="label_nl" maxlength="200" required>
         </label>
         <label>Veldtype*

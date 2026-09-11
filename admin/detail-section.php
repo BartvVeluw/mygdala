@@ -128,7 +128,7 @@ function detailErrorList(array $errors): void
 }
 ?>
 <!doctype html>
-<html lang="nl">
+<html lang="<?= htmlspecialchars(\App\Service\Language\AdminLocale::current(), ENT_QUOTES, 'UTF-8') ?>">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -187,9 +187,12 @@ function detailErrorList(array $errors): void
         <?php admin_lang_pane_end(); ?>
       </div>
 
-      <?php renderRichTextField('content_html', 'Tekst (NL)', (string) ($values['content_html'] ?? ''), 'full', 'admin-richtext-editor--lg'); ?>
-      <?php renderRichTextField('content_html_en', 'Tekst (EN)', (string) ($values['content_html_en'] ?? ''), 'full', 'admin-richtext-editor--lg'); ?>
-      <p class="admin-text-muted">Laat de Engelse tekst leeg om de Nederlandse tekst ook in het Engels te tonen.</p>
+      <?php admin_lang_pane_start('nl'); ?>
+        <?php renderRichTextField('content_html', 'Tekst', (string) ($values['content_html'] ?? ''), 'full', 'admin-richtext-editor--lg'); ?>
+      <?php admin_lang_pane_end(); ?>
+      <?php admin_lang_pane_start('en'); ?>
+        <?php renderRichTextField('content_html_en', 'Tekst', (string) ($values['content_html_en'] ?? ''), 'full', 'admin-richtext-editor--lg'); ?>
+      <?php admin_lang_pane_end(); ?>
 
       <div class="admin-form-row admin-form-row--split">
         <label>Anker (URL-id)

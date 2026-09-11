@@ -278,11 +278,269 @@ final class MultilingualBoundaryTest extends TestCase
                 $source,
                 basename($file) . ' must render a language tab strip',
             );
+
+            // A PARTIAL has no </body> of its own and so cannot load a
+            // script; the screen that includes it does. What matters is that
+            // the script reaches the browser, not which file wrote the tag.
+            if (str_starts_with(basename($file), '_')) {
+                $screens = self::screensIncluding(basename($file));
+
+                self::assertNotSame(
+                    [],
+                    $screens,
+                    basename($file) . ' renders language panes but no screen includes it',
+                );
+
+                foreach ($screens as $screen) {
+                    self::assertStringContainsString(
+                        'admin_lang_tabs_script()',
+                        (string) file_get_contents($screen),
+                        basename($screen) . ' includes ' . basename($file) . ' and must load the tab script',
+                    );
+                }
+
+                continue;
+            }
+
             self::assertStringContainsString(
                 'admin_lang_tabs_script()',
                 $source,
                 basename($file) . ' must load the language tab script',
             );
         }
+    }
+
+    // ------------------------------------------- no editor is bilingual on screen
+
+    /**
+     * THE REGRESSION THIS FILE EXISTS FOR, after the browser found what the
+     * suite did not.
+     *
+     * Every earlier check here only inspected editors that ALREADY used the
+     * component, so the screens that had never been converted — the page
+     * editor among them — were simply never looked at, and shipped with a
+     * Dutch field printed beside an English one on a Dutch-only site. This
+     * test asks the opposite question: is there a localized field anywhere in
+     * admin/ that is NOT inside a language pane?
+     *
+     * A field is localized when its name carries a `_nl` or `_en` suffix, or
+     * when it is a rich-text field declared with one. Those are the only two
+     * ways this project spells a translatable control.
+     */
+    public function testNoLocalizedFieldIsRenderedOutsideALanguagePane(): void
+    {
+        $offenders = [];
+
+        foreach (self::glob('admin/*.php') as $file) {
+            if (in_array(basename($file), self::SCREENS_WITHOUT_A_SECOND_LANGUAGE, true)) {
+                continue;
+            }
+
+            $depth = 0;
+            foreach (explode("\n", str_replace("\r\n", "\n", (string) file_get_contents($file))) as $number => $line) {
+                $opens = substr_count($line, 'admin_lang_pane_start');
+                $closes = substr_count($line, 'admin_lang_pane_end');
+
+                if (preg_match_all(self::LOCALIZED_FIELD, $line, $matches, PREG_SET_ORDER) > 0 && $depth + $opens === 0) {
+                    foreach ($matches as $match) {
+                        $offenders[] = sprintf(
+                            '%s:%d %s',
+                            basename($file),
+                            $number + 1,
+                            $match[1] !== '' ? $match[1] : $match[2]
+                        );
+                    }
+                }
+
+                $depth += $opens - $closes;
+            }
+        }
+
+        self::assertSame(
+            [],
+            $offenders,
+            "these fields are printed next to their other language instead of in a pane:\n  "
+                . implode("\n  ", $offenders)
+        );
+    }
+
+    /**
+     * No label says "(NL)" or "(EN)" any more. Inside a pane the suffix is
+     * noise (the tab already says which language you are in) and on a
+     * single-language site it is a question about a language the site does
+     * not publish.
+     */
+    public function testNoEditorLabelsAFieldWithALanguageSuffix(): void
+    {
+        foreach (self::glob('admin/*.php') as $file) {
+            if (in_array(basename($file), self::SCREENS_WITHOUT_A_SECOND_LANGUAGE, true)) {
+                continue;
+            }
+
+            self::assertDoesNotMatchRegularExpression(
+                '/>[^<>]*\((?:NL|EN)\)/',
+                (string) file_get_contents($file),
+                basename($file) . ' must not label a field with its language',
+            );
+        }
+    }
+
+    /**
+     * The bug that `php -l` cannot see: a screen that calls admin_lang_tabs()
+     * without requiring the file that defines it is a fatal error at the
+     * first line of its <form>, which renders as half a page and no message.
+     * admin/rich-text.php shipped exactly that.
+     */
+    public function testEveryScreenCanReachTheHelpersItCalls(): void
+    {
+        $definedBy = [
+            'admin_lang_' => '_language_fields.php',
+            'admin_te(' => '_translate.php',
+        ];
+
+        foreach (self::glob('admin/*.php') as $file) {
+            $source = (string) file_get_contents($file);
+            $name = basename($file);
+
+            foreach ($definedBy as $call => $definition) {
+                if ($name === $definition || !str_contains($source, $call)) {
+                    continue;
+                }
+
+                // _language_fields.php requires _translate.php, and
+                // _header.php does too, so either include is enough.
+                $reachable = str_contains($source, $definition)
+                    || ($definition === '_translate.php'
+                        && (str_contains($source, '_language_fields.php') || str_contains($source, '_header.php')));
+
+                self::assertTrue(
+                    $reachable,
+                    $name . ' calls ' . $call . ' but never requires ' . $definition,
+                );
+            }
+        }
+    }
+
+    // ---------------------------------------------- the CMS interface switches
+
+    /**
+     * The sidebar is the first thing anybody sees, and in V1 it was the last
+     * thing that stayed Dutch: switching the CMS to English changed five
+     * words in the shell and left every menu item alone, which reads as
+     * "the setting does nothing".
+     */
+    public function testEverySidebarEntryHasATranslation(): void
+    {
+        $missing = [];
+
+        foreach (self::navigationKeys() as $key) {
+            foreach (['nl', 'en'] as $locale) {
+                if (!isset(self::catalog($locale)['nav.' . $key])) {
+                    $missing[] = $locale . ': nav.' . $key;
+                }
+            }
+        }
+
+        self::assertSame([], $missing, 'untranslated sidebar entries: ' . implode(', ', $missing));
+    }
+
+    /**
+     * A page that hardcodes lang="nl" tells a screen reader and a spell
+     * checker the wrong thing the moment somebody runs the CMS in English.
+     */
+    public function testNoAdminScreenHardcodesADutchDocumentLanguage(): void
+    {
+        foreach (self::glob('admin/*.php') as $file) {
+            self::assertStringNotContainsString(
+                '<html lang="nl">',
+                (string) file_get_contents($file),
+                basename($file) . ' must let AdminLocale decide the document language',
+            );
+        }
+    }
+
+    /**
+     * The catalogs are two halves of one thing: a key that exists in Dutch
+     * and not in English renders Dutch on an English screen.
+     */
+    public function testTheEnglishCatalogIsCompleteAgainstTheDutchOne(): void
+    {
+        $missing = array_diff(array_keys(self::catalog('nl')), array_keys(self::catalog('en')));
+
+        self::assertSame([], array_values($missing), 'missing English: ' . implode(', ', $missing));
+
+        $extra = array_diff(array_keys(self::catalog('en')), array_keys(self::catalog('nl')));
+
+        self::assertSame([], array_values($extra), 'English keys with no Dutch reference: ' . implode(', ', $extra));
+    }
+
+    // ---------------------------------------------------------------- helpers
+
+    /**
+     * A localized control: `name="x_nl"` / `name="x_en"`, or a rich-text
+     * field declared with such a name.
+     */
+    private const LOCALIZED_FIELD = '/name="([a-z0-9_]+_(?:nl|en))"'
+        . '|renderRichTextField\(\s*\x27([a-z0-9_]+_(?:nl|en))\x27'
+        . '|name="<\?=\s*[A-Za-z\\\\]+::([A-Z0-9_]+_(?:NL|EN))\s*\?>"/';
+
+    /**
+     * Screens that legitimately write a `_nl` column with no `_en` beside it,
+     * so there is no second language on screen to hide.
+     *
+     * setup.php runs BEFORE a site has languages at all — it is the screen
+     * that creates the settings ContentLanguages later reads — and form.php's
+     * "add a field" form asks for one label, which the field's own editor
+     * then translates.
+     */
+    private const SCREENS_WITHOUT_A_SECOND_LANGUAGE = ['setup.php', 'form.php'];
+
+    /** @return string[] every admin screen that require()s $partial */
+    private static function screensIncluding(string $partial): array
+    {
+        $screens = [];
+        foreach (self::glob('admin/*.php') as $file) {
+            if (basename($file) === $partial) {
+                continue;
+            }
+
+            if (str_contains((string) file_get_contents($file), $partial)) {
+                $screens[] = $file;
+            }
+        }
+
+        return $screens;
+    }
+
+    /** @return string[] the 'key' of every navigation entry Core and the modules declare */
+    private static function navigationKeys(): array
+    {
+        $keys = [];
+        $sources = array_merge(
+            [self::root() . '/src/Service/AdminNavigation.php'],
+            self::glob('src/Module/*Module.php')
+        );
+
+        foreach ($sources as $source) {
+            preg_match_all(
+                '/\x27key\x27\s*=>\s*\x27([a-z0-9_]+)\x27,\s*\n\s*\x27label\x27/',
+                (string) file_get_contents($source),
+                $matches
+            );
+            foreach ($matches[1] as $key) {
+                $keys[$key] = true;
+            }
+        }
+
+        return array_keys($keys);
+    }
+
+    /** @return array<string, string> */
+    private static function catalog(string $locale): array
+    {
+        /** @var array<string, string> $messages */
+        $messages = require self::root() . '/src/Service/Language/messages/' . $locale . '.php';
+
+        return $messages;
     }
 }

@@ -50,6 +50,10 @@ use App\Service\Language\ContentLanguages;
 use App\Service\Language\LanguageRegistry;
 use App\Service\Language\AdminLocale;
 
+// Every screen with language panes also prints translated labels around
+// them, so the two helpers travel together.
+require_once __DIR__ . '/_translate.php';
+
 /** @var array<string, bool> guards against printing the tab script twice */
 $GLOBALS['admin_lang_state'] ??= ['tabs_rendered' => false, 'script_rendered' => false, 'pane' => null];
 
@@ -238,6 +242,40 @@ function admin_lang_pane_end(): void
     $GLOBALS['admin_lang_state']['pane'] = null;
 
     echo '</div>';
+}
+
+/**
+ * What an OVERVIEW row calls one of its items, in the site's primary
+ * language.
+ *
+ * The list screens used to print both languages next to each other
+ * ("Contact / Contact"), which is the same complaint as the double fields one
+ * level down: on a single-language site it is one name written twice, and on
+ * a two-language site it is a name plus a translation nobody asked to see in
+ * a list. The row now says what the site says.
+ *
+ * Falls back the way everything else does (App\Service\Language\LocalizedValue):
+ * an empty primary value shows whatever IS filled in, because a nameless row
+ * in a list cannot be clicked with any confidence.
+ *
+ * @param array<string, mixed> $row  a repository row carrying `<base>_nl` etc.
+ * @param string $base               the column name without its language suffix
+ */
+function admin_lang_summary(array $row, string $base): string
+{
+    $primary = trim((string) ($row[$base . '_' . admin_lang_primary()] ?? ''));
+    if ($primary !== '') {
+        return $primary;
+    }
+
+    foreach (LanguageRegistry::codes() as $code) {
+        $value = trim((string) ($row[$base . '_' . $code] ?? ''));
+        if ($value !== '') {
+            return $value;
+        }
+    }
+
+    return '';
 }
 
 /**

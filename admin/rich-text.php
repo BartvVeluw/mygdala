@@ -5,6 +5,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/../vendor/autoload.php';
 require_once __DIR__ . '/_save_bar.php';
 require __DIR__ . '/_richtext_field.php';
+require_once __DIR__ . '/_language_fields.php';
 
 use App\Service\AdminAuth;
 use App\Service\Csrf;
@@ -63,7 +64,7 @@ $csrfToken = Csrf::token();
 $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
 ?>
 <!doctype html>
-<html lang="nl">
+<html lang="<?= htmlspecialchars(\App\Service\Language\AdminLocale::current(), ENT_QUOTES, 'UTF-8') ?>">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -99,9 +100,13 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
 
     <section class="admin-card">
       <h2>Inhoud</h2>
-      <?php renderRichTextField('content_html', 'Tekst (NL)', $contentHtml, 'full', 'admin-richtext-editor--lg'); ?>
-      <?php renderRichTextField('content_html_en', 'Tekst (EN)', $contentHtmlEn, 'full', 'admin-richtext-editor--lg'); ?>
-      <p class="admin-text-muted">Laat de Engelse tekst leeg om de Nederlandse tekst ook in het Engels te tonen — dezelfde regel als bij de andere secties.</p>
+      <?php admin_lang_tabs(); ?>
+      <?php admin_lang_pane_start('nl'); ?>
+        <?php renderRichTextField('content_html', 'Tekst', $contentHtml, 'full', 'admin-richtext-editor--lg'); ?>
+      <?php admin_lang_pane_end(); ?>
+      <?php admin_lang_pane_start('en'); ?>
+        <?php renderRichTextField('content_html_en', 'Tekst', $contentHtmlEn, 'full', 'admin-richtext-editor--lg'); ?>
+      <?php admin_lang_pane_end(); ?>
       <label class="admin-checkbox-label">
         <input type="checkbox" name="is_active" value="1" <?= $isActive ? 'checked' : '' ?>>
         Actief (zichtbaar op de pagina)
@@ -115,5 +120,6 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
 </main>
 <?php save_bar(); ?>
 <?php save_bar_script(); ?>
+<?php admin_lang_tabs_script(); ?>
 </body>
 </html>

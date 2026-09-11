@@ -159,7 +159,7 @@ $pageTitle = $isEdit ? 'Product bewerken' : 'Nieuw product';
 require __DIR__ . '/_richtext_field.php';
 ?>
 <!doctype html>
-<html lang="nl">
+<html lang="<?= htmlspecialchars(\App\Service\Language\AdminLocale::current(), ENT_QUOTES, 'UTF-8') ?>">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -210,9 +210,13 @@ require __DIR__ . '/_richtext_field.php';
         <?php admin_lang_pane_end(); ?>
       </div>
 
-      <div class="admin-form-row admin-form-row--split">
-        <?php renderRichTextField('description', 'Beschrijving (NL)', fieldValue($old, $product, 'description')); ?>
-        <?php renderRichTextField('description_en', 'Beschrijving (EN)', fieldValue($old, $product, 'description_en')); ?>
+      <div class="admin-form-row">
+        <?php admin_lang_pane_start('nl'); ?>
+          <?php renderRichTextField('description', 'Beschrijving', fieldValue($old, $product, 'description')); ?>
+        <?php admin_lang_pane_end(); ?>
+        <?php admin_lang_pane_start('en'); ?>
+          <?php renderRichTextField('description_en', 'Beschrijving', fieldValue($old, $product, 'description_en')); ?>
+        <?php admin_lang_pane_end(); ?>
       </div>
 
       <div class="admin-form-row admin-form-row--split">
@@ -320,33 +324,31 @@ require __DIR__ . '/_richtext_field.php';
         hoofdfoto van het product (of, bij varianten, de foto van de standaardvariant).
         Een Engels veld dat leeg blijft valt terug op het Nederlandse.
       </p>
-      <div class="admin-seo-grid">
-        <div class="admin-seo-lang">
-          <h4 class="admin-seo-lang__title">Nederlands</h4>
+      <div class="admin-product-form admin-product-form--wide">
+        <?php admin_lang_pane_start('nl'); ?>
           <div class="admin-form-row">
-            <label>SEO-titel (NL)
+            <label><?= admin_te('page.meta_title') ?>
               <input type="text" name="meta_title" maxlength="<?= Seo::MAX_META_TITLE_LENGTH ?>" data-char-count value="<?= htmlspecialchars(fieldValue($old, $product, 'meta_title'), ENT_QUOTES, 'UTF-8') ?>" placeholder="Leeg = automatische titel">
             </label>
           </div>
           <div class="admin-form-row">
-            <label>Meta description (NL)
+            <label><?= admin_te('page.meta_description') ?>
               <textarea name="meta_description" rows="3" maxlength="<?= Seo::MAX_META_DESCRIPTION_LENGTH ?>" data-char-count placeholder="Leeg = korte samenvatting van de beschrijving"><?= htmlspecialchars(fieldValue($old, $product, 'meta_description'), ENT_QUOTES, 'UTF-8') ?></textarea>
             </label>
           </div>
-        </div>
-        <div class="admin-seo-lang">
-          <h4 class="admin-seo-lang__title">English</h4>
+        <?php admin_lang_pane_end(); ?>
+        <?php admin_lang_pane_start('en'); ?>
           <div class="admin-form-row">
-            <label>SEO-titel (EN)
-              <input type="text" name="meta_title_en" maxlength="<?= Seo::MAX_META_TITLE_LENGTH ?>" data-char-count value="<?= htmlspecialchars(fieldValue($old, $product, 'meta_title_en'), ENT_QUOTES, 'UTF-8') ?>" placeholder="Leeg = Nederlandse titel">
+            <label><?= admin_te('page.meta_title') ?>
+              <input type="text" name="meta_title_en" maxlength="<?= Seo::MAX_META_TITLE_LENGTH ?>" data-char-count value="<?= htmlspecialchars(fieldValue($old, $product, 'meta_title_en'), ENT_QUOTES, 'UTF-8') ?>"<?= admin_lang_placeholder_attr('en') ?>>
             </label>
           </div>
           <div class="admin-form-row">
-            <label>Meta description (EN)
-              <textarea name="meta_description_en" rows="3" maxlength="<?= Seo::MAX_META_DESCRIPTION_LENGTH ?>" data-char-count placeholder="Leeg = Nederlandse tekst"><?= htmlspecialchars(fieldValue($old, $product, 'meta_description_en'), ENT_QUOTES, 'UTF-8') ?></textarea>
+            <label><?= admin_te('page.meta_description') ?>
+              <textarea name="meta_description_en" rows="3" maxlength="<?= Seo::MAX_META_DESCRIPTION_LENGTH ?>" data-char-count<?= admin_lang_placeholder_attr('en') ?>><?= htmlspecialchars(fieldValue($old, $product, 'meta_description_en'), ENT_QUOTES, 'UTF-8') ?></textarea>
             </label>
           </div>
-        </div>
+        <?php admin_lang_pane_end(); ?>
       </div>
 
       <div class="admin-form-row admin-seo-image">

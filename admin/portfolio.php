@@ -79,7 +79,7 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
 $cardImageSrc = static fn (array $row): string => '/' . ltrim((string) ($row['thumbnail_path'] ?: $row['image_path']), '/');
 ?>
 <!doctype html>
-<html lang="nl">
+<html lang="<?= htmlspecialchars(\App\Service\Language\AdminLocale::current(), ENT_QUOTES, 'UTF-8') ?>">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -216,8 +216,12 @@ $cardImageSrc = static fn (array $row): string => '/' . ltrim((string) ($row['th
 
     <form method="post" action="/api/admin/create-portfolio-category.php" class="admin-portfolio-category-row__form admin-portfolio-category-row__form--new">
       <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
-      <input type="text" name="name_nl" maxlength="100" required placeholder="Nieuwe categorie (NL)" aria-label="Naam (NL)">
-      <input type="text" name="name_en" maxlength="100" placeholder="Naam (EN, optioneel)" aria-label="Naam (EN)">
+      <?php admin_lang_pane_start('nl'); ?>
+        <input type="text" name="name_nl" maxlength="100"<?= admin_lang_required('nl') ?> placeholder="Nieuwe categorie" aria-label="Naam">
+      <?php admin_lang_pane_end(); ?>
+      <?php admin_lang_pane_start('en'); ?>
+        <input type="text" name="name_en" maxlength="100" placeholder="Nieuwe categorie" aria-label="Naam">
+      <?php admin_lang_pane_end(); ?>
       <button type="submit">+ Nieuwe categorie</button>
     </form>
   </details>

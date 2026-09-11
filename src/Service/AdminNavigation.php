@@ -3,6 +3,8 @@
 namespace App\Service;
 
 use App\Module\ModuleRegistry;
+use App\Service\Language\AdminTranslator;
+use App\Service\Language\LanguageRegistry;
 
 /**
  * The admin sidebar as data: one entry per CMS section, each with the
@@ -53,9 +55,40 @@ class AdminNavigation
 
         foreach ($items as $index => $item) {
             $items[$index]['group'] = intdiv((int) $item['order'], 100);
+            $items[$index]['label'] = self::label((string) $item['key'], (string) $item['label']);
         }
 
         return self::$items = $items;
+    }
+
+    /**
+     * The sidebar entry's label in the CMS interface language of whoever is
+     * signed in, falling back to the Dutch label written beside the entry.
+     *
+     * Translated HERE, once, rather than at each entry's definition, so a
+     * module's entries change language without the module knowing the CMS
+     * has more than one: App\Module\ShopModule and App\Module\BlogModule keep
+     * declaring a plain Dutch 'label' and get English the moment a
+     * `nav.<key>` key exists.
+     *
+     * An entry with no key in the catalog keeps its own label rather than
+     * rendering a raw dotted key — the same direction
+     * App\Service\Language\AdminTranslator takes everywhere: an untranslated
+     * menu item is a blemish, an empty one is a broken CMS.
+     */
+    private static function label(string $key, string $fallback): string
+    {
+        $catalogKey = 'nav.' . $key;
+
+        // Asked of the reference catalog rather than of the wanted locale:
+        // Dutch is complete by construction, so "does this entry have a
+        // translation at all" is a question about Dutch, and a key missing
+        // only from English already falls back to Dutch inside trans().
+        if (!AdminTranslator::has($catalogKey, LanguageRegistry::DEFAULT_LANGUAGE)) {
+            return $fallback;
+        }
+
+        return AdminTranslator::trans($catalogKey);
     }
 
     /** Forgets the merged list; App\Module\ModuleRegistry::reset() calls this. */

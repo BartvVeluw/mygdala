@@ -3,6 +3,8 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/../vendor/autoload.php';
+require_once __DIR__ . '/_language_fields.php';
+require_once __DIR__ . '/_translate.php';
 
 use App\Service\AdminAuth;
 use App\Service\Csrf;
@@ -48,7 +50,7 @@ $csrfToken = Csrf::token();
 $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
 ?>
 <!doctype html>
-<html lang="nl">
+<html lang="<?= htmlspecialchars(\App\Service\Language\AdminLocale::current(), ENT_QUOTES, 'UTF-8') ?>">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -136,37 +138,34 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
     <section class="admin-card">
       <h2>SEO (optioneel)</h2>
       <p class="admin-text-muted">Laat de SEO-titel leeg om automatisch "<em>Titel</em> &mdash; <?= $h(\App\Service\SiteSettings::get('site_name')) ?>" te gebruiken. Vul je 'm wel in, dan is dat exact wat er in het browsertabblad en in Google komt te staan.</p>
-      <?php /* Same two-language-column layout as the SEO block in
-               admin/page.php — see the note there. */ ?>
+      <?php /* Same language panes as the SEO block in admin/page.php —
+               see the note there. */ ?>
+      <?php admin_lang_tabs(); ?>
       <div class="admin-product-form admin-product-form--wide">
-        <div class="admin-seo-grid">
-          <div class="admin-seo-lang">
-            <h3 class="admin-seo-lang__title">Nederlands</h3>
-            <div class="admin-form-row">
-              <label>SEO-titel (NL)
-                <input type="text" name="meta_title" maxlength="<?= PageService::MAX_META_TITLE_LENGTH ?>" value="<?= $h($value('meta_title')) ?>">
-              </label>
-            </div>
-            <div class="admin-form-row">
-              <label>Meta description (NL)
-                <textarea name="meta_description" rows="3" maxlength="<?= PageService::MAX_META_DESCRIPTION_LENGTH ?>"><?= $h($value('meta_description')) ?></textarea>
-              </label>
-            </div>
+        <?php admin_lang_pane_start('nl'); ?>
+          <div class="admin-form-row">
+            <label><?= admin_te('page.meta_title') ?>
+              <input type="text" name="meta_title" maxlength="<?= PageService::MAX_META_TITLE_LENGTH ?>" value="<?= $h($value('meta_title')) ?>"<?= admin_lang_placeholder_attr('nl') ?>>
+            </label>
           </div>
-          <div class="admin-seo-lang">
-            <h3 class="admin-seo-lang__title">English</h3>
-            <div class="admin-form-row">
-              <label>SEO-titel (EN)
-                <input type="text" name="meta_title_en" maxlength="<?= PageService::MAX_META_TITLE_LENGTH ?>" value="<?= $h($value('meta_title_en')) ?>" placeholder="Leeg = Nederlandse titel">
-              </label>
-            </div>
-            <div class="admin-form-row">
-              <label>Meta description (EN)
-                <textarea name="meta_description_en" rows="3" maxlength="<?= PageService::MAX_META_DESCRIPTION_LENGTH ?>" placeholder="Leeg = Nederlandse tekst"><?= $h($value('meta_description_en')) ?></textarea>
-              </label>
-            </div>
+          <div class="admin-form-row">
+            <label><?= admin_te('page.meta_description') ?>
+              <textarea name="meta_description" rows="3" maxlength="<?= PageService::MAX_META_DESCRIPTION_LENGTH ?>"<?= admin_lang_placeholder_attr('nl') ?>><?= $h($value('meta_description')) ?></textarea>
+            </label>
           </div>
-        </div>
+        <?php admin_lang_pane_end(); ?>
+        <?php admin_lang_pane_start('en'); ?>
+          <div class="admin-form-row">
+            <label><?= admin_te('page.meta_title') ?>
+              <input type="text" name="meta_title_en" maxlength="<?= PageService::MAX_META_TITLE_LENGTH ?>" value="<?= $h($value('meta_title_en')) ?>"<?= admin_lang_placeholder_attr('en') ?>>
+            </label>
+          </div>
+          <div class="admin-form-row">
+            <label><?= admin_te('page.meta_description') ?>
+              <textarea name="meta_description_en" rows="3" maxlength="<?= PageService::MAX_META_DESCRIPTION_LENGTH ?>"<?= admin_lang_placeholder_attr('en') ?>><?= $h($value('meta_description_en')) ?></textarea>
+            </label>
+          </div>
+        <?php admin_lang_pane_end(); ?>
       </div>
     </section>
 
@@ -176,5 +175,6 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
     </section>
   </form>
 </main>
+<?php admin_lang_tabs_script(); ?>
 </body>
 </html>

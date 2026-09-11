@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/../vendor/autoload.php';
+require_once __DIR__ . '/_translate.php';
 
 use App\Service\AdminAuth;
 use App\Service\Csrf;
@@ -42,11 +43,11 @@ $csrfToken = Csrf::token();
 $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
 ?>
 <!doctype html>
-<html lang="nl">
+<html lang="<?= htmlspecialchars(\App\Service\Language\AdminLocale::current(), ENT_QUOTES, 'UTF-8') ?>">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Pagina's — Admin</title>
+<title><?= admin_te('pages.title') ?> — Admin</title>
 <link rel="stylesheet" href="<?= \App\Service\AssetVersion::url('/admin/assets/admin.css') ?>">
 </head>
 <body<?= \App\Service\AdminTheme::bodyAttribute() ?>>
@@ -54,17 +55,17 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
 <main class="admin-main">
   <header class="admin-page-head">
     <div>
-      <h1 class="admin-page-head__title">Pagina's</h1>
-      <p class="admin-page-head__desc">Alle pagina's van de website. Open een pagina om de titel, URL, status en SEO-gegevens aan te passen en de inhoud met de paginabouwer samen te stellen. Een nieuwe, gepubliceerde pagina is direct bereikbaar op <code>/&lt;slug&gt;</code> — daar is geen code-wijziging of migratie voor nodig.</p>
+      <h1 class="admin-page-head__title"><?= admin_te('pages.title') ?></h1>
+      <p class="admin-page-head__desc"><?= admin_te('pages.intro') ?></p>
     </div>
-    <a href="/admin/page-new.php" class="admin-btn-link">+ Nieuwe pagina</a>
+    <a href="/admin/page-new.php" class="admin-btn-link">+ <?= admin_te('pages.new') ?></a>
   </header>
 
   <?php if ($created): ?>
-    <p class="admin-alert admin-alert--success">Pagina aangemaakt.</p>
+    <p class="admin-alert admin-alert--success"><?= admin_te('pages.created') ?></p>
   <?php endif; ?>
   <?php if ($deleted): ?>
-    <p class="admin-alert admin-alert--success">Pagina verwijderd.</p>
+    <p class="admin-alert admin-alert--success"><?= admin_te('pages.deleted') ?></p>
   <?php endif; ?>
   <?php if ($errors !== []): ?>
     <div class="admin-alert admin-alert--error">
@@ -77,18 +78,18 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
   <?php endif; ?>
 
   <?php if ($pages === null): ?>
-    <p class="admin-alert admin-alert--error">Pagina's konden niet worden geladen.</p>
+    <p class="admin-alert admin-alert--error"><?= admin_te('pages.load_failed') ?></p>
   <?php elseif ($pages === []): ?>
-    <p>Nog geen pagina's. <a href="/admin/page-new.php">Maak de eerste pagina aan</a>.</p>
+    <p><?= admin_te('pages.empty') ?> <a href="/admin/page-new.php"><?= admin_te('pages.empty_link') ?></a>.</p>
   <?php else: ?>
     <div class="admin-table-wrap">
       <table class="admin-table">
         <thead>
           <tr>
-            <th>Titel</th>
-            <th>URL</th>
-            <th>Status</th>
-            <th>Type</th>
+            <th><?= admin_te('common.title') ?></th>
+            <th><?= admin_te('common.url') ?></th>
+            <th><?= admin_te('common.status') ?></th>
+            <th><?= admin_te('common.type') ?></th>
             <th></th>
             <th></th>
           </tr>
@@ -105,25 +106,25 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
             <tr>
               <td><a href="/admin/page.php?id=<?= $pageId ?>"><?= $h((string) $page['title']) ?></a></td>
               <td><code><?= $h($publicUrl) ?></code></td>
-              <td><span class="admin-badge admin-badge--<?= $isPublished ? 'paid' : 'canceled' ?>"><?= $h(PageContent::STATUS_LABELS[(string) $page['status']] ?? (string) $page['status']) ?></span></td>
+              <td><span class="admin-badge admin-badge--<?= $isPublished ? 'paid' : 'canceled' ?>"><?= admin_te('page.status_' . ((string) $page['status'])) ?></span></td>
               <td>
                 <?php if ($isProtected): ?>
-                  <span class="admin-badge admin-badge--info" title="De webshop heeft deze pagina nodig — titel, SEO en inhoud zijn bewerkbaar, status en verwijderen niet.">Beschermd</span>
+                  <span class="admin-badge admin-badge--info" title="<?= admin_te('pages.protected_hint') ?>"><?= admin_te('pages.protected') ?></span>
                 <?php elseif ($hasFixedUrl): ?>
-                  <span class="admin-badge admin-badge--muted" title="Gewone contentpagina op een vaste URL — alleen de slug ligt vast.">Contentpagina (vaste URL)</span>
+                  <span class="admin-badge admin-badge--muted" title="<?= admin_te('pages.fixed_url_hint') ?>"><?= admin_te('pages.fixed_url') ?></span>
                 <?php else: ?>
-                  <span class="admin-badge admin-badge--muted">Contentpagina</span>
+                  <span class="admin-badge admin-badge--muted"><?= admin_te('pages.content_page') ?></span>
                 <?php endif; ?>
               </td>
-              <td><a href="/admin/page.php?id=<?= $pageId ?>" class="admin-section-row__edit">Bewerken &#8594;</a></td>
+              <td><a href="/admin/page.php?id=<?= $pageId ?>" class="admin-section-row__edit"><?= admin_te('common.edit') ?> &#8594;</a></td>
               <td>
                 <?php if ($isProtected): ?>
                   <span class="admin-text-muted">&mdash;</span>
                 <?php else: ?>
-                  <form method="post" action="/api/admin/delete-page.php" class="admin-inline-form" onsubmit="return confirm('Deze pagina en alle secties erop definitief verwijderen? Dit kan niet ongedaan worden gemaakt.');">
+                  <form method="post" action="/api/admin/delete-page.php" class="admin-inline-form" onsubmit="return confirm(<?= $h(json_encode(admin_t('pages.delete_confirm'), JSON_UNESCAPED_UNICODE)) ?>);">
                     <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
                     <input type="hidden" name="id" value="<?= $pageId ?>">
-                    <button type="submit" class="admin-btn-text admin-btn-text--danger">Verwijderen</button>
+                    <button type="submit" class="admin-btn-text admin-btn-text--danger"><?= admin_te('common.delete') ?></button>
                   </form>
                 <?php endif; ?>
               </td>

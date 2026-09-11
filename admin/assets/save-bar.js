@@ -125,6 +125,14 @@
     if (index !== -1) dirty.splice(index, 1);
   }
 
+  /* The bar's words, put on the element by admin/_save_bar.php in the CMS
+     interface language of whoever is signed in. The Dutch fallback is what
+     this file used to say outright, so a bar rendered by an older template
+     still reads correctly. */
+  function label(name, fallback) {
+    return bar.getAttribute("data-label-" + name) || fallback;
+  }
+
   function render(state, message) {
     bar.setAttribute("data-save-bar-state", state);
     saveButton.disabled = state === "saved" || state === "saving";
@@ -135,13 +143,13 @@
     }
 
     if (state === "saving") {
-      statusText.textContent = "Opslaan…";
+      statusText.textContent = label("saving", "Opslaan\u2026");
     } else if (state === "dirty") {
-      statusText.textContent = "Niet-opgeslagen wijzigingen";
+      statusText.textContent = label("dirty", "Niet-opgeslagen wijzigingen");
     } else if (state === "error") {
-      statusText.textContent = "Opslaan mislukt";
+      statusText.textContent = label("error", "Opslaan mislukt");
     } else {
-      statusText.textContent = "Alles opgeslagen";
+      statusText.textContent = label("saved", "Alles opgeslagen");
     }
   }
 
@@ -187,7 +195,7 @@
         // error message.
         render(
           "error",
-          "Opslaan mislukt bij “" + formName(form) + "”. Niet alles is opgeslagen — probeer het opnieuw."
+          label("error-in", "Opslaan mislukt bij :form.").replace(":form", formName(form))
         );
       });
   }
@@ -273,7 +281,7 @@
   try {
     if (sessionStorage.getItem(RELOAD_FLAG)) {
       sessionStorage.removeItem(RELOAD_FLAG);
-      render("saved", "Opgeslagen.");
+      render("saved", label("just-saved", "Opgeslagen"));
       window.setTimeout(function () {
         if (dirty.length === 0) render("saved");
       }, 2500);

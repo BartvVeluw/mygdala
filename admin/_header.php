@@ -38,6 +38,8 @@ use App\Service\AdminAuth;
 use App\Service\AdminNavigation;
 use App\Service\Csrf;
 
+require_once __DIR__ . '/_translate.php';
+
 $csrfToken = Csrf::token();
 
 $adminScriptName = basename((string) ($_SERVER['SCRIPT_NAME'] ?? ''));
@@ -89,11 +91,11 @@ function adminNavIcon(string $key): string
 }
 ?>
 <input type="checkbox" id="admin-sidebar-toggle" class="admin-sidebar-toggle-checkbox" hidden>
-<label for="admin-sidebar-toggle" class="admin-sidebar-toggle"><span aria-hidden="true">&#9776;</span> <?= htmlspecialchars(\App\Service\Language\AdminTranslator::trans('shell.menu'), ENT_QUOTES, 'UTF-8') ?></label>
+<label for="admin-sidebar-toggle" class="admin-sidebar-toggle"><span aria-hidden="true">&#9776;</span> <?= admin_te('shell.menu') ?></label>
 <aside class="admin-sidebar" id="admin-sidebar">
   <a href="/admin/index.php" class="admin-sidebar__brand"><?= htmlspecialchars(\App\Service\SiteSettings::get('site_name'), ENT_QUOTES, 'UTF-8') ?></a>
 
-  <nav class="admin-sidebar__nav" aria-label="<?= htmlspecialchars(\App\Service\Language\AdminTranslator::trans('shell.nav_label'), ENT_QUOTES, 'UTF-8') ?>">
+  <nav class="admin-sidebar__nav" aria-label="<?= admin_te('shell.nav_label') ?>">
     <?php $previousNavGroup = null; ?>
     <?php foreach ($adminVisibleNavItems as $navItem): ?>
       <?php if ($previousNavGroup !== null && $navItem['group'] !== $previousNavGroup): ?>
@@ -106,12 +108,12 @@ function adminNavIcon(string $key): string
 
   <div class="admin-sidebar__account">
     <p class="admin-sidebar__account-name"><?= htmlspecialchars($adminCurrentUserName, ENT_QUOTES, 'UTF-8') ?></p>
-    <p class="admin-sidebar__account-role"><?= htmlspecialchars(\App\Service\Language\AdminTranslator::trans($adminCurrentUserIsSuperAdmin ? 'shell.role.super_admin' : 'shell.role.user'), ENT_QUOTES, 'UTF-8') ?></p>
-    <a href="/admin/account.php" class="admin-sidebar__account-link"><?= htmlspecialchars(\App\Service\Language\AdminTranslator::trans('shell.my_account'), ENT_QUOTES, 'UTF-8') ?></a>
+    <p class="admin-sidebar__account-role"><?= admin_te($adminCurrentUserIsSuperAdmin ? 'shell.role.super_admin' : 'shell.role.user') ?></p>
+    <a href="/admin/account.php" class="admin-sidebar__account-link"><?= admin_te('shell.my_account') ?></a>
   </div>
 
   <form method="post" action="/admin/logout.php" class="admin-sidebar__logout">
     <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
-    <button type="submit"><?= htmlspecialchars(\App\Service\Language\AdminTranslator::trans('shell.logout'), ENT_QUOTES, 'UTF-8') ?></button>
+    <button type="submit"><?= admin_te('shell.logout') ?></button>
   </form>
 </aside>

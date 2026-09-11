@@ -91,7 +91,7 @@ function ctaBandValue(array $values, string $key): string
 }
 ?>
 <!doctype html>
-<html lang="nl">
+<html lang="<?= htmlspecialchars(\App\Service\Language\AdminLocale::current(), ENT_QUOTES, 'UTF-8') ?>">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -202,7 +202,7 @@ function ctaBandValue(array $values, string $key): string
           <input type="text" name="secondary_url" maxlength="255" value="<?= ctaBandValue($values, 'secondary_url') ?>">
         </label>
       </div>
-      <p class="admin-text-muted">Laat label (NL) en/of URL leeg om geen secundaire knop te tonen.</p>
+      <p class="admin-text-muted">Laat het label en/of de URL leeg om geen secundaire knop te tonen.</p>
 
       <label class="admin-checkbox-label">
         <input type="checkbox" name="is_active" value="1" <?= ($values['is_active'] ?? true) ? 'checked' : '' ?>>

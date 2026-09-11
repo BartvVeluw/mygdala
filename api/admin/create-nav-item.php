@@ -14,6 +14,7 @@ require_once __DIR__ . '/../../vendor/autoload.php';
 
 use App\Service\AdminAuth;
 use App\Service\Csrf;
+use App\Service\Language\LocalizedValue;
 use App\Service\LinkResolver;
 use App\Repository\NavigationRepository;
 use App\Repository\PageRepository;
@@ -50,15 +51,17 @@ $parentId = $parentIdRaw === '' ? null : (int) $parentIdRaw;
 
 $errors = [];
 
-if ($labelNl === '') {
-    $errors[] = 'Label (NL) is verplicht.';
-} elseif (mb_strlen($labelNl) > 100) {
-    $errors[] = 'Label (NL) mag maximaal 100 tekens zijn.';
+// Only the SITE'S OWN language is required. The other one is a translation,
+// and a translation is optional by definition: App\Service\Language\LocalizedValue
+// falls back to the primary language wherever one is missing. Requiring both
+// was harmless while every editor printed both fields; now that a
+// single-language site shows one, it would make this form impossible to
+// submit at all (MULTILINGUAL.md).
+if (LocalizedValue::ofDutchEnglish($labelNl, $labelEn)->primaryValue() === '') {
+    $errors[] = 'Label is verplicht.';
 }
-if ($labelEn === '') {
-    $errors[] = 'Label (EN) is verplicht.';
-} elseif (mb_strlen($labelEn) > 100) {
-    $errors[] = 'Label (EN) mag maximaal 100 tekens zijn.';
+if (mb_strlen($labelNl) > 100 || mb_strlen($labelEn) > 100) {
+    $errors[] = 'Label mag maximaal 100 tekens zijn.';
 }
 
 if ($parentId !== null) {

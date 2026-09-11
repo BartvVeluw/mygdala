@@ -120,24 +120,23 @@ final class ShopSeoAdminTest extends TestCase
 
             $this->assertStringContainsString('optioneel', mb_strtolower($seo), $editor . ' must say the fields are optional');
             $this->assertStringContainsString('automatisch', $seo, $editor . ' must say what happens when a field is left empty');
-            $this->assertStringContainsString('placeholder="Leeg = Nederlandse titel"', $seo);
-            $this->assertStringContainsString('placeholder="Leeg = Nederlandse tekst"', $seo);
+            $this->assertStringContainsString("admin_lang_placeholder_attr('en')", $seo);
         }
     }
 
-    public function testBothEditorsUseTheSharedTwoColumnSeoLayout(): void
+    public function testBothEditorsUseTheSharedLanguagePanes(): void
     {
         foreach (self::EDITORS as $editor) {
             $source = $this->fileSource($editor);
 
-            $this->assertStringContainsString('admin-seo-grid', $source, $editor . ' must use the shared two-column SEO grid');
-            $this->assertSame(
-                2,
-                substr_count($source, 'class="admin-seo-lang"'),
-                $editor . ' must have exactly one column per language'
+            $this->assertStringNotContainsString(
+                'admin-seo-grid',
+                $source,
+                $editor . ' must not put two languages side by side'
             );
-            $this->assertStringContainsString('>Nederlands<', $source);
-            $this->assertStringContainsString('>English<', $source);
+            $this->assertStringContainsString("admin_lang_pane_start('nl')", $source);
+            $this->assertStringContainsString("admin_lang_pane_start('en')", $source);
+            $this->assertStringContainsString('admin_lang_tabs()', $source);
         }
     }
 

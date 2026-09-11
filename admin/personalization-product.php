@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/../vendor/autoload.php';
+require_once __DIR__ . '/_language_fields.php';
 
 use App\Repository\ProductPersonalizationRepository;
 use App\Repository\ProductRepository;
@@ -78,7 +79,7 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
 require __DIR__ . '/_personalization_builder.php';
 ?>
 <!doctype html>
-<html lang="nl">
+<html lang="<?= htmlspecialchars(\App\Service\Language\AdminLocale::current(), ENT_QUOTES, 'UTF-8') ?>">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -106,5 +107,6 @@ require __DIR__ . '/_personalization_builder.php';
 
   <?php renderPersonalizationBuilder($product, $personalization, $csrfToken, $personalizationFlash); ?>
 </main>
+<?php admin_lang_tabs_script(); ?>
 </body>
 </html>

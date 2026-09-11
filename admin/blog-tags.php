@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/../vendor/autoload.php';
+require_once __DIR__ . '/_language_fields.php';
 
 use App\Repository\BlogPostRepository;
 use App\Repository\BlogTagRepository;
@@ -52,7 +53,7 @@ $errors = $_SESSION['admin_blog_taxonomy_errors'] ?? [];
 unset($_SESSION['admin_blog_taxonomy_flash'], $_SESSION['admin_blog_taxonomy_errors']);
 ?>
 <!doctype html>
-<html lang="nl">
+<html lang="<?= htmlspecialchars(\App\Service\Language\AdminLocale::current(), ENT_QUOTES, 'UTF-8') ?>">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -88,12 +89,18 @@ unset($_SESSION['admin_blog_taxonomy_flash'], $_SESSION['admin_blog_taxonomy_err
   <?php if (!$loadFailed && $tags === []): ?>
     <p>Er zijn nog geen tags. Ze verschijnen hier zodra je ze op een bericht gebruikt.</p>
   <?php else: ?>
+    <?php /* One tab strip for the whole table rather than one per row: the
+             rows all carry the same two fields, and thirty strips switching
+             thirty names one at a time is not a language switcher. The strip
+             sits outside every <form>, so admin-language-tabs.js falls back
+             to the whole document and switches every row at once — which is
+             exactly what an editor wants here. */ ?>
+    <?php admin_lang_tabs(); ?>
     <div class="admin-table-wrap">
     <table class="admin-table">
       <thead>
         <tr>
-          <th>Naam (NL)</th>
-          <th>Naam (EN)</th>
+          <th>Naam</th>
           <th>Slug</th>
           <th>Berichten</th>
           <th></th>
@@ -110,9 +117,17 @@ unset($_SESSION['admin_blog_taxonomy_flash'], $_SESSION['admin_blog_taxonomy_err
             <td>
               <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>" form="tag-form-<?= $tagId ?>">
               <input type="hidden" name="id" value="<?= $tagId ?>" form="tag-form-<?= $tagId ?>">
-              <input type="text" name="name" maxlength="100" required value="<?= $h((string) $tag['name']) ?>" form="tag-form-<?= $tagId ?>">
+              <?php /* Both names in ONE cell, one pane visible at a time. The
+                       hidden pane still submits — its control names the row's
+                       form, so where it sits in the DOM changes nothing about
+                       what gets saved. */ ?>
+              <?php admin_lang_pane_start('nl'); ?>
+                <input type="text" name="name" maxlength="100"<?= admin_lang_required('nl') ?> value="<?= $h((string) $tag['name']) ?>" form="tag-form-<?= $tagId ?>"<?= admin_lang_placeholder_attr('nl') ?>>
+              <?php admin_lang_pane_end(); ?>
+              <?php admin_lang_pane_start('en'); ?>
+                <input type="text" name="name_en" maxlength="100" value="<?= $h((string) ($tag['name_en'] ?? '')) ?>" form="tag-form-<?= $tagId ?>"<?= admin_lang_placeholder_attr('en') ?>>
+              <?php admin_lang_pane_end(); ?>
             </td>
-            <td><input type="text" name="name_en" maxlength="100" value="<?= $h((string) ($tag['name_en'] ?? '')) ?>" placeholder="Leeg = NL" form="tag-form-<?= $tagId ?>"></td>
             <td><input type="text" name="slug" maxlength="<?= BlogSlug::MAX_LENGTH ?>" required value="<?= $h((string) $tag['slug']) ?>" form="tag-form-<?= $tagId ?>"></td>
             <td>
               <?php if ($postCount > 0): ?>
@@ -145,5 +160,6 @@ unset($_SESSION['admin_blog_taxonomy_flash'], $_SESSION['admin_blog_taxonomy_err
     <?php endforeach; ?>
   <?php endif; ?>
 </main>
+<?php admin_lang_tabs_script(); ?>
 </body>
 </html>

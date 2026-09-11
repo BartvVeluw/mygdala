@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/../vendor/autoload.php';
+require_once __DIR__ . '/_language_fields.php';
 
 use App\Service\AdminAuth;
 use App\Service\Csrf;
@@ -40,7 +41,7 @@ function navLinkSummary(array $item): string
 }
 ?>
 <!doctype html>
-<html lang="nl">
+<html lang="<?= htmlspecialchars(\App\Service\Language\AdminLocale::current(), ENT_QUOTES, 'UTF-8') ?>">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -79,7 +80,7 @@ function navLinkSummary(array $item): string
         <div class="admin-section-row admin-nav-item-row<?= $isHidden ? ' is-hidden-section' : '' ?>" data-nav-item-id="<?= $itemId ?>">
           <span class="admin-drag-handle" draggable="true" role="button" tabindex="0" aria-label="Sleep om te herordenen">&#8801;</span>
           <div class="admin-section-row__body">
-            <p class="admin-section-row__name"><?= $h($item['label_nl']) ?> <span class="admin-text-muted">/ <?= $h($item['label_en']) ?></span></p>
+            <p class="admin-section-row__name"><?= $h(admin_lang_summary($item, 'label')) ?></p>
             <p class="admin-section-row__note"><?= $h(navLinkSummary($item)) ?><?= $isHidden ? ' — verborgen' : '' ?></p>
           </div>
           <div class="admin-section-row__actions">
@@ -106,7 +107,7 @@ function navLinkSummary(array $item): string
             <div class="admin-section-row admin-nav-item-row admin-nav-item-row--child<?= $childHidden ? ' is-hidden-section' : '' ?>" data-nav-item-id="<?= $childId ?>">
               <span class="admin-drag-handle" draggable="true" role="button" tabindex="0" aria-label="Sleep om te herordenen">&#8801;</span>
               <div class="admin-section-row__body">
-                <p class="admin-section-row__name"><?= $h($child['label_nl']) ?> <span class="admin-text-muted">/ <?= $h($child['label_en']) ?></span></p>
+                <p class="admin-section-row__name"><?= $h(admin_lang_summary($child, 'label')) ?></p>
                 <p class="admin-section-row__note"><?= $h(navLinkSummary($child)) ?><?= $childHidden ? ' — verborgen' : '' ?></p>
               </div>
               <div class="admin-section-row__actions">

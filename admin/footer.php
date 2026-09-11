@@ -37,7 +37,7 @@ function footerLinkSummary(array $link): string
 }
 ?>
 <!doctype html>
-<html lang="nl">
+<html lang="<?= htmlspecialchars(\App\Service\Language\AdminLocale::current(), ENT_QUOTES, 'UTF-8') ?>">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -127,7 +127,7 @@ function footerLinkSummary(array $link): string
         <div class="admin-section-row admin-footer-column-row<?= $columnHidden ? ' is-hidden-section' : '' ?>" data-footer-column-id="<?= $columnId ?>">
           <span class="admin-drag-handle" draggable="true" role="button" tabindex="0" aria-label="Sleep om te herordenen">&#8801;</span>
           <div class="admin-section-row__body">
-            <p class="admin-section-row__name"><?= $h($column['title_nl']) ?> <span class="admin-text-muted">/ <?= $h($column['title_en']) ?></span></p>
+            <p class="admin-section-row__name"><?= $h(admin_lang_summary($column, 'title')) ?></p>
             <?php if ($columnHidden): ?><p class="admin-section-row__note">Verborgen</p><?php endif; ?>
           </div>
           <div class="admin-section-row__actions">
@@ -156,7 +156,7 @@ function footerLinkSummary(array $link): string
             <div class="admin-section-row admin-footer-link-row<?= $linkHidden ? ' is-hidden-section' : '' ?>" data-footer-link-id="<?= $linkId ?>">
               <span class="admin-drag-handle" draggable="true" role="button" tabindex="0" aria-label="Sleep om te herordenen">&#8801;</span>
               <div class="admin-section-row__body">
-                <p class="admin-section-row__name"><?= $h($link['label_nl']) ?> <span class="admin-text-muted">/ <?= $h($link['label_en']) ?></span></p>
+                <p class="admin-section-row__name"><?= $h(admin_lang_summary($link, 'label')) ?></p>
                 <p class="admin-section-row__note"><?= $h(footerLinkSummary($link)) ?><?= $linkHidden ? ' — verborgen' : '' ?></p>
               </div>
               <div class="admin-section-row__actions">
@@ -181,14 +181,18 @@ function footerLinkSummary(array $link): string
 
     <form method="post" action="/api/admin/create-footer-column.php" class="admin-inline-form admin-add-section-form">
       <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
-      <label class="admin-add-section-form__label">
-        <span>Titel (NL)</span>
-        <input type="text" name="title_nl" maxlength="100" required>
-      </label>
-      <label class="admin-add-section-form__label">
-        <span>Titel (EN)</span>
-        <input type="text" name="title_en" maxlength="100" required>
-      </label>
+      <?php admin_lang_pane_start('nl'); ?>
+        <label class="admin-add-section-form__label">
+          <span>Titel</span>
+          <input type="text" name="title_nl" maxlength="100"<?= admin_lang_required('nl') ?>>
+        </label>
+      <?php admin_lang_pane_end(); ?>
+      <?php admin_lang_pane_start('en'); ?>
+        <label class="admin-add-section-form__label">
+          <span>Titel</span>
+          <input type="text" name="title_en" maxlength="100"<?= admin_lang_required('en') ?>>
+        </label>
+      <?php admin_lang_pane_end(); ?>
       <button type="submit" class="admin-btn-secondary">+ Kolom toevoegen</button>
     </form>
   </section>

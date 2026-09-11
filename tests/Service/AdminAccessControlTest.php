@@ -55,6 +55,7 @@ final class AdminAccessControlTest extends TestCase
         '_header.php',
         '_forbidden.php',
         '_labels.php',
+        '_translate.php',
         '_richtext_field.php',
         // The language tabs on a content editor: a tab strip plus a wrapper
         // around fields the calling editor already renders behind its own

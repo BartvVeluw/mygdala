@@ -3,7 +3,8 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/../vendor/autoload.php';
-require_once __DIR__ . '/_labels.php';
+require_once __DIR__ . '/_labels.php';
+require_once __DIR__ . '/_translate.php';
 
 use App\Module\ModuleRegistry;
 use App\Repository\PageRepository;
@@ -77,28 +78,28 @@ $dashboardCards = array_merge(
     [
         [
             'icon' => 'pages',
-            'title' => 'Website content',
-            'desc' => 'Pas teksten, secties en pagina-inhoud aan.',
+            'title' => admin_t('dashboard.card_content_title'),
+            'desc' => admin_t('dashboard.card_content_desc'),
             'href' => '/admin/pages.php',
-            'cta' => "Pagina's beheren",
+            'cta' => admin_t('dashboard.card_content_cta'),
             'permission' => 'pages.manage',
             'order' => 100,
         ],
         [
             'icon' => 'settings',
-            'title' => 'Site-instellingen',
-            'desc' => 'Beheer algemene website-instellingen.',
+            'title' => admin_t('dashboard.card_settings_title'),
+            'desc' => admin_t('dashboard.card_settings_desc'),
             'href' => '/admin/settings.php',
-            'cta' => 'Instellingen openen',
+            'cta' => admin_t('dashboard.card_settings_cta'),
             'permission' => 'settings.manage',
             'order' => 800,
         ],
         [
             'icon' => 'users',
-            'title' => 'Gebruikers',
-            'desc' => 'Beheer CMS-accounts en hun rechten.',
+            'title' => admin_t('dashboard.card_users_title'),
+            'desc' => admin_t('dashboard.card_users_desc'),
             'href' => '/admin/users.php',
-            'cta' => 'Gebruikers beheren',
+            'cta' => admin_t('dashboard.card_users_cta'),
             'permission' => 'users.manage',
             'order' => 900,
         ],
@@ -133,38 +134,38 @@ function dashboardIcon(string $key): string
 $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
 ?>
 <!doctype html>
-<html lang="nl">
+<html lang="<?= htmlspecialchars(\App\Service\Language\AdminLocale::current(), ENT_QUOTES, 'UTF-8') ?>">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Dashboard — Admin</title>
+<title><?= admin_te('dashboard.title') ?> — Admin</title>
 <link rel="stylesheet" href="<?= \App\Service\AssetVersion::url('/admin/assets/admin.css') ?>">
 </head>
 <body<?= \App\Service\AdminTheme::bodyAttribute() ?>>
 <?php require __DIR__ . '/_header.php'; ?>
 <main class="admin-main">
-  <h1>Dashboard</h1>
-  <p class="admin-dashboard-intro">Welkom terug. Hieronder zie je hoe de site ervoor staat en waar nog iets ligt.</p>
+  <h1><?= admin_te('dashboard.title') ?></h1>
+  <p class="admin-dashboard-intro"><?= admin_te('dashboard.intro') ?></p>
 
   <?php if ($coreLoadFailed): ?>
-    <p class="admin-alert admin-alert--error">De paginagegevens konden niet worden geladen. De onderdelen hieronder werken gewoon.</p>
+    <p class="admin-alert admin-alert--error"><?= admin_te('dashboard.pages_failed') ?></p>
   <?php endif; ?>
 
   <?php if ($dashboardCards === [] && $dashboardPanels === [] && !$canManagePages): ?>
-    <p class="admin-text-muted">Je hebt op dit moment geen rechten voor een van de CMS-onderdelen. Vraag de beheerder om toegang.</p>
+    <p class="admin-text-muted"><?= admin_te('dashboard.no_permissions') ?></p>
   <?php endif; ?>
 
   <?php if ($canManagePages && !$coreLoadFailed): ?>
-    <section class="admin-kpi-grid" aria-label="Website-inhoud">
+    <section class="admin-kpi-grid" aria-label="<?= admin_te('dashboard.content_label') ?>">
       <div class="admin-kpi">
-        <p class="admin-kpi__label">Gepubliceerde pagina's</p>
+        <p class="admin-kpi__label"><?= admin_te('dashboard.published_pages') ?></p>
         <p class="admin-kpi__value"><?= (int) $pageCounts['published'] ?></p>
-        <p class="admin-kpi__note">Zichtbaar voor bezoekers.</p>
+        <p class="admin-kpi__note"><?= admin_te('dashboard.published_pages_note') ?></p>
       </div>
       <div class="admin-kpi">
-        <p class="admin-kpi__label">Concepten</p>
+        <p class="admin-kpi__label"><?= admin_te('dashboard.drafts') ?></p>
         <p class="admin-kpi__value"><?= (int) $pageCounts['draft'] ?></p>
-        <p class="admin-kpi__note">Nog niet gepubliceerd — alleen zichtbaar in het CMS.</p>
+        <p class="admin-kpi__note"><?= admin_te('dashboard.drafts_note') ?></p>
       </div>
     </section>
   <?php endif; ?>
@@ -175,7 +176,7 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
   <?php endforeach; ?>
 
   <?php if ($dashboardCards !== []): ?>
-    <h2 class="admin-dashboard-heading">Waar wil je aan werken?</h2>
+    <h2 class="admin-dashboard-heading"><?= admin_te('dashboard.where_to_work') ?></h2>
     <div class="admin-dashboard-grid">
       <?php foreach ($dashboardCards as $card): ?>
         <a href="<?= $h($card['href']) ?>" class="admin-dashboard-card">

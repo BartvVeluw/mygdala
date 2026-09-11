@@ -2,6 +2,10 @@
 
 declare(strict_types=1);
 
+// The language panes below come from this component; required here as well
+// as by the screen that includes this file, so neither can forget.
+require_once __DIR__ . '/_language_fields.php';
+
 use App\Service\Personalization\Money;
 use App\Service\Personalization\PersonalizationPreviewImageUploader;
 use App\Service\Personalization\PersonalizationRules;
@@ -191,13 +195,18 @@ function renderPersonalizationBuilder(array $product, array $personalization, st
       </p>
     <?php endif; ?>
 
+    <?php admin_lang_tabs(); ?>
     <div class="admin-pz-grid">
-      <label>Algemene uitleg (NL)
-        <textarea name="instructions" rows="2" maxlength="500" placeholder="Bijv. Personaliseer dit product met een naam of logo."><?= $esc($instructions) ?></textarea>
-      </label>
-      <label>Algemene uitleg (EN)
-        <textarea name="instructions_en" rows="2" maxlength="500" placeholder="Leeg = Nederlandse tekst"><?= $esc($instructionsEn) ?></textarea>
-      </label>
+      <?php admin_lang_pane_start('nl'); ?>
+        <label>Algemene uitleg
+          <textarea name="instructions" rows="2" maxlength="500" placeholder="Bijv. Personaliseer dit product met een naam of logo."><?= $esc($instructions) ?></textarea>
+        </label>
+      <?php admin_lang_pane_end(); ?>
+      <?php admin_lang_pane_start('en'); ?>
+        <label>Algemene uitleg
+          <textarea name="instructions_en" rows="2" maxlength="500"<?= admin_lang_placeholder_attr('en') ?>><?= $esc($instructionsEn) ?></textarea>
+        </label>
+      <?php admin_lang_pane_end(); ?>
     </div>
 
     <button type="submit">Instellingen opslaan</button>
@@ -292,13 +301,18 @@ function renderPersonalizationBuilder(array $product, array $personalization, st
           <input type="hidden" name="csrf_token" value="<?= $esc($csrfToken) ?>">
           <input type="hidden" name="view_id" value="<?= $viewId ?>">
 
+          <?php admin_lang_tabs(); ?>
           <div class="admin-pz-grid">
-            <label>Naam voor de klant (NL)
-              <input type="text" name="label" maxlength="100" value="<?= $esc($viewLabel) ?>" placeholder="Bijv. Voorkant">
-            </label>
-            <label>Naam voor de klant (EN)
-              <input type="text" name="label_en" maxlength="100" value="<?= $esc($viewLabelEn) ?>" placeholder="Leeg = Nederlandse naam">
-            </label>
+            <?php admin_lang_pane_start('nl'); ?>
+              <label>Naam voor de klant
+                <input type="text" name="label" maxlength="100" value="<?= $esc($viewLabel) ?>" placeholder="Bijv. Voorkant">
+              </label>
+            <?php admin_lang_pane_end(); ?>
+            <?php admin_lang_pane_start('en'); ?>
+              <label>Naam voor de klant
+                <input type="text" name="label_en" maxlength="100" value="<?= $esc($viewLabelEn) ?>"<?= admin_lang_placeholder_attr('en') ?>>
+              </label>
+            <?php admin_lang_pane_end(); ?>
           </div>
 
           <div class="admin-pz-image">
@@ -396,20 +410,27 @@ function renderPersonalizationBuilder(array $product, array $personalization, st
     <form method="post" action="/api/admin/create-personalization-view.php" class="admin-pz-grid admin-pz-grid--create">
       <input type="hidden" name="csrf_token" value="<?= $esc($csrfToken) ?>">
       <input type="hidden" name="product_id" value="<?= $productId ?>">
+      <?php /* Its own strip: admin-language-tabs.js switches the panes of ONE
+               form, and this create form is a form of its own. */ ?>
+      <?php admin_lang_tabs(); ?>
       <label>Sleutel*
         <input type="text" name="view_key" maxlength="32" required
                value="<?= $esc($viewCreateOld !== null ? (string) ($viewCreateOld['view_key'] ?? '') : '') ?>"
                placeholder="achterkant">
       </label>
-      <label>Naam (NL)
-        <input type="text" name="label" maxlength="100"
-               value="<?= $esc($viewCreateOld !== null ? (string) ($viewCreateOld['label'] ?? '') : '') ?>"
-               placeholder="Achterkant">
-      </label>
-      <label>Naam (EN)
-        <input type="text" name="label_en" maxlength="100"
-               value="<?= $esc($viewCreateOld !== null ? (string) ($viewCreateOld['label_en'] ?? '') : '') ?>">
-      </label>
+      <?php admin_lang_pane_start('nl'); ?>
+        <label>Naam
+          <input type="text" name="label" maxlength="100"
+                 value="<?= $esc($viewCreateOld !== null ? (string) ($viewCreateOld['label'] ?? '') : '') ?>"
+                 placeholder="Achterkant">
+        </label>
+      <?php admin_lang_pane_end(); ?>
+      <?php admin_lang_pane_start('en'); ?>
+        <label>Naam
+          <input type="text" name="label_en" maxlength="100"
+                 value="<?= $esc($viewCreateOld !== null ? (string) ($viewCreateOld['label_en'] ?? '') : '') ?>"<?= admin_lang_placeholder_attr('en') ?>>
+        </label>
+      <?php admin_lang_pane_end(); ?>
       <div class="admin-pz-grid__action">
         <button type="submit">+ Voorbeeld toevoegen</button>
       </div>
@@ -520,13 +541,18 @@ function renderPersonalizationZoneForm(
       <input type="hidden" name="csrf_token" value="<?= $esc($csrfToken) ?>">
       <input type="hidden" name="zone_id" value="<?= $zoneId ?>">
 
+      <?php admin_lang_tabs(); ?>
       <div class="admin-pz-grid">
-        <label>Naam voor de klant (NL)
-          <input type="text" name="label" maxlength="100" value="<?= $esc((string) $value('label', '')) ?>" placeholder="Bijv. Naam">
-        </label>
-        <label>Naam voor de klant (EN)
-          <input type="text" name="label_en" maxlength="100" value="<?= $esc((string) $value('label_en', '')) ?>" placeholder="Leeg = Nederlandse naam">
-        </label>
+        <?php admin_lang_pane_start('nl'); ?>
+          <label>Naam voor de klant
+            <input type="text" name="label" maxlength="100" value="<?= $esc((string) $value('label', '')) ?>" placeholder="Bijv. Naam">
+          </label>
+        <?php admin_lang_pane_end(); ?>
+        <?php admin_lang_pane_start('en'); ?>
+          <label>Naam voor de klant
+            <input type="text" name="label_en" maxlength="100" value="<?= $esc((string) $value('label_en', '')) ?>"<?= admin_lang_placeholder_attr('en') ?>>
+          </label>
+        <?php admin_lang_pane_end(); ?>
       </div>
 
       <fieldset class="admin-pz-checks">
@@ -557,21 +583,29 @@ function renderPersonalizationZoneForm(
         <label>Meerprijs (&euro;)
           <input type="text" inputmode="decimal" name="surcharge" value="<?= $esc(Money::format($surchargeCents)) ?>" placeholder="0.00">
         </label>
-        <label>Voorbeeldtekst (NL)
-          <input type="text" name="placeholder" maxlength="100" value="<?= $esc((string) $value('placeholder', '')) ?>" placeholder="Bijv. Bart">
-        </label>
-        <label>Voorbeeldtekst (EN)
-          <input type="text" name="placeholder_en" maxlength="100" value="<?= $esc((string) $value('placeholder_en', '')) ?>">
-        </label>
+        <?php admin_lang_pane_start('nl'); ?>
+          <label>Voorbeeldtekst
+            <input type="text" name="placeholder" maxlength="100" value="<?= $esc((string) $value('placeholder', '')) ?>" placeholder="Bijv. Bart">
+          </label>
+        <?php admin_lang_pane_end(); ?>
+        <?php admin_lang_pane_start('en'); ?>
+          <label>Voorbeeldtekst
+            <input type="text" name="placeholder_en" maxlength="100" value="<?= $esc((string) $value('placeholder_en', '')) ?>"<?= admin_lang_placeholder_attr('en') ?>>
+          </label>
+        <?php admin_lang_pane_end(); ?>
       </div>
 
       <div class="admin-pz-grid">
-        <label>Uitleg bij deze zone (NL)
-          <textarea name="instructions" rows="2" maxlength="500"><?= $esc((string) $value('instructions', '')) ?></textarea>
-        </label>
-        <label>Uitleg bij deze zone (EN)
-          <textarea name="instructions_en" rows="2" maxlength="500"><?= $esc((string) $value('instructions_en', '')) ?></textarea>
-        </label>
+        <?php admin_lang_pane_start('nl'); ?>
+          <label>Uitleg bij deze zone
+            <textarea name="instructions" rows="2" maxlength="500"><?= $esc((string) $value('instructions', '')) ?></textarea>
+          </label>
+        <?php admin_lang_pane_end(); ?>
+        <?php admin_lang_pane_start('en'); ?>
+          <label>Uitleg bij deze zone
+            <textarea name="instructions_en" rows="2" maxlength="500"<?= admin_lang_placeholder_attr('en') ?>><?= $esc((string) $value('instructions_en', '')) ?></textarea>
+          </label>
+        <?php admin_lang_pane_end(); ?>
       </div>
 
       <fieldset class="admin-pz-area">
@@ -620,6 +654,7 @@ function renderPersonalizationZoneCreateForm(int $viewId, string $viewName, ?arr
 <form method="post" action="/api/admin/create-personalization-zone.php" class="admin-pz-grid admin-pz-grid--create">
   <input type="hidden" name="csrf_token" value="<?= $esc($csrfToken) ?>">
   <input type="hidden" name="view_id" value="<?= $viewId ?>">
+  <?php admin_lang_tabs(); ?>
   <?php /* A new zone starts as a centred, text-and-image, optional zone. */ ?>
   <input type="hidden" name="allow_text" value="1">
   <input type="hidden" name="allow_image" value="1">
@@ -637,15 +672,19 @@ function renderPersonalizationZoneCreateForm(int $viewId, string $viewName, ?arr
            value="<?= $esc($old !== null ? (string) ($old['zone_key'] ?? '') : '') ?>"
            placeholder="naam">
   </label>
-  <label>Naam (NL)
-    <input type="text" name="label" maxlength="100"
-           value="<?= $esc($old !== null ? (string) ($old['label'] ?? '') : '') ?>"
-           placeholder="Naam">
-  </label>
-  <label>Naam (EN)
-    <input type="text" name="label_en" maxlength="100"
-           value="<?= $esc($old !== null ? (string) ($old['label_en'] ?? '') : '') ?>">
-  </label>
+  <?php admin_lang_pane_start('nl'); ?>
+    <label>Naam
+      <input type="text" name="label" maxlength="100"
+             value="<?= $esc($old !== null ? (string) ($old['label'] ?? '') : '') ?>"
+             placeholder="Naam">
+    </label>
+  <?php admin_lang_pane_end(); ?>
+  <?php admin_lang_pane_start('en'); ?>
+    <label>Naam
+      <input type="text" name="label_en" maxlength="100"
+             value="<?= $esc($old !== null ? (string) ($old['label_en'] ?? '') : '') ?>"<?= admin_lang_placeholder_attr('en') ?>>
+    </label>
+  <?php admin_lang_pane_end(); ?>
   <div class="admin-pz-grid__action">
     <button type="submit">+ Zone op &ldquo;<?= $esc($viewName) ?>&rdquo;</button>
   </div>

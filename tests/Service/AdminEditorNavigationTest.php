@@ -519,7 +519,7 @@ final class AdminEditorNavigationTest extends TestCase
 
         // A hidden panel's fields are still that form's fields, so both of
         // the settings form's save buttons save the whole thing.
-        $this->assertSame(2, substr_count($source, '>Instellingen opslaan</button>'));
+        $this->assertSame(2, substr_count($source, "admin_te('page.save_settings') ?></button>"));
     }
 
     // --- Site-instellingen -------------------------------------------------

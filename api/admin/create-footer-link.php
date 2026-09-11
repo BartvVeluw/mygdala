@@ -10,6 +10,7 @@ require_once __DIR__ . '/../../vendor/autoload.php';
 
 use App\Service\AdminAuth;
 use App\Service\Csrf;
+use App\Service\Language\LocalizedValue;
 use App\Service\LinkResolver;
 use App\Repository\FooterRepository;
 use App\Repository\PageRepository;
@@ -54,11 +55,17 @@ $openInNewTab = isset($_POST['open_in_new_tab']);
 $isVisible = isset($_POST['is_visible']);
 
 $errors = [];
-if ($labelNl === '' || mb_strlen($labelNl) > 100) {
-    $errors[] = 'Label (NL) is verplicht (max. 100 tekens).';
+// Only the SITE'S OWN language is required. The other one is a translation,
+// and a translation is optional by definition: App\Service\Language\LocalizedValue
+// falls back to the primary language wherever one is missing. Requiring both
+// was harmless while every editor printed both fields; now that a
+// single-language site shows one, it would make this form impossible to
+// submit at all (MULTILINGUAL.md).
+if (LocalizedValue::ofDutchEnglish($labelNl, $labelEn)->primaryValue() === '') {
+    $errors[] = 'Label is verplicht.';
 }
-if ($labelEn === '' || mb_strlen($labelEn) > 100) {
-    $errors[] = 'Label (EN) is verplicht (max. 100 tekens).';
+if (mb_strlen($labelNl) > 100 || mb_strlen($labelEn) > 100) {
+    $errors[] = 'Label mag maximaal 100 tekens zijn.';
 }
 
 $linkError = LinkResolver::validate($linkType, $targetPageId, $targetRoute, $externalUrl, $actionKey, LinkResolver::LINK_TYPES_FOOTER, $pageRepository);

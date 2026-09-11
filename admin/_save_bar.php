@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 use App\Service\AssetVersion;
 
+require_once __DIR__ . '/_translate.php';
+
 /**
  * The always-visible save/status bar for the page editor and the block
  * editors it links into.
@@ -52,13 +54,23 @@ use App\Service\AssetVersion;
 function save_bar(): void
 {
     ?>
+    <?php /* The bar's four states are written by save-bar.js, so its words
+             travel as data attributes rather than as string literals in the
+             script: one catalog for the whole CMS, and a .js file that stays
+             a .js file (App\Service\Language\AdminTranslator). */ ?>
     <div class="admin-save-bar-spacer" aria-hidden="true"></div>
-    <div class="admin-save-bar" data-save-bar data-save-bar-state="saved" hidden>
+    <div class="admin-save-bar" data-save-bar data-save-bar-state="saved" hidden
+         data-label-saving="<?= admin_te('common.saving') ?>"
+         data-label-dirty="<?= admin_te('common.unsaved_changes') ?>"
+         data-label-error="<?= admin_te('common.save_failed') ?>"
+         data-label-saved="<?= admin_te('common.all_saved') ?>"
+         data-label-just-saved="<?= admin_te('common.saved') ?>"
+         data-label-error-in="<?= admin_te('savebar.error_in') ?>">
       <p class="admin-save-bar__status" data-save-bar-status role="status" aria-live="polite">
         <span class="admin-save-bar__dot" aria-hidden="true"></span>
-        <span data-save-bar-text>Alles opgeslagen</span>
+        <span data-save-bar-text><?= admin_te('common.all_saved') ?></span>
       </p>
-      <button type="button" class="admin-save-bar__button" data-save-bar-save disabled>Opslaan</button>
+      <button type="button" class="admin-save-bar__button" data-save-bar-save disabled><?= admin_te('common.save') ?></button>
     </div>
     <?php
 }

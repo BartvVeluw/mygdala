@@ -88,7 +88,7 @@ function homepageHeroValue(array $values, string $key): string
 }
 ?>
 <!doctype html>
-<html lang="nl">
+<html lang="<?= htmlspecialchars(\App\Service\Language\AdminLocale::current(), ENT_QUOTES, 'UTF-8') ?>">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -236,7 +236,7 @@ function homepageHeroValue(array $values, string $key): string
           <input type="text" name="secondary_url" maxlength="255" value="<?= homepageHeroValue($values, 'secondary_url') ?>">
         </label>
       </div>
-      <p class="admin-text-muted">Laat label (NL) en/of URL leeg om geen secundaire knop te tonen.</p>
+      <p class="admin-text-muted">Laat het label en/of de URL leeg om geen secundaire knop te tonen.</p>
 
       <h2 style="margin-top:2rem;">Badge</h2>
       <div class="admin-form-row admin-form-row--split">
@@ -263,7 +263,7 @@ function homepageHeroValue(array $values, string $key): string
         </label>
         <?php admin_lang_pane_end(); ?>
       </div>
-      <p class="admin-text-muted">Laat titel (NL) en/of tekst (NL) leeg om geen badge te tonen.</p>
+      <p class="admin-text-muted">Laat de titel en/of de tekst leeg om geen badge te tonen.</p>
 
       <button type="submit">Opslaan</button>
     </form>

@@ -8,6 +8,8 @@ require_once __DIR__ . '/_block_picker.php';
 require_once __DIR__ . '/_save_bar.php';
 require_once __DIR__ . '/_admin_tabs.php';
 require_once __DIR__ . '/_admin_collapse.php';
+require_once __DIR__ . '/_language_fields.php';
+require_once __DIR__ . '/_translate.php';
 
 use App\Service\AdminAuth;
 use App\Service\Csrf;
@@ -160,7 +162,7 @@ $kindMeta = [
 $forcedTab = ($errors !== [] || $pagesError !== null) ? 'pagina' : null;
 ?>
 <!doctype html>
-<html lang="nl">
+<html lang="<?= htmlspecialchars(\App\Service\Language\AdminLocale::current(), ENT_QUOTES, 'UTF-8') ?>">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -245,10 +247,10 @@ $forcedTab = ($errors !== [] || $pagesError !== null) ? 'pagina' : null;
           &mdash; deze pagina wordt geserveerd op een vaste URL, die ligt daarom vast. Titel, SEO-velden en de inhoud hieronder kun je gewoon aanpassen<?= $isProtected ? '' : ', en de pagina kun je op Concept zetten of verwijderen zoals elke andere contentpagina' ?>.
         <?php endif; ?>
       </p>
-      <label>Status
+      <label><?= admin_te('common.status') ?>
         <select name="status" <?= $isProtected ? 'disabled' : '' ?>>
-          <?php foreach (PageContent::STATUS_LABELS as $statusKey => $statusLabel): ?>
-            <option value="<?= $h($statusKey) ?>" <?= $status === $statusKey ? 'selected' : '' ?>><?= $h($statusLabel) ?></option>
+          <?php foreach (array_keys(PageContent::STATUS_LABELS) as $statusKey): ?>
+            <option value="<?= $h($statusKey) ?>" <?= $status === $statusKey ? 'selected' : '' ?>><?= admin_te('page.status_' . $statusKey) ?></option>
           <?php endforeach; ?>
         </select>
       </label>
@@ -260,7 +262,7 @@ $forcedTab = ($errors !== [] || $pagesError !== null) ? 'pagina' : null;
     </section>
 
     <section class="admin-card admin-card--actions">
-      <button type="submit">Instellingen opslaan</button>
+      <button type="submit"><?= admin_te('page.save_settings') ?></button>
       <p class="admin-text-muted">Slaat alles op wat onder Pagina en SEO staat &mdash; het is één formulier met twee tabbladen.</p>
     </section>
     <?php admin_tab_panel_end(); ?>
@@ -269,43 +271,41 @@ $forcedTab = ($errors !== [] || $pagesError !== null) ? 'pagina' : null;
     <section class="admin-card">
       <h2>SEO</h2>
       <p class="admin-text-muted">Laat de SEO-titel leeg om automatisch "<em>Titel</em> &mdash; <?= $h(\App\Service\SiteSettings::get('site_name')) ?>" te gebruiken. Vul je 'm wel in, dan is dat exact de tekst in het browsertabblad en in Google.</p>
-      <?php /* One column per language instead of one row per field: each
-               field then uses the full width of its own column, and the
-               meta descriptions get a real multi-line textarea. Layout only
-               — the field names, maxlengths and everything
-               api/admin/update-page.php does with them are unchanged. */ ?>
+      <?php /* One pane per language, not one column per language. On a
+               single-language site only the site's own language is on
+               screen; the other pane is still rendered, still carries its
+               stored value and is still submitted, but `hidden` — that is
+               what keeps a translation alive through a save after the
+               language was switched off (admin/_language_fields.php). */ ?>
+      <?php admin_lang_tabs(); ?>
       <div class="admin-product-form admin-product-form--wide">
-        <div class="admin-seo-grid">
-          <div class="admin-seo-lang">
-            <h3 class="admin-seo-lang__title">Nederlands</h3>
-            <div class="admin-form-row">
-              <label>SEO-titel (NL)
-                <input type="text" name="meta_title" maxlength="<?= PageService::MAX_META_TITLE_LENGTH ?>" value="<?= $h($fieldValue('meta_title')) ?>">
-              </label>
-            </div>
-            <div class="admin-form-row">
-              <label>Meta description (NL)
-                <textarea name="meta_description" rows="3" maxlength="<?= PageService::MAX_META_DESCRIPTION_LENGTH ?>"><?= $h($fieldValue('meta_description')) ?></textarea>
-              </label>
-            </div>
+        <?php admin_lang_pane_start('nl'); ?>
+          <div class="admin-form-row">
+            <label><?= admin_te('page.meta_title') ?>
+              <input type="text" name="meta_title" maxlength="<?= PageService::MAX_META_TITLE_LENGTH ?>" value="<?= $h($fieldValue('meta_title')) ?>"<?= admin_lang_placeholder_attr('nl') ?>>
+            </label>
           </div>
-          <div class="admin-seo-lang">
-            <h3 class="admin-seo-lang__title">English</h3>
-            <div class="admin-form-row">
-              <label>SEO-titel (EN)
-                <input type="text" name="meta_title_en" maxlength="<?= PageService::MAX_META_TITLE_LENGTH ?>" value="<?= $h($fieldValue('meta_title_en')) ?>" placeholder="Leeg = Nederlandse titel">
-              </label>
-            </div>
-            <div class="admin-form-row">
-              <label>Meta description (EN)
-                <textarea name="meta_description_en" rows="3" maxlength="<?= PageService::MAX_META_DESCRIPTION_LENGTH ?>" placeholder="Leeg = Nederlandse tekst"><?= $h($fieldValue('meta_description_en')) ?></textarea>
-              </label>
-            </div>
+          <div class="admin-form-row">
+            <label><?= admin_te('page.meta_description') ?>
+              <textarea name="meta_description" rows="3" maxlength="<?= PageService::MAX_META_DESCRIPTION_LENGTH ?>"<?= admin_lang_placeholder_attr('nl') ?>><?= $h($fieldValue('meta_description')) ?></textarea>
+            </label>
           </div>
-        </div>
+        <?php admin_lang_pane_end(); ?>
+        <?php admin_lang_pane_start('en'); ?>
+          <div class="admin-form-row">
+            <label><?= admin_te('page.meta_title') ?>
+              <input type="text" name="meta_title_en" maxlength="<?= PageService::MAX_META_TITLE_LENGTH ?>" value="<?= $h($fieldValue('meta_title_en')) ?>"<?= admin_lang_placeholder_attr('en') ?>>
+            </label>
+          </div>
+          <div class="admin-form-row">
+            <label><?= admin_te('page.meta_description') ?>
+              <textarea name="meta_description_en" rows="3" maxlength="<?= PageService::MAX_META_DESCRIPTION_LENGTH ?>"<?= admin_lang_placeholder_attr('en') ?>><?= $h($fieldValue('meta_description_en')) ?></textarea>
+            </label>
+          </div>
+        <?php admin_lang_pane_end(); ?>
       </div>
 
-      <h3 class="admin-seo-lang__title">Voorbeeld in Google</h3>
+      <h3 class="admin-seo-lang__title"><?= admin_te('page.google_preview') ?></h3>
       <p class="admin-text-muted">Zo ziet deze pagina er ongeveer uit in een zoekresultaat, met de titel en tekst die nu zijn opgeslagen.</p>
       <div class="admin-seo-preview">
         <div class="admin-seo-preview__url"><?= $h((string) ($seoPreview->canonical ?? PageContent::publicUrl($page))) ?></div>
@@ -314,12 +314,12 @@ $forcedTab = ($errors !== [] || $pagesError !== null) ? 'pagina' : null;
           <?php if ($seoPreview->hasDescription()): ?>
             <?= $h($seoPreview->descriptionNl) ?>
           <?php else: ?>
-            <em>Geen meta description &mdash; Google kiest dan zelf een stukje tekst van de pagina.</em>
+            <em><?= admin_te('page.no_description') ?></em>
           <?php endif; ?>
         </div>
       </div>
 
-      <h3 class="admin-seo-lang__title">Zichtbaarheid</h3>
+      <h3 class="admin-seo-lang__title"><?= admin_te('page.visibility') ?></h3>
       <?php /* Hidden companion field: an unticked checkbox sends nothing,
                and the save endpoint would then have no way to tell "leave it
                out of the index" from "field not on this form". PHP keeps the
@@ -327,7 +327,7 @@ $forcedTab = ($errors !== [] || $pagesError !== null) ? 'pagina' : null;
       <input type="hidden" name="noindex" value="0">
       <label class="admin-checkbox-label">
         <input type="checkbox" name="noindex" value="1" <?= $noindexChecked ? 'checked' : '' ?>>
-        Deze pagina niet laten indexeren door zoekmachines
+        <?= admin_te('page.noindex') ?>
       </label>
       <p class="admin-text-muted">De pagina blijft gewoon bereikbaar en gepubliceerd; hij krijgt alleen <code>noindex</code> mee en verdwijnt uit de sitemap. Voor een pagina die wel online moet staan maar niet gevonden hoeft te worden &mdash; een bedankpagina bijvoorbeeld.</p>
 
@@ -345,7 +345,7 @@ $forcedTab = ($errors !== [] || $pagesError !== null) ? 'pagina' : null;
     </section>
 
     <section class="admin-card admin-card--actions">
-      <button type="submit">Instellingen opslaan</button>
+      <button type="submit"><?= admin_te('page.save_settings') ?></button>
       <p class="admin-text-muted">Slaat alles op wat onder Pagina en SEO staat &mdash; het is één formulier met twee tabbladen.</p>
     </section>
     <?php admin_tab_panel_end(); ?>
@@ -520,5 +520,6 @@ $forcedTab = ($errors !== [] || $pagesError !== null) ? 'pagina' : null;
 <?php admin_collapse_script(); ?>
 <?php save_bar_script(); ?>
 <?php media_picker_script(); ?>
+<?php admin_lang_tabs_script(); ?>
 </body>
 </html>

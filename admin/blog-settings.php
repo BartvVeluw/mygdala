@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/../vendor/autoload.php';
+require_once __DIR__ . '/_language_fields.php';
 
 use App\Service\AdminAuth;
 use App\Service\Blog\BlogSettings;
@@ -38,7 +39,7 @@ $stored = BlogSettings::all();
 $value = static fn (string $key, string $default = ''): string => (string) ($stored[$key] ?? $default);
 ?>
 <!doctype html>
-<html lang="nl">
+<html lang="<?= htmlspecialchars(\App\Service\Language\AdminLocale::current(), ENT_QUOTES, 'UTF-8') ?>">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -72,23 +73,31 @@ $value = static fn (string $key, string $default = ''): string => (string) ($sto
 
     <section class="admin-card">
       <h2>Kop van de blog</h2>
-      <div class="admin-form-row admin-form-row--split">
-        <label>Titel (NL)
-          <input type="text" name="<?= BlogSettings::TITLE ?>" maxlength="<?= BlogSettings::MAX_TITLE_LENGTH ?>" value="<?= $h($value(BlogSettings::TITLE, BlogSettings::DEFAULT_TITLE)) ?>" placeholder="<?= $h(BlogSettings::DEFAULT_TITLE) ?>">
-        </label>
-        <label>Titel (EN)
-          <input type="text" name="<?= BlogSettings::TITLE_EN ?>" maxlength="<?= BlogSettings::MAX_TITLE_LENGTH ?>" value="<?= $h($value(BlogSettings::TITLE_EN)) ?>" placeholder="Leeg = Nederlandse titel">
-        </label>
-      </div>
-
-      <div class="admin-form-row admin-form-row--split">
-        <label>Introtekst (NL)
-          <textarea name="<?= BlogSettings::INTRO ?>" rows="3" maxlength="<?= BlogSettings::MAX_INTRO_LENGTH ?>"><?= $h($value(BlogSettings::INTRO)) ?></textarea>
-        </label>
-        <label>Introtekst (EN)
-          <textarea name="<?= BlogSettings::INTRO_EN ?>" rows="3" maxlength="<?= BlogSettings::MAX_INTRO_LENGTH ?>" placeholder="Leeg = Nederlandse tekst"><?= $h($value(BlogSettings::INTRO_EN)) ?></textarea>
-        </label>
-      </div>
+      <?php admin_lang_tabs(); ?>
+      <?php admin_lang_pane_start('nl'); ?>
+        <div class="admin-form-row">
+          <label>Titel
+            <input type="text" name="<?= BlogSettings::TITLE ?>" maxlength="<?= BlogSettings::MAX_TITLE_LENGTH ?>" value="<?= $h($value(BlogSettings::TITLE, BlogSettings::DEFAULT_TITLE)) ?>" placeholder="<?= $h(BlogSettings::DEFAULT_TITLE) ?>">
+          </label>
+        </div>
+        <div class="admin-form-row">
+          <label>Introtekst
+            <textarea name="<?= BlogSettings::INTRO ?>" rows="3" maxlength="<?= BlogSettings::MAX_INTRO_LENGTH ?>"><?= $h($value(BlogSettings::INTRO)) ?></textarea>
+          </label>
+        </div>
+      <?php admin_lang_pane_end(); ?>
+      <?php admin_lang_pane_start('en'); ?>
+        <div class="admin-form-row">
+          <label>Titel
+            <input type="text" name="<?= BlogSettings::TITLE_EN ?>" maxlength="<?= BlogSettings::MAX_TITLE_LENGTH ?>" value="<?= $h($value(BlogSettings::TITLE_EN)) ?>"<?= admin_lang_placeholder_attr('en') ?>>
+          </label>
+        </div>
+        <div class="admin-form-row">
+          <label>Introtekst
+            <textarea name="<?= BlogSettings::INTRO_EN ?>" rows="3" maxlength="<?= BlogSettings::MAX_INTRO_LENGTH ?>"<?= admin_lang_placeholder_attr('en') ?>><?= $h($value(BlogSettings::INTRO_EN)) ?></textarea>
+          </label>
+        </div>
+      <?php admin_lang_pane_end(); ?>
       <p class="admin-text-muted">De introtekst staat onder de titel op <a href="<?= $h(BlogUrls::indexPath()) ?>" target="_blank" rel="noopener"><?= $h(BlogUrls::indexPath()) ?></a> en is tegelijk de meta description van die pagina. Laat 'm leeg om alleen de titel te tonen.</p>
     </section>
 
@@ -140,5 +149,6 @@ $value = static fn (string $key, string $default = ''): string => (string) ($sto
     </section>
   </form>
 </main>
+<?php admin_lang_tabs_script(); ?>
 </body>
 </html>

@@ -13,6 +13,7 @@ use App\Service\SiteSettings;
 require_once __DIR__ . '/_media_picker.php';
 require_once __DIR__ . '/_language_fields.php';
 require_once __DIR__ . '/_admin_tabs.php';
+require_once __DIR__ . '/_translate.php';
 
 AdminAuth::requireLogin();
 AdminAuth::requirePermission('settings.manage');
@@ -108,21 +109,21 @@ function brandingImageField(
 }
 ?>
 <!doctype html>
-<html lang="nl">
+<html lang="<?= htmlspecialchars(\App\Service\Language\AdminLocale::current(), ENT_QUOTES, 'UTF-8') ?>">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Site-instellingen — Admin</title>
+<title><?= admin_te('settings.title') ?> — Admin</title>
 <link rel="stylesheet" href="<?= \App\Service\AssetVersion::url('/admin/assets/admin.css') ?>">
 </head>
 <body<?= \App\Service\AdminTheme::bodyAttribute() ?>>
 <?php require __DIR__ . '/_header.php'; ?>
 <main class="admin-main">
-  <h1>Site-instellingen</h1>
-  <p class="admin-text-muted">Deze gegevens worden overal op de website gebruikt (header, footer, contactpagina). Wijzigingen zijn direct zichtbaar op alle pagina's.</p>
+  <h1><?= admin_te('settings.title') ?></h1>
+  <p class="admin-text-muted"><?= admin_te('settings.intro') ?></p>
 
   <?php if ($saved): ?>
-    <p class="admin-alert admin-alert--success">Instellingen opgeslagen.</p>
+    <p class="admin-alert admin-alert--success"><?= admin_te('settings.saved') ?></p>
   <?php endif; ?>
 
   <?php if ($errors !== []): ?>
@@ -142,14 +143,14 @@ function brandingImageField(
            save now carries fields it did not carry before, and where a
            setting is stored did not change at all. */ ?>
   <?php admin_tabs_start('site-settings', [
-      'algemeen' => 'Algemeen',
-      'talen' => \App\Service\Language\AdminTranslator::trans('language.settings_title'),
-      'seo' => 'SEO',
-      'facturen' => 'Facturen',
-      'email' => 'E-mails',
-      'dashboard' => 'Dashboard',
+      'algemeen' => admin_t('settings.tab_general'),
+      'talen' => admin_t('language.settings_title'),
+      'seo' => admin_t('settings.tab_seo'),
+      'facturen' => admin_t('settings.tab_invoices'),
+      'email' => admin_t('settings.tab_emails'),
+      'dashboard' => admin_t('settings.tab_dashboard'),
   ], [
-      'label' => 'Groepen instellingen',
+      'label' => admin_t('settings.tabs_label'),
       'force' => match (true) {
           $adminThemeSaved || $adminThemeError !== null => 'dashboard',
           $languageSaved || $languageErrors !== [] => 'talen',

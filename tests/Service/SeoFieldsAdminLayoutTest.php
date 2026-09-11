@@ -111,33 +111,54 @@ final class SeoFieldsAdminLayoutTest extends TestCase
     }
 
     /**
-     * The EN fields fall back to the NL text when left empty — that is
-     * PageContent's behaviour, and the placeholders are how the editor says
-     * so. Losing them would make the fallback invisible.
+     * A translation field still says what leaving it empty does — but the
+     * sentence is built from the site's actual primary language now
+     * (admin_lang_fallback_placeholder), because "Leeg = Nederlandse titel"
+     * is simply untrue on an English-primary website.
      */
-    public function testTheEnglishFallbackHintsAreStillShown(): void
+    public function testTheEnglishFallbackHintComesFromTheSitesPrimaryLanguage(): void
     {
         foreach (self::EDITORS as $editor) {
             $source = $this->fileSource($editor);
 
-            $this->assertStringContainsString('placeholder="Leeg = Nederlandse titel"', $source);
-            $this->assertStringContainsString('placeholder="Leeg = Nederlandse tekst"', $source);
+            $this->assertStringContainsString(
+                "admin_lang_placeholder_attr('en')",
+                $source,
+                $editor . ' must let the language component write the fallback hint'
+            );
+            $this->assertStringNotContainsString('Leeg = Nederlandse titel', $source);
+            $this->assertStringNotContainsString('Leeg = Nederlandse tekst', $source);
         }
     }
 
-    public function testTheSeoBlockUsesTwoLabelledLanguageColumns(): void
+    /**
+     * The layout this replaced printed a Dutch column beside an English one
+     * on every site, including the Dutch-only ones — the defect Multilingual
+     * V1 set out to remove and did not finish removing (MULTILINGUAL.md).
+     * One pane per language, one on screen at a time.
+     */
+    public function testTheSeoBlockUsesOneLanguagePanePerLanguage(): void
     {
         foreach (self::EDITORS as $editor) {
             $source = $this->fileSource($editor);
 
-            $this->assertStringContainsString('admin-seo-grid', $source, $editor . ' must use the two-column SEO grid');
-            $this->assertSame(
-                2,
-                substr_count($source, 'class="admin-seo-lang"'),
-                $editor . ' must have exactly one column per language'
+            $this->assertStringNotContainsString(
+                'admin-seo-grid',
+                $source,
+                $editor . ' must not put two languages side by side'
             );
-            $this->assertStringContainsString('>Nederlands<', $source);
-            $this->assertStringContainsString('>English<', $source);
+            $this->assertSame(
+                1,
+                substr_count($source, "admin_lang_pane_start('nl')"),
+                $editor . ' must render exactly one Dutch pane'
+            );
+            $this->assertSame(
+                1,
+                substr_count($source, "admin_lang_pane_start('en')"),
+                $editor . ' must render exactly one English pane'
+            );
+            $this->assertStringContainsString('admin_lang_tabs()', $source);
+            $this->assertStringContainsString('admin_lang_tabs_script()', $source);
         }
     }
 
@@ -165,20 +186,10 @@ final class SeoFieldsAdminLayoutTest extends TestCase
         }
     }
 
-    public function testTheStylesheetDefinesTheGridAndStacksItOnSmallScreens(): void
+    public function testTheStylesheetStillLetsTheFieldsUseTheFullWidth(): void
     {
         $css = $this->fileSource('admin/assets/admin.css');
 
-        $this->assertMatchesRegularExpression(
-            '/\.admin-seo-grid\{[^}]*grid-template-columns:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\)/',
-            $css,
-            'the SEO grid must be two equal, shrinkable columns on desktop'
-        );
-        $this->assertMatchesRegularExpression(
-            '/@media \(max-width: 900px\)\{[^@]*\.admin-seo-grid\{\s*grid-template-columns:\s*1fr;\s*\}/s',
-            $css,
-            'the SEO grid must stack to one column on small screens'
-        );
         $this->assertMatchesRegularExpression(
             '/\.admin-product-form--wide\{\s*max-width:\s*none;\s*\}/',
             $css
