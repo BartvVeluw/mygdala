@@ -216,7 +216,7 @@ dezelfde veilige richting die hierboven al gekozen is. Zie
 ## Testen
 
 ```bash
-docker exec vvld_php_test php vendor/bin/phpunit --testsuite migration
+docker exec mygdala_php_test php vendor/bin/phpunit --testsuite migration
 ```
 
 | Bestand | Wat het bewaakt |

@@ -10,11 +10,11 @@ Weet je nog niet waar de code staat die je test? Begin bij
 ## Eenmalige setup
 
 ```bash
-docker exec vvld_php php scripts/test-db.php
+docker exec mygdala_php php scripts/test-db.php
 ```
 
-Maakt `vanveluw_shop_test` aan (schema **en** rijen, gekopieerd uit
-`vanveluw_shop`) en geeft `vvld_app` er rechten op. De ontwikkeldatabase wordt
+Maakt `mygdala_tests` aan (schema **en** rijen, gekopieerd uit
+`mygdala`) en geeft `mygdala_app` er rechten op. De ontwikkeldatabase wordt
 alleen gelezen. Herhaal dit commando wanneer je de testdata wilt verversen —
 bijvoorbeeld na een nieuwe migratie of nadat je in de CMS iets hebt toegevoegd
 dat de tests moeten zien.
@@ -25,9 +25,9 @@ docker compose --profile test up -d
 
 Start twee containers:
 
-- **`vvld_php_test`** (poort 8001) — dezelfde site tegen de testdatabase. Dit
+- **`mygdala_php_test`** (poort 8001) — dezelfde site tegen de testdatabase. Dit
   is de container waarin je de suite draait.
-- **`vvld_php_cms`** (poort 8002) — diezelfde code en diezelfde testdatabase,
+- **`mygdala_php_cms`** (poort 8002) — diezelfde code en diezelfde testdatabase,
   maar gestart met `MODULE_SHOP_ENABLED=false`. Dat is de CMS-only
   deployment: geen Shop, geen Personalisatie en geen Blog.
   `Tests\Module\CmsOnlyHttpTest` en `Tests\Blog\BlogRoutingTest` praten
@@ -48,19 +48,42 @@ dezelfde map). In-process gebruikt de suite gewoon
 ## Het commando
 
 ```bash
-docker exec vvld_php_test php vendor/bin/phpunit
+docker exec mygdala_php_test php vendor/bin/phpunit
 ```
 
-Draai de suite **in `vvld_php_test`**, niet in `vvld_php`. De testcontainer
+Draai de suite **in `mygdala_php_test`**, niet in `mygdala_php`. De testcontainer
 deelt filesystem én database met de webserver waar de HTTP-tests op schieten;
-draai je ze uit `vvld_php`, dan schrijft een uploadtest zijn bestand in de ene
+draai je ze uit `mygdala_php`, dan schrijft een uploadtest zijn bestand in de ene
 container en leest de HTTP-request het in de andere.
 
-De snelle tiers hebben niets nodig en mogen overal draaien:
+De snelle tiers hebben geen database en geen webserver nodig, en mogen dus
+overal draaien:
 
 ```bash
-docker exec vvld_php php vendor/bin/phpunit --testsuite fast
+docker exec mygdala_php_test php vendor/bin/phpunit --testsuite fast
 ```
+
+### `fast` wil wél dat alle modules aan staan
+
+Dit kost je een half uur als je het niet weet. `unit` en `contract` hebben
+geen database nodig, maar ze lezen wél het moduleregister: ze controleren
+onder meer dat een Super Admin élke permissie houdt en dat elk adminscherm
+bij precies één zijbalkregel hoort. Staat er een module uit in de omgeving
+waarin je ze draait, dan bestaan zijn permissies en schermen niet, en falen
+die controles terecht.
+
+Draai `fast` daarom in `mygdala_php_test`, waar de modules aan staan. Draai je
+hem in een container waar iets uit staat, zet het dan voor dat ene commando
+aan:
+
+```bash
+docker exec -e MODULE_SHOP_ENABLED=true -e MODULE_PERSONALIZATION_ENABLED=true \
+  -e MODULE_BLOG_ENABLED=true mygdala_php php vendor/bin/phpunit --testsuite fast
+```
+
+Zie je precies deze mislukkingen, dan is dit de oorzaak en niet je wijziging:
+`NavigationServiceTest`, `RouteRegistryTest`, `FrontendAssetOwnershipTest`
+(Shop uit) en `AdminPermissionsTest`, `AdminAccessControlTest` (Blog uit).
 
 ## De suites
 
@@ -82,11 +105,11 @@ docker exec vvld_php php vendor/bin/phpunit --testsuite fast
 | `full` | alles, precies één keer (de standaard) | testdatabase + `php_test` |
 
 ```bash
-docker exec vvld_php_test php vendor/bin/phpunit --testsuite blocks
-docker exec vvld_php_test php vendor/bin/phpunit --testsuite shop
-docker exec vvld_php_test php vendor/bin/phpunit --testsuite modules
-docker exec vvld_php_test php vendor/bin/phpunit --testsuite blog
-docker exec vvld_php      php vendor/bin/phpunit --testsuite unit
+docker exec mygdala_php_test php vendor/bin/phpunit --testsuite blocks
+docker exec mygdala_php_test php vendor/bin/phpunit --testsuite shop
+docker exec mygdala_php_test php vendor/bin/phpunit --testsuite modules
+docker exec mygdala_php_test php vendor/bin/phpunit --testsuite blog
+docker exec mygdala_php      php vendor/bin/phpunit --testsuite unit
 ```
 
 Een testbestand mag in meerdere suites zitten — `blocks` en `http` overlappen
@@ -100,7 +123,7 @@ deels in eigen testklassen en deels als losse methodes tussen de bloktests.
 Samen:
 
 ```bash
-docker exec vvld_php_test php vendor/bin/phpunit --group migration-backfill
+docker exec mygdala_php_test php vendor/bin/phpunit --group migration-backfill
 ```
 
 Sinds de installatie-opruiming zitten in deze suite ook
@@ -131,7 +154,7 @@ ze zijn het bewijs dat een migratie destijds niets heeft weggegooid. Wil je ze
 even buiten beschouwing laten:
 
 ```bash
-docker exec vvld_php_test php vendor/bin/phpunit --exclude-group migration-backfill
+docker exec mygdala_php_test php vendor/bin/phpunit --exclude-group migration-backfill
 ```
 
 ## Werkwijze
@@ -224,7 +247,7 @@ inzendingen of de twee formulierblokken (`FORMS.md`):
 
 `FormRenderingTest` doet echte requests, dus start de testcontainers
 (`docker compose --profile test up -d`) als je de publieke kant bewezen
-wilt zien in plaats van overgeslagen. Draai deze in **`vvld_php_test`**:
+wilt zien in plaats van overgeslagen. Draai deze in **`mygdala_php_test`**:
 de tests maken wegwerp-pagina's aan die de webserver moet kunnen zien.
 
 **Wijziging aan de paginabouwer**
@@ -264,7 +287,7 @@ installer die er de blokken mee aanmaakt (`PAGE-TEMPLATES.md`):
 --testsuite blocks      als je aan de blokken zat die een sjabloon plaatst
 ```
 
-Draai `PageTemplateCreationTest` in **`vvld_php_test`**: hij maakt
+Draai `PageTemplateCreationTest` in **`mygdala_php_test`**: hij maakt
 wegwerp-pagina's met een `zz-tpl-test-`-sleutel aan en ruimt ze in
 `tearDown()` op met een exacte id- en sleutelvergelijking — nooit met een
 `LIKE`-patroon, waarin `_` op elk teken matcht.
@@ -335,7 +358,7 @@ De stappen, de validatie, de omleiding ernaartoe of wat afronden wegschrijft
 --testsuite cms         dezelfde, plus de pagina- en instellingenkant
 ```
 
-Draai daarna ook `docker exec vvld_php php vendor/bin/phinx migrate -c phinx.php`
+Draai daarna ook `docker exec mygdala_php php vendor/bin/phinx migrate -c phinx.php`
 tegen ontwikkeling: een migratie die in git staat is nog niet toegepast.
 
 **Wijziging aan de mediabibliotheek**
@@ -352,7 +375,7 @@ Uploaden, de mediakiezer, alt-teksten, gebruiksbepaling of verwijderen
 --testsuite blocks      als je een blok aansloot op de kiezer
 ```
 
-Draai deze in **`vvld_php_test`**: `MediaLibraryTest` schrijft echte
+Draai deze in **`mygdala_php_test`**: `MediaLibraryTest` schrijft echte
 bestanden in `assets/media/` en ruimt ze weer op, en de container die de
 HTTP-tests bedienen moet dezelfde zijn.
 
@@ -409,7 +432,7 @@ bloginstellingen (`BLOG.md`):
                         mediakant zat
 ```
 
-Draai deze in **`vvld_php_test`**: `BlogRoutingTest` doet echte verzoeken en
+Draai deze in **`mygdala_php_test`**: `BlogRoutingTest` doet echte verzoeken en
 `BlogMediaAndSettingsTest` schrijft echte bestanden in `assets/media/`. De
 berichten, categorieën, tags en redirects die deze tests maken dragen allemaal
 een `zz-blog...`-prefix en worden in `tearDown()` op **exacte id** opgeruimd —
@@ -437,7 +460,7 @@ Alles wat `AdminNavigation`, `AdminPermissions`, `RouteRegistry`,
 **IJkmoment — voor een merge, voor een deploy, na een migratie**
 
 ```
-docker exec vvld_php_test php vendor/bin/phpunit
+docker exec mygdala_php_test php vendor/bin/phpunit
 ```
 
 ## Hoe de database gescheiden blijft
@@ -513,7 +536,7 @@ De suite `modules` (`tests/Module/`) test het modulesysteem zelf:
   assets — én dat opgeslagen rechten en blokrijen onaangetast blijven. Ook
   dat de Core-bestanden geen concrete Shop-klasse meer noemen. Geen database,
   geen webserver.
-- `CmsOnlyHttpTest` — hetzelfde over echt HTTP, tegen `vvld_php_cms`.
+- `CmsOnlyHttpTest` — hetzelfde over echt HTTP, tegen `mygdala_php_cms`.
 
 Een module die de Mediabibliotheek gaat gebruiken levert daarnaast een
 `MediaUsageProvider` (`MEDIA.md`); `Tests\Service\MediaBoundaryTest`
@@ -537,7 +560,7 @@ dezelfde testdatabase, dezelfde tiers.
 draaien zonder database:
 
 ```bash
-docker exec -e DB_HOST=no-such-host vvld_php php vendor/bin/phpunit --testsuite fast
+docker exec -e DB_HOST=no-such-host mygdala_php php vendor/bin/phpunit --testsuite fast
 ```
 
 Blijft dat groen, dan klopt de indeling. Faalt er iets, dan hoort dat bestand

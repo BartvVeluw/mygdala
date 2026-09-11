@@ -6,7 +6,7 @@ services:
     build:
       context: .
       dockerfile: docker/Dockerfile
-    container_name: vvld_php
+    container_name: mygdala_php
     restart: unless-stopped
     ports:
       - "8000:80"
@@ -21,7 +21,7 @@ services:
       # Contact-request attachments live outside the webroot (/var/www/html)
       # — see src/Service/ContactAttachmentStorage.php. A named volume (not
       # a bind mount) so it isn't wiped by a plain container recreation.
-      - vvld_contact_attachments:/var/www/storage
+      - contact_attachments:/var/www/storage
     depends_on:
       mysql:
         condition: service_healthy
@@ -38,7 +38,7 @@ services:
     build:
       context: .
       dockerfile: docker/Dockerfile
-    container_name: vvld_php_test
+    container_name: mygdala_php_test
     profiles: ["test"]
     restart: unless-stopped
     ports:
@@ -50,8 +50,8 @@ services:
       MAIL_HOST: mailpit
       # Overrides .env — this container must never open the development
       # database. Its entrypoint runs the migrations against this one.
-      DB_DATABASE: ${TEST_DB_DATABASE:-vanveluw_shop_test}
-      TEST_DB_DATABASE: ${TEST_DB_DATABASE:-vanveluw_shop_test}
+      DB_DATABASE: ${TEST_DB_DATABASE:-mygdala_tests}
+      TEST_DB_DATABASE: ${TEST_DB_DATABASE:-mygdala_tests}
       # The Blog is the one module that defaults to OFF (BLOG.md), so the
       # container the HTTP tier shoots at has to ask for it explicitly —
       # otherwise every /blog test would be testing a 404. This is the same
@@ -59,7 +59,7 @@ services:
       MODULE_BLOG_ENABLED: "true"
     volumes:
       - ./:/var/www/html
-      - vvld_test_attachments:/var/www/storage
+      - test_attachments:/var/www/storage
     depends_on:
       mysql:
         condition: service_healthy
@@ -81,7 +81,7 @@ services:
     build:
       context: .
       dockerfile: docker/Dockerfile
-    container_name: vvld_php_cms
+    container_name: mygdala_php_cms
     profiles: ["test"]
     restart: unless-stopped
     ports:
@@ -91,8 +91,8 @@ services:
     environment:
       DB_HOST: mysql
       MAIL_HOST: mailpit
-      DB_DATABASE: ${TEST_DB_DATABASE:-vanveluw_shop_test}
-      TEST_DB_DATABASE: ${TEST_DB_DATABASE:-vanveluw_shop_test}
+      DB_DATABASE: ${TEST_DB_DATABASE:-mygdala_tests}
+      TEST_DB_DATABASE: ${TEST_DB_DATABASE:-mygdala_tests}
       # The whole point of this container. Personalisatie depends on the Shop,
       # so App\Module\ModuleRegistry switches it off with it; it is named here
       # as well so the configuration says out loud what is running.
@@ -104,7 +104,7 @@ services:
       MODULE_BLOG_ENABLED: "false"
     volumes:
       - ./:/var/www/html
-      - vvld_cms_attachments:/var/www/storage
+      - cms_attachments:/var/www/storage
     depends_on:
       mysql:
         condition: service_healthy
@@ -113,7 +113,7 @@ services:
 
   mysql:
     image: mysql:8.0
-    container_name: vvld_mysql
+    container_name: mygdala_mysql
     restart: unless-stopped
     environment:
       MYSQL_DATABASE: ${DB_DATABASE}
@@ -123,7 +123,7 @@ services:
     ports:
       - "${DB_PORT:-3306}:3306"
     volumes:
-      - vvld_mysql_data:/var/lib/mysql
+      - mysql_data:/var/lib/mysql
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${DB_ROOT_PASSWORD}"]
       interval: 5s
@@ -135,7 +135,7 @@ services:
   # and Server: mysql (the service name above, not localhost).
   adminer:
     image: adminer:latest
-    container_name: vvld_adminer
+    container_name: mygdala_adminer
     restart: unless-stopped
     ports:
       - "8080:8080"
@@ -146,14 +146,14 @@ services:
   # Web UI to read caught mail: http://localhost:8025. SMTP: localhost:1025.
   mailpit:
     image: axllent/mailpit:latest
-    container_name: vvld_mailpit
+    container_name: mygdala_mailpit
     restart: unless-stopped
     ports:
       - "8025:8025"
       - "1025:1025"
 
 volumes:
-  vvld_mysql_data:
-  vvld_contact_attachments:
-  vvld_test_attachments:
-  vvld_cms_attachments:
+  mysql_data:
+  contact_attachments:
+  test_attachments:
+  cms_attachments:

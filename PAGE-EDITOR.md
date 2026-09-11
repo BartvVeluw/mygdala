@@ -350,8 +350,8 @@ dat Core-bestanden hem noemen.
 ## Tests
 
 ```bash
-docker exec vvld_php_test php vendor/bin/phpunit --testsuite fast
-docker exec vvld_php_test php vendor/bin/phpunit --testsuite blocks
+docker exec mygdala_php_test php vendor/bin/phpunit --testsuite fast
+docker exec mygdala_php_test php vendor/bin/phpunit --testsuite blocks
 ```
 
 `AdminEditorNavigationTest` rendert de tabbladen in-process en leest daarnaast

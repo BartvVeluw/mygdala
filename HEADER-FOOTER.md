@@ -155,8 +155,8 @@ niet-lege codestandaard, anders kan een beheerder hem niet leegmaken.
 ## Testen
 
 ```bash
-docker exec vvld_php      php vendor/bin/phpunit --testsuite fast
-docker exec vvld_php_test php vendor/bin/phpunit --testsuite cms
+docker exec mygdala_php      php vendor/bin/phpunit --testsuite fast
+docker exec mygdala_php_test php vendor/bin/phpunit --testsuite cms
 ```
 
 `fast` bevat `HeaderFooterSettingsTest` (de instellingen zelf, zonder database)

@@ -11,7 +11,7 @@ use Dotenv\Dotenv;
  * default is one directory *above* the project root (a true sibling the web
  * server never serves from), overridable via INVOICE_STORAGE_PATH (.env)
  * for hosting where that default isn't writable. Local Docker gets this via
- * the same `vvld_contact_attachments` volume mounted at /var/www/storage
+ * the same `contact_attachments` volume mounted at /var/www/storage
  * (docker-compose.yml) — invoices/ is just a sibling folder inside it.
  *
  * Unlike ContactAttachmentStorage, the "filename" here (a relative path like

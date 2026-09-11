@@ -338,8 +338,8 @@ dezelfde statuscode.
 | `tests/Service/RedirectSlugChangeTest.php` | de canonical van een hernoemde pagina is de bestemming van zijn redirect, en de sitemap noemt alleen de nieuwe URL |
 
 ```bash
-docker exec vvld_php      php vendor/bin/phpunit --testsuite fast
-docker exec vvld_php_test php vendor/bin/phpunit --testsuite cms
+docker exec mygdala_php      php vendor/bin/phpunit --testsuite fast
+docker exec mygdala_php_test php vendor/bin/phpunit --testsuite cms
 ```
 
 ## Bewust niet gedaan

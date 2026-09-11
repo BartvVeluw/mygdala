@@ -314,9 +314,9 @@ zijbalk.
 ## Testen
 
 ```bash
-docker exec vvld_php      php vendor/bin/phpunit --testsuite fast
-docker exec vvld_php_test php vendor/bin/phpunit --testsuite migration
-docker exec vvld_php_test php vendor/bin/phpunit --testsuite cms
+docker exec mygdala_php      php vendor/bin/phpunit --testsuite fast
+docker exec mygdala_php_test php vendor/bin/phpunit --testsuite migration
+docker exec mygdala_php_test php vendor/bin/phpunit --testsuite cms
 ```
 
 | Bestand | Wat het bewaakt | Database nodig |
@@ -378,7 +378,7 @@ werkkopie gaat gewoon mee. Doe `git status` vóór je exporteert.
 
 ```bash
 # 1. Een schone kopie van de applicatie, buiten deze repository
-docker exec vvld_php php scripts/create_fresh_site_copy.php /var/www/html/../nieuwe-site
+docker exec mygdala_php php scripts/create_fresh_site_copy.php /var/www/html/../nieuwe-site
 #    (of, met PHP op je eigen machine:)
 #    php scripts/create_fresh_site_copy.php ../nieuwe-site
 
@@ -395,7 +395,7 @@ Zet daarna in `.env`, in deze volgorde:
 |---|---|---|
 | 4 | `APP_ENV` | `local` tijdens het bouwen, `production` zodra de site live gaat |
 | 5 | `APP_URL` | het echte publieke webadres, of leeg laten en het in de wizard invullen |
-| 6 | `DB_DATABASE`, `DB_USERNAME`, `DB_PASSWORD` | een eigen database. **Geef hem een eigen naam**: `.env.example` staat nog op `vanveluw_shop`, en `docker-compose.yml` gebruikt diezelfde naam als standaard voor `TEST_DB_DATABASE` — hernoem ze samen, of geen van beide |
+| 6 | `DB_DATABASE`, `DB_USERNAME`, `DB_PASSWORD` | een eigen database. **Geef hem een eigen naam**: `.env.example` staat nog op `mygdala`, en `docker-compose.yml` gebruikt diezelfde naam als standaard voor `TEST_DB_DATABASE` — hernoem ze samen, of geen van beide |
 | 7 | `ADMIN_USERNAME`, `ADMIN_PASSWORD_HASH` | de eerste Super Admin; de hash maak je met `scripts/generate_admin_hash.php`. Er worden nergens standaardgegevens meegeleverd |
 | 8 | `MODULE_*_ENABLED` | zie hieronder |
 

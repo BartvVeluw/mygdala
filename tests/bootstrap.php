@@ -109,7 +109,7 @@ use Tests\Support\TestEnvironment;
             $abort(sprintf(
                 'cannot open the test database "%s" (%s).' . PHP_EOL
                     . '  Create or refresh it with:' . PHP_EOL
-                    . '    docker exec vvld_php php scripts/test-db.php',
+                    . '    docker exec mygdala_php php scripts/test-db.php',
                 $test,
                 $e->getMessage()
             ));

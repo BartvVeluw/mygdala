@@ -207,8 +207,8 @@ geen favicon-link en geen `og:image`.
 ## Testen
 
 ```bash
-docker exec vvld_php      php vendor/bin/phpunit --testsuite fast
-docker exec vvld_php_test php vendor/bin/phpunit --testsuite cms
+docker exec mygdala_php      php vendor/bin/phpunit --testsuite fast
+docker exec mygdala_php_test php vendor/bin/phpunit --testsuite cms
 ```
 
 `fast` bevat `ThemeSettingsTest`, `ThemeRenderingTest`, `BrandingTest`,

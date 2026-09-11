@@ -792,8 +792,8 @@ Engels en voor een database zonder inhoud.
 Commando's en tiers staan in [`TESTING.md`](TESTING.md).
 
 ```bash
-docker exec vvld_php      php vendor/bin/phpunit --testsuite fast
-docker exec vvld_php_test php vendor/bin/phpunit --testsuite cms
+docker exec mygdala_php      php vendor/bin/phpunit --testsuite fast
+docker exec mygdala_php_test php vendor/bin/phpunit --testsuite cms
 ```
 
 | Wijziging | Draai |

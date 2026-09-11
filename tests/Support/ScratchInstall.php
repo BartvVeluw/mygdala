@@ -7,7 +7,7 @@ use PDO;
 /**
  * A throwaway database that the migrations are run against from zero.
  *
- * The rest of the suite works on `vanveluw_shop_test`, which is a copy of
+ * The rest of the suite works on `mygdala_tests`, which is a copy of
  * development — exactly right for asking "did this backfill keep its
  * promise", and useless for asking "what does a brand-new installation get",
  * because it starts out full of the answer. Install behaviour can only be
