@@ -87,3 +87,10 @@ docker/volumes/
 
 # PHPUnit's own incremental-run cache (regenerated on every test run)
 .phpunit.result.cache
+
+# Claude Code. The .claude folder itself IS committed — it carries the
+# project's agent skills and shared settings, which are part of how this
+# repository is worked on. Only the per-machine parts stay local: the
+# throwaway worktrees, and personal permission overrides.
+/.claude/worktrees/
+/.claude/settings.local.json

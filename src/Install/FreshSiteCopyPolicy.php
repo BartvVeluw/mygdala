@@ -23,7 +23,10 @@ namespace App\Install;
  *
  * FOUR GROUPS COME OUT:
  *
- *   1. version control    `.git` — the new site gets its own history.
+ *   1. version control    `.git` — the new site gets its own history, plus
+ *                         the per-machine parts of `.claude`. The agent
+ *                         skills and shared settings under it are how this
+ *                         CMS is worked on, so those do travel.
  *   2. secrets and state  everything `.gitignore` names: `.env`, `vendor/`,
  *                         uploaded media, logs, caches. {@see EXCLUDED_PATHS}
  *                         restates that list rather than parsing the file,
@@ -53,9 +56,15 @@ final class FreshSiteCopyPolicy
      */
     public const EXCLUDED_PATHS = [
         // Group 1: version control, and the local tooling that sits beside
-        // it. `.claude` holds this machine's agent sessions and worktrees.
+        // it. `.claude` itself is NOT excluded: it carries the project's
+        // agent skills and shared settings, which describe how this CMS is
+        // developed and therefore travel with the application. Only the two
+        // per-machine things under it stay behind — the throwaway worktrees,
+        // and whatever personal overrides this developer put in
+        // `settings.local.json`.
         '.git',
-        '.claude',
+        '.claude/worktrees',
+        '.claude/settings.local.json',
 
         // Group 2: secrets, dependencies and per-installation runtime state.
         '.env',
