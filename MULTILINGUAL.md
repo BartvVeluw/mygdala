@@ -114,7 +114,7 @@ knoppen die het over dezelfde staat oneens kunnen zijn is erger dan één.
 | Vertaaldienst | `src/Service/Translation/TranslationService.php` |
 | Vertaalstatus | `src/Service/Translation/TranslationState.php`, `src/Repository/TranslationStateRepository.php`, tabel `content_translation_state` |
 | Vertaalendpoint | `api/admin/translate-fields.php` |
-| Migraties | `db/migrations/20260910140000_add_multilingual_language_settings.php`, `…150000_create_the_translation_state_table.php`, `20260911100000_add_the_content_editing_language_column.php` |
+| Migraties | `db/migrations/20260910140000_add_multilingual_language_settings.php`, `…150000_create_the_translation_state_table.php`, `20260911100000_add_the_content_editing_language_column.php`, `20260911200000_correct_the_stored_content_languages.php` |
 | Tests | `tests/Service/LanguageRegistryTest.php`, `LocalizedValueTest.php`, `AdminLocaleTest.php`, `ThreeLanguageStatesTest.php`, `TranslationProviderTest.php`, `MultilingualBoundaryTest.php`, `tests/Repository/LocalizedNavigationFooterPersistenceTest.php` |
 
 ## Het talenregister
@@ -727,6 +727,44 @@ standaardtaal van de website.
   de website om te zetten;
 - de taaltabbladen in de editors zijn weg, vervangen door de ene schakelaar in
   de schil.
+
+
+### De tabelnamen van `20260910140000` klopten niet
+
+Die migratie besliste per database of zij `nl` of `nl,en` opsloeg, door een
+lijstje tabellen af te tasten op Engelse inhoud. Twee van de negen namen in
+dat lijstje bestaan niet in dit schema:
+
+| Wat de migratie zei | Hoe de tabel heet |
+|---|---|
+| `navigation_items` | `nav_items` |
+| `homepage_heroes` | `homepage_hero` |
+
+De lus slaat een tabel over die `hasTable()` niet kent, dus beide missers
+waren stil. En juist daar zet de generieke bootstrap zijn Engels neer, dus
+een verse installatie sloeg `nl` op en beweerde eentalig te zijn.
+
+Migratie `20260911200000_correct_the_stored_content_languages` herstelt dat.
+Zij tast niets af: zij schrijft de volledige set die dit product publiceert,
+hoofdtaal eerst — precies wat `ContentLanguages::normalise()` schrijft zodra
+een eigenaar zelf iets opslaat. Daarmee kan dezelfde fout niet terugkomen,
+want er staat geen tabelnaam meer in.
+
+`20260910140000` blijft staan zoals zij gedraaid heeft. Zij is al toegepast
+op echte installaties, dus haar geschiedenis blijft eerlijk en de nieuwe
+migratie corrigeert de staat die zij achterliet. Vers of bijgewerkt: beide
+eindigen op `nl,en`.
+
+Twee tests houden dit vast.
+`Tests\Install\MigrationTableNamesTest` vergelijkt elke tabelnaam die een
+migratie uitspreekt met de namen die de migraties aanmaken — een nieuwe
+typefout in een `hasTable()` of in een `'tabel' => 'kolom_en'`-lijstje faalt
+daar, en de twee bestaande missers staan er met naam en toenaam in.
+`Tests\Install\ContentLanguageSettingRepairTest` draait de kapotte migratie
+echt, tegen een database vanaf nul, en controleert daarna de uitkomst voor
+een verse installatie, voor een bijgewerkte, voor Engels dat alleen in het
+menu staat, voor Engels dat alleen in de hero staat, voor een site zonder
+Engels en voor een database zonder inhoud.
 
 ## Wat V1 bewust niet doet## Wat V1 bewust niet doet
 

@@ -75,6 +75,33 @@ final class ScratchInstall
         return $install;
     }
 
+    /**
+     * Builds a database from zero with the migrations applied only UP TO AND
+     * INCLUDING $version, so a test can stand where an installation stood
+     * before a later migration existed, put content in it, and then let the
+     * rest run.
+     *
+     * That is the only way to test a corrective migration honestly: the state
+     * it repairs has to be produced by the migration that produced it in the
+     * real world, not written by hand.
+     */
+    public static function upTo(string $database, string $version): self
+    {
+        $install = self::createEmpty($database);
+        $install->migrate($version);
+
+        return $install;
+    }
+
+    /**
+     * Runs the migrations this database has not had yet, all of them or up to
+     * and including $version.
+     */
+    public function catchUp(?string $version = null): void
+    {
+        $this->migrate($version);
+    }
+
     public function pdo(): PDO
     {
         return $this->pdo;

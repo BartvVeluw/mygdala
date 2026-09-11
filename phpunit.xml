@@ -85,6 +85,7 @@
             <file>tests/Blog/BlogModuleTest.php</file>
             <file>tests/Architecture/TestSuiteCoverageTest.php</file>
             <file>tests/Install/ExampleEnvironmentTest.php</file>
+            <file>tests/Install/MigrationTableNamesTest.php</file>
             <file>tests/Install/FreshSiteCopyTest.php</file>
             <file>tests/Install/GenericDistributionTest.php</file>
             <file>tests/Module/ModuleConfigurationTest.php</file>
@@ -132,6 +133,7 @@
             <file>tests/Architecture/TestSuiteCoverageTest.php</file>
             <file>tests/Blog/BlogModuleTest.php</file>
             <file>tests/Install/ExampleEnvironmentTest.php</file>
+            <file>tests/Install/MigrationTableNamesTest.php</file>
             <file>tests/Install/FreshSiteCopyTest.php</file>
             <file>tests/Install/GenericDistributionTest.php</file>
             <file>tests/Install/SetupWizardValidationTest.php</file>
@@ -246,6 +248,7 @@
         <testsuite name="migration">
             <file>tests/Install/FreshInstallRenderTest.php</file>
             <file>tests/Install/FreshInstallTest.php</file>
+            <file>tests/Install/ContentLanguageSettingRepairTest.php</file>
             <file>tests/Install/LegacyUpgradeTest.php</file>
             <file>tests/Install/SetupCompletionTest.php</file>
             <file>tests/Repository/ContactFormMigrationTest.php</file>
@@ -313,8 +316,10 @@
             <file>tests/Service/TranslationProviderTest.php</file>
             <file>tests/Service/MultilingualBoundaryTest.php</file>
             <file>tests/Install/ExampleEnvironmentTest.php</file>
+            <file>tests/Install/MigrationTableNamesTest.php</file>
             <file>tests/Install/FreshInstallRenderTest.php</file>
             <file>tests/Install/FreshInstallTest.php</file>
+            <file>tests/Install/ContentLanguageSettingRepairTest.php</file>
             <file>tests/Install/FreshSiteCopyTest.php</file>
             <file>tests/Install/GenericDistributionTest.php</file>
             <file>tests/Install/LegacyUpgradeTest.php</file>

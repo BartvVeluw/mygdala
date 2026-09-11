@@ -275,15 +275,25 @@ Een nieuwe migratie, een guard in een oude, of de bootstrap van een verse
 installatie (`INSTALL-BOOTSTRAP.md`):
 
 ```
+--testsuite fast        MigrationTableNamesTest: elke tabelnaam die een
+                        migratie uitspreekt is een tabel die de migraties ook
+                        aanmaken. Een typefout in een `hasTable()` of in een
+                        `'tabel' => 'kolom_en'`-lijstje is aan een draaiende
+                        site onzichtbaar — de lus slaat een onbekende tabel
+                        stil over — dus wordt hij hier gevangen, zonder
+                        database en zonder webserver
 --testsuite migration   FreshInstallTest, LegacyUpgradeTest,
-                        SetupCompletionTest en FreshInstallRenderTest bouwen
-                        elk een wegwerpdatabase en draaien phinx daar vanaf
-                        nul tegenaan: het eerste bewijst wat een nieuwe
+                        SetupCompletionTest, FreshInstallRenderTest en
+                        ContentLanguageSettingRepairTest bouwen elk een
+                        wegwerpdatabase en draaien phinx daar vanaf nul
+                        tegenaan: het eerste bewijst wat een nieuwe
                         installatie krijgt, het tweede dat een bestaande niets
                         kwijtraakt, het derde wat de installatiewizard er
-                        daarna van maakt, en het vierde wat zo'n verse
-                        installatie een bezoeker echt tóónt
---testsuite cms         dezelfde vier, plus de pagina-kant eromheen
+                        daarna van maakt, het vierde wat zo'n verse
+                        installatie een bezoeker echt tóónt, en het vijfde dat
+                        de opgeslagen talen van een site kloppen, hoe die
+                        database ook tot stand kwam (`MULTILINGUAL.md`)
+--testsuite cms         dezelfde vijf, plus de pagina-kant eromheen
 ```
 
 **Een lege database is nog geen lege pagina.** `FreshInstallTest` kijkt naar
