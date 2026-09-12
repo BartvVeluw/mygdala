@@ -252,6 +252,7 @@
             <file>tests/Install/FreshInstallTest.php</file>
             <file>tests/Install/ContentLanguageSettingRepairTest.php</file>
             <file>tests/Install/LegacyUpgradeTest.php</file>
+            <file>tests/Install/PortfolioCatalogueSchemaTest.php</file>
             <file>tests/Install/SetupCompletionTest.php</file>
             <file>tests/Repository/ContactFormMigrationTest.php</file>
             <file>tests/Service/MediaAdoptionTest.php</file>
@@ -321,6 +322,7 @@
             <file>tests/Install/FreshSiteCopyTest.php</file>
             <file>tests/Install/GenericDistributionTest.php</file>
             <file>tests/Install/LegacyUpgradeTest.php</file>
+            <file>tests/Install/PortfolioCatalogueSchemaTest.php</file>
             <file>tests/Install/SetupCompletionTest.php</file>
             <file>tests/Install/SetupWizardValidationTest.php</file>
             <file>tests/Repository/AdminUserRepositoryIntegrationTest.php</file>
