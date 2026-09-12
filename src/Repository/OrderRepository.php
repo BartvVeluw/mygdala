@@ -537,7 +537,18 @@ class OrderRepository extends Repository
      * list. `items_summary` is NULL for an order whose items were somehow
      * deleted (never happens in practice — order_items.order_id cascades
      * from `orders`, so an order's own items only disappear if the order
-     * itself is deleted), handled by the LEFT JOIN + COALESCE at read time.
+     * itself is deleted).
+     *
+     * The summary is assembled in PHP rather than by GROUP_CONCAT, which
+     * stops at group_concat_max_len (1024 bytes by default) and says nothing
+     * when it does: an order with enough lines reached the bookkeeping CSV
+     * with part of its product list cut off mid-word, and nothing downstream
+     * could tell. Raising that setting would only move the ceiling, and it
+     * would do so by mutating shared connection state for every later query
+     * in the request; building the string here removes the ceiling instead.
+     *
+     * Two queries whatever the date range covers — every matched order's
+     * lines are read at once, never one query per order.
      *
      * @return array<int, array<string, mixed>>
      */
@@ -559,20 +570,72 @@ class OrderRepository extends Repository
             "SELECT o.id, o.created_at, o.total, o.shipping_cost, o.refunded_amount,
                     o.status, o.fulfilment_status, o.mollie_payment_id, o.currency,
                     COALESCE(o.shipping_country, c.country) AS country,
-                    c.name AS customer_name, c.email AS customer_email,
-                    GROUP_CONCAT(
-                        CONCAT(oi.quantity, 'x ', oi.product_name, IF(oi.variant_label IS NOT NULL, CONCAT(' (', oi.variant_label, ')'), ''))
-                        ORDER BY oi.id SEPARATOR '; '
-                    ) AS items_summary
+                    c.name AS customer_name, c.email AS customer_email
              FROM orders o
-             JOIN customers c ON c.id = o.customer_id
-             LEFT JOIN order_items oi ON oi.order_id = o.id"
+             JOIN customers c ON c.id = o.customer_id"
             . $where .
-            ' GROUP BY o.id
-             ORDER BY o.created_at ASC'
+            ' ORDER BY o.created_at ASC'
         );
         $stmt->execute($params);
+        $orders = $stmt->fetchAll();
 
-        return $stmt->fetchAll();
+        $summaries = $this->itemSummaries(
+            array_map(static fn (array $order): int => (int) $order['id'], $orders)
+        );
+
+        foreach ($orders as $index => $order) {
+            $orders[$index]['items_summary'] = $summaries[(int) $order['id']] ?? null;
+        }
+
+        return $orders;
+    }
+
+    /**
+     * One "2x Naam (Variant); 1x Andere naam" line per order id, for all the
+     * given orders in a single query.
+     *
+     * An order that contributes nothing is simply absent from the result,
+     * which is what leaves its `items_summary` NULL. A line without a
+     * product-name snapshot contributes nothing either — the same silent
+     * skip the SQL had, where CONCAT() over a NULL column produced NULL and
+     * GROUP_CONCAT() left it out.
+     *
+     * @param list<int> $orderIds
+     * @return array<int, string>
+     */
+    private function itemSummaries(array $orderIds): array
+    {
+        $ids = array_values(array_unique($orderIds));
+        if ($ids === []) {
+            return [];
+        }
+
+        $placeholders = implode(',', array_fill(0, count($ids), '?'));
+
+        $stmt = $this->db->prepare(
+            "SELECT order_id, quantity, product_name, variant_label
+             FROM order_items
+             WHERE order_id IN ({$placeholders})
+             ORDER BY order_id ASC, id ASC"
+        );
+        $stmt->execute($ids);
+
+        $lines = [];
+
+        foreach ($stmt->fetchAll() as $item) {
+            if ($item['product_name'] === null || $item['product_name'] === '') {
+                continue;
+            }
+
+            $variant = (string) ($item['variant_label'] ?? '');
+
+            $lines[(int) $item['order_id']][] = (int) $item['quantity'] . 'x ' . $item['product_name']
+                . ($variant !== '' ? ' (' . $variant . ')' : '');
+        }
+
+        return array_map(
+            static fn (array $orderLines): string => implode('; ', $orderLines),
+            $lines
+        );
     }
 }
