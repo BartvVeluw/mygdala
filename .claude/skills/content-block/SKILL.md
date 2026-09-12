@@ -32,19 +32,34 @@ die het blok bezit).
 
 ## Het inhoudscontract: drie toestanden
 
-Dit is waar het meestal misgaat. `forSection()` geeft een `state` terug:
+Dit is waar het meestal misgaat. `forSection()` geeft een `state` terug, en
+twee van de drie toestanden renderen niets:
 
-- **`STATE_FALLBACK`** — er is geen rij, of de database was onbereikbaar.
-  Render de standaardinhoud, zodat de publieke site nooit breekt door een
-  CMS-probleem.
-- **`STATE_ACTIVE`** — de rij bestaat en is actief. Render zijn eigen inhoud,
-  ook als die leeg is.
+- **`STATE_FALLBACK`** — er is geen rij, of de lookup faalde (database
+  onbereikbaar). Render **niets**, en laat ook geen gat achter: geen lege
+  sectie met verticale ruimte. Er is géén hardcoded fallback-copy. Een
+  mislukte lookup logt via `error_log()` en degradeert naar deze toestand in
+  plaats van te crashen.
+- **`STATE_ACTIVE`** — de rij bestaat en is actief. Render de eigen inhoud van
+  de instantie, en nooit een standaardtekst in de plaats daarvan. Is die
+  inhoud leeg, doordat alle items verborgen zijn of er nog geen enkel item is,
+  dan rendert de partial om dezelfde reden ook niets: een leeg kader met
+  witruimte is geen inhoud. `partials/section-marquee.php` en
+  `partials/section-card-carousel.php` zijn de voorbeelden.
 - **`STATE_HIDDEN`** — de rij bestaat en staat op `is_active = 0`. Render
-  **niets**, en val nadrukkelijk **niet** terug op de standaardinhoud.
-  Anders kan de "Actief"-checkbox niets verbergen.
+  **niets**. Anders kan de "Actief"-checkbox niets verbergen.
 
 Losse items volgen die regel niet: een individueel verborgen item blijft
 verborgen, ook als de lijst daardoor leeg is.
+
+**Neem de oudste blokken hierin niet als voorbeeld.** `FaqContent`,
+`FeatureGridContent`, `HomepageHeroContent`, `PageHeroContent`,
+`StatStripContent`, `StepListContent` en `TextImageSplitContent` dragen nog een
+`DEFAULTS`-constante met de teksten van de site waaruit dit CMS is gegroeid.
+Dat is werk dat niet af is, geen patroon om te kopiëren:
+`docs/content-blocks/DECISIONS.md`, "Geen hardcoded fallback-copy meer", legt
+uit waarom dat vangnet niets meer kon vangen. Een nieuw blok volgt
+`CtaBandContent::emptyContent()`.
 
 ## Waar je op moet letten
 
