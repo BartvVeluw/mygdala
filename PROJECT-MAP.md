@@ -247,6 +247,7 @@ Bekend, ingepland, **niet** in deze stap op te lossen:
 | Een oude URL die moet blijven werken, een pagina hernoemen | `REDIRECTS.md` |
 | Tests draaien of toevoegen | `TESTING.md` |
 | De schrijfstijl van code, commentaar en CMS-teksten | `CODE-STYLE.md` |
+| Hoe je aan dit project werkt: de skills, de regels, waar nieuwe kennis heen gaat | `WORKFLOW.md` |
 | Waaróm werkt een blok zo | `docs/content-blocks/ARCHITECTURE.md`, `DECISIONS.md` |
 
 ## Verwijzingen naar bestanden die hier niet bestaan

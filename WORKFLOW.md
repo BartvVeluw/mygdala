@@ -1,0 +1,276 @@
+# Werkwijze
+
+Hoe je aan Mygdala verder bouwt: wat er is, wanneer je wat gebruikt, en waar
+nieuwe kennis thuishoort.
+
+`CLAUDE.md` is de wegwijzer die elke sessie automatisch meekrijgt en die kort
+moet blijven. **Dit document is de uitleg eromheen**, en je leest het wanneer
+je iets wilt opzoeken of wanneer je iets aan de opzet toevoegt. Bij gewoon
+ontwikkelwerk heb je het niet nodig.
+
+## De vier lagen
+
+Instructies zitten in vier lagen. Elke laag heeft een eigen moment waarop hij
+in context komt, en dat is precies waarom de opzet werkt: je betaalt alleen
+voor wat je nodig hebt.
+
+| Laag | Waar | Wanneer geladen |
+|---|---|---|
+| Wegwijzer | `CLAUDE.md` | Elke sessie, automatisch |
+| Path-regels | `.claude/rules/*.md` | Zodra een bestand wordt geopend dat op de `paths:` matcht |
+| Mapregels | `CLAUDE.md` in een submap | Zodra een bestand in die map wordt geopend |
+| Skills | `.claude/skills/*/SKILL.md` | Alleen wanneer jij hem aanroept |
+
+**Een regel is reactief, een skill is preventief.** Een path-regel vuurt pas
+nadat een bestand al open is. Hij stuurt het gedrag *binnen* een domein, maar
+kan niet voorkomen dat een sessie in het verkeerde domein begint. Dat doet de
+skill wel, want die roep je vooraf aan. Daarom begin je een taak altijd met de
+skill, en zijn de regels het vangnet daarna.
+
+## Zo begin je een taak
+
+1. **Noem het domein.** Typ de skill en daarachter wat je wilt:
+   `/shop Ik wil kortingscodes die per collectie beperkt kunnen worden.`
+2. **Laat eerst een impactanalyse maken.** Welke migratie, welke repository,
+   welke service, welk adminscherm, welk endpoint, welke frontend, welke
+   tests. Nog geen code.
+3. **Bouw per verticale plak**: database, dan domein, dan admin en API, dan
+   frontend, dan tests. Niet eerst overal de helft.
+4. **Draai de suite van je domein**, niet de volle suite.
+5. **Laat de diff nakijken met `/style`** als de wijziging groot was.
+6. **Commit per onderwerp.**
+
+Wisselt het onderwerp echt van domein, begin dan een nieuwe sessie. Doorstapelen
+in dezelfde sessie is precies hoe context dichtslibt.
+
+## De zes skills
+
+Een skill kost niets tot je hem aanroept. Hij zet de paden, het testcommando,
+de grenzen en de checklist van zijn domein klaar.
+
+| Skill | Roep aan bij | Wat hij klaarzet |
+|---|---|---|
+| `/shop` | Producten, varianten, opties, collecties, winkelwagen, afrekenen, bestellingen, Mollie, facturen, verzending | De elf padgroepen van de Shop, de regel dat een request nooit een prijs bepaalt, en dat een order een snapshot is |
+| `/blog` | Berichten, categorieën, tags, publiceren en inplannen, het overzicht, de feed | De Blog-paden, de grens met de Shop, en dat testen een container met `MODULE_BLOG_ENABLED=true` vraagt |
+| `/content-block` | Een bloktype toevoegen, wijzigen of verwijderen | De acht onderdelen van één blok, het inhoudscontract met zijn drie toestanden, en de valkuilen |
+| `/forms` | Formulierdefinities, velden, veldtypes, inzendingen, spam | De Forms-paden, dat validatie over de definitie loopt en niet over het request, en dat het zonder JavaScript moet werken |
+| `/admin-endpoint` | Een bestand onder `api/admin/` | Het skelet met de vier guards in de juiste volgorde, en de valkuil rond `page_slug:section_key` |
+| `/style` | Nieuwe code schrijven, CMS-teksten schrijven, een diff nakijken | Vijf kernregels plus een afvinklijst; `CODE-STYLE.md` is het volledige verhaal |
+
+### Wanneer maak je er een bij
+
+Pas wanneer je dezelfde procedure voor de derde keer uitlegt. Kandidaten die
+zich waarschijnlijk aandienen: meertaligheid, media, thema, een nieuwe module
+opzetten, en een migratie schrijven. Maak ze niet vooruit.
+
+## De vier path-regels
+
+Deze komen vanzelf in beeld. Je hoeft er niets voor te doen.
+
+| Regel | Matcht op | Waarover |
+|---|---|---|
+| `php-style.md` | `**/*.php` | Taal, `strict_types`, `final`, SQL in de repository, de vier beveiligingsregels |
+| `shop.md` | Elf globs over `src/Service`, `src/Repository`, `admin`, `api`, de routes en `assets/*/shop` | De Shop-grenzen |
+| `blog.md` | `src/Service/Blog`, `src/Repository/Blog*`, `admin/blog*`, `blog*.php` en verder | De Blog-grenzen |
+| `frontend-assets.md` | `assets/css`, `assets/js`, `partials` | Eén eigenaar per bestand, gevraagd via `PageAssets` |
+
+De Shop heeft elf globs nodig omdat zijn bestanden plat verspreid staan tussen
+die van Core. Dat is de beste aanwijzing die we hebben dat de Shop ooit een
+eigen map verdient. Zie "Wat er open staat".
+
+## De vijftien mapregels
+
+Elke map die al een domein ís, heeft een eigen `CLAUDE.md` van acht tot vijftien
+regels. Die laadt zodra je een bestand in die map opent, en staat naast de code
+die hij beschrijft.
+
+```text
+api/admin/                     de vier guards, het PRG-patroon, de sectievalkuil
+db/migrations/                 forward-only, signed/unsigned, de bootstrap-migratie
+src/Install/                   InstallState vs SetupWizard vs FreshSiteCopyPolicy
+src/Module/                    het register, de configuratieketen, ModuleGuard
+src/Service/Blocks/            de blokdefinitie als integratiecontract
+src/Service/Blog/              de modulegrens
+src/Service/Forms/             Core, validatie over de definitie
+src/Service/Language/          de drie onafhankelijke taalstaten
+src/Service/Media/             Core, usage-providers, waar bestanden staan
+src/Service/PageTemplates/     alleen bij aanmaken, nooit een paginatype
+src/Service/Personalization/   hangt van de Shop af, snapshot op de orderregel
+src/Service/Redirects/         één opzoekpunt, uitgeschakelde modules
+src/Service/Shipping/          deelgebied binnen de Shop
+src/Service/Theme/             publieke site versus AdminTheme
+src/Service/Translation/       het providercontract, niet DeepL
+```
+
+## Alle documenten
+
+Lees er **één** per taak. De wegwijzer in `CLAUDE.md` vertelt welke.
+
+### Beginnen en overzicht
+
+| Document | Regels | Lees dit wanneer |
+|---|---|---|
+| `CLAUDE.md` | 122 | Nooit handmatig. Hij laadt vanzelf |
+| `WORKFLOW.md` | dit bestand | Je wilt iets opzoeken over de opzet, of er iets aan toevoegen |
+| `PROJECT-MAP.md` | 274 | De wegwijzer helpt je niet verder en je wilt de volledige kaart |
+| `README.md` | 150 | Docker, database, lokaal draaien, deployen |
+| `CODE-STYLE.md` | 147 | Je schrijft nieuwe code of teksten voor de beheerder |
+| `TESTING.md` | 573 | Tests draaien of toevoegen |
+
+### Domeinen
+
+| Document | Regels | Lees dit wanneer |
+|---|---|---|
+| `MODULES.md` | 437 | Domeingrenzen, "waar hoort dit thuis", een module toevoegen of uitzetten, of werk aan de Shop |
+| `CONTENT-BLOCKS.md` | 394 | Een content-blok toevoegen of wijzigen |
+| `BLOG.md` | 386 | Alles rond de Blog |
+| `FORMS.md` | 532 | Formulieren en inzendingen |
+| `MULTILINGUAL.md` | 821 | Talen van de site, CMS-taal, bewerktaal, automatisch vertalen |
+| `MEDIA.md` | 346 | De Mediabibliotheek |
+| `PAGE-EDITOR.md` | 369 | Blokkenkiezer, catalogus, opslagbalk, tabbladen, inklapbare rijen |
+| `PAGE-TEMPLATES.md` | 272 | Een nieuw paginasjabloon |
+| `THEMING.md` | 227 | Kleuren, lettertypes, knopvorm, logo's, dashboard-uiterlijk |
+| `SEO.md` | 387 | Titels, meta description, canonical, sitemap, robots |
+| `REDIRECTS.md` | 327 | Een oude URL die moet blijven werken |
+| `HEADER-FOOTER.md` | 172 | Header-knop, footer-slotregel, social profielen |
+
+### Installatie
+
+| Document | Regels | Lees dit wanneer |
+|---|---|---|
+| `INSTALL-BOOTSTRAP.md` | 244 | Wat een verse installatie aanmaakt en wat een bestaande behoudt |
+| `SETUP.md` | 464 | De installatiewizard, de basis-URL, een tweede site beginnen |
+
+### Achtergrond
+
+Lees deze **niet** standaard. Ze beantwoorden "waarom", niet "hoe".
+
+| Document | Regels | Lees dit wanneer |
+|---|---|---|
+| `docs/content-blocks/DECISIONS.md` | 186 | Je raakt een architecturale keuze rond blokken |
+| `docs/content-blocks/ARCHITECTURE.md` | 158 | Je wilt weten waarom het blokkenmodel zo is |
+| `docs/content-blocks/README.md` | 31 | De leesroute voor die map |
+
+### Vier verwijzingen die nergens heen gaan
+
+`MAIN.MD`, `docs/CMS_CONTENT_AUDIT.md`, `docs/content-blocks/ROADMAP.md` en
+`PHASE-1.md` tot en met `PHASE-4.md` bestaan niet in deze repository. Ruim
+honderd docblocks noemen er een, en dat is bewust zo gelaten: die zinnen leggen
+uit waarom iets werkt zoals het werkt, en de historische bron erbij noemen kost
+niets zolang je weet dat je hem niet hoeft te openen. Ga er nooit naar zoeken.
+
+## Waar zet ik nieuwe kennis neer
+
+Dit is de vraag die de opzet gezond houdt. Zet iets in één laag, nooit in twee:
+twee regels die elkaar tegenspreken maken allebei minder indruk.
+
+| Wat je hebt geleerd | Waar het hoort |
+|---|---|
+| Geldt altijd, in elk domein, in één zin | `CLAUDE.md` |
+| Geldt voor bestanden die je aan een glob herkent | Een path-regel |
+| Geldt voor één map | De `CLAUDE.md` van die map |
+| Is een procedure van meerdere stappen | Een skill |
+| Is de volledige uitleg met redenering | Het domeindocument |
+| Is waarom een keuze ooit zo gemaakt is | `docs/content-blocks/DECISIONS.md` of het domeindocument |
+
+Twee vuistregels. `CLAUDE.md` blijft onder de tweehonderd regels, want langer
+betekent dat er minder van wordt opgevolgd. En wijkt de code af van een
+document, dan heeft de code gelijk: pas het document aan.
+
+## Testen
+
+Dertien suites: `unit`, `contract`, `fast`, `blocks`, `cms`, `shop`, `blog`,
+`modules`, `personalization`, `analytics`, `http`, `migration` en `full`.
+Formulieren hebben geen eigen suite en zitten in `cms`. Meertaligheid ook niet,
+want het is Core en raakt elk domein; die tests zitten in `fast` en `cms`.
+
+```bash
+docker exec mygdala_php_test php vendor/bin/phpunit --testsuite shop
+```
+
+Draai de suite van je domein, en daarna `fast`. De volle suite alleen bij een
+grote wijziging.
+
+### Drie valkuilen die je een half uur kosten
+
+**Draai in `mygdala_php_test`, niet in `mygdala_php`.** De ontwikkelcontainer
+heeft modules uitstaan. `unit` en `contract` hebben geen database nodig maar
+lezen wél het moduleregister, dus een uitgeschakelde Shop of Blog neemt zestien
+tests mee die niets met je wijziging te maken hebben. `TESTING.md` noemt ze bij
+naam.
+
+**De volle suite is nu niet groen, en dat lag er al.** Op de huidige
+testdatabase geeft `full` 4 errors en 49 failures. Ze komen bijna allemaal uit
+de groep `migration-backfill`, die controleert of historische migraties hun
+belofte hielden. Die belofte ging over Van Veluw-inhoud, en deze installatie
+heeft die pagina's nooit gehad. Vergelijk bij twijfel met `main` voordat je
+denkt dat jij iets kapot hebt gemaakt.
+
+**De HTTP-tests hebben een draaiende webcontainer nodig.** Zonder
+`docker compose --profile test up -d` slaan ze zichzelf over in plaats van te
+falen, dus een groene run zegt dan minder dan je denkt.
+
+## Veelvoorkomende taken
+
+**Een content-blok toevoegen.** `/content-block`. Acht bestanden plus één
+regel in `BlockDefinitions`, of in `blockDefinitions()` van de module die het
+blok bezit. Alle methodes van `BlockDefinition` zijn `abstract`, dus je kunt er
+geen vergeten. Test met `--testsuite blocks`.
+
+**Een admin-endpoint toevoegen.** `/admin-endpoint`. Kopieer er een uit
+dezelfde familie, schrijf er nooit een vanaf nul. Vier guards in volgorde:
+login, permissie, POST, CSRF. Daarna pas lezen of schrijven.
+
+**Een migratie schrijven.** `docker exec mygdala_php php vendor/bin/phinx
+create MyNewMigration`. Forward-only, idempotent, MySQL-compatibel. Let op
+signed en unsigned bij foreign keys, daar is het één keer op misgegaan.
+
+**Een module toevoegen.** `MODULES.md`, hoofdstuk "Een module toevoegen". Vijf
+stappen, waarvan één regel in `ModuleRegistry::MAP`. Vergeet de variabele in
+`.env.example` niet.
+
+**Een nieuwe site beginnen met deze codebase.** `SETUP.md`. Het recept loopt
+via `scripts/create_fresh_site_copy.php`, en `FreshSiteCopyPolicy` is de grens
+tussen wat applicatie is en wat bij één site hoort.
+
+## Wat er open staat
+
+Drie punten die bewust zijn blijven liggen. Geen van drieën is urgent, alle
+drie verdienen een eigen sessie.
+
+**De backfill-tests horen bij een andere site.** `PagesBackfillTest`,
+`NavigationFooterBackfillTest`, `PageSectionsBackfillTest` en
+`ContactFormMigrationTest` verifiëren rijen die alleen op de Van Veluw-
+installatie bestaan. Ze zitten in de standaardsuite `full` en kunnen daar nooit
+slagen. Dit is dezelfde applicatie-versus-site-grens die `FreshSiteCopyPolicy`
+elders al trekt. Drie mogelijke antwoorden: uitsluiten van `full`, zichzelf
+laten overslaan als de rijen er niet zijn, of overdragen aan de Van
+Veluw-repository.
+
+**Er is geen `.env` in de checkout.** Alleen `.env.example`. Het
+compose-bestand heeft op drie plekken een verplichte `env_file: .env`, dus een
+verse `docker compose up -d` faalt. De draaiende containers werken nog op
+instellingen uit een `.env` die er ooit was. De omgeving is dus niet opnieuw op
+te bouwen uit de repository.
+
+**De pakketnaam in `composer.json`** is nog `vanveluwlaserdesign/webshop`. Die
+zit in de content-hash van `composer.lock`, dus hernoemen vraagt een
+`composer update --lock` in dezelfde commit.
+
+## De eerstvolgende stap
+
+Geen van bovenstaande drie, en ook geen herstructurering. Doe eerst één echte
+kleine wijziging via `/shop` of `/content-block`, en kijk daarna terug:
+
+- welke bestanden zijn er geopend, en zaten daar bestanden van een ander domein bij;
+- welke instructielagen zijn er geladen;
+- hoeveel moest je zelf bijsturen.
+
+Dat zegt of deze opzet werkt. Valt er iets tegen, dan is de reparatie bijna
+altijd één pad toevoegen aan een skill of één regel aan een path-regel.
+
+Pas als die praktijktest goed gaat, zijn de grotere stappen aan de beurt:
+`MULTILINGUAL.md` opsplitsen in een map met een kort routerend
+overzichtsdocument, en daarna de vraag of de Shop een eigen map verdient. Die
+laatste doe je omdat de software er begrijpelijker van wordt, niet omdat een
+glob lelijk is.

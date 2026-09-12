@@ -55,6 +55,7 @@ de checklist al klaarzet. Roep die eerst aan.
 | Een oude URL die moet blijven werken, een pagina hernoemen | — | `REDIRECTS.md` |
 | Tests draaien of toevoegen | — | `TESTING.md` |
 | Docker, database, lokaal draaien | — | `README.md` |
+| Iets toevoegen aan deze opzet: een skill, een regel, een document | — | `WORKFLOW.md` |
 | Waaróm werkt een blok zo | — | `docs/content-blocks/DECISIONS.md` |
 
 ## Hoe de instructies in dit project geladen worden

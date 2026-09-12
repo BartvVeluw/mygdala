@@ -13,6 +13,10 @@ ontwikkelomgeving. Een generieke wijziging wordt eerst hier bewezen.
 > [`CLAUDE.md`](CLAUDE.md) voor de wegwijzer en
 > [`PROJECT-MAP.md`](PROJECT-MAP.md) voor de volledige kaart.
 >
+> **Wil je weten hoe je eraan verder bouwt?** [`WORKFLOW.md`](WORKFLOW.md):
+> de skills, de instructielagen, welk document je wanneer leest, en waar
+> nieuwe kennis thuishoort.
+>
 > **Dit bestand gaat alleen over de ontwikkelomgeving:** Docker, de database
 > en de tests.
 
