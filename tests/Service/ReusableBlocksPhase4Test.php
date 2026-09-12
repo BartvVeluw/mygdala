@@ -17,9 +17,7 @@ use App\Service\ItemGalleryContent;
 use App\Service\PageContent;
 use App\Service\PortfolioGalleryContent;
 use App\Service\SectionRegistry;
-use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
-use Tests\Support\TestEnvironment;
 
 /**
  * Phase 4 of the content-block refactor (docs/content-blocks/PHASE-4.md):
@@ -29,14 +27,13 @@ use Tests\Support\TestEnvironment;
  *
  * What this file owns, and what it leaves to its neighbours:
  * Tests\Service\ContentBlockArchitectureTest owns the phase 1 architecture
- * rules, ReusableBlocksPhase2Test/ReusableBlocksPhase3Test the earlier
- * phases' promises, and Tests\Repository\PageSectionsBackfillTest "no
- * attachment was lost". Here we assert the phase 4 promises: the block is
+ * rules and ReusableBlocksPhase2Test/ReusableBlocksPhase3Test the earlier
+ * phases' promises. Here we assert the phase 4 promises: the block is
  * addable and repeatable anywhere, each source yields the right items, an
  * invalid source is refused instead of executed, filter bar and lightbox
- * follow the block's own setting, two instances on one page stay
- * independent, and the migrated Portfolio and homepage content is still on
- * the public site.
+ * follow the block's own setting, and two instances on one page stay
+ * independent. That an existing installation lost no block in the migration
+ * is Tests\Install\LegacyUpgradeTest's to prove.
  *
  * Blocks are created on a throwaway page of this test's own and the
  * collection-source test creates a throwaway collection (existing products
@@ -209,30 +206,6 @@ final class ReusableBlocksPhase4Test extends TestCase
         ));
 
         return $this->collectionId = $id;
-    }
-
-    /**
-     * @return array{status: int, body: string}|null null when the request could not be made at all
-     */
-    private function request(string $path): ?array
-    {
-        $context = stream_context_create([
-            'http' => ['ignore_errors' => true, 'timeout' => 5, 'follow_location' => 0],
-        ]);
-
-        $body = @file_get_contents(TestEnvironment::baseUrl() . $path, false, $context);
-        if ($body === false && !isset($http_response_header)) {
-            return null;
-        }
-
-        $status = 0;
-        foreach ($http_response_header ?? [] as $header) {
-            if (preg_match('#^HTTP/\S+\s+(\d{3})#', $header, $m) === 1) {
-                $status = (int) $m[1];
-            }
-        }
-
-        return ['status' => $status, 'body' => (string) $body];
     }
 
     private function sourceOf(string $relativePath): string
@@ -628,82 +601,5 @@ final class ReusableBlocksPhase4Test extends TestCase
             ItemGalleryContent::forSection(self::TEST_KEY, $sectionKey)['state']
         );
         $this->assertSame('', $this->renderBlock($blockId));
-    }
-
-    // ------------------------------------------------------- the migration
-
-    #[Group('migration-backfill')]
-    public function testBothMigratedPortfolioBlocksAreNowInstancesOfOneType(): void
-    {
-        foreach (['portfolio', 'index'] as $contentKey) {
-            $page = $this->pages->findByContentKey($contentKey);
-            $this->assertNotNull($page);
-
-            // The MIGRATED instance, by the key the migration wrote.
-            // `item_gallery` is repeatable, so a second gallery added in the
-            // CMS is legitimate content and must not read as the migration
-            // having duplicated the block.
-            $attached = array_values(array_filter(
-                $this->sections->findForPage((int) $page['id']),
-                static fn (array $row): bool => (string) $row['section_type'] === 'item_gallery'
-                    && (string) $row['section_key'] === 'main'
-            ));
-
-            $this->assertCount(1, $attached, "\"{$contentKey}\" must carry exactly one migrated gallery block");
-        }
-
-        // What the migration was responsible for: the COPY it carried over
-        // and the source each block points at. The display toggles
-        // (filterbalk, lightbox, achtergrond, ...) are ordinary editable
-        // settings from here on — asserting the values the migration happened
-        // to write would make normal use of the CMS fail this test. That
-        // those toggles work is covered above, on this test's own page, where
-        // the test sets them itself.
-        $portfolio = ItemGalleryContent::forSection('portfolio', 'main');
-        $this->assertSame(ItemGalleryContent::SOURCE_PORTFOLIO, $portfolio['source_type']);
-        $this->assertStringContainsString('Staat jouw idee er niet tussen', $portfolio['footer_note_nl']);
-
-        $home = ItemGalleryContent::forSection('index', 'main');
-        $this->assertSame(ItemGalleryContent::SOURCE_PORTFOLIO, $home['source_type']);
-        $this->assertSame('Een greep uit eerder werk', $home['title_nl']);
-        $this->assertSame('A glimpse of past work', $home['title_en']);
-        $this->assertSame('/portfolio.php', $home['fallback_link_url']);
-        $this->assertSame('Bekijk volledige portfolio', $home['button_label_nl']);
-    }
-
-    #[Group('migration-backfill')]
-    public function testTheMigratedPortfolioContentIsStillOnThePublicSite(): void
-    {
-        if ($this->request('/') === null) {
-            $this->markTestSkipped(TestEnvironment::unreachableMessage());
-        }
-
-        $portfolio = $this->request('/portfolio.php');
-        $this->assertNotNull($portfolio);
-        $this->assertSame(200, $portfolio['status']);
-
-        // Only the migrated CONTENT — the grid and the closing paragraph.
-        // The filter bar and the lightbox are one checkbox away in the CMS,
-        // so their presence on the live page is not a migration promise; the
-        // block-level tests above own that behaviour.
-        foreach (['gallery-grid', 'Staat jouw idee er niet tussen'] as $marker) {
-            $this->assertStringContainsString($marker, $portfolio['body'], "\"{$marker}\" disappeared from /portfolio.php");
-        }
-
-        foreach (PortfolioGalleryContent::catalogueItems(false) as $item) {
-            $this->assertStringContainsString(
-                htmlspecialchars((string) $item['title_nl'], ENT_QUOTES, 'UTF-8'),
-                $portfolio['body'],
-                'every visible portfolio item must still be on the page'
-            );
-        }
-
-        $home = $this->request('/');
-        $this->assertNotNull($home);
-        $this->assertSame(200, $home['status']);
-
-        foreach (['Een greep uit eerder werk', 'Bekijk volledige portfolio', 'gallery-item'] as $marker) {
-            $this->assertStringContainsString($marker, $home['body'], "\"{$marker}\" disappeared from the homepage");
-        }
     }
 }

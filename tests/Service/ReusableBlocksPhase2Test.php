@@ -17,9 +17,7 @@ use App\Service\PageContent;
 use App\Service\RichTextContent;
 use App\Service\SectionRegistry;
 use App\Service\SiteSettings;
-use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
-use Tests\Support\TestEnvironment;
 
 /**
  * Phase 2 of the content-block refactor (docs/content-blocks/PHASE-2.md):
@@ -29,11 +27,12 @@ use Tests\Support\TestEnvironment;
  * Tests\Service\ContentBlockArchitectureTest owns the phase 1 architecture
  * rules (one list per page, fixed blocks, page protection),
  * Tests\Service\SectionRegistryTest owns create/delete against the real
- * content tables in general. Here we assert the four phase 2 promises:
- * every migrated type is addable/repeatable according to its own registry
- * rules, two instances on one page keep independent content, the content
- * that existed before the migration is still visible on the public site, and
- * no hardcoded per-page path is left behind.
+ * content tables in general. Here we assert the phase 2 promises: every
+ * migrated type is addable/repeatable according to its own registry rules,
+ * two instances on one page keep independent content, and no hardcoded
+ * per-page path is left behind. That one particular site's contact page and
+ * shop note survived the migration is that site's history, not this CMS's
+ * contract (TESTING.md, the `migration-backfill` group).
  *
  * Blocks are created on a throwaway page of this test's own, so nothing here
  * can touch real site content; tearDown deletes each created block through
@@ -139,30 +138,6 @@ final class ReusableBlocksPhase2Test extends TestCase
         $this->assertNotNull($page);
 
         return $page;
-    }
-
-    /**
-     * @return array{status: int, body: string}|null null when the request could not be made at all
-     */
-    private function request(string $path): ?array
-    {
-        $context = stream_context_create([
-            'http' => ['ignore_errors' => true, 'timeout' => 5, 'follow_location' => 0],
-        ]);
-
-        $body = @file_get_contents(TestEnvironment::baseUrl() . $path, false, $context);
-        if ($body === false && !isset($http_response_header)) {
-            return null;
-        }
-
-        $status = 0;
-        foreach ($http_response_header ?? [] as $header) {
-            if (preg_match('#^HTTP/\S+\s+(\d{3})#', $header, $m) === 1) {
-                $status = (int) $m[1];
-            }
-        }
-
-        return ['status' => $status, 'body' => (string) $body];
     }
 
     // -------------------------------------------------------- capabilities
@@ -278,98 +253,6 @@ final class ReusableBlocksPhase2Test extends TestCase
         // ... and the editors no longer address an instance by page alone.
         $registry = (string) file_get_contents(dirname(__DIR__, 2) . '/src/Service/SectionRegistry.php');
         $this->assertStringNotContainsString('cta-band.php?slug=', $registry);
-    }
-
-    // ----------------------------------------- the migrated content itself
-
-    #[Group('migration-backfill')]
-    public function testTheContactPageStillCarriesEverythingItRendered(): void
-    {
-        $contact = $this->pages->findByContentKey('contact');
-        $this->assertNotNull($contact, 'expected the contact page — run phinx migrate');
-
-        $types = array_map(
-            static fn (array $row): string => (string) $row['section_type'],
-            $this->sections->findForPage((int) $contact['id'])
-        );
-
-        $this->assertContains('contact_form', $types);
-        $this->assertContains('contact_card', $types, 'the mail card must have become a block of its own');
-
-        $form = ContactFormContent::forSection('contact', ContactFormContent::MIGRATED_SECTION_KEY);
-        $this->assertSame(ContactFormContent::STATE_ACTIVE, $form['state']);
-        $this->assertSame('Offerte aanvragen', $form['title_nl']);
-        $this->assertSame('Request a quote', $form['title_en']);
-
-        $card = ContactCardContent::forSection('contact', ContactCardContent::MIGRATED_SECTION_KEY);
-        $this->assertSame(ContactCardContent::STATE_ACTIVE, $card['state']);
-        $this->assertSame('Liever direct mailen?', $card['title_nl']);
-        $this->assertSame('Prefer to email directly?', $card['title_en']);
-        $this->assertStringContainsString('korte omschrijving', $card['body_nl']);
-        $this->assertStringContainsString('short description', $card['body_en']);
-        $this->assertSame('mailto:' . SiteSettings::get('email'), $card['button_url']);
-    }
-
-    #[Group('migration-backfill')]
-    public function testTheShopNoteSurvivedAsAnOrdinaryTextBlock(): void
-    {
-        $shop = $this->pages->findByContentKey('shop');
-        $this->assertNotNull($shop);
-
-        $note = RichTextContent::forSection('shop', 'shop-note');
-        $this->assertSame(RichTextContent::STATE_ACTIVE, $note['state'], 'the Shop note must exist as a Rich text block');
-        $this->assertStringContainsString('Zoek je iets specifieks', $note['content_html']);
-        $this->assertStringContainsString('Looking for something specific', $note['content_html_en']);
-
-        // The docblock still explains where the paragraph went, so look for
-        // the MARKUP that used to render it, not the words themselves.
-        $this->assertStringNotContainsString(
-            'data-nl="Zoek je iets specifieks',
-            (string) file_get_contents(dirname(__DIR__, 2) . '/partials/section-product-grid.php'),
-            'the paragraph must no longer be hardcoded in the product grid'
-        );
-    }
-
-    #[Group('migration-backfill')]
-    public function testThePublicPagesStillShowTheMigratedContent(): void
-    {
-        if ($this->request('/') === null) {
-            $this->markTestSkipped(TestEnvironment::unreachableMessage());
-        }
-
-        $contact = $this->request('/contact.php');
-        $this->assertNotNull($contact);
-        $this->assertSame(200, $contact['status']);
-        // `data-form-block` is what `data-quote-form` became when the
-        // quote form moved onto the shared form renderer (FORMS.md); the
-        // promise this test makes — the Contact page still shows the form,
-        // its heading, the details card and the mail card — is unchanged.
-        foreach (['data-form-block', 'contact-grid', 'Offerte aanvragen', 'Liever direct mailen?', 'Mail direct', 'mailto:' . SiteSettings::get('email')] as $marker) {
-            $this->assertStringContainsString($marker, $contact['body'], "\"{$marker}\" disappeared from /contact.php");
-        }
-
-        $shop = $this->request('/shop.php');
-        $this->assertNotNull($shop);
-        $this->assertSame(200, $shop['status']);
-        $this->assertStringContainsString('Zoek je iets specifieks', $shop['body']);
-        $this->assertStringContainsString('Looking for something specific', $shop['body'], 'the English copy must survive too');
-
-        // The homepage marquee is now an ordinary instance with no hardcoded
-        // fallback copy left — so its items must really come from the
-        // database and still be rendered server-side.
-        $home = $this->request('/');
-        $this->assertNotNull($home);
-        $this->assertStringContainsString('marquee__track', $home['body']);
-
-        $items = MarqueeContent::forSection('index', 'materialenband');
-        $this->assertSame(MarqueeContent::STATE_ACTIVE, $items['state']);
-        $this->assertNotSame([], $items['items'], 'the homepage marquee must still have its items');
-        foreach ($items['items'] as $item) {
-            $this->assertStringContainsString(
-                htmlspecialchars($item['label_nl'], ENT_QUOTES, 'UTF-8'),
-                $home['body']
-            );
-        }
     }
 
     /**

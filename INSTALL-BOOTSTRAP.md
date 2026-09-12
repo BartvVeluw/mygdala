@@ -229,7 +229,7 @@ docker exec mygdala_php_test php vendor/bin/phpunit --testsuite migration
 | `tests/Service/HomepageHeroEmptyImageTest.php` | De twee betekenissen van "leeg" hierboven, in alle vier de gevallen: geen rij, opgeslagen leeg, ingesteld beeld, en video zonder poster |
 | `tests/Install/LegacyUpgradeTest.php` | Wat een bestaande installatie behoudt (zie hierboven), inclusief elk bedrijfsgegeven, de merkbestanden, de canonieke basis-URL en het feit dat zij nooit in de installatiewizard belandt |
 | `tests/Install/SetupCompletionTest.php` | Wat de installatiewizard bouwt op zo'n verse database, en dat een geweigerde inzending niets schrijft (`SETUP.md`) |
-| `tests/Service/GenericBlockDefaultsTest.php` | Dat een vers blok geen vaste URL van deze site als startwaarde meekrijgt, en dat opgeslagen blokken daarbij niet zijn aangeraakt |
+| `tests/Service/GenericBlockDefaultsTest.php` | Dat een vers blok geen vaste URL van deze site als startwaarde meekrijgt. Dat opgeslagen blokken daarbij niet zijn aangeraakt, bewijst `LegacyUpgradeTest` |
 
 Beide installatietests bouwen een **wegwerpdatabase** (`ScratchInstall`,
 `tests/Support/`) en draaien phinx daartegen vanaf nul. Ze kunnen niet op de
@@ -239,6 +239,6 @@ nodig (`DB_ROOT_PASSWORD` in `.env`, net als `scripts/test-db.php`) en slaan
 zichzelf over waar dat er niet is.
 
 Let op bij `scripts/test-db.php`: de testdatabase is een kopie van
-ontwikkeling, dus hij erft ook of `install_state` daar bestaat. Ontwikkeling
-en productie hebben die tabel niet — ze dateren van vóór de markering — en dat
-is precies waarom de backfill-tests daar blijven werken.
+ontwikkeling, dus hij erft ook of `install_state` daar bestaat. Geen test leunt
+daarop: wat een bestaande installatie behoudt, bewijst `LegacyUpgradeTest` op
+een eigen wegwerpdatabase waarin de markering bewust is teruggezet.

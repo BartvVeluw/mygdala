@@ -164,9 +164,8 @@ bestand precies één keer.
 
 ### De groep `migration-backfill`
 
-De historische migratiecontroles ("de backfill is niets kwijtgeraakt") zitten
-deels in eigen testklassen en deels als losse methodes tussen de bloktests.
-Samen:
+De migratie- en installatiecontroles zitten in eigen testklassen, plus één
+losse methode in `FreshInstallTest`. Samen:
 
 ```bash
 docker exec mygdala_php_test php vendor/bin/phpunit --group migration-backfill
@@ -190,14 +189,22 @@ ze ongeveer 30 seconden. Zie [`INSTALL-BOOTSTRAP.md`](INSTALL-BOOTSTRAP.md) en
 per proces vast, dus de rest van de run zou anders met de wegwerpdatabase
 blijven praten.
 
-De rest van deze groep controleert wat een migratie destijds beloofd heeft — dat de rijen die zij
-aanmaakte er nog zijn, precies één keer, met dezelfde inhoud en in dezelfde
-onderlinge volgorde. Ze mogen nooit leunen op het huidige totaal: een vijfde
-footerkolom of een extra blok dat de redactie later aanmaakt is gewone
-CMS-data en hoort deze tests niet te laten falen. Ze raken wel echte inhoud
-aan en zijn trager, dus ze horen niet in de snelle ontwikkellus. Laat ze staan:
-ze zijn het bewijs dat een migratie destijds niets heeft weggegooid. Wil je ze
-even buiten beschouwing laten:
+Twee andere, `Tests\Repository\ContactFormMigrationTest` en
+`Tests\Service\MediaAdoptionTest`, bewijzen wat een datagedreven backfill doet
+met data die eruitziet als de data die hij omzet. Ook zij bouwen een
+wegwerpdatabase, maar met `ScratchInstall::upTo()`: tot vlak vóór de
+migratie, dan zetten ze er hun eigen oude rijen in (op verzonnen slugs, want
+de migratie kiest op data en nooit op een paginanaam), en dan draaien de
+overige migraties. `ScratchInstall::replay()` draait de migratie daarna nog
+een keer via phinx zelf; dat is het bewijs dat hij idempotent is.
+
+**Geen test in deze groep leest wat er toevallig in `mygdala_tests` staat.**
+Dat de pagina's, het menu, de footer en de blokken van één bepaalde site
+destijds goed zijn overgekomen, is de geschiedenis van die site, en die tests
+staan in de repository van die site. Voor Mygdala zelf bewijst
+`LegacyUpgradeTest` dat de migratiegeschiedenis een bestaande installatie
+niets afneemt. Ze zijn wel trager, dus ze horen niet in de snelle
+ontwikkellus. Wil je ze even buiten beschouwing laten:
 
 ```bash
 docker exec mygdala_php_test php vendor/bin/phpunit --exclude-group migration-backfill

@@ -23,8 +23,8 @@ use Tests\Support\TestEnvironment;
  *
  * Complements rather than repeats the existing coverage:
  * Tests\Repository\PageSectionRepositoryTest owns the SQL (one list, reorder
- * scoping), Tests\Repository\PageSectionsBackfillTest owns "the migrations
- * lost nothing", Tests\Service\SectionRegistryTest owns create/delete against
+ * scoping), Tests\Install\LegacyUpgradeTest owns "the migrations lost no
+ * block on an existing installation", Tests\Service\SectionRegistryTest owns create/delete against
  * the real content tables. This file owns the ARCHITECTURE rules those three
  * assume.
  *

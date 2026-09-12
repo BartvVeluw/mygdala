@@ -266,11 +266,14 @@ tests mee die niets met je wijziging te maken hebben. `TESTING.md` noemt ze bij
 naam.
 
 **De volle suite is nu niet groen, en dat lag er al.** Op de huidige
-testdatabase geeft `full` 4 errors en 49 failures. Ze komen bijna allemaal uit
-de groep `migration-backfill`, die controleert of historische migraties hun
-belofte hielden. Die belofte ging over Van Veluw-inhoud, en deze installatie
-heeft die pagina's nooit gehad. Vergelijk bij twijfel met `main` voordat je
-denkt dat jij iets kapot hebt gemaakt.
+testdatabase geeft `full` 1 error en 9 failures. Zeven komen uit de omgeving
+waarin je draait: `APP_ENV`, `APP_URL`, de `MODULE_*`-vlaggen,
+`SHOP_NOTIFICATION_EMAIL` en de beheerdershash uit `.env`. Eén is een echte
+schema-afwijking tussen een verse en een bestaande installatie
+(`ReusableBlocksPhase4Test`, de kolommen van `portfolio_galleries`). Twee zijn
+testisolatie (`ThemePersistenceTest`, `PersonalizationPreviewSnapshotTest`).
+Geen van de tien leunt nog op inhoud van Van Veluw. Vergelijk bij twijfel met
+`main` voordat je denkt dat jij iets kapot hebt gemaakt.
 
 **De HTTP-tests hebben een draaiende webcontainer nodig.** Zonder
 `docker compose --profile test up -d` slaan ze zichzelf over in plaats van te
@@ -308,17 +311,8 @@ tussen wat applicatie is en wat bij één site hoort.
 
 ## Wat er open staat
 
-Drie punten die bewust zijn blijven liggen. Geen van drieën is urgent, alle
-drie verdienen een eigen sessie.
-
-**De backfill-tests horen bij een andere site.** `PagesBackfillTest`,
-`NavigationFooterBackfillTest`, `PageSectionsBackfillTest` en
-`ContactFormMigrationTest` verifiëren rijen die alleen op de Van Veluw-
-installatie bestaan. Ze zitten in de standaardsuite `full` en kunnen daar nooit
-slagen. Dit is dezelfde applicatie-versus-site-grens die `FreshSiteCopyPolicy`
-elders al trekt. Drie mogelijke antwoorden: uitsluiten van `full`, zichzelf
-laten overslaan als de rijen er niet zijn, of overdragen aan de Van
-Veluw-repository.
+Twee punten die bewust zijn blijven liggen. Geen van beide is urgent, allebei
+verdienen ze een eigen sessie.
 
 **Er is geen `.env` in de checkout.** Alleen `.env.example`. Het
 compose-bestand heeft op drie plekken een verplichte `env_file: .env`, dus een

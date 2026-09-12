@@ -234,19 +234,19 @@
             <file>tests/Service/RedirectSlugChangeTest.php</file>
             <file>tests/Service/RelatedProductsEmptyStateTest.php</file>
             <file>tests/Service/RelatedProductsProductPageTest.php</file>
-            <file>tests/Service/ReusableBlocksPhase2Test.php</file>
-            <file>tests/Service/ReusableBlocksPhase3Test.php</file>
-            <file>tests/Service/ReusableBlocksPhase4Test.php</file>
             <file>tests/Service/SeoRoutingTest.php</file>
             <file>tests/Service/ShopSeoRoutingTest.php</file>
             <file>tests/Service/SitemapRoutingTest.php</file>
             <file>tests/Service/UnknownContentBlockTest.php</file>
         </testsuite>
 
-        <!-- The historical migrations: proof that a backfill lost nothing.
-             Worth keeping, not worth running on every edit. The group named
-             migration-backfill runs these plus the individual "still there
-             after the migration" checks that live inside the block tests. -->
+        <!-- Migrations and installation, each proven on data the test puts
+             there itself: a throwaway database built from zero
+             (Tests\Support\ScratchInstall) or a fixture of its own. What a
+             fresh install gets, what an existing one keeps, and what a
+             backfill does to data shaped like the data it converts. Worth
+             keeping, not worth running on every edit. None of them reads
+             what the test database happens to contain. -->
         <testsuite name="migration">
             <file>tests/Install/FreshInstallRenderTest.php</file>
             <file>tests/Install/FreshInstallTest.php</file>
@@ -254,9 +254,6 @@
             <file>tests/Install/LegacyUpgradeTest.php</file>
             <file>tests/Install/SetupCompletionTest.php</file>
             <file>tests/Repository/ContactFormMigrationTest.php</file>
-            <file>tests/Repository/NavigationFooterBackfillTest.php</file>
-            <file>tests/Repository/PageSectionsBackfillTest.php</file>
-            <file>tests/Repository/PagesBackfillTest.php</file>
             <file>tests/Service/MediaAdoptionTest.php</file>
             <file>tests/Service/UnknownContentBlockTest.php</file>
         </testsuite>
@@ -284,7 +281,6 @@
 
         <testsuite name="blocks">
             <file>tests/Repository/PageSectionRepositoryTest.php</file>
-            <file>tests/Repository/PageSectionsBackfillTest.php</file>
             <file>tests/Service/BlockDefinitionContractTest.php</file>
             <file>tests/Service/BlockPickerTest.php</file>
             <file>tests/Service/BlockPresentationTest.php</file>
@@ -331,9 +327,7 @@
             <file>tests/Repository/ContactFormMigrationTest.php</file>
             <file>tests/Repository/FooterRepositoryTest.php</file>
             <file>tests/Repository/LocalizedNavigationFooterPersistenceTest.php</file>
-            <file>tests/Repository/NavigationFooterBackfillTest.php</file>
             <file>tests/Repository/NavigationRepositoryTest.php</file>
-            <file>tests/Repository/PagesBackfillTest.php</file>
             <file>tests/Service/AdminAccessControlTest.php</file>
             <file>tests/Service/AdminAuthLoginTest.php</file>
             <file>tests/Service/AdminEditorNavigationTest.php</file>

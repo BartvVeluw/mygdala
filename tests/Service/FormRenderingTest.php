@@ -298,29 +298,6 @@ class FormRenderingTest extends TestCase
         );
     }
 
-    /**
-     * The site's own contact page: the audience radio starts on
-     * "Particulier" again, exactly as the hardcoded markup used to.
-     */
-    public function testTheContactPageStartsOnParticulierAgain(): void
-    {
-        $response = $this->get('/contact.php');
-
-        if ($response['status'] !== 200 || !str_contains($response['body'], 'name="voor-wie"')) {
-            $this->markTestSkipped('this install has no contact form on /contact.php');
-        }
-
-        $this->assertMatchesRegularExpression(
-            '/<input type="radio"[^>]*value="Particulier"[^>]*\bchecked\b/',
-            $response['body'],
-            'the contact form must come up with Particulier selected'
-        );
-        $this->assertDoesNotMatchRegularExpression(
-            '/<input type="radio"[^>]*value="Zakelijk"[^>]*\bchecked\b/',
-            $response['body']
-        );
-    }
-
     /* ------------------------------------------------------------------ */
     /* Failing safely                                                      */
     /* ------------------------------------------------------------------ */

@@ -13,9 +13,7 @@ use App\Service\CardCarouselContent;
 use App\Service\DetailSectionContent;
 use App\Service\PageContent;
 use App\Service\SectionRegistry;
-use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
-use Tests\Support\TestEnvironment;
 
 /**
  * Phase 3 of the content-block refactor (docs/content-blocks/PHASE-3.md):
@@ -23,14 +21,13 @@ use Tests\Support\TestEnvironment;
  *
  * What this file owns, and what it leaves to its neighbours:
  * Tests\Service\ContentBlockArchitectureTest owns the phase 1 architecture
- * rules, Tests\Service\ReusableBlocksPhase2Test the phase 2 promises, and
- * Tests\Repository\PageSectionsBackfillTest "no attachment was lost". Here we
- * assert the phase 3 promises: both new types are addable and repeatable
+ * rules and Tests\Service\ReusableBlocksPhase2Test the phase 2 promises. Here
+ * we assert the phase 3 promises: both new types are addable and repeatable
  * anywhere, a carousel renders correctly with 0, 1 and n cards, two
  * instances keep independent content, image position left/right really
- * changes the markup, the quicknav follows the sections instead of a
- * hardcoded list, and every piece of the migrated Diensten content is still
- * on the public site.
+ * changes the markup, and the quicknav follows the sections instead of a
+ * hardcoded list. That an existing installation lost no block in the
+ * migration is Tests\Install\LegacyUpgradeTest's to prove.
  *
  * Blocks are created on a throwaway page of this test's own, so nothing here
  * can touch real site content; tearDown deletes each created block through
@@ -39,9 +36,6 @@ use Tests\Support\TestEnvironment;
 final class ReusableBlocksPhase3Test extends TestCase
 {
     private const TEST_KEY = '__test_phase3__';
-
-    /** The four material sections, in the order the Diensten page renders them. */
-    private const MIGRATED_SECTIONS = ['hout', 'metaal', 'acryl-glas', 'zakelijk'];
 
     private PageRepository $pages;
     private PageSectionRepository $sections;
@@ -146,30 +140,6 @@ final class ReusableBlocksPhase3Test extends TestCase
         SectionRegistry::render($row);
 
         return (string) ob_get_clean();
-    }
-
-    /**
-     * @return array{status: int, body: string}|null null when the request could not be made at all
-     */
-    private function request(string $path): ?array
-    {
-        $context = stream_context_create([
-            'http' => ['ignore_errors' => true, 'timeout' => 5, 'follow_location' => 0],
-        ]);
-
-        $body = @file_get_contents(TestEnvironment::baseUrl() . $path, false, $context);
-        if ($body === false && !isset($http_response_header)) {
-            return null;
-        }
-
-        $status = 0;
-        foreach ($http_response_header ?? [] as $header) {
-            if (preg_match('#^HTTP/\S+\s+(\d{3})#', $header, $m) === 1) {
-                $status = (int) $m[1];
-            }
-        }
-
-        return ['status' => $status, 'body' => (string) $body];
     }
 
     // -------------------------------------------------------- capabilities
@@ -384,123 +354,5 @@ final class ReusableBlocksPhase3Test extends TestCase
 
         $this->assertSame(['eerste', 'derde'], array_column($items, 'anchor'));
         $this->assertSame(['Eerste', 'Derde sectie'], array_column($items, 'label_nl'));
-    }
-
-    // ------------------------------------------------- migrated content
-
-    #[Group('migration-backfill')]
-    public function testTheFourMaterialSectionsAreNowFourIndependentInstances(): void
-    {
-        $page = $this->pages->findByContentKey('diensten');
-        $this->assertNotNull($page);
-
-        // Only the FOUR keys the migration wrote. `detail_section` is a
-        // repeatable block, so a fifth material section someone added in the
-        // CMS is legitimate content — asserting the full list of instances
-        // would turn normal use of the block into a migration failure.
-        $attached = [];
-        foreach ($this->sections->findForPage((int) $page['id']) as $row) {
-            $key = (string) $row['section_key'];
-            if ($row['section_type'] === 'detail_section' && in_array($key, self::MIGRATED_SECTIONS, true)) {
-                $attached[] = $key;
-            }
-        }
-
-        $this->assertSame(
-            self::MIGRATED_SECTIONS,
-            $attached,
-            'the one service_details block became four ordinary blocks, once each, in the same order'
-        );
-
-        $repository = new DetailSectionRepository();
-        foreach (self::MIGRATED_SECTIONS as $key) {
-            $row = $repository->findBySlugAndKey('diensten', $key);
-            $this->assertNotNull($row, "the \"{$key}\" section must have survived the migration");
-            $this->assertSame($key, (string) $row['anchor'], 'the old service key stayed the anchor, so every #-link keeps working');
-            $this->assertNotSame('', (string) $row['nav_label_nl'], 'the quicknav needs its short label');
-            $this->assertNotSame('', trim((string) $row['content_html']), 'the paragraphs moved into the rich body');
-        }
-    }
-
-    #[Group('migration-backfill')]
-    public function testTheMigratedDienstenContentIsStillOnThePublicPage(): void
-    {
-        $response = $this->request('/diensten.php');
-        if ($response === null) {
-            $this->markTestSkipped(TestEnvironment::unreachableMessage());
-        }
-
-        $this->assertSame(200, $response['status']);
-        $body = $response['body'];
-
-        foreach (self::MIGRATED_SECTIONS as $key) {
-            $this->assertStringContainsString('id="' . $key . '"', $body, "the #{$key} anchor must keep resolving");
-            $this->assertStringContainsString('href="#' . $key . '"', $body, 'the quicknav must still link to it');
-        }
-
-        foreach ([
-            // One marker per kind of content the migration had to carry over.
-            'Hout graveren',
-            'Persoonlijke gravures op hout',
-            'Een naam, tekst, tekening, logo of foto wordt met de laser',
-            'Aluminium visitekaartjes',
-            'Ook kleine, gevoelige stukken zoals een herinneringssieraad',
-            'assets/images/snijplank-just-married.webp',
-            'Bespreek jouw zakelijke aanvraag',
-        ] as $marker) {
-            $this->assertStringContainsString($marker, $body, "\"{$marker}\" disappeared from Diensten in the migration");
-        }
-
-        // AT LEAST the four migrated sections — each one is checked by
-        // anchor above. A fifth material section added in the CMS is
-        // ordinary content, exactly as for the carousel cards below.
-        $this->assertGreaterThanOrEqual(
-            4,
-            substr_count($body, '<section class="service-detail'),
-            'the four migrated material sections must all still render'
-        );
-    }
-
-    #[Group('migration-backfill')]
-    public function testTheMigratedCarouselStillShowsTheSameCardsOnTheHomepage(): void
-    {
-        $response = $this->request('/');
-        if ($response === null) {
-            $this->markTestSkipped(TestEnvironment::unreachableMessage());
-        }
-
-        $this->assertSame(200, $response['status']);
-        $body = $response['body'];
-
-        $this->assertStringContainsString('orbit-carousel', $body);
-        $this->assertStringContainsString('Vier materialen, eindeloos veel mogelijkheden', $body, 'the block heading became content and must still render');
-
-        // AT LEAST the four migrated cards. Since phase 3 the card list is
-        // ordinary, editor-managed content, so a fifth card someone added in
-        // the CMS is legitimate — asserting an exact count would turn normal
-        // use of the block into a test failure. What this test is actually
-        // about is that the migration lost nothing, and that is checked card
-        // by card below.
-        $this->assertGreaterThanOrEqual(
-            count(self::MIGRATED_SECTIONS),
-            substr_count($body, 'data-orbit-card'),
-            'the migrated carousel cards must all still be on the homepage'
-        );
-
-        foreach (self::MIGRATED_SECTIONS as $key) {
-            $this->assertStringContainsString('diensten.php#' . $key, $body, "the {$key} card must still link to its section");
-        }
-
-        foreach ([
-            'Snijplanken, onderzetters, kruidenkistjes',
-            'Meer over hout graveren',
-            'assets/images/visitekaartje-metaal-barbershop.webp',
-        ] as $marker) {
-            $this->assertStringContainsString($marker, $body, "\"{$marker}\" disappeared from the homepage carousel");
-        }
-
-        // Acryl & glas has never had a teaser photo — its card must still
-        // fall back to the theme's icon.
-        $this->assertStringContainsString('orbit-card__media--icon', $body);
     }
 }

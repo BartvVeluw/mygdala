@@ -10,7 +10,6 @@ use App\Repository\PageSectionRepository;
 use App\Service\CtaBandContent;
 use App\Service\PageContent;
 use App\Service\SectionRegistry;
-use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -23,8 +22,9 @@ use PHPUnit\Framework\TestCase;
  * to work on every installation, which leaves the site root: the one URL
  * every install answers.
  *
- * Stored bands are a different matter entirely and are left alone — the last
- * test here is the proof.
+ * Stored bands are a different matter entirely and are left alone —
+ * Tests\Install\LegacyUpgradeTest::testStoredCtaBandsKeepTheirOwnDestinations
+ * proves that on an installation that has them.
  *
  * Blocks are created on a throwaway page of this test's own, the same
  * convention as Tests\Service\SectionRegistryTest, so nothing here can reach
@@ -131,25 +131,6 @@ final class GenericBlockDefaultsTest extends TestCase
         }
 
         $this->assertSame([], $offenders, 'A block definition seeds a route only this site has.');
-    }
-
-    #[Group('migration-backfill')]
-    public function testStoredCtaBandsWereNotRewritten(): void
-    {
-        $db = Database::connection();
-        $row = $db->query(
-            "SELECT primary_url FROM cta_bands WHERE page_slug = 'index' AND section_key = 'main'"
-        )->fetch();
-
-        if ($row === false) {
-            $this->markTestSkipped('This database has no migrated homepage CTA band to check.');
-        }
-
-        $this->assertSame(
-            'contact.php',
-            (string) $row['primary_url'],
-            'Changing the default for new blocks must not touch a band an editor already owns.'
-        );
     }
 
     /**
