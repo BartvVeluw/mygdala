@@ -34,6 +34,9 @@ final class ScratchInstall
     /** The first migration: the one that writes the install marker. */
     private const FIRST_MIGRATION = '20260903120000';
 
+    /** phinx.php's `default_migration_table`. */
+    private const MIGRATION_LOG = 'phinx_migration_log';
+
     private function __construct(
         public readonly string $database,
         private readonly PDO $pdo
@@ -100,6 +103,23 @@ final class ScratchInstall
     public function catchUp(?string $version = null): void
     {
         $this->migrate($version);
+    }
+
+    /**
+     * Runs one migration that already ran here a second time, through Phinx
+     * itself: its line leaves the migration log, and the next migrate picks
+     * it up again because Phinx runs every migration the log does not name.
+     *
+     * The honest proof of "idempotent": the file that ships, run again on
+     * the state its own first run produced, rather than a copy of its SQL.
+     */
+    public function replay(string $version): void
+    {
+        $this->pdo
+            ->prepare('DELETE FROM `' . self::MIGRATION_LOG . '` WHERE version = ?')
+            ->execute([$version]);
+
+        $this->migrate();
     }
 
     public function pdo(): PDO

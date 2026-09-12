@@ -4,33 +4,54 @@ declare(strict_types=1);
 
 namespace Tests\Service;
 
-use App\Database;
-use App\Repository\MediaRepository;
-use App\Service\Branding;
 use App\Service\Media\BlockImage;
 use App\Service\Media\MediaService;
 use App\Service\Media\MediaUploader;
-use App\Service\SiteSettings;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
+use Tests\Support\ScratchInstall;
 
 /**
- * What the adoption migration promised: the images this site was ALREADY
- * showing are in the Media Library, exactly once each, still at the paths
- * they were at, and every feature that used them still points at the same
- * file.
+ * What `20260909270000_adopt_existing_cms_images_into_the_media_library`
+ * promises every installation that had images before the Media Library: each
+ * image a CMS feature was already showing is in the library, exactly once,
+ * still at the path it was at, and every feature that used it points at that
+ * same file.
  *
- * These are historical checks in the sense TESTING.md means: they assert what
- * `20260909270000_adopt_existing_cms_images_into_the_media_library` did, not
- * what the library contains today. So they never assert a TOTAL — an image an
- * editor adds later is ordinary CMS data and must not make them fail — only
- * that nothing the migration touched was lost, duplicated or moved.
+ * Proven on a throwaway database that stands where such an installation
+ * stood — migrated up to the migration that added the media columns — holding
+ * images this test places itself: one file used by two features with two
+ * different captions, a file that only gets a caption from its second user,
+ * a page's social image, an SVG logo, an external URL, and a row an editor
+ * had already pointed at another item. The rest of the migrations then run
+ * exactly as `phinx migrate` runs them on a real upgrade
+ * (Tests\Support\ScratchInstall).
+ *
+ * None of the files exist on disk. That is deliberate and part of the
+ * contract: a path whose file is gone is adopted with unknown dimensions
+ * rather than skipped, so the admin can show it as broken.
  */
 #[Group('migration-backfill')]
 final class MediaAdoptionTest extends TestCase
 {
+    private const DATABASE = 'mygdala_scratch_media_adoption';
+
+    /** The migration that added the media id columns: where an older installation stood. */
+    private const BEFORE_ADOPTION = '20260909260000';
+
+    private const ADOPTION_MIGRATION = '20260909270000';
+
+    private const SHARED = 'assets/images/zz-media-adoption/werkplaats.jpg';
+    private const CAPTIONED_LATER = 'assets/images/zz-media-adoption/detail.png';
+    private const SOCIAL = 'assets/images/zz-media-adoption/delen.webp';
+    private const LOGO = 'assets/images/zz-media-adoption/logo.svg';
+    private const REPLACED = 'assets/images/zz-media-adoption/vervangen.jpg';
+    private const EDITOR_CHOICE = 'assets/media/zz-gekozen-door-redacteur.webp';
+    private const EXTERNAL_IMAGE = 'https://cdn.example.com/kaart.jpg';
+    private const EXTERNAL_FAVICON = 'https://cdn.example.com/favicon.ico';
+
     /**
-     * Every table the migration adopted, as [table, path column, media id
+     * Every table the migration adopts, as [table, path column, media id
      * column].
      */
     private const ADOPTED = [
@@ -41,33 +62,124 @@ final class MediaAdoptionTest extends TestCase
         ['pages', 'og_image_path', 'og_media_id'],
     ];
 
+    private static ?ScratchInstall $install = null;
+
+    /** @var array<string, int> fixture name => row id */
+    private static array $ids = [];
+
+    /** @var array<string, list<array<string, mixed>>> */
+    private static array $afterFirstRun = [];
+
+    public static function setUpBeforeClass(): void
+    {
+        if (!ScratchInstall::available()) {
+            return;
+        }
+
+        self::$install = ScratchInstall::upTo(self::DATABASE, self::BEFORE_ADOPTION);
+        $slug = 'zz-media-' . bin2hex(random_bytes(4));
+
+        self::$ids['editor_item'] = self::insert('media', [
+            'path' => self::EDITOR_CHOICE,
+            'original_filename' => basename(self::EDITOR_CHOICE),
+            'mime_type' => 'image/webp',
+            'alt_text' => 'Door de redacteur gekozen',
+        ]);
+
+        // One file, two features, two captions — the second with a leading
+        // slash, the way some older columns stored it.
+        self::$ids['section'] = self::insert('detail_sections', [
+            'page_slug' => $slug,
+            'section_key' => 'main',
+            'title_nl' => 'Sectie',
+            'main_image_path' => '/' . self::SHARED,
+            'main_image_alt_nl' => 'Werkplaats',
+        ]);
+        self::$ids['section_image'] = self::insert('detail_section_images', [
+            'section_id' => self::$ids['section'],
+            'image_path' => self::SHARED,
+            'alt_nl' => 'Werkplaats van dichtbij',
+        ]);
+
+        // A file whose first user has no caption and whose second does.
+        self::$ids['uncaptioned_section'] = self::insert('detail_sections', [
+            'page_slug' => $slug,
+            'section_key' => 'tweede',
+            'title_nl' => 'Tweede sectie',
+            'main_image_path' => self::CAPTIONED_LATER,
+            'main_image_alt_nl' => '',
+        ]);
+
+        // A row an editor already pointed at a different library item.
+        self::$ids['repointed_image'] = self::insert('detail_section_images', [
+            'section_id' => self::$ids['section'],
+            'image_path' => self::REPLACED,
+            'alt_nl' => 'Oude foto',
+            'media_id' => self::$ids['editor_item'],
+        ]);
+
+        $carousel = self::insert('card_carousels', ['page_slug' => $slug, 'section_key' => 'main']);
+        self::$ids['captioned_card'] = self::insert('carousel_cards', [
+            'carousel_id' => $carousel,
+            'title_nl' => 'Detail',
+            'image_path' => self::CAPTIONED_LATER,
+            'image_alt_nl' => 'Later beschreven',
+        ]);
+        self::$ids['external_card'] = self::insert('carousel_cards', [
+            'carousel_id' => $carousel,
+            'title_nl' => 'Extern',
+            'image_path' => self::EXTERNAL_IMAGE,
+        ]);
+
+        self::$ids['page'] = self::insert('pages', [
+            'content_key' => $slug,
+            'slug' => $slug,
+            'title' => 'Mediapagina',
+            'status' => 'published',
+            'og_image_path' => self::SOCIAL,
+        ]);
+
+        self::insert('site_settings', ['setting_key' => 'logo_path', 'setting_value' => self::LOGO]);
+        self::insert('site_settings', ['setting_key' => 'favicon_path', 'setting_value' => self::EXTERNAL_FAVICON]);
+
+        self::$install->catchUp();
+        self::$afterFirstRun = self::adoptionSnapshot();
+
+        self::$install->replay(self::ADOPTION_MIGRATION);
+    }
+
+    public static function tearDownAfterClass(): void
+    {
+        self::$install?->drop();
+        self::$install = null;
+    }
+
     protected function tearDown(): void
     {
         MediaService::clearCache();
-        SiteSettings::clearCache();
     }
 
     /* ------------------------------------------------------------------ */
     /* Nothing was left behind                                             */
     /* ------------------------------------------------------------------ */
 
-    public function testEveryAdoptedRowGotAMediaReference(): void
+    public function testEveryLocalImageGotAMediaReference(): void
     {
-        $db = Database::connection();
+        $this->assertNotNull($this->row('detail_sections', self::$ids['section'])['main_media_id']);
+        $this->assertNotNull($this->row('detail_sections', self::$ids['uncaptioned_section'])['main_media_id']);
+        $this->assertNotNull($this->row('detail_section_images', self::$ids['section_image'])['media_id']);
+        $this->assertNotNull($this->row('carousel_cards', self::$ids['captioned_card'])['media_id']);
+        $this->assertNotNull($this->row('pages', self::$ids['page'])['og_media_id'], 'a page\'s own social image is adopted too');
 
         foreach (self::ADOPTED as [$table, $pathColumn, $mediaColumn]) {
-            $orphans = (int) $db->query(
-                'SELECT COUNT(*) FROM `' . $table . '`'
+            $orphans = $this->install()->rows(
+                'SELECT id FROM `' . $table . '`'
                 . ' WHERE `' . $pathColumn . '` IS NOT NULL AND `' . $pathColumn . "` <> ''"
                 . ' AND `' . $mediaColumn . '` IS NULL'
-                . " AND `" . $pathColumn . "` NOT LIKE 'http%'"
-            )->fetchColumn();
-
-            $this->assertSame(
-                0,
-                $orphans,
-                $table . '.' . $pathColumn . ' still has rows with an image but no media reference'
+                . ' AND `' . $pathColumn . "` NOT LIKE 'http%'"
             );
+
+            $this->assertSame([], $orphans, $table . '.' . $pathColumn . ' still has rows with an image but no media reference');
         }
     }
 
@@ -77,109 +189,109 @@ final class MediaAdoptionTest extends TestCase
      */
     public function testEveryAdoptedReferencePointsAtTheFileTheRowAlreadyShowed(): void
     {
-        $db = Database::connection();
-
         foreach (self::ADOPTED as [$table, $pathColumn, $mediaColumn]) {
-            $mismatches = $db->query(
-                // `stored` would be a reserved word in MySQL 8 (generated columns).
+            $mismatches = $this->install()->rows(
                 'SELECT t.`' . $pathColumn . '` AS row_path, m.path AS media_path'
                 . ' FROM `' . $table . '` t'
                 . ' JOIN media m ON m.id = t.`' . $mediaColumn . '`'
                 . ' WHERE TRIM(LEADING \'/\' FROM t.`' . $pathColumn . '`) <> m.path'
-            )->fetchAll();
+                // The one row allowed to differ: an editor chose another item
+                // before the migration ran, and that choice is theirs.
+                . ' AND NOT (? = ? AND t.id = ?)',
+                [$table, 'detail_section_images', self::$ids['repointed_image']]
+            );
 
             $this->assertSame([], $mismatches, $table . ' points at a different file than it used to show');
         }
     }
 
     /**
-     * ONE row per file. Two rows for one image would make "where is this
-     * used" answer for half the usages, which is the failure this whole
-     * design exists to prevent.
-     */
-    public function testNoFileWasAdoptedTwice(): void
-    {
-        $duplicates = Database::connection()
-            ->query('SELECT path, COUNT(*) AS n FROM media GROUP BY path HAVING n > 1')
-            ->fetchAll();
-
-        $this->assertSame([], $duplicates, 'media.path must be unique — a file is one item');
-    }
-
-    /**
-     * ADOPT IN PLACE. A legacy file keeps the path it had; only NEW uploads
-     * go to the library's own folder. If the migration had moved files, every
-     * one of these would now start with assets/media/.
-     */
-    public function testAdoptedFilesKeptTheirOriginalPaths(): void
-    {
-        $adopted = Database::connection()
-            ->query("SELECT path FROM media WHERE path LIKE 'assets/images/%'")
-            ->fetchAll();
-
-        $this->assertNotSame([], $adopted, 'this site had images before the library; some must have been adopted');
-
-        foreach ($adopted as $row) {
-            $this->assertStringStartsNotWith(
-                MediaUploader::PUBLIC_PREFIX,
-                (string) $row['path'],
-                'an adopted file must not have been moved into the library folder'
-            );
-        }
-    }
-
-    /**
      * The same photo used by two features became ONE item referenced twice —
-     * which is the entire point of the exercise. This site's development data
-     * genuinely contains such a file.
+     * which is the entire point of the exercise.
      */
     public function testAFileUsedByTwoFeaturesBecameOneSharedItem(): void
     {
-        $shared = Database::connection()->query(
-            'SELECT m.id, COUNT(*) AS n FROM media m
-             JOIN (
-                 SELECT media_id AS id FROM text_image_split_images WHERE media_id IS NOT NULL
-                 UNION ALL
-                 SELECT media_id FROM detail_section_images WHERE media_id IS NOT NULL
-                 UNION ALL
-                 SELECT media_id FROM carousel_cards WHERE media_id IS NOT NULL
-             ) refs ON refs.id = m.id
-             GROUP BY m.id HAVING n > 1'
-        )->fetchAll();
-
-        $this->assertNotSame(
-            [],
-            $shared,
-            'at least one image on this site is used in more than one place and must be a single media item'
+        $this->assertSame(
+            (int) $this->row('detail_sections', self::$ids['section'])['main_media_id'],
+            (int) $this->row('detail_section_images', self::$ids['section_image'])['media_id'],
+            'one file, two features, one media item'
         );
+        $this->assertSame(
+            (int) $this->row('detail_sections', self::$ids['uncaptioned_section'])['main_media_id'],
+            (int) $this->row('carousel_cards', self::$ids['captioned_card'])['media_id'],
+            'the same holds across two different block types'
+        );
+    }
+
+    /**
+     * ONE row per file. Two rows for one image would make "where is this
+     * used" answer for half the usages.
+     */
+    public function testNoFileWasAdoptedTwice(): void
+    {
+        $this->assertSame(
+            [],
+            $this->install()->rows('SELECT path, COUNT(*) AS n FROM media GROUP BY path HAVING n > 1'),
+            'media.path must be unique — a file is one item'
+        );
+    }
+
+    /**
+     * ADOPT IN PLACE. A legacy file keeps the path it had, without the
+     * leading slash the media table never stores; only NEW uploads go to the
+     * library's own folder. The feature rows themselves are not rewritten.
+     */
+    public function testAdoptedFilesKeptTheirOriginalPaths(): void
+    {
+        foreach ([self::SHARED, self::CAPTIONED_LATER, self::SOCIAL, self::LOGO] as $path) {
+            $item = $this->mediaAt($path);
+
+            $this->assertStringStartsNotWith(
+                MediaUploader::PUBLIC_PREFIX,
+                (string) $item['path'],
+                'an adopted file must not have been moved into the library folder'
+            );
+        }
+
+        $this->assertSame('/' . self::SHARED, (string) $this->row('detail_sections', self::$ids['section'])['main_image_path']);
+    }
+
+    public function testAPathWhoseFileIsMissingIsStillAdoptedWithUnknownDimensions(): void
+    {
+        $item = $this->mediaAt(self::SHARED);
+
+        $this->assertSame('image/jpeg', (string) $item['mime_type'], 'the type still follows from the extension');
+        $this->assertNull($item['width']);
+        $this->assertNull($item['height']);
+        $this->assertNull($item['file_size']);
+        $this->assertSame(basename(self::SHARED), (string) $item['original_filename']);
     }
 
     /* ------------------------------------------------------------------ */
     /* Alt text was carried over, not replaced                             */
     /* ------------------------------------------------------------------ */
 
-    public function testAdoptedItemsInheritedTheAltTextTheirFeatureAlreadyHad(): void
+    public function testTheFirstNonEmptyAltTextBecameTheItemsDefault(): void
     {
-        $rows = Database::connection()->query(
-            "SELECT i.alt_nl, m.alt_text
-               FROM text_image_split_images i
-               JOIN media m ON m.id = i.media_id
-              WHERE i.alt_nl IS NOT NULL AND i.alt_nl <> ''
-              LIMIT 5"
-        )->fetchAll();
-
-        $this->assertNotSame([], $rows, 'this site has captioned images to inherit from');
-
-        foreach ($rows as $row) {
-            $this->assertNotSame('', (string) $row['alt_text'], 'the media item should have inherited an alt text');
-        }
+        $this->assertSame('Werkplaats', (string) $this->mediaAt(self::SHARED)['alt_text'], 'the first caption wins');
+        $this->assertSame(
+            'Later beschreven',
+            (string) $this->mediaAt(self::CAPTIONED_LATER)['alt_text'],
+            'a file adopted without a caption takes one from the next place that has it'
+        );
     }
 
     /**
      * The per-feature alt columns were NOT emptied. A photo captioned
-     * differently in two places must stay captioned differently, so the local
-     * value still wins over the central default.
+     * differently in two places stays captioned differently.
      */
+    public function testTheLocalAltTextsWereLeftWhereTheyWere(): void
+    {
+        $this->assertSame('Werkplaats', (string) $this->row('detail_sections', self::$ids['section'])['main_image_alt_nl']);
+        $this->assertSame('Werkplaats van dichtbij', (string) $this->row('detail_section_images', self::$ids['section_image'])['alt_nl']);
+    }
+
+    /** ... and that local value still wins over the central default at render time. */
     public function testTheLocalAltTextStillWinsOverTheCentralOne(): void
     {
         MediaService::overrideForTests([
@@ -197,60 +309,138 @@ final class MediaAdoptionTest extends TestCase
     }
 
     /* ------------------------------------------------------------------ */
-    /* Branding survived unchanged                                         */
+    /* Branding, external URLs and an editor's own choice                  */
     /* ------------------------------------------------------------------ */
 
-    public function testTheSitesOwnBrandingStillResolvesToTheSameFiles(): void
+    public function testTheBrandingSettingNowAlsoPointsAtAnItemForTheSameFile(): void
     {
-        MediaService::clearCache();
-        SiteSettings::clearCache();
+        $mediaId = $this->setting('logo_media_id');
+        $this->assertNotNull($mediaId, 'logo_path was set, so logo_media_id must be');
 
-        foreach (Branding::MEDIA_KEYS as $pathKey => $mediaKey) {
-            $storedPath = trim(SiteSettings::get($pathKey));
-            $mediaId = (int) SiteSettings::get($mediaKey);
-
-            if ($storedPath === '' || $mediaId < 1) {
-                continue;
-            }
-
-            $item = MediaService::find($mediaId);
-            $this->assertNotNull($item, $mediaKey . ' points at a media item that does not exist');
-            $this->assertSame(
-                ltrim($storedPath, '/'),
-                $item->path,
-                $mediaKey . ' must describe the same file ' . $pathKey . ' already did'
-            );
-        }
+        $this->assertSame((int) $this->mediaAt(self::LOGO)['id'], (int) $mediaId);
+        $this->assertSame(self::LOGO, $this->setting('logo_path'), 'the path keeps working as the fallback');
     }
 
     /**
-     * The site's logo is an SVG. The uploaders refuse one — it can carry
-     * script — but the adoption gave it an identity anyway, so it has central
-     * alt text and a usage count like everything else while staying a file
-     * only a deploy can replace.
+     * The uploaders refuse an SVG — it can carry script — but an SVG logo a
+     * site already had is adopted anyway, so it has central alt text and a
+     * usage count like everything else.
      */
-    public function testAnSvgLogoWasAdoptedEvenThoughOneCouldNeverBeUploaded(): void
+    public function testAnSvgLogoIsAdoptedEvenThoughOneCouldNeverBeUploaded(): void
     {
-        $svg = (new MediaRepository())->findByPath('assets/images/vanveluwlaserdesignlogo.svg');
+        $svg = $this->mediaAt(self::LOGO);
 
-        if ($svg === null) {
-            $this->markTestSkipped('this install does not use an SVG logo');
-        }
-
-        $this->assertSame('image/svg+xml', $svg['mime_type']);
+        $this->assertSame('image/svg+xml', (string) $svg['mime_type']);
         $this->assertNull($svg['width'], 'getimagesize() cannot size an SVG, and the row says so honestly');
     }
 
     /**
-     * A path that is not a file this site owns is not adopted: an absolute
-     * URL cannot be inspected, deleted, or described.
+     * An absolute URL is not a file this site owns: it cannot be inspected,
+     * deleted, or described.
      */
-    public function testAnAbsoluteUrlWasNeverAdopted(): void
+    public function testAnAbsoluteUrlIsNeverAdopted(): void
     {
-        $absolute = Database::connection()
-            ->query("SELECT COUNT(*) FROM media WHERE path LIKE 'http%'")
-            ->fetchColumn();
+        $this->assertSame([], $this->install()->rows("SELECT id FROM media WHERE path LIKE 'http%'"));
+        $this->assertNull($this->row('carousel_cards', self::$ids['external_card'])['media_id']);
+        $this->assertNull($this->setting('favicon_media_id'), 'an external favicon gets no library reference');
+    }
 
-        $this->assertSame(0, (int) $absolute);
+    public function testARowAnEditorAlreadyRepointedIsLeftAlone(): void
+    {
+        $this->assertSame(
+            self::$ids['editor_item'],
+            (int) $this->row('detail_section_images', self::$ids['repointed_image'])['media_id'],
+            'a media reference that is already set is never overwritten'
+        );
+        $this->assertSame(
+            [],
+            $this->install()->rows('SELECT id FROM media WHERE path = ?', [self::REPLACED]),
+            'and the path it replaced is not adopted behind the editor\'s back'
+        );
+    }
+
+    public function testRunningTheAdoptionAgainChangesNothing(): void
+    {
+        $this->install();
+
+        $this->assertNotSame([], self::$afterFirstRun['media']);
+        $this->assertSame(
+            self::$afterFirstRun,
+            self::adoptionSnapshot(),
+            'a second run must not add, move, re-caption or re-point anything'
+        );
+    }
+
+    // --------------------------------------------------------------- helpers
+
+    private function install(): ScratchInstall
+    {
+        if (self::$install === null) {
+            $this->markTestSkipped(
+                'Replaying an upgrade needs the MySQL root account (DB_ROOT_PASSWORD in .env).'
+            );
+        }
+
+        return self::$install;
+    }
+
+    /** @return array<string, mixed> */
+    private function row(string $table, int $id): array
+    {
+        $rows = $this->install()->rows('SELECT * FROM `' . $table . '` WHERE id = ?', [$id]);
+        $this->assertCount(1, $rows, "fixture row {$table}#{$id} is gone");
+
+        return $rows[0];
+    }
+
+    /** @return array<string, mixed> */
+    private function mediaAt(string $path): array
+    {
+        $rows = $this->install()->rows('SELECT * FROM media WHERE path = ?', [$path]);
+        $this->assertCount(1, $rows, "\"{$path}\" must be in the library exactly once");
+
+        return $rows[0];
+    }
+
+    private function setting(string $key): ?string
+    {
+        $rows = $this->install()->rows('SELECT setting_value FROM site_settings WHERE setting_key = ?', [$key]);
+
+        return $rows === [] ? null : (string) $rows[0]['setting_value'];
+    }
+
+    /**
+     * Everything the adoption writes: the library itself and every
+     * reference it can set.
+     *
+     * @return array<string, list<array<string, mixed>>>
+     */
+    private static function adoptionSnapshot(): array
+    {
+        $snapshot = [
+            'media' => self::$install->rows('SELECT * FROM media ORDER BY id'),
+            'settings' => self::$install->rows("SELECT setting_key, setting_value FROM site_settings WHERE setting_key LIKE '%media_id' ORDER BY setting_key"),
+        ];
+
+        foreach (self::ADOPTED as [$table, , $mediaColumn]) {
+            $snapshot[$table] = self::$install->rows('SELECT id, `' . $mediaColumn . '` FROM `' . $table . '` ORDER BY id');
+        }
+
+        return $snapshot;
+    }
+
+    /** @param array<string, mixed> $values */
+    private static function insert(string $table, array $values): int
+    {
+        $now = date('Y-m-d H:i:s');
+        $values += ['created_at' => $now, 'updated_at' => $now];
+
+        $pdo = self::$install->pdo();
+        $pdo->prepare(
+            'INSERT INTO `' . $table . '` (`' . implode('`, `', array_keys($values)) . '`)'
+            . ' VALUES (' . implode(', ', array_fill(0, count($values), '?')) . ')'
+        )->execute(array_values($values));
+
+        return (int) $pdo->lastInsertId();
     }
 }

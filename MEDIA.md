@@ -325,7 +325,7 @@ docker exec mygdala_php_test php vendor/bin/phpunit --group migration-backfill
 | `MediaBoundaryTest` | Rechten, guards, CSRF, "de kiezer stuurt alleen een id", modulegrens. Geen database |
 | `MediaLibraryTest` | Upload, wat er geweigerd wordt, alt-tekst, ontdubbelen, zoeken, verwijderen, ontbrekend bestand |
 | `MediaUsageTest` | Gebruik afgeleid uit echte blokinstanties, en de verwijderregel |
-| `MediaAdoptionTest` | Wat de overnamemigratie beloofde (`migration-backfill`) |
+| `MediaAdoptionTest` | Wat de overnamemigratie beloofde, op een wegwerpdatabase met eigen oude afbeeldingsrijen (`migration-backfill`) |
 | `BrandingTest` | Media wint van het pad, en het pad blijft de terugval |
 | `Tests\Blog\BlogMediaAndSettingsTest` | de eerste module-provider: gebruik melden, niet kunnen verwijderen, en niets melden met de module uit |
 
