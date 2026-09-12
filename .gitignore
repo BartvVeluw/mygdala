@@ -94,3 +94,7 @@ docker/volumes/
 # throwaway worktrees, and personal permission overrides.
 /.claude/worktrees/
 /.claude/settings.local.json
+# Het logboek van .claude/hooks/log-instructions.py: een waarneming van deze
+# machine, geen eigenschap van het project.
+/.claude/instructions-loaded.log
+/.claude/instructions-loaded.seen

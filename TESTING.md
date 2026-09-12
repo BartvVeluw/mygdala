@@ -45,6 +45,28 @@ configuratiebestand zou gedeeld worden met de ontwikkelsite (beide mounten
 dezelfde map). In-process gebruikt de suite gewoon
 `App\Module\ModuleRegistry::overrideForTests()`.
 
+### Vanuit een git worktree
+
+Een worktree is een verse uitchecking en heeft dus **geen `vendor/`**: die map
+is gitignored, hij hoort bij de checkout en niet bij de commit. PHPUnit start
+er niet voordat je de Composer-dependencies ernaast hebt gezet.
+
+```bash
+docker exec mygdala_php_test composer install --working-dir=/var/www/html/.claude/worktrees/<naam>
+```
+
+Een worktree onder `.claude/worktrees/` ligt binnen de projectmap, en die is
+in elke container aangekoppeld — je hoeft er geen container voor te starten,
+te herstarten of aan te passen.
+
+**Maak geen symlink naar de `vendor/` van een andere worktree.** De
+autoloader van Composer leidt zijn basispad af uit het pad van het
+autoloadbestand zelf, en PHP heeft de symlink op dat moment al gevolgd. De
+`App\`-klassen komen dan uit de *andere* checkout: je test de code die je
+juist niet hebt gewijzigd, en niets faalt om je daarop te wijzen. Een gewone
+kopie mag wel — die levert dezelfde pakketten en houdt het basispad bij de
+worktree zelf.
+
 ## Het commando
 
 ```bash

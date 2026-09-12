@@ -314,14 +314,20 @@ Alles wat er ook zou zijn zonder webshop.
   `MollieClientFactory`, `api/mollie-webhook.php`, `OrderConfirmationService`,
   `OrderCsvExport`, `admin/orders.php`.
 - Facturen — `InvoiceService`, `PdfInvoiceRenderer`, `InvoiceStorage`.
+- Retourverzoeken (herroepingsrecht) — `WithdrawalRequestRepository`,
+  `herroeping.php`, `api/withdrawal-request.php`,
+  `admin/withdrawal-requests.php`, `admin/withdrawal-request.php`,
+  `api/admin/update-withdrawal-request-status.php`. Handmatige beoordeling:
+  een verzoek krijgt alleen een status, de Shop beslist nooit zelf of het
+  terecht is.
 - Verzending — `Service\Shipping\*`, `ShippingZoneRepository`,
   `ShippingRateRepository`, `admin/shipping.php`, `admin/carrier-rates.php`.
 - Dashboardpaneel — `admin/_dashboard_shop.php`, met `DashboardMetrics`,
   `DashboardAttention` en `DashboardRepository`.
 
-Facturen en verzending zijn deelgebieden *binnen* de Shop. Ze zijn niet
-zelfstandig bruikbaar (een factuur hoort bij een order, een tarief bij een
-winkelmandje), dus geen aparte modules.
+Facturen, retourverzoeken en verzending zijn deelgebieden *binnen* de Shop.
+Ze zijn niet zelfstandig bruikbaar (een factuur hoort bij een order, een
+herroeping ook, een tarief bij een winkelmandje), dus geen aparte modules.
 
 ### Blog (module `blog`)
 

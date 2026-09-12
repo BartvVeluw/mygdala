@@ -60,11 +60,16 @@ final class FreshSiteCopyPolicy
         // agent skills and shared settings, which describe how this CMS is
         // developed and therefore travel with the application. Only the two
         // per-machine things under it stay behind — the throwaway worktrees,
-        // and whatever personal overrides this developer put in
-        // `settings.local.json`.
+        // whatever personal overrides this developer put in
+        // `settings.local.json`, and the log that
+        // `.claude/hooks/log-instructions.py` writes: that one records what
+        // THIS machine's sessions loaded, which is an observation of a
+        // developer rather than a property of the CMS.
         '.git',
         '.claude/worktrees',
         '.claude/settings.local.json',
+        '.claude/instructions-loaded.log',
+        '.claude/instructions-loaded.seen',
 
         // Group 2: secrets, dependencies and per-installation runtime state.
         '.env',

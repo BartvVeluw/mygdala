@@ -27,6 +27,22 @@ kan niet voorkomen dat een sessie in het verkeerde domein begint. Dat doet de
 skill wel, want die roep je vooraf aan. Daarom begin je een taak altijd met de
 skill, en zijn de regels het vangnet daarna.
 
+### Nagaan wat er echt geladen is
+
+Achteraf kun je een sessie vragen welke lagen ze gezien heeft, maar dat is
+navertellen. `.claude/hooks/log-instructions.py` schrijft het op, in
+`.claude/instructions-loaded.log`: tijdstip, sessie, instructiebestand,
+waarom, en het bestand dat de aanleiding was. Het logboek is gitignored, want
+het is een waarneming van één machine.
+
+Twee hooks in `.claude/settings.json` voeden het. De skill-regels zijn
+waargenomen — een aanroep gaat door de tool `Skill` heen. De regels over
+path- en mapregels zijn **afgeleid**: het script leest de `paths:` uit de
+regelbestanden zelf en matcht die opnieuw. Dat is een benadering van wat de
+harness doet, dicht genoeg om een sessie mee na te lopen, en het houdt de
+globlijst op één plek. Het script heeft `python` op het pad nodig en eindigt
+altijd met 0: gaat er iets mis, dan mist er hooguit een regel.
+
 ## Zo begin je een taak
 
 1. **Noem het domein.** Typ de skill en daarachter wat je wilt:
@@ -50,7 +66,7 @@ de grenzen en de checklist van zijn domein klaar.
 
 | Skill | Roep aan bij | Wat hij klaarzet |
 |---|---|---|
-| `/shop` | Producten, varianten, opties, collecties, winkelwagen, afrekenen, bestellingen, Mollie, facturen, verzending | De elf padgroepen van de Shop, de regel dat een request nooit een prijs bepaalt, en dat een order een snapshot is |
+| `/shop` | Producten, varianten, opties, collecties, winkelwagen, afrekenen, bestellingen, Mollie, facturen, retourverzoeken, verzending | De twaalf padgroepen van de Shop, de regel dat een request nooit een prijs bepaalt, en dat een order een snapshot is |
 | `/blog` | Berichten, categorieën, tags, publiceren en inplannen, het overzicht, de feed | De Blog-paden, de grens met de Shop, en dat testen een container met `MODULE_BLOG_ENABLED=true` vraagt |
 | `/content-block` | Een bloktype toevoegen, wijzigen of verwijderen | De acht onderdelen van één blok, het inhoudscontract met zijn drie toestanden, en de valkuilen |
 | `/forms` | Formulierdefinities, velden, veldtypes, inzendingen, spam | De Forms-paden, dat validatie over de definitie loopt en niet over het request, en dat het zonder JavaScript moet werken |
@@ -70,12 +86,12 @@ Deze komen vanzelf in beeld. Je hoeft er niets voor te doen.
 | Regel | Matcht op | Waarover |
 |---|---|---|
 | `php-style.md` | `**/*.php` | Taal, `strict_types`, `final`, SQL in de repository, de vier beveiligingsregels |
-| `shop.md` | Elf globs over `src/Service`, `src/Repository`, `admin`, `api`, de routes en `assets/*/shop` | De Shop-grenzen |
+| `shop.md` | Twaalf globs over `src/Service`, `src/Repository`, `admin`, `api`, de routes en `assets/*/shop` | De Shop-grenzen |
 | `blog.md` | `src/Service/Blog`, `src/Repository/Blog*`, `admin/blog*`, `blog*.php` en verder | De Blog-grenzen |
 | `frontend-assets.md` | `assets/css`, `assets/js`, `partials` | Eén eigenaar per bestand, gevraagd via `PageAssets` |
 
-De Shop heeft elf globs nodig omdat zijn bestanden plat verspreid staan tussen
-die van Core. Dat is de beste aanwijzing die we hebben dat de Shop ooit een
+De Shop heeft twaalf globs nodig omdat zijn bestanden plat verspreid staan
+tussen die van Core. Dat is de beste aanwijzing die we hebben dat de Shop ooit een
 eigen map verdient. Zie "Wat er open staat".
 
 ## De vijftien mapregels
@@ -191,7 +207,7 @@ docker exec mygdala_php_test php vendor/bin/phpunit --testsuite shop
 Draai de suite van je domein, en daarna `fast`. De volle suite alleen bij een
 grote wijziging.
 
-### Drie valkuilen die je een half uur kosten
+### Vier valkuilen die je een half uur kosten
 
 **Draai in `mygdala_php_test`, niet in `mygdala_php`.** De ontwikkelcontainer
 heeft modules uitstaan. `unit` en `contract` hebben geen database nodig maar
@@ -208,7 +224,14 @@ denkt dat jij iets kapot hebt gemaakt.
 
 **De HTTP-tests hebben een draaiende webcontainer nodig.** Zonder
 `docker compose --profile test up -d` slaan ze zichzelf over in plaats van te
-falen, dus een groene run zegt dan minder dan je denkt.
+falen, dus een groene run zegt dan minder dan je denkt. Datzelfde profiel
+levert `mygdala_php_test`: een kale `docker compose up -d` start hem niet.
+
+**Een worktree heeft geen `vendor/`.** Hij is gitignored, dus een verse
+uitchecking mist hem en PHPUnit start er niet. Zet er zijn eigen
+dependencies naast en maak er vooral geen symlink naar een andere worktree
+van; `TESTING.md` legt uit waarom dat je stilzwijgend de verkeerde code laat
+testen.
 
 ## Veelvoorkomende taken
 
@@ -257,19 +280,34 @@ te bouwen uit de repository.
 zit in de content-hash van `composer.lock`, dus hernoemen vraagt een
 `composer update --lock` in dezelfde commit.
 
-## De eerstvolgende stap
+## De praktijktest is gedaan
 
-Geen van bovenstaande drie, en ook geen herstructurering. Doe eerst één echte
-kleine wijziging via `/shop` of `/content-block`, en kijk daarna terug:
+Twee `/shop`-sessies: eerst een leesonderzoek naar openstaande punten, daarna
+één echte wijziging — `OrderRepository::findForExport()` kapte de
+artikelomschrijving van de boekhoudexport af op de 1024 bytes van
+`GROUP_CONCAT`.
 
-- welke bestanden zijn er geopend, en zaten daar bestanden van een ander domein bij;
-- welke instructielagen zijn er geladen;
-- hoeveel moest je zelf bijsturen.
+Beide bleven binnen het domein. De enige bestanden buiten de Shop die nodig
+waren, waren er om een afhankelijkheid te controleren: `Repository.php` en
+`Database.php` voor de vorm van de query, `MediaUsageRegistry` en
+`AdminNavigation` om te toetsen of een vermoeden wel over de Shop ging.
 
-Dat zegt of deze opzet werkt. Valt er iets tegen, dan is de reparatie bijna
-altijd één pad toevoegen aan een skill of één regel aan een path-regel.
+Wat er niet klopte, was steeds één pad of één alinea, en nooit iets groters:
 
-Pas als die praktijktest goed gaat, zijn de grotere stappen aan de beurt:
+- drie admin-endpoints vielen buiten de globs van `shop.md` en `/shop`:
+  `update-fulfilment-status.php`, `update-withdrawal-request-status.php` en
+  `sync-postnl-rates.php`;
+- de retourverzoeken stonden niet in het Shop-hoofdstuk van `MODULES.md`,
+  terwijl `ShopModule` er een adminsectie voor bijdraagt;
+- het testcommando noemde een container die achter een compose-profiel zit;
+- een worktree heeft geen `vendor/`, en dat stond nergens.
+
+Alle vier zijn verwerkt. Eén vraag bleef lastig: welke instructielagen er nu
+echt geladen waren, viel alleen te beantwoorden door het de sessie zelf te
+vragen. Daarom schrijft de hook het sindsdien op. Zie "Nagaan wat er echt
+geladen is".
+
+Nu zijn de grotere stappen aan de beurt:
 `MULTILINGUAL.md` opsplitsen in een map met een kort routerend
 overzichtsdocument, en daarna de vraag of de Shop een eigen map verdient. Die
 laatste doe je omdat de software er begrijpelijker van wordt, niet omdat een

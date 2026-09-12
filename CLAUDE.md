@@ -88,12 +88,17 @@ een afgeronde refactor. **Ga er nooit naar zoeken en vraag er niet om.** Zie
 
 Alles draait in Docker. De containers heten `mygdala_php` (ontwikkeling),
 `mygdala_php_test` (tests) en `mygdala_php_cms` (dezelfde code met de Shop uit).
+De laatste twee zitten achter het profiel `test` en starten niet vanzelf.
 
 ```bash
 docker compose up -d
+docker compose --profile test up -d
 docker exec mygdala_php_test php vendor/bin/phpunit --testsuite fast
 docker exec mygdala_php php vendor/bin/phinx create MyNewMigration
 ```
+
+Werk je in een worktree, dan heeft die eerst zijn eigen `vendor/` nodig. Zie
+`TESTING.md`.
 
 Draai de tests in `mygdala_php_test`. De ontwikkelcontainer heeft modules
 uitstaan, en `fast` faalt daar op zestien tests die niets met je wijziging te
