@@ -152,13 +152,16 @@ final class InvoiceServiceTest extends TestCase
 
     public function testPaidOrderGetsExactlyOneInvoice(): void
     {
+        // The prefix is site configuration, so the test names its own rather
+        // than assuming whichever one the test database happens to hold.
+        $this->setCompanySettings(['invoice_number_prefix' => 'TST-F']);
         $orderId = $this->createOrder('paid');
 
         $invoice = (new InvoiceService())->issueForOrderIfNeeded($orderId);
 
         $this->assertNotNull($invoice);
         $this->assertSame($orderId, (int) $invoice['order_id']);
-        $this->assertMatchesRegularExpression('/^VLD-F\d{4}-\d{6}$/', $invoice['invoice_number']);
+        $this->assertMatchesRegularExpression('/^TST-F\d{4}-\d{6}$/', $invoice['invoice_number']);
 
         $stmt = Database::connection()->prepare('SELECT COUNT(*) AS c FROM invoices WHERE order_id = :id');
         $stmt->execute(['id' => $orderId]);

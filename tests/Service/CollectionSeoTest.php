@@ -8,6 +8,7 @@ use App\Database;
 use App\Repository\CollectionRepository;
 use App\Repository\ProductRepository;
 use App\Service\CollectionContent;
+use App\Service\SiteSettings;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -22,7 +23,13 @@ use PHPUnit\Framework\TestCase;
  */
 final class CollectionSeoTest extends TestCase
 {
-    private const SITE = 'Van Veluw Laserdesign';
+    /**
+     * The site name and base URL this test gives the installation itself:
+     * both are site configuration, so asserting whatever the test database
+     * or the container happens to hold would test that, not the convention.
+     */
+    private const SITE = 'Voorbeeldwinkel';
+    private const BASE_URL = 'https://www.voorbeeldwinkel.example';
     private const SLUG_PREFIX = '__test-seo-collection-';
 
     private CollectionRepository $collections;
@@ -33,15 +40,27 @@ final class CollectionSeoTest extends TestCase
     /** @var list<int> */
     private array $productIds = [];
 
+    private ?string $appUrlBefore = null;
+
     protected function setUp(): void
     {
         $this->collections = new CollectionRepository();
         $this->products = new ProductRepository();
         CollectionContent::clearCache();
+
+        $this->appUrlBefore = $_ENV['APP_URL'] ?? null;
+        $_ENV['APP_URL'] = self::BASE_URL;
     }
 
     protected function tearDown(): void
     {
+        if ($this->appUrlBefore === null) {
+            unset($_ENV['APP_URL']);
+        } else {
+            $_ENV['APP_URL'] = $this->appUrlBefore;
+        }
+        SiteSettings::overrideForTests(null);
+
         $db = Database::connection();
 
         foreach ($this->collectionIds as $id) {
@@ -116,6 +135,7 @@ final class CollectionSeoTest extends TestCase
     public function testTheTitleFallsBackToTheCollectionNamePlusTheSiteTitleConvention(): void
     {
         $collection = $this->createCollection();
+        SiteSettings::overrideForTests(['site_name' => self::SITE]);
 
         $this->assertSame('Onderzetters | Shop — ' . self::SITE, CollectionContent::seoTitle($collection, 'nl'));
         $this->assertSame('Coasters | Shop — ' . self::SITE, CollectionContent::seoTitle($collection, 'en'));
@@ -169,7 +189,7 @@ final class CollectionSeoTest extends TestCase
         $collection = $this->createCollection();
 
         $this->assertSame(
-            'https://www.vanveluwlaserdesign.nl/collecties/' . $collection['slug'],
+            self::BASE_URL . '/collecties/' . $collection['slug'],
             CollectionContent::canonicalUrl($collection)
         );
     }

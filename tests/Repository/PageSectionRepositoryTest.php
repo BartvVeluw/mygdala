@@ -97,6 +97,32 @@ class PageSectionRepositoryTest extends TestCase
         );
     }
 
+    /**
+     * The invariant every page's block list relies on, asserted over every
+     * page this installation has: one list numbered 0..n-1, with no gaps and
+     * no duplicate positions. It holds for whatever an editor built, so it
+     * asks nothing of what a particular site contains — this test's own page
+     * guarantees there is at least one list to check.
+     */
+    public function testEveryPageIsOneContiguousOrderedList(): void
+    {
+        $this->attach('feature_grid', 'a', 900031);
+        $this->attach('faq', 'b', 900032);
+
+        foreach ($this->pageRepository->findAllForAdmin() as $page) {
+            $sections = $this->repository->findForPage((int) $page['id']);
+            if ($sections === []) {
+                continue;
+            }
+
+            $this->assertSame(
+                range(0, count($sections) - 1),
+                array_map(static fn (array $s): int => (int) $s['sort_order'], $sections),
+                "\"{$page['content_key']}\" must be one list numbered 0..n-1, with no gaps and no duplicate positions"
+            );
+        }
+    }
+
     public function testAPageHasNoSecondOrderingDimension(): void
     {
         $this->attach('feature_grid', 'a', 900017);

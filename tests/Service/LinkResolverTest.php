@@ -113,14 +113,13 @@ class LinkResolverTest extends TestCase
     {
         $pageId = $this->makePage('footer-link-old-slug');
 
+        // A column of this test's own: whether the installation already has
+        // a footer is ordinary CMS data and no precondition of this guarantee.
         $footerRepository = new \App\Repository\FooterRepository();
-        $columns = $footerRepository->findAllColumnsForAdmin();
-        if ($columns === []) {
-            $this->markTestSkipped('no footer column to attach a test link to');
-        }
+        $columnId = $footerRepository->createColumn(['title_nl' => 'Zz testkolom', 'title_en' => 'Zz test column', 'is_visible' => false]);
 
         $linkId = $footerRepository->createLink([
-            'column_id' => (int) $columns[0]['id'],
+            'column_id' => $columnId,
             'label_nl' => 'Testlink',
             'label_en' => 'Test link',
             'link_type' => 'page',
@@ -142,6 +141,7 @@ class LinkResolverTest extends TestCase
             $this->assertSame('/footer-link-new-slug', $resolved['href']);
         } finally {
             $footerRepository->deleteLink($linkId);
+            $footerRepository->deleteColumn($columnId);
         }
     }
 

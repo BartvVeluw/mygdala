@@ -24,7 +24,13 @@ use PHPUnit\Framework\TestCase;
  */
 final class SitemapTest extends TestCase
 {
-    private const CANONICAL_BASE = 'https://www.vanveluwlaserdesign.nl';
+    /**
+     * The base URL this test configures itself, through the first step of
+     * App\Service\AppUrl's chain: which domain an installation publishes is
+     * site configuration, and asserting the one the container happens to
+     * carry would test the environment rather than the sitemap.
+     */
+    private const CANONICAL_BASE = 'https://www.voorbeeldwinkel.example';
     private const SLUG_PREFIX = 'zz-sitemap-';
 
     private ProductRepository $products;
@@ -38,6 +44,8 @@ final class SitemapTest extends TestCase
     /** @var list<int> */
     private array $pageIds = [];
 
+    private ?string $appUrlBefore = null;
+
     protected function setUp(): void
     {
         $this->products = new ProductRepository();
@@ -45,10 +53,19 @@ final class SitemapTest extends TestCase
         $this->pages = new PageRepository();
         CollectionContent::clearCache();
         PageContent::clearCache();
+
+        $this->appUrlBefore = $_ENV['APP_URL'] ?? null;
+        $_ENV['APP_URL'] = self::CANONICAL_BASE;
     }
 
     protected function tearDown(): void
     {
+        if ($this->appUrlBefore === null) {
+            unset($_ENV['APP_URL']);
+        } else {
+            $_ENV['APP_URL'] = $this->appUrlBefore;
+        }
+
         $db = Database::connection();
 
         foreach ($this->productIds as $id) {
@@ -141,7 +158,9 @@ final class SitemapTest extends TestCase
     {
         $locations = $this->locations();
 
-        foreach (['/', '/shop.php', '/diensten.php', '/portfolio.php', '/over-mij.php', '/contact.php'] as $path) {
+        // The system pages every installation with the Shop has. Which other
+        // fixed-URL pages a site carries is that site's content.
+        foreach (['/', '/shop.php'] as $path) {
             $this->assertContains(self::CANONICAL_BASE . $path, $locations, $path . ' must be in the sitemap');
         }
     }

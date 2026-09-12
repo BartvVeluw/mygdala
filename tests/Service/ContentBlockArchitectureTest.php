@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Service;
 
 use App\Database;
+use App\Repository\NavigationRepository;
 use App\Repository\PageRepository;
 use App\Repository\PageSectionRepository;
 use App\Service\PageContent;
@@ -34,6 +35,13 @@ use Tests\Support\TestEnvironment;
 final class ContentBlockArchitectureTest extends TestCase
 {
     private const TEST_KEY = '__test_blocks__';
+
+    /**
+     * A second page of this test's own, served from a fixed URL the way a
+     * page with a root-level template is. Underscores, so it can never be a
+     * real slug.
+     */
+    private const TEMPLATE_TEST_KEY = '__test_blocks_template__';
 
     /** The six pages served by their own root-level PHP template. */
     private const TEMPLATE_PAGES = ['index', 'shop', 'diensten', 'portfolio', 'over-mij', 'contact'];
@@ -70,11 +78,19 @@ final class ContentBlockArchitectureTest extends TestCase
     {
         $db = Database::connection();
 
-        $stmt = $db->prepare('SELECT id FROM pages WHERE content_key = :key');
-        $stmt->execute(['key' => self::TEST_KEY]);
-        $row = $stmt->fetch();
+        foreach ([self::TEST_KEY, self::TEMPLATE_TEST_KEY] as $key) {
+            $stmt = $db->prepare('SELECT id FROM pages WHERE content_key = :key');
+            $stmt->execute(['key' => $key]);
+            $row = $stmt->fetch();
 
-        if ($row !== false) {
+            if ($row === false) {
+                continue;
+            }
+
+            // Only menu items pointing at this test's own page, by exact id.
+            $del = $db->prepare('DELETE FROM nav_items WHERE target_page_id = :id');
+            $del->execute(['id' => (int) $row['id']]);
+
             $del = $db->prepare('DELETE FROM page_sections WHERE page_id = :id');
             $del->execute(['id' => (int) $row['id']]);
 
@@ -96,6 +112,44 @@ final class ContentBlockArchitectureTest extends TestCase
     private function testPage(): array
     {
         $page = $this->pages->findById($this->pageId);
+        $this->assertNotNull($page);
+
+        return $page;
+    }
+
+    /**
+     * The route-bound test page, created on first use: what every page with
+     * its own root-level template looks like in `pages`. The repository never
+     * mints one — an administrator cannot — so the two structural flags are
+     * set straight in the database, the same shortcut setStatus() takes.
+     *
+     * @return array<string, mixed>
+     */
+    private function routeBoundTestPage(): array
+    {
+        $page = $this->pages->findByContentKey(self::TEMPLATE_TEST_KEY);
+
+        if ($page === null) {
+            $id = $this->pages->create([
+                'content_key' => self::TEMPLATE_TEST_KEY,
+                'slug' => self::TEMPLATE_TEST_KEY,
+                'title' => 'Sjabloontestpagina',
+                'status' => PageContent::STATUS_PUBLISHED,
+                'meta_title' => null,
+                'meta_title_en' => null,
+                'meta_description' => null,
+                'meta_description_en' => null,
+            ]);
+
+            $stmt = Database::connection()->prepare(
+                "UPDATE pages SET is_system = 1, route_path = '/zz-sjabloontest.php' WHERE id = :id"
+            );
+            $stmt->execute(['id' => $id]);
+            PageContent::clearCache();
+
+            $page = $this->pages->findById($id);
+        }
+
         $this->assertNotNull($page);
 
         return $page;
@@ -187,13 +241,12 @@ final class ContentBlockArchitectureTest extends TestCase
         // The phase 1 protection rule in one assertion: having a dedicated
         // template/route is NOT a reason to protect a page. Only being the
         // site root, or carrying application-critical functionality, is.
+        $this->routeBoundTestPage();
+
         $expected = [
-            'index' => true,      // the site root
-            'shop' => true,       // carries the storefront's product grid
-            'diensten' => false,
-            'portfolio' => false,
-            'over-mij' => false,
-            'contact' => false,
+            'index' => true,                  // the site root
+            'shop' => true,                   // carries the storefront's product grid
+            self::TEMPLATE_TEST_KEY => false, // its own template and fixed URL, nothing more
         ];
 
         foreach ($expected as $contentKey => $isProtected) {
@@ -234,15 +287,12 @@ final class ContentBlockArchitectureTest extends TestCase
 
     public function testAContentPageWithADedicatedTemplateBehavesLikeAnyOtherPage(): void
     {
-        foreach (['diensten', 'portfolio', 'over-mij', 'contact'] as $contentKey) {
-            $page = $this->pages->findByContentKey($contentKey);
-            $this->assertNotNull($page);
+        $page = $this->routeBoundTestPage();
 
-            // Its URL is fixed (it is served from its own file) ...
-            $this->assertTrue(PageContent::isRouteBound($page));
-            // ... but that locks the slug and nothing else.
-            $this->assertFalse(PageContent::isProtected($page));
-        }
+        // Its URL is fixed (it is served from its own file) ...
+        $this->assertTrue(PageContent::isRouteBound($page));
+        // ... but that locks the slug and nothing else.
+        $this->assertFalse(PageContent::isProtected($page));
     }
 
     public function testDeletingAnUnprotectedPageIsStillBlockedWhileTheMenuLinksToIt(): void
@@ -250,15 +300,26 @@ final class ContentBlockArchitectureTest extends TestCase
         // Not protected is not the same as unguarded: the ordinary
         // "unlink it first" rule now covers these pages too, which it could
         // not while the menu linked to them as hardcoded routes.
-        foreach (['diensten', 'portfolio', 'over-mij', 'contact'] as $contentKey) {
-            $page = $this->pages->findByContentKey($contentKey);
+        $page = $this->routeBoundTestPage();
+        $this->assertSame(0, PageService::references((int) $page['id'])['total'], 'precondition: nothing links to the test page yet');
 
-            $this->assertGreaterThan(
-                0,
-                PageService::references((int) $page['id'])['total'],
-                "\"{$contentKey}\" must be linked by pages.id, so deleting it warns instead of leaving a dead menu item"
-            );
-        }
+        (new NavigationRepository())->create([
+            'label_nl' => 'Zz sjabloontest',
+            'label_en' => 'Zz template test',
+            'link_type' => 'page',
+            'target_page_id' => (int) $page['id'],
+            'target_route' => null,
+            'external_url' => null,
+            'open_in_new_tab' => false,
+            'parent_id' => null,
+            'is_visible' => false,
+        ]);
+
+        $this->assertGreaterThan(
+            0,
+            PageService::references((int) $page['id'])['total'],
+            'a page the menu links by pages.id must warn on delete instead of leaving a dead menu item'
+        );
     }
 
     public function testContentPagesAreNotOfferedAsApplicationRoutes(): void
@@ -479,7 +540,9 @@ final class ContentBlockArchitectureTest extends TestCase
 
     public function testEveryAttachedBlockStillOpensItsOwnDedicatedEditor(): void
     {
-        foreach (array_merge(self::TEMPLATE_PAGES, [self::TEST_KEY]) as $contentKey) {
+        // The pages every installation has, plus this test's own: the blocks
+        // on a particular site's other pages are that site's content.
+        foreach (['index', 'shop', self::TEST_KEY] as $contentKey) {
             $page = $this->pages->findByContentKey($contentKey);
             $this->assertNotNull($page);
 
