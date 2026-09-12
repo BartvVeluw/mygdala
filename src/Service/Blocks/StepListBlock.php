@@ -81,7 +81,7 @@ final class StepListBlock extends BlockDefinition
             return;
         }
 
-        render_section_step_list($content);
+        render_section_step_list($content, $revealGroup);
     }
 
     public function instanceTitle(array $pageSection): string

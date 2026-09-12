@@ -8,8 +8,9 @@
  * StepListContent::STATE_HIDDEN before calling this.
  *
  * @param array<string, mixed> $stepList see StepListContent::forSection()
+ * @param string $revealGroup unique data-reveal-group value for this instance's stagger animation
  */
-function render_section_step_list(array $stepList): void
+function render_section_step_list(array $stepList, string $revealGroup = 'process'): void
 {
     $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
     $hasHeading = $stepList['eyebrow_nl'] !== '' || $stepList['title_nl'] !== '';
@@ -24,7 +25,7 @@ function render_section_step_list(array $stepList): void
         <?php endif; ?>
         <div class="process">
           <?php foreach ($stepList['items'] as $step): ?>
-          <div class="process-step" data-reveal data-reveal-group="process">
+          <div class="process-step" data-reveal data-reveal-group="<?= $h($revealGroup) ?>">
             <h3 <?= \App\Service\Language\SiteText::attrs($step['title_nl'], $step['title_en']) ?>><?= $h(\App\Service\Language\SiteText::visible($step['title_nl'], $step['title_en'])) ?></h3>
             <p <?= \App\Service\Language\SiteText::attrs($step['body_nl'], $step['body_en']) ?>><?= $h(\App\Service\Language\SiteText::visible($step['body_nl'], $step['body_en'])) ?></p>
           </div>

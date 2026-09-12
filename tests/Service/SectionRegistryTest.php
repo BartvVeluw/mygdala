@@ -5,7 +5,12 @@ namespace Tests\Service;
 use App\Database;
 use App\Repository\PageRepository;
 use App\Repository\PageSectionRepository;
+use App\Repository\StatStripRepository;
+use App\Repository\StepListRepository;
+use App\Service\PageContent;
 use App\Service\SectionRegistry;
+use App\Service\StatStripContent;
+use App\Service\StepListContent;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -234,5 +239,131 @@ class SectionRegistryTest extends TestCase
         $stmtB = $db->prepare('SELECT id FROM feature_grids WHERE id = :id');
         $stmtB->execute(['id' => $idB]);
         $this->assertNotFalse($stmtB->fetch(), 'the other instance\'s content row must be untouched');
+    }
+
+    /* ------------------------------------------------------------------ */
+    /* The reveal group is part of the instance, not of the type           */
+    /* ------------------------------------------------------------------ */
+
+    /*
+     * renderPage() hands every block a reveal group of its own —
+     * "<section_type>-<page_sections.id>" — and assets/js/core.js staggers
+     * the elements that share one by their document order. A block type that
+     * prints a fixed string instead therefore merges its instances into a
+     * single group across the whole page: the second strip's first tile
+     * inherits the delay of the fourth tile of the first, and the ones after
+     * it pile up against the 450ms ceiling. These three tests assert on the
+     * markup a visitor actually receives, because that is the only place the
+     * mistake is visible.
+     */
+
+    public function testTwoStatStripsOnOnePageEachGetTheirOwnRevealGroup(): void
+    {
+        $repository = new PageSectionRepository();
+        $strips = new StatStripRepository();
+
+        $pageSectionIds = [];
+        foreach (['Eerste', 'Tweede'] as $label) {
+            [$sectionId, $sectionKey] = SectionRegistry::create('stat_strip', self::TEST_PAGE);
+            $strips->createItem($sectionId, [
+                'primary_text_nl' => $label,
+                'secondary_text_nl' => 'stat',
+            ]);
+            $pageSectionIds[] = $this->attach($repository, 'stat_strip', $sectionKey, $sectionId);
+        }
+
+        StatStripContent::clearCache();
+
+        $this->assertSame(
+            ['stat_strip-' . $pageSectionIds[0], 'stat_strip-' . $pageSectionIds[1]],
+            $this->revealGroupsOnPage(),
+            'each strip must carry the reveal group SectionRegistry gave its own instance'
+        );
+    }
+
+    public function testTwoStepListsOnOnePageEachGetTheirOwnRevealGroup(): void
+    {
+        $repository = new PageSectionRepository();
+        $lists = new StepListRepository();
+
+        $pageSectionIds = [];
+        foreach (['Eerste', 'Tweede'] as $label) {
+            [$sectionId, $sectionKey] = SectionRegistry::create('step_list', self::TEST_PAGE);
+            $lists->createItem($sectionId, [
+                'title_nl' => $label,
+                'body_nl' => 'stap',
+            ]);
+            $pageSectionIds[] = $this->attach($repository, 'step_list', $sectionKey, $sectionId);
+        }
+
+        StepListContent::clearCache();
+
+        $this->assertSame(
+            ['step_list-' . $pageSectionIds[0], 'step_list-' . $pageSectionIds[1]],
+            $this->revealGroupsOnPage(),
+            'each step list must carry the reveal group SectionRegistry gave its own instance'
+        );
+    }
+
+    public function testNoTwoInstancesOfOneTypeShareARevealGroup(): void
+    {
+        $repository = new PageSectionRepository();
+        $strips = new StatStripRepository();
+        $lists = new StepListRepository();
+
+        foreach (['Eerste', 'Tweede'] as $label) {
+            [$stripId, $stripKey] = SectionRegistry::create('stat_strip', self::TEST_PAGE);
+            $strips->createItem($stripId, [
+                'primary_text_nl' => $label,
+                'secondary_text_nl' => 'stat',
+            ]);
+            $this->attach($repository, 'stat_strip', $stripKey, $stripId);
+
+            [$listId, $listKey] = SectionRegistry::create('step_list', self::TEST_PAGE);
+            $lists->createItem($listId, [
+                'title_nl' => $label,
+                'body_nl' => 'stap',
+            ]);
+            $this->attach($repository, 'step_list', $listKey, $listId);
+        }
+
+        StatStripContent::clearCache();
+        StepListContent::clearCache();
+
+        $groups = $this->revealGroupsOnPage();
+
+        $this->assertCount(4, $groups, 'four instances, four reveal-group attributes');
+        $this->assertSame(
+            $groups,
+            array_values(array_unique($groups)),
+            'two instances of one type must not be staggered as one group'
+        );
+    }
+
+    /**
+     * Renders this test's page the way a visitor receives it and returns every
+     * data-reveal-group value in document order.
+     *
+     * @return list<string>
+     */
+    private function revealGroupsOnPage(): array
+    {
+        // renderPage() reads the page through PageContent, which caches by
+        // content_key. setUp() drops and recreates the page for every test,
+        // so a value cached by an earlier test would point at an id that no
+        // longer exists.
+        PageContent::clearCache();
+
+        ob_start();
+
+        try {
+            SectionRegistry::renderPage(self::TEST_PAGE);
+        } finally {
+            $html = (string) ob_get_clean();
+        }
+
+        preg_match_all('/data-reveal-group="([^"]*)"/', $html, $matches);
+
+        return $matches[1];
     }
 }

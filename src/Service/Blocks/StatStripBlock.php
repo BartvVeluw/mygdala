@@ -80,7 +80,7 @@ final class StatStripBlock extends BlockDefinition
             return;
         }
 
-        render_section_stat_strip($content);
+        render_section_stat_strip($content, $revealGroup);
     }
 
     public function editUrl(array $pageSection): ?string
