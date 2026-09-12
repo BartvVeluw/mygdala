@@ -83,6 +83,7 @@
         <testsuite name="contract">
             <file>tests/Service/MultilingualBoundaryTest.php</file>
             <file>tests/Blog/BlogModuleTest.php</file>
+            <file>tests/Architecture/ContextSetupTest.php</file>
             <file>tests/Architecture/TestSuiteCoverageTest.php</file>
             <file>tests/Install/ExampleEnvironmentTest.php</file>
             <file>tests/Install/MigrationTableNamesTest.php</file>
@@ -130,6 +131,7 @@
             <file>tests/Service/ThreeLanguageStatesTest.php</file>
             <file>tests/Service/TranslationProviderTest.php</file>
             <file>tests/Service/MultilingualBoundaryTest.php</file>
+            <file>tests/Architecture/ContextSetupTest.php</file>
             <file>tests/Architecture/TestSuiteCoverageTest.php</file>
             <file>tests/Blog/BlogModuleTest.php</file>
             <file>tests/Install/ExampleEnvironmentTest.php</file>

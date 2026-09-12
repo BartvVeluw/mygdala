@@ -43,6 +43,56 @@ harness doet, dicht genoeg om een sessie mee na te lopen, en het houdt de
 globlijst op één plek. Het script heeft `python` op het pad nodig en eindigt
 altijd met 0: gaat er iets mis, dan mist er hooguit een regel.
 
+**Wat het logboek níet ziet.** De hooks hangen aan `Skill` en aan
+`Read|Edit|Write|NotebookEdit`. Leest een sessie bestanden met de tool `Bash`
+— `cat`, `sed`, `grep` — dan komt er geen regel in het logboek, en vuurt de
+path-regel zelf ook niet, want die hangt aan dezelfde tools. Een sessie die
+vooral via Bash leest werkt dus met twee van de vier lagen, en het logboek is
+daar stil over. Dat is bewust niet gerepareerd: uit een willekeurig
+shellcommando afleiden welke bestanden het opende vraagt een parser die bij
+elke pipe of `xargs` het verkeerde antwoord geeft, en een verkeerd logboek is
+erger dan een leeg logboek. Een tweede stilte: is `.claude/` er niet, dan doet
+de hook niets en schrijft hij ook niet op dat hij niets deed — daarvoor is de
+controle hieronder.
+
+Kortom: een regel in het logboek is bewijs dat een laag geladen is, het
+ontbreken van een regel is geen bewijs van het tegendeel.
+
+### Een verse worktree
+
+`.claude/` en alle `CLAUDE.md`-bestanden zitten in de commit — `.gitignore`
+zegt dat met zoveel woorden — dus een uitchecking heeft ze, of hij is stuk.
+`git worktree add` zet ze er gewoon bij. Toch is het één keer misgegaan: in een
+verse agent-worktree stonden de twaalf bestanden onder `.claude/` als
+*staged deletion* in `git status`, en dan is er niets meer dat waarschuwt.
+`/content-block` meldt een onbekende skill, geen path-regel vuurt, de hook
+zwijgt omdat zijn eigen map weg is, en de sessie werkt door alsof ze de
+vangrails heeft.
+
+Controleer daarom als eerste dat de lagen er staan:
+
+```bash
+git status --short
+```
+
+Zie je regels als `D  .claude/skills/...`, of is `.claude/` er helemaal niet,
+haal ze dan terug uit de commit waar ze al in staan:
+
+```bash
+git restore --source=HEAD --staged --worktree -- .claude CLAUDE.md
+```
+
+`Tests\Architecture\ContextSetupTest` is hetzelfde vangnet in de suite: hij
+loopt mee in `fast`, leest alleen bestanden en faalt met het pad dat mist. De
+skills die hij verwacht komen uit de routeringstabel van `CLAUDE.md` en de
+mapregels uit de lijst hieronder, dus er is geen tweede lijst die kan gaan
+afwijken.
+
+Composer-dependencies horen niet bij de commit en komen er dus niet mee. Hoe
+je die in een worktree zet, en waarom een symlink naar de `vendor/` van een
+andere uitchecking je stilletjes de verkeerde code laat testen, staat in
+[`TESTING.md`](TESTING.md), "Vanuit een git worktree".
+
 ## Zo begin je een taak
 
 1. **Noem het domein.** Typ de skill en daarachter wat je wilt:

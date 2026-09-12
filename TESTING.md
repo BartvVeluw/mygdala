@@ -51,13 +51,19 @@ Een worktree is een verse uitchecking en heeft dus **geen `vendor/`**: die map
 is gitignored, hij hoort bij de checkout en niet bij de commit. PHPUnit start
 er niet voordat je de Composer-dependencies ernaast hebt gezet.
 
+De containers worden gestart vanuit de hoofduitchecking, niet vanuit de
+worktree: `docker compose` leest het `.env` dat daar staat, en dat is ook
+gitignored. Draait `mygdala_php_test` nog niet, start dan eerst het profiel uit
+"Eenmalige setup" — `docker exec` kan geen container gebruiken die niet
+bestaat.
+
 ```bash
 docker exec mygdala_php_test composer install --working-dir=/var/www/html/.claude/worktrees/<naam>
 ```
 
 Een worktree onder `.claude/worktrees/` ligt binnen de projectmap, en die is
-in elke container aangekoppeld — je hoeft er geen container voor te starten,
-te herstarten of aan te passen.
+in elke container aangekoppeld — je hoeft er geen eigen container voor te
+starten, te herstarten of aan te passen.
 
 **Maak geen symlink naar de `vendor/` van een andere worktree.** De
 autoloader van Composer leidt zijn basispad af uit het pad van het

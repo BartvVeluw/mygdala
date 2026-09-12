@@ -25,6 +25,22 @@ Elke combinatie van instructiebestand en aanleiding wordt per sessie één keer
 geschreven. Het gaat om het moment waarop iets actief werd, niet om een
 telling.
 
+WAT DIT LOGBOEK NIET ZIET, en waarom dat zo blijft:
+
+- **Bestanden die via `Bash` gelezen worden** (`cat`, `sed`, `grep`). De hook
+  hangt aan de tools uit FILE_TOOLS, en dat zijn precies de tools waar de
+  harness zijn path-regels aan hangt. Een sessie die via Bash leest krijgt die
+  regels dus ook niet; het logboek verzwijgt niets wat er wél gebeurde. Uit
+  een willekeurig shellcommando afleiden welke bestanden het opende vraagt een
+  parser die bij elke pipe of `xargs` het verkeerde antwoord geeft, en een
+  verkeerd logboek is erger dan een leeg logboek.
+- **Een uitchecking zonder `.claude/`.** Dan stopt main() meteen, en er komt
+  ook geen regel die zegt dat er niets gebeurde. `Tests\Architecture\ContextSetupTest`
+  is de controle daarvoor; zie WORKFLOW.md, "Een verse worktree".
+
+Een regel in het logboek is dus bewijs dat een laag geladen werd. Het ontbreken
+van een regel is geen bewijs van het tegendeel.
+
 Er wordt nooit inhoud gelogd: geen promptteksten, geen bestandsinhoud, geen
 omgevingsvariabelen. Alleen paden en namen.
 
