@@ -76,6 +76,14 @@ uit waarom dat vangnet niets meer kon vangen. Een nieuw blok volgt
   laadt een pagina alleen de partials van de blokken die er echt op staan.
 - **Vraag CSS en JS via `styles()` / `scripts()`**, nooit met een
   handgeschreven tag in een template.
+- **Wat aan de instantie hangt, blijft op de instantie gescoopt.**
+  `render()` krijgt van `SectionRegistry` een `$revealGroup` van de vorm
+  `<type>-<page_sections.id>`; geef die door aan je partial en print hem in
+  `data-reveal-group`. Vervang hem nooit door een vaste string: `core.js`
+  groepeert documentbreed op die waarde, dus bij een herhaalbaar blok
+  belanden alle instanties in één stagger-groep en verschijnt de tweede te
+  laat. `render_section_feature_grid()` is het voorbeeld. Hetzelfde geldt
+  voor DOM-id's en blok-JS.
 - **Een onbekend bloktype is geen fout**: de sectie wordt overgeslagen en de
   rest van de pagina rendert normaal.
 

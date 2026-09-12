@@ -45,6 +45,24 @@ configuratiebestand zou gedeeld worden met de ontwikkelsite (beide mounten
 dezelfde map). In-process gebruikt de suite gewoon
 `App\Module\ModuleRegistry::overrideForTests()`.
 
+### Als `.env` ontbreekt
+
+Zonder `.env` faalt `docker compose --profile test up -d` en bestaat
+`mygdala_php_test` dus niet. Dat bestand is lokaal, gitignored en bevat
+secrets, waaronder `DB_ROOT_PASSWORD`.
+
+**Een agent maakt dit bestand niet aan en reconstrueert het niet** — niet uit
+`.env.example`, en niet uit de omgevingsvariabelen van een draaiende
+container. Die waarden zijn ooit door een mens gezet en horen niet in een
+bestand terug dat een agent heeft geraden.
+
+Ontbreekt `.env`, meld dat dan als reproduceerbaarheidsprobleem en laat het
+herstellen aan de eigenaar van de machine. Wil je intussen toch draaien,
+gebruik dan alleen de fallback die hieronder al beschreven staat: een andere
+container met de moduleschakelaars expliciet meegegeven. Zet de uitkomst
+altijd af tegen een nulmeting op ongewijzigde code, want die fallback kent
+zijn eigen bekende mislukkingen.
+
 ### Vanuit een git worktree
 
 Een worktree is een verse uitchecking en heeft dus **geen `vendor/`**: die map
