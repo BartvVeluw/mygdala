@@ -1,5 +1,5 @@
 /* =========================================================================
-   Van Veluw Laserdesign — CORE site behaviour
+   Mygdala — CORE site behaviour
    Loaded on every public page (App\Service\PageAssets), and only what every
    page genuinely uses: the language switch, the header/navigation, and the
    generic scroll-reveal every block opts into with data-reveal.

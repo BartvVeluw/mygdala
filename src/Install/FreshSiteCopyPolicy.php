@@ -7,13 +7,15 @@ namespace App\Install;
 /**
  * Which files are THE APPLICATION and which files are THIS SITE.
  *
- * This repository is both. Roughly 40 MB of it is Van Veluw Laserdesign's own
- * photography, and live pages, products and portfolio items point at those
- * files by path — so making the tree generic by deleting them would break a
- * working site to tidy up for a site that does not exist yet. The boundary is
- * therefore not a deletion but an export: the tree stays whole, and
- * `scripts/create_fresh_site_copy.php` walks it once, asking this class about
- * every path.
+ * A downstream installation such as Van Veluw Laserdesign is both: its tree
+ * holds that company's photography, and live pages, products and portfolio
+ * items point at those files by path — so making such a tree generic by
+ * deleting them would break a working site to tidy up for a site that does
+ * not exist yet. The boundary is therefore not a deletion but an export: the
+ * tree stays whole, and `scripts/create_fresh_site_copy.php` walks it once,
+ * asking this class about every path. Mygdala itself, the canonical source,
+ * carries no such content — its `assets/images/` holds only a `.gitkeep` —
+ * and the boundary applies to it unchanged.
  *
  * IT LIVES HERE, AND NOT IN THE SCRIPT, so it can be tested. A boundary
  * nobody checks is a boundary that moves, and the only thing worse than no
@@ -129,9 +131,46 @@ final class FreshSiteCopyPolicy
 
     /**
      * What a reviewer reads afterwards: the copied text files that still
-     * name this site. Matched case-insensitively.
+     * name this site. The name and the domain, matched case-insensitively —
+     * "van veluw" in lower case is still the name.
      */
     public const REVIEW_NEEDLES = ['Van Veluw', 'vanveluwlaserdesign'];
+
+    /**
+     * The same, for identity that is a token rather than a name: the old
+     * order-number prefix and the old admin browser-storage keys. Matched
+     * EXACTLY, because case-insensitively "VLD-" also matches "vvld-", the
+     * personalization font namespace that is frozen on purpose — historical
+     * order snapshots name it (App\Service\Personalization\PersonalizationFonts).
+     * A list that flags what must stay teaches a reviewer to ignore the list,
+     * which is also why there is no bare "vvld" here.
+     */
+    public const REVIEW_NEEDLES_EXACT = ['VLD-', 'vvldAdmin', 'vvldSaveBarSaved'];
+
+    /**
+     * Which review needles a copied text file contains: REVIEW_NEEDLES
+     * case-insensitively, then REVIEW_NEEDLES_EXACT as written.
+     *
+     * @return list<string>
+     */
+    public static function reviewNeedlesIn(string $contents): array
+    {
+        $found = [];
+
+        foreach (self::REVIEW_NEEDLES as $needle) {
+            if (stripos($contents, $needle) !== false) {
+                $found[] = $needle;
+            }
+        }
+
+        foreach (self::REVIEW_NEEDLES_EXACT as $needle) {
+            if (str_contains($contents, $needle)) {
+                $found[] = $needle;
+            }
+        }
+
+        return $found;
+    }
 
     /**
      * Copied, but never listed for rewriting.
@@ -185,7 +224,7 @@ final class FreshSiteCopyPolicy
     /**
      * Whether a directory is worth walking into at all. Skipping an excluded
      * directory here rather than filtering its files one by one is what keeps
-     * the export from reading 40 MB of photographs it will not copy — and
+     * the export from reading a site's photographs it will not copy — and
      * from descending into `vendor/`, which is most of the file count.
      */
     public static function descendsInto(string $relativePath): bool

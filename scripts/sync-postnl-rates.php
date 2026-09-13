@@ -37,7 +37,7 @@
  *
  * Vimexx cron command (replace the path with your actual hosting path —
  * this is a documented example, not a real deployed path):
- *   0 6 * * * /usr/bin/php /home/<vimexx-account>/domains/vanveluwlaserdesign.nl/public_html/scripts/sync-postnl-rates.php >> /home/<vimexx-account>/domains/vanveluwlaserdesign.nl/logs/postnl-sync.log 2>&1
+ *   0 6 * * * /usr/bin/php /home/<vimexx-account>/domains/<your-domain>/public_html/scripts/sync-postnl-rates.php >> /home/<vimexx-account>/domains/<your-domain>/logs/postnl-sync.log 2>&1
  * (runs once daily at 06:00; a weekly schedule, e.g. "0 6 * * 1" for every
  * Monday, is equally safe — see MAIN.MD.)
  */

@@ -472,7 +472,7 @@ final class AdminEditorNavigationTest extends TestCase
     {
         $script = $this->sourceOf('admin/assets/admin-collapse.js');
 
-        $this->assertStringContainsString('vvldAdminReturn:', $script);
+        $this->assertStringContainsString('mygdalaAdminReturn:', $script);
         $this->assertStringContainsString('sessionStorage', $script);
         $this->assertStringContainsString('scrollIntoView', $script);
 

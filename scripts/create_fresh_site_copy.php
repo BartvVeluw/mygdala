@@ -10,11 +10,12 @@ declare(strict_types=1);
  *     php scripts/create_fresh_site_copy.php ../nieuwe-site
  *     php scripts/create_fresh_site_copy.php ../nieuwe-site --force
  *
- * WHY A COPY AND NOT A DELETION. This repository is a working site as well as
- * an application. Roughly 40 MB of it is Van Veluw Laserdesign's own
- * photography, and live pages point at those files by path — deleting them to
- * make the tree generic would break the live site to tidy up for a site that
- * does not exist yet. So the tree stays whole and the export is one-way.
+ * WHY A COPY AND NOT A DELETION. A downstream installation is a working site
+ * as well as an application: its tree holds that site's photography, and live
+ * pages point at those files by path — deleting them to make the tree generic
+ * would break the live site to tidy up for a site that does not exist yet. So
+ * the tree stays whole and the export is one-way. Mygdala itself carries no
+ * such content; the walk is the same either way.
  *
  * EVERY DECISION IS IN App\Install\FreshSiteCopyPolicy, not here. This file
  * walks, copies, creates directories and prints; the policy says what belongs
@@ -185,12 +186,5 @@ function mentionsThisSite(string $path): array
         return [];
     }
 
-    $found = [];
-    foreach (FreshSiteCopyPolicy::REVIEW_NEEDLES as $needle) {
-        if (stripos($contents, $needle) !== false) {
-            $found[] = $needle;
-        }
-    }
-
-    return $found;
+    return FreshSiteCopyPolicy::reviewNeedlesIn($contents);
 }

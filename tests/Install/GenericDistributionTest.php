@@ -223,6 +223,12 @@ final class GenericDistributionTest extends TestCase
         $offenders = [];
 
         foreach ($this->sourceFiles() + $this->rootFiles() as $path => $contents) {
+            // The one file that must name it: the export's review needle, which
+            // is how a copy finds the old prefix rather than a place that uses it.
+            if ($path === 'src/Install/FreshSiteCopyPolicy.php') {
+                continue;
+            }
+
             foreach (token_get_all($contents) as $token) {
                 if (
                     is_array($token)
@@ -276,6 +282,31 @@ final class GenericDistributionTest extends TestCase
             preg_match_all('/\$orderNumber = OrderRepository::formatOrderNumber\(/', $invoices),
             'Both the first render and the regeneration of an invoice PDF take the number from the formatter.'
         );
+    }
+
+    /* ------------------------------------------------------------------ */
+    /* The admin's browser storage                                         */
+    /* ------------------------------------------------------------------ */
+
+    public function testTheAdminScriptsStoreTheirStateUnderMygdalasOwnKeys(): void
+    {
+        // The remembered tab, the open rows, the return target and the
+        // save-bar flag were all stored under the old site's prefix. Only
+        // these exact keys: the personalization font namespace 'vvld-' is a
+        // different thing and stays (App\Service\Personalization\PersonalizationFonts).
+        $offenders = [];
+
+        foreach (glob($this->root() . '/admin/assets/*.js') ?: [] as $path) {
+            $contents = (string) file_get_contents($path);
+
+            foreach (['vvldAdmin', 'vvldSaveBarSaved'] as $old) {
+                if (str_contains($contents, $old)) {
+                    $offenders[] = 'admin/assets/' . basename($path) . ' → ' . $old;
+                }
+            }
+        }
+
+        $this->assertSame([], $offenders, "An admin script still uses the old site's storage key:\n" . implode("\n", $offenders));
     }
 
     /* ------------------------------------------------------------------ */

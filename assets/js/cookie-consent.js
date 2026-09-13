@@ -1,5 +1,5 @@
 /* =========================================================================
-   Van Veluw Laserdesign — cookie consent engine
+   Mygdala — cookie consent engine
    Loaded in <head>, before every other script, on every public page (see
    partials/header.php). Vanilla JS, no dependencies, no build step —
    matches assets/js/core.js's style.

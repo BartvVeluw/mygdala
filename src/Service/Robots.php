@@ -11,7 +11,7 @@ namespace App\Service;
  * There used to be a static robots.txt in the project root with the
  * production domain typed into it:
  *
- *     Sitemap: https://www.vanveluwlaserdesign.nl/sitemap.xml
+ *     Sitemap: https://www.<production-domain>/sitemap.xml
  *
  * That is one line, and it is also the reason a second deployment of this
  * codebase would have advertised somebody else's sitemap. The URL now comes

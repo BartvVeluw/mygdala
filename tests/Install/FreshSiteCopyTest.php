@@ -12,11 +12,12 @@ use PHPUnit\Framework\TestCase;
  * App\Install\FreshSiteCopyPolicy draws it and
  * `scripts/create_fresh_site_copy.php` acts on it.
  *
- * The repository is both things at once, and it cannot stop being: live pages
- * point at this company's photographs by path, so deleting them to make the
- * tree generic would break a working site for the benefit of one that does
- * not exist yet. The export is the boundary instead — and a boundary nobody
- * checks is a boundary that moves.
+ * A downstream installation's tree is both things at once, and it cannot stop
+ * being: live pages point at that company's photographs by path, so deleting
+ * them to make the tree generic would break a working site for the benefit of
+ * one that does not exist yet. Mygdala itself carries no such content, and
+ * the boundary is the same. The export is the boundary instead — and a
+ * boundary nobody checks is a boundary that moves.
  *
  * Two halves. The policy is asked directly, which needs nothing and therefore
  * runs everywhere; and the script is run for real into a throwaway directory,
@@ -105,6 +106,30 @@ final class FreshSiteCopyTest extends TestCase
         ] as $path) {
             $this->assertFalse(FreshSiteCopyPolicy::includes($path), $path . ' must never leave this repository.');
         }
+    }
+
+    public function testTheReviewListFindsTheSiteNameAndDomainInAnyCase(): void
+    {
+        $this->assertSame(['Van Veluw'], FreshSiteCopyPolicy::reviewNeedlesIn('Gemaakt door van veluw.'));
+        $this->assertSame(['vanveluwlaserdesign'], FreshSiteCopyPolicy::reviewNeedlesIn('https://www.VanVeluwLaserdesign.nl'));
+    }
+
+    public function testTheReviewListFindsTheOldOrderNumberPrefixAndAdminStorageKeys(): void
+    {
+        $this->assertSame(['VLD-'], FreshSiteCopyPolicy::reviewNeedlesIn("return 'VLD-' . \$year;"));
+        $this->assertSame(['vvldAdmin'], FreshSiteCopyPolicy::reviewNeedlesIn('var STORE_PREFIX = "vvldAdminTab:";'));
+        $this->assertSame(['vvldSaveBarSaved'], FreshSiteCopyPolicy::reviewNeedlesIn('var RELOAD_FLAG = "vvldSaveBarSaved";'));
+    }
+
+    public function testTheFrozenPersonalizationFontNamespaceIsNotReportedForRewriting(): void
+    {
+        // 'vvld-' stays on purpose: historical order snapshots name it
+        // (App\Service\Personalization\PersonalizationFonts). A case-insensitive
+        // "VLD-" would flag it, which is why that needle is matched exactly.
+        $this->assertSame([], FreshSiteCopyPolicy::reviewNeedlesIn("return 'vvld-' . \$fontKey;"));
+        $this->assertSame([], FreshSiteCopyPolicy::reviewNeedlesIn(
+            (string) file_get_contents($this->root() . '/src/Service/Personalization/PersonalizationFonts.php')
+        ));
     }
 
     public function testThisSitesPicturesAreExcluded(): void
@@ -313,6 +338,18 @@ final class FreshSiteCopyTest extends TestCase
         // for a human, because rewriting prose automatically is guessing.
         $this->assertStringContainsStringIgnoringCase('Still mentions this site', $output);
         $this->assertStringContainsString('README.md', $output);
+    }
+
+    public function testTheScriptReportsWithThePolicysNeedlesAndSparesTheFrozenFontNamespace(): void
+    {
+        [, $output] = $this->export();
+
+        $this->assertStringContainsString(
+            'FreshSiteCopyPolicy::reviewNeedlesIn(',
+            (string) file_get_contents($this->root() . '/scripts/create_fresh_site_copy.php'),
+            'The script must ask the policy which needles a file contains, not match its own.'
+        );
+        $this->assertStringNotContainsString('src/Service/Personalization/PersonalizationFonts.php', $output);
     }
 
     /* ------------------------------------------------------------------ */

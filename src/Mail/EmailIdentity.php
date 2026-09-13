@@ -11,7 +11,9 @@ use App\Service\SiteSettings;
  * All three builders — contact request, order confirmation, withdrawal
  * request — used to end with the same hardcoded line:
  *
- *     Van Veluw Laserdesign · Nijmegen · info@vanveluwlaserdesign.nl
+ *     <company name> · <city> · <e-mail address>
+ *
+ * with one company's actual values typed into it.
  *
  * Three copies of one company's details, in a codebase meant to be installed
  * more than once. They now come from App\Service\SiteSettings, which is

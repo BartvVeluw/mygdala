@@ -50,9 +50,11 @@ final class FreshInstallRenderTest extends TestCase
     ];
 
     /**
-     * The specific asset that leaked. It is still in the repository, because
-     * the existing deployment's own hero row points at it, so a fresh page
-     * naming it means the renderer reached for a default it should not have.
+     * The specific asset that leaked. It is the legacy hero default in
+     * App\Service\HomepageHeroContent, and a downstream deployment's own hero
+     * row still points at it, so a fresh page naming it means the renderer
+     * reached for a default it should not have. Mygdala itself no longer
+     * carries the file; the path in the markup is what gives the leak away.
      */
     private const LEGACY_HERO_IMAGE = 'hero-collage-a.webp';
 

@@ -30,7 +30,7 @@
 (function () {
   "use strict";
 
-  var STORE_PREFIX = "vvldAdminTab:";
+  var STORE_PREFIX = "mygdalaAdminTab:";
 
   function readStore(key) {
     try {

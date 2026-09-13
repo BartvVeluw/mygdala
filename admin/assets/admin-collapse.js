@@ -24,8 +24,8 @@
 (function () {
   "use strict";
 
-  var OPEN_PREFIX = "vvldAdminOpen:";
-  var RETURN_PREFIX = "vvldAdminReturn:";
+  var OPEN_PREFIX = "mygdalaAdminOpen:";
+  var RETURN_PREFIX = "mygdalaAdminReturn:";
 
   function read(key) {
     try {

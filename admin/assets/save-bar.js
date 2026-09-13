@@ -43,7 +43,7 @@
   var statusText = bar.querySelector("[data-save-bar-text]");
   var saveButton = bar.querySelector("[data-save-bar-save]");
 
-  var RELOAD_FLAG = "vvldSaveBarSaved";
+  var RELOAD_FLAG = "mygdalaSaveBarSaved";
 
   var EDITABLE =
     "input:not([type='hidden']):not([type='submit']):not([type='button']), select, textarea";

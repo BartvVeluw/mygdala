@@ -345,12 +345,13 @@ hoe je uit deze repository een **kopie zonder deze site** haalt.
 
 ### Waarom een kopie en geen opschoning
 
-Deze repository is twee dingen tegelijk: de applicatie én de site van Van
-Veluw Laserdesign. Ongeveer 40 MB ervan is fotografie van dit bedrijf, en
+Een downstream site zoals Van Veluw Laserdesign is twee dingen tegelijk: de
+applicatie én de site. In die boom staat de fotografie van dat bedrijf, en
 pagina's, producten en portfolio-items wijzen daar met een pad naartoe.
 Weggooien om de boom generiek te maken zou dus een draaiende site slopen ten
 gunste van een site die nog niet bestaat. De boom blijft daarom heel, en de
-export is éénrichtingsverkeer.
+export is éénrichtingsverkeer. Mygdala zelf draagt die inhoud niet —
+`assets/images/` bevat hier alleen een `.gitkeep` — maar de grens is dezelfde.
 
 `App\Install\FreshSiteCopyPolicy` is de enige plek waar staat wat applicatie
 is en wat site is; `scripts/create_fresh_site_copy.php` loopt de boom één keer
@@ -358,15 +359,18 @@ door en vraagt die klasse per pad. Wat er níet uit komt:
 
 | Groep | Wat |
 |---|---|
-| Versiebeheer | `.git` en `.claude` — de nieuwe site krijgt zijn eigen geschiedenis |
+| Versiebeheer | `.git` en de machinegebonden delen van `.claude` (worktrees, lokale instellingen, het instructielog) — de nieuwe site krijgt zijn eigen geschiedenis; de skills en gedeelde instellingen gaan wél mee |
 | Geheimen en runtime-staat | alles wat `.gitignore` noemt: `.env`, `vendor/`, geüploade media, logs, caches |
 | Site-inhoud | `assets/images/**`, `assets/media/**`, `assets/videos/**` — productfoto's, portfolio, de logo's van dit bedrijf, de bronbestanden |
 | Site-geschiedenis | `MAIN.MD` en de twee archiefdocumenten onder `docs/` |
 
 De mappen waar de applicatie zelf in schrijft komen leeg terug, met een
 `.gitkeep`, want de code verwacht dat ze bestaan — niet dat er iets in staat.
-Het script **wijzigt geen enkel bestand**: wat daarna nog "Van Veluw" zegt
-komt aan het eind in een lijst te staan voor een mens. Proza automatisch
+Het script **wijzigt geen enkel bestand**: wat daarna nog naar de bronsite
+verwijst komt aan het eind in een lijst te staan voor een mens. Dat zijn de
+naam en het domein, en daarnaast het oude bestelnummerprefix `VLD-` en de oude
+browseropslagsleutels van het beheer (`FreshSiteCopyPolicy::REVIEW_NEEDLES`
+en `REVIEW_NEEDLES_EXACT`). Proza automatisch
 herschrijven is gokken, en een half hernoemde site is erger dan een lijst.
 
 Het script loopt over het bestandssysteem en niet over de index van git, zodat
@@ -430,10 +434,9 @@ De export noemt aan het eind elk bestand dat deze site nog bij naam noemt. De
 meeste daarvan zijn toelichtingen in code die uitleggen waaróm iets zo werkt —
 lezen mag, herschrijven hoeft niet. Deze zijn het wél waard:
 
-- `composer.json` — `name` en `description`;
+- `composer.json` — `name` en `description`, als de nieuwe site een eigen
+  pakketnaam wil in plaats van `mygdala/cms`;
 - `README.md` — het is de ontwikkelaarsdocumentatie van *deze* site;
-- de koppen van `assets/css/core.css`, `assets/js/core.js` en
-  `assets/js/cookie-consent.js`;
 - de documenten in de root (`PROJECT-MAP.md`, `SETUP.md`, `SEO.md`, …), waar
   deze site als voorbeeld dient.
 
