@@ -22,7 +22,7 @@ Phinx-migraties, `YYYYMMDDHHMMSS_naam.php`.
 Nieuwe migratie:
 
 ```bash
-docker exec mygdala_php php vendor/bin/phinx create MyNewMigration
+docker compose exec php php vendor/bin/phinx create MyNewMigration
 ```
 
 Lees `../../INSTALL-BOOTSTRAP.md`.

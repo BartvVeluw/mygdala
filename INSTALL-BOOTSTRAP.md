@@ -104,7 +104,7 @@ Wat een verse installatie verder niet meer toont: de mini-winkelwagen in de
 gedeelde schil rendert leeg in plaats van een voorbeeldproduct met een prijs,
 en het afhaalpunt bij het afrekenen noemt de plaats uit
 `site_settings.company_city` in plaats van Nijmegen. Zie `SETUP.md`, "Een
-tweede site beginnen".
+nieuwe site beginnen".
 
 ## Wat modules aanmaken
 
@@ -242,7 +242,7 @@ dezelfde veilige richting die hierboven al gekozen is. Zie
 ## Testen
 
 ```bash
-docker exec mygdala_php_test php vendor/bin/phpunit --testsuite migration
+docker compose exec php_test php vendor/bin/phpunit --testsuite migration
 ```
 
 | Bestand | Wat het bewaakt |

@@ -50,5 +50,5 @@ De Blog staat standaard uit, dus de testcontainer zet hem expliciet aan met
 
 ```bash
 docker compose --profile test up -d
-docker exec mygdala_php_test php vendor/bin/phpunit --testsuite blog
+docker compose exec php_test php vendor/bin/phpunit --testsuite blog
 ```

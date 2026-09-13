@@ -338,10 +338,10 @@ Alleen `render()`/`renderPage()` degraderen zo. De schrijfkant
 
 ## Tests
 
-Commando's en tiers staan in `TESTING.md`. Draai de suite in `mygdala_php_test`.
+Commando's en tiers staan in `TESTING.md`. Draai de suite in de service `php_test`.
 
 ```bash
-docker exec mygdala_php_test php vendor/bin/phpunit --testsuite blocks
+docker compose exec php_test php vendor/bin/phpunit --testsuite blocks
 ```
 
 | Wijziging | Draai |

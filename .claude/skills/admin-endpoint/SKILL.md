@@ -79,8 +79,8 @@ hebben die guard wél nodig.
 ## Testen
 
 ```bash
-docker exec mygdala_php_test php vendor/bin/phpunit --testsuite http
-docker exec mygdala_php php vendor/bin/phpunit --testsuite contract
+docker compose exec php_test php vendor/bin/phpunit --testsuite http
+docker compose exec php php vendor/bin/phpunit --testsuite contract
 ```
 
 De suite `contract` leest de broncode en bewaakt onder meer of elk endpoint

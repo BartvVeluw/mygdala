@@ -242,7 +242,7 @@ Bekend, ingepland, **niet** in deze stap op te lossen:
 | Een formulier maken, plaatsen, een veldtype toevoegen, inzendingen | `FORMS.md` |
 | Een nieuw paginasjabloon, of waarom een sjabloon geen paginatype is | `PAGE-TEMPLATES.md` |
 | Wat een verse installatie aanmaakt, en wat een bestaande behoudt | `INSTALL-BOOTSTRAP.md` |
-| Een kopie van deze applicatie maken voor een tweede site | `SETUP.md` |
+| Een nieuwe site beginnen (een clone met eigen `.env`, database, uploads en poorten), of een kopie zonder site-inhoud | `SETUP.md` |
 | De installatiewizard, de basis-URL, of modules vanuit het CMS aan kunnen | `SETUP.md` |
 | Header-knop, footer-slotregel, social profielen | `HEADER-FOOTER.md` |
 | Titels, meta description, canonical, sitemap, robots | `SEO.md` |

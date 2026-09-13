@@ -14,9 +14,9 @@
  * Development is only ever READ here. Nothing in this script writes to it.
  *
  * Usage (from the host):
- *   docker exec mygdala_php php scripts/test-db.php
- *   docker exec mygdala_php php scripts/test-db.php --schema-only
- *   docker exec mygdala_php php scripts/test-db.php --drop
+ *   docker compose exec php php scripts/test-db.php
+ *   docker compose exec php php scripts/test-db.php --schema-only
+ *   docker compose exec php php scripts/test-db.php --drop
  *
  * See TESTING.md.
  */

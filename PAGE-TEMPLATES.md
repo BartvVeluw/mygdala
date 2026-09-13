@@ -261,9 +261,9 @@ geen adminscherm om ze te maken, te wijzigen of te verwijderen.
 ## Tests
 
 ```bash
-docker exec mygdala_php      php vendor/bin/phpunit --testsuite fast
-docker exec mygdala_php_test php vendor/bin/phpunit --testsuite cms
-docker exec mygdala_php_test php vendor/bin/phpunit --testsuite blocks
+docker compose exec php      php vendor/bin/phpunit --testsuite fast
+docker compose exec php_test php vendor/bin/phpunit --testsuite cms
+docker compose exec php_test php vendor/bin/phpunit --testsuite blocks
 ```
 
 | Bestand | Wat het bewaakt | Database nodig |

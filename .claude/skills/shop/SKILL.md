@@ -57,12 +57,12 @@ en `OrderItemPersonalizationRepository` horen bij de Personalisatie-module.
 ## Testen
 
 ```bash
-docker exec mygdala_php_test php vendor/bin/phpunit --testsuite shop
+docker compose exec php_test php vendor/bin/phpunit --testsuite shop
 ```
 
 Raakte je een koppelpunt met Core, draai dan ook `--testsuite modules`. Dat
 controleert of de site nog klopt met de Shop uit.
 
-Bestaat `mygdala_php_test` niet, dan zit hij achter het profiel `test`:
+Draait `php_test` niet, dan zit hij achter het profiel `test`:
 `docker compose --profile test up -d`. Werk je in een worktree, dan heeft die
 eerst zijn eigen `vendor/` nodig. Zie `TESTING.md`.

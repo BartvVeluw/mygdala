@@ -23,4 +23,4 @@ Domeindocument: `BLOG.md`. Voor het volledige overzicht: `/blog`.
 - **Onderzoek geen Shop-code** tenzij deze wijziging daar aantoonbaar van
   afhangt.
 - Testen vraagt een container met `MODULE_BLOG_ENABLED=true`, anders test je
-  een 404. Dat is `mygdala_php_test`. Suite: `--testsuite blog`.
+  een 404. Dat is de service `php_test`. Suite: `--testsuite blog`.

@@ -315,9 +315,9 @@ Core-mediabestand een Shop-klasse of een Shop-tabel noemt.
 ## Testen
 
 ```bash
-docker exec mygdala_php      php vendor/bin/phpunit --testsuite fast   # MediaBoundaryTest
-docker exec mygdala_php_test php vendor/bin/phpunit --testsuite cms    # de rest
-docker exec mygdala_php_test php vendor/bin/phpunit --group migration-backfill
+docker compose exec php      php vendor/bin/phpunit --testsuite fast   # MediaBoundaryTest
+docker compose exec php_test php vendor/bin/phpunit --testsuite cms    # de rest
+docker compose exec php_test php vendor/bin/phpunit --group migration-backfill
 ```
 
 | Bestand | Wat het bewaakt |

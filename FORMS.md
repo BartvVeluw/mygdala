@@ -498,9 +498,9 @@ wat echt van dit blok is.
 Commando's en tiers staan in [`TESTING.md`](TESTING.md).
 
 ```bash
-docker exec mygdala_php      php vendor/bin/phpunit --testsuite fast
-docker exec mygdala_php_test php vendor/bin/phpunit --testsuite cms
-docker exec mygdala_php_test php vendor/bin/phpunit --testsuite blocks
+docker compose exec php      php vendor/bin/phpunit --testsuite fast
+docker compose exec php_test php vendor/bin/phpunit --testsuite cms
+docker compose exec php_test php vendor/bin/phpunit --testsuite blocks
 ```
 
 | Wijziging | Draai |

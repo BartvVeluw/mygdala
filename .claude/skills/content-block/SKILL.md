@@ -89,7 +89,7 @@ en `GenericBlockDefaultsTest` bewaken beide.
 ## Testen
 
 ```bash
-docker exec mygdala_php_test php vendor/bin/phpunit --testsuite blocks
+docker compose exec php_test php vendor/bin/phpunit --testsuite blocks
 ```
 
 `Tests\Service\BlockPresentationTest` faalt zodra een blok zijn presentatie

@@ -10,7 +10,7 @@ Weet je nog niet waar de code staat die je test? Begin bij
 ## Eenmalige setup
 
 ```bash
-docker exec mygdala_php php scripts/test-db.php
+docker compose exec php php scripts/test-db.php
 ```
 
 Maakt `mygdala_tests` aan (schema **en** rijen, gekopieerd uit
@@ -23,11 +23,11 @@ dat de tests moeten zien.
 docker compose --profile test up -d
 ```
 
-Start twee containers:
+Start twee services:
 
-- **`mygdala_php_test`** (poort 8001) — dezelfde site tegen de testdatabase. Dit
-  is de container waarin je de suite draait.
-- **`mygdala_php_cms`** (poort 8002) — diezelfde code en diezelfde testdatabase,
+- **`php_test`** — dezelfde site tegen de testdatabase. Dit is de container
+  waarin je de suite draait.
+- **`php_cms`** — diezelfde code en diezelfde testdatabase,
   maar gestart met `MODULE_SHOP_ENABLED=false`. Dat is de CMS-only
   deployment: geen Shop, geen Personalisatie en geen Blog.
   `Tests\Module\CmsOnlyHttpTest` en `Tests\Blog\BlogRoutingTest` praten
@@ -45,12 +45,30 @@ configuratiebestand zou gedeeld worden met de ontwikkelsite (beide mounten
 dezelfde map). In-process gebruikt de suite gewoon
 `App\Module\ModuleRegistry::overrideForTests()`.
 
+### Meerdere installaties naast elkaar
+
+Elke clone van deze repository is een eigen Compose-project, genoemd naar zijn
+map, met eigen containers, een eigen MySQL-server en dus een eigen
+testdatabase. Twee installaties kunnen allebei hun testprofiel draaien zonder
+elkaar te raken. Daarom noemt dit document **services** (`php`, `php_test`,
+`php_cms`) en geen containernamen: `docker compose exec php_test …` vindt de
+container van de installatie in wiens map je staat.
+
+`php_test` en `php_cms` hebben geen vaste poort op je machine. De tests praten
+er binnen het Docker-netwerk mee (`http://php_test`), en Docker kiest zelf een
+vrije hostpoort voor wie ze met de hand wil openen:
+
+```bash
+docker compose port php_test 80
+```
+
 ### Als `.env` ontbreekt
 
-Zonder `.env` faalt `docker compose --profile test up -d` en bestaat
-`mygdala_php_test` dus niet: alle PHP-services lezen hem via `env_file`, en de
-MySQL-service haalt er zijn wachtwoorden uit. Dat bestand is lokaal,
-gitignored en bevat secrets, waaronder `DB_ROOT_PASSWORD`.
+Zonder `.env` laadt Compose het project niet: elk `docker compose`-commando
+voor deze installatie faalt, ook `exec`, en `php_test` start dus niet. Alle
+PHP-services lezen hem via `env_file`, en de MySQL-service haalt er zijn
+wachtwoorden uit. Dat bestand is lokaal, gitignored en bevat secrets,
+waaronder `DB_ROOT_PASSWORD`.
 
 Wat de suite er minimaal uit nodig heeft, voor wie hem als mens aanmaakt:
 
@@ -75,10 +93,17 @@ bestand terug dat een agent heeft geraden.
 Ontbreekt `.env`, meld dat dan als reproduceerbaarheidsprobleem en laat het
 herstellen aan de eigenaar van de machine. Wil je intussen toch draaien,
 gebruik dan alleen de fallback die hieronder al beschreven staat: een andere
-container met de moduleschakelaars expliciet meegegeven. Daarin draaien
-`fast` en `full` functioneel groen. De HTTP-tests praten echter met de
-testwebcontainers, en slaan zichzelf over als die niet bereikbaar zijn. Een
-groene run met veel overgeslagen HTTP-tests is dus nog geen volledige
+container met de moduleschakelaars expliciet meegegeven. Omdat Compose het
+project zonder `.env` niet laadt, spreek je een container die nog draait dan
+met `docker exec` op zijn naam aan. Welke dat zijn:
+
+```bash
+docker ps --filter "label=com.docker.compose.project=<mapnaam>"
+```
+
+Daarin draaien `fast` en `full` functioneel groen. De HTTP-tests praten echter
+met de testwebcontainers, en slaan zichzelf over als die niet bereikbaar zijn.
+Een groene run met veel overgeslagen HTTP-tests is dus nog geen volledige
 HTTP-verificatie.
 
 ### Vanuit een git worktree
@@ -89,12 +114,17 @@ er niet voordat je de Composer-dependencies ernaast hebt gezet.
 
 De containers worden gestart vanuit de hoofduitchecking, niet vanuit de
 worktree: `docker compose` leest het `.env` dat daar staat, en dat is ook
-gitignored. Draait `mygdala_php_test` nog niet, start dan eerst het profiel uit
-"Eenmalige setup" — `docker exec` kan geen container gebruiken die niet
-bestaat.
+gitignored. Draait `php_test` nog niet, start dan eerst het profiel uit
+"Eenmalige setup" — `exec` kan geen container gebruiken die niet bestaat.
+
+Noem vanuit de worktree daarom de compose-file van de hoofduitchecking, met
+`-f`. Die map is dan de projectmap: Compose vindt dezelfde containers en
+hetzelfde `.env`, in plaats van de worktree voor een nieuwe installatie aan te
+zien.
 
 ```bash
-docker exec mygdala_php_test composer install --working-dir=/var/www/html/.claude/worktrees/<naam>
+docker compose -f ../../../docker-compose.yml exec php_test composer install --working-dir=/var/www/html/.claude/worktrees/<naam>
+docker compose -f ../../../docker-compose.yml exec -w /var/www/html/.claude/worktrees/<naam> php_test php vendor/bin/phpunit --testsuite fast
 ```
 
 Een worktree onder `.claude/worktrees/` ligt binnen de projectmap, en die is
@@ -112,19 +142,19 @@ worktree zelf.
 ## Het commando
 
 ```bash
-docker exec mygdala_php_test php vendor/bin/phpunit
+docker compose exec php_test php vendor/bin/phpunit
 ```
 
-Draai de suite **in `mygdala_php_test`**, niet in `mygdala_php`. De testcontainer
+Draai de suite **in `php_test`**, niet in `php`. De testcontainer
 deelt filesystem én database met de webserver waar de HTTP-tests op schieten;
-draai je ze uit `mygdala_php`, dan schrijft een uploadtest zijn bestand in de ene
+draai je ze uit `php`, dan schrijft een uploadtest zijn bestand in de ene
 container en leest de HTTP-request het in de andere.
 
 De snelle tiers hebben geen database en geen webserver nodig, en mogen dus
 overal draaien:
 
 ```bash
-docker exec mygdala_php_test php vendor/bin/phpunit --testsuite fast
+docker compose exec php_test php vendor/bin/phpunit --testsuite fast
 ```
 
 ### `fast` wil wél dat alle modules aan staan
@@ -136,13 +166,13 @@ bij precies één zijbalkregel hoort. Staat er een module uit in de omgeving
 waarin je ze draait, dan bestaan zijn permissies en schermen niet, en falen
 die controles terecht.
 
-Draai `fast` daarom in `mygdala_php_test`, waar de modules aan staan. Draai je
+Draai `fast` daarom in `php_test`, waar de modules aan staan. Draai je
 hem in een container waar iets uit staat, zet het dan voor dat ene commando
 aan:
 
 ```bash
-docker exec -e MODULE_SHOP_ENABLED=true -e MODULE_PERSONALIZATION_ENABLED=true \
-  -e MODULE_BLOG_ENABLED=true mygdala_php php vendor/bin/phpunit --testsuite fast
+docker compose exec -e MODULE_SHOP_ENABLED=true -e MODULE_PERSONALIZATION_ENABLED=true \
+  -e MODULE_BLOG_ENABLED=true php php vendor/bin/phpunit --testsuite fast
 ```
 
 Zie je precies deze mislukkingen, dan is dit de oorzaak en niet je wijziging:
@@ -169,11 +199,11 @@ Zie je precies deze mislukkingen, dan is dit de oorzaak en niet je wijziging:
 | `full` | alles, precies één keer (de standaard) | testdatabase + `php_test` |
 
 ```bash
-docker exec mygdala_php_test php vendor/bin/phpunit --testsuite blocks
-docker exec mygdala_php_test php vendor/bin/phpunit --testsuite shop
-docker exec mygdala_php_test php vendor/bin/phpunit --testsuite modules
-docker exec mygdala_php_test php vendor/bin/phpunit --testsuite blog
-docker exec mygdala_php      php vendor/bin/phpunit --testsuite unit
+docker compose exec php_test php vendor/bin/phpunit --testsuite blocks
+docker compose exec php_test php vendor/bin/phpunit --testsuite shop
+docker compose exec php_test php vendor/bin/phpunit --testsuite modules
+docker compose exec php_test php vendor/bin/phpunit --testsuite blog
+docker compose exec php      php vendor/bin/phpunit --testsuite unit
 ```
 
 Een testbestand mag in meerdere suites zitten — `blocks` en `http` overlappen
@@ -186,7 +216,7 @@ De migratie- en installatiecontroles zitten in eigen testklassen, plus één
 losse methode in `FreshInstallTest`. Samen:
 
 ```bash
-docker exec mygdala_php_test php vendor/bin/phpunit --group migration-backfill
+docker compose exec php_test php vendor/bin/phpunit --group migration-backfill
 ```
 
 Sinds de installatie-opruiming zitten in deze suite ook
@@ -226,7 +256,7 @@ niets afneemt. Ze zijn wel trager, dus ze horen niet in de snelle
 ontwikkellus. Wil je ze even buiten beschouwing laten:
 
 ```bash
-docker exec mygdala_php_test php vendor/bin/phpunit --exclude-group migration-backfill
+docker compose exec php_test php vendor/bin/phpunit --exclude-group migration-backfill
 ```
 
 ## Werkwijze
@@ -319,7 +349,7 @@ inzendingen of de twee formulierblokken (`FORMS.md`):
 
 `FormRenderingTest` doet echte requests, dus start de testcontainers
 (`docker compose --profile test up -d`) als je de publieke kant bewezen
-wilt zien in plaats van overgeslagen. Draai deze in **`mygdala_php_test`**:
+wilt zien in plaats van overgeslagen. Draai deze in **`php_test`**:
 de tests maken wegwerp-pagina's aan die de webserver moet kunnen zien.
 
 **Wijziging aan de paginabouwer**
@@ -359,7 +389,7 @@ installer die er de blokken mee aanmaakt (`PAGE-TEMPLATES.md`):
 --testsuite blocks      als je aan de blokken zat die een sjabloon plaatst
 ```
 
-Draai `PageTemplateCreationTest` in **`mygdala_php_test`**: hij maakt
+Draai `PageTemplateCreationTest` in **`php_test`**: hij maakt
 wegwerp-pagina's met een `zz-tpl-test-`-sleutel aan en ruimt ze in
 `tearDown()` op met een exacte id- en sleutelvergelijking — nooit met een
 `LIKE`-patroon, waarin `_` op elk teken matcht.
@@ -400,7 +430,7 @@ is, dan is dat tweede bestand de test die het merkt. Hij rendert `/`,
 (`tests/Support/render-public-route.php`, dezelfde reden als
 `complete-setup-cli.php`) en leest ze zoals een vreemde dat zou doen.
 
-**Wat je aan een tweede site meegeeft** (`SETUP.md`, "Een tweede site
+**Wat je aan een nieuwe site meegeeft** (`SETUP.md`, "Een nieuwe site
 beginnen") heeft drie goedkope wachters die geen database en geen webserver
 nodig hebben, en dus in `fast` zitten:
 
@@ -430,7 +460,7 @@ De stappen, de validatie, de omleiding ernaartoe of wat afronden wegschrijft
 --testsuite cms         dezelfde, plus de pagina- en instellingenkant
 ```
 
-Draai daarna ook `docker exec mygdala_php php vendor/bin/phinx migrate -c phinx.php`
+Draai daarna ook `docker compose exec php php vendor/bin/phinx migrate -c phinx.php`
 tegen ontwikkeling: een migratie die in git staat is nog niet toegepast.
 
 **Wijziging aan de mediabibliotheek**
@@ -447,7 +477,7 @@ Uploaden, de mediakiezer, alt-teksten, gebruiksbepaling of verwijderen
 --testsuite blocks      als je een blok aansloot op de kiezer
 ```
 
-Draai deze in **`mygdala_php_test`**: `MediaLibraryTest` schrijft echte
+Draai deze in **`php_test`**: `MediaLibraryTest` schrijft echte
 bestanden in `assets/media/` en ruimt ze weer op, en de container die de
 HTTP-tests bedienen moet dezelfde zijn.
 
@@ -504,7 +534,7 @@ bloginstellingen (`BLOG.md`):
                         mediakant zat
 ```
 
-Draai deze in **`mygdala_php_test`**: `BlogRoutingTest` doet echte verzoeken en
+Draai deze in **`php_test`**: `BlogRoutingTest` doet echte verzoeken en
 `BlogMediaAndSettingsTest` schrijft echte bestanden in `assets/media/`. De
 berichten, categorieën, tags en redirects die deze tests maken dragen allemaal
 een `zz-blog...`-prefix en worden in `tearDown()` op **exacte id** opgeruimd —
@@ -532,7 +562,7 @@ Alles wat `AdminNavigation`, `AdminPermissions`, `RouteRegistry`,
 **IJkmoment — voor een merge, voor een deploy, na een migratie**
 
 ```
-docker exec mygdala_php_test php vendor/bin/phpunit
+docker compose exec php_test php vendor/bin/phpunit
 ```
 
 ## Hoe de database gescheiden blijft
@@ -592,7 +622,7 @@ aanmaken in de echte CMS-inhoud. Overschrijven kan met `TEST_BASE_URL`.
 
 Is die server niet bereikbaar, dan slaan deze tests zichzelf over met een
 melding die het startcommando noemt — ze falen nooit om de verkeerde reden.
-Vanaf je eigen machine is dezelfde site te zien op `http://localhost:8001`.
+Vanaf je eigen machine is dezelfde site te zien op de poort die `docker compose port php_test 80` noemt.
 
 ## Een test toevoegen voor een nieuw contentblok
 
@@ -635,7 +665,7 @@ De suite `modules` (`tests/Module/`) test het modulesysteem zelf:
   assets — én dat opgeslagen rechten en blokrijen onaangetast blijven. Ook
   dat de Core-bestanden geen concrete Shop-klasse meer noemen. Geen database,
   geen webserver.
-- `CmsOnlyHttpTest` — hetzelfde over echt HTTP, tegen `mygdala_php_cms`.
+- `CmsOnlyHttpTest` — hetzelfde over echt HTTP, tegen `php_cms`.
 
 Een module die de Mediabibliotheek gaat gebruiken levert daarnaast een
 `MediaUsageProvider` (`MEDIA.md`); `Tests\Service\MediaBoundaryTest`
@@ -659,7 +689,7 @@ dezelfde testdatabase, dezelfde tiers.
 draaien zonder database:
 
 ```bash
-docker exec -e DB_HOST=no-such-host mygdala_php php vendor/bin/phpunit --testsuite fast
+docker compose exec -e DB_HOST=no-such-host php php vendor/bin/phpunit --testsuite fast
 ```
 
 Blijft dat groen, dan klopt de indeling. Faalt er iets, dan hoort dat bestand

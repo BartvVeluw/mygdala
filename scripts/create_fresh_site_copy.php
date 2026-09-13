@@ -34,8 +34,9 @@ declare(strict_types=1);
  * files afterwards. Everything git ignores is excluded by the policy anyway,
  * and Tests\Install\FreshSiteCopyTest reads `.gitignore` to hold it to that.
  *
- * See SETUP.md, "Een tweede site beginnen", for the whole procedure this is
- * the first step of.
+ * See SETUP.md, "Een kopie zonder site-inhoud", for the whole procedure this
+ * is the first step of. A new installation of Mygdala itself does not need
+ * it: that is a clone of the repository (SETUP.md, "Een nieuwe site beginnen").
  */
 
 require_once dirname(__DIR__) . '/vendor/autoload.php';
@@ -101,7 +102,7 @@ if ($review !== []) {
     }
 }
 
-echo "\nNext: cd {$destination} && git init, then follow SETUP.md \"Een tweede site beginnen\".\n";
+echo "\nNext: cd {$destination} && git init, then follow SETUP.md \"Een kopie zonder site-inhoud\".\n";
 
 exit(0);
 

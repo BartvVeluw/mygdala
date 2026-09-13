@@ -351,8 +351,8 @@ een module duur maakt.
 ## Testen
 
 ```bash
-docker exec mygdala_php      php vendor/bin/phpunit --testsuite fast   # BlogModuleTest
-docker exec mygdala_php_test php vendor/bin/phpunit --testsuite blog   # alles
+docker compose exec php      php vendor/bin/phpunit --testsuite fast   # BlogModuleTest
+docker compose exec php_test php vendor/bin/phpunit --testsuite blog   # alles
 ```
 
 | Bestand | Wat het bewaakt |

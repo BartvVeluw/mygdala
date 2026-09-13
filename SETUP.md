@@ -316,9 +316,9 @@ zijbalk.
 ## Testen
 
 ```bash
-docker exec mygdala_php      php vendor/bin/phpunit --testsuite fast
-docker exec mygdala_php_test php vendor/bin/phpunit --testsuite migration
-docker exec mygdala_php_test php vendor/bin/phpunit --testsuite cms
+docker compose exec php      php vendor/bin/phpunit --testsuite fast
+docker compose exec php_test php vendor/bin/phpunit --testsuite migration
+docker compose exec php_test php vendor/bin/phpunit --testsuite cms
 ```
 
 | Bestand | Wat het bewaakt | Database nodig |
@@ -333,19 +333,137 @@ docker exec mygdala_php_test php vendor/bin/phpunit --testsuite cms
 
 Zie verder [`TESTING.md`](TESTING.md).
 
-## Een tweede site beginnen
+## Een nieuwe site beginnen
 
 De wizard richt een installatie in. Dit hoofdstuk gaat over de stap dáárvoor:
-hoe je uit deze repository een **kopie zonder deze site** haalt.
+waar die installatie vandaan komt.
 
-> **In Mygdala is die boom al generiek.** Mygdala is de canonieke CMS-bron
-> en draagt geen site-inhoud, dus een export hieruit is een kopie van de
-> applicatie zoals hij is. De uitleg hieronder beschrijft waaróm de grens
-> bestaat en waar hij ligt — die grens (`App\Install\FreshSiteCopyPolicy`)
-> geldt onveranderd, ook voor een downstream site als Van Veluw
-> Laserdesign, waar de boom wél applicatie én site tegelijk is.
+**Een nieuwe site is een clone van deze repository.** Geen fork, geen export
+en geen eigen geschiedenis: alle installaties draaien dezelfde code, en wat ze
+van elkaar onderscheidt staat in hun eigen `.env`, hun eigen database en hun
+eigen uploads.
 
-### Waarom een kopie en geen opschoning
+```text
+github.com/BartvVeluw/mygdala
+  ├── mygdala/        de ontwikkelomgeving
+  ├── mygdala-test/   een verse clone van origin/main: de referentie-installatie
+  ├── klant-a/        een clone met een eigen .env, database, uploads en domein
+  └── klant-b/
+```
+
+Dit is **multi-installatie, geen multi-tenancy**: elke site draait in eigen
+containers op een eigen database, en er is geen runtime die twee sites deelt.
+Moet een site iets anders doen, dan is dat een instelling, een module of een
+blok, nooit een eigen versie van de code.
+
+### Wat elke installatie voor zichzelf heeft
+
+| Wat | Waar | Waarom een andere installatie er niet bij kan |
+|---|---|---|
+| Containers en netwerk | Docker Compose | Compose noemt alles naar de projectnaam, en dat is de mapnaam: `klant-a-php-1` |
+| Database en testdatabase | een eigen `mysql`-service, volume `klant-a_mysql_data` | elke installatie heeft een eigen MySQL-server |
+| Bijlagen en personalisatie-uploads | `/var/www/storage`, volume `klant-a_contact_attachments` | een named volume per project |
+| Mediabibliotheek, merkbestanden, sectiebeelden, video's, graveerlettertypes | `assets/media/`, `assets/images/branding/`, `assets/images/sections/`, `assets/videos/sections/`, `assets/fonts/personalization/` | gitignored, dus ze horen bij de map en niet bij de commit |
+| `vendor/` | in de clone | gitignored |
+| Poorten op je machine | `APP_PORT`, `ADMINER_PORT`, `MAILPIT_WEB_PORT` in `.env` | de enige waarden die je zelf uniek maakt |
+| Naam, logo, vormgeving, pagina's, modules | de database | de wizard en het CMS schrijven ze; ze horen niet in `.env` en niet in de code |
+
+Welke waarden in `.env` per installatie verschillen:
+
+| Variabele | Per installatie | Waarom |
+|---|---|---|
+| `APP_PORT`, `ADMINER_PORT`, `MAILPIT_WEB_PORT` | ja, zodra er twee tegelijk draaien | een poort kan maar één keer bezet zijn; bijvoorbeeld 8000/8080/8025 en 8100/8180/8125 |
+| `DB_PASSWORD`, `DB_ROOT_PASSWORD` | ja | MySQL legt ze vast bij de eerste start op een leeg volume |
+| `ADMIN_USERNAME`, `ADMIN_PASSWORD_HASH` | ja | de eerste Super Admin, zie "De eerste beheerder" |
+| `APP_ENV` | ja | `local` tijdens het bouwen, `production` zodra de site live gaat |
+| `APP_URL` | ja, of leeg | leeg laten en het in de wizard invullen mag |
+| `MODULE_*_ENABLED` | ja | zie "Welke modules aan" |
+| Mail, Mollie, Turnstile, DeepL | ja, zodra de site ze gebruikt | lokaal volstaan de plaatshouders |
+| `DB_DATABASE`, `DB_USERNAME`, `TEST_DB_DATABASE` | nee | elke installatie heeft een eigen MySQL-server, dus dezelfde naam botst niet |
+| `COMPOSE_PROJECT_NAME` | alleen bij twee clones met dezelfde mapnaam | verder is de mapnaam genoeg |
+
+### Het recept
+
+```bash
+# 1. Mygdala clonen, in een map met de naam van de installatie
+git clone https://github.com/BartvVeluw/mygdala.git klant-a
+cd klant-a
+
+# 2. De omgeving
+cp .env.example .env
+```
+
+3. **Eigen poorten en geheimen.** Vul in `.env` in wat per installatie
+   verschilt (tabel hierboven). Draait er al een installatie op 8000, 8080 en
+   8025, geef deze dan andere nummers.
+4. **Containers starten.** De eerste keer bouwt dit de PHP-image, en daarna
+   doen stap 5 en 6 zichzelf:
+
+   ```bash
+   docker compose up -d
+   docker compose logs php
+   ```
+
+5. **Composer** installeert `vendor/` bij de eerste start van `php`. Alleen
+   als dat misging: `docker compose exec php composer install`.
+6. **Migraties** draaien bij elke start van `php`. Met de hand:
+   `docker compose exec php php vendor/bin/phinx migrate`.
+7. **De eerste beheerder en de wizard.** Maak de hash, zet hem als
+   `ADMIN_PASSWORD_HASH` in `.env` (elke `$` als `$$`, zie `.env.example`),
+   start `php` opnieuw zodat hij `.env` weer inleest, en log in op
+   `http://localhost:<APP_PORT>/admin/`. De installatiewizard opent vanzelf.
+
+   ```bash
+   docker compose exec php php scripts/generate_admin_hash.php "je-wachtwoord"
+   docker compose up -d --force-recreate --no-deps php
+   ```
+
+8. **De site inrichten** in het CMS: zie "Daarna: waar je wat aanpast".
+
+Bijwerken naar een nieuwere Mygdala doe je per installatie, en het raakt geen
+andere:
+
+```bash
+git pull
+docker compose exec php composer install
+docker compose exec php php vendor/bin/phinx migrate
+```
+
+### Welke modules aan
+
+**De Shop staat standaard AAN, en dat blijft in deze stap zo.** Een generiek
+CMS zou beter standaard níet van commercie uitgaan, maar de standaard omzetten
+kan hier niet zonder schade: deze deployment heeft geen `MODULE_SHOP_ENABLED`
+in zijn `.env` en geen voorkeur in `module_settings`, dus zij draait op precies
+die standaard. Hem op `false` zetten haalt bij de eerstvolgende deploy de
+winkel uit de lucht. Een site die niets verkoopt zegt dat daarom zelf, in één
+regel:
+
+```env
+MODULE_SHOP_ENABLED=false
+```
+
+Personalisatie hangt van de Shop af en gaat er vanzelf mee uit
+(`ModuleRegistry`). De Blog staat al standaard uit (`BLOG.md`).
+
+### Twee installaties in één browser
+
+Een browser bewaart cookies per hostnaam, niet per poort. Open je
+`localhost:8000` en `localhost:8100` in dezelfde browser, dan overschrijven de
+twee installaties elkaars inlogcookie en word je bij de ene uitgelogd zodra je
+bij de andere inlogt. Geef ze elk een eigen hostnaam, bijvoorbeeld
+`http://localhost:8000` voor de ene en `http://127.0.0.1:8100` voor de andere.
+
+### Een kopie zonder site-inhoud
+
+**Voor een nieuwe Mygdala-site heb je dit niet nodig**: die clone je, zoals
+hierboven. Deze export haalt uit een downstream site zoals Van Veluw
+Laserdesign, waar de boom applicatie én site tegelijk is, een kopie van de
+applicatie zonder die site. Mygdala zelf draagt geen site-inhoud, dus een
+export hieruit is een kopie van de applicatie zoals hij is; de grens
+(`App\Install\FreshSiteCopyPolicy`) is voor beide dezelfde.
+
+#### Waarom een kopie en geen opschoning
 
 Een downstream site zoals Van Veluw Laserdesign is twee dingen tegelijk: de
 applicatie én de site. In die boom staat de fotografie van dat bedrijf, en
@@ -380,57 +498,25 @@ de export getest kan worden waar geen git-client staat — dat is precies waar
 de tests van dit project draaien. De prijs: een **untracked** bestand in je
 werkkopie gaat gewoon mee. Doe `git status` vóór je exporteert.
 
-### Het recept
+#### Het recept van de export
 
 ```bash
-# 1. Een schone kopie van de applicatie, buiten deze repository
-docker exec mygdala_php php scripts/create_fresh_site_copy.php /var/www/html/../nieuwe-site
+# 1. Een schone kopie van de applicatie, buiten deze repository. In de
+#    container alleen naar een pad in de container: van je machine is daar
+#    alleen deze map aangekoppeld. Daarna haal je hem eruit.
+docker compose exec php php scripts/create_fresh_site_copy.php /tmp/nieuwe-site
+docker compose cp php:/tmp/nieuwe-site ../nieuwe-site
 #    (of, met PHP op je eigen machine:)
 #    php scripts/create_fresh_site_copy.php ../nieuwe-site
 
 # 2. Eigen versiebeheer
 cd ../nieuwe-site && git init && git add -A && git commit -m "chore: applicatie zonder site"
-
-# 3. De omgeving
-cp .env.example .env
 ```
 
-Zet daarna in `.env`, in deze volgorde:
+Ga daarna verder bij stap 2 van "Het recept" hierboven: de omgeving, eigen
+poorten, containers starten en de wizard.
 
-| Stap | Variabele | Waarde |
-|---|---|---|
-| 4 | `APP_ENV` | `local` tijdens het bouwen, `production` zodra de site live gaat |
-| 5 | `APP_URL` | het echte publieke webadres, of leeg laten en het in de wizard invullen |
-| 6 | `DB_DATABASE`, `DB_USERNAME`, `DB_PASSWORD` | een eigen database. **Geef hem een eigen naam**: `.env.example` staat nog op `mygdala`, en `docker-compose.yml` gebruikt diezelfde naam als standaard voor `TEST_DB_DATABASE` — hernoem ze samen, of geen van beide |
-| 7 | `ADMIN_USERNAME`, `ADMIN_PASSWORD_HASH` | de eerste Super Admin; de hash maak je met `scripts/generate_admin_hash.php`. Er worden nergens standaardgegevens meegeleverd |
-| 8 | `MODULE_*_ENABLED` | zie hieronder |
-
-```bash
-# 9.  De database opbouwen
-docker compose up -d
-# 10. De site draait
-# 11. Inloggen op /admin/
-# 12. De Installatiewizard afronden (dit document, hierboven)
-```
-
-### Stap 8: welke modules aan
-
-**De Shop staat standaard AAN, en dat blijft in deze stap zo.** Een generiek
-CMS zou beter standaard níet van commercie uitgaan, maar de standaard omzetten
-kan hier niet zonder schade: deze deployment heeft geen `MODULE_SHOP_ENABLED`
-in zijn `.env` en geen voorkeur in `module_settings`, dus zij draait op precies
-die standaard. Hem op `false` zetten haalt bij de eerstvolgende deploy de
-winkel uit de lucht. Een site die niets verkoopt zegt dat daarom zelf, in één
-regel:
-
-```env
-MODULE_SHOP_ENABLED=false
-```
-
-Personalisatie hangt van de Shop af en gaat er vanzelf mee uit
-(`ModuleRegistry`). De Blog staat al standaard uit (`BLOG.md`).
-
-### Wat je daarna nog met de hand doet
+#### Wat je daarna nog met de hand doet
 
 De export noemt aan het eind elk bestand dat deze site nog bij naam noemt. De
 meeste daarvan zijn toelichtingen in code die uitleggen waaróm iets zo werkt —

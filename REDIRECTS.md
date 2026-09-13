@@ -321,7 +321,7 @@ onveranderd.
 | `tests/Module/RedirectModuleTest.php` | bestemming in een uitgeschakelde module: niet uitvoeren, wel bewaren, weer laten werken |
 
 ```bash
-docker exec mygdala_php      php vendor/bin/phpunit --testsuite fast
-docker exec mygdala_php_test php vendor/bin/phpunit --testsuite cms
-docker exec mygdala_php_test php vendor/bin/phpunit --testsuite modules
+docker compose exec php      php vendor/bin/phpunit --testsuite fast
+docker compose exec php_test php vendor/bin/phpunit --testsuite cms
+docker compose exec php_test php vendor/bin/phpunit --testsuite modules
 ```

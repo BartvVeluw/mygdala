@@ -5,8 +5,8 @@ meertaligheid bewaken en welke suite je na een wijziging draait. Commando's en
 tiers staan in [`TESTING.md`](../../TESTING.md).
 
 ```bash
-docker exec mygdala_php_test php vendor/bin/phpunit --testsuite fast
-docker exec mygdala_php_test php vendor/bin/phpunit --testsuite cms
+docker compose exec php_test php vendor/bin/phpunit --testsuite fast
+docker compose exec php_test php vendor/bin/phpunit --testsuite cms
 ```
 
 Draait de testcontainer niet, of draait je worktree anders, volg dan

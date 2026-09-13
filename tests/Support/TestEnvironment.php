@@ -45,7 +45,7 @@ final class TestEnvironment
      *
      * The default is the php_test service from docker-compose.yml, reachable
      * under that name from inside the Docker network (which is where the
-     * suite runs: `docker exec mygdala_php_test php vendor/bin/phpunit`). It serves
+     * suite runs: `docker compose exec php_test php vendor/bin/phpunit`). It serves
      * the same code as the development site but against the test database,
      * so an HTTP test can create a page without an editor ever seeing it.
      */

@@ -44,6 +44,6 @@ producten, personalisatie of Mollie, en werkt identiek met de Shop aan en uit.
 Formulieren hebben geen eigen suite en zitten in `cms`.
 
 ```bash
-docker exec mygdala_php_test php vendor/bin/phpunit --testsuite cms
-docker exec mygdala_php php vendor/bin/phpunit --filter Form
+docker compose exec php_test php vendor/bin/phpunit --testsuite cms
+docker compose exec php php vendor/bin/phpunit --filter Form
 ```

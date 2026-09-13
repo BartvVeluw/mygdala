@@ -1,3 +1,20 @@
+# One local installation of Mygdala.
+#
+# Every clone of this repository is an installation of its own, and Docker
+# Compose keeps them apart by the project name: the name of the directory this
+# file sits in. A clone in ./mygdala-test gets containers named
+# mygdala-test-php-1, a volume named mygdala-test_mysql_data and a network of
+# its own, so it can never reach another clone's database or uploads. That is
+# why no service below sets container_name: a fixed name exists only once per
+# machine, and the second installation would refuse to start. Two clones in
+# directories with the same name are the one case that needs
+# COMPOSE_PROJECT_NAME in .env.
+#
+# Run commands from this directory and address a service, not a container:
+#   docker compose exec php php vendor/bin/phinx status
+#
+# The only host ports are the three a person opens in a browser, and each is a
+# variable in .env: APP_PORT, ADMINER_PORT and MAILPIT_WEB_PORT. See README.md.
 services:
   # PHP + Apache, with Composer and Phinx available inside the container.
   # On startup it installs Composer packages (first run only) and runs
@@ -6,16 +23,20 @@ services:
     build:
       context: .
       dockerfile: docker/Dockerfile
-    container_name: mygdala_php
     restart: unless-stopped
     ports:
-      - "8000:80"
+      - "${APP_PORT:-8000}:80"
     env_file:
       - .env
     environment:
-      # Inside the Docker network, MySQL/Mailpit are reachable by their service name, not 127.0.0.1.
+      # Inside the Docker network, MySQL and Mailpit are reachable by their
+      # service name on their own port, never on 127.0.0.1 or on whatever .env
+      # names for a server without Docker. Pinned here so no value in .env can
+      # point a container somewhere else.
       DB_HOST: mysql
+      DB_PORT: "3306"
       MAIL_HOST: mailpit
+      MAIL_PORT: "1025"
     volumes:
       - ./:/var/www/html
       # Contact-request attachments live outside the webroot (/var/www/html)
@@ -38,16 +59,22 @@ services:
     build:
       context: .
       dockerfile: docker/Dockerfile
-    container_name: mygdala_php_test
     profiles: ["test"]
     restart: unless-stopped
+    # No fixed host port. The HTTP tier reaches this container as
+    # http://php_test inside the Docker network. Docker publishes it on a free
+    # port of its own choosing, so it can still be opened by hand
+    # (`docker compose port php_test 80` says which) and two installations
+    # running their test profile never ask for the same one.
     ports:
-      - "8001:80"
+      - "80"
     env_file:
       - .env
     environment:
       DB_HOST: mysql
+      DB_PORT: "3306"
       MAIL_HOST: mailpit
+      MAIL_PORT: "1025"
       # Overrides .env — this container must never open the development
       # database. Its entrypoint runs the migrations against this one.
       DB_DATABASE: ${TEST_DB_DATABASE:-mygdala_tests}
@@ -81,16 +108,19 @@ services:
     build:
       context: .
       dockerfile: docker/Dockerfile
-    container_name: mygdala_php_cms
     profiles: ["test"]
     restart: unless-stopped
+    # A free host port, for the same reason as php_test:
+    # `docker compose port php_cms 80`.
     ports:
-      - "8002:80"
+      - "80"
     env_file:
       - .env
     environment:
       DB_HOST: mysql
+      DB_PORT: "3306"
       MAIL_HOST: mailpit
+      MAIL_PORT: "1025"
       DB_DATABASE: ${TEST_DB_DATABASE:-mygdala_tests}
       TEST_DB_DATABASE: ${TEST_DB_DATABASE:-mygdala_tests}
       # The whole point of this container. Personalisatie depends on the Shop,
@@ -111,17 +141,17 @@ services:
       mailpit:
         condition: service_started
 
+  # No host port. The PHP containers reach MySQL as mysql:3306 over the Docker
+  # network, and Adminer below is the way in for a person. A published 3306
+  # is also exactly what would stop a second installation from starting.
   mysql:
     image: mysql:8.0
-    container_name: mygdala_mysql
     restart: unless-stopped
     environment:
       MYSQL_DATABASE: ${DB_DATABASE}
       MYSQL_USER: ${DB_USERNAME}
       MYSQL_PASSWORD: ${DB_PASSWORD}
       MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
-    ports:
-      - "${DB_PORT:-3306}:3306"
     volumes:
       - mysql_data:/var/lib/mysql
     healthcheck:
@@ -131,27 +161,31 @@ services:
       retries: 10
 
   # Web-based database viewer, so you can browse tables/rows without any MySQL knowledge.
-  # Open http://localhost:8080 after `docker compose up -d`, login with the DB_* values from .env
-  # and Server: mysql (the service name above, not localhost).
+  # Open http://localhost:<ADMINER_PORT> (8080 unless .env says otherwise) after
+  # `docker compose up -d`, log in with the DB_* values from .env and
+  # Server: mysql (the service name above, not localhost).
   adminer:
     image: adminer:latest
-    container_name: mygdala_adminer
     restart: unless-stopped
     ports:
-      - "8080:8080"
+      - "${ADMINER_PORT:-8080}:8080"
     depends_on:
       - mysql
 
   # Local mail testing: catches all outgoing mail instead of sending it for real.
-  # Web UI to read caught mail: http://localhost:8025. SMTP: localhost:1025.
+  # Web UI to read caught mail: http://localhost:<MAILPIT_WEB_PORT> (8025 unless
+  # .env says otherwise). The site delivers to mailpit:1025 inside the Docker
+  # network, so the SMTP port is not published on the host.
   mailpit:
     image: axllent/mailpit:latest
-    container_name: mygdala_mailpit
     restart: unless-stopped
     ports:
-      - "8025:8025"
-      - "1025:1025"
+      - "${MAILPIT_WEB_PORT:-8025}:8025"
 
+# Compose prefixes each volume with the project name: the checkout in
+# ./mygdala keeps its database in mygdala_mysql_data. Renaming a key here
+# would leave every installation's existing volume behind and start it on an
+# empty database, so these four names stay as they are.
 volumes:
   mysql_data:
   contact_attachments:

@@ -176,12 +176,12 @@ Lees er **één** per taak. De wegwijzer in `CLAUDE.md` vertelt welke.
 
 | Document | Regels | Lees dit wanneer |
 |---|---|---|
-| `CLAUDE.md` | 129 | Nooit handmatig. Hij laadt vanzelf |
+| `CLAUDE.md` | 132 | Nooit handmatig. Hij laadt vanzelf |
 | `WORKFLOW.md` | dit bestand | Je wilt iets opzoeken over de opzet, of er iets aan toevoegen |
 | `PROJECT-MAP.md` | 274 | De wegwijzer helpt je niet verder en je wilt de volledige kaart |
-| `README.md` | 150 | Docker, database, lokaal draaien, deployen |
+| `README.md` | 199 | Docker, database, lokaal draaien, meerdere installaties naast elkaar, deployen |
 | `CODE-STYLE.md` | 147 | Je schrijft nieuwe code of teksten voor de beheerder |
-| `TESTING.md` | 573 | Tests draaien of toevoegen |
+| `TESTING.md` | 702 | Tests draaien of toevoegen |
 
 ### Domeinen
 
@@ -219,7 +219,7 @@ Open deze via `MULTILINGUAL.md`, en dan alleen het document dat je taak raakt.
 | Document | Regels | Lees dit wanneer |
 |---|---|---|
 | `INSTALL-BOOTSTRAP.md` | 244 | Wat een verse installatie aanmaakt en wat een bestaande behoudt |
-| `SETUP.md` | 464 | De installatiewizard, de basis-URL, een tweede site beginnen |
+| `SETUP.md` | 555 | De installatiewizard, de basis-URL, een nieuwe site (clone) beginnen |
 
 ### Achtergrond
 
@@ -265,7 +265,7 @@ Formulieren hebben geen eigen suite en zitten in `cms`. Meertaligheid ook niet,
 want het is Core en raakt elk domein; die tests zitten in `fast` en `cms`.
 
 ```bash
-docker exec mygdala_php_test php vendor/bin/phpunit --testsuite shop
+docker compose exec php_test php vendor/bin/phpunit --testsuite shop
 ```
 
 Draai de suite van je domein, en daarna `fast`. De volle suite alleen bij een
@@ -273,7 +273,7 @@ grote wijziging.
 
 ### Vier valkuilen die je een half uur kosten
 
-**Draai in `mygdala_php_test`, niet in `mygdala_php`.** De ontwikkelcontainer
+**Draai in `php_test`, niet in `php`.** De ontwikkelcontainer
 heeft modules uitstaan. `unit` en `contract` hebben geen database nodig maar
 lezen wél het moduleregister, dus een uitgeschakelde Shop of Blog neemt zestien
 tests mee die niets met je wijziging te maken hebben. `TESTING.md` noemt ze bij
@@ -289,7 +289,7 @@ inhoud van de testdatabase. Vergelijk bij twijfel met
 **De HTTP-tests hebben een draaiende webcontainer nodig.** Zonder
 `docker compose --profile test up -d` slaan ze zichzelf over in plaats van te
 falen, dus een groene run zegt dan minder dan je denkt. Datzelfde profiel
-levert `mygdala_php_test`: een kale `docker compose up -d` start hem niet.
+levert `php_test`: een kale `docker compose up -d` start hem niet.
 
 **Een worktree heeft geen `vendor/`.** Hij is gitignored, dus een verse
 uitchecking mist hem en PHPUnit start er niet. Zet er zijn eigen
@@ -308,7 +308,7 @@ geen vergeten. Test met `--testsuite blocks`.
 dezelfde familie, schrijf er nooit een vanaf nul. Vier guards in volgorde:
 login, permissie, POST, CSRF. Daarna pas lezen of schrijven.
 
-**Een migratie schrijven.** `docker exec mygdala_php php vendor/bin/phinx
+**Een migratie schrijven.** `docker compose exec php php vendor/bin/phinx
 create MyNewMigration`. Forward-only, idempotent, MySQL-compatibel. Let op
 signed en unsigned bij foreign keys, daar is het één keer op misgegaan.
 
@@ -316,9 +316,11 @@ signed en unsigned bij foreign keys, daar is het één keer op misgegaan.
 stappen, waarvan één regel in `ModuleRegistry::MAP`. Vergeet de variabele in
 `.env.example` niet.
 
-**Een nieuwe site beginnen met deze codebase.** `SETUP.md`. Het recept loopt
-via `scripts/create_fresh_site_copy.php`, en `FreshSiteCopyPolicy` is de grens
-tussen wat applicatie is en wat bij één site hoort.
+**Een nieuwe site beginnen met deze codebase.** `SETUP.md`, "Een nieuwe site
+beginnen". Een nieuwe site is een clone van deze repository met een eigen
+`.env`, database, uploads en poorten, geen fork.
+`scripts/create_fresh_site_copy.php` en `FreshSiteCopyPolicy` heb je alleen
+nodig voor een kopie zonder site-inhoud.
 
 ## Wat er open staat
 
@@ -329,7 +331,10 @@ eigen sessie.
 compose-bestand heeft op drie plekken een verplichte `env_file: .env`, dus een
 verse `docker compose up -d` faalt. De draaiende containers werken nog op
 instellingen uit een `.env` die er ooit was. De omgeving is dus niet opnieuw op
-te bouwen uit de repository.
+te bouwen uit de repository. Wie hem terugzet, neemt ook de drie poorten uit
+`.env.example` over (`APP_PORT`, `ADMINER_PORT`, `MAILPIT_WEB_PORT`); zonder
+die drie vraagt deze installatie 8000, 8080 en 8025, en botst hij met elke
+andere installatie die daar al draait.
 
 ## De praktijktest is gedaan
 
