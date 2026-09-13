@@ -1,7 +1,7 @@
 ---
 paths:
   - "src/Service/{Collection,Dashboard,Invoice,Order,Product,Related}*.php"
-  - "src/Service/MollieClientFactory.php"
+  - "src/Service/{MollieClientFactory,MolliePaymentData}.php"
   - "src/Service/PdfInvoiceRenderer.php"
   - "src/Repository/{Product,Variant,Collection,Order,Customer,Invoice,Shipping,Carrier,Withdrawal,Dashboard}*.php"
   - "src/Module/ShopModule.php"
@@ -23,7 +23,11 @@ De Shop is een uitschakelbare first-party module. Domeindocument:
   worden herlezen uit `products`, verzendkosten herberekend door
   `ShippingCalculationService`.
 - **Een order is een snapshot.** Een latere prijs- of productwijziging mag een
-  bestaande bestelling nooit raken.
+  bestaande bestelling nooit raken. Dat geldt ook voor het bestelnummer: lees
+  `orders.order_number` via `OrderRepository::orderNumber()` en bouw er nooit
+  een op uit het id en het prefix. Alleen `OrderRepository::create()` maakt
+  een nummer; `Tests\Repository\OrderNumberSnapshotContractTest` faalt op
+  elke andere plek.
 - **Onderzoek geen Blog-, Formulier- of Mediacode** tenzij deze wijziging daar
   aantoonbaar van afhangt.
 - **Raak geen Core-bestand aan om iets van de Shop te regelen.** Core mag geen

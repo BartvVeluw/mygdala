@@ -13,10 +13,12 @@ use Tests\Support\ScratchInstall;
  * Who 20260913100000_pin_the_order_number_prefix_before_the_generic_default
  * pins to "VLD", and who it leaves on the generic "ORD".
  *
- * An order number is derived from the order's id and year every time it is
- * shown, never stored. Whoever already sent numbers with the old hardcoded
- * prefix must keep deriving them, and whoever never sent one must not be
- * handed another site's prefix. Three installations, each built by the
+ * Until 20260913120000 an order number was derived from the order's id and
+ * year every time it was shown, never stored, and that migration stores
+ * exactly what this pin reproduces (Tests\Install\OrderNumberSnapshotMigrationTest).
+ * Whoever already sent numbers with the old hardcoded prefix must keep them,
+ * and whoever never sent one must not be handed another site's prefix.
+ * Three installations, each built by the
  * migrations themselves rather than written by hand:
  *
  *   from zero         no history, no orders          stores nothing

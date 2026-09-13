@@ -12,6 +12,7 @@ use App\Repository\ProductRepository;
 use App\Repository\SiteSettingRepository;
 use App\Service\InvoiceService;
 use App\Service\InvoiceStorage;
+use App\Service\PdfInvoiceRenderer;
 use App\Service\SiteSettings;
 use PHPUnit\Framework\TestCase;
 
@@ -41,6 +42,8 @@ final class InvoiceServiceTest extends TestCase
 
     protected function tearDown(): void
     {
+        SiteSettings::overrideForTests(null);
+
         $db = Database::connection();
         $storage = new InvoiceStorage();
         foreach ($this->orderIds as $orderId) {
@@ -256,5 +259,69 @@ final class InvoiceServiceTest extends TestCase
         $this->assertSame('EUR', $invoice['currency']);
         $this->assertSame(date('Y-m-d'), (new \DateTimeImmutable((string) $invoice['invoice_date']))->format('Y-m-d'));
         $this->assertStringContainsString((string) $invoice['invoice_number'], (string) $invoice['pdf_path']);
+    }
+
+    /**
+     * An invoice names the order by the number stored on it, on its first
+     * render and when a missing PDF is rendered again later. The stored number
+     * cannot be rebuilt from the order's id, its year or either prefix, and the
+     * prefix setting says something else by the time the file is regenerated.
+     */
+    public function testARegeneratedPdfNamesTheOrderByTheNumberItWasIssuedWith(): void
+    {
+        $orderId = $this->createOrder('paid');
+        $stored = 'HIST-1999-' . str_pad((string) $orderId, 6, '0', STR_PAD_LEFT);
+        $db = Database::connection();
+        $db->prepare('UPDATE orders SET order_number = :order_number WHERE id = :id')
+            ->execute(['order_number' => $stored, 'id' => $orderId]);
+
+        $renderer = new OrderNumberCapturingRenderer();
+        $service = new InvoiceService(null, null, null, $renderer);
+
+        $invoice = $service->issueForOrderIfNeeded($orderId);
+        $this->assertNotNull($invoice);
+
+        SiteSettings::overrideForTests(['order_number_prefix' => 'SHOP']);
+
+        $storage = new InvoiceStorage();
+        unlink($storage->path((string) $invoice['pdf_path']));
+        $this->assertFalse($storage->exists((string) $invoice['pdf_path']), 'precondition: the PDF is gone');
+
+        $orderStmt = $db->prepare('SELECT * FROM orders WHERE id = :id');
+        $orderStmt->execute(['id' => $orderId]);
+        $customerStmt = $db->prepare('SELECT * FROM customers WHERE id = :id');
+        $customerStmt->execute(['id' => $this->customerId]);
+
+        $service->regeneratePdfIfMissing($invoice, $orderStmt->fetch(), $customerStmt->fetch(), (new OrderRepository())->findItems($orderId));
+
+        $this->assertSame([$stored, $stored], $renderer->orderNumbers, 'The first render and the regeneration are handed the stored number.');
+
+        $text = (new \Smalot\PdfParser\Parser())->parseFile($storage->path((string) $invoice['pdf_path']))->getText();
+        $this->assertStringContainsString($stored, $text);
+        $this->assertStringNotContainsString('SHOP-', $text);
+    }
+}
+
+/**
+ * Records the order number every render is handed, and still renders the
+ * real PDF so the file on disk can be read back.
+ */
+final class OrderNumberCapturingRenderer extends PdfInvoiceRenderer
+{
+    /** @var list<string> */
+    public array $orderNumbers = [];
+
+    public function render(
+        array $order,
+        array $customer,
+        array $items,
+        array $sellerSnapshot,
+        string $invoiceNumber,
+        \DateTimeInterface $invoiceDate,
+        string $orderNumber
+    ): string {
+        $this->orderNumbers[] = $orderNumber;
+
+        return parent::render($order, $customer, $items, $sellerSnapshot, $invoiceNumber, $invoiceDate, $orderNumber);
     }
 }

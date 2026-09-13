@@ -70,7 +70,7 @@ try {
 
     echo json_encode(['data' => [
         'order_id' => $orderId,
-        'order_number' => OrderRepository::formatOrderNumber($orderId, new \DateTimeImmutable((string) $order['created_at'])),
+        'order_number' => OrderRepository::orderNumber($order),
         'status' => $order['status'],
         'total' => $order['total'],
         'shipping_cost' => $order['shipping_cost'],

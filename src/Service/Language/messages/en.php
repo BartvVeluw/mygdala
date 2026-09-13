@@ -543,7 +543,7 @@ return [
     'settings.bestelnummers' => 'Order numbers',
     'settings.bestelnummers_intro' => 'The number an order is known by to the customer, in the Mollie payment and in the export. Separate from the invoice number.',
     'settings.bestelnummerprefix' => 'Order number prefix',
-    'settings.bestelnummerprefix_uitleg' => 'Letters and digits only, at most 10 characters. An order number then looks like PREFIX-2026-000127. Empty means the default, ORD. Note: the number is rebuilt from this setting every time, so changing it also renames existing orders in the admin and the export. E-mails, Mollie payments and invoices already sent keep the number they were created with.',
+    'settings.bestelnummerprefix_uitleg' => 'Letters and digits only, at most 10 characters. An order number then looks like PREFIX-2026-000127. Empty means the default, ORD. An order gets its number when it is placed and keeps it, so a change only applies to new orders. Existing orders keep their number in the admin, the export, e-mails, Mollie and invoices.',
     'settings.btw_id_indien_toepassing' => 'VAT number (if applicable)',
     'settings.website' => 'Website',
     'settings.telefoonnummer' => 'Phone number',

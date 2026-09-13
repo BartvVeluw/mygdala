@@ -13,6 +13,7 @@ use App\Service\InvoiceService;
 use App\Service\InvoiceStorage;
 use App\Service\Mailer;
 use App\Service\OrderConfirmationService;
+use App\Service\SiteSettings;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -227,6 +228,39 @@ final class OrderConfirmationInvoiceTest extends TestCase
         $countStmt = Database::connection()->prepare('SELECT COUNT(*) AS c FROM invoices WHERE order_id = :id');
         $countStmt->execute(['id' => $orderId]);
         $this->assertSame(1, (int) $countStmt->fetch()['c']);
+    }
+
+    /**
+     * A resent confirmation names the order exactly as the first one did,
+     * even when the prefix setting changed in between: both read the number
+     * stored on the order. The stored number cannot be rebuilt from the
+     * order's id, its year or either prefix.
+     */
+    public function testAResentConfirmationCarriesTheStoredOrderNumberAfterThePrefixChanged(): void
+    {
+        $orderId = $this->createPaidOrder();
+        $stored = 'HIST-1999-' . str_pad((string) $orderId, 6, '0', STR_PAD_LEFT);
+        Database::connection()
+            ->prepare('UPDATE orders SET order_number = :order_number WHERE id = :id')
+            ->execute(['order_number' => $stored, 'id' => $orderId]);
+        (new InvoiceService())->issueForOrderIfNeeded($orderId);
+
+        $mailer = $this->fakeMailer();
+        $service = new OrderConfirmationService(null, null, $mailer);
+        $service->sendForOrderIfNeeded($orderId);
+
+        SiteSettings::overrideForTests(['order_number_prefix' => 'SHOP']);
+        try {
+            $this->assertTrue($service->resend($orderId));
+        } finally {
+            SiteSettings::overrideForTests(null);
+        }
+
+        $this->assertCount(4, $mailer->calls, 'the first customer + shop e-mail, and the resent pair');
+        foreach ($mailer->calls as $index => $call) {
+            $this->assertStringContainsString($stored, $call['subject'], 'e-mail ' . $index);
+            $this->assertStringNotContainsString('SHOP-', $call['subject'], 'e-mail ' . $index);
+        }
     }
 
     public function testResendFailsClearlyWhenThereIsNoInvoiceYet(): void

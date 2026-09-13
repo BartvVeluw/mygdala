@@ -84,8 +84,9 @@ final class PdfInvoiceRendererTest extends TestCase
 
     /**
      * The renderer prints the order number it is handed and never builds one:
-     * InvoiceService hands it OrderRepository::formatOrderNumber()'s answer,
-     * the same one the e-mail, the export and the Mollie payment use.
+     * InvoiceService hands it the number stored on the order
+     * (OrderRepository::orderNumber()), the same one the e-mail, the export
+     * and the Mollie payment use.
      */
     public function testTheOrderNumberItIsGivenIsTheOneOnTheInvoice(): void
     {

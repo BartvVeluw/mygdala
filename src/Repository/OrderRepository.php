@@ -20,36 +20,31 @@ class OrderRepository extends Repository
     public const FULFILMENT_STATUSES = [self::FULFILMENT_OPEN, self::FULFILMENT_HANDLED];
 
     /**
-     * A stable, human-readable order number for Mollie descriptions, customer
-     * emails, admin and bookkeeping — e.g. "ORD-2026-000127". Deliberately
-     * not a stored column: it's fully derived from two values that never
-     * change once an order exists (the order's own auto-increment id, which
-     * MySQL already guarantees is unique and race-free, and its creation
-     * year), so it's guaranteed unique and stable without an extra
-     * generator/sequence/table to keep in sync — see MAIN.MD "Order
-     * numbering".
+     * The shape a NEW order's public number is made in — e.g.
+     * "ORD-2026-000127" — from the prefix it is given, the order's creation
+     * year and its own auto-increment id, which MySQL allocates unique and
+     * race-free, so no generator or sequence table is needed.
      *
-     * THE PREFIX is the site setting `order_number_prefix`, and THIS METHOD
-     * owns the separators: only the setting's letters and digits are used,
-     * so every consumer produces the same shape and a stored "ORD-" can
-     * never become "ORD--2026". A prefix with nothing usable left falls back
-     * to the generic default. Every place that shows an order number calls
-     * this method; none of them builds one itself
-     * (Tests\Install\GenericDistributionTest holds that line).
+     * At runtime only assignOrderNumber(), inside create(), calls this. From
+     * then on the number is a stored fact about the order,
+     * `orders.order_number`, and everything that shows one reads it with
+     * orderNumber(). Rebuilding it from today's `order_number_prefix` would
+     * rename every existing order the moment an owner changed that setting
+     * (db/migrations/20260913120000_snapshot_the_order_number_on_every_order.php);
+     * Tests\Repository\OrderNumberSnapshotContractTest holds that line.
      *
-     * The prefix used to be a literal "VLD-" here. Because the number is
-     * derived, an installation that issued numbers with it keeps them only by
-     * keeping the prefix, which db/migrations/20260913100000 pinned. The same
-     * property means an owner who changes the setting renames every order in
-     * the admin and the export too; e-mails, Mollie payments and invoices
-     * already issued keep the number they went out with.
+     * THIS METHOD owns the separators: only the prefix's letters and digits
+     * are used, so a stored "ORD-" can never become "ORD--2026". A prefix with
+     * nothing usable left falls back to the generic default. It reads no
+     * setting itself; the caller hands in the prefix.
      *
-     * $prefix is for a caller that already knows which prefix applies — a
-     * migration check, a test. Everyone else leaves it null.
+     * The prefix used to be a literal "VLD-" here. Every installation that
+     * issued numbers with it was pinned to "VLD" by
+     * db/migrations/20260913100000 before those numbers were stored.
      */
-    public static function formatOrderNumber(int $orderId, \DateTimeInterface $createdAt, ?string $prefix = null): string
+    public static function formatOrderNumber(int $orderId, \DateTimeInterface $createdAt, string $prefix): string
     {
-        return self::orderNumberPrefix($prefix ?? SiteSettings::get('order_number_prefix'))
+        return self::orderNumberPrefix($prefix)
             . '-' . $createdAt->format('Y')
             . '-' . str_pad((string) $orderId, 6, '0', STR_PAD_LEFT);
     }
@@ -60,6 +55,32 @@ class OrderRepository extends Repository
         $clean = (string) preg_replace('/[^A-Za-z0-9]/', '', $prefix);
 
         return $clean !== '' ? $clean : SiteSettings::defaults()['order_number_prefix'];
+    }
+
+    /**
+     * The public number $order was created with, as stored on it: what the
+     * Mollie payment, the customer and shop e-mails, the admin, the dashboard,
+     * the order-status page, the export and the invoice all show.
+     *
+     * A row without one should not exist: create() writes it before its
+     * transaction commits, and 20260913120000 gave one to every order before
+     * it. Should one turn up anyway, this answers with the technical "#<id>"
+     * and logs it — never with a number rebuilt from today's prefix, which
+     * would look real and be wrong.
+     *
+     * @param array<string, mixed> $order an `orders` row, or a list row that selects `order_number`
+     */
+    public static function orderNumber(array $order): string
+    {
+        $stored = (string) ($order['order_number'] ?? '');
+        if ($stored !== '') {
+            return $stored;
+        }
+
+        $orderId = (int) ($order['id'] ?? 0);
+        error_log('[OrderRepository] Order ' . $orderId . ' has no stored order_number; showing its id instead.');
+
+        return '#' . $orderId;
     }
 
     /**
@@ -82,6 +103,89 @@ class OrderRepository extends Repository
      * @param array{first_name:string,last_name:string,company:?string,country:string,postal_code:string,house_number:string,house_number_addition:?string,street:string,city:string}|null $billingAddress
      */
     public function create(
+        int $customerId,
+        float|string $total,
+        float|string $shippingCost,
+        string $shippingMethod,
+        string $currency,
+        bool $termsAccepted,
+        \DateTimeImmutable $termsAcceptedAt,
+        string $termsContentHash,
+        array $shippingAddress,
+        ?array $billingAddress
+    ): int {
+        // The row and its public number are written in one transaction. The
+        // checkout already holds one and this joins it; any other caller gets
+        // its own. Either way no committed moment exists at which the order is
+        // there without its number.
+        $ownsTransaction = !$this->db->inTransaction();
+        if ($ownsTransaction) {
+            $this->db->beginTransaction();
+        }
+
+        try {
+            $orderId = $this->insertOrder(
+                $customerId,
+                $total,
+                $shippingCost,
+                $shippingMethod,
+                $currency,
+                $termsAccepted,
+                $termsAcceptedAt,
+                $termsContentHash,
+                $shippingAddress,
+                $billingAddress
+            );
+            $this->assignOrderNumber($orderId);
+
+            if ($ownsTransaction) {
+                $this->db->commit();
+            }
+        } catch (\Throwable $e) {
+            if ($ownsTransaction && $this->db->inTransaction()) {
+                $this->db->rollBack();
+            }
+
+            throw $e;
+        }
+
+        return $orderId;
+    }
+
+    /**
+     * Gives a just-inserted order its public number, once: the prefix
+     * configured at this moment, the creation year the database itself
+     * recorded, and the id. The one place a number is ever made — see
+     * formatOrderNumber() for why nothing else may make one.
+     */
+    private function assignOrderNumber(int $orderId): void
+    {
+        $stmt = $this->db->prepare('SELECT created_at FROM orders WHERE id = :id');
+        $stmt->execute(['id' => $orderId]);
+        $createdAt = $stmt->fetchColumn();
+
+        if ($createdAt === false || $createdAt === null) {
+            throw new \RuntimeException('Order ' . $orderId . ' has no created_at, so it cannot be given an order number.');
+        }
+
+        $number = self::formatOrderNumber(
+            $orderId,
+            new \DateTimeImmutable((string) $createdAt),
+            SiteSettings::get('order_number_prefix')
+        );
+
+        $this->db->prepare('UPDATE orders SET order_number = :order_number WHERE id = :id AND order_number IS NULL')
+            ->execute(['order_number' => $number, 'id' => $orderId]);
+    }
+
+    /**
+     * The order row itself, exactly as create() always wrote it. Kept apart
+     * only so create() can wrap it and the number in one transaction.
+     *
+     * @param array{first_name:string,last_name:string,company:?string,country:string,postal_code:string,house_number:string,house_number_addition:?string,street:string,city:string} $shippingAddress
+     * @param array{first_name:string,last_name:string,company:?string,country:string,postal_code:string,house_number:string,house_number_addition:?string,street:string,city:string}|null $billingAddress
+     */
+    private function insertOrder(
         int $customerId,
         float|string $total,
         float|string $shippingCost,
@@ -407,7 +511,7 @@ class OrderRepository extends Repository
      */
     public function findAllForAdmin(?string $fulfilmentStatus = null): array
     {
-        $sql = 'SELECT o.id, o.status, o.fulfilment_status, o.handled_at, o.total, o.shipping_cost,
+        $sql = 'SELECT o.id, o.order_number, o.status, o.fulfilment_status, o.handled_at, o.total, o.shipping_cost,
                        o.shipping_method, o.created_at, c.name AS customer_name
                 FROM orders o
                 JOIN customers c ON c.id = o.customer_id';
@@ -597,7 +701,7 @@ class OrderRepository extends Repository
         $where = $conditions === [] ? '' : ' WHERE ' . implode(' AND ', $conditions);
 
         $stmt = $this->db->prepare(
-            "SELECT o.id, o.created_at, o.total, o.shipping_cost, o.refunded_amount,
+            "SELECT o.id, o.order_number, o.created_at, o.total, o.shipping_cost, o.refunded_amount,
                     o.status, o.fulfilment_status, o.mollie_payment_id, o.currency,
                     COALESCE(o.shipping_country, c.country) AS country,
                     c.name AS customer_name, c.email AS customer_email

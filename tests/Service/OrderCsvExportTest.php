@@ -11,7 +11,7 @@ use PHPUnit\Framework\TestCase;
 /**
  * Covers App\Service\OrderCsvExport — see MAIN.MD "Export for bookkeeping".
  * Pure formatting, no database/HTTP involved: site settings are the generic
- * defaults, so the order number is the one a new installation shows.
+ * defaults, and the order number is the one stored on the fixture order.
  */
 final class OrderCsvExportTest extends TestCase
 {
@@ -29,6 +29,7 @@ final class OrderCsvExportTest extends TestCase
     {
         return array_merge([
             'id' => 127,
+            'order_number' => 'ORD-2026-000127',
             'created_at' => '2026-03-14 10:30:00',
             'total' => '52.40',
             'shipping_cost' => '4.95',
@@ -66,6 +67,24 @@ final class OrderCsvExportTest extends TestCase
         $this->assertSame('ORD-2026-000127', $row[array_search('Ordernummer', $header, true)]);
         $this->assertSame('2026-03-14 10:30', $row[array_search('Datum', $header, true)]);
         $this->assertSame('tr_abc123', $row[array_search('Mollie betalings-ID', $header, true)]);
+    }
+
+    /**
+     * Id 5, created in 2027, prefix setting "SHOP": only the number stored on
+     * the order can put "VLD-2026-000127" in the column. An export made after
+     * the owner changed the prefix still names every order as it was issued.
+     */
+    public function testTheOrderNumberColumnIsTheNumberStoredOnTheOrder(): void
+    {
+        SiteSettings::overrideForTests(['order_number_prefix' => 'SHOP']);
+
+        $row = OrderCsvExport::row($this->sampleOrder([
+            'id' => 5,
+            'created_at' => '2027-01-02 10:30:00',
+            'order_number' => 'VLD-2026-000127',
+        ]));
+
+        $this->assertSame('VLD-2026-000127', $row[array_search('Ordernummer', OrderCsvExport::header(), true)]);
     }
 
     public function testRefundedAmountIsPreservedSeparatelyFromTotal(): void

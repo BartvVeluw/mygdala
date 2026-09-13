@@ -93,7 +93,7 @@ class InvoiceService
 
             $items = $this->orders->findItems($orderId);
             $sellerSnapshot = self::buildSellerSnapshot();
-            $orderNumber = OrderRepository::formatOrderNumber((int) $order['id'], new \DateTimeImmutable((string) $order['created_at']));
+            $orderNumber = OrderRepository::orderNumber($order);
 
             $invoiceDate = new \DateTimeImmutable('today');
             $year = (int) $invoiceDate->format('Y');
@@ -148,7 +148,7 @@ class InvoiceService
         }
 
         $sellerSnapshot = json_decode((string) $invoice['seller_snapshot'], true, 512, JSON_THROW_ON_ERROR);
-        $orderNumber = OrderRepository::formatOrderNumber((int) $order['id'], new \DateTimeImmutable((string) $order['created_at']));
+        $orderNumber = OrderRepository::orderNumber($order);
         $invoiceDate = new \DateTimeImmutable((string) $invoice['invoice_date']);
 
         $pdfBytes = $this->renderer->render($order, $customer, $items, $sellerSnapshot, (string) $invoice['invoice_number'], $invoiceDate, $orderNumber);

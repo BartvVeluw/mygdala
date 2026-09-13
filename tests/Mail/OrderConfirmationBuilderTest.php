@@ -14,8 +14,9 @@ use PHPUnit\Framework\TestCase;
  * summary" / "... the correct order number" / "CMS email placeholders
  * render safely" / "unknown placeholders fail safely".
  *
- * Site settings are the generic defaults for every test, so the order number
- * is the one a new installation shows, whatever the test database holds.
+ * Site settings are the generic defaults for every test, whatever the test
+ * database holds. The order number is the one stored on the fixture order,
+ * because that is the only place the builder may take it from.
  */
 final class OrderConfirmationBuilderTest extends TestCase
 {
@@ -33,6 +34,7 @@ final class OrderConfirmationBuilderTest extends TestCase
     {
         return array_merge([
             'id' => 42,
+            'order_number' => 'ORD-2026-000042',
             'total' => '54.90',
             'shipping_cost' => '4.95',
             'shipping_method' => 'verzenden',
@@ -86,6 +88,27 @@ final class OrderConfirmationBuilderTest extends TestCase
         $this->assertStringContainsString('54,90', $emails['customer']['html']);
         $this->assertStringContainsString('ORD-2026-000042', $emails['customer']['text']);
         $this->assertStringContainsString('Sleutelhanger - Acryl', $emails['customer']['text']);
+    }
+
+    /**
+     * The order below is id 5, created in 2027, and the prefix setting says
+     * "SHOP": nothing here can produce "VLD-2026-000127" except the number
+     * stored on the order. Both e-mails, in every part, must carry it — a
+     * resent confirmation included, which is this same build.
+     */
+    public function testBothEmailsCarryTheStoredOrderNumberNotOneBuiltFromTheCurrentPrefix(): void
+    {
+        SiteSettings::overrideForTests(['order_number_prefix' => 'SHOP']);
+        $order = $this->order(['id' => 5, 'created_at' => '2027-01-02 10:00:00', 'order_number' => 'VLD-2026-000127']);
+
+        $emails = OrderConfirmationBuilder::build($order, $this->customer(), $this->items(), SiteSettings::all());
+
+        foreach (['customer', 'shop'] as $recipient) {
+            foreach (['subject', 'html', 'text'] as $part) {
+                $this->assertStringContainsString('VLD-2026-000127', $emails[$recipient][$part], "{$recipient} {$part}");
+                $this->assertStringNotContainsString('SHOP-', $emails[$recipient][$part], "{$recipient} {$part}");
+            }
+        }
     }
 
     public function testCmsSubjectHeadingIntroClosingAndSignatureAreUsedWithPlaceholdersSubstituted(): void

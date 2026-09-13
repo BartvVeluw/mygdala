@@ -95,6 +95,7 @@ use App\Service\Address\AddressValidationException;
 use App\Service\Address\CheckoutAddressResolver;
 use App\Service\LegalPages;
 use App\Service\MollieClientFactory;
+use App\Service\MolliePaymentData;
 use App\Service\Personalization\Money;
 use App\Service\Personalization\PersonalizationValidationException;
 use App\Service\Personalization\PersonalizationValidator;
@@ -626,37 +627,24 @@ $baseUrl = $scheme . '://' . $host;
 $hostname = explode(':', $host)[0];
 $isLocalHost = in_array($hostname, ['localhost', '127.0.0.1'], true);
 
-// The order's own created_at is NOW() at the DB (see OrderRepository::create()),
-// captured here rather than re-read from the DB to avoid an extra round-trip —
-// the order number only needs the creation year, and this request's own "now"
-// is for all practical purposes identical to what NOW() just wrote.
-$orderNumber = OrderRepository::formatOrderNumber($orderId, new \DateTimeImmutable());
-
 try {
-    $paymentData = [
-        'amount' => [
-            'currency' => 'EUR',
-            // Already an exact two-decimal string, summed in integer cents.
-            'value' => $total,
-        ],
-        // The payment description the customer sees on their bank statement:
-        // the site's own name, not one written into the code.
-        'description' => \App\Service\SiteSettings::get('site_name') . ' — bestelling ' . $orderNumber,
-        'redirectUrl' => $baseUrl . '/bestelling-status.php?order=' . $orderId,
-        'method' => PAYMENT_METHODS[$betaalmethode],
-        // Only the internal reference is sent — no customer name/email/address,
-        // which Mollie doesn't need for reconciliation (see MAIN.MD "Mollie
-        // reconciliation" / "Customer data").
-        'metadata' => ['order_id' => $orderId, 'order_number' => $orderNumber],
-    ];
-
-    // Mollie rejects webhook URLs that point at localhost/private hosts — skip it there
-    // (local testing falls back to the return page re-checking the payment status live).
-    if (!$isLocalHost) {
-        $paymentData['webhookUrl'] = $baseUrl . '/api/mollie-webhook.php';
+    // The order as it was just stored, with the number OrderRepository::create()
+    // gave it inside the transaction above. The payment carries exactly the
+    // number the e-mails, the admin and the invoice show, never one built here.
+    $order = (new OrderRepository($db))->findById($orderId);
+    if ($order === null) {
+        throw new \RuntimeException('Order ' . $orderId . ' could not be read back after it was created.');
     }
 
-    $payment = MollieClientFactory::client()->payments->create($paymentData);
+    $payment = MollieClientFactory::client()->payments->create(MolliePaymentData::forOrder(
+        $order,
+        \App\Service\SiteSettings::get('site_name'),
+        $baseUrl,
+        PAYMENT_METHODS[$betaalmethode],
+        // Mollie rejects webhook URLs that point at localhost/private hosts — skip it there
+        // (local testing falls back to the return page re-checking the payment status live).
+        !$isLocalHost
+    ));
 
     (new OrderRepository($db))->setMolliePaymentId($orderId, $payment->id);
 

@@ -94,7 +94,7 @@ class DashboardRepository extends Repository
         $limit = max(1, min(50, $limit));
 
         $stmt = $this->db->query(
-            'SELECT o.id, o.status, o.fulfilment_status, o.total, o.currency, o.created_at,
+            'SELECT o.id, o.order_number, o.status, o.fulfilment_status, o.total, o.currency, o.created_at,
                     c.name AS customer_name
              FROM orders o
              LEFT JOIN customers c ON c.id = o.customer_id

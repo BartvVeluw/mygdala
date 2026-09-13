@@ -95,7 +95,7 @@ $filters = [
       <tbody>
         <?php foreach ($orders as $order): ?>
           <?php
-            $orderNumber = OrderRepository::formatOrderNumber((int) $order['id'], new \DateTimeImmutable((string) $order['created_at']));
+            $orderNumber = OrderRepository::orderNumber($order);
             $fulfilmentStatus = (string) $order['fulfilment_status'];
             $isHandled = $fulfilmentStatus === OrderRepository::FULFILMENT_HANDLED;
             $isPaid = $order['status'] === 'paid';

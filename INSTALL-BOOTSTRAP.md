@@ -196,12 +196,25 @@ placeholder, met de huidige waarde van deze site als echte rij vastgepind. Zie
 `App\Repository\OrderRepository::formatOrderNumber()` schreef `VLD-` met de
 hand uit, dus elke installatie nummerde haar bestellingen als deze site. De
 standaard is nu `ORD`, en de beheerder wijzigt hem op het tabblad Facturen,
-als eigen veld naast het factuurnummer. Een bestelnummer wordt niet
-opgeslagen maar steeds opnieuw afgeleid, dus een installatie die al nummers
-uitgaf is eerst op `VLD` vastgepind. Dat geldt ook voor een verse installatie
-die al bestellingen had: ook zij heeft `VLD-`-nummers verstuurd. Een database
-die vanaf nul wordt opgebouwd heeft op dat moment geen bestellingen en krijgt
-dus niets.
+als eigen veld naast het factuurnummer. Een installatie die al nummers uitgaf
+is eerst op `VLD` vastgepind. Dat geldt ook voor een verse installatie die al
+bestellingen had: ook zij heeft `VLD-`-nummers verstuurd. Een database die
+vanaf nul wordt opgebouwd heeft op dat moment geen bestellingen en krijgt dus
+niets.
+
+**En een bestelnummer wordt opgeslagen, niet afgeleid.** Een bestelling krijgt
+haar nummer één keer, in de transactie waarin
+`App\Repository\OrderRepository::create()` haar aanmaakt, en bewaart het in
+`orders.order_number`. Mail, Mollie, beheer, dashboard, orderstatus, export en
+factuur lezen dat veld, dus een later gewijzigd prefix geldt alleen voor nieuwe
+bestellingen. `20260913120000_snapshot_the_order_number_on_every_order` voegt
+de kolom op elke installatie toe en geeft bestaande bestellingen het nummer dat
+ze tot dan toe kregen: het vastgepinde prefix, het jaar van `created_at` en het
+id. Zij draait altijd na de pin, want Phinx voert openstaande migraties
+oplopend uit. Heeft een bestaande bestelling geen `created_at`, dan stopt de
+migratie voordat ze iets wijzigt en noemt ze de ids: het jaar waarmee zo'n
+bestelling haar nummer kreeg is niet te achterhalen, en een nummer verzinnen
+doet ze niet.
 
 Nog wél site-specifiek op een nieuwe installatie: de verzendzones en
 -tarieven en de PostNL-tarieven (Shop-bedrijfsconfiguratie). Het ene

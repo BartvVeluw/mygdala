@@ -311,8 +311,11 @@ Alles wat er ook zou zijn zonder webshop.
   `assets/js/shop/cart.js`), `cart.php`, `partials/header-cart.php`.
 - Afrekenen — `checkout.php`, `api/checkout.php`, `Service\Address\*`.
 - Bestellingen en betalingen — `OrderRepository`, `OrderPaymentSync`,
-  `MollieClientFactory`, `api/mollie-webhook.php`, `OrderConfirmationService`,
-  `OrderCsvExport`, `admin/orders.php`.
+  `MollieClientFactory`, `MolliePaymentData`, `api/mollie-webhook.php`,
+  `OrderConfirmationService`, `OrderCsvExport`, `admin/orders.php`. Een
+  bestelnummer wordt één keer gemaakt, bij het aanmaken van de bestelling, en
+  opgeslagen in `orders.order_number`; mail, Mollie, beheer, export en factuur
+  lezen het via `OrderRepository::orderNumber()`.
 - Facturen — `InvoiceService`, `PdfInvoiceRenderer`, `InvoiceStorage`.
 - Retourverzoeken (herroepingsrecht) — `WithdrawalRequestRepository`,
   `herroeping.php`, `api/withdrawal-request.php`,

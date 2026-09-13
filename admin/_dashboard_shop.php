@@ -219,7 +219,7 @@ $showsShopOverview = $canViewOrders || $canViewProducts || $canManagePersonaliza
               <?php
                 $orderId = (int) $order['id'];
                 $createdAt = new \DateTimeImmutable((string) $order['created_at']);
-                $orderNumber = OrderRepository::formatOrderNumber($orderId, $createdAt);
+                $orderNumber = OrderRepository::orderNumber($order);
                 $customerName = trim((string) ($order['customer_name'] ?? ''));
                 $paymentStatus = (string) $order['status'];
                 $fulfilmentStatus = (string) $order['fulfilment_status'];

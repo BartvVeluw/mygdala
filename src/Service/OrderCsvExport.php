@@ -53,7 +53,7 @@ class OrderCsvExport
         $createdAt = new \DateTimeImmutable((string) $order['created_at']);
 
         return [
-            OrderRepository::formatOrderNumber((int) $order['id'], $createdAt),
+            OrderRepository::orderNumber($order),
             $createdAt->format('Y-m-d H:i'),
             (string) $order['customer_name'],
             (string) $order['customer_email'],

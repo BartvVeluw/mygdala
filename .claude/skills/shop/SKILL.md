@@ -23,7 +23,7 @@ je aan de modulegrens zelf werkt.
 | Module | `src/Module/ShopModule.php` |
 | Catalogus | `src/Repository/Product*.php`, `VariantImageRepository.php`, `src/Service/ProductSeo.php`, `ProductDeletionService.php`, `ProductImageUploader.php` |
 | Collecties | `src/Service/Collection*.php`, `src/Repository/CollectionRepository.php` |
-| Bestellingen | `src/Repository/{Order,Customer,Invoice}*.php`, `src/Service/Order*.php`, `InvoiceService.php`, `InvoiceStorage.php`, `PdfInvoiceRenderer.php`, `MollieClientFactory.php` |
+| Bestellingen | `src/Repository/{Order,Customer,Invoice}*.php`, `src/Service/Order*.php`, `InvoiceService.php`, `InvoiceStorage.php`, `PdfInvoiceRenderer.php`, `MollieClientFactory.php`, `MolliePaymentData.php` |
 | Verzending | `src/Service/Shipping/`, `src/Service/Address/`, `src/Repository/{Shipping,Carrier}*.php` |
 | Dashboard | `src/Service/Dashboard*.php`, `src/Repository/DashboardRepository.php`, `admin/_dashboard_shop.php` |
 | Adminschermen | `admin/{products,product-form,collections,collection,orders,order,orders-export,shipping,carrier-rates,related-products}.php`, `admin/withdrawal-request*.php` |

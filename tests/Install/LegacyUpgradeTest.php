@@ -266,10 +266,11 @@ final class LegacyUpgradeTest extends TestCase
     }
 
     /**
-     * An order number is derived, not stored, so "unchanged" means: with the
-     * prefix this installation now stores, the formatter produces exactly the
-     * string its customers, its Mollie payments and its bookkeeping already
-     * have — the one it produced while "VLD-" was hardcoded.
+     * The prefix this installation now stores makes exactly the string its
+     * customers, its Mollie payments and its bookkeeping already have — the
+     * one the formatter produced while "VLD-" was hardcoded. That is what
+     * 20260913120000 stores on every existing order;
+     * Tests\Install\OrderNumberSnapshotMigrationTest proves the stored values.
      */
     public function testHistoricalOrderNumbersComeOutExactlyAsTheyWereIssued(): void
     {

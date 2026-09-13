@@ -249,41 +249,6 @@ final class GenericDistributionTest extends TestCase
         );
     }
 
-    public function testEveryPlaceThatShowsAnOrderNumberAsksTheOneFormatter(): void
-    {
-        foreach ([
-            'admin/orders.php',
-            'admin/order.php',
-            'admin/_dashboard_shop.php',
-            'api/order-status.php',
-            'api/checkout.php',
-            'src/Mail/OrderConfirmationBuilder.php',
-            'src/Service/OrderCsvExport.php',
-            'src/Service/InvoiceService.php',
-        ] as $file) {
-            $this->assertStringContainsString(
-                'OrderRepository::formatOrderNumber(',
-                (string) file_get_contents($this->root() . '/' . $file),
-                $file . ' shows an order number, so it must ask OrderRepository::formatOrderNumber() for it.'
-            );
-        }
-
-        // The Mollie payment: the description on the customer's bank
-        // statement and the reconciliation metadata carry that same number.
-        $checkout = (string) file_get_contents($this->root() . '/api/checkout.php');
-        $this->assertMatchesRegularExpression('/\$orderNumber = OrderRepository::formatOrderNumber\(/', $checkout);
-        $this->assertMatchesRegularExpression("/'description' => [^\\n]*\\\$orderNumber,/", $checkout);
-        $this->assertStringContainsString("'order_number' => \$orderNumber", $checkout);
-
-        // The invoice: the PDF is rendered with the formatter's answer.
-        $invoices = (string) file_get_contents($this->root() . '/src/Service/InvoiceService.php');
-        $this->assertSame(
-            2,
-            preg_match_all('/\$orderNumber = OrderRepository::formatOrderNumber\(/', $invoices),
-            'Both the first render and the regeneration of an invoice PDF take the number from the formatter.'
-        );
-    }
-
     /* ------------------------------------------------------------------ */
     /* The admin's browser storage                                         */
     /* ------------------------------------------------------------------ */

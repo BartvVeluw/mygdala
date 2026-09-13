@@ -71,7 +71,7 @@ $invoiceGenerated = isset($_GET['invoice_generated']);
 $emailResent = isset($_GET['email_resent']);
 $emailResendFailed = isset($_GET['email_resend_failed']);
 $csrfToken = Csrf::token();
-$orderNumber = OrderRepository::formatOrderNumber((int) $order['id'], new \DateTimeImmutable((string) $order['created_at']));
+$orderNumber = OrderRepository::orderNumber($order);
 ?>
 <!doctype html>
 <html lang="<?= htmlspecialchars(\App\Service\Language\AdminLocale::current(), ENT_QUOTES, 'UTF-8') ?>">

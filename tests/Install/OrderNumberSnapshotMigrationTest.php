@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Tests\Install;
 
 use App\Install\InstallState;
+use App\Repository\OrderRepository;
+use App\Service\SiteSettings;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 use Tests\Support\ScratchInstall;
@@ -231,7 +233,77 @@ final class OrderNumberSnapshotMigrationTest extends TestCase
         );
     }
 
+    /**
+     * A brand-new installation, from zero: the first order the application
+     * creates is numbered with the generic default, and a prefix chosen
+     * afterwards reaches only the orders placed after it. Created through
+     * OrderRepository::create() itself, against this installation's own
+     * database and its own settings.
+     */
+    public function testAFreshInstallNumbersNewOrdersWithOrdAndALaterPrefixOnlyReachesLaterOrders(): void
+    {
+        $this->install = ScratchInstall::fresh('mygdala_scratch_order_number_new_orders');
+        $orders = new OrderRepository($this->install->pdo());
+        $this->assertNull($this->storedPrefix(), 'precondition: a from-zero install stores no prefix');
+
+        try {
+            $this->useThisInstallationsSettings();
+            $first = $this->createOrderThroughTheApplication($orders);
+
+            $this->install->pdo()->exec(
+                "INSERT INTO site_settings (setting_key, setting_value, created_at, updated_at)
+                 VALUES ('order_number_prefix', 'SHOP', NOW(), NOW())"
+            );
+            $this->useThisInstallationsSettings();
+            $second = $this->createOrderThroughTheApplication($orders);
+        } finally {
+            SiteSettings::overrideForTests(null);
+        }
+
+        $numbers = $this->orderNumbers();
+        $years = array_map(static fn (?string $moment): string => substr((string) $moment, 0, 4), $this->creationMoments());
+
+        $this->assertSame(1, $first, 'The first order of a new installation.');
+        $this->assertSame('ORD-' . $years[$first] . '-000001', $numbers[$first]);
+        $this->assertSame('SHOP-' . $years[$second] . '-' . str_pad((string) $second, 6, '0', STR_PAD_LEFT), $numbers[$second]);
+    }
+
     /* ------------------------------------------------------------------ */
+
+    /** Points App\Service\SiteSettings at what this installation's own site_settings table holds. */
+    private function useThisInstallationsSettings(): void
+    {
+        $stored = [];
+        foreach ($this->install->rows('SELECT setting_key, setting_value FROM site_settings') as $row) {
+            $stored[(string) $row['setting_key']] = (string) $row['setting_value'];
+        }
+
+        SiteSettings::overrideForTests($stored);
+    }
+
+    private function createOrderThroughTheApplication(OrderRepository $orders): int
+    {
+        $pdo = $this->install->pdo();
+        $pdo->prepare('INSERT INTO customers (name, email, created_at) VALUES (?, ?, NOW())')
+            ->execute(['Jan Jansen', 'new-order-' . bin2hex(random_bytes(4)) . '@example.invalid']);
+
+        return $orders->create(
+            (int) $pdo->lastInsertId(),
+            '10.00',
+            '0.00',
+            'afhalen',
+            'EUR',
+            true,
+            new \DateTimeImmutable(),
+            hash('sha256', 'test-terms'),
+            [
+                'first_name' => 'Jan', 'last_name' => 'Jansen', 'company' => null,
+                'country' => 'NL', 'postal_code' => '1234AB', 'house_number' => '1',
+                'house_number_addition' => null, 'street' => 'Teststraat', 'city' => 'Teststad',
+            ],
+            null
+        );
+    }
 
     /**
      * An installation that predates the install marker, migrated up to and

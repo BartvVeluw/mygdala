@@ -50,7 +50,7 @@ class OrderConfirmationBuilder
         $billingAddress = OrderRepository::resolveBillingAddress($orderWithCustomerFallback);
         $billingDiffers = empty($order['billing_same_as_shipping']);
 
-        $orderNumber = OrderRepository::formatOrderNumber((int) $order['id'], new \DateTimeImmutable((string) $order['created_at']));
+        $orderNumber = OrderRepository::orderNumber($order);
         $subtotal = self::itemsSubtotal($items);
         $shipping = (float) $order['shipping_cost'];
         $total = (float) $order['total'];
@@ -132,7 +132,7 @@ class OrderConfirmationBuilder
                 'subject' => 'Nieuwe betaalde bestelling ' . $orderNumber,
                 'html' => self::wrapHtml(
                     'Nieuwe betaalde bestelling',
-                    '<p>Er is een nieuwe, betaalde bestelling binnengekomen: <strong>' . $orderNumber . '</strong>.</p>'
+                    '<p>Er is een nieuwe, betaalde bestelling binnengekomen: <strong>' . self::esc($orderNumber) . '</strong>.</p>'
                     . $itemsHtml . $totalsHtml
                     . '<h2 style="font-size:16px;margin:24px 0 8px;">Klant- / bezorggegevens</h2>'
                     . $addressHtml

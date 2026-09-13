@@ -549,7 +549,7 @@ return [
     'settings.bestelnummers' => 'Bestelnummers',
     'settings.bestelnummers_intro' => 'Het nummer waaronder een bestelling bekend is bij de klant, in de Mollie-betaling en in de export. Staat los van het factuurnummer.',
     'settings.bestelnummerprefix' => 'Bestelnummerprefix',
-    'settings.bestelnummerprefix_uitleg' => 'Alleen letters en cijfers, maximaal 10 tekens. Een bestelnummer ziet er dan uit als PREFIX-2026-000127. Leeg betekent de standaard, ORD. Let op: het nummer wordt steeds opnieuw uit deze instelling opgebouwd, dus een wijziging hernoemt ook bestaande bestellingen in het beheer en de export. Verstuurde e-mails, Mollie-betalingen en facturen houden het nummer waarmee ze gemaakt zijn.',
+    'settings.bestelnummerprefix_uitleg' => 'Alleen letters en cijfers, maximaal 10 tekens. Een bestelnummer ziet er dan uit als PREFIX-2026-000127. Leeg betekent de standaard, ORD. Een bestelling krijgt haar nummer op het moment dat ze geplaatst wordt en houdt het daarna, dus een wijziging geldt alleen voor nieuwe bestellingen. Bestaande bestellingen houden hun nummer in het beheer, de export, e-mails, Mollie en facturen.',
     'settings.btw_id_indien_toepassing' => 'BTW-id (indien van toepassing)',
     'settings.website' => 'Website',
     'settings.telefoonnummer' => 'Telefoonnummer',

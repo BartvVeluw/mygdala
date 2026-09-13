@@ -218,7 +218,7 @@ final class DashboardPageTest extends TestCase
     {
         $source = $this->shopPanel();
 
-        $this->assertStringContainsString('OrderRepository::formatOrderNumber(', $source);
+        $this->assertStringContainsString('OrderRepository::orderNumber(', $source);
         $this->assertStringContainsString('adminPaymentStatusLabel(', $source);
         $this->assertStringContainsString('adminFulfilmentBadgeModifier(', $source);
     }
