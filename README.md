@@ -123,7 +123,8 @@ docker exec mygdala_php php vendor/bin/phpunit --testsuite fast
 Kopieer `.env.example` naar `.env` en vul lokale waarden in. `.env` en
 `vendor/` zijn gitignored en worden nooit gecommit. `.env.example` beschrijft
 elke variabele, inclusief de `MODULE_*_ENABLED`-schakelaars uit
-[`MODULES.md`](MODULES.md).
+[`MODULES.md`](MODULES.md). Voor de tests volstaan de plaatshouders; welke
+waarden echt nodig zijn, staat in [`TESTING.md`](TESTING.md).
 
 ## Naar Vimexx deployen
 

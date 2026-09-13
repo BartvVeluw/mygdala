@@ -48,8 +48,24 @@ dezelfde map). In-process gebruikt de suite gewoon
 ### Als `.env` ontbreekt
 
 Zonder `.env` faalt `docker compose --profile test up -d` en bestaat
-`mygdala_php_test` dus niet. Dat bestand is lokaal, gitignored en bevat
-secrets, waaronder `DB_ROOT_PASSWORD`.
+`mygdala_php_test` dus niet: alle PHP-services lezen hem via `env_file`, en de
+MySQL-service haalt er zijn wachtwoorden uit. Dat bestand is lokaal,
+gitignored en bevat secrets, waaronder `DB_ROOT_PASSWORD`.
+
+Wat de suite er minimaal uit nodig heeft, voor wie hem als mens aanmaakt:
+
+- **Vereist:** `DB_DATABASE`, `DB_USERNAME`, `DB_PASSWORD` en
+  `DB_ROOT_PASSWORD`. Op een machine zonder bestaand MySQL-volume volstaan de
+  plaatshouders uit `.env.example`: de MySQL-container maakt die gebruikers
+  bij een leeg volume zelf aan. Bestaat het volume al, dan moeten ze kloppen
+  met de waarden waarmee het ooit is aangemaakt. Zonder `DB_ROOT_PASSWORD`
+  slaan de installatietests zichzelf over.
+- **Voor de tests niet nodig:** `APP_ENV`, `APP_URL`, de
+  `MODULE_*_ENABLED`-schakelaars, `SHOP_NOTIFICATION_EMAIL`,
+  `ADMIN_USERNAME`/`ADMIN_PASSWORD_HASH` en de sleutels van Mollie,
+  Turnstile, DeepL en SMTP. De tests die zo'n waarde nodig hebben, zetten hem
+  zelf (zie "Welke omgeving een test ziet"). Wat in `.env` staat, verandert
+  de uitkomst dus niet.
 
 **Een agent maakt dit bestand niet aan en reconstrueert het niet** — niet uit
 `.env.example`, en niet uit de omgevingsvariabelen van een draaiende
@@ -172,8 +188,9 @@ docker exec mygdala_php_test php vendor/bin/phpunit --group migration-backfill
 ```
 
 Sinds de installatie-opruiming zitten in deze suite ook
-`Tests\Install\FreshInstallTest`, `Tests\Install\LegacyUpgradeTest` en
-`Tests\Install\SetupCompletionTest`. Die draaien phinx vanaf nul tegen een
+`Tests\Install\FreshInstallTest`, `Tests\Install\LegacyUpgradeTest`,
+`Tests\Install\SetupCompletionTest` en `Tests\Install\AdminAccountMigrationTest`.
+Die draaien phinx vanaf nul tegen een
 **wegwerpdatabase** die ze zelf aanmaken en weer weggooien
 (`Tests\Support\ScratchInstall`), want de vraag "wat krijgt een nieuwe
 installatie" is op de testdatabase niet te stellen: die is een kopie van
@@ -536,6 +553,33 @@ erachter. `.env.example` beschrijft beide variabelen.
 
 `Tests\Architecture\TestSuiteCoverageTest` bewaakt dat de bootstrap in
 `phpunit.xml` aangehaakt blijft.
+
+## Welke omgeving een test ziet
+
+Een test hangt nooit af van wat er toevallig in de `.env` van een
+ontwikkelmachine staat. Uit de omgeving komt alleen de infrastructuur: welke
+database en welke webserver (hierboven), en de moduleschakelaars waarmee
+de testcontainers gestart zijn (`docker-compose.yml`). Verder gelden drie
+regels.
+
+1. **Heeft een test een omgevingswaarde nodig, dan zet hij die zelf** en
+   herstelt hij hem in `tearDown()`. Heeft de klasse een testnaad, gebruik die
+   dan: `AppEnvironment::overrideForTests()` of
+   `ModuleRegistry::overrideForTests()`. Leest de code `$_ENV` rechtstreeks,
+   zet dan `$_ENV` en onthoud de vorige waarde.
+   `OrderConfirmationInvoiceTest` doet dat met `SHOP_NOTIFICATION_EMAIL`.
+2. **Een subprocess krijgt zijn omgeving expliciet mee.** `ScratchInstall`
+   start phinx en `runScript()` als een *onbeschreven* deployment. Daarin zijn
+   `APP_ENV`, `APP_URL`, elke `MODULE_<KEY>_ENABLED`, `ADMIN_USERNAME`,
+   `ADMIN_PASSWORD_HASH`, `ADMIN_EMAIL`, `MAIL_FROM_ADDRESS` en
+   `SHOP_NOTIFICATION_EMAIL` wel gezet, maar leeg. Leeg en niet weggelaten,
+   omdat Dotenv een gezette variabele niet overschrijft: ook een `.env` op de
+   machine vult ze dan niet terug. Gaat een installatietest over een
+   deployment die wél iets heeft ingesteld, dan geeft hij dat mee aan
+   `ScratchInstall::fresh($database, [...])`.
+3. **Geen test vergelijkt met een echte credential.** Of de migratie het
+   `.env`-account ongewijzigd overnam, bewijst `AdminAccountMigrationTest` op
+   een eigen wegwerpdatabase, met de hash van een verzonnen wachtwoord.
 
 ## De HTTP-tier
 
