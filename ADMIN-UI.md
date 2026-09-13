@@ -188,6 +188,26 @@ script dat al op het veld reageert (de portfolio-upload in `admin.js`) vindt
 het nog steeds. Slepen en neerzetten en uploadvoortgang horen bij de
 Mediabibliotheek (`MEDIA.md`).
 
+## Waar het al gebruikt wordt
+
+Drie schermen, als bewijs dat de bouwstenen herbruikbaar zijn. De rest van het
+CMS volgt scherm voor scherm; een scherm dat nog niet is omgezet, werkt zoals
+het werkte.
+
+| Scherm | Wat |
+|---|---|
+| Site-instellingen (`admin/settings.php`) | Uitleg bij bedrijfsnaam, KVK-nummer, e-mailadres, plaats, footer-omschrijving, standaardtaal, standaard meta description en indexeren. De standaardtaal is een `.admin-select`, indexeren een switch |
+| Pagina's (`admin/pages.php`) | Infobalk; zoekveld (`?q=`, filtert de al geladen lijst via `PageContent::matchesAdminSearch()`); knoppen uit de familie |
+| Formulier bewerken (`admin/form.php`) | *Actief* is een switch, *Inzendingen bewaren* een checkbox, beide selects zijn `.admin-select` |
+
+De bestandskiezer bestaat en is getest, maar staat nog op geen scherm. Het
+eerste scherm dat hem krijgt, is de upload in de Mediabibliotheek.
+
+`AdminUiPrimitivesTest` pint per scherm vast welke velden uitleg hebben, dat
+een label naar zijn eigen veld wijst, en dat de formulieren hetzelfde
+versturen als voorheen: dezelfde namen, dezelfde verplichte velden, de
+verborgen `0` vóór de indexeer-switch, en geen verborgen veld vóór *Actief*.
+
 ## Wat hier niet in hoort
 
 - **Layout van één scherm.** Die blijft bij dat scherm in `admin.css`.

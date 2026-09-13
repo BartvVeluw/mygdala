@@ -133,8 +133,11 @@ $replyToCandidates = $definition === null ? [] : $definition->replyToCandidates(
         <input type="text" name="name" maxlength="150" required value="<?= $v($values, 'name') ?>">
       </label>
 
+      <?php /* A switch (ADMIN-UI.md), and still one checkbox underneath:
+               api/admin/update-form.php reads isset($_POST['is_active'])
+               exactly as it did. */ ?>
       <label class="admin-checkbox-label">
-        <input type="checkbox" name="is_active" value="1" <?= ($values['is_active'] ?? true) ? 'checked' : '' ?>>
+        <input type="checkbox" class="admin-switch" role="switch" name="is_active" value="1" <?= ($values['is_active'] ?? true) ? 'checked' : '' ?>>
         <?= admin_te('forms.actief_uitgevinkt_formulier_nergens') ?>
       </label>
 
@@ -181,7 +184,7 @@ $replyToCandidates = $definition === null ? [] : $definition->replyToCandidates(
       </p>
 
       <label><?= admin_te('forms.antwoordadres_reply_to_overnemen') ?>
-        <select name="reply_to_field_key">
+        <select name="reply_to_field_key" class="admin-select">
           <option value=""><?= admin_te('forms.gebruiken') ?></option>
           <?php foreach ($replyToCandidates as $candidate): ?>
             <option value="<?= $h($candidate->key) ?>" <?= ($values['reply_to_field_key'] ?? '') === $candidate->key ? 'selected' : '' ?>><?= $h($candidate->label->nl) ?></option>
@@ -191,7 +194,7 @@ $replyToCandidates = $definition === null ? [] : $definition->replyToCandidates(
       <p class="admin-text-muted"><?= admin_t('forms.kies_e_mailveld_melding', ['v1' => $replyToCandidates === [] ? ' Voeg eerst een veld van het type "E-mailadres" toe.' : '']) ?></p>
 
       <label class="admin-checkbox-label">
-        <input type="checkbox" name="store_submissions" value="1" <?= ($values['store_submissions'] ?? false) ? 'checked' : '' ?>>
+        <input type="checkbox" class="admin-checkbox" name="store_submissions" value="1" <?= ($values['store_submissions'] ?? false) ? 'checked' : '' ?>>
         <?= admin_te('forms.inzendingen_bewaren_cms') ?>
       </label>
       <p class="admin-text-muted"><?= admin_t('forms.uit_formulier_mailt_alleen') ?></p>
@@ -272,7 +275,7 @@ $replyToCandidates = $definition === null ? [] : $definition->replyToCandidates(
           <input type="text" name="label_nl" maxlength="200" required>
         </label>
         <label><?= admin_te('forms.veldtype') ?>*
-          <select name="field_type" required>
+          <select name="field_type" class="admin-select" required>
             <?php foreach (FormFieldTypes::choices() as $key => $label): ?>
               <option value="<?= $h($key) ?>"><?= $h($label) ?></option>
             <?php endforeach; ?>

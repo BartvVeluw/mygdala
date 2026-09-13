@@ -33,6 +33,17 @@ return [
     'ui.file.none' => 'No file chosen yet',
     'ui.file.many' => ':count files chosen',
 
+    // --- Field help: the longer explanation behind a "?" (ADMIN-UI.md) -------
+    'help.settings.site_name' => "The name of your business or website, as visitors know you.\n\nIt appears in more places than this screen shows: in the browser tab and in search results such as Google's (after a page's title), at the bottom of the website in the footer, on shop invoices, and usually as the sender of the emails the website sends.",
+    'help.settings.kvk_number' => "The number your business is registered under at the Dutch Chamber of Commerce (KVK). It has eight digits.\n\nIt appears on invoices, and at the bottom of the website if you switch that on in the footer settings. If your business is not registered, leave it empty.",
+    'help.settings.email' => "Your website's general email address.\n\nMessages visitors send through a form arrive here when that form has no address of its own. The address is also shown in the contact block, on invoices and – if you switch that on – at the bottom of the website. <strong>Use an address you actually read.</strong>",
+    'help.settings.city' => "The town your business is in, or the region you work in, as you want visitors to see it – for example next to the contact form.\n\nThis is not a postal address. The address that goes on invoices is filled in on the invoice tab.",
+    'help.settings.footer_description' => "One or two sentences about your business. They appear at the bottom of every page of the website, in the footer, next to your logo or name.\n\nShort and concrete works best: what you do and for whom. For example: <em>Bicycle repair shop in Utrecht: repairs and servicing, Saturdays included.</em>",
+    'help.settings.primary_language' => "Your website exists in Dutch and in English. Here you choose which of the two a visitor sees first.\n\nWhere a translation is missing, the website shows the text in this language instead. The CMS itself does not change language here: you set that under <strong>My account</strong>.",
+    'help.settings.seo_description' => "A <strong>meta description</strong> is a short summary of a page. Search engines such as Google often show it under the title in their results; you do not see it on the website itself.\n\nEvery page can have its own. This default is only used on pages that have none. If you have nothing general to say, leave it empty: the same sentence everywhere helps nobody.",
+    'help.settings.robots' => "Search engines such as Google visit websites to include their pages in search results. That is called <strong>indexing</strong>.\n\nWhen this switch is on, they may. Only switch it off while your website is unfinished and must not be found yet, and switch it back on as soon as the website goes live. Off asks search engines to leave out every page.",
+    'help.pages.overview' => "These are all the pages of your website. Click a page to change its text, images or settings, or create a new one with <strong>New page</strong>.",
+
     // --- Words that appear on more than one screen -------------------------
     'common.save' => 'Save',
     'common.saved' => 'Saved',
@@ -170,6 +181,10 @@ return [
     'pages.fixed_url' => 'Content page (fixed URL)',
     'pages.fixed_url_hint' => 'An ordinary content page on a fixed URL — only the slug is set.',
     'pages.content_page' => 'Content page',
+    'pages.search_label' => 'Find a page',
+    'pages.search_placeholder' => 'Search by title or address',
+    'pages.search_empty' => 'No page found for ":query".',
+    'pages.search_clear' => 'Show all pages',
     'pages.delete_confirm' => 'Permanently delete this page and every section on it? This cannot be undone.',
 
     // --- The page editor (admin/page.php, admin/page-new.php) --------------
@@ -325,7 +340,7 @@ return [
     'forms.bedankbericht_na_versturen' => 'Thank-you message after sending',
     'forms.tekst_verstuurknop_2' => 'Text on the send button',
     'forms.tekst_verstuurknop' => 'Text on the send button',
-    'forms.actief_uitgevinkt_formulier_nergens' => 'Active (unticked = the form is shown nowhere, not even on pages that carry it)',
+    'forms.actief_uitgevinkt_formulier_nergens' => 'Active (off = the form is shown nowhere, not even on pages that carry it)',
     'forms.naam_alleen_jezelf_bezoekers' => 'Name (for you only, visitors never see this)',
     'forms.algemeen' => 'General',
     'forms.formulier_staat_enkele_pagina' => 'This form is not on any page yet. Add the <strong>Form</strong> block to a page and choose this form.',

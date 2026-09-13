@@ -60,6 +60,7 @@
             <file>tests/Service/NavigationServiceTest.php</file>
             <file>tests/Service/OrderCsvExportTest.php</file>
             <file>tests/Service/PageSeoTest.php</file>
+            <file>tests/Service/PagesOverviewSearchTest.php</file>
             <file>tests/Service/PdfInvoiceRendererTest.php</file>
             <file>tests/Service/Personalization/MoneyTest.php</file>
             <file>tests/Service/Personalization/PersonalizationRulesTest.php</file>
@@ -187,6 +188,7 @@
             <file>tests/Service/OrderHandlingAdminSecurityTest.php</file>
             <file>tests/Service/PageBuilderSecurityTest.php</file>
             <file>tests/Service/PageSeoTest.php</file>
+            <file>tests/Service/PagesOverviewSearchTest.php</file>
             <file>tests/Service/PageTemplateRegistryTest.php</file>
             <file>tests/Service/PdfInvoiceRendererTest.php</file>
             <file>tests/Service/Personalization/MoneyTest.php</file>
@@ -377,6 +379,7 @@
             <file>tests/Service/PageContentTest.php</file>
             <file>tests/Service/PageRoutingTest.php</file>
             <file>tests/Service/PageSeoTest.php</file>
+            <file>tests/Service/PagesOverviewSearchTest.php</file>
             <file>tests/Service/PageServiceTest.php</file>
             <file>tests/Service/PageTemplateCreationTest.php</file>
             <file>tests/Service/PageTemplateRegistryTest.php</file>

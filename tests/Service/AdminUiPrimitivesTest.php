@@ -451,4 +451,146 @@ final class AdminUiPrimitivesTest extends TestCase
             'no search box in the admin is the browser\'s own white bar'
         );
     }
+
+    // --- The proof of concept (ADMIN-UI.md, "Waar het al gebruikt wordt") ------
+
+    /**
+     * The source of one field's .admin-field block: from its opening <div> to
+     * the next block, or to the end of its form. Blocks do not nest, and the
+     * LAST occurrence of the name is the field itself — a checkbox's hidden
+     * fallback comes before its block.
+     */
+    private static function fieldSource(string $source, string $name): string
+    {
+        $position = strrpos($source, 'name="' . $name . '"');
+        self::assertNotFalse($position, 'no field named ' . $name);
+
+        $opening = '/<div class="admin-field(?: admin-field--inline)?">/';
+        preg_match_all($opening, substr($source, 0, $position), $before, PREG_OFFSET_CAPTURE);
+        self::assertNotSame([], $before[0], $name . ' is not inside an .admin-field');
+        $start = (int) end($before[0])[1];
+
+        $end = preg_match($opening, $source, $after, PREG_OFFSET_CAPTURE, $position) === 1
+            ? (int) $after[0][1]
+            : (int) strpos($source, '</form>', $position);
+
+        return substr($source, $start, $end - $start);
+    }
+
+    public function testTheSiteSettingsFieldsCarryTheirExplanation(): void
+    {
+        $source = self::source('admin/settings.php');
+        $catalog = require self::root() . '/src/Service/Language/messages/nl.php';
+
+        $fields = [
+            'site_name' => 'help.settings.site_name',
+            'kvk_number' => 'help.settings.kvk_number',
+            'email' => 'help.settings.email',
+            // Both language panes: only the one being edited is on screen.
+            'city_nl' => 'help.settings.city',
+            'city_en' => 'help.settings.city',
+            'footer_description_nl' => 'help.settings.footer_description',
+            'footer_description_en' => 'help.settings.footer_description',
+            'primary_content_language' => 'help.settings.primary_language',
+            'seo_default_description' => 'help.settings.seo_description',
+            'seo_robots_index_default' => 'help.settings.robots',
+        ];
+
+        foreach ($fields as $name => $helpKey) {
+            $field = self::fieldSource($source, $name);
+
+            $this->assertStringContainsString("admin_t('" . $helpKey . "')", $field, $name . ' lost its explanation');
+            $this->assertArrayHasKey($helpKey, $catalog, $helpKey . ' is used but not in the catalog');
+
+            if (preg_match("/admin_field_label\\('([a-z-]+)'/", $field, $label) === 1) {
+                $this->assertStringContainsString('id="' . $label[1] . '"', $field, $name . ': the label must point at the field it explains');
+            } else {
+                $this->assertStringContainsString('admin_help(', $field, $name);
+            }
+        }
+
+        // The two new controls on this screen.
+        $this->assertStringContainsString('id="field-primary-language" class="admin-select"', $source);
+        $this->assertStringContainsString('class="admin-switch" role="switch" name="seo_robots_index_default"', $source);
+    }
+
+    public function testThePagesOverviewUsesTheInfoPanelAndTheSharedSearch(): void
+    {
+        $source = self::source('admin/pages.php');
+
+        $this->assertStringContainsString("admin_info_panel(admin_t('help.pages.overview'))", $source);
+        $this->assertStringContainsString(
+            '<form method="get" action="/admin/pages.php" class="admin-toolbar" role="search">',
+            $source,
+            'a search only reads: a GET, with no token, that survives a reload'
+        );
+        $this->assertMatchesRegularExpression(
+            '#<label class="admin-search">\s*<span class="admin-visually-hidden">#',
+            $source,
+            'the search field keeps a name a screen reader can say'
+        );
+        $this->assertStringContainsString('<input type="search" name="q"', $source);
+        $this->assertStringContainsString('PageContent::matchesAdminSearch(', $source);
+    }
+
+    public function testTheFormEditorUsesTheSharedControls(): void
+    {
+        $source = self::source('admin/form.php');
+
+        $this->assertStringContainsString('<input type="checkbox" class="admin-switch" role="switch" name="is_active" value="1"', $source);
+        $this->assertStringContainsString('<input type="checkbox" class="admin-checkbox" name="store_submissions" value="1"', $source);
+        $this->assertStringContainsString('<select name="reply_to_field_key" class="admin-select">', $source);
+        $this->assertStringContainsString('<select name="field_type" class="admin-select" required>', $source);
+    }
+
+    /**
+     * What the three screens SUBMIT did not change: the same names, the same
+     * required fields, the same hidden fallback where there was one and none
+     * where there was not — pinned against what their endpoints read.
+     */
+    public function testTheProofOfConceptFormsStillSubmitWhatTheirEndpointsRead(): void
+    {
+        $settings = self::source('admin/settings.php');
+
+        foreach (['site_name', 'email'] as $name) {
+            $this->assertMatchesRegularExpression('/name="' . $name . '"[^>]*\brequired\b/', $settings, $name . ' must stay required');
+        }
+
+        foreach (['city_nl', 'footer_description_nl'] as $name) {
+            $this->assertMatchesRegularExpression('/name="' . $name . '"[^>]*admin_lang_required\(\'nl\'\)/', $settings, $name . ' must stay required in the primary language');
+        }
+
+        foreach (['kvk_number', 'city_en', 'footer_description_en', 'seo_default_description'] as $name) {
+            $this->assertDoesNotMatchRegularExpression('/name="' . $name . '"[^>]*\brequired\b/', $settings, $name . ' was optional and stays optional');
+        }
+
+        $this->assertStringContainsString('<input type="email" id="settings-email" name="email"', $settings);
+        $this->assertMatchesRegularExpression(
+            '#<input type="hidden" name="seo_robots_index_default" value="0">\s*<div class="admin-field admin-field--inline">\s*<label class="admin-checkbox-label">\s*<input type="checkbox" class="admin-switch" role="switch" name="seo_robots_index_default" value="1"#',
+            $settings,
+            'the hidden 0 still comes before the switch, so switching indexing off still saves'
+        );
+        $this->assertStringContainsString(
+            "\$fields['seo_robots_index_default'] = \$fields['seo_robots_index_default'] === '1' ? '1' : '0';",
+            self::source('api/admin/update-site-settings.php')
+        );
+
+        $form = self::source('admin/form.php');
+        $endpoint = self::source('api/admin/update-form.php');
+
+        foreach (['is_active', 'store_submissions'] as $name) {
+            $this->assertSame(1, substr_count($form, 'name="' . $name . '"'), $name . ': one checkbox and no hidden fallback, because the endpoint reads isset()');
+            $this->assertStringContainsString("'" . $name . "' => isset(\$_POST['" . $name . "'])", $endpoint);
+        }
+
+        $this->assertStringContainsString("'reply_to_field_key' => trim((string) (\$_POST['reply_to_field_key'] ?? ''))", $endpoint);
+
+        foreach (['admin/settings.php', 'admin/pages.php', 'admin/form.php'] as $screen) {
+            $this->assertDoesNotMatchRegularExpression(
+                '#<label\b[^>]*>(?:(?!</label>).)*admin_help\(#s',
+                self::source($screen),
+                $screen . ' puts a help icon inside a <label>'
+            );
+        }
+    }
 }

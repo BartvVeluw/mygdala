@@ -167,13 +167,18 @@ function brandingImageField(
     <form method="post" action="/api/admin/update-site-settings.php" class="admin-product-form">
       <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
 
+      <?php /* Field help beside the labels (ADMIN-UI.md). Only the markup
+               around each field changed: every name, type, maxlength and
+               required below is what this form already submitted. */ ?>
       <div class="admin-form-row admin-form-row--split">
-        <label><?= admin_te('settings.bedrijfsnaam') ?>*
-          <input type="text" name="site_name" maxlength="150" required value="<?= settingValue($values, 'site_name') ?>">
-        </label>
-        <label><?= admin_te('settings.kvk_nummer') ?>
-          <input type="text" name="kvk_number" maxlength="20" value="<?= settingValue($values, 'kvk_number') ?>">
-        </label>
+        <div class="admin-field">
+          <?= admin_field_label('settings-site-name', admin_t('settings.bedrijfsnaam'), admin_t('help.settings.site_name'), true) ?>
+          <input type="text" id="settings-site-name" name="site_name" maxlength="150" required value="<?= settingValue($values, 'site_name') ?>">
+        </div>
+        <div class="admin-field">
+          <?= admin_field_label('settings-kvk-number', admin_t('settings.kvk_nummer'), admin_t('help.settings.kvk_number')) ?>
+          <input type="text" id="settings-kvk-number" name="kvk_number" maxlength="20" value="<?= settingValue($values, 'kvk_number') ?>">
+        </div>
       </div>
 
       <p class="admin-text-muted"><?= admin_t('settings.kies_hieronder_afbeelding_uit') ?></p>
@@ -189,35 +194,42 @@ function brandingImageField(
       </div>
 
       <div class="admin-form-row admin-form-row--split">
-        <label><?= admin_te('common.email_address') ?>*
-          <input type="email" name="email" maxlength="150" required value="<?= settingValue($values, 'email') ?>">
-        </label>
+        <div class="admin-field">
+          <?= admin_field_label('settings-email', admin_t('common.email_address'), admin_t('help.settings.email'), true) ?>
+          <input type="email" id="settings-email" name="email" maxlength="150" required value="<?= settingValue($values, 'email') ?>">
+        </div>
       </div>
 
+      <?php /* Both language panes carry the same explanation: only the pane
+               of the language being edited is on screen. */ ?>
       <?php admin_lang_bar(); ?>
       <div class="admin-form-row admin-form-row--split">
         <?php admin_lang_pane_start('nl'); ?>
-        <label><?= admin_te('settings.plaats_locatie') ?>*
-          <input type="text" name="city_nl" maxlength="150" <?= admin_lang_required('nl') ?> value="<?= settingValue($values, 'city_nl') ?>">
-        </label>
+        <div class="admin-field">
+          <?= admin_field_label('settings-city-nl', admin_t('settings.plaats_locatie'), admin_t('help.settings.city'), true) ?>
+          <input type="text" id="settings-city-nl" name="city_nl" maxlength="150" <?= admin_lang_required('nl') ?> value="<?= settingValue($values, 'city_nl') ?>">
+        </div>
         <?php admin_lang_pane_end(); ?>
         <?php admin_lang_pane_start('en'); ?>
-        <label><?= admin_te('settings.plaats_locatie_2') ?>
-          <input type="text" name="city_en" maxlength="150" value="<?= settingValue($values, 'city_en') ?>"<?= admin_lang_placeholder_attr('en') ?>>
-        </label>
+        <div class="admin-field">
+          <?= admin_field_label('settings-city-en', admin_t('settings.plaats_locatie_2'), admin_t('help.settings.city')) ?>
+          <input type="text" id="settings-city-en" name="city_en" maxlength="150" value="<?= settingValue($values, 'city_en') ?>"<?= admin_lang_placeholder_attr('en') ?>>
+        </div>
         <?php admin_lang_pane_end(); ?>
       </div>
 
       <div class="admin-form-row admin-form-row--split">
         <?php admin_lang_pane_start('nl'); ?>
-        <label><?= admin_te('settings.footer_omschrijving') ?>*
-          <textarea name="footer_description_nl" maxlength="500" <?= admin_lang_required('nl') ?> rows="3"><?= settingValue($values, 'footer_description_nl') ?></textarea>
-        </label>
+        <div class="admin-field">
+          <?= admin_field_label('settings-footer-description-nl', admin_t('settings.footer_omschrijving'), admin_t('help.settings.footer_description'), true) ?>
+          <textarea id="settings-footer-description-nl" name="footer_description_nl" maxlength="500" <?= admin_lang_required('nl') ?> rows="3"><?= settingValue($values, 'footer_description_nl') ?></textarea>
+        </div>
         <?php admin_lang_pane_end(); ?>
         <?php admin_lang_pane_start('en'); ?>
-        <label><?= admin_te('settings.footer_omschrijving_2') ?>
-          <textarea name="footer_description_en" maxlength="500" rows="3"<?= admin_lang_placeholder_attr('en') ?>><?= settingValue($values, 'footer_description_en') ?></textarea>
-        </label>
+        <div class="admin-field">
+          <?= admin_field_label('settings-footer-description-en', admin_t('settings.footer_omschrijving_2'), admin_t('help.settings.footer_description')) ?>
+          <textarea id="settings-footer-description-en" name="footer_description_en" maxlength="500" rows="3"<?= admin_lang_placeholder_attr('en') ?>><?= settingValue($values, 'footer_description_en') ?></textarea>
+        </div>
         <?php admin_lang_pane_end(); ?>
       </div>
 
@@ -263,13 +275,14 @@ function brandingImageField(
       <p class="admin-text-muted admin-lang-note"><?= $h(\App\Service\Language\AdminTranslator::trans('language.always_bilingual')) ?></p>
 
       <div class="admin-form-row">
-        <label for="field-primary-language"><?= $h(\App\Service\Language\AdminTranslator::trans('language.default_website')) ?>
-          <select name="primary_content_language" id="field-primary-language">
+        <div class="admin-field">
+          <?= admin_field_label('field-primary-language', \App\Service\Language\AdminTranslator::trans('language.default_website'), admin_t('help.settings.primary_language')) ?>
+          <select name="primary_content_language" id="field-primary-language" class="admin-select">
             <?php foreach (\App\Service\Language\LanguageRegistry::contentLanguages() as $languageCode => $languageDefinition): ?>
               <option value="<?= $h($languageCode) ?>"<?= $languageCode === $primaryLanguage ? ' selected' : '' ?>><?= $h($languageDefinition->labelIn($adminLocale)) ?></option>
             <?php endforeach; ?>
           </select>
-        </label>
+        </div>
         <p class="admin-text-muted"><?= $h(\App\Service\Language\AdminTranslator::trans('language.default_website_help')) ?></p>
       </div>
 
@@ -293,9 +306,10 @@ function brandingImageField(
       <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
 
       <div class="admin-form-row">
-        <label><?= admin_te('settings.standaard_meta_description') ?>
-          <textarea name="seo_default_description" maxlength="<?= \App\Service\Seo::MAX_META_DESCRIPTION_LENGTH ?>" rows="3"><?= settingValue($values, 'seo_default_description') ?></textarea>
-        </label>
+        <div class="admin-field">
+          <?= admin_field_label('settings-seo-default-description', admin_t('settings.standaard_meta_description'), admin_t('help.settings.seo_description')) ?>
+          <textarea id="settings-seo-default-description" name="seo_default_description" maxlength="<?= \App\Service\Seo::MAX_META_DESCRIPTION_LENGTH ?>" rows="3"><?= settingValue($values, 'seo_default_description') ?></textarea>
+        </div>
         <p class="admin-text-muted"><?= admin_t('settings.gebruikt_pagina_s_zelf') ?></p>
       </div>
 
@@ -305,12 +319,17 @@ function brandingImageField(
                  treats "absent" as "keep the stored value", so without it
                  the setting could be switched on but never off. PHP keeps
                  the LAST value for a repeated name, so a ticked box wins
-                 over the hidden 0 and an unticked one leaves the 0. */ ?>
+                 over the hidden 0 and an unticked one leaves the 0.
+                 The switch (ADMIN-UI.md) is still that one checkbox, so the
+                 hidden 0 keeps doing exactly this. */ ?>
         <input type="hidden" name="seo_robots_index_default" value="0">
-        <label class="admin-checkbox-label">
-          <input type="checkbox" name="seo_robots_index_default" value="1" <?= \App\Service\SeoDefaults::indexesByDefault() ? 'checked' : '' ?>>
-          <?= admin_te('settings.zoekmachines_mogen_website_indexeren') ?>
-        </label>
+        <div class="admin-field admin-field--inline">
+          <label class="admin-checkbox-label">
+            <input type="checkbox" class="admin-switch" role="switch" name="seo_robots_index_default" value="1" <?= \App\Service\SeoDefaults::indexesByDefault() ? 'checked' : '' ?>>
+            <?= admin_te('settings.zoekmachines_mogen_website_indexeren') ?>
+          </label>
+          <?= admin_help(admin_t('settings.zoekmachines_mogen_website_indexeren'), admin_t('help.settings.robots')) ?>
+        </div>
         <p class="admin-text-muted"><?= admin_t('settings.uit_betekent_elke_publieke') ?></p>
       </div>
 

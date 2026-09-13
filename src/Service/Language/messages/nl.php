@@ -32,6 +32,19 @@ return [
     'ui.file.none' => 'Nog geen bestand gekozen',
     'ui.file.many' => ':count bestanden gekozen',
 
+    // --- Field help: the longer explanation behind a "?" (ADMIN-UI.md) -------
+    // Written for somebody who has never run a website. Double quotes where a
+    // blank line starts a new paragraph.
+    'help.settings.site_name' => "De naam van je bedrijf of website, zoals bezoekers je kennen.\n\nHij staat op meer plekken dan dit scherm laat zien: in het tabblad van de browser en in zoekresultaten zoals die van Google (achter de titel van een pagina), onderaan de website in de footer, op facturen van de webshop, en meestal ook als afzender van de e-mails die de website verstuurt.",
+    'help.settings.kvk_number' => "Het nummer waaronder je bedrijf bij de Kamer van Koophandel (KVK) is ingeschreven. Het bestaat uit acht cijfers.\n\nHet komt op facturen, en onderaan de website als je dat aanzet bij de instellingen van de footer. Heb je geen KVK-inschrijving, laat het dan leeg.",
+    'help.settings.email' => "Het algemene e-mailadres van je website.\n\nBerichten die bezoekers via een formulier sturen, komen hier binnen als je bij dat formulier geen eigen adres invult. Het adres staat ook in het contactblok, op facturen en – als je dat aanzet – onderaan de website. <strong>Gebruik een adres dat je echt leest.</strong>",
+    'help.settings.city' => "De plaats waar je bedrijf zit, of de regio waarin je werkt, zoals je dat aan bezoekers wilt laten zien – bijvoorbeeld naast het contactformulier.\n\nDit is geen postadres. Het adres dat op facturen komt, vul je in op het tabblad voor facturen.",
+    'help.settings.footer_description' => "Een of twee zinnen over je bedrijf. Ze staan onderaan elke pagina van de website, in de footer, bij je logo of naam.\n\nKort en concreet werkt het best: wat je doet en voor wie. Bijvoorbeeld: <em>Fietsenmaker in Utrecht: reparatie en onderhoud, ook op zaterdag.</em>",
+    'help.settings.primary_language' => "Je website bestaat in het Nederlands en in het Engels. Hier kies je welke van de twee een bezoeker als eerste ziet.\n\nOntbreekt ergens een vertaling, dan toont de website op die plek de tekst in deze taal. Het CMS zelf verandert hier niet van taal: dat stel je in bij <strong>Mijn account</strong>.",
+    'help.settings.seo_description' => "Een <strong>meta description</strong> is een korte omschrijving van een pagina. Zoekmachines zoals Google tonen hem vaak onder de titel in hun zoekresultaten; op de website zelf zie je hem niet.\n\nElke pagina kan een eigen omschrijving krijgen. Deze standaardtekst wordt alleen gebruikt op pagina's die er zelf geen hebben. Heb je niets algemeens te zeggen, laat hem dan leeg: overal dezelfde zin helpt niemand.",
+    'help.settings.robots' => "Zoekmachines zoals Google bezoeken websites om hun pagina's in de zoekresultaten op te nemen. Dat heet <strong>indexeren</strong>.\n\nStaat deze schakelaar aan, dan mag dat. Zet hem alleen uit zolang je website nog niet klaar is en nog niet gevonden mag worden, en zet hem weer aan zodra de website live gaat. Uit vraagt zoekmachines om geen enkele pagina op te nemen.",
+    'help.pages.overview' => "Hier staan alle pagina's van je website. Klik op een pagina om de tekst, de afbeeldingen of de instellingen te wijzigen, of maak met <strong>Nieuwe pagina</strong> een nieuwe pagina aan.",
+
     // --- Words that appear on more than one screen -------------------------
     'common.save' => 'Opslaan',
     'common.saved' => 'Opgeslagen',
@@ -173,6 +186,10 @@ return [
     'pages.fixed_url' => 'Contentpagina (vaste URL)',
     'pages.fixed_url_hint' => 'Gewone contentpagina op een vaste URL — alleen de slug ligt vast.',
     'pages.content_page' => 'Contentpagina',
+    'pages.search_label' => 'Zoek een pagina',
+    'pages.search_placeholder' => 'Zoek op titel of adres',
+    'pages.search_empty' => 'Geen pagina gevonden voor ":query".',
+    'pages.search_clear' => "Alle pagina's tonen",
     'pages.delete_confirm' => 'Deze pagina en alle secties erop definitief verwijderen? Dit kan niet ongedaan worden gemaakt.',
 
     // --- The page editor (admin/page.php, admin/page-new.php) --------------
@@ -331,7 +348,7 @@ return [
     'forms.bedankbericht_na_versturen' => 'Bedankbericht na versturen',
     'forms.tekst_verstuurknop_2' => 'Tekst op de verstuurknop',
     'forms.tekst_verstuurknop' => 'Tekst op de verstuurknop',
-    'forms.actief_uitgevinkt_formulier_nergens' => 'Actief (uitgevinkt = het formulier wordt nergens getoond, ook niet op pagina\'s waar het staat)',
+    'forms.actief_uitgevinkt_formulier_nergens' => 'Actief (uit = het formulier wordt nergens getoond, ook niet op pagina\'s waar het staat)',
     'forms.naam_alleen_jezelf_bezoekers' => 'Naam (alleen voor jezelf, bezoekers zien dit niet)',
     'forms.algemeen' => 'Algemeen',
     'forms.formulier_staat_enkele_pagina' => 'Dit formulier staat nog op geen enkele pagina. Voeg op een pagina het blok <strong>Formulier</strong> toe en kies dit formulier.',

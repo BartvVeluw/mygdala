@@ -245,6 +245,30 @@ class PageContent
     }
 
     /**
+     * Whether a page stays in the Pages overview for what an editor typed in
+     * its search field: its title, or the address it is served at — the
+     * publicUrl() the overview shows, so a fixed-route page is found by its
+     * route and not by a slug nobody sees. Case-insensitive, and an empty
+     * search keeps every page.
+     *
+     * admin/pages.php filters the rows it already loaded with this instead of
+     * querying again; a site's list of pages is never long enough to need it.
+     *
+     * @param array<string, mixed> $page
+     */
+    public static function matchesAdminSearch(array $page, string $query): bool
+    {
+        $query = trim($query);
+
+        if ($query === '') {
+            return true;
+        }
+
+        return mb_stripos((string) ($page['title'] ?? ''), $query) !== false
+            || mb_stripos(self::publicUrl($page), $query) !== false;
+    }
+
+    /**
      * Where a block editor's "&larr; back" link goes: the page builder for
      * the page that block is attached to, addressed by its content key.
      *

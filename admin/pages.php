@@ -21,6 +21,12 @@ use App\Repository\PageRepository;
  * Clicking a page opens admin/page.php: its settings (Title, Slug, Status,
  * SEO title, Meta description) followed by the page builder — one screen,
  * the same for an old page and a brand-new one.
+ *
+ * The search field filters the rows already loaded, in PHP, through
+ * PageContent::matchesAdminSearch(). A GET with ?q=, like the Media Library's
+ * and the blog's: it works without JavaScript, survives a reload and asks the
+ * database nothing new. The info panel above it is the shared one
+ * (admin/_admin_ui.php) and follows the help switch in the shell.
  */
 
 AdminAuth::requireLogin();
@@ -38,6 +44,14 @@ $deleted = isset($_GET['deleted']);
 
 $errors = $_SESSION['admin_page_errors'] ?? [];
 unset($_SESSION['admin_page_errors']);
+
+$searchQuery = is_string($_GET['q'] ?? null) ? mb_substr(trim($_GET['q']), 0, 100) : '';
+$visiblePages = $pages === null
+    ? null
+    : array_values(array_filter(
+        $pages,
+        static fn (array $page): bool => PageContent::matchesAdminSearch($page, $searchQuery)
+    ));
 
 $csrfToken = Csrf::token();
 $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
@@ -58,8 +72,10 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
       <h1 class="admin-page-head__title"><?= admin_te('pages.title') ?></h1>
       <p class="admin-page-head__desc"><?= admin_te('pages.intro') ?></p>
     </div>
-    <a href="/admin/page-new.php" class="admin-btn-link">+ <?= admin_te('pages.new') ?></a>
+    <a href="/admin/page-new.php" class="admin-btn-primary">+ <?= admin_te('pages.new') ?></a>
   </header>
+
+  <?= admin_info_panel(admin_t('help.pages.overview')) ?>
 
   <?php if ($created): ?>
     <p class="admin-alert admin-alert--success"><?= admin_te('pages.created') ?></p>
@@ -82,6 +98,20 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
   <?php elseif ($pages === []): ?>
     <p><?= admin_te('pages.empty') ?> <a href="/admin/page-new.php"><?= admin_te('pages.empty_link') ?></a>.</p>
   <?php else: ?>
+    <form method="get" action="/admin/pages.php" class="admin-toolbar" role="search">
+      <label class="admin-search">
+        <span class="admin-visually-hidden"><?= admin_te('pages.search_label') ?></span>
+        <input type="search" name="q" value="<?= $h($searchQuery) ?>" placeholder="<?= admin_te('pages.search_placeholder') ?>">
+      </label>
+      <button type="submit" class="admin-btn-secondary"><?= admin_te('common.search') ?></button>
+      <?php if ($searchQuery !== ''): ?>
+        <a href="/admin/pages.php" class="admin-btn-ghost"><?= admin_te('pages.search_clear') ?></a>
+      <?php endif; ?>
+    </form>
+
+    <?php if ($visiblePages === []): ?>
+      <p class="admin-text-muted"><?= admin_te('pages.search_empty', ['query' => $searchQuery]) ?></p>
+    <?php else: ?>
     <div class="admin-table-wrap">
       <table class="admin-table">
         <thead>
@@ -95,7 +125,7 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
           </tr>
         </thead>
         <tbody>
-          <?php foreach ($pages as $page): ?>
+          <?php foreach ($visiblePages as $page): ?>
             <?php
               $pageId = (int) $page['id'];
               $isPublished = PageContent::isPublished($page);
@@ -133,6 +163,7 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
         </tbody>
       </table>
     </div>
+    <?php endif; ?>
   <?php endif; ?>
 </main>
 </body>
