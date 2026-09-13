@@ -15,8 +15,9 @@ use PHPUnit\Framework\TestCase;
  * The authentication behaviour itself, against the real dev database and a
  * real PHP session — the questions no source inspection can answer: does a
  * deactivated account get in, does a changed password invalidate the old
- * one, does an already-signed-in account lose access the moment it is
- * disabled, and did the migration really leave the pre-existing login intact.
+ * one, and does an already-signed-in account lose access the moment it is
+ * disabled. Whether the migration carried the .env account over unchanged is
+ * Tests\Install\AdminAccountMigrationTest's question, on a database of its own.
  *
  * Accounts here use the same obviously-fake '__test_admin_user_*' prefix as
  * AdminUserRepositoryIntegrationTest and are removed in tearDown(). Real CMS
@@ -241,31 +242,5 @@ final class AdminAuthLoginTest extends TestCase
         foreach (AdminPermissions::all() as $permission) {
             $this->assertFalse(AdminAuth::can($permission), $permission);
         }
-    }
-
-    /**
-     * The migration had to carry the account that used to live in .env into
-     * the database *without changing the credential*. Comparing the stored
-     * hash with the configured one proves the owner's existing password still
-     * works, without this test ever knowing what that password is.
-     */
-    public function testTheExistingEnvAccountStillLogsInAfterTheMigration(): void
-    {
-        $credentials = AdminAuth::envCredentials();
-
-        if ($credentials === null) {
-            $this->markTestSkipped('No ADMIN_USERNAME/ADMIN_PASSWORD_HASH configured in this environment.');
-        }
-
-        $account = $this->repository->findByLogin($credentials['username']);
-
-        $this->assertNotNull($account, 'the .env admin account should exist in admin_users after the migration');
-        $this->assertTrue($account['is_super_admin'], 'it should have become the first Super Admin');
-        $this->assertTrue($account['is_active']);
-        $this->assertSame(
-            $credentials['password_hash'],
-            (string) $account['password_hash'],
-            'the migrated account must keep the exact hash that was configured in .env'
-        );
     }
 }

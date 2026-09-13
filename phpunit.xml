@@ -248,6 +248,7 @@
              keeping, not worth running on every edit. None of them reads
              what the test database happens to contain. -->
         <testsuite name="migration">
+            <file>tests/Install/AdminAccountMigrationTest.php</file>
             <file>tests/Install/FreshInstallRenderTest.php</file>
             <file>tests/Install/FreshInstallTest.php</file>
             <file>tests/Install/ContentLanguageSettingRepairTest.php</file>
@@ -316,6 +317,7 @@
             <file>tests/Service/MultilingualBoundaryTest.php</file>
             <file>tests/Install/ExampleEnvironmentTest.php</file>
             <file>tests/Install/MigrationTableNamesTest.php</file>
+            <file>tests/Install/AdminAccountMigrationTest.php</file>
             <file>tests/Install/FreshInstallRenderTest.php</file>
             <file>tests/Install/FreshInstallTest.php</file>
             <file>tests/Install/ContentLanguageSettingRepairTest.php</file>

@@ -2,6 +2,8 @@
 
 namespace Tests\Support;
 
+use App\Module\ModuleConfig;
+use App\Module\ModuleRegistry;
 use PDO;
 
 /**
@@ -28,6 +30,18 @@ use PDO;
  * databases, the same way scripts/test-db.php does. Where that is not
  * available — a production host, someone else's machine — {@see available()}
  * says so and the tests skip rather than fail for the wrong reason.
+ *
+ * AN UNCONFIGURED DEPLOYMENT. Every process run for a scratch install —
+ * phinx, and whatever runScript() starts — sees the variables in which a
+ * deployment makes its own choices as set but EMPTY: no APP_ENV, no APP_URL,
+ * no MODULE_<KEY>_ENABLED, no .env admin account, no shop address. Empty
+ * rather than absent, because Dotenv's immutable loader leaves a variable
+ * that is already set alone, so a .env file on the machine cannot fill them
+ * back in either. Without this, "what does a brand-new installation get" was
+ * answered for whatever the developer's own environment happened to say:
+ * robots.txt came out non-production and the Setup Wizard found its choices
+ * already pinned. A test about a CONFIGURED deployment says so itself, by
+ * passing those values to fresh().
  */
 final class ScratchInstall
 {
@@ -37,9 +51,29 @@ final class ScratchInstall
     /** phinx.php's `default_migration_table`. */
     private const MIGRATION_LOG = 'phinx_migration_log';
 
+    /**
+     * What an installation reads from the environment to decide something
+     * for itself. MODULE_<KEY>_ENABLED is not listed: it comes from
+     * ModuleRegistry, so a new module is covered without editing this.
+     */
+    private const DEPLOYMENT_CHOICES = [
+        'APP_ENV',
+        'APP_URL',
+        'ADMIN_USERNAME',
+        'ADMIN_PASSWORD_HASH',
+        'ADMIN_EMAIL',
+        'MAIL_FROM_ADDRESS',
+        'SHOP_NOTIFICATION_EMAIL',
+    ];
+
+    /**
+     * @param array<string, string> $environment deployment configuration the
+     *                                           test gave this installation
+     */
     private function __construct(
         public readonly string $database,
-        private readonly PDO $pdo
+        private readonly PDO $pdo,
+        private readonly array $environment = []
     ) {
     }
 
@@ -51,10 +85,14 @@ final class ScratchInstall
     /**
      * Builds a database from zero with every migration applied, as a
      * brand-new installation of this CMS.
+     *
+     * @param array<string, string> $environment what this deployment has
+     *        configured, on top of the unconfigured default — for example
+     *        the .env admin account a test wants the migrations to find
      */
-    public static function fresh(string $database): self
+    public static function fresh(string $database, array $environment = []): self
     {
-        $install = self::createEmpty($database);
+        $install = self::createEmpty($database, $environment);
         $install->migrate();
 
         return $install;
@@ -170,7 +208,7 @@ final class ScratchInstall
             $arguments
         );
 
-        return self::run($command, ['DB_DATABASE' => $this->database]);
+        return self::run($command, $this->environment());
     }
 
     public function drop(): void
@@ -180,7 +218,8 @@ final class ScratchInstall
 
     // ------------------------------------------------------------ internals
 
-    private static function createEmpty(string $database): self
+    /** @param array<string, string> $environment */
+    private static function createEmpty(string $database, array $environment = []): self
     {
         $root = self::rootConnection();
         $root->exec('DROP DATABASE IF EXISTS `' . $database . '`');
@@ -194,7 +233,7 @@ final class ScratchInstall
             PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
         ]);
 
-        return new self($database, $pdo);
+        return new self($database, $pdo, $environment);
     }
 
     private function migrate(?string $target = null): void
@@ -205,11 +244,28 @@ final class ScratchInstall
             $command[] = $target;
         }
 
-        [$status, $output] = self::run($command, ['DB_DATABASE' => $this->database]);
+        [$status, $output] = self::run($command, $this->environment());
 
         if ($status !== 0) {
             throw new \RuntimeException("Migrating {$this->database} failed:\n" . $output);
         }
+    }
+
+    /**
+     * The environment every process for this install runs under: its own
+     * database, then what the test configured, then an unconfigured
+     * deployment for everything else (see the class docblock).
+     *
+     * @return array<string, string>
+     */
+    private function environment(): array
+    {
+        $unconfigured = array_fill_keys(self::DEPLOYMENT_CHOICES, '');
+        foreach (ModuleRegistry::keys() as $moduleKey) {
+            $unconfigured[ModuleConfig::variableName($moduleKey)] = '';
+        }
+
+        return ['DB_DATABASE' => $this->database] + $this->environment + $unconfigured;
     }
 
     /**
@@ -221,8 +277,8 @@ final class ScratchInstall
     private static function run(array $command, array $environment): array
     {
         $descriptors = [1 => ['pipe', 'w'], 2 => ['pipe', 'w']];
-        // The scratch database name has to win over whatever DB_DATABASE the
-        // suite is running under, so it goes first: `+` keeps the left key.
+        // This install's own environment has to win over whatever the suite
+        // is running under, so it goes first: `+` keeps the left key.
         $inherited = array_map(static fn ($value): string => (string) $value, getenv());
         $process = proc_open($command, $descriptors, $pipes, self::root(), $environment + $inherited);
 

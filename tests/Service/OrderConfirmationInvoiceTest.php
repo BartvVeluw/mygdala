@@ -29,14 +29,38 @@ final class OrderConfirmationInvoiceTest extends TestCase
 {
     private const PRODUCT_SLUG = '__test_confirmation_invoice_product__';
     private const CUSTOMER_EMAIL = 'confirmation-invoice-test@__test__.invalid';
+    private const SHOP_NOTIFICATION_EMAIL = 'confirmation-invoice-shop@__test__.invalid';
 
     private ?int $productId = null;
     private ?int $customerId = null;
     /** @var array<int, int> */
     private array $orderIds = [];
 
+    /** What SHOP_NOTIFICATION_EMAIL held before this test; null when it was not set. */
+    private ?string $previousNotificationEmail = null;
+
+    /**
+     * Without a shop address OrderConfirmationService sends nothing at all,
+     * and every scenario here is about a shop that has one. Whether the
+     * machine running the suite happens to have it configured is not this
+     * test's business, so it configures its own.
+     */
+    protected function setUp(): void
+    {
+        $this->previousNotificationEmail = isset($_ENV['SHOP_NOTIFICATION_EMAIL'])
+            ? (string) $_ENV['SHOP_NOTIFICATION_EMAIL']
+            : null;
+        $_ENV['SHOP_NOTIFICATION_EMAIL'] = self::SHOP_NOTIFICATION_EMAIL;
+    }
+
     protected function tearDown(): void
     {
+        if ($this->previousNotificationEmail === null) {
+            unset($_ENV['SHOP_NOTIFICATION_EMAIL']);
+        } else {
+            $_ENV['SHOP_NOTIFICATION_EMAIL'] = $this->previousNotificationEmail;
+        }
+
         $db = Database::connection();
         $storage = new InvoiceStorage();
         foreach ($this->orderIds as $orderId) {
@@ -148,6 +172,7 @@ final class OrderConfirmationInvoiceTest extends TestCase
         $this->assertStringContainsString((string) $invoice['invoice_number'], $customerCall['attachments'][0]['name']);
         $this->assertFileExists($customerCall['attachments'][0]['path']);
 
+        $this->assertSame(self::SHOP_NOTIFICATION_EMAIL, $shopCall['to']);
         $this->assertSame([], $shopCall['attachments'], 'shop/internal notification email must not get the invoice attached');
     }
 
