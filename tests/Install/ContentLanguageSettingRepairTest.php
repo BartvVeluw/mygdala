@@ -67,7 +67,7 @@ final class ContentLanguageSettingRepairTest extends TestCase
 
     public function testAFreshInstallFromZeroStoresBothContentLanguages(): void
     {
-        $install = $this->buildUpToTheDefect('vanveluw_scratch_lang_fresh', static function (): void {
+        $install = $this->buildUpToTheDefect('mygdala_scratch_lang_fresh', static function (): void {
         });
 
         $this->assertSame(
@@ -90,7 +90,7 @@ final class ContentLanguageSettingRepairTest extends TestCase
 
     public function testAnInstallationWhoseOnlyEnglishIsInTheMenuIsRepaired(): void
     {
-        $install = $this->buildUpToTheDefect('vanveluw_scratch_lang_nav', static function (ScratchInstall $i): void {
+        $install = $this->buildUpToTheDefect('mygdala_scratch_lang_nav', static function (ScratchInstall $i): void {
             $i->pdo()->exec(
                 "UPDATE homepage_hero SET eyebrow_en = '', title_en = '', lead_en = '', primary_label_en = ''"
             );
@@ -107,7 +107,7 @@ final class ContentLanguageSettingRepairTest extends TestCase
 
     public function testAnInstallationWhoseOnlyEnglishIsInTheHomepageHeroIsRepaired(): void
     {
-        $install = $this->buildUpToTheDefect('vanveluw_scratch_lang_hero', static function (ScratchInstall $i): void {
+        $install = $this->buildUpToTheDefect('mygdala_scratch_lang_hero', static function (ScratchInstall $i): void {
             $i->pdo()->exec("UPDATE nav_items SET label_en = ''");
         });
 
@@ -126,7 +126,7 @@ final class ContentLanguageSettingRepairTest extends TestCase
 
     public function testADutchOnlyInstallationAlsoStoresBothBecauseThisProductIsBilingual(): void
     {
-        $install = $this->buildUpToTheDefect('vanveluw_scratch_lang_dutch', static function (ScratchInstall $i): void {
+        $install = $this->buildUpToTheDefect('mygdala_scratch_lang_dutch', static function (ScratchInstall $i): void {
             $i->pdo()->exec("UPDATE nav_items SET label_en = ''");
             $i->pdo()->exec(
                 "UPDATE homepage_hero SET eyebrow_en = '', title_en = '', lead_en = '', primary_label_en = ''"
@@ -150,7 +150,7 @@ final class ContentLanguageSettingRepairTest extends TestCase
 
     public function testAnInstallationWithNoContentAtAllStoresBoth(): void
     {
-        $install = $this->buildUpToTheDefect('vanveluw_scratch_lang_empty', static function (ScratchInstall $i): void {
+        $install = $this->buildUpToTheDefect('mygdala_scratch_lang_empty', static function (ScratchInstall $i): void {
             $pdo = $i->pdo();
             $pdo->exec('SET FOREIGN_KEY_CHECKS = 0');
             foreach (['page_sections', 'pages', 'nav_items', 'homepage_hero', 'footer_links', 'footer_columns'] as $table) {
@@ -170,7 +170,7 @@ final class ContentLanguageSettingRepairTest extends TestCase
 
     public function testTheRepairReachesADatabaseWhereTheFaultyMigrationAlreadyRan(): void
     {
-        $install = $this->buildUpToTheDefect('vanveluw_scratch_lang_upgrade', static function (): void {
+        $install = $this->buildUpToTheDefect('mygdala_scratch_lang_upgrade', static function (): void {
         });
 
         // Exactly the state a real installation was left in by the rollout.
@@ -198,7 +198,7 @@ final class ContentLanguageSettingRepairTest extends TestCase
 
     public function testTheStoredPrimaryLanguageDecidesTheOrder(): void
     {
-        $install = $this->buildUpToTheDefect('vanveluw_scratch_lang_primary', static function (ScratchInstall $i): void {
+        $install = $this->buildUpToTheDefect('mygdala_scratch_lang_primary', static function (ScratchInstall $i): void {
             // An owner whose site is written in English. Written before the
             // faulty migration, whose INSERT IGNORE then leaves it alone.
             $i->pdo()->exec(
@@ -219,7 +219,7 @@ final class ContentLanguageSettingRepairTest extends TestCase
 
     public function testTheCorrectionWritesOneRowAndWritingItAgainChangesNothing(): void
     {
-        $install = $this->buildUpToTheDefect('vanveluw_scratch_lang_twice', static function (): void {
+        $install = $this->buildUpToTheDefect('mygdala_scratch_lang_twice', static function (): void {
         });
 
         $install->catchUp();

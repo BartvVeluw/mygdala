@@ -696,10 +696,10 @@ final class PersonalizationValidationTest extends TestCase
         PersonalizationTestConfig::singleZone($productId, ['max_text_length' => 40]);
 
         $result = $this->validator->validate($productId, $this->payload([
-            ['zone_key' => 'default', 'text' => "Bart\r\nvan\tVeluw"],
+            ['zone_key' => 'default', 'text' => "Jan\r\nde\tJong"],
         ]));
 
-        $this->assertSame('Bart van Veluw', $result['zones'][0]['text_value']);
+        $this->assertSame('Jan de Jong', $result['zones'][0]['text_value']);
     }
 
     public function testTheCustomersExactCharactersArePreserved(): void

@@ -29,7 +29,7 @@ use Tests\Support\ScratchInstall;
 #[Group('migration-backfill')]
 final class LegacyUpgradeTest extends TestCase
 {
-    private const DATABASE = 'vanveluw_scratch_legacy';
+    private const DATABASE = 'mygdala_scratch_legacy';
 
     private static ?ScratchInstall $install = null;
 

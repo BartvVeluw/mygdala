@@ -215,7 +215,7 @@ final class FreshSiteCopyTest extends TestCase
 
     public function testItRefusesToWriteIntoANonEmptyDirectoryWithoutForce(): void
     {
-        $this->ownDestination = sys_get_temp_dir() . '/vvld-fresh-copy-busy-' . bin2hex(random_bytes(6));
+        $this->ownDestination = sys_get_temp_dir() . '/mygdala-fresh-copy-busy-' . bin2hex(random_bytes(6));
         mkdir($this->ownDestination, 0o775, true);
         file_put_contents($this->ownDestination . '/something.txt', 'in the way');
 
@@ -324,7 +324,7 @@ final class FreshSiteCopyTest extends TestCase
             return self::$sharedResult;
         }
 
-        self::$shared = sys_get_temp_dir() . '/vvld-fresh-copy-' . bin2hex(random_bytes(6));
+        self::$shared = sys_get_temp_dir() . '/mygdala-fresh-copy-' . bin2hex(random_bytes(6));
 
         return self::$sharedResult = $this->runScript([self::$shared]);
     }

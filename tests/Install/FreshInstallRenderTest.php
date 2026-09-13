@@ -38,7 +38,7 @@ use Tests\Support\ScratchInstall;
 #[Group('migration-backfill')]
 final class FreshInstallRenderTest extends TestCase
 {
-    private const DATABASE = 'vanveluw_scratch_render';
+    private const DATABASE = 'mygdala_scratch_render';
 
     /**
      * The current site's identity, matched case-insensitively. A brand-new

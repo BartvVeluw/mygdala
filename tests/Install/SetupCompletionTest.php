@@ -29,7 +29,7 @@ use Tests\Support\ScratchInstall;
 #[Group('migration-backfill')]
 final class SetupCompletionTest extends TestCase
 {
-    private const DATABASE = 'vanveluw_scratch_setup';
+    private const DATABASE = 'mygdala_scratch_setup';
 
     private const SITE_NAME = 'Atelier Testbedrijf';
     private const BASE_URL = 'https://www.testbedrijf.example';

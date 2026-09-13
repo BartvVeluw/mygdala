@@ -26,7 +26,7 @@ use Tests\Support\ScratchInstall;
 #[Group('migration-backfill')]
 final class AdminAccountMigrationTest extends TestCase
 {
-    private const DATABASE = 'vanveluw_scratch_admin_account';
+    private const DATABASE = 'mygdala_scratch_admin_account';
 
     private const USERNAME = '__test_env_admin__';
     private const PASSWORD = 'een-verzonnen-testwachtwoord';

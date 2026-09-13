@@ -32,7 +32,7 @@ use Tests\Support\ScratchInstall;
  */
 final class FreshInstallTest extends TestCase
 {
-    private const DATABASE = 'vanveluw_scratch_fresh';
+    private const DATABASE = 'mygdala_scratch_fresh';
 
     private static ?ScratchInstall $install = null;
 
