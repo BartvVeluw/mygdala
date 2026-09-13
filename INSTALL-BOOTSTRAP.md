@@ -86,18 +86,19 @@ De scheiding die dat oplost is dezelfde als hierboven, één laag lager:
 
 | Toestand | Betekenis | Wat er rendert |
 |---|---|---|
-| Geen rij, of database onbereikbaar | ontbrekende gegevens | `DEFAULTS` — de vangnetten blijven staan |
+| Geen rij, of database onbereikbaar | ontbrekende gegevens | niets — geen Hero, en geen vervangende tekst of foto |
 | Rij bestaat, afbeelding leeg | **een antwoord**: deze Hero heeft geen beeld | geen beeld, en geen markup ervoor |
 
-De mediavelden worden dus letterlijk uit de rij gelezen; alleen het
-ontbrekende-rij-pad komt nog bij `DEFAULTS` uit. `HomepageHeroContent::hasMedia()`
-is wat de renderer vraagt, en zonder beeld verdwijnt de hele mediakolom in
-plaats van een `<img src="">` achter te laten — een lege `src` verwijst naar de
-pagina zelf en levert het gebroken-afbeeldingicoon op.
+Een bestaande rij wordt letterlijk gelezen, tekst- en mediavelden allebei.
+`HomepageHeroContent::hasMedia()` is wat de renderer vraagt, en zonder beeld
+verdwijnt de hele mediakolom in plaats van een `<img src="">` achter te laten —
+een lege `src` verwijst naar de pagina zelf en levert het
+gebroken-afbeeldingicoon op.
 
-De **tekstvelden** houden hun terugval per veld. Een lege kop zou een lege
-`<h1>` renderen, en dat is slechter dan placeholdertekst; bovendien schrijft de
-bootstrap voor elk van die velden zijn eigen placeholder.
+Een lege kop komt in de praktijk niet voor: de editor eist hem, en de bootstrap
+schrijft voor elk verplicht veld zijn eigen placeholder. Diezelfde generieke
+placeholders krijgt ook een Hero-rij die de editor zelf aanmaakt
+(`HomepageHeroContent::startingValues()`).
 
 Wat een verse installatie verder niet meer toont: de mini-winkelwagen in de
 gedeelde schil rendert leeg in plaats van een voorbeeldproduct met een prijs,

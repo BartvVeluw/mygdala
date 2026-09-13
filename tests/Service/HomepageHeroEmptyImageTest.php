@@ -6,6 +6,7 @@ namespace Tests\Service;
 
 use App\Database;
 use App\Repository\HomepageHeroRepository;
+use App\Service\Blocks\BlockDefinitions;
 use App\Service\HomepageHeroContent;
 use PHPUnit\Framework\TestCase;
 
@@ -13,17 +14,15 @@ use PHPUnit\Framework\TestCase;
  * What an EMPTY hero image means, which turns out to be two different things.
  *
  * A missing row — a database that has never been migrated, or one that cannot
- * be reached — is missing data, and the DEFAULTS are the right answer to
- * that. A row that exists and stores an empty image is an answer: this Hero
- * has no image. Those two used to be the same branch, and the generic
- * bootstrap row deliberately stores an empty image, so every brand-new
- * installation of this CMS rendered Van Veluw Laserdesign's hero photograph
- * and its alt text on its homepage until somebody replaced it.
+ * be reached — is missing data, and there is nothing to render. A row that
+ * exists and stores an empty image is an answer: this Hero has no image. Those
+ * two used to be the same branch, and both fell back on hardcoded copy, so
+ * every brand-new installation of this CMS rendered the hero photograph of the
+ * site it grew out of until somebody replaced it.
  *
  * Four cases, and all four matter:
  *
- *   1. no stored row              DEFAULTS, unchanged — the legacy and
- *                                 database-unavailable safety net.
+ *   1. no stored row              no Hero at all — no fallback copy, no image.
  *   2. stored, image empty        no image, and no markup for one.
  *   3. stored, image configured   renders exactly as it always did.
  *   4. video, no poster           no empty poster attribute either.
@@ -209,7 +208,7 @@ final class HomepageHeroEmptyImageTest extends TestCase
         $this->assertSame('', $hero['image_alt_en']);
     }
 
-    public function testNoStoredRowStillFallsBackToTheDefaults(): void
+    public function testNoStoredRowRendersNoHeroAtAll(): void
     {
         $this->beginTransaction();
 
@@ -220,11 +219,21 @@ final class HomepageHeroEmptyImageTest extends TestCase
         HomepageHeroContent::clearCache();
         $hero = HomepageHeroContent::current();
 
-        // Unchanged behaviour, and deliberately so: a database that has never
-        // been migrated, or one that is down, must still render a page.
         $this->assertSame(HomepageHeroContent::STATE_FALLBACK, $hero['state']);
-        $this->assertSame(HomepageHeroContent::defaults()['image_path'], $hero['image_path']);
-        $this->assertSame(HomepageHeroContent::defaults()['image_alt_nl'], $hero['image_alt_nl']);
+        $this->assertSame('', $hero['image_path'], 'A missing row must not invent an image.');
+        $this->assertSame('', $hero['title_nl'], 'A missing row must not invent a headline.');
+
+        $definition = BlockDefinitions::get('homepage_hero');
+        $this->assertNotNull($definition);
+
+        ob_start();
+        try {
+            $definition->render(['id' => 0, 'section_type' => 'homepage_hero', 'page_slug' => HomepageHeroContent::PAGE_SLUG, 'section_key' => null, 'section_id' => 0], false, 'homepage_hero-0');
+        } finally {
+            $html = (string) ob_get_clean();
+        }
+
+        $this->assertSame('', trim($html), 'A missing Hero row must leave no hero section behind.');
     }
 
     public function testTheStoredHeroOfThisSiteStillHasItsImage(): void
@@ -261,19 +270,22 @@ final class HomepageHeroEmptyImageTest extends TestCase
      */
     private function hero(array $overrides = []): array
     {
-        $base = HomepageHeroContent::defaults();
-        $base['image_path'] = '';
-        $base['image_alt_nl'] = '';
-        $base['image_alt_en'] = '';
-        $base['secondary_label_nl'] = '';
-        $base['secondary_label_en'] = '';
-        $base['secondary_url'] = '';
-        $base['badge_title_nl'] = '';
-        $base['badge_title_en'] = '';
-        $base['badge_text_nl'] = '';
-        $base['badge_text_en'] = '';
-        $base['stats'] = [];
-        $base['state'] = HomepageHeroContent::STATE_ACTIVE;
+        $base = [
+            'eyebrow_nl' => 'Welkom', 'eyebrow_en' => 'Welcome',
+            'title_nl' => 'Nieuwe website', 'title_en' => 'New website',
+            'title_highlight_nl' => '', 'title_highlight_en' => '',
+            'title_highlight_size' => HomepageHeroContent::HIGHLIGHT_SIZE_DEFAULT,
+            'lead_nl' => '', 'lead_en' => '',
+            'primary_label_nl' => 'Meer informatie', 'primary_label_en' => 'Learn more', 'primary_url' => '/',
+            'secondary_label_nl' => '', 'secondary_label_en' => '', 'secondary_url' => '',
+            'image_path' => '', 'image_alt_nl' => '', 'image_alt_en' => '',
+            'badge_title_nl' => '', 'badge_title_en' => '', 'badge_text_nl' => '', 'badge_text_en' => '',
+            'media_type' => HomepageHeroContent::MEDIA_TYPE_IMAGE,
+            'video_path' => '',
+            'layout' => HomepageHeroContent::LAYOUT_MEDIA_RIGHT,
+            'stats' => [],
+            'state' => HomepageHeroContent::STATE_ACTIVE,
+        ];
 
         return array_merge($base, $overrides);
     }

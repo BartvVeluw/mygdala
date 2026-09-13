@@ -76,7 +76,7 @@ final class StatStripBlock extends BlockDefinition
     public function render(array $pageSection, bool $tightTop, string $revealGroup): void
     {
         $content = StatStripContent::forSection($this->pageSlug($pageSection), $this->sectionKey($pageSection));
-        if ($content['state'] === StatStripContent::STATE_HIDDEN) {
+        if ($content['state'] !== StatStripContent::STATE_ACTIVE) {
             return;
         }
 

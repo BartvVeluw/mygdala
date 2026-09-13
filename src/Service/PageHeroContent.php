@@ -10,31 +10,33 @@ use App\Repository\PageHeroRepository;
  * docs/CMS_CONTENT_AUDIT.md, "Recommended smallest next step", and
  * App\Service\SiteSettings for the equivalent pattern this mirrors.
  *
- * This is NOT a generic page builder: PAGES below is the fixed, known list
- * of pages that currently use this exact section type. Adding a new page to
- * this list (or a future, separate website installation reusing this same
- * table) only ever needs a new DEFAULTS entry here plus the matching PHP
- * markup on that page's template — never a schema change.
+ * PAGES below is the fixed, known list of pages that had this section before
+ * the page builder existed; any other page gets one by attaching the block
+ * (App\Service\Blocks\PageHeroBlock::create()). Never a schema change. An
+ * empty *_en value on an active row falls back to the *_nl value, matching
+ * the NL-fallback convention already used elsewhere on this site (e.g.
+ * products).
  *
- * DEFAULTS is the fallback used whenever a page's row is missing, or the
- * database is unreachable, so the public site never breaks because of a CMS
- * content problem — it silently falls back to the values that used to be
- * hardcoded. An empty *_en value on an active row falls back to the *_nl
- * value, matching the NL-fallback convention already used elsewhere on this
- * site (e.g. products).
+ * There is no hardcoded fallback copy, per page or per field. A missing row,
+ * or a lookup that fails, is STATE_FALLBACK: there is nothing to render, and a
+ * failure is logged. An active row renders exactly what it stores; the editor
+ * requires eyebrow, title and breadcrumb label, so an empty one only comes
+ * from data written outside it. See CONTENT-BLOCKS.md, "Het inhoudscontract".
  *
- * `is_active = false` on an *existing* row is a different, deliberate case:
- * it means the site owner has intentionally hidden this Page Hero, and must
- * NOT fall back to the defaults — that would make the "Actief" checkbox
- * unable to actually hide anything. forSlug()'s returned `state` field is
- * how a template tells the three cases apart: STATE_FALLBACK (no row / DB
- * unreachable — render the defaults), STATE_ACTIVE (row is active — render
- * its content) and STATE_HIDDEN (row exists and is_active = false — render
+ * startingValues() is a different thing: what a Page hero that does not exist
+ * yet starts out with in the editor and in PageHeroBlock::create(). Generic
+ * and meant to be edited, and never rendered in place of a stored row.
+ *
+ * `is_active = false` on an *existing* row is a deliberate hide, and a
+ * different case from a missing row. forSlug()'s returned `state` field is how
+ * a template tells the three cases apart: STATE_FALLBACK (no row / DB
+ * unreachable — nothing to render), STATE_ACTIVE (row is active — render its
+ * content) and STATE_HIDDEN (row exists and is_active = false — render
  * nothing for this section).
  */
 class PageHeroContent
 {
-    /** No row exists (or the row lookup failed) — rendering DEFAULTS. */
+    /** No row exists (or the row lookup failed) — nothing to render. */
     public const STATE_FALLBACK = 'fallback';
 
     /** A row exists and is_active = true — rendering its own content. */
@@ -55,59 +57,6 @@ class PageHeroContent
         'shop' => 'Shop',
     ];
 
-    private const DEFAULTS = [
-        'diensten' => [
-            'eyebrow_nl' => 'Diensten',
-            'eyebrow_en' => 'Services',
-            'title_nl' => 'Lasergravure voor elk materiaal',
-            'title_en' => 'Laser engraving for every material',
-            'lead_nl' => 'Hout, metaal, acryl of glas — elk materiaal vraagt om een andere laser, instelling en afwerking. Hieronder lees je per materiaal wat er mogelijk is, met voorbeelden uit eerder werk.',
-            'lead_en' => "Wood, metal, acrylic or glass — every material calls for a different laser, setting and finish. Below you'll find what's possible per material, with examples from past work.",
-            'breadcrumb_label_nl' => 'Diensten',
-            'breadcrumb_label_en' => 'Services',
-        ],
-        'portfolio' => [
-            'eyebrow_nl' => 'Portfolio',
-            'eyebrow_en' => 'Portfolio',
-            'title_nl' => 'Een greep uit eerder werk',
-            'title_en' => 'A glimpse of past work',
-            'lead_nl' => 'Van een gegraveerde snijplank voor een bruiloft tot een aluminium visitekaartje voor een barbershop — hieronder een selectie van wat er allemaal mogelijk is.',
-            'lead_en' => "From an engraved cutting board for a wedding to an aluminium business card for a barbershop — below is a selection of what's possible.",
-            'breadcrumb_label_nl' => 'Portfolio',
-            'breadcrumb_label_en' => 'Portfolio',
-        ],
-        'over-mij' => [
-            'eyebrow_nl' => 'Over mij',
-            'eyebrow_en' => 'About',
-            'title_nl' => 'Ontwerp en ambacht, samen in één gravure',
-            'title_en' => 'Design and craft, together in one engraving',
-            'lead_nl' => '',
-            'lead_en' => '',
-            'breadcrumb_label_nl' => 'Over mij',
-            'breadcrumb_label_en' => 'About',
-        ],
-        'contact' => [
-            'eyebrow_nl' => 'Contact',
-            'eyebrow_en' => 'Contact',
-            'title_nl' => 'Vertel me over jouw idee',
-            'title_en' => 'Tell me about your idea',
-            'lead_nl' => 'Heb je interesse in een gepersonaliseerde bestelling of zakelijke opdracht? Vul het formulier in en ik denk graag met je mee over ontwerp, materiaal en mogelijkheden.',
-            'lead_en' => "Interested in a personalised order or business commission? Fill in the form and I'll be happy to think along about design, material and options.",
-            'breadcrumb_label_nl' => 'Contact',
-            'breadcrumb_label_en' => 'Contact',
-        ],
-        'shop' => [
-            'eyebrow_nl' => 'Shop',
-            'eyebrow_en' => 'Shop',
-            'title_nl' => 'Gegraveerde producten, klaar om te bestellen',
-            'title_en' => 'Engraved products, ready to order',
-            'lead_nl' => 'Naast maatwerk op aanvraag komen hier ook kant-en-klare producten die je direct kunt bestellen — de webshop wordt geleidelijk uitgebreid.',
-            'lead_en' => 'Alongside custom commissions, this is where ready-made products you can order directly will appear — the shop is gradually being expanded.',
-            'breadcrumb_label_nl' => 'Shop',
-            'breadcrumb_label_en' => 'Shop',
-        ],
-    ];
-
     /** @var array<string, array<string, string>> */
     private static array $cache = [];
 
@@ -115,13 +64,12 @@ class PageHeroContent
      * @return array<string, string> 'state' (one of STATE_*), plus
      *                                eyebrow_nl/en, title_nl/en, lead_nl/en,
      *                                breadcrumb_label_nl/en — lead_* may be
-     *                                ''. Templates must check 'state' !==
-     *                                STATE_HIDDEN before rendering the
-     *                                section at all; the content fields are
-     *                                still populated (with DEFAULTS) even
-     *                                when hidden, purely so a template that
-     *                                forgets the check fails safe instead of
-     *                                emitting empty markup.
+     *                                ''. Templates must only render the
+     *                                section when 'state' === STATE_ACTIVE;
+     *                                the content fields are still present
+     *                                (empty) otherwise, purely so a template
+     *                                that forgets the check fails safe
+     *                                instead of erroring on a missing key.
      */
     public static function forSlug(string $pageSlug): array
     {
@@ -129,38 +77,29 @@ class PageHeroContent
             return self::$cache[$pageSlug];
         }
 
-        // A slug not in DEFAULTS is a page-builder-attached instance rather
-        // than one of the originally hardcoded pages — it has no hardcoded
-        // fallback copy (there is nothing to fall back TO), so an
-        // unreachable database degrades to an empty section instead of
-        // throwing. Its own DB row (created with placeholder text by
-        // SectionRegistry::create()) is what actually renders in the normal
-        // case.
-        $defaults = self::DEFAULTS[$pageSlug] ?? self::emptyDefaults();
-
         $row = null;
         try {
             $row = (new PageHeroRepository())->findBySlug($pageSlug);
         } catch (\Throwable $e) {
-            error_log('[PageHeroContent] falling back to defaults for "' . $pageSlug . '": ' . $e->getMessage());
+            error_log('[PageHeroContent] lookup failed for "' . $pageSlug . '": ' . $e->getMessage());
         }
 
         if ($row === null) {
-            return self::$cache[$pageSlug] = $defaults + ['state' => self::STATE_FALLBACK];
+            return self::$cache[$pageSlug] = self::emptyContent() + ['state' => self::STATE_FALLBACK];
         }
 
         if (!(bool) $row['is_active']) {
-            // Intentionally hidden: NOT a fallback case. The content fields
-            // are filled with defaults only as a defensive fallback for a
-            // template that forgets to check 'state' — see forSlug() docblock.
-            return self::$cache[$pageSlug] = $defaults + ['state' => self::STATE_HIDDEN];
+            // Intentionally hidden: the content fields are still filled in
+            // (empty) purely so a template that forgets to check 'state'
+            // fails safe instead of erroring on a missing key.
+            return self::$cache[$pageSlug] = self::emptyContent() + ['state' => self::STATE_HIDDEN];
         }
 
         $content = [
-            'eyebrow_nl' => self::valueOrDefault($row['eyebrow_nl'] ?? null, $defaults['eyebrow_nl']),
-            'title_nl' => self::valueOrDefault($row['title_nl'] ?? null, $defaults['title_nl']),
+            'eyebrow_nl' => (string) ($row['eyebrow_nl'] ?? ''),
+            'title_nl' => (string) ($row['title_nl'] ?? ''),
             'lead_nl' => (string) ($row['lead_nl'] ?? ''),
-            'breadcrumb_label_nl' => self::valueOrDefault($row['breadcrumb_label_nl'] ?? null, $defaults['breadcrumb_label_nl']),
+            'breadcrumb_label_nl' => (string) ($row['breadcrumb_label_nl'] ?? ''),
         ];
 
         $content['eyebrow_en'] = self::valueOrDefault($row['eyebrow_en'] ?? null, $content['eyebrow_nl']);
@@ -173,11 +112,26 @@ class PageHeroContent
     }
 
     /**
+     * What a Page hero that does not exist yet starts out with: the editor's
+     * form for a page without a row (admin/page-hero.php) and the row
+     * PageHeroBlock::create() writes. Generic, editable copy that fills the
+     * three fields the editor requires — never rendered in place of a stored
+     * row, which forSlug() answers with nothing when it is missing.
+     *
      * @return array<string, string>
      */
-    public static function defaultsForSlug(string $pageSlug): array
+    public static function startingValues(string $pageLabel): array
     {
-        return self::DEFAULTS[$pageSlug] ?? [];
+        return [
+            'eyebrow_nl' => 'Nieuw',
+            'eyebrow_en' => '',
+            'title_nl' => 'Nieuwe sectie — pas deze titel aan',
+            'title_en' => '',
+            'lead_nl' => '',
+            'lead_en' => '',
+            'breadcrumb_label_nl' => $pageLabel,
+            'breadcrumb_label_en' => '',
+        ];
     }
 
     /**
@@ -197,7 +151,7 @@ class PageHeroContent
     /**
      * @return array<string, string>
      */
-    private static function emptyDefaults(): array
+    private static function emptyContent(): array
     {
         return [
             'eyebrow_nl' => '', 'eyebrow_en' => '',

@@ -19,10 +19,11 @@ $repository = new HomepageHeroRepository();
 
 $hero = $repository->findBySlug(HomepageHeroContent::PAGE_SLUG);
 if ($hero === null) {
-    // First time this editor is opened: create the row now (seeded with its
-    // known defaults) so stats can be attached to it. is_active is always
-    // true — this editor never exposes a whole-Hero visibility checkbox.
-    $repository->upsert(HomepageHeroContent::PAGE_SLUG, HomepageHeroContent::defaults() + ['is_active' => true]);
+    // First time this editor is opened: create the row now, with the generic
+    // starting values every new Hero gets, so stats can be attached to it.
+    // is_active is always true — this editor never exposes a whole-Hero
+    // visibility checkbox.
+    $repository->upsert(HomepageHeroContent::PAGE_SLUG, HomepageHeroContent::startingValues() + ['is_active' => true]);
     $hero = $repository->findBySlug(HomepageHeroContent::PAGE_SLUG);
 }
 

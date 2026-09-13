@@ -47,9 +47,10 @@ $repository = new StepListRepository();
 
 $stepListSection = $repository->findBySlugAndKey($pageSlug, $sectionKeyPart);
 if ($stepListSection === null) {
-    // First time this section is opened in the admin: create the row now
-    // (seeded with its known defaults) so steps can be attached to it.
-    $repository->upsertSection($pageSlug, $sectionKeyPart, StepListContent::defaultsForSection($pageSlug, $sectionKeyPart) + ['is_active' => true]);
+    // First time this section is opened in the admin: create the row now,
+    // empty and active exactly as StepListBlock::create() does, so steps can
+    // be attached to it.
+    $repository->upsertSection($pageSlug, $sectionKeyPart, ['is_active' => true]);
     $stepListSection = $repository->findBySlugAndKey($pageSlug, $sectionKeyPart);
 }
 

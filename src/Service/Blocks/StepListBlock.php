@@ -77,7 +77,7 @@ final class StepListBlock extends BlockDefinition
     public function render(array $pageSection, bool $tightTop, string $revealGroup): void
     {
         $content = StepListContent::forSection($this->pageSlug($pageSection), $this->sectionKey($pageSection));
-        if ($content['state'] === StepListContent::STATE_HIDDEN) {
+        if ($content['state'] !== StepListContent::STATE_ACTIVE) {
             return;
         }
 

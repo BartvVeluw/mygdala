@@ -52,14 +52,13 @@ twee van de drie toestanden renderen niets:
 Losse items volgen die regel niet: een individueel verborgen item blijft
 verborgen, ook als de lijst daardoor leeg is.
 
-**Neem de oudste blokken hierin niet als voorbeeld.** `FaqContent`,
-`FeatureGridContent`, `HomepageHeroContent`, `PageHeroContent`,
-`StatStripContent`, `StepListContent` en `TextImageSplitContent` dragen nog een
-`DEFAULTS`-constante met de teksten van de site waaruit dit CMS is gegroeid.
-Dat is werk dat niet af is, geen patroon om te kopiëren:
-`docs/content-blocks/DECISIONS.md`, "Geen hardcoded fallback-copy meer", legt
-uit waarom dat vangnet niets meer kon vangen. Een nieuw blok volgt
-`CtaBandContent::emptyContent()`.
+**Een lege structuur, geen fallback-copy.** Bij `STATE_FALLBACK` en
+`STATE_HIDDEN` geeft een `*Content`-klasse dezelfde velden terug, maar leeg; een
+nieuw blok volgt `CtaBandContent::emptyContent()`. Waarmee een nog niet
+bestaande rij in de editor begint, is een aparte vraag met een eigen methode,
+zoals `PageHeroContent::startingValues()`: generieke, bewerkbare tekst die
+nooit rendert in plaats van een ontbrekende rij. `Tests\Service\NoFallbackCopyTest`
+en `GenericBlockDefaultsTest` bewaken beide.
 
 ## Waar je op moet letten
 

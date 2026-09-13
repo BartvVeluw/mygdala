@@ -11,31 +11,24 @@ use App\Repository\StepListRepository;
  * item for item).
  *
  * Not a generic page builder: SECTIONS below is the fixed, known list of
- * (page_slug, section_key) step list blocks that currently exist on the
- * site. Adding a new step list to an existing or new page only ever needs a
- * new SECTIONS entry + DEFAULTS entry here, plus the matching PHP loop on
- * that page's template — never a schema change.
+ * (page_slug, section_key) step list blocks that predate the page builder,
+ * kept for their admin-facing labels. Adding a step list to a page never
+ * needs a schema change.
  *
- * DEFAULTS is the fallback used whenever a section's row is missing, or the
- * database is unreachable, so the public site never breaks because of a CMS
- * content problem — it silently falls back to the exact steps that used to
- * be hardcoded.
+ * There is no hardcoded fallback copy. A missing row, or a lookup that fails,
+ * is STATE_FALLBACK: there is nothing to render, and a failure is logged. See
+ * CONTENT-BLOCKS.md, "Het inhoudscontract".
  *
- * `is_active = false` on an *existing* section row is a different,
- * deliberate case: it means the site owner has intentionally hidden the
- * whole section (heading + steps), and must NOT fall back to the defaults —
- * that would make the "Actief" checkbox unable to actually hide anything.
- * forSection()'s returned `state` field is how a template tells the three
- * cases apart: STATE_FALLBACK (no row / DB unreachable — render the default
- * heading + steps), STATE_ACTIVE (row is active — render its own heading +
- * steps) and STATE_HIDDEN (row exists and is_active = false — render
- * nothing for this section).
+ * `is_active = false` on an *existing* section row is a deliberate hide, and a
+ * different case from a missing row. forSection()'s returned `state` field is
+ * how a template tells the three cases apart: STATE_FALLBACK (no row / DB
+ * unreachable — nothing to render), STATE_ACTIVE (row is active — render its
+ * own heading + steps) and STATE_HIDDEN (row exists and is_active = false —
+ * render nothing for this section).
  *
  * Once a section's row exists and is active, its *items* come strictly from
  * the database (only is_active = 1 items), even if that list is empty — an
- * individually hidden/deleted step must stay hidden, not fall back to the
- * defaults. Defaults only apply when the whole section is missing/
- * unreachable, never per missing/hidden item.
+ * individually hidden/deleted step stays hidden.
  *
  * Step numbers ("1", "2", ...) are deliberately NOT a content field: the
  * frontend numbers steps purely from their display order via a CSS counter
@@ -44,7 +37,7 @@ use App\Repository\StepListRepository;
  */
 class StepListContent
 {
-    /** No row exists (or the row lookup failed) — rendering DEFAULTS. */
+    /** No row exists (or the row lookup failed) — nothing to render. */
     public const STATE_FALLBACK = 'fallback';
 
     /** A row exists and is_active = true — rendering its own heading + items. */
@@ -67,41 +60,6 @@ class StepListContent
         ],
     ];
 
-    private const DEFAULTS = [
-        'index:werkwijze' => [
-            'eyebrow_nl' => 'Werkwijze',
-            'eyebrow_en' => 'Process',
-            'title_nl' => 'Van idee naar eindproduct',
-            'title_en' => 'From idea to finished piece',
-            'items' => [
-                [
-                    'title_nl' => 'Contact & wens',
-                    'title_en' => 'Get in touch',
-                    'body_nl' => 'Je stuurt je idee, foto of voorbeeld via het contactformulier. Ik denk mee over wat mogelijk is.',
-                    'body_en' => "Send your idea, a photo or an example through the contact form. I'll think along about what's possible.",
-                ],
-                [
-                    'title_nl' => 'Ontwerp op maat',
-                    'title_en' => 'Custom design',
-                    'body_nl' => 'Samen bepalen we tekst, plaatsing, materiaal en formaat, tot het ontwerp helemaal klopt.',
-                    'body_en' => 'Together we settle on text, placement, material and size, until the design feels exactly right.',
-                ],
-                [
-                    'title_nl' => 'Graveren met precisie',
-                    'title_en' => 'Precision engraving',
-                    'body_nl' => 'Met de CO₂- en MOPA-laser breng ik de gravure nauwkeurig en zorgvuldig aan.',
-                    'body_en' => 'Using the CO₂ and MOPA laser, I engrave the piece with care and precision.',
-                ],
-                [
-                    'title_nl' => 'Ophalen of verzenden',
-                    'title_en' => 'Pick up or delivery',
-                    'body_nl' => 'Je product wordt afgewerkt en is klaar om op te halen in Nijmegen of te verzenden.',
-                    'body_en' => 'Your piece is finished and ready for pickup in Nijmegen or for shipping.',
-                ],
-            ],
-        ],
-    ];
-
     /** @var array<string, array<string, mixed>> */
     private static array $cache = [];
 
@@ -110,13 +68,12 @@ class StepListContent
      *                                eyebrow_nl/en, title_nl/en, and
      *                                'items': list of
      *                                title_nl/en/body_nl/en. Templates must
-     *                                check 'state' !== STATE_HIDDEN before
-     *                                rendering the section at all; the
-     *                                content fields are still populated
-     *                                (with DEFAULTS) even when hidden,
+     *                                only render the section when 'state'
+     *                                === STATE_ACTIVE; the content fields
+     *                                are still present (empty) otherwise,
      *                                purely so a template that forgets the
-     *                                check fails safe instead of emitting
-     *                                empty markup.
+     *                                check fails safe instead of erroring on
+     *                                a missing key.
      */
     public static function forSection(string $pageSlug, string $sectionKey): array
     {
@@ -126,29 +83,24 @@ class StepListContent
             return self::$cache[$cacheKey];
         }
 
-        // A page-builder-attached instance not in DEFAULTS has no hardcoded
-        // fallback copy — an unreachable database degrades to an empty step
-        // list rather than throwing.
-        $defaults = self::DEFAULTS[$cacheKey] ?? ['eyebrow_nl' => '', 'eyebrow_en' => '', 'title_nl' => '', 'title_en' => '', 'items' => []];
-
         try {
             $repository = new StepListRepository();
             $row = $repository->findBySlugAndKey($pageSlug, $sectionKey);
         } catch (\Throwable $e) {
-            error_log('[StepListContent] falling back to defaults for "' . $cacheKey . '": ' . $e->getMessage());
+            error_log('[StepListContent] lookup failed for "' . $cacheKey . '": ' . $e->getMessage());
 
-            return self::$cache[$cacheKey] = $defaults + ['state' => self::STATE_FALLBACK];
+            return self::$cache[$cacheKey] = self::emptyContent() + ['state' => self::STATE_FALLBACK];
         }
 
         if ($row === null) {
-            return self::$cache[$cacheKey] = $defaults + ['state' => self::STATE_FALLBACK];
+            return self::$cache[$cacheKey] = self::emptyContent() + ['state' => self::STATE_FALLBACK];
         }
 
         if (!(bool) $row['is_active']) {
-            // Intentionally hidden: NOT a fallback case. The content fields
-            // are filled with defaults only as a defensive fallback for a
-            // template that forgets to check 'state' — see forSection() docblock.
-            return self::$cache[$cacheKey] = $defaults + ['state' => self::STATE_HIDDEN];
+            // Intentionally hidden: the content fields are still filled in
+            // (empty) purely so a template that forgets to check 'state'
+            // fails safe instead of erroring on a missing key.
+            return self::$cache[$cacheKey] = self::emptyContent() + ['state' => self::STATE_HIDDEN];
         }
 
         $content = [
@@ -161,16 +113,16 @@ class StepListContent
         try {
             $items = $repository->findItemsBySectionId((int) $row['id'], true);
         } catch (\Throwable $e) {
-            error_log('[StepListContent] falling back to defaults for "' . $cacheKey . '" (items lookup failed): ' . $e->getMessage());
+            error_log('[StepListContent] items lookup failed for "' . $cacheKey . '": ' . $e->getMessage());
 
-            return self::$cache[$cacheKey] = $defaults + ['state' => self::STATE_FALLBACK];
+            return self::$cache[$cacheKey] = self::emptyContent() + ['state' => self::STATE_FALLBACK];
         }
 
         // Only is_active items are queried above, and whatever comes back —
         // including an empty list — is authoritative: a section row that
         // exists and is active means the admin has deliberately curated its
         // steps, so an empty result is "all steps hidden/deleted", not
-        // "missing data", and must not fall back to the defaults above.
+        // "missing data".
         $content['items'] = array_map(static function (array $item): array {
             $titleNl = (string) $item['title_nl'];
             $bodyNl = (string) $item['body_nl'];
@@ -189,25 +141,6 @@ class StepListContent
     }
 
     /**
-     * Section-level fields only (no 'items') — used by the admin edit page
-     * to pre-fill the section-heading form the first time a section is
-     * edited.
-     *
-     * @return array<string, string>
-     */
-    public static function defaultsForSection(string $pageSlug, string $sectionKey): array
-    {
-        $defaults = self::DEFAULTS[$pageSlug . ':' . $sectionKey] ?? null;
-        if ($defaults === null) {
-            return [];
-        }
-
-        unset($defaults['items']);
-
-        return $defaults;
-    }
-
-    /**
      * Clears the in-process cache — used by the admin save handlers right
      * after writing a new value, and by tests.
      */
@@ -219,5 +152,13 @@ class StepListContent
     private static function valueOrDefault(?string $value, string $default): string
     {
         return ($value !== null && $value !== '') ? $value : $default;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private static function emptyContent(): array
+    {
+        return ['eyebrow_nl' => '', 'eyebrow_en' => '', 'title_nl' => '', 'title_en' => '', 'items' => []];
     }
 }

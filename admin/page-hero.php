@@ -61,7 +61,7 @@ if ($old !== null) {
             'is_active' => (bool) $row['is_active'],
         ];
     } else {
-        $values = PageHeroContent::defaultsForSlug($slug) + ['is_active' => true];
+        $values = PageHeroContent::startingValues((string) $pageLabel) + ['is_active' => true];
     }
 }
 

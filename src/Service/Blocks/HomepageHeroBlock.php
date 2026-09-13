@@ -68,7 +68,7 @@ final class HomepageHeroBlock extends BlockDefinition
         $repository = new HomepageHeroRepository();
 
         if ($repository->findBySlug(HomepageHeroContent::PAGE_SLUG) === null) {
-            $repository->upsert(HomepageHeroContent::PAGE_SLUG, HomepageHeroContent::defaults() + ['is_active' => true]);
+            $repository->upsert(HomepageHeroContent::PAGE_SLUG, HomepageHeroContent::startingValues() + ['is_active' => true]);
         }
 
         $row = $repository->findBySlug(HomepageHeroContent::PAGE_SLUG);
@@ -84,7 +84,7 @@ final class HomepageHeroBlock extends BlockDefinition
     public function render(array $pageSection, bool $tightTop, string $revealGroup): void
     {
         $content = HomepageHeroContent::current();
-        if ($content['state'] === HomepageHeroContent::STATE_HIDDEN) {
+        if ($content['state'] !== HomepageHeroContent::STATE_ACTIVE) {
             return;
         }
 

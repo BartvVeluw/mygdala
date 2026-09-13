@@ -77,7 +77,7 @@ final class FaqBlock extends BlockDefinition
     public function render(array $pageSection, bool $tightTop, string $revealGroup): void
     {
         $content = FaqContent::forSection($this->pageSlug($pageSection), $this->sectionKey($pageSection));
-        if ($content['state'] === FaqContent::STATE_HIDDEN) {
+        if ($content['state'] !== FaqContent::STATE_ACTIVE) {
             return;
         }
 

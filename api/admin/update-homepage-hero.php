@@ -123,22 +123,24 @@ $repository = new HomepageHeroRepository();
 
 try {
     $current = $repository->findBySlug(HomepageHeroContent::PAGE_SLUG);
+    // Without a row yet, the media fields start where every new Hero starts.
+    $startingValues = HomepageHeroContent::startingValues();
     $carriedFields = $current !== null
         ? [
             'image_path' => (string) $current['image_path'],
             'image_alt_nl' => (string) $current['image_alt_nl'],
             'image_alt_en' => (string) ($current['image_alt_en'] ?? ''),
-            'media_type' => (string) ($current['media_type'] ?? HomepageHeroContent::defaults()['media_type']),
+            'media_type' => (string) ($current['media_type'] ?? $startingValues['media_type']),
             'video_path' => (string) ($current['video_path'] ?? ''),
-            'layout' => (string) ($current['layout'] ?? HomepageHeroContent::defaults()['layout']),
+            'layout' => (string) ($current['layout'] ?? $startingValues['layout']),
         ]
         : [
-            'image_path' => HomepageHeroContent::defaults()['image_path'],
-            'image_alt_nl' => HomepageHeroContent::defaults()['image_alt_nl'],
-            'image_alt_en' => HomepageHeroContent::defaults()['image_alt_en'],
-            'media_type' => HomepageHeroContent::defaults()['media_type'],
-            'video_path' => HomepageHeroContent::defaults()['video_path'],
-            'layout' => HomepageHeroContent::defaults()['layout'],
+            'image_path' => $startingValues['image_path'],
+            'image_alt_nl' => $startingValues['image_alt_nl'],
+            'image_alt_en' => $startingValues['image_alt_en'],
+            'media_type' => $startingValues['media_type'],
+            'video_path' => $startingValues['video_path'],
+            'layout' => $startingValues['layout'],
         ];
 
     $repository->upsert(HomepageHeroContent::PAGE_SLUG, $fields + $carriedFields + ['is_active' => true]);

@@ -13,16 +13,13 @@ use App\Service\Media\BlockImage;
  * repeaters on one section instead of one: paragraphs and images.
  *
  * Not a generic page builder: SECTIONS below is the fixed, known list of
- * (page_slug, section_key) Text + image split blocks that currently exist
- * on the site — verified by inspecting every `.service-detail__head` usage
- * on the whole site before writing this schema (over-mij.php has exactly
- * two; diensten.php's `.service-detail__head` usages are the larger,
- * unrelated "Material/service detail" type with points-lists, not plain
- * text+image, and are out of scope). Adding a new block to an existing or
- * new page only ever needs a new SECTIONS entry + DEFAULTS entry here, plus
- * the matching PHP loop on that page's template — never a schema change
- * (section_key is what lets a page have more than one of these blocks
- * without a schema rewrite).
+ * (page_slug, section_key) Text + image split blocks that predate the page
+ * builder, kept for their admin-facing labels (over-mij.php had exactly two;
+ * diensten.php's `.service-detail__head` usages are the larger, unrelated
+ * "Material/service detail" type with points-lists, not plain text+image, and
+ * are out of scope). Adding a block to a page never needs a schema change
+ * (section_key is what lets a page have more than one of these blocks without
+ * a schema rewrite).
  *
  * `layout` ('image_left' | 'image_right') picks between two fixed markup
  * branches the template already has — it is the only "variant" field this
@@ -47,29 +44,24 @@ use App\Service\Media\BlockImage;
  * half-filled button (label without URL, or vice versa) is treated as "no
  * button", never rendered as a broken link.
  *
- * DEFAULTS is the fallback used whenever a section's row is missing, or the
- * database is unreachable, so the public site never breaks because of a CMS
- * content problem — it silently falls back to the exact content that used
- * to be hardcoded.
+ * There is no hardcoded fallback copy. A missing row, or a lookup that fails,
+ * is STATE_FALLBACK: there is nothing to render, and a failure is logged. See
+ * CONTENT-BLOCKS.md, "Het inhoudscontract".
  *
- * `is_active = false` on an *existing* section row is a different,
- * deliberate case: it means the site owner has intentionally hidden the
- * whole section, and must NOT fall back to the defaults — that would make
- * the "Actief" checkbox unable to actually hide anything. forSection()'s
- * returned `state` field is how a template tells the three cases apart:
- * STATE_FALLBACK (no row / DB unreachable — render the default content),
- * STATE_ACTIVE (row is active — render its own content) and STATE_HIDDEN
- * (row exists and is_active = false — render nothing for this section).
+ * `is_active = false` on an *existing* section row is a deliberate hide, and a
+ * different case from a missing row. forSection()'s returned `state` field is
+ * how a template tells the three cases apart: STATE_FALLBACK (no row / DB
+ * unreachable — nothing to render), STATE_ACTIVE (row is active — render its
+ * own content) and STATE_HIDDEN (row exists and is_active = false — render
+ * nothing for this section).
  *
  * Once a section's row exists and is active, its paragraphs/images come
  * strictly from the database, even if that list is empty — an emptied-out
- * section must stay empty, not fall back to the defaults. Defaults only
- * apply when the whole section is missing/unreachable, never per
- * missing/emptied repeater.
+ * section stays empty.
  */
 class TextImageSplitContent
 {
-    /** No row exists (or the row lookup failed) — rendering DEFAULTS. */
+    /** No row exists (or the row lookup failed) — nothing to render. */
     public const STATE_FALLBACK = 'fallback';
 
     /** A row exists and is_active = true — rendering its own content. */
@@ -98,68 +90,6 @@ class TextImageSplitContent
         ],
     ];
 
-    private const DEFAULTS = [
-        'over-mij:intro' => [
-            'layout' => 'image_right',
-            'eyebrow_nl' => '',
-            'eyebrow_en' => '',
-            'title_nl' => '',
-            'title_en' => '',
-            'button_label_nl' => '',
-            'button_label_en' => '',
-            'button_url' => '',
-            'paragraphs' => [
-                [
-                    'content_nl' => 'Achter Van Veluw Laserdesign sta ik: iemand met een grote liefde voor ontwerpen, maken en het uitwerken van een idee tot iets tastbaars.',
-                    'content_en' => 'Behind Van Veluw Laserdesign is me: someone with a real love for designing, making, and turning an idea into something tangible.',
-                ],
-                [
-                    'content_nl' => "Wat begon als plezier in creatief bezig zijn, is uitgegroeid tot werk waarin ontwerp en techniek samenkomen. Ik houd me niet alleen bezig met graveren, maar ook met het ontwerpen van de producten zelf — en dat creatieve proces vind ik minstens zo belangrijk als het eindresultaat.",
-                    'content_en' => "What began as a creative hobby has grown into work where design and technique come together. I'm not just focused on engraving, but also on designing the products themselves — and I find that creative process just as important as the end result.",
-                ],
-                [
-                    'content_nl' => 'Ik besteed veel tijd aan het uitdenken van vormen, het kiezen van materialen en het zoeken naar een uitstraling die klopt. Ik werk vooral met hout, metaal en acryl, en maak zowel kant-en-klare items als persoonlijk maatwerk — denk aan onderzetters, naambordjes, sleutelhangers en andere ontwerpen die met zorg worden opgebouwd en afgewerkt.',
-                    'content_en' => 'I spend real time working out shapes, choosing materials, and finding a look that feels right. I mainly work with wood, metal and acrylic, making both ready-made items and personal custom pieces — think coasters, name signs, keyrings and other designs that are built up and finished with care.',
-                ],
-            ],
-            'images' => [
-                [
-                    'image_path' => 'assets/images/hero-collage-a.webp',
-                    'alt_nl' => 'MOPA-laser graveert een naam in een stalen hamer, met vonken',
-                    'alt_en' => 'MOPA laser engraving a name into a steel hammer, sparks flying',
-                ],
-            ],
-        ],
-        'over-mij:idee-naar-product' => [
-            'layout' => 'image_left',
-            'eyebrow_nl' => "Waar het om draait",
-            'eyebrow_en' => "What it's about",
-            'title_nl' => 'Van idee naar zorgvuldig gemaakt product',
-            'title_en' => 'From idea to carefully made product',
-            'button_label_nl' => 'Vertel me over jouw idee',
-            'button_label_en' => 'Tell me about your idea',
-            'button_url' => 'contact.php',
-            'paragraphs' => [
-                [
-                    'content_nl' => 'Van Veluw Laserdesign draait voor mij om meer dan het eindresultaat alleen. Het gaat ook om het proces: van idee naar ontwerp, en van ontwerp naar een product dat met zorg is gemaakt — in mijn werkplaats in Nijmegen.',
-                    'content_en' => "For me, Van Veluw Laserdesign is about more than just the end result. It's also about the process: from idea to design, and from design to a product made with care — in my workshop in Nijmegen.",
-                ],
-            ],
-            'images' => [
-                [
-                    'image_path' => 'assets/images/hero-collage-b.webp',
-                    'alt_nl' => 'Gegraveerde hamer met tekst Van Leo Afblijven',
-                    'alt_en' => 'Engraved hammer reading Van Leo Hands Off',
-                ],
-                [
-                    'image_path' => 'assets/images/hero-collage-c.webp',
-                    'alt_nl' => 'Set gereedschap gegraveerd met naam en logo',
-                    'alt_en' => 'Set of tools engraved with a name and logo',
-                ],
-            ],
-        ],
-    ];
-
     /** @var array<string, array<string, mixed>> */
     private static array $cache = [];
 
@@ -171,13 +101,12 @@ class TextImageSplitContent
      *                                button), 'paragraphs': list of
      *                                content_nl/en, and 'images': list of
      *                                image_path/alt_nl/en. Templates must
-     *                                check 'state' !== STATE_HIDDEN before
-     *                                rendering the section at all; the
-     *                                content fields are still populated
-     *                                (with DEFAULTS) even when hidden,
+     *                                only render the section when 'state'
+     *                                === STATE_ACTIVE; the content fields
+     *                                are still present (empty) otherwise,
      *                                purely so a template that forgets the
-     *                                check fails safe instead of emitting
-     *                                empty markup.
+     *                                check fails safe instead of erroring on
+     *                                a missing key.
      */
     public static function forSection(string $pageSlug, string $sectionKey): array
     {
@@ -187,34 +116,24 @@ class TextImageSplitContent
             return self::$cache[$cacheKey];
         }
 
-        // A page-builder-attached instance not in DEFAULTS has no hardcoded
-        // fallback copy — an unreachable database degrades to an empty
-        // section rather than throwing.
-        $defaults = self::DEFAULTS[$cacheKey] ?? [
-            'layout' => 'image_right',
-            'eyebrow_nl' => '', 'eyebrow_en' => '', 'title_nl' => '', 'title_en' => '',
-            'button_label_nl' => '', 'button_label_en' => '', 'button_url' => '',
-            'paragraphs' => [], 'images' => [],
-        ];
-
         try {
             $repository = new TextImageSplitRepository();
             $row = $repository->findBySlugAndKey($pageSlug, $sectionKey);
         } catch (\Throwable $e) {
-            error_log('[TextImageSplitContent] falling back to defaults for "' . $cacheKey . '": ' . $e->getMessage());
+            error_log('[TextImageSplitContent] lookup failed for "' . $cacheKey . '": ' . $e->getMessage());
 
-            return self::$cache[$cacheKey] = $defaults + ['state' => self::STATE_FALLBACK];
+            return self::$cache[$cacheKey] = self::emptyContent() + ['state' => self::STATE_FALLBACK];
         }
 
         if ($row === null) {
-            return self::$cache[$cacheKey] = $defaults + ['state' => self::STATE_FALLBACK];
+            return self::$cache[$cacheKey] = self::emptyContent() + ['state' => self::STATE_FALLBACK];
         }
 
         if (!(bool) $row['is_active']) {
-            // Intentionally hidden: NOT a fallback case. The content fields
-            // are filled with defaults only as a defensive fallback for a
-            // template that forgets to check 'state' — see forSection() docblock.
-            return self::$cache[$cacheKey] = $defaults + ['state' => self::STATE_HIDDEN];
+            // Intentionally hidden: the content fields are still filled in
+            // (empty) purely so a template that forgets to check 'state'
+            // fails safe instead of erroring on a missing key.
+            return self::$cache[$cacheKey] = self::emptyContent() + ['state' => self::STATE_HIDDEN];
         }
 
         $content = [
@@ -240,16 +159,15 @@ class TextImageSplitContent
             $paragraphs = $repository->findParagraphsBySectionId((int) $row['id']);
             $images = $repository->findImagesBySectionId((int) $row['id']);
         } catch (\Throwable $e) {
-            error_log('[TextImageSplitContent] falling back to defaults for "' . $cacheKey . '" (paragraphs/images lookup failed): ' . $e->getMessage());
+            error_log('[TextImageSplitContent] paragraphs/images lookup failed for "' . $cacheKey . '": ' . $e->getMessage());
 
-            return self::$cache[$cacheKey] = $defaults + ['state' => self::STATE_FALLBACK];
+            return self::$cache[$cacheKey] = self::emptyContent() + ['state' => self::STATE_FALLBACK];
         }
 
         // Whatever comes back — including an empty list — is authoritative
         // once the section row exists and is active: the admin has
         // deliberately curated this content, so an empty result means "all
-        // paragraphs/images removed", not "missing data", and must not fall
-        // back to the defaults above.
+        // paragraphs/images removed", not "missing data".
         $content['paragraphs'] = array_map(static function (array $paragraph): array {
             $contentNl = (string) $paragraph['content_nl'];
 
@@ -275,25 +193,6 @@ class TextImageSplitContent
     }
 
     /**
-     * Section-level fields only (no 'paragraphs'/'images') — used by the
-     * admin edit page to pre-fill the section form the first time a
-     * section is edited.
-     *
-     * @return array<string, string>
-     */
-    public static function defaultsForSection(string $pageSlug, string $sectionKey): array
-    {
-        $defaults = self::DEFAULTS[$pageSlug . ':' . $sectionKey] ?? null;
-        if ($defaults === null) {
-            return [];
-        }
-
-        unset($defaults['paragraphs'], $defaults['images']);
-
-        return $defaults;
-    }
-
-    /**
      * Clears the in-process cache — used by the admin save handlers right
      * after writing a new value, and by tests.
      */
@@ -305,5 +204,21 @@ class TextImageSplitContent
     private static function valueOrDefault(?string $value, string $default): string
     {
         return ($value !== null && $value !== '') ? $value : $default;
+    }
+
+    /**
+     * Every field forSection() returns, empty. `layout` keeps its structural
+     * value so a template reading it still gets one of the two branches.
+     *
+     * @return array<string, mixed>
+     */
+    private static function emptyContent(): array
+    {
+        return [
+            'layout' => 'image_right',
+            'eyebrow_nl' => '', 'eyebrow_en' => '', 'title_nl' => '', 'title_en' => '',
+            'button_label_nl' => '', 'button_label_en' => '', 'button_url' => '',
+            'paragraphs' => [], 'images' => [],
+        ];
     }
 }

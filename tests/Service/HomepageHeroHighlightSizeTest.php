@@ -329,8 +329,6 @@ final class HomepageHeroHighlightSizeTest extends TestCase
      */
     private function rowAsUpsertValues(array $row): array
     {
-        $defaults = HomepageHeroContent::defaults();
-
         return [
             'eyebrow_nl' => (string) $row['eyebrow_nl'],
             'eyebrow_en' => (string) ($row['eyebrow_en'] ?? ''),
@@ -353,9 +351,9 @@ final class HomepageHeroHighlightSizeTest extends TestCase
             'badge_title_en' => (string) ($row['badge_title_en'] ?? ''),
             'badge_text_nl' => (string) ($row['badge_text_nl'] ?? ''),
             'badge_text_en' => (string) ($row['badge_text_en'] ?? ''),
-            'media_type' => (string) ($row['media_type'] ?? $defaults['media_type']),
+            'media_type' => (string) ($row['media_type'] ?? HomepageHeroContent::MEDIA_TYPE_IMAGE),
             'video_path' => (string) ($row['video_path'] ?? ''),
-            'layout' => (string) ($row['layout'] ?? $defaults['layout']),
+            'layout' => (string) ($row['layout'] ?? HomepageHeroContent::LAYOUT_MEDIA_RIGHT),
             'is_active' => (bool) $row['is_active'],
         ];
     }

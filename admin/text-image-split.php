@@ -50,9 +50,10 @@ $repository = new TextImageSplitRepository();
 
 $split = $repository->findBySlugAndKey($pageSlug, $sectionKeyPart);
 if ($split === null) {
-    // First time this section is opened in the admin: create the row now
-    // (seeded with its known defaults) so paragraphs/images can be attached.
-    $repository->upsertSection($pageSlug, $sectionKeyPart, TextImageSplitContent::defaultsForSection($pageSlug, $sectionKeyPart) + ['is_active' => true]);
+    // First time this section is opened in the admin: create the row now,
+    // empty and active exactly as TextImageSplitBlock::create() does, so
+    // paragraphs/images can be attached.
+    $repository->upsertSection($pageSlug, $sectionKeyPart, ['is_active' => true, 'layout' => 'image_right']);
     $split = $repository->findBySlugAndKey($pageSlug, $sectionKeyPart);
 }
 

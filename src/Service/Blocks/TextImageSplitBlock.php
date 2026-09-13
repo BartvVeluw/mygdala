@@ -99,7 +99,7 @@ final class TextImageSplitBlock extends BlockDefinition
     public function render(array $pageSection, bool $tightTop, string $revealGroup): void
     {
         $content = TextImageSplitContent::forSection($this->pageSlug($pageSection), $this->sectionKey($pageSection));
-        if ($content['state'] === TextImageSplitContent::STATE_HIDDEN) {
+        if ($content['state'] !== TextImageSplitContent::STATE_ACTIVE) {
             return;
         }
 

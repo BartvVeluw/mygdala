@@ -16,25 +16,28 @@ use App\Repository\HomepageHeroRepository;
  *
  * A page-bound singleton keyed by page_slug (currently only 'index' —
  * PAGE_SLUG below), same state-model conventions as every other section type
- * here: STATE_FALLBACK (no row / DB unreachable — render DEFAULTS),
+ * here: STATE_FALLBACK (no row / DB unreachable — nothing to render),
  * STATE_ACTIVE (row is active — render its own content) and STATE_HIDDEN
  * (row exists and is_active = false — render nothing). The admin editor does
- * NOT expose a checkbox for is_active — this state model exists purely for
- * fallback-safety consistency with the rest of the CMS, not because the
- * owner can toggle the whole Homepage Hero off from the UI.
+ * NOT expose a checkbox for is_active — this state model exists for
+ * consistency with the rest of the CMS, not because the owner can toggle the
+ * whole Homepage Hero off from the UI.
  *
- * WHAT "EMPTY" MEANS DEPENDS ON WHETHER THERE IS A ROW. No row at all — a
- * database that has never been migrated, or one that cannot be reached — is
- * missing data, and DEFAULTS below are the safe answer to that. A row that
- * exists and stores an empty image is an ANSWER: this Hero has no image.
- * Those two used to be the same case, so the generic bootstrap row, which
- * deliberately stores an empty image, still rendered this site's own
- * photograph on a brand-new installation. The media fields are therefore
- * read literally from the row and only the missing-row path reaches
- * DEFAULTS; {@see hasMedia()} is what a renderer asks. The text fields keep
- * their per-field fallback: an empty headline would render an empty `<h1>`,
- * which is worse than placeholder copy, and the bootstrap writes its own
- * placeholder copy for every one of them anyway.
+ * NOTHING STORED MEANS NOTHING RENDERED. There is no hardcoded fallback copy:
+ * a missing row, or a lookup that fails, renders no Hero at all, and an active
+ * row renders exactly what it stores — text, media and stats alike, even when
+ * one of them is empty. Both used to fall back on the copy and the photograph
+ * of the site this CMS grew out of, which is how a fresh installation, whose
+ * bootstrap row deliberately stores an empty image, showed that photograph.
+ * An empty image is an answer (this Hero has no image); {@see hasMedia()} is
+ * what a renderer asks. The editor requires eyebrow, title and the primary
+ * button, so an empty one only comes from data written outside it.
+ *
+ * startingValues() answers a different question: what a Hero row that does
+ * not exist yet is created with — by admin/homepage-hero.php, by the
+ * api/admin/update-homepage-hero*.php endpoints and by
+ * HomepageHeroBlock::create(). Generic, editable copy, and never rendered in
+ * place of a row that is missing or unreadable.
  *
  * Title highlight: `title_highlight_nl`/`_en` are plain text, never HTML —
  * the exact substring of the corresponding title that should be wrapped in
@@ -73,12 +76,11 @@ use App\Repository\HomepageHeroRepository;
  * Stats: up to 3 rows in `homepage_hero_stats`, same repeater
  * architecture/conventions as StatStripContent (own table, not a reuse of
  * stat_strips — see the migration docblocks). Once the Hero row is active,
- * its active stats are authoritative, even an empty list — never falls back
- * to DEFAULTS per-stat.
+ * its active stats are authoritative, even an empty list.
  */
 class HomepageHeroContent
 {
-    /** No row exists (or the row lookup failed) — rendering DEFAULTS. */
+    /** No row exists (or the row lookup failed) — nothing to render. */
     public const STATE_FALLBACK = 'fallback';
 
     /** A row exists and is_active = true — rendering its own content. */
@@ -132,53 +134,38 @@ class HomepageHeroContent
     /** All valid layout values, for save-time/render-time validation. */
     public const LAYOUTS = [self::LAYOUT_MEDIA_RIGHT, self::LAYOUT_MEDIA_LEFT, self::LAYOUT_BACKGROUND];
 
-    private const DEFAULTS = [
-        'eyebrow_nl' => 'Lasergravure · Nijmegen',
-        'eyebrow_en' => 'Laser engraving · Nijmegen',
-        'title_nl' => 'Precisie die persoonlijk aanvoelt.',
-        'title_en' => 'Precision that feels personal.',
-        'title_highlight_nl' => 'persoonlijk',
-        'title_highlight_en' => 'personal',
+    /**
+     * What a new Hero row is created with — see startingValues(). The same
+     * placeholder copy the fresh-install bootstrap writes
+     * (db/migrations/20260909400000_bootstrap_a_generic_fresh_install.php):
+     * it fills every field the editor requires, and nothing else.
+     */
+    private const STARTING_VALUES = [
+        'eyebrow_nl' => 'Welkom',
+        'eyebrow_en' => 'Welcome',
+        'title_nl' => 'Nieuwe website — pas deze titel aan',
+        'title_en' => 'New website — edit this title',
+        'title_highlight_nl' => '',
+        'title_highlight_en' => '',
         'title_highlight_size' => self::HIGHLIGHT_SIZE_DEFAULT,
-        'lead_nl' => 'Van een enkele naam tot een compleet ontwerp op maat: ik graveer met de laser in hout, metaal, acryl en glas — voor cadeaus, herinneringen en bedrijven die iets bijzonders willen achterlaten.',
-        'lead_en' => "From a single name to a complete custom design: I laser-engrave wood, metal, acrylic and glass — for gifts, keepsakes and businesses that want to leave a lasting impression.",
-        'primary_label_nl' => 'Vraag een offerte aan',
-        'primary_label_en' => 'Request a quote',
-        'primary_url' => 'contact.php',
-        'secondary_label_nl' => 'Bekijk portfolio',
-        'secondary_label_en' => 'View portfolio',
-        'secondary_url' => 'portfolio.php',
-        'image_path' => 'assets/images/hero-collage-a.webp',
-        'image_alt_nl' => 'MOPA-laser graveert een naam in een stalen hamer, met vonken',
-        'image_alt_en' => 'MOPA laser engraving a name into a steel hammer, sparks flying',
-        'badge_title_nl' => 'Live gegraveerd',
-        'badge_title_en' => 'Engraved live',
-        'badge_text_nl' => 'Elke gravure wordt zorgvuldig voorbereid en stap voor stap met de laser aangebracht.',
-        'badge_text_en' => 'Every piece is carefully prepared, then engraved step by step with the laser.',
+        'lead_nl' => 'Vertel hier in een paar zinnen wat je doet. Pas deze tekst aan in de paginabouwer van de homepage.',
+        'lead_en' => 'Say in a few sentences what you do. Edit this text in the homepage page builder.',
+        'primary_label_nl' => 'Meer informatie',
+        'primary_label_en' => 'Learn more',
+        'primary_url' => '/',
+        'secondary_label_nl' => '',
+        'secondary_label_en' => '',
+        'secondary_url' => '',
+        'image_path' => '',
+        'image_alt_nl' => '',
+        'image_alt_en' => '',
+        'badge_title_nl' => '',
+        'badge_title_en' => '',
+        'badge_text_nl' => '',
+        'badge_text_en' => '',
         'media_type' => self::MEDIA_TYPE_IMAGE,
         'video_path' => '',
         'layout' => self::LAYOUT_MEDIA_RIGHT,
-    ];
-
-    private const DEFAULT_STATS = [
-        [
-            'primary_text_nl' => 'CO₂ & MOPA',
-            'primary_text_en' => 'CO₂ & MOPA',
-            'secondary_text_nl' => 'lasertechnologie',
-            'secondary_text_en' => 'laser technology',
-        ],
-        [
-            'primary_text_nl' => 'Hout · Metaal · Acryl',
-            'primary_text_en' => 'Wood · Metal · Acrylic',
-            'secondary_text_nl' => 'kernmaterialen',
-            'secondary_text_en' => 'core materials',
-        ],
-        [
-            'primary_text_nl' => 'Particulier & Zakelijk',
-            'primary_text_en' => 'Personal & Business',
-            'secondary_text_nl' => 'voor wie ik werk',
-            'secondary_text_en' => 'who I work with',
-        ],
     ];
 
     /** @var array<string, mixed>|null */
@@ -188,13 +175,12 @@ class HomepageHeroContent
      * @return array<string, mixed> 'state' (one of STATE_*), all scalar
      *                                fields, plus 'stats': list of
      *                                primary_text_nl/en, secondary_text_nl/en.
-     *                                Templates must check 'state' !==
-     *                                STATE_HIDDEN before rendering the
-     *                                section at all; the content fields are
-     *                                still populated (with DEFAULTS) even
-     *                                when hidden, purely so a template that
-     *                                forgets the check fails safe instead of
-     *                                emitting empty markup.
+     *                                Templates must only render the section
+     *                                when 'state' === STATE_ACTIVE; the
+     *                                content fields are still present
+     *                                (empty) otherwise, purely so a template
+     *                                that forgets the check fails safe
+     *                                instead of erroring on a missing key.
      */
     public static function current(): array
     {
@@ -202,54 +188,47 @@ class HomepageHeroContent
             return self::$cache;
         }
 
-        $defaults = self::DEFAULTS;
-
         $row = null;
         try {
             $row = (new HomepageHeroRepository())->findBySlug(self::PAGE_SLUG);
         } catch (\Throwable $e) {
-            error_log('[HomepageHeroContent] falling back to defaults: ' . $e->getMessage());
+            error_log('[HomepageHeroContent] lookup failed: ' . $e->getMessage());
 
-            return self::$cache = self::withFallbackStats($defaults, self::STATE_FALLBACK);
+            return self::$cache = self::emptyContent() + ['state' => self::STATE_FALLBACK];
         }
 
         if ($row === null) {
-            return self::$cache = self::withFallbackStats($defaults, self::STATE_FALLBACK);
+            return self::$cache = self::emptyContent() + ['state' => self::STATE_FALLBACK];
         }
 
         if (!(bool) $row['is_active']) {
-            // Intentionally hidden: NOT a fallback case. The content fields
-            // are filled with defaults only as a defensive fallback for a
-            // template that forgets to check 'state' — see this method's docblock.
-            return self::$cache = self::withFallbackStats($defaults, self::STATE_HIDDEN);
+            // Intentionally hidden: the content fields are still filled in
+            // (empty) purely so a template that forgets to check 'state'
+            // fails safe instead of erroring on a missing key.
+            return self::$cache = self::emptyContent() + ['state' => self::STATE_HIDDEN];
         }
 
         $content = [
-            'eyebrow_nl' => self::valueOrDefault($row['eyebrow_nl'] ?? null, $defaults['eyebrow_nl']),
-            'title_nl' => self::valueOrDefault($row['title_nl'] ?? null, $defaults['title_nl']),
+            'eyebrow_nl' => (string) ($row['eyebrow_nl'] ?? ''),
+            'title_nl' => (string) ($row['title_nl'] ?? ''),
             'title_highlight_nl' => (string) ($row['title_highlight_nl'] ?? ''),
             'title_highlight_size' => self::clampHighlightSize($row['title_highlight_size'] ?? null),
             'lead_nl' => (string) ($row['lead_nl'] ?? ''),
-            'primary_label_nl' => self::valueOrDefault($row['primary_label_nl'] ?? null, $defaults['primary_label_nl']),
-            'primary_url' => self::valueOrDefault($row['primary_url'] ?? null, $defaults['primary_url']),
+            'primary_label_nl' => (string) ($row['primary_label_nl'] ?? ''),
+            'primary_url' => (string) ($row['primary_url'] ?? ''),
             'secondary_label_nl' => (string) ($row['secondary_label_nl'] ?? ''),
             'secondary_url' => (string) ($row['secondary_url'] ?? ''),
-            // NOT valueOrDefault: once a row exists, its media is
-            // authoritative, and an empty image_path means "this Hero has no
-            // image" — the same rule the stats below already follow. It used
-            // to fall through to DEFAULTS, which is how a brand-new
-            // installation, whose bootstrap row deliberately stores an empty
-            // image, still rendered Van Veluw Laserdesign's photograph and
-            // its alt text. The DEFAULTS remain what a MISSING row (or an
-            // unreachable database) falls back on, which is a different
-            // question and still has the same safe answer.
+            // Once a row exists, its media is authoritative: an empty
+            // image_path means "this Hero has no image" — see hasMedia().
             'image_path' => (string) ($row['image_path'] ?? ''),
             'image_alt_nl' => (string) ($row['image_alt_nl'] ?? ''),
             'badge_title_nl' => (string) ($row['badge_title_nl'] ?? ''),
             'badge_text_nl' => (string) ($row['badge_text_nl'] ?? ''),
-            'media_type' => self::valueOrDefault($row['media_type'] ?? null, $defaults['media_type']),
+            // An empty or unknown media_type/layout is coerced onto a valid
+            // one below: a structural value, never copy.
+            'media_type' => (string) ($row['media_type'] ?? ''),
             'video_path' => (string) ($row['video_path'] ?? ''),
-            'layout' => self::valueOrDefault($row['layout'] ?? null, $defaults['layout']),
+            'layout' => (string) ($row['layout'] ?? ''),
         ];
 
         $content['eyebrow_en'] = self::valueOrDefault($row['eyebrow_en'] ?? null, $content['eyebrow_nl']);
@@ -302,16 +281,15 @@ class HomepageHeroContent
         try {
             $stats = (new HomepageHeroRepository())->findStatsByHeroId((int) $row['id'], true);
         } catch (\Throwable $e) {
-            error_log('[HomepageHeroContent] falling back to defaults (stats lookup failed): ' . $e->getMessage());
+            error_log('[HomepageHeroContent] stats lookup failed: ' . $e->getMessage());
 
-            return self::$cache = self::withFallbackStats($defaults, self::STATE_FALLBACK);
+            return self::$cache = self::emptyContent() + ['state' => self::STATE_FALLBACK];
         }
 
         // Whatever comes back — including an empty list — is authoritative
         // once the Hero row exists and is active: the admin has deliberately
         // curated these stats, so an empty result means "all stats
-        // hidden/deleted", not "missing data", and must not fall back to the
-        // defaults above.
+        // hidden/deleted", not "missing data".
         $content['stats'] = array_map(static function (array $stat): array {
             $primaryNl = (string) $stat['primary_text_nl'];
             $secondaryNl = (string) $stat['secondary_text_nl'];
@@ -350,23 +328,21 @@ class HomepageHeroContent
     }
 
     /**
-     * Section-level fields only (no 'stats') — used by the admin edit page
-     * to pre-fill the form the first time the Homepage Hero is opened.
+     * What a Homepage Hero row that does not exist yet is created with — by
+     * admin/homepage-hero.php the first time it is opened, by the
+     * api/admin/update-homepage-hero*.php endpoints when they write the first
+     * row, and by HomepageHeroBlock::create(). Section-level fields only: a
+     * new Hero has no stats.
+     *
+     * Not a frontend fallback. current() never renders these in place of a
+     * row that is missing or unreadable; it renders nothing.
      *
      * @return array<string, string|int> every value is a string except
      *                                   'title_highlight_size' (int percent)
      */
-    public static function defaults(): array
+    public static function startingValues(): array
     {
-        return self::DEFAULTS;
-    }
-
-    /**
-     * @return list<array<string, string>>
-     */
-    public static function defaultStats(): array
-    {
-        return self::DEFAULT_STATS;
+        return self::STARTING_VALUES;
     }
 
     /**
@@ -482,12 +458,29 @@ class HomepageHeroContent
     }
 
     /**
-     * @param array<string, string|int> $defaults
+     * Every field current() returns, empty — what there is when nothing is
+     * stored. media_type, layout and the highlight size keep their
+     * structural values, so a template reading them still gets a valid one.
+     *
      * @return array<string, mixed>
      */
-    private static function withFallbackStats(array $defaults, string $state): array
+    private static function emptyContent(): array
     {
-        return $defaults + ['stats' => self::DEFAULT_STATS, 'state' => $state];
+        return [
+            'eyebrow_nl' => '', 'eyebrow_en' => '',
+            'title_nl' => '', 'title_en' => '',
+            'title_highlight_nl' => '', 'title_highlight_en' => '',
+            'title_highlight_size' => self::HIGHLIGHT_SIZE_DEFAULT,
+            'lead_nl' => '', 'lead_en' => '',
+            'primary_label_nl' => '', 'primary_label_en' => '', 'primary_url' => '',
+            'secondary_label_nl' => '', 'secondary_label_en' => '', 'secondary_url' => '',
+            'image_path' => '', 'image_alt_nl' => '', 'image_alt_en' => '',
+            'badge_title_nl' => '', 'badge_title_en' => '', 'badge_text_nl' => '', 'badge_text_en' => '',
+            'media_type' => self::MEDIA_TYPE_IMAGE,
+            'video_path' => '',
+            'layout' => self::LAYOUT_MEDIA_RIGHT,
+            'stats' => [],
+        ];
     }
 
     private static function valueOrDefault(?string $value, string $default): string

@@ -49,9 +49,10 @@ $repository = new FeatureGridRepository();
 
 $grid = $repository->findBySlugAndKey($pageSlug, $sectionKeyPart);
 if ($grid === null) {
-    // First time this section is opened in the admin: create the row now
-    // (seeded with its known defaults) so cards can be attached to it.
-    $repository->upsertGrid($pageSlug, $sectionKeyPart, FeatureGridContent::defaultsForSection($pageSlug, $sectionKeyPart) + ['is_active' => true]);
+    // First time this section is opened in the admin: create the row now,
+    // empty and active exactly as FeatureGridBlock::create() does, so cards
+    // can be attached to it.
+    $repository->upsertGrid($pageSlug, $sectionKeyPart, ['is_active' => true]);
     $grid = $repository->findBySlugAndKey($pageSlug, $sectionKeyPart);
 }
 

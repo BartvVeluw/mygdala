@@ -45,6 +45,20 @@ final class GenericBlockDefaultsTest extends TestCase
         '/over-mij.php', 'over-mij.php',
     ];
 
+    /**
+     * Words only the copy of this one site contains — its name, its city, its
+     * photographs and its machines. Matched case-insensitively.
+     */
+    private const SITE_COPY = [
+        'Van Veluw',
+        'vanveluw',
+        'Laserdesign',
+        'Nijmegen',
+        'hero-collage',
+        'Lasergravure',
+        'MOPA',
+    ];
+
     private PageRepository $pages;
     private PageSectionRepository $sections;
     private int $pageId;
@@ -131,6 +145,43 @@ final class GenericBlockDefaultsTest extends TestCase
         }
 
         $this->assertSame([], $offenders, 'A block definition seeds a route only this site has.');
+    }
+
+    public function testNoContentOrBlockClassCarriesThisSitesCopyInARuntimeString(): void
+    {
+        // Every string a content class or a block definition can hand out —
+        // a frontend fallback, a field-level fallback or an editor starting
+        // value — is a literal in one of these files. Comments and docblocks
+        // are not tokens of that kind, so history may still be told there.
+        $root = dirname(__DIR__, 2);
+        $files = array_merge(
+            glob($root . '/src/Service/*Content.php') ?: [],
+            glob($root . '/src/Service/Blocks/*.php') ?: []
+        );
+
+        $offenders = [];
+
+        foreach ($files as $file) {
+            foreach (token_get_all((string) file_get_contents($file)) as $token) {
+                if (!is_array($token) || !in_array($token[0], [T_CONSTANT_ENCAPSED_STRING, T_ENCAPSED_AND_WHITESPACE], true)) {
+                    continue;
+                }
+
+                $literal = trim($token[1], '\'"');
+
+                foreach (self::SITE_COPY as $needle) {
+                    if (stripos($literal, $needle) !== false) {
+                        $offenders[] = basename($file) . ':' . $token[2] . ' → ' . $needle;
+                    }
+                }
+
+                if (in_array($literal, self::LEGACY_ROUTES, true)) {
+                    $offenders[] = basename($file) . ':' . $token[2] . ' → ' . $literal;
+                }
+            }
+        }
+
+        $this->assertSame([], $offenders, 'A content class or block definition still carries copy of the site this CMS grew out of.');
     }
 
     /**

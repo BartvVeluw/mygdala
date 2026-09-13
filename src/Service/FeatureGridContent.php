@@ -12,41 +12,33 @@ use App\Repository\FeatureGridRepository;
  * over-mij "Mijn stijl") before this schema was chosen.
  *
  * Not a generic page builder: SECTIONS below is the fixed, known list of
- * (page_slug, section_key) grids that currently exist on the site — verified
- * by inspecting every usage before writing this schema. Adding a new grid to
- * an existing or new page only ever needs a new SECTIONS entry + DEFAULTS
- * entry here, plus the matching PHP loop on that page's template — never a
- * schema change (this is exactly why section_key exists alongside page_slug:
- * a page can have more than one grid without a schema rewrite).
+ * (page_slug, section_key) grids that predate the page builder, kept for
+ * their admin-facing labels. Adding a grid to a page never needs a schema
+ * change (this is exactly why section_key exists alongside page_slug: a page
+ * can have more than one grid without a schema rewrite).
  *
  * ICON_KEYS is the complete, closed set of icons a card may use. The CMS
  * only ever stores one of these keys, never markup — partials/feature-icons.php
  * is the only place that maps a key to its (theme-owned, hand-authored) SVG.
  *
- * DEFAULTS is the fallback used whenever a section's row is missing, or the
- * database is unreachable, so the public site never breaks because of a CMS
- * content problem — it silently falls back to the exact cards that used to
- * be hardcoded.
+ * There is no hardcoded fallback copy. A missing row, or a lookup that fails,
+ * is STATE_FALLBACK: there is nothing to render, and a failure is logged. See
+ * CONTENT-BLOCKS.md, "Het inhoudscontract".
  *
- * `is_active = false` on an *existing* grid row is a different, deliberate
- * case: it means the site owner has intentionally hidden the whole section
- * (heading + cards), and must NOT fall back to the defaults — that would
- * make the "Actief" checkbox unable to actually hide anything. forSection()'s
- * returned `state` field is how a template tells the three cases apart:
- * STATE_FALLBACK (no row / DB unreachable — render the default heading +
- * cards), STATE_ACTIVE (row is active — render its own heading + cards) and
- * STATE_HIDDEN (row exists and is_active = false — render nothing for this
- * section).
+ * `is_active = false` on an *existing* grid row is a deliberate hide, and a
+ * different case from a missing row. forSection()'s returned `state` field is
+ * how a template tells the three cases apart: STATE_FALLBACK (no row / DB
+ * unreachable — nothing to render), STATE_ACTIVE (row is active — render its
+ * own heading + cards) and STATE_HIDDEN (row exists and is_active = false —
+ * render nothing for this section).
  *
  * Once a grid's row exists and is active, its *items* come strictly from the
  * database (only is_active = 1 cards), even if that list is empty — an
- * individually hidden/deleted card must stay hidden, not fall back to the
- * defaults. Defaults only apply when the whole section is missing/
- * unreachable, never per missing/hidden card.
+ * individually hidden/deleted card stays hidden.
  */
 class FeatureGridContent
 {
-    /** No row exists (or the row lookup failed) — rendering DEFAULTS. */
+    /** No row exists (or the row lookup failed) — nothing to render. */
     public const STATE_FALLBACK = 'fallback';
 
     /** A row exists and is_active = true — rendering its own heading + cards. */
@@ -91,78 +83,6 @@ class FeatureGridContent
         'location' => 'Locatie (pin)',
     ];
 
-    private const DEFAULTS = [
-        'index:value-props' => [
-            'eyebrow_nl' => '',
-            'eyebrow_en' => '',
-            'title_nl' => '',
-            'title_en' => '',
-            'lead_nl' => '',
-            'lead_en' => '',
-            'items' => [
-                [
-                    'icon_key' => 'precision',
-                    'title_nl' => 'Ontwerp op maat',
-                    'title_en' => 'Custom design',
-                    'body_nl' => 'Heb je nog geen kant-en-klaar bestand? Ik denk mee over vorm, materiaal en plaatsing tot het ontwerp klopt.',
-                    'body_en' => "No ready-made file yet? I'll help shape the design, material and placement until it feels right.",
-                ],
-                [
-                    'icon_key' => 'heart',
-                    'title_nl' => 'Persoonlijk contact',
-                    'title_en' => 'Personal contact',
-                    'body_nl' => 'Direct contact met de maker, geen tussenpersoon. Je weet altijd bij wie je aanvraag terechtkomt.',
-                    'body_en' => "Direct contact with the maker, no middleman. You always know who's handling your request.",
-                ],
-                [
-                    'icon_key' => 'diamond',
-                    'title_nl' => 'Blijvende gravure',
-                    'title_en' => 'A lasting engraving',
-                    'body_nl' => 'Een lasergravure slijt niet zoals een sticker of opdruk — hij wordt echt in het materiaal aangebracht.',
-                    'body_en' => "A laser engraving doesn't wear off like a sticker or print — it's etched right into the material.",
-                ],
-            ],
-        ],
-        'over-mij:mijn-stijl' => [
-            'eyebrow_nl' => 'Mijn stijl',
-            'eyebrow_en' => 'My style',
-            'title_nl' => 'Warm, rustig en persoonlijk',
-            'title_en' => 'Warm, calm and personal',
-            'lead_nl' => 'Ik houd van ontwerpen die mooi zijn in hun eenvoud, maar toch karakter hebben — geen massawerk, maar producten die passen bij mijn eigen stijl én bij die van jou.',
-            'lead_en' => "I love designs that are beautiful in their simplicity but still have character — not mass production, but products that suit my own style and yours.",
-            'items' => [
-                [
-                    'icon_key' => 'diamond',
-                    'title_nl' => 'Ontwerp én ambacht',
-                    'title_en' => 'Design and craft',
-                    'body_nl' => 'Ik denk niet alleen mee over de gravure, maar ook over de vorm en het materiaal van het product zelf.',
-                    'body_en' => "I don't just think about the engraving, but also the shape and material of the product itself.",
-                ],
-                [
-                    'icon_key' => 'heart',
-                    'title_nl' => 'Warme, persoonlijke stijl',
-                    'title_en' => 'A warm, personal style',
-                    'body_nl' => 'Eenvoud met karakter — geen massaproductie, maar werk dat aandacht heeft gekregen.',
-                    'body_en' => "Simplicity with character — not mass production, but work that's been given real attention.",
-                ],
-                [
-                    'icon_key' => 'precision',
-                    'title_nl' => 'CO₂ & MOPA laser',
-                    'title_en' => 'CO₂ & MOPA laser',
-                    'body_nl' => 'Met twee lasertechnieken kan ik uiteenlopende materialen aan, van hout tot staal.',
-                    'body_en' => 'With two laser technologies, I can work with a wide range of materials, from wood to steel.',
-                ],
-                [
-                    'icon_key' => 'location',
-                    'title_nl' => 'Gevestigd in Nijmegen',
-                    'title_en' => 'Based in Nijmegen',
-                    'body_nl' => 'Mijn werkplaats staat in Nijmegen; ophalen is altijd mogelijk, verzenden ook.',
-                    'body_en' => 'My workshop is in Nijmegen; pickup is always possible, and so is shipping.',
-                ],
-            ],
-        ],
-    ];
-
     /** @var array<string, array<string, mixed>> */
     private static array $cache = [];
 
@@ -172,13 +92,12 @@ class FeatureGridContent
      *                                (may be '' when the section has no
      *                                heading), and 'items': list of
      *                                icon_key/title_nl/en/body_nl/en.
-     *                                Templates must check 'state' !==
-     *                                STATE_HIDDEN before rendering the
-     *                                section at all; the content fields are
-     *                                still populated (with DEFAULTS) even
-     *                                when hidden, purely so a template that
-     *                                forgets the check fails safe instead of
-     *                                emitting empty markup.
+     *                                Templates must only render the section
+     *                                when 'state' === STATE_ACTIVE; the
+     *                                content fields are still present
+     *                                (empty) otherwise, purely so a template
+     *                                that forgets the check fails safe
+     *                                instead of erroring on a missing key.
      */
     public static function forSection(string $pageSlug, string $sectionKey): array
     {
@@ -188,30 +107,24 @@ class FeatureGridContent
             return self::$cache[$cacheKey];
         }
 
-        // A (page_slug, section_key) pair not in DEFAULTS is a page-builder-
-        // attached instance, not one of the originally hardcoded sections —
-        // it has no hardcoded fallback copy, so an unreachable database
-        // degrades to an empty grid rather than throwing.
-        $defaults = self::DEFAULTS[$cacheKey] ?? ['eyebrow_nl' => '', 'eyebrow_en' => '', 'title_nl' => '', 'title_en' => '', 'lead_nl' => '', 'lead_en' => '', 'items' => []];
-
         try {
             $repository = new FeatureGridRepository();
             $row = $repository->findBySlugAndKey($pageSlug, $sectionKey);
         } catch (\Throwable $e) {
-            error_log('[FeatureGridContent] falling back to defaults for "' . $cacheKey . '": ' . $e->getMessage());
+            error_log('[FeatureGridContent] lookup failed for "' . $cacheKey . '": ' . $e->getMessage());
 
-            return self::$cache[$cacheKey] = $defaults + ['state' => self::STATE_FALLBACK];
+            return self::$cache[$cacheKey] = self::emptyContent() + ['state' => self::STATE_FALLBACK];
         }
 
         if ($row === null) {
-            return self::$cache[$cacheKey] = $defaults + ['state' => self::STATE_FALLBACK];
+            return self::$cache[$cacheKey] = self::emptyContent() + ['state' => self::STATE_FALLBACK];
         }
 
         if (!(bool) $row['is_active']) {
-            // Intentionally hidden: NOT a fallback case. The content fields
-            // are filled with defaults only as a defensive fallback for a
-            // template that forgets to check 'state' — see forSection() docblock.
-            return self::$cache[$cacheKey] = $defaults + ['state' => self::STATE_HIDDEN];
+            // Intentionally hidden: the content fields are still filled in
+            // (empty) purely so a template that forgets to check 'state'
+            // fails safe instead of erroring on a missing key.
+            return self::$cache[$cacheKey] = self::emptyContent() + ['state' => self::STATE_HIDDEN];
         }
 
         $content = [
@@ -226,16 +139,16 @@ class FeatureGridContent
         try {
             $items = $repository->findItemsByGridId((int) $row['id'], true);
         } catch (\Throwable $e) {
-            error_log('[FeatureGridContent] falling back to defaults for "' . $cacheKey . '" (items lookup failed): ' . $e->getMessage());
+            error_log('[FeatureGridContent] items lookup failed for "' . $cacheKey . '": ' . $e->getMessage());
 
-            return self::$cache[$cacheKey] = $defaults + ['state' => self::STATE_FALLBACK];
+            return self::$cache[$cacheKey] = self::emptyContent() + ['state' => self::STATE_FALLBACK];
         }
 
         // Only is_active cards are queried above, and whatever comes back —
         // including an empty list — is authoritative: a grid row that
         // exists and is active means the admin has deliberately curated its
         // cards, so an empty result is "all cards hidden/deleted", not
-        // "missing data", and must not fall back to the defaults above.
+        // "missing data".
         $content['items'] = array_map(static function (array $item): array {
             $titleNl = (string) $item['title_nl'];
             $bodyNl = (string) $item['body_nl'];
@@ -256,24 +169,6 @@ class FeatureGridContent
     }
 
     /**
-     * Section-level fields only (no 'items') — used by the admin edit page
-     * to pre-fill the section-heading form the first time a grid is edited.
-     *
-     * @return array<string, string>
-     */
-    public static function defaultsForSection(string $pageSlug, string $sectionKey): array
-    {
-        $defaults = self::DEFAULTS[$pageSlug . ':' . $sectionKey] ?? null;
-        if ($defaults === null) {
-            return [];
-        }
-
-        unset($defaults['items']);
-
-        return $defaults;
-    }
-
-    /**
      * Clears the in-process cache — used by the admin save handlers right
      * after writing a new value, and by tests.
      */
@@ -285,5 +180,13 @@ class FeatureGridContent
     private static function valueOrDefault(?string $value, string $default): string
     {
         return ($value !== null && $value !== '') ? $value : $default;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private static function emptyContent(): array
+    {
+        return ['eyebrow_nl' => '', 'eyebrow_en' => '', 'title_nl' => '', 'title_en' => '', 'lead_nl' => '', 'lead_en' => '', 'items' => []];
     }
 }

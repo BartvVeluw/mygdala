@@ -59,7 +59,7 @@ try {
     exit;
 }
 
-$defaults = HomepageHeroContent::defaults();
+$startingValues = HomepageHeroContent::startingValues();
 
 $textFields = $current !== null
     ? [
@@ -82,13 +82,13 @@ $textFields = $current !== null
         'badge_title_en' => (string) ($current['badge_title_en'] ?? ''),
         'badge_text_nl' => (string) ($current['badge_text_nl'] ?? ''),
         'badge_text_en' => (string) ($current['badge_text_en'] ?? ''),
-        'media_type' => (string) ($current['media_type'] ?? $defaults['media_type']),
+        'media_type' => (string) ($current['media_type'] ?? $startingValues['media_type']),
         'video_path' => (string) ($current['video_path'] ?? ''),
-        'layout' => (string) ($current['layout'] ?? $defaults['layout']),
+        'layout' => (string) ($current['layout'] ?? $startingValues['layout']),
     ]
-    : array_diff_key($defaults, ['image_path' => 0, 'image_alt_nl' => 0, 'image_alt_en' => 0]);
+    : array_diff_key($startingValues, ['image_path' => 0, 'image_alt_nl' => 0, 'image_alt_en' => 0]);
 
-$existingImagePath = $current !== null ? (string) $current['image_path'] : $defaults['image_path'];
+$existingImagePath = $current !== null ? (string) $current['image_path'] : $startingValues['image_path'];
 
 $uploader = new SectionImageUploader();
 $newImagePath = null;
@@ -118,7 +118,8 @@ try {
     if ($newImagePath !== null) {
         // Only remove the old file after the new one is safely saved, and
         // only if it was itself an admin upload (SectionImageUploader::delete
-        // is a no-op for the seeded assets/images/hero-collage-a.webp default).
+        // is a no-op for any path outside its upload directory, and for the
+        // empty path of a Hero that had no image yet).
         $uploader->delete($existingImagePath);
     }
 } catch (\Throwable $e) {

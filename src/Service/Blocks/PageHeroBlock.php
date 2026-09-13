@@ -81,17 +81,7 @@ final class PageHeroBlock extends BlockDefinition
         $pageLabel = (new PageRepository())->findByContentKey($pageSlug)['title'] ?? $pageSlug;
 
         $repository = new PageHeroRepository();
-        $repository->upsert($pageSlug, [
-            'eyebrow_nl' => 'Nieuw',
-            'eyebrow_en' => '',
-            'title_nl' => 'Nieuwe sectie — pas deze titel aan',
-            'title_en' => '',
-            'lead_nl' => '',
-            'lead_en' => '',
-            'breadcrumb_label_nl' => $pageLabel,
-            'breadcrumb_label_en' => '',
-            'is_active' => true,
-        ]);
+        $repository->upsert($pageSlug, PageHeroContent::startingValues((string) $pageLabel) + ['is_active' => true]);
 
         $row = $repository->findBySlug($pageSlug);
 
@@ -108,7 +98,7 @@ final class PageHeroBlock extends BlockDefinition
         $pageSlug = $this->pageSlug($pageSection);
 
         $content = PageHeroContent::forSlug($pageSlug);
-        if ($content['state'] === PageHeroContent::STATE_HIDDEN) {
+        if ($content['state'] !== PageHeroContent::STATE_ACTIVE) {
             return;
         }
 

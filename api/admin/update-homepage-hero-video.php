@@ -50,7 +50,7 @@ try {
     exit;
 }
 
-$defaults = HomepageHeroContent::defaults();
+$startingValues = HomepageHeroContent::startingValues();
 
 $carriedFields = $current !== null
     ? [
@@ -76,10 +76,10 @@ $carriedFields = $current !== null
         'badge_title_en' => (string) ($current['badge_title_en'] ?? ''),
         'badge_text_nl' => (string) ($current['badge_text_nl'] ?? ''),
         'badge_text_en' => (string) ($current['badge_text_en'] ?? ''),
-        'media_type' => (string) ($current['media_type'] ?? $defaults['media_type']),
-        'layout' => (string) ($current['layout'] ?? $defaults['layout']),
+        'media_type' => (string) ($current['media_type'] ?? $startingValues['media_type']),
+        'layout' => (string) ($current['layout'] ?? $startingValues['layout']),
     ]
-    : array_diff_key($defaults, ['video_path' => 0]);
+    : array_diff_key($startingValues, ['video_path' => 0]);
 
 $existingVideoPath = $current !== null ? (string) ($current['video_path'] ?? '') : '';
 

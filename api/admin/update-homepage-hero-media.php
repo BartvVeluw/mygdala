@@ -59,7 +59,7 @@ $repository = new HomepageHeroRepository();
 
 try {
     $current = $repository->findBySlug(HomepageHeroContent::PAGE_SLUG);
-    $defaults = HomepageHeroContent::defaults();
+    $startingValues = HomepageHeroContent::startingValues();
 
     $carriedFields = $current !== null
         ? [
@@ -87,7 +87,7 @@ try {
             'badge_text_en' => (string) ($current['badge_text_en'] ?? ''),
             'video_path' => (string) ($current['video_path'] ?? ''),
         ]
-        : array_diff_key($defaults, ['media_type' => 0, 'layout' => 0]);
+        : array_diff_key($startingValues, ['media_type' => 0, 'layout' => 0]);
 
     $repository->upsert(
         HomepageHeroContent::PAGE_SLUG,

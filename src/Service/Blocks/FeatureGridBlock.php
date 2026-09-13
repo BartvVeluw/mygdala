@@ -77,7 +77,7 @@ final class FeatureGridBlock extends BlockDefinition
     public function render(array $pageSection, bool $tightTop, string $revealGroup): void
     {
         $content = FeatureGridContent::forSection($this->pageSlug($pageSection), $this->sectionKey($pageSection));
-        if ($content['state'] === FeatureGridContent::STATE_HIDDEN) {
+        if ($content['state'] !== FeatureGridContent::STATE_ACTIVE) {
             return;
         }
 
