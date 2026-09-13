@@ -7,9 +7,11 @@ namespace Tests\Service;
 use App\Database;
 use App\Repository\CollectionRepository;
 use App\Repository\ProductRepository;
+use App\Repository\SiteSettingRepository;
 use App\Service\AppUrl;
 use App\Service\CollectionContent;
 use App\Service\ProductSeo;
+use App\Service\SiteSettings;
 use App\Service\Sitemap;
 use PHPUnit\Framework\TestCase;
 use Tests\Support\TestEnvironment;
@@ -26,7 +28,16 @@ use Tests\Support\TestEnvironment;
  */
 final class SitemapRoutingTest extends TestCase
 {
-    private const CANONICAL_BASE = 'https://www.vanveluwlaserdesign.nl';
+    /**
+     * The canonical base URL the sitemap and the canonical tags are built
+     * from, written by the test itself rather than read from whatever the
+     * test database was copied from. Restored exactly in tearDown(),
+     * including a row that did not exist before.
+     */
+    private const SITE_IDENTITY = [
+        'canonical_base_url' => 'https://routing-test.example',
+    ];
+
     private const SLUG_PREFIX = 'zz-sitemaproute-';
 
     private ProductRepository $products;
@@ -36,6 +47,9 @@ final class SitemapRoutingTest extends TestCase
     private array $productIds = [];
     /** @var list<int> */
     private array $collectionIds = [];
+
+    /** @var array<string, string|null> what each identity key held before, null for no row */
+    private array $originalIdentity = [];
 
     protected function setUp(): void
     {
@@ -47,11 +61,29 @@ final class SitemapRoutingTest extends TestCase
         if ($this->request('/') === null) {
             $this->markTestSkipped(TestEnvironment::unreachableMessage());
         }
+
+        $stored = (new SiteSettingRepository())->findAll();
+        foreach (array_keys(self::SITE_IDENTITY) as $key) {
+            $this->originalIdentity[$key] = array_key_exists($key, $stored) ? $stored[$key] : null;
+        }
+
+        (new SiteSettingRepository())->upsertMany(self::SITE_IDENTITY);
+        SiteSettings::clearCache();
     }
 
     protected function tearDown(): void
     {
         $db = Database::connection();
+
+        foreach ($this->originalIdentity as $key => $value) {
+            if ($value === null) {
+                $db->prepare('DELETE FROM site_settings WHERE setting_key = :key')->execute(['key' => $key]);
+            } else {
+                (new SiteSettingRepository())->upsertMany([$key => $value]);
+            }
+        }
+        $this->originalIdentity = [];
+        SiteSettings::clearCache();
 
         foreach ($this->productIds as $id) {
             $db->prepare('DELETE FROM products WHERE id = :id')->execute(['id' => $id]);
@@ -238,7 +270,9 @@ final class SitemapRoutingTest extends TestCase
 
         $cases = [
             // A CMS page (the homepage), a product, and a collection.
-            '/' => self::CANONICAL_BASE . '/',
+            // AppUrl in this process walks the same chain as the web server
+            // sharing its container: APP_URL when pinned, else the row above.
+            '/' => AppUrl::base() . '/',
             '/product.php?id=' . $productId => ProductSeo::canonicalUrl($productId),
             '/collecties/' . $collectionSlug => CollectionContent::canonicalUrlForSlug($collectionSlug),
         ];

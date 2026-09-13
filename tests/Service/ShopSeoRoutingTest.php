@@ -7,8 +7,11 @@ namespace Tests\Service;
 use App\Database;
 use App\Repository\CollectionRepository;
 use App\Repository\ProductRepository;
+use App\Repository\SiteSettingRepository;
+use App\Service\AppUrl;
 use App\Service\CollectionContent;
 use App\Service\ProductSeo;
+use App\Service\SiteSettings;
 use PHPUnit\Framework\TestCase;
 use Tests\Support\TestEnvironment;
 
@@ -25,7 +28,15 @@ use Tests\Support\TestEnvironment;
  */
 final class ShopSeoRoutingTest extends TestCase
 {
-    private const CANONICAL_BASE = 'https://www.vanveluwlaserdesign.nl';
+    /**
+     * The identity these assertions name, written by the test itself rather
+     * than read from whatever the test database was copied from. Restored
+     * exactly in tearDown(), including a row that did not exist before.
+     */
+    private const SITE_IDENTITY = [
+        'site_name' => 'ZZ Routingtest',
+        'canonical_base_url' => 'https://routing-test.example',
+    ];
 
     /** Slug charset .htaccess actually rewrites; `zz-` keeps it obviously fake. */
     private const SLUG_PREFIX = 'zz-seo-collection-';
@@ -38,6 +49,9 @@ final class ShopSeoRoutingTest extends TestCase
     /** @var list<int> */
     private array $collectionIds = [];
 
+    /** @var array<string, string|null> what each identity key held before, null for no row */
+    private array $originalIdentity = [];
+
     protected function setUp(): void
     {
         $this->products = new ProductRepository();
@@ -48,11 +62,29 @@ final class ShopSeoRoutingTest extends TestCase
         if ($this->request('/') === null) {
             $this->markTestSkipped(TestEnvironment::unreachableMessage());
         }
+
+        $stored = (new SiteSettingRepository())->findAll();
+        foreach (array_keys(self::SITE_IDENTITY) as $key) {
+            $this->originalIdentity[$key] = array_key_exists($key, $stored) ? $stored[$key] : null;
+        }
+
+        (new SiteSettingRepository())->upsertMany(self::SITE_IDENTITY);
+        SiteSettings::clearCache();
     }
 
     protected function tearDown(): void
     {
         $db = Database::connection();
+
+        foreach ($this->originalIdentity as $key => $value) {
+            if ($value === null) {
+                $db->prepare('DELETE FROM site_settings WHERE setting_key = :key')->execute(['key' => $key]);
+            } else {
+                (new SiteSettingRepository())->upsertMany([$key => $value]);
+            }
+        }
+        $this->originalIdentity = [];
+        SiteSettings::clearCache();
 
         foreach ($this->productIds as $id) {
             $db->prepare('DELETE FROM products WHERE id = :id')->execute(['id' => $id]);
@@ -65,6 +97,16 @@ final class ShopSeoRoutingTest extends TestCase
         $this->collectionIds = [];
         ProductSeo::clearCache();
         CollectionContent::clearCache();
+    }
+
+    /**
+     * The public base URL the server builds canonical links from. The same
+     * chain in this process as in the web server it shares a container with:
+     * APP_URL when the environment pins one, otherwise the row set above.
+     */
+    private function canonicalBase(): string
+    {
+        return AppUrl::base();
     }
 
     /**
@@ -169,7 +211,7 @@ final class ShopSeoRoutingTest extends TestCase
         $response = $this->request('/product.php?id=' . $id);
 
         $this->assertNotNull($response);
-        $this->assertStringContainsString('ZZ SEO-product | Shop — Van Veluw Laserdesign', $response['body']);
+        $this->assertStringContainsString('ZZ SEO-product | Shop — ' . self::SITE_IDENTITY['site_name'], $response['body']);
         // Plain text, never the stored markup.
         $this->assertStringContainsString('content="Een korte beschrijving."', $response['body']);
         $this->assertStringNotContainsString('content="&lt;p&gt;', $response['body']);
@@ -183,12 +225,12 @@ final class ShopSeoRoutingTest extends TestCase
 
         $this->assertNotNull($response);
         $this->assertStringContainsString(
-            '<link rel="canonical" href="' . self::CANONICAL_BASE . '/product.php?id=' . $id . '">',
+            '<link rel="canonical" href="' . $this->canonicalBase() . '/product.php?id=' . $id . '">',
             $response['body']
         );
-        $this->assertStringContainsString('property="og:url" content="' . self::CANONICAL_BASE . '/product.php?id=' . $id . '"', $response['body']);
-        $this->assertStringContainsString('property="og:site_name" content="Van Veluw Laserdesign"', $response['body']);
-        $this->assertStringContainsString('property="og:image" content="' . self::CANONICAL_BASE . '/assets/images/products/zz-seo.png"', $response['body']);
+        $this->assertStringContainsString('property="og:url" content="' . $this->canonicalBase() . '/product.php?id=' . $id . '"', $response['body']);
+        $this->assertStringContainsString('property="og:site_name" content="' . self::SITE_IDENTITY['site_name'] . '"', $response['body']);
+        $this->assertStringContainsString('property="og:image" content="' . $this->canonicalBase() . '/assets/images/products/zz-seo.png"', $response['body']);
         $this->assertStringContainsString('property="og:type" content="website"', $response['body']);
     }
 
@@ -201,7 +243,7 @@ final class ShopSeoRoutingTest extends TestCase
         $this->assertNotNull($response);
         $this->assertSame(200, $response['status']);
         $this->assertStringContainsString(
-            '<link rel="canonical" href="' . self::CANONICAL_BASE . '/product.php?id=' . $id . '">',
+            '<link rel="canonical" href="' . $this->canonicalBase() . '/product.php?id=' . $id . '">',
             $response['body']
         );
         $this->assertStringNotContainsString('utm_source', $response['body']);
@@ -221,9 +263,9 @@ final class ShopSeoRoutingTest extends TestCase
             'href="' . TestEnvironment::baseUrl() . '/product.php',
             $response['body']
         );
-        $this->assertStringContainsString('href="' . self::CANONICAL_BASE . '/product.php', $response['body']);
+        $this->assertStringContainsString('href="' . $this->canonicalBase() . '/product.php', $response['body']);
         $this->assertSame(
-            self::CANONICAL_BASE . '/product.php?id=' . $id,
+            $this->canonicalBase() . '/product.php?id=' . $id,
             $this->jsonLd($response['body'])['url']
         );
     }
@@ -351,10 +393,10 @@ final class ShopSeoRoutingTest extends TestCase
         $this->assertStringContainsString('<title data-nl="ZZ eigen collectietitel"', $response['body']);
         $this->assertStringContainsString('content="ZZ eigen collectiebeschrijving."', $response['body']);
         $this->assertStringContainsString(
-            '<link rel="canonical" href="' . self::CANONICAL_BASE . '/collecties/' . $slug . '">',
+            '<link rel="canonical" href="' . $this->canonicalBase() . '/collecties/' . $slug . '">',
             $response['body']
         );
-        $this->assertStringContainsString('property="og:site_name" content="Van Veluw Laserdesign"', $response['body']);
+        $this->assertStringContainsString('property="og:site_name" content="' . self::SITE_IDENTITY['site_name'] . '"', $response['body']);
     }
 
     public function testAnInactiveCollectionStillExposesNothing(): void
@@ -382,7 +424,7 @@ final class ShopSeoRoutingTest extends TestCase
 
         $this->assertNotNull($home);
         $this->assertSame(200, $home['status']);
-        $this->assertStringContainsString('<link rel="canonical" href="' . self::CANONICAL_BASE . '/">', $home['body']);
+        $this->assertStringContainsString('<link rel="canonical" href="' . $this->canonicalBase() . '/">', $home['body']);
         $this->assertStringContainsString('<meta name="description"', $home['body']);
         $this->assertStringContainsString('property="og:title"', $home['body']);
 
@@ -397,6 +439,6 @@ final class ShopSeoRoutingTest extends TestCase
 
         $shop = $this->request('/shop.php');
         $this->assertNotNull($shop);
-        $this->assertStringContainsString('<link rel="canonical" href="' . self::CANONICAL_BASE . '/shop.php">', $shop['body']);
+        $this->assertStringContainsString('<link rel="canonical" href="' . $this->canonicalBase() . '/shop.php">', $shop['body']);
     }
 }

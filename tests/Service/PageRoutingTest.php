@@ -5,8 +5,10 @@ namespace Tests\Service;
 use App\Database;
 use App\Repository\PageRepository;
 use App\Repository\PageSectionRepository;
+use App\Repository\SiteSettingRepository;
 use App\Service\PageContent;
 use App\Service\SectionRegistry;
+use App\Service\SiteSettings;
 use PHPUnit\Framework\TestCase;
 use Tests\Support\TestEnvironment;
 
@@ -36,19 +38,53 @@ class PageRoutingTest extends TestCase
      */
     private const TEST_KEY = 'zz-test-routing-page';
 
+    /**
+     * The site name the homepage assertion looks for, written by the test
+     * itself rather than read from whatever the test database was copied
+     * from. Restored exactly in tearDown(), including a row that did not
+     * exist before.
+     */
+    private const SITE_NAME = 'ZZ Routingtest';
+
     private PageRepository $repository;
     private ?int $pageId = null;
+
+    /** What `site_name` held before this test, null when there was no row. */
+    private ?string $originalSiteName = null;
+
+    private bool $siteNameWritten = false;
 
     protected function setUp(): void
     {
         $this->repository = new PageRepository();
         $this->skipUnlessServerReachable();
         $this->cleanUp();
+
+        $stored = (new SiteSettingRepository())->findAll();
+        $this->originalSiteName = array_key_exists('site_name', $stored) ? $stored['site_name'] : null;
+
+        (new SiteSettingRepository())->upsertMany(['site_name' => self::SITE_NAME]);
+        $this->siteNameWritten = true;
+        SiteSettings::clearCache();
     }
 
     protected function tearDown(): void
     {
         $this->cleanUp();
+
+        if ($this->siteNameWritten) {
+            if ($this->originalSiteName === null) {
+                Database::connection()
+                    ->prepare("DELETE FROM site_settings WHERE setting_key = 'site_name'")
+                    ->execute();
+            } else {
+                (new SiteSettingRepository())->upsertMany(['site_name' => $this->originalSiteName]);
+            }
+
+            $this->siteNameWritten = false;
+            $this->originalSiteName = null;
+            SiteSettings::clearCache();
+        }
     }
 
     private function cleanUp(): void
@@ -212,7 +248,7 @@ class PageRoutingTest extends TestCase
         $response = $this->request('/');
 
         $this->assertSame(200, $response['status']);
-        $this->assertStringContainsString('Van Veluw Laserdesign', $response['body']);
+        $this->assertStringContainsString(self::SITE_NAME, $response['body']);
     }
 
     public function testSeoTitleAndMetaDescriptionAreRenderedFromThePage(): void
