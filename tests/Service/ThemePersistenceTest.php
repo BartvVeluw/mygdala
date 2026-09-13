@@ -88,11 +88,27 @@ final class ThemePersistenceTest extends TestCase
 
     public function testAnInvalidValueIsNeverStored(): void
     {
+        // Its own starting point, like the fresh-install test above: whether
+        // this installation's owner already chose a theme is not a
+        // precondition of the rule. tearDown() puts their theme back.
+        $repository = new ThemeSettingRepository();
+        $repository->deleteKeys(ThemeSettings::keys());
+        ThemeSettings::clearCache();
+
         ThemeSettings::save(['primary_color' => 'url(https://example.com/x.png)']);
         ThemeSettings::clearCache();
 
-        $this->assertArrayNotHasKey('primary_color', (new ThemeSettingRepository())->findAll());
+        $this->assertArrayNotHasKey('primary_color', $repository->findAll());
         $this->assertSame(ThemeSettings::defaults()['primary_color'], ThemeSettings::get('primary_color'));
+
+        // ... and a refused value never takes the place of a valid one
+        // that is already stored.
+        ThemeSettings::save(['primary_color' => '#2F6FED']);
+        ThemeSettings::save(['primary_color' => 'url(https://example.com/x.png)']);
+        ThemeSettings::clearCache();
+
+        $this->assertSame(['primary_color' => '#2F6FED'], $repository->findAll());
+        $this->assertSame('#2F6FED', ThemeSettings::get('primary_color'));
     }
 
     public function testAHandEditedRowThatIsNoLongerValidFallsBackRatherThanRendering(): void

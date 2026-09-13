@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Tests\Service;
 
 use App\Database;
+use App\Repository\CustomerRepository;
+use App\Repository\OrderRepository;
 use App\Repository\PersonalizationPreviewSnapshotRepository;
 use App\Repository\ProductRepository;
 use App\Service\Personalization\PersonalizationPreviewComposer;
@@ -33,9 +35,13 @@ use Tests\Support\TestEnvironment;
 final class PersonalizationPreviewSnapshotTest extends TestCase
 {
     private const SLUG_PREFIX = 'zz-test-snapshot-';
+    private const CUSTOMER_EMAIL = 'preview-snapshot-test@__test__.invalid';
 
     private ProductRepository $products;
     private PersonalizationPreviewSnapshotRepository $snapshots;
+
+    private ?int $customerId = null;
+    private ?int $orderId = null;
 
     /** @var list<int> */
     private array $productIds = [];
@@ -55,8 +61,18 @@ final class PersonalizationPreviewSnapshotTest extends TestCase
     {
         $db = Database::connection();
 
+        // Children before parents: a snapshot points at an order line and a
+        // product, an order line at its order and its product, an order at
+        // its customer.
         foreach ($this->snapshotIds as $id) {
             $db->prepare('DELETE FROM personalization_preview_snapshots WHERE id = :id')->execute(['id' => $id]);
+        }
+        if ($this->orderId !== null) {
+            $db->prepare('DELETE FROM order_items WHERE order_id = :id')->execute(['id' => $this->orderId]);
+            $db->prepare('DELETE FROM orders WHERE id = :id')->execute(['id' => $this->orderId]);
+        }
+        if ($this->customerId !== null) {
+            $db->prepare('DELETE FROM customers WHERE id = :id')->execute(['id' => $this->customerId]);
         }
         foreach ($this->productIds as $id) {
             $db->prepare('DELETE FROM products WHERE id = :id')->execute(['id' => $id]);
@@ -66,6 +82,8 @@ final class PersonalizationPreviewSnapshotTest extends TestCase
         }
 
         $this->snapshotIds = [];
+        $this->orderId = null;
+        $this->customerId = null;
         $this->productIds = [];
         $this->tempFiles = [];
         ProductPersonalizationContent::clearCache();
@@ -94,6 +112,59 @@ final class PersonalizationPreviewSnapshotTest extends TestCase
         $this->productIds[] = $id;
 
         return $id;
+    }
+
+    /**
+     * A real order with two lines of one product: the order lines a snapshot
+     * can be claimed to. Same shape as Tests\Service\InvoiceServiceTest's
+     * order fixture, and cleaned up by tearDown().
+     *
+     * @return array{0: int, 1: int} the two order_items ids
+     */
+    private function createOrderWithTwoLines(int $productId): array
+    {
+        $this->customerId = (new CustomerRepository())->findOrCreateByEmail([
+            'name' => 'Snapshot Test',
+            'email' => self::CUSTOMER_EMAIL,
+            'phone' => null,
+            'address_line' => 'Teststraat 1',
+            'postal_code' => '1234AB',
+            'city' => 'Teststad',
+            'country' => 'NL',
+        ]);
+
+        $orders = new OrderRepository();
+        $this->orderId = $orders->create(
+            $this->customerId,
+            30.00,
+            0.00,
+            'afhalen',
+            'EUR',
+            true,
+            new \DateTimeImmutable(),
+            hash('sha256', 'test-terms'),
+            [
+                'first_name' => 'Snapshot', 'last_name' => 'Test', 'company' => null,
+                'country' => 'NL', 'postal_code' => '1234AB', 'house_number' => '1',
+                'house_number_addition' => null, 'street' => 'Teststraat', 'city' => 'Teststad',
+            ],
+            null
+        );
+
+        $line = [
+            'product_id' => $productId,
+            'variant_id' => null,
+            'variant_label' => null,
+            'quantity' => 1,
+            'unit_price' => 15.00,
+            'product_name' => 'Testproduct voorbeeldsnapshot',
+            'product_name_en' => null,
+        ];
+
+        $itemIds = array_values($orders->addItems($this->orderId, [$line, $line]));
+        $this->assertCount(2, $itemIds, 'precondition: two order lines to claim to');
+
+        return [(int) $itemIds[0], (int) $itemIds[1]];
     }
 
     /** A real PNG on disk, presented the way a PHP upload would be. */
@@ -253,6 +324,7 @@ final class PersonalizationPreviewSnapshotTest extends TestCase
     {
         $productId = $this->createProduct();
         PersonalizationTestConfig::singleZone($productId);
+        [$firstLine, $secondLine] = $this->createOrderWithTwoLines($productId);
 
         $token = PersonalizationRules::newUploadToken();
         $snapshotId = $this->snapshots->create([
@@ -266,17 +338,20 @@ final class PersonalizationPreviewSnapshotTest extends TestCase
         ]);
         $this->snapshotIds[] = $snapshotId;
 
-        // There is no order line to claim it to in this test, so the guard is
-        // exercised through the repository's own precondition: a row that
-        // already has an order_item_id is never re-bound.
-        $db = Database::connection();
-        $db->prepare('UPDATE personalization_preview_snapshots SET order_item_id = 1, claimed_at = NOW() WHERE id = :id')
-            ->execute(['id' => $snapshotId]);
+        // Claimed the way checkout claims it, to a real order line.
+        $this->assertTrue(
+            $this->snapshots->claim($snapshotId, $firstLine, PersonalizationRules::DEFAULT_VIEW_KEY),
+            'an unclaimed snapshot must bind to the order line it is claimed for'
+        );
 
         $this->assertFalse(
-            $this->snapshots->claim($snapshotId, 2, 'voorkant'),
+            $this->snapshots->claim($snapshotId, $secondLine, PersonalizationRules::DEFAULT_VIEW_KEY),
             'a claimed snapshot must never be re-pointed at another order line'
         );
+
+        $stmt = Database::connection()->prepare('SELECT order_item_id FROM personalization_preview_snapshots WHERE id = :id');
+        $stmt->execute(['id' => $snapshotId]);
+        $this->assertSame($firstLine, (int) $stmt->fetchColumn(), 'the snapshot still belongs to the first order line');
 
         // ...and the validator no longer offers it either.
         $config = ProductPersonalizationContent::forProduct($productId);
@@ -284,9 +359,6 @@ final class PersonalizationPreviewSnapshotTest extends TestCase
             $config,
             [PersonalizationRules::DEFAULT_VIEW_KEY => $token]
         ));
-
-        $db->prepare('UPDATE personalization_preview_snapshots SET order_item_id = NULL WHERE id = :id')
-            ->execute(['id' => $snapshotId]);
     }
 
     /* ------------------------------------------------------------------ */

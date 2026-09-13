@@ -266,11 +266,10 @@ tests mee die niets met je wijziging te maken hebben. `TESTING.md` noemt ze bij
 naam.
 
 **De volle suite is nu niet groen, en dat lag er al.** Op de huidige
-testdatabase geeft `full` 1 error en 8 failures. Zeven komen uit de omgeving
+testdatabase geeft `full` 7 failures, en die komen alle zeven uit de omgeving
 waarin je draait: `APP_ENV`, `APP_URL`, de `MODULE_*`-vlaggen,
-`SHOP_NOTIFICATION_EMAIL` en de beheerdershash uit `.env`. Twee zijn
-testisolatie (`ThemePersistenceTest`, `PersonalizationPreviewSnapshotTest`).
-Geen van de negen leunt nog op inhoud van Van Veluw. Vergelijk bij twijfel met
+`SHOP_NOTIFICATION_EMAIL` en de beheerdershash uit `.env`. Geen ervan leunt op
+inhoud van de testdatabase. Vergelijk bij twijfel met
 `main` voordat je denkt dat jij iets kapot hebt gemaakt.
 
 **De HTTP-tests hebben een draaiende webcontainer nodig.** Zonder
