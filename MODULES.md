@@ -317,6 +317,18 @@ Alles wat er ook zou zijn zonder webshop.
   opgeslagen in `orders.order_number`; mail, Mollie, beheer, export en factuur
   lezen het via `OrderRepository::orderNumber()`.
 - Facturen — `InvoiceService`, `PdfInvoiceRenderer`, `InvoiceStorage`.
+- Shop-instellingen — `ShopSettings`, `admin/shop-settings.php`,
+  `api/admin/update-shop-settings.php`: de bedrijfsgegevens en vaste teksten
+  op facturen, het bestelnummerprefix en de tekst van de bestelbevestiging,
+  met "Herstel standaardtekst" en uitleg bij de invulvelden. Dit waren de
+  tabbladen Facturen en E-mails van Site-instellingen; het zijn dezelfde
+  sleutels in `site_settings`, dus uit- en aanzetten raakt ze niet. Adres,
+  KVK-nummer, e-mailadres en telefoon staan niet hier maar op
+  Site-instellingen, omdat de footer en de mailvoetregel ze ook lezen. Het
+  scherm vraagt `settings.manage`, dezelfde permissie als die tabbladen. Dat
+  is een Core-permissie die met de Shop uit gewoon houdbaar blijft, dus
+  scherm en endpoint hebben als enige Shop-adminbestanden wél een
+  `ModuleGuard`.
 - Retourverzoeken (herroepingsrecht) — `WithdrawalRequestRepository`,
   `herroeping.php`, `api/withdrawal-request.php`,
   `admin/withdrawal-requests.php`, `admin/withdrawal-request.php`,

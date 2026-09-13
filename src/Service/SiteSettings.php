@@ -141,6 +141,13 @@ class SiteSettings
         // an owner can change in one field.
         'company_street' => '',
         'company_house_number' => '',
+        // The legal name on an invoice, when it is not the site's own name.
+        // EMPTY by default, and empty means "use site_name"
+        // (App\Service\InvoiceService::buildSellerSnapshot()): a site name is
+        // what visitors know, and a personal site or a shop trading under a
+        // brand name has no reason to repeat it. Only the Shop's own settings
+        // screen shows it (admin/shop-settings.php).
+        'company_name' => '',
         'company_postal_code' => '',
         'company_city' => '',
         'company_country' => 'NL',

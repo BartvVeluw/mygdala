@@ -4113,6 +4113,31 @@ body.admin-block-picker-open{ overflow: hidden; }
   color: var(--admin-text-muted);
 }
 
+/* --- Shop-instellingen (admin/shop-settings.php) --------------------------- */
+
+/* What an invoice also prints from Site-instellingen: read-only, a label
+   beside each value. */
+.admin-shop-summary{
+  display: grid;
+  grid-template-columns: minmax(8rem, max-content) 1fr;
+  gap: 0.4rem var(--admin-sp-5);
+  margin: 0;
+}
+
+.admin-shop-summary dt{ color: var(--admin-text-muted); font-size: 0.85rem; }
+.admin-shop-summary dd{ margin: 0; }
+
+/* The placeholders an e-mail text may use, written the way an owner types them. */
+.admin-shop-placeholders{ display: flex; flex-direction: column; gap: 0.4rem; }
+.admin-shop-placeholders__list{ display: flex; flex-wrap: wrap; gap: 0.4rem; margin: 0; }
+
+.admin-shop-placeholders__list code{
+  padding: 0.1rem 0.45rem;
+  border: 1px solid var(--admin-border);
+  border-radius: var(--admin-radius-sm);
+  font-size: 0.82rem;
+}
+
 /* ==========================================================================
    ADMIN UI PRIMITIVES (admin/_admin_ui.php, admin/assets/admin-ui.js)
 

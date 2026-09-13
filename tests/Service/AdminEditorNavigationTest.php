@@ -62,20 +62,8 @@ final class AdminEditorNavigationTest extends TestCase
         'primary_content_language' => 'talen',
                 'seo_default_description' => 'seo',
         'seo_robots_index_default' => 'seo',
-        'company_website' => 'facturen',
-        'company_vat_id' => 'facturen',
-        'invoice_number_prefix' => 'facturen',
-        'invoice_tax_note' => 'facturen',
-        'invoice_payment_note' => 'facturen',
-        'invoice_footer_text' => 'facturen',
-        'order_number_prefix' => 'facturen',
-        'order_email_subject' => 'email',
-        'order_email_heading' => 'email',
-        'order_email_intro' => 'email',
-        'order_email_before_items' => 'email',
-        'order_email_after_items' => 'email',
-        'order_email_closing' => 'email',
-        'order_email_signature' => 'email',
+        // Invoices, order numbers and the order e-mail are the Shop's own
+        // screen now; Tests\Service\ShopSettingsTest holds its tabs.
         'admin_theme' => 'dashboard',
     ];
 
@@ -531,7 +519,7 @@ final class AdminEditorNavigationTest extends TestCase
     public function testSiteSettingsIsGroupedAndKeepsEveryFieldItHad(): void
     {
         $panels = $this->panelSources('admin/settings.php');
-        $this->assertSame(['algemeen', 'talen', 'seo', 'facturen', 'email', 'dashboard'], array_keys($panels));
+        $this->assertSame(['algemeen', 'talen', 'seo', 'dashboard'], array_keys($panels));
 
         foreach (self::SETTINGS_FIELDS as $field => $tab) {
             $found = [];
@@ -572,7 +560,7 @@ final class AdminEditorNavigationTest extends TestCase
     {
         $panels = $this->panelSources('admin/settings.php');
 
-        foreach (['algemeen', 'seo', 'facturen', 'email'] as $key) {
+        foreach (['algemeen', 'seo'] as $key) {
             $this->assertSame(
                 1,
                 substr_count($panels[$key], 'action="/api/admin/update-site-settings.php"'),
@@ -606,7 +594,7 @@ final class AdminEditorNavigationTest extends TestCase
             ModuleRegistry::overrideForTests(['shop' => $shopEnabled]);
 
             $this->assertSame(
-                ['algemeen', 'talen', 'seo', 'facturen', 'email', 'dashboard'],
+                ['algemeen', 'talen', 'seo', 'dashboard'],
                 array_keys($this->panelSources('admin/settings.php'))
             );
             $this->assertSame(

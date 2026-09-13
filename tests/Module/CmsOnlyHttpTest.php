@@ -299,6 +299,7 @@ final class CmsOnlyHttpTest extends TestCase
             [
                 '/admin/products.php', '/admin/collections.php', '/admin/orders.php',
                 '/admin/shipping.php', '/admin/personalization.php', '/admin/related-products.php',
+                '/admin/shop-settings.php',
             ] as $path
         ) {
             $response = $this->get($path);

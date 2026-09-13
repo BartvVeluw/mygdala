@@ -4,6 +4,7 @@ namespace App\Mail;
 
 use App\Repository\OrderRepository;
 use App\Service\Shipping\ShippingProfile;
+use App\Service\SiteSettings;
 
 /**
  * Builds the subject/HTML/plain-text content for the two paid-order emails
@@ -26,6 +27,30 @@ use App\Service\Shipping\ShippingProfile;
  */
 class OrderConfirmationBuilder
 {
+    /**
+     * The customer e-mail's editable copy. Its standard text is the code
+     * default in App\Service\SiteSettings and nowhere else: defaultCopy()
+     * reads it from there, build() falls back on it, and "Herstel
+     * standaardtekst" on admin/shop-settings.php fills the fields with it.
+     */
+    public const CUSTOMER_COPY_KEYS = [
+        'order_email_subject',
+        'order_email_heading',
+        'order_email_intro',
+        'order_email_before_items',
+        'order_email_after_items',
+        'order_email_closing',
+        'order_email_signature',
+    ];
+
+    /**
+     * @return array<string, string> every CUSTOMER_COPY_KEYS key => its standard text
+     */
+    public static function defaultCopy(): array
+    {
+        return array_intersect_key(SiteSettings::defaults(), array_flip(self::CUSTOMER_COPY_KEYS));
+    }
+
     /**
      * @param array<string, mixed> $order order row (must include id, total, shipping_cost, shipping_method, currency, and the order-level "shipping_" and "billing_"-prefixed columns — see OrderRepository::resolveShippingAddress()/resolveBillingAddress())
      * @param array<string, mixed> $customer customer row (name, email, phone, address_line, postal_code, city, country) — also used as the legacy address fallback for orders placed before order-level addresses existed
@@ -69,19 +94,11 @@ class OrderConfirmationBuilder
             ? "\nFactuurgegevens:\n" . self::renderAddressText($billingAddress, $customer, false)
             : '';
 
-        // CMS-editable copy (App\Service\SiteSettings `order_email_*`) with
-        // safe fallback defaults matching SiteSettings::DEFAULTS, so this
-        // stays fully functional/testable even if $emailSettings is empty
-        // or missing keys.
-        $copy = $emailSettings + [
-            'order_email_subject' => 'Bevestiging van je bestelling {{order_number}} — {{site_name}}',
-            'order_email_heading' => 'Bedankt voor je bestelling!',
-            'order_email_intro' => "Beste {{customer_name}},\n\nJe betaling voor bestelling {{order_number}} is gelukt. We gaan zo snel mogelijk voor je aan de slag.",
-            'order_email_before_items' => '',
-            'order_email_after_items' => '',
-            'order_email_closing' => 'Heb je vragen over je bestelling? Antwoord gerust op deze e-mail.',
-            'order_email_signature' => '',
-        ];
+        // CMS-editable copy (App\Service\SiteSettings `order_email_*`), falling
+        // back on the standard text — read from SiteSettings, never repeated
+        // here — so this stays fully functional and testable when
+        // $emailSettings is empty or missing keys.
+        $copy = $emailSettings + self::defaultCopy();
         $placeholderValues = [
             'customer_name' => (string) $customer['name'],
             'order_number' => $orderNumber,

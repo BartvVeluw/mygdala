@@ -53,7 +53,7 @@ final class ShopDisabledTest extends TestCase
         $this->withEverythingOn();
 
         $navKeys = array_column(AdminNavigation::items(), 'key');
-        foreach (['catalog', 'collections', 'related_products', 'personalization', 'shipping', 'carrier_rates', 'orders', 'withdrawal_requests'] as $key) {
+        foreach (['catalog', 'collections', 'related_products', 'personalization', 'shipping', 'carrier_rates', 'shop_settings', 'orders', 'withdrawal_requests'] as $key) {
             $this->assertContains($key, $navKeys, $key . ' must be in the sidebar while the Shop runs');
         }
 
@@ -100,6 +100,7 @@ final class ShopDisabledTest extends TestCase
                 'personalization',
                 'shipping',
                 'carrier_rates',
+                'shop_settings',
                 'portfolio',
                 'orders',
                 'withdrawal_requests',
@@ -127,7 +128,7 @@ final class ShopDisabledTest extends TestCase
 
         $navKeys = array_column(AdminNavigation::items(), 'key');
 
-        foreach (['catalog', 'collections', 'related_products', 'personalization', 'shipping', 'carrier_rates', 'orders', 'withdrawal_requests'] as $key) {
+        foreach (['catalog', 'collections', 'related_products', 'personalization', 'shipping', 'carrier_rates', 'shop_settings', 'orders', 'withdrawal_requests'] as $key) {
             $this->assertNotContains($key, $navKeys, $key . ' must be gone from the sidebar');
         }
 

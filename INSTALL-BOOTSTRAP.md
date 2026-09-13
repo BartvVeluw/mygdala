@@ -196,8 +196,8 @@ placeholder, met de huidige waarde van deze site als echte rij vastgepind. Zie
 **En het bestelnummerprefix is een instelling.**
 `App\Repository\OrderRepository::formatOrderNumber()` schreef `VLD-` met de
 hand uit, dus elke installatie nummerde haar bestellingen als deze site. De
-standaard is nu `ORD`, en de beheerder wijzigt hem op het tabblad Facturen,
-als eigen veld naast het factuurnummer. Een installatie die al nummers uitgaf
+standaard is nu `ORD`, en de beheerder wijzigt hem bij Shop-instellingen, op
+het tabblad Bestellingen, los van het factuurnummer. Een installatie die al nummers uitgaf
 is eerst op `VLD` vastgepind. Dat geldt ook voor een verse installatie die al
 bestellingen had: ook zij heeft `VLD-`-nummers verstuurd. Een database die
 vanaf nul wordt opgebouwd heeft op dat moment geen bestellingen en krijgt dus

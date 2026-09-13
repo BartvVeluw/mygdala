@@ -8,6 +8,7 @@ use App\Service\Language\AdminTranslator;
 use App\Repository\CollectionRepository;
 use App\Repository\PortfolioGalleryRepository;
 use App\Repository\ProductRepository;
+use App\Service\AdminPermissions;
 use App\Service\Blocks\ProductGridBlock;
 use App\Service\Blocks\ShopCollectionsBlock;
 use App\Service\CollectionContent;
@@ -115,6 +116,20 @@ final class ShopModule extends ModuleDefinition
                 'permission' => self::SHIPPING_MANAGE,
                 'order' => 350,
                 'scripts' => ['carrier-rates.php'],
+            ],
+            [
+                // Invoices, order numbers and the order confirmation e-mail:
+                // two tabs of Site-instellingen once, and meaningless without
+                // a shop. settings.manage, the permission those tabs asked, so
+                // the move changed nobody's access; that is also why
+                // admin/shop-settings.php carries a ModuleGuard of its own.
+                'key' => 'shop_settings',
+                'label' => 'Shop-instellingen',
+                'url' => '/admin/shop-settings.php',
+                'icon' => 'shop_settings',
+                'permission' => AdminPermissions::SETTINGS_MANAGE,
+                'order' => 360,
+                'scripts' => ['shop-settings.php'],
             ],
             [
                 'key' => 'orders',

@@ -170,7 +170,10 @@ class InvoiceService
         $settings = SiteSettings::all();
 
         return [
-            'company_name' => $settings['site_name'],
+            // The legal name when the owner gave one (Shop-instellingen), the
+            // site name otherwise, which is what every invoice carried before
+            // company_name existed.
+            'company_name' => $settings['company_name'] !== '' ? $settings['company_name'] : $settings['site_name'],
             'logo_path' => $settings['logo_path'],
             'street' => $settings['company_street'],
             'house_number' => $settings['company_house_number'],

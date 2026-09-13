@@ -159,18 +159,16 @@ function brandingImageField(
     </div>
   <?php endif; ?>
 
-  <?php /* Five tabs over the five independent forms this screen already had
-           (admin/_admin_tabs.php). Grouped by what an editor came to change,
-           and along the seams that were there: every tab is one whole
-           <form> to its own endpoint, so nothing moved between forms, no
-           save now carries fields it did not carry before, and where a
-           setting is stored did not change at all. */ ?>
+  <?php /* Four tabs, grouped by what an editor came to change
+           (admin/_admin_tabs.php). Every tab is one whole <form> to its own
+           endpoint. What was the Facturen and E-mails tabs is the Shop's own
+           screen now (admin/shop-settings.php): the same settings, which mean
+           nothing on a site without a shop. The tabs here are the same with
+           the Shop on or off. */ ?>
   <?php admin_tabs_start('site-settings', [
       'algemeen' => admin_t('settings.tab_general'),
       'talen' => admin_t('language.settings_title'),
       'seo' => admin_t('settings.tab_seo'),
-      'facturen' => admin_t('settings.tab_invoices'),
-      'email' => admin_t('settings.tab_emails'),
       'dashboard' => admin_t('settings.tab_dashboard'),
   ], [
       'label' => admin_t('settings.tabs_label'),
@@ -425,116 +423,6 @@ function brandingImageField(
           <?= admin_help(admin_t('settings.zoekmachines_mogen_website_indexeren'), admin_t('help.settings.robots')) ?>
         </div>
         <p class="admin-text-muted"><?= admin_t('settings.uit_betekent_elke_publieke') ?></p>
-      </div>
-
-      <button type="submit"><?= admin_te('common.save') ?></button>
-    </form>
-  </section>
-  <?php admin_tab_panel_end(); ?>
-
-  <?php admin_tab_panel('facturen'); ?>
-  <section class="admin-card">
-    <h2><?= admin_te('settings.bedrijfsgegevens_facturen') ?></h2>
-    <p class="admin-text-muted"><?= admin_te('settings.gegevens_gebruikt_elke_nieuw') ?></p>
-    <form method="post" action="/api/admin/update-site-settings.php" class="admin-product-form">
-      <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
-
-      <div class="admin-form-row admin-form-row--split">
-        <label><?= admin_te('settings.website') ?>
-          <input type="text" name="company_website" maxlength="150" value="<?= settingValue($values, 'company_website') ?>">
-        </label>
-        <label><?= admin_te('settings.btw_id_indien_toepassing') ?>
-          <input type="text" name="company_vat_id" maxlength="30" value="<?= settingValue($values, 'company_vat_id') ?>">
-        </label>
-      </div>
-
-      <div class="admin-form-row admin-form-row--split">
-        <label><?= admin_te('settings.factuurnummer_voorvoegsel') ?>
-          <input type="text" name="invoice_number_prefix" maxlength="20" value="<?= settingValue($values, 'invoice_number_prefix') ?>">
-        </label>
-      </div>
-
-      <div class="admin-form-row">
-        <label><?= admin_te('settings.fiscale_juridische_toelichting_bijv') ?>
-          <textarea name="invoice_tax_note" maxlength="500" rows="2"><?= settingValue($values, 'invoice_tax_note') ?></textarea>
-        </label>
-        <p class="admin-text-muted"><?= admin_te('settings.leeg_extra_tekst_factuur') ?></p>
-      </div>
-
-      <div class="admin-form-row">
-        <label><?= admin_te('settings.betaalopmerking_optioneel') ?>
-          <textarea name="invoice_payment_note" maxlength="500" rows="2"><?= settingValue($values, 'invoice_payment_note') ?></textarea>
-        </label>
-      </div>
-
-      <div class="admin-form-row">
-        <label><?= admin_te('settings.factuur_footer') ?>
-          <textarea name="invoice_footer_text" maxlength="500" rows="2"><?= settingValue($values, 'invoice_footer_text') ?></textarea>
-        </label>
-      </div>
-
-      <?php /* Its own heading and its own field: the order number is not part
-               of the invoice number. Still inside this tab's one form, which
-               is the rule every tab on this screen keeps. */ ?>
-      <h3><?= admin_te('settings.bestelnummers') ?></h3>
-      <p class="admin-text-muted"><?= admin_te('settings.bestelnummers_intro') ?></p>
-
-      <div class="admin-form-row admin-form-row--split">
-        <label><?= admin_te('settings.bestelnummerprefix') ?>
-          <input type="text" name="order_number_prefix" maxlength="10" pattern="[A-Za-z0-9]{1,10}" value="<?= settingValue($values, 'order_number_prefix') ?>">
-        </label>
-      </div>
-      <p class="admin-text-muted"><?= admin_te('settings.bestelnummerprefix_uitleg') ?></p>
-
-      <button type="submit"><?= admin_te('common.save') ?></button>
-    </form>
-  </section>
-  <?php admin_tab_panel_end(); ?>
-
-  <?php admin_tab_panel('email'); ?>
-  <section class="admin-card">
-    <h2><?= admin_te('settings.e_mailtekst_bestelbevestiging') ?></h2>
-    <p class="admin-text-muted"><?= admin_t('settings.tekst_gebruikt_bevestigingsmail_klant') ?></p>
-    <form method="post" action="/api/admin/update-site-settings.php" class="admin-product-form">
-      <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
-
-      <div class="admin-form-row">
-        <label><?= admin_te('settings.onderwerp') ?>
-          <input type="text" name="order_email_subject" maxlength="255" value="<?= settingValue($values, 'order_email_subject') ?>">
-        </label>
-      </div>
-
-      <div class="admin-form-row">
-        <label><?= admin_te('settings.kop_heading') ?>
-          <input type="text" name="order_email_heading" maxlength="150" value="<?= settingValue($values, 'order_email_heading') ?>">
-        </label>
-      </div>
-
-      <div class="admin-form-row">
-        <label><?= admin_te('settings.introductietekst') ?>
-          <textarea name="order_email_intro" maxlength="1000" rows="3"><?= settingValue($values, 'order_email_intro') ?></textarea>
-        </label>
-      </div>
-
-      <div class="admin-form-row admin-form-row--split">
-        <label><?= admin_te('settings.tekst_v_r_productoverzicht') ?>
-          <textarea name="order_email_before_items" maxlength="500" rows="2"><?= settingValue($values, 'order_email_before_items') ?></textarea>
-        </label>
-        <label><?= admin_te('settings.tekst_n_productoverzicht_optioneel') ?>
-          <textarea name="order_email_after_items" maxlength="500" rows="2"><?= settingValue($values, 'order_email_after_items') ?></textarea>
-        </label>
-      </div>
-
-      <div class="admin-form-row">
-        <label><?= admin_te('settings.afsluittekst') ?>
-          <textarea name="order_email_closing" maxlength="500" rows="2"><?= settingValue($values, 'order_email_closing') ?></textarea>
-        </label>
-      </div>
-
-      <div class="admin-form-row">
-        <label><?= admin_te('settings.ondertekening_optioneel') ?>
-          <textarea name="order_email_signature" maxlength="500" rows="2"><?= settingValue($values, 'order_email_signature') ?></textarea>
-        </label>
       </div>
 
       <button type="submit"><?= admin_te('common.save') ?></button>

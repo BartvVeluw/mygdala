@@ -122,6 +122,7 @@
             <file>tests/Service/SeoFieldsAdminLayoutTest.php</file>
             <file>tests/Service/SetupAccessTest.php</file>
             <file>tests/Service/ShopSeoAdminTest.php</file>
+            <file>tests/Service/ShopSettingsTest.php</file>
             <file>tests/Service/SiteIdentityTest.php</file>
             <file>tests/Service/ThemeRenderingTest.php</file>
             <file>tests/Service/ThemeSettingsTest.php</file>
@@ -218,6 +219,7 @@
             <file>tests/Service/ThemeRenderingTest.php</file>
             <file>tests/Service/ThemeSettingsTest.php</file>
             <file>tests/Service/SiteSettingsValidatorTest.php</file>
+            <file>tests/Service/ShopSettingsTest.php</file>
             <file>tests/Service/TurnstileVerifierTest.php</file>
         </testsuite>
 
@@ -438,6 +440,7 @@
             <directory>tests/Service/Shipping</directory>
             <file>tests/Service/ShopSeoAdminTest.php</file>
             <file>tests/Service/ShopSeoRoutingTest.php</file>
+            <file>tests/Service/ShopSettingsTest.php</file>
             <file>tests/Service/TurnstileVerifierTest.php</file>
         </testsuite>
 

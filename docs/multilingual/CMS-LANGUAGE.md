@@ -74,7 +74,7 @@ Geen enkel scherm, maar drie soorten tekst die géén CMS-interface zijn:
 | Wat | Waarom |
 |---|---|
 | Startinhoud die het CMS in de database schrijft — "Nieuwe sectie — pas deze titel aan" | dat is inhoud van de website, die een redacteur zelf overschrijft |
-| Waarden uit *Site-instellingen* — de bestelbevestigingsmail, de factuurteksten | dat is de tekst van de eigenaar, niet van het CMS |
+| Waarden uit *Shop-instellingen* — de bestelbevestigingsmail, de factuurteksten | dat is de tekst van de eigenaar, niet van het CMS |
 | Protocolantwoorden — `Method not allowed`, `Invalid or missing CSRF token.` | die leest nooit iemand; ze zijn voor een misvormd verzoek |
 
 `Tests\Service\MultilingualBoundaryTest::testNoAdminScreenPrintsADutchSentenceOfItsOwn`

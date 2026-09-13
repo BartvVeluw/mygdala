@@ -4,14 +4,16 @@ declare(strict_types=1);
 
 namespace Tests\Repository;
 
+use App\Module\ModuleRegistry;
 use App\Repository\SiteSettingRepository;
+use App\Service\ShopSettings;
 use App\Service\SiteSettings;
 use App\Service\SiteSettingsValidator;
 use PHPUnit\Framework\TestCase;
 
 /**
- * Site-instellingen against the test database: what the validator lets
- * through is stored the way api/admin/update-site-settings.php stores it, and
+ * Site-instellingen and Shop-instellingen against the test database: what
+ * the validators let through is stored the way their endpoints store it, and
  * App\Service\SiteSettings reads it back the way every page does.
  *
  * tearDown() puts back the rows it touched. A key that had no row before is
@@ -31,6 +33,9 @@ final class SiteSettingsPersistenceTest extends TestCase
         'city_nl',
         'footer_description_nl',
         'invoice_footer_text',
+        'company_name',
+        'invoice_number_prefix',
+        'order_email_intro',
     ];
 
     /** @var array<string, string> */
@@ -44,6 +49,8 @@ final class SiteSettingsPersistenceTest extends TestCase
 
     protected function tearDown(): void
     {
+        ModuleRegistry::overrideForTests(null);
+
         $restore = [];
         foreach (self::TOUCHED as $key) {
             $restore[$key] = $this->original[$key] ?? '';
@@ -54,11 +61,12 @@ final class SiteSettingsPersistenceTest extends TestCase
     }
 
     /**
-     * What the endpoint does with a submission, minus the request.
+     * What api/admin/update-site-settings.php does with a submission, minus
+     * the request.
      *
      * @param array<string, string> $post
      */
-    private function save(array $post): void
+    private function saveSiteSettings(array $post): void
     {
         $validated = SiteSettingsValidator::validate($post, SiteSettings::all(), []);
         $this->assertSame([], $validated['errors']);
@@ -67,9 +75,23 @@ final class SiteSettingsPersistenceTest extends TestCase
         SiteSettings::clearCache();
     }
 
+    /**
+     * What api/admin/update-shop-settings.php does with a submission.
+     *
+     * @param array<string, string> $post
+     */
+    private function saveShopSettings(array $post): void
+    {
+        $validated = ShopSettings::validate($post, SiteSettings::all());
+        $this->assertSame([], $validated['errors']);
+
+        (new SiteSettingRepository())->upsertMany($validated['values']);
+        SiteSettings::clearCache();
+    }
+
     public function testFilledInAddressFieldsAreStoredAndReadBack(): void
     {
-        $this->save([
+        $this->saveSiteSettings([
             'company_street' => 'Kerkstraat',
             'company_house_number' => '12A',
             'company_postal_code' => '1234 AB',
@@ -90,8 +112,8 @@ final class SiteSettingsPersistenceTest extends TestCase
 
     public function testEmptiedOptionalFieldsStayEmpty(): void
     {
-        $this->save(['company_street' => 'Kerkstraat', 'city_nl' => 'Utrecht', 'footer_description_nl' => 'Een zin.']);
-        $this->save(['company_street' => '', 'city_nl' => '', 'footer_description_nl' => '', 'company_country' => '']);
+        $this->saveSiteSettings(['company_street' => 'Kerkstraat', 'city_nl' => 'Utrecht', 'footer_description_nl' => 'Een zin.']);
+        $this->saveSiteSettings(['company_street' => '', 'city_nl' => '', 'footer_description_nl' => '', 'company_country' => '']);
 
         $settings = SiteSettings::all();
 
@@ -105,13 +127,43 @@ final class SiteSettingsPersistenceTest extends TestCase
      * A save writes only what its form carried, so a setting that lives on
      * another tab or another screen keeps its stored value.
      */
-    public function testASaveLeavesEverySettingItDidNotCarryAlone(): void
+    public function testASiteSettingsSaveLeavesEverySettingItDidNotCarryAlone(): void
     {
-        (new SiteSettingRepository())->upsertMany(['invoice_footer_text' => 'Blijft staan.']);
-        SiteSettings::clearCache();
+        $this->saveShopSettings(['invoice_footer_text' => 'Blijft staan.']);
 
-        $this->save(['company_city' => 'Utrecht']);
+        $this->saveSiteSettings(['company_city' => 'Utrecht']);
 
         $this->assertSame('Blijft staan.', SiteSettings::all()['invoice_footer_text']);
+    }
+
+    /**
+     * Switching the Shop off is not uninstalling it (MODULES.md): its settings
+     * stay stored, a Site-instellingen save cannot reach them, and every one
+     * of them is there when the Shop comes back.
+     */
+    public function testShopSettingsSurviveTheShopBeingSwitchedOffAndOn(): void
+    {
+        $this->saveShopSettings([
+            'company_name' => 'J. Jansen Handelsonderneming',
+            'invoice_number_prefix' => 'JJH',
+            'order_email_intro' => 'Hoi {{customer_name}}, dank je wel!',
+        ]);
+
+        ModuleRegistry::overrideForTests(['shop' => false, 'personalization' => false]);
+        $this->saveSiteSettings(['company_city' => 'Utrecht']);
+        $this->assertStoredShopSettings();
+
+        ModuleRegistry::overrideForTests(['shop' => true, 'personalization' => true]);
+        SiteSettings::clearCache();
+        $this->assertStoredShopSettings();
+    }
+
+    private function assertStoredShopSettings(): void
+    {
+        $settings = SiteSettings::all();
+
+        $this->assertSame('J. Jansen Handelsonderneming', $settings['company_name']);
+        $this->assertSame('JJH', $settings['invoice_number_prefix']);
+        $this->assertSame('Hoi {{customer_name}}, dank je wel!', $settings['order_email_intro'], 'placeholders are stored as typed');
     }
 }

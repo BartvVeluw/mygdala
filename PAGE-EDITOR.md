@@ -325,11 +325,16 @@ niet en staat alles gewoon onder elkaar, zoals daarvoor.
 
 **Site-instellingen** (`admin/settings.php`) gebruikt hetzelfde:
 *Algemeen* (naam, logo's, favicon, deel-afbeelding, e-mail, telefoon, plaats,
-footertekst, adresgegevens en een ingeklapte groep met het KVK-nummer), *SEO*,
-*Facturen*, *E-mails* en *Dashboard*. Elk tabblad is één formulier met zijn
-eigen endpoint. Welke velden het formulier van *Algemeen* en *SEO* mag
-opsturen, en welke verplicht zijn, staat in `App\Service\SiteSettingsValidator`;
-alleen de naam van de website is verplicht.
+footertekst, adresgegevens en een ingeklapte groep met het KVK-nummer),
+*Talen*, *SEO* en *Dashboard*. Elk tabblad is één formulier met zijn eigen
+endpoint. Welke velden het formulier van *Algemeen* en *SEO* mag opsturen, en
+welke verplicht zijn, staat in `App\Service\SiteSettingsValidator`; alleen de
+naam van de website is verplicht.
+
+**Shop-instellingen** (`admin/shop-settings.php`, alleen met de Shop aan)
+gebruikt het ook: *Bedrijfsgegevens*, *Facturen*, *Bestellingen* en *E-mails*.
+Dat waren de tabbladen Facturen en E-mails van Site-instellingen. De velden en
+tabbladen staan in `App\Service\ShopSettings`.
 
 ## Een nieuw blok doet automatisch mee
 

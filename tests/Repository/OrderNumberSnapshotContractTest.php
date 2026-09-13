@@ -36,8 +36,8 @@ final class OrderNumberSnapshotContractTest extends TestCase
      * settings screen and its endpoint, and the repository that creates orders.
      */
     private const PREFIX_SETTING_OWNERS = [
-        'admin/settings.php',
-        'src/Service/SiteSettingsValidator.php',
+        'admin/shop-settings.php',
+        'src/Service/ShopSettings.php',
         'src/Repository/OrderRepository.php',
         'src/Service/SiteSettings.php',
     ];

@@ -59,22 +59,6 @@ final class SiteSettingsValidator
         'kvk_number' => 20,
         'seo_default_description' => Seo::MAX_META_DESCRIPTION_LENGTH,
         'seo_robots_index_default' => 1,
-
-        // Still on this screen's Facturen and E-mails tabs.
-        'company_website' => 150,
-        'company_vat_id' => 30,
-        'invoice_number_prefix' => 20,
-        'invoice_tax_note' => 500,
-        'invoice_payment_note' => 500,
-        'invoice_footer_text' => 500,
-        'order_number_prefix' => 10,
-        'order_email_subject' => 255,
-        'order_email_heading' => 150,
-        'order_email_intro' => 1000,
-        'order_email_before_items' => 500,
-        'order_email_after_items' => 500,
-        'order_email_closing' => 500,
-        'order_email_signature' => 500,
     ];
 
     /** @var list<string> */
@@ -136,20 +120,6 @@ final class SiteSettingsValidator
          */
         if (array_key_exists('seo_robots_index_default', $values)) {
             $values['seo_robots_index_default'] = $values['seo_robots_index_default'] === '1' ? '1' : '0';
-        }
-
-        /*
-         * The order-number prefix (App\Repository\OrderRepository::formatOrderNumber()).
-         * Letters and digits only: it ends up in customer e-mails, in the Mollie
-         * description on a bank statement and in a CSV cell, and the formatter
-         * owns the separators. Refused rather than cleaned, so what an owner
-         * sees after saving is what they typed. Empty means the generic default.
-         */
-        if (
-            ($values['order_number_prefix'] ?? '') !== ''
-            && preg_match('/^[A-Za-z0-9]{1,10}$/', $values['order_number_prefix']) !== 1
-        ) {
-            $errors[] = AdminTranslator::trans('validation.bestelnummerprefix_ongeldig');
         }
 
         return ['values' => $values, 'errors' => $errors];
