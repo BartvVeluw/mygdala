@@ -5,8 +5,13 @@
  * eyebrow/breadcrumb/H1/lead block identical across shop.php, diensten.php,
  * portfolio.php, over-mij.php and contact.php, extracted verbatim so the
  * page builder's dynamic render loop and any future direct caller share one
- * copy. Caller must already have checked $pageHero['state'] !==
- * PageHeroContent::STATE_HIDDEN before calling this.
+ * copy. Caller must already have checked $pageHero['state'] ===
+ * PageHeroContent::STATE_ACTIVE before calling this.
+ *
+ * The `<h1>` is what a page hero is for, so a hero without a title renders
+ * nothing — never a hero band around an empty heading. The editor requires a
+ * title and PageHeroBlock::create() writes one, so only data written outside
+ * them gets here.
  *
  * $titleMaxWidthCh reproduces each page's own hand-tuned `<h1>` line-wrap
  * width (a purely cosmetic, per-page value that was never CMS content —
@@ -17,6 +22,10 @@
  */
 function render_section_page_hero(array $pageHero, ?string $titleMaxWidthCh = null): void
 {
+    if ($pageHero['title_nl'] === '') {
+        return;
+    }
+
     $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
     $titleStyle = $titleMaxWidthCh !== null ? ' style="max-width:' . $h($titleMaxWidthCh) . ';"' : '';
     ?>

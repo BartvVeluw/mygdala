@@ -5,8 +5,12 @@ require_once __DIR__ . '/text-image-split-media.php';
 /**
  * Renders a Text + Image Split section (App\Service\TextImageSplitContent) —
  * extracted verbatim from over-mij.php's two instances. Caller must already
- * have checked $section['state'] !== TextImageSplitContent::STATE_HIDDEN
+ * have checked $section['state'] === TextImageSplitContent::STATE_ACTIVE
  * before calling this.
+ *
+ * Renders nothing unless there is an eyebrow, a title, a paragraph, an image
+ * or a button. `layout` only decides where things go, so a section with
+ * nothing but a layout — one that was just added — has nothing to show.
  *
  * $tightTop reproduces the original "intro" instance's `padding-top:0` —
  * that instance sits directly beneath a Page Hero, which already ends with
@@ -21,6 +25,20 @@ require_once __DIR__ . '/text-image-split-media.php';
  */
 function render_section_text_image_split(array $section, bool $tightTop = false, ?string $revealGroup = null): void
 {
+    // button_label_nl is already '' whenever the button is half-filled —
+    // TextImageSplitContent drops a label without a URL.
+    $hasContent = $section['eyebrow_nl'] !== ''
+        || $section['title_nl'] !== ''
+        || $section['paragraphs'] !== []
+        || $section['images'] !== []
+        || $section['button_label_nl'] !== '';
+
+    if (!$hasContent) {
+        // Nothing to show yet: an empty block leaves no gap, the same rule as
+        // the Marquee and CTA band partials.
+        return;
+    }
+
     $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
     ?>
     <section<?= $tightTop ? ' style="padding-top:0;"' : '' ?>>

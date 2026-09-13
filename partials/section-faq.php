@@ -2,15 +2,25 @@
 
 /**
  * Renders the FAQ section (App\Service\FaqContent) — extracted verbatim
- * from diensten.php. Caller must already have checked $faq['state'] !==
- * FaqContent::STATE_HIDDEN before calling this.
+ * from diensten.php. Caller must already have checked $faq['state'] ===
+ * FaqContent::STATE_ACTIVE before calling this.
+ *
+ * Renders nothing without a heading and without a single active question —
+ * the state a FAQ is in right after it is added.
  *
  * @param array<string, mixed> $faq see FaqContent::forSection()
  */
 function render_section_faq(array $faq): void
 {
-    $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
     $hasHeading = $faq['eyebrow_nl'] !== '' || $faq['title_nl'] !== '';
+
+    if (!$hasHeading && $faq['items'] === []) {
+        // Nothing to show yet: an empty block leaves no gap, the same rule as
+        // the Marquee and CTA band partials.
+        return;
+    }
+
+    $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
     ?>
     <section>
       <div class="container">

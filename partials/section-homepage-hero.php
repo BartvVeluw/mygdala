@@ -5,12 +5,22 @@
  * extracted verbatim from index.php so the page builder's dynamic render
  * loop (App\Service\SectionRegistry::render()) and any future direct caller
  * share one copy of this markup. Caller must already have checked
- * $hero['state'] !== HomepageHeroContent::STATE_HIDDEN before calling this.
+ * $hero['state'] === HomepageHeroContent::STATE_ACTIVE before calling this.
+ *
+ * The headline is what the Hero is for, so a Hero without a title renders
+ * nothing — never the full hero band, its decoration and its buttons around
+ * an empty `<h1>`. The editor requires a title, and both the fresh-install
+ * bootstrap and HomepageHeroContent::startingValues() write one, so only data
+ * written outside them gets here.
  *
  * @param array<string, mixed> $hero see HomepageHeroContent::current()
  */
 function render_section_homepage_hero(array $hero): void
 {
+    if ($hero['title_nl'] === '') {
+        return;
+    }
+
     $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
 
     $heroTitleFragmentNl = \App\Service\HomepageHeroContent::renderTitleFragment($hero['title_nl'], $hero['title_highlight_nl']);

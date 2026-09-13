@@ -299,6 +299,7 @@
             <file>tests/Service/HomepageHeroEmptyImageTest.php</file>
             <file>tests/Service/HomepageHeroHighlightSizeTest.php</file>
             <file>tests/Service/MediaUsageTest.php</file>
+            <file>tests/Service/NoEmptyActiveBlockTest.php</file>
             <file>tests/Service/NoFallbackCopyTest.php</file>
             <file>tests/Service/PageBuilderSecurityTest.php</file>
             <file>tests/Service/PageContentTest.php</file>

@@ -12,16 +12,26 @@ require_once __DIR__ . '/feature-icons.php';
  * exactly by keying off whether eyebrow/title/lead are actually filled in —
  * true for both current rows, so this is a lossless extraction, and it
  * degrades sensibly for a page-builder-added grid with no heading filled in.
- * Caller must already have checked $grid['state'] !==
- * FeatureGridContent::STATE_HIDDEN before calling this.
+ * Caller must already have checked $grid['state'] ===
+ * FeatureGridContent::STATE_ACTIVE before calling this.
+ *
+ * Renders nothing without a heading and without a single active card — the
+ * state a grid is in right after it is added.
  *
  * @param array<string, mixed> $grid see FeatureGridContent::forSection()
  * @param string $revealGroup unique data-reveal-group value for this instance's stagger animation
  */
 function render_section_feature_grid(array $grid, string $revealGroup = 'feature-grid'): void
 {
-    $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
     $hasHeading = $grid['eyebrow_nl'] !== '' || $grid['title_nl'] !== '' || $grid['lead_nl'] !== '';
+
+    if (!$hasHeading && $grid['items'] === []) {
+        // Nothing to show yet: an empty block leaves no gap, the same rule as
+        // the Marquee and CTA band partials.
+        return;
+    }
+
+    $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
     ?>
     <section<?= $hasHeading ? ' class="bg-soft"' : '' ?>>
       <div class="container">

@@ -45,9 +45,9 @@ use PHPUnit\Framework\TestCase;
  * would. That is test-only: the original connection is restored in a finally
  * block and again in tearDown().
  *
- * What a row that is active but has nothing in it renders is a separate
- * question and deliberately not asked here — only that it borrows no legacy
- * copy.
+ * A row that is active but has nothing in it borrows no legacy copy and
+ * renders nothing at all; Tests\Service\NoEmptyActiveBlockTest asks the rest
+ * of that contract — what does count as content, per type.
  */
 final class NoFallbackCopyTest extends TestCase
 {
@@ -193,7 +193,10 @@ final class NoFallbackCopyTest extends TestCase
         $this->deleteLegacyRow($type);
         $this->storeLegacyRow($type, true);
 
-        $this->assertNoLegacyCopy($this->renderLegacyInstance($type), $type);
+        $html = $this->renderLegacyInstance($type);
+
+        $this->assertNoLegacyCopy($html, $type);
+        $this->assertSame('', $html, "An active {$type} without content must render nothing at all.");
     }
 
     /**
