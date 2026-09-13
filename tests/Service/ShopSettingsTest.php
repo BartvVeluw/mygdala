@@ -383,6 +383,28 @@ final class ShopSettingsTest extends TestCase
         }
     }
 
+    public function testARestoredButUnsavedTextIsShownAsUnsaved(): void
+    {
+        $screen = self::source(self::SCREEN);
+
+        // The page editor's save bar, not a second unsaved-changes mechanism:
+        // it already listens for the events the restore button dispatches.
+        $this->assertStringContainsString("require_once __DIR__ . '/_save_bar.php';", $screen);
+        $this->assertStringContainsString('<?php save_bar(); ?>', $screen);
+        $this->assertStringContainsString('<?php save_bar_script(); ?>', $screen);
+
+        $script = (string) preg_replace(['#/\*.*?\*/#s', '#^\s*//.*$#m'], '', self::source('admin/assets/shop-settings.js'));
+        $this->assertStringContainsString('new Event("input", { bubbles: true })', $script);
+        $this->assertStringContainsString('new Event("change", { bubbles: true })', $script);
+
+        // A reload shows what is stored, not the restored text a browser
+        // would otherwise put back into the fields.
+        $this->assertMatchesRegularExpression(
+            '#<form method="post" action="/api/admin/update-shop-settings\.php"[^>]*\bautocomplete="off"#',
+            $this->panels()['emails']
+        );
+    }
+
     // --- placeholders --------------------------------------------------------
 
     public function testEveryPlaceholderTheEmailReplacesIsExplainedAndNoOther(): void

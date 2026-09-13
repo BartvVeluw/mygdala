@@ -22,7 +22,7 @@ document, dan heeft de code gelijk.
 | Blokkenkiezer | `admin/_block_picker.php`, `admin/assets/block-picker.js`, gebruikt door `admin/page.php` |
 | Schematische tekening en pictogram | `admin/_block_visual.php`, CSS in `admin/assets/admin.css` (`.admin-block-visual`, `.admin-bp--*`) |
 | Catalogus | `admin/content-blocks.php` (menu-item `content_blocks` in `App\Service\AdminNavigation`) |
-| Opslagbalk | `admin/_save_bar.php`, `admin/assets/save-bar.js`, aangeroepen door `admin/page.php` en elke blok-editor |
+| Opslagbalk | `admin/_save_bar.php`, `admin/assets/save-bar.js`, aangeroepen door `admin/page.php`, elke blok-editor en `admin/shop-settings.php` |
 | Tests | `tests/Service/BlockPresentationTest.php`, `tests/Service/BlockPickerTest.php`, `tests/Service/AdminEditorNavigationTest.php` |
 
 ## Tabbladen op de paginabouwer

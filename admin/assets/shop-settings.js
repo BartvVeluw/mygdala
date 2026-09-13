@@ -32,7 +32,8 @@
       if (field.value === standard) return;
 
       field.value = standard;
-      // So anything that watches the form for unsaved changes notices.
+      // The save bar (admin/assets/save-bar.js) hears these and marks the
+      // form as holding unsaved changes until Opslaan.
       field.dispatchEvent(new Event("input", { bubbles: true }));
       field.dispatchEvent(new Event("change", { bubbles: true }));
     });

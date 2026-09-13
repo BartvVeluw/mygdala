@@ -5,6 +5,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/../vendor/autoload.php';
 require_once __DIR__ . '/_translate.php';
 require_once __DIR__ . '/_admin_tabs.php';
+require_once __DIR__ . '/_save_bar.php';
 
 use App\Mail\EmailPlaceholders;
 use App\Mail\OrderConfirmationBuilder;
@@ -28,7 +29,10 @@ use App\Service\SiteSettings;
  * Core's and stays holdable with the Shop switched off, so unlike the other
  * Shop screens this one carries a ModuleGuard as well.
  *
- * One tab, one <form>, one endpoint: the shape of admin/settings.php.
+ * One tab, one <form>, one endpoint: the shape of admin/settings.php. The
+ * page editor's save bar (admin/_save_bar.php) watches those forms, so text
+ * that "Herstel standaardtekst" put back but nobody saved yet is shown as an
+ * unsaved change instead of looking stored.
  *
  * WHAT AN INVOICE ALSO PRINTS — the address, the KVK number, the e-mail
  * address and the phone number — is shown here read-only and edited on
@@ -234,7 +238,11 @@ $v = static fn (string $key): string => htmlspecialchars((string) ($values[$key]
       </div>
     <?php endif; ?>
 
-    <form method="post" action="/api/admin/update-shop-settings.php" class="admin-product-form">
+    <?php /* autocomplete="off": some browsers put typed text back into the
+             fields on a reload. After "Herstel standaardtekst" that would
+             show the standard text again although the stored text is still
+             the old one; a reload has to show what is stored. */ ?>
+    <form method="post" action="/api/admin/update-shop-settings.php" class="admin-product-form" autocomplete="off">
       <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
       <input type="hidden" name="section" value="emails">
 
@@ -318,6 +326,8 @@ $v = static fn (string $key): string => htmlspecialchars((string) ($values[$key]
 
   <?php admin_tabs_end(); ?>
 </main>
+<?php save_bar(); ?>
 <?php admin_tabs_script(); ?>
+<?php save_bar_script(); ?>
 </body>
 </html>
