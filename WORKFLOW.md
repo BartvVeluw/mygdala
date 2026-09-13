@@ -176,7 +176,7 @@ Lees er **één** per taak. De wegwijzer in `CLAUDE.md` vertelt welke.
 
 | Document | Regels | Lees dit wanneer |
 |---|---|---|
-| `CLAUDE.md` | 122 | Nooit handmatig. Hij laadt vanzelf |
+| `CLAUDE.md` | 129 | Nooit handmatig. Hij laadt vanzelf |
 | `WORKFLOW.md` | dit bestand | Je wilt iets opzoeken over de opzet, of er iets aan toevoegen |
 | `PROJECT-MAP.md` | 274 | De wegwijzer helpt je niet verder en je wilt de volledige kaart |
 | `README.md` | 150 | Docker, database, lokaal draaien, deployen |
@@ -194,6 +194,7 @@ Lees er **één** per taak. De wegwijzer in `CLAUDE.md` vertelt welke.
 | `MULTILINGUAL.md` | 149 | Router voor talen van de site, CMS-taal, bewerktaal en automatisch vertalen; hij wijst het document in `docs/multilingual/` aan |
 | `MEDIA.md` | 346 | De Mediabibliotheek |
 | `PAGE-EDITOR.md` | 369 | Blokkenkiezer, catalogus, opslagbalk, tabbladen, inklapbare rijen |
+| `ADMIN-UI.md` | 225 | Uitleg bij velden, de help-knop, infobalk, en zoekveld, select, checkbox, switch, bestandskiezer en knoppen in het CMS |
 | `PAGE-TEMPLATES.md` | 272 | Een nieuw paginasjabloon |
 | `THEMING.md` | 227 | Kleuren, lettertypes, knopvorm, logo's, dashboard-uiterlijk |
 | `SEO.md` | 387 | Titels, meta description, canonical, sitemap, robots |

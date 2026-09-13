@@ -10,7 +10,7 @@ webroot of wordt door `.htaccess` geblokt.
 
 ## Contextregels (de belangrijkste regels van dit bestand)
 
-Deze repository heeft 20 documenten en bijna 100.000 regels PHP. Alles lezen
+Deze repository heeft 21 documenten en bijna 100.000 regels PHP. Alles lezen
 is nooit nodig en meestal schadelijk.
 
 1. **Lees precies één domeindocument per taak**, dat uit de tabel hieronder.
@@ -43,6 +43,7 @@ de checklist al klaarzet. Roep die eerst aan.
 | Een admin-schrijfendpoint toevoegen of wijzigen | `/admin-endpoint` | — |
 | Schrijfstijl van code, commentaar en CMS-teksten | `/style` | `CODE-STYLE.md` |
 | Blokkenkiezer, catalogus, opslagbalk, tabbladen, inklapbare rijen | — | `PAGE-EDITOR.md` |
+| Uitleg bij velden, help-knop, infobalk, zoekveld, select, checkbox, switch, bestandskiezer in het CMS | — | `ADMIN-UI.md` |
 | Domeingrenzen, "waar hoort dit thuis", een module toevoegen of uitzetten | — | `MODULES.md` |
 | Talen van de site, CMS-taal, bewerktaal, automatisch vertalen | — | `MULTILINGUAL.md` |
 | Kleuren, lettertypes, knopvorm, logo's, dashboard-uiterlijk | — | `THEMING.md` |

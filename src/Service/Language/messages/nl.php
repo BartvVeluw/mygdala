@@ -21,6 +21,17 @@ return [
     'shell.role.user' => 'CMS-gebruiker',
     'shell.my_account' => 'Mijn account',
 
+    // --- Help and the shared form controls (admin/_admin_ui.php) ------------
+    'ui.help.toggle' => 'Uitleg',
+    'ui.help.state_on' => 'aan',
+    'ui.help.state_off' => 'uit',
+    'ui.help.open' => 'Uitleg over :subject',
+    'ui.help.close' => 'Uitleg sluiten',
+    'ui.file.choose' => 'Bestand kiezen',
+    'ui.file.choose_many' => 'Bestanden kiezen',
+    'ui.file.none' => 'Nog geen bestand gekozen',
+    'ui.file.many' => ':count bestanden gekozen',
+
     // --- Words that appear on more than one screen -------------------------
     'common.save' => 'Opslaan',
     'common.saved' => 'Opgeslagen',

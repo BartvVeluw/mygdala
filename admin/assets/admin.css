@@ -308,16 +308,26 @@ a{ color: var(--admin-accent); }
   z-index: 20;
 }
 
-.admin-sidebar__brand{
-  display: block;
-  padding: 0 var(--admin-sp-5) var(--admin-sp-4);
+/* The site name and the help switch share the top row of the sidebar. */
+.admin-sidebar__head{
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--admin-sp-2);
+  padding: 0 var(--admin-sp-4) var(--admin-sp-4) var(--admin-sp-5);
   margin-bottom: var(--admin-sp-2);
   border-bottom: 1px solid var(--admin-border);
+}
+
+.admin-sidebar__brand{
+  display: block;
+  min-width: 0;
   font-weight: 600;
   font-size: 0.95rem;
   color: var(--admin-text);
   text-decoration: none;
   letter-spacing: 0.01em;
+  overflow-wrap: anywhere;
 }
 
 .admin-sidebar__nav{
@@ -410,6 +420,10 @@ a{ color: var(--admin-accent); }
 .admin-sidebar-toggle-checkbox{ position: absolute; opacity: 0; pointer-events: none; }
 .admin-sidebar-toggle{ display: none; }
 
+/* The narrow-screen top row (admin/_header.php): the menu button and the help
+   switch. Nothing to show while the sidebar is on screen. */
+.admin-topbar{ display: none; }
+
 @media (max-width: 900px){
   .admin-sidebar{
     transform: translateX(-100%);
@@ -420,12 +434,23 @@ a{ color: var(--admin-accent); }
 
   .admin-sidebar-toggle-checkbox:checked ~ .admin-sidebar{ transform: translateX(0); }
 
+  .admin-topbar{
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: var(--admin-sp-3);
+    margin: var(--admin-sp-3) var(--admin-sp-3) 0;
+  }
+
+  /* The switch lives beside the menu button here; the sidebar's copy would be
+     a second one, behind the menu. */
+  .admin-sidebar .admin-help-toggle--sidebar{ display: none; }
+
   .admin-sidebar-toggle{
     display: inline-flex;
     align-items: center;
     gap: 0.45rem;
     width: fit-content;
-    margin: var(--admin-sp-3) 0 0 var(--admin-sp-3);
     padding: 0.5rem 0.9rem;
     background: var(--admin-surface);
     border: 1px solid var(--admin-border);
@@ -1708,12 +1733,15 @@ a{ color: var(--admin-accent); }
   .admin-segmented__option{ flex: 1 1 auto; justify-content: center; }
 }
 
-select, button, input[type="text"], input[type="password"], input[type="email"]{
+/* A search field is a text field: without it in these three rules every
+   search box in the admin (media, portfolio, blog) was the browser's own
+   white bar. The magnifier is .admin-search, in ADMIN UI PRIMITIVES below. */
+select, button, input[type="text"], input[type="password"], input[type="email"], input[type="search"]{
   font-family: inherit;
   font-size: 0.92rem;
 }
 
-select, input[type="text"], input[type="password"], input[type="email"]{
+select, input[type="text"], input[type="password"], input[type="email"], input[type="search"]{
   background: var(--admin-surface-sunken);
   border: 1px solid var(--admin-border);
   color: var(--admin-text);
@@ -1722,7 +1750,7 @@ select, input[type="text"], input[type="password"], input[type="email"]{
   transition: border-color var(--admin-transition);
 }
 
-select:focus, input[type="text"]:focus, input[type="password"]:focus, input[type="email"]:focus{
+select:focus, input[type="text"]:focus, input[type="password"]:focus, input[type="email"]:focus, input[type="search"]:focus{
   outline: none;
   border-color: var(--admin-accent);
 }
@@ -4083,4 +4111,651 @@ body.admin-block-picker-open{ overflow: hidden; }
   margin: 0;
   font-size: 0.78rem;
   color: var(--admin-text-muted);
+}
+
+/* ==========================================================================
+   ADMIN UI PRIMITIVES (admin/_admin_ui.php, admin/assets/admin-ui.js)
+
+   The shared building blocks of every admin form: field help and the global
+   switch that hides it, the info panel, and the native controls in the
+   admin's own style — search, select, checkbox, switch, file input — plus
+   the two button variants the family above was missing. ADMIN-UI.md is the
+   manual.
+
+   Loaded wherever admin.css is, which is every admin screen. The help
+   behaviour comes from admin-ui.js, which the shell (admin/_header.php)
+   loads; every control below is a native element and keeps working when
+   that script never runs.
+
+   What does NOT belong here: a screen's own layout (that stays in the
+   screen's section above), and any colour. A primitive reads the theme
+   tokens at the top of this file and nothing else, so all four dashboard
+   themes get it without a line of their own (THEMING.md).
+   ========================================================================== */
+
+/* --- A field with a label row --------------------------------------------- */
+
+/* The label row, then the control. Same gap and type as the label-wraps-input
+   pattern of .admin-product-form, so a field with help and one without sit
+   in the same rhythm next to each other. */
+.admin-field{
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  min-width: 0;
+}
+
+.admin-form-row--split > .admin-field{ flex: 1; min-width: 220px; }
+
+/* A checkbox or switch followed by its help icon, on one line. */
+.admin-field--inline{
+  flex-direction: row;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.admin-field__label{
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  font-size: 0.83rem;
+  font-weight: 500;
+  color: var(--admin-text-muted);
+}
+
+/* .admin-product-form gives every <label> the column layout of the
+   label-wraps-input pattern; a label that is only text keeps to its line. */
+.admin-field .admin-field__label > label{
+  display: inline;
+  font: inherit;
+  color: inherit;
+}
+
+/* --- Field help ------------------------------------------------------------ */
+
+.admin-help{
+  display: inline-flex;
+  align-items: center;
+  vertical-align: middle;
+}
+
+/* A 24px target (WCAG 2.5.8) around a smaller drawn circle, so the icon can
+   stay quiet beside a label without being hard to hit on a phone. */
+.admin-help__trigger{
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  width: 1.5rem;
+  height: 1.5rem;
+  margin: -0.25rem 0;
+  padding: 0;
+  background: transparent;
+  color: var(--admin-text-muted);
+  border: 0;
+  border-radius: var(--admin-radius-pill);
+  font: inherit;
+  cursor: pointer;
+}
+
+/* `button:hover` above paints every button in the accent. */
+.admin-help__trigger:hover{ background: transparent; }
+
+.admin-help__trigger:focus-visible{
+  outline: 2px solid var(--admin-accent);
+  outline-offset: 0;
+  border-radius: var(--admin-radius-pill);
+}
+
+.admin-help__mark,
+.admin-help-toggle__mark,
+.admin-info-panel__icon{
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 1.1rem;
+  height: 1.1rem;
+  border: 1px solid var(--admin-border-strong);
+  border-radius: 50%;
+  font-size: 0.7rem;
+  font-weight: 700;
+  font-style: normal;
+  line-height: 1;
+  transition: background var(--admin-transition), border-color var(--admin-transition), color var(--admin-transition);
+}
+
+.admin-help__trigger:hover .admin-help__mark{
+  color: var(--admin-accent);
+  border-color: var(--admin-accent);
+  background: var(--admin-accent-soft);
+}
+
+.admin-help__trigger[aria-expanded="true"] .admin-help__mark{
+  color: var(--admin-on-accent);
+  border-color: var(--admin-accent);
+  background: var(--admin-accent);
+}
+
+/* Closed until opened. Where the Popover API exists the browser's own rule
+   hides it as well; where it does not, this rule is the only thing that does.
+   The two "open" rules stand alone, so a browser that does not know
+   :popover-open drops that one rule and not the fallback beside it.
+
+   margin: auto is the browser's own centring, kept for a page without the
+   script; admin-ui.js replaces it with a place beside the icon. */
+.admin-help__popover{
+  display: none;
+  box-sizing: border-box;
+  width: fit-content;
+  max-width: min(22rem, calc(100vw - 1rem));
+  max-height: calc(100vh - 1rem);
+  max-height: calc(100dvh - 1rem);
+  margin: auto;
+  overflow: auto;
+  padding: var(--admin-sp-3) var(--admin-sp-4) var(--admin-sp-4);
+  background: var(--admin-surface);
+  color: var(--admin-text);
+  border: 1px solid var(--admin-border-strong);
+  border-radius: var(--admin-radius-md);
+  box-shadow: var(--admin-shadow-md);
+  font-size: 0.88rem;
+  font-weight: 400;
+  line-height: 1.55;
+  letter-spacing: normal;
+  text-align: left;
+  text-transform: none;
+  white-space: normal;
+}
+
+.admin-help__popover:popover-open{ display: block; }
+
+/* No Popover API: the script falls back to this class, and a z-index stands
+   in for the top layer — above the sidebar (20), the save bar (50) and the
+   media and block pickers (60, 70). */
+.admin-help__popover.is-open{
+  display: block;
+  position: fixed;
+  z-index: 80;
+}
+
+.admin-help__head{
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--admin-sp-3);
+  margin-bottom: var(--admin-sp-2);
+}
+
+.admin-help__title{
+  padding-top: 0.15rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--admin-text);
+}
+
+.admin-help__close{
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  width: 1.75rem;
+  height: 1.75rem;
+  margin: -0.3rem -0.55rem 0 0;
+  padding: 0;
+  background: transparent;
+  color: var(--admin-text-muted);
+  border: 0;
+  border-radius: var(--admin-radius-sm);
+  font-size: 1.25rem;
+  font-weight: 400;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.admin-help__close:hover{ background: var(--admin-hover-tint-strong); color: var(--admin-text); }
+
+.admin-help__body,
+.admin-help__p{ display: block; }
+
+.admin-help__p + .admin-help__p{ margin-top: var(--admin-sp-2); }
+
+.admin-help__body strong{ font-weight: 600; }
+
+/* Help switched off in the shell (admin-ui.js puts the choice on <html>):
+   every icon and every info panel go, and the labels and fields stay
+   exactly as they were. */
+[data-admin-help="off"] .admin-help,
+[data-admin-help="off"] .admin-info-panel{ display: none; }
+
+/* --- The global help switch (admin/_header.php) --------------------------- */
+
+.admin-help-toggle{
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex: none;
+  padding: 0.2rem 0.6rem 0.2rem 0.25rem;
+  background: transparent;
+  color: var(--admin-text-muted);
+  border: 1px solid var(--admin-border);
+  border-radius: var(--admin-radius-pill);
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1.2;
+  cursor: pointer;
+  transition: background var(--admin-transition), border-color var(--admin-transition), color var(--admin-transition);
+}
+
+.admin-help-toggle:hover{
+  background: var(--admin-hover-tint-strong);
+  border-color: var(--admin-border-strong);
+  color: var(--admin-text);
+}
+
+/* Without the script the switch could change nothing, so it is not offered
+   and help simply stays on. */
+html:not([data-admin-help]) .admin-help-toggle{ display: none; }
+
+.admin-help-toggle__state{ font-weight: 500; color: var(--admin-text-faint); }
+
+/* The state is read from <html>, which the script sets before the first
+   paint, rather than from aria-pressed, which it can only set once the
+   button exists. The word says it as well as the colour does. */
+[data-admin-help="on"] .admin-help-toggle__mark{
+  color: var(--admin-on-accent);
+  border-color: var(--admin-accent);
+  background: var(--admin-accent);
+}
+
+[data-admin-help="on"] .admin-help-toggle__state--off,
+[data-admin-help="off"] .admin-help-toggle__state--on{ display: none; }
+
+/* --- Info panel ------------------------------------------------------------ */
+
+/* What this screen is for, above its content. Not an alert — nothing is wrong
+   and nothing needs doing — so it borrows the quiet accent wash rather than a
+   status colour. */
+.admin-info-panel{
+  display: flex;
+  align-items: flex-start;
+  gap: var(--admin-sp-3);
+  margin: 0 0 var(--admin-sp-5);
+  padding: var(--admin-sp-3) var(--admin-sp-4);
+  background: var(--admin-accent-faint);
+  border: 1px solid var(--admin-accent-line-soft);
+  border-left: 3px solid var(--admin-accent);
+  border-radius: var(--admin-radius-sm);
+  color: var(--admin-text);
+  font-size: 0.9rem;
+  line-height: 1.55;
+}
+
+.admin-info-panel__icon{
+  margin-top: 0.15rem;
+  color: var(--admin-on-accent);
+  border-color: var(--admin-accent);
+  background: var(--admin-accent);
+}
+
+.admin-info-panel__text{ display: block; min-width: 0; }
+
+/* --- Buttons --------------------------------------------------------------- */
+
+/* The two variants the family above (.admin-btn-primary, -secondary, -text)
+   was missing, in the same shape: a destructive action that is more than a
+   small text link, and a quiet action beside a primary one. */
+.admin-btn-danger,
+.admin-btn-ghost{
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.55rem 1.1rem;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--admin-radius-sm);
+  font-weight: 600;
+  font-size: 0.9rem;
+  text-decoration: none;
+  cursor: pointer;
+  transition: border-color var(--admin-transition), color var(--admin-transition), background var(--admin-transition);
+}
+
+.admin-btn-danger{ color: var(--admin-error); border-color: var(--admin-error-line); }
+.admin-btn-danger:hover{ color: var(--admin-error); border-color: var(--admin-error); background: var(--admin-error-soft); }
+
+.admin-btn-ghost{ color: var(--admin-text-muted); }
+.admin-btn-ghost:hover{ color: var(--admin-text); background: var(--admin-hover-tint-strong); }
+
+/* One disabled look for the whole family, for a <button disabled> and for a
+   link marked aria-disabled alike: the same shape, one step back. */
+:is(.admin-btn-primary, .admin-btn-link, .admin-btn-secondary, .admin-btn-danger, .admin-btn-ghost):is(:disabled, [aria-disabled="true"]){
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* --- Toolbar --------------------------------------------------------------- */
+
+/* A row of controls above a list — a search, its button, a way back to the
+   whole list. Wraps on a narrow screen instead of squeezing. */
+.admin-toolbar{
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--admin-sp-3);
+  margin: 0 0 var(--admin-sp-4);
+}
+
+/* --- Search ---------------------------------------------------------------- */
+
+/* The field itself has the global text-input look (input[type="search"] is in
+   that rule above). This wrapper adds the magnifier, drawn from a border and
+   a bar in the theme's own colour, so there is no icon file and no literal
+   colour to keep in step with four themes. */
+.admin-search{
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  width: min(100%, 24rem);
+}
+
+.admin-search::before,
+.admin-search::after{
+  content: "";
+  position: absolute;
+  top: 50%;
+  pointer-events: none;
+  transition: border-color var(--admin-transition), background var(--admin-transition);
+}
+
+.admin-search::before{
+  left: 0.75rem;
+  width: 0.7rem;
+  height: 0.7rem;
+  margin-top: -0.45rem;
+  border: 2px solid var(--admin-text-faint);
+  border-radius: 50%;
+}
+
+.admin-search::after{
+  left: 1.3rem;
+  width: 0.4rem;
+  height: 2px;
+  margin-top: 0.2rem;
+  background: var(--admin-text-faint);
+  transform: rotate(45deg);
+  transform-origin: left center;
+}
+
+.admin-search:focus-within::before{ border-color: var(--admin-accent); }
+.admin-search:focus-within::after{ background: var(--admin-accent); }
+
+.admin-search input[type="search"]{
+  width: 100%;
+  min-height: 2.5rem;
+  padding-left: 2.2rem;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.admin-search input[type="search"]::placeholder{ color: var(--admin-text-faint); opacity: 1; }
+
+.admin-search input[type="search"]:focus{ box-shadow: 0 0 0 3px var(--admin-accent-soft-strong); }
+
+.admin-search input[type="search"]:disabled{ opacity: 0.55; cursor: not-allowed; }
+
+/* --- Select ---------------------------------------------------------------- */
+
+/* A native <select> with the admin's own chevron: still the browser's own
+   list, keyboard and screen-reader behaviour, only the closed box changed.
+   For a single choice — a `multiple` or sized list box has no chevron to
+   draw and keeps the global look. */
+.admin-select{
+  -webkit-appearance: none;
+  appearance: none;
+  max-width: 100%;
+  min-height: 2.5rem;
+  padding-right: 2.25rem;
+  background-image:
+    linear-gradient(45deg, transparent 50%, var(--admin-text-muted) 50%),
+    linear-gradient(135deg, var(--admin-text-muted) 50%, transparent 50%);
+  background-position:
+    calc(100% - 1.1rem) 50%,
+    calc(100% - 0.8rem) 50%;
+  background-size: 0.3rem 0.3rem;
+  background-repeat: no-repeat;
+  cursor: pointer;
+  transition: border-color var(--admin-transition), box-shadow var(--admin-transition);
+}
+
+.admin-select:hover:not(:disabled):not(:focus){ border-color: var(--admin-border-strong); }
+
+.admin-select:focus{
+  border-color: var(--admin-accent);
+  box-shadow: 0 0 0 3px var(--admin-accent-soft-strong);
+}
+
+.admin-select:disabled{ opacity: 0.55; cursor: not-allowed; }
+
+.admin-select[aria-invalid="true"]{ border-color: var(--admin-error); }
+.admin-select[aria-invalid="true"]:focus{ box-shadow: 0 0 0 3px var(--admin-error-soft); }
+
+/* The open list follows the theme where the platform lets it. */
+.admin-select option{ background-color: var(--admin-surface); color: var(--admin-text); }
+
+/* --- Checkbox -------------------------------------------------------------- */
+
+/* The native checkbox, drawn in the theme: it still toggles on Space, still
+   reports checked to a screen reader and still submits its value. Put it in
+   an .admin-checkbox-label. */
+.admin-checkbox{
+  -webkit-appearance: none;
+  appearance: none;
+  display: inline-grid;
+  place-content: center;
+  flex: none;
+  width: 1.1rem;
+  height: 1.1rem;
+  margin: 0;
+  background: var(--admin-surface-sunken);
+  border: 1px solid var(--admin-border-strong);
+  border-radius: min(var(--admin-radius-sm), 4px);
+  cursor: pointer;
+  transition: background var(--admin-transition), border-color var(--admin-transition);
+}
+
+.admin-checkbox::before{
+  content: "";
+  width: 0.3rem;
+  height: 0.6rem;
+  margin-top: -0.12rem;
+  border: solid var(--admin-on-accent);
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg) scale(0);
+  transition: transform var(--admin-transition);
+}
+
+.admin-checkbox:hover:not(:disabled){ border-color: var(--admin-accent); }
+
+.admin-checkbox:checked,
+.admin-checkbox:indeterminate{ background: var(--admin-accent); border-color: var(--admin-accent); }
+
+.admin-checkbox:checked::before{ transform: rotate(45deg) scale(1); }
+
+.admin-checkbox:indeterminate::before{
+  width: 0.55rem;
+  height: 0;
+  margin-top: 0;
+  border-width: 0 0 2px;
+  transform: none;
+}
+
+.admin-checkbox:focus-visible{ outline: 2px solid var(--admin-accent); outline-offset: 2px; }
+
+.admin-checkbox:disabled{ opacity: 0.5; cursor: not-allowed; }
+
+/* --- Switch ---------------------------------------------------------------- */
+
+/* For one on/off setting. Underneath it is a checkbox with role="switch", so
+   a form submits exactly what it submitted as a checkbox: turning a checkbox
+   into a switch changes no endpoint. */
+.admin-switch{
+  -webkit-appearance: none;
+  appearance: none;
+  position: relative;
+  flex: none;
+  width: 2.3rem;
+  height: 1.3rem;
+  margin: 0;
+  background: var(--admin-border-strong);
+  border: 1px solid var(--admin-border-strong);
+  border-radius: var(--admin-radius-pill);
+  cursor: pointer;
+  transition: background var(--admin-transition), border-color var(--admin-transition);
+}
+
+.admin-switch::before{
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 0.15rem;
+  width: 0.9rem;
+  height: 0.9rem;
+  margin-top: -0.45rem;
+  border-radius: 50%;
+  background: var(--admin-text);
+  box-shadow: var(--admin-shadow-sm);
+  transition: transform var(--admin-transition), background var(--admin-transition);
+}
+
+.admin-switch:hover:not(:disabled){ border-color: var(--admin-accent); }
+
+.admin-switch:checked{ background: var(--admin-accent); border-color: var(--admin-accent); }
+
+/* Track 2.3rem minus its two 1px borders, minus the thumb and its two 0.15rem gaps. */
+.admin-switch:checked::before{
+  transform: translateX(calc(2.3rem - 2px - 0.9rem - 0.3rem));
+  background: var(--admin-on-accent);
+}
+
+.admin-switch:focus-visible{ outline: 2px solid var(--admin-accent); outline-offset: 2px; }
+
+.admin-switch:disabled{ opacity: 0.5; cursor: not-allowed; }
+
+/* --- File input ------------------------------------------------------------ */
+
+/* Without the script: the browser's own control, its button in the shape of
+   .admin-btn-secondary. */
+.admin-file{
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--admin-sp-3);
+  min-width: 0;
+  max-width: 100%;
+}
+
+.admin-file > .admin-file__input::file-selector-button{
+  margin-right: var(--admin-sp-3);
+  padding: 0.4rem 0.9rem;
+  background: transparent;
+  color: var(--admin-text);
+  border: 1px solid var(--admin-border-strong);
+  border-radius: var(--admin-radius-sm);
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.admin-file__button,
+.admin-file__name{ display: none; }
+
+/* With the script: a field-shaped box with our own trigger and the chosen
+   file's name. The native input is still there, stretched invisibly over
+   the whole box, so a click anywhere opens the dialog, focus and `required`
+   still belong to it, and a screen reader still hears the real control. */
+.admin-ui-enhanced .admin-file{
+  padding: 0.35rem 0.75rem 0.35rem 0.35rem;
+  background: var(--admin-surface-sunken);
+  border: 1px dashed var(--admin-border-strong);
+  border-radius: var(--admin-radius-sm);
+  transition: border-color var(--admin-transition);
+}
+
+.admin-ui-enhanced .admin-file:hover{ border-color: var(--admin-accent); }
+
+.admin-ui-enhanced .admin-file > .admin-file__input{
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.admin-ui-enhanced .admin-file > .admin-file__input:disabled{ cursor: not-allowed; }
+
+.admin-ui-enhanced .admin-file__button{
+  display: inline-flex;
+  align-items: center;
+  flex: none;
+  padding: 0.4rem 0.9rem;
+  color: var(--admin-text);
+  border: 1px solid var(--admin-border-strong);
+  border-radius: var(--admin-radius-sm);
+  font-size: 0.85rem;
+  font-weight: 600;
+  pointer-events: none;
+  transition: border-color var(--admin-transition), color var(--admin-transition), background var(--admin-transition);
+}
+
+.admin-ui-enhanced .admin-file__name{
+  display: block;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.85rem;
+  color: var(--admin-text-muted);
+  pointer-events: none;
+}
+
+.admin-file__input:hover + .admin-file__button{
+  color: var(--admin-accent);
+  border-color: var(--admin-accent);
+  background: var(--admin-accent-soft);
+}
+
+.admin-file__input:focus-visible + .admin-file__button{ outline: 2px solid var(--admin-accent); outline-offset: 2px; }
+
+.admin-file__input:disabled + .admin-file__button,
+.admin-file__input:disabled ~ .admin-file__name{ opacity: 0.55; }
+
+/* --- Motion and forced colours --------------------------------------------- */
+
+@media (prefers-reduced-motion: reduce){
+  .admin-help__mark,
+  .admin-help-toggle,
+  .admin-checkbox::before,
+  .admin-switch,
+  .admin-switch::before{ transition: none; }
+}
+
+/* Windows high contrast and other forced colours throw away backgrounds, so
+   a box drawn with `appearance: none` would lose its tick and its thumb.
+   Give the browser its own control back there. */
+@media (forced-colors: active){
+  .admin-checkbox,
+  .admin-switch{
+    -webkit-appearance: auto;
+    appearance: auto;
+    width: auto;
+    height: auto;
+  }
+
+  .admin-checkbox::before,
+  .admin-switch::before{ display: none; }
 }

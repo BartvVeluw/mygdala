@@ -110,6 +110,10 @@ final class AdminAccessControlTest extends TestCase
         // The collapsible-list convention plus one <script> tag. Same shape
         // as the save bar: no URL, no data, no decision.
         '_admin_collapse.php',
+        // Field help, the help switch and the file input (ADMIN-UI.md):
+        // output functions over CMS text the including screen hands in, plus
+        // one <script> tag the shell prints. No URL, no data, no decision.
+        '_admin_ui.php',
     ];
 
     private static function projectRoot(): string

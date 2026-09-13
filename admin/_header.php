@@ -32,6 +32,13 @@
  * icons carry the meaning on their own. A divider is drawn between two
  * visible entries from different groups, so a hidden section never leaves a
  * doubled or dangling divider behind.
+ *
+ * The shell is also where help lives (ADMIN-UI.md): admin-ui.js is loaded
+ * here, first thing in <body> and not deferred, so every screen that renders
+ * the shell gets field help without asking for it, and a stored "help off"
+ * is applied before anything is painted. The help switch is printed twice —
+ * at the top of the sidebar, and beside the menu button on a narrow screen,
+ * where the sidebar is folded away — and admin.css shows one of the two.
  */
 
 use App\Service\AdminAuth;
@@ -42,6 +49,7 @@ use App\Service\Language\ContentLanguages;
 use App\Service\Language\LanguageRegistry;
 
 require_once __DIR__ . '/_translate.php';
+require_once __DIR__ . '/_admin_ui.php';
 
 $csrfToken = Csrf::token();
 
@@ -117,10 +125,21 @@ function adminNavIcon(string $key): string
     return '<svg class="admin-sidebar__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' . $inner . '</svg>';
 }
 ?>
+<?php admin_ui_script(); ?>
 <input type="checkbox" id="admin-sidebar-toggle" class="admin-sidebar-toggle-checkbox" hidden>
-<label for="admin-sidebar-toggle" class="admin-sidebar-toggle"><span aria-hidden="true"><?= admin_t('header.text', ['v1' => admin_te('shell.menu')]) ?></label>
+<?php /* The narrow-screen top row: the menu button, and the help switch beside
+         it, reachable without opening the menu. One wrapper around the two;
+         the checkbox stays a sibling of the <aside>, which its :checked ~ rule
+         in admin.css needs. */ ?>
+<div class="admin-topbar">
+  <label for="admin-sidebar-toggle" class="admin-sidebar-toggle"><span aria-hidden="true"><?= admin_t('header.text', ['v1' => admin_te('shell.menu')]) ?></label>
+  <?= admin_help_toggle('topbar') ?>
+</div>
 <aside class="admin-sidebar" id="admin-sidebar">
-  <a href="/admin/index.php" class="admin-sidebar__brand"><?= htmlspecialchars(\App\Service\SiteSettings::get('site_name'), ENT_QUOTES, 'UTF-8') ?></a>
+  <div class="admin-sidebar__head">
+    <a href="/admin/index.php" class="admin-sidebar__brand"><?= htmlspecialchars(\App\Service\SiteSettings::get('site_name'), ENT_QUOTES, 'UTF-8') ?></a>
+    <?= admin_help_toggle('sidebar') ?>
+  </div>
 
 <?php if ($adminShowsContentLanguageSwitch): ?>
   <?php /* A form rather than links: it changes stored state, so it is a POST

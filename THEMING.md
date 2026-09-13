@@ -68,6 +68,10 @@ Statuskleuren blijven in élk thema rood en groen: een fout die er niet meer
 uitziet als een fout is een stijlfout, geen skin. Selectie en actieve staat
 leunen nergens op kleur alléén.
 
+De bouwstenen die op die tokens draaien — uitleg bij een veld, de help-knop,
+de infobalk, zoekveld, select, checkbox, switch en bestandskiezer — hebben een
+eigen handleiding: `ADMIN-UI.md`.
+
 Een thema toevoegen is dus twee plaatsen: een sleutel in `AdminTheme::THEMES`
 en één `[data-admin-theme="…"]`-blok in `admin.css` dat élk kleurtoken van
 `:root` opnieuw zet.

@@ -22,6 +22,17 @@ return [
     'shell.role.user' => 'CMS user',
     'shell.my_account' => 'My account',
 
+    // --- Help and the shared form controls (admin/_admin_ui.php) ------------
+    'ui.help.toggle' => 'Help',
+    'ui.help.state_on' => 'on',
+    'ui.help.state_off' => 'off',
+    'ui.help.open' => 'Help with :subject',
+    'ui.help.close' => 'Close help',
+    'ui.file.choose' => 'Choose a file',
+    'ui.file.choose_many' => 'Choose files',
+    'ui.file.none' => 'No file chosen yet',
+    'ui.file.many' => ':count files chosen',
+
     // --- Words that appear on more than one screen -------------------------
     'common.save' => 'Save',
     'common.saved' => 'Saved',

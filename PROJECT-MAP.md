@@ -106,6 +106,7 @@ welke Core, staat in `MODULES.md`; dat document gaat over de grenzen zelf.
 | **Paginasjablonen** | Het startpunt dat een redacteur kiest bij *Nieuwe pagina*: welke blokken een verse pagina meekrijgt. Alleen op het moment van aanmaken — daarna is het een gewone pagina | `Service\PageTemplates\*`, `admin/page-new.php`, `api/admin/create-page.php` — zie `PAGE-TEMPLATES.md` |
 | **Content-blokken** | Bloktypes, instanties, volgorde, render | `src/Service/Blocks/` (definities + registratie), `SectionRegistry`, `PageSectionRepository`, `src/Service/*Content.php`, `partials/section-*.php`, `admin/<type>.php`, `assets/{css,js}/blocks/` |
 | **Paginabouwer (redacteurs-UX)** | Hoe een redacteur een blok kiest, wat het CMS over een blok vertelt, of er nog iets openstaat, en hoe een lang bewerkscherm bevaarbaar blijft | `BlockDefinition::description()/category()/icon()/preview()`, `BlockCategories`, `BlockPreview`, `admin/_block_picker.php`, `admin/_block_visual.php`, `admin/_save_bar.php`, `admin/_admin_tabs.php`, `admin/_admin_collapse.php`, `admin/content-blocks.php` — zie `PAGE-EDITOR.md` |
+| **Admin-UI-bouwstenen** | Uitleg bij velden, de help-knop in de schil, de infobalk, en zoekveld, select, checkbox, switch, bestandskiezer en knoppen in de CMS-stijl | `admin/_admin_ui.php`, `admin/assets/admin-ui.js`, sectie *ADMIN UI PRIMITIVES* in `admin/assets/admin.css` — zie `ADMIN-UI.md` |
 | **Auth/rechten** | Adminlogin, sessie, permissies, CSRF | `AdminAuth`, `AdminPermissions`, `AdminUserService`, `Csrf`, `admin/login.php`, `admin/users.php` |
 | **Instellingen/navigatie** | Site-instellingen, menu, footer, de header-knop, de slotregel, social profielen, linkresolutie | `SiteSettings`, `NavigationService`, `FooterService`, `HeaderCta`, `SocialProfiles`, `LinkResolver`, `RouteRegistry`, `admin/settings.php`, `admin/navigation.php`, `admin/footer.php`, `admin/header-footer.php` |
 | **Meertaligheid** | De drie onafhankelijke taalstaten — CMS-taal, bewerktaal, bezoekerstaal — de terugvalregel, de taalvelden in elke editor en automatisch vertalen | `Service\Language\*`, `Service\Translation\*`, `admin/_language_fields.php`, `admin/_header.php`, `admin/account.php` — zie `MULTILINGUAL.md` |
@@ -229,6 +230,7 @@ Bekend, ingepland, **niet** in deze stap op te lossen:
 | Content-blok toevoegen of wijzigen | `PROJECT-MAP.md` + `CONTENT-BLOCKS.md` |
 | De blokkenkiezer, de Contentblokken-catalogus of de opslagbalk | `PAGE-EDITOR.md` |
 | Tabbladen of inklapbare rijen op een lang adminscherm | `PAGE-EDITOR.md` |
+| Uitleg bij een veld, de help-knop, de infobalk of een formulierelement in de CMS-stijl | `ADMIN-UI.md` |
 | Shop, bestellingen, verzending, personalisatie | `PROJECT-MAP.md` + `MODULES.md` |
 | Blogberichten, categorieën, tags, de blogpagina of de feed | `BLOG.md` |
 | Domeingrenzen, "waar hoort dit thuis?" | `MODULES.md` |

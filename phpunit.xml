@@ -96,6 +96,7 @@
             <file>tests/Repository/OrderNumberSnapshotContractTest.php</file>
             <file>tests/Service/AdminAccessControlTest.php</file>
             <file>tests/Service/AdminEditorNavigationTest.php</file>
+            <file>tests/Service/AdminUiPrimitivesTest.php</file>
             <file>tests/Service/AdminThemeContractTest.php</file>
             <file>tests/Service/BlockDefinitionContractTest.php</file>
             <file>tests/Service/BlockPickerTest.php</file>
@@ -153,6 +154,7 @@
             <file>tests/Service/Address/DutchAddressLookupServiceTest.php</file>
             <file>tests/Service/AdminAccessControlTest.php</file>
             <file>tests/Service/AdminEditorNavigationTest.php</file>
+            <file>tests/Service/AdminUiPrimitivesTest.php</file>
             <file>tests/Service/AdminPermissionsTest.php</file>
             <file>tests/Service/AdminThemeContractTest.php</file>
             <file>tests/Service/AdminThemeTest.php</file>
@@ -345,6 +347,7 @@
             <file>tests/Service/AdminAccessControlTest.php</file>
             <file>tests/Service/AdminAuthLoginTest.php</file>
             <file>tests/Service/AdminEditorNavigationTest.php</file>
+            <file>tests/Service/AdminUiPrimitivesTest.php</file>
             <file>tests/Service/AdminPermissionsTest.php</file>
             <file>tests/Service/AdminThemeContractTest.php</file>
             <file>tests/Service/AdminThemePersistenceTest.php</file>
