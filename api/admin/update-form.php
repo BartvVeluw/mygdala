@@ -74,6 +74,11 @@ if ($fields['name'] === '') {
 
 if ($fields['notification_email'] !== '' && FormRecipient::validAddress($fields['notification_email']) === null) {
     $errors[] = AdminTranslator::trans('validation.notification_email_invalid');
+} elseif (FormRecipient::losesSubmissions($fields, FormRecipient::siteFallback())) {
+    // An active form with nobody to notify that keeps nothing either would
+    // accept a visitor's message and drop it. Refused here, where the owner
+    // can still choose an address or switch storing on.
+    $errors[] = AdminTranslator::trans('validation.form_submissions_go_nowhere');
 }
 
 if ($fields['reply_to_field_key'] !== '') {

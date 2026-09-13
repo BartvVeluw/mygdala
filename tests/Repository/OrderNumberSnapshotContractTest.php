@@ -37,7 +37,7 @@ final class OrderNumberSnapshotContractTest extends TestCase
      */
     private const PREFIX_SETTING_OWNERS = [
         'admin/settings.php',
-        'api/admin/update-site-settings.php',
+        'src/Service/SiteSettingsValidator.php',
         'src/Repository/OrderRepository.php',
         'src/Service/SiteSettings.php',
     ];

@@ -4,9 +4,12 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../vendor/autoload.php';
 
+use App\Mail\EmailIdentity;
+use App\Repository\FormRepository;
 use App\Service\AdminAuth;
 use App\Service\AdminTheme;
 use App\Service\Csrf;
+use App\Service\Forms\FormRecipient;
 use App\Service\Media\MediaService;
 use App\Service\SiteSettings;
 
@@ -37,6 +40,27 @@ unset($_SESSION['admin_theme_choice_error']);
 $currentAdminTheme = AdminTheme::current();
 
 $values = $old ?? SiteSettings::all();
+
+/*
+ * What an empty contact address means right now, said where the address is
+ * entered rather than discovered later in a server log. Both read what is
+ * STORED, because that is what the website runs on: without any sender
+ * address no mail leaves at all (App\Mail\EmailIdentity), and a form with no
+ * address of its own notifies nobody (App\Service\Forms\FormRecipient).
+ */
+$siteSenderMissing = !EmailIdentity::isConfigured();
+$formsWithoutRecipient = [];
+if (FormRecipient::siteFallback() === null) {
+    try {
+        foreach ((new FormRepository())->all() as $formRow) {
+            if (FormRecipient::reliesOnSiteAddress($formRow)) {
+                $formsWithoutRecipient[] = (string) $formRow['name'];
+            }
+        }
+    } catch (\Throwable $e) {
+        error_log('[admin/settings.php] could not read the forms: ' . $e->getMessage());
+    }
+}
 
 $csrfToken = Csrf::token();
 
@@ -160,24 +184,24 @@ function brandingImageField(
   <?php admin_tab_panel('algemeen'); ?>
   <section class="admin-card">
     <h2><?= admin_te('settings.algemeen') ?></h2>
-    <p class="admin-text-muted"><?= admin_te('settings.wie_site_naam_beeldmerk') ?></p>
+    <?= admin_info_panel(admin_t('help.settings.general')) ?>
     <?php /* No enctype: this form no longer carries a file. The branding
              images are media references now, and uploading happens inside the
              picker (api/admin/media-upload.php). */ ?>
     <form method="post" action="/api/admin/update-site-settings.php" class="admin-product-form">
       <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
 
-      <?php /* Field help beside the labels (ADMIN-UI.md). Only the markup
-               around each field changed: every name, type, maxlength and
-               required below is what this form already submitted. */ ?>
-      <div class="admin-form-row admin-form-row--split">
+      <?php /* Grouped in the order somebody new fills this in: who the site
+               is, how to reach it, the words visitors read, and a postal
+               address. Only the site name is required. Every required and
+               maxlength below is App\Service\SiteSettingsValidator's list,
+               and Tests\Service\SiteSettingsValidatorTest keeps the two the
+               same. */ ?>
+      <h3><?= admin_te('settings.group_website') ?></h3>
+      <div class="admin-form-row">
         <div class="admin-field">
-          <?= admin_field_label('settings-site-name', admin_t('settings.bedrijfsnaam'), admin_t('help.settings.site_name'), true) ?>
+          <?= admin_field_label('settings-site-name', admin_t('settings.site_name'), admin_t('help.settings.site_name'), true) ?>
           <input type="text" id="settings-site-name" name="site_name" maxlength="150" required value="<?= settingValue($values, 'site_name') ?>">
-        </div>
-        <div class="admin-field">
-          <?= admin_field_label('settings-kvk-number', admin_t('settings.kvk_nummer'), admin_t('help.settings.kvk_number')) ?>
-          <input type="text" id="settings-kvk-number" name="kvk_number" maxlength="20" value="<?= settingValue($values, 'kvk_number') ?>">
         </div>
       </div>
 
@@ -193,21 +217,40 @@ function brandingImageField(
         <?php brandingImageField($values, 'og_image_path', 'og_image', admin_t('settings.og_image'), admin_t('settings.og_image_help'), true); ?>
       </div>
 
+      <h3><?= admin_te('settings.group_contact') ?></h3>
       <div class="admin-form-row admin-form-row--split">
         <div class="admin-field">
-          <?= admin_field_label('settings-email', admin_t('common.email_address'), admin_t('help.settings.email'), true) ?>
-          <input type="email" id="settings-email" name="email" maxlength="150" required value="<?= settingValue($values, 'email') ?>">
+          <?= admin_field_label('settings-email', admin_t('common.email_address'), admin_t('help.settings.email')) ?>
+          <input type="email" id="settings-email" name="email" maxlength="150" value="<?= settingValue($values, 'email') ?>">
+        </div>
+        <div class="admin-field">
+          <?= admin_field_label('settings-phone', admin_t('settings.telefoonnummer'), admin_t('help.settings.phone')) ?>
+          <input type="tel" id="settings-phone" name="company_phone" maxlength="30" value="<?= settingValue($values, 'company_phone') ?>">
         </div>
       </div>
 
+      <?php if ($siteSenderMissing || $formsWithoutRecipient !== []): ?>
+        <div class="admin-alert admin-alert--warning" role="status">
+          <?php if ($siteSenderMissing): ?>
+            <p><?= admin_te('settings.warning_no_sender') ?></p>
+          <?php endif; ?>
+          <?php if ($formsWithoutRecipient !== []): ?>
+            <p><?= admin_t('settings.warning_forms_without_recipient', ['forms' => $h(implode(', ', $formsWithoutRecipient))]) ?></p>
+          <?php endif; ?>
+        </div>
+      <?php endif; ?>
+
+      <h3><?= admin_te('settings.group_on_site') ?></h3>
       <?php /* Both language panes carry the same explanation: only the pane
-               of the language being edited is on screen. */ ?>
+               of the language being edited is on screen. Optional in both
+               languages: the contact block and the footer leave an empty one
+               out. */ ?>
       <?php admin_lang_bar(); ?>
       <div class="admin-form-row admin-form-row--split">
         <?php admin_lang_pane_start('nl'); ?>
         <div class="admin-field">
-          <?= admin_field_label('settings-city-nl', admin_t('settings.plaats_locatie'), admin_t('help.settings.city'), true) ?>
-          <input type="text" id="settings-city-nl" name="city_nl" maxlength="150" <?= admin_lang_required('nl') ?> value="<?= settingValue($values, 'city_nl') ?>">
+          <?= admin_field_label('settings-city-nl', admin_t('settings.plaats_locatie'), admin_t('help.settings.city')) ?>
+          <input type="text" id="settings-city-nl" name="city_nl" maxlength="150" value="<?= settingValue($values, 'city_nl') ?>">
         </div>
         <?php admin_lang_pane_end(); ?>
         <?php admin_lang_pane_start('en'); ?>
@@ -221,8 +264,8 @@ function brandingImageField(
       <div class="admin-form-row admin-form-row--split">
         <?php admin_lang_pane_start('nl'); ?>
         <div class="admin-field">
-          <?= admin_field_label('settings-footer-description-nl', admin_t('settings.footer_omschrijving'), admin_t('help.settings.footer_description'), true) ?>
-          <textarea id="settings-footer-description-nl" name="footer_description_nl" maxlength="500" <?= admin_lang_required('nl') ?> rows="3"><?= settingValue($values, 'footer_description_nl') ?></textarea>
+          <?= admin_field_label('settings-footer-description-nl', admin_t('settings.footer_omschrijving'), admin_t('help.settings.footer_description')) ?>
+          <textarea id="settings-footer-description-nl" name="footer_description_nl" maxlength="500" rows="3"><?= settingValue($values, 'footer_description_nl') ?></textarea>
         </div>
         <?php admin_lang_pane_end(); ?>
         <?php admin_lang_pane_start('en'); ?>
@@ -232,6 +275,57 @@ function brandingImageField(
         </div>
         <?php admin_lang_pane_end(); ?>
       </div>
+
+      <h3><?= admin_te('settings.group_address') ?></h3>
+      <?= admin_info_panel(admin_t('help.settings.address')) ?>
+      <?php /* The structured postal address. These keys sat on the Facturen
+               tab once, but they are the site's address rather than the
+               invoice's: App\Mail\EmailIdentity already puts the city under
+               every e-mail. Not city_nl/city_en above, which is what visitors
+               are told in two languages; this is an address. */ ?>
+      <div class="admin-form-row admin-form-row--split">
+        <div class="admin-field">
+          <?= admin_field_label('settings-company-street', admin_t('settings.straat')) ?>
+          <input type="text" id="settings-company-street" name="company_street" maxlength="150" value="<?= settingValue($values, 'company_street') ?>">
+        </div>
+        <div class="admin-field">
+          <?= admin_field_label('settings-company-house-number', admin_t('settings.huisnummer')) ?>
+          <input type="text" id="settings-company-house-number" name="company_house_number" maxlength="20" value="<?= settingValue($values, 'company_house_number') ?>">
+        </div>
+      </div>
+
+      <div class="admin-form-row admin-form-row--split">
+        <div class="admin-field">
+          <?= admin_field_label('settings-company-postal-code', admin_t('settings.postcode')) ?>
+          <input type="text" id="settings-company-postal-code" name="company_postal_code" maxlength="20" value="<?= settingValue($values, 'company_postal_code') ?>">
+        </div>
+        <div class="admin-field">
+          <?= admin_field_label('settings-company-city', admin_t('settings.plaats'), admin_t('help.settings.company_city')) ?>
+          <input type="text" id="settings-company-city" name="company_city" maxlength="150" value="<?= settingValue($values, 'company_city') ?>">
+        </div>
+        <div class="admin-field">
+          <?= admin_field_label('settings-company-country', admin_t('settings.land'), admin_t('help.settings.country')) ?>
+          <input type="text" id="settings-company-country" name="company_country" maxlength="2" value="<?= settingValue($values, 'company_country') ?>">
+        </div>
+      </div>
+
+      <?php /* Out of the main flow on purpose: plenty of websites are not a
+               registered business. Open when it holds a value, so nothing an
+               owner filled in is hidden from them. */ ?>
+      <details class="admin-collapse admin-settings-optional"<?= trim((string) ($values['kvk_number'] ?? '')) !== '' ? ' open' : '' ?>>
+        <summary class="admin-collapse__summary">
+          <span class="admin-collapse__caret" aria-hidden="true"></span>
+          <h3 class="admin-collapse__title"><?= admin_te('settings.group_business') ?></h3>
+        </summary>
+        <div class="admin-collapse__body">
+          <div class="admin-form-row admin-form-row--split">
+            <div class="admin-field">
+              <?= admin_field_label('settings-kvk-number', admin_t('settings.kvk_nummer'), admin_t('help.settings.kvk_number')) ?>
+              <input type="text" id="settings-kvk-number" name="kvk_number" maxlength="20" value="<?= settingValue($values, 'kvk_number') ?>">
+            </div>
+          </div>
+        </div>
+      </details>
 
       <button type="submit"><?= admin_te('common.save') ?></button>
     </form>
@@ -344,33 +438,6 @@ function brandingImageField(
     <p class="admin-text-muted"><?= admin_te('settings.gegevens_gebruikt_elke_nieuw') ?></p>
     <form method="post" action="/api/admin/update-site-settings.php" class="admin-product-form">
       <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
-
-      <div class="admin-form-row admin-form-row--split">
-        <label><?= admin_te('settings.straat') ?>
-          <input type="text" name="company_street" maxlength="150" value="<?= settingValue($values, 'company_street') ?>">
-        </label>
-        <label><?= admin_te('settings.huisnummer') ?>
-          <input type="text" name="company_house_number" maxlength="20" value="<?= settingValue($values, 'company_house_number') ?>">
-        </label>
-      </div>
-
-      <div class="admin-form-row admin-form-row--split">
-        <label><?= admin_te('settings.postcode') ?>
-          <input type="text" name="company_postal_code" maxlength="20" value="<?= settingValue($values, 'company_postal_code') ?>">
-        </label>
-        <label><?= admin_te('settings.plaats') ?>
-          <input type="text" name="company_city" maxlength="150" value="<?= settingValue($values, 'company_city') ?>">
-        </label>
-      </div>
-
-      <div class="admin-form-row admin-form-row--split">
-        <label><?= admin_te('settings.land') ?>
-          <input type="text" name="company_country" maxlength="2" value="<?= settingValue($values, 'company_country') ?>">
-        </label>
-        <label><?= admin_te('settings.telefoonnummer') ?>
-          <input type="text" name="company_phone" maxlength="30" value="<?= settingValue($values, 'company_phone') ?>">
-        </label>
-      </div>
 
       <div class="admin-form-row admin-form-row--split">
         <label><?= admin_te('settings.website') ?>

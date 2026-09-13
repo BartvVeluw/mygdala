@@ -61,7 +61,10 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
         <?php if ($brand['show_company_name']): ?>
         <p class="footer-brand__name"><?= $h($siteName) ?></p>
         <?php endif; ?>
+        <?php // Optional since Site-instellingen stopped requiring it: no text, no empty paragraph. ?>
+        <?php if (trim($footerDescriptionNl) !== '' || trim($footerDescriptionEn) !== ''): ?>
         <p <?= \App\Service\Language\SiteText::attrs($footerDescriptionNl, $footerDescriptionEn) ?>><?= $h(\App\Service\Language\SiteText::visible($footerDescriptionNl, $footerDescriptionEn)) ?></p>
+        <?php endif; ?>
         <?php if ($brand['show_email'] && $email !== ''): ?>
         <p><a href="mailto:<?= $h($email) ?>"><?= $h($email) ?></a></p>
         <?php endif; ?>

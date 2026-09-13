@@ -90,7 +90,9 @@ zet die later aan bij Instellingen → Talen. De taal van het **CMS** is iets
 anders — die kiest elke beheerder voor zichzelf bij Mijn account
 (`MULTILINGUAL.md`).
 
-De naam van de site is het **enige** verplichte antwoord in de hele wizard.
+De naam van de site is het **enige** verplichte antwoord in de hele wizard, en
+Site-instellingen houdt zich aan hetzelfde contract
+(`App\Service\SiteSettingsValidator`).
 Alles wat leeg blijft, blijft leeg: de footer laat de regel weg,
 `App\Mail\EmailIdentity` laat het onderdeel weg in plaats van een losse
 scheiding te tonen, en de factuur slaat de regel over. Bedrijfsgegevens

@@ -182,6 +182,12 @@ $replyToCandidates = $definition === null ? [] : $definition->replyToCandidates(
           <?= admin_t('forms.no_fallback_recipient') ?>
         <?php endif; ?>
       </p>
+      <?php /* The state api/admin/update-form.php refuses to save, shown on
+               the stored form too: the site address it relied on may have
+               been emptied since. */ ?>
+      <?php if (FormRecipient::losesSubmissions($values, $siteFallback)): ?>
+        <p class="admin-alert admin-alert--warning" role="status"><?= admin_t('forms.submissions_go_nowhere') ?></p>
+      <?php endif; ?>
 
       <label><?= admin_te('forms.antwoordadres_reply_to_overnemen') ?>
         <select name="reply_to_field_key" class="admin-select">

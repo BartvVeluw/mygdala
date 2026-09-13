@@ -238,6 +238,17 @@ plaats van PHPMailer een adres te geven dat het weigert. Staat er in geen van
 beide iets bruikbaars, dan wordt de inzending nog steeds geaccepteerd en
 bewaard, en komt de ontbrekende configuratie in het serverlog.
 
+Het contactadres van de site is optioneel, dus die toestand kan bestaan. Eén
+variant ervan laat het CMS niet toe, omdat er dan echt iets verloren gaat: een
+**actief formulier zonder eigen adres dat zijn inzendingen niet bewaart**,
+terwijl de site ook geen adres heeft
+(`FormRecipient::losesSubmissions()`). `api/admin/update-form.php` weigert zo'n
+formulier op te slaan, en `api/admin/update-site-settings.php` weigert het
+contactadres leeg te maken zolang een formulier daarvan afhangt. Allebei
+noemen ze wat de beheerder kan doen. Het formulierscherm en Site-instellingen
+waarschuwen ook als de toestand al bestaat, want dan is er niets meer om te
+weigeren.
+
 **Eén ontvanger in V1.** Geen CC, geen BCC, geen routering op antwoorden,
 geen autoresponder.
 
@@ -395,7 +406,8 @@ niet hoort te hebben:
 
 - **de kaart "Direct contact"** ernaast, die het e-mailadres en de
   werkplaatsplaats uit Site-instellingen toont en de tweede kolom van het
-  raster vult;
+  raster vult. Beide zijn daar optioneel; een regel zonder waarde wordt
+  weggelaten;
 - **de optionele bijlage**. Forms V1 heeft geen uploadveld en de
   formulierbouwer kan er geen maken — maar deze site accepteert al jaren een
   foto of pdf bij een offerteaanvraag, en dat weghalen zou een regressie zijn,

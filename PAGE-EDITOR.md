@@ -324,11 +324,12 @@ verplicht veld zitten in het script. Zonder JavaScript verschijnt de tabstrip
 niet en staat alles gewoon onder elkaar, zoals daarvoor.
 
 **Site-instellingen** (`admin/settings.php`) gebruikt hetzelfde:
-*Algemeen* (naam, KVK, logo's, favicon, deel-afbeelding, e-mail, plaats,
-footertekst), *SEO*, *Facturen*, *E-mails* en *Dashboard*. Puur navigatie —
-elk tabblad is precies één van de formulieren die er al stonden, met zijn
-eigen endpoint. Er is niets tussen formulieren verhuisd, en waar een
-instelling wordt opgeslagen is niet veranderd.
+*Algemeen* (naam, logo's, favicon, deel-afbeelding, e-mail, telefoon, plaats,
+footertekst, adresgegevens en een ingeklapte groep met het KVK-nummer), *SEO*,
+*Facturen*, *E-mails* en *Dashboard*. Elk tabblad is één formulier met zijn
+eigen endpoint. Welke velden het formulier van *Algemeen* en *SEO* mag
+opsturen, en welke verplicht zijn, staat in `App\Service\SiteSettingsValidator`;
+alleen de naam van de website is verplicht.
 
 ## Een nieuw blok doet automatisch mee
 

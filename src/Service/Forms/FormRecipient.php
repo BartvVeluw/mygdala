@@ -54,6 +54,38 @@ final class FormRecipient
     }
 
     /**
+     * Whether a form sends its notification to the site's own contact
+     * address: it is switched on and has no usable address of its own.
+     *
+     * @param array<string, mixed> $form a `forms` row, or the values the form
+     *                                   editor is about to save
+     */
+    public static function reliesOnSiteAddress(array $form): bool
+    {
+        return !empty($form['is_active'])
+            && self::validAddress((string) ($form['notification_email'] ?? '')) === null;
+    }
+
+    /**
+     * Whether a submission to this form would reach nobody: there is no
+     * address to notify, not even the site's, and the form does not keep its
+     * submissions either. Nothing at runtime can recover such a submission,
+     * so the admin screens refuse to create this state instead of leaving it
+     * to a line in the server log (api/admin/update-form.php and
+     * App\Service\SiteSettingsValidator).
+     *
+     * @param array<string, mixed> $form        see reliesOnSiteAddress()
+     * @param string|null          $siteAddress siteFallback(), or the address
+     *                                          Site-instellingen is about to store
+     */
+    public static function losesSubmissions(array $form, ?string $siteAddress): bool
+    {
+        return self::reliesOnSiteAddress($form)
+            && self::validAddress($siteAddress) === null
+            && empty($form['store_submissions']);
+    }
+
+    /**
      * Whether an address is safe to put in a mail header: a valid address
      * AND free of the control characters that would let it inject a second
      * one. filter_var alone already rejects those, but the check is written

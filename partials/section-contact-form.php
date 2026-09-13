@@ -38,9 +38,15 @@ use App\Service\Forms\FormRenderState;
 
 function render_section_contact_form(array $content, string $pageSlug, string $sectionKey): void
 {
-    $contactEmail = \App\Service\SiteSettings::get('email');
-    $contactCityNl = \App\Service\SiteSettings::get('city_nl');
-    $contactCityEn = \App\Service\SiteSettings::get('city_en');
+    // Both are optional in Site-instellingen. A line whose value is missing is
+    // left out rather than printed as a bare label or a dangling "—".
+    $contactEmail = trim(\App\Service\SiteSettings::get('email'));
+    $contactCity = \App\Service\Language\LocalizedValue::ofDutchEnglish(
+        \App\Service\SiteSettings::get('city_nl'),
+        \App\Service\SiteSettings::get('city_en')
+    );
+    $contactCityNl = $contactCity->in(\App\Service\Language\LanguageRegistry::DUTCH);
+    $contactCityEn = $contactCity->in(\App\Service\Language\LanguageRegistry::ENGLISH);
     $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
 
     $form = FormCatalog::renderable($content['form_id'] ?? null);
@@ -68,14 +74,18 @@ function render_section_contact_form(array $content, string $pageSlug, string $s
         <div data-reveal>
           <div class="contact-card">
             <h2 style="font-size:1.2rem; margin-bottom:1.25rem;" data-nl="Direct contact" data-en="Direct contact">Direct contact</h2>
+            <?php if ($contactEmail !== ''): ?>
             <div class="contact-detail">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M4 7l8 6 8-6"/></svg>
               <div><strong data-nl="E-mail" data-en="Email">E-mail</strong><a href="mailto:<?= $h($contactEmail) ?>"><?= $h($contactEmail) ?></a></div>
             </div>
+            <?php endif; ?>
+            <?php if (!$contactCity->isEmpty()): ?>
             <div class="contact-detail">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" aria-hidden="true"><path d="M12 22s7-7.4 7-12.5A7 7 0 105 9.5C5 14.6 12 22 12 22z"/><circle cx="12" cy="9.5" r="2.4"/></svg>
               <div><strong data-nl="Werkplaats" data-en="Workshop">Werkplaats</strong><span data-nl="<?= $h($contactCityNl) ?> — ophalen op afspraak" data-en="<?= $h($contactCityEn) ?> — pickup by appointment"><?= $h($contactCityNl) ?> — ophalen op afspraak</span></div>
             </div>
+            <?php endif; ?>
             <div class="contact-detail">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg>
               <div><strong data-nl="Reactietijd" data-en="Response time">Reactietijd</strong><span data-nl="Meestal binnen enkele werkdagen" data-en="Usually within a few business days">Meestal binnen enkele werkdagen</span></div>

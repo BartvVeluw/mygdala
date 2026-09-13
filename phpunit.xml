@@ -72,6 +72,7 @@
             <file>tests/Service/RobotsTest.php</file>
             <file>tests/Service/RouteRegistryTest.php</file>
             <file>tests/Service/SeoMetadataTest.php</file>
+            <file>tests/Service/SiteSettingsValidatorTest.php</file>
             <file>tests/Service/Shipping/PostNl/PostNlRateParserTest.php</file>
             <file>tests/Service/Shipping/PostNl/PostNlRateSyncServiceTest.php</file>
             <file>tests/Service/Shipping/ShippingCalculationServiceTest.php</file>
@@ -216,6 +217,7 @@
             <file>tests/Service/SiteIdentityTest.php</file>
             <file>tests/Service/ThemeRenderingTest.php</file>
             <file>tests/Service/ThemeSettingsTest.php</file>
+            <file>tests/Service/SiteSettingsValidatorTest.php</file>
             <file>tests/Service/TurnstileVerifierTest.php</file>
         </testsuite>
 
@@ -397,6 +399,8 @@
             <file>tests/Service/SeoRoutingTest.php</file>
             <file>tests/Service/SetupAccessTest.php</file>
             <file>tests/Service/SiteIdentityTest.php</file>
+            <file>tests/Service/SiteSettingsValidatorTest.php</file>
+            <file>tests/Repository/SiteSettingsPersistenceTest.php</file>
             <file>tests/Service/SitemapRoutingTest.php</file>
             <file>tests/Service/SitemapTest.php</file>
             <file>tests/Service/ThemePersistenceTest.php</file>

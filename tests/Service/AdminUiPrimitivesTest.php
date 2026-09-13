@@ -491,6 +491,9 @@ final class AdminUiPrimitivesTest extends TestCase
             'city_en' => 'help.settings.city',
             'footer_description_nl' => 'help.settings.footer_description',
             'footer_description_en' => 'help.settings.footer_description',
+            'company_phone' => 'help.settings.phone',
+            'company_city' => 'help.settings.company_city',
+            'company_country' => 'help.settings.country',
             'primary_content_language' => 'help.settings.primary_language',
             'seo_default_description' => 'help.settings.seo_description',
             'seo_robots_index_default' => 'help.settings.robots',
@@ -552,16 +555,13 @@ final class AdminUiPrimitivesTest extends TestCase
     {
         $settings = self::source('admin/settings.php');
 
-        foreach (['site_name', 'email'] as $name) {
-            $this->assertMatchesRegularExpression('/name="' . $name . '"[^>]*\brequired\b/', $settings, $name . ' must stay required');
-        }
+        // Only the site name is required (App\Service\SiteSettingsValidator);
+        // Tests\Service\SiteSettingsValidatorTest pins every field against it.
+        $this->assertMatchesRegularExpression('/name="site_name"[^>]*\brequired\b/', $settings, 'site_name must stay required');
 
-        foreach (['city_nl', 'footer_description_nl'] as $name) {
-            $this->assertMatchesRegularExpression('/name="' . $name . '"[^>]*admin_lang_required\(\'nl\'\)/', $settings, $name . ' must stay required in the primary language');
-        }
-
-        foreach (['kvk_number', 'city_en', 'footer_description_en', 'seo_default_description'] as $name) {
-            $this->assertDoesNotMatchRegularExpression('/name="' . $name . '"[^>]*\brequired\b/', $settings, $name . ' was optional and stays optional');
+        foreach (['email', 'city_nl', 'footer_description_nl', 'kvk_number', 'city_en', 'footer_description_en', 'seo_default_description'] as $name) {
+            $this->assertDoesNotMatchRegularExpression('/name="' . $name . '"[^>]*\brequired\b/', $settings, $name . ' is optional');
+            $this->assertDoesNotMatchRegularExpression('/name="' . $name . '"[^>]*admin_lang_required\(/', $settings, $name . ' is optional in every language');
         }
 
         $this->assertStringContainsString('<input type="email" id="settings-email" name="email"', $settings);
@@ -571,8 +571,8 @@ final class AdminUiPrimitivesTest extends TestCase
             'the hidden 0 still comes before the switch, so switching indexing off still saves'
         );
         $this->assertStringContainsString(
-            "\$fields['seo_robots_index_default'] = \$fields['seo_robots_index_default'] === '1' ? '1' : '0';",
-            self::source('api/admin/update-site-settings.php')
+            "\$values['seo_robots_index_default'] = \$values['seo_robots_index_default'] === '1' ? '1' : '0';",
+            self::source('src/Service/SiteSettingsValidator.php')
         );
 
         $form = self::source('admin/form.php');

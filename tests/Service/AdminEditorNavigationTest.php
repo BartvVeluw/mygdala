@@ -46,6 +46,14 @@ final class AdminEditorNavigationTest extends TestCase
         'city_en' => 'algemeen',
         'footer_description_nl' => 'algemeen',
         'footer_description_en' => 'algemeen',
+        // The postal address and the phone number are the site's, not the
+        // invoice's: the e-mail footer line and the site footer read them too.
+        'company_phone' => 'algemeen',
+        'company_street' => 'algemeen',
+        'company_house_number' => 'algemeen',
+        'company_postal_code' => 'algemeen',
+        'company_city' => 'algemeen',
+        'company_country' => 'algemeen',
         // The WEBSITE's languages (MULTILINGUAL.md). Deliberately their own
         // tab and not part of Algemeen: they are the one setting an editor
         // has to be able to find without already knowing this CMS, and the
@@ -54,12 +62,6 @@ final class AdminEditorNavigationTest extends TestCase
         'primary_content_language' => 'talen',
                 'seo_default_description' => 'seo',
         'seo_robots_index_default' => 'seo',
-        'company_street' => 'facturen',
-        'company_house_number' => 'facturen',
-        'company_postal_code' => 'facturen',
-        'company_city' => 'facturen',
-        'company_country' => 'facturen',
-        'company_phone' => 'facturen',
         'company_website' => 'facturen',
         'company_vat_id' => 'facturen',
         'invoice_number_prefix' => 'facturen',
