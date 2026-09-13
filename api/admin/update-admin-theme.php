@@ -4,7 +4,8 @@
  * POST /api/admin/update-admin-theme.php
  *
  * Saves the "Dashboard uiterlijk" card on admin/settings.php: one key out of
- * App\Service\AdminTheme's closed set, and nothing else.
+ * App\Service\AdminTheme's closed set and, for Eigen kleuren, its five
+ * colours. Nothing else.
  *
  * A form of its own, next to the several other independent forms on that
  * page, so it can never take a site setting with it — this endpoint cannot
@@ -50,8 +51,26 @@ if ($requested === null) {
     exit;
 }
 
+/*
+ * The form posts the five colours whichever theme is checked. Only Eigen
+ * kleuren reads them, and only as a complete, valid set: one broken colour
+ * refuses the whole save instead of storing half a palette. A fixed theme
+ * passes no colours, which leaves the ones stored before in place.
+ */
+$colors = null;
+
+if ($requested === AdminTheme::CUSTOM_KEY) {
+    $colors = AdminTheme::normaliseColors($_POST['admin_theme_colors'] ?? null);
+
+    if ($colors === null) {
+        $_SESSION['admin_theme_choice_error'] = AdminTranslator::trans('validation.dashboard_colors_invalid');
+        header('Location: /admin/settings.php#dashboard-uiterlijk');
+        exit;
+    }
+}
+
 try {
-    AdminTheme::save($requested);
+    AdminTheme::save($requested, $colors);
 } catch (\Throwable $e) {
     error_log('[api/admin/update-admin-theme.php] ' . $e->getMessage());
 

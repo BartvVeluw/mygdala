@@ -32,8 +32,9 @@ tabel (`admin_settings`) en een eigen kaart *Dashboard uiterlijk* op het
 tabblad **Dashboard** van Instellingen → Site-instellingen. Een bezoeker ziet er niets van, en
 "standaardvormgeving herstellen" op het themascherm raakt het niet aan.
 
-Vier eerste-partij-skins, meer niet: `default`, `classic`, `ocean`, `black`.
-Die lijst is gesloten. Een opgeslagen waarde die er niet in staat — een oude
+Vier eerste-partij-skins en één thema met eigen kleuren, meer niet:
+`default`, `classic`, `ocean`, `black` en `custom` (**Eigen kleuren**, zie
+hieronder). Die lijst is gesloten. Een opgeslagen waarde die er niet in staat — een oude
 rij, een handmatig bewerkte database, een verzonnen POST — wordt `default`,
 niet een fout.
 
@@ -75,6 +76,53 @@ eigen handleiding: `ADMIN-UI.md`.
 Een thema toevoegen is dus twee plaatsen: een sleutel in `AdminTheme::THEMES`
 en één `[data-admin-theme="…"]`-blok in `admin.css` dat élk kleurtoken van
 `:root` opnieuw zet.
+
+### Eigen kleuren
+
+`custom` is het enige dashboardthema waarvan de kleuren niet in `admin.css`
+staan. De beheerder kiest er vijf: achtergrond, zijbalk, kaarten en vlakken,
+tekst en accent (`AdminTheme::COLORS`). Ze komen als vijf rijen
+`admin_theme_color_*` in `admin_settings`, en `bodyAttribute()` drukt ze af
+als `--admin-custom-*` in een `style`-attribuut naast de themasleutel.
+
+Het `custom`-blok in `admin.css` leidt **elk ander token** uit die vijf af met
+`color-mix()`: randen en hover mengen vlak en tekst, gedempte tekst mengt
+tekst en vlak, en de zachte accentvlakken zijn het accent met transparantie.
+Twee vaste afspraken houden een vrije keuze leesbaar zonder te weten of hij
+licht of donker is: tekst op een gevulde knop krijgt de **achtergrondkleur**,
+en fout en gelukt zijn een vast rood en groen dat naar de tekstkleur toe
+getrokken wordt, dus lichter op een donkere ondergrond en donkerder op een
+lichte. De afleiding staat één keer in CSS, en daarom kan de live preview
+niet afwijken van de opgeslagen pagina.
+
+- **Een kleur is zes hexcijfers**, in dezelfde vormen als de websitekleuren
+  (`#` optioneel, drie cijfers worden zes). Opslaan met één ongeldige kleur
+  wordt geweigerd en slaat niets op. Een kapotte opgeslagen rij valt terug op
+  de Default-waarde, en een ontbrekende eigenschap op de `var()`-terugval in
+  `admin.css`: dezelfde waarde. `AdminThemeContractTest` houdt die
+  terugvalwaarden, `AdminTheme::COLORS` en `:root` gelijk.
+- **Een vast thema kiezen laat de kleuren staan**, zodat terugschakelen naar
+  Eigen kleuren de eerder gekozen kleuren terugbrengt. `reset()` wist ze wel.
+- `color-mix()` is de enige browserfunctie die dit blok extra vraagt. Het is
+  geen nieuwe ondergrens: `admin.css` gebruikt `:has()` al, en dat kwam later.
+
+### Live preview
+
+Op het tabblad Dashboard ziet de beheerder een keuze meteen
+(`admin/assets/admin-theme-preview.js`). Een thema aanvinken zet
+`data-admin-theme` op `<body>`; een kleur zet één `--admin-custom-*` op
+`<body>` en op de schets van Eigen kleuren. Geen request, geen reload en geen
+opslag in de browser: pas **Uiterlijk opslaan**, of de opslagbalk, schrijft.
+Herladen of weggaan zonder opslaan toont vanzelf weer het opgeslagen thema,
+want dat is wat de server afdrukt. Het formulier heeft `autocomplete="off"` en
+het script zet bij het laden elk veld terug op de serverwaarde, zodat een
+browser die formulierwaarden terugzet geen niet-opgeslagen keuze toont.
+
+Niets hiervan is nieuw gereedschap. "Niet opgeslagen" is de bestaande
+opslagbalk (`admin/_save_bar.php`, zie `PAGE-EDITOR.md`), en de kleurvelden
+zijn de kleurcomponent van het themascherm van de website
+(`.admin-theme-color`, `admin/assets/theme-admin.js`): het hexveld wordt
+verstuurd, de native kleurkiezer ernaast houdt het bij.
 
 ## De zeven instellingen
 
@@ -220,7 +268,7 @@ docker compose exec php_test php vendor/bin/phpunit --testsuite cms
 database noch webserver nodig. `cms` voegt `ThemePersistenceTest` toe
 (opslaan, gedeeltelijk opslaan, herstellen, en dat herstellen `site_settings`
 niet aanraakt) plus `AdminThemePersistenceTest` (opslaan, terugvallen op
-`default`, en dat de twee vormgevingen elkaar niet raken). Zie verder
+`default`, de eigen kleuren, en dat de twee vormgevingen elkaar niet raken). Zie verder
 `TESTING.md`.
 
 Raak je de stylesheets aan, controleer dan of de standaardvormgeving

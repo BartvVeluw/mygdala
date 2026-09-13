@@ -24,9 +24,10 @@ final class AdminThemeTest extends TestCase
         parent::tearDown();
     }
 
-    public function testTheRegistryIsExactlyTheFourFirstPartyThemes(): void
+    public function testTheRegistryIsTheFourFirstPartyThemesAndEigenKleuren(): void
     {
-        $this->assertSame(['default', 'classic', 'ocean', 'black'], AdminTheme::keys());
+        $this->assertSame(['default', 'classic', 'ocean', 'black', 'custom'], AdminTheme::keys());
+        $this->assertSame('custom', AdminTheme::CUSTOM_KEY);
     }
 
     public function testEveryThemeHasALabelAndADescription(): void
@@ -101,5 +102,99 @@ final class AdminThemeTest extends TestCase
     {
         $this->assertSame('Ocean', AdminTheme::label('ocean'));
         $this->assertSame(AdminTheme::label('default'), AdminTheme::label('sunset'));
+    }
+
+    // --- Eigen kleuren -------------------------------------------------------
+
+    public function testEigenKleurenAsksForFiveColoursThatStartAsTheDefaultTheme(): void
+    {
+        $this->assertSame(['bg', 'sidebar', 'surface', 'text', 'accent'], array_keys(AdminTheme::COLORS));
+
+        foreach (AdminTheme::COLORS as $name => $fallback) {
+            $this->assertSame($fallback, AdminTheme::normaliseColor($fallback), $name . ' falls back to something that is not a stored colour');
+        }
+    }
+
+    public function testAColourIsSixHexDigitsInTheShapesTheWebsiteColoursAccept(): void
+    {
+        $this->assertSame('#1e1a13', AdminTheme::normaliseColor('#1E1A13'));
+        $this->assertSame('#abcdef', AdminTheme::normaliseColor('  abcdef '));
+        $this->assertSame('#aabbcc', AdminTheme::normaliseColor('#abc'));
+    }
+
+    public function testAnythingElseIsNotAColour(): void
+    {
+        $hostile = [
+            '', 'red', '#12345', '#1234567', '#12345g', 'url(x)', 'var(--admin-bg)',
+            '#123456; --admin-bg: red', '#123456" onload="x', "#123456\n}", null, 123456, ['#123456'],
+        ];
+
+        foreach ($hostile as $value) {
+            $this->assertNull(AdminTheme::normaliseColor($value), var_export($value, true));
+        }
+    }
+
+    public function testASetOfColoursIsAcceptedWholeOrNotAtAll(): void
+    {
+        $colors = ['bg' => '#FFFFFF', 'sidebar' => '#f4f4f4', 'surface' => 'ffffff', 'text' => '#222', 'accent' => '#0a58ca', 'extra' => 'red'];
+
+        $this->assertSame(
+            ['bg' => '#ffffff', 'sidebar' => '#f4f4f4', 'surface' => '#ffffff', 'text' => '#222222', 'accent' => '#0a58ca'],
+            AdminTheme::normaliseColors($colors)
+        );
+
+        $missing = $colors;
+        unset($missing['text']);
+        $this->assertNull(AdminTheme::normaliseColors($missing), 'one colour missing');
+        $this->assertNull(AdminTheme::normaliseColors(['text' => 'red'] + $colors), 'one colour broken');
+        $this->assertNull(AdminTheme::normaliseColors('#ffffff'));
+        $this->assertNull(AdminTheme::normaliseColors(null));
+    }
+
+    public function testAMissingOrBrokenStoredColourIsTheDefaultThemesColour(): void
+    {
+        AdminTheme::overrideForTests('custom', ['bg' => '#000000', 'text' => 'red', 'accent' => 'url(x)']);
+
+        $this->assertSame(
+            ['bg' => '#000000', 'sidebar' => '#19160f', 'surface' => '#1e1a13', 'text' => '#f1ead9', 'accent' => '#cda34d'],
+            AdminTheme::customColors()
+        );
+    }
+
+    public function testTheBodyAttributeCarriesTheColoursOnlyForEigenKleuren(): void
+    {
+        AdminTheme::overrideForTests('custom', ['bg' => '#FFFFFF', 'sidebar' => '#f4f4f4', 'surface' => '#ffffff', 'text' => '#222222', 'accent' => '#0a58ca']);
+
+        $this->assertSame(
+            ' data-admin-theme="custom" style="--admin-custom-bg: #ffffff; --admin-custom-sidebar: #f4f4f4; '
+                . '--admin-custom-surface: #ffffff; --admin-custom-text: #222222; --admin-custom-accent: #0a58ca"',
+            AdminTheme::bodyAttribute()
+        );
+
+        // A fixed theme prints no colours, even when colours are stored.
+        AdminTheme::overrideForTests('ocean', ['bg' => '#ffffff']);
+        $this->assertSame(' data-admin-theme="ocean"', AdminTheme::bodyAttribute());
+    }
+
+    public function testNoStoredValueCanBreakOutOfTheStyleAttribute(): void
+    {
+        AdminTheme::overrideForTests('custom', [
+            'bg' => '#000000" onload="alert(1)',
+            'text' => '#fff; } body { display: none',
+            'accent' => 'expression(alert(1))',
+        ]);
+
+        $attribute = AdminTheme::bodyAttribute();
+
+        $this->assertStringNotContainsString('onload', $attribute);
+        $this->assertStringNotContainsString('display', $attribute);
+        $this->assertStringNotContainsString('expression', $attribute);
+        $this->assertStringContainsString('--admin-custom-bg: #14120d', $attribute);
+    }
+
+    public function testThePrintedPropertiesLeaveOutWhatIsNotAColour(): void
+    {
+        $this->assertSame('--admin-custom-text: #222222', AdminTheme::customProperties(['text' => '#222', 'bg' => 'red']));
+        $this->assertSame('', AdminTheme::customProperties([]));
     }
 }

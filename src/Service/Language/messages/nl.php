@@ -572,6 +572,18 @@ return [
     'settings.kies_uiterlijk_dashboard' => 'Kies een uiterlijk voor het dashboard',
     'settings.hoe_cms_eruitziet_iedereen' => 'Hoe dit CMS eruitziet voor iedereen die ermee werkt. Dezelfde schermen, dezelfde knoppen &mdash; alleen andere kleuren. Dit staat helemaal los van de <a href="/admin/theme.php">vormgeving van de website</a>: bezoekers zien er niets van.',
     'settings.dashboard_uiterlijk' => 'Dashboard uiterlijk',
+    'settings.dashboard_preview_note' => 'Je keuze zie je meteen in het hele CMS. Pas <strong>Uiterlijk opslaan</strong> legt hem vast; herlaad je de pagina zonder op te slaan, dan komt het opgeslagen uiterlijk terug.',
+    'settings.dashboard_colors' => 'Jouw kleuren',
+    'settings.dashboard_color_bg' => 'Achtergrond',
+    'settings.dashboard_color_sidebar' => 'Zijbalk',
+    'settings.dashboard_color_surface' => 'Kaarten en vlakken',
+    'settings.dashboard_color_text' => 'Tekst',
+    'settings.dashboard_color_accent' => 'Accent: knoppen en links',
+    'settings.dashboard_color_picker' => 'Kleurkiezer voor :color',
+    'settings.dashboard_color_reset' => 'Herstel',
+    'settings.dashboard_color_reset_label' => 'Zet :color terug op de opgeslagen kleur',
+    'settings.dashboard_colors_default' => 'Standaardkleuren gebruiken',
+    'help.settings.dashboard_colors' => "Met deze vijf kleuren kleur je het hele CMS. Randen, de kleur onder je muis en lichtere tekst worden er vanzelf uit afgeleid. Foutmeldingen blijven rood, en meldingen dat iets gelukt is blijven groen.\n\nKies een <strong>tekstkleur</strong> die goed leesbaar is op je achtergrond en je kaarten, en een <strong>accentkleur</strong> die duidelijk opvalt op je achtergrond: de tekst op een knop krijgt namelijk je achtergrondkleur.\n\nJe ziet elke kleur meteen. Pas <strong>Uiterlijk opslaan</strong> legt ze vast. <strong>Herstel</strong> zet één kleur terug op wat nu is opgeslagen; <strong>Standaardkleuren gebruiken</strong> begint opnieuw bij de kleuren van Default.",
 
     // --- Shop-instellingen (admin/shop-settings.php) ------------------------
     'shop_settings.title' => 'Shop-instellingen',
@@ -1744,6 +1756,8 @@ return [
     'admintheme.ocean.description' => 'Diep blauw met turquoise accent. Koel en modern.',
     'admintheme.black.label' => 'Black',
     'admintheme.black.description' => 'Bijna zwart met wit. Monochroom en hoog contrast.',
+    'admintheme.custom.label' => 'Eigen kleuren',
+    'admintheme.custom.description' => 'Kies zelf de achtergrond, zijbalk, kaarten, tekst en accentkleur.',
 
     // --- Sentences with a value in the middle
     'page.seo_title_fallback' => 'Laat de SEO-titel leeg om automatisch “<em>Titel</em> &mdash; :site” te gebruiken. Vul je ’m wel in, dan is dat exact de tekst in het browsertabblad en in Google.',
@@ -2022,7 +2036,8 @@ return [
     'validation.max_zones_reached' => 'Deze weergave heeft al het maximum van :v1 zones.',
     'validation.choose_option_value' => 'Kies een waarde voor “:v1”.',
     'validation.invalid_option_value' => 'Ongeldige waarde voor “:v1”.',
-    'validation.choose_dashboard_theme' => 'Kies een van de vier dashboardthema’s.',
+    'validation.choose_dashboard_theme' => 'Kies een van de dashboardthema’s.',
+    'validation.dashboard_colors_invalid' => 'Een van je eigen kleuren is geen geldige kleur. Er is niets opgeslagen; kies de kleuren opnieuw.',
     'validation.a_field_is_too_long' => 'Een van de velden is te lang.',
 
     // --- The last endpoint messages

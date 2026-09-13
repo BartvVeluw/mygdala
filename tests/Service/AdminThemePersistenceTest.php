@@ -22,6 +22,9 @@ use PHPUnit\Framework\TestCase;
  */
 final class AdminThemePersistenceTest extends TestCase
 {
+    /** A light palette, as stored: lowercase and complete. */
+    private const LIGHT = ['bg' => '#f7f7f2', 'sidebar' => '#ffffff', 'surface' => '#ffffff', 'text' => '#1b1b1b', 'accent' => '#0b6e4f'];
+
     /** @var array<string, string> */
     private array $before = [];
 
@@ -36,7 +39,7 @@ final class AdminThemePersistenceTest extends TestCase
     protected function tearDown(): void
     {
         $repository = new AdminSettingRepository();
-        $repository->deleteKeys([AdminTheme::SETTING_KEY]);
+        $repository->deleteKeys(AdminTheme::settingKeys());
 
         if ($this->before !== []) {
             $repository->upsertMany($this->before);
@@ -138,5 +141,87 @@ final class AdminThemePersistenceTest extends TestCase
             }
             ThemeSettings::clearCache();
         }
+    }
+
+    // --- Eigen kleuren -------------------------------------------------------
+
+    public function testEigenKleurenComesBackWithItsColours(): void
+    {
+        AdminTheme::reset();
+
+        $this->assertTrue(AdminTheme::save('custom', ['bg' => '#F7F7F2', 'sidebar' => 'fff', 'surface' => '#ffffff', 'text' => '#1b1b1b', 'accent' => '#0B6E4F']));
+        AdminTheme::clearCache();
+
+        $this->assertSame('custom', AdminTheme::current());
+        $this->assertSame(self::LIGHT, AdminTheme::customColors());
+        $this->assertStringContainsString('--admin-custom-accent: #0b6e4f', AdminTheme::bodyAttribute());
+        $this->assertSame('#f7f7f2', (new AdminSettingRepository())->findAll()[AdminTheme::COLOR_SETTING_PREFIX . 'bg'] ?? null);
+    }
+
+    public function testAnInvalidColourIsRefusedAndNothingIsStored(): void
+    {
+        AdminTheme::reset();
+        AdminTheme::save('ocean');
+
+        $this->assertFalse(AdminTheme::save('custom', ['text' => 'red'] + self::LIGHT));
+        AdminTheme::clearCache();
+
+        $this->assertSame('ocean', AdminTheme::current());
+
+        $stored = (new AdminSettingRepository())->findAll();
+        foreach (array_keys(AdminTheme::COLORS) as $name) {
+            $this->assertArrayNotHasKey(AdminTheme::COLOR_SETTING_PREFIX . $name, $stored, 'part of a refused palette was stored');
+        }
+    }
+
+    public function testChoosingAFixedThemeKeepsTheColoursForNextTime(): void
+    {
+        AdminTheme::reset();
+        AdminTheme::save('custom', self::LIGHT);
+        AdminTheme::save('classic');
+        AdminTheme::clearCache();
+
+        $this->assertSame('classic', AdminTheme::current());
+        $this->assertSame(' data-admin-theme="classic"', AdminTheme::bodyAttribute());
+        $this->assertSame(self::LIGHT, AdminTheme::customColors());
+
+        // Back to Eigen kleuren without new colours: the stored ones return.
+        $this->assertTrue(AdminTheme::save('custom'));
+        AdminTheme::clearCache();
+
+        $this->assertSame('custom', AdminTheme::current());
+        $this->assertSame(self::LIGHT, AdminTheme::customColors());
+    }
+
+    public function testAHandEditedColourRowFallsBackToTheDefaultColour(): void
+    {
+        AdminTheme::reset();
+        (new AdminSettingRepository())->upsertMany([
+            AdminTheme::SETTING_KEY => 'custom',
+            AdminTheme::COLOR_SETTING_PREFIX . 'bg' => '#101820',
+            AdminTheme::COLOR_SETTING_PREFIX . 'accent' => 'javascript:alert(1)',
+        ]);
+        AdminTheme::clearCache();
+
+        $colors = AdminTheme::customColors();
+
+        $this->assertSame('#101820', $colors['bg']);
+        $this->assertSame(AdminTheme::COLORS['accent'], $colors['accent']);
+        $this->assertSame(AdminTheme::COLORS['text'], $colors['text']);
+        $this->assertStringNotContainsString('javascript', AdminTheme::bodyAttribute());
+    }
+
+    public function testResetForgetsTheColoursToo(): void
+    {
+        AdminTheme::save('custom', self::LIGHT);
+        AdminTheme::reset();
+
+        $stored = (new AdminSettingRepository())->findAll();
+        foreach (AdminTheme::settingKeys() as $key) {
+            $this->assertArrayNotHasKey($key, $stored);
+        }
+
+        $this->assertSame('default', AdminTheme::current());
+        $this->assertSame(AdminTheme::COLORS, AdminTheme::customColors());
     }
 }

@@ -4,7 +4,10 @@
  *
  * Used by admin/theme.php and by the Setup Wizard's appearance step
  * (admin/setup.php), which renders the same fields with the same ids because
- * it is the same setting — there is one theme engine, not two. Everything
+ * it is the same setting — there is one theme engine, not two. The
+ * dashboard's Eigen kleuren on admin/settings.php uses the same control for
+ * a different setting, with ids of its own, and builds its live preview on
+ * top of it (admin/assets/admin-theme-preview.js). Everything
  * below is guarded on the elements existing, so a page carrying only some of
  * them costs nothing.
  *

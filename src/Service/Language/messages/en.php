@@ -564,6 +564,18 @@ return [
     'settings.kies_uiterlijk_dashboard' => 'Choose an appearance for the dashboard',
     'settings.hoe_cms_eruitziet_iedereen' => 'How this CMS looks to everybody who works in it. The same screens, the same buttons &mdash; only different colours. This is entirely separate from the <a href="/admin/theme.php">design of the website</a>: visitors never see any of it.',
     'settings.dashboard_uiterlijk' => 'Dashboard appearance',
+    'settings.dashboard_preview_note' => 'You see your choice straight away across the whole CMS. Only <strong>Save appearance</strong> makes it stick; reload the page without saving and the saved appearance comes back.',
+    'settings.dashboard_colors' => 'Your colours',
+    'settings.dashboard_color_bg' => 'Background',
+    'settings.dashboard_color_sidebar' => 'Sidebar',
+    'settings.dashboard_color_surface' => 'Cards and panels',
+    'settings.dashboard_color_text' => 'Text',
+    'settings.dashboard_color_accent' => 'Accent: buttons and links',
+    'settings.dashboard_color_picker' => 'Colour picker for :color',
+    'settings.dashboard_color_reset' => 'Reset',
+    'settings.dashboard_color_reset_label' => 'Put :color back to the saved colour',
+    'settings.dashboard_colors_default' => 'Use the default colours',
+    'help.settings.dashboard_colors' => "These five colours colour the whole CMS. Borders, the colour under your mouse and lighter text are derived from them automatically. Error messages stay red, and messages that something worked stay green.\n\nChoose a <strong>text colour</strong> that reads well on your background and your cards, and an <strong>accent colour</strong> that clearly stands out on your background: the text on a button gets your background colour.\n\nYou see every colour straight away. Only <strong>Save appearance</strong> makes them stick. <strong>Reset</strong> puts one colour back to what is saved now; <strong>Use the default colours</strong> starts again from the Default colours.",
 
     // --- Shop settings (admin/shop-settings.php) ---------------------------
     'shop_settings.title' => 'Shop settings',
@@ -1736,6 +1748,8 @@ return [
     'admintheme.ocean.description' => 'Deep blue with a turquoise accent. Cool and modern.',
     'admintheme.black.label' => 'Black',
     'admintheme.black.description' => 'Almost black with white. Monochrome and high contrast.',
+    'admintheme.custom.label' => 'Your own colours',
+    'admintheme.custom.description' => 'Pick the background, sidebar, cards, text and accent colour yourself.',
 
     // --- Sentences with a value in the middle
     'page.seo_title_fallback' => 'Leave the SEO title empty to use “<em>Title</em> &mdash; :site” automatically. Fill it in and that is exactly the text in the browser tab and in Google.',
@@ -2014,7 +2028,8 @@ return [
     'validation.max_zones_reached' => 'This view already has the maximum of :v1 zones.',
     'validation.choose_option_value' => 'Choose a value for “:v1”.',
     'validation.invalid_option_value' => 'Invalid value for “:v1”.',
-    'validation.choose_dashboard_theme' => 'Choose one of the four dashboard themes.',
+    'validation.choose_dashboard_theme' => 'Choose one of the dashboard themes.',
+    'validation.dashboard_colors_invalid' => 'One of your colours is not a valid colour. Nothing was saved; please choose the colours again.',
     'validation.a_field_is_too_long' => 'One of the fields is too long.',
 
     // --- The last endpoint messages

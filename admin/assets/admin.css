@@ -264,6 +264,73 @@
   --admin-shadow-bar: 0 -6px 20px rgba(0, 0, 0, 0.5);
 }
 
+/* EIGEN KLEUREN — the one theme whose palette is not written here. The owner
+   picks five colours on the settings screen; App\Service\AdminTheme prints
+   them on <body> as --admin-custom-*, and admin/assets/admin-theme-preview.js
+   sets the same five while somebody is still choosing. Every other token is
+   DERIVED from them below, so the derivation exists once, here, and a
+   preview cannot come out differently from the saved page.
+
+   The fallback in each var() is the Default theme's own value, the same five
+   App\Service\AdminTheme::COLORS holds (Tests\Service\AdminThemeContractTest
+   keeps them equal): a colour that is not there renders as Default, never as
+   an invalid declaration.
+
+   color-mix() is the one feature this block needs that the fixed themes do
+   not. It is not a new browser floor: this stylesheet already relies on
+   :has(), which every browser shipped later.
+
+   Two rules keep a free choice readable without knowing whether it is light
+   or dark:
+   - text on a filled accent is the BACKGROUND colour. Whoever picks an
+     accent that reads on their background has, by the same token, picked a
+     background that reads on the accent. The four fixed themes do the same.
+   - the status colours are a fixed red and green pulled towards the text
+     colour, so they come out lighter on a dark ground and darker on a light
+     one, and stay red and green on both. */
+[data-admin-theme="custom"]{
+  --admin-bg: var(--admin-custom-bg, #14120d);
+  --admin-sidebar-bg: var(--admin-custom-sidebar, #19160f);
+  --admin-surface: var(--admin-custom-surface, #1e1a13);
+  --admin-surface-hover: color-mix(in srgb, var(--admin-surface) 95%, var(--admin-text));
+  --admin-surface-sunken: color-mix(in srgb, var(--admin-bg) 90%, #000000);
+
+  --admin-border: color-mix(in srgb, var(--admin-surface) 86%, var(--admin-text));
+  --admin-border-strong: color-mix(in srgb, var(--admin-surface) 74%, var(--admin-text));
+
+  --admin-text: var(--admin-custom-text, #f1ead9);
+  --admin-text-muted: color-mix(in srgb, var(--admin-text) 70%, var(--admin-surface));
+  --admin-text-faint: color-mix(in srgb, var(--admin-text) 55%, var(--admin-surface));
+
+  --admin-accent: var(--admin-custom-accent, #cda34d);
+  --admin-accent-hover: color-mix(in srgb, var(--admin-accent) 78%, var(--admin-text));
+  --admin-accent-soft: color-mix(in srgb, var(--admin-accent) 10%, transparent);
+  --admin-accent-soft-strong: color-mix(in srgb, var(--admin-accent) 18%, transparent);
+  --admin-accent-faint: color-mix(in srgb, var(--admin-accent) 6%, transparent);
+  --admin-accent-bar: color-mix(in srgb, var(--admin-accent) 38%, transparent);
+  --admin-accent-line: color-mix(in srgb, var(--admin-accent) 40%, transparent);
+  --admin-accent-line-soft: color-mix(in srgb, var(--admin-accent) 35%, transparent);
+  --admin-on-accent: var(--admin-bg);
+
+  --admin-error: color-mix(in srgb, #d64b3f 75%, var(--admin-text));
+  --admin-error-soft: color-mix(in srgb, var(--admin-error) 12%, transparent);
+  --admin-error-line: color-mix(in srgb, var(--admin-error) 40%, transparent);
+  --admin-success: color-mix(in srgb, #3f9a56 75%, var(--admin-text));
+  --admin-success-soft: color-mix(in srgb, var(--admin-success) 12%, transparent);
+  --admin-success-line: color-mix(in srgb, var(--admin-success) 40%, transparent);
+
+  --admin-hover-tint: color-mix(in srgb, var(--admin-text) 5%, transparent);
+  --admin-hover-tint-soft: color-mix(in srgb, var(--admin-text) 3.5%, transparent);
+  --admin-hover-tint-strong: color-mix(in srgb, var(--admin-text) 7%, transparent);
+
+  --admin-overlay: rgba(0, 0, 0, 0.6);
+  --admin-scrim: color-mix(in srgb, var(--admin-bg) 80%, transparent);
+
+  --admin-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.25);
+  --admin-shadow-md: 0 8px 24px rgba(0, 0, 0, 0.3);
+  --admin-shadow-bar: 0 -6px 20px rgba(0, 0, 0, 0.25);
+}
+
 *{ box-sizing: border-box; }
 
 body{
@@ -3821,6 +3888,9 @@ body.admin-block-picker-open{ overflow: hidden; }
   box-shadow: 0 0 0 1px var(--admin-accent);
 }
 .admin-theme-choice:focus-within{ outline: 2px solid var(--admin-accent); outline-offset: 2px; }
+/* The card being previewed but not saved yet: its checked radio and an
+   accent border. The saved one keeps its ring and "In gebruik" on top. */
+.admin-theme-choice:has(input:checked){ border-color: var(--admin-accent); }
 
 .admin-theme-choice__label{
   display: flex;
@@ -3916,6 +3986,30 @@ body.admin-block-picker-open{ overflow: hidden; }
 @media (max-width: 600px){
   .admin-theme-choices{ grid-template-columns: 1fr; }
 }
+
+/* Eigen kleuren: the five colour fields under the theme cards, in the colour
+   control of the website's theme screen (.admin-theme-colors and
+   .admin-theme-color, admin/theme.php). Hidden unless that card is checked,
+   decided here rather than in the script, so the panel is right before any
+   script has run and never flashes open. */
+.admin-theme-custom{
+  display: none;
+  margin: 0 0 var(--admin-sp-5);
+  padding: var(--admin-sp-4);
+  border: 1px solid var(--admin-border);
+  border-radius: var(--admin-radius-md);
+  background: var(--admin-surface-sunken);
+}
+.admin-theme-form:has([data-admin-theme-custom-choice]:checked) .admin-theme-custom{ display: block; }
+/* The buttons and the note the preview script reveals carry classes with a
+   display of their own, which beats the browser's [hidden]; the same fix as
+   .admin-product-form [hidden] above. */
+.admin-theme-form [hidden],
+[data-admin-theme-preview-note][hidden]{ display: none !important; }
+.admin-theme-custom__title{ font-weight: 600; }
+.admin-theme-custom .admin-theme-colors{ gap: var(--admin-sp-4); margin-top: var(--admin-sp-3); }
+.admin-theme-color__reset{ flex: none; }
+.admin-theme-custom__actions{ margin: var(--admin-sp-4) 0 0; }
 
 /* =========================================================================
    The CMS-wide "which language am I editing" switch, and the passive

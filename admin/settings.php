@@ -17,6 +17,7 @@ require_once __DIR__ . '/_media_picker.php';
 require_once __DIR__ . '/_language_fields.php';
 require_once __DIR__ . '/_admin_tabs.php';
 require_once __DIR__ . '/_translate.php';
+require_once __DIR__ . '/_save_bar.php';
 
 AdminAuth::requireLogin();
 AdminAuth::requirePermission('settings.manage');
@@ -38,6 +39,7 @@ $adminThemeSaved = isset($_GET['saved']) && $savedSection === 'dashboard-uiterli
 $adminThemeError = $_SESSION['admin_theme_choice_error'] ?? null;
 unset($_SESSION['admin_theme_choice_error']);
 $currentAdminTheme = AdminTheme::current();
+$customColors = AdminTheme::customColors();
 
 $values = $old ?? SiteSettings::all();
 
@@ -434,11 +436,20 @@ function brandingImageField(
   <?php /* How the CMS itself looks. Deliberately the last card and
            deliberately its own <form> to its own endpoint: everything above
            is about the WEBSITE, this is about the panel you are standing in,
-           and neither save may touch the other's values. The four skins live
-           in App\Service\AdminTheme; their colours live in admin.css. */ ?>
+           and neither save may touch the other's values. The themes live in
+           App\Service\AdminTheme; the fixed themes' colours live in
+           admin.css, and Eigen kleuren stores five colours that admin.css
+           derives the rest from.
+
+           A choice is previewed in this page at once
+           (admin/assets/admin-theme-preview.js) and stored only by this
+           form's own button or by the save bar, which marks the preview as
+           an unsaved change. */ ?>
   <section class="admin-card" id="dashboard-uiterlijk">
     <h2><?= admin_te('settings.dashboard_uiterlijk') ?></h2>
     <p class="admin-text-muted"><?= admin_t('settings.hoe_cms_eruitziet_iedereen') ?></p>
+    <?php /* Only true once the preview script runs, so the script shows it. */ ?>
+    <p class="admin-text-muted" data-admin-theme-preview-note hidden><?= admin_t('settings.dashboard_preview_note') ?></p>
 
     <?php if ($adminThemeSaved): ?>
       <p class="admin-alert admin-alert--success"><?= admin_t('settings.dashboard_uiterlijk_opgeslagen', ['v1' => htmlspecialchars(AdminTheme::label($currentAdminTheme), ENT_QUOTES, 'UTF-8')]) ?></p>
@@ -448,19 +459,27 @@ function brandingImageField(
       <p class="admin-alert admin-alert--error"><?= htmlspecialchars((string) $adminThemeError, ENT_QUOTES, 'UTF-8') ?></p>
     <?php endif; ?>
 
-    <form method="post" action="/api/admin/update-admin-theme.php">
+    <?php /* autocomplete="off": a browser that put a previewed, unsaved
+             choice back into the form on a reload would show a theme nobody
+             stored. The preview script also resets every field to the value
+             printed here, for the browsers that ignore it. */ ?>
+    <form method="post" action="/api/admin/update-admin-theme.php" class="admin-theme-form" autocomplete="off" data-admin-theme-form>
       <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
 
       <fieldset class="admin-theme-choices">
         <legend class="admin-visually-hidden"><?= admin_te('settings.kies_uiterlijk_dashboard') ?></legend>
         <?php foreach (AdminTheme::all() as $themeKey => $theme): ?>
           <?php $isCurrentTheme = $themeKey === $currentAdminTheme; ?>
+          <?php $isCustomTheme = $themeKey === AdminTheme::CUSTOM_KEY; ?>
           <label class="admin-theme-choice<?= $isCurrentTheme ? ' is-current' : '' ?>">
             <?php /* The sketch is drawn from the theme's OWN tokens: the
                      data-admin-theme attribute that skins a whole page skins
                      a single element just as well, so no palette is repeated
-                     here and a changed theme cannot leave a stale swatch. */ ?>
-            <span class="admin-theme-sketch" data-admin-theme="<?= htmlspecialchars($themeKey, ENT_QUOTES, 'UTF-8') ?>" aria-hidden="true">
+                     here and a changed theme cannot leave a stale swatch.
+                     Eigen kleuren's sketch carries its stored colours as
+                     well, because the page around it may be on another
+                     theme; the preview script repaints it while choosing. */ ?>
+            <span class="admin-theme-sketch" data-admin-theme="<?= htmlspecialchars($themeKey, ENT_QUOTES, 'UTF-8') ?>"<?= $isCustomTheme ? ' style="' . $h(AdminTheme::customProperties($customColors)) . '" data-admin-theme-custom-sketch' : '' ?> aria-hidden="true">
               <span class="admin-theme-sketch__side">
                 <span class="admin-theme-sketch__brand"></span>
                 <span class="admin-theme-sketch__nav is-active"></span>
@@ -477,7 +496,7 @@ function brandingImageField(
               </span>
             </span>
             <span class="admin-theme-choice__label">
-              <input type="radio" name="admin_theme" value="<?= htmlspecialchars($themeKey, ENT_QUOTES, 'UTF-8') ?>"<?= $isCurrentTheme ? ' checked' : '' ?>>
+              <input type="radio" name="admin_theme" value="<?= htmlspecialchars($themeKey, ENT_QUOTES, 'UTF-8') ?>"<?= $isCurrentTheme ? ' checked' : '' ?> data-admin-theme-choice<?= $isCustomTheme ? ' data-admin-theme-custom-choice' : '' ?>>
               <span class="admin-theme-choice__name"><?= htmlspecialchars(admin_registry_label('admintheme.' . $themeKey . '.label', (string) $theme['label']), ENT_QUOTES, 'UTF-8') ?></span>
               <?php /* Never colour alone: the card in use says so in words as
                        well as with its border and its checked radio. */ ?>
@@ -490,6 +509,44 @@ function brandingImageField(
         <?php endforeach; ?>
       </fieldset>
 
+      <?php /* The five colours of Eigen kleuren, in the colour control of
+               the website's theme screen (admin/theme.php,
+               admin/assets/theme-admin.js): the hex field is what is posted,
+               the native colour picker beside it keeps it in step. Shown only
+               while Eigen kleuren is checked, by admin.css with :has(), so it
+               is right before any script has run. The fields are posted
+               whichever theme is checked; the endpoint reads them only for
+               Eigen kleuren. The pattern is AdminTheme::COLOR_PATTERN, the
+               shape the endpoint stores. */ ?>
+      <div class="admin-theme-custom" data-admin-theme-colors>
+        <div class="admin-field__label">
+          <span class="admin-theme-custom__title"><?= admin_te('settings.dashboard_colors') ?></span>
+          <?= admin_help(admin_t('settings.dashboard_colors'), admin_t('help.settings.dashboard_colors')) ?>
+        </div>
+        <div class="admin-theme-colors">
+          <?php foreach (AdminTheme::COLORS as $colorName => $colorFallback): ?>
+            <?php
+            $colorId = 'admin-theme-color-' . $colorName;
+            $colorLabel = admin_t('settings.dashboard_color_' . $colorName);
+            ?>
+            <div class="admin-theme-color" data-admin-theme-color="<?= $h($colorName) ?>">
+              <label for="<?= $h($colorId) ?>"><?= $h($colorLabel) ?></label>
+              <div class="admin-theme-color__inputs">
+                <input type="color" class="admin-theme-color__swatch" value="<?= $h($customColors[$colorName]) ?>" data-theme-color-for="<?= $h($colorId) ?>" aria-label="<?= admin_te('settings.dashboard_color_picker', ['color' => $colorLabel]) ?>">
+                <input type="text" id="<?= $h($colorId) ?>" name="admin_theme_colors[<?= $h($colorName) ?>]" value="<?= $h($customColors[$colorName]) ?>" maxlength="7" pattern="<?= $h(AdminTheme::COLOR_PATTERN) ?>" spellcheck="false" class="admin-theme-color__hex" data-default-color="<?= $h($colorFallback) ?>">
+                <?php /* type="button": never submits. Hidden until the
+                         preview script runs, because without it the button
+                         could do nothing. */ ?>
+                <button type="button" class="admin-btn-secondary admin-theme-color__reset" data-admin-theme-color-reset aria-label="<?= admin_te('settings.dashboard_color_reset_label', ['color' => $colorLabel]) ?>" hidden><?= admin_te('settings.dashboard_color_reset') ?></button>
+              </div>
+            </div>
+          <?php endforeach; ?>
+        </div>
+        <p class="admin-theme-custom__actions">
+          <button type="button" class="admin-btn-secondary" data-admin-theme-colors-default hidden><?= admin_te('settings.dashboard_colors_default') ?></button>
+        </p>
+      </div>
+
       <button type="submit"><?= admin_te('settings.uiterlijk_opslaan') ?></button>
     </form>
   </section>
@@ -497,9 +554,15 @@ function brandingImageField(
 
   <?php admin_tabs_end(); ?>
 </main>
+<?php save_bar(); ?>
 <?php media_picker_modal(); ?>
 <?php admin_tabs_script(); ?>
 <?php media_picker_script(); ?>
 <?php admin_lang_script(); ?>
+<?php save_bar_script(); ?>
+<?php /* The colour control shared with admin/theme.php, then the dashboard
+         theme's live preview, which reads the hex fields that control fills. */ ?>
+<script src="<?= \App\Service\AssetVersion::url('/admin/assets/theme-admin.js') ?>" defer></script>
+<script src="<?= \App\Service\AssetVersion::url('/admin/assets/admin-theme-preview.js') ?>" defer></script>
 </body>
 </html>

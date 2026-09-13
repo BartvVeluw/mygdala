@@ -244,6 +244,116 @@ final class AdminThemeContractTest extends TestCase
         $this->assertSame([], $offenders, 'The dashboard theme leaked into the public site.');
     }
 
+    // --- Eigen kleuren ------------------------------------------------------
+
+    public function testEigenKleurenReadsTheFiveStoredColoursWithDefaultAsFallback(): void
+    {
+        $css = self::adminCssRules();
+
+        $this->assertSame(1, preg_match('/\[data-admin-theme="custom"\]\s*\{(.*?)\}/s', $css, $block));
+        $this->assertSame(1, preg_match('/:root[^{]*\{(.*?)\}/s', $css, $root));
+
+        preg_match_all(
+            '/(--admin-[a-z-]+)\s*:\s*var\(--admin-custom-([a-z]+),\s*(#[0-9a-f]{6})\)/',
+            $block[1],
+            $inputs,
+            PREG_SET_ORDER
+        );
+
+        $read = [];
+        foreach ($inputs as [, $token, $name, $fallback]) {
+            $read[] = $name;
+
+            $this->assertArrayHasKey($name, AdminTheme::COLORS, $token . ' reads a colour the registry does not store');
+            $this->assertSame(AdminTheme::COLORS[$name], $fallback, $token . ' falls back to something other than AdminTheme::COLORS');
+            $this->assertMatchesRegularExpression(
+                '/' . preg_quote($token, '/') . '\s*:\s*' . preg_quote($fallback, '/') . '\s*;/',
+                $root[1],
+                $token . ' does not fall back to the Default theme\'s own value'
+            );
+        }
+
+        $this->assertSame(array_keys(AdminTheme::COLORS), $read, 'every stored colour is read exactly once');
+    }
+
+    public function testEigenKleurenHardCodesNoColourTheOwnerCannotChange(): void
+    {
+        preg_match('/\[data-admin-theme="custom"\]\s*\{(.*?)\}/s', self::adminCssRules(), $block);
+        preg_match_all('/(--admin-[a-z0-9-]+)\s*:\s*([^;]+);/', $block[1] ?? '', $declarations, PREG_SET_ORDER);
+
+        $this->assertGreaterThan(20, count($declarations), 'The custom block scan found almost nothing.');
+
+        foreach ($declarations as [, $token, $value]) {
+            // Shadows and the modal backdrop are black in every theme.
+            if (preg_match('/^--admin-(overlay|shadow-)/', $token) === 1) {
+                continue;
+            }
+
+            $this->assertStringContainsString('var(--admin-', $value, $token . ' is a fixed colour in a theme whose colours are the owner\'s');
+        }
+    }
+
+    public function testTheSettingsScreenOffersEigenKleurenWithALivePreview(): void
+    {
+        $source = (string) file_get_contents(self::projectRoot() . '/admin/settings.php');
+
+        // The five colours from the registry, in the website's colour control.
+        $this->assertStringContainsString('foreach (AdminTheme::COLORS as $colorName => $colorFallback)', $source);
+        $this->assertStringContainsString('name="admin_theme_colors[<?= $h($colorName) ?>]"', $source);
+        $this->assertStringContainsString('pattern="<?= $h(AdminTheme::COLOR_PATTERN) ?>"', $source);
+        $this->assertStringContainsString('<input type="color" class="admin-theme-color__swatch"', $source);
+        $this->assertStringContainsString('data-theme-color-for="<?= $h($colorId) ?>"', $source);
+        $this->assertStringContainsString("AssetVersion::url('/admin/assets/theme-admin.js')", $source);
+        $this->assertStringContainsString('AdminTheme::customProperties($customColors)', $source);
+
+        // Previewed in the page, stored by the button that always stored it.
+        $this->assertStringContainsString('data-admin-theme-form', $source);
+        $this->assertStringContainsString('autocomplete="off" data-admin-theme-form', $source);
+        $this->assertStringContainsString("AssetVersion::url('/admin/assets/admin-theme-preview.js')", $source);
+        $this->assertStringContainsString("<button type=\"submit\"><?= admin_te('settings.uiterlijk_opslaan') ?></button>", $source);
+
+        // The existing save bar says a preview is unsaved; there is no second mechanism.
+        $this->assertStringContainsString("require_once __DIR__ . '/_save_bar.php';", $source);
+        $this->assertStringContainsString('<?php save_bar(); ?>', $source);
+        $this->assertStringContainsString('<?php save_bar_script(); ?>', $source);
+    }
+
+    public function testThePreviewScriptOnlyEverChangesThePageInFrontOfIt(): void
+    {
+        $script = (string) file_get_contents(self::projectRoot() . '/admin/assets/admin-theme-preview.js');
+        $code = (string) preg_replace(['#/\*.*?\*/#s', '#^\s*//.*$#m'], '', $script);
+
+        $this->assertStringContainsString('body.setAttribute("data-admin-theme"', $code);
+        $this->assertStringContainsString('style.setProperty("--admin-custom-"', $code);
+        $this->assertStringContainsString('getAttribute("pattern")', $code, 'a typed colour must match the pattern the server wrote');
+
+        foreach (['fetch(', 'XMLHttpRequest', 'sendBeacon', 'localStorage', 'sessionStorage', 'document.cookie', '.submit(', 'requestSubmit', 'location', 'innerHTML'] as $forbidden) {
+            $this->assertStringNotContainsString($forbidden, $code, 'a preview must not save, send or remember anything: ' . $forbidden);
+        }
+
+        foreach (AdminTheme::keys() as $key) {
+            $this->assertStringNotContainsString('"' . $key . '"', $code, 'the script names no theme: ' . $key);
+        }
+
+        preg_match_all('/"((?:[^"\\\\]|\\\\.)*)"/', $code, $literals);
+        foreach ($literals[1] as $literal) {
+            $this->assertMatchesRegularExpression(
+                '/^(?:use strict|[a-z-]*|\[data-[a-z-]+\]|#|\^\(\?:|\)\$)$/',
+                $literal,
+                'the script holds no palette and no sentence an editor reads: "' . $literal . '"'
+            );
+        }
+    }
+
+    public function testTheSaveEndpointTakesEigenKleurenOnlyAsACompleteValidSet(): void
+    {
+        $source = (string) file_get_contents(self::projectRoot() . '/api/admin/update-admin-theme.php');
+
+        $this->assertStringContainsString("AdminTheme::normaliseColors(\$_POST['admin_theme_colors'] ?? null)", $source);
+        $this->assertStringContainsString('AdminTheme::save($requested, $colors)', $source);
+        $this->assertStringContainsString("validation.dashboard_colors_invalid", $source);
+    }
+
     /**
      * The custom property names declared inside the first block the pattern
      * matches.
