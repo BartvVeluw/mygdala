@@ -5,14 +5,26 @@ declare(strict_types=1);
 namespace Tests\Service;
 
 use App\Service\OrderCsvExport;
+use App\Service\SiteSettings;
 use PHPUnit\Framework\TestCase;
 
 /**
  * Covers App\Service\OrderCsvExport — see MAIN.MD "Export for bookkeeping".
- * Pure formatting, no database/HTTP involved.
+ * Pure formatting, no database/HTTP involved: site settings are the generic
+ * defaults, so the order number is the one a new installation shows.
  */
 final class OrderCsvExportTest extends TestCase
 {
+    protected function setUp(): void
+    {
+        SiteSettings::overrideForTests([]);
+    }
+
+    protected function tearDown(): void
+    {
+        SiteSettings::overrideForTests(null);
+    }
+
     private function sampleOrder(array $overrides = []): array
     {
         return array_merge([
@@ -51,7 +63,7 @@ final class OrderCsvExportTest extends TestCase
         $row = OrderCsvExport::row($this->sampleOrder());
         $header = OrderCsvExport::header();
 
-        $this->assertSame('VLD-2026-000127', $row[array_search('Ordernummer', $header, true)]);
+        $this->assertSame('ORD-2026-000127', $row[array_search('Ordernummer', $header, true)]);
         $this->assertSame('2026-03-14 10:30', $row[array_search('Datum', $header, true)]);
         $this->assertSame('tr_abc123', $row[array_search('Mollie betalings-ID', $header, true)]);
     }

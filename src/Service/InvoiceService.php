@@ -190,7 +190,7 @@ class InvoiceService
     }
 
     /**
-     * E.g. formatInvoiceNumber('VLD-F', 2026, 1) === 'VLD-F2026-000001' — same
+     * E.g. formatInvoiceNumber('INV', 2026, 1) === 'INV2026-000001' — same
      * shape as OrderRepository::formatOrderNumber(), but backed by its own
      * gapless per-year sequence (see InvoiceRepository::allocateNextNumber())
      * rather than an order's own id, since not every order gets an invoice.

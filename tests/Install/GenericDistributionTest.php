@@ -15,7 +15,7 @@ use PHPUnit\Framework\TestCase;
  * strings this application says out loud at runtime, in places nobody looks
  * at while auditing content.
  *
- * Three of them, all found by the fresh-install audit:
+ * Four of them, found by the fresh-install and identity audits:
  *
  *   outbound User-Agent   the address lookup and the PostNL rate sync
  *                         introduced themselves to two public services as
@@ -24,6 +24,9 @@ use PHPUnit\Framework\TestCase;
  *                         every customer of every installation.
  *   the mail sender       an unconfigured installation had a From address
  *                         to fall back on, and it was this company's.
+ *   the order number      every order of every installation was numbered
+ *                         "VLD-…", in the admin, the e-mails, the Mollie
+ *                         description, the export and the invoice.
  *
  * None of them need a database or a webserver, so they are cheap enough to
  * run on every edit — which is the point: a hardcoded string is easy to
@@ -202,6 +205,80 @@ final class GenericDistributionTest extends TestCase
     }
 
     /* ------------------------------------------------------------------ */
+    /* The order number                                                    */
+    /* ------------------------------------------------------------------ */
+
+    public function testTheGenericOrderNumberPrefixIsNotThisSitesOwn(): void
+    {
+        $this->assertSame('ORD', SiteSettings::defaults()['order_number_prefix']);
+    }
+
+    public function testNoCodeWritesTheOldOrderNumberPrefixOut(): void
+    {
+        // String literals, not text: why the prefix moved is history, written
+        // in comments on purpose, and a source-level match would trip on it.
+        // Case-sensitive, so the frozen personalization font namespace
+        // 'vvld-' (App\Service\Personalization\PersonalizationFonts) is not
+        // mistaken for it.
+        $offenders = [];
+
+        foreach ($this->sourceFiles() + $this->rootFiles() as $path => $contents) {
+            foreach (token_get_all($contents) as $token) {
+                if (
+                    is_array($token)
+                    && in_array($token[0], [T_CONSTANT_ENCAPSED_STRING, T_ENCAPSED_AND_WHITESPACE], true)
+                    && str_contains($token[1], 'VLD-')
+                ) {
+                    $offenders[] = $path . ':' . $token[2];
+                }
+            }
+        }
+
+        $this->assertSame(
+            [],
+            $offenders,
+            "A string literal still carries this site's order-number prefix. The prefix is the "
+            . "order_number_prefix setting, and OrderRepository::formatOrderNumber() applies it:\n"
+            . implode("\n", $offenders)
+        );
+    }
+
+    public function testEveryPlaceThatShowsAnOrderNumberAsksTheOneFormatter(): void
+    {
+        foreach ([
+            'admin/orders.php',
+            'admin/order.php',
+            'admin/_dashboard_shop.php',
+            'api/order-status.php',
+            'api/checkout.php',
+            'src/Mail/OrderConfirmationBuilder.php',
+            'src/Service/OrderCsvExport.php',
+            'src/Service/InvoiceService.php',
+        ] as $file) {
+            $this->assertStringContainsString(
+                'OrderRepository::formatOrderNumber(',
+                (string) file_get_contents($this->root() . '/' . $file),
+                $file . ' shows an order number, so it must ask OrderRepository::formatOrderNumber() for it.'
+            );
+        }
+
+        // The Mollie payment: the description on the customer's bank
+        // statement and the reconciliation metadata carry that same number.
+        $checkout = (string) file_get_contents($this->root() . '/api/checkout.php');
+        $this->assertMatchesRegularExpression('/\$orderNumber = OrderRepository::formatOrderNumber\(/', $checkout);
+        $this->assertMatchesRegularExpression("/'description' => [^\\n]*\\\$orderNumber,/", $checkout);
+        $this->assertStringContainsString("'order_number' => \$orderNumber", $checkout);
+
+        // The invoice: the PDF is rendered with the formatter's answer.
+        $invoices = (string) file_get_contents($this->root() . '/src/Service/InvoiceService.php');
+        $this->assertSame(
+            2,
+            preg_match_all('/\$orderNumber = OrderRepository::formatOrderNumber\(/', $invoices),
+            'Both the first render and the regeneration of an invoice PDF take the number from the formatter.'
+        );
+    }
+
+    /* ------------------------------------------------------------------ */
     /* The shared header                                                   */
     /* ------------------------------------------------------------------ */
 
@@ -314,6 +391,18 @@ final class GenericDistributionTest extends TestCase
                     $files[$relative] = (string) file_get_contents($file->getPathname());
                 }
             }
+        }
+
+        return $files;
+    }
+
+    /** @return array<string, string> path => contents, the PHP files in the project root */
+    private function rootFiles(): array
+    {
+        $files = [];
+
+        foreach (glob($this->root() . '/*.php') ?: [] as $path) {
+            $files[basename($path)] = (string) file_get_contents($path);
         }
 
         return $files;

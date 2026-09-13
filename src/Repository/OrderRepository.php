@@ -2,6 +2,8 @@
 
 namespace App\Repository;
 
+use App\Service\SiteSettings;
+
 /**
  * All order + order_items SQL lives here.
  */
@@ -19,17 +21,45 @@ class OrderRepository extends Repository
 
     /**
      * A stable, human-readable order number for Mollie descriptions, customer
-     * emails, admin and bookkeeping — e.g. "VLD-2026-000127". Deliberately
+     * emails, admin and bookkeeping — e.g. "ORD-2026-000127". Deliberately
      * not a stored column: it's fully derived from two values that never
      * change once an order exists (the order's own auto-increment id, which
      * MySQL already guarantees is unique and race-free, and its creation
      * year), so it's guaranteed unique and stable without an extra
      * generator/sequence/table to keep in sync — see MAIN.MD "Order
      * numbering".
+     *
+     * THE PREFIX is the site setting `order_number_prefix`, and THIS METHOD
+     * owns the separators: only the setting's letters and digits are used,
+     * so every consumer produces the same shape and a stored "ORD-" can
+     * never become "ORD--2026". A prefix with nothing usable left falls back
+     * to the generic default. Every place that shows an order number calls
+     * this method; none of them builds one itself
+     * (Tests\Install\GenericDistributionTest holds that line).
+     *
+     * The prefix used to be a literal "VLD-" here. Because the number is
+     * derived, an installation that issued numbers with it keeps them only by
+     * keeping the prefix, which db/migrations/20260913100000 pinned. The same
+     * property means an owner who changes the setting renames every order in
+     * the admin and the export too; e-mails, Mollie payments and invoices
+     * already issued keep the number they went out with.
+     *
+     * $prefix is for a caller that already knows which prefix applies — a
+     * migration check, a test. Everyone else leaves it null.
      */
-    public static function formatOrderNumber(int $orderId, \DateTimeInterface $createdAt): string
+    public static function formatOrderNumber(int $orderId, \DateTimeInterface $createdAt, ?string $prefix = null): string
     {
-        return 'VLD-' . $createdAt->format('Y') . '-' . str_pad((string) $orderId, 6, '0', STR_PAD_LEFT);
+        return self::orderNumberPrefix($prefix ?? SiteSettings::get('order_number_prefix'))
+            . '-' . $createdAt->format('Y')
+            . '-' . str_pad((string) $orderId, 6, '0', STR_PAD_LEFT);
+    }
+
+    /** The letters and digits of $prefix, or the generic default when none are left. */
+    private static function orderNumberPrefix(string $prefix): string
+    {
+        $clean = (string) preg_replace('/[^A-Za-z0-9]/', '', $prefix);
+
+        return $clean !== '' ? $clean : SiteSettings::defaults()['order_number_prefix'];
     }
 
     /**

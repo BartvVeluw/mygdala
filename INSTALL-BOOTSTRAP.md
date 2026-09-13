@@ -168,6 +168,7 @@ geschiedenis met rust:
 | `20260907200000_add_invoicing_and_email_settings` | Adres, website, factuurprefix `VLD-F` en de bestelmail vastleggen | slaat over |
 | `20260909210000_pin_branding_paths...` | De vier merkpaden vastpinnen vóór de standaarden generiek werden | slaat over |
 | `20260910110000_pin_business_details...` | Idem voor e-mailadres, plaats, KVK, footertekst, factuurprefix én de canonieke basis-URL | slaat over |
+| `20260913100000_pin_the_order_number_prefix...` | Het bestelnummerprefix `VLD` vastpinnen vóór de standaard `ORD` werd | slaat over, **tenzij er al bestellingen zijn** |
 
 Een ontbrekende rij betekent de generieke code-standaard van
 `App\Service\SiteSettings`, en die is leeg: leeg betekent "deze installatie
@@ -190,6 +191,17 @@ tags, `og:url` en een sitemap die naar deze site wezen. De ketting is nu
 `APP_URL` → `site_settings.canonical_base_url` → een zichtbaar lokale
 placeholder, met de huidige waarde van deze site als echte rij vastgepind. Zie
 [`SETUP.md`](SETUP.md) en `SEO.md`.
+
+**En het bestelnummerprefix is een instelling.**
+`App\Repository\OrderRepository::formatOrderNumber()` schreef `VLD-` met de
+hand uit, dus elke installatie nummerde haar bestellingen als deze site. De
+standaard is nu `ORD`, en de beheerder wijzigt hem op het tabblad Facturen,
+als eigen veld naast het factuurnummer. Een bestelnummer wordt niet
+opgeslagen maar steeds opnieuw afgeleid, dus een installatie die al nummers
+uitgaf is eerst op `VLD` vastgepind. Dat geldt ook voor een verse installatie
+die al bestellingen had: ook zij heeft `VLD-`-nummers verstuurd. Een database
+die vanaf nul wordt opgebouwd heeft op dat moment geen bestellingen en krijgt
+dus niets.
 
 Nog wél site-specifiek op een nieuwe installatie: de verzendzones en
 -tarieven en de PostNL-tarieven (Shop-bedrijfsconfiguratie). Het ene

@@ -6,6 +6,7 @@ namespace Tests\Install;
 
 use App\Install\InstallState;
 use App\Install\SetupState;
+use App\Repository\OrderRepository;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 use Tests\Support\ScratchInstall;
@@ -261,6 +262,21 @@ final class LegacyUpgradeTest extends TestCase
         $this->assertSame('www.vanveluwlaserdesign.nl', $settings['company_website'] ?? '');
         $this->assertSame('VLD-F', $settings['invoice_number_prefix'] ?? '');
         $this->assertStringContainsString('Nijmegen', $settings['footer_description_nl'] ?? '');
+        $this->assertSame('VLD', $settings['order_number_prefix'] ?? '');
+    }
+
+    /**
+     * An order number is derived, not stored, so "unchanged" means: with the
+     * prefix this installation now stores, the formatter produces exactly the
+     * string its customers, its Mollie payments and its bookkeeping already
+     * have — the one it produced while "VLD-" was hardcoded.
+     */
+    public function testHistoricalOrderNumbersComeOutExactlyAsTheyWereIssued(): void
+    {
+        $prefix = $this->settings()['order_number_prefix'] ?? '';
+
+        $this->assertSame('VLD-2026-000127', OrderRepository::formatOrderNumber(127, new \DateTimeImmutable('2026-03-14'), $prefix));
+        $this->assertSame('VLD-2027-1234567', OrderRepository::formatOrderNumber(1234567, new \DateTimeImmutable('2027-05-01'), $prefix));
     }
 
     public function testTheBrandingFilesAreStillPointedAtAndStillAdoptedIntoTheLibrary(): void

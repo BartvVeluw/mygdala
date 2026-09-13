@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Mail;
 
 use App\Mail\OrderConfirmationBuilder;
+use App\Service\SiteSettings;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -12,9 +13,22 @@ use PHPUnit\Framework\TestCase;
  * covers MAIN.MD scenarios "customer email contains the expected order
  * summary" / "... the correct order number" / "CMS email placeholders
  * render safely" / "unknown placeholders fail safely".
+ *
+ * Site settings are the generic defaults for every test, so the order number
+ * is the one a new installation shows, whatever the test database holds.
  */
 final class OrderConfirmationBuilderTest extends TestCase
 {
+    protected function setUp(): void
+    {
+        SiteSettings::overrideForTests([]);
+    }
+
+    protected function tearDown(): void
+    {
+        SiteSettings::overrideForTests(null);
+    }
+
     private function order(array $overrides = []): array
     {
         return array_merge([
@@ -65,12 +79,12 @@ final class OrderConfirmationBuilderTest extends TestCase
     {
         $emails = OrderConfirmationBuilder::build($this->order(), $this->customer(), $this->items());
 
-        $this->assertStringContainsString('VLD-2026-000042', $emails['customer']['subject']);
-        $this->assertStringContainsString('VLD-2026-000042', $emails['customer']['html']);
+        $this->assertStringContainsString('ORD-2026-000042', $emails['customer']['subject']);
+        $this->assertStringContainsString('ORD-2026-000042', $emails['customer']['html']);
         $this->assertStringContainsString('Sleutelhanger - Acryl', $emails['customer']['html']);
         $this->assertStringContainsString('Kleur: Blauw', $emails['customer']['html']);
         $this->assertStringContainsString('54,90', $emails['customer']['html']);
-        $this->assertStringContainsString('VLD-2026-000042', $emails['customer']['text']);
+        $this->assertStringContainsString('ORD-2026-000042', $emails['customer']['text']);
         $this->assertStringContainsString('Sleutelhanger - Acryl', $emails['customer']['text']);
     }
 
@@ -88,7 +102,7 @@ final class OrderConfirmationBuilderTest extends TestCase
 
         $emails = OrderConfirmationBuilder::build($this->order(), $this->customer(), $this->items(), $emailSettings);
 
-        $this->assertSame('Order VLD-2026-000042 confirmed', $emails['customer']['subject']);
+        $this->assertSame('Order ORD-2026-000042 confirmed', $emails['customer']['subject']);
         $this->assertStringContainsString('Thanks, Jan Jansen!', $emails['customer']['html']);
         $this->assertStringContainsString('Hi Jan Jansen, your total was', $emails['customer']['html']);
         $this->assertStringContainsString('Before items text.', $emails['customer']['html']);
@@ -130,7 +144,7 @@ final class OrderConfirmationBuilderTest extends TestCase
 
         $emails = OrderConfirmationBuilder::build($this->order(), $this->customer(), $this->items(), $emailSettings);
 
-        $this->assertSame('Nieuwe betaalde bestelling VLD-2026-000042', $emails['shop']['subject']);
+        $this->assertSame('Nieuwe betaalde bestelling ORD-2026-000042', $emails['shop']['subject']);
         $this->assertStringNotContainsString('Should never appear in shop email', $emails['shop']['html']);
     }
 

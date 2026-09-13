@@ -15,7 +15,7 @@ use Dotenv\Dotenv;
  * (docker-compose.yml) — invoices/ is just a sibling folder inside it.
  *
  * Unlike ContactAttachmentStorage, the "filename" here (a relative path like
- * "2026/VLD-F2026-000001.pdf") is entirely server-generated (the invoice
+ * "2026/INV2026-000001.pdf") is entirely server-generated (the invoice
  * number this project itself formats — see InvoiceService), never derived
  * from user input, so a deterministic name is safe and useful (lets an
  * admin find "the 2026 invoices" on disk). Path traversal is still rejected
@@ -38,7 +38,7 @@ class InvoiceStorage
     }
 
     /**
-     * Writes $contents to $relativePath (e.g. "2026/VLD-F2026-000001.pdf"),
+     * Writes $contents to $relativePath (e.g. "2026/INV2026-000001.pdf"),
      * creating any missing subdirectory. Overwrites if the file already
      * exists (used by regenerate-if-missing, which reproduces the exact
      * same bytes from the same frozen snapshot).

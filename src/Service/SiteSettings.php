@@ -158,6 +158,19 @@ class SiteSettings
         'invoice_tax_note' => '',
         'invoice_payment_note' => '',
 
+        // THE ORDER NUMBER PREFIX, read by
+        // App\Repository\OrderRepository::formatOrderNumber(), which owns the
+        // separators: "ORD" becomes "ORD-2026-000127". Its own setting and
+        // not a variant of invoice_number_prefix, because an order number and
+        // an invoice number are two different sequences for two different
+        // readers. Generic and not empty for the same reason as the invoice
+        // prefix: a number needs one. The code used to write "VLD-" out by
+        // hand, and every installation that issued numbers with it was pinned
+        // to "VLD" by db/migrations/20260913100000 before this default
+        // existed — an order number is derived, never stored, so without that
+        // pin every existing order would have been renumbered.
+        'order_number_prefix' => 'ORD',
+
         // CMS-editable order-confirmation email copy (customer email only —
         // see App\Mail\OrderConfirmationBuilder / App\Mail\EmailPlaceholders
         // for the small, safe {{placeholder}} substitution supported here).

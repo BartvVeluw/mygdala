@@ -66,6 +66,7 @@ final class AdminEditorNavigationTest extends TestCase
         'invoice_tax_note' => 'facturen',
         'invoice_payment_note' => 'facturen',
         'invoice_footer_text' => 'facturen',
+        'order_number_prefix' => 'facturen',
         'order_email_subject' => 'email',
         'order_email_heading' => 'email',
         'order_email_intro' => 'email',

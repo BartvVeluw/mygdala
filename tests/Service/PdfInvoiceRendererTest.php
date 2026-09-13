@@ -75,11 +75,36 @@ final class PdfInvoiceRendererTest extends TestCase
             $this->sellerSnapshot(),
             'VLD-F2026-000001',
             new \DateTimeImmutable('2026-03-14'),
-            'VLD-2026-000007'
+            'ORD-2026-000007'
         );
 
         $this->assertStringStartsWith('%PDF-', $pdf);
         $this->assertGreaterThan(500, strlen($pdf));
+    }
+
+    /**
+     * The renderer prints the order number it is handed and never builds one:
+     * InvoiceService hands it OrderRepository::formatOrderNumber()'s answer,
+     * the same one the e-mail, the export and the Mollie payment use.
+     */
+    public function testTheOrderNumberItIsGivenIsTheOneOnTheInvoice(): void
+    {
+        $items = [['name' => 'Sleutelhanger', 'variant_label' => null, 'quantity' => 1, 'unit_price' => '24.95']];
+
+        $pdf = (new PdfInvoiceRenderer())->render(
+            $this->order(),
+            $this->customer(),
+            $items,
+            $this->sellerSnapshot(),
+            'INV2026-000004',
+            new \DateTimeImmutable('2026-03-14'),
+            'SHOP-2026-000007'
+        );
+
+        $text = (new \Smalot\PdfParser\Parser())->parseContent($pdf)->getText();
+
+        $this->assertStringContainsString('SHOP-2026-000007', $text);
+        $this->assertStringContainsString('INV2026-000004', $text);
     }
 
     public function testMaliciousCustomerAndSettingsDataCannotBreakRenderingAndIsNotExecuted(): void
@@ -95,7 +120,7 @@ final class PdfInvoiceRendererTest extends TestCase
             $seller,
             'VLD-F2026-000002',
             new \DateTimeImmutable('2026-03-14'),
-            'VLD-2026-000007'
+            'ORD-2026-000007'
         );
 
         $this->assertStringStartsWith('%PDF-', $pdf);
@@ -113,7 +138,7 @@ final class PdfInvoiceRendererTest extends TestCase
             $seller,
             'VLD-F2026-000003',
             new \DateTimeImmutable('2026-03-14'),
-            'VLD-2026-000007'
+            'ORD-2026-000007'
         );
 
         $this->assertStringStartsWith('%PDF-', $pdf);

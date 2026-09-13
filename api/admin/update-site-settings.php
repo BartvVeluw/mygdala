@@ -175,6 +175,23 @@ if (
     $errors[] = 'Standaard meta description mag maximaal ' . Seo::MAX_META_DESCRIPTION_LENGTH . ' tekens zijn.';
 }
 
+/**
+ * The order-number prefix (App\Repository\OrderRepository::formatOrderNumber()).
+ *
+ * Letters and digits only, and short: it ends up in customer e-mails, in the
+ * Mollie description on a bank statement and in a CSV cell, and the formatter
+ * owns the separators. Refused rather than silently cleaned, so what an owner
+ * sees after saving is what they typed. An empty field is allowed and means
+ * the generic default, the rule every other setting on this screen follows.
+ */
+if (
+    in_array('order_number_prefix', $submittedKeys, true)
+    && $fields['order_number_prefix'] !== ''
+    && preg_match('/^[A-Za-z0-9]{1,10}$/', $fields['order_number_prefix']) !== 1
+) {
+    $errors[] = AdminTranslator::trans('validation.bestelnummerprefix_ongeldig');
+}
+
 if ($errors !== []) {
     $_SESSION['admin_settings_errors'] = $errors;
     $_SESSION['admin_settings_old'] = $fields;

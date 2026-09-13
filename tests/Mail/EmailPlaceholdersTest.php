@@ -22,14 +22,14 @@ final class EmailPlaceholdersTest extends TestCase
             'Beste {{customer_name}}, bestelling {{order_number}} van {{order_date}} — totaal {{order_total}}.',
             [
                 'customer_name' => 'Jan Jansen',
-                'order_number' => 'VLD-2026-000001',
+                'order_number' => 'ORD-2026-000001',
                 'order_date' => '07-09-2026',
                 'order_total' => '€ 12,34',
             ],
             false
         );
 
-        $this->assertSame('Beste Jan Jansen, bestelling VLD-2026-000001 van 07-09-2026 — totaal € 12,34.', $result);
+        $this->assertSame('Beste Jan Jansen, bestelling ORD-2026-000001 van 07-09-2026 — totaal € 12,34.', $result);
     }
 
     public function testUnknownPlaceholderIsLeftAsLiteralText(): void

@@ -7,7 +7,9 @@ namespace Tests\Install;
 use App\Install\InstallState;
 use App\Module\ModuleRegistry;
 use App\Install\SetupState;
+use App\Repository\OrderRepository;
 use App\Service\PageContent;
+use App\Service\SiteSettings;
 use App\Service\PageTemplates\PageTemplates;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
@@ -307,7 +309,7 @@ final class FreshInstallTest extends TestCase
             'footer_description_nl', 'footer_description_en',
             'logo_path', 'favicon_path', 'og_image_path',
             'company_city', 'company_website', 'invoice_number_prefix',
-            'canonical_base_url',
+            'canonical_base_url', 'order_number_prefix',
         ] as $key) {
             $this->assertArrayNotHasKey(
                 $key,
@@ -315,6 +317,26 @@ final class FreshInstallTest extends TestCase
                 "A fresh install stores no '{$key}': a missing row means the generic code default."
             );
         }
+    }
+
+    /**
+     * The pin migration 20260913100000 writes "VLD" for any installation that
+     * has issued order numbers. A database built from zero has not, so it
+     * stores no prefix, and the number it shows is the generic one.
+     */
+    public function testAFreshInstallNumbersItsOrdersWithTheGenericPrefix(): void
+    {
+        $this->assertArrayNotHasKey(
+            'order_number_prefix',
+            $this->settings(),
+            'A from-zero install has no orders yet, so it must not be pinned to the old prefix.'
+        );
+
+        $this->assertSame('ORD', SiteSettings::defaults()['order_number_prefix']);
+        $this->assertSame(
+            'ORD-2026-000001',
+            OrderRepository::formatOrderNumber(1, new \DateTimeImmutable('2026-01-01'), SiteSettings::defaults()['order_number_prefix'])
+        );
     }
 
     /**

@@ -387,6 +387,19 @@ function brandingImageField(
         </label>
       </div>
 
+      <?php /* Its own heading and its own field: the order number is not part
+               of the invoice number. Still inside this tab's one form, which
+               is the rule every tab on this screen keeps. */ ?>
+      <h3><?= admin_te('settings.bestelnummers') ?></h3>
+      <p class="admin-text-muted"><?= admin_te('settings.bestelnummers_intro') ?></p>
+
+      <div class="admin-form-row admin-form-row--split">
+        <label><?= admin_te('settings.bestelnummerprefix') ?>
+          <input type="text" name="order_number_prefix" maxlength="10" pattern="[A-Za-z0-9]{1,10}" value="<?= settingValue($values, 'order_number_prefix') ?>">
+        </label>
+      </div>
+      <p class="admin-text-muted"><?= admin_te('settings.bestelnummerprefix_uitleg') ?></p>
+
       <button type="submit"><?= admin_te('common.save') ?></button>
     </form>
   </section>
