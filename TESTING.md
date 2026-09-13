@@ -75,9 +75,11 @@ bestand terug dat een agent heeft geraden.
 Ontbreekt `.env`, meld dat dan als reproduceerbaarheidsprobleem en laat het
 herstellen aan de eigenaar van de machine. Wil je intussen toch draaien,
 gebruik dan alleen de fallback die hieronder al beschreven staat: een andere
-container met de moduleschakelaars expliciet meegegeven. Zet de uitkomst
-altijd af tegen een nulmeting op ongewijzigde code, want die fallback kent
-zijn eigen bekende mislukkingen.
+container met de moduleschakelaars expliciet meegegeven. Daarin draaien
+`fast` en `full` functioneel groen. De HTTP-tests praten echter met de
+testwebcontainers, en slaan zichzelf over als die niet bereikbaar zijn. Een
+groene run met veel overgeslagen HTTP-tests is dus nog geen volledige
+HTTP-verificatie.
 
 ### Vanuit een git worktree
 
