@@ -678,7 +678,8 @@
    * success/error path is a full-page redirect with a session-flash
    * message, which a background fetch() never navigates to.
    */
-  var PORTFOLIO_IMAGE_ERRORS_KEY = "vvl-portfolio-item-image-errors";
+  // sessionStorage lasts one tab and one visit, so nothing under the old key needs migrating.
+  var PORTFOLIO_IMAGE_ERRORS_KEY = "mygdalaPortfolioImageErrors";
 
   function initPortfolioItemImageUpload() {
     var form = document.querySelector("[data-portfolio-add-images-form]");

@@ -255,16 +255,18 @@ final class GenericDistributionTest extends TestCase
 
     public function testTheAdminScriptsStoreTheirStateUnderMygdalasOwnKeys(): void
     {
-        // The remembered tab, the open rows, the return target and the
-        // save-bar flag were all stored under the old site's prefix. Only
-        // these exact keys: the personalization font namespace 'vvld-' is a
-        // different thing and stays (App\Service\Personalization\PersonalizationFonts).
+        // The remembered tab, the open rows, the return target, the save-bar
+        // flag and the portfolio's upload errors and scroll offset were all
+        // stored under the old site's prefixes. Only these exact needles: the
+        // personalization font namespace 'vvld-' is a different thing and
+        // stays (App\Service\Personalization\PersonalizationFonts), and
+        // 'vvl-portfolio' cannot match it.
         $offenders = [];
 
         foreach (glob($this->root() . '/admin/assets/*.js') ?: [] as $path) {
             $contents = (string) file_get_contents($path);
 
-            foreach (['vvldAdmin', 'vvldSaveBarSaved'] as $old) {
+            foreach (['vvldAdmin', 'vvldSaveBarSaved', 'vvl-portfolio'] as $old) {
                 if (str_contains($contents, $old)) {
                     $offenders[] = 'admin/assets/' . basename($path) . ' → ' . $old;
                 }

@@ -20,7 +20,8 @@
 (function () {
   "use strict";
 
-  var SCROLL_KEY = "vvl-portfolio-admin-scroll";
+  // sessionStorage lasts one tab and one visit, so nothing under the old key needs migrating.
+  var SCROLL_KEY = "mygdalaPortfolioAdminScroll";
 
   function initFilters(grid) {
     var toolbar = document.querySelector("[data-portfolio-toolbar]");
