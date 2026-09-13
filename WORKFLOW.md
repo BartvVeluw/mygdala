@@ -308,18 +308,14 @@ tussen wat applicatie is en wat bij één site hoort.
 
 ## Wat er open staat
 
-Twee punten die bewust zijn blijven liggen. Geen van beide is urgent, allebei
-verdienen ze een eigen sessie.
+Eén punt dat bewust is blijven liggen. Het is niet urgent, maar verdient een
+eigen sessie.
 
 **Er is geen `.env` in de checkout.** Alleen `.env.example`. Het
 compose-bestand heeft op drie plekken een verplichte `env_file: .env`, dus een
 verse `docker compose up -d` faalt. De draaiende containers werken nog op
 instellingen uit een `.env` die er ooit was. De omgeving is dus niet opnieuw op
 te bouwen uit de repository.
-
-**De pakketnaam in `composer.json`** is nog `vanveluwlaserdesign/webshop`. Die
-zit in de content-hash van `composer.lock`, dus hernoemen vraagt een
-`composer update --lock` in dezelfde commit.
 
 ## De praktijktest is gedaan
 
