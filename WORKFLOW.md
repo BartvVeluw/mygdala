@@ -191,7 +191,7 @@ Lees er **één** per taak. De wegwijzer in `CLAUDE.md` vertelt welke.
 | `CONTENT-BLOCKS.md` | 394 | Een content-blok toevoegen of wijzigen |
 | `BLOG.md` | 386 | Alles rond de Blog |
 | `FORMS.md` | 532 | Formulieren en inzendingen |
-| `MULTILINGUAL.md` | 821 | Talen van de site, CMS-taal, bewerktaal, automatisch vertalen |
+| `MULTILINGUAL.md` | 149 | Router voor talen van de site, CMS-taal, bewerktaal en automatisch vertalen; hij wijst het document in `docs/multilingual/` aan |
 | `MEDIA.md` | 346 | De Mediabibliotheek |
 | `PAGE-EDITOR.md` | 369 | Blokkenkiezer, catalogus, opslagbalk, tabbladen, inklapbare rijen |
 | `PAGE-TEMPLATES.md` | 272 | Een nieuw paginasjabloon |
@@ -199,6 +199,19 @@ Lees er **één** per taak. De wegwijzer in `CLAUDE.md` vertelt welke.
 | `SEO.md` | 387 | Titels, meta description, canonical, sitemap, robots |
 | `REDIRECTS.md` | 327 | Een oude URL die moet blijven werken |
 | `HEADER-FOOTER.md` | 172 | Header-knop, footer-slotregel, social profielen |
+
+### Meertaligheid in detail
+
+Open deze via `MULTILINGUAL.md`, en dan alleen het document dat je taak raakt.
+
+| Document | Regels | Lees dit wanneer |
+|---|---|---|
+| `docs/multilingual/CMS-LANGUAGE.md` | 136 | Tekst die een beheerder leest: catalogi, statuswoorden, zijbalk- en registerlabels, *Mijn account* |
+| `docs/multilingual/EDITING-LANGUAGE.md` | 205 | De bewerktaal: de schakelaar in de schil en `_nl`/`_en`-velden in een editor of schrijf-endpoint |
+| `docs/multilingual/WEBSITE-LANGUAGES.md` | 183 | Wat een bezoeker ziet: talenregister, hoofdtaal, terugvalregel, publieke taalwissel |
+| `docs/multilingual/AUTOMATIC-TRANSLATION.md` | 147 | Automatisch vertalen: providercontract, DeepL, vertaalstatus |
+| `docs/multilingual/MIGRATIONS.md` | 113 | De migraties van de meertaligheid en wat een bestaande site daarvan merkt |
+| `docs/multilingual/TESTS.md` | 61 | Welke test de meertaligheid bewaakt en welke suite je draait |
 
 ### Installatie
 
@@ -344,8 +357,6 @@ echt geladen waren, viel alleen te beantwoorden door het de sessie zelf te
 vragen. Daarom schrijft de hook het sindsdien op. Zie "Nagaan wat er echt
 geladen is".
 
-Nu zijn de grotere stappen aan de beurt:
-`MULTILINGUAL.md` opsplitsen in een map met een kort routerend
-overzichtsdocument, en daarna de vraag of de Shop een eigen map verdient. Die
-laatste doe je omdat de software er begrijpelijker van wordt, niet omdat een
-glob lelijk is.
+Nu is de grotere stap aan de beurt: de vraag of de Shop een eigen map
+verdient. Die doe je omdat de software er begrijpelijker van wordt, niet omdat
+een glob lelijk is.
