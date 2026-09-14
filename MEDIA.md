@@ -304,11 +304,40 @@ verwijderbaar — data van een uitgeschakelde module is geen deel van de
 draaiende site. De rijen blijven staan, en zodra de module weer aan gaat is
 diezelfde afbeelding weer beschermd.
 
+### Wie mag lezen wáár
+
+Elke `MediaUsage` noemt de permissie van het scherm waar die plek bewerkt
+wordt, dezelfde die dat scherm zelf al vraagt:
+
+| Provider | Permissie |
+|---|---|
+| `BrandingMediaUsage` | `settings.manage` |
+| `PageSocialImageMediaUsage` | `pages.manage` |
+| `ContentBlockMediaUsage` | `pages.manage` |
+| `BlogPostMediaUsage` (Blog) | `blog.manage`: het berichtenoverzicht (`blog.view`) opent geen bericht |
+
+Een plek staat er **bij naam en met link** alleen voor wie die permissie
+heeft. Voor ieder ander wordt die plek **geteld, niet genoemd**: *"2 plekken
+die je niet kunt openen"*. Iemand met `media.manage` maar zonder
+`pages.manage` weet dus dat een bestand gebruikt wordt en daarom blijft staan,
+maar leest niet op welke pagina.
+
+Eén klasse beslist dat: `App\Service\Media\VisibleMediaUsages`, met
+`AdminAuth::can()` als vraag. Het itemscherm en het antwoord van
+`delete-media-items.php` (de JSON en de flash) gaan er allebei doorheen. De
+teller op een kaart en in de bevestigingsdialoog zegt alleen **hoeveel**
+plekken, en dat mag iedereen weten.
+
+**Alleen wat er gezegd wordt, wordt gefilterd.** Het gebruik wordt nog steeds
+volledig vastgesteld, en verwijderen wordt beslist op die volledige lijst
+(`usagesForStrict`). Een gebruikt bestand blijft staan, ook voor een
+beheerder die geen enkele van die plekken mag zien.
+
 ## Verwijderen
 
 ```text
 niets gebruikt het   ->  rij weg, eigen bestand weg, eigen thumbnail weg
-iets gebruikt het    ->  geweigerd, met de lijst plekken erbij
+iets gebruikt het    ->  geweigerd, met de plekken erbij die je mag openen (de rest geteld)
 niet vast te stellen ->  geweigerd
 ```
 
@@ -342,8 +371,8 @@ kan worden gemaakt. De focus staat dan eerst op *Annuleren*.
   wordt er niets verwijderd;
 - wat niets gebruikt, gaat weg volgens de regel hierboven (rij, dan bestand,
   dan thumbnail). Wat nog gebruikt wordt, blijft staan en komt terug **met de
-  plekken** waar het gebruikt wordt, en een id dat niets aanwijst wordt
-  gemeld;
+  plekken** waar het gebruikt wordt, voor zover de beheerder die mag openen
+  (zie *Wie mag lezen wáár*). Een id dat niets aanwijst wordt gemeld;
 - een gedeeltelijk resultaat is het normale: drie weg en één bewaard is geen
   fout;
 - hooguit `MediaService::MAX_DELETE_AT_ONCE` (100) tegelijk. De weg terug naar
@@ -380,6 +409,11 @@ verwijderen, reikt verder dan het scherm waar iemand naar kijkt.
 `pages.manage`, `portfolio.manage` en `settings.manage` bevatten automatisch
 `media.view` — beeld kiezen hoort bij het bewerken van een pagina. Niets
 bevat automatisch `media.manage`.
+
+`media.manage` geeft **geen** inzage in andere domeinen. Waar een bestand
+gebruikt wordt, staat er bij naam alleen voor wie ook het scherm van die plek
+mag openen; voor ieder ander wordt die plek geteld (zie *Wie mag lezen
+wáár*).
 
 Alle schrijfacties vragen CSRF; de lijst-endpoint is een GET en doet dat
 bewust niet.
@@ -457,6 +491,8 @@ inhoud gebruikt gewoon die van het item.
 6. Partial: `BlockImage::dimensionAttributes($image)` in de `<img>`.
 7. Voeg een tak toe aan `ContentBlockMediaUsage` (Core) of aan de provider
    van je module, anders meldt de bibliotheek jouw blok als "niet gebruikt".
+   Elke `MediaUsage` noemt de permissie van het scherm dat die plek bewerkt
+   (zie *Wie mag lezen wáár*).
 8. `deleteFiles()` van het blok blijft **leeg**: een gedeeld bestand is niet
    van jou.
 
@@ -478,12 +514,13 @@ docker compose exec php_test php vendor/bin/phpunit --group migration-backfill
 
 | Bestand | Wat het bewaakt |
 |---|---|
-| `MediaBoundaryTest` | Rechten, guards (ook de volgorde in de endpoints voor hernoemen en voor een selectie verwijderen), CSRF, "de kiezer stuurt alleen een id", modulegrens, en het scherm: de gedeelde bestandskiezer, zoekveld, select en checkboxes, werken met en zonder JavaScript, geen inline handlers, scripts zonder markup uit strings en zonder zinnen, en nergens een bestand hernoemen op de schijf. Geen database |
+| `MediaBoundaryTest` | Rechten, guards (ook de volgorde in de endpoints voor hernoemen en voor een selectie verwijderen), CSRF, "de kiezer stuurt alleen een id", modulegrens, en het scherm: de gedeelde bestandskiezer, zoekveld, select en checkboxes, werken met en zonder JavaScript, geen inline handlers, scripts zonder markup uit strings en zonder zinnen, en nergens een bestand hernoemen op de schijf; en dat het itemscherm en het verwijderen van een selectie plekken alleen via `VisibleMediaUsages` noemen. Geen database |
 | `MediaLibraryTest` | Upload, wat er geweigerd wordt (op naam én op inhoud), meerdere bestanden en een gemengde batch, namen, hernoemen, zoeken en filteren, alt-tekst, ontdubbelen, verwijderen (ook een selectie), ontbrekend bestand |
-| `MediaUsageTest` | Gebruik afgeleid uit echte blokinstanties, de verwijderregel — ook voor een selectie — en dat een hernoemd item overal blijft werken |
+| `MediaUsageTest` | Gebruik afgeleid uit echte blokinstanties, de verwijderregel — ook voor een selectie — en dat een hernoemd item overal blijft werken. En wie mag lezen wáár: een pagina alleen met `pages.manage`, het logo alleen met `settings.manage`, een selectie volgens dezelfde regel, en alles voor een volledig bevoegde beheerder |
+| `MediaUsageAccessTest` | Hetzelfde over echte HTTP, met een eigen `php -S`: de JSON van een selectie, een geweigerde losse verwijdering en het itemscherm noemen geen pagina voor wie die niet mag openen, en wel voor wie dat mag. Slaat zichzelf over als de server niet start |
 | `MediaAdoptionTest` | Wat de overnamemigratie beloofde, op een wegwerpdatabase met eigen oude afbeeldingsrijen (`migration-backfill`), en de namen die een upgrade meekrijgt |
 | `BrandingTest` | Media wint van het pad, en het pad blijft de terugval |
-| `Tests\Blog\BlogMediaAndSettingsTest` | de eerste module-provider: gebruik melden, niet kunnen verwijderen, en niets melden met de module uit |
+| `Tests\Blog\BlogMediaAndSettingsTest` | de eerste module-provider: gebruik melden, niet kunnen verwijderen, niets melden met de module uit, en de berichttitel alleen noemen voor wie berichten mag bewerken (`blog.manage`) |
 
 Uploaden in een test gaat via `Tests\Support\TestMediaUploader`: de échte
 uploader met één naad open (`is_uploaded_file`/`move_uploaded_file` kunnen
@@ -522,7 +559,9 @@ endpoints, niet wat er op een klik gebeurt. Loop na een wijziging aan
 17. *Verwijderen* en dan *Definitief verwijderen*: de melding zegt wat er weg
     is.
 18. Een gebruikt bestand in de selectie: de dialoog noemt het, het blijft
-    staan, en de melding zegt waar het gebruikt wordt.
+    staan, en de melding zegt waar het gebruikt wordt. Log daarna in als
+    beheerder met alleen `media.manage`: de melding en het itemscherm zeggen
+    dan alleen *dat* het gebruikt wordt, niet op welke pagina.
 19. Op een telefoon: kiezen via de knop, twee kaarten naast elkaar, de
     selectiebalk blijft in beeld, en niets steekt buiten het scherm.
 20. In een licht (*classic*) en een donker thema, en alles ook met alleen het

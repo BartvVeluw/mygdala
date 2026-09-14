@@ -6,13 +6,13 @@ namespace App\Service\Media;
 
 /**
  * One place a media item is used, as the admin shows it: what kind of thing
- * uses it, which one, and — when there is somewhere to go — the admin screen
- * that edits it.
+ * uses it, which one, who may read that, and — when there is somewhere to go —
+ * the admin screen that edits it.
  *
  * Deliberately just enough to answer an editor's question ("where is this
  * used, and can I go fix it?"). It is NOT a foreign key in disguise: nothing
  * reads `ownerId` back to load a record. Deletion is decided on whether this
- * list is empty, not on what is in it.
+ * list is empty, not on what is in it — and never on who is asking.
  */
 final class MediaUsage
 {
@@ -21,6 +21,14 @@ final class MediaUsage
         public readonly string $source,
         /** Dutch, human-readable: "Logo", "Tekst + afbeelding op Over mij". */
         public readonly string $label,
+        /**
+         * The permission of the admin screen this usage is edited on, e.g.
+         * 'pages.manage'. An administrator without it is told that the item is
+         * used, never where: see App\Service\Media\VisibleMediaUsages.
+         * Required on purpose, so no provider can report a place without
+         * saying who may read about it.
+         */
+        public readonly string $permission,
         /** Admin URL that edits this usage, or null when there is none. */
         public readonly ?string $editUrl = null,
     ) {

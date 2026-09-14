@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Service\Blog;
 
 use App\Database;
+use App\Module\BlogModule;
 use App\Service\Media\MediaUsage;
 use App\Service\Media\MediaUsageProvider;
 
@@ -29,6 +30,11 @@ use App\Service\Media\MediaUsageProvider;
  * reason not to delete. They are reported with the wording the module's own
  * screens use, so an editor reading "Blogbericht: <titel>" knows exactly
  * which post to open — and the edit link takes them there.
+ *
+ * WHO READS THE TITLE. Only an administrator who may open the post: the
+ * permission admin/blog-post.php demands, blog.manage. Reading the overview
+ * (blog.view) does not open a post, so it does not name one here either;
+ * anybody else is told the image is used (App\Service\Media\VisibleMediaUsages).
  *
  * A DISABLED MODULE REPORTS NOTHING, because the registry only asks the
  * modules that are running. That is the general rule (MODULES.md): data
@@ -87,6 +93,7 @@ final class BlogPostMediaUsage extends MediaUsageProvider
                     label: $column === 'og_media_id'
                         ? 'Deel-afbeelding van blogbericht: ' . $title
                         : 'Blogbericht: ' . $title,
+                    permission: BlogModule::BLOG_MANAGE,
                     editUrl: $editUrl,
                 );
             }

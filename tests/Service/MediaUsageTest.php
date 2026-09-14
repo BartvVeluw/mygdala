@@ -10,9 +10,11 @@ use App\Repository\PageRepository;
 use App\Repository\PageSectionRepository;
 use App\Repository\SiteSettingRepository;
 use App\Repository\TextImageSplitRepository;
+use App\Service\AdminPermissions;
 use App\Service\Media\BlockImage;
 use App\Service\Media\MediaService;
 use App\Service\Media\MediaUsageRegistry;
+use App\Service\Media\VisibleMediaUsages;
 use App\Service\SectionRegistry;
 use App\Service\SiteSettings;
 use PHPUnit\Framework\TestCase;
@@ -292,6 +294,166 @@ final class MediaUsageTest extends TestCase
     }
 
     /* ------------------------------------------------------------------ */
+    /* Who may read where an item is used                                  */
+    /* ------------------------------------------------------------------ */
+
+    /**
+     * An administrator who may edit pages reads which page uses the item and
+     * can follow the link there.
+     */
+    public function testAManagerWhoMayEditPagesIsToldWhichPageUsesAnItem(): void
+    {
+        $mediaId = $this->createMediaRow('assets/media/__usage_pages_reader__.png');
+        $this->attachTextImageSplitImage($mediaId);
+
+        $usages = $this->service->usagesOf($mediaId);
+        $this->assertSame(AdminPermissions::PAGES_MANAGE, $usages[0]->permission, 'a block is read about with the right to edit pages');
+
+        $told = VisibleMediaUsages::of($usages, self::reader([AdminPermissions::MEDIA_MANAGE, AdminPermissions::PAGES_MANAGE]));
+
+        $this->assertCount(1, $told->shown);
+        $this->assertSame(0, $told->hidden);
+        $this->assertStringContainsString(self::TEST_PAGE, $told->shown[0]->label);
+        $this->assertStringContainsString(self::TEST_PAGE, (string) $told->shown[0]->editUrl);
+        $this->assertStringContainsString(self::TEST_PAGE, $told->keptSentence('foto.png'));
+    }
+
+    /**
+     * The same item, for somebody who may manage the library but not the
+     * pages: still found, still used, still not deletable — and nothing about
+     * the page.
+     */
+    public function testAManagerWhoMayNotEditPagesIsToldOnlyThatAnItemIsUsed(): void
+    {
+        $mediaId = $this->createMediaRow('assets/media/__usage_media_reader__.png');
+        $this->attachTextImageSplitImage($mediaId);
+
+        $usages = $this->service->usagesOf($mediaId);
+        $this->assertCount(1, $usages, 'finding the usage is not filtered');
+
+        $told = VisibleMediaUsages::of($usages, self::reader([AdminPermissions::MEDIA_MANAGE]));
+
+        $this->assertSame([], $told->shown);
+        $this->assertSame(1, $told->hidden);
+        $this->assertSame(1, $told->count(), 'the reader is still told it is used');
+
+        $sentence = $told->keptSentence('foto.png');
+        $this->assertStringContainsString('foto.png', $sentence);
+        $this->assertStringContainsString($told->hiddenPlaces(), $sentence);
+        $this->assertStringNotContainsString(self::TEST_PAGE, $sentence);
+        $this->assertStringNotContainsString('Tekst + afbeelding', $sentence);
+
+        $result = $this->service->delete($mediaId);
+        $this->assertFalse($result['deleted'], 'what a reader may see never loosens the guard');
+        $this->assertSame('in_use', $result['reason']);
+
+        MediaService::clearCache();
+        $this->assertNotNull(MediaService::find($mediaId));
+    }
+
+    /**
+     * A second domain by the same rule: the site's logo is named to whoever
+     * may change the site settings and to nobody else — the right to edit
+     * pages does not open the settings.
+     */
+    public function testTheLogoIsNamedOnlyToWhoeverMayChangeTheSiteSettings(): void
+    {
+        $mediaId = $this->createMediaRow('assets/media/__usage_branding_reader__.png');
+        $this->useAsBrandingLogo($mediaId);
+
+        $usages = $this->service->usagesOf($mediaId);
+        $this->assertSame(AdminPermissions::SETTINGS_MANAGE, $usages[0]->permission);
+
+        foreach ([[AdminPermissions::MEDIA_MANAGE], [AdminPermissions::MEDIA_MANAGE, AdminPermissions::PAGES_MANAGE]] as $granted) {
+            $told = VisibleMediaUsages::of($usages, self::reader($granted));
+
+            $this->assertSame([], $told->shown, implode(', ', $granted));
+            $this->assertSame(1, $told->hidden, implode(', ', $granted));
+            $this->assertStringNotContainsString('Logo', $told->keptSentence('foto.png'), implode(', ', $granted));
+        }
+
+        $settings = VisibleMediaUsages::of($usages, self::reader([AdminPermissions::MEDIA_MANAGE, AdminPermissions::SETTINGS_MANAGE]));
+
+        $this->assertSame(['Logo'], array_map(static fn ($usage): string => $usage->label, $settings->shown));
+        $this->assertSame('/admin/settings.php', $settings->shown[0]->editUrl);
+        $this->assertSame(0, $settings->hidden);
+    }
+
+    /**
+     * Deleting a selection keeps every used item whoever asks, and the reason
+     * it gives for each one names only the places the reader may open.
+     */
+    public function testDeletingASelectionNamesOnlyThePlacesTheReaderMayOpen(): void
+    {
+        $onPage = $this->createMediaRow('assets/media/__usage_bulk_page__.png');
+        $asBranding = $this->createMediaRow('assets/media/__usage_bulk_branding__.png');
+        $unused = $this->createMediaRow('assets/media/__usage_bulk_free__.png');
+        $this->attachTextImageSplitImage($onPage);
+        $this->useAsBrandingLogo($asBranding);
+
+        $result = $this->service->deleteMany([$onPage, $asBranding, $unused]);
+        $this->createdMedia = array_values(array_diff($this->createdMedia, [$unused]));
+
+        $this->assertSame([$unused], array_map(static fn ($item): int => $item->id, $result['deleted']));
+
+        $kept = [];
+        foreach ($result['in_use'] as $entry) {
+            $this->assertCount(1, $entry['usages'], 'the guard saw the usage, whoever will read about it');
+            $kept[$entry['item']->id] = $entry;
+        }
+        $this->assertEqualsCanonicalizing([$onPage, $asBranding], array_keys($kept));
+
+        $reasons = static fn (\Closure $reader): array => array_map(
+            static fn (array $entry): string => VisibleMediaUsages::of($entry['usages'], $reader)->keptSentence($entry['item']->displayName()),
+            $kept
+        );
+
+        $libraryOnly = $reasons(self::reader([AdminPermissions::MEDIA_MANAGE]));
+        $this->assertStringNotContainsString(self::TEST_PAGE, $libraryOnly[$onPage]);
+        $this->assertStringNotContainsString('Tekst + afbeelding', $libraryOnly[$onPage]);
+        $this->assertStringNotContainsString('Logo', $libraryOnly[$asBranding]);
+
+        $withSettings = $reasons(self::reader([AdminPermissions::MEDIA_MANAGE, AdminPermissions::SETTINGS_MANAGE]));
+        $this->assertStringNotContainsString(self::TEST_PAGE, $withSettings[$onPage]);
+        $this->assertStringContainsString('Logo', $withSettings[$asBranding]);
+
+        MediaService::clearCache();
+        $this->assertNotNull(MediaService::find($onPage));
+        $this->assertNotNull(MediaService::find($asBranding));
+        $this->assertNull(MediaService::find($unused));
+    }
+
+    /**
+     * A fully authorised administrator keeps the whole answer: every place, by
+     * name, with its link — a Super Admin, and an account holding every grant.
+     */
+    public function testAFullyAuthorisedAdministratorIsToldEveryPlaceWithItsLink(): void
+    {
+        $mediaId = $this->createMediaRow('assets/media/__usage_everything__.png');
+        $this->attachTextImageSplitImage($mediaId);
+        $this->useAsBrandingLogo($mediaId);
+
+        $usages = $this->service->usagesOf($mediaId);
+        $this->assertCount(2, $usages);
+
+        foreach (['Super Admin' => self::reader([], true), 'every grant' => self::reader(AdminPermissions::enabled())] as $who => $reader) {
+            $told = VisibleMediaUsages::of($usages, $reader);
+
+            $this->assertSame($usages, $told->shown, $who);
+            $this->assertSame(0, $told->hidden, $who);
+            $this->assertSame('', $told->hiddenPlaces(), $who);
+
+            $sentence = $told->keptSentence('foto.png');
+            $this->assertStringContainsString(self::TEST_PAGE, $sentence, $who);
+            $this->assertStringContainsString('Logo', $sentence, $who);
+        }
+
+        foreach ($usages as $usage) {
+            $this->assertNotNull($usage->editUrl, $usage->label);
+        }
+    }
+
+    /* ------------------------------------------------------------------ */
     /* Helpers                                                             */
     /* ------------------------------------------------------------------ */
 
@@ -313,6 +475,21 @@ final class MediaUsageTest extends TestCase
         MediaService::clearCache();
 
         return $id;
+    }
+
+    /**
+     * The question AdminAuth::can() asks, for an account that is not signed
+     * in: the real decision, App\Service\AdminPermissions::userHas(), over the
+     * grants given, with the implied ones folded in as a stored account has
+     * them.
+     *
+     * @param list<string> $granted
+     */
+    private static function reader(array $granted, bool $superAdmin = false): \Closure
+    {
+        $account = ['is_super_admin' => $superAdmin, 'permissions' => AdminPermissions::expand($granted)];
+
+        return static fn (string $permission): bool => AdminPermissions::userHas($account, $permission);
     }
 
     /**

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Service\Media\Usage;
 
 use App\Database;
+use App\Service\AdminPermissions;
 use App\Service\Media\MediaUsage;
 use App\Service\Media\MediaUsageProvider;
 
@@ -98,6 +99,10 @@ final class ContentBlockMediaUsage extends MediaUsageProvider
             $usages[$mediaId][] = new MediaUsage(
                 source: $this->key(),
                 label: $label,
+                // Every editor this links to — the block screens and the
+                // carousel card — demands pages.manage, and the label names
+                // the page.
+                permission: AdminPermissions::PAGES_MANAGE,
                 editUrl: $this->editUrl($row, $pageSlug, $sectionKey),
             );
         }

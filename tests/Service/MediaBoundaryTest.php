@@ -8,6 +8,7 @@ use App\Module\ModuleDefinition;
 use App\Module\ModuleRegistry;
 use App\Service\AdminNavigation;
 use App\Service\AdminPermissions;
+use App\Service\Media\MediaUsage;
 use App\Service\Media\MediaUsageProvider;
 use App\Service\Media\MediaUsageRegistry;
 use PHPUnit\Framework\TestCase;
@@ -292,6 +293,38 @@ final class MediaBoundaryTest extends TestCase
             $this->assertCount(1, $parameters);
             $this->assertSame('array', (string) $parameters[0]->getType());
         }
+    }
+
+    /**
+     * Where an item is used is told by one rule. No usage can be reported
+     * without the permission that may read about it, and the two places that
+     * print usages — the item view and the refusals of a selection — hand the
+     * complete list to VisibleMediaUsages with the signed-in account's own
+     * permissions instead of printing labels themselves. A refused single
+     * delete names no place at all: it returns to the item view.
+     */
+    public function testWhereAnItemIsUsedIsToldOnlyAsFarAsTheReaderMayOpenThosePlaces(): void
+    {
+        $permission = array_values(array_filter(
+            (new \ReflectionMethod(MediaUsage::class, '__construct'))->getParameters(),
+            static fn (\ReflectionParameter $parameter): bool => $parameter->getName() === 'permission'
+        ));
+
+        $this->assertCount(1, $permission, 'a usage names the permission that may read about it');
+        $this->assertFalse($permission[0]->isOptional(), 'and no provider can leave it out');
+        $this->assertSame('string', (string) $permission[0]->getType());
+
+        $screen = $this->source('admin/media.php');
+        $this->assertStringContainsString('$usages = VisibleMediaUsages::of($service->usagesOf($item->id), AdminAuth::can(...));', $screen);
+        $this->assertSame(1, substr_count($screen, '->usagesOf('), 'the item view reads usages through that rule only');
+        $this->assertStringContainsString('foreach ($usages->shown as $usage)', $screen, 'and prints only the places the reader may open');
+
+        $selection = $this->source('api/admin/delete-media-items.php');
+        $this->assertStringContainsString("VisibleMediaUsages::of(\$kept['usages'], AdminAuth::can(...))", $selection);
+        $this->assertStringNotContainsString('->label', $selection, 'no label reaches the JSON or the flash by another road');
+        $this->assertStringNotContainsString('->editUrl', $selection);
+
+        $this->assertStringNotContainsString("['usages']", $this->source('api/admin/delete-media.php'), 'a refused single delete names no place itself');
     }
 
     /* ------------------------------------------------------------------ */

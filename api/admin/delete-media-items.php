@@ -15,6 +15,11 @@
  * refusals. Every item stands on its own; nothing about removing three unused
  * images depends on the fourth.
  *
+ * WHERE, ONLY AS FAR AS THE READER MAY OPEN IT. A kept item is reported with
+ * the places that use it named only when this administrator may open the
+ * screen of that place; the others are counted. What to keep was decided on
+ * every usage regardless (App\Service\Media\VisibleMediaUsages).
+ *
  * TWO ANSWERS, like rename-media.php: a redirect back to the grid page the
  * selection came from, with a session flash, for the plain form; JSON for the
  * confirmation dialog in admin/assets/media-library.js. The way back is
@@ -31,6 +36,7 @@ use App\Service\Csrf;
 use App\Service\Language\AdminTranslator;
 use App\Service\Media\MediaService;
 use App\Service\Media\MediaType;
+use App\Service\Media\VisibleMediaUsages;
 
 AdminAuth::requireLoginForApi();
 AdminAuth::requirePermissionForApi('media.manage');
@@ -127,14 +133,14 @@ if ($result['not_found'] !== []) {
 }
 
 // One line per kept item: which file, and where it is still used, so an
-// editor can go and unpick it without opening every card.
-$details = array_map(static function (array $kept): string {
-    $labels = array_map(static fn ($usage): string => $usage->label, $kept['usages']);
-
-    return $labels === []
-        ? AdminTranslator::trans('media.bulk.kept_unknown_use', ['name' => $kept['item']->displayName()])
-        : AdminTranslator::trans('media.bulk.kept_used_by', ['name' => $kept['item']->displayName(), 'places' => implode(', ', $labels)]);
-}, $result['in_use']);
+// editor can go and unpick it without opening every card. The same sentence
+// serves the JSON and the flash, and names only what this administrator may
+// open.
+$details = array_map(
+    static fn (array $kept): string => VisibleMediaUsages::of($kept['usages'], AdminAuth::can(...))
+        ->keptSentence($kept['item']->displayName()),
+    $result['in_use']
+);
 
 if ($isAjax) {
     $respondJson(200, [

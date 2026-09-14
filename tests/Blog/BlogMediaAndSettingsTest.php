@@ -4,14 +4,17 @@ declare(strict_types=1);
 
 namespace Tests\Blog;
 
+use App\Module\BlogModule;
 use App\Module\ModuleRegistry;
 use App\Repository\BlogPostRepository;
+use App\Service\AdminPermissions;
 use App\Service\Blog\BlogContent;
 use App\Service\Blog\BlogPostStatus;
 use App\Service\Blog\BlogSettings;
 use App\Service\Blog\BlogSlug;
 use App\Service\Media\MediaService;
 use App\Service\Media\MediaUsageRegistry;
+use App\Service\Media\VisibleMediaUsages;
 use PHPUnit\Framework\TestCase;
 use Tests\Support\TestMediaUploader;
 
@@ -146,6 +149,41 @@ final class BlogMediaAndSettingsTest extends TestCase
             'Deel-afbeelding van blogbericht: Testbericht met twee beelden',
             array_map(static fn ($u): string => $u->label, $usages[$social])
         );
+    }
+
+    /**
+     * Which post uses an image is named only to whoever may open that post:
+     * managing the library, or reading the post overview, does not name it.
+     * The image stays undeletable for everybody.
+     */
+    public function testOnlyWhoeverMayEditPostsIsToldWhichPostUsesAnImage(): void
+    {
+        $mediaId = $this->upload('blog-reader.png');
+        $this->createPost(['featured_media_id' => $mediaId, 'title' => 'Testbericht voor wie mag lezen']);
+
+        $usages = MediaUsageRegistry::usagesFor([$mediaId])[$mediaId] ?? [];
+        $this->assertCount(1, $usages);
+        $this->assertSame(BlogModule::BLOG_MANAGE, $usages[0]->permission, 'the permission admin/blog-post.php demands');
+
+        $reader = static fn (array $granted): \Closure => static fn (string $permission): bool => AdminPermissions::userHas(
+            ['is_super_admin' => false, 'permissions' => AdminPermissions::expand($granted)],
+            $permission
+        );
+
+        foreach ([[AdminPermissions::MEDIA_MANAGE], [AdminPermissions::MEDIA_MANAGE, BlogModule::BLOG_VIEW]] as $granted) {
+            $told = VisibleMediaUsages::of($usages, $reader($granted));
+
+            $this->assertSame([], $told->shown, implode(', ', $granted));
+            $this->assertSame(1, $told->hidden, implode(', ', $granted));
+            $this->assertStringNotContainsString('Testbericht voor wie mag lezen', $told->keptSentence('blog-reader.png'));
+        }
+
+        $editor = VisibleMediaUsages::of($usages, $reader([AdminPermissions::MEDIA_MANAGE, BlogModule::BLOG_MANAGE]));
+
+        $this->assertSame(['Blogbericht: Testbericht voor wie mag lezen'], array_map(static fn ($u): string => $u->label, $editor->shown));
+        $this->assertStringContainsString('Testbericht voor wie mag lezen', $editor->keptSentence('blog-reader.png'));
+
+        $this->assertFalse($this->media->delete($mediaId)['deleted'], 'and nobody can delete it while the post shows it');
     }
 
     /** Deleting a post frees its image again; the FILE is never touched. */

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Service\Media\Usage;
 
 use App\Database;
+use App\Service\AdminPermissions;
 use App\Service\Media\MediaUsage;
 use App\Service\Media\MediaUsageProvider;
 
@@ -43,6 +44,8 @@ final class PageSocialImageMediaUsage extends MediaUsageProvider
             $usages[(int) $row['og_media_id']][] = new MediaUsage(
                 source: $this->key(),
                 label: 'Deel-afbeelding van "' . (string) $row['title'] . '"',
+                // What admin/page.php itself demands.
+                permission: AdminPermissions::PAGES_MANAGE,
                 editUrl: '/admin/page.php?id=' . (int) $row['id'],
             );
         }

@@ -463,6 +463,8 @@ return [
     'media.bulk.not_found' => ':count gekozen bestanden stonden al niet meer in de bibliotheek.',
     'media.bulk.kept_used_by' => ':name wordt nog gebruikt: :places.',
     'media.bulk.kept_unknown_use' => ':name wordt nog ergens gebruikt en is niet verwijderd.',
+    'media.usage.hidden' => ':count plekken die je niet kunt openen',
+    'media.usage.hidden_one' => '1 plek die je niet kunt openen',
     'forms.formulier_aanmaken' => 'Formulier aanmaken',
     'forms.naam_formulier' => 'Naam van het formulier',
     'forms.geeft_formulier_eerst_naam' => 'Je geeft het formulier eerst een naam; de velden voeg je daarna toe.',

@@ -15,6 +15,7 @@ use App\Service\Media\MediaItem;
 use App\Service\Media\MediaService;
 use App\Service\Media\MediaType;
 use App\Service\Media\MediaUploader;
+use App\Service\Media\VisibleMediaUsages;
 
 /**
  * The Media Library: one grid of every reusable public image on this site,
@@ -47,7 +48,8 @@ use App\Service\Media\MediaUploader;
  * without the script: the checkboxes belong to an ordinary form, and the item
  * view has a plain rename form. The script adds the confirmation dialog, the
  * counter and the rename dialog. Nothing used is ever deleted: the server
- * keeps it and says where it is used.
+ * keeps it and says where it is used — naming only the places the reader may
+ * open, and counting the others (App\Service\Media\VisibleMediaUsages).
  *
  * WHAT IT IS NOT. There are no folders, no tags, no crop tool and no raw
  * filesystem operations: nothing here lets somebody type a path, browse a
@@ -191,7 +193,9 @@ if ($item === null) {
         ],
     ];
 } else {
-    $usages = $service->usagesOf($item->id);
+    // Every place that uses the item, named only where this administrator may
+    // open it and counted otherwise (App\Service\Media\VisibleMediaUsages).
+    $usages = VisibleMediaUsages::of($service->usagesOf($item->id), AdminAuth::can(...));
 }
 ?>
 <!doctype html>
@@ -633,11 +637,11 @@ if ($item === null) {
   <section class="admin-card">
     <h2><?= admin_te('media.waar_gebruikt') ?></h2>
 
-    <?php if ($usages === []): ?>
+    <?php if ($usages->count() === 0): ?>
       <p class="admin-text-muted"><?= admin_te('media.nergens_afbeelding_veilig_verwijderd') ?></p>
     <?php else: ?>
       <ul class="admin-media-usage">
-        <?php foreach ($usages as $usage): ?>
+        <?php foreach ($usages->shown as $usage): ?>
           <li>
             <?php if ($usage->editUrl !== null): ?>
               <a href="<?= $h($usage->editUrl) ?>"><?= $h($usage->label) ?></a>
@@ -646,6 +650,9 @@ if ($item === null) {
             <?php endif; ?>
           </li>
         <?php endforeach; ?>
+        <?php if ($usages->hidden > 0): ?>
+          <li class="admin-text-muted"><?= $h($usages->hiddenPlaces()) ?></li>
+        <?php endif; ?>
       </ul>
     <?php endif; ?>
   </section>
@@ -654,9 +661,9 @@ if ($item === null) {
     <section class="admin-card">
       <h2><?= admin_te('common.delete') ?></h2>
 
-      <?php if ($usages !== []): ?>
+      <?php if ($usages->count() > 0): ?>
         <p class="admin-text-muted">
-          <?= admin_t('media.afbeelding_plek_gebruikt_daarom', ['v1' => count($usages), 'v2' => count($usages) === 1 ? '' : 'ken']) ?>
+          <?= admin_t('media.afbeelding_plek_gebruikt_daarom', ['v1' => $usages->count(), 'v2' => $usages->count() === 1 ? '' : 'ken']) ?>
         </p>
         <button type="button" disabled><?= admin_te('common.delete') ?></button>
       <?php else: ?>

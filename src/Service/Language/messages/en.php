@@ -455,6 +455,8 @@ return [
     'media.bulk.not_found' => ':count chosen files were no longer in the library.',
     'media.bulk.kept_used_by' => ':name is still used: :places.',
     'media.bulk.kept_unknown_use' => ':name is still used somewhere and was not deleted.',
+    'media.usage.hidden' => ':count places you cannot open',
+    'media.usage.hidden_one' => '1 place you cannot open',
     'forms.formulier_aanmaken' => 'Create form',
     'forms.naam_formulier' => 'Name of the form',
     'forms.geeft_formulier_eerst_naam' => 'You give the form a name first; you add the fields afterwards.',

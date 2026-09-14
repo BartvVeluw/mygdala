@@ -25,6 +25,12 @@ namespace App\Service\Media;
  * WHO MAY IMPLEMENT IT. Core does, for the features it owns. A module does,
  * for its own tables — which is what keeps Core Media from ever naming a
  * product, an order or a collection. See App\Module\ModuleDefinition.
+ *
+ * WHO MAY READ THE ANSWER. Every MediaUsage names the permission of the screen
+ * that edits it — the one that screen already demands. The library tells an
+ * administrator without it that an item is used, never where
+ * (App\Service\Media\VisibleMediaUsages), and decides deletion on the complete
+ * answer whoever asks.
  */
 abstract class MediaUsageProvider
 {

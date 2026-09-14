@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Service\Media\Usage;
 
+use App\Service\AdminPermissions;
 use App\Service\Media\MediaUsage;
 use App\Service\Media\MediaUsageProvider;
 use App\Service\SiteSettings;
@@ -58,6 +59,8 @@ final class BrandingMediaUsage extends MediaUsageProvider
             $usages[$mediaId][] = new MediaUsage(
                 source: $this->key(),
                 label: $label,
+                // What admin/settings.php itself demands.
+                permission: AdminPermissions::SETTINGS_MANAGE,
                 editUrl: '/admin/settings.php',
             );
         }
