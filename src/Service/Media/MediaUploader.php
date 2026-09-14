@@ -60,6 +60,26 @@ class MediaUploader
         IMAGETYPE_GIF => 'gif',
     ];
 
+    /**
+     * The extensions a file's own name may carry, and the image type each one
+     * promises.
+     *
+     * The name never decides what a file IS — the header does, in store() —
+     * but it does decide what the item is CALLED: a file whose extension
+     * matches what it really is keeps that extension in its name, and one
+     * whose extension is wrong is named after what it really is
+     * (nameExtension()).
+     */
+    public const ALLOWED_EXTENSIONS = [
+        'jpg' => IMAGETYPE_JPEG,
+        'jpeg' => IMAGETYPE_JPEG,
+        // What some Windows browsers call a JPEG they save; it is an ordinary JPEG.
+        'jfif' => IMAGETYPE_JPEG,
+        'png' => IMAGETYPE_PNG,
+        'webp' => IMAGETYPE_WEBP,
+        'gif' => IMAGETYPE_GIF,
+    ];
+
     private const MIME_FOR_TYPE = [
         IMAGETYPE_JPEG => 'image/jpeg',
         IMAGETYPE_PNG => 'image/png',
@@ -85,7 +105,7 @@ class MediaUploader
     /**
      * @param array{name?:string,type?:string,tmp_name?:string,error?:int,size?:int} $file one entry of $_FILES
      *
-     * @return array{path:string, thumbnail_path:string|null, original_filename:string, mime_type:string, width:int, height:int, file_size:int, checksum:string}
+     * @return array{path:string, thumbnail_path:string|null, original_filename:string, name_extension:string, mime_type:string, width:int, height:int, file_size:int, checksum:string}
      *
      * @throws \RuntimeException with a Dutch, user-facing message
      */
@@ -142,6 +162,9 @@ class MediaUploader
             // stripped of any directory component and never touches the
             // filesystem.
             'original_filename' => $this->safeOriginalName($file['name'] ?? ''),
+            // The extension the item's NAME carries; MediaService names it.
+            // Not a path: the stored file keeps the extension of its type.
+            'name_extension' => $this->nameExtension((string) ($file['name'] ?? ''), $imageType),
             'mime_type' => (string) ($size['mime'] ?? self::MIME_FOR_TYPE[$imageType] ?? ''),
             'width' => (int) ($size[0] ?? 0),
             'height' => (int) ($size[1] ?? 0),
@@ -327,6 +350,21 @@ class MediaUploader
         }
 
         return @mkdir($directory, 0755, true) && is_dir($directory);
+    }
+
+    /**
+     * The extension an item's name gets: the one the editor's file had when
+     * it matches what the file really is ("zomer.jpeg" stays .jpeg), and the
+     * one its type is stored under when it does not (a PNG called "logo.jpg"
+     * becomes "logo.png").
+     */
+    private function nameExtension(string $clientName, int $imageType): string
+    {
+        $claimed = MediaFilename::extension(basename(str_replace('\\', '/', $clientName)));
+
+        return (self::ALLOWED_EXTENSIONS[$claimed] ?? null) === $imageType
+            ? $claimed
+            : self::ALLOWED_TYPES[$imageType];
     }
 
     /**

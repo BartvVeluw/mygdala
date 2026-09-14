@@ -29,7 +29,8 @@ Eén tabel, `media`, en die weet alleen iets over het bestand:
 id
 path              assets/media/<32 hex>.webp  — root-relatief, zonder / ervoor
 thumbnail_path    assets/media/thumbs/<zelfde naam>  — NULL als er geen is
-original_filename hoe het bestand heette bij de gebruiker (alleen label)
+original_filename hoe het bestand heette bij de gebruiker (herkomst, verandert nooit)
+display_name      de naam die de bibliotheek toont en die een redacteur mag wijzigen
 mime_type         uit de bestandsheader, niet uit de naam
 width, height     NULL als ze niet te bepalen zijn (een SVG bijvoorbeeld)
 file_size
@@ -96,6 +97,34 @@ op checksum gekeken vóór het opslaan (vangt een GIF) en nog eens ná het
 optimaliseren (vangt een foto, die immers heringepakt wordt); in het tweede
 geval wordt het net weggeschreven bestand meteen weer opgeruimd. Alleen een
 exacte match telt — er wordt niets vergeleken op *gelijkenis*.
+
+## Bestandsnaam
+
+Een media-item heeft een **naam**: wat een redacteur op de kaart leest, waarop
+hij zoekt en waaraan hij een beeld herkent. Die naam is een **label**, geen
+pad. Het bestand op de schijf houdt zijn willekeurige naam en elke feature
+verwijst naar het `id` (zie hieronder), dus een naam kan geen pagina breken.
+Daarom bestaat er ook geen hernoemen op de schijf.
+
+| Kolom | Wat |
+|---|---|
+| `display_name` | De naam in de bibliotheek |
+| `original_filename` | Hoe het bestand heette bij wie het uploadde. Verandert nooit, en je kunt erop zoeken |
+
+Bij het uploaden (`App\Service\Media\MediaFilename`):
+
+- de naam is die van het gekozen bestand, zonder mappen en zonder tekens die
+  niet in een bestandsnaam kunnen;
+- de **extensie volgt wat het bestand echt is**: een PNG die `logo.jpg` heet,
+  heet in de bibliotheek `logo.png`. Een juiste extensie blijft zoals hij
+  gespeld was (`.jpeg` blijft `.jpeg`);
+- **een upload faalt nooit op een naam**. Bestaat de naam al, dan wordt het
+  `naam-2.png`, `naam-3.png`. Hoofdletters maken geen verschil: `Logo.png` en
+  `logo.png` zijn één naam.
+
+Bestaande items kregen bij migratie `20260914100000` de naam die de bibliotheek
+al toonde. De kolom is in het schema niet uniek, want overgenomen oude beelden
+kunnen een naam delen; de bibliotheek houdt **nieuwe** namen zelf uniek.
 
 ## Hoe een feature naar media verwijst
 

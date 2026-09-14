@@ -248,8 +248,13 @@ final class MediaService
             return ['item' => $item, 'reused' => true];
         }
 
+        $displayName = $this->uniqueDisplayName(
+            MediaFilename::fromClientName($stored['original_filename']),
+            $stored['name_extension']
+        );
+
         try {
-            $id = $this->repository->create($stored + ['alt_text' => trim($altText)]);
+            $id = $this->repository->create($stored + ['alt_text' => trim($altText), 'display_name' => $displayName]);
         } catch (\Throwable $e) {
             error_log('[MediaService] upload: ' . $e->getMessage());
 
@@ -270,6 +275,33 @@ final class MediaService
         }
 
         return ['item' => $item, 'reused' => false];
+    }
+
+    /**
+     * A name no other item carries yet: the name itself, or the same name with
+     * "-2", "-3" and so on in front of its extension.
+     *
+     * AN UPLOAD NEVER FAILS OVER A NAME. The file is fine, and the name is a
+     * label that often nobody chose: two cameras both write IMG_0001.jpg.
+     *
+     * Not a lock. Two uploads of one name in the same instant can both keep
+     * it; the price of that race is two cards with one name, never a lost or
+     * overwritten file, because no name ever reaches the disk.
+     */
+    private function uniqueDisplayName(string $base, string $extension): string
+    {
+        $candidate = MediaFilename::compose($base, $extension);
+        $number = 1;
+
+        while ($this->repository->displayNameTaken($candidate)) {
+            $number++;
+
+            // Past a hundred, a counter tells a reader nothing any more.
+            $suffix = $number < 100 ? (string) $number : bin2hex(random_bytes(3));
+            $candidate = MediaFilename::compose($base . '-' . $suffix, $extension);
+        }
+
+        return $candidate;
     }
 
     /**

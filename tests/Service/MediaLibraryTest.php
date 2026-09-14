@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Service;
 
 use App\Repository\MediaRepository;
+use App\Service\Media\MediaFilename;
 use App\Service\Media\MediaItem;
 use App\Service\Media\MediaService;
 use App\Service\Media\MediaUploader;
@@ -279,6 +280,103 @@ final class MediaLibraryTest extends TestCase
     }
 
     /* ------------------------------------------------------------------ */
+    /* Names                                                               */
+    /* ------------------------------------------------------------------ */
+
+    public function testAnUploadIsNamedAfterTheFileTheEditorChose(): void
+    {
+        $item = $this->upload($this->pngFixture(21, 21), 'zzz-zomer-aan-zee.png', '');
+
+        $this->assertSame('zzz-zomer-aan-zee.png', $item->displayName);
+        $this->assertSame('zzz-zomer-aan-zee.png', $item->originalFilename);
+    }
+
+    /**
+     * A PNG saved as .jpg is named after what it really is, so the name never
+     * contradicts the type beside it. What the editor uploaded stays on record.
+     */
+    public function testTheNameTakesTheExtensionOfWhatTheFileReallyIs(): void
+    {
+        $item = $this->upload($this->pngFixture(22, 22), 'zzz-eigenlijk-een-png.jpg', '');
+
+        $this->assertSame('zzz-eigenlijk-een-png.png', $item->displayName);
+        $this->assertSame('zzz-eigenlijk-een-png.jpg', $item->originalFilename);
+        $this->assertStringEndsWith('.png', $item->path);
+    }
+
+    /** A right extension is kept the way the editor spelt it, in lower case. */
+    public function testARightExtensionKeepsItsOwnSpelling(): void
+    {
+        $item = $this->upload($this->jpegFixture(), 'zzz-portret.JPEG', '');
+
+        $this->assertSame('zzz-portret.jpeg', $item->displayName);
+        $this->assertStringEndsWith('.jpg', $item->path, 'stored under the one extension its type has');
+    }
+
+    /**
+     * Two different files with one name are two items with two names: an
+     * upload never fails over a name, and nobody may have chosen it (two
+     * cameras both write IMG_0001.jpg). Case does not make a name different.
+     */
+    public function testASecondFileWithATakenNameGetsANumber(): void
+    {
+        $first = $this->upload($this->pngFixture(23, 23), 'zzz-dubbele-naam.png', '');
+        $second = $this->upload($this->pngFixture(24, 24), 'ZZZ-Dubbele-Naam.png', '');
+
+        $this->assertSame('zzz-dubbele-naam.png', $first->displayName);
+        $this->assertSame('ZZZ-Dubbele-Naam-2.png', $second->displayName);
+        $this->assertSame('ZZZ-Dubbele-Naam.png', $second->originalFilename);
+    }
+
+    public function testAFileNameWithNothingUsableLeftGetsANeutralName(): void
+    {
+        $item = $this->upload($this->pngFixture(25, 25), '. .png', '');
+
+        $this->assertMatchesRegularExpression('/^afbeelding(-\d+)?\.png$/', $item->displayName);
+    }
+
+    public function testSearchMatchesTheNameAnItemWasGiven(): void
+    {
+        $this->upload($this->pngFixture(26, 26), 'zzz-gezocht.png', '');
+        $second = $this->upload($this->pngFixture(27, 27), 'zzz-gezocht.png', '');
+
+        $found = $this->service->browse('zzz-gezocht-2');
+
+        $this->assertSame(1, $found['total'], 'only the second item has this name; no original filename contains it');
+        $this->assertSame($second->id, $found['items'][0]->id);
+    }
+
+    /**
+     * A name is a label and never reaches the filesystem, but it is still a
+     * FILENAME to the editor who reads it: no separators, no characters a
+     * desktop refuses, no leading or trailing dot, nothing invisible.
+     */
+    public function testANameThatCannotBeAFilenameIsRefusedWithAReason(): void
+    {
+        $refused = [
+            '',
+            '   ',
+            '../geheim',
+            'map/foto',
+            'map\\foto',
+            'foto:1',
+            'wat?',
+            '.verborgen',
+            'eindigt.',
+            "tab\tje",
+            str_repeat('a', MediaFilename::MAX_BASE_LENGTH + 1),
+        ];
+
+        foreach ($refused as $name) {
+            $this->assertNotNull(MediaFilename::problemWith($name), var_export($name, true) . ' must be refused');
+        }
+
+        foreach (['Zomer aan zee', 'logo (donker)', 'versie.2', 'Crème brûlée', str_repeat('a', MediaFilename::MAX_BASE_LENGTH)] as $name) {
+            $this->assertNull(MediaFilename::problemWith($name), $name . ' is a good name');
+        }
+    }
+
+    /* ------------------------------------------------------------------ */
     /* Search                                                              */
     /* ------------------------------------------------------------------ */
 
@@ -466,6 +564,19 @@ final class MediaLibraryTest extends TestCase
 
         ob_start();
         imagegif($image);
+        $bytes = (string) ob_get_clean();
+        imagedestroy($image);
+
+        return $bytes;
+    }
+
+    private function jpegFixture(int $width = 40, int $height = 30): string
+    {
+        $image = imagecreatetruecolor($width, $height);
+        imagefilledrectangle($image, 0, 0, $width, $height, imagecolorallocate($image, 96, 160, 32));
+
+        ob_start();
+        imagejpeg($image, null, 90);
         $bytes = (string) ob_get_clean();
         imagedestroy($image);
 

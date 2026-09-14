@@ -26,6 +26,8 @@ final class MediaItem
         public readonly string $path,
         public readonly ?string $thumbnailPath,
         public readonly string $originalFilename,
+        /** The name an editor gave it; '' for a row that has none (see displayName()). */
+        public readonly string $displayName,
         public readonly string $mimeType,
         public readonly ?int $width,
         public readonly ?int $height,
@@ -47,6 +49,7 @@ final class MediaItem
             path: ltrim((string) ($row['path'] ?? ''), '/'),
             thumbnailPath: self::nullableString($row['thumbnail_path'] ?? null),
             originalFilename: (string) ($row['original_filename'] ?? ''),
+            displayName: (string) ($row['display_name'] ?? ''),
             mimeType: (string) ($row['mime_type'] ?? ''),
             width: self::nullableInt($row['width'] ?? null),
             height: self::nullableInt($row['height'] ?? null),
@@ -113,9 +116,18 @@ final class MediaItem
             && $this->height !== null && $this->height > 0;
     }
 
-    /** The name to show a human: the original filename, or the stored one. */
+    /**
+     * The name to show a human: the one the item has in the library (MEDIA.md,
+     * "Bestandsnaam"). A row without one — seeded by a test, or written by a
+     * path that did not choose one — falls back on the original filename, and
+     * then on the stored file's own name.
+     */
     public function displayName(): string
     {
+        if ($this->displayName !== '') {
+            return $this->displayName;
+        }
+
         return $this->originalFilename !== '' ? $this->originalFilename : basename($this->path);
     }
 

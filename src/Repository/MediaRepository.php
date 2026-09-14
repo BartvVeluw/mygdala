@@ -19,7 +19,7 @@ class MediaRepository extends Repository
     /** How many items one page of the library shows. */
     public const PAGE_SIZE = 24;
 
-    private const COLUMNS = 'id, path, thumbnail_path, original_filename, mime_type, width, height, file_size, alt_text, checksum, created_at, updated_at';
+    private const COLUMNS = 'id, path, thumbnail_path, original_filename, display_name, mime_type, width, height, file_size, alt_text, checksum, created_at, updated_at';
 
     /** @return array<string, mixed>|null */
     public function findById(int $id): ?array
@@ -88,11 +88,27 @@ class MediaRepository extends Repository
     }
 
     /**
+     * Whether another item already carries this name.
+     *
+     * Compared the way the column's collation compares, which is without
+     * regard to case: "Logo.png" and "logo.png" side by side in the grid are
+     * one name to the person reading them. See
+     * App\Service\Media\MediaService for what happens when a name is taken.
+     */
+    public function displayNameTaken(string $name, int $exceptId = 0): bool
+    {
+        $stmt = $this->db->prepare('SELECT 1 FROM media WHERE display_name = :name AND id <> :id LIMIT 1');
+        $stmt->execute(['name' => $name, 'id' => $exceptId]);
+
+        return $stmt->fetchColumn() !== false;
+    }
+
+    /**
      * One page of the library, newest first, optionally narrowed by a search
-     * term. The search is a plain LIKE over the two things a human can
-     * actually remember about an image: the name of the file they uploaded
-     * and the alt text they wrote. No tags, no folders, no ranking — see
-     * MEDIA.md.
+     * term. The search is a plain LIKE over what a human can actually
+     * remember about an image: the name it has in the library, the name of
+     * the file they uploaded, and the alt text they wrote. No tags, no
+     * folders, no ranking — see MEDIA.md.
      *
      * @return list<array<string, mixed>>
      */
@@ -140,11 +156,11 @@ class MediaRepository extends Repository
         // Escape the LIKE wildcards themselves: an editor searching for
         // "foto_1" means the underscore, and `_` matching any character is
         // the same trap that once deleted real products here.
-        $escaped = str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $term);
+        $pattern = '%' . str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $term) . '%';
 
         return [
-            " WHERE (original_filename LIKE :term ESCAPE '\\\\' OR alt_text LIKE :alt ESCAPE '\\\\')",
-            ['term' => '%' . $escaped . '%', 'alt' => '%' . $escaped . '%'],
+            " WHERE (display_name LIKE :name ESCAPE '\\\\' OR original_filename LIKE :term ESCAPE '\\\\' OR alt_text LIKE :alt ESCAPE '\\\\')",
+            ['name' => $pattern, 'term' => $pattern, 'alt' => $pattern],
         ];
     }
 
@@ -154,15 +170,26 @@ class MediaRepository extends Repository
      */
     public function create(array $values): int
     {
+        $path = ltrim((string) $values['path'], '/');
+        $originalFilename = mb_substr((string) ($values['original_filename'] ?? ''), 0, 255);
+        $displayName = trim((string) ($values['display_name'] ?? ''));
+
+        // Every row carries a name, also when a caller did not choose one:
+        // the same name the library showed before names could be chosen.
+        if ($displayName === '') {
+            $displayName = $originalFilename !== '' ? $originalFilename : basename($path);
+        }
+
         $stmt = $this->db->prepare(
-            'INSERT INTO media (path, thumbnail_path, original_filename, mime_type, width, height, file_size, alt_text, checksum, created_at, updated_at)
-             VALUES (:path, :thumbnail_path, :original_filename, :mime_type, :width, :height, :file_size, :alt_text, :checksum, NOW(), NOW())'
+            'INSERT INTO media (path, thumbnail_path, original_filename, display_name, mime_type, width, height, file_size, alt_text, checksum, created_at, updated_at)
+             VALUES (:path, :thumbnail_path, :original_filename, :display_name, :mime_type, :width, :height, :file_size, :alt_text, :checksum, NOW(), NOW())'
         );
 
         $stmt->execute([
-            'path' => ltrim((string) $values['path'], '/'),
+            'path' => $path,
             'thumbnail_path' => $values['thumbnail_path'] ?? null,
-            'original_filename' => mb_substr((string) ($values['original_filename'] ?? ''), 0, 255),
+            'original_filename' => $originalFilename,
+            'display_name' => mb_substr($displayName, 0, 255),
             'mime_type' => mb_substr((string) ($values['mime_type'] ?? ''), 0, 100),
             'width' => $values['width'] ?? null,
             'height' => $values['height'] ?? null,
@@ -175,9 +202,10 @@ class MediaRepository extends Repository
     }
 
     /**
-     * The only metadata an editor may change. The path, the checksum and the
-     * dimensions describe the FILE and are not editable text: changing them
-     * would make the row lie about what is on disk.
+     * The alt text, one of the two things about an item an editor may
+     * change. The path, the checksum and the dimensions describe the FILE
+     * and are not editable text: changing them would make the row lie about
+     * what is on disk.
      */
     public function updateMetadata(int $id, string $altText): void
     {

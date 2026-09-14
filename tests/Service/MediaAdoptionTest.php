@@ -41,12 +41,16 @@ final class MediaAdoptionTest extends TestCase
 
     private const ADOPTION_MIGRATION = '20260909270000';
 
+    /** The migration that gave every item a name of its own (MEDIA.md, "Bestandsnaam"). */
+    private const DISPLAY_NAME_MIGRATION = '20260914100000';
+
     private const SHARED = 'assets/images/zz-media-adoption/werkplaats.jpg';
     private const CAPTIONED_LATER = 'assets/images/zz-media-adoption/detail.png';
     private const SOCIAL = 'assets/images/zz-media-adoption/delen.webp';
     private const LOGO = 'assets/images/zz-media-adoption/logo.svg';
     private const REPLACED = 'assets/images/zz-media-adoption/vervangen.jpg';
     private const EDITOR_CHOICE = 'assets/media/zz-gekozen-door-redacteur.webp';
+    private const NAMELESS = 'assets/media/zz-zonder-naam.png';
     private const EXTERNAL_IMAGE = 'https://cdn.example.com/kaart.jpg';
     private const EXTERNAL_FAVICON = 'https://cdn.example.com/favicon.ico';
 
@@ -84,6 +88,14 @@ final class MediaAdoptionTest extends TestCase
             'original_filename' => basename(self::EDITOR_CHOICE),
             'mime_type' => 'image/webp',
             'alt_text' => 'Door de redacteur gekozen',
+        ]);
+
+        // A row that never had an original filename: it is named after its
+        // own stored file when names arrive.
+        self::$ids['nameless_item'] = self::insert('media', [
+            'path' => self::NAMELESS,
+            'original_filename' => '',
+            'mime_type' => 'image/png',
         ]);
 
         // One file, two features, two captions — the second with a leading
@@ -369,6 +381,35 @@ final class MediaAdoptionTest extends TestCase
             self::adoptionSnapshot(),
             'a second run must not add, move, re-caption or re-point anything'
         );
+    }
+
+    /* ------------------------------------------------------------------ */
+    /* Names (20260914100000)                                              */
+    /* ------------------------------------------------------------------ */
+
+    /**
+     * An upgrade names every item it brings along the way the library already
+     * showed it, so an editor sees no difference the day names arrive: the
+     * original filename, or — for a row that never had one — the stored
+     * file's own name.
+     */
+    public function testEveryItemAnUpgradeBringsAlongKeepsTheNameItAlreadyShowed(): void
+    {
+        $this->assertSame(basename(self::SHARED), (string) $this->mediaAt(self::SHARED)['display_name'], 'an adopted file');
+        $this->assertSame(basename(self::EDITOR_CHOICE), (string) $this->row('media', self::$ids['editor_item'])['display_name'], 'an uploaded file');
+        $this->assertSame(basename(self::NAMELESS), (string) $this->row('media', self::$ids['nameless_item'])['display_name'], 'a row without an original filename');
+        $this->assertSame([], $this->install()->rows("SELECT id FROM media WHERE display_name = ''"), 'no item is left without a name');
+    }
+
+    /** Run a second time, the naming migration changes nothing the first run wrote. */
+    public function testNamingTheLibraryAgainChangesNothing(): void
+    {
+        $before = $this->install()->rows('SELECT id, display_name FROM media ORDER BY id');
+
+        $this->install()->replay(self::DISPLAY_NAME_MIGRATION);
+
+        $this->assertNotSame([], $before);
+        $this->assertSame($before, $this->install()->rows('SELECT id, display_name FROM media ORDER BY id'));
     }
 
     // --------------------------------------------------------------- helpers
