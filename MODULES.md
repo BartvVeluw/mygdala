@@ -432,25 +432,36 @@ Portfolio slaat alleen het id op, nooit een adres.
   Een concept mag gekozen worden. *Nieuwe pagina maken* opent het gewone
   scherm *Nieuwe pagina* in een nieuw tabblad; er is geen koppeling terug, de
   redacteur kiest de nieuwe pagina daarna zelf.
-- De galerijkaart linkt naar het huidige adres van de gekoppelde pagina, per
-  verzoek opgelost, dus een hernoemde pagina gaat vanzelf mee. Geen pagina,
-  een concept of een verwijderde pagina: geen link en geen pijl. Een
-  `fallback_link_url` die op het galerijblok zelf is ingesteld, blijft wel
-  gelden.
+- De galerijkaart linkt, in deze volgorde:
+  1. naar het huidige adres van de gekoppelde, gepubliceerde pagina, per
+     verzoek opgelost, dus een hernoemde pagina gaat vanzelf mee;
+  2. anders, zolang het item nog een oude projectpagina heeft
+     (`has_detail_page` met een slug), tijdelijk naar `/portfolio/<slug>`,
+     zodat een bestaande site na de upgrade blijft werken tot elk oud project
+     een gewone pagina heeft;
+  3. anders nergens heen: geen link en geen pijl.
+
+  Een concept of een verwijderde pagina telt niet als koppeling. De
+  `fallback_link_url` van het galerijblok geldt nooit voor een portfolio-item
+  (`follows_fallback_link` is `false`); voor de kaarten van andere bronnen
+  werkt hij zoals altijd.
 - Een pagina verwijderen laat het item staan, zonder koppeling. Een item
   verwijderen of Portfolio uitzetten raakt de pagina nooit.
 
 **De oude projectpagina blijft, voor haar adres.** Vóór de koppeling had
 Portfolio een eigen projectpagina: `has_detail_page`, de slug, introtekst,
 beschrijving en `portfolio_item_images`. Niets bewerkt die nog, en niets
-ervan is verwijderd of gemigreerd. `portfolio-detail.php` beantwoordt een oud
-adres `/portfolio/<slug>` zo:
+ervan is verwijderd of gemigreerd. Tijdens de overgang is `/portfolio/<slug>`
+een compatibiliteitsroute, en `portfolio-detail.php` beantwoordt zo'n adres zo:
 
 | Situatie | Antwoord |
 |---|---|
-| Het item linkt naar een gepubliceerde pagina | 301 naar de canonical van die pagina, per verzoek bepaald op `page_id` |
+| Het item linkt naar een gepubliceerde pagina | tijdelijke redirect (302) naar de canonical van die pagina, per verzoek bepaald op `page_id` |
 | Geen koppeling, of een concept | de oude projectpagina zoals altijd, of de 404 die er al was |
 | Portfolio uit | 404 via `ModuleGuard`, ook met een koppeling |
+
+Tijdelijk en niet permanent: de koppeling achter het adres kan nog veranderen
+of verdwijnen, en een 301 zou een browser het vorige doel laten onthouden.
 
 Dat is bewust geen rij in de Redirect Manager (`REDIRECTS.md`): `/portfolio/`
 is daar een gereserveerde naamruimte, Apache stuurt zo'n adres naar

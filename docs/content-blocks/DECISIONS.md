@@ -162,6 +162,13 @@ zónder eigen projectpagina heen linkt; leeg = die kaart is geen link, en juist
 dán kan de lightbox 'm vergroten). Eén regel die beide oude gedragingen dekt, in
 plaats van een `if` per pagina.
 
+Sinds Portfolio-fase 4B bepaalt de Portfolio-bron de link van elke kaart zelf:
+de gekoppelde pagina, anders tijdelijk de oude projectpagina, anders niets
+(`MODULES.md`). Een portfolio-item volgt `fallback_link_url` daarom nooit meer
+(`follows_fallback_link` is `false` op het item). Reden: een kaart zonder eigen
+pagina mag niet via een instelling van het blok alsnog klikbaar worden. Voor de
+kaarten van andere bronnen doet het veld wat het deed.
+
 ## Weergave-instellingen horen bij het blok, dus de catalogus is geen sectie
 
 De zichtbaarheid van de portfolio-sectie is de `is_active` van het blok

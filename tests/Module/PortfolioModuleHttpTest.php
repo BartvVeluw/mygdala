@@ -222,12 +222,12 @@ final class PortfolioModuleHttpTest extends TestCase
 
     /**
      * An old project address whose item links to a published page answers a
-     * permanent redirect to that page's own canonical, in one step, also after
-     * the page is renamed — and renders nothing of the old page. With the module
-     * off the old address is closed like every Portfolio URL, while the page,
-     * which belongs to Pages, keeps answering.
+     * TEMPORARY redirect (302) to that page's own canonical, in one step, also
+     * after the page is renamed — and renders nothing of the old page. With the
+     * module off the old address is closed like every Portfolio URL, while the
+     * page, which belongs to Pages, keeps answering.
      */
-    public function testAnOldProjectAddressRedirectsToItsLinkedPageWhileTheModuleRuns(): void
+    public function testAnOldProjectAddressRedirectsTemporarilyToItsLinkedPageWhileTheModuleRuns(): void
     {
         $item = $this->item(projectPage: true);
         $page = $this->contentPage(PageContent::STATUS_PUBLISHED);
@@ -235,19 +235,49 @@ final class PortfolioModuleHttpTest extends TestCase
         $oldAddress = '/portfolio-detail.php?slug=' . $item['slug'];
 
         $on = self::$on->request('GET', $oldAddress);
-        $this->assertSame(301, $on['status']);
+        $this->assertSame(302, $on['status'], 'temporary: the link behind a compatibility route may still change');
         $this->assertSame(PageContent::canonicalUrl($page), $on['location']);
         $this->assertStringNotContainsString((string) $item['title_nl'], $on['body'], 'nothing of the old page is rendered');
         $this->assertSame(200, self::$on->request('GET', '/pagina.php?slug=' . $page['slug'])['status']);
 
         $renamed = $this->renamePage((int) $page['id']);
         $again = self::$on->request('GET', $oldAddress);
-        $this->assertSame(301, $again['status']);
+        $this->assertSame(302, $again['status']);
         $this->assertSame(PageContent::canonicalUrl($renamed), $again['location'], 'the rename is followed, in one step');
 
         $off = self::$off->request('GET', $oldAddress);
         $this->assertSame(404, $off['status'], "the old address is the Portfolio's, and the Portfolio is off");
         $this->assertSame(200, self::$off->request('GET', '/pagina.php?slug=' . $renamed['slug'])['status'], 'the page keeps answering');
+    }
+
+    /**
+     * The link behind an old address is still an editor's to change, which is
+     * why the redirect is temporary: link another page and the address follows
+     * it at once; take the link off and the old project page answers again.
+     */
+    public function testAnOldProjectAddressFollowsARelinkAndShowsTheOldPageAgainWhenUnlinked(): void
+    {
+        $item = $this->item(projectPage: true);
+        $first = $this->contentPage(PageContent::STATUS_PUBLISHED);
+        $second = $this->contentPage(PageContent::STATUS_PUBLISHED);
+        $repository = new PortfolioGalleryRepository();
+        $oldAddress = '/portfolio-detail.php?slug=' . $item['slug'];
+
+        $repository->setItemPage((int) $item['id'], (int) $first['id']);
+        $linked = self::$on->request('GET', $oldAddress);
+        $this->assertSame(302, $linked['status']);
+        $this->assertSame(PageContent::canonicalUrl($first), $linked['location']);
+
+        $repository->setItemPage((int) $item['id'], (int) $second['id']);
+        $relinked = self::$on->request('GET', $oldAddress);
+        $this->assertSame(302, $relinked['status']);
+        $this->assertSame(PageContent::canonicalUrl($second), $relinked['location'], 'a relink is followed at once');
+
+        $repository->setItemPage((int) $item['id'], null);
+        $unlinked = self::$on->request('GET', $oldAddress);
+        $this->assertSame(200, $unlinked['status'], 'unlinked, the old project page answers again');
+        $this->assertSame('', $unlinked['location']);
+        $this->assertStringContainsString((string) $item['title_nl'], $unlinked['body']);
     }
 
     /**

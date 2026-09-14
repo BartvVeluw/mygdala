@@ -698,8 +698,9 @@ De suite `modules` (`tests/Module/`) test het modulesysteem zelf:
   Geen database, geen webserver.
 - `PortfolioModuleHttpTest` — hetzelfde over echt HTTP, plus dat de data een
   keer uit en weer aan overleeft, de koppeling met een pagina inbegrepen. Een
-  oud projectadres geeft een 301 naar de gekoppelde pagina (ook na een
-  hernoeming, nooit naar een concept, een 404 met de module uit), de
+  oud projectadres geeft een tijdelijke redirect (302) naar de gekoppelde
+  pagina (ook na een hernoeming of een nieuwe koppeling, nooit naar een
+  concept, na ontkoppelen weer de oude pagina, een 404 met de module uit), de
   galerijkaart linkt naar die pagina, en de sitemap noemt een gekoppeld
   project één keer. Start zelf twee ingebouwde PHP-servers, één met
   `MODULE_PORTFOLIO_ENABLED=true` en één met `false`

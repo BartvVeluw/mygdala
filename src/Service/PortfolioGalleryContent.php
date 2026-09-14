@@ -37,18 +37,19 @@ use App\Repository\PortfolioItemImageRepository;
  * class turns it into an address per request, only ever through a page the
  * public may see: published, and not served by a switched-off module — the
  * rule App\Service\LinkResolver applies to a menu link. A renamed page is
- * followed, a draft or deleted page gives no link, and no address is stored
+ * followed, a draft or deleted page is no link, and no address is stored
  * anywhere. That page's words, SEO, canonical and sitemap entry are its own.
  *
- * THE OLD PROJECT PAGE, kept for its address. Before the link the Portfolio
- * owned its project pages at /portfolio/<slug> (has_detail_page, slug, intro,
- * description, portfolio_item_images). Nothing edits them any more; the
- * columns and the photos stay (MODULES.md, "Portfolio"). An old address
- * redirects to the published page its item links to
+ * THE OLD PROJECT PAGE, kept for its address during the transition. Before the
+ * link the Portfolio owned its project pages at /portfolio/<slug>
+ * (has_detail_page, slug, intro, description, portfolio_item_images). Nothing
+ * edits them any more; the columns and the photos stay (MODULES.md,
+ * "Portfolio"). /portfolio/<slug> is a compatibility route now: it redirects,
+ * temporarily, to the published page its item links to
  * (legacyProjectRedirectUrl()), or, while there is none, still shows the old
- * page (itemForDetailPage()) — never a silent 404 — and
- * legacyProjectPagesForSitemap() lists exactly the addresses that still show
- * one.
+ * page (itemForDetailPage()) — never a silent 404. Meanwhile the item's card
+ * links to that old page (mapItemRow()), and legacyProjectPagesForSitemap()
+ * lists exactly the addresses that still show one.
  *
  * There is deliberately no hardcoded DEFAULTS item list any more. It existed
  * as a "database unreachable" safety net for a template that rendered the
@@ -281,12 +282,22 @@ class PortfolioGalleryContent
      * admin/homepage-selection concerns, not something a template needs to
      * render a card.
      *
-     * `url` is the current address of the published page the item links to,
-     * which is what gives the card its "opens its own page" arrow. An item
-     * without one — no link, a draft, a page that is gone — gets no URL here,
-     * and the BLOCK decides whether to point its card somewhere else (its
-     * `fallback_link_url`) or leave it plain and lightbox-able. The old project
-     * page plays no part: it only still answers at its own old address.
+     * THE LINK, in this order (MODULES.md, "Portfolio"):
+     *
+     *   1. the current address of the published page the item links to;
+     *   2. otherwise, while the item still has its old project page
+     *      (has_detail_page and a slug to reach it by), that page's
+     *      /portfolio/<slug>: a compatibility link, so a site keeps working
+     *      after the upgrade until every old project has an ordinary page;
+     *   3. otherwise none: a plain card without the "opens its own page" arrow.
+     *
+     * A link to a draft or a deleted page is no link, so rule 2 or 3 applies
+     * and no unpublished address ever reaches the page.
+     *
+     * `follows_fallback_link` is false for every portfolio item: the block's
+     * `fallback_link_url` never stands in for rule 3. A portfolio card without
+     * a page of its own stays unclickable, whatever the block sets for the
+     * cards of other sources.
      *
      * @param array<string, mixed> $item
      * @param array<int, list<string>> $categoriesByItemId from categorySlugsByItemIds()
@@ -299,7 +310,15 @@ class PortfolioGalleryContent
         $subtitleNl = (string) $item['subtitle_nl'];
 
         $page = $pagesById[(int) ($item['page_id'] ?? 0)] ?? null;
-        $url = $page !== null ? PageContent::publicUrl($page) : '';
+        $oldSlug = (string) ($item['slug'] ?? '');
+
+        if ($page !== null) {
+            $url = PageContent::publicUrl($page);
+        } elseif (!empty($item['has_detail_page']) && $oldSlug !== '') {
+            $url = self::publicPath($oldSlug);
+        } else {
+            $url = '';
+        }
 
         return [
             'image_path' => (string) $item['image_path'],
@@ -312,6 +331,7 @@ class PortfolioGalleryContent
             'categories' => implode(' ', $categoriesByItemId[(int) $item['id']] ?? []),
             'url' => $url,
             'is_detail_link' => $url !== '',
+            'follows_fallback_link' => false,
         ];
     }
 
@@ -319,8 +339,15 @@ class PortfolioGalleryContent
      * Where an old project address sends its visitor now: the canonical URL of
      * the published page its item links to, or null when there is none — no
      * item with that slug, no link, or a link to a draft, a deleted page or a
-     * page whose module is off. portfolio-detail.php answers a URL with a 301 to
-     * it before it reads anything of the old page.
+     * page whose module is off. portfolio-detail.php answers a URL with a
+     * TEMPORARY redirect to it (App\Service\Redirects\Redirect::STATUS_TEMPORARY,
+     * the CMS's own "borrowed for now") before it reads anything of the old page.
+     *
+     * Temporary, not permanent: during the transition /portfolio/<slug> is a
+     * compatibility route, and the link behind it is still an editor's to
+     * change. Take the link off and the old page answers again; link another
+     * page and the address follows it. A 301 would be cached by browsers and
+     * keep sending earlier visitors to a target the item no longer has.
      *
      * Resolved per request on the page's id, like the card, so a renamed page
      * is followed without a stored redirect to keep up to date. The target is

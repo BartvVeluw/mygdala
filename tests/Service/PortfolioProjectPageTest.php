@@ -5,35 +5,42 @@ declare(strict_types=1);
 namespace Tests\Service;
 
 use App\Database;
+use App\Module\PortfolioModule;
+use App\Repository\ItemGalleryRepository;
 use App\Repository\PageRepository;
+use App\Repository\PageSectionRepository;
 use App\Repository\PortfolioGalleryRepository;
 use App\Service\ItemGalleryContent;
 use App\Service\PageContent;
 use App\Service\PageService;
 use App\Service\PortfolioGalleryContent;
+use App\Service\SectionRegistry;
 use App\Service\Sitemap;
 use PHPUnit\Framework\TestCase;
 
 require_once dirname(__DIR__, 2) . '/partials/section-item-gallery.php';
 
 /**
- * What a portfolio item's link to an ordinary page does in public, read through
- * the model the site renders from (App\Service\PortfolioGalleryContent):
+ * What a portfolio item's link does in public, read through the model and the
+ * block the site renders from (App\Service\PortfolioGalleryContent):
  *
- *   - the gallery card: no page, no link and no arrow; a published page, its
- *     current address, also after a rename; a draft or a deleted page, a plain
- *     card again, so no draft's address ever reaches the page;
+ *   - the gallery card, in the contract's order: the published page the item
+ *     links to, at its current address; otherwise, while the item still has
+ *     its old project page, that page's /portfolio/<slug>; otherwise no link
+ *     and no arrow. A draft or a deleted page is no link, so no unpublished
+ *     address ever reaches the page;
+ *   - the block's fallback link, which never makes a portfolio card clickable;
  *   - an old /portfolio/<slug> address: a redirect target only while a
  *     published page is linked, always that page's own canonical, following a
- *     rename, never an old address itself;
+ *     rename and a relink, never an old address itself;
  *   - the sitemap: a linked project once, from Core's pages collector under the
  *     page's own address, and its old address not at all — while an old project
  *     page without a published link is still listed.
  *
- * Against the test database, through the repositories and read model the site
- * itself uses. The same over real HTTP, with the module switched off and on,
- * is Tests\Module\PortfolioModuleHttpTest. Everything made here is its own,
- * marked zz-, and removed again in tearDown().
+ * Against the test database, through the repositories, the read model and the
+ * block the site itself uses. The redirect's status code and the module
+ * switched off and on, over real HTTP, are Tests\Module\PortfolioModuleHttpTest.
+ * Everything made here is its own, marked zz-, and removed again in tearDown().
  */
 final class PortfolioProjectPageTest extends TestCase
 {
@@ -43,8 +50,19 @@ final class PortfolioProjectPageTest extends TestCase
     /** @var list<int> */
     private array $pageIds = [];
 
+    /** @var list<int> page_sections ids */
+    private array $sectionIds = [];
+
     protected function tearDown(): void
     {
+        $sections = new PageSectionRepository();
+        foreach ($this->sectionIds as $id) {
+            $row = $sections->findById($id);
+            if ($row !== null) {
+                SectionRegistry::delete($row, $sections);
+            }
+        }
+
         $gallery = new PortfolioGalleryRepository();
         foreach ($this->itemIds as $id) {
             $gallery->deleteItem($id);
@@ -59,8 +77,10 @@ final class PortfolioProjectPageTest extends TestCase
 
         $this->itemIds = [];
         $this->pageIds = [];
+        $this->sectionIds = [];
 
         PortfolioGalleryContent::clearCache();
+        ItemGalleryContent::clearCache();
         PageContent::clearCache();
     }
 
@@ -68,31 +88,76 @@ final class PortfolioProjectPageTest extends TestCase
     /* The gallery card                                                    */
     /* ------------------------------------------------------------------ */
 
-    public function testACardWithoutAPageIsNoLinkAndHasNoArrow(): void
+    /**
+     * Rule 3. No page and no old project page — which takes both the switch
+     * and a slug to reach it by — gives no link and no arrow.
+     */
+    public function testACardWithNeitherAPageNorAnOldProjectPageIsNoLinkAndHasNoArrow(): void
     {
-        $card = $this->card($this->item());
+        $itemId = $this->item();
 
+        $card = $this->card($itemId);
         $this->assertSame('', $card['url']);
         $this->assertFalse($card['is_detail_link']);
 
         $html = $this->render($card);
         $this->assertStringNotContainsString('<a class="gallery-item', $html);
         $this->assertStringNotContainsString('gallery-item__arrow', $html);
+
+        $this->setOldProjectColumns($itemId, false, 'zz-alleen-een-slug-' . bin2hex(random_bytes(4)));
+        $this->assertSame('', $this->card($itemId)['url'], 'a slug without the old page switched on is no old project page');
+
+        $this->setOldProjectColumns($itemId, true, null);
+        $this->assertSame('', $this->card($itemId)['url'], 'and neither is the switch without a slug to reach it by');
     }
 
     /**
-     * Even with an old project page switched on: that page only still answers
-     * at its old address, it gives the card no link any more.
+     * Rule 2. An item that still has its old project page links its card to
+     * that page's address, arrow and all, until a published page is linked —
+     * so a site keeps working after the upgrade.
      */
-    public function testAnOldProjectPageAloneMakesNoLink(): void
+    public function testAnOldProjectPageLinksTheCardToItsOldAddress(): void
     {
         $itemId = $this->item();
-        $this->giveItAnOldProjectPage($itemId);
+        $oldSlug = $this->giveItAnOldProjectPage($itemId);
 
-        $this->assertSame('', $this->card($itemId)['url']);
-        $this->assertFalse($this->card($itemId)['is_detail_link']);
+        $card = $this->card($itemId);
+        $this->assertSame('/portfolio/' . $oldSlug, $card['url']);
+        $this->assertSame(PortfolioGalleryContent::publicPath($oldSlug), $card['url'], 'through the one place that knows the prefix');
+        $this->assertTrue($card['is_detail_link']);
+
+        $html = $this->render($card);
+        $this->assertStringContainsString('<a class="gallery-item gallery-item--linked" href="/portfolio/' . $oldSlug . '"', $html);
+        $this->assertStringContainsString('gallery-item__arrow', $html);
     }
 
+    /**
+     * Rule 1 before rule 2, and only for a published page. Linked to a draft,
+     * the card keeps the old address and names the draft nowhere; once the
+     * page is published the card links to it; unlinked again, the old address
+     * is back.
+     */
+    public function testAPublishedPageTakesOverFromTheOldProjectPageAndADraftDoesNot(): void
+    {
+        $itemId = $this->item();
+        $oldSlug = $this->giveItAnOldProjectPage($itemId);
+        $pageId = $this->page(PageContent::STATUS_DRAFT);
+        $repository = new PortfolioGalleryRepository();
+        $repository->setItemPage($itemId, $pageId);
+        $pageSlug = (string) (new PageRepository())->findById($pageId)['slug'];
+
+        $card = $this->card($itemId);
+        $this->assertSame('/portfolio/' . $oldSlug, $card['url'], 'a draft does not take over');
+        $this->assertStringNotContainsString($pageSlug, $this->render($card));
+
+        $this->publish($pageId);
+        $this->assertSame('/' . $pageSlug, $this->card($itemId)['url'], 'a published page does');
+
+        $repository->setItemPage($itemId, null);
+        $this->assertSame('/portfolio/' . $oldSlug, $this->card($itemId)['url'], 'unlinked, the old address is back');
+    }
+
+    /** Rule 1: the page's current address, never a stored one. */
     public function testACardLinksToItsPublishedPageAndFollowsARename(): void
     {
         $itemId = $this->item();
@@ -112,6 +177,7 @@ final class PortfolioProjectPageTest extends TestCase
         $this->assertSame('/' . $renamed, $this->card($itemId)['url'], 'the card follows the page, never a stored address');
     }
 
+    /** Rule 3 for an item without an old project page: a draft or a deleted page is no link. */
     public function testACardNeverLinksToADraftOrADeletedPage(): void
     {
         $itemId = $this->item();
@@ -129,6 +195,50 @@ final class PortfolioProjectPageTest extends TestCase
 
         PageService::delete((array) (new PageRepository())->findById($pageId));
         $this->assertSame('', $this->card($itemId)['url'], 'deleted, it is a plain card again');
+    }
+
+    /* ------------------------------------------------------------------ */
+    /* The block's fallback link                                           */
+    /* ------------------------------------------------------------------ */
+
+    /**
+     * A gallery block set to portfolio items, with a fallback link and the
+     * lightbox on. The card without a page and without an old project page
+     * stays plain — no link to the fallback, no arrow, and so enlargeable like
+     * any plain card — while the other two link exactly where the contract
+     * says, and the fallback address appears nowhere. Rendered through the
+     * real block, from its stored settings. That the fallback link still
+     * serves the cards of other sources is
+     * Tests\Service\ReusableBlocksPhase4Test.
+     */
+    public function testTheBlocksFallbackLinkNeverMakesAPortfolioCardClickable(): void
+    {
+        $marker = bin2hex(random_bytes(4));
+        $fallback = '/zz-fallback-' . $marker;
+
+        $this->item('ZZ Kaal ' . $marker);
+
+        $oldId = $this->item('ZZ Oud ' . $marker);
+        $oldSlug = $this->giveItAnOldProjectPage($oldId);
+
+        $linkedId = $this->item('ZZ Gekoppeld ' . $marker);
+        $pageId = $this->page(PageContent::STATUS_PUBLISHED);
+        (new PortfolioGalleryRepository())->setItemPage($linkedId, $pageId);
+        $pageSlug = (string) (new PageRepository())->findById($pageId)['slug'];
+
+        $html = $this->renderBlock($this->galleryBlock(['fallback_link_url' => $fallback, 'enable_lightbox' => true]));
+        $xpath = $this->xpath($html);
+
+        $plain = $this->cardElement($xpath, 'ZZ Kaal ' . $marker);
+        $this->assertSame('div', $plain->nodeName, 'no page and no old project page: not a link');
+        $this->assertFalse($plain->hasAttribute('href'));
+        $this->assertTrue($plain->hasAttribute('data-lightbox-item'), 'a plain card, so the lightbox may enlarge it');
+        $this->assertSame(0, $xpath->query('.//*[contains(@class, "gallery-item__arrow")]', $plain)->length);
+
+        $this->assertSame('/portfolio/' . $oldSlug, $this->cardElement($xpath, 'ZZ Oud ' . $marker)->getAttribute('href'));
+        $this->assertSame('/' . $pageSlug, $this->cardElement($xpath, 'ZZ Gekoppeld ' . $marker)->getAttribute('href'));
+
+        $this->assertStringNotContainsString($fallback, $html, 'no portfolio card follows the fallback link');
     }
 
     /* ------------------------------------------------------------------ */
@@ -158,6 +268,14 @@ final class PortfolioProjectPageTest extends TestCase
             PageContent::canonicalUrl((array) (new PageRepository())->findById($pageId)),
             PortfolioGalleryContent::legacyProjectRedirectUrl($oldSlug),
             'a rename is followed in one step'
+        );
+
+        $otherPageId = $this->page(PageContent::STATUS_PUBLISHED);
+        $repository->setItemPage($itemId, $otherPageId);
+        $this->assertSame(
+            PageContent::canonicalUrl((array) (new PageRepository())->findById($otherPageId)),
+            PortfolioGalleryContent::legacyProjectRedirectUrl($oldSlug),
+            'a relink to another page is followed at once'
         );
 
         $repository->setItemPage($itemId, null);
@@ -198,7 +316,7 @@ final class PortfolioProjectPageTest extends TestCase
 
     /* ------------------------------------------------------------------ */
 
-    private function item(): int
+    private function item(string $title = ''): int
     {
         $repository = new PortfolioGalleryRepository();
         $marker = bin2hex(random_bytes(4));
@@ -208,7 +326,7 @@ final class PortfolioProjectPageTest extends TestCase
             'thumbnail_path' => null,
             'alt_nl' => 'ZZ alt ' . $marker,
             'alt_en' => null,
-            'title_nl' => 'ZZ Project ' . $marker,
+            'title_nl' => $title !== '' ? $title : 'ZZ Project ' . $marker,
             'title_en' => null,
             'subtitle_nl' => 'ZZ onderschrift ' . $marker,
             'subtitle_en' => null,
@@ -237,6 +355,14 @@ final class PortfolioProjectPageTest extends TestCase
             ->execute(['slug' => $slug, 'id' => $itemId]);
 
         return $slug;
+    }
+
+    /** Half of an old project page, to prove that half is not enough. */
+    private function setOldProjectColumns(int $itemId, bool $hasDetailPage, ?string $slug): void
+    {
+        Database::connection()
+            ->prepare('UPDATE portfolio_gallery_items SET has_detail_page = :switch, slug = :slug WHERE id = :id')
+            ->execute(['switch' => $hasDetailPage ? 1 : 0, 'slug' => $slug, 'id' => $itemId]);
     }
 
     private function page(string $status): int
@@ -290,6 +416,57 @@ final class PortfolioProjectPageTest extends TestCase
     }
 
     /**
+     * A page of this test's own with one gallery block set to portfolio items,
+     * stored the way the block editor stores its settings.
+     *
+     * @param array<string, mixed> $settings
+     * @return int the page_sections id
+     */
+    private function galleryBlock(array $settings): int
+    {
+        $key = 'zz-galerij-' . bin2hex(random_bytes(4));
+        $pageId = (new PageRepository())->create([
+            'content_key' => $key,
+            'slug' => $key,
+            'title' => 'ZZ Galerij',
+            'status' => PageContent::STATUS_PUBLISHED,
+            'meta_title' => null,
+            'meta_title_en' => null,
+            'meta_description' => null,
+            'meta_description_en' => null,
+        ]);
+        $this->pageIds[] = $pageId;
+
+        [$sectionId, $sectionKey] = SectionRegistry::create('item_gallery', $key);
+        $pageSectionId = (new PageSectionRepository())->create($pageId, $key, 'item_gallery', $sectionKey, $sectionId);
+        $this->sectionIds[] = $pageSectionId;
+
+        (new ItemGalleryRepository())->upsertSection($key, (string) $sectionKey, $settings + [
+            'source_type' => PortfolioModule::GALLERY_SOURCE,
+            'portfolio_scope' => ItemGalleryContent::SCOPE_ALL,
+            'background' => 'default',
+            'is_active' => true,
+        ]);
+
+        return $pageSectionId;
+    }
+
+    private function renderBlock(int $pageSectionId): string
+    {
+        ItemGalleryContent::clearCache();
+        PortfolioGalleryContent::clearCache();
+        PageContent::clearCache();
+
+        $row = (new PageSectionRepository())->findById($pageSectionId);
+        $this->assertNotNull($row);
+
+        ob_start();
+        SectionRegistry::render($row);
+
+        return (string) ob_get_clean();
+    }
+
+    /**
      * The card the gallery would draw for one item, read fresh — every cache
      * in between cleared, as a new request would find it.
      *
@@ -333,5 +510,31 @@ final class PortfolioProjectPageTest extends TestCase
         ], 'zz-test');
 
         return (string) ob_get_clean();
+    }
+
+    private function xpath(string $html): \DOMXPath
+    {
+        $document = new \DOMDocument();
+        $previous = libxml_use_internal_errors(true);
+        $document->loadHTML('<?xml encoding="utf-8"?><div>' . $html . '</div>');
+        libxml_clear_errors();
+        libxml_use_internal_errors($previous);
+
+        return new \DOMXPath($document);
+    }
+
+    /** The one card whose overlay title is exactly $title. */
+    private function cardElement(\DOMXPath $xpath, string $title): \DOMElement
+    {
+        $cards = $xpath->query(
+            '//*[contains(concat(" ", normalize-space(@class), " "), " gallery-item ")][.//p[normalize-space(.) = "' . $title . '"]]'
+        );
+        $this->assertNotFalse($cards);
+        $this->assertSame(1, $cards->length, 'exactly one card titled ' . $title);
+
+        $card = $cards->item(0);
+        $this->assertInstanceOf(\DOMElement::class, $card);
+
+        return $card;
     }
 }

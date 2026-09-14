@@ -15,8 +15,9 @@ require_once __DIR__ . '/vendor/autoload.php';
  * CMS page that the item links to (MODULES.md, "Portfolio"). Edited nowhere
  * any more, and kept so that no address that was ever public silently breaks.
  *
- * An address whose item links to a published page is answered with a
- * permanent redirect to that page, before anything of the old page is read
+ * During the transition this address is a compatibility route. An address
+ * whose item links to a published page is answered with a temporary redirect
+ * (302) to that page, before anything of the old page is read
  * (App\Service\PortfolioGalleryContent::legacyProjectRedirectUrl()). Every
  * other address renders what it always rendered: one fixed structure (back
  * link, title/subtitle, main image, intro, description, additional image
@@ -34,12 +35,14 @@ require_once __DIR__ . '/vendor/autoload.php';
 
 $slug = (string) ($_GET['slug'] ?? '');
 
-// An old address whose item links to a published page: send the visitor
-// there, permanently, before anything of the old page is read. Why this is not
+// An old address whose item links to a published page: send the visitor there
+// before anything of the old page is read. Temporarily, with the CMS's own
+// "borrowed for now" code: this is a compatibility route, and the link behind
+// it may still be changed or removed. Why it is temporary, and why this is not
 // the Redirect Manager's job: PortfolioGalleryContent::legacyProjectRedirectUrl().
 $projectPageUrl = \App\Service\PortfolioGalleryContent::legacyProjectRedirectUrl($slug);
 if ($projectPageUrl !== null) {
-    header('Location: ' . $projectPageUrl, true, 301);
+    header('Location: ' . $projectPageUrl, true, \App\Service\Redirects\Redirect::STATUS_TEMPORARY);
     exit;
 }
 

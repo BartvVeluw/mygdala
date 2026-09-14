@@ -20,6 +20,8 @@ use App\Service\PortfolioGalleryContent;
 use App\Service\SectionRegistry;
 use PHPUnit\Framework\TestCase;
 
+require_once dirname(__DIR__, 2) . '/partials/section-item-gallery.php';
+
 /**
  * Phase 4 of the content-block refactor (docs/content-blocks/PHASE-4.md):
  * the two Portfolio blocks become ONE reusable block with a selectable
@@ -495,18 +497,47 @@ final class ReusableBlocksPhase4Test extends TestCase
         $this->assertStringNotContainsString('data-lightbox-item', $off);
     }
 
+    /**
+     * The block's fallback link is generic: a card without a URL of its own,
+     * from a source that lets its cards follow it (every source but the
+     * Portfolio's), becomes a real link — which must navigate, never zoom.
+     *
+     * Rendered straight through the partial with such a card, so it no longer
+     * depends on what this database holds: portfolio items were the cards this
+     * used to render, and they never follow the fallback link any more
+     * (Tests\Service\PortfolioProjectPageTest).
+     */
     public function testACardWithAFallbackLinkNavigatesInsteadOfZooming(): void
     {
-        if (PortfolioGalleryContent::catalogueItems(false) === []) {
-            $this->markTestSkipped('no visible portfolio items in this database');
-        }
+        ItemGalleryContent::clearCache();
 
-        [$blockId, $sectionKey] = $this->addBlock('item_gallery');
+        ob_start();
+        render_section_item_gallery([
+            'items' => [[
+                'image_path' => 'assets/images/sections/zz-phase4-fallback.jpg',
+                'alt_nl' => '', 'alt_en' => '',
+                'title_nl' => 'ZZ Kaart zonder eigen pagina', 'title_en' => 'ZZ Kaart zonder eigen pagina',
+                'subtitle_nl' => '', 'subtitle_en' => '',
+                'categories' => '',
+                'url' => '',
+                'is_detail_link' => false,
+            ]],
+            'enable_lightbox' => true,
+            'filter_categories' => [],
+            'fallback_link_url' => '/zz-overzicht',
+            'eyebrow_nl' => '', 'eyebrow_en' => '',
+            'title_nl' => '', 'title_en' => '',
+            'lead_nl' => '', 'lead_en' => '',
+            'footer_note_nl' => '', 'footer_note_en' => '',
+            'button_label_nl' => '', 'button_label_en' => '',
+            'button_url' => '',
+            'background' => 'default',
+            'tight_top' => false,
+        ], 'zz-phase4');
+        $html = (string) ob_get_clean();
 
-        $this->configure($sectionKey, ['enable_lightbox' => true, 'fallback_link_url' => '/portfolio.php']);
-        $html = $this->renderBlock($blockId);
-
-        $this->assertStringContainsString('href="/portfolio.php"', $html);
+        $this->assertStringContainsString('<a class="gallery-item" href="/zz-overzicht"', $html);
+        $this->assertStringNotContainsString('gallery-item__arrow', $html, "a fallback link is not the card's own page");
         $this->assertStringNotContainsString(
             'data-lightbox-item',
             $html,

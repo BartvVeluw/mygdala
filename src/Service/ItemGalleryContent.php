@@ -30,7 +30,10 @@ use App\Repository\ItemGalleryRepository;
  *   image_path, alt_nl/en, title_nl/en, subtitle_nl/en,
  *   categories (space-separated filter slugs),
  *   url ('' = not a link), is_detail_link (its own page, so it gets the
- *   "opens its own page" arrow).
+ *   "opens its own page" arrow), and optionally follows_fallback_link
+ *   (default true: a card without a url follows the block's
+ *   `fallback_link_url`; a source that decides every card's link itself says
+ *   false, and such a card stays plain).
  *
  * Display settings live on the block, not on the page: `show_filter_bar`,
  * `enable_lightbox`, `max_items`, `fallback_link_url`, `background` and

@@ -337,9 +337,12 @@ onveranderd.
   nooit ziet, en een opgeslagen bestemming zou bij elke hernoeming,
   ontkoppeling of depublicatie mee moeten veranderen. `portfolio-detail.php`
   bepaalt de bestemming daarom per verzoek
-  (`PortfolioGalleryContent::legacyProjectRedirectUrl()`): een 301 naar de
-  canonical van de gekoppelde, gepubliceerde pagina, en anders de oude
-  projectpagina. Eén opzoeking voor één soort adres, geen tweede
+  (`PortfolioGalleryContent::legacyProjectRedirectUrl()`): een tijdelijke
+  redirect (302) naar de canonical van de gekoppelde, gepubliceerde pagina, en
+  anders de oude projectpagina. Tijdelijk, want het adres is tijdens de
+  overgang een compatibiliteitsroute en de koppeling erachter kan nog
+  veranderen of verdwijnen: een 301 zou een browser het vorige doel laten
+  onthouden. Eén opzoeking voor één soort adres, geen tweede
   redirectsysteem. Het doel is altijd het huidige adres van de pagina, dus
   na een hernoeming ontstaat er geen keten via het vorige adres.
 - Regex- en wildcardredirects, hostnaamredirects, CSV-import/-export,

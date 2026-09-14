@@ -15,8 +15,10 @@
  * which is why both pages still render exactly what they did.
  *
  * A card links to its own detail page when it has one (and then carries the
- * arrow), otherwise it follows the block's `fallback_link_url`; with neither
- * it stays a plain, non-linked card, which is what makes it lightbox-able.
+ * arrow), otherwise it follows the block's `fallback_link_url` — unless its
+ * source decides every card's link itself and says so per item
+ * (`follows_fallback_link` false); with neither it stays a plain, non-linked
+ * card, which is what makes it lightbox-able.
  *
  * A card draws only the words it has. A portfolio item's title and caption are
  * optional, so a card with neither gets no overlay at all — not an empty,
@@ -90,7 +92,11 @@ function render_section_item_gallery(array $content, string $revealGroup = 'gall
       <div class="gallery-grid">
         <?php foreach ($content['items'] as $item): ?>
         <?php
-          $itemUrl = (string) $item['url'] !== '' ? (string) $item['url'] : $fallbackUrl;
+          // A card without a URL of its own follows the block's fallback link,
+          // unless its source decides every card's link itself and says so per
+          // item (`follows_fallback_link` false): such a card stays plain.
+          $followsFallbackLink = (bool) ($item['follows_fallback_link'] ?? true);
+          $itemUrl = (string) $item['url'] !== '' ? (string) $item['url'] : ($followsFallbackLink ? $fallbackUrl : '');
           $isDetailLink = (bool) $item['is_detail_link'] && (string) $item['url'] !== '';
           $categoryAttr = (string) $item['categories'] !== ''
               ? ' data-category="' . $h((string) $item['categories']) . '"'

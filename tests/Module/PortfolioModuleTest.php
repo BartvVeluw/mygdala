@@ -249,11 +249,13 @@ final class PortfolioModuleTest extends TestCase
 
     /**
      * An old project address with a published page linked is answered with a
-     * permanent redirect before anything of the old page is read or rendered.
-     * How the target is found is Tests\Service\PortfolioProjectPageTest; that
-     * it really answers 301 is Tests\Module\PortfolioModuleHttpTest.
+     * TEMPORARY redirect before anything of the old page is read or rendered:
+     * the address is a compatibility route and the link behind it may still be
+     * changed or removed, so nothing may remember it as permanent. How the
+     * target is found is Tests\Service\PortfolioProjectPageTest; that it really
+     * answers 302 is Tests\Module\PortfolioModuleHttpTest.
      */
-    public function testAnOldProjectAddressRedirectsBeforeTheOldPageIsRead(): void
+    public function testAnOldProjectAddressRedirectsTemporarilyBeforeTheOldPageIsRead(): void
     {
         $source = self::withoutComments(self::sourceOf('portfolio-detail.php'));
         $redirect = strpos($source, 'legacyProjectRedirectUrl($slug)');
@@ -262,11 +264,14 @@ final class PortfolioModuleTest extends TestCase
         $this->assertNotFalse($redirect);
         $this->assertNotFalse($oldPage);
         $this->assertLessThan($oldPage, $redirect);
-        $this->assertMatchesRegularExpression(
-            '#if \(\$projectPageUrl !== null\) \{\s*header\(\'Location: \' \. \$projectPageUrl, true, 301\);\s*exit;\s*\}#',
-            $source,
-            'a permanent redirect that stops the template right there'
+
+        $this->assertSame(
+            1,
+            preg_match('#if \(\$projectPageUrl !== null\) \{\s*(header\([^;]*\);)\s*exit;\s*\}#', $source, $match),
+            'a redirect that stops the template right there'
         );
+        $this->assertSame("header('Location: ' . \$projectPageUrl, true, \\App\\Service\\Redirects\\Redirect::STATUS_TEMPORARY);", $match[1]);
+        $this->assertSame(302, \App\Service\Redirects\Redirect::STATUS_TEMPORARY, "the CMS's own temporary code");
     }
 
     /**
