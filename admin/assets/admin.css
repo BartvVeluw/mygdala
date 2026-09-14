@@ -780,10 +780,13 @@ a{ color: var(--admin-accent); }
 
 .admin-page-section-row.is-dragging{ opacity: 0.4; }
 
+/* A hidden block stays recognisable — dashed, on the page background, its
+   name stepped back and the "Verborgen" badge saying it in words — while its
+   buttons keep full contrast: "Tonen" must be as easy to read and to press as
+   "Verbergen" was. */
 .admin-page-section-row.is-hidden-section{
   background: transparent;
   border-style: dashed;
-  opacity: 0.75;
 }
 
 .admin-page-section-row.is-hidden-section .admin-section-row__name{ color: var(--admin-text-muted); }
@@ -818,6 +821,29 @@ a{ color: var(--admin-accent); }
   border-color: var(--admin-accent);
   color: var(--admin-accent-hover);
 }
+
+/* A page with nothing below its heading yet (block_picker_empty_state()):
+   drawn like the dashed "add" row it stands in for, one step more inviting,
+   with the first block's button right under the sentence that asks for it. */
+.admin-blocks-empty{
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--admin-sp-2);
+  margin-top: var(--admin-sp-4);
+  padding: var(--admin-sp-5) var(--admin-sp-4);
+  text-align: center;
+  background: var(--admin-surface-sunken);
+  border: 1px dashed var(--admin-border-strong);
+  border-radius: var(--admin-radius-md);
+}
+
+/* Not a single row above it: no gap to keep from a list that is not there. */
+.admin-page-sections:not(:has(.admin-page-section-row)) + .admin-blocks-empty{ margin-top: 0; }
+
+.admin-blocks-empty__title{ margin: 0; font-size: 0.98rem; font-weight: 600; color: var(--admin-text); }
+.admin-blocks-empty__text{ margin: 0; font-size: 0.88rem; color: var(--admin-text-muted); }
+.admin-blocks-empty .admin-btn-primary{ margin-top: var(--admin-sp-2); }
 
 /* A block that was just added and had no editor of its own to open — a
    two-second glow so the row that appeared is the one being looked at. */
@@ -1052,6 +1078,19 @@ a{ color: var(--admin-accent); }
 .admin-page-section-row .admin-drag-handle{ margin-top: 0.5rem; }
 .admin-page-section-row .admin-section-row__actions{ flex-wrap: wrap; }
 .admin-page-section-row .admin-section-row__body{ flex: none; }
+
+/* The row's own buttons (Verbergen/Tonen, Verwijderen): the admin button
+   family, one size down so they stand as tall as the Bewerken link beside
+   them. Verwijderen keeps its distance at the far end, so it is never the
+   button right next to the one an editor meant. */
+.admin-page-section-row .admin-section-row__button{
+  padding: 0.35rem 0.8rem;
+  font-size: 0.84rem;
+  line-height: 1.5;
+  white-space: nowrap;
+}
+
+.admin-page-section-row .admin-section-row__delete{ margin-left: auto; }
 
 /* The shared row rule stacks its children below 900px (see the media block
    near the end of this file) — which was right when a row was a name, a note

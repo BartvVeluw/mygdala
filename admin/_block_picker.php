@@ -10,8 +10,10 @@ use App\Service\Blocks\BlockCategories;
 use App\Service\Blocks\BlockDefinition;
 
 /**
- * The block picker: ONE button under the page's block list, and the panel it
- * opens with a card per content block an editor may put on this page.
+ * The block picker: ONE button under the page's block list — or, while the
+ * page has nothing below its heading, the invitation that carries it — and
+ * the panel it opens with a card per content block an editor may put on this
+ * page.
  *
  * WHAT IT REPLACED. A `<select>` of type names next to a "+ Sectie toevoegen"
  * button. That asked someone to recognise a block from its name alone,
@@ -62,6 +64,36 @@ function block_picker_button(): void
               aria-haspopup="dialog" aria-expanded="false">
         <span aria-hidden="true"><?= admin_t('blocks.contentblok_toevoegen') ?>
       </button>
+    </div>
+    <?php
+}
+
+/**
+ * What the Inhoud tab shows INSTEAD of the opener while a page has nothing
+ * below its heading yet (App\Service\SectionRegistry::hasContentBlocks()):
+ * one plain sentence saying so, and the way to the first block right under
+ * it. Its button is one more opener of the SAME picker — block-picker.js
+ * binds every [data-block-picker-open] — so there is no second way to add a
+ * block, and no word for an editor to decode.
+ *
+ * @param bool $canAdd false when no block may be added to this page at all;
+ *                     it then says so, instead of offering a button that
+ *                     would open an empty picker
+ */
+function block_picker_empty_state(bool $canAdd): void
+{
+    ?>
+    <div class="admin-blocks-empty" data-block-picker-empty>
+      <p class="admin-blocks-empty__title"><?= admin_te('blocks.empty_title') ?></p>
+      <?php if ($canAdd): ?>
+        <p class="admin-blocks-empty__text"><?= admin_te('blocks.empty_text') ?></p>
+        <button type="button" class="admin-btn-primary" data-block-picker-open
+                aria-haspopup="dialog" aria-expanded="false">
+          <span aria-hidden="true"><?= admin_t('blocks.contentblok_toevoegen') ?>
+        </button>
+      <?php else: ?>
+        <p class="admin-blocks-empty__text"><?= admin_te('blocks.er_pagina_moment_contentblok') ?></p>
+      <?php endif; ?>
     </div>
     <?php
 }

@@ -3,6 +3,7 @@
 namespace App\Service;
 
 use App\Repository\PageSectionRepository;
+use App\Service\Blocks\BlockCategories;
 use App\Service\Blocks\BlockDefinition;
 use App\Service\Blocks\BlockDefinitions;
 use App\Service\Language\AdminTranslator;
@@ -552,6 +553,32 @@ class SectionRegistry
         $title = $definition === null ? '' : $definition->instanceTitle($pageSection);
 
         return $title !== '' ? "{$label} — {$title}" : $label;
+    }
+
+    /**
+     * Does this page carry anything below its head yet? The page builder asks
+     * before it shows its empty state: a page whose only block is its
+     * Paginakop has a title and nothing to read.
+     *
+     * "Its head" is read from the one place that already says so,
+     * BlockCategories::HERO, so no block type is named here. Every other row
+     * counts, hidden or not: a hidden block is content the editor made, and a
+     * row whose type is not registered right now — a switched-off module's
+     * block, data that outlived its code — is still a row the list shows.
+     *
+     * @param list<array<string, mixed>> $pageSections the page's page_sections rows
+     */
+    public static function hasContentBlocks(array $pageSections): bool
+    {
+        foreach ($pageSections as $pageSection) {
+            $definition = BlockDefinitions::get((string) ($pageSection['section_type'] ?? ''));
+
+            if ($definition === null || $definition->category() !== BlockCategories::HERO) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**

@@ -79,18 +79,23 @@ ziet er identiek uit met de Shop aan of uit.
 
 | Sleutel | Label | Blokken |
 |---|---|---|
-| `blank` | Lege pagina | *(geen)* |
+| `blank` | Lege pagina | Page Hero |
 | `standard` | Standaard contentpagina | Page Hero, Tekstblok |
 | `about` | Over ons | Page Hero, Text + Image Split, Tekstblok, CTA Band |
 | `services` | Diensten | Page Hero, Kaarten-carrousel, Tekstblok, CTA Band |
 | `contact` | Contact | Page Hero, Formulier, Contactkaart |
 | `landing` | Landingspagina | Page Hero, Text + Image Split, Feature Grid, CTA Band |
 
-*Lege pagina* is de standaardkeuze: wie de kiezer negeert krijgt exact de lege
-pagina die dit scherm vóór de sjablonen ook maakte.
+*Lege pagina* is de standaardkeuze: wie de kiezer negeert, krijgt een pagina
+met alleen de paginakop. Daaronder kiest de redacteur zelf het eerste blok, en
+de paginabouwer nodigt daartoe uit ([`PAGE-EDITOR.md`](PAGE-EDITOR.md), *Een
+pagina zonder inhoud*). Er komt bewust geen leeg tekstblok bij: een blok waar
+niemand om vroeg, is een blok dat je eerst moet weghalen.
 
-Elk sjabloon behalve `blank` opent met de Page Hero. Die draagt de `<h1>` van
-de pagina; een pagina die alleen uit een tekstblok bestaat heeft er geen.
+Elk sjabloon opent met de Page Hero, ook *Lege pagina*. Die draagt de `<h1>`
+van de pagina; een pagina die alleen uit een tekstblok bestaat heeft er geen.
+Bestaande pagina's veranderen hier niet door: een sjabloon werkt alleen op het
+moment van aanmaken.
 
 ### Startinhoud
 

@@ -23,7 +23,7 @@ document, dan heeft de code gelijk.
 | Schematische tekening en pictogram | `admin/_block_visual.php`, CSS in `admin/assets/admin.css` (`.admin-block-visual`, `.admin-bp--*`) |
 | Catalogus | `admin/content-blocks.php` (menu-item `content_blocks` in `App\Service\AdminNavigation`) |
 | Opslagbalk | `admin/_save_bar.php`, `admin/assets/save-bar.js`, aangeroepen door `admin/page.php`, elke blok-editor, `admin/settings.php` en `admin/shop-settings.php` |
-| Tests | `tests/Service/BlockPresentationTest.php`, `tests/Service/BlockPickerTest.php`, `tests/Service/AdminEditorNavigationTest.php` |
+| Tests | `tests/Service/BlockPresentationTest.php`, `tests/Service/BlockPickerTest.php`, `tests/Service/AdminEditorNavigationTest.php`, `tests/Service/PageBuilderScreenTest.php` |
 
 ## Tabbladen op de paginabouwer
 
@@ -96,9 +96,9 @@ de bron.
 ## Contentblokken klappen open en dicht
 
 ```text
-▸ Tekstblok — Over onze diensten
-▾ Detailsectie — Hout graveren
-     Bewerken →   Verbergen   Verwijderen
+≡ ▸ Tekstblok — Over onze diensten
+≡ ▾ Detailsectie — Hout graveren                      [Verborgen]
+       [Bewerken →] [Tonen]                        [Verwijderen]
 ```
 
 Elke rij in de blokkenlijst is een `<details>` met een `<summary>`. Dat is de
@@ -113,7 +113,18 @@ de open/dicht-toestand die een schermlezer voorleest, zonder één
   dus een eigen samenvatting te verzinnen, en een type zonder titel toont
   gewoon zijn naam.
 - **Opengeklapt** komen de toelichtingen en de knoppen: *Bewerken*,
-  *Verbergen/Tonen*, *Verwijderen*.
+  *Verbergen* of *Tonen*, en *Verwijderen*. Het zijn knoppen uit de familie
+  van het CMS (`.admin-btn-secondary`, `.admin-btn-danger`), een maat kleiner
+  zodat ze even hoog zijn als *Bewerken*. *Verwijderen* staat apart aan het
+  eind: nooit de knop direct naast de bedoelde.
+- **Verbergen of Tonen** zegt wat de knop dóét. De toestand zelf staat op de
+  rij: een verborgen blok heeft een gestippelde rand, een gedempte naam en de
+  badge *Verborgen*, dus nooit alleen een kleur. De knoppen houden hun volle
+  contrast.
+- **Verwijderen vraagt eerst**, in de gedeelde dialoog van het CMS
+  ([`ADMIN-UI.md`](ADMIN-UI.md), *Bevestigen voordat iets weg is*), en noemt
+  het blok bij naam. *Annuleren* laat alles staan en zet de focus terug op de
+  knop. Het formulier, de CSRF-token en het endpoint zijn niet veranderd.
 - **De sleepgreep staat buiten de `<details>`.** Een dichtgeklapte rij
   verslepen is het halve punt van inklappen, dus die greep mag nooit in het
   deel zitten dat wegvouwt.
@@ -126,6 +137,34 @@ zonder JavaScript.
 **Er is geen collapse-code per bloktype**, en er komt er ook geen:
 `AdminEditorNavigationTest` faalt zodra `admin-collapse.js` een bloktype bij
 naam noemt.
+
+## Een pagina zonder inhoud
+
+```text
+≡ ▸ Paginakop — Over ons
+┌──────────────────────────────────────────────┐
+│       Je pagina heeft nog geen inhoud.       │
+│  Voeg hieronder je eerste contentblok toe.   │
+│         [ + Contentblok toevoegen ]          │
+└──────────────────────────────────────────────┘
+```
+
+Zolang een pagina onder haar kop nog niets heeft, staat onder de lijst niet de
+gestippelde toevoegknop maar een uitnodiging: één zin die zegt hoe het zit, en
+de knop naar het eerste blok. Een nieuwe *Lege pagina* begint precies zo
+([`PAGE-TEMPLATES.md`](PAGE-TEMPLATES.md)).
+
+- **Wat telt als inhoud** beslist `SectionRegistry::hasContentBlocks()`: elk
+  blok buiten de categorie *Kop van de pagina*. Een verborgen blok telt mee,
+  want het is van de redacteur, en een rij van een type dat nu niet
+  geregistreerd is ook, want de lijst toont hem. Er staat geen bloktype bij
+  naam in.
+- **Het is dezelfde kiezer.** De knop is nog een opener
+  (`data-block-picker-open`) van het ene paneel; er is geen tweede kiezer en
+  geen tweede manier om toe te voegen. Zodra er een blok is, verdwijnt de
+  uitnodiging en staat de gewone knop er weer.
+- Mag er op deze pagina helemaal niets bij, dan zegt de uitnodiging dat, in
+  plaats van een knop te tonen die een lege kiezer opent.
 
 ## Terug naar waar je was
 
@@ -446,3 +485,10 @@ verborgen voorbeelden — en leest daarnaast de bron van `block-picker.js` (de
 bewaarde weergave, het filteren), van `save-bar.js` en van elke blok-editor.
 Wat een klik doet, loop je na in de browser. Zie verder
 [`TESTING.md`](TESTING.md).
+
+`PageBuilderScreenTest` (suites `blocks` en `cms`) rendert het echte
+paginascherm over HTTP, met PHP's eigen webserver, en gebruikt het zoals een
+browser dat doet: een nieuwe *Lege pagina* met alleen haar kop en de
+uitnodiging, *Verbergen* en *Tonen* op de juiste rij en via hun eigen
+formulier, *Verwijderen* met zijn vraag en een endpoint dat een verzoek zonder
+token nog steeds weigert, en een herordenlijst die haar endpoint nog bereikt.

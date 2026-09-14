@@ -97,23 +97,38 @@ final class PageTemplateRegistryTest extends TestCase
         self::assertSame(array_values(array_unique($labels)), $labels);
     }
 
-    public function testBlankTemplateCreatesNoSections(): void
+    /**
+     * "Lege pagina" is a heading and nothing else. The Paginakop carries the
+     * page's <h1>; every block under it is the editor's own choice, and no
+     * text block the editor did not ask for is put there first.
+     */
+    public function testBlankTemplateStartsWithOnlyAPageHero(): void
     {
-        self::assertSame([], PageTemplates::get('blank')->blocks());
+        self::assertSame(['page_hero'], PageTemplates::get('blank')->blocks());
     }
 
     /**
-     * Every other template opens with the ordinary Page Hero, which is what
-     * carries the page's <h1>. A template that dropped it would hand the
-     * editor a page with no heading element at all.
+     * The other templates deliberately start with more than a heading, and
+     * keep doing so: giving "Lege pagina" its heading changed that one
+     * template and no other.
      */
-    public function testEveryNonBlankTemplateStartsWithAPageHero(): void
+    public function testTheOtherTemplatesKeepTheBlocksTheyStartWith(): void
+    {
+        self::assertSame(['page_hero', 'rich_text'], PageTemplates::get('standard')->blocks());
+        self::assertSame(['page_hero', 'text_image_split', 'rich_text', 'cta_band'], PageTemplates::get('about')->blocks());
+        self::assertSame(['page_hero', 'card_carousel', 'rich_text', 'cta_band'], PageTemplates::get('services')->blocks());
+        self::assertSame(['page_hero', 'form', 'contact_card'], PageTemplates::get('contact')->blocks());
+        self::assertSame(['page_hero', 'text_image_split', 'feature_grid', 'cta_band'], PageTemplates::get('landing')->blocks());
+    }
+
+    /**
+     * Every template opens with the ordinary Page Hero, the blank one
+     * included, because that is what carries the page's <h1>. A template that
+     * dropped it would hand the editor a page with no heading element at all.
+     */
+    public function testEveryTemplateStartsWithAPageHero(): void
     {
         foreach (PageTemplates::all() as $key => $template) {
-            if ($key === 'blank') {
-                continue;
-            }
-
             self::assertSame(
                 'page_hero',
                 $template->blocks()[0] ?? null,

@@ -366,7 +366,10 @@ blok of de opslagbalk ([`PAGE-EDITOR.md`](PAGE-EDITOR.md)):
                         blok-editor) — database noch webserver nodig
 --testsuite blocks      dezelfde twee, plus ContentBlockArchitectureTest:
                         één lijst, één toevoegknop, en die staat ónder de
-                        blokken
+                        blokken; en PageBuilderScreenTest: het echte
+                        paginascherm over php -S (een lege pagina en haar
+                        uitnodiging, Verbergen/Tonen, Verwijderen met zijn
+                        vraag, herordenen) — ook in cms
 --testsuite modules     bewijst dat de blokken van de Shop met hun module
                         mee komen en gaan, ook in de catalogus
 ```
@@ -625,13 +628,15 @@ Is die server niet bereikbaar, dan slaan deze tests zichzelf over met een
 melding die het startcommando noemt — ze falen nooit om de verkeerde reden.
 Vanaf je eigen machine is dezelfde site te zien op de poort die `docker compose port php_test 80` noemt.
 
-**Eén HTTP-test heeft de testcontainer niet nodig.** `PagePreviewAccessTest`
-(suite `cms`) start voor de duur van de klasse PHP's eigen webserver
-(`php -S`) op deze uitchecking, tegen de testdatabase, en logt een redacteur in
-met een echte sessie. Dat kan omdat niets van de conceptpreview in Apache zit:
-`admin/page-preview.php` is een gewoon bestand, en `pagina.php` en
-`sitemap.php` worden rechtstreeks aangesproken. De rewrite zelf blijft de zaak
-van `PageRoutingTest`. Kan de server niet starten, dan slaat de test zichzelf
+**Twee HTTP-tests hebben de testcontainer niet nodig.** `PagePreviewAccessTest`
+(suite `cms`) en `PageBuilderScreenTest` (suites `blocks` en `cms`) starten
+voor de duur van de klasse PHP's eigen webserver (`php -S`) op deze
+uitchecking, tegen de testdatabase, en loggen een redacteur in met een echte
+sessie. Dat kan omdat niets van de conceptpreview of de paginabouwer in Apache
+zit: `admin/page-preview.php`, `admin/page.php` en de endpoints onder
+`api/admin/` zijn gewone bestanden, en `pagina.php` en `sitemap.php` worden
+rechtstreeks aangesproken. De rewrite zelf blijft de zaak van
+`PageRoutingTest`. Kan de server niet starten, dan slaan deze tests zichzelf
 over.
 
 ## Een test toevoegen voor een nieuw contentblok

@@ -421,6 +421,92 @@ final class AdminEditorNavigationTest extends TestCase
         $this->assertStringContainsString('action="/api/admin/delete-page-section.php"', $body);
     }
 
+    /**
+     * Hiding and deleting are real buttons from the admin family now, not
+     * text links. The toggle names what pressing it does — Verbergen on a
+     * visible block, Tonen on a hidden one — and the state itself stays in
+     * words on the row. Tests\Service\PageBuilderScreenTest renders both.
+     */
+    public function testHideShowAndDeleteAreRealButtonsThatSayWhatTheyDo(): void
+    {
+        $source = $this->sourceOf('admin/page.php');
+        $inhoud = $this->panelSources('admin/page.php')['inhoud'];
+
+        $this->assertStringContainsString(
+            '<button type="submit" class="admin-btn-secondary admin-section-row__button"><?= $isHidden ? admin_te(\'common.show\') : admin_te(\'common.hide\') ?></button>',
+            $inhoud
+        );
+        $this->assertStringContainsString(
+            '<button type="submit" class="admin-btn-danger admin-section-row__button"><?= admin_te(\'common.delete\') ?></button>',
+            $inhoud
+        );
+        $this->assertStringNotContainsString('admin-btn-text', $inhoud, 'no action on a block row is a text link any more');
+
+        // The state is said in words on the row, never by colour alone.
+        $this->assertStringContainsString("\$isHidden ? ' is-hidden-section' : ''", $source);
+        $this->assertMatchesRegularExpression('#<\?php if \(\$isHidden\): \?>\s*<span class="admin-badge admin-badge--muted">Verborgen</span>#', $source);
+
+        $nl = require dirname(__DIR__, 2) . '/src/Service/Language/messages/nl.php';
+        $this->assertSame(['Tonen', 'Verbergen', 'Verwijderen'], [$nl['common.show'], $nl['common.hide'], $nl['common.delete']]);
+    }
+
+    public function testDeletingABlockStillAsksFirstInTheSharedDialog(): void
+    {
+        $source = $this->sourceOf('admin/page.php');
+        $inhoud = $this->panelSources('admin/page.php')['inhoud'];
+
+        // The browser's own confirm() is gone from the block list.
+        $this->assertStringNotContainsString('onsubmit', $inhoud);
+        $this->assertStringNotContainsString('confirm(', $inhoud);
+
+        $delete = substr($inhoud, (int) strpos($inhoud, 'action="/api/admin/delete-page-section.php"'));
+        $delete = substr($delete, 0, (int) strpos($delete, '</form>'));
+        $this->assertStringContainsString('admin_confirm_attributes(', $delete);
+        $this->assertStringContainsString("admin_t('page.block_delete_message', ['block' => \$rowLabel])", $delete, 'the question names the block that would go');
+        $this->assertStringContainsString('name="csrf_token"', $delete);
+
+        // Still offered only for a block that may be deleted at all.
+        $this->assertMatchesRegularExpression(
+            '#<\?php if \(SectionRegistry::isDeletable\(\$sectionType\)\): \?>\s*(?:<\?php /\*[\s\S]*?\*/ \?>\s*)?<form method="post" action="/api/admin/delete-page-section.php"#',
+            $inhoud
+        );
+
+        // The one dialog it asks in, printed once, after <main>.
+        $this->assertSame(1, substr_count($source, '<?= admin_confirm_dialog() ?>'));
+        $this->assertGreaterThan((int) strpos($source, '</main>'), (int) strpos($source, '<?= admin_confirm_dialog() ?>'));
+    }
+
+    /**
+     * Reordering is untouched: one zone wired to its endpoint, dragged by a
+     * handle that sits outside the part that folds away and is the only
+     * draggable element on the screen — pressing Verbergen or Verwijderen can
+     * never start a drag.
+     */
+    public function testReorderingStillStartsFromTheHandleAlone(): void
+    {
+        $source = $this->sourceOf('admin/page.php');
+
+        $this->assertStringContainsString('data-page-section-zone data-reorder-url="/api/admin/reorder-page-sections.php"', $source);
+        $this->assertSame(1, substr_count($source, 'draggable="true"'), 'only the handle drags');
+        $this->assertStringContainsString('<span class="admin-drag-handle" draggable="true"', $source);
+
+        $script = $this->sourceOf('admin/assets/admin.js');
+        $this->assertMatchesRegularExpression('/zone\.querySelectorAll\("\.admin-drag-handle"\)\.forEach\(function \(handle\) \{[\s\S]{0,200}handle\.addEventListener\("dragstart"/', $script);
+        $this->assertStringContainsString('body.set("section_ids", sectionIds);', $script);
+        $this->assertFileExists(dirname(__DIR__, 2) . '/api/admin/reorder-page-sections.php');
+    }
+
+    public function testThePageBuilderInvitesTheFirstBlockUntilThePageHasContent(): void
+    {
+        $inhoud = $this->panelSources('admin/page.php')['inhoud'];
+
+        $this->assertMatchesRegularExpression(
+            '#<\?php if \(!SectionRegistry::hasContentBlocks\(\$allSections\)\): \?>\s*<\?php block_picker_empty_state\(\$availableBlocks !== \[\]\); \?>\s*<\?php elseif \(\$availableBlocks !== \[\]\): \?>\s*<\?php block_picker_button\(\); \?>#',
+            $inhoud
+        );
+        $this->assertStringNotContainsString('page.secties_pagina', $inhoud, 'the old "Nog geen secties" line is replaced, not kept beside it');
+    }
+
     public function testABlockThatWasJustAddedOpensItself(): void
     {
         $source = $this->sourceOf('admin/page.php');

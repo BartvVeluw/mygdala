@@ -313,6 +313,7 @@
             <file>tests/Service/MediaUsageTest.php</file>
             <file>tests/Service/NoEmptyActiveBlockTest.php</file>
             <file>tests/Service/NoFallbackCopyTest.php</file>
+            <file>tests/Service/PageBuilderScreenTest.php</file>
             <file>tests/Service/PageBuilderSecurityTest.php</file>
             <file>tests/Service/PageContentTest.php</file>
             <file>tests/Service/PageTemplateCreationTest.php</file>
@@ -383,6 +384,7 @@
             <file>tests/Service/MediaUsageTest.php</file>
             <file>tests/Service/NavigationFooterSecurityTest.php</file>
             <file>tests/Service/NavigationServiceTest.php</file>
+            <file>tests/Service/PageBuilderScreenTest.php</file>
             <file>tests/Service/PageBuilderSecurityTest.php</file>
             <file>tests/Service/PageContentTest.php</file>
             <file>tests/Service/PagePreviewAccessTest.php</file>

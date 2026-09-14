@@ -4,7 +4,8 @@
  * POST /api/admin/delete-page-section.php
  *
  * The page builder's "Delete section" action (admin/page.php) — confirmed
- * client-side (see admin/page.php's onsubmit confirm()), then permanently
+ * client-side in the CMS's shared dialog (admin_confirm_dialog(), ADMIN-UI.md),
+ * which is a courtesy and never a guard, then permanently
  * removes both the page_sections attachment and its underlying content
  * (including any uploaded media and child rows) via
  * App\Service\SectionRegistry::delete(), inside one DB transaction so a

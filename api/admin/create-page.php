@@ -22,8 +22,8 @@
  * page begins with, and nothing else — it is applied once, here, and never
  * recorded on the page (PAGE-TEMPLATES.md). An absent, stale or forged key
  * falls back to "Lege pagina" (App\Service\PageTemplates\PageTemplates::resolve()),
- * which is exactly what this endpoint did before templates existed, so a
- * request without the field still creates a perfectly good empty page. The
+ * so a request without the field still creates a perfectly good page: its
+ * heading, and nothing the editor did not choose. The
  * page and its blocks are written in ONE transaction by
  * App\Service\PageTemplates\PageTemplateInstaller: a template that fails
  * halfway leaves no page behind to clean up.

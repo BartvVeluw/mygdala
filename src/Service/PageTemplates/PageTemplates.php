@@ -108,8 +108,8 @@ final class PageTemplates
      * The requested key if it is registered, otherwise the default — how the
      * create endpoint turns an absent, stale or forged `template` field into
      * something safe without failing the whole save. Picking nothing means
-     * "Lege pagina", which is exactly what creating a page did before
-     * templates existed.
+     * "Lege pagina": the page's heading and nothing else, the least an editor
+     * can start from.
      */
     public static function resolve(?string $key): PageTemplateDefinition
     {

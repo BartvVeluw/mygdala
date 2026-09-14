@@ -11,7 +11,7 @@ namespace App\Service\PageTemplates;
  *
  * The Page Hero is what carries the page's <h1>; a page whose body is only a
  * rich-text block has no heading element of its own, which is why every
- * template except the blank one opens with it.
+ * template, the blank one included, opens with it.
  */
 final class StandardTemplate extends PageTemplateDefinition
 {

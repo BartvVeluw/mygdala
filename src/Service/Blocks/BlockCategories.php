@@ -13,7 +13,9 @@ use App\Service\Language\LanguageRegistry;
  *
  * A category is presentation, not capability: it decides which heading a
  * block appears under in the block picker (admin/page.php) and in the
- * Contentblokken catalogue (admin/content-blocks.php), and nothing else. No
+ * Contentblokken catalogue (admin/content-blocks.php), and whether the page
+ * builder still greets a page as empty — a page holding only HERO blocks has
+ * a heading and no content yet (SectionRegistry::hasContentBlocks()). No
  * render path, no write endpoint and no permission consults one, so moving a
  * block from one category to another is a labelling change and never a
  * behavioural one.

@@ -44,10 +44,13 @@ use App\Repository\RedirectRepository;
  * this page (edit / hide / delete), each row a <details> that folds down to
  * one identifying line (admin/_admin_collapse.php), with the
  * "+ Contentblok toevoegen"
- * control always directly beneath it — one page, one ordered list. That
- * button opens the visual block picker (admin/_block_picker.php), where one
- * click on a card both chooses and adds; it replaced a dropdown of type
- * names plus a separate confirm button. The fixed blocks
+ * control always directly beneath it — one page, one ordered list. While the
+ * page has nothing below its heading, that control is an invitation to add
+ * the first block instead. Either button opens the visual block picker
+ * (admin/_block_picker.php), where one click on a card both chooses and adds;
+ * it replaced a dropdown of type names plus a separate confirm button.
+ * Deleting a block asks first, in the CMS's shared dialog (ADMIN-UI.md).
+ * The fixed blocks
  * a page template used to hardcode between the others are in that same list
  * (App\Service\SectionRegistry, `manual_add = false`); they carry a badge
  * naming the admin domain that owns their content and cannot be added or
@@ -533,9 +536,6 @@ $urlFieldOpen = !$hasFixedUrl
              already used, and the collapse group whose open rows and return
              target are remembered per page (admin/_admin_collapse.php). */ ?>
     <div class="admin-page-sections" data-page-section-zone data-reorder-url="/api/admin/reorder-page-sections.php" data-csrf-token="<?= $h($csrfToken) ?>" data-page-id="<?= $pageId ?>" data-admin-collapse-group="page-blocks" data-admin-collapse-scope="<?= $pageId ?>">
-      <?php if ($allSections === []): ?>
-        <p class="admin-text-muted"><?= admin_te('page.secties_pagina') ?></p>
-      <?php endif; ?>
       <?php foreach ($allSections as $pageSection): ?>
         <?php
           $sectionType = (string) $pageSection['section_type'];
@@ -621,17 +621,29 @@ $urlFieldOpen = !$hasFixedUrl
                 <?php foreach (SectionRegistry::editLinks($pageSection) as $editLink): ?>
                   <a href="<?= $h($editLink['url']) ?>" class="admin-section-row__edit"><?= $h($editLink['label']) ?> &#8594;</a>
                 <?php endforeach; ?>
+                <?php /* Real buttons from the admin family, not text links:
+                         both change what visitors see. The toggle's word says
+                         what pressing it does; the badge in the summary says
+                         the state, so neither rests on colour alone. */ ?>
                 <form method="post" action="/api/admin/toggle-page-section.php" class="admin-inline-form">
                   <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
                   <input type="hidden" name="id" value="<?= (int) $pageSection['id'] ?>">
                   <input type="hidden" name="is_active" value="<?= $isHidden ? '1' : '0' ?>">
-                  <button type="submit" class="admin-btn-text"><?= $isHidden ? 'Tonen' : 'Verbergen' ?></button>
+                  <button type="submit" class="admin-btn-secondary admin-section-row__button"><?= $isHidden ? admin_te('common.show') : admin_te('common.hide') ?></button>
                 </form>
                 <?php if (SectionRegistry::isDeletable($sectionType)): ?>
-                <form method="post" action="/api/admin/delete-page-section.php" class="admin-inline-form" onsubmit="return confirm('Deze sectie en de bijbehorende inhoud definitief verwijderen? Dit kan niet ongedaan worden gemaakt.');">
+                <?php /* Asks first, in the CMS's shared dialog printed at the end
+                         of this screen, and names the block that would go. The
+                         form, its token and the endpoint's guards are exactly
+                         what they were. */ ?>
+                <form method="post" action="/api/admin/delete-page-section.php" class="admin-inline-form admin-section-row__delete"<?= admin_confirm_attributes(
+                    admin_t('page.block_delete_title'),
+                    admin_t('page.block_delete_message', ['block' => $rowLabel]),
+                    admin_t('common.delete')
+                ) ?>>
                   <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
                   <input type="hidden" name="id" value="<?= (int) $pageSection['id'] ?>">
-                  <button type="submit" class="admin-btn-text admin-btn-text--danger"><?= admin_te('common.delete') ?></button>
+                  <button type="submit" class="admin-btn-danger admin-section-row__button"><?= admin_te('common.delete') ?></button>
                 </form>
                 <?php endif; ?>
               </div>
@@ -646,8 +658,14 @@ $urlFieldOpen = !$hasFixedUrl
              appends to the bottom of that same list. One button, and the
              choice itself happens in the picker it opens
              (admin/_block_picker.php): the old "kies eerst een type uit een
-             lijst namen, druk dán op toevoegen" is gone. */ ?>
-    <?php if ($availableBlocks !== []): ?>
+             lijst namen, druk dán op toevoegen" is gone.
+
+             While the page has nothing below its heading, that button is an
+             invitation instead: a sentence saying so, and the same opener.
+             A hidden block counts as content — it is the editor's own. */ ?>
+    <?php if (!SectionRegistry::hasContentBlocks($allSections)): ?>
+      <?php block_picker_empty_state($availableBlocks !== []); ?>
+    <?php elseif ($availableBlocks !== []): ?>
       <?php block_picker_button(); ?>
     <?php else: ?>
       <p class="admin-text-muted"><?= admin_te('page.er_pagina_moment_contentblok') ?></p>
@@ -683,6 +701,7 @@ $urlFieldOpen = !$hasFixedUrl
 <?php save_bar(); ?>
 <?php media_picker_modal(); ?>
 <?php block_picker_modal($availableBlocks, $pageId, $csrfToken); ?>
+<?= admin_confirm_dialog() ?>
 <script src="<?= \App\Service\AssetVersion::url('/admin/assets/admin.js') ?>"></script>
 <script src="<?= \App\Service\AssetVersion::url('/admin/assets/block-picker.js') ?>" defer></script>
 <?php admin_tabs_script(); ?>

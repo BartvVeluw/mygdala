@@ -239,9 +239,10 @@ maar staat er op het scherm geen `admin_confirm_dialog()`, of kent de browser
 script gaat het formulier direct, zoals met de inline `confirm()` die dit
 vervangt.
 
-De rest van het CMS gebruikt nog `onsubmit="return confirm(…)"`. Een scherm dat
-overgaat, haalt die weg en gebruikt de twee functies hierboven; meer is het
-niet.
+Het eerste scherm dat hem gebruikt, is de blokkenlijst van de paginabouwer
+([`PAGE-EDITOR.md`](PAGE-EDITOR.md)). De rest van het CMS gebruikt nog
+`onsubmit="return confirm(…)"`. Een scherm dat overgaat, haalt die weg en
+gebruikt de twee functies hierboven; meer is het niet.
 
 ## Waar het al gebruikt wordt
 
@@ -255,7 +256,7 @@ het werkte.
 | Shop-instellingen (`admin/shop-settings.php`) | Infobalk per tabblad; uitleg bij elk veld; één `?` bij *Invulvelden* die elk invulveld van de bestelmail uitlegt, opgebouwd uit `EmailPlaceholders::KNOWN`; *Herstel standaardtekst* als `.admin-btn-secondary` (`admin/assets/shop-settings.js`) |
 | Pagina's (`admin/pages.php`) | Infobalk; zoekveld (`?q=`, filtert de al geladen lijst via `PageContent::matchesAdminSearch()`); knoppen uit de familie; de status als badge met woord én kleur: `.admin-badge--draft` (amber, `--admin-warning`) en `.admin-badge--published` (groen, `--admin-success`) |
 | Formulier bewerken (`admin/form.php`) | *Actief* is een switch, *Inzendingen bewaren* een checkbox, beide selects zijn `.admin-select` |
-| Pagina bewerken en Nieuwe pagina (`admin/page.php`, `admin/page-new.php`) | Uitleg bij *Webadres* (het woord *slug* staat alleen in die uitleg); op een bestaande pagina het adres als link en het veld achter *Webadres wijzigen*, een `<details>` in de stijl van de inklapbare rijen; op een nieuwe pagina een live voorbeeld van het hele adres. SEO: een infobalk over wat SEO is, en uitleg bij de SEO-titel (met de automatische titel) en bij de *Omschrijving voor zoekmachines*. Op *Nieuwe pagina* staat de SEO-kaart vóór *Template* en klapt hij dicht (`.admin-collapse--card`). In de blokkenkiezer het zoekveld (`.admin-search`) |
+| Pagina bewerken en Nieuwe pagina (`admin/page.php`, `admin/page-new.php`) | Uitleg bij *Webadres* (het woord *slug* staat alleen in die uitleg); op een bestaande pagina het adres als link en het veld achter *Webadres wijzigen*, een `<details>` in de stijl van de inklapbare rijen; op een nieuwe pagina een live voorbeeld van het hele adres. SEO: een infobalk over wat SEO is, en uitleg bij de SEO-titel (met de automatische titel) en bij de *Omschrijving voor zoekmachines*. Op *Nieuwe pagina* staat de SEO-kaart vóór *Template* en klapt hij dicht (`.admin-collapse--card`). In de blokkenkiezer het zoekveld (`.admin-search`); op elke blokrij *Verbergen*/*Tonen* (`.admin-btn-secondary`) en *Verwijderen* (`.admin-btn-danger`), dat eerst vraagt in `admin_confirm_dialog()` |
 
 De bestandskiezer bestaat en is getest, maar staat nog op geen scherm. Het
 eerste scherm dat hem krijgt, is de upload in de Mediabibliotheek.

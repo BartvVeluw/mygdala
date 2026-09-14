@@ -164,11 +164,24 @@ final class PageTemplateCreationTest extends TestCase
         self::assertSame(range(0, count($orders) - 1), $orders);
     }
 
-    public function testBlankTemplateCreatesAPageWithNoSectionsAtAll(): void
+    /**
+     * A new "Lege pagina" has its Paginakop and nothing else — no text block,
+     * neither attached nor merely created. Everything below the heading is
+     * the editor's own choice.
+     */
+    public function testBlankTemplateCreatesAPageWithOnlyItsPageHero(): void
     {
-        [$pageId] = $this->createFromTemplate('blank', self::PREFIX . 'blank');
+        [$pageId, $page] = $this->createFromTemplate('blank', self::PREFIX . 'blank');
 
-        self::assertSame([], $this->sections->findForPage($pageId));
+        self::assertSame(['page_hero'], $this->sectionTypes($pageId));
+
+        $textTable = BlockDefinitions::get('rich_text')?->contentTable();
+        self::assertIsString($textTable);
+
+        $stmt = Database::connection()->prepare('SELECT COUNT(*) AS total FROM ' . $textTable . ' WHERE page_slug = :key');
+        $stmt->execute(['key' => (string) $page['content_key']]);
+
+        self::assertSame(0, (int) $stmt->fetch()['total'], 'the blank template left a text block behind');
     }
 
     /**

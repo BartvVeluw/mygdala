@@ -461,6 +461,75 @@ final class BlockPickerTest extends TestCase
         $this->assertMatchesRegularExpression('/function setView\(view\) \{\n(?:(?!applyFilter|innerHTML|appendChild|insertBefore)[\s\S])*?\n  \}/', $script);
     }
 
+    // --- A page without content yet -------------------------------------
+
+    public function testTheEmptyStateInvitesTheFirstBlockThroughTheSamePicker(): void
+    {
+        ob_start();
+        block_picker_empty_state(true);
+        $xpath = $this->xpath((string) ob_get_clean());
+
+        $empty = $this->one($xpath, '//*[@data-block-picker-empty]');
+        $this->assertSame('Je pagina heeft nog geen inhoud.', trim($this->one($xpath, './/*[contains(@class, "admin-blocks-empty__title")]', $empty)->textContent));
+        $this->assertSame('Voeg hieronder je eerste contentblok toe.', trim($this->one($xpath, './/*[contains(@class, "admin-blocks-empty__text")]', $empty)->textContent));
+
+        // One real button, and it opens the picker the page already has: not
+        // a second picker and not a form of its own.
+        $button = $this->one($xpath, './/button', $empty);
+        $this->assertSame('button', $button->getAttribute('type'));
+        $this->assertTrue($button->hasAttribute('data-block-picker-open'));
+        $this->assertSame('dialog', $button->getAttribute('aria-haspopup'));
+        $this->assertStringContainsString('Contentblok toevoegen', $button->textContent);
+        $this->assertSame(0, $xpath->query('//form')->length);
+        $this->assertSame(0, $xpath->query('//*[@data-block-picker]')->length);
+
+        // Plain words, nothing an editor would have to decode.
+        foreach (['page_sections', 'sectie', 'section'] as $jargon) {
+            $this->assertStringNotContainsStringIgnoringCase($jargon, $empty->textContent);
+        }
+
+        // block-picker.js opens the panel from every such button.
+        $this->assertStringContainsString('document.querySelectorAll("[data-block-picker-open]")', $this->sourceOf('admin/assets/block-picker.js'));
+    }
+
+    public function testTheEmptyStateOffersNoButtonWhenNothingMayBeAdded(): void
+    {
+        ob_start();
+        block_picker_empty_state(false);
+        $xpath = $this->xpath((string) ob_get_clean());
+
+        $this->assertSame(0, $xpath->query('//button')->length);
+        $this->assertStringContainsString(
+            'geen contentblok meer dat je kunt toevoegen',
+            $this->one($xpath, '//*[@data-block-picker-empty]')->textContent
+        );
+    }
+
+    /**
+     * What decides between the invitation and the ordinary opener: a block
+     * below the page's head. Read from the category, so no type is named.
+     */
+    public function testAPageHasContentOnceItHoldsABlockBeyondItsHead(): void
+    {
+        $row = static fn (string $type, int $active = 1): array => [
+            'id' => 1,
+            'page_id' => 1,
+            'section_type' => $type,
+            'section_key' => null,
+            'section_id' => 1,
+            'sort_order' => 0,
+            'is_active' => $active,
+        ];
+
+        $this->assertFalse(SectionRegistry::hasContentBlocks([]));
+        $this->assertFalse(SectionRegistry::hasContentBlocks([$row('page_hero')]), 'a heading alone is no content yet');
+        $this->assertFalse(SectionRegistry::hasContentBlocks([$row('homepage_hero')]), "the homepage's own head is a head too");
+
+        $this->assertTrue(SectionRegistry::hasContentBlocks([$row('page_hero'), $row('rich_text')]));
+        $this->assertTrue(SectionRegistry::hasContentBlocks([$row('page_hero'), $row('rich_text', 0)]), "a hidden block is still the editor's content");
+        $this->assertTrue(SectionRegistry::hasContentBlocks([$row('zz_no_such_block')]), 'a row the list shows is never "no content"');
+    }
+
     // --- Modules --------------------------------------------------------
 
     public function testTheShopsBlocksFollowTheirModuleInAndOutOfTheCatalogue(): void
