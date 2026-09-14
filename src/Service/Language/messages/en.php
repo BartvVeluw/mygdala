@@ -48,6 +48,8 @@ return [
     'help.settings.seo_description' => "A <strong>meta description</strong> is a short summary of a page. Search engines such as Google often show it under the title in their results; you do not see it on the website itself.\n\nEvery page can have its own. This default is only used on pages that have none. If you have nothing general to say, leave it empty: the same sentence everywhere helps nobody.",
     'help.settings.robots' => "Search engines such as Google visit websites to include their pages in search results. That is called <strong>indexing</strong>.\n\nWhen this switch is on, they may. Only switch it off while your website is unfinished and must not be found yet, and switch it back on as soon as the website goes live. Off asks search engines to leave out every page.",
     'help.pages.overview' => "This is where you manage the pages of your website. Click a page to change its content or settings.",
+    'help.page.url' => "The web address is the last part of this page's URL. In <strong>mysite.com/contact</strong>, <strong>contact</strong> is the web address. The technical name for it is <em>slug</em>.\n\nThe menu, the footer and the header button point at the page itself rather than at this address, so those links follow a change automatically.",
+    'help.page.url_new' => "The web address is the last part of this page's URL. In <strong>mysite.com/contact</strong>, <strong>contact</strong> is the web address. The technical name for it is <em>slug</em>.\n\nAs long as you do not change this field yourself, the CMS makes the address from the title. If that address is already taken, a number is added. You can change it freely until the page exists; after that it is protected against accidental changes.",
 
     // --- Words that appear on more than one screen -------------------------
     'common.save' => 'Save',
@@ -203,6 +205,36 @@ return [
     'page.save_settings' => 'Save settings',
     'page.status_draft' => 'Draft',
     'page.status_published' => 'Published',
+
+    // The web address of a page (admin/page.php, admin/page-new.php). The
+    // technical word "slug" lives in help.page.url only.
+    'page.url_label' => 'Web address',
+    'page.url_fixed' => 'This web address is fixed because the website shows this page through a part of its own. You can still change the title, the SEO details and the content.',
+    'page.url_change' => 'Change web address',
+    'page.url_change_warning' => 'Careful: visitors, search engines and links outside your website, for example in e-mails or on social media, use the current address now. Only change it when you really need to.',
+    'page.url_new' => 'New web address',
+    'page.url_usage_none' => 'The menu, the footer and the header button do not link to this page.',
+    'page.url_usage_one' => 'This page is used in 1 place on your website.',
+    'page.url_usage_many' => 'This page is used in :count places on your website.',
+    'page.url_usage_follow' => 'Those links point at the page itself and follow a new address automatically.',
+    'page.url_usage_kind_menu' => 'Menu',
+    'page.url_usage_kind_footer' => 'Footer',
+    'page.url_usage_kind_header_button' => 'Header button',
+    'page.url_usage_hidden' => 'hidden',
+    'page.url_typed_links' => 'Links somebody typed as a web address, for example in a text or in a button of a content block, are not counted or changed by the CMS.',
+    'page.url_confirm_title' => 'Change the web address?',
+    'page.url_confirm_intro' => 'Nothing has been saved yet. Check the change and confirm it.',
+    'page.url_confirm_old' => 'Current address',
+    'page.url_confirm_new' => 'New address',
+    'page.url_confirm_redirect' => 'Anyone using the current address, for example through Google or a bookmark, is sent on to the new address automatically. That also keeps typed links to this page working.',
+    'page.url_confirm_manual' => 'The current address already has a redirect somebody set by hand, to :target. It stays as it is.',
+    'page.url_confirm_draft' => 'This page has not been published yet, so the current address was never public and no redirect is needed.',
+    'page.url_confirm_unpublishing' => 'You are also setting the page to Draft. The current address therefore gets no redirect: anyone using it gets "Page not found".',
+    'page.url_confirm_submit' => 'Change web address and save',
+    'page.url_confirm_cancel' => 'Cancel',
+    'page.url_placeholder' => 'e.g. frequently-asked-questions',
+    'page.url_preview' => 'The page will be at:',
+    'page.url_preview_empty' => 'web-address',
 
     // --- Site settings (admin/settings.php) --------------------------------
     'settings.title' => 'Site settings',
@@ -824,8 +856,6 @@ return [
     'page.kies_waarmee_pagina_begint' => 'Choose what the page starts with. A template only creates the first sections &mdash; after that it is an ordinary page you can change, extend or empty as you like.',
     'page.template' => 'Template',
     'page.pagina_concept_alleen_hier' => 'A page in Draft is only visible here; the public URL returns a 404 until you publish it.',
-    'page.pagina_komt_na_publiceren' => 'Once published the page is automatically available at <code>/&lt;slug&gt;</code> — no migration or .htaccess rule needed.',
-    'page.slug_url_leeg_automatisch' => 'Slug (URL) — empty = generated from the title',
     'page.algemeen' => 'General',
     'page.nieuwe_pagina' => 'New page',
     'page.terug_pagina_s' => '&larr; Back to pages',
@@ -844,7 +874,6 @@ return [
     'page.zo_ziet_pagina_er' => 'Roughly how this page looks in a search result, with the title and text that are saved right now.',
     'page.slaat_alles_wat_onder' => 'Saves everything under Page and SEO &mdash; it is one form with two tabs.',
     'page.concept_betekent_wel_bewerkbaar' => 'Draft means: editable here, but the public URL returns a 404 and links to it in the navigation and footer are hidden.',
-    'page.live' => 'Live at:',
     'page.sectie_verwijderd' => 'Section deleted.',
     'page.pagina_instellingen_opgeslagen' => 'Page settings saved.',
     'page.pagina_aangemaakt_voeg_hieronder' => 'Page created. Add sections below and publish it once you are happy.',
@@ -1947,7 +1976,6 @@ return [
     'page.type' => 'Type: <code>:v1',
     'page.type_onderdeel' => 'Type: <code>:v1</code> &mdash; component: :v2',
     'page.huidige_waarde_mediabibliotheek' => 'Current value (not in the media library yet): <code>:v1',
-    'page.slug_url' => 'Slug (URL):v1',
     'personalization.upload_lettertypebestand_max_mb' => 'Upload a typeface file: <strong>:v1</strong>, :v2 MB at most. <strong>WOFF2</strong> is preferred: it is the same typeface in a considerably smaller file, and every modern browser supports it. TTF and OTF work too — they are simply bigger to download. The file is hosted on this website itself; no external font service is used.',
     'portfolio.text' => '*</span><br> :v1',
     'portfolio.project' => 'project:v1',
@@ -2065,7 +2093,6 @@ return [
     'common.edit_badge' => 'Edit',
     'shop.fulfilled_before_recorded' => 'unknown (settled before this was recorded)',
     'contact.notification_not_sent' => 'not sent (the request was stored)',
-    'page.fixed_url_note' => '&mdash; this page is served at a fixed URL, so that URL is set. The title, the SEO fields and the content below can be changed as usual',
 
     // --- Sentences cut in half by control flow
     'personalization.position_line' => ':v1 from the left, :v2 from the top, size :v3',

@@ -153,6 +153,63 @@ class PageService
     }
 
     /**
+     * Must the editor confirm this save before it is written?
+     *
+     * Yes exactly when it moves the page to a web address the editor has not
+     * confirmed yet. $confirmedSlug is what the confirmation card on
+     * admin/page.php carries: the address the editor was shown and agreed
+     * to. A new address that differs from it — typed after confirming, or
+     * never shown at all — is asked about again. A draft asks too: no
+     * redirect is at stake there, but the editor still learns what the change
+     * means before it happens. A page served at a fixed URL never moves, so
+     * it never asks.
+     *
+     * Only the decision lives here; api/admin/update-page.php asks it before
+     * it writes anything. See REDIRECTS.md.
+     *
+     * @param array<string, mixed> $page    the stored `pages` row
+     * @param string               $newSlug the sanitized slug this save would write
+     */
+    public static function urlChangeNeedsConfirmation(array $page, string $newSlug, string $confirmedSlug): bool
+    {
+        if (PageContent::isRouteBound($page)) {
+            return false;
+        }
+
+        return $newSlug !== (string) ($page['slug'] ?? '') && $newSlug !== $confirmedSlug;
+    }
+
+    /**
+     * Will the page's current address keep working after a save that changes
+     * its slug, through an automatic redirect?
+     *
+     * The three conditions under which api/admin/update-page.php hands a
+     * changed slug to App\Service\Redirects\SlugChangeRedirects, in one place:
+     * the endpoint asks before it records one, and admin/page.php asks before
+     * it tells the editor what confirming a new address will do, so the two
+     * can never say different things.
+     *
+     *   - the page has no fixed URL: a route-bound page's address never moves;
+     *   - it WAS published: a draft's address was never a working URL, so
+     *     there is nothing to keep — which is also why a brand-new page,
+     *     created as a draft, never produces one;
+     *   - it STAYS published: renaming while taking the page offline would
+     *     point the old address at a new one that answers 404.
+     *
+     * Whether the slug changed at all is the caller's first question, not
+     * this method's.
+     *
+     * @param array<string, mixed> $page      the stored `pages` row, before the save
+     * @param string               $newStatus the status the save writes
+     */
+    public static function oldAddressWillRedirect(array $page, string $newStatus): bool
+    {
+        return !PageContent::isRouteBound($page)
+            && PageContent::isPublished($page)
+            && $newStatus === PageContent::STATUS_PUBLISHED;
+    }
+
+    /**
      * Permanently deletes a content page: every section attached to it
      * (including that section's own content row, child rows and uploaded
      * media, via App\Service\SectionRegistry::delete()), then the page row

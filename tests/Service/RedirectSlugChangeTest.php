@@ -283,16 +283,13 @@ class RedirectSlugChangeTest extends TestCase
 
         $this->assertStringContainsString('(new SlugChangeRedirects())->record($oldSlug, $slug)', $source);
         $this->assertStringContainsString('$oldSlug !== $slug', $source, 'only a real slug change may write one');
-        $this->assertStringContainsString('!$hasFixedUrl', $source, 'a route-bound page\'s URL never moves');
+        // The other three conditions — no fixed URL, was published, stays
+        // published — live in one rule the confirmation screen asks as well;
+        // Tests\Service\PageUrlChangeTest proves each of them on that rule.
         $this->assertStringContainsString(
-            'PageContent::isPublished($page)',
+            'PageService::oldAddressWillRedirect($page, $status)',
             $source,
-            'a draft slug was never a working URL'
-        );
-        $this->assertStringContainsString(
-            '$status === PageContent::STATUS_PUBLISHED',
-            $source,
-            'renaming while unpublishing must not point one dead URL at another'
+            'a fixed URL, a draft and a rename that unpublishes must not write one'
         );
 
         $this->assertStringNotContainsString(

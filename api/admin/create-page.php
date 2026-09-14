@@ -10,9 +10,10 @@
  * validation.
  *
  * Slug: an explicitly typed slug is sanitized and then validated as-is
- * (unique + not a reserved application route); an empty one is generated
- * from the title and made unique/non-reserved automatically — see
- * App\Service\PageService. `is_system` and `route_path` are never accepted
+ * (unique + not a reserved application route); an empty one — or one the
+ * form was still filling in from the title by itself (`slug_auto`, see
+ * admin/assets/admin.js) — is generated from the title and made
+ * unique/non-reserved automatically. See App\Service\PageService. `is_system` and `route_path` are never accepted
  * from the request: a page created here is always an ordinary content page
  * (PageRepository::create() hardcodes that), so no admin input can mint a
  * protected page or claim an application route.
@@ -59,6 +60,12 @@ $repository = new PageRepository();
 
 $title = trim((string) ($_POST['title'] ?? ''));
 $slugInput = trim((string) ($_POST['slug'] ?? ''));
+// "1" while admin/page-new.php was still filling the address in from the
+// title. Such an address was never typed by the editor, so it is made unique
+// from the title exactly like an empty field rather than refused because
+// another page already has it. The flag only chooses between those two
+// server-side paths; it cannot let through an address validation refuses.
+$slugIsAutomatic = ($_POST['slug_auto'] ?? '') === '1';
 $status = trim((string) ($_POST['status'] ?? PageContent::STATUS_DRAFT));
 $metaTitle = trim((string) ($_POST['meta_title'] ?? ''));
 $metaTitleEn = trim((string) ($_POST['meta_title_en'] ?? ''));
@@ -79,7 +86,7 @@ if (!PageContent::isValidStatus($status)) {
 }
 
 $slug = '';
-if ($slugInput === '') {
+if ($slugInput === '' || $slugIsAutomatic) {
     $slug = $title !== '' ? PageService::generateSlug($repository, $title) : '';
 } else {
     $slug = PageService::sanitizeSlug($slugInput);
@@ -113,6 +120,7 @@ $old = [
     'meta_description' => $metaDescription,
     'meta_description_en' => $metaDescriptionEn,
     'template' => $template->key(),
+    'slug_auto' => $slugIsAutomatic ? '1' : '0',
 ];
 
 if ($errors !== []) {

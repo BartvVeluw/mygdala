@@ -49,6 +49,8 @@ return [
     'help.settings.seo_description' => "Een <strong>meta description</strong> is een korte omschrijving van een pagina. Zoekmachines zoals Google tonen hem vaak onder de titel in hun zoekresultaten; op de website zelf zie je hem niet.\n\nElke pagina kan een eigen omschrijving krijgen. Deze standaardtekst wordt alleen gebruikt op pagina's die er zelf geen hebben. Heb je niets algemeens te zeggen, laat hem dan leeg: overal dezelfde zin helpt niemand.",
     'help.settings.robots' => "Zoekmachines zoals Google bezoeken websites om hun pagina's in de zoekresultaten op te nemen. Dat heet <strong>indexeren</strong>.\n\nStaat deze schakelaar aan, dan mag dat. Zet hem alleen uit zolang je website nog niet klaar is en nog niet gevonden mag worden, en zet hem weer aan zodra de website live gaat. Uit vraagt zoekmachines om geen enkele pagina op te nemen.",
     'help.pages.overview' => "Hier beheer je de pagina's van je website. Klik op een pagina om de inhoud of instellingen te wijzigen.",
+    'help.page.url' => "Het webadres is het laatste deel van de URL van deze pagina. Bij <strong>mijnsite.nl/contact</strong> is <strong>contact</strong> het webadres. In technische termen heet dit de <em>slug</em>.\n\nHet menu, de footer en de knop in de header verwijzen naar de pagina zelf, niet naar dit adres. Die links gaan dus vanzelf mee als het adres verandert.",
+    'help.page.url_new' => "Het webadres is het laatste deel van de URL van deze pagina. Bij <strong>mijnsite.nl/contact</strong> is <strong>contact</strong> het webadres. In technische termen heet dit de <em>slug</em>.\n\nZolang je dit veld niet zelf aanpast, maakt het CMS het adres uit de titel. Is dat adres al in gebruik, dan komt er een nummer achter. Tot de pagina bestaat kun je het vrij aanpassen; daarna is het beschermd tegen per ongeluk wijzigen.",
 
     // --- Words that appear on more than one screen -------------------------
     'common.save' => 'Opslaan',
@@ -208,6 +210,36 @@ return [
     'page.save_settings' => 'Instellingen opslaan',
     'page.status_draft' => 'Concept',
     'page.status_published' => 'Gepubliceerd',
+
+    // The web address of a page (admin/page.php, admin/page-new.php). The
+    // technical word "slug" lives in help.page.url only.
+    'page.url_label' => 'Webadres',
+    'page.url_fixed' => 'Dit webadres ligt vast, omdat de website deze pagina met een eigen onderdeel toont. De titel, de SEO-gegevens en de inhoud kun je gewoon aanpassen.',
+    'page.url_change' => 'Webadres wijzigen',
+    'page.url_change_warning' => 'Let op: bezoekers, zoekmachines en links buiten je website, bijvoorbeeld in e-mails of op sociale media, gebruiken nu het huidige adres. Wijzig het alleen als dat echt nodig is.',
+    'page.url_new' => 'Nieuw webadres',
+    'page.url_usage_none' => 'Het menu, de footer en de knop in de header verwijzen niet naar deze pagina.',
+    'page.url_usage_one' => 'Deze pagina wordt op 1 plek binnen je website gebruikt.',
+    'page.url_usage_many' => 'Deze pagina wordt op :count plekken binnen je website gebruikt.',
+    'page.url_usage_follow' => 'Die links verwijzen naar de pagina zelf en gaan vanzelf mee naar een nieuw adres.',
+    'page.url_usage_kind_menu' => 'Menu',
+    'page.url_usage_kind_footer' => 'Footer',
+    'page.url_usage_kind_header_button' => 'Knop in de header',
+    'page.url_usage_hidden' => 'verborgen',
+    'page.url_typed_links' => 'Links die iemand zelf als webadres heeft getypt, bijvoorbeeld in een tekst of in een knop van een contentblok, telt en wijzigt het CMS niet.',
+    'page.url_confirm_title' => 'Webadres wijzigen?',
+    'page.url_confirm_intro' => 'Er is nog niets opgeslagen. Controleer de wijziging en bevestig haar.',
+    'page.url_confirm_old' => 'Huidig adres',
+    'page.url_confirm_new' => 'Nieuw adres',
+    'page.url_confirm_redirect' => 'Wie het huidige adres gebruikt, bijvoorbeeld via Google of een bladwijzer, wordt automatisch doorgestuurd naar het nieuwe adres. Zo blijven ook getypte links naar deze pagina werken.',
+    'page.url_confirm_manual' => 'Op het huidige adres staat al een doorverwijzing die met de hand is ingesteld, naar :target. Die blijft zoals hij is.',
+    'page.url_confirm_draft' => 'Deze pagina is nog niet gepubliceerd. Het huidige adres was dus nog niet openbaar en er is geen doorverwijzing nodig.',
+    'page.url_confirm_unpublishing' => 'Je zet de pagina tegelijk op Concept. Het huidige adres krijgt daarom geen doorverwijzing: wie het gebruikt, krijgt "Pagina niet gevonden".',
+    'page.url_confirm_submit' => 'Webadres wijzigen en opslaan',
+    'page.url_confirm_cancel' => 'Annuleren',
+    'page.url_placeholder' => 'bijv. veelgestelde-vragen',
+    'page.url_preview' => 'De pagina komt op:',
+    'page.url_preview_empty' => 'webadres',
 
     // --- Site settings (admin/settings.php) --------------------------------
     'settings.title' => 'Site-instellingen',
@@ -832,8 +864,6 @@ return [
     'page.kies_waarmee_pagina_begint' => 'Kies waarmee de pagina begint. Een template maakt alleen de eerste secties aan &mdash; daarna is het een gewone pagina die je vrij kunt aanpassen, aanvullen of leeghalen.',
     'page.template' => 'Template',
     'page.pagina_concept_alleen_hier' => 'Een pagina in Concept is alleen hier zichtbaar; de publieke URL geeft een 404 tot je \'m publiceert.',
-    'page.pagina_komt_na_publiceren' => 'De pagina komt na publiceren automatisch beschikbaar op <code>/&lt;slug&gt;</code> — geen migratie of .htaccess-regel nodig.',
-    'page.slug_url_leeg_automatisch' => 'Slug (URL) — leeg = automatisch uit de titel',
     'page.algemeen' => 'Algemeen',
     'page.nieuwe_pagina' => 'Nieuwe pagina',
     'page.terug_pagina_s' => '&larr; Terug naar pagina\'s',
@@ -852,7 +882,6 @@ return [
     'page.zo_ziet_pagina_er' => 'Zo ziet deze pagina er ongeveer uit in een zoekresultaat, met de titel en tekst die nu zijn opgeslagen.',
     'page.slaat_alles_wat_onder' => 'Slaat alles op wat onder Pagina en SEO staat &mdash; het is één formulier met twee tabbladen.',
     'page.concept_betekent_wel_bewerkbaar' => 'Concept betekent: wel bewerkbaar hier, maar de publieke URL geeft een 404 en links ernaartoe in de navigatie/footer worden verborgen.',
-    'page.live' => 'Live op:',
     'page.sectie_verwijderd' => 'Sectie verwijderd.',
     'page.pagina_instellingen_opgeslagen' => 'Pagina-instellingen opgeslagen.',
     'page.pagina_aangemaakt_voeg_hieronder' => 'Pagina aangemaakt. Voeg hieronder secties toe en publiceer \'m zodra je tevreden bent.',
@@ -1955,7 +1984,6 @@ return [
     'page.type' => 'Type: <code>:v1',
     'page.type_onderdeel' => 'Type: <code>:v1</code> &mdash; onderdeel: :v2',
     'page.huidige_waarde_mediabibliotheek' => 'Huidige waarde (nog niet in de mediabibliotheek): <code>:v1',
-    'page.slug_url' => 'Slug (URL):v1',
     'personalization.upload_lettertypebestand_max_mb' => 'Upload een lettertypebestand: <strong>:v1</strong>, max. :v2 MB. <strong>WOFF2</strong> heeft de voorkeur: dat is hetzelfde lettertype in een aanzienlijk kleiner bestand, en elke moderne browser ondersteunt het. TTF en OTF werken ook — die zijn alleen groter om te downloaden. Het bestand wordt op deze website zelf gehost; er wordt geen enkele externe lettertypedienst gebruikt.',
     'portfolio.text' => '*</span><br> :v1',
     'portfolio.project' => 'project:v1',
@@ -2073,7 +2101,6 @@ return [
     'common.edit_badge' => 'Bewerken',
     'shop.fulfilled_before_recorded' => 'onbekend (afgehandeld voordat dit werd vastgelegd)',
     'contact.notification_not_sent' => 'niet verzonden (aanvraag is wel opgeslagen)',
-    'page.fixed_url_note' => '&mdash; deze pagina wordt geserveerd op een vaste URL, die ligt daarom vast. Titel, SEO-velden en de inhoud hieronder kun je gewoon aanpassen',
 
     // --- Sentences cut in half by control flow
     'personalization.position_line' => ':v1 van links, :v2 van boven, grootte :v3',

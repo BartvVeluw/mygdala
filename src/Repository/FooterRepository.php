@@ -151,6 +151,29 @@ class FooterRepository extends Repository
     }
 
     /**
+     * The footer links that point at one CMS page, each with the title and
+     * visibility of the column it sits in — the footer half of
+     * App\Service\PageUsage. Hidden links and links in a hidden column are
+     * included: they still point at the page and still follow it.
+     *
+     * @return list<array<string, mixed>>
+     */
+    public function findLinksByTargetPageId(int $pageId): array
+    {
+        $stmt = $this->db->prepare(
+            "SELECT l.id, l.label_nl, l.label_en, l.is_visible,
+                    c.title_nl AS column_title_nl, c.is_visible AS column_is_visible
+               FROM footer_links l
+               JOIN footer_columns c ON c.id = l.column_id
+              WHERE l.link_type = 'page' AND l.target_page_id = :page_id
+              ORDER BY c.sort_order ASC, l.sort_order ASC, l.id ASC"
+        );
+        $stmt->execute(['page_id' => $pageId]);
+
+        return $stmt->fetchAll();
+    }
+
+    /**
      * @param array{column_id:int,label_nl:string,label_en:string,link_type:string,target_page_id:?int,target_route:?string,external_url:?string,action_key:?string,open_in_new_tab:bool,is_visible:bool} $data
      */
     public function createLink(array $data): int

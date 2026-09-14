@@ -7,6 +7,7 @@ require_once __DIR__ . '/_language_fields.php';
 require_once __DIR__ . '/_translate.php';
 
 use App\Service\AdminAuth;
+use App\Service\AppUrl;
 use App\Service\Csrf;
 use App\Service\PageContent;
 use App\Service\PageService;
@@ -46,6 +47,12 @@ $value = static fn (string $key): string => (string) ($old[$key] ?? '');
 $status = (string) ($old['status'] ?? PageContent::STATUS_DRAFT);
 $selectedTemplate = (string) ($old['template'] ?? PageTemplates::DEFAULT_KEY);
 
+// The address the preview line starts with: the one handed back after a
+// refused save, else what the title would give. admin/assets/admin.js keeps
+// it current while the editor types; api/admin/create-page.php decides the
+// real one.
+$slugPreview = PageService::sanitizeSlug($value('slug') !== '' ? $value('slug') : $value('title'));
+
 $csrfToken = Csrf::token();
 $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
 ?>
@@ -79,15 +86,28 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
 
     <section class="admin-card">
       <h2><?= admin_te('page.algemeen') ?></h2>
+      <?php /* The shared field styling, as on the SEO card below. */ ?>
+      <div class="admin-product-form admin-product-form--wide">
       <div class="admin-form-row admin-form-row--split">
         <label><?= admin_te('common.title') ?>*
           <input type="text" name="title" maxlength="<?= PageService::MAX_TITLE_LENGTH ?>" required value="<?= $h($value('title')) ?>" data-slug-source>
         </label>
-        <label><?= admin_te('page.slug_url_leeg_automatisch') ?>
-          <input type="text" name="slug" maxlength="<?= PageService::MAX_SLUG_LENGTH ?>" value="<?= $h($value('slug')) ?>" placeholder="bijv. veelgestelde-vragen" data-slug-target>
-        </label>
+        <?php /* The address starts out as the title's (admin/assets/admin.js)
+                 and stays the editor's to change until the page exists. The
+                 hidden flag says which of the two it is when the form is
+                 sent: api/admin/create-page.php makes an automatic address
+                 unique and validates a typed one. Once the page exists,
+                 admin/page.php protects the address instead. */ ?>
+        <div class="admin-field">
+          <?= admin_field_label('page-new-slug', admin_t('page.url_label'), admin_t('help.page.url_new')) ?>
+          <input type="text" id="page-new-slug" name="slug" maxlength="<?= PageService::MAX_SLUG_LENGTH ?>" value="<?= $h($value('slug')) ?>" placeholder="<?= admin_te('page.url_placeholder') ?>" autocomplete="off" spellcheck="false" data-slug-target>
+          <input type="hidden" name="slug_auto" value="<?= $value('slug_auto') === '1' ? '1' : '0' ?>" data-slug-auto>
+          <p class="admin-url-preview">
+            <?= admin_te('page.url_preview') ?>
+            <span class="admin-url-preview__address"><?= $h(AppUrl::canonical('/')) ?><strong data-slug-preview-value data-slug-preview-empty="<?= admin_te('page.url_preview_empty') ?>"><?= $h($slugPreview !== '' ? $slugPreview : admin_t('page.url_preview_empty')) ?></strong></span>
+          </p>
+        </div>
       </div>
-      <p class="admin-text-muted"><?= admin_t('page.pagina_komt_na_publiceren') ?></p>
       <label><?= admin_te('common.status') ?>
         <select name="status">
           <?php foreach (array_keys(PageContent::STATUS_LABELS) as $statusKey): ?>
@@ -96,6 +116,7 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
         </select>
       </label>
       <p class="admin-text-muted"><?= admin_te('page.pagina_concept_alleen_hier') ?></p>
+      </div>
     </section>
 
     <section class="admin-card">

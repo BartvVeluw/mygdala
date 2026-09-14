@@ -502,11 +502,12 @@ De redirecttabel, de padnormalisatie, de opzoeking bij een verzoek, `404.php`
 of de automatische redirect bij het hernoemen van een pagina (`REDIRECTS.md`):
 
 ```
---testsuite fast        (RedirectPathTest en RedirectAdminSecurityTest;
-                         database noch webserver nodig)
---testsuite cms         voegt RedirectValidationTest, RedirectRoutingTest en
-                        RedirectSlugChangeTest toe: conflicten en kringetjes,
-                        en echte verzoeken langs beide integratiepunten
+--testsuite fast        (RedirectPathTest, RedirectAdminSecurityTest en
+                         PageUrlChangeTest; database noch webserver nodig)
+--testsuite cms         voegt RedirectValidationTest, RedirectRoutingTest,
+                        RedirectSlugChangeTest en PageUsageTest toe:
+                        conflicten en kringetjes, echte verzoeken langs beide
+                        integratiepunten, en waar een pagina gelinkt wordt
 --testsuite modules     bewijst dat een bestemming in een uitgeschakelde
                         module niet afgaat en wel bewaard blijft
 ```

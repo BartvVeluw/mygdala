@@ -190,7 +190,7 @@ Mediabibliotheek (`MEDIA.md`).
 
 ## Waar het al gebruikt wordt
 
-Vier schermen, als bewijs dat de bouwstenen herbruikbaar zijn. De rest van het
+Vijf schermen, als bewijs dat de bouwstenen herbruikbaar zijn. De rest van het
 CMS volgt scherm voor scherm; een scherm dat nog niet is omgezet, werkt zoals
 het werkte.
 
@@ -200,6 +200,7 @@ het werkte.
 | Shop-instellingen (`admin/shop-settings.php`) | Infobalk per tabblad; uitleg bij elk veld; één `?` bij *Invulvelden* die elk invulveld van de bestelmail uitlegt, opgebouwd uit `EmailPlaceholders::KNOWN`; *Herstel standaardtekst* als `.admin-btn-secondary` (`admin/assets/shop-settings.js`) |
 | Pagina's (`admin/pages.php`) | Infobalk; zoekveld (`?q=`, filtert de al geladen lijst via `PageContent::matchesAdminSearch()`); knoppen uit de familie; de status als badge met woord én kleur: `.admin-badge--draft` (amber, `--admin-warning`) en `.admin-badge--published` (groen, `--admin-success`) |
 | Formulier bewerken (`admin/form.php`) | *Actief* is een switch, *Inzendingen bewaren* een checkbox, beide selects zijn `.admin-select` |
+| Pagina bewerken en Nieuwe pagina (`admin/page.php`, `admin/page-new.php`) | Uitleg bij *Webadres* (het woord *slug* staat alleen in die uitleg); op een bestaande pagina het adres als link en het veld achter *Webadres wijzigen*, een `<details>` in de stijl van de inklapbare rijen; op een nieuwe pagina een live voorbeeld van het hele adres |
 
 De bestandskiezer bestaat en is getest, maar staat nog op geen scherm. Het
 eerste scherm dat hem krijgt, is de upload in de Mediabibliotheek.

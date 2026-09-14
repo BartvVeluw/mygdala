@@ -560,18 +560,8 @@
   }
 
   /**
-   * Generic "auto-fill a slug field from a title field, until the admin
-   * edits the slug themselves" helper — currently used by
-   * admin/information-page.php's "+ Nieuwe pagina" form
-   * ([data-slug-source] on the title input, [data-slug-target] on the slug
-   * input). Purely a convenience: the server (see
-   * api/admin/create-information-page.php) always re-derives/validates the
-   * slug itself when the field is left empty, and never trusts this preview.
-   *
-   * A slug field that already has a value when the page loads (editing an
-   * existing page) is treated as already "touched", so retyping the title
-   * on an edit screen can never silently overwrite a saved slug — only a
-   * genuinely empty slug field (the "+ Nieuwe pagina" form) auto-fills.
+   * The transliteration App\Service\PageService::sanitizeSlug() applies, for
+   * a PREVIEW of an address only: the server always makes the real one.
    */
   function slugify(value) {
     var ascii = value.normalize ? value.normalize("NFD").replace(/[\u0300-\u036f]/g, "") : value;
@@ -614,21 +604,54 @@
     });
   }
 
+  /**
+   * The web address of a NEW page (admin/page-new.php): filled in from the
+   * title while the editor has not typed one of their own
+   * ([data-slug-source] on the title, [data-slug-target] on the address),
+   * with the whole address previewed underneath ([data-slug-preview-value]).
+   *
+   * [data-slug-auto] tells api/admin/create-page.php which of the two it
+   * received: "1" while the address is still the automatic one, so the
+   * server makes it unique from the title exactly as it does for an empty
+   * field; "0" once the editor has typed their own, which the server then
+   * validates as typed. A convenience either way — the server derives or
+   * validates every address itself and never trusts this preview.
+   *
+   * An address the server handed back after a refused save counts as typed
+   * unless the flag says it was automatic. An existing page's address never
+   * comes through here: admin/page.php keeps it behind "Webadres wijzigen"
+   * and a confirmation.
+   */
   function initSlugAutoFill() {
     document.querySelectorAll("[data-slug-target]").forEach(function (target) {
       var source = document.querySelector("[data-slug-source]");
       if (!source) return;
 
-      var touched = target.value.trim() !== "";
+      var auto = target.form ? target.form.querySelector("[data-slug-auto]") : null;
+      var preview = document.querySelector("[data-slug-preview-value]");
+      var touched = target.value.trim() !== "" && !(auto && auto.value === "1");
+
+      function showPreview() {
+        if (!preview) return;
+        preview.textContent = slugify(target.value) || preview.getAttribute("data-slug-preview-empty") || "";
+      }
 
       target.addEventListener("input", function () {
-        touched = true;
+        touched = target.value.trim() !== "";
+        if (auto) auto.value = touched ? "0" : "1";
+        showPreview();
       });
 
       source.addEventListener("input", function () {
-        if (touched) return;
-        target.value = slugify(source.value);
+        if (!touched) {
+          target.value = slugify(source.value);
+          if (auto) auto.value = "1";
+        }
+        showPreview();
       });
+
+      if (auto && !touched) auto.value = "1";
+      showPreview();
     });
   }
 

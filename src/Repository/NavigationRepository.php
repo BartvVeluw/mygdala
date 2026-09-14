@@ -71,6 +71,26 @@ class NavigationRepository extends Repository
     }
 
     /**
+     * The navigation items that point at one CMS page (link_type='page'),
+     * for the list the page editor shows before a page's web address changes
+     * (App\Service\PageUsage). Hidden items are included: they still point
+     * at the page and still follow it.
+     *
+     * @return list<array<string, mixed>>
+     */
+    public function findByTargetPageId(int $pageId): array
+    {
+        $stmt = $this->db->prepare(
+            "SELECT id, label_nl, label_en, parent_id, is_visible FROM nav_items
+              WHERE link_type = 'page' AND target_page_id = :page_id
+              ORDER BY sort_order ASC, id ASC"
+        );
+        $stmt->execute(['page_id' => $pageId]);
+
+        return $stmt->fetchAll();
+    }
+
+    /**
      * Enforces the 2-level cap (see the nav_items migration): $parentId is
      * only a valid parent when it exists and is itself a top-level item —
      * an item that already has a parent can never become a parent itself,

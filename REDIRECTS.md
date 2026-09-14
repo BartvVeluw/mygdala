@@ -122,8 +122,22 @@ hernoeming een rij mag overschrijven, dus die vlag is van de applicatie.
 
 ## Wat een hernoeming doet
 
-`api/admin/update-page.php` roept `SlugChangeRedirects` aan, en alleen wanneer
-alle vier waar zijn:
+**Eerst bevestigen.** Een redacteur verandert het webadres van een bestaande
+pagina niet per ongeluk. Op het tabblad Pagina staat het adres als link, en
+het veld zit achter *Webadres wijzigen*, met erboven waar de pagina gebruikt
+wordt. De eerste opslag die het adres echt verandert, schrijft nog niets:
+`api/admin/update-page.php` stuurt terug naar `admin/page.php`, dat het
+huidige en het nieuwe adres toont en zegt wat er met het oude gebeurt. Pas de
+bevestiging slaat op. Die stuurt hetzelfde formulier opnieuw, met het
+bevestigde adres in `confirmed_slug`, en
+`PageService::urlChangeNeedsConfirmation()` laat precies dat adres door. Wie
+daarna nog iets anders typt, krijgt de vraag opnieuw. Een pagina op een vaste
+URL heeft geen adresveld.
+
+Daarna roept `api/admin/update-page.php` `SlugChangeRedirects` aan, en alleen
+wanneer alle vier waar zijn. De laatste drie staan samen in
+`PageService::oldAddressWillRedirect()`, zodat het bevestigingsscherm precies
+zegt wat het endpoint doet:
 
 1. de slug is écht veranderd (een gewone opslag schrijft niets);
 2. de pagina heeft geen vaste URL (`route_path`);
@@ -157,6 +171,21 @@ een soft 404 wordt. Wie daar een bestemming wil, maakt er zelf een.
 
 Een automatische redirect mag gewoon verwijderd worden, en komt niet terug bij
 de eerstvolgende gewone opslag — alleen bij een nieuwe slugwijziging.
+
+### Wat er met links naar de pagina gebeurt
+
+Een menu-item, een footerlink en de knop in de header kunnen naar een pagina
+wijzen via haar id. `LinkResolver` bouwt daar bij elke weergave het huidige
+adres van, dus die links gaan vanzelf mee en worden nergens herschreven.
+`App\Service\PageUsage` somt ze op, zodat de redacteur ziet waar de pagina
+gebruikt wordt.
+
+Een getypt adres is tekst: `/contact` in een knop van een contentblok, een
+link in rich text, een menu-item van het type externe URL. Het CMS kan niet
+weten dat die tekst déze pagina bedoelt. Het telt zulke links daarom niet, en
+het vervangt ze ook niet: er is geen zoek-en-vervang door inhoud. Bij een
+gepubliceerde pagina blijven ze werken via de automatische 301. Bij een
+concept waren ze nooit een werkende link.
 
 ### En hetzelfde voor de Blog
 
@@ -318,6 +347,8 @@ onveranderd.
 | `tests/Service/RedirectValidationTest.php` | conflicten, dubbele rijen, zelfkringetjes, tweewegkringetjes, te lange ketens |
 | `tests/Service/RedirectRoutingTest.php` | echte verzoeken: 301, 302, uit, geen redirect, beide integratiepunten, querystrings, ketens, lege body |
 | `tests/Service/RedirectSlugChangeTest.php` | hernoemen, twee keer hernoemen, terug hernoemen, handmatige rij met rust laten, sitemap en canonical |
+| `tests/Service/PageUrlChangeTest.php` | eerst bevestigen, opnieuw vragen na een ander adres, de drie redirectvoorwaarden, en dat niets inhoud herschrijft. Geen database, geen webserver |
+| `tests/Service/PageUsageTest.php` | waar een pagina gelinkt wordt: menu, footer en headerknop tellen, een getypt adres niet |
 | `tests/Module/RedirectModuleTest.php` | bestemming in een uitgeschakelde module: niet uitvoeren, wel bewaren, weer laten werken |
 
 ```bash

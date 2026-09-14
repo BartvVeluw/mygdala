@@ -1321,6 +1321,43 @@ a{ color: var(--admin-accent); }
    refused, so not an error, and nothing went right either. */
 .admin-alert--warning{ background: var(--admin-accent-soft); border: 1px solid var(--admin-accent); color: var(--admin-accent); }
 
+/* --- A page's web address (admin/page.php, admin/page-new.php) -------------
+   Shown as the link it is and changed on purpose. The change is a native
+   <details> in the collapse styling (admin/_admin_collapse.php); the input
+   carries the site's base URL in front of it, so the editor sees the whole
+   address they are typing; and a save that moves the page is confirmed in
+   .admin-url-confirm first (api/admin/update-page.php). Colours are the
+   status tokens, and nothing here decides what a form submits. */
+.admin-url-field{ display: flex; flex-direction: column; gap: 0.45rem; }
+.admin-url-field__current{ margin: 0; overflow-wrap: anywhere; }
+.admin-url-change__summary{ align-self: flex-start; color: var(--admin-accent); font-weight: 600; }
+.admin-url-usage{ margin: 0; padding-left: 1.2rem; display: flex; flex-direction: column; gap: 0.3rem; }
+.admin-url-usage__kind{ color: var(--admin-text-muted); }
+.admin-url-input{ display: flex; align-items: stretch; max-width: 42rem; }
+.admin-url-input__base{
+  display: flex;
+  align-items: center;
+  max-width: 50%;
+  padding: 0 0.65rem;
+  border: 1px solid var(--admin-border);
+  border-right: none;
+  border-radius: var(--admin-radius-sm) 0 0 var(--admin-radius-sm);
+  background: var(--admin-surface);
+  color: var(--admin-text-muted);
+  font-size: 0.85rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.admin-url-input input[type="text"]{ flex: 1; min-width: 0; border-top-left-radius: 0; border-bottom-left-radius: 0; }
+.admin-url-preview{ margin: 0; color: var(--admin-text-muted); font-size: 0.85rem; font-weight: 400; overflow-wrap: anywhere; }
+.admin-url-preview__address strong{ color: var(--admin-text); }
+.admin-url-confirm{ border-color: var(--admin-warning-line); background: var(--admin-warning-soft); }
+.admin-url-confirm__addresses{ display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 0.35rem var(--admin-sp-4); margin: 0 0 var(--admin-sp-4); }
+.admin-url-confirm__addresses dt{ color: var(--admin-text-muted); }
+.admin-url-confirm__addresses dd{ margin: 0; overflow-wrap: anywhere; }
+.admin-url-confirm__actions{ display: flex; flex-wrap: wrap; align-items: center; gap: var(--admin-sp-3); margin-top: var(--admin-sp-4); }
+
 .admin-fulfilment-form{ display: flex; align-items: end; gap: var(--admin-sp-4); flex-wrap: wrap; }
 .admin-fulfilment-form label{ display: flex; flex-direction: column; gap: 0.3rem; font-size: 0.85rem; color: var(--admin-text-muted); }
 

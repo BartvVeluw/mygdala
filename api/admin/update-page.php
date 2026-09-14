@@ -3,13 +3,14 @@
 /**
  * POST /api/admin/update-page.php
  *
- * Saves one page's settings (admin/page.php's "Algemeen" + "SEO" cards) —
- * Title, Slug, Status, SEO title, Meta description, indexability and the
- * page's own social sharing image, for every CMS page alike. Same guard order and PRG/session-flash pattern as every other admin
+ * Saves one page's settings (admin/page.php's "Pagina" and "SEO" tabs) —
+ * Title, web address (slug), Status, SEO title, Meta description,
+ * indexability and the page's own social sharing image, for every CMS page
+ * alike. Same guard order and PRG/session-flash pattern as every other admin
  * endpoint.
  *
- * Two INDEPENDENT locks are enforced HERE, not by the disabled inputs in
- * the form, so a forged request cannot get past either:
+ * Two INDEPENDENT locks are enforced HERE, not by the form, so a forged
+ * request cannot get past either:
  *
  *   - a page served at a fixed URL (App\Service\PageContent::isRouteBound())
  *     keeps its stored slug: its public URL is decided by the route it is
@@ -24,8 +25,10 @@
  *
  * A slug is only ever changed when the administrator actually submits a
  * different one — it is never silently regenerated from a changed Title (see
- * App\Service\PageService), so a published URL stays put unless someone
- * deliberately edits it.
+ * App\Service\PageService) — and only once they have confirmed the move: the
+ * first save that would change it writes nothing and asks (see below). A
+ * published URL therefore stays put unless someone deliberately changes it
+ * and says so twice.
  */
 
 declare(strict_types=1);
@@ -79,6 +82,10 @@ $metaTitle = trim((string) ($_POST['meta_title'] ?? ''));
 $metaTitleEn = trim((string) ($_POST['meta_title_en'] ?? ''));
 $metaDescription = trim((string) ($_POST['meta_description'] ?? ''));
 $metaDescriptionEn = trim((string) ($_POST['meta_description_en'] ?? ''));
+
+// The address the editor confirmed on admin/page.php, present only on the
+// save that follows a confirmation card. See the confirmation step below.
+$confirmedSlug = trim((string) ($_POST['confirmed_slug'] ?? ''));
 
 // Indexability is a CLOSED two-value choice, never free text: it decides a
 // <meta name="robots"> value, and nothing an administrator types may reach
@@ -150,18 +157,63 @@ foreach ([
     }
 }
 
+/**
+ * What the editor sent, handed back to admin/page.php whenever this save does
+ * not go through — refused, or waiting for a confirmation — so the form shows
+ * their input rather than the stored page. The social image choice travels
+ * along when the form carried one; otherwise a confirmation would quietly put
+ * the stored image back.
+ */
+$submitted = [
+    'title' => $title,
+    'slug' => $slugInput,
+    'status' => $statusInput,
+    'meta_title' => $metaTitle,
+    'meta_title_en' => $metaTitleEn,
+    'meta_description' => $metaDescription,
+    'meta_description_en' => $metaDescriptionEn,
+    'noindex' => $noindex,
+];
+
+if ($socialImageSubmitted) {
+    $submitted['og_media_id'] = trim((string) $_POST['og_media_id']);
+}
+
 if ($errors !== []) {
     // Nothing to clean up: this endpoint stores no files of its own.
     $_SESSION['admin_page_errors'] = $errors;
-    $_SESSION['admin_page_old'] = [
-        'title' => $title,
-        'slug' => $slugInput,
-        'status' => $statusInput,
-        'meta_title' => $metaTitle,
-        'meta_title_en' => $metaTitleEn,
-        'meta_description' => $metaDescription,
-        'meta_description_en' => $metaDescriptionEn,
-        'noindex' => $noindex,
+    $_SESSION['admin_page_old'] = $submitted;
+    header('Location: /admin/page.php?id=' . $id);
+    exit;
+}
+
+$oldSlug = (string) ($page['slug'] ?? '');
+
+/**
+ * A new web address is confirmed before it is written.
+ *
+ * The first valid save that would move the page stores NOTHING. It hands the
+ * editor's input back exactly like a refused save does, so no typed value is
+ * lost, together with what the move is; admin/page.php then shows the current
+ * and the new address, where the page is linked from and what happens to the
+ * old address. Confirming submits the same form again, now carrying
+ * `confirmed_slug`, and PageService::urlChangeNeedsConfirmation() lets exactly
+ * that address through — an address changed again after confirming is asked
+ * about again.
+ *
+ * Enforced here rather than by the disclosure the field sits behind, so a
+ * forged or scripted request cannot move a page's address unasked either.
+ * Nothing here searches the site for the old address or rewrites it:
+ * App\Service\PageUsage explains why links by id need no rewriting and typed
+ * links must not get one.
+ */
+if (PageService::urlChangeNeedsConfirmation($page, $slug, $confirmedSlug)) {
+    $_SESSION['admin_page_old'] = ['slug' => $slug] + $submitted;
+    $_SESSION['admin_page_url_change'] = [
+        'page_id' => $id,
+        'old_slug' => $oldSlug,
+        'new_slug' => $slug,
+        'status' => $status,
     ];
     header('Location: /admin/page.php?id=' . $id);
     exit;
@@ -210,15 +262,13 @@ try {
  *
  *   - the slug really changed. An ordinary save — new title, new meta
  *     description, a section added — leaves the slug alone and writes nothing;
- *   - the page has no fixed URL. A route-bound page's slug is discarded above
- *     and its public URL never moves;
- *   - the page was PUBLISHED before this save. A draft's slug was never a
- *     working URL, so there is nothing to preserve, and this is also what
- *     keeps a brand-new page from generating one (a page is created as a
- *     draft, and create-page.php does not call this at all);
- *   - and it is still published after it. Renaming a page while taking it
- *     offline in the same save would otherwise point the old URL at a new one
- *     that 404s — two dead URLs where there was one;
+ *   - and the three in PageService::oldAddressWillRedirect(): the page has no
+ *     fixed URL, it was published before this save (a draft's slug was never
+ *     a working URL, which is also what keeps a brand-new page from
+ *     generating one — create-page.php does not call this at all), and it is
+ *     still published after it (renaming while taking the page offline would
+ *     point the old URL at a new one that 404s). admin/page.php asks the same
+ *     method before it tells the editor what confirming will do;
  *
  * and it runs AFTER the save succeeded, so a redirect can never point at a
  * slug the page did not actually get.
@@ -228,14 +278,10 @@ try {
  * the homepage is how a clean 404 becomes a soft 404; an editor who wants a
  * destination can add one by hand.
  */
-$oldSlug = (string) ($page['slug'] ?? '');
-
 if (
-    !$hasFixedUrl
-    && $oldSlug !== ''
+    $oldSlug !== ''
     && $oldSlug !== $slug
-    && PageContent::isPublished($page)
-    && $status === PageContent::STATUS_PUBLISHED
+    && PageService::oldAddressWillRedirect($page, $status)
 ) {
     (new SlugChangeRedirects())->record($oldSlug, $slug);
 }

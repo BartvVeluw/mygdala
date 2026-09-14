@@ -32,9 +32,9 @@ document, dan heeft de code gelijk.
 ```
 
 **Inhoud** is de blokkenlijst plus *Contentblok toevoegen* en staat vooraan,
-want daarvoor komt een redacteur. **Pagina** is Algemeen (titel, slug, status,
-de vaste-URL-uitleg) plus *Verwijderen*. **SEO** is de SEO-kaart, ongewijzigd.
-Geen veld staat op twee tabbladen.
+want daarvoor komt een redacteur. **Pagina** is Algemeen (titel, het webadres
+achter *Webadres wijzigen*, status) plus *Verwijderen*. **SEO** is de
+SEO-kaart. Geen veld staat op twee tabbladen.
 
 **Pagina en SEO zijn twee panelen van één `<form>`.** Niet uit gemakzucht:
 `api/admin/update-page.php` leest titel, slug, status én elk metaveld uit
@@ -47,6 +47,17 @@ opslag. Daarom staat onder allebei dezelfde knop *Instellingen opslaan*, met
 **Verwijderen is een tweede Pagina-paneel.** Die kaart heeft een eigen
 `<form>` en kon dus niet ín het instellingenformulier staan. Een tab mag meer
 dan één paneel openen; `aria-controls` noemt ze allebei.
+
+**Een nieuw webadres wordt eerst bevestigd, binnen hetzelfde formulier.** Het
+adres staat als link op het tabblad; het veld zit achter *Webadres wijzigen*,
+een `<details>` in de stijl van de inklapbare rijen, met erboven waar de
+pagina gebruikt wordt (`PageUsage`). Verandert een opslag het adres, dan
+schrijft `update-page.php` niets en komt het scherm terug met bovenaan het
+tabblad Pagina een bevestigingskaart: huidig en nieuw adres, en wat er met het
+oude gebeurt. Die kaart is geen tweede formulier. De velden eronder bevatten
+al wat de redacteur typte, dus bevestigen is hetzelfde formulier opnieuw
+versturen, met het bevestigde adres erbij. Het hele verhaal, redirect
+inbegrepen, staat in [`REDIRECTS.md`](REDIRECTS.md).
 
 **Welk tabblad opengaat**, van specifiek naar algemeen: wat het scherm eist
 (een afgekeurde opslag opent Pagina, want de foutmelding gaat over dat

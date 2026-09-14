@@ -12,13 +12,17 @@ require_once __DIR__ . '/_language_fields.php';
 require_once __DIR__ . '/_translate.php';
 
 use App\Service\AdminAuth;
+use App\Service\AppUrl;
 use App\Service\Csrf;
 use App\Service\Media\MediaService;
 use App\Service\PageContent;
 use App\Service\PageService;
+use App\Service\PageUsage;
+use App\Service\Redirects\Redirect;
 use App\Service\SectionRegistry;
 use App\Repository\PageRepository;
 use App\Repository\PageSectionRepository;
+use App\Repository\RedirectRepository;
 
 /**
  * One screen per CMS page: its settings (Title, Slug, Status, SEO title,
@@ -52,8 +56,9 @@ use App\Repository\PageSectionRepository;
  *
  * Two independent locks, deliberately not the same thing:
  *
- *   - a page served at a FIXED URL (isRouteBound()) shows its Slug locked —
- *     its URL is decided by the route it is served from;
+ *   - a page served at a FIXED URL (isRouteBound()) shows its web address as
+ *     a fact and offers no field for it — its URL is decided by the route it
+ *     is served from;
  *   - a PROTECTED page (isProtected(): the site root, or a page carrying
  *     application-critical functionality like the storefront) additionally
  *     shows Status locked and has no delete button.
@@ -61,6 +66,15 @@ use App\Repository\PageSectionRepository;
  * Diensten, Portfolio, Over mij and Contact are the ordinary content pages
  * in between: their URL is fixed, but they can be set to Concept and deleted
  * like any other page. Title and the SEO fields are editable everywhere.
+ *
+ * EVERY OTHER PAGE'S WEB ADDRESS is changed on purpose, never in passing. It
+ * is shown as the link it is; the field sits behind "Webadres wijzigen", with
+ * where the page is linked from (App\Service\PageUsage) written out above it;
+ * and a save that really moves the page comes back here unwritten, with a
+ * confirmation card at the top of the Pagina tab
+ * (api/admin/update-page.php). That card is part of the settings form rather
+ * than a form of its own: the fields already hold what the editor typed, so
+ * confirming is sending them again with the address they agreed to.
  */
 
 AdminAuth::requireLogin();
@@ -92,10 +106,51 @@ $allSections = $repository->findForPage($pageId);
 // type against this exact same list. One answer, two readers.
 $availableBlocks = SectionRegistry::availableDefinitionsForPage($page, $repository);
 $references = PageService::references($pageId);
+// Where the page is linked from, for the "Webadres wijzigen" part of the
+// Pagina tab. A page on a fixed URL has no address to change.
+$usage = $hasFixedUrl ? [] : PageUsage::forPageId($pageId);
 
 $errors = $_SESSION['admin_page_errors'] ?? [];
 $old = $_SESSION['admin_page_old'] ?? null;
 unset($_SESSION['admin_page_errors'], $_SESSION['admin_page_old']);
+
+/**
+ * A save that would move this page to another web address, handed back
+ * unconfirmed by api/admin/update-page.php: nothing was written, the editor's
+ * input is in $old exactly as after a refused save, and the Pagina tab asks.
+ * Anything that is not about THIS page is ignored rather than trusted.
+ */
+$urlChange = $_SESSION['admin_page_url_change'] ?? null;
+unset($_SESSION['admin_page_url_change']);
+
+if (!is_array($urlChange) || (int) ($urlChange['page_id'] ?? 0) !== $pageId || $hasFixedUrl) {
+    $urlChange = null;
+}
+
+/**
+ * What confirming will do to the current address, decided by the same rule
+ * api/admin/update-page.php applies (PageService::oldAddressWillRedirect()),
+ * plus the one case that rule cannot see: a redirect somebody set on the
+ * current address by hand, which SlugChangeRedirects deliberately leaves
+ * alone. One of 'redirect', 'manual', 'unpublishing' or 'draft'.
+ */
+$urlChangeOutcome = null;
+$urlChangeManualTarget = '';
+
+if ($urlChange !== null) {
+    if (PageService::oldAddressWillRedirect($page, (string) ($urlChange['status'] ?? ''))) {
+        $existingRedirect = (new RedirectRepository())->findBySourcePath('/' . (string) $urlChange['old_slug']);
+
+        if ($existingRedirect !== null && (string) $existingRedirect['origin'] !== Redirect::ORIGIN_SLUG_CHANGE) {
+            $urlChangeOutcome = 'manual';
+            $urlChangeManualTarget = (string) $existingRedirect['target_value'];
+        } else {
+            $urlChangeOutcome = 'redirect';
+        }
+    } else {
+        $urlChangeOutcome = PageContent::isPublished($page) ? 'unpublishing' : 'draft';
+    }
+}
 
 $pagesError = $_SESSION['admin_pages_error'] ?? null;
 unset($_SESSION['admin_pages_error']);
@@ -131,7 +186,13 @@ $noindexChecked = $old !== null
     ? !empty($old['noindex'])
     : (int) ($page['noindex'] ?? 0) === 1;
 $pageSocialImage = trim((string) ($page['og_image_path'] ?? ''));
-$pageSocialMedia = MediaService::find((int) ($page['og_media_id'] ?? 0));
+// A refused or unconfirmed save hands back the image that was chosen, like
+// every other field; otherwise the stored one.
+$pageSocialMedia = MediaService::find(
+    $old !== null && array_key_exists('og_media_id', $old)
+        ? (int) $old['og_media_id']
+        : (int) ($page['og_media_id'] ?? 0)
+);
 
 // The search-result preview below shows what this page's head will really
 // contain, resolved by the same App\Service\PageSeo the public page uses —
@@ -157,9 +218,17 @@ $kindMeta = [
  * tab this editor last had open on this page. But a rejected save puts its
  * messages above a form that lives on one particular tab, and "Titel is
  * verplicht" above a closed tab helps nobody — so a failed save opens
- * Pagina, and a saved one leaves the choice alone.
+ * Pagina, and so does a new web address waiting for confirmation. A saved
+ * one leaves the choice alone.
  */
-$forcedTab = ($errors !== [] || $pagesError !== null) ? 'pagina' : null;
+$forcedTab = ($errors !== [] || $pagesError !== null || $urlChange !== null) ? 'pagina' : null;
+
+// The address field stays open whenever the form holds an address other than
+// the stored one — a refused save, or one waiting for confirmation — so the
+// editor sees what they typed instead of a closed "Webadres wijzigen".
+$urlFieldOpen = !$hasFixedUrl
+    && $old !== null
+    && PageService::sanitizeSlug((string) ($old['slug'] ?? '')) !== (string) $page['slug'];
 ?>
 <!doctype html>
 <html lang="<?= htmlspecialchars(\App\Service\Language\AdminLocale::current(), ENT_QUOTES, 'UTF-8') ?>">
@@ -230,23 +299,114 @@ $forcedTab = ($errors !== [] || $pagesError !== null) ? 'pagina' : null;
     <input type="hidden" name="id" value="<?= $pageId ?>">
 
     <?php admin_tab_panel('pagina'); ?>
+    <?php if ($urlChange !== null): ?>
+    <?php /* The confirmation a new web address waits for: nothing has been
+             written yet (api/admin/update-page.php). It sits INSIDE the
+             settings form on purpose. The fields below already hold what the
+             editor typed, so confirming is submitting that same form again,
+             now carrying the one address they agreed to — one form to one
+             endpoint, as ever. */ ?>
+    <section class="admin-card admin-url-confirm" aria-labelledby="page-url-confirm-title">
+      <h2 id="page-url-confirm-title"><?= admin_te('page.url_confirm_title') ?></h2>
+      <p><?= admin_te('page.url_confirm_intro') ?></p>
+      <dl class="admin-url-confirm__addresses">
+        <dt><?= admin_te('page.url_confirm_old') ?></dt>
+        <dd><code>/<?= $h((string) $urlChange['old_slug']) ?></code></dd>
+        <dt><?= admin_te('page.url_confirm_new') ?></dt>
+        <dd><code>/<?= $h((string) $urlChange['new_slug']) ?></code></dd>
+      </dl>
+      <p>
+        <?php if ($usage === []): ?>
+          <?= admin_te('page.url_usage_none') ?>
+        <?php else: ?>
+          <?= $h(count($usage) === 1 ? admin_t('page.url_usage_one') : admin_t('page.url_usage_many', ['count' => (string) count($usage)])) ?>
+          <?= admin_te('page.url_usage_follow') ?>
+        <?php endif; ?>
+      </p>
+      <p>
+        <?php if ($urlChangeOutcome === 'manual'): ?>
+          <?= admin_te('page.url_confirm_manual', ['target' => $urlChangeManualTarget]) ?>
+        <?php else: ?>
+          <?= admin_te('page.url_confirm_' . $urlChangeOutcome) ?>
+        <?php endif; ?>
+      </p>
+      <input type="hidden" name="confirmed_slug" value="<?= $h((string) $urlChange['new_slug']) ?>">
+      <div class="admin-url-confirm__actions">
+        <button type="submit"><?= admin_te('page.url_confirm_submit') ?></button>
+        <a href="/admin/page.php?id=<?= $pageId ?>" class="admin-btn-secondary"><?= admin_te('page.url_confirm_cancel') ?></a>
+      </div>
+    </section>
+    <?php endif; ?>
     <section class="admin-card">
       <h2><?= admin_te('page.algemeen') ?></h2>
-      <div class="admin-form-row admin-form-row--split">
+      <?php /* The shared field styling (label above a full-width control, one
+               rhythm between fields) — the same wrapper the SEO tab uses. */ ?>
+      <div class="admin-product-form admin-product-form--wide">
+      <div class="admin-form-row">
         <label><?= admin_te('common.title') ?>*
           <input type="text" name="title" maxlength="<?= PageService::MAX_TITLE_LENGTH ?>" required value="<?= $h($fieldValue('title')) ?>">
         </label>
-        <label><?= admin_t('page.slug_url', ['v1' => $hasFixedUrl ? '' : '*']) ?>
-          <input type="text" name="slug" maxlength="<?= PageService::MAX_SLUG_LENGTH ?>" value="<?= $h($fieldValue('slug')) ?>" <?= $hasFixedUrl ? 'disabled' : 'required' ?>>
-        </label>
       </div>
-      <p class="admin-text-muted">
-        <?= admin_te('page.live') ?>
-        <a href="<?= $h(PageContent::publicUrl($page)) ?>" target="_blank" rel="noopener"><?= $h(PageContent::publicUrl($page)) ?></a>
+
+      <?php /* The web address, shown as the link it is and changed only on
+               purpose: the field sits behind "Webadres wijzigen", a native
+               <details> in the collapse styling (admin/_admin_collapse.php),
+               with what a change affects written out above it. The word
+               "slug" appears in the explanation only. A page served at a
+               fixed URL has no field at all — update-page.php would discard
+               the value anyway. */ ?>
+      <div class="admin-url-field">
+        <div class="admin-field__label">
+          <span><?= admin_te('page.url_label') ?></span>
+          <?= admin_help(admin_t('page.url_label'), admin_t('help.page.url')) ?>
+        </div>
+        <p class="admin-url-field__current">
+          <a href="<?= $h(PageContent::publicUrl($page)) ?>" target="_blank" rel="noopener"><?= $h(PageContent::canonicalUrl($page)) ?></a>
+        </p>
         <?php if ($hasFixedUrl): ?>
-          <?= admin_t('page.fixed_url_note') ?><?= $isProtected ? '' : ', en de pagina kun je op Concept zetten of verwijderen zoals elke andere contentpagina' ?>.
+          <p class="admin-text-muted"><?= admin_te('page.url_fixed') ?></p>
+        <?php else: ?>
+          <details class="admin-collapse admin-url-change"<?= $urlFieldOpen ? ' open' : '' ?>>
+            <summary class="admin-collapse__summary admin-url-change__summary">
+              <span class="admin-collapse__caret" aria-hidden="true"></span>
+              <span class="admin-collapse__title"><?= admin_te('page.url_change') ?></span>
+            </summary>
+            <div class="admin-collapse__body admin-url-change__body">
+              <p class="admin-alert admin-alert--warning"><?= admin_te('page.url_change_warning') ?></p>
+              <?php if ($usage === []): ?>
+                <p><?= admin_te('page.url_usage_none') ?></p>
+              <?php else: ?>
+                <p>
+                  <?= $h(count($usage) === 1 ? admin_t('page.url_usage_one') : admin_t('page.url_usage_many', ['count' => (string) count($usage)])) ?>
+                  <?= admin_te('page.url_usage_follow') ?>
+                </p>
+                <ul class="admin-url-usage">
+                  <?php foreach ($usage as $place): ?>
+                    <li>
+                      <span class="admin-url-usage__kind"><?= admin_te('page.url_usage_kind_' . $place['kind']) ?>:</span>
+                      <a href="<?= $h($place['edit_url']) ?>"><?= $h($place['label']) ?></a>
+                      <?php if ($place['context'] !== ''): ?>
+                        <span class="admin-text-muted">(<?= $h($place['context']) ?>)</span>
+                      <?php endif; ?>
+                      <?php if ($place['hidden']): ?>
+                        <span class="admin-badge admin-badge--muted"><?= admin_te('page.url_usage_hidden') ?></span>
+                      <?php endif; ?>
+                    </li>
+                  <?php endforeach; ?>
+                </ul>
+              <?php endif; ?>
+              <p class="admin-text-muted"><?= admin_te('page.url_typed_links') ?></p>
+              <div class="admin-field">
+                <?= admin_field_label('page-slug', admin_t('page.url_new')) ?>
+                <div class="admin-url-input">
+                  <span class="admin-url-input__base" aria-hidden="true"><?= $h(AppUrl::canonical('/')) ?></span>
+                  <input type="text" id="page-slug" name="slug" maxlength="<?= PageService::MAX_SLUG_LENGTH ?>" value="<?= $h($fieldValue('slug')) ?>" autocomplete="off" spellcheck="false">
+                </div>
+              </div>
+            </div>
+          </details>
         <?php endif; ?>
-      </p>
+      </div>
       <label><?= admin_te('common.status') ?>
         <select name="status" <?= $isProtected ? 'disabled' : '' ?>>
           <?php foreach (array_keys(PageContent::STATUS_LABELS) as $statusKey): ?>
@@ -259,6 +419,7 @@ $forcedTab = ($errors !== [] || $pagesError !== null) ? 'pagina' : null;
       <?php else: ?>
         <p class="admin-text-muted"><?= admin_te('page.concept_betekent_wel_bewerkbaar') ?></p>
       <?php endif; ?>
+      </div>
     </section>
 
     <section class="admin-card admin-card--actions">
