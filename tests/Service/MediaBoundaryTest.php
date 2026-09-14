@@ -516,8 +516,46 @@ final class MediaBoundaryTest extends TestCase
         }
 
         $this->assertStringContainsString('autofocus data-media-dialog-close', $screen, 'the dialog opens on Annuleren');
-        $this->assertStringContainsString('data-media-confirm=', $screen, 'the single delete asks through a data attribute');
+        $this->assertStringContainsString(
+            '<form method="post" action="/api/admin/delete-media.php"<?= admin_confirm_attributes(',
+            $screen,
+            'the single delete asks in the shared confirmation dialog'
+        );
         $this->assertDoesNotMatchRegularExpression('/\son[a-z]+\s*=/i', $screen, 'no inline handler anywhere on the media screen');
+    }
+
+    /**
+     * One way to ask before something is gone (ADMIN-UI.md). A single delete
+     * on the item view asks in the CMS's shared dialog, printed once by the
+     * screen, and the library keeps no confirmation hook of its own. Only
+     * deleting a selection has a dialog of its own, because it shows what
+     * will really go; without <dialog> its fallback question is the one place
+     * the library's script still asks the browser.
+     */
+    public function testASingleDeleteAsksInTheSharedDialogAndOnlyASelectionHasItsOwn(): void
+    {
+        $screen = $this->source('admin/media.php');
+        $script = $this->source('admin/assets/media-library.js');
+
+        $this->assertStringContainsString("admin_t('media.delete.confirm', ['name' => \$item->displayName()])", $screen, 'the question names the file');
+        $this->assertSame(1, substr_count($screen, '<?= admin_confirm_attributes('), 'only the single delete uses the shared question');
+        $this->assertSame(1, substr_count($screen, '<?= admin_confirm_dialog() ?>'), 'the shared dialog is printed once');
+
+        foreach (['admin/media.php' => $screen, 'admin/assets/media-library.js' => $script] as $file => $source) {
+            $this->assertStringNotContainsString('data-media-confirm', $source, $file . ' keeps no confirmation hook of its own');
+        }
+
+        $this->assertSame(1, substr_count($script, 'window.confirm('), 'the script asks the browser in one place only');
+        $this->assertMatchesRegularExpression(
+            '/function fillDeleteDialogText\(chosen, event\) \{[\s\S]*?window\.confirm\(question\)/',
+            $script,
+            'and that place is the selection\'s fallback without <dialog>'
+        );
+        $this->assertMatchesRegularExpression(
+            '#<\?php if \(\$item === null\): \?>\s*(<\?php /\*.*?\*/ \?>\s*)?<script src="<\?= AssetVersion::url\(\'/admin/assets/media-library\.js\'\) \?>" defer></script>#s',
+            $screen,
+            'the library script is loaded for the grid only: the item view has nothing left for it to do'
+        );
     }
 
     /**

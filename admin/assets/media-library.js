@@ -2,7 +2,9 @@
  * Media Library on admin/media.php: search, filter and page through the
  * library without reloading; select items and delete the selection after a
  * confirmation; rename an item; and keep the grid current when the upload
- * queue adds files. On the item view it only asks before a delete.
+ * queue adds files. The grid only: a single delete on the item view asks in
+ * the CMS's shared dialog (admin_confirm_dialog(), ADMIN-UI.md), so that view
+ * does not load this script.
  *
  * OWNER. admin/media.php, the only screen that loads it.
  *
@@ -27,23 +29,6 @@
 (function () {
   "use strict";
 
-  // --- Asking before a single delete (the item view) -------------------------
-
-  // The question is the catalog's, in the form's data attribute. Without this
-  // script the form deletes straight away, and the server still refuses an
-  // item that is in use.
-  document.addEventListener("submit", function (event) {
-    var form = event.target;
-
-    if (!(form instanceof HTMLFormElement) || !form.hasAttribute("data-media-confirm")) {
-      return;
-    }
-
-    if (!window.confirm(form.getAttribute("data-media-confirm") || "")) {
-      event.preventDefault();
-    }
-  });
-
   var library = document.querySelector("[data-media-library]");
 
   if (
@@ -65,7 +50,10 @@
   var deleteDialog = document.querySelector("[data-media-delete-dialog]");
   var renameDialog = document.querySelector("[data-media-rename-dialog]");
 
-  /** A browser without <dialog> keeps the plain forms: confirm(), and renaming on the item view. */
+  /**
+   * A browser without <dialog> keeps the plain forms: deleting a selection
+   * asks the browser's own question, and renaming happens on the item view.
+   */
   var dialogs = typeof window.HTMLDialogElement === "function";
 
   /** How long after the last key a search starts: smooth to type, few requests. */

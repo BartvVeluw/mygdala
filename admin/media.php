@@ -46,8 +46,10 @@ use App\Service\Media\VisibleMediaUsages;
  * checkbox for the one bulk action there is — deleting a selection, through
  * api/admin/delete-media-items.php — and a way to rename the item. Both work
  * without the script: the checkboxes belong to an ordinary form, and the item
- * view has a plain rename form. The script adds the confirmation dialog, the
- * counter and the rename dialog. Nothing used is ever deleted: the server
+ * view has a plain rename form. The script adds the selection's own
+ * confirmation dialog, the counter and the rename dialog; a single delete on
+ * the item view asks in the CMS's shared dialog instead (ADMIN-UI.md). Nothing
+ * used is ever deleted: the server
  * keeps it and says where it is used — naming only the places the reader may
  * open, and counting the others (App\Service\Media\VisibleMediaUsages).
  *
@@ -670,9 +672,15 @@ if ($item === null) {
         <p class="admin-text-muted">
           <?= admin_t('media.verwijdert_afbeelding_uit_bibliotheek') ?>
         </p>
-        <?php /* media-library.js asks the question in data-media-confirm first;
+        <?php /* Asks first, in the CMS's shared dialog printed at the end of
+                 this screen, and names the file that would go. The form, its
+                 token and the endpoint's guards are exactly what they were;
                  the server refuses an item in use either way. */ ?>
-        <form method="post" action="/api/admin/delete-media.php" data-media-confirm="<?= admin_te('media.delete.confirm') ?>">
+        <form method="post" action="/api/admin/delete-media.php"<?= admin_confirm_attributes(
+            admin_t('media.delete.confirm_title'),
+            admin_t('media.delete.confirm', ['name' => $item->displayName()]),
+            admin_t('common.delete')
+        ) ?>>
           <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
           <input type="hidden" name="media_id" value="<?= (int) $item->id ?>">
           <button type="submit" class="admin-btn-text admin-btn-text--danger"><?= admin_te('common.delete') ?></button>
@@ -684,8 +692,13 @@ if ($item === null) {
 <?php endif; ?>
 
 </main>
-<script src="<?= AssetVersion::url('/admin/assets/media-library.js') ?>" defer></script>
+<?php if ($item !== null && $canManage): ?>
+<?= admin_confirm_dialog() ?>
+<?php endif; ?>
 <?php if ($item === null): ?>
+<?php /* The grid only: on the item view the one question left is the shared
+         dialog above, which the shell's admin-ui.js asks. */ ?>
+<script src="<?= AssetVersion::url('/admin/assets/media-library.js') ?>" defer></script>
 <script src="<?= AssetVersion::url('/admin/assets/media-upload.js') ?>" defer></script>
 <?php endif; ?>
 </body>

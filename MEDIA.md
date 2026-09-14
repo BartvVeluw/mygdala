@@ -354,15 +354,23 @@ geen functie.
 Een blok verwijderen haalt alleen de *verwijzing* weg. Het bestand is van de
 bibliotheek en staat mogelijk op drie andere pagina's.
 
+Op het itemscherm vraagt *Verwijderen* het eerst, in de gedeelde dialoog van
+het CMS (`admin_confirm_attributes()` en `admin_confirm_dialog()`,
+`ADMIN-UI.md`), met de naam van het bestand in de vraag. *Annuleren*, Escape of
+een klik naast de dialoog verstuurt niets. Zonder JavaScript gaat het
+formulier direct, en de server houdt nog steeds tegen wat gebruikt wordt.
+
 ### Meerdere tegelijk
 
 Op het raster heeft elke kaart een selectievakje (`.admin-checkbox`, met de
 naam van het bestand als toegankelijke naam), voor wie `media.manage` heeft.
 *Alles op deze pagina selecteren* staat erboven; een teller (*3 geselecteerd*)
 en de knop *Verwijderen* verschijnen pas als er iets geselecteerd is. De knop
-opent een bevestiging, een `<dialog>`: hoeveel bestanden er echt weggaan,
-welke nog gebruikt worden en daarom blijven staan, en dat het niet ongedaan
-kan worden gemaakt. De focus staat dan eerst op *Annuleren*.
+opent een eigen bevestiging, een `<dialog>` van dit scherm: hoeveel bestanden
+er echt weggaan, welke nog gebruikt worden en daarom blijven staan, en dat het
+niet ongedaan kan worden gemaakt. De focus staat dan eerst op *Annuleren*. Dat
+is bewust niet de gedeelde dialoog: die stelt één vaste vraag, en deze toont
+per keer wat er van de selectie echt weggaat en wat blijft staan.
 
 `api/admin/delete-media-items.php` → `MediaService::deleteMany()`:
 
@@ -555,7 +563,8 @@ endpoints, niet wat er op een klik gebeurt. Loop na een wijziging aan
 15. Meerdere kaarten selecteren: de teller en *Verwijderen* verschijnen, en
     *Alles op deze pagina selecteren* werkt.
 16. *Verwijderen* en dan *Annuleren* (of Escape): er gebeurt niets, en de
-    focus staat weer op de knop.
+    focus staat weer op de knop. Op een item doet *Verwijderen* hetzelfde in
+    de gedeelde dialoog van het CMS, met de naam van het bestand in de vraag.
 17. *Verwijderen* en dan *Definitief verwijderen*: de melding zegt wat er weg
     is.
 18. Een gebruikt bestand in de selectie: de dialoog noemt het, het blijft

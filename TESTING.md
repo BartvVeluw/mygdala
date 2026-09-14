@@ -474,9 +474,11 @@ Uploaden, de mediakiezer, alt-teksten, gebruiksbepaling of verwijderen
 ```
 --testsuite fast        (MediaBoundaryTest: rechten, guards, CSRF, de
                          modulegrens — database noch webserver nodig)
---testsuite cms         voegt MediaLibraryTest, MediaUsageTest en
-                        MediaAdoptionTest toe: echte uploads, echte
-                        blokinstanties, echte bestanden
+--testsuite cms         voegt MediaLibraryTest, MediaUsageTest,
+                        MediaUsageAccessTest en MediaAdoptionTest toe:
+                        echte uploads, echte blokinstanties, echte
+                        bestanden, en wie waar een bestand gebruikt wordt
+                        te lezen krijgt, ook over HTTP
 --testsuite blocks      als je een blok aansloot op de kiezer
 ```
 
@@ -628,14 +630,15 @@ Is die server niet bereikbaar, dan slaan deze tests zichzelf over met een
 melding die het startcommando noemt — ze falen nooit om de verkeerde reden.
 Vanaf je eigen machine is dezelfde site te zien op de poort die `docker compose port php_test 80` noemt.
 
-**Twee HTTP-tests hebben de testcontainer niet nodig.** `PagePreviewAccessTest`
-(suite `cms`) en `PageBuilderScreenTest` (suites `blocks` en `cms`) starten
-voor de duur van de klasse PHP's eigen webserver (`php -S`) op deze
-uitchecking, tegen de testdatabase, en loggen een redacteur in met een echte
-sessie. Dat kan omdat niets van de conceptpreview of de paginabouwer in Apache
-zit: `admin/page-preview.php`, `admin/page.php` en de endpoints onder
-`api/admin/` zijn gewone bestanden, en `pagina.php` en `sitemap.php` worden
-rechtstreeks aangesproken. De rewrite zelf blijft de zaak van
+**Drie HTTP-tests hebben de testcontainer niet nodig.** `PagePreviewAccessTest`
+(suite `cms`), `PageBuilderScreenTest` (suites `blocks` en `cms`) en
+`MediaUsageAccessTest` (suite `cms`) starten voor de duur van de klasse PHP's
+eigen webserver (`php -S`) op deze uitchecking, tegen de testdatabase, en
+loggen een beheerder in met een echte sessie. Dat kan omdat niets van de
+conceptpreview, de paginabouwer of de mediabibliotheek in Apache zit:
+`admin/page-preview.php`, `admin/page.php`, `admin/media.php` en de endpoints
+onder `api/admin/` zijn gewone bestanden, en `pagina.php` en `sitemap.php`
+worden rechtstreeks aangesproken. De rewrite zelf blijft de zaak van
 `PageRoutingTest`. Kan de server niet starten, dan slaan deze tests zichzelf
 over.
 

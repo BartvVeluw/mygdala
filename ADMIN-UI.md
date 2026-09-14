@@ -240,19 +240,20 @@ script gaat het formulier direct, zoals met de inline `confirm()` die dit
 vervangt.
 
 Het eerste scherm dat hem gebruikt, is de blokkenlijst van de paginabouwer
-([`PAGE-EDITOR.md`](PAGE-EDITOR.md)). De rest van het CMS gebruikt nog
-`onsubmit="return confirm(…)"`. Een scherm dat overgaat, haalt die weg en
-gebruikt de twee functies hierboven; meer is het niet.
+([`PAGE-EDITOR.md`](PAGE-EDITOR.md)); de losse verwijderknop van een item in
+de Mediabibliotheek volgde ([`MEDIA.md`](MEDIA.md)). De rest van het CMS
+gebruikt nog `onsubmit="return confirm(…)"`. Een scherm dat overgaat, haalt
+die weg en gebruikt de twee functies hierboven; meer is het niet.
 
 ## Waar het al gebruikt wordt
 
-Vijf schermen, als bewijs dat de bouwstenen herbruikbaar zijn. De rest van het
+Zes schermen, als bewijs dat de bouwstenen herbruikbaar zijn. De rest van het
 CMS volgt scherm voor scherm; een scherm dat nog niet is omgezet, werkt zoals
 het werkte.
 
 | Scherm | Wat |
 |---|---|
-| Mediabibliotheek (`admin/media.php`) | De upload is `admin_file_input()` met `multiple`; het sleepvak, de lijst met nieuwe bestanden en de voorbeelden eromheen zijn van dat scherm zelf (`MEDIA.md`). Zoekveld (`?q=`) en de soort bestand als `.admin-select` (`?type=`), die het raster verversen zonder te herladen. Per kaart een `.admin-checkbox` om meerdere bestanden tegelijk te selecteren |
+| Mediabibliotheek (`admin/media.php`) | De upload is `admin_file_input()` met `multiple`; het sleepvak, de lijst met nieuwe bestanden en de voorbeelden eromheen zijn van dat scherm zelf (`MEDIA.md`). Zoekveld (`?q=`) en de soort bestand als `.admin-select` (`?type=`), die het raster verversen zonder te herladen. Per kaart een `.admin-checkbox` om meerdere bestanden tegelijk te selecteren. *Verwijderen* op een item vraagt eerst in `admin_confirm_dialog()`; een selectie verwijderen heeft een eigen dialoog, omdat die per keer toont wat er echt weggaat en wat blijft staan |
 | Site-instellingen (`admin/settings.php`) | Infobalk bij *Algemeen* en bij *Adresgegevens*; uitleg bij naam van de website, e-mailadres, telefoonnummer, plaats, footer-omschrijving, plaats en land van het adres, KVK-nummer, standaardtaal, standaard meta description en indexeren. De standaardtaal is een `.admin-select`, indexeren een switch |
 | Shop-instellingen (`admin/shop-settings.php`) | Infobalk per tabblad; uitleg bij elk veld; één `?` bij *Invulvelden* die elk invulveld van de bestelmail uitlegt, opgebouwd uit `EmailPlaceholders::KNOWN`; *Herstel standaardtekst* als `.admin-btn-secondary` (`admin/assets/shop-settings.js`) |
 | Pagina's (`admin/pages.php`) | Infobalk; zoekveld (`?q=`, filtert de al geladen lijst via `PageContent::matchesAdminSearch()`); knoppen uit de familie; de status als badge met woord én kleur: `.admin-badge--draft` (amber, `--admin-warning`) en `.admin-badge--published` (groen, `--admin-success`) |
