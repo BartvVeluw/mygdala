@@ -359,17 +359,12 @@ final class PortfolioModuleHttpTest extends TestCase
         $this->itemIds[] = $id;
 
         if ($projectPage) {
-            $repository->updateItem($id, $values + [
-                'is_active' => true,
-                'is_featured' => false,
-                'featured_sort_order' => null,
-                'has_detail_page' => true,
-                'slug' => 'zz-portfoliotest-' . $marker,
-                'intro_nl' => null,
-                'intro_en' => null,
-                'description_nl' => null,
-                'description_en' => null,
-            ]);
+            // The old project page. Nothing in the application writes its
+            // columns any more, so the fixture sets them directly, the way
+            // portfolioPage() below sets a fixed route.
+            Database::connection()
+                ->prepare('UPDATE portfolio_gallery_items SET has_detail_page = 1, slug = :slug WHERE id = :id')
+                ->execute(['slug' => 'zz-portfoliotest-' . $marker, 'id' => $id]);
         }
 
         PortfolioGalleryContent::clearCache();

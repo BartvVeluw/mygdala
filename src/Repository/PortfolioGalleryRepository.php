@@ -341,11 +341,18 @@ class PortfolioGalleryRepository extends Repository
     }
 
     /**
-     * Categories are saved separately via setItemCategories() — see
+     * Saves what an item's own editor edits: its image, its words, and whether
+     * and where it is shown. Categories and the linked page are saved
+     * separately, through setItemCategories() and setItemPage() — see
      * api/admin/update-portfolio-item.php. The legacy `categories` string
      * column is never written by this method (see createItem()'s docblock).
      *
-     * @param array<string, string|bool|int|null> $values image_path, thumbnail_path, alt_nl, alt_en, title_nl, title_en, subtitle_nl, subtitle_en, is_active, is_featured, featured_sort_order, has_detail_page, slug, intro_nl, intro_en, description_nl, description_en
+     * Neither are the old project page's columns (has_detail_page, slug,
+     * intro_*, description_*): nothing edits that page any more, and a save
+     * must never blank what it still shows at its old address
+     * (portfolio-detail.php). They keep exactly the values they have.
+     *
+     * @param array<string, string|bool|int|null> $values image_path, thumbnail_path, alt_nl, alt_en, title_nl, title_en, subtitle_nl, subtitle_en, is_active, is_featured, featured_sort_order
      */
     public function updateItem(int $id, array $values): void
     {
@@ -362,12 +369,6 @@ class PortfolioGalleryRepository extends Repository
                 is_active = :is_active,
                 is_featured = :is_featured,
                 featured_sort_order = :featured_sort_order,
-                has_detail_page = :has_detail_page,
-                slug = :slug,
-                intro_nl = :intro_nl,
-                intro_en = :intro_en,
-                description_nl = :description_nl,
-                description_en = :description_en,
                 updated_at = NOW()
              WHERE id = :id'
         );
@@ -383,12 +384,6 @@ class PortfolioGalleryRepository extends Repository
             'is_active' => $values['is_active'] ? 1 : 0,
             'is_featured' => $values['is_featured'] ? 1 : 0,
             'featured_sort_order' => $values['featured_sort_order'] ?? null,
-            'has_detail_page' => !empty($values['has_detail_page']) ? 1 : 0,
-            'slug' => self::nullIfEmpty($values['slug'] ?? null),
-            'intro_nl' => self::nullIfEmpty($values['intro_nl'] ?? null),
-            'intro_en' => self::nullIfEmpty($values['intro_en'] ?? null),
-            'description_nl' => self::nullIfEmpty($values['description_nl'] ?? null),
-            'description_en' => self::nullIfEmpty($values['description_en'] ?? null),
             'id' => $id,
         ]);
     }

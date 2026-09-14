@@ -9,14 +9,15 @@ use PHPUnit\Framework\TestCase;
 /**
  * The Portfolio screens are built from the shared admin controls
  * (ADMIN-UI.md), ask for nothing but an image, show that image before it is
- * saved, and still send exactly what their endpoints read.
+ * saved, offer the project page as one choice of an ordinary page, and still
+ * send exactly what their endpoints read.
  *
  * Read from the source, like Tests\Service\AdminUiPrimitivesTest reads the
  * other screens that use the controls: no database and no web server. What a
  * click does is checked in a browser (ADMIN-UI.md, "Handmatig controleren");
- * that the endpoints accept an item without words is
+ * that the endpoints accept an item without words and store the chosen page is
  * Tests\Service\PortfolioItemEditingHttpTest, and that the editor really
- * renders the stored image is that test too.
+ * renders the stored image and offers the right pages is that test too.
  */
 final class PortfolioAdminScreenTest extends TestCase
 {
@@ -25,6 +26,9 @@ final class PortfolioAdminScreenTest extends TestCase
 
     /** @var list<string> the words an item has, per language */
     private const WORDS = ['title_nl', 'title_en', 'alt_nl', 'alt_en', 'subtitle_nl', 'subtitle_en'];
+
+    /** @var list<string> what the project page the Portfolio used to own was made of */
+    private const OLD_PROJECT_PAGE_FIELDS = ['has_detail_page', 'slug', 'intro_nl', 'intro_en', 'description_nl', 'description_en'];
 
     public function testTheNewItemFormAsksForAnImageAndNothingElse(): void
     {
@@ -92,7 +96,7 @@ final class PortfolioAdminScreenTest extends TestCase
     {
         $item = self::source(self::ITEM_SCREEN);
 
-        foreach (['is_active', 'is_featured', 'has_detail_page'] as $name) {
+        foreach (['is_active', 'is_featured'] as $name) {
             $this->assertStringContainsString('class="admin-switch" role="switch" name="' . $name . '" value="1"', $item, $name);
         }
 
@@ -150,35 +154,71 @@ final class PortfolioAdminScreenTest extends TestCase
         $this->assertStringContainsString('state.cat === "_none"', $script);
     }
 
-    /** The project page is still there, folded under "Geavanceerd", and unchanged underneath. */
-    public function testTheProjectPageIsFoldedAwayButStillComplete(): void
+    /**
+     * The project page is one choice in the shared select, explained, with
+     * "no page" as its first and valid answer. What the old project page was
+     * made of — its switch, slug, rich texts and extra photos — is not on the
+     * screen any more.
+     */
+    public function testTheProjectPageIsOneChoiceOfAnOrdinaryPage(): void
     {
         $edit = self::form('update-portfolio-item.php');
+        $item = self::source(self::ITEM_SCREEN);
 
-        // The <details> tag carries a PHP echo (open when a project page is on),
-        // whose closing angle bracket must not be read as the end of the tag.
         $this->assertMatchesRegularExpression(
-            '#<details class="admin-collapse admin-collapse--card"(?:\?>|[^>])*>\s*<summary class="admin-collapse__summary">[\s\S]*?portfolio\.geavanceerd_projectpagina#',
+            '#admin_field_label\(\'portfolio-page\', admin_t\(\'portfolio\.project_page\'\), admin_t\(\'help\.portfolio\.project_page\'\)\)\s*\?>\s*<select class="admin-select" id="portfolio-page" name="page_id">\s*<option value=""><\?= admin_te\(\'portfolio\.no_linked_page\'\) \?></option>#',
             $edit
         );
+        $this->assertStringContainsString('$linkablePages = PortfolioGalleryContent::linkablePages();', $item, 'the pages come from the one rule an item may link to');
 
-        foreach (['has_detail_page', 'slug'] as $name) {
-            $this->assertStringContainsString('name="' . $name . '"', $edit);
+        foreach (self::OLD_PROJECT_PAGE_FIELDS as $name) {
+            $this->assertStringNotContainsString('name="' . $name . '"', $edit, $name . ' belonged to the old project page');
+            $this->assertStringNotContainsString("renderRichTextField('" . $name . "'", $edit);
         }
 
-        foreach (['intro_nl', 'intro_en', 'description_nl', 'description_en'] as $field) {
-            $this->assertStringContainsString("renderRichTextField('" . $field . "'", $edit);
-        }
-
-        $item = self::source(self::ITEM_SCREEN);
         foreach (['add-portfolio-item-images.php', 'update-portfolio-item-image.php', 'delete-portfolio-item-image.php', 'reorder-portfolio-item-images.php'] as $endpoint) {
-            $this->assertStringContainsString('/api/admin/' . $endpoint, $item, 'the project images keep their endpoint');
+            $this->assertStringNotContainsString($endpoint, $item, 'the old extra photos are not edited here any more');
+        }
+
+        $this->assertStringNotContainsString('portfolio.geavanceerd_projectpagina', $item);
+        $this->assertStringNotContainsString('_richtext_field.php', $item, 'no rich text is left on this screen');
+        $this->assertStringNotContainsStringIgnoringCase('quill', $item, 'so neither is its editor');
+
+        $nl = require dirname(__DIR__, 2) . '/src/Service/Language/messages/nl.php';
+        $en = require dirname(__DIR__, 2) . '/src/Service/Language/messages/en.php';
+
+        $this->assertSame('Projectpagina', $nl['portfolio.project_page']);
+        $this->assertSame('Geen gekoppelde pagina', $nl['portfolio.no_linked_page']);
+        $this->assertSame(
+            'Koppel eventueel een gewone pagina aan dit portfolio-item. Op die pagina kun je de normale paginabouwer gebruiken voor tekst, afbeeldingen en andere contentblokken.',
+            $nl['help.portfolio.project_page']
+        );
+
+        foreach (['portfolio.project_page', 'portfolio.no_linked_page', 'help.portfolio.project_page', 'portfolio.page_option_draft', 'portfolio.new_page', 'portfolio.new_page_note', 'validation.portfolio_page_unknown'] as $key) {
+            $this->assertArrayHasKey($key, $nl, $key);
+            $this->assertArrayHasKey($key, $en, $key);
         }
     }
 
     /**
-     * What the forms SEND did not change: the same names the endpoints read,
-     * and the same hidden item id.
+     * "Nieuwe pagina maken" is the Pages screen itself, shown only to an editor
+     * who may use it — the Portfolio has no page creator of its own.
+     */
+    public function testANewPageIsMadeOnThePagesOwnScreen(): void
+    {
+        $item = self::source(self::ITEM_SCREEN);
+
+        $this->assertStringContainsString('$canManagePages = AdminAuth::can(AdminPermissions::PAGES_MANAGE);', $item);
+        $this->assertMatchesRegularExpression(
+            '#<\?php if \(\$canManagePages\): \?>\s*<p>\s*<a href="/admin/page-new\.php" class="admin-btn-secondary" target="_blank" rel="noopener">#',
+            $item
+        );
+        $this->assertStringNotContainsString('create-page.php', $item, 'the Portfolio posts no page of its own');
+    }
+
+    /**
+     * What the forms SEND is what their endpoints read: the same names, and
+     * the same hidden item id.
      */
     public function testTheFormsStillSendWhatTheirEndpointsRead(): void
     {

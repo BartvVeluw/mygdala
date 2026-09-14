@@ -3,31 +3,34 @@
 /**
  * POST /api/admin/update-portfolio-item.php
  *
- * Saves everything editable on one Portfolio item's dedicated edit page
- * (admin/portfolio-item.php?id=...): Basisgegevens, Hoofdafbeelding,
+ * Saves everything editable on one Portfolio item's edit page
+ * (admin/portfolio-item.php?id=...): Hoofdafbeelding, Basisgegevens,
  * Zichtbaarheid & categorieën and Projectpagina are all one <form> there
  * (same "one form, several visual admin-card sections" layout as
  * admin/product-form.php's main product form), so they're saved together
- * here — same as the old update-gallery-item.php this replaces, just
- * extended with the has_detail_page/slug/intro/description fields.
- *
- * Additional project images (Projectafbeeldingen) are a separate concern
- * with their own endpoints (add/update/delete/reorder-portfolio-item-
- * images.php), same split as product photos vs. the main product form.
+ * here — same as the old update-gallery-item.php this replaces.
  *
  * Title, alt text, caption and categories are optional, exactly as on
  * create-portfolio-item.php: an editor may empty every word and untick every
- * category, and that is a valid save. The one exception is a project page,
- * which needs a title — it is that page's heading and the title search
- * engines show.
+ * category, and that is a valid save.
+ *
+ * THE PROJECT PAGE is one posted id, `page_id`: empty for no page, otherwise a
+ * page an item may link to (validatePortfolioPageChoice()). A choice that is
+ * neither is refused before a single column is written, never quietly turned
+ * into "no page", which would drop a link the editor meant to keep. Only the
+ * id is stored (PortfolioGalleryRepository::setItemPage()); the page's
+ * address, texts, SEO and publication stay the page's own.
+ *
+ * WHAT THIS NO LONGER WRITES. has_detail_page, slug, intro_* and description_*
+ * belong to the project page the Portfolio used to own. Nothing posted here
+ * reaches them: they keep their values for the old address that page still
+ * answers at (MODULES.md, "Portfolio").
  *
  * Categories are CMS-managed (App\Repository\PortfolioCategoryRepository) —
  * `categories[]` posts category ids, validated against what actually exists
  * (validatePortfolioCategoryIds()) and persisted via
  * PortfolioGalleryRepository::setItemCategories(), not the legacy
- * `categories` string column. Introtekst/Projectbeschrijving are rich text:
- * sanitized through RichTextSanitizer before ever reaching the database —
- * see that class for the exact allowlist.
+ * `categories` string column.
  */
 
 declare(strict_types=1);
@@ -40,7 +43,7 @@ use App\Service\AdminAuth;
 use App\Service\Csrf;
 use App\Service\PortfolioImageProcessor;
 use App\Service\PortfolioGalleryContent;
-use App\Service\RichTextSanitizer;
+use App\Repository\PageRepository;
 use App\Repository\PortfolioCategoryRepository;
 use App\Repository\PortfolioGalleryRepository;
 
@@ -79,12 +82,7 @@ $titleEn = trim((string) ($_POST['title_en'] ?? ''));
 $subtitleNl = trim((string) ($_POST['subtitle_nl'] ?? ''));
 $subtitleEn = trim((string) ($_POST['subtitle_en'] ?? ''));
 $categoryIds = validatePortfolioCategoryIds($_POST['categories'] ?? null, new PortfolioCategoryRepository());
-$introNlRaw = trim((string) ($_POST['intro_nl'] ?? ''));
-$introEnRaw = trim((string) ($_POST['intro_en'] ?? ''));
-$descriptionNlRaw = trim((string) ($_POST['description_nl'] ?? ''));
-$descriptionEnRaw = trim((string) ($_POST['description_en'] ?? ''));
-$hasDetailPage = isset($_POST['has_detail_page']);
-$slugInput = trim((string) ($_POST['slug'] ?? ''));
+$pageId = validatePortfolioPageChoice($_POST['page_id'] ?? null, new PageRepository());
 
 $errors = [];
 if (mb_strlen($altNl) > 255 || mb_strlen($altEn) > 255) {
@@ -96,37 +94,8 @@ if (mb_strlen($titleNl) > 150 || mb_strlen($titleEn) > 150) {
 if (mb_strlen($subtitleNl) > 150 || mb_strlen($subtitleEn) > 150) {
     $errors[] = AdminTranslator::trans('validation.onderschrift_mag_maximaal_150_tekens');
 }
-// An item may be nameless; its project page may not. portfolio-detail.php
-// puts the title in its <h1> and its <title>, and that page is the next
-// phase's to redesign, not this endpoint's to leave headless.
-if ($hasDetailPage && $titleNl === '') {
-    $errors[] = AdminTranslator::trans('validation.projectpagina_heeft_titel_nodig');
-}
-if (mb_strlen($introNlRaw) > 20000 || mb_strlen($introEnRaw) > 20000) {
-    $errors[] = 'Introtekst is te lang.';
-}
-if (mb_strlen($descriptionNlRaw) > 20000 || mb_strlen($descriptionEnRaw) > 20000) {
-    $errors[] = 'Projectbeschrijving is te lang.';
-}
-
-// Slug is only meaningful (and only validated) once a detail page is
-// enabled — see AddDetailPageFieldsToPortfolioGalleryItems's docblock.
-$slug = (string) ($item['slug'] ?? '');
-if ($hasDetailPage) {
-    if ($slugInput !== '') {
-        $sanitized = sanitizePortfolioItemSlug($slugInput);
-        if ($sanitized === '') {
-            $errors[] = AdminTranslator::trans('validation.slug_bevat_geldige_tekens');
-        } elseif ($repository->slugExists($sanitized, $itemId)) {
-            $errors[] = AdminTranslator::trans('validation.slug_al_gebruik_door_ander');
-        } else {
-            $slug = $sanitized;
-        }
-    } elseif ($slug === '') {
-        // First time detail mode is enabled with no slug typed yet: derive
-        // one from the Dutch title automatically (still editable afterwards).
-        $slug = generatePortfolioItemSlug($repository, $titleNl, $itemId);
-    }
+if ($pageId === false) {
+    $errors[] = AdminTranslator::trans('validation.portfolio_page_unknown');
 }
 
 if ($errors !== []) {
@@ -134,17 +103,6 @@ if ($errors !== []) {
     header('Location: /admin/portfolio-item.php?id=' . $itemId);
     exit;
 }
-
-// The rich-text editor's toolbar (admin/_richtext_field.php) only ever
-// produces a small set of tags via document.execCommand, but the actual
-// security boundary is here: RichTextSanitizer allowlists every tag/
-// attribute before anything reaches the database, exactly like
-// DescriptionSanitizer does for product descriptions. Never trust the
-// posted HTML as-is.
-$introNl = RichTextSanitizer::sanitize($introNlRaw) ?? '';
-$introEn = RichTextSanitizer::sanitize($introEnRaw) ?? '';
-$descriptionNl = RichTextSanitizer::sanitize($descriptionNlRaw) ?? '';
-$descriptionEn = RichTextSanitizer::sanitize($descriptionEnRaw) ?? '';
 
 $imageProcessor = new PortfolioImageProcessor();
 $newImagePath = null;
@@ -187,17 +145,12 @@ $fields = [
     'is_active' => isset($_POST['is_active']),
     'is_featured' => $isFeatured,
     'featured_sort_order' => $featuredSortOrder,
-    'has_detail_page' => $hasDetailPage,
-    'slug' => $slug,
-    'intro_nl' => $introNl,
-    'intro_en' => $introEn,
-    'description_nl' => $descriptionNl,
-    'description_en' => $descriptionEn,
 ];
 
 try {
     $repository->updateItem($itemId, $fields);
     $repository->setItemCategories($itemId, $categoryIds);
+    $repository->setItemPage($itemId, $pageId);
     PortfolioGalleryContent::clearCache();
 
     if ($newImagePath !== null) {

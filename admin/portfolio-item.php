@@ -8,12 +8,12 @@ require_once __DIR__ . '/_translate.php';
 require_once __DIR__ . '/_language_fields.php';
 
 use App\Service\AdminAuth;
+use App\Service\AdminPermissions;
 use App\Service\Csrf;
+use App\Service\PageContent;
+use App\Service\PortfolioGalleryContent;
 use App\Repository\PortfolioCategoryRepository;
 use App\Repository\PortfolioGalleryRepository;
-use App\Repository\PortfolioItemImageRepository;
-
-require __DIR__ . '/_richtext_field.php';
 
 /**
  * One portfolio item: the "Nieuw portfolio-item" form without ?id=, the item's
@@ -26,12 +26,19 @@ require __DIR__ . '/_richtext_field.php';
  * (admin_file_preview()); on the editor the same box shows the stored image
  * until another is chosen.
  *
+ * THE PROJECT PAGE IS AN ORDINARY PAGE. The editor offers one choice: no page,
+ * or one of the site's ordinary pages
+ * (App\Service\PortfolioGalleryContent::linkablePages()). That page's texts,
+ * images, SEO and publication belong to the page builder, so nothing here
+ * edits them, and "Nieuwe pagina maken" opens the Pages screen itself rather
+ * than a Portfolio copy of it — in a new tab, without linking back: the editor
+ * picks the new page here afterwards. The project page the Portfolio used to
+ * own (its slug, intro, description and extra photos) is not edited on this
+ * screen any more (MODULES.md, "Portfolio").
+ *
  * Built from the shared admin controls (ADMIN-UI.md): field help, the file
- * input, a switch per on/off setting, a checkbox per category, and the
- * confirmation dialog before anything is deleted. The project page (its slug,
- * texts and extra images) is folded under "Geavanceerd": it works exactly as
- * it did and is due for a redesign of its own, so until then it stays out of
- * the way of an ordinary item.
+ * input, a switch per on/off setting, a checkbox per category, the shared
+ * select, and the confirmation dialog before anything is deleted.
  */
 
 AdminAuth::requireLogin();
@@ -41,8 +48,8 @@ $id = filter_input(INPUT_GET, 'id', FILTER_VALIDATE_INT);
 $isEdit = $id !== null && $id !== false && $id >= 1;
 
 $item = null;
-$extraImages = [];
 $itemCategoryIds = [];
+$linkablePages = [];
 $allCategories = (new PortfolioCategoryRepository())->findAll();
 
 if ($isEdit) {
@@ -54,8 +61,8 @@ if ($isEdit) {
         exit(admin_t('screen.portfolio_item_gevonden'));
     }
 
-    $extraImages = (new PortfolioItemImageRepository())->findByPortfolioItemId($id);
     $itemCategoryIds = $repository->categoryIdsForItem($id);
+    $linkablePages = PortfolioGalleryContent::linkablePages();
 }
 
 $errors = $_SESSION['admin_portfolio_item_errors'] ?? [];
@@ -96,7 +103,8 @@ $selectedCategoryIds = $old !== null
 
 $isActiveChecked = $old !== null ? true : ($item === null || (int) $item['is_active'] === 1);
 $isFeaturedChecked = $item !== null && (int) $item['is_featured'] === 1;
-$hasDetailPageChecked = $item !== null && !empty($item['has_detail_page']);
+$selectedPageId = $item !== null ? (int) ($item['page_id'] ?? 0) : 0;
+$canManagePages = AdminAuth::can(AdminPermissions::PAGES_MANAGE);
 
 $csrfToken = Csrf::token();
 
@@ -157,9 +165,7 @@ $cmsImageSrc = static fn (array $row): string => '/' . ltrim((string) ($row['thu
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title><?= $h($pageTitle) ?> <?= admin_te('portfolio.admin') ?></title>
-<link rel="stylesheet" href="<?= \App\Service\AssetVersion::url('/admin/assets/vendor/quill/quill.snow.css') ?>">
 <link rel="stylesheet" href="<?= \App\Service\AssetVersion::url('/admin/assets/admin.css') ?>">
-<script src="<?= \App\Service\AssetVersion::url('/admin/assets/vendor/quill/quill.min.js') ?>" defer></script>
 <script src="<?= \App\Service\AssetVersion::url('/admin/assets/admin.js') ?>" defer></script>
 </head>
 <body<?= \App\Service\AdminTheme::bodyAttribute() ?>>
@@ -341,112 +347,37 @@ $cmsImageSrc = static fn (array $row): string => '/' . ltrim((string) ($row['thu
       </section>
 
       <section class="admin-card">
-        <details class="admin-collapse admin-collapse--card"<?= $hasDetailPageChecked ? ' open' : '' ?>>
-          <summary class="admin-collapse__summary">
-            <span class="admin-collapse__caret" aria-hidden="true"></span>
-            <h2 class="admin-collapse__title"><?= admin_te('portfolio.geavanceerd_projectpagina') ?></h2>
-          </summary>
-          <div class="admin-collapse__body">
-            <div class="admin-field admin-field--inline">
-              <label class="admin-checkbox-label">
-                <input type="checkbox" class="admin-switch" role="switch" name="has_detail_page" value="1" data-detail-toggle <?= $hasDetailPageChecked ? 'checked' : '' ?>>
-                <?= admin_te('portfolio.projectpagina_inschakelen') ?>
-              </label>
-              <?= admin_help(admin_t('portfolio.projectpagina_inschakelen'), admin_t('portfolio.ingeschakeld_portfolio_kaart_klikbaar')) ?>
-            </div>
-
-            <div data-detail-panel <?= $hasDetailPageChecked ? '' : 'hidden' ?>>
-              <div class="admin-form-row">
-                <label><?= admin_t('portfolio.slug_url_portfolio') ?>
-                  <input type="text" name="slug" maxlength="170" value="<?= $h(fieldValue($old, $item, 'slug')) ?>" placeholder="Leeg = automatisch gegenereerd uit de titel">
-                </label>
-                <?php if ($hasDetailPageChecked && (string) ($item['slug'] ?? '') !== ''): ?>
-                  <p class="admin-text-muted"><?= admin_te('portfolio.live') ?> <a href="/portfolio/<?= $h((string) $item['slug']) ?>" target="_blank" rel="noopener"><?= admin_t('portfolio.public_path', ['v1' => $h((string) $item['slug'])]) ?></a></p>
-                <?php endif; ?>
-              </div>
-
-              <div class="admin-form-row">
-                <?php admin_lang_pane_start('nl'); ?>
-                  <?php renderRichTextField('intro_nl', 'Introtekst', fieldValue($old, $item, 'intro_nl'), 'full', 'admin-richtext-editor--md'); ?>
-                <?php admin_lang_pane_end(); ?>
-                <?php admin_lang_pane_start('en'); ?>
-                  <?php renderRichTextField('intro_en', 'Introtekst', fieldValue($old, $item, 'intro_en'), 'full', 'admin-richtext-editor--md'); ?>
-                <?php admin_lang_pane_end(); ?>
-              </div>
-
-              <div class="admin-form-row">
-                <?php admin_lang_pane_start('nl'); ?>
-                  <?php renderRichTextField('description_nl', 'Projectbeschrijving', fieldValue($old, $item, 'description_nl'), 'full', 'admin-richtext-editor--lg'); ?>
-                <?php admin_lang_pane_end(); ?>
-                <?php admin_lang_pane_start('en'); ?>
-                  <?php renderRichTextField('description_en', 'Projectbeschrijving', fieldValue($old, $item, 'description_en'), 'full', 'admin-richtext-editor--lg'); ?>
-                <?php admin_lang_pane_end(); ?>
-              </div>
-            </div>
+        <h2><?= admin_te('portfolio.project_page') ?></h2>
+        <div class="admin-form-row">
+          <div class="admin-field">
+            <?= admin_field_label('portfolio-page', admin_t('portfolio.project_page'), admin_t('help.portfolio.project_page')) ?>
+            <select class="admin-select" id="portfolio-page" name="page_id">
+              <option value=""><?= admin_te('portfolio.no_linked_page') ?></option>
+              <?php foreach ($linkablePages as $page): ?>
+                <?php
+                  // A draft is offered too, marked the way the menu picker marks
+                  // one: a card links to its page only once that page is published.
+                  $pageLabel = PageContent::isPublished($page)
+                      ? $h((string) $page['title'])
+                      : admin_te('portfolio.page_option_draft', ['title' => (string) $page['title']]);
+                ?>
+                <option value="<?= (int) $page['id'] ?>"<?= (int) $page['id'] === $selectedPageId ? ' selected' : '' ?>><?= $pageLabel ?></option>
+              <?php endforeach; ?>
+            </select>
           </div>
-        </details>
+        </div>
+        <?php if ($canManagePages): ?>
+          <p>
+            <a href="/admin/page-new.php" class="admin-btn-secondary" target="_blank" rel="noopener"><?= admin_te('portfolio.new_page') ?> &#8594;</a>
+            <span class="admin-text-muted"><?= admin_te('portfolio.new_page_note') ?></span>
+          </p>
+        <?php endif; ?>
       </section>
 
       <section class="admin-card">
         <button type="submit" class="admin-btn-primary"><?= admin_te('common.save') ?></button>
       </section>
     </form>
-
-    <section class="admin-card" data-detail-panel <?= $hasDetailPageChecked ? '' : 'hidden' ?>>
-      <h2><?= admin_te('portfolio.projectafbeeldingen') ?></h2>
-      <p class="admin-text-muted"><?= admin_te('portfolio.extra_foto_s_projectpagina') ?></p>
-
-      <?php if ($extraImages === []): ?>
-        <p class="admin-text-muted"><?= admin_te('portfolio.extra_afbeeldingen') ?></p>
-      <?php else: ?>
-        <div class="admin-portfolio-image-grid"
-             data-portfolio-image-grid
-             data-entity-id="<?= (int) $item['id'] ?>"
-             data-reorder-url="/api/admin/reorder-portfolio-item-images.php"
-             data-csrf-token="<?= $h($csrfToken) ?>">
-          <?php foreach ($extraImages as $image): ?>
-            <?php $imageId = (int) $image['id']; ?>
-            <div class="admin-portfolio-image-card" draggable="true" data-image-id="<?= $imageId ?>">
-              <div class="admin-portfolio-image-card__media">
-                <img src="<?= $h($cmsImageSrc($image)) ?>" alt="" loading="lazy">
-              </div>
-              <form method="post" action="/api/admin/update-portfolio-item-image.php" class="admin-portfolio-image-card__meta">
-                <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
-                <input type="hidden" name="image_id" value="<?= $imageId ?>">
-                <input type="hidden" name="portfolio_item_id" value="<?= (int) $item['id'] ?>">
-                <?php /* No indicator of its own: every pane on every screen shows
-                         the CMS-wide editing language. */ ?>
-                <?php admin_lang_pane_start('nl'); ?>
-                  <input type="text" name="alt_nl" maxlength="255" placeholder="Alt-tekst" value="<?= $h((string) ($image['alt_nl'] ?? '')) ?>">
-                <?php admin_lang_pane_end(); ?>
-                <?php admin_lang_pane_start('en'); ?>
-                  <input type="text" name="alt_en" maxlength="255" placeholder="Alt-tekst" value="<?= $h((string) ($image['alt_en'] ?? '')) ?>">
-                <?php admin_lang_pane_end(); ?>
-                <button type="submit" class="admin-btn-text"><?= admin_te('common.save') ?></button>
-              </form>
-              <form method="post" action="/api/admin/delete-portfolio-item-image.php" class="admin-inline-form"<?= admin_confirm_attributes(
-                  admin_t('portfolio.afbeelding_verwijderen_titel'),
-                  admin_t('portfolio.afbeelding_verwijderen_uitleg'),
-                  admin_t('common.delete')
-              ) ?>>
-                <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
-                <input type="hidden" name="image_id" value="<?= $imageId ?>">
-                <button type="submit" class="admin-btn-text admin-btn-text--danger"><?= admin_te('common.delete') ?></button>
-              </form>
-            </div>
-          <?php endforeach; ?>
-        </div>
-      <?php endif; ?>
-
-      <form method="post" action="/api/admin/add-portfolio-item-images.php" enctype="multipart/form-data" class="admin-form-row" data-portfolio-add-images-form>
-        <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
-        <input type="hidden" name="portfolio_item_id" value="<?= (int) $item['id'] ?>">
-        <label><?= admin_te('portfolio.afbeeldingen_toevoegen_kies_er') ?>
-          <?= admin_file_input(['name' => 'images[]', 'multiple' => true, 'accept' => '.jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp']) ?>
-        </label>
-        <button type="submit"><?= admin_te('common.add') ?></button>
-      </form>
-    </section>
 
     <section class="admin-card">
       <h2><?= admin_te('common.delete') ?></h2>

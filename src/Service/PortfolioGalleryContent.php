@@ -2,6 +2,7 @@
 
 namespace App\Service;
 
+use App\Repository\PageRepository;
 use App\Repository\PortfolioCategoryRepository;
 use App\Repository\PortfolioGalleryRepository;
 use App\Repository\PortfolioItemImageRepository;
@@ -133,6 +134,42 @@ class PortfolioGalleryContent
                 'name_en' => self::valueOrDefault($category['name_en'] ?? null, $nameNl),
             ];
         }, $categories);
+    }
+
+    /**
+     * Whether an item may link to this page as its project page: an ordinary
+     * page at its own /<slug>, built in the page builder and served by
+     * pagina.php. Not a page with a template of its own (the homepage, the
+     * Portfolio page itself) and not one at a fixed route: neither is a
+     * project's page, and a card pointing at one would be a menu link in
+     * disguise.
+     *
+     * A draft may be linked, unlike in the menu and footer pickers
+     * (admin/navigation-item.php): a card only ever links to a PUBLISHED page,
+     * so an editor can link a page first and publish it when it is ready,
+     * while nothing unpublished is shown in the meantime.
+     *
+     * @param array<string, mixed> $page a `pages` row
+     */
+    public static function isLinkablePage(array $page): bool
+    {
+        return !PageContent::hasOwnTemplate($page) && !PageContent::isRouteBound($page);
+    }
+
+    /**
+     * Every page isLinkablePage() accepts, in the Pages overview's own order —
+     * the choices admin/portfolio-item.php offers. Admin-only, so a failing
+     * lookup is not caught: an editor must never be shown an empty list and
+     * save an item's link away.
+     *
+     * @return list<array<string, mixed>>
+     */
+    public static function linkablePages(): array
+    {
+        return array_values(array_filter(
+            (new PageRepository())->findAllForAdmin(),
+            static fn (array $page): bool => self::isLinkablePage($page)
+        ));
     }
 
     /**

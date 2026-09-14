@@ -6,9 +6,12 @@ namespace Tests\Service;
 
 use App\Database;
 use App\Module\PortfolioModule;
+use App\Repository\PageRepository;
 use App\Repository\PortfolioCategoryRepository;
 use App\Repository\PortfolioGalleryRepository;
+use App\Service\AdminPermissions;
 use App\Service\Language\AdminTranslator;
+use App\Service\PageContent;
 use App\Service\PortfolioGalleryContent;
 use App\Service\PortfolioImageProcessor;
 use PHPUnit\Framework\TestCase;
@@ -17,15 +20,16 @@ use Tests\Support\BuiltInServer;
 
 /**
  * Creating and editing a portfolio item through the real endpoints: an image
- * is enough, every word and every category is optional, and what an editor
- * does fill in comes back exactly as typed.
+ * is enough, every word and every category is optional, what an editor does
+ * fill in comes back exactly as typed, and the project page is one choice of
+ * an ordinary page that leaves the old project page alone.
  *
  * Over real HTTP against PHP's built-in server with the Portfolio switched on
  * (Tests\Support\BuiltInServer), because an endpoint's answer is its redirect
  * and its session flash, and an upload is a real multipart request. The items,
- * categories, files and accounts it makes are its own and are removed again in
- * tearDown(). When the server cannot be started the test skips itself, like
- * the HTTP tier does (TESTING.md).
+ * categories, pages, files and accounts it makes are its own and are removed
+ * again in tearDown(). When the server cannot be started the test skips
+ * itself, like the HTTP tier does (TESTING.md).
  */
 final class PortfolioItemEditingHttpTest extends TestCase
 {
@@ -38,6 +42,9 @@ final class PortfolioItemEditingHttpTest extends TestCase
 
     /** @var list<int> */
     private array $categoryIds = [];
+
+    /** @var list<int> */
+    private array $pageIds = [];
 
     /** @var list<string> */
     private array $temporaryFiles = [];
@@ -82,6 +89,13 @@ final class PortfolioItemEditingHttpTest extends TestCase
             $categories->delete($id);
         }
 
+        $pages = new PageRepository();
+        foreach ($this->pageIds as $id) {
+            if ($pages->findById($id) !== null) {
+                $pages->delete($id);
+            }
+        }
+
         $this->accounts->forget();
 
         foreach ($this->temporaryFiles as $file) {
@@ -92,9 +106,11 @@ final class PortfolioItemEditingHttpTest extends TestCase
 
         $this->itemIds = [];
         $this->categoryIds = [];
+        $this->pageIds = [];
         $this->temporaryFiles = [];
 
         PortfolioGalleryContent::clearCache();
+        PageContent::clearCache();
     }
 
     /* ------------------------------------------------------------------ */
@@ -126,6 +142,7 @@ final class PortfolioItemEditingHttpTest extends TestCase
         }
 
         $this->assertSame([], (new PortfolioGalleryRepository())->categoryIdsForItem($itemId), 'no category is a valid choice');
+        $this->assertNull($item['page_id'], 'and so is no page');
         $this->assertFileExists(dirname(__DIR__, 2) . '/' . $item['image_path']);
         $this->assertNull($this->accounts->read($session, 'admin_portfolio_item_errors'));
     }
@@ -218,35 +235,6 @@ final class PortfolioItemEditingHttpTest extends TestCase
         $this->assertNotNull((new PortfolioCategoryRepository())->findById((int) $category['id']), 'the category itself stays');
     }
 
-    /**
-     * The one word that stays required, and only with a project page switched
-     * on: it is that page's heading and the title search engines show. The
-     * project page itself is phase 4B's to redesign; this keeps it intact.
-     */
-    public function testAProjectPageStillNeedsATitle(): void
-    {
-        $itemId = $this->storedItem('', []);
-        [$session, $csrf] = $this->accounts->signIn([PortfolioModule::PORTFOLIO_MANAGE]);
-
-        $response = self::$server->request('POST', '/api/admin/update-portfolio-item.php', $session, [
-            'csrf_token' => $csrf,
-            'item_id' => (string) $itemId,
-            'title_nl' => '',
-            'is_active' => '1',
-            'has_detail_page' => '1',
-        ]);
-
-        $this->assertSame(302, $response['status']);
-        $this->assertSame('/admin/portfolio-item.php?id=' . $itemId, $response['location']);
-        $this->assertSame(
-            [AdminTranslator::trans('validation.projectpagina_heeft_titel_nodig')],
-            $this->accounts->read($session, 'admin_portfolio_item_errors')
-        );
-
-        $item = (array) (new PortfolioGalleryRepository())->findItemById($itemId);
-        $this->assertSame(0, (int) $item['has_detail_page'], 'a refused save changes nothing');
-    }
-
     /** An item without a title still has a name in the CMS, never an empty card. */
     public function testAnUntitledItemIsNamedInTheCms(): void
     {
@@ -290,6 +278,144 @@ final class PortfolioItemEditingHttpTest extends TestCase
     }
 
     /* ------------------------------------------------------------------ */
+    /* The project page                                                    */
+    /* ------------------------------------------------------------------ */
+
+    /**
+     * Choosing a page stores its id, and only its id: the old project page's
+     * columns keep every value, because nothing on this form reaches them.
+     */
+    public function testChoosingAPageStoresItsIdAndLeavesTheOldProjectPageAlone(): void
+    {
+        $itemId = $this->storedItem('ZZ Project', []);
+        $this->giveItAnOldProjectPage($itemId);
+        $pageId = $this->page(PageContent::STATUS_PUBLISHED);
+        $repository = new PortfolioGalleryRepository();
+        $before = (array) $repository->findItemById($itemId);
+        [$session, $csrf] = $this->accounts->signIn([PortfolioModule::PORTFOLIO_MANAGE]);
+
+        $response = self::$server->request('POST', '/api/admin/update-portfolio-item.php', $session, [
+            'csrf_token' => $csrf,
+            'item_id' => (string) $itemId,
+            'title_nl' => 'ZZ Project',
+            'is_active' => '1',
+            'page_id' => (string) $pageId,
+        ]);
+
+        $this->assertSame(302, $response['status']);
+        $this->assertSame('/admin/portfolio-item.php?id=' . $itemId . '&updated=1', $response['location']);
+
+        $after = (array) $repository->findItemById($itemId);
+        $this->assertSame($pageId, (int) $after['page_id']);
+
+        foreach (['has_detail_page', 'slug', 'intro_nl', 'intro_en', 'description_nl', 'description_en'] as $column) {
+            $this->assertSame($before[$column], $after[$column], $column . ' belongs to the old project page and is left alone');
+        }
+    }
+
+    /** "Geen gekoppelde pagina" is a valid answer: the link goes, the page stays. */
+    public function testNoPageIsAValidChoiceAndOnlyTakesTheLinkOff(): void
+    {
+        $itemId = $this->storedItem('ZZ Project', []);
+        $pageId = $this->page(PageContent::STATUS_PUBLISHED);
+        $repository = new PortfolioGalleryRepository();
+        $repository->setItemPage($itemId, $pageId);
+        [$session, $csrf] = $this->accounts->signIn([PortfolioModule::PORTFOLIO_MANAGE]);
+
+        $response = self::$server->request('POST', '/api/admin/update-portfolio-item.php', $session, [
+            'csrf_token' => $csrf,
+            'item_id' => (string) $itemId,
+            'title_nl' => 'ZZ Project',
+            'is_active' => '1',
+            'page_id' => '',
+        ]);
+
+        $this->assertSame('/admin/portfolio-item.php?id=' . $itemId . '&updated=1', $response['location']);
+        $this->assertNull($repository->findItemById($itemId)['page_id']);
+        $this->assertNotNull((new PageRepository())->findById($pageId), 'taking the link off never touches the page');
+        $this->assertNull($this->accounts->read($session, 'admin_portfolio_item_errors'));
+    }
+
+    /**
+     * A page the item may not link to — one that does not exist (any more), one
+     * with a template of its own, or no id at all — is refused, and the refused
+     * save writes nothing: not the link, not a word.
+     */
+    public function testAPageThatCannotBeTheProjectPageIsRefusedAndNothingIsSaved(): void
+    {
+        $itemId = $this->storedItem('ZZ Onveranderd', []);
+        $pageId = $this->page(PageContent::STATUS_PUBLISHED);
+        $repository = new PortfolioGalleryRepository();
+        $repository->setItemPage($itemId, $pageId);
+        [$session, $csrf] = $this->accounts->signIn([PortfolioModule::PORTFOLIO_MANAGE]);
+
+        $missing = (int) Database::connection()->query('SELECT COALESCE(MAX(id), 0) + 1000 FROM pages')->fetchColumn();
+
+        foreach ([(string) $missing, (string) $this->templatePage(), 'geen-id'] as $choice) {
+            $response = self::$server->request('POST', '/api/admin/update-portfolio-item.php', $session, [
+                'csrf_token' => $csrf,
+                'item_id' => (string) $itemId,
+                'title_nl' => 'ZZ Gewijzigd',
+                'is_active' => '1',
+                'page_id' => $choice,
+            ]);
+
+            $this->assertSame('/admin/portfolio-item.php?id=' . $itemId, $response['location'], $choice . ' must be refused');
+            $this->assertSame(
+                [AdminTranslator::trans('validation.portfolio_page_unknown')],
+                $this->accounts->read($session, 'admin_portfolio_item_errors')
+            );
+
+            $item = (array) $repository->findItemById($itemId);
+            $this->assertSame($pageId, (int) $item['page_id'], 'the link the item had is kept');
+            $this->assertSame('ZZ Onveranderd', $item['title_nl'], 'a refused save writes nothing');
+        }
+    }
+
+    /**
+     * The editor offers the site's ordinary pages — a draft marked as one —
+     * with the linked page selected, and not a page with a template of its own.
+     * "Nieuwe pagina maken" is only there for an editor who may make one.
+     */
+    public function testTheEditorOffersOrdinaryPagesWithTheLinkedOneSelected(): void
+    {
+        $itemId = $this->storedItem('ZZ Project', []);
+        $draftId = $this->page(PageContent::STATUS_DRAFT);
+        $templatePageId = $this->templatePage();
+        (new PortfolioGalleryRepository())->setItemPage($itemId, $draftId);
+        $draft = (array) (new PageRepository())->findById($draftId);
+
+        [$portfolioOnly] = $this->accounts->signIn([PortfolioModule::PORTFOLIO_MANAGE]);
+        $editor = self::$server->request('GET', '/admin/portfolio-item.php?id=' . $itemId, $portfolioOnly);
+
+        $this->assertSame(200, $editor['status']);
+        $this->assertStringContainsString('<select class="admin-select" id="portfolio-page" name="page_id">', $editor['body']);
+        $this->assertStringContainsString(
+            '<option value="">' . htmlspecialchars(AdminTranslator::trans('portfolio.no_linked_page'), ENT_QUOTES, 'UTF-8') . '</option>',
+            $editor['body']
+        );
+        $this->assertStringContainsString(
+            '<option value="' . $draftId . '" selected>'
+                . htmlspecialchars(AdminTranslator::trans('portfolio.page_option_draft', ['title' => (string) $draft['title']]), ENT_QUOTES, 'UTF-8')
+                . '</option>',
+            $editor['body']
+        );
+        $this->assertStringNotContainsString('<option value="' . $templatePageId . '"', $editor['body'], 'a page with a template of its own is no project page');
+
+        foreach (['has_detail_page', 'slug', 'intro_nl', 'description_nl'] as $name) {
+            $this->assertStringNotContainsString('name="' . $name . '"', $editor['body'], $name . ' belonged to the old project page');
+        }
+
+        $this->assertStringNotContainsString('href="/admin/page-new.php"', $editor['body'], 'no page to make without pages.manage');
+
+        [$pageEditor] = $this->accounts->signIn([PortfolioModule::PORTFOLIO_MANAGE, AdminPermissions::PAGES_MANAGE]);
+        $withPages = self::$server->request('GET', '/admin/portfolio-item.php?id=' . $itemId, $pageEditor);
+
+        $this->assertSame(200, $withPages['status']);
+        $this->assertStringContainsString('href="/admin/page-new.php"', $withPages['body']);
+    }
+
+    /* ------------------------------------------------------------------ */
 
     /** @return array<string, mixed> */
     private function category(): array
@@ -320,6 +446,57 @@ final class PortfolioItemEditingHttpTest extends TestCase
         ]);
         $this->itemIds[] = $id;
         $repository->setItemCategories($id, $categoryIds);
+
+        return $id;
+    }
+
+    /**
+     * The old project page's columns, filled the way its editor filled them.
+     * Nothing in the application writes them any more, so the fixture does it
+     * directly.
+     */
+    private function giveItAnOldProjectPage(int $itemId): void
+    {
+        Database::connection()
+            ->prepare(
+                "UPDATE portfolio_gallery_items
+                    SET has_detail_page = 1, slug = :slug, intro_nl = '<p>ZZ oude intro</p>', description_nl = '<p>ZZ oude beschrijving</p>'
+                  WHERE id = :id"
+            )
+            ->execute(['slug' => 'zz-oud-project-' . bin2hex(random_bytes(4)), 'id' => $itemId]);
+    }
+
+    private function page(string $status): int
+    {
+        $key = 'zz-projectpagina-' . bin2hex(random_bytes(4));
+
+        $id = (new PageRepository())->create([
+            'content_key' => $key,
+            'slug' => $key,
+            'title' => 'ZZ Projectpagina ' . $key,
+            'status' => $status,
+            'meta_title' => null,
+            'meta_title_en' => null,
+            'meta_description' => null,
+            'meta_description_en' => null,
+        ]);
+        $this->pageIds[] = $id;
+
+        return $id;
+    }
+
+    /**
+     * A page with a template of its own at a fixed address. Only migrations
+     * make one, so the fixture sets it the way Tests\Module\PortfolioModuleHttpTest
+     * sets the Portfolio page's route.
+     */
+    private function templatePage(): int
+    {
+        $id = $this->page(PageContent::STATUS_PUBLISHED);
+
+        Database::connection()
+            ->prepare('UPDATE pages SET is_system = 1, route_path = :route WHERE id = :id')
+            ->execute(['route' => '/zz-vaste-route-' . $id . '.php', 'id' => $id]);
 
         return $id;
     }
