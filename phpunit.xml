@@ -94,6 +94,7 @@
             <file>tests/Install/GenericDistributionTest.php</file>
             <file>tests/Module/ModuleConfigurationTest.php</file>
             <file>tests/Module/ModuleRegistryTest.php</file>
+            <file>tests/Module/PortfolioModuleTest.php</file>
             <file>tests/Module/ShopDisabledTest.php</file>
             <file>tests/Repository/OrderNumberSnapshotContractTest.php</file>
             <file>tests/Service/AdminAccessControlTest.php</file>
@@ -151,6 +152,7 @@
             <file>tests/Mail/OrderConfirmationBuilderTest.php</file>
             <file>tests/Module/ModuleConfigurationTest.php</file>
             <file>tests/Module/ModuleRegistryTest.php</file>
+            <file>tests/Module/PortfolioModuleTest.php</file>
             <file>tests/Module/ShopDisabledTest.php</file>
             <file>tests/Repository/OrderNumberFormatTest.php</file>
             <file>tests/Repository/OrderNumberSnapshotContractTest.php</file>
@@ -272,6 +274,7 @@
             <file>tests/Install/OrderNumberPrefixPinTest.php</file>
             <file>tests/Install/OrderNumberSnapshotMigrationTest.php</file>
             <file>tests/Install/PortfolioCatalogueSchemaTest.php</file>
+            <file>tests/Install/PortfolioModulePinTest.php</file>
             <file>tests/Install/SetupCompletionTest.php</file>
             <file>tests/Repository/ContactFormMigrationTest.php</file>
             <file>tests/Service/MediaAdoptionTest.php</file>
@@ -348,6 +351,7 @@
             <file>tests/Install/OrderNumberPrefixPinTest.php</file>
             <file>tests/Install/OrderNumberSnapshotMigrationTest.php</file>
             <file>tests/Install/PortfolioCatalogueSchemaTest.php</file>
+            <file>tests/Install/PortfolioModulePinTest.php</file>
             <file>tests/Install/SetupCompletionTest.php</file>
             <file>tests/Install/SetupWizardValidationTest.php</file>
             <file>tests/Repository/AdminUserRepositoryIntegrationTest.php</file>

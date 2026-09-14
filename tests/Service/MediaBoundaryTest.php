@@ -6,6 +6,7 @@ namespace Tests\Service;
 
 use App\Module\ModuleDefinition;
 use App\Module\ModuleRegistry;
+use App\Module\PortfolioModule;
 use App\Service\AdminNavigation;
 use App\Service\AdminPermissions;
 use App\Service\Media\MediaUsage;
@@ -80,7 +81,7 @@ final class MediaBoundaryTest extends TestCase
     {
         foreach ([
             AdminPermissions::PAGES_MANAGE,
-            AdminPermissions::PORTFOLIO_MANAGE,
+            PortfolioModule::PORTFOLIO_MANAGE,
             AdminPermissions::SETTINGS_MANAGE,
         ] as $permission) {
             $this->assertContains(

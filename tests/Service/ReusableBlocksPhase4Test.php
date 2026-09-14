@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Service;
 
+use App\Module\PortfolioModule;
 use App\Module\ShopModule;
 use App\Service\ItemGallerySources;
 use App\Database;
@@ -139,7 +140,7 @@ final class ReusableBlocksPhase4Test extends TestCase
     private function configure(string $sectionKey, array $settings): void
     {
         (new ItemGalleryRepository())->upsertSection(self::TEST_KEY, $sectionKey, $settings + [
-            'source_type' => ItemGalleryContent::SOURCE_PORTFOLIO,
+            'source_type' => PortfolioModule::GALLERY_SOURCE,
             'portfolio_scope' => ItemGalleryContent::SCOPE_ALL,
             'background' => 'default',
             'is_active' => true,
@@ -279,19 +280,19 @@ final class ReusableBlocksPhase4Test extends TestCase
     public function testTheSourceModelIsAnExplicitClosedList(): void
     {
         // Two sources, and each one owned by whoever owns the content behind
-        // it: Portfolio items are Core's, a collection of products is the
-        // Shop's (App\Module\ShopModule::itemGallerySources()). Still a closed
-        // list, still not a query builder.
+        // it: portfolio items are the Portfolio's
+        // (App\Module\PortfolioModule::itemGallerySources()), a collection of
+        // products is the Shop's. Still a closed list, still not a query builder.
         $this->assertSame(
             ['portfolio', 'collection'],
             array_keys(ItemGallerySources::available()),
             'this block ships exactly two sources; a third is one entry in its owner, not a query builder'
         );
 
-        $this->assertNull(ItemGallerySources::moduleOwnerOf(ItemGalleryContent::SOURCE_PORTFOLIO));
+        $this->assertSame('portfolio', ItemGallerySources::moduleOwnerOf(PortfolioModule::GALLERY_SOURCE));
         $this->assertSame('shop', ItemGallerySources::moduleOwnerOf(ShopModule::GALLERY_SOURCE_COLLECTION));
 
-        $this->assertTrue(ItemGalleryContent::isSource(ItemGalleryContent::SOURCE_PORTFOLIO));
+        $this->assertTrue(ItemGalleryContent::isSource(PortfolioModule::GALLERY_SOURCE));
         $this->assertTrue(ItemGalleryContent::isSource(ShopModule::GALLERY_SOURCE_COLLECTION));
         $this->assertFalse(ItemGalleryContent::isSource('products'));
         $this->assertFalse(ItemGalleryContent::isSource('__nope__'));
@@ -302,7 +303,7 @@ final class ReusableBlocksPhase4Test extends TestCase
     public function testThePortfolioSourceYieldsTheCatalogueItems(): void
     {
         [$blockId, $sectionKey] = $this->addBlock('item_gallery');
-        $this->configure($sectionKey, ['source_type' => ItemGalleryContent::SOURCE_PORTFOLIO]);
+        $this->configure($sectionKey, ['source_type' => PortfolioModule::GALLERY_SOURCE]);
 
         $expected = PortfolioGalleryContent::catalogueItems(false);
         if ($expected === []) {
@@ -449,7 +450,8 @@ final class ReusableBlocksPhase4Test extends TestCase
 
         $content = ItemGalleryContent::forSection(self::TEST_KEY, $sectionKey);
 
-        $this->assertSame(ItemGalleryContent::SOURCE_PORTFOLIO, $content['source_type']);
+        // The first source an enabled module offers: portfolio items, here.
+        $this->assertSame(PortfolioModule::GALLERY_SOURCE, $content['source_type']);
         $this->assertSame(ItemGalleryContent::SCOPE_ALL, $content['portfolio_scope']);
         $this->assertSame('default', $content['background']);
         $this->assertIsString($this->renderBlock($blockId));

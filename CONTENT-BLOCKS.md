@@ -324,8 +324,9 @@ Alleen `render()`/`renderPage()` degraderen zo. De schrijfkant
 - **Invoer uit een request wordt nooit een klasse- of tabelnaam.** Een type-key
   gaat eerst langs `SectionRegistry`, een bronsleutel langs de gesloten lijst
   van dat blok (`App\Service\ItemGallerySources`) — bij schrijven én bij lezen.
-  Die lijst is half Core (portfolio-items) en half modulebijdrage (een
-  collectie producten, van de Shop), maar hij blijft gesloten en in code
+  Elke bron in die lijst is een modulebijdrage (portfolio-items van
+  Portfolio, een collectie producten van de Shop), met een `order` die bepaalt
+  waarmee een nieuw blok begint, en de lijst blijft gesloten en in code
   geschreven.
 - **Gesloten lijsten zijn een beveiligingsgrens**, geen stijlkeuze. Vervang ze
   niet door een generieke query-builder of een "entity + filters"-abstractie.

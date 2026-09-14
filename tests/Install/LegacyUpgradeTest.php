@@ -306,14 +306,25 @@ final class LegacyUpgradeTest extends TestCase
         );
     }
 
-    public function testNoModulePreferenceIsInventedForASiteThatNeverChoseOne(): void
+    /**
+     * An existing site keeps running whatever its environment says, so no
+     * preference is invented for it — with one deliberate exception. The
+     * Portfolio was part of the core until it became a module a new
+     * installation only gets on request. This site already ran it, so
+     * 20260914170000_pin_the_portfolio_module_where_it_is_in_use stored "on"
+     * (Tests\Install\PortfolioModulePinTest). The environment still overrules
+     * that row, like any stored preference.
+     */
+    public function testTheOnlyModulePreferenceAnExistingSiteGetsIsThePortfolioItAlreadyRan(): void
     {
         $this->assertTrue($this->install()->hasTable('module_settings'));
-        $this->assertSame(
-            0,
-            $this->install()->count('module_settings'),
-            'An existing site keeps running whatever its environment says; nothing may pre-empt that.'
-        );
+
+        $stored = [];
+        foreach ($this->install()->rows('SELECT setting_key, setting_value FROM module_settings') as $row) {
+            $stored[(string) $row['setting_key']] = (string) $row['setting_value'];
+        }
+
+        $this->assertSame(['module_portfolio_enabled' => '1'], $stored);
     }
 
     public function testAnExistingCmsKeepsTheAdminItAlreadyHad(): void

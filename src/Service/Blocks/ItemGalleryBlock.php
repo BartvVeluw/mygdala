@@ -4,6 +4,7 @@ namespace App\Service\Blocks;
 
 use App\Repository\ItemGalleryRepository;
 use App\Service\ItemGalleryContent;
+use App\Service\ItemGallerySources;
 
 require_once dirname(__DIR__, 3) . '/partials/section-item-gallery.php';
 
@@ -14,7 +15,8 @@ require_once dirname(__DIR__, 3) . '/partials/section-item-gallery.php';
  * knows nothing about "portfolio" and is allowed everywhere.
  *
  * Its filter bar, lightbox and item cap are settings of the instance. The
- * source list itself stays a CLOSED whitelist in ItemGalleryContent::SOURCES —
+ * source list itself stays a CLOSED whitelist in App\Service\ItemGallerySources,
+ * every entry of it contributed by the module that owns the content —
  * a security boundary, not a style choice: a stored source key that is not on
  * that list renders nothing rather than reaching a table of its own choosing.
  *
@@ -33,7 +35,10 @@ final class ItemGalleryBlock extends BlockDefinition
     {
         return [
             'label' => 'Portfolio-/collectiegalerij',
-            'manual_add' => true,
+            // Offered only while an enabled module has a source for it: with
+            // the Portfolio and the Shop both off there is nothing it could
+            // show. Instances that already exist are left exactly as they are.
+            'manual_add' => ItemGallerySources::available() !== [],
             'allow_multiple' => true,
             'max_instances' => null,
             'allowed_pages' => null,
@@ -75,11 +80,12 @@ final class ItemGalleryBlock extends BlockDefinition
     {
         $key = self::newSectionKey();
 
-        // Defaults to the block in its most familiar shape: the portfolio
-        // grid, with its filter bar and zoom.
+        // Defaults to the block in its most familiar shape: the first source
+        // an enabled module offers — portfolio items while the Portfolio runs
+        // — with a filter bar and zoom.
         $repository = new ItemGalleryRepository();
         $repository->upsertSection($pageSlug, $key, [
-            'source_type' => ItemGalleryContent::SOURCE_PORTFOLIO,
+            'source_type' => ItemGallerySources::defaultSource(),
             'portfolio_scope' => ItemGalleryContent::SCOPE_ALL,
             'show_filter_bar' => true,
             'enable_lightbox' => true,

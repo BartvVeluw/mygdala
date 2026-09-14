@@ -1732,6 +1732,7 @@ return [
     'perm.group.website' => 'Website',
     'perm.group.klantcontact' => 'Klantcontact',
     'perm.group.beheer' => 'Beheer',
+    'perm.group.portfolio' => 'Portfolio',
     'perm.dashboard.view.label' => 'Dashboard bekijken',
     'perm.dashboard.view.description' => 'Toegang tot de startpagina van het CMS.',
     'perm.pages.manage.label' => 'Pagina\'s beheren',

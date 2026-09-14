@@ -84,6 +84,11 @@ services:
       # otherwise every /blog test would be testing a 404. This is the same
       # deployment switch a site owner uses, not a test-only mechanism.
       MODULE_BLOG_ENABLED: "true"
+      # Portfolio starts OFF on a new installation too (MODULES.md). A test
+      # database copied from an existing site carries the stored preference
+      # that keeps it on and a fresh one does not, so this container asks for
+      # it explicitly: every Portfolio test runs against the module switched on.
+      MODULE_PORTFOLIO_ENABLED: "true"
     volumes:
       - ./:/var/www/html
       - test_attachments:/var/www/storage
@@ -132,6 +137,10 @@ services:
       # for — this container is what proves a disabled module's public URLs
       # answer 404 over real HTTP.
       MODULE_BLOG_ENABLED: "false"
+      # The Portfolio is pinned off here rather than left to its default: a
+      # test database copied from an existing site stores it as on (the pin
+      # migration), and this container proves its URLs answer 404 as well.
+      MODULE_PORTFOLIO_ENABLED: "false"
     volumes:
       - ./:/var/www/html
       - cms_attachments:/var/www/storage

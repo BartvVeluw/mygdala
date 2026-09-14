@@ -1,6 +1,6 @@
 # src/Module
 
-Het moduleregister en de drie first-party modules. Eén repository, één
+Het moduleregister en de vier first-party modules. Eén repository, één
 deploybare applicatie: een **modulair monoliet**.
 
 - Een module uitzetten betekent dat hij **niets bijdraagt**: geen
@@ -9,8 +9,9 @@ deploybare applicatie: een **modulair monoliet**.
   database nooit aan.
 - `ModuleRegistry::MAP` is een expliciete, gesloten lijst.
 - De volgorde van `ModuleConfig`: de omgevingsvariabele, dan de opgeslagen
-  voorkeur, dan de eigen standaard van de module. De Blog is de enige die
-  standaard uit staat.
+  voorkeur, dan de eigen standaard van de module. De Blog en Portfolio staan
+  standaard uit; een installatie die Portfolio al draaide, houdt het via een
+  opgeslagen voorkeur.
 - `ModuleGuard` is het regeltje bovenaan een **publieke** route of endpoint
   van een module. Adminschermen met een eigen permissie hebben niets nodig:
   een permissie van een uitgeschakelde module wordt door niemand gehouden,

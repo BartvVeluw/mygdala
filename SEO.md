@@ -191,9 +191,10 @@ rewrite in `.htaccess`). Wat erin komt is **dezelfde beslissing** als de
 robots-tag op de pagina zelf: Core's paginacollector vraagt
 `PageSeo::isIndexable()`, dus een `noindex`-pagina staat er niet in.
 
-Core levert `pages` en `portfolio`; alles daarbuiten komt van een
-**ingeschakelde** module via `ModuleDefinition::sitemapCollectors()` — de Shop
-levert producten en collecties, Personalisatie de catalogus, de Blog het
+Core levert alleen `pages`; alles daarbuiten komt van een
+**ingeschakelde** module via `ModuleDefinition::sitemapCollectors()` — Portfolio
+levert de projectpagina's, de Shop producten en collecties, Personalisatie de
+catalogus, de Blog het
 overzicht, de gepubliceerde berichten en de categorie-archieven die minstens
 één bericht bevatten. Met de Shop uit bestaat er geen codepad dat een shop-URL
 kan toevoegen, en met de Blog uit geen dat een blog-URL kan toevoegen.

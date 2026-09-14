@@ -124,9 +124,11 @@ maakt (`THEMING.md`).
 
 ### 4. Onderdelen
 
-Eén vinkje per first-party module — vandaag Shop en Personalisatie. Zie
-[Modules](#modules-vanuit-het-cms) hieronder voor wat er opgeslagen wordt en
-waarom `.env` er nog steeds bovenop gaat.
+Eén vinkje per first-party module — vandaag Shop, Personalisatie, Blog en
+Portfolio. Een vinkje staat zoals de installatie het nu wil
+(`ModuleConfig::wants()`), dus op een verse installatie staan de Blog en
+Portfolio uit. Zie [Modules](#modules-vanuit-het-cms) hieronder voor wat er
+opgeslagen wordt en waarom `.env` er nog steeds bovenop gaat.
 
 Personalisatie hangt van de Shop af, en dat wordt hier **gemeld in plaats van
 stilletjes toegepast**: `ModuleRegistry` zou Personalisatie vanzelf uitzetten,
@@ -209,7 +211,7 @@ De ketting staat op één plek, `App\Module\ModuleConfig`:
 ```text
 1. MODULE_<KEY>_ENABLED in de omgeving, als hij gezet en niet leeg is
 2. de voorkeur die in het CMS is opgeslagen (module_settings)
-3. aan
+3. de eigen standaard van de module: aan, behalve voor de Blog en Portfolio
 ```
 
 **De omgeving wint dus nog steeds.** Een hostingaccount dat zijn modules in
@@ -445,6 +447,15 @@ MODULE_SHOP_ENABLED=false
 
 Personalisatie hangt van de Shop af en gaat er vanzelf mee uit
 (`ModuleRegistry`). De Blog staat al standaard uit (`BLOG.md`).
+
+Portfolio staat op een nieuwe installatie ook uit. Een bestaande installatie
+merkt daar niets van: zij draaide Portfolio al voordat het een module werd, en
+`20260914170000_pin_the_portfolio_module_where_it_is_in_use` heeft daarom
+`module_portfolio_enabled = 1` opgeslagen. Wie het toch uit wil, zet in `.env`:
+
+```env
+MODULE_PORTFOLIO_ENABLED=false
+```
 
 ### Twee installaties in één browser
 

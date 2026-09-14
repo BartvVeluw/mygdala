@@ -29,14 +29,16 @@ Start twee services:
   waarin je de suite draait.
 - **`php_cms`** — diezelfde code en diezelfde testdatabase,
   maar gestart met `MODULE_SHOP_ENABLED=false`. Dat is de CMS-only
-  deployment: geen Shop, geen Personalisatie en geen Blog.
+  deployment: geen Shop, geen Personalisatie, geen Blog en geen Portfolio.
   `Tests\Module\CmsOnlyHttpTest` en `Tests\Blog\BlogRoutingTest` praten
   ermee, en slaan zichzelf over als hij niet draait.
 
-`php_test` krijgt daarnaast `MODULE_BLOG_ENABLED=true` mee. De Blog is de enige
-module die standaard uit staat (`BLOG.md`), dus zonder die regel zou elke
-`/blog`-test een 404 testen. Het is dezelfde schakelaar die een site-eigenaar
-gebruikt, geen test-only mechaniek.
+`php_test` krijgt daarnaast `MODULE_BLOG_ENABLED=true` en
+`MODULE_PORTFOLIO_ENABLED=true` mee. De Blog en Portfolio staan standaard uit
+(`MODULES.md`), dus zonder die regels zou elke `/blog`-test een 404 testen en
+zou een Portfolio-test afhangen van wat de testdatabase toevallig heeft
+opgeslagen. Het zijn dezelfde schakelaars die een site-eigenaar gebruikt, geen
+test-only mechaniek.
 
 Waarom een tweede container en niet een schakelaar in de suite: welke modules
 draaien wordt gelezen uit de omgeving waarmee een proces is *gestart*. Een
@@ -172,7 +174,7 @@ aan:
 
 ```bash
 docker compose exec -e MODULE_SHOP_ENABLED=true -e MODULE_PERSONALIZATION_ENABLED=true \
-  -e MODULE_BLOG_ENABLED=true php php vendor/bin/phpunit --testsuite fast
+  -e MODULE_BLOG_ENABLED=true -e MODULE_PORTFOLIO_ENABLED=true php php vendor/bin/phpunit --testsuite fast
 ```
 
 Zie je precies deze mislukkingen, dan is dit de oorzaak en niet je wijziging:
@@ -184,7 +186,7 @@ Zie je precies deze mislukkingen, dan is dit de oorzaak en niet je wijziging:
 | Suite | Wat erin zit | Nodig |
 | --- | --- | --- |
 | `fast` | `unit` + `contract` samen | niets |
-| `modules` | het modulesysteem: register, aan/uit, en hoe het CMS eruitziet met de Shop uit | deels testdatabase + `php_cms` |
+| `modules` | het modulesysteem: register, aan/uit, en hoe het CMS eruitziet met de Shop of Portfolio uit | deels testdatabase + `php_cms` |
 | `blog` | de Blog-module: berichten, taxonomie, publicatie en inplannen, SEO, feed, media en routes | testdatabase + `php_test` (+ `php_cms`) |
 | — | meertaligheid zit in `fast` en `cms`; het heeft geen eigen suite, want het is Core en raakt élk domein (`MULTILINGUAL.md`) | niets |
 | `unit` | pure logica: geen database, geen webserver | niets |
@@ -561,8 +563,8 @@ Alles wat `AdminNavigation`, `AdminPermissions`, `RouteRegistry`,
 `ItemGallerySources`, de gedeelde header of het dashboard raakt:
 
 ```
---testsuite fast        (ModuleRegistryTest en ShopDisabledTest zitten hierin)
---testsuite modules     ook de CMS-only HTTP-controle
+--testsuite fast        (ModuleRegistryTest, ShopDisabledTest en PortfolioModuleTest zitten hierin)
+--testsuite modules     ook de CMS-only HTTP-controle en PortfolioModuleHttpTest
 ```
 
 **IJkmoment — voor een merge, voor een deploy, na een migratie**
@@ -684,6 +686,14 @@ De suite `modules` (`tests/Module/`) test het modulesysteem zelf:
   dat de Core-bestanden geen concrete Shop-klasse meer noemen. Geen database,
   geen webserver.
 - `CmsOnlyHttpTest` — hetzelfde over echt HTTP, tegen `php_cms`.
+- `PortfolioModuleTest` — Portfolio aan en uit: zijbalk, permissie,
+  galerijbron, sitemapcollector, gereserveerde slugs en `publicPaths()`, de
+  guards op elk scherm en endpoint, en dat Core geen Portfolio-klasse noemt.
+  Geen database, geen webserver.
+- `PortfolioModuleHttpTest` — hetzelfde over echt HTTP, plus dat de data een
+  keer uit en weer aan overleeft. Start zelf twee ingebouwde PHP-servers, één
+  met `MODULE_PORTFOLIO_ENABLED=true` en één met `false`
+  (`Tests\Support\BuiltInServer`), dus hij draait ook zonder `php_test`.
 
 Een module die de Mediabibliotheek gaat gebruiken levert daarnaast een
 `MediaUsageProvider` (`MEDIA.md`); `Tests\Service\MediaBoundaryTest`

@@ -81,9 +81,10 @@ $values = $old ?? [
 
 /**
  * Which sources this deployment offers, and whether any of them needs a
- * collection picked. Both come from App\Service\ItemGallerySources, so a
- * module that is switched off takes its source — and the picker belonging to
- * it — off this form without this file naming the module.
+ * collection or a scope picked. All of it comes from
+ * App\Service\ItemGallerySources, so a module that is switched off takes its
+ * source — and the picker belonging to it — off this form without this file
+ * naming the module.
  *
  * A block already SET to a source that is no longer available keeps it: the
  * option is rendered, marked, and preselected, so saving the rest of the form
@@ -95,8 +96,10 @@ $storedSource = (string) $section['source_type'];
 $storedSourceUnavailable = $storedSource !== '' && !isset($availableSources[$storedSource]);
 
 $needsCollectionPicker = false;
+$needsScopePicker = false;
 foreach ($availableSources as $source) {
     $needsCollectionPicker = $needsCollectionPicker || (bool) $source['needs_collection'];
+    $needsScopePicker = $needsScopePicker || (bool) ($source['needs_scope'] ?? false);
 }
 
 $collections = [];
@@ -171,6 +174,7 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
       </div>
 
       <div class="admin-form-row admin-form-row--split">
+        <?php if ($needsScopePicker): ?>
         <label><?= admin_te('block_gallery.portfolio_items_welke') ?>
           <select name="portfolio_scope">
             <?php foreach (ItemGalleryContent::PORTFOLIO_SCOPES as $scopeKey => $scope): ?>
@@ -178,6 +182,10 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
             <?php endforeach; ?>
           </select>
         </label>
+        <?php else: ?>
+          <?php /* No source that reads the scope is on: keep the stored value, so saving the rest cannot change it. */ ?>
+          <input type="hidden" name="portfolio_scope" value="<?= $h(ItemGalleryContent::isPortfolioScope((string) ($values['portfolio_scope'] ?? '')) ? (string) $values['portfolio_scope'] : ItemGalleryContent::SCOPE_ALL) ?>">
+        <?php endif; ?>
         <?php if ($needsCollectionPicker): ?>
         <label><?= admin_te('block_gallery.collectie_welke') ?>
           <select name="collection_id">

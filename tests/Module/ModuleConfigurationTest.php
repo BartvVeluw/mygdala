@@ -64,7 +64,7 @@ final class ModuleConfigurationTest extends TestCase
      * default (ModuleDefinition::enabledByDefault()). For every module that
      * existed before that hook the answer is still "enabled", which is what
      * keeps a missing variable from ever taking the shop off the air; the
-     * Blog is the one that starts off, and says so itself.
+     * Blog and the Portfolio start off, and say so themselves.
      */
     public function testWithNothingConfiguredAtAllEveryModuleGetsItsOwnDefault(): void
     {

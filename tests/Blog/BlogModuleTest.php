@@ -81,12 +81,12 @@ final class BlogModuleTest extends TestCase
 
     private function withBlogOn(): void
     {
-        ModuleRegistry::overrideForTests(['shop' => true, 'personalization' => true, 'blog' => true]);
+        ModuleRegistry::overrideForTests(['shop' => true, 'personalization' => true, 'blog' => true, 'portfolio' => true]);
     }
 
     private function withBlogOff(): void
     {
-        ModuleRegistry::overrideForTests(['shop' => true, 'personalization' => true, 'blog' => false]);
+        ModuleRegistry::overrideForTests(['shop' => true, 'personalization' => true, 'blog' => false, 'portfolio' => true]);
     }
 
     /* ------------------------------------------------------------------ */
@@ -102,11 +102,13 @@ final class BlogModuleTest extends TestCase
     }
 
     /**
-     * The Blog is the first module in this project that starts OFF, and the
-     * reason it may is that nothing else changes: every other module keeps
-     * the "enabled" default a missing variable has always meant.
+     * The Blog was the first module in this project to start OFF, and the
+     * reason it could is that nothing else changed: the Shop and Personalisatie
+     * keep the "enabled" default a missing variable has always meant. The
+     * Portfolio starts off as well, and keeps existing sites on through a
+     * stored preference instead (Tests\Install\PortfolioModulePinTest).
      */
-    public function testTheBlogIsTheOnlyModuleThatDefaultsToOff(): void
+    public function testTheBlogDefaultsToOffWhileTheShopKeepsItsEnabledDefault(): void
     {
         $defaults = [];
         foreach (ModuleRegistry::all() as $key => $module) {
@@ -114,7 +116,7 @@ final class BlogModuleTest extends TestCase
         }
 
         $this->assertSame(
-            ['shop' => true, 'personalization' => true, 'blog' => false],
+            ['shop' => true, 'personalization' => true, 'blog' => false, 'portfolio' => false],
             $defaults
         );
     }

@@ -9,6 +9,7 @@ use App\Module\ModuleConfig;
 use App\Module\ModuleDefinition;
 use App\Module\ModuleRegistry;
 use App\Module\PersonalizationModule;
+use App\Module\PortfolioModule;
 use App\Module\ShopModule;
 use PHPUnit\Framework\TestCase;
 
@@ -46,12 +47,13 @@ final class ModuleRegistryTest extends TestCase
         }
     }
 
-    public function testTheRegisteredModulesAreShopPersonalizationAndBlog(): void
+    public function testTheRegisteredModulesAreShopPersonalizationBlogAndPortfolio(): void
     {
-        $this->assertSame(['shop', 'personalization', 'blog'], ModuleRegistry::keys());
+        $this->assertSame(['shop', 'personalization', 'blog', 'portfolio'], ModuleRegistry::keys());
         $this->assertInstanceOf(ShopModule::class, ModuleRegistry::definition('shop'));
         $this->assertInstanceOf(PersonalizationModule::class, ModuleRegistry::definition('personalization'));
         $this->assertInstanceOf(BlogModule::class, ModuleRegistry::definition('blog'));
+        $this->assertInstanceOf(PortfolioModule::class, ModuleRegistry::definition('portfolio'));
     }
 
     public function testAnUnregisteredKeyIsAMissAndNeverAClassName(): void
@@ -206,6 +208,8 @@ final class ModuleRegistryTest extends TestCase
 
         $this->assertSame('shop', ModuleRegistry::ownerOf('blockDefinitions', 'product_grid'));
         $this->assertSame('shop', ModuleRegistry::ownerOf('itemGallerySources', 'collection'));
+        $this->assertSame('portfolio', ModuleRegistry::ownerOf('itemGallerySources', PortfolioModule::GALLERY_SOURCE));
+        $this->assertSame('portfolio', ModuleRegistry::disabledModuleForRoutePath('/portfolio.php'));
         $this->assertNull(ModuleRegistry::ownerOf('blockDefinitions', 'rich_text'));
         $this->assertNull(ModuleRegistry::ownerOf('blockDefinitions', '__nope__'));
     }

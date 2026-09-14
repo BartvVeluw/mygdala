@@ -129,14 +129,16 @@ pagina".
 ## De inhoudsbron is een gesloten lijst, geen query-builder
 
 `item_gallery` (**Portfolio-/collectiegalerij**) heeft één instelling
-`source_type` met een expliciete lijst waarden in `ItemGalleryContent::SOURCES`.
-Een derde bron is straks één regel in `SOURCES` plus één tak in `itemsFor()`.
+`source_type` met een expliciete lijst waarden in `ItemGallerySources`, die de
+modules aanvullen met `itemGallerySources()`: `portfolio` van Portfolio,
+`collection` van de Shop. Een derde bron is straks één bijdrage in de module
+die de inhoud bezit.
 
 Reden: ruimte voor toekomstige bronnen zonder generieke abstractie. De gesloten
 lijst is bovendien de veiligheidsgrens: `source_type` uit een request wordt eerst
 gevalideerd (het endpoint weigert vóór het opslaan) en bij het lezen nog eens,
-zodat een handmatig aangepaste rij terugvalt op de standaard in plaats van blind
-uitgevoerd te worden.
+zodat een handmatig aangepaste rij terugvalt op de eerste beschikbare bron in
+plaats van blind uitgevoerd te worden.
 
 Gevolg: een niet-gekozen, onbekende of gedepubliceerde bron levert géén items
 (en dus geen blok), nooit een terugval op een andere bron. Een collectiebron

@@ -117,8 +117,9 @@ Een blok mag zijn inhoud uit een **instelbare bron** halen. Die bronnen zijn
 altijd een expliciete, gesloten lijst — nooit een generieke query-builder — en
 een bronsleutel uit een request wordt daartegen gevalideerd vóór gebruik,
 precies zoals een bloktype tegen de registry (en nog eens bij het lezen, zodat
-een handmatig aangepaste rij terugvalt op de standaard). Vandaag geldt dit voor
-`item_gallery` (`ItemGalleryContent::SOURCES`: `portfolio` en `collection`).
+een handmatig aangepaste rij terugvalt op de eerste beschikbare bron). Vandaag
+geldt dit voor `item_gallery` (`ItemGallerySources`: `portfolio` van de
+Portfolio-module en `collection` van de Shop).
 
 Elke bron levert dezelfde genormaliseerde itemvorm, dus het blok houdt één
 renderpad, en leest door de bestaande repositories heen zodat er geen tweede

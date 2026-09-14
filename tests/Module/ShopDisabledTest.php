@@ -6,6 +6,7 @@ namespace Tests\Module;
 
 use App\Module\ModuleRegistry;
 use App\Module\PersonalizationModule;
+use App\Module\PortfolioModule;
 use App\Module\ShopModule;
 use App\Service\AdminNavigation;
 use App\Service\AdminPermissions;
@@ -34,14 +35,20 @@ final class ShopDisabledTest extends TestCase
         ModuleRegistry::overrideForTests(null);
     }
 
+    /**
+     * The Shop (and with it Personalisatie) off, the Portfolio on: it was part
+     * of the CMS these tests describe before it became a module, and switching
+     * it off is Tests\Module\PortfolioModuleTest's business. The Blog stays
+     * off here, as it always was.
+     */
     private function withShopOff(): void
     {
-        ModuleRegistry::overrideForTests(['shop' => false, 'personalization' => false]);
+        ModuleRegistry::overrideForTests(['shop' => false, 'personalization' => false, 'portfolio' => true]);
     }
 
     private function withEverythingOn(): void
     {
-        ModuleRegistry::overrideForTests(['shop' => true, 'personalization' => true]);
+        ModuleRegistry::overrideForTests(['shop' => true, 'personalization' => true, 'portfolio' => true]);
     }
 
     /* ------------------------------------------------------------------ */
@@ -133,9 +140,12 @@ final class ShopDisabledTest extends TestCase
         }
 
         // ...and the CMS's own sections are all still there.
-        foreach (['dashboard', 'pages', 'media', 'portfolio', 'contact_requests', 'navigation', 'footer', 'settings', 'users'] as $key) {
+        foreach (['dashboard', 'pages', 'media', 'contact_requests', 'navigation', 'footer', 'settings', 'users'] as $key) {
             $this->assertContains($key, $navKeys, $key . ' is Core and must stay');
         }
+
+        // So is another module's: the Portfolio does not depend on the Shop.
+        $this->assertContains('portfolio', $navKeys);
     }
 
     /**
@@ -166,7 +176,7 @@ final class ShopDisabledTest extends TestCase
 
         // Core's own permissions are untouched.
         $this->assertTrue(AdminPermissions::userHas($superAdmin, AdminPermissions::PAGES_MANAGE));
-        $this->assertTrue(AdminPermissions::isEnabled(AdminPermissions::PORTFOLIO_MANAGE));
+        $this->assertTrue(AdminPermissions::isEnabled(PortfolioModule::PORTFOLIO_MANAGE), "another module's permission is untouched");
     }
 
     /**
@@ -306,7 +316,8 @@ final class ShopDisabledTest extends TestCase
     {
         $this->withShopOff();
 
-        $this->assertSame([], ModuleRegistry::collectMap('sitemapCollectors'));
+        // Only the Portfolio's is left: a module of its own, and on here.
+        $this->assertSame(['portfolio'], array_keys(ModuleRegistry::collectMap('sitemapCollectors')));
     }
 
     public function testNoShopAssetIsInTheSiteShellWhileTheShopIsOff(): void

@@ -3,6 +3,10 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/vendor/autoload.php';
+// A project page belongs to the Portfolio module: with it switched off every
+// /portfolio/<slug> answers the site's own 404, like a project that never
+// existed (App\Module\ModuleGuard). Nothing below runs.
+\App\Module\ModuleGuard::requirePublicRoute('portfolio');
 
 /**
  * One reusable dynamic template for every Portfolio item's optional project

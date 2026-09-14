@@ -26,9 +26,10 @@ use App\Service\Language\LanguageRegistry;
  * Core owns the permissions a CMS has with no modules at all. A module owns
  * its own — App\Module\ShopModule holds `products.*`, `collections.manage`,
  * `orders.*` and `shipping.manage`, App\Module\PersonalizationModule holds
- * `personalization.manage` — and contributes them here through
- * permissionGroups(). The NAMES are the unchanged strings that have always
- * been stored in `admin_user_permissions`.
+ * `personalization.manage`, App\Module\BlogModule `blog.*` and
+ * App\Module\PortfolioModule `portfolio.manage` — and contributes them here
+ * through permissionGroups(). The NAMES are the unchanged strings that have
+ * always been stored in `admin_user_permissions`.
  *
  * Two different questions are asked of that list, and they have two different
  * answers:
@@ -57,7 +58,6 @@ use App\Service\Language\LanguageRegistry;
 class AdminPermissions
 {
     public const DASHBOARD_VIEW = 'dashboard.view';
-    public const PORTFOLIO_MANAGE = 'portfolio.manage';
     public const CONTACT_MANAGE = 'contact.manage';
     public const PAGES_MANAGE = 'pages.manage';
     public const FORMS_MANAGE = 'forms.manage';
@@ -118,10 +118,6 @@ class AdminPermissions
                     'label' => 'Pagina\'s beheren',
                     'description' => 'Pagina\'s en hun secties, plus de navigatie en de footer.',
                 ],
-                self::PORTFOLIO_MANAGE => [
-                    'label' => 'Portfolio beheren',
-                    'description' => 'Portfolio-items, projectpagina\'s, foto\'s en categorieën.',
-                ],
                 self::MEDIA_VIEW => [
                     'label' => 'Mediabibliotheek gebruiken',
                     'description' => 'De mediabibliotheek openen, doorzoeken en er nieuwe afbeeldingen aan toevoegen. Zit automatisch bij "Pagina\'s beheren", "Portfolio beheren" en "Site-instellingen beheren".',
@@ -170,10 +166,11 @@ class AdminPermissions
      * Core's own "holding this necessarily means holding that", merged with
      * every module's in implies().
      *
-     * The three content permissions imply MEDIA_VIEW because picking an image
-     * is part of editing a page, a portfolio item or the site's branding —
-     * an editor who could already upload one through a block's own file field
-     * must not lose that the moment the picker replaces it. Nothing implies
+     * Core's two content permissions imply MEDIA_VIEW because picking an
+     * image is part of editing a page or the site's branding — an editor who
+     * could already upload one through a block's own file field must not lose
+     * that the moment the picker replaces it. A module's content permission
+     * says the same for itself (the Blog's, the Portfolio's). Nothing implies
      * MEDIA_MANAGE: deleting from a shared library, and rewriting alt text
      * that several pages depend on, stays a grant somebody hands out on
      * purpose.
@@ -183,7 +180,6 @@ class AdminPermissions
     private const CORE_IMPLICATIONS = [
         self::MEDIA_MANAGE => [self::MEDIA_VIEW],
         self::PAGES_MANAGE => [self::MEDIA_VIEW],
-        self::PORTFOLIO_MANAGE => [self::MEDIA_VIEW],
         self::SETTINGS_MANAGE => [self::MEDIA_VIEW],
     ];
 

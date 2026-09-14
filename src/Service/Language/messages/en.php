@@ -1724,6 +1724,7 @@ return [
     'perm.group.website' => 'Website',
     'perm.group.klantcontact' => 'Customer contact',
     'perm.group.beheer' => 'Administration',
+    'perm.group.portfolio' => 'Portfolio',
     'perm.dashboard.view.label' => 'View the dashboard',
     'perm.dashboard.view.description' => 'Access to the CMS home screen.',
     'perm.pages.manage.label' => 'Manage pages',

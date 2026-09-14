@@ -135,6 +135,14 @@ er via de pagina's in en beslist `PageSeo::isIndexable()`; anders zet
 het menu wil, voegt bij Navigatie de route *Shop* toe. De installatiewizard
 verzint er geen.
 
+**Portfolio** brengt ook alleen tabellen mee, en die bestaan op elke
+installatie: de historische migraties maakten ze, leeg op een verse. De module
+zelf staat op een verse installatie uit tot iemand hem aanzet, in de wizard of
+in `.env`. Een bestaande installatie, en een verse die al portfolio-inhoud had,
+krijgt via `20260914170000_pin_the_portfolio_module_where_it_is_in_use` een
+opgeslagen *aan* (`Tests\Install\PortfolioModulePinTest`), zodat een deploy
+niemands portfolio uit de lucht haalt.
+
 **De Shop-seed is uit de bootstrap zelf gehaald, niet door een latere migratie
 teruggedraaid.** Phinx draait een migratie nooit twee keer, dus elke database
 die hem al had, ook een verse van vóór deze wijziging, houdt haar Shop-pagina

@@ -1,6 +1,11 @@
 <?php
 
 require_once __DIR__ . '/vendor/autoload.php';
+// This route belongs to the Portfolio module. With it switched off the file is
+// still on disk and still reachable, so the URL must stop answering:
+// App\Module\ModuleGuard renders the site's own 404 and exits, exactly as an
+// unknown slug does. Nothing below runs.
+\App\Module\ModuleGuard::requirePublicRoute('portfolio');
 
 // A failed form submission is redirected back to this page, and the
 // answers the visitor typed are waiting in the public session. Reading

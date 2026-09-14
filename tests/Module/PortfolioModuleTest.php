@@ -1,0 +1,485 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Tests\Module;
+
+use App\Module\ModuleConfig;
+use App\Module\ModuleRegistry;
+use App\Module\ModuleSettings;
+use App\Module\PortfolioModule;
+use App\Service\AdminNavigation;
+use App\Service\AdminPermissions;
+use App\Service\ItemGallerySources;
+use App\Service\PageAssets;
+use App\Service\PageContent;
+use App\Service\ReservedRoutes;
+use App\Service\RouteRegistry;
+use App\Service\SectionRegistry;
+use PHPUnit\Framework\TestCase;
+
+/**
+ * What the CMS looks like from the inside with the Portfolio on and with it
+ * off, and that Core never learns what a portfolio item is.
+ *
+ * Everything here is a registry or a source question, so it needs no database
+ * and no web server (tier `fast`). The same behaviour over real HTTP — the
+ * screens, a write endpoint, the public routes, the sitemap and the data
+ * surviving a switch-off — is Tests\Module\PortfolioModuleHttpTest. Same shape
+ * as Tests\Blog\BlogModuleTest.
+ */
+final class PortfolioModuleTest extends TestCase
+{
+    /** @var array<string, string|null> */
+    private array $originalEnvironment = [];
+
+    /**
+     * The configuration test is about steps 2 and 3 of the precedence chain,
+     * so step 1 has to be out of the way: the suite runs in a container that
+     * asks for MODULE_PORTFOLIO_ENABLED=true, and the environment rightly wins
+     * over everything. It is put back in tearDown(), the same seam
+     * Tests\Module\ModuleConfigurationTest uses.
+     */
+    protected function setUp(): void
+    {
+        foreach (ModuleRegistry::keys() as $key) {
+            $variable = ModuleConfig::variableName($key);
+            $this->originalEnvironment[$variable] = $_ENV[$variable] ?? null;
+            unset($_ENV[$variable]);
+        }
+    }
+
+    protected function tearDown(): void
+    {
+        foreach ($this->originalEnvironment as $variable => $value) {
+            if ($value === null) {
+                unset($_ENV[$variable]);
+            } else {
+                $_ENV[$variable] = $value;
+            }
+        }
+
+        ModuleRegistry::overrideForTests(null);
+        ModuleSettings::overrideForTests(null);
+    }
+
+    private function withPortfolio(bool $enabled, bool $shop = true): void
+    {
+        ModuleRegistry::overrideForTests([
+            'shop' => $shop,
+            'personalization' => $shop,
+            'blog' => true,
+            'portfolio' => $enabled,
+        ]);
+    }
+
+    /* ------------------------------------------------------------------ */
+    /* Registration and the default                                        */
+    /* ------------------------------------------------------------------ */
+
+    public function testThePortfolioIsARegisteredFirstPartyModule(): void
+    {
+        $this->assertTrue(ModuleRegistry::has('portfolio'));
+        $this->assertInstanceOf(PortfolioModule::class, ModuleRegistry::definition('portfolio'));
+        $this->assertSame('Portfolio', ModuleRegistry::label('portfolio'));
+        $this->assertSame('MODULE_PORTFOLIO_ENABLED', ModuleConfig::variableName('portfolio'));
+        $this->assertSame(
+            'module_portfolio_enabled',
+            ModuleSettings::settingKey('portfolio'),
+            'the key the pin migration writes by hand'
+        );
+    }
+
+    /**
+     * A new installation only gets the Portfolio when it asks, the Blog's
+     * rule. An existing installation keeps it through the preference the pin
+     * migration stores (Tests\Install\PortfolioModulePinTest), and a stored
+     * preference is read before this default.
+     */
+    public function testANewInstallationOnlyGetsThePortfolioWhenItAsks(): void
+    {
+        $this->assertFalse((new PortfolioModule())->enabledByDefault());
+
+        ModuleSettings::overrideForTests([]);
+        $this->assertFalse(ModuleConfig::wants('portfolio'), 'nothing configured means off');
+
+        ModuleSettings::overrideForTests(['portfolio' => true]);
+        $this->assertTrue(ModuleConfig::wants('portfolio'), 'a stored preference switches it on');
+
+        $_ENV['MODULE_PORTFOLIO_ENABLED'] = 'false';
+        $this->assertFalse(ModuleConfig::wants('portfolio'), 'and the environment still has the last word');
+    }
+
+    /* ------------------------------------------------------------------ */
+    /* The admin: sidebar, permission, guards                              */
+    /* ------------------------------------------------------------------ */
+
+    public function testWithThePortfolioOnItKeepsItsPlaceInTheSidebar(): void
+    {
+        $this->withPortfolio(true);
+
+        $items = AdminNavigation::items();
+        $positions = array_flip(array_column($items, 'key'));
+
+        $this->assertArrayHasKey('portfolio', $positions);
+        $this->assertGreaterThan($positions['shop_settings'], $positions['portfolio']);
+        $this->assertLessThan($positions['blog_posts'], $positions['portfolio']);
+
+        $entry = $items[$positions['portfolio']];
+        $this->assertSame('/admin/portfolio.php', $entry['url']);
+        $this->assertSame(PortfolioModule::PORTFOLIO_MANAGE, $entry['permission']);
+        $this->assertSame('portfolio', AdminNavigation::activeKeyForScript('portfolio-item.php'));
+    }
+
+    public function testNoPortfolioEntryIsLeftInTheSidebarWhileItIsOff(): void
+    {
+        $this->withPortfolio(false);
+
+        $items = AdminNavigation::items();
+
+        $this->assertNotContains('portfolio', array_column($items, 'key'));
+        $this->assertNotContains('/admin/portfolio.php', array_column($items, 'url'));
+        $this->assertNull(AdminNavigation::activeKeyForScript('portfolio.php'));
+    }
+
+    public function testManagingThePortfolioIsOnePermissionThatIncludesPickingAnImage(): void
+    {
+        $this->withPortfolio(true);
+
+        $this->assertSame('portfolio.manage', PortfolioModule::PORTFOLIO_MANAGE, 'a stored grant must keep matching');
+        $this->assertContains(PortfolioModule::PORTFOLIO_MANAGE, AdminPermissions::enabled());
+        $this->assertContains(AdminPermissions::MEDIA_VIEW, AdminPermissions::expand([PortfolioModule::PORTFOLIO_MANAGE]));
+        $this->assertNotContains(AdminPermissions::MEDIA_MANAGE, AdminPermissions::expand([PortfolioModule::PORTFOLIO_MANAGE]));
+    }
+
+    public function testNobodyHoldsThePortfolioPermissionWhileItIsOff(): void
+    {
+        $this->withPortfolio(false);
+
+        $superAdmin = ['is_super_admin' => true, 'permissions' => []];
+        $editor = ['is_super_admin' => false, 'permissions' => [PortfolioModule::PORTFOLIO_MANAGE]];
+
+        $this->assertNotContains(PortfolioModule::PORTFOLIO_MANAGE, AdminPermissions::enabled());
+        $this->assertFalse(AdminPermissions::userHas($superAdmin, PortfolioModule::PORTFOLIO_MANAGE));
+        $this->assertFalse(AdminPermissions::userHas($editor, PortfolioModule::PORTFOLIO_MANAGE));
+
+        // The NAME stays valid, so a colleague's stored grant survives untouched...
+        $this->assertTrue(AdminPermissions::isValid(PortfolioModule::PORTFOLIO_MANAGE));
+        $this->assertSame(
+            [PortfolioModule::PORTFOLIO_MANAGE],
+            AdminPermissions::sanitize([PortfolioModule::PORTFOLIO_MANAGE])
+        );
+
+        // ...and holds again the moment the module is back.
+        $this->withPortfolio(true);
+        $this->assertTrue(AdminPermissions::userHas($editor, PortfolioModule::PORTFOLIO_MANAGE));
+    }
+
+    /**
+     * Both screens ask for the module's permission. That is what closes them
+     * while the Portfolio is off, without a ModuleGuard call in each file: a
+     * disabled module's permission is held by nobody (MODULES.md).
+     */
+    public function testEveryPortfolioAdminScreenRequiresThePortfolioPermission(): void
+    {
+        foreach (['admin/portfolio.php', 'admin/portfolio-item.php'] as $file) {
+            $source = self::sourceOf($file);
+
+            $this->assertStringContainsString('AdminAuth::requireLogin()', $source, $file);
+            $this->assertStringContainsString(
+                "requirePermission('portfolio.manage')",
+                $source,
+                $file . ' must refuse through the module permission'
+            );
+        }
+    }
+
+    /** Every write endpoint: login, permission, POST-only, CSRF — in that order. */
+    public function testEveryPortfolioEndpointGuardsItselfInTheUsualOrder(): void
+    {
+        $endpoints = self::endpoints();
+        // Named rather than counted: a glob that silently finds nothing must
+        // fail here, and these exist with or without a project page, so a
+        // later phase that drops the project-image endpoints keeps this green.
+        foreach ([
+            'api/admin/create-portfolio-item.php',
+            'api/admin/update-portfolio-item.php',
+            'api/admin/delete-portfolio-item.php',
+            'api/admin/create-portfolio-category.php',
+            'api/admin/update-portfolio-category.php',
+            'api/admin/delete-portfolio-category.php',
+            'api/admin/move-featured-gallery-item.php',
+        ] as $expected) {
+            $this->assertContains($expected, $endpoints);
+        }
+
+        foreach ($endpoints as $file) {
+            $source = self::withoutComments(self::sourceOf($file));
+
+            $positions = [
+                strpos($source, 'AdminAuth::requireLoginForApi()'),
+                strpos($source, "requirePermissionForApi('portfolio.manage')"),
+                strpos($source, "REQUEST_METHOD'] !== 'POST'"),
+                strpos($source, 'Csrf::validate('),
+            ];
+
+            $this->assertNotContains(false, $positions, $file . ' is missing one of the four guards');
+
+            $sorted = $positions;
+            sort($sorted);
+            $this->assertSame($sorted, $positions, $file . ' must check login, permission, POST and CSRF in that order');
+        }
+    }
+
+    /* ------------------------------------------------------------------ */
+    /* The public side                                                     */
+    /* ------------------------------------------------------------------ */
+
+    /** Both templates refuse before they read a session, a page or an item. */
+    public function testThePublicTemplatesRefuseBeforeTheyReadAnything(): void
+    {
+        foreach (['portfolio.php' => 'PublicFormSession::prime', 'portfolio-detail.php' => 'itemForDetailPage('] as $file => $firstRead) {
+            $source = self::withoutComments(self::sourceOf($file));
+            $guard = strpos($source, "ModuleGuard::requirePublicRoute('portfolio')");
+
+            $this->assertNotFalse($guard, $file . ' must refuse while the Portfolio is off');
+            $this->assertLessThan((int) strpos($source, $firstRead), $guard, $file . ' must refuse before it reads anything');
+        }
+    }
+
+    /**
+     * /portfolio.php serves a CMS page, and while the module is off that URL
+     * answers 404. The sitemap (PageSeo::isIndexable()), a menu link
+     * (LinkResolver) and a redirect (RedirectTarget) all ask this one
+     * question. It still does not become a link-picker route: a content page
+     * is linked as a page (App\Service\RouteRegistry).
+     */
+    public function testThePortfolioPageBelongsToTheModuleWithoutBecomingARoute(): void
+    {
+        $page = ['id' => 0, 'content_key' => 'portfolio', 'route_path' => '/portfolio.php'];
+
+        $this->withPortfolio(false);
+        $this->assertSame('portfolio', ModuleRegistry::disabledModuleForRoutePath('/portfolio.php'));
+        $this->assertSame('portfolio', ModuleRegistry::disabledModuleForRoutePath('/portfolio-detail.php'));
+        $this->assertFalse(PageContent::isServedByAnEnabledModule($page));
+        $this->assertFalse(RouteRegistry::exists('portfolio'));
+
+        $this->withPortfolio(true);
+        $this->assertNull(ModuleRegistry::disabledModuleForRoutePath('/portfolio.php'));
+        $this->assertTrue(PageContent::isServedByAnEnabledModule($page));
+        $this->assertFalse(RouteRegistry::exists('portfolio'), 'a content page is linked as a page, never as a route');
+    }
+
+    public function testThePortfolioSitemapCollectorFollowsTheModule(): void
+    {
+        $this->withPortfolio(false);
+        $this->assertArrayNotHasKey('portfolio', ModuleRegistry::collectMap('sitemapCollectors'));
+
+        $this->withPortfolio(true);
+        $this->assertArrayHasKey('portfolio', ModuleRegistry::collectMap('sitemapCollectors'));
+    }
+
+    /**
+     * The one thing a disabled module keeps: its reserved slugs.
+     * portfolio.php is still on disk, so a CMS page named "portfolio" would be
+     * permanently unreachable behind it.
+     */
+    public function testThePortfolioSlugsStayReservedWhileTheModuleIsOff(): void
+    {
+        $this->withPortfolio(false);
+
+        foreach (['portfolio', 'portfolio-detail'] as $slug) {
+            $this->assertTrue(ReservedRoutes::isReserved($slug), $slug . ' must stay reserved');
+        }
+    }
+
+    public function testThePortfolioAddsNothingToTheSiteShell(): void
+    {
+        $module = new PortfolioModule();
+        $this->assertSame([], $module->shellStyles());
+        $this->assertSame([], $module->shellScripts());
+        $this->assertSame([], $module->headerPartials());
+
+        foreach ([true, false] as $enabled) {
+            $this->withPortfolio($enabled);
+            PageAssets::reset();
+
+            foreach (PageAssets::collected() as $group) {
+                foreach ((array) $group as $path) {
+                    $this->assertStringNotContainsString('portfolio', (string) $path);
+                }
+            }
+        }
+    }
+
+    /* ------------------------------------------------------------------ */
+    /* The gallery block                                                   */
+    /* ------------------------------------------------------------------ */
+
+    public function testPortfolioItemsAreAGallerySourceOnlyWhileTheModuleRuns(): void
+    {
+        $this->withPortfolio(true);
+        $this->assertTrue(ItemGallerySources::isAvailable(PortfolioModule::GALLERY_SOURCE));
+        $this->assertSame(
+            PortfolioModule::GALLERY_SOURCE,
+            ItemGallerySources::defaultSource(),
+            'a new gallery block still starts as the portfolio grid'
+        );
+        $this->assertTrue(ItemGallerySources::needsScope(PortfolioModule::GALLERY_SOURCE));
+
+        $this->withPortfolio(false);
+        $this->assertFalse(ItemGallerySources::isAvailable(PortfolioModule::GALLERY_SOURCE));
+        $this->assertTrue(
+            ItemGallerySources::isKnown(PortfolioModule::GALLERY_SOURCE),
+            'a block set to it is recognised and kept, not rewritten'
+        );
+        $this->assertSame('portfolio', ItemGallerySources::moduleOwnerOf(PortfolioModule::GALLERY_SOURCE));
+        $this->assertSame([], ItemGallerySources::items(PortfolioModule::GALLERY_SOURCE, ['portfolio_scope' => 'all']));
+        $this->assertSame([], ItemGallerySources::filterCategories(PortfolioModule::GALLERY_SOURCE));
+        $this->assertNotSame(PortfolioModule::GALLERY_SOURCE, ItemGallerySources::defaultSource());
+    }
+
+    /**
+     * With neither the Portfolio nor the Shop there is nothing a gallery block
+     * could show, so the picker does not offer one. The block type itself is
+     * Core and stays registered, so every existing instance keeps its settings
+     * for the day a module comes back.
+     */
+    public function testTheGalleryBlockIsNotOfferedWhenNoModuleHasASource(): void
+    {
+        $this->withPortfolio(false, shop: false);
+
+        $this->assertSame([], ItemGallerySources::available());
+        $this->assertSame('', ItemGallerySources::defaultSource());
+        $this->assertTrue(SectionRegistry::exists('item_gallery'));
+        $this->assertFalse(SectionRegistry::isManuallyAddable('item_gallery'));
+
+        $this->withPortfolio(true, shop: false);
+        $this->assertTrue(SectionRegistry::isManuallyAddable('item_gallery'));
+    }
+
+    /* ------------------------------------------------------------------ */
+    /* The boundary, read from the source                                  */
+    /* ------------------------------------------------------------------ */
+
+    /**
+     * Core reaches the Portfolio through a module contribution or not at all.
+     * Same shape as the Shop's and the Blog's equivalents, for the same
+     * reason: the coupling this removes is exactly the coupling that grows back.
+     */
+    public function testCoreIntegrationClassesNameNoPortfolioImplementation(): void
+    {
+        $forbidden = [
+            'PortfolioGalleryRepository', 'PortfolioCategoryRepository', 'PortfolioItemImageRepository',
+            'PortfolioGalleryContent', 'PortfolioImageProcessor', 'portfolio_gallery_items', 'portfolio_categories',
+        ];
+
+        $files = [
+            'src/Service/Sitemap.php',
+            'src/Service/SeoMetadata.php',
+            'src/Service/SeoDefaults.php',
+            'src/Service/PageSeo.php',
+            'src/Service/Robots.php',
+            'partials/seo-head.php',
+            'src/Service/AdminNavigation.php',
+            'src/Service/AdminPermissions.php',
+            'src/Service/RouteRegistry.php',
+            'src/Service/ReservedRoutes.php',
+            'src/Service/PageAssets.php',
+            'src/Service/Blocks/BlockDefinitions.php',
+            'src/Service/SectionRegistry.php',
+            'src/Service/ItemGallerySources.php',
+            'src/Service/ItemGalleryContent.php',
+            'src/Service/Blocks/ItemGalleryBlock.php',
+            'admin/item-gallery.php',
+            'api/admin/update-item-gallery.php',
+            'src/Module/ModuleConfig.php',
+            'src/Module/ModuleRegistry.php',
+            'admin/index.php',
+            'partials/header.php',
+        ];
+
+        foreach ($files as $file) {
+            $source = self::withoutComments(self::sourceOf($file));
+
+            foreach ($forbidden as $name) {
+                $this->assertStringNotContainsString(
+                    $name,
+                    $source,
+                    $file . ' must reach the Portfolio through a module contribution, not by naming ' . $name
+                );
+            }
+        }
+    }
+
+    /** Nor do Core's registries carry the Portfolio's keys: those are the module's words. */
+    public function testCoreRegistriesNameNoPortfolioKey(): void
+    {
+        foreach (
+            [
+                'src/Service/Sitemap.php',
+                'src/Service/AdminNavigation.php',
+                'src/Service/AdminPermissions.php',
+                'src/Service/ReservedRoutes.php',
+                'src/Service/ItemGallerySources.php',
+                'src/Service/ItemGalleryContent.php',
+                'src/Service/Blocks/ItemGalleryBlock.php',
+            ] as $file
+        ) {
+            $source = self::withoutComments(self::sourceOf($file));
+
+            $this->assertStringNotContainsString("'portfolio'", $source, $file);
+            $this->assertStringNotContainsString("'portfolio.manage'", $source, $file);
+        }
+    }
+
+    /* ------------------------------------------------------------------ */
+
+    /**
+     * Every Portfolio write endpoint: the files named after it, plus the one
+     * that reorders the homepage selection and was named after the gallery.
+     *
+     * @return list<string>
+     */
+    private static function endpoints(): array
+    {
+        $files = glob(dirname(__DIR__, 2) . '/api/admin/*portfolio*.php') ?: [];
+
+        $endpoints = [];
+        foreach ($files as $path) {
+            if (!str_starts_with(basename($path), '_')) {
+                $endpoints[] = 'api/admin/' . basename($path);
+            }
+        }
+
+        $endpoints[] = 'api/admin/move-featured-gallery-item.php';
+
+        return $endpoints;
+    }
+
+    private static function sourceOf(string $relativePath): string
+    {
+        $path = dirname(__DIR__, 2) . '/' . $relativePath;
+        self::assertFileExists($path);
+
+        return (string) file_get_contents($path);
+    }
+
+    private static function withoutComments(string $source): string
+    {
+        $code = '';
+
+        foreach (token_get_all($source) as $token) {
+            if (is_array($token)) {
+                if ($token[0] === T_COMMENT || $token[0] === T_DOC_COMMENT) {
+                    continue;
+                }
+                $code .= $token[1];
+                continue;
+            }
+            $code .= $token;
+        }
+
+        return $code;
+    }
+}

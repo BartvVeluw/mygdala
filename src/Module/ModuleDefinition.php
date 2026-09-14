@@ -143,6 +143,24 @@ abstract class ModuleDefinition
     }
 
     /**
+     * Fixed public paths this module's own root-level templates answer at,
+     * beyond the menu destinations routes() offers — "/portfolio.php".
+     *
+     * Read by App\Module\ModuleRegistry::disabledModuleForRoutePath(), which is
+     * how Core learns that a CMS page served from one of those templates (its
+     * `pages.route_path`), a menu link to that page and a redirect aimed at it
+     * stop resolving while the module is off. A path named here is NOT offered
+     * in the link picker: a CMS content page is linked as a page, never as a
+     * route (App\Service\RouteRegistry).
+     *
+     * @return list<string> root-relative paths
+     */
+    public function publicPaths(): array
+    {
+        return [];
+    }
+
+    /**
      * Sitemap collectors, keyed by the label App\Service\Sitemap logs when one
      * fails. Each returns entries in Sitemap's own shape.
      *
@@ -166,8 +184,11 @@ abstract class ModuleDefinition
 
     /**
      * Item-gallery content sources, in App\Service\ItemGallerySources' shape.
+     * Every source the gallery block can show comes from a module — Core owns
+     * none — and the lowest `order` among the available ones is the source a
+     * new block starts with.
      *
-     * @return array<string, array{label: string, needs_collection: bool, items: callable(array<string, mixed>): list<array<string, mixed>>, filter_categories?: callable(): list<array<string, mixed>>}>
+     * @return array<string, array{label: string, order: int, needs_collection: bool, needs_scope?: bool, items: callable(array<string, mixed>): list<array<string, mixed>>, filter_categories?: callable(): list<array<string, mixed>>}>
      */
     public function itemGallerySources(): array
     {

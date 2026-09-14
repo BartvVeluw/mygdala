@@ -6,7 +6,6 @@ namespace App\Service;
 
 use App\Module\ModuleRegistry;
 use App\Repository\PageRepository;
-use App\Repository\PortfolioGalleryRepository;
 
 /**
  * Builds /sitemap.xml from the database, every request — see sitemap.php and
@@ -21,11 +20,12 @@ use App\Repository\PortfolioGalleryRepository;
  * private collect*() method returning entries, so adding one later, or
  * splitting into an index, is a local change.
  *
- * WHO PUTS WHAT IN. Core collects the two content types it owns: published
- * `pages` rows and Portfolio projects. Everything else is contributed by an
- * ENABLED module through App\Module\ModuleDefinition::sitemapCollectors() —
- * products and collections by the Shop, the Personalisatie catalogue by
- * Personalisatie. This class therefore no longer knows what a product is, and
+ * WHO PUTS WHAT IN. Core collects the one content type it owns: published
+ * `pages` rows. Everything else is contributed by an ENABLED module through
+ * App\Module\ModuleDefinition::sitemapCollectors() — products and collections
+ * by the Shop, the Personalisatie catalogue by Personalisatie, posts by the
+ * Blog, project pages by the Portfolio. This class therefore no longer knows
+ * what a product or a portfolio item is, and
  * a CMS-only deployment produces a sitemap with no shop URLs in it because
  * there is no code path that could add one.
  *
@@ -46,9 +46,8 @@ use App\Repository\PortfolioGalleryRepository;
  *   - active products (`products.active = 1`), the shop's own visibility rule;
  *   - published collections (`collections.is_active = 1`), the rule that
  *     decides whether /collecties/<slug> answers 200 or 404;
- *   - Portfolio projects that have their detail page switched on and are
- *     visible (`is_active = 1 AND has_detail_page = 1` plus a slug) —
- *     App\Service\PortfolioGalleryContent::itemForDetailPage()'s own rule.
+ *   - Portfolio project pages that are switched on and visible, by
+ *     App\Module\PortfolioModule's collector and that module's own rule.
  *
  * WHAT CANNOT GET IN. Nothing here enumerates the filesystem, so /admin/…,
  * /api/…, the login page, /cart.php, /checkout.php, /bestelling-status.php,
@@ -61,10 +60,9 @@ use App\Repository\PortfolioGalleryRepository;
  * make those URLs 404.
  *
  * CANONICAL URLS. Every <loc> is produced by the content type's OWN
- * canonicalUrl() helper — PageContent::canonicalUrl() and
- * PortfolioGalleryContent::canonicalUrlForSlug() here, and the shop's own
- * helpers inside the collectors the Shop module contributes — which are the
- * very same calls partials/page-head.php, partials/shop-seo-head.php and
+ * canonicalUrl() helper — PageContent::canonicalUrl() here, and each module's
+ * own helper inside the collector it contributes — which are the very same
+ * calls partials/page-head.php, partials/shop-seo-head.php and
  * portfolio-detail.php use to render <link rel="canonical">. There is
  * therefore no second URL-building implementation that could drift, and a
  * sitemap URL is by construction identical to the canonical tag on the page
@@ -94,7 +92,8 @@ class Sitemap
 
     /**
      * Every URL the sitemap should contain, in a stable, readable order:
-     * pages first, then collections, products and Portfolio projects.
+     * pages first, then whatever the enabled modules contribute, module by
+     * module in registration order.
      *
      * A failing lookup for one content type is logged and skipped rather
      * than fataling the whole document — an incomplete sitemap is a far
@@ -117,11 +116,12 @@ class Sitemap
      * Every content type that contributes URLs, in document order: Core's own
      * first, then one per collector each ENABLED module contributes.
      *
-     * Core knows about pages and Portfolio projects, and nothing else. It used
-     * to call five hardcoded collectors, two of which reached straight into
+     * Core knows about pages, and nothing else. It used to call five
+     * hardcoded collectors, two of which reached straight into
      * App\Repository\ProductRepository and CollectionRepository; those now live
-     * in App\Module\ShopModule, and the Personalisatie catalogue entry in
-     * App\Module\PersonalizationModule. A CMS-only deployment therefore
+     * in App\Module\ShopModule, the Personalisatie catalogue entry in
+     * App\Module\PersonalizationModule, and the Portfolio's project pages in
+     * App\Module\PortfolioModule. A CMS-only deployment therefore
      * produces a sitemap with no shop URLs in it because there is no code path
      * that could add one — not because a condition happened to be false.
      *
@@ -147,17 +147,6 @@ class Sitemap
                     }
 
                     $entries[] = self::entryFor(PageContent::canonicalUrl($page), $page['updated_at'] ?? null);
-                }
-
-                return $entries;
-            },
-            'portfolio' => static function (): array {
-                $entries = [];
-                foreach ((new PortfolioGalleryRepository())->findDetailPageItemsForSitemap() as $item) {
-                    $entries[] = self::entryFor(
-                        PortfolioGalleryContent::canonicalUrlForSlug((string) $item['slug']),
-                        $item['updated_at'] ?? null
-                    );
                 }
 
                 return $entries;

@@ -14,9 +14,9 @@ use App\Repository\ItemGalleryRepository;
  * over hardcoded item sets with hardcoded display settings.
  *
  * THE SOURCE MODEL LIVES IN App\Service\ItemGallerySources: an explicit,
- * closed list of the content this block can show, half of it Core's (Portfolio
- * items) and half contributed by whichever modules are enabled (the Shop's
- * "a collection"). Deliberately NOT a query builder and not a generic
+ * closed list of the content this block can show, every entry contributed by
+ * whichever modules are enabled (the Portfolio's items, the Shop's "a
+ * collection"). Deliberately NOT a query builder and not a generic
  * "entity + filters" abstraction. Requests are validated against that list
  * (isSource()), so a source key from the browser can never reach a table
  * name, a class name or a query.
@@ -62,13 +62,10 @@ class ItemGalleryContent
     public const STATE_HIDDEN = 'hidden';
 
     /**
-     * Portfolio items, from the Portfolio catalogue — the default source, and
-     * the only one Core itself owns. Every other source comes from a module;
-     * see App\Service\ItemGallerySources.
+     * Which of its items a source that reads the scope setting shows
+     * (ItemGallerySources::needsScope() — today the Portfolio's). The column
+     * is still called `portfolio_scope`, after the source that brought it.
      */
-    public const SOURCE_PORTFOLIO = ItemGallerySources::PORTFOLIO;
-
-    /** Which portfolio items a `portfolio` source shows. */
     public const SCOPE_ALL = 'all';
 
     /** Only the items curated for the homepage ("Toon op homepage" per item). */
@@ -159,11 +156,13 @@ class ItemGalleryContent
         // produces no items (ItemGallerySources::items()), so the block goes
         // quiet and the row is preserved intact for when the module comes
         // back. A source nothing declares at all can only come from a
-        // hand-edited database, and degrades to the documented default.
-        $source = (string) ($row['source_type'] ?? self::SOURCE_PORTFOLIO);
+        // hand-edited database, and degrades to the source a new block would
+        // start with (ItemGallerySources::defaultSource()) — which is empty,
+        // and so shows nothing, when no enabled module offers one.
+        $source = (string) ($row['source_type'] ?? '');
         if (!ItemGallerySources::isKnown($source)) {
             error_log('[ItemGalleryContent] unknown source_type "' . $source . '" on item_galleries #' . (int) ($row['id'] ?? 0));
-            $source = self::SOURCE_PORTFOLIO;
+            $source = ItemGallerySources::defaultSource();
         }
 
         $scope = (string) ($row['portfolio_scope'] ?? self::SCOPE_ALL);
@@ -265,7 +264,7 @@ class ItemGalleryContent
     {
         return [
             'id' => 0,
-            'source_type' => self::SOURCE_PORTFOLIO,
+            'source_type' => '',
             'portfolio_scope' => self::SCOPE_ALL,
             'collection_id' => null,
             'max_items' => null,

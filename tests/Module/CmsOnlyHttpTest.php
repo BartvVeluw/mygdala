@@ -88,7 +88,6 @@ final class CmsOnlyHttpTest extends TestCase
         return [
             'homepage' => ['/index.php'],
             'diensten' => ['/diensten.php'],
-            'portfolio' => ['/portfolio.php'],
             'over mij' => ['/over-mij.php'],
             'contact' => ['/contact.php'],
             // A page the owner created themselves, served by the generic
@@ -212,9 +211,25 @@ final class CmsOnlyHttpTest extends TestCase
         }
     }
 
+    /**
+     * The Portfolio is off on this server as well — pinned in
+     * docker-compose.yml, because a test database copied from an existing
+     * site stores it as on. Its page and a project page answer like URLs that
+     * never existed; the in-process half is Tests\Module\PortfolioModuleTest.
+     */
+    public function testThePortfolioRoutesAre404WhileThePortfolioIsOff(): void
+    {
+        foreach (['/portfolio.php', '/portfolio/whatever'] as $path) {
+            $response = $this->get($path);
+
+            $this->assertSame(404, $response['status'], $path . ' must not answer');
+            $this->assertStringContainsString('Pagina niet gevonden', $response['body'], $path . ' must render the CMS 404');
+        }
+    }
+
     public function testNoShopStylesheetOrScriptIsLoadedAnywhere(): void
     {
-        foreach (['/index.php', '/contact.php', '/portfolio.php', '/algemene-voorwaarden'] as $path) {
+        foreach (['/index.php', '/contact.php', '/algemene-voorwaarden'] as $path) {
             $body = $this->get($path)['body'];
 
             $this->assertStringNotContainsString('assets/css/shop/', $body, $path);

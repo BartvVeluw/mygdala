@@ -99,8 +99,8 @@ class AdminNavigation
 
     /**
      * The entries the CMS has without any module: the dashboard, the pages
-     * and their editors, the portfolio, customer contact, and the site-wide
-     * settings screens.
+     * and their editors, customer contact, and the site-wide settings
+     * screens. The Portfolio's entry belongs to App\Module\PortfolioModule.
      *
      * @return list<array{key: string, label: string, url: string, icon: string, permission: string, order: int, scripts: list<string>}>
      */
@@ -195,15 +195,6 @@ class AdminNavigation
                 'permission' => AdminPermissions::PAGES_MANAGE,
                 'order' => 230,
                 'scripts' => ['content-blocks.php'],
-            ],
-            [
-                'key' => 'portfolio',
-                'label' => 'Portfolio',
-                'url' => '/admin/portfolio.php',
-                'icon' => 'portfolio',
-                'permission' => AdminPermissions::PORTFOLIO_MANAGE,
-                'order' => 400,
-                'scripts' => ['portfolio.php', 'portfolio-item.php'],
             ],
             [
                 'key' => 'contact_requests',

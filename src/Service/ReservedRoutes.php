@@ -16,9 +16,10 @@ use App\Module\ModuleRegistry;
  * actual enforcement point: server-side slug validation, called from
  * api/admin/create-page.php and update-page.php) — see those files.
  *
- * Note that the six system pages' own slugs (index, shop, diensten,
- * portfolio, over-mij, contact) are already in the list below as root-level
- * PHP files, so a new CMS page can never claim one of them either.
+ * Note that the system pages' own slugs are reserved as root-level PHP files
+ * too — index, diensten, over-mij and contact in the list below, shop and
+ * portfolio by the module that serves them — so a new CMS page can never
+ * claim one of them either.
  *
  * .htaccess's own generic CMS-page RewriteRule additionally guards
  * itself with `-d`/`.php -f` filesystem checks, which independently protect
@@ -54,8 +55,6 @@ class ReservedRoutes
         // Root-level frontend/application PHP files (basename, no extension).
         'index',
         'diensten',
-        'portfolio',
-        'portfolio-detail',
         'contact',
         'over-mij',
         'cookiebeleid',

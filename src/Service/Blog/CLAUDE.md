@@ -6,7 +6,7 @@ eigen stylesheet.
 
 - **Hangt nergens van af.** Werkt identiek met de Shop aan en uit. Noem hier
   nooit een Shop-klasse of Shop-tabel: `Tests\Blog\BlogModuleTest` faalt daarop.
-- **Enige module die standaard UIT staat** (`enabledByDefault()`). De
+- **Staat standaard UIT** (`enabledByDefault()`), net als Portfolio. De
   testcontainer zet `MODULE_BLOG_ENABLED=true`.
 - Slugwijzigingen lopen door de gewone Redirect Manager, metadata door de
   gewone `SeoMetadata`. Bouw daar geen tweede versie van.

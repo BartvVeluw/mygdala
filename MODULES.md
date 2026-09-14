@@ -26,7 +26,7 @@ packages, geen microservices.
 | Configuratie | `src/Module/ModuleConfig.php` — dé volgorde: `MODULE_<KEY>_ENABLED` in `.env`, dan de opgeslagen voorkeur, dan aan |
 | Opgeslagen voorkeur | `src/Module/ModuleSettings.php` + tabel `module_settings` — wat de installatiewizard schrijft (`SETUP.md`) |
 | Guard | `src/Module/ModuleGuard.php` — het regeltje bovenaan een route of endpoint van een module |
-| Modules | `src/Module/ShopModule.php`, `src/Module/PersonalizationModule.php`, `src/Module/BlogModule.php` |
+| Modules | `src/Module/ShopModule.php`, `src/Module/PersonalizationModule.php`, `src/Module/BlogModule.php`, `src/Module/PortfolioModule.php` |
 
 Het register:
 
@@ -35,6 +35,7 @@ private const MAP = [
     'shop' => ShopModule::class,
     'personalization' => PersonalizationModule::class,
     'blog' => BlogModule::class,
+    'portfolio' => PortfolioModule::class,
 ];
 ```
 
@@ -52,22 +53,33 @@ Eén omgevingsvariabele per module, in dezelfde `.env` die de database en
 MODULE_SHOP_ENABLED=false
 MODULE_PERSONALIZATION_ENABLED=false
 MODULE_BLOG_ENABLED=true
+MODULE_PORTFOLIO_ENABLED=true
 ```
 
-**De standaard is die van de module zelf, en voor alles behalve de Blog is dat
-AAN.** Een variabele die ontbreekt, leeg is, of in een onleesbare `.env` staat
+**De standaard is die van de module zelf, en voor de Shop en Personalisatie is
+dat AAN.** Een variabele die ontbreekt, leeg is, of in een onleesbare `.env` staat
 betekent voor Shop en Personalisatie "aan". Alleen een expliciete uit-waarde
 (`false`, `0`, `off`, `no`, `disabled`) zet zo'n module uit. Voor Van Veluw
 Laserdesign staat er dus niets in `.env` en draait de webshop — een fout in dit
 bestand kan hem nooit stilletjes offline halen.
 
-De **Blog** is de uitzondering en zegt dat zelf, met
+De **Blog** is een uitzondering en zegt dat zelf, met
 `ModuleDefinition::enabledByDefault()`. Hij staat uit tot iemand hem aanvraagt,
 omdat elke site pagina's en beeld heeft maar lang niet elke site artikelen
 schrijft, en een lege blog op een levende `/blog`-URL erger is dan geen blog
 (`BLOG.md`). Dat is uitsluitend een uitspraak over een installatie die niets
 heeft gezegd: een omgevingsvariabele en een opgeslagen voorkeur worden allebei
 eerder gelezen.
+
+**Portfolio** start op een nieuwe installatie ook uit, om dezelfde reden: niet
+elke site toont eerder werk. Anders dan de Blog bestond Portfolio al, als
+altijd-aanwezig Core, en draait het op bestaande installaties zonder dat iemand
+er ooit iets over zei. De migratie
+`20260914170000_pin_the_portfolio_module_where_it_is_in_use` slaat daarom voor
+elke bestaande installatie, en voor een verse installatie die al
+portfolio-inhoud heeft, de voorkeur *aan* op. Hetzelfde patroon als de andere
+`pin_*`-migraties: een nieuwe standaard geldt voor een nieuwe site, nooit met
+terugwerkende kracht.
 
 Waarom de omgeving vóóraan staat: dit is deploy-configuratie, net als `DB_*`.
 Het is één regel in het bestand dat de hosting toch al heeft, het werkt op
@@ -121,6 +133,7 @@ hij gebruikt.
 | Permissies | `permissionGroups()`, `permissionImplications()` | `App\Service\AdminPermissions` |
 | Applicatieroutes | `routes()` | `App\Service\RouteRegistry` |
 | Gereserveerde slugs | `reservedSlugs()` | `App\Service\ReservedRoutes` |
+| Vaste publieke paden | `publicPaths()` | `App\Module\ModuleRegistry::disabledModuleForRoutePath()` |
 | Sitemap | `sitemapCollectors()` | `App\Service\Sitemap` |
 | Content-blokken | `blockDefinitions()` | `App\Service\Blocks\BlockDefinitions` |
 | Galerijbronnen | `itemGallerySources()` | `App\Service\ItemGallerySources` |
@@ -137,6 +150,10 @@ geordende lijst terecht (de zijbalk, het permissieformulier, de routekiezer).
 Die dragen daarom een `order`-getal, en Core sorteert zijn eigen regels en die
 van de modules samen. Dat is het enige ordeningsmechanisme; niets hangt af van
 de volgorde waarin modules geregistreerd staan.
+
+Een galerijbron draagt ook een `order`, al komen daar alle bronnen uit
+modules: de laagste beschikbare bron is de bron waarmee een nieuw galerijblok
+begint. Portfolio-items (10) staan vóór een collectie van de Shop (20).
 
 **Een module bezit een header-slot, niet de header.** `headerPartials()` voegt
 iets toe aan de actiezone rechts — vandaag alleen de mini-winkelwagen. De
@@ -168,7 +185,7 @@ in de plaats kwam:
 |---|---|
 | Adminnavigatie — zes vaste Shop-items in `AdminNavigation` | `ShopModule::adminNavigationItems()` + `PersonalizationModule::adminNavigationItems()` |
 | Permissies — `products.*`, `orders.*`, ... als constanten in `AdminPermissions` | Constanten op `ShopModule` / `PersonalizationModule`, groepen via `permissionGroups()`. De *namen* zijn onveranderd |
-| Sitemap — vijf vaste collectors, twee met Shop-repositories | Core levert `pages` en `portfolio`; de rest komt uit `sitemapCollectors()` |
+| Sitemap — vijf vaste collectors, twee met Shop-repositories | Core levert alleen `pages`; de rest komt uit `sitemapCollectors()`, sinds Portfolio een module is ook `portfolio` |
 | Routeregister — `shop`, `cart`, `checkout` vast in `RouteRegistry` | `ShopModule::routes()` |
 | Gereserveerde slugs | `ShopModule::reservedSlugs()` / `PersonalizationModule::reservedSlugs()` |
 | Header-winkelwagen — 40 regels markup in `partials/header.php` | `partials/header-cart.php`, via `ShopModule::headerPartials()` |
@@ -232,10 +249,12 @@ uit gaat. Het bloktype is dan niet geregistreerd, dus:
   echt verweesde data krijgt;
 - **schrijfkant**: onveranderd hard geweigerd.
 
-Hetzelfde geldt voor de galerijbron `collection`: die is dan niet *kiesbaar*
-maar nog wel *bekend*, dus een bestaand blok houdt zijn instelling, toont
-niets, en de editor zegt waarom in plaats van de bron stilletjes op portfolio
-te zetten.
+Hetzelfde geldt voor een galerijbron van een uitgeschakelde module — `collection`
+van de Shop, `portfolio` van Portfolio: die is dan niet *kiesbaar* maar nog wel
+*bekend*, dus een bestaand blok houdt zijn instelling, toont niets, en de
+editor zegt waarom in plaats van de bron stilletjes te veranderen. Biedt geen
+enkele ingeschakelde module een bron, dan staat het galerijblok niet in de
+blokkenkiezer.
 
 ## De database blijft met rust
 
@@ -280,7 +299,8 @@ Alles wat er ook zou zijn zonder webshop.
   nooit een product of een collectie bij naam hoeft te noemen. Zie
   `MEDIA.md`.
 - **Media/uploads die nog bij hun feature horen** — `SectionImageUploader`,
-  `SectionVideoUploader`, `ImageOptimizer`, `PortfolioImageProcessor`.
+  `SectionVideoUploader`, `ImageOptimizer`. (`PortfolioImageProcessor` hoort
+  bij Portfolio.)
 - **Instellingen/navigatie** — `NavigationService`, `FooterService`,
   `LinkResolver`, `RouteRegistry`.
 - **Vormgeving** — `Service\Theme\*` (kleuren, lettertypecombinatie,
@@ -356,8 +376,8 @@ eigen tabellen, eigen instellingentabel, eigen publieke routes (`blog.php`,
 `blog-post.php`, `blog-feed.php`) en één eigen stylesheet die alleen op die
 routes geladen wordt.
 
-**Hangt nergens van af** — hij werkt identiek met de Shop aan en uit — en is de
-enige module die standaard **uit** staat. Hij levert als eerste module een
+**Hangt nergens van af** — hij werkt identiek met de Shop aan en uit — en staat
+standaard **uit**, net als Portfolio. Hij levert als eerste module een
 `MediaUsageProvider`, zodat de Mediabibliotheek weet dat een uitgelichte
 afbeelding in gebruik is zonder ooit een blogtabel te noemen. Zijn
 slugwijzigingen lopen door dezelfde Redirect Manager als die van een
@@ -382,13 +402,38 @@ prijsopslag en `api/checkout.php` weigert een regel die tóch
 personalisatiegegevens meestuurt. Andersom hoeft de Shop niets van
 personalisatie te weten behalve die prijsopslag.
 
-### Portfolio
+### Portfolio (module `portfolio`)
 
-Eigen tabellen, eigen admin, eigen detailroute (`/portfolio/<slug>`), eigen
-categorietaxonomie. Levert de bron `portfolio` aan `ItemGallerySources`.
-**Geen module**: het hangt nergens van af, het is altijd aanwezig, en er is
-geen situatie waarin je het uit zou willen zetten. Een module met één bijdrage
-die nooit uit kan is duurder dan de regel Core die het nu is.
+Eigen tabellen, eigen admin (`admin/portfolio.php`, `admin/portfolio-item.php`,
+`api/admin/*portfolio*.php` en `move-featured-gallery-item.php`), eigen
+categorietaxonomie, eigen publieke routes (`/portfolio.php` en
+`/portfolio/<slug>` via `portfolio-detail.php`) en de galerijbron `portfolio`.
+Alles loopt via `src/Module/PortfolioModule.php`; Core noemt geen
+portfolio-item meer (`Tests\Module\PortfolioModuleTest`).
+
+Het was Core, met als argument dat niemand het ooit uit zou willen zetten. Maar
+een nieuwe installatie van dit CMS is niet vanzelf een portfoliosite, en een
+Portfolio dat altijd aanwezig is kost elke site zonder portfolio een
+zijbalk-item, een permissie, twee gereserveerde URL-woorden en een galerijbron.
+Daarom is het een module, en staat het op een **nieuwe installatie standaard
+uit**, net als de Blog. Een installatie die Portfolio al draaide toen het nog
+Core was, houdt het via de opgeslagen voorkeur die een migratie schreef (zie
+"Aan- en uitzetten").
+
+Uit betekent: geen zijbalk-item; geen houdbare `portfolio.manage`, dus beide
+schermen en elk schrijfendpoint weigeren op hun bestaande permissiecheck; een
+404 op `/portfolio.php` en `/portfolio/<slug>` via `ModuleGuard`; geen
+sitemapregels; en een galerijblok met portfolio-items dat zijn instellingen
+houdt en niets toont. De CMS-pagina achter `/portfolio.php` blijft bestaan en
+bewerkbaar, maar geldt als geserveerd door een uitgeschakelde module
+(`publicPaths()`), dus de sitemap, een menulink en een redirect laten hem los.
+De vijf tabellen, de categorieën en de geüploade afbeeldingen blijven staan.
+
+De bestanden staan nog waar ze stonden (`src/Service/Portfolio*.php`,
+`src/Repository/Portfolio*Repository.php`): verhuisd is het eigenaarschap van
+de koppelpunten, geen namespace. De projectpagina (`has_detail_page`, de slug,
+introtekst en beschrijving, `portfolio_item_images`) werkt onveranderd en
+krijgt in een volgende fase een eigen ontwerp.
 
 ### Formulieren
 
@@ -420,7 +465,9 @@ van Core.
 2. Eén regel in `ModuleRegistry::MAP`.
 3. Zet `ModuleGuard::requirePublicRoute()` / `::requireApi()` bovenaan de
    publieke routes en endpoints die van de module zijn. Adminschermen met een
-   eigen permissie hebben niets nodig.
+   eigen permissie hebben niets nodig. Serveert een eigen template een
+   CMS-pagina (zoals `/portfolio.php`), noem dat pad dan in `publicPaths()`,
+   zodat die pagina meegaat als de module uit staat.
 4. Documenteer de variabele in `.env.example`.
 5. Testbestanden in de suite `modules` (`phpunit.xml`), zie `TESTING.md`.
 

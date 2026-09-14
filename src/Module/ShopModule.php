@@ -6,7 +6,6 @@ namespace App\Module;
 
 use App\Service\Language\AdminTranslator;
 use App\Repository\CollectionRepository;
-use App\Repository\PortfolioGalleryRepository;
 use App\Repository\ProductRepository;
 use App\Service\AdminPermissions;
 use App\Service\AppUrl;
@@ -289,6 +288,9 @@ final class ShopModule extends ModuleDefinition
         return [
             self::GALLERY_SOURCE_COLLECTION => [
                 'label' => 'Een collectie (producten)',
+                // After portfolio items (10): while the Portfolio runs, a new
+                // gallery block still starts as the portfolio grid it always was.
+                'order' => 20,
                 'needs_collection' => true,
                 'items' => static fn (array $settings): array => CollectionGalleryItems::forCollection(
                     $settings['collection_id'] ?? null
