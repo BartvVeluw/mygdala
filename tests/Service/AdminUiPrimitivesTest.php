@@ -9,8 +9,9 @@ use PHPUnit\Framework\TestCase;
 
 /**
  * The shared admin UI primitives: field help, the global help switch, the
- * info panel and the file input (admin/_admin_ui.php, admin/assets/admin-ui.js
- * and the ADMIN UI PRIMITIVES section of admin.css — ADMIN-UI.md).
+ * info panel, the file input and the confirmation dialog (admin/_admin_ui.php,
+ * admin/assets/admin-ui.js and the ADMIN UI PRIMITIVES section of admin.css —
+ * ADMIN-UI.md).
  *
  * WHAT THIS FILE IS ABOUT. There is no browser in this suite, so what the
  * script does on hover, click and Escape is checked by hand (ADMIN-UI.md
@@ -358,7 +359,9 @@ final class AdminUiPrimitivesTest extends TestCase
             . admin_field_label('veld', 'Veld', 'Uitleg.')
             . admin_info_panel('Uitleg.')
             . admin_help_toggle('topbar')
-            . admin_file_input(['name' => 'image', 'onchange' => 'steal()', 'onClick' => 'steal()']);
+            . admin_file_input(['name' => 'image', 'onchange' => 'steal()', 'onClick' => 'steal()'])
+            . admin_confirm_dialog()
+            . '<form' . admin_confirm_attributes('Vraag" onclick="steal()', 'Uitleg.', 'Ja') . '></form>';
 
         $this->assertSame(0, self::nodeCount(self::xpath($rendered), '//@*[starts-with(name(), "on")]'));
 
@@ -421,6 +424,101 @@ final class AdminUiPrimitivesTest extends TestCase
         $this->assertSame('Bestanden kiezen', trim(self::one($many, '//*[contains(@class, "admin-file__button")]')->textContent));
     }
 
+    // --- Confirmation ------------------------------------------------------------
+
+    public function testTheConfirmationIsOneNativeModalDialogInTheCmsOwnWords(): void
+    {
+        $xpath = self::xpath(admin_confirm_dialog());
+        $dialog = self::one($xpath, '//dialog[@data-admin-confirm-dialog]');
+
+        // Named by its heading, described by the question it is showing.
+        $heading = self::one($xpath, '//*[@id="' . $dialog->getAttribute('aria-labelledby') . '"]');
+        $this->assertTrue($heading->hasAttribute('data-admin-confirm-heading'));
+        $this->assertSame('Weet je het zeker?', trim($heading->textContent));
+        $this->assertSame('Weet je het zeker?', $heading->getAttribute('data-admin-confirm-default'));
+        $this->assertTrue(self::one($xpath, '//*[@id="' . $dialog->getAttribute('aria-describedby') . '"]')->hasAttribute('data-admin-confirm-text'));
+
+        // Its answers only close the dialog; they send nothing anywhere.
+        $form = self::one($xpath, '//dialog/form');
+        $this->assertSame('dialog', $form->getAttribute('method'));
+        $this->assertFalse($form->hasAttribute('action'));
+
+        $buttons = $xpath->query('//dialog//button');
+        $this->assertNotFalse($buttons);
+        $this->assertSame(2, $buttons->length);
+
+        // "No" first: where focus lands, and what a stray Enter presses.
+        $no = $buttons->item(0);
+        $yes = $buttons->item(1);
+        $this->assertInstanceOf(\DOMElement::class, $no);
+        $this->assertInstanceOf(\DOMElement::class, $yes);
+
+        $this->assertSame(['submit', 'cancel', 'Annuleren'], [$no->getAttribute('type'), $no->getAttribute('value'), trim($no->textContent)]);
+        $this->assertTrue($no->hasAttribute('data-admin-confirm-no'));
+
+        $this->assertSame(['submit', 'confirm', 'Doorgaan'], [$yes->getAttribute('type'), $yes->getAttribute('value'), trim($yes->textContent)]);
+        $this->assertTrue($yes->hasAttribute('data-admin-confirm-yes'));
+        $this->assertStringContainsString('admin-btn-danger', $yes->getAttribute('class'));
+    }
+
+    public function testAFormAsksFirstThroughEscapedAttributesAlone(): void
+    {
+        $xpath = self::xpath('<form method="post" action="/api/admin/x.php"'
+            . admin_confirm_attributes('“<b>Blok</b>” verwijderen?', 'Weg is weg" onmouseover="steal()', 'Verwijderen')
+            . '><button type="submit">Verwijderen</button></form>');
+        $form = self::one($xpath, '//form');
+
+        $this->assertSame('Weg is weg" onmouseover="steal()', $form->getAttribute('data-admin-confirm'));
+        $this->assertSame('“<b>Blok</b>” verwijderen?', $form->getAttribute('data-admin-confirm-title'));
+        $this->assertSame('Verwijderen', $form->getAttribute('data-admin-confirm-action'));
+        $this->assertSame(0, self::nodeCount($xpath, '//b'));
+        $this->assertSame(0, self::nodeCount($xpath, '//@*[starts-with(name(), "on")]'));
+
+        // What a screen leaves out, the dialog says in its own words.
+        $bare = self::one(self::xpath('<form' . admin_confirm_attributes('', 'Zeker?') . '></form>'), '//form');
+        $this->assertSame('Zeker?', $bare->getAttribute('data-admin-confirm'));
+        $this->assertFalse($bare->hasAttribute('data-admin-confirm-title'));
+        $this->assertFalse($bare->hasAttribute('data-admin-confirm-action'));
+    }
+
+    /**
+     * The script holds the submit back and, after a "yes", sends that very
+     * same form. What happens on screen is checked by hand (ADMIN-UI.md);
+     * what would quietly change the meaning of a form is pinned here.
+     */
+    public function testTheScriptAsksBeforeAFormGoesAndThenSendsThatSameForm(): void
+    {
+        $script = self::source(self::SCRIPT);
+
+        // Capture phase on the document: before anything else reacts to the submit.
+        $this->assertMatchesRegularExpression('/document\.addEventListener\("submit", function \(event\) \{[\s\S]{0,1400}\}, true\);/', $script);
+        $this->assertStringContainsString('hasAttribute("data-admin-confirm")', $script);
+        $this->assertStringContainsString('event.preventDefault();', $script);
+
+        $this->assertStringContainsString('dialog.showModal();', $script);
+
+        // The answer is acted on when it is given — a button, Escape, a press
+        // beside the dialog — and never left to the queued close event alone.
+        $this->assertStringContainsString('answer(dialog, event.submitter ? event.submitter.value : "cancel");', $script);
+        $this->assertStringContainsString('dialog.addEventListener("cancel"', $script);
+        $this->assertStringContainsString('value === "confirm"', $script);
+
+        // "Yes" is the browser's own submit of that form, with the button that was pressed.
+        $this->assertStringContainsString('form.requestSubmit(', $script);
+        $this->assertStringContainsString('event.submitter', $script);
+
+        // Never sent without a question: a screen without the dialog gets the browser's own.
+        $this->assertStringContainsString('window.confirm(', $script);
+
+        // "No" hands focus back to the button that asked.
+        $this->assertMatchesRegularExpression('/request\.submitter[\s\S]{0,200}back\.focus\(\);/', $script);
+
+        // It asks; it never sends anything of its own.
+        $this->assertStringNotContainsString('fetch(', $script);
+        $this->assertStringNotContainsString('XMLHttpRequest', $script);
+        $this->assertStringNotContainsString('/api/admin/', $script);
+    }
+
     // --- admin.css -------------------------------------------------------------
 
     public function testThePrimitivesLiveInOneSectionAndOnlyReadTheThemeTokens(): void
@@ -432,7 +530,7 @@ final class AdminUiPrimitivesTest extends TestCase
         foreach ([
             '.admin-field__label', '.admin-help__trigger', '.admin-help__popover', '.admin-help-toggle',
             '.admin-info-panel', '.admin-btn-danger', '.admin-btn-ghost', '.admin-search', '.admin-select',
-            '.admin-checkbox', '.admin-switch', '.admin-file',
+            '.admin-checkbox', '.admin-switch', '.admin-file', '.admin-confirm',
         ] as $selector) {
             $this->assertStringContainsString($selector . '{', $rules, $selector . ' is not styled in ADMIN UI PRIMITIVES');
             $this->assertStringNotContainsString($selector . '{', $before, $selector . ' has a second definition outside ADMIN UI PRIMITIVES');

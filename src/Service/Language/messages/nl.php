@@ -31,6 +31,9 @@ return [
     'ui.file.choose_many' => 'Bestanden kiezen',
     'ui.file.none' => 'Nog geen bestand gekozen',
     'ui.file.many' => ':count bestanden gekozen',
+    'ui.confirm.title' => 'Weet je het zeker?',
+    'ui.confirm.cancel' => 'Annuleren',
+    'ui.confirm.accept' => 'Doorgaan',
 
     // --- Field help: the longer explanation behind a "?" (ADMIN-UI.md) -------
     // Written for somebody who has never run a website. Double quotes where a

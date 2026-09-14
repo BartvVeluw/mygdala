@@ -6,8 +6,10 @@ use App\Service\AssetVersion;
 
 /**
  * The shared building blocks of an admin form: field help with its global
- * on/off switch, the info panel, and the one native control that needs more
- * markup than a class name — the file input. ADMIN-UI.md is the manual.
+ * on/off switch, the info panel, the one native control that needs more
+ * markup than a class name — the file input — and the dialog that asks
+ * before a form does something that cannot be undone. ADMIN-UI.md is the
+ * manual.
  *
  * WHY OUTPUT FUNCTIONS. Same shape as admin/_admin_tabs.php and
  * admin/_admin_collapse.php: the markup of a component lives in one function
@@ -263,6 +265,87 @@ function admin_file_input(array $attributes): string
         . admin_ui_escape($none)
         . '</span>'
         . '</span>';
+}
+
+/**
+ * The CMS's own "are you sure?", for a form that does something that cannot
+ * be undone. A screen prints it ONCE, near the end of the document — the same
+ * convention as media_picker_modal() — and marks every form that should ask
+ * with admin_confirm_attributes(). The words of each question travel on its
+ * form; this is only the dialog they are shown in.
+ *
+ * WHY NOT confirm(). The browser's own question looks different in every
+ * browser, cannot name its buttons in the CMS's words and offers "OK" where
+ * an editor should read what is about to happen. A native <dialog> opened
+ * with showModal() is modal by itself: the page behind it is inert, Tab stays
+ * inside and Escape answers "no", with no focus trap of our own to trust.
+ *
+ * THE FORM STILL DOES THE WORK. admin-ui.js holds the submit back, asks, and
+ * on "yes" hands the very same form back to the browser: the same request,
+ * the same CSRF token, the same endpoint and the same server-side guards.
+ * The dialog decides nothing and is never the security boundary.
+ *
+ * "No" comes first in the source, so it is where focus lands and what a
+ * stray Enter presses. The <form method="dialog"> around both answers only
+ * closes the dialog with the pressed button's value; it sends nothing.
+ */
+function admin_confirm_dialog(): string
+{
+    $headingId = admin_ui_id('admin-confirm-title');
+    $textId = admin_ui_id('admin-confirm-text');
+    $title = admin_ui_escape(admin_t('ui.confirm.title'));
+    $accept = admin_ui_escape(admin_t('ui.confirm.accept'));
+
+    return '<dialog class="admin-confirm" data-admin-confirm-dialog'
+        . ' aria-labelledby="' . $headingId . '" aria-describedby="' . $textId . '">'
+        . '<form method="dialog" class="admin-confirm__panel">'
+        . '<h2 class="admin-confirm__title" id="' . $headingId . '" data-admin-confirm-heading'
+        . ' data-admin-confirm-default="' . $title . '">' . $title . '</h2>'
+        . '<p class="admin-confirm__message" id="' . $textId . '" data-admin-confirm-text></p>'
+        . '<div class="admin-confirm__actions">'
+        . '<button type="submit" value="cancel" class="admin-btn-secondary" data-admin-confirm-no>'
+        . admin_ui_escape(admin_t('ui.confirm.cancel'))
+        . '</button>'
+        . '<button type="submit" value="confirm" class="admin-btn-danger" data-admin-confirm-yes'
+        . ' data-admin-confirm-default="' . $accept . '">' . $accept . '</button>'
+        . '</div>'
+        . '</form>'
+        . '</dialog>';
+}
+
+/**
+ * What makes one form ask before it is sent, for its opening tag:
+ *
+ *     <form method="post" action="/api/admin/delete-…" class="admin-inline-form"<?= admin_confirm_attributes(
+ *         admin_t('…title'), admin_t('…message', ['name' => $name]), admin_t('common.delete')
+ *     ) ?>>
+ *
+ * CMS text, escaped here and nowhere else, so an editor's own title can be
+ * part of the question. An empty title or button name leaves the dialog's
+ * own words in place.
+ *
+ * Without the script the form is sent straight away, exactly as it was with
+ * the inline confirm() this replaces. A screen that marks a form but never
+ * prints admin_confirm_dialog() still asks: the script falls back to the
+ * browser's own question rather than send without one.
+ *
+ * @param string $title   the question itself, short: "Contentblok verwijderen?"
+ * @param string $message what will happen, in a sentence or two
+ * @param string $action  the name of the button that goes ahead: "Verwijderen"
+ */
+function admin_confirm_attributes(string $title, string $message, string $action = ''): string
+{
+    $attributes = ' data-admin-confirm="' . admin_ui_escape($message) . '"';
+
+    if ($title !== '') {
+        $attributes .= ' data-admin-confirm-title="' . admin_ui_escape($title) . '"';
+    }
+
+    if ($action !== '') {
+        $attributes .= ' data-admin-confirm-action="' . admin_ui_escape($action) . '"';
+    }
+
+    return $attributes;
 }
 
 /**

@@ -4310,10 +4310,10 @@ body.admin-block-picker-open{ overflow: hidden; }
    ADMIN UI PRIMITIVES (admin/_admin_ui.php, admin/assets/admin-ui.js)
 
    The shared building blocks of every admin form: field help and the global
-   switch that hides it, the info panel, and the native controls in the
-   admin's own style — search, select, checkbox, switch, file input — plus
-   the two button variants the family above was missing. ADMIN-UI.md is the
-   manual.
+   switch that hides it, the info panel, the native controls in the admin's
+   own style — search, select, checkbox, switch, file input — the two button
+   variants the family above was missing, and the dialog that asks before a
+   form does something that cannot be undone. ADMIN-UI.md is the manual.
 
    Loaded wherever admin.css is, which is every admin screen. The help
    behaviour comes from admin-ui.js, which the shell (admin/_header.php)
@@ -4926,6 +4926,67 @@ html:not([data-admin-help]) .admin-help-toggle{ display: none; }
 
 .admin-file__input:disabled + .admin-file__button,
 .admin-file__input:disabled ~ .admin-file__name{ opacity: 0.55; }
+
+/* --- Confirmation (admin_confirm_dialog()) --------------------------------- */
+
+/* A native modal <dialog>, so the page behind it is inert and Escape answers
+   "no" without a line of script. No padding on the dialog itself: the panel
+   fills it, which is what lets a press on the dimmed page around it land on
+   the dialog element and count as "no" too. */
+.admin-confirm{
+  box-sizing: border-box;
+  width: min(28rem, calc(100vw - 2rem));
+  max-height: calc(100vh - 2rem);
+  max-height: calc(100dvh - 2rem);
+  margin: auto;
+  padding: 0;
+  overflow: auto;
+  background: var(--admin-surface);
+  color: var(--admin-text);
+  border: 1px solid var(--admin-border-strong);
+  border-radius: var(--admin-radius-lg);
+  box-shadow: var(--admin-shadow-md);
+}
+
+.admin-confirm::backdrop{ background: var(--admin-overlay); }
+
+.admin-confirm__panel{
+  display: flex;
+  flex-direction: column;
+  gap: var(--admin-sp-3);
+  padding: var(--admin-sp-5);
+}
+
+.admin-confirm__title{
+  margin: 0;
+  font-size: 1.05rem;
+  line-height: 1.35;
+  color: var(--admin-text);
+  overflow-wrap: anywhere;
+}
+
+.admin-confirm__message{
+  margin: 0;
+  font-size: 0.92rem;
+  line-height: 1.55;
+  color: var(--admin-text-muted);
+  overflow-wrap: anywhere;
+}
+
+.admin-confirm__actions{
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--admin-sp-2);
+  margin-top: var(--admin-sp-2);
+}
+
+/* On a phone the answers stack at full width, "no" at the bottom where the
+   thumb already is. */
+@media (max-width: 480px){
+  .admin-confirm__actions{ flex-direction: column-reverse; align-items: stretch; }
+  .admin-confirm__actions > button{ justify-content: center; }
+}
 
 /* --- Motion and forced colours --------------------------------------------- */
 

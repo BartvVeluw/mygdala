@@ -1,9 +1,10 @@
 # Admin-UI — de gedeelde bouwstenen van het CMS
 
 Eén set bouwstenen voor elk adminformulier: uitleg bij een veld, de knop die
-alle uitleg aan- of uitzet, een infobalk bovenaan een scherm, en de gewone
-formulierelementen in de stijl van het CMS. Dit document is de handleiding.
-De code staat op drie plekken en nergens anders.
+alle uitleg aan- of uitzet, een infobalk bovenaan een scherm, de gewone
+formulierelementen in de stijl van het CMS, en de dialoog die vraagt voordat
+iets weg is. Dit document is de handleiding. De code staat op drie plekken en
+nergens anders.
 
 | Wat | Waar |
 |---|---|
@@ -188,6 +189,60 @@ script dat al op het veld reageert (de portfolio-upload in `admin.js`) vindt
 het nog steeds. Slepen en neerzetten en uploadvoortgang horen bij de
 Mediabibliotheek (`MEDIA.md`).
 
+## Bevestigen voordat iets weg is
+
+Eén dialoog die vraagt of het echt moet, voor een formulier dat iets doet wat
+niet terug te draaien is. Een scherm drukt de dialoog één keer af, onderaan,
+en zet de vraag zelf op elk formulier dat moet vragen:
+
+```php
+<form method="post" action="/api/admin/delete-…" class="admin-inline-form"<?= admin_confirm_attributes(
+    admin_t('…_title'),
+    admin_t('…_message', ['block' => $naam]),
+    admin_t('common.delete')
+) ?>>
+  …
+</form>
+…
+<?= admin_confirm_dialog() ?>
+```
+
+| Functie | Wat het is |
+|---|---|
+| `admin_confirm_dialog()` | De dialoog: een native `<dialog>` met een kop, de uitleg, *Annuleren* en de knop die doorgaat. Eén keer per scherm |
+| `admin_confirm_attributes($titel, $uitleg, $knop)` | De vraag van één formulier, als `data-admin-confirm*`-attributen. Alles ge-escaped, dus de eigen titel van een blok mag erin. Een lege titel of knop laat *Weet je het zeker?* en *Doorgaan* staan |
+
+**Het formulier doet het werk.** Het script houdt het versturen tegen, vraagt,
+en geeft bij *ja* hetzelfde formulier terug aan de browser
+(`requestSubmit()`, met de knop die was ingedrukt). Hetzelfde verzoek, dezelfde
+CSRF-token, hetzelfde endpoint en dezelfde guards: de dialoog beslist niets en
+is nooit de beveiliging.
+
+### Gedrag
+
+| Handeling | Wat er gebeurt |
+|---|---|
+| Op de knop van het formulier drukken | De dialoog opent met de vraag van dát formulier; de focus staat op *Annuleren* |
+| *Annuleren*, Escape of een klik naast de dialoog | Dicht, er is niets verstuurd, en de focus staat weer op de knop die vroeg |
+| De knop die doorgaat | Het formulier gaat alsnog, precies zoals zonder vraag |
+| Tab | Blijft binnen de dialoog; de pagina erachter reageert niet zolang hij open is |
+
+`showModal()` levert de modaliteit, Escape en het vasthouden van de focus zelf;
+er zit geen eigen focus-trap in. *Annuleren* staat vooraan in de bron, zodat
+een verdwaalde Enter nooit de knop is die verwijdert. Het script luistert in de
+capture-fase op `document`: het vraagt voordat iets anders op de pagina op het
+versturen reageert, de opslagbalk inbegrepen.
+
+**Zonder dialoog wordt er nog steeds gevraagd.** Heeft een formulier een vraag
+maar staat er op het scherm geen `admin_confirm_dialog()`, of kent de browser
+`<dialog>` niet, dan stelt het script de vraag met `window.confirm()`. Zonder
+script gaat het formulier direct, zoals met de inline `confirm()` die dit
+vervangt.
+
+De rest van het CMS gebruikt nog `onsubmit="return confirm(…)"`. Een scherm dat
+overgaat, haalt die weg en gebruikt de twee functies hierboven; meer is het
+niet.
+
 ## Waar het al gebruikt wordt
 
 Vijf schermen, als bewijs dat de bouwstenen herbruikbaar zijn. De rest van het
@@ -245,3 +300,8 @@ donker thema:
 11. Zoekveld, select, checkbox, switch en bestandskiezer: hover, focus,
     uitgeschakeld, en een formulier dat verstuurd wordt slaat hetzelfde op als
     voorheen.
+12. Een formulier met een vraag: de dialoog opent met die vraag en de focus op
+    *Annuleren*. *Annuleren*, Escape en een klik naast de dialoog sluiten hem
+    zonder iets te versturen, en de focus staat weer op de knop. De knop die
+    doorgaat verstuurt het formulier. Op een telefoon staan de twee knoppen
+    onder elkaar.

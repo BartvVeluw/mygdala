@@ -32,6 +32,9 @@ return [
     'ui.file.choose_many' => 'Choose files',
     'ui.file.none' => 'No file chosen yet',
     'ui.file.many' => ':count files chosen',
+    'ui.confirm.title' => 'Are you sure?',
+    'ui.confirm.cancel' => 'Cancel',
+    'ui.confirm.accept' => 'Continue',
 
     // --- Field help: the longer explanation behind a "?" (ADMIN-UI.md) -------
     'help.settings.general' => "This is where you fill in who your website is: its name, its logo and how people can reach you.\n\nOnly the <strong>website name</strong> is required. Fill in everything else if you want to use it; whatever stays empty appears nowhere.",
