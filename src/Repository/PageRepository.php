@@ -79,6 +79,38 @@ class PageRepository extends Repository
     }
 
     /**
+     * findByIdPublished() for many ids in one query, keyed by id: for a list
+     * of cards that each link to a page the way a menu item does, so a list
+     * of thirty links is one query rather than thirty. A draft or a deleted
+     * page is simply absent from the result.
+     *
+     * @param list<int> $ids
+     * @return array<int, array<string, mixed>> keyed by pages.id
+     */
+    public function findPublishedByIds(array $ids): array
+    {
+        $ids = array_values(array_unique(array_filter(
+            array_map('intval', $ids),
+            static fn (int $id): bool => $id > 0
+        )));
+
+        if ($ids === []) {
+            return [];
+        }
+
+        $placeholders = implode(',', array_fill(0, count($ids), '?'));
+        $stmt = $this->db->prepare("SELECT * FROM pages WHERE status = 'published' AND id IN ({$placeholders})");
+        $stmt->execute($ids);
+
+        $pages = [];
+        foreach ($stmt->fetchAll() as $row) {
+            $pages[(int) $row['id']] = $row;
+        }
+
+        return $pages;
+    }
+
+    /**
      * Public lookup by URL slug — only ever returns a published page, so a
      * draft behaves exactly like a page that doesn't exist (pagina.php
      * renders its 404 either way).

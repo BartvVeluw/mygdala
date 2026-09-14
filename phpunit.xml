@@ -277,6 +277,7 @@
             <file>tests/Install/OrderNumberSnapshotMigrationTest.php</file>
             <file>tests/Install/PortfolioCatalogueSchemaTest.php</file>
             <file>tests/Install/PortfolioModulePinTest.php</file>
+            <file>tests/Install/PortfolioPageLinkMigrationTest.php</file>
             <file>tests/Install/SetupCompletionTest.php</file>
             <file>tests/Repository/ContactFormMigrationTest.php</file>
             <file>tests/Service/MediaAdoptionTest.php</file>
@@ -354,6 +355,7 @@
             <file>tests/Install/OrderNumberSnapshotMigrationTest.php</file>
             <file>tests/Install/PortfolioCatalogueSchemaTest.php</file>
             <file>tests/Install/PortfolioModulePinTest.php</file>
+            <file>tests/Install/PortfolioPageLinkMigrationTest.php</file>
             <file>tests/Install/SetupCompletionTest.php</file>
             <file>tests/Install/SetupWizardValidationTest.php</file>
             <file>tests/Repository/AdminUserRepositoryIntegrationTest.php</file>
@@ -407,6 +409,7 @@
             <file>tests/Service/PortfolioAdminScreenTest.php</file>
             <file>tests/Service/PortfolioItemContentTest.php</file>
             <file>tests/Service/PortfolioItemEditingHttpTest.php</file>
+            <file>tests/Service/PortfolioPageLinkTest.php</file>
             <file>tests/Service/RedirectAdminSecurityTest.php</file>
             <file>tests/Service/RedirectPathTest.php</file>
             <file>tests/Service/RedirectRoutingTest.php</file>

@@ -217,6 +217,25 @@ class PortfolioGalleryRepository extends Repository
     }
 
     /**
+     * Links an item to the ordinary CMS page that is its project page, or
+     * takes the link off again with null.
+     *
+     * Separate from updateItem() for the reason setItemCategories() is: the
+     * caller checks the choice first, and only then is it written. Only the
+     * page's id is stored, never its address — App\Service\PortfolioGalleryContent
+     * resolves that per request, so a renamed page is followed.
+     *
+     * The foreign key refuses an id no page has, and deleting the page later
+     * sets the link back to NULL
+     * (db/migrations/20260914200000_link_a_portfolio_item_to_a_page.php).
+     */
+    public function setItemPage(int $itemId, ?int $pageId): void
+    {
+        $stmt = $this->db->prepare('UPDATE portfolio_gallery_items SET page_id = :page_id, updated_at = NOW() WHERE id = :id');
+        $stmt->execute(['page_id' => $pageId, 'id' => $itemId]);
+    }
+
+    /**
      * Every Portfolio project whose detail page is genuinely public, as
      * App\Service\Sitemap needs it: slug plus last-modified timestamp.
      *

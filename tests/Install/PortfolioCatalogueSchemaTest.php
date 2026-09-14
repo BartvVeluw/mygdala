@@ -133,7 +133,14 @@ final class PortfolioCatalogueSchemaTest extends TestCase
         $this->assertNotSame([], self::$deployedDataBefore['items']);
         $this->assertSame(
             self::$deployedDataBefore['items'],
-            $after['items'],
+            // Compared on the columns the item had then: catching up also runs
+            // every later migration, and one that ADDS a column (page_id, in
+            // 20260914200000) changes no value this correction must keep.
+            array_map(
+                static fn (array $row, array $before): array => array_intersect_key($row, $before),
+                $after['items'],
+                self::$deployedDataBefore['items']
+            ),
             'dropping section columns must not touch a single portfolio item'
         );
 
