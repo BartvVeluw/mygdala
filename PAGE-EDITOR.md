@@ -66,6 +66,33 @@ redacteur op déze pagina het laatst open had (`sessionStorage`, gesleuteld op
 groep + pagina-id) → de standaard. Een opslag die lukt herlaadt het scherm en
 komt zo terug op hetzelfde tabblad.
 
+## Voorbeeld bekijken
+
+Een pagina in Concept heeft nog geen publiek adres: `pagina.php` en de
+templates van de vaste pagina's geven er een 404 op, en dat blijft zo. Toch
+wil een redacteur zien wat hij bouwt. Daarom staat bovenaan het paginascherm
+bij een concept **Voorbeeld bekijken** in plaats van *Bekijk pagina*.
+
+Die knop opent `admin/page-preview.php?id=<id>`: een adminscherm achter
+dezelfde toegangscontrole als de paginabouwer (`pages.manage`). Het rendert de
+pagina uit precies de onderdelen van een publiek template: de `<head>` van de
+pagina, de assets van haar blokken, de header, de blokkenlijst, de footer en
+de scripts. Een kleine balk linksonder zegt dat het een voorbeeld is en leidt
+terug naar het paginascherm. Die balk heeft één eigen stylesheet,
+`assets/css/page-preview.css`, dat alleen dit scherm vraagt.
+
+| Vraag | Antwoord |
+|---|---|
+| Kan een bezoeker een concept zien? | Nee. Het publieke adres kijkt niet naar een parameter, een token of de adminsessie; het voorbeeld bestaat alleen onder `/admin/` |
+| En wie niet (meer) ingelogd is? | Die komt op het inlogscherm, zoals bij elk adminscherm. Uitloggen maakt de sessie leeg, en daarmee het voorbeeld |
+| Verandert een voorbeeld iets? | Nee. Het scherm leest alleen: status, `updated_at` en sitemap blijven zoals ze waren |
+| Zoekmachines, caches, statistiek? | `noindex` in de head, `X-Robots-Tag: noindex, nofollow` en `Cache-Control: private, no-store` op het antwoord, `/admin/` staat uit in `robots.txt`, en de bezoekstatistiek telt `/admin`-paden niet |
+
+Het voorbeeld toont de **opgeslagen** inhoud, niet wat er op dat moment in een
+formulier getypt staat. `Tests\Service\PagePreviewAccessTest` bewijst het over
+echt HTTP (zie [`TESTING.md`](TESTING.md)); `PagePreviewContractTest` bewaakt
+de bron.
+
 ## Contentblokken klappen open en dicht
 
 ```text

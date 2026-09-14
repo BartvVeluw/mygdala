@@ -292,8 +292,11 @@ final class AdminUiPrimitivesTest extends TestCase
         $this->assertGreaterThan(50, count($screens), 'The admin page scan found almost nothing.');
 
         foreach ($screens as $file => $source) {
-            // Before a login there is no shell, no form help and nothing to switch.
-            if (in_array($file, ['login.php', 'setup.php'], true)) {
+            // Before a login there is no shell, no form help and nothing to
+            // switch. The preview of a page is the other way round: it shows
+            // the public website, so its shell is the site's own
+            // (admin/page-preview.php).
+            if (in_array($file, ['login.php', 'setup.php', 'page-preview.php'], true)) {
                 continue;
             }
 

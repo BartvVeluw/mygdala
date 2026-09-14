@@ -625,6 +625,15 @@ Is die server niet bereikbaar, dan slaan deze tests zichzelf over met een
 melding die het startcommando noemt — ze falen nooit om de verkeerde reden.
 Vanaf je eigen machine is dezelfde site te zien op de poort die `docker compose port php_test 80` noemt.
 
+**Eén HTTP-test heeft de testcontainer niet nodig.** `PagePreviewAccessTest`
+(suite `cms`) start voor de duur van de klasse PHP's eigen webserver
+(`php -S`) op deze uitchecking, tegen de testdatabase, en logt een redacteur in
+met een echte sessie. Dat kan omdat niets van de conceptpreview in Apache zit:
+`admin/page-preview.php` is een gewoon bestand, en `pagina.php` en
+`sitemap.php` worden rechtstreeks aangesproken. De rewrite zelf blijft de zaak
+van `PageRoutingTest`. Kan de server niet starten, dan slaat de test zichzelf
+over.
+
 ## Een test toevoegen voor een nieuw contentblok
 
 Het blok zelf bouw je met [`CONTENT-BLOCKS.md`](CONTENT-BLOCKS.md); hieronder

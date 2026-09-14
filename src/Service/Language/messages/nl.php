@@ -49,6 +49,9 @@ return [
     'help.settings.seo_description' => "Een <strong>meta description</strong> is een korte omschrijving van een pagina. Zoekmachines zoals Google tonen hem vaak onder de titel in hun zoekresultaten; op de website zelf zie je hem niet.\n\nElke pagina kan een eigen omschrijving krijgen. Deze standaardtekst wordt alleen gebruikt op pagina's die er zelf geen hebben. Heb je niets algemeens te zeggen, laat hem dan leeg: overal dezelfde zin helpt niemand.",
     'help.settings.robots' => "Zoekmachines zoals Google bezoeken websites om hun pagina's in de zoekresultaten op te nemen. Dat heet <strong>indexeren</strong>.\n\nStaat deze schakelaar aan, dan mag dat. Zet hem alleen uit zolang je website nog niet klaar is en nog niet gevonden mag worden, en zet hem weer aan zodra de website live gaat. Uit vraagt zoekmachines om geen enkele pagina op te nemen.",
     'help.pages.overview' => "Hier beheer je de pagina's van je website. Klik op een pagina om de inhoud of instellingen te wijzigen.",
+    'help.page.seo' => "Met deze gegevens bepaal je hoe zoekmachines, zoals Google, deze pagina kunnen begrijpen, en vaak ook hoe de pagina in de zoekresultaten wordt weergegeven. Op de pagina zelf zie je ze niet.\n\nAlles hier is optioneel. Laat je een veld leeg, dan gebruikt de website een standaard.",
+    'help.page.seo_title' => "De titel van de pagina in de zoekresultaten en in het tabblad van de browser. Beschrijf duidelijk waar de pagina over gaat en zet het belangrijkste onderwerp vooraan.\n\nSchrijf voor mensen: dezelfde zoekwoorden steeds herhalen helpt niet. Laat je het veld leeg, dan wordt de titel automatisch <strong>Titel van de pagina — :site</strong>.",
+    'help.page.meta_description' => "Een korte samenvatting van de pagina, in een of twee zinnen, die iemand in de zoekresultaten laat zien waar de pagina over gaat. In technische termen heet dit de <em>meta description</em>.\n\nZoekmachines tonen hem vaak onder de titel, maar kunnen ook zelf een ander stukje tekst van de pagina kiezen. Laat je het veld leeg, dan gebruikt de website de standaardomschrijving uit Site-instellingen, als die is ingevuld.",
     'help.page.url' => "Het webadres is het laatste deel van de URL van deze pagina. Bij <strong>mijnsite.nl/contact</strong> is <strong>contact</strong> het webadres. In technische termen heet dit de <em>slug</em>.\n\nHet menu, de footer en de knop in de header verwijzen naar de pagina zelf, niet naar dit adres. Die links gaan dus vanzelf mee als het adres verandert.",
     'help.page.url_new' => "Het webadres is het laatste deel van de URL van deze pagina. Bij <strong>mijnsite.nl/contact</strong> is <strong>contact</strong> het webadres. In technische termen heet dit de <em>slug</em>.\n\nZolang je dit veld niet zelf aanpast, maakt het CMS het adres uit de titel. Is dat adres al in gebruik, dan komt er een nummer achter. Tot de pagina bestaat kun je het vrij aanpassen; daarna is het beschermd tegen per ongeluk wijzigen.",
 
@@ -202,9 +205,9 @@ return [
     // --- The page editor (admin/page.php, admin/page-new.php) --------------
     'page.seo' => 'SEO',
     'page.meta_title' => 'SEO-titel',
-    'page.meta_description' => 'Meta description',
+    'page.meta_description' => 'Omschrijving voor zoekmachines',
     'page.google_preview' => 'Voorbeeld in Google',
-    'page.no_description' => 'Geen meta description — Google kiest dan zelf een stukje tekst van de pagina.',
+    'page.no_description' => 'Geen omschrijving ingevuld. Zoekmachines kiezen dan zelf een stukje tekst van de pagina.',
     'page.visibility' => 'Zichtbaarheid',
     'page.noindex' => 'Deze pagina niet laten indexeren door zoekmachines',
     'page.save_settings' => 'Instellingen opslaan',
@@ -240,6 +243,14 @@ return [
     'page.url_placeholder' => 'bijv. veelgestelde-vragen',
     'page.url_preview' => 'De pagina komt op:',
     'page.url_preview_empty' => 'webadres',
+
+    // The preview of a page (admin/page-preview.php).
+    'page.preview' => 'Voorbeeld bekijken',
+    'page.preview_bar_label' => 'Voorbeeld van de pagina',
+    'page.preview_badge' => 'Voorbeeld',
+    'page.preview_draft' => 'Deze pagina is nog niet gepubliceerd. Alleen ingelogde beheerders zien dit voorbeeld.',
+    'page.preview_published' => 'Zo ziet deze pagina eruit met de inhoud die nu is opgeslagen.',
+    'page.preview_back' => 'Terug naar de pagina-instellingen',
 
     // --- Site settings (admin/settings.php) --------------------------------
     'settings.title' => 'Site-instellingen',
@@ -863,7 +874,7 @@ return [
     'page.seo_optioneel' => 'SEO (optioneel)',
     'page.kies_waarmee_pagina_begint' => 'Kies waarmee de pagina begint. Een template maakt alleen de eerste secties aan &mdash; daarna is het een gewone pagina die je vrij kunt aanpassen, aanvullen of leeghalen.',
     'page.template' => 'Template',
-    'page.pagina_concept_alleen_hier' => 'Een pagina in Concept is alleen hier zichtbaar; de publieke URL geeft een 404 tot je \'m publiceert.',
+    'page.pagina_concept_alleen_hier' => 'Een pagina in Concept zien bezoekers nog niet. Als beheerder bekijk je hem met Voorbeeld bekijken, en je publiceert hem wanneer hij klaar is.',
     'page.algemeen' => 'Algemeen',
     'page.nieuwe_pagina' => 'Nieuwe pagina',
     'page.terug_pagina_s' => '&larr; Terug naar pagina\'s',
@@ -881,7 +892,7 @@ return [
     'page.pagina_blijft_gewoon_bereikbaar' => 'De pagina blijft gewoon bereikbaar en gepubliceerd; hij krijgt alleen <code>noindex</code> mee en verdwijnt uit de sitemap. Voor een pagina die wel online moet staan maar niet gevonden hoeft te worden &mdash; een bedankpagina bijvoorbeeld.',
     'page.zo_ziet_pagina_er' => 'Zo ziet deze pagina er ongeveer uit in een zoekresultaat, met de titel en tekst die nu zijn opgeslagen.',
     'page.slaat_alles_wat_onder' => 'Slaat alles op wat onder Pagina en SEO staat &mdash; het is één formulier met twee tabbladen.',
-    'page.concept_betekent_wel_bewerkbaar' => 'Concept betekent: wel bewerkbaar hier, maar de publieke URL geeft een 404 en links ernaartoe in de navigatie/footer worden verborgen.',
+    'page.concept_betekent_wel_bewerkbaar' => 'Een pagina in Concept kun je gewoon bewerken, maar bezoekers zien hem nog niet, en links ernaar in het menu en de footer blijven zolang verborgen. Bekijk hem met Voorbeeld bekijken.',
     'page.sectie_verwijderd' => 'Sectie verwijderd.',
     'page.pagina_instellingen_opgeslagen' => 'Pagina-instellingen opgeslagen.',
     'page.pagina_aangemaakt_voeg_hieronder' => 'Pagina aangemaakt. Voeg hieronder secties toe en publiceer \'m zodra je tevreden bent.',
@@ -1788,8 +1799,6 @@ return [
     'admintheme.custom.description' => 'Kies zelf de achtergrond, zijbalk, kaarten, tekst en accentkleur.',
 
     // --- Sentences with a value in the middle
-    'page.seo_title_fallback' => 'Laat de SEO-titel leeg om automatisch “<em>Titel</em> &mdash; :site” te gebruiken. Vul je ’m wel in, dan is dat exact de tekst in het browsertabblad en in Google.',
-    'page.seo_title_fallback_new' => 'Laat de SEO-titel leeg om automatisch “<em>Titel</em> &mdash; :site” te gebruiken. Vul je ’m wel in, dan is dat exact wat er in het browsertabblad en in Google komt te staan.',
     'blog.seo_title_fallback' => 'Laat de SEO-titel leeg om automatisch “<em>Titel</em> | :blog &mdash; :site” te gebruiken.',
     'media.count_in_library' => ':count afbeeldingen in de bibliotheek.',
     'media.count_in_library_one' => '1 afbeelding in de bibliotheek.',

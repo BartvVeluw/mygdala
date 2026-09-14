@@ -53,6 +53,15 @@ $selectedTemplate = (string) ($old['template'] ?? PageTemplates::DEFAULT_KEY);
 // real one.
 $slugPreview = PageService::sanitizeSlug($value('slug') !== '' ? $value('slug') : $value('title'));
 
+// The SEO card folds shut — every field on it is optional — unless a refused
+// save handed back something typed into it, which must not be hidden.
+$seoOpen = $value('meta_title') !== '' || $value('meta_title_en') !== ''
+    || $value('meta_description') !== '' || $value('meta_description_en') !== '';
+
+// The automatic title, spelled out with this site's own name in the SEO
+// title's explanation.
+$seoTitleHelp = admin_t('help.page.seo_title', ['site' => \App\Service\SiteSettings::get('site_name')]);
+
 $csrfToken = Csrf::token();
 $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
 ?>
@@ -119,6 +128,48 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
       </div>
     </section>
 
+    <?php /* SEO before Template: how a page is named in a search result
+             belongs with its title and address, while a template only
+             decides which blocks it starts with. The card is a native
+             <details> in the collapse styling (admin/_admin_collapse.php),
+             folded shut unless something in it is already filled in. The
+             language panes are the ones admin/page.php's SEO tab uses — see
+             the note there. */ ?>
+    <section class="admin-card">
+      <details class="admin-collapse admin-collapse--card"<?= $seoOpen ? ' open' : '' ?>>
+        <summary class="admin-collapse__summary">
+          <span class="admin-collapse__caret" aria-hidden="true"></span>
+          <h2 class="admin-collapse__title"><?= admin_te('page.seo_optioneel') ?></h2>
+        </summary>
+        <div class="admin-collapse__body">
+          <?= admin_info_panel(admin_t('help.page.seo')) ?>
+          <?php admin_lang_bar(); ?>
+          <div class="admin-product-form admin-product-form--wide">
+            <?php admin_lang_pane_start('nl'); ?>
+              <div class="admin-field">
+                <?= admin_field_label('page-new-meta-title-nl', admin_t('page.meta_title'), $seoTitleHelp) ?>
+                <input type="text" name="meta_title" id="page-new-meta-title-nl" maxlength="<?= PageService::MAX_META_TITLE_LENGTH ?>" value="<?= $h($value('meta_title')) ?>"<?= admin_lang_placeholder_attr('nl') ?>>
+              </div>
+              <div class="admin-field">
+                <?= admin_field_label('page-new-meta-description-nl', admin_t('page.meta_description'), admin_t('help.page.meta_description')) ?>
+                <textarea name="meta_description" rows="3" id="page-new-meta-description-nl" maxlength="<?= PageService::MAX_META_DESCRIPTION_LENGTH ?>"<?= admin_lang_placeholder_attr('nl') ?>><?= $h($value('meta_description')) ?></textarea>
+              </div>
+            <?php admin_lang_pane_end(); ?>
+            <?php admin_lang_pane_start('en'); ?>
+              <div class="admin-field">
+                <?= admin_field_label('page-new-meta-title-en', admin_t('page.meta_title'), $seoTitleHelp) ?>
+                <input type="text" name="meta_title_en" id="page-new-meta-title-en" maxlength="<?= PageService::MAX_META_TITLE_LENGTH ?>" value="<?= $h($value('meta_title_en')) ?>"<?= admin_lang_placeholder_attr('en') ?>>
+              </div>
+              <div class="admin-field">
+                <?= admin_field_label('page-new-meta-description-en', admin_t('page.meta_description'), admin_t('help.page.meta_description')) ?>
+                <textarea name="meta_description_en" rows="3" id="page-new-meta-description-en" maxlength="<?= PageService::MAX_META_DESCRIPTION_LENGTH ?>"<?= admin_lang_placeholder_attr('en') ?>><?= $h($value('meta_description_en')) ?></textarea>
+              </div>
+            <?php admin_lang_pane_end(); ?>
+          </div>
+        </div>
+      </details>
+    </section>
+
     <section class="admin-card">
       <h2><?= admin_te('page.template') ?></h2>
       <p class="admin-text-muted"><?= admin_t('page.kies_waarmee_pagina_begint') ?></p>
@@ -156,39 +207,6 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
       </div>
     </section>
 
-    <section class="admin-card">
-      <h2><?= admin_te('page.seo_optioneel') ?></h2>
-      <p class="admin-text-muted"><?= admin_t('page.seo_title_fallback_new', ['site' => $h(\App\Service\SiteSettings::get('site_name'))]) ?></p>
-      <?php /* Same language panes as the SEO block in admin/page.php —
-               see the note there. */ ?>
-      <?php admin_lang_bar(); ?>
-      <div class="admin-product-form admin-product-form--wide">
-        <?php admin_lang_pane_start('nl'); ?>
-          <div class="admin-form-row">
-            <label><?= admin_te('page.meta_title') ?>
-              <input type="text" name="meta_title" maxlength="<?= PageService::MAX_META_TITLE_LENGTH ?>" value="<?= $h($value('meta_title')) ?>"<?= admin_lang_placeholder_attr('nl') ?>>
-            </label>
-          </div>
-          <div class="admin-form-row">
-            <label><?= admin_te('page.meta_description') ?>
-              <textarea name="meta_description" rows="3" maxlength="<?= PageService::MAX_META_DESCRIPTION_LENGTH ?>"<?= admin_lang_placeholder_attr('nl') ?>><?= $h($value('meta_description')) ?></textarea>
-            </label>
-          </div>
-        <?php admin_lang_pane_end(); ?>
-        <?php admin_lang_pane_start('en'); ?>
-          <div class="admin-form-row">
-            <label><?= admin_te('page.meta_title') ?>
-              <input type="text" name="meta_title_en" maxlength="<?= PageService::MAX_META_TITLE_LENGTH ?>" value="<?= $h($value('meta_title_en')) ?>"<?= admin_lang_placeholder_attr('en') ?>>
-            </label>
-          </div>
-          <div class="admin-form-row">
-            <label><?= admin_te('page.meta_description') ?>
-              <textarea name="meta_description_en" rows="3" maxlength="<?= PageService::MAX_META_DESCRIPTION_LENGTH ?>"<?= admin_lang_placeholder_attr('en') ?>><?= $h($value('meta_description_en')) ?></textarea>
-            </label>
-          </div>
-        <?php admin_lang_pane_end(); ?>
-      </div>
-    </section>
 
     <section class="admin-card">
       <button type="submit"><?= admin_te('page.pagina_aanmaken') ?></button>

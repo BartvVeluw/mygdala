@@ -132,6 +132,9 @@ class AdminNavigation
                     'pages.php',
                     'page.php',
                     'page-new.php',
+                    // A page as its template renders it, drafts included, for
+                    // a signed-in editor (Voorbeeld bekijken).
+                    'page-preview.php',
                     'page-hero.php',
                     'homepage-hero.php',
                     'cta-band.php',

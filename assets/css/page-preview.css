@@ -1,0 +1,48 @@
+/* ==========================================================================
+   Page preview bar
+   Owner: admin/page-preview.php, which asks for this file through
+   App\Service\PageAssets. It loads ONLY on that screen — a signed-in editor
+   looking at a page before or after it is published. No public page ever
+   asks for it.
+
+   What does NOT belong here: anything about the page being previewed. That
+   page renders with Core and its own blocks' styles, exactly as a visitor
+   would see it; this file styles the one bar that says it is a preview.
+   Colours are the site's semantic roles (core.css), so the bar follows the
+   theme the page is shown in.
+   ========================================================================== */
+
+.page-preview-bar{
+  position: fixed;
+  left: 1rem;
+  bottom: 1rem;
+  z-index: 1000;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem 0.8rem;
+  max-width: calc(100% - 2rem);
+  padding: 0.55rem 0.85rem;
+  border: 1px solid var(--color-primary);
+  border-radius: 0.6rem;
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-size: 0.85rem;
+  line-height: 1.4;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+
+.page-preview-bar__badge{
+  padding: 0.1rem 0.5rem;
+  border-radius: 999px;
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.page-preview-bar__link{
+  color: var(--color-primary);
+  text-decoration: underline;
+}

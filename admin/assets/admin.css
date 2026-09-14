@@ -1035,6 +1035,13 @@ a{ color: var(--admin-accent); }
   gap: 0.6rem;
 }
 
+/* A whole card that folds shut (admin/page-new.php's SEO card): the same
+   disclosure as a page-builder row, with the card's own heading as its
+   summary and the card's rhythm inside. */
+.admin-collapse--card > .admin-collapse__summary{ padding: 0; }
+.admin-collapse--card > .admin-collapse__summary .admin-collapse__title{ font-size: 1rem; }
+.admin-collapse--card > .admin-collapse__body{ margin-top: var(--admin-sp-4); padding: var(--admin-sp-4) 0 0; gap: var(--admin-sp-4); }
+
 /* The block list's rows hold a <details> now, so they grow downwards instead
    of being one centred line — the handle stays level with the summary. */
 .admin-page-section-row{

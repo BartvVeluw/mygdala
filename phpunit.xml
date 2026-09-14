@@ -113,6 +113,7 @@
             <file>tests/Service/NavigationFooterSecurityTest.php</file>
             <file>tests/Service/OrderHandlingAdminSecurityTest.php</file>
             <file>tests/Service/PageBuilderSecurityTest.php</file>
+            <file>tests/Service/PagePreviewContractTest.php</file>
             <file>tests/Service/PageTemplateRegistryTest.php</file>
             <file>tests/Service/PageUrlChangeTest.php</file>
             <file>tests/Service/Personalization/PersonalizationColorsTest.php</file>
@@ -190,6 +191,7 @@
             <file>tests/Service/OrderCsvExportTest.php</file>
             <file>tests/Service/OrderHandlingAdminSecurityTest.php</file>
             <file>tests/Service/PageBuilderSecurityTest.php</file>
+            <file>tests/Service/PagePreviewContractTest.php</file>
             <file>tests/Service/PageSeoTest.php</file>
             <file>tests/Service/PagesOverviewSearchTest.php</file>
             <file>tests/Service/PageTemplateRegistryTest.php</file>
@@ -383,6 +385,8 @@
             <file>tests/Service/NavigationServiceTest.php</file>
             <file>tests/Service/PageBuilderSecurityTest.php</file>
             <file>tests/Service/PageContentTest.php</file>
+            <file>tests/Service/PagePreviewAccessTest.php</file>
+            <file>tests/Service/PagePreviewContractTest.php</file>
             <file>tests/Service/PageRoutingTest.php</file>
             <file>tests/Service/PageSeoTest.php</file>
             <file>tests/Service/PagesOverviewSearchTest.php</file>

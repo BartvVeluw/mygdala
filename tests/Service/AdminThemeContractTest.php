@@ -78,12 +78,31 @@ final class AdminThemeContractTest extends TestCase
         return $tags;
     }
 
+    /**
+     * Admin scripts whose <body> is deliberately NOT the CMS. The preview of a
+     * page shows the public website exactly as a visitor would see it, so it
+     * renders the site's own header, theme and footer (admin/page-preview.php,
+     * PAGE-EDITOR.md); dressed in the dashboard theme it would be a preview of
+     * something else.
+     */
+    private const PUBLIC_SHELL_SCRIPTS = ['page-preview.php'];
+
     public function testEveryAdminPageInheritsTheThemeFromTheSamePlace(): void
     {
         $tags = self::bodyTags();
 
         // Guards the guard: a broken scan would otherwise pass silently.
         $this->assertGreaterThan(50, count($tags), 'The admin page scan found almost nothing.');
+
+        foreach (self::PUBLIC_SHELL_SCRIPTS as $file) {
+            $this->assertArrayHasKey($file, $tags, 'admin/' . $file . ' no longer opens a <body> of its own.');
+            $this->assertStringNotContainsString(
+                self::BODY_CALL,
+                $tags[$file],
+                'admin/' . $file . ' shows the website, so it must not wear the dashboard theme'
+            );
+            unset($tags[$file]);
+        }
 
         foreach ($tags as $file => $tag) {
             $this->assertStringContainsString(

@@ -48,6 +48,9 @@ return [
     'help.settings.seo_description' => "A <strong>meta description</strong> is a short summary of a page. Search engines such as Google often show it under the title in their results; you do not see it on the website itself.\n\nEvery page can have its own. This default is only used on pages that have none. If you have nothing general to say, leave it empty: the same sentence everywhere helps nobody.",
     'help.settings.robots' => "Search engines such as Google visit websites to include their pages in search results. That is called <strong>indexing</strong>.\n\nWhen this switch is on, they may. Only switch it off while your website is unfinished and must not be found yet, and switch it back on as soon as the website goes live. Off asks search engines to leave out every page.",
     'help.pages.overview' => "This is where you manage the pages of your website. Click a page to change its content or settings.",
+    'help.page.seo' => "These details decide how search engines such as Google can understand this page, and often how it is shown in their results. You do not see them on the page itself.\n\nEverything here is optional. Leave a field empty and the website uses a default.",
+    'help.page.seo_title' => "The title of the page in search results and in the browser tab. Say clearly what the page is about, with the main subject first.\n\nWrite for people: repeating the same keywords does not help. Leave the field empty and the title automatically becomes <strong>Page title — :site</strong>.",
+    'help.page.meta_description' => "A short summary of the page, in one or two sentences, that tells someone in the search results what the page is about. The technical name for it is <em>meta description</em>.\n\nSearch engines often show it under the title, but they may also pick another piece of the page text themselves. Leave the field empty and the website uses the default description from Site settings, if one is filled in.",
     'help.page.url' => "The web address is the last part of this page's URL. In <strong>mysite.com/contact</strong>, <strong>contact</strong> is the web address. The technical name for it is <em>slug</em>.\n\nThe menu, the footer and the header button point at the page itself rather than at this address, so those links follow a change automatically.",
     'help.page.url_new' => "The web address is the last part of this page's URL. In <strong>mysite.com/contact</strong>, <strong>contact</strong> is the web address. The technical name for it is <em>slug</em>.\n\nAs long as you do not change this field yourself, the CMS makes the address from the title. If that address is already taken, a number is added. You can change it freely until the page exists; after that it is protected against accidental changes.",
 
@@ -197,9 +200,9 @@ return [
     // --- The page editor (admin/page.php, admin/page-new.php) --------------
     'page.seo' => 'SEO',
     'page.meta_title' => 'SEO title',
-    'page.meta_description' => 'Meta description',
+    'page.meta_description' => 'Description for search engines',
     'page.google_preview' => 'Google preview',
-    'page.no_description' => 'No meta description — Google will pick a piece of the page text itself.',
+    'page.no_description' => 'No description filled in. Search engines then pick a piece of the page text themselves.',
     'page.visibility' => 'Visibility',
     'page.noindex' => 'Keep this page out of search engine indexes',
     'page.save_settings' => 'Save settings',
@@ -235,6 +238,14 @@ return [
     'page.url_placeholder' => 'e.g. frequently-asked-questions',
     'page.url_preview' => 'The page will be at:',
     'page.url_preview_empty' => 'web-address',
+
+    // The preview of a page (admin/page-preview.php).
+    'page.preview' => 'View preview',
+    'page.preview_bar_label' => 'Page preview',
+    'page.preview_badge' => 'Preview',
+    'page.preview_draft' => 'This page has not been published yet. Only signed-in editors can see this preview.',
+    'page.preview_published' => 'This is how the page looks with the content that is saved now.',
+    'page.preview_back' => 'Back to the page settings',
 
     // --- Site settings (admin/settings.php) --------------------------------
     'settings.title' => 'Site settings',
@@ -855,7 +866,7 @@ return [
     'page.seo_optioneel' => 'SEO (optional)',
     'page.kies_waarmee_pagina_begint' => 'Choose what the page starts with. A template only creates the first sections &mdash; after that it is an ordinary page you can change, extend or empty as you like.',
     'page.template' => 'Template',
-    'page.pagina_concept_alleen_hier' => 'A page in Draft is only visible here; the public URL returns a 404 until you publish it.',
+    'page.pagina_concept_alleen_hier' => 'Visitors do not see a page in Draft yet. As an editor you can look at it with View preview, and you publish it when it is ready.',
     'page.algemeen' => 'General',
     'page.nieuwe_pagina' => 'New page',
     'page.terug_pagina_s' => '&larr; Back to pages',
@@ -873,7 +884,7 @@ return [
     'page.pagina_blijft_gewoon_bereikbaar' => 'The page stays reachable and published; it only carries <code>noindex</code> and drops out of the sitemap. For a page that has to be online but does not need to be found — a thank-you page, say.',
     'page.zo_ziet_pagina_er' => 'Roughly how this page looks in a search result, with the title and text that are saved right now.',
     'page.slaat_alles_wat_onder' => 'Saves everything under Page and SEO &mdash; it is one form with two tabs.',
-    'page.concept_betekent_wel_bewerkbaar' => 'Draft means: editable here, but the public URL returns a 404 and links to it in the navigation and footer are hidden.',
+    'page.concept_betekent_wel_bewerkbaar' => 'You can edit a page in Draft as usual, but visitors do not see it yet, and links to it in the menu and the footer stay hidden until then. Look at it with View preview.',
     'page.sectie_verwijderd' => 'Section deleted.',
     'page.pagina_instellingen_opgeslagen' => 'Page settings saved.',
     'page.pagina_aangemaakt_voeg_hieronder' => 'Page created. Add sections below and publish it once you are happy.',
@@ -1780,8 +1791,6 @@ return [
     'admintheme.custom.description' => 'Pick the background, sidebar, cards, text and accent colour yourself.',
 
     // --- Sentences with a value in the middle
-    'page.seo_title_fallback' => 'Leave the SEO title empty to use “<em>Title</em> &mdash; :site” automatically. Fill it in and that is exactly the text in the browser tab and in Google.',
-    'page.seo_title_fallback_new' => 'Leave the SEO title empty to use “<em>Title</em> &mdash; :site” automatically. Fill it in and that is exactly what appears in the browser tab and in Google.',
     'blog.seo_title_fallback' => 'Leave the SEO title empty to use “<em>Title</em> | :blog &mdash; :site” automatically.',
     'media.count_in_library' => ':count images in the library.',
     'media.count_in_library_one' => '1 image in the library.',

@@ -200,6 +200,10 @@ $pageSocialMedia = MediaService::find(
 // row, so it shows what is live, not what is half-typed in the form.
 $seoPreview = \App\Service\PageSeo::forPage($page);
 
+// The SEO title's explanation names the automatic title with this site's own
+// name, so an editor can see what an empty field turns into.
+$seoTitleHelp = admin_t('help.page.seo_title', ['site' => \App\Service\SiteSettings::get('site_name')]);
+
 $csrfToken = Csrf::token();
 $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
 
@@ -247,7 +251,15 @@ $urlFieldOpen = !$hasFixedUrl
       <h1 class="admin-page-head__title"><?= $h((string) $page['title']) ?></h1>
       <p class="admin-page-head__desc"><?= admin_t('page.beheer_instellingen_inhoud_pagina') ?></p>
     </div>
-    <a href="<?= $h(PageContent::publicUrl($page)) ?>" class="admin-btn-secondary" target="_blank" rel="noopener"><?= admin_te('page.bekijk_pagina') ?> &#8594;</a>
+    <?php /* A published page opens where visitors see it. A draft has no public
+             address yet — it is a 404 there, on purpose — so it opens the
+             preview only signed-in editors can reach
+             (admin/page-preview.php). */ ?>
+    <?php if (PageContent::isPublished($page)): ?>
+      <a href="<?= $h(PageContent::publicUrl($page)) ?>" class="admin-btn-secondary" target="_blank" rel="noopener"><?= admin_te('page.bekijk_pagina') ?> &#8594;</a>
+    <?php else: ?>
+      <a href="/admin/page-preview.php?id=<?= $pageId ?>" class="admin-btn-secondary" target="_blank" rel="noopener"><?= admin_te('page.preview') ?> &#8594;</a>
+    <?php endif; ?>
   </header>
 
   <?php if ($created): ?>
@@ -431,7 +443,12 @@ $urlFieldOpen = !$hasFixedUrl
     <?php admin_tab_panel('seo'); ?>
     <section class="admin-card">
       <h2><?= admin_te('page.seo') ?></h2>
-      <p class="admin-text-muted"><?= admin_t('page.seo_title_fallback', ['site' => $h(\App\Service\SiteSettings::get('site_name'))]) ?></p>
+      <?php /* What SEO is, and what each field is for, as help
+               (admin/_admin_ui.php): switching help off in the shell leaves
+               the fields alone. The automatic title used to be spelled out in
+               a paragraph of its own here; it is part of the SEO title's
+               explanation now. */ ?>
+      <?= admin_info_panel(admin_t('help.page.seo')) ?>
       <?php /* One pane per language, not one column per language. On a
                single-language site only the site's own language is on
                screen; the other pane is still rendered, still carries its
@@ -441,27 +458,23 @@ $urlFieldOpen = !$hasFixedUrl
       <?php admin_lang_bar(); ?>
       <div class="admin-product-form admin-product-form--wide">
         <?php admin_lang_pane_start('nl'); ?>
-          <div class="admin-form-row">
-            <label><?= admin_te('page.meta_title') ?>
-              <input type="text" name="meta_title" maxlength="<?= PageService::MAX_META_TITLE_LENGTH ?>" value="<?= $h($fieldValue('meta_title')) ?>"<?= admin_lang_placeholder_attr('nl') ?>>
-            </label>
+          <div class="admin-field">
+            <?= admin_field_label('page-meta-title-nl', admin_t('page.meta_title'), $seoTitleHelp) ?>
+            <input type="text" name="meta_title" id="page-meta-title-nl" maxlength="<?= PageService::MAX_META_TITLE_LENGTH ?>" value="<?= $h($fieldValue('meta_title')) ?>"<?= admin_lang_placeholder_attr('nl') ?>>
           </div>
-          <div class="admin-form-row">
-            <label><?= admin_te('page.meta_description') ?>
-              <textarea name="meta_description" rows="3" maxlength="<?= PageService::MAX_META_DESCRIPTION_LENGTH ?>"<?= admin_lang_placeholder_attr('nl') ?>><?= $h($fieldValue('meta_description')) ?></textarea>
-            </label>
+          <div class="admin-field">
+            <?= admin_field_label('page-meta-description-nl', admin_t('page.meta_description'), admin_t('help.page.meta_description')) ?>
+            <textarea name="meta_description" rows="3" id="page-meta-description-nl" maxlength="<?= PageService::MAX_META_DESCRIPTION_LENGTH ?>"<?= admin_lang_placeholder_attr('nl') ?>><?= $h($fieldValue('meta_description')) ?></textarea>
           </div>
         <?php admin_lang_pane_end(); ?>
         <?php admin_lang_pane_start('en'); ?>
-          <div class="admin-form-row">
-            <label><?= admin_te('page.meta_title') ?>
-              <input type="text" name="meta_title_en" maxlength="<?= PageService::MAX_META_TITLE_LENGTH ?>" value="<?= $h($fieldValue('meta_title_en')) ?>"<?= admin_lang_placeholder_attr('en') ?>>
-            </label>
+          <div class="admin-field">
+            <?= admin_field_label('page-meta-title-en', admin_t('page.meta_title'), $seoTitleHelp) ?>
+            <input type="text" name="meta_title_en" id="page-meta-title-en" maxlength="<?= PageService::MAX_META_TITLE_LENGTH ?>" value="<?= $h($fieldValue('meta_title_en')) ?>"<?= admin_lang_placeholder_attr('en') ?>>
           </div>
-          <div class="admin-form-row">
-            <label><?= admin_te('page.meta_description') ?>
-              <textarea name="meta_description_en" rows="3" maxlength="<?= PageService::MAX_META_DESCRIPTION_LENGTH ?>"<?= admin_lang_placeholder_attr('en') ?>><?= $h($fieldValue('meta_description_en')) ?></textarea>
-            </label>
+          <div class="admin-field">
+            <?= admin_field_label('page-meta-description-en', admin_t('page.meta_description'), admin_t('help.page.meta_description')) ?>
+            <textarea name="meta_description_en" rows="3" id="page-meta-description-en" maxlength="<?= PageService::MAX_META_DESCRIPTION_LENGTH ?>"<?= admin_lang_placeholder_attr('en') ?>><?= $h($fieldValue('meta_description_en')) ?></textarea>
           </div>
         <?php admin_lang_pane_end(); ?>
       </div>
