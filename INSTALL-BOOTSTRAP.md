@@ -108,21 +108,38 @@ nieuwe site beginnen".
 
 ## Wat modules aanmaken
 
-| Module | Wat | Waarom |
-|---|---|---|
-| **Shop** | De pagina `/shop.php` met het blok `product_grid`, plus een menu-item | `product_grid` is applicatiekritiek: de bescherming van de winkelpagina volgt dat blok (`PageContent::isProtected()`), zodat de winkel niet per ongeluk offline gezet of verwijderd kan worden. |
+**Geen pagina's en geen menu-items.** Een module brengt tabellen mee, geen
+inhoud.
 
-**De Shop-pagina wordt ook aangemaakt als `MODULE_SHOP_ENABLED` uit staat.**
-Een systeempagina (`is_system = 1` met een `route_path`) kan niet vanuit het
-admin ontstaan — `PageRepository::create()` zet `is_system = 0` en
-`route_path = NULL` hard — dus een overgeslagen winkelpagina zou nooit meer
-terug te krijgen zijn door de module later aan te zetten. Een rij voor een
-uitgeschakelde module kost niets: `ModuleGuard` antwoordt al 404 op
-`/shop.php`, de sitemap laat hem al weg
-(`PageContent::isServedByAnEnabledModule()`) en het menu-item hangt aan de
-route van de Shop-module zelf, dus het verdwijnt met de module mee. Schema
-laten afhangen van een omgevingsvariabele die daarna nog omgezet kan worden is
-hier het echte risico, niet die ene reservepagina.
+Voor de Shop gold dat eerst niet. De bootstrap maakte ook de winkelpagina
+aan: een systeempagina `/shop.php` (`content_key = shop`) met het blok
+`product_grid`, beschermd omdat dat blok applicatiekritiek is, plus een
+menu-item *Shop*. Zo kreeg elke nieuwe site een pagina die hij niet kon
+verwijderen, voor een webshop die hij misschien niet heeft. Niet elke site
+verkoopt iets, en de Shop-module en een CMS-pagina zijn twee verschillende
+dingen.
+
+`/shop.php` blijft de route van de Shop-module. Winkelwagen, afrekenen en elke
+productpagina linken ernaar terug, dus hij rendert altijd een volledige
+pagina:
+
+| Situatie | Wat `/shop.php` rendert |
+|---|---|
+| Er is een CMS-pagina met `content_key = shop` (elke installatie die de bootstrap vóór deze wijziging draaide) | Die pagina, met haar titel, SEO-velden en blokken, precies zoals altijd |
+| Er is geen zo'n pagina (een verse installatie) | Het eigen productoverzicht van de module: een kop en het blok `product_grid`, met de assets die dat blok zelf declareert |
+| De Shop staat uit | 404, via `ModuleGuard`, in beide gevallen |
+
+De sitemap volgt dezelfde splitsing. Bestaat de pagina, dan komt `/shop.php`
+er via de pagina's in en beslist `PageSeo::isIndexable()`; anders zet
+`ShopModule::sitemapCollectors()` (`storefront`) hem erin. Wie de winkel in
+het menu wil, voegt bij Navigatie de route *Shop* toe. De installatiewizard
+verzint er geen.
+
+**De Shop-seed is uit de bootstrap zelf gehaald, niet door een latere migratie
+teruggedraaid.** Phinx draait een migratie nooit twee keer, dus elke database
+die hem al had, ook een verse van vóór deze wijziging, houdt haar Shop-pagina
+en haar menu-item. De andere weg, zaaien en daarna verwijderen, is precies wat
+hierboven is uitgesloten en wat `FreshInstallTest` bewaakt.
 
 ## Wat historische backfills bewaren
 
@@ -247,8 +264,8 @@ docker compose exec php_test php vendor/bin/phpunit --testsuite migration
 
 | Bestand | Wat het bewaakt |
 |---|---|
-| `tests/Install/FreshInstallTest.php` | Wat een lege database oplevert: alle migraties draaien, Homepage bestaat en is beschermd, de Shop-pagina draagt zijn kritieke blok, géén Diensten/Portfolio/Over mij/Contact/juridische pagina's, geen blokinhoud, geen formulier, géén bedrijfsgegeven in `site_settings`, een lege Mediabibliotheek, en een redacteur kan de weggelaten pagina's daarna alsnog uit een sjabloon maken |
-| `tests/Install/FreshInstallRenderTest.php` | Wat een lege database *toont*: `/`, `robots.txt` en `sitemap.xml` gerenderd tegen diezelfde wegwerpdatabase, zonder de naam of het domein van deze site, zonder de oude hero-afbeelding, zonder leeg `<img>`-element, met een lege winkelwagen — en zonder ergens de hostname van het verzoek over te nemen |
+| `tests/Install/FreshInstallTest.php` | Wat een lege database oplevert: alle migraties draaien, Homepage bestaat, is beschermd en is de enige systeempagina, géén Shop-pagina en geen `product_grid`, géén Diensten/Portfolio/Over mij/Contact/juridische pagina's, geen blokinhoud, geen formulier, géén bedrijfsgegeven in `site_settings`, een lege Mediabibliotheek, en een redacteur kan de weggelaten pagina's daarna alsnog uit een sjabloon maken |
+| `tests/Install/FreshInstallRenderTest.php` | Wat een lege database *toont*: `/`, `/shop.php` (het productoverzicht zonder CMS-pagina), `robots.txt` en `sitemap.xml` (met `/shop.php` precies één keer) gerenderd tegen diezelfde wegwerpdatabase, zonder de naam of het domein van deze site, zonder de oude hero-afbeelding, zonder leeg `<img>`-element, met een lege winkelwagen — en zonder ergens de hostname van het verzoek over te nemen |
 | `tests/Install/ExampleEnvironmentTest.php` | Dat `.env.example` geen levende waarde van deze site meer draagt: `APP_URL`, `MAIL_FROM_ADDRESS`, `MAIL_FROM_NAME` en `SHOP_NOTIFICATION_EMAIL`, plus elke andere waarde die de buitenwereld bereikt. Leest het bestand per sleutel, niet als momentopname, zodat de toelichtingen erin vrij blijven veranderen |
 | `tests/Install/GenericDistributionTest.php` | De identiteit die dit programma hardop uitspreekt: de User-Agent naar buiten, het afhaallabel, de afzender van transactionele mail, de lege winkelwagen, en dat de twee verwijderde publieke bestanden weg blijven |
 | `tests/Install/FreshSiteCopyTest.php` | De grens tussen applicatie en site: `App\Install\FreshSiteCopyPolicy` rechtstreeks bevraagd, het exportscript echt gedraaid, en beide vergeleken met `.gitignore` |

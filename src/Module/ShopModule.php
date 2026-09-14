@@ -9,10 +9,12 @@ use App\Repository\CollectionRepository;
 use App\Repository\PortfolioGalleryRepository;
 use App\Repository\ProductRepository;
 use App\Service\AdminPermissions;
+use App\Service\AppUrl;
 use App\Service\Blocks\ProductGridBlock;
 use App\Service\Blocks\ShopCollectionsBlock;
 use App\Service\CollectionContent;
 use App\Service\CollectionGalleryItems;
+use App\Service\PageContent;
 use App\Service\ProductSeo;
 use App\Service\Sitemap;
 
@@ -235,6 +237,20 @@ final class ShopModule extends ModuleDefinition
     public function sitemapCollectors(): array
     {
         return [
+            // The storefront itself, but only while no CMS page carries it
+            // (see shop.php). A site with a `shop` page already has /shop.php
+            // in the sitemap through Core's pages collector, where
+            // App\Service\PageSeo::isIndexable() decides — so the owner's
+            // noindex on that page is honoured, and the URL is never claimed
+            // twice. No lastmod: there is no row whose updated_at could vouch
+            // for a date, and App\Service\Sitemap never invents one.
+            'storefront' => static function (): array {
+                if (PageContent::forContentKey('shop') !== null) {
+                    return [];
+                }
+
+                return [Sitemap::entryFor(AppUrl::canonical('shop.php'), null)];
+            },
             'collections' => static function (): array {
                 $entries = [];
                 foreach ((new CollectionRepository())->findActiveForSitemap() as $collection) {

@@ -63,13 +63,18 @@
   --admin-accent-line-soft: rgba(205, 163, 77, 0.35);
   --admin-on-accent: #1a1710;
 
-  /* Status. Every theme keeps these red and green: an error that stopped
-     looking like an error would be a styling bug, not a skin. They are
-     re-tuned per theme for contrast against that theme's surfaces, never
-     re-hued. */
+  /* Status. Every theme keeps these red, amber and green: an error that
+     stopped looking like an error would be a styling bug, not a skin. Amber
+     is "not finished yet" — a page still in Concept — which is neither a
+     failure nor a success. They are re-tuned per theme for contrast against
+     that theme's surfaces, never re-hued, and a status is always a word as
+     well as a colour. */
   --admin-error: #e0665a;
   --admin-error-soft: rgba(224, 102, 90, 0.12);
   --admin-error-line: rgba(224, 102, 90, 0.4);
+  --admin-warning: #e6a23c;
+  --admin-warning-soft: rgba(230, 162, 60, 0.12);
+  --admin-warning-line: rgba(230, 162, 60, 0.45);
   --admin-success: #7bbf6a;
   --admin-success-soft: rgba(123, 191, 106, 0.12);
   --admin-success-line: rgba(123, 191, 106, 0.4);
@@ -142,6 +147,9 @@
   --admin-error: #b3261e;
   --admin-error-soft: rgba(179, 38, 30, 0.08);
   --admin-error-line: rgba(179, 38, 30, 0.35);
+  --admin-warning: #8a5300;
+  --admin-warning-soft: rgba(138, 83, 0, 0.08);
+  --admin-warning-line: rgba(138, 83, 0, 0.38);
   --admin-success: #1d6f42;
   --admin-success-soft: rgba(29, 111, 66, 0.08);
   --admin-success-line: rgba(29, 111, 66, 0.35);
@@ -196,6 +204,9 @@
   --admin-error: #f4877a;
   --admin-error-soft: rgba(244, 135, 122, 0.14);
   --admin-error-line: rgba(244, 135, 122, 0.45);
+  --admin-warning: #f2b95c;
+  --admin-warning-soft: rgba(242, 185, 92, 0.14);
+  --admin-warning-line: rgba(242, 185, 92, 0.45);
   --admin-success: #6fd39a;
   --admin-success-soft: rgba(111, 211, 154, 0.14);
   --admin-success-line: rgba(111, 211, 154, 0.45);
@@ -248,6 +259,9 @@
   --admin-error: #f08579;
   --admin-error-soft: rgba(240, 133, 121, 0.14);
   --admin-error-line: rgba(240, 133, 121, 0.45);
+  --admin-warning: #efb65e;
+  --admin-warning-soft: rgba(239, 182, 94, 0.14);
+  --admin-warning-line: rgba(239, 182, 94, 0.45);
   --admin-success: #79cf94;
   --admin-success-soft: rgba(121, 207, 148, 0.14);
   --admin-success-line: rgba(121, 207, 148, 0.45);
@@ -285,9 +299,9 @@
    - text on a filled accent is the BACKGROUND colour. Whoever picks an
      accent that reads on their background has, by the same token, picked a
      background that reads on the accent. The four fixed themes do the same.
-   - the status colours are a fixed red and green pulled towards the text
-     colour, so they come out lighter on a dark ground and darker on a light
-     one, and stay red and green on both. */
+   - the status colours are a fixed red, amber and green pulled towards the
+     text colour, so they come out lighter on a dark ground and darker on a
+     light one, and stay red, amber and green on both. */
 [data-admin-theme="custom"]{
   --admin-bg: var(--admin-custom-bg, #14120d);
   --admin-sidebar-bg: var(--admin-custom-sidebar, #19160f);
@@ -315,6 +329,9 @@
   --admin-error: color-mix(in srgb, #d64b3f 75%, var(--admin-text));
   --admin-error-soft: color-mix(in srgb, var(--admin-error) 12%, transparent);
   --admin-error-line: color-mix(in srgb, var(--admin-error) 40%, transparent);
+  --admin-warning: color-mix(in srgb, #b7791f 75%, var(--admin-text));
+  --admin-warning-soft: color-mix(in srgb, var(--admin-warning) 12%, transparent);
+  --admin-warning-line: color-mix(in srgb, var(--admin-warning) 40%, transparent);
   --admin-success: color-mix(in srgb, #3f9a56 75%, var(--admin-text));
   --admin-success-soft: color-mix(in srgb, var(--admin-success) 12%, transparent);
   --admin-success-line: color-mix(in srgb, var(--admin-success) 40%, transparent);
@@ -554,7 +571,12 @@ a{ color: var(--admin-accent); }
 
 .admin-page-head__title{ margin: 0 0 0.3rem; font-size: 1.5rem; }
 .admin-page-head__desc{ margin: 0; color: var(--admin-text-muted); font-size: 0.92rem; }
-.admin-page-head .admin-btn-secondary{ flex: none; margin-top: 0.2rem; }
+/* The head's action keeps its own width. Beside a title a flex item that may
+   shrink wraps its label over two or three lines, which is what "+ Nieuwe
+   pagina" did; on a narrow screen the whole head wraps instead (see the
+   max-width block further down). */
+.admin-page-head .admin-btn-primary,
+.admin-page-head .admin-btn-secondary{ flex: none; margin-top: 0.2rem; white-space: nowrap; }
 
 /* Buttons */
 .admin-btn-link,
@@ -641,6 +663,14 @@ a{ color: var(--admin-accent); }
 .admin-badge--failed, .admin-badge--canceled, .admin-badge--expired{ color: var(--admin-error); border-color: var(--admin-error-line); background: var(--admin-error-soft); }
 .admin-badge--pending{ color: var(--admin-accent); border-color: var(--admin-accent-line); background: var(--admin-accent-soft); }
 .admin-badge--theme{ font-style: italic; }
+
+/* Page status (admin/pages.php): Gepubliceerd is green, Concept is amber.
+   The badge always carries the word, so the colour confirms the status
+   rather than being the only thing that says it — which is also what keeps
+   it readable in forced-colours mode, where the border survives and the
+   tints do not. */
+.admin-badge--published{ color: var(--admin-success); border-color: var(--admin-success-line); background: var(--admin-success-soft); }
+.admin-badge--draft{ color: var(--admin-warning); border-color: var(--admin-warning-line); background: var(--admin-warning-soft); }
 
 /* Section-kind badges (admin/pages.php) — consistent visual language for
    "how editable is this piece of content", independent of order/payment

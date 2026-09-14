@@ -319,7 +319,10 @@ final class SetupCompletionTest extends TestCase
 
         $labels = array_column($items, 'label_nl');
 
-        $this->assertSame(['Home', 'Shop', 'Over ons', 'Contact'], $labels);
+        // No Shop item: the install bootstrap no longer seeds a storefront
+        // page or its menu link (INSTALL-BOOTSTRAP.md), and this wizard adds
+        // nothing beyond the pages it made.
+        $this->assertSame(['Home', 'Over ons', 'Contact'], $labels);
 
         foreach ($items as $item) {
             if (in_array($item['label_nl'], ['Over ons', 'Contact'], true)) {

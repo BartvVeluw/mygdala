@@ -23,10 +23,6 @@ use Phinx\Migration\AbstractMigration;
  *                 what makes it non-deletable, and it carries the Homepage
  *                 Hero — the one block that exists only there and cannot be
  *                 removed.
- *   Shop module   the Shop page, carrying the product grid. That block is
- *                 application-critical: the page's protection follows it
- *                 (PageContent::isProtected()), so the storefront cannot be
- *                 unpublished or deleted out from under the webshop.
  *   Menu          one link per page that exists. Nothing else.
  *
  * Diensten, Portfolio, Over mij, Contact and the legal pages are NOT here.
@@ -35,35 +31,27 @@ use Phinx\Migration\AbstractMigration;
  * (PAGE-TEMPLATES.md). Which legal pages a business owes its customers is a
  * business question, not something a CMS can seed on its behalf.
  *
+ * Neither is a Shop page. This migration used to create the storefront as a
+ * system page (content_key `shop` at /shop.php, carrying the product grid)
+ * plus a "Shop" menu item, so every new site came up with a protected page
+ * for a webshop it might not have. A webshop is a module, not a page an
+ * editor has to keep: /shop.php is the Shop module's own route, and it
+ * renders the module's product overview by itself when no CMS page carries
+ * the storefront (see shop.php). That seed was taken out of THIS migration,
+ * at the project owner's explicit request, rather than undone by a later
+ * one: Phinx never runs a migration twice, so every database that already
+ * ran it keeps its Shop page and menu item untouched, and the alternative —
+ * seed a page, then delete it again — is exactly what
+ * Tests\Install\FreshInstallTest forbids.
+ *
  * On an existing installation this migration does nothing at all: its first
  * line asks InstallState, which answers "this database has history" for
  * every database that predates the marker. See INSTALL-BOOTSTRAP.md.
- *
- * Why the Shop page is created even when MODULE_SHOP_ENABLED is off: a
- * system page (is_system = 1, with a route_path) cannot be created from the
- * admin — PageRepository::create() hard-codes is_system = 0 and route_path =
- * NULL — so a Shop page skipped at install time could never be recovered by
- * turning the module back on. A row for a disabled module costs nothing:
- * ModuleGuard already answers 404 on /shop.php, the sitemap already leaves
- * it out (PageContent::isServedByAnEnabledModule()), and the menu link below
- * resolves through the Shop module's own route, so it disappears with the
- * module. Deciding schema content from an environment variable that may be
- * flipped afterwards is the thing to avoid here, not the spare row.
  */
 final class BootstrapAGenericFreshInstall extends AbstractMigration
 {
     /** The homepage's immutable storage key, as every earlier migration writes it. */
     private const HOME_KEY = 'index';
-
-    /** The storefront's immutable storage key. */
-    private const SHOP_KEY = 'shop';
-
-    /**
-     * A fixed block (product grid, shop collections) has no content row of
-     * its own, so its page_sections attachment stores 0 — the convention
-     * every existing attachment of a fixed block already uses.
-     */
-    private const NO_CONTENT_ROW = 0;
 
     public function up(): void
     {
@@ -78,12 +66,7 @@ final class BootstrapAGenericFreshInstall extends AbstractMigration
             $this->attachHomepageHero($homeId, $now);
         }
 
-        $shopId = $this->createPage(self::SHOP_KEY, 'Shop', '/shop.php', 20, $now);
-        if ($shopId !== null) {
-            $this->attachSection($shopId, self::SHOP_KEY, 'product_grid', null, self::NO_CONTENT_ROW, 0, $now);
-        }
-
-        $this->seedMenu($homeId, $shopId, $now);
+        $this->seedMenu($homeId, $now);
     }
 
     /**
@@ -200,11 +183,11 @@ final class BootstrapAGenericFreshInstall extends AbstractMigration
 
     /**
      * One menu entry per page that exists, as a route link — the same link
-     * type the six-item menu used before this cleanup. A route link to the
-     * Shop resolves through the Shop module's own route table, so it stops
-     * rendering by itself on a CMS-only install (App\Service\RouteRegistry).
+     * type the six-item menu used before this cleanup. That is Home alone: a
+     * link to the Shop's storefront is the owner's to add (Navigatie, route
+     * "Shop"), exactly like a link to any page they create later.
      */
-    private function seedMenu(?int $homeId, ?int $shopId, string $now): void
+    private function seedMenu(?int $homeId, string $now): void
     {
         $existing = $this->fetchRow('SELECT COUNT(*) AS c FROM nav_items');
         if ((int) $existing['c'] > 0) {
@@ -214,9 +197,6 @@ final class BootstrapAGenericFreshInstall extends AbstractMigration
         $items = [];
         if ($homeId !== null) {
             $items[] = ['Home', 'Home', 'home'];
-        }
-        if ($shopId !== null) {
-            $items[] = ['Shop', 'Shop', 'shop'];
         }
 
         foreach ($items as $position => [$labelNl, $labelEn, $route]) {

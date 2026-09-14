@@ -633,9 +633,11 @@ final class SetupWizard
      * Step 4: a menu item per page this run created, and nothing else.
      *
      * This is NOT a navigation wizard. Home is already in the menu from the
-     * install bootstrap, the Shop's item comes from the Shop module's own
-     * route, and no footer column is invented — an empty footer on a new
-     * site looks intentional, a made-up one does not.
+     * install bootstrap; a link to the Shop's storefront is the owner's to
+     * add (Navigatie, route "Shop"), because the bootstrap no longer seeds a
+     * Shop page or its menu item (INSTALL-BOOTSTRAP.md); and no footer column
+     * is invented — an empty footer on a new site looks intentional, a
+     * made-up one does not.
      *
      * The items point at the PAGE rather than at a path, like every other
      * link in this CMS, so they follow a later slug change and simply do not

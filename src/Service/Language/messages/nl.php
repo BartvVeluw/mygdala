@@ -48,7 +48,7 @@ return [
     'help.settings.primary_language' => "Je website bestaat in het Nederlands en in het Engels. Hier kies je welke van de twee een bezoeker als eerste ziet.\n\nOntbreekt ergens een vertaling, dan toont de website op die plek de tekst in deze taal. Het CMS zelf verandert hier niet van taal: dat stel je in bij <strong>Mijn account</strong>.",
     'help.settings.seo_description' => "Een <strong>meta description</strong> is een korte omschrijving van een pagina. Zoekmachines zoals Google tonen hem vaak onder de titel in hun zoekresultaten; op de website zelf zie je hem niet.\n\nElke pagina kan een eigen omschrijving krijgen. Deze standaardtekst wordt alleen gebruikt op pagina's die er zelf geen hebben. Heb je niets algemeens te zeggen, laat hem dan leeg: overal dezelfde zin helpt niemand.",
     'help.settings.robots' => "Zoekmachines zoals Google bezoeken websites om hun pagina's in de zoekresultaten op te nemen. Dat heet <strong>indexeren</strong>.\n\nStaat deze schakelaar aan, dan mag dat. Zet hem alleen uit zolang je website nog niet klaar is en nog niet gevonden mag worden, en zet hem weer aan zodra de website live gaat. Uit vraagt zoekmachines om geen enkele pagina op te nemen.",
-    'help.pages.overview' => "Hier staan alle pagina's van je website. Klik op een pagina om de tekst, de afbeeldingen of de instellingen te wijzigen, of maak met <strong>Nieuwe pagina</strong> een nieuwe pagina aan.",
+    'help.pages.overview' => "Hier beheer je de pagina's van je website. Klik op een pagina om de inhoud of instellingen te wijzigen.",
 
     // --- Words that appear on more than one screen -------------------------
     'common.save' => 'Opslaan',
@@ -180,7 +180,6 @@ return [
 
     // --- The pages overview (admin/pages.php) ------------------------------
     'pages.title' => "Pagina's",
-    'pages.intro' => 'Alle pagina\'s van de website. Open een pagina om de titel, URL, status en SEO-gegevens aan te passen en de inhoud met de paginabouwer samen te stellen.',
     'pages.new' => 'Nieuwe pagina',
     'pages.created' => 'Pagina aangemaakt.',
     'pages.deleted' => 'Pagina verwijderd.',
@@ -188,9 +187,9 @@ return [
     'pages.empty' => 'Nog geen pagina\'s.',
     'pages.empty_link' => 'Maak de eerste pagina aan',
     'pages.protected' => 'Beschermd',
-    'pages.protected_hint' => 'De webshop heeft deze pagina nodig — titel, SEO en inhoud zijn bewerkbaar, status en verwijderen niet.',
+    'pages.protected_hint' => 'Je website heeft deze pagina altijd nodig. Titel, SEO en inhoud kun je aanpassen; offline halen en verwijderen kan niet.',
     'pages.fixed_url' => 'Contentpagina (vaste URL)',
-    'pages.fixed_url_hint' => 'Gewone contentpagina op een vaste URL — alleen de slug ligt vast.',
+    'pages.fixed_url_hint' => 'Een gewone contentpagina met een vast webadres dat je niet kunt wijzigen.',
     'pages.content_page' => 'Contentpagina',
     'pages.search_label' => 'Zoek een pagina',
     'pages.search_placeholder' => 'Zoek op titel of adres',

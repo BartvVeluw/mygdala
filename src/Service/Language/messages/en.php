@@ -47,7 +47,7 @@ return [
     'help.settings.primary_language' => "Your website exists in Dutch and in English. Here you choose which of the two a visitor sees first.\n\nWhere a translation is missing, the website shows the text in this language instead. The CMS itself does not change language here: you set that under <strong>My account</strong>.",
     'help.settings.seo_description' => "A <strong>meta description</strong> is a short summary of a page. Search engines such as Google often show it under the title in their results; you do not see it on the website itself.\n\nEvery page can have its own. This default is only used on pages that have none. If you have nothing general to say, leave it empty: the same sentence everywhere helps nobody.",
     'help.settings.robots' => "Search engines such as Google visit websites to include their pages in search results. That is called <strong>indexing</strong>.\n\nWhen this switch is on, they may. Only switch it off while your website is unfinished and must not be found yet, and switch it back on as soon as the website goes live. Off asks search engines to leave out every page.",
-    'help.pages.overview' => "These are all the pages of your website. Click a page to change its text, images or settings, or create a new one with <strong>New page</strong>.",
+    'help.pages.overview' => "This is where you manage the pages of your website. Click a page to change its content or settings.",
 
     // --- Words that appear on more than one screen -------------------------
     'common.save' => 'Save',
@@ -175,7 +175,6 @@ return [
 
     // --- The pages overview (admin/pages.php) ------------------------------
     'pages.title' => 'Pages',
-    'pages.intro' => 'Every page on the website. Open a page to change its title, URL, status and SEO data, and to build its content with the page builder.',
     'pages.new' => 'New page',
     'pages.created' => 'Page created.',
     'pages.deleted' => 'Page deleted.',
@@ -183,9 +182,9 @@ return [
     'pages.empty' => 'No pages yet.',
     'pages.empty_link' => 'Create the first page',
     'pages.protected' => 'Protected',
-    'pages.protected_hint' => 'The shop needs this page — title, SEO and content are editable, status and deletion are not.',
+    'pages.protected_hint' => 'Your website always needs this page. You can change its title, SEO and content; taking it offline or deleting it is not possible.',
     'pages.fixed_url' => 'Content page (fixed URL)',
-    'pages.fixed_url_hint' => 'An ordinary content page on a fixed URL — only the slug is set.',
+    'pages.fixed_url_hint' => 'An ordinary content page with a fixed web address that cannot be changed.',
     'pages.content_page' => 'Content page',
     'pages.search_label' => 'Find a page',
     'pages.search_placeholder' => 'Search by title or address',

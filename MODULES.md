@@ -305,6 +305,11 @@ Alles wat er ook zou zijn zonder webshop.
   `admin/product-form.php`.
 - Collecties — `CollectionService`, `CollectionContent`,
   `CollectionRepository`, `collectie.php`, `CollectionGalleryItems`.
+- Winkelpagina — `shop.php`. Heeft de installatie een CMS-pagina met
+  `content_key = shop`, dan rendert hij die; anders zijn eigen
+  productoverzicht, een kop plus het blok `product_grid`. Een verse
+  installatie krijgt die pagina niet (`INSTALL-BOOTSTRAP.md`), en dan komt de
+  sitemapregel van `ShopModule::sitemapCollectors()` (`storefront`).
 - Gerelateerde producten — `RelatedProductsContent`,
   `admin/related-products.php`, `partials/related-products.php`.
 - Winkelwagen — volledig client-side (`vvl-cart` in `localStorage`,

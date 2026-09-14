@@ -19,9 +19,9 @@ use Tests\Support\ScratchInstall;
  * product at a price; and the checkout offered pickup in this site's town. A
  * clean database is not a clean page.
  *
- * So this test renders the three public documents a fresh installation serves
- * before anybody has edited anything — the homepage, robots.txt and
- * sitemap.xml — and reads them the way a stranger would.
+ * So this test renders the public documents a fresh installation serves
+ * before anybody has edited anything — the homepage, the storefront,
+ * robots.txt and sitemap.xml — and reads them the way a stranger would.
  *
  * WHAT IT ASSERTS, and only this: the output is sensible, and this site's
  * identity is not in it. It deliberately does NOT try to catch every sentence
@@ -130,6 +130,40 @@ final class FreshInstallRenderTest extends TestCase
         $this->assertStringNotContainsString('14,95', $html);
     }
 
+    /**
+     * A fresh install has no CMS page for the Shop (INSTALL-BOOTSTRAP.md), and
+     * /shop.php is still where the cart, the checkout and every product page
+     * send a visitor back to. So it must be a whole page with the product
+     * overview on it — not a header and a footer around nothing, and not a 404.
+     */
+    public function testTheStorefrontRendersTheProductOverviewWithoutACmsPage(): void
+    {
+        $html = $this->render('shop.php');
+
+        $this->assertStringContainsString('</html>', $html, 'The storefront rendering stopped part-way.');
+        $this->assertStringNotContainsStringIgnoringCase('fatal error', $html);
+        $this->assertStringNotContainsString('Pagina niet gevonden', $html);
+        $this->assertStringContainsString('data-products-grid', $html, 'The storefront rendered no product overview.');
+        $this->assertMatchesRegularExpression('#<h1[^>]*>Shop</h1>#', $html);
+        $this->assertStringContainsString(
+            'assets/js/shop/shop.js',
+            $html,
+            'The product grid must still bring its own script, through its own block definition.'
+        );
+        $this->assertMatchesRegularExpression('#<link rel="canonical" href="https?://[^"]+/shop\.php">#', $html);
+        $this->assertMatchesRegularExpression('#<meta name="robots" content="index,follow">#', $html);
+        $this->assertNoIdentityIn($html, 'the storefront');
+    }
+
+    public function testTheSitemapListsTheStorefrontExactlyOnce(): void
+    {
+        $this->assertSame(
+            1,
+            substr_count($this->render('sitemap.php'), '/shop.php</loc>'),
+            'Without a Shop page the Shop module lists its storefront itself, and only once.'
+        );
+    }
+
     public function testRobotsTxtIsGenericAndNamesNoDomainOfThisSite(): void
     {
         $robots = $this->render('robots.php');
@@ -155,7 +189,7 @@ final class FreshInstallRenderTest extends TestCase
         // App\Service\AppUrl never consults the Host header (SEO.md). The
         // render harness sends an impossible one so a regression would show
         // up as that domain in a canonical, an og:url or a <loc>.
-        foreach (['index.php', 'robots.php', 'sitemap.php'] as $route) {
+        foreach (['index.php', 'shop.php', 'robots.php', 'sitemap.php'] as $route) {
             $this->assertStringNotContainsString(
                 'request-host.invalid',
                 $this->render($route),

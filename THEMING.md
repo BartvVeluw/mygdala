@@ -65,9 +65,11 @@ adminscherm dat niet doet, zodra `admin.css` en de registratielijst het
 oneens zijn over welke thema's bestaan, of zodra een thema een kleurtoken
 vergeet en dus in Default zou terugvallen.
 
-Statuskleuren blijven in élk thema rood en groen: een fout die er niet meer
-uitziet als een fout is een stijlfout, geen skin. Selectie en actieve staat
-leunen nergens op kleur alléén.
+Statuskleuren blijven in élk thema rood, amber en groen: een fout die er niet
+meer uitziet als een fout is een stijlfout, geen skin. Amber
+(`--admin-warning`) betekent "nog niet af", zoals een pagina in Concept; dat
+is geen fout en ook geen succes. Selectie, actieve staat en status leunen
+nergens op kleur alléén: een statusbadge draagt altijd ook het woord.
 
 De bouwstenen die op die tokens draaien — uitleg bij een veld, de help-knop,
 de infobalk, zoekveld, select, checkbox, switch en bestandskiezer — hebben een
@@ -90,9 +92,9 @@ Het `custom`-blok in `admin.css` leidt **elk ander token** uit die vijf af met
 tekst en vlak, en de zachte accentvlakken zijn het accent met transparantie.
 Twee vaste afspraken houden een vrije keuze leesbaar zonder te weten of hij
 licht of donker is: tekst op een gevulde knop krijgt de **achtergrondkleur**,
-en fout en gelukt zijn een vast rood en groen dat naar de tekstkleur toe
-getrokken wordt, dus lichter op een donkere ondergrond en donkerder op een
-lichte. De afleiding staat één keer in CSS, en daarom kan de live preview
+en fout, nog-niet-af en gelukt zijn een vast rood, amber en groen dat naar de
+tekstkleur toe getrokken wordt, dus lichter op een donkere ondergrond en
+donkerder op een lichte. De afleiding staat één keer in CSS, en daarom kan de live preview
 niet afwijken van de opgeslagen pagina.
 
 - **Een kleur is zes hexcijfers**, in dezelfde vormen als de websitekleuren

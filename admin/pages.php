@@ -12,11 +12,18 @@ use App\Repository\PageRepository;
 
 /**
  * The Pages overview: every CMS-managed page in one list, with a "+ Nieuwe
- * pagina" button. Every page lives here on equal terms. Two of them are
- * protected — the Homepage (the site root) and the Shop (it carries the
- * storefront) — and a few are served at a fixed URL, which locks their slug
- * but nothing else. Every other page is created, published, edited and
- * deleted entirely from the admin without any code change or migration.
+ * pagina" button. Every page lives here on equal terms. At most two of them
+ * are protected — the Homepage (the site root) and, on an installation that
+ * still has one, the Shop page (it carries the storefront) — and a few are
+ * served at a fixed URL, which locks their address but nothing else. Every
+ * other page is created, published, edited and deleted entirely from the
+ * admin.
+ *
+ * The head is the title and the button, nothing more: what this screen is
+ * for is said once, in the info panel, which follows the help switch in the
+ * shell. A row's status is a word in a coloured badge — amber for Concept,
+ * green for Gepubliceerd (admin.css, "Page status") — so the colour confirms
+ * the word rather than replacing it.
  *
  * Clicking a page opens admin/page.php: its settings (Title, Slug, Status,
  * SEO title, Meta description) followed by the page builder — one screen,
@@ -70,7 +77,6 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
   <header class="admin-page-head">
     <div>
       <h1 class="admin-page-head__title"><?= admin_te('pages.title') ?></h1>
-      <p class="admin-page-head__desc"><?= admin_te('pages.intro') ?></p>
     </div>
     <a href="/admin/page-new.php" class="admin-btn-primary">+ <?= admin_te('pages.new') ?></a>
   </header>
@@ -136,7 +142,7 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
             <tr>
               <td><a href="/admin/page.php?id=<?= $pageId ?>"><?= $h((string) $page['title']) ?></a></td>
               <td><code><?= $h($publicUrl) ?></code></td>
-              <td><span class="admin-badge admin-badge--<?= $isPublished ? 'paid' : 'canceled' ?>"><?= admin_te('page.status_' . ((string) $page['status'])) ?></span></td>
+              <td><span class="admin-badge admin-badge--<?= $isPublished ? 'published' : 'draft' ?>"><?= admin_te('page.status_' . ((string) $page['status'])) ?></span></td>
               <td>
                 <?php if ($isProtected): ?>
                   <span class="admin-badge admin-badge--info" title="<?= admin_te('pages.protected_hint') ?>"><?= admin_te('pages.protected') ?></span>

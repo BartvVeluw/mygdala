@@ -345,9 +345,9 @@ final class LegacyUpgradeTest extends TestCase
 
     public function testTheFreshInstallBootstrapChangedNothingHere(): void
     {
-        // It creates a homepage, a storefront and a two-item menu. On a
-        // database with history all three already exist, and the migration
-        // must have returned without touching any of them.
+        // It creates a homepage and a one-item menu. On a database with
+        // history both already exist, and the migration must have returned
+        // without touching either of them.
         $this->assertSame(
             1,
             (int) $this->install()->rows('SELECT COUNT(*) AS c FROM pages WHERE route_path = ?', ['/'])[0]['c'],

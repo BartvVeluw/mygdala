@@ -169,8 +169,9 @@ Contact en drie Nederlandse juridische pagina's mee: de migraties die de
 inhoud van Van Veluw Laserdesign uit de templates haalden, draaiden ook op een
 database die nooit iets met dat bedrijf te maken had gehad.
 
-Dat is nu weg. Core maakt de Homepage, de Shop-module maakt de winkelpagina,
-en verder niets — zie [`INSTALL-BOOTSTRAP.md`](INSTALL-BOOTSTRAP.md).
+Dat is nu weg. Core maakt de Homepage en verder niets; de Shop-module brengt
+zijn winkel als eigen route, niet als pagina — zie
+[`INSTALL-BOOTSTRAP.md`](INSTALL-BOOTSTRAP.md).
 
 **Sjablonen zijn wat daarvoor in de plaats komt.** Een Diensten-, Over ons- of
 Contactpagina is een gewone CMS-pagina; die hoeft niet te bestaan voordat
@@ -205,8 +206,9 @@ een gewone pagina op `/diensten`.
 
 Op de bestaande Van Veluw-installatie worden zes pagina's gerenderd door een
 eigen bestand in de projectroot (`is_system = 1`, met een `route_path`). Een
-verse installatie heeft er twee — Homepage en Shop — want de andere vier zijn
-gewone contentpagina's die daar niet meer gezaaid worden
+verse installatie heeft er één, de Homepage: de andere vier zijn gewone
+contentpagina's die daar niet meer gezaaid worden, en `/shop.php` rendert daar
+het productoverzicht van de module zonder pagina
 ([`INSTALL-BOOTSTRAP.md`](INSTALL-BOOTSTRAP.md)). Dat zegt alleen iets over *waar hun
 URL zit*, niet over wat de redacteur ermee mag (`PageContent::isRouteBound()`
 tegenover `isProtected()`).
@@ -214,7 +216,7 @@ tegenover `isProtected()`).
 | Pagina | Echt technisch bijzonder? |
 |---|---|
 | **Homepage** (`/`) | **Ja.** De site-root moet altijd renderen, en `homepage_hero` is exclusief voor deze pagina en niet verwijderbaar. |
-| **Shop** (`/shop.php`) | **Ja.** Draagt `product_grid`, een applicatiekritiek blok, en `shop_collections`; beide zijn van de Shop-module. Beschermd. |
+| **Shop** (`/shop.php`) | **Ja, waar hij bestaat.** Draagt `product_grid`, een applicatiekritiek blok, en `shop_collections`; beide zijn van de Shop-module. Beschermd. Een verse installatie heeft deze pagina niet. |
 | **Diensten** (`/diensten.php`) | **Bijna niet.** Alleen `quicknav` bindt hem: een functioneel blok dat op `allowed_pages: ['diensten']` staat. Alle overige blokken zijn gewone, handmatig toevoegbare blokken. |
 | **Portfolio** (`/portfolio.php`) | **Nee.** Uitsluitend gewone blokken (Page Hero, Feature Grid, Portfolio-/collectiegalerij, CTA Band, Marquee). Een legacy vaste route met volledig CMS-beheerde inhoud. |
 | **Over mij** (`/over-mij.php`) | **Nee.** Uitsluitend gewone blokken. Legacy vaste route. |

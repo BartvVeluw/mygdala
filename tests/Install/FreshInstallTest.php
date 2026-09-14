@@ -24,10 +24,10 @@ use Tests\Support\ScratchInstall;
  * an empty database can answer "what is seeded", and INSTALL-BOOTSTRAP.md is
  * the written version of the answer.
  *
- * The claim being defended: Core creates the Homepage, the Shop module
- * creates the storefront, and everything else is the editor's — made when
- * the site needs it, from a page template if they want the usual shape of
- * one. Diensten, Portfolio, Over mij, Contact and three Dutch legal pages
+ * The claim being defended: Core creates the Homepage, and everything else
+ * is the editor's — made when the site needs it, from a page template if
+ * they want the usual shape of one. The Shop module creates no page at all:
+ * its storefront is its own route (Tests\Install\FreshInstallRenderTest). Diensten, Portfolio, Over mij, Contact and three Dutch legal pages
  * belong to Van Veluw Laserdesign, and a new installation is not that site.
  */
 final class FreshInstallTest extends TestCase
@@ -176,7 +176,7 @@ final class FreshInstallTest extends TestCase
             'target_route'
         );
 
-        $this->assertSame(['home', 'shop'], $routes);
+        $this->assertSame(['home'], $routes);
     }
 
     public function testNoSettingPointsAtAPageThisInstallDoesNotHave(): void
@@ -208,28 +208,44 @@ final class FreshInstallTest extends TestCase
 
     // ------------------------------------------------------------- modules
 
-    public function testTheShopModuleBringsItsOwnStorefront(): void
+    /**
+     * A webshop is a module, not a page an editor has to keep. /shop.php is
+     * the Shop's own route and renders its product overview without a CMS
+     * page (Tests\Install\FreshInstallRenderTest), so nothing is seeded for
+     * it: no page, no product grid, no menu item. An installation that ran
+     * the bootstrap before this changed keeps its Shop page, because Phinx
+     * never runs a migration twice (INSTALL-BOOTSTRAP.md).
+     */
+    public function testTheShopModuleSeedsNoPage(): void
     {
-        $page = $this->page('shop');
-
-        $this->assertNotNull($page, 'The Shop module owns /shop.php and bootstraps it.');
-        $this->assertSame('/shop.php', $page['route_path']);
-    }
-
-    public function testTheStorefrontCarriesTheBlockThatProtectsIt(): void
-    {
-        $sections = $this->install()->rows(
-            'SELECT section_type FROM page_sections WHERE page_slug = ? ORDER BY sort_order',
-            ['shop']
+        $this->assertNull($this->page('shop'), 'A fresh install must not receive a Shop page.');
+        $this->assertSame(
+            [],
+            $this->install()->rows('SELECT id FROM pages WHERE route_path = ?', ['/shop.php']),
+            'No page may claim the storefront route on a fresh install.'
         );
-
-        $this->assertSame([['section_type' => 'product_grid']], $sections);
     }
 
-    public function testNothingOutsideTheShopModuleIsBootstrappedByIt(): void
+    public function testNoPageCarriesTheProductGrid(): void
     {
-        // The Shop brings the storefront and nothing that looks like site
-        // copy: no products, no collections, no orders.
+        $this->assertSame(
+            [],
+            $this->install()->rows('SELECT id FROM page_sections WHERE section_type = ?', ['product_grid'])
+        );
+    }
+
+    public function testTheHomepageIsTheOnlySystemPage(): void
+    {
+        $this->assertSame(
+            [['content_key' => 'index']],
+            $this->install()->rows('SELECT content_key FROM pages WHERE is_system = 1')
+        );
+    }
+
+    public function testTheShopModuleSeedsNoCatalogue(): void
+    {
+        // Nothing that looks like site copy either: no products, no
+        // collections, no orders.
         foreach (['products', 'collections', 'orders'] as $table) {
             $this->assertSame(0, $this->install()->count($table));
         }
