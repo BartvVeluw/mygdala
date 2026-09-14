@@ -47,7 +47,10 @@
 
     function matches(card, state) {
       if (state.q !== "" && card.getAttribute("data-title").indexOf(state.q) === -1) return false;
-      if (state.cat !== "all") {
+      if (state.cat === "_none") {
+        // "Zonder categorie": only the cards whose item has no category at all.
+        if ((card.getAttribute("data-categories") || "").trim() !== "") return false;
+      } else if (state.cat !== "all") {
         var cats = (card.getAttribute("data-categories") || "").split(/\s+/);
         if (cats.indexOf(state.cat) === -1) return false;
       }

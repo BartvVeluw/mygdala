@@ -4,7 +4,8 @@
  *   - field help: hovering a "?" shows its explanation, a click (Enter, a tap)
  *     pins it, and the cross, Escape or a click elsewhere closes it;
  *   - the global help switch in the shell, remembered per browser;
- *   - the line in a file input that names the chosen file;
+ *   - the line in a file input that names the chosen file, and the preview of
+ *     the image a single-image file input is about to upload;
  *   - the question a form marked with data-admin-confirm asks before it is
  *     sent, in the dialog admin_confirm_dialog() prints.
  *
@@ -22,9 +23,10 @@
  * a native element, and a confirmed form is sent exactly as it would have been.
  *
  * Without this script the page still works: a "?" opens its explanation
- * through the browser's own popover, a file input is the browser's own, help
- * simply stays on, and a form that would have asked is sent without asking —
- * as it was with the inline confirm() it replaces.
+ * through the browser's own popover, a file input is the browser's own (and
+ * its preview keeps showing the stored image), help simply stays on, and a
+ * form that would have asked is sent without asking — as it was with the
+ * inline confirm() it replaces.
  */
 (function () {
   "use strict";
@@ -380,11 +382,96 @@
     }
   }
 
+  // A single-image input's preview (admin_file_preview()): the chosen file as
+  // the browser already holds it — never uploaded just to be shown.
+
+  /** The object URL each preview shows, so it is revoked the moment it is replaced. */
+  var previewUrls = new WeakMap();
+
+  function previewFor(input) {
+    if (!input.id) {
+      return null;
+    }
+
+    var previews = document.querySelectorAll("[data-admin-file-preview]");
+
+    for (var i = 0; i < previews.length; i++) {
+      if (previews[i].getAttribute("data-admin-file-preview") === input.id) {
+        return previews[i];
+      }
+    }
+
+    return null;
+  }
+
+  function forgetPreviewUrl(preview) {
+    var url = previewUrls.get(preview);
+
+    if (url) {
+      URL.revokeObjectURL(url);
+      previewUrls.delete(preview);
+    }
+  }
+
+  function showChosenImage(input) {
+    var preview = previewFor(input);
+    if (!preview) {
+      return;
+    }
+
+    var image = preview.querySelector("[data-admin-file-preview-image]");
+    var state = preview.querySelector("[data-admin-file-preview-state]");
+    var clear = preview.querySelector("[data-admin-file-clear]");
+    var current = preview.getAttribute("data-admin-file-preview-current") || "";
+    var file = input.files && input.files.length === 1 ? input.files[0] : null;
+
+    forgetPreviewUrl(preview);
+
+    if (clear) {
+      clear.hidden = file === null;
+    }
+
+    if (file && image && file.type.indexOf("image/") === 0 && typeof URL.createObjectURL === "function") {
+      var url = URL.createObjectURL(file);
+      previewUrls.set(preview, url);
+      image.src = url;
+      preview.classList.add("is-new");
+      preview.hidden = false;
+
+      if (state) {
+        state.textContent = state.getAttribute("data-admin-file-preview-new-label") || "";
+      }
+
+      return;
+    }
+
+    // Nothing chosen, or nothing a browser can draw: back to what is stored.
+    preview.classList.remove("is-new");
+
+    if (current !== "" && image) {
+      image.src = current;
+      preview.hidden = false;
+
+      if (state) {
+        state.textContent = state.getAttribute("data-admin-file-preview-current-label") || "";
+      }
+
+      return;
+    }
+
+    if (image) {
+      image.removeAttribute("src");
+    }
+
+    preview.hidden = true;
+  }
+
   document.addEventListener("change", function (event) {
     var input = event.target;
 
     if (input instanceof HTMLInputElement && input.type === "file" && input.closest("[data-admin-file]")) {
       nameChosenFiles(input);
+      showChosenImage(input);
     }
   });
 
@@ -393,8 +480,29 @@
     var form = event.target;
 
     window.setTimeout(function () {
-      form.querySelectorAll('[data-admin-file] input[type="file"]').forEach(nameChosenFiles);
+      form.querySelectorAll('[data-admin-file] input[type="file"]').forEach(function (input) {
+        nameChosenFiles(input);
+        showChosenImage(input);
+      });
     }, 0);
+  });
+
+  // The preview's clear button: empty the input and show what is stored again.
+  // Emptying a file input from a script fires no change event of its own, so
+  // the two steps a change would have taken are taken here.
+  document.addEventListener("click", function (event) {
+    var clear = event.target instanceof Element ? event.target.closest("[data-admin-file-clear]") : null;
+    var preview = clear ? clear.closest("[data-admin-file-preview]") : null;
+    var input = preview ? document.getElementById(preview.getAttribute("data-admin-file-preview") || "") : null;
+
+    if (!(input instanceof HTMLInputElement) || input.type !== "file") {
+      return;
+    }
+
+    input.value = "";
+    nameChosenFiles(input);
+    showChosenImage(input);
+    input.focus();
   });
 
   // --- Confirmation ------------------------------------------------------
@@ -581,7 +689,10 @@
     applyPreference(root.getAttribute("data-admin-help") === "off" ? "off" : "on");
 
     // A browser that restores a form after Back may bring a chosen file along.
-    document.querySelectorAll('[data-admin-file] input[type="file"]').forEach(nameChosenFiles);
+    document.querySelectorAll('[data-admin-file] input[type="file"]').forEach(function (input) {
+      nameChosenFiles(input);
+      showChosenImage(input);
+    });
   }
 
   if (document.readyState === "loading") {

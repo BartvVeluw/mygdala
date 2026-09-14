@@ -360,6 +360,7 @@ final class AdminUiPrimitivesTest extends TestCase
             . admin_info_panel('Uitleg.')
             . admin_help_toggle('topbar')
             . admin_file_input(['name' => 'image', 'onchange' => 'steal()', 'onClick' => 'steal()'])
+            . admin_file_preview('veld', '/assets/x.jpg')
             . admin_confirm_dialog()
             . '<form' . admin_confirm_attributes('Vraag" onclick="steal()', 'Uitleg.', 'Ja') . '></form>';
 
@@ -422,6 +423,49 @@ final class AdminUiPrimitivesTest extends TestCase
         $many = self::xpath(admin_file_input(['name' => 'images[]', 'multiple' => true]));
         $this->assertTrue(self::one($many, '//input')->hasAttribute('multiple'));
         $this->assertSame('Bestanden kiezen', trim(self::one($many, '//*[contains(@class, "admin-file__button")]')->textContent));
+    }
+
+    /**
+     * The picture a chosen file will become, before anything is uploaded — and
+     * the stored image while nothing new is chosen. Paired with its input by
+     * id, drawn from the file the browser holds, and given back as soon as it
+     * is replaced.
+     */
+    public function testTheFilePreviewShowsWhatWillBeStoredBeforeItIsSaved(): void
+    {
+        $xpath = self::xpath(admin_file_preview('portfolio-image', '/assets/images/sections/thumbs/werk.webp'));
+        $preview = self::one($xpath, '//*[@data-admin-file-preview]');
+
+        $this->assertSame('portfolio-image', $preview->getAttribute('data-admin-file-preview'), 'paired with its input by id');
+        $this->assertFalse($preview->hasAttribute('hidden'), 'a stored image is shown, also without the script');
+
+        $image = self::one($xpath, '//img[@data-admin-file-preview-image]');
+        $this->assertSame('/assets/images/sections/thumbs/werk.webp', $image->getAttribute('src'));
+        $this->assertTrue($image->hasAttribute('alt'));
+        $this->assertSame('', $image->getAttribute('alt'));
+
+        $state = self::one($xpath, '//*[@data-admin-file-preview-state]');
+        $this->assertSame('Huidige afbeelding', trim($state->textContent));
+        $this->assertSame('polite', $state->getAttribute('aria-live'), 'a screen reader hears the switch too');
+        $this->assertSame('Nieuwe afbeelding, nog niet opgeslagen', $state->getAttribute('data-admin-file-preview-new-label'));
+
+        $clear = self::one($xpath, '//button[@data-admin-file-clear]');
+        $this->assertSame('button', $clear->getAttribute('type'), 'clearing never submits the form');
+        $this->assertTrue($clear->hasAttribute('hidden'), 'nothing to clear until a file is chosen');
+
+        // A new item has nothing stored: no picture, and no empty src a browser would fetch.
+        $empty = self::xpath(admin_file_preview('portfolio-image'));
+        $this->assertTrue(self::one($empty, '//*[@data-admin-file-preview]')->hasAttribute('hidden'));
+        $this->assertFalse(self::one($empty, '//img')->hasAttribute('src'));
+
+        // Whatever a template hands over is escaped.
+        $this->assertSame(0, self::nodeCount(self::xpath(admin_file_preview('x"><script>y</script>', '"><b>z</b>')), '//script|//b'));
+
+        $script = self::source(self::SCRIPT);
+        $this->assertStringContainsString('URL.createObjectURL(file)', $script, 'drawn from the file the browser already holds');
+        $this->assertStringContainsString('URL.revokeObjectURL(url)', $script, 'and given back when it is replaced');
+        $this->assertStringContainsString('[data-admin-file-clear]', $script);
+        $this->assertStringContainsString('input.value = "";', $script);
     }
 
     // --- Confirmation ------------------------------------------------------------
@@ -530,7 +574,7 @@ final class AdminUiPrimitivesTest extends TestCase
         foreach ([
             '.admin-field__label', '.admin-help__trigger', '.admin-help__popover', '.admin-help-toggle',
             '.admin-info-panel', '.admin-btn-danger', '.admin-btn-ghost', '.admin-search', '.admin-select',
-            '.admin-checkbox', '.admin-switch', '.admin-file', '.admin-confirm',
+            '.admin-checkbox', '.admin-switch', '.admin-file', '.admin-file-preview', '.admin-confirm',
         ] as $selector) {
             $this->assertStringContainsString($selector . '{', $rules, $selector . ' is not styled in ADMIN UI PRIMITIVES');
             $this->assertStringNotContainsString($selector . '{', $before, $selector . ' has a second definition outside ADMIN UI PRIMITIVES');

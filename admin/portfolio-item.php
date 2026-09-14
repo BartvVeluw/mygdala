@@ -15,6 +15,25 @@ use App\Repository\PortfolioItemImageRepository;
 
 require __DIR__ . '/_richtext_field.php';
 
+/**
+ * One portfolio item: the "Nieuw portfolio-item" form without ?id=, the item's
+ * editor with one.
+ *
+ * AN IMAGE IS ENOUGH. Title, alt text, caption and categories are optional
+ * (api/admin/create-portfolio-item.php), so only the image is marked required;
+ * the info panel and each field's help say what the others are for. The chosen
+ * image is shown the moment it is picked, before anything is uploaded
+ * (admin_file_preview()); on the editor the same box shows the stored image
+ * until another is chosen.
+ *
+ * Built from the shared admin controls (ADMIN-UI.md): field help, the file
+ * input, a switch per on/off setting, a checkbox per category, and the
+ * confirmation dialog before anything is deleted. The project page (its slug,
+ * texts and extra images) is folded under "Geavanceerd": it works exactly as
+ * it did and is due for a redesign of its own, so until then it stays out of
+ * the way of an ordinary item.
+ */
+
 AdminAuth::requireLogin();
 AdminAuth::requirePermission('portfolio.manage');
 
@@ -80,6 +99,7 @@ $isFeaturedChecked = $item !== null && (int) $item['is_featured'] === 1;
 $hasDetailPageChecked = $item !== null && !empty($item['has_detail_page']);
 
 $csrfToken = Csrf::token();
+
 // A title is optional, so an item without one is still named on its own
 // screen — never an empty heading.
 $pageTitle = !$isEdit
@@ -87,27 +107,39 @@ $pageTitle = !$isEdit
     : ((string) $item['title_nl'] !== '' ? (string) $item['title_nl'] : admin_t('portfolio.untitled'));
 
 /**
+ * The category choice: one checkbox per CMS-managed category, and no box
+ * ticked is a valid answer. A group of checkboxes rather than one select,
+ * because an item may carry several categories — and a select would quietly
+ * drop all but one of them on the next save.
+ *
  * @param array<int, array<string, mixed>> $categories from PortfolioCategoryRepository::findAll()
  * @param list<int> $selectedIds
  */
-function portfolioCategoryCheckboxes(array $categories, array $selectedIds): string
+function portfolioCategoryField(array $categories, array $selectedIds): string
 {
+    $html = '<div class="admin-field" role="group" aria-labelledby="portfolio-categories-label">'
+        . '<div class="admin-field__label">'
+        . '<span id="portfolio-categories-label">' . admin_te('portfolio.categories_field') . '</span>'
+        . admin_help(admin_t('portfolio.categories_field'), admin_t('help.portfolio.categories'))
+        . '</div>';
+
     if ($categories === []) {
-        return '<p class="admin-text-muted">' . admin_t('portfolio.no_categories_yet') . '</p>';
+        return $html . '<p class="admin-text-muted">' . admin_t('portfolio.no_categories_yet') . '</p></div>';
     }
 
-    $html = '';
+    $html .= '<div class="admin-portfolio-categories">';
+
     foreach ($categories as $category) {
         $categoryId = (int) $category['id'];
-        $checked = in_array($categoryId, $selectedIds, true) ? 'checked' : '';
-        $id = 'cat_' . $categoryId;
-        $html .= '<label class="admin-checkbox-label" for="' . htmlspecialchars($id, ENT_QUOTES, 'UTF-8') . '" style="margin-right:1rem;display:inline-flex;">'
-            . '<input type="checkbox" id="' . htmlspecialchars($id, ENT_QUOTES, 'UTF-8') . '" name="categories[]" value="' . $categoryId . '" ' . $checked . '> '
+
+        $html .= '<label class="admin-checkbox-label">'
+            . '<input type="checkbox" class="admin-checkbox" name="categories[]" value="' . $categoryId . '"'
+            . (in_array($categoryId, $selectedIds, true) ? ' checked' : '') . '> '
             . htmlspecialchars((string) $category['name_nl'], ENT_QUOTES, 'UTF-8')
             . '</label>';
     }
 
-    return $html;
+    return $html . '</div></div>';
 }
 
 $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
@@ -155,61 +187,69 @@ $cmsImageSrc = static fn (array $row): string => '/' . ltrim((string) ($row['thu
   <?php if (!$isEdit): ?>
     <section class="admin-card">
       <h2><?= admin_te('portfolio.nieuw_portfolio_item') ?></h2>
-      <p class="admin-text-muted"><?= admin_te('portfolio.na_aanmaken_hier_ook') ?></p>
+      <?= admin_info_panel(admin_t('help.portfolio.new_item')) ?>
       <form method="post" action="/api/admin/create-portfolio-item.php" enctype="multipart/form-data" class="admin-product-form">
         <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
 
         <div class="admin-form-row">
-          <label><?= admin_te('common.image') ?>*
-            <input type="file" name="image" accept="image/jpeg,image/png,image/webp" required>
-          </label>
+          <div class="admin-field">
+            <?= admin_field_label('portfolio-image', admin_t('common.image'), admin_t('help.portfolio.image'), true) ?>
+            <?= admin_file_input(['name' => 'image', 'id' => 'portfolio-image', 'accept' => 'image/jpeg,image/png,image/webp', 'required' => true]) ?>
+            <?= admin_file_preview('portfolio-image') ?>
+          </div>
         </div>
 
         <?php admin_lang_bar(); ?>
         <div class="admin-form-row admin-form-row--split">
           <?php admin_lang_pane_start('nl'); ?>
-          <label><?= admin_te('common.alt_text') ?>
-            <input type="text" name="alt_nl" maxlength="255" value="<?= $h(fieldValue($old, null, 'alt_nl')) ?>">
-          </label>
+          <div class="admin-field">
+            <?= admin_field_label('portfolio-alt-nl', admin_t('common.alt_text'), admin_t('help.portfolio.alt')) ?>
+            <input type="text" id="portfolio-alt-nl" name="alt_nl" maxlength="255" value="<?= $h(fieldValue($old, null, 'alt_nl')) ?>">
+          </div>
           <?php admin_lang_pane_end(); ?>
           <?php admin_lang_pane_start('en'); ?>
-          <label><?= admin_te('common.alt_text') ?>
-            <input type="text" name="alt_en" maxlength="255" value="<?= $h(fieldValue($old, null, 'alt_en')) ?>"<?= admin_lang_placeholder_attr('en') ?>>
-          </label>
+          <div class="admin-field">
+            <?= admin_field_label('portfolio-alt-en', admin_t('common.alt_text'), admin_t('help.portfolio.alt')) ?>
+            <input type="text" id="portfolio-alt-en" name="alt_en" maxlength="255" value="<?= $h(fieldValue($old, null, 'alt_en')) ?>"<?= admin_lang_placeholder_attr('en') ?>>
+          </div>
           <?php admin_lang_pane_end(); ?>
         </div>
 
         <div class="admin-form-row admin-form-row--split">
           <?php admin_lang_pane_start('nl'); ?>
-          <label><?= admin_te('common.title') ?>
-            <input type="text" name="title_nl" maxlength="150" value="<?= $h(fieldValue($old, null, 'title_nl')) ?>">
-          </label>
+          <div class="admin-field">
+            <?= admin_field_label('portfolio-title-nl', admin_t('common.title'), admin_t('help.portfolio.title')) ?>
+            <input type="text" id="portfolio-title-nl" name="title_nl" maxlength="150" value="<?= $h(fieldValue($old, null, 'title_nl')) ?>">
+          </div>
           <?php admin_lang_pane_end(); ?>
           <?php admin_lang_pane_start('en'); ?>
-          <label><?= admin_te('common.title') ?>
-            <input type="text" name="title_en" maxlength="150" value="<?= $h(fieldValue($old, null, 'title_en')) ?>"<?= admin_lang_placeholder_attr('en') ?>>
-          </label>
+          <div class="admin-field">
+            <?= admin_field_label('portfolio-title-en', admin_t('common.title'), admin_t('help.portfolio.title')) ?>
+            <input type="text" id="portfolio-title-en" name="title_en" maxlength="150" value="<?= $h(fieldValue($old, null, 'title_en')) ?>"<?= admin_lang_placeholder_attr('en') ?>>
+          </div>
           <?php admin_lang_pane_end(); ?>
         </div>
 
         <div class="admin-form-row admin-form-row--split">
           <?php admin_lang_pane_start('nl'); ?>
-          <label><?= admin_te('portfolio.onderschrift') ?>
-            <input type="text" name="subtitle_nl" maxlength="150" value="<?= $h(fieldValue($old, null, 'subtitle_nl')) ?>">
-          </label>
+          <div class="admin-field">
+            <?= admin_field_label('portfolio-subtitle-nl', admin_t('portfolio.onderschrift'), admin_t('help.portfolio.subtitle')) ?>
+            <input type="text" id="portfolio-subtitle-nl" name="subtitle_nl" maxlength="150" value="<?= $h(fieldValue($old, null, 'subtitle_nl')) ?>">
+          </div>
           <?php admin_lang_pane_end(); ?>
           <?php admin_lang_pane_start('en'); ?>
-          <label><?= admin_te('portfolio.onderschrift_2') ?>
-            <input type="text" name="subtitle_en" maxlength="150" value="<?= $h(fieldValue($old, null, 'subtitle_en')) ?>"<?= admin_lang_placeholder_attr('en') ?>>
-          </label>
+          <div class="admin-field">
+            <?= admin_field_label('portfolio-subtitle-en', admin_t('portfolio.onderschrift'), admin_t('help.portfolio.subtitle')) ?>
+            <input type="text" id="portfolio-subtitle-en" name="subtitle_en" maxlength="150" value="<?= $h(fieldValue($old, null, 'subtitle_en')) ?>"<?= admin_lang_placeholder_attr('en') ?>>
+          </div>
           <?php admin_lang_pane_end(); ?>
         </div>
 
         <div class="admin-form-row">
-          <span><?= admin_te('portfolio.categories_field') ?></span><br> <?= portfolioCategoryCheckboxes($allCategories, $selectedCategoryIds) ?>
+          <?= portfolioCategoryField($allCategories, $selectedCategoryIds) ?>
         </div>
 
-        <button type="submit"><?= admin_te('portfolio.portfolio_item_aanmaken') ?></button>
+        <button type="submit" class="admin-btn-primary"><?= admin_te('portfolio.portfolio_item_aanmaken') ?></button>
       </form>
     </section>
   <?php else: ?>
@@ -218,56 +258,60 @@ $cmsImageSrc = static fn (array $row): string => '/' . ltrim((string) ($row['thu
       <input type="hidden" name="item_id" value="<?= (int) $item['id'] ?>">
 
       <section class="admin-card">
-        <h2><?= admin_te('portfolio.basisgegevens') ?></h2>
+        <h2><?= admin_te('portfolio.hoofdafbeelding') ?></h2>
+        <div class="admin-form-row">
+          <div class="admin-field">
+            <?= admin_field_label('portfolio-image', admin_t('portfolio.vervangen_door_nieuw_bestand'), admin_t('help.portfolio.replace_image')) ?>
+            <?= admin_file_input(['name' => 'image', 'id' => 'portfolio-image', 'accept' => 'image/jpeg,image/png,image/webp']) ?>
+            <?= admin_file_preview('portfolio-image', $cmsImageSrc($item)) ?>
+          </div>
+        </div>
+
         <?php admin_lang_bar(); ?>
         <div class="admin-form-row admin-form-row--split">
           <?php admin_lang_pane_start('nl'); ?>
-          <label><?= admin_te('common.title') ?>
-            <input type="text" name="title_nl" maxlength="150" value="<?= $h(fieldValue($old, $item, 'title_nl')) ?>">
-          </label>
+          <div class="admin-field">
+            <?= admin_field_label('portfolio-alt-nl', admin_t('common.alt_text'), admin_t('help.portfolio.alt')) ?>
+            <input type="text" id="portfolio-alt-nl" name="alt_nl" maxlength="255" value="<?= $h(fieldValue($old, $item, 'alt_nl')) ?>">
+          </div>
           <?php admin_lang_pane_end(); ?>
           <?php admin_lang_pane_start('en'); ?>
-          <label><?= admin_te('common.title') ?>
-            <input type="text" name="title_en" maxlength="150" value="<?= $h(fieldValue($old, $item, 'title_en')) ?>"<?= admin_lang_placeholder_attr('en') ?>>
-          </label>
-          <?php admin_lang_pane_end(); ?>
-        </div>
-        <div class="admin-form-row admin-form-row--split">
-          <?php admin_lang_pane_start('nl'); ?>
-          <label><?= admin_te('portfolio.onderschrift_3') ?>
-            <input type="text" name="subtitle_nl" maxlength="150" value="<?= $h(fieldValue($old, $item, 'subtitle_nl')) ?>">
-          </label>
-          <?php admin_lang_pane_end(); ?>
-          <?php admin_lang_pane_start('en'); ?>
-          <label><?= admin_te('portfolio.onderschrift_4') ?>
-            <input type="text" name="subtitle_en" maxlength="150" value="<?= $h(fieldValue($old, $item, 'subtitle_en')) ?>"<?= admin_lang_placeholder_attr('en') ?>>
-          </label>
+          <div class="admin-field">
+            <?= admin_field_label('portfolio-alt-en', admin_t('common.alt_text'), admin_t('help.portfolio.alt')) ?>
+            <input type="text" id="portfolio-alt-en" name="alt_en" maxlength="255" value="<?= $h(fieldValue($old, $item, 'alt_en')) ?>"<?= admin_lang_placeholder_attr('en') ?>>
+          </div>
           <?php admin_lang_pane_end(); ?>
         </div>
       </section>
 
       <section class="admin-card">
-        <h2><?= admin_te('portfolio.hoofdafbeelding') ?></h2>
-        <div class="admin-image-card" style="max-width:220px;">
-          <div class="admin-image-card__media">
-            <img src="<?= $h($cmsImageSrc($item)) ?>" alt="" loading="lazy">
+        <h2><?= admin_te('portfolio.basisgegevens') ?></h2>
+        <div class="admin-form-row admin-form-row--split">
+          <?php admin_lang_pane_start('nl'); ?>
+          <div class="admin-field">
+            <?= admin_field_label('portfolio-title-nl', admin_t('common.title'), admin_t('help.portfolio.title')) ?>
+            <input type="text" id="portfolio-title-nl" name="title_nl" maxlength="150" value="<?= $h(fieldValue($old, $item, 'title_nl')) ?>">
           </div>
-        </div>
-        <div class="admin-form-row" style="margin-top:0.75rem;">
-          <label><?= admin_te('portfolio.vervangen_door_nieuw_bestand') ?>
-            <input type="file" name="image" accept="image/jpeg,image/png,image/webp">
-          </label>
+          <?php admin_lang_pane_end(); ?>
+          <?php admin_lang_pane_start('en'); ?>
+          <div class="admin-field">
+            <?= admin_field_label('portfolio-title-en', admin_t('common.title'), admin_t('help.portfolio.title')) ?>
+            <input type="text" id="portfolio-title-en" name="title_en" maxlength="150" value="<?= $h(fieldValue($old, $item, 'title_en')) ?>"<?= admin_lang_placeholder_attr('en') ?>>
+          </div>
+          <?php admin_lang_pane_end(); ?>
         </div>
         <div class="admin-form-row admin-form-row--split">
           <?php admin_lang_pane_start('nl'); ?>
-          <label><?= admin_te('common.alt_text') ?>
-            <input type="text" name="alt_nl" maxlength="255" value="<?= $h(fieldValue($old, $item, 'alt_nl')) ?>">
-          </label>
+          <div class="admin-field">
+            <?= admin_field_label('portfolio-subtitle-nl', admin_t('portfolio.onderschrift'), admin_t('help.portfolio.subtitle')) ?>
+            <input type="text" id="portfolio-subtitle-nl" name="subtitle_nl" maxlength="150" value="<?= $h(fieldValue($old, $item, 'subtitle_nl')) ?>">
+          </div>
           <?php admin_lang_pane_end(); ?>
           <?php admin_lang_pane_start('en'); ?>
-          <label><?= admin_te('common.alt_text') ?>
-            <input type="text" name="alt_en" maxlength="255" value="<?= $h(fieldValue($old, $item, 'alt_en')) ?>"<?= admin_lang_placeholder_attr('en') ?>>
-          </label>
+          <div class="admin-field">
+            <?= admin_field_label('portfolio-subtitle-en', admin_t('portfolio.onderschrift'), admin_t('help.portfolio.subtitle')) ?>
+            <input type="text" id="portfolio-subtitle-en" name="subtitle_en" maxlength="150" value="<?= $h(fieldValue($old, $item, 'subtitle_en')) ?>"<?= admin_lang_placeholder_attr('en') ?>>
+          </div>
           <?php admin_lang_pane_end(); ?>
         </div>
       </section>
@@ -275,58 +319,76 @@ $cmsImageSrc = static fn (array $row): string => '/' . ltrim((string) ($row['thu
       <section class="admin-card">
         <h2><?= admin_t('portfolio.zichtbaarheid_categorie_n') ?></h2>
         <div class="admin-form-row">
-          <span><?= admin_te('portfolio.categories_field') ?></span><br> <?= portfolioCategoryCheckboxes($allCategories, $selectedCategoryIds) ?>
+          <?= portfolioCategoryField($allCategories, $selectedCategoryIds) ?>
         </div>
-        <label class="admin-checkbox-label">
-          <input type="checkbox" name="is_active" value="1" <?= $isActiveChecked ? 'checked' : '' ?>>
-          <?= admin_te('portfolio.zichtbaar_portfolio_pagina') ?>
-        </label>
-        <label class="admin-checkbox-label">
-          <input type="checkbox" name="is_featured" value="1" <?= $isFeaturedChecked ? 'checked' : '' ?>>
-          <?= admin_te('portfolio.toon_homepage') ?>
-        </label>
-      </section>
-
-      <section class="admin-card">
-        <h2><?= admin_te('portfolio.projectpagina') ?></h2>
-        <label class="admin-checkbox-label">
-          <input type="checkbox" name="has_detail_page" value="1" data-detail-toggle <?= $hasDetailPageChecked ? 'checked' : '' ?>>
-          <?= admin_te('portfolio.projectpagina_inschakelen') ?>
-        </label>
-        <p class="admin-text-muted"><?= admin_te('portfolio.ingeschakeld_portfolio_kaart_klikbaar') ?></p>
-
-        <div data-detail-panel <?= $hasDetailPageChecked ? '' : 'hidden' ?>>
-          <div class="admin-form-row">
-            <label><?= admin_t('portfolio.slug_url_portfolio') ?>
-              <input type="text" name="slug" maxlength="170" value="<?= $h(fieldValue($old, $item, 'slug')) ?>" placeholder="Leeg = automatisch gegenereerd uit de titel">
-            </label>
-            <?php if ($hasDetailPageChecked && (string) ($item['slug'] ?? '') !== ''): ?>
-              <p class="admin-text-muted"><?= admin_te('portfolio.live') ?> <a href="/portfolio/<?= $h((string) $item['slug']) ?>" target="_blank" rel="noopener"><?= admin_t('portfolio.public_path', ['v1' => $h((string) $item['slug'])]) ?></a></p>
-            <?php endif; ?>
-          </div>
-
-          <div class="admin-form-row">
-            <?php admin_lang_pane_start('nl'); ?>
-              <?php renderRichTextField('intro_nl', 'Introtekst', fieldValue($old, $item, 'intro_nl'), 'full', 'admin-richtext-editor--md'); ?>
-            <?php admin_lang_pane_end(); ?>
-            <?php admin_lang_pane_start('en'); ?>
-              <?php renderRichTextField('intro_en', 'Introtekst', fieldValue($old, $item, 'intro_en'), 'full', 'admin-richtext-editor--md'); ?>
-            <?php admin_lang_pane_end(); ?>
-          </div>
-
-          <div class="admin-form-row">
-            <?php admin_lang_pane_start('nl'); ?>
-              <?php renderRichTextField('description_nl', 'Projectbeschrijving', fieldValue($old, $item, 'description_nl'), 'full', 'admin-richtext-editor--lg'); ?>
-            <?php admin_lang_pane_end(); ?>
-            <?php admin_lang_pane_start('en'); ?>
-              <?php renderRichTextField('description_en', 'Projectbeschrijving', fieldValue($old, $item, 'description_en'), 'full', 'admin-richtext-editor--lg'); ?>
-            <?php admin_lang_pane_end(); ?>
-          </div>
+        <?php /* Switches, not checkboxes: each is one on/off setting. Underneath
+                 they are still checkboxes, so update-portfolio-item.php reads
+                 isset($_POST[...]) exactly as it did (ADMIN-UI.md). */ ?>
+        <div class="admin-field admin-field--inline">
+          <label class="admin-checkbox-label">
+            <input type="checkbox" class="admin-switch" role="switch" name="is_active" value="1" <?= $isActiveChecked ? 'checked' : '' ?>>
+            <?= admin_te('portfolio.zichtbaar_portfolio_pagina') ?>
+          </label>
+          <?= admin_help(admin_t('portfolio.zichtbaar_portfolio_pagina'), admin_t('help.portfolio.visible')) ?>
+        </div>
+        <div class="admin-field admin-field--inline">
+          <label class="admin-checkbox-label">
+            <input type="checkbox" class="admin-switch" role="switch" name="is_featured" value="1" <?= $isFeaturedChecked ? 'checked' : '' ?>>
+            <?= admin_te('portfolio.toon_homepage') ?>
+          </label>
+          <?= admin_help(admin_t('portfolio.toon_homepage'), admin_t('help.portfolio.featured')) ?>
         </div>
       </section>
 
       <section class="admin-card">
-        <button type="submit"><?= admin_te('common.save') ?></button>
+        <details class="admin-collapse admin-collapse--card"<?= $hasDetailPageChecked ? ' open' : '' ?>>
+          <summary class="admin-collapse__summary">
+            <span class="admin-collapse__caret" aria-hidden="true"></span>
+            <h2 class="admin-collapse__title"><?= admin_te('portfolio.geavanceerd_projectpagina') ?></h2>
+          </summary>
+          <div class="admin-collapse__body">
+            <div class="admin-field admin-field--inline">
+              <label class="admin-checkbox-label">
+                <input type="checkbox" class="admin-switch" role="switch" name="has_detail_page" value="1" data-detail-toggle <?= $hasDetailPageChecked ? 'checked' : '' ?>>
+                <?= admin_te('portfolio.projectpagina_inschakelen') ?>
+              </label>
+              <?= admin_help(admin_t('portfolio.projectpagina_inschakelen'), admin_t('portfolio.ingeschakeld_portfolio_kaart_klikbaar')) ?>
+            </div>
+
+            <div data-detail-panel <?= $hasDetailPageChecked ? '' : 'hidden' ?>>
+              <div class="admin-form-row">
+                <label><?= admin_t('portfolio.slug_url_portfolio') ?>
+                  <input type="text" name="slug" maxlength="170" value="<?= $h(fieldValue($old, $item, 'slug')) ?>" placeholder="Leeg = automatisch gegenereerd uit de titel">
+                </label>
+                <?php if ($hasDetailPageChecked && (string) ($item['slug'] ?? '') !== ''): ?>
+                  <p class="admin-text-muted"><?= admin_te('portfolio.live') ?> <a href="/portfolio/<?= $h((string) $item['slug']) ?>" target="_blank" rel="noopener"><?= admin_t('portfolio.public_path', ['v1' => $h((string) $item['slug'])]) ?></a></p>
+                <?php endif; ?>
+              </div>
+
+              <div class="admin-form-row">
+                <?php admin_lang_pane_start('nl'); ?>
+                  <?php renderRichTextField('intro_nl', 'Introtekst', fieldValue($old, $item, 'intro_nl'), 'full', 'admin-richtext-editor--md'); ?>
+                <?php admin_lang_pane_end(); ?>
+                <?php admin_lang_pane_start('en'); ?>
+                  <?php renderRichTextField('intro_en', 'Introtekst', fieldValue($old, $item, 'intro_en'), 'full', 'admin-richtext-editor--md'); ?>
+                <?php admin_lang_pane_end(); ?>
+              </div>
+
+              <div class="admin-form-row">
+                <?php admin_lang_pane_start('nl'); ?>
+                  <?php renderRichTextField('description_nl', 'Projectbeschrijving', fieldValue($old, $item, 'description_nl'), 'full', 'admin-richtext-editor--lg'); ?>
+                <?php admin_lang_pane_end(); ?>
+                <?php admin_lang_pane_start('en'); ?>
+                  <?php renderRichTextField('description_en', 'Projectbeschrijving', fieldValue($old, $item, 'description_en'), 'full', 'admin-richtext-editor--lg'); ?>
+                <?php admin_lang_pane_end(); ?>
+              </div>
+            </div>
+          </div>
+        </details>
+      </section>
+
+      <section class="admin-card">
+        <button type="submit" class="admin-btn-primary"><?= admin_te('common.save') ?></button>
       </section>
     </form>
 
@@ -362,7 +424,11 @@ $cmsImageSrc = static fn (array $row): string => '/' . ltrim((string) ($row['thu
                 <?php admin_lang_pane_end(); ?>
                 <button type="submit" class="admin-btn-text"><?= admin_te('common.save') ?></button>
               </form>
-              <form method="post" action="/api/admin/delete-portfolio-item-image.php" class="admin-inline-form" onsubmit="return confirm('Deze afbeelding verwijderen?');">
+              <form method="post" action="/api/admin/delete-portfolio-item-image.php" class="admin-inline-form"<?= admin_confirm_attributes(
+                  admin_t('portfolio.afbeelding_verwijderen_titel'),
+                  admin_t('portfolio.afbeelding_verwijderen_uitleg'),
+                  admin_t('common.delete')
+              ) ?>>
                 <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
                 <input type="hidden" name="image_id" value="<?= $imageId ?>">
                 <button type="submit" class="admin-btn-text admin-btn-text--danger"><?= admin_te('common.delete') ?></button>
@@ -376,7 +442,7 @@ $cmsImageSrc = static fn (array $row): string => '/' . ltrim((string) ($row['thu
         <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
         <input type="hidden" name="portfolio_item_id" value="<?= (int) $item['id'] ?>">
         <label><?= admin_te('portfolio.afbeeldingen_toevoegen_kies_er') ?>
-          <input type="file" name="images[]" multiple accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp">
+          <?= admin_file_input(['name' => 'images[]', 'multiple' => true, 'accept' => '.jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp']) ?>
         </label>
         <button type="submit"><?= admin_te('common.add') ?></button>
       </form>
@@ -385,12 +451,18 @@ $cmsImageSrc = static fn (array $row): string => '/' . ltrim((string) ($row['thu
     <section class="admin-card">
       <h2><?= admin_te('common.delete') ?></h2>
       <p class="admin-text-muted"><?= admin_te('portfolio.verwijdert_portfolio_item_hoofdafbeelding') ?></p>
-      <form method="post" action="/api/admin/delete-portfolio-item.php" onsubmit="return confirm('Dit portfolio-item definitief verwijderen?');">
+      <form method="post" action="/api/admin/delete-portfolio-item.php"<?= admin_confirm_attributes(
+          admin_t('portfolio.item_verwijderen_titel'),
+          admin_t('portfolio.verwijdert_portfolio_item_hoofdafbeelding'),
+          admin_t('common.delete')
+      ) ?>>
         <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
         <input type="hidden" name="item_id" value="<?= (int) $item['id'] ?>">
-        <button type="submit" class="admin-btn-text admin-btn-text--danger"><?= admin_te('portfolio.portfolio_item_verwijderen') ?></button>
+        <button type="submit" class="admin-btn-danger"><?= admin_te('portfolio.portfolio_item_verwijderen') ?></button>
       </form>
     </section>
+
+    <?= admin_confirm_dialog() ?>
   <?php endif; ?>
 </main>
 <?php admin_lang_script(); ?>

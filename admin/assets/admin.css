@@ -2104,9 +2104,22 @@ input[data-color-picker]{ width: 2.4rem; height: 2.4rem; padding: 0.15rem; borde
   align-items: center;
   margin: var(--admin-sp-4) 0;
 }
-.admin-portfolio-toolbar [data-portfolio-search]{ flex: 1 1 220px; min-width: 180px; }
+/* The shared search field (.admin-search, ADMIN UI PRIMITIVES), grown to fill
+   the row like the block picker's. The toolbar is in the selector so this
+   outranks the primitive, which comes later in the file. */
+.admin-portfolio-toolbar .admin-portfolio-toolbar__search{ flex: 1 1 220px; width: auto; min-width: 180px; }
 .admin-portfolio-toolbar select{ flex: 0 0 auto; }
 .admin-portfolio-toolbar [data-portfolio-count]{ margin-left: auto; font-size: 0.8rem; white-space: nowrap; }
+
+/* An item's categories: the shared .admin-checkbox, one per category, side by
+   side and wrapping. Layout only — the edit form has no .admin-product-form
+   to give each label its row display. */
+.admin-portfolio-categories{
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--admin-sp-2) var(--admin-sp-4);
+}
+.admin-portfolio-categories > .admin-checkbox-label{ display: inline-flex; margin: 0; }
 
 .admin-portfolio-grid{
   display: grid;
@@ -2173,6 +2186,8 @@ input[data-color-picker]{ width: 2.4rem; height: 2.4rem; padding: 0.15rem; borde
   overflow: hidden;
   transition: color var(--admin-transition);
 }
+/* No title: the name the CMS gives the item, set apart from a real one. */
+.admin-portfolio-card__name--untitled{ color: var(--admin-text-muted); font-style: italic; }
 .admin-portfolio-card__meta{ margin: 0; font-size: 0.75rem; color: var(--admin-text-muted); }
 .admin-portfolio-card__badges{ display: flex; flex-wrap: wrap; gap: 0.3rem; margin-top: 0.4rem; }
 .admin-portfolio-card__badges .admin-badge{ font-size: 0.65rem; padding: 0.1rem 0.4rem; }
@@ -5121,6 +5136,63 @@ html:not([data-admin-help]) .admin-help-toggle{ display: none; }
 .admin-file__input:disabled + .admin-file__button,
 .admin-file__input:disabled ~ .admin-file__name{ opacity: 0.55; }
 
+/* --- File preview (admin_file_preview()) ---------------------------------- */
+
+/* The picture a single-image upload will store, shown before it is saved,
+   beside the words that say whether it is the stored image or a new choice.
+   A new choice also gets the accent outline, so "this replaces the image" is
+   not said by a sentence alone. */
+.admin-file-preview{
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--admin-sp-3);
+  margin-top: var(--admin-sp-3);
+}
+
+/* The display above would otherwise beat the browser's own [hidden]. */
+.admin-file-preview[hidden],
+.admin-file-preview [hidden]{ display: none; }
+
+.admin-file-preview__frame{
+  display: block;
+  flex: none;
+  width: 9rem;
+  aspect-ratio: 4 / 3;
+  overflow: hidden;
+  background: var(--admin-surface-sunken);
+  border: 1px solid var(--admin-border);
+  border-radius: var(--admin-radius-sm);
+  transition: border-color var(--admin-transition), box-shadow var(--admin-transition);
+}
+
+.admin-file-preview__image{
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.admin-file-preview.is-new .admin-file-preview__frame{
+  border-color: var(--admin-accent);
+  box-shadow: 0 0 0 3px var(--admin-accent-soft-strong);
+}
+
+.admin-file-preview__caption{
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.3rem;
+  min-width: 0;
+  font-size: 0.85rem;
+  color: var(--admin-text-muted);
+}
+
+.admin-file-preview.is-new .admin-file-preview__state{
+  color: var(--admin-text);
+  font-weight: 600;
+}
+
 /* --- Confirmation (admin_confirm_dialog()) --------------------------------- */
 
 /* A native modal <dialog>, so the page behind it is inert and Escape answers
@@ -5189,7 +5261,8 @@ html:not([data-admin-help]) .admin-help-toggle{ display: none; }
   .admin-help-toggle,
   .admin-checkbox::before,
   .admin-switch,
-  .admin-switch::before{ transition: none; }
+  .admin-switch::before,
+  .admin-file-preview__frame{ transition: none; }
 }
 
 /* Windows high contrast and other forced colours throw away backgrounds, so

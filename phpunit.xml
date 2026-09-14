@@ -120,6 +120,7 @@
             <file>tests/Service/Personalization/PersonalizationColorsTest.php</file>
             <file>tests/Service/PersonalizationEditorContractTest.php</file>
             <file>tests/Service/PersonalizationFrontendContractTest.php</file>
+            <file>tests/Service/PortfolioAdminScreenTest.php</file>
             <file>tests/Service/ProductDeletionAdminSecurityTest.php</file>
             <file>tests/Service/RedirectAdminSecurityTest.php</file>
             <file>tests/Service/SeoFieldsAdminLayoutTest.php</file>
@@ -205,6 +206,7 @@
             <file>tests/Service/Personalization/PersonalizationUploadValidatorTest.php</file>
             <file>tests/Service/PersonalizationEditorContractTest.php</file>
             <file>tests/Service/PersonalizationFrontendContractTest.php</file>
+            <file>tests/Service/PortfolioAdminScreenTest.php</file>
             <file>tests/Service/ProductDeletionAdminSecurityTest.php</file>
             <file>tests/Service/ProductSeoTest.php</file>
             <file>tests/Service/RedirectAdminSecurityTest.php</file>
@@ -402,6 +404,7 @@
             <file>tests/Service/PageTemplateRegistryTest.php</file>
             <file>tests/Service/PageUrlChangeTest.php</file>
             <file>tests/Service/PageUsageTest.php</file>
+            <file>tests/Service/PortfolioAdminScreenTest.php</file>
             <file>tests/Service/PortfolioItemContentTest.php</file>
             <file>tests/Service/PortfolioItemEditingHttpTest.php</file>
             <file>tests/Service/RedirectAdminSecurityTest.php</file>

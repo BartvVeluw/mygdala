@@ -266,6 +266,29 @@ final class PortfolioItemEditingHttpTest extends TestCase
         $this->assertStringContainsString('<h1>' . $untitled . '</h1>', $editor['body']);
     }
 
+    /**
+     * The editor's preview starts on the stored image, in the HTML itself — so
+     * also without the script — and a new item's form has nothing to show yet.
+     */
+    public function testTheEditorPreviewStartsOnTheStoredImage(): void
+    {
+        $itemId = $this->storedItem('ZZ Werk', []);
+        $imageSrc = '/' . (string) (new PortfolioGalleryRepository())->findItemById($itemId)['image_path'];
+        [$session] = $this->accounts->signIn([PortfolioModule::PORTFOLIO_MANAGE]);
+
+        $editor = self::$server->request('GET', '/admin/portfolio-item.php?id=' . $itemId, $session);
+        $this->assertSame(200, $editor['status']);
+        $this->assertStringContainsString(
+            'data-admin-file-preview="portfolio-image" data-admin-file-preview-current="' . $imageSrc . '"',
+            $editor['body']
+        );
+        $this->assertStringContainsString('src="' . $imageSrc . '" data-admin-file-preview-image', $editor['body']);
+
+        $new = self::$server->request('GET', '/admin/portfolio-item.php', $session);
+        $this->assertSame(200, $new['status']);
+        $this->assertStringContainsString('data-admin-file-preview="portfolio-image" hidden', $new['body']);
+    }
+
     /* ------------------------------------------------------------------ */
 
     /** @return array<string, mixed> */

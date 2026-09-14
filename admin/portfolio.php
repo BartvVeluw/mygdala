@@ -102,6 +102,7 @@ $itemName = static fn (array $row): string => (string) $row['title_nl'] !== '' ?
     <h1><?= admin_te('portfolio.portfolio') ?></h1>
     <a href="/admin/portfolio-item.php" class="admin-btn-link"><?= admin_te('portfolio.nieuw_portfolio_item') ?></a>
   </div>
+  <?= admin_info_panel(admin_t('help.portfolio.overview')) ?>
   <p class="admin-text-muted"><?= admin_t('portfolio.klik_item_bewerken_sleep') ?></p>
 
   <?php if ($saved): ?>
@@ -205,7 +206,11 @@ $itemName = static fn (array $row): string => (string) $row['title_nl'] !== '' ?
               <button type="submit" class="admin-btn-text"><?= admin_te('common.save') ?></button>
             </form>
             <span class="admin-text-muted admin-portfolio-category-row__count"><?= $itemCount ?> <?= admin_t('portfolio.project', ['v1' => $itemCount === 1 ? '' : 'en']) ?></span>
-            <form method="post" action="/api/admin/delete-portfolio-category.php" class="admin-inline-form" onsubmit="return confirm('Deze categorie definitief verwijderen?');">
+            <form method="post" action="/api/admin/delete-portfolio-category.php" class="admin-inline-form"<?= admin_confirm_attributes(
+                admin_t('portfolio.categorie_verwijderen_titel'),
+                admin_t('portfolio.categorie_verwijderen_uitleg', ['name' => (string) $category['name_nl']]),
+                admin_t('common.delete')
+            ) ?>>
               <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
               <input type="hidden" name="category_id" value="<?= $categoryId ?>">
               <?php if ($itemCount > 0): ?>
@@ -232,28 +237,35 @@ $itemName = static fn (array $row): string => (string) $row['title_nl'] !== '' ?
   </details>
 
   <div class="admin-portfolio-toolbar" data-portfolio-toolbar>
-    <input type="search" placeholder="Zoek op titel…" aria-label="Zoek op titel" data-portfolio-search value="<?= $h($initialQuery) ?>">
+    <label class="admin-search admin-portfolio-toolbar__search">
+      <span class="admin-visually-hidden"><?= admin_te('portfolio.search_label') ?></span>
+      <input type="search" placeholder="<?= admin_te('portfolio.search_placeholder') ?>" data-portfolio-search value="<?= $h($initialQuery) ?>">
+    </label>
 
-    <select aria-label="Filter op categorie" data-portfolio-filter="category">
+    <select class="admin-select" aria-label="Filter op categorie" data-portfolio-filter="category">
       <option value="all"><?= admin_te('portfolio.alle_categorie_n') ?></option>
+      <?php /* "_none" carries an underscore, which no category slug can
+               (generatePortfolioCategorySlug()), so a category that happens
+               to be called "None" can still be filtered on. */ ?>
+      <option value="_none" <?= $initialCategory === '_none' ? 'selected' : '' ?>><?= admin_te('portfolio.zonder_categorie') ?></option>
       <?php foreach ($categoriesWithCounts as $category): ?>
         <option value="<?= $h((string) $category['slug']) ?>" <?= $initialCategory === $category['slug'] ? 'selected' : '' ?>><?= $h((string) $category['name_nl']) ?></option>
       <?php endforeach; ?>
     </select>
 
-    <select aria-label="Filter op zichtbaarheid" data-portfolio-filter="visibility">
+    <select class="admin-select" aria-label="Filter op zichtbaarheid" data-portfolio-filter="visibility">
       <option value="all"><?= admin_t('portfolio.zichtbaar_verborgen') ?></option>
       <option value="visible" <?= $initialVisibility === 'visible' ? 'selected' : '' ?>><?= admin_te('portfolio.alleen_zichtbaar') ?></option>
       <option value="hidden" <?= $initialVisibility === 'hidden' ? 'selected' : '' ?>><?= admin_te('portfolio.alleen_verborgen') ?></option>
     </select>
 
-    <select aria-label="Filter op projectpagina" data-portfolio-filter="detail">
+    <select class="admin-select" aria-label="Filter op projectpagina" data-portfolio-filter="detail">
       <option value="all"><?= admin_t('portfolio.zonder_projectpagina') ?></option>
       <option value="yes" <?= $initialDetail === 'yes' ? 'selected' : '' ?>><?= admin_te('portfolio.projectpagina') ?></option>
       <option value="no" <?= $initialDetail === 'no' ? 'selected' : '' ?>><?= admin_te('portfolio.zonder_projectpagina_2') ?></option>
     </select>
 
-    <select aria-label="Filter op homepage" data-portfolio-filter="home">
+    <select class="admin-select" aria-label="Filter op homepage" data-portfolio-filter="home">
       <option value="all"><?= admin_t('portfolio.wel_homepage') ?></option>
       <option value="yes" <?= $initialHome === 'yes' ? 'selected' : '' ?>><?= admin_te('portfolio.homepage') ?></option>
       <option value="no" <?= $initialHome === 'no' ? 'selected' : '' ?>><?= admin_te('portfolio.homepage_2') ?></option>
@@ -302,11 +314,13 @@ $itemName = static fn (array $row): string => (string) $row['title_nl'] !== '' ?
               <span class="admin-badge admin-badge--<?= $isActive ? 'paid' : 'canceled' ?> admin-portfolio-card__status"><?= $isActive ? 'Zichtbaar' : 'Verborgen' ?></span>
             </div>
             <div class="admin-portfolio-card__body">
-              <p class="admin-portfolio-card__name"><?= $h($name) ?></p>
+              <p class="admin-portfolio-card__name<?= $title === '' ? ' admin-portfolio-card__name--untitled' : '' ?>"><?= $h($name) ?></p>
+              <?php if ($itemCategorySlugs !== []): ?>
               <p class="admin-portfolio-card__meta"><?= $h(implode(', ', array_map(
                   static fn (string $slug): string => $categoryNameBySlug[$slug] ?? $slug,
                   $itemCategorySlugs
               ))) ?></p>
+              <?php endif; ?>
               <div class="admin-portfolio-card__badges">
                 <?php if ($isFeatured): ?><span class="admin-badge admin-badge--info">Homepage</span><?php endif; ?>
                 <?php if ($hasDetail): ?><span class="admin-badge admin-badge--editable">Projectpagina</span><?php endif; ?>
@@ -318,6 +332,8 @@ $itemName = static fn (array $row): string => (string) $row['title_nl'] !== '' ?
     </div>
     <p class="admin-text-muted" data-portfolio-empty hidden><?= admin_te('portfolio.portfolio_items_gevonden_zoekopdracht') ?></p>
   <?php endif; ?>
+
+  <?= admin_confirm_dialog() ?>
 </main>
 <?php admin_lang_script(); ?>
 </body>

@@ -168,7 +168,8 @@ in de schil en heeft geen eigen knop. Dezelfde tekstregels als de uitleg.
 | Select | `<select class="admin-select">` | Voor één keuze. Niet voor `multiple` of `size`. Foutstaat met `aria-invalid="true"` |
 | Checkbox | `<input type="checkbox" class="admin-checkbox">` | In een `.admin-checkbox-label` |
 | Switch | `<input type="checkbox" class="admin-switch" role="switch">` | Voor één aan/uit-instelling |
-| Bestand | `admin_file_input(['name' => 'image', 'accept' => '…', 'required' => true])` | Binnen het `<label>` van het veld |
+| Bestand | `admin_file_input(['name' => 'image', 'accept' => '…', 'required' => true])` | Binnen het `<label>` van het veld, of met een `id` naast `admin_field_label()` |
+| Voorbeeld van een afbeelding | `admin_file_preview('id-van-het-veld', $huidigeAfbeelding)` | Hoort bij één `admin_file_input()` met dat `id`; zie hieronder |
 | Knoppen | `.admin-btn-primary`, `.admin-btn-secondary`, `.admin-btn-danger`, `.admin-btn-ghost`, `.admin-btn-text` | Uitgeschakeld met `disabled`, of `aria-disabled="true"` op een link |
 
 Elk element heeft een hover-, focus- en disabled-toestand. In Windows' hoog
@@ -188,6 +189,18 @@ is het de knop van de browser zelf, in de vorm van `.admin-btn-secondary`. Een
 script dat al op het veld reageert (de portfolio-upload in `admin.js`) vindt
 het nog steeds. Slepen en neerzetten en uploadvoortgang horen bij de
 Mediabibliotheek (`MEDIA.md`).
+
+**Een voorbeeld verandert daar ook niets aan.** `admin_file_preview()` hoort bij
+precies één bestandskiezer, via het `id` van dat veld. Kiest een redacteur een
+afbeelding, dan tekent het script het bestand dat de browser al heeft
+(`URL.createObjectURL()`): er gaat niets naar de server en er wordt niets
+opgeslagen tot het formulier zelf dat doet. Een nieuwe keuze vervangt het
+voorbeeld, *Keuze wissen* maakt het veld leeg en toont weer de huidige
+afbeelding (of niets, op een nieuw item), en een tijdelijke URL wordt
+vrijgegeven zodra hij niet meer getoond wordt. Op een bewerkscherm krijgt de
+functie de huidige afbeelding mee; die staat er ook zonder script. De regel
+die zegt welke afbeelding het is, is `aria-live`, zodat een schermlezer de
+wissel ook hoort.
 
 ## Bevestigen voordat iets weg is
 
@@ -259,16 +272,22 @@ het werkte.
 | Pagina's (`admin/pages.php`) | Infobalk; zoekveld (`?q=`, filtert de al geladen lijst via `PageContent::matchesAdminSearch()`); knoppen uit de familie; de status als badge met woord én kleur: `.admin-badge--draft` (amber, `--admin-warning`) en `.admin-badge--published` (groen, `--admin-success`) |
 | Formulier bewerken (`admin/form.php`) | *Actief* is een switch, *Inzendingen bewaren* een checkbox, beide selects zijn `.admin-select` |
 | Pagina bewerken en Nieuwe pagina (`admin/page.php`, `admin/page-new.php`) | Uitleg bij *Webadres* (het woord *slug* staat alleen in die uitleg); op een bestaande pagina het adres als link en het veld achter *Webadres wijzigen*, een `<details>` in de stijl van de inklapbare rijen; op een nieuwe pagina een live voorbeeld van het hele adres. SEO: een infobalk over wat SEO is, en uitleg bij de SEO-titel (met de automatische titel) en bij de *Omschrijving voor zoekmachines*. Op *Nieuwe pagina* staat de SEO-kaart vóór *Template* en klapt hij dicht (`.admin-collapse--card`). In de blokkenkiezer het zoekveld (`.admin-search`); op elke blokrij *Verbergen*/*Tonen* (`.admin-btn-secondary`) en *Verwijderen* (`.admin-btn-danger`), dat eerst vraagt in `admin_confirm_dialog()` |
+| Portfolio (`admin/portfolio.php`, `admin/portfolio-item.php`) | Infobalk; in het overzicht het zoekveld (`.admin-search`) en de filters als `.admin-select`, met *Zonder categorie*; op een item de bestandskiezer met voorbeeld (de gekozen afbeelding vóór het opslaan, bij bewerken eerst de huidige) en uitleg bij afbeelding, alt-tekst, titel, onderschrift en categorieën; categorieën als `.admin-checkbox`, *Zichtbaar op de portfolio-pagina*, *Toon op homepage* en *Projectpagina inschakelen* als switch; de projectpagina ingeklapt onder *Geavanceerd*; verwijderen vraagt eerst in `admin_confirm_dialog()` |
 
 De bestandskiezer staat op de upload van de Mediabibliotheek. Slepen en
 neerzetten, de lijst met nieuwe bestanden en de voorbeelden horen bij dat
 scherm (`admin/assets/media-upload.js`) en liggen óm de bouwsteen heen: het
-echte `<input type="file">` blijft de manier om bestanden te kiezen.
+echte `<input type="file">` blijft de manier om bestanden te kiezen. Op het
+Portfolio-item staat hij ook, met het voorbeeld van de afbeelding ernaast
+(`admin_file_preview()`).
 
 `AdminUiPrimitivesTest` pint per scherm vast welke velden uitleg hebben, dat
 een label naar zijn eigen veld wijst, en dat de formulieren hetzelfde
 versturen als voorheen: dezelfde namen, dezelfde verplichte velden, de
 verborgen `0` vóór de indexeer-switch, en geen verborgen veld vóór *Actief*.
+Voor de twee Portfolio-schermen doet `Tests\Service\PortfolioAdminScreenTest`
+hetzelfde, en `PortfolioItemEditingHttpTest` laat over echt HTTP zien dat het
+voorbeeld op een bestaand item met de opgeslagen afbeelding begint.
 
 ## Wat hier niet in hoort
 
@@ -304,7 +323,9 @@ donker thema:
     kruisje, Escape sluit, en elke stap heeft een zichtbare focusring.
 11. Zoekveld, select, checkbox, switch en bestandskiezer: hover, focus,
     uitgeschakeld, en een formulier dat verstuurd wordt slaat hetzelfde op als
-    voorheen.
+    voorheen. Bestandskiezer met voorbeeld: kies een afbeelding (het voorbeeld
+    verschijnt), kies een andere (het voorbeeld wisselt), *Keuze wissen* (terug
+    naar de huidige afbeelding, of weg).
 12. Een formulier met een vraag: de dialoog opent met die vraag en de focus op
     *Annuleren*. *Annuleren*, Escape en een klik naast de dialoog sluiten hem
     zonder iets te versturen, en de focus staat weer op de knop. De knop die

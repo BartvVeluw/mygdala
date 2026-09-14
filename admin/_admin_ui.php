@@ -7,9 +7,9 @@ use App\Service\AssetVersion;
 /**
  * The shared building blocks of an admin form: field help with its global
  * on/off switch, the info panel, the one native control that needs more
- * markup than a class name — the file input — and the dialog that asks
- * before a form does something that cannot be undone. ADMIN-UI.md is the
- * manual.
+ * markup than a class name — the file input, with the preview of the image
+ * it is about to upload — and the dialog that asks before a form does
+ * something that cannot be undone. ADMIN-UI.md is the manual.
  *
  * WHY OUTPUT FUNCTIONS. Same shape as admin/_admin_tabs.php and
  * admin/_admin_collapse.php: the markup of a component lives in one function
@@ -265,6 +265,53 @@ function admin_file_input(array $attributes): string
         . admin_ui_escape($none)
         . '</span>'
         . '</span>';
+}
+
+/**
+ * The picture a single-image file input is about to upload, shown BEFORE the
+ * form is saved — and, on a form that edits something, the image stored now.
+ *
+ * Paired with one admin_file_input() by that input's id. admin-ui.js draws the
+ * file the browser already holds (URL.createObjectURL()), so nothing is sent to
+ * show it and nothing is stored until the form's own save does that. A new
+ * choice replaces the picture; "Keuze wissen" empties the input and goes back
+ * to the stored image, or to no picture at all; every object URL is revoked the
+ * moment it is replaced.
+ *
+ * Without the script the stored image is still shown, and the browser's own
+ * control still names a chosen file: only the live picture needs the script.
+ * The words that say which image this is are CMS text on the markup, like
+ * every other word admin-ui.js shows, and the line that carries them is
+ * polite-live, so a screen reader hears the change as well.
+ *
+ * @param string $inputId    the id of the admin_file_input() this previews
+ * @param string $currentSrc root-relative URL of the stored image; '' when there is none yet
+ */
+function admin_file_preview(string $inputId, string $currentSrc = ''): string
+{
+    $current = admin_t('ui.file.preview_current');
+    $chosen = admin_t('ui.file.preview_new');
+    $hasCurrent = $currentSrc !== '';
+
+    return '<div class="admin-file-preview" data-admin-file-preview="' . admin_ui_escape($inputId) . '"'
+        . ($hasCurrent ? ' data-admin-file-preview-current="' . admin_ui_escape($currentSrc) . '"' : ' hidden')
+        . '>'
+        . '<span class="admin-file-preview__frame">'
+        . '<img class="admin-file-preview__image" alt=""'
+        . ($hasCurrent ? ' src="' . admin_ui_escape($currentSrc) . '"' : '')
+        . ' data-admin-file-preview-image>'
+        . '</span>'
+        . '<span class="admin-file-preview__caption">'
+        . '<span class="admin-file-preview__state" aria-live="polite" data-admin-file-preview-state'
+        . ' data-admin-file-preview-current-label="' . admin_ui_escape($current) . '"'
+        . ' data-admin-file-preview-new-label="' . admin_ui_escape($chosen) . '">'
+        . admin_ui_escape($hasCurrent ? $current : $chosen)
+        . '</span>'
+        . '<button type="button" class="admin-btn-text" data-admin-file-clear hidden>'
+        . admin_ui_escape(admin_t('ui.file.clear'))
+        . '</button>'
+        . '</span>'
+        . '</div>';
 }
 
 /**
