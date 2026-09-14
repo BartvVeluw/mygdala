@@ -145,8 +145,8 @@ geen gedeeld bestand meer waarin je op zeven plekken per type moet uitsplitsen:
 
    Optioneel, met een veilige standaard: `preview()` (de vormen waaruit de
    schets op de blokkaart wordt getekend, uit de gesloten lijst in
-   `BlockPreview`) en `useCases()` (twee tot vier voorbeeldsituaties, die
-   alleen de catalogus toont),
+   `BlockPreview`) en `useCases()` (twee tot vier voorbeeldsituaties: de
+   catalogus toont ze, de blokkenkiezer zoekt erop),
    `deleteFiles()` (alleen als het blok
    nog *eigen* uploads heeft — vóór de transactie, gescoopt op déze
    instantie; een blok dat de Mediabibliotheek gebruikt laat hem leeg, want

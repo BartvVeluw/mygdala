@@ -6,13 +6,18 @@ namespace Tests\Service;
 
 use App\Module\ModuleRegistry;
 use App\Repository\PageSectionRepository;
+use App\Service\Blocks\BlockCategories;
 use App\Service\Blocks\BlockDefinitions;
+use App\Service\Language\AdminLocale;
 use App\Service\SectionRegistry;
 use PHPUnit\Framework\TestCase;
 
 /**
  * The block picker and the page editor's save bar: the two pieces of UX the
  * page editor gained, checked where they can be checked without a browser.
+ * The picker's search box, its two views and the view it remembers are
+ * pinned here as well; what a click does with them is checked by hand
+ * (PAGE-EDITOR.md).
  *
  * WHAT THIS FILE IS ABOUT. Both features are deliberately thin: the picker is
  * one ordinary POST form whose submit buttons happen to look like cards, and
@@ -50,12 +55,18 @@ final class BlockPickerTest extends TestCase
         require_once dirname(__DIR__, 2) . '/admin/_block_picker.php';
     }
 
+    protected function setUp(): void
+    {
+        AdminLocale::overrideForTests('nl');
+    }
+
     protected function tearDown(): void
     {
         // overrideForTests(null) and not reset(): reset() forgets the caches
         // but KEEPS the override, so a test that switched the Shop off would
         // leave it off for the rest of the run.
         ModuleRegistry::overrideForTests(null);
+        AdminLocale::overrideForTests(null);
         parent::tearDown();
     }
 
@@ -81,6 +92,30 @@ final class BlockPickerTest extends TestCase
         $this->assertFileExists($path);
 
         return (string) file_get_contents($path);
+    }
+
+    /** Markup read back as a document, so attribute order is free to change. */
+    private function xpath(string $html): \DOMXPath
+    {
+        $document = new \DOMDocument();
+        $previous = libxml_use_internal_errors(true);
+        $document->loadHTML('<?xml encoding="utf-8"?><div>' . $html . '</div>', LIBXML_HTML_NOIMPLIED | LIBXML_HTML_NODEFDTD);
+        libxml_clear_errors();
+        libxml_use_internal_errors($previous);
+
+        return new \DOMXPath($document);
+    }
+
+    private function one(\DOMXPath $xpath, string $query, ?\DOMNode $context = null): \DOMElement
+    {
+        $nodes = $xpath->query($query, $context);
+        $this->assertNotFalse($nodes, $query);
+        $this->assertSame(1, $nodes->length, 'expected exactly one match for ' . $query);
+
+        $node = $nodes->item(0);
+        $this->assertInstanceOf(\DOMElement::class, $node);
+
+        return $node;
     }
 
     // --- The old control is really gone --------------------------------
@@ -269,6 +304,161 @@ final class BlockPickerTest extends TestCase
 
         // Plus the "Alles" reset, which filters on nothing.
         $this->assertSame(count($categories) + 1, substr_count($html, 'data-block-picker-filter='));
+    }
+
+    /**
+     * The search box is the CMS's own search field (ADMIN-UI.md): never the
+     * browser's white bar, and never a second search component to keep in step.
+     */
+    public function testTheSearchBoxIsTheSharedAdminSearchField(): void
+    {
+        $xpath = $this->xpath($this->renderPicker());
+
+        $input = $this->one($xpath, '//input[@data-block-picker-search]');
+        $this->assertSame('search', $input->getAttribute('type'));
+
+        $label = $input->parentNode;
+        $this->assertInstanceOf(\DOMElement::class, $label);
+        $this->assertSame('label', $label->nodeName);
+        $this->assertContains('admin-search', explode(' ', $label->getAttribute('class')));
+        $this->assertSame('Zoek een contentblok', trim($this->one($xpath, './span[contains(@class, "admin-visually-hidden")]', $label)->textContent));
+
+        $this->assertSame(1, $xpath->query('//input[@type="search"]')->length, 'one search box in the panel');
+
+        // The primitive styles the field; the picker only sizes the label.
+        $this->assertStringNotContainsString('.admin-block-picker__search input', $this->sourceOf('admin/assets/admin.css'));
+    }
+
+    public function testCardsAndAListAreTwoLayoutsOfTheSameButtons(): void
+    {
+        $available = SectionRegistry::availableDefinitionsForPage(self::PAGE, new FakePageSectionRepository());
+        $html = $this->renderPicker();
+        $xpath = $this->xpath($html);
+
+        // Cards is what the server renders.
+        $this->assertSame('cards', $this->one($xpath, '//*[@data-block-picker]')->getAttribute('data-block-picker-layout'));
+
+        // A named group of two real buttons, the active one aria-pressed.
+        $group = $this->one($xpath, '//*[@role="group"][.//button[@data-block-picker-view]]');
+        $this->assertSame('Weergave', $group->getAttribute('aria-label'));
+
+        $views = [];
+        foreach ($xpath->query('.//button[@data-block-picker-view]', $group) ?: [] as $button) {
+            $this->assertInstanceOf(\DOMElement::class, $button);
+            $this->assertSame('button', $button->getAttribute('type'), 'switching the view must never submit the form');
+
+            // The icon is decoration; the word is the name.
+            foreach ($xpath->query('.//svg', $button) ?: [] as $icon) {
+                $this->assertInstanceOf(\DOMElement::class, $icon);
+                $this->assertSame('true', $icon->getAttribute('aria-hidden'));
+            }
+
+            $views[$button->getAttribute('data-block-picker-view')] = [$button->getAttribute('aria-pressed'), trim($button->textContent)];
+        }
+
+        $this->assertSame(['cards' => ['true', 'Kaarten'], 'list' => ['false', 'Lijst']], $views);
+
+        // Still one submit button per block: the list is not a second copy.
+        $this->assertSame(count($available), substr_count($html, 'data-block-card'));
+        $this->assertSame(count($available), substr_count($html, 'type="submit"'));
+
+        // …and admin.css really lays the same buttons out as rows.
+        $css = $this->sourceOf('admin/assets/admin.css');
+        $this->assertStringContainsString('.admin-block-picker[data-block-picker-layout="list"] .admin-block-card{', $css);
+        $this->assertStringContainsString('.admin-block-picker[data-block-picker-layout="list"] .admin-block-visual{ display: none; }', $css);
+    }
+
+    public function testTheChosenViewIsRememberedPerBrowserUnderOneMygdalaKey(): void
+    {
+        $script = $this->sourceOf('admin/assets/block-picker.js');
+
+        $this->assertSame(1, preg_match_all('/var VIEW_STORAGE_KEY = "([^"]+)";/', $script, $key));
+        $this->assertSame('mygdalaAdminBlockPickerView', $key[1][0], 'named like mygdalaAdminHelp and mygdalaAdminTab:');
+
+        preg_match_all('/localStorage\.(?:getItem|setItem|removeItem)\(([^,)]+)/', $script, $uses);
+        $this->assertNotSame([], $uses[1], 'the view is remembered in localStorage, per browser');
+        $this->assertSame(['VIEW_STORAGE_KEY'], array_values(array_unique(array_map('trim', $uses[1]))), 'every read and write goes through the one key');
+
+        // Cards unless this browser chose otherwise — also when storage is blocked.
+        $this->assertStringContainsString('var DEFAULT_VIEW = "cards";', $script);
+        $this->assertMatchesRegularExpression('/try \{\s*var stored = window\.localStorage\.getItem\(VIEW_STORAGE_KEY\);[\s\S]{0,160}\} catch \(e\) \{[\s\S]{0,120}return DEFAULT_VIEW;/', $script);
+
+        // A preference of this browser: no column, no request.
+        $this->assertStringNotContainsString('sessionStorage', $script);
+        $this->assertStringNotContainsString('fetch(', $script);
+        $this->assertDoesNotMatchRegularExpression('/vvl/i', $script, "the old site's storage prefix");
+    }
+
+    public function testEveryCardNamesItsCategory(): void
+    {
+        $available = SectionRegistry::availableDefinitionsForPage(self::PAGE, new FakePageSectionRepository());
+        $xpath = $this->xpath($this->renderPicker());
+
+        foreach ($available as $type => $definition) {
+            $this->assertSame(
+                BlockCategories::label($definition->category()),
+                trim($this->one($xpath, '//button[@value="' . $type . '"]//*[contains(@class, "admin-block-card__category")]')->textContent),
+                "{$type}'s card does not say which category it is in"
+            );
+        }
+    }
+
+    /**
+     * A card never lists all of a block's example uses. They are searchable,
+     * and each is on the card, hidden until a search matches it — the script
+     * shows only the ones that matched.
+     */
+    public function testExampleUsesStayHiddenUntilASearchMatchesOne(): void
+    {
+        $available = SectionRegistry::availableDefinitionsForPage(self::PAGE, new FakePageSectionRepository());
+        $xpath = $this->xpath($this->renderPicker());
+
+        $checked = 0;
+        foreach ($available as $type => $definition) {
+            $cases = $definition->useCasesFor();
+            $containers = $xpath->query('//button[@value="' . $type . '"]//*[@data-block-uses]');
+            $this->assertNotFalse($containers);
+
+            if ($cases === []) {
+                $this->assertSame(0, $containers->length, "{$type} has no example uses to show");
+                continue;
+            }
+
+            $container = $this->one($xpath, '//button[@value="' . $type . '"]//*[@data-block-uses]');
+            $this->assertTrue($container->hasAttribute('hidden'), "{$type} shows its example uses before anybody searched");
+
+            $shown = [];
+            foreach ($xpath->query('.//*[@data-block-use]', $container) ?: [] as $use) {
+                $this->assertInstanceOf(\DOMElement::class, $use);
+                $this->assertTrue($use->hasAttribute('hidden'));
+                $this->assertSame(mb_strtolower(trim($use->textContent)), $use->getAttribute('data-block-use'));
+                $shown[] = trim($use->textContent);
+            }
+
+            $this->assertSame($cases, $shown);
+            $checked++;
+        }
+
+        $this->assertGreaterThan(0, $checked, 'no block on this page has example uses, so nothing was checked');
+
+        $this->assertStringContainsString(
+            '(use.getAttribute("data-block-use") || "").indexOf(term) !== -1',
+            $this->sourceOf('admin/assets/block-picker.js'),
+            'a use is shown only when the search term matches it'
+        );
+    }
+
+    public function testSearchingStillFiltersOnTheSameTermsAndCategory(): void
+    {
+        $script = $this->sourceOf('admin/assets/block-picker.js');
+
+        $this->assertStringContainsString('(card.getAttribute("data-block-terms") || "").indexOf(term) !== -1', $script);
+        $this->assertStringContainsString('card.getAttribute("data-block-category") === activeCategory', $script);
+        $this->assertStringContainsString('searchInput.addEventListener("input", applyFilter);', $script);
+        $this->assertStringContainsString('searchInput.addEventListener("search", applyFilter);', $script);
+
+        // Switching the view filters, renders and moves nothing.
+        $this->assertMatchesRegularExpression('/function setView\(view\) \{\n(?:(?!applyFilter|innerHTML|appendChild|insertBefore)[\s\S])*?\n  \}/', $script);
     }
 
     // --- Modules --------------------------------------------------------

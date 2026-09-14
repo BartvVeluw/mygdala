@@ -1,6 +1,6 @@
 /**
  * The block picker's behaviour (admin/_block_picker.php): open the panel,
- * filter the cards, close it again.
+ * filter the cards, lay them out as cards or as a list, close it again.
  *
  * IT DOES NOT ADD ANYTHING. Every card is a real submit button inside a real
  * POST form to api/admin/add-page-section.php, so adding a block is the
@@ -10,10 +10,15 @@
  * accepted from the old dropdown.
  *
  * Everything works without a mouse and without hover: the cards are buttons,
- * the filters are buttons with aria-pressed, Escape closes the panel, focus
- * moves into the search box on open and back to the opener on close, and Tab
- * stays inside the panel while it is open. Nothing is revealed by hovering —
- * a touch device sees exactly what a desktop does.
+ * the filters and the view toggle are buttons with aria-pressed, Escape
+ * closes the panel, focus moves into the search box on open and back to the
+ * opener on close, and Tab stays inside the panel while it is open. Nothing
+ * is revealed by hovering — a touch device sees exactly what a desktop does.
+ *
+ * THE VIEW IS A DISPLAY PREFERENCE. Cards or list is remembered per browser,
+ * in localStorage under one Mygdala key, and applied before the panel is ever
+ * opened. Storage that is blocked or empty simply means cards. Nothing about
+ * it reaches the server.
  */
 (function () {
   "use strict";
@@ -25,11 +30,17 @@
   var searchInput = panel.querySelector("[data-block-picker-search]");
   var statusEl = panel.querySelector("[data-block-picker-status]");
   var filterButtons = panel.querySelectorAll("[data-block-picker-filter]");
+  var viewButtons = panel.querySelectorAll("[data-block-picker-view]");
   var groups = panel.querySelectorAll("[data-block-picker-group]");
   var cards = panel.querySelectorAll("[data-block-card]");
 
   var lastFocused = null;
   var activeCategory = "";
+
+  /** Mygdala's own key, named like mygdalaAdminHelp and mygdalaAdminTab:. */
+  var VIEW_STORAGE_KEY = "mygdalaAdminBlockPickerView";
+  var VIEWS = ["cards", "list"];
+  var DEFAULT_VIEW = "cards";
 
   var FOCUSABLE =
     'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
@@ -74,6 +85,43 @@
     });
   }
 
+  // --- Cards or a list ------------------------------------------------------
+
+  function storedView() {
+    try {
+      var stored = window.localStorage.getItem(VIEW_STORAGE_KEY);
+      return VIEWS.indexOf(stored) !== -1 ? stored : DEFAULT_VIEW;
+    } catch (e) {
+      // Storage blocked or unavailable: the default, which is the cards.
+      return DEFAULT_VIEW;
+    }
+  }
+
+  function rememberView(view) {
+    try {
+      window.localStorage.setItem(VIEW_STORAGE_KEY, view);
+    } catch (e) {
+      // Not remembered for next time, but still shown now.
+    }
+  }
+
+  /**
+   * ONE set of buttons, laid out twice by admin.css: nothing is rendered
+   * again and nothing moves, so the search, the filters, the tab order and
+   * the one-click add are the very same in both views.
+   */
+  function setView(view) {
+    if (VIEWS.indexOf(view) === -1) view = DEFAULT_VIEW;
+
+    panel.setAttribute("data-block-picker-layout", view);
+    viewButtons.forEach(function (button) {
+      var isActive = button.getAttribute("data-block-picker-view") === view;
+      button.setAttribute("aria-pressed", isActive ? "true" : "false");
+    });
+  }
+
+  // --- Search and filter ----------------------------------------------------
+
   /**
    * Plain substring matching over the label, the description, the category
    * name and the example uses — deliberately not fuzzy and deliberately not
@@ -92,6 +140,8 @@
 
       card.hidden = !show;
       if (show) visible++;
+
+      showMatchingUses(card, show ? term : "");
     });
 
     groups.forEach(function (group) {
@@ -113,6 +163,26 @@
       statusEl.textContent = visible === 1 ? "1 contentblok gevonden." : visible + " contentblokken gevonden.";
       statusEl.hidden = false;
     }
+  }
+
+  /**
+   * A card found through one of its example uses says which one: that line
+   * appears while the search is on and goes again with it. Only the uses the
+   * term matched, so a card grows by a line exactly when that line explains
+   * why it is among the results.
+   */
+  function showMatchingUses(card, term) {
+    var container = card.querySelector("[data-block-uses]");
+    if (!container) return;
+
+    var any = false;
+    container.querySelectorAll("[data-block-use]").forEach(function (use) {
+      var matches = term !== "" && (use.getAttribute("data-block-use") || "").indexOf(term) !== -1;
+      use.hidden = !matches;
+      if (matches) any = true;
+    });
+
+    container.hidden = !any;
   }
 
   /**
@@ -165,6 +235,19 @@
     });
   });
 
+  viewButtons.forEach(function (button) {
+    button.addEventListener("click", function () {
+      var view = button.getAttribute("data-block-picker-view") || DEFAULT_VIEW;
+      rememberView(view);
+      setView(view);
+    });
+  });
+
+  // The same choice, made in another tab of this CMS.
+  window.addEventListener("storage", function (event) {
+    if (event.key === VIEW_STORAGE_KEY) setView(storedView());
+  });
+
   document.addEventListener("keydown", function (event) {
     if (panel.hidden) return;
 
@@ -175,4 +258,6 @@
       trapTab(event);
     }
   });
+
+  setView(storedView());
 })();

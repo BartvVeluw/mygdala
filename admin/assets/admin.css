@@ -3408,12 +3408,53 @@ body.admin-block-picker-open{ overflow: hidden; }
   align-items: center;
   margin-top: var(--admin-sp-4);
 }
-.admin-block-picker__search{ flex: 1 1 260px; }
-.admin-block-picker__search input{ width: 100%; }
+/* The CMS's own search field (.admin-search, ADMIN UI PRIMITIVES), grown to
+   fill the row here instead of stopping at its usual width. The panel is in
+   the selector so this outranks the primitive, which comes later in the file. */
+.admin-block-picker .admin-block-picker__search{ flex: 1 1 14rem; width: auto; min-width: 0; }
 
+/* Cards or a list: two real buttons with aria-pressed, drawn as one segmented
+   control so it reads as "how to show them" rather than as another filter. */
+.admin-block-picker__views{
+  display: inline-flex;
+  flex: none;
+  gap: 2px;
+  padding: 3px;
+  background: var(--admin-surface-sunken);
+  border: 1px solid var(--admin-border);
+  border-radius: var(--admin-radius-md);
+}
+
+.admin-block-picker__view{
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-height: 2rem;
+  padding: 0.25rem 0.7rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--admin-text-muted);
+  background: transparent;
+  border: 0;
+  border-radius: var(--admin-radius-sm);
+  transition: color var(--admin-transition), background var(--admin-transition);
+}
+
+/* `button:hover` paints every button in the accent; only the pressed view may. */
+.admin-block-picker__view:hover{ color: var(--admin-text); background: var(--admin-hover-tint-strong); }
+
+.admin-block-picker__view[aria-pressed="true"]{
+  color: var(--admin-on-accent);
+  background: var(--admin-accent);
+}
+
+.admin-block-picker__view-icon{ flex: none; width: 16px; height: 16px; }
+
+/* The filters take a row of their own under the search and the toggle. */
 .admin-block-picker__filters{
   display: flex;
   flex-wrap: wrap;
+  flex-basis: 100%;
   gap: var(--admin-sp-2);
 }
 
@@ -3445,8 +3486,11 @@ body.admin-block-picker-open{ overflow: hidden; }
 }
 .admin-block-picker__status:empty{ display: none; }
 
+/* A few pixels of padding, taken back from the margin, so the focus ring of a
+   card on the edge is not cut off by the scrolling box. */
 .admin-block-picker__body{
-  margin-top: var(--admin-sp-4);
+  margin: calc(var(--admin-sp-4) - 4px) -4px 0;
+  padding: 4px;
   overflow-y: auto;
 }
 
@@ -3493,6 +3537,7 @@ body.admin-block-picker-open{ overflow: hidden; }
   border-radius: var(--admin-radius-md);
   cursor: pointer;
   font: inherit;
+  min-width: 0;
   transition: border-color var(--admin-transition), background var(--admin-transition), transform var(--admin-transition);
 }
 .admin-block-card[hidden]{ display: none; }
@@ -3524,10 +3569,42 @@ body.admin-block-picker-open{ overflow: hidden; }
   font-size: 0.8rem;
   line-height: 1.45;
   color: var(--admin-text-muted);
+  overflow-wrap: anywhere;
+}
+
+/* The example use a search matched (block-picker.js): quiet, and only there
+   while that search is. */
+.admin-block-card__uses{
+  display: block;
+  font-size: 0.76rem;
+  line-height: 1.4;
+  color: var(--admin-text-muted);
+  overflow-wrap: anywhere;
+}
+.admin-block-card__uses[hidden],
+.admin-block-card__use[hidden]{ display: none; }
+.admin-block-card__uses-label{ margin-right: 0.25rem; font-weight: 600; }
+.admin-block-card__use:not([hidden]) ~ .admin-block-card__use:not([hidden])::before{ content: " · "; }
+
+/* The category and the add hint share the card's last line, pushed to the
+   bottom so a row of cards lines up however long each description is. */
+.admin-block-card__meta{
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--admin-sp-2);
+  margin-top: auto;
+}
+
+.admin-block-card__category{
+  min-width: 0;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--admin-text-faint);
 }
 
 .admin-block-card__add{
-  align-self: flex-start;
+  flex: none;
   padding: 0.25rem 0.7rem;
   font-size: 0.75rem;
   font-weight: 700;
@@ -3540,6 +3617,77 @@ body.admin-block-picker-open{ overflow: hidden; }
   background: var(--admin-accent);
 }
 
+/* --- The list view (data-block-picker-layout="list") ----------------------- */
+
+/* The same buttons as rows — name, category, one line of description — for an
+   editor who already knows which block they want. The drawings step aside and
+   so do the category headings: every row names its own category, and a
+   screen reader still hears the headings. */
+.admin-block-picker[data-block-picker-layout="list"] .admin-block-picker__body{ border-top: 1px solid var(--admin-border); }
+
+.admin-block-picker[data-block-picker-layout="list"] .admin-block-picker__group{ margin-bottom: 0; }
+
+.admin-block-picker[data-block-picker-layout="list"] .admin-block-picker__group-title{
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.admin-block-picker[data-block-picker-layout="list"] .admin-block-grid{
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.admin-block-picker[data-block-picker-layout="list"] .admin-block-card{
+  flex-direction: row;
+  align-items: center;
+  gap: var(--admin-sp-3);
+  padding: 0.55rem 0.75rem;
+  background: transparent;
+  border-color: transparent transparent var(--admin-border);
+  border-radius: 0;
+}
+
+.admin-block-picker[data-block-picker-layout="list"] .admin-block-card:hover{
+  background: var(--admin-surface-hover);
+  border-color: transparent transparent var(--admin-border);
+}
+
+.admin-block-picker[data-block-picker-layout="list"] .admin-block-card:active{ transform: none; }
+
+/* Inside the row rather than around it: a row spans the whole scrolling box. */
+.admin-block-picker[data-block-picker-layout="list"] .admin-block-card:focus-visible{ outline-offset: -2px; }
+
+.admin-block-picker[data-block-picker-layout="list"] .admin-block-visual{ display: none; }
+
+.admin-block-picker[data-block-picker-layout="list"] .admin-block-card__body{
+  display: grid;
+  grid-template-columns: minmax(8rem, 14rem) minmax(0, 1fr);
+  align-items: baseline;
+  column-gap: var(--admin-sp-4);
+  row-gap: 0.15rem;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.admin-block-picker[data-block-picker-layout="list"] .admin-block-card__desc{
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.admin-block-picker[data-block-picker-layout="list"] .admin-block-card__uses{ grid-column: 2; }
+
+.admin-block-picker[data-block-picker-layout="list"] .admin-block-card__meta{ flex: none; margin-top: 0; gap: var(--admin-sp-3); }
+
 @media (max-width: 640px){
   .admin-block-picker{ padding: 0; }
   .admin-block-picker__panel{
@@ -3549,6 +3697,13 @@ body.admin-block-picker-open{ overflow: hidden; }
     border-radius: 0;
   }
   .admin-block-grid{ grid-template-columns: 1fr; }
+
+  /* A list row on a phone: the name with the category beside it, then the
+     description; no "Toevoegen", because the whole row already is the button. */
+  .admin-block-picker[data-block-picker-layout="list"] .admin-block-card{ align-items: flex-start; }
+  .admin-block-picker[data-block-picker-layout="list"] .admin-block-card__body{ grid-template-columns: minmax(0, 1fr); }
+  .admin-block-picker[data-block-picker-layout="list"] .admin-block-card__uses{ grid-column: 1; }
+  .admin-block-picker[data-block-picker-layout="list"] .admin-block-card__add{ display: none; }
 }
 
 /* --- The schematic previews (admin/_block_visual.php) ----------------- */

@@ -164,7 +164,7 @@ niet kan vergeten — en twee hebben een veilige standaard:
 | `category()` | Een sleutel uit `BlockCategories` — alleen groepering, verder niets | ja |
 | `icon()` | De *binnenkant* van een 24x24 stroke-`<svg>`, net als de sidebar-iconen en de sjabloonkaarten | ja |
 | `preview()` | Vormen uit de gesloten lijst in `BlockPreview` — "een kop, dan drie kolommen" | nee (leeg = alleen het pictogram) |
-| `useCases()` | Twee tot vier concrete situaties, als korte woordgroepen. Alleen de catalogus toont ze, onder "Geschikt voor" | nee |
+| `useCases()` | Twee tot vier concrete situaties, als korte woordgroepen. De catalogus toont ze onder "Geschikt voor"; de kiezer zoekt erop en toont er één alleen zolang een zoekterm erop past | nee |
 
 **Eén bron, twee schermen.** De kiezer en de catalogus lezen allebei van de
 definitie; geen van beide bevat een letter blokbeschrijving.
@@ -195,16 +195,21 @@ wat er met *Shop* gebeurt zodra de Shop uit staat.
 ```text
 [ + Contentblok toevoegen ]        ← altijd direct onder de blokkenlijst
         ↓
-Contentblok kiezen                  ← modaal paneel
-[ Zoeken… ]  [Alles][Content][Beeld & media][Actie & interactie]
+Contentblok kiezen                                     ← modaal paneel
+[ ⌕ Zoeken…                     ]  [ Kaarten | Lijst ]
+[Alles][Content][Beeld & media][Actie & interactie]
 
 CONTENT
-┌───────────────┐ ┌───────────────┐
-│ ▤ schets      │ │ ▤ schets      │
-│ Tekstblok     │ │ Kenmerken …   │
-│ Vrije tekst…  │ │ Kaartjes …    │
-│ [Toevoegen]   │ │ [Toevoegen]   │
-└───────────────┘ └───────────────┘
+┌──────────────────────┐ ┌──────────────────────┐
+│ ▤ schets             │ │ ▤ schets             │
+│ Tekstblok            │ │ Kenmerken …          │
+│ Vrije tekst…         │ │ Kaartjes …           │
+│ Content  [Toevoegen] │ │ Content  [Toevoegen] │
+└──────────────────────┘ └──────────────────────┘
+
+of, als lijst:
+Tekstblok      Vrije tekst met koppen, opsommi…   Content  [Toevoegen]
+Kenmerken …    Kaartjes met een pictogram, een…   Content  [Toevoegen]
 ```
 
 **Eén klik voegt toe.** Elke kaart *is* een
@@ -222,10 +227,35 @@ geweigerd wordt — vaste blokken, blokken die op deze pagina niet mogen,
 blokken die hun maximum al bereikt hebben, en blokken van een uitgeschakelde
 module.
 
-**Zoeken** is platte substring-vergelijking over naam, beschrijving,
-categorienaam en voorbeeldgebruik, voorgekookt in `data-block-terms`. Niet
-fuzzy en niet over de type-key: met dit aantal blokken is voorspelbaar
-belangrijker dan slim.
+**Een kaart zegt wat het blok is, niet alles wat erover te zeggen valt.** De
+schets, de naam met het pictogram, de beschrijving en onderaan de categorie.
+De voorbeelden uit `useCases()` staan er niet vast op. Ze zitten in de
+zoektermen, en wie zoekt ziet op de kaart het voorbeeld waar de zoekterm op
+paste (*Geschikt voor: voorwaarden en privacyteksten*), zolang die zoekterm er
+staat. Een kaart groeit dus precies met de regel die uitlegt waarom hij tussen
+de resultaten staat. Alle voorbeelden staan in de catalogus.
+
+**Kaarten of lijst.** Kaarten zijn de standaard. De lijst toont dezelfde
+knoppen als rijen: naam, categorie en één regel beschrijving, voor een
+redacteur die al weet wat hij wil. De schetsen en de categoriekoppen wijken
+daar; een schermlezer hoort de koppen nog wel. Het zijn geen twee lijsten: de
+knop zet alleen `data-block-picker-layout` op het paneel, en `admin.css` legt
+dezelfde knoppen anders neer. Zoeken, filteren, de tabvolgorde en het toevoegen
+zijn in beide weergaven dus dezelfde code, en de markup heeft altijd precies één
+submitknop per blok.
+
+`block-picker.js` onthoudt de keuze per browser in `localStorage`, onder
+**`mygdalaAdminBlockPickerView`** (`cards` of `list`), naar het voorbeeld van
+`mygdalaAdminHelp`. Geen databasekolom: het is een weergavevoorkeur zonder
+gevolg voor de inhoud. Is `localStorage` geblokkeerd of leeg, dan zijn het
+kaarten, en een ander tabblad van het CMS neemt een nieuwe keuze meteen over.
+
+**Zoeken** gebeurt in het zoekveld van het CMS (`.admin-search`,
+[`ADMIN-UI.md`](ADMIN-UI.md)): vergrootglas, hoogte en focusring zoals elk
+ander zoekveld in de admin. Het filteren is platte substring-vergelijking over
+naam, beschrijving, categorienaam en voorbeeldgebruik, voorgekookt in
+`data-block-terms`. Niet fuzzy en niet over de type-key: met dit aantal blokken
+is voorspelbaar belangrijker dan slim.
 
 **Na het toevoegen** stuurt het endpoint de redacteur rechtstreeks de editor
 van het nieuwe blok in — dat deed het al. Heeft een blok geen eigen editor,
@@ -234,9 +264,11 @@ kort op.
 
 **Toetsenbord en aanraking.** Het paneel is een `role="dialog"`: Escape
 sluit, focus springt bij openen naar het zoekveld en bij sluiten terug naar de
-knop, Tab blijft binnen het paneel. Kaarten en filters zijn echte knoppen met
-`aria-pressed`, en er is geen enkel gegeven dat alleen bij hover verschijnt.
-Onder 640 px wordt het paneel schermvullend en de kaarten één kolom.
+knop, Tab blijft binnen het paneel. Kaarten, filters en *Kaarten*/*Lijst* zijn
+echte knoppen; filters en weergave dragen hun toestand in `aria-pressed`. Er is
+geen enkel gegeven dat alleen bij hover verschijnt. Onder 640 px wordt het
+paneel schermvullend, staan de kaarten in één kolom en krijgt een lijstrij twee
+regels: naam met categorie, dan de beschrijving.
 
 **Zonder JavaScript gaat het paneel niet open.** Dat is dezelfde afspraak als
 bij de mediakiezer en het slepen van blokken: het adminpaneel gaat uit van
@@ -409,5 +441,8 @@ beantwoordt.
 `BlockPresentationTest` loopt over élk geregistreerd type, dus een nieuw blok
 wordt daar meegenomen zodra het in `BlockDefinitions` staat. `BlockPickerTest`
 rendert het kiezerspaneel in-process (geen login, geen request, geen
-database) en leest daarnaast de bron van `save-bar.js` en van elke
-blok-editor. Zie verder [`TESTING.md`](TESTING.md).
+database) — zoekveld, beide weergaven, de categorie op elke kaart, de
+verborgen voorbeelden — en leest daarnaast de bron van `block-picker.js` (de
+bewaarde weergave, het filteren), van `save-bar.js` en van elke blok-editor.
+Wat een klik doet, loop je na in de browser. Zie verder
+[`TESTING.md`](TESTING.md).

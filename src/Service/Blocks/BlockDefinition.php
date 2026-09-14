@@ -157,8 +157,9 @@ abstract class BlockDefinition
     /**
      * Two to four concrete situations this block is the right answer to, each
      * a short noun phrase ("een introductie", "een prijslijst"). The
-     * catalogue prints them under "Geschikt voor"; the picker does not, so
-     * they may be more specific than the description.
+     * catalogue prints them under "Geschikt voor"; the picker only searches
+     * them, and shows one on a card while a search matches it — so they may
+     * be more specific than the description.
      *
      * @return list<string>
      */
