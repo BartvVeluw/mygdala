@@ -293,6 +293,90 @@ final class MediaBoundaryTest extends TestCase
     }
 
     /* ------------------------------------------------------------------ */
+    /* The library screen: adding files                                    */
+    /* ------------------------------------------------------------------ */
+
+    /**
+     * Uploading goes through the shared file input (ADMIN-UI.md), several
+     * files at once, and the drop zone is an addition around it — never the
+     * only way in, because a keyboard and a phone need the button.
+     */
+    public function testTheUploadFormUsesTheSharedFileInputAndTheDropZoneOnlyAddsToIt(): void
+    {
+        $screen = $this->source('admin/media.php');
+
+        $this->assertStringContainsString('admin_file_input([', $screen);
+        $this->assertStringContainsString("'name' => 'files[]'", $screen);
+        $this->assertStringContainsString("'multiple' => true", $screen);
+        $this->assertStringContainsString('data-media-upload-input', $screen);
+        $this->assertStringContainsString('data-media-dropzone', $screen);
+        $this->assertStringNotContainsString('<input type="file"', $screen, 'no hand-written file input beside the primitive');
+
+        // What the file dialog offers and what the queue checks come from
+        // the uploader, which checks the same again.
+        $this->assertStringContainsString('MediaUploader::ALLOWED_EXTENSIONS', $screen);
+        $this->assertStringContainsString('MediaUploader::maxBytes()', $screen);
+    }
+
+    /**
+     * Without a script the form still posts every chosen file to an endpoint
+     * that answers with a redirect; the queue sends one file per request to
+     * the JSON endpoint the picker already uses.
+     */
+    public function testUploadingWorksWithAndWithoutTheScript(): void
+    {
+        $screen = $this->source('admin/media.php');
+
+        $this->assertMatchesRegularExpression(
+            '#<form method="post" action="/api/admin/create-media\.php" enctype="multipart/form-data"[^>]*data-media-upload>#',
+            $screen
+        );
+        $this->assertStringContainsString("'uploadUrl' => '/api/admin/media-upload.php'", $screen);
+
+        $create = $this->source('api/admin/create-media.php');
+        $this->assertStringContainsString("MediaUploader::filesFrom(\$_FILES['files']", $create);
+        $this->assertStringContainsString('->uploadMany(', $create);
+        $this->assertStringContainsString("header('Location: /admin/media.php", $create);
+
+        $queue = $this->source('admin/assets/media-upload.js');
+        $this->assertStringContainsString('body.append("file", entry.file', $queue, 'one file per request');
+        $this->assertStringContainsString('URL.revokeObjectURL', $queue, 'a preview is released with its row');
+    }
+
+    /**
+     * The library's scripts write no markup from strings, attach no inline
+     * handler and carry no sentence an editor reads: the words come from the
+     * catalog, through the page.
+     */
+    public function testTheLibraryScriptsWriteNoMarkupAndCarryNoSentences(): void
+    {
+        $catalog = require dirname(__DIR__, 2) . '/src/Service/Language/messages/nl.php';
+
+        foreach (['admin/assets/media-upload.js', 'admin/assets/media-library.js'] as $script) {
+            $source = $this->source($script);
+
+            $this->assertStringNotContainsString('innerHTML', $source, $script);
+            $this->assertStringNotContainsString('insertAdjacentHTML', $source, $script);
+            $this->assertDoesNotMatchRegularExpression('/\.on[a-z]+\s*=[^=]|setAttribute\(\s*["\']on/', $source, $script);
+
+            foreach ($catalog as $key => $text) {
+                if (!str_starts_with($key, 'media.') || mb_strlen($text) < 12) {
+                    continue;
+                }
+
+                $this->assertStringNotContainsString($text, $source, $script . ' carries the words of ' . $key);
+            }
+        }
+
+        $screen = $this->source('admin/media.php');
+        $start = (int) strpos($screen, 'data-media-upload>');
+        $upload = substr($screen, $start, (int) strpos($screen, 'data-media-library') - $start);
+
+        $this->assertNotSame('', $upload);
+        $this->assertDoesNotMatchRegularExpression('/\son[a-z]+\s*=/i', $upload, 'the upload section attaches no inline handler');
+    }
+
+    /* ------------------------------------------------------------------ */
     /* Helpers                                                             */
     /* ------------------------------------------------------------------ */
 

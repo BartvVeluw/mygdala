@@ -10,8 +10,10 @@ use App\Service\AdminAuth;
 use App\Service\AdminPermissions;
 use App\Service\AssetVersion;
 use App\Service\Csrf;
+use App\Service\Media\MediaFilename;
 use App\Service\Media\MediaItem;
 use App\Service\Media\MediaService;
+use App\Service\Media\MediaUploader;
 
 /**
  * The Media Library: one grid of every reusable public image on this site,
@@ -20,6 +22,16 @@ use App\Service\Media\MediaService;
  * TWO VIEWS, ONE FILE, on purpose — the same shape as admin/pages.php plus
  * admin/page.php would be, except that a media item's detail is a preview and
  * five facts rather than a screenful of fields. `?id=` switches between them.
+ *
+ * ADDING FILES. One form, sent one of two ways. Without JavaScript the chosen
+ * files are posted together to api/admin/create-media.php, which redirects
+ * back here. With admin/assets/media-upload.js they first wait in "Nieuwe
+ * bestanden", where an editor sees what they chose and can still rename one
+ * or take it out, and then go to api/admin/media-upload.php one file per
+ * request. The file control is the shared admin_file_input() (ADMIN-UI.md);
+ * the drop zone around it belongs to this screen and is never the only way
+ * in. The limits the queue checks come from App\Service\Media\MediaUploader,
+ * which checks them again.
  *
  * WHAT IT IS NOT. There are no folders, no tags, no bulk actions, no crop
  * tool and no raw filesystem operations: nothing here lets somebody type a
@@ -38,6 +50,9 @@ $csrfToken = Csrf::token();
 
 $errors = $_SESSION['admin_media_errors'] ?? [];
 unset($_SESSION['admin_media_errors']);
+
+$notice = (string) ($_SESSION['admin_media_notice'] ?? '');
+unset($_SESSION['admin_media_notice']);
 
 $saved = isset($_GET['saved']);
 $deleted = isset($_GET['deleted']);
@@ -80,6 +95,54 @@ if ($item === null) {
 
     $perPage = MediaRepository::PAGE_SIZE;
     $lastPage = max(1, (int) ceil($total / $perPage));
+
+    // What the upload queue checks before it sends anything: the limits
+    // App\Service\Media\MediaUploader enforces, handed over rather than
+    // written a second time, and the catalog's words for every answer.
+    $imageTypeKey = static fn (int $type): string => (string) image_type_to_extension($type, false);
+    $maxSize = MediaUploader::maxSizeLabel();
+
+    $uploadAccept = implode(',', array_merge(
+        array_map(static fn (string $extension): string => '.' . $extension, array_keys(MediaUploader::ALLOWED_EXTENSIONS)),
+        array_values(MediaUploader::MIME_FOR_TYPE)
+    ));
+
+    $uploadConfig = [
+        'uploadUrl' => '/api/admin/media-upload.php',
+        'maxBytes' => MediaUploader::maxBytes(),
+        'maxBaseLength' => MediaFilename::MAX_BASE_LENGTH,
+        'extensions' => array_map($imageTypeKey, MediaUploader::ALLOWED_EXTENSIONS),
+        'storedAs' => array_combine(
+            array_map($imageTypeKey, array_keys(MediaUploader::ALLOWED_TYPES)),
+            array_values(MediaUploader::ALLOWED_TYPES)
+        ),
+        'messages' => [
+            'too_large' => admin_t('media.upload.too_large', ['max' => $maxSize]),
+            'bad_type' => admin_t('media.upload.bad_type'),
+            'svg' => admin_t('media.upload.svg'),
+            'not_image' => admin_t('media.upload.not_image'),
+            'failed' => admin_t('media.upload.failed'),
+            'session' => admin_t('media.upload.session'),
+            'name_empty' => admin_t('media.name.empty'),
+            'name_characters' => admin_t('media.name.characters'),
+            'name_forbidden' => admin_t('media.name.forbidden'),
+            'name_dot' => admin_t('media.name.dot'),
+            'name_long' => admin_t('media.name.long', ['max' => MediaFilename::MAX_BASE_LENGTH]),
+            'added' => admin_t('media.queue.added'),
+            'added_one' => admin_t('media.queue.added_one'),
+            'queued' => admin_t('media.queue.count'),
+            'queued_one' => admin_t('media.queue.count_one'),
+            'remove_named' => admin_t('media.queue.remove_named'),
+            'cleared' => admin_t('media.queue.cleared'),
+            'progress' => admin_t('media.upload.progress'),
+            'done' => admin_t('media.upload.done'),
+            'done_one' => admin_t('media.upload.done_one'),
+            'reused' => admin_t('media.upload.reused'),
+            'reused_one' => admin_t('media.upload.reused_one'),
+            'kept' => admin_t('media.upload.kept'),
+            'kept_one' => admin_t('media.upload.kept_one'),
+        ],
+    ];
 } else {
     $usages = $service->usagesOf($item->id);
 }
@@ -91,6 +154,7 @@ if ($item === null) {
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title><?= $item === null ? 'Media' : 'Media — ' . $h($item->displayName()) ?> <?= admin_te('media.admin') ?></title>
 <link rel="stylesheet" href="<?= AssetVersion::url('/admin/assets/admin.css') ?>">
+<link rel="stylesheet" href="<?= AssetVersion::url('/admin/assets/media-library.css') ?>">
 </head>
 <body<?= \App\Service\AdminTheme::bodyAttribute() ?>>
 <?php require __DIR__ . '/_header.php'; ?>
@@ -117,27 +181,89 @@ if ($item === null) {
     <p class="admin-alert admin-alert--success"><?= admin_te('media.afbeelding_verwijderd') ?></p>
   <?php endif; ?>
 
-  <section class="admin-card">
-    <h2><?= admin_te('media.nieuwe_afbeelding') ?></h2>
-    <form method="post" action="/api/admin/create-media.php" enctype="multipart/form-data" class="admin-product-form">
+  <?php if ($notice !== ''): ?>
+    <p class="admin-alert admin-alert--success"><?= $h($notice) ?></p>
+  <?php endif; ?>
+
+  <section class="admin-card admin-media-upload" aria-labelledby="media-upload-title">
+    <h2 id="media-upload-title"><?= admin_te('media.upload.title') ?></h2>
+
+    <form method="post" action="/api/admin/create-media.php" enctype="multipart/form-data" class="admin-media-upload__form" data-media-upload>
       <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
 
-      <div class="admin-form-row admin-form-row--split">
-        <label><?= admin_te('media.bestand') ?>*
-          <input type="file" name="image" accept="image/jpeg,image/png,image/webp,image/gif" required>
+      <div class="admin-media-dropzone" data-media-dropzone>
+        <p class="admin-media-dropzone__title" data-media-drop-idle hidden><?= admin_te('media.upload.drop_idle') ?></p>
+        <p class="admin-media-dropzone__title" data-media-drop-active hidden><?= admin_te('media.upload.drop_active') ?></p>
+
+        <label class="admin-media-dropzone__control">
+          <span class="admin-visually-hidden"><?= admin_te('media.upload.choose_label') ?></span>
+          <?= admin_file_input([
+              'id' => 'media-upload-files',
+              'name' => 'files[]',
+              'accept' => $uploadAccept,
+              'multiple' => true,
+              'required' => true,
+              'aria-describedby' => 'media-upload-rules',
+              'data-media-upload-input' => true,
+          ]) ?>
         </label>
-        <label><?= admin_te('common.alt_text') ?>
-          <input type="text" name="alt_text" maxlength="255" placeholder="Wat is er te zien?">
-        </label>
+
+        <p class="admin-media-dropzone__rules" id="media-upload-rules"><?= admin_te('media.upload.rules', ['max' => $maxSize]) ?></p>
       </div>
 
-      <p class="admin-text-muted"><?= admin_te('media.jpg_png_webp_gif') ?></p>
+      <div class="admin-media-queue" data-media-queue hidden>
+        <div class="admin-media-queue__head">
+          <h3 class="admin-media-queue__title" id="media-queue-title">
+            <?= admin_te('media.queue.title') ?>
+            <span class="admin-media-queue__count" data-media-queue-count></span>
+          </h3>
+          <p class="admin-text-muted"><?= admin_te('media.queue.hint') ?></p>
+        </div>
 
-      <button type="submit"><?= admin_te('common.add') ?></button>
+        <ul class="admin-media-queue__list" role="list" aria-labelledby="media-queue-title" data-media-queue-list></ul>
+      </div>
+
+      <p class="admin-media-upload__status" role="status" aria-live="polite" data-media-upload-status></p>
+
+      <div class="admin-media-upload__actions">
+        <button type="submit" class="admin-btn-primary" data-media-upload-submit><?= admin_te('media.upload.submit') ?></button>
+        <button type="button" class="admin-btn-ghost" data-media-queue-clear hidden><?= admin_te('media.queue.clear') ?></button>
+      </div>
     </form>
+
+    <?php /* One row of "Nieuwe bestanden". media-upload.js clones it per file and
+             fills it with textContent and value only; the words are the
+             catalog's, written here once. */ ?>
+    <template data-media-queue-template>
+      <li class="admin-media-queue__item">
+        <span class="admin-media-queue__preview" aria-hidden="true" data-queue-preview></span>
+
+        <div class="admin-media-queue__body">
+          <div class="admin-media-queue__field">
+            <label class="admin-media-queue__label" data-queue-label-for="name"><?= admin_te('media.queue.name_label') ?></label>
+            <span class="admin-media-queue__name">
+              <input type="text" autocomplete="off" spellcheck="false" data-queue-name>
+              <span class="admin-media-queue__ext" data-queue-ext></span>
+            </span>
+          </div>
+
+          <div class="admin-media-queue__field">
+            <label class="admin-media-queue__label" data-queue-label-for="alt"><?= admin_te('media.queue.alt_label') ?></label>
+            <input type="text" maxlength="255" data-queue-alt>
+          </div>
+
+          <p class="admin-media-queue__meta" data-queue-meta></p>
+          <p class="admin-media-queue__error" data-queue-error hidden></p>
+        </div>
+
+        <button type="button" class="admin-btn-text admin-btn-text--danger admin-media-queue__remove" data-queue-remove><?= admin_te('media.queue.remove') ?></button>
+      </li>
+    </template>
+
+    <script type="application/json" data-media-upload-config><?= json_encode($uploadConfig, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?></script>
   </section>
 
-  <section class="admin-card">
+  <section class="admin-card" data-media-library>
     <form method="get" action="/admin/media.php" class="admin-inline-form">
       <label class="admin-media-search">
         <span class="admin-visually-hidden"><?= admin_te('common.search') ?></span>
@@ -320,5 +446,9 @@ if ($item === null) {
 <?php endif; ?>
 
 </main>
+<?php if ($item === null): ?>
+<script src="<?= AssetVersion::url('/admin/assets/media-library.js') ?>" defer></script>
+<script src="<?= AssetVersion::url('/admin/assets/media-upload.js') ?>" defer></script>
+<?php endif; ?>
 </body>
 </html>

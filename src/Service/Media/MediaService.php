@@ -197,15 +197,31 @@ final class MediaService
      * Only an exact checksum match counts; nothing here compares images for
      * visual similarity, and nothing should.
      *
+     * A NAME an editor typed — the name field of the upload queue — is checked
+     * before anything is stored, so a refused name never leaves a file behind
+     * it. It then names the item the way a file's own name would, number and
+     * all (uniqueDisplayName()). An exact duplicate keeps the name it already
+     * has, the way it keeps its alt text.
+     *
      * @param array{name?:string,type?:string,tmp_name?:string,error?:int,size?:int} $file one entry of $_FILES
+     * @param string $name the name to give the item, without its extension; '' for the file's own
      *
      * @return array{item: MediaItem, reused: bool}
      *
      * @throws \RuntimeException with a Dutch, user-facing message
      */
-    public function upload(array $file, string $altText = ''): array
+    public function upload(array $file, string $altText = '', string $name = ''): array
     {
         $uploader = $this->uploader;
+        $name = trim($name);
+
+        if ($name !== '') {
+            $problem = MediaFilename::problemWith($name);
+
+            if ($problem !== null) {
+                throw new \RuntimeException($problem);
+            }
+        }
 
         $checksum = $uploader->checksumOf($file);
 
@@ -249,7 +265,9 @@ final class MediaService
         }
 
         $displayName = $this->uniqueDisplayName(
-            MediaFilename::fromClientName($stored['original_filename']),
+            $name !== ''
+                ? MediaFilename::withoutExtension($name, $stored['name_extension'])
+                : MediaFilename::fromClientName($stored['original_filename']),
             $stored['name_extension']
         );
 
@@ -275,6 +293,46 @@ final class MediaService
         }
 
         return ['item' => $item, 'reused' => false];
+    }
+
+    /**
+     * Several files at once, each on its own: a refused file is reported and
+     * the others are added all the same.
+     *
+     * NOT ALL-OR-NOTHING, on purpose. Nothing about adding one image depends
+     * on the next; every item that is created is complete, and a refused file
+     * leaves nothing behind (upload() cleans up after itself). A transaction
+     * around the batch would only turn one bad file into a lost batch. The
+     * form without JavaScript sends its files here
+     * (api/admin/create-media.php); the upload queue sends one file per
+     * request to upload() instead, which is the same rule one file at a time.
+     *
+     * @param list<array{name?:string,type?:string,tmp_name?:string,error?:int,size?:int}> $files see MediaUploader::filesFrom()
+     *
+     * @return list<array{name: string, item: MediaItem|null, reused: bool, error: string|null}> in the order of $files
+     */
+    public function uploadMany(array $files): array
+    {
+        $results = [];
+
+        foreach ($files as $file) {
+            // The name as the editor knows it, for the sentence about this
+            // file. It is printed escaped, like every other value.
+            $name = basename(str_replace('\\', '/', (string) ($file['name'] ?? '')));
+
+            try {
+                $upload = $this->upload($file);
+                $results[] = ['name' => $name, 'item' => $upload['item'], 'reused' => $upload['reused'], 'error' => null];
+            } catch (\RuntimeException $e) {
+                $results[] = ['name' => $name, 'item' => null, 'reused' => false, 'error' => $e->getMessage()];
+            } catch (\Throwable $e) {
+                error_log('[MediaService] uploadMany: ' . $e->getMessage());
+
+                $results[] = ['name' => $name, 'item' => null, 'reused' => false, 'error' => 'Afbeelding kon niet worden opgeslagen. Probeer het opnieuw.'];
+            }
+        }
+
+        return $results;
     }
 
     /**

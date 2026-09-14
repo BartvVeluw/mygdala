@@ -1,14 +1,20 @@
 <?php
 
 /**
- * POST /api/admin/media-upload.php   (multipart/form-data: file, alt_text)
+ * POST /api/admin/media-upload.php   (multipart/form-data: file, alt_text, name)
  *
  * Adds one image to the Media Library and answers with the resulting item as
- * JSON — the "upload new" half of the picker modal
- * (admin/_media_picker.php). The library screen's own upload form posts to
+ * JSON. Two callers, one file per request each: the "upload new" half of the
+ * picker modal (admin/_media_picker.php), and the upload queue on the library
+ * screen (admin/assets/media-upload.js), which sends a batch one file at a
+ * time so every file gets its own answer and no request outgrows
+ * post_max_size. The library screen's form without JavaScript posts to
  * api/admin/create-media.php instead, which redirects like every other admin
- * form; this one exists because the picker must stay on the page the editor
- * is editing.
+ * form; this one exists because both callers must stay on the page they are.
+ *
+ * `name` is optional: the name an editor gave the file in the queue, without
+ * its extension. App\Service\Media\MediaService refuses one that could not
+ * be a filename before anything is stored.
  *
  * PERMISSION. media.view rather than media.manage, deliberately: adding an
  * image is what every content editor could already do through any block's
@@ -17,8 +23,9 @@
  * media.manage. See App\Service\AdminPermissions.
  *
  * All the actual validation is App\Service\Media\MediaUploader's — real
- * image header, random filename, size cap, one writable folder. Nothing here
- * trusts a filename, an extension or a Content-Type.
+ * image header, an image extension in the name, random filename, size cap,
+ * one writable folder. Nothing here trusts a filename, an extension or a
+ * Content-Type.
  */
 
 declare(strict_types=1);
@@ -58,7 +65,11 @@ if (!is_array($file)) {
 }
 
 try {
-    $result = (new MediaService())->upload($file, (string) ($_POST['alt_text'] ?? ''));
+    $result = (new MediaService())->upload(
+        $file,
+        (string) ($_POST['alt_text'] ?? ''),
+        (string) ($_POST['name'] ?? '')
+    );
 } catch (\RuntimeException $e) {
     // The uploader's own messages are Dutch and meant for an editor.
     http_response_code(422);

@@ -68,16 +68,24 @@ deze site kan er nog met een pad naar wijzen.
 
 `App\Service\Media\MediaUploader` — dezelfde regels als
 `SectionImageUploader` altijd al had, want dat zijn de regels die beoordeeld
-zijn:
+zijn, plus één die een redacteur eerder een bruikbaar antwoord geeft:
 
 1. het moet echt een afbeelding zijn, bepaald door de **bestandsheader**
    (`getimagesize()`), nooit door naam, extensie of Content-Type;
-2. de opgeslagen naam is 32 willekeurige hex-tekens plus de extensie die bij
+2. de **naam** moet ook een afbeeldingsextensie hebben: `.jpg`, `.jpeg`,
+   `.jfif`, `.png`, `.webp` of `.gif` (`MediaUploader::ALLOWED_EXTENSIONS`).
+   Een `.exe`, `.php` of `.svg` wordt geweigerd om wat hij zegt te zijn, nog
+   voordat iemand hem opent. Dat maakt een opgeslagen bestand niet veiliger
+   (regel 1 en 3 doen dat), maar het is een antwoord waar een redacteur iets
+   mee kan;
+3. de opgeslagen naam is 32 willekeurige hex-tekens plus de extensie die bij
    het gevonden type hoort — een naam van de gebruiker wordt nooit een
    bestandsnaam;
-3. `is_uploaded_file()` moet het eens zijn;
-4. maximaal 25 MB;
-5. één map waarin deze klasse als enige schrijft, `chmod 0644`.
+4. `is_uploaded_file()` moet het eens zijn;
+5. maximaal 25 MB, of minder als PHP minder toelaat (`upload_max_filesize`,
+   `post_max_size`). Het scherm noemt de grens die echt geldt
+   (`MediaUploader::maxBytes()`);
+6. één map waarin deze klasse als enige schrijft, `chmod 0644`.
 
 **JPG, PNG, WEBP en GIF.** JPG/PNG/WEBP gaan door `App\Service\ImageOptimizer`
 (EXIF-oriëntatie, lange zijde afgetopt, hercomprimeerd, metadata weg,
@@ -97,6 +105,40 @@ op checksum gekeken vóór het opslaan (vangt een GIF) en nog eens ná het
 optimaliseren (vangt een foto, die immers heringepakt wordt); in het tweede
 geval wordt het net weggeschreven bestand meteen weer opgeruimd. Alleen een
 exacte match telt — er wordt niets vergeleken op *gelijkenis*.
+
+### Meerdere bestanden tegelijk
+
+Het bibliotheekscherm heeft één uploadformulier, dat op twee manieren wordt
+verstuurd:
+
+| | Zonder JavaScript | Met `admin/assets/media-upload.js` |
+|---|---|---|
+| Kiezen | `admin_file_input()` met `multiple` (`ADMIN-UI.md`) | idem, of slepen naar het vak eromheen |
+| Wat je ziet | hoeveel bestanden je koos | **Nieuwe bestanden**: voorbeeld, naam, type, grootte en een fout per bestand |
+| Versturen | alles in één POST naar `create-media.php`, terug met een redirect | **één bestand per request** naar `media-upload.php`, dat JSON teruggeeft |
+
+**De wachtrij staat alleen in de browser.** Een bestand gaat pas naar de
+server bij *Toevoegen aan bibliotheek*. Weghalen uit de lijst is niets meer
+dan een `File` vergeten, en er bestaan geen tijdelijke bestanden op de server
+die iemand moet opruimen (er is ook geen proces dat dat zou doen). Een
+voorbeeld is een `URL.createObjectURL()` die wordt vrijgegeven zodra de rij
+verdwijnt.
+
+**Eén bestand per request**, omdat een batch grote foto's anders samen over
+`post_max_size` gaat (de les van de Portfolio-upload), en zodat elk bestand
+zijn eigen antwoord krijgt. **Een batch is niet transactioneel**: elk item
+staat op zichzelf, dus een geweigerd bestand kost de andere hun plek niet en
+laat zelf niets achter (`MediaService::uploadMany()`). Wat lukt, verdwijnt
+uit de lijst en staat meteen in het raster; wat niet lukt, blijft staan met
+de reden erbij.
+
+In de lijst kun je een bestand een **naam** geven. Die gaat mee als `name`,
+zonder extensie, en wordt gecontroleerd vóór er iets wordt opgeslagen
+(`MediaFilename::problemWith()`). Een bezette naam krijgt ook dan een nummer.
+
+De controles in de browser — extensie, grootte, de eerste bytes van het
+bestand, de naam — besparen alleen een rondje. De server doet ze allemaal
+opnieuw.
 
 ## Bestandsnaam
 
@@ -351,8 +393,8 @@ docker compose exec php_test php vendor/bin/phpunit --group migration-backfill
 
 | Bestand | Wat het bewaakt |
 |---|---|
-| `MediaBoundaryTest` | Rechten, guards, CSRF, "de kiezer stuurt alleen een id", modulegrens. Geen database |
-| `MediaLibraryTest` | Upload, wat er geweigerd wordt, alt-tekst, ontdubbelen, zoeken, verwijderen, ontbrekend bestand |
+| `MediaBoundaryTest` | Rechten, guards, CSRF, "de kiezer stuurt alleen een id", modulegrens, en het uploadformulier van het scherm: de gedeelde bestandskiezer, werken met en zonder JavaScript, scripts zonder markup uit strings en zonder zinnen. Geen database |
+| `MediaLibraryTest` | Upload, wat er geweigerd wordt (op naam én op inhoud), meerdere bestanden en een gemengde batch, namen, alt-tekst, ontdubbelen, zoeken, verwijderen, ontbrekend bestand |
 | `MediaUsageTest` | Gebruik afgeleid uit echte blokinstanties, en de verwijderregel |
 | `MediaAdoptionTest` | Wat de overnamemigratie beloofde, op een wegwerpdatabase met eigen oude afbeeldingsrijen (`migration-backfill`) |
 | `BrandingTest` | Media wint van het pad, en het pad blijft de terugval |

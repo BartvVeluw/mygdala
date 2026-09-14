@@ -187,6 +187,187 @@ final class MediaLibraryTest extends TestCase
         ]);
     }
 
+    /**
+     * The NAME must promise an image too. An .exe or a .php is refused for
+     * what it says it is, even when its bytes are a perfectly good PNG — and
+     * nothing is stored for it.
+     */
+    public function testAFileWhoseNameIsNotAnImageIsRefusedWhateverItContains(): void
+    {
+        $filesBefore = $this->libraryFiles();
+
+        foreach (['setup.exe', 'shell.php', 'pagina.phtml', 'archief.zip', 'geen-extensie'] as $name) {
+            try {
+                (new TestMediaUploader())->store($this->uploadedFile($this->pngFixture(), $name));
+                $this->fail($name . ' must be refused');
+            } catch (\RuntimeException $e) {
+                $this->assertStringContainsString('JPG, PNG, WEBP of GIF', $e->getMessage(), $name);
+            }
+        }
+
+        $this->assertSame($filesBefore, $this->libraryFiles(), 'nothing may be stored for a refused file');
+    }
+
+    /** An SVG is refused by its name as well, with the reason an editor can act on. */
+    public function testAnSvgIsRefusedByItsNameWithTheReason(): void
+    {
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('SVG');
+
+        (new TestMediaUploader())->store($this->uploadedFile('<svg xmlns="http://www.w3.org/2000/svg"></svg>', 'logo.svg'));
+    }
+
+    /**
+     * A name that promises an image while the bytes are something else — a
+     * program, a PDF, a script. The header decides, whatever the name says.
+     */
+    public function testAFileThatIsNotReallyAnImageIsRefusedWhateverItIsNamed(): void
+    {
+        $contents = [
+            'programma.jpg' => "MZ\x90\x00\x03\x00\x00\x00\x04\x00\x00\x00\xFF\xFF\x00\x00",
+            'document.png' => "%PDF-1.4\n%\xE2\xE3\xCF\xD3\n1 0 obj\n<<>>\nendobj\n",
+            'script.gif' => "<?php system(\$_GET['c']);",
+        ];
+
+        foreach ($contents as $name => $bytes) {
+            try {
+                (new TestMediaUploader())->store($this->uploadedFile($bytes, $name));
+                $this->fail($name . ' must be refused');
+            } catch (\RuntimeException $e) {
+                $this->assertStringContainsString('Alleen JPG, PNG, WEBP of GIF', $e->getMessage(), $name);
+            }
+        }
+    }
+
+    /** The screen promises what PHP will really accept, never more. */
+    public function testTheSizeLimitIsTheStricterOfTheLibraryAndPhp(): void
+    {
+        $max = MediaUploader::maxBytes();
+
+        $this->assertGreaterThan(0, $max);
+        $this->assertLessThanOrEqual(MediaUploader::MAX_BYTES, $max);
+        $this->assertMatchesRegularExpression('/^\d+(,\d)? MB$/', MediaUploader::maxSizeLabel());
+        $this->assertStringEndsNotWith(',0 MB', MediaUploader::maxSizeLabel(), 'a whole number of megabytes is said without a decimal');
+    }
+
+    /* ------------------------------------------------------------------ */
+    /* Several files at once                                               */
+    /* ------------------------------------------------------------------ */
+
+    public function testSeveralFilesAreAddedAsSeveralItems(): void
+    {
+        $results = $this->service->uploadMany([
+            $this->uploadedFile($this->pngFixture(31, 31), 'zzz-eerste.png'),
+            $this->uploadedFile($this->gifFixture(), 'zzz-tweede.gif'),
+            $this->uploadedFile($this->jpegFixture(33, 33), 'zzz-derde.jpg'),
+        ]);
+
+        $this->remember($results);
+
+        $this->assertCount(3, $results);
+
+        foreach ($results as $result) {
+            $this->assertNull($result['error'], (string) $result['error']);
+            $this->assertNotNull($result['item']);
+        }
+
+        $this->assertSame(
+            ['zzz-eerste.png', 'zzz-tweede.gif', 'zzz-derde.jpg'],
+            array_map(static fn (array $result): string => $result['item']->displayName, $results)
+        );
+    }
+
+    /**
+     * One refused file does not stop the rest, and it leaves nothing behind:
+     * every item is complete on its own, so a batch has no reason to be
+     * all-or-nothing.
+     */
+    public function testAMixedBatchAddsWhatItCanAndSaysWhatItCouldNot(): void
+    {
+        $filesBefore = $this->libraryFiles();
+
+        $results = $this->service->uploadMany([
+            $this->uploadedFile($this->pngFixture(34, 34), 'zzz-goed.png'),
+            $this->uploadedFile("MZ\x90\x00\x03\x00", 'virus.exe'),
+            $this->uploadedFile('geen afbeelding', 'zzz-nep.png'),
+            $this->uploadedFile($this->pngFixture(35, 35), 'zzz-ook-goed.png'),
+        ]);
+
+        $this->remember($results);
+
+        $this->assertSame(['zzz-goed.png', 'virus.exe', 'zzz-nep.png', 'zzz-ook-goed.png'], array_column($results, 'name'));
+
+        $this->assertNotNull($results[0]['item']);
+        $this->assertNull($results[1]['item']);
+        $this->assertStringContainsString('JPG, PNG, WEBP of GIF', (string) $results[1]['error']);
+        $this->assertNull($results[2]['item']);
+        $this->assertNotSame('', (string) $results[2]['error']);
+        $this->assertNotNull($results[3]['item']);
+
+        $this->assertSame($filesBefore + 2, $this->libraryFiles(), 'two images stored, nothing for the two refusals');
+    }
+
+    public function testANameTypedForAnUploadNamesTheItem(): void
+    {
+        $result = $this->service->upload($this->uploadedFile($this->pngFixture(36, 36), 'IMG_0001.png'), '', 'zzz Vakantie aan zee');
+        $this->created[] = $result['item']->id;
+
+        $this->assertSame('zzz Vakantie aan zee.png', $result['item']->displayName);
+        $this->assertSame('IMG_0001.png', $result['item']->originalFilename, 'where the file came from stays on record');
+    }
+
+    /** Typing the extension anyway does not double it. */
+    public function testATypedExtensionIsNotDoubled(): void
+    {
+        $result = $this->service->upload($this->uploadedFile($this->pngFixture(37, 37), 'scan.png'), '', 'zzz-scan-kopie.png');
+        $this->created[] = $result['item']->id;
+
+        $this->assertSame('zzz-scan-kopie.png', $result['item']->displayName);
+    }
+
+    public function testATypedNameThatCannotBeAFilenameIsRefusedBeforeAnythingIsStored(): void
+    {
+        $file = $this->uploadedFile($this->pngFixture(38, 38), 'goed.png');
+        $rowsBefore = $this->repository->countAll();
+        $filesBefore = $this->libraryFiles();
+
+        try {
+            $this->service->upload($file, '', '../../geheim');
+            $this->fail('a name with a path in it must be refused');
+        } catch (\RuntimeException $e) {
+            $this->assertStringContainsString('/', $e->getMessage(), 'the reason names the character to take out');
+        }
+
+        $this->assertSame($rowsBefore, $this->repository->countAll());
+        $this->assertSame($filesBefore, $this->libraryFiles());
+        $this->assertFileExists($file['tmp_name'], 'the upload itself was not even moved');
+    }
+
+    /**
+     * One file or several, from `name="image"` or `name="files[]"`: the same
+     * list, and a slot the browser sent empty is not a file.
+     */
+    public function testUploadedFilesAreReadTheSameFromOneFieldOrSeveral(): void
+    {
+        $this->assertSame(
+            [['name' => 'a.png', 'type' => 'image/png', 'tmp_name' => '/tmp/a', 'error' => UPLOAD_ERR_OK, 'size' => 10]],
+            MediaUploader::filesFrom(['name' => 'a.png', 'type' => 'image/png', 'tmp_name' => '/tmp/a', 'error' => UPLOAD_ERR_OK, 'size' => 10])
+        );
+
+        $several = MediaUploader::filesFrom([
+            'name' => ['a.png', '', 'b.gif'],
+            'type' => ['image/png', '', 'image/gif'],
+            'tmp_name' => ['/tmp/a', '', '/tmp/b'],
+            'error' => [UPLOAD_ERR_OK, UPLOAD_ERR_NO_FILE, UPLOAD_ERR_OK],
+            'size' => [10, 0, 20],
+        ]);
+
+        $this->assertSame(['a.png', 'b.gif'], array_column($several, 'name'));
+        $this->assertSame([], MediaUploader::filesFrom(null));
+        $this->assertSame([], MediaUploader::filesFrom('nonsense'));
+        $this->assertSame([], MediaUploader::filesFrom(['name' => '', 'type' => '', 'tmp_name' => '', 'error' => UPLOAD_ERR_NO_FILE, 'size' => 0]));
+    }
+
     /* ------------------------------------------------------------------ */
     /* Metadata                                                            */
     /* ------------------------------------------------------------------ */
@@ -529,6 +710,44 @@ final class MediaLibraryTest extends TestCase
         $this->created[] = $result['item']->id;
 
         return $result['item'];
+    }
+
+    /**
+     * One entry of $_FILES for a file on disk (see tempFile()).
+     *
+     * @return array{name: string, tmp_name: string, error: int, size: int}
+     */
+    private function uploadedFile(string $bytes, string $name): array
+    {
+        return [
+            'name' => $name,
+            'tmp_name' => $this->tempFile($bytes, $name),
+            'error' => UPLOAD_ERR_OK,
+            'size' => strlen($bytes),
+        ];
+    }
+
+    /**
+     * Registers the items a batch created, so tearDown() removes them.
+     *
+     * @param list<array{item: MediaItem|null}> $results
+     */
+    private function remember(array $results): void
+    {
+        foreach ($results as $result) {
+            if ($result['item'] !== null) {
+                $this->created[] = $result['item']->id;
+            }
+        }
+    }
+
+    /** How many full-size files the library's own folder holds right now. */
+    private function libraryFiles(): int
+    {
+        return count(array_filter(
+            (array) glob(dirname(__DIR__, 2) . '/' . MediaUploader::PUBLIC_PREFIX . '*'),
+            'is_file'
+        ));
     }
 
     /**

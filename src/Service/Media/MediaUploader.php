@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Service\Media;
 
 use App\Service\ImageOptimizer;
+use App\Service\Language\AdminTranslator;
 
 /**
  * Validates, optimizes and stores a file for the Media Library, and reports
@@ -18,14 +19,20 @@ use App\Service\ImageOptimizer;
  *   - the file must really be an image, decided by its HEADER
  *     (getimagesize()), never by its name, its extension or the Content-Type
  *     the browser sent. A .php renamed to .jpg fails here;
+ *   - its NAME must carry an image extension as well (ALLOWED_EXTENSIONS).
+ *     That check lets nothing in the header check keeps out, and it is not
+ *     what makes a stored file safe — but it refuses an .exe or an .svg for
+ *     what it says it is, in words an editor can act on, before anything
+ *     opens it, and it is the list the upload queue checks in the browser;
  *   - the stored filename is 32 random hex characters plus the extension
  *     that belongs to the type actually found. A client-supplied name never
  *     becomes a filesystem name, so there is no traversal, no overwrite of
  *     an existing file, and no way to place a name the web server would
  *     execute;
  *   - is_uploaded_file() must agree it came from this request;
- *   - 25 MB, the same cap as the section uploader, comfortably inside
- *     docker/php-uploads.ini;
+ *   - 25 MB, the same cap as the section uploader and comfortably inside
+ *     docker/php-uploads.ini — or less where PHP itself accepts less
+ *     (maxBytes());
  *   - the file is written to ONE folder this class is the only writer of,
  *     and chmod 0644 so it is readable and never executable.
  *
@@ -52,8 +59,15 @@ class MediaUploader
     /** The same ceiling App\Service\SectionImageUploader uses. */
     public const MAX_BYTES = 25 * 1024 * 1024;
 
+    /**
+     * What a request carries besides its file — the token, a name, an alt
+     * text and the multipart boundaries — kept free inside post_max_size, so
+     * a file right at the limit still fits the request that carries it.
+     */
+    private const REQUEST_OVERHEAD_BYTES = 64 * 1024;
+
     /** Image types the library accepts, and the extension each is stored as. */
-    private const ALLOWED_TYPES = [
+    public const ALLOWED_TYPES = [
         IMAGETYPE_JPEG => 'jpg',
         IMAGETYPE_PNG => 'png',
         IMAGETYPE_WEBP => 'webp',
@@ -62,7 +76,8 @@ class MediaUploader
 
     /**
      * The extensions a file's own name may carry, and the image type each one
-     * promises.
+     * promises. A name without one of them is refused (validate()), whatever
+     * the file contains.
      *
      * The name never decides what a file IS — the header does, in store() —
      * but it does decide what the item is CALLED: a file whose extension
@@ -80,7 +95,7 @@ class MediaUploader
         'gif' => IMAGETYPE_GIF,
     ];
 
-    private const MIME_FOR_TYPE = [
+    public const MIME_FOR_TYPE = [
         IMAGETYPE_JPEG => 'image/jpeg',
         IMAGETYPE_PNG => 'image/png',
         IMAGETYPE_WEBP => 'image/webp',
@@ -100,6 +115,92 @@ class MediaUploader
     public function __construct()
     {
         $this->root = dirname(__DIR__, 3) . '/';
+    }
+
+    /**
+     * The largest file this installation really accepts: the library's own
+     * cap, or less where PHP is configured stricter. The Docker image sets
+     * its limits in docker/php-uploads.ini and a shared host in .user.ini;
+     * a screen that promised 25 MB on a host that takes 8 would let an editor
+     * wait for an upload that can only fail.
+     */
+    public static function maxBytes(): int
+    {
+        $limits = [self::MAX_BYTES];
+
+        $perFile = self::iniBytes((string) ini_get('upload_max_filesize'));
+        if ($perFile > 0) {
+            $limits[] = $perFile;
+        }
+
+        $perRequest = self::iniBytes((string) ini_get('post_max_size'));
+        if ($perRequest > 0) {
+            $limits[] = $perRequest - self::REQUEST_OVERHEAD_BYTES;
+        }
+
+        return max(1, min($limits));
+    }
+
+    /** maxBytes() the way the screen and a refusal say it: "25 MB". */
+    public static function maxSizeLabel(): string
+    {
+        $megabytes = self::maxBytes() / (1024 * 1024);
+
+        // Whole megabytes are said without a decimal: "25 MB", not "25,0 MB".
+        // The division yields an int when it comes out even and a float when
+        // it does not, so this compares the values rather than the types.
+        $decimals = abs($megabytes - round($megabytes)) < 0.05 ? 0 : 1;
+
+        return number_format((float) $megabytes, $decimals, ',', '.') . ' MB';
+    }
+
+    /**
+     * The files of one $_FILES entry as a list in the shape store() takes,
+     * whether the field was `name="image"` (one file) or `name="files[]"`
+     * (several). A slot the browser sent empty is not a file, so "nothing was
+     * chosen" is an empty list.
+     *
+     * @return list<array{name: string, type: string, tmp_name: string, error: int, size: int}>
+     */
+    public static function filesFrom(mixed $entry): array
+    {
+        if (!is_array($entry) || !array_key_exists('name', $entry)) {
+            return [];
+        }
+
+        $fields = ['name', 'type', 'tmp_name', 'error', 'size'];
+
+        if (!is_array($entry['name'])) {
+            $single = [];
+            foreach ($fields as $field) {
+                $single[$field] = [$entry[$field] ?? null];
+            }
+            $entry = $single;
+        }
+
+        $files = [];
+
+        foreach (array_keys($entry['name']) as $index) {
+            if (!is_string($entry['name'][$index] ?? null)) {
+                continue;
+            }
+
+            $file = [
+                'name' => $entry['name'][$index],
+                'type' => (string) ($entry['type'][$index] ?? ''),
+                'tmp_name' => (string) ($entry['tmp_name'][$index] ?? ''),
+                'error' => (int) ($entry['error'][$index] ?? UPLOAD_ERR_NO_FILE),
+                'size' => (int) ($entry['size'][$index] ?? 0),
+            ];
+
+            if ($file['error'] === UPLOAD_ERR_NO_FILE && $file['name'] === '') {
+                continue;
+            }
+
+            $files[] = $file;
+        }
+
+        return $files;
     }
 
     /**
@@ -285,11 +386,25 @@ class MediaUploader
         }
 
         if ($error === UPLOAD_ERR_INI_SIZE || $error === UPLOAD_ERR_FORM_SIZE) {
-            throw new \RuntimeException('Afbeelding is te groot (max. 25 MB).');
+            throw new \RuntimeException(self::tooLargeMessage());
         }
 
         if ($error !== UPLOAD_ERR_OK) {
             throw new \RuntimeException('Uploaden van de afbeelding is mislukt. Probeer het opnieuw.');
+        }
+
+        // The name before the contents: an .exe or an .svg is refused for
+        // what it says it is before anything opens it. Not the security
+        // boundary — the header check in store() is — but the answer an
+        // editor can act on.
+        $extension = MediaFilename::extension(basename(str_replace('\\', '/', (string) ($file['name'] ?? ''))));
+
+        if ($extension === 'svg') {
+            throw new \RuntimeException(AdminTranslator::trans('media.upload.svg'));
+        }
+
+        if (!isset(self::ALLOWED_EXTENSIONS[$extension])) {
+            throw new \RuntimeException(AdminTranslator::trans('media.upload.bad_type'));
         }
 
         $tmpName = (string) ($file['tmp_name'] ?? '');
@@ -298,11 +413,36 @@ class MediaUploader
             throw new \RuntimeException('Ongeldige upload.');
         }
 
-        if ((int) ($file['size'] ?? 0) > self::MAX_BYTES) {
-            throw new \RuntimeException('Afbeelding is te groot (max. 25 MB).');
+        if ((int) ($file['size'] ?? 0) > self::maxBytes()) {
+            throw new \RuntimeException(self::tooLargeMessage());
         }
 
         return $tmpName;
+    }
+
+    private static function tooLargeMessage(): string
+    {
+        return AdminTranslator::trans('media.upload.too_large', ['max' => self::maxSizeLabel()]);
+    }
+
+    /**
+     * A php.ini size ("35M", "512K", "2G") in bytes; 0 for no limit or for a
+     * value this cannot read, which then simply does not lower the cap.
+     */
+    private static function iniBytes(string $value): int
+    {
+        if (preg_match('/^\s*(\d+)\s*([kmg]?)\s*$/i', $value, $matches) !== 1) {
+            return 0;
+        }
+
+        $bytes = (int) $matches[1];
+
+        return match (strtolower($matches[2])) {
+            'g' => $bytes * 1024 * 1024 * 1024,
+            'm' => $bytes * 1024 * 1024,
+            'k' => $bytes * 1024,
+            default => $bytes,
+        };
     }
 
     /**

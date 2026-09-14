@@ -1,0 +1,252 @@
+/*
+ * Media Library screen (admin/media.php): what exists on that one screen and
+ * nowhere else — adding files through the drop zone and the queue of new
+ * files.
+ *
+ * OWNER. admin/media.php, the only screen that links it, after admin.css.
+ * The thumbnail grid, the detail view and the picker keep their rules in the
+ * "Media Library" section of admin.css, because the picker modal on every
+ * image field shares them.
+ *
+ * WHAT IS NOT HERE. No colour and no token of its own: every value reads the
+ * --admin-* tokens admin.css declares, so the four dashboard themes and Eigen
+ * kleuren style this screen without a line of their own (THEMING.md). And no
+ * rule for the file control itself: admin_file_input() is a primitive,
+ * styled once in ADMIN UI PRIMITIVES (ADMIN-UI.md). The drop zone only places
+ * it.
+ */
+
+/* A script shows and hides parts of this screen with the hidden attribute,
+   and a class that gives an element a display would silently beat the
+   browser's own [hidden]{display:none} — the same trap admin.css closes for
+   .admin-product-form. */
+.admin-media-upload [hidden]{ display: none !important; }
+
+/* --- Adding files --------------------------------------------------------- */
+
+.admin-media-upload__form{
+  display: flex;
+  flex-direction: column;
+  gap: var(--admin-sp-4);
+}
+
+.admin-media-dropzone{
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--admin-sp-3);
+  padding: var(--admin-sp-5) var(--admin-sp-4);
+  text-align: center;
+  background: var(--admin-surface-sunken);
+  border: 2px dashed var(--admin-border-strong);
+  border-radius: var(--admin-radius-md);
+  transition: border-color var(--admin-transition), background var(--admin-transition);
+}
+
+/* Dragging files over the zone. Said three ways, so it never rests on colour
+   alone: the border turns solid, the zone takes the accent, and the sentence
+   above the button changes (media-upload.js). */
+.admin-media-dropzone.is-dragover{
+  border-style: solid;
+  border-color: var(--admin-accent);
+  background: var(--admin-accent-soft);
+}
+
+.admin-media-dropzone__title{
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--admin-text);
+}
+
+.admin-media-dropzone__control{
+  display: flex;
+  justify-content: center;
+  max-width: 100%;
+}
+
+.admin-media-dropzone__rules{
+  margin: 0;
+  max-width: 34rem;
+  font-size: 0.8rem;
+  color: var(--admin-text-muted);
+}
+
+/* The file control names what was chosen; once the queue holds the files it
+   says that better, and the input is emptied after every choice. Hidden only
+   when both scripts ran: admin-ui.js draws the name, media-upload.js marks
+   the form. */
+.admin-ui-enhanced .admin-media-upload__form.is-enhanced .admin-file__name{ display: none; }
+
+.admin-media-upload__status{
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--admin-text-muted);
+}
+
+.admin-media-upload__status:empty{ display: none; }
+
+.admin-media-upload__actions{
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--admin-sp-3);
+}
+
+/* --- New files, before they are added --------------------------------------- */
+
+.admin-media-queue{
+  display: flex;
+  flex-direction: column;
+  gap: var(--admin-sp-3);
+}
+
+.admin-media-queue__head{
+  display: flex;
+  flex-direction: column;
+  gap: var(--admin-sp-1);
+}
+
+.admin-media-queue__head .admin-text-muted{ margin: 0; }
+
+.admin-media-queue__title{
+  margin: 0;
+  font-size: 1rem;
+}
+
+.admin-media-queue__count{
+  font-weight: 500;
+  color: var(--admin-text-muted);
+}
+
+.admin-media-queue__list{
+  display: flex;
+  flex-direction: column;
+  gap: var(--admin-sp-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.admin-media-queue__item{
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr) auto;
+  align-items: start;
+  gap: var(--admin-sp-3) var(--admin-sp-4);
+  padding: var(--admin-sp-3);
+  background: var(--admin-surface-sunken);
+  border: 1px solid var(--admin-border);
+  border-radius: var(--admin-radius-md);
+  transition: border-color var(--admin-transition), opacity var(--admin-transition);
+}
+
+.admin-media-queue__item.has-error{ border-color: var(--admin-error); }
+
+.admin-media-queue__item.is-sending{ opacity: 0.65; }
+
+.admin-media-queue__preview{
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 72px;
+  height: 72px;
+  overflow: hidden;
+  background: var(--admin-bg);
+  border: 1px solid var(--admin-border);
+  border-radius: var(--admin-radius-sm);
+}
+
+.admin-media-queue__preview img{
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* A file with no picture to show — one refused before it was drawn — gets a
+   plain sheet with a folded corner, drawn from the theme's own colours. */
+.admin-media-queue__item:not(.has-preview) .admin-media-queue__preview::before{
+  content: "";
+  width: 26px;
+  height: 34px;
+  border: 2px solid var(--admin-text-faint);
+  border-radius: 2px;
+  clip-path: polygon(0 0, 68% 0, 100% 26%, 100% 100%, 0 100%);
+}
+
+.admin-media-queue__body{
+  display: flex;
+  flex-direction: column;
+  gap: var(--admin-sp-2);
+  min-width: 0;
+}
+
+.admin-media-queue__field{
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  min-width: 0;
+}
+
+.admin-media-queue__label{
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: var(--admin-text-muted);
+}
+
+.admin-media-queue__name{
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.admin-media-queue__item input[type="text"]{
+  width: 100%;
+  min-width: 0;
+  background: var(--admin-surface);
+}
+
+.admin-media-queue__item input[aria-invalid="true"]{ border-color: var(--admin-error); }
+
+.admin-media-queue__ext{
+  flex: none;
+  font-size: 0.85rem;
+  color: var(--admin-text-muted);
+}
+
+.admin-media-queue__meta{
+  margin: 0;
+  font-size: 0.78rem;
+  color: var(--admin-text-faint);
+}
+
+.admin-media-queue__error{
+  margin: 0;
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: var(--admin-error);
+}
+
+.admin-media-queue__remove{ align-self: start; }
+
+@media (max-width: 560px){
+  .admin-media-dropzone{ padding: var(--admin-sp-4) var(--admin-sp-3); }
+
+  .admin-media-queue__item{ grid-template-columns: 56px minmax(0, 1fr); }
+
+  .admin-media-queue__preview{
+    width: 56px;
+    height: 56px;
+  }
+
+  .admin-media-queue__remove{
+    grid-column: 1 / -1;
+    justify-self: start;
+  }
+}
+
+@media (prefers-reduced-motion: reduce){
+  .admin-media-dropzone,
+  .admin-media-queue__item{ transition: none; }
+}

@@ -252,14 +252,17 @@ het werkte.
 
 | Scherm | Wat |
 |---|---|
+| Mediabibliotheek (`admin/media.php`) | De upload is `admin_file_input()` met `multiple`. Het sleepvak, de lijst met nieuwe bestanden en de voorbeelden eromheen zijn van dat scherm zelf (`MEDIA.md`) |
 | Site-instellingen (`admin/settings.php`) | Infobalk bij *Algemeen* en bij *Adresgegevens*; uitleg bij naam van de website, e-mailadres, telefoonnummer, plaats, footer-omschrijving, plaats en land van het adres, KVK-nummer, standaardtaal, standaard meta description en indexeren. De standaardtaal is een `.admin-select`, indexeren een switch |
 | Shop-instellingen (`admin/shop-settings.php`) | Infobalk per tabblad; uitleg bij elk veld; één `?` bij *Invulvelden* die elk invulveld van de bestelmail uitlegt, opgebouwd uit `EmailPlaceholders::KNOWN`; *Herstel standaardtekst* als `.admin-btn-secondary` (`admin/assets/shop-settings.js`) |
 | Pagina's (`admin/pages.php`) | Infobalk; zoekveld (`?q=`, filtert de al geladen lijst via `PageContent::matchesAdminSearch()`); knoppen uit de familie; de status als badge met woord én kleur: `.admin-badge--draft` (amber, `--admin-warning`) en `.admin-badge--published` (groen, `--admin-success`) |
 | Formulier bewerken (`admin/form.php`) | *Actief* is een switch, *Inzendingen bewaren* een checkbox, beide selects zijn `.admin-select` |
 | Pagina bewerken en Nieuwe pagina (`admin/page.php`, `admin/page-new.php`) | Uitleg bij *Webadres* (het woord *slug* staat alleen in die uitleg); op een bestaande pagina het adres als link en het veld achter *Webadres wijzigen*, een `<details>` in de stijl van de inklapbare rijen; op een nieuwe pagina een live voorbeeld van het hele adres. SEO: een infobalk over wat SEO is, en uitleg bij de SEO-titel (met de automatische titel) en bij de *Omschrijving voor zoekmachines*. Op *Nieuwe pagina* staat de SEO-kaart vóór *Template* en klapt hij dicht (`.admin-collapse--card`). In de blokkenkiezer het zoekveld (`.admin-search`); op elke blokrij *Verbergen*/*Tonen* (`.admin-btn-secondary`) en *Verwijderen* (`.admin-btn-danger`), dat eerst vraagt in `admin_confirm_dialog()` |
 
-De bestandskiezer bestaat en is getest, maar staat nog op geen scherm. Het
-eerste scherm dat hem krijgt, is de upload in de Mediabibliotheek.
+De bestandskiezer staat op de upload van de Mediabibliotheek. Slepen en
+neerzetten, de lijst met nieuwe bestanden en de voorbeelden horen bij dat
+scherm (`admin/assets/media-upload.js`) en liggen óm de bouwsteen heen: het
+echte `<input type="file">` blijft de manier om bestanden te kiezen.
 
 `AdminUiPrimitivesTest` pint per scherm vast welke velden uitleg hebben, dat
 een label naar zijn eigen veld wijst, en dat de formulieren hetzelfde
