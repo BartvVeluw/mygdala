@@ -467,9 +467,12 @@ de belangrijkste opbrengst van deze stap.
 
 **Bewust nog op hun eigen paden**, ongewijzigd en werkend:
 
-- Portfolio (`portfolio_gallery_items`, `portfolio_item_images`) — die hebben
-  een eigen thumbnail-pijplijn (`PortfolioImageProcessor`) die eerst een plek
-  in dit model moet krijgen;
+- Portfolio (`portfolio_gallery_items`) — dat heeft een eigen
+  thumbnail-pijplijn (`PortfolioImageProcessor`) die eerst een plek in dit
+  model moet krijgen. De foto's van de oude projectpagina
+  (`portfolio_item_images`) worden niet meer bewerkt en ook niet gemigreerd:
+  een projectpagina is nu een gewone pagina, en die haalt haar beeld uit deze
+  bibliotheek (`MODULES.md`);
 - Homepage-hero (afbeelding én video) en Item-galerij;
 - Shop: producten, varianten, collecties. Productbeeld heeft volgorde,
   varianten en catalogus-semantiek; dat is een eigen stap.

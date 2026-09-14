@@ -366,6 +366,32 @@ $cmsImageSrc = static fn (array $row): string => '/' . ltrim((string) ($row['thu
             </select>
           </div>
         </div>
+        <?php
+          // What the stored choice does in public, said where it is made:
+          // whether the linked page is live yet, and — for an item that still
+          // has its old project page — what that page's address does now
+          // (App\Service\PortfolioGalleryContent::legacyProjectRedirectUrl()).
+          $linkedPage = null;
+          foreach ($linkablePages as $candidate) {
+              if ((int) $candidate['id'] === $selectedPageId) {
+                  $linkedPage = $candidate;
+              }
+          }
+          $linkedPageIsLive = $linkedPage !== null && PageContent::isPublished($linkedPage);
+          $oldProjectSlug = (string) ($item['slug'] ?? '');
+          $hasOldProjectPage = $oldProjectSlug !== '' && !empty($item['has_detail_page']);
+        ?>
+        <?php if ($linkedPage !== null): ?>
+          <p class="admin-text-muted">
+            <?= admin_te($linkedPageIsLive ? 'portfolio.linked_page_published' : 'portfolio.linked_page_draft', ['address' => PageContent::publicUrl($linkedPage)]) ?>
+            <?php if ($canManagePages): ?>
+              <a href="/admin/page.php?id=<?= (int) $linkedPage['id'] ?>"><?= admin_te('portfolio.edit_page') ?></a>
+            <?php endif; ?>
+          </p>
+        <?php endif; ?>
+        <?php if ($hasOldProjectPage && ($linkedPageIsLive || (int) $item['is_active'] === 1)): ?>
+          <p class="admin-text-muted"><?= admin_te($linkedPageIsLive ? 'portfolio.old_page_redirects' : 'portfolio.old_page_live', ['address' => PortfolioGalleryContent::publicPath($oldProjectSlug)]) ?></p>
+        <?php endif; ?>
         <?php if ($canManagePages): ?>
           <p>
             <a href="/admin/page-new.php" class="admin-btn-secondary" target="_blank" rel="noopener"><?= admin_te('portfolio.new_page') ?> &#8594;</a>

@@ -21,9 +21,10 @@ use Tests\Support\BuiltInServer;
 
 /**
  * The Portfolio switched on and off, over real HTTP: the sidebar, both admin
- * screens, a write endpoint, the public routes, a gallery block on another
- * page, the sitemap — and the data that must still be there when the module
- * comes back.
+ * screens, a write endpoint, the public routes — an old project address that
+ * still shows its old page or redirects to the page its item links to —, a
+ * gallery card linking to that page, the sitemap, and the data that must still
+ * be there when the module comes back, the link to a page included.
  *
  * Which modules run is read from the environment a web server was STARTED
  * with (MODULES.md). So for as long as this class runs it starts two of PHP's
@@ -31,7 +32,9 @@ use Tests\Support\BuiltInServer;
  * (Tests\Support\BuiltInServer): one with MODULE_PORTFOLIO_ENABLED=true and
  * one with =false. Switching the module off is then asking the other server,
  * which is exactly what a deploy with a different .env does. The registry
- * half of the same behaviour is Tests\Module\PortfolioModuleTest.
+ * half of the same behaviour is Tests\Module\PortfolioModuleTest; the
+ * read model behind the card, the redirect and the sitemap, without a server,
+ * is Tests\Service\PortfolioProjectPageTest.
  *
  * Everything it creates — accounts, sessions, categories, items with their
  * uploaded images, pages — is its own, is marked zz-, and is removed again in
@@ -201,7 +204,8 @@ final class PortfolioModuleHttpTest extends TestCase
     /* The public side                                                     */
     /* ------------------------------------------------------------------ */
 
-    public function testAProjectPageIsOnlyPublicWhileTheModuleRuns(): void
+    /** An old project page without a published page to redirect to still shows itself — only while the module runs. */
+    public function testAnOldProjectPageIsOnlyPublicWhileTheModuleRuns(): void
     {
         $item = $this->item(projectPage: true);
         $path = '/portfolio-detail.php?slug=' . $item['slug'];
@@ -214,6 +218,55 @@ final class PortfolioModuleHttpTest extends TestCase
         $this->assertSame(404, $off['status']);
         $this->assertStringContainsString('Pagina niet gevonden', $off['body'], "the site's own 404, as for a page that never existed");
         $this->assertStringNotContainsString((string) $item['title_nl'], $off['body']);
+    }
+
+    /**
+     * An old project address whose item links to a published page answers a
+     * permanent redirect to that page's own canonical, in one step, also after
+     * the page is renamed — and renders nothing of the old page. With the module
+     * off the old address is closed like every Portfolio URL, while the page,
+     * which belongs to Pages, keeps answering.
+     */
+    public function testAnOldProjectAddressRedirectsToItsLinkedPageWhileTheModuleRuns(): void
+    {
+        $item = $this->item(projectPage: true);
+        $page = $this->contentPage(PageContent::STATUS_PUBLISHED);
+        (new PortfolioGalleryRepository())->setItemPage((int) $item['id'], (int) $page['id']);
+        $oldAddress = '/portfolio-detail.php?slug=' . $item['slug'];
+
+        $on = self::$on->request('GET', $oldAddress);
+        $this->assertSame(301, $on['status']);
+        $this->assertSame(PageContent::canonicalUrl($page), $on['location']);
+        $this->assertStringNotContainsString((string) $item['title_nl'], $on['body'], 'nothing of the old page is rendered');
+        $this->assertSame(200, self::$on->request('GET', '/pagina.php?slug=' . $page['slug'])['status']);
+
+        $renamed = $this->renamePage((int) $page['id']);
+        $again = self::$on->request('GET', $oldAddress);
+        $this->assertSame(301, $again['status']);
+        $this->assertSame(PageContent::canonicalUrl($renamed), $again['location'], 'the rename is followed, in one step');
+
+        $off = self::$off->request('GET', $oldAddress);
+        $this->assertSame(404, $off['status'], "the old address is the Portfolio's, and the Portfolio is off");
+        $this->assertSame(200, self::$off->request('GET', '/pagina.php?slug=' . $renamed['slug'])['status'], 'the page keeps answering');
+    }
+
+    /**
+     * Linked to a page that is still a draft, the old address does not redirect
+     * — that would name an unpublished page and send visitors to a 404 — and
+     * keeps showing the old project page.
+     */
+    public function testAnOldProjectAddressLinkedToADraftStillShowsTheOldPage(): void
+    {
+        $item = $this->item(projectPage: true);
+        $draft = $this->contentPage(PageContent::STATUS_DRAFT);
+        (new PortfolioGalleryRepository())->setItemPage((int) $item['id'], (int) $draft['id']);
+
+        $on = self::$on->request('GET', '/portfolio-detail.php?slug=' . $item['slug']);
+
+        $this->assertSame(200, $on['status'], 'no redirect to a draft');
+        $this->assertSame('', $on['location']);
+        $this->assertStringContainsString((string) $item['title_nl'], $on['body'], 'the old project page answers as it did');
+        $this->assertStringNotContainsString((string) $draft['slug'], $on['body'], "and the draft's address appears nowhere");
     }
 
     public function testThePortfolioPageIsClosedWhileTheModuleIsOff(): void
@@ -254,6 +307,29 @@ final class PortfolioModuleHttpTest extends TestCase
         $this->assertSame(PortfolioModule::GALLERY_SOURCE, $stored->fetchColumn(), 'the block still names its source');
     }
 
+    /**
+     * A gallery card links to its item's published page. With the module off
+     * the gallery is gone but the page still answers and the link stays
+     * stored; with the module back, the card links again.
+     */
+    public function testAGalleryCardLinksToItsPageAndTheLinkSurvivesTheModuleBeingOff(): void
+    {
+        $item = $this->item(projectPage: false);
+        $project = $this->contentPage(PageContent::STATUS_PUBLISHED);
+        $repository = new PortfolioGalleryRepository();
+        $repository->setItemPage((int) $item['id'], (int) $project['id']);
+        $gallery = '/pagina.php?slug=' . $this->pageWithAGalleryBlock()['slug'];
+        $cardLink = 'href="/' . $project['slug'] . '"';
+
+        $this->assertStringContainsString($cardLink, self::$on->request('GET', $gallery)['body']);
+
+        $this->assertStringNotContainsString($cardLink, self::$off->request('GET', $gallery)['body']);
+        $this->assertSame(200, self::$off->request('GET', '/pagina.php?slug=' . $project['slug'])['status'], "the page is not the Portfolio's to close");
+        $this->assertSame((int) $project['id'], (int) $repository->findItemById((int) $item['id'])['page_id'], 'switching off keeps the link');
+
+        $this->assertStringContainsString($cardLink, self::$on->request('GET', $gallery)['body'], 'on again, the card links again');
+    }
+
     public function testTheSitemapLeavesThePortfolioOutWhileTheModuleIsOff(): void
     {
         $item = $this->item(projectPage: true);
@@ -270,6 +346,30 @@ final class PortfolioModuleHttpTest extends TestCase
         $this->assertStringContainsString('<urlset', $off, 'the sitemap itself still answers');
         $this->assertStringNotContainsString($projectLoc, $off);
         $this->assertStringNotContainsString('/portfolio.php</loc>', $off);
+    }
+
+    /**
+     * A project with a published page is in the sitemap once, under the page's
+     * own address from Core's pages collector, and its old address is not —
+     * with the module on and off. An old project page without one is still
+     * listed while the module runs.
+     */
+    public function testALinkedProjectIsInTheSitemapOnceUnderThePagesOwnAddress(): void
+    {
+        $linked = $this->item(projectPage: true);
+        $unlinked = $this->item(projectPage: true);
+        $project = $this->contentPage(PageContent::STATUS_PUBLISHED);
+        (new PortfolioGalleryRepository())->setItemPage((int) $linked['id'], (int) $project['id']);
+        $pageLoc = '/' . $project['slug'] . '</loc>';
+
+        $on = self::$on->request('GET', '/sitemap.php')['body'];
+        $this->assertSame(1, substr_count($on, $pageLoc), 'the page, once');
+        $this->assertStringNotContainsString('/portfolio/' . $linked['slug'] . '</loc>', $on, 'not the old address that redirects');
+        $this->assertStringContainsString('/portfolio/' . $unlinked['slug'] . '</loc>', $on, 'an old page that still answers stays listed');
+
+        $off = self::$off->request('GET', '/sitemap.php')['body'];
+        $this->assertSame(1, substr_count($off, $pageLoc), "the page is Core's, so it stays listed");
+        $this->assertStringNotContainsString('/portfolio/', $off);
     }
 
     /* ------------------------------------------------------------------ */
@@ -370,6 +470,56 @@ final class PortfolioModuleHttpTest extends TestCase
         PortfolioGalleryContent::clearCache();
 
         return (array) $repository->findItemById($id);
+    }
+
+    /**
+     * An ordinary page of this test's own: the kind of page an item links to.
+     *
+     * @return array<string, mixed>
+     */
+    private function contentPage(string $status): array
+    {
+        $key = 'zz-projectpagina-' . bin2hex(random_bytes(4));
+        $pages = new PageRepository();
+
+        $id = $pages->create([
+            'content_key' => $key,
+            'slug' => $key,
+            'title' => 'ZZ Projectpagina',
+            'status' => $status,
+            'meta_title' => null,
+            'meta_title_en' => null,
+            'meta_description' => null,
+            'meta_description_en' => null,
+        ]);
+        $this->pageIds[] = $id;
+
+        PageContent::clearCache();
+
+        return (array) $pages->findById($id);
+    }
+
+    /**
+     * @return array<string, mixed> the page as stored after its slug changed
+     */
+    private function renamePage(int $id): array
+    {
+        $pages = new PageRepository();
+        $page = (array) $pages->findById($id);
+
+        $pages->update($id, [
+            'slug' => 'zz-hernoemd-' . bin2hex(random_bytes(4)),
+            'title' => (string) $page['title'],
+            'status' => (string) $page['status'],
+            'meta_title' => null,
+            'meta_title_en' => null,
+            'meta_description' => null,
+            'meta_description_en' => null,
+        ]);
+
+        PageContent::clearCache();
+
+        return (array) $pages->findById($id);
     }
 
     /**

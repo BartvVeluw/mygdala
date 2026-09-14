@@ -236,24 +236,27 @@ class PortfolioGalleryRepository extends Repository
     }
 
     /**
-     * Every Portfolio project whose detail page is genuinely public, as
-     * App\Service\Sitemap needs it: slug plus last-modified timestamp.
+     * Every item whose OLD project page can be public, as the Portfolio's
+     * sitemap collector needs it: slug, last-modified timestamp, and the page
+     * the item links to now.
      *
-     * The three conditions are exactly the ones
+     * The three conditions are the ones
      * App\Service\PortfolioGalleryContent::itemForDetailPage() checks before
-     * it will render a page at all (visible, detail page switched on, and a
-     * slug to reach it by), so a project can never be listed in the sitemap
-     * while /portfolio/<slug> 404s.
+     * it renders the old page at all (visible, old project page switched on,
+     * and a slug to reach it by), so an address that 404s is never listed.
+     * Whether the address redirects instead, because a published page is
+     * linked, is PortfolioGalleryContent::legacyProjectPagesForSitemap()'s to
+     * decide — which is why page_id comes along.
      *
-     * Not scoped to one gallery: the sitemap wants every public detail page
-     * on the site, whichever gallery an item happens to belong to.
+     * Not scoped to one gallery: the sitemap wants every old project page on
+     * the site, whichever gallery an item happens to belong to.
      *
-     * @return array<int, array{slug:string, updated_at:?string}>
+     * @return array<int, array{slug:string, updated_at:?string, page_id:?int}>
      */
     public function findDetailPageItemsForSitemap(): array
     {
         $stmt = $this->db->query(
-            "SELECT slug, updated_at
+            "SELECT slug, updated_at, page_id
              FROM portfolio_gallery_items
              WHERE is_active = 1 AND has_detail_page = 1 AND slug IS NOT NULL AND slug <> ''
              ORDER BY sort_order ASC, id ASC"
@@ -263,16 +266,22 @@ class PortfolioGalleryRepository extends Repository
             static fn (array $row): array => [
                 'slug' => (string) $row['slug'],
                 'updated_at' => $row['updated_at'] !== null ? (string) $row['updated_at'] : null,
+                'page_id' => $row['page_id'] !== null ? (int) $row['page_id'] : null,
             ],
             $stmt->fetchAll()
         );
     }
 
     /**
-     * Looks up the item behind a public project detail page URL
-     * (portfolio-detail.php?slug=...). Callers must still check
-     * is_active/has_detail_page themselves — see
-     * App\Service\PortfolioGalleryContent::itemForDetailPage().
+     * Looks up the item behind an old project address
+     * (portfolio-detail.php?slug=...). What that address does is the caller's
+     * question — redirect to the linked page, or show the old page, which
+     * needs is_active/has_detail_page checked: see
+     * App\Service\PortfolioGalleryContent::legacyProjectRedirectUrl() and
+     * itemForDetailPage().
+     *
+     * Nothing writes a slug any more: the editor that set one is gone, and a
+     * slug now only names an address that already existed.
      *
      * @return array<string, mixed>|null
      */
@@ -283,23 +292,6 @@ class PortfolioGalleryRepository extends Repository
         $row = $stmt->fetch();
 
         return $row === false ? null : $row;
-    }
-
-    /**
-     * Server-side uniqueness check for the admin item editor's slug field —
-     * same "exclude the row being saved" shape as ProductRepository::slugExists().
-     */
-    public function slugExists(string $slug, ?int $excludeId = null): bool
-    {
-        if ($excludeId !== null) {
-            $stmt = $this->db->prepare('SELECT 1 FROM portfolio_gallery_items WHERE slug = :slug AND id != :id LIMIT 1');
-            $stmt->execute(['slug' => $slug, 'id' => $excludeId]);
-        } else {
-            $stmt = $this->db->prepare('SELECT 1 FROM portfolio_gallery_items WHERE slug = :slug LIMIT 1');
-            $stmt->execute(['slug' => $slug]);
-        }
-
-        return $stmt->fetch() !== false;
     }
 
     /**

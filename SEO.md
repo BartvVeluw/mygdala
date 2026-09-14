@@ -83,7 +83,7 @@ terug op de Nederlandse, zoals elk tweetalig veld in dit project.
 Vaste routes zonder CMS-rij (winkelwagen, afrekenen, bestelstatus,
 cookiebeleid, herroeping) gebruiken `Seo::routeTitle()`: `"<naam> | <site_name>"`.
 De shop houdt zijn eigen conventie `"<naam> | Shop — <site_name>"`
-(`Seo::shopTitle()`), Portfolio `"<project> | Portfolio — <site_name>"`, en de
+(`Seo::shopTitle()`), de oude Portfolio-projectpagina `"<project> | Portfolio — <site_name>"`, en de
 Blog `"<titel> | <blogtitel> — <site_name>"` — dezelfde vorm, zodat een lezer
 in een zoekresultaat ziet uit welk deel van de site het komt. Dat
 zijn de teksten die er al stonden; ze zijn niet gelijkgetrokken omdat ze
@@ -108,7 +108,7 @@ er ook geen.
 ```text
 eigen og_image_path
 → de eigen afbeelding die het item toch al toont
-   (product: de foto van de standaardvariant; portfolio: de projectfoto)
+   (product: de foto van de standaardvariant; oude portfolio-projectpagina: de projectfoto)
 → og_image_path uit Instellingen
 → geen og:image
 ```
@@ -142,7 +142,7 @@ bouwt zijn eigen URL één keer:
 | CMS-pagina | `PageContent::canonicalUrl()` |
 | Product | `ProductSeo::canonicalUrl()` |
 | Collectie | `CollectionContent::canonicalUrl()` |
-| Portfolio-project | `PortfolioGalleryContent::canonicalUrlForSlug()` |
+| Oude portfolio-projectpagina (zonder gekoppelde, gepubliceerde pagina) | `PortfolioGalleryContent::canonicalUrlForSlug()` |
 
 Dezelfde methodes vullen de sitemap, dus een `<loc>` is per constructie
 identiek aan de canonical van de pagina waar hij naar wijst.
@@ -193,7 +193,9 @@ robots-tag op de pagina zelf: Core's paginacollector vraagt
 
 Core levert alleen `pages`; alles daarbuiten komt van een
 **ingeschakelde** module via `ModuleDefinition::sitemapCollectors()` — Portfolio
-levert de projectpagina's, de Shop producten en collecties, Personalisatie de
+levert de oude projectpagina's die nog zelf een pagina tonen (een projectpagina
+die een gewone pagina is, komt uit Core's paginacollector), de Shop producten
+en collecties, Personalisatie de
 catalogus, de Blog het
 overzicht, de gepubliceerde berichten en de categorie-archieven die minstens
 één bericht bevatten. Met de Shop uit bestaat er geen codepad dat een shop-URL

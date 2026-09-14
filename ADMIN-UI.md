@@ -186,8 +186,8 @@ het echte `<input type="file">` onzichtbaar over een eigen knop en een regel
 met de gekozen bestandsnaam; een klik overal in het vak opent de dialoog, en
 `required`, `accept` en `multiple` blijven van het echte veld. Zonder script
 is het de knop van de browser zelf, in de vorm van `.admin-btn-secondary`. Een
-script dat al op het veld reageert (de portfolio-upload in `admin.js`) vindt
-het nog steeds. Slepen en neerzetten en uploadvoortgang horen bij de
+script dat al op het veld reageert (de upload van de Mediabibliotheek in
+`admin/assets/media-upload.js`) vindt het nog steeds. Slepen en neerzetten en uploadvoortgang horen bij de
 Mediabibliotheek (`MEDIA.md`).
 
 **Een voorbeeld verandert daar ook niets aan.** `admin_file_preview()` hoort bij
@@ -287,7 +287,9 @@ versturen als voorheen: dezelfde namen, dezelfde verplichte velden, de
 verborgen `0` vóór de indexeer-switch, en geen verborgen veld vóór *Actief*.
 Voor de twee Portfolio-schermen doet `Tests\Service\PortfolioAdminScreenTest`
 hetzelfde, en `PortfolioItemEditingHttpTest` laat over echt HTTP zien dat het
-voorbeeld op een bestaand item met de opgeslagen afbeelding begint.
+voorbeeld op een bestaand item met de opgeslagen afbeelding begint, dat de
+projectpagina alleen gewone pagina's aanbiedt en dat een onbruikbare keuze
+niets opslaat.
 
 ## Wat hier niet in hoort
 

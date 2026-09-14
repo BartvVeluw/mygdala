@@ -8,6 +8,9 @@
  * portfolio_item_images row — the FK's ON DELETE CASCADE removes those rows
  * automatically, but the files they reference on disk are only removed by
  * this loop first (the database cascade doesn't touch the filesystem).
+ *
+ * A page the item links to is not the item's: it is an ordinary CMS page, and
+ * deleting the item leaves it exactly as it is.
  */
 
 declare(strict_types=1);

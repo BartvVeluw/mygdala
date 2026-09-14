@@ -16,8 +16,8 @@
  * media.manage, like update-media.php: an item's name is shown by every place
  * that lists it, so changing it reaches beyond the screen an editor is on.
  *
- * TWO ANSWERS, chosen by `ajax`, the way add-portfolio-item-images.php does
- * it: a redirect back to the item with a session flash for the form on the
+ * TWO ANSWERS, chosen by `ajax`, the way delete-media-items.php does it: a
+ * redirect back to the item with a session flash for the form on the
  * item screen, and JSON for the rename dialog on the grid
  * (admin/assets/media-library.js), which must not reload a page that may
  * still hold an upload queue.

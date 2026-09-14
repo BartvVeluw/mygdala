@@ -1031,10 +1031,14 @@ fieldset legend{ font-weight: 700; margin-bottom: 0.6rem; padding: 0; font-size:
 .service-detail__body p{ margin: 1rem 0 0; }
 
 /* ==========================================================================
-   Project detail hero + gallery (portfolio-detail.php) — CMS-driven, see
-   App\Service\PortfolioGalleryContent::itemForDetailPage(). Deliberately its
-   own classes rather than reusing .service-detail__* (diensten.php,
-   over-mij.php, partials/text-image-split-media.php all share that block).
+   The OLD project page's hero + gallery (portfolio-detail.php), kept so its
+   addresses keep working: an address whose item links to a published page
+   redirects, every other one still renders this (MODULES.md, "Portfolio";
+   App\Service\PortfolioGalleryContent::itemForDetailPage()). A project page
+   that is an ordinary CMS page is built from blocks and never uses these
+   classes. Deliberately its own classes rather than reusing
+   .service-detail__* (diensten.php, over-mij.php,
+   partials/text-image-split-media.php all share that block).
    ========================================================================== */
 .project-hero{ padding-top: clamp(6.5rem, 5vw + 4rem, 8.5rem); padding-bottom: var(--sp-6); }
 .project-hero__back{

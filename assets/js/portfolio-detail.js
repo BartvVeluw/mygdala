@@ -1,8 +1,10 @@
 /* =========================================================================
-   Portfolio detail page (portfolio-detail.php) — the project lightbox, with
-   prev/next/counter over every [data-project-lightbox-trigger] on the page.
-   Asked for by that route, not by a block: the page is not built out of
-   content blocks.
+   The old Portfolio project page (portfolio-detail.php) — the project
+   lightbox, with prev/next/counter over every [data-project-lightbox-trigger]
+   on the page. Asked for by that route, not by a block: the page is not built
+   out of content blocks. Kept for as long as that route still shows an old
+   project page, for an address with no published page linked (MODULES.md,
+   "Portfolio"); a project page that is an ordinary CMS page never loads it.
    ========================================================================= */
 (function () {
   "use strict";

@@ -8,8 +8,8 @@ use App\Repository\PortfolioGalleryRepository;
 use App\Repository\PortfolioItemImageRepository;
 
 /**
- * The Portfolio CATALOGUE: the items themselves, their categories and their
- * project detail pages. It is a content catalogue with its own CRUD,
+ * The Portfolio CATALOGUE: the items themselves, their categories and the page
+ * each item may link to. It is a content catalogue with its own CRUD,
  * taxonomy and uploaded media (admin/portfolio.php), deliberately outside
  * App\Service\SectionRegistry — see that class's docblock.
  *
@@ -31,6 +31,24 @@ use App\Repository\PortfolioItemImageRepository;
  * `data-category` tokens per item, using each category's stable `slug` so
  * `assets/js/blocks/item-gallery.js`'s `initFilters()` keeps matching on the same
  * space-separated-token scheme it always has.
+ *
+ * A PROJECT PAGE IS AN ORDINARY CMS PAGE. An item stores at most one `page_id`
+ * (db/migrations/20260914200000_link_a_portfolio_item_to_a_page.php), and this
+ * class turns it into an address per request, only ever through a page the
+ * public may see: published, and not served by a switched-off module — the
+ * rule App\Service\LinkResolver applies to a menu link. A renamed page is
+ * followed, a draft or deleted page gives no link, and no address is stored
+ * anywhere. That page's words, SEO, canonical and sitemap entry are its own.
+ *
+ * THE OLD PROJECT PAGE, kept for its address. Before the link the Portfolio
+ * owned its project pages at /portfolio/<slug> (has_detail_page, slug, intro,
+ * description, portfolio_item_images). Nothing edits them any more; the
+ * columns and the photos stay (MODULES.md, "Portfolio"). An old address
+ * redirects to the published page its item links to
+ * (legacyProjectRedirectUrl()), or, while there is none, still shows the old
+ * page (itemForDetailPage()) — never a silent 404 — and
+ * legacyProjectPagesForSitemap() lists exactly the addresses that still show
+ * one.
  *
  * There is deliberately no hardcoded DEFAULTS item list any more. It existed
  * as a "database unreachable" safety net for a template that rendered the
@@ -99,9 +117,10 @@ class PortfolioGalleryContent
         }
 
         $categoriesByItemId = self::categorySlugsByItemIds($items);
+        $pagesById = self::publishedPagesById($items);
 
         return self::$cache[$cacheKey] = array_map(
-            static fn (array $item): array => self::mapItemRow($item, $categoriesByItemId),
+            static fn (array $item): array => self::mapItemRow($item, $categoriesByItemId, $pagesById),
             $items
         );
     }
@@ -145,9 +164,9 @@ class PortfolioGalleryContent
      * disguise.
      *
      * A draft may be linked, unlike in the menu and footer pickers
-     * (admin/navigation-item.php): a card only ever links to a PUBLISHED page,
-     * so an editor can link a page first and publish it when it is ready,
-     * while nothing unpublished is shown in the meantime.
+     * (admin/navigation-item.php): a card only ever links to a PUBLISHED page
+     * (publishedPagesById()), so an editor can link a page first and publish it
+     * when it is ready, while nothing unpublished is shown in the meantime.
      *
      * @param array<string, mixed> $page a `pages` row
      */
@@ -197,6 +216,43 @@ class PortfolioGalleryContent
     }
 
     /**
+     * The pages a list of items links to that a visitor may reach, in one
+     * query, keyed by page id. A draft, a deleted page (whose link the
+     * database has already set to NULL) and a page whose address a switched-off
+     * module took away are simply absent, so an item linking to one gets no
+     * link — the rule App\Service\LinkResolver applies to a menu item.
+     *
+     * An unreachable pages table degrades to no links rather than no gallery.
+     *
+     * @param array<int, array<string, mixed>> $items
+     * @return array<int, array<string, mixed>> `pages` rows keyed by pages.id
+     */
+    private static function publishedPagesById(array $items): array
+    {
+        $pageIds = array_values(array_filter(array_map(
+            static fn (array $item): int => (int) ($item['page_id'] ?? 0),
+            $items
+        )));
+
+        if ($pageIds === []) {
+            return [];
+        }
+
+        try {
+            $pages = (new PageRepository())->findPublishedByIds($pageIds);
+        } catch (\Throwable $e) {
+            error_log('[PortfolioGalleryContent] linked page lookup failed: ' . $e->getMessage());
+
+            return [];
+        }
+
+        return array_filter(
+            $pages,
+            static fn (array $page): bool => PageContent::isServedByAnEnabledModule($page)
+        );
+    }
+
+    /**
      * Clears the in-process cache — used by the admin save handlers right
      * after writing a new value, and by tests.
      *
@@ -225,22 +281,25 @@ class PortfolioGalleryContent
      * admin/homepage-selection concerns, not something a template needs to
      * render a card.
      *
-     * `url` is the item's own project page when it has one (which is what
-     * gives the card its "opens its own page" arrow); a card without one
-     * gets no URL here, and the BLOCK decides whether to point it somewhere
-     * else (its `fallback_link_url`) or leave it plain and lightbox-able.
+     * `url` is the current address of the published page the item links to,
+     * which is what gives the card its "opens its own page" arrow. An item
+     * without one — no link, a draft, a page that is gone — gets no URL here,
+     * and the BLOCK decides whether to point its card somewhere else (its
+     * `fallback_link_url`) or leave it plain and lightbox-able. The old project
+     * page plays no part: it only still answers at its own old address.
      *
      * @param array<string, mixed> $item
      * @param array<int, list<string>> $categoriesByItemId from categorySlugsByItemIds()
+     * @param array<int, array<string, mixed>> $pagesById from publishedPagesById()
      * @return array<string, mixed>
      */
-    private static function mapItemRow(array $item, array $categoriesByItemId = []): array
+    private static function mapItemRow(array $item, array $categoriesByItemId = [], array $pagesById = []): array
     {
         $titleNl = (string) $item['title_nl'];
         $subtitleNl = (string) $item['subtitle_nl'];
 
-        $slug = (string) ($item['slug'] ?? '');
-        $hasDetailPage = !empty($item['has_detail_page']) && $slug !== '';
+        $page = $pagesById[(int) ($item['page_id'] ?? 0)] ?? null;
+        $url = $page !== null ? PageContent::publicUrl($page) : '';
 
         return [
             'image_path' => (string) $item['image_path'],
@@ -251,17 +310,96 @@ class PortfolioGalleryContent
             'subtitle_nl' => $subtitleNl,
             'subtitle_en' => self::valueOrDefault($item['subtitle_en'] ?? null, $subtitleNl),
             'categories' => implode(' ', $categoriesByItemId[(int) $item['id']] ?? []),
-            'url' => $hasDetailPage ? self::publicPath($slug) : '',
-            'is_detail_link' => $hasDetailPage,
+            'url' => $url,
+            'is_detail_link' => $url !== '',
         ];
     }
 
     /**
-     * The public URL of a Portfolio project's detail page. The single place
-     * that knows the /portfolio/ prefix: portfolio-detail.php's canonical
-     * tag, its og:url and App\Service\Sitemap all resolve it through here,
-     * so the sitemap can never list a project under a URL different from the
-     * one its own page declares canonical.
+     * Where an old project address sends its visitor now: the canonical URL of
+     * the published page its item links to, or null when there is none — no
+     * item with that slug, no link, or a link to a draft, a deleted page or a
+     * page whose module is off. portfolio-detail.php answers a URL with a 301 to
+     * it before it reads anything of the old page.
+     *
+     * Resolved per request on the page's id, like the card, so a renamed page
+     * is followed without a stored redirect to keep up to date. The target is
+     * App\Service\PageContent::canonicalUrl(), the same URL the page declares
+     * canonical and the sitemap lists. That is never an address under
+     * /portfolio/, so this can neither loop nor chain into another old address.
+     *
+     * Deliberately not the Redirect Manager (REDIRECTS.md): it refuses a source
+     * under the reserved /portfolio/ namespace, never sees a request Apache
+     * already routed to portfolio-detail.php, and would store a target that
+     * goes stale the moment the link, the page's slug or its status changes.
+     * No query string is carried over either: this template is reached through
+     * ?slug=, and handing that parameter on to pagina.php would pick a page by
+     * it.
+     *
+     * The item's own visibility plays no part. It decides whether the item is
+     * in a gallery; whether its page may be visited is that page's publication.
+     */
+    public static function legacyProjectRedirectUrl(string $slug): ?string
+    {
+        if ($slug === '') {
+            return null;
+        }
+
+        try {
+            $item = (new PortfolioGalleryRepository())->findItemBySlug($slug);
+        } catch (\Throwable $e) {
+            error_log('[PortfolioGalleryContent] legacyProjectRedirectUrl lookup failed for "' . $slug . '": ' . $e->getMessage());
+
+            return null;
+        }
+
+        if ($item === null) {
+            return null;
+        }
+
+        $page = self::publishedPagesById([$item])[(int) ($item['page_id'] ?? 0)] ?? null;
+
+        return $page !== null ? PageContent::canonicalUrl($page) : null;
+    }
+
+    /**
+     * The old project addresses that still show a page, for
+     * App\Module\PortfolioModule's sitemap collector: slug plus last-modified
+     * timestamp.
+     *
+     * Exactly what portfolio-detail.php answers with a page: a visible item
+     * with its old project page switched on and a slug to reach it by (the
+     * repository's query), and no published page linked — such an address
+     * redirects (legacyProjectRedirectUrl()), and an address that redirects
+     * does not belong in a sitemap. The linked page is listed by Core's own
+     * pages collector under its own canonical, so a project is never listed
+     * twice.
+     *
+     * @return list<array{slug: string, updated_at: ?string}>
+     */
+    public static function legacyProjectPagesForSitemap(): array
+    {
+        $items = (new PortfolioGalleryRepository())->findDetailPageItemsForSitemap();
+        $pagesById = self::publishedPagesById($items);
+
+        $entries = [];
+        foreach ($items as $item) {
+            if (isset($pagesById[(int) ($item['page_id'] ?? 0)])) {
+                continue;
+            }
+
+            $entries[] = ['slug' => (string) $item['slug'], 'updated_at' => $item['updated_at']];
+        }
+
+        return $entries;
+    }
+
+    /**
+     * The address of an old project page. The single place that knows the
+     * /portfolio/ prefix: portfolio-detail.php's canonical tag, its og:url and
+     * the sitemap collector all resolve it through here, so the sitemap can
+     * never list an old project page under a URL different from the one the
+     * page declares canonical.
      *
      * The counterpart of App\Service\CollectionContent::publicPath() and
      * App\Service\ProductSeo::publicPath().
@@ -277,12 +415,12 @@ class PortfolioGalleryContent
     }
 
     /**
-     * The public project detail page (portfolio-detail.php?slug=...): the
-     * full item row (including intro/description NL+EN) plus its additional
-     * gallery images, or null when no active item with a detail page enabled
-     * matches this slug — the template then renders a 404. A detail page
-     * either exists as CMS content or it doesn't; there is nothing to fall
-     * back to.
+     * The old project page (portfolio-detail.php?slug=...) for an address that
+     * has no published page to redirect to: the full item row (including
+     * intro/description NL+EN) plus its additional gallery images, or null
+     * when no active item with that page switched on matches this slug — the
+     * template then renders a 404. That page either exists as the content it
+     * always had or it doesn't; there is nothing to fall back to.
      *
      * @return array<string, mixed>|null
      */
@@ -322,11 +460,10 @@ class PortfolioGalleryContent
             $categories = [];
         }
 
-        // Sanitized again here, defensively, even though
-        // api/admin/update-portfolio-item.php already sanitizes on save —
-        // nothing renders this HTML without going through this first, same
-        // "sanitize on write, sanitize again on read" pattern as
-        // DescriptionSanitizer/api/product.php.
+        // Sanitized on read, defensively: the editor that wrote this HTML is
+        // gone, but nothing renders it without going through this first — the
+        // "sanitize again on read" half of the pattern
+        // DescriptionSanitizer/api/product.php follow.
         $introNl = RichTextSanitizer::sanitize($item['intro_nl'] ?? null) ?? '';
         $introEn = RichTextSanitizer::sanitize($item['intro_en'] ?? null);
         $descriptionNl = RichTextSanitizer::sanitize($item['description_nl'] ?? null) ?? '';

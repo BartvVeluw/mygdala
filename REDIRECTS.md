@@ -321,15 +321,27 @@ onveranderd.
 
 - **Producten.** Een product-URL is `/product.php?id=<getal>` en bevat geen
   slug, dus er is niets dat kan verhuizen.
-- **Collecties en portfolio-items.** Ze wonen onder de gereserveerde
-  naamruimtes `/collecties/` en `/portfolio/`, die een vanaf-pad met opzet
-  weigert. En hun levenscyclus is een andere: laat een redacteur het
-  slugveld van een collectie leeg, dan wordt de slug bij élke opslag opnieuw
-  uit de naam afgeleid (`api/admin/update-collection.php`), waar de slug van
-  een CMS-pagina nooit stilzwijgend uit de titel wordt geregenereerd
-  (`PageService`). Een automatische redirect zou daar afgaan op opslagacties
-  die niemand als hernoeming bedoelde. Uitgesteld tot die levenscyclus
-  gelijkgetrokken is, niet om de symmetrie.
+- **Collecties.** Ze wonen onder de gereserveerde naamruimte `/collecties/`,
+  die een vanaf-pad met opzet weigert. En hun levenscyclus is een andere: laat
+  een redacteur het slugveld van een collectie leeg, dan wordt de slug bij
+  élke opslag opnieuw uit de naam afgeleid (`api/admin/update-collection.php`),
+  waar de slug van een CMS-pagina nooit stilzwijgend uit de titel wordt
+  geregenereerd (`PageService`). Een automatische redirect zou daar afgaan op
+  opslagacties die niemand als hernoeming bedoelde. Uitgesteld tot die
+  levenscyclus gelijkgetrokken is, niet om de symmetrie.
+- **Oude portfolio-projectadressen.** Een projectpagina is een gewone
+  CMS-pagina geworden, waar een portfolio-item met `page_id` naar linkt
+  (`MODULES.md`). Een oud adres `/portfolio/<slug>` stuurt daarom door, maar
+  niet via deze tabel: `/portfolio/` blijft een gereserveerde naamruimte,
+  Apache routeert zo'n adres naar `portfolio-detail.php` zodat `404.php` het
+  nooit ziet, en een opgeslagen bestemming zou bij elke hernoeming,
+  ontkoppeling of depublicatie mee moeten veranderen. `portfolio-detail.php`
+  bepaalt de bestemming daarom per verzoek
+  (`PortfolioGalleryContent::legacyProjectRedirectUrl()`): een 301 naar de
+  canonical van de gekoppelde, gepubliceerde pagina, en anders de oude
+  projectpagina. Eén opzoeking voor één soort adres, geen tweede
+  redirectsysteem. Het doel is altijd het huidige adres van de pagina, dus
+  na een hernoeming ontstaat er geen keten via het vorige adres.
 - Regex- en wildcardredirects, hostnaamredirects, CSV-import/-export,
   404-suggesties, hitteltellers, vervaldatums, prioriteitsregels, geo- of
   apparaatafhankelijke redirects, A/B-redirects.

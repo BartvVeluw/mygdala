@@ -410,6 +410,7 @@
             <file>tests/Service/PortfolioItemContentTest.php</file>
             <file>tests/Service/PortfolioItemEditingHttpTest.php</file>
             <file>tests/Service/PortfolioPageLinkTest.php</file>
+            <file>tests/Service/PortfolioProjectPageTest.php</file>
             <file>tests/Service/RedirectAdminSecurityTest.php</file>
             <file>tests/Service/RedirectPathTest.php</file>
             <file>tests/Service/RedirectRoutingTest.php</file>

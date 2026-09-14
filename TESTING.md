@@ -693,11 +693,16 @@ De suite `modules` (`tests/Module/`) test het modulesysteem zelf:
 - `CmsOnlyHttpTest` — hetzelfde over echt HTTP, tegen `php_cms`.
 - `PortfolioModuleTest` — Portfolio aan en uit: zijbalk, permissie,
   galerijbron, sitemapcollector, gereserveerde slugs en `publicPaths()`, de
-  guards op elk scherm en endpoint, en dat Core geen Portfolio-klasse noemt.
+  guards op elk scherm en endpoint, dat een oud projectadres doorstuurt voordat
+  het iets van de oude pagina leest, en dat Core geen Portfolio-klasse noemt.
   Geen database, geen webserver.
 - `PortfolioModuleHttpTest` — hetzelfde over echt HTTP, plus dat de data een
-  keer uit en weer aan overleeft. Start zelf twee ingebouwde PHP-servers, één
-  met `MODULE_PORTFOLIO_ENABLED=true` en één met `false`
+  keer uit en weer aan overleeft, de koppeling met een pagina inbegrepen. Een
+  oud projectadres geeft een 301 naar de gekoppelde pagina (ook na een
+  hernoeming, nooit naar een concept, een 404 met de module uit), de
+  galerijkaart linkt naar die pagina, en de sitemap noemt een gekoppeld
+  project één keer. Start zelf twee ingebouwde PHP-servers, één met
+  `MODULE_PORTFOLIO_ENABLED=true` en één met `false`
   (`Tests\Support\BuiltInServer`), dus hij draait ook zonder `php_test`.
 
 Een module die de Mediabibliotheek gaat gebruiken levert daarnaast een

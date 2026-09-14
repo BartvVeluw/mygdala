@@ -137,9 +137,9 @@ pagina-uitzondering.
   nodig heeft, en geprint **buiten** de `<section>` — een `position: fixed`-
   overlay binnen een GSAP-getransformeerde sectie positioneert zich tegen die
   sectie in plaats van tegen de viewport.
-- URL's in herbruikbare blokken zijn root-relatief (`/assets/…`,
-  `/portfolio/<slug>`), want een blok mag op elke CMS-pagina staan, ook op een
-  genest pad.
+- URL's in herbruikbare blokken zijn root-relatief (`/assets/…`, het
+  `/<slug>` van een gekoppelde pagina), want een blok mag op elke CMS-pagina
+  staan, ook op een genest pad zoals een oud `/portfolio/<slug>`.
 
 ## Blijvende ontwerpregels
 

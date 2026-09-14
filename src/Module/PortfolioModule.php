@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Module;
 
-use App\Repository\PortfolioGalleryRepository;
 use App\Service\AdminPermissions;
 use App\Service\ItemGalleryContent;
 use App\Service\PortfolioGalleryContent;
@@ -12,7 +11,8 @@ use App\Service\Sitemap;
 
 /**
  * The Portfolio as an optional first-party module: the catalogue of work items
- * with their categories, the project pages, the Portfolio page and the CMS
+ * with their categories, each item's optional link to an ordinary CMS page,
+ * the addresses of the old project pages, the Portfolio page and the CMS
  * section that manages them.
  *
  * WHY IT IS A MODULE. It used to be Core, on the argument that nobody would
@@ -23,14 +23,23 @@ use App\Service\Sitemap;
  * class, exactly like App\Module\BlogModule, and Core no longer names a
  * portfolio item, a category or a project page (Tests\Module\PortfolioModuleTest).
  *
+ * A PROJECT PAGE IS NOT THE MODULE'S. An item links to an ordinary CMS page by
+ * id (MODULES.md, "Portfolio"), and that page — its words, SEO, canonical and
+ * sitemap entry — belongs to Pages. The module owns the link, and the old
+ * /portfolio/<slug> addresses, which either redirect to the linked page or
+ * still show the old project page (App\Service\PortfolioGalleryContent).
+ *
  * WHAT SWITCHING IT OFF DOES. Nothing to the data (MODULES.md): the five
- * tables keep every row and every uploaded image stays on disk. The module
- * simply stops contributing: no sidebar entry; no holdable permission, so both
- * admin screens and every Portfolio write endpoint refuse on the permission
- * check they already make; no sitemap entries; no gallery source, so a gallery
- * block set to portfolio items keeps its settings and shows nothing; and,
- * through App\Module\ModuleGuard at the top of portfolio.php and
- * portfolio-detail.php, a 404 at /portfolio.php and at every /portfolio/<slug>.
+ * tables keep every row, every item keeps its link to a page, and every
+ * uploaded image stays on disk. The module simply stops contributing: no
+ * sidebar entry; no holdable permission, so both admin screens and every
+ * Portfolio write endpoint refuse on the permission check they already make;
+ * no sitemap entries; no gallery source, so a gallery block set to portfolio
+ * items keeps its settings and shows nothing; and, through
+ * App\Module\ModuleGuard at the top of portfolio.php and portfolio-detail.php,
+ * a 404 at /portfolio.php and at every /portfolio/<slug>, redirect or not. A
+ * page an item links to is an ordinary page and keeps answering at its own
+ * address.
  *
  * WHAT IT KEEPS WHILE OFF: its reserved slugs, for the Blog's reason — both
  * templates are still on disk.
@@ -132,7 +141,7 @@ final class PortfolioModule extends ModuleDefinition
 
     /**
      * Both root-level templates, reserved whether or not the module runs.
-     * `portfolio` is also the first segment of every project page
+     * `portfolio` is also the first segment of every old project address
      * (/portfolio/<slug>, see .htaccess); `portfolio-detail` is the template
      * that rewrite points at.
      */
@@ -155,13 +164,16 @@ final class PortfolioModule extends ModuleDefinition
     }
 
     /**
-     * Every public project page. The Portfolio page itself is a CMS page and
-     * comes from Core's pages collector, where App\Service\PageSeo::isIndexable()
-     * leaves it out while this module is off (publicPaths() above).
+     * Every old project page that still shows itself. The Portfolio page
+     * itself is a CMS page and comes from Core's pages collector, where
+     * App\Service\PageSeo::isIndexable() leaves it out while this module is
+     * off (publicPaths() above) — and so does every page an item links to,
+     * which is how a linked project is listed once, under that page's own
+     * canonical.
      *
-     * The rule is PortfolioGalleryContent::itemForDetailPage()'s own — visible,
-     * project page switched on, and a slug to reach it by — so the sitemap can
-     * never list a project whose page answers 404.
+     * The rule is PortfolioGalleryContent::legacyProjectPagesForSitemap()'s: an
+     * old address that redirects is not listed, and neither is one that
+     * answers 404, so the sitemap never names an address that shows no page.
      */
     public function sitemapCollectors(): array
     {
@@ -169,10 +181,10 @@ final class PortfolioModule extends ModuleDefinition
             'portfolio' => static function (): array {
                 $entries = [];
 
-                foreach ((new PortfolioGalleryRepository())->findDetailPageItemsForSitemap() as $item) {
+                foreach (PortfolioGalleryContent::legacyProjectPagesForSitemap() as $project) {
                     $entries[] = Sitemap::entryFor(
-                        PortfolioGalleryContent::canonicalUrlForSlug((string) $item['slug']),
-                        $item['updated_at'] ?? null
+                        PortfolioGalleryContent::canonicalUrlForSlug($project['slug']),
+                        $project['updated_at']
                     );
                 }
 

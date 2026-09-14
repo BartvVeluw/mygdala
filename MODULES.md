@@ -406,10 +406,10 @@ personalisatie te weten behalve die prijsopslag.
 
 Eigen tabellen, eigen admin (`admin/portfolio.php`, `admin/portfolio-item.php`,
 `api/admin/*portfolio*.php` en `move-featured-gallery-item.php`), eigen
-categorietaxonomie, eigen publieke routes (`/portfolio.php` en
-`/portfolio/<slug>` via `portfolio-detail.php`) en de galerijbron `portfolio`.
-Alles loopt via `src/Module/PortfolioModule.php`; Core noemt geen
-portfolio-item meer (`Tests\Module\PortfolioModuleTest`).
+categorietaxonomie, eigen publieke routes (`/portfolio.php` en de oude
+projectadressen `/portfolio/<slug>` via `portfolio-detail.php`) en de
+galerijbron `portfolio`. Alles loopt via `src/Module/PortfolioModule.php`; Core
+noemt geen portfolio-item meer (`Tests\Module\PortfolioModuleTest`).
 
 Het was Core, met als argument dat niemand het ooit uit zou willen zetten. Maar
 een nieuwe installatie van dit CMS is niet vanzelf een portfoliosite, en een
@@ -420,6 +420,47 @@ uit**, net als de Blog. Een installatie die Portfolio al draaide toen het nog
 Core was, houdt het via de opgeslagen voorkeur die een migratie schreef (zie
 "Aan- en uitzetten").
 
+**Een projectpagina is een gewone CMS-pagina.** Een portfolio-item heeft
+hoogstens één koppeling naar een pagina: `portfolio_gallery_items.page_id`,
+nullable, met een foreign key naar `pages.id` die `NULL` wordt als de pagina
+verdwijnt (`ON DELETE SET NULL`, migratie `20260914200000`). De pagina beheert
+zelf haar titel, slug, SEO, canonical, blokken, CTA en publicatiestatus;
+Portfolio slaat alleen het id op, nooit een adres.
+
+- In de editor is de projectpagina één keuze: *Geen gekoppelde pagina* of een
+  gewone pagina, dus een pagina zonder eigen template en zonder vaste route.
+  Een concept mag gekozen worden. *Nieuwe pagina maken* opent het gewone
+  scherm *Nieuwe pagina* in een nieuw tabblad; er is geen koppeling terug, de
+  redacteur kiest de nieuwe pagina daarna zelf.
+- De galerijkaart linkt naar het huidige adres van de gekoppelde pagina, per
+  verzoek opgelost, dus een hernoemde pagina gaat vanzelf mee. Geen pagina,
+  een concept of een verwijderde pagina: geen link en geen pijl. Een
+  `fallback_link_url` die op het galerijblok zelf is ingesteld, blijft wel
+  gelden.
+- Een pagina verwijderen laat het item staan, zonder koppeling. Een item
+  verwijderen of Portfolio uitzetten raakt de pagina nooit.
+
+**De oude projectpagina blijft, voor haar adres.** Vóór de koppeling had
+Portfolio een eigen projectpagina: `has_detail_page`, de slug, introtekst,
+beschrijving en `portfolio_item_images`. Niets bewerkt die nog, en niets
+ervan is verwijderd of gemigreerd. `portfolio-detail.php` beantwoordt een oud
+adres `/portfolio/<slug>` zo:
+
+| Situatie | Antwoord |
+|---|---|
+| Het item linkt naar een gepubliceerde pagina | 301 naar de canonical van die pagina, per verzoek bepaald op `page_id` |
+| Geen koppeling, of een concept | de oude projectpagina zoals altijd, of de 404 die er al was |
+| Portfolio uit | 404 via `ModuleGuard`, ook met een koppeling |
+
+Dat is bewust geen rij in de Redirect Manager (`REDIRECTS.md`): `/portfolio/`
+is daar een gereserveerde naamruimte, Apache stuurt zo'n adres naar
+`portfolio-detail.php` zodat `404.php` het nooit ziet, en een opgeslagen
+bestemming zou bij elke hernoeming, ontkoppeling of depublicatie moeten
+meebewegen. De sitemap van Portfolio noemt alleen oude adressen die nog zelf
+een pagina tonen; een gekoppelde pagina staat er één keer in, via de
+paginacollector van Core. In het overzicht staat bij een item met alleen nog
+een oude projectpagina de badge *Oude projectpagina*.
+
 Uit betekent: geen zijbalk-item; geen houdbare `portfolio.manage`, dus beide
 schermen en elk schrijfendpoint weigeren op hun bestaande permissiecheck; een
 404 op `/portfolio.php` en `/portfolio/<slug>` via `ModuleGuard`; geen
@@ -427,13 +468,13 @@ sitemapregels; en een galerijblok met portfolio-items dat zijn instellingen
 houdt en niets toont. De CMS-pagina achter `/portfolio.php` blijft bestaan en
 bewerkbaar, maar geldt als geserveerd door een uitgeschakelde module
 (`publicPaths()`), dus de sitemap, een menulink en een redirect laten hem los.
-De vijf tabellen, de categorieën en de geüploade afbeeldingen blijven staan.
+Een pagina waar een item naar linkt, hoort bij Core: die blijft bereikbaar, en
+de koppeling blijft opgeslagen. De vijf tabellen, de categorieën en de
+geüploade afbeeldingen blijven staan.
 
 De bestanden staan nog waar ze stonden (`src/Service/Portfolio*.php`,
 `src/Repository/Portfolio*Repository.php`): verhuisd is het eigenaarschap van
-de koppelpunten, geen namespace. De projectpagina (`has_detail_page`, de slug,
-introtekst en beschrijving, `portfolio_item_images`) werkt onveranderd en
-krijgt in een volgende fase een eigen ontwerp.
+de koppelpunten, geen namespace.
 
 ### Formulieren
 

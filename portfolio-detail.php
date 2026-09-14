@@ -3,18 +3,25 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/vendor/autoload.php';
-// A project page belongs to the Portfolio module: with it switched off every
-// /portfolio/<slug> answers the site's own 404, like a project that never
-// existed (App\Module\ModuleGuard). Nothing below runs.
+// An old project address belongs to the Portfolio module: with it switched off
+// every /portfolio/<slug> answers the site's own 404, like a project that never
+// existed (App\Module\ModuleGuard). Nothing below runs — the redirect neither,
+// since it reads the module's own tables.
 \App\Module\ModuleGuard::requirePublicRoute('portfolio');
 
 /**
- * One reusable dynamic template for every Portfolio item's optional project
- * detail page (see /portfolio/project-slug in .htaccess). Not a generic page
- * builder — a single fixed structure (back link, title/subtitle, main image,
- * intro, description, additional image gallery) driven entirely by one
- * Portfolio item's own CMS content. See MAIN.MD and
- * App\Service\PortfolioGalleryContent::itemForDetailPage().
+ * The OLD project page: the page a Portfolio item could switch on at
+ * /portfolio/<slug> (see .htaccess) before a project page became an ordinary
+ * CMS page that the item links to (MODULES.md, "Portfolio"). Edited nowhere
+ * any more, and kept so that no address that was ever public silently breaks.
+ *
+ * An address whose item links to a published page is answered with a
+ * permanent redirect to that page, before anything of the old page is read
+ * (App\Service\PortfolioGalleryContent::legacyProjectRedirectUrl()). Every
+ * other address renders what it always rendered: one fixed structure (back
+ * link, title/subtitle, main image, intro, description, additional image
+ * gallery) driven by the item's own stored content, or the 404 below
+ * (App\Service\PortfolioGalleryContent::itemForDetailPage()).
  *
  * Uses $portfolioItem (not $item) deliberately: partials/header.php and
  * partials/footer.php both run a `foreach ($navItems as $key => $item)` in
@@ -26,6 +33,16 @@ require_once __DIR__ . '/vendor/autoload.php';
  */
 
 $slug = (string) ($_GET['slug'] ?? '');
+
+// An old address whose item links to a published page: send the visitor
+// there, permanently, before anything of the old page is read. Why this is not
+// the Redirect Manager's job: PortfolioGalleryContent::legacyProjectRedirectUrl().
+$projectPageUrl = \App\Service\PortfolioGalleryContent::legacyProjectRedirectUrl($slug);
+if ($projectPageUrl !== null) {
+    header('Location: ' . $projectPageUrl, true, 301);
+    exit;
+}
+
 $portfolioItem = \App\Service\PortfolioGalleryContent::itemForDetailPage($slug);
 
 // This route is not a CMS page of its own; it deliberately reuses the

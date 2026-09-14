@@ -235,16 +235,38 @@ final class PortfolioModuleTest extends TestCase
     /* The public side                                                     */
     /* ------------------------------------------------------------------ */
 
-    /** Both templates refuse before they read a session, a page or an item. */
+    /** Both templates refuse before they read a session, a page or an item — an old project address's redirect included. */
     public function testThePublicTemplatesRefuseBeforeTheyReadAnything(): void
     {
-        foreach (['portfolio.php' => 'PublicFormSession::prime', 'portfolio-detail.php' => 'itemForDetailPage('] as $file => $firstRead) {
+        foreach (['portfolio.php' => 'PublicFormSession::prime', 'portfolio-detail.php' => 'legacyProjectRedirectUrl('] as $file => $firstRead) {
             $source = self::withoutComments(self::sourceOf($file));
             $guard = strpos($source, "ModuleGuard::requirePublicRoute('portfolio')");
 
             $this->assertNotFalse($guard, $file . ' must refuse while the Portfolio is off');
             $this->assertLessThan((int) strpos($source, $firstRead), $guard, $file . ' must refuse before it reads anything');
         }
+    }
+
+    /**
+     * An old project address with a published page linked is answered with a
+     * permanent redirect before anything of the old page is read or rendered.
+     * How the target is found is Tests\Service\PortfolioProjectPageTest; that
+     * it really answers 301 is Tests\Module\PortfolioModuleHttpTest.
+     */
+    public function testAnOldProjectAddressRedirectsBeforeTheOldPageIsRead(): void
+    {
+        $source = self::withoutComments(self::sourceOf('portfolio-detail.php'));
+        $redirect = strpos($source, 'legacyProjectRedirectUrl($slug)');
+        $oldPage = strpos($source, 'itemForDetailPage($slug)');
+
+        $this->assertNotFalse($redirect);
+        $this->assertNotFalse($oldPage);
+        $this->assertLessThan($oldPage, $redirect);
+        $this->assertMatchesRegularExpression(
+            '#if \(\$projectPageUrl !== null\) \{\s*header\(\'Location: \' \. \$projectPageUrl, true, 301\);\s*exit;\s*\}#',
+            $source,
+            'a permanent redirect that stops the template right there'
+        );
     }
 
     /**

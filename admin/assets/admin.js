@@ -1,9 +1,7 @@
 /**
  * Drag-and-drop reordering for small thumbnail photo grids — variant photos
  * (admin/product-form.php, [data-variant-image-grid], POST field
- * "variant_id") and Portfolio-item "Projectafbeeldingen"
- * (admin/portfolio-item.php, [data-portfolio-image-grid], POST field
- * "portfolio_item_id"). Plain HTML5 drag/drop — no library. On drop,
+ * "variant_id"). Plain HTML5 drag/drop — no library. On drop,
  * persists the new order server-side via fetch(), then reloads the page so
  * every other bit of server-rendered state (e.g. the "Standaard" badge on
  * the first image) stays authoritative. Every other admin interaction stays
@@ -68,7 +66,6 @@
 
   function initVariantImageGrids() {
     initDragReorderGrids("[data-variant-image-grid]", ".admin-variant-image-card", "variant_id");
-    initDragReorderGrids("[data-portfolio-image-grid]", ".admin-portfolio-image-card", "portfolio_item_id");
   }
 
   /**
@@ -535,31 +532,6 @@
   }
 
   /**
-   * Portfolio-item admin (admin/portfolio-item.php): shows/hides the
-   * detail-page-only fields (slug, intro, description, Projectafbeeldingen)
-   * to match the live state of "Projectpagina inschakelen", without a
-   * reload. Same convention as initHomepageHeroMediaToggle(): the server
-   * still renders every panel (with `hidden` matching the saved
-   * has_detail_page value), so this works the same on first load without
-   * JS, and nothing here is the validation boundary — that's still
-   * api/admin/update-portfolio-item.php.
-   */
-  function initPortfolioDetailToggle() {
-    var checkbox = document.querySelector("[data-detail-toggle]");
-    if (!checkbox) return;
-
-    var panels = document.querySelectorAll("[data-detail-panel]");
-
-    function sync() {
-      panels.forEach(function (panel) {
-        panel.hidden = !checkbox.checked;
-      });
-    }
-
-    checkbox.addEventListener("change", sync);
-  }
-
-  /**
    * The transliteration App\Service\PageService::sanitizeSlug() applies, for
    * a PREVIEW of an address only: the server always makes the real one.
    */
@@ -655,139 +627,6 @@
     });
   }
 
-  /**
-   * Portfolio-item "Projectafbeeldingen toevoegen"
-   * (admin/portfolio-item.php, [data-portfolio-add-images-form]).
-   *
-   * Progressive enhancement over the plain <input type="file" multiple>
-   * form: without this script, selecting several photos still submits them
-   * all in one multipart POST, same as before. With it, each selected file
-   * is instead uploaded in its own sequential request (one at a time) to
-   * api/admin/add-portfolio-item-images.php with `ajax=1`, so the combined
-   * request size never scales with the number of photos chosen.
-   *
-   * Fixes the bug where selecting several large photos at once produced one
-   * multipart POST big enough to exceed PHP's post_max_size — see MAIN.MD,
-   * "Portfolio: upload van meerdere projectafbeeldingen faalt bij een grote
-   * gecombineerde POST". The CSRF token is reused across requests (it's one
-   * per admin session, not single-use — see src/Service/Csrf.php).
-   *
-   * Any per-file errors are stashed in sessionStorage and rendered once,
-   * just above this form, after the page reload that follows the batch —
-   * simplest way to surface them given the endpoint's normal (non-ajax)
-   * success/error path is a full-page redirect with a session-flash
-   * message, which a background fetch() never navigates to.
-   */
-  // sessionStorage lasts one tab and one visit, so nothing under the old key needs migrating.
-  var PORTFOLIO_IMAGE_ERRORS_KEY = "mygdalaPortfolioImageErrors";
-
-  function initPortfolioItemImageUpload() {
-    var form = document.querySelector("[data-portfolio-add-images-form]");
-    if (!form || !window.fetch || !window.FormData) return;
-
-    var fileInput = form.querySelector('input[type="file"]');
-    var submitBtn = form.querySelector('button[type="submit"]');
-    var csrfInput = form.querySelector('input[name="csrf_token"]');
-    var itemIdInput = form.querySelector('input[name="portfolio_item_id"]');
-    if (!fileInput || !submitBtn || !csrfInput || !itemIdInput) return;
-
-    var statusEl = document.createElement("p");
-    statusEl.className = "admin-text-muted";
-    statusEl.hidden = true;
-    form.appendChild(statusEl);
-
-    form.addEventListener("submit", function (event) {
-      var files = fileInput.files ? Array.prototype.slice.call(fileInput.files) : [];
-      if (files.length === 0) return; // nothing selected — let the server show its usual message
-
-      event.preventDefault();
-
-      submitBtn.disabled = true;
-      fileInput.disabled = true;
-      statusEl.hidden = false;
-
-      var errors = [];
-
-      function uploadNext(index) {
-        if (index >= files.length) {
-          finish();
-          return;
-        }
-
-        statusEl.textContent = "Foto " + (index + 1) + " van " + files.length + " uploaden…";
-
-        var body = new FormData();
-        body.append("csrf_token", csrfInput.value);
-        body.append("portfolio_item_id", itemIdInput.value);
-        body.append("ajax", "1");
-        body.append("images[]", files[index]);
-
-        fetch(form.getAttribute("action"), { method: "POST", credentials: "same-origin", body: body })
-          .then(function (response) {
-            return response.json().catch(function () { return { ok: false }; });
-          })
-          .then(function (data) {
-            if (!data || !data.ok) {
-              errors.push(files[index].name + ": " + ((data && data.error) || "upload mislukt."));
-            }
-            uploadNext(index + 1);
-          })
-          .catch(function () {
-            errors.push(files[index].name + ": upload mislukt.");
-            uploadNext(index + 1);
-          });
-      }
-
-      function finish() {
-        try {
-          if (errors.length > 0) {
-            sessionStorage.setItem(PORTFOLIO_IMAGE_ERRORS_KEY, JSON.stringify(errors));
-          }
-        } catch (e) {}
-        window.location.reload();
-      }
-
-      uploadNext(0);
-    });
-  }
-
-  function renderStoredPortfolioImageErrors() {
-    var raw;
-    try {
-      raw = sessionStorage.getItem(PORTFOLIO_IMAGE_ERRORS_KEY);
-    } catch (e) {
-      raw = null;
-    }
-    if (!raw) return;
-
-    try {
-      sessionStorage.removeItem(PORTFOLIO_IMAGE_ERRORS_KEY);
-    } catch (e) {}
-
-    var errors;
-    try {
-      errors = JSON.parse(raw);
-    } catch (e) {
-      return;
-    }
-    if (!Array.isArray(errors) || errors.length === 0) return;
-
-    var form = document.querySelector("[data-portfolio-add-images-form]");
-    if (!form || !form.parentNode) return;
-
-    var box = document.createElement("div");
-    box.className = "admin-alert admin-alert--error";
-    var list = document.createElement("ul");
-    list.className = "admin-error-list";
-    errors.forEach(function (message) {
-      var li = document.createElement("li");
-      li.textContent = message;
-      list.appendChild(li);
-    });
-    box.appendChild(list);
-    form.parentNode.insertBefore(box, form);
-  }
-
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", function () {
       initVariantImageGrids();
@@ -798,9 +637,6 @@
       initColorSync();
       initRangeOutputs();
       initHomepageHeroMediaToggle();
-      initPortfolioDetailToggle();
-      initPortfolioItemImageUpload();
-      renderStoredPortfolioImageErrors();
       initSlugAutoFill();
       initSeoCharCounters();
     });
@@ -811,9 +647,6 @@
     initColorSync();
     initRangeOutputs();
     initHomepageHeroMediaToggle();
-    initPortfolioDetailToggle();
-    initPortfolioItemImageUpload();
-    renderStoredPortfolioImageErrors();
     initSlugAutoFill();
     initSeoCharCounters();
   }

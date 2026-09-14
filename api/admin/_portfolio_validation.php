@@ -3,46 +3,16 @@
 declare(strict_types=1);
 
 /**
- * Shared validation for the admin Portfolio endpoints: slug generation (same
- * algorithm as api/admin/_product_validation.php's generateUniqueSlug(),
- * reused here against the Portfolio repositories), the categories an item's
- * forms send, and the page an item's editor chooses as its project page.
+ * Shared validation for the admin Portfolio endpoints: the categories an
+ * item's forms send, the page an item's editor chooses as its project page,
+ * and a new category's slug (same algorithm as
+ * api/admin/_product_validation.php's generateUniqueSlug(), reused against
+ * PortfolioCategoryRepository).
  */
 
 use App\Repository\PageRepository;
 use App\Repository\PortfolioCategoryRepository;
-use App\Repository\PortfolioGalleryRepository;
 use App\Service\PortfolioGalleryContent;
-
-/**
- * Generates a URL-safe slug from the Dutch title and makes it unique against
- * portfolio_gallery_items.slug. Only called when "Enable project detail
- * page" is turned on and no slug has been saved yet — once a slug exists it
- * is only ever changed by the admin explicitly editing the field (see
- * update-portfolio-item.php), never silently regenerated from the title.
- */
-function generatePortfolioItemSlug(PortfolioGalleryRepository $repository, string $titleNl, ?int $excludeId = null): string
-{
-    $ascii = function_exists('iconv') ? @iconv('UTF-8', 'ASCII//TRANSLIT', $titleNl) : $titleNl;
-    $base = strtolower((string) ($ascii !== false ? $ascii : $titleNl));
-    $base = preg_replace('/[^a-z0-9]+/', '-', $base) ?? '';
-    $base = trim($base, '-');
-
-    if ($base === '') {
-        $base = 'project';
-    }
-
-    $base = substr($base, 0, 150);
-
-    $slug = $base;
-    $suffix = 2;
-    while ($repository->slugExists($slug, $excludeId)) {
-        $slug = substr($base, 0, 165 - strlen((string) $suffix) - 1) . '-' . $suffix;
-        $suffix++;
-    }
-
-    return $slug;
-}
 
 /**
  * Validates a submitted `categories[]` array (from admin/portfolio-item.php's
@@ -131,20 +101,4 @@ function generatePortfolioCategorySlug(PortfolioCategoryRepository $repository, 
     }
 
     return $slug;
-}
-
-/**
- * Sanitizes an admin-submitted slug (from the editable slug field): lowercase,
- * ASCII-transliterated, non [a-z0-9-] characters collapsed to a single "-",
- * trimmed of leading/trailing "-". Returns '' for an empty/unsalvageable
- * input so the caller can fall back to generatePortfolioItemSlug().
- */
-function sanitizePortfolioItemSlug(string $rawSlug): string
-{
-    $ascii = function_exists('iconv') ? @iconv('UTF-8', 'ASCII//TRANSLIT', $rawSlug) : $rawSlug;
-    $slug = strtolower((string) ($ascii !== false ? $ascii : $rawSlug));
-    $slug = preg_replace('/[^a-z0-9]+/', '-', $slug) ?? '';
-    $slug = trim($slug, '-');
-
-    return substr($slug, 0, 170);
 }
