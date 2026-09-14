@@ -29,6 +29,8 @@ final class MediaBoundaryTest extends TestCase
         'create-media.php' => 'media.view',
         'update-media.php' => 'media.manage',
         'delete-media.php' => 'media.manage',
+        'rename-media.php' => 'media.manage',
+        'delete-media-items.php' => 'media.manage',
     ];
 
     /* ------------------------------------------------------------------ */
@@ -404,6 +406,111 @@ final class MediaBoundaryTest extends TestCase
         $script = $this->source('admin/assets/media-library.js');
         $this->assertStringContainsString('history.pushState', $script, 'a filtered view keeps an address of its own');
         $this->assertStringContainsString('"popstate"', $script, 'and Back redraws it');
+    }
+
+    /* ------------------------------------------------------------------ */
+    /* The library screen: renaming and deleting a selection               */
+    /* ------------------------------------------------------------------ */
+
+    /**
+     * The two write endpoints this screen added guard before they read
+     * anything the request sent: login, permission, POST, the token — and
+     * only then an id or a name.
+     */
+    public function testRenamingAndDeletingASelectionGuardBeforeReadingTheRequest(): void
+    {
+        foreach (['rename-media.php' => "\$_POST['name']", 'delete-media-items.php' => "\$_POST['media_ids']"] as $endpoint => $read) {
+            $source = $this->source('api/admin/' . $endpoint);
+
+            $login = strpos($source, 'AdminAuth::requireLoginForApi()');
+            $permission = strpos($source, "AdminAuth::requirePermissionForApi('media.manage')");
+            $post = strpos($source, "\$_SERVER['REQUEST_METHOD'] !== 'POST'");
+            $csrf = strpos($source, "Csrf::validate(\$_POST['csrf_token'] ?? null)");
+            $input = strpos($source, $read);
+
+            foreach ([$login, $permission, $post, $csrf, $input] as $position) {
+                $this->assertNotFalse($position, $endpoint);
+            }
+
+            $this->assertLessThan($permission, $login, $endpoint . ': login first');
+            $this->assertLessThan($post, $permission, $endpoint . ': then the permission');
+            $this->assertLessThan($csrf, $post, $endpoint . ': then POST only');
+            $this->assertLessThan($input, $csrf, $endpoint . ': nothing is read before the token');
+        }
+    }
+
+    /**
+     * Deleting a selection never takes an address to return to from the
+     * request, caps how much one request may delete, and leaves the decision
+     * about what is in use to the service.
+     */
+    public function testDeletingASelectionTrustsNoAddressAndNoCount(): void
+    {
+        $source = $this->source('api/admin/delete-media-items.php');
+
+        $this->assertStringContainsString('MediaType::isKnown(', $source);
+        $this->assertStringContainsString("header('Location: ' . \$returnTo)", $source);
+        $this->assertStringNotContainsString("\$_POST['return_to']", $source);
+        $this->assertStringNotContainsString('HTTP_REFERER', $source);
+        $this->assertStringContainsString('MediaService::MAX_DELETE_AT_ONCE', $source);
+        $this->assertStringContainsString('->deleteMany(', $source);
+    }
+
+    /**
+     * Selecting uses the shared checkbox with a name a screen reader can say,
+     * is drawn for a manager only, asks before it deletes — with the focus on
+     * the safe choice — and nothing on the screen is wired through an inline
+     * handler.
+     */
+    public function testTheScreenSelectsWithSharedCheckboxesAndAsksBeforeDeleting(): void
+    {
+        $screen = $this->source('admin/media.php');
+
+        $this->assertStringContainsString(
+            '<input type="checkbox" class="admin-checkbox" name="media_ids[]" value="<?= (int) $gridItem->id ?>" form="media-bulk-form"',
+            $screen,
+            'a card is selected with the shared checkbox, which belongs to the selection form'
+        );
+        $this->assertStringContainsString("admin_te('media.select.label', ['name' => \$displayName])", $screen, 'every checkbox is named after its file');
+        $this->assertMatchesRegularExpression(
+            '#<\?php if \(\$canManage\): \?>\s*(<\?php /\*.*?\*/ \?>\s*)?<form method="post" action="/api/admin/delete-media-items\.php"#s',
+            $screen,
+            'the selection bar is drawn for a manager only'
+        );
+
+        foreach (['data-media-select-all', 'data-media-selected-count', 'data-media-bulk-actions', 'data-media-delete-dialog', 'data-media-rename-dialog'] as $hook) {
+            $this->assertStringContainsString($hook, $screen);
+        }
+
+        $this->assertStringContainsString('autofocus data-media-dialog-close', $screen, 'the dialog opens on Annuleren');
+        $this->assertStringContainsString('data-media-confirm=', $screen, 'the single delete asks through a data attribute');
+        $this->assertDoesNotMatchRegularExpression('/\son[a-z]+\s*=/i', $screen, 'no inline handler anywhere on the media screen');
+    }
+
+    /**
+     * A rename sends an id and the part of the name before the extension —
+     * never an extension, a path or a filename — and nothing in the library's
+     * code renames a file on disk.
+     */
+    public function testRenamingChangesANameAndNeverAFile(): void
+    {
+        $screen = $this->source('admin/media.php');
+
+        $this->assertStringContainsString('action="/api/admin/rename-media.php"', $screen);
+        $this->assertStringContainsString('MediaFilename::withoutExtension(', $screen);
+        $this->assertStringContainsString('data-media-rename-extension', $screen);
+        $this->assertStringNotContainsString('name="extension"', $screen);
+        $this->assertStringNotContainsString('name="path"', $screen);
+
+        $files = array_merge($this->mediaSourceFiles(), [dirname(__DIR__, 2) . '/api/admin/rename-media.php']);
+
+        foreach ($files as $file) {
+            $this->assertDoesNotMatchRegularExpression(
+                '/(?<!->)(?<!::)(?<!function )\brename\s*\(/',
+                (string) file_get_contents($file),
+                basename($file) . ' must not rename a file on disk'
+            );
+        }
     }
 
     /* ------------------------------------------------------------------ */

@@ -128,7 +128,7 @@ class AdminPermissions
                 ],
                 self::MEDIA_MANAGE => [
                     'label' => 'Mediabibliotheek beheren',
-                    'description' => 'Alt-teksten van bestaande media wijzigen en ongebruikte media verwijderen. Bevat automatisch "Mediabibliotheek gebruiken".',
+                    'description' => 'Alt-teksten en namen van bestaande media wijzigen en ongebruikte media verwijderen, ook meerdere tegelijk. Bevat automatisch "Mediabibliotheek gebruiken".',
                 ],
                 self::FORMS_MANAGE => [
                     'label' => 'Formulieren beheren',

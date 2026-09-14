@@ -228,6 +228,18 @@ class MediaRepository extends Repository
     }
 
     /**
+     * The other thing an editor may change: the name. It is a label, so
+     * nothing on disk and nothing in a feature's row follows it (MEDIA.md,
+     * "Bestandsnaam"). App\Service\Media\MediaService checks the name before
+     * it gets here.
+     */
+    public function updateDisplayName(int $id, string $name): void
+    {
+        $stmt = $this->db->prepare('UPDATE media SET display_name = :name, updated_at = NOW() WHERE id = :id');
+        $stmt->execute(['name' => mb_substr($name, 0, 255), 'id' => $id]);
+    }
+
+    /**
      * Removes the row. The caller (App\Service\Media\MediaService) has
      * already established that nothing uses it and is responsible for the
      * files; the foreign keys on the integrated feature columns are the

@@ -151,6 +151,18 @@ final class MediaItem
         };
     }
 
+    /**
+     * The extension a new name keeps when the item is renamed: the one its
+     * name has now, or the stored file's when the name has none. Renaming
+     * changes what comes before it and never the extension itself.
+     */
+    public function nameExtension(): string
+    {
+        $extension = MediaFilename::extension($this->displayName());
+
+        return $extension !== '' ? $extension : MediaFilename::extension($this->path);
+    }
+
     private static function nullableString(mixed $value): ?string
     {
         if ($value === null) {

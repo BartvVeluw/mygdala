@@ -341,8 +341,188 @@
   color: var(--admin-text);
 }
 
+/* --- Selecting, renaming, deleting a selection ------------------------------------ */
+
+/* The trap from the top of this file once more: a class that gives an
+   element a display beats the hidden attribute the script toggles on the
+   selection bar, its counter, the rename buttons and inside the dialogs. */
+.admin-media-library [hidden],
+.admin-media-dialog [hidden]{ display: none !important; }
+
+.admin-media-library__card{ position: relative; }
+
+/* The checkbox sits on the picture, where the eye already is. The label is
+   the target — big enough for a thumb (WCAG 2.5.8) — and carries the file's
+   name for a screen reader. */
+.admin-media-library__select{
+  position: absolute;
+  top: var(--admin-sp-2);
+  left: var(--admin-sp-2);
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2rem;
+  min-height: 2rem;
+  background: var(--admin-surface);
+  border: 1px solid var(--admin-border);
+  border-radius: var(--admin-radius-sm);
+  box-shadow: var(--admin-shadow-sm);
+  cursor: pointer;
+}
+
+/* Selected is said by the ticked box itself; the frame only repeats it. */
+.admin-media-library__card.is-selected{
+  border-color: var(--admin-accent);
+  box-shadow: 0 0 0 1px var(--admin-accent);
+}
+
+.admin-media-library__rename{
+  margin-top: var(--admin-sp-1);
+  font-size: 0.78rem;
+}
+
+.admin-media-bulkbar{
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--admin-sp-2) var(--admin-sp-4);
+  margin: var(--admin-sp-3) 0 0;
+  padding: var(--admin-sp-2) var(--admin-sp-3);
+  background: var(--admin-surface-sunken);
+  border: 1px solid var(--admin-border);
+  border-radius: var(--admin-radius-md);
+}
+
+/* With something selected the bar stays in sight while the grid scrolls,
+   on a phone as well. */
+.admin-media-bulkbar.has-selection{
+  position: sticky;
+  top: var(--admin-sp-2);
+  z-index: 5;
+  background: var(--admin-surface);
+  border-color: var(--admin-accent);
+  box-shadow: var(--admin-shadow-md);
+}
+
+.admin-media-bulkbar__all{ margin: 0; }
+
+.admin-media-bulkbar__count{
+  margin: 0;
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+
+.admin-media-bulkbar__actions{
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--admin-sp-2) var(--admin-sp-3);
+  margin-left: auto;
+}
+
+.admin-media-bulkbar__warning{
+  margin: 0;
+  max-width: 28rem;
+  font-size: 0.78rem;
+  color: var(--admin-text-muted);
+}
+
+.admin-media-notice p{ margin: 0; }
+.admin-media-notice ul{ margin-top: var(--admin-sp-2); }
+
+.admin-media-dialog{
+  width: min(32rem, calc(100vw - 2rem));
+  max-height: calc(100vh - 2rem);
+  padding: 0;
+  color: var(--admin-text);
+  background: var(--admin-surface);
+  border: 1px solid var(--admin-border-strong);
+  border-radius: var(--admin-radius-lg);
+  box-shadow: var(--admin-shadow-md);
+}
+
+.admin-media-dialog::backdrop{ background: var(--admin-overlay); }
+
+.admin-media-dialog__body{
+  display: flex;
+  flex-direction: column;
+  gap: var(--admin-sp-3);
+  padding: var(--admin-sp-5);
+}
+
+.admin-media-dialog__title{
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.admin-media-dialog__text{
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+.admin-media-dialog__label{
+  font-size: 0.83rem;
+  font-weight: 500;
+  color: var(--admin-text-muted);
+}
+
+/* A name and its extension on one line, the extension beside the field and
+   never in it: on the rename dialog and on the item view alike. */
+.admin-media-dialog__name,
+.admin-media-rename{
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.admin-media-dialog__name input,
+.admin-media-rename input{
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.admin-media-dialog__extension,
+.admin-media-rename__extension{
+  flex: none;
+  color: var(--admin-text-muted);
+}
+
+.admin-media-dialog__name input[aria-invalid="true"]{ border-color: var(--admin-error); }
+
+.admin-media-dialog__hint{
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--admin-text-muted);
+}
+
+.admin-media-dialog__error{
+  margin: 0;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--admin-error);
+}
+
+.admin-media-dialog__list{
+  margin: var(--admin-sp-1) 0 0;
+  padding-left: 1.1rem;
+  font-size: 0.85rem;
+  overflow-wrap: anywhere;
+}
+
+.admin-media-dialog__actions{
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--admin-sp-3);
+  margin-top: var(--admin-sp-2);
+}
+
 @media (max-width: 560px){
   .admin-media-dropzone{ padding: var(--admin-sp-4) var(--admin-sp-3); }
+
+  .admin-media-bulkbar__actions{ margin-left: 0; }
 
   /* Two cards abreast on a phone: big enough to recognise a picture, small
      enough to see more than one. */

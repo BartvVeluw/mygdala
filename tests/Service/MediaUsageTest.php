@@ -10,6 +10,7 @@ use App\Repository\PageRepository;
 use App\Repository\PageSectionRepository;
 use App\Repository\SiteSettingRepository;
 use App\Repository\TextImageSplitRepository;
+use App\Service\Media\BlockImage;
 use App\Service\Media\MediaService;
 use App\Service\Media\MediaUsageRegistry;
 use App\Service\SectionRegistry;
@@ -225,6 +226,69 @@ final class MediaUsageTest extends TestCase
         MediaService::clearCache();
 
         $this->assertNotNull(MediaService::find($mediaId), 'the media item outlives the block that used it');
+    }
+
+    /* ------------------------------------------------------------------ */
+    /* Renaming and deleting a selection, with real usage                  */
+    /* ------------------------------------------------------------------ */
+
+    /**
+     * A block points at the item's id, and its old path twin holds the stored
+     * file's path. Neither follows the name, so after a rename the usage, the
+     * picture the page shows and the twin are exactly what they were.
+     */
+    public function testRenamingAnItemInUseKeepsEveryUsageWorking(): void
+    {
+        $mediaId = $this->createMediaRow('assets/media/__usage_renamed__.png');
+        $this->attachTextImageSplitImage($mediaId);
+
+        $before = MediaService::find($mediaId);
+        $this->assertNotNull($before);
+
+        $result = $this->service->rename($mediaId, 'Nieuwe naam voor een gebruikt beeld');
+        $this->assertTrue($result['renamed']);
+
+        MediaService::clearCache();
+
+        $this->assertSame('Nieuwe naam voor een gebruikt beeld.png', MediaService::find($mediaId)?->displayName);
+        $this->assertCount(1, $this->service->usagesOf($mediaId), 'the block still uses it');
+        $this->assertSame(
+            '/' . $before->path,
+            BlockImage::fromRow(['media_id' => $mediaId, 'image_path' => '', 'alt_nl' => '', 'alt_en' => ''])['image_path'],
+            'the page still shows the same file'
+        );
+
+        $twin = Database::connection()->prepare('SELECT image_path FROM text_image_split_images WHERE media_id = ?');
+        $twin->execute([$mediaId]);
+
+        $this->assertSame($before->path, (string) $twin->fetchColumn(), 'the stored path twin is untouched');
+    }
+
+    /**
+     * The rule for one item, asked for a selection: the unused one goes, the
+     * used one stays with the places that use it, and an id that names
+     * nothing is reported rather than pretended.
+     */
+    public function testDeletingASelectionKeepsWhatIsStillUsed(): void
+    {
+        $used = $this->createMediaRow('assets/media/__usage_bulk_used__.png');
+        $unused = $this->createMediaRow('assets/media/__usage_bulk_unused__.png');
+        $this->attachTextImageSplitImage($used);
+
+        $result = $this->service->deleteMany([$used, $unused, 9_999_999]);
+
+        $this->assertSame([$unused], array_map(static fn ($item): int => $item->id, $result['deleted']));
+        $this->assertCount(1, $result['in_use']);
+        $this->assertSame($used, $result['in_use'][0]['item']->id);
+        $this->assertNotSame([], $result['in_use'][0]['usages'], 'the refusal says where it is used');
+        $this->assertSame([9_999_999], $result['not_found']);
+
+        MediaService::clearCache();
+
+        $this->assertNotNull(MediaService::find($used), 'the used item is still in the library');
+        $this->assertNull(MediaService::find($unused));
+
+        $this->createdMedia = array_values(array_diff($this->createdMedia, [$unused]));
     }
 
     /* ------------------------------------------------------------------ */

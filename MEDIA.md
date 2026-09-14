@@ -168,6 +168,29 @@ Bestaande items kregen bij migratie `20260914100000` de naam die de bibliotheek
 al toonde. De kolom is in het schema niet uniek, want overgenomen oude beelden
 kunnen een naam delen; de bibliotheek houdt **nieuwe** namen zelf uniek.
 
+### Naam wijzigen
+
+Wie `media.manage` heeft, kan een naam wijzigen: in een dialoog vanaf de
+kaart, of zonder JavaScript met het formulier op de pagina van het item
+(`api/admin/rename-media.php` → `MediaService::rename()`).
+
+- Alleen `display_name` verandert. Het bestand op de schijf, `path`, de
+  thumbnail, `original_filename` en elke verwijzing (`media_id` én de
+  meegeschreven oude padkolom) blijven precies wat ze waren, dus geen pagina
+  merkt er iets van. Een bestand op de schijf hernoemen bestaat hier bewust
+  niet.
+- **De extensie hoort bij het item.** Je typt het deel ervoor; de extensie
+  staat ernaast en gaat niet mee in het verzoek. Typ je hem toch, dan wordt
+  hij niet verdubbeld: `zomer.jpg` blijft `zomer.jpg`, en `foto.exe` wordt
+  `foto.exe.jpg` — een naam, geen type.
+- Een naam die geen bestandsnaam kan zijn, wordt geweigerd met de reden
+  (`MediaFilename::problemWith()`): leeg, een van `/ \ : * ? " < > |`,
+  onzichtbare tekens, een punt aan het begin of eind, of langer dan 200
+  tekens.
+- **Een naam die al bestaat, wordt geweigerd** in plaats van genummerd, zoals
+  bij een upload wel gebeurt: hier typte de redacteur de naam zelf. Alleen de
+  hoofdletters van de eigen naam veranderen mag.
+
 ## Zoeken en filteren
 
 Boven het raster staan een zoekveld en een keuze voor de **soort bestand**,
@@ -302,6 +325,35 @@ geen functie.
 Een blok verwijderen haalt alleen de *verwijzing* weg. Het bestand is van de
 bibliotheek en staat mogelijk op drie andere pagina's.
 
+### Meerdere tegelijk
+
+Op het raster heeft elke kaart een selectievakje (`.admin-checkbox`, met de
+naam van het bestand als toegankelijke naam), voor wie `media.manage` heeft.
+*Alles op deze pagina selecteren* staat erboven; een teller (*3 geselecteerd*)
+en de knop *Verwijderen* verschijnen pas als er iets geselecteerd is. De knop
+opent een bevestiging, een `<dialog>`: hoeveel bestanden er echt weggaan,
+welke nog gebruikt worden en daarom blijven staan, en dat het niet ongedaan
+kan worden gemaakt. De focus staat dan eerst op *Annuleren*.
+
+`api/admin/delete-media-items.php` → `MediaService::deleteMany()`:
+
+- het gebruik van **de hele selectie** wordt eerst in één strikte vraag
+  vastgesteld, vóór er iets weggaat. Kan een provider niet antwoorden, dan
+  wordt er niets verwijderd;
+- wat niets gebruikt, gaat weg volgens de regel hierboven (rij, dan bestand,
+  dan thumbnail). Wat nog gebruikt wordt, blijft staan en komt terug **met de
+  plekken** waar het gebruikt wordt, en een id dat niets aanwijst wordt
+  gemeld;
+- een gedeeltelijk resultaat is het normale: drie weg en één bewaard is geen
+  fout;
+- hooguit `MediaService::MAX_DELETE_AT_ONCE` (100) tegelijk. De weg terug naar
+  het raster wordt opgebouwd uit `q`, `type` en `page`, nooit uit een adres
+  dat het verzoek meestuurt.
+
+Zonder JavaScript is de balk een gewoon formulier dat met een redirect
+antwoordt. Er is dan geen bevestiging, net als bij de losse verwijderknop, en
+de server houdt nog steeds tegen wat gebruikt wordt.
+
 ## Rij en schijf oneens
 
 | Situatie | Wat er gebeurt |
@@ -318,7 +370,7 @@ later doen.
 | Permissie | Wat het geeft |
 |---|---|
 | `media.view` | De bibliotheek openen, doorzoeken, kiezen — **en er iets aan toevoegen** |
-| `media.manage` | Alt-tekst van bestaand materiaal wijzigen, en ongebruikte media verwijderen. Bevat `media.view` |
+| `media.manage` | Alt-tekst en naam van bestaand materiaal wijzigen, en ongebruikte media verwijderen, ook een selectie tegelijk. Bevat `media.view` |
 
 De knip zit daar omdat de bibliotheek **gedeeld** is. Iets toevoegen kon elke
 redacteur al via het uploadveld van elk blok en neemt niemand iets af;
@@ -426,10 +478,10 @@ docker compose exec php_test php vendor/bin/phpunit --group migration-backfill
 
 | Bestand | Wat het bewaakt |
 |---|---|
-| `MediaBoundaryTest` | Rechten, guards, CSRF, "de kiezer stuurt alleen een id", modulegrens, en het uploadformulier van het scherm: de gedeelde bestandskiezer, werken met en zonder JavaScript, scripts zonder markup uit strings en zonder zinnen. Geen database |
-| `MediaLibraryTest` | Upload, wat er geweigerd wordt (op naam én op inhoud), meerdere bestanden en een gemengde batch, namen, alt-tekst, ontdubbelen, zoeken, verwijderen, ontbrekend bestand |
-| `MediaUsageTest` | Gebruik afgeleid uit echte blokinstanties, en de verwijderregel |
-| `MediaAdoptionTest` | Wat de overnamemigratie beloofde, op een wegwerpdatabase met eigen oude afbeeldingsrijen (`migration-backfill`) |
+| `MediaBoundaryTest` | Rechten, guards (ook de volgorde in de endpoints voor hernoemen en voor een selectie verwijderen), CSRF, "de kiezer stuurt alleen een id", modulegrens, en het scherm: de gedeelde bestandskiezer, zoekveld, select en checkboxes, werken met en zonder JavaScript, geen inline handlers, scripts zonder markup uit strings en zonder zinnen, en nergens een bestand hernoemen op de schijf. Geen database |
+| `MediaLibraryTest` | Upload, wat er geweigerd wordt (op naam én op inhoud), meerdere bestanden en een gemengde batch, namen, hernoemen, zoeken en filteren, alt-tekst, ontdubbelen, verwijderen (ook een selectie), ontbrekend bestand |
+| `MediaUsageTest` | Gebruik afgeleid uit echte blokinstanties, de verwijderregel — ook voor een selectie — en dat een hernoemd item overal blijft werken |
+| `MediaAdoptionTest` | Wat de overnamemigratie beloofde, op een wegwerpdatabase met eigen oude afbeeldingsrijen (`migration-backfill`), en de namen die een upgrade meekrijgt |
 | `BrandingTest` | Media wint van het pad, en het pad blijft de terugval |
 | `Tests\Blog\BlogMediaAndSettingsTest` | de eerste module-provider: gebruik melden, niet kunnen verwijderen, en niets melden met de module uit |
 
@@ -439,9 +491,46 @@ niet waar zijn voor een bestand dat een test schreef). Alle overige regels —
 headercontrole, willekeurige naam, limiet, map, optimalisatie — zijn de
 echte.
 
+## Handmatig controleren
+
+De suite heeft geen browser: de tests bewaken de regels, de markup en de
+endpoints, niet wat er op een klik gebeurt. Loop na een wijziging aan
+`admin/media.php` of een van zijn scripts dit na, als beheerder met
+`media.manage`:
+
+1. Eén afbeelding kiezen: hij staat in *Nieuwe bestanden* met voorbeeld,
+   naam, type en grootte.
+2. Meerdere afbeeldingen tegelijk kiezen.
+3. Een bestand uit de lijst halen: de focus gaat naar het volgende bestand.
+4. Eén bestand naar het vak slepen: het vak zegt dat je kunt loslaten.
+5. Meerdere bestanden slepen.
+6. Een ongeldig bestand proberen (`.exe`, `.svg`, een tekstbestand dat `.png`
+   heet): een reden bij dat bestand, en het gaat niet mee.
+7. Een bestand groter dan de grens proberen.
+8. *Toevoegen aan bibliotheek*: wat lukt, verdwijnt uit de lijst.
+9. De nieuwe items staan meteen bovenaan het raster, zonder herladen.
+10. Filteren op *Alles* en *Afbeeldingen*.
+11. Zoeken: het raster ververst terwijl je typt, en de cursor blijft staan.
+12. Zoeken en filteren samen, en daarna *Vorige* in de browser.
+13. Een naam aanpassen in *Nieuwe bestanden* vóór het toevoegen.
+14. *Naam wijzigen* op een kaart: een bestaande naam wordt geweigerd, de
+    extensie blijft staan.
+15. Meerdere kaarten selecteren: de teller en *Verwijderen* verschijnen, en
+    *Alles op deze pagina selecteren* werkt.
+16. *Verwijderen* en dan *Annuleren* (of Escape): er gebeurt niets, en de
+    focus staat weer op de knop.
+17. *Verwijderen* en dan *Definitief verwijderen*: de melding zegt wat er weg
+    is.
+18. Een gebruikt bestand in de selectie: de dialoog noemt het, het blijft
+    staan, en de melding zegt waar het gebruikt wordt.
+19. Op een telefoon: kiezen via de knop, twee kaarten naast elkaar, de
+    selectiebalk blijft in beeld, en niets steekt buiten het scherm.
+20. In een licht (*classic*) en een donker thema, en alles ook met alleen het
+    toetsenbord.
+
 ## Bewust niet gebouwd
 
-Mappen, tags/categorieën, bulkbewerking, uitsnede-editor, transformaties-UI,
+Mappen, tags/categorieën, andere bulkbewerkingen dan een selectie verwijderen, uitsnede-editor, transformaties-UI,
 focuspunten, een `srcset`-framework, video, audio, PDF's/documenten,
 objectopslag, CDN, EXIF-browser, AI-alt-tekst, OCR, stockfoto's, mapbomen met
 slepen, en detectie van *gelijkende* afbeeldingen.

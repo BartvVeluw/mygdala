@@ -252,7 +252,7 @@ het werkte.
 
 | Scherm | Wat |
 |---|---|
-| Mediabibliotheek (`admin/media.php`) | De upload is `admin_file_input()` met `multiple`; het sleepvak, de lijst met nieuwe bestanden en de voorbeelden eromheen zijn van dat scherm zelf (`MEDIA.md`). Zoekveld (`?q=`) en de soort bestand als `.admin-select` (`?type=`), die het raster verversen zonder te herladen |
+| Mediabibliotheek (`admin/media.php`) | De upload is `admin_file_input()` met `multiple`; het sleepvak, de lijst met nieuwe bestanden en de voorbeelden eromheen zijn van dat scherm zelf (`MEDIA.md`). Zoekveld (`?q=`) en de soort bestand als `.admin-select` (`?type=`), die het raster verversen zonder te herladen. Per kaart een `.admin-checkbox` om meerdere bestanden tegelijk te selecteren |
 | Site-instellingen (`admin/settings.php`) | Infobalk bij *Algemeen* en bij *Adresgegevens*; uitleg bij naam van de website, e-mailadres, telefoonnummer, plaats, footer-omschrijving, plaats en land van het adres, KVK-nummer, standaardtaal, standaard meta description en indexeren. De standaardtaal is een `.admin-select`, indexeren een switch |
 | Shop-instellingen (`admin/shop-settings.php`) | Infobalk per tabblad; uitleg bij elk veld; één `?` bij *Invulvelden* die elk invulveld van de bestelmail uitlegt, opgebouwd uit `EmailPlaceholders::KNOWN`; *Herstel standaardtekst* als `.admin-btn-secondary` (`admin/assets/shop-settings.js`) |
 | Pagina's (`admin/pages.php`) | Infobalk; zoekveld (`?q=`, filtert de al geladen lijst via `PageContent::matchesAdminSearch()`); knoppen uit de familie; de status als badge met woord én kleur: `.admin-badge--draft` (amber, `--admin-warning`) en `.admin-badge--published` (groen, `--admin-success`) |

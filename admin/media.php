@@ -41,11 +41,18 @@ use App\Service\Media\MediaUploader;
  * place instead of the page being reloaded, but the markup is rendered here,
  * once, either way.
  *
- * WHAT IT IS NOT. There are no folders, no tags, no bulk actions, no crop
- * tool and no raw filesystem operations: nothing here lets somebody type a
- * path, browse a directory or move a file. An editor uploads, searches, fixes
- * an alt text, sees where an image is used, and deletes one that nothing
- * uses. MEDIA.md lists what was deliberately left out and why.
+ * CHANGING AND REMOVING, for a manager only (media.manage). A card carries a
+ * checkbox for the one bulk action there is — deleting a selection, through
+ * api/admin/delete-media-items.php — and a way to rename the item. Both work
+ * without the script: the checkboxes belong to an ordinary form, and the item
+ * view has a plain rename form. The script adds the confirmation dialog, the
+ * counter and the rename dialog. Nothing used is ever deleted: the server
+ * keeps it and says where it is used.
+ *
+ * WHAT IT IS NOT. There are no folders, no tags, no crop tool and no raw
+ * filesystem operations: nothing here lets somebody type a path, browse a
+ * directory or move a file, and a new name never renames a file on disk.
+ * MEDIA.md lists what was deliberately left out and why.
  */
 
 AdminAuth::requireLogin();
@@ -65,6 +72,7 @@ unset($_SESSION['admin_media_notice']);
 $saved = isset($_GET['saved']);
 $deleted = isset($_GET['deleted']);
 $reused = isset($_GET['reused']);
+$renamed = isset($_GET['renamed']);
 
 $requestedId = filter_input(INPUT_GET, 'id', FILTER_VALIDATE_INT);
 $item = ($requestedId === false || $requestedId === null) ? null : MediaService::find($requestedId);
@@ -328,6 +336,13 @@ if ($item === null) {
              reload. It stays in place; the block below is the one replaced. */ ?>
     <p class="admin-visually-hidden" role="status" aria-live="polite" data-media-results-status></p>
 
+    <?php /* The outcome of deleting a selection, filled in by media-library.js.
+             Outside the results block, so it survives the redraw that follows. */ ?>
+    <div class="admin-alert admin-media-notice" data-media-notice hidden>
+      <p class="admin-media-notice__message" data-media-notice-message></p>
+      <ul class="admin-error-list" data-media-notice-details hidden></ul>
+    </div>
+
     <div class="admin-media-results" data-media-results>
       <p class="admin-media-results__summary" tabindex="-1" data-media-summary>
         <span data-media-summary-text><?= $summary ?></span>
@@ -341,13 +356,49 @@ if ($item === null) {
           <?= admin_te($term === '' && $type === '' ? 'media.empty_library' : 'media.nothing_found') ?>
         </p>
       <?php else: ?>
+        <?php if ($canManage): ?>
+          <?php /* The checkboxes on the cards belong to this form through their
+                   `form` attribute, so the grid needs no form around it and the
+                   bar works without the script as an ordinary POST. The way
+                   back is these three values, never a URL. */ ?>
+          <form method="post" action="/api/admin/delete-media-items.php" id="media-bulk-form" class="admin-media-bulkbar" data-media-bulk>
+            <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
+            <input type="hidden" name="return_q" value="<?= $h($term) ?>">
+            <input type="hidden" name="return_type" value="<?= $h($type) ?>">
+            <input type="hidden" name="return_page" value="<?= (int) $page ?>">
+
+            <label class="admin-checkbox-label admin-media-bulkbar__all" data-media-select-all-label hidden>
+              <input type="checkbox" class="admin-checkbox" data-media-select-all>
+              <?= admin_te('media.bulk.select_all') ?>
+            </label>
+
+            <p class="admin-media-bulkbar__count" role="status" data-media-selected-count
+               data-text-one="<?= admin_te('media.bulk.count_one') ?>"
+               data-text-many="<?= admin_te('media.bulk.count') ?>" hidden></p>
+
+            <div class="admin-media-bulkbar__actions" data-media-bulk-actions>
+              <p class="admin-media-bulkbar__warning" id="media-bulk-warning"><?= admin_te('media.bulk.warning') ?></p>
+              <button type="submit" class="admin-btn-danger" aria-describedby="media-bulk-warning" data-media-bulk-delete><?= admin_te('media.bulk.delete') ?></button>
+            </div>
+          </form>
+        <?php endif; ?>
+
         <ul class="admin-media-grid admin-media-library__grid" role="list">
           <?php foreach ($items as $gridItem): ?>
             <?php
             $usageCount = $usageCounts[$gridItem->id] ?? 0;
             $detailUrl = '/admin/media.php?id=' . (int) $gridItem->id;
+            $displayName = $gridItem->displayName();
             ?>
-            <li class="admin-media-library__card<?= $gridItem->fileExists() ? '' : ' is-missing' ?>" data-media-card>
+            <li class="admin-media-library__card<?= $gridItem->fileExists() ? '' : ' is-missing' ?>" data-media-card data-media-id="<?= (int) $gridItem->id ?>">
+              <?php if ($canManage): ?>
+                <label class="admin-media-library__select">
+                  <input type="checkbox" class="admin-checkbox" name="media_ids[]" value="<?= (int) $gridItem->id ?>" form="media-bulk-form"
+                         data-media-select data-media-usage="<?= (int) $usageCount ?>" data-media-name="<?= $h($displayName) ?>">
+                  <span class="admin-visually-hidden"><?= admin_te('media.select.label', ['name' => $displayName]) ?></span>
+                </label>
+              <?php endif; ?>
+
               <?php /* The picture opens the item too, but a keyboard and a screen
                        reader get that link once, on the name. */ ?>
               <a class="admin-media-library__thumb" href="<?= $h($detailUrl) ?>" tabindex="-1" aria-hidden="true">
@@ -359,7 +410,7 @@ if ($item === null) {
               </a>
 
               <div class="admin-media-library__body">
-                <a class="admin-media-library__name" href="<?= $h($detailUrl) ?>"><?= $h($gridItem->displayName()) ?></a>
+                <a class="admin-media-library__name" href="<?= $h($detailUrl) ?>"><?= $h($displayName) ?></a>
 
                 <p class="admin-media-library__meta">
                   <span class="admin-media-library__type"><?= $h($gridItem->typeLabel()) ?></span>
@@ -380,6 +431,16 @@ if ($item === null) {
                     <?= admin_te('media.card.used', ['count' => $usageCount]) ?>
                   <?php endif; ?>
                 </span>
+
+                <?php if ($canManage): ?>
+                  <?php $nameExtension = $gridItem->nameExtension(); ?>
+                  <button type="button" class="admin-btn-text admin-media-library__rename" hidden
+                          aria-label="<?= admin_te('media.rename.button_named', ['name' => $displayName]) ?>"
+                          data-media-rename
+                          data-media-id="<?= (int) $gridItem->id ?>"
+                          data-media-name-base="<?= $h(MediaFilename::withoutExtension($displayName, $nameExtension)) ?>"
+                          data-media-name-extension="<?= $h($nameExtension) ?>"><?= admin_te('media.rename.button') ?></button>
+                <?php endif; ?>
               </div>
             </li>
           <?php endforeach; ?>
@@ -400,6 +461,65 @@ if ($item === null) {
     </div>
   </section>
 
+  <?php if ($canManage): ?>
+    <?php /* The two dialogs media-library.js opens. A native <dialog>: the
+             browser traps the focus, closes it on Escape and puts it above
+             everything. Without the script they never open, the rename
+             buttons stay hidden and the bulk form posts on its own. */ ?>
+    <dialog class="admin-media-dialog" aria-labelledby="media-delete-title" aria-describedby="media-delete-text" data-media-delete-dialog
+            data-text-one="<?= admin_te('media.bulk.confirm_one') ?>"
+            data-text-many="<?= admin_te('media.bulk.confirm_many') ?>"
+            data-kept-one="<?= admin_te('media.bulk.kept_intro_one') ?>"
+            data-kept-many="<?= admin_te('media.bulk.kept_intro_many') ?>"
+            data-all-used="<?= admin_te('media.bulk.all_used') ?>"
+            data-failed="<?= admin_te('media.bulk.failed') ?>"
+            data-session="<?= admin_te('media.bulk.session') ?>">
+      <div class="admin-media-dialog__body">
+        <h2 class="admin-media-dialog__title" id="media-delete-title"><?= admin_te('media.bulk.confirm_title') ?></h2>
+        <p class="admin-media-dialog__text" id="media-delete-text" data-media-delete-text></p>
+
+        <div class="admin-media-dialog__kept" data-media-delete-kept hidden>
+          <p class="admin-media-dialog__text" data-media-delete-kept-text></p>
+          <ul class="admin-media-dialog__list" data-media-delete-kept-list></ul>
+        </div>
+
+        <p class="admin-media-dialog__error" role="alert" data-media-dialog-error hidden></p>
+
+        <div class="admin-media-dialog__actions">
+          <button type="button" class="admin-btn-ghost" autofocus data-media-dialog-close><?= admin_te('media.dialog.cancel') ?></button>
+          <button type="button" class="admin-btn-danger" data-media-delete-confirm><?= admin_te('media.bulk.confirm_delete') ?></button>
+        </div>
+      </div>
+    </dialog>
+
+    <dialog class="admin-media-dialog" aria-labelledby="media-rename-title" data-media-rename-dialog
+            data-failed="<?= admin_te('media.rename.failed') ?>"
+            data-session="<?= admin_te('media.bulk.session') ?>"
+            data-done="<?= admin_te('media.rename.done_named') ?>">
+      <form method="post" action="/api/admin/rename-media.php" class="admin-media-dialog__body" novalidate data-media-rename-form>
+        <h2 class="admin-media-dialog__title" id="media-rename-title"><?= admin_te('media.rename.title') ?></h2>
+
+        <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
+        <input type="hidden" name="media_id" value="" data-media-rename-id>
+
+        <label class="admin-media-dialog__label" for="media-rename-name"><?= admin_te('media.rename.label') ?></label>
+        <span class="admin-media-dialog__name">
+          <input type="text" id="media-rename-name" name="name" maxlength="<?= MediaFilename::MAX_BASE_LENGTH ?>" autocomplete="off" spellcheck="false"
+                 aria-describedby="media-rename-hint media-rename-error" data-media-rename-name>
+          <span class="admin-media-dialog__extension" data-media-rename-extension></span>
+        </span>
+
+        <p class="admin-media-dialog__hint" id="media-rename-hint"><?= admin_te('media.rename.hint') ?></p>
+        <p class="admin-media-dialog__error" id="media-rename-error" role="alert" data-media-dialog-error hidden></p>
+
+        <div class="admin-media-dialog__actions">
+          <button type="button" class="admin-btn-ghost" data-media-dialog-close><?= admin_te('media.dialog.cancel') ?></button>
+          <button type="submit" class="admin-btn-primary" data-media-rename-submit><?= admin_te('media.rename.submit') ?></button>
+        </div>
+      </form>
+    </dialog>
+  <?php endif; ?>
+
 <?php else: ?>
 
   <p><a class="admin-btn-text" href="/admin/media.php"><?= admin_t('media.terug_media') ?></a></p>
@@ -408,6 +528,10 @@ if ($item === null) {
 
   <?php if ($saved): ?>
     <p class="admin-alert admin-alert--success"><?= admin_te('common.saved') ?></p>
+  <?php endif; ?>
+
+  <?php if ($renamed): ?>
+    <p class="admin-alert admin-alert--success"><?= admin_te('media.rename.done') ?></p>
   <?php endif; ?>
 
   <?php if ($reused): ?>
@@ -451,6 +575,35 @@ if ($item === null) {
       </dl>
     </div>
   </section>
+
+  <?php if ($canManage): ?>
+    <?php $nameExtension = $item->nameExtension(); ?>
+    <section class="admin-card">
+      <h2><?= admin_te('media.rename.section') ?></h2>
+      <p class="admin-text-muted"><?= admin_te('media.rename.hint') ?></p>
+
+      <form method="post" action="/api/admin/rename-media.php" class="admin-product-form">
+        <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
+        <input type="hidden" name="media_id" value="<?= (int) $item->id ?>">
+
+        <div class="admin-field">
+          <label for="media-name"><?= admin_te('media.rename.label') ?></label>
+          <span class="admin-media-rename">
+            <input type="text" id="media-name" name="name" maxlength="<?= MediaFilename::MAX_BASE_LENGTH ?>" required
+                   value="<?= $h(MediaFilename::withoutExtension($item->displayName(), $nameExtension)) ?>"<?= $nameExtension !== '' ? ' aria-describedby="media-name-extension"' : '' ?>>
+            <?php if ($nameExtension !== ''): ?>
+              <span class="admin-media-rename__extension" aria-hidden="true">.<?= $h($nameExtension) ?></span>
+            <?php endif; ?>
+          </span>
+          <?php if ($nameExtension !== ''): ?>
+            <p class="admin-text-muted" id="media-name-extension"><?= admin_te('media.rename.extension', ['ext' => '.' . $nameExtension]) ?></p>
+          <?php endif; ?>
+        </div>
+
+        <button type="submit" class="admin-btn-primary"><?= admin_te('media.rename.submit') ?></button>
+      </form>
+    </section>
+  <?php endif; ?>
 
   <section class="admin-card">
     <h2><?= admin_te('common.alt_text') ?></h2>
@@ -510,7 +663,9 @@ if ($item === null) {
         <p class="admin-text-muted">
           <?= admin_t('media.verwijdert_afbeelding_uit_bibliotheek') ?>
         </p>
-        <form method="post" action="/api/admin/delete-media.php" onsubmit="return confirm('Deze afbeelding definitief verwijderen?');">
+        <?php /* media-library.js asks the question in data-media-confirm first;
+                 the server refuses an item in use either way. */ ?>
+        <form method="post" action="/api/admin/delete-media.php" data-media-confirm="<?= admin_te('media.delete.confirm') ?>">
           <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
           <input type="hidden" name="media_id" value="<?= (int) $item->id ?>">
           <button type="submit" class="admin-btn-text admin-btn-text--danger"><?= admin_te('common.delete') ?></button>
@@ -522,8 +677,8 @@ if ($item === null) {
 <?php endif; ?>
 
 </main>
-<?php if ($item === null): ?>
 <script src="<?= AssetVersion::url('/admin/assets/media-library.js') ?>" defer></script>
+<?php if ($item === null): ?>
 <script src="<?= AssetVersion::url('/admin/assets/media-upload.js') ?>" defer></script>
 <?php endif; ?>
 </body>

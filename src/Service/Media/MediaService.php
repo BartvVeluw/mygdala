@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Service\Media;
 
 use App\Repository\MediaRepository;
+use App\Service\Language\AdminTranslator;
 
 /**
  * The Media Library as everything else uses it: find an item, list and
@@ -23,6 +24,13 @@ use App\Repository\MediaRepository;
  */
 final class MediaService
 {
+    /**
+     * The most items one deleteMany() call removes. A page of the library
+     * holds MediaRepository::PAGE_SIZE items, so this is room enough for a
+     * selection and a ceiling for a crafted request.
+     */
+    public const MAX_DELETE_AT_ONCE = 100;
+
     /** @var array<int, MediaItem|null> per-request cache, keyed by id */
     private static array $cache = [];
 
@@ -367,7 +375,8 @@ final class MediaService
     }
 
     /**
-     * Changes the one piece of metadata an editor owns. The path, the size
+     * Changes the alt text, one of the two things about an item an editor
+     * owns; the name is the other one (see rename below). The path, the size
      * and the dimensions describe the file on disk and are not editable:
      * letting somebody type them would make the row lie.
      */
@@ -381,6 +390,61 @@ final class MediaService
         self::clearCache();
 
         return true;
+    }
+
+    /**
+     * Gives an item a new name: the label, never the file (MEDIA.md,
+     * "Bestandsnaam"). Nothing references a name, so no page, no stored path
+     * twin and no file follows it.
+     *
+     * THE EXTENSION STAYS THE ITEM'S OWN (MediaItem::nameExtension()). What an
+     * editor types is the part before it, and the extension typed anyway is
+     * not doubled. A name that could not be a filename is refused with its
+     * reason (MediaFilename::problemWith()).
+     *
+     * A TAKEN NAME IS REFUSED, not numbered. An upload numbers a taken name
+     * because nobody chose it; here the editor typed it, and quietly changing
+     * what they typed would be the surprise. The item's own name in another
+     * case ("Logo.png" for "logo.png") is not taken.
+     *
+     * @return array{renamed: bool, reason: string, message: string|null, item: MediaItem|null}
+     *         reason is one of ok, unchanged, not_found, invalid, taken
+     */
+    public function rename(int $id, string $name): array
+    {
+        $item = self::find($id);
+
+        if ($item === null) {
+            return ['renamed' => false, 'reason' => 'not_found', 'message' => null, 'item' => null];
+        }
+
+        $extension = $item->nameExtension();
+        $base = MediaFilename::withoutExtension($name, $extension);
+        $problem = MediaFilename::problemWith($base);
+
+        if ($problem !== null) {
+            return ['renamed' => false, 'reason' => 'invalid', 'message' => $problem, 'item' => $item];
+        }
+
+        $newName = MediaFilename::compose(trim($base), $extension);
+
+        if ($newName === $item->displayName()) {
+            return ['renamed' => true, 'reason' => 'unchanged', 'message' => null, 'item' => $item];
+        }
+
+        if ($this->repository->displayNameTaken($newName, $item->id)) {
+            return [
+                'renamed' => false,
+                'reason' => 'taken',
+                'message' => AdminTranslator::trans('media.rename.taken', ['name' => $newName]),
+                'item' => $item,
+            ];
+        }
+
+        $this->repository->updateDisplayName($item->id, $newName);
+        self::clearCache();
+
+        return ['renamed' => true, 'reason' => 'ok', 'message' => null, 'item' => self::find($item->id) ?? $item];
     }
 
     /**
@@ -447,14 +511,106 @@ final class MediaService
             return ['deleted' => false, 'reason' => 'in_use', 'usages' => $usages, 'file_removed' => false, 'warning' => null];
         }
 
+        return $this->removeUnused($item);
+    }
+
+    /**
+     * Deletes a selection, each item by the rule delete() follows, with the
+     * question of usage asked ONCE for all of them.
+     *
+     * STRICT, AND BEFORE ANYTHING GOES. The usage of every selected item is
+     * established in one strict call to the usage registry, first. When a
+     * provider cannot answer, this throws and nothing is deleted: "could not
+     * find out" is never rounded down to "nothing uses it", for a selection
+     * any more than for one item.
+     *
+     * A PARTIAL RESULT IS THE NORMAL ONE. What nothing uses is removed; what
+     * something uses is kept and handed back with its usages, so an editor
+     * sees where; an id that names nothing is reported. Removing one unused
+     * item never depends on another.
+     *
+     * @param list<int> $ids at most MAX_DELETE_AT_ONCE; repeats and non-positive values are ignored
+     *
+     * @return array{deleted: list<MediaItem>, in_use: list<array{item: MediaItem, usages: list<MediaUsage>}>, not_found: list<int>, warnings: list<string>}
+     *
+     * @throws \RuntimeException when the usage of the selection cannot be established
+     * @throws \InvalidArgumentException for more ids than MAX_DELETE_AT_ONCE
+     */
+    public function deleteMany(array $ids): array
+    {
+        $wanted = array_values(array_unique(array_filter(
+            array_map('intval', $ids),
+            static fn (int $id): bool => $id > 0
+        )));
+
+        if (count($wanted) > self::MAX_DELETE_AT_ONCE) {
+            throw new \InvalidArgumentException('At most ' . self::MAX_DELETE_AT_ONCE . ' media items can be deleted at once.');
+        }
+
+        $result = ['deleted' => [], 'in_use' => [], 'not_found' => [], 'warnings' => []];
+
+        if ($wanted === []) {
+            return $result;
+        }
+
+        // Fresh rows: whatever an earlier call cached may be gone by now.
+        self::clearCache();
+        $items = self::findMany($wanted);
+
+        foreach ($wanted as $id) {
+            if (!isset($items[$id])) {
+                $result['not_found'][] = $id;
+            }
+        }
+
+        if ($items === []) {
+            return $result;
+        }
+
+        $usages = MediaUsageRegistry::usagesForStrict(array_keys($items));
+
+        foreach ($items as $id => $item) {
+            if (($usages[$id] ?? []) !== []) {
+                $result['in_use'][] = ['item' => $item, 'usages' => $usages[$id]];
+                continue;
+            }
+
+            $removal = $this->removeUnused($item);
+
+            if ($removal['deleted']) {
+                $result['deleted'][] = $item;
+
+                if ($removal['warning'] !== null) {
+                    $result['warnings'][] = $removal['warning'];
+                }
+            } elseif ($removal['reason'] === 'in_use') {
+                // A foreign key knew of a use that no provider reported.
+                $result['in_use'][] = ['item' => $item, 'usages' => []];
+            } else {
+                $result['not_found'][] = $id;
+            }
+        }
+
+        return $result;
+    }
+
+    /**
+     * The second half of a delete, once nothing is known to use the item: the
+     * row, then the library's own file, then its thumbnail — in that order,
+     * for the reason delete() gives.
+     *
+     * @return array{deleted: bool, reason: string, usages: list<MediaUsage>, file_removed: bool, warning: string|null}
+     */
+    private function removeUnused(MediaItem $item): array
+    {
         try {
-            $removed = $this->repository->delete($id);
+            $removed = $this->repository->delete($item->id);
         } catch (\Throwable $e) {
             // A foreign key refused it: something references this row that no
             // provider knew about. The right outcome is a refusal.
-            error_log('[MediaService] delete(' . $id . '): ' . $e->getMessage());
+            error_log('[MediaService] delete(' . $item->id . '): ' . $e->getMessage());
 
-            return ['deleted' => false, 'reason' => 'in_use', 'usages' => $usages, 'file_removed' => false, 'warning' => null];
+            return ['deleted' => false, 'reason' => 'in_use', 'usages' => [], 'file_removed' => false, 'warning' => null];
         }
 
         if (!$removed) {

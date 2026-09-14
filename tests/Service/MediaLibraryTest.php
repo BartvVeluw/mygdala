@@ -698,6 +698,150 @@ final class MediaLibraryTest extends TestCase
     }
 
     /* ------------------------------------------------------------------ */
+    /* Renaming                                                            */
+    /* ------------------------------------------------------------------ */
+
+    /**
+     * A new name is a new label and nothing else: the stored file, its path,
+     * its checksum and the original filename all stay as they were.
+     */
+    public function testRenamingChangesTheNameAndNothingAboutTheFile(): void
+    {
+        $item = $this->upload($this->pngFixture(51, 51), 'zzz-voor-de-naam.png', '');
+
+        $result = $this->service->rename($item->id, 'zzz Na de naam');
+
+        $this->assertTrue($result['renamed']);
+        $this->assertSame('ok', $result['reason']);
+
+        MediaService::clearCache();
+        $renamed = MediaService::find($item->id);
+
+        $this->assertNotNull($renamed);
+        $this->assertSame('zzz Na de naam.png', $renamed->displayName);
+        $this->assertSame($item->path, $renamed->path, 'no file is renamed on disk');
+        $this->assertSame($item->checksum, $renamed->checksum);
+        $this->assertSame('zzz-voor-de-naam.png', $renamed->originalFilename);
+        $this->assertTrue($renamed->fileExists());
+
+        $this->assertSame(
+            [$item->id],
+            array_map(static fn (MediaItem $found): int => $found->id, $this->service->browse('zzz Na de naam')['items'])
+        );
+    }
+
+    /** The extension is the item's own: it can be neither changed nor doubled. */
+    public function testRenamingKeepsTheExtension(): void
+    {
+        $item = $this->upload($this->pngFixture(52, 52), 'zzz-extensie.png', '');
+
+        $this->service->rename($item->id, 'zzz-poging.exe');
+        MediaService::clearCache();
+        $this->assertSame('zzz-poging.exe.png', MediaService::find($item->id)?->displayName, 'a typed extension stays part of the name');
+
+        $this->service->rename($item->id, 'zzz-netjes.PNG');
+        MediaService::clearCache();
+        $this->assertSame('zzz-netjes.png', MediaService::find($item->id)?->displayName, 'its own extension typed anyway is not doubled');
+    }
+
+    /**
+     * A name another item carries is refused rather than numbered: the editor
+     * typed it. The item's own name in another case is still its own.
+     */
+    public function testANameAnotherItemHasIsRefused(): void
+    {
+        $first = $this->upload($this->pngFixture(53, 53), 'zzz-bezet.png', '');
+        $second = $this->upload($this->pngFixture(54, 54), 'zzz-vrij.png', '');
+
+        $result = $this->service->rename($second->id, 'ZZZ-BEZET');
+
+        $this->assertFalse($result['renamed']);
+        $this->assertSame('taken', $result['reason']);
+        $this->assertStringContainsString('ZZZ-BEZET.png', (string) $result['message']);
+
+        MediaService::clearCache();
+        $this->assertSame('zzz-vrij.png', MediaService::find($second->id)?->displayName, 'nothing was stored');
+
+        $own = $this->service->rename($first->id, 'ZZZ-Bezet');
+        $this->assertTrue($own['renamed'], 'a change of case to its own name is allowed');
+    }
+
+    /**
+     * Nothing that could climb out of a folder, hide a file or break a line
+     * gets through — even though a name never reaches the disk.
+     */
+    public function testANameThatCannotBeAFilenameIsRefusedOnRename(): void
+    {
+        $item = $this->upload($this->pngFixture(55, 55), 'zzz-blijft.png', '');
+
+        foreach (['../../etc/passwd', 'map/bestand', 'map\\bestand', '', '   ', '.htaccess', "regel\neinde"] as $name) {
+            $result = $this->service->rename($item->id, $name);
+
+            $this->assertFalse($result['renamed'], var_export($name, true));
+            $this->assertSame('invalid', $result['reason'], var_export($name, true));
+            $this->assertNotSame('', (string) $result['message']);
+        }
+
+        MediaService::clearCache();
+        $unchanged = MediaService::find($item->id);
+
+        $this->assertSame('zzz-blijft.png', $unchanged?->displayName);
+        $this->assertTrue((bool) $unchanged?->fileExists());
+    }
+
+    public function testRenamingSomethingThatIsNotThereIsReported(): void
+    {
+        $result = $this->service->rename(9_999_999, 'wat dan ook');
+
+        $this->assertFalse($result['renamed']);
+        $this->assertSame('not_found', $result['reason']);
+    }
+
+    /* ------------------------------------------------------------------ */
+    /* Deleting a selection                                                */
+    /* ------------------------------------------------------------------ */
+
+    public function testDeletingASelectionRemovesEveryUnusedItemWithItsFiles(): void
+    {
+        $first = $this->upload($this->pngFixture(61, 61), 'zzz-weg-een.png', '');
+        $second = $this->upload($this->pngFixture(62, 62), 'zzz-weg-twee.png', '');
+        $files = [
+            dirname(__DIR__, 2) . '/' . $first->path,
+            dirname(__DIR__, 2) . '/' . $second->path,
+            dirname(__DIR__, 2) . '/' . $first->thumbnailPath,
+        ];
+
+        $result = $this->service->deleteMany([$first->id, $second->id, $first->id]);
+
+        $this->assertEqualsCanonicalizing(
+            [$first->id, $second->id],
+            array_map(static fn (MediaItem $item): int => $item->id, $result['deleted']),
+            'each item once, however often it was sent'
+        );
+        $this->assertSame([], $result['in_use']);
+        $this->assertSame([], $result['not_found']);
+
+        foreach ($files as $file) {
+            $this->assertFileDoesNotExist($file);
+        }
+
+        MediaService::clearCache();
+        $this->assertNull(MediaService::find($first->id));
+        $this->assertNull(MediaService::find($second->id));
+    }
+
+    public function testASelectionThatNamesNothingDeletesNothing(): void
+    {
+        $before = $this->repository->countAll();
+
+        $result = $this->service->deleteMany([9_999_998, 9_999_999, 0, -4]);
+
+        $this->assertSame([], $result['deleted']);
+        $this->assertSame([9_999_998, 9_999_999], $result['not_found']);
+        $this->assertSame($before, $this->repository->countAll());
+    }
+
+    /* ------------------------------------------------------------------ */
     /* Deletion, and the row/disk mismatch                                 */
     /* ------------------------------------------------------------------ */
 
