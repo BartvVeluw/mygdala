@@ -158,20 +158,24 @@ final class MediaService
     }
 
     /**
-     * One page of the library.
+     * One page of the library, narrowed by a search term and by a kind of
+     * file (App\Service\Media\MediaType) when they are given. A kind the list
+     * does not know filters nothing: an old or mistyped URL shows the library
+     * rather than an empty screen.
      *
      * @return array{items: list<MediaItem>, total: int}
      */
-    public function browse(string $term = '', int $page = 1, int $perPage = MediaRepository::PAGE_SIZE): array
+    public function browse(string $term = '', int $page = 1, int $perPage = MediaRepository::PAGE_SIZE, string $type = ''): array
     {
         $page = max(1, $page);
         $perPage = max(1, min(100, $perPage));
+        $mimePrefix = MediaType::mimePrefix($type);
 
-        $rows = $this->repository->search($term, $perPage, ($page - 1) * $perPage);
+        $rows = $this->repository->search($term, $perPage, ($page - 1) * $perPage, $mimePrefix);
 
         return [
             'items' => array_map(static fn (array $row): MediaItem => MediaItem::fromRow($row), $rows),
-            'total' => $this->repository->countSearch($term),
+            'total' => $this->repository->countSearch($term, $mimePrefix),
         ];
     }
 

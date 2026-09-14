@@ -377,6 +377,36 @@ final class MediaBoundaryTest extends TestCase
     }
 
     /* ------------------------------------------------------------------ */
+    /* The library screen: searching and filtering                         */
+    /* ------------------------------------------------------------------ */
+
+    /**
+     * Search and filter use the shared controls (ADMIN-UI.md), only read — a
+     * GET with no token, so a filtered view has a URL that survives a reload
+     * — and offer exactly the kinds App\Service\Media\MediaType knows.
+     */
+    public function testTheLibraryIsSearchedAndFilteredWithTheSharedControls(): void
+    {
+        $screen = $this->source('admin/media.php');
+
+        $this->assertMatchesRegularExpression('#<form method="get" action="/admin/media\.php" class="admin-toolbar[^"]*" role="search"#', $screen);
+        $this->assertMatchesRegularExpression(
+            '#<label class="admin-search">\s*<span class="admin-visually-hidden">#',
+            $screen,
+            'the search field keeps a name a screen reader can say'
+        );
+        $this->assertStringContainsString('<input type="search" name="q"', $screen);
+        $this->assertStringContainsString('<select name="type" class="admin-select"', $screen);
+        $this->assertStringContainsString('MediaType::all()', $screen, 'the options come from the closed list');
+        $this->assertStringContainsString('MediaType::isKnown(', $screen, 'a type from the URL is checked against it');
+        $this->assertStringContainsString('data-media-results', $screen);
+
+        $script = $this->source('admin/assets/media-library.js');
+        $this->assertStringContainsString('history.pushState', $script, 'a filtered view keeps an address of its own');
+        $this->assertStringContainsString('"popstate"', $script, 'and Back redraws it');
+    }
+
+    /* ------------------------------------------------------------------ */
     /* Helpers                                                             */
     /* ------------------------------------------------------------------ */
 

@@ -105,16 +105,20 @@ class MediaRepository extends Repository
 
     /**
      * One page of the library, newest first, optionally narrowed by a search
-     * term. The search is a plain LIKE over what a human can actually
-     * remember about an image: the name it has in the library, the name of
-     * the file they uploaded, and the alt text they wrote. No tags, no
-     * folders, no ranking — see MEDIA.md.
+     * term and by a kind of file. The search is a plain LIKE over what a
+     * human can actually remember about an image: the name it has in the
+     * library, the name of the file they uploaded, and the alt text they
+     * wrote. The kind is how the MIME type begins
+     * (App\Service\Media\MediaType). No tags, no folders, no ranking — see
+     * MEDIA.md.
+     *
+     * @param string|null $mimePrefix "image/", or null for every kind
      *
      * @return list<array<string, mixed>>
      */
-    public function search(string $term = '', int $limit = self::PAGE_SIZE, int $offset = 0): array
+    public function search(string $term = '', int $limit = self::PAGE_SIZE, int $offset = 0, ?string $mimePrefix = null): array
     {
-        [$where, $params] = $this->searchClause($term);
+        [$where, $params] = $this->searchClause($term, $mimePrefix);
 
         $sql = 'SELECT ' . self::COLUMNS . ' FROM media' . $where
             . ' ORDER BY created_at DESC, id DESC LIMIT ' . max(1, $limit) . ' OFFSET ' . max(0, $offset);
@@ -126,9 +130,9 @@ class MediaRepository extends Repository
     }
 
     /** How many items the same search matches, for the pager. */
-    public function countSearch(string $term = ''): int
+    public function countSearch(string $term = '', ?string $mimePrefix = null): int
     {
-        [$where, $params] = $this->searchClause($term);
+        [$where, $params] = $this->searchClause($term, $mimePrefix);
 
         $stmt = $this->db->prepare('SELECT COUNT(*) FROM media' . $where);
         $stmt->execute($params);
@@ -145,23 +149,33 @@ class MediaRepository extends Repository
      *
      * @return array{0: string, 1: array<string, string>}
      */
-    private function searchClause(string $term): array
+    private function searchClause(string $term, ?string $mimePrefix): array
     {
+        $conditions = [];
+        $params = [];
         $term = trim($term);
 
-        if ($term === '') {
-            return ['', []];
+        if ($term !== '') {
+            // Escape the LIKE wildcards themselves: an editor searching for
+            // "foto_1" means the underscore, and `_` matching any character is
+            // the same trap that once deleted real products here.
+            $pattern = '%' . self::escapeLike($term) . '%';
+
+            $conditions[] = "(display_name LIKE :name ESCAPE '\\\\' OR original_filename LIKE :term ESCAPE '\\\\' OR alt_text LIKE :alt ESCAPE '\\\\')";
+            $params += ['name' => $pattern, 'term' => $pattern, 'alt' => $pattern];
         }
 
-        // Escape the LIKE wildcards themselves: an editor searching for
-        // "foto_1" means the underscore, and `_` matching any character is
-        // the same trap that once deleted real products here.
-        $pattern = '%' . str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $term) . '%';
+        if ($mimePrefix !== null && $mimePrefix !== '') {
+            $conditions[] = "mime_type LIKE :mime ESCAPE '\\\\'";
+            $params['mime'] = self::escapeLike($mimePrefix) . '%';
+        }
 
-        return [
-            " WHERE (display_name LIKE :name ESCAPE '\\\\' OR original_filename LIKE :term ESCAPE '\\\\' OR alt_text LIKE :alt ESCAPE '\\\\')",
-            ['name' => $pattern, 'term' => $pattern, 'alt' => $pattern],
-        ];
+        return [$conditions === [] ? '' : ' WHERE ' . implode(' AND ', $conditions), $params];
+    }
+
+    private static function escapeLike(string $value): string
+    {
+        return str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $value);
     }
 
     /**

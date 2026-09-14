@@ -1,7 +1,7 @@
 /*
  * Media Library screen (admin/media.php): what exists on that one screen and
  * nowhere else — adding files through the drop zone and the queue of new
- * files.
+ * files, and the library below it: its toolbar, its results and its cards.
  *
  * OWNER. admin/media.php, the only screen that links it, after admin.css.
  * The thumbnail grid, the detail view and the picker keep their rules in the
@@ -230,8 +230,126 @@
 
 .admin-media-queue__remove{ align-self: start; }
 
+/* --- The library ------------------------------------------------------------ */
+
+.admin-media-library > h2{ margin-top: 0; }
+
+/* The search field takes the room the row has; the kind and the button keep
+   their own width. */
+.admin-media-toolbar .admin-search{ flex: 1 1 16rem; }
+
+.admin-media-results{ transition: opacity var(--admin-transition); }
+
+/* While media-library.js fetches the next view: the old one stays readable,
+   one step back, instead of flashing empty. */
+.admin-media-results[aria-busy="true"]{ opacity: 0.55; }
+
+.admin-media-results__summary{
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--admin-sp-1) var(--admin-sp-3);
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--admin-text-muted);
+}
+
+/* Focused by the script after paging, so a keyboard continues at the top of
+   the new page; a ring only when the keyboard got it there. */
+.admin-media-results__summary:focus{ outline: none; }
+.admin-media-results__summary:focus-visible{ outline: 2px solid var(--admin-accent); outline-offset: 4px; }
+
+.admin-media-library__grid{
+  margin: var(--admin-sp-4) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.admin-media-library__card{
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  overflow: hidden;
+  background: var(--admin-surface-sunken);
+  border: 1px solid var(--admin-border);
+  border-radius: var(--admin-radius-md);
+  transition: border-color var(--admin-transition);
+}
+
+.admin-media-library__card:hover,
+.admin-media-library__card:focus-within{ border-color: var(--admin-border-strong); }
+
+.admin-media-library__card.is-missing{ border-color: var(--admin-error); }
+
+.admin-media-library__thumb{
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  aspect-ratio: 4 / 3;
+  overflow: hidden;
+  background: var(--admin-bg);
+}
+
+.admin-media-library__thumb img{
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.admin-media-library__body{
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--admin-sp-1);
+  min-width: 0;
+  padding: var(--admin-sp-3);
+}
+
+.admin-media-library__name{
+  max-width: 100%;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--admin-text);
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+
+.admin-media-library__name:hover{
+  color: var(--admin-accent);
+  text-decoration: underline;
+}
+
+.admin-media-library__name:focus-visible{
+  outline: 2px solid var(--admin-accent);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+.admin-media-library__meta{
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 var(--admin-sp-2);
+  margin: 0;
+  font-size: 0.72rem;
+  color: var(--admin-text-muted);
+}
+
+.admin-media-library__type{
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--admin-text);
+}
+
 @media (max-width: 560px){
   .admin-media-dropzone{ padding: var(--admin-sp-4) var(--admin-sp-3); }
+
+  /* Two cards abreast on a phone: big enough to recognise a picture, small
+     enough to see more than one. */
+  .admin-media-library__grid{
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--admin-sp-3);
+  }
 
   .admin-media-queue__item{ grid-template-columns: 56px minmax(0, 1fr); }
 
@@ -248,5 +366,7 @@
 
 @media (prefers-reduced-motion: reduce){
   .admin-media-dropzone,
-  .admin-media-queue__item{ transition: none; }
+  .admin-media-queue__item,
+  .admin-media-results,
+  .admin-media-library__card{ transition: none; }
 }

@@ -8,6 +8,7 @@ use App\Repository\MediaRepository;
 use App\Service\Media\MediaFilename;
 use App\Service\Media\MediaItem;
 use App\Service\Media\MediaService;
+use App\Service\Media\MediaType;
 use App\Service\Media\MediaUploader;
 use PHPUnit\Framework\TestCase;
 use Tests\Support\TestMediaUploader;
@@ -604,6 +605,96 @@ final class MediaLibraryTest extends TestCase
 
         $this->assertGreaterThanOrEqual(1, $found['total']);
         $this->assertSame($newest->id, $found['items'][0]->id);
+    }
+
+    /* ------------------------------------------------------------------ */
+    /* Filtering by kind                                                   */
+    /* ------------------------------------------------------------------ */
+
+    /**
+     * A row of no known kind — an adopted file with an extension the adoption
+     * did not recognise has an empty MIME type — is still in the library, so
+     * it shows under everything and under no kind.
+     */
+    public function testTheTypeFilterKeepsOnlyThatKindOfFile(): void
+    {
+        $image = $this->upload($this->pngFixture(41, 41), 'zzz-filter-beeld.png', '');
+        $this->created[] = $this->repository->create([
+            'path' => 'assets/images/__zzz_filter_onbekend__.bmp',
+            'original_filename' => 'zzz-filter-onbekend.bmp',
+            'mime_type' => '',
+        ]);
+        MediaService::clearCache();
+
+        $images = $this->service->browse('zzz-filter-', type: MediaType::IMAGE);
+        $everything = $this->service->browse('zzz-filter-');
+
+        $this->assertSame([$image->id], array_map(static fn (MediaItem $item): int => $item->id, $images['items']));
+        $this->assertSame(1, $images['total']);
+        $this->assertSame(2, $everything['total'], 'a file of no known kind still shows under everything');
+    }
+
+    public function testSearchAndTheTypeFilterNarrowTogether(): void
+    {
+        $wanted = $this->upload($this->pngFixture(42, 42), 'zzz-combi-zee.png', '');
+        $this->upload($this->pngFixture(43, 43), 'zzz-combi-bos.png', '');
+        $this->created[] = $this->repository->create([
+            'path' => 'assets/images/__zzz_combi_zee__.bmp',
+            'original_filename' => 'zzz-combi-zee.bmp',
+            'mime_type' => '',
+        ]);
+        MediaService::clearCache();
+
+        $found = $this->service->browse('zzz-combi-zee', type: MediaType::IMAGE);
+
+        $this->assertSame(1, $found['total'], 'the name matches two rows, the kind only one of them');
+        $this->assertSame($wanted->id, $found['items'][0]->id);
+    }
+
+    /** A kind the list does not have filters nothing, rather than emptying the library. */
+    public function testAnUnknownTypeFiltersNothing(): void
+    {
+        $item = $this->upload($this->pngFixture(44, 44), 'zzz-onbekende-soort.png', '');
+
+        $found = $this->service->browse('zzz-onbekende-soort', type: 'geen-soort');
+
+        $this->assertSame(1, $found['total']);
+        $this->assertSame($item->id, $found['items'][0]->id);
+    }
+
+    /**
+     * The filter offers what the library accepts and nothing it does not: no
+     * video, audio or documents until the uploader takes them (MEDIA.md).
+     */
+    public function testTheKindsOnOfferAreTheOnesTheUploaderAccepts(): void
+    {
+        $this->assertSame([MediaType::IMAGE], MediaType::all());
+
+        foreach (MediaUploader::MIME_FOR_TYPE as $mimeType) {
+            $this->assertStringStartsWith((string) MediaType::mimePrefix(MediaType::IMAGE), $mimeType);
+        }
+
+        foreach (['video', 'audio', 'document'] as $fictitious) {
+            $this->assertFalse(MediaType::isKnown($fictitious), $fictitious . ' must not be offered before it can be uploaded');
+        }
+    }
+
+    /** A card names the kind of file from what it is, never from its (editable) name. */
+    public function testACardNamesTheKindOfFileFromItsType(): void
+    {
+        $label = static fn (string $mimeType, string $path = 'assets/media/x.bin', string $name = ''): string => MediaItem::fromRow([
+            'id' => 1,
+            'path' => $path,
+            'mime_type' => $mimeType,
+            'display_name' => $name,
+        ])->typeLabel();
+
+        $this->assertSame('JPG', $label('image/jpeg', name: 'hernoemd.png'));
+        $this->assertSame('PNG', $label('image/png'));
+        $this->assertSame('WEBP', $label('image/webp'));
+        $this->assertSame('SVG', $label('image/svg+xml'));
+        $this->assertSame('ICO', $label('image/x-icon'));
+        $this->assertSame('BMP', $label('', 'assets/images/oud.bmp'), 'an unknown type falls back on the stored file');
     }
 
     /* ------------------------------------------------------------------ */

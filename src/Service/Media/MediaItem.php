@@ -131,6 +131,26 @@ final class MediaItem
         return $this->originalFilename !== '' ? $this->originalFilename : basename($this->path);
     }
 
+    /**
+     * The kind of file as an editor calls it — "JPG", "PNG", "SVG" — taken from
+     * the stored MIME type, which the library read from the file itself, and
+     * from the stored file's extension when that type is unknown. Never from
+     * the name, which an editor can change.
+     */
+    public function typeLabel(): string
+    {
+        $slash = strrpos($this->mimeType, '/');
+        $subtype = $slash === false ? '' : strtolower(substr($this->mimeType, $slash + 1));
+
+        return match ($subtype) {
+            'jpeg', 'pjpeg' => 'JPG',
+            'svg+xml' => 'SVG',
+            'x-icon', 'vnd.microsoft.icon' => 'ICO',
+            '' => strtoupper(MediaFilename::extension($this->path)),
+            default => strtoupper($subtype),
+        };
+    }
+
     private static function nullableString(mixed $value): ?string
     {
         if ($value === null) {

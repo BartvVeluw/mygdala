@@ -13,6 +13,7 @@ use App\Service\Csrf;
 use App\Service\Media\MediaFilename;
 use App\Service\Media\MediaItem;
 use App\Service\Media\MediaService;
+use App\Service\Media\MediaType;
 use App\Service\Media\MediaUploader;
 
 /**
@@ -32,6 +33,13 @@ use App\Service\Media\MediaUploader;
  * the drop zone around it belongs to this screen and is never the only way
  * in. The limits the queue checks come from App\Service\Media\MediaUploader,
  * which checks them again.
+ *
+ * FINDING FILES. A search field and a choice of kind
+ * (App\Service\Media\MediaType) above the grid — both shared controls, both an
+ * ordinary GET — so every view of the library has an address: ?q=, ?type=,
+ * ?page=. With admin/assets/media-library.js the results block is swapped in
+ * place instead of the page being reloaded, but the markup is rendered here,
+ * once, either way.
  *
  * WHAT IT IS NOT. There are no folders, no tags, no bulk actions, no crop
  * tool and no raw filesystem operations: nothing here lets somebody type a
@@ -62,6 +70,8 @@ $requestedId = filter_input(INPUT_GET, 'id', FILTER_VALIDATE_INT);
 $item = ($requestedId === false || $requestedId === null) ? null : MediaService::find($requestedId);
 
 $term = trim((string) ($_GET['q'] ?? ''));
+$requestedType = (string) ($_GET['type'] ?? '');
+$type = MediaType::isKnown($requestedType) ? $requestedType : '';
 $page = max(1, (int) ($_GET['page'] ?? 1));
 
 $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
@@ -84,7 +94,17 @@ $formatBytes = static function (?int $bytes): string {
 };
 
 if ($item === null) {
-    $result = $service->browse($term, $page);
+    $result = $service->browse($term, $page, type: $type);
+    $perPage = MediaRepository::PAGE_SIZE;
+    $lastPage = max(1, (int) ceil($result['total'] / $perPage));
+
+    // A page past the last one — an old address, or the last items on it
+    // were just deleted — shows the last page there is, not an empty grid.
+    if ($page > $lastPage) {
+        $page = $lastPage;
+        $result = $service->browse($term, $page, type: $type);
+    }
+
     /** @var list<MediaItem> $items */
     $items = $result['items'];
     $total = $result['total'];
@@ -93,8 +113,27 @@ if ($item === null) {
     // App\Service\Media\MediaUsageRegistry for why that is the contract.
     $usageCounts = $service->usageCountsFor($items);
 
-    $perPage = MediaRepository::PAGE_SIZE;
-    $lastPage = max(1, (int) ceil($total / $perPage));
+    /** One way to write a library address, so the paging and the filters agree on it. */
+    $libraryUrl = static function (string $term, string $type, int $page): string {
+        $query = http_build_query(array_filter(
+            ['q' => $term, 'type' => $type, 'page' => $page > 1 ? $page : ''],
+            static fn (string|int $value): bool => $value !== ''
+        ));
+
+        return '/admin/media.php' . ($query === '' ? '' : '?' . $query);
+    };
+
+    if ($term !== '') {
+        // These two sentences wrap the term in quotation-mark entities, so
+        // the term is escaped on its own and the sentence printed as it is.
+        $summary = $total === 1
+            ? admin_t('media.results_for_one', ['v1' => $h($term)])
+            : admin_t('media.results_for', ['v1' => (int) $total, 'v2' => $h($term)]);
+    } elseif ($type !== '') {
+        $summary = $total === 1 ? admin_te('media.filter.results_one') : admin_te('media.filter.results', ['count' => (int) $total]);
+    } else {
+        $summary = $total === 1 ? admin_te('media.count_in_library_one') : admin_te('media.count_in_library', ['count' => (int) $total]);
+    }
 
     // What the upload queue checks before it sends anything: the limits
     // App\Service\Media\MediaUploader enforces, handed over rather than
@@ -263,65 +302,102 @@ if ($item === null) {
     <script type="application/json" data-media-upload-config><?= json_encode($uploadConfig, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?></script>
   </section>
 
-  <section class="admin-card" data-media-library>
-    <form method="get" action="/admin/media.php" class="admin-inline-form">
-      <label class="admin-media-search">
-        <span class="admin-visually-hidden"><?= admin_te('common.search') ?></span>
-        <input type="search" name="q" value="<?= $h($term) ?>" placeholder="Zoek op bestandsnaam of alt-tekst">
+  <section class="admin-card admin-media-library" aria-labelledby="media-library-title" data-media-library>
+    <h2 id="media-library-title"><?= admin_te('media.library.title') ?></h2>
+
+    <form method="get" action="/admin/media.php" class="admin-toolbar admin-media-toolbar" role="search" data-media-filter>
+      <label class="admin-search">
+        <span class="admin-visually-hidden"><?= admin_te('media.search.label') ?></span>
+        <input type="search" name="q" value="<?= $h($term) ?>" placeholder="<?= admin_te('media.search.placeholder') ?>" autocomplete="off" data-media-search>
       </label>
-      <button type="submit"><?= admin_te('common.search') ?></button>
-      <?php if ($term !== ''): ?>
-        <a class="admin-btn-text" href="/admin/media.php">Wis zoekopdracht</a>
-      <?php endif; ?>
+
+      <label class="admin-media-toolbar__type">
+        <span class="admin-visually-hidden"><?= admin_te('media.filter.label') ?></span>
+        <select name="type" class="admin-select" data-media-type>
+          <option value=""><?= admin_te('media.type.all') ?></option>
+          <?php foreach (MediaType::all() as $mediaType): ?>
+            <option value="<?= $h($mediaType) ?>"<?= $mediaType === $type ? ' selected' : '' ?>><?= admin_te('media.type.' . $mediaType) ?></option>
+          <?php endforeach; ?>
+        </select>
+      </label>
+
+      <button type="submit" class="admin-btn-secondary"><?= admin_te('media.search.submit') ?></button>
     </form>
 
-    <p class="admin-text-muted">
-      <?php if ($term === ''): ?>
-        <?= $total === 1 ? admin_t('media.count_in_library_one') : admin_t('media.count_in_library', ['count' => (int) $total]) ?>
-      <?php else: ?>
-        <?= $total === 1 ? admin_t('media.results_for_one', ['v1' => $h($term)]) : admin_t('media.results_for', ['v1' => (int) $total, 'v2' => $h($term)]) ?>
-      <?php endif; ?>
-    </p>
+    <?php /* What a screen reader hears when the results change without a
+             reload. It stays in place; the block below is the one replaced. */ ?>
+    <p class="admin-visually-hidden" role="status" aria-live="polite" data-media-results-status></p>
 
-    <?php if ($items === []): ?>
-      <p class="admin-text-muted">
-        <?= admin_te($term === '' ? 'media.empty_library' : 'media.nothing_found') ?>
+    <div class="admin-media-results" data-media-results>
+      <p class="admin-media-results__summary" tabindex="-1" data-media-summary>
+        <span data-media-summary-text><?= $summary ?></span>
+        <?php if ($term !== '' || $type !== ''): ?>
+          <a class="admin-btn-text" href="/admin/media.php" data-media-reset><?= admin_te('media.filter.reset') ?></a>
+        <?php endif; ?>
       </p>
-    <?php else: ?>
-      <div class="admin-media-grid">
-        <?php foreach ($items as $gridItem): ?>
-          <?php $usageCount = $usageCounts[$gridItem->id] ?? 0; ?>
-          <a class="admin-media-card<?= $gridItem->fileExists() ? '' : ' is-missing' ?>" href="/admin/media.php?id=<?= (int) $gridItem->id ?>">
-            <span class="admin-media-card__media">
-              <?php if ($gridItem->fileExists()): ?>
-                <img src="<?= $h($gridItem->displayPath()) ?>" alt="" loading="lazy">
-              <?php else: ?>
-                <span class="admin-media-card__warning"><?= admin_te('common.file_missing') ?></span>
-              <?php endif; ?>
-            </span>
-            <span class="admin-media-card__name"><?= $h($gridItem->displayName()) ?></span>
-            <span class="admin-media-card__meta">
-              <?= $gridItem->hasDimensions() ? (int) $gridItem->width . ' &times; ' . (int) $gridItem->height : 'afmetingen onbekend' ?>
-            </span>
-            <span class="admin-media-card__usage<?= $usageCount === 0 ? ' is-unused' : '' ?>">
-              <?= $usageCount === 0 ? 'Niet gebruikt' : $usageCount . ($usageCount === 1 ? ' plek' : ' plekken') ?>
-            </span>
-          </a>
-        <?php endforeach; ?>
-      </div>
 
-      <?php if ($lastPage > 1): ?>
-        <nav class="admin-pagination" aria-label="Paginering">
-          <?php if ($page > 1): ?>
-            <a class="admin-btn-text" href="/admin/media.php?<?= $h(http_build_query(['q' => $term, 'page' => $page - 1])) ?>">&larr; Vorige</a>
-          <?php endif; ?>
-          <span class="admin-text-muted"><?= admin_te('media.page_x_of_y', ['v1' => (int) $page, 'v2' => (int) $lastPage]) ?></span>
-          <?php if ($page < $lastPage): ?>
-            <a class="admin-btn-text" href="/admin/media.php?<?= $h(http_build_query(['q' => $term, 'page' => $page + 1])) ?>">Volgende &rarr;</a>
-          <?php endif; ?>
-        </nav>
+      <?php if ($items === []): ?>
+        <p class="admin-text-muted">
+          <?= admin_te($term === '' && $type === '' ? 'media.empty_library' : 'media.nothing_found') ?>
+        </p>
+      <?php else: ?>
+        <ul class="admin-media-grid admin-media-library__grid" role="list">
+          <?php foreach ($items as $gridItem): ?>
+            <?php
+            $usageCount = $usageCounts[$gridItem->id] ?? 0;
+            $detailUrl = '/admin/media.php?id=' . (int) $gridItem->id;
+            ?>
+            <li class="admin-media-library__card<?= $gridItem->fileExists() ? '' : ' is-missing' ?>" data-media-card>
+              <?php /* The picture opens the item too, but a keyboard and a screen
+                       reader get that link once, on the name. */ ?>
+              <a class="admin-media-library__thumb" href="<?= $h($detailUrl) ?>" tabindex="-1" aria-hidden="true">
+                <?php if ($gridItem->fileExists()): ?>
+                  <img src="<?= $h($gridItem->displayPath()) ?>" alt="" loading="lazy" decoding="async">
+                <?php else: ?>
+                  <span class="admin-media-card__warning"><?= admin_te('common.file_missing') ?></span>
+                <?php endif; ?>
+              </a>
+
+              <div class="admin-media-library__body">
+                <a class="admin-media-library__name" href="<?= $h($detailUrl) ?>"><?= $h($gridItem->displayName()) ?></a>
+
+                <p class="admin-media-library__meta">
+                  <span class="admin-media-library__type"><?= $h($gridItem->typeLabel()) ?></span>
+                  <?php if ($gridItem->hasDimensions()): ?>
+                    <span><?= (int) $gridItem->width ?> &times; <?= (int) $gridItem->height ?></span>
+                  <?php endif; ?>
+                  <?php if ($gridItem->fileSize !== null && $gridItem->fileSize > 0): ?>
+                    <span><?= $h($formatBytes($gridItem->fileSize)) ?></span>
+                  <?php endif; ?>
+                </p>
+
+                <span class="admin-media-card__usage<?= $usageCount === 0 ? ' is-unused' : '' ?>">
+                  <?php if ($usageCount === 0): ?>
+                    <?= admin_te('media.card.unused') ?>
+                  <?php elseif ($usageCount === 1): ?>
+                    <?= admin_te('media.card.used_one') ?>
+                  <?php else: ?>
+                    <?= admin_te('media.card.used', ['count' => $usageCount]) ?>
+                  <?php endif; ?>
+                </span>
+              </div>
+            </li>
+          <?php endforeach; ?>
+        </ul>
+
+        <?php if ($lastPage > 1): ?>
+          <nav class="admin-pagination" aria-label="<?= admin_te('media.page.label') ?>">
+            <?php if ($page > 1): ?>
+              <a class="admin-btn-text" href="<?= $h($libraryUrl($term, $type, $page - 1)) ?>" data-media-page><?= admin_te('media.page.previous') ?></a>
+            <?php endif; ?>
+            <span class="admin-text-muted"><?= admin_te('media.page_x_of_y', ['v1' => (int) $page, 'v2' => (int) $lastPage]) ?></span>
+            <?php if ($page < $lastPage): ?>
+              <a class="admin-btn-text" href="<?= $h($libraryUrl($term, $type, $page + 1)) ?>" data-media-page><?= admin_te('media.page.next') ?></a>
+            <?php endif; ?>
+          </nav>
+        <?php endif; ?>
       <?php endif; ?>
-    <?php endif; ?>
+    </div>
   </section>
 
 <?php else: ?>

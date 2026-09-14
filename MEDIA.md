@@ -168,6 +168,39 @@ Bestaande items kregen bij migratie `20260914100000` de naam die de bibliotheek
 al toonde. De kolom is in het schema niet uniek, want overgenomen oude beelden
 kunnen een naam delen; de bibliotheek houdt **nieuwe** namen zelf uniek.
 
+## Zoeken en filteren
+
+Boven het raster staan een zoekveld en een keuze voor de **soort bestand**,
+allebei de gedeelde bouwstenen (`.admin-search` en `.admin-select`,
+`ADMIN-UI.md`). Het blijft een gewone GET (`?q=…&type=…&page=…`) zonder token,
+dus een gefilterde weergave heeft een eigen adres dat een herlaadbeurt
+overleeft.
+
+- **Zoeken** is een `LIKE` op de naam, de oorspronkelijke bestandsnaam en de
+  alt-tekst. Geen fulltext-index en geen ranking; `_` en `%` betekenen
+  zichzelf.
+- **Soort** komt uit `App\Service\Media\MediaType`, een gesloten lijst die uit
+  `mime_type` afleidt wat een rij is. Er staat **alleen `image`** in, omdat de
+  bibliotheek alleen afbeeldingen aanneemt. Video, audio of documenten komen
+  er pas bij als de upload ze aanneemt: een filter op iets wat niet kan
+  bestaan is een belofte die het scherm niet waarmaakt. Een rij zonder
+  bekende soort (een overgenomen bestand met een onbekende extensie) staat
+  onder *Alles* en nergens anders.
+- Een onbekende `type` in het adres filtert niets, en een pagina voorbij de
+  laatste toont de laatste.
+
+Zoeken en filteren gebeuren **op de server**, omdat de bibliotheek per 24
+items gepagineerd is. Met `admin/assets/media-library.js` ververst het raster
+zonder dat de pagina herlaadt: het script haalt hetzelfde adres op en
+vervangt alleen het blok met resultaten, zodat de cursor in het zoekveld
+blijft staan en een lijst met nieuwe bestanden gewoon blijft bestaan. De
+adresbalk loopt mee, dus Vorige en Volgende van de browser werken.
+
+Een **kaart** toont het voorbeeld (de thumbnail, nooit het origineel als er
+een thumbnail is), de naam, de soort (`JPG`, `PNG`, `SVG` — uit het type,
+nooit uit de naam), de afmetingen en de grootte als die bekend zijn, en op
+hoeveel plekken het bestand gebruikt wordt.
+
 ## Hoe een feature naar media verwijst
 
 ```text
