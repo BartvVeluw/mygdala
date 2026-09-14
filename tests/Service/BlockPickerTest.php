@@ -450,7 +450,9 @@ final class BlockPickerTest extends TestCase
 
     public function testSearchingStillFiltersOnTheSameTermsAndCategory(): void
     {
-        $script = $this->sourceOf('admin/assets/block-picker.js');
+        // As LF whatever the checkout: with core.autocrlf=true the file on
+        // disk has CRLF, and the setView pattern below spells a break as \n.
+        $script = str_replace("\r\n", "\n", $this->sourceOf('admin/assets/block-picker.js'));
 
         $this->assertStringContainsString('(card.getAttribute("data-block-terms") || "").indexOf(term) !== -1', $script);
         $this->assertStringContainsString('card.getAttribute("data-block-category") === activeCategory', $script);
