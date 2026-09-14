@@ -260,7 +260,7 @@ die weg en gebruikt de twee functies hierboven; meer is het niet.
 
 ## Waar het al gebruikt wordt
 
-Zes schermen, als bewijs dat de bouwstenen herbruikbaar zijn. De rest van het
+Zeven schermen, als bewijs dat de bouwstenen herbruikbaar zijn. De rest van het
 CMS volgt scherm voor scherm; een scherm dat nog niet is omgezet, werkt zoals
 het werkte.
 
