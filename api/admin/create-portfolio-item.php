@@ -4,11 +4,17 @@
  * POST /api/admin/create-portfolio-item.php
  *
  * Creates a new Portfolio item from the admin "Nieuw portfolio-item" form
- * (admin/portfolio-item.php with no ?id=) — the minimal starter fields only
- * (image, alt/title/subtitle NL+EN, categories). Detail-page fields
- * (slug, intro, description, additional images) are edited afterwards on the
- * item's own edit page, same as how a new product's variants/extra photos
- * are only added after the product itself exists.
+ * (admin/portfolio-item.php with no ?id=). The image IS the item: title, alt
+ * text, caption and categories are all optional, in every language, and an
+ * item with none of them is valid — the gallery then shows the picture alone,
+ * without an empty caption over it (partials/section-item-gallery.php). Only
+ * their length is checked here. An empty alt text is a real answer too: it
+ * marks a decorative image, and the page renders alt="" for it rather than
+ * inventing one from the file name.
+ *
+ * Detail-page fields (slug, intro, description, additional images) are edited
+ * afterwards on the item's own edit page, same as how a new product's
+ * variants/extra photos are only added after the product itself exists.
  *
  * There is exactly one Portfolio catalogue row (see
  * App\Repository\PortfolioGalleryRepository::ensureCatalogue()), so unlike
@@ -55,23 +61,14 @@ $subtitleEn = trim((string) ($_POST['subtitle_en'] ?? ''));
 $categoryIds = validatePortfolioCategoryIds($_POST['categories'] ?? null, new PortfolioCategoryRepository());
 
 $errors = [];
-if ($altNl === '') {
-    $errors[] = AdminTranslator::trans('validation.alt_tekst_nl_verplicht');
-} elseif (mb_strlen($altNl) > 255 || mb_strlen($altEn) > 255) {
+if (mb_strlen($altNl) > 255 || mb_strlen($altEn) > 255) {
     $errors[] = AdminTranslator::trans('validation.alt_tekst_mag_maximaal_255');
 }
-if ($titleNl === '') {
-    $errors[] = AdminTranslator::trans('validation.titel_nl_verplicht');
-} elseif (mb_strlen($titleNl) > 150 || mb_strlen($titleEn) > 150) {
+if (mb_strlen($titleNl) > 150 || mb_strlen($titleEn) > 150) {
     $errors[] = AdminTranslator::trans('validation.titel_mag_maximaal_150_tekens');
 }
-if ($subtitleNl === '') {
-    $errors[] = AdminTranslator::trans('validation.onderschrift_nl_verplicht');
-} elseif (mb_strlen($subtitleNl) > 150 || mb_strlen($subtitleEn) > 150) {
+if (mb_strlen($subtitleNl) > 150 || mb_strlen($subtitleEn) > 150) {
     $errors[] = AdminTranslator::trans('validation.onderschrift_mag_maximaal_150_tekens');
-}
-if ($categoryIds === []) {
-    $errors[] = AdminTranslator::trans('validation.kies_minstens_n_categorie');
 }
 
 $old = [
@@ -90,6 +87,8 @@ if ($errors !== []) {
 
 $imageProcessor = new PortfolioImageProcessor();
 
+// The one thing an item cannot do without: no file, and the processor says so
+// in the editor's own words ("Geen bestand geselecteerd.").
 try {
     $uploadResult = $imageProcessor->store($_FILES['image'] ?? []);
 } catch (\RuntimeException $e) {

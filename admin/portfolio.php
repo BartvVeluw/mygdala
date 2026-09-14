@@ -78,6 +78,13 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
  * and simply keep using the full image here, same as before that step.
  */
 $cardImageSrc = static fn (array $row): string => '/' . ltrim((string) ($row['thumbnail_path'] ?: $row['image_path']), '/');
+
+/**
+ * What an item is called in the CMS. A title is optional, so an item without
+ * one still gets a name on its card, in its link and in the homepage list —
+ * never an empty line.
+ */
+$itemName = static fn (array $row): string => (string) $row['title_nl'] !== '' ? (string) $row['title_nl'] : admin_t('portfolio.untitled');
 ?>
 <!doctype html>
 <html lang="<?= htmlspecialchars(\App\Service\Language\AdminLocale::current(), ENT_QUOTES, 'UTF-8') ?>">
@@ -149,7 +156,7 @@ $cardImageSrc = static fn (array $row): string => '/' . ltrim((string) ($row['th
       ?>
       <div class="admin-section-row" style="margin-top:0.6rem;">
         <img src="<?= $h($cardImageSrc($item)) ?>" alt="" style="width:40px;height:40px;object-fit:cover;border-radius:var(--admin-radius-sm);">
-        <span class="admin-section-row__body"><?= $h((string) $item['title_nl']) ?></span>
+        <span class="admin-section-row__body"><?= $h($itemName($item)) ?></span>
         <form method="post" action="/api/admin/move-featured-gallery-item.php" class="admin-inline-form">
           <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
           <input type="hidden" name="item_id" value="<?= $itemId ?>">
@@ -275,6 +282,7 @@ $cardImageSrc = static fn (array $row): string => '/' . ltrim((string) ($row['th
           $isFeatured = (int) $item['is_featured'] === 1;
           $hasDetail = !empty($item['has_detail_page']) && (string) ($item['slug'] ?? '') !== '';
           $title = (string) $item['title_nl'];
+          $name = $itemName($item);
           $itemCategorySlugs = $categorySlugsByItemId[$itemId] ?? [];
           $categoriesAttr = implode(' ', $itemCategorySlugs);
           $editUrl = '/admin/portfolio-item.php?id=' . $itemId . ($backQueryString !== '' ? '&back=' . urlencode($backQueryString) : '');
@@ -288,13 +296,13 @@ $cardImageSrc = static fn (array $row): string => '/' . ltrim((string) ($row['th
                  data-detail="<?= $hasDetail ? '1' : '0' ?>"
                  data-home="<?= $isFeatured ? '1' : '0' ?>">
           <span class="admin-portfolio-card__handle" data-portfolio-drag-handle title="Sleep om te herordenen" aria-hidden="true">&#10021;</span>
-          <a href="<?= $h($editUrl) ?>" class="admin-portfolio-card__link" aria-label="Bewerken: <?= $h($title) ?>">
+          <a href="<?= $h($editUrl) ?>" class="admin-portfolio-card__link" aria-label="Bewerken: <?= $h($name) ?>">
             <div class="admin-portfolio-card__media">
               <img src="<?= $h($cardImageSrc($item)) ?>" alt="" loading="lazy">
               <span class="admin-badge admin-badge--<?= $isActive ? 'paid' : 'canceled' ?> admin-portfolio-card__status"><?= $isActive ? 'Zichtbaar' : 'Verborgen' ?></span>
             </div>
             <div class="admin-portfolio-card__body">
-              <p class="admin-portfolio-card__name"><?= $h($title) ?></p>
+              <p class="admin-portfolio-card__name"><?= $h($name) ?></p>
               <p class="admin-portfolio-card__meta"><?= $h(implode(', ', array_map(
                   static fn (string $slug): string => $categoryNameBySlug[$slug] ?? $slug,
                   $itemCategorySlugs

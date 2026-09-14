@@ -15,6 +15,12 @@
  * with their own endpoints (add/update/delete/reorder-portfolio-item-
  * images.php), same split as product photos vs. the main product form.
  *
+ * Title, alt text, caption and categories are optional, exactly as on
+ * create-portfolio-item.php: an editor may empty every word and untick every
+ * category, and that is a valid save. The one exception is a project page,
+ * which needs a title — it is that page's heading and the title search
+ * engines show.
+ *
  * Categories are CMS-managed (App\Repository\PortfolioCategoryRepository) —
  * `categories[]` posts category ids, validated against what actually exists
  * (validatePortfolioCategoryIds()) and persisted via
@@ -81,23 +87,20 @@ $hasDetailPage = isset($_POST['has_detail_page']);
 $slugInput = trim((string) ($_POST['slug'] ?? ''));
 
 $errors = [];
-if ($altNl === '') {
-    $errors[] = AdminTranslator::trans('validation.alt_tekst_nl_verplicht');
-} elseif (mb_strlen($altNl) > 255 || mb_strlen($altEn) > 255) {
+if (mb_strlen($altNl) > 255 || mb_strlen($altEn) > 255) {
     $errors[] = AdminTranslator::trans('validation.alt_tekst_mag_maximaal_255');
 }
-if ($titleNl === '') {
-    $errors[] = AdminTranslator::trans('validation.titel_nl_verplicht');
-} elseif (mb_strlen($titleNl) > 150 || mb_strlen($titleEn) > 150) {
+if (mb_strlen($titleNl) > 150 || mb_strlen($titleEn) > 150) {
     $errors[] = AdminTranslator::trans('validation.titel_mag_maximaal_150_tekens');
 }
-if ($subtitleNl === '') {
-    $errors[] = AdminTranslator::trans('validation.onderschrift_nl_verplicht');
-} elseif (mb_strlen($subtitleNl) > 150 || mb_strlen($subtitleEn) > 150) {
+if (mb_strlen($subtitleNl) > 150 || mb_strlen($subtitleEn) > 150) {
     $errors[] = AdminTranslator::trans('validation.onderschrift_mag_maximaal_150_tekens');
 }
-if ($categoryIds === []) {
-    $errors[] = AdminTranslator::trans('validation.kies_minstens_n_categorie');
+// An item may be nameless; its project page may not. portfolio-detail.php
+// puts the title in its <h1> and its <title>, and that page is the next
+// phase's to redesign, not this endpoint's to leave headless.
+if ($hasDetailPage && $titleNl === '') {
+    $errors[] = AdminTranslator::trans('validation.projectpagina_heeft_titel_nodig');
 }
 if (mb_strlen($introNlRaw) > 20000 || mb_strlen($introEnRaw) > 20000) {
     $errors[] = 'Introtekst is te lang.';

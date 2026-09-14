@@ -80,7 +80,11 @@ $isFeaturedChecked = $item !== null && (int) $item['is_featured'] === 1;
 $hasDetailPageChecked = $item !== null && !empty($item['has_detail_page']);
 
 $csrfToken = Csrf::token();
-$pageTitle = $isEdit ? (string) $item['title_nl'] : admin_t('portfolio.new_item');
+// A title is optional, so an item without one is still named on its own
+// screen — never an empty heading.
+$pageTitle = !$isEdit
+    ? admin_t('portfolio.new_item')
+    : ((string) $item['title_nl'] !== '' ? (string) $item['title_nl'] : admin_t('portfolio.untitled'));
 
 /**
  * @param array<int, array<string, mixed>> $categories from PortfolioCategoryRepository::findAll()
@@ -164,8 +168,8 @@ $cmsImageSrc = static fn (array $row): string => '/' . ltrim((string) ($row['thu
         <?php admin_lang_bar(); ?>
         <div class="admin-form-row admin-form-row--split">
           <?php admin_lang_pane_start('nl'); ?>
-          <label><?= admin_te('common.alt_text') ?>*
-            <input type="text" name="alt_nl" maxlength="255" <?= admin_lang_required('nl') ?> value="<?= $h(fieldValue($old, null, 'alt_nl')) ?>">
+          <label><?= admin_te('common.alt_text') ?>
+            <input type="text" name="alt_nl" maxlength="255" value="<?= $h(fieldValue($old, null, 'alt_nl')) ?>">
           </label>
           <?php admin_lang_pane_end(); ?>
           <?php admin_lang_pane_start('en'); ?>
@@ -177,8 +181,8 @@ $cmsImageSrc = static fn (array $row): string => '/' . ltrim((string) ($row['thu
 
         <div class="admin-form-row admin-form-row--split">
           <?php admin_lang_pane_start('nl'); ?>
-          <label><?= admin_te('common.title') ?>*
-            <input type="text" name="title_nl" maxlength="150" <?= admin_lang_required('nl') ?> value="<?= $h(fieldValue($old, null, 'title_nl')) ?>">
+          <label><?= admin_te('common.title') ?>
+            <input type="text" name="title_nl" maxlength="150" value="<?= $h(fieldValue($old, null, 'title_nl')) ?>">
           </label>
           <?php admin_lang_pane_end(); ?>
           <?php admin_lang_pane_start('en'); ?>
@@ -190,8 +194,8 @@ $cmsImageSrc = static fn (array $row): string => '/' . ltrim((string) ($row['thu
 
         <div class="admin-form-row admin-form-row--split">
           <?php admin_lang_pane_start('nl'); ?>
-          <label><?= admin_te('portfolio.onderschrift') ?>*
-            <input type="text" name="subtitle_nl" maxlength="150" <?= admin_lang_required('nl') ?> value="<?= $h(fieldValue($old, null, 'subtitle_nl')) ?>">
+          <label><?= admin_te('portfolio.onderschrift') ?>
+            <input type="text" name="subtitle_nl" maxlength="150" value="<?= $h(fieldValue($old, null, 'subtitle_nl')) ?>">
           </label>
           <?php admin_lang_pane_end(); ?>
           <?php admin_lang_pane_start('en'); ?>
@@ -202,7 +206,7 @@ $cmsImageSrc = static fn (array $row): string => '/' . ltrim((string) ($row['thu
         </div>
 
         <div class="admin-form-row">
-          <span><?= admin_te('portfolio.categories_field') ?><?= admin_t('portfolio.text', ['v1' => portfolioCategoryCheckboxes($allCategories, $selectedCategoryIds)]) ?>
+          <span><?= admin_te('portfolio.categories_field') ?></span><br> <?= portfolioCategoryCheckboxes($allCategories, $selectedCategoryIds) ?>
         </div>
 
         <button type="submit"><?= admin_te('portfolio.portfolio_item_aanmaken') ?></button>
@@ -218,8 +222,8 @@ $cmsImageSrc = static fn (array $row): string => '/' . ltrim((string) ($row['thu
         <?php admin_lang_bar(); ?>
         <div class="admin-form-row admin-form-row--split">
           <?php admin_lang_pane_start('nl'); ?>
-          <label><?= admin_te('common.title') ?>*
-            <input type="text" name="title_nl" maxlength="150" <?= admin_lang_required('nl') ?> value="<?= $h(fieldValue($old, $item, 'title_nl')) ?>">
+          <label><?= admin_te('common.title') ?>
+            <input type="text" name="title_nl" maxlength="150" value="<?= $h(fieldValue($old, $item, 'title_nl')) ?>">
           </label>
           <?php admin_lang_pane_end(); ?>
           <?php admin_lang_pane_start('en'); ?>
@@ -230,8 +234,8 @@ $cmsImageSrc = static fn (array $row): string => '/' . ltrim((string) ($row['thu
         </div>
         <div class="admin-form-row admin-form-row--split">
           <?php admin_lang_pane_start('nl'); ?>
-          <label><?= admin_te('portfolio.onderschrift_3') ?>*
-            <input type="text" name="subtitle_nl" maxlength="150" <?= admin_lang_required('nl') ?> value="<?= $h(fieldValue($old, $item, 'subtitle_nl')) ?>">
+          <label><?= admin_te('portfolio.onderschrift_3') ?>
+            <input type="text" name="subtitle_nl" maxlength="150" value="<?= $h(fieldValue($old, $item, 'subtitle_nl')) ?>">
           </label>
           <?php admin_lang_pane_end(); ?>
           <?php admin_lang_pane_start('en'); ?>
@@ -256,8 +260,8 @@ $cmsImageSrc = static fn (array $row): string => '/' . ltrim((string) ($row['thu
         </div>
         <div class="admin-form-row admin-form-row--split">
           <?php admin_lang_pane_start('nl'); ?>
-          <label><?= admin_te('common.alt_text') ?>*
-            <input type="text" name="alt_nl" maxlength="255" <?= admin_lang_required('nl') ?> value="<?= $h(fieldValue($old, $item, 'alt_nl')) ?>">
+          <label><?= admin_te('common.alt_text') ?>
+            <input type="text" name="alt_nl" maxlength="255" value="<?= $h(fieldValue($old, $item, 'alt_nl')) ?>">
           </label>
           <?php admin_lang_pane_end(); ?>
           <?php admin_lang_pane_start('en'); ?>
@@ -271,7 +275,7 @@ $cmsImageSrc = static fn (array $row): string => '/' . ltrim((string) ($row['thu
       <section class="admin-card">
         <h2><?= admin_t('portfolio.zichtbaarheid_categorie_n') ?></h2>
         <div class="admin-form-row">
-          <span><?= admin_t('portfolio.categories_required', ['v1' => portfolioCategoryCheckboxes($allCategories, $selectedCategoryIds)]) ?>
+          <span><?= admin_te('portfolio.categories_field') ?></span><br> <?= portfolioCategoryCheckboxes($allCategories, $selectedCategoryIds) ?>
         </div>
         <label class="admin-checkbox-label">
           <input type="checkbox" name="is_active" value="1" <?= $isActiveChecked ? 'checked' : '' ?>>

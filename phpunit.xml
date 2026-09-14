@@ -402,6 +402,8 @@
             <file>tests/Service/PageTemplateRegistryTest.php</file>
             <file>tests/Service/PageUrlChangeTest.php</file>
             <file>tests/Service/PageUsageTest.php</file>
+            <file>tests/Service/PortfolioItemContentTest.php</file>
+            <file>tests/Service/PortfolioItemEditingHttpTest.php</file>
             <file>tests/Service/RedirectAdminSecurityTest.php</file>
             <file>tests/Service/RedirectPathTest.php</file>
             <file>tests/Service/RedirectRoutingTest.php</file>

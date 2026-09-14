@@ -18,6 +18,12 @@
  * arrow), otherwise it follows the block's `fallback_link_url`; with neither
  * it stays a plain, non-linked card, which is what makes it lightbox-able.
  *
+ * A card draws only the words it has. A portfolio item's title and caption are
+ * optional, so a card with neither gets no overlay at all — not an empty,
+ * darkened strip over its photo — and one with only a title gets no empty
+ * caption line. An empty alt text stays alt="": that marks a decorative image,
+ * and nothing here invents a description from the file name.
+ *
  * The lightbox OVERLAY is emitted once per page, by the first block that
  * enables it, as a sibling of the sections rather than inside one — a
  * `position: fixed` overlay inside a GSAP-transformed section would be
@@ -96,11 +102,22 @@ function render_section_item_gallery(array $content, string $revealGroup = 'gall
               . $h($rootPath((string) $item['image_path'])) . '" alt="' . $h((string) $item['alt_nl'])
               . '" data-nl-alt="' . $h((string) $item['alt_nl'])
               . '" data-en-alt="' . $h((string) $item['alt_en']) . '" loading="lazy">';
+          // Only the words the item has, in either language: SiteText::visible()
+          // already falls back to the other one, so '' means there are none.
+          $itemTitle = \App\Service\Language\SiteText::visible((string) $item['title_nl'], (string) $item['title_en']);
+          $itemSubtitle = \App\Service\Language\SiteText::visible((string) $item['subtitle_nl'], (string) $item['subtitle_en']);
+          $overlay = '';
+          if ($itemTitle !== '') {
+              $overlay .= '<p ' . \App\Service\Language\SiteText::attrs((string) $item['title_nl'], (string) $item['title_en']) . '>' . $h($itemTitle) . '</p>';
+          }
+          if ($itemSubtitle !== '') {
+              $overlay .= '<span ' . \App\Service\Language\SiteText::attrs((string) $item['subtitle_nl'], (string) $item['subtitle_en']) . '>' . $h($itemSubtitle) . '</span>';
+          }
         ?>
         <?php if ($itemUrl !== ''): ?>
         <a class="gallery-item<?= $isDetailLink ? ' gallery-item--linked' : '' ?>" href="<?= $h($itemUrl) ?>"<?= $categoryAttr ?> data-reveal data-reveal-group="<?= $h($revealGroup) ?>">
           <?= $imageTag ?>
-          <span class="gallery-item__overlay"><p <?= \App\Service\Language\SiteText::attrs((string) $item['title_nl'], (string) $item['title_en']) ?>><?= $h(\App\Service\Language\SiteText::visible((string) $item['title_nl'], (string) $item['title_en'])) ?></p><span <?= \App\Service\Language\SiteText::attrs((string) $item['subtitle_nl'], (string) $item['subtitle_en']) ?>><?= $h(\App\Service\Language\SiteText::visible((string) $item['subtitle_nl'], (string) $item['subtitle_en'])) ?></span></span>
+          <?php if ($overlay !== ''): ?><span class="gallery-item__overlay"><?= $overlay ?></span><?php endif; ?>
           <?php if ($isDetailLink): ?>
           <span class="gallery-item__arrow" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17 17 7M9 7h8v8"/></svg></span>
           <?php endif; ?>
@@ -108,7 +125,7 @@ function render_section_item_gallery(array $content, string $revealGroup = 'gall
         <?php else: ?>
         <div class="gallery-item"<?= $categoryAttr ?><?= $lightbox ? ' data-lightbox-item' : '' ?> data-reveal data-reveal-group="<?= $h($revealGroup) ?>">
           <?= $imageTag ?>
-          <span class="gallery-item__overlay"><p <?= \App\Service\Language\SiteText::attrs((string) $item['title_nl'], (string) $item['title_en']) ?>><?= $h(\App\Service\Language\SiteText::visible((string) $item['title_nl'], (string) $item['title_en'])) ?></p><span <?= \App\Service\Language\SiteText::attrs((string) $item['subtitle_nl'], (string) $item['subtitle_en']) ?>><?= $h(\App\Service\Language\SiteText::visible((string) $item['subtitle_nl'], (string) $item['subtitle_en'])) ?></span></span>
+          <?php if ($overlay !== ''): ?><span class="gallery-item__overlay"><?= $overlay ?></span><?php endif; ?>
         </div>
         <?php endif; ?>
         <?php endforeach; ?>
