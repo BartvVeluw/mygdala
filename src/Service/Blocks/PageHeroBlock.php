@@ -9,10 +9,16 @@ use App\Service\PageHeroContent;
 require_once dirname(__DIR__, 3) . '/partials/section-page-hero.php';
 
 /**
- * The ordinary page hero: eyebrow, H1, lead and breadcrumb label. One per
- * page, addressed by page_slug (it predates repeatable instances and there is
- * no second hero to tell it apart from), and denied on the homepage, which
- * has its own richer HomepageHeroBlock.
+ * The ordinary page hero: breadcrumb and H1, and optionally an eyebrow, a lead
+ * and an image from the Media Library behind them, placed and sized by three
+ * closed choices (App\Service\PageHeroContent). One per page, addressed by
+ * page_slug (it predates repeatable instances and there is no second hero to
+ * tell it apart from), and denied on the homepage, which has its own richer
+ * HomepageHeroBlock.
+ *
+ * The image belongs to the library, not to this block, so deleting a hero
+ * removes only the reference and deleteFiles() keeps its empty default
+ * (MEDIA.md, "Een nieuw blok aansluiten").
  */
 final class PageHeroBlock extends BlockDefinition
 {
@@ -50,7 +56,7 @@ final class PageHeroBlock extends BlockDefinition
 
     public function description(): string
     {
-        return 'De kop van een gewone pagina: een bovenschrift, de paginatitel en een korte inleidende zin. Hiermee begint een pagina normaal gesproken.';
+        return 'De kop van een gewone pagina: de paginatitel, met naar keuze een bovenschrift, een korte inleiding en een afbeelding op de achtergrond. Hiermee begint een pagina normaal gesproken.';
     }
 
     public function category(): string
@@ -103,6 +109,16 @@ final class PageHeroBlock extends BlockDefinition
         }
 
         render_section_page_hero($content, self::TITLE_MAX_WIDTH[$pageSlug] ?? null);
+    }
+
+    /**
+     * Only the choices an editor makes. The header itself — .page-hero,
+     * .breadcrumb, .eyebrow, .lead — stays in core.css, because the shop,
+     * cart, checkout, blog and legal templates print the same header by hand.
+     */
+    public function styles(): array
+    {
+        return ['assets/css/blocks/page-hero.css'];
     }
 
     public function instanceTitle(array $pageSection): string

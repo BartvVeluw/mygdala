@@ -11,14 +11,15 @@ use App\Service\Media\MediaUsageProvider;
 
 /**
  * The content blocks that pick their images from the Media Library: Text +
- * image split, Detailsectie (its main image and its extra images) and the
- * cards of a Kaarten-carrousel.
+ * image split, Detailsectie (its main image and its extra images), the cards
+ * of a Kaarten-carrousel and the image behind a Paginakop.
  *
- * ONE QUERY FOR ALL FOUR TABLES. A UNION rather than four round trips,
+ * ONE QUERY FOR ALL FIVE TABLES. A UNION rather than five round trips,
  * because this provider is called once per page of the library listing and
  * the listing must not grow a query per item. Each branch selects the same
- * four columns — media id, a Dutch label, the page slug and the section key
- * — so the loop below does not care which block a row came from.
+ * columns — media id, a Dutch label, the editor, the page slug, the section
+ * key and a card id — so the loop below does not care which block a row came
+ * from.
  *
  * Blocks that are NOT here (Homepage hero, Item-galerij, Portfolio, the Shop
  * blocks) still own their own image paths and are deliberately untouched in
@@ -46,7 +47,8 @@ final class ContentBlockMediaUsage extends MediaUsageProvider
         // The editor URL of a block instance is
         // admin/<type>.php?section=<page_slug>:<section_key> (CONTENT-BLOCKS.md),
         // except a carousel CARD, which has a screen of its own keyed on the
-        // card id. `editor` carries whichever of the two this row needs.
+        // card id, and a Paginakop, which is addressed by its page alone.
+        // `editor` carries whichever of those this row needs.
         $sql = '
             SELECT i.media_id           AS media_id,
                    \'Tekst + afbeelding\' AS kind,
@@ -77,12 +79,18 @@ final class ContentBlockMediaUsage extends MediaUsageProvider
               FROM carousel_cards c
               JOIN card_carousels ca ON ca.id = c.carousel_id
              WHERE c.media_id IN (' . $placeholders . ')
+
+            UNION ALL
+
+            SELECT h.media_id, \'Paginakop\', \'page-hero\', h.page_slug, NULL, NULL
+              FROM page_heroes h
+             WHERE h.media_id IN (' . $placeholders . ')
         ';
 
         $stmt = Database::connection()->prepare($sql);
-        // The same id list four times: a named placeholder cannot be reused
+        // The same id list five times: a named placeholder cannot be reused
         // across a statement here, so each branch gets its own positional set.
-        $stmt->execute(array_merge($ids, $ids, $ids, $ids));
+        $stmt->execute(array_merge($ids, $ids, $ids, $ids, $ids));
 
         $usages = [];
 
@@ -99,9 +107,9 @@ final class ContentBlockMediaUsage extends MediaUsageProvider
             $usages[$mediaId][] = new MediaUsage(
                 source: $this->key(),
                 label: $label,
-                // Every editor this links to — the block screens and the
-                // carousel card — demands pages.manage, and the label names
-                // the page.
+                // Every editor this links to — the block screens, the
+                // carousel card and the Paginakop — demands pages.manage, and
+                // the label names the page.
                 permission: AdminPermissions::PAGES_MANAGE,
                 editUrl: $this->editUrl($row, $pageSlug, $sectionKey),
             );
@@ -119,6 +127,12 @@ final class ContentBlockMediaUsage extends MediaUsageProvider
 
         if ($cardId !== null) {
             return '/admin/carousel-card.php?card_id=' . (int) $cardId;
+        }
+
+        // One Paginakop per page and no section_key, so its editor takes the
+        // page slug (App\Service\Blocks\PageHeroBlock::editUrl()).
+        if ((string) $row['editor'] === 'page-hero') {
+            return $pageSlug === '' ? null : '/admin/page-hero.php?slug=' . rawurlencode($pageSlug);
         }
 
         if ($pageSlug === '' || $sectionKey === '') {

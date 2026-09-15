@@ -173,10 +173,26 @@ final class NoEmptyActiveBlockTest extends TestCase
     public function testAHeroWithoutATitleRendersNothingWhateverElseItHas(string $type): void
     {
         if ($type === 'page_hero') {
+            // An image and every choice away from its default too: none of
+            // them is what a page hero is for.
+            $mediaId = (new \App\Repository\MediaRepository())->create([
+                'path' => 'assets/media/__test_no_empty_active__.webp',
+                'original_filename' => 'test-no-empty-active.webp',
+                'mime_type' => 'image/webp',
+                'width' => 1600,
+                'height' => 900,
+                'file_size' => 100,
+                'alt_text' => 'Beeld',
+                'checksum' => null,
+            ]);
             (new PageHeroRepository())->upsert(self::TEST_SLUG, self::pageHeroValues([
                 'eyebrow_nl' => 'Bovenschrift',
                 'lead_nl' => 'Een inleiding',
                 'breadcrumb_label_nl' => 'Kruimelpad',
+                'media_id' => $mediaId,
+                'content_position' => PageHeroContent::POSITION_CENTER,
+                'title_size' => PageHeroContent::SIZE_LARGE,
+                'text_size' => PageHeroContent::SIZE_LARGE,
             ]));
             $pageSection = self::pageSection($type, self::TEST_SLUG, null, 0);
         } else {
@@ -318,7 +334,13 @@ final class NoEmptyActiveBlockTest extends TestCase
     private function storeOnlyStructuralValues(string $type): array
     {
         if ($type === 'page_hero') {
-            (new PageHeroRepository())->upsert(self::TEST_SLUG, self::pageHeroValues([]));
+            // Every choice away from its default, so no choice can pass for
+            // content.
+            (new PageHeroRepository())->upsert(self::TEST_SLUG, self::pageHeroValues([
+                'content_position' => PageHeroContent::POSITION_RIGHT,
+                'title_size' => PageHeroContent::SIZE_LARGE,
+                'text_size' => PageHeroContent::SIZE_SMALL,
+            ]));
 
             return self::pageSection($type, self::TEST_SLUG, null, 0);
         }
@@ -508,6 +530,10 @@ final class NoEmptyActiveBlockTest extends TestCase
             'title_nl' => '', 'title_en' => '',
             'lead_nl' => '', 'lead_en' => '',
             'breadcrumb_label_nl' => '', 'breadcrumb_label_en' => '',
+            'media_id' => null,
+            'content_position' => PageHeroContent::POSITION_LEFT,
+            'title_size' => PageHeroContent::SIZE_NORMAL,
+            'text_size' => PageHeroContent::SIZE_NORMAL,
             'is_active' => true,
         ], $overrides);
     }

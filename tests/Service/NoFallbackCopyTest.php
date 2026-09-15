@@ -302,6 +302,10 @@ final class NoFallbackCopyTest extends TestCase
                 'button_url' => '',
             ]),
             'page_hero' => (new PageHeroRepository())->upsert($pageSlug, $heading + [
+                'media_id' => null,
+                'content_position' => PageHeroContent::POSITION_LEFT,
+                'title_size' => PageHeroContent::SIZE_NORMAL,
+                'text_size' => PageHeroContent::SIZE_NORMAL,
                 'lead_nl' => '',
                 'lead_en' => '',
                 'breadcrumb_label_nl' => '',

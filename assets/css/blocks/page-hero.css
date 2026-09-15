@@ -1,0 +1,149 @@
+/* ==========================================================================
+   Content block: page hero (partials/section-page-hero.php)
+   Asked for by App\Service\Blocks\PageHeroBlock::styles().
+
+   Only what an editor CHOOSES lives here: an image behind the header, where
+   its text sits, and how large its title and its intro text are. The partial
+   adds a modifier class for a choice that differs from its default and none
+   for the default, so a header nobody changed matches no rule in this file
+   and looks exactly as it did before these choices existed.
+
+   What stays in core.css, on purpose: .page-hero itself, .breadcrumb,
+   .eyebrow and .lead. The shop, cart, checkout, blog and legal templates
+   print the same header by hand, without this block, so those rules are
+   shared and not this block's to own.
+
+   A size here is a step on the type scale in core.css (--fs-*), never a
+   value from the database.
+   ========================================================================== */
+
+/* --- Where the text sits -------------------------------------------------- */
+/* The narrower boxes inside keep their own widths — the per-page line-wrap
+   width on the h1 and the lead's max-width — and auto margins move them to
+   the chosen side rather than stretching them. */
+.page-hero--content-center .container{ text-align: center; }
+.page-hero--content-center .breadcrumb{ justify-content: center; }
+.page-hero--content-center h1,
+.page-hero--content-center .lead{ margin-inline: auto; }
+
+.page-hero--content-right .container{ text-align: right; }
+.page-hero--content-right .breadcrumb{ justify-content: flex-end; }
+.page-hero--content-right h1,
+.page-hero--content-right .lead{ margin-inline-start: auto; }
+
+/* --- How large the title is ------------------------------------------------ */
+.page-hero--title-small h1{ font-size: var(--fs-h2); }
+.page-hero--title-large h1{ font-size: var(--fs-display); }
+
+/* --- How large the intro text is ------------------------------------------- */
+.page-hero--text-small .lead{ font-size: var(--fs-body); }
+.page-hero--text-large .lead{ font-size: var(--fs-h3); }
+
+/* --- An image behind the header -------------------------------------------- */
+/* The photograph fills the whole band, running up under the fixed site header
+   the way the homepage hero's background layout does, and a veil in the
+   site's own ground colour (--color-media-scrim-rgb, the token for exactly
+   this) keeps the text readable whatever the photograph looks like. The veil
+   dissolves into the page at the bottom, so the block underneath starts on
+   the ground rather than against a hard edge.
+
+   Over a photograph the title keeps to a column, so the veil can follow the
+   text: dense behind the breadcrumb and the intro text, still dense enough
+   behind the large title, and light on the far side, where the picture shows.
+   Measured on a completely white photograph, the small text stays at around
+   4.5:1 and the title above the 3:1 large text needs. Nobody has to judge
+   contrast, and a per-page line-wrap width on the h1 is narrower still.
+
+   The band grows with its text; min-height only gives a short header room to
+   show its picture. */
+.page-hero--media{
+  isolation: isolate;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  min-height: clamp(26rem, 55vh, 38rem);
+  padding-bottom: var(--sp-6);
+}
+.page-hero--media h1{ max-width: min(100%, 52rem); }
+
+/* The faint breadcrumb colour is made for the plain page ground. Over a
+   photograph it takes the muted text colour, and keeps its hover. */
+.page-hero--media .breadcrumb,
+.page-hero--media .breadcrumb a{ color: var(--color-text-muted); }
+.page-hero--media .breadcrumb a:hover{ color: var(--color-primary-bright); }
+
+.page-hero__media{
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+}
+.page-hero__media img{
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.page-hero__media::after{
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(180deg,
+      rgba(var(--color-media-scrim-rgb), 0.5) 0%,
+      rgba(var(--color-media-scrim-rgb), 0) 26%,
+      rgba(var(--color-media-scrim-rgb), 0) 64%,
+      rgba(var(--color-media-scrim-rgb), 0.92) 100%),
+    linear-gradient(90deg,
+      rgba(var(--color-media-scrim-rgb), 0.85) 0%,
+      rgba(var(--color-media-scrim-rgb), 0.74) 48%,
+      rgba(var(--color-media-scrim-rgb), 0.5) 72%,
+      rgba(var(--color-media-scrim-rgb), 0.2) 100%);
+}
+.page-hero--content-right .page-hero__media::after{
+  background:
+    linear-gradient(180deg,
+      rgba(var(--color-media-scrim-rgb), 0.5) 0%,
+      rgba(var(--color-media-scrim-rgb), 0) 26%,
+      rgba(var(--color-media-scrim-rgb), 0) 64%,
+      rgba(var(--color-media-scrim-rgb), 0.92) 100%),
+    linear-gradient(270deg,
+      rgba(var(--color-media-scrim-rgb), 0.85) 0%,
+      rgba(var(--color-media-scrim-rgb), 0.74) 48%,
+      rgba(var(--color-media-scrim-rgb), 0.5) 72%,
+      rgba(var(--color-media-scrim-rgb), 0.2) 100%);
+}
+.page-hero--content-center .page-hero__media::after{
+  background:
+    linear-gradient(180deg,
+      rgba(var(--color-media-scrim-rgb), 0.5) 0%,
+      rgba(var(--color-media-scrim-rgb), 0) 26%,
+      rgba(var(--color-media-scrim-rgb), 0) 64%,
+      rgba(var(--color-media-scrim-rgb), 0.92) 100%),
+    radial-gradient(ellipse 70% 85% at 50% 55%,
+      rgba(var(--color-media-scrim-rgb), 0.76) 0%,
+      rgba(var(--color-media-scrim-rgb), 0.72) 45%,
+      rgba(var(--color-media-scrim-rgb), 0.45) 80%,
+      rgba(var(--color-media-scrim-rgb), 0.25) 100%);
+}
+
+/* On a narrow screen the text covers the photograph from edge to edge,
+   whichever side it was given, so the veil stops following it: evenly dense
+   behind the text, and deepest at the bottom, where the band meets the page. */
+@media (max-width: 900px){
+  .page-hero--media{ min-height: clamp(24rem, 70vh, 32rem); padding-bottom: var(--sp-5); }
+  .page-hero--media .page-hero__media::after{
+    background: linear-gradient(180deg,
+      rgba(var(--color-media-scrim-rgb), 0.62) 0%,
+      rgba(var(--color-media-scrim-rgb), 0.72) 16%,
+      rgba(var(--color-media-scrim-rgb), 0.74) 70%,
+      rgba(var(--color-media-scrim-rgb), 0.88) 85%,
+      rgba(var(--color-media-scrim-rgb), 0.95) 100%);
+  }
+}
+
+/* High-contrast mode replaces the veil but not the photograph, which would
+   leave system-coloured text on an arbitrary picture. The text wins. */
+@media (forced-colors: active){
+  .page-hero__media{ display: none; }
+}

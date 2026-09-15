@@ -3,12 +3,14 @@
 namespace App\Service;
 
 use App\Repository\PageHeroRepository;
+use App\Service\Media\BlockImage;
 
 /**
- * Content for the "Page hero" section — the eyebrow/H1/lead/breadcrumb block
- * repeated identically (same markup/CSS) at the top of several pages. See
- * docs/CMS_CONTENT_AUDIT.md, "Recommended smallest next step", and
- * App\Service\SiteSettings for the equivalent pattern this mirrors.
+ * Content for the "Page hero" section — the header at the top of an ordinary
+ * page: the breadcrumb, the H1, and optionally an eyebrow, a lead and an
+ * image behind them. See docs/CMS_CONTENT_AUDIT.md, "Recommended smallest
+ * next step", and App\Service\SiteSettings for the equivalent pattern this
+ * mirrors.
  *
  * PAGES below is the fixed, known list of pages that had this section before
  * the page builder existed; any other page gets one by attaching the block
@@ -19,9 +21,24 @@ use App\Repository\PageHeroRepository;
  *
  * There is no hardcoded fallback copy, per page or per field. A missing row,
  * or a lookup that fails, is STATE_FALLBACK: there is nothing to render, and a
- * failure is logged. An active row renders exactly what it stores; the editor
- * requires eyebrow, title and breadcrumb label, so an empty one only comes
- * from data written outside it. See CONTENT-BLOCKS.md, "Het inhoudscontract".
+ * failure is logged. An active row renders exactly what it stores. The editor
+ * requires the title and the breadcrumb label, so an empty title only comes
+ * from data written outside it; the eyebrow and the lead are optional, and an
+ * empty one is simply not rendered (partials/section-page-hero.php). See
+ * CONTENT-BLOCKS.md, "Het inhoudscontract".
+ *
+ * THE IMAGE is a Media Library reference and nothing more (MEDIA.md). A page
+ * hero never had an image of its own, so there is no legacy path column and
+ * no local alt text behind `media_id`: BlockImage::fromRow() resolves the
+ * item, its alt text and its size, and an id that no longer names an item is
+ * no image. There is no video, because the library holds images only
+ * (docs/content-blocks/DECISIONS.md).
+ *
+ * THE CHOICES — where the text sits, how large the title and the intro text
+ * are — are closed lists of words, never CSS; assets/css/blocks/page-hero.css
+ * decides what a word looks like. A stored value outside its list (a
+ * hand-edited row) reads as the default, and every default is how the header
+ * looked before these choices existed.
  *
  * startingValues() is a different thing: what a Page hero that does not exist
  * yet starts out with in the editor and in PageHeroBlock::create(). Generic
@@ -45,6 +62,27 @@ class PageHeroContent
     /** A row exists and is_active = false — an intentional hide; render nothing. */
     public const STATE_HIDDEN = 'hidden';
 
+    /** Where the header's text sits. LEFT is where it sat before this was a choice. */
+    public const POSITION_LEFT = 'left';
+    public const POSITION_CENTER = 'center';
+    public const POSITION_RIGHT = 'right';
+
+    /** All valid `content_position` values, for save-time and render-time validation. */
+    public const POSITIONS = [self::POSITION_LEFT, self::POSITION_CENTER, self::POSITION_RIGHT];
+
+    /**
+     * The steps a title or an intro text can take, one closed list for both.
+     * A step names a place on the site's type scale rather than a size, so a
+     * change to that scale in core.css moves every step with it. NORMAL is
+     * the size both had before this was a choice.
+     */
+    public const SIZE_SMALL = 'small';
+    public const SIZE_NORMAL = 'normal';
+    public const SIZE_LARGE = 'large';
+
+    /** All valid `title_size` and `text_size` values, for save-time and render-time validation. */
+    public const SIZES = [self::SIZE_SMALL, self::SIZE_NORMAL, self::SIZE_LARGE];
+
     /**
      * Known page slugs and their admin-facing label — the "Pages" list in
      * admin/pages.php. Only pages in this list have an editable Page Hero.
@@ -57,19 +95,20 @@ class PageHeroContent
         'shop' => 'Shop',
     ];
 
-    /** @var array<string, array<string, string>> */
+    /** @var array<string, array<string, mixed>> */
     private static array $cache = [];
 
     /**
-     * @return array<string, string> 'state' (one of STATE_*), plus
-     *                                eyebrow_nl/en, title_nl/en, lead_nl/en,
-     *                                breadcrumb_label_nl/en — lead_* may be
-     *                                ''. Templates must only render the
-     *                                section when 'state' === STATE_ACTIVE;
-     *                                the content fields are still present
-     *                                (empty) otherwise, purely so a template
-     *                                that forgets the check fails safe
-     *                                instead of erroring on a missing key.
+     * @return array<string, mixed> 'state' (one of STATE_*), plus the texts
+     *     eyebrow_nl/en, title_nl/en, lead_nl/en and breadcrumb_label_nl/en
+     *     (strings; eyebrow_* and lead_* may be ''); the image as media_id
+     *     (int|null), image_path ('' for no image), image_alt_nl/en and
+     *     image_width/height (int|null when unknown); and content_position,
+     *     title_size and text_size, always one of POSITIONS / SIZES.
+     *     Templates must only render the section when 'state' ===
+     *     STATE_ACTIVE; the content fields are still present (empty, the
+     *     choices at their defaults) otherwise, purely so a template that
+     *     forgets the check fails safe instead of erroring on a missing key.
      */
     public static function forSlug(string $pageSlug): array
     {
@@ -108,22 +147,27 @@ class PageHeroContent
         $content['breadcrumb_label_en'] = self::valueOrDefault($row['breadcrumb_label_en'] ?? null, $content['breadcrumb_label_nl']);
         $content['state'] = self::STATE_ACTIVE;
 
-        return self::$cache[$pageSlug] = $content;
+        return self::$cache[$pageSlug] = $content + self::imageOf($row) + self::choicesOf($row);
     }
 
     /**
      * What a Page hero that does not exist yet starts out with: the editor's
      * form for a page without a row (admin/page-hero.php) and the row
-     * PageHeroBlock::create() writes. Generic, editable copy that fills the
-     * three fields the editor requires — never rendered in place of a stored
-     * row, which forSlug() answers with nothing when it is missing.
+     * PageHeroBlock::create() writes. Generic, editable copy in the two
+     * fields the editor requires, no image, and today's look for every
+     * choice — never rendered in place of a stored row, which forSlug()
+     * answers with nothing when it is missing.
      *
-     * @return array<string, string>
+     * The eyebrow starts empty. It used to start as "Nieuw" only because the
+     * editor required one; an optional eyebrow that nobody chose would be a
+     * word on the page nobody wrote.
+     *
+     * @return array<string, string|null>
      */
     public static function startingValues(string $pageLabel): array
     {
         return [
-            'eyebrow_nl' => 'Nieuw',
+            'eyebrow_nl' => '',
             'eyebrow_en' => '',
             'title_nl' => 'Nieuwe sectie — pas deze titel aan',
             'title_en' => '',
@@ -131,6 +175,10 @@ class PageHeroContent
             'lead_en' => '',
             'breadcrumb_label_nl' => $pageLabel,
             'breadcrumb_label_en' => '',
+            'media_id' => null,
+            'content_position' => self::POSITION_LEFT,
+            'title_size' => self::SIZE_NORMAL,
+            'text_size' => self::SIZE_NORMAL,
         ];
     }
 
@@ -149,7 +197,57 @@ class PageHeroContent
     }
 
     /**
-     * @return array<string, string>
+     * The image a row points at, resolved through the library once per
+     * request. A page_heroes row carries a media_id and nothing else, so the
+     * path and alt columns BlockImage falls back to are simply absent: what
+     * comes back is the item, or no image at all.
+     *
+     * @param array<string, mixed> $row
+     *
+     * @return array{media_id: int|null, image_path: string, image_alt_nl: string, image_alt_en: string, image_width: int|null, image_height: int|null}
+     */
+    private static function imageOf(array $row): array
+    {
+        $image = BlockImage::fromRow($row);
+
+        return [
+            'media_id' => $image['media_id'],
+            'image_path' => $image['image_path'],
+            'image_alt_nl' => $image['alt_nl'],
+            'image_alt_en' => $image['alt_en'],
+            'image_width' => $image['width'],
+            'image_height' => $image['height'],
+        ];
+    }
+
+    /**
+     * The render-time half of the closed lists; the endpoint refuses anything
+     * else at save time. A legacy NULL or a hand-edited value becomes the
+     * default instead of an unstyled class.
+     *
+     * @param array<string, mixed> $row
+     *
+     * @return array{content_position: string, title_size: string, text_size: string}
+     */
+    private static function choicesOf(array $row): array
+    {
+        return [
+            'content_position' => self::oneOf($row['content_position'] ?? null, self::POSITIONS, self::POSITION_LEFT),
+            'title_size' => self::oneOf($row['title_size'] ?? null, self::SIZES, self::SIZE_NORMAL),
+            'text_size' => self::oneOf($row['text_size'] ?? null, self::SIZES, self::SIZE_NORMAL),
+        ];
+    }
+
+    /**
+     * @param list<string> $allowed
+     */
+    private static function oneOf(mixed $value, array $allowed, string $default): string
+    {
+        return is_string($value) && in_array($value, $allowed, true) ? $value : $default;
+    }
+
+    /**
+     * @return array<string, mixed>
      */
     private static function emptyContent(): array
     {
@@ -158,6 +256,12 @@ class PageHeroContent
             'title_nl' => '', 'title_en' => '',
             'lead_nl' => '', 'lead_en' => '',
             'breadcrumb_label_nl' => '', 'breadcrumb_label_en' => '',
+            'media_id' => null, 'image_path' => '',
+            'image_alt_nl' => '', 'image_alt_en' => '',
+            'image_width' => null, 'image_height' => null,
+            'content_position' => self::POSITION_LEFT,
+            'title_size' => self::SIZE_NORMAL,
+            'text_size' => self::SIZE_NORMAL,
         ];
     }
 }

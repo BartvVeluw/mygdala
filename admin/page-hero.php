@@ -2,13 +2,28 @@
 
 declare(strict_types=1);
 
+/**
+ * The Paginakop editor for one page: its texts, the image behind them and
+ * three presentation choices, in one form to api/admin/update-page-hero.php.
+ *
+ * Three groups — Inhoud, Afbeelding, Vormgeving — inside that one form, the
+ * way admin/project-cards.php groups its settings, so the save bar watches one
+ * form and one save stores everything. The image comes from the shared media
+ * picker (MEDIA.md), and each choice is a select whose options are
+ * PageHeroContent's closed list, so the form cannot send a value the endpoint
+ * refuses. Nothing is shown conditionally: every choice applies with and
+ * without an image.
+ */
+
 require_once __DIR__ . '/../vendor/autoload.php';
 require_once __DIR__ . '/_translate.php';
 require_once __DIR__ . '/_save_bar.php';
 require_once __DIR__ . '/_language_fields.php';
+require_once __DIR__ . '/_media_picker.php';
 
 use App\Service\AdminAuth;
 use App\Service\Csrf;
+use App\Service\Media\MediaService;
 use App\Service\PageHeroContent;
 use App\Repository\PageHeroRepository;
 
@@ -58,6 +73,10 @@ if ($old !== null) {
             'lead_en' => (string) ($row['lead_en'] ?? ''),
             'breadcrumb_label_nl' => (string) $row['breadcrumb_label_nl'],
             'breadcrumb_label_en' => (string) ($row['breadcrumb_label_en'] ?? ''),
+            'media_id' => isset($row['media_id']) ? (int) $row['media_id'] : null,
+            'content_position' => (string) ($row['content_position'] ?? PageHeroContent::POSITION_LEFT),
+            'title_size' => (string) ($row['title_size'] ?? PageHeroContent::SIZE_NORMAL),
+            'text_size' => (string) ($row['text_size'] ?? PageHeroContent::SIZE_NORMAL),
             'is_active' => (bool) $row['is_active'],
         ];
     } else {
@@ -67,12 +86,46 @@ if ($old !== null) {
 
 $csrfToken = Csrf::token();
 
+// The options of the three choices, in the order the selects offer them. The
+// values are PageHeroContent's constants, so the lists stay the ones the
+// endpoint checks against.
+$positionLabels = [
+    PageHeroContent::POSITION_LEFT => admin_t('block_pagehero.position_left'),
+    PageHeroContent::POSITION_CENTER => admin_t('block_pagehero.position_center'),
+    PageHeroContent::POSITION_RIGHT => admin_t('block_pagehero.position_right'),
+];
+
+$sizeLabels = [
+    PageHeroContent::SIZE_SMALL => admin_t('block_pagehero.size_small'),
+    PageHeroContent::SIZE_NORMAL => admin_t('block_pagehero.size_normal'),
+    PageHeroContent::SIZE_LARGE => admin_t('block_pagehero.size_large'),
+];
+
 /**
  * @param array<string, mixed> $values
  */
 function pageHeroValue(array $values, string $key): string
 {
     return htmlspecialchars((string) ($values[$key] ?? ''), ENT_QUOTES, 'UTF-8');
+}
+
+/**
+ * The <option>s of one choice, with the current value selected.
+ *
+ * @param array<string, string> $labels value => label
+ */
+function pageHeroOptions(array $labels, string $current): string
+{
+    $html = '';
+
+    foreach ($labels as $value => $label) {
+        $html .= '<option value="' . htmlspecialchars((string) $value, ENT_QUOTES, 'UTF-8') . '"'
+            . ((string) $value === $current ? ' selected' : '') . '>'
+            . htmlspecialchars($label, ENT_QUOTES, 'UTF-8')
+            . '</option>';
+    }
+
+    return $html;
 }
 ?>
 <!doctype html>
@@ -109,71 +162,118 @@ function pageHeroValue(array $values, string $key): string
       <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
       <input type="hidden" name="slug" value="<?= htmlspecialchars($slug, ENT_QUOTES, 'UTF-8') ?>">
 
+      <h2><?= admin_te('block_pagehero.group_content') ?></h2>
+
       <?php admin_lang_bar(); ?>
       <div class="admin-form-row admin-form-row--split">
         <?php admin_lang_pane_start('nl'); ?>
-        <label><?= admin_te('block_pagehero.eyebrow') ?>*
-          <input type="text" name="eyebrow_nl" maxlength="150" <?= admin_lang_required('nl') ?> value="<?= pageHeroValue($values, 'eyebrow_nl') ?>">
-        </label>
+        <div class="admin-field">
+          <?= admin_field_label('page-hero-eyebrow-nl', admin_t('block_pagehero.eyebrow'), admin_t('help.page_hero.eyebrow')) ?>
+          <input type="text" id="page-hero-eyebrow-nl" name="eyebrow_nl" maxlength="150" value="<?= pageHeroValue($values, 'eyebrow_nl') ?>">
+        </div>
         <?php admin_lang_pane_end(); ?>
         <?php admin_lang_pane_start('en'); ?>
-        <label><?= admin_te('block_pagehero.eyebrow_2') ?>
-          <input type="text" name="eyebrow_en" maxlength="150" value="<?= pageHeroValue($values, 'eyebrow_en') ?>"<?= admin_lang_placeholder_attr('en') ?>>
-        </label>
+        <div class="admin-field">
+          <?= admin_field_label('page-hero-eyebrow-en', admin_t('block_pagehero.eyebrow'), admin_t('help.page_hero.eyebrow')) ?>
+          <input type="text" id="page-hero-eyebrow-en" name="eyebrow_en" maxlength="150" value="<?= pageHeroValue($values, 'eyebrow_en') ?>"<?= admin_lang_placeholder_attr('en') ?>>
+        </div>
         <?php admin_lang_pane_end(); ?>
       </div>
 
       <div class="admin-form-row admin-form-row--split">
         <?php admin_lang_pane_start('nl'); ?>
-        <label><?= admin_te('block_pagehero.titel_h1') ?>*
-          <input type="text" name="title_nl" maxlength="255" <?= admin_lang_required('nl') ?> value="<?= pageHeroValue($values, 'title_nl') ?>">
-        </label>
+        <div class="admin-field">
+          <?= admin_field_label('page-hero-title-nl', admin_t('block_pagehero.titel_h1'), admin_t('help.page_hero.title'), true) ?>
+          <input type="text" id="page-hero-title-nl" name="title_nl" maxlength="255" <?= admin_lang_required('nl') ?> value="<?= pageHeroValue($values, 'title_nl') ?>">
+        </div>
         <?php admin_lang_pane_end(); ?>
         <?php admin_lang_pane_start('en'); ?>
-        <label><?= admin_te('block_pagehero.titel_h1_2') ?>
-          <input type="text" name="title_en" maxlength="255" value="<?= pageHeroValue($values, 'title_en') ?>"<?= admin_lang_placeholder_attr('en') ?>>
-        </label>
+        <div class="admin-field">
+          <?= admin_field_label('page-hero-title-en', admin_t('block_pagehero.titel_h1'), admin_t('help.page_hero.title')) ?>
+          <input type="text" id="page-hero-title-en" name="title_en" maxlength="255" value="<?= pageHeroValue($values, 'title_en') ?>"<?= admin_lang_placeholder_attr('en') ?>>
+        </div>
         <?php admin_lang_pane_end(); ?>
       </div>
 
       <div class="admin-form-row admin-form-row--split">
         <?php admin_lang_pane_start('nl'); ?>
-        <label><?= admin_te('block_pagehero.introtekst_lead') ?>
-          <textarea name="lead_nl" maxlength="500" rows="3"><?= pageHeroValue($values, 'lead_nl') ?></textarea>
-        </label>
+        <div class="admin-field">
+          <?= admin_field_label('page-hero-lead-nl', admin_t('block_pagehero.introtekst_lead'), admin_t('help.page_hero.lead')) ?>
+          <textarea id="page-hero-lead-nl" name="lead_nl" maxlength="500" rows="3"><?= pageHeroValue($values, 'lead_nl') ?></textarea>
+        </div>
         <?php admin_lang_pane_end(); ?>
         <?php admin_lang_pane_start('en'); ?>
-        <label><?= admin_te('block_pagehero.introtekst_lead_2') ?>
-          <textarea name="lead_en" maxlength="500" rows="3"<?= admin_lang_placeholder_attr('en') ?>><?= pageHeroValue($values, 'lead_en') ?></textarea>
-        </label>
+        <div class="admin-field">
+          <?= admin_field_label('page-hero-lead-en', admin_t('block_pagehero.introtekst_lead'), admin_t('help.page_hero.lead')) ?>
+          <textarea id="page-hero-lead-en" name="lead_en" maxlength="500" rows="3"<?= admin_lang_placeholder_attr('en') ?>><?= pageHeroValue($values, 'lead_en') ?></textarea>
+        </div>
         <?php admin_lang_pane_end(); ?>
       </div>
-      <p class="admin-text-muted"><?= admin_te('block_pagehero.leeg_laten_beide_talen') ?></p>
 
       <div class="admin-form-row admin-form-row--split">
         <?php admin_lang_pane_start('nl'); ?>
-        <label><?= admin_te('block_pagehero.breadcrumb_label') ?>*
-          <input type="text" name="breadcrumb_label_nl" maxlength="150" <?= admin_lang_required('nl') ?> value="<?= pageHeroValue($values, 'breadcrumb_label_nl') ?>">
-        </label>
+        <div class="admin-field">
+          <?= admin_field_label('page-hero-breadcrumb-nl', admin_t('block_pagehero.breadcrumb_label'), admin_t('help.page_hero.breadcrumb_label'), true) ?>
+          <input type="text" id="page-hero-breadcrumb-nl" name="breadcrumb_label_nl" maxlength="150" <?= admin_lang_required('nl') ?> value="<?= pageHeroValue($values, 'breadcrumb_label_nl') ?>">
+        </div>
         <?php admin_lang_pane_end(); ?>
         <?php admin_lang_pane_start('en'); ?>
-        <label><?= admin_te('block_pagehero.breadcrumb_label_2') ?>
-          <input type="text" name="breadcrumb_label_en" maxlength="150" value="<?= pageHeroValue($values, 'breadcrumb_label_en') ?>"<?= admin_lang_placeholder_attr('en') ?>>
-        </label>
+        <div class="admin-field">
+          <?= admin_field_label('page-hero-breadcrumb-en', admin_t('block_pagehero.breadcrumb_label'), admin_t('help.page_hero.breadcrumb_label')) ?>
+          <input type="text" id="page-hero-breadcrumb-en" name="breadcrumb_label_en" maxlength="150" value="<?= pageHeroValue($values, 'breadcrumb_label_en') ?>"<?= admin_lang_placeholder_attr('en') ?>>
+        </div>
         <?php admin_lang_pane_end(); ?>
       </div>
 
-      <label class="admin-checkbox-label">
-        <input type="checkbox" name="is_active" value="1" <?= ($values['is_active'] ?? true) ? 'checked' : '' ?>>
-        <?= admin_te('block_pagehero.actief_uitgevinkt_sectie_getoond') ?>
-      </label>
+      <h2 style="margin-top:2rem;"><?= admin_te('block_pagehero.group_image') ?></h2>
+
+      <?php media_picker_field(
+          'media_id',
+          MediaService::find(isset($values['media_id']) ? (int) $values['media_id'] : null),
+          admin_t('block_pagehero.image'),
+          admin_t('block_pagehero.image_help')
+      ); ?>
+
+      <h2 style="margin-top:2rem;"><?= admin_te('block_pagehero.group_layout') ?></h2>
+
+      <div class="admin-field">
+        <?= admin_field_label('page-hero-content-position', admin_t('block_pagehero.content_position'), admin_t('help.page_hero.content_position')) ?>
+        <select class="admin-select" id="page-hero-content-position" name="content_position">
+          <?= pageHeroOptions($positionLabels, (string) ($values['content_position'] ?? PageHeroContent::POSITION_LEFT)) ?>
+        </select>
+      </div>
+
+      <div class="admin-form-row admin-form-row--split">
+        <div class="admin-field">
+          <?= admin_field_label('page-hero-title-size', admin_t('block_pagehero.title_size'), admin_t('help.page_hero.title_size')) ?>
+          <select class="admin-select" id="page-hero-title-size" name="title_size">
+            <?= pageHeroOptions($sizeLabels, (string) ($values['title_size'] ?? PageHeroContent::SIZE_NORMAL)) ?>
+          </select>
+        </div>
+        <div class="admin-field">
+          <?= admin_field_label('page-hero-text-size', admin_t('block_pagehero.text_size'), admin_t('help.page_hero.text_size')) ?>
+          <select class="admin-select" id="page-hero-text-size" name="text_size">
+            <?= pageHeroOptions($sizeLabels, (string) ($values['text_size'] ?? PageHeroContent::SIZE_NORMAL)) ?>
+          </select>
+        </div>
+      </div>
+
+      <div class="admin-field admin-field--inline">
+        <label class="admin-checkbox-label">
+          <input type="checkbox" class="admin-switch" role="switch" name="is_active" value="1"<?= ($values['is_active'] ?? true) ? ' checked' : '' ?>>
+          <?= admin_te('block_pagehero.show_on_page') ?>
+        </label>
+        <?= admin_help(admin_t('block_pagehero.show_on_page'), admin_t('help.page_hero.is_active')) ?>
+      </div>
 
       <button type="submit"><?= admin_te('common.save') ?></button>
     </form>
   </section>
 </main>
+<?php media_picker_modal(); ?>
 <?php save_bar(); ?>
 <?php save_bar_script(); ?>
 <?php admin_lang_script(); ?>
+<?php media_picker_script(); ?>
 </body>
 </html>
