@@ -119,7 +119,9 @@ een bronsleutel uit een request wordt daartegen gevalideerd vóór gebruik,
 precies zoals een bloktype tegen de registry (en nog eens bij het lezen, zodat
 een handmatig aangepaste rij terugvalt op de eerste beschikbare bron). Vandaag
 geldt dit voor `item_gallery` (`ItemGallerySources`: `portfolio` van de
-Portfolio-module en `collection` van de Shop).
+Portfolio-module en `collection` van de Shop). Het blok **Projecten** van
+Portfolio (`project_cards`) is diezelfde galerij met de bron vast op
+`portfolio`; waarom dat een eigen bloktype is, staat in `DECISIONS.md`.
 
 Elke bron levert dezelfde genormaliseerde itemvorm, dus het blok houdt één
 renderpad, en leest door de bestaande repositories heen zodat er geen tweede

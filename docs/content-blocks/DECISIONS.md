@@ -169,6 +169,32 @@ de gekoppelde pagina, anders tijdelijk de oude projectpagina, anders niets
 pagina mag niet via een instelling van het blok alsnog klikbaar worden. Voor de
 kaarten van andere bronnen doet het veld wat het deed.
 
+## Projecten is de galerij met een vaste bron, geen tweede galerij
+
+`project_cards` (**Projecten**) is een bloktype van de Portfolio-module, maar
+geen tweede galerij. Het bewaart in dezelfde `item_galleries`-rij, leest via
+`ItemGalleryContent`, tekent met `partials/section-item-gallery.php` en dezelfde
+CSS en JS, en krijgt zijn items en kaartlinks van de bron `portfolio`. Het
+verschil is presentatie: de bron staat vast, en de editor laat weg wat voor een
+project niets doet (collectie, lightbox, fallback-link, slottekst, knop).
+
+Reden: de blokkenkiezer biedt alleen bloktypes aan, en een module kan alleen via
+`blockDefinitions()` een keuze toevoegen die meeverdwijnt als de module uit gaat.
+Een redacteur die projecten op een pagina wil, hoeft zo niet eerst te begrijpen
+dat een galerij een inhoudsbron heeft. De beslissing hierboven blijft staan:
+functioneel is Projecten dezelfde instantie, en er kwam geen tweede query, kaart,
+linkresolutie of stylesheet bij. Een preset-mechanisme in de kiezer had de
+kiezer, `add-page-section.php`, `SectionRegistry::create()` en de `create()` van
+elk blok geraakt.
+
+Gevolg: twee bloktypes delen één tabel, dus bewerkt een editor alleen de rijen
+die zijn eigen bloktype plaatste (`page_sections.section_type`), en schrijft
+`ProjectCardsBlock::rowValues()` bij elke opslag de vaste waarden opnieuw. De
+twee delen `item-gallery.css` en `item-gallery.js`
+(`FrontendAssetOwnershipTest::SHARED_BLOCK_ASSETS`). En portfolio-items blijven
+ook een bron van de galerij, voor de Portfolio-pagina, de homepage-uitlichting en
+wie een lightbox, slottekst of knop wil: twee ingangen, één implementatie.
+
 ## Weergave-instellingen horen bij het blok, dus de catalogus is geen sectie
 
 De zichtbaarheid van de portfolio-sectie is de `is_active` van het blok

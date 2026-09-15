@@ -692,10 +692,13 @@ De suite `modules` (`tests/Module/`) test het modulesysteem zelf:
   geen webserver.
 - `CmsOnlyHttpTest` — hetzelfde over echt HTTP, tegen `php_cms`.
 - `PortfolioModuleTest` — Portfolio aan en uit: zijbalk, permissie,
-  galerijbron, sitemapcollector, gereserveerde slugs en `publicPaths()`, de
-  guards op elk scherm en endpoint, dat een oud projectadres doorstuurt voordat
-  het iets van de oude pagina leest, en dat Core geen Portfolio-klasse noemt.
-  Geen database, geen webserver.
+  galerijbron, het blok Projecten (alleen met de module aan, zonder eigen
+  query, kaart of link, met de guards van zijn editor), sitemapcollector,
+  gereserveerde slugs en `publicPaths()`, de guards op elk scherm en endpoint,
+  dat een oud projectadres doorstuurt voordat het iets van de oude pagina leest,
+  en dat Core geen Portfolio-klasse noemt. Geen database, geen webserver. Wat
+  het blok Projecten over de database doet (kaartlinks, lege toestand, uit en
+  weer aan) is `Tests\Service\ProjectCardsBlockTest`, in de suite `blocks`.
 - `PortfolioModuleHttpTest` — hetzelfde over echt HTTP, plus dat de data een
   keer uit en weer aan overleeft, de koppeling met een pagina inbegrepen. Een
   oud projectadres geeft een tijdelijke redirect (302) naar de gekoppelde

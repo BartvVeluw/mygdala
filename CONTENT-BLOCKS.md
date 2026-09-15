@@ -311,6 +311,12 @@ Alleen `render()`/`renderPage()` degraderen zo. De schrijfkant
   `detail_section` en `card_carousel` zijn de voorbeelden.
 - **Geen blok leest de opslag van een ander blok.** Wil je andermans gegevens,
   ga dan via de repository of `*Content`-klasse van dat domein.
+- **Is een blok een ander blok met een vaste instelling**, zoals Projecten
+  (`project_cards`) op de galerij, dan deelt het diens repository,
+  inhoudsklasse en partial in plaats van ze te kopiëren. Een rij wordt dan
+  alleen bewerkt door de editor van het bloktype dat hem plaatste
+  (`page_sections.section_type`), en de gedeelde assets staan in
+  `FrontendAssetOwnershipTest::SHARED_BLOCK_ASSETS`.
 - **Blokgedrag staat in het bestand van het blok**, niet in
   `assets/js/core.js`. Core is de site-schil: taalwissel, header/navigatie
   en de generieke reveal. Een initialiser voor één bloktype hoort daar

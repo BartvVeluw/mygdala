@@ -407,8 +407,9 @@ personalisatie te weten behalve die prijsopslag.
 Eigen tabellen, eigen admin (`admin/portfolio.php`, `admin/portfolio-item.php`,
 `api/admin/*portfolio*.php` en `move-featured-gallery-item.php`), eigen
 categorietaxonomie, eigen publieke routes (`/portfolio.php` en de oude
-projectadressen `/portfolio/<slug>` via `portfolio-detail.php`) en de
-galerijbron `portfolio`. Alles loopt via `src/Module/PortfolioModule.php`; Core
+projectadressen `/portfolio/<slug>` via `portfolio-detail.php`), de
+galerijbron `portfolio` en het blok Projecten. Alles loopt via
+`src/Module/PortfolioModule.php`; Core
 noemt geen portfolio-item meer (`Tests\Module\PortfolioModuleTest`).
 
 Het was Core, met als argument dat niemand het ooit uit zou willen zetten. Maar
@@ -472,11 +473,39 @@ een pagina tonen; een gekoppelde pagina staat er één keer in, via de
 paginacollector van Core. In het overzicht staat bij een item met alleen nog
 een oude projectpagina de badge *Oude projectpagina*.
 
+**Projecten op een gewone pagina.** Portfolio brengt één eigen blok mee:
+**Projecten** (`project_cards`, `src/Service/Blocks/ProjectCardsBlock.php`),
+in de blokkenkiezer onder *Beeld & media*. Het is geen tweede galerij: het
+bewaart zijn instellingen in dezelfde `item_galleries`-rij als het galerijblok,
+leest en tekent via `ItemGalleryContent` en `partials/section-item-gallery.php`,
+en krijgt zijn projecten en de link van elke kaart van de galerijbron
+`portfolio`. Een kaart linkt dus precies volgens de drie regels hierboven.
+Waarom het toch een eigen bloktype is, staat in
+`docs/content-blocks/DECISIONS.md`.
+
+- De editor (`admin/project-cards.php`, met `pages.manage` zoals elke
+  blokeditor) vraagt alleen welke projecten (alle zichtbare, of die met *Toon
+  op homepage*), een maximum, filterknoppen per categorie, de achtergrond, een
+  optionele titel en introtekst, en of het blok actief is. De volgorde is die
+  van Portfolio.
+- De bron, een collectie, de lightbox, een link voor kaarten zonder pagina en
+  een slottekst of knop legt `api/admin/update-project-cards.php` vast via
+  `ProjectCardsBlock::rowValues()`. Een project zonder bestemming blijft een
+  kaart die nergens heen gaat.
+- Een `item_galleries`-rij wordt alleen bewerkt door de editor van het blok dat
+  hem plaatste (`page_sections.section_type`): de galerij-editor weigert een
+  Projecten-rij, en de Projecten-editor een galerij.
+- Op één categorie selecteren, zelf projecten aanwijzen of een eigen volgorde
+  per blok kan nog niet: de galerijcontracten hebben daar geen instelling voor.
+
 Uit betekent: geen zijbalk-item; geen houdbare `portfolio.manage`, dus beide
 schermen en elk schrijfendpoint weigeren op hun bestaande permissiecheck; een
 404 op `/portfolio.php` en `/portfolio/<slug>` via `ModuleGuard`; geen
-sitemapregels; en een galerijblok met portfolio-items dat zijn instellingen
-houdt en niets toont. De CMS-pagina achter `/portfolio.php` blijft bestaan en
+sitemapregels; geen blok Projecten in de kiezer, en een geplaatst blok
+Projecten dat niets toont, zijn instellingen houdt en in de page builder *Blok
+van een uitgeschakeld onderdeel* heet (zijn editor en endpoint antwoorden 404);
+en een galerijblok met portfolio-items dat zijn instellingen houdt en niets
+toont. De CMS-pagina achter `/portfolio.php` blijft bestaan en
 bewerkbaar, maar geldt als geserveerd door een uitgeschakelde module
 (`publicPaths()`), dus de sitemap, een menulink en een redirect laten hem los.
 Een pagina waar een item naar linkt, hoort bij Core: die blijft bereikbaar, en

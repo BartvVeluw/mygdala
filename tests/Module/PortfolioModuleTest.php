@@ -10,6 +10,11 @@ use App\Module\ModuleSettings;
 use App\Module\PortfolioModule;
 use App\Service\AdminNavigation;
 use App\Service\AdminPermissions;
+use App\Service\Blocks\BlockCategories;
+use App\Service\Blocks\BlockDefinitions;
+use App\Service\Blocks\ItemGalleryBlock;
+use App\Service\Blocks\ProjectCardsBlock;
+use App\Service\ItemGalleryContent;
 use App\Service\ItemGallerySources;
 use App\Service\PageAssets;
 use App\Service\PageContent;
@@ -383,6 +388,184 @@ final class PortfolioModuleTest extends TestCase
 
         $this->withPortfolio(true, shop: false);
         $this->assertTrue(SectionRegistry::isManuallyAddable('item_gallery'));
+    }
+
+    /* ------------------------------------------------------------------ */
+    /* The Projecten block                                                 */
+    /* ------------------------------------------------------------------ */
+
+    /**
+     * The Portfolio's own block for a page follows the module the way its
+     * gallery source does: offered while the module runs, simply absent while
+     * it is off, and then recognised as a switched-off part's block rather
+     * than as unknown data, so the rows it placed are kept and named for what
+     * they are (CONTENT-BLOCKS.md). What that does to a stored block, over the
+     * database, is Tests\Service\ProjectCardsBlockTest.
+     */
+    public function testTheProjectsBlockIsOfferedOnlyWhileThePortfolioRuns(): void
+    {
+        $this->withPortfolio(true);
+
+        $this->assertTrue(BlockDefinitions::has('project_cards'));
+        $this->assertSame('portfolio', BlockDefinitions::moduleOwnerOf('project_cards'));
+        $this->assertTrue(SectionRegistry::isManuallyAddable('project_cards'));
+        $this->assertTrue(SectionRegistry::allowMultiple('project_cards'));
+        $this->assertSame('Projecten', (new ProjectCardsBlock())->meta()['label']);
+        $this->assertSame(BlockCategories::MEDIA, (new ProjectCardsBlock())->category(), 'next to the gallery it is built on');
+
+        $this->withPortfolio(false);
+
+        $this->assertFalse(BlockDefinitions::has('project_cards'));
+        $this->assertFalse(SectionRegistry::isManuallyAddable('project_cards'));
+        $this->assertArrayNotHasKey('project_cards', SectionRegistry::types());
+        $this->assertSame('portfolio', SectionRegistry::disabledModuleFor('project_cards'), 'a switched-off part, not broken data');
+        $this->assertTrue(
+            SectionRegistry::isManuallyAddable('item_gallery'),
+            'the gallery is Core, and with the Shop on it still has a source to offer'
+        );
+    }
+
+    /**
+     * Whatever a save hands it, a Projecten row names the Portfolio's source
+     * and none of the gallery settings this block leaves out, so no request
+     * can turn it into a collection gallery or give it a zoom, a fallback link
+     * or a button nobody could switch off again.
+     */
+    public function testAProjectsRowAlwaysNamesThePortfolioAndNoGallerySettingItLeavesOut(): void
+    {
+        $row = ProjectCardsBlock::rowValues([
+            'portfolio_scope' => ItemGalleryContent::SCOPE_FEATURED,
+            'max_items' => '6',
+            'show_filter_bar' => true,
+            'background' => 'soft',
+            'title_nl' => 'Werk',
+            'lead_nl' => 'Een greep',
+            'is_active' => false,
+            // What a crafted request might carry. None of it is read.
+            'source_type' => 'collection',
+            'collection_id' => 3,
+            'enable_lightbox' => true,
+            'fallback_link_url' => '/elders',
+            'button_label_nl' => 'Klik',
+            'button_url' => '/elders',
+            'eyebrow_nl' => 'Boven',
+            'footer_note_nl' => 'Onder',
+            'tight_top' => true,
+        ]);
+
+        $this->assertSame(PortfolioModule::GALLERY_SOURCE, $row['source_type']);
+        $this->assertNull($row['collection_id']);
+        $this->assertFalse($row['enable_lightbox']);
+        $this->assertFalse($row['tight_top']);
+        foreach (['fallback_link_url', 'button_label_nl', 'button_label_en', 'button_url', 'eyebrow_nl', 'eyebrow_en', 'footer_note_nl', 'footer_note_en'] as $leftOut) {
+            $this->assertSame('', $row[$leftOut], $leftOut);
+        }
+
+        $this->assertSame(ItemGalleryContent::SCOPE_FEATURED, $row['portfolio_scope']);
+        $this->assertSame(6, $row['max_items']);
+        $this->assertTrue($row['show_filter_bar']);
+        $this->assertSame('soft', $row['background']);
+        $this->assertSame('Werk', $row['title_nl']);
+        $this->assertSame('Een greep', $row['lead_nl']);
+        $this->assertFalse($row['is_active']);
+
+        $this->assertSame(
+            [
+                'source_type' => PortfolioModule::GALLERY_SOURCE,
+                'portfolio_scope' => ItemGalleryContent::SCOPE_ALL,
+                'max_items' => null,
+                'show_filter_bar' => false,
+            ],
+            array_intersect_key(ProjectCardsBlock::rowValues([]), array_flip(['source_type', 'portfolio_scope', 'max_items', 'show_filter_bar'])),
+            'a new block: every visible project, no maximum, no filter buttons'
+        );
+    }
+
+    /**
+     * No second gallery. The block stores, reads and draws through the gallery
+     * block's own classes and files, and reaches a project only through the
+     * Portfolio's gallery source, so none of its files may grow a query, a
+     * card or a link of its own.
+     */
+    public function testTheProjectsBlockHasNoQueryCardOrLinkOfItsOwn(): void
+    {
+        foreach (['src/Service/Blocks/ProjectCardsBlock.php', 'admin/project-cards.php', 'api/admin/update-project-cards.php'] as $file) {
+            $source = self::withoutComments(self::sourceOf($file));
+
+            foreach (
+                [
+                    'PortfolioGalleryRepository', 'PortfolioCategoryRepository', 'PortfolioItemImageRepository',
+                    'PortfolioGalleryContent', 'portfolio_gallery_items', 'portfolio_categories',
+                    'findPublishedByIds', 'publicUrl(', 'canonicalUrl(', 'SELECT ', '->prepare(',
+                ] as $name
+            ) {
+                $this->assertStringNotContainsString(
+                    $name,
+                    $source,
+                    $file . ' must reach projects through the gallery source, not through ' . $name
+                );
+            }
+        }
+
+        $block = self::withoutComments(self::sourceOf('src/Service/Blocks/ProjectCardsBlock.php'));
+        $this->assertStringContainsString('ItemGalleryContent::forSection(', $block);
+        $this->assertStringContainsString('render_section_item_gallery($content, $revealGroup)', $block);
+        $this->assertStringNotContainsString('gallery-item', $block, "the card markup is the gallery partial's");
+        $this->assertStringNotContainsString('<section', $block);
+
+        $projects = new ProjectCardsBlock();
+        $gallery = new ItemGalleryBlock();
+        $this->assertSame($gallery->contentTable(), $projects->contentTable(), 'the same rows');
+        $this->assertSame($gallery->styles(), $projects->styles(), 'the same stylesheet');
+        $this->assertSame($gallery->scripts(), $projects->scripts(), 'the same script');
+    }
+
+    /**
+     * The editor and its endpoint are page-builder screens, guarded like every
+     * block editor. On top of that they refuse while the Portfolio is off, and
+     * refuse a row another block placed. The gallery's editor refuses a
+     * Projecten row in turn, so neither can rewrite the other's blocks.
+     */
+    public function testTheProjectsEditorGuardsLikeEveryBlockEditorAndEditsOnlyItsOwnRows(): void
+    {
+        $editor = self::withoutComments(self::sourceOf('admin/project-cards.php'));
+        $positions = [
+            strpos($editor, 'AdminAuth::requireLogin()'),
+            strpos($editor, "AdminAuth::requirePermission('pages.manage')"),
+            strpos($editor, "SectionRegistry::exists('project_cards')"),
+            strpos($editor, 'Repository('),
+            strpos($editor, "findBySectionTypeAndId('project_cards'"),
+            strpos($editor, '<!doctype html>'),
+        ];
+        $this->assertNotContains(false, $positions, 'admin/project-cards.php is missing a guard');
+        $sorted = $positions;
+        sort($sorted);
+        $this->assertSame($sorted, $positions, 'admin/project-cards.php: login, permission, the module, then its own row, before anything renders');
+
+        $endpoint = self::withoutComments(self::sourceOf('api/admin/update-project-cards.php'));
+        $positions = [
+            strpos($endpoint, 'AdminAuth::requireLoginForApi()'),
+            strpos($endpoint, "requirePermissionForApi('pages.manage')"),
+            strpos($endpoint, "REQUEST_METHOD'] !== 'POST'"),
+            strpos($endpoint, 'Csrf::validate('),
+            strpos($endpoint, "SectionRegistry::exists('project_cards')"),
+            strpos($endpoint, "findBySectionTypeAndId('project_cards'"),
+            strpos($endpoint, 'ItemGalleryContent::isPortfolioScope('),
+            strpos($endpoint, 'ProjectCardsBlock::rowValues('),
+        ];
+        $this->assertNotContains(false, $positions, 'api/admin/update-project-cards.php is missing a guard');
+        $sorted = $positions;
+        sort($sorted);
+        $this->assertSame($sorted, $positions, 'api/admin/update-project-cards.php: the four guards, the module, its own row, validation, then the save');
+        $this->assertStringNotContainsString('source_type', $endpoint, 'the source is never read from the request');
+
+        foreach (['admin/item-gallery.php', 'api/admin/update-item-gallery.php'] as $file) {
+            $this->assertStringContainsString(
+                "findBySectionTypeAndId('item_gallery'",
+                self::withoutComments(self::sourceOf($file)),
+                $file . ' must edit only the rows a gallery block placed'
+            );
+        }
     }
 
     /* ------------------------------------------------------------------ */

@@ -324,6 +324,7 @@
             <file>tests/Service/PageContentTest.php</file>
             <file>tests/Service/PageTemplateCreationTest.php</file>
             <file>tests/Service/PageTemplateRegistryTest.php</file>
+            <file>tests/Service/ProjectCardsBlockTest.php</file>
             <file>tests/Service/RelatedProductsAdminTest.php</file>
             <file>tests/Service/RelatedProductsContentTest.php</file>
             <file>tests/Service/RelatedProductsEmptyStateTest.php</file>
