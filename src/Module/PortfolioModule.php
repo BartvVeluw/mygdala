@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Module;
 
 use App\Service\AdminPermissions;
+use App\Service\Blocks\ProjectCardsBlock;
 use App\Service\ItemGalleryContent;
 use App\Service\PortfolioGalleryContent;
 use App\Service\Sitemap;
@@ -12,8 +13,8 @@ use App\Service\Sitemap;
 /**
  * The Portfolio as an optional first-party module: the catalogue of work items
  * with their categories, each item's optional link to an ordinary CMS page,
- * the addresses of the old project pages, the Portfolio page and the CMS
- * section that manages them.
+ * the Projecten block that shows the items on any page, the addresses of the
+ * old project pages, the Portfolio page and the CMS section that manages them.
  *
  * WHY IT IS A MODULE. It used to be Core, on the argument that nobody would
  * ever switch it off. A new installation of this CMS is not a portfolio site
@@ -34,8 +35,9 @@ use App\Service\Sitemap;
  * uploaded image stays on disk. The module simply stops contributing: no
  * sidebar entry; no holdable permission, so both admin screens and every
  * Portfolio write endpoint refuse on the permission check they already make;
- * no sitemap entries; no gallery source, so a gallery block set to portfolio
- * items keeps its settings and shows nothing; and, through
+ * no sitemap entries; no Projecten block to pick, and one already placed shows
+ * nothing and keeps its settings; no gallery source, so a gallery block set to
+ * portfolio items keeps its settings and shows nothing; and, through
  * App\Module\ModuleGuard at the top of portfolio.php and portfolio-detail.php,
  * a 404 at /portfolio.php and at every /portfolio/<slug>, redirect or not. A
  * page an item links to is an ordinary page and keeps answering at its own
@@ -190,6 +192,22 @@ final class PortfolioModule extends ModuleDefinition
 
                 return $entries;
             },
+        ];
+    }
+
+    /**
+     * "Projecten": the block that shows this module's projects on an ordinary
+     * page, offered only while the module runs. Switched off, it is gone from
+     * the picker, a block already placed renders nothing and the page builder
+     * calls it a block of a switched-off part, with every setting kept for
+     * when the module is back (CONTENT-BLOCKS.md). It stores, reads and draws
+     * through the gallery block, so it brings no query, card or link of its
+     * own (App\Service\Blocks\ProjectCardsBlock).
+     */
+    public function blockDefinitions(): array
+    {
+        return [
+            'project_cards' => ProjectCardsBlock::class,
         ];
     }
 

@@ -29,6 +29,7 @@ use App\Service\ItemGallerySources;
 use App\Repository\CollectionRepository;
 use App\Repository\ItemGalleryRepository;
 use App\Repository\PageRepository;
+use App\Repository\PageSectionRepository;
 
 AdminAuth::requireLoginForApi();
 AdminAuth::requirePermissionForApi('pages.manage');
@@ -53,7 +54,13 @@ $section = ($pageSlug === null || $pageSlug === '' || $sectionKey === null || $s
     ? null
     : $repository->findBySlugAndKey($pageSlug, $sectionKey);
 
-if ($section === null || (new PageRepository())->findByContentKey((string) $pageSlug) === null) {
+// Only a row a gallery block placed: blocks built on the gallery, such as a
+// module's Projecten, keep their rows in the same table, and those are their
+// own editors' to change (page_sections.section_type).
+if ($section === null
+    || (new PageRepository())->findByContentKey((string) $pageSlug) === null
+    || (new PageSectionRepository())->findBySectionTypeAndId('item_gallery', (int) $section['id']) === null
+) {
     http_response_code(404);
     exit('Unknown section.');
 }

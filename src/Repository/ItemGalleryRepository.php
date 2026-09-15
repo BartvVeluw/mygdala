@@ -14,6 +14,11 @@ namespace App\Repository;
  * are read through their own repositories, never joined in here — a block
  * points at a source, it does not own one.
  *
+ * Two block types keep their rows here: the gallery itself, and the
+ * Portfolio's Projecten (App\Service\Blocks\ProjectCardsBlock), which is the
+ * same row with its source fixed. page_sections.section_type says which block
+ * placed a row, and only that block's editor changes it.
+ *
  * No child rows and no uploaded media of its own, so deleting an instance is
  * a single DELETE.
  */

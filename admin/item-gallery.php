@@ -15,6 +15,7 @@ use App\Service\SectionRegistry;
 use App\Repository\CollectionRepository;
 use App\Repository\ItemGalleryRepository;
 use App\Repository\PageRepository;
+use App\Repository\PageSectionRepository;
 
 /**
  * Editor for one Portfolio-/collectiegalerij block
@@ -48,6 +49,15 @@ if ($page === null || $sectionKey === null || $sectionKey === ''
 }
 
 $section = $repository->findBySlugAndKey($pageSlug, $sectionKey);
+
+// The gallery shares its table with blocks built on it, such as a module's
+// Projecten. Each row is edited by the editor of the block that placed it
+// (page_sections.section_type), so this screen can never turn another block
+// into a gallery of something else.
+if ((new PageSectionRepository())->findBySectionTypeAndId('item_gallery', (int) $section['id']) === null) {
+    http_response_code(404);
+    exit(admin_t('screen.onbekende_sectie'));
+}
 
 $errors = $_SESSION['admin_item_gallery_errors'] ?? [];
 $old = $_SESSION['admin_item_gallery_old'] ?? null;

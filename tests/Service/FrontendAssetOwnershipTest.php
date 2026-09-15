@@ -107,22 +107,28 @@ final class FrontendAssetOwnershipTest extends TestCase
      * is dead weight, and a file two blocks declare usually means the
      * boundary has already blurred.
      *
-     * SHARED_BLOCK_ASSETS is the one deliberate exception, and it is a short
-     * list on purpose. `form` and `contact_form` render the very same form
-     * markup through the very same renderer (partials/form.php, FORMS.md);
-     * giving them a stylesheet and a script each would mean two copies of
+     * SHARED_BLOCK_ASSETS is the deliberate exception, and it is a short
+     * list on purpose. Each pair renders the very same markup through the
+     * very same renderer: `form` and `contact_form` share partials/form.php
+     * (FORMS.md), and the Portfolio's `project_cards` draws the gallery's
+     * partials/section-item-gallery.php (docs/content-blocks/DECISIONS.md).
+     * Giving them a stylesheet and a script each would mean two copies of
      * one file, which is a worse answer to the same question. Anything not
      * named here still has to have exactly one owner.
      */
     /**
      * The block assets that more than one block may declare, and exactly
-     * which blocks those are (sorted).
+     * which blocks those are (sorted). A block of a switched-off module is
+     * not registered and declares nothing, so only the sharers registered
+     * right now are expected.
      *
      * @var array<string, list<string>>
      */
     private const SHARED_BLOCK_ASSETS = [
         'assets/css/blocks/form.css' => ['contact_form', 'form'],
         'assets/js/blocks/form.js' => ['contact_form', 'form'],
+        'assets/css/blocks/item-gallery.css' => ['item_gallery', 'project_cards'],
+        'assets/js/blocks/item-gallery.js' => ['item_gallery', 'project_cards'],
     ];
 
     public function testEveryBlockAssetFileIsOwnedByExactlyOneBlock(): void
@@ -151,6 +157,11 @@ final class FrontendAssetOwnershipTest extends TestCase
                 $this->assertCount(1, $owners[$relative], "{$relative} is declared by more than one block");
                 continue;
             }
+
+            $expected = array_values(array_filter(
+                $expected,
+                static fn (string $type): bool => BlockDefinitions::has($type)
+            ));
 
             sort($owners[$relative]);
             $this->assertSame(
