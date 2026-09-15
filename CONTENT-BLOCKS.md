@@ -308,7 +308,9 @@ Alleen `render()`/`renderPage()` degraderen zo. De schrijfkant
   Gebruik de mediakiezer (`admin/_media_picker.php`): één regel in de editor,
   een `media_id` in je formulier, en `App\Service\Media\BlockImage` in je
   inhoudsklasse. De volledige receptuur staat in `MEDIA.md`; `text_image_split`,
-  `detail_section` en `card_carousel` zijn de voorbeelden.
+  `detail_section` en `card_carousel` zijn de voorbeelden, en `page_hero` is het
+  voorbeeld van een blok dat nooit een eigen afbeelding had en dus alleen een
+  `media_id` kreeg.
 - **Geen blok leest de opslag van een ander blok.** Wil je andermans gegevens,
   ga dan via de repository of `*Content`-klasse van dat domein.
 - **Is een blok een ander blok met een vaste instelling**, zoals Projecten
@@ -341,6 +343,13 @@ Alleen `render()`/`renderPage()` degraderen zo. De schrijfkant
   oplost.
 - **Weergave-instellingen horen bij de instantie**, niet bij de pagina en niet
   bij de catalogus erachter.
+- **Een weergavekeuze is een woord uit een gesloten lijst, nooit een
+  CSS-waarde.** De inhoudsklasse houdt de lijst en leest een onbekende waarde
+  als de standaard, het endpoint weigert hem, en de partial maakt er een
+  modifier-class van. De standaard krijgt géén class, zodat een bestaande
+  instantie na de migratie precies blijft zoals hij was, en een maat is een
+  stap op de typeschaal in `core.css` (`--fs-*`). `page_hero` is het voorbeeld
+  (positie van de tekst, titel- en tekstgrootte).
 - **Bestaande inhoud blijft behouden** bij migraties en refactors.
 
 ## Tests

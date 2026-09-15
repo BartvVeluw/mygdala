@@ -72,6 +72,40 @@ final class FreshInstallTest extends TestCase
         }
     }
 
+    /**
+     * A new installation gets the Paginakop's image reference and its three
+     * choices exactly as an upgraded one does: schema is never behind a
+     * fresh-install guard (db/migrations/CLAUDE.md).
+     */
+    public function testThePageHeaderTableHasTheImageReferenceAndTheChoices(): void
+    {
+        $columns = [];
+        foreach ($this->install()->rows(
+            'SELECT column_name AS name, is_nullable AS nullable, column_default AS fallback
+               FROM information_schema.columns
+              WHERE table_schema = DATABASE() AND table_name = ?',
+            ['page_heroes']
+        ) as $row) {
+            $columns[(string) $row['name']] = [(string) $row['nullable'], $row['fallback']];
+        }
+
+        $this->assertSame(['YES', null], $columns['media_id'] ?? null);
+        $this->assertSame(['NO', 'left'], $columns['content_position'] ?? null);
+        $this->assertSame(['NO', 'normal'], $columns['title_size'] ?? null);
+        $this->assertSame(['NO', 'normal'], $columns['text_size'] ?? null);
+
+        $this->assertSame(
+            [['delete_rule' => 'RESTRICT']],
+            $this->install()->rows(
+                'SELECT delete_rule AS delete_rule
+                   FROM information_schema.referential_constraints
+                  WHERE constraint_schema = DATABASE() AND table_name = ? AND referenced_table_name = ?',
+                ['page_heroes', 'media']
+            ),
+            'a library item a header still shows cannot be deleted from under it'
+        );
+    }
+
     public function testTheInstallIsMarkedAsGenericRatherThanAsThisSitesHistory(): void
     {
         $this->assertSame(

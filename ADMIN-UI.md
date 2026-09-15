@@ -260,7 +260,7 @@ die weg en gebruikt de twee functies hierboven; meer is het niet.
 
 ## Waar het al gebruikt wordt
 
-Zeven schermen, als bewijs dat de bouwstenen herbruikbaar zijn. De rest van het
+Acht schermen, als bewijs dat de bouwstenen herbruikbaar zijn. De rest van het
 CMS volgt scherm voor scherm; een scherm dat nog niet is omgezet, werkt zoals
 het werkte.
 
@@ -273,6 +273,7 @@ het werkte.
 | Formulier bewerken (`admin/form.php`) | *Actief* is een switch, *Inzendingen bewaren* een checkbox, beide selects zijn `.admin-select` |
 | Pagina bewerken en Nieuwe pagina (`admin/page.php`, `admin/page-new.php`) | Uitleg bij *Webadres* (het woord *slug* staat alleen in die uitleg); op een bestaande pagina het adres als link en het veld achter *Webadres wijzigen*, een `<details>` in de stijl van de inklapbare rijen; op een nieuwe pagina een live voorbeeld van het hele adres. SEO: een infobalk over wat SEO is, en uitleg bij de SEO-titel (met de automatische titel) en bij de *Omschrijving voor zoekmachines*. Op *Nieuwe pagina* staat de SEO-kaart vóór *Template* en klapt hij dicht (`.admin-collapse--card`). In de blokkenkiezer het zoekveld (`.admin-search`); op elke blokrij *Verbergen*/*Tonen* (`.admin-btn-secondary`) en *Verwijderen* (`.admin-btn-danger`), dat eerst vraagt in `admin_confirm_dialog()` |
 | Portfolio (`admin/portfolio.php`, `admin/portfolio-item.php`) | Infobalk; in het overzicht het zoekveld (`.admin-search`) en de filters als `.admin-select`, met *Zonder categorie*; op een item de bestandskiezer met voorbeeld (de gekozen afbeelding vóór het opslaan, bij bewerken eerst de huidige) en uitleg bij afbeelding, alt-tekst, titel, onderschrift en categorieën; categorieën als `.admin-checkbox`, *Zichtbaar op de portfolio-pagina* en *Toon op homepage* als switch; de projectpagina als één `.admin-select` met uitleg (*Geen gekoppelde pagina* of een gewone pagina, een concept gemarkeerd) en, voor wie pagina's mag beheren, *Nieuwe pagina maken* naar het gewone scherm *Nieuwe pagina*; verwijderen vraagt eerst in `admin_confirm_dialog()` |
+| Paginakop (`admin/page-hero.php`) | Uitleg bij bovenschrift, titel, inleiding, kruimelpad, positie van de tekst, beide groottes en *Tonen op de pagina*; de drie keuzes als `.admin-select`, *Tonen op de pagina* als switch, en de afbeelding met de mediakiezer (`MEDIA.md`). *Inhoud*, *Afbeelding* en *Vormgeving* zijn kopjes in één formulier, zodat de opslagbalk één formulier bewaakt |
 
 De bestandskiezer staat op de upload van de Mediabibliotheek. Slepen en
 neerzetten, de lijst met nieuwe bestanden en de voorbeelden horen bij dat

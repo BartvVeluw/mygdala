@@ -219,3 +219,37 @@ Gevolg: de lightbox-overlay wordt door een blok geprint in plaats van door het
 paginatemplate, maar bewust buiten de `<section>`; welk blok 'm print bepaalt
 `ItemGalleryContent::claimLightboxOverlay()` (en niet een `static` in de partial,
 zodat een test die meerdere blokken rendert niet aan de eerste vastzit).
+
+## De Paginakop kiest uit woorden, en zijn beeld ligt achter de tekst
+
+De Paginakop (`page_hero`) kreeg een optioneel beeld uit de Mediabibliotheek, een
+positie voor de tekst (links, midden, rechts) en een grootte voor de titel en voor
+de inleiding (klein, normaal, groot). Het bovenschrift is niet meer verplicht.
+
+Reden, per keuze:
+
+- **Het beeld ligt achter de tekst**, onder een waas in de grondkleur van de site
+  (`--color-media-scrim-rgb`, het token dat de homepage-hero daar al voor
+  gebruikt). Zo betekent de positie van de tekst met en zonder beeld hetzelfde. Een
+  beeld náást de tekst had bij *Midden* een tweede lay-out nodig gehad, en de
+  redacteur een extra keuze.
+- **Geen video.** De bibliotheek neemt alleen afbeeldingen aan
+  (`App\Service\Media\MediaType`). De enige video in dit project is die van de
+  homepage-hero: een eigen upload naar `assets/videos/sections/`, naast een apart
+  afbeeldingsveld en zonder gebruiksregistratie. Video in de Paginakop was dus een
+  tweede uploadsysteem geworden, of een uitbreiding van de bibliotheek met een
+  tweede soort bestand. Dat is een eigen stap. Neemt de bibliotheek ooit video aan,
+  dan kan dezelfde `media_id` er een aanwijzen.
+- **Drie stappen per grootte.** Voor de titel zijn dat `--fs-h2`, `--fs-h1` en één
+  nieuwe schaalstap `--fs-display` in `core.css`, voor de inleiding `--fs-body`,
+  `--fs-lead` en `--fs-h3`. Een vierde stap had nog een verzonnen maat gevraagd die
+  op een telefoon niet past; `--fs-display` houdt daarom de ondergrens van h1.
+- **Een standaard is geen class.** `left`, `normal` en `normal` zijn hoe elke
+  Paginakop er al uitzag. Ze voegen geen modifier toe, dus een bestaande kop valt
+  na de migratie onder geen enkele nieuwe CSS-regel.
+
+Gevolg: `page_heroes` kreeg `media_id` (zonder `image_path`-tweeling en zonder eigen
+alt-tekst, `MEDIA.md`) en drie `VARCHAR(20)`-kolommen met die standaard als default.
+`PageHeroContent` houdt de gesloten lijsten en leest een onbekende waarde als de
+standaard; `update-page-hero.php` weigert hem. Het kruimelpad staat nog in de
+partial van de Paginakop: waar dat thuishoort is een aparte beslissing.

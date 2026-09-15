@@ -322,6 +322,8 @@
             <file>tests/Service/PageBuilderScreenTest.php</file>
             <file>tests/Service/PageBuilderSecurityTest.php</file>
             <file>tests/Service/PageContentTest.php</file>
+            <file>tests/Service/PageHeroEditorHttpTest.php</file>
+            <file>tests/Service/PageHeroHeaderTest.php</file>
             <file>tests/Service/PageTemplateCreationTest.php</file>
             <file>tests/Service/PageTemplateRegistryTest.php</file>
             <file>tests/Service/ProjectCardsBlockTest.php</file>

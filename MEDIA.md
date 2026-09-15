@@ -463,6 +463,7 @@ de belangrijkste opbrengst van deze stap.
 | Tekst + afbeelding (`text_image_split`) | `text_image_split_images.media_id` |
 | Detailsectie (`detail_section`) | `detail_sections.main_media_id` + `detail_section_images.media_id` |
 | Kaarten-carrousel (`card_carousel`) | `carousel_cards.media_id` |
+| Paginakop (`page_hero`) | `page_heroes.media_id`, zonder oud pad en zonder eigen alt-tekst: een paginakop had nooit een afbeelding |
 | Uitgelichte afbeelding en deel-afbeelding van een blogbericht | `blog_posts.featured_media_id`, `blog_posts.og_media_id` — een module, dus via `BlogModule::mediaUsageProviders()` |
 
 **Bewust nog op hun eigen paden**, ongewijzigd en werkend:
@@ -486,7 +487,9 @@ weten — precies zoals de Blog het al doet.
 historische terugval voor rijen van vóór de bibliotheek, en een nieuwe tabel
 heeft die historie niet. Zo'n tabel heeft ook geen eigen alt-veld, want de
 gelaagde alt-tekst bestaat om bestaande onderschriften te bewaren — nieuwe
-inhoud gebruikt gewoon die van het item.
+inhoud gebruikt gewoon die van het item. Hetzelfde geldt voor een bestaande
+tabel die pas ná de bibliotheek een afbeelding kreeg: `page_heroes` had er nooit
+een, en heeft dus ook alleen een `media_id`.
 
 ## Een nieuw blok aansluiten
 

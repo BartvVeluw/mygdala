@@ -1,0 +1,405 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Tests\Service;
+
+use App\Database;
+use App\Repository\MediaRepository;
+use App\Repository\PageHeroRepository;
+use App\Service\Blocks\BlockDefinitions;
+use App\Service\Language\ContentLanguages;
+use App\Service\Media\MediaService;
+use App\Service\PageHeroContent;
+use App\Service\SiteSettings;
+use PHPUnit\Framework\TestCase;
+
+/**
+ * What an editor can choose for a Paginakop, as a visitor gets it: the markup
+ * App\Service\Blocks\PageHeroBlock::render() prints.
+ *
+ * - A header nobody gave a choice prints the markup it always printed, so an
+ *   existing installation looks the same after the migration.
+ * - An empty eyebrow or intro text leaves no element behind.
+ * - The image comes from the Media Library with its alt text and its size,
+ *   and an item without alt text is marked decorative.
+ * - Each text position and each size is exactly one modifier class and a
+ *   default is none; every class the partial can print is styled by the
+ *   block's own stylesheet, in steps of the type scale.
+ * - A stored value outside the closed lists reads as the default.
+ *
+ * Hidden, missing and title-less rows are Tests\Service\NoEmptyActiveBlockTest's,
+ * which holds every type's render contract in one place; saving through the
+ * editor is Tests\Service\PageHeroEditorHttpTest's.
+ *
+ * Everything runs inside a transaction that is rolled back afterwards, on a
+ * page slug no real page has, the media rows included.
+ */
+final class PageHeroHeaderTest extends TestCase
+{
+    /** Where this test's header lives; never a real page. */
+    private const TEST_SLUG = '__test_page_hero_header__';
+
+    private bool $inTransaction = false;
+
+    protected function setUp(): void
+    {
+        // The partial resolves the primary language through SiteSettings.
+        SiteSettings::all();
+        self::clearCaches();
+
+        Database::connection()->beginTransaction();
+        $this->inTransaction = true;
+    }
+
+    protected function tearDown(): void
+    {
+        if ($this->inTransaction) {
+            Database::connection()->rollBack();
+            $this->inTransaction = false;
+        }
+
+        self::clearCaches();
+    }
+
+    /* ------------------------------------------------------------------ */
+    /* What was there keeps looking the same                               */
+    /* ------------------------------------------------------------------ */
+
+    public function testAHeaderNobodyGaveAChoiceKeepsTheMarkupItAlwaysHad(): void
+    {
+        // Only the columns a page_heroes row had before the choices existed,
+        // the way 20260908100300 inserts one; MySQL fills in the rest.
+        Database::connection()->prepare(
+            'INSERT INTO page_heroes
+                (page_slug, eyebrow_nl, eyebrow_en, title_nl, title_en, lead_nl, lead_en,
+                 breadcrumb_label_nl, breadcrumb_label_en, is_active, created_at, updated_at)
+             VALUES (:slug, :eyebrow, NULL, :title, NULL, :lead, NULL, :breadcrumb, NULL, 1, NOW(), NOW())'
+        )->execute([
+            'slug' => self::TEST_SLUG,
+            'eyebrow' => 'Over ons',
+            'title' => 'Een bestaande kop',
+            'lead' => 'Een bestaande inleiding.',
+            'breadcrumb' => 'Over ons',
+        ]);
+
+        $row = (new PageHeroRepository())->findBySlug(self::TEST_SLUG);
+        $this->assertNotNull($row);
+        $this->assertNull($row['media_id'], 'an existing header has no image');
+        $this->assertSame(
+            [PageHeroContent::POSITION_LEFT, PageHeroContent::SIZE_NORMAL, PageHeroContent::SIZE_NORMAL],
+            [$row['content_position'], $row['title_size'], $row['text_size']],
+            'and the defaults are the look it had'
+        );
+
+        $html = $this->render();
+
+        $this->assertSame(['page-hero'], $this->sectionClasses($html), 'no modifier class, so page-hero.css has nothing to say');
+        $this->assertStringNotContainsString('page-hero__media', $html);
+        $this->assertMatchesRegularExpression(
+            '#<div class="breadcrumb">.*</div>\s*<p class="eyebrow"[^>]*>Over ons</p>\s*<h1[^>]*>Een bestaande kop</h1>\s*<p class="lead" style="margin-top:1rem;"[^>]*>Een bestaande inleiding\.</p>#s',
+            $html,
+            'breadcrumb, eyebrow, title and intro text, in the order and the markup they always had'
+        );
+    }
+
+    public function testANewHeaderStartsWithoutAnEyebrowAndWithTodaysLook(): void
+    {
+        // create() exactly as the block picker and the page templates call it.
+        $definition = BlockDefinitions::get('page_hero');
+        $this->assertNotNull($definition);
+        $definition->create(self::TEST_SLUG);
+
+        $row = (new PageHeroRepository())->findBySlug(self::TEST_SLUG);
+        $this->assertNotNull($row);
+        $this->assertSame('', $row['eyebrow_nl'], 'an optional eyebrow nobody chose is not written for them');
+        $this->assertNull($row['media_id']);
+        $this->assertSame(
+            [PageHeroContent::POSITION_LEFT, PageHeroContent::SIZE_NORMAL, PageHeroContent::SIZE_NORMAL],
+            [$row['content_position'], $row['title_size'], $row['text_size']]
+        );
+
+        $html = $this->render();
+
+        $this->assertSame(['page-hero'], $this->sectionClasses($html));
+        $this->assertStringNotContainsString('class="eyebrow"', $html);
+        $this->assertStringContainsString('pas deze titel aan', $html);
+    }
+
+    /* ------------------------------------------------------------------ */
+    /* An empty field leaves nothing behind                                */
+    /* ------------------------------------------------------------------ */
+
+    public function testAnEmptyEyebrowPrintsNoEyebrowElement(): void
+    {
+        $this->store(['eyebrow_nl' => '', 'eyebrow_en' => '']);
+
+        $html = $this->render();
+
+        $this->assertStringContainsString('<h1', $html, 'the header itself still renders');
+        $this->assertStringNotContainsString('class="eyebrow"', $html);
+    }
+
+    public function testAnEyebrowOnlyInTheTranslationPrintsNoElement(): void
+    {
+        // What decides is what a visitor sees first: the primary language's
+        // own text (SiteText::visible()). A translation without it would be
+        // an empty decoration for everyone reading the primary language.
+        $this->assertSame('nl', ContentLanguages::primary(), 'written for the Dutch-primary site the test database is');
+        $this->store(['eyebrow_nl' => '', 'eyebrow_en' => 'About us']);
+
+        $this->assertStringNotContainsString('class="eyebrow"', $this->render());
+    }
+
+    public function testAnEmptyIntroTextPrintsNoParagraph(): void
+    {
+        $this->store(['lead_nl' => '', 'lead_en' => '']);
+
+        $html = $this->render();
+
+        $this->assertStringContainsString('<h1', $html);
+        $this->assertStringNotContainsString('class="lead"', $html);
+    }
+
+    /* ------------------------------------------------------------------ */
+    /* The image comes from the library                                    */
+    /* ------------------------------------------------------------------ */
+
+    public function testALibraryImageSitsBehindTheTextWithItsAltTextAndSize(): void
+    {
+        $mediaId = $this->mediaItem('assets/media/__page_hero_header__.webp', 'Werkbank met houten plankjes', 1600, 900);
+        $this->store(['media_id' => $mediaId]);
+
+        $html = $this->render();
+
+        $this->assertContains('page-hero--media', $this->sectionClasses($html));
+        $this->assertMatchesRegularExpression(
+            '#<div class="page-hero__media">\s*<img src="/assets/media/__page_hero_header__\.webp" alt="Werkbank met houten plankjes"[^>]* width="1600" height="900" loading="eager"#',
+            $html
+        );
+        $this->assertLessThan(
+            strpos($html, '<div class="container">'),
+            strpos($html, 'page-hero__media'),
+            'the image comes before the text, so the text is drawn over it'
+        );
+    }
+
+    public function testAnImageWithoutAltTextIsMarkedDecorative(): void
+    {
+        $mediaId = $this->mediaItem('assets/media/__page_hero_mood__.webp', '', 1600, 900);
+        $this->store(['media_id' => $mediaId]);
+
+        $this->assertMatchesRegularExpression(
+            '#<img src="/assets/media/__page_hero_mood__\.webp" alt=""#',
+            $this->render()
+        );
+    }
+
+    public function testAnImageOfUnknownSizePrintsNoSizeAttributes(): void
+    {
+        $mediaId = $this->mediaItem('assets/media/__page_hero_unknown_size__.webp', 'Foto', null, null);
+        $this->store(['media_id' => $mediaId]);
+
+        $html = $this->render();
+
+        $this->assertStringContainsString('page-hero__media', $html);
+        $this->assertStringNotContainsString(' width=', $html, 'unknown means leave it out, never guess');
+    }
+
+    public function testAHeaderWithoutAnImageHasNoMediaMarkupWhateverElseItChose(): void
+    {
+        $this->store([
+            'content_position' => PageHeroContent::POSITION_CENTER,
+            'title_size' => PageHeroContent::SIZE_LARGE,
+            'text_size' => PageHeroContent::SIZE_LARGE,
+        ]);
+
+        $html = $this->render();
+
+        $this->assertNotContains('page-hero--media', $this->sectionClasses($html));
+        $this->assertStringNotContainsString('<img', $html);
+    }
+
+    /* ------------------------------------------------------------------ */
+    /* Each choice is one class; a default is none                         */
+    /* ------------------------------------------------------------------ */
+
+    /** @return array<string, array{string, string, list<string>}> */
+    public static function choices(): array
+    {
+        return [
+            'text on the left' => ['content_position', PageHeroContent::POSITION_LEFT, []],
+            'text in the middle' => ['content_position', PageHeroContent::POSITION_CENTER, ['page-hero--content-center']],
+            'text on the right' => ['content_position', PageHeroContent::POSITION_RIGHT, ['page-hero--content-right']],
+            'a small title' => ['title_size', PageHeroContent::SIZE_SMALL, ['page-hero--title-small']],
+            'a normal title' => ['title_size', PageHeroContent::SIZE_NORMAL, []],
+            'a large title' => ['title_size', PageHeroContent::SIZE_LARGE, ['page-hero--title-large']],
+            'a small intro text' => ['text_size', PageHeroContent::SIZE_SMALL, ['page-hero--text-small']],
+            'a normal intro text' => ['text_size', PageHeroContent::SIZE_NORMAL, []],
+            'a large intro text' => ['text_size', PageHeroContent::SIZE_LARGE, ['page-hero--text-large']],
+        ];
+    }
+
+    /**
+     * @dataProvider choices
+     *
+     * @param list<string> $modifiers
+     */
+    public function testEachChoiceAddsExactlyItsOwnClass(string $column, string $value, array $modifiers): void
+    {
+        $this->store([$column => $value]);
+
+        $this->assertSame(['page-hero', ...$modifiers], $this->sectionClasses($this->render()));
+    }
+
+    /** The cases above cover each closed list completely, and nothing beyond it. */
+    public function testTheCasesCoverEveryPositionAndEverySize(): void
+    {
+        $covered = [];
+        foreach (self::choices() as [$column, $value]) {
+            $covered[$column][] = $value;
+        }
+
+        $this->assertSame(PageHeroContent::POSITIONS, $covered['content_position']);
+        $this->assertSame(PageHeroContent::SIZES, $covered['title_size']);
+        $this->assertSame(PageHeroContent::SIZES, $covered['text_size']);
+    }
+
+    public function testAStoredValueOutsideTheClosedListsRendersAsTheDefault(): void
+    {
+        $this->store([]);
+
+        // Only a hand-edited row can hold these: the endpoint refuses them.
+        Database::connection()->prepare(
+            'UPDATE page_heroes SET content_position = :position, title_size = :title, text_size = :text WHERE page_slug = :slug'
+        )->execute(['position' => 'diagonal', 'title' => '96px', 'text' => 'huge', 'slug' => self::TEST_SLUG]);
+
+        self::clearCaches();
+        $content = PageHeroContent::forSlug(self::TEST_SLUG);
+
+        $this->assertSame(
+            [PageHeroContent::POSITION_LEFT, PageHeroContent::SIZE_NORMAL, PageHeroContent::SIZE_NORMAL],
+            [$content['content_position'], $content['title_size'], $content['text_size']]
+        );
+        $this->assertSame(['page-hero'], $this->sectionClasses($this->render()));
+    }
+
+    /**
+     * Every class the partial can print has a rule in the block's own
+     * stylesheet, no default has one, and a size is a step of the type scale
+     * rather than a number of its own.
+     */
+    public function testEveryClassThePartialCanPrintIsStyledInStepsOfTheTypeScale(): void
+    {
+        $definition = BlockDefinitions::get('page_hero');
+        $this->assertNotNull($definition);
+        $this->assertSame(['assets/css/blocks/page-hero.css'], $definition->styles());
+
+        $printed = ['page-hero--media', 'page-hero__media'];
+        foreach (self::choices() as [, , $modifiers]) {
+            array_push($printed, ...$modifiers);
+        }
+
+        $css = (string) file_get_contents(dirname(__DIR__, 2) . '/assets/css/blocks/page-hero.css');
+
+        foreach ($printed as $class) {
+            $this->assertStringContainsString('.' . $class, $css, "{$class} is printed but not styled");
+        }
+
+        foreach (['content-left', 'title-normal', 'text-normal'] as $default) {
+            $this->assertStringNotContainsString('page-hero--' . $default, $css, 'a default must look exactly as before');
+        }
+
+        preg_match_all('/font-size:\s*([^;}]+)/', $css, $sizes);
+        $this->assertNotSame([], $sizes[1]);
+
+        foreach ($sizes[1] as $size) {
+            $this->assertMatchesRegularExpression('/^var\(--fs-[a-z0-9]+\)$/', trim($size), 'a size is a step of the type scale in core.css');
+        }
+
+        $this->assertMatchesRegularExpression(
+            '/--fs-display:\s*clamp\(/',
+            (string) file_get_contents(dirname(__DIR__, 2) . '/assets/css/core.css'),
+            'the step above h1 is defined with the rest of the scale'
+        );
+    }
+
+    /* ------------------------------------------------------------------ */
+
+    /**
+     * Every column PageHeroRepository::upsert() writes: a header with a title,
+     * an eyebrow, an intro text and its breadcrumb label, no image and today's
+     * look, overridden where a test says so.
+     *
+     * @param array<string, mixed> $overrides
+     */
+    private function store(array $overrides): void
+    {
+        (new PageHeroRepository())->upsert(self::TEST_SLUG, array_merge([
+            'eyebrow_nl' => 'Bovenschrift', 'eyebrow_en' => '',
+            'title_nl' => 'Een paginakop', 'title_en' => '',
+            'lead_nl' => 'Een inleiding.', 'lead_en' => '',
+            'breadcrumb_label_nl' => 'Kruimelpad', 'breadcrumb_label_en' => '',
+            'media_id' => null,
+            'content_position' => PageHeroContent::POSITION_LEFT,
+            'title_size' => PageHeroContent::SIZE_NORMAL,
+            'text_size' => PageHeroContent::SIZE_NORMAL,
+            'is_active' => true,
+        ], $overrides));
+    }
+
+    /** A media row for a file that does not exist: rendering never reads the disk. */
+    private function mediaItem(string $path, string $altText, ?int $width, ?int $height): int
+    {
+        $id = (new MediaRepository())->create([
+            'path' => $path,
+            'original_filename' => basename($path),
+            'mime_type' => 'image/webp',
+            'width' => $width,
+            'height' => $height,
+            'file_size' => 100,
+            'alt_text' => $altText,
+            'checksum' => null,
+        ]);
+
+        MediaService::clearCache();
+
+        return $id;
+    }
+
+    /** The header exactly as SectionRegistry::renderPage() has its definition render it. */
+    private function render(): string
+    {
+        $definition = BlockDefinitions::get('page_hero');
+        $this->assertNotNull($definition);
+
+        self::clearCaches();
+
+        ob_start();
+        try {
+            $definition->render(
+                ['id' => 0, 'section_type' => 'page_hero', 'page_slug' => self::TEST_SLUG, 'section_key' => null, 'section_id' => 0],
+                false,
+                'page_hero-0'
+            );
+        } finally {
+            $html = (string) ob_get_clean();
+        }
+
+        return $html;
+    }
+
+    /** @return list<string> the classes on the rendered <section>, in order */
+    private function sectionClasses(string $html): array
+    {
+        $this->assertSame(1, preg_match('#<section class="([^"]*)"#', $html, $match), 'the header renders one section');
+
+        return preg_split('/\s+/', trim($match[1])) ?: [];
+    }
+
+    private static function clearCaches(): void
+    {
+        PageHeroContent::clearCache();
+        MediaService::clearCache();
+    }
+}

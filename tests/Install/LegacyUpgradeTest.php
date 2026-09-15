@@ -145,6 +145,30 @@ final class LegacyUpgradeTest extends TestCase
         );
     }
 
+    /**
+     * Every header this site had keeps its words and gets exactly the look it
+     * had: no image, the text on the left, both sizes normal.
+     */
+    public function testEveryPageHeaderKeepsItsTextAndTheLookItHad(): void
+    {
+        $rows = $this->install()->rows(
+            'SELECT page_slug, title_nl, media_id, content_position, title_size, text_size FROM page_heroes ORDER BY page_slug'
+        );
+
+        $this->assertNotSame([], $rows, 'the existing site had page headers to keep');
+
+        foreach ($rows as $row) {
+            $this->assertSame(
+                [null, 'left', 'normal', 'normal'],
+                [$row['media_id'], $row['content_position'], $row['title_size'], $row['text_size']],
+                'the page header of ' . $row['page_slug']
+            );
+        }
+
+        $titles = array_column($rows, 'title_nl', 'page_slug');
+        $this->assertSame('Lasergravure voor elk materiaal', $titles['diensten'] ?? null);
+    }
+
     public function testTheLegalPagesKeepTheirText(): void
     {
         $rows = $this->install()->rows(

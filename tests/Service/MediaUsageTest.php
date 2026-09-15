@@ -6,6 +6,7 @@ namespace Tests\Service;
 
 use App\Database;
 use App\Repository\MediaRepository;
+use App\Repository\PageHeroRepository;
 use App\Repository\PageRepository;
 use App\Repository\PageSectionRepository;
 use App\Repository\SiteSettingRepository;
@@ -15,6 +16,7 @@ use App\Service\Media\BlockImage;
 use App\Service\Media\MediaService;
 use App\Service\Media\MediaUsageRegistry;
 use App\Service\Media\VisibleMediaUsages;
+use App\Service\PageHeroContent;
 use App\Service\SectionRegistry;
 use App\Service\SiteSettings;
 use PHPUnit\Framework\TestCase;
@@ -228,6 +230,49 @@ final class MediaUsageTest extends TestCase
         MediaService::clearCache();
 
         $this->assertNotNull(MediaService::find($mediaId), 'the media item outlives the block that used it');
+    }
+
+    /**
+     * The Paginakop joined the library with a reference and nothing else. Its
+     * usage names the header and links to its editor, which takes the page
+     * slug rather than a section key.
+     */
+    public function testAPageHeaderImageIsReportedWithALinkToItsEditor(): void
+    {
+        $mediaId = $this->createMediaRow('assets/media/__usage_page_hero__.png');
+        $this->attachPageHeroImage($mediaId);
+
+        $usages = $this->service->usagesOf($mediaId);
+
+        $this->assertCount(1, $usages);
+        $this->assertSame('content_blocks', $usages[0]->source);
+        $this->assertStringContainsString('Paginakop', $usages[0]->label);
+        $this->assertStringContainsString(self::TEST_PAGE, $usages[0]->label);
+        $this->assertSame('/admin/page-hero.php?slug=' . rawurlencode(self::TEST_PAGE), $usages[0]->editUrl);
+        $this->assertSame(AdminPermissions::PAGES_MANAGE, $usages[0]->permission);
+    }
+
+    public function testAPageHeaderImageStaysUntilTheHeaderLetsGoOfIt(): void
+    {
+        $mediaId = $this->createMediaRow('assets/media/__usage_page_hero_kept__.png');
+        $sectionId = $this->attachPageHeroImage($mediaId);
+
+        $refused = $this->service->delete($mediaId);
+        $this->assertFalse($refused['deleted']);
+        $this->assertSame('in_use', $refused['reason']);
+
+        // Remove the block, exactly as the page builder does.
+        $sections = new PageSectionRepository();
+        $row = $sections->findById($sectionId);
+        $this->assertNotNull($row);
+        SectionRegistry::delete($row, $sections);
+        $this->createdSections = array_values(array_diff($this->createdSections, [$sectionId]));
+
+        MediaService::clearCache();
+
+        $this->assertNotNull(MediaService::find($mediaId), 'removing the header leaves the shared item');
+        $this->assertTrue($this->service->delete($mediaId)['deleted'], 'and it may go once nothing uses it');
+        $this->createdMedia = array_values(array_diff($this->createdMedia, [$mediaId]));
     }
 
     /* ------------------------------------------------------------------ */
@@ -520,6 +565,36 @@ final class MediaUsageTest extends TestCase
             'alt_nl' => '',
             'alt_en' => '',
         ]);
+
+        return $pageSectionId;
+    }
+
+    /**
+     * A Paginakop pointing at this item, made the way the page builder and
+     * its editor make one: a real block instance on a real page, then the
+     * header's own repository with the id the endpoint resolved. Returns the
+     * page_sections id so a test can remove it again.
+     */
+    private function attachPageHeroImage(int $mediaId): int
+    {
+        $page = (new PageRepository())->findByContentKey(self::TEST_PAGE);
+        $this->assertNotNull($page);
+
+        [$sectionId, $sectionKey] = SectionRegistry::create('page_hero', self::TEST_PAGE);
+
+        $pageSectionId = (new PageSectionRepository())->create(
+            (int) $page['id'],
+            self::TEST_PAGE,
+            'page_hero',
+            $sectionKey,
+            $sectionId
+        );
+        $this->createdSections[] = $pageSectionId;
+
+        (new PageHeroRepository())->upsert(self::TEST_PAGE, array_merge(
+            PageHeroContent::startingValues('Mediagebruik-testpagina'),
+            ['media_id' => $mediaId, 'is_active' => true]
+        ));
 
         return $pageSectionId;
     }

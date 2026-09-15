@@ -176,6 +176,7 @@ final class MediaBoundaryTest extends TestCase
             'update-detail-section-image.php',
             'update-detail-section-main-image.php',
             'update-carousel-card-image.php',
+            'update-page-hero.php',
         ] as $endpoint) {
             $source = $this->source('api/admin/' . $endpoint);
 
