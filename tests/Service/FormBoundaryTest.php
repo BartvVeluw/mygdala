@@ -252,21 +252,23 @@ final class FormBoundaryTest extends TestCase
     }
 
     /**
-     * The admin must never let an editor type a default: it is picked from
-     * the field's own options, so it cannot name a choice nobody is
-     * offered.
+     * The admin must never let an editor type a default: it is a radio on
+     * one of the field's own option rows (or on "no default"), so it cannot
+     * name a choice nobody is offered. The radio's value is the row, not a
+     * label, and the endpoint turns it into that row's option.
      */
     public function testTheDefaultIsChosenFromTheOptionsRatherThanTyped(): void
     {
-        $editor = $this->read('admin/form-field.php');
+        $editor = $this->read('admin/form-field.php') . $this->read('admin/_form_fields.php');
 
-        $this->assertStringContainsString('<select name="default_value">', $editor);
+        $this->assertStringContainsString('<input type="radio" name="default_option" value="<?= $h($index) ?>"', $editor);
+        $this->assertStringContainsString('<input type="radio" name="default_option" value=""', $editor);
         $this->assertStringNotContainsString(
-            'name="default_value" type="text"',
+            'name="default_value"',
             $editor,
-            'a free-text default could name an option the field does not have'
+            'the editor sends no default of its own: a free-text default could name an option the field does not have'
         );
-        $this->assertStringNotContainsString('type="text" name="default_value"', $editor);
+        $this->assertDoesNotMatchRegularExpression('/type="text"[^>]*name="default_option"/', $editor);
 
         // And the endpoint checks it against the options being saved.
         $this->assertStringContainsString(

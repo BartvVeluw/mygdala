@@ -97,3 +97,125 @@
     dialog.showModal();
   }
 })();
+
+/**
+ * OPTION ROWS (admin/form-field.php). The server renders every stored option
+ * as a row plus three empty rows, which is how options are added without
+ * this file. With it, "Optie toevoegen" appends another empty row and each
+ * row gets a remove button. A new row is a copy of the last one with its
+ * values cleared and a fresh index in its names; the index is what ties a
+ * row's two languages and its "Standaard" radio together
+ * (api/admin/update-form-field.php), so rows are never renumbered on the
+ * server. Only the visible numbers and the numbers in the accessible names
+ * are counted again, from words the server already wrote.
+ *
+ * Removing the row that was the default puts the choice back on "no
+ * default", so the form never sends a default for a row that is gone.
+ */
+(function () {
+  "use strict";
+
+  Array.prototype.forEach.call(document.querySelectorAll("[data-form-options]"), function (group) {
+    var list = group.querySelector("[data-form-option-list]");
+    var add = group.querySelector("[data-form-option-add]");
+    if (!list || !add) return;
+
+    var max = parseInt(group.getAttribute("data-form-options-max") || "50", 10);
+    var noDefault = group.querySelector('input[name="default_option"][value=""]');
+
+    function rows() {
+      return list.querySelectorAll("[data-form-option-row]");
+    }
+
+    function renumber() {
+      Array.prototype.forEach.call(rows(), function (row, position) {
+        var number = String(position + 1);
+        var badge = row.querySelector("[data-form-option-number]");
+        if (badge) badge.textContent = number;
+
+        Array.prototype.forEach.call(row.querySelectorAll("[aria-label]"), function (element) {
+          element.setAttribute("aria-label", element.getAttribute("aria-label").replace(/\d+/, number));
+        });
+      });
+
+      add.disabled = rows().length >= max;
+    }
+
+    function nextIndex() {
+      var highest = -1;
+
+      Array.prototype.forEach.call(list.querySelectorAll('input[name^="option_nl["]'), function (input) {
+        var match = /\[(\d+)\]/.exec(input.name);
+        if (match) highest = Math.max(highest, parseInt(match[1], 10));
+      });
+
+      return String(highest + 1);
+    }
+
+    /** The first text box of a row that is on screen: the language being edited. */
+    function visibleInput(row) {
+      return Array.prototype.filter.call(row.querySelectorAll('input[type="text"]'), function (input) {
+        return input.closest("[hidden]") === null;
+      })[0] || null;
+    }
+
+    function enableRemove(row) {
+      var button = row.querySelector("[data-form-option-remove]");
+      if (!button) return;
+
+      button.hidden = false;
+      button.addEventListener("click", function () {
+        var radio = row.querySelector('input[type="radio"]');
+        if (radio && radio.checked && noDefault) noDefault.checked = true;
+
+        var next = row.nextElementSibling || row.previousElementSibling;
+
+        if (rows().length > 1) {
+          row.parentNode.removeChild(row);
+        } else {
+          Array.prototype.forEach.call(row.querySelectorAll('input[type="text"]'), function (input) {
+            input.value = "";
+          });
+          next = row;
+        }
+
+        renumber();
+
+        var target = next ? visibleInput(next) : null;
+        (target || add).focus();
+      });
+    }
+
+    add.addEventListener("click", function () {
+      var all = rows();
+      if (all.length === 0 || all.length >= max) return;
+
+      var copy = all[all.length - 1].cloneNode(true);
+      var index = nextIndex();
+
+      Array.prototype.forEach.call(copy.querySelectorAll("input"), function (input) {
+        input.name = input.name.replace(/\[\d+\]/, "[" + index + "]");
+
+        if (input.type === "radio") {
+          input.value = index;
+          input.checked = false;
+          input.defaultChecked = false;
+        } else {
+          input.value = "";
+          input.defaultValue = "";
+        }
+      });
+
+      list.appendChild(copy);
+      enableRemove(copy);
+      renumber();
+
+      var target = visibleInput(copy);
+      if (target) target.focus();
+    });
+
+    Array.prototype.forEach.call(rows(), enableRemove);
+    add.hidden = false;
+    renumber();
+  });
+})();

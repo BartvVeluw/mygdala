@@ -52,6 +52,7 @@
             <file>tests/Service/BrandingTest.php</file>
             <file>tests/Service/DashboardAttentionTest.php</file>
             <file>tests/Service/DashboardMetricsTest.php</file>
+            <file>tests/Service/FormFieldTypeChangeTest.php</file>
             <file>tests/Service/FormFieldTypeTest.php</file>
             <file>tests/Service/FormValidationTest.php</file>
             <file>tests/Service/HeaderFooterSettingsTest.php</file>
@@ -186,6 +187,7 @@
             <file>tests/Service/DashboardMetricsTest.php</file>
             <file>tests/Service/DashboardPageTest.php</file>
             <file>tests/Service/FormBoundaryTest.php</file>
+            <file>tests/Service/FormFieldTypeChangeTest.php</file>
             <file>tests/Service/FormFieldTypeTest.php</file>
             <file>tests/Service/FormValidationTest.php</file>
             <file>tests/Service/FrontendAssetOwnershipTest.php</file>
@@ -394,6 +396,7 @@
             <file>tests/Service/FormAdminHttpTest.php</file>
             <file>tests/Service/FormFieldEditorHttpTest.php</file>
             <file>tests/Service/FormBoundaryTest.php</file>
+            <file>tests/Service/FormFieldTypeChangeTest.php</file>
             <file>tests/Service/FormFieldTypeTest.php</file>
             <file>tests/Service/FormRenderingTest.php</file>
             <file>tests/Service/FormValidationTest.php</file>

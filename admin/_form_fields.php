@@ -4,15 +4,17 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/_translate.php';
 
+use App\Service\Forms\FormFieldOptions;
+use App\Service\Forms\FormFieldTypeChange;
 use App\Service\Forms\FormFieldTypes;
 
 /**
- * What the CMS calls a form field type, and the cards an editor picks one
- * from.
+ * What the CMS calls a form field type, the cards an editor picks one from,
+ * and what changing a field's type would lose.
  *
- * Shared by "Veld toevoegen" on the form editor (admin/form.php) and "Ander
- * soort veld" on the field editor (admin/form-field.php), so both screens
- * show the same words for the same type and neither keeps a list of its own.
+ * Shared by "Veld toevoegen" on the form editor (admin/form.php) and the
+ * field editor (admin/form-field.php), so both screens show the same words
+ * for the same type and neither keeps a list of its own.
  *
  * THE WORDS ARE THE CATALOGUE'S. A type is identified by its registry key
  * (App\Service\Forms\FormFieldTypes), which is what `form_fields.field_type`
@@ -70,4 +72,67 @@ function form_field_type_cards(string $name, string $checked, array $notes = [])
       <?php endforeach; ?>
     </div>
     <?php
+}
+
+/**
+ * What a type change would lose, one sentence per setting, naming what the
+ * setting holds now ("de 3 opties: Ja, Nee, Misschien") so an editor can
+ * judge it without opening anything else. Plain text.
+ *
+ * @param list<string>         $losses from App\Service\Forms\FormFieldTypeChange::losses()
+ * @param array<string, mixed> $row    the field's stored row those losses were read from
+ * @return list<string>
+ */
+function form_field_loss_sentences(array $losses, array $row): array
+{
+    $options = FormFieldOptions::fromStored(is_string($row['options'] ?? null) ? $row['options'] : null);
+    $sentences = [];
+
+    foreach ($losses as $loss) {
+        $sentences[] = match ($loss) {
+            FormFieldTypeChange::PLACEHOLDER => admin_t('forms.loses.placeholder', [
+                'text' => trim((string) ($row['placeholder_nl'] ?? '')) !== ''
+                    ? trim((string) $row['placeholder_nl'])
+                    : trim((string) ($row['placeholder_en'] ?? '')),
+            ]),
+            FormFieldTypeChange::OPTIONS => admin_t($options->count() === 1 ? 'forms.loses.options_one' : 'forms.loses.options', [
+                'count' => $options->count(),
+                'options' => form_field_option_names($options),
+            ]),
+            FormFieldTypeChange::DEFAULT_VALUE => admin_t('forms.loses.default_value', ['option' => trim((string) ($row['default_value'] ?? ''))]),
+            FormFieldTypeChange::REPLY_TO => admin_t('forms.loses.reply_to'),
+            default => $loss,
+        };
+    }
+
+    return $sentences;
+}
+
+/**
+ * The short line under a type card in the field editor: what choosing that
+ * type would lose, or that everything stays. Plain text.
+ *
+ * @param list<string> $losses
+ */
+function form_field_loss_note(array $losses): string
+{
+    if ($losses === []) {
+        return admin_t('forms.type_card.keeps_everything');
+    }
+
+    return admin_t('forms.type_card.loses', [
+        'settings' => implode(', ', array_map(
+            static fn (string $loss): string => admin_t('forms.loses_short.' . $loss),
+            $losses
+        )),
+    ]);
+}
+
+/** The first few options by their Dutch label, for a sentence. */
+function form_field_option_names(FormFieldOptions $options): string
+{
+    $shown = 5;
+    $names = array_map(static fn ($option): string => $option->nl, array_slice($options->all(), 0, $shown));
+
+    return implode(', ', $names) . ($options->count() > $shown ? ', …' : '');
 }

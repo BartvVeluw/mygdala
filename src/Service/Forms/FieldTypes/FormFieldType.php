@@ -28,6 +28,12 @@ use App\Service\Forms\FormText;
  * that forgets one does not load. Everything else has a safe default, so a
  * plain text-like type is a very small class.
  *
+ * THE SETTINGS DECLARATIONS DRIVE THE FIELD EDITOR. usesPlaceholder(),
+ * usesOptions(), usesDefaultValue() and requiredIsFixed() decide which
+ * settings admin/form-field.php shows, and App\Service\Forms\
+ * FormFieldTypeChange reads the same declarations to say what a type change
+ * would lose. Neither keeps a list of types of its own.
+ *
  * A type is stateless and instantiated once per request by the registry. It
  * must never be constructed from request data — `field_type` out of a
  * database row can only hit or miss a registered key.

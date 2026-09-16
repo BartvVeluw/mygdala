@@ -10,8 +10,9 @@ namespace App\Service\Forms;
  *
  * STORED AS ONE TEXT COLUMN, one option per line, `NL|EN` with the English
  * half optional. That is not a shortcut around a proper table — it is the
- * whole configuration a Forms V1 choice field has, an editor types it as a
- * list, and a child table would buy nothing but three more write endpoints.
+ * whole configuration a Forms V1 choice field has, an editor fills it in as
+ * a list of rows on one screen, and a child table would buy nothing but
+ * three more write endpoints.
  * A JSON blob would buy even less and read worse in a database client.
  *
  * THE SUBMITTED VALUE IS THE DUTCH LABEL. There is deliberately no separate
@@ -26,6 +27,9 @@ final class FormFieldOptions
 {
     /** An editor cannot make a dropdown longer than this. */
     public const MAX_OPTIONS = 50;
+
+    /** Where a stored line's English half starts. */
+    public const SEPARATOR = '|';
 
     /** @param list<FormText> $options */
     private function __construct(private readonly array $options)
@@ -43,7 +47,7 @@ final class FormFieldOptions
         $seen = [];
 
         foreach (preg_split('/\R/', (string) $stored) ?: [] as $line) {
-            [$nl, $en] = array_pad(explode('|', $line, 2), 2, null);
+            [$nl, $en] = array_pad(explode(self::SEPARATOR, $line, 2), 2, null);
 
             $option = FormText::of($nl, $en);
             if ($option->nl === '' || isset($seen[$option->nl])) {
@@ -74,10 +78,55 @@ final class FormFieldOptions
         foreach (self::fromStored($submitted)->all() as $option) {
             $lines[] = $option->nl === $option->en
                 ? $option->nl
-                : $option->nl . '|' . $option->en;
+                : $option->nl . self::SEPARATOR . $option->en;
         }
 
         return implode("\n", $lines);
+    }
+
+    /**
+     * The same canonical text, from the field editor's option rows: a Dutch
+     * and an English box per option (admin/form-field.php) instead of
+     * `NL|EN` typed into a textarea. Each row becomes the line the textarea
+     * used to hold and goes through toStored(), so empty rows, duplicates
+     * and the cap follow the one set of rules this class already has, and
+     * the stored format is exactly what it always was.
+     *
+     * A row's Dutch half must not hold the separator — it would start the
+     * English half — so api/admin/update-form-field.php refuses one
+     * (holdsSeparator()) before it gets here.
+     *
+     * @param list<array{nl: string, en: string}> $rows as rowText() cleaned them
+     */
+    public static function rowsToStored(array $rows): string
+    {
+        $lines = [];
+
+        foreach ($rows as $row) {
+            $lines[] = $row['en'] === '' ? $row['nl'] : $row['nl'] . self::SEPARATOR . $row['en'];
+        }
+
+        return self::toStored(implode("\n", $lines));
+    }
+
+    /**
+     * One half of an option row, as it will be stored: one line, trimmed. A
+     * line break would split the option in two, so every control character
+     * becomes a space; anything that is not a string is empty.
+     */
+    public static function rowText(mixed $value): string
+    {
+        if (!is_string($value)) {
+            return '';
+        }
+
+        return trim(preg_replace('/[\x00-\x1F\x7F]+/u', ' ', $value) ?? '');
+    }
+
+    /** Whether a row's Dutch half holds the character that starts the English one. */
+    public static function holdsSeparator(string $dutch): bool
+    {
+        return str_contains($dutch, self::SEPARATOR);
     }
 
     /** @return list<FormText> */

@@ -3330,6 +3330,54 @@ body.admin-media-modal-open{ overflow: hidden; }
   .admin-field-picker__actions > *{ text-align: center; }
 }
 
+/* --- The field editor (admin/form-field.php) --------------------------------
+   The current kind of field, the option rows of a dropdown or radio group,
+   and a type change waiting for confirmation. An option row is its number,
+   the option in the language pane on screen (the other pane is hidden and
+   still sent), and its "Standaard" radio plus the remove button
+   forms-admin.js reveals. The confirmation uses the warning colours of a
+   page's address change (.admin-url-confirm). */
+.admin-field-type-current{ display: flex; flex-direction: column; gap: 0.2rem; margin: 0 0 var(--admin-sp-2); }
+
+.admin-option-rows{ min-width: 0; margin: 0; padding: 0; border: 0; display: flex; flex-direction: column; gap: var(--admin-sp-3); }
+
+.admin-option-rows__list{ display: flex; flex-direction: column; gap: var(--admin-sp-2); }
+
+.admin-option-row{
+  display: grid;
+  grid-template-columns: 1.75rem minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--admin-sp-2) var(--admin-sp-3);
+}
+
+.admin-option-row__number{ color: var(--admin-text-muted); font-size: 0.85rem; text-align: right; font-variant-numeric: tabular-nums; }
+
+.admin-option-row__actions{ display: flex; align-items: center; gap: var(--admin-sp-3); }
+
+.admin-product-form .admin-option-row__default{
+  flex-direction: row;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.85rem;
+  color: var(--admin-text);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.admin-option-rows__tools{ display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--admin-sp-3); }
+
+/* On a phone the radio and the remove button go under the option, where a
+   thumb can reach them without the box getting too narrow to type in. */
+@media (max-width: 600px){
+  .admin-option-row{ grid-template-columns: 1.5rem minmax(0, 1fr); }
+  .admin-option-row__actions{ grid-column: 2; justify-content: space-between; }
+}
+
+.admin-type-change{ border-color: var(--admin-warning-line); background: var(--admin-warning-soft); }
+.admin-type-change h2{ margin-top: 0; }
+.admin-type-change__losses{ margin: 0 0 var(--admin-sp-3); padding-left: 1.2rem; display: flex; flex-direction: column; gap: 0.3rem; overflow-wrap: anywhere; }
+.admin-type-change__actions{ display: flex; flex-wrap: wrap; align-items: center; gap: var(--admin-sp-3); margin-top: var(--admin-sp-4); }
+
 /* ============================================================
    Setup Wizard (admin/setup.php + admin/assets/setup-wizard.js)
 

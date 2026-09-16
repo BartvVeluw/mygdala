@@ -318,6 +318,39 @@ class FormFieldTypeTest extends TestCase
         $this->assertSame(FormFieldOptions::MAX_OPTIONS, FormFieldOptions::fromStored(implode("\n", $lines))->count());
     }
 
+    /**
+     * The field editor's option rows become exactly the stored text the
+     * textarea used to produce: one line per option, `NL|EN` only where the
+     * English differs, empty and duplicate rows dropped by the same parser.
+     */
+    public function testOptionRowsBecomeTheStoredTextTheParserReads(): void
+    {
+        $rows = [
+            ['nl' => 'Ja', 'en' => 'Yes'],
+            ['nl' => 'Nee', 'en' => ''],
+            ['nl' => '', 'en' => 'Maybe'],
+            ['nl' => 'Ja', 'en' => 'Yes please'],
+            ['nl' => 'Later', 'en' => 'Later'],
+        ];
+
+        $stored = FormFieldOptions::rowsToStored($rows);
+
+        $this->assertSame("Ja|Yes\nNee\nLater", $stored);
+        $this->assertSame($stored, FormFieldOptions::toStored($stored), 'already canonical');
+        $this->assertSame('', FormFieldOptions::rowsToStored([['nl' => '', 'en' => '']]));
+    }
+
+    /** A row is one line: a line break cannot split one option into two. */
+    public function testAnOptionRowIsCleanedToOneLine(): void
+    {
+        $this->assertSame('Ja graag', FormFieldOptions::rowText("  Ja\r\ngraag \t"));
+        $this->assertSame('', FormFieldOptions::rowText(['Ja']));
+        $this->assertSame('', FormFieldOptions::rowText(null));
+
+        $this->assertTrue(FormFieldOptions::holdsSeparator('Ja|Yes'));
+        $this->assertFalse(FormFieldOptions::holdsSeparator('Ja / Yes'));
+    }
+
     public function testStoredOptionsRoundTripThroughTheParser(): void
     {
         $stored = FormFieldOptions::toStored("  Particulier | Personal \r\nZakelijk|Zakelijk\n\n");
