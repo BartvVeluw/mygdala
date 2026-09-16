@@ -116,7 +116,7 @@ require __DIR__ . '/partials/header.php';
            made the one useful link in the trail unclickable. */ ?>
   <?php render_breadcrumb(
       \App\Service\Breadcrumbs\BreadcrumbTrail::home()
-          ->toRoute('shop')
+          ->toPage('shop', 'shop')
           ->to(\App\Service\Breadcrumbs\BreadcrumbItem::current('Collectie niet gevonden', 'Collection not found'))
   ); ?>
   <section class="page-hero">
@@ -131,7 +131,7 @@ require __DIR__ . '/partials/header.php';
 <?php else: ?>
   <?php render_breadcrumb(
       \App\Service\Breadcrumbs\BreadcrumbTrail::home()
-          ->toRoute('shop')
+          ->toPage('shop', 'shop')
           ->to(\App\Service\Breadcrumbs\BreadcrumbItem::current((string) $collection['name_nl'], (string) $collection['name_en']))
   ); ?>
   <section class="page-hero">

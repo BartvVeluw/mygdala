@@ -202,7 +202,7 @@ require __DIR__ . '/partials/header.php';
      */
     render_breadcrumb(
         \App\Service\Breadcrumbs\BreadcrumbTrail::home()
-            ->toRoute('shop')
+            ->toPage('shop', 'shop')
             ->to($seo === null
                 ? \App\Service\Breadcrumbs\BreadcrumbItem::current('Product', 'Product')
                 : \App\Service\Breadcrumbs\BreadcrumbItem::current((string) $seo['name_nl'], (string) $seo['name_en']))

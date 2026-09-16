@@ -49,7 +49,7 @@ require __DIR__ . '/partials/header.php';
 
   <?php render_breadcrumb(
       \App\Service\Breadcrumbs\BreadcrumbTrail::home()
-          ->toRoute('shop')
+          ->toPage('shop', 'shop')
           ->to(\App\Service\Breadcrumbs\BreadcrumbItem::current('Bestelstatus', 'Order status'))
   ); ?>
 

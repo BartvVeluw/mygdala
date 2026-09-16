@@ -51,8 +51,8 @@ require __DIR__ . '/partials/header.php';
 
   <?php render_breadcrumb(
       \App\Service\Breadcrumbs\BreadcrumbTrail::home()
-          ->toRoute('shop')
-          ->to(\App\Service\Breadcrumbs\BreadcrumbItem::current('Winkelwagen', 'Shopping cart'))
+          ->toPage('shop', 'shop')
+          ->toRoute('cart')
   ); ?>
 
   <section class="page-hero" style="padding-bottom:0;">

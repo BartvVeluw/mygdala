@@ -93,8 +93,8 @@ require __DIR__ . '/partials/header.php';
   <?php \App\Service\SectionRegistry::renderPage('shop'); ?>
 <?php else: ?>
   <?php /* No `pages` row, so there is no page title to name and no switch to
-           read: the storefront is named by its own route, exactly as the
-           cart and the checkout name it. */ ?>
+           read: the storefront is named by its own route, which is also what
+           the cart, the checkout and every product page fall back to. */ ?>
   <?php render_breadcrumb(\App\Service\Breadcrumbs\BreadcrumbTrail::home()->toRoute('shop')); ?>
   <section class="page-hero">
     <div class="container">

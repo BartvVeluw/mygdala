@@ -63,7 +63,7 @@ final class ProductBreadcrumbTest extends TestCase
         $template = (string) file_get_contents(self::root() . '/product.php');
 
         $this->assertStringContainsString('render_breadcrumb(', $template);
-        $this->assertStringContainsString("->toRoute('shop')", $template);
+        $this->assertStringContainsString("->toPage('shop', 'shop')", $template);
         $this->assertStringContainsString("\$seo['name_nl']", $template);
         $this->assertStringContainsString("\$seo['name_en']", $template);
         $this->assertStringNotContainsString(

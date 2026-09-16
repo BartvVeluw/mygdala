@@ -211,9 +211,13 @@ render_breadcrumb(
 - `toPage('portfolio')` hangt er een **CMS-pagina** onder: haar eigen titel,
   haar eigen adres. Een pagina in concept of van een uitgezette module houdt
   haar naam maar verliest haar link.
-- `toRoute('shop')` hangt er een **applicatieroute** onder, met het label en
+- `toRoute('cart')` hangt er een **applicatieroute** onder, met het label en
   het adres uit `App\Service\RouteRegistry`. Een sleutel die het register
   niet kent voegt niets toe, zodat een pad nooit naar een 404 wijst.
+- `toPage('shop', 'shop')` combineert de twee: de Shop-pagina als die bestaat,
+  anders de gelijknamige route. Een installatie waarvan de winkel de
+  moduleoverzichtspagina is en geen `pages`-rij heeft
+  (`INSTALL-BOOTSTRAP.md`) houdt zo hetzelfde niveau.
 - De **homepagelink** komt uit `PageContent::publicUrl()` van de siteroot:
   één spelling, dezelfde resolutie als het menu, de canonical en de sitemap.
 - Een niveau dat een bezoeker leeg zou zien valt weg, en een pad met alleen
@@ -225,7 +229,7 @@ render_breadcrumb(
 |---|---|---|
 | Siteroot (`/`) | Nooit — je begint er | — |
 | Gewone CMS-pagina, en de sjablonen Diensten, Portfolio, Over mij, Contact, Shop | `Home / paginatitel` | `pages.show_breadcrumb` |
-| Shop-routes: product, collectie, winkelwagen, afrekenen, bestelstatus, personaliseren | Vast, met hun eigen niveaus | Geen — geen `pages`-rij |
+| Shop-routes: product, collectie, winkelwagen, afrekenen, bestelstatus, personaliseren | Vast, met hun eigen niveaus; het Shop-niveau is de Shop-pagina zelf | Geen — geen `pages`-rij |
 | Blog: overzicht, archief, bericht | Vast, met de blogtitel uit `BlogSettings` | Geen |
 | Cookiebeleid, Herroepingsrecht | Vast, uit `RouteRegistry` | Geen |
 | 404 | `Home / Pagina niet gevonden` | Geen |

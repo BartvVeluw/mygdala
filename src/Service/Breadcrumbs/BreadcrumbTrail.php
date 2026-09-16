@@ -79,16 +79,21 @@ final class BreadcrumbTrail
      * this class learning that those modules exist.
      *
      * A page that is not published, or one served from a switched-off module's
-     * template, keeps its name but loses its link — see BreadcrumbItem. A page
-     * that is not there at all adds no level: inventing one would name a place
-     * that does not exist.
+     * template, keeps its name but loses its link — see BreadcrumbItem.
+     *
+     * $fallbackRoute is for the one case where the SAME level exists without a
+     * page behind it: an installation whose storefront is the Shop module's
+     * own overview rather than a `pages` row (INSTALL-BOOTSTRAP.md). Naming it
+     * keeps the level instead of silently shortening the trail there. Without
+     * one, a page that is not there adds no level at all: inventing a name
+     * would point at a place that does not exist.
      */
-    public function toPage(string $contentKey): self
+    public function toPage(string $contentKey, ?string $fallbackRoute = null): self
     {
         $page = PageContent::forContentKey($contentKey);
 
         if ($page === null) {
-            return $this;
+            return $fallbackRoute === null ? $this : $this->toRoute($fallbackRoute);
         }
 
         $reachable = PageContent::isPublished($page) && PageContent::isServedByAnEnabledModule($page);

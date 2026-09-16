@@ -470,6 +470,17 @@ final class BreadcrumbTest extends TestCase
         );
     }
 
+    public function testALevelThatExistsWithoutAPageFallsBackToItsRoute(): void
+    {
+        // An installation whose storefront is the Shop module's own overview
+        // has no `pages` row for it, and the Shop's routes still name it. The
+        // level must not quietly disappear there.
+        $this->assertSame(
+            ['Home', 'Cookiebeleid'],
+            $this->labels(BreadcrumbTrail::home()->toPage('__geen_enkele_pagina__', 'cookiebeleid'))
+        );
+    }
+
     /* ------------------------------------------------------------------ */
 
     private static function source(string $relativePath): string
