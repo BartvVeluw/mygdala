@@ -169,17 +169,17 @@ class PageRepository extends Repository
      * this always writes is_system = 0 / route_path = NULL — an admin can
      * never mint a new protected page through the CMS.
      *
-     * @param array{content_key:string,slug:string,title:string,status:string,meta_title:?string,meta_title_en:?string,meta_description:?string,meta_description_en:?string} $data
+     * @param array{content_key:string,slug:string,title:string,title_en?:?string,status:string,meta_title:?string,meta_title_en:?string,meta_description:?string,meta_description_en:?string} $data
      */
     public function create(array $data): int
     {
         $stmt = $this->db->prepare(
             'INSERT INTO pages
-                (content_key, slug, title, status, meta_title, meta_title_en,
+                (content_key, slug, title, title_en, status, meta_title, meta_title_en,
                  meta_description, meta_description_en, is_system, route_path,
                  sort_order, created_at, updated_at)
              VALUES
-                (:content_key, :slug, :title, :status, :meta_title, :meta_title_en,
+                (:content_key, :slug, :title, :title_en, :status, :meta_title, :meta_title_en,
                  :meta_description, :meta_description_en, 0, NULL,
                  :sort_order, NOW(), NOW())'
         );
@@ -187,6 +187,10 @@ class PageRepository extends Repository
             'content_key' => $data['content_key'],
             'slug' => $data['slug'],
             'title' => $data['title'],
+            // NULL is "not translated", never the empty string: that is what
+            // App\Service\Language\LocalizedValue reads as "the same as the
+            // primary language", and what an editor form shows as empty.
+            'title_en' => self::translationOrNull($data['title_en'] ?? null),
             'status' => $data['status'],
             'meta_title' => $data['meta_title'],
             'meta_title_en' => $data['meta_title_en'],
@@ -206,13 +210,13 @@ class PageRepository extends Repository
      * App\Service\PageService, which is what keeps a system page's slug and
      * status locked to their current values.
      *
-     * @param array{slug:string,title:string,status:string,meta_title:?string,meta_title_en:?string,meta_description:?string,meta_description_en:?string,noindex?:bool,show_breadcrumb?:bool} $data
+     * @param array{slug:string,title:string,title_en?:?string,status:string,meta_title:?string,meta_title_en:?string,meta_description:?string,meta_description_en:?string,noindex?:bool,show_breadcrumb?:bool} $data
      */
     public function update(int $id, array $data): void
     {
         $stmt = $this->db->prepare(
             'UPDATE pages SET
-                slug = :slug, title = :title, status = :status,
+                slug = :slug, title = :title, title_en = :title_en, status = :status,
                 meta_title = :meta_title, meta_title_en = :meta_title_en,
                 meta_description = :meta_description, meta_description_en = :meta_description_en,
                 noindex = :noindex, show_breadcrumb = :show_breadcrumb,
@@ -222,6 +226,7 @@ class PageRepository extends Repository
         $stmt->execute([
             'slug' => $data['slug'],
             'title' => $data['title'],
+            'title_en' => self::translationOrNull($data['title_en'] ?? null),
             'status' => $data['status'],
             'meta_title' => $data['meta_title'],
             'meta_title_en' => $data['meta_title_en'],
@@ -268,6 +273,19 @@ class PageRepository extends Repository
      * removes every attached section (and its content/media) inside one
      * transaction.
      */
+    /**
+     * What a translation column stores: the words, or NULL when there are
+     * none. Never '' — an empty string would read as a real translation to
+     * an editor form, and "not translated" is exactly the distinction
+     * App\Service\Language\LocalizedValue::raw() has to be able to make.
+     */
+    private static function translationOrNull(mixed $value): ?string
+    {
+        $value = trim((string) ($value ?? ''));
+
+        return $value === '' ? null : $value;
+    }
+
     public function delete(int $id): void
     {
         $stmt = $this->db->prepare('DELETE FROM pages WHERE id = :id');

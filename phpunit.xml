@@ -275,6 +275,7 @@
             <file>tests/Install/LegacyUpgradeTest.php</file>
             <file>tests/Install/OrderNumberPrefixPinTest.php</file>
             <file>tests/Install/OrderNumberSnapshotMigrationTest.php</file>
+            <file>tests/Install/PageEnglishTitleMigrationTest.php</file>
             <file>tests/Install/PortfolioCatalogueSchemaTest.php</file>
             <file>tests/Install/PortfolioModulePinTest.php</file>
             <file>tests/Install/PortfolioPageLinkMigrationTest.php</file>
@@ -401,6 +402,7 @@
             <file>tests/Service/PageBuilderSecurityTest.php</file>
             <file>tests/Service/PageContentTest.php</file>
             <file>tests/Service/BreadcrumbTest.php</file>
+            <file>tests/Install/PageEnglishTitleMigrationTest.php</file>
             <file>tests/Service/PagePreviewAccessTest.php</file>
             <file>tests/Service/PagePreviewContractTest.php</file>
             <file>tests/Service/PageRoutingTest.php</file>

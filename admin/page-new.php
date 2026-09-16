@@ -95,12 +95,26 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
 
     <section class="admin-card">
       <h2><?= admin_te('page.algemeen') ?></h2>
+      <?php /* The title is content, not just a name in a list: the breadcrumb
+               prints it and the automatic <title> is built from it, so it has
+               the same language panes as the SEO fields. The address is made
+               from the PRIMARY language's title only — a slug is never
+               translated (MULTILINGUAL.md) — so data-slug-source stays on
+               that one field. */ ?>
+      <?php admin_lang_bar(); ?>
       <?php /* The shared field styling, as on the SEO card below. */ ?>
       <div class="admin-product-form admin-product-form--wide">
       <div class="admin-form-row admin-form-row--split">
-        <label><?= admin_te('common.title') ?>*
-          <input type="text" name="title" maxlength="<?= PageService::MAX_TITLE_LENGTH ?>" required value="<?= $h($value('title')) ?>" data-slug-source>
-        </label>
+        <?php admin_lang_pane_start('nl'); ?>
+          <label><?= admin_te('common.title') ?>*
+            <input type="text" name="title" maxlength="<?= PageService::MAX_TITLE_LENGTH ?>"<?= admin_lang_required('nl') ?> value="<?= $h($value('title')) ?>" data-slug-source>
+          </label>
+        <?php admin_lang_pane_end(); ?>
+        <?php admin_lang_pane_start('en'); ?>
+          <label><?= admin_te('common.title') ?>
+            <input type="text" name="title_en" maxlength="<?= PageService::MAX_TITLE_LENGTH ?>" value="<?= $h($value('title_en')) ?>"<?= admin_lang_placeholder_attr('en') ?>>
+          </label>
+        <?php admin_lang_pane_end(); ?>
         <?php /* The address starts out as the title's (admin/assets/admin.js)
                  and stays the editor's to change until the page exists. The
                  hidden flag says which of the two it is when the form is

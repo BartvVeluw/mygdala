@@ -59,6 +59,9 @@ if (!Csrf::validate($_POST['csrf_token'] ?? null)) {
 $repository = new PageRepository();
 
 $title = trim((string) ($_POST['title'] ?? ''));
+// Optional, like every translation in this project: empty means "not
+// translated" and the site falls back to the primary language.
+$titleEn = trim((string) ($_POST['title_en'] ?? ''));
 $slugInput = trim((string) ($_POST['slug'] ?? ''));
 // "1" while admin/page-new.php was still filling the address in from the
 // title. Such an address was never typed by the editor, so it is made unique
@@ -78,6 +81,10 @@ $errors = [];
 if ($title === '') {
     $errors[] = AdminTranslator::trans('validation.titel_verplicht');
 } elseif (mb_strlen($title) > PageService::MAX_TITLE_LENGTH) {
+    $errors[] = 'Titel mag maximaal ' . PageService::MAX_TITLE_LENGTH . ' tekens zijn.';
+}
+
+if (mb_strlen($titleEn) > PageService::MAX_TITLE_LENGTH) {
     $errors[] = 'Titel mag maximaal ' . PageService::MAX_TITLE_LENGTH . ' tekens zijn.';
 }
 
@@ -113,6 +120,7 @@ foreach ([
 
 $old = [
     'title' => $title,
+    'title_en' => $titleEn,
     'slug' => $slugInput,
     'status' => $status,
     'meta_title' => $metaTitle,
@@ -135,6 +143,7 @@ try {
         'content_key' => PageService::generateContentKey($repository, $slug),
         'slug' => $slug,
         'title' => $title,
+        'title_en' => $titleEn,
         'status' => $status,
         'meta_title' => $metaTitle === '' ? null : $metaTitle,
         'meta_title_en' => $metaTitleEn === '' ? null : $metaTitleEn,

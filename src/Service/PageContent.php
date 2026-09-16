@@ -7,6 +7,7 @@ namespace App\Service;
 use App\Module\ModuleRegistry;
 use App\Repository\PageRepository;
 use App\Repository\PageSectionRepository;
+use App\Service\Language\LocalizedValue;
 
 /**
  * Public read side of the unified CMS page model (pagina.php, the six
@@ -312,6 +313,32 @@ class PageContent
     }
 
     /**
+     * The page's own NAME, as this project's one localized value.
+     *
+     * `pages.title` is the Dutch column and `title_en` its translation
+     * (db/migrations/20260916140000). An empty translation means "the same as
+     * the primary language" and never an empty name, which is the rule
+     * App\Service\Language\LocalizedValue holds for every other pair of
+     * columns in this project — so this is where the pair is read, and the
+     * only place that has to know the column names.
+     *
+     * Callers that print it to a visitor take ::raw() for both halves and let
+     * App\Service\Language\SiteText resolve which one is visible
+     * (App\Service\Breadcrumbs\PageBreadcrumb); callers that need one
+     * language take ::in(), like seoTitle() below. Neither asks "is this
+     * English".
+     *
+     * @param array<string, mixed>|null $page
+     */
+    public static function titleValue(?array $page): LocalizedValue
+    {
+        return LocalizedValue::ofDutchEnglish(
+            $page === null ? '' : (string) ($page['title'] ?? ''),
+            $page === null ? null : ($page['title_en'] ?? null)
+        );
+    }
+
+    /**
      * The complete <title> text for one language.
      *
      * meta_title, when set, IS the whole title — it is rendered verbatim,
@@ -323,7 +350,10 @@ class PageContent
      * information pages already rendered with.
      *
      * An empty English value falls back to the Dutch one, matching
-     * PageHeroContent and every other bilingual field in this project.
+     * PageHeroContent and every other bilingual field in this project. That
+     * holds for the automatic title too: the page name it is built from is
+     * localized (titleValue()), so an English page with an English name no
+     * longer advertises its Dutch one.
      */
     public static function seoTitle(?array $page, string $lang = 'nl'): string
     {
@@ -343,7 +373,7 @@ class PageContent
             return $custom;
         }
 
-        $title = trim((string) ($page['title'] ?? ''));
+        $title = self::titleValue($page)->in($lang);
 
         if ($title === '' || $title === $siteName) {
             // A page whose title already IS the site name must not get the

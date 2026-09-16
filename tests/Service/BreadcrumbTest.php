@@ -11,6 +11,7 @@ use App\Service\Blocks\BlockDefinitions;
 use App\Service\Breadcrumbs\BreadcrumbItem;
 use App\Service\Breadcrumbs\BreadcrumbTrail;
 use App\Service\Breadcrumbs\PageBreadcrumb;
+use App\Service\Language\LanguageRegistry;
 use App\Service\PageContent;
 use App\Service\PageHeroContent;
 use App\Service\SiteSettings;
@@ -238,15 +239,127 @@ final class BreadcrumbTest extends TestCase
 
     public function testAnUntranslatedTitleReadsTheSameInBothLanguages(): void
     {
-        // `pages.title` is one language: the site's own. An empty translation
-        // means "the same as the primary language" (MULTILINGUAL.md), and that
-        // is what the trail prints rather than a blank level.
+        // An empty translation means "the same as the primary language"
+        // (MULTILINGUAL.md), and that is what the trail prints rather than a
+        // blank level.
         $html = $this->render(PageBreadcrumb::forPage($this->storePage()));
 
         $this->assertStringContainsString(
             'data-nl="Testpagina kruimelpad" data-en="Testpagina kruimelpad"',
             $html
         );
+    }
+
+    public function testATranslatedTitleIsWhatAnEnglishVisitorReads(): void
+    {
+        $this->storePage();
+        $this->translateTo('Breadcrumb test page');
+
+        $html = $this->render(PageBreadcrumb::forPage($this->reload()));
+
+        $this->assertStringContainsString(
+            'data-nl="Testpagina kruimelpad" data-en="Breadcrumb test page"',
+            $html,
+            'both halves travel, so the language switch reaches the trail'
+        );
+        $this->assertStringContainsString(
+            '>Testpagina kruimelpad</span>',
+            $html,
+            'and a Dutch-primary site still prints the Dutch words first'
+        );
+    }
+
+    public function testATranslationIsDroppedWhenItIsEmptiedAgain(): void
+    {
+        $this->storePage();
+        $this->translateTo('Breadcrumb test page');
+        $this->translateTo('');
+
+        $this->assertStringContainsString(
+            'data-nl="Testpagina kruimelpad" data-en="Testpagina kruimelpad"',
+            $this->render(PageBreadcrumb::forPage($this->reload())),
+            'an emptied translation falls back, it does not blank the level'
+        );
+    }
+
+    public function testATranslatedTitleIsEscapedLikeEveryOtherOne(): void
+    {
+        $this->storePage();
+        $this->translateTo('<script>alert(1)</script>');
+
+        $html = $this->render(PageBreadcrumb::forPage($this->reload()));
+
+        $this->assertStringNotContainsString('<script>', $html);
+        $this->assertStringContainsString('data-en="&lt;script&gt;alert(1)&lt;/script&gt;"', $html);
+    }
+
+    public function testTheRepositoryStoresATranslationAndNeverAnEmptyString(): void
+    {
+        $page = $this->storePage();
+        $repository = new PageRepository();
+        $settings = [
+            'slug' => (string) $page['slug'],
+            'title' => (string) $page['title'],
+            'status' => PageContent::STATUS_PUBLISHED,
+            'meta_title' => null, 'meta_title_en' => null,
+            'meta_description' => null, 'meta_description_en' => null,
+        ];
+
+        $repository->update((int) $page['id'], $settings + ['title_en' => '  Breadcrumb test page  ']);
+        $this->assertSame('Breadcrumb test page', (string) $this->reload()['title_en'], 'trimmed, and stored');
+
+        $repository->update((int) $page['id'], $settings + ['title_en' => '   ']);
+        $this->assertNull(
+            $this->reload()['title_en'],
+            'blank is "not translated" — NULL, never an empty string an editor form would read as a translation'
+        );
+
+        // A page created with a translation keeps it; one created without gets
+        // NULL rather than ''.
+        $id = $repository->create([
+            'content_key' => self::TEST_KEY . '-2',
+            'slug' => self::TEST_SLUG . '-2',
+            'title' => 'Tweede testpagina',
+            'title_en' => 'Second test page',
+            'status' => PageContent::STATUS_PUBLISHED,
+            'meta_title' => null, 'meta_title_en' => null,
+            'meta_description' => null, 'meta_description_en' => null,
+        ]);
+        $created = $repository->findById($id);
+        $this->assertNotNull($created);
+        $this->assertSame('Second test page', (string) $created['title_en']);
+    }
+
+    public function testTheLocalizedTitleIsReadInOnePlaceAndReachesTheAutomaticPageTitle(): void
+    {
+        $page = $this->storePage();
+        $this->translateTo('Breadcrumb test page');
+        $page = $this->reload();
+
+        $value = PageContent::titleValue($page);
+        $this->assertSame('Testpagina kruimelpad', $value->raw(LanguageRegistry::DUTCH));
+        $this->assertSame('Breadcrumb test page', $value->raw(LanguageRegistry::ENGLISH));
+
+        // The <title> a page without its own SEO title falls back to is built
+        // from the same value, so the trail and the tab cannot disagree.
+        $this->assertStringStartsWith('Breadcrumb test page', PageContent::seoTitle($page, 'en'));
+        $this->assertStringStartsWith('Testpagina kruimelpad', PageContent::seoTitle($page, 'nl'));
+    }
+
+    public function testThePageScreensCarryBothLanguagesOfTheTitle(): void
+    {
+        foreach (['admin/page.php', 'admin/page-new.php'] as $screen) {
+            $source = self::source($screen);
+
+            $this->assertStringContainsString('name="title"', $source);
+            $this->assertStringContainsString('name="title_en"', $source, $screen . ' offers the translation');
+            $this->assertStringContainsString("admin_lang_pane_start('en')", $source, $screen . ' uses the shared panes');
+        }
+
+        foreach (['api/admin/update-page.php', 'api/admin/create-page.php'] as $endpoint) {
+            $this->assertStringContainsString("\$_POST['title_en']", self::source($endpoint));
+            $this->assertStringContainsString("'title_en' => \$titleEn", self::source($endpoint));
+        }
     }
 
     public function testTheSiteRootHasNoTrail(): void
@@ -545,6 +658,14 @@ final class BreadcrumbTest extends TestCase
         $this->assertNotNull($page);
 
         return $page;
+    }
+
+    private function translateTo(string $titleEn): void
+    {
+        Database::connection()
+            ->prepare('UPDATE pages SET title_en = :title WHERE content_key = :key')
+            ->execute(['title' => $titleEn === '' ? null : $titleEn, 'key' => self::TEST_KEY]);
+        PageContent::clearCache();
     }
 
     private function renameTo(string $title): void

@@ -147,15 +147,23 @@ final class SeoFieldsAdminLayoutTest extends TestCase
                 $source,
                 $editor . ' must not put two languages side by side'
             );
+            // As many panes as the screen has localized field groups — the
+            // title is one of them since the breadcrumb started printing it
+            // (HEADER-FOOTER.md) — but never one language without the other.
+            // An unbalanced pair is the old defect coming back: a field that
+            // exists in Dutch and simply cannot be translated.
+            $dutch = substr_count($source, "admin_lang_pane_start('nl')");
+
+            $this->assertGreaterThan(0, $dutch, $editor . ' must render language panes');
             $this->assertSame(
-                1,
-                substr_count($source, "admin_lang_pane_start('nl')"),
-                $editor . ' must render exactly one Dutch pane'
+                $dutch,
+                substr_count($source, "admin_lang_pane_start('en')"),
+                $editor . ' must render as many English panes as Dutch ones'
             );
             $this->assertSame(
-                1,
-                substr_count($source, "admin_lang_pane_start('en')"),
-                $editor . ' must render exactly one English pane'
+                $dutch * 2,
+                substr_count($source, 'admin_lang_pane_end()'),
+                $editor . ' must close every pane it opens'
             );
             $this->assertStringContainsString('admin_lang_bar(', $source);
             $this->assertStringContainsString('admin_lang_script()', $source);

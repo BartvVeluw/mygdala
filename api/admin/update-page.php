@@ -4,7 +4,8 @@
  * POST /api/admin/update-page.php
  *
  * Saves one page's settings (admin/page.php's "Pagina" and "SEO" tabs) —
- * Title, web address (slug), Status, whether the page shows its breadcrumb,
+ * Title in both content languages, web address (slug), Status, whether the
+ * page shows its breadcrumb,
  * SEO title, Meta description, indexability and the page's own social sharing
  * image, for every CMS page alike. Same guard order and PRG/session-flash
  * pattern as every other admin endpoint.
@@ -76,6 +77,11 @@ $isProtected = PageContent::isProtected($page);
 $hasFixedUrl = PageContent::isRouteBound($page);
 
 $title = trim((string) ($_POST['title'] ?? ''));
+// The translation is optional by definition — the site falls back to the
+// primary language — so it is never required and an empty one is stored as
+// NULL by the repository. The field is always submitted, `hidden` or not
+// (admin/_language_fields.php), so a save can never blank it by accident.
+$titleEn = trim((string) ($_POST['title_en'] ?? ''));
 $slugInput = trim((string) ($_POST['slug'] ?? ''));
 $statusInput = trim((string) ($_POST['status'] ?? ''));
 $metaTitle = trim((string) ($_POST['meta_title'] ?? ''));
@@ -132,6 +138,10 @@ if ($title === '') {
     $errors[] = 'Titel mag maximaal ' . PageService::MAX_TITLE_LENGTH . ' tekens zijn.';
 }
 
+if (mb_strlen($titleEn) > PageService::MAX_TITLE_LENGTH) {
+    $errors[] = 'Titel mag maximaal ' . PageService::MAX_TITLE_LENGTH . ' tekens zijn.';
+}
+
 if ($isProtected) {
     // The site root and the storefront must stay published.
     $status = (string) $page['status'];
@@ -178,6 +188,7 @@ foreach ([
  */
 $submitted = [
     'title' => $title,
+    'title_en' => $titleEn,
     'slug' => $slugInput,
     'status' => $statusInput,
     'meta_title' => $metaTitle,
@@ -236,6 +247,7 @@ try {
     $repository->update($id, [
         'slug' => $slug,
         'title' => $title,
+        'title_en' => $titleEn,
         'status' => $status,
         'meta_title' => $metaTitle === '' ? null : $metaTitle,
         'meta_title_en' => $metaTitleEn === '' ? null : $metaTitleEn,

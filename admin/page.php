@@ -361,13 +361,28 @@ $urlFieldOpen = !$hasFixedUrl
     <?php endif; ?>
     <section class="admin-card">
       <h2><?= admin_te('page.algemeen') ?></h2>
+      <?php /* The title is the page's NAME, and it is content: it is what the
+               breadcrumb prints and what the automatic <title> is built from
+               (HEADER-FOOTER.md). So it gets the same language panes the SEO
+               fields below have — one language on screen, the other still
+               rendered, still carrying its value and still submitted. */ ?>
+      <?php admin_lang_bar(); ?>
       <?php /* The shared field styling (label above a full-width control, one
                rhythm between fields) — the same wrapper the SEO tab uses. */ ?>
       <div class="admin-product-form admin-product-form--wide">
       <div class="admin-form-row">
-        <label><?= admin_te('common.title') ?>*
-          <input type="text" name="title" maxlength="<?= PageService::MAX_TITLE_LENGTH ?>" required value="<?= $h($fieldValue('title')) ?>">
-        </label>
+        <?php admin_lang_pane_start('nl'); ?>
+          <div class="admin-field">
+            <?= admin_field_label('page-title-nl', admin_t('common.title'), '', true) ?>
+            <input type="text" id="page-title-nl" name="title" maxlength="<?= PageService::MAX_TITLE_LENGTH ?>"<?= admin_lang_required('nl') ?> value="<?= $h($fieldValue('title')) ?>">
+          </div>
+        <?php admin_lang_pane_end(); ?>
+        <?php admin_lang_pane_start('en'); ?>
+          <div class="admin-field">
+            <?= admin_field_label('page-title-en', admin_t('common.title')) ?>
+            <input type="text" id="page-title-en" name="title_en" maxlength="<?= PageService::MAX_TITLE_LENGTH ?>" value="<?= $h($fieldValue('title_en')) ?>"<?= admin_lang_placeholder_attr('en') ?>>
+          </div>
+        <?php admin_lang_pane_end(); ?>
       </div>
 
       <?php /* The web address, shown as the link it is and changed only on

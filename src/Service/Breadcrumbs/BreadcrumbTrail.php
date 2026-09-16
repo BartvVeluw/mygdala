@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Service\Breadcrumbs;
 
+use App\Service\Language\LanguageRegistry;
 use App\Service\PageContent;
 use App\Service\RouteRegistry;
 
@@ -97,12 +98,17 @@ final class BreadcrumbTrail
         }
 
         $reachable = PageContent::isPublished($page) && PageContent::isServedByAnEnabledModule($page);
-        $title = (string) ($page['title'] ?? '');
 
-        // pages.title is one language: the site's own. An empty translation
-        // means "the same as the primary language" (MULTILINGUAL.md), which
-        // LocalizedValue resolves for both halves.
-        return $this->to(BreadcrumbItem::link($title, '', $reachable ? PageContent::publicUrl($page) : null));
+        // Both halves exactly as stored; the renderer decides which one is
+        // visible. PageContent::titleValue() is the one place that knows a
+        // page name is `title` + `title_en`.
+        $title = PageContent::titleValue($page);
+
+        return $this->to(BreadcrumbItem::link(
+            $title->raw(LanguageRegistry::DUTCH),
+            $title->raw(LanguageRegistry::ENGLISH),
+            $reachable ? PageContent::publicUrl($page) : null
+        ));
     }
 
     /**

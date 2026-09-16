@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Service\Breadcrumbs;
 
+use App\Service\Language\LanguageRegistry;
 use App\Service\PageContent;
 
 /**
@@ -17,10 +18,13 @@ use App\Service\PageContent;
  * this class, and the block. See docs/content-blocks/DECISIONS.md and
  * HEADER-FOOTER.md.
  *
- * THE LABEL IS THE PAGE'S OWN TITLE, read per render. Nothing is copied: the
- * old `page_heroes.breadcrumb_label_nl` was a second place to type the same
- * words, and it fell behind the moment a page was renamed. Renaming a page now
- * moves its breadcrumb with it, by construction.
+ * THE LABEL IS THE PAGE'S OWN TITLE, read per render, in both languages. It
+ * comes from PageContent::titleValue(), which is the one place that knows a
+ * page name lives in `title` + `title_en` and how an empty translation falls
+ * back. Nothing is copied: the old `page_heroes.breadcrumb_label_nl/en` was a
+ * second place to type the same words, and it fell behind the moment a page
+ * was renamed. Renaming a page now moves its breadcrumb with it, by
+ * construction, and translating it translates the breadcrumb.
  *
  * THE SITE ROOT NEVER HAS ONE. "Home / Home" is not a trail, and the homepage
  * is where a trail starts rather than something it can point at.
@@ -52,11 +56,16 @@ final class PageBreadcrumb
             return null;
         }
 
-        return BreadcrumbTrail::home()->to(
-            // One language: see BreadcrumbTrail::toPage(). The page a visitor
-            // is standing on is never a link to itself.
-            BreadcrumbItem::current((string) ($page['title'] ?? ''), '')
-        );
+        // Both halves exactly as stored: the renderer resolves which one a
+        // visitor sees and prints the other for the language switch, the same
+        // way every other piece of editor text on a public page works. The
+        // page a visitor is standing on is never a link to itself.
+        $title = PageContent::titleValue($page);
+
+        return BreadcrumbTrail::home()->to(BreadcrumbItem::current(
+            $title->raw(LanguageRegistry::DUTCH),
+            $title->raw(LanguageRegistry::ENGLISH)
+        ));
     }
 
     /**
