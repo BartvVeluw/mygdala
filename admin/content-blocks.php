@@ -4,16 +4,14 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../vendor/autoload.php';
 require_once __DIR__ . '/_translate.php';
-require_once __DIR__ . '/_block_visual.php';
+require_once __DIR__ . '/_block_library.php';
 
 use App\Service\AdminAuth;
-use App\Service\Blocks\BlockCategories;
 use App\Service\Blocks\BlockDefinitions;
-use App\Service\SectionRegistry;
 
 /**
- * The Contentblokken catalogue: every content block this site currently has,
- * what it puts on a page, and what it is good for.
+ * The Contentblokken library: every content block this site currently has,
+ * what it puts on a page, what it is good for, and what it looks like.
  *
  * IT IS DOCUMENTATION, NOT AN EDITOR. Nothing on this screen creates,
  * changes or deletes anything — there is no form on it at all. Blocks are
@@ -22,11 +20,15 @@ use App\Service\SectionRegistry;
  * before going there, and the answer to "wat was dat blok ook alweer?".
  *
  * IT READS THE SAME METADATA THE PICKER DOES. Label, description, category,
- * icon, schematic preview and example uses all come off each block's own
- * App\Service\Blocks\BlockDefinition. There is deliberately no second copy of
- * that copy here: a description written twice is a description that will
- * disagree with itself. A new block therefore appears on this page, correctly
- * described, without this file being touched.
+ * icon, schematic drawing and example uses all come off each block's own
+ * App\Service\Blocks\BlockDefinition, and the cards are printed by
+ * admin/_block_library.php, which asks the definition for every word. A new
+ * block therefore appears on this page, correctly
+ * described and with its preview, without this file being touched.
+ *
+ * "VOORBEELD BEKIJKEN" opens the block with sample content in a dialog: the
+ * real block in a frame of its own (admin/block-preview.php), at desktop,
+ * tablet or phone width. See PAGE-EDITOR.md.
  *
  * WHAT IS NOT LISTED. Exactly what the CMS does not currently have. A block
  * belonging to a switched-off module is not registered while the module is
@@ -38,10 +40,7 @@ use App\Service\SectionRegistry;
 AdminAuth::requireLogin();
 AdminAuth::requirePermission('pages.manage');
 
-$groups = BlockCategories::group(BlockDefinitions::all());
-$total = count(BlockDefinitions::types());
-
-$h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
+$definitions = BlockDefinitions::all();
 ?>
 <!doctype html>
 <html lang="<?= htmlspecialchars(\App\Service\Language\AdminLocale::current(), ENT_QUOTES, 'UTF-8') ?>">
@@ -57,56 +56,15 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
   <header class="admin-page-head">
     <div>
       <h1 class="admin-page-head__title"><?= admin_te('blocks.contentblokken') ?></h1>
-      <p class="admin-page-head__desc"><?= admin_t('blocks.catalogue_intro', ['count' => (int) $total]) ?></p>
+      <p class="admin-page-head__desc"><?= admin_t('blocks.catalogue_intro', ['count' => count($definitions)]) ?></p>
     </div>
     <a href="/admin/pages.php" class="admin-btn-secondary"><?= admin_te('blocks.pagina_s') ?> &#8594;</a>
   </header>
 
-  <?php foreach ($groups as $categoryKey => $blocks): ?>
-    <section class="admin-catalogue-group">
-      <h2 class="admin-catalogue-group__title"><?= $h(BlockCategories::label($categoryKey)) ?></h2>
-      <p class="admin-catalogue-group__count"><?= count($blocks) === 1 ? '1 blok' : count($blocks) . ' blokken' ?></p>
-
-      <div class="admin-catalogue-grid">
-        <?php foreach ($blocks as $type => $definition): ?>
-          <article class="admin-catalogue-card">
-            <?php block_visual($definition); ?>
-
-            <div class="admin-catalogue-card__head">
-              <?php block_icon_svg($definition, 'admin-catalogue-card__icon'); ?>
-              <h3 class="admin-catalogue-card__title"><?= $h($definition->label()) ?></h3>
-              <?php if (!SectionRegistry::isManuallyAddable($type)): ?>
-                <?php /* A fixed block: it is on the page because the site put
-                         it there, and its content is managed somewhere else
-                         entirely. Saying so here saves an editor from
-                         hunting for it in the picker. */ ?>
-                <span class="admin-badge admin-badge--info">Staat er automatisch</span>
-              <?php endif; ?>
-            </div>
-
-            <p class="admin-catalogue-card__desc"><?= $h($definition->describedFor()) ?></p>
-
-            <?php $cases = $definition->useCasesFor(); ?>
-            <?php if ($cases !== []): ?>
-              <div>
-                <p class="admin-catalogue-card__cases-title"><?= admin_te('blocks.geschikt') ?></p>
-                <ul class="admin-catalogue-card__cases">
-                  <?php foreach ($cases as $case): ?>
-                    <li><?= $h($case) ?></li>
-                  <?php endforeach; ?>
-                </ul>
-              </div>
-            <?php endif; ?>
-
-            <?php foreach (SectionRegistry::types()[$type]['edit_links'] ?? [] as $editLink): ?>
-              <p class="admin-text-muted"><?= admin_te('blocks.inhoud_beheer') ?> <a href="<?= $h($editLink['url']) ?>"><?= $h($editLink['label']) ?></a>.</p>
-            <?php endforeach; ?>
-          </article>
-        <?php endforeach; ?>
-      </div>
-    </section>
-  <?php endforeach; ?>
+  <?php block_library($definitions); ?>
 </main>
+<?php block_library_preview_dialog(); ?>
 <script src="<?= \App\Service\AssetVersion::url('/admin/assets/admin.js') ?>" defer></script>
+<script src="<?= \App\Service\AssetVersion::url('/admin/assets/block-library.js') ?>" defer></script>
 </body>
 </html>

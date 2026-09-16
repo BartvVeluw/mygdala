@@ -4027,6 +4027,240 @@ body.admin-block-picker-open{ overflow: hidden; }
 
 .admin-catalogue-card .admin-block-visual{ min-height: 74px; justify-content: center; }
 
+.admin-catalogue-card__category{
+  margin: 0 0 calc(-1 * var(--admin-sp-2));
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--admin-text-faint);
+}
+
+/* The button sits at the foot of the card whatever the card holds above it,
+   so a row of cards has a row of buttons. */
+.admin-catalogue-card__actions{
+  margin-top: auto;
+  padding-top: var(--admin-sp-1);
+}
+
+.admin-catalogue-card__preview{ padding: 0.45rem 0.9rem; font-size: 0.85rem; }
+.admin-catalogue-card__preview-icon{ flex: none; width: 16px; height: 16px; }
+
+/* --- The block preview dialog (admin/_block_library.php) --------------- */
+
+/* A native modal <dialog>, like .admin-confirm: inert page behind it, Escape
+   closes it. No padding on the dialog itself, so a press on the dimmed page
+   around the panel lands on the dialog element and closes it. Large, because
+   what it shows is a piece of a website. */
+.admin-block-preview{
+  box-sizing: border-box;
+  width: min(1320px, calc(100vw - 2rem));
+  height: calc(100vh - 2rem);
+  height: calc(100dvh - 2rem);
+  max-width: none;
+  max-height: none;
+  margin: auto;
+  padding: 0;
+  overflow: hidden;
+  background: var(--admin-surface);
+  color: var(--admin-text);
+  border: 1px solid var(--admin-border-strong);
+  border-radius: var(--admin-radius-lg);
+  box-shadow: var(--admin-shadow-md);
+}
+
+.admin-block-preview::backdrop{ background: var(--admin-overlay); }
+
+.admin-block-preview__panel{
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: var(--admin-sp-3);
+  height: 100%;
+  padding: var(--admin-sp-4) var(--admin-sp-5) var(--admin-sp-5);
+}
+
+.admin-block-preview__head{
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--admin-sp-4);
+}
+
+.admin-block-preview__heading{ min-width: 0; }
+
+.admin-block-preview__category{
+  margin: 0;
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--admin-text-faint);
+}
+
+.admin-block-preview__title{
+  margin: 0.15rem 0 0;
+  font-size: 1.15rem;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+
+.admin-block-preview__description{
+  margin: var(--admin-sp-1) 0 0;
+  max-width: 70ch;
+  font-size: 0.88rem;
+  line-height: 1.55;
+  color: var(--admin-text-muted);
+}
+
+.admin-block-preview__close{
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  padding: 0;
+  color: var(--admin-text-muted);
+  background: transparent;
+  border: 1px solid var(--admin-border);
+  border-radius: var(--admin-radius-md);
+  cursor: pointer;
+  transition: color var(--admin-transition), border-color var(--admin-transition), background var(--admin-transition);
+}
+.admin-block-preview__close:hover{ color: var(--admin-text); border-color: var(--admin-border-strong); background: var(--admin-hover-tint-strong); }
+.admin-block-preview__close svg{ width: 18px; height: 18px; }
+
+.admin-block-preview__toolbar{
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--admin-sp-2) var(--admin-sp-4);
+}
+.admin-block-preview__toolbar[hidden]{ display: none; }
+
+/* Three real buttons with aria-pressed, drawn like the picker's Kaarten/Lijst
+   toggle: they decide how wide the frame is, nothing else. */
+.admin-block-preview__viewports{
+  display: inline-flex;
+  flex: none;
+  gap: 2px;
+  padding: 3px;
+  background: var(--admin-surface-sunken);
+  border: 1px solid var(--admin-border);
+  border-radius: var(--admin-radius-md);
+}
+
+.admin-block-preview__viewport{
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-height: 2rem;
+  padding: 0.25rem 0.7rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--admin-text-muted);
+  background: transparent;
+  border: 0;
+  border-radius: var(--admin-radius-sm);
+  cursor: pointer;
+  transition: color var(--admin-transition), background var(--admin-transition);
+}
+.admin-block-preview__viewport:hover{ color: var(--admin-text); background: var(--admin-hover-tint-strong); }
+.admin-block-preview__viewport[aria-pressed="true"]{ color: var(--admin-on-accent); background: var(--admin-accent); }
+.admin-block-preview__viewport svg{ flex: none; width: 16px; height: 16px; }
+
+.admin-block-preview__note{
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--admin-text-faint);
+}
+
+/* The frame is a viewport of its own: its width is what the site's media
+   queries answer to. Desktop fills the stage; tablet and phone are the
+   widths those devices commonly have, centred, and scroll sideways only when
+   the screen is narrower than the width chosen. */
+.admin-block-preview__stage{
+  display: flex;
+  flex: 1 1 auto;
+  justify-content: center;
+  min-height: 0;
+  overflow: auto;
+  background: var(--admin-surface-sunken);
+  border: 1px solid var(--admin-border);
+  border-radius: var(--admin-radius-md);
+}
+.admin-block-preview__stage[hidden]{ display: none; }
+
+.admin-block-preview__frame{
+  display: block;
+  flex: 1 1 auto;
+  width: 100%;
+  border: 0;
+  background: var(--admin-surface);
+}
+
+.admin-block-preview__stage[data-viewport="tablet"],
+.admin-block-preview__stage[data-viewport="mobile"]{ justify-content: safe center; padding: var(--admin-sp-3); }
+
+/* content-box: the width below is the width the site sees, the border comes
+   on top of it. */
+.admin-block-preview__stage[data-viewport="tablet"] .admin-block-preview__frame,
+.admin-block-preview__stage[data-viewport="mobile"] .admin-block-preview__frame{
+  box-sizing: content-box;
+  flex: none;
+  border: 1px solid var(--admin-border-strong);
+  border-radius: var(--admin-radius-md);
+  box-shadow: var(--admin-shadow-sm);
+}
+
+.admin-block-preview__stage[data-viewport="tablet"] .admin-block-preview__frame{ width: 768px; }
+.admin-block-preview__stage[data-viewport="mobile"] .admin-block-preview__frame{ width: 390px; }
+
+.admin-block-preview__fallback{
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--admin-sp-4);
+  padding: var(--admin-sp-5);
+  text-align: center;
+  background: var(--admin-surface-sunken);
+  border: 1px solid var(--admin-border);
+  border-radius: var(--admin-radius-md);
+}
+.admin-block-preview__fallback[hidden]{ display: none; }
+
+/* The card's own drawing, twice its size: the same shapes, not a new
+   picture. */
+.admin-block-preview__drawing .admin-block-visual{ width: 300px; max-width: 100%; zoom: 1.6; }
+
+.admin-block-preview__fallback-text{
+  max-width: 46ch;
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.55;
+  color: var(--admin-text-muted);
+}
+
+/* On a phone the dialog is the whole screen and the frame the whole width:
+   a tablet or desktop width cannot be shown there, so the choice goes. */
+@media (max-width: 720px){
+  .admin-block-preview{
+    width: 100vw;
+    height: 100vh;
+    height: 100dvh;
+    border: 0;
+    border-radius: 0;
+  }
+
+  .admin-block-preview__panel{ padding: var(--admin-sp-3); }
+  .admin-block-preview__viewports{ display: none; }
+  .admin-block-preview__stage[data-viewport]{ justify-content: center; padding: 0; }
+  .admin-block-preview__stage[data-viewport] .admin-block-preview__frame{ width: 100%; flex: 1 1 auto; border: 0; border-radius: 0; box-shadow: none; }
+}
+
 /* ====================================================================== *
    The save/status bar (admin/_save_bar.php)
  * ====================================================================== */

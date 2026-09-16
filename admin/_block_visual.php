@@ -15,7 +15,9 @@ use App\Service\Blocks\BlockPreview;
  * (BlockDefinition::preview(), validated against BlockPreview's closed
  * vocabulary), as plain boxes in the admin's own colours. It is NOT a preview
  * of the real frontend and must not grow into one — see BlockPreview's
- * docblock for why a screenshot would be the wrong answer here.
+ * docblock for why a screenshot would be the wrong answer here. The real
+ * block is shown by the library's preview dialog (admin/_block_library.php);
+ * that dialog also shows this drawing, larger, for a block without a sample.
  *
  * PURELY DECORATIVE. The whole figure is aria-hidden: everything it hints at
  * is written out in the block's label and description right next to it, so a

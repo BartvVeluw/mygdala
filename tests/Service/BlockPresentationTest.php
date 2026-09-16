@@ -267,7 +267,9 @@ final class BlockPresentationTest extends TestCase
      */
     public function testThePickerAndTheCatalogueDescribeBlocksOnlyFromTheirDefinitions(): void
     {
-        $screens = ['admin/_block_picker.php', 'admin/content-blocks.php'];
+        // The catalogue's cards are printed by admin/_block_library.php since
+        // it gained its preview; the screen itself only hands over the list.
+        $screens = ['admin/_block_picker.php', 'admin/_block_library.php'];
 
         foreach ($screens as $screen) {
             $source = $this->sourceOf($screen);
@@ -300,10 +302,20 @@ final class BlockPresentationTest extends TestCase
      */
     public function testTheCatalogueWritesNothing(): void
     {
-        $source = $this->sourceOf('admin/content-blocks.php');
+        foreach (['admin/content-blocks.php', 'admin/_block_library.php', 'admin/block-preview.php'] as $screen) {
+            $source = $this->sourceOf($screen);
 
-        $this->assertStringNotContainsString('<form', $source);
-        $this->assertStringNotContainsString('api/admin/', $source);
-        $this->assertStringContainsString("AdminAuth::requirePermission('pages.manage')", $source);
+            $this->assertStringNotContainsString('<form', $source, $screen);
+            $this->assertStringNotContainsString('api/admin/', $source, $screen);
+        }
+
+        foreach (['admin/content-blocks.php', 'admin/block-preview.php'] as $screen) {
+            $this->assertStringContainsString("AdminAuth::requirePermission('pages.manage')", $this->sourceOf($screen), $screen);
+        }
+
+        // What is listed is what is registered: the blocks of enabled modules alone.
+        $catalogue = $this->sourceOf('admin/content-blocks.php');
+        $this->assertStringContainsString('$definitions = BlockDefinitions::all();', $catalogue);
+        $this->assertStringContainsString('block_library($definitions);', $catalogue);
     }
 }

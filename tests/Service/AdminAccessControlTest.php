@@ -99,6 +99,11 @@ final class AdminAccessControlTest extends TestCase
         // picker and the Contentblokken catalogue. Two output functions over
         // constant, first-party markup; no URL, no data, nothing to guard.
         '_block_visual.php',
+        // The Contentblokken library's cards and its preview dialog, printed
+        // by admin/content-blocks.php behind that page's own pages.manage
+        // check. Output functions over the registered definitions; the frame
+        // it opens (admin/block-preview.php) guards itself.
+        '_block_library.php',
         // The page editor's save/status bar: markup plus one <script> tag.
         // It owns no fields and posts nothing — every save still goes through
         // the form's own guarded endpoint.

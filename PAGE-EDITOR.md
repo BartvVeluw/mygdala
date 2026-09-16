@@ -3,9 +3,9 @@
 Hoe een redacteur een pagina vult, en waarom die schermen zo in elkaar
 zitten: de **tabbladen** die het paginascherm in drie stukken knippen, de
 **inklapbare blokrijen** in de blokkenlijst, de **blokkenkiezer** waarmee je
-een contentblok toevoegt, de **Contentblokken-catalogus** die uitlegt wat elk
-blok doet, en de **opslagbalk** die op elk blok-editorscherm onderaan
-meeschuift.
+een contentblok toevoegt, de **Contentblokken-bibliotheek** die uitlegt wat elk
+blok doet en het met voorbeeldinhoud laat zien, en de **opslagbalk** die op
+elk blok-editorscherm onderaan meeschuift.
 
 Wat een blok zélf is — tabel, repository, inhoudsklasse, partial, editor,
 endpoint, definitie — staat in [`CONTENT-BLOCKS.md`](CONTENT-BLOCKS.md). Dit
@@ -18,12 +18,13 @@ document, dan heeft de code gelijk.
 |---|---|
 | Tabbladen (herbruikbaar) | `admin/_admin_tabs.php`, `admin/assets/admin-tabs.js`, CSS in `admin/assets/admin.css` (`.admin-tabs*`). Gebruikt door `admin/page.php` en `admin/settings.php` |
 | Inklapbare rijen (herbruikbaar) | `admin/_admin_collapse.php`, `admin/assets/admin-collapse.js`, CSS `.admin-collapse*`. Gebruikt door de blokkenlijst op `admin/page.php` |
-| Presentatie-metadata van een blok | `src/Service/Blocks/BlockDefinition.php` (`label()`, `description()`, `category()`, `icon()`, `preview()`, `useCases()`), `BlockCategories.php`, `BlockPreview.php` |
+| Presentatie-metadata van een blok | `src/Service/Blocks/BlockDefinition.php` (`label()`, `description()`, `category()`, `icon()`, `preview()`, `useCases()`, `sampleContent()`, `renderSample()`), `BlockCategories.php`, `BlockPreview.php`, `BlockSamples.php` |
 | Blokkenkiezer | `admin/_block_picker.php`, `admin/assets/block-picker.js`, gebruikt door `admin/page.php` |
 | Schematische tekening en pictogram | `admin/_block_visual.php`, CSS in `admin/assets/admin.css` (`.admin-block-visual`, `.admin-bp--*`) |
-| Catalogus | `admin/content-blocks.php` (menu-item `content_blocks` in `App\Service\AdminNavigation`) |
+| Bibliotheek | `admin/content-blocks.php` (menu-item `content_blocks` in `App\Service\AdminNavigation`), `admin/_block_library.php`, `admin/assets/block-library.js`, CSS `.admin-catalogue-*` en `.admin-block-preview*` |
+| Voorbeeld van één blok | `admin/block-preview.php`, `assets/css/block-preview.css`, `assets/js/block-preview.js`, `assets/images/block-preview/sample.svg` |
 | Opslagbalk | `admin/_save_bar.php`, `admin/assets/save-bar.js`, aangeroepen door `admin/page.php`, elke blok-editor, `admin/settings.php` en `admin/shop-settings.php` |
-| Tests | `tests/Service/BlockPresentationTest.php`, `tests/Service/BlockPickerTest.php`, `tests/Service/AdminEditorNavigationTest.php`, `tests/Service/PageBuilderScreenTest.php` |
+| Tests | `tests/Service/BlockPresentationTest.php`, `tests/Service/BlockPickerTest.php`, `tests/Service/BlockLibraryScreenTest.php`, `tests/Service/BlockSampleContractTest.php`, `tests/Service/BlockPreviewContractTest.php`, `tests/Service/BlockPreviewAccessTest.php`, `tests/Service/AdminEditorNavigationTest.php`, `tests/Service/PageBuilderScreenTest.php` |
 
 ## Tabbladen op de paginabouwer
 
@@ -204,6 +205,8 @@ niet kan vergeten — en twee hebben een veilige standaard:
 | `icon()` | De *binnenkant* van een 24x24 stroke-`<svg>`, net als de sidebar-iconen en de sjabloonkaarten | ja |
 | `preview()` | Vormen uit de gesloten lijst in `BlockPreview` — "een kop, dan drie kolommen" | nee (leeg = alleen het pictogram) |
 | `useCases()` | Twee tot vier concrete situaties, als korte woordgroepen. De catalogus toont ze onder "Geschikt voor"; de kiezer zoekt erop en toont er één alleen zolang een zoekterm erop past | nee |
+| `sampleContent()` | De inhoud waarmee de bibliotheek het blok laat zien: dezelfde vorm die `render()` aan de partial geeft, gemaakt van de woorden in `BlockSamples`. `null` betekent geen voorbeeld | nee, maar `BlockSampleContractTest` eist er een of een gedocumenteerde uitzondering |
+| `renderSample()` | Roept met die inhoud dezelfde partial aan als `render()` | hoort bij `sampleContent()` |
 
 **Eén bron, twee schermen.** De kiezer en de catalogus lezen allebei van de
 definitie; geen van beide bevat een letter blokbeschrijving.
@@ -223,6 +226,12 @@ definitie noemt daarom vormen uit een gesloten lijst
 tekent die als vakjes in de kleuren van het CMS. Het antwoordt op "wat krijg
 ik ongeveer?", niet op "hoe ziet het er precies uit". De tekening is
 `aria-hidden`: alles wat ze suggereert staat er in woorden naast.
+
+"Hoe ziet het er precies uit" beantwoordt de bibliotheek, en ook daar met
+geen foto: *Voorbeeld bekijken* toont het echte blok in het thema van deze
+site, met voorbeeldinhoud (zie hieronder). De tekening blijft op de kaarten
+staan, omdat twintig echte blokken in een raster te zwaar en te klein zijn om
+tussen te kiezen.
 
 **Categorieën** staan in `BlockCategories`, gesloten en op volgorde: *Kop van
 de pagina*, *Content*, *Beeld & media*, *Actie & interactie*, *Shop*. Een
@@ -314,18 +323,115 @@ bij de mediakiezer en het slepen van blokken: het adminpaneel gaat uit van
 JavaScript. Er is bewust geen `<noscript>`-dropdown teruggezet, want dat zou
 de tweede manier van toevoegen zijn die deze stap juist opruimde.
 
-## De Contentblokken-catalogus
+## De Contentblokken-bibliotheek
 
 `Beheer → Contentblokken` (`admin/content-blocks.php`) is documentatie in het
-CMS: per categorie een kaart per blok met de schets, de naam, de beschrijving
-en "Geschikt voor". Er staat geen enkel formulier op — het scherm maakt,
+CMS: per categorie een kaart per blok met de schets, de categorie, de naam met
+het pictogram, de beschrijving, "Geschikt voor" en de knop *Voorbeeld
+bekijken*. De kaarten drukt `admin/_block_library.php` af, uit dezelfde
+definitie als de kiezer. Er staat geen enkel formulier op — het scherm maakt,
 wijzigt en verwijdert niets, en is dus ook geen tweede, zwakkere weg naar de
 schrijf-endpoints. Blokken die je niet zelf plaatst (de vaste blokken) dragen
 het label *Staat er automatisch* en verwijzen naar het beheerscherm dat hun
 inhoud wél bezit.
 
 Het menu-item hangt aan `pages.manage`: wie een pagina mag bouwen mag lezen
-waar de bouwstenen voor dienen.
+waar de bouwstenen voor dienen, en ze bekijken.
+
+```text
+Kop van de pagina · Paginakop                                  [×]
+De kop van een gewone pagina: de paginatitel, met naar keuze …
+[ Desktop | Tablet | Mobiel ]   Met voorbeeldtekst, in de opmaak van je eigen site.
+┌──────────────────────────────────────────────────────────────┐
+│  het echte blok, in een eigen frame                          │
+└──────────────────────────────────────────────────────────────┘
+```
+
+### Het voorbeeld is het echte blok
+
+*Voorbeeld bekijken* opent een dialoog met het blok zoals een bezoeker het
+ziet: de eigen partial van het blok, zijn eigen CSS en JS, na `core.css` en
+met het thema van deze installatie ([`THEMING.md`](THEMING.md)). Alleen de
+woorden en het beeld zijn voorbeeld. Wie een partial of een blokstylesheet
+wijzigt, ziet dat meteen in het voorbeeld; er is geen foto die veroudert en
+geen tweede versie van de markup.
+
+| Stuk | Wat het doet |
+|---|---|
+| `BlockDefinition::sampleContent()` | Geeft inhoud in precies de vorm die `render()` aan de partial geeft, gemaakt van woorden uit `BlockSamples`. Staat in de definitie, dus een blok van een module brengt zijn voorbeeld zelf mee en Core noemt geen modulebloktype |
+| `BlockDefinition::renderSample()` | Roept met die inhoud dezelfde partial aan als `render()`. Wat `render()` vooraf opzoekt (de positie van een detailsectie, de toestand van een formulier) krijgt hier een vaste waarde |
+| `App\Service\Blocks\BlockSamples` | Álle voorbeeldwoorden, in het Nederlands en het Engels, het ene voorbeeldbeeld (`assets/images/block-preview/sample.svg`), de link `#voorbeeld`, voorbeeld-rich-text en een formulier dat alleen in het geheugen bestaat |
+| `admin/block-preview.php?type=<type>` | Het document in het frame: de assets van het blok via `SectionRegistry::collectBlockAssets()` (dezelfde aanroep als voor een pagina), dan het blok |
+
+**Voorbeeldinhoud is geen fallback.** Niets aan de publieke kant leest
+`BlockSamples`: een blok zonder opgeslagen rij rendert nog steeds niets
+([`CONTENT-BLOCKS.md`](CONTENT-BLOCKS.md)). De woorden zeggen alleen iets over
+het blok zelf — geen bedrijf, geen product, geen prijs, geen belofte, geen
+bereikbaar adres (het e-mailadres staat op `example.com`).
+
+**Waarom de partials alleen renderen.** Vier partials zochten vroeger zelf op
+wat ze toonden: het formulier en de contactgegevens (`form`, `contact_form`),
+de collecties (`shop_collections`) en de ankers (`quicknav`). Dat opzoeken
+doet nu de `render()` van hun definitie, zodat de partial zijn inhoud als
+argument krijgt en het voorbeeld dezelfde partial kan gebruiken. Op de site
+verandert er niets.
+
+### Een blok zonder voorbeeld
+
+Het *Productoverzicht* van de Shop heeft geen voorbeeld. Zijn kaarten staan
+niet in zijn markup: `assets/js/shop/shop.js` bouwt ze uit `/api/products.php`,
+dus met voorbeeldinhoud valt er niets te tonen, en echte producten zouden het
+voorbeeld afhankelijk maken van de winkel. De dialoog toont dan de schets
+groot met één zin uitleg, nooit een leeg frame.
+`BlockSampleContractTest::WITHOUT_SAMPLE` noemt het en zegt waarom; een nieuw
+blok zonder voorbeeld laat de build falen tot het daar ook staat.
+
+### Wat een voorbeeld nooit doet
+
+| Vraag | Antwoord |
+|---|---|
+| Wie ziet het? | Alleen wie ingelogd is en `pages.manage` heeft, net als de paginabouwer. Het adres staat onder `/admin/`; niets publieks leest een voorbeeldparameter |
+| Welk blok? | Het type raakt of mist een sleutel van het register. Onbekend, misvormd, zonder voorbeeld of van een uitgeschakelde module: 404 |
+| Schrijft het iets? | Nee. Er wordt geen pagina en geen blokrij gelezen en niets geschreven; alleen het thema en de talen van de site worden gelezen, zodat het blok eruitziet als op de site. `BlockPreviewAccessTest` vergelijkt een checksum van elke tabel voor en na |
+| Zoekmachines, caches, statistiek? | `noindex` in de head, `X-Robots-Tag: noindex, nofollow`, `Cache-Control: private, no-store`. Geen header, dus geen paginaweergave (`PageViewTracker`), en geen cookiebanner over het blok |
+| Kan een formulier iets versturen? | Nee, vier keer niet: de `Content-Security-Policy` zegt `form-action 'none'`, het frame heeft geen `allow-forms`, `assets/js/block-preview.js` houdt de submit tegen vóór `form.js` hem met `fetch()` zou versturen, en het voorbeeldformulier heeft een sleutel (`BlockSamples::FORM_KEY`) die geen opgeslagen formulier kan hebben |
+| Kan een link ergens heen? | Nee. Elke voorbeeldlink wijst naar `#voorbeeld`, de klik wordt tegengehouden, en het frame mag de CMS eromheen niet navigeren en geen venster openen |
+| Kan een ander de pagina inlijsten? | Nee: `frame-ancestors 'self'` |
+
+Wat wél draait, zijn de scripts van het blok zelf: een carrousel draait, een
+galerij filtert en vergroot, een woordenband schuift.
+
+### De dialoog
+
+Een native `<dialog>` met `showModal()`, net als de bevestigingsdialoog
+([`ADMIN-UI.md`](ADMIN-UI.md)) maar een eigen: die vraagt ja of nee over een
+formulier, deze laat iets groots zien. De kop, de beschrijving en de categorie
+komen als tekst van de kaart die hem opende; `admin/assets/block-library.js`
+heeft geen woorden van zichzelf.
+
+- **Openen** zet de focus op *Sluiten*. De pagina erachter is inert en Tab
+  blijft in de dialoog.
+- **Sluiten** kan met de knop, met Escape (ook als de focus ín het voorbeeld
+  staat) en met een klik naast de dialoog. Het frame gaat terug naar
+  `about:blank`, zodat een carrousel stopt, en de focus staat weer op de knop
+  die opende.
+- **Desktop, Tablet en Mobiel** veranderen alleen de breedte van het frame
+  (vol, 768 px, 390 px). Het frame is een eigen viewport, dus de media queries
+  van de site doen de rest. De keuze geldt zolang het scherm open is.
+- **Op een telefoon** vult de dialoog het scherm en het frame de hele breedte;
+  de breedteknoppen vallen weg.
+
+Waarom een frame en geen markup in het CMS-scherm: `admin.css` en `core.css`
+stylen dezelfde elementen, dus het ene op de pagina van het andere breekt
+beide, en alleen een frame met een eigen breedte laat de media queries van de
+site een tablet of een telefoon zien.
+
+### Modules
+
+De bibliotheek toont `BlockDefinitions::all()`: de blokken van Core en van
+de ingeschakelde modules. Staat Portfolio uit, dan zijn *Projecten* en zijn
+voorbeeld er niet; staat de Shop uit, dan verdwijnen haar blokken en de kop
+*Shop*.
 
 ## De opslagbalk
 
@@ -453,7 +559,10 @@ beschrijft — inclusief `description()`, `category()` en `icon()`, want die
 zijn `abstract` — registreer hem met één regel, en:
 
 - de kaart verschijnt in de kiezer op elke pagina waar het blok mag;
-- de catalogus toont hem onder zijn categorie;
+- de bibliotheek toont hem onder zijn categorie, en met *Voorbeeld bekijken*
+  zodra de definitie `sampleContent()` en `renderSample()` heeft —
+  `BlockSampleContractTest` faalt zolang een nieuw blok geen voorbeeld heeft
+  en ook niet als uitzondering genoemd is;
 - de blok-editor krijgt de opslagbalk zodra hij `_save_bar.php` insluit
   (`save_bar()` na `</main>`, `save_bar_script()` vóór `</body>`) —
   `Tests\Service\BlockPickerTest` faalt als een editor die vanaf de
@@ -485,6 +594,25 @@ verborgen voorbeelden — en leest daarnaast de bron van `block-picker.js` (de
 bewaarde weergave, het filteren), van `save-bar.js` en van elke blok-editor.
 Wat een klik doet, loop je na in de browser. Zie verder
 [`TESTING.md`](TESTING.md).
+
+De bibliotheek heeft vier eigen tests:
+
+- **`BlockLibraryScreenTest`** rendert kaarten en dialoog in-process en leest
+  de bron van `block-library.js`.
+- **`BlockSampleContractTest`** loopt over élk geregistreerd type:
+  - een voorbeeld, of een genoemde uitzondering;
+  - dezelfde partial als `render()`, zonder ontbrekende sleutel;
+  - elk voorbeeldwoord ge-escaped;
+  - geen sitenaam, prijs of bereikbaar adres, en elke link een fragment;
+  - niets dan `BlockSamples`, en niets publieks dat een voorbeeld kan bereiken.
+- **`BlockPreviewContractTest`** leest de bron van `admin/block-preview.php`
+  en `block-preview.js`.
+- **`BlockPreviewAccessTest`** (suites `blocks` en `cms`) bewijst over echt
+  HTTP:
+  - de guard, de headers en de 404's;
+  - een uitgeschakelde module;
+  - "schrijft niets" met een checksum van elke tabel;
+  - dat het voorbeeldformulier met de hand verstuurd niets bereikt.
 
 `PageBuilderScreenTest` (suites `blocks` en `cms`) rendert het echte
 paginascherm over HTTP, met PHP's eigen webserver, en gebruikt het zoals een

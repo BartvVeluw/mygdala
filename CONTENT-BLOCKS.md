@@ -116,7 +116,12 @@ geen gedeeld bestand meer waarin je op zeven plekken per type moet uitsplitsen:
    `render_section_<type>(array $content, ...)`. De aanroeper heeft
    `STATE_HIDDEN` al afgevangen; de partial zorgt zelf dat lege inhoud geen
    gat achterlaat. URL's root-relatief (`/assets/…`), alle output door
-   `htmlspecialchars()`.
+   `htmlspecialchars()`. **Een partial rendert alleen:** wat hij toont komt
+   binnen als argument. Moet er iets opgezocht worden (een formulier, een
+   instelling, een afgeleide lijst), dan doet de `render()` van de definitie
+   dat en geeft het door. Alleen zo kan de Contentblokken-bibliotheek dezelfde
+   partial met voorbeeldinhoud aanroepen (`partials/section-form.php` is het
+   voorbeeld).
 5. **Admin-editor** — `admin/<type>.php`, leest `?section=<slug>:<key>`.
 6. **Endpoint(s)** — `api/admin/update-<type>.php`, in deze volgorde:
    `AdminAuth::requireLoginForApi()`, `AdminAuth::requirePermissionForApi('pages.manage')`,
@@ -147,6 +152,12 @@ geen gedeeld bestand meer waarin je op zeven plekken per type moet uitsplitsen:
    schets op de blokkaart wordt getekend, uit de gesloten lijst in
    `BlockPreview`) en `useCases()` (twee tot vier voorbeeldsituaties: de
    catalogus toont ze, de blokkenkiezer zoekt erop),
+   `sampleContent()` en `renderSample()` (het voorbeeld in de
+   Contentblokken-bibliotheek: inhoud in de vorm die `render()` aan je partial
+   geeft, gemaakt van de woorden in `App\Service\Blocks\BlockSamples`, en
+   dezelfde partial-aanroep ermee — zie [`PAGE-EDITOR.md`](PAGE-EDITOR.md);
+   `BlockSampleContractTest` faalt zolang een blok er geen heeft en ook niet
+   als uitzondering genoemd is),
    `deleteFiles()` (alleen als het blok
    nog *eigen* uploads heeft — vóór de transactie, gescoopt op déze
    instantie; een blok dat de Mediabibliotheek gebruikt laat hem leeg, want
@@ -379,7 +390,10 @@ voorbeeld.
 `tests/Service/BlockDefinitionContractTest.php` loopt automatisch over élk
 geregistreerd type, dus je nieuwe blok wordt daar meegenomen zodra het in
 `BlockDefinitions` staat — zonder dat je die test aanpast. Faalt hij, dan mist
-je definitie iets uit het contract.
+je definitie iets uit het contract. `tests/Service/BlockSampleContractTest.php`
+doet hetzelfde voor het voorbeeld: het rendert je `sampleContent()` door je
+eigen partial en faalt op een ontbrekende sleutel, een onge-escapet woord of
+een link die de preview uit kan.
 
 ## Waarom het register geen bloktypes meer kent
 

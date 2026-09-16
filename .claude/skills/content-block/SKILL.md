@@ -85,6 +85,11 @@ en `GenericBlockDefaultsTest` bewaken beide.
   voor DOM-id's en blok-JS.
 - **Een onbekend bloktype is geen fout**: de sectie wordt overgeslagen en de
   rest van de pagina rendert normaal.
+- **Een partial rendert alleen, en een blok heeft een voorbeeld.** Wat de
+  partial toont komt als argument binnen; opzoeken doet `render()`. Schrijf
+  `sampleContent()` (woorden uit `BlockSamples`, in de vorm van je
+  `*Content`) en `renderSample()` (dezelfde partial-aanroep), zodat de
+  Contentblokken-bibliotheek het echte blok laat zien (`PAGE-EDITOR.md`).
 
 ## Testen
 
@@ -93,5 +98,5 @@ docker compose exec php_test php vendor/bin/phpunit --testsuite blocks
 ```
 
 `Tests\Service\BlockPresentationTest` faalt zodra een blok zijn presentatie
-niet beschrijft, en `FrontendAssetOwnershipTest` zodra een asset geen eigenaar
-heeft.
+niet beschrijft, `BlockSampleContractTest` zodra het geen bruikbaar voorbeeld
+heeft, en `FrontendAssetOwnershipTest` zodra een asset geen eigenaar heeft.

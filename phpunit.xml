@@ -102,6 +102,7 @@
             <file>tests/Service/AdminUiPrimitivesTest.php</file>
             <file>tests/Service/AdminThemeContractTest.php</file>
             <file>tests/Service/BlockDefinitionContractTest.php</file>
+            <file>tests/Service/BlockLibraryScreenTest.php</file>
             <file>tests/Service/BlockPickerTest.php</file>
             <file>tests/Service/BlockPreviewContractTest.php</file>
             <file>tests/Service/BlockSampleContractTest.php</file>
@@ -174,6 +175,7 @@
             <file>tests/Service/Analytics/PageViewTrackerTest.php</file>
             <file>tests/Service/AppUrlTest.php</file>
             <file>tests/Service/BlockDefinitionContractTest.php</file>
+            <file>tests/Service/BlockLibraryScreenTest.php</file>
             <file>tests/Service/BlockPickerTest.php</file>
             <file>tests/Service/BlockPreviewContractTest.php</file>
             <file>tests/Service/BlockSampleContractTest.php</file>
@@ -313,6 +315,7 @@
         <testsuite name="blocks">
             <file>tests/Repository/PageSectionRepositoryTest.php</file>
             <file>tests/Service/BlockDefinitionContractTest.php</file>
+            <file>tests/Service/BlockLibraryScreenTest.php</file>
             <file>tests/Service/BlockPickerTest.php</file>
             <file>tests/Service/BlockPreviewAccessTest.php</file>
             <file>tests/Service/BlockPreviewContractTest.php</file>

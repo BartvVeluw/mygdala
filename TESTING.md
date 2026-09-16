@@ -356,28 +356,38 @@ de tests maken wegwerp-pagina's aan die de webserver moet kunnen zien.
 
 **Wijziging aan de paginabouwer**
 
-De blokkenkiezer, de Contentblokken-catalogus, de presentatie-metadata van een
-blok of de opslagbalk ([`PAGE-EDITOR.md`](PAGE-EDITOR.md)):
+De blokkenkiezer, de Contentblokken-bibliotheek en haar voorbeelden, de
+presentatie-metadata van een blok of de opslagbalk
+([`PAGE-EDITOR.md`](PAGE-EDITOR.md)):
 
 ```
 --testsuite fast        BlockPresentationTest (elk geregistreerd blok heeft
                         een naam, een beschrijving, een categorie en een
-                        pictogram, en toont nergens een interne sleutel) en
+                        pictogram, en toont nergens een interne sleutel),
                         BlockPickerTest (het kiezerspaneel, in-process
                         gerenderd, plus de bron van save-bar.js en van elke
-                        blok-editor) — database noch webserver nodig
---testsuite blocks      dezelfde twee, plus ContentBlockArchitectureTest:
+                        blok-editor), BlockLibraryScreenTest (kaarten en
+                        voorbeelddialoog, in-process), BlockSampleContractTest
+                        (elk blok een voorbeeld door zijn eigen partial,
+                        ge-escaped, zonder sitetekst) en
+                        BlockPreviewContractTest (de bron van
+                        admin/block-preview.php) — geen webserver nodig
+--testsuite blocks      dezelfde vijf, plus ContentBlockArchitectureTest:
                         één lijst, één toevoegknop, en die staat ónder de
-                        blokken; en PageBuilderScreenTest: het echte
+                        blokken; PageBuilderScreenTest: het echte
                         paginascherm over php -S (een lege pagina en haar
                         uitnodiging, Verbergen/Tonen, Verwijderen met zijn
-                        vraag, herordenen) — ook in cms
+                        vraag, herordenen); en BlockPreviewAccessTest: het
+                        voorbeeld van elk blok over php -S (guard, headers,
+                        404's, een uitgeschakelde module, niets geschreven)
+                        — die twee ook in cms
 --testsuite modules     bewijst dat de blokken van de Shop met hun module
                         mee komen en gaan, ook in de catalogus
 ```
 
 Voeg je een blok toe, dan hoef je aan deze tests niets te doen:
-`BlockPresentationTest` loopt over élk geregistreerd type.
+`BlockPresentationTest` en `BlockSampleContractTest` lopen over élk
+geregistreerd type.
 
 **Wijziging aan paginasjablonen**
 
@@ -632,16 +642,19 @@ Is die server niet bereikbaar, dan slaan deze tests zichzelf over met een
 melding die het startcommando noemt — ze falen nooit om de verkeerde reden.
 Vanaf je eigen machine is dezelfde site te zien op de poort die `docker compose port php_test 80` noemt.
 
-**Vijf HTTP-tests hebben de testcontainer niet nodig.** `PagePreviewAccessTest`
+**Zes HTTP-tests hebben de testcontainer niet nodig.** `PagePreviewAccessTest`
 (suite `cms`), `PageBuilderScreenTest` (suites `blocks` en `cms`),
 `MediaUsageAccessTest` (suite `cms`), `PortfolioModuleHttpTest` (suite
-`modules`) en `PortfolioItemEditingHttpTest` (suite `cms`) starten voor de duur
+`modules`), `PortfolioItemEditingHttpTest` (suite `cms`) en
+`BlockPreviewAccessTest` (suites `blocks` en `cms`) starten voor de duur
 van de klasse PHP's eigen webserver (`php -S`) op deze uitchecking, tegen de
 testdatabase, en loggen een beheerder in met een echte sessie. De twee
-Portfolio-tests doen dat met `Tests\Support\BuiltInServer`, dat de server ook
-een eigen omgeving kan meegeven, zoals een moduleschakelaar. Dat kan omdat
-niets van de conceptpreview, de paginabouwer, de mediabibliotheek of het
-Portfolio-beheer in Apache zit: `admin/page-preview.php`, `admin/page.php`,
+Portfolio-tests en `BlockPreviewAccessTest` doen dat met
+`Tests\Support\BuiltInServer`, dat de server ook een eigen omgeving kan
+meegeven, zoals een moduleschakelaar, en dat de headers van een antwoord
+teruggeeft. Dat kan omdat niets van de conceptpreview, het blokvoorbeeld,
+de paginabouwer, de mediabibliotheek of het Portfolio-beheer in Apache zit:
+`admin/page-preview.php`, `admin/block-preview.php`, `admin/page.php`,
 `admin/media.php`, `admin/portfolio-item.php` en de endpoints onder
 `api/admin/` zijn gewone bestanden, en `pagina.php`, `portfolio-detail.php` en
 `sitemap.php` worden rechtstreeks aangesproken. De rewrite zelf blijft de zaak
