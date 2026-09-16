@@ -397,9 +397,13 @@ blok zonder voorbeeld laat de build falen tot het daar ook staat.
 | Kan een formulier iets versturen? | Nee, vier keer niet: de `Content-Security-Policy` zegt `form-action 'none'`, het frame heeft geen `allow-forms`, `assets/js/block-preview.js` houdt de submit tegen vóór `form.js` hem met `fetch()` zou versturen, en het voorbeeldformulier heeft een sleutel (`BlockSamples::FORM_KEY`) die geen opgeslagen formulier kan hebben |
 | Kan een link ergens heen? | Nee. Elke voorbeeldlink wijst naar `#voorbeeld`, de klik wordt tegengehouden, en het frame mag de CMS eromheen niet navigeren en geen venster openen |
 | Kan een ander de pagina inlijsten? | Nee: `frame-ancestors 'self'` |
+| Kan een script in het voorbeeld bij het CMS? | Nee. Het frame heeft `sandbox="allow-scripts"` en bewust **geen** `allow-same-origin`, dus het voorbeeld draait in een eigen, ondoorzichtige origin: geen toegang tot het CMS-scherm eromheen, tot de sessiecookie of tot de opslag van het CMS. `BlockLibraryScreenTest` faalt als `allow-same-origin` terugkomt |
 
 Wat wél draait, zijn de scripts van het blok zelf: een carrousel draait, een
-galerij filtert en vergroot, een woordenband schuift.
+galerij filtert en vergroot, een woordenband schuift. Geen blok heeft daar de
+origin van het CMS voor nodig: stylesheets, beelden en scripts laden als
+gewone verzoeken, en waar een blokscript `localStorage` gebruikt (de taal in
+`core.js`, de winkelwagen in `cart.js`) vangt het een geweigerde opslag al af.
 
 ### De dialoog
 
@@ -412,7 +416,9 @@ heeft geen woorden van zichzelf.
 - **Openen** zet de focus op *Sluiten*. De pagina erachter is inert en Tab
   blijft in de dialoog.
 - **Sluiten** kan met de knop, met Escape (ook als de focus ín het voorbeeld
-  staat) en met een klik naast de dialoog. Het frame gaat terug naar
+  staat: `block-preview.js` stuurt dan één vast bericht naar het CMS, en
+  `block-library.js` neemt het alleen van dát frame aan) en met een klik naast
+  de dialoog. Het frame gaat terug naar
   `about:blank`, zodat een carrousel stopt, en de focus staat weer op de knop
   die opende.
 - **Desktop, Tablet en Mobiel** veranderen alleen de breedte van het frame
@@ -603,7 +609,10 @@ De bibliotheek heeft vier eigen tests:
   - een voorbeeld, of een genoemde uitzondering;
   - dezelfde partial als `render()`, zonder ontbrekende sleutel;
   - elk voorbeeldwoord ge-escaped;
-  - geen sitenaam, prijs of bereikbaar adres, en elke link een fragment;
+  - geen sitenaam, prijs of bereikbaar adres in de voorbeeldwoorden, en geen
+    sitegebonden tekst (naam, plaats, contactbelofte) in wat de partial er
+    zelf omheen print;
+  - elke link een fragment;
   - niets dan `BlockSamples`, en niets publieks dat een voorbeeld kan bereiken.
 - **`BlockPreviewContractTest`** leest de bron van `admin/block-preview.php`
   en `block-preview.js`.

@@ -404,10 +404,12 @@ woord staat nergens in een renderer of een controller, en
 Wat het blok zelf houdt zijn de twee dingen die een generiek formulierblok
 niet hoort te hebben:
 
-- **de kaart "Direct contact"** ernaast, die het e-mailadres en de
-  werkplaatsplaats uit Site-instellingen toont en de tweede kolom van het
-  raster vult. Beide zijn daar optioneel; een regel zonder waarde wordt
-  weggelaten;
+- **de kaart "Direct contact"** ernaast, die het e-mailadres en de plaats
+  (of regio) uit Site-instellingen toont en de tweede kolom van het raster
+  vult. Beide zijn daar optioneel; een regel zonder waarde wordt weggelaten.
+  De kaart zegt verder niets over het bedrijf: een belofte als een
+  reactietijd of "ophalen op afspraak" is inhoud zonder veld, en staat er
+  dus niet;
 - **de optionele bijlage**. Forms V1 heeft geen uploadveld en de
   formulierbouwer kan er geen maken — maar deze site accepteert al jaren een
   foto of pdf bij een offerteaanvraag, en dat weghalen zou een regressie zijn,

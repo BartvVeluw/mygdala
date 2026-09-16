@@ -62,6 +62,28 @@ final class BlockSampleContractTest extends TestCase
         '/\bbeste\b|\bbest\b|nummer 1|number one|#1/u', '/\d+\s*%/u',
     ];
 
+    /**
+     * Copy of one particular site that a PARTIAL could print around a sample:
+     * the name, the city and the machines of the site this CMS grew out of,
+     * and the contact promises its contact card once hardcoded. Phrases and
+     * names, deliberately not ordinary words, so a generic label never trips
+     * it. Matched case-insensitively against the text a visitor would read or
+     * hear, not against class names.
+     */
+    private const RENDERED_SITE_COPY = [
+        'van veluw', 'vanveluw', 'laserdesign', 'lasergravure', 'nijmegen', 'mopa',
+        'werkplaats', 'ophalen op afspraak', 'pickup by appointment',
+        'reactietijd', 'binnen enkele werkdagen', 'within a few business days',
+        'logo of ontwerp', 'logo or design',
+    ];
+
+    /** The attributes that carry words (the language switch swaps these). */
+    private const WORD_ATTRIBUTES = [
+        'alt', 'title', 'placeholder', 'aria-label',
+        'data-nl', 'data-en', 'data-nl-alt', 'data-en-alt', 'data-nl-aria', 'data-en-aria',
+        'data-nl-placeholder', 'data-en-placeholder', 'data-form-success-nl', 'data-form-success-en',
+    ];
+
     private const ESCAPE_MARKER = '<b data-sample-escape="1">';
 
     protected function setUp(): void
@@ -324,6 +346,81 @@ final class BlockSampleContractTest extends TestCase
                 }
             }
         }
+    }
+
+    /**
+     * The text a visitor would read or hear in a rendered block: its text
+     * nodes and every word-carrying attribute, both languages.
+     */
+    private static function renderedWords(string $html): string
+    {
+        $document = new \DOMDocument();
+        $previous = libxml_use_internal_errors(true);
+        $document->loadHTML('<?xml encoding="utf-8"?><div>' . $html . '</div>', LIBXML_HTML_NOIMPLIED | LIBXML_HTML_NODEFDTD);
+        libxml_clear_errors();
+        libxml_use_internal_errors($previous);
+
+        $xpath = new \DOMXPath($document);
+        $words = [];
+
+        foreach ($xpath->query('//text()') ?: [] as $node) {
+            $words[] = $node->textContent;
+        }
+
+        foreach (self::WORD_ATTRIBUTES as $attribute) {
+            foreach ($xpath->query('//@' . $attribute) ?: [] as $node) {
+                $words[] = $node->textContent;
+            }
+        }
+
+        return mb_strtolower(implode(' ', $words));
+    }
+
+    /**
+     * Not only the samples: what the block's own partial prints around them
+     * must be neutral too. A partial that hardcodes one site's name, city or
+     * contact promises (the "Direct contact" card once said "Werkplaats —
+     * ophalen op afspraak" and "Meestal binnen enkele werkdagen") would show
+     * it on every installation, preview and live site alike.
+     *
+     * @dataProvider registeredTypes
+     */
+    public function testTheRenderedPreviewCarriesNoCopyOfOneParticularSite(string $type): void
+    {
+        $definition = self::definition($type);
+        $sample = $definition->sampleContent(new BlockSamples());
+
+        if ($sample === null) {
+            $this->assertArrayHasKey($type, self::WITHOUT_SAMPLE);
+
+            return;
+        }
+
+        $words = self::renderedWords(self::render($definition, $sample));
+        $this->assertNotSame('', trim($words), "{$type} renders no words, so this test proves nothing about it");
+
+        foreach (self::RENDERED_SITE_COPY as $copy) {
+            $this->assertStringNotContainsString($copy, $words, "{$type}'s rendered preview says \"{$copy}\"");
+        }
+    }
+
+    /**
+     * The contact card is where such copy lived, so the scan above must really
+     * see it: with both details filled in, every line of the card renders.
+     */
+    public function testTheContactCardIsPartOfWhatTheNeutralityScanReads(): void
+    {
+        $definition = self::definition('contact_form');
+        $sample = $definition->sampleContent(new BlockSamples());
+        $this->assertIsArray($sample);
+
+        $words = self::renderedWords(self::render($definition, $sample));
+
+        $this->assertStringContainsString('direct contact', $words);
+        $this->assertStringContainsString(BlockSamples::EMAIL, $words);
+        $this->assertStringContainsString('voorbeeldstad', $words);
+        $this->assertStringContainsString('plaats', $words, 'the city sits under a generic label');
+        $this->assertStringContainsString('bijlage', $words, 'the attachment control is part of the sample');
     }
 
     /**

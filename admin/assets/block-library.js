@@ -130,22 +130,15 @@
   dialog.addEventListener("cancel", finish);
 
   // With the focus inside the preview (a question of a FAQ, a field of a
-  // form) Escape reaches the frame's document and never this dialog, so the
-  // frame is taught the same key. It is on this CMS's own origin, and the
-  // preview document itself stays free of anything about this dialog.
-  frame.addEventListener("load", function () {
-    var framed;
-    try {
-      framed = frame.contentDocument;
-    } catch (error) {
-      return;
-    }
-
-    if (!framed || frame.getAttribute("src") === "about:blank") return;
-
-    framed.addEventListener("keydown", function (event) {
-      if (event.key === "Escape" && dialog.open) close();
-    });
+  // form) Escape reaches the frame's document and never this dialog. The
+  // frame runs in an opaque origin of its own (no allow-same-origin), so this
+  // screen cannot listen inside it; assets/js/block-preview.js posts one fixed
+  // message instead. Only a message from THIS frame's window counts, and it
+  // can do nothing but close the dialog.
+  window.addEventListener("message", function (event) {
+    if (event.source !== frame.contentWindow) return;
+    if (!event.data || event.data.mygdalaBlockPreview !== "escape") return;
+    if (dialog.open) close();
   });
 
   // A close event that arrives after the dialog was already opened again

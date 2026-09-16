@@ -150,6 +150,14 @@ final class BlockPreviewContractTest extends TestCase
         $this->assertStringNotContainsString('fetch(', $code);
         $this->assertStringNotContainsString('innerHTML', $code);
 
+        // The one thing that leaves the frame: Escape, as a fixed message to
+        // the parent, addressed to this site's own origin and never to "*".
+        $this->assertSame(1, substr_count($code, 'postMessage('), 'the preview sends exactly one kind of message');
+        $this->assertStringContainsString('window.parent.postMessage({ mygdalaBlockPreview: "escape" }, window.location.protocol + "//" + window.location.host);', $code);
+        $this->assertStringNotContainsString('"*"', $code);
+        $this->assertStringNotContainsString('window.top', $code);
+        $this->assertStringNotContainsString('parent.document', $code);
+
         $this->assertStringContainsString("PageAssets::requireScript('assets/js/block-preview.js');", self::code('admin/block-preview.php'));
         $this->assertStringContainsString("PageAssets::requireStyle('assets/css/block-preview.css');", self::code('admin/block-preview.php'));
         $this->assertStringContainsString('Owner: admin/block-preview.php', self::source('assets/css/block-preview.css'));

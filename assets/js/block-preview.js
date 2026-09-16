@@ -16,6 +16,13 @@
    Both listen in the capture phase on the document, so they run before any
    listener a block puts on its own elements.
 
+   And one thing goes out: Escape. The frame is sandboxed WITHOUT
+   allow-same-origin, so the dialog around it cannot listen in here, and with
+   the focus inside the preview the key would never reach it. So Escape is
+   posted to the parent, as one fixed message, addressed to this CMS's own
+   origin only (the preview may only be framed by it: frame-ancestors 'self').
+   admin/assets/block-library.js accepts it from this frame alone.
+
    Not here: anything that changes how a block looks or behaves. A preview
    that needs a block-specific branch is a preview that stopped being the
    real block.
@@ -42,4 +49,12 @@
     },
     true
   );
+
+  document.addEventListener("keydown", function (event) {
+    if (event.key !== "Escape" || window.parent === window) return;
+
+    // The address of this document, not its sandboxed (opaque) origin: the
+    // CMS that framed it lives at exactly this scheme, host and port.
+    window.parent.postMessage({ mygdalaBlockPreview: "escape" }, window.location.protocol + "//" + window.location.host);
+  });
 })();

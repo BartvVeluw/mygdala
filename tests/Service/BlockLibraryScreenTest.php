@@ -210,17 +210,32 @@ final class BlockLibraryScreenTest extends TestCase
      * stylesheets, and nothing more: no forms, no popups, no navigation of
      * the CMS around it.
      */
-    public function testTheFrameIsSandboxedSoNothingInItCanBeSentOrLeaveIt(): void
+    /**
+     * The frame may run the block's scripts and nothing else. Above all it
+     * does NOT get allow-same-origin: with it, a script in the preview would
+     * run in this CMS's own origin, next to the admin session's cookie and
+     * this screen's document. Nothing a block does needs that, so it must
+     * never come back for convenience.
+     */
+    public function testTheFrameMayOnlyRunScriptsAndNeverSharesTheCmsOrigin(): void
     {
         $frame = self::xpath(self::dialog())->query('//iframe[@data-block-preview-frame]')?->item(0);
 
         $this->assertInstanceOf(\DOMElement::class, $frame);
-        $this->assertSame('allow-scripts allow-same-origin', $frame->getAttribute('sandbox'));
+        $this->assertSame('allow-scripts', $frame->getAttribute('sandbox'));
         $this->assertSame('about:blank', $frame->getAttribute('src'));
 
-        foreach (['allow-forms', 'allow-popups', 'allow-top-navigation', 'allow-modals'] as $permission) {
+        foreach (['allow-same-origin', 'allow-forms', 'allow-popups', 'allow-top-navigation', 'allow-modals', 'allow-storage-access'] as $permission) {
             $this->assertStringNotContainsString($permission, self::dialog());
         }
+
+        // Nor may the markup or the script add it on the way: no second
+        // iframe, no sandbox attribute set at runtime.
+        $source = self::source('admin/_block_library.php') . self::source('admin/assets/block-library.js');
+        $this->assertStringNotContainsString('allow-same-origin"', $source);
+        $this->assertStringNotContainsString("allow-same-origin'", $source);
+        $this->assertSame(1, substr_count(self::dialog(), '<iframe'));
+        $this->assertStringNotContainsString('sandbox', preg_replace('#/\*.*?\*/|//[^\n]*#s', '', self::source('admin/assets/block-library.js')) ?? '');
     }
 
     public function testTheDialogScriptOpensClosesAndReturnsFocusWithoutTextOrMarkupOfItsOwn(): void
@@ -242,6 +257,14 @@ final class BlockLibraryScreenTest extends TestCase
 
         // No words of its own: every label is in the markup, in the CMS language.
         $this->assertDoesNotMatchRegularExpression('/"[^"]*\b(Voorbeeld|Sluiten|bekijken|Mobiel)\b[^"]*"/', $code);
+
+        // The frame is another origin: this screen never reaches into it, and
+        // hears only the one message the preview sends, from that frame alone.
+        $this->assertStringNotContainsString('contentDocument', $code);
+        $this->assertStringNotContainsString('contentWindow.document', $code);
+        $this->assertStringContainsString('addEventListener("message"', $code);
+        $this->assertStringContainsString('if (event.source !== frame.contentWindow) return;', $code);
+        $this->assertStringContainsString('event.data.mygdalaBlockPreview !== "escape"', $code);
 
         $this->assertStringContainsString("AssetVersion::url('/admin/assets/block-library.js')", self::source('admin/content-blocks.php'));
         $this->assertStringContainsString('block_library_preview_dialog();', self::source('admin/content-blocks.php'));

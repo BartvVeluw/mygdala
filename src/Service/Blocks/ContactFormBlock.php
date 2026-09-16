@@ -48,7 +48,7 @@ final class ContactFormBlock extends BlockDefinition
             'max_instances' => 1,
             'allowed_pages' => null,
             'deletable' => true,
-            'note' => 'Een formulier uit Beheer → Formulieren, met daarnaast de kaart "Direct contact" (e-mailadres en werkplaats uit Site-instellingen). Wil je alleen een formulier zonder die kaart, gebruik dan het blok "Formulier".',
+            'note' => 'Een formulier uit Beheer → Formulieren, met daarnaast de kaart "Direct contact" (e-mailadres en plaats uit Site-instellingen). Wil je alleen een formulier zonder die kaart, gebruik dan het blok "Formulier".',
         ];
     }
 
@@ -138,7 +138,9 @@ final class ContactFormBlock extends BlockDefinition
             'form_id' => null,
             'form' => $samples->form(),
             ...$samples->fields('title', 'form_title'),
-            'allow_attachment' => false,
+            // On, so the preview shows the one control this block adds to a
+            // form (and the neutrality test reads its label).
+            'allow_attachment' => true,
             'contact' => ['email' => BlockSamples::EMAIL, ...$samples->fields('city', 'city')],
         ];
     }

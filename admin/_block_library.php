@@ -24,8 +24,9 @@ use App\Service\SectionRegistry;
  * a sandboxed iframe: the block's own partial and stylesheets, the site's
  * theme, sample words (App\Service\Blocks\BlockSamples). The frame may run
  * the block's scripts (a carousel turns, a gallery zooms) and nothing more:
- * no form in it can be sent, no link can leave it, and it can never open a
- * window or navigate this screen. A frame and not the markup on this page,
+ * no form in it can be sent, no link can leave it, it can never open a
+ * window or navigate this screen, and it does not share this CMS's origin
+ * (see block_library_preview_dialog()). A frame and not the markup on this page,
  * because the site's CSS and the CMS's CSS style the same elements, and
  * because only a frame of its own width lets the site's media queries show a
  * tablet or a phone.
@@ -137,9 +138,16 @@ function block_library_card(string $type, BlockDefinition $definition, bool $has
  * this one shows something large and asks nothing.
  *
  * The heading, description and category are filled from the card that opened
- * it, as text. The frame's sandbox allows scripts and its own origin (the
- * block's scripts and the site's stylesheets need both) and nothing else: no
- * forms, no popups, no navigation of this screen.
+ * it, as text. The frame's sandbox allows scripts and nothing else: no forms,
+ * no popups, no navigation of this screen, and NO allow-same-origin. The
+ * preview therefore runs in an opaque origin of its own: its scripts cannot
+ * reach this screen's document, the admin session's cookie or this origin's
+ * storage, and this screen cannot reach into the frame either. No block needs
+ * more: its stylesheets, pictures and scripts load as ordinary requests, and
+ * the one thing the frame tells this screen (Escape was pressed inside it)
+ * travels as a message (assets/js/block-preview.js). Adding
+ * allow-same-origin back would hand a preview script this CMS's own origin;
+ * Tests\Service\BlockLibraryScreenTest fails if it returns.
  */
 function block_library_preview_dialog(): void
 {
@@ -177,7 +185,7 @@ function block_library_preview_dialog(): void
 
     <div class="admin-block-preview__stage" data-block-preview-stage data-viewport="desktop">
       <iframe class="admin-block-preview__frame" data-block-preview-frame title="" src="about:blank"
-              sandbox="allow-scripts allow-same-origin" referrerpolicy="same-origin"></iframe>
+              sandbox="allow-scripts" referrerpolicy="same-origin"></iframe>
     </div>
 
     <div class="admin-block-preview__fallback" data-block-preview-fallback hidden>

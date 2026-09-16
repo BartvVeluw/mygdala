@@ -358,6 +358,6 @@ final class SiteSettingsValidatorTest extends TestCase
 
         $contact = (string) file_get_contents(self::root() . '/partials/section-contact-form.php');
         $this->assertStringContainsString("<?php if (\$contactEmail !== ''): ?>", $contact, 'no bare "E-mail" label or empty mailto:');
-        $this->assertStringContainsString('<?php if (!$contactCity->isEmpty()): ?>', $contact, 'no dangling "— ophalen op afspraak"');
+        $this->assertStringContainsString('<?php if (!$contactCity->isEmpty()): ?>', $contact, 'no bare "Plaats" label');
     }
 }
