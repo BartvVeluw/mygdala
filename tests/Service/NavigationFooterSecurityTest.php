@@ -29,8 +29,16 @@ class NavigationFooterSecurityTest extends TestCase
         'delete-footer-link.php',
         'toggle-footer-link.php',
         'reorder-footer-links.php',
+        'move-footer-column.php',
+        'move-footer-link.php',
         'update-footer-settings.php',
-        'update-header-footer-settings.php',
+        // Footer phase B: the social profiles as rows. The old
+        // update-header-footer-settings.php is gone; its fields live on the
+        // Footer screen now.
+        'create-footer-social-link.php',
+        'update-footer-social-link.php',
+        'move-footer-social-link.php',
+        'delete-footer-social-link.php',
     ];
 
     public function testEveryEndpointChecksLoginBeforeAnyMutation(): void

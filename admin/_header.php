@@ -105,7 +105,6 @@ const ADMIN_NAV_ICONS = [
     'withdrawal_requests' => '<path d="M4 12a8 8 0 1 0 2.34-5.66"/><path d="M4 4v5h5"/><path d="M12 8v4l3 2"/>',
     'navigation' => '<path d="M4 6h16M4 12h16M4 18h16"/>',
     'footer' => '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 15h18"/><path d="M7 18h4"/>',
-    'header_footer' => '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M3 16h18"/><path d="M14.5 6.5h3M6.5 18.5h4"/>',
     'settings' => '<path d="M4 6h9M17 6h3M4 12h3M11 12h9M4 18h13"/><circle cx="14" cy="6" r="2"/><circle cx="8" cy="12" r="2"/><circle cx="17" cy="18" r="2"/>',
     'theme' => '<circle cx="12" cy="12" r="9"/><circle cx="8.5" cy="9.5" r="1.3" fill="currentColor" stroke="none"/><circle cx="14" cy="8" r="1.3" fill="currentColor" stroke="none"/><circle cx="17" cy="12.5" r="1.3" fill="currentColor" stroke="none"/><path d="M12 21a3 3 0 0 1 0-6 2 2 0 0 0 0-4"/>',
     'users' => '<path d="M16 20v-1.5a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4V20"/><circle cx="9.5" cy="7.5" r="3.5"/><path d="M17 4.2a3.5 3.5 0 0 1 0 6.6"/><path d="M21 20v-1.5a4 4 0 0 0-3-3.87"/>',

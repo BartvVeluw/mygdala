@@ -251,6 +251,59 @@ class FooterRepository extends Repository
     }
 
     /**
+     * One place up or down among all columns — ↑/↓ on the Footer screen,
+     * which work with a keyboard, on a phone and without JavaScript. Same
+     * swap-and-rewrite as NavigationRepository::move(): the whole order is
+     * written again, so gaps or duplicates left by an older write can never
+     * make a move do nothing. An unknown id or direction changes nothing.
+     */
+    public function moveColumn(int $id, string $direction): void
+    {
+        $this->moveWithin('footer_columns', $this->findAllColumnsForAdmin(), $id, $direction);
+    }
+
+    /**
+     * One place up or down within the link's own column. Which column that
+     * is comes from the stored row, never from the request, so a link can
+     * never be moved into another column this way.
+     */
+    public function moveLink(int $id, string $direction): void
+    {
+        $link = $this->findLinkById($id);
+        if ($link === null) {
+            return;
+        }
+
+        $this->moveWithin('footer_links', $this->findLinksForColumn((int) $link['column_id']), $id, $direction);
+    }
+
+    /**
+     * @param list<array<string, mixed>> $rows the scope, in its current order
+     */
+    private function moveWithin(string $table, array $rows, int $id, string $direction): void
+    {
+        if (!in_array($direction, ['up', 'down'], true)) {
+            return;
+        }
+
+        $ids = array_map(static fn (array $row): int => (int) $row['id'], $rows);
+
+        $position = array_search($id, $ids, true);
+        if ($position === false) {
+            return;
+        }
+
+        $target = $direction === 'up' ? $position - 1 : $position + 1;
+        if ($target < 0 || $target >= count($ids)) {
+            return;
+        }
+
+        [$ids[$position], $ids[$target]] = [$ids[$target], $ids[$position]];
+
+        $this->reorderRows($table, $rows, $ids);
+    }
+
+    /**
      * Shared "ignore ids outside this scope, append anything missing at the
      * end" reorder implementation — same safety net as
      * PageSectionRepository::reorder()/NavigationRepository::reorder().

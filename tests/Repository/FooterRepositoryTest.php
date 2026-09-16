@@ -122,6 +122,59 @@ class FooterRepositoryTest extends TestCase
         $this->assertSame($columnB, (int) $rowB['column_id']);
     }
 
+    /** ↑/↓ on the Footer screen: a swap with the neighbour, nothing else. */
+    public function testMoveColumnSwapsWithItsNeighbourOnly(): void
+    {
+        $a = $this->makeColumn('A');
+        $b = $this->makeColumn('B');
+        $c = $this->makeColumn('C');
+
+        $this->repository->moveColumn($c, 'up');
+        $this->assertSame([$a, $c, $b], $this->ownColumnOrder());
+
+        $this->repository->moveColumn($b, 'down');
+        $this->repository->moveColumn($b, 'sideways');
+        $this->assertSame([$a, $c, $b], $this->ownColumnOrder(), 'the last column does not move down');
+
+        $all = $this->repository->findAllColumnsForAdmin();
+        $this->assertSame(range(0, count($all) - 1), array_map(static fn (array $r): int => (int) $r['sort_order'], $all));
+    }
+
+    /** A link moves only inside its own column; the column comes from the row. */
+    public function testMoveLinkStaysInsideItsColumn(): void
+    {
+        $columnA = $this->makeColumn('A');
+        $columnB = $this->makeColumn('B');
+        $first = $this->makeLink($columnA, 'Eerste');
+        $second = $this->makeLink($columnA, 'Tweede');
+        $other = $this->makeLink($columnB, 'Ander');
+
+        $this->repository->moveLink($first, 'up');
+        $this->assertSame([$first, $second], $this->linkOrder($columnA), 'the first link does not move up');
+
+        $this->repository->moveLink($second, 'up');
+        $this->assertSame([$second, $first], $this->linkOrder($columnA));
+        $this->assertSame([$other], $this->linkOrder($columnB));
+
+        $this->repository->moveLink(999999999, 'up');
+        $this->assertSame([$second, $first], $this->linkOrder($columnA), 'an unknown link changes nothing');
+    }
+
+    /** @return list<int> */
+    private function ownColumnOrder(): array
+    {
+        return array_values(array_filter(
+            array_map(static fn (array $r): int => (int) $r['id'], $this->repository->findAllColumnsForAdmin()),
+            fn (int $id): bool => in_array($id, $this->createdColumnIds, true)
+        ));
+    }
+
+    /** @return list<int> */
+    private function linkOrder(int $columnId): array
+    {
+        return array_map(static fn (array $r): int => (int) $r['id'], $this->repository->findLinksForColumn($columnId));
+    }
+
     public function testDeletingColumnCascadesToItsLinks(): void
     {
         $column = $this->makeColumn();

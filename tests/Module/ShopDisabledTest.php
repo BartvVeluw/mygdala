@@ -115,7 +115,6 @@ final class ShopDisabledTest extends TestCase
                 'form_submissions',
                 'navigation',
                 'footer',
-                'header_footer',
                 'settings',
                 'theme',
                 'redirects',

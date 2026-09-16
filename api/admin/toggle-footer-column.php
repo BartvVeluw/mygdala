@@ -1,15 +1,21 @@
 <?php
 
-/** POST /api/admin/toggle-footer-column.php — hide/show without deleting. */
+/**
+ * POST /api/admin/toggle-footer-column.php
+ *
+ * Verbergen/Tonen on a column of admin/footer.php. Hiding takes the column
+ * and its links off the website and keeps all of them here; showing it again
+ * brings back exactly what was there. Back to the same row.
+ */
 
 declare(strict_types=1);
 
 require_once __DIR__ . '/../../vendor/autoload.php';
 
-use App\Service\Language\AdminTranslator;
+use App\Repository\FooterRepository;
 use App\Service\AdminAuth;
 use App\Service\Csrf;
-use App\Repository\FooterRepository;
+use App\Service\Language\AdminTranslator;
 
 AdminAuth::requireLoginForApi();
 AdminAuth::requirePermissionForApi('pages.manage');
@@ -40,5 +46,5 @@ try {
     $_SESSION['admin_footer_error'] = AdminTranslator::trans('validation.zichtbaarheid_kon_opgeslagen');
 }
 
-header('Location: /admin/footer.php');
+header('Location: /admin/footer.php#footer-column-' . $idParam);
 exit;

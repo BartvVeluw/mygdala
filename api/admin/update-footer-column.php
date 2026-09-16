@@ -1,18 +1,25 @@
 <?php
 
 /**
- * POST /api/admin/update-footer-column.php — admin/footer-column.php's edit form.
+ * POST /api/admin/update-footer-column.php
+ *
+ * Saves admin/footer-column.php: the column's title per language and whether
+ * it is shown. Only the site's own language is required (MULTILINGUAL.md).
+ * Hiding a column keeps every link in it; showing it again brings them back.
+ *
+ * Same guard order and PRG pattern as api/admin/update-nav-item.php,
+ * including the redirect back to the editor with saved=1 for the save bar.
  */
 
 declare(strict_types=1);
 
 require_once __DIR__ . '/../../vendor/autoload.php';
 
-use App\Service\Language\AdminTranslator;
+use App\Repository\FooterRepository;
 use App\Service\AdminAuth;
 use App\Service\Csrf;
+use App\Service\Language\AdminTranslator;
 use App\Service\Language\LocalizedValue;
-use App\Repository\FooterRepository;
 
 AdminAuth::requireLoginForApi();
 AdminAuth::requirePermissionForApi('pages.manage');
@@ -45,12 +52,6 @@ $titleEn = trim((string) ($_POST['title_en'] ?? ''));
 $isVisible = isset($_POST['is_visible']);
 
 $errors = [];
-// Only the SITE'S OWN language is required. The other one is a translation,
-// and a translation is optional by definition: App\Service\Language\LocalizedValue
-// falls back to the primary language wherever one is missing. Requiring both
-// was harmless while every editor printed both fields; now that a
-// single-language site shows one, it would make this form impossible to
-// submit at all (MULTILINGUAL.md).
 if (LocalizedValue::ofDutchEnglish($titleNl, $titleEn)->primaryValue() === '') {
     $errors[] = AdminTranslator::trans('validation.titel_verplicht');
 }
@@ -58,21 +59,25 @@ if (mb_strlen($titleNl) > 100 || mb_strlen($titleEn) > 100) {
     $errors[] = AdminTranslator::trans('validation.titel_mag_maximaal_100_tekens');
 }
 
+$editorUrl = '/admin/footer-column.php?id=' . $idParam;
+$old = ['title_nl' => $titleNl, 'title_en' => $titleEn, 'is_visible' => $isVisible];
+
 if ($errors !== []) {
     $_SESSION['admin_footer_column_errors'] = $errors;
-    $_SESSION['admin_footer_column_old'] = ['title_nl' => $titleNl, 'title_en' => $titleEn, 'is_visible' => $isVisible];
-    header('Location: /admin/footer-column.php?id=' . $idParam);
+    $_SESSION['admin_footer_column_old'] = $old;
+    header('Location: ' . $editorUrl);
     exit;
 }
 
 try {
-    $repository->updateColumn($idParam, ['title_nl' => $titleNl, 'title_en' => $titleEn, 'is_visible' => $isVisible]);
+    $repository->updateColumn($idParam, $old);
 } catch (\Throwable $e) {
     error_log('[api/admin/update-footer-column.php] ' . $e->getMessage());
-    $_SESSION['admin_footer_column_errors'] = ['Kolom kon niet worden opgeslagen.'];
-    header('Location: /admin/footer-column.php?id=' . $idParam);
+    $_SESSION['admin_footer_column_errors'] = [AdminTranslator::trans('footer.column_not_saved')];
+    $_SESSION['admin_footer_column_old'] = $old;
+    header('Location: ' . $editorUrl);
     exit;
 }
 
-header('Location: /admin/footer.php?saved=1');
+header('Location: ' . $editorUrl . '&saved=1');
 exit;

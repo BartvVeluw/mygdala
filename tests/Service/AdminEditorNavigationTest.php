@@ -44,8 +44,8 @@ final class AdminEditorNavigationTest extends TestCase
         'email' => 'algemeen',
         'city_nl' => 'algemeen',
         'city_en' => 'algemeen',
-        'footer_description_nl' => 'algemeen',
-        'footer_description_en' => 'algemeen',
+        // Not the footer description: it moved to the Footer screen in
+        // Footer phase B (HEADER-FOOTER.md), so it has one place.
         // The postal address and the phone number are the site's, not the
         // invoice's: the e-mail footer line and the site footer read them too.
         'company_phone' => 'algemeen',

@@ -213,15 +213,22 @@
    * Footer admin (admin/footer.php, [data-footer-column-zone] +
    * [data-footer-link-zone]): drag reordering of footer_columns (one zone,
    * top-level) and footer_links (one zone per column) — same pattern as
-   * initNavItemZones() above.
+   * initNavItemZones() above. A mouse convenience only: every row also has
+   * ↑/↓ forms that work without this script.
+   *
+   * What is dragged in the column zone is the whole .admin-footer-column
+   * group, the column's row together with its links, so a column never
+   * leaves its links behind on screen. The link zones sit inside those
+   * groups, so drag events bubble from a link zone to the column zone; each
+   * zone only acts on a row it owns (see initFooterDragZone()).
    */
   function initFooterZones() {
     document.querySelectorAll("[data-footer-column-zone]").forEach(function (zone) {
-      initFooterDragZone(zone, ".admin-footer-column-row", "data-footer-column-id", function () {
+      initFooterDragZone(zone, ".admin-footer-column", ".admin-footer-column-row > .admin-drag-handle", function () {
         var url = zone.getAttribute("data-reorder-url");
         var csrfToken = zone.getAttribute("data-csrf-token");
         var columnIds = Array.prototype.map
-          .call(zone.querySelectorAll(":scope > .admin-footer-column-row"), function (row) {
+          .call(zone.querySelectorAll(":scope > .admin-footer-column"), function (row) {
             return row.getAttribute("data-footer-column-id");
           })
           .join(",");
@@ -237,7 +244,7 @@
     });
 
     document.querySelectorAll("[data-footer-link-zone]").forEach(function (zone) {
-      initFooterDragZone(zone, ".admin-footer-link-row", "data-footer-link-id", function () {
+      initFooterDragZone(zone, ".admin-footer-link-row", ".admin-footer-link-row > .admin-drag-handle", function () {
         var url = zone.getAttribute("data-reorder-url");
         var csrfToken = zone.getAttribute("data-csrf-token");
         var columnId = zone.getAttribute("data-column-id");
@@ -259,10 +266,12 @@
     });
   }
 
-  function initFooterDragZone(zone, rowSelector, idAttr, persist) {
+  function initFooterDragZone(zone, rowSelector, handleSelector, persist) {
     var dragged = null;
 
-    zone.querySelectorAll(".admin-drag-handle").forEach(function (handle) {
+    // Only the handles of this zone's own rows: a column group also holds
+    // its links' handles, and those drag a link, not the column.
+    zone.querySelectorAll(handleSelector).forEach(function (handle) {
       var row = handle.closest(rowSelector);
       if (!row) return;
 
@@ -288,6 +297,9 @@
 
       row.addEventListener("drop", function (event) {
         event.preventDefault();
+        // A link dropped inside a column group bubbles up to the column
+        // zone too; only the zone the dragged row belongs to saves.
+        if (!dragged || dragged.parentNode !== zone) return;
         persist();
       });
     });

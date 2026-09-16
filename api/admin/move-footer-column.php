@@ -1,17 +1,15 @@
 <?php
 
 /**
- * POST /api/admin/delete-footer-column.php
+ * POST /api/admin/move-footer-column.php
  *
- * Deletes the column and, via the footer_links.column_id FK's ON DELETE
- * CASCADE, every link in it. See
- * db/migrations/20260907220000_create_footer_tables.php for why this is
- * safe (unlike nav_items' parent/child, a footer link never makes sense
- * detached from its column, so there is no "move first" step to force).
+ * Moves a footer column one place up or down (FooterRepository::moveColumn()).
+ * The same one-step-at-a-time pattern as api/admin/move-nav-item.php: two
+ * buttons, no JavaScript, and it works with a keyboard and on a phone. The
+ * drag-and-drop list and reorder-footer-columns.php stay for a mouse; the
+ * stored sort_order decides either way.
  *
- * Asked first in the CMS's own dialog on admin/footer.php and
- * admin/footer-column.php (admin_confirm_attributes()), which says that the
- * links go with it; that dialog is a courtesy, never the guard.
+ * Only the id and the direction come from the request.
  */
 
 declare(strict_types=1);
@@ -43,6 +41,12 @@ if ($idParam === false || $idParam === null || $idParam < 1) {
     exit('Footer-kolom niet gevonden.');
 }
 
+$direction = (string) ($_POST['direction'] ?? '');
+if (!in_array($direction, ['up', 'down'], true)) {
+    http_response_code(400);
+    exit('Invalid direction.');
+}
+
 $repository = new FooterRepository();
 
 if ($repository->findColumnById($idParam) === null) {
@@ -51,13 +55,12 @@ if ($repository->findColumnById($idParam) === null) {
 }
 
 try {
-    $repository->deleteColumn($idParam);
+    $repository->moveColumn($idParam, $direction);
 } catch (\Throwable $e) {
-    error_log('[api/admin/delete-footer-column.php] ' . $e->getMessage());
-    $_SESSION['admin_footer_error'] = AdminTranslator::trans('validation.kolom_kon_verwijderd');
-    header('Location: /admin/footer.php#footer-columns');
-    exit;
+    error_log('[api/admin/move-footer-column.php] ' . $e->getMessage());
+    $_SESSION['admin_footer_error'] = AdminTranslator::trans('validation.volgorde_kon_opgeslagen');
 }
 
-header('Location: /admin/footer.php?deleted=column#footer-columns');
+// Back to the column that moved, so the editor keeps their place.
+header('Location: /admin/footer.php#footer-column-' . $idParam);
 exit;

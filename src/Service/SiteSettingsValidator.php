@@ -49,8 +49,10 @@ final class SiteSettingsValidator
         'company_phone' => 30,
         'city_nl' => 150,
         'city_en' => 150,
-        'footer_description_nl' => 500,
-        'footer_description_en' => 500,
+        // No footer_description_nl/en since Footer phase B: the footer
+        // description has one place, the Footer screen
+        // (api/admin/update-footer-settings.php), and this list is what keeps
+        // this endpoint from writing it anyway.
         'company_street' => 150,
         'company_house_number' => 20,
         'company_postal_code' => 20,

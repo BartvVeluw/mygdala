@@ -3,6 +3,11 @@
  * destination field that belongs to the chosen kind of destination, and the
  * button style only while the item is shown as a button.
  *
+ * The footer link editor (admin/footer-link.php) uses this same file through
+ * the same data attributes, because a footer link has the same destination
+ * picker plus one kind of its own ("action"). It has no presentation choice,
+ * so only the destination part applies there.
+ *
  * Nothing here is needed to use the screen. Without this file every field is
  * on screen and api/admin/_nav_item_input.php stores only the one that
  * belongs to the chosen kind. The file holds no text of its own and never

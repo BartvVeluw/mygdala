@@ -5,14 +5,13 @@ declare(strict_types=1);
 require_once __DIR__ . '/../vendor/autoload.php';
 require_once __DIR__ . '/_translate.php';
 require_once __DIR__ . '/_language_fields.php';
+require_once __DIR__ . '/_link_destination.php';
 
 use App\Repository\NavigationRepository;
 use App\Repository\PageRepository;
 use App\Service\AdminAuth;
 use App\Service\Csrf;
-use App\Service\LinkResolver;
 use App\Service\NavigationPresentation;
-use App\Service\PageContent;
 use App\Service\RouteRegistry;
 
 AdminAuth::requireLogin();
@@ -39,15 +38,15 @@ AdminAuth::requirePermission('pages.manage');
  * be reached right now, say a page back on Concept or a route of a
  * switched-off module — that it is not on the website and will come back by
  * itself. LinkResolver is asked the same question the public header asks, so
- * the screen can never disagree with the site.
+ * the screen can never disagree with the site. The words and that question
+ * live in admin/_link_destination.php, shared with the Footer screen.
  *
  * Deleting asks first in the CMS's own dialog (admin_confirm_attributes(),
  * ADMIN-UI.md); an item with submenu items offers no delete at all and says
  * why, instead of a button the endpoint would refuse.
  *
- * NOT HERE: editing an item (admin/navigation-item.php), the footer
- * (admin/footer.php) and the footer's slogan and social profiles
- * (admin/header-footer.php, Footer phase B).
+ * NOT HERE: editing an item (admin/navigation-item.php) and everything in
+ * the footer, which has one screen of its own (admin/footer.php).
  */
 
 $repository = new NavigationRepository();
@@ -79,42 +78,6 @@ $navError = $_SESSION['admin_nav_error'] ?? null;
 unset($_SESSION['admin_nav_error']);
 
 /**
- * Where an item goes, in the editor's words. A page by its current title, a
- * fixed part of the site by its registry label, another address as typed.
- *
- * @param array<string, mixed>              $item
- * @param array<int, array<string, mixed>>  $pagesById
- * @param array<string, array<string, mixed>> $routes
- */
-function navigation_destination_summary(array $item, array $pagesById, array $routes): string
-{
-    $summary = match ((string) $item['link_type']) {
-        'page' => isset($pagesById[(int) ($item['target_page_id'] ?? 0)])
-            ? admin_t('navigation.destination_page', ['page' => (string) $pagesById[(int) $item['target_page_id']]['title']])
-                . (PageContent::isPublished($pagesById[(int) $item['target_page_id']]) ? '' : ' ' . admin_t('navigation.destination_draft'))
-            : admin_t('navigation.destination_page_missing'),
-        'route' => isset($routes[(string) $item['target_route']])
-            ? admin_t('navigation.destination_route', ['route' => (string) $routes[(string) $item['target_route']]['label_nl']])
-            : admin_t('navigation.destination_route_off'),
-        'external' => admin_t('navigation.destination_external', ['url' => (string) $item['external_url']]),
-        'none' => admin_t('navigation.destination_none'),
-        default => admin_t('navigation.destination_unknown'),
-    };
-
-    if (!empty($item['open_in_new_tab']) && $item['link_type'] !== 'none') {
-        $summary .= ' · ' . admin_t('navigation.opens_in_new_tab');
-    }
-
-    return $summary;
-}
-
-/** Is this item's destination reachable right now, as the public header sees it? */
-function navigation_item_is_reachable(array $item): bool
-{
-    return (string) $item['link_type'] === 'none' || LinkResolver::resolve($item) !== null;
-}
-
-/**
  * One row of either list. $position/$count drive ↑/↓; $childCount decides
  * whether the row may be deleted and whether it offers "+ Submenu-item".
  *
@@ -130,7 +93,7 @@ function navigation_row(array $item, int $position, int $count, int $childCount,
     $isChild = $item['parent_id'] !== null;
     $isButton = NavigationPresentation::isButton($item);
     $label = admin_lang_summary($item, 'label');
-    $isReachable = navigation_item_is_reachable($item);
+    $isReachable = admin_link_is_reachable($item);
     ?>
     <div class="admin-section-row admin-nav-item-row<?= $isChild ? ' admin-nav-item-row--child' : '' ?><?= $isHidden ? ' is-hidden-section' : '' ?>" id="nav-item-<?= $id ?>" data-nav-item-id="<?= $id ?>">
       <span class="admin-drag-handle" draggable="true" aria-hidden="true">&#8801;</span>
@@ -146,7 +109,7 @@ function navigation_row(array $item, int $position, int $count, int $childCount,
             <span class="admin-badge admin-badge--info"><?= admin_te('navigation.variant_' . NavigationPresentation::variantOf($item)) ?></span>
           <?php endif; ?>
         </p>
-        <p class="admin-section-row__note"><?= $h(navigation_destination_summary($item, $pagesById, $routes)) ?></p>
+        <p class="admin-section-row__note"><?= $h(admin_link_destination_summary($item, $pagesById, $routes)) ?></p>
         <?php if (!$isHidden && !$isReachable): ?>
           <p class="admin-section-row__note"><?= admin_te('navigation.not_on_site_note') ?></p>
         <?php endif; ?>

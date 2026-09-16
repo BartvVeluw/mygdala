@@ -420,6 +420,7 @@
             <file>tests/Service/NavigationServiceTest.php</file>
             <file>tests/Service/NavigationPresentationTest.php</file>
             <file>tests/Service/NavigationAdminHttpTest.php</file>
+            <file>tests/Service/FooterAdminHttpTest.php</file>
             <file>tests/Service/PageBuilderScreenTest.php</file>
             <file>tests/Service/PageBuilderSecurityTest.php</file>
             <file>tests/Service/PageContentTest.php</file>

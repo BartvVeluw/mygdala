@@ -125,6 +125,11 @@ final class AdminAccessControlTest extends TestCase
         // type registry and the catalogue; creating or changing a field
         // still goes through its own guarded endpoint.
         '_form_fields.php',
+        // Where a menu item or footer link goes, in words, printed by
+        // admin/navigation.php and admin/footer.php behind their own
+        // pages.manage check. Output functions over rows the caller already
+        // read; no URL, no data of its own, no decision.
+        '_link_destination.php',
     ];
 
     private static function projectRoot(): string

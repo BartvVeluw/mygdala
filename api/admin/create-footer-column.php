@@ -1,19 +1,25 @@
 <?php
 
 /**
- * POST /api/admin/create-footer-column.php — admin/footer.php's
- * "+ Kolom toevoegen" inline form.
+ * POST /api/admin/create-footer-column.php
+ *
+ * The "Kolom toevoegen" form on admin/footer.php: a new, visible column at
+ * the end, with a title in the site's own language at least
+ * (MULTILINGUAL.md). Links are added to it afterwards.
+ *
+ * Back to the Footer screen at the new column, with saved=1. On a refused
+ * title the screen says why in its own alert.
  */
 
 declare(strict_types=1);
 
 require_once __DIR__ . '/../../vendor/autoload.php';
 
-use App\Service\Language\AdminTranslator;
+use App\Repository\FooterRepository;
 use App\Service\AdminAuth;
 use App\Service\Csrf;
+use App\Service\Language\AdminTranslator;
 use App\Service\Language\LocalizedValue;
-use App\Repository\FooterRepository;
 
 AdminAuth::requireLoginForApi();
 AdminAuth::requirePermissionForApi('pages.manage');
@@ -32,29 +38,23 @@ if (!Csrf::validate($_POST['csrf_token'] ?? null)) {
 $titleNl = trim((string) ($_POST['title_nl'] ?? ''));
 $titleEn = trim((string) ($_POST['title_en'] ?? ''));
 
-// Only the SITE'S OWN language is required. The other one is a translation,
-// and a translation is optional by definition: App\Service\Language\LocalizedValue
-// falls back to the primary language wherever one is missing. Requiring both
-// was harmless while every editor printed both fields; now that a
-// single-language site shows one, it would make this form impossible to
-// submit at all (MULTILINGUAL.md).
 if (LocalizedValue::ofDutchEnglish($titleNl, $titleEn)->primaryValue() === ''
     || mb_strlen($titleNl) > 100
     || mb_strlen($titleEn) > 100
 ) {
     $_SESSION['admin_footer_error'] = AdminTranslator::trans('validation.titel_verplicht_max_100_tekens');
-    header('Location: /admin/footer.php');
+    header('Location: /admin/footer.php#footer-columns');
     exit;
 }
 
 try {
-    (new FooterRepository())->createColumn(['title_nl' => $titleNl, 'title_en' => $titleEn, 'is_visible' => true]);
+    $id = (new FooterRepository())->createColumn(['title_nl' => $titleNl, 'title_en' => $titleEn, 'is_visible' => true]);
 } catch (\Throwable $e) {
     error_log('[api/admin/create-footer-column.php] ' . $e->getMessage());
     $_SESSION['admin_footer_error'] = AdminTranslator::trans('validation.kolom_kon_aangemaakt');
-    header('Location: /admin/footer.php');
+    header('Location: /admin/footer.php#footer-columns');
     exit;
 }
 
-header('Location: /admin/footer.php?saved=1');
+header('Location: /admin/footer.php?saved=1#footer-column-' . $id);
 exit;

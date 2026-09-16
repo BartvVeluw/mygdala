@@ -1,15 +1,20 @@
 <?php
 
-/** POST /api/admin/toggle-footer-link.php — hide/show without deleting. */
+/**
+ * POST /api/admin/toggle-footer-link.php
+ *
+ * Verbergen/Tonen on a link of admin/footer.php: off the website, kept here,
+ * and back as it was when shown again. Back to the same row.
+ */
 
 declare(strict_types=1);
 
 require_once __DIR__ . '/../../vendor/autoload.php';
 
-use App\Service\Language\AdminTranslator;
+use App\Repository\FooterRepository;
 use App\Service\AdminAuth;
 use App\Service\Csrf;
-use App\Repository\FooterRepository;
+use App\Service\Language\AdminTranslator;
 
 AdminAuth::requireLoginForApi();
 AdminAuth::requirePermissionForApi('pages.manage');
@@ -40,5 +45,5 @@ try {
     $_SESSION['admin_footer_error'] = AdminTranslator::trans('validation.zichtbaarheid_kon_opgeslagen');
 }
 
-header('Location: /admin/footer.php');
+header('Location: /admin/footer.php#footer-link-' . $idParam);
 exit;

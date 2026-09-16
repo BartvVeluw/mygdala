@@ -241,30 +241,21 @@ class AdminNavigation
                 'scripts' => ['navigation.php', 'navigation-item.php'],
             ],
             [
+                // Everything at the bottom of every page, on one screen since
+                // Footer phase B: the company block, the columns and their
+                // links, the social profiles, and the bottom line with the
+                // copyright and the closing line (HEADER-FOOTER.md). The
+                // company's own details stay under Site-instellingen.
+                // header-footer.php is the old "Slotregel & social media"
+                // screen, now only a redirect to this one; listed here so it
+                // still belongs to exactly one entry.
                 'key' => 'footer',
                 'label' => 'Footer',
                 'url' => '/admin/footer.php',
                 'icon' => 'footer',
                 'permission' => AdminPermissions::PAGES_MANAGE,
                 'order' => 710,
-                'scripts' => ['footer.php', 'footer-column.php', 'footer-link.php'],
-            ],
-            [
-                // The footer's closing line and the social profiles. The
-                // header's call-to-action button used to live here too and
-                // moved to Header & navigatie in Navigation phase A, hence the
-                // label; key and file keep their names. Next to Footer rather
-                // than next to Site-instellingen, because it is edited while
-                // thinking about the footer, not about the company's details.
-                // Footer phase B folds it into the Footer screen
-                // (HEADER-FOOTER.md).
-                'key' => 'header_footer',
-                'label' => 'Slotregel & social media',
-                'url' => '/admin/header-footer.php',
-                'icon' => 'header_footer',
-                'permission' => AdminPermissions::PAGES_MANAGE,
-                'order' => 720,
-                'scripts' => ['header-footer.php'],
+                'scripts' => ['footer.php', 'footer-column.php', 'footer-link.php', 'header-footer.php'],
             ],
             [
                 'key' => 'settings',

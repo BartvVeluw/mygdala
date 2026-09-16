@@ -133,17 +133,42 @@ final class HeaderFooterContractTest extends TestCase
     }
 
     /**
-     * The social profiles are footer_social_links rows since Footer phase B:
-     * the slogan screen neither shows nor writes the seven legacy settings.
+     * Nothing an editor types becomes markup: the Footer screen offers the
+     * networks the closed registry knows and no way to add one, and its
+     * endpoints check an address with the one method the footer uses too.
      */
-    public function testTheSloganScreenNoLongerWritesTheLegacySocialSettings(): void
+    public function testTheFooterScreenOffersOnlyRegisteredNetworks(): void
     {
-        foreach (['admin/header-footer.php', 'api/admin/update-header-footer-settings.php'] as $file) {
-            $source = $this->source($file);
+        $source = $this->source('admin/footer.php');
 
-            $this->assertStringNotContainsString("['key']", $source, $file);
-            $this->assertStringNotContainsString('SocialProfiles::networks()', $source, $file);
-            $this->assertStringNotContainsString('isValidProfileUrl', $source, $file);
+        $this->assertStringContainsString('SocialProfiles::networks()', $source);
+        $this->assertStringNotContainsString('<svg', $source, 'no icon markup is editable');
+
+        $rules = $this->source('api/admin/_footer_social_link_input.php');
+        $this->assertStringContainsString('SocialProfiles::isKnownNetwork(', $rules);
+        $this->assertStringContainsString('SocialProfiles::isValidProfileUrl(', $rules);
+        $this->assertStringContainsString('if (!self::isValidProfileUrl($network, $url)) {', $this->source('src/Service/SocialProfiles.php'), 'forFooter() applies the same check');
+    }
+
+    /**
+     * Footer phase B made the old "Slotregel & social media" screen a
+     * redirect to the one Footer screen, and nothing writes the seven legacy
+     * social_*_url settings any more.
+     */
+    public function testTheOldScreenOnlyRedirectsAndNothingWritesTheLegacySocialSettings(): void
+    {
+        $old = $this->source('admin/header-footer.php');
+
+        $this->assertStringContainsString("header('Location: /admin/footer.php#footer-bottom', true, 302);", $old);
+        $this->assertStringNotContainsString('<form', $old);
+        $this->assertFileDoesNotExist(self::root() . '/api/admin/update-header-footer-settings.php');
+
+        foreach (array_merge((array) glob(self::root() . '/api/admin/*.php'), (array) glob(self::root() . '/admin/*.php')) as $path) {
+            $this->assertDoesNotMatchRegularExpression(
+                "/'social_[a-z]+_url'/",
+                (string) file_get_contents((string) $path),
+                basename((string) $path) . ' must not read or write a legacy social setting'
+            );
         }
     }
 

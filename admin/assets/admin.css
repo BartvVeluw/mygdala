@@ -910,6 +910,79 @@ a{ color: var(--admin-accent); }
 }
 .admin-nav-item-row .admin-section-row__delete{ margin-left: auto; }
 
+/* Footer (admin/footer.php), since Footer phase B: the same row controls as
+   Header & navigatie above, for columns, links and social profiles.
+   .admin-row-move is the ↑/↓ button of those rows, the size of the menu's.
+   Layout only: no colour and no token of its own (ADMIN-UI.md). */
+.admin-footer-column-row .admin-section-row__actions,
+.admin-footer-link-row .admin-section-row__actions,
+.admin-footer-social-row .admin-section-row__actions{ flex-wrap: wrap; }
+.admin-footer-column-row .admin-section-row__name,
+.admin-footer-link-row .admin-section-row__name,
+.admin-footer-social-row .admin-section-row__name{ display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem; }
+.admin-row-move{ justify-content: center; min-width: 2rem; min-height: 2rem; padding: 0.2rem 0.3rem; font-size: 1rem; line-height: 1; }
+.admin-row-move:disabled{ background: transparent; }
+.admin-footer-column-row .admin-section-row__button,
+.admin-footer-link-row .admin-section-row__button,
+.admin-footer-social-row .admin-section-row__button{
+  padding: 0.35rem 0.8rem;
+  font-size: 0.84rem;
+  line-height: 1.5;
+  white-space: nowrap;
+}
+.admin-footer-column-row .admin-section-row__delete,
+.admin-footer-link-row .admin-section-row__delete,
+.admin-footer-social-row .admin-section-row__delete{ margin-left: auto; }
+
+/* A column and its links move as one group when dragged. */
+.admin-footer-column{ display: flex; flex-direction: column; }
+.admin-footer-column.is-dragging{ opacity: 0.4; }
+/* A long link label or address wraps inside its row instead of widening it. */
+.admin-footer-link-row .admin-section-row__name,
+.admin-footer-link-row .admin-section-row__note{ overflow-wrap: anywhere; }
+.admin-footer-add-column{ margin-top: var(--admin-sp-4); align-items: flex-end; flex-wrap: wrap; gap: var(--admin-sp-3); }
+/* On a phone the links keep a small indent under their column instead of
+   the desktop one, which left them too narrow for their buttons. */
+@media (max-width: 700px){
+  .admin-footer-links{ margin-left: var(--admin-sp-2); padding-left: var(--admin-sp-2); }
+}
+
+/* The two settings forms use .admin-product-form for their fields; its
+   column layout would stretch the Opslaan button across the card. */
+.admin-footer-settings-form > button{ align-self: flex-start; }
+.admin-footer-settings-form > h2,
+.admin-footer-settings-form > p{ margin: 0; }
+
+/* The company block: each switch with the value it shows beside it. */
+.admin-footer-details{ border: 0; margin: 0 0 var(--admin-sp-4); padding: 0; min-width: 0; }
+.admin-footer-details__legend{ display: flex; align-items: center; gap: 0.4rem; padding: 0; margin-bottom: var(--admin-sp-2); font-weight: 600; }
+.admin-footer-details__list{ list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--admin-sp-2); }
+.admin-footer-details__item{ display: flex; flex-wrap: wrap; align-items: center; column-gap: var(--admin-sp-3); row-gap: 0.2rem; }
+.admin-footer-details__item .admin-checkbox-label{ min-width: 14rem; margin: 0; }
+.admin-footer-details__value{ color: var(--admin-text-muted); font-size: 0.88rem; overflow-wrap: anywhere; }
+.admin-footer-details__value--missing{ color: var(--admin-text-faint); font-style: italic; }
+.admin-footer-details__owner{ margin: var(--admin-sp-3) 0 0; }
+
+/* Social media: one row per profile, its own small form inside the row. */
+/* The row's ↑/↓ and delete move below the form as soon as the form would
+   get narrower than 26rem, rather than squeezing the address field. */
+.admin-footer-social-row{ align-items: flex-start; flex-wrap: wrap; }
+.admin-footer-social-row .admin-section-row__body{ flex: 1 1 26rem; }
+.admin-footer-social__form{ display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--admin-sp-3); margin-top: var(--admin-sp-2); }
+/* Network and address side by side, the address taking the room it needs;
+   the visibility switch on its own line below them, so its label never
+   squeezes the address field. */
+.admin-footer-social__fields{ display: grid; grid-template-columns: minmax(9rem, 12rem) minmax(0, 1fr); align-items: end; gap: var(--admin-sp-3); flex: 1 1 100%; min-width: 0; }
+.admin-footer-social__fields .admin-field{ margin: 0; min-width: 0; }
+.admin-footer-social__visible{ grid-column: 1 / -1; }
+.admin-footer-social__visible .admin-checkbox-label{ margin: 0; }
+.admin-footer-social__errors{ flex-basis: 100%; margin: 0; }
+.admin-footer-social__add{ margin-top: var(--admin-sp-4); padding-top: var(--admin-sp-4); border-top: 1px solid var(--admin-border); }
+.admin-footer-social__add h3{ flex-basis: 100%; margin: 0; }
+@media (max-width: 700px){
+  .admin-footer-social__fields{ grid-template-columns: minmax(0, 1fr); }
+}
+
 /* Compact segmented control for switching between pages
    (admin/pages.php) — the selected page is unmistakably highlighted. */
 .admin-page-tabs{

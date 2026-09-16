@@ -261,20 +261,17 @@ function brandingImageField(
         <?php admin_lang_pane_end(); ?>
       </div>
 
-      <div class="admin-form-row admin-form-row--split">
-        <?php admin_lang_pane_start('nl'); ?>
-        <div class="admin-field">
-          <?= admin_field_label('settings-footer-description-nl', admin_t('settings.footer_omschrijving'), admin_t('help.settings.footer_description')) ?>
-          <textarea id="settings-footer-description-nl" name="footer_description_nl" maxlength="500" rows="3"><?= settingValue($values, 'footer_description_nl') ?></textarea>
-        </div>
-        <?php admin_lang_pane_end(); ?>
-        <?php admin_lang_pane_start('en'); ?>
-        <div class="admin-field">
-          <?= admin_field_label('settings-footer-description-en', admin_t('settings.footer_omschrijving_2'), admin_t('help.settings.footer_description')) ?>
-          <textarea id="settings-footer-description-en" name="footer_description_en" maxlength="500" rows="3"<?= admin_lang_placeholder_attr('en') ?>><?= settingValue($values, 'footer_description_en') ?></textarea>
-        </div>
-        <?php admin_lang_pane_end(); ?>
-      </div>
+      <?php /* The footer description used to be edited here as well as on the
+               Footer screen. Since Footer phase B it has one place, Footer
+               (HEADER-FOOTER.md); this line tells an editor who comes looking
+               for it where it went. */ ?>
+      <p class="admin-text-muted" data-footer-description-moved>
+        <?php if (\App\Service\AdminAuth::can('pages.manage')): ?>
+          <?= admin_t('settings.footer_description_moved_link', ['footer' => '<a href="/admin/footer.php#footer-brand">' . admin_te('footer.footer') . '</a>']) ?>
+        <?php else: ?>
+          <?= admin_te('settings.footer_description_moved') ?>
+        <?php endif; ?>
+      </p>
 
       <h3><?= admin_te('settings.group_address') ?></h3>
       <?= admin_info_panel(admin_t('help.settings.address')) ?>

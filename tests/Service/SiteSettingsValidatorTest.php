@@ -28,8 +28,6 @@ final class SiteSettingsValidatorTest extends TestCase
         'company_phone' => '',
         'city_nl' => '',
         'city_en' => '',
-        'footer_description_nl' => '',
-        'footer_description_en' => '',
         'company_street' => '',
         'company_house_number' => '',
         'company_postal_code' => '',
@@ -111,12 +109,20 @@ final class SiteSettingsValidatorTest extends TestCase
         $this->assertSame('', $result['values']['city_nl']);
     }
 
-    public function testAnEmptyFooterDescriptionIsValid(): void
+    /**
+     * Footer phase B: the footer description has one place, the Footer
+     * screen. A stale form or a crafted request that still sends it here
+     * writes nothing, so the two screens can never overwrite each other.
+     */
+    public function testTheFooterDescriptionIsNoLongerWrittenHere(): void
     {
-        $result = $this->validate(['footer_description_nl' => '', 'footer_description_en' => ''] + self::ALGEMEEN);
+        $result = $this->validate(['footer_description_nl' => 'Oud scherm', 'footer_description_en' => 'Old screen'] + self::ALGEMEEN);
 
         $this->assertSame([], $result['errors']);
-        $this->assertSame('', $result['values']['footer_description_nl']);
+        $this->assertArrayNotHasKey('footer_description_nl', $result['values']);
+        $this->assertArrayNotHasKey('footer_description_en', $result['values']);
+        $this->assertArrayNotHasKey('footer_description_nl', SiteSettingsValidator::FIELDS);
+        $this->assertStringNotContainsString('name="footer_description', (string) file_get_contents(self::root() . '/admin/settings.php'));
     }
 
     public function testEmptyAddressFieldsAreValid(): void
@@ -197,7 +203,7 @@ final class SiteSettingsValidatorTest extends TestCase
      */
     public function testASiteThatNeverHadAnAddressIsNotBlockedFromOtherSaves(): void
     {
-        $result = $this->validate(['email' => '', 'footer_description_nl' => 'Nieuw'] + self::ALGEMEEN, ['email' => ''], [$this->form('Offerteformulier')]);
+        $result = $this->validate(['email' => '', 'city_nl' => 'Nieuw'] + self::ALGEMEEN, ['email' => ''], [$this->form('Offerteformulier')]);
 
         $this->assertSame([], $result['errors']);
     }
@@ -261,7 +267,7 @@ final class SiteSettingsValidatorTest extends TestCase
 
     public function testAChangedValueOverTheLimitIsRefused(): void
     {
-        $this->assertNotSame([], $this->validate(['footer_description_nl' => str_repeat('a', 501)] + self::ALGEMEEN)['errors']);
+        $this->assertNotSame([], $this->validate(['city_nl' => str_repeat('a', 151)] + self::ALGEMEEN)['errors']);
         $this->assertNotSame([], $this->validate(['company_country' => 'NLD'] + self::ALGEMEEN)['errors']);
     }
 
@@ -269,7 +275,7 @@ final class SiteSettingsValidatorTest extends TestCase
     {
         $legacy = str_repeat('a', 600);
 
-        $result = $this->validate(['footer_description_nl' => $legacy] + self::ALGEMEEN, ['footer_description_nl' => $legacy]);
+        $result = $this->validate(['city_nl' => $legacy] + self::ALGEMEEN, ['city_nl' => $legacy]);
 
         $this->assertSame([], $result['errors']);
     }

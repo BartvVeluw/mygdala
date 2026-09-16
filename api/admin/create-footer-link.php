@@ -1,20 +1,28 @@
 <?php
 
 /**
- * POST /api/admin/create-footer-link.php — admin/footer-link.php's create form.
+ * POST /api/admin/create-footer-link.php
+ *
+ * Creates a footer_links row from admin/footer-link.php, at the end of its
+ * column. The rules are in api/admin/_footer_link_input.php, shared with
+ * update-footer-link.php, and they are the footer's copy of the menu's
+ * (api/admin/_nav_item_input.php).
+ *
+ * Same guard order and PRG/session-flash pattern as
+ * api/admin/create-nav-item.php; a successful save lands on the new link's
+ * own editor with saved=1, so the save bar there can say it was saved.
  */
 
 declare(strict_types=1);
 
 require_once __DIR__ . '/../../vendor/autoload.php';
+require_once __DIR__ . '/_footer_link_input.php';
 
-use App\Service\Language\AdminTranslator;
-use App\Service\AdminAuth;
-use App\Service\Csrf;
-use App\Service\Language\LocalizedValue;
-use App\Service\LinkResolver;
 use App\Repository\FooterRepository;
 use App\Repository\PageRepository;
+use App\Service\AdminAuth;
+use App\Service\Csrf;
+use App\Service\Language\AdminTranslator;
 
 AdminAuth::requireLoginForApi();
 AdminAuth::requirePermissionForApi('pages.manage');
@@ -30,84 +38,35 @@ if (!Csrf::validate($_POST['csrf_token'] ?? null)) {
     exit('Invalid or missing CSRF token.');
 }
 
-$columnIdParam = filter_input(INPUT_POST, 'column_id', FILTER_VALIDATE_INT);
-if ($columnIdParam === false || $columnIdParam === null || $columnIdParam < 1) {
-    http_response_code(404);
-    exit('Footer-kolom niet gevonden.');
-}
-
 $repository = new FooterRepository();
-$pageRepository = new PageRepository();
 
-if ($repository->findColumnById($columnIdParam) === null) {
+$column = footerLinkTargetColumn($_POST, $repository);
+if ($column === null) {
     http_response_code(404);
     exit('Footer-kolom niet gevonden.');
 }
 
-$labelNl = trim((string) ($_POST['label_nl'] ?? ''));
-$labelEn = trim((string) ($_POST['label_en'] ?? ''));
-$linkType = (string) ($_POST['link_type'] ?? '');
-$targetPageIdRaw = trim((string) ($_POST['target_page_id'] ?? ''));
-$targetPageId = $targetPageIdRaw === '' ? null : (int) $targetPageIdRaw;
-$targetRoute = trim((string) ($_POST['target_route'] ?? '')) ?: null;
-$externalUrl = trim((string) ($_POST['external_url'] ?? '')) ?: null;
-$actionKey = trim((string) ($_POST['action_key'] ?? '')) ?: null;
-$openInNewTab = isset($_POST['open_in_new_tab']);
-$isVisible = isset($_POST['is_visible']);
+$columnId = (int) $column['id'];
+$formUrl = '/admin/footer-link.php?column_id=' . $columnId;
 
-$errors = [];
-// Only the SITE'S OWN language is required. The other one is a translation,
-// and a translation is optional by definition: App\Service\Language\LocalizedValue
-// falls back to the primary language wherever one is missing. Requiring both
-// was harmless while every editor printed both fields; now that a
-// single-language site shows one, it would make this form impossible to
-// submit at all (MULTILINGUAL.md).
-if (LocalizedValue::ofDutchEnglish($labelNl, $labelEn)->primaryValue() === '') {
-    $errors[] = AdminTranslator::trans('validation.label_verplicht');
-}
-if (mb_strlen($labelNl) > 100 || mb_strlen($labelEn) > 100) {
-    $errors[] = AdminTranslator::trans('validation.label_mag_maximaal_100_tekens');
-}
-
-$linkError = LinkResolver::validate($linkType, $targetPageId, $targetRoute, $externalUrl, $actionKey, LinkResolver::LINK_TYPES_FOOTER, $pageRepository);
-if ($linkError !== null) {
-    $errors[] = $linkError;
-}
-
-$old = [
-    'label_nl' => $labelNl, 'label_en' => $labelEn, 'link_type' => $linkType,
-    'target_page_id' => $targetPageIdRaw, 'target_route' => $targetRoute,
-    'external_url' => $externalUrl, 'action_key' => $actionKey,
-    'open_in_new_tab' => $openInNewTab, 'is_visible' => $isVisible,
-];
+[$errors, $data, $old] = validateFooterLinkInput($_POST, null, new PageRepository());
 
 if ($errors !== []) {
     $_SESSION['admin_footer_link_errors'] = $errors;
     $_SESSION['admin_footer_link_old'] = $old;
-    header('Location: /admin/footer-link.php?column_id=' . $columnIdParam);
+    header('Location: ' . $formUrl);
     exit;
 }
 
 try {
-    $repository->createLink([
-        'column_id' => $columnIdParam,
-        'label_nl' => $labelNl,
-        'label_en' => $labelEn,
-        'link_type' => $linkType,
-        'target_page_id' => $linkType === 'page' ? $targetPageId : null,
-        'target_route' => $linkType === 'route' ? $targetRoute : null,
-        'external_url' => $linkType === 'external' ? $externalUrl : null,
-        'action_key' => $linkType === 'action' ? $actionKey : null,
-        'open_in_new_tab' => $openInNewTab,
-        'is_visible' => $isVisible,
-    ]);
+    $id = $repository->createLink(['column_id' => $columnId] + $data);
 } catch (\Throwable $e) {
     error_log('[api/admin/create-footer-link.php] ' . $e->getMessage());
-    $_SESSION['admin_footer_link_errors'] = ['Link kon niet worden aangemaakt.'];
+    $_SESSION['admin_footer_link_errors'] = [AdminTranslator::trans('footer.link_not_created')];
     $_SESSION['admin_footer_link_old'] = $old;
-    header('Location: /admin/footer-link.php?column_id=' . $columnIdParam);
+    header('Location: ' . $formUrl);
     exit;
 }
 
-header('Location: /admin/footer.php?saved=1');
+header('Location: /admin/footer-link.php?id=' . $id . '&saved=1');
 exit;
