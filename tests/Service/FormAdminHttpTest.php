@@ -418,8 +418,172 @@ final class FormAdminHttpTest extends TestCase
     }
 
     /* ------------------------------------------------------------------ */
+    /* Deleting a field, a form or a submission                            */
+    /* ------------------------------------------------------------------ */
+
+    /**
+     * Every deletion in Forms asks in the CMS's own dialog rather than with
+     * the browser's confirm(): a field from the list and from its own screen,
+     * a form from the overview and from its editor, and a stored submission.
+     * Each question has a title, names what goes, and has a button that says
+     * what it does; the dialog's own form only closes the dialog. Opening
+     * the screens deletes nothing.
+     */
+    public function testEveryDeletionAsksInTheCmsDialogAndNamesWhatGoes(): void
+    {
+        [$session] = $this->accounts->signIn([AdminPermissions::FORMS_MANAGE, AdminPermissions::FORMS_SUBMISSIONS]);
+        $catalog = require dirname(__DIR__, 2) . '/src/Service/Language/messages/nl.php';
+
+        $formId = $this->createForm(['name' => 'Offerte aanvragen']);
+        $fields = [];
+        foreach ($this->forms->fieldsFor($formId) as $field) {
+            $fields[(int) $field['id']] = (string) $field['label_nl'];
+        }
+        $fieldId = array_key_first($fields);
+
+        $kept = $this->createForm(['name' => 'Met inzendingen', 'internal_key' => FormCatalog::internalKeyFor('zz test met inzendingen', $this->forms)]);
+        $submissionId = (new FormSubmissionRepository())->create($kept, 'Met inzendingen', '/' . self::TEST_PAGE, [
+            ['field_key' => 'naam', 'field_label' => 'Naam', 'field_type' => 'text', 'value' => 'Iemand'],
+        ]);
+        $sentAt = date('d-m-Y H:i', strtotime((string) (new FormSubmissionRepository())->findForAdmin($submissionId)['created_at']));
+
+        $screens = [
+            'overview' => '/admin/forms.php',
+            'form editor' => '/admin/form.php?id=' . $formId,
+            'field editor' => '/admin/form-field.php?id=' . $fieldId,
+            'submission' => '/admin/form-submission.php?id=' . $submissionId,
+        ];
+        $xpaths = [];
+
+        foreach ($screens as $screen => $path) {
+            $response = self::$server->request('GET', $path, $session);
+            $this->assertSame(200, $response['status'], $screen . ' opens');
+            $this->assertStringNotContainsString('onsubmit', $response['body'], $screen . ': no inline handler asks the browser');
+            $this->assertStringNotContainsString('confirm(', $response['body'], $screen);
+
+            $xpaths[$screen] = $this->xpath($response['body']);
+            $this->assertCmsConfirmDialog($xpaths[$screen], $screen);
+        }
+
+        $asks = function (\DOMElement $form, string $title, array $names, string $screen) use ($catalog): void {
+            $this->assertSame($catalog[$title], $form->getAttribute('data-admin-confirm-title'), $screen . ': a title');
+            foreach ($names as $name) {
+                $this->assertStringContainsString($name, $form->getAttribute('data-admin-confirm'), $screen . ': names ' . $name);
+            }
+            $this->assertSame($catalog['common.delete'], $form->getAttribute('data-admin-confirm-action'), $screen . ': says what the button does');
+        };
+
+        foreach ($fields as $id => $label) {
+            $asks($this->deleteForm($xpaths['form editor'], '/api/admin/delete-form-field.php', 'field_id', $id, 'field list'), 'forms.delete_field.title', ['“' . $label . '”', '“Offerte aanvragen”'], 'field list');
+        }
+        $asks($this->deleteForm($xpaths['field editor'], '/api/admin/delete-form-field.php', 'field_id', $fieldId, 'field editor'), 'forms.delete_field.title', ['“' . $fields[$fieldId] . '”', '“Offerte aanvragen”'], 'field editor');
+
+        foreach (['overview', 'form editor'] as $screen) {
+            $asks($this->deleteForm($xpaths[$screen], '/api/admin/delete-form.php', 'id', $formId, $screen), 'forms.delete_form.title', ['“Offerte aanvragen”'], $screen);
+        }
+        $this->assertSame(0, $xpaths['overview']->query('//form[@action="/api/admin/delete-form.php"][.//input[@name="id"][@value="' . $kept . '"]]')->length, 'a form that cannot go still offers no delete');
+
+        $asks($this->deleteForm($xpaths['submission'], '/api/admin/delete-form-submission.php', 'id', $submissionId, 'submission'), 'forms.delete_submission.title', [$sentAt, '“Met inzendingen”'], 'submission');
+
+        $this->assertNotNull($this->forms->find($formId));
+        $this->assertCount(4, $this->forms->fieldsFor($formId));
+        $this->assertNotNull((new FormSubmissionRepository())->findForAdmin($submissionId), 'opening the screens deleted nothing');
+    }
+
+    /**
+     * What the dialog lets through is the request the button always sent,
+     * and the endpoints still decide: signed out, without the permission, not
+     * a POST or without the right token, nothing is deleted. A confirmed
+     * request deletes exactly the field, form or submission it names, and
+     * nothing next to it.
+     */
+    public function testAConfirmedDeletionRemovesExactlyItsObjectAndTheEndpointsStillGuard(): void
+    {
+        [$manager, $token] = $this->accounts->signIn([AdminPermissions::FORMS_MANAGE]);
+        [$reader, $readerToken] = $this->accounts->signIn([AdminPermissions::FORMS_SUBMISSIONS]);
+        [$pageEditor, $pageEditorToken] = $this->accounts->signIn([AdminPermissions::PAGES_MANAGE]);
+        $submissions = new FormSubmissionRepository();
+
+        $formId = $this->createForm();
+        $neighbour = $this->createForm(['internal_key' => FormCatalog::internalKeyFor('zz test buurformulier', $this->forms)]);
+        $fieldIds = array_map(static fn (array $row): int => (int) $row['id'], $this->forms->fieldsFor($formId));
+        $doomedField = $fieldIds[2];
+        $firstSubmission = $submissions->create($neighbour, 'Buur', null, [['field_key' => 'naam', 'field_label' => 'Naam', 'field_type' => 'text', 'value' => 'Een']]);
+        $secondSubmission = $submissions->create($neighbour, 'Buur', null, [['field_key' => 'naam', 'field_label' => 'Naam', 'field_type' => 'text', 'value' => 'Twee']]);
+
+        $cases = [
+            'field' => ['/admin/form-field.php?id=' . $doomedField, '/api/admin/delete-form-field.php', 'field_id', $doomedField, $manager, $token],
+            'form' => ['/admin/form.php?id=' . $formId, '/api/admin/delete-form.php', 'id', $formId, $manager, $token],
+            'submission' => ['/admin/form-submission.php?id=' . $firstSubmission, '/api/admin/delete-form-submission.php', 'id', $firstSubmission, $reader, $readerToken],
+        ];
+
+        $exists = [
+            'field' => fn (): bool => $this->forms->findField($doomedField) !== null,
+            'form' => fn (): bool => $this->forms->find($formId) !== null,
+            'submission' => fn (): bool => $submissions->findForAdmin($firstSubmission) !== null,
+        ];
+
+        foreach ($cases as $what => [$screen, $endpoint, $idName, $id, $session, $sessionToken]) {
+            $response = self::$server->request('GET', $screen, $session);
+            $sent = $this->hiddenFields($this->deleteForm($this->xpath($response['body']), $endpoint, $idName, $id, $what));
+            $this->assertSame(['csrf_token' => $sessionToken, $idName => (string) $id], $sent, $what . ': the form sends what it always sent');
+
+            $this->assertSame(401, self::$server->request('POST', $endpoint, null, $sent)['status'], $what . ': signed out');
+            $this->assertSame(403, self::$server->request('POST', $endpoint, $pageEditor, ['csrf_token' => $pageEditorToken] + $sent)['status'], $what . ': without the permission');
+            $this->assertSame(405, self::$server->request('GET', $endpoint . '?' . $idName . '=' . $id, $session)['status'], $what . ': only a POST');
+            $this->assertSame(403, self::$server->request('POST', $endpoint, $session, ['csrf_token' => str_repeat('0', 64)] + $sent)['status'], $what . ': a wrong token');
+            $this->assertSame(403, self::$server->request('POST', $endpoint, $session, [$idName => (string) $id])['status'], $what . ': no token');
+            $this->assertTrue($exists[$what](), $what . ': nothing was deleted');
+
+            self::$server->request('POST', $endpoint, $session, $sent);
+            $this->assertFalse($exists[$what](), $what . ': deleted once confirmed');
+
+            // The field goes first, so the form it belonged to still has three.
+            if ($what === 'field') {
+                $this->assertSame(array_values(array_diff($fieldIds, [$doomedField])), array_map(static fn (array $row): int => (int) $row['id'], $this->forms->fieldsFor($formId)), 'only that field');
+            }
+        }
+
+        $this->assertCount(4, $this->forms->fieldsFor($neighbour), 'the other form keeps its fields');
+        $this->assertNotNull($submissions->findForAdmin($secondSubmission), 'and its other submission');
+        $this->assertSame(403, self::$server->request('POST', '/api/admin/delete-form-submission.php', $manager, ['csrf_token' => $token, 'id' => (string) $secondSubmission])['status'], 'building forms is not deleting what people sent');
+        $this->assertNotNull($submissions->findForAdmin($secondSubmission));
+    }
+
+    /* ------------------------------------------------------------------ */
     /* Helpers                                                             */
     /* ------------------------------------------------------------------ */
+
+    /** One shared confirmation dialog, whose own form sends nothing. */
+    private function assertCmsConfirmDialog(\DOMXPath $xpath, string $screen): void
+    {
+        $dialogs = $xpath->query('//dialog[@data-admin-confirm-dialog]');
+        $this->assertSame(1, $dialogs->length, $screen . ': the CMS dialog, once');
+        $this->assertSame('dialog', $xpath->query('.//form', $dialogs->item(0))->item(0)?->getAttribute('method'), $screen . ': answering only closes it');
+        $this->assertSame(1, $xpath->query('.//button[@data-admin-confirm-yes][contains(@class, "admin-btn-danger")]', $dialogs->item(0))->length, $screen . ': the button that goes ahead looks destructive');
+    }
+
+    /** The delete form for exactly this object. */
+    private function deleteForm(\DOMXPath $xpath, string $action, string $idName, int $id, string $screen): \DOMElement
+    {
+        $forms = $xpath->query('//form[@method="post"][@action="' . $action . '"][.//input[@name="' . $idName . '"][@value="' . $id . '"]]');
+        $this->assertSame(1, $forms->length, $screen . ': one delete form for ' . $idName . ' ' . $id);
+
+        return $forms->item(0);
+    }
+
+    /** @return array<string, string> */
+    private function hiddenFields(\DOMElement $form): array
+    {
+        $sent = [];
+        foreach ($form->getElementsByTagName('input') as $input) {
+            if ($input->getAttribute('type') === 'hidden') {
+                $sent[$input->getAttribute('name')] = $input->getAttribute('value');
+            }
+        }
+
+        return $sent;
+    }
 
     private function editorXpath(string $session, int $formId): \DOMXPath
     {

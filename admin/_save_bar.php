@@ -42,6 +42,13 @@ require_once __DIR__ . '/_translate.php';
  * "saved later". The sidebar's logout form sits outside <main> and is
  * therefore never touched: submitting THAT from a save button would log the
  * editor out mid-edit.
+ *
+ * Two more attributes say what only the server knows. `data-save-bar-unsaved`
+ * on a form that shows input which was sent but not written — a refused
+ * save, or a change waiting for confirmation (admin/form-field.php) — makes
+ * it start out unsaved, so the bar never says "Alles opgeslagen" above
+ * "Er is nog niets opgeslagen". `data-save-bar-discard` on the link that
+ * throws that input away on purpose keeps the browser from asking again.
  */
 
 /**

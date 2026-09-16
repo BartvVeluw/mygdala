@@ -683,6 +683,34 @@ final class BlockPickerTest extends TestCase
     }
 
     /**
+     * Two things only the server knows, said in markup. A form that shows
+     * input which was sent but not written starts out unsaved — and after the
+     * "just saved" flag, so it is never announced as saved. A link that
+     * throws that input away on purpose stands the leave warning down, but
+     * only for a plain click that navigates this tab.
+     */
+    public function testAScreenCanSayItsInputIsUnsentAndWhichLinkDiscardsIt(): void
+    {
+        $script = $this->sourceOf('admin/assets/save-bar.js');
+
+        $this->assertStringContainsString('if (form.hasAttribute("data-save-bar-unsaved")) markDirty(form);', $script);
+        $this->assertGreaterThan(
+            strpos($script, 'sessionStorage.getItem(RELOAD_FLAG)'),
+            strpos($script, 'data-save-bar-unsaved")) markDirty'),
+            'an unsent form is marked after the reload flag, so "Opgeslagen" never covers it'
+        );
+
+        $this->assertMatchesRegularExpression(
+            '/closest\("a\[href\]\[data-save-bar-discard\]"\)[\s\S]{0,200}event\.button !== 0[\s\S]{0,120}event\.ctrlKey \|\| event\.metaKey \|\| event\.shiftKey \|\| event\.altKey[\s\S]{0,80}leavingOnPurpose = true/',
+            $script,
+            'only a plain click on a discard link leaves without the warning'
+        );
+
+        $this->assertStringContainsString('data-save-bar-unsaved', $this->sourceOf('admin/_save_bar.php'), 'documented where a screen reads how to use the bar');
+        $this->assertStringContainsString('data-save-bar-discard', $this->sourceOf('admin/_save_bar.php'));
+    }
+
+    /**
      * The rich-text editor rewrites its own field while it loads. Treating
      * that as an edit would mark every freshly opened editor dirty, which is
      * the mistake that makes a dirty indicator worth ignoring.

@@ -52,6 +52,12 @@ use App\Service\Forms\FormUsage;
  * admin/assets/forms-admin.js opens it as a modal instead. A refused add
  * comes back the same way, with what was chosen and typed still in it.
  *
+ * DELETING ASKS FIRST, in the CMS's own dialog (admin_confirm_dialog(),
+ * ADMIN-UI.md): a field from the list and the form itself each name what
+ * goes. The form still does the work, so without JavaScript it is sent
+ * straight away, and api/admin/delete-form-field.php and delete-form.php keep
+ * every guard and the check whether a form may go at all.
+ *
  * What "on" and "off" mean everywhere is FORMS.md, "Actief en uit"; this
  * screen only sets the column.
  */
@@ -353,7 +359,11 @@ $advancedOpen = $errors !== [] || $losesSubmissions;
             <input type="hidden" name="direction" value="down">
             <button type="submit" class="admin-btn-text" <?= $isLast ? 'disabled' : '' ?>><?= admin_t('common.move_down') ?></button>
           </form>
-          <form method="post" action="/api/admin/delete-form-field.php" class="admin-inline-form" onsubmit="return confirm('Dit veld verwijderen? Bewaarde inzendingen blijven leesbaar.');">
+          <form method="post" action="/api/admin/delete-form-field.php" class="admin-inline-form"<?= admin_confirm_attributes(
+              admin_t('forms.delete_field.title'),
+              admin_t('forms.delete_field.message', ['field' => (string) $field['label_nl'], 'form' => (string) $row['name']]),
+              admin_t('common.delete')
+          ) ?>>
             <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
             <input type="hidden" name="field_id" value="<?= $fieldId ?>">
             <button type="submit" class="admin-btn-text admin-btn-text--danger"><?= admin_te('common.delete') ?></button>
@@ -413,7 +423,11 @@ $advancedOpen = $errors !== [] || $losesSubmissions;
     <h2><?= admin_te('forms.formulier_verwijderen') ?></h2>
     <?php if ($blockers === []): ?>
       <p class="admin-text-muted"><?= admin_te('forms.formulier_staat_nergens_heeft') ?></p>
-      <form method="post" action="/api/admin/delete-form.php" onsubmit="return confirm('Dit formulier definitief verwijderen?');">
+      <form method="post" action="/api/admin/delete-form.php"<?= admin_confirm_attributes(
+          admin_t('forms.delete_form.title'),
+          admin_t('forms.delete_form.message', ['form' => (string) $row['name']]),
+          admin_t('common.delete')
+      ) ?>>
         <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
         <input type="hidden" name="id" value="<?= $id ?>">
         <button type="submit"><?= admin_te('forms.definitief_verwijderen') ?></button>
@@ -428,6 +442,7 @@ $advancedOpen = $errors !== [] || $losesSubmissions;
     <?php endif; ?>
   </section>
 </main>
+<?= admin_confirm_dialog() ?>
 <?php admin_lang_script(); ?>
 <script src="<?= \App\Service\AssetVersion::url('/admin/assets/forms-admin.js') ?>" defer></script>
 </body>

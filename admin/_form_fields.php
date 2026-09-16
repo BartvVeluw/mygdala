@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/_translate.php';
+require_once __DIR__ . '/_admin_ui.php';
 
 use App\Service\Forms\FormFieldOptions;
 use App\Service\Forms\FormFieldTypeChange;
@@ -26,6 +27,13 @@ use App\Service\Forms\FormFieldTypes;
  * (.admin-template-card): the whole card is the hit area, arrow keys move
  * between types, and the choice is sent with the form it sits in. No
  * JavaScript picks anything.
+ *
+ * A RADIO IS NAMED BY ITS TYPE ALONE. A <label> around a whole card would
+ * make every word on it the radio's name, so a screen reader would read the
+ * description and the note as part of "Kort tekstveld" for each of the eight
+ * cards. The radio points at the name with aria-labelledby and at the rest
+ * with aria-describedby: the same words, heard as a name and a description.
+ * The <label> stays, because it is what makes the whole card clickable.
  */
 
 /** The name of a type, or a plain "unknown" for a key nobody registered. */
@@ -57,15 +65,20 @@ function form_field_type_cards(string $name, string $checked, array $notes = [])
     ?>
     <div class="admin-template-grid admin-field-type-grid">
       <?php foreach (FormFieldTypes::keys() as $key): ?>
+        <?php
+          $id = admin_ui_id('form-field-type-' . $key);
+          $hasNote = ($notes[$key] ?? '') !== '';
+          $describedBy = $id . '-desc' . ($hasNote ? ' ' . $id . '-note' : '');
+        ?>
         <label class="admin-template-card">
-          <input type="radio" name="<?= $h($name) ?>" value="<?= $h($key) ?>" required<?= $checked === $key ? ' checked' : '' ?>>
+          <input type="radio" name="<?= $h($name) ?>" value="<?= $h($key) ?>" required<?= $checked === $key ? ' checked' : '' ?> aria-labelledby="<?= $h($id) ?>-name" aria-describedby="<?= $h($describedBy) ?>">
           <span class="admin-template-card__inner">
             <span class="admin-template-card__head">
-              <span class="admin-template-card__name"><?= $h(form_field_type_label($key)) ?></span>
+              <span class="admin-template-card__name" id="<?= $h($id) ?>-name"><?= $h(form_field_type_label($key)) ?></span>
             </span>
-            <span class="admin-template-card__desc"><?= $h(form_field_type_description($key)) ?></span>
-            <?php if (($notes[$key] ?? '') !== ''): ?>
-              <span class="admin-template-card__note"><?= $h($notes[$key]) ?></span>
+            <span class="admin-template-card__desc" id="<?= $h($id) ?>-desc"><?= $h(form_field_type_description($key)) ?></span>
+            <?php if ($hasNote): ?>
+              <span class="admin-template-card__note" id="<?= $h($id) ?>-note"><?= $h($notes[$key]) ?></span>
             <?php endif; ?>
           </span>
         </label>

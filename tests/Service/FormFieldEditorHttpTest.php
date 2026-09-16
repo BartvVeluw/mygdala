@@ -24,7 +24,9 @@ use Tests\Support\BuiltInServer;
  * editor shows only the settings its kind uses, saves options and their
  * default in one go, sends an untouched field back unchanged, never changes
  * the key, and never lets a type change throw a setting away until that
- * change was confirmed.
+ * change was confirmed. A type card is named by its type alone, and the
+ * save bar watches the settings and nothing else. Deleting a field is
+ * Tests\Service\FormAdminHttpTest, with the other deletions.
  *
  * Like Tests\Service\FormAdminHttpTest this starts PHP's built-in server on
  * this checkout (Tests\Support\BuiltInServer), so it runs wherever the `cms`
@@ -712,8 +714,180 @@ final class FormFieldEditorHttpTest extends TestCase
     }
 
     /* ------------------------------------------------------------------ */
+    /* What a screen reader hears on a type card                           */
+    /* ------------------------------------------------------------------ */
+
+    /**
+     * A type card is a radio inside a <label> around the whole card, which
+     * would make every word on the card the radio's name. The radio is named
+     * by its type alone (aria-labelledby) and hears the rest as its
+     * description (aria-describedby) — in the add dialog and in the field
+     * editor alike. The card is still one click target, the eight radios are
+     * still one group the arrow keys move through, and which one is selected
+     * is still the radio's own state.
+     */
+    public function testATypeCardIsNamedByItsTypeAloneAndDescribedByTheRest(): void
+    {
+        [$session] = $this->accounts->signIn([AdminPermissions::FORMS_MANAGE]);
+        $formId = $this->createForm();
+        $fieldId = $this->addField($formId, 'Voorkeur', 'radio', "Bellen\nMailen");
+        $catalog = $this->catalog('nl');
+
+        $screens = [
+            'add dialog' => ['/admin/form.php?id=' . $formId, '//dialog[@id="form-field-add"]', null],
+            'field editor' => ['/admin/form-field.php?id=' . $fieldId, '//form[@action="' . self::UPDATE_ENDPOINT . '"]', 'radio'],
+        ];
+
+        foreach ($screens as $screen => [$path, $scope, $current]) {
+            $xpath = $this->xpath($this->get($session, $path));
+            $radios = $xpath->query($scope . '//input[@type="radio"][@name="field_type"]');
+            $this->assertSame(count(FormFieldTypes::keys()), $radios->length, $screen);
+
+            $checked = [];
+
+            foreach ($radios as $radio) {
+                $key = $radio->getAttribute('value');
+                $where = $screen . ', ' . $key;
+                $card = $xpath->query('ancestor::label[1]', $radio)->item(0);
+                $this->assertNotNull($card, $where . ': the whole card is still the click target');
+
+                $this->assertSame(
+                    $catalog['formfieldtype.' . $key . '.label'],
+                    $this->textOfIds($xpath, $radio->getAttribute('aria-labelledby'), $card, $where),
+                    $where . ': named by the type alone'
+                );
+
+                $description = $this->textOfIds($xpath, $radio->getAttribute('aria-describedby'), $card, $where);
+                $explanation = $catalog['formfieldtype.' . $key . '.description'];
+
+                if ($current === null) {
+                    $this->assertSame($explanation, $description, $where . ': the explanation is the description');
+                } else {
+                    // The editor's cards also say what choosing them costs.
+                    $note = trim($xpath->query('.//*[contains(@class, "admin-template-card__note")]', $card)->item(0)->textContent);
+                    $this->assertSame($explanation . ' ' . $note, $description, $where . ': explanation and note are the description');
+                }
+
+                $this->assertFalse($radio->hasAttribute('disabled'), $where);
+                $this->assertFalse($radio->hasAttribute('tabindex'), $where . ': reachable like any radio');
+
+                if ($radio->hasAttribute('checked')) {
+                    $checked[] = $key;
+                }
+            }
+
+            $this->assertSame($current === null ? [] : [$current], $checked, $screen . ': the selected type is the checked radio');
+        }
+    }
+
+    /* ------------------------------------------------------------------ */
+    /* The save bar                                                        */
+    /* ------------------------------------------------------------------ */
+
+    /**
+     * The field editor carries the CMS's save bar, which watches every POST
+     * form inside <main> that holds something to edit (admin/_save_bar.php).
+     * That is the settings form and nothing else: the delete form only
+     * carries hidden fields, "Technische gegevens" is no form at all, and the
+     * language switch sits outside <main>. A fresh screen starts saved; a
+     * successful save lands on the marker the bar reads as saved.
+     */
+    public function testTheSaveBarWatchesTheSettingsFormAndNothingElse(): void
+    {
+        [$session] = $this->accounts->signIn([AdminPermissions::FORMS_MANAGE]);
+        $formId = $this->createForm();
+        $fieldId = $this->addField($formId, 'Voorkeur', 'select', "Bellen\nMailen");
+
+        $html = $this->get($session, '/admin/form-field.php?id=' . $fieldId);
+        $xpath = $this->xpath($html);
+
+        $this->assertSame(1, $xpath->query('//*[@data-save-bar]')->length, 'one save bar');
+        $this->assertSame(1, $xpath->query('//script[contains(@src, "/admin/assets/save-bar.js")]')->length, 'and its script');
+
+        $editable = './/*[(self::input and not(@type="hidden") and not(@type="submit") and not(@type="button")) or self::select or self::textarea]';
+        $watched = [];
+
+        foreach ($xpath->query('//main[contains(@class, "admin-main")]//form[@method="post"]') as $form) {
+            $isWatched = !str_contains(' ' . $form->getAttribute('class') . ' ', ' admin-inline-form ')
+                && !$form->hasAttribute('data-no-dirty-track')
+                && $xpath->query($editable, $form)->length > 0;
+
+            if ($isWatched) {
+                $watched[] = $form->getAttribute('action');
+            }
+        }
+
+        $this->assertSame([self::UPDATE_ENDPOINT], $watched, 'only the settings form can make the screen unsaved');
+        $this->assertSame(0, $xpath->query('//details[@data-form-field-technical]/ancestor::form')->length, 'opening Technische gegevens is no edit');
+        $this->assertSame(0, $xpath->query('//main//form[@action="/api/admin/update-content-language.php"]')->length, 'switching language is no edit of this field');
+        $this->assertFalse($xpath->query('//form[@action="' . self::UPDATE_ENDPOINT . '"]')->item(0)->hasAttribute('data-save-bar-unsaved'), 'a fresh screen starts saved');
+
+        [$fields] = $this->editorSubmission($session, $fieldId);
+        $fields['label_nl'] = 'Hoe wil je contact?';
+        $response = self::$server->request('POST', self::UPDATE_ENDPOINT, $session, $fields);
+
+        $this->assertMatchesRegularExpression('/[?&](saved|updated|created)=1(&|$)/', $response['location'], 'the success marker the save bar reads');
+        $this->assertFalse($this->xpath($this->get($session, $response['location']))->query('//form[@action="' . self::UPDATE_ENDPOINT . '"]')->item(0)->hasAttribute('data-save-bar-unsaved'), 'saved is saved');
+    }
+
+    /**
+     * Input that came back unwritten is not saved, and the bar must not say
+     * it is: after a refused save, and while a type change waits for
+     * confirmation, the settings form starts out unsaved. Cancelling that
+     * change is a link that throws the input away on purpose, so the bar lets
+     * it go without the browser asking a second time.
+     */
+    public function testInputThatCameBackUnwrittenStartsOutUnsaved(): void
+    {
+        [$session] = $this->accounts->signIn([AdminPermissions::FORMS_MANAGE]);
+        $formId = $this->createForm();
+        $fieldId = $this->addField($formId, 'Voorkeur', 'radio', "Bellen\nMailen", ['default_value' => 'Mailen']);
+        $settings = '//form[@action="' . self::UPDATE_ENDPOINT . '"]';
+
+        [$fields] = $this->editorSubmission($session, $fieldId);
+        $fields['label_nl'] = '';
+        $response = self::$server->request('POST', self::UPDATE_ENDPOINT, $session, $fields);
+        $this->assertSame('/admin/form-field.php?id=' . $fieldId, $response['location'], 'refused');
+        $this->assertTrue($this->xpath($this->get($session, $response['location']))->query($settings)->item(0)->hasAttribute('data-save-bar-unsaved'), 'a refused save is unsaved');
+
+        [$fields] = $this->editorSubmission($session, $fieldId);
+        $fields['field_type'] = 'text';
+        $response = self::$server->request('POST', self::UPDATE_ENDPOINT, $session, $fields);
+        $this->assertSame('/admin/form-field.php?id=' . $fieldId, $response['location'], 'waiting for confirmation');
+
+        $xpath = $this->xpath($this->get($session, $response['location']));
+        $this->assertTrue($xpath->query($settings)->item(0)->hasAttribute('data-save-bar-unsaved'), 'a change waiting for confirmation is unsaved');
+
+        $cancel = $xpath->query('//section[contains(@class, "admin-type-change")]//a[@data-save-bar-discard]');
+        $this->assertSame(1, $cancel->length, 'Annuleren throws the input away on purpose');
+        $this->assertSame('/admin/form-field.php?id=' . $fieldId, $cancel->item(0)->getAttribute('href'));
+
+        $this->assertStringNotContainsString('data-save-bar-unsaved', $this->get($session, '/admin/form-field.php?id=' . $fieldId), 'and once that is followed, the stored field is saved');
+    }
+
+    /* ------------------------------------------------------------------ */
     /* Helpers                                                             */
     /* ------------------------------------------------------------------ */
+
+    /**
+     * The words the elements named by an IDREF list hold, joined by a space,
+     * as a browser builds a name or a description from them. Every id must
+     * name exactly one element on the page, inside the card it describes.
+     */
+    private function textOfIds(\DOMXPath $xpath, string $ids, \DOMNode $card, string $where): string
+    {
+        $parts = preg_split('/\s+/', trim($ids), -1, PREG_SPLIT_NO_EMPTY);
+        $this->assertNotSame([], $parts, $where . ': refers to something');
+
+        $texts = [];
+        foreach ($parts as $id) {
+            $this->assertSame(1, $xpath->query('//*[@id="' . $id . '"]')->length, $where . ': id ' . $id . ' is unique');
+            $this->assertSame(1, $xpath->query('.//*[@id="' . $id . '"]', $card)->length, $where . ': id ' . $id . ' is on this card');
+            $texts[] = trim($xpath->query('//*[@id="' . $id . '"]')->item(0)->textContent);
+        }
+
+        return implode(' ', $texts);
+    }
 
     /**
      * What a browser sends when the field editor's save button is pressed:

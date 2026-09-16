@@ -20,6 +20,10 @@ use App\Service\Csrf;
  * inzending bewaart"). Nothing on this screen joins back to `form_fields`.
  *
  * Opening it marks it read; that is the only state a submission has.
+ *
+ * Deleting asks first, in the CMS's own dialog (ADMIN-UI.md), naming when
+ * it was sent; api/admin/delete-form-submission.php deletes it for real,
+ * attachment included.
  */
 
 AdminAuth::requireLogin();
@@ -137,12 +141,20 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
   <section class="admin-card">
     <h2><?= admin_te('common.delete') ?></h2>
     <p class="admin-text-muted"><?= admin_te('forms.verwijdert_inzending_alle_antwoorden') ?></p>
-    <form method="post" action="/api/admin/delete-form-submission.php" onsubmit="return confirm('Deze inzending definitief verwijderen?');">
+    <form method="post" action="/api/admin/delete-form-submission.php"<?= admin_confirm_attributes(
+        admin_t('forms.delete_submission.title'),
+        admin_t('forms.delete_submission.message', [
+            'date' => date('d-m-Y H:i', strtotime((string) $submission['created_at'])),
+            'form' => (string) $submission['form_name'],
+        ]),
+        admin_t('common.delete')
+    ) ?>>
       <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
       <input type="hidden" name="id" value="<?= (int) $submission['id'] ?>">
       <button type="submit"><?= admin_te('forms.definitief_verwijderen') ?></button>
     </form>
   </section>
 </main>
+<?= admin_confirm_dialog() ?>
 </body>
 </html>

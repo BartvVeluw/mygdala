@@ -33,6 +33,14 @@
  * the flag. That is deliberate: the rich-text editor rewrites its field's
  * HTML the moment it loads, so a value comparison would call an untouched
  * page dirty — the opposite mistake, and the dangerous one.
+ *
+ * TWO THINGS ONLY THE SERVER KNOWS, said in markup and never guessed here:
+ *   - data-save-bar-unsaved on a form: what is on screen was sent but not
+ *     written (a refused save, or a change waiting for confirmation), so the
+ *     form starts out unsaved;
+ *   - data-save-bar-discard on a link: following it throws that input away
+ *     on purpose ("Annuleren" on such a screen), so the browser does not ask
+ *     a second time.
  */
 (function () {
   "use strict";
@@ -268,6 +276,19 @@
 
   saveButton.addEventListener("click", saveAll);
 
+  /**
+   * "Annuleren" on a screen that holds unsent input is the editor's answer
+   * already. Only a plain click that navigates this tab counts: a new tab or
+   * window leaves this page, and its input, where it is.
+   */
+  document.addEventListener("click", function (event) {
+    var link = event.target && event.target.closest ? event.target.closest("a[href][data-save-bar-discard]") : null;
+    if (!link || event.defaultPrevented || event.button !== 0) return;
+    if (event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
+
+    leavingOnPurpose = true;
+  });
+
   window.addEventListener("beforeunload", function (event) {
     if (leavingOnPurpose || dirty.length === 0) return;
 
@@ -287,4 +308,10 @@
       }, 2500);
     }
   } catch (e) {}
+
+  // After the reload flag, so a form the server sent back unwritten is never
+  // announced as just saved.
+  forms.forEach(function (form) {
+    if (form.hasAttribute("data-save-bar-unsaved")) markDirty(form);
+  });
 })();

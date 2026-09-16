@@ -111,6 +111,10 @@
  *
  * Removing the row that was the default puts the choice back on "no
  * default", so the form never sends a default for a row that is gone.
+ *
+ * Adding and removing a row end with a bubbling "change" from the list:
+ * neither types anything, and the save bar (admin/assets/save-bar.js)
+ * learns about edits from input and change events alone.
  */
 (function () {
   "use strict";
@@ -128,7 +132,9 @@
     }
 
     function renumber() {
-      Array.prototype.forEach.call(rows(), function (row, position) {
+      var all = rows();
+
+      Array.prototype.forEach.call(all, function (row, position) {
         var number = String(position + 1);
         var badge = row.querySelector("[data-form-option-number]");
         if (badge) badge.textContent = number;
@@ -138,7 +144,12 @@
         });
       });
 
-      add.disabled = rows().length >= max;
+      add.disabled = all.length >= max;
+    }
+
+    /** Tells the save bar the options changed; see the note above. */
+    function changed() {
+      list.dispatchEvent(new Event("change", { bubbles: true }));
     }
 
     function nextIndex() {
@@ -180,6 +191,7 @@
         }
 
         renumber();
+        changed();
 
         var target = next ? visibleInput(next) : null;
         (target || add).focus();
@@ -209,6 +221,7 @@
       list.appendChild(copy);
       enableRemove(copy);
       renumber();
+      changed();
 
       var target = visibleInput(copy);
       if (target) target.focus();

@@ -7,6 +7,7 @@ require_once __DIR__ . '/_translate.php';
 
 require_once __DIR__ . '/_language_fields.php';
 require_once __DIR__ . '/_form_fields.php';
+require_once __DIR__ . '/_save_bar.php';
 
 use App\Repository\FormRepository;
 use App\Service\AdminAuth;
@@ -46,6 +47,19 @@ use App\Service\Forms\FormFieldTypes;
  * default right away. Three empty rows follow the filled ones, which is
  * how options are added without JavaScript; admin/assets/forms-admin.js adds
  * and removes rows in place.
+ *
+ * UNSAVED CHANGES are the save bar's (admin/_save_bar.php), which watches
+ * the settings form like any other. Adding or removing an option row is an
+ * edit as well, so forms-admin.js reports it with a change event.
+ * Input that came back unwritten — a refused save, or a type change waiting
+ * for confirmation — starts out unsaved (`data-save-bar-unsaved`), and the
+ * confirmation's "Annuleren" throws it away without a second question. The
+ * delete form, "Technische gegevens" and the language switch hold nothing an
+ * editor types into this field, so they never make the screen unsaved.
+ *
+ * DELETING ASKS FIRST, in the CMS's own dialog (admin_confirm_dialog(),
+ * ADMIN-UI.md). Without JavaScript the form is sent straight away;
+ * api/admin/delete-form-field.php keeps every guard.
  *
  * THE POST NAME IS NOT EDITABLE, and not on the everyday part of the screen
  * either: it sits under "Technische gegevens". It was generated from the
@@ -196,7 +210,7 @@ $v = static fn (array $values, string $key): string => htmlspecialchars((string)
     </div>
   <?php endif; ?>
 
-  <form method="post" action="/api/admin/update-form-field.php" class="admin-product-form" data-form-field-editor>
+  <form method="post" action="/api/admin/update-form-field.php" class="admin-product-form" data-form-field-editor<?= is_array($old) ? ' data-save-bar-unsaved' : '' ?>>
     <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
     <input type="hidden" name="field_id" value="<?= $id ?>">
 
@@ -221,7 +235,7 @@ $v = static fn (array $values, string $key): string => htmlspecialchars((string)
         <input type="hidden" name="confirmed_type" value="<?= $h($typeKey) ?>">
         <div class="admin-type-change__actions">
           <button type="submit"><?= admin_te($losses === [] ? 'forms.type_change.submit' : 'forms.type_change.submit_losing') ?></button>
-          <a href="/admin/form-field.php?id=<?= $id ?>" class="admin-btn-secondary"><?= admin_te('forms.type_change.cancel') ?></a>
+          <a href="/admin/form-field.php?id=<?= $id ?>" class="admin-btn-secondary" data-save-bar-discard><?= admin_te('forms.type_change.cancel') ?></a>
         </div>
       </section>
     <?php endif; ?>
@@ -398,14 +412,21 @@ $v = static fn (array $values, string $key): string => htmlspecialchars((string)
   <section class="admin-card">
     <h2><?= admin_te('forms.veld_verwijderen') ?></h2>
     <p class="admin-text-muted"><?= admin_te('forms.veld_verdwijnt_uit_formulier') ?></p>
-    <form method="post" action="/api/admin/delete-form-field.php" onsubmit="return confirm('Dit veld verwijderen?');">
+    <form method="post" action="/api/admin/delete-form-field.php"<?= admin_confirm_attributes(
+        admin_t('forms.delete_field.title'),
+        admin_t('forms.delete_field.message', ['field' => (string) $field['label_nl'], 'form' => (string) $form['name']]),
+        admin_t('common.delete')
+    ) ?>>
       <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
       <input type="hidden" name="field_id" value="<?= $id ?>">
       <button type="submit"><?= admin_te('forms.definitief_verwijderen') ?></button>
     </form>
   </section>
 </main>
+<?php save_bar(); ?>
+<?= admin_confirm_dialog() ?>
 <?php admin_lang_script(); ?>
 <script src="<?= \App\Service\AssetVersion::url('/admin/assets/forms-admin.js') ?>" defer></script>
+<?php save_bar_script(); ?>
 </body>
 </html>

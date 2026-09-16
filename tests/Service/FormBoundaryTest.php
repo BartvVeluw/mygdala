@@ -485,6 +485,35 @@ final class FormBoundaryTest extends TestCase
         $this->assertStringNotContainsString('type="file"', $editor, 'the field editor must not be able to create an upload field');
     }
 
+    /* ------------------------------------------------------------------ */
+    /* The admin screens                                                   */
+    /* ------------------------------------------------------------------ */
+
+    /**
+     * No Forms screen asks with the browser's confirm() any more: every form
+     * that deletes something carries the CMS's question
+     * (admin_confirm_attributes()), and a screen with such a form prints the
+     * dialog it is asked in. Tests\Service\FormAdminHttpTest checks the
+     * questions and what a confirmed request deletes.
+     */
+    public function testEveryFormsDeletionAsksInTheCmsDialog(): void
+    {
+        foreach (['admin/forms.php', 'admin/form.php', 'admin/form-field.php', 'admin/form-block.php', 'admin/form-submissions.php', 'admin/form-submission.php', 'admin/assets/forms-admin.js'] as $file) {
+            $source = $this->read($file);
+
+            $this->assertStringNotContainsString('onsubmit', $source, $file . ' has an inline handler');
+            $this->assertDoesNotMatchRegularExpression('/\bconfirm\(/', $source, $file . ' asks with the browser\'s confirm()');
+
+            $deletes = preg_match_all('#<form method="post" action="/api/admin/delete-[a-z-]+\.php"#', $source);
+            $asks = preg_match_all('#<form method="post" action="/api/admin/delete-[a-z-]+\.php"(?: class="[^"]*")?<\?= admin_confirm_attributes\(#', $source);
+
+            $this->assertSame($deletes, $asks, $file . ': every delete form asks first');
+            if ($deletes > 0) {
+                $this->assertSame(1, substr_count($source, '<?= admin_confirm_dialog() ?>'), $file . ' prints the dialog once');
+            }
+        }
+    }
+
     /**
      * Every generic Forms file — the service namespace, the blocks, the
      * public renderer, the endpoints and the admin screens.

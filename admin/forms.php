@@ -30,6 +30,9 @@ use App\Service\Forms\FormUsage;
  * The count is shown whenever there ARE stored submissions, also for a form
  * that has since stopped storing: switching storing off deletes nothing, and
  * a "—" there would hide personal data that is still in the CMS.
+ *
+ * Deleting a form asks first, in the CMS's own dialog (ADMIN-UI.md,
+ * "Bevestigen voordat iets weg is"); api/admin/delete-form.php decides.
  */
 
 AdminAuth::requireLogin();
@@ -160,7 +163,11 @@ $canSeeSubmissions = AdminAuth::can(AdminPermissions::FORMS_SUBMISSIONS);
                          a touchscreen cannot reach (ADMIN-UI.md). The
                          endpoint checks again either way. */ ?>
                 <?php if ($blockers === []): ?>
-                  <form method="post" action="/api/admin/delete-form.php" class="admin-inline-form" onsubmit="return confirm('Dit formulier definitief verwijderen?');">
+                  <form method="post" action="/api/admin/delete-form.php" class="admin-inline-form"<?= admin_confirm_attributes(
+                      admin_t('forms.delete_form.title'),
+                      admin_t('forms.delete_form.message', ['form' => (string) $form['name']]),
+                      admin_t('common.delete')
+                  ) ?>>
                     <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
                     <input type="hidden" name="id" value="<?= $formId ?>">
                     <button type="submit" class="admin-btn-text admin-btn-text--danger"><?= admin_te('common.delete') ?></button>
@@ -187,5 +194,6 @@ $canSeeSubmissions = AdminAuth::can(AdminPermissions::FORMS_SUBMISSIONS);
     </form>
   </section>
 </main>
+<?= admin_confirm_dialog() ?>
 </body>
 </html>
