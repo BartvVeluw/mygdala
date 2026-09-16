@@ -23,7 +23,7 @@ document, dan heeft de code gelijk.
 | Schematische tekening en pictogram | `admin/_block_visual.php`, CSS in `admin/assets/admin.css` (`.admin-block-visual`, `.admin-bp--*`) |
 | Bibliotheek | `admin/content-blocks.php` (menu-item `content_blocks` in `App\Service\AdminNavigation`), `admin/_block_library.php`, `admin/assets/block-library.js`, CSS `.admin-catalogue-*` en `.admin-block-preview*` |
 | Voorbeeld van één blok | `admin/block-preview.php`, `assets/css/block-preview.css`, `assets/js/block-preview.js`, `assets/images/block-preview/sample.svg` |
-| Opslagbalk | `admin/_save_bar.php`, `admin/assets/save-bar.js`, aangeroepen door `admin/page.php`, elke blok-editor, `admin/settings.php` en `admin/shop-settings.php` |
+| Opslagbalk | `admin/_save_bar.php`, `admin/assets/save-bar.js`, aangeroepen door `admin/page.php`, elke blok-editor, `admin/settings.php`, `admin/shop-settings.php` en de veldeditor van Formulieren (`admin/form-field.php`) |
 | Tests | `tests/Service/BlockPresentationTest.php`, `tests/Service/BlockPickerTest.php`, `tests/Service/BlockLibraryScreenTest.php`, `tests/Service/BlockSampleContractTest.php`, `tests/Service/BlockPreviewContractTest.php`, `tests/Service/BlockPreviewAccessTest.php`, `tests/Service/AdminEditorNavigationTest.php`, `tests/Service/PageBuilderScreenTest.php` |
 
 ## Tabbladen op de paginabouwer
@@ -516,6 +516,20 @@ elke navigatie waarschuwt is een browser waarvan niemand de waarschuwing nog
 leest. Een opslag van de balk zelf waarschuwt niet. Het versturen van één
 formulier terwijl een ánder nog gewijzigd is waarschuwt wél — dat is nu net
 het geval dat de losse knoppen vroeger stil lieten verdwijnen.
+
+### Twee dingen die alleen de server weet
+
+De balk vergelijkt geen waarden, dus twee toestanden kan hij niet zelf zien.
+Een scherm zegt ze in de markup:
+
+| Attribuut | Waar | Wat de balk doet |
+|---|---|---|
+| `data-save-bar-unsaved` | op een formulier dat invoer toont die verstuurd maar niet geschreven is: een geweigerde opslag, of een wijziging die op bevestiging wacht | het formulier begint als gewijzigd, ook na de melding *Opgeslagen* van een vorige opslag, en weggaan waarschuwt |
+| `data-save-bar-discard` | op de link die zulke invoer bewust weggooit (*Annuleren*) | een gewone klik laat de pagina gaan zonder dat de browser nog eens vraagt; een klik met Ctrl, Cmd, Shift of Alt (nieuw tabblad of venster) telt niet |
+
+Zonder die attributen verandert er niets. De eerste gebruiker is de veldeditor
+van Formulieren, waar een typewissel eerst terugkomt met wat hij kost
+([`FORMS.md`](FORMS.md), "Niet-opgeslagen wijzigingen").
 
 ## Dezelfde tabbladen op een ander scherm
 

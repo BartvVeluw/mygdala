@@ -552,6 +552,19 @@ kiest. Het endpoint accepteert alleen een geregistreerde sleutel; alles
 anders maakt niets aan en brengt de dialoog terug met de fout, het gekozen
 type en het getypte label.
 
+**Een schermlezer hoort per kaart de naam van het type, en de rest als
+beschrijving.** Het `<label>` om de hele kaart maakt de kaart één klikvlak,
+maar zou ook élk woord erop tot de naam van de radio maken: "Kort tekstveld
+Eén regel tekst, zoals een naam of een onderwerp. Alle instellingen blijven
+behouden", acht keer. Daarom wijst de radio met `aria-labelledby` naar de naam
+en met `aria-describedby` naar de uitleg en, in de veldeditor, de regel over
+wat een wissel kost. Het zijn dezelfde woorden op dezelfde plek; de CSS en wat
+er verstuurd wordt, zijn niet veranderd. De acht radio's houden één naam, dus
+de pijltjestoetsen gaan van type naar type en wat gekozen is, blijft de
+toestand van de radio zelf. `admin/_form_fields.php` maakt de id's met
+`admin_ui_id()`, zodat ze uniek blijven als de kaarten twee keer op een
+scherm staan.
+
 ### De veldeditor
 
 `admin/form-field.php` toont alleen wat het type gebruikt (de tabel "Wat een
@@ -561,7 +574,7 @@ type gebruikt"):
 |---|---|
 | Soort veld | het huidige type met zijn uitleg, en ingeklapt *Ander soort veld kiezen* |
 | Wat de bezoeker leest | label en uitleg in de taalpanes; de voorbeeldtekst (placeholder) alleen bij een type dat die gebruikt |
-| Opties | alleen bij een keuzeveld: een rij per optie met *Standaard* |
+| Opties | alleen bij een keuzeveld: een rij per optie met *Standaard*, ↑ en ↓ |
 | Invullen | de schakelaar *Verplicht invullen*; bij Toestemming alleen de zin dat het altijd verplicht is |
 | Technische gegevens | ingeklapt, buiten het formulier: de interne naam |
 
@@ -601,6 +614,37 @@ standaard zijn.
   opslaan komen er weer drie. `admin/assets/forms-admin.js` voegt rijen toe
   en haalt ze weg. Haal je de standaardrij weg, dan springt de keuze terug op
   *Geen standaardkeuze*.
+
+### De volgorde van de opties
+
+De volgorde is **de volgorde van de rijen op het moment van versturen**. De
+browser verstuurt de velden in documentvolgorde,
+`api/admin/update-form-field.php` leest `option_nl[…]` in die volgorde,
+`FormFieldOptions::rowsToStored()` schrijft de regels in die volgorde, en het
+publieke formulier toont ze in de opgeslagen volgorde. Er is dus geen
+positiekolom en geen nieuw opslagmodel: dezelfde `NL|EN`-regels, dezelfde
+regels voor lege en dubbele opties.
+
+Met JavaScript heeft elke rij **↑** en **↓** (naam voor een schermlezer:
+*Optie 2 omhoog*). Het script verplaatst de rij in de pagina en doet verder
+niets:
+
+- **De index gaat mee.** `option_nl[i]`, `option_en[i]` en de radio
+  *Standaard* met waarde `i` zitten in dezelfde rij, dus de twee talen blijven
+  één optie en de standaardkeuze blijft bij dezelfde optie, waar die ook
+  heen gaat.
+- **De eerste rij kan niet omhoog, de laatste niet omlaag.** Een lege rij is
+  ook een rij; een lege rij valt bij opslaan weg zoals altijd.
+- **De focus blijft in de rij die verplaatst.** Het script verplaatst de
+  buurrij, zodat de knop in de pagina blijft staan. Wordt die knop
+  uitgeschakeld (bovenaan of onderaan beland), dan gaat de focus naar de
+  andere pijl van dezelfde rij. Een `role="status"`-regel zegt *Verplaatst
+  naar plek 2.*, in de woorden van de catalogus.
+
+Zonder JavaScript zijn de pijlen verborgen en verander je de volgorde door de
+rijen anders in te vullen. Opslaan werkt daar precies zoals altijd.
+Drag-and-drop is er bewust niet: de pijlen werken met toetsenbord, muis en
+touch, zonder bibliotheek.
 
 ### Een ander soort veld
 
@@ -651,6 +695,37 @@ Toestemming blijft verplicht als hij een selectievakje wordt: het
 selectievakje heeft een schakelaar die het toestemmingsscherm niet had, dus
 de editor toont die eerst, aan.
 
+### Niet-opgeslagen wijzigingen
+
+De veldeditor heeft de opslagbalk van het CMS (`admin/_save_bar.php`,
+[`PAGE-EDITOR.md`](PAGE-EDITOR.md), "De opslagbalk"). Die bewaakt elk
+POST-formulier in `<main>` met iets om in te vullen, en dat is hier alleen het
+formulier met de instellingen. De daadwerkelijke opslag blijft dat ene
+gewone formulier naar `api/admin/update-form-field.php`.
+
+| Handeling | Opslagbalk |
+|---|---|
+| Label, uitleg, voorbeeldtekst, *Verplicht invullen*, een optie typen, *Standaard* kiezen, een ander soort veld kiezen | niet-opgeslagen (`input` of `change`) |
+| Een optierij toevoegen, weghalen of verplaatsen | niet-opgeslagen: `forms-admin.js` stuurt een `change`, want er wordt niets getypt |
+| *Technische gegevens* of *Ander soort veld kiezen* open- of dichtklappen | niets: geen formulierveld |
+| De bewerktaal wisselen | niets: dat formulier staat in de zijbalk, buiten `<main>`. Is er iets niet opgeslagen, dan waarschuwt de browser zoals op elk scherm |
+| *Veld verwijderen* | niets: dat formulier heeft alleen verborgen velden |
+| Opslaan, met de balk of met de eigen knop | schoon na `?saved=1`; een geweigerde opslag komt terug zonder die markering |
+
+**Wat terugkomt zonder geschreven te zijn, is niet opgeslagen.** Na een
+geweigerde opslag, en terwijl een typewissel op bevestiging wacht, staat er
+invoer op het scherm die niet in de database staat. Het formulier draagt dan
+`data-save-bar-unsaved`: de balk zegt *Niet-opgeslagen wijzigingen* en weggaan
+waarschuwt. Anders zou de balk *Alles opgeslagen* zeggen onder een kaart met
+*Er is nog niets opgeslagen*.
+
+Op dat bevestigscherm doet *Opslaan* in de balk wat de knoppen in het
+formulier doen: bevestigen. Dat is dezelfde vraag die al gesteld is ("Verdwijnt
+bij opslaan: …"), en de endpoint dwingt `confirmed_type` nog steeds zelf af.
+*Annuleren, soort niet wijzigen* draagt `data-save-bar-discard`: dat is het
+antwoord al, dus de browser vraagt niet nog een keer of je de pagina wilt
+verlaten.
+
 ### Zonder JavaScript
 
 Alles hierboven werkt zonder script. De server rendert de juiste editor; het
@@ -661,7 +736,10 @@ script maakt het alleen prettiger.
 | Veld toevoegen | de knop is een link naar het formulier met `add_field=1`, dat de dialoog open en als gewone kaart in de pagina rendert | dezelfde dialoog als modal; Escape, *Annuleren* en een klik ernaast sluiten hem en de focus gaat terug |
 | Type kiezen | radiokaarten | idem |
 | Opties toevoegen of weghalen | drie lege rijen per opslag, of een rij leegmaken | *Optie toevoegen* en *Verwijderen* per rij |
+| Opties ordenen | de rijen anders invullen en opslaan | ↑ en ↓ per rij |
 | Type wisselen | kaart kiezen, opslaan, bevestigen op de editor van het nieuwe type | idem |
+| Iets verwijderen | het formulier gaat direct; de endpoint bewaakt | eerst de dialoog van het CMS |
+| Niet-opgeslagen wijzigingen | geen balk en geen waarschuwing | de opslagbalk |
 
 ### De interne naam
 
@@ -729,6 +807,31 @@ verborgen knop.
 
 Een veld verwijderen mag altijd, en raakt bewaarde inzendingen niet aan.
 
+### Eerst vragen, in de dialoog van het CMS
+
+Elke verwijdering in Forms vraagt eerst, en niet meer met de `confirm()` van
+de browser. Het gaat om een veld (in de veldlijst en in de veldeditor), een
+formulier (in het overzicht en in de editor) en een bewaarde inzending. Het
+is de gedeelde dialoog uit [`ADMIN-UI.md`](ADMIN-UI.md), "Bevestigen voordat
+iets weg is": `admin_confirm_attributes()` op het formulier en
+`admin_confirm_dialog()` één keer per scherm.
+
+| Wat | Titel | Wat de dialoog noemt |
+|---|---|---|
+| Veld | *Veld verwijderen?* | het label en het formulier, en dat bewaarde inzendingen leesbaar blijven |
+| Formulier | *Formulier verwijderen?* | de naam, en dat het met al zijn velden definitief weg is |
+| Inzending | *Inzending verwijderen?* | wanneer en op welk formulier ze binnenkwam, en dat antwoorden en bijlage mee gaan |
+
+De knop die doorgaat heet *Verwijderen* en heeft de destructieve stijl.
+*Annuleren* staat vooraan en heeft de focus. Annuleren, Escape en een klik
+naast de dialoog versturen niets en zetten de focus terug op de knop die
+vroeg. Bij *Verwijderen* verstuurt de browser hetzelfde formulier met
+hetzelfde token naar dezelfde endpoint: **de dialoog beslist niets.** Login,
+permissie, POST, CSRF en de controle of een formulier weg mag, blijven in de
+endpoints. Zonder JavaScript gaat het formulier direct, zoals met de inline
+`confirm()` vroeger. Een formulier dat niet weg mag, krijgt nog steeds geen
+verwijderknop.
+
 ## Frontend
 
 `assets/css/blocks/form.css` en `assets/js/blocks/form.js` worden opgeëist
@@ -763,15 +866,23 @@ nieuw type wordt daar meegenomen zonder dat je die test aanpast.
 `FormAdminHttpTest` (suite `cms`) start zijn eigen webserver en controleert
 "Actief en uit" van begin tot eind: het endpoint, de pagina met beide
 formulierblokken, en de schakelaar in de formuliereditor met zijn guards.
+Hij bewijst ook "Eerst vragen": elke verwijdering vraagt in de dialoog van het
+CMS en noemt wat weggaat, een bevestigd verzoek verwijdert precies dat ene
+veld, formulier of die ene inzending, en zonder login, permissie, POST of
+token wordt niets verwijderd.
 `FormFieldEditorHttpTest` (suite `cms`) doet hetzelfde voor "Velden toevoegen
 en bewerken". Hij controleert de typekiezer met zijn catalogusnamen, toevoegen
 zonder script en de editor per type. Ook bewaakt hij opties en standaard in
 één opslag, de byte-gelijke opslag van een onaangeroerd veld, en elke soort
-typewissel met zijn bevestiging. `FormFieldTypeChangeTest` (`fast`) schrijft
-voor elk paar types uit wat een wissel kost.
+typewissel met zijn bevestiging. Verder: de naam en beschrijving van elke
+typekaart, welk formulier de opslagbalk bewaakt en wanneer het scherm als
+niet-opgeslagen begint, en verplaatste opties tot in het publieke formulier.
+`FormFieldTypeChangeTest` (`fast`) schrijft voor elk paar types uit wat een
+wissel kost.
 `FormBoundaryTest` bewaakt de grenzen: rechten, guards, CSRF, geen
 Shop-koppeling, geen bedrijfsnaam in generieke code, en de `prime()`-aanroep
-in elk paginatemplate.
+in elk paginatemplate. Hij bewaakt ook dat geen Forms-scherm nog `confirm()`
+gebruikt, en wat het script van de optierijen doet bij verplaatsen.
 
 ## Bewust niet ondersteund
 
