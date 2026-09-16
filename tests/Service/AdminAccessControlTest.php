@@ -119,6 +119,12 @@ final class AdminAccessControlTest extends TestCase
         // output functions over CMS text the including screen hands in, plus
         // one <script> tag the shell prints. No URL, no data, no decision.
         '_admin_ui.php',
+        // What a form field type is called and the radio cards it is picked
+        // from, printed by admin/form.php and admin/form-field.php behind
+        // their own forms.manage check. Output functions over the closed
+        // type registry and the catalogue; creating or changing a field
+        // still goes through its own guarded endpoint.
+        '_form_fields.php',
     ];
 
     private static function projectRoot(): string

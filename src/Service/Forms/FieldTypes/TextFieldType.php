@@ -17,11 +17,6 @@ final class TextFieldType extends FormFieldType
         return 'text';
     }
 
-    public function label(): string
-    {
-        return 'Tekst (één regel)';
-    }
-
     public function normalize(mixed $raw, FormField $field): string
     {
         return $this->clean($raw, $this->maxLength());

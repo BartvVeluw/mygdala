@@ -20,11 +20,6 @@ final class TextareaFieldType extends FormFieldType
         return 'textarea';
     }
 
-    public function label(): string
-    {
-        return 'Tekst (meerdere regels)';
-    }
-
     public function maxLength(): int
     {
         return 5000;

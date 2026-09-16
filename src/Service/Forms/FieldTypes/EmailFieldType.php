@@ -21,11 +21,6 @@ final class EmailFieldType extends FormFieldType
         return 'email';
     }
 
-    public function label(): string
-    {
-        return 'E-mailadres';
-    }
-
     /** The longest address RFC 5321 allows. */
     public function maxLength(): int
     {

@@ -29,11 +29,6 @@ final class ConsentFieldType extends CheckboxFieldType
         return 'consent';
     }
 
-    public function label(): string
-    {
-        return 'Akkoordvinkje (verplicht)';
-    }
-
     public function requiredIsFixed(): bool
     {
         return true;

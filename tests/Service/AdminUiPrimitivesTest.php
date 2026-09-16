@@ -690,7 +690,12 @@ final class AdminUiPrimitivesTest extends TestCase
         $this->assertStringContainsString('<input type="checkbox" class="admin-switch" role="switch" name="is_active" value="1"', $source);
         $this->assertStringContainsString('<input type="checkbox" class="admin-switch" role="switch" name="store_submissions" value="1"', $source);
         $this->assertStringContainsString('<select name="reply_to_field_key" id="form-reply-to" class="admin-select">', $source);
-        $this->assertStringContainsString('<select name="field_type" class="admin-select" required>', $source);
+        // The kind of a new field is chosen from described radio cards in a
+        // native dialog (admin/_form_fields.php), not from a select of names.
+        $this->assertStringNotContainsString('<select name="field_type"', $source);
+        $this->assertStringContainsString('<dialog class="admin-field-picker" id="form-field-add"', $source);
+        $this->assertStringContainsString("form_field_type_cards('field_type', \$addType)", $source);
+        $this->assertStringContainsString("admin_field_label('form-field-add-label', admin_t('forms.label'), admin_t('help.forms.field_label'), true)", $source);
 
         // Geavanceerd folds away the way admin/page-new.php folds its SEO card.
         $this->assertStringContainsString('<details class="admin-collapse admin-collapse--card" data-form-advanced', $source);

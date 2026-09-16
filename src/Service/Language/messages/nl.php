@@ -87,6 +87,9 @@ De naam die erin staat is de titel van deze pagina: hernoem je de pagina, dan ve
     'help.forms.thank_you_message' => "De tekst die de bezoeker ziet in plaats van het formulier, zodra het versturen gelukt is. Laat je hem leeg, dan staat er <strong>Bedankt — je bericht is verstuurd.</strong>",
     'help.forms.notification_email' => "Elke keer dat iemand dit formulier verstuurt, krijgt dit adres een e-mail met de antwoorden. Laat je het leeg, dan gaat die e-mail naar het e-mailadres uit Site-instellingen.",
     'help.forms.store_submissions' => "Aan: elke inzending wordt ook in het CMS bewaard. Je leest ze terug onder <strong>Inzendingen</strong>, en een inzending gaat niet verloren als het mailen van de melding mislukt.\n\nUit: de e-mail is de enige plek waar een inzending aankomt. Wat de bezoeker invulde wordt niet in de database bewaard, en lukt het mailen niet, dan krijgt de bezoeker een foutmelding in plaats van een bedankje.\n\nBewaarde inzendingen zijn persoonsgegevens. Alleen wie het recht <strong>Formulierinzendingen bekijken</strong> heeft, kan ze lezen. Ze blijven staan tot je ze zelf verwijdert, ook als je deze instelling later uitzet.",
+    'help.forms.field_label' => "Wat de bezoeker bij het veld leest, zoals <strong>Je naam</strong> of <strong>Waar gaat je vraag over?</strong>
+
+Uit het eerste label maakt het CMS ook de vaste naam waaronder antwoorden worden bewaard. Het label zelf kun je later gewoon wijzigen.",
     'help.forms.reply_to' => "Kies een e-mailveld van dit formulier. Klik je in je e-mailprogramma bij de melding op <strong>Beantwoorden</strong>, dan gaat je antwoord meteen naar het adres dat de bezoeker invulde.\n\nKies je niets, dan gaat een antwoord naar het adres van de website zelf. De afzender van de melding is altijd de website; een bezoeker kan die niet veranderen. In technische termen heet dit het <em>Reply-To</em>-adres.",
 
     // --- Words that appear on more than one screen -------------------------
@@ -513,7 +516,8 @@ De naam die erin staat is de titel van deze pagina: hernoem je de pagina, dan ve
     'forms.definitief_verwijderen' => 'Definitief verwijderen',
     'forms.formulier_staat_nergens_heeft' => 'Dit formulier staat nergens en heeft geen bewaarde inzendingen, dus het kan weg. Verwijderen kan niet ongedaan worden gemaakt.',
     'forms.formulier_verwijderen' => 'Formulier verwijderen',
-    'forms.na_toevoegen_bewerken_engelse' => 'Na het toevoegen kun je bij "Bewerken" de Engelse tekst, een tussenkopje, een placeholder en (bij een keuzeveld) de opties invullen.',
+    'forms.add_field_type_question' => 'Welk soort veld wil je toevoegen?',
+    'forms.add_field_after' => 'Na het toevoegen opent het veld zelf. Daar vul je de rest in, zoals de Engelse tekst en bij een keuzeveld de opties.',
     'forms.veld_toevoegen_2' => 'Veld toevoegen',
     'forms.veldtype' => 'Veldtype',
     'forms.label' => 'Label',
@@ -590,6 +594,9 @@ De naam die erin staat is de titel van deze pagina: hernoem je de pagina, dan ve
     'forms.storing_now_off' => 'bewaren staat uit',
     'forms.not_stored' => 'Niet bewaard',
     'forms.used_nowhere' => 'Nergens',
+    'forms.option_count_one' => ':count optie',
+    'forms.option_count' => ':count opties',
+    'forms.unknown_field_type' => 'Onbekend soort veld (:key)',
     'blocks.inhoud_beheer' => 'Inhoud beheer je bij',
     'blocks.geschikt' => 'Geschikt voor',
     'blocks.pagina_s' => 'Naar pagina\'s',
@@ -1800,6 +1807,26 @@ De naam die erin staat is de titel van deze pagina: hernoem je de pagina, dan ve
     'block.text_image_split.use_case_2' => 'een dienst toelichten',
     'block.text_image_split.use_case_3' => 'over-ons content',
 
+    // --- Form field types: what each one is called and what it is for
+    // Keyed on App\Service\Forms\FormFieldTypes. The type classes carry no
+    // name of their own, so these are the only words for them.
+    'formfieldtype.text.label' => 'Kort tekstveld',
+    'formfieldtype.text.description' => 'Eén regel tekst, zoals een naam of een onderwerp.',
+    'formfieldtype.textarea.label' => 'Lang tekstveld',
+    'formfieldtype.textarea.description' => 'Ruimte voor een vraag of een bericht van meerdere regels.',
+    'formfieldtype.email.label' => 'E-mailadres',
+    'formfieldtype.email.description' => 'Controleert of het een geldig e-mailadres is. Je kunt de melding dan meteen beantwoorden.',
+    'formfieldtype.tel.label' => 'Telefoonnummer',
+    'formfieldtype.tel.description' => 'Voor een telefoonnummer, met of zonder landcode en in elke schrijfwijze.',
+    'formfieldtype.select.label' => 'Keuzelijst',
+    'formfieldtype.select.description' => 'De bezoeker kiest één optie uit een uitklaplijst. Handig bij veel opties.',
+    'formfieldtype.radio.label' => 'Keuzerondjes',
+    'formfieldtype.radio.description' => 'De bezoeker kiest één optie en ziet alle opties tegelijk. Handig bij een paar opties.',
+    'formfieldtype.checkbox.label' => 'Selectievakje',
+    'formfieldtype.checkbox.description' => 'Eén vakje dat de bezoeker kan aanvinken, zoals ‘Bel me terug’.',
+    'formfieldtype.consent.label' => 'Toestemming',
+    'formfieldtype.consent.description' => 'Een vakje dat de bezoeker moet aanvinken om te kunnen versturen, zoals akkoord met de privacyverklaring.',
+
     // --- Permissions: what each one is called and what it opens
     'perm.group.dashboard' => 'Dashboard',
     'perm.group.website' => 'Website',
@@ -2244,6 +2271,7 @@ De naam die erin staat is de titel van deze pagina: hernoem je de pagina, dan ve
     'validation.geef_tag_naam' => 'Geef de tag een naam.',
     'validation.geef_lettertype_naam' => 'Geef het lettertype een naam.',
     'validation.geef_veld_label' => 'Geef het veld een label.',
+    'validation.field_not_added' => 'Het veld kon niet worden toegevoegd. Probeer het opnieuw.',
     'validation.kies_collectie_zet_inhoudsbron_terug' => 'Kies een collectie, of zet de inhoudsbron terug op portfolio-items.',
     'validation.kies_geldig_type_bestemming_knop' => 'Kies een geldig type bestemming voor de knop.',
     'validation.kies_geldig_verzendprofiel' => 'Kies een geldig verzendprofiel.',

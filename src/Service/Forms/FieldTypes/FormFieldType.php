@@ -8,8 +8,10 @@ use App\Service\Forms\FormField;
 use App\Service\Forms\FormText;
 
 /**
- * ONE kind of form field, in ONE file: what the admin calls it, what it
- * accepts, how it validates and how it renders.
+ * ONE kind of form field, in ONE file: what it accepts, how it validates,
+ * how it renders and which settings it has. What the CMS CALLS it is not
+ * here: that is the admin catalogue's, under the type's key
+ * (App\Service\Forms\FormFieldTypes says why).
  *
  * The same idea as App\Service\Blocks\BlockDefinition, for the same reason.
  * Before this existed, "which fields does the contact form have" was
@@ -22,7 +24,7 @@ use App\Service\Forms\FormText;
  * exist. Neither the renderer, the validator nor the admin contains a
  * `switch` over field types.
  *
- * The four methods that differ per type are abstract on purpose: a new type
+ * The three methods that differ per type are abstract on purpose: a new type
  * that forgets one does not load. Everything else has a safe default, so a
  * plain text-like type is a very small class.
  *
@@ -32,11 +34,13 @@ use App\Service\Forms\FormText;
  */
 abstract class FormFieldType
 {
-    /** The registry key, equal to what `form_fields.field_type` stores. */
+    /**
+     * The registry key, equal to what `form_fields.field_type` stores. Stable
+     * for as long as a stored field or submission uses it, and also the key
+     * the admin catalogue files this type's name under
+     * (`formfieldtype.<key>.label`).
+     */
     abstract public function key(): string;
-
-    /** What the CMS calls this type in the "veldtype" dropdown. */
-    abstract public function label(): string;
 
     /**
      * Echoes the control itself — the `<input>`, `<textarea>`, `<select>` or

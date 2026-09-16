@@ -3,9 +3,15 @@
 /**
  * POST /api/admin/create-form-field.php
  *
- * Adds a field to a form. Only two things are asked for — a Dutch label and
- * a type — because everything else has a sensible empty default and is
- * better filled in on the field's own screen than in a row of eight boxes.
+ * Adds a field to a form. Only two things are asked for — the kind of field,
+ * picked from a described card in the "Veld toevoegen" dialog on
+ * admin/form.php, and a Dutch label — because everything else has a sensible
+ * empty default and is better filled in on the field's own screen than in a
+ * row of eight boxes.
+ *
+ * A REFUSED ADD GOES BACK INTO THE DIALOG: the form editor is reopened with
+ * `add_field=1`, which renders the dialog open, with the errors in it and
+ * the chosen type and typed label still there. Nothing is created.
  *
  * THE POST NAME IS GENERATED, never typed. It comes from the label through
  * App\Service\Forms\FormFieldKey, which also makes it unique within this
@@ -57,8 +63,8 @@ if ($repository->find($formId) === null) {
     exit('Form not found.');
 }
 
-$label = mb_substr(trim((string) ($_POST['label_nl'] ?? '')), 0, 200);
-$typeKey = (string) ($_POST['field_type'] ?? '');
+$label = is_string($_POST['label_nl'] ?? null) ? mb_substr(trim($_POST['label_nl']), 0, 200) : '';
+$typeKey = is_string($_POST['field_type'] ?? null) ? $_POST['field_type'] : '';
 
 $errors = [];
 if ($label === '') {
@@ -70,9 +76,17 @@ if ($type === null) {
     $errors[] = AdminTranslator::trans('validation.kies_geldig_veldtype');
 }
 
+$dialogUrl = '/admin/form.php?id=' . $formId . '&add_field=1#form-field-add';
+
 if ($errors !== []) {
-    $_SESSION['admin_form_errors'] = $errors;
-    header('Location: /admin/form.php?id=' . $formId);
+    $_SESSION['admin_form_field_add_errors'] = $errors;
+    // Only a registered key goes back to be pre-selected; anything else was
+    // never a choice the dialog offered.
+    $_SESSION['admin_form_field_add_old'] = [
+        'label_nl' => $label,
+        'field_type' => $type === null ? '' : $type->key(),
+    ];
+    header('Location: ' . $dialogUrl);
     exit;
 }
 
@@ -104,8 +118,9 @@ try {
     FormCatalog::clearCache();
 } catch (\Throwable $e) {
     error_log('[api/admin/create-form-field.php] ' . $e->getMessage());
-    $_SESSION['admin_form_errors'] = ['Het veld kon niet worden toegevoegd. Probeer het opnieuw.'];
-    header('Location: /admin/form.php?id=' . $formId);
+    $_SESSION['admin_form_field_add_errors'] = [AdminTranslator::trans('validation.field_not_added')];
+    $_SESSION['admin_form_field_add_old'] = ['label_nl' => $label, 'field_type' => $type->key()];
+    header('Location: ' . $dialogUrl);
     exit;
 }
 

@@ -68,7 +68,6 @@ class FormFieldTypeTest extends TestCase
         foreach (FormFieldTypes::all() as $key => $type) {
             $this->assertInstanceOf(FormFieldType::class, $type);
             $this->assertSame($key, $type->key(), 'a type must know the key it is registered under');
-            $this->assertNotSame('', $type->label(), $key . ' needs a label for the admin dropdown');
             $this->assertGreaterThan(0, $type->maxLength(), $key . ' needs a positive maximum length');
             $this->assertContains($type->labelPosition(), ['before', 'wrap', 'legend'], $key . ' has an unknown label position');
 
@@ -76,6 +75,41 @@ class FormFieldTypeTest extends TestCase
             foreach ([null, '', 'x', 42, 1.5, ['a'], new \stdClass()] as $raw) {
                 $this->assertIsString($type->normalize($raw, $this->field($key)), $key . '::normalize must always return a string');
             }
+        }
+    }
+
+    /**
+     * What the CMS calls a type is the admin catalogue's, filed under the
+     * type's registry key — the only place those words exist
+     * (App\Service\Forms\FormFieldTypes). Every registered type has a name
+     * and a description in every catalogue, neither of them is the bare
+     * key, and the classes carry no name of their own to drift from it.
+     */
+    public function testEveryRegisteredTypeIsNamedAndDescribedInEveryCatalogue(): void
+    {
+        $root = dirname(__DIR__, 2);
+
+        foreach (['nl', 'en'] as $language) {
+            $catalog = require $root . '/src/Service/Language/messages/' . $language . '.php';
+            $names = [];
+
+            foreach (FormFieldTypes::keys() as $key) {
+                foreach (['label', 'description'] as $part) {
+                    $catalogKey = 'formfieldtype.' . $key . '.' . $part;
+
+                    $this->assertArrayHasKey($catalogKey, $catalog, $language . ' has no ' . $catalogKey);
+                    $this->assertNotSame('', trim($catalog[$catalogKey]), $catalogKey . ' is empty in ' . $language);
+                    $this->assertNotSame($key, $catalog[$catalogKey], $catalogKey . ' is the bare key in ' . $language);
+                }
+
+                $names[] = $catalog['formfieldtype.' . $key . '.label'];
+            }
+
+            $this->assertSame($names, array_unique($names), 'two types share a name in ' . $language);
+        }
+
+        foreach (FormFieldTypes::all() as $key => $type) {
+            $this->assertFalse(method_exists($type, 'label'), $key . ' names itself in PHP; the name belongs in the catalogue');
         }
     }
 

@@ -25,8 +25,19 @@ use App\Service\Forms\FieldTypes\TextFieldType;
  * a class name. There is no directory scanning, no reflection and no type
  * defined in data.
  *
- * The order is the order the CMS offers them in the "veldtype" dropdown:
- * the ordinary text-like ones first, then the choices, then the two boxes.
+ * The order is the order the CMS offers them in, as cards in "Veld
+ * toevoegen": the ordinary text-like ones first, then the choices, then the
+ * two boxes.
+ *
+ * WHAT A TYPE IS CALLED lives in the admin catalogue and nowhere else:
+ * `formfieldtype.<key>.label` and `.description` in
+ * src/Service/Language/messages/, printed by admin/_form_fields.php. A
+ * content block keeps a Dutch name in its own class because a MODULE may
+ * bring one, and a module should not have to know this CMS has two
+ * languages. No module brings a field type — this list is Core and closed —
+ * so there is no second copy of the words to drift from the first.
+ * Tests\Service\FormFieldTypeTest fails when a registered type has no name
+ * or description in a catalogue.
  *
  * V1 STOPS HERE ON PURPOSE. No file upload, no date or time picker, no
  * address composite, no repeater, no rich text, no hidden value, no
@@ -94,20 +105,5 @@ final class FormFieldTypes
     public static function keys(): array
     {
         return array_keys(self::MAP);
-    }
-
-    /**
-     * The dropdown the field editor renders: key => human label.
-     *
-     * @return array<string, string>
-     */
-    public static function choices(): array
-    {
-        $choices = [];
-        foreach (self::all() as $key => $type) {
-            $choices[$key] = $type->label();
-        }
-
-        return $choices;
     }
 }

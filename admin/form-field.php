@@ -6,6 +6,7 @@ require_once __DIR__ . '/../vendor/autoload.php';
 require_once __DIR__ . '/_translate.php';
 
 require_once __DIR__ . '/_language_fields.php';
+require_once __DIR__ . '/_form_fields.php';
 
 use App\Repository\FormRepository;
 use App\Service\AdminAuth;
@@ -120,8 +121,8 @@ $v = static fn (array $values, string $key): string => htmlspecialchars((string)
 
       <label><?= admin_te('forms.veldtype') ?>*
         <select name="field_type" required>
-          <?php foreach (FormFieldTypes::choices() as $key => $label): ?>
-            <option value="<?= $h($key) ?>" <?= ($values['field_type'] ?? '') === $key ? 'selected' : '' ?>><?= $h($label) ?></option>
+          <?php foreach (FormFieldTypes::keys() as $key): ?>
+            <option value="<?= $h($key) ?>" <?= ($values['field_type'] ?? '') === $key ? 'selected' : '' ?>><?= $h(form_field_type_label($key)) ?></option>
           <?php endforeach; ?>
         </select>
       </label>

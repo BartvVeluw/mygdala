@@ -3245,6 +3245,92 @@ body.admin-media-modal-open{ overflow: hidden; }
 }
 
 /* ============================================================
+   Forms: choosing a field type (admin/form.php, admin/form-field.php)
+
+   The type cards are the template cards above, radios in <label>s
+   (admin/_form_fields.php); a card may carry one line of its own under the
+   description. "Veld toevoegen" is a native <dialog> in the dress of
+   .admin-confirm, only wider. forms-admin.js opens it as a modal. Without
+   the script the server renders it `open` and it is not modal: then it
+   sits in the page flow like a card instead of floating over the field
+   list. Nothing here decides what a form submits.
+   ============================================================ */
+.admin-template-card__note{
+  margin-top: auto;
+  padding-top: var(--admin-sp-2);
+  border-top: 1px solid var(--admin-border);
+  font-size: 0.8rem;
+  line-height: 1.4;
+  color: var(--admin-text-muted);
+}
+
+/* Inside .admin-product-form every <label> is a column of muted small text;
+   a card is not that kind of label. */
+.admin-product-form .admin-template-card{
+  display: block;
+  font-size: inherit;
+  font-weight: inherit;
+  color: inherit;
+}
+
+.admin-field-add{ margin: var(--admin-sp-4) 0 0; }
+
+.admin-field-picker{
+  box-sizing: border-box;
+  width: min(46rem, calc(100vw - 2rem));
+  max-height: calc(100vh - 2rem);
+  max-height: calc(100dvh - 2rem);
+  margin: auto;
+  padding: 0;
+  overflow: auto;
+  background: var(--admin-surface);
+  color: var(--admin-text);
+  border: 1px solid var(--admin-border-strong);
+  border-radius: var(--admin-radius-lg);
+  box-shadow: var(--admin-shadow-md);
+}
+
+.admin-field-picker::backdrop{ background: var(--admin-overlay); }
+
+.admin-field-picker[open]:not(:modal){
+  position: static;
+  width: auto;
+  max-width: 46rem;
+  max-height: none;
+  margin: var(--admin-sp-4) 0;
+  box-shadow: none;
+}
+
+.admin-field-picker__panel{
+  display: flex;
+  flex-direction: column;
+  gap: var(--admin-sp-4);
+  padding: var(--admin-sp-5);
+}
+
+.admin-field-picker__title{ margin: 0; font-size: 1.1rem; line-height: 1.35; }
+
+.admin-field-picker__types{ min-width: 0; margin: 0; padding: 0; border: 0; }
+
+.admin-field-picker__legend{ padding: 0; font-weight: 600; color: var(--admin-text); }
+
+.admin-field-type-grid{ margin-top: var(--admin-sp-3); }
+
+.admin-field-picker__actions{
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--admin-sp-2);
+}
+
+/* On a phone the two answers stack at full width, as .admin-confirm's do. */
+@media (max-width: 480px){
+  .admin-field-picker__panel{ padding: var(--admin-sp-4); }
+  .admin-field-picker__actions{ flex-direction: column-reverse; align-items: stretch; }
+  .admin-field-picker__actions > *{ text-align: center; }
+}
+
+/* ============================================================
    Setup Wizard (admin/setup.php + admin/assets/setup-wizard.js)
 
    The one screen a brand-new installation opens on. It has no sidebar —

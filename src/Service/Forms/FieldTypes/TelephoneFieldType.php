@@ -24,11 +24,6 @@ final class TelephoneFieldType extends FormFieldType
         return 'tel';
     }
 
-    public function label(): string
-    {
-        return 'Telefoonnummer';
-    }
-
     public function maxLength(): int
     {
         return 40;

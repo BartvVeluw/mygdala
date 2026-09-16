@@ -6,6 +6,7 @@ require_once __DIR__ . '/../vendor/autoload.php';
 require_once __DIR__ . '/_translate.php';
 
 require_once __DIR__ . '/_language_fields.php';
+require_once __DIR__ . '/_form_fields.php';
 
 use App\Repository\FormRepository;
 use App\Repository\FormSubmissionRepository;
@@ -38,7 +39,18 @@ use App\Service\Forms\FormUsage;
  *
  * Editing ONE field happens on its own screen (admin/form-field.php), like a
  * carousel card: a field has nine settings, and nine of them per row inline
- * would make a five-field form unreadable.
+ * would make a five-field form unreadable. The list says what each field is
+ * in words (its label, its kind, how many options) and not the name it is
+ * posted under: nobody editing a form needs that name, and the field's own
+ * screen keeps it under "Technische gegevens" for whoever does.
+ *
+ * ADDING A FIELD STARTS WITH WHAT KIND OF FIELD. "Veld toevoegen" opens a
+ * dialog with a described card per type (admin/_form_fields.php) and the
+ * label, and one POST creates the field and opens its editor. The opener is
+ * a link to this screen with `add_field=1`, which renders the same dialog
+ * already open, so without JavaScript the link simply shows it in the page;
+ * admin/assets/forms-admin.js opens it as a modal instead. A refused add
+ * comes back the same way, with what was chosen and typed still in it.
  *
  * What "on" and "off" mean everywhere is FORMS.md, "Actief en uit"; this
  * screen only sets the column.
@@ -77,8 +89,21 @@ $blockers = FormUsage::deletionBlockers($id);
 
 $errors = $_SESSION['admin_form_errors'] ?? [];
 $old = $_SESSION['admin_form_old'] ?? null;
-unset($_SESSION['admin_form_errors'], $_SESSION['admin_form_old']);
+$addErrors = $_SESSION['admin_form_field_add_errors'] ?? [];
+$addOld = $_SESSION['admin_form_field_add_old'] ?? [];
+unset(
+    $_SESSION['admin_form_errors'],
+    $_SESSION['admin_form_old'],
+    $_SESSION['admin_form_field_add_errors'],
+    $_SESSION['admin_form_field_add_old']
+);
 $saved = isset($_GET['saved']);
+
+// Open as the page renders: the no-JavaScript route to "Veld toevoegen", or
+// an add the endpoint sent back.
+$addOpen = isset($_GET['add_field']) || $addErrors !== [];
+$addLabel = (string) ($addOld['label_nl'] ?? '');
+$addType = (string) ($addOld['field_type'] ?? '');
 
 $values = $old ?? [
     'name' => (string) $row['name'],
@@ -303,10 +328,9 @@ $advancedOpen = $errors !== [] || $losesSubmissions;
           <?php endif; ?>
         </div>
         <p class="admin-text-muted">
-          <?= $h($type !== null ? $type->label() : 'Onbekend veldtype (' . (string) $field['field_type'] . ')') ?>
-          &middot; postnaam <code><?= $h((string) $field['field_key']) ?></code>
+          <?= $h(form_field_type_label((string) $field['field_type'])) ?>
           <?php if ($type !== null && $type->usesOptions()): ?>
-            &middot; <?= $optionCount ?> keuze<?= $optionCount === 1 ? '' : 's' ?>
+            &middot; <?= admin_te($optionCount === 1 ? 'forms.option_count_one' : 'forms.option_count', ['count' => $optionCount]) ?>
           <?php endif; ?>
         </p>
         <?php if ($type === null): ?>
@@ -337,31 +361,53 @@ $advancedOpen = $errors !== [] || $losesSubmissions;
         </div>
       </article>
     <?php endforeach; ?>
+
+    <p class="admin-field-add">
+      <a class="admin-btn-primary" href="/admin/form.php?id=<?= $id ?>&amp;add_field=1#form-field-add" data-form-field-add-open aria-haspopup="dialog"><?= admin_te('forms.veld_toevoegen') ?></a>
+    </p>
   </section>
 
-  <section class="admin-card">
-    <h2><?= admin_te('forms.veld_toevoegen') ?></h2>
-    <form method="post" action="/api/admin/create-form-field.php" class="admin-product-form">
+  <?php /* "Veld toevoegen": a native <dialog>, modal once forms-admin.js
+           opens it (the page behind it inert, Escape closes it, focus goes
+           back to the opener). Rendered `open` for the no-JavaScript link and
+           for a refused add, and then not modal: admin.css lets it sit in the
+           page like a card. Choosing a type is a radio, so nothing is created
+           until the form is sent, and Annuleren is a link back to this
+           screen that the script turns into "close". */ ?>
+  <dialog class="admin-field-picker" id="form-field-add" aria-labelledby="form-field-add-title" data-form-field-add<?= $addOpen ? ' open' : '' ?>>
+    <form method="post" action="/api/admin/create-form-field.php" class="admin-field-picker__panel">
       <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
       <input type="hidden" name="form_id" value="<?= $id ?>">
 
-      <div class="admin-form-row admin-form-row--split">
-        <label><?= admin_te('forms.label') ?>*
-          <input type="text" name="label_nl" maxlength="200" required>
-        </label>
-        <label><?= admin_te('forms.veldtype') ?>*
-          <select name="field_type" class="admin-select" required>
-            <?php foreach (FormFieldTypes::choices() as $key => $label): ?>
-              <option value="<?= $h($key) ?>"><?= $h($label) ?></option>
-            <?php endforeach; ?>
-          </select>
-        </label>
-      </div>
+      <h2 class="admin-field-picker__title" id="form-field-add-title"><?= admin_te('forms.veld_toevoegen') ?></h2>
 
-      <button type="submit"><?= admin_te('forms.veld_toevoegen_2') ?></button>
+      <?php if ($addErrors !== []): ?>
+        <div class="admin-alert admin-alert--error" role="alert">
+          <ul class="admin-error-list">
+            <?php foreach ($addErrors as $error): ?>
+              <li><?= $h((string) $error) ?></li>
+            <?php endforeach; ?>
+          </ul>
+        </div>
+      <?php endif; ?>
+
+      <fieldset class="admin-field-picker__types">
+        <legend class="admin-field-picker__legend"><?= admin_te('forms.add_field_type_question') ?></legend>
+        <?php form_field_type_cards('field_type', $addType); ?>
+      </fieldset>
+
+      <div class="admin-field">
+        <?= admin_field_label('form-field-add-label', admin_t('forms.label'), admin_t('help.forms.field_label'), true) ?>
+        <input type="text" id="form-field-add-label" name="label_nl" maxlength="200" required value="<?= $h($addLabel) ?>">
+      </div>
+      <p class="admin-text-muted"><?= admin_te('forms.add_field_after') ?></p>
+
+      <div class="admin-field-picker__actions">
+        <a class="admin-btn-secondary" href="/admin/form.php?id=<?= $id ?>" data-form-field-add-close><?= admin_te('common.cancel') ?></a>
+        <button type="submit" class="admin-btn-primary"><?= admin_te('forms.veld_toevoegen_2') ?></button>
+      </div>
     </form>
-    <p class="admin-text-muted"><?= admin_te('forms.na_toevoegen_bewerken_engelse') ?></p>
-  </section>
+  </dialog>
 
   <section class="admin-card">
     <h2><?= admin_te('forms.formulier_verwijderen') ?></h2>
@@ -383,5 +429,6 @@ $advancedOpen = $errors !== [] || $losesSubmissions;
   </section>
 </main>
 <?php admin_lang_script(); ?>
+<script src="<?= \App\Service\AssetVersion::url('/admin/assets/forms-admin.js') ?>" defer></script>
 </body>
 </html>

@@ -15,11 +15,6 @@ final class SelectFieldType extends ChoiceFieldType
         return 'select';
     }
 
-    public function label(): string
-    {
-        return 'Keuzelijst (dropdown)';
-    }
-
     public function renderControl(FormFieldControl $control): void
     {
         echo '<select' . $control->commonAttributes() . '>';

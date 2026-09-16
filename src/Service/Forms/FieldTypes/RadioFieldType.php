@@ -20,11 +20,6 @@ final class RadioFieldType extends ChoiceFieldType
         return 'radio';
     }
 
-    public function label(): string
-    {
-        return 'Keuzerondjes (één keuze)';
-    }
-
     public function labelPosition(): string
     {
         return 'legend';

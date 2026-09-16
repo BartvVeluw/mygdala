@@ -86,6 +86,9 @@ The name in it is this page's title, so renaming the page changes the trail with
     'help.forms.thank_you_message' => "The text a visitor sees in place of the form once it has been sent. If you leave it empty, it says <strong>Thanks — your message has been sent.</strong>",
     'help.forms.notification_email' => "Every time someone sends this form, this address receives an email with the answers. If you leave it empty, that email goes to the email address from Site settings.",
     'help.forms.store_submissions' => "On: every submission is also stored in the CMS. You can read them back under <strong>Submissions</strong>, and a submission is not lost if sending the notification email fails.\n\nOff: the email is the only place a submission arrives. What the visitor filled in is not stored in the database, and if sending the email fails, the visitor sees an error instead of a thank-you.\n\nStored submissions are personal data. Only people with the <strong>View form submissions</strong> permission can read them. They stay until you delete them yourself, even if you switch this setting off later.",
+    'help.forms.field_label' => "What the visitor reads with the field, such as <strong>Your name</strong> or <strong>What is your question about?</strong>
+
+From the first label the CMS also makes the fixed name answers are stored under. You can change the label itself later.",
     'help.forms.reply_to' => "Choose an email field of this form. When you click <strong>Reply</strong> on the notification in your email program, your answer goes straight to the address the visitor filled in.\n\nIf you choose nothing, a reply goes to the website's own address. The sender of the notification is always the website; a visitor cannot change it. In technical terms this is the <em>Reply-To</em> address.",
 
     // --- Words that appear on more than one screen -------------------------
@@ -505,7 +508,8 @@ The name in it is this page's title, so renaming the page changes the trail with
     'forms.definitief_verwijderen' => 'Delete permanently',
     'forms.formulier_staat_nergens_heeft' => 'This form is used nowhere and has no stored submissions, so it can go. Deleting cannot be undone.',
     'forms.formulier_verwijderen' => 'Delete form',
-    'forms.na_toevoegen_bewerken_engelse' => 'Once it is added you can fill in the English text, a subheading, a placeholder and (for a choice field) the options under "Edit".',
+    'forms.add_field_type_question' => 'What kind of field do you want to add?',
+    'forms.add_field_after' => 'Once it is added, the field itself opens. There you fill in the rest, such as the English text and, for a choice field, the options.',
     'forms.veld_toevoegen_2' => 'Add field',
     'forms.veldtype' => 'Field type',
     'forms.label' => 'Label',
@@ -582,6 +586,9 @@ The name in it is this page's title, so renaming the page changes the trail with
     'forms.storing_now_off' => 'storing is off',
     'forms.not_stored' => 'Not stored',
     'forms.used_nowhere' => 'Nowhere',
+    'forms.option_count_one' => ':count option',
+    'forms.option_count' => ':count options',
+    'forms.unknown_field_type' => 'Unknown kind of field (:key)',
     'blocks.inhoud_beheer' => 'Content is managed under',
     'blocks.geschikt' => 'Good for',
     'blocks.pagina_s' => 'To pages',
@@ -1792,6 +1799,24 @@ The name in it is this page's title, so renaming the page changes the trail with
     'block.text_image_split.use_case_2' => 'explaining a service',
     'block.text_image_split.use_case_3' => 'about-us content',
 
+    // --- Form field types: what each one is called and what it is for
+    'formfieldtype.text.label' => 'Short text',
+    'formfieldtype.text.description' => 'One line of text, such as a name or a subject.',
+    'formfieldtype.textarea.label' => 'Long text',
+    'formfieldtype.textarea.description' => 'Room for a question or a message of several lines.',
+    'formfieldtype.email.label' => 'Email address',
+    'formfieldtype.email.description' => 'Checks that it is a valid email address, so you can reply to the notification straight away.',
+    'formfieldtype.tel.label' => 'Phone number',
+    'formfieldtype.tel.description' => 'For a phone number, with or without a country code and written any way.',
+    'formfieldtype.select.label' => 'Dropdown list',
+    'formfieldtype.select.description' => 'The visitor picks one option from a dropdown. Useful with many options.',
+    'formfieldtype.radio.label' => 'Radio buttons',
+    'formfieldtype.radio.description' => 'The visitor picks one option and sees all of them at once. Useful with a few options.',
+    'formfieldtype.checkbox.label' => 'Checkbox',
+    'formfieldtype.checkbox.description' => 'One box the visitor can tick, such as ‘Call me back’.',
+    'formfieldtype.consent.label' => 'Consent',
+    'formfieldtype.consent.description' => 'A box the visitor must tick before sending, such as agreeing to the privacy statement.',
+
     // --- Permissions: what each one is called and what it opens
     'perm.group.dashboard' => 'Dashboard',
     'perm.group.website' => 'Website',
@@ -2236,6 +2261,7 @@ The name in it is this page's title, so renaming the page changes the trail with
     'validation.geef_tag_naam' => 'Give the tag a name.',
     'validation.geef_lettertype_naam' => 'Give the typeface a name.',
     'validation.geef_veld_label' => 'Give the field a label.',
+    'validation.field_not_added' => 'The field could not be added. Please try again.',
     'validation.kies_collectie_zet_inhoudsbron_terug' => 'Choose a collection, or set the content source back to portfolio items.',
     'validation.kies_geldig_type_bestemming_knop' => 'Choose a valid kind of destination for the button.',
     'validation.kies_geldig_verzendprofiel' => 'Choose a valid shipping profile.',

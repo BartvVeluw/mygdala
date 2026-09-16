@@ -30,11 +30,6 @@ class CheckboxFieldType extends FormFieldType
         return 'checkbox';
     }
 
-    public function label(): string
-    {
-        return 'Vinkje (aan/uit)';
-    }
-
     public function usesPlaceholder(): bool
     {
         return false;
