@@ -254,15 +254,16 @@ vervangt.
 
 Het eerste scherm dat hem gebruikt, is de blokkenlijst van de paginabouwer
 ([`PAGE-EDITOR.md`](PAGE-EDITOR.md)); de losse verwijderknop van een item in
-de Mediabibliotheek volgde ([`MEDIA.md`](MEDIA.md)), en daarna Portfolio en
+de Mediabibliotheek volgde ([`MEDIA.md`](MEDIA.md)), en daarna Portfolio,
 alle verwijderingen in Formulieren ([`FORMS.md`](FORMS.md), "Eerst vragen, in
-de dialoog van het CMS"). De rest van het CMS gebruikt nog
+de dialoog van het CMS") en de menu-items en knoppen van Header & navigatie
+([`HEADER-FOOTER.md`](HEADER-FOOTER.md)). De rest van het CMS gebruikt nog
 `onsubmit="return confirm(…)"`. Een scherm dat overgaat, haalt die weg en
 gebruikt de twee functies hierboven; meer is het niet.
 
 ## Waar het al gebruikt wordt
 
-Acht schermen, als bewijs dat de bouwstenen herbruikbaar zijn. De rest van het
+Negen schermen, als bewijs dat de bouwstenen herbruikbaar zijn. De rest van het
 CMS volgt scherm voor scherm; een scherm dat nog niet is omgezet, werkt zoals
 het werkte.
 
@@ -276,6 +277,7 @@ het werkte.
 | Pagina bewerken en Nieuwe pagina (`admin/page.php`, `admin/page-new.php`) | De *Titel* staat in de taalpanes van `admin/_language_fields.php`, net als de SEO-velden: één taal op het scherm, de andere verborgen maar wel meegestuurd; het adres komt alleen uit de hoofdtaaltitel. Uitleg bij *Webadres* (het woord *slug* staat alleen in die uitleg); op een bestaande pagina het adres als link en het veld achter *Webadres wijzigen*, een `<details>` in de stijl van de inklapbare rijen; op een nieuwe pagina een live voorbeeld van het hele adres. Onder *Status* staat *Kruimelpad tonen op deze pagina* als switch met uitleg, behalve op de homepage (`HEADER-FOOTER.md`). SEO: een infobalk over wat SEO is, en uitleg bij de SEO-titel (met de automatische titel) en bij de *Omschrijving voor zoekmachines*. Op *Nieuwe pagina* staat de SEO-kaart vóór *Template* en klapt hij dicht (`.admin-collapse--card`). In de blokkenkiezer het zoekveld (`.admin-search`); op elke blokrij *Verbergen*/*Tonen* (`.admin-btn-secondary`) en *Verwijderen* (`.admin-btn-danger`), dat eerst vraagt in `admin_confirm_dialog()` |
 | Portfolio (`admin/portfolio.php`, `admin/portfolio-item.php`) | Infobalk; in het overzicht het zoekveld (`.admin-search`) en de filters als `.admin-select`, met *Zonder categorie*; op een item de bestandskiezer met voorbeeld (de gekozen afbeelding vóór het opslaan, bij bewerken eerst de huidige) en uitleg bij afbeelding, alt-tekst, titel, onderschrift en categorieën; categorieën als `.admin-checkbox`, *Zichtbaar op de portfolio-pagina* en *Toon op homepage* als switch; de projectpagina als één `.admin-select` met uitleg (*Geen gekoppelde pagina* of een gewone pagina, een concept gemarkeerd) en, voor wie pagina's mag beheren, *Nieuwe pagina maken* naar het gewone scherm *Nieuwe pagina*; verwijderen vraagt eerst in `admin_confirm_dialog()` |
 | Paginakop (`admin/page-hero.php`) | Uitleg bij bovenschrift, titel, inleiding, positie van de tekst, beide groottes en *Tonen op de pagina*; de drie keuzes als `.admin-select`, *Tonen op de pagina* als switch, en de afbeelding met de mediakiezer (`MEDIA.md`). *Inhoud*, *Afbeelding* en *Vormgeving* zijn kopjes in één formulier, zodat de opslagbalk één formulier bewaakt |
+| Header & navigatie (`admin/navigation.php`, `admin/navigation-item.php`) | In het overzicht een infobalk en twee kaarten, *Menu* en *Knoppen*, elk met een eigen *toevoegen*-knop en een lege staat die zegt hoe je hem vult. Elke rij noemt de bestemming in woorden (*Pagina: Contact*), met badges voor *Verborgen*, *Niet op de website* en de knopstijl; ↑ en ↓ als `.admin-btn-ghost` met een `aria-label` dat het item noemt; *Verbergen*/*Tonen* (`.admin-btn-secondary`) en *Verwijderen* (`.admin-btn-danger`), dat eerst vraagt in `admin_confirm_dialog()` en ontbreekt zolang er submenu-items onder staan. De editor heeft *Tonen op de website* als switch met uitleg, de tekst in de taalpanes met uitleg, de soort bestemming, de pagina, het onderdeel en de knopstijl als `.admin-select` met uitleg, *Openen in een nieuw tabblad* als switch, en de opslagbalk. De velden die niet bij de gekozen soort horen verbergt `admin/assets/navigation-item.js`; zonder script staan ze er allemaal |
 
 De bestandskiezer staat op de upload van de Mediabibliotheek. Slepen en
 neerzetten, de lijst met nieuwe bestanden en de voorbeelden horen bij dat

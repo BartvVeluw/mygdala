@@ -11,14 +11,15 @@ samen met `PROJECT-MAP.md` (waar iets staat). Voor het modulesysteem zie
 | Klasse | `App\Service\SiteSettings` | `App\Service\Theme\ThemeSettings` |
 | Tabel | `site_settings` | `theme_settings` |
 | Scherm | Instellingen → Site-instellingen | Instellingen → Vormgeving |
-| Inhoud | naam, logo, tweede logo, favicon, deel-afbeelding, adres, KVK, e-mail-, factuurteksten, de header-knop, de footer-slotregel, social profielen | vijf kleuren, lettertypecombinatie, knopvorm |
+| Inhoud | naam, logo, tweede logo, favicon, deel-afbeelding, adres, KVK, e-mail-, factuurteksten, de footer-slotregel, social profielen (de headerknoppen staan als navigatie-items in `nav_items`) | vijf kleuren, lettertypecombinatie, knopvorm |
 | Terugzetten | nooit automatisch | één knop, en die raakt de linkerkolom niet aan |
 
 Twee tabellen en niet één met een prefix, precies omdat "standaardvormgeving
 herstellen" nooit een bedrijfsadres, een logo of een knoptekst mag meenemen.
 `reset-theme-settings.php` kan `site_settings` niet eens bereiken. De
-header-knop, de footer-slotregel en de social profielen horen daarom ook in de
-linkerkolom, met een eigen scherm — zie `HEADER-FOOTER.md`.
+headerknoppen, de footer-slotregel en de social profielen horen daarom ook in
+de linkerkolom, met een eigen scherm — zie `HEADER-FOOTER.md`. Een knop kiest
+alleen tussen twee bestaande stijlen; hoe die eruitzien blijft van Vormgeving.
 
 Er wordt niets gedupliceerd. Het themascherm toont de sitenaam omdat een
 eigenaar hem daar zoekt, maar linkt door naar Site-instellingen; opslaan doet

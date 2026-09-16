@@ -289,15 +289,22 @@ onveranderd rendert — `THEMING.md` beschrijft de vergelijking van
 
 **Wijziging aan de gedeelde header of footer**
 
-De knop in de header, de slotregel, de social profielen, of de partials zelf
-(`HEADER-FOOTER.md`):
+Het menu, de knoppen in de header, de slotregel, de social profielen, of de
+partials zelf (`HEADER-FOOTER.md`):
 
 ```
---testsuite fast        (HeaderFooterSettingsTest en HeaderFooterContractTest;
+--testsuite fast        (NavigationServiceTest, NavigationPresentationTest,
+                         HeaderFooterSettingsTest en HeaderFooterContractTest;
                          database noch webserver nodig)
---testsuite cms         voegt HeaderFooterRenderingTest toe: de
-                        CMS-paginabestemming tegen echte rijen, en wat een
-                        pagina echt rendert
+--testsuite cms         voegt NavigationRepositoryTest, NavigationAdminHttpTest
+                        (scherm, endpoints en publieke header over een eigen
+                        php -S, ook met de Shop uit) en
+                        HeaderFooterRenderingTest toe: een knop naar een
+                        CMS-pagina tegen echte rijen, en wat een pagina echt
+                        rendert
+--testsuite migration   als je aan de kolommen van nav_items of de
+                        overzetting van de oude knop zat
+                        (HeaderButtonMigrationTest, LegacyUpgradeTest)
 --testsuite modules     als je aan een header-slot van een module zat
 ```
 

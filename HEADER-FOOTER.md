@@ -12,71 +12,165 @@ lettertypes zie `THEMING.md`; voor moduleslots `MODULES.md`.
 
 | Van Core, niet instelbaar | Van de beheerder |
 |---|---|
-| Skip-link, merkblok, plaats van de navigatie, mobiele menumechaniek, sticky gedrag, de taalwissel, moduleslots | Menu-items (Navigatie), footerkolommen en -links (Footer), logo's (Site-instellingen), kleuren (Vormgeving) |
-| Waar de knop staat, waar de slotregel staat, hoe een social-icoon eruitziet | Óf de knop er is, wat erop staat en waar hij heen gaat; óf de slotregel er is en wat er staat; welke social profielen bestaan |
+| Skip-link, merkblok, plaats van de navigatie, mobiele menumechaniek, sticky gedrag, de taalwissel, moduleslots | Menu-items en headerknoppen (Header & navigatie), footerkolommen en -links (Footer), logo's (Site-instellingen), kleuren (Vormgeving) |
+| Waar de knoppen staan, hoe ze eruitzien, waar de slotregel staat, hoe een social-icoon eruitziet | Óf er knoppen zijn, hoeveel, in welke volgorde, wat erop staat, waar ze heen gaan en welke van twee stijlen; óf de slotregel er is en wat er staat; welke social profielen bestaan |
 
-Er zijn geen headerregio's, geen tweede knop, geen widgetzones en geen
-slepen-en-neerzetten. Dit is een CMS, geen layoutbouwer.
+Er zijn geen headerregio's, geen vrije knopvormgeving, geen megamenu, geen
+widgetzones en geen derde menuniveau. Dit is een CMS, geen layoutbouwer.
 
 ## Waar het staat
 
 | Onderdeel | Waar |
 |---|---|
-| Opslag | `site_settings` — sleutels in `App\Service\SiteSettings::DEFAULTS` |
-| Header-knop | `App\Service\HeaderCta` |
+| Opslag menu en headerknoppen | `nav_items` — één tabel, `presentation` zegt link of knop |
+| Opslag slotregel en social profielen | `site_settings` — sleutels in `App\Service\SiteSettings::DEFAULTS` |
+| Menu en headerknoppen (lezen) | `App\Service\NavigationService::header()` |
+| Link of knop, en de knopstijlen | `App\Service\NavigationPresentation` |
+| Volgorde, opslag | `App\Repository\NavigationRepository` |
 | Slotregel | `App\Service\FooterService::slogan()` |
 | Social profielen | `App\Service\SocialProfiles` |
-| Scherm | Instellingen → **Header & footer** (`admin/header-footer.php`) |
-| Opslaan | `api/admin/update-header-footer-settings.php` |
+| Schermen | **Header & navigatie** (`admin/navigation.php`, `admin/navigation-item.php`); **Slotregel & social media** (`admin/header-footer.php`) |
+| Opslaan | `api/admin/create-nav-item.php`, `update-nav-item.php` (regels in `_nav_item_input.php`), `move-nav-item.php`, `reorder-nav-items.php`, `toggle-nav-item.php`, `delete-nav-item.php`; `update-header-footer-settings.php` |
 | Rendering | `partials/header.php`, `partials/footer.php` |
-| Styling | `.social-row` in `assets/css/core.css` |
+| Styling | `.header-buttons` en `.social-row` in `assets/css/core.css` |
 
 `site_settings` en niet `theme_settings`: dit is wie de site *is*, niet hoe hij
 er *uitziet*. "Standaardvormgeving herstellen" mag nooit een knoptekst of een
-Instagram-adres meenemen — zie de tabel bovenaan `THEMING.md`.
+Instagram-adres meenemen — zie de tabel bovenaan `THEMING.md`. Voor de
+headerknoppen geldt hetzelfde, en die staan in `nav_items`, waar
+Vormgeving niet bij kan.
 
 ## De taalwissel
 
-Staat links van de knop, en verschijnt **alleen op een site die meer dan één
+Staat links van de knoppen, en verschijnt **alleen op een site die meer dan één
 taal publiceert** (`MULTILINGUAL.md`). Op een eentalige site waren het twee
 knoppen die allebei dezelfde pagina in dezelfde woorden toonden, dus daar
 rendert de header er geen — geen leeg besturingselement en geen extra
 tabstop. Welke talen erin staan en welke voorop staat komt uit
 Instellingen → Talen; de vormgeving en de plaats zijn van Core.
 
-## De knop in de header
+## Het menu en de knoppen: één itemmodel
 
-Precies één, rechts naast de taalwissel en de moduleslots.
+Alles wat een beheerder bovenaan elke pagina zet, is een rij in `nav_items`:
+een tekst per taal, een bestemming, zichtbaar of niet, en een plek in de
+volgorde. Of die rij een **link in het menu** of een **knop in de header** is,
+zegt één kolom:
 
 ```text
-header_cta_enabled          '1' / '0'
-header_cta_label_nl         de tekst
-header_cta_label_en         leeg = gelijk aan NL
-header_cta_link_type        page | route | external
-header_cta_target_page_id   bij 'page'
-header_cta_target_route     bij 'route'
-header_cta_external_url     bij 'external'
-header_cta_open_in_new_tab  '1' / '0'
+presentation     link    in de lijst van het menu (elk item van vóór fase A)
+                 button  rechts in de header, na de taalwissel en de moduleslots
+button_variant   primary gevulde knop (.btn), wat de ene headerknop altijd was
+                 ghost   knop met alleen een rand (.btn--ghost)
+                         alleen gelezen bij presentation = button
 ```
 
-Dat zijn **dezelfde velden als een menu-item en een footerlink**, en ze gaan
-door dezelfde `App\Service\LinkResolver`. Er is met opzet geen tweede
-linkmodel. Dat levert direct op:
+Twee gesloten lijsten in `App\Service\NavigationPresentation`. De CSS-klasse
+komt uit die klasse, nooit uit de database, en het zijn bestaande klassen uit
+`core.css`: geen nieuwe knopvormgeving.
 
-- een pagina die op concept wordt gezet of verdwijnt, laat de knop verdwijnen;
-- een pagina die van slug verandert, neemt de knop mee;
-- een route van een **uitgeschakelde module** bestaat niet meer in
-  `RouteRegistry`, dus de knop verdwijnt in plaats van naar een 404 te wijzen;
-- een pagina die door een uitgeschakelde module wordt geserveerd (`/shop.php`)
-  telt hetzelfde: `LinkResolver` laat hem vallen.
+### Waarom één model en geen tweede tabel
 
-**Verdwijnen is niet vergeten.** De instelling blijft staan; zet je de module
-weer aan, dan staat de knop er weer zonder dat iemand iets opnieuw invult. Het
-adminscherm zegt intussen met een waarschuwing waaróm de knop niet te zien is
-(`HeaderCta::adminWarning()`).
+De headerknop had al precies de vorm van een menu-item: dezelfde
+linkvelden, door dezelfde `App\Service\LinkResolver`. Wat hij miste was een
+volgorde, een zichtbaarheidsschakelaar en de mogelijkheid om er meer dan één
+te hebben, en `nav_items` heeft die alle drie. Eén model levert daarbij gratis:
 
-Geen tekst = geen knop. Geen werkende bestemming = geen knop. De header blijft
-zonder knop coherent, op desktop en op mobiel.
+- **dezelfde bestemmingen**: een pagina (op id), een vast onderdeel
+  (`RouteRegistry`), een ander adres;
+- **dezelfde veiligheid**: een pagina op concept of verwijderd, of een route of
+  pagina van een uitgeschakelde module, laat de knop verdwijnen in plaats van
+  naar een 404 te wijzen;
+- **dezelfde paginaverwijzingen**: `PageUsage` toont een knop in de lijst vóór
+  een adreswijziging, en `PageService::references()` weigert een pagina te
+  verwijderen zolang er een knop naar wijst — precies zoals bij een menu-item.
+
+Wat een knop **niet** kan, bewaken `NavigationPresentation::errors()` en
+`api/admin/_nav_item_input.php`: geen knop in een submenu, geen knop zonder
+bestemming (*Nergens heen* is alleen een kop boven een submenu), en een link
+die nog submenu-items heeft kan geen knop worden.
+
+### De bestemming
+
+```text
+link_type   page      target_page_id   een pagina van deze website
+            route     target_route     een vast onderdeel (RouteRegistry)
+            external  external_url     https://… of een pad dat met / begint
+            none      —                alleen een kop boven een submenu
+```
+
+Alleen het veld dat bij de gekozen soort hoort wordt opgeslagen; de andere
+twee worden leeg. Het scherm noemt deze velden nooit bij hun technische naam:
+*Een pagina van deze website*, *Een vast onderdeel van de website*, *Een ander
+adres*.
+
+**Verdwijnen is niet vergeten.** Een item waarvan de bestemming nu niet
+bestaat, blijft bewaard. Het overzicht zegt *Niet op de website* en de editor
+zegt waarom. Een opgeslagen route van een uitgeschakelde module blijft in de
+editor geselecteerd, en opslaan houdt haar vast; zet je de module weer aan,
+dan staat het item er weer zonder dat iemand iets opnieuw invult.
+
+### Volgorde
+
+Per groep: één ouder (het hoogste niveau of één submenu) **en** één
+presentatie. Het menu en de knoppen hebben dus elk hun eigen volgorde, en een
+knop schuift nooit tussen twee menulinks door.
+
+- **↑ en ↓** op elke rij (`move-nav-item.php`, `NavigationRepository::move()`):
+  werkt met het toetsenbord, op een telefoon en zonder JavaScript.
+- **Slepen** blijft voor een muis (`reorder-nav-items.php`, met `presentation`
+  erbij). De sleepgreep is `aria-hidden`; ↑ en ↓ zijn de toegankelijke weg.
+- Wordt een link een knop, of andersom, dan sluit hij achteraan de nieuwe groep
+  aan.
+
+### In de header
+
+- **Geen knoppen**: geen `.header-buttons` in de markup.
+- **Eén knop**: dezelfde markup als de oude ene headerknop,
+  `<a href="…" class="btn btn--sm" data-nl="…" data-en="…">`, op dezelfde plek.
+- **Meerdere knoppen**: naast elkaar in hun eigen volgorde. Een lange tekst
+  breekt binnen zijn eigen knop af (maximaal 16rem breed) in plaats van de
+  header breder dan het scherm te duwen.
+- **Mobiel**: de knoppen staan in `#main-nav`, het paneel dat de menuknop
+  opent, onder de links. De rij met taalwissel, winkelwagen en knoppen loopt
+  gecentreerd door naar een volgende regel als hij niet past.
+
+Geen tekst in geen enkele taal = geen knop. Geen werkende bestemming = geen
+knop.
+
+### De actieve link
+
+Een menulink krijgt `aria-current="page"` als hij de pagina is waar de
+bezoeker op staat (`NavigationService::isCurrent()`):
+
+- een **route**-link via de sleutel die het sjabloon als `$activeNav` zet,
+  zoals altijd;
+- een **pagina**-link op zijn eigen adres, vergeleken met het opgevraagde pad.
+  `/` en `/index.php` zijn dezelfde pagina. Dit is nodig sinds
+  `20260908260000` Diensten, Portfolio, Over mij en Contact paginalinks maakte:
+  die kregen daarna nooit meer een markering.
+
+Een extern adres en een submenukop zijn nooit actief. Een submenu-item krijgt
+geen markering; dat is ongewijzigd gebleven.
+
+### De oude ene headerknop
+
+Tot fase A was er precies één knop, als acht instellingen in `site_settings`
+(`header_cta_*`) op het scherm *Header & footer*. Migratie `20260916230000`
+voegde de twee kolommen toe en zette een ingestelde knop éénmalig over als één
+item met `presentation = button`:
+
+- tekst, soort bestemming, het bijbehorende veld en *nieuw tabblad* zoals ze
+  waren; stijl `primary`, dus dezelfde knop;
+- zichtbaar precies als de oude knop zichtbaar was (aan én een Nederlandse
+  tekst); een knop die uit stond komt verborgen over, niet weg;
+- een pagina-id die niet meer bestaat wordt `NULL` (de foreign key eist het,
+  en het rendert niets, net als vroeger);
+- een verse installatie heeft geen knop en krijgt er geen.
+
+**De oude rijen blijven staan.** Niets leest of schrijft ze nog: de header leest
+`nav_items`, en het opslaan van *Slotregel & social media* raakt ze niet meer
+aan. Ze echt verwijderen is een aparte, destructieve beslissing, net als bij
+`page_heroes.breadcrumb_label_*`.
 
 ## De slotregel in de footer
 
@@ -136,14 +230,15 @@ Dezelfde afspraak als bij branding (`THEMING.md`): de **codestandaard is
 generiek** en een **migratie heeft de huidige waarden vastgezet**.
 
 ```text
-code    knop uit, geen tekst, geen bestemming
+code    geen headerknoppen (een verse installatie krijgt er geen)
         slotregel uit, leeg
         alle social-URL's leeg
 
 rij     migratie 20260909220000 schreef "Vraag offerte aan" /
         "Request a quote" naar de Contact-pagina, en de slotregel,
         als echte rijen — INSERT IGNORE, dus een bestaande rij
-        wint altijd
+        wint altijd; migratie 20260916230000 zette die knop over
+        naar nav_items
 ```
 
 Voor social profielen is niets gemigreerd: deze site had er geen, en er
@@ -153,6 +248,32 @@ Let op één eigenaardigheid van `SiteSettings::all()`: een opgeslagen **lege**
 waarde valt terug op de standaard. Dat werkt alleen omdat elke standaard hier
 leeg of `'0'` is. Geef een nieuwe sleutel in deze familie dus nooit een
 niet-lege codestandaard, anders kan een beheerder hem niet leegmaken.
+
+## Footer fase B (nog niet gebouwd)
+
+Na fase A staat de footer nog verspreid over drie schermen: *Footer*
+(kolommen, links, het bedrijfsblok en de copyrighttekst), *Slotregel & social
+media* (de rest van het vroegere *Header & footer*) en *Site-instellingen*
+(logo's, en de footer-omschrijving, die daar én op *Footer* te bewerken is).
+Fase B maakt er één beheergebied van:
+
+1. **Eén scherm Footer** met kaarten voor kolommen en links, het bedrijfsblok,
+   de slotregel en de social profielen. `admin/header-footer.php` wordt een
+   doorverwijzing; de footer-omschrijving krijgt één plek.
+2. **Social profielen als herhaalbare items** in een eigen tabel, bijvoorbeeld
+   `footer_social_links` (`network`, `url`, `sort_order`, `is_visible`).
+   `network` blijft een sleutel uit de gesloten lijst `SocialProfiles::NETWORKS`,
+   dus iconen en domeincontrole blijven van Core; wat erbij komt is een
+   volgorde en verbergen.
+3. **Migratie** zet elke ingevulde `social_<netwerk>_url` om in één rij, in de
+   volgorde van het register, en laat de instellingen staan. Zelfde aanpak als
+   `20260916230000`: idempotent, geen verwijderingen, een verse installatie
+   krijgt niets.
+4. **Twee keer hetzelfde netwerk** (twee Instagram-accounts) is dan mogelijk;
+   `isValidProfileUrl()` blijft per rij gelden, en het toegankelijke label
+   noemt het netwerk.
+
+Tot dan leest `SocialProfiles::forFooter()` de zeven vaste sleutels.
 
 ## Het kruimelpad
 
@@ -288,11 +409,24 @@ onafhankelijkheid van de Paginakop vast, `Tests\Service\ProductBreadcrumbTest`
 (suite `shop`) dat het productpad server-side staat en `shop.js` het niet meer
 schrijft.
 
-`fast` bevat `HeaderFooterSettingsTest` (de instellingen zelf, zonder database)
-en `HeaderFooterContractTest` (geen sitespecifieke tekst of bestemming meer in
-de gedeelde schil). `cms` voegt `HeaderFooterRenderingTest` toe: de
-CMS-paginabestemming tegen echte rijen, en wat een pagina echt rendert — ook op
-de CMS-only deployment. Zie verder `TESTING.md`.
+`fast` bevat `NavigationServiceTest` (menu, knoppen en de actieve link, zonder
+database), `NavigationPresentationTest` (de twee gesloten lijsten en wat een
+knop niet mag), `HeaderFooterSettingsTest` (slotregel en social profielen,
+zonder database) en `HeaderFooterContractTest` (geen sitespecifieke tekst of
+bestemming meer in de gedeelde schil, en de knoppen uit de navigatie). `cms`
+voegt toe:
+
+- `NavigationRepositoryTest` — opslaan, de volgorde per groep, ↑ en ↓;
+- `NavigationAdminHttpTest` — het scherm en zijn endpoints over echt HTTP, en
+  wat de publieke header daarvan maakt, ook met de Shop uit;
+- `HeaderFooterRenderingTest` — een knop naar een CMS-pagina tegen echte rijen,
+  en wat een pagina echt rendert, ook op de CMS-only deployment;
+- `HeaderButtonMigrationTest` (ook in `migration`) — de overzetting van de
+  oude knop op wegwerpdatabases.
+
+`LegacyUpgradeTest` (suite `migration`) laat zien dat een bestaande site na
+alle migraties precies één zichtbare knop naar de Contact-pagina heeft. Zie
+verder `TESTING.md`.
 
 Raakte je een **taalveld** van de navigatie of de footer aan — een menulabel,
 een kolomtitel, een footerlink of de footertekst — dan is

@@ -132,7 +132,7 @@ pagina:
 De sitemap volgt dezelfde splitsing. Bestaat de pagina, dan komt `/shop.php`
 er via de pagina's in en beslist `PageSeo::isIndexable()`; anders zet
 `ShopModule::sitemapCollectors()` (`storefront`) hem erin. Wie de winkel in
-het menu wil, voegt bij Navigatie de route *Shop* toe. De installatiewizard
+het menu wil, voegt bij Header & navigatie het onderdeel *Shop* toe. De installatiewizard
 verzint er geen.
 
 **Portfolio** brengt ook alleen tabellen mee, en die bestaan op elke

@@ -54,8 +54,9 @@ tellen elk ongeveer 1900 sleutels.
 
 Concreet: de gedeelde schil en alle zijbalklabels (ook die van de modules),
 het dashboard, *Pagina's* en de pagina-editor, alle ~17 contentblok-editors,
-*Contentblokken*, *Media*, *Formulieren* en *Inzendingen*, *Navigatie*,
-*Footer*, *Header & footer*, *Site-instellingen* met al zijn panelen,
+*Contentblokken*, *Media*, *Formulieren* en *Inzendingen*, *Header &
+navigatie*, *Footer*, *Slotregel & social media*, *Site-instellingen* met al
+zijn panelen,
 *Vormgeving*, *Redirects*, *Gebruikers* en hun rechten, *Portfolio*,
 *Contactaanvragen*, de installatiewizard, *Mijn account*, het tabblad *Talen*,
 de opslagbalk, en de modules **Blog**, **Shop** en **Personalisatie**.

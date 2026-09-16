@@ -306,7 +306,7 @@ dingen dubbel doet.
 | Taal van het CMS, per persoon | Mijn account (`MULTILINGUAL.md`) |
 | Kleuren, lettertype, knopvorm | Instellingen → Vormgeving (`THEMING.md`) |
 | Pagina's maken, bewerken, publiceren | Pagina's (`PAGE-TEMPLATES.md`) |
-| Menu en footer | Navigatie en Footer (`HEADER-FOOTER.md`) |
+| Menu, headerknoppen en footer | Header & navigatie en Footer (`HEADER-FOOTER.md`) |
 | Afbeeldingen | Mediabibliotheek (`MEDIA.md`) |
 | Modules aan/uit | `.env`, of opnieuw via het CMS zodra daar een scherm voor komt |
 
