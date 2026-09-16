@@ -102,11 +102,18 @@ die het register toch al heeft:
 | Permissies | `perm.<recht>.label` / `.description`, `perm.group.<naam>` | `AdminPermissions::groupsForDisplay()` |
 | Paginatemplates | `pagetemplate.<key>.label` / `.description` | `admin_registry_label()` in de sjabloon |
 | Lettertypes en CMS-thema's | `themefont.<key>`, `admintheme.<key>.*` | idem |
+| Veldtypes van formulieren | `formfieldtype.<key>.label` / `.description` | `admin/_form_fields.php` |
 
 Waarom daar en niet in de klasse zelf: zo hoeft een module niet te weten dat
 dit CMS twee talen heeft. `App\Module\ShopModule` schrijft een Nederlands
 label op en krijgt Engels zodra de sleutel bestaat, en een register zonder
 sleutel houdt zijn eigen woorden in plaats van een kale punt-sleutel te tonen.
+
+**Veldtypes van formulieren zijn de uitzondering.** Een veldtype komt nooit
+uit een module, want de lijst is Core en gesloten. Daarom staan hun woorden
+alleen in de catalogus en heeft de typeklasse geen Nederlandse naam die uit de
+pas kan lopen. `Tests\Service\FormFieldTypeTest` eist voor elk geregistreerd
+type een naam en uitleg in elke catalogus (`FORMS.md`, "Hoe een type heet").
 
 **`AdminPermissions` vertaalt met opzet níét in `groups()`.** Die wordt
 gelezen terwijl een account nog wordt geladen — `expand()` draait binnen

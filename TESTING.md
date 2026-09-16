@@ -339,13 +339,16 @@ Veldtypes, validatie, de publieke verwerking, meldingen, bewaarde
 inzendingen of de twee formulierblokken (`FORMS.md`):
 
 ```
---testsuite fast        (FormFieldTypeTest, FormValidationTest en
-                         FormBoundaryTest: veldtypes, validatie, rechten,
+--testsuite fast        (FormFieldTypeTest, FormFieldTypeChangeTest,
+                         FormValidationTest en FormBoundaryTest: veldtypes,
+                         wat een typewissel kost, validatie, rechten,
                          guards en de grens met de Shop — database noch
                          webserver nodig)
---testsuite cms         voegt FormAdminTest, FormRenderingTest en
+--testsuite cms         voegt FormAdminTest, FormAdminHttpTest,
+                        FormFieldEditorHttpTest, FormRenderingTest en
                         ContactFormMigrationTest toe: echte definities,
-                        echte inzendingen, echte pagina's
+                        de veldeditor over echt HTTP, echte inzendingen,
+                        echte pagina's
 --testsuite blocks      als je aan de rendering of de plaatsing zat
 ```
 
@@ -642,16 +645,16 @@ Is die server niet bereikbaar, dan slaan deze tests zichzelf over met een
 melding die het startcommando noemt — ze falen nooit om de verkeerde reden.
 Vanaf je eigen machine is dezelfde site te zien op de poort die `docker compose port php_test 80` noemt.
 
-**Acht HTTP-tests hebben de testcontainer niet nodig.** `PagePreviewAccessTest`
+**Negen HTTP-tests hebben de testcontainer niet nodig.** `PagePreviewAccessTest`
 (suite `cms`), `PageBuilderScreenTest` (suites `blocks` en `cms`),
 `MediaUsageAccessTest` (suite `cms`), `PortfolioModuleHttpTest` (suite
 `modules`), `PortfolioItemEditingHttpTest` (suite `cms`),
 `BlockPreviewAccessTest` (suites `blocks` en `cms`),
-`PageHeroEditorHttpTest` (suite `blocks`) en `FormAdminHttpTest` (suite
-`cms`) starten voor de duur van de klasse PHP's eigen webserver (`php -S`)
+`PageHeroEditorHttpTest` (suite `blocks`), `FormAdminHttpTest` (suite `cms`)
+en `FormFieldEditorHttpTest` (suite `cms`) starten voor de duur van de klasse PHP's eigen webserver (`php -S`)
 op deze uitchecking, tegen de testdatabase, en loggen een beheerder in met
 een echte sessie. De twee Portfolio-tests, `BlockPreviewAccessTest`,
-`PageHeroEditorHttpTest` en `FormAdminHttpTest` doen dat met
+`PageHeroEditorHttpTest` en de twee Forms-tests doen dat met
 `Tests\Support\BuiltInServer`, dat de server ook een eigen omgeving kan
 meegeven, zoals een moduleschakelaar of een mailserver die niet bestaat, en
 dat de headers van een antwoord teruggeeft. Dat kan omdat niets van de
@@ -659,7 +662,7 @@ conceptpreview, het blokvoorbeeld, de paginabouwer, de mediabibliotheek, het
 Portfolio-beheer, de paginakop of de formulieren in Apache zit:
 `admin/page-preview.php`, `admin/block-preview.php`, `admin/page.php`,
 `admin/media.php`, `admin/portfolio-item.php`, `admin/page-hero.php`,
-`admin/form.php`, `api/form-submit.php` en de endpoints onder `api/admin/`
+`admin/form.php`, `admin/form-field.php`, `api/form-submit.php` en de endpoints onder `api/admin/`
 zijn gewone bestanden, en `pagina.php`, `portfolio-detail.php` en
 `sitemap.php` worden rechtstreeks aangesproken. De rewrite zelf blijft de zaak
 van `PageRoutingTest`. Kan de server niet starten, dan slaan deze tests

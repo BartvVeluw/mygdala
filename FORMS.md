@@ -46,6 +46,8 @@ werkt identiek met de Shop aan en uit (`MODULES.md`).
 |---|---|
 | Migraties + tabellen | `db/migrations/20260909300000_create_the_core_forms_tables.php`, `…310000_migrate_the_contact_form_into_a_form.php`, `…320000_add_a_default_choice_to_form_fields.php` |
 | Veldtypes (gesloten register) | `src/Service/Forms/FieldTypes/`, plus `FormFieldTypes` — dé registratielijst |
+| Namen van veldtypes | `formfieldtype.<key>.label` en `.description` in `src/Service/Language/messages/` |
+| Wat een typewissel kost | `FormFieldTypeChange` |
 | Leesmodel | `FormDefinition`, `FormField`, `FormFieldOptions`, `FormText` |
 | Opzoeken + cache | `FormCatalog` |
 | SQL | `src/Repository/FormRepository.php`, `FormSubmissionRepository.php`, `FormBlockRepository.php` |
@@ -59,7 +61,7 @@ werkt identiek met de Shop aan en uit (`MODULES.md`).
 | E-mail | `src/Mail/FormSubmissionBuilder.php` |
 | Blok "Formulier" | `src/Service/Blocks/FormBlock.php`, `FormBlockContent`, `partials/section-form.php`, `admin/form-block.php` |
 | Blok "Offerte-/contactformulier" | `src/Service/Blocks/ContactFormBlock.php`, `ContactFormContent`, `partials/section-contact-form.php`, `admin/contact-form.php` |
-| Adminschermen | `admin/forms.php`, `admin/form.php`, `admin/form-field.php`, `admin/form-submissions.php`, `admin/form-submission.php` |
+| Adminschermen | `admin/forms.php`, `admin/form.php`, `admin/form-field.php`, `admin/form-submissions.php`, `admin/form-submission.php`; gedeeld: `admin/_form_fields.php` (typenamen, typekaarten, wat een wissel kost) en `admin/assets/forms-admin.js` |
 | Frontend | `assets/css/blocks/form.css`, `assets/js/blocks/form.js` |
 | Tests | `tests/Service/Form*.php`, `tests/Repository/ContactFormMigrationTest.php` |
 
@@ -87,7 +89,10 @@ eventueel een standaardwaarde.
 type-specifieke instelling die bestaat is de optielijst van een keuzeveld, en
 die staat in één `TEXT`-kolom die `FormFieldOptions` leest — één keuze per
 regel, `NL|EN` met de Engelse helft optioneel. Een kindtabel zou daar drie
-schrijfendpoints voor kosten en niets opleveren.
+schrijfendpoints voor kosten en niets opleveren. De redacteur ziet die regels
+niet: de veldeditor toont één rij per optie, met een vak per taal, en
+`FormFieldOptions::rowsToStored()` maakt daar dezelfde regels van, met
+dezelfde regels voor lege en dubbele opties en het maximum van vijftig.
 
 **Een keuzeveld mag op een van zijn eigen opties beginnen** (`default_value`).
 Dat is de enige vorm van vooringevulde inhoud die dit CMS kent, en met opzet:
@@ -99,9 +104,9 @@ antwoord — en de bezoeker kan altijd iets anders kiezen.
 
 De waarde is **altijd een van de opties van dat veld**. Die regel staat op één
 plek (`FormField::isUsableDefault()`) en werkt in twee richtingen: de
-formuliereditor weigert er een die er niet bij staat, en het leesmodel laat er
-een vallen die er ooit toch in kwam. De redacteur kiest hem uit een
-keuzelijst, nooit als vrije tekst.
+formuliereditor bewaart er nooit een die er niet bij staat, en het leesmodel
+laat er een vallen die er ooit toch in kwam. De redacteur markeert hem op een
+van de optierijen, nooit als vrije tekst (zie "De veldeditor" hieronder).
 
 **`field_key` ligt vast zodra hij bestaat.** Hij wordt gegenereerd uit het
 label (`FormFieldKey`), is uniek binnen het formulier, kan nooit botsen met de
@@ -131,34 +136,70 @@ komt uit een adminformulier en uit een databaserij, en het enige wat die
 waarde ooit mag doen is een sleutel raken of missen. Missen is missen; het
 wordt nooit een klassenaam.
 
-| Sleutel | Wat het is |
-|---|---|
-| `text` | Eén regel tekst |
-| `textarea` | Meerdere regels (max. 5000 tekens, houdt regeleindes) |
-| `email` | E-mailadres; het enige type dat antwoordadres kan zijn |
-| `tel` | Telefoonnummer; **geen landformaat afgedwongen** |
-| `select` | Keuzelijst uit een gesloten optielijst |
-| `radio` | Dezelfde gesloten lijst als keuzerondjes |
-| `checkbox` | Eén vinkje (bewaard als "Ja") |
-| `consent` | Akkoordvinkje; **altijd verplicht** |
+| Sleutel | In het CMS | Wat het is |
+|---|---|---|
+| `text` | Kort tekstveld | Eén regel tekst |
+| `textarea` | Lang tekstveld | Meerdere regels (max. 5000 tekens, houdt regeleindes) |
+| `email` | E-mailadres | E-mailadres; het enige type dat antwoordadres kan zijn |
+| `tel` | Telefoonnummer | Telefoonnummer; **geen landformaat afgedwongen** |
+| `select` | Keuzelijst | Keuzelijst uit een gesloten optielijst |
+| `radio` | Keuzerondjes | Dezelfde gesloten lijst als keuzerondjes |
+| `checkbox` | Selectievakje | Eén vinkje (bewaard als "Ja") |
+| `consent` | Toestemming | Akkoordvinkje; **altijd verplicht** |
 
-Elk type is één klasse die vier vragen beantwoordt — hoe het heet, hoe het
-rendert, hoe het een waarde schoonmaakt, en welke eigen regel het heeft. Er
-staat nergens een `switch` over veldtypes: niet in de renderer, niet in de
+Elk type is één klasse die zegt hoe het rendert, hoe het een waarde
+schoonmaakt, welke eigen regel het heeft en welke instellingen het gebruikt.
+Er staat nergens een `switch` over veldtypes: niet in de renderer, niet in de
 validator en niet in het admin.
+
+### Hoe een type heet
+
+**De sleutel is de identiteit, de catalogus geeft de naam.** `field_type`
+bewaart de sleutel en die verandert nooit. Wat de redacteur leest, de naam en
+één zin uitleg, staat in de admincatalogus onder `formfieldtype.<key>.label`
+en `.description`, in het Nederlands én het Engels, en nergens anders. Een
+typeklasse heeft geen `label()` meer.
+
+Dat wijkt bewust af van een contentblok, dat een Nederlandse naam in zijn
+eigen klasse houdt en die alleen laat vertalen. Die terugval bestaat omdat een
+**module** een blok kan meebrengen zonder te weten dat het CMS twee talen
+heeft. Een veldtype komt nooit uit een module: de lijst is Core en gesloten.
+Een tweede kopie van dezelfde woorden in PHP zou alleen uit de pas kunnen
+lopen. `Tests\Service\FormFieldTypeTest` faalt als een geregistreerd type
+geen naam of uitleg heeft, of als twee types dezelfde naam dragen.
+
+### Wat een type gebruikt
+
+Deze verklaringen op de typeklasse sturen zowel de veldeditor als het
+typewisselbeleid. Het admin heeft geen eigen lijst:
+
+| Verklaring | `text`, `textarea`, `tel` | `email` | `select`, `radio` | `checkbox` | `consent` |
+|---|---|---|---|---|---|
+| `usesPlaceholder()` | ja | ja | nee | nee | nee |
+| `usesOptions()` | nee | nee | ja | nee | nee |
+| `usesDefaultValue()` | nee | nee | ja | nee | nee |
+| `requiredIsFixed()` | nee | nee | nee | nee | ja |
+| `holdsEmailAddress()` | nee | ja | nee | nee | nee |
+
+Label, Engels label en uitleg gebruikt elk type.
 
 ### Een veldtype toevoegen
 
 1. `src/Service/Forms/FieldTypes/<Naam>FieldType.php`, extends
-   `FormFieldType`. Implementeer `key()`, `label()`, `renderControl()` en
-   `normalize()`; de rest heeft een veilige standaard.
+   `FormFieldType`. Implementeer `key()`, `renderControl()` en
+   `normalize()`; de rest heeft een veilige standaard. Overschrijf de
+   verklaringen hierboven waar het type afwijkt.
 2. Eén regel in `FormFieldTypes::MAP`.
-3. Draai `--testsuite fast`: `Tests\Service\FormFieldTypeTest` loopt
+3. `formfieldtype.<key>.label` en `.description` in `nl.php` én `en.php`.
+4. Draai `--testsuite fast`: `Tests\Service\FormFieldTypeTest` loopt
    automatisch over élk geregistreerd type en controleert het hele contract,
-   dus je nieuwe type wordt meegenomen zonder dat je die test aanpast.
+   de catalogusnamen inbegrepen. `Tests\Service\FormFieldTypeChangeTest`
+   schrijft per paar types uit wat een wissel kost, en faalt dus tot je het
+   nieuwe type daar een rij geeft: zo is de belofte over dataverlies een
+   bewuste keuze.
 
-Meer is er niet. De renderer, de validator, het admin en de e-mail hebben er
-geen regel voor nodig.
+Meer is er niet. De renderer, de validator, de veldeditor, de typekiezer en
+de e-mail hebben er geen regel voor nodig.
 
 ## Tweetaligheid
 
@@ -489,6 +530,148 @@ verliezen: dan kan staan wat er moet veranderen. Ingeklapt of open, hij
 verstuurt dezelfde velden, en `api/admin/update-form.php` leest ze zoals
 altijd.
 
+Onder de kaarten staan de velden, met per veld het label, de naam van het
+type en bij een keuzeveld het aantal opties. De technische naam van een veld
+staat daar niet (zie "De interne naam" hieronder).
+
+## Velden toevoegen en bewerken
+
+### Veld toevoegen: eerst het soort veld
+
+*Veld toevoegen* opent een dialoog met een kaart per type: de naam uit de
+catalogus en één zin over waarvoor het is. Daaronder vraagt de dialoog het
+label. Eén POST naar `api/admin/create-form-field.php` maakt het veld aan en
+opent de veldeditor.
+
+Het label hoort nog bij het toevoegen, omdat de **interne naam** van het veld
+eruit wordt gemaakt en daarna vastligt. Een veld eerst aanmaken met een
+tijdelijk label zou de sleutel `kort-tekstveld-2` opleveren, voor altijd.
+
+De kaarten zijn radio's, de radiokaarten waarmee *Nieuwe pagina* een sjabloon
+kiest. Het endpoint accepteert alleen een geregistreerde sleutel; alles
+anders maakt niets aan en brengt de dialoog terug met de fout, het gekozen
+type en het getypte label.
+
+### De veldeditor
+
+`admin/form-field.php` toont alleen wat het type gebruikt (de tabel "Wat een
+type gebruikt"):
+
+| Kaart | Wat erin staat |
+|---|---|
+| Soort veld | het huidige type met zijn uitleg, en ingeklapt *Ander soort veld kiezen* |
+| Wat de bezoeker leest | label en uitleg in de taalpanes; de voorbeeldtekst (placeholder) alleen bij een type dat die gebruikt |
+| Opties | alleen bij een keuzeveld: een rij per optie met *Standaard* |
+| Invullen | de schakelaar *Verplicht invullen*; bij Toestemming alleen de zin dat het altijd verplicht is |
+| Technische gegevens | ingeklapt, buiten het formulier: de interne naam |
+
+Een instelling die het type niet gebruikt, staat niet op het scherm met een
+opmerking dat hij genegeerd wordt. Hij staat er gewoon niet.
+
+**Wat niet op het scherm staat, blijft zoals het is.**
+`api/admin/update-form-field.php` schrijft alleen de instellingen die het
+formulier meestuurde. De rest blijft zoals hij opgeslagen is, zoals
+`api/admin/update-page.php` het met de deelafbeelding doet. Een keuzelijst die
+ooit een tekstveld was, houdt dus zijn oude placeholder, ongebruikt en
+onaangeroerd. Een veld dat ongewijzigd wordt opgeslagen, komt byte voor byte
+hetzelfde terug. `is_required` heeft daarom een verborgen `0` vóór zijn
+schakelaar: anders zou "uit" niet eens aankomen.
+
+### Opties en standaardkeuze in één keer
+
+Een keuzeveld had eerst een tekstvak met `NL|EN` per regel, en een
+standaardkeuze die uit de **opgeslagen** opties werd opgebouwd. Een nieuwe
+optie kon dus pas na een tweede keer opslaan standaard worden, en een
+hernoemde standaardoptie maakte het opslaan kapot.
+
+Nu is elke optie een rij met een vak per taal en een radio *Standaard*, plus
+*Geen standaardkeuze*. De radio wijst naar de **rij**, niet naar een tekst.
+Daardoor kan een optie die je net typt of hernoemt in dezelfde opslag de
+standaard zijn.
+
+- **Opgeslagen blijft wat er altijd stond**: dezelfde regels in dezelfde
+  kolom, en `default_value` bevat het Nederlandse label van die optie.
+- **Een geleegde rij is geen optie meer.** Was die rij de standaard, dan
+  heeft het veld na opslaan geen standaard, en de editor meldt dat. Nooit een
+  standaard die naar niets wijst.
+- **Lege en dubbele rijen** vallen weg volgens de regels die er al waren. Een
+  `|` in de Nederlandse helft wordt geweigerd, want daar begint in de
+  opslag de Engelse helft.
+- **Zonder JavaScript** staan er drie lege rijen onder de ingevulde; na
+  opslaan komen er weer drie. `admin/assets/forms-admin.js` voegt rijen toe
+  en haalt ze weg. Haal je de standaardrij weg, dan springt de keuze terug op
+  *Geen standaardkeuze*.
+
+### Een ander soort veld
+
+**Het type blijft wijzigbaar, maar nooit met stil verlies.** De andere optie
+was het type na aanmaken vastzetten. Dat is eenvoudiger code, maar het
+enige alternatief voor de redacteur is dan verwijderen en opnieuw maken, en
+dat verliest méér: de Engelse teksten, de uitleg, de plek in het formulier,
+het antwoordadres, en bij een ander label ook de interne naam waaronder oude
+inzendingen staan. De gewone wissels, van keuzelijst naar keuzerondjes of van
+kort naar lang tekstveld, verliezen juist niets.
+
+`FormFieldTypeChange::losses()` bepaalt uit de opgeslagen rij wat een nieuw
+type zou verliezen. Alleen een instelling die het oude type gebruikte én die
+iets bevat, telt:
+
+| Verlies | Wanneer |
+|---|---|
+| de voorbeeldtekst | tekst-achtig → keuzeveld, selectievakje of toestemming, met een ingevulde placeholder |
+| de opties | keuzeveld → elk ander soort, met opties |
+| de standaardkeuze | keuzeveld → elk ander soort, met een bruikbare standaard |
+| het antwoordadres | e-mailadres → ander soort, als dít veld het antwoordadres van het formulier is |
+
+Verliesvrij zijn dus onder meer keuzelijst ↔ keuzerondjes, tussen de vier
+tekst-achtige types (behalve het antwoordadres), en alles vanaf selectievakje
+of toestemming. Andere validatie (een e-mailadres, een telefoonnummer, 5000
+in plaats van 255 tekens) is geen verlies: een bewaarde inzending houdt haar
+eigen kopie.
+
+Elke kaart onder *Ander soort veld kiezen* zegt dit vooraf: *Alle
+instellingen blijven behouden*, of *Verdwijnt bij opslaan: de opties, de
+standaardkeuze*. Bij opslaan:
+
+1. **Verliest de wissel niets en toont het scherm al alles wat het nieuwe
+   type nodig heeft**, dan wordt meteen opgeslagen.
+2. **Anders wordt niets geschreven.** Dat geldt ook als het nieuwe type een
+   instelling heeft die nog niet op het scherm stond, zoals de opties van een
+   tekstveld dat een keuzelijst wordt. De invoer gaat terug naar de editor, en
+   die is dan al de editor van het nieuwe type. Bovenaan staat een kaart met
+   *van … naar …*, wat er verdwijnt met de inhoud erbij ("de 2 opties: Ja,
+   Nee", "de standaardkeuze ‘Ja’"), en `confirmed_type`.
+3. **Pas een opslag met `confirmed_type` voor precies dat type gaat door**,
+   en wist precies wat de kaart noemde. Kies je intussen weer een ander type,
+   dan wordt opnieuw gevraagd. Dit is de flow van een nieuw webadres
+   (`confirmed_slug`), en het endpoint dwingt hem af. Een script dat de kaart
+   overslaat, verliest dus ook niets.
+
+Toestemming blijft verplicht als hij een selectievakje wordt: het
+selectievakje heeft een schakelaar die het toestemmingsscherm niet had, dus
+de editor toont die eerst, aan.
+
+### Zonder JavaScript
+
+Alles hierboven werkt zonder script. De server rendert de juiste editor; het
+script maakt het alleen prettiger.
+
+| Handeling | Zonder JavaScript | Met JavaScript |
+|---|---|---|
+| Veld toevoegen | de knop is een link naar het formulier met `add_field=1`, dat de dialoog open en als gewone kaart in de pagina rendert | dezelfde dialoog als modal; Escape, *Annuleren* en een klik ernaast sluiten hem en de focus gaat terug |
+| Type kiezen | radiokaarten | idem |
+| Opties toevoegen of weghalen | drie lege rijen per opslag, of een rij leegmaken | *Optie toevoegen* en *Verwijderen* per rij |
+| Type wisselen | kaart kiezen, opslaan, bevestigen op de editor van het nieuwe type | idem |
+
+### De interne naam
+
+De `field_key` is de naam waaronder het formulier een antwoord verstuurt en
+een inzending het bewaart. Hij wordt bij het toevoegen uit het label gemaakt
+en verandert daarna nooit, ook niet bij een typewissel of een nieuw label.
+Een redacteur heeft hem nergens voor nodig, dus hij staat niet meer in de
+veldlijst. Wie het formulier technisch koppelt, vindt hem in de veldeditor
+onder *Technische gegevens*, met die uitleg erbij.
+
 ## Rechten
 
 | Permissie | Waarvoor |
@@ -570,8 +753,8 @@ docker compose exec php_test php vendor/bin/phpunit --testsuite blocks
 
 | Wijziging | Draai |
 |---|---|
-| Veldtype, validatie, optielijsten, spamregels | `fast` |
-| Repository, adminscherm, gebruik, verwijderen | `fast` → `cms` |
+| Veldtype, validatie, optielijsten, spamregels, typewissel | `fast` |
+| Repository, adminscherm, veldeditor, gebruik, verwijderen | `fast` → `cms` |
 | Rendering, blok, plaatsing, assets | `fast` → `blocks` (heeft `php_test` nodig) |
 | Migratie/backfill | `cms` → `--group migration-backfill` → volledige suite |
 
@@ -580,6 +763,12 @@ nieuw type wordt daar meegenomen zonder dat je die test aanpast.
 `FormAdminHttpTest` (suite `cms`) start zijn eigen webserver en controleert
 "Actief en uit" van begin tot eind: het endpoint, de pagina met beide
 formulierblokken, en de schakelaar in de formuliereditor met zijn guards.
+`FormFieldEditorHttpTest` (suite `cms`) doet hetzelfde voor "Velden toevoegen
+en bewerken". Hij controleert de typekiezer met zijn catalogusnamen, toevoegen
+zonder script en de editor per type. Ook bewaakt hij opties en standaard in
+één opslag, de byte-gelijke opslag van een onaangeroerd veld, en elke soort
+typewissel met zijn bevestiging. `FormFieldTypeChangeTest` (`fast`) schrijft
+voor elk paar types uit wat een wissel kost.
 `FormBoundaryTest` bewaakt de grenzen: rechten, guards, CSRF, geen
 Shop-koppeling, geen bedrijfsnaam in generieke code, en de `prime()`-aanroep
 in elk paginatemplate.

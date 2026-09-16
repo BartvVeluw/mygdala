@@ -19,7 +19,7 @@ producten, personalisatie of Mollie, en werkt identiek met de Shop aan en uit.
 | Logica | `src/Service/Forms/` |
 | Opslag | `src/Repository/Form{,Block,Submission}Repository.php` |
 | Publieke kant | `partials/form.php`, `api/form-submit.php` |
-| Adminschermen | `admin/forms.php`, `form.php`, `form-field.php`, `form-block.php`, `form-submissions.php`, `form-submission.php` |
+| Adminschermen | `admin/forms.php`, `form.php`, `form-field.php`, `form-block.php`, `form-submissions.php`, `form-submission.php`; gedeeld `admin/_form_fields.php` en `admin/assets/forms-admin.js` |
 | Admin-endpoints | `api/admin/*form*.php` |
 | Blokken | `form_block` en `contact_form` |
 | Archief | `ContactRequestRepository`, `admin/contact-requests.php`, `api/contact.php` — historisch, nieuwe inzendingen lopen via Forms |
