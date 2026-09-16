@@ -60,6 +60,9 @@ return [
     'help.page.meta_description' => "Een korte samenvatting van de pagina, in een of twee zinnen, die iemand in de zoekresultaten laat zien waar de pagina over gaat. In technische termen heet dit de <em>meta description</em>.\n\nZoekmachines tonen hem vaak onder de titel, maar kunnen ook zelf een ander stukje tekst van de pagina kiezen. Laat je het veld leeg, dan gebruikt de website de standaardomschrijving uit Site-instellingen, als die is ingevuld.",
     'help.page.url' => "Het webadres is het laatste deel van de URL van deze pagina. Bij <strong>mijnsite.nl/contact</strong> is <strong>contact</strong> het webadres. In technische termen heet dit de <em>slug</em>.\n\nHet menu, de footer en de knop in de header verwijzen naar de pagina zelf, niet naar dit adres. Die links gaan dus vanzelf mee als het adres verandert.",
     'help.page.url_new' => "Het webadres is het laatste deel van de URL van deze pagina. Bij <strong>mijnsite.nl/contact</strong> is <strong>contact</strong> het webadres. In technische termen heet dit de <em>slug</em>.\n\nZolang je dit veld niet zelf aanpast, maakt het CMS het adres uit de titel. Is dat adres al in gebruik, dan komt er een nummer achter. Tot de pagina bestaat kun je het vrij aanpassen; daarna is het beschermd tegen per ongeluk wijzigen.",
+    'help.page.show_breadcrumb' => "Het kruimelpad is de kleine regel bovenaan de pagina die laat zien waar een bezoeker is, bijvoorbeeld <strong>Home / Contact</strong>.
+
+De naam die erin staat is de titel van deze pagina: hernoem je de pagina, dan verandert het kruimelpad mee. Zet je dit uit, dan verdwijnt de regel van deze pagina; de rest van de pagina blijft zoals hij is.",
     'help.page_hero.eyebrow' => "Een kort woord of zinnetje in kleine hoofdletters boven de titel, bijvoorbeeld het onderwerp van de pagina.\n\nLaat je het leeg, dan staat er niets boven de titel.",
     'help.page_hero.title' => "De grote kop bovenaan de pagina, en de belangrijkste titel ervan: zoekmachines en voorleessoftware lezen hem als eerste.",
     'help.page_hero.lead' => "Eén of twee zinnen onder de titel die vertellen waar de pagina over gaat.\n\nLaat je het leeg, dan staat er geen tekst onder de titel.",
@@ -235,6 +238,7 @@ return [
     'page.no_description' => 'Geen omschrijving ingevuld. Zoekmachines kiezen dan zelf een stukje tekst van de pagina.',
     'page.visibility' => 'Zichtbaarheid',
     'page.noindex' => 'Deze pagina niet laten indexeren door zoekmachines',
+    'page.show_breadcrumb' => 'Kruimelpad tonen op deze pagina',
     'page.save_settings' => 'Instellingen opslaan',
     'page.status_draft' => 'Concept',
     'page.status_published' => 'Gepubliceerd',

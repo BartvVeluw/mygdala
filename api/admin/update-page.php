@@ -4,10 +4,10 @@
  * POST /api/admin/update-page.php
  *
  * Saves one page's settings (admin/page.php's "Pagina" and "SEO" tabs) —
- * Title, web address (slug), Status, SEO title, Meta description,
- * indexability and the page's own social sharing image, for every CMS page
- * alike. Same guard order and PRG/session-flash pattern as every other admin
- * endpoint.
+ * Title, web address (slug), Status, whether the page shows its breadcrumb,
+ * SEO title, Meta description, indexability and the page's own social sharing
+ * image, for every CMS page alike. Same guard order and PRG/session-flash
+ * pattern as every other admin endpoint.
  *
  * Two INDEPENDENT locks are enforced HERE, not by the form, so a forged
  * request cannot get past either:
@@ -94,6 +94,18 @@ $confirmedSlug = trim((string) ($_POST['confirmed_slug'] ?? ''));
 // be switched on but never off.
 $noindex = ($_POST['noindex'] ?? '0') === '1';
 
+/**
+ * Whether this page prints its breadcrumb. Same two-value shape and the same
+ * hidden companion field as indexability above, and for the same reason: an
+ * unticked checkbox sends nothing at all.
+ *
+ * The DEFAULT WHEN THE FIELD IS ABSENT is "on", which is what the column
+ * defaults to and what every page did before this was a choice — so a request
+ * that does not carry this form section cannot quietly take a breadcrumb away.
+ * See App\Service\Breadcrumbs\PageBreadcrumb.
+ */
+$showBreadcrumb = ($_POST['show_breadcrumb'] ?? '1') === '1';
+
 $errors = [];
 
 /**
@@ -173,6 +185,7 @@ $submitted = [
     'meta_description' => $metaDescription,
     'meta_description_en' => $metaDescriptionEn,
     'noindex' => $noindex,
+    'show_breadcrumb' => $showBreadcrumb,
 ];
 
 if ($socialImageSubmitted) {
@@ -229,6 +242,7 @@ try {
         'meta_description' => $metaDescription === '' ? null : $metaDescription,
         'meta_description_en' => $metaDescriptionEn === '' ? null : $metaDescriptionEn,
         'noindex' => $noindex,
+        'show_breadcrumb' => $showBreadcrumb,
     ]);
 
     // Only when the field was on the submitted form at all, so a save from a

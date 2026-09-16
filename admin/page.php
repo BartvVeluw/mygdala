@@ -13,6 +13,7 @@ require_once __DIR__ . '/_translate.php';
 
 use App\Service\AdminAuth;
 use App\Service\AppUrl;
+use App\Service\Breadcrumbs\PageBreadcrumb;
 use App\Service\Csrf;
 use App\Service\Media\MediaService;
 use App\Service\PageContent;
@@ -188,6 +189,12 @@ $status = $old !== null ? (string) ($old['status'] ?? '') : (string) $page['stat
 $noindexChecked = $old !== null
     ? !empty($old['noindex'])
     : (int) ($page['noindex'] ?? 0) === 1;
+// Whether this page prints its breadcrumb. The site root never does — there
+// is nothing above it — so it is not offered a switch it could not use.
+$showsBreadcrumb = $old !== null
+    ? !empty($old['show_breadcrumb'])
+    : PageBreadcrumb::isEnabled($page);
+$offersBreadcrumbChoice = !PageContent::isSiteRoot($page);
 $pageSocialImage = trim((string) ($page['og_image_path'] ?? ''));
 // A refused or unconfirmed save hands back the image that was chosen, like
 // every other field; otherwise the stored one.
@@ -433,6 +440,20 @@ $urlFieldOpen = !$hasFixedUrl
         <p class="admin-text-muted"><?= PageContent::isSiteRoot($page) ? admin_t('page.protected_homepage') : admin_t('page.protected_shop') ?></p>
       <?php else: ?>
         <p class="admin-text-muted"><?= admin_te('page.concept_betekent_wel_bewerkbaar') ?></p>
+      <?php endif; ?>
+
+      <?php if ($offersBreadcrumbChoice): ?>
+        <?php /* Hidden companion field, the same reason the noindex switch
+                 has one: an unticked box sends nothing, and the endpoint
+                 would have no way to tell "off" from "not on this form". */ ?>
+        <input type="hidden" name="show_breadcrumb" value="0">
+        <div class="admin-field admin-field--inline">
+          <label class="admin-checkbox-label">
+            <input type="checkbox" class="admin-switch" role="switch" name="show_breadcrumb" value="1"<?= $showsBreadcrumb ? ' checked' : '' ?>>
+            <?= admin_te('page.show_breadcrumb') ?>
+          </label>
+          <?= admin_help(admin_t('page.show_breadcrumb'), admin_t('help.page.show_breadcrumb')) ?>
+        </div>
       <?php endif; ?>
       </div>
     </section>

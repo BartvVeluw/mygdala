@@ -59,6 +59,9 @@ return [
     'help.page.meta_description' => "A short summary of the page, in one or two sentences, that tells someone in the search results what the page is about. The technical name for it is <em>meta description</em>.\n\nSearch engines often show it under the title, but they may also pick another piece of the page text themselves. Leave the field empty and the website uses the default description from Site settings, if one is filled in.",
     'help.page.url' => "The web address is the last part of this page's URL. In <strong>mysite.com/contact</strong>, <strong>contact</strong> is the web address. The technical name for it is <em>slug</em>.\n\nThe menu, the footer and the header button point at the page itself rather than at this address, so those links follow a change automatically.",
     'help.page.url_new' => "The web address is the last part of this page's URL. In <strong>mysite.com/contact</strong>, <strong>contact</strong> is the web address. The technical name for it is <em>slug</em>.\n\nAs long as you do not change this field yourself, the CMS makes the address from the title. If that address is already taken, a number is added. You can change it freely until the page exists; after that it is protected against accidental changes.",
+    'help.page.show_breadcrumb' => "The breadcrumb trail is the small line at the top of the page showing a visitor where they are, for example <strong>Home / Contact</strong>.
+
+The name in it is this page's title, so renaming the page changes the trail with it. Switch this off and the line disappears from this page; the rest of the page stays as it is.",
     'help.page_hero.eyebrow' => "A short word or phrase in small capitals above the title, for example the subject of the page.\n\nLeave it empty and nothing appears above the title.",
     'help.page_hero.title' => "The large heading at the top of the page, and its most important title: search engines and screen readers read it first.",
     'help.page_hero.lead' => "One or two sentences under the title that say what the page is about.\n\nLeave it empty and no text appears under the title.",
@@ -230,6 +233,7 @@ return [
     'page.no_description' => 'No description filled in. Search engines then pick a piece of the page text themselves.',
     'page.visibility' => 'Visibility',
     'page.noindex' => 'Keep this page out of search engine indexes',
+    'page.show_breadcrumb' => 'Show the breadcrumb trail on this page',
     'page.save_settings' => 'Save settings',
     'page.status_draft' => 'Draft',
     'page.status_published' => 'Published',

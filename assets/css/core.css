@@ -1208,8 +1208,49 @@ fieldset legend{ font-weight: 700; margin-bottom: 0.6rem; padding: 0; font-size:
    ========================================================================== */
 .page-hero{ padding-top: clamp(7rem, 6vw + 4rem, 9.5rem); padding-bottom: var(--sp-5); }
 .page-hero .eyebrow{ margin-bottom: var(--sp-2); }
-.breadcrumb{ display: flex; gap: 0.4rem; align-items: center; font-size: 0.85rem; color: var(--color-text-faint); margin-bottom: var(--sp-3); }
-.breadcrumb a{ color: var(--color-text-faint); }
+
+/* ==========================================================================
+   Breadcrumb — the one trail on this site
+   Markup: partials/breadcrumb.php, from App\Service\Breadcrumbs. Every public
+   route prints the same element, so the rules below are the whole component;
+   no template and no block styles a trail of its own.
+
+   THE BAR carries the clearance the fixed site header needs — the same
+   clamp() .page-hero has, because the trail is now the first thing on the
+   page and the header used to be. The header that follows it therefore drops
+   its own top padding, which puts its title back within a pixel of where it
+   sat when the trail was still inside it. A page whose header is hidden or
+   missing keeps the ordinary section rhythm underneath.
+
+   COLOUR. The trail used to be --color-text-faint throughout, which measures
+   about 4.2:1 on the default ground — just under what 13.6px text needs. The
+   text is --color-text-muted now (about 8.5:1) and the page you are on takes
+   the full body colour, so "where am I" reads first without shouting. The
+   separator keeps the faint tone: it is decorative and hidden from the
+   accessibility tree, so no contrast minimum applies to it.
+   ========================================================================== */
+.breadcrumb-bar{ padding-top: clamp(7rem, 6vw + 4rem, 9.5rem); padding-bottom: var(--sp-3); }
+.breadcrumb-bar + .page-hero{ padding-top: 0; }
+
+.breadcrumb{
+  display: flex;
+  flex-wrap: wrap;
+  /* baseline, not center: a long name that wraps to two lines would otherwise
+     hang its separator halfway down the item instead of beside the first
+     line. That is what a page title does on a phone. */
+  align-items: baseline;
+  gap: 0.4rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+}
+/* A long product or page name wraps instead of pushing the page sideways. */
+.breadcrumb__item{ display: flex; align-items: baseline; gap: 0.4rem; min-width: 0; overflow-wrap: anywhere; }
+.breadcrumb__separator{ color: var(--color-text-faint); }
+.breadcrumb__current{ color: var(--color-text); }
+.breadcrumb a{ color: var(--color-text-muted); }
 .breadcrumb a:hover{ color: var(--color-primary-bright); }
 
 /* Reveal animation base state (JS adds .is-visible) */

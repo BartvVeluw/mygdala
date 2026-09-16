@@ -206,7 +206,7 @@ class PageRepository extends Repository
      * App\Service\PageService, which is what keeps a system page's slug and
      * status locked to their current values.
      *
-     * @param array{slug:string,title:string,status:string,meta_title:?string,meta_title_en:?string,meta_description:?string,meta_description_en:?string,noindex?:bool} $data
+     * @param array{slug:string,title:string,status:string,meta_title:?string,meta_title_en:?string,meta_description:?string,meta_description_en:?string,noindex?:bool,show_breadcrumb?:bool} $data
      */
     public function update(int $id, array $data): void
     {
@@ -215,7 +215,7 @@ class PageRepository extends Repository
                 slug = :slug, title = :title, status = :status,
                 meta_title = :meta_title, meta_title_en = :meta_title_en,
                 meta_description = :meta_description, meta_description_en = :meta_description_en,
-                noindex = :noindex,
+                noindex = :noindex, show_breadcrumb = :show_breadcrumb,
                 updated_at = NOW()
              WHERE id = :id'
         );
@@ -228,6 +228,9 @@ class PageRepository extends Repository
             'meta_description' => $data['meta_description'],
             'meta_description_en' => $data['meta_description_en'],
             'noindex' => !empty($data['noindex']) ? 1 : 0,
+            // Absent means "leave it on": every page showed a breadcrumb
+            // before this was a choice (App\Service\Breadcrumbs\PageBreadcrumb).
+            'show_breadcrumb' => (!array_key_exists('show_breadcrumb', $data) || !empty($data['show_breadcrumb'])) ? 1 : 0,
             'id' => $id,
         ]);
     }
