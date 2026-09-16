@@ -33,7 +33,11 @@ function render_section_detail_section(array $content, array $markers, string $r
     $englishBody = trim((string) $content['content_html_en']);
     $bodyLangAttributes = '';
     if ($hasBody && $englishBody !== '' && $englishBody !== trim((string) $content['content_html'])) {
-        $bodyLangAttributes = ' data-nl="' . $h((string) $content['content_html']) . '" data-en="' . $h($englishBody) . '"';
+        // data-lang-html: content_html is RichTextSanitizer output, real HTML
+        // that assets/js/core.js's applyLang() must re-render with innerHTML.
+        // The marker is what opts this element into that; a plain-text field
+        // without it gets textContent, which is the site-wide XSS default.
+        $bodyLangAttributes = ' data-lang-html data-nl="' . $h((string) $content['content_html']) . '" data-en="' . $h($englishBody) . '"';
     }
 
     $anchor = (string) $content['anchor'];

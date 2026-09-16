@@ -227,7 +227,12 @@ require __DIR__ . '/partials/header.php';
               </label>
             </div>
             <p class="hint" style="margin-top:var(--sp-2);" data-nl="Veilig afrekenen via Mollie. Je wordt na het plaatsen van de bestelling doorgestuurd naar je betaalomgeving." data-en="Secure checkout via Mollie. After placing your order you'll be redirected to your payment environment.">Veilig afrekenen via Mollie. Je wordt na het plaatsen van de bestelling doorgestuurd naar je betaalomgeving.</p>
-            <p class="hint" style="margin-top:var(--sp-2);" data-nl="Lees onze <a href='<?= $termsUrl ?>'>algemene voorwaarden</a>, <a href='/verzenden-retourneren'>verzend- &amp; retourinformatie</a> en <a href='/privacyverklaring'>privacyverklaring</a>." data-en="Read our <a href='<?= $termsUrl ?>'>terms &amp; conditions</a>, <a href='/verzenden-retourneren'>shipping &amp; returns info</a> and <a href='/privacyverklaring'>privacy policy</a>.">Lees onze <a href="<?= $termsUrl ?>">algemene voorwaarden</a>, <a href="/verzenden-retourneren">verzend- &amp; retourinformatie</a> en <a href="/privacyverklaring">privacyverklaring</a>.</p>
+            <?php /* data-lang-html: this sentence is developer-authored HTML —
+                     hardcoded <a> tags with only $termsUrl (htmlspecialchars'd
+                     above) interpolated, no editor input — so applyLang() keeps
+                     re-rendering it with innerHTML on a language switch, where
+                     every plain-text field now uses textContent by default. */ ?>
+            <p class="hint" style="margin-top:var(--sp-2);" data-lang-html data-nl="Lees onze <a href='<?= $termsUrl ?>'>algemene voorwaarden</a>, <a href='/verzenden-retourneren'>verzend- &amp; retourinformatie</a> en <a href='/privacyverklaring'>privacyverklaring</a>." data-en="Read our <a href='<?= $termsUrl ?>'>terms &amp; conditions</a>, <a href='/verzenden-retourneren'>shipping &amp; returns info</a> and <a href='/privacyverklaring'>privacy policy</a>.">Lees onze <a href="<?= $termsUrl ?>">algemene voorwaarden</a>, <a href="/verzenden-retourneren">verzend- &amp; retourinformatie</a> en <a href="/privacyverklaring">privacyverklaring</a>.</p>
           </div>
 
         </div>
@@ -250,7 +255,7 @@ require __DIR__ . '/partials/header.php';
           <div class="checkout-consent">
             <label class="checkbox-field">
               <input type="checkbox" id="terms_accepted" name="terms_accepted" aria-required="true" aria-describedby="checkout-terms-error">
-              <span data-nl="Ik ga akkoord met de <a href='<?= $termsUrl ?>' target='_blank' rel='noopener'>algemene voorwaarden</a>." data-en="I agree to the <a href='<?= $termsUrl ?>' target='_blank' rel='noopener'>terms &amp; conditions</a>.">Ik ga akkoord met de <a href="<?= $termsUrl ?>" target="_blank" rel="noopener">algemene voorwaarden</a>.</span>
+              <span data-lang-html data-nl="Ik ga akkoord met de <a href='<?= $termsUrl ?>' target='_blank' rel='noopener'>algemene voorwaarden</a>." data-en="I agree to the <a href='<?= $termsUrl ?>' target='_blank' rel='noopener'>terms &amp; conditions</a>.">Ik ga akkoord met de <a href="<?= $termsUrl ?>" target="_blank" rel="noopener">algemene voorwaarden</a>.</span>
             </label>
             <span class="form-error" id="checkout-terms-error" role="alert" data-checkout-terms-error></span>
           </div>

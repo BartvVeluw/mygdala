@@ -139,12 +139,15 @@ require __DIR__ . '/partials/header.php';
     <?php if ($bodyNl !== ''): ?>
       <section style="padding-top:0;">
         <div class="container container--narrow">
-          <?php /* Already-sanitised HTML, printed as markup. $h() below is
-                   for the data-nl/data-en ATTRIBUTE, a different escaping
-                   context, so the language switch (which assigns via
-                   innerHTML) gets exactly this HTML back. Identical
-                   treatment to collectie.php's rich-text intro. */ ?>
-          <div class="rich-content blog-post__body" data-reveal data-nl="<?= $h($bodyNl) ?>" data-en="<?= $h($bodyEn) ?>"><?= $bodyNl ?></div>
+          <?php /* Already-sanitised HTML (RichTextSanitizer), printed as
+                   markup. $h() below is for the data-nl/data-en ATTRIBUTE, a
+                   different escaping context, so the language switch gets
+                   exactly this HTML back. data-lang-html marks this as one of
+                   the few genuinely-HTML bilingual elements, which is what lets
+                   assets/js/core.js's applyLang() re-render it with innerHTML
+                   instead of the plain-text textContent it now uses by default.
+                   Identical treatment to collectie.php's rich-text intro. */ ?>
+          <div class="rich-content blog-post__body" data-reveal data-lang-html data-nl="<?= $h($bodyNl) ?>" data-en="<?= $h($bodyEn) ?>"><?= $bodyNl ?></div>
         </div>
       </section>
     <?php endif; ?>

@@ -55,7 +55,13 @@ function render_section_homepage_hero(array $hero): void
       <div class="container hero__grid">
         <div class="hero__content">
           <p class="eyebrow hero__eyebrow" <?= \App\Service\Language\SiteText::attrs($hero['eyebrow_nl'], $hero['eyebrow_en']) ?>><?= $h(\App\Service\Language\SiteText::visible($hero['eyebrow_nl'], $hero['eyebrow_en'])) ?></p>
-          <h1 style="--hero-highlight-size: <?= $heroHighlightSize ?>%" data-nl="<?= $h($heroTitleFragmentNl) ?>" data-en="<?= $h($heroTitleFragmentEn) ?>"><?= $heroTitleFragmentNl ?></h1>
+          <?php /* data-lang-html: the title fragment is real HTML — the title
+                   text is escaped and only the highlight is wrapped in a
+                   hardcoded <em> (HomepageHeroContent::renderTitleFragment), so
+                   assets/js/core.js's applyLang() re-renders it with innerHTML.
+                   Every plain-text field around it stays textContent, the
+                   XSS-safe default; the marker is what carves out this one. */ ?>
+          <h1 style="--hero-highlight-size: <?= $heroHighlightSize ?>%" data-lang-html data-nl="<?= $h($heroTitleFragmentNl) ?>" data-en="<?= $h($heroTitleFragmentEn) ?>"><?= $heroTitleFragmentNl ?></h1>
           <p class="lead hero__lead" <?= \App\Service\Language\SiteText::attrs($hero['lead_nl'], $hero['lead_en']) ?>><?= $h(\App\Service\Language\SiteText::visible($hero['lead_nl'], $hero['lead_en'])) ?></p>
           <div class="hero__actions">
             <a href="<?= $h($hero['primary_url']) ?>" class="btn" <?= \App\Service\Language\SiteText::attrs($hero['primary_label_nl'], $hero['primary_label_en']) ?>><?= $h(\App\Service\Language\SiteText::visible($hero['primary_label_nl'], $hero['primary_label_en'])) ?>

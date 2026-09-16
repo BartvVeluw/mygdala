@@ -42,7 +42,10 @@
           var span = document.createElement("span");
           span.setAttribute("data-nl", item.nl);
           span.setAttribute("data-en", item.en);
-          span.innerHTML = isEn && item.en != null ? item.en : item.nl;
+          // Marquee labels are plain-text CMS material/category names, so
+          // textContent — never innerHTML — same rule assets/js/core.js's
+          // applyLang() follows for a data-nl element without data-lang-html.
+          span.textContent = isEn && item.en != null ? item.en : item.nl;
           track.appendChild(span);
         });
       }

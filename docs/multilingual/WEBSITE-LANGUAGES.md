@@ -135,7 +135,20 @@ precies de fout: een bezoeker van een site waar niemand Engels had
 Engelse inhoud in de `_en`-kolommen stond.
 
 - `partials/section-*.php` schrijven `data-nl`/`data-en` en
-  `assets/js/core.js` wisselt ze in de browser. Die afspraak is ongewijzigd.
+  `assets/js/core.js` wisselt ze in de browser. De attribuutnamen en de
+  server-side afdruk zijn ongewijzigd; alleen hoe `core.js` de waarde
+  terugschrijft is aangescherpt.
+- **`data-nl`/`data-en` zijn platte tekst**, en `core.js` zet ze met
+  `textContent`. De waarde komt van de redacteur en wordt door de server in
+  het attribuut geëscaped, maar de browser decodeert hem bij het lezen weer,
+  dus hem aan `innerHTML` toekennen zou een label als `<img onerror=…>` als
+  echte markup uitvoeren — een opgeslagen-XSS-route. Alleen een element dat
+  écht HTML draagt krijgt `data-lang-html`, en alléén dat element gaat via
+  `innerHTML`. Die waarde is altijd `RichTextSanitizer`-uitvoer of een
+  door de server gebouwd fragment van vaste tags met geëscapete tekst
+  (rijke tekst, de Hero-titel, de cookie- en afrekenlinkjes). Een gewoon
+  label, een titel, een navigatie- of Footertekst krijgt de marker nooit;
+  `Tests\Service\MultilingualBoundaryTest` bewaakt dat.
 - Welke van de twee bij de eerste paint zichtbaar is, is de **standaardtaal**
   van de site, via `SiteText::visible()`.
 - `<html lang>` volgt de standaardtaal en draagt daarnaast

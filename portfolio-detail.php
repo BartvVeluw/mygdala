@@ -165,14 +165,15 @@ require __DIR__ . '/partials/header.php';
               // save time and again in PortfolioGalleryContent::itemForDetailPage())
               // — rendered here as real markup, never escaped back to plain text.
               // $h() below is for the data-nl/data-en ATTRIBUTE (a different
-              // escaping context, so assets/js/core.js's language switch — which
-              // assigns dataset.nl/en via el.innerHTML — gets the exact same HTML
-              // back out on an NL/EN toggle.
+              // escaping context, so assets/js/core.js's language switch gets the
+              // exact same HTML back out on an NL/EN toggle. data-lang-html marks
+              // this as genuinely HTML: applyLang() re-renders a marked element
+              // with innerHTML, where a plain-text field now gets textContent.
             ?>
-            <div class="rich-content rich-content--intro" data-nl="<?= $h($portfolioItem['intro_nl']) ?>" data-en="<?= $h($portfolioItem['intro_en']) ?>"><?= $portfolioItem['intro_nl'] ?></div>
+            <div class="rich-content rich-content--intro" data-lang-html data-nl="<?= $h($portfolioItem['intro_nl']) ?>" data-en="<?= $h($portfolioItem['intro_en']) ?>"><?= $portfolioItem['intro_nl'] ?></div>
           <?php endif; ?>
           <?php if ($portfolioItem['description_nl'] !== ''): ?>
-            <div class="rich-content" data-nl="<?= $h($portfolioItem['description_nl']) ?>" data-en="<?= $h($portfolioItem['description_en']) ?>"><?= $portfolioItem['description_nl'] ?></div>
+            <div class="rich-content" data-lang-html data-nl="<?= $h($portfolioItem['description_nl']) ?>" data-en="<?= $h($portfolioItem['description_en']) ?>"><?= $portfolioItem['description_nl'] ?></div>
           <?php endif; ?>
         </div>
       </div>

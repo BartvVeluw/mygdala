@@ -21,7 +21,7 @@
 
   /* ---------------------------------------------------------------------
      Language switching
-     Elements carry data-nl / data-en (innerHTML), data-nl-alt/data-en-alt,
+     Elements carry data-nl / data-en (text), data-nl-alt/data-en-alt,
      data-nl-placeholder/data-en-placeholder, data-nl-aria/data-en-aria.
 
      WHICH LANGUAGE THE PAGE STARTS IN is the site's own primary language,
@@ -29,6 +29,19 @@
      stamps it on <html data-primary-lang>, PHP having already printed that
      language's text into the markup — so the first paint is correct and this
      script only has work to do when a visitor has chosen the other one.
+
+     data-nl / data-en are PLAIN TEXT by default and are written with
+     textContent, never innerHTML: the value is editor-supplied and the server
+     escapes it into the attribute, but the browser decodes it back on read, so
+     assigning it to innerHTML would re-parse an editor's "<img onerror=…>" as
+     live markup — a stored-XSS route for any plain-text field (a nav label, a
+     heading, a footer line). The ONLY elements whose value is real HTML carry
+     data-lang-html, and only those go through innerHTML; that value is always
+     either RichTextSanitizer output or a server-built fragment of hardcoded
+     tags with escaped text (see MULTILINGUAL.md and the partials that set the
+     marker — section-rich-text.php, section-homepage-hero.php, …). Adding the
+     marker to a plain-text field reopens the hole, which is what
+     Tests\Service\MultilingualBoundaryTest guards against.
 
      A single-language site renders no switch at all, so nothing below
      changes anything on one.
@@ -41,7 +54,12 @@
 
     document.querySelectorAll("[data-nl]").forEach(function (el) {
       var val = lang === "en" ? (el.dataset.en != null ? el.dataset.en : el.dataset.nl) : el.dataset.nl;
-      if (val != null) el.innerHTML = val;
+      if (val == null) return;
+      if (el.hasAttribute("data-lang-html")) {
+        el.innerHTML = val;
+      } else {
+        el.textContent = val;
+      }
     });
     document.querySelectorAll("[data-nl-alt]").forEach(function (el) {
       var val = lang === "en" ? (el.dataset.enAlt != null ? el.dataset.enAlt : el.dataset.nlAlt) : el.dataset.nlAlt;

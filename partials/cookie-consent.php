@@ -31,7 +31,12 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
     <div class="cookie-banner__inner">
       <div class="cookie-banner__text">
         <p class="cookie-banner__title" <?= \App\Service\Language\SiteText::attrs($banner['title_nl'], $banner['title_en']) ?>><?= $h(\App\Service\Language\SiteText::visible($banner['title_nl'], $banner['title_en'])) ?></p>
-        <p class="cookie-banner__desc" data-nl="<?= $h($banner['description_nl']) ?>" data-en="<?= $h($banner['description_en']) ?>"><?= $banner['description_nl'] ?></p>
+        <?php /* data-lang-html: the description is developer-authored HTML from
+                 App\Service\CookieConsentConfig (a hardcoded <a> to the cookie
+                 policy, no editor input), so assets/js/core.js's applyLang()
+                 must re-render it with innerHTML rather than the plain-text
+                 textContent it now uses for every unmarked bilingual field. */ ?>
+        <p class="cookie-banner__desc" data-lang-html data-nl="<?= $h($banner['description_nl']) ?>" data-en="<?= $h($banner['description_en']) ?>"><?= $banner['description_nl'] ?></p>
       </div>
       <div class="cookie-banner__actions">
         <button type="button" class="btn btn--ghost btn--sm" data-cookie-action="manage" <?= \App\Service\Language\SiteText::attrs($banner['manage_nl'], $banner['manage_en']) ?>><?= $h(\App\Service\Language\SiteText::visible($banner['manage_nl'], $banner['manage_en'])) ?></button>
@@ -49,7 +54,10 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
       </button>
 
       <h2 id="cookie-modal-title" <?= \App\Service\Language\SiteText::attrs($modal['title_nl'], $modal['title_en']) ?>><?= $h(\App\Service\Language\SiteText::visible($modal['title_nl'], $modal['title_en'])) ?></h2>
-      <p class="cookie-modal__intro" data-nl="<?= $h($modal['description_nl']) ?>" data-en="<?= $h($modal['description_en']) ?>"><?= $modal['description_nl'] ?></p>
+      <?php /* data-lang-html for the same reason as the banner description
+               above: developer-authored HTML from CookieConsentConfig, opted
+               into applyLang()'s innerHTML path by the marker. */ ?>
+      <p class="cookie-modal__intro" data-lang-html data-nl="<?= $h($modal['description_nl']) ?>" data-en="<?= $h($modal['description_en']) ?>"><?= $modal['description_nl'] ?></p>
 
       <ul class="cookie-categories">
 <?php foreach ($categories as $key => $cat): ?>

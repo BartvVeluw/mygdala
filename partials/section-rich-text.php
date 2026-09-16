@@ -17,10 +17,14 @@
  * back to plain text.
  *
  * A section that has a separate English body additionally carries the usual
- * data-nl/data-en pair (assets/js/core.js swaps those as innerHTML, which is
- * exactly what this markup needs). A section without one emits no language
- * attributes at all, so every body that predates the optional English column
- * still renders byte-identically.
+ * data-nl/data-en pair AND data-lang-html: content_html is RichTextSanitizer
+ * output (sanitized at save and again on read in RichTextContent::forSection),
+ * genuine HTML that assets/js/core.js's applyLang() must re-render with
+ * innerHTML. data-lang-html is the marker that opts this element into that —
+ * without it applyLang writes textContent, which is the site-wide default that
+ * keeps a plain-text field's editor markup from ever executing. A section
+ * without an English body emits no language attributes at all, so every body
+ * that predates the optional English column still renders byte-identically.
  *
  * @param array{state: string, content_html: string, content_html_en?: string} $section
  */
@@ -37,7 +41,7 @@ function render_section_rich_text(array $section): void
     $langAttributes = '';
     if ($englishBody !== '') {
         $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
-        $langAttributes = ' data-nl="' . $h($section['content_html']) . '" data-en="' . $h($englishBody) . '"';
+        $langAttributes = ' data-lang-html data-nl="' . $h($section['content_html']) . '" data-en="' . $h($englishBody) . '"';
     }
     ?>
     <section style="padding-top:0;">

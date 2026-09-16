@@ -156,11 +156,13 @@ require __DIR__ . '/partials/header.php';
             // both at save time and again in CollectionContent) — rendered as
             // real markup here, never escaped back to plain text. $h() below
             // is for the data-nl/data-en ATTRIBUTE, a different escaping
-            // context, so assets/js/core.js's language switch (which assigns
-            // via innerHTML) gets exactly this HTML back on an NL/EN toggle.
+            // context, so assets/js/core.js's language switch gets exactly this
+            // HTML back on an NL/EN toggle. data-lang-html marks this element
+            // as genuinely HTML: applyLang() re-renders it with innerHTML,
+            // where a plain-text field now gets textContent by default.
             // Identical treatment to portfolio-detail.php's rich-text blocks.
           ?>
-          <div class="rich-content collection-intro__text" data-reveal data-nl="<?= $h($collection['description_nl']) ?>" data-en="<?= $h($collection['description_en']) ?>"><?= $collection['description_nl'] ?></div>
+          <div class="rich-content collection-intro__text" data-reveal data-lang-html data-nl="<?= $h($collection['description_nl']) ?>" data-en="<?= $h($collection['description_en']) ?>"><?= $collection['description_nl'] ?></div>
         <?php endif; ?>
       </div>
     </div>

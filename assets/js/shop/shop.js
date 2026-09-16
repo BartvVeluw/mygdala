@@ -223,10 +223,14 @@
       if (descEl) {
         if (product.description || product.description_en) {
           // Full formatted description here (unlike the shop card): the
-          // value is server-sanitized HTML (or plain legacy text), so it's
-          // safe to render with innerHTML. setAttribute keeps data-nl/data-en
-          // in sync so the site-wide language toggle (applyLang) re-renders
-          // it correctly on switch, same as every other bilingual element.
+          // value is server-sanitized HTML (DescriptionSanitizer, or plain
+          // legacy text), so it's safe to render with innerHTML. It is one of
+          // the few genuinely-HTML bilingual elements, so it carries
+          // data-lang-html: that is the flag assets/js/core.js's applyLang()
+          // now requires before it re-renders a data-nl value with innerHTML
+          // instead of textContent (every plain-text field — the product name
+          // above included — stays textContent, which is the XSS fix).
+          descEl.setAttribute("data-lang-html", "");
           descEl.setAttribute("data-nl", product.description || "");
           descEl.setAttribute("data-en", product.description_en || product.description || "");
           descEl.innerHTML = S.currentLangHtml(product.description, product.description_en);

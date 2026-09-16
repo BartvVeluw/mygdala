@@ -108,7 +108,11 @@ require __DIR__ . '/partials/header.php';
           <a href="shop.php" class="btn btn--ghost" data-nl="Terug naar de shop" data-en="Back to shop">Terug naar de shop</a>
         </div>
 
-        <p class="hint" style="margin-top:var(--sp-3);" data-nl="Bestelling herroepen? Bekijk <a href='/verzenden-retourneren'>verzenden &amp; retourneren</a> of <a href='<?= $h($withdrawalUrl) ?>'>meld je bestelling aan voor herroeping</a>." data-en="Want to withdraw this order? See <a href='/verzenden-retourneren'>shipping &amp; returns</a> or <a href='<?= $h($withdrawalUrl) ?>'>report your order for withdrawal</a>.">Bestelling herroepen? Bekijk <a href="/verzenden-retourneren">verzenden &amp; retourneren</a> of <a href="<?= $h($withdrawalUrl) ?>">meld je bestelling aan voor herroeping</a>.</p>
+        <?php /* data-lang-html: developer-authored HTML with hardcoded <a> tags
+                 and only $withdrawalUrl (htmlspecialchars'd) interpolated, so
+                 applyLang() re-renders it with innerHTML on a language switch —
+                 a plain-text field now gets textContent, the XSS-safe default. */ ?>
+        <p class="hint" style="margin-top:var(--sp-3);" data-lang-html data-nl="Bestelling herroepen? Bekijk <a href='/verzenden-retourneren'>verzenden &amp; retourneren</a> of <a href='<?= $h($withdrawalUrl) ?>'>meld je bestelling aan voor herroeping</a>." data-en="Want to withdraw this order? See <a href='/verzenden-retourneren'>shipping &amp; returns</a> or <a href='<?= $h($withdrawalUrl) ?>'>report your order for withdrawal</a>.">Bestelling herroepen? Bekijk <a href="/verzenden-retourneren">verzenden &amp; retourneren</a> of <a href="<?= $h($withdrawalUrl) ?>">meld je bestelling aan voor herroeping</a>.</p>
 
       </div>
 
