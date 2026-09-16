@@ -6,8 +6,8 @@ namespace Tests\Service;
 
 use App\Service\Language\LocalizedValue;
 use App\Service\Language\SiteText;
-use App\Service\SiteSettings;
 use PHPUnit\Framework\TestCase;
+use Tests\Support\SiteLanguageFixture;
 
 /**
  * The fallback rule, now stated in terms of the site's primary language
@@ -21,23 +21,17 @@ final class LocalizedValueTest extends TestCase
 {
     protected function tearDown(): void
     {
-        SiteSettings::overrideForTests(null);
+        SiteLanguageFixture::reset();
     }
 
     private function dutchSite(): void
     {
-        SiteSettings::overrideForTests([
-            'primary_content_language' => 'nl',
-            'enabled_content_languages' => 'nl,en',
-        ]);
+        SiteLanguageFixture::useBilingual('nl');
     }
 
     private function englishSite(): void
     {
-        SiteSettings::overrideForTests([
-            'primary_content_language' => 'en',
-            'enabled_content_languages' => 'en,nl',
-        ]);
+        SiteLanguageFixture::useBilingual('en');
     }
 
     public function testATranslationIsUsedWhenThereIsOne(): void
@@ -145,14 +139,16 @@ final class LocalizedValueTest extends TestCase
         self::assertSame('en', SiteText::documentLanguage());
     }
 
-    public function testTheLanguageSwitchIsOfferedEvenWithTheOldSingleLanguageRow(): void
+    public function testTheLanguageSwitchIsOfferedEvenWhenTheRegistryHasEnglishSwitchedOff(): void
     {
         // THE REGRESSION THIS STEP EXISTS FOR. A visitor of a site whose
         // owner never turned English "on" was shown no way to ask for it,
         // including on sites with English sitting in their `_en` columns.
-        SiteSettings::overrideForTests([
-            'primary_content_language' => 'nl',
-            'enabled_content_languages' => 'nl',
+        // Until the frontend flip, the registry's active flag cannot do that
+        // either.
+        SiteLanguageFixture::useLanguages([
+            SiteLanguageFixture::language('nl', isDefault: true),
+            SiteLanguageFixture::language('en', isActive: false, sortOrder: 1),
         ]);
 
         self::assertTrue(SiteText::showsLanguageSwitch());
@@ -161,9 +157,9 @@ final class LocalizedValueTest extends TestCase
 
     public function testAnEnglishPrimarySiteStillOffersDutch(): void
     {
-        SiteSettings::overrideForTests([
-            'primary_content_language' => 'en',
-            'enabled_content_languages' => 'en',
+        SiteLanguageFixture::useLanguages([
+            SiteLanguageFixture::language('en', isDefault: true),
+            SiteLanguageFixture::language('nl', isActive: false, sortOrder: 1),
         ]);
 
         self::assertTrue(SiteText::showsLanguageSwitch());
@@ -175,9 +171,7 @@ final class LocalizedValueTest extends TestCase
         // The distinction the whole editing model rests on: the public site
         // must never show a blank heading, and the editor must never be shown
         // words they did not write as if they were a translation.
-        SiteSettings::overrideForTests([
-            'primary_content_language' => 'nl',
-        ]);
+        SiteLanguageFixture::useBilingual('nl');
 
         $value = LocalizedValue::ofDutchEnglish('Neem contact op', '');
 

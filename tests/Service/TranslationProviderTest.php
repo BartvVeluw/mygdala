@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Tests\Service;
 
 use App\Service\Language\LanguageRegistry;
-use App\Service\SiteSettings;
 use App\Service\Translation\DeepLProvider;
 use App\Service\Translation\NullTranslationProvider;
 use App\Service\Translation\TranslationException;
@@ -15,6 +14,7 @@ use App\Service\Translation\TranslationService;
 use App\Service\Translation\TranslationState;
 use PHPUnit\Framework\TestCase;
 use Tests\Support\FakeTranslationProvider;
+use Tests\Support\SiteLanguageFixture;
 
 /*
  * There is no stand-in for the translation-state repository here, and none is
@@ -38,15 +38,12 @@ final class TranslationProviderTest extends TestCase
 {
     protected function setUp(): void
     {
-        SiteSettings::overrideForTests([
-            'primary_content_language' => 'nl',
-            'enabled_content_languages' => 'nl,en',
-        ]);
+        SiteLanguageFixture::useBilingual('nl');
     }
 
     protected function tearDown(): void
     {
-        SiteSettings::overrideForTests(null);
+        SiteLanguageFixture::reset();
         TranslationProviderFactory::overrideForTests(null);
     }
 
@@ -270,11 +267,11 @@ final class TranslationProviderTest extends TestCase
         ]);
     }
 
-    public function testTranslatingIntoEnglishWorksWithTheOldSingleLanguageRow(): void
+    public function testTranslatingIntoEnglishWorksWhenTheRegistryHasEnglishSwitchedOff(): void
     {
-        SiteSettings::overrideForTests([
-            'primary_content_language' => 'nl',
-            'enabled_content_languages' => 'nl',
+        SiteLanguageFixture::useLanguages([
+            SiteLanguageFixture::language('nl', isDefault: true),
+            SiteLanguageFixture::language('en', isActive: false, sortOrder: 1),
         ]);
 
         $service = new TranslationService(new FakeTranslationProvider());

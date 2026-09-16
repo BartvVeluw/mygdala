@@ -8,8 +8,8 @@ use App\Service\Language\AdminLocale;
 use App\Service\Language\AdminTranslator;
 use App\Service\Language\ContentLanguages;
 use App\Service\Language\LanguageRegistry;
-use App\Service\SiteSettings;
 use PHPUnit\Framework\TestCase;
+use Tests\Support\SiteLanguageFixture;
 
 /**
  * The CMS interface language, and the rule the whole feature hangs on:
@@ -25,7 +25,7 @@ final class AdminLocaleTest extends TestCase
     {
         AdminLocale::overrideForTests(null);
         AdminTranslator::clearCache();
-        SiteSettings::overrideForTests(null);
+        SiteLanguageFixture::reset();
     }
 
     public function testDutchIsTheDefaultForSomebodyWhoHasNotChosen(): void
@@ -60,10 +60,7 @@ final class AdminLocaleTest extends TestCase
 
     public function testTheCmsLanguageDoesNotChangeTheWebsiteLanguage(): void
     {
-        SiteSettings::overrideForTests([
-            'primary_content_language' => 'nl',
-            'enabled_content_languages' => 'nl',
-        ]);
+        SiteLanguageFixture::useBilingual('nl');
 
         AdminLocale::overrideForTests('en');
 
@@ -74,10 +71,7 @@ final class AdminLocaleTest extends TestCase
 
     public function testTheWebsiteLanguageDoesNotChangeTheCmsLanguage(): void
     {
-        SiteSettings::overrideForTests([
-            'primary_content_language' => 'en',
-            'enabled_content_languages' => 'en',
-        ]);
+        SiteLanguageFixture::useBilingual('en');
 
         AdminLocale::overrideForTests('nl');
 

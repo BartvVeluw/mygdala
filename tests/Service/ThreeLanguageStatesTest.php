@@ -10,11 +10,11 @@ use App\Service\Language\ContentEditingLanguage;
 use App\Service\Language\ContentLanguages;
 use App\Service\Language\LocalizedValue;
 use App\Service\Language\SiteText;
-use App\Service\SiteSettings;
 use App\Service\Translation\TranslationRequest;
 use App\Service\Translation\TranslationService;
 use PHPUnit\Framework\TestCase;
 use Tests\Support\FakeTranslationProvider;
+use Tests\Support\SiteLanguageFixture;
 
 /**
  * THE THREE LANGUAGE STATES, and that none of them can reach the others.
@@ -30,7 +30,7 @@ use Tests\Support\FakeTranslationProvider;
  * the three cannot grow back together.
  *
  * No database, no webserver, no network: every state has a test seam, and the
- * site's settings are overridden in memory.
+ * site's language registry is replaced in memory.
  */
 final class ThreeLanguageStatesTest extends TestCase
 {
@@ -38,7 +38,7 @@ final class ThreeLanguageStatesTest extends TestCase
     {
         AdminLocale::overrideForTests(null);
         ContentEditingLanguage::overrideForTests(null);
-        SiteSettings::clearCache();
+        SiteLanguageFixture::reset();
     }
 
     /**
@@ -48,7 +48,7 @@ final class ThreeLanguageStatesTest extends TestCase
      */
     private function cms(string $interface, string $editing, string $primary = 'nl'): array
     {
-        SiteSettings::overrideForTests(['primary_content_language' => $primary]);
+        SiteLanguageFixture::useBilingual($primary);
         AdminLocale::overrideForTests($interface);
         ContentEditingLanguage::overrideForTests($editing);
 
@@ -142,7 +142,7 @@ final class ThreeLanguageStatesTest extends TestCase
 
     public function testAnAdministratorWhoNeverChoseEditsTheDefaultWebsiteLanguage(): void
     {
-        SiteSettings::overrideForTests(['primary_content_language' => 'en']);
+        SiteLanguageFixture::useBilingual('en');
         ContentEditingLanguage::overrideForTests(null);
 
         self::assertSame('en', ContentEditingLanguage::normalise(null));
@@ -151,7 +151,7 @@ final class ThreeLanguageStatesTest extends TestCase
 
     public function testAnUnstorableEditingLanguageFallsBackRatherThanReachingAColumnName(): void
     {
-        SiteSettings::overrideForTests(['primary_content_language' => 'nl']);
+        SiteLanguageFixture::useBilingual('nl');
 
         self::assertSame('nl', ContentEditingLanguage::normalise('de'));
         self::assertSame('nl', ContentEditingLanguage::normalise('../../etc/passwd'));
@@ -181,11 +181,11 @@ final class ThreeLanguageStatesTest extends TestCase
         self::assertSame('nl', SiteText::documentLanguage(), 'the page still renders in the site default');
     }
 
-    public function testTheSwitchSurvivesTheDeprecatedSingleLanguageRow(): void
+    public function testTheSwitchSurvivesARegistryWithEnglishSwitchedOff(): void
     {
-        SiteSettings::overrideForTests([
-            'primary_content_language' => 'nl',
-            'enabled_content_languages' => 'nl',
+        SiteLanguageFixture::useLanguages([
+            SiteLanguageFixture::language('nl', isDefault: true),
+            SiteLanguageFixture::language('en', isActive: false, sortOrder: 1),
         ]);
 
         self::assertTrue(SiteText::showsLanguageSwitch());
@@ -194,7 +194,7 @@ final class ThreeLanguageStatesTest extends TestCase
 
     public function testAVisitorReadsEachLanguageAndFallsBackPerField(): void
     {
-        SiteSettings::overrideForTests(['primary_content_language' => 'nl']);
+        SiteLanguageFixture::useBilingual('nl');
 
         $translated = LocalizedValue::ofDutchEnglish('Neem contact op', 'Get in touch');
         self::assertSame('Neem contact op', $translated->in('nl'));
@@ -211,7 +211,7 @@ final class ThreeLanguageStatesTest extends TestCase
         // field showed the Dutch words, the next Save would store them as a
         // real translation and the site would lose track of what is actually
         // translated.
-        SiteSettings::overrideForTests(['primary_content_language' => 'nl']);
+        SiteLanguageFixture::useBilingual('nl');
 
         $value = LocalizedValue::ofDutchEnglish('Neem contact op', '');
 

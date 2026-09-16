@@ -32,6 +32,7 @@ use App\Service\Theme\ThemeSettings;
  * and this class writes through those same owners rather than beside them:
  *
  *   identity     App\Service\SiteSettings   (site_settings rows)
+ *   language     App\Service\Language\ContentLanguages::savePrimary()
  *   appearance   App\Service\Theme\ThemeSettings::save()
  *   modules      App\Module\ModuleSettings::save()
  *   pages        App\Service\PageTemplates\PageTemplateInstaller
@@ -45,7 +46,8 @@ use App\Service\Theme\ThemeSettings;
  * and the completion marker is the very last thing written:
  *
  *   1. validate everything, and stop on the first invalid step
- *   2. persist settings, appearance and modules in ONE transaction
+ *   2. persist settings, the website language, appearance and modules in
+ *      ONE transaction
  *   3. create the selected starter pages, each one atomic in itself
  *   4. add a menu item for each page that was actually created
  *   5. mark setup complete
@@ -222,19 +224,21 @@ final class SetupWizard
      * "Taal van de website".
      *
      * There is no error case: App\Service\Language\ContentLanguages::
-     * normalise() turns anything unusable into the project default, and it is
-     * the same method the settings endpoint uses, so a valid configuration
-     * means the same thing in both places.
+     * normalisePrimary() turns anything unusable into the project default,
+     * and ContentLanguages::savePrimary() is the same writer the settings
+     * endpoint uses, so a valid choice means the same thing in both places.
      *
      * @param array<string, mixed> $input
      *
-     * @return array<string, string>
+     * @return array{primary: string}
      */
     private static function validateLanguages(array $input): array
     {
-        return ContentLanguages::normalise(
-            trim((string) ($input['primary_content_language'] ?? '')),
-        );
+        return [
+            'primary' => ContentLanguages::normalisePrimary(
+                trim((string) ($input['primary_content_language'] ?? '')),
+            ),
+        ];
     }
 
     /**
@@ -527,7 +531,7 @@ final class SetupWizard
         $db->beginTransaction();
 
         try {
-            $settings = array_merge($values['identity'], $values['languages'], $values['branding']);
+            $settings = array_merge($values['identity'], $values['branding']);
 
             // Only keys SiteSettings knows about, so a field added to the
             // form without being added to the settings can never create a
@@ -538,9 +542,13 @@ final class SetupWizard
                 (new SiteSettingRepository($db))->upsertMany($settings);
             }
 
-            // Both of these reach for App\Database::connection() themselves,
-            // which is the very connection the transaction above is open on
-            // — so they take part in it rather than committing early.
+            // These reach for App\Database::connection() themselves, which is
+            // the very connection the transaction above is open on — so they
+            // take part in it rather than committing early. The website
+            // language is the default of the language registry, not a
+            // settings row (docs/multilingual/ARCHITECTURE.md).
+            ContentLanguages::savePrimary($values['languages']['primary']);
+
             if ($values['theme'] !== []) {
                 ThemeSettings::save($values['theme']);
             }

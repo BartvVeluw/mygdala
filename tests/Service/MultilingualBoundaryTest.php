@@ -189,21 +189,102 @@ final class MultilingualBoundaryTest extends TestCase
         );
     }
 
-    public function testTheDeprecatedEnabledLanguagesSettingDecidesNothing(): void
+    public function testNoStoredValueDecidesWhichLanguagesArePublished(): void
     {
-        // The row may still be read for diagnostics, and it is still written
-        // so it stays truthful. What it may never do again is decide which
-        // languages a visitor or an editor gets.
+        // The deprecated `enabled_content_languages` row is gone since
+        // Multilingual 2.0 phase 1, and the registry that replaced it must not
+        // take over its old job before the frontend flip: ::enabled() answers
+        // from the closed V1 registry. Only ::primary() reads the website
+        // language registry.
         $source = self::read('src/Service/Language/ContentLanguages.php');
 
         $enabled = substr($source, strpos($source, 'public static function enabled()'));
-        $enabled = substr($enabled, 0, strpos($enabled, 'public static function storedEnabled()'));
+        $enabled = substr($enabled, 0, strpos($enabled, 'public static function secondaries()'));
 
-        self::assertStringNotContainsString(
-            'SETTING_ENABLED',
-            $enabled,
-            '::enabled() must answer from the registry, not from the settings row',
+        self::assertStringContainsString('LanguageRegistry::contentLanguages()', $enabled);
+        self::assertStringNotContainsString('SiteLanguages::', $enabled, '::enabled() must not read the active flags of the registry yet');
+        self::assertStringNotContainsString('SiteSettings', $source, 'no website language is a settings row any more');
+    }
+
+    // ---------------------------------------------- the website language registry
+
+    /** The Core of Multilingual 2.0 phase 1 (docs/multilingual/ARCHITECTURE.md). */
+    private const LANGUAGE_CORE = [
+        'src/Service/Language/SiteLanguages.php',
+        'src/Service/Language/SiteLanguage.php',
+        'src/Service/Language/LanguageCode.php',
+        'src/Repository/SiteLanguageRepository.php',
+    ];
+
+    public function testTheWebsiteLanguageCoreCannotReachTheCmsLanguage(): void
+    {
+        foreach (self::LANGUAGE_CORE as $file) {
+            $source = self::read($file);
+
+            self::assertStringNotContainsString('AdminLocale::', $source, $file);
+            self::assertStringNotContainsString('AdminTranslator::', $source, $file);
+            self::assertStringNotContainsString('AdminUserRepository', $source, $file);
+            self::assertStringNotContainsString('interface_language', $source, $file);
+            self::assertStringNotContainsString('ContentEditingLanguage::', $source, $file);
+        }
+    }
+
+    public function testTheCmsLanguageCannotReachTheWebsiteLanguageRegistry(): void
+    {
+        foreach (['src/Service/Language/AdminLocale.php', 'src/Service/Language/AdminTranslator.php', 'api/admin/update-account-preferences.php'] as $file) {
+            $source = self::read($file);
+
+            self::assertStringNotContainsString('SiteLanguages', $source, $file);
+            self::assertStringNotContainsString('SiteLanguageRepository', $source, $file);
+            self::assertStringNotContainsString('site_languages', $source, $file);
+        }
+    }
+
+    public function testTheLanguageCoreKnowsNoLanguageByName(): void
+    {
+        // Dynamic languages are rows. A literal code, or a reach back into
+        // the closed V1 registry, would make the core bilingual again.
+        foreach (self::LANGUAGE_CORE as $file) {
+            $source = self::read($file);
+
+            self::assertDoesNotMatchRegularExpression('/[\x27"](nl|en)[\x27"]/', $source, $file . ' names a language');
+            self::assertStringNotContainsString('LanguageRegistry', $source, $file);
+            self::assertStringNotContainsString('ModuleRegistry', $source, $file . ' must not check a module');
+        }
+    }
+
+    public function testOnlyItsRepositoryWritesTheRegistryTable(): void
+    {
+        // The invariants (one active default that is never switched off or
+        // deleted) are in that repository's SQL. A statement anywhere else
+        // would walk past them.
+        $statement = '/\b(?:FROM|INTO|UPDATE|JOIN|TABLE)\s+`?site_languages\b/i';
+        $files = array_merge(
+            self::glob('src/*.php'),
+            self::glob('src/*/*.php'),
+            self::glob('src/*/*/*.php'),
+            self::glob('src/*/*/*/*.php'),
+            self::glob('api/*.php'),
+            self::glob('api/*/*.php'),
+            self::glob('admin/*.php'),
+            self::glob('partials/*.php'),
+            self::glob('*.php'),
         );
+
+        $offenders = [];
+        foreach ($files as $file) {
+            $relative = ltrim(substr(str_replace(DIRECTORY_SEPARATOR, '/', $file), strlen(self::root())), '/');
+            if ($relative === 'src/Repository/SiteLanguageRepository.php') {
+                continue;
+            }
+
+            if (preg_match($statement, (string) file_get_contents($file)) === 1) {
+                $offenders[] = $relative;
+            }
+        }
+
+        self::assertNotSame([], $files);
+        self::assertSame([], $offenders);
     }
 
     // ---------------------------------------------- the CMS interface is curated

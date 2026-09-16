@@ -20,11 +20,15 @@ use Tests\Support\ScratchInstall;
  * installation stored `nl` and claimed it publishes Dutch only.
  *
  * 20260911200000_correct_the_stored_content_languages repairs that by
- * writing the full set this product publishes, which is what
- * App\Service\Language\ContentLanguages::normalise() writes whenever an
- * owner saves anything. These tests run the faulty migration exactly as it
- * ran in the world, look at the wrong answer it produced, then let the rest
- * of the migrations run and check the answer is right.
+ * writing the full set this product publishes, which is what an owner's own
+ * save wrote at the time. These tests run the faulty migration exactly as it
+ * ran in the world, look at the wrong answer it produced, then let the repair
+ * run and check the answer is right.
+ *
+ * They stop right after the repair. Since Multilingual 2.0 phase 1,
+ * 20260917120000 moves both rows into the website language registry and
+ * removes them from `site_settings`; what it does with them is
+ * Tests\Install\SiteLanguageRegistryMigrationTest's subject.
  *
  * Each case builds its own database from zero, stops one migration short of
  * the faulty one, shapes the content, and only then lets it continue: the
@@ -39,6 +43,9 @@ final class ContentLanguageSettingRepairTest extends TestCase
 
     /** The migration whose probe is misspelled. */
     private const THE_DEFECT = '20260910140000';
+
+    /** The corrective migration: where these tests stop and look. */
+    private const THE_REPAIR = '20260911200000';
 
     private const SETTING = 'enabled_content_languages';
     private const PRIMARY = 'primary_content_language';
@@ -77,7 +84,7 @@ final class ContentLanguageSettingRepairTest extends TestCase
             . 'which the probe misspells, so it concluded there is no English content'
         );
 
-        $install->catchUp();
+        $install->catchUp(self::THE_REPAIR);
 
         $this->assertSame(
             self::CORRECT,
@@ -100,7 +107,7 @@ final class ContentLanguageSettingRepairTest extends TestCase
         $this->assertSame(0, $this->countEnglish($install, 'homepage_hero', 'title_en'), 'the hero has none left');
         $this->assertSame('nl', $this->stored($install, self::SETTING), 'nav_items is the name the probe misspells');
 
-        $install->catchUp();
+        $install->catchUp(self::THE_REPAIR);
 
         $this->assertSame(self::CORRECT, $this->stored($install, self::SETTING));
     }
@@ -119,7 +126,7 @@ final class ContentLanguageSettingRepairTest extends TestCase
         );
         $this->assertSame('nl', $this->stored($install, self::SETTING), 'homepage_hero is the other misspelled name');
 
-        $install->catchUp();
+        $install->catchUp(self::THE_REPAIR);
 
         $this->assertSame(self::CORRECT, $this->stored($install, self::SETTING));
     }
@@ -136,7 +143,7 @@ final class ContentLanguageSettingRepairTest extends TestCase
         $this->assertSame(0, $this->countEnglish($install, 'nav_items', 'label_en'));
         $this->assertSame(0, $this->countEnglish($install, 'homepage_hero', 'title_en'));
 
-        $install->catchUp();
+        $install->catchUp(self::THE_REPAIR);
 
         // Not a judgement about this site's content: the row says which
         // languages this BUILD publishes, and English is one of them whether
@@ -161,7 +168,7 @@ final class ContentLanguageSettingRepairTest extends TestCase
 
         $this->assertSame(0, $install->count('pages'), 'nothing is left to probe');
 
-        $install->catchUp();
+        $install->catchUp(self::THE_REPAIR);
 
         $this->assertSame(self::CORRECT, $this->stored($install, self::SETTING));
     }
@@ -177,7 +184,7 @@ final class ContentLanguageSettingRepairTest extends TestCase
         $this->assertSame('nl', $this->stored($install, self::SETTING));
         $english = $this->countEnglish($install, 'nav_items', 'label_en');
 
-        $install->catchUp();
+        $install->catchUp(self::THE_REPAIR);
 
         $this->assertSame(
             self::CORRECT,
@@ -207,7 +214,7 @@ final class ContentLanguageSettingRepairTest extends TestCase
             );
         });
 
-        $install->catchUp();
+        $install->catchUp(self::THE_REPAIR);
 
         $this->assertSame('en', $this->stored($install, self::PRIMARY), 'the choice is left alone');
         $this->assertSame(
@@ -222,7 +229,7 @@ final class ContentLanguageSettingRepairTest extends TestCase
         $install = $this->buildUpToTheDefect('mygdala_scratch_lang_twice', static function (): void {
         });
 
-        $install->catchUp();
+        $install->catchUp(self::THE_REPAIR);
         $once = $this->stored($install, self::SETTING);
 
         // Phinx will not re-run a recorded migration, so "idempotent" can
