@@ -688,9 +688,50 @@ final class AdminUiPrimitivesTest extends TestCase
         $source = self::source('admin/form.php');
 
         $this->assertStringContainsString('<input type="checkbox" class="admin-switch" role="switch" name="is_active" value="1"', $source);
-        $this->assertStringContainsString('<input type="checkbox" class="admin-checkbox" name="store_submissions" value="1"', $source);
-        $this->assertStringContainsString('<select name="reply_to_field_key" class="admin-select">', $source);
+        $this->assertStringContainsString('<input type="checkbox" class="admin-switch" role="switch" name="store_submissions" value="1"', $source);
+        $this->assertStringContainsString('<select name="reply_to_field_key" id="form-reply-to" class="admin-select">', $source);
         $this->assertStringContainsString('<select name="field_type" class="admin-select" required>', $source);
+
+        // Geavanceerd folds away the way admin/page-new.php folds its SEO card.
+        $this->assertStringContainsString('<details class="admin-collapse admin-collapse--card" data-form-advanced', $source);
+    }
+
+    /**
+     * Every setting of the form editor explains itself behind a "?", and the
+     * overview says what the screen is for. Which fields sit under
+     * Geavanceerd, and that they still submit, is
+     * Tests\Service\FormAdminHttpTest.
+     */
+    public function testTheFormsScreensCarryTheirExplanation(): void
+    {
+        $source = self::source('admin/form.php');
+        $catalog = require self::root() . '/src/Service/Language/messages/nl.php';
+
+        $fields = [
+            'is_active' => 'help.forms.active',
+            'name' => 'help.forms.name',
+            // Both language panes: only the one being edited is on screen.
+            'success_message_nl' => 'help.forms.thank_you_message',
+            'success_message_en' => 'help.forms.thank_you_message',
+            'notification_email' => 'help.forms.notification_email',
+            'store_submissions' => 'help.forms.store_submissions',
+            'reply_to_field_key' => 'help.forms.reply_to',
+        ];
+
+        foreach ($fields as $name => $helpKey) {
+            $field = self::fieldSource($source, $name);
+
+            $this->assertStringContainsString("admin_t('" . $helpKey . "')", $field, $name . ' lost its explanation');
+            $this->assertArrayHasKey($helpKey, $catalog, $helpKey . ' is used but not in the catalog');
+
+            if (preg_match("/admin_field_label\\('([a-z-]+)'/", $field, $label) === 1) {
+                $this->assertStringContainsString('id="' . $label[1] . '"', $field, $name . ': the label must point at the field it explains');
+            } else {
+                $this->assertStringContainsString('admin_help(', $field, $name);
+            }
+        }
+
+        $this->assertStringContainsString("admin_info_panel(admin_t('help.forms.overview'))", self::source('admin/forms.php'));
     }
 
     /**
@@ -732,7 +773,7 @@ final class AdminUiPrimitivesTest extends TestCase
 
         $this->assertStringContainsString("'reply_to_field_key' => trim((string) (\$_POST['reply_to_field_key'] ?? ''))", $endpoint);
 
-        foreach (['admin/settings.php', 'admin/pages.php', 'admin/form.php'] as $screen) {
+        foreach (['admin/settings.php', 'admin/pages.php', 'admin/form.php', 'admin/forms.php'] as $screen) {
             $this->assertDoesNotMatchRegularExpression(
                 '#<label\b[^>]*>(?:(?!</label>).)*admin_help\(#s',
                 self::source($screen),

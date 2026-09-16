@@ -26,6 +26,10 @@ use App\Service\Forms\FormUsage;
  * submissions themselves are a different screen behind a different
  * permission (FORMS.md, "Rechten"). Knowing that fourteen people wrote in is
  * not the same as reading what they said.
+ *
+ * The count is shown whenever there ARE stored submissions, also for a form
+ * that has since stopped storing: switching storing off deletes nothing, and
+ * a "—" there would hide personal data that is still in the CMS.
  */
 
 AdminAuth::requireLogin();
@@ -67,9 +71,11 @@ $canSeeSubmissions = AdminAuth::can(AdminPermissions::FORMS_SUBMISSIONS);
 <?php require __DIR__ . '/_header.php'; ?>
 <main class="admin-main">
   <div class="admin-main__heading">
-    <h1><?= admin_t('forms.formulieren') ?></h1>
+    <?php /* The sidebar's own word: forms.formulieren is the "← Formulieren"
+             back link of admin/form.php. */ ?>
+    <h1><?= admin_te('nav.forms') ?></h1>
   </div>
-  <p class="admin-text-muted"><?= admin_t('forms.formulier_maak_hier_n') ?></p>
+  <?= admin_info_panel(admin_t('help.forms.overview')) ?>
 
   <?php if ($flash !== null): ?>
     <p class="admin-alert admin-alert--success"><?= $h((string) $flash) ?></p>
@@ -97,12 +103,11 @@ $canSeeSubmissions = AdminAuth::can(AdminPermissions::FORMS_SUBMISSIONS);
       <thead>
         <tr>
           <th><?= admin_te('common.name') ?></th>
+          <th><?= admin_te('common.status') ?></th>
           <th><?= admin_te('forms.velden') ?></th>
-          <th><?= admin_te('forms.bewaren') ?></th>
           <th><?= admin_te('forms.inzendingen') ?></th>
           <th><?= admin_te('forms.gebruikt') ?></th>
-          <th><?= admin_te('common.status') ?></th>
-          <th></th>
+          <th><?= admin_te('forms.actions') ?></th>
         </tr>
       </thead>
       <tbody>
@@ -118,35 +123,50 @@ $canSeeSubmissions = AdminAuth::can(AdminPermissions::FORMS_SUBMISSIONS);
           ?>
           <tr>
             <td><a href="/admin/form.php?id=<?= $formId ?>"><?= $h((string) $form['name']) ?></a></td>
+            <?php /* The word carries the status, the colour confirms it:
+                     green as for an active account (admin/users.php), amber
+                     as for a page visitors cannot see yet (admin/pages.php). */ ?>
+            <td><span class="admin-badge admin-badge--<?= $isActive ? 'paid' : 'draft' ?>"><?= admin_te($isActive ? 'common.active' : 'common.inactive') ?></span></td>
             <td><?= $fieldCount ?></td>
-            <td><?= $stores ? 'Ja' : 'Nee' ?></td>
             <td>
-              <?php if (!$stores): ?>
-                <span class="admin-text-muted">—</span>
-              <?php elseif ($canSeeSubmissions && $submissions > 0): ?>
-                <a href="/admin/form-submissions.php?form=<?= $formId ?>"><?= $submissions ?></a>
+              <?php if ($submissions > 0): ?>
+                <?php if ($canSeeSubmissions): ?>
+                  <a href="/admin/form-submissions.php?form=<?= $formId ?>"><?= $submissions ?></a>
+                <?php else: ?>
+                  <?= $submissions ?>
+                <?php endif; ?>
+                <?php if (!$stores): ?>
+                  <span class="admin-text-muted">· <?= admin_te('forms.storing_now_off') ?></span>
+                <?php endif; ?>
+              <?php elseif ($stores): ?>
+                0
               <?php else: ?>
-                <?= $submissions ?>
+                <span class="admin-text-muted"><?= admin_te('forms.not_stored') ?></span>
               <?php endif; ?>
             </td>
             <td>
               <?php if ($placements === []): ?>
-                <span class="admin-text-muted">Nergens</span>
+                <span class="admin-text-muted"><?= admin_te('forms.used_nowhere') ?></span>
               <?php else: ?>
                 <?php foreach ($placements as $index => $placement): ?><?= $index > 0 ? ', ' : '' ?><?php if ($placement['edit_url'] !== ''): ?><a href="<?= $h($placement['edit_url']) ?>"><?= $h($placement['page_title']) ?></a><?php else: ?><?= $h($placement['page_title']) ?><?php endif; ?><?php endforeach; ?>
               <?php endif; ?>
             </td>
-            <td><span class="admin-badge admin-badge--<?= $isActive ? 'info' : 'muted' ?>"><?= $isActive ? admin_t('common.active') : 'Uit' ?></span></td>
             <td>
-              <?php if ($blockers === []): ?>
-                <form method="post" action="/api/admin/delete-form.php" class="admin-inline-form" onsubmit="return confirm('Dit formulier definitief verwijderen?');">
-                  <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
-                  <input type="hidden" name="id" value="<?= $formId ?>">
-                  <button type="submit" class="admin-btn-text admin-btn-text--danger"><?= admin_te('common.delete') ?></button>
-                </form>
-              <?php else: ?>
-                <span class="admin-text-muted" title="<?= $h(implode(' ', $blockers)) ?>">In gebruik</span>
-              <?php endif; ?>
+              <div class="admin-image-card__actions">
+                <a class="admin-btn-text" href="/admin/form.php?id=<?= $formId ?>"><?= admin_te('common.edit') ?></a>
+                <?php /* Only offered when it can succeed. Why a form cannot go
+                         is listed on its own screen, next to "Formulier
+                         verwijderen", rather than in a tooltip a keyboard or
+                         a touchscreen cannot reach (ADMIN-UI.md). The
+                         endpoint checks again either way. */ ?>
+                <?php if ($blockers === []): ?>
+                  <form method="post" action="/api/admin/delete-form.php" class="admin-inline-form" onsubmit="return confirm('Dit formulier definitief verwijderen?');">
+                    <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
+                    <input type="hidden" name="id" value="<?= $formId ?>">
+                    <button type="submit" class="admin-btn-text admin-btn-text--danger"><?= admin_te('common.delete') ?></button>
+                  </form>
+                <?php endif; ?>
+              </div>
             </td>
           </tr>
         <?php endforeach; ?>

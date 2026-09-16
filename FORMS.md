@@ -463,6 +463,32 @@ staan met wat erin zit, en het scherm Contactaanvragen blijft bestaan om die
 historie te lezen. **Nieuwe** inzendingen komen binnen bij Formulieren →
 Inzendingen.
 
+## Beheer
+
+**Het overzicht** (`admin/forms.php`) toont per formulier de status in woord
+en kleur, het aantal velden, het aantal bewaarde inzendingen en de pagina's
+waar het staat. Het aantal inzendingen staat er ook als bewaren inmiddels uit
+staat: uitzetten verwijdert niets, en een streepje zou persoonsgegevens
+verbergen die nog in het CMS staan. Wie `forms.submissions` heeft, klikt door
+naar die inzendingen. Velden en inzendingen worden voor alle formulieren
+samen geteld (`fieldsForMany()`, `countsForForms()`); alleen de plaatsingen
+worden per rij opgevraagd.
+
+**De editor** (`admin/form.php`) is één formulier in drie kaarten, in de
+volgorde waarin een redacteur erover nadenkt:
+
+| Kaart | Wat erin staat |
+|---|---|
+| Algemeen | *Actief* (bovenaan), de naam, de tekst op de verstuurknop |
+| Na het versturen | het bedankbericht, het e-mailadres dat de melding krijgt, en de waarschuwing uit "Ontvanger" |
+| Geavanceerd | *Inzendingen bewaren in het CMS* en het antwoordadres van de melding (Reply-To) |
+
+Geavanceerd is ingeklapt, met in de kop of inzendingen bewaard worden. Hij
+gaat open na een geweigerde opslag, of zolang het formulier inzendingen zou
+verliezen: dan kan staan wat er moet veranderen. Ingeklapt of open, hij
+verstuurt dezelfde velden, en `api/admin/update-form.php` leest ze zoals
+altijd.
+
 ## Rechten
 
 | Permissie | Waarvoor |
@@ -478,9 +504,13 @@ van bezoekers achter. Een Super Admin houdt automatisch alles.
 
 ## Privacy
 
-- Inzendingen bewaren is **per formulier uit tenzij de eigenaar het aanzet**.
+- Inzendingen bewaren is **per formulier uit tenzij de eigenaar het aanzet**
+  (in de editor onder Geavanceerd).
 - Staat het uit, dan blijft er ná het verzoek niets van de bezoeker in de
   database staan; de e-mail ís de bezorging.
+- Bewaren uitzetten verwijdert niets. Wat al bewaard is, blijft staan tot
+  iemand het bij Inzendingen verwijdert; de editor en het overzicht zeggen
+  dat er dan nog inzendingen zijn.
 - Een inzending is nergens publiek op te vragen, staat niet in de zoekfunctie
   en niet in de sitemap.
 - Verwijderen is definitief — inclusief de antwoorden en een eventuele

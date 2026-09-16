@@ -272,8 +272,186 @@ final class FormAdminHttpTest extends TestCase
     }
 
     /* ------------------------------------------------------------------ */
+    /* The editor screen                                                   */
+    /* ------------------------------------------------------------------ */
+
+    /**
+     * Status first, the everyday settings open, and storing plus the reply
+     * address folded under Geavanceerd — with its state readable from the
+     * closed card.
+     */
+    public function testTheEditorShowsTheStatusFirstAndFoldsStoringAndTheReplyAddressAway(): void
+    {
+        [$session] = $this->accounts->signIn([AdminPermissions::FORMS_MANAGE]);
+        $formId = $this->createForm();
+
+        $xpath = $this->editorXpath($session, $formId);
+        $form = '//form[@action="' . self::UPDATE_ENDPOINT . '"]';
+        $advanced = $form . '//details[@data-form-advanced]';
+
+        $firstControl = $xpath->query($form . '//*[self::input or self::select or self::textarea][@name and not(@type="hidden")]')->item(0);
+        $this->assertSame('is_active', $firstControl?->getAttribute('name'), 'whether the form is on comes first');
+        $this->assertSame('switch', $firstControl?->getAttribute('role'));
+
+        $this->assertSame(1, $xpath->query($advanced)->length, 'one Geavanceerd card inside the settings form');
+        $this->assertFalse($xpath->query($advanced)->item(0)->hasAttribute('open'), 'folded away by default');
+        $this->assertSame('switch', $xpath->query($advanced . '//input[@name="store_submissions"]')->item(0)?->getAttribute('role'));
+        $this->assertSame(1, $xpath->query($advanced . '//select[@name="reply_to_field_key"]')->length);
+        $this->assertSame('e-mail', $xpath->query($advanced . '//select[@name="reply_to_field_key"]/option[@selected]')->item(0)?->getAttribute('value'));
+
+        foreach (['is_active', 'name', 'submit_label_nl', 'success_message_nl', 'notification_email'] as $everyday) {
+            $this->assertSame(0, $xpath->query($advanced . '//*[@name="' . $everyday . '"]')->length, $everyday . ' stays on the main screen');
+        }
+
+        $this->assertStringContainsString('Inzendingen worden bewaard', $xpath->query($advanced . '/summary')->item(0)->textContent);
+    }
+
+    /**
+     * Moving storing and the reply address under Geavanceerd changed where
+     * they are, not what they hold: the editor sent back untouched stores
+     * exactly what was there, with storing on and with storing off.
+     */
+    public function testSendingTheEditorBackUntouchedKeepsEveryStoredValue(): void
+    {
+        [$session] = $this->accounts->signIn([AdminPermissions::FORMS_MANAGE]);
+
+        foreach ([true, false] as $stores) {
+            $formId = $this->createForm(['store_submissions' => $stores]);
+            $before = $this->forms->find($formId);
+
+            $editor = $this->editorSubmission($session, $formId);
+            $this->assertSame($stores, isset($editor['store_submissions']), 'the switch opens as stored');
+
+            $response = self::$server->request('POST', self::UPDATE_ENDPOINT, $session, $editor);
+            $this->assertSame('/admin/form.php?id=' . $formId . '&saved=1', $response['location']);
+
+            $after = $this->forms->find($formId);
+            unset($before['updated_at'], $after['updated_at']);
+            $this->assertSame($before, $after, 'storing ' . ($stores ? 'on' : 'off') . ': nothing changed');
+        }
+    }
+
+    public function testStoringCanBeSwitchedOffAndBackOnWithoutLosingWhatWasStored(): void
+    {
+        [$session] = $this->accounts->signIn([AdminPermissions::FORMS_MANAGE]);
+        $formId = $this->createForm();
+        $this->storeSubmissions($formId, 2);
+        $submissions = $this->submissionSnapshot($formId);
+
+        $editor = $this->editorSubmission($session, $formId);
+        unset($editor['store_submissions']);
+        self::$server->request('POST', self::UPDATE_ENDPOINT, $session, $editor);
+
+        $this->assertSame(0, (int) $this->forms->find($formId)['store_submissions']);
+        $this->assertSame($submissions, $this->submissionSnapshot($formId), 'switching storing off deletes nothing');
+
+        $xpath = $this->editorXpath($session, $formId);
+        $advanced = '//details[@data-form-advanced]';
+        $this->assertStringContainsString('Inzendingen worden niet bewaard', $xpath->query($advanced . '/summary')->item(0)->textContent);
+        $this->assertStringContainsString('Er staan nog 2 bewaarde inzendingen', $xpath->query($advanced)->item(0)->textContent, 'and says the old ones are still there');
+
+        $editor = $this->editorSubmission($session, $formId);
+        $editor['store_submissions'] = '1';
+        self::$server->request('POST', self::UPDATE_ENDPOINT, $session, $editor);
+
+        $this->assertSame(1, (int) $this->forms->find($formId)['store_submissions']);
+        $this->assertSame($submissions, $this->submissionSnapshot($formId));
+    }
+
+    /** After a refused save the editor shows everything that was sent, folded card included. */
+    public function testARefusedSaveOpensGeavanceerdAndKeepsWhatWasSent(): void
+    {
+        [$session] = $this->accounts->signIn([AdminPermissions::FORMS_MANAGE]);
+        $formId = $this->createForm();
+        $before = $this->forms->find($formId);
+
+        $editor = $this->editorSubmission($session, $formId);
+        $editor['notification_email'] = 'geen adres';
+        unset($editor['store_submissions']);
+
+        $response = self::$server->request('POST', self::UPDATE_ENDPOINT, $session, $editor);
+        $this->assertSame('/admin/form.php?id=' . $formId, $response['location'], 'refused, back to the editor');
+        $this->assertSame($before, $this->forms->find($formId), 'nothing was written');
+
+        $xpath = $this->editorXpath($session, $formId);
+        $advanced = $xpath->query('//details[@data-form-advanced]')->item(0);
+
+        $this->assertTrue($advanced->hasAttribute('open'));
+        $this->assertFalse($xpath->query('.//input[@name="store_submissions"]', $advanced)->item(0)->hasAttribute('checked'), 'the switch shows what was sent');
+    }
+
+    /* ------------------------------------------------------------------ */
+    /* The overview                                                        */
+    /* ------------------------------------------------------------------ */
+
+    /**
+     * One row per form: its status in words, its field count, and its stored
+     * submissions — also once storing is off, because they are still there.
+     * Only somebody who may read submissions gets a link to them.
+     */
+    public function testTheOverviewShowsStatusFieldsAndStoredSubmissions(): void
+    {
+        [$reader] = $this->accounts->signIn([AdminPermissions::FORMS_MANAGE, AdminPermissions::FORMS_SUBMISSIONS]);
+        [$builder] = $this->accounts->signIn([AdminPermissions::FORMS_MANAGE]);
+        $formId = $this->createForm();
+        $this->storeSubmissions($formId, 3);
+
+        $row = $this->overviewRow($reader, $formId);
+        $this->assertStringContainsString('Actief', $row['status']);
+        $this->assertSame('4', $row['fields']);
+        $this->assertSame('3', trim($row['submissions']));
+        $this->assertTrue($row['submissions_linked']);
+        $this->assertTrue($row['edit_linked']);
+        $this->assertFalse($row['deletable'], 'stored submissions keep the form');
+
+        $stored = $this->forms->find($formId);
+        $stored['is_active'] = false;
+        $stored['store_submissions'] = false;
+        $this->forms->update($formId, $stored);
+
+        $row = $this->overviewRow($reader, $formId);
+        $this->assertStringContainsString('Inactief', $row['status']);
+        $this->assertStringContainsString('3', $row['submissions'], 'still there after storing was switched off');
+        $this->assertStringContainsString('bewaren staat uit', $row['submissions']);
+
+        $this->assertFalse($this->overviewRow($builder, $formId)['submissions_linked'], 'a count, but no way in without the permission');
+    }
+
+    /* ------------------------------------------------------------------ */
     /* Helpers                                                             */
     /* ------------------------------------------------------------------ */
+
+    private function editorXpath(string $session, int $formId): \DOMXPath
+    {
+        $response = self::$server->request('GET', '/admin/form.php?id=' . $formId, $session);
+        $this->assertSame(200, $response['status'], 'the form editor opens');
+
+        return $this->xpath($response['body']);
+    }
+
+    /**
+     * @return array{status: string, fields: string, submissions: string, submissions_linked: bool, edit_linked: bool, deletable: bool}
+     */
+    private function overviewRow(string $session, int $formId): array
+    {
+        $response = self::$server->request('GET', '/admin/forms.php', $session);
+        $this->assertSame(200, $response['status'], 'the overview opens');
+
+        $xpath = $this->xpath($response['body']);
+        $row = $xpath->query('//table//tr[td[1]/a[@href="/admin/form.php?id=' . $formId . '"]]')->item(0);
+        $this->assertNotNull($row, 'the form has a row');
+
+        $cells = $xpath->query('./td', $row);
+
+        return [
+            'status' => $cells->item(1)->textContent,
+            'fields' => trim($cells->item(2)->textContent),
+            'submissions' => preg_replace('/\s+/', ' ', $cells->item(3)->textContent),
+            'submissions_linked' => $xpath->query('.//a[@href="/admin/form-submissions.php?form=' . $formId . '"]', $cells->item(3))->length === 1,
+            'edit_linked' => $xpath->query('.//a[@href="/admin/form.php?id=' . $formId . '"]', $cells->item(5))->length === 1,
+            'deletable' => $xpath->query('.//form[@action="/api/admin/delete-form.php"]', $cells->item(5))->length === 1,
+        ];
+    }
 
     /**
      * A form with a required text field, an e-mail field as Reply-To, a
@@ -379,10 +557,7 @@ final class FormAdminHttpTest extends TestCase
      */
     private function editorSubmission(string $session, int $formId): array
     {
-        $response = self::$server->request('GET', '/admin/form.php?id=' . $formId, $session);
-        $this->assertSame(200, $response['status'], 'the form editor opens');
-
-        $xpath = $this->xpath($response['body']);
+        $xpath = $this->editorXpath($session, $formId);
         $formPath = '//form[@action="' . self::UPDATE_ENDPOINT . '"]';
         $this->assertSame(1, $xpath->query($formPath)->length, 'one form saves the form settings');
 
