@@ -807,6 +807,156 @@ final class MultilingualBoundaryTest extends TestCase
         );
     }
 
+    // ---------------------------------- the language switch renders text as text
+
+    /**
+     * The whole point of the data-nl/data-en swap: a value is EDITOR-supplied
+     * plain text unless an element opts out with data-lang-html. assets/js/core.js
+     * writes the default with textContent — never innerHTML — so a label an
+     * editor typed as "<img src=x onerror=…>" can never execute when a visitor
+     * toggles the language. This is the fix for the stored-XSS route the
+     * pages.manage permission opened through a navigation label; before it,
+     * applyLang() assigned el.innerHTML unconditionally.
+     */
+    public function testTheLanguageSwitchWritesPlainTextWithTextContent(): void
+    {
+        $core = self::read('assets/js/core.js');
+
+        // The default path for a bilingual element is textContent.
+        self::assertStringContainsString('el.textContent = val;', $core);
+
+        // innerHTML is reachable ONLY inside the data-lang-html branch.
+        self::assertMatchesRegularExpression(
+            '/hasAttribute\("data-lang-html"\)\)\s*\{\s*el\.innerHTML = val;/',
+            $core,
+            'core.js may write a language value with innerHTML only for a data-lang-html element',
+        );
+
+        // And that is the ONLY innerHTML assignment in the file: no second,
+        // unguarded sink may creep back in next to it.
+        self::assertSame(
+            1,
+            substr_count($core, '.innerHTML ='),
+            'core.js must assign innerHTML exactly once, in the data-lang-html branch',
+        );
+
+        // The exact old vulnerable line must be gone.
+        self::assertStringNotContainsString('if (val != null) el.innerHTML = val;', $core);
+    }
+
+    /**
+     * The block scripts that build bilingual DOM themselves follow the same
+     * rule. The marquee re-renders plain-text material/category labels, so it
+     * writes them with textContent; only the shop's product-detail description
+     * — server-sanitized HTML (DescriptionSanitizer) — is marked data-lang-html
+     * so applyLang() keeps rendering it as markup on a switch.
+     */
+    public function testBlockScriptsThatSwapLanguagesDoNotFeedDatasetToInnerHtml(): void
+    {
+        $marquee = self::read('assets/js/blocks/marquee.js');
+        self::assertStringContainsString('span.textContent =', $marquee);
+        self::assertStringNotContainsString('span.innerHTML', $marquee);
+
+        $shop = self::read('assets/js/shop/shop.js');
+        self::assertStringContainsString('descEl.setAttribute("data-lang-html", "");', $shop);
+        self::assertSame(
+            1,
+            substr_count($shop, 'setAttribute("data-lang-html"'),
+            'only the product description — sanitized HTML — is marked as HTML in shop.js',
+        );
+    }
+
+    /**
+     * Every element that genuinely carries HTML — rich text (RichTextSanitizer),
+     * the hero title fragment (a hardcoded <em> around escaped text), the
+     * developer-authored cookie/checkout link sentences — marks itself with
+     * data-lang-html, or the language switch would print its markup as text.
+     */
+    public function testEveryGenuinelyHtmlBilingualElementIsMarked(): void
+    {
+        $mustMark = [
+            'partials/section-rich-text.php',
+            'partials/section-detail-section.php',
+            'partials/section-homepage-hero.php',
+            'partials/cookie-consent.php',
+            'blog-post.php',
+            'collectie.php',
+            'portfolio-detail.php',
+            'checkout.php',
+            'bestelling-status.php',
+        ];
+
+        foreach ($mustMark as $file) {
+            self::assertStringContainsString(
+                'data-lang-html',
+                self::read($file),
+                $file . ' renders real HTML through data-nl/data-en and must mark it as HTML',
+            );
+        }
+    }
+
+    /**
+     * And the opposite guard, which is the one that keeps false positives out:
+     * a template that only ever prints plain-text labels — navigation, the
+     * footer, the breadcrumb, form labels — must NOT carry the marker, so a
+     * future editor field is never quietly promoted to HTML.
+     */
+    public function testPlainTextTemplatesAreNeverMarkedAsHtml(): void
+    {
+        $mustNotMark = [
+            'partials/header.php',
+            'partials/footer.php',
+            'partials/breadcrumb.php',
+            'partials/form.php',
+            'partials/section-card-carousel.php',
+        ];
+
+        foreach ($mustNotMark as $file) {
+            self::assertStringNotContainsString(
+                'data-lang-html',
+                self::read($file),
+                $file . ' carries only plain-text labels and must not mark them as HTML',
+            );
+        }
+    }
+
+    /**
+     * The behaviour behind the source guards, proven with PHP's own DOM as the
+     * browser's: the exact value the server escapes into data-en and the
+     * browser decodes back on read is inert when written with textContent (the
+     * default) and only becomes live markup when written with innerHTML (the
+     * data-lang-html path). Malicious-looking plain text stays text; allowed
+     * sanitized rich text stays HTML.
+     */
+    public function testTextContentKeepsAPayloadInertWhileInnerHtmlKeepsRichText(): void
+    {
+        $payload = '<img src=x onerror="document.body.dataset.xss=\'1\'">';
+
+        // Server → attribute → browser dataset read is a lossless round-trip.
+        $decoded = html_entity_decode(
+            htmlspecialchars($payload, ENT_QUOTES, 'UTF-8'),
+            ENT_QUOTES,
+            'UTF-8'
+        );
+        self::assertSame($payload, $decoded, 'the attribute round-trip returns the editor value verbatim');
+
+        // applyLang()'s default: textContent. The value never becomes an element.
+        $doc = new \DOMDocument();
+        $span = $doc->appendChild($doc->createElement('span'));
+        $span->textContent = $decoded;
+        self::assertSame(0, $span->getElementsByTagName('img')->length, 'a plain-text label must stay text, never an <img>');
+        self::assertSame($payload, $span->textContent, 'and the literal payload is what a visitor sees, as text');
+
+        // applyLang()'s data-lang-html path: innerHTML keeps sanitized markup.
+        $rich = '<p>Bold <strong>text</strong> and a <a href="/x">link</a></p>';
+        $htmlDoc = new \DOMDocument();
+        libxml_use_internal_errors(true);
+        $htmlDoc->loadHTML('<?xml encoding="utf-8"?><div>' . $rich . '</div>');
+        libxml_clear_errors();
+        self::assertSame(1, $htmlDoc->getElementsByTagName('strong')->length, 'allowed rich text keeps its markup as HTML');
+        self::assertSame(1, $htmlDoc->getElementsByTagName('a')->length);
+    }
+
     /**
      * What a browser would RENDER from an admin template: the text between
      * tags, with PHP, comments and <script>/<style> masked out first.
