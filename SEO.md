@@ -245,7 +245,8 @@ testserver is.
 
 De `Organization`-node bevat alleen wat `SiteSettings` echt weet: naam, URL,
 het logo als er een is ingesteld, en `sameAs` met de social profielen die
-daadwerkelijk ingevuld zijn (`SocialProfiles`). Een install die alleen een
+zichtbaar in de footer staan (`SocialProfiles::forFooter()`), elk adres één
+keer. Een install die alleen een
 naam heeft krijgt een naam en een URL, en verder niets.
 
 De `BlogPosting`-node bevat alleen wat het bericht echt draagt: kop, URL,

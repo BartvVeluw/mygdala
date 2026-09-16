@@ -12,8 +12,8 @@ lettertypes zie `THEMING.md`; voor moduleslots `MODULES.md`.
 
 | Van Core, niet instelbaar | Van de beheerder |
 |---|---|
-| Skip-link, merkblok, plaats van de navigatie, mobiele menumechaniek, sticky gedrag, de taalwissel, moduleslots | Menu-items en headerknoppen (Header & navigatie), footerkolommen en -links (Footer), logo's (Site-instellingen), kleuren (Vormgeving) |
-| Waar de knoppen staan, hoe ze eruitzien, waar de slotregel staat, hoe een social-icoon eruitziet | Óf er knoppen zijn, hoeveel, in welke volgorde, wat erop staat, waar ze heen gaan en welke van twee stijlen; óf de slotregel er is en wat er staat; welke social profielen bestaan |
+| Skip-link, merkblok, plaats van de navigatie, mobiele menumechaniek, sticky gedrag, de taalwissel, moduleslots | Menu-items en headerknoppen (Header & navigatie); bedrijfsblok, footerkolommen en -links, social profielen, slotregel en copyright (Footer); bedrijfsgegevens en logo's (Site-instellingen); kleuren (Vormgeving) |
+| Waar de knoppen staan, hoe ze eruitzien, waar de slotregel staat, hoe een social-icoon eruitziet, welke netwerken er zijn | Óf er knoppen zijn, hoeveel, in welke volgorde, wat erop staat, waar ze heen gaan en welke van twee stijlen; welke bedrijfsgegevens de footer toont; óf de slotregel er is en wat er staat; welke social profielen er zijn, in welke volgorde, en of ze zichtbaar zijn |
 
 Er zijn geen headerregio's, geen vrije knopvormgeving, geen megamenu, geen
 widgetzones en geen derde menuniveau. Dit is een CMS, geen layoutbouwer.
@@ -23,14 +23,18 @@ widgetzones en geen derde menuniveau. Dit is een CMS, geen layoutbouwer.
 | Onderdeel | Waar |
 |---|---|
 | Opslag menu en headerknoppen | `nav_items` — één tabel, `presentation` zegt link of knop |
-| Opslag slotregel en social profielen | `site_settings` — sleutels in `App\Service\SiteSettings::DEFAULTS` |
+| Opslag footerkolommen en -links | `footer_columns`, `footer_links` |
+| Opslag social profielen | `footer_social_links` |
+| Opslag zichtbaarheid, footer-omschrijving, copyright en slotregel | `site_settings` — sleutels in `App\Service\SiteSettings::DEFAULTS` |
 | Menu en headerknoppen (lezen) | `App\Service\NavigationService::header()` |
 | Link of knop, en de knopstijlen | `App\Service\NavigationPresentation` |
-| Volgorde, opslag | `App\Repository\NavigationRepository` |
-| Slotregel | `App\Service\FooterService::slogan()` |
-| Social profielen | `App\Service\SocialProfiles` |
-| Schermen | **Header & navigatie** (`admin/navigation.php`, `admin/navigation-item.php`); **Slotregel & social media** (`admin/header-footer.php`) |
-| Opslaan | `api/admin/create-nav-item.php`, `update-nav-item.php` (regels in `_nav_item_input.php`), `move-nav-item.php`, `reorder-nav-items.php`, `toggle-nav-item.php`, `delete-nav-item.php`; `update-header-footer-settings.php` |
+| Volgorde, opslag | `App\Repository\NavigationRepository`, `FooterRepository`, `FooterSocialLinkRepository` |
+| Footerkolommen, zichtbaarheid, slotregel, copyright (lezen) | `App\Service\FooterService` |
+| Social profielen: register, adrescontrole, lezen | `App\Service\SocialProfiles` |
+| Een bestemming in woorden, en of hij bereikbaar is | `admin/_link_destination.php` (menu én footer) |
+| Schermen | **Header & navigatie** (`admin/navigation.php`, `admin/navigation-item.php`); **Footer** (`admin/footer.php`, `admin/footer-column.php`, `admin/footer-link.php`). `admin/header-footer.php` is alleen nog een doorverwijzing naar Footer |
+| Opslaan, header | `api/admin/create-nav-item.php`, `update-nav-item.php` (regels in `_nav_item_input.php`), `move-nav-item.php`, `reorder-nav-items.php`, `toggle-nav-item.php`, `delete-nav-item.php` |
+| Opslaan, footer | `update-footer-settings.php` (secties `brand` en `bottom`); de kolommen en links met `create-`, `update-`, `toggle-`, `move-`, `reorder-` en `delete-footer-column.php` en `-footer-link.php` (regels in `_footer_link_input.php`); de social profielen met `create-`, `update-`, `move-` en `delete-footer-social-link.php` (regels in `_footer_social_link_input.php`) |
 | Rendering | `partials/header.php`, `partials/footer.php` |
 | Styling | `.header-buttons` en `.social-row` in `assets/css/core.css` |
 
@@ -168,61 +172,257 @@ item met `presentation = button`:
 - een verse installatie heeft geen knop en krijgt er geen.
 
 **De oude rijen blijven staan.** Niets leest of schrijft ze nog: de header leest
-`nav_items`, en het opslaan van *Slotregel & social media* raakt ze niet meer
-aan. Ze echt verwijderen is een aparte, destructieve beslissing, net als bij
+`nav_items`, en het scherm dat ze schreef bestaat sinds Footer fase B niet
+meer. Ze echt verwijderen is een aparte, destructieve beslissing, net als bij
 `page_heroes.breadcrumb_label_*`.
 
-## De slotregel in de footer
+## De footer
+
+Sinds Footer fase B één beheergebied: het scherm **Footer**
+(`admin/footer.php`), met vier kaarten in de volgorde waarin ze in de footer
+zelf staan.
+
+| Kaart | Wat | Opslag |
+|---|---|---|
+| **Bedrijfsblok** | welke bedrijfsgegevens de footer toont, en de footer-omschrijving | `site_settings`: `footer_show_*`, `footer_description_nl/en` |
+| **Kolommen & links** | kolommen met links naast het bedrijfsblok | `footer_columns`, `footer_links` |
+| **Social media** | de iconen naar je profielen | `footer_social_links` |
+| **Slotregel & copyright** | de onderste regel | `site_settings`: `footer_copyright_template`, `footer_slogan_*` |
+
+### Wie is eigenaar van wat
+
+**Bedrijfsgegevens zijn van Site-instellingen. De footer beslist alleen of
+hij ze toont.**
+
+| Van Site-instellingen | Van Footer |
+|---|---|
+| naam van de website (`site_name`), e-mailadres (`email`), telefoonnummer (`company_phone`), KVK-nummer (`kvk_number`), adres, logo en tweede logo (`Branding`) | óf elk van die gegevens in de footer staat (`footer_show_*`), de footer-omschrijving, de kolommen en links, de social profielen, de copyright-tekst en de slotregel |
+
+Het Bedrijfsblok toont de huidige waarde naast elke schakelaar, alleen-lezen,
+met een link naar Site-instellingen voor wie `settings.manage` heeft. Er is
+geen tweede editor en geen tweede opslag: een gegeven uitzetten verandert of
+verwijdert de waarde nooit, en een gegeven dat nog niet is ingevuld staat ook
+met de schakelaar aan niet in de footer.
+
+**De footer-omschrijving heeft één plek.** Tot fase B stond hij ook op
+Site-instellingen → Algemeen. Die editor is weg, en
+`App\Service\SiteSettingsValidator::FIELDS` noemt de twee sleutels niet meer,
+zodat `update-site-settings.php` ze ook niet kan schrijven als een oud
+formulier ze nog meestuurt. Site-instellingen zegt op die plek waar hij nu
+staat. De sleutels zelf zijn niet veranderd, dus de bestaande tekst staat er
+gewoon. De installatiewizard vraagt de omschrijving nog één keer bij het
+inrichten (`SETUP.md`); dat is geen beheerscherm.
+
+### Zichtbaarheid
+
+| Instelling | Schakelt | Standaard |
+|---|---|---|
+| `footer_show_logo` | het tweede logo (valt terug op het gewone); zonder logo de naam van de website | aan |
+| `footer_show_company_name` | de naam van de website als eigen regel | uit |
+| `footer_show_email` | het e-mailadres als `mailto:`-link | aan |
+| `footer_show_phone` | het telefoonnummer als `tel:`-link | uit |
+| `footer_show_kvk` | *KVK* met het nummer | aan |
+| `footer_slogan_enabled` | de slotregel | uit |
+
+Daarnaast heeft elke kolom, link en social link een eigen zichtbaarheid. Voor
+al deze schakelaars geldt: **verbergen is niet vergeten.** Wat verborgen is
+verdwijnt alleen van de website; de tekst, het adres of de waarde blijft
+staan en komt ongewijzigd terug zodra de schakelaar weer aan gaat.
+
+De footer-omschrijving en de copyright-tekst hebben geen schakelaar: een lege
+omschrijving rendert geen alinea, en een lege copyright-tekst wordt bij het
+opslaan de standaard `© {{year}} {{site_name}}`.
+
+### Slotregel & copyright
 
 ```text
-footer_slogan_enabled  '1' / '0'
-footer_slogan_nl       de tekst
-footer_slogan_en       leeg = gelijk aan NL
+footer_copyright_template  tekst met {{year}} en {{site_name}}
+footer_slogan_enabled      '1' / '0'
+footer_slogan_nl           de tekst
+footer_slogan_en           leeg = gelijk aan NL
 ```
 
 Staat onderin naast het copyright en de juridische links. Uit of leeg betekent
 dat er geen `<span>` gerenderd wordt — geen lege regel.
 
+### Opslaan: twee formulieren, elk met eigen sleutels
+
+`api/admin/update-footer-settings.php` kent een gesloten lijst van twee
+secties: `brand` (de vijf `footer_show_*` en de omschrijving) en `bottom`
+(copyright en slotregel). Elke sectie schrijft bij elke opslag precies haar
+eigen sleutels, uitgezette schakelaars als `'0'` inbegrepen, en nooit een
+sleutel van de andere. Een onbekende sectie schrijft niets (400). Beide
+formulieren, en elke social link, vallen onder de opslagbalk.
+
+### Kolommen en links
+
+Het bestaande twee-niveaumodel: een kolom (titel per taal, volgorde,
+zichtbaar) met links. Kolom verwijderen neemt zijn links mee (`ON DELETE
+CASCADE`), en de dialoog van het CMS zegt dat eerst. Een kolom zonder
+zichtbare werkende link rendert geen kop; het scherm zegt dan *Niet op de
+website*.
+
+**Een footerlink volgt het linkcontract van Header & navigatie.** Dezelfde
+`App\Service\LinkResolver`, dezelfde bestemmingen in dezelfde woorden
+(`admin/_link_destination.php`, gedeeld met `admin/navigation.php`) en
+dezelfde invoerregels (`api/admin/_footer_link_input.php`, de footer-kopie van
+`_nav_item_input.php`):
+
+```text
+link_type   page      target_page_id   een pagina van deze website (op id)
+            route     target_route     een vast onderdeel (RouteRegistry)
+            external  external_url     https://… of een pad dat met / begint
+            action    action_key       een handeling op de pagina zelf; alleen
+                                       cookie_preferences
+```
+
+- Een interne pagina wordt op **id** opgeslagen, nooit als adres; het adres
+  komt per render uit `PageContent::publicUrl()`, dus een nieuwe slug loopt
+  vanzelf mee.
+- Alleen het veld van de gekozen soort wordt opgeslagen.
+- **Module uit:** een route of modulepagina die nu niet bestaat, rendert niets.
+  De editor houdt de opgeslagen route geselecteerd (*Een onderdeel dat nu uit
+  staat*), waarschuwt waarom de link niet op de website staat, en opslaan
+  houdt haar vast. Tot fase B selecteerde de editor stil de eerste route uit
+  de lijst, waarmee een labelcorrectie de bestemming wijzigde.
+- `PageUsage` noemt een footerlink naar een pagina vóór een adreswijziging, en
+  `PageService::references()` weigert een pagina te verwijderen zolang er een
+  footerlink naar wijst. Social links en kolommen doen daar niet aan mee: ze
+  wijzen nooit naar een pagina.
+
+**Volgorde.** ↑ en ↓ op elke kolom en elke link
+(`move-footer-column.php`, `move-footer-link.php`,
+`FooterRepository::moveColumn()`/`moveLink()`): toetsenbord, telefoon, geen
+JavaScript. Een link beweegt alleen binnen zijn eigen kolom; die komt uit de
+rij, nooit uit het verzoek. Slepen blijft voor een muis
+(`reorder-footer-columns.php`, `reorder-footer-links.php`); een kolom sleept
+samen met zijn links, en de sleepgreep is `aria-hidden`. `sort_order` op de
+server beslist.
+
 ## Social profielen
 
-Eén optionele URL per netwerk, uit een **gesloten lijst** in
-`SocialProfiles::NETWORKS`: Instagram, Facebook, Pinterest, LinkedIn, YouTube,
-TikTok, Etsy. Sleutels heten `social_<netwerk>_url`.
+Herhaalbare rijen in `footer_social_links`, sinds migratie `20260917100000`:
 
-Gesloten om dezelfde reden als `ThemeFonts` en `ModuleRegistry`: een beheerder
-kiest, niemand typt ooit een netwerknaam, een iconklasse of een stuk SVG. Het
-enige dat uit de database in de pagina terechtkomt is een `href`, en die moet
-langs `SocialProfiles::isValidProfileUrl()`:
+```text
+id          int unsigned
+network     varchar(30)    sleutel uit SocialProfiles::NETWORKS
+url         varchar(2048)  het adres, getrimd en verder zoals ingevoerd
+sort_order  int            één lijst, één volgorde
+is_visible  boolean        verborgen = niet op de website, wel bewaard
+created_at, updated_at
+```
 
-- `https://` en niets anders — dat sluit `javascript:`, `data:` en een
-  relatief pad in één regel uit;
-- een parseerbare URL met een host en zonder inloggegevens erin;
-- het **registreerbare label** van de host is de naam van het netwerk zelf.
-  Dus `www.pinterest.de`, `nl.pinterest.com` en `pinterest.nl` mogen allemaal,
-  en `facebook.evil.example` niet. Een naam matchen in plaats van een lijst
-  domeinen is wat dit weghoudt van broze aannames over landdomeinen.
+Taalneutraal: een netwerk en een adres hebben geen vertaling. Geen unieke
+index op `network`: **twee accounts op hetzelfde netwerk mogen**. De footer
+geeft ze dan een volgnummer in hun toegankelijke naam (*Mygdala op Instagram
+(1)*, *(2)*), zodat een schermlezer de twee links uit elkaar houdt. Het icoon
+blijft hetzelfde.
 
-**Geen aparte aan/uit-vlag.** Ingevuld en geldig = zichtbaar, leeg = weg —
-dezelfde regel als een logo of een og:image. Zonder profielen rendert de
-footer géén rij en géén kop.
+Het netwerk komt uit een **gesloten lijst** in `SocialProfiles::NETWORKS`:
+Instagram, Facebook, Pinterest, LinkedIn, YouTube, TikTok, Etsy. Gesloten om
+dezelfde reden als `ThemeFonts` en `ModuleRegistry`: een beheerder kiest,
+niemand typt ooit een netwerknaam, een iconklasse of een stuk SVG. Het label,
+het icoon en de domeincontrole komen alle drie uit dat register.
+
+### Het adres
+
+Eén methode, `SocialProfiles::isValidProfileUrl()`, voor het scherm én de
+site: `api/admin/_footer_social_link_input.php` weigert er een adres mee, en
+`SocialProfiles::forFooter()` slaat een opgeslagen rij die niet slaagt over.
+Er is geen tweede regel die kan afwijken.
+
+- het netwerk is een sleutel uit het register;
+- `https://` en niets anders — dat sluit `javascript:`, `data:`, `http:` en
+  een relatief pad in één regel uit;
+- een parseerbare URL met een host, zonder inloggegevens erin, hoogstens 2048
+  tekens; letters als é of ü in het pad mogen;
+- de host hoort bij het netwerk: de **merknaam** op `.com`, op een
+  tweeletterig landdomein of op de `co.`/`com.`-vorm daarvan, of een van de
+  **eigen korte domeinen**, telkens met elk subdomein.
+
+```text
+instagram  instagram.*   instagr.am
+facebook   facebook.*    fb.com, fb.me
+pinterest  pinterest.*   pin.it
+linkedin   linkedin.*    lnkd.in
+youtube    youtube.*     youtu.be
+tiktok     tiktok.*
+etsy       etsy.*
+```
+
+Dus `www.pinterest.de`, `nl.pinterest.com`, `pinterest.co.uk` en
+`pinterest.com.au` mogen, en `facebook.evil.example`, `instagram.com.evil.com`,
+`facebook.xyz` en `pin.nl` niet.
+
+**Wat er tot fase B mis was.** De oude controle vergeleek alleen het label
+vóór de laatste punt, met een paar korte namen erbij. Dat weigerde elk
+landdomein met twee delen (bij `pinterest.co.uk` is dat label `co`) en
+accepteerde elk domein waarvan dat label toevallig een korte naam was:
+`pin.nl` als Pinterest, `linked.com` als LinkedIn, `fb.org` als Facebook, en
+de merknaam op elk willekeurig topleveldomein. Ook een pad met een é werd
+geweigerd. `HeaderFooterSettingsTest` houdt beide kanten vast.
+
+### Beheer
+
+Op de kaart *Social media* is elke rij een klein eigen formulier: netwerk
+(`.admin-select`), adres, *Tonen op de website* (switch) en *Opslaan*, met ↑/↓
+(`move-footer-social-link.php`) en *Verwijderen* in de dialoog van het CMS
+ernaast. Een geweigerd adres komt terug in dezelfde rij, met de melding, het
+ingevoerde adres en `aria-invalid`; de rij begint dan als niet opgeslagen. Een
+nieuw profiel voeg je onderaan toe; het is meteen zichtbaar en sluit achteraan
+aan. Een opgeslagen rij waarvan het adres niet (meer) door de controle komt,
+zegt *Niet op de website*.
+
+### In de footer
+
+Alleen zichtbare rijen die door de controle komen, in `sort_order`. Zonder
+zulke rijen rendert de footer géén rij en géén kop. Elke link opent in een
+nieuw tabblad met `rel="noopener noreferrer me"`, draagt een eigen
+`aria-label` (tweetalig, via `data-nl-aria`/`data-en-aria`), en de `<svg>`
+staat op `aria-hidden`. `PageSeo` claimt dezelfde profielen als `sameAs`, elk
+adres één keer.
 
 De iconen zijn van dit project: 24x24 stroke-glyphs in dezelfde stijl als de
 adminzijbalk, in `SocialProfiles::NETWORKS`. Geen iconfont, geen stylesheet van
 derden, geen buildstap, geen runtime-download — de footer moet het doen op
-gedeelde hosting met alleen PHP. Elke link draagt zijn eigen `aria-label`
-(tweetalig, via `data-nl-aria`/`data-en-aria`) en de `<svg>` staat op
-`aria-hidden`, dus het glyph hoeft de betekenis niet alleen te dragen.
+gedeelde hosting met alleen PHP.
 
 ### Een netwerk toevoegen
 
-1. Eén regel in `SocialProfiles::NETWORKS`: sleutel, label, settings-sleutel,
-   de domeinlabels die de host mag hebben, en het icoon.
-2. Diezelfde settings-sleutel met `''` in `SiteSettings::DEFAULTS`.
-3. Klaar — het adminscherm en de footer lezen allebei het register. Houd de
-   lijst klein.
+1. Eén regel in `SocialProfiles::NETWORKS`: sleutel, label, de merknamen en
+   eigen korte domeinen die de host mag hebben, en het icoon.
+2. Klaar — het scherm, de controle en de footer lezen allemaal het register.
+   Een migratie is niet nodig, en er komt geen `social_*_url`-instelling bij.
+   Houd de lijst klein.
 
-Een migratie is niet nodig: `site_settings` is key/value en een ontbrekende
-rij betekent de standaard.
+### De migratie van de oude instellingen
+
+Tot fase B was er één optionele URL per netwerk, als zeven instellingen
+`social_<netwerk>_url` in `site_settings`. Migratie `20260917100000`:
+
+- maakt `footer_social_links` aan als hij nog niet bestaat (schema eerst en
+  altijd);
+- zet elke ingevulde instelling om in **één zichtbare rij**: hetzelfde
+  netwerk, het adres getrimd (wat het oude endpoint opsloeg en de footer
+  toonde), in de volgorde van het register, want dat was de enige volgorde
+  die een site had;
+- slaat een lege waarde of alleen spaties over, en een waarde langer dan de
+  kolom (geen echt profieladres) — die instelling blijft gewoon staan;
+- neemt een adres dat de strengere controle nu weigert tóch over, zodat het
+  op het scherm als *Niet op de website* verschijnt in plaats van stil te
+  verdwijnen;
+- kopieert niets zodra de tabel al een rij heeft, dus een tweede run voegt
+  niets toe; alles in één INSERT, dus een kopie is heel of afwezig;
+- schrijft de zeven sleutels uit in plaats van het register te lezen, zodat
+  een later toegevoegd netwerk nooit verandert wat de migratie deed;
+- laat de oude instellingen staan.
+
+Een verse installatie heeft geen social-instellingen en krijgt dus geen rij.
+
+**Legacy.** De zeven `social_*_url`-rijen blijven fysiek in `site_settings` en
+staan nog in `SiteSettings::DEFAULTS`, net als `header_cta_*`. Niets leest of
+schrijft ze: de footer en `PageSeo` lezen `footer_social_links`, het scherm
+schrijft daar ook. Ze echt verwijderen is een aparte, destructieve beslissing.
 
 ## Standaarden: bestaande site versus verse installatie
 
@@ -232,48 +432,49 @@ generiek** en een **migratie heeft de huidige waarden vastgezet**.
 ```text
 code    geen headerknoppen (een verse installatie krijgt er geen)
         slotregel uit, leeg
-        alle social-URL's leeg
+        geen social profielen (footer_social_links leeg)
 
 rij     migratie 20260909220000 schreef "Vraag offerte aan" /
         "Request a quote" naar de Contact-pagina, en de slotregel,
         als echte rijen — INSERT IGNORE, dus een bestaande rij
         wint altijd; migratie 20260916230000 zette die knop over
-        naar nav_items
+        naar nav_items; migratie 20260917100000 zette ingevulde
+        social-URL's over naar footer_social_links
 ```
 
-Voor social profielen is niets gemigreerd: deze site had er geen, en er
-worden er geen verzonnen.
+Social profielen worden nooit verzonnen: een verse installatie heeft er geen en
+krijgt er geen, en een bestaande site houdt precies de profielen die hij had.
 
 Let op één eigenaardigheid van `SiteSettings::all()`: een opgeslagen **lege**
 waarde valt terug op de standaard. Dat werkt alleen omdat elke standaard hier
 leeg of `'0'` is. Geef een nieuwe sleutel in deze familie dus nooit een
 niet-lege codestandaard, anders kan een beheerder hem niet leegmaken.
 
-## Footer fase B (nog niet gebouwd)
+## Footer fase B
 
-Na fase A staat de footer nog verspreid over drie schermen: *Footer*
-(kolommen, links, het bedrijfsblok en de copyrighttekst), *Slotregel & social
-media* (de rest van het vroegere *Header & footer*) en *Site-instellingen*
-(logo's, en de footer-omschrijving, die daar én op *Footer* te bewerken is).
-Fase B maakt er één beheergebied van:
+Tot fase B stond de footer verspreid over drie schermen: *Footer* (kolommen,
+links, het bedrijfsblok en de copyrighttekst), *Slotregel & social media* en
+*Site-instellingen* (de footer-omschrijving, die daar én op *Footer* te
+bewerken was). Social profielen waren zeven vaste instellingen zonder eigen
+volgorde of zichtbaarheid, en kolommen en links waren alleen met een muis te
+ordenen. Wat fase B veranderde:
 
-1. **Eén scherm Footer** met kaarten voor kolommen en links, het bedrijfsblok,
-   de slotregel en de social profielen. `admin/header-footer.php` wordt een
-   doorverwijzing; de footer-omschrijving krijgt één plek.
-2. **Social profielen als herhaalbare items** in een eigen tabel, bijvoorbeeld
-   `footer_social_links` (`network`, `url`, `sort_order`, `is_visible`).
-   `network` blijft een sleutel uit de gesloten lijst `SocialProfiles::NETWORKS`,
-   dus iconen en domeincontrole blijven van Core; wat erbij komt is een
-   volgorde en verbergen.
-3. **Migratie** zet elke ingevulde `social_<netwerk>_url` om in één rij, in de
-   volgorde van het register, en laat de instellingen staan. Zelfde aanpak als
-   `20260916230000`: idempotent, geen verwijderingen, een verse installatie
-   krijgt niets.
-4. **Twee keer hetzelfde netwerk** (twee Instagram-accounts) is dan mogelijk;
-   `isValidProfileUrl()` blijft per rij gelden, en het toegankelijke label
-   noemt het netwerk.
+- **Eén scherm Footer**, met de kaarten hierboven. De zijbalk heeft één
+  footer-item; `admin/header-footer.php` verwijst met een 302 door naar
+  `admin/footer.php#footer-bottom`, en `update-header-footer-settings.php`
+  bestaat niet meer.
+- **De footer-omschrijving op één plek**, zonder schemawijziging.
+- **Social profielen als rijen** in `footer_social_links`, met migratie van de
+  oude instellingen en een gerepareerde adrescontrole.
+- **↑/↓** voor kolommen, links en social profielen; de CMS-dialoog in plaats
+  van `confirm()`; switches, `.admin-select` en de opslagbalk op alle drie de
+  schermen.
+- **Footerlinks houden een route van een uitgeschakelde module vast**, net als
+  menu-items.
 
-Tot dan leest `SocialProfiles::forFooter()` de zeven vaste sleutels.
+Bewust niet gedaan: een nieuw taalmodel (de `*_nl`/`*_en`-velden blijven zoals
+ze zijn, en de nieuwe tabel is taalneutraal), extra netwerken, een footer-
+vormgeving en het verwijderen van de legacy-instellingen.
 
 ## Het kruimelpad
 
@@ -411,18 +612,30 @@ schrijft.
 
 `fast` bevat `NavigationServiceTest` (menu, knoppen en de actieve link, zonder
 database), `NavigationPresentationTest` (de twee gesloten lijsten en wat een
-knop niet mag), `HeaderFooterSettingsTest` (slotregel en social profielen,
-zonder database) en `HeaderFooterContractTest` (geen sitespecifieke tekst of
-bestemming meer in de gedeelde schil, en de knoppen uit de navigatie). `cms`
-voegt toe:
+knop niet mag), `HeaderFooterSettingsTest` (slotregel, het register van
+netwerken, de adrescontrole met de regressies van fase B, en wat
+`SocialProfiles::forFooter()` van rijen maakt, zonder database) en
+`HeaderFooterContractTest` (geen sitespecifieke tekst of bestemming in de
+gedeelde schil, de knoppen uit de navigatie, het oude scherm alleen nog een
+doorverwijzing, en niets dat de oude social-instellingen leest of schrijft).
+`cms` voegt toe:
 
 - `NavigationRepositoryTest` — opslaan, de volgorde per groep, ↑ en ↓;
 - `NavigationAdminHttpTest` — het scherm en zijn endpoints over echt HTTP, en
   wat de publieke header daarvan maakt, ook met de Shop uit;
+- `FooterRepositoryTest` — kolommen en links, ↑ en ↓ binnen de eigen kolom;
+- `FooterSocialLinkRepositoryTest` — social rijen: opslaan, één volgorde, ↑ en
+  ↓, en wat de footer van echte rijen maakt;
+- `FooterAdminHttpTest` — het Footer-scherm en zijn endpoints over echt HTTP:
+  de vier kaarten, de omschrijving op één plek, social toevoegen, bewerken,
+  verbergen, ordenen, verwijderen en weigeren, twee keer hetzelfde netwerk,
+  interne en externe links, een link van een uitgeschakelde module, de
+  slotregel en schakelaars die niets kwijtraken, en de doorverwijzing;
 - `HeaderFooterRenderingTest` — een knop naar een CMS-pagina tegen echte rijen,
   en wat een pagina echt rendert, ook op de CMS-only deployment;
-- `HeaderButtonMigrationTest` (ook in `migration`) — de overzetting van de
-  oude knop op wegwerpdatabases.
+- `HeaderButtonMigrationTest` en `FooterSocialLinkMigrationTest` (ook in
+  `migration`) — de overzetting van de oude knop en van de oude
+  social-instellingen op wegwerpdatabases.
 
 `LegacyUpgradeTest` (suite `migration`) laat zien dat een bestaande site na
 alle migraties precies één zichtbare knop naar de Contact-pagina heeft. Zie

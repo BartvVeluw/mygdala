@@ -11,7 +11,7 @@ samen met `PROJECT-MAP.md` (waar iets staat). Voor het modulesysteem zie
 | Klasse | `App\Service\SiteSettings` | `App\Service\Theme\ThemeSettings` |
 | Tabel | `site_settings` | `theme_settings` |
 | Scherm | Instellingen → Site-instellingen | Instellingen → Vormgeving |
-| Inhoud | naam, logo, tweede logo, favicon, deel-afbeelding, adres, KVK, e-mail-, factuurteksten, de footer-slotregel, social profielen (de headerknoppen staan als navigatie-items in `nav_items`) | vijf kleuren, lettertypecombinatie, knopvorm |
+| Inhoud | naam, logo, tweede logo, favicon, deel-afbeelding, adres, KVK, e-mail-, factuurteksten, de footer-slotregel (de headerknoppen staan als navigatie-items in `nav_items`, de social profielen in `footer_social_links`) | vijf kleuren, lettertypecombinatie, knopvorm |
 | Terugzetten | nooit automatisch | één knop, en die raakt de linkerkolom niet aan |
 
 Twee tabellen en niet één met een prefix, precies omdat "standaardvormgeving

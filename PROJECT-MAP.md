@@ -109,7 +109,7 @@ welke Core, staat in `MODULES.md`; dat document gaat over de grenzen zelf.
 | **Paginabouwer (redacteurs-UX)** | Hoe een redacteur een blok kiest, wat het CMS over een blok vertelt, of er nog iets openstaat, en hoe een lang bewerkscherm bevaarbaar blijft | `BlockDefinition::description()/category()/icon()/preview()/sampleContent()`, `BlockCategories`, `BlockPreview`, `BlockSamples`, `admin/_block_picker.php`, `admin/_block_library.php`, `admin/block-preview.php`, `admin/_block_visual.php`, `admin/_save_bar.php`, `admin/_admin_tabs.php`, `admin/_admin_collapse.php`, `admin/content-blocks.php` — zie `PAGE-EDITOR.md` |
 | **Admin-UI-bouwstenen** | Uitleg bij velden, de help-knop in de schil, de infobalk, en zoekveld, select, checkbox, switch, bestandskiezer en knoppen in de CMS-stijl | `admin/_admin_ui.php`, `admin/assets/admin-ui.js`, sectie *ADMIN UI PRIMITIVES* in `admin/assets/admin.css` — zie `ADMIN-UI.md` |
 | **Auth/rechten** | Adminlogin, sessie, permissies, CSRF | `AdminAuth`, `AdminPermissions`, `AdminUserService`, `Csrf`, `admin/login.php`, `admin/users.php` |
-| **Instellingen/navigatie** | Site-instellingen, menu, footer, de headerknoppen, de slotregel, social profielen, linkresolutie | `SiteSettings`, `NavigationService`, `NavigationPresentation`, `FooterService`, `SocialProfiles`, `LinkResolver`, `RouteRegistry`, `admin/settings.php`, `admin/navigation.php`, `admin/footer.php`, `admin/header-footer.php` |
+| **Instellingen/navigatie** | Site-instellingen, menu, footer, de headerknoppen, de slotregel, social profielen, linkresolutie | `SiteSettings`, `NavigationService`, `NavigationPresentation`, `FooterService`, `FooterRepository`, `FooterSocialLinkRepository`, `SocialProfiles`, `LinkResolver`, `RouteRegistry`, `admin/settings.php`, `admin/navigation.php`, `admin/footer.php` (één scherm voor de hele footer; `admin/header-footer.php` verwijst ernaar door) |
 | **Meertaligheid** | De drie onafhankelijke taalstaten — CMS-taal, bewerktaal, bezoekerstaal — de terugvalregel, de taalvelden in elke editor en automatisch vertalen | `Service\Language\*`, `Service\Translation\*`, `admin/_language_fields.php`, `admin/_header.php`, `admin/account.php` — zie `MULTILINGUAL.md` |
 | **Vormgeving/branding** | Kleuren, lettertypecombinatie, knopvorm; logo, tweede logo, favicon, deel-afbeelding | `Service\Theme\*`, `Branding`, `partials/head-branding.php`, `admin/theme.php` |
 | **Dashboard-thema** | Hoe het adminpaneel er voor de redactie uitziet: vier gesloten skins over één stylesheet en één set schermen | `Service\AdminTheme`, `AdminSettingRepository`, `admin/assets/admin.css`, de kaart *Dashboard uiterlijk* op `admin/settings.php` |
@@ -245,7 +245,7 @@ Bekend, ingepland, **niet** in deze stap op te lossen:
 | Wat een verse installatie aanmaakt, en wat een bestaande behoudt | `INSTALL-BOOTSTRAP.md` |
 | Een nieuwe site beginnen (een clone met eigen `.env`, database, uploads en poorten), of een kopie zonder site-inhoud | `SETUP.md` |
 | De installatiewizard, de basis-URL, of modules vanuit het CMS aan kunnen | `SETUP.md` |
-| Header-knop, footer-slotregel, social profielen | `HEADER-FOOTER.md` |
+| Headerknoppen, het Footer-scherm, footer-slotregel, social profielen | `HEADER-FOOTER.md` |
 | Titels, meta description, canonical, sitemap, robots | `SEO.md` |
 | Een oude URL die moet blijven werken, een pagina hernoemen | `REDIRECTS.md` |
 | Tests draaien of toevoegen | `TESTING.md` |

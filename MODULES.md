@@ -158,9 +158,9 @@ begint. Portfolio-items (10) staan vóór een collectie van de Shop (20).
 **Een module bezit een header-slot, niet de header.** `headerPartials()` voegt
 iets toe aan de actiezone rechts — vandaag alleen de mini-winkelwagen. De
 schil eromheen blijft van Core, en dat geldt ook voor wat daar instelbaar is:
-de knop in de header, de slotregel in de footer en de social profielen zijn
-Core-instellingen in `site_settings` (`HEADER-FOOTER.md`), geen bijdrage van
-een module. Een CMS-only deployment krijgt dus dezelfde knop en dezelfde
+de knoppen in de header, de slotregel in de footer en de social profielen zijn
+van Core (`nav_items`, `site_settings`, `footer_social_links`;
+`HEADER-FOOTER.md`), geen bijdrage van een module. Een CMS-only deployment krijgt dus dezelfde knop en dezelfde
 slotregel, alleen zonder mini-winkelwagen.
 
 Andersom mag die knop wél naar een module wíjzen, en dat gaat via de gewone
