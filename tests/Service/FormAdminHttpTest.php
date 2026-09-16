@@ -551,6 +551,151 @@ final class FormAdminHttpTest extends TestCase
     }
 
     /* ------------------------------------------------------------------ */
+    /* The save bar                                                        */
+    /* ------------------------------------------------------------------ */
+
+    /**
+     * The form editor carries the CMS's save bar, which watches every POST
+     * form inside <main> that has a submit button and something to edit,
+     * minus the one-button forms and those that opt out (admin/_save_bar.php,
+     * admin/assets/save-bar.js). Only an input or change event inside such a
+     * form makes the screen unsaved.
+     *
+     * So: every setting is an editable control of the settings form, the ones
+     * under Geavanceerd included, and that form is the only one watched.
+     * Opening Geavanceerd or a help mark touches no control: the summary holds
+     * none, and every help button is a plain button outside any label, so it
+     * cannot tick a switch either. The "Veld toevoegen" dialog opts out, the
+     * field list's buttons are one-button forms, and "Formulier verwijderen"
+     * has only hidden fields and keeps its question in the CMS dialog.
+     */
+    public function testTheSaveBarWatchesTheSettingsFormAndEverySettingInIt(): void
+    {
+        [$session] = $this->accounts->signIn([AdminPermissions::FORMS_MANAGE]);
+        $formId = $this->createForm();
+
+        $xpath = $this->editorXpath($session, $formId);
+        $settings = '//form[@action="' . self::UPDATE_ENDPOINT . '"]';
+
+        $this->assertSame(1, $xpath->query('//*[@data-save-bar]')->length, 'one save bar');
+        $this->assertSame(1, $xpath->query('//script[contains(@src, "/admin/assets/save-bar.js")]')->length, 'and its script');
+
+        $editable = '(self::input and not(@type="hidden") and not(@type="submit") and not(@type="button")) or self::select or self::textarea';
+        $watched = [];
+
+        foreach ($xpath->query('//main[contains(@class, "admin-main")]//form[@method="post"]') as $form) {
+            $isWatched = !str_contains(' ' . $form->getAttribute('class') . ' ', ' admin-inline-form ')
+                && !$form->hasAttribute('data-no-dirty-track')
+                && $xpath->query('.//*[@type="submit" or (self::button and not(@type))]', $form)->length > 0
+                && $xpath->query('.//*[' . $editable . ']', $form)->length > 0;
+
+            if ($isWatched) {
+                $watched[] = $form->getAttribute('action');
+            }
+        }
+
+        $this->assertSame([self::UPDATE_ENDPOINT], $watched, 'only the settings form can make the screen unsaved');
+
+        $settingNames = [];
+        foreach ($xpath->query($settings . '//*[' . $editable . '][@name]') as $control) {
+            $settingNames[] = $control->getAttribute('name');
+        }
+        sort($settingNames);
+        $this->assertSame([
+            'is_active', 'name', 'notification_email', 'reply_to_field_key', 'store_submissions',
+            'submit_label_en', 'submit_label_nl', 'success_message_en', 'success_message_nl',
+        ], $settingNames, 'every setting is a control of the watched form');
+
+        $advanced = $settings . '//details[@data-form-advanced]';
+        $this->assertSame(1, $xpath->query($advanced)->length, 'Geavanceerd sits inside the watched form');
+        $this->assertFalse($xpath->query($advanced)->item(0)->hasAttribute('open'), 'and starts closed');
+        $this->assertSame(2, $xpath->query($advanced . '//*[@name="store_submissions" or @name="reply_to_field_key"]')->length, 'storing and the reply address are inside it');
+        $this->assertSame(0, $xpath->query($advanced . '/ancestor-or-self::*[@disabled] | ' . $advanced . '//fieldset[@disabled]')->length, 'nothing disables what a closed card sends');
+        $this->assertSame(0, $xpath->query($advanced . '/summary//*[' . $editable . ' or self::button]')->length, 'opening or closing it is no edit');
+
+        $helpButtons = $xpath->query($settings . '//*[@data-admin-help-trigger or @data-admin-help-close]');
+        $this->assertGreaterThan(0, $helpButtons->length, 'the settings have help marks');
+        foreach ($helpButtons as $button) {
+            $this->assertSame('button', $button->getAttribute('type'), 'a help mark neither submits nor counts as an edit');
+        }
+        $this->assertSame(0, $xpath->query($settings . '//label//*[@data-admin-help-trigger]')->length, 'no help mark sits inside a label, where a click would tick its switch');
+        $this->assertSame(1, $xpath->query($settings . '//*[@type="submit" or (self::button and not(@type))]')->length, 'the form has its own Opslaan and nothing else that sends');
+
+        $add = $xpath->query('//form[@action="/api/admin/create-form-field.php"]');
+        $this->assertSame(1, $add->length);
+        $this->assertTrue($add->item(0)->hasAttribute('data-no-dirty-track'), 'choosing a new field is no edit to save later');
+
+        foreach (['/api/admin/move-form-field.php', '/api/admin/delete-form-field.php'] as $action) {
+            foreach ($xpath->query('//form[@action="' . $action . '"]') as $form) {
+                $this->assertStringContainsString('admin-inline-form', $form->getAttribute('class'), $action . ' is a one-button form');
+            }
+        }
+
+        $delete = $this->deleteForm($xpath, '/api/admin/delete-form.php', 'id', $formId, 'form editor');
+        $this->assertSame(0, $xpath->query('.//*[' . $editable . ']', $delete)->length, 'deleting the form holds nothing to edit');
+        $this->assertSame(0, $xpath->query('ancestor::form', $delete)->length, 'and sits outside the settings form');
+        $this->assertTrue($delete->hasAttribute('data-admin-confirm'), 'and still asks in the CMS dialog');
+
+        $this->assertFalse($xpath->query($settings)->item(0)->hasAttribute('data-save-bar-unsaved'), 'a fresh screen starts saved');
+        $this->assertSame(0, $xpath->query('//*[@data-save-bar-discard]')->length, 'nothing on this screen throws input away on purpose');
+    }
+
+    /**
+     * A save, of an everyday setting or of one under Geavanceerd, lands on the
+     * success marker the bar reads as saved, with one "Opgeslagen" and the
+     * screen saved. A refused save comes back without that marker and with
+     * what was sent still on screen, so the form starts out unsaved; the next
+     * plain visit shows the stored form again, saved.
+     */
+    public function testASaveLandsSavedAndARefusedSaveStartsOutUnsaved(): void
+    {
+        [$session] = $this->accounts->signIn([AdminPermissions::FORMS_MANAGE]);
+        $formId = $this->createForm();
+        $settings = '//form[@action="' . self::UPDATE_ENDPOINT . '"]';
+
+        $changes = [
+            'the name' => ['name' => 'Offerte aanvragen'],
+            'a setting under Geavanceerd' => ['reply_to_field_key' => '', 'store_submissions' => null],
+        ];
+
+        foreach ($changes as $what => $change) {
+            $editor = $this->editorSubmission($session, $formId);
+            foreach ($change as $name => $value) {
+                if ($value === null) {
+                    unset($editor[$name]);
+                } else {
+                    $editor[$name] = $value;
+                }
+            }
+
+            $response = self::$server->request('POST', self::UPDATE_ENDPOINT, $session, $editor);
+            $this->assertSame('/admin/form.php?id=' . $formId . '&saved=1', $response['location'], $what . ': the PRG redirect');
+            $this->assertMatchesRegularExpression('/[?&](saved|updated|created)=1(&|$)/', $response['location'], $what . ': the success marker the save bar reads');
+
+            $xpath = $this->xpath(self::$server->request('GET', $response['location'], $session)['body']);
+            $this->assertFalse($xpath->query($settings)->item(0)->hasAttribute('data-save-bar-unsaved'), $what . ': saved is saved');
+            $this->assertSame(1, $xpath->query('//*[contains(@class, "admin-alert--success")]')->length, $what . ': one "Opgeslagen"');
+            $this->assertSame(0, $xpath->query('//*[contains(@class, "admin-alert--error")]')->length, $what . ': and no error');
+        }
+
+        $stored = $this->forms->find($formId);
+        $this->assertSame('Offerte aanvragen', $stored['name']);
+        $this->assertSame('', (string) ($stored['reply_to_field_key'] ?? ''));
+        $this->assertSame(0, (int) $stored['store_submissions']);
+
+        $editor = $this->editorSubmission($session, $formId);
+        $editor['notification_email'] = 'geen adres';
+        $response = self::$server->request('POST', self::UPDATE_ENDPOINT, $session, $editor);
+        $this->assertSame('/admin/form.php?id=' . $formId, $response['location'], 'refused, without the marker');
+
+        $xpath = $this->editorXpath($session, $formId);
+        $this->assertTrue($xpath->query($settings)->item(0)->hasAttribute('data-save-bar-unsaved'), 'what came back unwritten is unsaved');
+        $this->assertSame('geen adres', $xpath->query($settings . '//input[@name="notification_email"]')->item(0)->getAttribute('value'), 'and is still on screen');
+
+        $this->assertFalse($this->editorXpath($session, $formId)->query($settings)->item(0)->hasAttribute('data-save-bar-unsaved'), 'the next visit shows the stored form, saved');
+    }
+
+    /* ------------------------------------------------------------------ */
     /* Helpers                                                             */
     /* ------------------------------------------------------------------ */
 

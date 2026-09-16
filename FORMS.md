@@ -530,6 +530,23 @@ verliezen: dan kan staan wat er moet veranderen. Ingeklapt of open, hij
 verstuurt dezelfde velden, en `api/admin/update-form.php` leest ze zoals
 altijd.
 
+De editor heeft de opslagbalk, net als de veldeditor (zie "Niet-opgeslagen
+wijzigingen" hieronder). Die bewaakt alleen het formulier met de
+instellingen; opslaan blijft dat ene formulier naar `update-form.php`.
+
+| Handeling | Opslagbalk |
+|---|---|
+| *Actief*, de naam, de tekst op de verstuurknop, het bedankbericht, het e-mailadres voor de melding, *Inzendingen bewaren*, het antwoordadres | niet-opgeslagen (`input` of `change`), ook als *Geavanceerd* daarna weer dichtgaat |
+| *Geavanceerd* of een `?` open- of dichtklappen | niets: geen formulierveld |
+| *Veld toevoegen* | niets: die dialoog heeft `data-no-dirty-track`, zoals de blokkenkiezer, dus *Opslaan* in de balk maakt nooit een veld aan |
+| Een veld verplaatsen of verwijderen, *Formulier verwijderen* | niets: formulieren met één knop of alleen verborgen velden. Verwijderen vraagt zoals altijd in de dialoog van het CMS |
+| Opslaan, met de balk of met de eigen knop | schoon na `?saved=1`; een geweigerde opslag komt terug met `data-save-bar-unsaved` |
+
+Is er iets niet opgeslagen, dan waarschuwt de browser bij elke handeling die
+de pagina verlaat, ook bij een veld toevoegen, verplaatsen of verwijderen.
+`data-save-bar-discard` is hier niet nodig: niets op dit scherm gooit invoer
+met opzet weg.
+
 Onder de kaarten staan de velden, met per veld het label, de naam van het
 type en bij een keuzeveld het aantal opties. De technische naam van een veld
 staat daar niet (zie "De interne naam" hieronder).
@@ -866,6 +883,9 @@ nieuw type wordt daar meegenomen zonder dat je die test aanpast.
 `FormAdminHttpTest` (suite `cms`) start zijn eigen webserver en controleert
 "Actief en uit" van begin tot eind: het endpoint, de pagina met beide
 formulierblokken, en de schakelaar in de formuliereditor met zijn guards.
+Hij controleert ook welk formulier de opslagbalk op de formuliereditor
+bewaakt (elke instelling, ook onder Geavanceerd, en verder niets), en wanneer
+dat scherm als niet-opgeslagen begint.
 Hij bewijst ook "Eerst vragen": elke verwijdering vraagt in de dialoog van het
 CMS en noemt wat weggaat, een bevestigd verzoek verwijdert precies dat ene
 veld, formulier of die ene inzending, en zonder login, permissie, POST of

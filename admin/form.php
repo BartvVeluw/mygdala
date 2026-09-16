@@ -7,6 +7,7 @@ require_once __DIR__ . '/_translate.php';
 
 require_once __DIR__ . '/_language_fields.php';
 require_once __DIR__ . '/_form_fields.php';
+require_once __DIR__ . '/_save_bar.php';
 
 use App\Repository\FormRepository;
 use App\Repository\FormSubmissionRepository;
@@ -51,6 +52,18 @@ use App\Service\Forms\FormUsage;
  * already open, so without JavaScript the link simply shows it in the page;
  * admin/assets/forms-admin.js opens it as a modal instead. A refused add
  * comes back the same way, with what was chosen and typed still in it.
+ *
+ * UNSAVED CHANGES are the save bar's (admin/_save_bar.php), as on the field
+ * editor: it watches the settings form, and every setting above is a control
+ * in that one form, the ones folded under Geavanceerd included. Opening or
+ * closing that card, or a help mark, changes no control, so it is no edit.
+ * A refused save comes back with what was sent and not written, so the form
+ * then starts out unsaved (`data-save-bar-unsaved`). The field list's
+ * move and delete buttons are one-button forms the bar skips, and
+ * "Formulier verwijderen" carries only hidden fields. The "Veld toevoegen"
+ * dialog opts out (`data-no-dirty-track`), as the block picker does: choosing
+ * a type and a label is not an edit to save later, and the bar's Opslaan must
+ * never create a field.
  *
  * DELETING ASKS FIRST, in the CMS's own dialog (admin_confirm_dialog(),
  * ADMIN-UI.md): a field from the list and the form itself each name what
@@ -179,7 +192,7 @@ $advancedOpen = $errors !== [] || $losesSubmissions;
     </div>
   <?php endif; ?>
 
-  <form method="post" action="/api/admin/update-form.php" class="admin-product-form">
+  <form method="post" action="/api/admin/update-form.php" class="admin-product-form"<?= is_array($old) ? ' data-save-bar-unsaved' : '' ?>>
     <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
     <input type="hidden" name="id" value="<?= $id ?>">
 
@@ -385,7 +398,7 @@ $advancedOpen = $errors !== [] || $losesSubmissions;
            until the form is sent, and Annuleren is a link back to this
            screen that the script turns into "close". */ ?>
   <dialog class="admin-field-picker" id="form-field-add" aria-labelledby="form-field-add-title" data-form-field-add<?= $addOpen ? ' open' : '' ?>>
-    <form method="post" action="/api/admin/create-form-field.php" class="admin-field-picker__panel">
+    <form method="post" action="/api/admin/create-form-field.php" class="admin-field-picker__panel" data-no-dirty-track>
       <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
       <input type="hidden" name="form_id" value="<?= $id ?>">
 
@@ -442,8 +455,10 @@ $advancedOpen = $errors !== [] || $losesSubmissions;
     <?php endif; ?>
   </section>
 </main>
+<?php save_bar(); ?>
 <?= admin_confirm_dialog() ?>
 <?php admin_lang_script(); ?>
 <script src="<?= \App\Service\AssetVersion::url('/admin/assets/forms-admin.js') ?>" defer></script>
+<?php save_bar_script(); ?>
 </body>
 </html>

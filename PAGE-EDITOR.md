@@ -23,7 +23,7 @@ document, dan heeft de code gelijk.
 | Schematische tekening en pictogram | `admin/_block_visual.php`, CSS in `admin/assets/admin.css` (`.admin-block-visual`, `.admin-bp--*`) |
 | Bibliotheek | `admin/content-blocks.php` (menu-item `content_blocks` in `App\Service\AdminNavigation`), `admin/_block_library.php`, `admin/assets/block-library.js`, CSS `.admin-catalogue-*` en `.admin-block-preview*` |
 | Voorbeeld van één blok | `admin/block-preview.php`, `assets/css/block-preview.css`, `assets/js/block-preview.js`, `assets/images/block-preview/sample.svg` |
-| Opslagbalk | `admin/_save_bar.php`, `admin/assets/save-bar.js`, aangeroepen door `admin/page.php`, elke blok-editor, `admin/settings.php`, `admin/shop-settings.php` en de veldeditor van Formulieren (`admin/form-field.php`) |
+| Opslagbalk | `admin/_save_bar.php`, `admin/assets/save-bar.js`, aangeroepen door `admin/page.php`, elke blok-editor, `admin/settings.php`, `admin/shop-settings.php` en de formulier- en veldeditor van Formulieren (`admin/form.php`, `admin/form-field.php`) |
 | Tests | `tests/Service/BlockPresentationTest.php`, `tests/Service/BlockPickerTest.php`, `tests/Service/BlockLibraryScreenTest.php`, `tests/Service/BlockSampleContractTest.php`, `tests/Service/BlockPreviewContractTest.php`, `tests/Service/BlockPreviewAccessTest.php`, `tests/Service/AdminEditorNavigationTest.php`, `tests/Service/PageBuilderScreenTest.php` |
 
 ## Tabbladen op de paginabouwer
