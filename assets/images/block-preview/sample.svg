@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 1000" width="1600" height="1000">
+  <!-- Owner: App\Service\Blocks\BlockSamples. The one picture the Contentblokken
+       library previews a block with: a neutral landscape that fits any site.
+       Never uploaded content, never shown on a public page. -->
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#dfe5e8"/>
+      <stop offset="1" stop-color="#f3efe8"/>
+    </linearGradient>
+    <linearGradient id="far" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#b7c3c8"/>
+      <stop offset="1" stop-color="#c9d1d3"/>
+    </linearGradient>
+    <linearGradient id="near" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#8e9e9f"/>
+      <stop offset="1" stop-color="#7a8a8b"/>
+    </linearGradient>
+  </defs>
+  <rect width="1600" height="1000" fill="url(#sky)"/>
+  <circle cx="1140" cy="330" r="120" fill="#efe2c8"/>
+  <path d="M0 700 L260 470 L430 600 L700 360 L960 610 L1120 500 L1600 760 L1600 1000 L0 1000 Z" fill="url(#far)"/>
+  <path d="M0 820 L340 610 L620 780 L900 640 L1240 830 L1600 700 L1600 1000 L0 1000 Z" fill="url(#near)"/>
+  <path d="M0 920 C400 860 800 980 1600 900 L1600 1000 L0 1000 Z" fill="#6b7a7b"/>
+</svg>

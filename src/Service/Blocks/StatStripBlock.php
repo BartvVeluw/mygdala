@@ -83,6 +83,24 @@ final class StatStripBlock extends BlockDefinition
         render_section_stat_strip($content, $revealGroup);
     }
 
+    public function sampleContent(BlockSamples $samples): ?array
+    {
+        $items = [];
+        foreach (range(0, 3) as $index) {
+            $items[] = [
+                ...$samples->itemFields('primary_text', 'figure', $index),
+                ...$samples->itemFields('secondary_text', 'figure_caption', $index),
+            ];
+        }
+
+        return ['items' => $items];
+    }
+
+    public function renderSample(array $content, string $revealGroup): void
+    {
+        render_section_stat_strip($content, $revealGroup);
+    }
+
     public function editUrl(array $pageSection): ?string
     {
         return $this->sectionEditUrl('stat-strip', $pageSection);

@@ -2,6 +2,9 @@
 
 namespace App\Service\Blocks;
 
+use App\Service\CollectionContent;
+use App\Service\RichTextSanitizer;
+
 require_once dirname(__DIR__, 3) . '/partials/section-shop-collections.php';
 
 /**
@@ -68,6 +71,37 @@ final class ShopCollectionsBlock extends FixedBlockDefinition
 
     public function render(array $pageSection, bool $tightTop, string $revealGroup): void
     {
-        render_section_shop_collections();
+        render_section_shop_collections(CollectionContent::activeForShop());
+    }
+
+    /**
+     * Tiles in the shape CollectionContent hands them over. The picture path
+     * is stored without its leading slash, which the partial adds.
+     */
+    public function sampleContent(BlockSamples $samples): ?array
+    {
+        $collections = [];
+        foreach (range(0, 2) as $index) {
+            $body = $samples->itemFields('description', 'item_body', $index);
+
+            $collections[] = [
+                'id' => 0,
+                'slug' => 'voorbeeld-' . ($index + 1),
+                ...$samples->itemFields('name', 'collection', $index),
+                // A description is stored as rich text; CollectionContent
+                // sanitizes it on the way out, and so does the sample.
+                'description_nl' => (string) RichTextSanitizer::sanitize($body['description_nl']),
+                'description_en' => (string) RichTextSanitizer::sanitize($body['description_en']),
+                'image_path' => ltrim(BlockSamples::IMAGE_PATH, '/'),
+                'url' => BlockSamples::LINK,
+            ];
+        }
+
+        return ['collections' => $collections];
+    }
+
+    public function renderSample(array $content, string $revealGroup): void
+    {
+        render_section_shop_collections($content['collections']);
     }
 }

@@ -5,6 +5,7 @@ namespace App\Service\Blocks;
 use App\Repository\FormBlockRepository;
 use App\Service\FormBlockContent;
 use App\Service\Forms\FormCatalog;
+use App\Service\Forms\FormRenderState;
 
 require_once dirname(__DIR__, 3) . '/partials/section-form.php';
 
@@ -107,7 +108,34 @@ final class FormBlock extends BlockDefinition
             return;
         }
 
-        render_section_form($content, $pageSlug, $sectionKey);
+        render_section_form(
+            $content,
+            FormCatalog::renderable($content['form_id'] ?? null),
+            FormRenderState::forInstance($pageSlug, $sectionKey)
+        );
+    }
+
+    /**
+     * The form in a sample is built in memory (BlockSamples::form()) and
+     * always starts fresh: no stored form, no query string, no session.
+     */
+    public function sampleContent(BlockSamples $samples): ?array
+    {
+        return [
+            'form_id' => null,
+            'form' => $samples->form(),
+            ...$samples->fields('title', 'form_title'),
+            ...$samples->fields('intro', 'form_intro'),
+        ];
+    }
+
+    public function renderSample(array $content, string $revealGroup): void
+    {
+        render_section_form(
+            $content,
+            $content['form'],
+            FormRenderState::fresh(FormRenderState::tokenFor('block-preview', $revealGroup))
+        );
     }
 
     public function editUrl(array $pageSection): ?string

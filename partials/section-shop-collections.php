@@ -15,11 +15,15 @@
  * owner has actually published one. Which collections exist and in what
  * order stays managed via Collecties, not as page content — this block only
  * decides WHERE on the page the tiles render.
+ *
+ * The collections arrive as an argument, read by
+ * App\Service\Blocks\ShopCollectionsBlock::render(), so this file only
+ * renders and the block library can show it with sample tiles.
+ *
+ * @param list<array<string, mixed>> $shopCollections see CollectionContent::activeForShop()
  */
-function render_section_shop_collections(): void
+function render_section_shop_collections(array $shopCollections): void
 {
-    $shopCollections = \App\Service\CollectionContent::activeForShop();
-
     if ($shopCollections === []) {
         return;
     }

@@ -83,9 +83,10 @@ final class AdminThemeContractTest extends TestCase
      * page shows the public website exactly as a visitor would see it, so it
      * renders the site's own header, theme and footer (admin/page-preview.php,
      * PAGE-EDITOR.md); dressed in the dashboard theme it would be a preview of
-     * something else.
+     * something else. The preview of one content block is the same case, in
+     * the library's frame (admin/block-preview.php).
      */
-    private const PUBLIC_SHELL_SCRIPTS = ['page-preview.php'];
+    private const PUBLIC_SHELL_SCRIPTS = ['page-preview.php', 'block-preview.php'];
 
     public function testEveryAdminPageInheritsTheThemeFromTheSamePlace(): void
     {

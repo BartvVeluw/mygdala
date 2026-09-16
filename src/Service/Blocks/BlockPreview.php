@@ -20,7 +20,10 @@ namespace App\Service\Blocks;
  * the list below — "a heading, then three columns" — and admin.css draws them
  * as plain boxes in the admin's own colours. That is enough to tell a text
  * block from a carousel at a glance, which is the entire job; it deliberately
- * is not, and must never grow into, a rendering of the real frontend.
+ * is not, and must never grow into, a rendering of the real frontend. That
+ * rendering exists, and it is the real block rather than a drawing: the
+ * Contentblokken library's preview (App\Service\Blocks\BlockSamples,
+ * admin/block-preview.php).
  *
  * The list is CLOSED for the same reason BlockDefinitions is: a part name
  * from a definition becomes a CSS class name in admin/page.php and

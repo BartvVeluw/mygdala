@@ -5,6 +5,8 @@ namespace App\Service\Blocks;
 use App\Repository\ContactFormRepository;
 use App\Service\ContactFormContent;
 use App\Service\Forms\FormCatalog;
+use App\Service\Forms\FormRenderState;
+use App\Service\SiteSettings;
 
 require_once dirname(__DIR__, 3) . '/partials/section-contact-form.php';
 
@@ -111,7 +113,44 @@ final class ContactFormBlock extends BlockDefinition
             return;
         }
 
-        render_section_contact_form($content, $pageSlug, $sectionKey);
+        // Both details are optional in Site-instellingen; the partial leaves
+        // out a line whose value is missing.
+        render_section_contact_form(
+            $content,
+            FormCatalog::renderable($content['form_id'] ?? null),
+            FormRenderState::forInstance($pageSlug, $sectionKey),
+            [
+                'email' => trim(SiteSettings::get('email')),
+                'city_nl' => SiteSettings::get('city_nl'),
+                'city_en' => SiteSettings::get('city_en'),
+            ]
+        );
+    }
+
+    /**
+     * The details card shows sample details, never this site's own address:
+     * a preview must not depend on Site-instellingen or put a real address
+     * on a page that is only an example.
+     */
+    public function sampleContent(BlockSamples $samples): ?array
+    {
+        return [
+            'form_id' => null,
+            'form' => $samples->form(),
+            ...$samples->fields('title', 'form_title'),
+            'allow_attachment' => false,
+            'contact' => ['email' => BlockSamples::EMAIL, ...$samples->fields('city', 'city')],
+        ];
+    }
+
+    public function renderSample(array $content, string $revealGroup): void
+    {
+        render_section_contact_form(
+            $content,
+            $content['form'],
+            FormRenderState::fresh(FormRenderState::tokenFor('block-preview', $revealGroup)),
+            $content['contact']
+        );
     }
 
     public function editUrl(array $pageSection): ?string

@@ -169,6 +169,37 @@ abstract class BlockDefinition
     }
 
     /**
+     * What the Contentblokken library previews this block with: content in
+     * exactly the shape render() hands this block's partial, made from the
+     * words, the picture and the link App\Service\Blocks\BlockSamples holds.
+     * Null means the block cannot be shown with sample content, and the
+     * library says so next to its schematic drawing instead.
+     *
+     * Sample content is never a fallback. Nothing on the public site calls
+     * this; a block without a stored row still renders nothing.
+     *
+     * @return array<string, mixed>|null
+     */
+    public function sampleContent(BlockSamples $samples): ?array
+    {
+        return null;
+    }
+
+    /**
+     * Echoes this block with $content from sampleContent(), through the SAME
+     * partial render() uses. That is the whole point: the preview is the
+     * production markup with other words in it, never a second copy of it.
+     * Only what render() looks up before calling the partial (a position,
+     * a form's state) is supplied here instead. See admin/block-preview.php.
+     *
+     * @param array<string, mixed> $content from sampleContent()
+     * @param string               $revealGroup stable and unique in the preview
+     */
+    public function renderSample(array $content, string $revealGroup): void
+    {
+    }
+
+    /**
      * Creates a brand-new, empty/default content row on $pageSlug and returns
      * [section_id, section_key] ready for PageSectionRepository::create().
      * A repeatable block mints its own key with newSectionKey().

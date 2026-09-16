@@ -722,6 +722,8 @@ De naam die erin staat is de titel van deze pagina: hernoem je de pagina, dan ve
     'blocks.view_list' => 'Lijst',
     'blocks.empty_title' => 'Je pagina heeft nog geen inhoud.',
     'blocks.empty_text' => 'Voeg hieronder je eerste contentblok toe.',
+    'blocks.preview_document_title' => 'Voorbeeld: :block',
+    'blocks.preview_not_found' => 'Van dit contentblok is geen voorbeeld beschikbaar.',
     'forbidden.terug_cms' => 'Terug naar het CMS',
     'forbidden.account_heeft_rechten_onderdeel' => 'Je account heeft geen rechten voor dit onderdeel van het CMS.',
     'forbidden.toegang' => 'Geen toegang',

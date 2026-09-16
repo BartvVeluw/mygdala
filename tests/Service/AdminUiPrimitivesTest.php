@@ -296,8 +296,10 @@ final class AdminUiPrimitivesTest extends TestCase
             // Before a login there is no shell, no form help and nothing to
             // switch. The preview of a page is the other way round: it shows
             // the public website, so its shell is the site's own
-            // (admin/page-preview.php).
-            if (in_array($file, ['login.php', 'setup.php', 'page-preview.php'], true)) {
+            // (admin/page-preview.php), and the preview of one block shows
+            // that block alone inside the library's frame
+            // (admin/block-preview.php).
+            if (in_array($file, ['login.php', 'setup.php', 'page-preview.php', 'block-preview.php'], true)) {
                 continue;
             }
 

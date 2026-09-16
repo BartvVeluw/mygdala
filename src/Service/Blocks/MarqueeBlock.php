@@ -83,6 +83,21 @@ final class MarqueeBlock extends BlockDefinition
         render_section_marquee($content);
     }
 
+    public function sampleContent(BlockSamples $samples): ?array
+    {
+        $items = [];
+        foreach (range(0, 5) as $index) {
+            $items[] = $samples->itemFields('label', 'word', $index);
+        }
+
+        return ['items' => $items];
+    }
+
+    public function renderSample(array $content, string $revealGroup): void
+    {
+        render_section_marquee($content);
+    }
+
     public function editUrl(array $pageSection): ?string
     {
         return $this->sectionEditUrl('marquee', $pageSection);

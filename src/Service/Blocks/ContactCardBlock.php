@@ -94,6 +94,21 @@ final class ContactCardBlock extends BlockDefinition
         render_section_contact_card($content);
     }
 
+    public function sampleContent(BlockSamples $samples): ?array
+    {
+        return [
+            ...$samples->fields('title', 'short_title'),
+            ...$samples->fields('body', 'body'),
+            ...$samples->fields('button_label', 'button_secondary'),
+            'button_url' => BlockSamples::LINK,
+        ];
+    }
+
+    public function renderSample(array $content, string $revealGroup): void
+    {
+        render_section_contact_card($content);
+    }
+
     public function instanceTitle(array $pageSection): string
     {
         return (string) (ContactCardContent::forSection($this->pageSlug($pageSection), $this->sectionKey($pageSection))['title_nl'] ?? '');

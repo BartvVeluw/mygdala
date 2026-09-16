@@ -499,19 +499,29 @@ class SectionRegistry
             }
 
             $seen[$type] = true;
-            $definition = self::definition($type);
+            self::collectBlockAssets(self::definition($type));
+        }
+    }
 
-            foreach ($definition->styles() as $style) {
-                PageAssets::requireStyle($style);
-            }
+    /**
+     * Asks App\Service\PageAssets for everything ONE block type declares: its
+     * stylesheets, its scripts and its third-party libraries. What
+     * collectPageAssets() does per type on a page, and what the block
+     * library's preview (admin/block-preview.php) does for the one block it
+     * shows, so a block's assets are asked for the same way everywhere.
+     */
+    public static function collectBlockAssets(BlockDefinition $definition): void
+    {
+        foreach ($definition->styles() as $style) {
+            PageAssets::requireStyle($style);
+        }
 
-            foreach ($definition->scripts() as $script) {
-                PageAssets::requireScript($script);
-            }
+        foreach ($definition->scripts() as $script) {
+            PageAssets::requireScript($script);
+        }
 
-            foreach ($definition->vendorScripts() as $vendor) {
-                PageAssets::requireVendorScript($vendor);
-            }
+        foreach ($definition->vendorScripts() as $vendor) {
+            PageAssets::requireVendorScript($vendor);
         }
     }
 

@@ -84,6 +84,30 @@ final class FeatureGridBlock extends BlockDefinition
         render_section_feature_grid($content, $revealGroup);
     }
 
+    public function sampleContent(BlockSamples $samples): ?array
+    {
+        $items = [];
+        foreach (array_slice(array_keys(FeatureGridContent::ICON_KEYS), 0, 3) as $index => $iconKey) {
+            $items[] = [
+                'icon_key' => $iconKey,
+                ...$samples->itemFields('title', 'item', $index),
+                ...$samples->itemFields('body', 'item_body', $index),
+            ];
+        }
+
+        return [
+            ...$samples->fields('eyebrow', 'eyebrow'),
+            ...$samples->fields('title', 'title'),
+            ...$samples->fields('lead', 'lead'),
+            'items' => $items,
+        ];
+    }
+
+    public function renderSample(array $content, string $revealGroup): void
+    {
+        render_section_feature_grid($content, $revealGroup);
+    }
+
     public function instanceTitle(array $pageSection): string
     {
         return (string) (FeatureGridContent::forSection($this->pageSlug($pageSection), $this->sectionKey($pageSection))['title_nl'] ?? '');

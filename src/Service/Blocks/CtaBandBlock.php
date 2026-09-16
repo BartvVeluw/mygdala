@@ -104,6 +104,24 @@ final class CtaBandBlock extends BlockDefinition
         render_section_cta_band($content);
     }
 
+    public function sampleContent(BlockSamples $samples): ?array
+    {
+        return [
+            ...$samples->fields('eyebrow', 'eyebrow'),
+            ...$samples->fields('title', 'title'),
+            ...$samples->fields('lead', 'lead'),
+            ...$samples->fields('primary_label', 'button'),
+            'primary_url' => BlockSamples::LINK,
+            ...$samples->fields('secondary_label', 'button_secondary'),
+            'secondary_url' => BlockSamples::LINK,
+        ];
+    }
+
+    public function renderSample(array $content, string $revealGroup): void
+    {
+        render_section_cta_band($content);
+    }
+
     public function instanceTitle(array $pageSection): string
     {
         return (string) (CtaBandContent::forSection($this->pageSlug($pageSection), $this->sectionKey($pageSection))['title_nl'] ?? '');

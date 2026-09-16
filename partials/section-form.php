@@ -17,25 +17,28 @@
  * public page. The page builder is where the editor is told about it — see
  * App\Service\Blocks\FormBlock::instanceTitle().
  *
+ * The form and its state arrive as arguments, looked up by
+ * App\Service\Blocks\FormBlock::render() (FormCatalog::renderable() and
+ * FormRenderState::forInstance()). This file only renders, so the block
+ * library can hand it a form built in memory and show the real markup
+ * (App\Service\Blocks\BlockSamples).
+ *
  * @param array<string, mixed> $content see FormBlockContent::forSection()
- * @param string               $pageSlug   the page this instance sits on
- * @param string               $sectionKey this instance's key
+ * @param FormDefinition|null  $form    null when there is nothing to show
+ * @param FormRenderState      $state   this instance's state
  */
 
 require_once __DIR__ . '/form.php';
 
-use App\Service\Forms\FormCatalog;
+use App\Service\Forms\FormDefinition;
 use App\Service\Forms\FormRenderState;
 
-function render_section_form(array $content, string $pageSlug, string $sectionKey): void
+function render_section_form(array $content, ?FormDefinition $form, FormRenderState $state): void
 {
-    $form = FormCatalog::renderable($content['form_id'] ?? null);
-
     if ($form === null) {
         return;
     }
 
-    $state = FormRenderState::forInstance($pageSlug, $sectionKey);
     $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
 
     $title = (string) ($content['title_nl'] ?? '');

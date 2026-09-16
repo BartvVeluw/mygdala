@@ -109,6 +109,36 @@ final class PageHeroBlock extends BlockDefinition
     }
 
     /**
+     * With a picture behind the text: the header's richest form, and the one
+     * whose veil and spacing are hardest to imagine from a description. The
+     * choices stay at their defaults, like a header that was just added.
+     */
+    public function sampleContent(BlockSamples $samples): ?array
+    {
+        $image = $samples->image();
+
+        return [
+            ...$samples->fields('eyebrow', 'eyebrow'),
+            ...$samples->fields('title', 'title'),
+            ...$samples->fields('lead', 'lead'),
+            'media_id' => null,
+            'image_path' => $image['image_path'],
+            'image_alt_nl' => $image['alt_nl'],
+            'image_alt_en' => $image['alt_en'],
+            'image_width' => $image['width'],
+            'image_height' => $image['height'],
+            'content_position' => PageHeroContent::POSITION_LEFT,
+            'title_size' => PageHeroContent::SIZE_NORMAL,
+            'text_size' => PageHeroContent::SIZE_NORMAL,
+        ];
+    }
+
+    public function renderSample(array $content, string $revealGroup): void
+    {
+        render_section_page_hero($content);
+    }
+
+    /**
      * Only the choices an editor makes. The header itself — .page-hero,
      * .eyebrow, .lead — stays in core.css, because the shop, cart, checkout,
      * blog and legal templates print the same header by hand.

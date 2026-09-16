@@ -114,6 +114,42 @@ final class CardCarouselBlock extends BlockDefinition
         render_section_card_carousel($content);
     }
 
+    public function sampleContent(BlockSamples $samples): ?array
+    {
+        $image = $samples->image();
+
+        $cards = [];
+        foreach (range(0, 3) as $index) {
+            $cards[] = [
+                'id' => 0,
+                'index_label' => sprintf('%02d', $index + 1),
+                'image_path' => $image['image_path'],
+                'image_alt_nl' => $image['alt_nl'],
+                'image_alt_en' => $image['alt_en'],
+                'image_width' => $image['width'],
+                'image_height' => $image['height'],
+                ...$samples->itemFields('title', 'item', $index),
+                ...$samples->itemFields('body', 'item_body', $index),
+                ...$samples->fields('link_label', 'button'),
+                'link_url' => BlockSamples::LINK,
+                'tags' => [$samples->itemFields('label', 'tag', 0), $samples->itemFields('label', 'tag', 1)],
+            ];
+        }
+
+        return [
+            'id' => 0,
+            ...$samples->fields('eyebrow', 'eyebrow'),
+            ...$samples->fields('title', 'title'),
+            ...$samples->fields('lead', 'lead'),
+            'cards' => $cards,
+        ];
+    }
+
+    public function renderSample(array $content, string $revealGroup): void
+    {
+        render_section_card_carousel($content);
+    }
+
     public function instanceTitle(array $pageSection): string
     {
         return (string) (CardCarouselContent::forSection($this->pageSlug($pageSection), $this->sectionKey($pageSection))['title_nl'] ?? '');

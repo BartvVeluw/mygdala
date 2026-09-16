@@ -15,10 +15,15 @@
  *
  * A page with no anchored sections renders no nav at all rather than an
  * empty bar.
+ *
+ * The links arrive derived: App\Service\Blocks\QuicknavBlock::render() asks
+ * DetailSectionContent for them, so this file only renders and the block
+ * library can show it with sample links.
+ *
+ * @param list<array{anchor: string, label_nl: string, label_en: string}> $items
  */
-function render_section_quicknav(string $pageSlug): void
+function render_section_quicknav(array $items): void
 {
-    $items = \App\Service\DetailSectionContent::navItemsForPage($pageSlug);
     if ($items === []) {
         return;
     }

@@ -84,6 +84,28 @@ final class FaqBlock extends BlockDefinition
         render_section_faq($content);
     }
 
+    public function sampleContent(BlockSamples $samples): ?array
+    {
+        $items = [];
+        foreach (range(0, 3) as $index) {
+            $items[] = [
+                ...$samples->itemFields('question', 'question', $index),
+                ...$samples->itemFields('answer', 'answer', $index),
+            ];
+        }
+
+        return [
+            ...$samples->fields('eyebrow', 'eyebrow'),
+            ...$samples->fields('title', 'title'),
+            'items' => $items,
+        ];
+    }
+
+    public function renderSample(array $content, string $revealGroup): void
+    {
+        render_section_faq($content);
+    }
+
     public function instanceTitle(array $pageSection): string
     {
         return (string) (FaqContent::forSection($this->pageSlug($pageSection), $this->sectionKey($pageSection))['title_nl'] ?? '');

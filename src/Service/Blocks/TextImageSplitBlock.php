@@ -106,6 +106,27 @@ final class TextImageSplitBlock extends BlockDefinition
         render_section_text_image_split($content, $tightTop, $revealGroup);
     }
 
+    public function sampleContent(BlockSamples $samples): ?array
+    {
+        $body = $samples->fields('content', 'lead');
+        $more = $samples->fields('content', 'body');
+
+        return [
+            'layout' => 'image_right',
+            ...$samples->fields('eyebrow', 'eyebrow'),
+            ...$samples->fields('title', 'title'),
+            ...$samples->fields('button_label', 'button'),
+            'button_url' => BlockSamples::LINK,
+            'paragraphs' => [$body, $more],
+            'images' => [$samples->image()],
+        ];
+    }
+
+    public function renderSample(array $content, string $revealGroup): void
+    {
+        render_section_text_image_split($content, false, $revealGroup);
+    }
+
     public function instanceTitle(array $pageSection): string
     {
         return (string) (TextImageSplitContent::forSection($this->pageSlug($pageSection), $this->sectionKey($pageSection))['title_nl'] ?? '');

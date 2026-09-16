@@ -79,4 +79,17 @@ final class ProductGridBlock extends FixedBlockDefinition
     {
         render_section_product_grid();
     }
+
+    /**
+     * No sample, on purpose — the one block the library cannot preview. Its
+     * cards are not in its markup: assets/js/shop/shop.js draws them after
+     * asking /api/products.php for the live catalogue. A sample has nothing
+     * to hand the partial, and real products would make the preview depend
+     * on this shop's data. The library shows the schematic drawing with a
+     * note instead (admin/content-blocks.php).
+     */
+    public function sampleContent(BlockSamples $samples): ?array
+    {
+        return null;
+    }
 }

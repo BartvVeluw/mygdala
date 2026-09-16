@@ -85,6 +85,18 @@ final class RichTextBlock extends BlockDefinition
         render_section_rich_text($content);
     }
 
+    public function sampleContent(BlockSamples $samples): ?array
+    {
+        $body = $samples->richText();
+
+        return ['content_html' => $body['nl'], 'content_html_en' => $body['en']];
+    }
+
+    public function renderSample(array $content, string $revealGroup): void
+    {
+        render_section_rich_text($content);
+    }
+
     /**
      * A short, plain-text preview of the first words, so two rich-text blocks
      * on one page stay distinguishable in the page builder's list. HTML is

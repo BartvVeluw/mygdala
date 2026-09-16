@@ -117,6 +117,51 @@ final class DetailSectionBlock extends BlockDefinition
         );
     }
 
+    public function sampleContent(BlockSamples $samples): ?array
+    {
+        $body = $samples->richText();
+        $image = $samples->image();
+
+        $points = [];
+        foreach (range(0, 2) as $index) {
+            $points[] = [
+                ...$samples->itemFields('title', 'item', $index),
+                ...$samples->itemFields('body', 'item_body', $index),
+            ];
+        }
+
+        return [
+            'id' => 0,
+            'anchor' => '',
+            ...$samples->fields('nav_label', 'short_title'),
+            ...$samples->fields('title', 'title'),
+            ...$samples->fields('lead', 'lead'),
+            'content_html' => $body['nl'],
+            'content_html_en' => $body['en'],
+            'main_image_path' => $image['image_path'],
+            'main_image_alt_nl' => $image['alt_nl'],
+            'main_image_alt_en' => $image['alt_en'],
+            'main_image_width' => $image['width'],
+            'main_image_height' => $image['height'],
+            'image_position' => 'image_right',
+            ...$samples->fields('closing_note', 'note'),
+            ...$samples->fields('cta_label', 'button'),
+            'cta_url' => BlockSamples::LINK,
+            'points' => $points,
+            'images' => [],
+        ];
+    }
+
+    /**
+     * The markers are what render() counts from the page (the section's
+     * number, and whether it takes the soft background); a preview is the
+     * first detail section of its page.
+     */
+    public function renderSample(array $content, string $revealGroup): void
+    {
+        render_section_detail_section($content, ['index_label' => '01', 'bg_soft' => false], $revealGroup);
+    }
+
     public function instanceTitle(array $pageSection): string
     {
         return (string) (DetailSectionContent::forSection($this->pageSlug($pageSection), $this->sectionKey($pageSection))['title_nl'] ?? '');

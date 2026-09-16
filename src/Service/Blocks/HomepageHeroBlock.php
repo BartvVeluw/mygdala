@@ -91,6 +91,45 @@ final class HomepageHeroBlock extends BlockDefinition
         render_section_homepage_hero($content);
     }
 
+    public function sampleContent(BlockSamples $samples): ?array
+    {
+        $image = $samples->image();
+
+        $stats = [];
+        foreach (range(0, 2) as $index) {
+            $stats[] = [
+                ...$samples->itemFields('primary_text', 'figure', $index),
+                ...$samples->itemFields('secondary_text', 'figure_caption', $index),
+            ];
+        }
+
+        return [
+            ...$samples->fields('eyebrow', 'eyebrow'),
+            ...$samples->fields('title', 'title'),
+            ...$samples->fields('title_highlight', 'title_highlight'),
+            'title_highlight_size' => HomepageHeroContent::HIGHLIGHT_SIZE_DEFAULT,
+            ...$samples->fields('lead', 'lead'),
+            ...$samples->fields('primary_label', 'button'),
+            'primary_url' => BlockSamples::LINK,
+            ...$samples->fields('secondary_label', 'button_secondary'),
+            'secondary_url' => BlockSamples::LINK,
+            'image_path' => $image['image_path'],
+            'image_alt_nl' => $image['alt_nl'],
+            'image_alt_en' => $image['alt_en'],
+            ...$samples->fields('badge_title', 'badge_title'),
+            ...$samples->fields('badge_text', 'badge_text'),
+            'media_type' => HomepageHeroContent::MEDIA_TYPE_IMAGE,
+            'video_path' => '',
+            'layout' => HomepageHeroContent::LAYOUT_MEDIA_RIGHT,
+            'stats' => $stats,
+        ];
+    }
+
+    public function renderSample(array $content, string $revealGroup): void
+    {
+        render_section_homepage_hero($content);
+    }
+
     /**
      * The hero owns its own look and its own entrance animation, and it is
      * the ONLY thing on this site that needs GSAP. Before step 4 that library

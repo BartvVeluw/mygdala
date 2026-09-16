@@ -112,6 +112,62 @@ final class ItemGalleryBlock extends BlockDefinition
     }
 
     /**
+     * No source: a sample hands the partial its items directly, exactly as
+     * ItemGalleryContent does after asking a source. The filter bar and the
+     * zoom are on, so the preview shows what those two settings add; the
+     * cards link nowhere, which is what makes them zoomable.
+     */
+    public function sampleContent(BlockSamples $samples): ?array
+    {
+        $image = $samples->image();
+        $slugs = ['categorie-a', 'categorie-b'];
+
+        $items = [];
+        foreach (range(0, 5) as $index) {
+            $items[] = [
+                'image_path' => $image['image_path'],
+                'alt_nl' => $image['alt_nl'],
+                'alt_en' => $image['alt_en'],
+                ...$samples->itemFields('title', 'item', $index),
+                ...$samples->itemFields('subtitle', 'category', $index),
+                'categories' => $slugs[$index % 2],
+                'url' => '',
+                'is_detail_link' => false,
+                'follows_fallback_link' => false,
+            ];
+        }
+
+        return [
+            'id' => 0,
+            'source_type' => '',
+            'portfolio_scope' => ItemGalleryContent::SCOPE_ALL,
+            'collection_id' => null,
+            'max_items' => null,
+            'show_filter_bar' => true,
+            'enable_lightbox' => true,
+            'fallback_link_url' => '',
+            ...$samples->fields('eyebrow', 'eyebrow'),
+            ...$samples->fields('title', 'title'),
+            ...$samples->fields('lead', 'lead'),
+            ...$samples->fields('footer_note', 'note'),
+            ...$samples->fields('button_label', 'button'),
+            'button_url' => BlockSamples::LINK,
+            'background' => 'default',
+            'tight_top' => false,
+            'filter_categories' => [
+                ['slug' => $slugs[0], ...$samples->itemFields('name', 'category', 0)],
+                ['slug' => $slugs[1], ...$samples->itemFields('name', 'category', 1)],
+            ],
+            'items' => $items,
+        ];
+    }
+
+    public function renderSample(array $content, string $revealGroup): void
+    {
+        render_section_item_gallery($content, $revealGroup);
+    }
+
+    /**
      * Its own title if it has one, otherwise what it shows — "Portfolio-items"
      * / a collection's name — so two galleries on one page stay tellable apart
      * even when neither carries a heading.

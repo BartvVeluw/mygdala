@@ -198,7 +198,12 @@ class AdminNavigation
                 'icon' => 'content_blocks',
                 'permission' => AdminPermissions::PAGES_MANAGE,
                 'order' => 230,
-                'scripts' => ['content-blocks.php'],
+                'scripts' => [
+                    'content-blocks.php',
+                    // One block with sample content, the frame inside the
+                    // library's Voorbeeld bekijken dialog.
+                    'block-preview.php',
+                ],
             ],
             [
                 'key' => 'contact_requests',

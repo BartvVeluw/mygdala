@@ -101,7 +101,7 @@ final class BuiltInServer
      *
      * @param array<string, string> $fields
      * @param array<string, \CURLFile> $files
-     * @return array{status: int, location: string, body: string}
+     * @return array{status: int, location: string, body: string, headers: string}
      */
     public function request(string $method, string $path, ?string $sessionId = null, array $fields = [], array $files = []): array
     {
@@ -136,6 +136,20 @@ final class BuiltInServer
             'status' => $status,
             'location' => (string) ($location[1] ?? ''),
             'body' => substr($response, $headerSize),
+            'headers' => substr($response, 0, $headerSize),
         ];
+    }
+
+    /**
+     * One header of a response from request(), or '' when it has none: what
+     * a page says about caching, indexing or framing.
+     *
+     * @param array{headers: string} $response
+     */
+    public static function header(array $response, string $name): string
+    {
+        preg_match('/^' . preg_quote($name, '/') . ':\s*(.*?)\s*$/mi', $response['headers'], $match);
+
+        return (string) ($match[1] ?? '');
     }
 }

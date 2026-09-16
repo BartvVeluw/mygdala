@@ -26,31 +26,32 @@
  * under the details card is its own repeatable block now
  * (partials/section-contact-card.php).
  *
- * @param array<string, mixed> $content    see ContactFormContent::forSection()
- * @param string               $pageSlug   the page this instance sits on
- * @param string               $sectionKey this instance's key
+ * Everything this file shows arrives as arguments: the form and its state,
+ * and the contact details, all looked up by
+ * App\Service\Blocks\ContactFormBlock::render(). This file only renders, so
+ * the block library can show the real markup with a form and details that
+ * exist only in memory (App\Service\Blocks\BlockSamples).
+ *
+ * @param array<string, mixed>                             $content see ContactFormContent::forSection()
+ * @param FormDefinition|null                              $form    null when no usable form is chosen
+ * @param FormRenderState                                  $state   this instance's state
+ * @param array{email: string, city_nl: string, city_en: string} $contact from Site-instellingen
  */
 
 require_once __DIR__ . '/form.php';
 
-use App\Service\Forms\FormCatalog;
+use App\Service\Forms\FormDefinition;
 use App\Service\Forms\FormRenderState;
 
-function render_section_contact_form(array $content, string $pageSlug, string $sectionKey): void
+function render_section_contact_form(array $content, ?FormDefinition $form, FormRenderState $state, array $contact): void
 {
     // Both are optional in Site-instellingen. A line whose value is missing is
     // left out rather than printed as a bare label or a dangling "—".
-    $contactEmail = trim(\App\Service\SiteSettings::get('email'));
-    $contactCity = \App\Service\Language\LocalizedValue::ofDutchEnglish(
-        \App\Service\SiteSettings::get('city_nl'),
-        \App\Service\SiteSettings::get('city_en')
-    );
+    $contactEmail = trim($contact['email']);
+    $contactCity = \App\Service\Language\LocalizedValue::ofDutchEnglish($contact['city_nl'], $contact['city_en']);
     $contactCityNl = $contactCity->in(\App\Service\Language\LanguageRegistry::DUTCH);
     $contactCityEn = $contactCity->in(\App\Service\Language\LanguageRegistry::ENGLISH);
     $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
-
-    $form = FormCatalog::renderable($content['form_id'] ?? null);
-    $state = FormRenderState::forInstance($pageSlug, $sectionKey);
     ?>
   <section style="padding-top:0;">
     <div class="container">

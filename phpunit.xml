@@ -103,6 +103,8 @@
             <file>tests/Service/AdminThemeContractTest.php</file>
             <file>tests/Service/BlockDefinitionContractTest.php</file>
             <file>tests/Service/BlockPickerTest.php</file>
+            <file>tests/Service/BlockPreviewContractTest.php</file>
+            <file>tests/Service/BlockSampleContractTest.php</file>
             <file>tests/Service/BlockPresentationTest.php</file>
             <file>tests/Service/CollectionAdminSecurityTest.php</file>
             <file>tests/Service/DashboardPageTest.php</file>
@@ -173,6 +175,8 @@
             <file>tests/Service/AppUrlTest.php</file>
             <file>tests/Service/BlockDefinitionContractTest.php</file>
             <file>tests/Service/BlockPickerTest.php</file>
+            <file>tests/Service/BlockPreviewContractTest.php</file>
+            <file>tests/Service/BlockSampleContractTest.php</file>
             <file>tests/Service/BlockPresentationTest.php</file>
             <file>tests/Service/BrandingTest.php</file>
             <file>tests/Service/CollectionAdminSecurityTest.php</file>
@@ -310,6 +314,9 @@
             <file>tests/Repository/PageSectionRepositoryTest.php</file>
             <file>tests/Service/BlockDefinitionContractTest.php</file>
             <file>tests/Service/BlockPickerTest.php</file>
+            <file>tests/Service/BlockPreviewAccessTest.php</file>
+            <file>tests/Service/BlockPreviewContractTest.php</file>
+            <file>tests/Service/BlockSampleContractTest.php</file>
             <file>tests/Service/BlockPresentationTest.php</file>
             <file>tests/Service/BreadcrumbTest.php</file>
             <file>tests/Service/ContentBlockArchitectureTest.php</file>
@@ -403,6 +410,7 @@
             <file>tests/Service/PageContentTest.php</file>
             <file>tests/Service/BreadcrumbTest.php</file>
             <file>tests/Install/PageEnglishTitleMigrationTest.php</file>
+            <file>tests/Service/BlockPreviewAccessTest.php</file>
             <file>tests/Service/PagePreviewAccessTest.php</file>
             <file>tests/Service/PagePreviewContractTest.php</file>
             <file>tests/Service/PageRoutingTest.php</file>

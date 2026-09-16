@@ -1,0 +1,17 @@
+/* =========================================================================
+   Owner: admin/block-preview.php, the sample of one content block inside
+   the Contentblokken library's preview dialog. No public page asks for it.
+
+   On the site a block never stands alone: a header or another block sits
+   above it, and several blocks leave out their own top spacing because of
+   that (padding-top:0 in partials/section-rich-text.php and its neighbours).
+   Alone in a frame they would touch its edge. So the preview gives the block
+   the room a page would, around it and never inside it.
+
+   Not here: anything that changes a block. A rule that restyles one block
+   for the preview is a preview that stopped showing the real block.
+   ========================================================================= */
+
+.block-preview{
+  padding-block: var(--sp-4);
+}

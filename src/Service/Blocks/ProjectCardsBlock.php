@@ -137,6 +137,50 @@ final class ProjectCardsBlock extends BlockDefinition
     }
 
     /**
+     * Cards the way the Portfolio's source hands them over when a project has
+     * a page of its own: linked, with the arrow. The settings rowValues()
+     * fixes stay fixed here too, so the preview never shows a zoom, a footer
+     * text or a button this block cannot have.
+     */
+    public function sampleContent(BlockSamples $samples): ?array
+    {
+        $image = $samples->image();
+
+        $items = [];
+        foreach (range(0, 5) as $index) {
+            $items[] = [
+                'image_path' => $image['image_path'],
+                'alt_nl' => $image['alt_nl'],
+                'alt_en' => $image['alt_en'],
+                ...$samples->itemFields('title', 'item', $index),
+                ...$samples->itemFields('subtitle', 'category', $index),
+                'categories' => '',
+                'url' => BlockSamples::LINK,
+                'is_detail_link' => true,
+                'follows_fallback_link' => false,
+            ];
+        }
+
+        $content = self::rowValues([
+            ...$samples->fields('title', 'title'),
+            ...$samples->fields('lead', 'lead'),
+        ]);
+        unset($content['is_active']);
+
+        return [
+            'id' => 0,
+            ...$content,
+            'filter_categories' => [],
+            'items' => $items,
+        ];
+    }
+
+    public function renderSample(array $content, string $revealGroup): void
+    {
+        render_section_item_gallery($content, $revealGroup);
+    }
+
+    /**
      * Its own title if it has one, otherwise which projects it shows, so two
      * of these on one page stay tellable apart in the page builder.
      */

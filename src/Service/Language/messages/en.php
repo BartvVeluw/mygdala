@@ -714,6 +714,8 @@ The name in it is this page's title, so renaming the page changes the trail with
     'blocks.view_list' => 'List',
     'blocks.empty_title' => 'Your page has no content yet.',
     'blocks.empty_text' => 'Add your first content block below.',
+    'blocks.preview_document_title' => 'Preview: :block',
+    'blocks.preview_not_found' => 'There is no preview of this content block.',
     'forbidden.terug_cms' => 'Back to the CMS',
     'forbidden.account_heeft_rechten_onderdeel' => 'Your account has no permissions for this part of the CMS.',
     'forbidden.toegang' => 'No access',
