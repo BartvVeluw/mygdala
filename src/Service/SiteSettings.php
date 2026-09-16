@@ -244,12 +244,12 @@ class SiteSettings
         'footer_slogan_nl' => '',
         'footer_slogan_en' => '',
 
-        // Social profiles: one optional URL per network in the closed
-        // registry App\Service\SocialProfiles owns. Empty by default here
-        // AND on a fresh install — no link is invented for a site that has
-        // none, and nothing was migrated because this site has never had one
-        // either. A network shows when its URL is filled in and valid; there
-        // is no separate on/off flag.
+        // LEGACY since Footer phase B: the seven social profile URLs, one per
+        // network. Migration 20260917100000 copied every filled-in one into
+        // footer_social_links, which is what App\Service\SocialProfiles and
+        // the Footer screen read and write now. Nothing reads or writes
+        // these keys; they stay listed so the rows that remain in the
+        // database are still known settings, like header_cta_* above.
         'social_instagram_url' => '',
         'social_facebook_url' => '',
         'social_pinterest_url' => '',

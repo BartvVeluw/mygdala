@@ -7,6 +7,7 @@ namespace Tests\Service;
 use App\Service\AppUrl;
 use App\Service\PageSeo;
 use App\Service\SiteSettings;
+use App\Service\SocialProfiles;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -23,11 +24,14 @@ final class PageSeoTest extends TestCase
     protected function setUp(): void
     {
         SiteSettings::overrideForTests(['site_name' => 'Testbedrijf']);
+        // No footer_social_links rows unless a test installs some.
+        SocialProfiles::overrideForTests([]);
     }
 
     protected function tearDown(): void
     {
         SiteSettings::overrideForTests(null);
+        SocialProfiles::overrideForTests(null);
     }
 
     /** @param array<string, mixed> $overrides */
@@ -207,13 +211,24 @@ final class PageSeoTest extends TestCase
         SiteSettings::overrideForTests([
             'site_name' => 'Testbedrijf',
             'logo_path' => 'assets/images/logo.svg',
-            'social_instagram_url' => 'https://www.instagram.com/testbedrijf',
+        ]);
+        // The visible footer_social_links rows, in the editor's order: the
+        // same address listed twice is claimed once, and a row the footer
+        // would not render (a foreign domain) is not claimed at all.
+        SocialProfiles::overrideForTests([
+            ['id' => 1, 'network' => 'linkedin', 'url' => 'https://www.linkedin.com/company/testbedrijf', 'sort_order' => 0, 'is_visible' => 1],
+            ['id' => 2, 'network' => 'instagram', 'url' => 'https://www.instagram.com/testbedrijf', 'sort_order' => 1, 'is_visible' => 1],
+            ['id' => 3, 'network' => 'pinterest', 'url' => 'https://pin.nl/testbedrijf', 'sort_order' => 2, 'is_visible' => 1],
+            ['id' => 4, 'network' => 'instagram', 'url' => 'https://www.instagram.com/testbedrijf', 'sort_order' => 3, 'is_visible' => 1],
         ]);
 
         $jsonLd = (array) PageSeo::forPage($this->page(['route_path' => '/', 'is_system' => 1]))->jsonLd;
 
         $this->assertSame(AppUrl::canonical('assets/images/logo.svg'), $jsonLd['logo']);
-        $this->assertSame(['https://www.instagram.com/testbedrijf'], $jsonLd['sameAs']);
+        $this->assertSame(
+            ['https://www.linkedin.com/company/testbedrijf', 'https://www.instagram.com/testbedrijf'],
+            $jsonLd['sameAs']
+        );
     }
 
     public function testANoindexSiteRootPublishesNoStructuredData(): void

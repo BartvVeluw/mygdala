@@ -10,12 +10,13 @@ declare(strict_types=1);
  * single source of truth in App\Service\SiteSettings; this partial only
  * decides whether to show each one, via FooterService::brandSettings().
  *
- * Two more pieces became settings rather than markup in Header & Footer V1:
- * the closing SLOGAN (FooterService::slogan(), which used to be a literal
- * here) and the SOCIAL row (App\Service\SocialProfiles — a closed registry
- * of networks with one optional URL each). Neither renders anything at all
- * when it is not configured: no empty line, no empty icon row, no heading
- * over nothing.
+ * Two more pieces became data rather than markup in Header & Footer V1: the
+ * closing SLOGAN (FooterService::slogan(), which used to be a literal here)
+ * and the SOCIAL row (App\Service\SocialProfiles — a closed registry of
+ * networks; since Footer phase B the profiles are repeatable rows with their
+ * own order and visibility). Neither renders anything at all when it is not
+ * configured: no empty line, no empty icon row, no heading over nothing.
+ * Everything here is managed on the one Footer screen (admin/footer.php).
  */
 
 require_once __DIR__ . '/../vendor/autoload.php';
@@ -83,9 +84,14 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
             // "link" or read out as its URL. Both are already-known values:
             // the network label comes from the closed registry and the site
             // name from Site Settings, so nothing a visitor or an editor
-            // typed becomes markup.
+            // typed becomes markup. Two profiles on one network get a number
+            // each, so a screen reader can tell the two links apart.
             $socialLabel = $siteName . ' op ' . $profile['label'];
             $socialLabelEn = $siteName . ' on ' . $profile['label'];
+            if ($profile['number'] !== null) {
+                $socialLabel .= ' (' . $profile['number'] . ')';
+                $socialLabelEn .= ' (' . $profile['number'] . ')';
+            }
           ?>
           <li><a href="<?= $h($profile['url']) ?>" target="_blank" rel="noopener noreferrer me" aria-label="<?= $h($socialLabel) ?>" data-nl-aria="<?= $h($socialLabel) ?>" data-en-aria="<?= $h($socialLabelEn) ?>"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><?= $profile['icon'] ?></svg></a></li>
           <?php endforeach; ?>

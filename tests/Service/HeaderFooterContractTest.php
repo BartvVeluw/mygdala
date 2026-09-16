@@ -133,15 +133,18 @@ final class HeaderFooterContractTest extends TestCase
     }
 
     /**
-     * Nothing an editor types becomes markup: the admin screen offers the
-     * networks the closed registry knows and no way to add one.
+     * The social profiles are footer_social_links rows since Footer phase B:
+     * the slogan screen neither shows nor writes the seven legacy settings.
      */
-    public function testTheAdminScreenOffersOnlyRegisteredNetworks(): void
+    public function testTheSloganScreenNoLongerWritesTheLegacySocialSettings(): void
     {
-        $source = $this->source('admin/header-footer.php');
+        foreach (['admin/header-footer.php', 'api/admin/update-header-footer-settings.php'] as $file) {
+            $source = $this->source($file);
 
-        $this->assertStringContainsString('SocialProfiles::networks()', $source);
-        $this->assertStringNotContainsString('svg', $source, 'no icon markup is editable');
+            $this->assertStringNotContainsString("['key']", $source, $file);
+            $this->assertStringNotContainsString('SocialProfiles::networks()', $source, $file);
+            $this->assertStringNotContainsString('isValidProfileUrl', $source, $file);
+        }
     }
 
     /** The stylesheet the social row needs is Core's, not a new file. */

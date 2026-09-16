@@ -178,10 +178,13 @@ class PageSeo
             $data['logo'] = $logo;
         }
 
+        // The profiles the footer shows, so a profile an editor hid is not
+        // claimed either. Since Footer phase B a site may list the same
+        // address twice; sameAs names each one once.
         $sameAs = [];
         foreach (SocialProfiles::forFooter() as $profile) {
             $url = trim((string) ($profile['url'] ?? ''));
-            if ($url !== '') {
+            if ($url !== '' && !in_array($url, $sameAs, true)) {
                 $sameAs[] = $url;
             }
         }

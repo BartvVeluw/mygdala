@@ -10,16 +10,17 @@ require_once __DIR__ . '/_language_fields.php';
 use App\Service\AdminAuth;
 use App\Service\Csrf;
 use App\Service\SiteSettings;
-use App\Service\SocialProfiles;
 
 AdminAuth::requireLogin();
 AdminAuth::requirePermission('pages.manage');
 
 /**
- * The footer's closing line and the site's social profiles: the parts of the
- * shared footer that are CONTENT rather than layout and that do not have a
- * place on the Footer screen yet. Everything else is either structure (owned
- * by Core) or has its own screen — the menu and the header buttons under
+ * The footer's closing line: the part of the shared footer that is CONTENT
+ * rather than layout and that does not have a place on the Footer screen yet.
+ * The social profiles left this screen in Footer phase B: they are
+ * footer_social_links rows now (App\Service\SocialProfiles), and the seven
+ * social_*_url settings it used to write are legacy. Everything else is
+ * either structure (owned by Core) or has its own screen — the menu and the header buttons under
  * Header & navigatie, the columns and the company block under Footer, the
  * logo under Site-instellingen, the colours under Vormgeving.
  *
@@ -112,19 +113,6 @@ $csrfToken = Csrf::token();
         <?php admin_lang_pane_end(); ?>
       </div>
       <p class="admin-text-muted"><?= admin_te('headerfooter.laat_engelse_tekst_leeg_2') ?></p>
-    </section>
-
-    <section class="admin-card">
-      <h2><?= admin_te('headerfooter.social_media') ?></h2>
-      <p class="admin-text-muted"><?= admin_t('headerfooter.vul_wat_hebt_laat') ?></p>
-
-      <div class="admin-form-row admin-form-row--split">
-        <?php foreach (SocialProfiles::networks() as $definition): ?>
-          <label><?= $h($definition['label']) ?>
-            <input type="url" name="<?= $h($definition['key']) ?>" maxlength="2048" value="<?= $h($value($definition['key'])) ?>" placeholder="https://">
-          </label>
-        <?php endforeach; ?>
-      </div>
     </section>
 
     <section class="admin-card">
