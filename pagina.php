@@ -12,6 +12,7 @@ require_once __DIR__ . '/vendor/autoload.php';
 // <head>. On an ordinary page view it does nothing at all.
 \App\Service\Forms\PublicFormSession::prime();
 require_once __DIR__ . '/partials/page-not-found.php';
+require_once __DIR__ . '/partials/breadcrumb.php';
 
 /**
  * The generic frontend template for every dynamic CMS page: one file that
@@ -93,6 +94,11 @@ require __DIR__ . '/partials/page-assets.php';
   <?php render_page_not_found(); ?>
 <?php else: ?>
   <?php
+    // Where the visitor is, before the page's own content and independent of
+    // it: a page whose header is hidden or missing still says where it sits
+    // (App\Service\Breadcrumbs\PageBreadcrumb).
+    render_breadcrumb(\App\Service\Breadcrumbs\PageBreadcrumb::forPage($page));
+
     // The page's whole body is its one ordered list of content blocks,
     // exactly like every other CMS page.
     \App\Service\SectionRegistry::renderPage((string) $page['content_key']);

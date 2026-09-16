@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/vendor/autoload.php';
+require_once __DIR__ . '/partials/breadcrumb.php';
 
 use App\Service\CookieConsentConfig;
 
@@ -45,11 +46,12 @@ require __DIR__ . '/partials/header.php';
 
 <main id="main">
 
+  <?php /* A Core route with no `pages` row: App\Service\RouteRegistry is
+           where it is named, in both languages, and where its address lives. */ ?>
+  <?php render_breadcrumb(\App\Service\Breadcrumbs\BreadcrumbTrail::home()->toRoute('cookiebeleid')); ?>
+
   <section class="page-hero">
     <div class="container">
-      <div class="breadcrumb">
-        <a href="index.php" data-nl="Home" data-en="Home">Home</a><span>/</span><span data-nl="Cookiebeleid" data-en="Cookie policy">Cookiebeleid</span>
-      </div>
       <p class="eyebrow" data-nl="Juridisch" data-en="Legal">Juridisch</p>
       <h1 data-nl="Cookiebeleid" data-en="Cookie policy">Cookiebeleid</h1>
       <p class="lead" style="margin-top:1rem;" data-nl="Een overzicht van welke cookies en lokale opslag deze site gebruikt, waarvoor, en hoe lang." data-en="An overview of which cookies and local storage this site uses, what for, and for how long.">Een overzicht van welke cookies en lokale opslag deze site gebruikt, waarvoor, en hoe lang.</p>

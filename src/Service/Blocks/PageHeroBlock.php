@@ -3,14 +3,13 @@
 namespace App\Service\Blocks;
 
 use App\Repository\PageHeroRepository;
-use App\Repository\PageRepository;
 use App\Service\PageHeroContent;
 
 require_once dirname(__DIR__, 3) . '/partials/section-page-hero.php';
 
 /**
- * The ordinary page hero: breadcrumb and H1, and optionally an eyebrow, a lead
- * and an image from the Media Library behind them, placed and sized by three
+ * The ordinary page hero: the H1, and optionally an eyebrow, a lead and an
+ * image from the Media Library behind them, placed and sized by three
  * closed choices (App\Service\PageHeroContent). One per page, addressed by
  * page_slug (it predates repeatable instances and there is no second hero to
  * tell it apart from), and denied on the homepage, which has its own richer
@@ -84,10 +83,8 @@ final class PageHeroBlock extends BlockDefinition
 
     public function create(string $pageSlug): array
     {
-        $pageLabel = (new PageRepository())->findByContentKey($pageSlug)['title'] ?? $pageSlug;
-
         $repository = new PageHeroRepository();
-        $repository->upsert($pageSlug, PageHeroContent::startingValues((string) $pageLabel) + ['is_active' => true]);
+        $repository->upsert($pageSlug, PageHeroContent::startingValues() + ['is_active' => true]);
 
         $row = $repository->findBySlug($pageSlug);
 
@@ -113,8 +110,8 @@ final class PageHeroBlock extends BlockDefinition
 
     /**
      * Only the choices an editor makes. The header itself — .page-hero,
-     * .breadcrumb, .eyebrow, .lead — stays in core.css, because the shop,
-     * cart, checkout, blog and legal templates print the same header by hand.
+     * .eyebrow, .lead — stays in core.css, because the shop, cart, checkout,
+     * blog and legal templates print the same header by hand.
      */
     public function styles(): array
     {

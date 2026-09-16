@@ -1,6 +1,8 @@
 # Header en footer
 
 Wat er in de gedeelde header en footer instelbaar is, en waar de grens ligt.
+Het **kruimelpad** staat er sinds fase 5B ook in: het is dezelfde soort
+gedeelde schil, van Core, met precies één keuze voor de beheerder.
 Lees dit samen met `PROJECT-MAP.md` (waar iets staat). Voor kleuren en
 lettertypes zie `THEMING.md`; voor moduleslots `MODULES.md`.
 
@@ -152,12 +154,122 @@ waarde valt terug op de standaard. Dat werkt alleen omdat elke standaard hier
 leeg of `'0'` is. Geef een nieuwe sleutel in deze familie dus nooit een
 niet-lege codestandaard, anders kan een beheerder hem niet leegmaken.
 
+## Het kruimelpad
+
+De kleine regel bovenaan een pagina die laat zien waar een bezoeker is:
+`Home / Contact`.
+
+### Waar het vandaan komt
+
+Het stond tot fase 5B in de partial van de **Paginakop**. Dat betekende dat
+een pagina zonder dat blok, of met dat blok verborgen, ook geen kruimelpad
+had — terwijl het niets met een kop te maken heeft. Veertien sjablonen
+schreven bovendien hun eigen kopie, met drie verschillende spellingen van de
+link naar de homepage, zonder `<nav>`, zonder lijst, met een scheidingsteken
+dat werd voorgelezen en met een huidige pagina die soms naar zichzelf linkte.
+
+### De grens
+
+| Van Core, niet instelbaar | Van de beheerder |
+|---|---|
+| De markup, de plek op de pagina, de vormgeving, het woord *Home*, welke niveaus een route heeft | Óf een pagina zijn kruimelpad toont |
+
+De **naam** in het kruimelpad is de titel van de pagina zelf, per render
+gelezen. Er wordt niets gekopieerd: hernoem je een pagina, dan verandert het
+kruimelpad mee. `pages.title` is eentalig, dus een bezoeker in het Engels
+ziet de Nederlandse paginanaam — dezelfde regel als elk ander veld zonder
+vertaling (`MULTILINGUAL.md`). Een tweetalige paginatitel is een losse stap.
+
+### Waar het staat
+
+| Onderdeel | Waar |
+|---|---|
+| Eén niveau | `App\Service\Breadcrumbs\BreadcrumbItem` — label NL/EN en een adres, of geen adres |
+| Het hele pad | `App\Service\Breadcrumbs\BreadcrumbTrail` — `home()`, `to()`, `toPage()`, `toRoute()` |
+| Een gewone CMS-pagina | `App\Service\Breadcrumbs\PageBreadcrumb::forPage()` |
+| Opslag van de keuze | `pages.show_breadcrumb` (`NOT NULL DEFAULT 1`) |
+| Scherm | Pagina bewerken → tabblad **Pagina** (`admin/page.php`) |
+| Opslaan | `api/admin/update-page.php` |
+| Rendering | `partials/breadcrumb.php`, functie `render_breadcrumb()` |
+| Styling | `.breadcrumb-bar` en `.breadcrumb` in `assets/css/core.css` |
+
+### Wie stelt het pad samen
+
+**De route, nooit Core.** Een domeinroute weet welke niveaus hij heeft; Core
+weet hoe je die opschrijft. `BreadcrumbTrail` kent daarom geen enkele
+repository van de Shop, de Blog of het Portfolio, en dat mag zo blijven
+(`MODULES.md`).
+
+```php
+render_breadcrumb(
+    BreadcrumbTrail::home()
+        ->toRoute('shop')
+        ->to(BreadcrumbItem::current($naamNl, $naamEn))
+);
+```
+
+- `toPage('portfolio')` hangt er een **CMS-pagina** onder: haar eigen titel,
+  haar eigen adres. Een pagina in concept of van een uitgezette module houdt
+  haar naam maar verliest haar link.
+- `toRoute('shop')` hangt er een **applicatieroute** onder, met het label en
+  het adres uit `App\Service\RouteRegistry`. Een sleutel die het register
+  niet kent voegt niets toe, zodat een pad nooit naar een 404 wijst.
+- De **homepagelink** komt uit `PageContent::publicUrl()` van de siteroot:
+  één spelling, dezelfde resolutie als het menu, de canonical en de sitemap.
+- Een niveau dat een bezoeker leeg zou zien valt weg, en een pad met alleen
+  *Home* erin rendert niets.
+
+### Per routegroep
+
+| Groep | Kruimelpad | Schakelaar |
+|---|---|---|
+| Siteroot (`/`) | Nooit — je begint er | — |
+| Gewone CMS-pagina, en de sjablonen Diensten, Portfolio, Over mij, Contact, Shop | `Home / paginatitel` | `pages.show_breadcrumb` |
+| Shop-routes: product, collectie, winkelwagen, afrekenen, bestelstatus, personaliseren | Vast, met hun eigen niveaus | Geen — geen `pages`-rij |
+| Blog: overzicht, archief, bericht | Vast, met de blogtitel uit `BlogSettings` | Geen |
+| Cookiebeleid, Herroepingsrecht | Vast, uit `RouteRegistry` | Geen |
+| 404 | `Home / Pagina niet gevonden` | Geen |
+| Portfolio legacy-detail | Alleen op de niet-gevonden-tak; een gevonden project houdt zijn eigen terugkoppeling | Geen |
+
+Een vaste applicatieroute is geen pagina die een beheerder beheert, dus er is
+ook niets om daar uit te zetten.
+
+### De plek op de pagina
+
+Het kruimelpad is het **eerste** in `<main>`, vóór de inhoud, in een eigen
+`.breadcrumb-bar`. Die balk draagt de ruimte die de vaste siteheader nodig
+heeft — dezelfde `clamp()` die `.page-hero` had — en een Paginakop die er
+direct op volgt laat zijn eigen bovenruimte weg. Op een gewone pagina staat
+de titel daardoor op dezelfde hoogte als voorheen.
+
+Heeft de Paginakop een **achtergrondfoto**, dan staat het kruimelpad bóven de
+fotoband in plaats van erover. Dat is het zichtbare gevolg van de
+ontkoppeling: de foto begint nu onder de balk. De regel in `page-hero.css`
+die het kruimelpad boven een foto lichter kleurde is daarmee overbodig en
+verwijderd.
+
+### Legacy
+
+`page_heroes.breadcrumb_label_nl` en `breadcrumb_label_en` bestaan nog. Ze
+worden niet meer gelezen en niet meer overschreven: de INSERT van
+`PageHeroRepository::upsert()` zet `breadcrumb_label_nl` op de lege string
+(de kolom is `NOT NULL`), en de UPDATE laat beide met rust, zodat een waarde
+die een redacteur ooit typte blijft staan. Het veld *Naam in het kruimelpad*
+is uit de Paginakop-editor verdwenen. De kolommen echt verwijderen is een
+aparte, destructieve beslissing.
+
 ## Testen
 
 ```bash
 docker compose exec php      php vendor/bin/phpunit --testsuite fast
 docker compose exec php_test php vendor/bin/phpunit --testsuite cms
 ```
+
+Het kruimelpad zit in `cms` (en in `blocks`, omdat de Paginakop meeveranderde):
+`Tests\Service\BreadcrumbTest` houdt de markup, de niveaus, de schakelaar en de
+onafhankelijkheid van de Paginakop vast, `Tests\Service\ProductBreadcrumbTest`
+(suite `shop`) dat het productpad server-side staat en `shop.js` het niet meer
+schrijft.
 
 `fast` bevat `HeaderFooterSettingsTest` (de instellingen zelf, zonder database)
 en `HeaderFooterContractTest` (geen sitespecifieke tekst of bestemming meer in

@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../vendor/autoload.php';
 require_once __DIR__ . '/_translate.php';
+require_once __DIR__ . '/../partials/breadcrumb.php';
 
 use App\Repository\PageRepository;
 use App\Service\AdminAuth;
+use App\Service\Breadcrumbs\PageBreadcrumb;
 use App\Service\Language\SiteText;
 use App\Service\PageAssets;
 use App\Service\PageContent;
@@ -92,6 +94,10 @@ require dirname(__DIR__) . '/partials/page-assets.php';
 <?php require dirname(__DIR__) . '/partials/header.php'; ?>
 
 <main id="main">
+  <?php /* The preview shows what a visitor gets, the trail included — so the
+           switch on the Pagina tab can be checked here rather than only on
+           the live page. A draft previews as the page it will be. */ ?>
+  <?php render_breadcrumb(PageBreadcrumb::forPage($page)); ?>
   <?php SectionRegistry::renderPage($contentKey); ?>
 </main>
 

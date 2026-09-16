@@ -71,8 +71,6 @@ if ($old !== null) {
             'title_en' => (string) ($row['title_en'] ?? ''),
             'lead_nl' => (string) ($row['lead_nl'] ?? ''),
             'lead_en' => (string) ($row['lead_en'] ?? ''),
-            'breadcrumb_label_nl' => (string) $row['breadcrumb_label_nl'],
-            'breadcrumb_label_en' => (string) ($row['breadcrumb_label_en'] ?? ''),
             'media_id' => isset($row['media_id']) ? (int) $row['media_id'] : null,
             'content_position' => (string) ($row['content_position'] ?? PageHeroContent::POSITION_LEFT),
             'title_size' => (string) ($row['title_size'] ?? PageHeroContent::SIZE_NORMAL),
@@ -80,7 +78,7 @@ if ($old !== null) {
             'is_active' => (bool) $row['is_active'],
         ];
     } else {
-        $values = PageHeroContent::startingValues((string) $pageLabel) + ['is_active' => true];
+        $values = PageHeroContent::startingValues() + ['is_active' => true];
     }
 }
 
@@ -210,20 +208,10 @@ function pageHeroOptions(array $labels, string $current): string
         <?php admin_lang_pane_end(); ?>
       </div>
 
-      <div class="admin-form-row admin-form-row--split">
-        <?php admin_lang_pane_start('nl'); ?>
-        <div class="admin-field">
-          <?= admin_field_label('page-hero-breadcrumb-nl', admin_t('block_pagehero.breadcrumb_label'), admin_t('help.page_hero.breadcrumb_label'), true) ?>
-          <input type="text" id="page-hero-breadcrumb-nl" name="breadcrumb_label_nl" maxlength="150" <?= admin_lang_required('nl') ?> value="<?= pageHeroValue($values, 'breadcrumb_label_nl') ?>">
-        </div>
-        <?php admin_lang_pane_end(); ?>
-        <?php admin_lang_pane_start('en'); ?>
-        <div class="admin-field">
-          <?= admin_field_label('page-hero-breadcrumb-en', admin_t('block_pagehero.breadcrumb_label'), admin_t('help.page_hero.breadcrumb_label')) ?>
-          <input type="text" id="page-hero-breadcrumb-en" name="breadcrumb_label_en" maxlength="150" value="<?= pageHeroValue($values, 'breadcrumb_label_en') ?>"<?= admin_lang_placeholder_attr('en') ?>>
-        </div>
-        <?php admin_lang_pane_end(); ?>
-      </div>
+      <?php /* There is no "Naam in het kruimelpad" here any more. The
+               breadcrumb is the page's own navigation, its label is the
+               page's own title, and whether it shows is a switch on the page
+               itself (Pagina bewerken → Pagina). See HEADER-FOOTER.md. */ ?>
 
       <h2 style="margin-top:2rem;"><?= admin_te('block_pagehero.group_image') ?></h2>
 

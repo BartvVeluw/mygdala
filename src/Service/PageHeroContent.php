@@ -7,10 +7,14 @@ use App\Service\Media\BlockImage;
 
 /**
  * Content for the "Page hero" section — the header at the top of an ordinary
- * page: the breadcrumb, the H1, and optionally an eyebrow, a lead and an
- * image behind them. See docs/CMS_CONTENT_AUDIT.md, "Recommended smallest
- * next step", and App\Service\SiteSettings for the equivalent pattern this
- * mirrors.
+ * page: the H1, and optionally an eyebrow, a lead and an image behind them.
+ * See App\Service\SiteSettings for the equivalent pattern this mirrors.
+ *
+ * THE BREADCRUMB IS NOT PART OF THIS BLOCK. It is the page's own navigation
+ * (App\Service\Breadcrumbs\PageBreadcrumb), so hiding or deleting a header
+ * no longer takes it down with it. `page_heroes.breadcrumb_label_nl` and
+ * `breadcrumb_label_en` are legacy columns from when it was: still stored,
+ * never read, never overwritten (App\Repository\PageHeroRepository).
  *
  * PAGES below is the fixed, known list of pages that had this section before
  * the page builder existed; any other page gets one by attaching the block
@@ -22,10 +26,10 @@ use App\Service\Media\BlockImage;
  * There is no hardcoded fallback copy, per page or per field. A missing row,
  * or a lookup that fails, is STATE_FALLBACK: there is nothing to render, and a
  * failure is logged. An active row renders exactly what it stores. The editor
- * requires the title and the breadcrumb label, so an empty title only comes
- * from data written outside it; the eyebrow and the lead are optional, and an
- * empty one is simply not rendered (partials/section-page-hero.php). See
- * CONTENT-BLOCKS.md, "Het inhoudscontract".
+ * requires the title, so an empty title only comes from data written outside
+ * it; the eyebrow and the lead are optional, and an empty one is simply not
+ * rendered (partials/section-page-hero.php). See CONTENT-BLOCKS.md, "Het
+ * inhoudscontract".
  *
  * THE IMAGE is a Media Library reference and nothing more (MEDIA.md). A page
  * hero never had an image of its own, so there is no legacy path column and
@@ -100,8 +104,8 @@ class PageHeroContent
 
     /**
      * @return array<string, mixed> 'state' (one of STATE_*), plus the texts
-     *     eyebrow_nl/en, title_nl/en, lead_nl/en and breadcrumb_label_nl/en
-     *     (strings; eyebrow_* and lead_* may be ''); the image as media_id
+     *     eyebrow_nl/en, title_nl/en and lead_nl/en (strings; eyebrow_* and
+     *     lead_* may be ''); the image as media_id
      *     (int|null), image_path ('' for no image), image_alt_nl/en and
      *     image_width/height (int|null when unknown); and content_position,
      *     title_size and text_size, always one of POSITIONS / SIZES.
@@ -138,13 +142,11 @@ class PageHeroContent
             'eyebrow_nl' => (string) ($row['eyebrow_nl'] ?? ''),
             'title_nl' => (string) ($row['title_nl'] ?? ''),
             'lead_nl' => (string) ($row['lead_nl'] ?? ''),
-            'breadcrumb_label_nl' => (string) ($row['breadcrumb_label_nl'] ?? ''),
         ];
 
         $content['eyebrow_en'] = self::valueOrDefault($row['eyebrow_en'] ?? null, $content['eyebrow_nl']);
         $content['title_en'] = self::valueOrDefault($row['title_en'] ?? null, $content['title_nl']);
         $content['lead_en'] = self::valueOrDefault($row['lead_en'] ?? null, $content['lead_nl']);
-        $content['breadcrumb_label_en'] = self::valueOrDefault($row['breadcrumb_label_en'] ?? null, $content['breadcrumb_label_nl']);
         $content['state'] = self::STATE_ACTIVE;
 
         return self::$cache[$pageSlug] = $content + self::imageOf($row) + self::choicesOf($row);
@@ -153,10 +155,10 @@ class PageHeroContent
     /**
      * What a Page hero that does not exist yet starts out with: the editor's
      * form for a page without a row (admin/page-hero.php) and the row
-     * PageHeroBlock::create() writes. Generic, editable copy in the two
-     * fields the editor requires, no image, and today's look for every
-     * choice — never rendered in place of a stored row, which forSlug()
-     * answers with nothing when it is missing.
+     * PageHeroBlock::create() writes. Generic, editable copy in the one field
+     * the editor requires, no image, and today's look for every choice —
+     * never rendered in place of a stored row, which forSlug() answers with
+     * nothing when it is missing.
      *
      * The eyebrow starts empty. It used to start as "Nieuw" only because the
      * editor required one; an optional eyebrow that nobody chose would be a
@@ -164,7 +166,7 @@ class PageHeroContent
      *
      * @return array<string, string|null>
      */
-    public static function startingValues(string $pageLabel): array
+    public static function startingValues(): array
     {
         return [
             'eyebrow_nl' => '',
@@ -173,8 +175,6 @@ class PageHeroContent
             'title_en' => '',
             'lead_nl' => '',
             'lead_en' => '',
-            'breadcrumb_label_nl' => $pageLabel,
-            'breadcrumb_label_en' => '',
             'media_id' => null,
             'content_position' => self::POSITION_LEFT,
             'title_size' => self::SIZE_NORMAL,
@@ -255,7 +255,6 @@ class PageHeroContent
             'eyebrow_nl' => '', 'eyebrow_en' => '',
             'title_nl' => '', 'title_en' => '',
             'lead_nl' => '', 'lead_en' => '',
-            'breadcrumb_label_nl' => '', 'breadcrumb_label_en' => '',
             'media_id' => null, 'image_path' => '',
             'image_alt_nl' => '', 'image_alt_en' => '',
             'image_width' => null, 'image_height' => null,

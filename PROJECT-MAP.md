@@ -68,6 +68,7 @@ adminpaneel is.
 | `src/Service/Media/` | De Mediabibliotheek: het media-item, de uploadpijplijn, de kiezerlogica en wie welk item gebruikt |
 | `src/Service/Forms/` | Core Forms: de veldtypes, het leesmodel, validatie, spam-afweer, verwerking en veilig verwijderen |
 | `src/Service/Blog/` | De Blog-module: het leesmodel, de statussen en hun klok, slugs en URL's, de metadata, de RSS-feed en het mediagebruik (`BLOG.md`) |
+| `src/Service/Breadcrumbs/` | Het kruimelpad: één niveau als waarde-object, het hele pad, en de keuze per pagina. De markup staat in `partials/breadcrumb.php` (`HEADER-FOOTER.md`) |
 | `src/Service/PageTemplates/` | Paginasjablonen: het contract, dé registratielijst, één klasse per sjabloon en de installer die er een pagina mee opbouwt |
 | `src/Repository/` | Alle SQL, één klasse per tabelgroep, basisklasse `Repository.php` |
 | `src/Mail/` | Opbouw van transactionele e-mails |

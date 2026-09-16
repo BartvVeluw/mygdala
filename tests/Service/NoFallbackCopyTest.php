@@ -308,8 +308,6 @@ final class NoFallbackCopyTest extends TestCase
                 'text_size' => PageHeroContent::SIZE_NORMAL,
                 'lead_nl' => '',
                 'lead_en' => '',
-                'breadcrumb_label_nl' => '',
-                'breadcrumb_label_en' => '',
             ]),
             'homepage_hero' => (new HomepageHeroRepository())->upsert($pageSlug, self::homepageHeroValues(['is_active' => $active])),
         };

@@ -5,6 +5,7 @@ require_once __DIR__ . '/vendor/autoload.php';
 // App\Module\ModuleGuard renders the site's own 404 and exits, exactly as
 // an unknown slug does. Nothing below runs.
 \App\Module\ModuleGuard::requirePublicRoute('shop');
+require_once __DIR__ . '/partials/breadcrumb.php';
 
 $termsUrl = htmlspecialchars(\App\Service\LegalPages::termsAndConditionsUrl(), ENT_QUOTES, 'UTF-8');
 $turnstileSiteKey = htmlspecialchars(\App\Service\TurnstileVerifier::siteKey(), ENT_QUOTES, 'UTF-8');
@@ -45,13 +46,14 @@ require __DIR__ . '/partials/header.php';
 
 <main id="main">
 
+  <?php render_breadcrumb(
+      \App\Service\Breadcrumbs\BreadcrumbTrail::home()
+          ->toRoute('cart')
+          ->to(\App\Service\Breadcrumbs\BreadcrumbItem::current('Afrekenen', 'Checkout'))
+  ); ?>
+
   <section class="page-hero" style="padding-bottom:0;">
     <div class="container">
-      <div class="breadcrumb">
-        <a href="index.php" data-nl="Home" data-en="Home">Home</a><span>/</span>
-        <a href="cart.php" data-nl="Winkelwagen" data-en="Shopping cart">Winkelwagen</a><span>/</span>
-        <span data-nl="Afrekenen" data-en="Checkout">Afrekenen</span>
-      </div>
       <p class="eyebrow" data-nl="Stap 2 van 2" data-en="Step 2 of 2">Stap 2 van 2</p>
       <h1 style="max-width:20ch;" data-nl="Bestelling afronden" data-en="Complete your order">Bestelling afronden</h1>
     </div>

@@ -10,6 +10,7 @@ require_once __DIR__ . '/vendor/autoload.php';
 // <head>. On an ordinary page view it does nothing at all.
 \App\Service\Forms\PublicFormSession::prime();
 require_once __DIR__ . '/partials/page-not-found.php';
+require_once __DIR__ . '/partials/breadcrumb.php';
 
 // Resolved BEFORE a single byte of HTML: http_response_code() below is only
 // honoured while no output has been sent yet (same reason pagina.php looks
@@ -60,6 +61,7 @@ require __DIR__ . '/partials/header.php';
   <?php if ($page === null): ?>
     <?php render_page_not_found(); ?>
   <?php else: ?>
+    <?php render_breadcrumb(\App\Service\Breadcrumbs\PageBreadcrumb::forPage($page)); ?>
     <?php \App\Service\SectionRegistry::renderPage('over-mij'); ?>
   <?php endif; ?>
 

@@ -13,6 +13,8 @@
  * indistinguishable to a visitor.
  */
 
+require_once __DIR__ . '/breadcrumb.php';
+
 function render_page_not_found_head(): void
 {
     // The one shared renderer, like every other public page — so a 404 gets
@@ -29,13 +31,16 @@ function render_page_not_found_head(): void
 
 function render_page_not_found(): void
 {
+    // A 404 says where a visitor is too — the one level it can honestly name
+    // is that this page is not there. The homepage link above it is the way
+    // out, which is the whole reason the trail is here.
+    render_breadcrumb(
+        \App\Service\Breadcrumbs\BreadcrumbTrail::home()
+            ->to(\App\Service\Breadcrumbs\BreadcrumbItem::current('Pagina niet gevonden', 'Page not found'))
+    );
     ?>
   <section class="page-hero">
     <div class="container">
-      <div class="breadcrumb">
-        <a href="/index.php" data-nl="Home" data-en="Home">Home</a><span>/</span>
-        <span data-nl="Pagina niet gevonden" data-en="Page not found">Pagina niet gevonden</span>
-      </div>
       <h1 data-nl="Pagina niet gevonden" data-en="Page not found">Pagina niet gevonden</h1>
       <p class="lead" style="margin-top:1rem;" data-nl="Deze pagina bestaat niet (meer) of is niet zichtbaar." data-en="This page doesn't exist (anymore) or isn't visible.">Deze pagina bestaat niet (meer) of is niet zichtbaar.</p>
       <a href="/index.php" class="btn" style="margin-top:1.5rem;" data-nl="Naar de homepage" data-en="To the homepage">Naar de homepage

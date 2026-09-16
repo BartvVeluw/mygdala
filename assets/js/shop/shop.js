@@ -202,12 +202,12 @@
       // hardcoded " | Shop — …" suffix would silently overwrite that custom
       // title the moment the API response arrived.
 
-      var breadcrumbEl = document.querySelector("[data-product-breadcrumb]");
-      if (breadcrumbEl) {
-        breadcrumbEl.setAttribute("data-nl", product.name || "");
-        breadcrumbEl.setAttribute("data-en", product.name_en || product.name || "");
-        breadcrumbEl.textContent = titleText;
-      }
+      // The BREADCRUMB is deliberately NOT touched here either. product.php
+      // prints the product's real name into it server-side, from the same
+      // `products` row this response comes from (App\Service\ProductSeo), so
+      // a visitor without JavaScript and a crawler get the trail too. This
+      // used to overwrite it because the page only ever shipped the word
+      // "Product"; rewriting it now would only put the same words back.
 
       var nameEl = document.querySelector("[data-product-name]");
       if (nameEl) {

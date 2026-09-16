@@ -8,6 +8,7 @@ require_once __DIR__ . '/vendor/autoload.php';
 // existed (App\Module\ModuleGuard). Nothing below runs — the redirect neither,
 // since it reads the module's own tables.
 \App\Module\ModuleGuard::requirePublicRoute('portfolio');
+require_once __DIR__ . '/partials/breadcrumb.php';
 
 /**
  * The OLD project page: the page a Portfolio item could switch on at
@@ -107,12 +108,18 @@ require __DIR__ . '/partials/header.php';
 <main id="main">
 
 <?php if ($portfolioItem === null): ?>
+  <?php /* The Portfolio level is that CMS page, by its own title and its own
+           address, so a rename follows through. The last level is what this
+           page is, which keeps the link above it clickable. A project that
+           IS found keeps its own "Terug naar portfolio" link and no trail —
+           this legacy detail page is on its way out (MODULES.md). */ ?>
+  <?php render_breadcrumb(
+      \App\Service\Breadcrumbs\BreadcrumbTrail::home()
+          ->toPage('portfolio')
+          ->to(\App\Service\Breadcrumbs\BreadcrumbItem::current('Project niet gevonden', 'Project not found'))
+  ); ?>
   <section class="page-hero">
     <div class="container">
-      <div class="breadcrumb">
-        <a href="/index.php" data-nl="Home" data-en="Home">Home</a><span>/</span>
-        <a href="/portfolio.php" data-nl="Portfolio" data-en="Portfolio">Portfolio</a>
-      </div>
       <h1 data-nl="Project niet gevonden" data-en="Project not found">Project niet gevonden</h1>
       <p class="lead" style="margin-top:1rem;" data-nl="Dit project bestaat niet (meer) of is niet zichtbaar. Bekijk de rest van het portfolio hieronder." data-en="This project doesn't exist (anymore) or isn't visible. Browse the rest of the portfolio below.">Dit project bestaat niet (meer) of is niet zichtbaar. Bekijk de rest van het portfolio hieronder.</p>
       <a href="/portfolio.php" class="btn" style="margin-top:1.5rem;" data-nl="Naar portfolio" data-en="To portfolio">Naar portfolio

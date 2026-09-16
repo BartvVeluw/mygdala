@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/vendor/autoload.php';
+require_once __DIR__ . '/partials/breadcrumb.php';
 
 /**
  * Customer-facing right-of-withdrawal ("herroepingsrecht") form — see
@@ -62,11 +63,10 @@ require __DIR__ . '/partials/page-assets.php';
 
 <main id="main">
 
+  <?php render_breadcrumb(\App\Service\Breadcrumbs\BreadcrumbTrail::home()->toRoute('herroeping')); ?>
+
   <section class="page-hero">
     <div class="container">
-      <div class="breadcrumb">
-        <a href="/index.php" data-nl="Home" data-en="Home">Home</a><span>/</span><span data-nl="Herroepingsrecht" data-en="Right of withdrawal">Herroepingsrecht</span>
-      </div>
       <p class="eyebrow" data-nl="Juridisch" data-en="Legal">Juridisch</p>
       <h1 data-nl="Bestelling herroepen" data-en="Withdraw an order">Bestelling herroepen</h1>
       <p class="lead" style="margin-top:1rem;" data-nl="Wil je gebruikmaken van je herroepingsrecht (bedenktijd)? Meld je bestelling hieronder aan, dan nemen we het verzoek in behandeling. Lees ook onze pagina Verzenden &amp; retourneren voor meer uitleg, waaronder de uitzondering voor gepersonaliseerde/op maat gemaakte producten." data-en="Want to use your right of withdrawal (cooling-off period)? Report your order below and we'll take the request into review. See also our Shipping &amp; returns page for more details, including the exception for personalised/made-to-order products.">Wil je gebruikmaken van je herroepingsrecht (bedenktijd)? Meld je bestelling hieronder aan, dan nemen we het verzoek in behandeling. Lees ook onze pagina <a href="/verzenden-retourneren">Verzenden &amp; retourneren</a> voor meer uitleg, waaronder de uitzondering voor gepersonaliseerde/op maat gemaakte producten.</p>

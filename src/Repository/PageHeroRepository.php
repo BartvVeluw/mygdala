@@ -32,6 +32,15 @@ class PageHeroRepository extends Repository
      * the Media Library (BlockImage::fromRequest()) or null, and each choice
      * one of PageHeroContent's closed lists — so this only writes them.
      *
+     * THE TWO BREADCRUMB COLUMNS ARE LEGACY and no caller passes them any
+     * more: the breadcrumb is the page's own navigation now
+     * (App\Service\Breadcrumbs\PageBreadcrumb). `breadcrumb_label_nl` is NOT
+     * NULL with no default, so an INSERT still has to name it and writes the
+     * empty string; the UPDATE half leaves both columns alone, so a value an
+     * editor typed before this change survives every later save instead of
+     * being blanked by it. Removing the columns is a separate, destructive
+     * decision — see db/migrations/20260916120000.
+     *
      * @param array<string, string|bool|int|null> $values
      */
     public function upsert(string $pageSlug, array $values): void
@@ -39,11 +48,11 @@ class PageHeroRepository extends Repository
         $stmt = $this->db->prepare(
             'INSERT INTO page_heroes
                 (page_slug, eyebrow_nl, eyebrow_en, title_nl, title_en, lead_nl, lead_en,
-                 breadcrumb_label_nl, breadcrumb_label_en, media_id, content_position, title_size, text_size,
+                 breadcrumb_label_nl, media_id, content_position, title_size, text_size,
                  is_active, created_at, updated_at)
              VALUES
                 (:page_slug, :eyebrow_nl, :eyebrow_en, :title_nl, :title_en, :lead_nl, :lead_en,
-                 :breadcrumb_label_nl, :breadcrumb_label_en, :media_id, :content_position, :title_size, :text_size,
+                 :breadcrumb_label_nl, :media_id, :content_position, :title_size, :text_size,
                  :is_active, NOW(), NOW())
              ON DUPLICATE KEY UPDATE
                 eyebrow_nl = VALUES(eyebrow_nl),
@@ -52,8 +61,6 @@ class PageHeroRepository extends Repository
                 title_en = VALUES(title_en),
                 lead_nl = VALUES(lead_nl),
                 lead_en = VALUES(lead_en),
-                breadcrumb_label_nl = VALUES(breadcrumb_label_nl),
-                breadcrumb_label_en = VALUES(breadcrumb_label_en),
                 media_id = VALUES(media_id),
                 content_position = VALUES(content_position),
                 title_size = VALUES(title_size),
@@ -70,8 +77,8 @@ class PageHeroRepository extends Repository
             'title_en' => $values['title_en'] !== '' ? $values['title_en'] : null,
             'lead_nl' => $values['lead_nl'] !== '' ? $values['lead_nl'] : null,
             'lead_en' => $values['lead_en'] !== '' ? $values['lead_en'] : null,
-            'breadcrumb_label_nl' => $values['breadcrumb_label_nl'],
-            'breadcrumb_label_en' => $values['breadcrumb_label_en'] !== '' ? $values['breadcrumb_label_en'] : null,
+            // A legacy column that only the INSERT still has to name; see above.
+            'breadcrumb_label_nl' => '',
             'media_id' => $values['media_id'] !== null ? (int) $values['media_id'] : null,
             'content_position' => $values['content_position'],
             'title_size' => $values['title_size'],

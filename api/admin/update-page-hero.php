@@ -62,8 +62,6 @@ $fields = [
     'title_en' => trim((string) ($_POST['title_en'] ?? '')),
     'lead_nl' => trim((string) ($_POST['lead_nl'] ?? '')),
     'lead_en' => trim((string) ($_POST['lead_en'] ?? '')),
-    'breadcrumb_label_nl' => trim((string) ($_POST['breadcrumb_label_nl'] ?? '')),
-    'breadcrumb_label_en' => trim((string) ($_POST['breadcrumb_label_en'] ?? '')),
     'media_id' => BlockImage::fromRequest($_POST['media_id'] ?? null)['media_id'],
     'content_position' => trim((string) ($_POST['content_position'] ?? '')),
     'title_size' => trim((string) ($_POST['title_size'] ?? '')),
@@ -72,8 +70,11 @@ $fields = [
 ];
 
 // The eyebrow is optional: an empty one renders no element at all
-// (partials/section-page-hero.php).
-$required = ['title_nl', 'breadcrumb_label_nl'];
+// (partials/section-page-hero.php). The breadcrumb label used to be required
+// here; the breadcrumb is the page's own navigation now and this form no
+// longer carries it (App\Service\Breadcrumbs\PageBreadcrumb). A forged
+// request that still sends one is simply ignored — the field is not read.
+$required = ['title_nl'];
 $errors = [];
 
 foreach ($required as $key) {

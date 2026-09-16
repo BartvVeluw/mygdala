@@ -255,9 +255,13 @@ bedrijfsnaam wordt. Een bericht dat niet geïndexeerd mag worden levert
 helemaal niets.
 
 Bewust **niet**: `LocalBusiness` met een geraden bedrijfstype, openingstijden,
-beoordelingen, `BreadcrumbList` zonder echte broodkruimelnavigatie, en
-`FAQPage` alleen omdat er een FAQ-blok bestaat. Er is geen betrouwbare
-gegevensbron voor één ervan.
+beoordelingen en `FAQPage` alleen omdat er een FAQ-blok bestaat. Er is geen
+betrouwbare gegevensbron voor één ervan.
+
+`BreadcrumbList` hoort ook nog in dat rijtje, maar om een andere reden dan
+eerst. Sinds fase 5B is er wél echte broodkruimelnavigatie, met een
+betrouwbare bron (`HEADER-FOOTER.md`); de JSON-LD erbij is een losse stap die
+bewust buiten die fase is gelaten en niet vergeten.
 
 De JSON-LD wordt altijd met `json_encode()` uit een PHP-array gebouwd, nooit
 met stringplakwerk, met `JSON_HEX_TAG|AMP|APOS|QUOT` — een productnaam met

@@ -8,6 +8,7 @@ require_once __DIR__ . '/vendor/autoload.php';
 // App\Module\ModuleGuard renders the site's own 404 and exits, exactly as
 // an unknown slug does. Nothing below runs.
 \App\Module\ModuleGuard::requirePublicRoute('personalization');
+require_once __DIR__ . '/partials/breadcrumb.php';
 
 
 /**
@@ -80,12 +81,13 @@ require __DIR__ . '/partials/header.php';
 
 <main id="main">
 
+  <?php render_breadcrumb(
+      \App\Service\Breadcrumbs\BreadcrumbTrail::home()
+          ->to(\App\Service\Breadcrumbs\BreadcrumbItem::current('Personaliseren', 'Personalise'))
+  ); ?>
+
   <section class="page-hero">
     <div class="container">
-      <div class="breadcrumb">
-        <a href="/index.php" data-nl="Home" data-en="Home">Home</a><span>/</span>
-        <span data-nl="Personaliseren" data-en="Personalise">Personaliseren</span>
-      </div>
       <div class="section-head" data-reveal>
         <p class="eyebrow" data-nl="Op maat" data-en="Made to order">Op maat</p>
         <h1 data-nl="Personaliseer je product" data-en="Personalise your product">Personaliseer je product</h1>

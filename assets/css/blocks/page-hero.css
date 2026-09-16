@@ -8,10 +8,12 @@
    for the default, so a header nobody changed matches no rule in this file
    and looks exactly as it did before these choices existed.
 
-   What stays in core.css, on purpose: .page-hero itself, .breadcrumb,
-   .eyebrow and .lead. The shop, cart, checkout, blog and legal templates
-   print the same header by hand, without this block, so those rules are
-   shared and not this block's to own.
+   What stays in core.css, on purpose: .page-hero itself, .eyebrow and .lead.
+   The shop, cart, checkout, blog and legal templates print the same header by
+   hand, without this block, so those rules are shared and not this block's to
+   own. The breadcrumb is not here at all any more: it is the page's own
+   navigation, printed before the header (partials/breadcrumb.php), and it is
+   styled in core.css beside .page-hero.
 
    A size here is a step on the type scale in core.css (--fs-*), never a
    value from the database.
@@ -22,12 +24,10 @@
    width on the h1 and the lead's max-width — and auto margins move them to
    the chosen side rather than stretching them. */
 .page-hero--content-center .container{ text-align: center; }
-.page-hero--content-center .breadcrumb{ justify-content: center; }
 .page-hero--content-center h1,
 .page-hero--content-center .lead{ margin-inline: auto; }
 
 .page-hero--content-right .container{ text-align: right; }
-.page-hero--content-right .breadcrumb{ justify-content: flex-end; }
 .page-hero--content-right h1,
 .page-hero--content-right .lead{ margin-inline-start: auto; }
 
@@ -48,11 +48,15 @@
    the ground rather than against a hard edge.
 
    Over a photograph the title keeps to a column, so the veil can follow the
-   text: dense behind the breadcrumb and the intro text, still dense enough
-   behind the large title, and light on the far side, where the picture shows.
-   Measured on a completely white photograph, the small text stays at around
-   4.5:1 and the title above the 3:1 large text needs. Nobody has to judge
-   contrast, and a per-page line-wrap width on the h1 is narrower still.
+   text: dense behind the intro text, still dense enough behind the large
+   title, and light on the far side, where the picture shows. Measured on a
+   completely white photograph, the small text stays at around 4.5:1 and the
+   title above the 3:1 large text needs. Nobody has to judge contrast, and a
+   per-page line-wrap width on the h1 is narrower still.
+
+   The breadcrumb is no longer one of the things the veil has to carry: it
+   sits above the band, on the page's own ground, which is what its colour was
+   made for.
 
    The band grows with its text; min-height only gives a short header room to
    show its picture. */
@@ -65,12 +69,6 @@
   padding-bottom: var(--sp-6);
 }
 .page-hero--media h1{ max-width: min(100%, 52rem); }
-
-/* The faint breadcrumb colour is made for the plain page ground. Over a
-   photograph it takes the muted text colour, and keeps its hover. */
-.page-hero--media .breadcrumb,
-.page-hero--media .breadcrumb a{ color: var(--color-text-muted); }
-.page-hero--media .breadcrumb a:hover{ color: var(--color-primary-bright); }
 
 .page-hero__media{
   position: absolute;

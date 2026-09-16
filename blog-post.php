@@ -7,6 +7,7 @@ require_once __DIR__ . '/vendor/autoload.php';
 \App\Module\ModuleGuard::requirePublicRoute('blog');
 
 require_once __DIR__ . '/partials/page-not-found.php';
+require_once __DIR__ . '/partials/breadcrumb.php';
 
 /**
  * One blog post's public page (/blog/<slug>, see .htaccess).
@@ -95,14 +96,17 @@ require __DIR__ . '/partials/header.php';
 
   <article class="blog-post">
 
+    <?php /* `narrow` because a post's header keeps to the reading column,
+             and the trail has to line up with the title under it. */ ?>
+    <?php render_breadcrumb(
+        \App\Service\Breadcrumbs\BreadcrumbTrail::home()
+            ->to(\App\Service\Breadcrumbs\BreadcrumbItem::link(BlogSettings::title('nl'), BlogSettings::title('en'), BlogUrls::indexPath()))
+            ->to(\App\Service\Breadcrumbs\BreadcrumbItem::current($titleNl, $titleEn)),
+        true
+    ); ?>
+
     <section class="page-hero">
       <div class="container container--narrow">
-        <div class="breadcrumb">
-          <a href="/index.php" data-nl="Home" data-en="Home">Home</a><span>/</span>
-          <a href="<?= $h(BlogUrls::indexPath()) ?>" data-nl="<?= $h(BlogSettings::title('nl')) ?>" data-en="<?= $h(BlogSettings::title('en')) ?>"><?= $h(BlogSettings::title('nl')) ?></a><span>/</span>
-          <span data-nl="<?= $h($titleNl) ?>" data-en="<?= $h($titleEn) ?>"><?= $h($titleNl) ?></span>
-        </div>
-
         <?php if ($post['primary_category'] !== null): ?>
           <p class="eyebrow" data-nl="<?= $h(BlogContent::categoryName($post['primary_category'], 'nl')) ?>" data-en="<?= $h(BlogContent::categoryName($post['primary_category'], 'en')) ?>"><?= $h(BlogContent::categoryName($post['primary_category'], 'nl')) ?></p>
         <?php endif; ?>

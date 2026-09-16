@@ -6,6 +6,7 @@ require_once __DIR__ . '/vendor/autoload.php';
 // an unknown slug does. Nothing below runs.
 \App\Module\ModuleGuard::requirePublicRoute('shop');
 
+require_once __DIR__ . '/partials/breadcrumb.php';
 require_once __DIR__ . '/partials/related-products.php';
 require_once __DIR__ . '/partials/product-personalization.php';
 
@@ -187,15 +188,26 @@ require __DIR__ . '/partials/header.php';
 
 <main id="main" data-product-detail>
 
-  <section class="page-hero" style="padding-bottom:0;">
-    <div class="container">
-      <div class="breadcrumb">
-        <a href="index.php" data-nl="Home" data-en="Home">Home</a><span>/</span>
-        <a href="shop.php" data-nl="Shop" data-en="Shop">Shop</a><span>/</span>
-        <span data-product-breadcrumb data-nl="Product" data-en="Product">Product</span>
-      </div>
-    </div>
-  </section>
+  <?php
+    /**
+     * The product's own name, server-side. It comes from the same `products`
+     * row App\Service\ProductSeo already resolved for the <head>, so the trail
+     * cannot describe a different product than the page does — and a visitor
+     * without JavaScript, a crawler and a link preview all get the real name
+     * instead of the word "Product". assets/js/shop/shop.js no longer touches
+     * it for exactly that reason.
+     *
+     * A URL naming no product, or one that is not active, keeps the generic
+     * last level: there is no name to print, and the page below says so.
+     */
+    render_breadcrumb(
+        \App\Service\Breadcrumbs\BreadcrumbTrail::home()
+            ->toRoute('shop')
+            ->to($seo === null
+                ? \App\Service\Breadcrumbs\BreadcrumbItem::current('Product', 'Product')
+                : \App\Service\Breadcrumbs\BreadcrumbItem::current((string) $seo['name_nl'], (string) $seo['name_en']))
+    );
+  ?>
 
   <section>
     <div class="container">

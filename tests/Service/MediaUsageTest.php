@@ -592,7 +592,7 @@ final class MediaUsageTest extends TestCase
         $this->createdSections[] = $pageSectionId;
 
         (new PageHeroRepository())->upsert(self::TEST_PAGE, array_merge(
-            PageHeroContent::startingValues('Mediagebruik-testpagina'),
+            PageHeroContent::startingValues(),
             ['media_id' => $mediaId, 'is_active' => true]
         ));
 

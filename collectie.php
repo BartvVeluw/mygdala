@@ -8,6 +8,7 @@ require_once __DIR__ . '/vendor/autoload.php';
 // App\Module\ModuleGuard renders the site's own 404 and exits, exactly as
 // an unknown slug does. Nothing below runs.
 \App\Module\ModuleGuard::requirePublicRoute('shop');
+require_once __DIR__ . '/partials/breadcrumb.php';
 
 
 /**
@@ -110,12 +111,16 @@ require __DIR__ . '/partials/header.php';
 <main id="main">
 
 <?php if ($collection === null): ?>
+  <?php /* The last level is what the page IS, so the storefront above it
+           stays a link the visitor can take. It used to end at "Shop", which
+           made the one useful link in the trail unclickable. */ ?>
+  <?php render_breadcrumb(
+      \App\Service\Breadcrumbs\BreadcrumbTrail::home()
+          ->toRoute('shop')
+          ->to(\App\Service\Breadcrumbs\BreadcrumbItem::current('Collectie niet gevonden', 'Collection not found'))
+  ); ?>
   <section class="page-hero">
     <div class="container">
-      <div class="breadcrumb">
-        <a href="/index.php" data-nl="Home" data-en="Home">Home</a><span>/</span>
-        <a href="/shop.php" data-nl="Shop" data-en="Shop">Shop</a>
-      </div>
       <h1 data-nl="Collectie niet gevonden" data-en="Collection not found">Collectie niet gevonden</h1>
       <p class="lead" style="margin-top:1rem;" data-nl="Deze collectie bestaat niet (meer) of is niet zichtbaar. Bekijk hieronder de rest van de shop." data-en="This collection doesn't exist (anymore) or isn't visible. Browse the rest of the shop below.">Deze collectie bestaat niet (meer) of is niet zichtbaar. Bekijk hieronder de rest van de shop.</p>
       <a href="/shop.php" class="btn" style="margin-top:1.5rem;" data-nl="Naar de shop" data-en="To the shop">Naar de shop
@@ -124,13 +129,13 @@ require __DIR__ . '/partials/header.php';
     </div>
   </section>
 <?php else: ?>
+  <?php render_breadcrumb(
+      \App\Service\Breadcrumbs\BreadcrumbTrail::home()
+          ->toRoute('shop')
+          ->to(\App\Service\Breadcrumbs\BreadcrumbItem::current((string) $collection['name_nl'], (string) $collection['name_en']))
+  ); ?>
   <section class="page-hero">
     <div class="container">
-      <div class="breadcrumb">
-        <a href="/index.php" data-nl="Home" data-en="Home">Home</a><span>/</span>
-        <a href="/shop.php" data-nl="Shop" data-en="Shop">Shop</a><span>/</span>
-        <span data-nl="<?= $h($collection['name_nl']) ?>" data-en="<?= $h($collection['name_en']) ?>"><?= $h($collection['name_nl']) ?></span>
-      </div>
       <p class="eyebrow" data-nl="Collectie" data-en="Collection">Collectie</p>
       <h1 data-nl="<?= $h($collection['name_nl']) ?>" data-en="<?= $h($collection['name_en']) ?>"><?= $h($collection['name_nl']) ?></h1>
     </div>

@@ -5,6 +5,7 @@ require_once __DIR__ . '/vendor/autoload.php';
 // App\Module\ModuleGuard renders the site's own 404 and exits, exactly as
 // an unknown slug does. Nothing below runs.
 \App\Module\ModuleGuard::requirePublicRoute('shop');
+require_once __DIR__ . '/partials/breadcrumb.php';
 
 // This route has no CMS page behind it, so its SEO metadata is built here
 // — but through the same App\Service\SeoMetadata every other public page
@@ -48,13 +49,14 @@ require __DIR__ . '/partials/header.php';
 
 <main id="main">
 
+  <?php render_breadcrumb(
+      \App\Service\Breadcrumbs\BreadcrumbTrail::home()
+          ->toRoute('shop')
+          ->to(\App\Service\Breadcrumbs\BreadcrumbItem::current('Winkelwagen', 'Shopping cart'))
+  ); ?>
+
   <section class="page-hero" style="padding-bottom:0;">
     <div class="container">
-      <div class="breadcrumb">
-        <a href="index.php" data-nl="Home" data-en="Home">Home</a><span>/</span>
-        <a href="shop.php" data-nl="Shop" data-en="Shop">Shop</a><span>/</span>
-        <span data-nl="Winkelwagen" data-en="Shopping cart">Winkelwagen</span>
-      </div>
       <p class="eyebrow" data-nl="Stap 1 van 2" data-en="Step 1 of 2">Stap 1 van 2</p>
       <h1 style="max-width:20ch;" data-nl="Jouw winkelwagen" data-en="Your shopping cart">Jouw winkelwagen</h1>
     </div>

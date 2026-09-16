@@ -10,6 +10,7 @@ require_once __DIR__ . '/vendor/autoload.php';
 \App\Module\ModuleGuard::requirePublicRoute('blog');
 
 require_once __DIR__ . '/partials/page-not-found.php';
+require_once __DIR__ . '/partials/breadcrumb.php';
 
 /**
  * The Blog's listing, in three modes behind three URLs (.htaccess):
@@ -149,17 +150,23 @@ require __DIR__ . '/partials/header.php';
   <?php render_page_not_found(); ?>
 <?php else: ?>
 
+  <?php
+    /**
+     * The Blog names its own levels — its title is the one the owner typed
+     * (BlogSettings), not a fixed word — and hands them to the site's one
+     * renderer. Core never learns that a blog exists; see MODULES.md.
+     */
+    $blogTrail = \App\Service\Breadcrumbs\BreadcrumbTrail::home();
+    $blogTrail = $listing['mode'] === 'index'
+        ? $blogTrail->to(\App\Service\Breadcrumbs\BreadcrumbItem::current(BlogSettings::title('nl'), BlogSettings::title('en')))
+        : $blogTrail
+            ->to(\App\Service\Breadcrumbs\BreadcrumbItem::link(BlogSettings::title('nl'), BlogSettings::title('en'), BlogUrls::indexPath()))
+            ->to(\App\Service\Breadcrumbs\BreadcrumbItem::current($headingNl, $headingEn));
+    render_breadcrumb($blogTrail);
+  ?>
+
   <section class="page-hero">
     <div class="container">
-      <div class="breadcrumb">
-        <a href="/index.php" data-nl="Home" data-en="Home">Home</a><span>/</span>
-        <?php if ($listing['mode'] === 'index'): ?>
-          <span data-nl="<?= $h(BlogSettings::title('nl')) ?>" data-en="<?= $h(BlogSettings::title('en')) ?>"><?= $h(BlogSettings::title('nl')) ?></span>
-        <?php else: ?>
-          <a href="<?= $h(BlogUrls::indexPath()) ?>" data-nl="<?= $h(BlogSettings::title('nl')) ?>" data-en="<?= $h(BlogSettings::title('en')) ?>"><?= $h(BlogSettings::title('nl')) ?></a><span>/</span>
-          <span data-nl="<?= $h($headingNl) ?>" data-en="<?= $h($headingEn) ?>"><?= $h($headingNl) ?></span>
-        <?php endif; ?>
-      </div>
       <?php if ($eyebrowNl !== ''): ?>
         <p class="eyebrow" data-nl="<?= $h($eyebrowNl) ?>" data-en="<?= $h($eyebrowEn) ?>"><?= $h($eyebrowNl) ?></p>
       <?php endif; ?>

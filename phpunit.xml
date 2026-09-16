@@ -310,6 +310,7 @@
             <file>tests/Service/BlockDefinitionContractTest.php</file>
             <file>tests/Service/BlockPickerTest.php</file>
             <file>tests/Service/BlockPresentationTest.php</file>
+            <file>tests/Service/BreadcrumbTest.php</file>
             <file>tests/Service/ContentBlockArchitectureTest.php</file>
             <file>tests/Service/FormRenderingTest.php</file>
             <file>tests/Service/FrontendAssetOwnershipTest.php</file>
@@ -399,6 +400,7 @@
             <file>tests/Service/PageBuilderScreenTest.php</file>
             <file>tests/Service/PageBuilderSecurityTest.php</file>
             <file>tests/Service/PageContentTest.php</file>
+            <file>tests/Service/BreadcrumbTest.php</file>
             <file>tests/Service/PagePreviewAccessTest.php</file>
             <file>tests/Service/PagePreviewContractTest.php</file>
             <file>tests/Service/PageRoutingTest.php</file>
@@ -464,6 +466,7 @@
             <file>tests/Service/PdfInvoiceRendererTest.php</file>
             <file>tests/Service/ProductDeletionAdminSecurityTest.php</file>
             <file>tests/Service/ProductSeoTest.php</file>
+            <file>tests/Service/ProductBreadcrumbTest.php</file>
             <directory>tests/Service/Shipping</directory>
             <file>tests/Service/ShopSeoAdminTest.php</file>
             <file>tests/Service/ShopSeoRoutingTest.php</file>

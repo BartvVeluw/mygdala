@@ -188,7 +188,6 @@ final class NoEmptyActiveBlockTest extends TestCase
             (new PageHeroRepository())->upsert(self::TEST_SLUG, self::pageHeroValues([
                 'eyebrow_nl' => 'Bovenschrift',
                 'lead_nl' => 'Een inleiding',
-                'breadcrumb_label_nl' => 'Kruimelpad',
                 'media_id' => $mediaId,
                 'content_position' => PageHeroContent::POSITION_CENTER,
                 'title_size' => PageHeroContent::SIZE_LARGE,
@@ -529,7 +528,6 @@ final class NoEmptyActiveBlockTest extends TestCase
             'eyebrow_nl' => '', 'eyebrow_en' => '',
             'title_nl' => '', 'title_en' => '',
             'lead_nl' => '', 'lead_en' => '',
-            'breadcrumb_label_nl' => '', 'breadcrumb_label_en' => '',
             'media_id' => null,
             'content_position' => PageHeroContent::POSITION_LEFT,
             'title_size' => PageHeroContent::SIZE_NORMAL,

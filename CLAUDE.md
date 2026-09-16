@@ -51,7 +51,7 @@ de checklist al klaarzet. Roep die eerst aan.
 | Een nieuw paginasjabloon | — | `PAGE-TEMPLATES.md` |
 | Wat een verse installatie aanmaakt | — | `INSTALL-BOOTSTRAP.md` |
 | De installatiewizard, de basis-URL, een nieuwe site (clone) beginnen | — | `SETUP.md` |
-| Header-knop, footer-slotregel, social profielen | — | `HEADER-FOOTER.md` |
+| Header-knop, footer-slotregel, social profielen, het kruimelpad | — | `HEADER-FOOTER.md` |
 | Titels, meta description, canonical, sitemap, robots | — | `SEO.md` |
 | Een oude URL die moet blijven werken, een pagina hernoemen | — | `REDIRECTS.md` |
 | Tests draaien of toevoegen | — | `TESTING.md` |

@@ -199,7 +199,7 @@ Lees er **één** per taak. De wegwijzer in `CLAUDE.md` vertelt welke.
 | `THEMING.md` | 227 | Kleuren, lettertypes, knopvorm, logo's, dashboard-uiterlijk |
 | `SEO.md` | 387 | Titels, meta description, canonical, sitemap, robots |
 | `REDIRECTS.md` | 327 | Een oude URL die moet blijven werken |
-| `HEADER-FOOTER.md` | 172 | Header-knop, footer-slotregel, social profielen |
+| `HEADER-FOOTER.md` | 285 | Header-knop, footer-slotregel, social profielen, het kruimelpad |
 
 ### Meertaligheid in detail
 

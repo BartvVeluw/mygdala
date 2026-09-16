@@ -295,8 +295,6 @@ final class PageHeroEditorHttpTest extends TestCase
             'title_en' => '',
             'lead_nl' => '',
             'lead_en' => '',
-            'breadcrumb_label_nl' => 'Kruimelpad',
-            'breadcrumb_label_en' => '',
             'media_id' => '',
             'content_position' => PageHeroContent::POSITION_LEFT,
             'title_size' => PageHeroContent::SIZE_NORMAL,
@@ -351,7 +349,7 @@ final class PageHeroEditorHttpTest extends TestCase
     private function storeHeader(array $overrides): void
     {
         (new PageHeroRepository())->upsert(self::TEST_PAGE, array_merge(
-            PageHeroContent::startingValues('Paginakop-testpagina'),
+            PageHeroContent::startingValues(),
             ['title_nl' => 'Een opgeslagen kop', 'is_active' => true],
             $overrides
         ));

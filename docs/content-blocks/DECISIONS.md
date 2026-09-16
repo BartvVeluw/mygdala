@@ -251,5 +251,20 @@ Reden, per keuze:
 Gevolg: `page_heroes` kreeg `media_id` (zonder `image_path`-tweeling en zonder eigen
 alt-tekst, `MEDIA.md`) en drie `VARCHAR(20)`-kolommen met die standaard als default.
 `PageHeroContent` houdt de gesloten lijsten en leest een onbekende waarde als de
-standaard; `update-page-hero.php` weigert hem. Het kruimelpad staat nog in de
-partial van de Paginakop: waar dat thuishoort is een aparte beslissing.
+standaard; `update-page-hero.php` weigert hem.
+
+## Het kruimelpad hoort bij de pagina, niet bij de Paginakop (5B)
+
+De vraag die 5A openliet. Het kruimelpad zat in de partial van de Paginakop,
+dus een pagina zonder dat blok — of met dat blok verborgen — had er geen. Het
+gaat over waar een bezoeker *is*, en dat verandert niet als een kop verdwijnt.
+
+Gevolg: één generieke renderer (`partials/breadcrumb.php`) met kleine
+waarde-objecten erachter (`App\Service\Breadcrumbs`), aangeroepen door de
+route vóór de inhoud van de pagina. De naam komt uit `pages.title` in plaats
+van uit een tweede, met de hand overgetypte kolom, en of een pagina er een
+toont is `pages.show_breadcrumb` — een eigenschap van de pagina, niet van een
+blok. `page_heroes.breadcrumb_label_nl/en` blijven staan als legacydata.
+
+Wat bewust níet meebewoog: er komt geen `BreadcrumbList`-JSON-LD bij
+(`SEO.md`), en de Paginakop is verder ongemoeid gebleven.

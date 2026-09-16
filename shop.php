@@ -13,6 +13,7 @@ require_once __DIR__ . '/vendor/autoload.php';
 // App\Module\ModuleGuard renders the site's own 404 and exits, exactly as
 // an unknown slug does. Nothing below runs.
 \App\Module\ModuleGuard::requirePublicRoute('shop');
+require_once __DIR__ . '/partials/breadcrumb.php';
 
 // The storefront has two sources, and this is the one place that chooses.
 //
@@ -88,14 +89,15 @@ require __DIR__ . '/partials/header.php';
 <main id="main">
 
 <?php if ($page !== null): ?>
+  <?php render_breadcrumb(\App\Service\Breadcrumbs\PageBreadcrumb::forPage($page)); ?>
   <?php \App\Service\SectionRegistry::renderPage('shop'); ?>
 <?php else: ?>
+  <?php /* No `pages` row, so there is no page title to name and no switch to
+           read: the storefront is named by its own route, exactly as the
+           cart and the checkout name it. */ ?>
+  <?php render_breadcrumb(\App\Service\Breadcrumbs\BreadcrumbTrail::home()->toRoute('shop')); ?>
   <section class="page-hero">
     <div class="container">
-      <div class="breadcrumb">
-        <a href="/" data-nl="Home" data-en="Home">Home</a><span>/</span>
-        <span data-nl="Shop" data-en="Shop">Shop</span>
-      </div>
       <h1 data-nl="Shop" data-en="Shop">Shop</h1>
     </div>
   </section>

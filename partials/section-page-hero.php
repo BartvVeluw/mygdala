@@ -36,8 +36,10 @@
  * see App\Service\Blocks\PageHeroBlock); null omits
  * the inline style entirely.
  *
- * The breadcrumb is printed exactly as before. Where a breadcrumb belongs, and
- * whether a page shows one, is not this block's to decide.
+ * THE BREADCRUMB IS NOT HERE and must not come back. It is the page's own
+ * navigation, printed by the route before its content
+ * (partials/breadcrumb.php), so a page whose header is hidden, deleted or
+ * never added still tells a visitor where they are. See HEADER-FOOTER.md.
  *
  * @param array<string, mixed> $pageHero see PageHeroContent::forSlug()
  */
@@ -92,9 +94,6 @@ function render_section_page_hero(array $pageHero, ?string $titleMaxWidthCh = nu
       </div>
       <?php endif; ?>
       <div class="container">
-        <div class="breadcrumb">
-          <a href="index.php" data-nl="Home" data-en="Home">Home</a><span>/</span><span <?= \App\Service\Language\SiteText::attrs($pageHero['breadcrumb_label_nl'], $pageHero['breadcrumb_label_en']) ?>><?= $h(\App\Service\Language\SiteText::visible($pageHero['breadcrumb_label_nl'], $pageHero['breadcrumb_label_en'])) ?></span>
-        </div>
         <?php if ($hasEyebrow): ?>
         <p class="eyebrow" <?= \App\Service\Language\SiteText::attrs($pageHero['eyebrow_nl'], $pageHero['eyebrow_en']) ?>><?= $h(\App\Service\Language\SiteText::visible($pageHero['eyebrow_nl'], $pageHero['eyebrow_en'])) ?></p>
         <?php endif; ?>

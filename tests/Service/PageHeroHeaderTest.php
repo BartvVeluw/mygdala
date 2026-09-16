@@ -97,9 +97,14 @@ final class PageHeroHeaderTest extends TestCase
         $this->assertSame(['page-hero'], $this->sectionClasses($html), 'no modifier class, so page-hero.css has nothing to say');
         $this->assertStringNotContainsString('page-hero__media', $html);
         $this->assertMatchesRegularExpression(
-            '#<div class="breadcrumb">.*</div>\s*<p class="eyebrow"[^>]*>Over ons</p>\s*<h1[^>]*>Een bestaande kop</h1>\s*<p class="lead" style="margin-top:1rem;"[^>]*>Een bestaande inleiding\.</p>#s',
+            '#<p class="eyebrow"[^>]*>Over ons</p>\s*<h1[^>]*>Een bestaande kop</h1>\s*<p class="lead" style="margin-top:1rem;"[^>]*>Een bestaande inleiding\.</p>#s',
             $html,
-            'breadcrumb, eyebrow, title and intro text, in the order and the markup they always had'
+            'eyebrow, title and intro text, in the order and the markup they always had'
+        );
+        $this->assertStringNotContainsString(
+            'breadcrumb',
+            $html,
+            'the trail belongs to the page and is printed before this block, never inside it'
         );
     }
 
@@ -328,8 +333,8 @@ final class PageHeroHeaderTest extends TestCase
 
     /**
      * Every column PageHeroRepository::upsert() writes: a header with a title,
-     * an eyebrow, an intro text and its breadcrumb label, no image and today's
-     * look, overridden where a test says so.
+     * an eyebrow and an intro text, no image and today's look, overridden
+     * where a test says so.
      *
      * @param array<string, mixed> $overrides
      */
@@ -339,7 +344,6 @@ final class PageHeroHeaderTest extends TestCase
             'eyebrow_nl' => 'Bovenschrift', 'eyebrow_en' => '',
             'title_nl' => 'Een paginakop', 'title_en' => '',
             'lead_nl' => 'Een inleiding.', 'lead_en' => '',
-            'breadcrumb_label_nl' => 'Kruimelpad', 'breadcrumb_label_en' => '',
             'media_id' => null,
             'content_position' => PageHeroContent::POSITION_LEFT,
             'title_size' => PageHeroContent::SIZE_NORMAL,
