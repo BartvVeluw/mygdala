@@ -77,16 +77,16 @@ gewoon onder elkaar en werkt dezelfde knop.
 | Veld | Verplicht | Gaat naar |
 |---|---|---|
 | Naam van de site | **ja** | `site_settings.site_name` |
-| Taal van de website | nee | `site_settings.primary_content_language` — zie `MULTILINGUAL.md` |
+| Taal van de website | nee | de standaardtaal in `site_languages` — zie `MULTILINGUAL.md` |
 | Publiek webadres | nee | `site_settings.canonical_base_url` — zie hieronder |
 | Contact-e-mailadres | nee | `site_settings.email` |
 | Korte omschrijving | nee | `site_settings.footer_description_nl` |
 | Plaats, KVK-nummer | nee | `site_settings.city_nl`, `kvk_number` |
 
-**Taal van de website** is de hoofdtaal waarin je de inhoud schrijft. Een
-tweede taal begint **uit**, en dat is met opzet: een nieuwe site krijgt zo een
-eentalige bewerkervaring zonder dubbele velden, en wie wél een vertaling wil
-zet die later aan bij Instellingen → Talen. De taal van het **CMS** is iets
+**Taal van de website** is de standaardtaal: de taal die een bezoeker eerst
+krijgt en waarop een ontbrekende vertaling terugvalt. Nederlands en Engels zijn
+er daarna allebei; de wizard kiest alleen welke van de twee de standaard is,
+en dat kan later nog bij Instellingen → Talen. De taal van het **CMS** is iets
 anders — die kiest elke beheerder voor zichzelf bij Mijn account
 (`MULTILINGUAL.md`).
 

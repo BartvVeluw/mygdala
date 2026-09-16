@@ -18,6 +18,7 @@ modules aan staan" en "Vanuit een git worktree".
 | Wijziging | Draai |
 |---|---|
 | Talenregister, sitetalen, terugvalregel | `fast` |
+| Het register `site_languages` of zijn repository | `fast` → `cms` |
 | CMS-taal, de catalogi, een nieuwe sleutel | `fast` |
 | De bewerktaal, of de onafhankelijkheid van de drie | `fast` |
 | Vertaalprovider, vertaalstatus, DeepL | `fast` |
@@ -35,17 +36,23 @@ In `fast`:
 - `tests/Service/ThreeLanguageStatesTest.php`
 - `tests/Service/TranslationProviderTest.php`
 - `tests/Service/MultilingualBoundaryTest.php`
+- `tests/Service/LanguageCodeTest.php`
+- `tests/Service/SiteLanguagesTest.php`
 
-Alle zes de bestanden zitten in `fast`: geen database, geen webserver, geen
-netwerk.
+Alle acht de bestanden zitten in `fast`: geen database, geen webserver, geen
+netwerk. Het talenregister vervangen ze in het geheugen met
+`Tests\Support\SiteLanguageFixture`.
 
 In `cms`:
 
 - `tests/Repository/LocalizedNavigationFooterPersistenceTest.php`
+- `tests/Repository/SiteLanguageRepositoryTest.php` — de invarianten van
+  `site_languages` tegen de testdatabase, elke test in een transactie die
+  wordt teruggedraaid
 
-De twee migratietests, `MigrationTableNamesTest` en
-`ContentLanguageSettingRepairTest`, staan met uitleg in
-[`MIGRATIONS.md`](MIGRATIONS.md).
+De drie migratietests, `MigrationTableNamesTest`,
+`ContentLanguageSettingRepairTest` en `SiteLanguageRegistryMigrationTest`,
+staan met uitleg in [`MIGRATIONS.md`](MIGRATIONS.md).
 
 ## Wat de twee grenstests bewaken
 
@@ -57,5 +64,8 @@ blijft, en dat geen van beide voorkeuren de bezoeker raakt.
 `MultilingualBoundaryTest` bewaakt de grenzen — de API-sleutel, de
 onafhankelijkheid van de drie taalstaten, dat het vertaalendpoint niets
 schrijft, dat de publieke taalwissel niet achter een instelling zit, dat
-`::enabled()` de deprecated rij niet leest, dat er geen `_nl`/`_en`-kolom
-verdwijnt en dat er geen hreflang binnensluipt.
+`::enabled()` geen opgeslagen waarde leest, dat er geen `_nl`/`_en`-kolom
+verdwijnt en dat er geen hreflang binnensluipt. Sinds Multilingual 2.0 fase 1
+ook: dat de taalkern en de CMS-taal elkaars opslag niet noemen, dat de
+taalkern geen taal bij naam kent, en dat alleen `SiteLanguageRepository` SQL
+op `site_languages` uitvoert.

@@ -37,7 +37,7 @@ instellingenrij is de uitzondering, en die draagt geen inhoud.
 | Bestaande EN-waarden | onaangeraakt |
 | Kale Nederlandse kolommen | onaangeraakt |
 | `content_translation_state` | onaangeraakt |
-| `enabled_content_languages` | rij blijft staan en beslist nergens meer iets; de **waarde** wordt door migratie `20260911200000` bewust overschreven met de volledige set, hoofdtaal eerst |
+| `enabled_content_languages` | beslist nergens meer iets; de **waarde** wordt door migratie `20260911200000` bewust overschreven met de volledige set, hoofdtaal eerst. Sinds `20260917120000` is de rij weg (zie hieronder) |
 
 Die rij is de uitzondering omdat hij sinds de correctie nergens meer over
 beslist. Het enige wat hij nog moet doen, is kloppen: de talen noemen die deze
@@ -83,8 +83,8 @@ een verse installatie sloeg `nl` op en beweerde eentalig te zijn.
 
 Migratie `20260911200000_correct_the_stored_content_languages` herstelt dat.
 Zij tast niets af: zij schrijft de volledige set die dit product publiceert,
-hoofdtaal eerst — precies wat `ContentLanguages::normalise()` schrijft zodra
-een eigenaar zelf iets opslaat. Daarmee kan dezelfde fout niet terugkomen,
+hoofdtaal eerst — precies wat het tabblad *Talen* toen schreef zodra een
+eigenaar zelf iets opsloeg. Daarmee kan dezelfde fout niet terugkomen,
 want er staat geen tabelnaam meer in.
 
 `20260910140000` blijft staan zoals zij gedraaid heeft. Zij is al toegepast
@@ -103,6 +103,40 @@ een verse installatie, voor een bijgewerkte, voor Engels dat alleen in het
 menu staat, voor Engels dat alleen in de hero staat, voor een site zonder
 Engels en voor een database zonder inhoud.
 
+## Multilingual 2.0 fase 1: het talenregister
+
+Migratie `20260917120000_create_the_site_language_registry` maakt
+`site_languages` en zet er per database precies de talen in die de site nu
+publiceert. Het schema, de invarianten en de API staan in
+[`ARCHITECTURE.md`](ARCHITECTURE.md).
+
+| Database | Wat het register krijgt |
+|---|---|
+| bestaand, `primary_content_language = nl` | `nl` standaard (volgorde 0), `en` (1), beide actief |
+| bestaand, `primary_content_language = en` | `en` standaard (volgorde 0), `nl` (1), beide actief |
+| bestaand, rij leeg, weg of onbekend (`de`) | als `nl` |
+| vers | als `nl`; de installatiewizard verplaatst de standaard daarna naar de gekozen taal |
+
+Geen Duits, Frans of Italiaans, en geen `_nl`/`_en`-kolom wordt aangeraakt.
+
+**Twee instellingenrijen verdwijnen**, `primary_content_language` en
+`enabled_content_languages`, maar alleen als het register daarna een actieve
+standaardtaal heeft. Dat is de uitzondering op "een migratie verwijdert
+niets", en de enige reden is één bron van waarheid: bleven ze staan, dan zou de
+eerste keer opslaan op het tabblad *Talen* ze laten verouderen. Hun informatie
+staat in het register.
+
+**Idempotent.** De tabel wordt alleen gemaakt als hij ontbreekt, de rijen alleen
+als hij leeg is. Een tweede run voegt dus geen taal toe en zet een later
+verplaatste standaard niet terug.
+
+`Tests\Install\SiteLanguageRegistryMigrationTest` bouwt drie databases vanaf
+nul (vers, bestaand NL, bestaand EN), controleert schema, rijen, volgorde en
+de verdwenen instellingen, draait de migratie opnieuw, en loopt de
+installatiewizard door. `ContentLanguageSettingRepairTest` stopt sindsdien
+bij `20260911200000`, want wat daarna met de rijen gebeurt is het onderwerp
+van deze test.
+
 ## Waar het staat
 
 | Migratie | Wat zij doet |
@@ -111,3 +145,4 @@ Engels en voor een database zonder inhoud.
 | `db/migrations/20260910150000_create_the_translation_state_table.php` | maakt de tabel `content_translation_state` |
 | `db/migrations/20260911100000_add_the_content_editing_language_column.php` | voegt `admin_users.content_editing_language` toe |
 | `db/migrations/20260911200000_correct_the_stored_content_languages.php` | zet `enabled_content_languages` recht |
+| `db/migrations/20260917120000_create_the_site_language_registry.php` | maakt `site_languages`, zet de standaardtaal erin en verwijdert de twee oude instellingenrijen |

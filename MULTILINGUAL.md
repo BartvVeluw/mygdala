@@ -58,8 +58,12 @@ Waarom de bewerktaal eigen staat is, en wat er daarvóór fout was:
 - **Het talenregister is gesloten.** Een taalcode raakt pas een kolomnaam als
   `LanguageRegistry::has()` of `::get()` hem kent. → [`WEBSITE-LANGUAGES.md`](docs/multilingual/WEBSITE-LANGUAGES.md)
 - **Nederlands en Engels zijn er altijd allebei.** Een site kiest alleen zijn
-  hoofdtaal, `primary_content_language`; `enabled_content_languages` is
-  deprecated en beslist niets. → [`WEBSITE-LANGUAGES.md`](docs/multilingual/WEBSITE-LANGUAGES.md)
+  standaardtaal, en die staat sinds Multilingual 2.0 fase 1 in het
+  talenregister `site_languages`, niet in een instelling.
+  → [`WEBSITE-LANGUAGES.md`](docs/multilingual/WEBSITE-LANGUAGES.md),
+  [`ARCHITECTURE.md`](docs/multilingual/ARCHITECTURE.md)
+- **De websitetaal is geen CMS-taal.** `SiteLanguages` en `AdminLocale` lezen
+  elkaars opslag nooit. → [`ARCHITECTURE.md`](docs/multilingual/ARCHITECTURE.md)
 - **Van bewerktaal wisselen gooit niets weg en vertaalt niets.**
   → [`EDITING-LANGUAGE.md`](docs/multilingual/EDITING-LANGUAGE.md)
 - **Verplicht is alleen de hoofdtaal**, en `required` komt in een taalveld
@@ -81,6 +85,7 @@ Waarom de bewerktaal eigen staat is, en wat er daarvóór fout was:
 | Het tabblad *Talen* in de instellingen | [`WEBSITE-LANGUAGES.md`](docs/multilingual/WEBSITE-LANGUAGES.md) | `fast` → `cms` |
 | De vertaalknop, een vertaalprovider, DeepL, de vertaalstatus | [`AUTOMATIC-TRANSLATION.md`](docs/multilingual/AUTOMATIC-TRANSLATION.md) | `fast` |
 | Een migratie, wat een verse of bestaande installatie krijgt | [`MIGRATIONS.md`](docs/multilingual/MIGRATIONS.md) | `migration` |
+| Multilingual 2.0: het talenregister, de standaardtaal, `SiteLanguages`, en wat de volgende fases moeten volgen | [`ARCHITECTURE.md`](docs/multilingual/ARCHITECTURE.md) | `fast` → `migration` |
 | Welke test wat bewaakt, en hoe je ze draait | [`TESTS.md`](docs/multilingual/TESTS.md) | — |
 
 Een derde taal toevoegen ligt op de grens: het register in
@@ -116,16 +121,17 @@ instellen van DeepL staan in
 - **Geen taaldetectie op IP of browser.** Een bezoeker krijgt de hoofdtaal van
   de site, tenzij hij zelf wisselt.
 - **Geen generieke vertaaltabellen.** De bestaande kolommen blijven de opslag.
-  Het lange-termijnmodel mag daar later heen; V1 vereist die migratie niet.
+  Hoe Multilingual 2.0 dat per fase vervangt, staat in
+  [`ARCHITECTURE.md`](docs/multilingual/ARCHITECTURE.md).
 - **Geen slugs, e-mailadressen, telefoonnummers, bestandsnamen, mediapaden,
   CSS, code, SKU's, id's, module-instellingen of gebruikersnamen vertalen.**
 - **Geen vertaaldashboard** en geen hele-site-bulkvertaling. De provider-laag
   is er wel op gebouwd: een toekomstige "vertaal alles wat nog ontbreekt" is
   een nieuwe aanroeper van dezelfde `TranslationService`.
 - **Geen tien talen in de editors.** Twee, met een register dat er meer aankan.
-- **Geen instelling die een taal uitzet.** Dit product is NL + EN. De rij
-  `enabled_content_languages` bestaat nog voor databasecompatibiliteit en
-  beslist nergens meer iets.
+- **Geen instelling die een taal uitzet.** Dit product is NL + EN. Het
+  talenregister kent wel `is_active`, maar tot de frontend-flip van
+  Multilingual 2.0 verbergt dat geen wissel en geen veld.
 - **Geen automatische vertaling van de CMS-interface zelf.**
 
 ## Hoofdstukken van vóór de opsplitsing

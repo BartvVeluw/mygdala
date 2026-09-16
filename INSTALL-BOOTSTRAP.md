@@ -204,6 +204,12 @@ regel over. Wat een verse installatie wél nog krijgt zijn de footer-
 schakelaars en de instellingen voor gerelateerde producten: generieke waarden
 die niets over een bedrijf beweren.
 
+**De taal van de website is geen instelling meer.** Migratie `20260917120000`
+geeft elke installatie, vers of bestaand, het talenregister `site_languages`:
+op een verse `nl` als standaardtaal en `en` ernaast, allebei actief. De
+installatiewizard verplaatst de standaard daarna naar de gekozen taal. Zie
+[`docs/multilingual/ARCHITECTURE.md`](docs/multilingual/ARCHITECTURE.md).
+
 **Daarmee blijft ook de Mediabibliotheek leeg.**
 `20260909270000_adopt_existing_cms_images_into_the_media_library` neemt de
 bestanden over waar `site_settings` naar wijst; zonder merkpaden is er niets

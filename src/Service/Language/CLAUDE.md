@@ -10,7 +10,11 @@ die door elkaar halen is precies de fout die hier eerder is gemaakt:
 - Een lege vertaling betekent voor de bezoeker "gelijk aan de standaardtaal"
   en voor de redacteur een leeg veld. Nooit andersom.
 - Het talenregister is een gesloten lijst.
-- `enabled_content_languages` is **deprecated**. Gebruik hem niet in nieuwe code.
+- De standaardtaal van de website staat in het register `site_languages`
+  (`SiteLanguages`), niet in `site_settings`. `ContentLanguages` is de
+  V1-adapter erop. Zie `docs/multilingual/ARCHITECTURE.md`.
+- `SiteLanguages` en `AdminLocale` noemen elkaar niet: websitetaal is geen
+  CMS-taal.
 - Van bewerktaal wisselen mag nooit iets weggooien.
 
 Lees `../../../MULTILINGUAL.md`. Meertaligheid is Core en raakt elk domein,

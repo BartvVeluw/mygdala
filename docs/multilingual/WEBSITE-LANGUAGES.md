@@ -42,10 +42,14 @@ twee verschillende vragen met twee verschillende antwoorden.
 voor de bezoeker en voor de redacteur. Er is geen instelling die er een
 weghaalt, want die instelling was het probleem.
 
-Wat een site wél kiest, is welke van de twee de **standaard** is:
+Wat een site wél kiest, is welke van de twee de **standaard** is. Sinds
+Multilingual 2.0 fase 1 is dat de rij met `is_default = 1` in het
+talenregister `site_languages` ([`ARCHITECTURE.md`](ARCHITECTURE.md)), en geen
+instelling meer:
 
 ```text
-primary_content_language     nl        (of: en)
+site_languages     nl  is_default = 1     (of: en)
+                   en  is_default = NULL
 ```
 
 Dat betekent twee dingen, en alleen die twee:
@@ -53,42 +57,41 @@ Dat betekent twee dingen, en alleen die twee:
 - een bezoeker die nog niets gekozen heeft krijgt deze taal;
 - een ontbrekende vertaling valt op deze taal terug.
 
-`site_settings` en niet `theme_settings`, om de reden die bovenaan
+Een eigen tabel en niet `theme_settings`, om de reden die bovenaan
 [`THEMING.md`](../../THEMING.md) staat: dit is wie de site *is*, en "standaardvormgeving
 herstellen" mag nooit de talen van een site meenemen.
 
-De regels, allemaal op één plek (`ContentLanguages`):
+De regels, allemaal op één plek (`ContentLanguages`, sinds fase 1 de adapter
+tussen het register en de V1-code):
 
+- **`primary()` leest de standaardtaal van het register**, maar alleen een
+  taal die de `_nl`/`_en`-kolommen kunnen opslaan.
 - **De hoofdtaal staat altijd vooraan.** "Vooraan" is precies wat de publieke
   wissel, de standaard-bewerktaal en de terugvalregel er alle drie mee
   bedoelen.
-- **Een onbekende code valt terug** op Nederlands in plaats van te weigeren.
-  Een rij uit een nieuwere versie mag een redacteur nooit buitensluiten.
-- **`enabled()` leest het register, niet een instellingenrij.** Elke taal
-  waarin dit build inhoud kán opslaan is een taal die deze site publiceert.
+- **Een onbekende of onleesbare standaard valt terug** op Nederlands in plaats
+  van te weigeren. Een rij uit een nieuwere versie mag een redacteur nooit
+  buitensluiten.
+- **`enabled()` leest het gesloten register in code, niet een opgeslagen
+  rij.** Elke taal waarin dit build inhoud kán opslaan is een taal die deze
+  site publiceert. Ook `is_active` in `site_languages` verbergt tot de
+  frontend-flip niets.
+- **Opslaan** gaat via `ContentLanguages::savePrimary()`, voor het tabblad
+  *Talen* en voor de installatiewizard.
 
-### `enabled_content_languages` is deprecated
+### De oude instellingenrijen
 
-De rij bestaat nog, wordt nog geschreven en wordt nooit meer gelezen om iets
-te beslissen.
+`primary_content_language` en het al deprecated
+`enabled_content_languages` stonden in `site_settings`. Migratie
+`20260917120000` heeft hun informatie in het register gezet en daarna beide
+rijen verwijderd ([`MIGRATIONS.md`](MIGRATIONS.md)), zodat er geen tweede
+antwoord op "welke taal is de standaard" kan blijven staan.
+`SiteSettings` kent de sleutels niet meer.
 
-| | |
-|---|---|
-| Gelezen door | `ContentLanguages::storedEnabled()`, alleen voor diagnose |
-| Geschreven door | `ContentLanguages::normalise()`, altijd de volledige set; en eenmalig door migratie `20260911200000`, ook met de volledige set ([`MIGRATIONS.md`](MIGRATIONS.md)) |
-| Beslist over de publieke taalwissel | **nee** |
-| Beslist over de velden van een redacteur | **nee** |
-| Beslist over automatisch vertalen | **nee** |
-
-**Er wordt niets verwijderd.** Geen rij gewist, geen `_nl`/`_en`-kolom
-aangeraakt, geen vertaling weggegooid. Een bestaande site met
-`enabled_content_languages = nl` krijgt gewoon zijn taalwissel terug en zijn
-redacteuren hun Engelse velden;
-`Tests\Service\LanguageRegistryTest::testAStoredSingleLanguageRowNoLongerTakesEnglishAway`
-is de test die dat vasthoudt, inclusief dat het lezen de rij zelf onveranderd
-laat. Dat de opgeslagen waarde toch wordt rechtgezet, is het werk van één
-migratie en niet van de code die hem leest: zie
-[`MIGRATIONS.md`](MIGRATIONS.md).
+Wat `enabled_content_languages` vroeger misdeed (een rij `nl` verborg de
+taalwissel en elk Engels veld) kan niet terugkomen:
+`Tests\Service\LanguageRegistryTest::testAnInactiveLanguageInTheRegistryDoesNotTakeEnglishAway`
+houdt vast dat ook het register dat niet doet.
 
 `MAX_ENABLED` blijft 2, want dat is wat de `_nl`/`_en`-kolommen kunnen
 opslaan. Een derde taal is een register-entry plus opslag ervoor, niet een
@@ -190,7 +193,8 @@ zou het verschil tussen "vertaald" en "nog niet vertaald" kwijt zijn.
 | Onderdeel | Waar |
 |---|---|
 | Talenregister (gesloten) | `src/Service/Language/LanguageRegistry.php` + `LanguageDefinition.php` |
-| Talen van de website | `src/Service/Language/ContentLanguages.php` |
+| Talen van de website (V1-adapter) | `src/Service/Language/ContentLanguages.php` |
+| Talenregister van de website (2.0) | `src/Service/Language/SiteLanguages.php`, `src/Repository/SiteLanguageRepository.php` |
 | Terugvalregel op één plek | `src/Service/Language/LocalizedValue.php` |
 | Wat een publieke partial afdrukt | `src/Service/Language/SiteText.php` |
 | Tabblad *Talen* | `admin/settings.php`, `api/admin/update-language-settings.php` |
