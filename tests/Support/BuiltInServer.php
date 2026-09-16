@@ -101,9 +101,12 @@ final class BuiltInServer
      *
      * @param array<string, string> $fields
      * @param array<string, \CURLFile> $files
+     * @param list<string> $headers extra request headers, such as the
+     *        `Accept: application/json` that turns api/form-submit.php's
+     *        redirect into the answer its fetch() reads
      * @return array{status: int, location: string, body: string, headers: string}
      */
-    public function request(string $method, string $path, ?string $sessionId = null, array $fields = [], array $files = []): array
+    public function request(string $method, string $path, ?string $sessionId = null, array $fields = [], array $files = [], array $headers = []): array
     {
         $handle = curl_init('http://127.0.0.1:' . $this->port . $path);
 
@@ -113,6 +116,10 @@ final class BuiltInServer
             CURLOPT_FOLLOWLOCATION => false,
             CURLOPT_TIMEOUT => 30,
         ];
+
+        if ($headers !== []) {
+            $options[CURLOPT_HTTPHEADER] = $headers;
+        }
 
         if ($sessionId !== null) {
             $options[CURLOPT_COOKIE] = AdminTestSession::COOKIE . '=' . $sessionId;

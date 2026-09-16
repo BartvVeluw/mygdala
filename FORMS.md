@@ -174,6 +174,39 @@ ze in de browser. Er wordt niets server-side vertaald.
 Een bewaarde inzending legt het **Nederlandse** label vast, zodat historie
 niet afhangt van welke taal iemand toevallig aanstond.
 
+## Actief en uit
+
+Eén schakelaar per formulier (`forms.is_active`), met overal dezelfde
+betekenis:
+
+| Waar | Actief | Uit |
+|---|---|---|
+| Blok "Formulier" | toont het formulier | toont niets, ook geen kop of inleiding |
+| Blok "Offerte-/contactformulier" | het formulier naast "Direct contact" | alleen de kop en de kaart "Direct contact" |
+| `api/form-submit.php` | neemt inzendingen aan | weigert met hetzelfde algemene antwoord als een onbekend formulier: `400` voor de `fetch()`, een `303` met `form-status=error` voor een browser zonder JavaScript |
+| Paginabouwer | de naam van het formulier | de naam met "(staat uit)" |
+
+**Het besluit valt op één plek**: `FormDefinition::isRenderable()`, dus actief
+én minstens één bruikbaar veld. De blokken vragen het via
+`FormCatalog::renderable()`; het endpoint en
+`FormSubmissionHandler::handle()` vragen het allebei zelf. Het formulier uit
+de pagina halen is dus nooit het enige wat een inzending tegenhoudt: een POST
+die rechtstreeks naar het endpoint gaat, van een pagina die nog openstond of
+van een script, wordt net zo geweigerd. Er wordt dan niets bewaard, niets
+gemaild, en de rate limit telt de poging niet mee. De bezoeker krijgt geen
+technische melding: het endpoint bevestigt niet eens dat het formulier
+bestaat.
+
+**Uitzetten raakt verder niets.** Velden, opties, standaardwaarden,
+plaatsingen en bewaarde inzendingen blijven staan, en aanzetten herstelt het
+formulier precies zoals het was. Alleen een actief formulier kan
+inzendingen verliezen, dus de weigering uit "Ontvanger" hieronder geldt
+alleen voor een formulier dat actief wordt opgeslagen.
+
+`Tests\Service\FormAdminHttpTest` bewijst dit over echt HTTP, met PHP's eigen
+webserver op deze uitchecking. Het draait dus ook waar `php_test` niet
+draait.
+
 ## De publieke pijplijn
 
 ```text
@@ -514,6 +547,9 @@ docker compose exec php_test php vendor/bin/phpunit --testsuite blocks
 
 `FormFieldTypeTest` loopt automatisch over élk geregistreerd veldtype, dus een
 nieuw type wordt daar meegenomen zonder dat je die test aanpast.
+`FormAdminHttpTest` (suite `cms`) start zijn eigen webserver en controleert
+"Actief en uit" van begin tot eind: het endpoint, de pagina met beide
+formulierblokken, en de schakelaar in de formuliereditor met zijn guards.
 `FormBoundaryTest` bewaakt de grenzen: rechten, guards, CSRF, geen
 Shop-koppeling, geen bedrijfsnaam in generieke code, en de `prime()`-aanroep
 in elk paginatemplate.

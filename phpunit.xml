@@ -391,6 +391,7 @@
             <file>tests/Service/BrandingTest.php</file>
             <file>tests/Service/FooterServiceTest.php</file>
             <file>tests/Service/FormAdminTest.php</file>
+            <file>tests/Service/FormAdminHttpTest.php</file>
             <file>tests/Service/FormBoundaryTest.php</file>
             <file>tests/Service/FormFieldTypeTest.php</file>
             <file>tests/Service/FormRenderingTest.php</file>
