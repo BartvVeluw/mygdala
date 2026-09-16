@@ -112,8 +112,15 @@
  * Removing the row that was the default puts the choice back on "no
  * default", so the form never sends a default for a row that is gone.
  *
- * Adding and removing a row end with a bubbling "change" from the list:
- * neither types anything, and the save bar (admin/assets/save-bar.js)
+ * MOVING A ROW moves the element, nothing else. The browser sends the rows in
+ * the order they sit in, the endpoint stores them in that order, and the
+ * index in their names goes along, so both languages and the "Standaard"
+ * mark stay with the option. The first row cannot go up and the last cannot
+ * go down; focus stays on the row that moved, and a status line says where
+ * it went, in the catalogue's words the server put on it.
+ *
+ * Every add, remove and move ends with a bubbling "change" from the list:
+ * none of them types anything, and the save bar (admin/assets/save-bar.js)
  * learns about edits from input and change events alone.
  */
 (function () {
@@ -126,6 +133,7 @@
 
     var max = parseInt(group.getAttribute("data-form-options-max") || "50", 10);
     var noDefault = group.querySelector('input[name="default_option"][value=""]');
+    var status = group.querySelector("[data-form-option-status]");
 
     function rows() {
       return list.querySelectorAll("[data-form-option-row]");
@@ -142,6 +150,11 @@
         Array.prototype.forEach.call(row.querySelectorAll("[aria-label]"), function (element) {
           element.setAttribute("aria-label", element.getAttribute("aria-label").replace(/\d+/, number));
         });
+
+        var up = row.querySelector('[data-form-option-move="up"]');
+        var down = row.querySelector('[data-form-option-move="down"]');
+        if (up) up.disabled = position === 0;
+        if (down) down.disabled = position === all.length - 1;
       });
 
       add.disabled = all.length >= max;
@@ -198,6 +211,42 @@
       });
     }
 
+    function enableMove(row) {
+      var buttons = row.querySelector("[data-form-option-move-group]");
+      if (!buttons) return;
+
+      buttons.hidden = false;
+
+      Array.prototype.forEach.call(buttons.querySelectorAll("[data-form-option-move]"), function (button) {
+        button.addEventListener("click", function () {
+          var up = button.getAttribute("data-form-option-move") === "up";
+          var sibling = up ? row.previousElementSibling : row.nextElementSibling;
+          if (!sibling) return;
+
+          // The NEIGHBOUR moves past this row rather than this row past its
+          // neighbour: the row with the focused button stays in the document,
+          // so the focus stays where the keyboard left it.
+          list.insertBefore(sibling, up ? row.nextElementSibling : row);
+          renumber();
+          changed();
+
+          // A button that just became disabled cannot keep the focus; its
+          // partner in the same row can.
+          if (button.disabled) {
+            var other = buttons.querySelector('[data-form-option-move="' + (up ? "down" : "up") + '"]');
+            if (other && !other.disabled) other.focus();
+          } else {
+            button.focus();
+          }
+
+          if (status) {
+            var position = Array.prototype.indexOf.call(rows(), row) + 1;
+            status.textContent = (status.getAttribute("data-form-option-moved") || "").replace(":n", String(position));
+          }
+        });
+      });
+    }
+
     add.addEventListener("click", function () {
       var all = rows();
       if (all.length === 0 || all.length >= max) return;
@@ -220,6 +269,7 @@
 
       list.appendChild(copy);
       enableRemove(copy);
+      enableMove(copy);
       renumber();
       changed();
 
@@ -227,7 +277,10 @@
       if (target) target.focus();
     });
 
-    Array.prototype.forEach.call(rows(), enableRemove);
+    Array.prototype.forEach.call(rows(), function (row) {
+      enableRemove(row);
+      enableMove(row);
+    });
     add.hidden = false;
     renumber();
   });

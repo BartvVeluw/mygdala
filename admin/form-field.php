@@ -48,9 +48,16 @@ use App\Service\Forms\FormFieldTypes;
  * how options are added without JavaScript; admin/assets/forms-admin.js adds
  * and removes rows in place.
  *
+ * THE ORDER OF THE OPTIONS IS THE ORDER OF THE ROWS when the form is sent:
+ * the endpoint reads them in that order and stores them in that order, and
+ * the public form shows them in stored order. forms-admin.js moves a row up
+ * or down, its index travelling with it, so both languages and the
+ * "Standaard" mark stay with the option. Without JavaScript the order is
+ * changed by retyping the rows.
+ *
  * UNSAVED CHANGES are the save bar's (admin/_save_bar.php), which watches
- * the settings form like any other. Adding or removing an option row is an
- * edit as well, so forms-admin.js reports it with a change event.
+ * the settings form like any other. Adding, removing or moving an option row
+ * is an edit as well, so forms-admin.js reports it with a change event.
  * Input that came back unwritten — a refused save, or a type change waiting
  * for confirmation — starts out unsaved (`data-save-bar-unsaved`), and the
  * confirmation's "Annuleren" throws it away without a second question. The
@@ -329,12 +336,13 @@ $v = static fn (array $values, string $key): string => htmlspecialchars((string)
         <fieldset class="admin-option-rows" aria-labelledby="form-field-options-title" data-form-options data-form-options-max="<?= FormFieldOptions::MAX_OPTIONS ?>">
           <div class="admin-option-rows__list" data-form-option-list>
             <?php /* One row per option: its number, the option in each language
-                     pane, the radio that makes it the default, and a remove
-                     button forms-admin.js reveals. The row's INDEX ties the two
-                     languages and the radio together (`option_nl[i]`,
-                     `option_en[i]`, `default_option` = i). It is not a
-                     position, so a row added or removed in the browser needs
-                     no renumbering on the server. */ ?>
+                     pane, the radio that makes it the default, and the move
+                     and remove buttons forms-admin.js reveals. The row's INDEX
+                     ties the two languages and the radio together
+                     (`option_nl[i]`, `option_en[i]`, `default_option` = i). It
+                     is not a position, so a row added, removed or moved in the
+                     browser needs no renumbering on the server: the position
+                     is where the row sits when the form is sent. */ ?>
             <?php foreach ($optionRows as $position => $row): ?>
               <?php $number = $position + 1; $index = (string) $row['index']; ?>
               <div class="admin-option-row" data-form-option-row>
@@ -352,11 +360,20 @@ $v = static fn (array $values, string $key): string => htmlspecialchars((string)
                       <span aria-hidden="true"><?= admin_te('forms.option.default') ?></span>
                     </label>
                   <?php endif; ?>
+                  <span class="admin-option-row__move" data-form-option-move-group hidden>
+                    <button type="button" class="admin-btn-ghost admin-option-row__move-button" data-form-option-move="up" aria-label="<?= admin_te('forms.option.move_up_label', ['n' => $number]) ?>"><span aria-hidden="true">&uarr;</span></button>
+                    <button type="button" class="admin-btn-ghost admin-option-row__move-button" data-form-option-move="down" aria-label="<?= admin_te('forms.option.move_down_label', ['n' => $number]) ?>"><span aria-hidden="true">&darr;</span></button>
+                  </span>
                   <button type="button" class="admin-btn-text admin-btn-text--danger" data-form-option-remove hidden aria-label="<?= admin_te('forms.option.remove_label', ['n' => $number]) ?>"><?= admin_te('common.delete') ?></button>
                 </span>
               </div>
             <?php endforeach; ?>
           </div>
+
+          <?php /* Where a moved row landed, for whoever cannot see it move.
+                   The words are the catalogue's; the script only fills in
+                   the number. */ ?>
+          <p class="admin-visually-hidden" role="status" aria-live="polite" data-form-option-status data-form-option-moved="<?= admin_te('forms.option.moved') ?>"></p>
 
           <div class="admin-option-rows__tools">
             <button type="button" class="admin-btn-secondary" data-form-option-add hidden><?= admin_te('forms.option.add') ?></button>

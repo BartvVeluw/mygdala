@@ -3334,7 +3334,7 @@ body.admin-media-modal-open{ overflow: hidden; }
    The current kind of field, the option rows of a dropdown or radio group,
    and a type change waiting for confirmation. An option row is its number,
    the option in the language pane on screen (the other pane is hidden and
-   still sent), and its "Standaard" radio plus the remove button
+   still sent), and its "Standaard" radio plus the move and remove buttons
    forms-admin.js reveals. The confirmation uses the warning colours of a
    page's address change (.admin-url-confirm). */
 .admin-field-type-current{ display: flex; flex-direction: column; gap: 0.2rem; margin: 0 0 var(--admin-sp-2); }
@@ -3354,6 +3354,13 @@ body.admin-media-modal-open{ overflow: hidden; }
 
 .admin-option-row__actions{ display: flex; align-items: center; gap: var(--admin-sp-3); }
 
+/* Up and down: two square ghost buttons, big enough to hit (WCAG 2.5.8),
+   named by their aria-label. button:disabled would give a disabled one the
+   grey fill of a primary button; here it only steps back. */
+.admin-option-row__move{ display: inline-flex; gap: 0.15rem; }
+.admin-option-row__move .admin-option-row__move-button{ justify-content: center; min-width: 2rem; min-height: 2rem; padding: 0.2rem 0.3rem; font-size: 1rem; line-height: 1; }
+.admin-option-row__move .admin-option-row__move-button:disabled{ background: transparent; }
+
 .admin-product-form .admin-option-row__default{
   flex-direction: row;
   align-items: center;
@@ -3366,11 +3373,12 @@ body.admin-media-modal-open{ overflow: hidden; }
 
 .admin-option-rows__tools{ display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--admin-sp-3); }
 
-/* On a phone the radio and the remove button go under the option, where a
-   thumb can reach them without the box getting too narrow to type in. */
+/* On a phone the radio and the buttons go under the option, where a thumb
+   can reach them without the box getting too narrow to type in; on the
+   narrowest screens the remove button wraps rather than stick out. */
 @media (max-width: 600px){
   .admin-option-row{ grid-template-columns: 1.5rem minmax(0, 1fr); }
-  .admin-option-row__actions{ grid-column: 2; justify-content: space-between; }
+  .admin-option-row__actions{ grid-column: 2; flex-wrap: wrap; justify-content: space-between; gap: var(--admin-sp-2); }
 }
 
 .admin-type-change{ border-color: var(--admin-warning-line); background: var(--admin-warning-soft); }

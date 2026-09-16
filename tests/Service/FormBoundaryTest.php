@@ -515,6 +515,33 @@ final class FormBoundaryTest extends TestCase
     }
 
     /**
+     * The option rows' script: moving a row moves its neighbour past it and
+     * nothing else, the first row cannot go up and the last cannot go down,
+     * and every add, remove and move tells the save bar with a change event
+     * — none of them types anything, and input and change are all the bar
+     * listens to. Its words stay the catalogue's.
+     */
+    public function testTheOptionRowsScriptReordersInPlaceAndTellsTheSaveBar(): void
+    {
+        $script = $this->read('admin/assets/forms-admin.js');
+
+        $this->assertStringContainsString('list.insertBefore(sibling, up ? row.nextElementSibling : row);', $script);
+        $this->assertStringContainsString('if (up) up.disabled = position === 0;', $script);
+        $this->assertStringContainsString('if (down) down.disabled = position === all.length - 1;', $script);
+        $this->assertStringContainsString('list.dispatchEvent(new Event("change", { bubbles: true }));', $script);
+        $this->assertSame(4, substr_count($script, 'changed()'), 'one definition, and a call after adding, removing and moving');
+        $this->assertStringContainsString('status.getAttribute("data-form-option-moved")', $script, 'where a row went, in the words the server put on the page');
+        $this->assertStringNotContainsString('innerHTML', $script);
+        $this->assertStringNotContainsString('/api/admin/', $script, 'moving a row posts nothing');
+
+        // The editor: the move buttons exist per row, hidden until the script
+        // runs, and never submit.
+        $editor = $this->read('admin/form-field.php');
+        $this->assertStringContainsString('<span class="admin-option-row__move" data-form-option-move-group hidden>', $editor);
+        $this->assertSame(2, preg_match_all('#<button type="button" class="admin-btn-ghost admin-option-row__move-button" data-form-option-move="(?:up|down)"#', $editor));
+    }
+
+    /**
      * Every generic Forms file — the service namespace, the blocks, the
      * public renderer, the endpoints and the admin screens.
      *

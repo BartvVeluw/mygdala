@@ -4,11 +4,16 @@ declare(strict_types=1);
 
 namespace Tests\Service;
 
+use App\Database;
+use App\Repository\FormBlockRepository;
 use App\Repository\FormRepository;
+use App\Repository\PageRepository;
+use App\Repository\PageSectionRepository;
 use App\Service\AdminPermissions;
 use App\Service\Forms\FormCatalog;
 use App\Service\Forms\FormFieldKey;
 use App\Service\Forms\FormFieldTypes;
+use App\Service\SectionRegistry;
 use PHPUnit\Framework\TestCase;
 use Tests\Support\AdminTestSession;
 use Tests\Support\BuiltInServer;
@@ -24,17 +29,21 @@ use Tests\Support\BuiltInServer;
  * editor shows only the settings its kind uses, saves options and their
  * default in one go, sends an untouched field back unchanged, never changes
  * the key, and never lets a type change throw a setting away until that
- * change was confirmed. A type card is named by its type alone, and the
- * save bar watches the settings and nothing else. Deleting a field is
- * Tests\Service\FormAdminHttpTest, with the other deletions.
+ * change was confirmed. A type card is named by its type alone, the save
+ * bar watches the settings and nothing else, and options keep their
+ * translation and their default wherever a row is moved to. Deleting a field
+ * is Tests\Service\FormAdminHttpTest, with the other deletions.
  *
  * Like Tests\Service\FormAdminHttpTest this starts PHP's built-in server on
  * this checkout (Tests\Support\BuiltInServer), so it runs wherever the `cms`
- * suite runs. The forms and accounts are this test's own and are removed in
- * tearDown().
+ * suite runs. The forms, the page and the accounts are this test's own and
+ * are removed in tearDown().
  */
 final class FormFieldEditorHttpTest extends TestCase
 {
+    /** A published page no editor has, for what a visitor sees. */
+    private const TEST_PAGE = 'zz-formulier-veldvolgorde-test';
+
     private const CREATE_ENDPOINT = '/api/admin/create-form-field.php';
 
     private const UPDATE_ENDPOINT = '/api/admin/update-form-field.php';
@@ -68,11 +77,14 @@ final class FormFieldEditorHttpTest extends TestCase
             $this->markTestSkipped("could not start PHP's built-in web server for this test");
         }
 
+        $this->removeTestPage();
         FormCatalog::clearCache();
     }
 
     protected function tearDown(): void
     {
+        $this->removeTestPage();
+
         foreach ($this->createdFormIds as $id) {
             $this->forms->delete($id);
         }
@@ -866,6 +878,75 @@ final class FormFieldEditorHttpTest extends TestCase
     }
 
     /* ------------------------------------------------------------------ */
+    /* The order of the options                                            */
+    /* ------------------------------------------------------------------ */
+
+    /**
+     * Rows moved in the browser arrive in their new order, each still under
+     * its own index. The options are stored in that order with each Dutch
+     * and English half still together, the default is still the option that
+     * was marked, the editor reopens in that order, and the public form shows
+     * the options in that order. The move buttons are the script's: without
+     * it they stay hidden and the rows are saved as they stand.
+     */
+    public function testMovedOptionRowsKeepTheirTranslationAndTheirDefaultEverywhere(): void
+    {
+        [$session] = $this->accounts->signIn([AdminPermissions::FORMS_MANAGE]);
+        $formId = $this->createForm();
+        $radio = $this->addField($formId, 'Voorkeur', 'radio', "Bellen|Call\nMailen|Email\nLangskomen|Visit", ['default_value' => 'Mailen']);
+        $select = $this->addField($formId, 'Dagdeel', 'select', "Ochtend|Morning\nMiddag|Afternoon\nAvond|Evening");
+        $catalog = $this->catalog('nl');
+
+        [$fields, $xpath] = $this->editorSubmission($session, $radio);
+
+        $rows = $xpath->query('//*[@data-form-option-row]');
+        $this->assertSame(6, $rows->length, 'three options and three empty rows');
+
+        foreach ($rows as $position => $row) {
+            $group = $xpath->query('.//*[@data-form-option-move-group]', $row)->item(0);
+            $this->assertNotNull($group, 'row ' . ($position + 1) . ' has move buttons');
+            $this->assertTrue($group->hasAttribute('hidden'), 'which the script reveals');
+
+            $labels = [];
+            foreach ($xpath->query('.//button[@data-form-option-move]', $group) as $button) {
+                $this->assertSame('button', $button->getAttribute('type'), 'moving never submits');
+                $labels[$button->getAttribute('data-form-option-move')] = $button->getAttribute('aria-label');
+            }
+
+            $this->assertSame([
+                'up' => strtr($catalog['forms.option.move_up_label'], [':n' => (string) ($position + 1)]),
+                'down' => strtr($catalog['forms.option.move_down_label'], [':n' => (string) ($position + 1)]),
+            ], $labels);
+        }
+
+        $this->assertSame(1, $xpath->query('//*[@data-form-option-status][@role="status"]')->length, 'a status line says where a row went');
+
+        // Langskomen moved to the top, Mailen to the bottom.
+        $fields = $this->withRowsInOrder($fields, [2, 0, 1, 3, 4, 5]);
+        $this->assertSame('1', $fields['default_option'], 'the mark stays on Mailen\'s row');
+        $this->assertSame('/admin/form-field.php?id=' . $radio . '&saved=1', self::$server->request('POST', self::UPDATE_ENDPOINT, $session, $fields)['location']);
+
+        [$fields] = $this->editorSubmission($session, $select);
+        $fields = $this->withRowsInOrder($fields, [2, 1, 0, 3, 4, 5]);
+        self::$server->request('POST', self::UPDATE_ENDPOINT, $session, $fields);
+
+        $stored = $this->forms->findField($radio);
+        $this->assertSame("Langskomen|Visit\nBellen|Call\nMailen|Email", $stored['options'], 'stored in the new order, each option still with its translation');
+        $this->assertSame('Mailen', $stored['default_value'], 'and the same option is the default');
+        $this->assertSame("Avond|Evening\nMiddag|Afternoon\nOchtend|Morning", $this->forms->findField($select)['options']);
+
+        [$again, $xpath] = $this->editorSubmission($session, $radio);
+        $this->assertSame(['Langskomen', 'Bellen', 'Mailen'], [$again['option_nl[0]'], $again['option_nl[1]'], $again['option_nl[2]']], 'the editor reopens in that order');
+        $this->assertSame(['Visit', 'Call', 'Email'], [$again['option_en[0]'], $again['option_en[1]'], $again['option_en[2]']]);
+        $this->assertSame('2', $again['default_option'], 'with the mark on Mailen, now the third row');
+
+        $public = $this->xpath($this->publicPageWith($formId));
+        $this->assertSame(['Langskomen', 'Bellen', 'Mailen'], $this->values($public->query('//form[@data-form-block]//input[@type="radio"]')), 'the public form follows');
+        $this->assertSame(['Mailen'], $this->values($public->query('//form[@data-form-block]//input[@type="radio"][@checked]')), 'and starts on the same option');
+        $this->assertSame(['Avond', 'Middag', 'Ochtend'], $this->values($public->query('//form[@data-form-block]//select/option[@value != ""]')));
+    }
+
+    /* ------------------------------------------------------------------ */
     /* Helpers                                                             */
     /* ------------------------------------------------------------------ */
 
@@ -887,6 +968,87 @@ final class FormFieldEditorHttpTest extends TestCase
         }
 
         return implode(' ', $texts);
+    }
+
+    /**
+     * The option rows of an editor submission as a browser sends them after
+     * rows were moved: in this order of their indexes, each under its own
+     * index. The rest of the submission is untouched.
+     *
+     * @param array<string, string> $fields
+     * @param list<int>             $order
+     * @return array<string, string>
+     */
+    private function withRowsInOrder(array $fields, array $order): array
+    {
+        $rows = [];
+        foreach ($order as $index) {
+            $rows['option_nl[' . $index . ']'] = $fields['option_nl[' . $index . ']'];
+            $rows['option_en[' . $index . ']'] = $fields['option_en[' . $index . ']'];
+        }
+
+        foreach (array_keys($fields) as $name) {
+            if (str_starts_with($name, 'option_nl[') || str_starts_with($name, 'option_en[')) {
+                unset($fields[$name]);
+            }
+        }
+
+        return $fields + $rows;
+    }
+
+    /** @return list<string> */
+    private function values(\DOMNodeList $nodes): array
+    {
+        $values = [];
+        foreach ($nodes as $node) {
+            $values[] = $node->getAttribute('value');
+        }
+
+        return $values;
+    }
+
+    /** This form on a published page of its own, as a visitor gets it. */
+    private function publicPageWith(int $formId): string
+    {
+        $pageId = (new PageRepository())->create([
+            'content_key' => self::TEST_PAGE,
+            'slug' => self::TEST_PAGE,
+            'title' => 'Veldvolgorde testpagina',
+            'status' => 'published',
+            'meta_title' => null,
+            'meta_title_en' => null,
+            'meta_description' => null,
+            'meta_description_en' => null,
+        ]);
+
+        [$sectionId, $sectionKey] = SectionRegistry::create('form', self::TEST_PAGE);
+        (new PageSectionRepository())->create($pageId, self::TEST_PAGE, 'form', $sectionKey, $sectionId);
+        (new FormBlockRepository())->upsertSection(self::TEST_PAGE, (string) $sectionKey, ['form_id' => $formId, 'is_active' => true]);
+        FormCatalog::clearCache();
+
+        $response = self::$server->request('GET', '/pagina.php?slug=' . self::TEST_PAGE);
+        $this->assertSame(200, $response['status'], 'the page renders');
+
+        return $response['body'];
+    }
+
+    private function removeTestPage(): void
+    {
+        $pages = new PageRepository();
+        $page = $pages->findByContentKey(self::TEST_PAGE);
+
+        if ($page === null) {
+            return;
+        }
+
+        $sections = new PageSectionRepository();
+        foreach ($sections->findForPage((int) $page['id']) as $row) {
+            SectionRegistry::delete($row, $sections);
+        }
+
+        Database::connection()
+            ->prepare('DELETE FROM pages WHERE id = :id')
+            ->execute(['id' => (int) $page['id']]);
     }
 
     /**
