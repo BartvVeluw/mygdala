@@ -892,6 +892,24 @@ a{ color: var(--admin-accent); }
 .admin-nav-item-row--child{ padding: 0.7rem 0.9rem; }
 .admin-nav-children__empty{ font-size: 0.82rem; margin: 0; }
 
+/* Header & navigatie (admin/navigation.php): a row's own controls. ↑/↓ are
+   the keyboard- and phone-friendly way to reorder, square and as tall as the
+   Bewerken link, same size as a form option's arrows (.admin-option-row__move).
+   Hide/show and delete are the page builder's row buttons, one size down, and
+   Verwijderen keeps its distance at the far end. No admin colour or token of
+   its own: everything here is layout (ADMIN-UI.md). */
+.admin-nav-item-row .admin-section-row__actions{ flex-wrap: wrap; }
+.admin-nav-item-row .admin-section-row__name{ display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem; }
+.admin-nav-item-row .admin-nav-item-row__move{ justify-content: center; min-width: 2rem; min-height: 2rem; padding: 0.2rem 0.3rem; font-size: 1rem; line-height: 1; }
+.admin-nav-item-row .admin-nav-item-row__move:disabled{ background: transparent; }
+.admin-nav-item-row .admin-section-row__button{
+  padding: 0.35rem 0.8rem;
+  font-size: 0.84rem;
+  line-height: 1.5;
+  white-space: nowrap;
+}
+.admin-nav-item-row .admin-section-row__delete{ margin-left: auto; }
+
 /* Compact segmented control for switching between pages
    (admin/pages.php) — the selected page is unmistakably highlighted. */
 .admin-page-tabs{

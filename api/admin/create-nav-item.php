@@ -3,22 +3,29 @@
 /**
  * POST /api/admin/create-nav-item.php
  *
- * Creates a nav_items row from admin/navigation-item.php's "+ Menu-item
- * toevoegen" / "+ Submenu-item" forms. Same guard order and PRG/
- * session-flash pattern as create-information-page.php.
+ * Creates a nav_items row from admin/navigation-item.php: a menu link, a
+ * submenu item (with parent_id) or a header button (presentation=button).
+ * The three are one model (App\Service\NavigationPresentation); the rules
+ * that tell them apart live in api/admin/_nav_item_input.php, shared with
+ * update-nav-item.php. The new row goes to the end of its own group.
+ *
+ * Same guard order and PRG/session-flash pattern as
+ * api/admin/create-portfolio-item.php; a successful save lands on the new
+ * item's own editor, like api/admin/update-form.php, so the save bar there
+ * can say it was saved.
  */
 
 declare(strict_types=1);
 
 require_once __DIR__ . '/../../vendor/autoload.php';
+require_once __DIR__ . '/_nav_item_input.php';
 
-use App\Service\Language\AdminTranslator;
-use App\Service\AdminAuth;
-use App\Service\Csrf;
-use App\Service\Language\LocalizedValue;
-use App\Service\LinkResolver;
 use App\Repository\NavigationRepository;
 use App\Repository\PageRepository;
+use App\Service\AdminAuth;
+use App\Service\Csrf;
+use App\Service\Language\AdminTranslator;
+use App\Service\NavigationPresentation;
 
 AdminAuth::requireLoginForApi();
 AdminAuth::requirePermissionForApi('pages.manage');
@@ -35,90 +42,34 @@ if (!Csrf::validate($_POST['csrf_token'] ?? null)) {
 }
 
 $repository = new NavigationRepository();
-$pageRepository = new PageRepository();
 
-$labelNl = trim((string) ($_POST['label_nl'] ?? ''));
-$labelEn = trim((string) ($_POST['label_en'] ?? ''));
-$linkType = (string) ($_POST['link_type'] ?? '');
-$targetPageIdRaw = trim((string) ($_POST['target_page_id'] ?? ''));
-$targetPageId = $targetPageIdRaw === '' ? null : (int) $targetPageIdRaw;
-$targetRoute = trim((string) ($_POST['target_route'] ?? '')) ?: null;
-$externalUrl = trim((string) ($_POST['external_url'] ?? '')) ?: null;
-$openInNewTab = isset($_POST['open_in_new_tab']);
-$isVisible = isset($_POST['is_visible']);
+[$errors, $data, $old] = validateNavItemInput($_POST, null, $repository, new PageRepository());
 
-$parentIdRaw = trim((string) ($_POST['parent_id'] ?? ''));
-$parentId = $parentIdRaw === '' ? null : (int) $parentIdRaw;
-
-$errors = [];
-
-// Only the SITE'S OWN language is required. The other one is a translation,
-// and a translation is optional by definition: App\Service\Language\LocalizedValue
-// falls back to the primary language wherever one is missing. Requiring both
-// was harmless while every editor printed both fields; now that a
-// single-language site shows one, it would make this form impossible to
-// submit at all (MULTILINGUAL.md).
-if (LocalizedValue::ofDutchEnglish($labelNl, $labelEn)->primaryValue() === '') {
-    $errors[] = AdminTranslator::trans('validation.label_verplicht');
+// Back to the same empty form the editor came from: a submenu item under its
+// parent, a button as a button.
+$formUrl = '/admin/navigation-item.php';
+if ($data['parent_id'] !== null) {
+    $formUrl .= '?parent_id=' . (int) $data['parent_id'];
+} elseif ($data['presentation'] === NavigationPresentation::BUTTON) {
+    $formUrl .= '?presentation=button';
 }
-if (mb_strlen($labelNl) > 100 || mb_strlen($labelEn) > 100) {
-    $errors[] = AdminTranslator::trans('validation.label_mag_maximaal_100_tekens');
-}
-
-if ($parentId !== null) {
-    // A submenu item's own link may never be 'none' (a dropdown heading
-    // only makes sense as a top-level item) and depth is capped at 2 —
-    // the parent itself must be a top-level item, never already a child.
-    if ($linkType === 'none') {
-        $errors[] = AdminTranslator::trans('validation.submenu_item_eigen_link_hebben');
-    }
-    if (!$repository->canBeParent($parentId)) {
-        $errors[] = AdminTranslator::trans('validation.ongeldig_hoofditem_navigatie_ondersteunt_maximaa');
-    }
-}
-
-$linkError = LinkResolver::validate($linkType, $targetPageId, $targetRoute, $externalUrl, null, LinkResolver::LINK_TYPES_NAV, $pageRepository);
-if ($linkError !== null) {
-    $errors[] = $linkError;
-}
-
-$old = [
-    'label_nl' => $labelNl,
-    'label_en' => $labelEn,
-    'link_type' => $linkType,
-    'target_page_id' => $targetPageIdRaw,
-    'target_route' => $targetRoute,
-    'external_url' => $externalUrl,
-    'open_in_new_tab' => $openInNewTab,
-    'is_visible' => $isVisible,
-];
 
 if ($errors !== []) {
     $_SESSION['admin_nav_item_errors'] = $errors;
     $_SESSION['admin_nav_item_old'] = $old;
-    header('Location: /admin/navigation-item.php' . ($parentId !== null ? '?parent_id=' . $parentId : ''));
+    header('Location: ' . $formUrl);
     exit;
 }
 
 try {
-    $repository->create([
-        'label_nl' => $labelNl,
-        'label_en' => $labelEn,
-        'link_type' => $linkType,
-        'target_page_id' => $linkType === 'page' ? $targetPageId : null,
-        'target_route' => $linkType === 'route' ? $targetRoute : null,
-        'external_url' => $linkType === 'external' ? $externalUrl : null,
-        'open_in_new_tab' => $openInNewTab,
-        'parent_id' => $parentId,
-        'is_visible' => $isVisible,
-    ]);
+    $id = $repository->create($data);
 } catch (\Throwable $e) {
     error_log('[api/admin/create-nav-item.php] ' . $e->getMessage());
-    $_SESSION['admin_nav_item_errors'] = ['Menu-item kon niet worden aangemaakt. Probeer het opnieuw.'];
+    $_SESSION['admin_nav_item_errors'] = [AdminTranslator::trans('validation.navigation_item_not_created')];
     $_SESSION['admin_nav_item_old'] = $old;
-    header('Location: /admin/navigation-item.php' . ($parentId !== null ? '?parent_id=' . $parentId : ''));
+    header('Location: ' . $formUrl);
     exit;
 }
 
-header('Location: /admin/navigation.php');
+header('Location: /admin/navigation-item.php?id=' . $id . '&saved=1');
 exit;

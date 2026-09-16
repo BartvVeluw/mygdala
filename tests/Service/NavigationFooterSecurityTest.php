@@ -18,6 +18,7 @@ class NavigationFooterSecurityTest extends TestCase
         'delete-nav-item.php',
         'toggle-nav-item.php',
         'reorder-nav-items.php',
+        'move-nav-item.php',
         'create-footer-column.php',
         'update-footer-column.php',
         'delete-footer-column.php',

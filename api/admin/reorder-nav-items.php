@@ -3,13 +3,16 @@
 /**
  * POST /api/admin/reorder-nav-items.php
  *
- * Persists a new display order within one parent scope (top-level when
- * parent_id is empty) — see NavigationRepository::reorder(). JSON response,
- * same convention as reorder-page-sections.php. item_ids outside the
- * scope actually owned by parent_id are silently ignored by the
- * repository rather than trusted from the request.
+ * Persists a new display order within one group — one parent scope (top-level
+ * when parent_id is empty) and one presentation, since the menu links and the
+ * header buttons are ordered separately — see NavigationRepository::reorder().
+ * JSON response, same convention as reorder-page-sections.php. item_ids
+ * outside the group actually owned by parent_id and presentation are silently
+ * ignored by the repository rather than trusted from the request.
  *
- * Body: parent_id (empty = top-level), item_ids (comma-separated).
+ * Body: parent_id (empty = top-level), presentation (link | button; anything
+ * else is a link, which is what every drag list before header buttons sent
+ * implicitly), item_ids (comma-separated).
  */
 
 declare(strict_types=1);
@@ -20,6 +23,7 @@ use App\Service\Language\AdminTranslator;
 use App\Service\AdminAuth;
 use App\Service\Csrf;
 use App\Repository\NavigationRepository;
+use App\Service\NavigationPresentation;
 
 AdminAuth::requireLoginForApi();
 AdminAuth::requirePermissionForApi('pages.manage');
@@ -49,7 +53,11 @@ $ids = array_values(array_filter(array_map(
 ), static fn (int $id): bool => $id > 0));
 
 try {
-    (new NavigationRepository())->reorder($parentId, $ids);
+    (new NavigationRepository())->reorder(
+        $parentId,
+        $ids,
+        NavigationPresentation::of(['presentation' => (string) ($_POST['presentation'] ?? '')])
+    );
 } catch (\Throwable $e) {
     error_log('[api/admin/reorder-nav-items.php] ' . $e->getMessage());
     http_response_code(500);

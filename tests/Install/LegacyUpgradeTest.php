@@ -183,7 +183,9 @@ final class LegacyUpgradeTest extends TestCase
     public function testTheMenuAndFooterSurvive(): void
     {
         $labels = array_column(
-            $this->install()->rows('SELECT label_nl FROM nav_items ORDER BY sort_order'),
+            // The menu links only: the header button lives in the same table
+            // since 20260916230000 and is checked with the other header data.
+            $this->install()->rows("SELECT label_nl FROM nav_items WHERE presentation = 'link' ORDER BY sort_order"),
             'label_nl'
         );
 
@@ -229,6 +231,22 @@ final class LegacyUpgradeTest extends TestCase
             'Ontworpen & gebouwd met zorg in Nijmegen',
             $settings['footer_slogan_nl'] ?? ''
         );
+
+        // Since 20260916230000 the header renders its buttons from nav_items:
+        // the pinned button must be there as exactly one visible button to
+        // the same page, and the settings above stay as they were.
+        $buttons = $this->install()->rows(
+            "SELECT label_nl, label_en, link_type, target_page_id, button_variant, is_visible, parent_id FROM nav_items WHERE presentation = 'button'"
+        );
+
+        $this->assertCount(1, $buttons);
+        $this->assertSame('Vraag offerte aan', (string) $buttons[0]['label_nl']);
+        $this->assertSame('Request a quote', (string) $buttons[0]['label_en']);
+        $this->assertSame('page', (string) $buttons[0]['link_type']);
+        $this->assertSame($settings['header_cta_target_page_id'], (string) $buttons[0]['target_page_id']);
+        $this->assertSame('primary', (string) $buttons[0]['button_variant']);
+        $this->assertSame(1, (int) $buttons[0]['is_visible']);
+        $this->assertNull($buttons[0]['parent_id']);
     }
 
     /* ------------------------------------------------------------------ */

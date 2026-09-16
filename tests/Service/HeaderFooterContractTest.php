@@ -67,12 +67,26 @@ final class HeaderFooterContractTest extends TestCase
         }
     }
 
-    public function testTheHeaderGetsItsButtonFromTheSettingsService(): void
+    /**
+     * Since Navigation phase A the header's buttons are navigation items: the
+     * partial asks NavigationService for them, prints the class the closed
+     * variant list gives it, and the primary variant is exactly the styling
+     * the single header CTA had.
+     */
+    public function testTheHeaderGetsItsButtonsFromTheNavigation(): void
     {
         $source = $this->source('partials/header.php');
 
-        $this->assertStringContainsString('HeaderCta::forHeader()', $source);
-        $this->assertStringContainsString('class="btn btn--sm"', $source, 'the button keeps its existing styling');
+        $this->assertStringContainsString('NavigationService::header()', $source);
+        $this->assertStringContainsString('class="<?= $h($headerButton[\'class\']) ?>"', $source);
+        $this->assertStringNotContainsString('HeaderCta', $source, 'the settings-based single button is retired');
+        $this->assertFileDoesNotExist(self::root() . '/src/Service/HeaderCta.php');
+
+        $this->assertSame(
+            'btn btn--sm',
+            \App\Service\NavigationPresentation::buttonClass(\App\Service\NavigationPresentation::VARIANT_PRIMARY),
+            'one button keeps its existing styling'
+        );
     }
 
     public function testTheFooterGetsItsSloganAndSocialRowFromTheSettingsServices(): void
@@ -106,12 +120,13 @@ final class HeaderFooterContractTest extends TestCase
     }
 
     /**
-     * The CTA reuses the one link resolver rather than growing a second
-     * one — that is what makes an unavailable module route fail safely.
+     * Menu links and header buttons reuse the one link resolver rather than
+     * growing a second one — that is what makes an unavailable module route
+     * fail safely.
      */
-    public function testTheCtaTargetGoesThroughTheSharedLinkResolver(): void
+    public function testHeaderTargetsGoThroughTheSharedLinkResolver(): void
     {
-        $source = $this->source('src/Service/HeaderCta.php');
+        $source = $this->source('src/Service/NavigationService.php');
 
         $this->assertStringContainsString('LinkResolver::resolve(', $source);
         $this->assertStringNotContainsString('RouteRegistry::url(', $source, 'no second resolver');

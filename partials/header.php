@@ -15,7 +15,10 @@ declare(strict_types=1);
  *   $activeNav        (string|null) a App\Service\RouteRegistry key to mark
  *                      with aria-current="page" (e.g. 'shop') — matches a
  *                      nav item whose own link_type is 'route' and points at
- *                      the same key. Defaults to none.
+ *                      the same key. Defaults to none. A PAGE link is marked
+ *                      by its own href instead, compared with the requested
+ *                      path (NavigationService::isCurrent()), so a template
+ *                      does not have to know which page it is.
  * MODULE SLOT. The action area on the right ends with whatever the ENABLED
  * modules put there (App\Module\ModuleDefinition::headerPartials()). Today
  * that is the Shop's mini-cart and nothing else, and it used to be forty lines
@@ -24,11 +27,14 @@ declare(strict_types=1);
  * shop markup at all: with the Shop switched off the loop below simply has
  * nothing to include.
  *
- * The action area also ends with ONE optional call-to-action button, whose
- * visibility, two labels and target are settings rather than markup — see
- * App\Service\HeaderCta. It renders nothing at all when it is switched off
- * or when its target cannot currently be reached, and the header stays
- * coherent without it on both desktop and mobile.
+ * The action area also ends with the HEADER BUTTONS: zero, one or more
+ * navigation items presented as a button (App\Service\NavigationPresentation),
+ * in their own order, each with a class from a closed list of existing .btn
+ * variants. A hidden button, or one whose target cannot currently be reached,
+ * renders nothing at all. With no buttons there is no wrapper either, and the
+ * header stays coherent on desktop and mobile; the wrapper's layout —
+ * wrapping long labels, stacking on a phone — lives with the rest of the
+ * header in assets/css/core.css.
  */
 
 require_once __DIR__ . '/../vendor/autoload.php';
@@ -36,7 +42,6 @@ require_once __DIR__ . '/../vendor/autoload.php';
 use App\Module\ModuleRegistry;
 use App\Service\Analytics\PageViewTracker;
 use App\Service\Branding;
-use App\Service\HeaderCta;
 use App\Service\NavigationService;
 use App\Service\SiteSettings;
 
@@ -51,8 +56,11 @@ use App\Service\SiteSettings;
  */
 PageViewTracker::trackCurrentRequest();
 
-$navItems = NavigationService::tree();
+$siteHeader = NavigationService::header();
+$navItems = $siteHeader['items'];
+$headerButtons = $siteHeader['buttons'];
 $activeNav = $activeNav ?? null;
+$requestPath = (string) parse_url((string) ($_SERVER['REQUEST_URI'] ?? ''), PHP_URL_PATH);
 
 $siteName = SiteSettings::get('site_name');
 // App\Service\Branding returns one root-relative form (leading "/"), which
@@ -62,7 +70,6 @@ $siteName = SiteSettings::get('site_name');
 // a fresh install, before anybody has uploaded one — and the brand link then
 // carries the site name as text rather than a broken image.
 $logoPath = Branding::logoPath();
-$headerCta = HeaderCta::forHeader();
 
 $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
 ?>
@@ -82,7 +89,7 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
       <ul class="main-nav__list">
 <?php foreach ($navItems as $item): ?>
 <?php
-  $isActive = $item['route_key'] !== null && $activeNav === $item['route_key'];
+  $isActive = NavigationService::isCurrent($item, $activeNav, $requestPath);
   $hasChildren = $item['children'] !== [];
 ?>
 <?php if ($hasChildren): ?>
@@ -119,8 +126,12 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
 <?php foreach (ModuleRegistry::collect('headerPartials') as $headerPartial): ?>
 <?php require $headerPartial; ?>
 <?php endforeach; ?>
-<?php if ($headerCta !== null): ?>
-        <a href="<?= $h($headerCta['href']) ?>" class="btn btn--sm"<?= $headerCta['open_in_new_tab'] ? ' target="_blank" rel="' . $h((string) $headerCta['rel']) . '"' : '' ?> <?= \App\Service\Language\SiteText::attrs($headerCta['label_nl'], $headerCta['label_en']) ?>><?= $h(\App\Service\Language\SiteText::visible($headerCta['label_nl'], $headerCta['label_en'])) ?></a>
+<?php if ($headerButtons !== []): ?>
+        <div class="header-buttons">
+<?php foreach ($headerButtons as $headerButton): ?>
+          <a href="<?= $h($headerButton['href']) ?>" class="<?= $h($headerButton['class']) ?>"<?= $headerButton['open_in_new_tab'] ? ' target="_blank" rel="' . $h((string) $headerButton['rel']) . '"' : '' ?><?= \App\Service\Language\SiteText::attrs($headerButton['label_nl'], $headerButton['label_en']) ?>><?= $h(\App\Service\Language\SiteText::visible($headerButton['label_nl'], $headerButton['label_en'])) ?></a>
+<?php endforeach; ?>
+        </div>
 <?php endif; ?>
       </div>
       </div>

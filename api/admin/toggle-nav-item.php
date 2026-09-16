@@ -43,5 +43,6 @@ try {
     $_SESSION['admin_nav_error'] = AdminTranslator::trans('validation.zichtbaarheid_kon_opgeslagen');
 }
 
-header('Location: /admin/navigation.php');
+// Back to the row that changed, like api/admin/move-nav-item.php.
+header('Location: /admin/navigation.php#nav-item-' . $idParam);
 exit;

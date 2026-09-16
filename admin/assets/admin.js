@@ -188,6 +188,9 @@
     var url = zone.getAttribute("data-reorder-url");
     var csrfToken = zone.getAttribute("data-csrf-token");
     var parentId = zone.getAttribute("data-parent-id") || "";
+    // The menu and the header buttons are separate lists with separate
+    // orders (NavigationRepository), so the zone says which one it is.
+    var presentation = zone.getAttribute("data-presentation") || "link";
     var itemIds = Array.prototype.map
       .call(zone.querySelectorAll(":scope > .admin-nav-item-row"), function (row) {
         return row.getAttribute("data-nav-item-id");
@@ -197,6 +200,7 @@
     var body = new URLSearchParams();
     body.set("csrf_token", csrfToken);
     body.set("parent_id", parentId);
+    body.set("presentation", presentation);
     body.set("item_ids", itemIds);
 
     fetch(url, { method: "POST", credentials: "same-origin", body: body })
@@ -643,6 +647,8 @@
   } else {
     initVariantImageGrids();
     initPageSectionZones();
+    initNavItemZones();
+    initFooterZones();
     initRichTextEditors();
     initColorSync();
     initRangeOutputs();

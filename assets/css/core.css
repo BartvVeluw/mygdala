@@ -428,6 +428,14 @@ p{ margin: 0; }
 .main-nav__submenu a::after{ display: none; }
 
 .header-actions{ display: flex; align-items: center; gap: var(--sp-2); }
+/* The header buttons (App\Service\NavigationService::buildButtons()): none,
+   one or several .btn links after the language switch and the module slots,
+   in their own row with the action area's gap — one button sits exactly where
+   the single header CTA always sat. .btn is nowrap everywhere else, which is
+   right for a button in content; here a long label wraps inside its own
+   button instead of pushing the header wider than the screen. */
+.header-buttons{ display: flex; align-items: center; gap: var(--sp-2); }
+.header-buttons .btn{ white-space: normal; text-align: center; line-height: 1.25; max-width: 16rem; }
 
 .lang-switch{
   display: inline-flex;
@@ -528,7 +536,16 @@ p{ margin: 0; }
     margin-top: var(--sp-5);
     padding-top: var(--sp-4);
     border-top: 1px solid var(--color-line);
+    /* The language switch, the cart and the header buttons do not always
+       fit a phone's width — on a 375px screen not even with one button:
+       the row wraps, centred, instead of running off the screen. Whatever
+       fits stays on the switch's row. */
+    flex-wrap: wrap;
+    justify-content: center;
+    max-width: 100%;
   }
+  .main-nav .header-buttons{ flex-wrap: wrap; justify-content: center; max-width: 100%; }
+  .main-nav .header-buttons .btn{ max-width: 100%; }
 
   /* Tasteful entrance: links + actions rise/fade in, staggered, once
      .main-nav.is-open — not on initial paint (before JS attaches the

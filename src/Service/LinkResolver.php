@@ -143,8 +143,11 @@ class LinkResolver
         array $allowedTypes,
         PageRepository $pageRepository
     ): ?string {
+        // Editor-facing Dutch without field names: the header and footer
+        // editors call these "a page of this website", "a fixed part of the
+        // website" and "another address" (HEADER-FOOTER.md).
         if (!in_array($linkType, $allowedTypes, true)) {
-            return 'Ongeldig linktype.';
+            return 'Kies waar de link heen gaat.';
         }
 
         switch ($linkType) {
@@ -155,12 +158,12 @@ class LinkResolver
                 break;
             case 'route':
                 if ($targetRoute === null || !RouteRegistry::exists($targetRoute)) {
-                    return 'Kies een geldige applicatieroute.';
+                    return 'Kies een onderdeel van de website.';
                 }
                 break;
             case 'external':
                 if ($externalUrl === null || $externalUrl === '' || !self::isValidUrl($externalUrl)) {
-                    return 'Voer een geldige URL in (https://... of een pad dat begint met /).';
+                    return 'Vul een volledig adres in dat begint met https://, of een adres op deze website dat begint met /.';
                 }
                 break;
             case 'action':

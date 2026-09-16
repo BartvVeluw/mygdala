@@ -11,6 +11,11 @@
  * admin must move/delete the children first — nothing is silently
  * destroyed. parent_id's own ON DELETE RESTRICT is the defense-in-depth
  * backstop if this check is ever bypassed.
+ *
+ * Asked first in the CMS's own dialog on admin/navigation.php and
+ * admin/navigation-item.php (admin_confirm_attributes()); that dialog is a
+ * courtesy, never the guard. The overview says afterwards whether a menu item
+ * or a header button went (?deleted=link|button).
  */
 
 declare(strict_types=1);
@@ -21,6 +26,7 @@ use App\Service\Language\AdminTranslator;
 use App\Service\AdminAuth;
 use App\Service\Csrf;
 use App\Repository\NavigationRepository;
+use App\Service\NavigationPresentation;
 
 AdminAuth::requireLoginForApi();
 AdminAuth::requirePermissionForApi('pages.manage');
@@ -43,6 +49,12 @@ if ($idParam === false || $idParam === null || $idParam < 1) {
 }
 
 $repository = new NavigationRepository();
+$item = $repository->findById($idParam);
+
+if ($item === null) {
+    http_response_code(404);
+    exit('Menu-item niet gevonden.');
+}
 
 if ($repository->countChildren($idParam) > 0) {
     $_SESSION['admin_nav_error'] = AdminTranslator::trans('validation.menu_item_heeft_submenu_items');
@@ -59,5 +71,5 @@ try {
     exit;
 }
 
-header('Location: /admin/navigation.php?deleted=1');
+header('Location: /admin/navigation.php?deleted=' . NavigationPresentation::of($item));
 exit;

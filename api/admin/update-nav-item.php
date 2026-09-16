@@ -3,26 +3,33 @@
 /**
  * POST /api/admin/update-nav-item.php
  *
- * Updates an existing nav_items row. parent_id is deliberately never
- * editable here — moving an item between top-level and submenu (or between
- * parents) is a structural change this feature doesn't expose in the admin
- * UI (see MAIN.MD, "Global Navigation + Footer" — reparenting is out of
- * scope; delete + recreate as a submenu-item under the new parent is the
- * supported path, same as this project's other admin CRUD screens have no
- * "move" action).
+ * Updates an existing nav_items row: its labels, destination, visibility and
+ * — for a top-level item — whether it is a menu link or a header button
+ * (App\Service\NavigationPresentation). The shared rules are in
+ * api/admin/_nav_item_input.php.
+ *
+ * parent_id is deliberately never editable here — moving an item between
+ * top-level and submenu (or between parents) is a structural change this
+ * screen doesn't expose; delete + recreate as a submenu item under the new
+ * parent is the supported path, same as this project's other admin CRUD
+ * screens have no "move to another parent" action. Changing the presentation
+ * is not such a move: the item stays top-level and joins the end of the
+ * other group (NavigationRepository::update()).
+ *
+ * Same guard order and PRG pattern as api/admin/update-form.php, including
+ * the redirect back to the editor with saved=1 for the save bar.
  */
 
 declare(strict_types=1);
 
 require_once __DIR__ . '/../../vendor/autoload.php';
+require_once __DIR__ . '/_nav_item_input.php';
 
-use App\Service\Language\AdminTranslator;
-use App\Service\AdminAuth;
-use App\Service\Csrf;
-use App\Service\Language\LocalizedValue;
-use App\Service\LinkResolver;
 use App\Repository\NavigationRepository;
 use App\Repository\PageRepository;
+use App\Service\AdminAuth;
+use App\Service\Csrf;
+use App\Service\Language\AdminTranslator;
 
 AdminAuth::requireLoginForApi();
 AdminAuth::requirePermissionForApi('pages.manage');
@@ -45,84 +52,32 @@ if ($idParam === false || $idParam === null || $idParam < 1) {
 }
 
 $repository = new NavigationRepository();
-$pageRepository = new PageRepository();
 $existing = $repository->findById($idParam);
 if ($existing === null) {
     http_response_code(404);
     exit('Menu-item niet gevonden.');
 }
 
-$labelNl = trim((string) ($_POST['label_nl'] ?? ''));
-$labelEn = trim((string) ($_POST['label_en'] ?? ''));
-$linkType = (string) ($_POST['link_type'] ?? '');
-$targetPageIdRaw = trim((string) ($_POST['target_page_id'] ?? ''));
-$targetPageId = $targetPageIdRaw === '' ? null : (int) $targetPageIdRaw;
-$targetRoute = trim((string) ($_POST['target_route'] ?? '')) ?: null;
-$externalUrl = trim((string) ($_POST['external_url'] ?? '')) ?: null;
-$openInNewTab = isset($_POST['open_in_new_tab']);
-$isVisible = isset($_POST['is_visible']);
+[$errors, $data, $old] = validateNavItemInput($_POST, $existing, $repository, new PageRepository());
 
-$isChild = $existing['parent_id'] !== null;
-
-$errors = [];
-
-// Only the SITE'S OWN language is required. The other one is a translation,
-// and a translation is optional by definition: App\Service\Language\LocalizedValue
-// falls back to the primary language wherever one is missing. Requiring both
-// was harmless while every editor printed both fields; now that a
-// single-language site shows one, it would make this form impossible to
-// submit at all (MULTILINGUAL.md).
-if (LocalizedValue::ofDutchEnglish($labelNl, $labelEn)->primaryValue() === '') {
-    $errors[] = AdminTranslator::trans('validation.label_verplicht');
-}
-if (mb_strlen($labelNl) > 100 || mb_strlen($labelEn) > 100) {
-    $errors[] = AdminTranslator::trans('validation.label_mag_maximaal_100_tekens');
-}
-if ($isChild && $linkType === 'none') {
-    $errors[] = AdminTranslator::trans('validation.submenu_item_eigen_link_hebben');
-}
-
-$linkError = LinkResolver::validate($linkType, $targetPageId, $targetRoute, $externalUrl, null, LinkResolver::LINK_TYPES_NAV, $pageRepository);
-if ($linkError !== null) {
-    $errors[] = $linkError;
-}
-
-$old = [
-    'label_nl' => $labelNl,
-    'label_en' => $labelEn,
-    'link_type' => $linkType,
-    'target_page_id' => $targetPageIdRaw,
-    'target_route' => $targetRoute,
-    'external_url' => $externalUrl,
-    'open_in_new_tab' => $openInNewTab,
-    'is_visible' => $isVisible,
-];
+$editorUrl = '/admin/navigation-item.php?id=' . $idParam;
 
 if ($errors !== []) {
     $_SESSION['admin_nav_item_errors'] = $errors;
     $_SESSION['admin_nav_item_old'] = $old;
-    header('Location: /admin/navigation-item.php?id=' . $idParam);
+    header('Location: ' . $editorUrl);
     exit;
 }
 
 try {
-    $repository->update($idParam, [
-        'label_nl' => $labelNl,
-        'label_en' => $labelEn,
-        'link_type' => $linkType,
-        'target_page_id' => $linkType === 'page' ? $targetPageId : null,
-        'target_route' => $linkType === 'route' ? $targetRoute : null,
-        'external_url' => $linkType === 'external' ? $externalUrl : null,
-        'open_in_new_tab' => $openInNewTab,
-        'is_visible' => $isVisible,
-    ]);
+    $repository->update($idParam, $data);
 } catch (\Throwable $e) {
     error_log('[api/admin/update-nav-item.php] ' . $e->getMessage());
-    $_SESSION['admin_nav_item_errors'] = ['Menu-item kon niet worden opgeslagen. Probeer het opnieuw.'];
+    $_SESSION['admin_nav_item_errors'] = [AdminTranslator::trans('validation.navigation_item_not_saved')];
     $_SESSION['admin_nav_item_old'] = $old;
-    header('Location: /admin/navigation-item.php?id=' . $idParam);
+    header('Location: ' . $editorUrl);
     exit;
 }
 
-header('Location: /admin/navigation.php');
+header('Location: ' . $editorUrl . '&saved=1');
 exit;

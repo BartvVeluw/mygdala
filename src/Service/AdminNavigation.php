@@ -228,8 +228,12 @@ class AdminNavigation
                 'scripts' => ['form-submissions.php', 'form-submission.php'],
             ],
             [
+                // Everything at the top of every page: the menu and the
+                // header buttons, one model (App\Service\NavigationPresentation).
+                // The key and the file keep their old names, so links and
+                // bookmarks to admin/navigation.php keep working.
                 'key' => 'navigation',
-                'label' => 'Navigatie',
+                'label' => 'Header & navigatie',
                 'url' => '/admin/navigation.php',
                 'icon' => 'navigation',
                 'permission' => AdminPermissions::PAGES_MANAGE,
@@ -246,14 +250,16 @@ class AdminNavigation
                 'scripts' => ['footer.php', 'footer-column.php', 'footer-link.php'],
             ],
             [
-                // The shared shell's remaining CONTENT: the header's one
-                // call-to-action button, the footer's closing line and the
-                // social profiles. Next to Navigatie and Footer rather than
-                // next to Site-instellingen, because it is edited while
-                // thinking about the header and the footer, not while
-                // thinking about the company's details.
+                // The footer's closing line and the social profiles. The
+                // header's call-to-action button used to live here too and
+                // moved to Header & navigatie in Navigation phase A, hence the
+                // label; key and file keep their names. Next to Footer rather
+                // than next to Site-instellingen, because it is edited while
+                // thinking about the footer, not about the company's details.
+                // Footer phase B folds it into the Footer screen
+                // (HEADER-FOOTER.md).
                 'key' => 'header_footer',
-                'label' => 'Header & footer',
+                'label' => 'Slotregel & social media',
                 'url' => '/admin/header-footer.php',
                 'icon' => 'header_footer',
                 'permission' => AdminPermissions::PAGES_MANAGE,

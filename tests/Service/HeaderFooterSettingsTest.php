@@ -6,20 +6,23 @@ namespace Tests\Service;
 
 use App\Module\ModuleRegistry;
 use App\Service\FooterService;
-use App\Service\HeaderCta;
 use App\Service\SiteSettings;
 use App\Service\SocialProfiles;
 use PHPUnit\Framework\TestCase;
 
 /**
- * The shared header's call-to-action button, the footer's slogan and the
- * social profiles, as settings rather than markup.
+ * The footer's slogan and the social profiles, as settings rather than
+ * markup.
  *
  * No database and no web server: App\Service\SiteSettings::overrideForTests()
- * stands in for the stored rows, and the two target kinds that need neither
- * (a registered route and an external URL) are exercised here. The CMS-PAGE
- * target needs a real `pages` row and lives in
- * Tests\Service\HeaderFooterRenderingTest with the rest of the integration.
+ * stands in for the stored rows.
+ *
+ * The header's call-to-action button used to be tested here as well. Header
+ * buttons are navigation items since Navigation phase A; every rule this file
+ * held for the single button now holds per button in
+ * Tests\Service\NavigationServiceTest (no database) and
+ * Tests\Service\HeaderFooterRenderingTest (a CMS-page target). What stays
+ * here is that the legacy header_cta_* keys keep their generic defaults.
  */
 final class HeaderFooterSettingsTest extends TestCase
 {
@@ -37,7 +40,7 @@ final class HeaderFooterSettingsTest extends TestCase
 
     // ---------------------------------------------------------------- defaults
 
-    public function testAFreshInstallGetsNoButtonNoSloganAndNoSocialProfiles(): void
+    public function testAFreshInstallGetsNoSloganAndNoSocialProfiles(): void
     {
         $defaults = SiteSettings::defaults();
 
@@ -52,6 +55,10 @@ final class HeaderFooterSettingsTest extends TestCase
         }
     }
 
+    /**
+     * Including the legacy header_cta_* keys: nothing reads them any more,
+     * but a default that carried somebody's wording would still be wrong.
+     */
     public function testTheCodeDefaultsCarryNoCompanySpecificCopy(): void
     {
         $defaults = SiteSettings::defaults();
@@ -72,154 +79,8 @@ final class HeaderFooterSettingsTest extends TestCase
     {
         $this->withSettings([]);
 
-        $this->assertNull(HeaderCta::forHeader());
         $this->assertNull(FooterService::slogan());
         $this->assertSame([], SocialProfiles::forFooter());
-    }
-
-    // -------------------------------------------------------------- header CTA
-
-    /** @return array<string, string> */
-    private function enabledCta(array $overrides = []): array
-    {
-        return array_merge([
-            'header_cta_enabled' => '1',
-            'header_cta_label_nl' => 'Vraag offerte aan',
-            'header_cta_label_en' => 'Request a quote',
-            'header_cta_link_type' => 'external',
-            'header_cta_external_url' => '/contact.php',
-        ], $overrides);
-    }
-
-    public function testAnEnabledButtonRenders(): void
-    {
-        $this->withSettings($this->enabledCta());
-
-        $cta = HeaderCta::forHeader();
-
-        $this->assertNotNull($cta);
-        $this->assertSame('Vraag offerte aan', $cta['label_nl']);
-        $this->assertSame('Request a quote', $cta['label_en']);
-        $this->assertSame('/contact.php', $cta['href']);
-    }
-
-    public function testADisabledButtonRendersNothing(): void
-    {
-        $this->withSettings($this->enabledCta(['header_cta_enabled' => '0']));
-
-        $this->assertNull(HeaderCta::forHeader());
-    }
-
-    public function testAButtonWithoutADutchLabelRendersNothing(): void
-    {
-        $this->withSettings($this->enabledCta(['header_cta_label_nl' => '']));
-
-        $this->assertNull(HeaderCta::forHeader());
-    }
-
-    public function testAnEmptyEnglishLabelFallsBackToTheDutchOne(): void
-    {
-        $this->withSettings($this->enabledCta(['header_cta_label_en' => '']));
-
-        $cta = HeaderCta::forHeader();
-
-        $this->assertNotNull($cta);
-        $this->assertSame('Vraag offerte aan', $cta['label_en']);
-    }
-
-    public function testARegisteredRouteTargetResolvesToItsUrl(): void
-    {
-        $this->withSettings($this->enabledCta([
-            'header_cta_link_type' => 'route',
-            'header_cta_target_route' => 'home',
-            'header_cta_external_url' => '',
-        ]));
-
-        $cta = HeaderCta::forHeader();
-
-        $this->assertNotNull($cta);
-        $this->assertSame('/index.php', $cta['href']);
-    }
-
-    public function testAnExternalTargetKeepsItsUrl(): void
-    {
-        $this->withSettings($this->enabledCta([
-            'header_cta_external_url' => 'https://example.com/offerte',
-        ]));
-
-        $cta = HeaderCta::forHeader();
-
-        $this->assertNotNull($cta);
-        $this->assertSame('https://example.com/offerte', $cta['href']);
-    }
-
-    public function testOpeningInANewTabAddsTheSafeRel(): void
-    {
-        $this->withSettings($this->enabledCta(['header_cta_open_in_new_tab' => '1']));
-
-        $cta = HeaderCta::forHeader();
-
-        $this->assertNotNull($cta);
-        $this->assertTrue($cta['open_in_new_tab']);
-        $this->assertSame('noopener noreferrer', $cta['rel']);
-    }
-
-    public function testAButtonWithNoTargetAtAllRendersNothing(): void
-    {
-        $this->withSettings($this->enabledCta([
-            'header_cta_link_type' => 'route',
-            'header_cta_target_route' => '',
-            'header_cta_external_url' => '',
-        ]));
-
-        $this->assertNull(HeaderCta::forHeader());
-    }
-
-    /**
-     * The case the whole target model exists for: a button pointing at a
-     * route the Shop owns, on a deployment where the Shop is switched off.
-     * The route is not registered any more, so the button is not rendered —
-     * and the SETTING is untouched, so switching the Shop back on brings it
-     * back without anybody re-entering anything.
-     */
-    public function testAButtonPointingAtASwitchedOffModulesRouteIsNotRendered(): void
-    {
-        $settings = $this->enabledCta([
-            'header_cta_link_type' => 'route',
-            'header_cta_target_route' => 'shop',
-            'header_cta_external_url' => '',
-        ]);
-        $this->withSettings($settings);
-
-        ModuleRegistry::overrideForTests(['shop' => true, 'personalization' => true]);
-        $enabled = HeaderCta::forHeader();
-        $this->assertNotNull($enabled, 'with the Shop on, the route target must resolve');
-        $this->assertSame('/shop.php', $enabled['href']);
-
-        ModuleRegistry::overrideForTests(['shop' => false, 'personalization' => false]);
-
-        $this->assertNull(HeaderCta::forHeader());
-        $this->assertSame('shop', SiteSettings::get('header_cta_target_route'), 'the setting must be preserved');
-        $this->assertNotNull(HeaderCta::adminWarning(), 'the admin screen must be told why the button is gone');
-    }
-
-    public function testNoWarningWhileEverythingResolves(): void
-    {
-        $this->withSettings($this->enabledCta());
-
-        $this->assertNull(HeaderCta::adminWarning());
-    }
-
-    public function testADisabledButtonIsNotWarnedAbout(): void
-    {
-        $this->withSettings($this->enabledCta([
-            'header_cta_enabled' => '0',
-            'header_cta_link_type' => 'route',
-            'header_cta_target_route' => 'nonexistent',
-            'header_cta_external_url' => '',
-        ]));
-
-        $this->assertNull(HeaderCta::adminWarning());
     }
 
     // ----------------------------------------------------------- footer slogan

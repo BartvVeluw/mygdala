@@ -219,15 +219,14 @@ class SiteSettings
         'related_products_heading_en' => '',
         'related_products_max_items' => '4',
 
-        // THE SHARED HEADER'S ONE CALL-TO-ACTION BUTTON. Owned by
-        // App\Service\HeaderCta, which resolves the target through the same
-        // App\Service\LinkResolver that nav items and footer links use — so
-        // link_type plus its companion field, not a second link model. The
-        // defaults are GENERIC (off, unlabelled, no target) for the same
-        // reason the branding defaults are: a fresh install must not inherit
-        // another company's button. This site's own values were pinned as
-        // real rows by db/migrations/20260909220000 before these defaults
-        // existed.
+        // LEGACY: THE HEADER'S FORMER SINGLE CALL-TO-ACTION BUTTON. Nothing
+        // reads or writes these keys any more. Header buttons are navigation
+        // items since Navigation phase A (App\Service\NavigationPresentation),
+        // and db/migrations/20260916230000 copied a configured button into
+        // nav_items once. The keys stay listed, with their GENERIC defaults
+        // (off, unlabelled, no target), because the rows stay in the database
+        // until somebody decides to remove them. Same approach as
+        // page_heroes.breadcrumb_label_* (HEADER-FOOTER.md).
         'header_cta_enabled' => '0',
         'header_cta_label_nl' => '',
         'header_cta_label_en' => '',

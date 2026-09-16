@@ -4,21 +4,27 @@ declare(strict_types=1);
 
 namespace Tests\Service;
 
+use App\Database;
 use App\Module\ModuleRegistry;
+use App\Repository\NavigationRepository;
 use App\Repository\PageRepository;
-use App\Service\HeaderCta;
+use App\Service\NavigationPresentation;
+use App\Service\NavigationService;
+use App\Service\PageService;
 use App\Service\SiteSettings;
 use PHPUnit\Framework\TestCase;
 use Tests\Support\TestEnvironment;
 
 /**
- * The header/footer settings where they meet real data and a real request:
+ * The header buttons and footer settings where they meet real data and a
+ * real request:
  *
- *  - the CMS-PAGE target, which needs an actual `pages` row (the route and
- *    external targets are covered without a database in
- *    Tests\Service\HeaderFooterSettingsTest);
- *  - what a page actually renders, with the settings this installation has —
- *    the proof that turning literals into settings changed nothing;
+ *  - a header button with a CMS-PAGE target, which needs actual `pages` and
+ *    `nav_items` rows (the route and external targets are covered without a
+ *    database in Tests\Service\NavigationServiceTest);
+ *  - what a page actually renders, with the data this installation has —
+ *    the proof that moving the single button into the navigation changed
+ *    nothing a visitor sees;
  *  - and the same over the CMS-only deployment, where the Shop is off.
  *
  * Deliberately NOT a snapshot of the header and the footer. It asserts the
@@ -28,20 +34,30 @@ use Tests\Support\TestEnvironment;
 final class HeaderFooterRenderingTest extends TestCase
 {
     private PageRepository $pages;
+    private NavigationRepository $navigation;
 
     /** @var list<int> */
     private array $createdPageIds = [];
 
+    /** @var list<int> */
+    private array $createdNavIds = [];
+
     protected function setUp(): void
     {
         $this->pages = new PageRepository();
+        $this->navigation = new NavigationRepository();
     }
 
     protected function tearDown(): void
     {
+        // Buttons first: a page a nav item points at cannot be deleted.
+        foreach ($this->createdNavIds as $id) {
+            Database::connection()->prepare('DELETE FROM nav_items WHERE id = :id')->execute(['id' => $id]);
+        }
         foreach ($this->createdPageIds as $id) {
             $this->pages->delete($id);
         }
+        $this->createdNavIds = [];
         $this->createdPageIds = [];
 
         SiteSettings::overrideForTests(null);
@@ -65,16 +81,38 @@ final class HeaderFooterRenderingTest extends TestCase
         return $id;
     }
 
-    /** @param array<string, string> $overrides */
-    private function ctaPointingAtPage(int $pageId, array $overrides = []): void
+    private function buttonPointingAtPage(int $pageId): int
     {
-        SiteSettings::overrideForTests(array_merge([
-            'header_cta_enabled' => '1',
-            'header_cta_label_nl' => 'Vraag offerte aan',
-            'header_cta_label_en' => 'Request a quote',
-            'header_cta_link_type' => 'page',
-            'header_cta_target_page_id' => (string) $pageId,
-        ], $overrides));
+        $id = $this->navigation->create([
+            'label_nl' => 'Vraag offerte aan',
+            'label_en' => 'Request a quote',
+            'link_type' => 'page',
+            'target_page_id' => $pageId,
+            'target_route' => null,
+            'external_url' => null,
+            'open_in_new_tab' => false,
+            'parent_id' => null,
+            'is_visible' => true,
+            'presentation' => NavigationPresentation::BUTTON,
+            'button_variant' => NavigationPresentation::VARIANT_PRIMARY,
+        ]);
+        $this->createdNavIds[] = $id;
+
+        return $id;
+    }
+
+    /**
+     * The buttons as the header would render them, limited to this test's
+     * own rows so whatever else the test database holds does not matter.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function renderedButtons(int $id): array
+    {
+        return array_values(array_filter(
+            NavigationService::buildButtons([$this->navigation->findById($id)]),
+            static fn (array $button): bool => $button['id'] === $id
+        ));
     }
 
     // ------------------------------------------------------- CMS-page target
@@ -82,12 +120,12 @@ final class HeaderFooterRenderingTest extends TestCase
     public function testACmsPageTargetResolvesToThatPagesCurrentUrl(): void
     {
         $pageId = $this->makePage('__test_cta_target__');
-        $this->ctaPointingAtPage($pageId);
+        $buttonId = $this->buttonPointingAtPage($pageId);
 
-        $cta = HeaderCta::forHeader();
+        $buttons = $this->renderedButtons($buttonId);
 
-        $this->assertNotNull($cta);
-        $this->assertSame('/__test_cta_target__', $cta['href']);
+        $this->assertCount(1, $buttons);
+        $this->assertSame('/__test_cta_target__', $buttons[0]['href']);
     }
 
     /**
@@ -97,7 +135,7 @@ final class HeaderFooterRenderingTest extends TestCase
     public function testTheButtonFollowsThePageWhenItsSlugChanges(): void
     {
         $pageId = $this->makePage('__test_cta_before__');
-        $this->ctaPointingAtPage($pageId);
+        $buttonId = $this->buttonPointingAtPage($pageId);
 
         $this->pages->update($pageId, [
             'slug' => '__test_cta_after__',
@@ -109,38 +147,37 @@ final class HeaderFooterRenderingTest extends TestCase
             'meta_description_en' => null,
         ]);
 
-        $cta = HeaderCta::forHeader();
-
-        $this->assertNotNull($cta);
-        $this->assertSame('/__test_cta_after__', $cta['href']);
+        $this->assertSame('/__test_cta_after__', $this->renderedButtons($buttonId)[0]['href'] ?? null);
     }
 
     public function testAnUnpublishedTargetPageStopsTheButtonFromRendering(): void
     {
         $pageId = $this->makePage('__test_cta_draft__', published: false);
-        $this->ctaPointingAtPage($pageId);
+        $buttonId = $this->buttonPointingAtPage($pageId);
 
-        $this->assertNull(HeaderCta::forHeader());
-        $this->assertNotNull(HeaderCta::adminWarning());
-        $this->assertSame((string) $pageId, SiteSettings::get('header_cta_target_page_id'));
+        $this->assertSame([], $this->renderedButtons($buttonId));
+        $this->assertSame($pageId, (int) $this->navigation->findById($buttonId)['target_page_id'], 'the row is kept');
     }
 
-    public function testADeletedTargetPageStopsTheButtonFromRendering(): void
+    /**
+     * A page a button points at cannot be deleted out from under it: the
+     * same rule as a menu item (PageService::references(), and the RESTRICT
+     * foreign key behind it). The single CTA in site_settings could not be
+     * seen by that rule; a button row can.
+     */
+    public function testATargetPageCannotBeDeletedWhileAButtonPointsAtIt(): void
     {
         $pageId = $this->makePage('__test_cta_deleted__');
-        $this->pages->delete($pageId);
-        $this->createdPageIds = [];
+        $this->buttonPointingAtPage($pageId);
 
-        $this->ctaPointingAtPage($pageId);
-
-        $this->assertNull(HeaderCta::forHeader());
+        $this->assertSame(1, PageService::references($pageId)['nav']);
     }
 
     /**
      * A page whose URL is a MODULE's own template — /shop.php — still exists
      * and is still editable while that module is off, but the URL answers
      * 404. Linking to it would send visitors there, so the button is dropped
-     * exactly like an unregistered route key, and the setting is kept.
+     * exactly like an unregistered route key, and the row is kept.
      */
     public function testATargetPageServedByASwitchedOffModuleStopsTheButtonFromRendering(): void
     {
@@ -150,14 +187,14 @@ final class HeaderFooterRenderingTest extends TestCase
             $this->markTestSkipped('this installation has no module-served page to point at');
         }
 
-        $this->ctaPointingAtPage((int) $shopPage['id']);
+        $buttonId = $this->buttonPointingAtPage((int) $shopPage['id']);
 
         ModuleRegistry::overrideForTests(['shop' => true, 'personalization' => true]);
-        $this->assertNotNull(HeaderCta::forHeader(), 'with the Shop on, a Shop page target must resolve');
+        $this->assertCount(1, $this->renderedButtons($buttonId), 'with the Shop on, a Shop page target must resolve');
 
         ModuleRegistry::overrideForTests(['shop' => false, 'personalization' => false]);
-        $this->assertNull(HeaderCta::forHeader());
-        $this->assertSame((string) $shopPage['id'], SiteSettings::get('header_cta_target_page_id'));
+        $this->assertSame([], $this->renderedButtons($buttonId));
+        $this->assertSame((int) $shopPage['id'], (int) $this->navigation->findById($buttonId)['target_page_id']);
     }
 
     // ------------------------------------------------------------ over HTTP
@@ -186,8 +223,10 @@ final class HeaderFooterRenderingTest extends TestCase
     }
 
     /**
-     * The migration's whole job: this installation's header and footer read
-     * exactly as they did when the same words were literals in the partials.
+     * Two migrations' whole job: this installation's header and footer read
+     * exactly as they did when the same words were literals in the partials,
+     * and the button kept its markup when it moved from site_settings into
+     * the navigation (20260916230000).
      */
     public function testThisInstallationsHeaderAndFooterAreUnchanged(): void
     {

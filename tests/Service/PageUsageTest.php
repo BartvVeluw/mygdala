@@ -8,21 +8,23 @@ use App\Database;
 use App\Repository\FooterRepository;
 use App\Repository\NavigationRepository;
 use App\Repository\PageRepository;
+use App\Service\NavigationPresentation;
 use App\Service\PageContent;
+use App\Service\PageService;
 use App\Service\PageUsage;
 use App\Service\SiteSettings;
 use PHPUnit\Framework\TestCase;
 
 /**
  * Where a page is linked from, as admin/page.php lists it before the page's
- * web address changes: menu items, footer links and the header button that
+ * web address changes: menu items, footer links and header buttons that
  * point at the page itself — and nothing the CMS cannot tell points at it.
  *
  * Against the test database, with rows of its own that tearDown() removes by
  * id rather than by a LIKE pattern, in which "_" matches any character
- * (TESTING.md). The header button is set through
- * SiteSettings::overrideForTests(), so no stored setting is touched: the
- * pattern of Tests\Service\HeaderFooterRenderingTest.
+ * (TESTING.md). A header button is a nav_items row presented as a button
+ * since Navigation phase A (App\Service\NavigationPresentation), so it is
+ * created and removed like a menu item.
  */
 final class PageUsageTest extends TestCase
 {
@@ -128,15 +130,24 @@ final class PageUsageTest extends TestCase
         ]);
     }
 
-    /** @param array<string, string> $overrides */
-    private function headerButtonPointingAt(int $pageId, array $overrides = []): void
+    private function headerButtonPointingAt(int $pageId, bool $visible = true): int
     {
-        SiteSettings::overrideForTests(array_merge([
-            'header_cta_enabled' => '1',
-            'header_cta_label_nl' => 'Vraag offerte aan',
-            'header_cta_link_type' => 'page',
-            'header_cta_target_page_id' => (string) $pageId,
-        ], $overrides));
+        $id = $this->navigation->create([
+            'label_nl' => 'Vraag offerte aan',
+            'label_en' => 'Request a quote',
+            'link_type' => 'page',
+            'target_page_id' => $pageId,
+            'target_route' => null,
+            'external_url' => null,
+            'open_in_new_tab' => false,
+            'parent_id' => null,
+            'is_visible' => $visible,
+            'presentation' => NavigationPresentation::BUTTON,
+            'button_variant' => NavigationPresentation::VARIANT_PRIMARY,
+        ]);
+        $this->navIds[] = $id;
+
+        return $id;
     }
 
     public function testAPageNothingLinksToIsUsedNowhere(): void
@@ -147,9 +158,11 @@ final class PageUsageTest extends TestCase
     public function testTheMenuTheFooterAndTheHeaderButtonAreEachOnePlace(): void
     {
         $pageId = $this->page();
+        // Created first on purpose: the list still puts the menu first and
+        // the header buttons last, whatever order the rows were made in.
+        $buttonId = $this->headerButtonPointingAt($pageId);
         $menuId = $this->menuItem($pageId);
         $linkId = $this->footerLink($pageId);
-        $this->headerButtonPointingAt($pageId);
 
         $places = PageUsage::forPageId($pageId);
 
@@ -161,7 +174,7 @@ final class PageUsageTest extends TestCase
         $this->assertSame('Testkolom', $places[1]['context'], 'a footer link says which column it is in');
         $this->assertSame('/admin/navigation-item.php?id=' . $menuId, $places[0]['edit_url']);
         $this->assertSame('/admin/footer-link.php?id=' . $linkId, $places[1]['edit_url']);
-        $this->assertSame('/admin/header-footer.php', $places[2]['edit_url']);
+        $this->assertSame('/admin/navigation-item.php?id=' . $buttonId, $places[2]['edit_url']);
     }
 
     public function testAHiddenMenuItemStillCountsAndSaysItIsHidden(): void
@@ -175,12 +188,30 @@ final class PageUsageTest extends TestCase
         $this->assertTrue($places[0]['hidden'], 'it still points at the page and would follow it');
     }
 
-    public function testAHeaderButtonThatIsSwitchedOffIsNoPlaceOnTheWebsite(): void
+    /**
+     * A hidden button is a place like a hidden menu item: not on the website
+     * today, but still pointing at the page and following it. (The single
+     * header CTA in site_settings was only listed while switched on; a
+     * button row is content that stays, so it is listed and marked hidden.)
+     */
+    public function testAHiddenHeaderButtonStillCountsAndSaysItIsHidden(): void
     {
         $pageId = $this->page();
-        $this->headerButtonPointingAt($pageId, ['header_cta_enabled' => '0']);
+        $this->headerButtonPointingAt($pageId, visible: false);
 
-        $this->assertSame([], PageUsage::forPageId($pageId));
+        $places = PageUsage::forPageId($pageId);
+
+        $this->assertSame([PageUsage::KIND_HEADER_BUTTON], array_column($places, 'kind'));
+        $this->assertTrue($places[0]['hidden']);
+    }
+
+    /** A button pointing at a page blocks deleting it, like a menu item does. */
+    public function testAHeaderButtonCountsAsAReferenceThatBlocksDeletingThePage(): void
+    {
+        $pageId = $this->page();
+        $this->headerButtonPointingAt($pageId);
+
+        $this->assertSame(1, PageService::references($pageId)['nav']);
     }
 
     public function testALinkToAnotherPageDoesNotCount(): void

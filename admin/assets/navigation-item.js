@@ -1,0 +1,62 @@
+/**
+ * The editor of one header item (admin/navigation-item.php): shows only the
+ * destination field that belongs to the chosen kind of destination, and the
+ * button style only while the item is shown as a button.
+ *
+ * Nothing here is needed to use the screen. Without this file every field is
+ * on screen and api/admin/_nav_item_input.php stores only the one that
+ * belongs to the chosen kind. The file holds no text of its own and never
+ * posts; it replaces the inline script the screen used to carry.
+ *
+ * A hidden field keeps its value: switching the kind back shows what was
+ * there. "Nergens heen" (a submenu heading) is not a destination a button can
+ * have, so that option is disabled while "Knop" is chosen — and if it was
+ * selected, the first real kind is selected instead, so the form never shows
+ * a combination the server would refuse.
+ */
+(function () {
+  "use strict";
+
+  var form = document.querySelector("[data-nav-item-form]");
+  if (!form) return;
+
+  var kind = form.querySelector("[data-nav-link-type]");
+  var presentation = form.querySelector("[data-nav-presentation]");
+
+  function syncDestination() {
+    if (!kind) return;
+
+    form.querySelectorAll("[data-nav-link-field]").forEach(function (field) {
+      var kinds = (field.getAttribute("data-nav-link-field") || "").split(" ");
+      field.hidden = kinds.indexOf(kind.value) === -1;
+    });
+  }
+
+  function syncPresentation() {
+    if (!presentation) return;
+
+    var isButton = presentation.value === "button";
+
+    form.querySelectorAll("[data-nav-button-field]").forEach(function (field) {
+      field.hidden = !isButton;
+    });
+
+    if (!kind) return;
+
+    kind.querySelectorAll("[data-nav-link-only]").forEach(function (option) {
+      option.disabled = isButton;
+      if (isButton && option.selected) {
+        kind.value = "page";
+        // The kind really changed, so the save bar and anything else
+        // listening hear about it like any other edit.
+        kind.dispatchEvent(new Event("change", { bubbles: true }));
+      }
+    });
+  }
+
+  if (kind) kind.addEventListener("change", syncDestination);
+  if (presentation) presentation.addEventListener("change", syncPresentation);
+
+  syncPresentation();
+  syncDestination();
+})();

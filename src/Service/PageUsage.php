@@ -11,11 +11,11 @@ use App\Repository\NavigationRepository;
  * Where on the website one CMS page is linked from, in words an editor
  * recognises: what admin/page.php lists before a page's web address changes.
  *
- * ONLY LINKS THAT KNOW WHICH PAGE THEY MEAN. A menu item, a footer link and
- * the header button can point at a page by its id, and
- * App\Service\LinkResolver turns that id into the page's CURRENT address on
- * every render. Each of them therefore follows a new address by itself, and
- * nothing is ever rewritten. Those are the places listed here.
+ * ONLY LINKS THAT KNOW WHICH PAGE THEY MEAN. A menu item, a header button and
+ * a footer link can point at a page by its id, and App\Service\LinkResolver
+ * turns that id into the page's CURRENT address on every render. Each of them
+ * therefore follows a new address by itself, and nothing is ever rewritten.
+ * Those are the places listed here.
  *
  * WHAT IS DELIBERATELY NOT COUNTED. An address somebody typed — "/contact" in
  * a button of a content block, a link inside rich text, a menu item of the
@@ -31,9 +31,8 @@ use App\Repository\NavigationRepository;
  * A read model like App\Service\Forms\FormUsage and
  * App\Service\Media\MediaUsage: it writes nothing. It is also not
  * App\Service\PageService::references(), which answers the narrower question
- * whether a page may be deleted — a header button aimed at a deleted page
- * simply stops rendering (App\Service\HeaderCta), so it does not block a
- * delete, while an address change it follows is still worth mentioning.
+ * whether a page may be deleted. Since header buttons became navigation items
+ * (App\Service\NavigationPresentation) that question counts them too.
  */
 final class PageUsage
 {
@@ -43,32 +42,38 @@ final class PageUsage
 
     /**
      * Every place that links to the page: menu first, then footer, then the
-     * header button.
+     * header buttons.
      *
-     * `hidden` marks a menu item or footer link that is switched off (or sits
-     * in a hidden footer column): it is not on the website today, but it still
-     * points at the page and would follow it. The header button only counts
-     * while it is actually rendered — switched on and labelled, the two
-     * conditions App\Service\HeaderCta::forHeader() checks before the target.
+     * `hidden` marks a menu item, header button or footer link that is
+     * switched off (or sits in a hidden footer column): it is not on the
+     * website today, but it still points at the page and would follow it.
      *
      * @return list<array{kind: string, label: string, context: string, hidden: bool, edit_url: string}>
      */
     public static function forPageId(int $pageId): array
     {
-        $places = [];
+        $menu = [];
+        $buttons = [];
 
         foreach ((new NavigationRepository())->findByTargetPageId($pageId) as $item) {
-            $places[] = [
-                'kind' => self::KIND_MENU,
+            $place = [
+                'kind' => NavigationPresentation::isButton($item) ? self::KIND_HEADER_BUTTON : self::KIND_MENU,
                 'label' => self::label($item),
                 'context' => '',
                 'hidden' => (int) $item['is_visible'] !== 1,
                 'edit_url' => '/admin/navigation-item.php?id=' . (int) $item['id'],
             ];
+
+            if (NavigationPresentation::isButton($item)) {
+                $buttons[] = $place;
+            } else {
+                $menu[] = $place;
+            }
         }
 
+        $footer = [];
         foreach ((new FooterRepository())->findLinksByTargetPageId($pageId) as $link) {
-            $places[] = [
+            $footer[] = [
                 'kind' => self::KIND_FOOTER,
                 'label' => self::label($link),
                 'context' => trim((string) ($link['column_title_nl'] ?? '')),
@@ -77,25 +82,7 @@ final class PageUsage
             ];
         }
 
-        $button = HeaderCta::targetRow();
-        $buttonLabel = trim(SiteSettings::get('header_cta_label_nl'));
-
-        if (
-            HeaderCta::isEnabled()
-            && $buttonLabel !== ''
-            && $button['link_type'] === 'page'
-            && $button['target_page_id'] === $pageId
-        ) {
-            $places[] = [
-                'kind' => self::KIND_HEADER_BUTTON,
-                'label' => $buttonLabel,
-                'context' => '',
-                'hidden' => false,
-                'edit_url' => '/admin/header-footer.php',
-            ];
-        }
-
-        return $places;
+        return array_merge($menu, $footer, $buttons);
     }
 
     /**
