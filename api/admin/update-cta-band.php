@@ -9,16 +9,33 @@
  * the same "a page-builder-attached section is valid only when the page AND
  * its content row already exist" gate — an arbitrary page_slug:section_key
  * pair from the request is never trusted beyond that.
+ *
+ * ONE WEBSITE LANGUAGE (Multilingual 2.0): the five text fields are the words
+ * of the language named in `language_code`, which must be an active language
+ * of the website registry. Which fields exist, how long they may be and
+ * which are required in the default language comes from
+ * CtaBandBlock::translatableFields(), through App\Service\Blocks\BlockLocalization,
+ * and only that language is written. The URLs and is_active are the same in
+ * every language.
+ *
+ * THE SECONDARY BUTTON needs a label and a URL, or neither. The label that
+ * counts is the default language's — the one every other language falls back
+ * to — so a translation save checks the stored default label, and a
+ * translated label without a URL is refused too, since it could never show.
  */
 
 declare(strict_types=1);
 
 require_once __DIR__ . '/../../vendor/autoload.php';
 
+use App\Database;
 use App\Service\Language\AdminTranslator;
 use App\Service\AdminAuth;
+use App\Service\Blocks\BlockLocalization;
 use App\Service\Csrf;
 use App\Service\CtaBandContent;
+use App\Service\Language\LanguageCode;
+use App\Service\Language\SiteLanguages;
 use App\Repository\PageRepository;
 use App\Repository\CtaBandRepository;
 
@@ -43,64 +60,87 @@ $repository = new CtaBandRepository();
 
 if ($slug === null || $slug === '' || $sectionKey === null || $sectionKey === ''
     || (new PageRepository())->findByContentKey($slug) === null
-    || $repository->findBySlugAndKey($slug, $sectionKey) === null
+    || ($section = $repository->findBySlugAndKey($slug, $sectionKey)) === null
 ) {
     http_response_code(404);
     exit('Unknown section.');
 }
 
-$fields = [
-    'eyebrow_nl' => trim((string) ($_POST['eyebrow_nl'] ?? '')),
-    'eyebrow_en' => trim((string) ($_POST['eyebrow_en'] ?? '')),
-    'title_nl' => trim((string) ($_POST['title_nl'] ?? '')),
-    'title_en' => trim((string) ($_POST['title_en'] ?? '')),
-    'lead_nl' => trim((string) ($_POST['lead_nl'] ?? '')),
-    'lead_en' => trim((string) ($_POST['lead_en'] ?? '')),
-    'primary_label_nl' => trim((string) ($_POST['primary_label_nl'] ?? '')),
-    'primary_label_en' => trim((string) ($_POST['primary_label_en'] ?? '')),
+$sectionId = (int) $section['id'];
+$languageCode = LanguageCode::normalise((string) ($_POST['language_code'] ?? '')) ?? '';
+$languageIsWritable = $languageCode !== '' && SiteLanguages::isActive($languageCode);
+$isDefaultLanguage = $languageIsWritable && $languageCode === BlockLocalization::defaultLanguage();
+
+// Exactly the fields the block declares, never a name taken from the request.
+$words = [];
+foreach (array_keys(BlockLocalization::fields('cta_bands')) as $field) {
+    $words[$field] = trim((string) ($_POST[$field] ?? ''));
+}
+
+$settings = [
     'primary_url' => trim((string) ($_POST['primary_url'] ?? '')),
-    'secondary_label_nl' => trim((string) ($_POST['secondary_label_nl'] ?? '')),
-    'secondary_label_en' => trim((string) ($_POST['secondary_label_en'] ?? '')),
     'secondary_url' => trim((string) ($_POST['secondary_url'] ?? '')),
     'is_active' => isset($_POST['is_active']),
 ];
 
-$required = ['eyebrow_nl', 'title_nl', 'primary_label_nl', 'primary_url'];
 $errors = [];
 
-foreach ($required as $key) {
-    if ($fields[$key] === '') {
-        $errors[] = AdminTranslator::trans('validation.veld_verplicht');
-        break;
+if (!$languageIsWritable) {
+    $errors[] = AdminTranslator::trans('validation.language_unknown');
+} else {
+    foreach (BlockLocalization::messageKeys(BlockLocalization::problems('cta_bands', $languageCode, $words)) as $key) {
+        $errors[] = AdminTranslator::trans($key);
     }
+}
+
+if ($settings['primary_url'] === '' && !in_array(AdminTranslator::trans('validation.veld_verplicht'), $errors, true)) {
+    $errors[] = AdminTranslator::trans('validation.veld_verplicht');
 }
 
 // A secondary button needs both a label and a URL, or neither — a
 // half-filled optional button would be broken/dead on the frontend.
-$secondaryLabelSet = $fields['secondary_label_nl'] !== '';
-$secondaryUrlSet = $fields['secondary_url'] !== '';
-if ($secondaryLabelSet !== $secondaryUrlSet) {
-    $errors[] = AdminTranslator::trans('validation.vul_secundaire_knop_zowel_label');
+$defaultSecondaryLabel = $isDefaultLanguage
+    ? $words['secondary_label']
+    : BlockLocalization::raw('cta_bands', $sectionId, 'secondary_label', BlockLocalization::defaultLanguage());
+$secondaryUrlSet = $settings['secondary_url'] !== '';
+
+if ($languageIsWritable && (($defaultSecondaryLabel !== '') !== $secondaryUrlSet || ($words['secondary_label'] !== '' && !$secondaryUrlSet))) {
+    $errors[] = AdminTranslator::trans('validation.secondary_button_label_and_url');
 }
+
+$old = ['language_code' => $languageCode] + $words + $settings;
+$redirect = '/admin/cta-band.php?section=' . urlencode($sectionParam);
 
 if ($errors !== []) {
     $_SESSION['admin_cta_band_errors'] = $errors;
-    $_SESSION['admin_cta_band_old'] = $fields;
-    header('Location: /admin/cta-band.php?section=' . urlencode($sectionParam));
+    $_SESSION['admin_cta_band_old'] = $old;
+    header('Location: ' . $redirect);
     exit;
 }
 
+$db = Database::connection();
+
 try {
-    $repository->upsertSection($slug, $sectionKey, $fields);
+    // The band's settings and its words in this language are one save.
+    $db->beginTransaction();
+
+    $repository->upsertSection($slug, $sectionKey, $settings);
+    BlockLocalization::save('cta_bands', $sectionId, $languageCode, $words);
+
+    $db->commit();
     CtaBandContent::clearCache();
 } catch (\Throwable $e) {
+    if ($db->inTransaction()) {
+        $db->rollBack();
+    }
+
     error_log('[api/admin/update-cta-band.php] ' . $e->getMessage());
 
     $_SESSION['admin_cta_band_errors'] = ['Kon niet worden opgeslagen. Probeer het opnieuw.'];
-    $_SESSION['admin_cta_band_old'] = $fields;
-    header('Location: /admin/cta-band.php?section=' . urlencode($sectionParam));
+    $_SESSION['admin_cta_band_old'] = $old;
+    header('Location: ' . $redirect);
     exit;
 }
 
-header('Location: /admin/cta-band.php?section=' . urlencode($sectionParam) . '&saved=1');
+header('Location: ' . $redirect . '&saved=1');
 exit;

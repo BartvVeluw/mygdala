@@ -178,13 +178,19 @@ final class LegacyUpgradeTest extends TestCase
 
     public function testTheLegalPagesKeepTheirText(): void
     {
+        // Since 20260917170000 the body is the Dutch `body` of the block in
+        // block_translations rather than a column of rich_text_sections.
         $rows = $this->install()->rows(
-            'SELECT content_html FROM rich_text_sections WHERE page_slug = ? AND section_key = ?',
+            "SELECT t.value AS body
+               FROM rich_text_sections r
+               JOIN block_translations t
+                 ON t.owner_table = 'rich_text_sections' AND t.owner_id = r.id AND t.language_code = 'nl' AND t.field = 'body'
+              WHERE r.page_slug = ? AND r.section_key = ?",
             ['algemene-voorwaarden', 'content']
         );
 
         $this->assertNotSame([], $rows, 'The terms page lost its rich-text block.');
-        $this->assertStringContainsString('Identiteit van de ondernemer', (string) $rows[0]['content_html']);
+        $this->assertStringContainsString('Identiteit van de ondernemer', (string) $rows[0]['body']);
     }
 
     public function testTheMenuAndFooterSurvive(): void

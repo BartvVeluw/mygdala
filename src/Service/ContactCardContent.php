@@ -3,6 +3,8 @@
 namespace App\Service;
 
 use App\Repository\ContactCardRepository;
+use App\Service\Blocks\BlockLocalization;
+use App\Service\Language\LocalizedValue;
 
 /**
  * Content for the "Contactkaart" block (partials/section-contact-card.php) —
@@ -16,6 +18,12 @@ use App\Repository\ContactCardRepository;
  * not a special case for one page — it is this block type's documented
  * default, and it is what keeps the migrated card following the site's
  * e-mail address the way the hardcoded markup did.
+ *
+ * WORDS PER LANGUAGE (Multilingual 2.0 phase 3A). The heading, the text and
+ * the button label are stored per website language in block_translations and
+ * come out of App\Service\Blocks\BlockLocalization as one LocalizedValue
+ * each, the fallback already applied; the URL and is_active stay in
+ * contact_cards, the same in every language. This class decides no language.
  *
  * `is_active = false` on an existing row is a deliberate hide, and a
  * different case from a missing row — the same three-state contract
@@ -39,15 +47,19 @@ class ContactCardContent
      */
     public const MIGRATED_SECTION_KEY = 'main';
 
-    /** @var array<string, array<string, string>> */
+    /** The translatable fields of this block (ContactCardBlock::translatableFields()). */
+    public const WORDS = ['title', 'body', 'button_label'];
+
+    private const TABLE = 'contact_cards';
+
+    /** @var array<string, array<string, mixed>> */
     private static array $cache = [];
 
     /**
-     * @return array<string, string> 'state' (one of STATE_*), title_nl/en,
-     *                                body_nl/en, button_label_nl/en and a
-     *                                resolved 'button_url'. Templates must
-     *                                check 'state' !== STATE_HIDDEN before
-     *                                rendering.
+     * @return array<string, mixed> 'state' (one of STATE_*), a LocalizedValue
+     *                              per field in WORDS and a resolved string
+     *                              'button_url'. Templates must check
+     *                              'state' !== STATE_HIDDEN before rendering.
      */
     public static function forSection(string $pageSlug, string $sectionKey): array
     {
@@ -71,28 +83,26 @@ class ContactCardContent
             return self::$cache[$cacheKey] = self::emptyContent() + ['state' => self::STATE_HIDDEN];
         }
 
-        $content = [
-            'title_nl' => (string) ($row['title_nl'] ?? ''),
-            'body_nl' => (string) ($row['body_nl'] ?? ''),
-            'button_label_nl' => (string) ($row['button_label_nl'] ?? ''),
-            'button_url' => self::resolveButtonUrl((string) ($row['button_url'] ?? '')),
-        ];
+        $content = [];
+        foreach (self::WORDS as $field) {
+            $content[$field] = BlockLocalization::bilingual(self::TABLE, (int) $row['id'], $field);
+        }
 
-        $content['title_en'] = self::valueOrDefault($row['title_en'] ?? null, $content['title_nl']);
-        $content['body_en'] = self::valueOrDefault($row['body_en'] ?? null, $content['body_nl']);
-        $content['button_label_en'] = self::valueOrDefault($row['button_label_en'] ?? null, $content['button_label_nl']);
+        $content['button_url'] = self::resolveButtonUrl((string) ($row['button_url'] ?? ''));
         $content['state'] = self::STATE_ACTIVE;
 
         return self::$cache[$cacheKey] = $content;
     }
 
     /**
-     * Clears the in-process cache — used by the admin save handler right
-     * after writing a new value, and by tests.
+     * Clears the in-process cache, and the block words BlockLocalization
+     * holds — used by the admin save handler right after writing a new
+     * value, and by tests.
      */
     public static function clearCache(): void
     {
         self::$cache = [];
+        BlockLocalization::clearCache();
     }
 
     /**
@@ -112,21 +122,16 @@ class ContactCardContent
         return $email === '' ? '' : 'mailto:' . $email;
     }
 
-    private static function valueOrDefault(?string $value, string $default): string
-    {
-        return ($value !== null && $value !== '') ? $value : $default;
-    }
-
     /**
-     * @return array<string, string>
+     * @return array<string, mixed>
      */
     private static function emptyContent(): array
     {
-        return [
-            'title_nl' => '', 'title_en' => '',
-            'body_nl' => '', 'body_en' => '',
-            'button_label_nl' => '', 'button_label_en' => '',
-            'button_url' => '',
-        ];
+        $content = [];
+        foreach (self::WORDS as $field) {
+            $content[$field] = LocalizedValue::of([]);
+        }
+
+        return $content + ['button_url' => ''];
     }
 }

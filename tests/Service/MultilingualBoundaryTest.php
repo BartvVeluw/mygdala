@@ -1172,6 +1172,116 @@ final class MultilingualBoundaryTest extends TestCase
         );
     }
 
+    /** The files of the three block types phase 3A moved onto block_translations. */
+    private const CONVERTED_BLOCK_FILES = [
+        'rich_text' => [
+            'src/Service/Blocks/RichTextBlock.php', 'src/Repository/RichTextRepository.php', 'src/Service/RichTextContent.php',
+            'partials/section-rich-text.php', 'admin/rich-text.php', 'api/admin/update-rich-text-section.php',
+        ],
+        'cta_band' => [
+            'src/Service/Blocks/CtaBandBlock.php', 'src/Repository/CtaBandRepository.php', 'src/Service/CtaBandContent.php',
+            'partials/section-cta-band.php', 'admin/cta-band.php', 'api/admin/update-cta-band.php',
+        ],
+        'contact_card' => [
+            'src/Service/Blocks/ContactCardBlock.php', 'src/Repository/ContactCardRepository.php', 'src/Service/ContactCardContent.php',
+            'partials/section-contact-card.php', 'admin/contact-card.php', 'api/admin/update-contact-card.php',
+        ],
+    ];
+
+    public function testNothingReadsTheDroppedColumnsOfTheConvertedBlocks(): void
+    {
+        // 20260917170000 dropped the Dutch/English word columns of these
+        // three blocks. A file that still names one fails at runtime, or
+        // silently reads nothing.
+        $offenders = [];
+
+        foreach (self::CONVERTED_BLOCK_FILES as $files) {
+            foreach ($files as $file) {
+                $code = self::withoutComments(self::read($file));
+
+                if (preg_match('/[\x27"$\[>]\s*(?:content_html(?:_en)?|[a-z_]+_(?:nl|en))\b/', $code, $match) === 1) {
+                    $offenders[] = $file . ' (' . trim($match[0]) . ')';
+                }
+            }
+        }
+
+        // The two consumers outside the blocks' own files: the terms hash
+        // reads the Tekstblok body, the portfolio detail page borrows a CTA
+        // band (its own portfolio columns are phase 5's).
+        if (str_contains(self::withoutComments(self::read('src/Service/LegalPages.php')), "'content_html")) {
+            $offenders[] = 'src/Service/LegalPages.php (content_html)';
+        }
+
+        if (preg_match('/\$cta\[\x27[a-z_]+_(?:nl|en)\x27\]/', self::withoutComments(self::read('portfolio-detail.php'))) === 1) {
+            $offenders[] = 'portfolio-detail.php ($cta[…_nl/_en])';
+        }
+
+        self::assertSame([], $offenders);
+    }
+
+    public function testTheConvertedBlocksDeclareTheirWordsAndDecideNoLanguageThemselves(): void
+    {
+        foreach (self::CONVERTED_BLOCK_FILES as $type => $files) {
+            self::assertNotSame([], \App\Service\Blocks\BlockDefinitions::get($type)?->translatableFields() ?? [], $type . ' declares its translatable fields');
+
+            foreach ($files as $file) {
+                $code = self::withoutComments(self::read($file));
+
+                // The fallback and the default language are BlockLocalization's.
+                foreach (['SiteLanguages::defaultCode', 'ContentLanguages::primary', 'LocalizedValue::ofDutchEnglish', 'SiteText::attrs(', 'SiteText::visible(', 'LanguageRegistry::'] as $forbidden) {
+                    self::assertStringNotContainsString($forbidden, $code, $file);
+                }
+            }
+        }
+    }
+
+    public function testTheConvertedPartialsPrintThroughSiteTextAndOnlyRichTextAsHtml(): void
+    {
+        $rich = self::withoutComments(self::read('partials/section-rich-text.php'));
+        self::assertStringContainsString('SiteText::htmlAttrsOf($section[\'body\'])', $rich, 'the body is marked data-lang-html through the one helper');
+        self::assertStringContainsString('SiteText::visibleOf(', $rich);
+
+        foreach (['partials/section-cta-band.php', 'partials/section-contact-card.php'] as $plain) {
+            $code = self::withoutComments(self::read($plain));
+            self::assertStringContainsString('SiteText::attrsOf(', $code, $plain);
+            self::assertStringNotContainsString('htmlAttrsOf', $code, $plain . ' prints only plain text');
+            self::assertStringNotContainsString('data-lang-html', $code, $plain);
+        }
+
+        $siteText = self::withoutComments(self::read('src/Service/Language/SiteText.php'));
+        self::assertMatchesRegularExpression('/function htmlAttrsOf\(.*?\' data-lang-html\' \. self::attrsOf\(/s', $siteText);
+        self::assertMatchesRegularExpression('/function attrsOf\(.*?self::escape\(\$value\)/s', $siteText, 'every half is escaped');
+    }
+
+    public function testTheConvertedEditorsShowOneLanguageAndTheirEndpointsWriteOnlyThatLanguage(): void
+    {
+        foreach (self::CONVERTED_BLOCK_FILES as $type => $files) {
+            [, , , , $editor, $endpoint] = $files;
+            $screen = self::withoutComments(self::read($editor));
+            $write = self::withoutComments(self::read($endpoint));
+
+            self::assertStringContainsString('_localized_fields.php', $screen, $editor);
+            self::assertStringNotContainsString('_language_fields.php', $screen, $editor . ': no V1 panes');
+            self::assertStringContainsString('admin_localized_input($editLanguage)', $screen, $editor);
+            self::assertStringContainsString('BlockLocalization::raw(', $screen, $editor . ': the stored words, without the fallback');
+            self::assertStringContainsString("['language_code'] ?? null) === \$editLanguage", $screen, $editor . ': handed-back words only in their own language');
+            self::assertStringContainsString('data-save-bar-unsaved', $screen, $editor);
+
+            self::assertStringContainsString('SiteLanguages::isActive($languageCode)', $write, $endpoint);
+            self::assertMatchesRegularExpression('/BlockLocalization::save\(\x27[a-z_]+\x27, [^,]+, \$languageCode,/', $write, $endpoint);
+            self::assertStringContainsString('BlockLocalization::problems(', $write, $endpoint . ': the declared fields are the validation');
+            self::assertMatchesRegularExpression('/beginTransaction\(\);.*?upsertSection\(.*?BlockLocalization::save\(.*?commit\(\);/s', $write, $endpoint . ': settings and words are one save');
+        }
+    }
+
+    public function testThePageBuilderLoadsTheWordsOfItsBlockLabelsAtOnce(): void
+    {
+        self::assertMatchesRegularExpression(
+            '/\$allSections = \$repository->findForPage\(\$pageId\);\s*.*?BlockLocalization::preloadSections\(\$allSections\);/s',
+            self::withoutComments(self::read('admin/page.php'))
+        );
+    }
+
     public function testTheBlockLocalizationApiKnowsNoLanguageByName(): void
     {
         foreach (['src/Service/Blocks/BlockLocalization.php', 'src/Service/Blocks/TranslatableField.php', 'src/Repository/BlockTranslationRepository.php'] as $file) {

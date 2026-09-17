@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Service\Blocks;
 
 use App\Service\Forms\FormDefinition;
+use App\Service\Language\LanguageRegistry;
+use App\Service\Language\LocalizedValue;
 use App\Service\RichTextSanitizer;
 
 /**
@@ -220,6 +222,22 @@ final class BlockSamples
     public function fields(string $field, string $role): array
     {
         return $this->pair($field, self::TEXT[$role] ?? throw new \InvalidArgumentException('No sample text for ' . $role));
+    }
+
+    /**
+     * One role's text as ONE value in every language: the shape a block whose
+     * words are stored per website language (BlockLocalization) hands its
+     * partial, where fields() is the shape of a block still on `_nl`/`_en`
+     * columns.
+     */
+    public function localized(string $role): LocalizedValue
+    {
+        $pair = self::TEXT[$role] ?? throw new \InvalidArgumentException('No sample text for ' . $role);
+
+        return LocalizedValue::of([
+            LanguageRegistry::DUTCH => ($this->text)($pair[0]),
+            LanguageRegistry::ENGLISH => ($this->text)($pair[1]),
+        ]);
     }
 
     /**

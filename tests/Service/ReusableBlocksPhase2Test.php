@@ -9,6 +9,7 @@ use App\Repository\ContactCardRepository;
 use App\Repository\CtaBandRepository;
 use App\Repository\PageRepository;
 use App\Repository\PageSectionRepository;
+use App\Service\Blocks\BlockLocalization;
 use App\Service\ContactCardContent;
 use App\Service\ContactFormContent;
 use App\Service\CtaBandContent;
@@ -175,13 +176,14 @@ final class ReusableBlocksPhase2Test extends TestCase
 
         $this->assertNotSame($firstKey, $secondKey, 'each instance needs its own section_key');
 
-        $repository = new CtaBandRepository();
-        $repository->upsertSection(self::TEST_KEY, (string) $firstKey, $this->ctaValues('Eerste CTA'));
-        $repository->upsertSection(self::TEST_KEY, (string) $secondKey, $this->ctaValues('Tweede CTA'));
+        [$firstId] = $this->addedIds('cta_band', $firstKey);
+        [$secondId] = $this->addedIds('cta_band', $secondKey);
+        BlockLocalization::save('cta_bands', $firstId, 'nl', $this->ctaWords('Eerste CTA'));
+        BlockLocalization::save('cta_bands', $secondId, 'nl', $this->ctaWords('Tweede CTA'));
         CtaBandContent::clearCache();
 
-        $this->assertSame('Eerste CTA', CtaBandContent::forSection(self::TEST_KEY, (string) $firstKey)['title_nl']);
-        $this->assertSame('Tweede CTA', CtaBandContent::forSection(self::TEST_KEY, (string) $secondKey)['title_nl']);
+        $this->assertSame('Eerste CTA', CtaBandContent::forSection(self::TEST_KEY, (string) $firstKey)['title']->primaryValue());
+        $this->assertSame('Tweede CTA', CtaBandContent::forSection(self::TEST_KEY, (string) $secondKey)['title']->primaryValue());
     }
 
     public function testTwoContactCardsOnOnePageKeepSeparateContent(): void
@@ -189,13 +191,14 @@ final class ReusableBlocksPhase2Test extends TestCase
         [, $firstKey] = $this->addBlock('contact_card');
         [, $secondKey] = $this->addBlock('contact_card');
 
-        $repository = new ContactCardRepository();
-        $repository->upsertSection(self::TEST_KEY, (string) $firstKey, ['title_nl' => 'Kaart A', 'button_label_nl' => 'A']);
-        $repository->upsertSection(self::TEST_KEY, (string) $secondKey, ['title_nl' => 'Kaart B', 'button_label_nl' => 'B']);
+        [$firstId] = $this->addedIds('contact_card', $firstKey);
+        [$secondId] = $this->addedIds('contact_card', $secondKey);
+        BlockLocalization::save('contact_cards', $firstId, 'nl', ['title' => 'Kaart A', 'button_label' => 'A']);
+        BlockLocalization::save('contact_cards', $secondId, 'nl', ['title' => 'Kaart B', 'button_label' => 'B']);
         ContactCardContent::clearCache();
 
-        $this->assertSame('Kaart A', ContactCardContent::forSection(self::TEST_KEY, (string) $firstKey)['title_nl']);
-        $this->assertSame('Kaart B', ContactCardContent::forSection(self::TEST_KEY, (string) $secondKey)['title_nl']);
+        $this->assertSame('Kaart A', ContactCardContent::forSection(self::TEST_KEY, (string) $firstKey)['title']->primaryValue());
+        $this->assertSame('Kaart B', ContactCardContent::forSection(self::TEST_KEY, (string) $secondKey)['title']->primaryValue());
     }
 
     public function testDeletingOneCtaBandLeavesTheOtherIntact(): void
@@ -221,11 +224,9 @@ final class ReusableBlocksPhase2Test extends TestCase
     {
         [, $key] = $this->addBlock('contact_card');
 
-        (new ContactCardRepository())->upsertSection(self::TEST_KEY, (string) $key, [
-            'title_nl' => 'Mail me',
-            'button_label_nl' => 'Mail direct',
-            'button_url' => '',
-        ]);
+        (new ContactCardRepository())->upsertSection(self::TEST_KEY, (string) $key, ['button_url' => '']);
+        [$contentId] = $this->addedIds('contact_card', $key);
+        BlockLocalization::save('contact_cards', $contentId, 'nl', ['title' => 'Mail me', 'button_label' => 'Mail direct']);
         ContactCardContent::clearCache();
 
         $expected = 'mailto:' . SiteSettings::get('email');
@@ -253,22 +254,31 @@ final class ReusableBlocksPhase2Test extends TestCase
     /**
      * @return array<string, string|bool>
      */
-    private function ctaValues(string $title): array
+    /**
+     * The words of a CTA band in one language, as CtaBandBlock declares them.
+     *
+     * @return array<string, string>
+     */
+    private function ctaWords(string $title): array
     {
-        return [
-            'eyebrow_nl' => 'Test',
-            'eyebrow_en' => '',
-            'title_nl' => $title,
-            'title_en' => '',
-            'lead_nl' => '',
-            'lead_en' => '',
-            'primary_label_nl' => 'Knop',
-            'primary_label_en' => '',
-            'primary_url' => '/contact.php',
-            'secondary_label_nl' => '',
-            'secondary_label_en' => '',
-            'secondary_url' => '',
-            'is_active' => true,
-        ];
+        return ['eyebrow' => 'Test', 'title' => $title, 'primary_label' => 'Knop'];
+    }
+
+    /**
+     * The content row id of an instance this test added: the owner of its
+     * words in block_translations.
+     *
+     * @return array{0: int}
+     */
+    private function addedIds(string $type, ?string $sectionKey): array
+    {
+        foreach ($this->created as $id) {
+            $row = $this->sections->findById($id);
+            if ($row !== null && $row['section_type'] === $type && $row['section_key'] === $sectionKey) {
+                return [(int) $row['section_id']];
+            }
+        }
+
+        $this->fail('no ' . $type . ' instance with key ' . $sectionKey);
     }
 }

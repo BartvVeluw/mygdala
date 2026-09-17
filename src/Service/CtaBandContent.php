@@ -3,6 +3,8 @@
 namespace App\Service;
 
 use App\Repository\CtaBandRepository;
+use App\Service\Blocks\BlockLocalization;
+use App\Service\Language\LocalizedValue;
 
 /**
  * Content for the "CTA band" block (`.cta-band.cta-band--card`) — the
@@ -17,9 +19,16 @@ use App\Repository\CtaBandRepository;
  * copy: the content of every instance lives in the database, where the
  * migration that first created this table already put it.
  *
- * The secondary button is fully optional: secondary_label_nl === '' means
- * "no second button" and the frontend must not render one — it must never be
- * forced.
+ * WORDS PER LANGUAGE (Multilingual 2.0 phase 3A). The eyebrow, title, lead
+ * and both button labels are stored per website language in
+ * block_translations and come out of App\Service\Blocks\BlockLocalization as
+ * one LocalizedValue each, the fallback already applied; the two URLs and
+ * is_active stay in cta_bands, the same in every language. This class
+ * decides no language itself.
+ *
+ * The secondary button is fully optional, and renders only with both a label
+ * and a URL: a half-filled optional button would be broken or dead, so a
+ * band without either has an empty secondary label AND URL here.
  *
  * `is_active = false` on an *existing* row is a deliberate hide, and a
  * different case from a missing row. forSection()'s returned `state` field
@@ -47,18 +56,22 @@ class CtaBandContent
      */
     public const MIGRATED_SECTION_KEY = 'main';
 
-    /** @var array<string, array<string, string>> */
+    /** The translatable fields of this block (CtaBandBlock::translatableFields()). */
+    public const WORDS = ['eyebrow', 'title', 'lead', 'primary_label', 'secondary_label'];
+
+    private const TABLE = 'cta_bands';
+
+    /** @var array<string, array<string, mixed>> */
     private static array $cache = [];
 
     /**
-     * @return array<string, string> 'state' (one of STATE_*), plus
-     *                                eyebrow_nl/en, title_nl/en, lead_nl/en,
-     *                                primary_label_nl/en, primary_url,
-     *                                secondary_label_nl/en, secondary_url —
-     *                                lead_* and secondary_* may be ''.
-     *                                Templates must check 'state' !==
-     *                                STATE_HIDDEN before rendering the block
-     *                                at all.
+     * @return array<string, mixed> 'state' (one of STATE_*), a LocalizedValue
+     *                              per field in WORDS, and the strings
+     *                              primary_url and secondary_url. lead and
+     *                              the secondary button may be empty.
+     *                              Templates must check 'state' !==
+     *                              STATE_HIDDEN before rendering the block
+     *                              at all.
      */
     public static function forSection(string $pageSlug, string $sectionKey): array
     {
@@ -83,7 +96,7 @@ class CtaBandContent
      * (portfolio-detail.php reuses Portfolio's) and must not hardcode a
      * section_key to do it.
      *
-     * @return array<string, string> same shape as forSection()
+     * @return array<string, mixed> same shape as forSection()
      */
     public static function firstOnPage(string $pageSlug): array
     {
@@ -103,18 +116,20 @@ class CtaBandContent
     }
 
     /**
-     * Clears the in-process cache — used by the admin save handler right
-     * after writing a new value, and by tests.
+     * Clears the in-process cache, and the block words BlockLocalization
+     * holds — used by the admin save handler right after writing a new
+     * value, and by tests.
      */
     public static function clearCache(): void
     {
         self::$cache = [];
+        BlockLocalization::clearCache();
     }
 
     /**
      * @param array<string, mixed>|null $row
      *
-     * @return array<string, string>
+     * @return array<string, mixed>
      */
     private static function fromRow(?array $row): array
     {
@@ -129,27 +144,18 @@ class CtaBandContent
             return self::emptyContent() + ['state' => self::STATE_HIDDEN];
         }
 
-        $content = [
-            'eyebrow_nl' => (string) ($row['eyebrow_nl'] ?? ''),
-            'title_nl' => (string) ($row['title_nl'] ?? ''),
-            'lead_nl' => (string) ($row['lead_nl'] ?? ''),
-            'primary_label_nl' => (string) ($row['primary_label_nl'] ?? ''),
-            'primary_url' => (string) ($row['primary_url'] ?? ''),
-            'secondary_label_nl' => (string) ($row['secondary_label_nl'] ?? ''),
-            'secondary_url' => (string) ($row['secondary_url'] ?? ''),
-        ];
+        $content = [];
+        foreach (self::WORDS as $field) {
+            $content[$field] = BlockLocalization::bilingual(self::TABLE, (int) $row['id'], $field);
+        }
 
-        $content['eyebrow_en'] = self::valueOrDefault($row['eyebrow_en'] ?? null, $content['eyebrow_nl']);
-        $content['title_en'] = self::valueOrDefault($row['title_en'] ?? null, $content['title_nl']);
-        $content['lead_en'] = self::valueOrDefault($row['lead_en'] ?? null, $content['lead_nl']);
-        $content['primary_label_en'] = self::valueOrDefault($row['primary_label_en'] ?? null, $content['primary_label_nl']);
-        $content['secondary_label_en'] = self::valueOrDefault($row['secondary_label_en'] ?? null, $content['secondary_label_nl']);
+        $content['primary_url'] = (string) ($row['primary_url'] ?? '');
+        $content['secondary_url'] = (string) ($row['secondary_url'] ?? '');
 
         // A secondary button only renders when it has both a label and a
         // URL — a half-filled optional button would be broken/dead.
-        if ($content['secondary_label_nl'] === '' || $content['secondary_url'] === '') {
-            $content['secondary_label_nl'] = '';
-            $content['secondary_label_en'] = '';
+        if ($content['secondary_label']->primaryValue() === '' || $content['secondary_url'] === '') {
+            $content['secondary_label'] = LocalizedValue::of([]);
             $content['secondary_url'] = '';
         }
 
@@ -158,22 +164,16 @@ class CtaBandContent
         return $content;
     }
 
-    private static function valueOrDefault(?string $value, string $default): string
-    {
-        return ($value !== null && $value !== '') ? $value : $default;
-    }
-
     /**
-     * @return array<string, string>
+     * @return array<string, mixed>
      */
     private static function emptyContent(): array
     {
-        return [
-            'eyebrow_nl' => '', 'eyebrow_en' => '',
-            'title_nl' => '', 'title_en' => '',
-            'lead_nl' => '', 'lead_en' => '',
-            'primary_label_nl' => '', 'primary_label_en' => '', 'primary_url' => '',
-            'secondary_label_nl' => '', 'secondary_label_en' => '', 'secondary_url' => '',
-        ];
+        $content = [];
+        foreach (self::WORDS as $field) {
+            $content[$field] = LocalizedValue::of([]);
+        }
+
+        return $content + ['primary_url' => '', 'secondary_url' => ''];
     }
 }

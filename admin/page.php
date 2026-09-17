@@ -124,6 +124,9 @@ $hasFixedUrl = PageContent::isRouteBound($page);
 
 $repository = new PageSectionRepository();
 $allSections = $repository->findForPage($pageId);
+// The block list names each instance by its own words (instanceTitle()): one
+// query for all of them rather than one per block.
+\App\Service\Blocks\BlockLocalization::preloadSections($allSections);
 // The definitions themselves rather than just their labels: the block picker
 // draws each card from the block's own label, description, category, icon and
 // schematic preview, and api/admin/add-page-section.php validates the posted

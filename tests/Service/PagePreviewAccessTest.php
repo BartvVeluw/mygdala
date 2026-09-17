@@ -8,11 +8,11 @@ use App\Database;
 use App\Repository\AdminUserRepository;
 use App\Repository\PageRepository;
 use App\Repository\PageSectionRepository;
-use App\Repository\RichTextRepository;
 use App\Service\AdminPermissions;
 use App\Service\PageContent;
 use App\Service\SectionRegistry;
 use PHPUnit\Framework\TestCase;
+use Tests\Support\BlockTextFixture;
 
 /**
  * A draft page as a signed-in editor sees it, and as nobody else can.
@@ -178,10 +178,7 @@ final class PagePreviewAccessTest extends TestCase
         (new PageSectionRepository())->create($id, $key, 'rich_text', $sectionKey, $sectionId);
 
         $blockText = 'ZZ blokinhoud ' . bin2hex(random_bytes(4));
-        (new RichTextRepository())->upsertSection($key, $sectionKey, [
-            'content_html' => '<p>' . $blockText . '</p>',
-            'is_active' => true,
-        ]);
+        BlockTextFixture::richText($sectionId, '<p>' . $blockText . '</p>');
 
         PageContent::clearCache();
 

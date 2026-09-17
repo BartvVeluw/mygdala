@@ -41,27 +41,21 @@ class ContactCardRepository extends Repository
     }
 
     /**
-     * Inserts or updates the single row for this page_slug + section_key.
-     * The admin form always submits every field together.
+     * Inserts or updates the single row for this page_slug + section_key:
+     * what is the same in every language. The card's words are stored per
+     * website language through App\Service\Blocks\BlockLocalization
+     * (db/migrations/20260917170000).
      *
-     * @param array<string, string|bool> $values
+     * @param array{button_url?: string, is_active?: bool} $values
      */
     public function upsertSection(string $pageSlug, string $sectionKey, array $values): void
     {
         $stmt = $this->db->prepare(
             'INSERT INTO contact_cards
-                (page_slug, section_key, title_nl, title_en, body_nl, body_en,
-                 button_label_nl, button_label_en, button_url, is_active, created_at, updated_at)
+                (page_slug, section_key, button_url, is_active, created_at, updated_at)
              VALUES
-                (:page_slug, :section_key, :title_nl, :title_en, :body_nl, :body_en,
-                 :button_label_nl, :button_label_en, :button_url, :is_active, NOW(), NOW())
+                (:page_slug, :section_key, :button_url, :is_active, NOW(), NOW())
              ON DUPLICATE KEY UPDATE
-                title_nl = VALUES(title_nl),
-                title_en = VALUES(title_en),
-                body_nl = VALUES(body_nl),
-                body_en = VALUES(body_en),
-                button_label_nl = VALUES(button_label_nl),
-                button_label_en = VALUES(button_label_en),
                 button_url = VALUES(button_url),
                 is_active = VALUES(is_active),
                 updated_at = NOW()'
@@ -70,12 +64,6 @@ class ContactCardRepository extends Repository
         $stmt->execute([
             'page_slug' => $pageSlug,
             'section_key' => $sectionKey,
-            'title_nl' => (string) ($values['title_nl'] ?? ''),
-            'title_en' => self::nullIfEmpty($values['title_en'] ?? null),
-            'body_nl' => self::nullIfEmpty($values['body_nl'] ?? null),
-            'body_en' => self::nullIfEmpty($values['body_en'] ?? null),
-            'button_label_nl' => (string) ($values['button_label_nl'] ?? ''),
-            'button_label_en' => self::nullIfEmpty($values['button_label_en'] ?? null),
             'button_url' => self::nullIfEmpty($values['button_url'] ?? null),
             'is_active' => ($values['is_active'] ?? true) ? 1 : 0,
         ]);

@@ -9,7 +9,8 @@ require_once dirname(__DIR__, 3) . '/partials/section-cta-band.php';
 
 /**
  * The eyebrow/H2/lead/button(s) band that closes several pages. Repeatable
- * per instance since phase 2; its secondary button stays optional.
+ * per instance since phase 2; its secondary button stays optional. Its words
+ * are stored per website language in block_translations (BlockLocalization).
  */
 final class CtaBandBlock extends BlockDefinition
 {
@@ -58,18 +59,30 @@ final class CtaBandBlock extends BlockDefinition
         ];
     }
 
+    /**
+     * The words of the band, per website language; the two URLs are the same
+     * in every language and stay in cta_bands. The lengths are the ones the
+     * editor always allowed.
+     */
+    public function translatableFields(): array
+    {
+        return [
+            'cta_bands' => [
+                TranslatableField::plain('eyebrow', 150)->required(),
+                TranslatableField::plain('title', 255)->required(),
+                TranslatableField::plain('lead', 500),
+                TranslatableField::plain('primary_label', 150)->required(),
+                TranslatableField::plain('secondary_label', 150),
+            ],
+        ];
+    }
+
     public function create(string $pageSlug): array
     {
         $key = self::newSectionKey();
 
         $repository = new CtaBandRepository();
         $repository->upsertSection($pageSlug, $key, [
-            'eyebrow_nl' => 'Nieuw',
-            'eyebrow_en' => '',
-            'title_nl' => 'Nieuwe sectie — pas deze titel aan',
-            'title_en' => '',
-            'lead_nl' => '',
-            'lead_en' => '',
             // A newly added band must not assume this site's routes. It used
             // to start out pointing at /contact.php, a page that exists only
             // on the installation this CMS grew out of — anywhere else that
@@ -77,16 +90,22 @@ final class CtaBandBlock extends BlockDefinition
             // renders its primary button, so the placeholder needs a
             // destination: the site root is the one URL every installation
             // answers, and it is obviously a value to change.
-            'primary_label_nl' => 'Meer informatie',
-            'primary_label_en' => '',
             'primary_url' => '/',
-            'secondary_label_nl' => '',
-            'secondary_label_en' => '',
             'secondary_url' => '',
             'is_active' => true,
         ]);
 
-        return [(int) $repository->findBySlugAndKey($pageSlug, $key)['id'], $key];
+        $id = (int) $repository->findBySlugAndKey($pageSlug, $key)['id'];
+
+        // Generic starting words in the website's default language, the
+        // language every other language falls back to until it is written.
+        BlockLocalization::save('cta_bands', $id, BlockLocalization::defaultLanguage(), [
+            'eyebrow' => 'Nieuw',
+            'title' => 'Nieuwe sectie — pas deze titel aan',
+            'primary_label' => 'Meer informatie',
+        ]);
+
+        return [$id, $key];
     }
 
     public function deleteContent(array $pageSection): void
@@ -107,12 +126,12 @@ final class CtaBandBlock extends BlockDefinition
     public function sampleContent(BlockSamples $samples): ?array
     {
         return [
-            ...$samples->fields('eyebrow', 'eyebrow'),
-            ...$samples->fields('title', 'title'),
-            ...$samples->fields('lead', 'lead'),
-            ...$samples->fields('primary_label', 'button'),
+            'eyebrow' => $samples->localized('eyebrow'),
+            'title' => $samples->localized('title'),
+            'lead' => $samples->localized('lead'),
+            'primary_label' => $samples->localized('button'),
             'primary_url' => BlockSamples::LINK,
-            ...$samples->fields('secondary_label', 'button_secondary'),
+            'secondary_label' => $samples->localized('button_secondary'),
             'secondary_url' => BlockSamples::LINK,
         ];
     }
@@ -124,7 +143,7 @@ final class CtaBandBlock extends BlockDefinition
 
     public function instanceTitle(array $pageSection): string
     {
-        return (string) (CtaBandContent::forSection($this->pageSlug($pageSection), $this->sectionKey($pageSection))['title_nl'] ?? '');
+        return BlockLocalization::name('cta_bands', $this->sectionId($pageSection), 'title');
     }
 
     public function editUrl(array $pageSection): ?string

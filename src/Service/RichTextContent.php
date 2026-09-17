@@ -3,6 +3,8 @@
 namespace App\Service;
 
 use App\Repository\RichTextRepository;
+use App\Service\Blocks\BlockLocalization;
+use App\Service\Language\LocalizedValue;
 
 /**
  * Content for the "Rich text" page-builder section — an ordinary long-form
@@ -23,16 +25,15 @@ use App\Repository\RichTextRepository;
  * to. A missing row or an unreachable database therefore yields empty
  * content, which the partial renders as nothing at all.
  *
- * The English body (`content_html_en`) is optional and was added in phase 2
- * (db/migrations/20260908270200_add_english_body_to_rich_text_sections.php),
- * exactly as the original migration anticipated, so a bilingual paragraph
- * could move into this block without losing its English copy. Empty means
- * "same as Dutch".
- *
- * `content_html` is re-sanitized on read, defensively, even though it was
- * already sanitized on save — the same "sanitize on write, sanitize again on
- * read" pattern as PortfolioGalleryContent::itemForDetailPage() and the
- * information pages this replaced.
+ * THE BODY PER LANGUAGE (Multilingual 2.0 phase 3A). The body is stored per
+ * website language in block_translations and read through
+ * App\Service\Blocks\BlockLocalization, which also owns the fallback (the
+ * asked-for language, then the default language) and sanitizes the HTML on
+ * the way out — the same "sanitize on write, sanitize again on read" pattern
+ * this block always followed. What this class hands the partial is one
+ * LocalizedValue: the body as a visitor sees it first, plus the V1
+ * data-nl/data-en pair. It decides no language itself, so an English-default
+ * site now gets its English body on the first render.
  */
 class RichTextContent
 {
@@ -52,16 +53,19 @@ class RichTextContent
      */
     public const MIGRATED_SECTION_KEY = 'content';
 
+    /** The one translatable field of this block (RichTextBlock::translatableFields()). */
+    public const BODY = 'body';
+
+    private const TABLE = 'rich_text_sections';
+
     /** @var array<string, array<string, mixed>> */
     private static array $cache = [];
 
     /**
-     * @return array{state: string, content_html: string, content_html_en: string}
+     * @return array{state: string, body: LocalizedValue}
      *         templates must check 'state' !== STATE_HIDDEN before rendering
-     *         the section. 'content_html_en' is '' when this section has no
-     *         separate English body — the partial then renders the Dutch
-     *         body in both languages, the "leeg = zelfde als NL" rule every
-     *         other block type uses.
+     *         the section. 'body' is sanitized HTML in every language, empty
+     *         when there is none.
      */
     public static function forSection(string $pageSlug, string $sectionKey): array
     {
@@ -70,33 +74,38 @@ class RichTextContent
             return self::$cache[$cacheKey];
         }
 
-        $empty = ['content_html' => '', 'content_html_en' => ''];
-
         try {
             $row = (new RichTextRepository())->findBySlugAndKey($pageSlug, $sectionKey);
         } catch (\Throwable $e) {
             error_log('[RichTextContent] lookup failed for "' . $cacheKey . '": ' . $e->getMessage());
 
-            return self::$cache[$cacheKey] = ['state' => self::STATE_FALLBACK] + $empty;
+            return self::$cache[$cacheKey] = self::emptyContent(self::STATE_FALLBACK);
         }
 
         if ($row === null) {
-            return self::$cache[$cacheKey] = ['state' => self::STATE_FALLBACK] + $empty;
+            return self::$cache[$cacheKey] = self::emptyContent(self::STATE_FALLBACK);
         }
 
         if (!(bool) $row['is_active']) {
-            return self::$cache[$cacheKey] = ['state' => self::STATE_HIDDEN] + $empty;
+            return self::$cache[$cacheKey] = self::emptyContent(self::STATE_HIDDEN);
         }
 
         return self::$cache[$cacheKey] = [
             'state' => self::STATE_ACTIVE,
-            'content_html' => RichTextSanitizer::sanitize($row['content_html'] ?? null) ?? '',
-            'content_html_en' => RichTextSanitizer::sanitize($row['content_html_en'] ?? null) ?? '',
+            self::BODY => BlockLocalization::bilingual(self::TABLE, (int) $row['id'], self::BODY),
         ];
     }
 
+    /** Also drops the block words BlockLocalization holds for this request. */
     public static function clearCache(): void
     {
         self::$cache = [];
+        BlockLocalization::clearCache();
+    }
+
+    /** @return array{state: string, body: LocalizedValue} */
+    private static function emptyContent(string $state): array
+    {
+        return ['state' => $state, self::BODY => LocalizedValue::of([])];
     }
 }

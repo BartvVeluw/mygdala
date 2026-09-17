@@ -73,6 +73,54 @@ final class SiteText
     }
 
     /**
+     * The words a visitor sees first, for text that already arrives as ONE
+     * value in every language — what App\Service\Blocks\BlockLocalization
+     * hands a block partial. Unescaped: the caller escapes plain text, and
+     * prints sanitized rich text as it is.
+     *
+     * A partial built on these three methods never learns which language is
+     * the default, where the words are stored or what an empty translation
+     * falls back to. That is what lets the frontend flip of Multilingual 2.0
+     * change this class instead of every partial.
+     */
+    public static function visibleOf(LocalizedValue $text): string
+    {
+        return $text->primaryValue();
+    }
+
+    /** The escaped ` data-nl="..." data-en="..."` pair of a plain-text value, for core.js's textContent switch. */
+    public static function attrsOf(LocalizedValue $text): string
+    {
+        $attributes = '';
+        foreach ($text->attributeValues() as $code => $value) {
+            $attributes .= ' data-' . $code . '="' . self::escape($value) . '"';
+        }
+
+        return $attributes;
+    }
+
+    /**
+     * The pair for SANITIZED rich text, marked `data-lang-html` so core.js
+     * re-renders it with innerHTML rather than textContent — the one opt-in
+     * the language switch allows (MULTILINGUAL.md). Nothing at all when every
+     * language shows the same markup, so a body without a translation prints
+     * exactly the element it printed before the switch knew about it.
+     *
+     * Only ever for RichTextSanitizer output: marking editor plain text
+     * data-lang-html would turn the switch into an XSS sink.
+     */
+    public static function htmlAttrsOf(LocalizedValue $html): string
+    {
+        $values = $html->attributeValues();
+
+        if (count(array_unique(array_merge(array_values($values), [$html->primaryValue()]))) < 2) {
+            return '';
+        }
+
+        return ' data-lang-html' . self::attrsOf($html);
+    }
+
+    /**
      * The language code a page's <html lang> should carry, and the one
      * assets/js/core.js starts in when a visitor has expressed no preference.
      */

@@ -11,6 +11,7 @@ use App\Service\SectionRegistry;
 use Phinx\Db\Adapter\AdapterFactory;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Console\Output\NullOutput;
+use Tests\Support\BlockTextFixture;
 use Tests\Support\TestEnvironment;
 
 /**
@@ -322,9 +323,7 @@ class UnknownContentBlockTest extends TestCase
     {
         [$sectionId, $sectionKey] = SectionRegistry::create('rich_text', $slug);
 
-        $stmt = Database::connection()
-            ->prepare('UPDATE rich_text_sections SET content_html = :html WHERE id = :id');
-        $stmt->execute(['html' => $html, 'id' => $sectionId]);
+        BlockTextFixture::richText($sectionId, $html);
 
         return $this->sections->create($pageId, $slug, 'rich_text', $sectionKey, $sectionId);
     }
@@ -424,6 +423,7 @@ class UnknownContentBlockTest extends TestCase
             $delete = $db->prepare('DELETE FROM page_sections WHERE page_id = :id');
             $delete->execute(['id' => $pageId]);
 
+            BlockTextFixture::removeForPage('rich_text_sections', $slug);
             $delete = $db->prepare('DELETE FROM rich_text_sections WHERE page_slug = :slug');
             $delete->execute(['slug' => $slug]);
 

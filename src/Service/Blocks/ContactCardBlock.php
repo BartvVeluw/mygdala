@@ -10,7 +10,8 @@ require_once dirname(__DIR__, 3) . '/partials/section-contact-card.php';
 /**
  * A small "neem contact op" card: title, body and one button. An empty button
  * URL means "mail the address from Site-instellingen", so the card keeps
- * working when that address changes.
+ * working when that address changes. Its words are stored per website
+ * language in block_translations (BlockLocalization).
  */
 final class ContactCardBlock extends BlockDefinition
 {
@@ -59,24 +60,43 @@ final class ContactCardBlock extends BlockDefinition
         ];
     }
 
+    /**
+     * The words of the card, per website language; the button URL is the same
+     * in every language and stays in contact_cards. The lengths are the ones
+     * the editor always allowed.
+     */
+    public function translatableFields(): array
+    {
+        return [
+            'contact_cards' => [
+                TranslatableField::plain('title', 255)->required(),
+                TranslatableField::plain('body', 600),
+                TranslatableField::plain('button_label', 150),
+            ],
+        ];
+    }
+
     public function create(string $pageSlug): array
     {
         $key = self::newSectionKey();
 
         $repository = new ContactCardRepository();
         $repository->upsertSection($pageSlug, $key, [
-            'title_nl' => 'Nieuwe kaart — pas deze titel aan',
-            'title_en' => '',
-            'body_nl' => '',
-            'body_en' => '',
-            'button_label_nl' => 'Mail direct',
-            'button_label_en' => '',
             // Empty = mailto: the address from Site-instellingen.
             'button_url' => '',
             'is_active' => true,
         ]);
 
-        return [(int) $repository->findBySlugAndKey($pageSlug, $key)['id'], $key];
+        $id = (int) $repository->findBySlugAndKey($pageSlug, $key)['id'];
+
+        // Generic starting words in the website's default language, the
+        // language every other language falls back to until it is written.
+        BlockLocalization::save('contact_cards', $id, BlockLocalization::defaultLanguage(), [
+            'title' => 'Nieuwe kaart — pas deze titel aan',
+            'button_label' => 'Mail direct',
+        ]);
+
+        return [$id, $key];
     }
 
     public function deleteContent(array $pageSection): void
@@ -97,9 +117,9 @@ final class ContactCardBlock extends BlockDefinition
     public function sampleContent(BlockSamples $samples): ?array
     {
         return [
-            ...$samples->fields('title', 'short_title'),
-            ...$samples->fields('body', 'body'),
-            ...$samples->fields('button_label', 'button_secondary'),
+            'title' => $samples->localized('short_title'),
+            'body' => $samples->localized('body'),
+            'button_label' => $samples->localized('button_secondary'),
             'button_url' => BlockSamples::LINK,
         ];
     }
@@ -111,7 +131,7 @@ final class ContactCardBlock extends BlockDefinition
 
     public function instanceTitle(array $pageSection): string
     {
-        return (string) (ContactCardContent::forSection($this->pageSlug($pageSection), $this->sectionKey($pageSection))['title_nl'] ?? '');
+        return BlockLocalization::name('contact_cards', $this->sectionId($pageSection), 'title');
     }
 
     public function editUrl(array $pageSection): ?string

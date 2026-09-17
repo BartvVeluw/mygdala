@@ -174,6 +174,14 @@ final class BlockSampleContractTest extends TestCase
             if (is_string($value)) {
                 $strings[] = $value;
             }
+
+            // A block on per-language storage hands its partial one value per
+            // field for every language (BlockSamples::localized()).
+            if ($value instanceof \App\Service\Language\LocalizedValue) {
+                foreach ($value->attributeValues() as $words) {
+                    $strings[] = $words;
+                }
+            }
         });
 
         return $strings;

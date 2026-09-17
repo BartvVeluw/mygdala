@@ -103,7 +103,11 @@ class LegalPages
                 continue;
             }
 
-            $parts[] = $content['content_html'];
+            // The body a customer sees first when they follow the checkout
+            // link: the website's default language, with its fallback, as
+            // the page renders it. On a Dutch-default site that is the same
+            // string the Dutch column held, so stored hashes stay comparable.
+            $parts[] = \App\Service\Language\SiteText::visibleOf($content[RichTextContent::BODY]);
         }
 
         return $parts === [] ? null : implode('', $parts);

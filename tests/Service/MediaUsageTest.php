@@ -119,6 +119,35 @@ final class MediaUsageTest extends TestCase
     }
 
     /**
+     * A block's words per website language (block_translations) are text,
+     * never a media reference: an id, a path or a URL typed into a Tekstblok
+     * or a CTA band makes no usage, so it can neither keep a library item
+     * from being deleted nor claim it. Usage is read from media_id columns
+     * only.
+     */
+    public function testWordsInABlockNeverCountAsAMediaUsage(): void
+    {
+        $mediaId = $this->createMediaRow('assets/media/__usage_words__.png');
+        $page = (new PageRepository())->findByContentKey(self::TEST_PAGE);
+        $this->assertNotNull($page);
+
+        foreach ([
+            'rich_text' => ['rich_text_sections', ['body' => '<p>/assets/media/__usage_words__.png #' . $mediaId . '</p>']],
+            'cta_band' => ['cta_bands', ['eyebrow' => (string) $mediaId, 'title' => 'assets/media/__usage_words__.png', 'primary_label' => 'media_id=' . $mediaId]],
+        ] as $type => [$table, $words]) {
+            [$sectionId, $sectionKey] = SectionRegistry::create($type, self::TEST_PAGE);
+            $this->createdSections[] = (new PageSectionRepository())->create((int) $page['id'], self::TEST_PAGE, $type, $sectionKey, $sectionId);
+            \App\Service\Blocks\BlockLocalization::save($table, $sectionId, 'nl', $words);
+            \App\Service\Blocks\BlockLocalization::save($table, $sectionId, 'en', $words);
+        }
+
+        MediaService::clearCache();
+
+        $this->assertSame([], $this->service->usagesOf($mediaId));
+        $this->assertSame([$mediaId => 0], MediaUsageRegistry::countsFor([$mediaId]));
+    }
+
+    /**
      * The point of a shared library: one file, one row, several users. The
      * count is what the admin grid shows and what deletion is decided on.
      */

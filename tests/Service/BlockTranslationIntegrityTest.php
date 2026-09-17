@@ -9,7 +9,6 @@ use App\Repository\BlockTranslationRepository;
 use App\Repository\PageRepository;
 use App\Repository\PageSectionRepository;
 use App\Service\Blocks\BlockLocalization;
-use App\Service\Blocks\TranslatableField;
 use App\Service\PageContent;
 use App\Service\PageService;
 use App\Service\SectionRegistry;
@@ -37,10 +36,6 @@ final class BlockTranslationIntegrityTest extends TestCase
     protected function setUp(): void
     {
         $this->sections = new PageSectionRepository();
-        BlockLocalization::overrideRegistryForTests([
-            'rich_text_sections' => [TranslatableField::rich('body', 50000)],
-            'contact_cards' => [TranslatableField::plain('title', 255)->required()],
-        ]);
         $this->removePage();
         $this->pageId = PageFixture::create(
             ['content_key' => self::KEY, 'slug' => self::KEY, 'status' => PageContent::STATUS_DRAFT],
@@ -51,7 +46,6 @@ final class BlockTranslationIntegrityTest extends TestCase
     protected function tearDown(): void
     {
         $this->removePage();
-        BlockLocalization::overrideRegistryForTests(null);
         BlockLocalization::clearCache();
         PageContent::clearCache();
     }

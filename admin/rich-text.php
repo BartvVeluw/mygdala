@@ -6,10 +6,12 @@ require_once __DIR__ . '/../vendor/autoload.php';
 require_once __DIR__ . '/_translate.php';
 require_once __DIR__ . '/_save_bar.php';
 require __DIR__ . '/_richtext_field.php';
-require_once __DIR__ . '/_language_fields.php';
+require_once __DIR__ . '/_localized_fields.php';
 
 use App\Service\AdminAuth;
+use App\Service\Blocks\BlockLocalization;
 use App\Service\Csrf;
+use App\Service\RichTextContent;
 use App\Service\SectionRegistry;
 use App\Repository\PageRepository;
 use App\Repository\RichTextRepository;
@@ -29,6 +31,13 @@ use App\Repository\RichTextRepository;
  * bespoke screen, which is exactly the "second page-content editor" the
  * unified page model removes — settings now live on admin/page.php, body
  * content is a section like any other.
+ *
+ * ONE WEBSITE LANGUAGE AT A TIME (Multilingual 2.0, admin/_localized_fields.php):
+ * the body field shows the language chosen in the CMS shell, as stored,
+ * without the default language's words in an empty translation; the save
+ * writes that language only. "Actief" is the same in every language.
+ * Input a refused save hands back is shown again only in the language it was
+ * typed in, and the form then starts out unsaved in the save bar.
  */
 
 AdminAuth::requireLogin();
@@ -50,6 +59,8 @@ if ($pageSlug === null || $sectionKey === null || $pageSlug === '' || $sectionKe
 
 $page = (new PageRepository())->findByContentKey($pageSlug);
 $section = $repository->findBySlugAndKey($pageSlug, $sectionKey);
+$sectionId = (int) $section['id'];
+$editLanguage = admin_localized_language();
 
 $errors = $_SESSION['admin_rich_text_errors'] ?? [];
 $old = $_SESSION['admin_rich_text_old'] ?? null;
@@ -57,9 +68,10 @@ unset($_SESSION['admin_rich_text_errors'], $_SESSION['admin_rich_text_old']);
 
 $saved = isset($_GET['saved']);
 
-$contentHtml = $old !== null ? (string) ($old['content_html'] ?? '') : (string) ($section['content_html'] ?? '');
-$contentHtmlEn = $old !== null ? (string) ($old['content_html_en'] ?? '') : (string) ($section['content_html_en'] ?? '');
-$isActive = $old !== null ? !empty($old['is_active']) : (bool) $section['is_active'];
+$body = is_array($old) && ($old['language_code'] ?? null) === $editLanguage
+    ? (string) ($old[RichTextContent::BODY] ?? '')
+    : BlockLocalization::raw('rich_text_sections', $sectionId, RichTextContent::BODY, $editLanguage);
+$isActive = is_array($old) ? !empty($old['is_active']) : (bool) $section['is_active'];
 
 $csrfToken = Csrf::token();
 $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
@@ -95,19 +107,15 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
     </div>
   <?php endif; ?>
 
-  <form method="post" action="/api/admin/update-rich-text-section.php">
+  <form method="post" action="/api/admin/update-rich-text-section.php"<?= is_array($old) ? ' data-save-bar-unsaved' : '' ?>>
     <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
     <input type="hidden" name="section" value="<?= $h($sectionParam) ?>">
+    <?= admin_localized_input($editLanguage) ?>
 
     <section class="admin-card">
       <h2><?= admin_te('block_richtext.inhoud') ?></h2>
-      <?php admin_lang_bar(); ?>
-      <?php admin_lang_pane_start('nl'); ?>
-        <?php renderRichTextField('content_html', 'Tekst', $contentHtml, 'full', 'admin-richtext-editor--lg'); ?>
-      <?php admin_lang_pane_end(); ?>
-      <?php admin_lang_pane_start('en'); ?>
-        <?php renderRichTextField('content_html_en', 'Tekst', $contentHtmlEn, 'full', 'admin-richtext-editor--lg'); ?>
-      <?php admin_lang_pane_end(); ?>
+      <?php admin_localized_bar($editLanguage); ?>
+      <?php renderRichTextField(RichTextContent::BODY, 'Tekst', $body, 'full', 'admin-richtext-editor--lg'); ?>
       <label class="admin-checkbox-label">
         <input type="checkbox" name="is_active" value="1" <?= $isActive ? 'checked' : '' ?>>
         <?= admin_te('block_richtext.actief_zichtbaar_pagina') ?>
@@ -121,6 +129,5 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
 </main>
 <?php save_bar(); ?>
 <?php save_bar_script(); ?>
-<?php admin_lang_script(); ?>
 </body>
 </html>

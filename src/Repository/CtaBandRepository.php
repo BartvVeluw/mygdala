@@ -55,37 +55,22 @@ class CtaBandRepository extends Repository
     }
 
     /**
-     * Inserts or updates the single row for this page_slug + section_key.
-     * Used by the admin CTA band edit form, which always submits every field
-     * together.
+     * Inserts or updates the single row for this page_slug + section_key:
+     * what is the same in every language. The band's words are stored per
+     * website language through App\Service\Blocks\BlockLocalization
+     * (db/migrations/20260917170000).
      *
-     * @param array<string, string|bool> $values
+     * @param array{primary_url: string, secondary_url: string, is_active: bool} $values
      */
     public function upsertSection(string $pageSlug, string $sectionKey, array $values): void
     {
         $stmt = $this->db->prepare(
             'INSERT INTO cta_bands
-                (page_slug, section_key, eyebrow_nl, eyebrow_en, title_nl, title_en, lead_nl, lead_en,
-                 primary_label_nl, primary_label_en, primary_url,
-                 secondary_label_nl, secondary_label_en, secondary_url,
-                 is_active, created_at, updated_at)
+                (page_slug, section_key, primary_url, secondary_url, is_active, created_at, updated_at)
              VALUES
-                (:page_slug, :section_key, :eyebrow_nl, :eyebrow_en, :title_nl, :title_en, :lead_nl, :lead_en,
-                 :primary_label_nl, :primary_label_en, :primary_url,
-                 :secondary_label_nl, :secondary_label_en, :secondary_url,
-                 :is_active, NOW(), NOW())
+                (:page_slug, :section_key, :primary_url, :secondary_url, :is_active, NOW(), NOW())
              ON DUPLICATE KEY UPDATE
-                eyebrow_nl = VALUES(eyebrow_nl),
-                eyebrow_en = VALUES(eyebrow_en),
-                title_nl = VALUES(title_nl),
-                title_en = VALUES(title_en),
-                lead_nl = VALUES(lead_nl),
-                lead_en = VALUES(lead_en),
-                primary_label_nl = VALUES(primary_label_nl),
-                primary_label_en = VALUES(primary_label_en),
                 primary_url = VALUES(primary_url),
-                secondary_label_nl = VALUES(secondary_label_nl),
-                secondary_label_en = VALUES(secondary_label_en),
                 secondary_url = VALUES(secondary_url),
                 is_active = VALUES(is_active),
                 updated_at = NOW()'
@@ -94,17 +79,7 @@ class CtaBandRepository extends Repository
         $stmt->execute([
             'page_slug' => $pageSlug,
             'section_key' => $sectionKey,
-            'eyebrow_nl' => $values['eyebrow_nl'],
-            'eyebrow_en' => $values['eyebrow_en'] !== '' ? $values['eyebrow_en'] : null,
-            'title_nl' => $values['title_nl'],
-            'title_en' => $values['title_en'] !== '' ? $values['title_en'] : null,
-            'lead_nl' => $values['lead_nl'] !== '' ? $values['lead_nl'] : null,
-            'lead_en' => $values['lead_en'] !== '' ? $values['lead_en'] : null,
-            'primary_label_nl' => $values['primary_label_nl'],
-            'primary_label_en' => $values['primary_label_en'] !== '' ? $values['primary_label_en'] : null,
             'primary_url' => $values['primary_url'],
-            'secondary_label_nl' => $values['secondary_label_nl'] !== '' ? $values['secondary_label_nl'] : null,
-            'secondary_label_en' => $values['secondary_label_en'] !== '' ? $values['secondary_label_en'] : null,
             'secondary_url' => $values['secondary_url'] !== '' ? $values['secondary_url'] : null,
             'is_active' => $values['is_active'] ? 1 : 0,
         ]);

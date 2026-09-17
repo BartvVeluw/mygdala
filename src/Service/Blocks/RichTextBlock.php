@@ -3,6 +3,7 @@
 namespace App\Service\Blocks;
 
 use App\Repository\RichTextRepository;
+use App\Service\Language\LocalizedValue;
 use App\Service\RichTextContent;
 
 require_once dirname(__DIR__, 3) . '/partials/section-rich-text.php';
@@ -11,6 +12,10 @@ require_once dirname(__DIR__, 3) . '/partials/section-rich-text.php';
  * A free rich-text block: one purified HTML body, repeatable anywhere. It has
  * no title of its own, so the page builder tells two of them apart by the
  * first words of their text.
+ *
+ * Its body is stored per website language in block_translations
+ * (BlockLocalization); the row in rich_text_sections holds only what is the
+ * same in every language.
  */
 final class RichTextBlock extends BlockDefinition
 {
@@ -60,12 +65,24 @@ final class RichTextBlock extends BlockDefinition
         ];
     }
 
+    /** The body, sanitized rich text; the length is the one the editor always allowed. */
+    public function translatableFields(): array
+    {
+        return [
+            'rich_text_sections' => [
+                TranslatableField::rich(RichTextContent::BODY, 50000),
+            ],
+        ];
+    }
+
     public function create(string $pageSlug): array
     {
         $key = self::newSectionKey();
 
+        // A new text block starts without a body in any language, and renders
+        // nothing until one is written.
         $repository = new RichTextRepository();
-        $repository->upsertSection($pageSlug, $key, ['content_html' => null, 'is_active' => true]);
+        $repository->upsertSection($pageSlug, $key, ['is_active' => true]);
 
         return [(int) $repository->findBySlugAndKey($pageSlug, $key)['id'], $key];
     }
@@ -87,9 +104,7 @@ final class RichTextBlock extends BlockDefinition
 
     public function sampleContent(BlockSamples $samples): ?array
     {
-        $body = $samples->richText();
-
-        return ['content_html' => $body['nl'], 'content_html_en' => $body['en']];
+        return [RichTextContent::BODY => LocalizedValue::of($samples->richText())];
     }
 
     public function renderSample(array $content, string $revealGroup): void
@@ -105,7 +120,7 @@ final class RichTextBlock extends BlockDefinition
      */
     public function instanceTitle(array $pageSection): string
     {
-        $html = RichTextContent::forSection($this->pageSlug($pageSection), $this->sectionKey($pageSection))['content_html'] ?? '';
+        $html = BlockLocalization::name('rich_text_sections', $this->sectionId($pageSection), RichTextContent::BODY);
         $text = trim((string) preg_replace('/\s+/u', ' ', html_entity_decode(strip_tags($html), ENT_QUOTES, 'UTF-8')));
 
         if ($text === '') {

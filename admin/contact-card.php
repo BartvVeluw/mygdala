@@ -5,9 +5,10 @@ declare(strict_types=1);
 require_once __DIR__ . '/../vendor/autoload.php';
 require_once __DIR__ . '/_translate.php';
 require_once __DIR__ . '/_save_bar.php';
-require_once __DIR__ . '/_language_fields.php';
+require_once __DIR__ . '/_localized_fields.php';
 
 use App\Service\AdminAuth;
+use App\Service\Blocks\BlockLocalization;
 use App\Service\Csrf;
 use App\Service\SectionRegistry;
 use App\Service\SiteSettings;
@@ -21,6 +22,13 @@ use App\Repository\ContactCardRepository;
  * really exist" gate as every other repeater editor (admin/rich-text.php,
  * admin/cta-band.php, ...). A page may carry several of these; each is
  * edited here under its own key.
+ *
+ * ONE WEBSITE LANGUAGE AT A TIME (Multilingual 2.0, admin/_localized_fields.php):
+ * heading, text and button label show the language chosen in the CMS shell,
+ * as stored; the heading is required only in the default language, and the
+ * save writes that language only. The button URL and "Actief" are the same in
+ * every language. Input a refused save hands back comes back in the language
+ * it was typed in, and the form then starts out unsaved in the save bar.
  */
 
 AdminAuth::requireLogin();
@@ -41,6 +49,8 @@ if ($page === null || $sectionKey === null || $sectionKey === ''
 }
 
 $section = $repository->findBySlugAndKey($pageSlug, $sectionKey);
+$sectionId = (int) $section['id'];
+$editLanguage = admin_localized_language();
 
 $errors = $_SESSION['admin_contact_card_errors'] ?? [];
 $old = $_SESSION['admin_contact_card_old'] ?? null;
@@ -48,21 +58,22 @@ unset($_SESSION['admin_contact_card_errors'], $_SESSION['admin_contact_card_old'
 
 $saved = isset($_GET['saved']);
 
-$values = $old ?? [
-    'title_nl' => (string) $section['title_nl'],
-    'title_en' => (string) ($section['title_en'] ?? ''),
-    'body_nl' => (string) ($section['body_nl'] ?? ''),
-    'body_en' => (string) ($section['body_en'] ?? ''),
-    'button_label_nl' => (string) $section['button_label_nl'],
-    'button_label_en' => (string) ($section['button_label_en'] ?? ''),
-    'button_url' => (string) ($section['button_url'] ?? ''),
-    'is_active' => (bool) $section['is_active'],
-];
+$oldInThisLanguage = is_array($old) && ($old['language_code'] ?? null) === $editLanguage;
+
+/** The words of one field on screen: typed and handed back in this language, else stored in it. */
+$word = static fn (string $field): string => $oldInThisLanguage
+    ? (string) ($old[$field] ?? '')
+    : BlockLocalization::raw('contact_cards', $sectionId, $field, $editLanguage);
+
+$buttonUrl = is_array($old) ? (string) ($old['button_url'] ?? '') : (string) ($section['button_url'] ?? '');
+$isActive = is_array($old) ? !empty($old['is_active']) : (bool) $section['is_active'];
 
 $siteEmail = (string) SiteSettings::get('email');
 
 $csrfToken = Csrf::token();
 $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
+$required = admin_localized_required($editLanguage);
+$placeholder = admin_localized_placeholder_attr($editLanguage);
 ?>
 <!doctype html>
 <html lang="<?= htmlspecialchars(\App\Service\Language\AdminLocale::current(), ENT_QUOTES, 'UTF-8') ?>">
@@ -93,59 +104,39 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
   <?php endif; ?>
 
   <section class="admin-card">
-    <form method="post" action="/api/admin/update-contact-card.php" class="admin-product-form">
+    <form method="post" action="/api/admin/update-contact-card.php" class="admin-product-form"<?= is_array($old) ? ' data-save-bar-unsaved' : '' ?>>
       <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
       <input type="hidden" name="section" value="<?= $h($sectionParam) ?>">
+      <?= admin_localized_input($editLanguage) ?>
 
-      <?php admin_lang_bar(); ?>
-      <div class="admin-form-row admin-form-row--split">
-        <?php admin_lang_pane_start('nl'); ?>
-        <label><?= admin_te('block_contactcard.kop') ?>*
-          <input type="text" name="title_nl" maxlength="255" <?= admin_lang_required('nl') ?> value="<?= $h((string) ($values['title_nl'] ?? '')) ?>">
+      <?php admin_localized_bar($editLanguage); ?>
+      <div class="admin-form-row">
+        <label><?= admin_te('block_contactcard.kop') ?><?= $required !== '' ? '*' : '' ?>
+          <input type="text" name="title" maxlength="255"<?= $required ?> value="<?= $h($word('title')) ?>"<?= $placeholder ?>>
         </label>
-        <?php admin_lang_pane_end(); ?>
-        <?php admin_lang_pane_start('en'); ?>
-        <label><?= admin_te('block_contactcard.kop_2') ?>
-          <input type="text" name="title_en" maxlength="255" value="<?= $h((string) ($values['title_en'] ?? '')) ?>"<?= admin_lang_placeholder_attr('en') ?>>
-        </label>
-        <?php admin_lang_pane_end(); ?>
       </div>
 
-      <div class="admin-form-row admin-form-row--split">
-        <?php admin_lang_pane_start('nl'); ?>
+      <div class="admin-form-row">
         <label><?= admin_te('block_contactcard.tekst') ?>
-          <textarea name="body_nl" maxlength="600" rows="4"><?= $h((string) ($values['body_nl'] ?? '')) ?></textarea>
+          <textarea name="body" maxlength="600" rows="4"<?= $placeholder ?>><?= $h($word('body')) ?></textarea>
         </label>
-        <?php admin_lang_pane_end(); ?>
-        <?php admin_lang_pane_start('en'); ?>
-        <label><?= admin_te('block_contactcard.tekst_2') ?>
-          <textarea name="body_en" maxlength="600" rows="4"<?= admin_lang_placeholder_attr('en') ?>><?= $h((string) ($values['body_en'] ?? '')) ?></textarea>
-        </label>
-        <?php admin_lang_pane_end(); ?>
       </div>
 
       <h2 style="margin-top:2rem;"><?= admin_te('block_contactcard.knop') ?></h2>
-      <div class="admin-form-row admin-form-row--split">
-        <?php admin_lang_pane_start('nl'); ?>
+      <div class="admin-form-row">
         <label><?= admin_te('block_contactcard.label') ?>
-          <input type="text" name="button_label_nl" maxlength="150" value="<?= $h((string) ($values['button_label_nl'] ?? '')) ?>">
+          <input type="text" name="button_label" maxlength="150" value="<?= $h($word('button_label')) ?>"<?= $placeholder ?>>
         </label>
-        <?php admin_lang_pane_end(); ?>
-        <?php admin_lang_pane_start('en'); ?>
-        <label><?= admin_te('block_contactcard.label_2') ?>
-          <input type="text" name="button_label_en" maxlength="150" value="<?= $h((string) ($values['button_label_en'] ?? '')) ?>"<?= admin_lang_placeholder_attr('en') ?>>
-        </label>
-        <?php admin_lang_pane_end(); ?>
       </div>
       <div class="admin-form-row">
         <label><?= admin_te('common.url') ?>
-          <input type="text" name="button_url" maxlength="255" value="<?= $h((string) ($values['button_url'] ?? '')) ?>" placeholder="Leeg = mailto:<?= $h($siteEmail) ?>">
+          <input type="text" name="button_url" maxlength="255" value="<?= $h($buttonUrl) ?>" placeholder="Leeg = mailto:<?= $h($siteEmail) ?>">
         </label>
       </div>
       <p class="admin-text-muted"><?= admin_t('block_contactcard.laat_url_leeg_mailen', ['v1' => $h($siteEmail)]) ?></p>
 
       <label class="admin-checkbox-label">
-        <input type="checkbox" name="is_active" value="1" <?= ($values['is_active'] ?? true) ? 'checked' : '' ?>>
+        <input type="checkbox" name="is_active" value="1" <?= $isActive ? 'checked' : '' ?>>
         <?= admin_te('block_contactcard.actief_uitgevinkt_sectie_getoond') ?>
       </label>
 
@@ -155,6 +146,5 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
 </main>
 <?php save_bar(); ?>
 <?php save_bar_script(); ?>
-<?php admin_lang_script(); ?>
 </body>
 </html>

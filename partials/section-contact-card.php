@@ -18,30 +18,37 @@
  * `mailto:` address by ContactCardContent, so a card with no configured link
  * still mails the address from Site-instellingen, exactly as before.
  *
- * @param array<string, string> $card see ContactCardContent::forSection()
+ * Every word arrives as one LocalizedValue per field
+ * (App\Service\Blocks\BlockLocalization), printed through SiteText: this file
+ * knows no language, no default and no fallback. All of it is plain text.
+ *
+ * @param array<string, mixed> $card see ContactCardContent::forSection()
  */
 function render_section_contact_card(array $card): void
 {
-    if ($card['title_nl'] === '' && $card['body_nl'] === '') {
+    $text = static fn (string $field): string => \App\Service\Language\SiteText::visibleOf($card[$field]);
+
+    if ($text('title') === '' && $text('body') === '') {
         // An empty card renders nothing at all rather than an empty box —
         // the same "empty block leaves no gap" rule as the Rich text block.
         return;
     }
 
     $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
-    $hasButton = $card['button_label_nl'] !== '' && $card['button_url'] !== '';
+    $pair = static fn (string $field): string => \App\Service\Language\SiteText::attrsOf($card[$field]);
+    $hasButton = $text('button_label') !== '' && $card['button_url'] !== '';
     ?>
   <section style="padding-top:0;">
     <div class="container container--narrow">
       <div class="contact-card" data-reveal>
-        <?php if ($card['title_nl'] !== ''): ?>
-        <h3 style="margin-bottom:0.75rem;" <?= \App\Service\Language\SiteText::attrs($card['title_nl'], $card['title_en']) ?>><?= $h(\App\Service\Language\SiteText::visible($card['title_nl'], $card['title_en'])) ?></h3>
+        <?php if ($text('title') !== ''): ?>
+        <h3 style="margin-bottom:0.75rem;" <?= $pair('title') ?>><?= $h($text('title')) ?></h3>
         <?php endif; ?>
-        <?php if ($card['body_nl'] !== ''): ?>
-        <p style="color:var(--color-text-muted); font-size:0.92rem; margin-bottom:<?= $hasButton ? '1rem' : '0' ?>;" <?= \App\Service\Language\SiteText::attrs($card['body_nl'], $card['body_en']) ?>><?= $h(\App\Service\Language\SiteText::visible($card['body_nl'], $card['body_en'])) ?></p>
+        <?php if ($text('body') !== ''): ?>
+        <p style="color:var(--color-text-muted); font-size:0.92rem; margin-bottom:<?= $hasButton ? '1rem' : '0' ?>;" <?= $pair('body') ?>><?= $h($text('body')) ?></p>
         <?php endif; ?>
         <?php if ($hasButton): ?>
-        <a href="<?= $h($card['button_url']) ?>" class="btn btn--ghost btn--block" <?= \App\Service\Language\SiteText::attrs($card['button_label_nl'], $card['button_label_en']) ?>><?= $h(\App\Service\Language\SiteText::visible($card['button_label_nl'], $card['button_label_en'])) ?></a>
+        <a href="<?= $h((string) $card['button_url']) ?>" class="btn btn--ghost btn--block" <?= $pair('button_label') ?>><?= $h($text('button_label')) ?></a>
         <?php endif; ?>
       </div>
     </div>

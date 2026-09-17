@@ -61,6 +61,7 @@ class PageServiceTest extends TestCase
             $delSections = $db->prepare('DELETE FROM page_sections WHERE page_id = :id');
             $delSections->execute(['id' => (int) $row['id']]);
 
+            \Tests\Support\BlockTextFixture::removeForPage('rich_text_sections', (string) $row['content_key']);
             $delRichText = $db->prepare('DELETE FROM rich_text_sections WHERE page_slug = :key');
             $delRichText->execute(['key' => (string) $row['content_key']]);
 

@@ -10,6 +10,7 @@ use App\Service\PageContent;
 use App\Service\SectionRegistry;
 use App\Service\SiteSettings;
 use PHPUnit\Framework\TestCase;
+use Tests\Support\BlockTextFixture;
 use Tests\Support\TestEnvironment;
 
 /**
@@ -103,6 +104,7 @@ class PageRoutingTest extends TestCase
             $del->execute(['id' => (int) $row['id']]);
         }
 
+        BlockTextFixture::removeForPage('rich_text_sections', self::TEST_KEY);
         $del = $db->prepare('DELETE FROM rich_text_sections WHERE page_slug = :key');
         $del->execute(['key' => self::TEST_KEY]);
 
@@ -154,9 +156,7 @@ class PageRoutingTest extends TestCase
     {
         [$sectionId, $sectionKey] = SectionRegistry::create('rich_text', self::TEST_KEY);
 
-        $db = Database::connection();
-        $stmt = $db->prepare('UPDATE rich_text_sections SET content_html = :html WHERE id = :id');
-        $stmt->execute(['html' => $html, 'id' => $sectionId]);
+        BlockTextFixture::richText($sectionId, $html);
 
         (new PageSectionRepository())->create(
             (int) $this->pageId,

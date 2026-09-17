@@ -40,6 +40,7 @@
             <file>tests/Service/PageLocalizationTest.php</file>
             <file>tests/Service/TranslatableFieldTest.php</file>
             <file>tests/Service/BlockLocalizationTest.php</file>
+            <file>tests/Service/BlockLocalizedRenderingTest.php</file>
             <file>tests/Install/SetupWizardValidationTest.php</file>
             <file>tests/Mail/EmailPlaceholdersTest.php</file>
             <file>tests/Mail/OrderConfirmationBuilderTest.php</file>
@@ -155,6 +156,7 @@
             <file>tests/Service/PageLocalizationTest.php</file>
             <file>tests/Service/TranslatableFieldTest.php</file>
             <file>tests/Service/BlockLocalizationTest.php</file>
+            <file>tests/Service/BlockLocalizedRenderingTest.php</file>
             <file>tests/Service/MultilingualBoundaryTest.php</file>
             <file>tests/Architecture/ContextSetupTest.php</file>
             <file>tests/Architecture/TestSuiteCoverageTest.php</file>
@@ -301,6 +303,7 @@
             <file>tests/Install/SiteLanguageRegistryMigrationTest.php</file>
             <file>tests/Install/PageTranslationMigrationTest.php</file>
             <file>tests/Install/BlockTranslationSchemaTest.php</file>
+            <file>tests/Install/BlockTranslationMigrationTest.php</file>
             <file>tests/Install/PortfolioCatalogueSchemaTest.php</file>
             <file>tests/Install/PortfolioModulePinTest.php</file>
             <file>tests/Install/PortfolioPageLinkMigrationTest.php</file>
@@ -336,6 +339,10 @@
             <file>tests/Service/BlockDefinitionContractTest.php</file>
             <file>tests/Service/BlockLocalizationTest.php</file>
             <file>tests/Install/BlockTranslationSchemaTest.php</file>
+            <file>tests/Install/BlockTranslationMigrationTest.php</file>
+            <file>tests/Service/BlockLocalizationEditorHttpTest.php</file>
+            <file>tests/Service/BlockLocalizedRenderingTest.php</file>
+            <file>tests/Service/BlockWordsPreloadTest.php</file>
             <file>tests/Service/BlockLibraryScreenTest.php</file>
             <file>tests/Service/BlockPickerTest.php</file>
             <file>tests/Service/BlockPreviewAccessTest.php</file>
