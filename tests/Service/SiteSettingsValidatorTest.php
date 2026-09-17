@@ -26,8 +26,6 @@ final class SiteSettingsValidatorTest extends TestCase
         'site_name' => 'Testsite',
         'email' => '',
         'company_phone' => '',
-        'city_nl' => '',
-        'city_en' => '',
         'company_street' => '',
         'company_house_number' => '',
         'company_postal_code' => '',
@@ -101,12 +99,21 @@ final class SiteSettingsValidatorTest extends TestCase
         }
     }
 
-    public function testAnEmptyCityIsValid(): void
+    /**
+     * Multilingual 2.0 phase 4: the place visitors read is website text per
+     * language (App\Service\LocalizedSiteSettings). This list writes
+     * site_settings rows only, so neither the new field nor the old pair is
+     * one of its keys; the endpoint saves the place itself, in its language.
+     */
+    public function testThePlaceVisitorsReadIsNotASiteSettingsRowAnyMore(): void
     {
-        $result = $this->validate(['city_nl' => '', 'city_en' => ''] + self::ALGEMEEN);
+        $result = $this->validate(['city' => 'Utrecht', 'city_nl' => 'Utrecht', 'city_en' => 'Utrecht'] + self::ALGEMEEN);
 
         $this->assertSame([], $result['errors']);
-        $this->assertSame('', $result['values']['city_nl']);
+        $this->assertArrayNotHasKey('city', $result['values']);
+        $this->assertArrayNotHasKey('city_nl', $result['values']);
+        $this->assertArrayNotHasKey('city_nl', SiteSettingsValidator::FIELDS);
+        $this->assertArrayHasKey('city', \App\Service\LocalizedSiteSettings::KEYS);
     }
 
     /**
@@ -203,7 +210,7 @@ final class SiteSettingsValidatorTest extends TestCase
      */
     public function testASiteThatNeverHadAnAddressIsNotBlockedFromOtherSaves(): void
     {
-        $result = $this->validate(['email' => '', 'city_nl' => 'Nieuw'] + self::ALGEMEEN, ['email' => ''], [$this->form('Offerteformulier')]);
+        $result = $this->validate(['email' => '', 'company_city' => 'Nieuw'] + self::ALGEMEEN, ['email' => ''], [$this->form('Offerteformulier')]);
 
         $this->assertSame([], $result['errors']);
     }
@@ -250,7 +257,7 @@ final class SiteSettingsValidatorTest extends TestCase
         $result = $this->validate([
             'site_name' => 'Testsite',
             'csrf_token' => 'abc',
-            'header_cta_label_nl' => 'Niet van dit scherm',
+            'footer_description' => 'Niet van dit scherm',
             'footer_show_email' => '0',
         ]);
 
@@ -267,7 +274,7 @@ final class SiteSettingsValidatorTest extends TestCase
 
     public function testAChangedValueOverTheLimitIsRefused(): void
     {
-        $this->assertNotSame([], $this->validate(['city_nl' => str_repeat('a', 151)] + self::ALGEMEEN)['errors']);
+        $this->assertNotSame([], $this->validate(['company_city' => str_repeat('a', 151)] + self::ALGEMEEN)['errors']);
         $this->assertNotSame([], $this->validate(['company_country' => 'NLD'] + self::ALGEMEEN)['errors']);
     }
 
@@ -275,7 +282,7 @@ final class SiteSettingsValidatorTest extends TestCase
     {
         $legacy = str_repeat('a', 600);
 
-        $result = $this->validate(['city_nl' => $legacy] + self::ALGEMEEN, ['city_nl' => $legacy]);
+        $result = $this->validate(['company_city' => $legacy] + self::ALGEMEEN, ['company_city' => $legacy]);
 
         $this->assertSame([], $result['errors']);
     }
@@ -357,9 +364,9 @@ final class SiteSettingsValidatorTest extends TestCase
     {
         $footer = (string) file_get_contents(self::root() . '/partials/footer.php');
         $this->assertStringContainsString(
-            "<?php if (trim(\$footerDescriptionNl) !== '' || trim(\$footerDescriptionEn) !== ''): ?>",
+            '<?php if ($footerDescription !== null): ?>',
             $footer,
-            'the footer prints no paragraph without a description'
+            'the footer prints no paragraph without a description (FooterService::description())'
         );
 
         $contact = (string) file_get_contents(self::root() . '/partials/section-contact-form.php');

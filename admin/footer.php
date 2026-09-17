@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../vendor/autoload.php';
 require_once __DIR__ . '/_translate.php';
-require_once __DIR__ . '/_language_fields.php';
 require_once __DIR__ . '/_localized_fields.php';
 require_once __DIR__ . '/_link_destination.php';
 require_once __DIR__ . '/_save_bar.php';
@@ -16,6 +15,7 @@ use App\Service\AdminAuth;
 use App\Service\Branding;
 use App\Service\Csrf;
 use App\Service\FooterLocalization;
+use App\Service\LocalizedSiteSettings;
 use App\Service\RouteRegistry;
 use App\Service\SiteSettings;
 use App\Service\SocialProfiles;
@@ -110,6 +110,24 @@ $setting = static function (string $section, string $key) use ($settings, $setti
 $settingErrors = static fn (string $section): array => is_array($settingsError) && ($settingsError['section'] ?? '') === $section
     ? (array) ($settingsError['errors'] ?? [])
     : [];
+
+/**
+ * The description and the closing line are website text in ONE language at a
+ * time (admin/_localized_fields.php, App\Service\LocalizedSiteSettings): the
+ * language chosen in the CMS shell, as stored, or what a refused save typed
+ * in that same language.
+ */
+$editLanguage = admin_localized_language();
+$localizedSetting = static function (string $section, string $key) use ($settingsError, $editLanguage): string {
+    if (is_array($settingsError) && ($settingsError['section'] ?? '') === $section
+        && ($settingsError['old']['language_code'] ?? null) === $editLanguage
+        && array_key_exists($key, $settingsError['old'] ?? [])
+    ) {
+        return (string) $settingsError['old'][$key];
+    }
+
+    return LocalizedSiteSettings::raw($key, $editLanguage);
+};
 
 /**
  * The company details the switches decide about, read from Site-instellingen
@@ -324,20 +342,11 @@ function footer_social_fields(int $id, array $values, array $errors): void
         </p>
       </fieldset>
 
-      <?php admin_lang_bar(); ?>
-      <div class="admin-form-row admin-form-row--split">
-        <?php admin_lang_pane_start('nl'); ?>
-        <div class="admin-field">
-          <?= admin_field_label('footer-description-nl', admin_t('footer.description_label'), admin_t('help.footer.description')) ?>
-          <textarea id="footer-description-nl" name="footer_description_nl" maxlength="500" rows="3"<?= admin_lang_placeholder_attr('nl') ?>><?= $h($setting('brand', 'footer_description_nl')) ?></textarea>
-        </div>
-        <?php admin_lang_pane_end(); ?>
-        <?php admin_lang_pane_start('en'); ?>
-        <div class="admin-field">
-          <?= admin_field_label('footer-description-en', admin_t('footer.description_label'), admin_t('help.footer.description')) ?>
-          <textarea id="footer-description-en" name="footer_description_en" maxlength="500" rows="3"<?= admin_lang_placeholder_attr('en') ?>><?= $h($setting('brand', 'footer_description_en')) ?></textarea>
-        </div>
-        <?php admin_lang_pane_end(); ?>
+      <?php admin_localized_bar($editLanguage); ?>
+      <?= admin_localized_input($editLanguage) ?>
+      <div class="admin-field">
+        <?= admin_field_label('footer-description', admin_t('footer.description_label'), admin_t('help.footer.description')) ?>
+        <textarea id="footer-description" name="footer_description" maxlength="<?= LocalizedSiteSettings::KEYS[LocalizedSiteSettings::FOOTER_DESCRIPTION] ?>" rows="3"<?= admin_localized_placeholder_attr($editLanguage) ?>><?= $h($localizedSetting('brand', LocalizedSiteSettings::FOOTER_DESCRIPTION)) ?></textarea>
       </div>
 
       <button type="submit" class="admin-btn-primary"><?= admin_te('common.save') ?></button>
@@ -556,20 +565,11 @@ function footer_social_fields(int $id, array $values, array $errors): void
         <?= admin_help(admin_t('footer.slogan_enabled'), admin_t('help.footer.slogan')) ?>
       </div>
 
-      <?php admin_lang_bar(); ?>
-      <div class="admin-form-row admin-form-row--split">
-        <?php admin_lang_pane_start('nl'); ?>
-        <div class="admin-field">
-          <?= admin_field_label('footer-slogan-nl', admin_t('footer.slogan_label')) ?>
-          <input type="text" id="footer-slogan-nl" name="footer_slogan_nl" maxlength="200" value="<?= $h($setting('bottom', 'footer_slogan_nl')) ?>"<?= admin_lang_placeholder_attr('nl') ?>>
-        </div>
-        <?php admin_lang_pane_end(); ?>
-        <?php admin_lang_pane_start('en'); ?>
-        <div class="admin-field">
-          <?= admin_field_label('footer-slogan-en', admin_t('footer.slogan_label')) ?>
-          <input type="text" id="footer-slogan-en" name="footer_slogan_en" maxlength="200" value="<?= $h($setting('bottom', 'footer_slogan_en')) ?>"<?= admin_lang_placeholder_attr('en') ?>>
-        </div>
-        <?php admin_lang_pane_end(); ?>
+      <?php admin_localized_bar($editLanguage); ?>
+      <?= admin_localized_input($editLanguage) ?>
+      <div class="admin-field">
+        <?= admin_field_label('footer-slogan', admin_t('footer.slogan_label')) ?>
+        <input type="text" id="footer-slogan" name="footer_slogan" maxlength="<?= LocalizedSiteSettings::KEYS[LocalizedSiteSettings::FOOTER_SLOGAN] ?>" value="<?= $h($localizedSetting('bottom', LocalizedSiteSettings::FOOTER_SLOGAN)) ?>"<?= admin_localized_placeholder_attr($editLanguage) ?>>
       </div>
 
       <button type="submit" class="admin-btn-primary"><?= admin_te('common.save') ?></button>
@@ -579,7 +579,6 @@ function footer_social_fields(int $id, array $values, array $errors): void
 <?php save_bar(); ?>
 <?= admin_confirm_dialog() ?>
 <script src="<?= \App\Service\AssetVersion::url('/admin/assets/admin.js') ?>"></script>
-<?php admin_lang_script(); ?>
 <?php save_bar_script(); ?>
 </body>
 </html>

@@ -30,8 +30,6 @@ final class SiteSettingsPersistenceTest extends TestCase
         'company_city',
         'company_country',
         'company_phone',
-        'city_nl',
-        'city_en',
         'invoice_footer_text',
         'company_name',
         'invoice_number_prefix',
@@ -112,14 +110,13 @@ final class SiteSettingsPersistenceTest extends TestCase
 
     public function testEmptiedOptionalFieldsStayEmpty(): void
     {
-        $this->saveSiteSettings(['company_street' => 'Kerkstraat', 'city_nl' => 'Utrecht', 'city_en' => 'Utrecht']);
-        $this->saveSiteSettings(['company_street' => '', 'city_nl' => '', 'city_en' => '', 'company_country' => '']);
+        $this->saveSiteSettings(['company_street' => 'Kerkstraat', 'company_phone' => '030 123 45 67']);
+        $this->saveSiteSettings(['company_street' => '', 'company_phone' => '', 'company_country' => '']);
 
         $settings = SiteSettings::all();
 
         $this->assertSame('', $settings['company_street']);
-        $this->assertSame('', $settings['city_nl']);
-        $this->assertSame('', $settings['city_en']);
+        $this->assertSame('', $settings['company_phone']);
         $this->assertSame('NL', $settings['company_country'], 'the one address field with a format default keeps it');
     }
 

@@ -8,13 +8,17 @@
  *
  *   brand   the company block: which of logo, site name, e-mail address,
  *           phone number and KVK number the footer shows (footer_show_*),
- *           and the footer description (footer_description_nl/en);
- *   bottom  the bottom line: the copyright text (footer_copyright_template)
- *           and the closing line (footer_slogan_enabled/nl/en).
+ *           and the footer description;
+ *   bottom  the bottom line: the copyright text (footer_copyright_template),
+ *           whether the closing line shows (footer_slogan_enabled) and its
+ *           words.
  *
- * All site_settings keys (db/migrations/20260907230000_add_footer_settings.php,
- * 20260909220000_pin_header_cta_and_footer_slogan.php), read by
- * App\Service\FooterService and partials/footer.php.
+ * The switches and the copyright template are site_settings rows. The
+ * description and the closing line are website TEXT, stored per language by
+ * App\Service\LocalizedSiteSettings (Multilingual 2.0 phase 4): written only
+ * in the active website language named by `language_code`, in the same
+ * transaction as the section's switches, and every other language stays as
+ * it is. Read by App\Service\FooterService and partials/footer.php.
  *
  * EACH SECTION WRITES EXACTLY ITS OWN KEYS, every one of them on every save,
  * including a switch's "off" state: an unticked checkbox sends nothing, so a
@@ -23,7 +27,7 @@
  * each other's settings off. An unknown section writes nothing at all.
  *
  * ONE PLACE FOR THE FOOTER DESCRIPTION. Until Footer phase B
- * update-site-settings.php could write footer_description_nl/en too.
+ * update-site-settings.php could write it too.
  * App\Service\SiteSettingsValidator no longer lists them, so this is the only
  * screen that edits them (HEADER-FOOTER.md).
  *
@@ -40,10 +44,14 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../../vendor/autoload.php';
 
+use App\Database;
 use App\Repository\SiteSettingRepository;
 use App\Service\AdminAuth;
 use App\Service\Csrf;
 use App\Service\Language\AdminTranslator;
+use App\Service\Language\LanguageCode;
+use App\Service\Language\SiteLanguages;
+use App\Service\LocalizedSiteSettings;
 use App\Service\SiteSettings;
 
 AdminAuth::requireLoginForApi();
@@ -73,6 +81,11 @@ $field = static fn (string $name): string => is_string($_POST[$name] ?? null) ? 
 $switch = static fn (string $name): string => isset($_POST[$name]) ? '1' : '0';
 
 $errors = [];
+$languageCode = LanguageCode::normalise($field('language_code')) ?? '';
+
+if ($languageCode === '' || !SiteLanguages::isActive($languageCode)) {
+    $errors[] = AdminTranslator::trans('validation.language_unknown');
+}
 
 if ($section === 'brand') {
     $values = [
@@ -81,33 +94,32 @@ if ($section === 'brand') {
         'footer_show_email' => $switch('footer_show_email'),
         'footer_show_phone' => $switch('footer_show_phone'),
         'footer_show_kvk' => $switch('footer_show_kvk'),
-        'footer_description_nl' => $field('footer_description_nl'),
-        'footer_description_en' => $field('footer_description_en'),
     ];
+    $localized = [LocalizedSiteSettings::FOOTER_DESCRIPTION => $field('footer_description')];
 
-    if (mb_strlen($values['footer_description_nl']) > 500 || mb_strlen($values['footer_description_en']) > 500) {
+    if (LocalizedSiteSettings::problems($localized) !== []) {
         $errors[] = AdminTranslator::trans('footer.description_too_long');
     }
 } else {
     $values = [
         'footer_copyright_template' => $field('footer_copyright_template'),
         'footer_slogan_enabled' => $switch('footer_slogan_enabled'),
-        'footer_slogan_nl' => $field('footer_slogan_nl'),
-        'footer_slogan_en' => $field('footer_slogan_en'),
     ];
+    $localized = [LocalizedSiteSettings::FOOTER_SLOGAN => $field('footer_slogan')];
 
     if (mb_strlen($values['footer_copyright_template']) > 300) {
         $errors[] = AdminTranslator::trans('footer.copyright_too_long');
     }
-    if (mb_strlen($values['footer_slogan_nl']) > 200 || mb_strlen($values['footer_slogan_en']) > 200) {
+    if (LocalizedSiteSettings::problems($localized) !== []) {
         $errors[] = AdminTranslator::trans('validation.footer_slogan_mag_maximaal_200');
     }
 }
 
 $card = '/admin/footer.php#' . FOOTER_SETTINGS_SECTIONS[$section];
+$old = $values + $localized + ['language_code' => $languageCode];
 
 if ($errors !== []) {
-    $_SESSION['admin_footer_settings_error'] = ['section' => $section, 'errors' => $errors, 'old' => $values];
+    $_SESSION['admin_footer_settings_error'] = ['section' => $section, 'errors' => $errors, 'old' => $old];
     header('Location: ' . $card);
     exit;
 }
@@ -119,15 +131,24 @@ if ($section === 'bottom' && $values['footer_copyright_template'] === '') {
     $values['footer_copyright_template'] = SiteSettings::defaults()['footer_copyright_template'];
 }
 
+$db = Database::connection();
+
 try {
-    (new SiteSettingRepository())->upsertMany($values);
+    $db->beginTransaction();
+    (new SiteSettingRepository($db))->upsertMany($values);
+    LocalizedSiteSettings::save($languageCode, $localized);
+    $db->commit();
     SiteSettings::clearCache();
+    LocalizedSiteSettings::clearCache();
 } catch (\Throwable $e) {
+    if ($db->inTransaction()) {
+        $db->rollBack();
+    }
     error_log('[api/admin/update-footer-settings.php] ' . $e->getMessage());
     $_SESSION['admin_footer_settings_error'] = [
         'section' => $section,
         'errors' => [AdminTranslator::trans('validation.instellingen_konden_opgeslagen_probeer_opnieuw')],
-        'old' => $values,
+        'old' => $old,
     ];
     header('Location: ' . $card);
     exit;

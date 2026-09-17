@@ -355,8 +355,7 @@ final class FreshInstallTest extends TestCase
         $settings = $this->settings();
 
         foreach ([
-            'site_name', 'email', 'city_nl', 'city_en', 'kvk_number',
-            'footer_description_nl', 'footer_description_en',
+            'site_name', 'email', 'kvk_number',
             'logo_path', 'favicon_path', 'og_image_path',
             'company_city', 'company_website', 'invoice_number_prefix',
             'canonical_base_url', 'order_number_prefix',
@@ -367,6 +366,8 @@ final class FreshInstallTest extends TestCase
                 "A fresh install stores no '{$key}': a missing row means the generic code default."
             );
         }
+
+        $this->assertSame(0, $this->install()->count('site_setting_translations'), 'and no website text of somebody else in any language');
     }
 
     /**

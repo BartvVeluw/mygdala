@@ -6,6 +6,8 @@ use App\Repository\ContactFormRepository;
 use App\Service\ContactFormContent;
 use App\Service\Forms\FormCatalog;
 use App\Service\Forms\FormRenderState;
+use App\Service\Language\LocalizedValue;
+use App\Service\LocalizedSiteSettings;
 use App\Service\SiteSettings;
 
 require_once dirname(__DIR__, 3) . '/partials/section-contact-form.php';
@@ -134,15 +136,19 @@ final class ContactFormBlock extends BlockDefinition
         }
 
         // Both details are optional in Site-instellingen; the partial leaves
-        // out a line whose value is missing.
+        // out a line whose value is missing. The place is website text per
+        // language (App\Service\LocalizedSiteSettings), handed over as one
+        // value with the fallback applied; without words in the default
+        // language it is no place at all, as for the footer's texts.
         render_section_contact_form(
             $content,
             FormCatalog::renderable($content['form_id'] ?? null),
             FormRenderState::forInstance($pageSlug, $sectionKey),
             [
                 'email' => trim(SiteSettings::get('email')),
-                'city_nl' => SiteSettings::get('city_nl'),
-                'city_en' => SiteSettings::get('city_en'),
+                'city' => LocalizedSiteSettings::hasDefault(LocalizedSiteSettings::CITY)
+                    ? LocalizedSiteSettings::bilingual(LocalizedSiteSettings::CITY)
+                    : LocalizedValue::of([]),
             ]
         );
     }
@@ -161,7 +167,7 @@ final class ContactFormBlock extends BlockDefinition
             // On, so the preview shows the one control this block adds to a
             // form (and the neutrality test reads its label).
             'allow_attachment' => true,
-            'contact' => ['email' => BlockSamples::EMAIL, ...$samples->fields('city', 'city')],
+            'contact' => ['email' => BlockSamples::EMAIL, 'city' => $samples->localized('city')],
         ];
     }
 

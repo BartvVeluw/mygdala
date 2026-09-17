@@ -294,7 +294,7 @@ $setupPrimaryLanguage = $previous('primary_content_language') !== ''
 
       <div class="admin-form-row">
         <label for="setup-description"><?= admin_te('setup.korte_omschrijving') ?>
-          <textarea id="setup-description" name="footer_description_nl" rows="3" maxlength="300"><?= $h($previous('footer_description_nl')) ?></textarea>
+          <textarea id="setup-description" name="footer_description" rows="3" maxlength="300"><?= $h($previous('footer_description')) ?></textarea>
         </label>
         <p class="admin-text-muted"><?= admin_te('setup.e_n_twee_zinnen') ?></p>
       </div>
@@ -305,7 +305,7 @@ $setupPrimaryLanguage = $previous('primary_content_language') !== ''
 
         <div class="admin-form-row">
           <label for="setup-city"><?= admin_te('setup.plaats') ?>
-            <input type="text" id="setup-city" name="city_nl" maxlength="120" value="<?= $h($previous('city_nl')) ?>">
+            <input type="text" id="setup-city" name="city" maxlength="120" value="<?= $h($previous('city')) ?>">
           </label>
         </div>
 

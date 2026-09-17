@@ -307,6 +307,7 @@
             <file>tests/Install/SiteLanguageRegistryMigrationTest.php</file>
             <file>tests/Install/PageTranslationMigrationTest.php</file>
             <file>tests/Install/NavigationFooterLabelMigrationTest.php</file>
+            <file>tests/Install/LocalizedSiteSettingMigrationTest.php</file>
             <file>tests/Install/BlockTranslationSchemaTest.php</file>
             <file>tests/Install/BlockTranslationMigrationTest.php</file>
             <file>tests/Install/RemainingBlockWordsMigrationTest.php</file>
@@ -424,6 +425,8 @@
             <file>tests/Repository/FooterRepositoryTest.php</file>
             <file>tests/Repository/FooterSocialLinkRepositoryTest.php</file>
             <file>tests/Repository/NavigationFooterTranslationTest.php</file>
+            <file>tests/Repository/LocalizedSiteSettingsTest.php</file>
+            <file>tests/Service/LocalizedSiteSettingsEditorHttpTest.php</file>
             <file>tests/Service/NavigationFooterLocalizationEditorHttpTest.php</file>
             <file>tests/Repository/NavigationRepositoryTest.php</file>
             <file>tests/Service/AdminAccessControlTest.php</file>
@@ -472,6 +475,7 @@
             <file>tests/Install/SiteLanguageRegistryMigrationTest.php</file>
             <file>tests/Install/PageTranslationMigrationTest.php</file>
             <file>tests/Install/NavigationFooterLabelMigrationTest.php</file>
+            <file>tests/Install/LocalizedSiteSettingMigrationTest.php</file>
             <file>tests/Service/BlockPreviewAccessTest.php</file>
             <file>tests/Service/PagePreviewAccessTest.php</file>
             <file>tests/Service/PagePreviewContractTest.php</file>

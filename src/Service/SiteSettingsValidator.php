@@ -47,9 +47,9 @@ final class SiteSettingsValidator
         'site_name' => 150,
         'email' => 150,
         'company_phone' => 30,
-        'city_nl' => 150,
-        'city_en' => 150,
-        // No footer_description_nl/en since Footer phase B: the footer
+        // No city: the place visitors read is website text per language
+        // (App\Service\LocalizedSiteSettings), saved by the endpoint in the
+        // posted language. No footer description since Footer phase B: the footer
         // description has one place, the Footer screen
         // (api/admin/update-footer-settings.php), and this list is what keeps
         // this endpoint from writing it anyway.

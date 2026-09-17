@@ -6,15 +6,19 @@ namespace Tests\Service;
 
 use App\Module\ModuleRegistry;
 use App\Service\FooterService;
+use App\Service\LocalizedSiteSettings;
 use App\Service\SiteSettings;
 use App\Service\SocialProfiles;
 use PHPUnit\Framework\TestCase;
+use Tests\Support\SiteLanguageFixture;
 
 /**
  * The footer's slogan and the social profiles, as data rather than markup.
  *
  * No database and no web server: App\Service\SiteSettings::overrideForTests()
- * stands in for the stored settings and
+ * stands in for the stored settings, App\Service\LocalizedSiteSettings::
+ * overrideForTests() for the slogan's words per language (Multilingual 2.0
+ * phase 4) and
  * App\Service\SocialProfiles::overrideForTests() for the footer_social_links
  * rows (Footer phase B). What the table and the Footer screen do with real
  * rows is Tests\Repository\FooterSocialLinkRepositoryTest and
@@ -24,8 +28,8 @@ use PHPUnit\Framework\TestCase;
  * buttons are navigation items since Navigation phase A; every rule this file
  * held for the single button now holds per button in
  * Tests\Service\NavigationServiceTest (no database) and
- * Tests\Service\HeaderFooterRenderingTest (a CMS-page target). What stays
- * here is that the legacy header_cta_* keys keep their generic defaults.
+ * Tests\Service\HeaderFooterRenderingTest (a CMS-page target). The legacy
+ * header_cta_* keys are gone (db/migrations/20260918130000).
  */
 final class HeaderFooterSettingsTest extends TestCase
 {
@@ -40,8 +44,16 @@ final class HeaderFooterSettingsTest extends TestCase
         'social_etsy_url',
     ];
 
+    protected function setUp(): void
+    {
+        SiteLanguageFixture::useBilingual('nl');
+        LocalizedSiteSettings::overrideForTests([]);
+    }
+
     protected function tearDown(): void
     {
+        SiteLanguageFixture::reset();
+        LocalizedSiteSettings::overrideForTests(null);
         SiteSettings::overrideForTests(null);
         SocialProfiles::overrideForTests(null);
         ModuleRegistry::overrideForTests(null);
@@ -51,6 +63,12 @@ final class HeaderFooterSettingsTest extends TestCase
     private function withSettings(array $settings): void
     {
         SiteSettings::overrideForTests($settings);
+    }
+
+    /** @param array<string, string> $words language code => the closing line */
+    private function withSlogan(array $words): void
+    {
+        LocalizedSiteSettings::overrideForTests([LocalizedSiteSettings::FOOTER_SLOGAN => $words]);
     }
 
     /**
@@ -75,11 +93,9 @@ final class HeaderFooterSettingsTest extends TestCase
     {
         $defaults = SiteSettings::defaults();
 
-        $this->assertSame('0', $defaults['header_cta_enabled']);
-        $this->assertSame('', $defaults['header_cta_label_nl']);
-        $this->assertSame('', $defaults['header_cta_label_en']);
+        $this->assertArrayNotHasKey('header_cta_enabled', $defaults, 'the legacy header button settings are gone');
+        $this->assertArrayNotHasKey('footer_slogan_nl', $defaults, 'the closing line is website text per language');
         $this->assertSame('0', $defaults['footer_slogan_enabled']);
-        $this->assertSame('', $defaults['footer_slogan_nl']);
 
         foreach (self::LEGACY_SOCIAL_KEYS as $key) {
             $this->assertSame('', $defaults[$key], $key . ' must be empty on a fresh install');
@@ -87,16 +103,15 @@ final class HeaderFooterSettingsTest extends TestCase
     }
 
     /**
-     * Including the legacy header_cta_* keys: nothing reads them any more,
-     * but a default that carried somebody's wording would still be wrong.
+     * A localized setting has no code default at all: a fresh install has no
+     * row, so no install inherits somebody's wording.
      */
     public function testTheCodeDefaultsCarryNoCompanySpecificCopy(): void
     {
-        $defaults = SiteSettings::defaults();
-
-        $this->assertSame('', $defaults['header_cta_label_nl']);
-        $this->assertSame('', $defaults['footer_slogan_nl']);
-        $this->assertSame('', $defaults['footer_slogan_en']);
+        foreach (array_keys(LocalizedSiteSettings::KEYS) as $key) {
+            $this->assertSame([], LocalizedSiteSettings::words($key), $key);
+        }
+        $this->assertNull(FooterService::description());
     }
 
     public function testTheDefaultsRenderNothingAtAll(): void
@@ -128,44 +143,41 @@ final class HeaderFooterSettingsTest extends TestCase
 
     public function testAnEnabledSloganRenders(): void
     {
-        $this->withSettings([
-            'footer_slogan_enabled' => '1',
-            'footer_slogan_nl' => 'Ontworpen & gebouwd met zorg in Nijmegen',
-            'footer_slogan_en' => 'Designed & built with care in Nijmegen',
-        ]);
+        $this->withSettings(['footer_slogan_enabled' => '1']);
+        $this->withSlogan(['nl' => 'Ontworpen & gebouwd met zorg in Nijmegen', 'en' => 'Designed & built with care in Nijmegen']);
 
         $this->assertSame(
             ['nl' => 'Ontworpen & gebouwd met zorg in Nijmegen', 'en' => 'Designed & built with care in Nijmegen'],
-            FooterService::slogan()
+            FooterService::slogan()?->attributeValues()
         );
     }
 
     public function testADisabledSloganRendersNothing(): void
     {
-        $this->withSettings([
-            'footer_slogan_enabled' => '0',
-            'footer_slogan_nl' => 'Ontworpen & gebouwd met zorg in Nijmegen',
-        ]);
+        $this->withSettings(['footer_slogan_enabled' => '0']);
+        $this->withSlogan(['nl' => 'Ontworpen & gebouwd met zorg in Nijmegen']);
 
         $this->assertNull(FooterService::slogan());
     }
 
-    public function testASloganWithoutDutchTextRendersNothing(): void
+    /** The default language decides whether the line exists, whichever language that is. */
+    public function testASloganWithoutWordsInTheDefaultLanguageRendersNothing(): void
     {
-        $this->withSettings(['footer_slogan_enabled' => '1', 'footer_slogan_nl' => '']);
+        $this->withSettings(['footer_slogan_enabled' => '1']);
+        $this->withSlogan(['en' => 'Made with care']);
 
         $this->assertNull(FooterService::slogan());
+
+        SiteLanguageFixture::useBilingual('en');
+        $this->assertSame(['nl' => 'Made with care', 'en' => 'Made with care'], FooterService::slogan()?->attributeValues());
     }
 
-    public function testAnEmptyEnglishSloganFallsBackToTheDutchOne(): void
+    public function testAnEmptyTranslationFallsBackToTheDefaultLanguage(): void
     {
-        $this->withSettings([
-            'footer_slogan_enabled' => '1',
-            'footer_slogan_nl' => 'Met zorg gemaakt',
-            'footer_slogan_en' => '',
-        ]);
+        $this->withSettings(['footer_slogan_enabled' => '1']);
+        $this->withSlogan(['nl' => 'Met zorg gemaakt']);
 
-        $this->assertSame(['nl' => 'Met zorg gemaakt', 'en' => 'Met zorg gemaakt'], FooterService::slogan());
+        $this->assertSame(['nl' => 'Met zorg gemaakt', 'en' => 'Met zorg gemaakt'], FooterService::slogan()?->attributeValues());
     }
 
     // ---------------------------------------------------------------- social

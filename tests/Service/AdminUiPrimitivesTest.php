@@ -633,9 +633,8 @@ final class AdminUiPrimitivesTest extends TestCase
             'site_name' => 'help.settings.site_name',
             'kvk_number' => 'help.settings.kvk_number',
             'email' => 'help.settings.email',
-            // Both language panes: only the one being edited is on screen.
-            'city_nl' => 'help.settings.city',
-            'city_en' => 'help.settings.city',
+            // One website language at a time: the one being edited.
+            'city' => 'help.settings.city',
             'company_phone' => 'help.settings.phone',
             'company_city' => 'help.settings.company_city',
             'company_country' => 'help.settings.country',
@@ -750,7 +749,7 @@ final class AdminUiPrimitivesTest extends TestCase
         // Tests\Service\SiteSettingsValidatorTest pins every field against it.
         $this->assertMatchesRegularExpression('/name="site_name"[^>]*\brequired\b/', $settings, 'site_name must stay required');
 
-        foreach (['email', 'city_nl', 'kvk_number', 'city_en', 'seo_default_description'] as $name) {
+        foreach (['email', 'city', 'kvk_number', 'seo_default_description'] as $name) {
             $this->assertDoesNotMatchRegularExpression('/name="' . $name . '"[^>]*\brequired\b/', $settings, $name . ' is optional');
             $this->assertDoesNotMatchRegularExpression('/name="' . $name . '"[^>]*admin_lang_required\(/', $settings, $name . ' is optional in every language');
         }

@@ -10,11 +10,12 @@ use App\Service\AdminAuth;
 use App\Service\AdminTheme;
 use App\Service\Csrf;
 use App\Service\Forms\FormRecipient;
+use App\Service\LocalizedSiteSettings;
 use App\Service\Media\MediaService;
 use App\Service\SiteSettings;
 
 require_once __DIR__ . '/_media_picker.php';
-require_once __DIR__ . '/_language_fields.php';
+require_once __DIR__ . '/_localized_fields.php';
 require_once __DIR__ . '/_admin_tabs.php';
 require_once __DIR__ . '/_translate.php';
 require_once __DIR__ . '/_save_bar.php';
@@ -42,6 +43,14 @@ $currentAdminTheme = AdminTheme::current();
 $customColors = AdminTheme::customColors();
 
 $values = $old ?? SiteSettings::all();
+
+// The place visitors read is website text in one language at a time
+// (admin/_localized_fields.php): the language chosen in the CMS shell, as
+// stored, or what a refused save typed in that language.
+$editLanguage = admin_localized_language();
+$city = is_array($old) && ($old['language_code'] ?? null) === $editLanguage
+    ? (string) ($old[LocalizedSiteSettings::CITY] ?? '')
+    : LocalizedSiteSettings::raw(LocalizedSiteSettings::CITY, $editLanguage);
 
 /*
  * What an empty contact address means right now, said where the address is
@@ -241,24 +250,14 @@ function brandingImageField(
       <?php endif; ?>
 
       <h3><?= admin_te('settings.group_on_site') ?></h3>
-      <?php /* Both language panes carry the same explanation: only the pane
-               of the language being edited is on screen. Optional in both
-               languages: the contact block and the footer leave an empty one
-               out. */ ?>
-      <?php admin_lang_bar(); ?>
-      <div class="admin-form-row admin-form-row--split">
-        <?php admin_lang_pane_start('nl'); ?>
-        <div class="admin-field">
-          <?= admin_field_label('settings-city-nl', admin_t('settings.plaats_locatie'), admin_t('help.settings.city')) ?>
-          <input type="text" id="settings-city-nl" name="city_nl" maxlength="150" value="<?= settingValue($values, 'city_nl') ?>">
-        </div>
-        <?php admin_lang_pane_end(); ?>
-        <?php admin_lang_pane_start('en'); ?>
-        <div class="admin-field">
-          <?= admin_field_label('settings-city-en', admin_t('settings.plaats_locatie_2'), admin_t('help.settings.city')) ?>
-          <input type="text" id="settings-city-en" name="city_en" maxlength="150" value="<?= settingValue($values, 'city_en') ?>"<?= admin_lang_placeholder_attr('en') ?>>
-        </div>
-        <?php admin_lang_pane_end(); ?>
+      <?php /* One website language at a time, like every other text a visitor
+               reads. Optional in every language: the contact block leaves an
+               empty one out. */ ?>
+      <?php admin_localized_bar($editLanguage); ?>
+      <?= admin_localized_input($editLanguage) ?>
+      <div class="admin-field">
+        <?= admin_field_label('settings-city', admin_t('settings.plaats_locatie'), admin_t('help.settings.city')) ?>
+        <input type="text" id="settings-city" name="city" maxlength="<?= LocalizedSiteSettings::KEYS[LocalizedSiteSettings::CITY] ?>" value="<?= htmlspecialchars($city, ENT_QUOTES, 'UTF-8') ?>"<?= admin_localized_placeholder_attr($editLanguage) ?>>
       </div>
 
       <?php /* The footer description used to be edited here as well as on the
@@ -278,8 +277,8 @@ function brandingImageField(
       <?php /* The structured postal address. These keys sat on the Facturen
                tab once, but they are the site's address rather than the
                invoice's: App\Mail\EmailIdentity already puts the city under
-               every e-mail. Not city_nl/city_en above, which is what visitors
-               are told in two languages; this is an address. */ ?>
+               every e-mail. Not the place above, which is what visitors are
+               told in their language; this is an address. */ ?>
       <div class="admin-form-row admin-form-row--split">
         <div class="admin-field">
           <?= admin_field_label('settings-company-street', admin_t('settings.straat')) ?>
@@ -555,7 +554,6 @@ function brandingImageField(
 <?php media_picker_modal(); ?>
 <?php admin_tabs_script(); ?>
 <?php media_picker_script(); ?>
-<?php admin_lang_script(); ?>
 <?php save_bar_script(); ?>
 <?php /* The colour control shared with admin/theme.php, then the dashboard
          theme's live preview, which reads the hex fields that control fills. */ ?>

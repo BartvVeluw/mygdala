@@ -115,8 +115,8 @@ final class SetupCompletionTest extends TestCase
         return [
             'site_name' => self::SITE_NAME,
             'email' => 'hallo@testbedrijf.example',
-            'footer_description_nl' => 'Wij maken dingen.',
-            'city_nl' => 'Utrecht',
+            'footer_description' => 'Wij maken dingen.',
+            'city' => 'Utrecht',
             'kvk_number' => '12345678',
             'canonical_base_url' => self::BASE_URL,
 
@@ -197,8 +197,13 @@ final class SetupCompletionTest extends TestCase
 
         $this->assertSame(self::SITE_NAME, $settings['site_name']);
         $this->assertSame('hallo@testbedrijf.example', $settings['email']);
-        $this->assertSame('Wij maken dingen.', $settings['footer_description_nl']);
-        $this->assertSame('Utrecht', $settings['city_nl']);
+        // Website text, in the language the wizard chose (Multilingual 2.0
+        // phase 4): a site_setting_translations row, not a site_settings row.
+        $this->assertArrayNotHasKey('footer_description_nl', $settings);
+        $this->assertSame(
+            [['setting_key' => 'city', 'language_code' => 'nl', 'value' => 'Utrecht'], ['setting_key' => 'footer_description', 'language_code' => 'nl', 'value' => 'Wij maken dingen.']],
+            $this->install()->rows('SELECT setting_key, language_code, value FROM site_setting_translations ORDER BY setting_key, language_code')
+        );
         $this->assertSame('12345678', $settings['kvk_number']);
         $this->assertSame(self::BASE_URL, $settings['canonical_base_url']);
     }

@@ -1314,9 +1314,9 @@ final class MultilingualBoundaryTest extends TestCase
      * file => the keys and helpers it may name.
      */
     private const OTHER_DOMAINS_PAIRS = [
-        // The contact details are Site-instellingen (phase 4).
-        'partials/section-contact-form.php' => ['city_nl', 'city_en', 'SiteText::attrs(', 'SiteText::visible(', 'LocalizedValue::ofDutchEnglish'],
-        'src/Service/Blocks/ContactFormBlock.php' => ['city_nl', 'city_en'],
+        // The contact card's own fixed labels ("Plaats", "E-mail") are still a
+        // hand-written pair; the place itself is LocalizedSiteSettings' (phase 4).
+        'partials/section-contact-form.php' => ['SiteText::attrs(', 'SiteText::visible('],
         // The cards are a Portfolio item or a product, with its category (phase 5).
         'partials/section-item-gallery.php' => ['alt_nl', 'alt_en', 'title_nl', 'title_en', 'subtitle_nl', 'subtitle_en', 'name_nl', 'name_en', 'SiteText::attrs(', 'SiteText::visible('],
         'src/Service/Blocks/ItemGalleryBlock.php' => ['alt_nl', 'alt_en'],
@@ -1836,6 +1836,80 @@ final class MultilingualBoundaryTest extends TestCase
             self::assertStringContainsString('beginTransaction()', $code, $endpoint);
             self::assertStringContainsString('commit()', $code, $endpoint);
         }
+    }
+
+    // ------------------------------------------ localized site settings (phase 4 wave B)
+
+    public function testOnlyItsRepositoryQueriesTheLocalizedSettingsAndOnlyItsApiUsesThatRepository(): void
+    {
+        $statement = '/\b(?:FROM|INTO|UPDATE|JOIN|TABLE)\s+`?site_setting_translations\b/i';
+        $offenders = [];
+
+        foreach (self::applicationSources() as $relative => $file) {
+            $source = (string) file_get_contents($file);
+
+            if ($relative !== 'src/Repository/SiteSettingTranslationRepository.php' && preg_match($statement, $source) === 1) {
+                $offenders[] = $relative . ' (SQL)';
+            }
+            if (!in_array($relative, ['src/Repository/SiteSettingTranslationRepository.php', 'src/Service/LocalizedSiteSettings.php'], true)
+                && str_contains(self::withoutComments($source), 'SiteSettingTranslationRepository')
+            ) {
+                $offenders[] = $relative . ' (repository)';
+            }
+        }
+
+        self::assertSame([], $offenders, 'the localized settings are reached through App\Service\LocalizedSiteSettings only');
+    }
+
+    public function testTheLocalizedSettingsCatalogueIsClosedToWebsiteText(): void
+    {
+        // Adding a key is a decision this test makes visible: only words a
+        // visitor reads belong here, never CMS interface text or module config.
+        self::assertSame(['city', 'footer_description', 'footer_slogan'], array_keys(\App\Service\LocalizedSiteSettings::KEYS));
+
+        foreach (array_keys(\App\Service\LocalizedSiteSettings::KEYS) as $key) {
+            self::assertArrayNotHasKey($key, \App\Service\SiteSettings::defaults(), $key . ' is not also a site_settings row');
+        }
+    }
+
+    public function testNothingReadsTheRemovedSettingKeys(): void
+    {
+        // 20260918130000 moved city_nl/en, footer_description_nl/en and
+        // footer_slogan_nl/en into site_setting_translations and removed the
+        // eight legacy header_cta_* rows.
+        $removed = '/[\x27"](?:city_(?:nl|en)|footer_description_(?:nl|en)|footer_slogan_(?:nl|en)|header_cta_[a-z_]+)[\x27"]/';
+        $offenders = [];
+
+        foreach (self::applicationSources() as $relative => $file) {
+            if (preg_match_all($removed, self::withoutComments((string) file_get_contents($file)), $matches) > 0) {
+                $offenders[] = $relative . ' (' . implode(', ', array_unique($matches[0])) . ')';
+            }
+        }
+
+        self::assertSame([], $offenders);
+    }
+
+    public function testTheSettingsConsumersTakeTheirWordsFromTheLocalizedStore(): void
+    {
+        self::assertStringContainsString('LocalizedSiteSettings::bilingual(LocalizedSiteSettings::CITY)', self::withoutComments(self::read('src/Service/Blocks/ContactFormBlock.php')));
+        self::assertStringContainsString('LocalizedSiteSettings::bilingual(LocalizedSiteSettings::FOOTER_SLOGAN)', self::withoutComments(self::read('src/Service/FooterService.php')));
+        self::assertStringContainsString('LocalizedSiteSettings::bilingual(LocalizedSiteSettings::FOOTER_DESCRIPTION)', self::withoutComments(self::read('src/Service/FooterService.php')));
+
+        foreach (['admin/settings.php', 'admin/footer.php'] as $screen) {
+            $code = self::read($screen);
+            self::assertStringContainsString("require_once __DIR__ . '/_localized_fields.php';", $code, $screen);
+            self::assertStringNotContainsString('_language_fields.php', $code, $screen . ' has no V1 language panes left');
+        }
+
+        foreach (['api/admin/update-site-settings.php', 'api/admin/update-footer-settings.php'] as $endpoint) {
+            $code = self::withoutComments(self::read($endpoint));
+            self::assertStringContainsString('SiteLanguages::isActive(', $code, $endpoint);
+            self::assertStringContainsString('LocalizedSiteSettings::save(', $code, $endpoint);
+            self::assertStringContainsString('beginTransaction()', $code, $endpoint);
+        }
+
+        // The wizard writes the description and the place in the language it chose.
+        self::assertStringContainsString("LocalizedSiteSettings::save(\$values['languages']['primary'], \$localized)", self::read('src/Install/SetupWizard.php'));
     }
 
     /**

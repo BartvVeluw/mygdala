@@ -55,12 +55,13 @@ class SiteSettings
         // its current values as real rows before these defaults changed, and
         // a stored value always wins over a default. The Setup Wizard is
         // where a new install fills them in (SETUP.md).
+        //
+        // The place visitors read in the contact block and the footer's
+        // description are website TEXT, one value per website language, and
+        // live in App\Service\LocalizedSiteSettings since Multilingual 2.0
+        // phase 4 (db/migrations/20260918130000), not here.
         'email' => '',
-        'city_nl' => '',
-        'city_en' => '',
         'kvk_number' => '',
-        'footer_description_nl' => '',
-        'footer_description_en' => '',
         'og_image_path' => '',
 
         // THE PUBLIC BASE URL, when the environment does not name one.
@@ -121,8 +122,8 @@ class SiteSettings
         // Company postal address + optional contact/tax fields used on the
         // PDF invoice (App\Service\PdfInvoiceRenderer) — see
         // db/migrations/20260907200000_add_invoicing_and_email_settings.php.
-        // Distinct from city_nl/city_en above (bilingual site copy, not a
-        // structured postal address).
+        // Distinct from the localized `city` (site copy per language in
+        // App\Service\LocalizedSiteSettings, not a structured postal address).
         // Generic for the same reason as the identity block above, and
         // pinned for the live site by the same migration. company_country
         // keeps a value because it is a format rather than an identity, and
@@ -208,37 +209,21 @@ class SiteSettings
         'related_products_heading_en' => '',
         'related_products_max_items' => '4',
 
-        // LEGACY: THE HEADER'S FORMER SINGLE CALL-TO-ACTION BUTTON. Nothing
-        // reads or writes these keys any more. Header buttons are navigation
-        // items since Navigation phase A (App\Service\NavigationPresentation),
-        // and db/migrations/20260916230000 copied a configured button into
-        // nav_items once. The keys stay listed, with their GENERIC defaults
-        // (off, unlabelled, no target), because the rows stay in the database
-        // until somebody decides to remove them. Same approach as
-        // page_heroes.breadcrumb_label_* (HEADER-FOOTER.md).
-        'header_cta_enabled' => '0',
-        'header_cta_label_nl' => '',
-        'header_cta_label_en' => '',
-        'header_cta_link_type' => 'page',
-        'header_cta_target_page_id' => '',
-        'header_cta_target_route' => '',
-        'header_cta_external_url' => '',
-        'header_cta_open_in_new_tab' => '0',
+        // The header's former single call-to-action button (header_cta_*)
+        // is gone: db/migrations/20260916230000 copied it into nav_items, and
+        // 20260918130000 removed its rows once nothing read them.
 
-        // The footer's closing line — "Ontworpen & gebouwd met zorg in
-        // Nijmegen" on this site — read by
-        // App\Service\FooterService::slogan(). Generic default for the same
-        // reason, pinned by the same migration.
+        // Whether the footer shows its closing line — read by
+        // App\Service\FooterService::slogan(). The line's words are website
+        // text per language in App\Service\LocalizedSiteSettings.
         'footer_slogan_enabled' => '0',
-        'footer_slogan_nl' => '',
-        'footer_slogan_en' => '',
 
         // LEGACY since Footer phase B: the seven social profile URLs, one per
         // network. Migration 20260917100000 copied every filled-in one into
         // footer_social_links, which is what App\Service\SocialProfiles and
         // the Footer screen read and write now. Nothing reads or writes
         // these keys; they stay listed so the rows that remain in the
-        // database are still known settings, like header_cta_* above.
+        // database are still known settings.
         'social_instagram_url' => '',
         'social_facebook_url' => '',
         'social_pinterest_url' => '',

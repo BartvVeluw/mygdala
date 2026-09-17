@@ -3,6 +3,7 @@
 namespace App\Service;
 
 use App\Repository\FooterRepository;
+use App\Service\Language\LocalizedValue;
 
 /**
  * Public read side of the CMS-managed footer — replaces the hardcoded
@@ -10,7 +11,8 @@ use App\Repository\FooterRepository;
  * (via App\Repository\FooterRepository + App\Service\LinkResolver) with the
  * Brand/Company block, which is deliberately NOT stored here: it reads
  * SiteSettings directly (site_name/logo_path/email/company_phone/
- * kvk_number/footer_description_nl/en) plus this class's own small
+ * kvk_number; the description through App\Service\LocalizedSiteSettings)
+ * plus this class's own small
  * footer_show_... / footer_copyright_template settings — see
  * db/migrations/20260907230000_add_footer_settings.php. One source of
  * truth for company data; this class only ever decides *whether* to show
@@ -101,32 +103,41 @@ class FooterService
 
     /**
      * The footer's closing line, or null when there is nothing to show —
-     * switched off, or switched on with no Dutch text. It used to be a
-     * literal in partials/footer.php ("Ontworpen & gebouwd met zorg in
-     * Nijmegen"), which is this site's own copy and not something a second
-     * installation should inherit.
+     * switched off, or switched on with no words in the website's DEFAULT
+     * language. It used to be a literal in partials/footer.php ("Ontworpen &
+     * gebouwd met zorg in Nijmegen"), which is this site's own copy and not
+     * something a second installation should inherit.
      *
-     * Empty EN means "same as NL", resolved here rather than in the template
-     * for the same reason as everywhere else in this project: the frontend
-     * language switch only falls back when the data-en attribute is ABSENT,
-     * so an empty stored value must never reach the page as an empty one.
-     *
-     * @return array{nl: string, en: string}|null
+     * The words are App\Service\LocalizedSiteSettings's, one value per
+     * website language, and arrive as one LocalizedValue with the fallback
+     * already applied, so an untranslated line never reaches the page empty.
+     * The default language decides whether the line exists at all, as it did
+     * when that was the Dutch value: a translation alone shows nothing.
      */
-    public static function slogan(): ?array
+    public static function slogan(): ?LocalizedValue
     {
-        if (SiteSettings::get('footer_slogan_enabled') !== '1') {
+        if (SiteSettings::get('footer_slogan_enabled') !== '1'
+            || !LocalizedSiteSettings::hasDefault(LocalizedSiteSettings::FOOTER_SLOGAN)
+        ) {
             return null;
         }
 
-        $nl = trim(SiteSettings::get('footer_slogan_nl'));
-        if ($nl === '') {
+        return LocalizedSiteSettings::bilingual(LocalizedSiteSettings::FOOTER_SLOGAN);
+    }
+
+    /**
+     * The footer's description in the company block, or null when the
+     * website's DEFAULT language has none. The same rule as the closing line:
+     * a translation alone never prints a paragraph whose visible words would
+     * be empty.
+     */
+    public static function description(): ?LocalizedValue
+    {
+        if (!LocalizedSiteSettings::hasDefault(LocalizedSiteSettings::FOOTER_DESCRIPTION)) {
             return null;
         }
 
-        $en = trim(SiteSettings::get('footer_slogan_en'));
-
-        return ['nl' => $nl, 'en' => $en === '' ? $nl : $en];
+        return LocalizedSiteSettings::bilingual(LocalizedSiteSettings::FOOTER_DESCRIPTION);
     }
 
     /**

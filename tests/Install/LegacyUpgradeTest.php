@@ -250,12 +250,14 @@ final class LegacyUpgradeTest extends TestCase
             $settings[(string) $row['setting_key']] = (string) $row['setting_value'];
         }
 
-        $this->assertSame('page', $settings['header_cta_link_type'] ?? '');
-        $this->assertSame('Vraag offerte aan', $settings['header_cta_label_nl'] ?? '');
-        $this->assertNotSame('', $settings['header_cta_target_page_id'] ?? '');
+        // The eight header_cta_* rows were the button's settings until
+        // 20260916230000 copied it into nav_items; 20260918130000 removed
+        // them once nothing read them. The closing line is website text in
+        // site_setting_translations since that same migration.
+        $this->assertSame([], array_filter(array_keys($settings), static fn (string $key): bool => str_starts_with($key, 'header_cta_')));
         $this->assertSame(
             'Ontworpen & gebouwd met zorg in Nijmegen',
-            $settings['footer_slogan_nl'] ?? ''
+            $this->localized('footer_slogan', 'nl')
         );
 
         // Since 20260916230000 the header renders its buttons from nav_items:
@@ -273,7 +275,10 @@ final class LegacyUpgradeTest extends TestCase
         $this->assertSame('Vraag offerte aan', (string) $buttons[0]['label_nl']);
         $this->assertSame('Request a quote', (string) $buttons[0]['label_en']);
         $this->assertSame('page', (string) $buttons[0]['link_type']);
-        $this->assertSame($settings['header_cta_target_page_id'], (string) $buttons[0]['target_page_id']);
+        $this->assertSame(
+            (string) ($this->install()->rows("SELECT id FROM pages WHERE slug = 'contact' OR content_key = 'contact' ORDER BY id LIMIT 1")[0]['id'] ?? ''),
+            (string) $buttons[0]['target_page_id']
+        );
         $this->assertSame('primary', (string) $buttons[0]['button_variant']);
         $this->assertSame(1, (int) $buttons[0]['is_visible']);
         $this->assertNull($buttons[0]['parent_id']);
@@ -327,13 +332,13 @@ final class LegacyUpgradeTest extends TestCase
 
         $this->assertSame('Van Veluw Laserdesign', $settings['site_name'] ?? '');
         $this->assertSame('info@vanveluwlaserdesign.nl', $settings['email'] ?? '');
-        $this->assertSame('Nijmegen, Nederland', $settings['city_nl'] ?? '');
-        $this->assertSame('Nijmegen, the Netherlands', $settings['city_en'] ?? '');
+        $this->assertSame('Nijmegen, Nederland', $this->localized('city', 'nl'));
+        $this->assertSame('Nijmegen, the Netherlands', $this->localized('city', 'en'));
         $this->assertSame('97749540', $settings['kvk_number'] ?? '');
         $this->assertSame('Nijmegen', $settings['company_city'] ?? '');
         $this->assertSame('www.vanveluwlaserdesign.nl', $settings['company_website'] ?? '');
         $this->assertSame('VLD-F', $settings['invoice_number_prefix'] ?? '');
-        $this->assertStringContainsString('Nijmegen', $settings['footer_description_nl'] ?? '');
+        $this->assertStringContainsString('Nijmegen', $this->localized('footer_description', 'nl'));
         $this->assertSame('VLD', $settings['order_number_prefix'] ?? '');
     }
 
@@ -424,6 +429,17 @@ final class LegacyUpgradeTest extends TestCase
         }
 
         return $values;
+    }
+
+    /** One localized site setting's words in one language (site_setting_translations), '' when none. */
+    private function localized(string $key, string $language): string
+    {
+        $rows = $this->install()->rows(
+            'SELECT value FROM site_setting_translations WHERE setting_key = ? AND language_code = ?',
+            [$key, $language]
+        );
+
+        return (string) ($rows[0]['value'] ?? '');
     }
 
     public function testTheFreshInstallBootstrapChangedNothingHere(): void

@@ -24,6 +24,7 @@ use App\Service\PageTemplates\PageTemplates;
 use App\Service\Language\ContentLanguages;
 use App\Service\Language\LanguageCode;
 use App\Service\Language\LanguageFallback;
+use App\Service\LocalizedSiteSettings;
 use App\Service\SiteSettings;
 use App\Service\Theme\ThemeSettings;
 
@@ -124,17 +125,21 @@ final class SetupWizard
     ];
 
     /**
-     * The site_settings keys step 1 may write, with the maximum length each
-     * accepts. Everything else in site_settings keeps its default and is
-     * edited later under Instellingen → Site-instellingen.
+     * The settings step 1 may write, with the maximum length each accepts.
+     * Everything else keeps its default and is edited later under
+     * Instellingen → Site-instellingen.
+     *
+     * footer_description and city are website text
+     * (App\Service\LocalizedSiteSettings) and are written in the website
+     * language this same wizard run chooses; the rest are site_settings rows.
      *
      * @var array<string, int>
      */
     private const IDENTITY_FIELDS = [
         'site_name' => 120,
         'email' => 190,
-        'footer_description_nl' => 300,
-        'city_nl' => 120,
+        'footer_description' => 300,
+        'city' => 120,
         'kvk_number' => 40,
     ];
 
@@ -575,6 +580,12 @@ final class SetupWizard
             // settings row (docs/multilingual/ARCHITECTURE.md).
             ContentLanguages::savePrimary($values['languages']['primary']);
 
+            // The description and the place are words in that language.
+            $localized = array_intersect_key($values['identity'], LocalizedSiteSettings::KEYS);
+            if ($localized !== []) {
+                LocalizedSiteSettings::save($values['languages']['primary'], $localized);
+            }
+
             if ($values['theme'] !== []) {
                 ThemeSettings::save($values['theme']);
             }
@@ -591,6 +602,7 @@ final class SetupWizard
         }
 
         SiteSettings::clearCache();
+        LocalizedSiteSettings::clearCache();
         ThemeSettings::clearCache();
         ModuleSettings::clearCache();
         ModuleRegistry::reset();

@@ -10,17 +10,26 @@
  * is App\Service\SiteSettingsValidator — one closed list shared with the
  * screen's own required and maxlength attributes. Same PRG/session-flash
  * pattern as api/admin/update-product.php.
+ *
+ * THE PLACE VISITORS READ (`city`) is website text in one language
+ * (App\Service\LocalizedSiteSettings): written only in the active website
+ * language named by `language_code`, in the same transaction as the other
+ * values, and every other language's place stays as it is.
  */
 
 declare(strict_types=1);
 
 require_once __DIR__ . '/../../vendor/autoload.php';
 
+use App\Database;
 use App\Repository\FormRepository;
 use App\Repository\SiteSettingRepository;
 use App\Service\AdminAuth;
 use App\Service\Branding;
 use App\Service\Csrf;
+use App\Service\Language\LanguageCode;
+use App\Service\Language\SiteLanguages;
+use App\Service\LocalizedSiteSettings;
 use App\Service\Media\MediaService;
 use App\Service\SiteSettings;
 use App\Service\SiteSettingsValidator;
@@ -58,6 +67,21 @@ try {
 $validated = SiteSettingsValidator::validate($_POST, $current, $forms);
 $fields = $validated['values'];
 $errors = $validated['errors'];
+
+// The localized setting this form carries, in the language it was typed in.
+$localized = [];
+$languageCode = '';
+if (array_key_exists(LocalizedSiteSettings::CITY, $_POST)) {
+    $languageCode = LanguageCode::normalise((string) ($_POST['language_code'] ?? '')) ?? '';
+    $localized[LocalizedSiteSettings::CITY] = is_scalar($_POST[LocalizedSiteSettings::CITY]) ? trim((string) $_POST[LocalizedSiteSettings::CITY]) : '';
+
+    if ($languageCode === '' || !SiteLanguages::isActive($languageCode)) {
+        $errors[] = AdminTranslator::trans('validation.language_unknown');
+    } elseif (LocalizedSiteSettings::problems($localized) !== []) {
+        $errors[] = AdminTranslator::trans('validation.a_field_is_too_long');
+    }
+}
+$oldLocalized = $localized === [] ? [] : ['language_code' => $languageCode] + $localized;
 
 /**
  * The branding images. Each is a Media Library reference now, submitted by
@@ -109,19 +133,30 @@ foreach (Branding::MEDIA_KEYS as $pathKey => $mediaKey) {
 
 if ($errors !== []) {
     $_SESSION['admin_settings_errors'] = $errors;
-    $_SESSION['admin_settings_old'] = array_merge($current, $fields);
+    $_SESSION['admin_settings_old'] = array_merge($current, $fields, $oldLocalized);
     header('Location: /admin/settings.php');
     exit;
 }
 
+$db = Database::connection();
+
 try {
-    (new SiteSettingRepository())->upsertMany($fields);
+    $db->beginTransaction();
+    (new SiteSettingRepository($db))->upsertMany($fields);
+    if ($localized !== []) {
+        LocalizedSiteSettings::save($languageCode, $localized);
+    }
+    $db->commit();
     SiteSettings::clearCache();
+    LocalizedSiteSettings::clearCache();
 } catch (\Throwable $e) {
+    if ($db->inTransaction()) {
+        $db->rollBack();
+    }
     error_log('[api/admin/update-site-settings.php] ' . $e->getMessage());
 
     $_SESSION['admin_settings_errors'] = [AdminTranslator::trans('validation.instellingen_konden_opgeslagen_probeer_opnieuw')];
-    $_SESSION['admin_settings_old'] = array_merge($current, $fields);
+    $_SESSION['admin_settings_old'] = array_merge($current, $fields, $oldLocalized);
     header('Location: /admin/settings.php');
     exit;
 }

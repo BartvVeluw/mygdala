@@ -37,9 +37,10 @@
  *
  * The block's own heading arrives as one LocalizedValue
  * (App\Service\Blocks\BlockLocalization) and is printed through SiteText's
- * visibleOf()/attrsOf(), plain text. The contact details are Site-instellingen
- * and still a Dutch/English pair until that domain moves (Multilingual 2.0
- * phase 4), so they keep the V1 helpers.
+ * visibleOf()/attrsOf(), plain text. So is the place from Site-instellingen,
+ * which is website text per language (App\Service\LocalizedSiteSettings,
+ * Multilingual 2.0 phase 4). Only the card's own fixed labels ("Plaats",
+ * "E-mail") are still a hand-written Dutch/English pair.
  *
  * Everything this file shows arrives as arguments: the form and its state,
  * and the contact details, all looked up by
@@ -50,7 +51,7 @@
  * @param array<string, mixed>                             $content see ContactFormContent::forSection()
  * @param FormDefinition|null                              $form    null when no usable form is chosen
  * @param FormRenderState                                  $state   this instance's state
- * @param array{email: string, city_nl: string, city_en: string} $contact from Site-instellingen
+ * @param array{email: string, city: \App\Service\Language\LocalizedValue} $contact from Site-instellingen
  */
 
 require_once __DIR__ . '/form.php';
@@ -63,7 +64,7 @@ function render_section_contact_form(array $content, ?FormDefinition $form, Form
     // Both are optional in Site-instellingen. A line whose value is missing is
     // left out rather than printed as a bare label.
     $contactEmail = trim($contact['email']);
-    $contactCity = \App\Service\Language\LocalizedValue::ofDutchEnglish($contact['city_nl'], $contact['city_en']);
+    $contactCity = $contact['city'];
     $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
 
     // A text in both site languages, printed like every other bilingual text
@@ -104,7 +105,7 @@ function render_section_contact_form(array $content, ?FormDefinition $form, Form
             <?php if (!$contactCity->isEmpty()): ?>
             <div class="contact-detail">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" aria-hidden="true"><path d="M12 22s7-7.4 7-12.5A7 7 0 105 9.5C5 14.6 12 22 12 22z"/><circle cx="12" cy="9.5" r="2.4"/></svg>
-              <div><strong<?= $bilingual('Plaats', 'Location') ?></strong><span<?= $bilingual($contact['city_nl'], $contact['city_en']) ?></span></div>
+              <div><strong<?= $bilingual('Plaats', 'Location') ?></strong><span<?= \App\Service\Language\SiteText::attrsOf($contactCity) ?>><?= $h(\App\Service\Language\SiteText::visibleOf($contactCity)) ?></span></div>
             </div>
             <?php endif; ?>
           </div>

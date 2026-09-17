@@ -153,7 +153,7 @@ final class RemainingBlocksRenderingTest extends TestCase
             ['state' => 'active', 'title' => BlockLocalization::words('contact_form_sections', self::ID)['title'], 'form_id' => null, 'allow_attachment' => false],
             null,
             FormRenderState::fresh(FormRenderState::tokenFor('rendering-test', 'contact')),
-            ['email' => '', 'city_nl' => '', 'city_en' => '']
+            ['email' => '', 'city' => \App\Service\Language\LocalizedValue::of([])]
         ));
 
         self::assertStringContainsString('data-nl="Vraag een offerte aan" data-en="Request a quote">Vraag een offerte aan</h2>', $html);

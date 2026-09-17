@@ -42,8 +42,9 @@ final class AdminEditorNavigationTest extends TestCase
         'site_name' => 'algemeen',
         'kvk_number' => 'algemeen',
         'email' => 'algemeen',
-        'city_nl' => 'algemeen',
-        'city_en' => 'algemeen',
+        // The place visitors read, one website language at a time
+        // (App\Service\LocalizedSiteSettings).
+        'city' => 'algemeen',
         // Not the footer description: it moved to the Footer screen in
         // Footer phase B (HEADER-FOOTER.md), so it has one place.
         // The postal address and the phone number are the site's, not the

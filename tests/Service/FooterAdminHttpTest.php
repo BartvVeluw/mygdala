@@ -9,6 +9,8 @@ use App\Repository\FooterSocialLinkRepository;
 use App\Repository\PageRepository;
 use App\Repository\SiteSettingRepository;
 use App\Service\AdminPermissions;
+use App\Service\Language\SiteLanguages;
+use App\Service\LocalizedSiteSettings;
 use App\Service\PageContent;
 use PHPUnit\Framework\TestCase;
 use Tests\Support\AdminTestSession;
@@ -51,14 +53,13 @@ final class FooterAdminHttpTest extends TestCase
         'footer_show_email',
         'footer_show_phone',
         'footer_show_kvk',
-        'footer_description_nl',
-        'footer_description_en',
         'footer_copyright_template',
         'footer_slogan_enabled',
-        'footer_slogan_nl',
-        'footer_slogan_en',
         'email',
     ];
+
+    /** The website text per language a test here may write (LocalizedSiteSettings); restored in tearDown(). */
+    private const LOCALIZED = [LocalizedSiteSettings::FOOTER_DESCRIPTION, LocalizedSiteSettings::FOOTER_SLOGAN];
 
     private static ?BuiltInServer $server = null;
     private static ?BuiltInServer $shopOff = null;
@@ -79,6 +80,9 @@ final class FooterAdminHttpTest extends TestCase
 
     /** @var array<string, string> */
     private array $originalSettings = [];
+
+    /** @var array<string, array<string, string>> */
+    private array $originalLocalized = [];
 
     public static function setUpBeforeClass(): void
     {
@@ -111,6 +115,11 @@ final class FooterAdminHttpTest extends TestCase
         foreach (self::SETTINGS as $key) {
             $this->originalSettings[$key] = (string) ($stored[$key] ?? '');
         }
+
+        LocalizedSiteSettings::clearCache();
+        foreach (self::LOCALIZED as $key) {
+            $this->originalLocalized[$key] = LocalizedSiteSettings::words($key);
+        }
     }
 
     protected function tearDown(): void
@@ -126,6 +135,14 @@ final class FooterAdminHttpTest extends TestCase
             $this->pages->delete($id);
         }
         (new SiteSettingRepository())->upsertMany($this->originalSettings);
+        foreach (SiteLanguages::all() as $language) {
+            $words = [];
+            foreach (self::LOCALIZED as $key) {
+                $words[$key] = $this->originalLocalized[$key][$language->code] ?? '';
+            }
+            LocalizedSiteSettings::save($language->code, $words);
+        }
+        LocalizedSiteSettings::clearCache();
 
         $this->columnIds = [];
         $this->socialIds = [];
@@ -146,7 +163,8 @@ final class FooterAdminHttpTest extends TestCase
         foreach (['footer-brand', 'footer-columns', 'footer-social', 'footer-bottom'] as $card) {
             $this->assertSame(1, $xpath->query('//section[@id="' . $card . '"]')->length, $card);
         }
-        $this->assertSame(1, $xpath->query('//textarea[@name="footer_description_nl"]')->length, 'the description is edited here');
+        $this->assertSame(1, $xpath->query('//textarea[@name="footer_description"]')->length, 'the description is edited here, in one language');
+        $this->assertSame(0, $xpath->query('//*[@name="footer_description_nl" or @name="footer_slogan_en"]')->length, 'no V1 language pane');
         $this->assertSame(1, $xpath->query('//input[@name="footer_copyright_template"]')->length);
         $this->assertSame(1, $xpath->query('//input[@name="footer_slogan_enabled"][@role="switch"]')->length);
         foreach (['footer_show_logo', 'footer_show_company_name', 'footer_show_email', 'footer_show_phone', 'footer_show_kvk'] as $switch) {
@@ -168,7 +186,7 @@ final class FooterAdminHttpTest extends TestCase
 
         $settings = self::$server->request('GET', '/admin/settings.php', $session);
         $this->assertSame(200, $settings['status']);
-        $this->assertStringNotContainsString('name="footer_description_nl"', $settings['body'], 'Site-instellingen no longer edits it');
+        $this->assertStringNotContainsString('name="footer_description', $settings['body'], 'Site-instellingen no longer edits it');
         $this->assertSame(1, $this->xpath($settings['body'])->query('//*[@data-footer-description-moved]//a[starts-with(@href, "/admin/footer.php")]')->length, 'and says where it went');
 
         // The sidebar has one footer entry.
@@ -204,20 +222,32 @@ final class FooterAdminHttpTest extends TestCase
         $bottom = self::$server->request('POST', '/api/admin/update-footer-settings.php', $session, [
             'csrf_token' => $token, 'section' => 'bottom',
             'footer_copyright_template' => '© {{year}} Footer B test',
-            'footer_slogan_enabled' => '1', 'footer_slogan_nl' => 'Met zorg gemaakt (fase B)', 'footer_slogan_en' => 'Made with care (phase B)',
+            'footer_slogan_enabled' => '1', 'language_code' => 'nl', 'footer_slogan' => 'Met zorg gemaakt (fase B)',
         ]);
         $this->assertSame('/admin/footer.php?saved=1#footer-bottom', $bottom['location']);
+
+        // The same card in English writes the English line and leaves the Dutch one.
+        self::$server->request('POST', '/api/admin/update-footer-settings.php', $session, [
+            'csrf_token' => $token, 'section' => 'bottom',
+            'footer_copyright_template' => '© {{year}} Footer B test',
+            'footer_slogan_enabled' => '1', 'language_code' => 'en', 'footer_slogan' => 'Made with care (phase B)',
+        ]);
 
         $brand = self::$server->request('POST', '/api/admin/update-footer-settings.php', $session, [
             'csrf_token' => $token, 'section' => 'brand',
             'footer_show_email' => '1',
-            'footer_description_nl' => 'Omschrijving van fase B', 'footer_description_en' => '',
+            'language_code' => 'nl', 'footer_description' => 'Omschrijving van fase B',
         ]);
         $this->assertSame('/admin/footer.php?saved=1#footer-brand', $brand['location']);
 
         $stored = (new SiteSettingRepository())->findAll();
         $this->assertSame(['0', '0', '1', '0', '0'], [$stored['footer_show_logo'], $stored['footer_show_company_name'], $stored['footer_show_email'], $stored['footer_show_phone'], $stored['footer_show_kvk']], 'an unticked switch is stored as off');
-        $this->assertSame('Met zorg gemaakt (fase B)', $stored['footer_slogan_nl'], 'the brand card left the bottom card alone');
+        LocalizedSiteSettings::clearCache();
+        $this->assertSame(
+            ['nl' => 'Met zorg gemaakt (fase B)', 'en' => 'Made with care (phase B)'],
+            LocalizedSiteSettings::words(LocalizedSiteSettings::FOOTER_SLOGAN),
+            'each language kept its own line, and the brand card left the bottom card alone'
+        );
 
         $footer = $this->publicFooter();
         $this->assertStringContainsString('data-nl="Met zorg gemaakt (fase B)"', $footer);
@@ -230,10 +260,10 @@ final class FooterAdminHttpTest extends TestCase
         self::$server->request('POST', '/api/admin/update-footer-settings.php', $session, [
             'csrf_token' => $token, 'section' => 'bottom',
             'footer_copyright_template' => '© {{year}} Footer B test',
-            'footer_slogan_nl' => 'Met zorg gemaakt (fase B)', 'footer_slogan_en' => 'Made with care (phase B)',
+            'language_code' => 'nl', 'footer_slogan' => 'Met zorg gemaakt (fase B)',
         ]);
         self::$server->request('POST', '/api/admin/update-footer-settings.php', $session, [
-            'csrf_token' => $token, 'section' => 'brand', 'footer_description_nl' => '', 'footer_description_en' => '',
+            'csrf_token' => $token, 'section' => 'brand', 'language_code' => 'nl', 'footer_description' => '',
         ]);
 
         $footer = $this->publicFooter();
@@ -241,7 +271,8 @@ final class FooterAdminHttpTest extends TestCase
         $this->assertStringNotContainsString('mailto:footer-b@example.test', $footer);
         $this->assertStringNotContainsString('Omschrijving van fase B', $footer, 'no description, no paragraph');
         $stored = (new SiteSettingRepository())->findAll();
-        $this->assertSame(['0', 'Met zorg gemaakt (fase B)', 'footer-b@example.test'], [$stored['footer_slogan_enabled'], $stored['footer_slogan_nl'], $stored['email']]);
+        LocalizedSiteSettings::clearCache();
+        $this->assertSame(['0', 'Met zorg gemaakt (fase B)', 'footer-b@example.test'], [$stored['footer_slogan_enabled'], LocalizedSiteSettings::raw(LocalizedSiteSettings::FOOTER_SLOGAN, 'nl'), $stored['email']]);
 
         $brandColumn = $this->xpath($footer)->query('//footer//div[contains(@class, "footer-grid")]/div[1]/p');
         foreach ($brandColumn as $paragraph) {
@@ -250,7 +281,7 @@ final class FooterAdminHttpTest extends TestCase
 
         self::$server->request('POST', '/api/admin/update-footer-settings.php', $session, [
             'csrf_token' => $token, 'section' => 'bottom', 'footer_slogan_enabled' => '1',
-            'footer_copyright_template' => '', 'footer_slogan_nl' => 'Met zorg gemaakt (fase B)', 'footer_slogan_en' => '',
+            'footer_copyright_template' => '', 'language_code' => 'nl', 'footer_slogan' => 'Met zorg gemaakt (fase B)',
         ]);
         $this->assertStringContainsString('data-nl="Met zorg gemaakt (fase B)"', $this->publicFooter(), 'switched on again, the same text is back');
         $this->assertSame('© {{year}} {{site_name}}', (new SiteSettingRepository())->findAll()['footer_copyright_template'], 'an empty copyright text is the standard one');
@@ -259,13 +290,15 @@ final class FooterAdminHttpTest extends TestCase
     public function testASettingsSaveIsRefusedWholeAndAnUnknownCardWritesNothing(): void
     {
         [$session, $token] = $this->accounts->signIn([AdminPermissions::PAGES_MANAGE]);
-        $before = (new SiteSettingRepository())->findAll();
+        LocalizedSiteSettings::clearCache();
+        $before = LocalizedSiteSettings::words(LocalizedSiteSettings::FOOTER_DESCRIPTION);
 
         $tooLong = self::$server->request('POST', '/api/admin/update-footer-settings.php', $session, [
-            'csrf_token' => $token, 'section' => 'brand', 'footer_description_nl' => str_repeat('a', 501),
+            'csrf_token' => $token, 'section' => 'brand', 'language_code' => 'nl', 'footer_description' => str_repeat('a', 501),
         ]);
         $this->assertSame('/admin/footer.php#footer-brand', $tooLong['location'], 'back to the card, without saved=1');
-        $this->assertSame($before['footer_description_nl'] ?? '', (new SiteSettingRepository())->findAll()['footer_description_nl'] ?? '');
+        LocalizedSiteSettings::clearCache();
+        $this->assertSame($before, LocalizedSiteSettings::words(LocalizedSiteSettings::FOOTER_DESCRIPTION));
 
         $screen = self::$server->request('GET', '/admin/footer.php', $session);
         $brand = $this->xpath($screen['body'])->query('//section[@id="footer-brand"]//form')->item(0);

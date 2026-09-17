@@ -98,14 +98,14 @@ final class SetupWizardValidationTest extends TestCase
     {
         $result = $this->validate([
             'email' => '',
-            'footer_description_nl' => '',
-            'city_nl' => '',
+            'footer_description' => '',
+            'city' => '',
             'kvk_number' => '',
         ]);
 
         $this->assertSame([], $result['errors']);
 
-        foreach (['email', 'footer_description_nl', 'city_nl', 'kvk_number'] as $key) {
+        foreach (['email', 'footer_description', 'city', 'kvk_number'] as $key) {
             $this->assertSame('', $result['values']['identity'][$key], $key . ' must be allowed to stay empty');
         }
     }

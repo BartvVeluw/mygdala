@@ -214,8 +214,15 @@ final class BlockSamples
     }
 
     /**
-     * One role's text as a block's own field pair: fields('title', 'title')
-     * is ['title_nl' => …, 'title_en' => …].
+     * One role's text as a Dutch/English field pair: fields('alt', 'image_alt')
+     * is ['alt_nl' => …, 'alt_en' => …].
+     *
+     * No block stores its words that way any more (phase 3). The pair is the
+     * shape of the rows a block SHOWS but does not own, which still have
+     * `_nl`/`_en` columns until their domain moves in Multilingual 2.0 phase
+     * 5: a Portfolio item or a product in a gallery card. Words of the block
+     * itself, and of Site-instellingen and Forms since phase 4, come from
+     * localized().
      *
      * @return array<string, string>
      */
@@ -225,10 +232,9 @@ final class BlockSamples
     }
 
     /**
-     * One role's text as ONE value in every language: the shape a block whose
-     * words are stored per website language (BlockLocalization) hands its
-     * partial, where fields() is the shape of a block still on `_nl`/`_en`
-     * columns.
+     * One role's text as ONE value in every language: the shape a block
+     * hands its partial for words stored per website language
+     * (BlockLocalization, and the localized site settings of phase 4).
      */
     public function localized(string $role): LocalizedValue
     {

@@ -19,7 +19,8 @@ use App\Service\SiteSettings;
  * accurate rather than wrong, and the existing site keeps the exact sentence
  * it had because its own row already says Nijmegen.
  *
- * Deliberately NOT `city_nl`/`city_en`: those are bilingual site copy and
+ * Deliberately NOT the localized `city` (App\Service\LocalizedSiteSettings,
+ * formerly `city_nl`/`city_en`): that is site copy per language and
  * hold prose like "Nijmegen, Nederland", which reads badly inside a sentence.
  * A pickup point is a place, and a place has one name.
  */

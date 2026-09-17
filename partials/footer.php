@@ -42,8 +42,7 @@ $logoPath = Branding::alternateLogoPath();
 $email = SiteSettings::get('email');
 $phone = SiteSettings::get('company_phone');
 $kvkNumber = SiteSettings::get('kvk_number');
-$footerDescriptionNl = SiteSettings::get('footer_description_nl');
-$footerDescriptionEn = SiteSettings::get('footer_description_en');
+$footerDescription = FooterService::description();
 $copyright = FooterService::renderCopyright();
 
 $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
@@ -63,8 +62,8 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
         <p class="footer-brand__name"><?= $h($siteName) ?></p>
         <?php endif; ?>
         <?php // Optional since Site-instellingen stopped requiring it: no text, no empty paragraph. ?>
-        <?php if (trim($footerDescriptionNl) !== '' || trim($footerDescriptionEn) !== ''): ?>
-        <p <?= \App\Service\Language\SiteText::attrs($footerDescriptionNl, $footerDescriptionEn) ?>><?= $h(\App\Service\Language\SiteText::visible($footerDescriptionNl, $footerDescriptionEn)) ?></p>
+        <?php if ($footerDescription !== null): ?>
+        <p<?= \App\Service\Language\SiteText::attrsOf($footerDescription) ?>><?= $h(\App\Service\Language\SiteText::visibleOf($footerDescription)) ?></p>
         <?php endif; ?>
         <?php if ($brand['show_email'] && $email !== ''): ?>
         <p><a href="mailto:<?= $h($email) ?>"><?= $h($email) ?></a></p>
@@ -120,7 +119,7 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
         <button type="button" class="footer-legal-links__btn" data-cookie-settings-open <?= \App\Service\Language\SiteText::attrs($cookieFooterLink['label_nl'], $cookieFooterLink['label_en']) ?>><?= $h(\App\Service\Language\SiteText::visible($cookieFooterLink['label_nl'], $cookieFooterLink['label_en'])) ?></button>
       </span>
 <?php if ($slogan !== null): ?>
-      <span <?= \App\Service\Language\SiteText::attrs($slogan['nl'], $slogan['en']) ?>><?= $h(\App\Service\Language\SiteText::visible($slogan['nl'], $slogan['en'])) ?></span>
+      <span<?= \App\Service\Language\SiteText::attrsOf($slogan) ?>><?= $h(\App\Service\Language\SiteText::visibleOf($slogan)) ?></span>
 <?php endif; ?>
     </div>
   </div>

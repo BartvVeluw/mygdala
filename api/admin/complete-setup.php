@@ -60,7 +60,7 @@ if (!SetupState::isSetupRequired()) {
  * arbitrary data.
  */
 $old = [];
-foreach (['site_name', 'email', 'footer_description_nl', 'city_nl', 'kvk_number', \App\Service\AppUrl::SETTING_KEY] as $key) {
+foreach (['site_name', 'email', 'footer_description', 'city', 'kvk_number', \App\Service\AppUrl::SETTING_KEY] as $key) {
     $old[$key] = trim((string) ($_POST[$key] ?? ''));
 }
 foreach (\App\Service\Branding::MEDIA_KEYS as $mediaKey) {
