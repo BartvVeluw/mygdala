@@ -11,8 +11,12 @@
  * uploading a video does not by itself switch the Hero to render it; that is
  * a separate, explicit choice via update-homepage-hero-media.php, so an
  * admin can stage a video before switching over, and switching back to
- * "Image" never deletes the previously uploaded video. All other fields are
- * carried forward unchanged into the upsert() call.
+ * "Image" never deletes the previously uploaded video. All other
+ * language-neutral fields are carried forward unchanged into the upsert()
+ * call. The video is the same in every language: no words are read or
+ * written here (Multilingual 2.0). The Hero row itself is created by
+ * admin/homepage-hero.php the first time it is opened, so a save without one
+ * is refused.
  */
 
 declare(strict_types=1);
@@ -50,38 +54,12 @@ try {
     exit;
 }
 
-$startingValues = HomepageHeroContent::startingValues();
+if ($current === null) {
+    http_response_code(404);
+    exit('Hero not found.');
+}
 
-$carriedFields = $current !== null
-    ? [
-        'eyebrow_nl' => (string) $current['eyebrow_nl'],
-        'eyebrow_en' => (string) ($current['eyebrow_en'] ?? ''),
-        'title_nl' => (string) $current['title_nl'],
-        'title_en' => (string) ($current['title_en'] ?? ''),
-        'title_highlight_nl' => (string) ($current['title_highlight_nl'] ?? ''),
-        'title_highlight_en' => (string) ($current['title_highlight_en'] ?? ''),
-        'title_highlight_size' => HomepageHeroContent::clampHighlightSize($current['title_highlight_size'] ?? null),
-        'lead_nl' => (string) ($current['lead_nl'] ?? ''),
-        'lead_en' => (string) ($current['lead_en'] ?? ''),
-        'primary_label_nl' => (string) $current['primary_label_nl'],
-        'primary_label_en' => (string) ($current['primary_label_en'] ?? ''),
-        'primary_url' => (string) $current['primary_url'],
-        'secondary_label_nl' => (string) ($current['secondary_label_nl'] ?? ''),
-        'secondary_label_en' => (string) ($current['secondary_label_en'] ?? ''),
-        'secondary_url' => (string) ($current['secondary_url'] ?? ''),
-        'image_path' => (string) $current['image_path'],
-        'image_alt_nl' => (string) $current['image_alt_nl'],
-        'image_alt_en' => (string) ($current['image_alt_en'] ?? ''),
-        'badge_title_nl' => (string) ($current['badge_title_nl'] ?? ''),
-        'badge_title_en' => (string) ($current['badge_title_en'] ?? ''),
-        'badge_text_nl' => (string) ($current['badge_text_nl'] ?? ''),
-        'badge_text_en' => (string) ($current['badge_text_en'] ?? ''),
-        'media_type' => (string) ($current['media_type'] ?? $startingValues['media_type']),
-        'layout' => (string) ($current['layout'] ?? $startingValues['layout']),
-    ]
-    : array_diff_key($startingValues, ['video_path' => 0]);
-
-$existingVideoPath = $current !== null ? (string) ($current['video_path'] ?? '') : '';
+$existingVideoPath = (string) ($current['video_path'] ?? '');
 
 $uploader = new SectionVideoUploader();
 
@@ -94,7 +72,10 @@ try {
 }
 
 try {
-    $repository->upsert(HomepageHeroContent::PAGE_SLUG, $carriedFields + ['video_path' => $newVideoPath, 'is_active' => true]);
+    $repository->upsert(
+        HomepageHeroContent::PAGE_SLUG,
+        ['video_path' => $newVideoPath] + HomepageHeroContent::settingsOf($current) + ['is_active' => true]
+    );
     HomepageHeroContent::clearCache();
 
     // Only remove the old file after the new one is safely saved.

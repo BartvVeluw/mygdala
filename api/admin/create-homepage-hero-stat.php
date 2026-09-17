@@ -7,14 +7,23 @@
  * for at most HomepageHeroContent::MAX_STATS (3) stats — enforced here
  * server-side (not just by hiding the "add" form in the UI), so a 4th stat
  * can never be created via a direct POST either.
+ *
+ * A NEW STAT IS WRITTEN IN THE DEFAULT LANGUAGE (Multilingual 2.0), like a
+ * new page: the words the form sends are stored as the website's default
+ * language, where both texts are required, and every other language is added
+ * afterwards on the stat's own card (update-homepage-hero-stat.php). The row
+ * and its words are one transaction, so a stat never exists without its
+ * words or the other way round.
  */
 
 declare(strict_types=1);
 
 require_once __DIR__ . '/../../vendor/autoload.php';
 
+use App\Database;
 use App\Service\Language\AdminTranslator;
 use App\Service\AdminAuth;
+use App\Service\Blocks\BlockLocalization;
 use App\Service\Csrf;
 use App\Service\HomepageHeroContent;
 use App\Repository\HomepageHeroRepository;
@@ -53,19 +62,17 @@ if ($repository->countStatsByHeroId($heroId) >= HomepageHeroContent::MAX_STATS) 
     exit;
 }
 
-$fields = [
-    'primary_text_nl' => trim((string) ($_POST['primary_text_nl'] ?? '')),
-    'primary_text_en' => trim((string) ($_POST['primary_text_en'] ?? '')),
-    'secondary_text_nl' => trim((string) ($_POST['secondary_text_nl'] ?? '')),
-    'secondary_text_en' => trim((string) ($_POST['secondary_text_en'] ?? '')),
-];
+$defaultLanguage = BlockLocalization::defaultLanguage();
+
+// Exactly the fields the block declares, never a name taken from the request.
+$words = [];
+foreach (array_keys(BlockLocalization::fields('homepage_hero_stats')) as $field) {
+    $words[$field] = trim((string) ($_POST[$field] ?? ''));
+}
 
 $errors = [];
-if ($fields['primary_text_nl'] === '') {
-    $errors[] = AdminTranslator::trans('validation.primaire_tekst_nl_verplicht');
-}
-if ($fields['secondary_text_nl'] === '') {
-    $errors[] = AdminTranslator::trans('validation.secundaire_tekst_nl_verplicht');
+foreach (BlockLocalization::messageKeys(BlockLocalization::problems('homepage_hero_stats', $defaultLanguage, $words)) as $key) {
+    $errors[] = AdminTranslator::trans($key);
 }
 
 if ($errors !== []) {
@@ -74,10 +81,21 @@ if ($errors !== []) {
     exit;
 }
 
+$db = Database::connection();
+
 try {
-    $repository->createStat($heroId, $fields);
+    $db->beginTransaction();
+
+    $statId = $repository->createStat($heroId);
+    BlockLocalization::save('homepage_hero_stats', $statId, $defaultLanguage, $words);
+
+    $db->commit();
     HomepageHeroContent::clearCache();
 } catch (\Throwable $e) {
+    if ($db->inTransaction()) {
+        $db->rollBack();
+    }
+
     error_log('[api/admin/create-homepage-hero-stat.php] ' . $e->getMessage());
     $_SESSION['admin_homepage_hero_stat_errors'] = ['Statistiek kon niet worden opgeslagen. Probeer het opnieuw.'];
     header('Location: /admin/homepage-hero.php');

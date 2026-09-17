@@ -187,11 +187,13 @@ final class HomepageHeroHighlightSizeTest extends TestCase
         $this->assertNotNull($carried);
 
         // Exactly what update-homepage-hero-media.php does: re-read the row,
-        // clamp the size out of it, change only media_type/layout.
+        // carry its settings forward (the size clamped out of it), change
+        // only media_type/layout.
         $repository->upsert(
             HomepageHeroContent::PAGE_SLUG,
-            $this->rowAsUpsertValues($carried)
-            + ['title_highlight_size' => HomepageHeroContent::clampHighlightSize($carried['title_highlight_size'] ?? null)]
+            ['media_type' => HomepageHeroContent::MEDIA_TYPE_IMAGE]
+            + HomepageHeroContent::settingsOf($carried)
+            + ['is_active' => true]
         );
 
         HomepageHeroContent::clearCache();
@@ -200,8 +202,9 @@ final class HomepageHeroHighlightSizeTest extends TestCase
 
     /**
      * The three carry-forward endpoints each rebuild the complete row before
-     * calling upsert(); if one of them forgets the new column, saving an
-     * image would quietly reset a Hero's highlight size to the default.
+     * calling upsert(), through HomepageHeroContent::settingsOf(); if that
+     * forgets the column, saving an image would quietly reset a Hero's
+     * highlight size to the default.
      */
     public function testEveryCarryForwardEndpointPreservesTheSize(): void
     {
@@ -212,14 +215,18 @@ final class HomepageHeroHighlightSizeTest extends TestCase
         ];
 
         foreach ($endpoints as $endpoint) {
-            $source = $this->fileSource('api/admin/' . $endpoint);
-
             $this->assertStringContainsString(
-                "'title_highlight_size' => HomepageHeroContent::clampHighlightSize(",
-                $source,
-                $endpoint . ' must carry title_highlight_size forward, or it resets the size on every save'
+                'HomepageHeroContent::settingsOf($current)',
+                $this->fileSource('api/admin/' . $endpoint),
+                $endpoint . ' must carry the row\'s settings forward, or it resets the size on every save'
             );
         }
+
+        $this->assertMatchesRegularExpression(
+            "/function settingsOf\\(.*?'title_highlight_size' => self::clampHighlightSize\\(/s",
+            $this->fileSource('src/Service/HomepageHeroContent.php'),
+            'settingsOf() carries the size forward, clamped'
+        );
     }
 
     /* ------------------------------------------------------------------ */
@@ -322,7 +329,9 @@ final class HomepageHeroHighlightSizeTest extends TestCase
 
     /**
      * The subset of a `homepage_hero` row that upsert() needs, minus the
-     * size — mirrors what the admin endpoints build.
+     * size — mirrors what the admin endpoints build. The Hero's words are
+     * stored per website language elsewhere (BlockLocalization) and are not
+     * part of the row.
      *
      * @param array<string, mixed> $row
      * @return array<string, string|bool>
@@ -330,27 +339,9 @@ final class HomepageHeroHighlightSizeTest extends TestCase
     private function rowAsUpsertValues(array $row): array
     {
         return [
-            'eyebrow_nl' => (string) $row['eyebrow_nl'],
-            'eyebrow_en' => (string) ($row['eyebrow_en'] ?? ''),
-            'title_nl' => (string) $row['title_nl'],
-            'title_en' => (string) ($row['title_en'] ?? ''),
-            'title_highlight_nl' => (string) ($row['title_highlight_nl'] ?? ''),
-            'title_highlight_en' => (string) ($row['title_highlight_en'] ?? ''),
-            'lead_nl' => (string) ($row['lead_nl'] ?? ''),
-            'lead_en' => (string) ($row['lead_en'] ?? ''),
-            'primary_label_nl' => (string) $row['primary_label_nl'],
-            'primary_label_en' => (string) ($row['primary_label_en'] ?? ''),
             'primary_url' => (string) $row['primary_url'],
-            'secondary_label_nl' => (string) ($row['secondary_label_nl'] ?? ''),
-            'secondary_label_en' => (string) ($row['secondary_label_en'] ?? ''),
             'secondary_url' => (string) ($row['secondary_url'] ?? ''),
             'image_path' => (string) $row['image_path'],
-            'image_alt_nl' => (string) $row['image_alt_nl'],
-            'image_alt_en' => (string) ($row['image_alt_en'] ?? ''),
-            'badge_title_nl' => (string) ($row['badge_title_nl'] ?? ''),
-            'badge_title_en' => (string) ($row['badge_title_en'] ?? ''),
-            'badge_text_nl' => (string) ($row['badge_text_nl'] ?? ''),
-            'badge_text_en' => (string) ($row['badge_text_en'] ?? ''),
             'media_type' => (string) ($row['media_type'] ?? HomepageHeroContent::MEDIA_TYPE_IMAGE),
             'video_path' => (string) ($row['video_path'] ?? ''),
             'layout' => (string) ($row['layout'] ?? HomepageHeroContent::LAYOUT_MEDIA_RIGHT),

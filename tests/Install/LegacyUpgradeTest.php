@@ -427,7 +427,16 @@ final class LegacyUpgradeTest extends TestCase
             'A second homepage would mean the bootstrap ran on an existing installation.'
         );
 
-        $heroes = $this->install()->rows('SELECT title_nl FROM homepage_hero WHERE page_slug = ?', ['index']);
+        // Since 20260917190000 the headline is the Dutch `title` of the hero in
+        // block_translations rather than a column of homepage_hero.
+        $heroes = $this->install()->rows(
+            "SELECT t.value AS title_nl
+               FROM homepage_hero h
+               LEFT JOIN block_translations t
+                 ON t.owner_table = 'homepage_hero' AND t.owner_id = h.id AND t.language_code = 'nl' AND t.field = 'title'
+              WHERE h.page_slug = ?",
+            ['index']
+        );
         $this->assertCount(1, $heroes);
         $this->assertStringNotContainsString(
             'pas deze titel aan',

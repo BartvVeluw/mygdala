@@ -4,15 +4,28 @@
  * POST /api/admin/update-feature-grid-item.php
  *
  * Edits one Feature grid card's content, icon and visibility.
+ *
+ * ONE WEBSITE LANGUAGE (Multilingual 2.0): the title and text are the words of
+ * the language named in `language_code`, which must be an active language of
+ * the website registry, and are required only in the default language
+ * (FeatureGridBlock::translatableFields(), through
+ * App\Service\Blocks\BlockLocalization). Only that language is written, so
+ * saving the Dutch words never removes an English or German translation. The
+ * card keeps its id; its icon and is_active are the same in every language
+ * and are saved in the same transaction.
  */
 
 declare(strict_types=1);
 
 require_once __DIR__ . '/../../vendor/autoload.php';
 
+use App\Database;
 use App\Service\Language\AdminTranslator;
 use App\Service\AdminAuth;
+use App\Service\Blocks\BlockLocalization;
 use App\Service\Csrf;
+use App\Service\Language\LanguageCode;
+use App\Service\Language\SiteLanguages;
 use App\Service\FeatureGridContent;
 use App\Repository\FeatureGridRepository;
 
@@ -53,21 +66,27 @@ if ($grid === null) {
 $sectionKey = $grid['page_slug'] . ':' . $grid['section_key'];
 
 $iconKey = is_string($_POST['icon_key'] ?? null) ? $_POST['icon_key'] : '';
-$fields = [
+$settings = [
     'icon_key' => array_key_exists($iconKey, FeatureGridContent::ICON_KEYS) ? $iconKey : array_key_first(FeatureGridContent::ICON_KEYS),
-    'title_nl' => trim((string) ($_POST['title_nl'] ?? '')),
-    'title_en' => trim((string) ($_POST['title_en'] ?? '')),
-    'body_nl' => trim((string) ($_POST['body_nl'] ?? '')),
-    'body_en' => trim((string) ($_POST['body_en'] ?? '')),
     'is_active' => isset($_POST['is_active']),
 ];
 
-$errors = [];
-if ($fields['title_nl'] === '') {
-    $errors[] = AdminTranslator::trans('validation.titel_nl_verplicht');
+$languageCode = LanguageCode::normalise((string) ($_POST['language_code'] ?? '')) ?? '';
+
+// Exactly the fields the block declares, never a name taken from the request.
+$words = [];
+foreach (array_keys(BlockLocalization::fields('feature_grid_items')) as $field) {
+    $words[$field] = trim((string) ($_POST[$field] ?? ''));
 }
-if ($fields['body_nl'] === '') {
-    $errors[] = AdminTranslator::trans('validation.tekst_nl_verplicht');
+
+$errors = [];
+
+if ($languageCode === '' || !SiteLanguages::isActive($languageCode)) {
+    $errors[] = AdminTranslator::trans('validation.language_unknown');
+} else {
+    foreach (BlockLocalization::messageKeys(BlockLocalization::problems('feature_grid_items', $languageCode, $words)) as $key) {
+        $errors[] = AdminTranslator::trans($key);
+    }
 }
 
 if ($errors !== []) {
@@ -76,10 +95,21 @@ if ($errors !== []) {
     exit;
 }
 
+$db = Database::connection();
+
 try {
-    $repository->updateItem($itemId, $fields);
+    $db->beginTransaction();
+
+    $repository->updateItem($itemId, $settings);
+    BlockLocalization::save('feature_grid_items', $itemId, $languageCode, $words);
+
+    $db->commit();
     FeatureGridContent::clearCache();
 } catch (\Throwable $e) {
+    if ($db->inTransaction()) {
+        $db->rollBack();
+    }
+
     error_log('[api/admin/update-feature-grid-item.php] ' . $e->getMessage());
     $_SESSION['admin_feature_grid_item_errors'] = ['Kaart kon niet worden opgeslagen. Probeer het opnieuw.'];
     header('Location: /admin/feature-grid.php?section=' . urlencode($sectionKey));

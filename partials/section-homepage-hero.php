@@ -9,22 +9,31 @@
  *
  * The headline is what the Hero is for, so a Hero without a title renders
  * nothing — never the full hero band, its decoration and its buttons around
- * an empty `<h1>`. The editor requires a title, and both the fresh-install
- * bootstrap and HomepageHeroContent::startingValues() write one, so only data
- * written outside them gets here.
+ * an empty `<h1>`. The editor requires a title in the default language, and
+ * both the fresh-install bootstrap and HomepageHeroContent::startingWords()
+ * write one, so only data written outside them gets here.
+ *
+ * Every word arrives as one LocalizedValue per field, the stats' too
+ * (App\Service\Blocks\BlockLocalization): SiteText prints the words a visitor
+ * sees first and the escaped data-nl/data-en pair for the V1 switch, so this
+ * file knows no language, no default and no fallback. All of it is plain
+ * text except the headline, whose title and highlight are composed into one
+ * safe fragment per language (HomepageHeroContent::titleHtml()).
  *
  * @param array<string, mixed> $hero see HomepageHeroContent::current()
  */
 function render_section_homepage_hero(array $hero): void
 {
-    if ($hero['title_nl'] === '') {
+    $text = static fn (string $field): string => \App\Service\Language\SiteText::visibleOf($hero[$field]);
+
+    if ($text('title') === '') {
         return;
     }
 
     $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
+    $pair = static fn (string $field): string => \App\Service\Language\SiteText::attrsOf($hero[$field]);
 
-    $heroTitleFragmentNl = \App\Service\HomepageHeroContent::renderTitleFragment($hero['title_nl'], $hero['title_highlight_nl']);
-    $heroTitleFragmentEn = \App\Service\HomepageHeroContent::renderTitleFragment($hero['title_en'], $hero['title_highlight_en']);
+    $heroTitle = \App\Service\HomepageHeroContent::titleHtml($hero['title'], $hero['title_highlight']);
     $heroLayoutClasses = [
         \App\Service\HomepageHeroContent::LAYOUT_MEDIA_LEFT => 'hero--media-left',
         \App\Service\HomepageHeroContent::LAYOUT_BACKGROUND => 'hero--background',
@@ -45,7 +54,7 @@ function render_section_homepage_hero(array $hero): void
     // itself and draw the browser's broken-image icon, which is exactly what
     // a fresh installation would have shown.
     $heroHasMedia = \App\Service\HomepageHeroContent::hasMedia($hero);
-    $heroHasBadge = $hero['badge_title_nl'] !== '';
+    $heroHasBadge = $text('badge_title') !== '';
     $heroClasses = array_filter(['hero', $heroLayoutClass, $heroHasMedia ? '' : 'hero--no-media']);
     ?>
     <section class="<?= $h(implode(' ', $heroClasses)) ?>">
@@ -54,27 +63,28 @@ function render_section_homepage_hero(array $hero): void
       <div class="laser-line" style="bottom: 14%; right: 0; width: 26%" aria-hidden="true"></div>
       <div class="container hero__grid">
         <div class="hero__content">
-          <p class="eyebrow hero__eyebrow" <?= \App\Service\Language\SiteText::attrs($hero['eyebrow_nl'], $hero['eyebrow_en']) ?>><?= $h(\App\Service\Language\SiteText::visible($hero['eyebrow_nl'], $hero['eyebrow_en'])) ?></p>
+          <p class="eyebrow hero__eyebrow" <?= $pair('eyebrow') ?>><?= $h($text('eyebrow')) ?></p>
           <?php /* data-lang-html: the title fragment is real HTML — the title
                    text is escaped and only the highlight is wrapped in a
-                   hardcoded <em> (HomepageHeroContent::renderTitleFragment), so
-                   assets/js/core.js's applyLang() re-renders it with innerHTML.
-                   Every plain-text field around it stays textContent, the
-                   XSS-safe default; the marker is what carves out this one. */ ?>
-          <h1 style="--hero-highlight-size: <?= $heroHighlightSize ?>%" data-lang-html data-nl="<?= $h($heroTitleFragmentNl) ?>" data-en="<?= $h($heroTitleFragmentEn) ?>"><?= $heroTitleFragmentNl ?></h1>
-          <p class="lead hero__lead" <?= \App\Service\Language\SiteText::attrs($hero['lead_nl'], $hero['lead_en']) ?>><?= $h(\App\Service\Language\SiteText::visible($hero['lead_nl'], $hero['lead_en'])) ?></p>
+                   hardcoded <em> (HomepageHeroContent::titleHtml()), so
+                   assets/js/core.js's applyLang() re-renders it with innerHTML,
+                   and it is printed unescaped for the same reason. Every
+                   plain-text field around it stays textContent, the XSS-safe
+                   default; the marker is what carves out this one. */ ?>
+          <h1 style="--hero-highlight-size: <?= $heroHighlightSize ?>%" data-lang-html<?= \App\Service\Language\SiteText::attrsOf($heroTitle) ?>><?= \App\Service\Language\SiteText::visibleOf($heroTitle) ?></h1>
+          <p class="lead hero__lead" <?= $pair('lead') ?>><?= $h($text('lead')) ?></p>
           <div class="hero__actions">
-            <a href="<?= $h($hero['primary_url']) ?>" class="btn" <?= \App\Service\Language\SiteText::attrs($hero['primary_label_nl'], $hero['primary_label_en']) ?>><?= $h(\App\Service\Language\SiteText::visible($hero['primary_label_nl'], $hero['primary_label_en'])) ?>
+            <a href="<?= $h((string) $hero['primary_url']) ?>" class="btn" <?= $pair('primary_label') ?>><?= $h($text('primary_label')) ?>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" /></svg>
             </a>
-            <?php if ($hero['secondary_label_nl'] !== ''): ?>
-            <a href="<?= $h($hero['secondary_url']) ?>" class="btn btn--ghost" <?= \App\Service\Language\SiteText::attrs($hero['secondary_label_nl'], $hero['secondary_label_en']) ?>><?= $h(\App\Service\Language\SiteText::visible($hero['secondary_label_nl'], $hero['secondary_label_en'])) ?></a>
+            <?php if ($text('secondary_label') !== ''): ?>
+            <a href="<?= $h((string) $hero['secondary_url']) ?>" class="btn btn--ghost" <?= $pair('secondary_label') ?>><?= $h($text('secondary_label')) ?></a>
             <?php endif; ?>
           </div>
           <div class="hero__meta">
             <?php foreach ($hero['stats'] as $stat): ?>
             <div>
-              <strong <?= \App\Service\Language\SiteText::attrs($stat['primary_text_nl'], $stat['primary_text_en']) ?>><?= $h(\App\Service\Language\SiteText::visible($stat['primary_text_nl'], $stat['primary_text_en'])) ?></strong><span <?= \App\Service\Language\SiteText::attrs($stat['secondary_text_nl'], $stat['secondary_text_en']) ?>><?= $h(\App\Service\Language\SiteText::visible($stat['secondary_text_nl'], $stat['secondary_text_en'])) ?></span>
+              <strong <?= \App\Service\Language\SiteText::attrsOf($stat['primary_text']) ?>><?= $h(\App\Service\Language\SiteText::visibleOf($stat['primary_text'])) ?></strong><span <?= \App\Service\Language\SiteText::attrsOf($stat['secondary_text']) ?>><?= $h(\App\Service\Language\SiteText::visibleOf($stat['secondary_text'])) ?></span>
             </div>
             <?php endforeach; ?>
           </div>
@@ -86,14 +96,14 @@ function render_section_homepage_hero(array $hero): void
             <?php if ($hero['media_type'] === \App\Service\HomepageHeroContent::MEDIA_TYPE_VIDEO): ?>
             <video class="hero__media-video" src="<?= $h($hero['video_path']) ?>"<?= $hero['image_path'] !== '' ? ' poster="' . $h($hero['image_path']) . '"' : '' ?> autoplay muted loop playsinline preload="metadata" aria-hidden="true"></video>
             <?php else: ?>
-            <img src="<?= $h($hero['image_path']) ?>" alt="<?= $h($hero['image_alt_nl']) ?>" data-nl-alt="<?= $h($hero['image_alt_nl']) ?>" data-en-alt="<?= $h($hero['image_alt_en']) ?>" width="800" height="1000" loading="eager" />
+            <img src="<?= $h($hero['image_path']) ?>" alt="<?= $h($text('image_alt')) ?>"<?= \App\Service\Language\SiteText::attrsForOf('alt', $hero['image_alt']) ?> width="800" height="1000" loading="eager" />
             <?php endif; ?>
           </div>
           <?php endif; ?>
           <?php if ($heroHasBadge): ?>
           <div class="hero__badge">
-            <strong <?= \App\Service\Language\SiteText::attrs($hero['badge_title_nl'], $hero['badge_title_en']) ?>><?= $h(\App\Service\Language\SiteText::visible($hero['badge_title_nl'], $hero['badge_title_en'])) ?></strong>
-            <span <?= \App\Service\Language\SiteText::attrs($hero['badge_text_nl'], $hero['badge_text_en']) ?>><?= $h(\App\Service\Language\SiteText::visible($hero['badge_text_nl'], $hero['badge_text_en'])) ?></span>
+            <strong <?= $pair('badge_title') ?>><?= $h($text('badge_title')) ?></strong>
+            <span <?= $pair('badge_text') ?>><?= $h($text('badge_text')) ?></span>
           </div>
           <?php endif; ?>
         </div>

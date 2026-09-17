@@ -94,24 +94,23 @@ class MarqueeRepository extends Repository
     }
 
     /**
-     * Appends a new item to the end of a section.
-     *
-     * @param array<string, string> $values label_nl, label_en
+     * Appends a new, visible item to the end of a section and returns its id.
+     * Its label is words, stored per website language against that id
+     * (App\Service\Blocks\BlockLocalization, db/migrations/20260917190000),
+     * in the same transaction as this insert.
      */
-    public function createItem(int $sectionId, array $values): int
+    public function createItem(int $sectionId): int
     {
         $nextSortOrder = $this->nextSortOrder($sectionId);
 
         $stmt = $this->db->prepare(
             'INSERT INTO marquee_items
-                (marquee_section_id, label_nl, label_en, sort_order, is_active, created_at, updated_at)
+                (marquee_section_id, sort_order, is_active, created_at, updated_at)
              VALUES
-                (:marquee_section_id, :label_nl, :label_en, :sort_order, 1, NOW(), NOW())'
+                (:marquee_section_id, :sort_order, 1, NOW(), NOW())'
         );
         $stmt->execute([
             'marquee_section_id' => $sectionId,
-            'label_nl' => $values['label_nl'],
-            'label_en' => self::nullIfEmpty($values['label_en'] ?? null),
             'sort_order' => $nextSortOrder,
         ]);
 
@@ -119,21 +118,21 @@ class MarqueeRepository extends Repository
     }
 
     /**
-     * @param array<string, string|bool> $values label_nl, label_en, is_active
+     * What an item has that is the same in every language: whether it is
+     * shown. Its label is saved through BlockLocalization. The id never
+     * changes, so the words of every language stay attached to it.
+     *
+     * @param array{is_active: bool} $values
      */
     public function updateItem(int $id, array $values): void
     {
         $stmt = $this->db->prepare(
             'UPDATE marquee_items SET
-                label_nl = :label_nl,
-                label_en = :label_en,
                 is_active = :is_active,
                 updated_at = NOW()
              WHERE id = :id'
         );
         $stmt->execute([
-            'label_nl' => $values['label_nl'],
-            'label_en' => self::nullIfEmpty($values['label_en'] ?? null),
             'is_active' => $values['is_active'] ? 1 : 0,
             'id' => $id,
         ]);
@@ -141,7 +140,9 @@ class MarqueeRepository extends Repository
 
     /**
      * Permanently removes an item — distinct from hiding one via is_active
-     * (see updateItem). Used by the admin "Verwijderen" action.
+     * (see updateItem). Used by the admin "Verwijderen" action, which removes
+     * the item's words first, in the same transaction
+     * (BlockLocalization::deleteOwner()).
      */
     public function deleteItem(int $id): bool
     {
@@ -187,8 +188,10 @@ class MarqueeRepository extends Repository
 
     /**
      * Permanently removes the section and (via ON DELETE CASCADE) all of its
-     * items — used by the page builder's "Delete section" action. This type
-     * has no uploaded media of its own, so no filesystem cleanup is needed.
+     * items — used by the page builder's "Delete section" action, whose
+     * SectionRegistry::delete() removes the words of every item first. This
+     * type has no uploaded media of its own, so no filesystem cleanup is
+     * needed.
      */
     public function deleteSection(int $id): bool
     {
@@ -213,10 +216,5 @@ class MarqueeRepository extends Repository
         $stmt->execute(['marquee_section_id' => $sectionId]);
 
         return (int) $stmt->fetch()['next_sort_order'];
-    }
-
-    private static function nullIfEmpty(?string $value): ?string
-    {
-        return ($value !== null && $value !== '') ? $value : null;
     }
 }

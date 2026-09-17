@@ -9,7 +9,9 @@ require_once dirname(__DIR__, 3) . '/partials/section-step-list.php';
 
 /**
  * A numbered "zo werkt het" list. Its steps are child rows of the section, so
- * deleting an instance takes them with it through ON DELETE CASCADE.
+ * deleting an instance takes them with it through ON DELETE CASCADE. The
+ * words of the section and of every step are stored per website language in
+ * block_translations (BlockLocalization), each step's on its own row.
  */
 final class StepListBlock extends BlockDefinition
 {
@@ -59,6 +61,31 @@ final class StepListBlock extends BlockDefinition
         ];
     }
 
+    /**
+     * The heading on the section's row and the title and description on each
+     * step's row, per website language. What the editor always required in
+     * Dutch is required in the default language; the lengths are the ones
+     * the editor always allowed.
+     */
+    public function translatableFields(): array
+    {
+        return [
+            'step_list_sections' => [
+                TranslatableField::plain('eyebrow', 150)->required(),
+                TranslatableField::plain('title', 255)->required(),
+            ],
+            'step_list_items' => [
+                TranslatableField::plain('title', 255)->required(),
+                TranslatableField::plain('body', 1000)->required(),
+            ],
+        ];
+    }
+
+    public function childTables(): array
+    {
+        return ['step_list_items' => ['parent' => 'step_list_sections', 'column' => 'step_list_section_id']];
+    }
+
     public function create(string $pageSlug): array
     {
         $key = self::newSectionKey();
@@ -89,14 +116,14 @@ final class StepListBlock extends BlockDefinition
         $items = [];
         foreach (range(0, 3) as $index) {
             $items[] = [
-                ...$samples->itemFields('title', 'step', $index),
-                ...$samples->itemFields('body', 'item_body', $index),
+                'title' => $samples->localizedItem('step', $index),
+                'body' => $samples->localizedItem('item_body', $index),
             ];
         }
 
         return [
-            ...$samples->fields('eyebrow', 'eyebrow'),
-            ...$samples->fields('title', 'title'),
+            'eyebrow' => $samples->localized('eyebrow'),
+            'title' => $samples->localized('title'),
             'items' => $items,
         ];
     }
@@ -108,7 +135,7 @@ final class StepListBlock extends BlockDefinition
 
     public function instanceTitle(array $pageSection): string
     {
-        return (string) (StepListContent::forSection($this->pageSlug($pageSection), $this->sectionKey($pageSection))['title_nl'] ?? '');
+        return BlockLocalization::name('step_list_sections', $this->sectionId($pageSection), 'title');
     }
 
     public function editUrl(array $pageSection): ?string

@@ -105,6 +105,35 @@ final class BlockWordsEditorHttpTest extends TestCase
             'words' => ['title' => 'Projecten', 'lead' => 'Wat wij maakten.'],
             'required' => [],
         ],
+        // Phase 3B, wave B: the heading of a repeater; its items are
+        // Tests\Service\BlockChildWordsEditorHttpTest's.
+        'feature_grid' => [
+            'table' => 'feature_grids',
+            'screen' => '/admin/feature-grid.php?section={section}',
+            'endpoint' => '/api/admin/update-feature-grid.php',
+            'address' => 'section',
+            'settings' => ['is_active' => '1'],
+            'words' => ['eyebrow' => 'Waarom wij', 'title' => 'Wat je van ons krijgt', 'lead' => 'Kort gezegd.'],
+            'required' => ['eyebrow', 'title'],
+        ],
+        'faq' => [
+            'table' => 'faq_sections',
+            'screen' => '/admin/faq.php?section={section}',
+            'endpoint' => '/api/admin/update-faq-section.php',
+            'address' => 'section',
+            'settings' => ['is_active' => '1'],
+            'words' => ['eyebrow' => 'Vragen', 'title' => 'Veelgestelde vragen'],
+            'required' => ['eyebrow', 'title'],
+        ],
+        'step_list' => [
+            'table' => 'step_list_sections',
+            'screen' => '/admin/step-list.php?section={section}',
+            'endpoint' => '/api/admin/update-step-list-section.php',
+            'address' => 'section',
+            'settings' => ['is_active' => '1'],
+            'words' => ['eyebrow' => 'Werkwijze', 'title' => 'In drie stappen'],
+            'required' => ['eyebrow', 'title'],
+        ],
     ];
 
     private static ?BuiltInServer $server = null;

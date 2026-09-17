@@ -1213,7 +1213,65 @@ final class MultilingualBoundaryTest extends TestCase
             'src/Service/Blocks/ProjectCardsBlock.php', 'src/Repository/ItemGalleryRepository.php', 'src/Service/ItemGalleryContent.php',
             'partials/section-item-gallery.php', 'admin/project-cards.php', 'api/admin/update-project-cards.php',
         ],
+        // Phase 3B, wave B: the homepage hero and the repeaters. The endpoint
+        // listed is the one that writes the block's words; for the Cijferbalk
+        // and the Woordenband, whose own row has none, an item's.
+        'homepage_hero' => [
+            'src/Service/Blocks/HomepageHeroBlock.php', 'src/Repository/HomepageHeroRepository.php', 'src/Service/HomepageHeroContent.php',
+            'partials/section-homepage-hero.php', 'admin/homepage-hero.php', 'api/admin/update-homepage-hero.php',
+        ],
+        'feature_grid' => [
+            'src/Service/Blocks/FeatureGridBlock.php', 'src/Repository/FeatureGridRepository.php', 'src/Service/FeatureGridContent.php',
+            'partials/section-feature-grid.php', 'admin/feature-grid.php', 'api/admin/update-feature-grid.php',
+        ],
+        'faq' => [
+            'src/Service/Blocks/FaqBlock.php', 'src/Repository/FaqRepository.php', 'src/Service/FaqContent.php',
+            'partials/section-faq.php', 'admin/faq.php', 'api/admin/update-faq-section.php',
+        ],
+        'step_list' => [
+            'src/Service/Blocks/StepListBlock.php', 'src/Repository/StepListRepository.php', 'src/Service/StepListContent.php',
+            'partials/section-step-list.php', 'admin/step-list.php', 'api/admin/update-step-list-section.php',
+        ],
+        'stat_strip' => [
+            'src/Service/Blocks/StatStripBlock.php', 'src/Repository/StatStripRepository.php', 'src/Service/StatStripContent.php',
+            'partials/section-stat-strip.php', 'admin/stat-strip.php', 'api/admin/update-stat-strip-item.php',
+        ],
+        'marquee' => [
+            'src/Service/Blocks/MarqueeBlock.php', 'src/Repository/MarqueeRepository.php', 'src/Service/MarqueeContent.php',
+            'partials/section-marquee.php', 'admin/marquee.php', 'api/admin/update-marquee-item.php',
+        ],
     ];
+
+    /** Editors whose own form carries no words (only is_active): the words are all on the item cards, which hand nothing back. */
+    private const EDITORS_WITHOUT_A_WORDS_FORM_OF_THEIR_OWN = ['admin/stat-strip.php', 'admin/marquee.php'];
+
+    /**
+     * Every endpoint that deletes ONE child row of a converted block, with
+     * the child table it deletes from. There is no foreign key from
+     * block_translations to a child row, so this line in each of them is
+     * what keeps a deleted item's words from staying behind.
+     */
+    private const CHILD_DELETE_ENDPOINTS = [
+        'api/admin/delete-faq-item.php' => 'faq_items',
+        'api/admin/delete-feature-grid-item.php' => 'feature_grid_items',
+        'api/admin/delete-step-list-item.php' => 'step_list_items',
+        'api/admin/delete-stat-strip-item.php' => 'stat_strip_items',
+        'api/admin/delete-marquee-item.php' => 'marquee_items',
+        'api/admin/delete-homepage-hero-stat.php' => 'homepage_hero_stats',
+    ];
+
+    /** Every endpoint that adds ONE child row of a converted block: it writes the new row's words in the default language. */
+    private const CHILD_CREATE_ENDPOINTS = [
+        'api/admin/create-faq-item.php' => 'faq_items',
+        'api/admin/create-feature-grid-item.php' => 'feature_grid_items',
+        'api/admin/create-step-list-item.php' => 'step_list_items',
+        'api/admin/create-stat-strip-item.php' => 'stat_strip_items',
+        'api/admin/create-marquee-item.php' => 'marquee_items',
+        'api/admin/create-homepage-hero-stat.php' => 'homepage_hero_stats',
+    ];
+
+    /** Child tables whose rows are only ever deleted with their parent, or by an endpoint listed with the next wave. */
+    private const CHILD_TABLES_DELETED_ELSEWHERE = [];
 
     /**
      * What a converted block's own files may still print the V1 way, because
@@ -1288,10 +1346,22 @@ final class MultilingualBoundaryTest extends TestCase
         self::assertStringContainsString('SiteText::htmlAttrsOf($section[\'body\'])', $rich, 'the body is marked data-lang-html through the one helper');
         self::assertStringContainsString('SiteText::visibleOf(', $rich);
 
+        // The homepage hero's headline is the one exception, checked below:
+        // its title and highlight become markup built from escaped words.
         $plainPartials = array_unique(array_filter(
             array_map(static fn (array $files): string => $files[3], self::CONVERTED_BLOCK_FILES),
-            static fn (string $partial): bool => $partial !== 'partials/section-rich-text.php'
+            static fn (string $partial): bool => !in_array($partial, ['partials/section-rich-text.php', 'partials/section-homepage-hero.php'], true)
         ));
+
+        $hero = self::withoutComments(self::read('partials/section-homepage-hero.php'));
+        self::assertSame(1, substr_count($hero, 'data-lang-html'), 'only the headline of the homepage hero is marked as HTML');
+        self::assertStringContainsString('data-lang-html<?= \App\Service\Language\SiteText::attrsOf($heroTitle) ?>', $hero, 'the marker sits on the <h1> that prints the composed headline');
+        self::assertStringContainsString('HomepageHeroContent::titleHtml($hero[\'title\'], $hero[\'title_highlight\'])', $hero);
+        self::assertMatchesRegularExpression(
+            '/function renderTitleFragment\(.*?htmlspecialchars\(\$before.*?\x27<em>\x27 \. htmlspecialchars\(\$match.*?htmlspecialchars\(\$after/s',
+            self::withoutComments(self::read('src/Service/HomepageHeroContent.php')),
+            'every word of the headline is escaped; only the <em> is markup'
+        );
 
         foreach ($plainPartials as $plain) {
             $code = self::withoutComments(self::read($plain));
@@ -1316,13 +1386,48 @@ final class MultilingualBoundaryTest extends TestCase
             self::assertStringNotContainsString('_language_fields.php', $screen, $editor . ': no V1 panes');
             self::assertStringContainsString('admin_localized_input($editLanguage)', $screen, $editor);
             self::assertStringContainsString('BlockLocalization::raw(', $screen, $editor . ': the stored words, without the fallback');
-            self::assertStringContainsString("['language_code'] ?? null) === \$editLanguage", $screen, $editor . ': handed-back words only in their own language');
-            self::assertStringContainsString('data-save-bar-unsaved', $screen, $editor);
+            if (!in_array($editor, self::EDITORS_WITHOUT_A_WORDS_FORM_OF_THEIR_OWN, true)) {
+                self::assertStringContainsString("['language_code'] ?? null) === \$editLanguage", $screen, $editor . ': handed-back words only in their own language');
+                self::assertStringContainsString('data-save-bar-unsaved', $screen, $editor);
+            }
 
             self::assertStringContainsString('SiteLanguages::isActive($languageCode)', $write, $endpoint);
             self::assertMatchesRegularExpression('/BlockLocalization::save\(\x27[a-z_]+\x27, [^,]+, \$languageCode,/', $write, $endpoint);
             self::assertStringContainsString('BlockLocalization::problems(', $write, $endpoint . ': the declared fields are the validation');
-            self::assertMatchesRegularExpression('/beginTransaction\(\);.*?upsert(?:Section)?\(.*?BlockLocalization::save\(.*?commit\(\);/s', $write, $endpoint . ': settings and words are one save');
+            self::assertMatchesRegularExpression('/beginTransaction\(\);.*?->(?:upsert|update)\w*\(.*?BlockLocalization::save\(.*?commit\(\);/s', $write, $endpoint . ': settings and words are one save');
+        }
+    }
+
+    public function testDeletingOneChildRowTakesItsWordsFirstInTheSameTransaction(): void
+    {
+        foreach (self::CHILD_DELETE_ENDPOINTS as $endpoint => $table) {
+            self::assertMatchesRegularExpression(
+                '/beginTransaction\(\);\s*BlockLocalization::deleteOwner\(\x27' . $table . '\x27, \$itemId\);\s*\$repository->delete\w*\(\$itemId\);\s*\$db->commit\(\);/',
+                self::withoutComments(self::read($endpoint)),
+                $endpoint . ': the words go before the row, in its transaction'
+            );
+        }
+
+        // Every converted child table is on the list: a new one needs its line.
+        $declared = [];
+        foreach (\App\Service\Blocks\BlockDefinitions::all() as $definition) {
+            $declared = array_merge($declared, array_keys($definition->childTables()));
+        }
+        self::assertSame([], array_values(array_diff(array_unique($declared), array_values(self::CHILD_DELETE_ENDPOINTS), self::CHILD_TABLES_DELETED_ELSEWHERE)), 'a child table without a known delete path');
+    }
+
+    public function testANewChildRowIsWrittenInTheDefaultLanguageInOneTransaction(): void
+    {
+        foreach (self::CHILD_CREATE_ENDPOINTS as $endpoint => $table) {
+            $code = self::withoutComments(self::read($endpoint));
+
+            self::assertStringContainsString('$defaultLanguage = BlockLocalization::defaultLanguage();', $code, $endpoint);
+            self::assertStringNotContainsString("\$_POST['language_code']", $code, $endpoint . ': a new item is never written in a language the request names');
+            self::assertMatchesRegularExpression(
+                '/beginTransaction\(\);.*?->create\w*\(.*?BlockLocalization::save\(\x27' . $table . '\x27, [^,]+, \$defaultLanguage,.*?commit\(\);/s',
+                $code,
+                $endpoint . ': the row and its words are one save'
+            );
         }
     }
 

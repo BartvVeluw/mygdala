@@ -16,6 +16,12 @@ require_once dirname(__DIR__, 2) . '/partials/section-page-hero.php';
 require_once dirname(__DIR__, 2) . '/partials/section-form.php';
 require_once dirname(__DIR__, 2) . '/partials/section-contact-form.php';
 require_once dirname(__DIR__, 2) . '/partials/section-item-gallery.php';
+require_once dirname(__DIR__, 2) . '/partials/section-faq.php';
+require_once dirname(__DIR__, 2) . '/partials/section-feature-grid.php';
+require_once dirname(__DIR__, 2) . '/partials/section-step-list.php';
+require_once dirname(__DIR__, 2) . '/partials/section-stat-strip.php';
+require_once dirname(__DIR__, 2) . '/partials/section-marquee.php';
+require_once dirname(__DIR__, 2) . '/partials/section-homepage-hero.php';
 
 /**
  * What a visitor gets from the block types phase 3B moved onto per-language
@@ -177,7 +183,101 @@ final class RemainingBlocksRenderingTest extends TestCase
         self::assertStringNotContainsString('section-head', $html, 'nor a heading');
     }
 
+    // ------------------------------------------------------------ Repeaters (wave B): child rows own their words
+
+    public function testAFaqPrintsItsHeadingAndEachQuestionFromItsOwnRow(): void
+    {
+        SiteLanguageFixture::useBilingual('en');
+        $this->words('faq_sections', ['nl' => ['eyebrow' => 'Vragen', 'title' => 'Veelgesteld'], 'en' => ['title' => 'Frequently asked']]);
+        $this->childWords('faq_items', 1, ['nl' => ['question' => 'Hoe lang?', 'answer' => 'Een week.'], 'en' => ['question' => 'How long?', 'answer' => 'A week.']]);
+        $this->childWords('faq_items', 2, ['nl' => ['question' => 'Wat kost het?', 'answer' => 'Dat hangt ervan af.'], 'en' => ['question' => 'What does it cost?']]);
+
+        $html = $this->capture(fn () => render_section_faq(BlockLocalization::words('faq_sections', self::ID) + [
+            'items' => [BlockLocalization::words('faq_items', 1), BlockLocalization::words('faq_items', 2)],
+        ]));
+
+        self::assertStringContainsString('data-nl="Veelgesteld" data-en="Frequently asked">Frequently asked</h2>', $html, 'the English default first');
+        self::assertStringContainsString('data-nl="Hoe lang?" data-en="How long?">How long?</span>', $html);
+        self::assertStringContainsString('data-nl="Dat hangt ervan af." data-en="">', $html, 'an English answer that is missing on an English-default site has nothing to fall back to');
+        self::assertStringNotContainsString('data-lang-html', $html);
+    }
+
+    public function testAFeatureGridStepListStatStripAndMarqueeEscapeTheirItemsAndStayPlainText(): void
+    {
+        SiteLanguageFixture::useBilingual('nl');
+        $payload = '<img src=x onerror=alert(1)> & "quoted"';
+        $escaped = '&lt;img src=x onerror=alert(1)&gt; &amp; &quot;quoted&quot;';
+
+        $this->words('feature_grids', ['nl' => ['title' => 'Kenmerken']]);
+        $this->childWords('feature_grid_items', 3, ['nl' => ['title' => $payload, 'body' => 'Tekst'], 'en' => ['title' => '"><script>alert(2)</script>']]);
+        $grid = $this->capture(fn () => render_section_feature_grid(BlockLocalization::words('feature_grids', self::ID) + [
+            'items' => [['icon_key' => 'heart'] + BlockLocalization::words('feature_grid_items', 3)],
+        ], 'grid-test'));
+
+        $this->words('step_list_sections', ['nl' => ['title' => 'Stappen']]);
+        $this->childWords('step_list_items', 4, ['nl' => ['title' => $payload, 'body' => 'Uitleg']]);
+        $steps = $this->capture(fn () => render_section_step_list(BlockLocalization::words('step_list_sections', self::ID) + [
+            'items' => [BlockLocalization::words('step_list_items', 4)],
+        ], 'steps-test'));
+
+        $this->childWords('stat_strip_items', 5, ['nl' => ['primary_text' => $payload, 'secondary_text' => 'uitleg']]);
+        $strip = $this->capture(fn () => render_section_stat_strip(['items' => [BlockLocalization::words('stat_strip_items', 5)]], 'strip-test'));
+
+        $this->childWords('marquee_items', 6, ['nl' => ['label' => $payload], 'en' => ['label' => 'Plain']]);
+        $marquee = $this->capture(fn () => render_section_marquee(['items' => [BlockLocalization::words('marquee_items', 6)]]));
+
+        foreach (['feature grid' => $grid, 'step list' => $steps, 'stat strip' => $strip, 'marquee' => $marquee] as $what => $html) {
+            self::assertStringContainsString($escaped, $html, $what . ': a child label with markup is escaped text');
+            self::assertStringNotContainsString('<img src=x', $html, $what);
+            self::assertStringNotContainsString('<script', $html, $what);
+            self::assertStringNotContainsString('data-lang-html', $html, $what . ': plain text is never marked as HTML');
+        }
+        self::assertStringContainsString('data-en="&quot;&gt;&lt;script&gt;alert(2)&lt;/script&gt;"', $grid, 'the other half of the pair is escaped too');
+    }
+
+    // ------------------------------------------------------------ Openingssectie homepage
+
+    public function testTheHomepageHeroComposesItsHeadlinePerLanguageAndPrintsTheRestAsText(): void
+    {
+        SiteLanguageFixture::useBilingual('en');
+        $this->words('homepage_hero', [
+            'nl' => ['title' => 'Wij maken <het> mooi', 'title_highlight' => '<het>', 'primary_label' => 'Contact', 'image_alt' => 'Een "werkbank"', 'badge_title' => 'Sinds 2010', 'badge_text' => 'Tekst'],
+            'en' => ['title' => 'We make it beautiful', 'title_highlight' => 'beautiful', 'primary_label' => 'Get in touch', 'image_alt' => "A 'workbench'"],
+        ]);
+        $this->childWords('homepage_hero_stats', 7, ['nl' => ['primary_text' => '12 jaar', 'secondary_text' => '<b>ervaring</b>'], 'en' => ['primary_text' => '12 years']]);
+
+        $hero = BlockLocalization::words('homepage_hero', self::ID) + [
+            'state' => 'active',
+            'title_highlight_size' => 100,
+            'primary_url' => '/contact',
+            'secondary_url' => '',
+            'image_path' => 'assets/images/hero.jpg',
+            'media_type' => 'image',
+            'video_path' => '',
+            'layout' => 'media-right',
+            'stats' => [BlockLocalization::words('homepage_hero_stats', 7)],
+        ];
+
+        $html = $this->capture(fn () => render_section_homepage_hero($hero));
+
+        self::assertStringContainsString(
+            'data-lang-html data-nl="Wij maken &lt;em&gt;&amp;lt;het&amp;gt;&lt;/em&gt; mooi" data-en="We make it &lt;em&gt;beautiful&lt;/em&gt;">We make it <em>beautiful</em></h1>',
+            $html,
+            'the headline is markup built from escaped words and a hardcoded <em>, one fragment per language, the default first'
+        );
+        self::assertStringContainsString('alt="A &#039;workbench&#039;" data-nl-alt="Een &quot;werkbank&quot;" data-en-alt="A &#039;workbench&#039;"', $html);
+        self::assertStringContainsString('data-nl="&lt;b&gt;ervaring&lt;/b&gt;" data-en="">', $html, 'a stat caption is escaped text');
+        self::assertStringNotContainsString('hero__badge', $html, 'no badge in the English default');
+        self::assertSame(1, substr_count($html, 'data-lang-html'), 'only the headline is marked as HTML');
+    }
+
     // ------------------------------------------------------------ helpers
+
+    /** @param array<string, array<string, string>> $translations */
+    private function childWords(string $table, int $id, array $translations): void
+    {
+        BlockLocalization::overrideForTests($table, $id, $translations);
+    }
 
     /** @param array<string, array<string, string>> $translations */
     private function words(string $table, array $translations): void

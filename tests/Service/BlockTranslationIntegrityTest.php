@@ -87,7 +87,7 @@ final class BlockTranslationIntegrityTest extends TestCase
      * delete path they share: words in two languages for every field its own
      * row declares, and none left once the block is gone.
      *
-     * @dataProvider convertedTypes
+     * @dataProvider typesWithWordsOnTheirOwnRow
      */
     public function testDeletingAnyConvertedBlockTakesItsWordsInEveryLanguage(string $type): void
     {
@@ -108,6 +108,100 @@ final class BlockTranslationIntegrityTest extends TestCase
             BlockLocalization::orphans()['missing_owner'],
             static fn (array $row): bool => $row['owner_table'] === $table && $row['owner_id'] === $sectionId
         )));
+    }
+
+    /**
+     * Every converted type whose own content row has words (a Cijferbalk's or
+     * a Woordenband's words are all on its items).
+     *
+     * @return array<string, array{string}>
+     */
+    public static function typesWithWordsOnTheirOwnRow(): array
+    {
+        return array_filter(
+            self::convertedTypes(),
+            static fn (array $case): bool => array_key_exists(
+                (string) SectionRegistry::contentTable($case[0]),
+                \App\Service\Blocks\BlockDefinitions::get($case[0])?->translatableFields() ?? []
+            )
+        );
+    }
+
+    /**
+     * Every deletable block type that declares child tables.
+     *
+     * @return array<string, array{string}>
+     */
+    public static function typesWithChildRows(): array
+    {
+        return array_filter(
+            self::convertedTypes(),
+            static fn (array $case): bool => \App\Service\Blocks\BlockDefinitions::get($case[0])?->childTables() !== []
+        );
+    }
+
+    /**
+     * The child-row guarantee, for every block type that has child rows: the
+     * block, two rows of every child table and (where a child table has
+     * children of its own) two rows under each of those, all with words in
+     * two languages. Deleting the block through SectionRegistry::delete()
+     * leaves not one word behind, however deep; the database's cascade takes
+     * the rows, and the words were gone before it ran.
+     *
+     * The child rows are inserted with nothing but the column that ties them
+     * to their parent: what they hold besides their words is not the point.
+     *
+     * @dataProvider typesWithChildRows
+     */
+    public function testDeletingABlockTakesTheWordsOfAllItsChildRows(string $type): void
+    {
+        [$sectionId, $pageSection] = $this->attach($type);
+        $definition = \App\Service\Blocks\BlockDefinitions::get($type);
+        $owners = [(string) $definition->contentTable() => [$sectionId]];
+
+        // Parents before children: a child table's parent is always the
+        // content table or a child table handled earlier.
+        $children = $definition->childTables();
+        while ($children !== []) {
+            foreach ($children as $child => $link) {
+                if (!isset($owners[$link['parent']])) {
+                    continue;
+                }
+
+                foreach ($owners[$link['parent']] as $parentId) {
+                    foreach ([0, 1] as $order) {
+                        Database::connection()
+                            ->prepare("INSERT INTO `{$child}` (`{$link['column']}`) VALUES (?)")
+                            ->execute([$parentId]);
+                        $owners[$child][] = (int) Database::connection()->lastInsertId();
+                    }
+                }
+
+                unset($children[$child]);
+            }
+        }
+
+        foreach ($owners as $table => $ids) {
+            $fields = array_keys(BlockLocalization::fields($table));
+            foreach ($ids as $id) {
+                if ($fields !== []) {
+                    BlockLocalization::save($table, $id, 'nl', array_fill_keys($fields, 'Woorden'));
+                    BlockLocalization::save($table, $id, 'en', array_fill_keys($fields, 'Words'));
+                }
+            }
+        }
+
+        SectionRegistry::delete($pageSection, $this->sections);
+
+        foreach ($owners as $table => $ids) {
+            foreach ($ids as $id) {
+                self::assertSame(0, $this->wordsOf($table, $id), "{$type}: {$table} #{$id} left words behind");
+            }
+        }
+        self::assertSame([], array_values(array_filter(
+            BlockLocalization::orphans()['missing_owner'],
+            static fn (array $row): bool => in_array($row['owner_id'], $owners[$row['owner_table']] ?? [], true)
+        )), $type . ': the orphan check finds nothing to purge');
     }
 
     public function testDeletingAPageTakesTheWordsOfEveryBlockOnIt(): void

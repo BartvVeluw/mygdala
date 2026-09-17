@@ -3,6 +3,7 @@
 namespace App\Service;
 
 use App\Repository\MarqueeRepository;
+use App\Service\Blocks\BlockLocalization;
 
 /**
  * Content for the "Marquee" section (`.marquee` > `.marquee__track`) — the
@@ -29,6 +30,13 @@ use App\Repository\MarqueeRepository;
  * stay entirely in assets/css/blocks/marquee.css and assets/js/blocks/marquee.js; only the item
  * labels are CMS content.
  *
+ * WORDS PER LANGUAGE (Multilingual 2.0 phase 3B). Every item's label is
+ * stored per website language in block_translations, on the item's own row
+ * (MarqueeBlock::childTables()); the section itself has no words. It comes
+ * out of App\Service\Blocks\BlockLocalization as one LocalizedValue, the
+ * fallback already applied; is_active and the order stay in the tables. This
+ * class decides no language itself.
+ *
  * `is_active = false` on an *existing* section is a deliberate hide, and a
  * different case from a missing row. forSection()'s returned 'state' field
  * is how a template tells the three cases apart: STATE_FALLBACK (no row / DB
@@ -38,7 +46,9 @@ use App\Repository\MarqueeRepository;
  *
  * Once a section's row exists and is active, its *items* come strictly from
  * the database (only is_active = 1 items), even if that list is empty — an
- * individually hidden/deleted item must stay hidden.
+ * individually hidden/deleted item must stay hidden. An item without its
+ * label in the default language is not there either: the default language
+ * decides whether an item shows, as it does for a block.
  */
 class MarqueeContent
 {
@@ -51,14 +61,19 @@ class MarqueeContent
     /** A row exists and is_active = false — an intentional hide; render nothing. */
     public const STATE_HIDDEN = 'hidden';
 
+    /** The owner tables of this block's words (MarqueeBlock::translatableFields()). */
+    private const TABLE = 'marquee_sections';
+    private const ITEMS = 'marquee_items';
+
     /** @var array<string, array<string, mixed>> */
     private static array $cache = [];
 
     /**
-     * @return array<string, mixed> 'state' (one of STATE_*) and 'items':
-     *                                list of label_nl/label_en. Templates
-     *                                must check 'state' !== STATE_HIDDEN
-     *                                before rendering the section at all.
+     * @return array<string, mixed> 'state' (one of STATE_*) and 'items': a
+     *                                list of label (a LocalizedValue each).
+     *                                Templates must check 'state' !==
+     *                                STATE_HIDDEN before rendering the
+     *                                section at all.
      */
     public static function forSection(string $pageSlug, string $sectionKey): array
     {
@@ -90,27 +105,33 @@ class MarqueeContent
             return self::$cache[$cacheKey] = $empty + ['state' => self::STATE_HIDDEN];
         }
 
+        $sectionId = (int) $row['id'];
+
         try {
-            $items = $repository->findItemsBySectionId((int) $row['id'], true);
+            $rows = $repository->findItemsBySectionId($sectionId, true);
         } catch (\Throwable $e) {
             error_log('[MarqueeContent] items lookup failed for "' . $cacheKey . '": ' . $e->getMessage());
 
             return self::$cache[$cacheKey] = $empty + ['state' => self::STATE_FALLBACK];
         }
 
+        // The words of every item in the section at once; nothing when the
+        // page already loaded them (SectionRegistry::renderPage()).
+        BlockLocalization::preloadBlocks([self::TABLE => [$sectionId]]);
+
         // Only is_active items are queried above, and whatever comes back —
         // including an empty list — is authoritative: a section row that
         // exists and is active means the admin has deliberately curated its
         // items, so an empty result is "all items hidden/deleted", not
         // "missing data".
-        $items = array_map(static function (array $item): array {
-            $labelNl = (string) $item['label_nl'];
+        $items = [];
+        foreach ($rows as $item) {
+            $itemId = (int) $item['id'];
 
-            return [
-                'label_nl' => $labelNl,
-                'label_en' => self::valueOrDefault($item['label_en'] ?? null, $labelNl),
-            ];
-        }, $items);
+            if (BlockLocalization::hasRequiredWords(self::ITEMS, $itemId)) {
+                $items[] = BlockLocalization::words(self::ITEMS, $itemId);
+            }
+        }
 
         return self::$cache[$cacheKey] = [
             'items' => $items,
@@ -119,16 +140,13 @@ class MarqueeContent
     }
 
     /**
-     * Clears the in-process cache — used by the admin save handlers right
-     * after writing a new value, and by tests.
+     * Clears the in-process cache, and the block words BlockLocalization
+     * holds — used by the admin save handlers right after writing a new
+     * value, and by tests.
      */
     public static function clearCache(): void
     {
         self::$cache = [];
-    }
-
-    private static function valueOrDefault(?string $value, string $default): string
-    {
-        return ($value !== null && $value !== '') ? $value : $default;
+        BlockLocalization::clearCache();
     }
 }

@@ -94,26 +94,23 @@ class StatStripRepository extends Repository
     }
 
     /**
-     * Appends a new stat to the end of a strip.
-     *
-     * @param array<string, string> $values primary_text_nl, primary_text_en, secondary_text_nl, secondary_text_en
+     * Appends a new, visible stat to the end of a strip and returns its id.
+     * Its number and caption are words, stored per website language against
+     * that id (App\Service\Blocks\BlockLocalization, db/migrations/
+     * 20260917190000), in the same transaction as this insert.
      */
-    public function createItem(int $stripId, array $values): int
+    public function createItem(int $stripId): int
     {
         $nextSortOrder = $this->nextSortOrder($stripId);
 
         $stmt = $this->db->prepare(
             'INSERT INTO stat_strip_items
-                (stat_strip_id, primary_text_nl, primary_text_en, secondary_text_nl, secondary_text_en, sort_order, is_active, created_at, updated_at)
+                (stat_strip_id, sort_order, is_active, created_at, updated_at)
              VALUES
-                (:stat_strip_id, :primary_text_nl, :primary_text_en, :secondary_text_nl, :secondary_text_en, :sort_order, 1, NOW(), NOW())'
+                (:stat_strip_id, :sort_order, 1, NOW(), NOW())'
         );
         $stmt->execute([
             'stat_strip_id' => $stripId,
-            'primary_text_nl' => $values['primary_text_nl'],
-            'primary_text_en' => self::nullIfEmpty($values['primary_text_en'] ?? null),
-            'secondary_text_nl' => $values['secondary_text_nl'],
-            'secondary_text_en' => self::nullIfEmpty($values['secondary_text_en'] ?? null),
             'sort_order' => $nextSortOrder,
         ]);
 
@@ -121,25 +118,21 @@ class StatStripRepository extends Repository
     }
 
     /**
-     * @param array<string, string|bool> $values primary_text_nl, primary_text_en, secondary_text_nl, secondary_text_en, is_active
+     * What a stat has that is the same in every language: whether it is
+     * shown. Its words are saved through BlockLocalization. The id never
+     * changes, so the words of every language stay attached to it.
+     *
+     * @param array{is_active: bool} $values
      */
     public function updateItem(int $id, array $values): void
     {
         $stmt = $this->db->prepare(
             'UPDATE stat_strip_items SET
-                primary_text_nl = :primary_text_nl,
-                primary_text_en = :primary_text_en,
-                secondary_text_nl = :secondary_text_nl,
-                secondary_text_en = :secondary_text_en,
                 is_active = :is_active,
                 updated_at = NOW()
              WHERE id = :id'
         );
         $stmt->execute([
-            'primary_text_nl' => $values['primary_text_nl'],
-            'primary_text_en' => self::nullIfEmpty($values['primary_text_en'] ?? null),
-            'secondary_text_nl' => $values['secondary_text_nl'],
-            'secondary_text_en' => self::nullIfEmpty($values['secondary_text_en'] ?? null),
             'is_active' => $values['is_active'] ? 1 : 0,
             'id' => $id,
         ]);
@@ -147,7 +140,9 @@ class StatStripRepository extends Repository
 
     /**
      * Permanently removes a stat — distinct from hiding one via is_active
-     * (see updateItem). Used by the admin "Verwijderen" action.
+     * (see updateItem). Used by the admin "Verwijderen" action, which removes
+     * the stat's words first, in the same transaction
+     * (BlockLocalization::deleteOwner()).
      */
     public function deleteItem(int $id): bool
     {
@@ -193,8 +188,10 @@ class StatStripRepository extends Repository
 
     /**
      * Permanently removes the strip and (via ON DELETE CASCADE) all of its
-     * stats — used by the page builder's "Delete section" action. This type
-     * has no uploaded media of its own, so no filesystem cleanup is needed.
+     * stats — used by the page builder's "Delete section" action, whose
+     * SectionRegistry::delete() removes the words of every stat first. This
+     * type has no uploaded media of its own, so no filesystem cleanup is
+     * needed.
      */
     public function deleteStrip(int $id): bool
     {
@@ -219,10 +216,5 @@ class StatStripRepository extends Repository
         $stmt->execute(['stat_strip_id' => $stripId]);
 
         return (int) $stmt->fetch()['next_sort_order'];
-    }
-
-    private static function nullIfEmpty(?string $value): ?string
-    {
-        return ($value !== null && $value !== '') ? $value : null;
     }
 }

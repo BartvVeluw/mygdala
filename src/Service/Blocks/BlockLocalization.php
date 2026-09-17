@@ -226,6 +226,26 @@ final class BlockLocalization
     }
 
     /**
+     * Does this owner have words, in the default language, for every field
+     * its table declares required? What a *Content class asks of each child
+     * row before it hands the row to a partial: the default language decides
+     * whether an item is there at all, exactly as it decides for a block, so
+     * a question that exists only as a translation shows nothing.
+     */
+    public static function hasRequiredWords(string $ownerTable, int $ownerId): bool
+    {
+        $default = self::defaultLanguage();
+
+        foreach (self::fields($ownerTable) as $key => $field) {
+            if ($field->required && self::raw($ownerTable, $ownerId, $key, $default) === '') {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /**
      * Load the words of many owners in one query. Owners already loaded, and
      * tables no block declares, are left alone.
      *

@@ -7,13 +7,20 @@
  * its "Zichtbaar" checkbox (update-stat-strip-item.php) — see
  * App\Service\StatStripContent for why that distinction matters for the
  * public-facing fallback logic.
+ *
+ * The stat's words in every website language go first, in the same
+ * transaction as the row (BlockLocalization::deleteOwner()): there is no
+ * foreign key that could take them along, and once the row is gone nothing
+ * would find them.
  */
 
 declare(strict_types=1);
 
 require_once __DIR__ . '/../../vendor/autoload.php';
 
+use App\Database;
 use App\Service\AdminAuth;
+use App\Service\Blocks\BlockLocalization;
 use App\Service\Csrf;
 use App\Service\StatStripContent;
 use App\Repository\StatStripRepository;
@@ -54,10 +61,21 @@ if ($strip === null) {
 
 $sectionKey = $strip['page_slug'] . ':' . $strip['section_key'];
 
+$db = Database::connection();
+
 try {
+    $db->beginTransaction();
+
+    BlockLocalization::deleteOwner('stat_strip_items', $itemId);
     $repository->deleteItem($itemId);
+
+    $db->commit();
     StatStripContent::clearCache();
 } catch (\Throwable $e) {
+    if ($db->inTransaction()) {
+        $db->rollBack();
+    }
+
     error_log('[api/admin/delete-stat-strip-item.php] ' . $e->getMessage());
     $_SESSION['admin_stat_strip_item_errors'] = ['Stat kon niet worden verwijderd.'];
     header('Location: /admin/stat-strip.php?section=' . urlencode($sectionKey));

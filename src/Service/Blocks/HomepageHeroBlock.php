@@ -11,6 +11,8 @@ require_once dirname(__DIR__, 3) . '/partials/section-homepage-hero.php';
  * The homepage's own, richer hero — the reason the ordinary Page Hero is
  * denied on `index`. Exactly one exists, on the homepage, and it cannot be
  * deleted, so it is addressed by page_slug alone rather than by section_key.
+ * Its words, and the words of each of its stats, are stored per website
+ * language in block_translations (BlockLocalization).
  */
 final class HomepageHeroBlock extends BlockDefinition
 {
@@ -59,6 +61,40 @@ final class HomepageHeroBlock extends BlockDefinition
         ];
     }
 
+    /**
+     * The words of the Hero and of each stat, per website language; the URLs,
+     * the media, the layout, the highlight size and visibility are the same
+     * in every language and stay in homepage_hero / homepage_hero_stats. The
+     * lengths are the ones the editor always allowed, and what is required
+     * is what it always required: eyebrow, title and the primary button in
+     * the text form, the alt text in the image form, both texts of a stat.
+     */
+    public function translatableFields(): array
+    {
+        return [
+            'homepage_hero' => [
+                TranslatableField::plain('eyebrow', 150)->required(),
+                TranslatableField::plain('title', 255)->required(),
+                TranslatableField::plain('title_highlight', 255),
+                TranslatableField::plain('lead', 500),
+                TranslatableField::plain('primary_label', 150)->required(),
+                TranslatableField::plain('secondary_label', 150),
+                TranslatableField::plain('image_alt', 255)->required(),
+                TranslatableField::plain('badge_title', 150),
+                TranslatableField::plain('badge_text', 500),
+            ],
+            'homepage_hero_stats' => [
+                TranslatableField::plain('primary_text', 100)->required(),
+                TranslatableField::plain('secondary_text', 150)->required(),
+            ],
+        ];
+    }
+
+    public function childTables(): array
+    {
+        return ['homepage_hero_stats' => ['parent' => 'homepage_hero', 'column' => 'homepage_hero_id']];
+    }
+
     public function create(string $pageSlug): array
     {
         // Not offered by availableForPage() once attached (max one, and the
@@ -66,12 +102,16 @@ final class HomepageHeroBlock extends BlockDefinition
         // from-scratch install that somehow reaches "add section" before the
         // Hero exists.
         $repository = new HomepageHeroRepository();
-
-        if ($repository->findBySlug(HomepageHeroContent::PAGE_SLUG) === null) {
-            $repository->upsert(HomepageHeroContent::PAGE_SLUG, HomepageHeroContent::startingValues() + ['is_active' => true]);
-        }
-
         $row = $repository->findBySlug(HomepageHeroContent::PAGE_SLUG);
+
+        if ($row === null) {
+            $repository->upsert(HomepageHeroContent::PAGE_SLUG, HomepageHeroContent::startingValues() + ['is_active' => true]);
+            $row = $repository->findBySlug(HomepageHeroContent::PAGE_SLUG);
+
+            // Generic starting words in the website's default language, the
+            // language every other language falls back to until it is written.
+            BlockLocalization::save('homepage_hero', (int) $row['id'], BlockLocalization::defaultLanguage(), HomepageHeroContent::startingWords());
+        }
 
         return [(int) $row['id'], null];
     }
@@ -98,26 +138,25 @@ final class HomepageHeroBlock extends BlockDefinition
         $stats = [];
         foreach (range(0, 2) as $index) {
             $stats[] = [
-                ...$samples->itemFields('primary_text', 'figure', $index),
-                ...$samples->itemFields('secondary_text', 'figure_caption', $index),
+                'primary_text' => $samples->localizedItem('figure', $index),
+                'secondary_text' => $samples->localizedItem('figure_caption', $index),
             ];
         }
 
         return [
-            ...$samples->fields('eyebrow', 'eyebrow'),
-            ...$samples->fields('title', 'title'),
-            ...$samples->fields('title_highlight', 'title_highlight'),
+            'eyebrow' => $samples->localized('eyebrow'),
+            'title' => $samples->localized('title'),
+            'title_highlight' => $samples->localized('title_highlight'),
             'title_highlight_size' => HomepageHeroContent::HIGHLIGHT_SIZE_DEFAULT,
-            ...$samples->fields('lead', 'lead'),
-            ...$samples->fields('primary_label', 'button'),
+            'lead' => $samples->localized('lead'),
+            'primary_label' => $samples->localized('button'),
             'primary_url' => BlockSamples::LINK,
-            ...$samples->fields('secondary_label', 'button_secondary'),
+            'secondary_label' => $samples->localized('button_secondary'),
             'secondary_url' => BlockSamples::LINK,
             'image_path' => $image['image_path'],
-            'image_alt_nl' => $image['alt_nl'],
-            'image_alt_en' => $image['alt_en'],
-            ...$samples->fields('badge_title', 'badge_title'),
-            ...$samples->fields('badge_text', 'badge_text'),
+            'image_alt' => $image['alt'],
+            'badge_title' => $samples->localized('badge_title'),
+            'badge_text' => $samples->localized('badge_text'),
             'media_type' => HomepageHeroContent::MEDIA_TYPE_IMAGE,
             'video_path' => '',
             'layout' => HomepageHeroContent::LAYOUT_MEDIA_RIGHT,

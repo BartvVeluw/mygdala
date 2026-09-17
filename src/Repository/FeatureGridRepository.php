@@ -40,25 +40,22 @@ class FeatureGridRepository extends Repository
     }
 
     /**
-     * Inserts or updates the single row for this page_slug + section_key.
-     * Used by the admin Feature Grid edit form's section-level fields.
+     * Inserts or updates the single row for this page_slug + section_key:
+     * what is the same in every language. Used by the admin Feature Grid edit
+     * form's section-level fields. The heading's words, and every card's, are
+     * stored per website language through App\Service\Blocks\BlockLocalization
+     * (db/migrations/20260917190000).
      *
-     * @param array<string, string|bool|null> $values
+     * @param array{is_active?: bool} $values
      */
     public function upsertGrid(string $pageSlug, string $sectionKey, array $values): void
     {
         $stmt = $this->db->prepare(
             'INSERT INTO feature_grids
-                (page_slug, section_key, eyebrow_nl, eyebrow_en, title_nl, title_en, lead_nl, lead_en, is_active, created_at, updated_at)
+                (page_slug, section_key, is_active, created_at, updated_at)
              VALUES
-                (:page_slug, :section_key, :eyebrow_nl, :eyebrow_en, :title_nl, :title_en, :lead_nl, :lead_en, :is_active, NOW(), NOW())
+                (:page_slug, :section_key, :is_active, NOW(), NOW())
              ON DUPLICATE KEY UPDATE
-                eyebrow_nl = VALUES(eyebrow_nl),
-                eyebrow_en = VALUES(eyebrow_en),
-                title_nl = VALUES(title_nl),
-                title_en = VALUES(title_en),
-                lead_nl = VALUES(lead_nl),
-                lead_en = VALUES(lead_en),
                 is_active = VALUES(is_active),
                 updated_at = NOW()'
         );
@@ -66,12 +63,6 @@ class FeatureGridRepository extends Repository
         $stmt->execute([
             'page_slug' => $pageSlug,
             'section_key' => $sectionKey,
-            'eyebrow_nl' => self::nullIfEmpty($values['eyebrow_nl'] ?? null),
-            'eyebrow_en' => self::nullIfEmpty($values['eyebrow_en'] ?? null),
-            'title_nl' => self::nullIfEmpty($values['title_nl'] ?? null),
-            'title_en' => self::nullIfEmpty($values['title_en'] ?? null),
-            'lead_nl' => self::nullIfEmpty($values['lead_nl'] ?? null),
-            'lead_en' => self::nullIfEmpty($values['lead_en'] ?? null),
             'is_active' => ($values['is_active'] ?? true) ? 1 : 0,
         ]);
     }
@@ -106,9 +97,12 @@ class FeatureGridRepository extends Repository
     }
 
     /**
-     * Appends a new card to the end of a grid.
+     * Appends a new, visible card to the end of a grid and returns its id.
+     * Its title and text are words, stored per website language against that
+     * id (App\Service\Blocks\BlockLocalization), in the same transaction as
+     * this insert.
      *
-     * @param array<string, string> $values icon_key, title_nl, title_en, body_nl, body_en
+     * @param array{icon_key: string} $values
      */
     public function createItem(int $gridId, array $values): int
     {
@@ -116,17 +110,13 @@ class FeatureGridRepository extends Repository
 
         $stmt = $this->db->prepare(
             'INSERT INTO feature_grid_items
-                (feature_grid_id, icon_key, title_nl, title_en, body_nl, body_en, sort_order, is_active, created_at, updated_at)
+                (feature_grid_id, icon_key, sort_order, is_active, created_at, updated_at)
              VALUES
-                (:feature_grid_id, :icon_key, :title_nl, :title_en, :body_nl, :body_en, :sort_order, 1, NOW(), NOW())'
+                (:feature_grid_id, :icon_key, :sort_order, 1, NOW(), NOW())'
         );
         $stmt->execute([
             'feature_grid_id' => $gridId,
             'icon_key' => $values['icon_key'],
-            'title_nl' => $values['title_nl'],
-            'title_en' => self::nullIfEmpty($values['title_en'] ?? null),
-            'body_nl' => $values['body_nl'],
-            'body_en' => self::nullIfEmpty($values['body_en'] ?? null),
             'sort_order' => $nextSortOrder,
         ]);
 
@@ -134,27 +124,23 @@ class FeatureGridRepository extends Repository
     }
 
     /**
-     * @param array<string, string|bool> $values icon_key, title_nl, title_en, body_nl, body_en, is_active
+     * What a card has that is the same in every language: its icon and
+     * whether it is shown. Its words are saved through BlockLocalization. The
+     * id never changes, so the words of every language stay attached to it.
+     *
+     * @param array{icon_key: string, is_active: bool} $values
      */
     public function updateItem(int $id, array $values): void
     {
         $stmt = $this->db->prepare(
             'UPDATE feature_grid_items SET
                 icon_key = :icon_key,
-                title_nl = :title_nl,
-                title_en = :title_en,
-                body_nl = :body_nl,
-                body_en = :body_en,
                 is_active = :is_active,
                 updated_at = NOW()
              WHERE id = :id'
         );
         $stmt->execute([
             'icon_key' => $values['icon_key'],
-            'title_nl' => $values['title_nl'],
-            'title_en' => self::nullIfEmpty($values['title_en'] ?? null),
-            'body_nl' => $values['body_nl'],
-            'body_en' => self::nullIfEmpty($values['body_en'] ?? null),
             'is_active' => $values['is_active'] ? 1 : 0,
             'id' => $id,
         ]);
@@ -162,7 +148,9 @@ class FeatureGridRepository extends Repository
 
     /**
      * Permanently removes a card — distinct from hiding one via is_active
-     * (see updateItem). Used by the admin "Verwijderen" action.
+     * (see updateItem). Used by the admin "Verwijderen" action, which removes
+     * the card's words first, in the same transaction
+     * (BlockLocalization::deleteOwner()).
      */
     public function deleteItem(int $id): bool
     {
@@ -208,8 +196,10 @@ class FeatureGridRepository extends Repository
 
     /**
      * Permanently removes the grid and (via ON DELETE CASCADE) all of its
-     * cards — used by the page builder's "Delete section" action. This type
-     * has no uploaded media of its own, so no filesystem cleanup is needed.
+     * cards — used by the page builder's "Delete section" action, whose
+     * SectionRegistry::delete() removes the words of the grid and of every
+     * card first. This type has no uploaded media of its own, so no
+     * filesystem cleanup is needed.
      */
     public function deleteGrid(int $id): bool
     {
@@ -234,10 +224,5 @@ class FeatureGridRepository extends Repository
         $stmt->execute(['feature_grid_id' => $gridId]);
 
         return (int) $stmt->fetch()['next_sort_order'];
-    }
-
-    private static function nullIfEmpty(?string $value): ?string
-    {
-        return ($value !== null && $value !== '') ? $value : null;
     }
 }

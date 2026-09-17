@@ -9,7 +9,10 @@ require_once dirname(__DIR__, 3) . '/partials/section-marquee.php';
 
 /**
  * The scrolling word band. It carries no heading, so the page builder shows
- * it by its type label alone.
+ * it by its type label alone. The words are child rows of the section, so
+ * deleting an instance takes them with it through ON DELETE CASCADE; each
+ * word is stored per website language in block_translations
+ * (BlockLocalization), on its own row. The section itself has no words.
  */
 final class MarqueeBlock extends BlockDefinition
 {
@@ -58,6 +61,26 @@ final class MarqueeBlock extends BlockDefinition
         ];
     }
 
+    /**
+     * The label on each item's row, per website language; marquee_sections
+     * has no words, so it declares nothing. What the editor always required
+     * in Dutch is required in the default language; the length is the one
+     * the editor always allowed.
+     */
+    public function translatableFields(): array
+    {
+        return [
+            'marquee_items' => [
+                TranslatableField::plain('label', 100)->required(),
+            ],
+        ];
+    }
+
+    public function childTables(): array
+    {
+        return ['marquee_items' => ['parent' => 'marquee_sections', 'column' => 'marquee_section_id']];
+    }
+
     public function create(string $pageSlug): array
     {
         $key = self::newSectionKey();
@@ -87,7 +110,7 @@ final class MarqueeBlock extends BlockDefinition
     {
         $items = [];
         foreach (range(0, 5) as $index) {
-            $items[] = $samples->itemFields('label', 'word', $index);
+            $items[] = ['label' => $samples->localizedItem('word', $index)];
         }
 
         return ['items' => $items];

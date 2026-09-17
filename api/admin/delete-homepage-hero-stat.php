@@ -7,13 +7,19 @@
  * its "Zichtbaar" checkbox (update-homepage-hero-stat.php). Also how a slot
  * is freed back up under the max-3 cap (see
  * HomepageHeroRepository::countStatsByHeroId()).
+ *
+ * The stat's words go with it, in every language and in the same
+ * transaction (BlockLocalization::deleteOwner()), BEFORE the row: nothing
+ * of its words is left behind for scripts/block-translation-orphans.php.
  */
 
 declare(strict_types=1);
 
 require_once __DIR__ . '/../../vendor/autoload.php';
 
+use App\Database;
 use App\Service\AdminAuth;
+use App\Service\Blocks\BlockLocalization;
 use App\Service\Csrf;
 use App\Service\HomepageHeroContent;
 use App\Repository\HomepageHeroRepository;
@@ -46,10 +52,21 @@ if ($item === null) {
     exit('Item not found.');
 }
 
+$db = Database::connection();
+
 try {
+    $db->beginTransaction();
+
+    BlockLocalization::deleteOwner('homepage_hero_stats', $itemId);
     $repository->deleteStat($itemId);
+
+    $db->commit();
     HomepageHeroContent::clearCache();
 } catch (\Throwable $e) {
+    if ($db->inTransaction()) {
+        $db->rollBack();
+    }
+
     error_log('[api/admin/delete-homepage-hero-stat.php] ' . $e->getMessage());
     $_SESSION['admin_homepage_hero_stat_errors'] = ['Statistiek kon niet worden verwijderd.'];
     header('Location: /admin/homepage-hero.php');

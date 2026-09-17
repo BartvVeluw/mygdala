@@ -260,9 +260,9 @@ class SectionRegistryTest extends TestCase
         $pageSectionIds = [];
         foreach (['Eerste', 'Tweede'] as $label) {
             [$sectionId, $sectionKey] = SectionRegistry::create('stat_strip', self::TEST_PAGE);
-            $strips->createItem($sectionId, [
-                'primary_text_nl' => $label,
-                'secondary_text_nl' => 'stat',
+            \App\Service\Blocks\BlockLocalization::save('stat_strip_items', $strips->createItem($sectionId), 'nl', [
+                'primary_text' => $label,
+                'secondary_text' => 'stat',
             ]);
             $pageSectionIds[] = $this->attach($repository, 'stat_strip', $sectionKey, $sectionId);
         }
@@ -284,9 +284,9 @@ class SectionRegistryTest extends TestCase
         $pageSectionIds = [];
         foreach (['Eerste', 'Tweede'] as $label) {
             [$sectionId, $sectionKey] = SectionRegistry::create('step_list', self::TEST_PAGE);
-            $lists->createItem($sectionId, [
-                'title_nl' => $label,
-                'body_nl' => 'stap',
+            \App\Service\Blocks\BlockLocalization::save('step_list_items', $lists->createItem($sectionId), 'nl', [
+                'title' => $label,
+                'body' => 'stap',
             ]);
             $pageSectionIds[] = $this->attach($repository, 'step_list', $sectionKey, $sectionId);
         }
@@ -308,16 +308,16 @@ class SectionRegistryTest extends TestCase
 
         foreach (['Eerste', 'Tweede'] as $label) {
             [$stripId, $stripKey] = SectionRegistry::create('stat_strip', self::TEST_PAGE);
-            $strips->createItem($stripId, [
-                'primary_text_nl' => $label,
-                'secondary_text_nl' => 'stat',
+            \App\Service\Blocks\BlockLocalization::save('stat_strip_items', $strips->createItem($stripId), 'nl', [
+                'primary_text' => $label,
+                'secondary_text' => 'stat',
             ]);
             $this->attach($repository, 'stat_strip', $stripKey, $stripId);
 
             [$listId, $listKey] = SectionRegistry::create('step_list', self::TEST_PAGE);
-            $lists->createItem($listId, [
-                'title_nl' => $label,
-                'body_nl' => 'stap',
+            \App\Service\Blocks\BlockLocalization::save('step_list_items', $lists->createItem($listId), 'nl', [
+                'title' => $label,
+                'body' => 'stap',
             ]);
             $this->attach($repository, 'step_list', $listKey, $listId);
         }

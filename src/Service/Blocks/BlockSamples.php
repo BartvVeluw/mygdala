@@ -240,6 +240,18 @@ final class BlockSamples
         ]);
     }
 
+    /** The $index-th text of a list role, as ONE value in every language (localized()). */
+    public function localizedItem(string $role, int $index): LocalizedValue
+    {
+        $list = self::LISTS[$role] ?? throw new \InvalidArgumentException('No sample list for ' . $role);
+        $pair = $list[$index % count($list)];
+
+        return LocalizedValue::of([
+            LanguageRegistry::DUTCH => ($this->text)($pair[0]),
+            LanguageRegistry::ENGLISH => ($this->text)($pair[1]),
+        ]);
+    }
+
     /** A field this sample leaves empty, as one value in every language. */
     public function none(): LocalizedValue
     {

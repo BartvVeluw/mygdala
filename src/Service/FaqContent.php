@@ -3,6 +3,7 @@
 namespace App\Service;
 
 use App\Repository\FaqRepository;
+use App\Service\Blocks\BlockLocalization;
 
 /**
  * Content for the "FAQ list" section (`.faq-list` > `.faq-item` /
@@ -20,6 +21,14 @@ use App\Repository\FaqRepository;
  * is STATE_FALLBACK: there is nothing to render, and a failure is logged. See
  * CONTENT-BLOCKS.md, "Het inhoudscontract".
  *
+ * WORDS PER LANGUAGE (Multilingual 2.0 phase 3B). The heading and every
+ * question and answer are stored per website language in block_translations:
+ * the section's words on its own row, each item's on the item's row
+ * (FaqBlock::childTables()). They come out of
+ * App\Service\Blocks\BlockLocalization as one LocalizedValue per field, the
+ * fallback already applied; is_active and the order stay in the tables. This
+ * class decides no language itself.
+ *
  * `is_active = false` on an *existing* section row is a deliberate hide, and a
  * different case from a missing row. forSection()'s returned `state` field is
  * how a template tells the three cases apart: STATE_FALLBACK (no row / DB
@@ -29,7 +38,9 @@ use App\Repository\FaqRepository;
  *
  * Once a section's row exists and is active, its *items* come strictly from
  * the database (only is_active = 1 items), even if that list is empty — an
- * individually hidden/deleted item stays hidden.
+ * individually hidden/deleted item stays hidden. An item without its question
+ * and answer in the default language is not there either: the default
+ * language decides whether an item shows, as it does for the block.
  */
 class FaqContent
 {
@@ -56,20 +67,24 @@ class FaqContent
         ],
     ];
 
+    /** The owner tables of this block's words (FaqBlock::translatableFields()). */
+    private const TABLE = 'faq_sections';
+    private const ITEMS = 'faq_items';
+
     /** @var array<string, array<string, mixed>> */
     private static array $cache = [];
 
     /**
-     * @return array<string, mixed> 'state' (one of STATE_*), plus
-     *                                eyebrow_nl/en, title_nl/en, and
-     *                                'items': list of
-     *                                question_nl/en/answer_nl/en. Templates
-     *                                must only render the section when
-     *                                'state' === STATE_ACTIVE; the content
-     *                                fields are still present (empty)
-     *                                otherwise, purely so a template that
-     *                                forgets the check fails safe instead of
-     *                                erroring on a missing key.
+     * @return array<string, mixed> 'state' (one of STATE_*), plus eyebrow and
+     *                                title (a LocalizedValue each), and
+     *                                'items': a list of question and answer
+     *                                (a LocalizedValue each). Templates must
+     *                                only render the section when 'state' ===
+     *                                STATE_ACTIVE; the content fields are
+     *                                still present (empty) otherwise, purely
+     *                                so a template that forgets the check
+     *                                fails safe instead of erroring on a
+     *                                missing key.
      */
     public static function forSection(string $pageSlug, string $sectionKey): array
     {
@@ -99,37 +114,35 @@ class FaqContent
             return self::$cache[$cacheKey] = self::emptyContent() + ['state' => self::STATE_HIDDEN];
         }
 
-        $content = [
-            'eyebrow_nl' => (string) ($row['eyebrow_nl'] ?? ''),
-            'title_nl' => (string) ($row['title_nl'] ?? ''),
-        ];
-        $content['eyebrow_en'] = self::valueOrDefault($row['eyebrow_en'] ?? null, $content['eyebrow_nl']);
-        $content['title_en'] = self::valueOrDefault($row['title_en'] ?? null, $content['title_nl']);
+        $sectionId = (int) $row['id'];
 
         try {
-            $items = $repository->findItemsBySectionId((int) $row['id'], true);
+            $items = $repository->findItemsBySectionId($sectionId, true);
         } catch (\Throwable $e) {
             error_log('[FaqContent] items lookup failed for "' . $cacheKey . '": ' . $e->getMessage());
 
             return self::$cache[$cacheKey] = self::emptyContent() + ['state' => self::STATE_FALLBACK];
         }
 
+        // The words of the section and all of its questions at once; nothing
+        // when the page already loaded them (SectionRegistry::renderPage()).
+        BlockLocalization::preloadBlocks([self::TABLE => [$sectionId]]);
+
+        $content = BlockLocalization::words(self::TABLE, $sectionId);
+
         // Only is_active items are queried above, and whatever comes back —
         // including an empty list — is authoritative: a section row that
         // exists and is active means the admin has deliberately curated its
         // questions, so an empty result is "all questions hidden/deleted",
         // not "missing data".
-        $content['items'] = array_map(static function (array $item): array {
-            $questionNl = (string) $item['question_nl'];
-            $answerNl = (string) $item['answer_nl'];
+        $content['items'] = [];
+        foreach ($items as $item) {
+            $itemId = (int) $item['id'];
 
-            return [
-                'question_nl' => $questionNl,
-                'question_en' => self::valueOrDefault($item['question_en'] ?? null, $questionNl),
-                'answer_nl' => $answerNl,
-                'answer_en' => self::valueOrDefault($item['answer_en'] ?? null, $answerNl),
-            ];
-        }, $items);
+            if (BlockLocalization::hasRequiredWords(self::ITEMS, $itemId)) {
+                $content['items'][] = BlockLocalization::words(self::ITEMS, $itemId);
+            }
+        }
 
         $content['state'] = self::STATE_ACTIVE;
 
@@ -137,17 +150,14 @@ class FaqContent
     }
 
     /**
-     * Clears the in-process cache — used by the admin save handlers right
-     * after writing a new value, and by tests.
+     * Clears the in-process cache, and the block words BlockLocalization
+     * holds — used by the admin save handlers right after writing a new
+     * value, and by tests.
      */
     public static function clearCache(): void
     {
         self::$cache = [];
-    }
-
-    private static function valueOrDefault(?string $value, string $default): string
-    {
-        return ($value !== null && $value !== '') ? $value : $default;
+        BlockLocalization::clearCache();
     }
 
     /**
@@ -155,6 +165,6 @@ class FaqContent
      */
     private static function emptyContent(): array
     {
-        return ['eyebrow_nl' => '', 'eyebrow_en' => '', 'title_nl' => '', 'title_en' => '', 'items' => []];
+        return BlockLocalization::words(self::TABLE, 0) + ['items' => []];
     }
 }

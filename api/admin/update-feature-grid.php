@@ -8,15 +8,30 @@
  * PRG/session-flash pattern as api/admin/update-page-hero.php /
  * update-cta-band.php. Card content is saved separately by
  * create/update/delete/move-feature-grid-item.php.
+ *
+ * ONE WEBSITE LANGUAGE (Multilingual 2.0): the eyebrow, title and lead are the
+ * words of the language named in `language_code`, which must be an active
+ * language of the website registry; which fields exist, how long they may be
+ * and that the eyebrow and title are required in the default language comes
+ * from FeatureGridBlock::translatableFields(), through
+ * App\Service\Blocks\BlockLocalization, and only that language is written, in
+ * one transaction with is_active. A grid without a heading of its own
+ * (FeatureGridContent::SECTIONS, has_heading) saves is_active only: its form
+ * sends no words and no language, and whatever a request sends anyway is
+ * never read, so the frontend never gains a heading it has no markup for.
  */
 
 declare(strict_types=1);
 
 require_once __DIR__ . '/../../vendor/autoload.php';
 
+use App\Database;
 use App\Service\Language\AdminTranslator;
 use App\Service\AdminAuth;
+use App\Service\Blocks\BlockLocalization;
 use App\Service\Csrf;
+use App\Service\Language\LanguageCode;
+use App\Service\Language\SiteLanguages;
 use App\Service\FeatureGridContent;
 use App\Repository\FeatureGridRepository;
 
@@ -56,53 +71,68 @@ if ($section === null) {
 
 $hasHeading = $section['has_heading'];
 
-// Sections without a heading in the current design (see SECTIONS) never
-// expose these inputs in the admin form — force them blank server-side too,
-// regardless of what was submitted, so the frontend never gains a heading
-// it doesn't have markup for.
-$fields = $hasHeading ? [
-    'eyebrow_nl' => trim((string) ($_POST['eyebrow_nl'] ?? '')),
-    'eyebrow_en' => trim((string) ($_POST['eyebrow_en'] ?? '')),
-    'title_nl' => trim((string) ($_POST['title_nl'] ?? '')),
-    'title_en' => trim((string) ($_POST['title_en'] ?? '')),
-    'lead_nl' => trim((string) ($_POST['lead_nl'] ?? '')),
-    'lead_en' => trim((string) ($_POST['lead_en'] ?? '')),
-    'is_active' => isset($_POST['is_active']),
-] : [
-    'eyebrow_nl' => '',
-    'eyebrow_en' => '',
-    'title_nl' => '',
-    'title_en' => '',
-    'lead_nl' => '',
-    'lead_en' => '',
-    'is_active' => isset($_POST['is_active']),
-];
+$settings = ['is_active' => isset($_POST['is_active'])];
 
+$languageCode = '';
+$words = [];
 $errors = [];
+
+// Sections without a heading in the current design (see SECTIONS) never
+// expose the heading inputs in the admin form, so their words are not read
+// at all: nothing submitted can give the frontend a heading it has no markup
+// for.
 if ($hasHeading) {
-    foreach (['eyebrow_nl', 'title_nl'] as $key) {
-        if ($fields[$key] === '') {
-            $errors[] = AdminTranslator::trans('validation.veld_verplicht');
-            break;
+    $languageCode = LanguageCode::normalise((string) ($_POST['language_code'] ?? '')) ?? '';
+    $languageIsWritable = $languageCode !== '' && SiteLanguages::isActive($languageCode);
+
+    // Exactly the fields the block declares, never a name taken from the request.
+    foreach (array_keys(BlockLocalization::fields('feature_grids')) as $field) {
+        $words[$field] = trim((string) ($_POST[$field] ?? ''));
+    }
+
+    if (!$languageIsWritable) {
+        $errors[] = AdminTranslator::trans('validation.language_unknown');
+    } else {
+        foreach (BlockLocalization::messageKeys(BlockLocalization::problems('feature_grids', $languageCode, $words)) as $key) {
+            $errors[] = AdminTranslator::trans($key);
         }
     }
 }
 
+$old = ['language_code' => $languageCode] + $words + $settings;
+
 if ($errors !== []) {
     $_SESSION['admin_feature_grid_errors'] = $errors;
-    $_SESSION['admin_feature_grid_old'] = $fields;
+    $_SESSION['admin_feature_grid_old'] = $old;
     header('Location: /admin/feature-grid.php?section=' . urlencode($sectionKey));
     exit;
 }
 
+$db = Database::connection();
+
 try {
-    (new FeatureGridRepository())->upsertGrid($section['page_slug'], $section['section_key'], $fields);
+    // The grid's visibility and its heading in this language are one save.
+    $db->beginTransaction();
+
+    $repository = new FeatureGridRepository();
+    $repository->upsertGrid($section['page_slug'], $section['section_key'], $settings);
+
+    if ($hasHeading) {
+        $gridId = (int) $repository->findBySlugAndKey($section['page_slug'], $section['section_key'])['id'];
+        BlockLocalization::save('feature_grids', $gridId, $languageCode, $words);
+    }
+
+    $db->commit();
     FeatureGridContent::clearCache();
 } catch (\Throwable $e) {
+    if ($db->inTransaction()) {
+        $db->rollBack();
+    }
+
     error_log('[api/admin/update-feature-grid.php] ' . $e->getMessage());
 
     $_SESSION['admin_feature_grid_errors'] = ['Kon niet worden opgeslagen. Probeer het opnieuw.'];
-    $_SESSION['admin_feature_grid_old'] = $fields;
+    $_SESSION['admin_feature_grid_old'] = $old;
     header('Location: /admin/feature-grid.php?section=' . urlencode($sectionKey));
     exit;
 }

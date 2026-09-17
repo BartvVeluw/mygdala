@@ -198,17 +198,19 @@ final class NoEmptyActiveBlockTest extends TestCase
             $this->deleteHomepageHero();
             $repository = new HomepageHeroRepository();
             $repository->upsert(HomepageHeroContent::PAGE_SLUG, self::homepageHeroValues([
-                'eyebrow_nl' => 'Bovenschrift',
-                'lead_nl' => 'Een inleiding',
-                'primary_label_nl' => 'Knop',
                 'primary_url' => '/',
                 'image_path' => 'assets/images/test-no-empty-active.webp',
-                'image_alt_nl' => 'Beeld',
-                'badge_title_nl' => 'Badge',
-                'badge_text_nl' => 'Badgetekst',
             ]));
             $heroId = (int) $repository->findBySlug(HomepageHeroContent::PAGE_SLUG)['id'];
-            $repository->createStat($heroId, ['primary_text_nl' => 'Cijfer', 'secondary_text_nl' => 'uitleg']);
+            BlockLocalization::save('homepage_hero', $heroId, 'nl', [
+                'eyebrow' => 'Bovenschrift',
+                'lead' => 'Een inleiding',
+                'primary_label' => 'Knop',
+                'image_alt' => 'Beeld',
+                'badge_title' => 'Badge',
+                'badge_text' => 'Badgetekst',
+            ]);
+            BlockLocalization::save('homepage_hero_stats', $repository->createStat($heroId), 'nl', ['primary_text' => 'Cijfer', 'secondary_text' => 'uitleg']);
             $pageSection = self::pageSection($type, HomepageHeroContent::PAGE_SLUG, null, 0);
         }
 
@@ -223,26 +225,32 @@ final class NoEmptyActiveBlockTest extends TestCase
         [$pageSection] = $this->addThroughThePicker($type);
         $sectionId = (int) $pageSection['section_id'];
 
+        // A hidden item with all its words in the default language: hidden
+        // is what keeps it off the page, not a missing word.
         switch ($type) {
             case 'faq':
-                $values = ['question_nl' => 'Verborgen vraag', 'question_en' => '', 'answer_nl' => 'antwoord', 'answer_en' => ''];
                 $repository = new FaqRepository();
-                $repository->updateItem($repository->createItem($sectionId, $values), $values + ['is_active' => false]);
+                $itemId = $repository->createItem($sectionId);
+                BlockLocalization::save('faq_items', $itemId, 'nl', ['question' => 'Verborgen vraag', 'answer' => 'antwoord']);
+                $repository->updateItem($itemId, ['is_active' => false]);
                 break;
             case 'feature_grid':
-                $values = ['icon_key' => 'heart', 'title_nl' => 'Verborgen kaart', 'title_en' => '', 'body_nl' => 'kaart', 'body_en' => ''];
                 $repository = new FeatureGridRepository();
-                $repository->updateItem($repository->createItem($sectionId, $values), $values + ['is_active' => false]);
+                $itemId = $repository->createItem($sectionId, ['icon_key' => 'heart']);
+                BlockLocalization::save('feature_grid_items', $itemId, 'nl', ['title' => 'Verborgen kaart', 'body' => 'kaart']);
+                $repository->updateItem($itemId, ['icon_key' => 'heart', 'is_active' => false]);
                 break;
             case 'step_list':
-                $values = ['title_nl' => 'Verborgen stap', 'title_en' => '', 'body_nl' => 'stap', 'body_en' => ''];
                 $repository = new StepListRepository();
-                $repository->updateItem($repository->createItem($sectionId, $values), $values + ['is_active' => false]);
+                $itemId = $repository->createItem($sectionId);
+                BlockLocalization::save('step_list_items', $itemId, 'nl', ['title' => 'Verborgen stap', 'body' => 'stap']);
+                $repository->updateItem($itemId, ['is_active' => false]);
                 break;
             case 'stat_strip':
-                $values = ['primary_text_nl' => 'Verborgen cijfer', 'primary_text_en' => '', 'secondary_text_nl' => 'uitleg', 'secondary_text_en' => ''];
                 $repository = new StatStripRepository();
-                $repository->updateItem($repository->createItem($sectionId, $values), $values + ['is_active' => false]);
+                $itemId = $repository->createItem($sectionId);
+                BlockLocalization::save('stat_strip_items', $itemId, 'nl', ['primary_text' => 'Verborgen cijfer', 'secondary_text' => 'uitleg']);
+                $repository->updateItem($itemId, ['is_active' => false]);
                 break;
         }
 
@@ -387,7 +395,9 @@ final class NoEmptyActiveBlockTest extends TestCase
 
         if ($type === 'homepage_hero') {
             $this->deleteHomepageHero();
-            (new HomepageHeroRepository())->upsert(HomepageHeroContent::PAGE_SLUG, self::homepageHeroValues(['title_nl' => $words]));
+            $heroes = new HomepageHeroRepository();
+            $heroes->upsert(HomepageHeroContent::PAGE_SLUG, self::homepageHeroValues([]));
+            BlockLocalization::save('homepage_hero', (int) $heroes->findBySlug(HomepageHeroContent::PAGE_SLUG)['id'], 'nl', ['title' => $words]);
 
             return [self::pageSection($type, HomepageHeroContent::PAGE_SLUG, null, 0), $words];
         }
@@ -397,17 +407,17 @@ final class NoEmptyActiveBlockTest extends TestCase
         $sectionKey = (string) $pageSection['section_key'];
 
         match ($type . ':' . $what) {
-            'faq:eyebrow' => (new FaqRepository())->upsertSection(self::TEST_SLUG, $sectionKey, ['eyebrow_nl' => $words]),
-            'faq:title' => (new FaqRepository())->upsertSection(self::TEST_SLUG, $sectionKey, ['title_nl' => $words]),
-            'faq:item' => (new FaqRepository())->createItem($sectionId, ['question_nl' => $words, 'answer_nl' => 'Een antwoord']),
-            'step_list:eyebrow' => (new StepListRepository())->upsertSection(self::TEST_SLUG, $sectionKey, ['eyebrow_nl' => $words]),
-            'step_list:title' => (new StepListRepository())->upsertSection(self::TEST_SLUG, $sectionKey, ['title_nl' => $words]),
-            'step_list:item' => (new StepListRepository())->createItem($sectionId, ['title_nl' => $words, 'body_nl' => 'Een stap']),
-            'stat_strip:item' => (new StatStripRepository())->createItem($sectionId, ['primary_text_nl' => $words, 'secondary_text_nl' => 'uitleg']),
-            'feature_grid:eyebrow' => (new FeatureGridRepository())->upsertGrid(self::TEST_SLUG, $sectionKey, ['eyebrow_nl' => $words]),
-            'feature_grid:title' => (new FeatureGridRepository())->upsertGrid(self::TEST_SLUG, $sectionKey, ['title_nl' => $words]),
-            'feature_grid:lead' => (new FeatureGridRepository())->upsertGrid(self::TEST_SLUG, $sectionKey, ['lead_nl' => $words]),
-            'feature_grid:item' => (new FeatureGridRepository())->createItem($sectionId, ['icon_key' => 'heart', 'title_nl' => $words, 'body_nl' => 'Een kaart']),
+            'faq:eyebrow' => BlockLocalization::save('faq_sections', $sectionId, 'nl', ['eyebrow' => $words]),
+            'faq:title' => BlockLocalization::save('faq_sections', $sectionId, 'nl', ['title' => $words]),
+            'faq:item' => BlockLocalization::save('faq_items', (new FaqRepository())->createItem($sectionId), 'nl', ['question' => $words, 'answer' => 'Een antwoord']),
+            'step_list:eyebrow' => BlockLocalization::save('step_list_sections', $sectionId, 'nl', ['eyebrow' => $words]),
+            'step_list:title' => BlockLocalization::save('step_list_sections', $sectionId, 'nl', ['title' => $words]),
+            'step_list:item' => BlockLocalization::save('step_list_items', (new StepListRepository())->createItem($sectionId), 'nl', ['title' => $words, 'body' => 'Een stap']),
+            'stat_strip:item' => BlockLocalization::save('stat_strip_items', (new StatStripRepository())->createItem($sectionId), 'nl', ['primary_text' => $words, 'secondary_text' => 'uitleg']),
+            'feature_grid:eyebrow' => BlockLocalization::save('feature_grids', $sectionId, 'nl', ['eyebrow' => $words]),
+            'feature_grid:title' => BlockLocalization::save('feature_grids', $sectionId, 'nl', ['title' => $words]),
+            'feature_grid:lead' => BlockLocalization::save('feature_grids', $sectionId, 'nl', ['lead' => $words]),
+            'feature_grid:item' => BlockLocalization::save('feature_grid_items', (new FeatureGridRepository())->createItem($sectionId, ['icon_key' => 'heart']), 'nl', ['title' => $words, 'body' => 'Een kaart']),
             'text_image_split:eyebrow' => (new TextImageSplitRepository())->upsertSection(self::TEST_SLUG, $sectionKey, ['eyebrow_nl' => $words]),
             'text_image_split:title' => (new TextImageSplitRepository())->upsertSection(self::TEST_SLUG, $sectionKey, ['title_nl' => $words]),
             'text_image_split:paragraph' => (new TextImageSplitRepository())->createParagraph($sectionId, ['content_nl' => $words]),
@@ -439,7 +449,6 @@ final class NoEmptyActiveBlockTest extends TestCase
                 'is_active' => false,
             ])),
             'homepage_hero' => (new HomepageHeroRepository())->upsert(HomepageHeroContent::PAGE_SLUG, self::homepageHeroValues([
-                'title_nl' => 'Zichtbaar title',
                 'is_active' => false,
             ])),
         };
@@ -556,15 +565,10 @@ final class NoEmptyActiveBlockTest extends TestCase
     private static function homepageHeroValues(array $overrides): array
     {
         return array_merge([
-            'eyebrow_nl' => '', 'eyebrow_en' => '',
-            'title_nl' => '', 'title_en' => '',
-            'title_highlight_nl' => '', 'title_highlight_en' => '',
             'title_highlight_size' => HomepageHeroContent::HIGHLIGHT_SIZE_DEFAULT,
-            'lead_nl' => '', 'lead_en' => '',
-            'primary_label_nl' => '', 'primary_label_en' => '', 'primary_url' => '',
-            'secondary_label_nl' => '', 'secondary_label_en' => '', 'secondary_url' => '',
-            'image_path' => '', 'image_alt_nl' => '', 'image_alt_en' => '',
-            'badge_title_nl' => '', 'badge_title_en' => '', 'badge_text_nl' => '', 'badge_text_en' => '',
+            'primary_url' => '',
+            'secondary_url' => '',
+            'image_path' => '',
             'media_type' => HomepageHeroContent::MEDIA_TYPE_IMAGE,
             'video_path' => '',
             'layout' => HomepageHeroContent::LAYOUT_MEDIA_RIGHT,

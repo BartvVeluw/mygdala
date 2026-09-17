@@ -5,14 +5,23 @@
  *
  * Adds a new step to a step list section. Same guard order / PRG pattern as
  * api/admin/create-faq-item.php.
+ *
+ * A NEW STEP IS WRITTEN IN THE DEFAULT LANGUAGE (Multilingual 2.0), like a
+ * new page: the words the form sends are stored as the website's default
+ * language, where both fields are required, and every other language is
+ * added afterwards on the step's own card (update-step-list-item.php). The
+ * row and its words are one transaction, so a step never exists without its
+ * words or the other way round.
  */
 
 declare(strict_types=1);
 
 require_once __DIR__ . '/../../vendor/autoload.php';
 
+use App\Database;
 use App\Service\Language\AdminTranslator;
 use App\Service\AdminAuth;
+use App\Service\Blocks\BlockLocalization;
 use App\Service\Csrf;
 use App\Service\StepListContent;
 use App\Repository\StepListRepository;
@@ -47,19 +56,17 @@ if ($section === null) {
 
 $sectionKey = $section['page_slug'] . ':' . $section['section_key'];
 
-$fields = [
-    'title_nl' => trim((string) ($_POST['title_nl'] ?? '')),
-    'title_en' => trim((string) ($_POST['title_en'] ?? '')),
-    'body_nl' => trim((string) ($_POST['body_nl'] ?? '')),
-    'body_en' => trim((string) ($_POST['body_en'] ?? '')),
-];
+$defaultLanguage = BlockLocalization::defaultLanguage();
+
+// Exactly the fields the block declares, never a name taken from the request.
+$words = [];
+foreach (array_keys(BlockLocalization::fields('step_list_items')) as $field) {
+    $words[$field] = trim((string) ($_POST[$field] ?? ''));
+}
 
 $errors = [];
-if ($fields['title_nl'] === '') {
-    $errors[] = AdminTranslator::trans('validation.titel_nl_verplicht');
-}
-if ($fields['body_nl'] === '') {
-    $errors[] = AdminTranslator::trans('validation.omschrijving_nl_verplicht');
+foreach (BlockLocalization::messageKeys(BlockLocalization::problems('step_list_items', $defaultLanguage, $words)) as $key) {
+    $errors[] = AdminTranslator::trans($key);
 }
 
 if ($errors !== []) {
@@ -68,10 +75,21 @@ if ($errors !== []) {
     exit;
 }
 
+$db = Database::connection();
+
 try {
-    $repository->createItem($sectionId, $fields);
+    $db->beginTransaction();
+
+    $itemId = $repository->createItem($sectionId);
+    BlockLocalization::save('step_list_items', $itemId, $defaultLanguage, $words);
+
+    $db->commit();
     StepListContent::clearCache();
 } catch (\Throwable $e) {
+    if ($db->inTransaction()) {
+        $db->rollBack();
+    }
+
     error_log('[api/admin/create-step-list-item.php] ' . $e->getMessage());
     $_SESSION['admin_step_list_item_errors'] = ['Stap kon niet worden opgeslagen. Probeer het opnieuw.'];
     header('Location: /admin/step-list.php?section=' . urlencode($sectionKey));

@@ -5,12 +5,29 @@ declare(strict_types=1);
 require_once __DIR__ . '/../vendor/autoload.php';
 require_once __DIR__ . '/_translate.php';
 require_once __DIR__ . '/_save_bar.php';
-require_once __DIR__ . '/_language_fields.php';
+require_once __DIR__ . '/_localized_fields.php';
 
 use App\Service\AdminAuth;
+use App\Service\Blocks\BlockLocalization;
 use App\Service\Csrf;
 use App\Service\StepListContent;
 use App\Repository\StepListRepository;
+
+/**
+ * Editor for one step list (?section=<page content_key>:<section_key>): its
+ * heading, and its steps one card each.
+ *
+ * ONE WEBSITE LANGUAGE AT A TIME (Multilingual 2.0, admin/_localized_fields.php):
+ * the heading and every step show the language chosen in the CMS shell, as
+ * stored and without the default language's words in an empty translation,
+ * and are required only in the default language; each save writes that
+ * language only, for that section or that one step. A step keeps its id
+ * however often it is saved or moved, so the words of the other languages
+ * stay with it. A NEW step is written in the default language, like a new
+ * page, and translated afterwards on its own card. Input a refused heading
+ * save hands back comes back in the language it was typed in, and that form
+ * then starts out unsaved in the save bar.
+ */
 
 AdminAuth::requireLogin();
 AdminAuth::requirePermission('pages.manage');
@@ -66,27 +83,29 @@ unset($_SESSION['admin_step_list_item_errors']);
 
 $saved = isset($_GET['saved']);
 
-if ($old !== null) {
-    $sectionValues = $old;
-} else {
-    $sectionValues = [
-        'eyebrow_nl' => (string) ($stepListSection['eyebrow_nl'] ?? ''),
-        'eyebrow_en' => (string) ($stepListSection['eyebrow_en'] ?? ''),
-        'title_nl' => (string) ($stepListSection['title_nl'] ?? ''),
-        'title_en' => (string) ($stepListSection['title_en'] ?? ''),
-        'is_active' => (bool) $stepListSection['is_active'],
-    ];
-}
+$editLanguage = admin_localized_language();
+$defaultLanguage = admin_localized_default();
+
+// The words of the section and of every step, in one query.
+BlockLocalization::preloadBlocks(['step_list_sections' => [$sectionId]]);
+
+$oldInThisLanguage = is_array($old) && ($old['language_code'] ?? null) === $editLanguage;
+$isActive = is_array($old) ? !empty($old['is_active']) : (bool) $stepListSection['is_active'];
+
+/** The heading's words on screen: typed and handed back in this language, else stored in it. */
+$sectionWord = static function (string $field) use ($old, $oldInThisLanguage, $sectionId, $editLanguage): string {
+    if ($oldInThisLanguage) {
+        return (string) ($old[$field] ?? '');
+    }
+
+    return BlockLocalization::raw('step_list_sections', $sectionId, $field, $editLanguage);
+};
 
 $csrfToken = Csrf::token();
-
-/**
- * @param array<string, mixed> $values
- */
-function stepListValue(array $values, string $key): string
-{
-    return htmlspecialchars((string) ($values[$key] ?? ''), ENT_QUOTES, 'UTF-8');
-}
+$h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
+$required = admin_localized_required($editLanguage);
+$marker = $required !== '' ? '*' : '';
+$placeholder = admin_localized_placeholder_attr($editLanguage);
 ?>
 <!doctype html>
 <html lang="<?= htmlspecialchars(\App\Service\Language\AdminLocale::current(), ENT_QUOTES, 'UTF-8') ?>">
@@ -129,39 +148,26 @@ function stepListValue(array $values, string $key): string
 
   <section class="admin-card">
     <h2><?= admin_te('block_steps.sectiekop') ?></h2>
-    <form method="post" action="/api/admin/update-step-list-section.php" class="admin-product-form">
-      <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
-      <input type="hidden" name="section" value="<?= htmlspecialchars($sectionKey, ENT_QUOTES, 'UTF-8') ?>">
+    <form method="post" action="/api/admin/update-step-list-section.php" class="admin-product-form"<?= is_array($old) ? ' data-save-bar-unsaved' : '' ?>>
+      <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
+      <input type="hidden" name="section" value="<?= $h($sectionKey) ?>">
+      <?= admin_localized_input($editLanguage) ?>
 
-      <?php admin_lang_bar(); ?>
-      <div class="admin-form-row admin-form-row--split">
-        <?php admin_lang_pane_start('nl'); ?>
-        <label><?= admin_te('block_steps.eyebrow') ?>*
-          <input type="text" name="eyebrow_nl" maxlength="150" <?= admin_lang_required('nl') ?> value="<?= stepListValue($sectionValues, 'eyebrow_nl') ?>">
+      <?php admin_localized_bar($editLanguage); ?>
+      <div class="admin-form-row">
+        <label><?= admin_te('block_steps.eyebrow') ?><?= $marker ?>
+          <input type="text" name="eyebrow" maxlength="150"<?= $required ?> value="<?= $h($sectionWord('eyebrow')) ?>"<?= $placeholder ?>>
         </label>
-        <?php admin_lang_pane_end(); ?>
-        <?php admin_lang_pane_start('en'); ?>
-        <label><?= admin_te('block_steps.eyebrow_2') ?>
-          <input type="text" name="eyebrow_en" maxlength="150" value="<?= stepListValue($sectionValues, 'eyebrow_en') ?>"<?= admin_lang_placeholder_attr('en') ?>>
-        </label>
-        <?php admin_lang_pane_end(); ?>
       </div>
 
-      <div class="admin-form-row admin-form-row--split">
-        <?php admin_lang_pane_start('nl'); ?>
-        <label><?= admin_te('block_steps.titel_h2') ?>*
-          <input type="text" name="title_nl" maxlength="255" <?= admin_lang_required('nl') ?> value="<?= stepListValue($sectionValues, 'title_nl') ?>">
+      <div class="admin-form-row">
+        <label><?= admin_te('block_steps.titel_h2') ?><?= $marker ?>
+          <input type="text" name="title" maxlength="255"<?= $required ?> value="<?= $h($sectionWord('title')) ?>"<?= $placeholder ?>>
         </label>
-        <?php admin_lang_pane_end(); ?>
-        <?php admin_lang_pane_start('en'); ?>
-        <label><?= admin_te('block_steps.titel_h2_2') ?>
-          <input type="text" name="title_en" maxlength="255" value="<?= stepListValue($sectionValues, 'title_en') ?>"<?= admin_lang_placeholder_attr('en') ?>>
-        </label>
-        <?php admin_lang_pane_end(); ?>
       </div>
 
       <label class="admin-checkbox-label">
-        <input type="checkbox" name="is_active" value="1" <?= ($sectionValues['is_active'] ?? true) ? 'checked' : '' ?>>
+        <input type="checkbox" name="is_active" value="1" <?= $isActive ? 'checked' : '' ?>>
         <?= admin_te('block_steps.actief_uitgevinkt_hele_sectie') ?>
       </label>
 
@@ -181,38 +187,26 @@ function stepListValue(array $values, string $key): string
         $itemId = (int) $item['id'];
         $isFirst = $index === 0;
         $isLast = $index === count($items) - 1;
+        $itemWord = static fn (string $field): string => BlockLocalization::raw('step_list_items', $itemId, $field, $editLanguage);
       ?>
       <article class="admin-card" style="margin-top:1rem;">
         <p class="admin-text-muted"><?= admin_t('block_steps.stap', ['v1' => $index + 1]) ?></p>
         <form method="post" action="/api/admin/update-step-list-item.php" class="admin-product-form">
-          <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
+          <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
           <input type="hidden" name="item_id" value="<?= $itemId ?>">
+          <?= admin_localized_input($editLanguage) ?>
 
-          <?php admin_lang_bar(); ?>
-          <div class="admin-form-row admin-form-row--split">
-            <?php admin_lang_pane_start('nl'); ?>
-            <label><?= admin_te('common.title') ?>*
-              <input type="text" name="title_nl" maxlength="255" <?= admin_lang_required('nl') ?> value="<?= htmlspecialchars((string) $item['title_nl'], ENT_QUOTES, 'UTF-8') ?>">
+          <?php admin_localized_bar($editLanguage); ?>
+          <div class="admin-form-row">
+            <label><?= admin_te('common.title') ?><?= $marker ?>
+              <input type="text" name="title" maxlength="255"<?= $required ?> value="<?= $h($itemWord('title')) ?>"<?= $placeholder ?>>
             </label>
-            <?php admin_lang_pane_end(); ?>
-            <?php admin_lang_pane_start('en'); ?>
-            <label><?= admin_te('common.title') ?>
-              <input type="text" name="title_en" maxlength="255" value="<?= htmlspecialchars((string) ($item['title_en'] ?? ''), ENT_QUOTES, 'UTF-8') ?>"<?= admin_lang_placeholder_attr('en') ?>>
-            </label>
-            <?php admin_lang_pane_end(); ?>
           </div>
 
-          <div class="admin-form-row admin-form-row--split">
-            <?php admin_lang_pane_start('nl'); ?>
-            <label><?= admin_te('block_steps.omschrijving') ?>*
-              <textarea name="body_nl" maxlength="1000" rows="3" <?= admin_lang_required('nl') ?>><?= htmlspecialchars((string) $item['body_nl'], ENT_QUOTES, 'UTF-8') ?></textarea>
+          <div class="admin-form-row">
+            <label><?= admin_te('block_steps.omschrijving') ?><?= $marker ?>
+              <textarea name="body" maxlength="1000" rows="3"<?= $required ?><?= $placeholder ?>><?= $h($itemWord('body')) ?></textarea>
             </label>
-            <?php admin_lang_pane_end(); ?>
-            <?php admin_lang_pane_start('en'); ?>
-            <label><?= admin_te('block_steps.omschrijving_2') ?>
-              <textarea name="body_en" maxlength="1000" rows="3"<?= admin_lang_placeholder_attr('en') ?>><?= htmlspecialchars((string) ($item['body_en'] ?? ''), ENT_QUOTES, 'UTF-8') ?></textarea>
-            </label>
-            <?php admin_lang_pane_end(); ?>
           </div>
 
           <label class="admin-checkbox-label">
@@ -225,19 +219,19 @@ function stepListValue(array $values, string $key): string
 
         <div class="admin-image-card__actions" style="margin-top:0.75rem;">
           <form method="post" action="/api/admin/move-step-list-item.php" class="admin-inline-form">
-            <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
+            <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
             <input type="hidden" name="item_id" value="<?= $itemId ?>">
             <input type="hidden" name="direction" value="up">
             <button type="submit" class="admin-btn-text" <?= $isFirst ? 'disabled' : '' ?>><?= admin_t('common.move_up') ?></button>
           </form>
           <form method="post" action="/api/admin/move-step-list-item.php" class="admin-inline-form">
-            <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
+            <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
             <input type="hidden" name="item_id" value="<?= $itemId ?>">
             <input type="hidden" name="direction" value="down">
             <button type="submit" class="admin-btn-text" <?= $isLast ? 'disabled' : '' ?>><?= admin_t('common.move_down') ?></button>
           </form>
           <form method="post" action="/api/admin/delete-step-list-item.php" class="admin-inline-form" onsubmit="return confirm('Deze stap definitief verwijderen?');">
-            <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
+            <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
             <input type="hidden" name="item_id" value="<?= $itemId ?>">
             <button type="submit" class="admin-btn-text admin-btn-text--danger"><?= admin_te('common.delete') ?></button>
           </form>
@@ -249,34 +243,21 @@ function stepListValue(array $values, string $key): string
   <section class="admin-card">
     <h2><?= admin_te('block_steps.nieuwe_stap_toevoegen') ?></h2>
     <form method="post" action="/api/admin/create-step-list-item.php" class="admin-product-form">
-      <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
+      <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
       <input type="hidden" name="section_id" value="<?= $sectionId ?>">
 
-      <?php admin_lang_bar(); ?>
-      <div class="admin-form-row admin-form-row--split">
-        <?php admin_lang_pane_start('nl'); ?>
+      <?php admin_localized_bar($defaultLanguage); ?>
+      <?php admin_localized_new_item_note($editLanguage); ?>
+      <div class="admin-form-row">
         <label><?= admin_te('common.title') ?>*
-          <input type="text" name="title_nl" maxlength="255" <?= admin_lang_required('nl') ?>>
+          <input type="text" name="title" maxlength="255" required>
         </label>
-        <?php admin_lang_pane_end(); ?>
-        <?php admin_lang_pane_start('en'); ?>
-        <label><?= admin_te('common.title') ?>
-          <input type="text" name="title_en" maxlength="255"<?= admin_lang_placeholder_attr('en') ?>>
-        </label>
-        <?php admin_lang_pane_end(); ?>
       </div>
 
-      <div class="admin-form-row admin-form-row--split">
-        <?php admin_lang_pane_start('nl'); ?>
-        <label><?= admin_te('block_steps.omschrijving_3') ?>*
-          <textarea name="body_nl" maxlength="1000" rows="3" <?= admin_lang_required('nl') ?>></textarea>
+      <div class="admin-form-row">
+        <label><?= admin_te('block_steps.omschrijving') ?>*
+          <textarea name="body" maxlength="1000" rows="3" required></textarea>
         </label>
-        <?php admin_lang_pane_end(); ?>
-        <?php admin_lang_pane_start('en'); ?>
-        <label><?= admin_te('block_steps.omschrijving_4') ?>
-          <textarea name="body_en" maxlength="1000" rows="3"<?= admin_lang_placeholder_attr('en') ?>></textarea>
-        </label>
-        <?php admin_lang_pane_end(); ?>
       </div>
 
       <button type="submit"><?= admin_te('block_steps.stap_toevoegen') ?></button>
@@ -285,6 +266,5 @@ function stepListValue(array $values, string $key): string
 </main>
 <?php save_bar(); ?>
 <?php save_bar_script(); ?>
-<?php admin_lang_script(); ?>
 </body>
 </html>

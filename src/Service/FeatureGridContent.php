@@ -3,6 +3,7 @@
 namespace App\Service;
 
 use App\Repository\FeatureGridRepository;
+use App\Service\Blocks\BlockLocalization;
 
 /**
  * Content for the "Feature grid" section (`.feature-grid` > `.feature-card`)
@@ -25,6 +26,14 @@ use App\Repository\FeatureGridRepository;
  * is STATE_FALLBACK: there is nothing to render, and a failure is logged. See
  * CONTENT-BLOCKS.md, "Het inhoudscontract".
  *
+ * WORDS PER LANGUAGE (Multilingual 2.0 phase 3B). The heading and every
+ * card's title and text are stored per website language in
+ * block_translations: the grid's words on its own row, each card's on the
+ * card's row (FeatureGridBlock::childTables()). They come out of
+ * App\Service\Blocks\BlockLocalization as one LocalizedValue per field, the
+ * fallback already applied; is_active, the icon and the order stay in the
+ * tables. This class decides no language itself.
+ *
  * `is_active = false` on an *existing* grid row is a deliberate hide, and a
  * different case from a missing row. forSection()'s returned `state` field is
  * how a template tells the three cases apart: STATE_FALLBACK (no row / DB
@@ -34,7 +43,9 @@ use App\Repository\FeatureGridRepository;
  *
  * Once a grid's row exists and is active, its *items* come strictly from the
  * database (only is_active = 1 cards), even if that list is empty — an
- * individually hidden/deleted card stays hidden.
+ * individually hidden/deleted card stays hidden. A card without its title
+ * and text in the default language is not there either: the default language
+ * decides whether a card shows, as it does for the block.
  */
 class FeatureGridContent
 {
@@ -83,15 +94,19 @@ class FeatureGridContent
         'location' => 'Locatie (pin)',
     ];
 
+    /** The owner tables of this block's words (FeatureGridBlock::translatableFields()). */
+    private const TABLE = 'feature_grids';
+    private const ITEMS = 'feature_grid_items';
+
     /** @var array<string, array<string, mixed>> */
     private static array $cache = [];
 
     /**
-     * @return array<string, mixed> 'state' (one of STATE_*), plus
-     *                                eyebrow_nl/en, title_nl/en, lead_nl/en
-     *                                (may be '' when the section has no
-     *                                heading), and 'items': list of
-     *                                icon_key/title_nl/en/body_nl/en.
+     * @return array<string, mixed> 'state' (one of STATE_*), plus eyebrow,
+     *                                title and lead (a LocalizedValue each,
+     *                                empty when the section has no heading),
+     *                                and 'items': a list of icon_key plus
+     *                                title and body (a LocalizedValue each).
      *                                Templates must only render the section
      *                                when 'state' === STATE_ACTIVE; the
      *                                content fields are still present
@@ -127,41 +142,41 @@ class FeatureGridContent
             return self::$cache[$cacheKey] = self::emptyContent() + ['state' => self::STATE_HIDDEN];
         }
 
-        $content = [
-            'eyebrow_nl' => (string) ($row['eyebrow_nl'] ?? ''),
-            'title_nl' => (string) ($row['title_nl'] ?? ''),
-            'lead_nl' => (string) ($row['lead_nl'] ?? ''),
-        ];
-        $content['eyebrow_en'] = self::valueOrDefault($row['eyebrow_en'] ?? null, $content['eyebrow_nl']);
-        $content['title_en'] = self::valueOrDefault($row['title_en'] ?? null, $content['title_nl']);
-        $content['lead_en'] = self::valueOrDefault($row['lead_en'] ?? null, $content['lead_nl']);
+        $gridId = (int) $row['id'];
 
         try {
-            $items = $repository->findItemsByGridId((int) $row['id'], true);
+            $items = $repository->findItemsByGridId($gridId, true);
         } catch (\Throwable $e) {
             error_log('[FeatureGridContent] items lookup failed for "' . $cacheKey . '": ' . $e->getMessage());
 
             return self::$cache[$cacheKey] = self::emptyContent() + ['state' => self::STATE_FALLBACK];
         }
 
+        // The words of the grid and all of its cards at once; nothing when
+        // the page already loaded them (SectionRegistry::renderPage()).
+        BlockLocalization::preloadBlocks([self::TABLE => [$gridId]]);
+
+        $content = BlockLocalization::words(self::TABLE, $gridId);
+
         // Only is_active cards are queried above, and whatever comes back —
         // including an empty list — is authoritative: a grid row that
         // exists and is active means the admin has deliberately curated its
         // cards, so an empty result is "all cards hidden/deleted", not
         // "missing data".
-        $content['items'] = array_map(static function (array $item): array {
-            $titleNl = (string) $item['title_nl'];
-            $bodyNl = (string) $item['body_nl'];
+        $content['items'] = [];
+        foreach ($items as $item) {
+            $itemId = (int) $item['id'];
+
+            if (!BlockLocalization::hasRequiredWords(self::ITEMS, $itemId)) {
+                continue;
+            }
+
             $iconKey = (string) $item['icon_key'];
 
-            return [
+            $content['items'][] = [
                 'icon_key' => array_key_exists($iconKey, self::ICON_KEYS) ? $iconKey : array_key_first(self::ICON_KEYS),
-                'title_nl' => $titleNl,
-                'title_en' => self::valueOrDefault($item['title_en'] ?? null, $titleNl),
-                'body_nl' => $bodyNl,
-                'body_en' => self::valueOrDefault($item['body_en'] ?? null, $bodyNl),
-            ];
-        }, $items);
+            ] + BlockLocalization::words(self::ITEMS, $itemId);
+        }
 
         $content['state'] = self::STATE_ACTIVE;
 
@@ -169,17 +184,14 @@ class FeatureGridContent
     }
 
     /**
-     * Clears the in-process cache — used by the admin save handlers right
-     * after writing a new value, and by tests.
+     * Clears the in-process cache, and the block words BlockLocalization
+     * holds — used by the admin save handlers right after writing a new
+     * value, and by tests.
      */
     public static function clearCache(): void
     {
         self::$cache = [];
-    }
-
-    private static function valueOrDefault(?string $value, string $default): string
-    {
-        return ($value !== null && $value !== '') ? $value : $default;
+        BlockLocalization::clearCache();
     }
 
     /**
@@ -187,6 +199,6 @@ class FeatureGridContent
      */
     private static function emptyContent(): array
     {
-        return ['eyebrow_nl' => '', 'eyebrow_en' => '', 'title_nl' => '', 'title_en' => '', 'lead_nl' => '', 'lead_en' => '', 'items' => []];
+        return BlockLocalization::words(self::TABLE, 0) + ['items' => []];
     }
 }

@@ -40,23 +40,22 @@ class FaqRepository extends Repository
     }
 
     /**
-     * Inserts or updates the single row for this page_slug + section_key.
-     * Used by the admin FAQ edit form's section-level fields.
+     * Inserts or updates the single row for this page_slug + section_key:
+     * what is the same in every language. Used by the admin FAQ edit form's
+     * section-level fields. The heading's words, and every question's, are
+     * stored per website language through App\Service\Blocks\BlockLocalization
+     * (db/migrations/20260917190000).
      *
-     * @param array<string, string|bool|null> $values
+     * @param array{is_active?: bool} $values
      */
     public function upsertSection(string $pageSlug, string $sectionKey, array $values): void
     {
         $stmt = $this->db->prepare(
             'INSERT INTO faq_sections
-                (page_slug, section_key, eyebrow_nl, eyebrow_en, title_nl, title_en, is_active, created_at, updated_at)
+                (page_slug, section_key, is_active, created_at, updated_at)
              VALUES
-                (:page_slug, :section_key, :eyebrow_nl, :eyebrow_en, :title_nl, :title_en, :is_active, NOW(), NOW())
+                (:page_slug, :section_key, :is_active, NOW(), NOW())
              ON DUPLICATE KEY UPDATE
-                eyebrow_nl = VALUES(eyebrow_nl),
-                eyebrow_en = VALUES(eyebrow_en),
-                title_nl = VALUES(title_nl),
-                title_en = VALUES(title_en),
                 is_active = VALUES(is_active),
                 updated_at = NOW()'
         );
@@ -64,10 +63,6 @@ class FaqRepository extends Repository
         $stmt->execute([
             'page_slug' => $pageSlug,
             'section_key' => $sectionKey,
-            'eyebrow_nl' => self::nullIfEmpty($values['eyebrow_nl'] ?? null),
-            'eyebrow_en' => self::nullIfEmpty($values['eyebrow_en'] ?? null),
-            'title_nl' => self::nullIfEmpty($values['title_nl'] ?? null),
-            'title_en' => self::nullIfEmpty($values['title_en'] ?? null),
             'is_active' => ($values['is_active'] ?? true) ? 1 : 0,
         ]);
     }
@@ -102,26 +97,23 @@ class FaqRepository extends Repository
     }
 
     /**
-     * Appends a new question/answer to the end of a section.
-     *
-     * @param array<string, string> $values question_nl, question_en, answer_nl, answer_en
+     * Appends a new, visible question to the end of a section and returns its
+     * id. Its question and answer are words, stored per website language
+     * against that id (App\Service\Blocks\BlockLocalization), in the same
+     * transaction as this insert.
      */
-    public function createItem(int $sectionId, array $values): int
+    public function createItem(int $sectionId): int
     {
         $nextSortOrder = $this->nextSortOrder($sectionId);
 
         $stmt = $this->db->prepare(
             'INSERT INTO faq_items
-                (faq_section_id, question_nl, question_en, answer_nl, answer_en, sort_order, is_active, created_at, updated_at)
+                (faq_section_id, sort_order, is_active, created_at, updated_at)
              VALUES
-                (:faq_section_id, :question_nl, :question_en, :answer_nl, :answer_en, :sort_order, 1, NOW(), NOW())'
+                (:faq_section_id, :sort_order, 1, NOW(), NOW())'
         );
         $stmt->execute([
             'faq_section_id' => $sectionId,
-            'question_nl' => $values['question_nl'],
-            'question_en' => self::nullIfEmpty($values['question_en'] ?? null),
-            'answer_nl' => $values['answer_nl'],
-            'answer_en' => self::nullIfEmpty($values['answer_en'] ?? null),
             'sort_order' => $nextSortOrder,
         ]);
 
@@ -129,25 +121,21 @@ class FaqRepository extends Repository
     }
 
     /**
-     * @param array<string, string|bool> $values question_nl, question_en, answer_nl, answer_en, is_active
+     * What a question has that is the same in every language: whether it is
+     * shown. Its words are saved through BlockLocalization. The id never
+     * changes, so the words of every language stay attached to it.
+     *
+     * @param array{is_active: bool} $values
      */
     public function updateItem(int $id, array $values): void
     {
         $stmt = $this->db->prepare(
             'UPDATE faq_items SET
-                question_nl = :question_nl,
-                question_en = :question_en,
-                answer_nl = :answer_nl,
-                answer_en = :answer_en,
                 is_active = :is_active,
                 updated_at = NOW()
              WHERE id = :id'
         );
         $stmt->execute([
-            'question_nl' => $values['question_nl'],
-            'question_en' => self::nullIfEmpty($values['question_en'] ?? null),
-            'answer_nl' => $values['answer_nl'],
-            'answer_en' => self::nullIfEmpty($values['answer_en'] ?? null),
             'is_active' => $values['is_active'] ? 1 : 0,
             'id' => $id,
         ]);
@@ -155,7 +143,9 @@ class FaqRepository extends Repository
 
     /**
      * Permanently removes a question — distinct from hiding one via
-     * is_active (see updateItem). Used by the admin "Verwijderen" action.
+     * is_active (see updateItem). Used by the admin "Verwijderen" action,
+     * which removes the question's words first, in the same transaction
+     * (BlockLocalization::deleteOwner()).
      */
     public function deleteItem(int $id): bool
     {
@@ -201,9 +191,10 @@ class FaqRepository extends Repository
 
     /**
      * Permanently removes the section and (via ON DELETE CASCADE) all of its
-     * questions — used by the page builder's "Delete section" action. This
-     * type has no uploaded media of its own, so no filesystem cleanup is
-     * needed.
+     * questions — used by the page builder's "Delete section" action, whose
+     * SectionRegistry::delete() removes the words of the section and of every
+     * question first. This type has no uploaded media of its own, so no
+     * filesystem cleanup is needed.
      */
     public function deleteSection(int $id): bool
     {
@@ -228,10 +219,5 @@ class FaqRepository extends Repository
         $stmt->execute(['faq_section_id' => $sectionId]);
 
         return (int) $stmt->fetch()['next_sort_order'];
-    }
-
-    private static function nullIfEmpty(?string $value): ?string
-    {
-        return ($value !== null && $value !== '') ? $value : null;
     }
 }

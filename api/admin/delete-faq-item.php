@@ -6,13 +6,20 @@
  * Permanently deletes one FAQ item. Distinct from hiding an item via its
  * "Zichtbaar" checkbox (update-faq-item.php) — see App\Service\FaqContent
  * for why that distinction matters for the public-facing fallback logic.
+ *
+ * The question's words in every website language go first, in the same
+ * transaction as the row (BlockLocalization::deleteOwner()): there is no
+ * foreign key that could take them along, and once the row is gone nothing
+ * would find them.
  */
 
 declare(strict_types=1);
 
 require_once __DIR__ . '/../../vendor/autoload.php';
 
+use App\Database;
 use App\Service\AdminAuth;
+use App\Service\Blocks\BlockLocalization;
 use App\Service\Csrf;
 use App\Service\FaqContent;
 use App\Repository\FaqRepository;
@@ -53,10 +60,21 @@ if ($section === null) {
 
 $sectionKey = $section['page_slug'] . ':' . $section['section_key'];
 
+$db = Database::connection();
+
 try {
+    $db->beginTransaction();
+
+    BlockLocalization::deleteOwner('faq_items', $itemId);
     $repository->deleteItem($itemId);
+
+    $db->commit();
     FaqContent::clearCache();
 } catch (\Throwable $e) {
+    if ($db->inTransaction()) {
+        $db->rollBack();
+    }
+
     error_log('[api/admin/delete-faq-item.php] ' . $e->getMessage());
     $_SESSION['admin_faq_item_errors'] = ['Vraag kon niet worden verwijderd.'];
     header('Location: /admin/faq.php?section=' . urlencode($sectionKey));

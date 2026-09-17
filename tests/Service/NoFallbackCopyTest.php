@@ -13,6 +13,7 @@ use App\Repository\StatStripRepository;
 use App\Repository\StepListRepository;
 use App\Repository\TextImageSplitRepository;
 use App\Service\Blocks\BlockDefinitions;
+use App\Service\Blocks\BlockLocalization;
 use App\Service\FaqContent;
 use App\Service\FeatureGridContent;
 use App\Service\HomepageHeroContent;
@@ -291,9 +292,11 @@ final class NoFallbackCopyTest extends TestCase
         $heading = ['eyebrow_nl' => '', 'eyebrow_en' => '', 'title_nl' => '', 'title_en' => '', 'is_active' => $active];
 
         match ($type) {
-            'faq' => (new FaqRepository())->upsertSection($pageSlug, $sectionKey, $heading),
-            'feature_grid' => (new FeatureGridRepository())->upsertGrid($pageSlug, $sectionKey, $heading + ['lead_nl' => '', 'lead_en' => '']),
-            'step_list' => (new StepListRepository())->upsertSection($pageSlug, $sectionKey, $heading),
+            // The words of the converted blocks are per language
+            // (block_translations): a row without any has none stored.
+            'faq' => (new FaqRepository())->upsertSection($pageSlug, $sectionKey, ['is_active' => $active]),
+            'feature_grid' => (new FeatureGridRepository())->upsertGrid($pageSlug, $sectionKey, ['is_active' => $active]),
+            'step_list' => (new StepListRepository())->upsertSection($pageSlug, $sectionKey, ['is_active' => $active]),
             'stat_strip' => (new StatStripRepository())->upsertStrip($pageSlug, $sectionKey, ['is_active' => $active]),
             'text_image_split' => (new TextImageSplitRepository())->upsertSection($pageSlug, $sectionKey, $heading + [
                 'layout' => 'image_right',
@@ -323,12 +326,13 @@ final class NoFallbackCopyTest extends TestCase
     {
         if ($type === 'homepage_hero') {
             $this->deleteLegacyRow($type);
-            (new HomepageHeroRepository())->upsert(HomepageHeroContent::PAGE_SLUG, self::homepageHeroValues([
-                'eyebrow_nl' => 'Eigen eyebrow',
-                'title_nl' => 'Eigen homepagetitel',
-                'primary_label_nl' => 'Eigen knop',
-                'primary_url' => '/',
-            ]));
+            $heroes = new HomepageHeroRepository();
+            $heroes->upsert(HomepageHeroContent::PAGE_SLUG, self::homepageHeroValues(['primary_url' => '/']));
+            BlockLocalization::save('homepage_hero', (int) $heroes->findBySlug(HomepageHeroContent::PAGE_SLUG)['id'], 'nl', [
+                'eyebrow' => 'Eigen eyebrow',
+                'title' => 'Eigen homepagetitel',
+                'primary_label' => 'Eigen knop',
+            ]);
 
             return [self::pageSection($type, HomepageHeroContent::PAGE_SLUG, null, 0), 'Eigen homepagetitel'];
         }
@@ -341,42 +345,33 @@ final class NoFallbackCopyTest extends TestCase
 
         switch ($type) {
             case 'faq':
-                (new FaqRepository())->createItem($sectionId, [
-                    'question_nl' => 'Eigen vraag',
-                    'question_en' => '',
-                    'answer_nl' => 'Eigen antwoord',
-                    'answer_en' => '',
+                BlockLocalization::save('faq_items', (new FaqRepository())->createItem($sectionId), 'nl', [
+                    'question' => 'Eigen vraag',
+                    'answer' => 'Eigen antwoord',
                 ]);
 
                 return [$pageSection, 'Eigen vraag'];
 
             case 'feature_grid':
-                (new FeatureGridRepository())->createItem($sectionId, [
-                    'icon_key' => 'heart',
-                    'title_nl' => 'Eigen kaart',
-                    'title_en' => '',
-                    'body_nl' => 'Eigen kaarttekst',
-                    'body_en' => '',
+                BlockLocalization::save('feature_grid_items', (new FeatureGridRepository())->createItem($sectionId, ['icon_key' => 'heart']), 'nl', [
+                    'title' => 'Eigen kaart',
+                    'body' => 'Eigen kaarttekst',
                 ]);
 
                 return [$pageSection, 'Eigen kaart'];
 
             case 'step_list':
-                (new StepListRepository())->createItem($sectionId, [
-                    'title_nl' => 'Eigen stap',
-                    'title_en' => '',
-                    'body_nl' => 'Eigen staptekst',
-                    'body_en' => '',
+                BlockLocalization::save('step_list_items', (new StepListRepository())->createItem($sectionId), 'nl', [
+                    'title' => 'Eigen stap',
+                    'body' => 'Eigen staptekst',
                 ]);
 
                 return [$pageSection, 'Eigen stap'];
 
             case 'stat_strip':
-                (new StatStripRepository())->createItem($sectionId, [
-                    'primary_text_nl' => 'Eigen cijfer',
-                    'primary_text_en' => '',
-                    'secondary_text_nl' => 'eigen uitleg',
-                    'secondary_text_en' => '',
+                BlockLocalization::save('stat_strip_items', (new StatStripRepository())->createItem($sectionId), 'nl', [
+                    'primary_text' => 'Eigen cijfer',
+                    'secondary_text' => 'eigen uitleg',
                 ]);
 
                 return [$pageSection, 'Eigen cijfer'];
@@ -413,7 +408,8 @@ final class NoFallbackCopyTest extends TestCase
 
     /**
      * Every column HomepageHeroRepository::upsert() writes, empty unless
-     * overridden, with the structural values a valid row needs.
+     * overridden, with the structural values a valid row needs. Its words
+     * are per language and stored separately (BlockLocalization).
      *
      * @param array<string, mixed> $overrides
      *
@@ -422,15 +418,10 @@ final class NoFallbackCopyTest extends TestCase
     private static function homepageHeroValues(array $overrides): array
     {
         return array_merge([
-            'eyebrow_nl' => '', 'eyebrow_en' => '',
-            'title_nl' => '', 'title_en' => '',
-            'title_highlight_nl' => '', 'title_highlight_en' => '',
             'title_highlight_size' => HomepageHeroContent::HIGHLIGHT_SIZE_DEFAULT,
-            'lead_nl' => '', 'lead_en' => '',
-            'primary_label_nl' => '', 'primary_label_en' => '', 'primary_url' => '',
-            'secondary_label_nl' => '', 'secondary_label_en' => '', 'secondary_url' => '',
-            'image_path' => '', 'image_alt_nl' => '', 'image_alt_en' => '',
-            'badge_title_nl' => '', 'badge_title_en' => '', 'badge_text_nl' => '', 'badge_text_en' => '',
+            'primary_url' => '',
+            'secondary_url' => '',
+            'image_path' => '',
             'media_type' => HomepageHeroContent::MEDIA_TYPE_IMAGE,
             'video_path' => '',
             'layout' => HomepageHeroContent::LAYOUT_MEDIA_RIGHT,

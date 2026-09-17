@@ -18,12 +18,21 @@ require_once __DIR__ . '/feature-icons.php';
  * Renders nothing without a heading and without a single active card — the
  * state a grid is in right after it is added.
  *
+ * Every word arrives as one LocalizedValue per field
+ * (App\Service\Blocks\BlockLocalization), the grid's and each card's:
+ * SiteText prints the words a visitor sees first and the escaped
+ * data-nl/data-en pair for the V1 switch, so this file knows no language, no
+ * default and no fallback. All of it is plain text.
+ *
  * @param array<string, mixed> $grid see FeatureGridContent::forSection()
  * @param string $revealGroup unique data-reveal-group value for this instance's stagger animation
  */
 function render_section_feature_grid(array $grid, string $revealGroup = 'feature-grid'): void
 {
-    $hasHeading = $grid['eyebrow_nl'] !== '' || $grid['title_nl'] !== '' || $grid['lead_nl'] !== '';
+    $text = static fn (\App\Service\Language\LocalizedValue $value): string => \App\Service\Language\SiteText::visibleOf($value);
+    $pair = static fn (\App\Service\Language\LocalizedValue $value): string => \App\Service\Language\SiteText::attrsOf($value);
+
+    $hasHeading = $text($grid['eyebrow']) !== '' || $text($grid['title']) !== '' || $text($grid['lead']) !== '';
 
     if (!$hasHeading && $grid['items'] === []) {
         // Nothing to show yet: an empty block leaves no gap, the same rule as
@@ -37,17 +46,17 @@ function render_section_feature_grid(array $grid, string $revealGroup = 'feature
       <div class="container">
         <?php if ($hasHeading): ?>
         <div class="section-head center" data-reveal>
-          <?php if ($grid['eyebrow_nl'] !== ''): ?><p class="eyebrow" <?= \App\Service\Language\SiteText::attrs($grid['eyebrow_nl'], $grid['eyebrow_en']) ?>><?= $h(\App\Service\Language\SiteText::visible($grid['eyebrow_nl'], $grid['eyebrow_en'])) ?></p><?php endif; ?>
-          <?php if ($grid['title_nl'] !== ''): ?><h2 <?= \App\Service\Language\SiteText::attrs($grid['title_nl'], $grid['title_en']) ?>><?= $h(\App\Service\Language\SiteText::visible($grid['title_nl'], $grid['title_en'])) ?></h2><?php endif; ?>
-          <?php if ($grid['lead_nl'] !== ''): ?><p class="lead" style="margin-inline:auto;" <?= \App\Service\Language\SiteText::attrs($grid['lead_nl'], $grid['lead_en']) ?>><?= $h(\App\Service\Language\SiteText::visible($grid['lead_nl'], $grid['lead_en'])) ?></p><?php endif; ?>
+          <?php if ($text($grid['eyebrow']) !== ''): ?><p class="eyebrow" <?= $pair($grid['eyebrow']) ?>><?= $h($text($grid['eyebrow'])) ?></p><?php endif; ?>
+          <?php if ($text($grid['title']) !== ''): ?><h2 <?= $pair($grid['title']) ?>><?= $h($text($grid['title'])) ?></h2><?php endif; ?>
+          <?php if ($text($grid['lead']) !== ''): ?><p class="lead" style="margin-inline:auto;" <?= $pair($grid['lead']) ?>><?= $h($text($grid['lead'])) ?></p><?php endif; ?>
         </div>
         <?php endif; ?>
         <div class="feature-grid">
           <?php foreach ($grid['items'] as $item): ?>
           <div class="feature-card" data-reveal data-reveal-group="<?= $h($revealGroup) ?>">
             <div class="feature-card__icon"><?= feature_grid_icon_svg($item['icon_key']) ?></div>
-            <h3 <?= \App\Service\Language\SiteText::attrs($item['title_nl'], $item['title_en']) ?>><?= $h(\App\Service\Language\SiteText::visible($item['title_nl'], $item['title_en'])) ?></h3>
-            <p <?= \App\Service\Language\SiteText::attrs($item['body_nl'], $item['body_en']) ?>><?= $h(\App\Service\Language\SiteText::visible($item['body_nl'], $item['body_en'])) ?></p>
+            <h3 <?= $pair($item['title']) ?>><?= $h($text($item['title'])) ?></h3>
+            <p <?= $pair($item['body']) ?>><?= $h($text($item['body'])) ?></p>
           </div>
           <?php endforeach; ?>
         </div>

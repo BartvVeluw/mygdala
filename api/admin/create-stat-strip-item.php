@@ -5,14 +5,23 @@
  *
  * Adds a new stat to a Stat strip. Same guard order / PRG pattern as
  * api/admin/create-feature-grid-item.php.
+ *
+ * A NEW STAT IS WRITTEN IN THE DEFAULT LANGUAGE (Multilingual 2.0), like a
+ * new page: the words the form sends are stored as the website's default
+ * language, where both fields are required, and every other language is
+ * added afterwards on the stat's own card (update-stat-strip-item.php). The
+ * row and its words are one transaction, so a stat never exists without its
+ * words or the other way round.
  */
 
 declare(strict_types=1);
 
 require_once __DIR__ . '/../../vendor/autoload.php';
 
+use App\Database;
 use App\Service\Language\AdminTranslator;
 use App\Service\AdminAuth;
+use App\Service\Blocks\BlockLocalization;
 use App\Service\Csrf;
 use App\Service\StatStripContent;
 use App\Repository\StatStripRepository;
@@ -47,19 +56,17 @@ if ($strip === null) {
 
 $sectionKey = $strip['page_slug'] . ':' . $strip['section_key'];
 
-$fields = [
-    'primary_text_nl' => trim((string) ($_POST['primary_text_nl'] ?? '')),
-    'primary_text_en' => trim((string) ($_POST['primary_text_en'] ?? '')),
-    'secondary_text_nl' => trim((string) ($_POST['secondary_text_nl'] ?? '')),
-    'secondary_text_en' => trim((string) ($_POST['secondary_text_en'] ?? '')),
-];
+$defaultLanguage = BlockLocalization::defaultLanguage();
+
+// Exactly the fields the block declares, never a name taken from the request.
+$words = [];
+foreach (array_keys(BlockLocalization::fields('stat_strip_items')) as $field) {
+    $words[$field] = trim((string) ($_POST[$field] ?? ''));
+}
 
 $errors = [];
-if ($fields['primary_text_nl'] === '') {
-    $errors[] = AdminTranslator::trans('validation.primaire_tekst_nl_verplicht');
-}
-if ($fields['secondary_text_nl'] === '') {
-    $errors[] = AdminTranslator::trans('validation.secundaire_tekst_nl_verplicht');
+foreach (BlockLocalization::messageKeys(BlockLocalization::problems('stat_strip_items', $defaultLanguage, $words)) as $key) {
+    $errors[] = AdminTranslator::trans($key);
 }
 
 if ($errors !== []) {
@@ -68,10 +75,21 @@ if ($errors !== []) {
     exit;
 }
 
+$db = Database::connection();
+
 try {
-    $repository->createItem($stripId, $fields);
+    $db->beginTransaction();
+
+    $itemId = $repository->createItem($stripId);
+    BlockLocalization::save('stat_strip_items', $itemId, $defaultLanguage, $words);
+
+    $db->commit();
     StatStripContent::clearCache();
 } catch (\Throwable $e) {
+    if ($db->inTransaction()) {
+        $db->rollBack();
+    }
+
     error_log('[api/admin/create-stat-strip-item.php] ' . $e->getMessage());
     $_SESSION['admin_stat_strip_item_errors'] = ['Stat kon niet worden opgeslagen. Probeer het opnieuw.'];
     header('Location: /admin/stat-strip.php?section=' . urlencode($sectionKey));

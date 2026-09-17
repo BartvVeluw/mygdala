@@ -9,7 +9,9 @@ require_once dirname(__DIR__, 3) . '/partials/section-faq.php';
 
 /**
  * A question/answer accordion. The questions are child rows of the section,
- * so deleting an instance takes them with it through ON DELETE CASCADE.
+ * so deleting an instance takes them with it through ON DELETE CASCADE. The
+ * words of the section and of every question are stored per website language
+ * in block_translations (BlockLocalization), each question's on its own row.
  */
 final class FaqBlock extends BlockDefinition
 {
@@ -59,6 +61,31 @@ final class FaqBlock extends BlockDefinition
         ];
     }
 
+    /**
+     * The heading on the section's row and the question and answer on each
+     * item's row, per website language. What the editor always required in
+     * Dutch is required in the default language; the lengths are the ones
+     * the editor always allowed.
+     */
+    public function translatableFields(): array
+    {
+        return [
+            'faq_sections' => [
+                TranslatableField::plain('eyebrow', 150)->required(),
+                TranslatableField::plain('title', 255)->required(),
+            ],
+            'faq_items' => [
+                TranslatableField::plain('question', 255)->required(),
+                TranslatableField::plain('answer', 1000)->required(),
+            ],
+        ];
+    }
+
+    public function childTables(): array
+    {
+        return ['faq_items' => ['parent' => 'faq_sections', 'column' => 'faq_section_id']];
+    }
+
     public function create(string $pageSlug): array
     {
         $key = self::newSectionKey();
@@ -89,14 +116,14 @@ final class FaqBlock extends BlockDefinition
         $items = [];
         foreach (range(0, 3) as $index) {
             $items[] = [
-                ...$samples->itemFields('question', 'question', $index),
-                ...$samples->itemFields('answer', 'answer', $index),
+                'question' => $samples->localizedItem('question', $index),
+                'answer' => $samples->localizedItem('answer', $index),
             ];
         }
 
         return [
-            ...$samples->fields('eyebrow', 'eyebrow'),
-            ...$samples->fields('title', 'title'),
+            'eyebrow' => $samples->localized('eyebrow'),
+            'title' => $samples->localized('title'),
             'items' => $items,
         ];
     }
@@ -108,7 +135,7 @@ final class FaqBlock extends BlockDefinition
 
     public function instanceTitle(array $pageSection): string
     {
-        return (string) (FaqContent::forSection($this->pageSlug($pageSection), $this->sectionKey($pageSection))['title_nl'] ?? '');
+        return BlockLocalization::name('faq_sections', $this->sectionId($pageSection), 'title');
     }
 
     public function editUrl(array $pageSection): ?string

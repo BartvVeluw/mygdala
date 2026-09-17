@@ -7,13 +7,20 @@
  * "Zichtbaar" checkbox (update-step-list-item.php) — see
  * App\Service\StepListContent for why that distinction matters for the
  * public-facing fallback logic.
+ *
+ * The step's words in every website language go first, in the same
+ * transaction as the row (BlockLocalization::deleteOwner()): there is no
+ * foreign key that could take them along, and once the row is gone nothing
+ * would find them.
  */
 
 declare(strict_types=1);
 
 require_once __DIR__ . '/../../vendor/autoload.php';
 
+use App\Database;
 use App\Service\AdminAuth;
+use App\Service\Blocks\BlockLocalization;
 use App\Service\Csrf;
 use App\Service\StepListContent;
 use App\Repository\StepListRepository;
@@ -54,10 +61,21 @@ if ($section === null) {
 
 $sectionKey = $section['page_slug'] . ':' . $section['section_key'];
 
+$db = Database::connection();
+
 try {
+    $db->beginTransaction();
+
+    BlockLocalization::deleteOwner('step_list_items', $itemId);
     $repository->deleteItem($itemId);
+
+    $db->commit();
     StepListContent::clearCache();
 } catch (\Throwable $e) {
+    if ($db->inTransaction()) {
+        $db->rollBack();
+    }
+
     error_log('[api/admin/delete-step-list-item.php] ' . $e->getMessage());
     $_SESSION['admin_step_list_item_errors'] = ['Stap kon niet worden verwijderd.'];
     header('Location: /admin/step-list.php?section=' . urlencode($sectionKey));

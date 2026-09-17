@@ -9,7 +9,9 @@ require_once dirname(__DIR__, 3) . '/partials/section-feature-grid.php';
 
 /**
  * A grid of icon + title + text cards. Its items are child rows of the grid,
- * so deleting an instance takes them with it through ON DELETE CASCADE.
+ * so deleting an instance takes them with it through ON DELETE CASCADE. The
+ * words of the grid and of every card are stored per website language in
+ * block_translations (BlockLocalization), each card's on its own row.
  */
 final class FeatureGridBlock extends BlockDefinition
 {
@@ -59,6 +61,36 @@ final class FeatureGridBlock extends BlockDefinition
         ];
     }
 
+    /**
+     * The heading on the grid's row and the title and text on each card's
+     * row, per website language; a card's icon is the same in every language
+     * and stays in feature_grid_items. What the editor always required in
+     * Dutch is required in the default language (the lead never was); the
+     * lengths are the ones the editor always allowed. A grid without a
+     * heading of its own (FeatureGridContent::SECTIONS, has_heading) never
+     * has its heading validated or saved, so the required eyebrow and title
+     * do not apply to it.
+     */
+    public function translatableFields(): array
+    {
+        return [
+            'feature_grids' => [
+                TranslatableField::plain('eyebrow', 150)->required(),
+                TranslatableField::plain('title', 255)->required(),
+                TranslatableField::plain('lead', 500),
+            ],
+            'feature_grid_items' => [
+                TranslatableField::plain('title', 255)->required(),
+                TranslatableField::plain('body', 500)->required(),
+            ],
+        ];
+    }
+
+    public function childTables(): array
+    {
+        return ['feature_grid_items' => ['parent' => 'feature_grids', 'column' => 'feature_grid_id']];
+    }
+
     public function create(string $pageSlug): array
     {
         $key = self::newSectionKey();
@@ -90,15 +122,15 @@ final class FeatureGridBlock extends BlockDefinition
         foreach (array_slice(array_keys(FeatureGridContent::ICON_KEYS), 0, 3) as $index => $iconKey) {
             $items[] = [
                 'icon_key' => $iconKey,
-                ...$samples->itemFields('title', 'item', $index),
-                ...$samples->itemFields('body', 'item_body', $index),
+                'title' => $samples->localizedItem('item', $index),
+                'body' => $samples->localizedItem('item_body', $index),
             ];
         }
 
         return [
-            ...$samples->fields('eyebrow', 'eyebrow'),
-            ...$samples->fields('title', 'title'),
-            ...$samples->fields('lead', 'lead'),
+            'eyebrow' => $samples->localized('eyebrow'),
+            'title' => $samples->localized('title'),
+            'lead' => $samples->localized('lead'),
             'items' => $items,
         ];
     }
@@ -110,7 +142,7 @@ final class FeatureGridBlock extends BlockDefinition
 
     public function instanceTitle(array $pageSection): string
     {
-        return (string) (FeatureGridContent::forSection($this->pageSlug($pageSection), $this->sectionKey($pageSection))['title_nl'] ?? '');
+        return BlockLocalization::name('feature_grids', $this->sectionId($pageSection), 'title');
     }
 
     public function editUrl(array $pageSection): ?string

@@ -146,6 +146,25 @@ function admin_localized_input(string $language): string
     return '<input type="hidden" name="language_code" value="' . htmlspecialchars($language, ENT_QUOTES, 'UTF-8') . '">';
 }
 
+/**
+ * The note on a form that adds a child row (a question, a card, a step): a
+ * new item is written in the default language, like a new page, and
+ * translated afterwards on the item itself. Nothing when the screen is in the
+ * default language already, or the website has one language.
+ */
+function admin_localized_new_item_note(string $language): void
+{
+    $default = admin_localized_default();
+
+    if ($language === $default || count(admin_localized_languages()) < 2) {
+        return;
+    }
+
+    echo '<p class="admin-text-muted">'
+        . htmlspecialchars(AdminTranslator::trans('language.new_item_in_default', ['language' => admin_website_language_label($default)]), ENT_QUOTES, 'UTF-8')
+        . '</p>';
+}
+
 /** ` required` on the default language's fields, nothing on a translation's. */
 function admin_localized_required(string $language): string
 {

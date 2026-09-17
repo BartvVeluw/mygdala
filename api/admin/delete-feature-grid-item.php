@@ -7,13 +7,20 @@
  * its "Zichtbaar" checkbox (update-feature-grid-item.php) — see
  * App\Service\FeatureGridContent for why that distinction matters for the
  * public-facing fallback logic.
+ *
+ * The card's words in every website language go first, in the same
+ * transaction as the row (BlockLocalization::deleteOwner()): there is no
+ * foreign key that could take them along, and once the row is gone nothing
+ * would find them.
  */
 
 declare(strict_types=1);
 
 require_once __DIR__ . '/../../vendor/autoload.php';
 
+use App\Database;
 use App\Service\AdminAuth;
+use App\Service\Blocks\BlockLocalization;
 use App\Service\Csrf;
 use App\Service\FeatureGridContent;
 use App\Repository\FeatureGridRepository;
@@ -54,10 +61,21 @@ if ($grid === null) {
 
 $sectionKey = $grid['page_slug'] . ':' . $grid['section_key'];
 
+$db = Database::connection();
+
 try {
+    $db->beginTransaction();
+
+    BlockLocalization::deleteOwner('feature_grid_items', $itemId);
     $repository->deleteItem($itemId);
+
+    $db->commit();
     FeatureGridContent::clearCache();
 } catch (\Throwable $e) {
+    if ($db->inTransaction()) {
+        $db->rollBack();
+    }
+
     error_log('[api/admin/delete-feature-grid-item.php] ' . $e->getMessage());
     $_SESSION['admin_feature_grid_item_errors'] = ['Kaart kon niet worden verwijderd.'];
     header('Location: /admin/feature-grid.php?section=' . urlencode($sectionKey));

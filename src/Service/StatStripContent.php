@@ -3,6 +3,7 @@
 namespace App\Service;
 
 use App\Repository\StatStripRepository;
+use App\Service\Blocks\BlockLocalization;
 
 /**
  * Content for the "Stat strip" section (`.stat-strip` > `.stat`) — see
@@ -23,6 +24,13 @@ use App\Repository\StatStripRepository;
  * is STATE_FALLBACK: there is nothing to render, and a failure is logged. See
  * CONTENT-BLOCKS.md, "Het inhoudscontract".
  *
+ * WORDS PER LANGUAGE (Multilingual 2.0 phase 3B). The number and caption of
+ * every stat are stored per website language in block_translations, each
+ * stat's on its own row (StatStripBlock::childTables()); the strip itself has
+ * no words. They come out of App\Service\Blocks\BlockLocalization as one
+ * LocalizedValue per field, the fallback already applied; is_active and the
+ * order stay in the tables. This class decides no language itself.
+ *
  * `is_active = false` on an *existing* strip row is a deliberate hide, and a
  * different case from a missing row. forSection()'s returned 'state' field is
  * how a template tells the three cases apart: STATE_FALLBACK (no row / DB
@@ -32,7 +40,9 @@ use App\Repository\StatStripRepository;
  *
  * Once a strip's row exists and is active, its *items* come strictly from
  * the database (only is_active = 1 stats), even if that list is empty — an
- * individually hidden/deleted stat stays hidden.
+ * individually hidden/deleted stat stays hidden. A stat without its number
+ * and caption in the default language is not there either: the default
+ * language decides whether a stat shows, as it does for a block.
  */
 class StatStripContent
 {
@@ -58,13 +68,17 @@ class StatStripContent
         ],
     ];
 
+    /** The owner tables of this block's words (StatStripBlock::translatableFields()). */
+    private const TABLE = 'stat_strips';
+    private const ITEMS = 'stat_strip_items';
+
     /** @var array<string, array<string, mixed>> */
     private static array $cache = [];
 
     /**
-     * @return array<string, mixed> 'state' (one of STATE_*) and 'items':
-     *                                list of primary_text_nl/en,
-     *                                secondary_text_nl/en. Templates must
+     * @return array<string, mixed> 'state' (one of STATE_*) and 'items': a
+     *                                list of primary_text and secondary_text
+     *                                (a LocalizedValue each). Templates must
      *                                only render the section when 'state'
      *                                === STATE_ACTIVE.
      */
@@ -96,30 +110,33 @@ class StatStripContent
             return self::$cache[$cacheKey] = ['items' => [], 'state' => self::STATE_HIDDEN];
         }
 
+        $stripId = (int) $row['id'];
+
         try {
-            $items = $repository->findItemsByStripId((int) $row['id'], true);
+            $rows = $repository->findItemsByStripId($stripId, true);
         } catch (\Throwable $e) {
             error_log('[StatStripContent] items lookup failed for "' . $cacheKey . '": ' . $e->getMessage());
 
             return self::$cache[$cacheKey] = ['items' => [], 'state' => self::STATE_FALLBACK];
         }
 
+        // The words of every stat in the strip at once; nothing when the page
+        // already loaded them (SectionRegistry::renderPage()).
+        BlockLocalization::preloadBlocks([self::TABLE => [$stripId]]);
+
         // Only is_active items are queried above, and whatever comes back —
         // including an empty list — is authoritative: a strip row that
         // exists and is active means the admin has deliberately curated its
         // stats, so an empty result is "all stats hidden/deleted", not
         // "missing data".
-        $items = array_map(static function (array $item): array {
-            $primaryNl = (string) $item['primary_text_nl'];
-            $secondaryNl = (string) $item['secondary_text_nl'];
+        $items = [];
+        foreach ($rows as $item) {
+            $itemId = (int) $item['id'];
 
-            return [
-                'primary_text_nl' => $primaryNl,
-                'primary_text_en' => self::valueOrDefault($item['primary_text_en'] ?? null, $primaryNl),
-                'secondary_text_nl' => $secondaryNl,
-                'secondary_text_en' => self::valueOrDefault($item['secondary_text_en'] ?? null, $secondaryNl),
-            ];
-        }, $items);
+            if (BlockLocalization::hasRequiredWords(self::ITEMS, $itemId)) {
+                $items[] = BlockLocalization::words(self::ITEMS, $itemId);
+            }
+        }
 
         return self::$cache[$cacheKey] = [
             'items' => $items,
@@ -128,16 +145,13 @@ class StatStripContent
     }
 
     /**
-     * Clears the in-process cache — used by the admin save handlers right
-     * after writing a new value, and by tests.
+     * Clears the in-process cache, and the block words BlockLocalization
+     * holds — used by the admin save handlers right after writing a new
+     * value, and by tests.
      */
     public static function clearCache(): void
     {
         self::$cache = [];
-    }
-
-    private static function valueOrDefault(?string $value, string $default): string
-    {
-        return ($value !== null && $value !== '') ? $value : $default;
+        BlockLocalization::clearCache();
     }
 }

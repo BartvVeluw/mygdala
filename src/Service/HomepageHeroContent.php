@@ -3,6 +3,8 @@
 namespace App\Service;
 
 use App\Repository\HomepageHeroRepository;
+use App\Service\Blocks\BlockLocalization;
+use App\Service\Language\LocalizedValue;
 
 /**
  * Content for the dedicated "Homepage Hero" section (`.hero` on index.php) —
@@ -23,6 +25,16 @@ use App\Repository\HomepageHeroRepository;
  * consistency with the rest of the CMS, not because the owner can toggle the
  * whole Homepage Hero off from the UI.
  *
+ * WORDS PER LANGUAGE (Multilingual 2.0 phase 3B). The eyebrow, title, title
+ * highlight, lead, both button labels, the image's alt text and the badge are
+ * stored per website language in block_translations, and so are the two
+ * texts of every stat, on the stat's own row (HomepageHeroBlock::childTables()).
+ * They come out of App\Service\Blocks\BlockLocalization as one LocalizedValue
+ * per field, the fallback already applied; the URLs, the media, the layout,
+ * the highlight size, is_active and the order of the stats stay in
+ * homepage_hero and homepage_hero_stats, the same in every language. This
+ * class decides no language itself.
+ *
  * NOTHING STORED MEANS NOTHING RENDERED. There is no hardcoded fallback copy:
  * a missing row, or a lookup that fails, renders no Hero at all, and an active
  * row renders exactly what it stores — text, media and stats alike, even when
@@ -31,24 +43,26 @@ use App\Repository\HomepageHeroRepository;
  * bootstrap row deliberately stores an empty image, showed that photograph.
  * An empty image is an answer (this Hero has no image); {@see hasMedia()} is
  * what a renderer asks. The editor requires eyebrow, title and the primary
- * button, so an empty one only comes from data written outside it.
+ * button in the default language, so an empty one only comes from data
+ * written outside it.
  *
- * startingValues() answers a different question: what a Hero row that does
- * not exist yet is created with — by admin/homepage-hero.php, by the
- * api/admin/update-homepage-hero*.php endpoints and by
- * HomepageHeroBlock::create(). Generic, editable copy, and never rendered in
+ * startingValues() and startingWords() answer a different question: what a
+ * Hero row that does not exist yet is created with — by
+ * HomepageHeroBlock::create(), which admin/homepage-hero.php also uses the
+ * first time it is opened. Generic, editable copy, and never rendered in
  * place of a row that is missing or unreadable.
  *
- * Title highlight: `title_highlight_nl`/`_en` are plain text, never HTML —
- * the exact substring of the corresponding title that should be wrapped in
+ * Title highlight: the highlight is plain text, never HTML — the exact
+ * substring of the title in the same language that should be wrapped in
  * `<em>`. isHighlightValid() is the save-time check (must occur verbatim in
  * the title, or be empty); renderTitleFragment() is the render-time,
  * XSS-safe HTML builder: it escapes the title's three pieces (before/match/
  * after) independently and only ever wraps the match in a literal, hardcoded
- * `<em>...</em>` — user-entered text can never itself introduce a tag. If
- * invalid/legacy data somehow reaches the renderer (highlight no longer
- * found in the title), it fails safe: the complete escaped title, no
- * highlight, rather than breaking the Hero.
+ * `<em>...</em>` — user-entered text can never itself introduce a tag.
+ * titleHtml() applies it to every language. If invalid/legacy data somehow
+ * reaches the renderer (highlight no longer found in the title), it fails
+ * safe: the complete escaped title, no highlight, rather than breaking the
+ * Hero.
  *
  * Highlight size: `title_highlight_size` is a PERCENTAGE of the headline's
  * own font size (HIGHLIGHT_SIZE_MIN..HIGHLIGHT_SIZE_MAX, default
@@ -57,9 +71,9 @@ use App\Repository\HomepageHeroRepository;
  * `.hero h1 em` resolves with `font-size: var(--hero-highlight-size, 100%)`,
  * so the highlight keeps scaling with the existing `clamp()`-based
  * responsive H1 on every breakpoint. Deliberately ONE shared visual setting
- * rather than a per-language pair, even though the highlight TEXT is
- * bilingual: the language switch (assets/js/core.js's applyLang) only swaps
- * innerHTML/attribute values from data-nl/data-en and never touches CSS
+ * rather than one per language, even though the highlight TEXT is stored
+ * per language: the language switch (assets/js/core.js's applyLang) only
+ * swaps innerHTML/attribute values from data-nl/data-en and never touches CSS
  * custom properties, so a per-language size would need a new switching
  * mechanism outside that convention for no editorial gain.
  * isHighlightSizeValid() is the save-time check (see
@@ -71,12 +85,15 @@ use App\Repository\HomepageHeroRepository;
  *
  * Secondary CTA and badge are both optional and all-or-nothing at render
  * time, same convention as CtaBandContent's secondary button: a half-filled
- * one is treated as "not set", never rendered broken.
+ * one is treated as "not set", never rendered broken. The words that decide
+ * are the default language's, which every other language falls back to.
  *
  * Stats: up to 3 rows in `homepage_hero_stats`, same repeater
  * architecture/conventions as StatStripContent (own table, not a reuse of
  * stat_strips — see the migration docblocks). Once the Hero row is active,
- * its active stats are authoritative, even an empty list.
+ * its active stats are authoritative, even an empty list. A stat without
+ * both texts in the default language is not there either: the default
+ * language decides whether a stat shows, as it does for the Hero.
  */
 class HomepageHeroContent
 {
@@ -134,53 +151,53 @@ class HomepageHeroContent
     /** All valid layout values, for save-time/render-time validation. */
     public const LAYOUTS = [self::LAYOUT_MEDIA_RIGHT, self::LAYOUT_MEDIA_LEFT, self::LAYOUT_BACKGROUND];
 
+    /** The owner tables of this block's words (HomepageHeroBlock::translatableFields()). */
+    private const TABLE = 'homepage_hero';
+    private const STATS = 'homepage_hero_stats';
+
     /**
-     * What a new Hero row is created with — see startingValues(). The same
-     * placeholder copy the fresh-install bootstrap writes
-     * (db/migrations/20260909400000_bootstrap_a_generic_fresh_install.php):
-     * it fills every field the editor requires, and nothing else.
+     * What a new Hero row is created with, the same in every language — see
+     * startingValues(). The words are STARTING_WORDS.
      */
     private const STARTING_VALUES = [
-        'eyebrow_nl' => 'Welkom',
-        'eyebrow_en' => 'Welcome',
-        'title_nl' => 'Nieuwe website — pas deze titel aan',
-        'title_en' => 'New website — edit this title',
-        'title_highlight_nl' => '',
-        'title_highlight_en' => '',
         'title_highlight_size' => self::HIGHLIGHT_SIZE_DEFAULT,
-        'lead_nl' => 'Vertel hier in een paar zinnen wat je doet. Pas deze tekst aan in de paginabouwer van de homepage.',
-        'lead_en' => 'Say in a few sentences what you do. Edit this text in the homepage page builder.',
-        'primary_label_nl' => 'Meer informatie',
-        'primary_label_en' => 'Learn more',
         'primary_url' => '/',
-        'secondary_label_nl' => '',
-        'secondary_label_en' => '',
         'secondary_url' => '',
         'image_path' => '',
-        'image_alt_nl' => '',
-        'image_alt_en' => '',
-        'badge_title_nl' => '',
-        'badge_title_en' => '',
-        'badge_text_nl' => '',
-        'badge_text_en' => '',
         'media_type' => self::MEDIA_TYPE_IMAGE,
         'video_path' => '',
         'layout' => self::LAYOUT_MEDIA_RIGHT,
+    ];
+
+    /**
+     * The starting words of a new Hero — see startingWords(). The same
+     * placeholder copy the fresh-install bootstrap writes
+     * (db/migrations/20260909400000_bootstrap_a_generic_fresh_install.php):
+     * it fills every field the text form requires, and nothing else.
+     */
+    private const STARTING_WORDS = [
+        'eyebrow' => 'Welkom',
+        'title' => 'Nieuwe website — pas deze titel aan',
+        'lead' => 'Vertel hier in een paar zinnen wat je doet. Pas deze tekst aan in de paginabouwer van de homepage.',
+        'primary_label' => 'Meer informatie',
     ];
 
     /** @var array<string, mixed>|null */
     private static ?array $cache = null;
 
     /**
-     * @return array<string, mixed> 'state' (one of STATE_*), all scalar
-     *                                fields, plus 'stats': list of
-     *                                primary_text_nl/en, secondary_text_nl/en.
-     *                                Templates must only render the section
-     *                                when 'state' === STATE_ACTIVE; the
-     *                                content fields are still present
-     *                                (empty) otherwise, purely so a template
-     *                                that forgets the check fails safe
-     *                                instead of erroring on a missing key.
+     * @return array<string, mixed> 'state' (one of STATE_*), a LocalizedValue
+     *                                per translatable field, the language-
+     *                                neutral fields as strings (the highlight
+     *                                size as an int), plus 'stats': a list of
+     *                                primary_text and secondary_text (a
+     *                                LocalizedValue each). Templates must only
+     *                                render the section when 'state' ===
+     *                                STATE_ACTIVE; the content fields are
+     *                                still present (empty) otherwise, purely
+     *                                so a template that forgets the check
+     *                                fails safe instead of erroring on a
+     *                                missing key.
      */
     public static function current(): array
     {
@@ -188,9 +205,9 @@ class HomepageHeroContent
             return self::$cache;
         }
 
-        $row = null;
         try {
-            $row = (new HomepageHeroRepository())->findBySlug(self::PAGE_SLUG);
+            $repository = new HomepageHeroRepository();
+            $row = $repository->findBySlug(self::PAGE_SLUG);
         } catch (\Throwable $e) {
             error_log('[HomepageHeroContent] lookup failed: ' . $e->getMessage());
 
@@ -208,22 +225,27 @@ class HomepageHeroContent
             return self::$cache = self::emptyContent() + ['state' => self::STATE_HIDDEN];
         }
 
-        $content = [
-            'eyebrow_nl' => (string) ($row['eyebrow_nl'] ?? ''),
-            'title_nl' => (string) ($row['title_nl'] ?? ''),
-            'title_highlight_nl' => (string) ($row['title_highlight_nl'] ?? ''),
+        $heroId = (int) $row['id'];
+
+        try {
+            $stats = $repository->findStatsByHeroId($heroId, true);
+        } catch (\Throwable $e) {
+            error_log('[HomepageHeroContent] stats lookup failed: ' . $e->getMessage());
+
+            return self::$cache = self::emptyContent() + ['state' => self::STATE_FALLBACK];
+        }
+
+        // The words of the Hero and all of its stats at once; nothing when
+        // the page already loaded them (SectionRegistry::renderPage()).
+        BlockLocalization::preloadBlocks([self::TABLE => [$heroId]]);
+
+        $content = BlockLocalization::words(self::TABLE, $heroId) + [
             'title_highlight_size' => self::clampHighlightSize($row['title_highlight_size'] ?? null),
-            'lead_nl' => (string) ($row['lead_nl'] ?? ''),
-            'primary_label_nl' => (string) ($row['primary_label_nl'] ?? ''),
             'primary_url' => (string) ($row['primary_url'] ?? ''),
-            'secondary_label_nl' => (string) ($row['secondary_label_nl'] ?? ''),
             'secondary_url' => (string) ($row['secondary_url'] ?? ''),
             // Once a row exists, its media is authoritative: an empty
             // image_path means "this Hero has no image" — see hasMedia().
             'image_path' => (string) ($row['image_path'] ?? ''),
-            'image_alt_nl' => (string) ($row['image_alt_nl'] ?? ''),
-            'badge_title_nl' => (string) ($row['badge_title_nl'] ?? ''),
-            'badge_text_nl' => (string) ($row['badge_text_nl'] ?? ''),
             // An empty or unknown media_type/layout is coerced onto a valid
             // one below: a structural value, never copy.
             'media_type' => (string) ($row['media_type'] ?? ''),
@@ -231,35 +253,18 @@ class HomepageHeroContent
             'layout' => (string) ($row['layout'] ?? ''),
         ];
 
-        $content['eyebrow_en'] = self::valueOrDefault($row['eyebrow_en'] ?? null, $content['eyebrow_nl']);
-        $content['title_en'] = self::valueOrDefault($row['title_en'] ?? null, $content['title_nl']);
-        $content['title_highlight_en'] = self::valueOrDefault($row['title_highlight_en'] ?? null, $content['title_highlight_nl']);
-        $content['lead_en'] = self::valueOrDefault($row['lead_en'] ?? null, $content['lead_nl']);
-        $content['primary_label_en'] = self::valueOrDefault($row['primary_label_en'] ?? null, $content['primary_label_nl']);
-        $content['secondary_label_en'] = self::valueOrDefault($row['secondary_label_en'] ?? null, $content['secondary_label_nl']);
-        // Still the ordinary bilingual rule — an empty EN value means "same
-        // as NL" — but the NL value it lands on is now the stored one, so an
-        // empty pair stays an empty pair instead of becoming somebody's
-        // photo caption.
-        $content['image_alt_en'] = self::valueOrDefault($row['image_alt_en'] ?? null, $content['image_alt_nl']);
-        $content['badge_title_en'] = self::valueOrDefault($row['badge_title_en'] ?? null, $content['badge_title_nl']);
-        $content['badge_text_en'] = self::valueOrDefault($row['badge_text_en'] ?? null, $content['badge_text_nl']);
-
         // A secondary button only renders when it has both a label and a
         // URL — a half-filled optional button would be broken/dead.
-        if ($content['secondary_label_nl'] === '' || $content['secondary_url'] === '') {
-            $content['secondary_label_nl'] = '';
-            $content['secondary_label_en'] = '';
+        if ($content['secondary_label']->primaryValue() === '' || $content['secondary_url'] === '') {
+            $content['secondary_label'] = LocalizedValue::of([]);
             $content['secondary_url'] = '';
         }
 
         // The badge only renders when it has both a title and a body text —
         // a half-filled badge would look broken.
-        if ($content['badge_title_nl'] === '' || $content['badge_text_nl'] === '') {
-            $content['badge_title_nl'] = '';
-            $content['badge_title_en'] = '';
-            $content['badge_text_nl'] = '';
-            $content['badge_text_en'] = '';
+        if ($content['badge_title']->primaryValue() === '' || $content['badge_text']->primaryValue() === '') {
+            $content['badge_title'] = LocalizedValue::of([]);
+            $content['badge_text'] = LocalizedValue::of([]);
         }
 
         // Defensive fallbacks against stale/invalid data reaching the
@@ -278,29 +283,18 @@ class HomepageHeroContent
             $content['layout'] = self::LAYOUT_MEDIA_RIGHT;
         }
 
-        try {
-            $stats = (new HomepageHeroRepository())->findStatsByHeroId((int) $row['id'], true);
-        } catch (\Throwable $e) {
-            error_log('[HomepageHeroContent] stats lookup failed: ' . $e->getMessage());
-
-            return self::$cache = self::emptyContent() + ['state' => self::STATE_FALLBACK];
-        }
-
         // Whatever comes back — including an empty list — is authoritative
         // once the Hero row exists and is active: the admin has deliberately
         // curated these stats, so an empty result means "all stats
         // hidden/deleted", not "missing data".
-        $content['stats'] = array_map(static function (array $stat): array {
-            $primaryNl = (string) $stat['primary_text_nl'];
-            $secondaryNl = (string) $stat['secondary_text_nl'];
+        $content['stats'] = [];
+        foreach ($stats as $stat) {
+            $statId = (int) $stat['id'];
 
-            return [
-                'primary_text_nl' => $primaryNl,
-                'primary_text_en' => self::valueOrDefault($stat['primary_text_en'] ?? null, $primaryNl),
-                'secondary_text_nl' => $secondaryNl,
-                'secondary_text_en' => self::valueOrDefault($stat['secondary_text_en'] ?? null, $secondaryNl),
-            ];
-        }, $stats);
+            if (BlockLocalization::hasRequiredWords(self::STATS, $statId)) {
+                $content['stats'][] = BlockLocalization::words(self::STATS, $statId);
+            }
+        }
 
         $content['state'] = self::STATE_ACTIVE;
 
@@ -328,11 +322,10 @@ class HomepageHeroContent
     }
 
     /**
-     * What a Homepage Hero row that does not exist yet is created with — by
-     * admin/homepage-hero.php the first time it is opened, by the
-     * api/admin/update-homepage-hero*.php endpoints when they write the first
-     * row, and by HomepageHeroBlock::create(). Section-level fields only: a
-     * new Hero has no stats.
+     * What a Homepage Hero row that does not exist yet is created with, by
+     * HomepageHeroBlock::create(): what is the same in every language. The
+     * words are startingWords(). Section-level fields only: a new Hero has
+     * no stats.
      *
      * Not a frontend fallback. current() never renders these in place of a
      * row that is missing or unreadable; it renders nothing.
@@ -343,6 +336,43 @@ class HomepageHeroContent
     public static function startingValues(): array
     {
         return self::STARTING_VALUES;
+    }
+
+    /**
+     * The starting words of a Hero that does not exist yet, written in the
+     * website's default language: generic, editable copy in the fields the
+     * editor requires, and a lead that says where to change it.
+     *
+     * @return array<string, string> field => words
+     */
+    public static function startingWords(): array
+    {
+        return self::STARTING_WORDS;
+    }
+
+    /**
+     * The language-neutral values of a stored Hero row, in the shape
+     * HomepageHeroRepository::upsert() takes them (without is_active, which
+     * every editor save sets itself): what each editor endpoint carries
+     * forward unchanged while it changes its own part, since upsert() always
+     * writes the complete row. The highlight size is clamped exactly as the
+     * renderer reads it; an empty media_type or layout gets the one a new
+     * Hero starts with.
+     *
+     * @param array<string, mixed> $row a homepage_hero row
+     * @return array{title_highlight_size: int, primary_url: string, secondary_url: string, image_path: string, media_type: string, video_path: string, layout: string}
+     */
+    public static function settingsOf(array $row): array
+    {
+        return [
+            'title_highlight_size' => self::clampHighlightSize($row['title_highlight_size'] ?? null),
+            'primary_url' => (string) ($row['primary_url'] ?? ''),
+            'secondary_url' => (string) ($row['secondary_url'] ?? ''),
+            'image_path' => (string) ($row['image_path'] ?? ''),
+            'media_type' => (string) ($row['media_type'] ?? self::STARTING_VALUES['media_type']),
+            'video_path' => (string) ($row['video_path'] ?? ''),
+            'layout' => (string) ($row['layout'] ?? self::STARTING_VALUES['layout']),
+        ];
     }
 
     /**
@@ -416,13 +446,14 @@ class HomepageHeroContent
      * user-entered title/highlight text can never itself introduce markup.
      *
      * This fragment is meant to be echoed directly as element content (the
-     * initial NL render) AND, after one more htmlspecialchars() pass at the
-     * call site, embedded as a `data-nl`/`data-en` attribute value for the
-     * language switch — see index.php and assets/js/core.js's applyLang(),
-     * which sets `el.innerHTML` from that attribute. That second escaping
-     * pass is what makes the round-trip through innerHTML safe: the browser
-     * decodes the attribute back to this exact fragment, which still only
-     * ever contains the hardcoded `<em>`/`</em>` tags plus escaped text.
+     * words a visitor sees first) AND, after one more htmlspecialchars() pass
+     * at the call site, embedded as a `data-nl`/`data-en` attribute value for
+     * the language switch — see titleHtml(), partials/section-homepage-hero.php
+     * and assets/js/core.js's applyLang(), which sets `el.innerHTML` from that
+     * attribute on the data-lang-html element. That second escaping pass is
+     * what makes the round-trip through innerHTML safe: the browser decodes
+     * the attribute back to this exact fragment, which still only ever
+     * contains the hardcoded `<em>`/`</em>` tags plus escaped text.
      *
      * If the highlight is empty, or (invalid/legacy data) no longer occurs
      * in the title, this fails safe: the complete escaped title, no
@@ -449,12 +480,37 @@ class HomepageHeroContent
     }
 
     /**
-     * Clears the in-process cache — used by the admin save handlers right
-     * after writing a new value, and by tests.
+     * The title with its highlight as ONE safe HTML fragment per language:
+     * renderTitleFragment() applied to each language's title and highlight,
+     * both already resolved by the fallback, so a translation without a
+     * highlight of its own highlights the default language's words wherever
+     * they occur in its title, and shows its title plainly where they do
+     * not. What the partial prints as the <h1>: the one element of this
+     * block whose language values are markup, and therefore marked
+     * data-lang-html. No value ever holds an editor's markup: only escaped
+     * text and the hardcoded `<em>`.
+     */
+    public static function titleHtml(LocalizedValue $title, LocalizedValue $highlight): LocalizedValue
+    {
+        $highlights = $highlight->attributeValues();
+
+        $fragments = [];
+        foreach ($title->attributeValues() as $code => $words) {
+            $fragments[$code] = self::renderTitleFragment($words, $highlights[$code] ?? $highlight->primaryValue());
+        }
+
+        return LocalizedValue::of($fragments, $title->primaryLanguage());
+    }
+
+    /**
+     * Clears the in-process cache, and the block words BlockLocalization
+     * holds — used by the admin save handlers right after writing a new
+     * value, and by tests.
      */
     public static function clearCache(): void
     {
         self::$cache = null;
+        BlockLocalization::clearCache();
     }
 
     /**
@@ -466,25 +522,15 @@ class HomepageHeroContent
      */
     private static function emptyContent(): array
     {
-        return [
-            'eyebrow_nl' => '', 'eyebrow_en' => '',
-            'title_nl' => '', 'title_en' => '',
-            'title_highlight_nl' => '', 'title_highlight_en' => '',
+        return BlockLocalization::words(self::TABLE, 0) + [
             'title_highlight_size' => self::HIGHLIGHT_SIZE_DEFAULT,
-            'lead_nl' => '', 'lead_en' => '',
-            'primary_label_nl' => '', 'primary_label_en' => '', 'primary_url' => '',
-            'secondary_label_nl' => '', 'secondary_label_en' => '', 'secondary_url' => '',
-            'image_path' => '', 'image_alt_nl' => '', 'image_alt_en' => '',
-            'badge_title_nl' => '', 'badge_title_en' => '', 'badge_text_nl' => '', 'badge_text_en' => '',
+            'primary_url' => '',
+            'secondary_url' => '',
+            'image_path' => '',
             'media_type' => self::MEDIA_TYPE_IMAGE,
             'video_path' => '',
             'layout' => self::LAYOUT_MEDIA_RIGHT,
             'stats' => [],
         ];
-    }
-
-    private static function valueOrDefault(?string $value, string $default): string
-    {
-        return ($value !== null && $value !== '') ? $value : $default;
     }
 }

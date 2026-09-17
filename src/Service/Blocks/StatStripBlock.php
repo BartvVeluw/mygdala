@@ -9,7 +9,11 @@ require_once dirname(__DIR__, 3) . '/partials/section-stat-strip.php';
 
 /**
  * A row of number + caption figures. It carries no heading of its own, so the
- * page builder shows it by its type label alone.
+ * page builder shows it by its type label alone. The figures are child rows of
+ * the strip, so deleting an instance takes them with it through ON DELETE
+ * CASCADE; the words of every figure are stored per website language in
+ * block_translations (BlockLocalization), each figure's on its own row. The
+ * strip itself has no words.
  */
 final class StatStripBlock extends BlockDefinition
 {
@@ -58,6 +62,27 @@ final class StatStripBlock extends BlockDefinition
         ];
     }
 
+    /**
+     * The number and the caption on each figure's row, per website language;
+     * stat_strips has no words, so it declares nothing. What the editor
+     * always required in Dutch is required in the default language; the
+     * lengths are the ones the editor always allowed.
+     */
+    public function translatableFields(): array
+    {
+        return [
+            'stat_strip_items' => [
+                TranslatableField::plain('primary_text', 100)->required(),
+                TranslatableField::plain('secondary_text', 150)->required(),
+            ],
+        ];
+    }
+
+    public function childTables(): array
+    {
+        return ['stat_strip_items' => ['parent' => 'stat_strips', 'column' => 'stat_strip_id']];
+    }
+
     public function create(string $pageSlug): array
     {
         $key = self::newSectionKey();
@@ -88,8 +113,8 @@ final class StatStripBlock extends BlockDefinition
         $items = [];
         foreach (range(0, 3) as $index) {
             $items[] = [
-                ...$samples->itemFields('primary_text', 'figure', $index),
-                ...$samples->itemFields('secondary_text', 'figure_caption', $index),
+                'primary_text' => $samples->localizedItem('figure', $index),
+                'secondary_text' => $samples->localizedItem('figure_caption', $index),
             ];
         }
 

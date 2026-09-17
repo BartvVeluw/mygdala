@@ -40,23 +40,22 @@ class StepListRepository extends Repository
     }
 
     /**
-     * Inserts or updates the single row for this page_slug + section_key.
-     * Used by the admin step list edit form's section-level fields.
+     * Inserts or updates the single row for this page_slug + section_key:
+     * what is the same in every language. Used by the admin step list edit
+     * form's section-level fields. The heading's words, and every step's, are
+     * stored per website language through App\Service\Blocks\BlockLocalization
+     * (db/migrations/20260917190000).
      *
-     * @param array<string, string|bool|null> $values
+     * @param array{is_active?: bool} $values
      */
     public function upsertSection(string $pageSlug, string $sectionKey, array $values): void
     {
         $stmt = $this->db->prepare(
             'INSERT INTO step_list_sections
-                (page_slug, section_key, eyebrow_nl, eyebrow_en, title_nl, title_en, is_active, created_at, updated_at)
+                (page_slug, section_key, is_active, created_at, updated_at)
              VALUES
-                (:page_slug, :section_key, :eyebrow_nl, :eyebrow_en, :title_nl, :title_en, :is_active, NOW(), NOW())
+                (:page_slug, :section_key, :is_active, NOW(), NOW())
              ON DUPLICATE KEY UPDATE
-                eyebrow_nl = VALUES(eyebrow_nl),
-                eyebrow_en = VALUES(eyebrow_en),
-                title_nl = VALUES(title_nl),
-                title_en = VALUES(title_en),
                 is_active = VALUES(is_active),
                 updated_at = NOW()'
         );
@@ -64,10 +63,6 @@ class StepListRepository extends Repository
         $stmt->execute([
             'page_slug' => $pageSlug,
             'section_key' => $sectionKey,
-            'eyebrow_nl' => self::nullIfEmpty($values['eyebrow_nl'] ?? null),
-            'eyebrow_en' => self::nullIfEmpty($values['eyebrow_en'] ?? null),
-            'title_nl' => self::nullIfEmpty($values['title_nl'] ?? null),
-            'title_en' => self::nullIfEmpty($values['title_en'] ?? null),
             'is_active' => ($values['is_active'] ?? true) ? 1 : 0,
         ]);
     }
@@ -102,26 +97,23 @@ class StepListRepository extends Repository
     }
 
     /**
-     * Appends a new step to the end of a section.
-     *
-     * @param array<string, string> $values title_nl, title_en, body_nl, body_en
+     * Appends a new, visible step to the end of a section and returns its id.
+     * Its title and description are words, stored per website language
+     * against that id (App\Service\Blocks\BlockLocalization), in the same
+     * transaction as this insert.
      */
-    public function createItem(int $sectionId, array $values): int
+    public function createItem(int $sectionId): int
     {
         $nextSortOrder = $this->nextSortOrder($sectionId);
 
         $stmt = $this->db->prepare(
             'INSERT INTO step_list_items
-                (step_list_section_id, title_nl, title_en, body_nl, body_en, sort_order, is_active, created_at, updated_at)
+                (step_list_section_id, sort_order, is_active, created_at, updated_at)
              VALUES
-                (:step_list_section_id, :title_nl, :title_en, :body_nl, :body_en, :sort_order, 1, NOW(), NOW())'
+                (:step_list_section_id, :sort_order, 1, NOW(), NOW())'
         );
         $stmt->execute([
             'step_list_section_id' => $sectionId,
-            'title_nl' => $values['title_nl'],
-            'title_en' => self::nullIfEmpty($values['title_en'] ?? null),
-            'body_nl' => $values['body_nl'],
-            'body_en' => self::nullIfEmpty($values['body_en'] ?? null),
             'sort_order' => $nextSortOrder,
         ]);
 
@@ -129,25 +121,21 @@ class StepListRepository extends Repository
     }
 
     /**
-     * @param array<string, string|bool> $values title_nl, title_en, body_nl, body_en, is_active
+     * What a step has that is the same in every language: whether it is
+     * shown. Its words are saved through BlockLocalization. The id never
+     * changes, so the words of every language stay attached to it.
+     *
+     * @param array{is_active: bool} $values
      */
     public function updateItem(int $id, array $values): void
     {
         $stmt = $this->db->prepare(
             'UPDATE step_list_items SET
-                title_nl = :title_nl,
-                title_en = :title_en,
-                body_nl = :body_nl,
-                body_en = :body_en,
                 is_active = :is_active,
                 updated_at = NOW()
              WHERE id = :id'
         );
         $stmt->execute([
-            'title_nl' => $values['title_nl'],
-            'title_en' => self::nullIfEmpty($values['title_en'] ?? null),
-            'body_nl' => $values['body_nl'],
-            'body_en' => self::nullIfEmpty($values['body_en'] ?? null),
             'is_active' => $values['is_active'] ? 1 : 0,
             'id' => $id,
         ]);
@@ -155,7 +143,9 @@ class StepListRepository extends Repository
 
     /**
      * Permanently removes a step — distinct from hiding one via is_active
-     * (see updateItem). Used by the admin "Verwijderen" action.
+     * (see updateItem). Used by the admin "Verwijderen" action, which removes
+     * the step's words first, in the same transaction
+     * (BlockLocalization::deleteOwner()).
      */
     public function deleteItem(int $id): bool
     {
@@ -201,8 +191,10 @@ class StepListRepository extends Repository
 
     /**
      * Permanently removes the section and (via ON DELETE CASCADE) all of its
-     * steps — used by the page builder's "Delete section" action. This type
-     * has no uploaded media of its own, so no filesystem cleanup is needed.
+     * steps — used by the page builder's "Delete section" action, whose
+     * SectionRegistry::delete() removes the words of the section and of every
+     * step first. This type has no uploaded media of its own, so no
+     * filesystem cleanup is needed.
      */
     public function deleteSection(int $id): bool
     {
@@ -227,10 +219,5 @@ class StepListRepository extends Repository
         $stmt->execute(['step_list_section_id' => $sectionId]);
 
         return (int) $stmt->fetch()['next_sort_order'];
-    }
-
-    private static function nullIfEmpty(?string $value): ?string
-    {
-        return ($value !== null && $value !== '') ? $value : null;
     }
 }

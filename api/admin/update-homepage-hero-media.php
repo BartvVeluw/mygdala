@@ -8,8 +8,12 @@
  * for the validated constants. Purely two config choices, no file involved
  * (the actual image/video files are uploaded separately via
  * update-homepage-hero-image.php / update-homepage-hero-video.php), so this
- * endpoint carries every other field forward unchanged into the upsert()
- * call, same pattern as the sibling Homepage Hero endpoints.
+ * endpoint carries every other language-neutral field forward unchanged into
+ * the upsert() call, same pattern as the sibling Homepage Hero endpoints.
+ * Both choices are the same in every language: no words are read or written
+ * here (Multilingual 2.0). The Hero row itself is created by
+ * admin/homepage-hero.php the first time it is opened, so a save without one
+ * is refused.
  */
 
 declare(strict_types=1);
@@ -59,39 +63,23 @@ $repository = new HomepageHeroRepository();
 
 try {
     $current = $repository->findBySlug(HomepageHeroContent::PAGE_SLUG);
-    $startingValues = HomepageHeroContent::startingValues();
+} catch (\Throwable $e) {
+    error_log('[api/admin/update-homepage-hero-media.php] ' . $e->getMessage());
 
-    $carriedFields = $current !== null
-        ? [
-            'eyebrow_nl' => (string) $current['eyebrow_nl'],
-            'eyebrow_en' => (string) ($current['eyebrow_en'] ?? ''),
-            'title_nl' => (string) $current['title_nl'],
-            'title_en' => (string) ($current['title_en'] ?? ''),
-            'title_highlight_nl' => (string) ($current['title_highlight_nl'] ?? ''),
-            'title_highlight_en' => (string) ($current['title_highlight_en'] ?? ''),
-            'title_highlight_size' => HomepageHeroContent::clampHighlightSize($current['title_highlight_size'] ?? null),
-            'lead_nl' => (string) ($current['lead_nl'] ?? ''),
-            'lead_en' => (string) ($current['lead_en'] ?? ''),
-            'primary_label_nl' => (string) $current['primary_label_nl'],
-            'primary_label_en' => (string) ($current['primary_label_en'] ?? ''),
-            'primary_url' => (string) $current['primary_url'],
-            'secondary_label_nl' => (string) ($current['secondary_label_nl'] ?? ''),
-            'secondary_label_en' => (string) ($current['secondary_label_en'] ?? ''),
-            'secondary_url' => (string) ($current['secondary_url'] ?? ''),
-            'image_path' => (string) $current['image_path'],
-            'image_alt_nl' => (string) $current['image_alt_nl'],
-            'image_alt_en' => (string) ($current['image_alt_en'] ?? ''),
-            'badge_title_nl' => (string) ($current['badge_title_nl'] ?? ''),
-            'badge_title_en' => (string) ($current['badge_title_en'] ?? ''),
-            'badge_text_nl' => (string) ($current['badge_text_nl'] ?? ''),
-            'badge_text_en' => (string) ($current['badge_text_en'] ?? ''),
-            'video_path' => (string) ($current['video_path'] ?? ''),
-        ]
-        : array_diff_key($startingValues, ['media_type' => 0, 'layout' => 0]);
+    $_SESSION['admin_homepage_hero_media_errors'] = ['Kon niet worden opgeslagen. Probeer het opnieuw.'];
+    header('Location: /admin/homepage-hero.php');
+    exit;
+}
 
+if ($current === null) {
+    http_response_code(404);
+    exit('Hero not found.');
+}
+
+try {
     $repository->upsert(
         HomepageHeroContent::PAGE_SLUG,
-        $carriedFields + ['media_type' => $mediaType, 'layout' => $layout, 'is_active' => true]
+        ['media_type' => $mediaType, 'layout' => $layout] + HomepageHeroContent::settingsOf($current) + ['is_active' => true]
     );
     HomepageHeroContent::clearCache();
 } catch (\Throwable $e) {

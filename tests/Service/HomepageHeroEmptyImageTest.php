@@ -8,6 +8,7 @@ use App\Database;
 use App\Repository\HomepageHeroRepository;
 use App\Service\Blocks\BlockDefinitions;
 use App\Service\HomepageHeroContent;
+use App\Service\Language\LocalizedValue;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -95,7 +96,7 @@ final class HomepageHeroEmptyImageTest extends TestCase
 
     public function testAnEmptyImageRendersNoImageElementAtAll(): void
     {
-        $html = $this->render($this->hero(['image_path' => '', 'image_alt_nl' => '', 'image_alt_en' => '']));
+        $html = $this->render($this->hero(['image_path' => '', 'image_alt' => self::words('', '')]));
 
         $this->assertStringNotContainsString('<img', $html);
         $this->assertStringNotContainsString('src=""', $html);
@@ -104,7 +105,7 @@ final class HomepageHeroEmptyImageTest extends TestCase
 
     public function testAnEmptyImageNeverReachesTheLegacyDefaultPhotograph(): void
     {
-        $html = $this->render($this->hero(['image_path' => '', 'image_alt_nl' => '', 'image_alt_en' => '']));
+        $html = $this->render($this->hero(['image_path' => '', 'image_alt' => self::words('', '')]));
 
         $this->assertStringNotContainsString('hero-collage', $html);
         $this->assertStringNotContainsStringIgnoringCase('MOPA', $html);
@@ -121,8 +122,8 @@ final class HomepageHeroEmptyImageTest extends TestCase
     {
         $html = $this->render($this->hero([
             'image_path' => '',
-            'title_nl' => 'Nieuwe website',
-            'primary_label_nl' => 'Meer informatie',
+            'title' => self::words('Nieuwe website', ''),
+            'primary_label' => self::words('Meer informatie', ''),
         ]));
 
         $this->assertStringContainsString('Nieuwe website', $html);
@@ -148,10 +149,8 @@ final class HomepageHeroEmptyImageTest extends TestCase
         // not take a configured badge with it.
         $html = $this->render($this->hero([
             'image_path' => '',
-            'badge_title_nl' => 'Nu open',
-            'badge_title_en' => 'Now open',
-            'badge_text_nl' => 'Kom langs.',
-            'badge_text_en' => 'Drop by.',
+            'badge_title' => self::words('Nu open', 'Now open'),
+            'badge_text' => self::words('Kom langs.', 'Drop by.'),
         ]));
 
         $this->assertStringContainsString('hero__badge', $html);
@@ -166,8 +165,7 @@ final class HomepageHeroEmptyImageTest extends TestCase
     {
         $html = $this->render($this->hero([
             'image_path' => 'assets/images/hero-collage-a.webp',
-            'image_alt_nl' => 'Een laser graveert een naam',
-            'image_alt_en' => 'A laser engraves a name',
+            'image_alt' => self::words('Een laser graveert een naam', 'A laser engraves a name'),
         ]));
 
         $this->assertStringContainsString('hero__media-frame', $html);
@@ -185,27 +183,25 @@ final class HomepageHeroEmptyImageTest extends TestCase
     {
         $this->beginTransaction();
 
-        // Three separate placeholders, not one reused three times: PDO in
-        // emulation-off mode binds a named parameter exactly once.
         Database::connection()
-            ->prepare(
-                'UPDATE homepage_hero SET image_path = :path, image_alt_nl = :alt_nl, image_alt_en = :alt_en '
-                . 'WHERE page_slug = :slug'
-            )
-            ->execute([
-                'path' => '',
-                'alt_nl' => '',
-                'alt_en' => '',
-                'slug' => HomepageHeroContent::PAGE_SLUG,
-            ]);
+            ->prepare('UPDATE homepage_hero SET image_path = :path WHERE page_slug = :slug')
+            ->execute(['path' => '', 'slug' => HomepageHeroContent::PAGE_SLUG]);
+
+        // The alt text is words, per language (block_translations): none left
+        // in any language.
+        $row = (new HomepageHeroRepository())->findBySlug(HomepageHeroContent::PAGE_SLUG);
+        $this->assertNotNull($row);
+        Database::connection()
+            ->prepare("DELETE FROM block_translations WHERE owner_table = 'homepage_hero' AND owner_id = :id AND field = 'image_alt'")
+            ->execute(['id' => (int) $row['id']]);
 
         HomepageHeroContent::clearCache();
         $hero = HomepageHeroContent::current();
 
         $this->assertSame(HomepageHeroContent::STATE_ACTIVE, $hero['state']);
         $this->assertSame('', $hero['image_path'], 'An explicitly empty image must not fall back to the default.');
-        $this->assertSame('', $hero['image_alt_nl']);
-        $this->assertSame('', $hero['image_alt_en']);
+        $this->assertSame('', $hero['image_alt']->in('nl'));
+        $this->assertSame('', $hero['image_alt']->in('en'));
     }
 
     public function testNoStoredRowRendersNoHeroAtAll(): void
@@ -221,7 +217,7 @@ final class HomepageHeroEmptyImageTest extends TestCase
 
         $this->assertSame(HomepageHeroContent::STATE_FALLBACK, $hero['state']);
         $this->assertSame('', $hero['image_path'], 'A missing row must not invent an image.');
-        $this->assertSame('', $hero['title_nl'], 'A missing row must not invent a headline.');
+        $this->assertSame('', $hero['title']->primaryValue(), 'A missing row must not invent a headline.');
 
         $definition = BlockDefinitions::get('homepage_hero');
         $this->assertNotNull($definition);
@@ -271,15 +267,15 @@ final class HomepageHeroEmptyImageTest extends TestCase
     private function hero(array $overrides = []): array
     {
         $base = [
-            'eyebrow_nl' => 'Welkom', 'eyebrow_en' => 'Welcome',
-            'title_nl' => 'Nieuwe website', 'title_en' => 'New website',
-            'title_highlight_nl' => '', 'title_highlight_en' => '',
+            'eyebrow' => self::words('Welkom', 'Welcome'),
+            'title' => self::words('Nieuwe website', 'New website'),
+            'title_highlight' => self::words('', ''),
             'title_highlight_size' => HomepageHeroContent::HIGHLIGHT_SIZE_DEFAULT,
-            'lead_nl' => '', 'lead_en' => '',
-            'primary_label_nl' => 'Meer informatie', 'primary_label_en' => 'Learn more', 'primary_url' => '/',
-            'secondary_label_nl' => '', 'secondary_label_en' => '', 'secondary_url' => '',
-            'image_path' => '', 'image_alt_nl' => '', 'image_alt_en' => '',
-            'badge_title_nl' => '', 'badge_title_en' => '', 'badge_text_nl' => '', 'badge_text_en' => '',
+            'lead' => self::words('', ''),
+            'primary_label' => self::words('Meer informatie', 'Learn more'), 'primary_url' => '/',
+            'secondary_label' => self::words('', ''), 'secondary_url' => '',
+            'image_path' => '', 'image_alt' => self::words('', ''),
+            'badge_title' => self::words('', ''), 'badge_text' => self::words('', ''),
             'media_type' => HomepageHeroContent::MEDIA_TYPE_IMAGE,
             'video_path' => '',
             'layout' => HomepageHeroContent::LAYOUT_MEDIA_RIGHT,
@@ -288,6 +284,12 @@ final class HomepageHeroEmptyImageTest extends TestCase
         ];
 
         return array_merge($base, $overrides);
+    }
+
+    /** One field's words as HomepageHeroContent hands them to the partial: one value in every language. */
+    private static function words(string $dutch, string $english): LocalizedValue
+    {
+        return LocalizedValue::of(['nl' => $dutch, 'en' => $english]);
     }
 
     /** @param array<string, mixed> $hero */

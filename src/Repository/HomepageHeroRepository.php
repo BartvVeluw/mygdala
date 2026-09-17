@@ -7,6 +7,12 @@ namespace App\Repository;
  * App\Service\HomepageHeroContent for the defaults/fallback layer built on
  * top of this, and the migration docblocks for why this is a dedicated table
  * pair rather than a reuse of page_heroes/stat_strips.
+ *
+ * Only what is the same in every language is written here. The words of the
+ * Hero and of every stat are stored per website language through
+ * App\Service\Blocks\BlockLocalization, against the row's own id
+ * (db/migrations/20260917190000), in the same transaction as the write that
+ * belongs to them.
  */
 class HomepageHeroRepository extends Repository
 {
@@ -36,15 +42,16 @@ class HomepageHeroRepository extends Repository
     }
 
     /**
-     * Inserts or updates the single row for this page slug. Callers must
-     * always pass the complete field set (including image_path/image_alt_*,
-     * badge_*, media_type/video_path/layout and title_highlight_size) even
-     * when only a subset actually changed — see
+     * Inserts or updates the single row for this page slug: what is the same
+     * in every language. Callers must always pass the complete field set
+     * (title_highlight_size, both URLs, image_path, media_type/video_path/
+     * layout and is_active) even when only a subset actually changed — see
      * api/admin/update-homepage-hero.php,
      * api/admin/update-homepage-hero-image.php,
      * api/admin/update-homepage-hero-video.php and
      * api/admin/update-homepage-hero-media.php, which each merge their own
-     * changed subset onto the current row before calling this.
+     * changed subset onto the current row's values
+     * (HomepageHeroContent::settingsOf()) before calling this.
      *
      * @param array<string, string|int|bool> $values
      */
@@ -52,48 +59,18 @@ class HomepageHeroRepository extends Repository
     {
         $stmt = $this->db->prepare(
             'INSERT INTO homepage_hero
-                (page_slug, eyebrow_nl, eyebrow_en, title_nl, title_en,
-                 title_highlight_nl, title_highlight_en, title_highlight_size,
-                 lead_nl, lead_en,
-                 primary_label_nl, primary_label_en, primary_url,
-                 secondary_label_nl, secondary_label_en, secondary_url,
-                 image_path, image_alt_nl, image_alt_en,
-                 badge_title_nl, badge_title_en, badge_text_nl, badge_text_en,
-                 media_type, video_path, layout,
+                (page_slug, title_highlight_size, primary_url, secondary_url,
+                 image_path, media_type, video_path, layout,
                  is_active, created_at, updated_at)
              VALUES
-                (:page_slug, :eyebrow_nl, :eyebrow_en, :title_nl, :title_en,
-                 :title_highlight_nl, :title_highlight_en, :title_highlight_size,
-                 :lead_nl, :lead_en,
-                 :primary_label_nl, :primary_label_en, :primary_url,
-                 :secondary_label_nl, :secondary_label_en, :secondary_url,
-                 :image_path, :image_alt_nl, :image_alt_en,
-                 :badge_title_nl, :badge_title_en, :badge_text_nl, :badge_text_en,
-                 :media_type, :video_path, :layout,
+                (:page_slug, :title_highlight_size, :primary_url, :secondary_url,
+                 :image_path, :media_type, :video_path, :layout,
                  :is_active, NOW(), NOW())
              ON DUPLICATE KEY UPDATE
-                eyebrow_nl = VALUES(eyebrow_nl),
-                eyebrow_en = VALUES(eyebrow_en),
-                title_nl = VALUES(title_nl),
-                title_en = VALUES(title_en),
-                title_highlight_nl = VALUES(title_highlight_nl),
-                title_highlight_en = VALUES(title_highlight_en),
                 title_highlight_size = VALUES(title_highlight_size),
-                lead_nl = VALUES(lead_nl),
-                lead_en = VALUES(lead_en),
-                primary_label_nl = VALUES(primary_label_nl),
-                primary_label_en = VALUES(primary_label_en),
                 primary_url = VALUES(primary_url),
-                secondary_label_nl = VALUES(secondary_label_nl),
-                secondary_label_en = VALUES(secondary_label_en),
                 secondary_url = VALUES(secondary_url),
                 image_path = VALUES(image_path),
-                image_alt_nl = VALUES(image_alt_nl),
-                image_alt_en = VALUES(image_alt_en),
-                badge_title_nl = VALUES(badge_title_nl),
-                badge_title_en = VALUES(badge_title_en),
-                badge_text_nl = VALUES(badge_text_nl),
-                badge_text_en = VALUES(badge_text_en),
                 media_type = VALUES(media_type),
                 video_path = VALUES(video_path),
                 layout = VALUES(layout),
@@ -103,12 +80,6 @@ class HomepageHeroRepository extends Repository
 
         $stmt->execute([
             'page_slug' => $pageSlug,
-            'eyebrow_nl' => $values['eyebrow_nl'],
-            'eyebrow_en' => self::nullIfEmpty($values['eyebrow_en'] ?? null),
-            'title_nl' => $values['title_nl'],
-            'title_en' => self::nullIfEmpty($values['title_en'] ?? null),
-            'title_highlight_nl' => self::nullIfEmpty($values['title_highlight_nl'] ?? null),
-            'title_highlight_en' => self::nullIfEmpty($values['title_highlight_en'] ?? null),
             // Always an int percentage here — same convention as media_type
             // and layout: callers pass a value that
             // App\Service\HomepageHeroContent has already validated
@@ -116,21 +87,9 @@ class HomepageHeroRepository extends Repository
             // is also what turns a legacy NULL into the default), this layer
             // only writes it.
             'title_highlight_size' => (int) $values['title_highlight_size'],
-            'lead_nl' => self::nullIfEmpty($values['lead_nl'] ?? null),
-            'lead_en' => self::nullIfEmpty($values['lead_en'] ?? null),
-            'primary_label_nl' => $values['primary_label_nl'],
-            'primary_label_en' => self::nullIfEmpty($values['primary_label_en'] ?? null),
             'primary_url' => $values['primary_url'],
-            'secondary_label_nl' => self::nullIfEmpty($values['secondary_label_nl'] ?? null),
-            'secondary_label_en' => self::nullIfEmpty($values['secondary_label_en'] ?? null),
             'secondary_url' => self::nullIfEmpty($values['secondary_url'] ?? null),
             'image_path' => $values['image_path'],
-            'image_alt_nl' => $values['image_alt_nl'],
-            'image_alt_en' => self::nullIfEmpty($values['image_alt_en'] ?? null),
-            'badge_title_nl' => self::nullIfEmpty($values['badge_title_nl'] ?? null),
-            'badge_title_en' => self::nullIfEmpty($values['badge_title_en'] ?? null),
-            'badge_text_nl' => self::nullIfEmpty($values['badge_text_nl'] ?? null),
-            'badge_text_en' => self::nullIfEmpty($values['badge_text_en'] ?? null),
             'media_type' => $values['media_type'],
             'video_path' => self::nullIfEmpty($values['video_path'] ?? null),
             'layout' => $values['layout'],
@@ -181,28 +140,25 @@ class HomepageHeroRepository extends Repository
     }
 
     /**
-     * Appends a new stat to the end of the Hero's stats. Callers must check
-     * countStatsByHeroId() against the max-3 cap first — this method does
-     * not enforce it (see api/admin/create-homepage-hero-stat.php).
-     *
-     * @param array<string, string> $values primary_text_nl, primary_text_en, secondary_text_nl, secondary_text_en
+     * Appends a new, visible stat to the end of the Hero's stats and returns
+     * its id. Its two texts are words, stored per website language against
+     * that id (App\Service\Blocks\BlockLocalization), in the same transaction
+     * as this insert. Callers must check countStatsByHeroId() against the
+     * max-3 cap first — this method does not enforce it (see
+     * api/admin/create-homepage-hero-stat.php).
      */
-    public function createStat(int $heroId, array $values): int
+    public function createStat(int $heroId): int
     {
         $nextSortOrder = $this->nextSortOrder($heroId);
 
         $stmt = $this->db->prepare(
             'INSERT INTO homepage_hero_stats
-                (homepage_hero_id, primary_text_nl, primary_text_en, secondary_text_nl, secondary_text_en, sort_order, is_active, created_at, updated_at)
+                (homepage_hero_id, sort_order, is_active, created_at, updated_at)
              VALUES
-                (:homepage_hero_id, :primary_text_nl, :primary_text_en, :secondary_text_nl, :secondary_text_en, :sort_order, 1, NOW(), NOW())'
+                (:homepage_hero_id, :sort_order, 1, NOW(), NOW())'
         );
         $stmt->execute([
             'homepage_hero_id' => $heroId,
-            'primary_text_nl' => $values['primary_text_nl'],
-            'primary_text_en' => self::nullIfEmpty($values['primary_text_en'] ?? null),
-            'secondary_text_nl' => $values['secondary_text_nl'],
-            'secondary_text_en' => self::nullIfEmpty($values['secondary_text_en'] ?? null),
             'sort_order' => $nextSortOrder,
         ]);
 
@@ -210,25 +166,21 @@ class HomepageHeroRepository extends Repository
     }
 
     /**
-     * @param array<string, string|bool> $values primary_text_nl, primary_text_en, secondary_text_nl, secondary_text_en, is_active
+     * What a stat has that is the same in every language: whether it is
+     * shown. Its words are saved through BlockLocalization. The id never
+     * changes, so the words of every language stay attached to it.
+     *
+     * @param array{is_active: bool} $values
      */
     public function updateStat(int $id, array $values): void
     {
         $stmt = $this->db->prepare(
             'UPDATE homepage_hero_stats SET
-                primary_text_nl = :primary_text_nl,
-                primary_text_en = :primary_text_en,
-                secondary_text_nl = :secondary_text_nl,
-                secondary_text_en = :secondary_text_en,
                 is_active = :is_active,
                 updated_at = NOW()
              WHERE id = :id'
         );
         $stmt->execute([
-            'primary_text_nl' => $values['primary_text_nl'],
-            'primary_text_en' => self::nullIfEmpty($values['primary_text_en'] ?? null),
-            'secondary_text_nl' => $values['secondary_text_nl'],
-            'secondary_text_en' => self::nullIfEmpty($values['secondary_text_en'] ?? null),
             'is_active' => $values['is_active'] ? 1 : 0,
             'id' => $id,
         ]);
@@ -236,8 +188,10 @@ class HomepageHeroRepository extends Repository
 
     /**
      * Permanently removes a stat — distinct from hiding one via is_active
-     * (see updateStat). Used by the admin "Verwijderen" action; also how a
-     * slot is freed back up under the max-3 cap.
+     * (see updateStat). Used by the admin "Verwijderen" action, which removes
+     * the stat's words first, in the same transaction
+     * (BlockLocalization::deleteOwner()); also how a slot is freed back up
+     * under the max-3 cap.
      */
     public function deleteStat(int $id): bool
     {

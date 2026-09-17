@@ -5,12 +5,33 @@ declare(strict_types=1);
 require_once __DIR__ . '/../vendor/autoload.php';
 require_once __DIR__ . '/_translate.php';
 require_once __DIR__ . '/_save_bar.php';
-require_once __DIR__ . '/_language_fields.php';
+require_once __DIR__ . '/_localized_fields.php';
 
 use App\Service\AdminAuth;
+use App\Service\Blocks\BlockDefinitions;
+use App\Service\Blocks\BlockLocalization;
 use App\Service\Csrf;
 use App\Service\HomepageHeroContent;
 use App\Repository\HomepageHeroRepository;
+
+/**
+ * Editor for the Homepage Hero: its texts, its media and layout, its image or
+ * video, and its stats one card each.
+ *
+ * ONE WEBSITE LANGUAGE AT A TIME (Multilingual 2.0, admin/_localized_fields.php):
+ * the texts, the image's alt text and every stat show the language chosen in
+ * the CMS shell, as stored and without the default language's words in an
+ * empty translation, and are required only in the default language; each
+ * save writes that language only, for the Hero or for that one stat. The
+ * URLs, the highlight size, the media, the layout and a stat's visibility
+ * are the same in every language and stay on screen in each. The alt text
+ * stays next to the image it describes, in the image form. A stat keeps its
+ * id however often it is saved or moved, so the words of the other languages
+ * stay with it; a NEW stat is written in the default language, like a new
+ * page, and translated afterwards on its own card. Input a refused text save
+ * hands back comes back in the language it was typed in, and that form then
+ * starts out unsaved in the save bar.
+ */
 
 AdminAuth::requireLogin();
 AdminAuth::requirePermission('pages.manage');
@@ -19,11 +40,12 @@ $repository = new HomepageHeroRepository();
 
 $hero = $repository->findBySlug(HomepageHeroContent::PAGE_SLUG);
 if ($hero === null) {
-    // First time this editor is opened: create the row now, with the generic
-    // starting values every new Hero gets, so stats can be attached to it.
-    // is_active is always true — this editor never exposes a whole-Hero
-    // visibility checkbox.
-    $repository->upsert(HomepageHeroContent::PAGE_SLUG, HomepageHeroContent::startingValues() + ['is_active' => true]);
+    // First time this editor is opened: create the Hero now, exactly as the
+    // page builder does (HomepageHeroBlock::create(): the generic starting
+    // values, and the starting words in the website's default language), so
+    // stats can be attached to it. is_active is always true — this editor
+    // never exposes a whole-Hero visibility checkbox.
+    BlockDefinitions::get('homepage_hero')?->create(HomepageHeroContent::PAGE_SLUG);
     $hero = $repository->findBySlug(HomepageHeroContent::PAGE_SLUG);
 }
 
@@ -48,46 +70,39 @@ unset($_SESSION['admin_homepage_hero_stat_errors']);
 
 $saved = isset($_GET['saved']);
 
-if ($old !== null) {
-    $values = $old;
-} else {
-    $values = [
-        'eyebrow_nl' => (string) $hero['eyebrow_nl'],
-        'eyebrow_en' => (string) ($hero['eyebrow_en'] ?? ''),
-        'title_nl' => (string) $hero['title_nl'],
-        'title_en' => (string) ($hero['title_en'] ?? ''),
-        'title_highlight_nl' => (string) ($hero['title_highlight_nl'] ?? ''),
-        'title_highlight_en' => (string) ($hero['title_highlight_en'] ?? ''),
-        'title_highlight_size' => (string) HomepageHeroContent::clampHighlightSize($hero['title_highlight_size'] ?? null),
-        'lead_nl' => (string) ($hero['lead_nl'] ?? ''),
-        'lead_en' => (string) ($hero['lead_en'] ?? ''),
-        'primary_label_nl' => (string) $hero['primary_label_nl'],
-        'primary_label_en' => (string) ($hero['primary_label_en'] ?? ''),
-        'primary_url' => (string) $hero['primary_url'],
-        'secondary_label_nl' => (string) ($hero['secondary_label_nl'] ?? ''),
-        'secondary_label_en' => (string) ($hero['secondary_label_en'] ?? ''),
-        'secondary_url' => (string) ($hero['secondary_url'] ?? ''),
-        'badge_title_nl' => (string) ($hero['badge_title_nl'] ?? ''),
-        'badge_title_en' => (string) ($hero['badge_title_en'] ?? ''),
-        'badge_text_nl' => (string) ($hero['badge_text_nl'] ?? ''),
-        'badge_text_en' => (string) ($hero['badge_text_en'] ?? ''),
-    ];
-}
+$editLanguage = admin_localized_language();
+$defaultLanguage = admin_localized_default();
+
+// The words of the Hero and of every stat, in one query.
+BlockLocalization::preloadBlocks(['homepage_hero' => [$heroId]]);
+
+$oldInThisLanguage = is_array($old) && ($old['language_code'] ?? null) === $editLanguage;
+
+/** The Hero's words on screen: typed and handed back in this language, else stored in it. */
+$word = static function (string $field) use ($old, $oldInThisLanguage, $heroId, $editLanguage): string {
+    if ($oldInThisLanguage) {
+        return (string) ($old[$field] ?? '');
+    }
+
+    return BlockLocalization::raw('homepage_hero', $heroId, $field, $editLanguage);
+};
+
+/** A language-neutral value of the text form: handed back, else stored. */
+$setting = static fn (string $key): string => is_array($old) ? (string) ($old[$key] ?? '') : (string) ($hero[$key] ?? '');
 
 $csrfToken = Csrf::token();
+$h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
+$required = admin_localized_required($editLanguage);
+$marker = $required !== '' ? '*' : '';
+$placeholder = admin_localized_placeholder_attr($editLanguage);
+// An optional field says so in the default language; in a translation its
+// placeholder says what a visitor sees while it is empty.
+$optional = $placeholder !== '' ? $placeholder : ' placeholder="Optioneel"';
 
-// Re-clamped rather than echoed raw, because $values may come from
+// Re-clamped rather than echoed raw, because it may come from
 // $_SESSION['admin_homepage_hero_old'] — i.e. from a REJECTED save, whose
 // highlight size is by definition not guaranteed to be a valid percentage.
-$highlightSize = HomepageHeroContent::clampHighlightSize($values['title_highlight_size'] ?? null);
-
-/**
- * @param array<string, mixed> $values
- */
-function homepageHeroValue(array $values, string $key): string
-{
-    return htmlspecialchars((string) ($values[$key] ?? ''), ENT_QUOTES, 'UTF-8');
-}
+$highlightSize = HomepageHeroContent::clampHighlightSize(is_array($old) ? ($old['title_highlight_size'] ?? null) : ($hero['title_highlight_size'] ?? null));
 ?>
 <!doctype html>
 <html lang="<?= htmlspecialchars(\App\Service\Language\AdminLocale::current(), ENT_QUOTES, 'UTF-8') ?>">
@@ -122,49 +137,29 @@ function homepageHeroValue(array $values, string $key): string
   <?php endforeach; ?>
 
   <section class="admin-card">
-    <form method="post" action="/api/admin/update-homepage-hero.php" class="admin-product-form">
-      <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
+    <form method="post" action="/api/admin/update-homepage-hero.php" class="admin-product-form"<?= is_array($old) ? ' data-save-bar-unsaved' : '' ?>>
+      <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
+      <?= admin_localized_input($editLanguage) ?>
 
       <h2><?= admin_te('block_hero.algemene_inhoud') ?></h2>
 
-      <?php admin_lang_bar(); ?>
-      <div class="admin-form-row admin-form-row--split">
-        <?php admin_lang_pane_start('nl'); ?>
-        <label><?= admin_te('block_hero.eyebrow') ?>*
-          <input type="text" name="eyebrow_nl" maxlength="150" <?= admin_lang_required('nl') ?> value="<?= homepageHeroValue($values, 'eyebrow_nl') ?>">
+      <?php admin_localized_bar($editLanguage); ?>
+      <div class="admin-form-row">
+        <label><?= admin_te('block_hero.eyebrow') ?><?= $marker ?>
+          <input type="text" name="eyebrow" maxlength="150"<?= $required ?> value="<?= $h($word('eyebrow')) ?>"<?= $placeholder ?>>
         </label>
-        <?php admin_lang_pane_end(); ?>
-        <?php admin_lang_pane_start('en'); ?>
-        <label><?= admin_te('block_hero.eyebrow_2') ?>
-          <input type="text" name="eyebrow_en" maxlength="150" value="<?= homepageHeroValue($values, 'eyebrow_en') ?>"<?= admin_lang_placeholder_attr('en') ?>>
-        </label>
-        <?php admin_lang_pane_end(); ?>
       </div>
 
-      <div class="admin-form-row admin-form-row--split">
-        <?php admin_lang_pane_start('nl'); ?>
-        <label><?= admin_te('block_hero.titel_h1') ?>*
-          <input type="text" name="title_nl" maxlength="255" <?= admin_lang_required('nl') ?> value="<?= homepageHeroValue($values, 'title_nl') ?>">
+      <div class="admin-form-row">
+        <label><?= admin_te('block_hero.titel_h1') ?><?= $marker ?>
+          <input type="text" name="title" maxlength="255"<?= $required ?> value="<?= $h($word('title')) ?>"<?= $placeholder ?>>
         </label>
-        <?php admin_lang_pane_end(); ?>
-        <?php admin_lang_pane_start('en'); ?>
-        <label><?= admin_te('block_hero.titel_h1_2') ?>
-          <input type="text" name="title_en" maxlength="255" value="<?= homepageHeroValue($values, 'title_en') ?>"<?= admin_lang_placeholder_attr('en') ?>>
-        </label>
-        <?php admin_lang_pane_end(); ?>
       </div>
 
-      <div class="admin-form-row admin-form-row--split">
-        <?php admin_lang_pane_start('nl'); ?>
+      <div class="admin-form-row">
         <label><?= admin_te('block_hero.highlight_titel') ?>
-          <input type="text" name="title_highlight_nl" maxlength="255" value="<?= homepageHeroValue($values, 'title_highlight_nl') ?>" placeholder="Optioneel">
+          <input type="text" name="title_highlight" maxlength="255" value="<?= $h($word('title_highlight')) ?>"<?= $optional ?>>
         </label>
-        <?php admin_lang_pane_end(); ?>
-        <?php admin_lang_pane_start('en'); ?>
-        <label><?= admin_te('block_hero.highlight_titel_2') ?>
-          <input type="text" name="title_highlight_en" maxlength="255" value="<?= homepageHeroValue($values, 'title_highlight_en') ?>"<?= admin_lang_placeholder_attr('en') ?>>
-        </label>
-        <?php admin_lang_pane_end(); ?>
       </div>
       <p class="admin-text-muted"><?= admin_t('block_hero.highlight_woord_highlight_zin') ?></p>
 
@@ -186,84 +181,49 @@ function homepageHeroValue(array $values, string $key): string
       </div>
       <p class="admin-text-muted" id="title_highlight_size_help"><?= admin_t('block_hero.hoe_groot_highlight_ten', ['v1' => HomepageHeroContent::HIGHLIGHT_SIZE_DEFAULT]) ?></p>
 
-      <div class="admin-form-row admin-form-row--split">
-        <?php admin_lang_pane_start('nl'); ?>
+      <div class="admin-form-row">
         <label><?= admin_te('block_hero.introtekst_lead') ?>
-          <textarea name="lead_nl" maxlength="500" rows="3"><?= homepageHeroValue($values, 'lead_nl') ?></textarea>
+          <textarea name="lead" maxlength="500" rows="3"<?= $placeholder ?>><?= $h($word('lead')) ?></textarea>
         </label>
-        <?php admin_lang_pane_end(); ?>
-        <?php admin_lang_pane_start('en'); ?>
-        <label><?= admin_te('block_hero.introtekst_lead_2') ?>
-          <textarea name="lead_en" maxlength="500" rows="3"<?= admin_lang_placeholder_attr('en') ?>><?= homepageHeroValue($values, 'lead_en') ?></textarea>
-        </label>
-        <?php admin_lang_pane_end(); ?>
       </div>
 
       <h2 style="margin-top:2rem;"><?= admin_te('block_hero.knoppen') ?></h2>
 
       <h3><?= admin_te('block_hero.primaire_knop') ?>*</h3>
-      <div class="admin-form-row admin-form-row--split">
-        <?php admin_lang_pane_start('nl'); ?>
-        <label><?= admin_te('block_hero.label') ?>*
-          <input type="text" name="primary_label_nl" maxlength="150" <?= admin_lang_required('nl') ?> value="<?= homepageHeroValue($values, 'primary_label_nl') ?>">
+      <div class="admin-form-row">
+        <label><?= admin_te('block_hero.label') ?><?= $marker ?>
+          <input type="text" name="primary_label" maxlength="150"<?= $required ?> value="<?= $h($word('primary_label')) ?>"<?= $placeholder ?>>
         </label>
-        <?php admin_lang_pane_end(); ?>
-        <?php admin_lang_pane_start('en'); ?>
-        <label><?= admin_te('block_hero.label_2') ?>
-          <input type="text" name="primary_label_en" maxlength="150" value="<?= homepageHeroValue($values, 'primary_label_en') ?>"<?= admin_lang_placeholder_attr('en') ?>>
-        </label>
-        <?php admin_lang_pane_end(); ?>
       </div>
       <div class="admin-form-row">
         <label><?= admin_te('common.url') ?>*
-          <input type="text" name="primary_url" maxlength="255" required value="<?= homepageHeroValue($values, 'primary_url') ?>">
+          <input type="text" name="primary_url" maxlength="255" required value="<?= $h($setting('primary_url')) ?>">
         </label>
       </div>
 
       <h3 style="margin-top:1.5rem;"><?= admin_te('block_hero.secundaire_knop_optioneel') ?></h3>
-      <div class="admin-form-row admin-form-row--split">
-        <?php admin_lang_pane_start('nl'); ?>
+      <div class="admin-form-row">
         <label><?= admin_te('block_hero.label_3') ?>
-          <input type="text" name="secondary_label_nl" maxlength="150" value="<?= homepageHeroValue($values, 'secondary_label_nl') ?>">
+          <input type="text" name="secondary_label" maxlength="150" value="<?= $h($word('secondary_label')) ?>"<?= $placeholder ?>>
         </label>
-        <?php admin_lang_pane_end(); ?>
-        <?php admin_lang_pane_start('en'); ?>
-        <label><?= admin_te('block_hero.label_4') ?>
-          <input type="text" name="secondary_label_en" maxlength="150" value="<?= homepageHeroValue($values, 'secondary_label_en') ?>"<?= admin_lang_placeholder_attr('en') ?>>
-        </label>
-        <?php admin_lang_pane_end(); ?>
       </div>
       <div class="admin-form-row">
         <label><?= admin_te('common.url') ?>
-          <input type="text" name="secondary_url" maxlength="255" value="<?= homepageHeroValue($values, 'secondary_url') ?>">
+          <input type="text" name="secondary_url" maxlength="255" value="<?= $h($setting('secondary_url')) ?>">
         </label>
       </div>
       <p class="admin-text-muted"><?= admin_te('block_hero.laat_label_url_leeg') ?></p>
 
       <h2 style="margin-top:2rem;"><?= admin_te('block_hero.badge') ?></h2>
-      <div class="admin-form-row admin-form-row--split">
-        <?php admin_lang_pane_start('nl'); ?>
+      <div class="admin-form-row">
         <label><?= admin_te('common.title') ?>
-          <input type="text" name="badge_title_nl" maxlength="150" value="<?= homepageHeroValue($values, 'badge_title_nl') ?>" placeholder="Optioneel">
+          <input type="text" name="badge_title" maxlength="150" value="<?= $h($word('badge_title')) ?>"<?= $optional ?>>
         </label>
-        <?php admin_lang_pane_end(); ?>
-        <?php admin_lang_pane_start('en'); ?>
-        <label><?= admin_te('common.title') ?>
-          <input type="text" name="badge_title_en" maxlength="150" value="<?= homepageHeroValue($values, 'badge_title_en') ?>"<?= admin_lang_placeholder_attr('en') ?>>
-        </label>
-        <?php admin_lang_pane_end(); ?>
       </div>
-      <div class="admin-form-row admin-form-row--split">
-        <?php admin_lang_pane_start('nl'); ?>
+      <div class="admin-form-row">
         <label><?= admin_te('block_hero.tekst') ?>
-          <textarea name="badge_text_nl" maxlength="500" rows="2" placeholder="Optioneel"><?= homepageHeroValue($values, 'badge_text_nl') ?></textarea>
+          <textarea name="badge_text" maxlength="500" rows="2"<?= $optional ?>><?= $h($word('badge_text')) ?></textarea>
         </label>
-        <?php admin_lang_pane_end(); ?>
-        <?php admin_lang_pane_start('en'); ?>
-        <label><?= admin_te('block_hero.tekst_2') ?>
-          <textarea name="badge_text_en" maxlength="500" rows="2"<?= admin_lang_placeholder_attr('en') ?>><?= homepageHeroValue($values, 'badge_text_en') ?></textarea>
-        </label>
-        <?php admin_lang_pane_end(); ?>
       </div>
       <p class="admin-text-muted"><?= admin_te('block_hero.laat_titel_tekst_leeg') ?></p>
 
@@ -281,7 +241,7 @@ function homepageHeroValue(array $values, string $key): string
     <p class="admin-text-muted"><?= admin_te('block_hero.kies_hero_afbeelding_video') ?></p>
 
     <form method="post" action="/api/admin/update-homepage-hero-media.php" class="admin-product-form" data-homepage-hero-media-form>
-      <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
+      <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
 
       <div class="admin-form-row">
         <span class="admin-form-row__label"><?= admin_te('block_hero.media') ?></span>
@@ -325,11 +285,12 @@ function homepageHeroValue(array $values, string $key): string
     <p class="admin-text-muted"><?= admin_te('block_hero.afbeelding_ook_gebruikt_poster') ?></p>
 
     <div class="admin-image-card__media" style="max-width:260px;">
-      <img src="/<?= htmlspecialchars((string) $hero['image_path'], ENT_QUOTES, 'UTF-8') ?>" alt="">
+      <img src="/<?= $h((string) $hero['image_path']) ?>" alt="">
     </div>
 
     <form method="post" action="/api/admin/update-homepage-hero-image.php" enctype="multipart/form-data" class="admin-product-form" style="margin-top:0.75rem;">
-      <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
+      <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
+      <?= admin_localized_input($editLanguage) ?>
 
       <div class="admin-form-row">
         <label><?= admin_te('block_hero.vervangen_door_nieuw_bestand') ?>
@@ -337,18 +298,11 @@ function homepageHeroValue(array $values, string $key): string
         </label>
       </div>
 
-      <?php admin_lang_bar(); ?>
-      <div class="admin-form-row admin-form-row--split">
-        <?php admin_lang_pane_start('nl'); ?>
-        <label><?= admin_te('common.alt_text') ?>*
-          <input type="text" name="image_alt_nl" maxlength="255" <?= admin_lang_required('nl') ?> value="<?= htmlspecialchars((string) $hero['image_alt_nl'], ENT_QUOTES, 'UTF-8') ?>">
+      <?php admin_localized_bar($editLanguage); ?>
+      <div class="admin-form-row">
+        <label><?= admin_te('common.alt_text') ?><?= $marker ?>
+          <input type="text" name="image_alt" maxlength="255"<?= $required ?> value="<?= $h(BlockLocalization::raw('homepage_hero', $heroId, 'image_alt', $editLanguage)) ?>"<?= $placeholder ?>>
         </label>
-        <?php admin_lang_pane_end(); ?>
-        <?php admin_lang_pane_start('en'); ?>
-        <label><?= admin_te('common.alt_text') ?>
-          <input type="text" name="image_alt_en" maxlength="255" value="<?= htmlspecialchars((string) ($hero['image_alt_en'] ?? ''), ENT_QUOTES, 'UTF-8') ?>"<?= admin_lang_placeholder_attr('en') ?>>
-        </label>
-        <?php admin_lang_pane_end(); ?>
       </div>
 
       <button type="submit"><?= admin_te('common.save') ?></button>
@@ -361,14 +315,14 @@ function homepageHeroValue(array $values, string $key): string
 
     <?php if ($currentVideoPath !== ''): ?>
       <div class="admin-image-card__media" style="max-width:260px;">
-        <video src="/<?= htmlspecialchars($currentVideoPath, ENT_QUOTES, 'UTF-8') ?>" muted loop playsinline controls style="width:100%; height:auto; display:block;"></video>
+        <video src="/<?= $h($currentVideoPath) ?>" muted loop playsinline controls style="width:100%; height:auto; display:block;"></video>
       </div>
     <?php else: ?>
       <p class="admin-text-muted"><?= admin_te('block_hero.video_ge_pload') ?></p>
     <?php endif; ?>
 
     <form method="post" action="/api/admin/update-homepage-hero-video.php" enctype="multipart/form-data" class="admin-product-form" style="margin-top:0.75rem;">
-      <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
+      <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
 
       <div class="admin-form-row">
         <label><?= admin_t('block_hero.replace_file', ['v1' => $currentVideoPath === '' ? '*' : ' (optioneel)']) ?>
@@ -393,37 +347,25 @@ function homepageHeroValue(array $values, string $key): string
         $statId = (int) $stat['id'];
         $isFirst = $index === 0;
         $isLast = $index === count($stats) - 1;
+        $statWord = static fn (string $field): string => BlockLocalization::raw('homepage_hero_stats', $statId, $field, $editLanguage);
       ?>
       <article class="admin-card" style="margin-top:1rem;">
         <form method="post" action="/api/admin/update-homepage-hero-stat.php" class="admin-product-form">
-          <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
+          <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
           <input type="hidden" name="item_id" value="<?= $statId ?>">
+          <?= admin_localized_input($editLanguage) ?>
 
-          <?php admin_lang_bar(); ?>
-          <div class="admin-form-row admin-form-row--split">
-            <?php admin_lang_pane_start('nl'); ?>
-            <label><?= admin_te('block_hero.primaire_tekst') ?>*
-              <input type="text" name="primary_text_nl" maxlength="100" <?= admin_lang_required('nl') ?> value="<?= htmlspecialchars((string) $stat['primary_text_nl'], ENT_QUOTES, 'UTF-8') ?>">
+          <?php admin_localized_bar($editLanguage); ?>
+          <div class="admin-form-row">
+            <label><?= admin_te('block_hero.primaire_tekst') ?><?= $marker ?>
+              <input type="text" name="primary_text" maxlength="100"<?= $required ?> value="<?= $h($statWord('primary_text')) ?>"<?= $placeholder ?>>
             </label>
-            <?php admin_lang_pane_end(); ?>
-            <?php admin_lang_pane_start('en'); ?>
-            <label><?= admin_te('block_hero.primaire_tekst_2') ?>
-              <input type="text" name="primary_text_en" maxlength="100" value="<?= htmlspecialchars((string) ($stat['primary_text_en'] ?? ''), ENT_QUOTES, 'UTF-8') ?>"<?= admin_lang_placeholder_attr('en') ?>>
-            </label>
-            <?php admin_lang_pane_end(); ?>
           </div>
 
-          <div class="admin-form-row admin-form-row--split">
-            <?php admin_lang_pane_start('nl'); ?>
-            <label><?= admin_te('block_hero.secundaire_tekst') ?>*
-              <input type="text" name="secondary_text_nl" maxlength="150" <?= admin_lang_required('nl') ?> value="<?= htmlspecialchars((string) $stat['secondary_text_nl'], ENT_QUOTES, 'UTF-8') ?>">
+          <div class="admin-form-row">
+            <label><?= admin_te('block_hero.secundaire_tekst') ?><?= $marker ?>
+              <input type="text" name="secondary_text" maxlength="150"<?= $required ?> value="<?= $h($statWord('secondary_text')) ?>"<?= $placeholder ?>>
             </label>
-            <?php admin_lang_pane_end(); ?>
-            <?php admin_lang_pane_start('en'); ?>
-            <label><?= admin_te('block_hero.secundaire_tekst_2') ?>
-              <input type="text" name="secondary_text_en" maxlength="150" value="<?= htmlspecialchars((string) ($stat['secondary_text_en'] ?? ''), ENT_QUOTES, 'UTF-8') ?>"<?= admin_lang_placeholder_attr('en') ?>>
-            </label>
-            <?php admin_lang_pane_end(); ?>
           </div>
 
           <label class="admin-checkbox-label">
@@ -436,19 +378,19 @@ function homepageHeroValue(array $values, string $key): string
 
         <div class="admin-image-card__actions" style="margin-top:0.75rem;">
           <form method="post" action="/api/admin/move-homepage-hero-stat.php" class="admin-inline-form">
-            <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
+            <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
             <input type="hidden" name="item_id" value="<?= $statId ?>">
             <input type="hidden" name="direction" value="up">
             <button type="submit" class="admin-btn-text" <?= $isFirst ? 'disabled' : '' ?>><?= admin_t('common.move_up') ?></button>
           </form>
           <form method="post" action="/api/admin/move-homepage-hero-stat.php" class="admin-inline-form">
-            <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
+            <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
             <input type="hidden" name="item_id" value="<?= $statId ?>">
             <input type="hidden" name="direction" value="down">
             <button type="submit" class="admin-btn-text" <?= $isLast ? 'disabled' : '' ?>><?= admin_t('common.move_down') ?></button>
           </form>
           <form method="post" action="/api/admin/delete-homepage-hero-stat.php" class="admin-inline-form" onsubmit="return confirm('Deze statistiek definitief verwijderen?');">
-            <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
+            <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
             <input type="hidden" name="item_id" value="<?= $statId ?>">
             <button type="submit" class="admin-btn-text admin-btn-text--danger"><?= admin_te('common.delete') ?></button>
           </form>
@@ -461,34 +403,21 @@ function homepageHeroValue(array $values, string $key): string
     <section class="admin-card">
       <h2><?= admin_te('block_hero.nieuwe_statistiek_toevoegen') ?></h2>
       <form method="post" action="/api/admin/create-homepage-hero-stat.php" class="admin-product-form">
-        <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
+        <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
         <input type="hidden" name="hero_id" value="<?= $heroId ?>">
 
-        <?php admin_lang_bar(); ?>
-        <div class="admin-form-row admin-form-row--split">
-          <?php admin_lang_pane_start('nl'); ?>
+        <?php admin_localized_bar($defaultLanguage); ?>
+        <?php admin_localized_new_item_note($editLanguage); ?>
+        <div class="admin-form-row">
           <label><?= admin_te('block_hero.primaire_tekst_3') ?>*
-            <input type="text" name="primary_text_nl" maxlength="100" <?= admin_lang_required('nl') ?>>
+            <input type="text" name="primary_text" maxlength="100" required>
           </label>
-          <?php admin_lang_pane_end(); ?>
-          <?php admin_lang_pane_start('en'); ?>
-          <label><?= admin_te('block_hero.primaire_tekst_4') ?>
-            <input type="text" name="primary_text_en" maxlength="100"<?= admin_lang_placeholder_attr('en') ?>>
-          </label>
-          <?php admin_lang_pane_end(); ?>
         </div>
 
-        <div class="admin-form-row admin-form-row--split">
-          <?php admin_lang_pane_start('nl'); ?>
+        <div class="admin-form-row">
           <label><?= admin_te('block_hero.secundaire_tekst_3') ?>*
-            <input type="text" name="secondary_text_nl" maxlength="150" <?= admin_lang_required('nl') ?>>
+            <input type="text" name="secondary_text" maxlength="150" required>
           </label>
-          <?php admin_lang_pane_end(); ?>
-          <?php admin_lang_pane_start('en'); ?>
-          <label><?= admin_te('block_hero.secundaire_tekst_4') ?>
-            <input type="text" name="secondary_text_en" maxlength="150"<?= admin_lang_placeholder_attr('en') ?>>
-          </label>
-          <?php admin_lang_pane_end(); ?>
         </div>
 
         <button type="submit"><?= admin_te('block_hero.statistiek_toevoegen') ?></button>
@@ -500,6 +429,5 @@ function homepageHeroValue(array $values, string $key): string
 </main>
 <?php save_bar(); ?>
 <?php save_bar_script(); ?>
-<?php admin_lang_script(); ?>
 </body>
 </html>
