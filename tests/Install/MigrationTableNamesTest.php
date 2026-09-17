@@ -141,6 +141,17 @@ final class MigrationTableNamesTest extends TestCase
                     $created[$table] = true;
                 }
             }
+
+            // `private const TABLE = 'site_languages'` with
+            // `$this->table(self::TABLE, …)->create()`: the name is written
+            // down once, in the constant, and created through it. The chain
+            // may not reach into a later `$this->` statement.
+            if (
+                preg_match('/const\s+TABLE\s*=\s*\'([a-z0-9_]+)\'/', $source, $constant) === 1
+                && preg_match('/\$this->table\(\s*self::TABLE\b(?:(?!\$this->)[\s\S])*?->create\(\)/', $source) === 1
+            ) {
+                $created[$constant[1]] = true;
+            }
         }
 
         return $created;
