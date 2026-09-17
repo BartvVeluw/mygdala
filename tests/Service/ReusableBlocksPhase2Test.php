@@ -97,6 +97,8 @@ final class ReusableBlocksPhase2Test extends TestCase
 
         // Only ever this test's own throwaway page_slug.
         foreach (['cta_bands', 'contact_form_sections', 'contact_cards', 'marquee_sections', 'rich_text_sections'] as $table) {
+            // The block's words per language first, or they stay behind as orphans.
+            \Tests\Support\BlockTextFixture::removeForPage($table, self::TEST_KEY);
             $del = $db->prepare("DELETE FROM {$table} WHERE page_slug = :key");
             $del->execute(['key' => self::TEST_KEY]);
         }

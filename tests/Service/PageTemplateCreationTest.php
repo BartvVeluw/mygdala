@@ -74,6 +74,8 @@ final class PageTemplateCreationTest extends TestCase
                     continue;
                 }
 
+                // The block's words per language first, or they stay behind as orphans.
+                \Tests\Support\BlockTextFixture::removeForPage($table, $contentKey);
                 $stmt = $db->prepare('DELETE FROM ' . $table . ' WHERE page_slug = :key');
                 $stmt->execute(['key' => $contentKey]);
             }

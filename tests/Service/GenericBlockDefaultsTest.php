@@ -215,6 +215,8 @@ final class GenericBlockDefaultsTest extends TestCase
 
         // Only ever this test's own throwaway page_slug — an exact match,
         // never a LIKE pattern, in which `_` matches any character.
+        // The band's starting words per language first, or they stay behind as orphans.
+        \Tests\Support\BlockTextFixture::removeForPage('cta_bands', self::TEST_KEY);
         $delete = $db->prepare('DELETE FROM cta_bands WHERE page_slug = :key');
         $delete->execute(['key' => self::TEST_KEY]);
 

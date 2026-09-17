@@ -94,6 +94,8 @@ final class ContentBlockArchitectureTest extends TestCase
         }
 
         foreach (['page_heroes', 'cta_bands', 'feature_grids', 'faq_sections', 'stat_strips', 'step_list_sections', 'text_image_splits', 'marquee_sections', 'rich_text_sections', 'contact_form_sections', 'contact_cards', 'detail_sections', 'card_carousels', 'item_galleries'] as $table) {
+            // The block's words per language first, or they stay behind as orphans.
+            \Tests\Support\BlockTextFixture::removeForPage($table, self::TEST_KEY);
             $del = $db->prepare("DELETE FROM {$table} WHERE page_slug = :key");
             $del->execute(['key' => self::TEST_KEY]);
         }
