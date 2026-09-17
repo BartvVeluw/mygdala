@@ -173,8 +173,7 @@ item met `presentation = button`:
 
 **De oude rijen blijven staan.** Niets leest of schrijft ze nog: de header leest
 `nav_items`, en het scherm dat ze schreef bestaat sinds Footer fase B niet
-meer. Ze echt verwijderen is een aparte, destructieve beslissing, net als bij
-`page_heroes.breadcrumb_label_*`.
+meer. Ze echt verwijderen is een aparte, destructieve beslissing.
 
 ## De footer
 
@@ -584,18 +583,15 @@ verwijderd.
 
 ### Legacy
 
-`page_heroes.breadcrumb_label_nl` en `breadcrumb_label_en` bestaan nog. Ze
-worden niet meer gelezen en niet meer overschreven. Wat een redacteur ooit in
-het **Engelse** label typte is wél éénmalig overgenomen als `pages.title_en`
-(migratie `20260916140000`; sinds `20260917150000` de rij `en` in
-`page_translations`), want dat was de enige plek waar de Engelse naam
+`page_heroes.breadcrumb_label_nl` en `breadcrumb_label_en` bestaan niet meer.
+Wat een redacteur ooit in het **Engelse** label typte, is éénmalig overgenomen
+als `pages.title_en` (migratie `20260916140000`; sinds `20260917150000` de rij
+`en` in `page_translations`), want dat was de enige plek waar de Engelse naam
 van een pagina kon staan; alleen waar de pagina nog bestaat, `title_en` nog
-leeg is en het label iets anders zegt dan de Nederlandse titel. Verder: de INSERT van
-`PageHeroRepository::upsert()` zet `breadcrumb_label_nl` op de lege string
-(de kolom is `NOT NULL`), en de UPDATE laat beide met rust, zodat een waarde
-die een redacteur ooit typte blijft staan. Het veld *Naam in het kruimelpad*
-is uit de Paginakop-editor verdwenen. De kolommen echt verwijderen is een
-aparte, destructieve beslissing.
+leeg was en het label iets anders zei dan de Nederlandse titel. Daarna las en
+schreef niets de kolommen nog, en Multilingual 2.0 fase 3B heeft ze gedropt
+(`20260917180000`) zonder ze te verhuizen. Het veld *Naam in het kruimelpad*
+is uit de Paginakop-editor verdwenen.
 
 ## Testen
 

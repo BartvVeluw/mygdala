@@ -47,6 +47,7 @@ final class BlockDefinitionContractTest extends TestCase
         'editUrl',
         'clearCache',
         'contentTable',
+        'translatableFields',
     ];
 
     /**
@@ -363,15 +364,18 @@ final class BlockDefinitionContractTest extends TestCase
         $definition = BlockDefinitions::get($type);
         $declared = $definition->translatableFields();
 
-        if ($declared === []) {
-            $this->assertTrue(true, "{$type} keeps its words in its own columns until it is converted");
+        if ($definition->contentTable() === null) {
+            $this->assertSame([], $declared, "{$type} owns no rows, so it has no words of its own to declare");
 
             return;
         }
 
-        $this->assertNotNull($definition->contentTable(), "{$type} declares translatable fields but owns no content table");
+        // Since phase 3B there is no block with rows of its own and words in
+        // columns: every one of them declares where its words are.
+        $this->assertNotSame([], $declared, "{$type} owns rows and declares no words");
         $ownTables = array_merge([$definition->contentTable()], array_keys($definition->childTables()));
         $this->assertSame([], array_diff(array_keys($declared), $ownTables), "{$type} may only declare fields for its own content table and its declared child tables");
+        $this->assertSame([], array_diff(array_keys($definition->childTables()), array_keys($declared)), "{$type}: a child table is declared because its rows own words");
 
         foreach ($declared as $fields) {
             $this->assertNotSame([], $fields);

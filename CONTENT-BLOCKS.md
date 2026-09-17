@@ -34,7 +34,8 @@ herhaalbaar blok:
 Een blok met een repeater erin (kaarten, items, punten) heeft extra endpoints
 volgens hetzelfde patroon: `create-`, `update-`, `delete-` en soms `reorder-`
 per onderdeel — zie `card_carousel` (`api/admin/*-carousel-card*.php`) of
-`detail_section`.
+`detail_section`. Elke rij van zo'n onderdeel bezit zijn eigen woorden in
+`block_translations`, onder zijn eigen tabel en id: zie *Taal* hieronder.
 
 ## Het inhoudscontract: drie toestanden
 
@@ -59,34 +60,40 @@ Twee onafhankelijke schakelaars verbergen een blok, en beide tellen:
   controleert dat apart. Een blok weer aanzetten in de page builder overschrijft
   dus nooit een hide die in de blok-editor is gezet.
 
-**Taal.** Er zijn tijdelijk twee manieren waarop een blok zijn woorden per taal
-bewaart. Het volledige contract staat in
+**Taal.** Elk blok bewaart zijn woorden per websitetaal in `block_translations`
+(Multilingual 2.0, fase 3A en 3B). Er is geen blok meer met
+`_nl`/`_en`-kolommen, en er komt er geen bij. Het volledige contract staat in
 [`docs/multilingual/ARCHITECTURE.md`](docs/multilingual/ARCHITECTURE.md),
 *Contentblokken per taal*.
 
-- **Per websitetaal in `block_translations`** (Multilingual 2.0, fase 3A):
-  Tekstblok, Oproep met knop en Contactkaart. **Een nieuw blok begint hier.**
-  - De definitie declareert de woorden in `translatableFields()`; de
-    inhoudstabel houdt alleen wat in elke taal gelijk is (URL's, `is_active`,
-    media, weergavekeuzes). Geen `_nl`/`_en`-kolommen.
-  - De `*Content`-klasse geeft de partial per veld een `LocalizedValue` uit
-    `BlockLocalization::bilingual()`; de terugval (gevraagde taal →
-    standaardtaal → leeg) zit daar, niet in het blok.
-  - De partial print met `SiteText::visibleOf()` en `::attrsOf()`, en
-    gesaneerde rich text met `::htmlAttrsOf()`. Hij kent geen taal.
-  - De editor staat op `admin/_localized_fields.php`: één taal op het scherm,
-    verplicht alleen in de standaardtaal. Het endpoint controleert
-    `language_code` tegen `SiteLanguages::isActive()`, valideert met
-    `BlockLocalization::problems()` en schrijft instellingen en
-    `BlockLocalization::save()` in één transactie.
-  - Verwijderen hoef je niet te regelen: `SectionRegistry::delete()` neemt de
-    woorden mee.
-- **In `_nl`/`_en`-kolommen** (V1): alle andere blokken, tot fase 3B. De partial
-  schrijft beide talen in `data-nl`/`data-en` via
-  `App\Service\Language\SiteText::attrs()` en print de hoofdtaal met
-  `::visible()`; de editor zet de twee velden in een taalpaneel
-  (`admin/_language_fields.php`). Wijzig je zo'n blok, dan hoef je het niet om
-  te zetten; voeg er alleen geen nieuwe `_nl`/`_en`-kolom aan toe.
+- De definitie declareert de woorden in `translatableFields()`, per tabel die
+  ze bezit: de inhoudstabel en elke kindtabel. De tabellen houden alleen wat in
+  elke taal gelijk is (URL's, `is_active`, media, volgorde, weergavekeuzes).
+- **Kindrijen** (een vraag, een kaart, de tags van een kaart) zijn eigenaar van
+  hun eigen woorden, onder hun eigen tabel en `id`. De definitie noemt elke
+  kindtabel in `childTables()`, met de tabel en kolom waaraan hij hangt;
+  `BlockTranslationSchemaTest` houdt dat tegen de echte foreign key.
+- De `*Content`-klasse geeft de partial per veld een `LocalizedValue`
+  (`BlockLocalization::words()` of `::bilingual()`); de terugval (gevraagde
+  taal → standaardtaal → leeg) zit daar, niet in het blok. **De standaardtaal
+  beslist of iets verschijnt**: een blok, en elk item, zonder zijn verplichte
+  woorden in de standaardtaal rendert niet (`BlockLocalization::hasRequiredWords()`).
+- De partial print met `SiteText::visibleOf()` en `::attrsOf()`, een alt-tekst
+  met `::attrsForOf('alt', …)` en gesaneerde rich text met `::htmlAttrsOf()`.
+  Hij kent geen taal.
+- De editor staat op `admin/_localized_fields.php`: één taal op het scherm,
+  verplicht alleen in de standaardtaal. Het endpoint controleert
+  `language_code` tegen `SiteLanguages::isActive()`, valideert met
+  `BlockLocalization::problems()` en schrijft instellingen en
+  `BlockLocalization::save()` in één transactie.
+- **Een repeater-item** heeft eigen endpoints. `create-` schrijft de rij en
+  zijn woorden in de standaardtaal (`admin_localized_new_item_note()` zegt dat
+  op het scherm); `update-` slaat één taal op onder hetzelfde `id`, zodat de
+  andere talen blijven staan; `delete-` roept
+  `BlockLocalization::deleteOwner()` aan vóór de rij weggaat, in dezelfde
+  transactie. Nooit wissen en opnieuw aanmaken.
+- Een heel blok verwijderen hoef je niet te regelen: `SectionRegistry::delete()`
+  neemt de woorden van het blok en van al zijn kindrijen mee.
 
 Er wordt niets server-side vertaald.
 
@@ -169,12 +176,11 @@ geen gedeeld bestand meer waarin je op zeven plekken per type moet uitsplitsen:
    | `editUrl()` | Meestal `$this->sectionEditUrl('<admin-bestand>', $pageSection)` |
    | `clearCache()` | `<Type>Content::clearCache()` |
    | `contentTable()` | De tabelnaam — vertrouwde metadata waarmee tests hun eigen rijen opruimen |
+   | `translatableFields()` | De woorden per websitetaal, per eigen tabel, met `TranslatableField::plain()` of `::rich()` — zie *Taal* hierboven. Een blok zonder eigen rijen (`FixedBlockDefinition`) declareert `[]` |
    | `styles()` / `scripts()` / `vendorScripts()` | De eigen frontend van dit blok; standaard leeg — zie stap 8 |
 
-   Optioneel, met een veilige standaard: `translatableFields()` (de woorden
-   per websitetaal, per eigen tabel, met `TranslatableField::plain()` of
-   `::rich()`; een nieuw blok declareert ze hier, zie *Taal* hierboven — de
-   methode is pas `abstract` als fase 3B alle blokken heeft omgezet),
+   Optioneel, met een veilige standaard: `childTables()` (de kindtabellen
+   waarvan de rijen eigen woorden hebben, zie *Taal* hierboven),
    `preview()` (de vormen waaruit de
    schets op de blokkaart wordt getekend, uit de gesloten lijst in
    `BlockPreview`) en `useCases()` (twee tot vier voorbeeldsituaties: de

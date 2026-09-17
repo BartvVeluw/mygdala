@@ -87,7 +87,7 @@ Waarom de bewerktaal eigen staat is, en wat er daarvóór fout was:
 | Een migratie, wat een verse of bestaande installatie krijgt | [`MIGRATIONS.md`](docs/multilingual/MIGRATIONS.md) | `migration` |
 | Multilingual 2.0: het talenregister, de standaardtaal, `SiteLanguages`, en wat de volgende fases moeten volgen | [`ARCHITECTURE.md`](docs/multilingual/ARCHITECTURE.md) | `fast` → `migration` |
 | Paginatekst per taal: `page_translations`, `PageLocalization`, de terugval, de editorcomponent `_localized_fields.php` | [`ARCHITECTURE.md`](docs/multilingual/ARCHITECTURE.md) | `fast` → `cms` |
-| Blokwoorden per taal: `block_translations`, `BlockLocalization`, `translatableFields()`, de wezen-guards, Tekstblok/Oproep met knop/Contactkaart | [`ARCHITECTURE.md`](docs/multilingual/ARCHITECTURE.md) | `fast` → `blocks` |
+| Blokwoorden per taal: `block_translations`, `BlockLocalization`, `translatableFields()` en `childTables()`, de wezen-guards, alle contentblokken en hun kindrijen | [`ARCHITECTURE.md`](docs/multilingual/ARCHITECTURE.md) | `fast` → `blocks` |
 | Welke test wat bewaakt, en hoe je ze draait | [`TESTS.md`](docs/multilingual/TESTS.md) | — |
 
 Een derde taal toevoegen ligt op de grens: het register in

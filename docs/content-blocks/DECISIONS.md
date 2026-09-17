@@ -265,7 +265,8 @@ route vóór de inhoud van de pagina. De naam komt uit de titel van de pagina
 (sinds Multilingual 2.0 fase 2 per taal in `page_translations`) in plaats
 van uit een tweede, met de hand overgetypte kolom, en of een pagina er een
 toont is `pages.show_breadcrumb` — een eigenschap van de pagina, niet van een
-blok. `page_heroes.breadcrumb_label_nl/en` blijven staan als legacydata.
+blok. `page_heroes.breadcrumb_label_nl/en` bleven eerst staan als legacydata;
+Multilingual 2.0 fase 3B heeft ze gedropt (`20260917180000`).
 
 Wat bewust níet meebewoog: er komt geen `BreadcrumbList`-JSON-LD bij
 (`SEO.md`), en de Paginakop is verder ongemoeid gebleven.

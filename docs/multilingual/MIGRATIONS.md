@@ -23,10 +23,36 @@ Een tweede uitzondering, van dezelfde soort: de woorden van Tekstblok
 verhuisd naar `block_translations` en daarna verwijderd
 (`20260917160000`, `20260917170000`). NL blijft NL, EN blijft EN, woorden gaan
 byte voor byte mee, leeg of alleen witruimte krijgt geen rij, en ontbreekt een
-taal in het register, dan stopt de migratie vóór de drop. Alle andere
-bloktypes houden hun kolommen tot fase 3B. Details in
+taal in het register, dan stopt de migratie vóór de drop. Details in
 [`ARCHITECTURE.md`](ARCHITECTURE.md), *Contentblokken per taal*; de test is
 `tests/Install/BlockTranslationMigrationTest.php` (`migration`).
+
+## Multilingual 2.0: de overige blokwoorden (fase 3B)
+
+Dezelfde uitzondering voor alle andere bloktypes, in drie golven:
+`20260917180000` (Paginakop, Formulier, Offerte-/contactformulier en de
+gedeelde galerijtabel), `20260917190000` (Openingssectie homepage en de
+repeaters met één niveau kindrijen) en `20260917200000` (Tekst met afbeelding,
+Detailsectie en Kaarten-carrousel, tot een kleinkind diep). Samen 124 kolommen
+uit 23 tabellen. Een kindrij krijgt zijn woorden onder zijn eigen tabel en
+`id`; de Detailsectie-body (`content_html`/`_en`) wordt het rich veld `body`.
+Dezelfde regels als in 3A: NL blijft NL, EN blijft EN, byte voor byte, leeg of
+alleen witruimte krijgt geen rij, opnieuw draaien doet niets, en een taal die
+het register mist stopt de migratie vóór de drop. `page_heroes.breadcrumb_label_nl/en`
+gaan weg zonder verhuizing: sinds fase 5B las niets ze nog. Daarna heeft geen
+bloktabel nog een `_nl`/`_en`-kolom.
+
+De test is `tests/Install/RemainingBlockWordsMigrationTest.php` (`migration`):
+per vorm (alleen een ouder, één niveau kinderen, meerdere kindtabellen, drie
+niveaus), alleen NL, alleen EN, beide, leeg, alt-teksten, rich text, opnieuw
+draaien, een ontbrekende taal, en onaangeroerde id's en taalneutrale velden.
+
+**Oude migraties die de gedropte kolommen lezen.** `20260909270000` (media
+adopteren) leest de alt-kolommen van Tekst met afbeelding, Detailsectie en
+kaarten. Op een echte installatie draait die ruim vóór 3B, en Phinx draait een
+migratie nooit twee keer. `MediaAdoptionTest` draait hem wél opnieuw, en stopt
+daarom zijn installatie vóór `20260917200000`, net zoals
+`ContactFormMigrationTest` stopt vóór `20260917180000`.
 
 ## Wat hiervóór fout was
 

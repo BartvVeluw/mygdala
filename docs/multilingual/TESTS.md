@@ -50,8 +50,14 @@ In `fast`:
 - `tests/Service/BlockLocalizedRenderingTest.php` — de drie omgezette blokken
   door hun echte partials: eerste render in de standaardtaal, terugval, een
   derde taal, `data-lang-html` alleen voor rich text, kwaadaardige markup
+- `tests/Service/RemainingBlocksRenderingTest.php` — fase 3B: de overige
+  blokken door hun echte partials, met woorden op hun kindrijen; de
+  Detailsectie-body bij een NL-, EN- en Duitse standaardtaal, een ontbrekende
+  vertaling, de sanitizer en `data-lang-html`; platte labels met HTML erin,
+  alt-teksten met aanhalingstekens, de kop van de Openingssectie homepage en de
+  quicknav
 
-Alle twaalf de bestanden zitten in `fast`: geen database, geen webserver, geen
+Alle dertien de bestanden zitten in `fast`: geen database, geen webserver, geen
 netwerk. Het talenregister vervangen ze in het geheugen met
 `Tests\Support\SiteLanguageFixture`.
 
@@ -76,19 +82,33 @@ In `blocks`:
   uniek per veld, de taal als foreign key, opslaan per taal, één query voor veel
   eigenaren, wezen vinden en opruimen
 - `tests/Service/BlockTranslationIntegrityTest.php` — een blok of pagina
-  verwijderen neemt de woorden mee, een mislukte delete niets
+  verwijderen neemt de woorden mee, voor elk omgezet bloktype en al zijn
+  kind- en kleinkindrijen; een mislukte delete niets
+- `tests/Repository/BlockTranslationTreeTest.php` — fase 3B: de boom van een
+  blok (ouder, kind, kleinkind) in één query laden en in één keer verwijderen
 - `tests/Service/BlockWordsPreloadTest.php` — één query voor de woorden van een
-  hele pagina
+  hele pagina, ook van alle items van een repeater
 - `tests/Service/BlockLocalizationEditorHttpTest.php` — de drie blok-editors
   over echte HTTP: één taal, opslaan per taal, Duits via het register,
   knopregels, sanitizer, een geweigerde save in zijn eigen taal
-- `tests/Install/BlockTranslationSchemaTest.php` — de vorm van de tabel, en dat
-  een omgezet blok geen `_nl`/`_en`-kolom meer heeft
+- `tests/Service/BlockWordsEditorHttpTest.php` — fase 3B: de editors van de
+  overige blokken over echte HTTP, tabelgestuurd: één taal, opslaan per taal,
+  verplicht alleen in de standaardtaal, Duits via het register, te lang, een
+  geweigerde save; plus de galerijknop, de Detailsectie-body en het
+  beeldformulier
+- `tests/Service/BlockChildWordsEditorHttpTest.php` — fase 3B: de twaalf
+  kindtabellen over echte HTTP: een nieuw item in de standaardtaal, opslaan in
+  één taal laat de andere talen en items staan, Duits, verwijderen neemt de
+  woorden mee; plus het beeldformulier van een kaart
+- `tests/Install/BlockTranslationSchemaTest.php` — de vorm van de tabel, dat
+  geen bloktabel nog een `_nl`/`_en`-kolom heeft, en dat elke kindtabel echt
+  met een cascaderende foreign key aan zijn ouder hangt
 
 De migratietests, `MigrationTableNamesTest`,
 `ContentLanguageSettingRepairTest`, `SiteLanguageRegistryMigrationTest`,
-`PageTranslationMigrationTest` en `BlockTranslationMigrationTest`, staan met
-uitleg in [`MIGRATIONS.md`](MIGRATIONS.md).
+`PageTranslationMigrationTest`, `BlockTranslationMigrationTest` en
+`RemainingBlockWordsMigrationTest`, staan met uitleg in
+[`MIGRATIONS.md`](MIGRATIONS.md).
 
 ## Wat de twee grenstests bewaken
 

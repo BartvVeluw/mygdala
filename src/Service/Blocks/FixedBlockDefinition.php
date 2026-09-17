@@ -47,4 +47,14 @@ abstract class FixedBlockDefinition extends BlockDefinition
     {
         return null;
     }
+
+    /**
+     * No rows of its own, so no words of its own: what a fixed block shows is
+     * worded where its content lives (the quicknav's labels are the
+     * Detailsecties' own, in block_translations).
+     */
+    public function translatableFields(): array
+    {
+        return [];
+    }
 }

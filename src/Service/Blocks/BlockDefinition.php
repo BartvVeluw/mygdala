@@ -266,18 +266,16 @@ abstract class BlockDefinition
      * because it is declared rich. Everything else about the block (URLs,
      * switches, media, layout) is language-neutral and stays in its own table.
      *
-     * Not abstract YET, and on purpose: until phase 3B converts them, most
-     * blocks still keep their words in fixed `_nl`/`_en` columns, and an empty
-     * declaration here would claim otherwise. [] means "not on
-     * block_translations". BlockTranslationSchemaTest fails when a block
-     * declares fields while its table still has `_nl`/`_en` columns.
+     * Abstract, like the rest of the contract: since phase 3B every block with
+     * rows of its own keeps all its words here, and a new block has to say
+     * which words it has instead of quietly getting none. A block without
+     * words declares [] itself; FixedBlockDefinition does that for the blocks
+     * that own no rows. BlockTranslationSchemaTest fails when a block's table
+     * still has a `_nl`/`_en` column.
      *
      * @return array<string, list<TranslatableField>> owner table => fields
      */
-    public function translatableFields(): array
-    {
-        return [];
-    }
+    abstract public function translatableFields(): array;
 
     /**
      * The child tables of this block whose rows own words of their own in
