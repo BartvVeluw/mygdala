@@ -1,0 +1,186 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Tests\Service;
+
+use App\Database;
+use App\Repository\BlockTranslationRepository;
+use App\Repository\PageRepository;
+use App\Repository\PageSectionRepository;
+use App\Service\Blocks\BlockLocalization;
+use App\Service\Blocks\TranslatableField;
+use App\Service\PageContent;
+use App\Service\PageService;
+use App\Service\SectionRegistry;
+use PHPUnit\Framework\TestCase;
+use Tests\Support\PageFixture;
+
+/**
+ * The integrity contract of block_translations (Multilingual 2.0 phase 3,
+ * docs/multilingual/ARCHITECTURE.md), through the real delete paths: a block's
+ * words in every language leave with the block, whichever way the CMS deletes
+ * it, and a delete that fails takes nothing with it.
+ *
+ * `owner_id` can have no foreign key, so these paths ARE the guard. The page,
+ * its blocks and their words are this test's own and are removed in
+ * tearDown(); SectionRegistry::delete() opens its own transaction, so this
+ * test cannot run inside one.
+ */
+final class BlockTranslationIntegrityTest extends TestCase
+{
+    private const KEY = 'zz-block-translation-integrity';
+
+    private PageSectionRepository $sections;
+    private int $pageId = 0;
+
+    protected function setUp(): void
+    {
+        $this->sections = new PageSectionRepository();
+        BlockLocalization::overrideRegistryForTests([
+            'rich_text_sections' => [TranslatableField::rich('body', 50000)],
+            'contact_cards' => [TranslatableField::plain('title', 255)->required()],
+        ]);
+        $this->removePage();
+        $this->pageId = PageFixture::create(
+            ['content_key' => self::KEY, 'slug' => self::KEY, 'status' => PageContent::STATUS_DRAFT],
+            'Integriteitstest'
+        );
+    }
+
+    protected function tearDown(): void
+    {
+        $this->removePage();
+        BlockLocalization::overrideRegistryForTests(null);
+        BlockLocalization::clearCache();
+        PageContent::clearCache();
+    }
+
+    public function testDeletingABlockTakesItsWordsInEveryLanguage(): void
+    {
+        [$sectionId, $pageSection] = $this->attach('rich_text');
+        [$otherId] = $this->attach('rich_text');
+        BlockLocalization::save('rich_text_sections', $sectionId, 'nl', ['body' => '<p>Weg</p>']);
+        BlockLocalization::save('rich_text_sections', $sectionId, 'en', ['body' => '<p>Gone</p>']);
+        BlockLocalization::save('rich_text_sections', $otherId, 'nl', ['body' => '<p>Blijft</p>']);
+
+        SectionRegistry::delete($pageSection, $this->sections);
+
+        self::assertSame(0, $this->wordsOf('rich_text_sections', $sectionId));
+        self::assertSame(1, $this->wordsOf('rich_text_sections', $otherId), 'another block on the same page keeps its words');
+        self::assertSame([], BlockLocalization::translations('rich_text_sections', $sectionId));
+    }
+
+    public function testDeletingAPageTakesTheWordsOfEveryBlockOnIt(): void
+    {
+        [$richId] = $this->attach('rich_text');
+        [$cardId] = $this->attach('contact_card');
+        BlockLocalization::save('rich_text_sections', $richId, 'nl', ['body' => '<p>Tekst</p>']);
+        BlockLocalization::save('contact_cards', $cardId, 'en', ['title' => 'Card']);
+
+        PageService::delete((new PageRepository())->findById($this->pageId));
+        $this->pageId = 0;
+
+        self::assertSame(0, $this->wordsOf('rich_text_sections', $richId));
+        self::assertSame(0, $this->wordsOf('contact_cards', $cardId));
+    }
+
+    public function testAFailedDeleteKeepsTheBlockAndItsWords(): void
+    {
+        [$sectionId, $pageSection] = $this->attach('rich_text');
+        BlockLocalization::save('rich_text_sections', $sectionId, 'nl', ['body' => '<p>Blijft staan</p>']);
+
+        $failing = new class () extends PageSectionRepository {
+            public function delete(int $id): bool
+            {
+                throw new \RuntimeException('the page_sections delete failed');
+            }
+        };
+
+        try {
+            SectionRegistry::delete($pageSection, $failing);
+            self::fail('the failing delete was not reported');
+        } catch (\RuntimeException) {
+            self::assertTrue(true);
+        }
+
+        self::assertSame(1, $this->wordsOf('rich_text_sections', $sectionId), 'rolled back together with the block');
+        self::assertNotNull($this->sections->findById((int) $pageSection['id']));
+    }
+
+    public function testNoDeletePathLeavesAnOrphanBehind(): void
+    {
+        [$richId, $richSection] = $this->attach('rich_text');
+        [$cardId] = $this->attach('contact_card');
+        BlockLocalization::save('rich_text_sections', $richId, 'nl', ['body' => '<p>Een</p>']);
+        BlockLocalization::save('contact_cards', $cardId, 'nl', ['title' => 'Twee']);
+
+        SectionRegistry::delete($richSection, $this->sections);
+        PageService::delete((new PageRepository())->findById($this->pageId));
+        $this->pageId = 0;
+
+        $orphans = BlockLocalization::orphans()['missing_owner'];
+        self::assertNotContains(['owner_table' => 'rich_text_sections', 'owner_id' => $richId, 'rows' => 1], $orphans);
+        self::assertSame([], array_values(array_filter(
+            $orphans,
+            static fn (array $row): bool => in_array([$row['owner_table'], $row['owner_id']], [['rich_text_sections', $richId], ['contact_cards', $cardId]], true)
+        )));
+    }
+
+    public function testAContentRowDeletedBehindTheCmsBackIsFoundAndPurged(): void
+    {
+        [$cardId] = $this->attach('contact_card');
+        BlockLocalization::save('contact_cards', $cardId, 'nl', ['title' => 'Handmatig weg']);
+
+        // What an Adminer delete or a restored backup does: the content row
+        // goes, nothing else runs.
+        Database::connection()->prepare('DELETE FROM contact_cards WHERE id = ?')->execute([$cardId]);
+
+        self::assertContains(
+            ['owner_table' => 'contact_cards', 'owner_id' => $cardId, 'rows' => 1],
+            BlockLocalization::orphans()['missing_owner']
+        );
+
+        BlockLocalization::purgeOrphans();
+
+        self::assertSame(0, $this->wordsOf('contact_cards', $cardId));
+    }
+
+    /**
+     * @return array{0: int, 1: array<string, mixed>} the content row id and the page_sections row
+     */
+    private function attach(string $type): array
+    {
+        [$sectionId, $sectionKey] = SectionRegistry::create($type, self::KEY);
+        $id = $this->sections->create($this->pageId, self::KEY, $type, $sectionKey, $sectionId);
+
+        return [$sectionId, $this->sections->findById($id)];
+    }
+
+    private function wordsOf(string $table, int $id): int
+    {
+        return count((new BlockTranslationRepository())->findForOwners([$table => [$id]])[$table][$id] ?? []);
+    }
+
+    private function removePage(): void
+    {
+        $page = (new PageRepository())->findByContentKey(self::KEY);
+
+        if ($page !== null) {
+            foreach ($this->sections->findForPage((int) $page['id']) as $section) {
+                $definition = \App\Service\Blocks\BlockDefinitions::get((string) $section['section_type']);
+                if ($definition?->contentTable() !== null) {
+                    BlockLocalization::deleteOwner((string) $definition->contentTable(), (int) $section['section_id']);
+                }
+            }
+            PageService::delete($page);
+        }
+
+        $db = Database::connection();
+        foreach (['rich_text_sections', 'contact_cards'] as $table) {
+            $db->prepare("DELETE t FROM block_translations t JOIN `{$table}` o ON o.id = t.owner_id WHERE t.owner_table = ? AND o.page_slug = ?")
+                ->execute([$table, self::KEY]);
+            $db->prepare("DELETE FROM `{$table}` WHERE page_slug = ?")->execute([self::KEY]);
+        }
+    }
+}

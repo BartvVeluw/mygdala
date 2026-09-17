@@ -1109,6 +1109,81 @@ final class MultilingualBoundaryTest extends TestCase
         }
     }
 
+    // ------------------------------- Blocks on per-language storage (phase 3)
+
+    public function testOnlyItsRepositoryQueriesBlockTranslations(): void
+    {
+        // BlockLocalization owns the closed list of owner tables and fields,
+        // the fallback, the language check and the orphan guard; SQL anywhere
+        // else would walk past all four.
+        $statement = '/\b(?:FROM|INTO|UPDATE|JOIN|TABLE)\s+`?block_translations\b/i';
+        $offenders = [];
+
+        foreach (self::applicationSources() as $relative => $file) {
+            if ($relative === 'src/Repository/BlockTranslationRepository.php') {
+                continue;
+            }
+
+            if (preg_match($statement, (string) file_get_contents($file)) === 1) {
+                $offenders[] = $relative;
+            }
+        }
+
+        self::assertSame([], $offenders);
+    }
+
+    public function testOnlyTheBlockLocalizationApiUsesThatRepository(): void
+    {
+        $offenders = [];
+
+        foreach (self::applicationSources() as $relative => $file) {
+            if (in_array($relative, ['src/Repository/BlockTranslationRepository.php', 'src/Service/Blocks/BlockLocalization.php'], true)) {
+                continue;
+            }
+
+            if (str_contains((string) file_get_contents($file), 'BlockTranslationRepository')) {
+                $offenders[] = $relative;
+            }
+        }
+
+        self::assertSame([], $offenders, 'block content classes, partials and endpoints reach block words through App\Service\Blocks\BlockLocalization');
+    }
+
+    public function testDeletingABlockTakesItsWordsInsideTheSameTransaction(): void
+    {
+        // owner_id cannot be a foreign key, so this line in the one delete
+        // path every block goes through is the integrity guard.
+        $registry = self::withoutComments(self::read('src/Service/SectionRegistry.php'));
+
+        self::assertMatchesRegularExpression(
+            '/beginTransaction\(\);\s*try\s*\{.*?->deleteContent\(\$pageSection\);.*?BlockLocalization::deleteOwner\(\$contentTable,.*?\$db->commit\(\);/s',
+            $registry
+        );
+    }
+
+    public function testAPageLoadsTheWordsOfAllItsBlocksAtOnce(): void
+    {
+        $registry = self::withoutComments(self::read('src/Service/SectionRegistry.php'));
+
+        self::assertMatchesRegularExpression(
+            '/function renderPage\(.*?BlockLocalization::preloadSections\(\$sections\);\s*foreach \(\$sections as \$pageSection\)/s',
+            $registry,
+            'one query for the words of every block on a page, before the first block renders'
+        );
+    }
+
+    public function testTheBlockLocalizationApiKnowsNoLanguageByName(): void
+    {
+        foreach (['src/Service/Blocks/BlockLocalization.php', 'src/Service/Blocks/TranslatableField.php', 'src/Repository/BlockTranslationRepository.php'] as $file) {
+            $code = self::withoutComments(self::read($file));
+
+            preg_match_all(self::QUOTED_CODE, $code, $quoted);
+            self::assertSame([], $quoted[0], $file . ': no quoted language code');
+            self::assertSame(0, preg_match(self::LANGUAGE_NAME, $code), $file . ': no language name');
+            self::assertDoesNotMatchRegularExpression('/_(?:nl|en)\b/', $code, $file . ': no fixed language suffix');
+        }
+    }
+
     public function testTheLocalizedFieldsComponentKnowsNoLanguageByName(): void
     {
         // The Admin primitive of phase 2: the languages are rows of

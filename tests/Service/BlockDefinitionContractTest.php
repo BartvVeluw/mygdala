@@ -7,6 +7,7 @@ namespace Tests\Service;
 use App\Service\Blocks\BlockDefinition;
 use App\Service\Blocks\BlockDefinitions;
 use App\Service\Blocks\FixedBlockDefinition;
+use App\Service\Blocks\TranslatableField;
 use App\Service\SectionRegistry;
 use PHPUnit\Framework\TestCase;
 
@@ -345,5 +346,62 @@ final class BlockDefinitionContractTest extends TestCase
             '/src/Service/Blocks/' . $class->getShortName() . '.php',
             str_replace('\\', '/', (string) $class->getFileName())
         );
+    }
+
+    /**
+     * translatableFields() is the one list of a block's words per language
+     * (Multilingual 2.0, docs/multilingual/ARCHITECTURE.md). Its keys become
+     * `block_translations.owner_table`, so they may only name the block's own
+     * content table: a block that declared somebody else's table could write
+     * words onto rows it does not own. Phase 3B widens this to the block's
+     * own child tables, declared as such.
+     *
+     * @dataProvider registeredTypes
+     */
+    public function testTranslatableFieldsBelongToTheBlocksOwnTable(string $type): void
+    {
+        $definition = BlockDefinitions::get($type);
+        $declared = $definition->translatableFields();
+
+        if ($declared === []) {
+            $this->assertTrue(true, "{$type} keeps its words in its own columns until it is converted");
+
+            return;
+        }
+
+        $this->assertNotNull($definition->contentTable(), "{$type} declares translatable fields but owns no content table");
+        $this->assertSame([$definition->contentTable()], array_keys($declared), "{$type} may only declare fields for its own content table");
+
+        foreach ($declared as $fields) {
+            $this->assertNotSame([], $fields);
+            $keys = [];
+
+            foreach ($fields as $field) {
+                $this->assertInstanceOf(TranslatableField::class, $field);
+                $keys[] = $field->key;
+            }
+
+            $this->assertSame(array_values(array_unique($keys)), $keys, "{$type} declares a field twice");
+        }
+    }
+
+    public function testBlocksThatShareATableDeclareTheSameFields(): void
+    {
+        $byTable = [];
+
+        foreach (BlockDefinitions::all() as $type => $definition) {
+            $this->assertIsArray($definition->translatableFields(), $type);
+
+            foreach ($definition->translatableFields() as $table => $fields) {
+                $byTable[$table][$type] = array_map(
+                    static fn (TranslatableField $field): array => [$field->key, $field->kind, $field->maxLength, $field->required],
+                    $fields
+                );
+            }
+        }
+
+        foreach ($byTable as $table => $declarations) {
+            $this->assertCount(1, array_unique(array_map('serialize', $declarations)), "the blocks sharing {$table} disagree about its words");
+        }
     }
 }

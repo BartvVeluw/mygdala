@@ -93,6 +93,7 @@ final class BlockDefinitions
     {
         self::$map = null;
         self::$instances = [];
+        BlockLocalization::forgetRegistry();
     }
 
     public static function has(string $type): bool

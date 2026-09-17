@@ -38,6 +38,8 @@
             <file>tests/Service/LanguageCodeTest.php</file>
             <file>tests/Service/SiteLanguagesTest.php</file>
             <file>tests/Service/PageLocalizationTest.php</file>
+            <file>tests/Service/TranslatableFieldTest.php</file>
+            <file>tests/Service/BlockLocalizationTest.php</file>
             <file>tests/Install/SetupWizardValidationTest.php</file>
             <file>tests/Mail/EmailPlaceholdersTest.php</file>
             <file>tests/Mail/OrderConfirmationBuilderTest.php</file>
@@ -151,6 +153,8 @@
             <file>tests/Service/LanguageCodeTest.php</file>
             <file>tests/Service/SiteLanguagesTest.php</file>
             <file>tests/Service/PageLocalizationTest.php</file>
+            <file>tests/Service/TranslatableFieldTest.php</file>
+            <file>tests/Service/BlockLocalizationTest.php</file>
             <file>tests/Service/MultilingualBoundaryTest.php</file>
             <file>tests/Architecture/ContextSetupTest.php</file>
             <file>tests/Architecture/TestSuiteCoverageTest.php</file>
@@ -296,6 +300,7 @@
             <file>tests/Install/FooterSocialLinkMigrationTest.php</file>
             <file>tests/Install/SiteLanguageRegistryMigrationTest.php</file>
             <file>tests/Install/PageTranslationMigrationTest.php</file>
+            <file>tests/Install/BlockTranslationSchemaTest.php</file>
             <file>tests/Install/PortfolioCatalogueSchemaTest.php</file>
             <file>tests/Install/PortfolioModulePinTest.php</file>
             <file>tests/Install/PortfolioPageLinkMigrationTest.php</file>
@@ -329,6 +334,8 @@
         <testsuite name="blocks">
             <file>tests/Repository/PageSectionRepositoryTest.php</file>
             <file>tests/Service/BlockDefinitionContractTest.php</file>
+            <file>tests/Service/BlockLocalizationTest.php</file>
+            <file>tests/Install/BlockTranslationSchemaTest.php</file>
             <file>tests/Service/BlockLibraryScreenTest.php</file>
             <file>tests/Service/BlockPickerTest.php</file>
             <file>tests/Service/BlockPreviewAccessTest.php</file>
@@ -336,6 +343,8 @@
             <file>tests/Service/BlockSampleContractTest.php</file>
             <file>tests/Service/BlockPresentationTest.php</file>
             <file>tests/Service/BreadcrumbTest.php</file>
+            <file>tests/Repository/BlockTranslationRepositoryTest.php</file>
+            <file>tests/Service/BlockTranslationIntegrityTest.php</file>
             <file>tests/Service/ContentBlockArchitectureTest.php</file>
             <file>tests/Service/FormRenderingTest.php</file>
             <file>tests/Service/FrontendAssetOwnershipTest.php</file>
@@ -361,6 +370,7 @@
             <file>tests/Service/ReusableBlocksPhase3Test.php</file>
             <file>tests/Service/ReusableBlocksPhase4Test.php</file>
             <file>tests/Service/SectionRegistryTest.php</file>
+            <file>tests/Service/TranslatableFieldTest.php</file>
             <file>tests/Service/UnknownContentBlockTest.php</file>
         </testsuite>
 

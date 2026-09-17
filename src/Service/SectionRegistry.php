@@ -6,6 +6,7 @@ use App\Repository\PageSectionRepository;
 use App\Service\Blocks\BlockCategories;
 use App\Service\Blocks\BlockDefinition;
 use App\Service\Blocks\BlockDefinitions;
+use App\Service\Blocks\BlockLocalization;
 use App\Service\Language\AdminTranslator;
 
 /**
@@ -401,6 +402,15 @@ class SectionRegistry
         try {
             $definition->deleteContent($pageSection);
 
+            // The block's words in every website language go in the same
+            // transaction, for every block with a content table: there is no
+            // foreign key that could cascade them (see BlockLocalization), so
+            // this line is what keeps block_translations free of orphans.
+            $contentTable = $definition->contentTable();
+            if ($contentTable !== null) {
+                BlockLocalization::deleteOwner($contentTable, (int) ($pageSection['section_id'] ?? 0));
+            }
+
             $pageSectionRepository->delete((int) $pageSection['id']);
 
             $db->commit();
@@ -446,8 +456,13 @@ class SectionRegistry
     public static function renderPage(string $pageContentKey): void
     {
         $previous = null;
+        $sections = self::visibleSections($pageContentKey);
 
-        foreach (self::visibleSections($pageContentKey) as $pageSection) {
+        // The words of every block on the page, in every language, in one
+        // query rather than one per block (BlockLocalization).
+        BlockLocalization::preloadSections($sections);
+
+        foreach ($sections as $pageSection) {
             $definition = self::renderableDefinition($pageSection, $pageContentKey);
 
             // An unregistered type is skipped, not fatal — see

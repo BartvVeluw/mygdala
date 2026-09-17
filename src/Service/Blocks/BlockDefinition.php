@@ -250,6 +250,36 @@ abstract class BlockDefinition
     abstract public function contentTable(): ?string;
 
     /**
+     * The fields of this block whose words are stored per website language
+     * in `block_translations` (Multilingual 2.0, docs/multilingual/ARCHITECTURE.md),
+     * keyed by the table whose rows own them — contentTable(), and in phase
+     * 3B also a child table:
+     *
+     *     return ['cta_bands' => [
+     *         TranslatableField::plain('title', 255)->required(),
+     *         TranslatableField::plain('lead', 500),
+     *     ]];
+     *
+     * This declaration is the only list of those fields. App\Service\Blocks\
+     * BlockLocalization refuses any other table or key, validates length and
+     * "required in the default language" from it, and sanitizes a rich field
+     * because it is declared rich. Everything else about the block (URLs,
+     * switches, media, layout) is language-neutral and stays in its own table.
+     *
+     * Not abstract YET, and on purpose: until phase 3B converts them, most
+     * blocks still keep their words in fixed `_nl`/`_en` columns, and an empty
+     * declaration here would claim otherwise. [] means "not on
+     * block_translations". BlockTranslationSchemaTest fails when a block
+     * declares fields while its table still has `_nl`/`_en` columns.
+     *
+     * @return array<string, list<TranslatableField>> owner table => fields
+     */
+    public function translatableFields(): array
+    {
+        return [];
+    }
+
+    /**
      * Uploaded files belonging to this instance, deleted BEFORE the
      * transaction that removes the rows pointing at them, because the
      * filesystem is not transactional: a failed unlink must never leave a
