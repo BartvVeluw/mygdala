@@ -5,13 +5,13 @@ declare(strict_types=1);
 require_once __DIR__ . '/../vendor/autoload.php';
 require_once __DIR__ . '/_translate.php';
 require_once __DIR__ . '/_save_bar.php';
-require_once __DIR__ . '/_language_fields.php';
+require_once __DIR__ . '/_localized_fields.php';
 require __DIR__ . '/_richtext_field.php';
 require_once __DIR__ . '/_media_picker.php';
 
 use App\Service\AdminAuth;
+use App\Service\Blocks\BlockLocalization;
 use App\Service\Csrf;
-use App\Service\DetailSectionContent;
 use App\Service\Media\MediaService;
 use App\Service\SectionRegistry;
 use App\Repository\DetailSectionRepository;
@@ -27,6 +27,22 @@ use App\Repository\PageRepository;
  * This screen replaced admin/service-detail.php, which was reachable only
  * through four hardcoded material keys and therefore could never edit a
  * fifth section or the same section on another page.
+ *
+ * ONE WEBSITE LANGUAGE AT A TIME (Multilingual 2.0, admin/_localized_fields.php):
+ * the section's words, the main image's alt text, every point and every
+ * gallery image's alt text show the language chosen in the CMS shell, as
+ * stored and without the default language's words in an empty translation,
+ * and are required only in the default language; each save writes that
+ * language only, for the section, its main image, or that one point or
+ * image. The anchor, the image position, the CTA URL, the media and
+ * visibility are the same in every language and stay on screen in each. The
+ * main image's alt text stays next to the image it describes, in the image
+ * form. A point or an image keeps its id however often it is saved or moved,
+ * so the words of the other languages stay with it; a NEW point or image is
+ * written in the default language, like a new page, and translated
+ * afterwards on its own card. Input a refused section save hands back comes
+ * back in the language it was typed in, and that form then starts out
+ * unsaved in the save bar.
  */
 
 AdminAuth::requireLogin();
@@ -69,28 +85,29 @@ unset($_SESSION['admin_detail_section_image_errors']);
 
 $saved = isset($_GET['saved']);
 
-if ($old !== null) {
-    $values = $old;
-} else {
-    $values = [
-        'anchor' => (string) ($section['anchor'] ?? ''),
-        'nav_label_nl' => (string) ($section['nav_label_nl'] ?? ''),
-        'nav_label_en' => (string) ($section['nav_label_en'] ?? ''),
-        'title_nl' => (string) $section['title_nl'],
-        'title_en' => (string) ($section['title_en'] ?? ''),
-        'lead_nl' => (string) ($section['lead_nl'] ?? ''),
-        'lead_en' => (string) ($section['lead_en'] ?? ''),
-        'content_html' => (string) ($section['content_html'] ?? ''),
-        'content_html_en' => (string) ($section['content_html_en'] ?? ''),
-        'image_position' => (string) ($section['image_position'] ?? 'image_right'),
-        'closing_note_nl' => (string) ($section['closing_note_nl'] ?? ''),
-        'closing_note_en' => (string) ($section['closing_note_en'] ?? ''),
-        'cta_label_nl' => (string) ($section['cta_label_nl'] ?? ''),
-        'cta_label_en' => (string) ($section['cta_label_en'] ?? ''),
-        'cta_url' => (string) ($section['cta_url'] ?? ''),
-        'is_active' => (bool) $section['is_active'],
-    ];
-}
+$editLanguage = admin_localized_language();
+$defaultLanguage = admin_localized_default();
+
+// The words of the section, of every point and of every gallery image, in
+// one query.
+BlockLocalization::preloadBlocks(['detail_sections' => [$sectionId]]);
+
+$oldInThisLanguage = is_array($old) && ($old['language_code'] ?? null) === $editLanguage;
+
+/** The section's words on screen: typed and handed back in this language, else stored in it. */
+$word = static function (string $field) use ($old, $oldInThisLanguage, $sectionId, $editLanguage): string {
+    if ($oldInThisLanguage) {
+        return (string) ($old[$field] ?? '');
+    }
+
+    return BlockLocalization::raw('detail_sections', $sectionId, $field, $editLanguage);
+};
+
+/** A language-neutral value of the section form: handed back, else stored. */
+$setting = static fn (string $key): string => is_array($old) ? (string) ($old[$key] ?? '') : (string) ($section[$key] ?? '');
+
+$imagePosition = is_array($old) ? (string) ($old['image_position'] ?? 'image_right') : (string) ($section['image_position'] ?? 'image_right');
+$isActive = is_array($old) ? !empty($old['is_active']) : (bool) $section['is_active'];
 
 // "Does this section have a main image at all" — true for a Media Library
 // reference and for a legacy path that predates it, which is what decides
@@ -100,14 +117,15 @@ $hasMainImage = (int) ($section['main_media_id'] ?? 0) > 0 || $mainImagePath !==
 
 $csrfToken = Csrf::token();
 $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
-
-/**
- * @param array<string, mixed> $values
- */
-function detailValue(array $values, string $key): string
-{
-    return htmlspecialchars((string) ($values[$key] ?? ''), ENT_QUOTES, 'UTF-8');
-}
+$required = admin_localized_required($editLanguage);
+$marker = $required !== '' ? '*' : '';
+$placeholder = admin_localized_placeholder_attr($editLanguage);
+// An optional field says so in the default language; in a translation its
+// placeholder says what a visitor sees while it is empty.
+$optional = $placeholder !== '' ? $placeholder : ' placeholder="Optioneel"';
+// An empty alt text falls back to the Media Library's in the default
+// language, and to the default language's in a translation.
+$altPlaceholder = $placeholder !== '' ? $placeholder : ' placeholder="Leeg = alt-tekst uit de mediabibliotheek"';
 
 /**
  * @param list<string> $errors
@@ -157,106 +175,67 @@ function detailErrorList(array $errors): void
 
   <section class="admin-card">
     <h2><?= admin_te('block_detail.algemene_inhoud') ?></h2>
-    <form method="post" action="/api/admin/update-detail-section.php" class="admin-product-form">
+    <form method="post" action="/api/admin/update-detail-section.php" class="admin-product-form"<?= is_array($old) ? ' data-save-bar-unsaved' : '' ?>>
       <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
       <input type="hidden" name="section" value="<?= $h($sectionParam) ?>">
+      <?= admin_localized_input($editLanguage) ?>
 
-      <?php admin_lang_bar(); ?>
-      <div class="admin-form-row admin-form-row--split">
-        <?php admin_lang_pane_start('nl'); ?>
-        <label><?= admin_te('block_detail.titel_h2') ?>*
-          <input type="text" name="title_nl" maxlength="255" value="<?= detailValue($values, 'title_nl') ?>" <?= admin_lang_required('nl') ?>>
+      <?php admin_localized_bar($editLanguage); ?>
+      <div class="admin-form-row">
+        <label><?= admin_te('block_detail.titel_h2') ?><?= $marker ?>
+          <input type="text" name="title" maxlength="255"<?= $required ?> value="<?= $h($word('title')) ?>"<?= $placeholder ?>>
         </label>
-        <?php admin_lang_pane_end(); ?>
-        <?php admin_lang_pane_start('en'); ?>
-        <label><?= admin_te('block_detail.titel_h2_2') ?>
-          <input type="text" name="title_en" maxlength="255" value="<?= detailValue($values, 'title_en') ?>"<?= admin_lang_placeholder_attr('en') ?>>
-        </label>
-        <?php admin_lang_pane_end(); ?>
       </div>
 
-      <div class="admin-form-row admin-form-row--split">
-        <?php admin_lang_pane_start('nl'); ?>
+      <div class="admin-form-row">
         <label><?= admin_te('block_detail.lead') ?>
-          <textarea name="lead_nl" maxlength="500" rows="2" placeholder="Optioneel"><?= detailValue($values, 'lead_nl') ?></textarea>
+          <textarea name="lead" maxlength="500" rows="2"<?= $optional ?>><?= $h($word('lead')) ?></textarea>
         </label>
-        <?php admin_lang_pane_end(); ?>
-        <?php admin_lang_pane_start('en'); ?>
-        <label><?= admin_te('block_detail.lead_2') ?>
-          <textarea name="lead_en" maxlength="500" rows="2"<?= admin_lang_placeholder_attr('en') ?>><?= detailValue($values, 'lead_en') ?></textarea>
-        </label>
-        <?php admin_lang_pane_end(); ?>
       </div>
 
-      <?php admin_lang_pane_start('nl'); ?>
-        <?php renderRichTextField('content_html', 'Tekst', (string) ($values['content_html'] ?? ''), 'full', 'admin-richtext-editor--lg'); ?>
-      <?php admin_lang_pane_end(); ?>
-      <?php admin_lang_pane_start('en'); ?>
-        <?php renderRichTextField('content_html_en', 'Tekst', (string) ($values['content_html_en'] ?? ''), 'full', 'admin-richtext-editor--lg'); ?>
-      <?php admin_lang_pane_end(); ?>
+      <?php renderRichTextField('body', 'Tekst', $word('body'), 'full', 'admin-richtext-editor--lg'); ?>
 
       <div class="admin-form-row admin-form-row--split">
         <label><?= admin_te('block_detail.anker_url_id') ?>
-          <input type="text" name="anchor" maxlength="100" value="<?= detailValue($values, 'anchor') ?>" placeholder="Bijv. hout — leeg = geen anker">
+          <input type="text" name="anchor" maxlength="100" value="<?= $h($setting('anchor')) ?>" placeholder="Bijv. hout — leeg = geen anker">
         </label>
         <label><?= admin_te('block_detail.beeldpositie') ?>
           <select name="image_position">
-            <option value="image_right" <?= ($values['image_position'] ?? 'image_right') === 'image_right' ? 'selected' : '' ?>><?= admin_te('block_detail.afbeelding_rechts') ?></option>
-            <option value="image_left" <?= ($values['image_position'] ?? '') === 'image_left' ? 'selected' : '' ?>><?= admin_te('block_detail.afbeelding_links') ?></option>
+            <option value="image_right" <?= $imagePosition === 'image_right' ? 'selected' : '' ?>><?= admin_te('block_detail.afbeelding_rechts') ?></option>
+            <option value="image_left" <?= $imagePosition === 'image_left' ? 'selected' : '' ?>><?= admin_te('block_detail.afbeelding_links') ?></option>
           </select>
         </label>
       </div>
       <p class="admin-text-muted"><?= admin_t('block_detail.sectie_anker_bereikbaar_via') ?></p>
 
-      <div class="admin-form-row admin-form-row--split">
-        <?php admin_lang_pane_start('nl'); ?>
+      <div class="admin-form-row">
         <label><?= admin_te('block_detail.navigatielabel') ?>
-          <input type="text" name="nav_label_nl" maxlength="100" value="<?= detailValue($values, 'nav_label_nl') ?>" placeholder="Leeg = de titel hierboven">
+          <input type="text" name="nav_label" maxlength="100" value="<?= $h($word('nav_label')) ?>" placeholder="Leeg = de titel hierboven">
         </label>
-        <?php admin_lang_pane_end(); ?>
-        <?php admin_lang_pane_start('en'); ?>
-        <label><?= admin_te('block_detail.navigatielabel_2') ?>
-          <input type="text" name="nav_label_en" maxlength="100" value="<?= detailValue($values, 'nav_label_en') ?>"<?= admin_lang_placeholder_attr('en') ?>>
-        </label>
-        <?php admin_lang_pane_end(); ?>
       </div>
       <p class="admin-text-muted"><?= admin_te('block_detail.korte_tekst_snelnavigatie_meestal') ?></p>
 
-      <div class="admin-form-row admin-form-row--split">
-        <?php admin_lang_pane_start('nl'); ?>
+      <div class="admin-form-row">
         <label><?= admin_te('block_detail.slotnotitie') ?>
-          <textarea name="closing_note_nl" maxlength="1000" rows="2" placeholder="Optioneel"><?= detailValue($values, 'closing_note_nl') ?></textarea>
+          <textarea name="closing_note" maxlength="1000" rows="2"<?= $optional ?>><?= $h($word('closing_note')) ?></textarea>
         </label>
-        <?php admin_lang_pane_end(); ?>
-        <?php admin_lang_pane_start('en'); ?>
-        <label><?= admin_te('block_detail.slotnotitie_2') ?>
-          <textarea name="closing_note_en" maxlength="1000" rows="2"<?= admin_lang_placeholder_attr('en') ?>><?= detailValue($values, 'closing_note_en') ?></textarea>
-        </label>
-        <?php admin_lang_pane_end(); ?>
       </div>
       <p class="admin-text-muted"><?= admin_te('block_detail.optionele_extra_tekst_onderaan') ?></p>
 
-      <div class="admin-form-row admin-form-row--split">
-        <?php admin_lang_pane_start('nl'); ?>
+      <div class="admin-form-row">
         <label><?= admin_te('block_detail.cta_knoptekst') ?>
-          <input type="text" name="cta_label_nl" maxlength="150" value="<?= detailValue($values, 'cta_label_nl') ?>" placeholder="Optioneel">
+          <input type="text" name="cta_label" maxlength="150" value="<?= $h($word('cta_label')) ?>"<?= $optional ?>>
         </label>
-        <?php admin_lang_pane_end(); ?>
-        <?php admin_lang_pane_start('en'); ?>
-        <label><?= admin_te('block_detail.cta_knoptekst_2') ?>
-          <input type="text" name="cta_label_en" maxlength="150" value="<?= detailValue($values, 'cta_label_en') ?>"<?= admin_lang_placeholder_attr('en') ?>>
-        </label>
-        <?php admin_lang_pane_end(); ?>
       </div>
       <div class="admin-form-row">
         <label><?= admin_te('block_detail.cta_knop_url') ?>
-          <input type="text" name="cta_url" maxlength="255" value="<?= detailValue($values, 'cta_url') ?>" placeholder="Bijv. contact.php — leeg = geen knop">
+          <input type="text" name="cta_url" maxlength="255" value="<?= $h($setting('cta_url')) ?>" placeholder="Bijv. contact.php — leeg = geen knop">
         </label>
       </div>
       <p class="admin-text-muted"><?= admin_te('block_detail.knoptekst_url_horen_elkaar') ?></p>
 
       <label class="admin-checkbox-label">
-        <input type="checkbox" name="is_active" value="1" <?= ($values['is_active'] ?? true) ? 'checked' : '' ?>>
+        <input type="checkbox" name="is_active" value="1" <?= $isActive ? 'checked' : '' ?>>
         <?= admin_te('block_detail.actief_uitgevinkt_hele_sectie') ?>
       </label>
 
@@ -271,23 +250,17 @@ function detailErrorList(array $errors): void
     <form method="post" action="/api/admin/update-detail-section-main-image.php" class="admin-product-form" style="margin-top:0.75rem;">
       <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
       <input type="hidden" name="section" value="<?= $h($sectionParam) ?>">
+      <?= admin_localized_input($editLanguage) ?>
 
       <div class="admin-form-row">
         <?php media_picker_field('media_id', MediaService::find((int) ($section['main_media_id'] ?? 0)), 'Hoofdafbeelding', 'Kies er een uit de mediabibliotheek, of upload een nieuwe in het venster dat opent.', false); ?>
       </div>
 
-      <?php admin_lang_bar(); ?>
-      <div class="admin-form-row admin-form-row--split">
-        <?php admin_lang_pane_start('nl'); ?>
+      <?php admin_localized_bar($editLanguage); ?>
+      <div class="admin-form-row">
         <label><?= admin_te('common.alt_text') ?>
-          <input type="text" name="main_image_alt_nl" maxlength="255" value="<?= $h((string) ($section['main_image_alt_nl'] ?? '')) ?>" placeholder="Leeg = alt-tekst uit de mediabibliotheek">
+          <input type="text" name="main_image_alt" maxlength="255" value="<?= $h(BlockLocalization::raw('detail_sections', $sectionId, 'main_image_alt', $editLanguage)) ?>"<?= $altPlaceholder ?>>
         </label>
-        <?php admin_lang_pane_end(); ?>
-        <?php admin_lang_pane_start('en'); ?>
-        <label><?= admin_te('common.alt_text') ?>
-          <input type="text" name="main_image_alt_en" maxlength="255" value="<?= $h((string) ($section['main_image_alt_en'] ?? '')) ?>"<?= admin_lang_placeholder_attr('en') ?>>
-        </label>
-        <?php admin_lang_pane_end(); ?>
       </div>
 
       <button type="submit"><?= admin_te('common.save') ?></button>
@@ -316,37 +289,25 @@ function detailErrorList(array $errors): void
         $pointId = (int) $point['id'];
         $isFirst = $index === 0;
         $isLast = $index === count($points) - 1;
+        $pointWord = static fn (string $field): string => BlockLocalization::raw('detail_section_points', $pointId, $field, $editLanguage);
       ?>
       <article class="admin-card" style="margin-top:1rem;">
         <form method="post" action="/api/admin/update-detail-section-point.php" class="admin-product-form">
           <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
           <input type="hidden" name="point_id" value="<?= $pointId ?>">
+          <?= admin_localized_input($editLanguage) ?>
 
-          <?php admin_lang_bar(); ?>
-          <div class="admin-form-row admin-form-row--split">
-            <?php admin_lang_pane_start('nl'); ?>
-            <label><?= admin_te('common.title') ?>*
-              <input type="text" name="title_nl" maxlength="255" value="<?= $h((string) $point['title_nl']) ?>" <?= admin_lang_required('nl') ?>>
+          <?php admin_localized_bar($editLanguage); ?>
+          <div class="admin-form-row">
+            <label><?= admin_te('common.title') ?><?= $marker ?>
+              <input type="text" name="title" maxlength="255"<?= $required ?> value="<?= $h($pointWord('title')) ?>"<?= $placeholder ?>>
             </label>
-            <?php admin_lang_pane_end(); ?>
-            <?php admin_lang_pane_start('en'); ?>
-            <label><?= admin_te('common.title') ?>
-              <input type="text" name="title_en" maxlength="255" value="<?= $h((string) ($point['title_en'] ?? '')) ?>"<?= admin_lang_placeholder_attr('en') ?>>
-            </label>
-            <?php admin_lang_pane_end(); ?>
           </div>
 
-          <div class="admin-form-row admin-form-row--split">
-            <?php admin_lang_pane_start('nl'); ?>
-            <label><?= admin_te('block_detail.tekst') ?>*
-              <textarea name="body_nl" maxlength="500" rows="2" <?= admin_lang_required('nl') ?>><?= $h((string) $point['body_nl']) ?></textarea>
+          <div class="admin-form-row">
+            <label><?= admin_te('block_detail.tekst') ?><?= $marker ?>
+              <textarea name="body" maxlength="500" rows="2"<?= $required ?><?= $placeholder ?>><?= $h($pointWord('body')) ?></textarea>
             </label>
-            <?php admin_lang_pane_end(); ?>
-            <?php admin_lang_pane_start('en'); ?>
-            <label><?= admin_te('block_detail.tekst_2') ?>
-              <textarea name="body_en" maxlength="500" rows="2"<?= admin_lang_placeholder_attr('en') ?>><?= $h((string) ($point['body_en'] ?? '')) ?></textarea>
-            </label>
-            <?php admin_lang_pane_end(); ?>
           </div>
 
           <label class="admin-checkbox-label">
@@ -386,31 +347,18 @@ function detailErrorList(array $errors): void
       <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
       <input type="hidden" name="section_id" value="<?= $sectionId ?>">
 
-      <?php admin_lang_bar(); ?>
-      <div class="admin-form-row admin-form-row--split">
-        <?php admin_lang_pane_start('nl'); ?>
+      <?php admin_localized_bar($defaultLanguage); ?>
+      <?php admin_localized_new_item_note($editLanguage); ?>
+      <div class="admin-form-row">
         <label><?= admin_te('common.title') ?>*
-          <input type="text" name="title_nl" maxlength="255" <?= admin_lang_required('nl') ?>>
+          <input type="text" name="title" maxlength="255" required>
         </label>
-        <?php admin_lang_pane_end(); ?>
-        <?php admin_lang_pane_start('en'); ?>
-        <label><?= admin_te('common.title') ?>
-          <input type="text" name="title_en" maxlength="255"<?= admin_lang_placeholder_attr('en') ?>>
-        </label>
-        <?php admin_lang_pane_end(); ?>
       </div>
 
-      <div class="admin-form-row admin-form-row--split">
-        <?php admin_lang_pane_start('nl'); ?>
+      <div class="admin-form-row">
         <label><?= admin_te('block_detail.tekst_3') ?>*
-          <textarea name="body_nl" maxlength="500" rows="2" <?= admin_lang_required('nl') ?>></textarea>
+          <textarea name="body" maxlength="500" rows="2" required></textarea>
         </label>
-        <?php admin_lang_pane_end(); ?>
-        <?php admin_lang_pane_start('en'); ?>
-        <label><?= admin_te('block_detail.tekst_4') ?>
-          <textarea name="body_en" maxlength="500" rows="2"<?= admin_lang_placeholder_attr('en') ?>></textarea>
-        </label>
-        <?php admin_lang_pane_end(); ?>
       </div>
 
       <button type="submit"><?= admin_te('block_detail.kenmerk_toevoegen') ?></button>
@@ -435,23 +383,17 @@ function detailErrorList(array $errors): void
         <form method="post" action="/api/admin/update-detail-section-image.php" class="admin-product-form">
           <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
           <input type="hidden" name="image_id" value="<?= $imageId ?>">
+          <?= admin_localized_input($editLanguage) ?>
 
           <div class="admin-form-row">
             <?php media_picker_field('media_id', MediaService::find((int) ($image['media_id'] ?? 0)), 'Afbeelding', '', false); ?>
           </div>
 
-          <?php admin_lang_bar(); ?>
-          <div class="admin-form-row admin-form-row--split">
-            <?php admin_lang_pane_start('nl'); ?>
+          <?php admin_localized_bar($editLanguage); ?>
+          <div class="admin-form-row">
             <label><?= admin_te('common.alt_text') ?>
-              <input type="text" name="alt_nl" maxlength="255" value="<?= $h((string) ($image['alt_nl'] ?? '')) ?>" placeholder="Leeg = alt-tekst uit de mediabibliotheek">
+              <input type="text" name="alt" maxlength="255" value="<?= $h(BlockLocalization::raw('detail_section_images', $imageId, 'alt', $editLanguage)) ?>"<?= $altPlaceholder ?>>
             </label>
-            <?php admin_lang_pane_end(); ?>
-            <?php admin_lang_pane_start('en'); ?>
-            <label><?= admin_te('common.alt_text') ?>
-              <input type="text" name="alt_en" maxlength="255" value="<?= $h((string) ($image['alt_en'] ?? '')) ?>"<?= admin_lang_placeholder_attr('en') ?>>
-            </label>
-            <?php admin_lang_pane_end(); ?>
           </div>
 
           <button type="submit"><?= admin_te('common.save') ?></button>
@@ -490,18 +432,12 @@ function detailErrorList(array $errors): void
         <?php media_picker_field('media_id', null, 'Afbeelding*', 'Kies er een uit de bibliotheek, of upload een nieuwe in het venster dat opent.', false); ?>
       </div>
 
-      <?php admin_lang_bar(); ?>
-      <div class="admin-form-row admin-form-row--split">
-        <?php admin_lang_pane_start('nl'); ?>
+      <?php admin_localized_bar($defaultLanguage); ?>
+      <?php admin_localized_new_item_note($editLanguage); ?>
+      <div class="admin-form-row">
         <label><?= admin_te('common.alt_text') ?>
-          <input type="text" name="alt_nl" maxlength="255" placeholder="Leeg = alt-tekst uit de mediabibliotheek">
+          <input type="text" name="alt" maxlength="255" placeholder="Leeg = alt-tekst uit de mediabibliotheek">
         </label>
-        <?php admin_lang_pane_end(); ?>
-        <?php admin_lang_pane_start('en'); ?>
-        <label><?= admin_te('common.alt_text') ?>
-          <input type="text" name="alt_en" maxlength="255"<?= admin_lang_placeholder_attr('en') ?>>
-        </label>
-        <?php admin_lang_pane_end(); ?>
       </div>
 
       <button type="submit"><?= admin_te('block_detail.afbeelding_toevoegen') ?></button>
@@ -512,6 +448,5 @@ function detailErrorList(array $errors): void
 <?php media_picker_modal(); ?>
 <?php media_picker_script(); ?>
 <?php save_bar_script(); ?>
-<?php admin_lang_script(); ?>
 </body>
 </html>

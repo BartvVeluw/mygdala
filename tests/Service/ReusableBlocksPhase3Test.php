@@ -9,6 +9,7 @@ use App\Repository\CardCarouselRepository;
 use App\Repository\DetailSectionRepository;
 use App\Repository\PageRepository;
 use App\Repository\PageSectionRepository;
+use App\Service\Blocks\BlockLocalization;
 use App\Service\CardCarouselContent;
 use App\Service\DetailSectionContent;
 use App\Service\PageContent;
@@ -93,6 +94,8 @@ final class ReusableBlocksPhase3Test extends TestCase
 
         // Only ever this test's own throwaway page_slug.
         foreach (['detail_sections', 'card_carousels'] as $table) {
+            // The block's words per language first, its child rows' included, or they stay behind as orphans.
+            \Tests\Support\BlockTextFixture::removeForPage($table, self::TEST_KEY);
             $del = $db->prepare("DELETE FROM {$table} WHERE page_slug = :key");
             $del->execute(['key' => self::TEST_KEY]);
         }
@@ -201,7 +204,7 @@ final class ReusableBlocksPhase3Test extends TestCase
             'a carousel with no cards must render nothing at all, not an empty stage'
         );
 
-        $repository->createCard($carouselId, ['title_nl' => 'Eerste kaart']);
+        $this->card($repository, $carouselId, 'Eerste kaart');
         $html = $this->renderBlock($blockId);
         $this->assertSame(1, substr_count($html, 'data-orbit-card'));
         $this->assertStringContainsString('Eerste kaart', $html);
@@ -210,7 +213,7 @@ final class ReusableBlocksPhase3Test extends TestCase
         // Five is not four: nothing may assume the old fixed number of
         // material cards.
         foreach (['Twee', 'Drie', 'Vier', 'Vijf'] as $title) {
-            $repository->createCard($carouselId, ['title_nl' => $title]);
+            $this->card($repository, $carouselId, $title);
         }
 
         $html = $this->renderBlock($blockId);
@@ -229,11 +232,11 @@ final class ReusableBlocksPhase3Test extends TestCase
         $repository = new CardCarouselRepository();
         $carouselId = (int) $repository->findBySlugAndKey(self::TEST_KEY, $sectionKey)['id'];
 
-        $repository->createCard($carouselId, ['title_nl' => 'Zichtbaar een']);
-        $hiddenId = $repository->createCard($carouselId, ['title_nl' => 'Verborgen']);
-        $repository->createCard($carouselId, ['title_nl' => 'Zichtbaar twee']);
+        $this->card($repository, $carouselId, 'Zichtbaar een');
+        $hiddenId = $this->card($repository, $carouselId, 'Verborgen');
+        $this->card($repository, $carouselId, 'Zichtbaar twee');
 
-        $repository->updateCard($hiddenId, ['title_nl' => 'Verborgen', 'is_active' => false]);
+        $repository->updateCard($hiddenId, ['is_active' => false]);
 
         $html = $this->renderBlock($blockId);
 
@@ -253,9 +256,8 @@ final class ReusableBlocksPhase3Test extends TestCase
 
         $this->assertNotSame($firstKey, $secondKey, 'each instance gets its own section_key');
 
-        $repository = new DetailSectionRepository();
-        $repository->upsertSection(self::TEST_KEY, $firstKey, ['title_nl' => 'Eerste sectie', 'is_active' => true]);
-        $repository->upsertSection(self::TEST_KEY, $secondKey, ['title_nl' => 'Tweede sectie', 'is_active' => true]);
+        $this->sectionWords($firstKey, ['title' => 'Eerste sectie']);
+        $this->sectionWords($secondKey, ['title' => 'Tweede sectie']);
 
         $firstHtml = $this->renderBlock($firstBlock);
         $secondHtml = $this->renderBlock($secondBlock);
@@ -269,9 +271,10 @@ final class ReusableBlocksPhase3Test extends TestCase
         [, $otherCarouselKey] = $this->addBlock('card_carousel');
 
         $carousels = new CardCarouselRepository();
-        $carousels->upsertCarousel(self::TEST_KEY, $carouselKey, ['title_nl' => 'Eerste carrousel', 'is_active' => true]);
-        $carousels->upsertCarousel(self::TEST_KEY, $otherCarouselKey, ['title_nl' => 'Tweede carrousel', 'is_active' => true]);
-        $carousels->createCard((int) $carousels->findBySlugAndKey(self::TEST_KEY, $carouselKey)['id'], ['title_nl' => 'Kaart A']);
+        $carouselId = (int) $carousels->findBySlugAndKey(self::TEST_KEY, $carouselKey)['id'];
+        BlockLocalization::save('card_carousels', $carouselId, BlockLocalization::defaultLanguage(), ['title' => 'Eerste carrousel']);
+        BlockLocalization::save('card_carousels', (int) $carousels->findBySlugAndKey(self::TEST_KEY, $otherCarouselKey)['id'], BlockLocalization::defaultLanguage(), ['title' => 'Tweede carrousel']);
+        $this->card($carousels, $carouselId, 'Kaart A');
 
         $html = $this->renderBlock($carouselBlock);
         $this->assertStringContainsString('Eerste carrousel', $html);
@@ -290,11 +293,11 @@ final class ReusableBlocksPhase3Test extends TestCase
         // and leaves the filesystem alone.
         $repository->updateMainImage(
             (int) $repository->findBySlugAndKey(self::TEST_KEY, $sectionKey)['id'],
-            ['main_image_path' => 'assets/images/hero-collage-a.webp', 'main_image_alt_nl' => 'Testbeeld']
+            ['main_image_path' => 'assets/images/hero-collage-a.webp']
         );
+        $this->sectionWords($sectionKey, ['title' => 'Met beeld', 'main_image_alt' => 'Testbeeld']);
 
         $repository->upsertSection(self::TEST_KEY, $sectionKey, [
-            'title_nl' => 'Met beeld',
             'image_position' => 'image_right',
             'is_active' => true,
         ]);
@@ -305,7 +308,6 @@ final class ReusableBlocksPhase3Test extends TestCase
         $this->assertStringNotContainsString('service-detail__head--image-left', $right);
 
         $repository->upsertSection(self::TEST_KEY, $sectionKey, [
-            'title_nl' => 'Met beeld',
             'image_position' => 'image_left',
             'is_active' => true,
         ]);
@@ -332,22 +334,43 @@ final class ReusableBlocksPhase3Test extends TestCase
         [, $thirdKey] = $this->addBlock('detail_section');
 
         $repository = new DetailSectionRepository();
-        $repository->upsertSection(self::TEST_KEY, $firstKey, [
-            'title_nl' => 'Lange titel over hout', 'anchor' => 'eerste', 'nav_label_nl' => 'Eerste', 'is_active' => true,
-        ]);
+        $repository->upsertSection(self::TEST_KEY, $firstKey, ['anchor' => 'eerste', 'is_active' => true]);
+        $this->sectionWords($firstKey, ['title' => 'Lange titel over hout', 'nav_label' => 'Eerste']);
         // No anchor: not linkable, so it must not appear in the nav.
-        $repository->upsertSection(self::TEST_KEY, $secondKey, [
-            'title_nl' => 'Zonder anker', 'anchor' => '', 'is_active' => true,
-        ]);
+        $repository->upsertSection(self::TEST_KEY, $secondKey, ['anchor' => '', 'is_active' => true]);
+        $this->sectionWords($secondKey, ['title' => 'Zonder anker']);
         // No nav label: falls back to its own title.
-        $repository->upsertSection(self::TEST_KEY, $thirdKey, [
-            'title_nl' => 'Derde sectie', 'anchor' => 'derde', 'is_active' => true,
-        ]);
+        $repository->upsertSection(self::TEST_KEY, $thirdKey, ['anchor' => 'derde', 'is_active' => true]);
+        $this->sectionWords($thirdKey, ['title' => 'Derde sectie']);
 
         DetailSectionContent::clearCache();
         $items = DetailSectionContent::navItemsForPage(self::TEST_KEY);
 
         $this->assertSame(['eerste', 'derde'], array_column($items, 'anchor'));
-        $this->assertSame(['Eerste', 'Derde sectie'], array_column($items, 'label_nl'));
+        $default = BlockLocalization::defaultLanguage();
+        $this->assertSame(['Eerste', 'Derde sectie'], array_map(static fn (array $item): string => $item['label']->in($default), $items));
+    }
+
+    /** A new, visible card with its title in the default language, the way the CMS adds one. */
+    private function card(CardCarouselRepository $repository, int $carouselId, string $title): int
+    {
+        $cardId = $repository->createCard($carouselId);
+        BlockLocalization::save('carousel_cards', $cardId, BlockLocalization::defaultLanguage(), ['title' => $title]);
+
+        return $cardId;
+    }
+
+    /**
+     * The words of one of this page's detail sections, in the default
+     * language; the fields left out are empty.
+     *
+     * @param array<string, string> $words field => words
+     */
+    private function sectionWords(string $sectionKey, array $words): void
+    {
+        $section = (new DetailSectionRepository())->findBySlugAndKey(self::TEST_KEY, $sectionKey);
+        $this->assertNotNull($section);
+
+        BlockLocalization::save('detail_sections', (int) $section['id'], BlockLocalization::defaultLanguage(), $words);
     }
 }

@@ -20,7 +20,12 @@
  * DetailSectionContent for them, so this file only renders and the block
  * library can show it with sample links.
  *
- * @param list<array{anchor: string, label_nl: string, label_en: string}> $items
+ * Each label arrives as one LocalizedValue
+ * (App\Service\Blocks\BlockLocalization): SiteText prints the words a visitor
+ * sees first and the escaped data-nl/data-en pair for the V1 switch, so this
+ * file knows no language, no default and no fallback. A label is plain text.
+ *
+ * @param list<array{anchor: string, label: \App\Service\Language\LocalizedValue}> $items
  */
 function render_section_quicknav(array $items): void
 {
@@ -34,7 +39,7 @@ function render_section_quicknav(array $items): void
     <div class="container">
       <nav class="quicknav" aria-label="Snel naar sectie" data-nl-aria="Snel naar sectie" data-en-aria="Jump to section">
         <?php foreach ($items as $item): ?>
-        <a href="#<?= $h($item['anchor']) ?>" <?= \App\Service\Language\SiteText::attrs($item['label_nl'], $item['label_en']) ?>><?= $h(\App\Service\Language\SiteText::visible($item['label_nl'], $item['label_en'])) ?></a>
+        <a href="#<?= $h($item['anchor']) ?>" <?= \App\Service\Language\SiteText::attrsOf($item['label']) ?>><?= $h(\App\Service\Language\SiteText::visibleOf($item['label'])) ?></a>
         <?php endforeach; ?>
       </nav>
     </div>

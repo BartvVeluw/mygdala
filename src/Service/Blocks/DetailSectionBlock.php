@@ -19,6 +19,10 @@ require_once dirname(__DIR__, 3) . '/partials/section-detail-section.php';
  *
  * It owns uploaded files (a main image plus a gallery), so it cleans those up
  * before its rows disappear.
+ *
+ * The words of the section, of every feature and of every gallery image's
+ * alt text are stored per website language in block_translations
+ * (BlockLocalization), each child row's on its own row.
  */
 final class DetailSectionBlock extends BlockDefinition
 {
@@ -68,14 +72,58 @@ final class DetailSectionBlock extends BlockDefinition
         ];
     }
 
+    /**
+     * The words of the section, of each feature and of each gallery image,
+     * per website language; the anchor, the image position, the CTA URL, the
+     * media, the order and visibility are the same in every language and stay
+     * in their tables. The lengths are the ones the editor always allowed,
+     * and the rich body the one the Tekstblok allows; what is required is
+     * what the editor always required: the section's title, and both texts of
+     * a feature. The main image's alt text is edited on the image form.
+     */
+    public function translatableFields(): array
+    {
+        return [
+            'detail_sections' => [
+                TranslatableField::plain('nav_label', 100),
+                TranslatableField::plain('title', 255)->required(),
+                TranslatableField::plain('lead', 500),
+                TranslatableField::rich('body', 50000),
+                TranslatableField::plain('main_image_alt', 255),
+                TranslatableField::plain('closing_note', 1000),
+                TranslatableField::plain('cta_label', 150),
+            ],
+            'detail_section_points' => [
+                TranslatableField::plain('title', 255)->required(),
+                TranslatableField::plain('body', 500)->required(),
+            ],
+            'detail_section_images' => [
+                TranslatableField::plain('alt', 255),
+            ],
+        ];
+    }
+
+    public function childTables(): array
+    {
+        return [
+            'detail_section_points' => ['parent' => 'detail_sections', 'column' => 'section_id'],
+            'detail_section_images' => ['parent' => 'detail_sections', 'column' => 'section_id'],
+        ];
+    }
+
     public function create(string $pageSlug): array
     {
         $key = self::newSectionKey();
 
         $repository = new DetailSectionRepository();
-        $repository->upsertSection($pageSlug, $key, DetailSectionContent::defaultsForSection() + ['is_active' => true]);
+        $repository->upsertSection($pageSlug, $key, DetailSectionContent::startingValues() + ['is_active' => true]);
+        $sectionId = (int) $repository->findBySlugAndKey($pageSlug, $key)['id'];
 
-        return [(int) $repository->findBySlugAndKey($pageSlug, $key)['id'], $key];
+        // The starting title in the website's default language, the language
+        // every other language falls back to until it is written.
+        BlockLocalization::save('detail_sections', $sectionId, BlockLocalization::defaultLanguage(), DetailSectionContent::startingWords());
+
+        return [$sectionId, $key];
     }
 
     /**
@@ -119,33 +167,30 @@ final class DetailSectionBlock extends BlockDefinition
 
     public function sampleContent(BlockSamples $samples): ?array
     {
-        $body = $samples->richText();
         $image = $samples->image();
 
         $points = [];
         foreach (range(0, 2) as $index) {
             $points[] = [
-                ...$samples->itemFields('title', 'item', $index),
-                ...$samples->itemFields('body', 'item_body', $index),
+                'title' => $samples->localizedItem('item', $index),
+                'body' => $samples->localizedItem('item_body', $index),
             ];
         }
 
         return [
             'id' => 0,
             'anchor' => '',
-            ...$samples->fields('nav_label', 'short_title'),
-            ...$samples->fields('title', 'title'),
-            ...$samples->fields('lead', 'lead'),
-            'content_html' => $body['nl'],
-            'content_html_en' => $body['en'],
+            'nav_label' => $samples->localized('short_title'),
+            'title' => $samples->localized('title'),
+            'lead' => $samples->localized('lead'),
+            'body' => $samples->localizedRichText(),
             'main_image_path' => $image['image_path'],
-            'main_image_alt_nl' => $image['alt_nl'],
-            'main_image_alt_en' => $image['alt_en'],
+            'main_image_alt' => $image['alt'],
             'main_image_width' => $image['width'],
             'main_image_height' => $image['height'],
             'image_position' => 'image_right',
-            ...$samples->fields('closing_note', 'note'),
-            ...$samples->fields('cta_label', 'button'),
+            'closing_note' => $samples->localized('note'),
+            'cta_label' => $samples->localized('button'),
             'cta_url' => BlockSamples::LINK,
             'points' => $points,
             'images' => [],
@@ -164,7 +209,7 @@ final class DetailSectionBlock extends BlockDefinition
 
     public function instanceTitle(array $pageSection): string
     {
-        return (string) (DetailSectionContent::forSection($this->pageSlug($pageSection), $this->sectionKey($pageSection))['title_nl'] ?? '');
+        return BlockLocalization::name('detail_sections', $this->sectionId($pageSection), 'title');
     }
 
     public function editUrl(array $pageSection): ?string

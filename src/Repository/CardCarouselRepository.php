@@ -16,9 +16,16 @@ namespace App\Repository;
  * services, which is precisely what phase 3 removed (see
  * docs/content-blocks/DECISIONS.md).
  *
- * This repository only stores the resulting image_path for a card; the
- * actual upload/validation/delete is App\Service\SectionImageUploader's job,
- * called from the API layer.
+ * NO WORDS HERE. The heading, a card's title, body, alt text and link label
+ * and a tag's label are stored per website language in block_translations,
+ * against the id of the row they belong to, through
+ * App\Service\Blocks\BlockLocalization (db/migrations/20260917200000). This
+ * repository writes only what is the same in every language: visibility,
+ * order, the link URL and the image reference. Every create* returns the new
+ * row's id, so its words can be saved against it in the same transaction.
+ *
+ * This repository only stores the image reference for a card; choosing the
+ * Media Library item is the API layer's job.
  */
 class CardCarouselRepository extends Repository
 {
@@ -50,24 +57,20 @@ class CardCarouselRepository extends Repository
     }
 
     /**
-     * @param array<string, string|bool|null> $values
+     * What a carousel has that is the same in every language: whether it is
+     * shown. Its heading is saved through BlockLocalization against the
+     * row's id, which this upsert never changes.
+     *
+     * @param array<string, bool|null> $values is_active
      */
     public function upsertCarousel(string $pageSlug, string $sectionKey, array $values): void
     {
         $stmt = $this->db->prepare(
             'INSERT INTO card_carousels
-                (page_slug, section_key, eyebrow_nl, eyebrow_en, title_nl, title_en, lead_nl, lead_en,
-                 is_active, created_at, updated_at)
+                (page_slug, section_key, is_active, created_at, updated_at)
              VALUES
-                (:page_slug, :section_key, :eyebrow_nl, :eyebrow_en, :title_nl, :title_en, :lead_nl, :lead_en,
-                 :is_active, NOW(), NOW())
+                (:page_slug, :section_key, :is_active, NOW(), NOW())
              ON DUPLICATE KEY UPDATE
-                eyebrow_nl = VALUES(eyebrow_nl),
-                eyebrow_en = VALUES(eyebrow_en),
-                title_nl = VALUES(title_nl),
-                title_en = VALUES(title_en),
-                lead_nl = VALUES(lead_nl),
-                lead_en = VALUES(lead_en),
                 is_active = VALUES(is_active),
                 updated_at = NOW()'
         );
@@ -75,12 +78,6 @@ class CardCarouselRepository extends Repository
         $stmt->execute([
             'page_slug' => $pageSlug,
             'section_key' => $sectionKey,
-            'eyebrow_nl' => self::nullIfEmpty($values['eyebrow_nl'] ?? null),
-            'eyebrow_en' => self::nullIfEmpty($values['eyebrow_en'] ?? null),
-            'title_nl' => self::nullIfEmpty($values['title_nl'] ?? null),
-            'title_en' => self::nullIfEmpty($values['title_en'] ?? null),
-            'lead_nl' => self::nullIfEmpty($values['lead_nl'] ?? null),
-            'lead_en' => self::nullIfEmpty($values['lead_en'] ?? null),
             'is_active' => ($values['is_active'] ?? true) ? 1 : 0,
         ]);
     }
@@ -125,66 +122,49 @@ class CardCarouselRepository extends Repository
     }
 
     /**
-     * @param array<string, string|bool|null> $values
+     * Appends a new, visible card without an image or a link to the end of a
+     * carousel and returns its id. Its words are stored per website language
+     * against that id (App\Service\Blocks\BlockLocalization), in the same
+     * transaction as this insert.
      */
-    public function createCard(int $carouselId, array $values): int
+    public function createCard(int $carouselId): int
     {
         $nextSortOrder = $this->nextSortOrder('carousel_cards', 'carousel_id', $carouselId);
 
         $stmt = $this->db->prepare(
             'INSERT INTO carousel_cards
-                (carousel_id, title_nl, title_en, body_nl, body_en, link_url, link_label_nl, link_label_en,
-                 sort_order, is_active, created_at, updated_at)
+                (carousel_id, sort_order, is_active, created_at, updated_at)
              VALUES
-                (:carousel_id, :title_nl, :title_en, :body_nl, :body_en, :link_url, :link_label_nl, :link_label_en,
-                 :sort_order, :is_active, NOW(), NOW())'
+                (:carousel_id, :sort_order, 1, NOW(), NOW())'
         );
         $stmt->execute([
             'carousel_id' => $carouselId,
-            'title_nl' => $values['title_nl'],
-            'title_en' => self::nullIfEmpty($values['title_en'] ?? null),
-            'body_nl' => self::nullIfEmpty($values['body_nl'] ?? null),
-            'body_en' => self::nullIfEmpty($values['body_en'] ?? null),
-            'link_url' => self::nullIfEmpty($values['link_url'] ?? null),
-            'link_label_nl' => self::nullIfEmpty($values['link_label_nl'] ?? null),
-            'link_label_en' => self::nullIfEmpty($values['link_label_en'] ?? null),
             'sort_order' => $nextSortOrder,
-            'is_active' => ($values['is_active'] ?? true) ? 1 : 0,
         ]);
 
         return (int) $this->db->lastInsertId();
     }
 
     /**
-     * Saves a card's text fields. The image is saved separately
-     * (updateCardImage()/clearCardImage()), so a text save can never drop a
-     * photo the editor did not touch.
+     * What a card has that is the same in every language: its link URL and
+     * whether it is shown. Its words are saved through BlockLocalization, and
+     * the image separately (updateCardImage()/clearCardImage()), so a text
+     * save can never drop a photo the editor did not touch. The id never
+     * changes, so the words of every language stay attached to it.
      *
-     * @param array<string, string|bool|null> $values
+     * @param array<string, string|bool|null> $values link_url, is_active
      */
     public function updateCard(int $id, array $values): void
     {
         $stmt = $this->db->prepare(
             'UPDATE carousel_cards SET
-                title_nl = :title_nl,
-                title_en = :title_en,
-                body_nl = :body_nl,
-                body_en = :body_en,
                 link_url = :link_url,
-                link_label_nl = :link_label_nl,
-                link_label_en = :link_label_en,
                 is_active = :is_active,
                 updated_at = NOW()
              WHERE id = :id'
         );
         $stmt->execute([
-            'title_nl' => $values['title_nl'],
-            'title_en' => self::nullIfEmpty($values['title_en'] ?? null),
-            'body_nl' => self::nullIfEmpty($values['body_nl'] ?? null),
-            'body_en' => self::nullIfEmpty($values['body_en'] ?? null),
             'link_url' => self::nullIfEmpty($values['link_url'] ?? null),
-            'link_label_nl' => self::nullIfEmpty($values['link_label_nl'] ?? null),
-            'link_label_en' => self::nullIfEmpty($values['link_label_en'] ?? null),
             'is_active' => ($values['is_active'] ?? true) ? 1 : 0,
             'id' => $id,
         ]);
@@ -193,9 +173,10 @@ class CardCarouselRepository extends Repository
     /**
      * `media_id` names a Media Library item; `image_path` is written with
      * that item's own path so the legacy column stays true rather than stale
-     * while it still exists. The two always move together.
+     * while it still exists. The two always move together. The alt text is a
+     * word, saved through BlockLocalization.
      *
-     * @param array<string, mixed> $values media_id, image_path, image_alt_nl, image_alt_en
+     * @param array<string, mixed> $values media_id, image_path
      */
     public function updateCardImage(int $id, array $values): void
     {
@@ -203,16 +184,12 @@ class CardCarouselRepository extends Repository
             'UPDATE carousel_cards SET
                 media_id = :media_id,
                 image_path = :image_path,
-                image_alt_nl = :image_alt_nl,
-                image_alt_en = :image_alt_en,
                 updated_at = NOW()
              WHERE id = :id'
         );
         $stmt->execute([
             'media_id' => self::positiveOrNull($values['media_id'] ?? null),
             'image_path' => (string) ($values['image_path'] ?? ''),
-            'image_alt_nl' => self::nullIfEmpty($values['image_alt_nl'] ?? null),
-            'image_alt_en' => self::nullIfEmpty($values['image_alt_en'] ?? null),
             'id' => $id,
         ]);
     }
@@ -224,7 +201,7 @@ class CardCarouselRepository extends Repository
     public function clearCardImage(int $id): void
     {
         $stmt = $this->db->prepare(
-            'UPDATE carousel_cards SET media_id = NULL, image_path = NULL, image_alt_nl = NULL, image_alt_en = NULL, updated_at = NOW()
+            'UPDATE carousel_cards SET media_id = NULL, image_path = NULL, updated_at = NOW()
              WHERE id = :id'
         );
         $stmt->execute(['id' => $id]);
@@ -264,9 +241,10 @@ class CardCarouselRepository extends Repository
     }
 
     /**
-     * Every tag of every card in one carousel, grouped by card id — one
+     * Every tag row of every card in one carousel, grouped by card id — one
      * query instead of one per card, so rendering a carousel costs the same
-     * whether it holds three cards or thirty.
+     * whether it holds three cards or thirty. The rows carry ids and order
+     * only; their labels come from BlockLocalization.
      *
      * @param list<int> $cardIds
      *
@@ -312,20 +290,21 @@ class CardCarouselRepository extends Repository
     }
 
     /**
-     * @param array<string, string> $values label_nl, label_en
+     * Appends a new tag to the end of a card and returns its id. Its label is
+     * stored per website language against that id
+     * (App\Service\Blocks\BlockLocalization), in the same transaction as this
+     * insert.
      */
-    public function createTag(int $cardId, array $values): int
+    public function createTag(int $cardId): int
     {
         $nextSortOrder = $this->nextSortOrder('carousel_card_tags', 'card_id', $cardId);
 
         $stmt = $this->db->prepare(
-            'INSERT INTO carousel_card_tags (card_id, label_nl, label_en, sort_order, created_at, updated_at)
-             VALUES (:card_id, :label_nl, :label_en, :sort_order, NOW(), NOW())'
+            'INSERT INTO carousel_card_tags (card_id, sort_order, created_at, updated_at)
+             VALUES (:card_id, :sort_order, NOW(), NOW())'
         );
         $stmt->execute([
             'card_id' => $cardId,
-            'label_nl' => $values['label_nl'],
-            'label_en' => self::nullIfEmpty($values['label_en'] ?? null),
             'sort_order' => $nextSortOrder,
         ]);
 
@@ -333,19 +312,14 @@ class CardCarouselRepository extends Repository
     }
 
     /**
-     * @param array<string, string> $values label_nl, label_en
+     * A tag has nothing that is the same in every language except its place
+     * in the list, so saving one only marks the row as changed; its label is
+     * saved through BlockLocalization in the same transaction.
      */
-    public function updateTag(int $id, array $values): void
+    public function updateTag(int $id): void
     {
-        $stmt = $this->db->prepare(
-            'UPDATE carousel_card_tags SET label_nl = :label_nl, label_en = :label_en, updated_at = NOW()
-             WHERE id = :id'
-        );
-        $stmt->execute([
-            'label_nl' => $values['label_nl'],
-            'label_en' => self::nullIfEmpty($values['label_en'] ?? null),
-            'id' => $id,
-        ]);
+        $stmt = $this->db->prepare('UPDATE carousel_card_tags SET updated_at = NOW() WHERE id = :id');
+        $stmt->execute(['id' => $id]);
     }
 
     public function deleteTag(int $id): bool

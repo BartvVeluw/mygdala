@@ -209,6 +209,49 @@ final class BlockLocalization
     }
 
     /**
+     * bilingual() for a value that may come from more than one plain field of
+     * the same owner, in order of preference: a quicknav label that is the
+     * section's own short label, else its title.
+     *
+     * Per language, the first field with words IN THAT LANGUAGE wins; only
+     * when none has any does it fall back to the default language, the same
+     * way. So an English visitor gets the English title before the Dutch
+     * short label: the fallback runs across languages last, never across
+     * fields first.
+     *
+     * @param list<string> $fields declared plain fields, most preferred first
+     */
+    public static function bilingualFirst(string $ownerTable, int $ownerId, array $fields): LocalizedValue
+    {
+        foreach ($fields as $field) {
+            if (self::field($ownerTable, $field)->isRich()) {
+                throw new \InvalidArgumentException('bilingualFirst() combines plain fields only; "' . $field . '" is rich text.');
+            }
+        }
+
+        $first = static function (string $code) use ($ownerTable, $ownerId, $fields): string {
+            foreach ($fields as $field) {
+                $words = self::raw($ownerTable, $ownerId, $field, $code);
+                if ($words !== '') {
+                    return $words;
+                }
+            }
+
+            return '';
+        };
+
+        $values = [];
+        foreach (LanguageRegistry::codes() as $code) {
+            $values[$code] = $first($code);
+            if ($values[$code] === '') {
+                $values[$code] = $first(self::defaultLanguage());
+            }
+        }
+
+        return LocalizedValue::of($values);
+    }
+
+    /**
      * bilingual() for every field one owner table declares, keyed by field:
      * what a *Content class hands its partial. Owner id 0 gives every field
      * empty, the shape of a block with nothing to show.

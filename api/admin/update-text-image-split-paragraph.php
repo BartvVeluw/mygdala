@@ -3,16 +3,28 @@
 /**
  * POST /api/admin/update-text-image-split-paragraph.php
  *
- * Edits one paragraph's NL/EN text.
+ * Edits one paragraph's text.
+ *
+ * ONE WEBSITE LANGUAGE (Multilingual 2.0): the text is the words of the
+ * language named in `language_code`, which must be an active language of the
+ * website registry, and is required only in the default language
+ * (TextImageSplitBlock::translatableFields(), through
+ * App\Service\Blocks\BlockLocalization). Only that language is written, so
+ * saving the Dutch text never removes an English or German translation. The
+ * paragraph keeps its id.
  */
 
 declare(strict_types=1);
 
 require_once __DIR__ . '/../../vendor/autoload.php';
 
+use App\Database;
 use App\Service\Language\AdminTranslator;
 use App\Service\AdminAuth;
+use App\Service\Blocks\BlockLocalization;
 use App\Service\Csrf;
+use App\Service\Language\LanguageCode;
+use App\Service\Language\SiteLanguages;
 use App\Service\TextImageSplitContent;
 use App\Repository\TextImageSplitRepository;
 
@@ -52,21 +64,45 @@ if ($section === null) {
 
 $sectionKey = $section['page_slug'] . ':' . $section['section_key'];
 
-$fields = [
-    'content_nl' => trim((string) ($_POST['content_nl'] ?? '')),
-    'content_en' => trim((string) ($_POST['content_en'] ?? '')),
-];
+$languageCode = LanguageCode::normalise((string) ($_POST['language_code'] ?? '')) ?? '';
 
-if ($fields['content_nl'] === '') {
-    $_SESSION['admin_tis_paragraph_errors'] = [AdminTranslator::trans('validation.tekst_nl_verplicht')];
+// Exactly the fields the block declares, never a name taken from the request.
+$words = [];
+foreach (array_keys(BlockLocalization::fields('text_image_split_paragraphs')) as $field) {
+    $words[$field] = trim((string) ($_POST[$field] ?? ''));
+}
+
+$errors = [];
+
+if ($languageCode === '' || !SiteLanguages::isActive($languageCode)) {
+    $errors[] = AdminTranslator::trans('validation.language_unknown');
+} else {
+    foreach (BlockLocalization::messageKeys(BlockLocalization::problems('text_image_split_paragraphs', $languageCode, $words)) as $key) {
+        $errors[] = AdminTranslator::trans($key);
+    }
+}
+
+if ($errors !== []) {
+    $_SESSION['admin_tis_paragraph_errors'] = $errors;
     header('Location: /admin/text-image-split.php?section=' . urlencode($sectionKey));
     exit;
 }
 
+$db = Database::connection();
+
 try {
-    $repository->updateParagraph($paragraphId, $fields);
+    $db->beginTransaction();
+
+    $repository->updateParagraph($paragraphId);
+    BlockLocalization::save('text_image_split_paragraphs', $paragraphId, $languageCode, $words);
+
+    $db->commit();
     TextImageSplitContent::clearCache();
 } catch (\Throwable $e) {
+    if ($db->inTransaction()) {
+        $db->rollBack();
+    }
+
     error_log('[api/admin/update-text-image-split-paragraph.php] ' . $e->getMessage());
     $_SESSION['admin_tis_paragraph_errors'] = ['Alinea kon niet worden opgeslagen. Probeer het opnieuw.'];
     header('Location: /admin/text-image-split.php?section=' . urlencode($sectionKey));

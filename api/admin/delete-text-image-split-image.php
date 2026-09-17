@@ -10,13 +10,20 @@
  * photo may be on three other pages; deleting one is the library's own
  * decision, taken on admin/media.php, and it refuses while anything still
  * uses it. See MEDIA.md.
+ *
+ * The image's alt text in every website language goes first, in the same
+ * transaction as the row (BlockLocalization::deleteOwner()): there is no
+ * foreign key that could take it along, and once the row is gone nothing
+ * would find it.
  */
 
 declare(strict_types=1);
 
 require_once __DIR__ . '/../../vendor/autoload.php';
 
+use App\Database;
 use App\Service\AdminAuth;
+use App\Service\Blocks\BlockLocalization;
 use App\Service\Csrf;
 use App\Service\TextImageSplitContent;
 use App\Repository\TextImageSplitRepository;
@@ -57,10 +64,21 @@ if ($section === null) {
 
 $sectionKey = $section['page_slug'] . ':' . $section['section_key'];
 
+$db = Database::connection();
+
 try {
+    $db->beginTransaction();
+
+    BlockLocalization::deleteOwner('text_image_split_images', $imageId);
     $repository->deleteImage($imageId);
+
+    $db->commit();
     TextImageSplitContent::clearCache();
 } catch (\Throwable $e) {
+    if ($db->inTransaction()) {
+        $db->rollBack();
+    }
+
     error_log('[api/admin/delete-text-image-split-image.php] ' . $e->getMessage());
     $_SESSION['admin_tis_image_errors'] = ['Afbeelding kon niet worden verwijderd.'];
     header('Location: /admin/text-image-split.php?section=' . urlencode($sectionKey));

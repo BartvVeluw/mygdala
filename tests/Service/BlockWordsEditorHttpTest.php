@@ -7,11 +7,13 @@ namespace Tests\Service;
 use App\Database;
 use App\Repository\AdminUserRepository;
 use App\Repository\BlockTranslationRepository;
+use App\Repository\MediaRepository;
 use App\Repository\PageRepository;
 use App\Repository\SiteLanguageRepository;
 use App\Service\AdminPermissions;
 use App\Service\Blocks\BlockLocalization;
 use App\Service\Language\SiteLanguages;
+use App\Service\Media\MediaService;
 use App\Service\PageContent;
 use App\Service\PageService;
 use App\Service\SectionRegistry;
@@ -134,6 +136,38 @@ final class BlockWordsEditorHttpTest extends TestCase
             'words' => ['eyebrow' => 'Werkwijze', 'title' => 'In drie stappen'],
             'required' => ['eyebrow', 'title'],
         ],
+        // Phase 3B, wave C. The Detailsectie's body is rich text; its main
+        // image's alt text is on the image form, a rule of its own below.
+        'text_image_split' => [
+            'table' => 'text_image_splits',
+            'screen' => '/admin/text-image-split.php?section={section}',
+            'endpoint' => '/api/admin/update-text-image-split-section.php',
+            'address' => 'section',
+            'settings' => ['layout' => 'image_right', 'button_url' => '/contact', 'is_active' => '1'],
+            'words' => ['eyebrow' => 'Over mij', 'title' => 'Het verhaal', 'button_label' => 'Neem contact op'],
+            'required' => [],
+        ],
+        'detail_section' => [
+            'table' => 'detail_sections',
+            'screen' => '/admin/detail-section.php?section={section}',
+            'endpoint' => '/api/admin/update-detail-section.php',
+            'address' => 'section',
+            'settings' => ['anchor' => 'hout', 'image_position' => 'image_right', 'cta_url' => '/contact', 'is_active' => '1'],
+            'words' => [
+                'nav_label' => 'Hout', 'title' => 'Hout graveren', 'lead' => 'Warm en tijdloos.', 'body' => '<p>Elk stuk is uniek.</p>',
+                'closing_note' => 'Op aanvraag.', 'cta_label' => 'Vraag een offerte',
+            ],
+            'required' => ['title'],
+        ],
+        'card_carousel' => [
+            'table' => 'card_carousels',
+            'screen' => '/admin/card-carousel.php?section={section}',
+            'endpoint' => '/api/admin/update-card-carousel.php',
+            'address' => 'section',
+            'settings' => ['is_active' => '1'],
+            'words' => ['eyebrow' => 'Materialen', 'title' => 'Waar wij mee werken', 'lead' => 'Een keuze.'],
+            'required' => [],
+        ],
     ];
 
     private static ?BuiltInServer $server = null;
@@ -146,6 +180,9 @@ final class BlockWordsEditorHttpTest extends TestCase
     private array $blocks = [];
 
     private bool $addedGerman = false;
+
+    /** @var list<int> */
+    private array $mediaIds = [];
 
     public static function setUpBeforeClass(): void
     {
@@ -178,6 +215,13 @@ final class BlockWordsEditorHttpTest extends TestCase
     protected function tearDown(): void
     {
         $this->removePage();
+
+        // After the page: a block that shows a library item keeps it from going.
+        foreach ($this->mediaIds as $id) {
+            (new MediaRepository())->delete($id);
+        }
+        $this->mediaIds = [];
+        MediaService::clearCache();
 
         if ($this->addedGerman) {
             Database::connection()->prepare("DELETE FROM block_translations WHERE language_code = 'de'")->execute();
@@ -394,7 +438,90 @@ final class BlockWordsEditorHttpTest extends TestCase
         self::assertSame(self::BLOCKS[$type]['words'], $this->stored($type, 'nl'));
     }
 
+    public function testTheDetailSectionBodyIsRichTextSanitizedOnSave(): void
+    {
+        $type = 'detail_section';
+        self::assertTrue(BlockLocalization::fields('detail_sections')['body']->isRich());
+        $this->place($type);
+        $session = $this->signIn(null);
+
+        $this->assertSaved($this->save($session, $type, 'nl', [
+            'body' => '<p>Veilig <strong>vet</strong></p><script>alert(1)</script><img src="x" onerror="alert(1)">',
+        ] + self::BLOCKS[$type]['words']));
+
+        $body = $this->stored($type, 'nl')['body'];
+        self::assertStringContainsString('<strong>vet</strong>', $body, 'the markup an editor may use stays markup');
+        self::assertStringNotContainsString('<script', $body);
+        self::assertStringNotContainsString('onerror', $body);
+    }
+
+    public function testTheDetailSectionImageFormWritesOnlyItsAltTextAndARemovedImageTakesIt(): void
+    {
+        $type = 'detail_section';
+        $this->place($type);
+        $session = $this->signIn(null);
+        $words = self::BLOCKS[$type]['words'];
+        $media = (string) $this->mediaItem();
+        $image = fn (string $language, array $fields): array => $this->post($session, '/api/admin/update-detail-section-main-image.php', [
+            'section' => $this->blocks[$type]['section'],
+            'language_code' => $language,
+        ] + $fields);
+
+        $this->assertSaved($this->save($session, $type, 'nl', $words));
+        $this->assertSaved($this->save($session, $type, 'en', ['title' => 'Wood engraving']));
+
+        $this->assertSaved($image('nl', ['media_id' => $media, 'main_image_alt' => 'Een gegraveerde plank']));
+        $this->assertSaved($image('en', ['media_id' => $media, 'main_image_alt' => 'An "engraved" board']));
+
+        self::assertSame('Een gegraveerde plank', $this->stored($type, 'nl')['main_image_alt']);
+        self::assertSame($words, array_diff_key($this->stored($type, 'nl'), ['main_image_alt' => true]), 'the image form writes nothing but its alt text');
+        self::assertSame(['title' => 'Wood engraving', 'main_image_alt' => 'An "engraved" board'], $this->stored($type, 'en'));
+
+        // The section form keeps the alt text it does not show.
+        $this->assertSaved($this->save($session, $type, 'en', ['title' => 'Engraving wood']));
+        self::assertSame(['title' => 'Engraving wood', 'main_image_alt' => 'An "engraved" board'], $this->stored($type, 'en'));
+
+        // Removing the image takes its alt text in every language, and nothing else.
+        $this->assertSaved($image('nl', ['remove_image' => '1']));
+        self::assertSame($words, $this->stored($type, 'nl'));
+        self::assertSame(['title' => 'Engraving wood'], $this->stored($type, 'en'));
+    }
+
     // ------------------------------------------------------------ helpers
+
+    /**
+     * @param array<string, string> $fields
+     * @return array{status: int, location: string, body: string, headers: string}
+     */
+    private function post(string $session, string $endpoint, array $fields): array
+    {
+        $response = self::$server->request('POST', $endpoint, $session, [
+            'csrf_token' => (string) $this->accounts->read($session, 'csrf_token'),
+        ] + $fields);
+        BlockLocalization::clearCache();
+
+        return $response;
+    }
+
+    /** A media row for a file that does not exist: neither the form nor the save reads the disk. */
+    private function mediaItem(): int
+    {
+        $id = (new MediaRepository())->create([
+            'path' => 'assets/media/__block_words_editor_' . bin2hex(random_bytes(4)) . '__.webp',
+            'original_filename' => 'plank.webp',
+            'mime_type' => 'image/webp',
+            'width' => 1600,
+            'height' => 900,
+            'file_size' => 100,
+            'alt_text' => 'Plank',
+            'checksum' => null,
+        ]);
+
+        $this->mediaIds[] = $id;
+        MediaService::clearCache();
+
+        return $id;
+    }
 
     private function place(string $type): void
     {

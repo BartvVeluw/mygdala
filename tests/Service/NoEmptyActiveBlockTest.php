@@ -418,20 +418,23 @@ final class NoEmptyActiveBlockTest extends TestCase
             'feature_grid:title' => BlockLocalization::save('feature_grids', $sectionId, 'nl', ['title' => $words]),
             'feature_grid:lead' => BlockLocalization::save('feature_grids', $sectionId, 'nl', ['lead' => $words]),
             'feature_grid:item' => BlockLocalization::save('feature_grid_items', (new FeatureGridRepository())->createItem($sectionId, ['icon_key' => 'heart']), 'nl', ['title' => $words, 'body' => 'Een kaart']),
-            'text_image_split:eyebrow' => (new TextImageSplitRepository())->upsertSection(self::TEST_SLUG, $sectionKey, ['eyebrow_nl' => $words]),
-            'text_image_split:title' => (new TextImageSplitRepository())->upsertSection(self::TEST_SLUG, $sectionKey, ['title_nl' => $words]),
-            'text_image_split:paragraph' => (new TextImageSplitRepository())->createParagraph($sectionId, ['content_nl' => $words]),
-            'text_image_split:image' => (new TextImageSplitRepository())->createImage($sectionId, [
+            'text_image_split:eyebrow' => BlockLocalization::save('text_image_splits', $sectionId, 'nl', ['eyebrow' => $words]),
+            'text_image_split:title' => BlockLocalization::save('text_image_splits', $sectionId, 'nl', ['title' => $words]),
+            'text_image_split:paragraph' => BlockLocalization::save('text_image_split_paragraphs', (new TextImageSplitRepository())->createParagraph($sectionId), 'nl', ['content' => $words]),
+            'text_image_split:image' => BlockLocalization::save('text_image_split_images', (new TextImageSplitRepository())->createImage($sectionId, [
                 'image_path' => 'assets/images/test-no-empty-active.webp',
-                'alt_nl' => $words,
-            ]),
-            'text_image_split:button' => (new TextImageSplitRepository())->upsertSection(self::TEST_SLUG, $sectionKey, [
-                'button_label_nl' => $words,
-                'button_url' => '/',
-            ]),
+            ]), 'nl', ['alt' => $words]),
+            'text_image_split:button' => $this->textImageButton($sectionId, $sectionKey, $words),
         };
 
         return [$pageSection, $words];
+    }
+
+    /** A button is a label in the default language and a URL: the URL on the row, the label in block_translations. */
+    private function textImageButton(int $sectionId, string $sectionKey, string $words): void
+    {
+        (new TextImageSplitRepository())->upsertSection(self::TEST_SLUG, $sectionKey, ['button_url' => '/', 'is_active' => true]);
+        BlockLocalization::save('text_image_splits', $sectionId, 'nl', ['button_label' => $words]);
     }
 
     /** @param array<string, mixed> $pageSection */

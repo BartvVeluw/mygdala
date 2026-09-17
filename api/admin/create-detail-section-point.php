@@ -4,13 +4,23 @@
  * POST /api/admin/create-detail-section-point.php
  *
  * Adds a new "kenmerk" (point) card to one Detailsectie.
+ *
+ * A NEW POINT IS WRITTEN IN THE DEFAULT LANGUAGE (Multilingual 2.0), like a
+ * new page: the words the form sends are stored as the website's default
+ * language, where both fields are required, and every other language is
+ * added afterwards on the point's own card (update-detail-section-point.php).
+ * The row and its words are one transaction, so a point never exists without
+ * its words or the other way round.
  */
 
 declare(strict_types=1);
 
 require_once __DIR__ . '/../../vendor/autoload.php';
 
+use App\Database;
+use App\Service\Language\AdminTranslator;
 use App\Service\AdminAuth;
+use App\Service\Blocks\BlockLocalization;
 use App\Service\Csrf;
 use App\Service\DetailSectionContent;
 use App\Repository\DetailSectionRepository;
@@ -45,23 +55,40 @@ if ($section === null) {
 
 $redirect = '/admin/detail-section.php?section=' . urlencode((string) $section['page_slug'] . ':' . (string) $section['section_key']);
 
-$fields = [
-    'title_nl' => trim((string) ($_POST['title_nl'] ?? '')),
-    'title_en' => trim((string) ($_POST['title_en'] ?? '')),
-    'body_nl' => trim((string) ($_POST['body_nl'] ?? '')),
-    'body_en' => trim((string) ($_POST['body_en'] ?? '')),
-];
+$defaultLanguage = BlockLocalization::defaultLanguage();
 
-if ($fields['title_nl'] === '' || $fields['body_nl'] === '') {
-    $_SESSION['admin_detail_section_point_errors'] = ['Titel (NL) en tekst (NL) zijn verplicht.'];
+// Exactly the fields the block declares, never a name taken from the request.
+$words = [];
+foreach (array_keys(BlockLocalization::fields('detail_section_points')) as $field) {
+    $words[$field] = trim((string) ($_POST[$field] ?? ''));
+}
+
+$errors = [];
+foreach (BlockLocalization::messageKeys(BlockLocalization::problems('detail_section_points', $defaultLanguage, $words)) as $key) {
+    $errors[] = AdminTranslator::trans($key);
+}
+
+if ($errors !== []) {
+    $_SESSION['admin_detail_section_point_errors'] = $errors;
     header('Location: ' . $redirect);
     exit;
 }
 
+$db = Database::connection();
+
 try {
-    $repository->createPoint($sectionId, $fields);
+    $db->beginTransaction();
+
+    $pointId = $repository->createPoint($sectionId);
+    BlockLocalization::save('detail_section_points', $pointId, $defaultLanguage, $words);
+
+    $db->commit();
     DetailSectionContent::clearCache();
 } catch (\Throwable $e) {
+    if ($db->inTransaction()) {
+        $db->rollBack();
+    }
+
     error_log('[api/admin/create-detail-section-point.php] ' . $e->getMessage());
     $_SESSION['admin_detail_section_point_errors'] = ['Kenmerk kon niet worden opgeslagen. Probeer het opnieuw.'];
     header('Location: ' . $redirect);

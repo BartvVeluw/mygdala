@@ -4,14 +4,27 @@
  * POST /api/admin/update-carousel-card-tag.php
  *
  * Saves one tag of a carousel card.
+ *
+ * ONE WEBSITE LANGUAGE (Multilingual 2.0): the label is the word of the
+ * language named in `language_code`, which must be an active language of the
+ * website registry, and is required only in the default language
+ * (CardCarouselBlock::translatableFields(), through
+ * App\Service\Blocks\BlockLocalization). Only that language is written, so
+ * saving the Dutch label never removes an English or German one. The tag
+ * keeps its id.
  */
 
 declare(strict_types=1);
 
 require_once __DIR__ . '/../../vendor/autoload.php';
 
+use App\Database;
+use App\Service\Language\AdminTranslator;
 use App\Service\AdminAuth;
+use App\Service\Blocks\BlockLocalization;
 use App\Service\Csrf;
+use App\Service\Language\LanguageCode;
+use App\Service\Language\SiteLanguages;
 use App\Service\CardCarouselContent;
 use App\Repository\CardCarouselRepository;
 
@@ -45,21 +58,45 @@ if ($tag === null) {
 
 $redirect = '/admin/carousel-card.php?card_id=' . (int) $tag['card_id'];
 
-$fields = [
-    'label_nl' => trim((string) ($_POST['label_nl'] ?? '')),
-    'label_en' => trim((string) ($_POST['label_en'] ?? '')),
-];
+$languageCode = LanguageCode::normalise((string) ($_POST['language_code'] ?? '')) ?? '';
 
-if ($fields['label_nl'] === '') {
-    $_SESSION['admin_carousel_card_tag_errors'] = ['Label (NL) is verplicht.'];
+// Exactly the fields the block declares, never a name taken from the request.
+$words = [];
+foreach (array_keys(BlockLocalization::fields('carousel_card_tags')) as $field) {
+    $words[$field] = trim((string) ($_POST[$field] ?? ''));
+}
+
+$errors = [];
+
+if ($languageCode === '' || !SiteLanguages::isActive($languageCode)) {
+    $errors[] = AdminTranslator::trans('validation.language_unknown');
+} else {
+    foreach (BlockLocalization::messageKeys(BlockLocalization::problems('carousel_card_tags', $languageCode, $words)) as $key) {
+        $errors[] = AdminTranslator::trans($key);
+    }
+}
+
+if ($errors !== []) {
+    $_SESSION['admin_carousel_card_tag_errors'] = $errors;
     header('Location: ' . $redirect);
     exit;
 }
 
+$db = Database::connection();
+
 try {
-    $repository->updateTag($tagId, $fields);
+    $db->beginTransaction();
+
+    $repository->updateTag($tagId);
+    BlockLocalization::save('carousel_card_tags', $tagId, $languageCode, $words);
+
+    $db->commit();
     CardCarouselContent::clearCache();
 } catch (\Throwable $e) {
+    if ($db->inTransaction()) {
+        $db->rollBack();
+    }
+
     error_log('[api/admin/update-carousel-card-tag.php] ' . $e->getMessage());
     $_SESSION['admin_carousel_card_tag_errors'] = ['Tag kon niet worden opgeslagen. Probeer het opnieuw.'];
     header('Location: ' . $redirect);

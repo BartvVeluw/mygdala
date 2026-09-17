@@ -297,6 +297,12 @@ final class BlockSamples
         ];
     }
 
+    /** The sample rich text as ONE value in every language (sanitized markup), for a block on per-language storage. */
+    public function localizedRichText(): LocalizedValue
+    {
+        return LocalizedValue::of($this->richText());
+    }
+
     /** @return array{nl: string, en: string} sanitized markup */
     public function richText(): array
     {

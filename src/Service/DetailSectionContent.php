@@ -3,6 +3,8 @@
 namespace App\Service;
 
 use App\Repository\DetailSectionRepository;
+use App\Service\Blocks\BlockLocalization;
+use App\Service\Language\LocalizedValue;
 use App\Service\Media\BlockImage;
 
 /**
@@ -27,8 +29,8 @@ use App\Service\Media\BlockImage;
  *   (see navItemsForPage()). The four migrated sections kept their old
  *   service keys as anchors, so `/diensten.php#hout` and the footer
  *   "Materialen" links keep working.
- * - `nav_label_nl/en` — the short label the quicknav shows for it, because
- *   a section's heading ("Hout graveren") is usually longer than the label
+ * - `nav_label` — the short label the quicknav shows for it, because a
+ *   section's heading ("Hout graveren") is usually longer than the label
  *   that reads well in a nav ("Hout"). Empty = fall back to the title.
  *
  * `index_label` ("01", "02", ...) and the alternating `bg_soft` background
@@ -42,9 +44,21 @@ use App\Service\Media\BlockImage;
  * unreachable database) renders nothing at all rather than resurrecting copy
  * that an editor may have deliberately removed.
  *
- * `content_html` is re-sanitized on read, defensively, even though it was
- * already sanitized on save — the same "sanitize on write, sanitize again on
- * read" pattern as RichTextContent.
+ * WORDS PER LANGUAGE (Multilingual 2.0 phase 3B). The section's words (nav
+ * label, title, lead, rich body, main image alt text, closing note, CTA
+ * label), every point's title and body, and every gallery image's alt text
+ * are stored per website language in block_translations: the section's on
+ * its own row, each point's and each image's on that child row
+ * (DetailSectionBlock::childTables()). They come out of
+ * App\Service\Blocks\BlockLocalization as one LocalizedValue per field, the
+ * fallback already applied; the anchor, the image position, the CTA URL, the
+ * media, the order and is_active stay in the tables. This class decides no
+ * language itself, so an English-default site now gets its English words,
+ * and its English body, on the first render.
+ *
+ * The body is rich text: BlockLocalization sanitizes it on save and again on
+ * the way out — the same "sanitize on write, sanitize again on read" pattern
+ * as RichTextContent.
  */
 class DetailSectionContent
 {
@@ -60,6 +74,11 @@ class DetailSectionContent
     /** The two image positions the template has markup for. */
     public const IMAGE_POSITIONS = ['image_left', 'image_right'];
 
+    /** The owner tables of this block's words (DetailSectionBlock::translatableFields()). */
+    private const TABLE = 'detail_sections';
+    private const POINTS = 'detail_section_points';
+    private const IMAGES = 'detail_section_images';
+
     /** @var array<string, array<string, mixed>> */
     private static array $cache = [];
 
@@ -67,19 +86,22 @@ class DetailSectionContent
     private static array $positions = [];
 
     /**
-     * @return array<string, mixed> 'state' (one of STATE_*), plus anchor,
-     *                                nav_label_nl/en, title_nl/en,
-     *                                lead_nl/en, content_html(+_en),
-     *                                main_image_path + main_image_alt_nl/en
-     *                                ('' path = no main image),
-     *                                image_position, closing_note_nl/en,
-     *                                cta_label_nl/en + cta_url (all three ''
-     *                                together when there is no CTA),
-     *                                'points': list of title_nl/en +
-     *                                body_nl/en, and 'images': list of
-     *                                image_path/alt_nl/en. Templates must
-     *                                check 'state' !== STATE_HIDDEN before
-     *                                rendering the section at all.
+     * @return array<string, mixed> 'state' (one of STATE_*), plus id, anchor,
+     *                                a LocalizedValue each for nav_label,
+     *                                title, lead, body (sanitized HTML),
+     *                                closing_note and cta_label,
+     *                                main_image_path ('' = no main image)
+     *                                with main_image_alt (a LocalizedValue,
+     *                                layered over the media item's) and
+     *                                main_image_width/height,
+     *                                image_position, cta_url (cta_label and
+     *                                cta_url both empty when there is no
+     *                                CTA), 'points': a list of title and body
+     *                                (a LocalizedValue each), and 'images': a
+     *                                list of App\Service\Media\BlockImage::fromOwner().
+     *                                Templates must check 'state' !==
+     *                                STATE_HIDDEN before rendering the
+     *                                section at all.
      */
     public static function forSection(string $pageSlug, string $sectionKey): array
     {
@@ -89,61 +111,53 @@ class DetailSectionContent
             return self::$cache[$cacheKey];
         }
 
-        $empty = [
-            'id' => 0,
-            'anchor' => '',
-            'nav_label_nl' => '', 'nav_label_en' => '',
-            'title_nl' => '', 'title_en' => '',
-            'lead_nl' => '', 'lead_en' => '',
-            'content_html' => '', 'content_html_en' => '',
-            'main_image_path' => '', 'main_image_alt_nl' => '', 'main_image_alt_en' => '',
-            'image_position' => 'image_right',
-            'closing_note_nl' => '', 'closing_note_en' => '',
-            'cta_label_nl' => '', 'cta_label_en' => '', 'cta_url' => '',
-            'points' => [], 'images' => [],
-        ];
-
         try {
             $repository = new DetailSectionRepository();
             $row = $repository->findBySlugAndKey($pageSlug, $sectionKey);
         } catch (\Throwable $e) {
             error_log('[DetailSectionContent] lookup failed for "' . $cacheKey . '": ' . $e->getMessage());
 
-            return self::$cache[$cacheKey] = ['state' => self::STATE_FALLBACK] + $empty;
+            return self::$cache[$cacheKey] = ['state' => self::STATE_FALLBACK] + self::emptyContent();
         }
 
         if ($row === null) {
-            return self::$cache[$cacheKey] = ['state' => self::STATE_FALLBACK] + $empty;
+            return self::$cache[$cacheKey] = ['state' => self::STATE_FALLBACK] + self::emptyContent();
         }
 
         if (!(bool) $row['is_active']) {
-            return self::$cache[$cacheKey] = ['state' => self::STATE_HIDDEN] + $empty;
+            return self::$cache[$cacheKey] = ['state' => self::STATE_HIDDEN] + self::emptyContent();
         }
 
-        $content = self::fromRow($row);
+        $sectionId = (int) $row['id'];
 
         try {
-            $points = $repository->findPointsBySectionId((int) $row['id'], true);
-            $images = $repository->findImagesBySectionId((int) $row['id']);
+            $points = $repository->findPointsBySectionId($sectionId, true);
+            $images = $repository->findImagesBySectionId($sectionId);
         } catch (\Throwable $e) {
             error_log('[DetailSectionContent] children lookup failed for "' . $cacheKey . '": ' . $e->getMessage());
 
-            return self::$cache[$cacheKey] = ['state' => self::STATE_FALLBACK] + $empty;
+            return self::$cache[$cacheKey] = ['state' => self::STATE_FALLBACK] + self::emptyContent();
         }
 
-        // Whatever comes back — including an empty list — is authoritative:
-        // an emptied-out gallery or points list stays empty.
-        $content['points'] = array_map(static function (array $point): array {
-            $titleNl = (string) $point['title_nl'];
-            $bodyNl = (string) $point['body_nl'];
+        // The words of the section, its points and its gallery images at
+        // once; nothing when the page already loaded them
+        // (SectionRegistry::renderPage()).
+        BlockLocalization::preloadBlocks([self::TABLE => [$sectionId]]);
 
-            return [
-                'title_nl' => $titleNl,
-                'title_en' => self::valueOrDefault($point['title_en'] ?? null, $titleNl),
-                'body_nl' => $bodyNl,
-                'body_en' => self::valueOrDefault($point['body_en'] ?? null, $bodyNl),
-            ];
-        }, $points);
+        $content = self::fromRow($row);
+
+        // Whatever comes back — including an empty list — is authoritative:
+        // an emptied-out gallery or points list stays empty. A point without
+        // its title and body in the default language is not there either:
+        // the default language decides whether a point shows.
+        $content['points'] = [];
+        foreach ($points as $point) {
+            $pointId = (int) $point['id'];
+
+            if (BlockLocalization::hasRequiredWords(self::POINTS, $pointId)) {
+                $content['points'][] = BlockLocalization::words(self::POINTS, $pointId);
+            }
+        }
 
         // Media Library first, the row's own image_path second, and this
         // block's own alt text over the media item's default — all of it in
@@ -151,7 +165,10 @@ class DetailSectionContent
         // blocks. width/height come along, null when the library does not
         // know them.
         $content['images'] = array_map(
-            static fn (array $image): array => BlockImage::fromRow($image),
+            static fn (array $image): array => BlockImage::fromOwner(
+                $image,
+                BlockLocalization::bilingual(self::IMAGES, (int) $image['id'], 'alt')
+            ),
             $images
         );
 
@@ -184,7 +201,13 @@ class DetailSectionContent
      * the quicknav's hardcoded four material anchors — add, remove or
      * reorder a section and the nav follows on its own.
      *
-     * @return list<array{anchor: string, label_nl: string, label_en: string}>
+     * The label is, per language, the section's short nav label, else its
+     * title, and only then the default language's label the same way
+     * (BlockLocalization::bilingualFirst()). A section without a label in the
+     * default language gets no link: the default language decides whether it
+     * is there, as it decides for the section itself.
+     *
+     * @return list<array{anchor: string, label: LocalizedValue}>
      */
     public static function navItemsForPage(string $pageSlug): array
     {
@@ -196,6 +219,10 @@ class DetailSectionContent
             return [];
         }
 
+        // The words of every section on the page in one query, not one per
+        // link; nothing when the page already loaded them.
+        BlockLocalization::preload([self::TABLE => array_map(static fn (array $row): int => (int) $row['id'], $rows)]);
+
         $items = [];
         foreach ($rows as $row) {
             $anchor = trim((string) ($row['anchor'] ?? ''));
@@ -203,16 +230,14 @@ class DetailSectionContent
                 continue;
             }
 
-            $titleNl = (string) $row['title_nl'];
-            $labelNl = self::valueOrDefault($row['nav_label_nl'] ?? null, $titleNl);
+            $label = BlockLocalization::bilingualFirst(self::TABLE, (int) $row['id'], ['nav_label', 'title']);
+            if ($label->primaryValue() === '') {
+                continue;
+            }
 
             $items[] = [
                 'anchor' => $anchor,
-                'label_nl' => $labelNl,
-                'label_en' => self::valueOrDefault(
-                    $row['nav_label_en'] ?? null,
-                    self::valueOrDefault($row['title_en'] ?? null, $labelNl)
-                ),
+                'label' => $label,
             ];
         }
 
@@ -220,40 +245,43 @@ class DetailSectionContent
     }
 
     /**
-     * Section-level fields only (no points/images) — used by the admin edit
-     * page to pre-fill a brand-new section's form.
+     * What a new section row is created with, by DetailSectionBlock::create():
+     * what is the same in every language. The words are startingWords().
+     * Section-level fields only: a new section has no points and no images.
      *
-     * @return array<string, string>
+     * @return array{anchor: string, image_position: string, cta_url: string}
      */
-    public static function defaultsForSection(): array
+    public static function startingValues(): array
     {
         return [
             'anchor' => '',
-            'nav_label_nl' => '',
-            'nav_label_en' => '',
-            'title_nl' => 'Nieuwe sectie — pas deze titel aan',
-            'title_en' => '',
-            'lead_nl' => '',
-            'lead_en' => '',
-            'content_html' => '',
-            'content_html_en' => '',
             'image_position' => 'image_right',
-            'closing_note_nl' => '',
-            'closing_note_en' => '',
-            'cta_label_nl' => '',
-            'cta_label_en' => '',
             'cta_url' => '',
         ];
     }
 
     /**
-     * Clears the in-process cache — used by the admin save handlers right
-     * after writing a new value, and by tests.
+     * The starting words of a new section, written in the website's default
+     * language: the title the editor requires, saying that it is to be
+     * changed.
+     *
+     * @return array<string, string> field => words
+     */
+    public static function startingWords(): array
+    {
+        return ['title' => 'Nieuwe sectie — pas deze titel aan'];
+    }
+
+    /**
+     * Clears the in-process cache, and the block words BlockLocalization
+     * holds — used by the admin save handlers right after writing a new
+     * value, and by tests.
      */
     public static function clearCache(): void
     {
         self::$cache = [];
         self::$positions = [];
+        BlockLocalization::clearCache();
     }
 
     /**
@@ -263,48 +291,58 @@ class DetailSectionContent
      */
     private static function fromRow(array $row): array
     {
+        $sectionId = (int) $row['id'];
+        $words = BlockLocalization::words(self::TABLE, $sectionId);
+
         // The main image resolves exactly like the extra images below it.
-        $mainImage = BlockImage::fromRow($row, 'main_media_id', 'main_image_path', 'main_image_alt_nl', 'main_image_alt_en');
+        $mainImage = BlockImage::fromOwner($row, $words['main_image_alt'], 'main_media_id', 'main_image_path');
 
         $content = [
-            'id' => (int) $row['id'],
+            'id' => $sectionId,
             'anchor' => trim((string) ($row['anchor'] ?? '')),
-            'nav_label_nl' => (string) ($row['nav_label_nl'] ?? ''),
-            'title_nl' => (string) $row['title_nl'],
-            'lead_nl' => (string) ($row['lead_nl'] ?? ''),
-            'content_html' => (string) (RichTextSanitizer::sanitize($row['content_html'] ?? null) ?? ''),
-            'main_image_path' => $mainImage['image_path'],
-            'main_image_alt_nl' => $mainImage['alt_nl'],
-            'main_image_width' => $mainImage['width'],
-            'main_image_height' => $mainImage['height'],
-            'image_position' => in_array($row['image_position'] ?? null, self::IMAGE_POSITIONS, true)
-                ? (string) $row['image_position']
-                : 'image_right',
-            'closing_note_nl' => (string) ($row['closing_note_nl'] ?? ''),
-            'cta_label_nl' => (string) ($row['cta_label_nl'] ?? ''),
-            'cta_url' => (string) ($row['cta_url'] ?? ''),
-        ];
+        ] + $words;
 
-        $content['nav_label_en'] = self::valueOrDefault($row['nav_label_en'] ?? null, $content['nav_label_nl']);
-        $content['title_en'] = self::valueOrDefault($row['title_en'] ?? null, $content['title_nl']);
-        $content['lead_en'] = self::valueOrDefault($row['lead_en'] ?? null, $content['lead_nl']);
-        $content['main_image_alt_en'] = $mainImage['alt_en'];
-        $content['closing_note_en'] = self::valueOrDefault($row['closing_note_en'] ?? null, $content['closing_note_nl']);
-        $content['cta_label_en'] = self::valueOrDefault($row['cta_label_en'] ?? null, $content['cta_label_nl']);
+        $content['main_image_path'] = $mainImage['image_path'];
+        $content['main_image_alt'] = $mainImage['alt'];
+        $content['main_image_width'] = $mainImage['width'];
+        $content['main_image_height'] = $mainImage['height'];
+        $content['image_position'] = in_array($row['image_position'] ?? null, self::IMAGE_POSITIONS, true)
+            ? (string) $row['image_position']
+            : 'image_right';
+        $content['cta_url'] = (string) ($row['cta_url'] ?? '');
 
-        // An empty English body means "same as Dutch", exactly like
-        // RichTextContent — the partial then emits no language attributes.
-        $content['content_html_en'] = (string) (RichTextSanitizer::sanitize($row['content_html_en'] ?? null) ?? '');
-
-        // A CTA only renders when it has both a label and a URL — a
-        // half-filled optional CTA would be a broken/dead link.
-        if ($content['cta_label_nl'] === '' || $content['cta_url'] === '') {
-            $content['cta_label_nl'] = '';
-            $content['cta_label_en'] = '';
+        // A CTA only renders when it has both a label in the default language
+        // and a URL — a half-filled optional CTA would be a broken/dead link,
+        // and a translated label alone could never show.
+        if ($content['cta_label']->primaryValue() === '' || $content['cta_url'] === '') {
+            $content['cta_label'] = LocalizedValue::of([]);
             $content['cta_url'] = '';
         }
 
         return $content;
+    }
+
+    /**
+     * The shape of a section with nothing to show: every word empty, so a
+     * template that forgets to check 'state' fails safe instead of erroring
+     * on a missing key.
+     *
+     * @return array<string, mixed>
+     */
+    private static function emptyContent(): array
+    {
+        return [
+            'id' => 0,
+            'anchor' => '',
+        ] + BlockLocalization::words(self::TABLE, 0) + [
+            'main_image_path' => '',
+            'main_image_width' => null,
+            'main_image_height' => null,
+            'image_position' => 'image_right',
+            'cta_url' => '',
+            'points' => [],
+            'images' => [],
+        ];
     }
 
     /**
@@ -330,10 +368,5 @@ class DetailSectionContent
         }
 
         return self::$positions[$pageSlug] = $positions;
-    }
-
-    private static function valueOrDefault(?string $value, string $default): string
-    {
-        return ($value !== null && $value !== '') ? $value : $default;
     }
 }

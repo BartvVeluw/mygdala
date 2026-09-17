@@ -19,6 +19,9 @@ use Tests\Support\ScratchInstall;
  *                   dropped unread
  *   20260917190000  wave B, the homepage hero and the repeaters with one level
  *                   of child rows, each child row the owner of its own words
+ *   20260917200000  wave C, several child tables (Tekst met afbeelding,
+ *                   Detailsectie with its rich text) and three levels
+ *                   (Kaarten-carrousel: cards and their tags)
  *
  *   fresh      every migration from zero
  *   upgraded   an installation that stood just before phase 3B, with instances
@@ -39,12 +42,17 @@ final class RemainingBlockWordsMigrationTest extends TestCase
     private const UPGRADED = 'mygdala_scratch_remaining_block_words_upgraded';
     private const BROKEN_A = 'mygdala_scratch_remaining_block_words_broken_a';
     private const BROKEN_B = 'mygdala_scratch_remaining_block_words_broken_b';
+    private const BROKEN_C = 'mygdala_scratch_remaining_block_words_broken_c';
 
     /** The last migration before phase 3B. */
     private const BEFORE = '20260917170000';
 
     private const WAVE_A = '20260917180000';
     private const WAVE_B = '20260917190000';
+    private const WAVE_C = '20260917200000';
+
+    private const RICH_DUTCH = '<p>Één <strong>alinea</strong> &amp; meer</p>';
+    private const RICH_ENGLISH = '<p>English <em>body</em></p>';
 
     /** A page an editor made, with a slug no migration could know. */
     private const PAGE = 'zz-eigen-pagina-van-een-redacteur';
@@ -65,6 +73,15 @@ final class RemainingBlockWordsMigrationTest extends TestCase
         'step_list_sections' => ['eyebrow_nl', 'eyebrow_en', 'title_nl', 'title_en'],
         'step_list_items' => ['title_nl', 'title_en', 'body_nl', 'body_en'],
         'marquee_items' => ['label_nl', 'label_en'],
+        'text_image_splits' => ['eyebrow_nl', 'eyebrow_en', 'title_nl', 'title_en', 'button_label_nl', 'button_label_en'],
+        'text_image_split_paragraphs' => ['content_nl', 'content_en'],
+        'text_image_split_images' => ['alt_nl', 'alt_en'],
+        'detail_sections' => ['nav_label_nl', 'nav_label_en', 'title_nl', 'title_en', 'lead_nl', 'lead_en', 'content_html', 'content_html_en', 'main_image_alt_nl', 'main_image_alt_en', 'closing_note_nl', 'closing_note_en', 'cta_label_nl', 'cta_label_en'],
+        'detail_section_points' => ['title_nl', 'title_en', 'body_nl', 'body_en'],
+        'detail_section_images' => ['alt_nl', 'alt_en'],
+        'card_carousels' => ['eyebrow_nl', 'eyebrow_en', 'title_nl', 'title_en', 'lead_nl', 'lead_en'],
+        'carousel_cards' => ['title_nl', 'title_en', 'body_nl', 'body_en', 'image_alt_nl', 'image_alt_en', 'link_label_nl', 'link_label_en'],
+        'carousel_card_tags' => ['label_nl', 'label_en'],
     ];
 
     /** The language-neutral columns that must come through untouched, in table order. */
@@ -83,6 +100,15 @@ final class RemainingBlockWordsMigrationTest extends TestCase
         'step_list_sections' => 'id, page_slug, section_key, is_active, created_at, updated_at',
         'step_list_items' => 'id, step_list_section_id, sort_order, is_active, created_at, updated_at',
         'marquee_items' => 'id, marquee_section_id, sort_order, is_active, created_at, updated_at',
+        'text_image_splits' => 'id, page_slug, section_key, layout, button_url, is_active, created_at, updated_at',
+        'text_image_split_paragraphs' => 'id, text_image_split_id, sort_order, created_at, updated_at',
+        'text_image_split_images' => 'id, text_image_split_id, image_path, sort_order, created_at, updated_at, media_id',
+        'detail_sections' => 'id, page_slug, section_key, anchor, main_image_path, image_position, cta_url, is_active, created_at, updated_at, main_media_id',
+        'detail_section_points' => 'id, section_id, sort_order, is_active, created_at, updated_at',
+        'detail_section_images' => 'id, section_id, image_path, sort_order, created_at, updated_at, media_id',
+        'card_carousels' => 'id, page_slug, section_key, is_active, created_at, updated_at',
+        'carousel_cards' => 'id, carousel_id, image_path, link_url, sort_order, is_active, created_at, updated_at, media_id',
+        'carousel_card_tags' => 'id, card_id, sort_order, created_at, updated_at',
     ];
 
     private static ?ScratchInstall $fresh = null;
@@ -111,6 +137,7 @@ final class RemainingBlockWordsMigrationTest extends TestCase
         self::$upgraded = ScratchInstall::upTo(self::UPGRADED, self::BEFORE);
         self::seedWaveA(self::$upgraded);
         self::seedWaveB(self::$upgraded);
+        self::seedWaveC(self::$upgraded);
         foreach (self::NEUTRAL_COLUMNS as $table => $columns) {
             self::$neutralBefore[$table] = self::$upgraded->rows("SELECT {$columns} FROM {$table} ORDER BY id");
         }
@@ -141,6 +168,19 @@ final class RemainingBlockWordsMigrationTest extends TestCase
             self::$brokenFailure['B'] = $e->getMessage();
         }
         self::$brokenColumnsAfterFailure['homepage_hero'] = self::columns($broken, 'homepage_hero');
+        $broken->drop();
+
+        // Wave C on an installation where wave B already ran.
+        $broken = ScratchInstall::upTo(self::BROKEN_C, self::WAVE_B);
+        self::seedWaveC($broken);
+        self::withoutEnglish($broken);
+        try {
+            $broken->catchUp(self::WAVE_C);
+            self::$brokenFailure['C'] = null;
+        } catch (\RuntimeException $e) {
+            self::$brokenFailure['C'] = $e->getMessage();
+        }
+        self::$brokenColumnsAfterFailure['text_image_splits'] = self::columns($broken, 'text_image_splits');
         $broken->drop();
     }
 
@@ -293,6 +333,74 @@ final class RemainingBlockWordsMigrationTest extends TestCase
         );
     }
 
+    // ------------------------------------------------------------ wave C: several child tables, three levels
+
+    public function testATextWithImagesMovesItsHeadingItsParagraphsAndItsAltTexts(): void
+    {
+        self::assertSame(['en' => ['eyebrow' => 'About', 'button_label' => 'Read more'], 'nl' => ['eyebrow' => 'Over ons', 'title' => 'Het idee', 'button_label' => 'Lees meer']], self::words('text_image_splits', 'zz-split'));
+        self::assertSame(
+            [
+                ['en' => ['content' => 'First paragraph'], 'nl' => ['content' => 'Eerste alinea']],
+                ['nl' => ['content' => "Tweede\nalinea"]],
+            ],
+            self::childWords('text_image_split_paragraphs', 'text_image_split_id', 'text_image_splits', 'zz-split')
+        );
+        self::assertSame(
+            [
+                ['en' => ['alt' => "A 'bench' & tools"], 'nl' => ['alt' => 'Een "werkbank" <met> gereedschap']],
+                [],
+            ],
+            self::childWords('text_image_split_images', 'text_image_split_id', 'text_image_splits', 'zz-split'),
+            'alt text with quotes and markup is copied byte for byte; an image without alt text keeps its row'
+        );
+    }
+
+    public function testADetailSectionMovesItsRichTextByteForByteAndItsPointsAndImages(): void
+    {
+        self::assertSame(
+            [
+                'en' => ['title' => 'Wooden products', 'body' => self::RICH_ENGLISH, 'main_image_alt' => 'Board', 'closing_note' => 'A note', 'cta_label' => 'Quote'],
+                'nl' => ['nav_label' => 'Hout', 'title' => 'Houten producten', 'lead' => 'Kort.', 'body' => self::RICH_DUTCH, 'main_image_alt' => 'Plank', 'cta_label' => 'Offerte'],
+            ],
+            self::words('detail_sections', 'zz-detail'),
+            'the unsuffixed Dutch rich-text column becomes the nl body, content_html_en the en body'
+        );
+        self::assertSame(
+            [
+                ['en' => ['title' => 'Strong'], 'nl' => ['title' => 'Sterk', 'body' => 'Gaat lang mee.']],
+            ],
+            self::childWords('detail_section_points', 'section_id', 'detail_sections', 'zz-detail')
+        );
+        self::assertSame([['nl' => ['alt' => 'Detail "1"']]], self::childWords('detail_section_images', 'section_id', 'detail_sections', 'zz-detail'));
+    }
+
+    public function testACarouselMovesThreeLevelsEachRowOwningItsOwnWords(): void
+    {
+        self::assertSame(['en' => ['title' => 'Projects', 'lead' => 'A lead.'], 'nl' => ['eyebrow' => 'Werk', 'title' => 'Projecten']], self::words('card_carousels', 'zz-carousel'));
+        self::assertSame(
+            [
+                ['en' => ['title' => 'Card one', 'image_alt' => 'Photo', 'link_label' => 'View'], 'nl' => ['title' => 'Kaart een', 'body' => 'Tekst', 'image_alt' => 'Foto', 'link_label' => 'Bekijk']],
+                ['nl' => ['title' => 'Kaart twee']],
+            ],
+            self::childWords('carousel_cards', 'carousel_id', 'card_carousels', 'zz-carousel')
+        );
+
+        $cards = self::$upgraded->rows(
+            "SELECT c.id AS id FROM carousel_cards c JOIN card_carousels p ON p.id = c.carousel_id
+              WHERE p.page_slug = ? AND p.section_key = 'zz-carousel' ORDER BY c.sort_order",
+            [self::PAGE]
+        );
+        self::assertSame(
+            [
+                ['en' => ['label' => 'Wood'], 'nl' => ['label' => 'Hout']],
+                ['nl' => ['label' => 'Staal']],
+            ],
+            self::rowWords('carousel_card_tags', 'card_id', (int) $cards[0]['id']),
+            'a tag owns its words by its own id, not by its card or its carousel'
+        );
+        self::assertSame([[]], self::rowWords('carousel_card_tags', 'card_id', (int) $cards[1]['id']), 'an empty tag keeps its row and has no words');
+    }
+
     // ------------------------------------------------------------ for every wave
 
     public function testNothingLanguageNeutralAboutABlockChanged(): void
@@ -342,6 +450,7 @@ final class RemainingBlockWordsMigrationTest extends TestCase
 
         self::$upgraded->replay(self::WAVE_A);
         self::$upgraded->replay(self::WAVE_B);
+        self::$upgraded->replay(self::WAVE_C);
 
         self::assertSame($before, self::$upgraded->rows($query));
         self::assertSame($shapes, array_map(static fn (string $table): array => self::shape(self::$upgraded, $table), array_keys(self::LEGACY_COLUMNS)));
@@ -359,6 +468,32 @@ final class RemainingBlockWordsMigrationTest extends TestCase
         self::assertStringContainsString('could not be moved into block_translations', (string) self::$brokenFailure['B']);
         foreach (self::LEGACY_COLUMNS['homepage_hero'] as $column) {
             self::assertContains($column, self::$brokenColumnsAfterFailure['homepage_hero'], $column . ' is still there to move later');
+        }
+
+        self::assertNotNull(self::$brokenFailure['C'] ?? null, 'wave C must refuse');
+        self::assertStringContainsString('could not be moved into block_translations', (string) self::$brokenFailure['C']);
+        foreach (self::LEGACY_COLUMNS['text_image_splits'] as $column) {
+            self::assertContains($column, self::$brokenColumnsAfterFailure['text_image_splits'], $column . ' is still there to move later');
+        }
+    }
+
+    public function testNoContentBlockTableKeepsALanguageColumn(): void
+    {
+        $tables = array_merge(['rich_text_sections', 'cta_bands', 'contact_cards'], array_keys(self::LEGACY_COLUMNS), ['stat_strips', 'marquee_sections']);
+
+        foreach ([self::$fresh, self::$upgraded] as $install) {
+            foreach ($tables as $table) {
+                self::assertSame(
+                    [],
+                    $install->rows(
+                        "SELECT column_name FROM information_schema.columns
+                          WHERE table_schema = ? AND table_name = ?
+                            AND (column_name LIKE '%\\_nl' OR column_name LIKE '%\\_en' OR column_name = 'content_html')",
+                        [$install->database, $table]
+                    ),
+                    $install->database . ': ' . $table
+                );
+            }
         }
     }
 
@@ -502,6 +637,70 @@ final class RemainingBlockWordsMigrationTest extends TestCase
         }
 
         return $children;
+    }
+
+    /** The wave C tables: a text with images, a detail section and a carousel with cards and tags. */
+    private static function seedWaveC(ScratchInstall $install): void
+    {
+        $pdo = $install->pdo();
+
+        $pdo->prepare('INSERT INTO text_image_splits (page_slug, section_key, layout, eyebrow_nl, eyebrow_en, title_nl, title_en, button_label_nl, button_label_en, button_url, is_active, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, NOW(), NOW())')
+            ->execute([self::PAGE, 'zz-split', 'image_left', 'Over ons', 'About', 'Het idee', null, 'Lees meer', 'Read more', '/over']);
+        $splitId = (int) $pdo->lastInsertId();
+        $paragraph = $pdo->prepare('INSERT INTO text_image_split_paragraphs (text_image_split_id, content_nl, content_en, sort_order, created_at, updated_at) VALUES (?, ?, ?, ?, NOW(), NOW())');
+        $paragraph->execute([$splitId, 'Eerste alinea', 'First paragraph', 0]);
+        $paragraph->execute([$splitId, "Tweede\nalinea", "\n", 1]);
+        $image = $pdo->prepare('INSERT INTO text_image_split_images (text_image_split_id, image_path, alt_nl, alt_en, sort_order, created_at, updated_at) VALUES (?, ?, ?, ?, ?, NOW(), NOW())');
+        $image->execute([$splitId, 'assets/images/a.jpg', 'Een "werkbank" <met> gereedschap', "A 'bench' & tools", 0]);
+        $image->execute([$splitId, 'assets/images/b.jpg', '', null, 1]);
+
+        $pdo->prepare(
+            'INSERT INTO detail_sections
+                (page_slug, section_key, anchor, nav_label_nl, nav_label_en, title_nl, title_en, lead_nl, lead_en, content_html, content_html_en,
+                 main_image_path, main_image_alt_nl, main_image_alt_en, image_position, closing_note_nl, closing_note_en, cta_label_nl, cta_label_en, cta_url,
+                 is_active, created_at, updated_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, NOW(), NOW())'
+        )->execute([self::PAGE, 'zz-detail', 'hout', 'Hout', null, 'Houten producten', 'Wooden products', 'Kort.', '', self::RICH_DUTCH, self::RICH_ENGLISH,
+            'assets/images/plank.jpg', 'Plank', 'Board', 'right', null, 'A note', 'Offerte', 'Quote', '/offerte']);
+        $detailId = (int) $pdo->lastInsertId();
+        $pdo->prepare('INSERT INTO detail_section_points (section_id, title_nl, title_en, body_nl, body_en, sort_order, is_active, created_at, updated_at) VALUES (?, ?, ?, ?, ?, 0, 1, NOW(), NOW())')
+            ->execute([$detailId, 'Sterk', 'Strong', 'Gaat lang mee.', null]);
+        $pdo->prepare('INSERT INTO detail_section_images (section_id, image_path, alt_nl, alt_en, sort_order, created_at, updated_at) VALUES (?, ?, ?, ?, 0, NOW(), NOW())')
+            ->execute([$detailId, 'assets/images/d.jpg', 'Detail "1"', '  ']);
+
+        $pdo->prepare('INSERT INTO card_carousels (page_slug, section_key, eyebrow_nl, eyebrow_en, title_nl, title_en, lead_nl, lead_en, is_active, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, NOW(), NOW())')
+            ->execute([self::PAGE, 'zz-carousel', 'Werk', null, 'Projecten', 'Projects', null, 'A lead.']);
+        $carouselId = (int) $pdo->lastInsertId();
+        $card = $pdo->prepare('INSERT INTO carousel_cards (carousel_id, title_nl, title_en, body_nl, body_en, image_path, image_alt_nl, image_alt_en, link_url, link_label_nl, link_label_en, sort_order, is_active, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, NOW(), NOW())');
+        $tag = $pdo->prepare('INSERT INTO carousel_card_tags (card_id, label_nl, label_en, sort_order, created_at, updated_at) VALUES (?, ?, ?, ?, NOW(), NOW())');
+        $card->execute([$carouselId, 'Kaart een', 'Card one', 'Tekst', null, 'assets/images/k1.jpg', 'Foto', 'Photo', '/k1', 'Bekijk', 'View', 0]);
+        $firstCard = (int) $pdo->lastInsertId();
+        $tag->execute([$firstCard, 'Hout', 'Wood', 0]);
+        $tag->execute([$firstCard, 'Staal', null, 1]);
+        $card->execute([$carouselId, 'Kaart twee', null, null, null, null, null, null, null, null, null, 1]);
+        $tag->execute([(int) $pdo->lastInsertId(), '', '', 0]);
+    }
+
+    /**
+     * The words of every row of a table under one parent id, in sort order.
+     *
+     * @return list<array<string, array<string, string>>>
+     */
+    private static function rowWords(string $table, string $parentColumn, int $parentId): array
+    {
+        $rows = [];
+        foreach (self::$upgraded->rows("SELECT id FROM {$table} WHERE {$parentColumn} = ? ORDER BY sort_order, id", [$parentId]) as $row) {
+            $words = [];
+            foreach (self::$upgraded->rows(
+                'SELECT language_code, field, value FROM block_translations WHERE owner_table = ? AND owner_id = ? ORDER BY language_code, id',
+                [$table, (int) $row['id']]
+            ) as $translation) {
+                $words[$translation['language_code']][$translation['field']] = $translation['value'];
+            }
+            $rows[] = $words;
+        }
+
+        return $rows;
     }
 
     /** No English in the registry, and nothing that still points at it. */

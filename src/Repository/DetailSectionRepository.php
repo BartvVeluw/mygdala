@@ -19,9 +19,17 @@ namespace App\Repository;
  * `service_key`, which is exactly the "maximum one per page, forever"
  * limitation phase 3 removed — see docs/content-blocks/DECISIONS.md.
  *
+ * ONLY WHAT IS THE SAME IN EVERY LANGUAGE is written here: the anchor, the
+ * image position, the CTA URL, the media references, the order and
+ * visibility. The words of a section, of each point and of each gallery
+ * image's alt text are stored per website language through
+ * App\Service\Blocks\BlockLocalization, against the id of their own row
+ * (db/migrations/20260917200000), in the same transaction as the write here
+ * that belongs to them.
+ *
  * This repository only stores the resulting image_path for the gallery and
- * the main image; the actual upload/validation/delete is
- * App\Service\SectionImageUploader's job, called from the API layer.
+ * the main image; choosing a Media Library item is
+ * App\Service\Media\BlockImage::fromRequest()'s job, called from the API layer.
  */
 class DetailSectionRepository extends Repository
 {
@@ -59,12 +67,15 @@ class DetailSectionRepository extends Repository
      * because THAT is where a block's position lives; a content table never
      * stores its own position.
      *
-     * @return array<int, array<string, mixed>>
+     * Only the id and the anchor: a section's label is words, read per
+     * language through BlockLocalization by that id.
+     *
+     * @return array<int, array{id: int|string, anchor: string|null}>
      */
     public function findActiveForPageInBlockOrder(string $pageSlug): array
     {
         $stmt = $this->db->prepare(
-            'SELECT d.*
+            'SELECT d.id, d.anchor
                FROM detail_sections d
                JOIN page_sections ps
                  ON ps.section_type = :section_type
@@ -80,41 +91,23 @@ class DetailSectionRepository extends Repository
     }
 
     /**
-     * Inserts or updates the row for one instance. Used by the admin
-     * editor's "Algemene inhoud" form; the main image, points and gallery
-     * images are saved separately by their own endpoints, so this method
-     * never touches them.
+     * Inserts or updates the row for one instance: what is the same in every
+     * language. Used by the admin editor's "Algemene inhoud" form; the main
+     * image, points and gallery images are saved separately by their own
+     * endpoints, so this method never touches them.
      *
-     * @param array<string, string|bool|null> $values
+     * @param array{anchor?: string|null, image_position?: string|null, cta_url?: string|null, is_active?: bool} $values
      */
     public function upsertSection(string $pageSlug, string $sectionKey, array $values): void
     {
         $stmt = $this->db->prepare(
             'INSERT INTO detail_sections
-                (page_slug, section_key, anchor, nav_label_nl, nav_label_en,
-                 title_nl, title_en, lead_nl, lead_en, content_html, content_html_en,
-                 image_position, closing_note_nl, closing_note_en,
-                 cta_label_nl, cta_label_en, cta_url, is_active, created_at, updated_at)
+                (page_slug, section_key, anchor, image_position, cta_url, is_active, created_at, updated_at)
              VALUES
-                (:page_slug, :section_key, :anchor, :nav_label_nl, :nav_label_en,
-                 :title_nl, :title_en, :lead_nl, :lead_en, :content_html, :content_html_en,
-                 :image_position, :closing_note_nl, :closing_note_en,
-                 :cta_label_nl, :cta_label_en, :cta_url, :is_active, NOW(), NOW())
+                (:page_slug, :section_key, :anchor, :image_position, :cta_url, :is_active, NOW(), NOW())
              ON DUPLICATE KEY UPDATE
                 anchor = VALUES(anchor),
-                nav_label_nl = VALUES(nav_label_nl),
-                nav_label_en = VALUES(nav_label_en),
-                title_nl = VALUES(title_nl),
-                title_en = VALUES(title_en),
-                lead_nl = VALUES(lead_nl),
-                lead_en = VALUES(lead_en),
-                content_html = VALUES(content_html),
-                content_html_en = VALUES(content_html_en),
                 image_position = VALUES(image_position),
-                closing_note_nl = VALUES(closing_note_nl),
-                closing_note_en = VALUES(closing_note_en),
-                cta_label_nl = VALUES(cta_label_nl),
-                cta_label_en = VALUES(cta_label_en),
                 cta_url = VALUES(cta_url),
                 is_active = VALUES(is_active),
                 updated_at = NOW()'
@@ -124,26 +117,20 @@ class DetailSectionRepository extends Repository
             'page_slug' => $pageSlug,
             'section_key' => $sectionKey,
             'anchor' => self::nullIfEmpty($values['anchor'] ?? null),
-            'nav_label_nl' => self::nullIfEmpty($values['nav_label_nl'] ?? null),
-            'nav_label_en' => self::nullIfEmpty($values['nav_label_en'] ?? null),
-            'title_nl' => $values['title_nl'] ?? '',
-            'title_en' => self::nullIfEmpty($values['title_en'] ?? null),
-            'lead_nl' => self::nullIfEmpty($values['lead_nl'] ?? null),
-            'lead_en' => self::nullIfEmpty($values['lead_en'] ?? null),
-            'content_html' => self::nullIfEmpty($values['content_html'] ?? null),
-            'content_html_en' => self::nullIfEmpty($values['content_html_en'] ?? null),
             'image_position' => in_array($values['image_position'] ?? null, ['image_left', 'image_right'], true)
                 ? $values['image_position']
                 : 'image_right',
-            'closing_note_nl' => self::nullIfEmpty($values['closing_note_nl'] ?? null),
-            'closing_note_en' => self::nullIfEmpty($values['closing_note_en'] ?? null),
-            'cta_label_nl' => self::nullIfEmpty($values['cta_label_nl'] ?? null),
-            'cta_label_en' => self::nullIfEmpty($values['cta_label_en'] ?? null),
             'cta_url' => self::nullIfEmpty($values['cta_url'] ?? null),
             'is_active' => ($values['is_active'] ?? true) ? 1 : 0,
         ]);
     }
 
+    /**
+     * Permanently removes the section and (via ON DELETE CASCADE) its points
+     * and gallery images — used by the page builder's "Delete section"
+     * action, whose SectionRegistry::delete() removes the words of the
+     * section and of every child row first.
+     */
     public function deleteSection(int $id): bool
     {
         $stmt = $this->db->prepare('DELETE FROM detail_sections WHERE id = :id');
@@ -158,8 +145,9 @@ class DetailSectionRepository extends Repository
      * `main_media_id` names a Media Library item; `main_image_path` is
      * written with that item's own path so the legacy column stays true
      * rather than stale while it still exists. The two always move together.
+     * The alt text is words, saved per language through BlockLocalization.
      *
-     * @param array<string, mixed> $values main_media_id, main_image_path, main_image_alt_nl, main_image_alt_en
+     * @param array{main_media_id?: int|null, main_image_path?: string} $values
      */
     public function updateMainImage(int $sectionId, array $values): void
     {
@@ -167,16 +155,12 @@ class DetailSectionRepository extends Repository
             'UPDATE detail_sections SET
                 main_media_id = :main_media_id,
                 main_image_path = :main_image_path,
-                main_image_alt_nl = :main_image_alt_nl,
-                main_image_alt_en = :main_image_alt_en,
                 updated_at = NOW()
              WHERE id = :id'
         );
         $stmt->execute([
             'main_media_id' => self::positiveOrNull($values['main_media_id'] ?? null),
             'main_image_path' => (string) ($values['main_image_path'] ?? ''),
-            'main_image_alt_nl' => self::nullIfEmpty($values['main_image_alt_nl'] ?? null),
-            'main_image_alt_en' => self::nullIfEmpty($values['main_image_alt_en'] ?? null),
             'id' => $sectionId,
         ]);
     }
@@ -189,7 +173,7 @@ class DetailSectionRepository extends Repository
     public function clearMainImage(int $sectionId): void
     {
         $stmt = $this->db->prepare(
-            'UPDATE detail_sections SET main_media_id = NULL, main_image_path = NULL, main_image_alt_nl = NULL, main_image_alt_en = NULL, updated_at = NOW()
+            'UPDATE detail_sections SET main_media_id = NULL, main_image_path = NULL, updated_at = NOW()
              WHERE id = :id'
         );
         $stmt->execute(['id' => $sectionId]);
@@ -227,22 +211,21 @@ class DetailSectionRepository extends Repository
     }
 
     /**
-     * @param array<string, string> $values title_nl, title_en, body_nl, body_en
+     * Appends a new, visible point to the end of a section and returns its
+     * id. Its title and body are words, stored per website language against
+     * that id (App\Service\Blocks\BlockLocalization), in the same transaction
+     * as this insert.
      */
-    public function createPoint(int $sectionId, array $values): int
+    public function createPoint(int $sectionId): int
     {
         $nextSortOrder = $this->nextSortOrder('detail_section_points', 'section_id', $sectionId);
 
         $stmt = $this->db->prepare(
-            'INSERT INTO detail_section_points (section_id, title_nl, title_en, body_nl, body_en, sort_order, is_active, created_at, updated_at)
-             VALUES (:section_id, :title_nl, :title_en, :body_nl, :body_en, :sort_order, 1, NOW(), NOW())'
+            'INSERT INTO detail_section_points (section_id, sort_order, is_active, created_at, updated_at)
+             VALUES (:section_id, :sort_order, 1, NOW(), NOW())'
         );
         $stmt->execute([
             'section_id' => $sectionId,
-            'title_nl' => $values['title_nl'],
-            'title_en' => self::nullIfEmpty($values['title_en'] ?? null),
-            'body_nl' => $values['body_nl'],
-            'body_en' => self::nullIfEmpty($values['body_en'] ?? null),
             'sort_order' => $nextSortOrder,
         ]);
 
@@ -250,30 +233,31 @@ class DetailSectionRepository extends Repository
     }
 
     /**
-     * @param array<string, string|bool> $values title_nl, title_en, body_nl, body_en, is_active
+     * What a point has that is the same in every language: whether it is
+     * shown. Its words are saved through BlockLocalization. The id never
+     * changes, so the words of every language stay attached to it.
+     *
+     * @param array{is_active: bool} $values
      */
     public function updatePoint(int $id, array $values): void
     {
         $stmt = $this->db->prepare(
             'UPDATE detail_section_points SET
-                title_nl = :title_nl,
-                title_en = :title_en,
-                body_nl = :body_nl,
-                body_en = :body_en,
                 is_active = :is_active,
                 updated_at = NOW()
              WHERE id = :id'
         );
         $stmt->execute([
-            'title_nl' => $values['title_nl'],
-            'title_en' => self::nullIfEmpty($values['title_en'] ?? null),
-            'body_nl' => $values['body_nl'],
-            'body_en' => self::nullIfEmpty($values['body_en'] ?? null),
-            'is_active' => ($values['is_active'] ?? true) ? 1 : 0,
+            'is_active' => $values['is_active'] ? 1 : 0,
             'id' => $id,
         ]);
     }
 
+    /**
+     * Permanently removes a point. The "Verwijderen" action removes the
+     * point's words first, in the same transaction
+     * (BlockLocalization::deleteOwner()).
+     */
     public function deletePoint(int $id): bool
     {
         $stmt = $this->db->prepare('DELETE FROM detail_section_points WHERE id = :id');
@@ -320,22 +304,25 @@ class DetailSectionRepository extends Repository
     }
 
     /**
-     * @param array<string, mixed> $values media_id, image_path, alt_nl, alt_en
+     * Appends an image to the end of a section's gallery and returns its id.
+     * Its alt text is words, stored per website language against that id
+     * (App\Service\Blocks\BlockLocalization), in the same transaction as this
+     * insert.
+     *
+     * @param array{media_id?: int|null, image_path?: string} $values
      */
     public function createImage(int $sectionId, array $values): int
     {
         $nextSortOrder = $this->nextSortOrder('detail_section_images', 'section_id', $sectionId);
 
         $stmt = $this->db->prepare(
-            'INSERT INTO detail_section_images (section_id, media_id, image_path, alt_nl, alt_en, sort_order, created_at, updated_at)
-             VALUES (:section_id, :media_id, :image_path, :alt_nl, :alt_en, :sort_order, NOW(), NOW())'
+            'INSERT INTO detail_section_images (section_id, media_id, image_path, sort_order, created_at, updated_at)
+             VALUES (:section_id, :media_id, :image_path, :sort_order, NOW(), NOW())'
         );
         $stmt->execute([
             'section_id' => $sectionId,
             'media_id' => self::positiveOrNull($values['media_id'] ?? null),
             'image_path' => (string) ($values['image_path'] ?? ''),
-            'alt_nl' => self::nullIfEmpty($values['alt_nl'] ?? null),
-            'alt_en' => self::nullIfEmpty($values['alt_en'] ?? null),
             'sort_order' => $nextSortOrder,
         ]);
 
@@ -343,23 +330,30 @@ class DetailSectionRepository extends Repository
     }
 
     /**
-     * @param array<string, mixed> $values media_id, image_path, alt_nl, alt_en
+     * Which Media Library item one gallery image shows. Its alt text is saved
+     * through BlockLocalization; the id never changes, so the alt text of
+     * every language stays attached to it.
+     *
+     * @param array{media_id?: int|null, image_path?: string} $values
      */
     public function updateImage(int $id, array $values): void
     {
         $stmt = $this->db->prepare(
-            'UPDATE detail_section_images SET media_id = :media_id, image_path = :image_path, alt_nl = :alt_nl, alt_en = :alt_en, updated_at = NOW()
+            'UPDATE detail_section_images SET media_id = :media_id, image_path = :image_path, updated_at = NOW()
              WHERE id = :id'
         );
         $stmt->execute([
             'media_id' => self::positiveOrNull($values['media_id'] ?? null),
             'image_path' => (string) ($values['image_path'] ?? ''),
-            'alt_nl' => self::nullIfEmpty($values['alt_nl'] ?? null),
-            'alt_en' => self::nullIfEmpty($values['alt_en'] ?? null),
             'id' => $id,
         ]);
     }
 
+    /**
+     * Permanently removes a gallery image's row (the reference, never the
+     * Media Library file). The "Verwijderen" action removes the image's alt
+     * text first, in the same transaction (BlockLocalization::deleteOwner()).
+     */
     public function deleteImage(int $id): bool
     {
         $stmt = $this->db->prepare('DELETE FROM detail_section_images WHERE id = :id');

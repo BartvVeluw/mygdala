@@ -1240,6 +1240,29 @@ final class MultilingualBoundaryTest extends TestCase
             'src/Service/Blocks/MarqueeBlock.php', 'src/Repository/MarqueeRepository.php', 'src/Service/MarqueeContent.php',
             'partials/section-marquee.php', 'admin/marquee.php', 'api/admin/update-marquee-item.php',
         ],
+        // Phase 3B, wave C: the blocks with more than one child table, and
+        // the Kaarten-carrousel with a grandchild.
+        'text_image_split' => [
+            'src/Service/Blocks/TextImageSplitBlock.php', 'src/Repository/TextImageSplitRepository.php', 'src/Service/TextImageSplitContent.php',
+            'partials/section-text-image-split.php', 'admin/text-image-split.php', 'api/admin/update-text-image-split-section.php',
+        ],
+        'detail_section' => [
+            'src/Service/Blocks/DetailSectionBlock.php', 'src/Repository/DetailSectionRepository.php', 'src/Service/DetailSectionContent.php',
+            'partials/section-detail-section.php', 'admin/detail-section.php', 'api/admin/update-detail-section.php',
+        ],
+        'card_carousel' => [
+            'src/Service/Blocks/CardCarouselBlock.php', 'src/Repository/CardCarouselRepository.php', 'src/Service/CardCarouselContent.php',
+            'partials/section-card-carousel.php', 'admin/card-carousel.php', 'api/admin/update-card-carousel.php',
+        ],
+    ];
+
+    /** The files of a converted block that are not one of its six above: a second partial, a second editor, the quicknav that reads its labels. */
+    private const MORE_CONVERTED_BLOCK_FILES = [
+        'partials/text-image-split-media.php',
+        'admin/carousel-card.php',
+        'api/admin/update-carousel-card.php',
+        'partials/section-quicknav.php',
+        'src/Service/Blocks/QuicknavBlock.php',
     ];
 
     /** Editors whose own form carries no words (only is_active): the words are all on the item cards, which hand nothing back. */
@@ -1258,6 +1281,12 @@ final class MultilingualBoundaryTest extends TestCase
         'api/admin/delete-stat-strip-item.php' => 'stat_strip_items',
         'api/admin/delete-marquee-item.php' => 'marquee_items',
         'api/admin/delete-homepage-hero-stat.php' => 'homepage_hero_stats',
+        'api/admin/delete-text-image-split-paragraph.php' => 'text_image_split_paragraphs',
+        'api/admin/delete-text-image-split-image.php' => 'text_image_split_images',
+        'api/admin/delete-detail-section-point.php' => 'detail_section_points',
+        'api/admin/delete-detail-section-image.php' => 'detail_section_images',
+        'api/admin/delete-carousel-card.php' => 'carousel_cards',
+        'api/admin/delete-carousel-card-tag.php' => 'carousel_card_tags',
     ];
 
     /** Every endpoint that adds ONE child row of a converted block: it writes the new row's words in the default language. */
@@ -1268,6 +1297,12 @@ final class MultilingualBoundaryTest extends TestCase
         'api/admin/create-stat-strip-item.php' => 'stat_strip_items',
         'api/admin/create-marquee-item.php' => 'marquee_items',
         'api/admin/create-homepage-hero-stat.php' => 'homepage_hero_stats',
+        'api/admin/create-text-image-split-paragraph.php' => 'text_image_split_paragraphs',
+        'api/admin/create-text-image-split-image.php' => 'text_image_split_images',
+        'api/admin/create-detail-section-point.php' => 'detail_section_points',
+        'api/admin/create-detail-section-image.php' => 'detail_section_images',
+        'api/admin/create-carousel-card.php' => 'carousel_cards',
+        'api/admin/create-carousel-card-tag.php' => 'carousel_card_tags',
     ];
 
     /** Child tables whose rows are only ever deleted with their parent, or by an endpoint listed with the next wave. */
@@ -1295,7 +1330,7 @@ final class MultilingualBoundaryTest extends TestCase
         // runtime, or silently reads nothing.
         $offenders = [];
 
-        foreach (self::CONVERTED_BLOCK_FILES as $files) {
+        foreach ([...self::CONVERTED_BLOCK_FILES, self::MORE_CONVERTED_BLOCK_FILES] as $files) {
             foreach ($files as $file) {
                 $code = self::withoutComments(self::read($file));
 
@@ -1346,11 +1381,19 @@ final class MultilingualBoundaryTest extends TestCase
         self::assertStringContainsString('SiteText::htmlAttrsOf($section[\'body\'])', $rich, 'the body is marked data-lang-html through the one helper');
         self::assertStringContainsString('SiteText::visibleOf(', $rich);
 
+        // The Detailsectie's body is the second rich field, and the only
+        // thing in its partial marked as HTML.
+        $detail = self::withoutComments(self::read('partials/section-detail-section.php'));
+        self::assertSame(1, substr_count($detail, 'htmlAttrsOf'), 'only the body of the detail section is rich');
+        self::assertStringContainsString('SiteText::htmlAttrsOf($content[\'body\'])', $detail);
+        self::assertStringNotContainsString('data-lang-html', $detail, 'the marker comes from the one helper');
+        self::assertStringContainsString('SiteText::attrsOf(', $detail);
+
         // The homepage hero's headline is the one exception, checked below:
         // its title and highlight become markup built from escaped words.
         $plainPartials = array_unique(array_filter(
-            array_map(static fn (array $files): string => $files[3], self::CONVERTED_BLOCK_FILES),
-            static fn (string $partial): bool => !in_array($partial, ['partials/section-rich-text.php', 'partials/section-homepage-hero.php'], true)
+            [...array_map(static fn (array $files): string => $files[3], self::CONVERTED_BLOCK_FILES), 'partials/section-quicknav.php'],
+            static fn (string $partial): bool => !in_array($partial, ['partials/section-rich-text.php', 'partials/section-homepage-hero.php', 'partials/section-detail-section.php'], true)
         ));
 
         $hero = self::withoutComments(self::read('partials/section-homepage-hero.php'));
@@ -1402,7 +1445,7 @@ final class MultilingualBoundaryTest extends TestCase
     {
         foreach (self::CHILD_DELETE_ENDPOINTS as $endpoint => $table) {
             self::assertMatchesRegularExpression(
-                '/beginTransaction\(\);\s*BlockLocalization::deleteOwner\(\x27' . $table . '\x27, \$itemId\);\s*\$repository->delete\w*\(\$itemId\);\s*\$db->commit\(\);/',
+                '/beginTransaction\(\);\s*BlockLocalization::deleteOwner\(\x27' . $table . '\x27, (\$\w+Id)\);\s*\$repository->delete\w*\(\1\);\s*\$db->commit\(\);/',
                 self::withoutComments(self::read($endpoint)),
                 $endpoint . ': the words go before the row, in its transaction'
             );

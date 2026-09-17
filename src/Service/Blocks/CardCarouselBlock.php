@@ -12,8 +12,10 @@ require_once dirname(__DIR__, 3) . '/partials/section-card-carousel.php';
  * services carousel): you decide which cards it holds and how many, and a
  * card without an image falls back to the fixed icon.
  *
- * Its cards carry uploaded images, so it cleans those up before its rows
- * disappear.
+ * Its cards reference Media Library images, which it never deletes (see
+ * deleteFiles()). The words of the carousel, of every card and of every
+ * card's tags are stored per website language in block_translations
+ * (BlockLocalization), each on its own row's id: three levels deep.
  */
 final class CardCarouselBlock extends BlockDefinition
 {
@@ -63,22 +65,57 @@ final class CardCarouselBlock extends BlockDefinition
         ];
     }
 
+    /**
+     * The heading on the carousel's row, a card's words on the card's row and
+     * a tag's label on the tag's row, per website language. What the editor
+     * always required in Dutch is required in the default language: a card's
+     * title and a tag's label; the heading is optional. The lengths are the
+     * ones the editors always allowed.
+     */
+    public function translatableFields(): array
+    {
+        return [
+            'card_carousels' => [
+                TranslatableField::plain('eyebrow', 255),
+                TranslatableField::plain('title', 255),
+                TranslatableField::plain('lead', 1000),
+            ],
+            'carousel_cards' => [
+                TranslatableField::plain('title', 255)->required(),
+                TranslatableField::plain('body', 500),
+                TranslatableField::plain('image_alt', 255),
+                TranslatableField::plain('link_label', 150),
+            ],
+            'carousel_card_tags' => [
+                TranslatableField::plain('label', 60)->required(),
+            ],
+        ];
+    }
+
+    public function childTables(): array
+    {
+        return [
+            'carousel_cards' => ['parent' => 'card_carousels', 'column' => 'carousel_id'],
+            'carousel_card_tags' => ['parent' => 'carousel_cards', 'column' => 'card_id'],
+        ];
+    }
+
     public function create(string $pageSlug): array
     {
         $key = self::newSectionKey();
 
         $repository = new CardCarouselRepository();
-        $repository->upsertCarousel($pageSlug, $key, [
-            'eyebrow_nl' => '',
-            'eyebrow_en' => '',
-            'title_nl' => 'Nieuwe carrousel — pas deze titel aan',
-            'title_en' => '',
-            'lead_nl' => '',
-            'lead_en' => '',
-            'is_active' => true,
+        $repository->upsertCarousel($pageSlug, $key, ['is_active' => true]);
+
+        $id = (int) $repository->findBySlugAndKey($pageSlug, $key)['id'];
+
+        // A generic starting title in the website's default language, the
+        // language every other language falls back to until it is written.
+        BlockLocalization::save('card_carousels', $id, BlockLocalization::defaultLanguage(), [
+            'title' => 'Nieuwe carrousel — pas deze titel aan',
         ]);
 
-        return [(int) $repository->findBySlugAndKey($pageSlug, $key)['id'], $key];
+        return [$id, $key];
     }
 
     /**
@@ -124,23 +161,25 @@ final class CardCarouselBlock extends BlockDefinition
                 'id' => 0,
                 'index_label' => sprintf('%02d', $index + 1),
                 'image_path' => $image['image_path'],
-                'image_alt_nl' => $image['alt_nl'],
-                'image_alt_en' => $image['alt_en'],
+                'image_alt' => $image['alt'],
                 'image_width' => $image['width'],
                 'image_height' => $image['height'],
-                ...$samples->itemFields('title', 'item', $index),
-                ...$samples->itemFields('body', 'item_body', $index),
-                ...$samples->fields('link_label', 'button'),
+                'title' => $samples->localizedItem('item', $index),
+                'body' => $samples->localizedItem('item_body', $index),
+                'link_label' => $samples->localized('button'),
                 'link_url' => BlockSamples::LINK,
-                'tags' => [$samples->itemFields('label', 'tag', 0), $samples->itemFields('label', 'tag', 1)],
+                'tags' => [
+                    ['label' => $samples->localizedItem('tag', 0)],
+                    ['label' => $samples->localizedItem('tag', 1)],
+                ],
             ];
         }
 
         return [
             'id' => 0,
-            ...$samples->fields('eyebrow', 'eyebrow'),
-            ...$samples->fields('title', 'title'),
-            ...$samples->fields('lead', 'lead'),
+            'eyebrow' => $samples->localized('eyebrow'),
+            'title' => $samples->localized('title'),
+            'lead' => $samples->localized('lead'),
             'cards' => $cards,
         ];
     }
@@ -152,7 +191,7 @@ final class CardCarouselBlock extends BlockDefinition
 
     public function instanceTitle(array $pageSection): string
     {
-        return (string) (CardCarouselContent::forSection($this->pageSlug($pageSection), $this->sectionKey($pageSection))['title_nl'] ?? '');
+        return BlockLocalization::name('card_carousels', $this->sectionId($pageSection), 'title');
     }
 
     public function editUrl(array $pageSection): ?string

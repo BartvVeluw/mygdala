@@ -586,8 +586,6 @@ final class MediaUsageTest extends TestCase
         $repository->createImage($sectionId, [
             'media_id' => $mediaId,
             'image_path' => (string) MediaService::find($mediaId)?->path,
-            'alt_nl' => '',
-            'alt_en' => '',
         ]);
 
         return $pageSectionId;

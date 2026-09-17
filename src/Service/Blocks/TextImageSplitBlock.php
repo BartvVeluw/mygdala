@@ -14,6 +14,10 @@ require_once dirname(__DIR__, 3) . '/partials/section-text-image-split.php';
  *
  * It is also the only block that cares about `$tightTop`: directly under a
  * hero it drops its own top spacing so the two do not stack twice.
+ *
+ * The words of the section, of every paragraph and of every image's alt text
+ * are stored per website language in block_translations (BlockLocalization),
+ * each paragraph's and each image's on its own row.
  */
 final class TextImageSplitBlock extends BlockDefinition
 {
@@ -63,6 +67,40 @@ final class TextImageSplitBlock extends BlockDefinition
         ];
     }
 
+    /**
+     * The eyebrow, title and button label on the section's row, the text on
+     * each paragraph's row and the alt text on each image's row, per website
+     * language; the layout, the button URL, the media and the order are the
+     * same in every language and stay in their tables. What the editor always
+     * required in Dutch is required in the default language (only a
+     * paragraph's text; the heading, the button and an alt text never were);
+     * the lengths are the ones the editor always allowed.
+     */
+    public function translatableFields(): array
+    {
+        return [
+            'text_image_splits' => [
+                TranslatableField::plain('eyebrow', 150),
+                TranslatableField::plain('title', 255),
+                TranslatableField::plain('button_label', 150),
+            ],
+            'text_image_split_paragraphs' => [
+                TranslatableField::plain('content', 1000)->required(),
+            ],
+            'text_image_split_images' => [
+                TranslatableField::plain('alt', 255),
+            ],
+        ];
+    }
+
+    public function childTables(): array
+    {
+        return [
+            'text_image_split_paragraphs' => ['parent' => 'text_image_splits', 'column' => 'text_image_split_id'],
+            'text_image_split_images' => ['parent' => 'text_image_splits', 'column' => 'text_image_split_id'],
+        ];
+    }
+
     public function create(string $pageSlug): array
     {
         $key = self::newSectionKey();
@@ -108,17 +146,25 @@ final class TextImageSplitBlock extends BlockDefinition
 
     public function sampleContent(BlockSamples $samples): ?array
     {
-        $body = $samples->fields('content', 'lead');
-        $more = $samples->fields('content', 'body');
+        $image = $samples->image();
 
         return [
             'layout' => 'image_right',
-            ...$samples->fields('eyebrow', 'eyebrow'),
-            ...$samples->fields('title', 'title'),
-            ...$samples->fields('button_label', 'button'),
+            'eyebrow' => $samples->localized('eyebrow'),
+            'title' => $samples->localized('title'),
+            'button_label' => $samples->localized('button'),
             'button_url' => BlockSamples::LINK,
-            'paragraphs' => [$body, $more],
-            'images' => [$samples->image()],
+            'paragraphs' => [
+                ['content' => $samples->localized('lead')],
+                ['content' => $samples->localized('body')],
+            ],
+            'images' => [[
+                'image_path' => $image['image_path'],
+                'alt' => $image['alt'],
+                'width' => $image['width'],
+                'height' => $image['height'],
+                'media_id' => null,
+            ]],
         ];
     }
 
@@ -129,7 +175,7 @@ final class TextImageSplitBlock extends BlockDefinition
 
     public function instanceTitle(array $pageSection): string
     {
-        return (string) (TextImageSplitContent::forSection($this->pageSlug($pageSection), $this->sectionKey($pageSection))['title_nl'] ?? '');
+        return BlockLocalization::name('text_image_splits', $this->sectionId($pageSection), 'title');
     }
 
     public function editUrl(array $pageSection): ?string

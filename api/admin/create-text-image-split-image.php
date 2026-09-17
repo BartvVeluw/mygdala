@@ -16,15 +16,25 @@
  * The submitted id is checked against the library
  * (App\Service\Media\BlockImage::fromRequest()) before anything is stored: a
  * number naming no media item is "no image", never a stored reference.
+ *
+ * A NEW IMAGE'S ALT TEXT IS WRITTEN IN THE DEFAULT LANGUAGE (Multilingual
+ * 2.0), like a new page: the optional alt text the form sends is stored as
+ * the website's default language (TextImageSplitBlock::translatableFields(),
+ * through App\Service\Blocks\BlockLocalization), and every other language is
+ * added afterwards on the image's own card
+ * (update-text-image-split-image.php). The row and its alt text are one
+ * transaction.
  */
 
 declare(strict_types=1);
 
 require_once __DIR__ . '/../../vendor/autoload.php';
 
+use App\Database;
 use App\Service\Language\AdminTranslator;
 use App\Repository\TextImageSplitRepository;
 use App\Service\AdminAuth;
+use App\Service\Blocks\BlockLocalization;
 use App\Service\Csrf;
 use App\Service\Media\BlockImage;
 use App\Service\TextImageSplitContent;
@@ -68,15 +78,41 @@ if ($image['media_id'] === null) {
     exit;
 }
 
-$fields = $image + [
-    'alt_nl' => trim((string) ($_POST['alt_nl'] ?? '')),
-    'alt_en' => trim((string) ($_POST['alt_en'] ?? '')),
-];
+$defaultLanguage = BlockLocalization::defaultLanguage();
+
+// Exactly the fields the block declares, never a name taken from the request.
+$words = [];
+foreach (array_keys(BlockLocalization::fields('text_image_split_images')) as $field) {
+    $words[$field] = trim((string) ($_POST[$field] ?? ''));
+}
+
+$errors = [];
+foreach (BlockLocalization::messageKeys(BlockLocalization::problems('text_image_split_images', $defaultLanguage, $words)) as $key) {
+    $errors[] = AdminTranslator::trans($key);
+}
+
+if ($errors !== []) {
+    $_SESSION['admin_tis_image_errors'] = $errors;
+    header('Location: ' . $redirect);
+    exit;
+}
+
+$db = Database::connection();
 
 try {
-    $repository->createImage($sectionId, $fields);
+    // The image and its alt text in the default language are one save.
+    $db->beginTransaction();
+
+    $imageId = $repository->createImage($sectionId, $image);
+    BlockLocalization::save('text_image_split_images', $imageId, $defaultLanguage, $words);
+
+    $db->commit();
     TextImageSplitContent::clearCache();
 } catch (\Throwable $e) {
+    if ($db->inTransaction()) {
+        $db->rollBack();
+    }
+
     error_log('[api/admin/create-text-image-split-image.php] ' . $e->getMessage());
 
     // Nothing to clean up: this endpoint created no file. The media item

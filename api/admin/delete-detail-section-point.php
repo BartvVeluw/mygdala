@@ -4,13 +4,20 @@
  * POST /api/admin/delete-detail-section-point.php
  *
  * Permanently deletes one "kenmerk" (point) card of a Detailsectie.
+ *
+ * The point's words in every website language go first, in the same
+ * transaction as the row (BlockLocalization::deleteOwner()): there is no
+ * foreign key that could take them along, and once the row is gone nothing
+ * would find them.
  */
 
 declare(strict_types=1);
 
 require_once __DIR__ . '/../../vendor/autoload.php';
 
+use App\Database;
 use App\Service\AdminAuth;
+use App\Service\Blocks\BlockLocalization;
 use App\Service\Csrf;
 use App\Service\DetailSectionContent;
 use App\Repository\DetailSectionRepository;
@@ -51,8 +58,26 @@ if ($section === null) {
 
 $redirect = '/admin/detail-section.php?section=' . urlencode((string) $section['page_slug'] . ':' . (string) $section['section_key']);
 
-$repository->deletePoint($pointId);
-DetailSectionContent::clearCache();
+$db = Database::connection();
+
+try {
+    $db->beginTransaction();
+
+    BlockLocalization::deleteOwner('detail_section_points', $pointId);
+    $repository->deletePoint($pointId);
+
+    $db->commit();
+    DetailSectionContent::clearCache();
+} catch (\Throwable $e) {
+    if ($db->inTransaction()) {
+        $db->rollBack();
+    }
+
+    error_log('[api/admin/delete-detail-section-point.php] ' . $e->getMessage());
+    $_SESSION['admin_detail_section_point_errors'] = ['Kenmerk kon niet worden verwijderd.'];
+    header('Location: ' . $redirect);
+    exit;
+}
 
 header('Location: ' . $redirect . '&saved=1');
 exit;

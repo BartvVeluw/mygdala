@@ -5,14 +5,23 @@
  *
  * Adds a new card to a Kaarten-carrousel and opens it, so the editor lands
  * straight in the screen where its text, image and tags are filled in.
+ *
+ * A NEW CARD IS WRITTEN IN THE DEFAULT LANGUAGE (Multilingual 2.0), like a
+ * new page: the title the form sends is stored as the website's default
+ * language, where it is required, and every other language is added
+ * afterwards on the card's own screen (update-carousel-card.php). The row and
+ * its words are one transaction, so a card never exists without its title or
+ * the other way round.
  */
 
 declare(strict_types=1);
 
 require_once __DIR__ . '/../../vendor/autoload.php';
 
+use App\Database;
 use App\Service\Language\AdminTranslator;
 use App\Service\AdminAuth;
+use App\Service\Blocks\BlockLocalization;
 use App\Service\Csrf;
 use App\Service\CardCarouselContent;
 use App\Repository\CardCarouselRepository;
@@ -47,21 +56,40 @@ if ($carousel === null) {
 
 $listRedirect = '/admin/card-carousel.php?section=' . urlencode((string) $carousel['page_slug'] . ':' . (string) $carousel['section_key']);
 
-$fields = [
-    'title_nl' => trim((string) ($_POST['title_nl'] ?? '')),
-    'title_en' => trim((string) ($_POST['title_en'] ?? '')),
-];
+$defaultLanguage = BlockLocalization::defaultLanguage();
 
-if ($fields['title_nl'] === '') {
-    $_SESSION['admin_carousel_card_errors'] = [AdminTranslator::trans('validation.titel_nl_verplicht')];
+// Exactly the fields the block declares, never a name taken from the request.
+$words = [];
+foreach (array_keys(BlockLocalization::fields('carousel_cards')) as $field) {
+    $words[$field] = trim((string) ($_POST[$field] ?? ''));
+}
+
+$errors = [];
+foreach (BlockLocalization::messageKeys(BlockLocalization::problems('carousel_cards', $defaultLanguage, $words)) as $key) {
+    $errors[] = AdminTranslator::trans($key);
+}
+
+if ($errors !== []) {
+    $_SESSION['admin_carousel_card_errors'] = $errors;
     header('Location: ' . $listRedirect);
     exit;
 }
 
+$db = Database::connection();
+
 try {
-    $cardId = $repository->createCard($carouselId, $fields + ['is_active' => true]);
+    $db->beginTransaction();
+
+    $cardId = $repository->createCard($carouselId);
+    BlockLocalization::save('carousel_cards', $cardId, $defaultLanguage, $words);
+
+    $db->commit();
     CardCarouselContent::clearCache();
 } catch (\Throwable $e) {
+    if ($db->inTransaction()) {
+        $db->rollBack();
+    }
+
     error_log('[api/admin/create-carousel-card.php] ' . $e->getMessage());
     $_SESSION['admin_carousel_card_errors'] = ['Kaart kon niet worden opgeslagen. Probeer het opnieuw.'];
     header('Location: ' . $listRedirect);

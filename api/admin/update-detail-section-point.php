@@ -4,15 +4,29 @@
  * POST /api/admin/update-detail-section-point.php
  *
  * Saves one "kenmerk" (point) card of a Detailsectie.
+ *
+ * ONE WEBSITE LANGUAGE (Multilingual 2.0): the title and body are the words
+ * of the language named in `language_code`, which must be an active language
+ * of the website registry, and are required only in the default language
+ * (DetailSectionBlock::translatableFields(), through
+ * App\Service\Blocks\BlockLocalization). Only that language is written, so
+ * saving the Dutch words never removes an English or German translation. The
+ * point keeps its id; is_active is the same in every language and is saved
+ * in the same transaction.
  */
 
 declare(strict_types=1);
 
 require_once __DIR__ . '/../../vendor/autoload.php';
 
+use App\Database;
+use App\Service\Language\AdminTranslator;
 use App\Service\AdminAuth;
+use App\Service\Blocks\BlockLocalization;
 use App\Service\Csrf;
 use App\Service\DetailSectionContent;
+use App\Service\Language\LanguageCode;
+use App\Service\Language\SiteLanguages;
 use App\Repository\DetailSectionRepository;
 
 AdminAuth::requireLoginForApi();
@@ -51,24 +65,45 @@ if ($section === null) {
 
 $redirect = '/admin/detail-section.php?section=' . urlencode((string) $section['page_slug'] . ':' . (string) $section['section_key']);
 
-$fields = [
-    'title_nl' => trim((string) ($_POST['title_nl'] ?? '')),
-    'title_en' => trim((string) ($_POST['title_en'] ?? '')),
-    'body_nl' => trim((string) ($_POST['body_nl'] ?? '')),
-    'body_en' => trim((string) ($_POST['body_en'] ?? '')),
-    'is_active' => isset($_POST['is_active']),
-];
+$languageCode = LanguageCode::normalise((string) ($_POST['language_code'] ?? '')) ?? '';
 
-if ($fields['title_nl'] === '' || $fields['body_nl'] === '') {
-    $_SESSION['admin_detail_section_point_errors'] = ['Titel (NL) en tekst (NL) zijn verplicht.'];
+// Exactly the fields the block declares, never a name taken from the request.
+$words = [];
+foreach (array_keys(BlockLocalization::fields('detail_section_points')) as $field) {
+    $words[$field] = trim((string) ($_POST[$field] ?? ''));
+}
+
+$errors = [];
+
+if ($languageCode === '' || !SiteLanguages::isActive($languageCode)) {
+    $errors[] = AdminTranslator::trans('validation.language_unknown');
+} else {
+    foreach (BlockLocalization::messageKeys(BlockLocalization::problems('detail_section_points', $languageCode, $words)) as $key) {
+        $errors[] = AdminTranslator::trans($key);
+    }
+}
+
+if ($errors !== []) {
+    $_SESSION['admin_detail_section_point_errors'] = $errors;
     header('Location: ' . $redirect);
     exit;
 }
 
+$db = Database::connection();
+
 try {
-    $repository->updatePoint($pointId, $fields);
+    $db->beginTransaction();
+
+    $repository->updatePoint($pointId, ['is_active' => isset($_POST['is_active'])]);
+    BlockLocalization::save('detail_section_points', $pointId, $languageCode, $words);
+
+    $db->commit();
     DetailSectionContent::clearCache();
 } catch (\Throwable $e) {
+    if ($db->inTransaction()) {
+        $db->rollBack();
+    }
+
     error_log('[api/admin/update-detail-section-point.php] ' . $e->getMessage());
     $_SESSION['admin_detail_section_point_errors'] = ['Kenmerk kon niet worden opgeslagen. Probeer het opnieuw.'];
     header('Location: ' . $redirect);

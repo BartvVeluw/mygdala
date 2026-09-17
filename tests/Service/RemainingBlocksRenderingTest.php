@@ -22,6 +22,10 @@ require_once dirname(__DIR__, 2) . '/partials/section-step-list.php';
 require_once dirname(__DIR__, 2) . '/partials/section-stat-strip.php';
 require_once dirname(__DIR__, 2) . '/partials/section-marquee.php';
 require_once dirname(__DIR__, 2) . '/partials/section-homepage-hero.php';
+require_once dirname(__DIR__, 2) . '/partials/section-text-image-split.php';
+require_once dirname(__DIR__, 2) . '/partials/section-detail-section.php';
+require_once dirname(__DIR__, 2) . '/partials/section-quicknav.php';
+require_once dirname(__DIR__, 2) . '/partials/section-card-carousel.php';
 
 /**
  * What a visitor gets from the block types phase 3B moved onto per-language
@@ -35,8 +39,10 @@ require_once dirname(__DIR__, 2) . '/partials/section-homepage-hero.php';
  * fallback applied; the V1 switch gets its data-nl/data-en pair from the same
  * words; the default language decides whether a block (or an item) shows
  * anything, so a translation alone shows nothing; a third language is only a
- * row; and every word is plain text, escaped, never data-lang-html. No
- * database: the registry comes from SiteLanguageFixture.
+ * row; and every word is plain text, escaped, never data-lang-html, except
+ * the Detailsectie's body, which is sanitized rich text through the same
+ * contract as the Tekstblok's. No database: the registry comes from
+ * SiteLanguageFixture.
  */
 final class RemainingBlocksRenderingTest extends TestCase
 {
@@ -271,7 +277,188 @@ final class RemainingBlocksRenderingTest extends TestCase
         self::assertSame(1, substr_count($html, 'data-lang-html'), 'only the headline is marked as HTML');
     }
 
+    // ------------------------------------------------------------ Detailsectie (wave C): rich body, plain everything else
+
+    public function testADetailSectionBodyIsRichTextShownInTheDefaultLanguageWithItsPairOnlyWhenTheLanguagesDiffer(): void
+    {
+        SiteLanguageFixture::useBilingual('nl');
+        $this->words('detail_sections', [
+            'nl' => ['title' => 'Hout graveren', 'body' => '<p>Nederlands <strong>vet</strong></p>'],
+            'en' => ['title' => 'Wood engraving', 'body' => '<p>English <strong>bold</strong></p>'],
+        ]);
+
+        $html = $this->detailSection();
+
+        self::assertStringContainsString(
+            '<div class="rich-content service-detail__body" data-lang-html data-nl="&lt;p&gt;Nederlands &lt;strong&gt;vet&lt;/strong&gt;&lt;/p&gt;" data-en="&lt;p&gt;English &lt;strong&gt;bold&lt;/strong&gt;&lt;/p&gt;"><p>Nederlands <strong>vet</strong></p></div>',
+            $html,
+            'the Dutch body first, as markup, with the escaped pair for the switch'
+        );
+        self::assertSame(1, substr_count($html, 'data-lang-html'), 'only the body is marked as HTML');
+
+        // One body in the default language only: no pair, nothing to switch.
+        $this->words('detail_sections', ['nl' => ['title' => 'Hout graveren', 'body' => '<p>Alleen Nederlands</p>']]);
+        self::assertStringContainsString('<div class="rich-content service-detail__body"><p>Alleen Nederlands</p></div>', $this->detailSection(), 'a missing translation falls back to the default body');
+    }
+
+    public function testADetailSectionOnAnEnglishSiteShowsTheEnglishBodyFirstAndATranslationAloneShowsNothing(): void
+    {
+        SiteLanguageFixture::useBilingual('en');
+        $this->words('detail_sections', [
+            'nl' => ['title' => 'Hout graveren', 'body' => '<p>Nederlands</p>'],
+            'en' => ['title' => 'Wood engraving', 'body' => '<p>English</p>'],
+        ]);
+
+        self::assertStringContainsString('"><p>English</p></div>', $this->detailSection(), 'the English default first');
+
+        $this->words('detail_sections', ['en' => ['title' => 'Wood engraving'], 'nl' => ['body' => '<p>Alleen Nederlands</p>']]);
+        self::assertStringNotContainsString('service-detail__body', $this->detailSection(), 'a Dutch body on an English-default site has no default body to show');
+    }
+
+    public function testADetailSectionBodyInAThirdDefaultLanguageIsWhatBothV1HalvesFallBackTo(): void
+    {
+        SiteLanguageFixture::useLanguages([
+            SiteLanguageFixture::language('de', isDefault: true, sortOrder: 0),
+            SiteLanguageFixture::language('nl', sortOrder: 1),
+            SiteLanguageFixture::language('en', sortOrder: 2),
+        ]);
+        $this->words('detail_sections', ['de' => ['title' => 'Holz', 'body' => '<p>Deutsch</p>'], 'en' => ['body' => '<p>English</p>']]);
+
+        self::assertStringContainsString('data-lang-html data-nl="&lt;p&gt;Deutsch&lt;/p&gt;" data-en="&lt;p&gt;English&lt;/p&gt;"', $this->detailSection());
+    }
+
+    public function testADetailSectionSanitizesItsBodyAndEscapesItsLabelsPointsAndAltTexts(): void
+    {
+        SiteLanguageFixture::useBilingual('nl');
+        $payload = '<img src=x onerror=alert(1)> & "quoted"';
+        $escaped = '&lt;img src=x onerror=alert(1)&gt; &amp; &quot;quoted&quot;';
+        $this->words('detail_sections', [
+            'nl' => [
+                'title' => $payload, 'lead' => 'Inleiding', 'closing_note' => $payload, 'cta_label' => $payload, 'main_image_alt' => 'Foto "met" <b>markup</b>',
+                'body' => '<p>Veilig <a href="https://example.test" onclick="steal()">link</a></p><script>alert(1)</script><img src=x onerror=alert(1)>',
+            ],
+            'en' => ['body' => '<p>Safe</p><iframe src="https://evil.test"></iframe><p onmouseover="alert(1)">hover</p>', 'main_image_alt' => "Photo ' quote"],
+        ]);
+        $this->childWords('detail_section_points', 8, ['nl' => ['title' => $payload, 'body' => 'Uitleg'], 'en' => ['title' => '"><script>alert(2)</script>']]);
+        $this->childWords('detail_section_images', 9, ['nl' => ['alt' => 'Werkbank "oud"'], 'en' => ['alt' => '<b>bench</b>']]);
+
+        $html = $this->detailSection([
+            'main_image_path' => '/assets/media/x.webp',
+            'cta_url' => '/contact',
+            'points' => [BlockLocalization::words('detail_section_points', 8)],
+            'images' => [['image_path' => '/assets/media/y.webp', 'width' => null, 'height' => null] + ['alt' => BlockLocalization::bilingual('detail_section_images', 9, 'alt')]],
+        ]);
+
+        self::assertStringContainsString('<a href="https://example.test"', $html, 'a link in the body stays real markup');
+        foreach (['<script', 'onclick', 'onerror', '<iframe', 'onmouseover'] as $hostile) {
+            self::assertStringNotContainsString($hostile, html_entity_decode($this->element($html, 'service-detail__body'), ENT_QUOTES), $hostile . ' survived in the body, visible or in the switch attributes');
+        }
+
+        self::assertSame(4, substr_count($html, '>' . $escaped), 'the title, the CTA label, the closing note and a point title are escaped text');
+        self::assertStringContainsString('data-en="&quot;&gt;&lt;script&gt;alert(2)&lt;/script&gt;"', $html, 'a point title is escaped in both halves');
+        self::assertStringContainsString('alt="Foto &quot;met&quot; &lt;b&gt;markup&lt;/b&gt;" data-nl-alt="Foto &quot;met&quot; &lt;b&gt;markup&lt;/b&gt;" data-en-alt="Photo &#039; quote"', $html, 'the main image alt stays in its attribute');
+        self::assertStringContainsString('alt="Werkbank &quot;oud&quot;" data-nl-alt="Werkbank &quot;oud&quot;" data-en-alt="&lt;b&gt;bench&lt;/b&gt;"', $html, 'a gallery image alt from its own row');
+        self::assertStringNotContainsString('<img src=x', $html);
+        self::assertSame(1, substr_count($html, 'data-lang-html'), 'plain text is never marked as HTML');
+    }
+
+    public function testTheQuicknavLabelIsTheShortLabelOrTheTitlePerLanguageAndStaysText(): void
+    {
+        SiteLanguageFixture::useBilingual('nl');
+        $this->words('detail_sections', ['nl' => ['nav_label' => '<b>Hout</b>', 'title' => 'Hout graveren'], 'en' => ['title' => 'Wood engraving']]);
+
+        $html = $this->capture(fn () => render_section_quicknav([
+            ['anchor' => 'hout"><script>', 'label' => BlockLocalization::bilingualFirst('detail_sections', self::ID, ['nav_label', 'title'])],
+        ]));
+
+        self::assertStringContainsString('<a href="#hout&quot;&gt;&lt;script&gt;"  data-nl="&lt;b&gt;Hout&lt;/b&gt;" data-en="Wood engraving">&lt;b&gt;Hout&lt;/b&gt;</a>', $html, 'the English title before the Dutch short label');
+        self::assertStringNotContainsString('data-lang-html', $html);
+    }
+
+    // ------------------------------------------------------------ Tekst met afbeelding and Kaarten-carrousel (wave C)
+
+    public function testATextWithImagesPrintsItsParagraphsAndAltTextsFromTheirOwnRowsAsText(): void
+    {
+        SiteLanguageFixture::useBilingual('nl');
+        $payload = '<img src=x onerror=alert(1)> & "quoted"';
+        $this->words('text_image_splits', ['nl' => ['eyebrow' => 'Over mij', 'title' => 'Het verhaal', 'button_label' => 'Contact'], 'en' => ['title' => 'The story']]);
+        $this->childWords('text_image_split_paragraphs', 10, ['nl' => ['content' => $payload], 'en' => ['content' => 'English paragraph']]);
+        $this->childWords('text_image_split_images', 11, ['nl' => ['alt' => 'Een "werkplaats"'], 'en' => ['alt' => "A 'workshop'"]]);
+
+        $section = BlockLocalization::words('text_image_splits', self::ID) + [
+            'layout' => 'image_right',
+            'button_url' => '/contact',
+            'paragraphs' => [BlockLocalization::words('text_image_split_paragraphs', 10)],
+            'images' => [['image_path' => '/assets/media/z.webp', 'width' => null, 'height' => null, 'alt' => BlockLocalization::bilingual('text_image_split_images', 11, 'alt')]],
+        ];
+        $html = $this->capture(fn () => render_section_text_image_split($section, false, 'split-test'));
+
+        self::assertStringContainsString('data-nl="Het verhaal" data-en="The story">Het verhaal</h2>', $html);
+        self::assertStringContainsString('data-en="English paragraph">&lt;img src=x onerror=alert(1)&gt; &amp; &quot;quoted&quot;</p>', $html, 'a paragraph is escaped text');
+        self::assertStringContainsString('alt="Een &quot;werkplaats&quot;" data-nl-alt="Een &quot;werkplaats&quot;" data-en-alt="A &#039;workshop&#039;"', $html);
+        self::assertStringNotContainsString('<img src=x', $html);
+        self::assertStringNotContainsString('data-lang-html', $html);
+    }
+
+    public function testACarouselPrintsItsCardsAndTheirTagsThreeLevelsDownAsText(): void
+    {
+        SiteLanguageFixture::useBilingual('en');
+        $payload = '<b>Duurzaam</b> & "eerlijk"';
+        $this->words('card_carousels', ['nl' => ['title' => 'Materialen'], 'en' => ['title' => 'Materials "we" use']]);
+        $this->childWords('carousel_cards', 12, [
+            'nl' => ['title' => 'Hout', 'body' => 'Warm.', 'image_alt' => 'Eiken "plank"', 'link_label' => 'Lees meer'],
+            'en' => ['title' => 'Wood', 'image_alt' => "Oak 'board'", 'link_label' => 'Read more'],
+        ]);
+        $this->childWords('carousel_card_tags', 13, ['nl' => ['label' => $payload], 'en' => ['label' => '"><script>alert(3)</script>']]);
+
+        $content = BlockLocalization::words('card_carousels', self::ID) + [
+            'cards' => [BlockLocalization::words('carousel_cards', 12) + [
+                'index_label' => '01',
+                'image_path' => '/assets/media/oak.webp',
+                'image_width' => null,
+                'image_height' => null,
+                'link_url' => '/materialen/hout',
+                'tags' => [BlockLocalization::words('carousel_card_tags', 13)],
+            ]],
+        ];
+        $html = $this->capture(fn () => render_section_card_carousel($content));
+
+        self::assertStringContainsString('data-nl="Materialen" data-en="Materials &quot;we&quot; use">Materials &quot;we&quot; use</h2>', $html, 'the English default first');
+        self::assertStringContainsString('aria-label="Materials &quot;we&quot; use" data-nl-aria="Materialen" data-en-aria="Materials &quot;we&quot; use"', $html, 'the carousel is named after its title, in its attribute');
+        self::assertStringContainsString('alt="Oak &#039;board&#039;" data-nl-alt="Eiken &quot;plank&quot;" data-en-alt="Oak &#039;board&#039;"', $html);
+        self::assertStringContainsString('data-nl="&lt;b&gt;Duurzaam&lt;/b&gt; &amp; &quot;eerlijk&quot;" data-en="&quot;&gt;&lt;script&gt;alert(3)&lt;/script&gt;"', $html, 'a tag, the third level, is escaped text in both halves');
+        self::assertStringNotContainsString('<script', $html);
+        self::assertStringNotContainsString('<b>', $html);
+        self::assertStringNotContainsString('data-lang-html', $html);
+    }
+
     // ------------------------------------------------------------ helpers
+
+    /** @param array<string, mixed> $overrides */
+    private function detailSection(array $overrides = []): string
+    {
+        $content = $overrides + BlockLocalization::words('detail_sections', self::ID) + [
+            'id' => self::ID,
+            'anchor' => 'hout',
+            'main_image_path' => '',
+            'main_image_width' => null,
+            'main_image_height' => null,
+            'image_position' => 'image_right',
+            'cta_url' => '',
+            'points' => [],
+            'images' => [],
+        ];
+
+        return $this->capture(static fn () => render_section_detail_section($content, ['index_label' => '01', 'bg_soft' => false], 'detail-test'));
+    }
+
+    /** The element of $html with this class, from its opening tag to the first closing tag of that kind. */
+    private function element(string $html, string $class): string
+    {
+        self::assertSame(1, preg_match('/<(\w+) class="[^"]*\b' . preg_quote($class, '/') . '\b[^"]*"[^>]*>.*?<\/\1>/s', $html, $match), $class);
+
+        return $match[0];
+    }
 
     /** @param array<string, array<string, string>> $translations */
     private function childWords(string $table, int $id, array $translations): void

@@ -20,6 +20,13 @@
  * The carousel's aria labels are generic ("kaart", not "materiaal") because
  * the block is: the region announces itself with the block's own title.
  *
+ * Every word arrives as one LocalizedValue per field
+ * (App\Service\Blocks\BlockLocalization), the carousel's, each card's and
+ * each tag's: SiteText prints the words a visitor sees first and the escaped
+ * data-nl/data-en pair for the V1 switch, so this file knows no language, no
+ * default and no fallback. All of it is plain text. Only the region's own
+ * fallback label, like the control labels below, is fixed interface text.
+ *
  * Caller must already have checked $content['state'] !==
  * CardCarouselContent::STATE_HIDDEN before calling this.
  *
@@ -32,23 +39,23 @@ function render_section_card_carousel(array $content): void
     }
 
     $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
+    $text = static fn (\App\Service\Language\LocalizedValue $value): string => \App\Service\Language\SiteText::visibleOf($value);
+    $pair = static fn (\App\Service\Language\LocalizedValue $value): string => \App\Service\Language\SiteText::attrsOf($value);
 
-    $hasHead = $content['eyebrow_nl'] !== '' || $content['title_nl'] !== '' || $content['lead_nl'] !== '';
-    $regionLabelNl = $content['title_nl'] !== '' ? $content['title_nl'] : 'Carrousel';
-    $regionLabelEn = $content['title_en'] !== '' ? $content['title_en'] : 'Carousel';
+    $hasHead = $text($content['eyebrow']) !== '' || $text($content['title']) !== '' || $text($content['lead']) !== '';
     ?>
       <section class="bg-soft">
         <div class="container">
           <?php if ($hasHead): ?>
           <div class="section-head" data-reveal>
-            <?php if ($content['eyebrow_nl'] !== ''): ?>
-            <p class="eyebrow" <?= \App\Service\Language\SiteText::attrs($content['eyebrow_nl'], $content['eyebrow_en']) ?>><?= $h(\App\Service\Language\SiteText::visible($content['eyebrow_nl'], $content['eyebrow_en'])) ?></p>
+            <?php if ($text($content['eyebrow']) !== ''): ?>
+            <p class="eyebrow" <?= $pair($content['eyebrow']) ?>><?= $h($text($content['eyebrow'])) ?></p>
             <?php endif; ?>
-            <?php if ($content['title_nl'] !== ''): ?>
-            <h2 <?= \App\Service\Language\SiteText::attrs($content['title_nl'], $content['title_en']) ?>><?= $h(\App\Service\Language\SiteText::visible($content['title_nl'], $content['title_en'])) ?></h2>
+            <?php if ($text($content['title']) !== ''): ?>
+            <h2 <?= $pair($content['title']) ?>><?= $h($text($content['title'])) ?></h2>
             <?php endif; ?>
-            <?php if ($content['lead_nl'] !== ''): ?>
-            <p class="lead" <?= \App\Service\Language\SiteText::attrs($content['lead_nl'], $content['lead_en']) ?>><?= $h(\App\Service\Language\SiteText::visible($content['lead_nl'], $content['lead_en'])) ?></p>
+            <?php if ($text($content['lead']) !== ''): ?>
+            <p class="lead" <?= $pair($content['lead']) ?>><?= $h($text($content['lead'])) ?></p>
             <?php endif; ?>
           </div>
           <?php endif; ?>
@@ -60,9 +67,13 @@ function render_section_card_carousel(array $content): void
             data-reveal
             role="region"
             aria-roledescription="carousel"
-            aria-label="<?= $h($regionLabelNl) ?>"
-            data-nl-aria="<?= $h($regionLabelNl) ?>"
-            data-en-aria="<?= $h($regionLabelEn) ?>"
+            <?php if ($text($content['title']) !== ''): ?>
+            aria-label="<?= $h($text($content['title'])) ?>"<?= \App\Service\Language\SiteText::attrsForOf('aria', $content['title']) ?>
+            <?php else: ?>
+            aria-label="Carrousel"
+            data-nl-aria="Carrousel"
+            data-en-aria="Carousel"
+            <?php endif; ?>
           >
             <div class="orbit-carousel__stage">
               <ul class="orbit-carousel__track" data-orbit-track role="list">
@@ -73,9 +84,7 @@ function render_section_card_carousel(array $content): void
                     <div class="orbit-card__media">
                       <img
                         src="<?= $h($card['image_path']) ?>"
-                        alt="<?= $h($card['image_alt_nl']) ?>"
-                        data-nl-alt="<?= $h($card['image_alt_nl']) ?>"
-                        data-en-alt="<?= $h($card['image_alt_en']) ?>"
+                        alt="<?= $h($text($card['image_alt'])) ?>"<?= \App\Service\Language\SiteText::attrsForOf('alt', $card['image_alt']) ?>
                         <?= \App\Service\Media\BlockImage::dimensionAttributes(['width' => $card['image_width'] ?? null, 'height' => $card['image_height'] ?? null]) ?>
                         loading="lazy"
                       />
@@ -99,14 +108,14 @@ function render_section_card_carousel(array $content): void
                     <?php endif; ?>
                     <div class="orbit-card__body">
                       <span class="service-row__index"><?= $h($card['index_label']) ?></span>
-                      <h3 <?= \App\Service\Language\SiteText::attrs($card['title_nl'], $card['title_en']) ?>>
-                        <?= $h(\App\Service\Language\SiteText::visible($card['title_nl'], $card['title_en'])) ?>
+                      <h3 <?= $pair($card['title']) ?>>
+                        <?= $h($text($card['title'])) ?>
                       </h3>
-                      <?php if ($card['body_nl'] !== ''): ?>
+                      <?php if ($text($card['body']) !== ''): ?>
                       <p
-                        <?= \App\Service\Language\SiteText::attrs($card['body_nl'], $card['body_en']) ?>
+                        <?= $pair($card['body']) ?>
                       >
-                        <?= $h(\App\Service\Language\SiteText::visible($card['body_nl'], $card['body_en'])) ?>
+                        <?= $h($text($card['body'])) ?>
                       </p>
                       <?php endif; ?>
                       <?php if ($card['tags'] !== []): ?>
@@ -114,8 +123,8 @@ function render_section_card_carousel(array $content): void
                         <?php foreach ($card['tags'] as $tag): ?>
                         <span
                           class="tag"
-                          <?= \App\Service\Language\SiteText::attrs($tag['label_nl'], $tag['label_en']) ?>
-                          ><?= $h(\App\Service\Language\SiteText::visible($tag['label_nl'], $tag['label_en'])) ?></span
+                          <?= $pair($tag['label']) ?>
+                          ><?= $h($text($tag['label'])) ?></span
                         >
                         <?php endforeach; ?>
                       </div>
@@ -125,8 +134,8 @@ function render_section_card_carousel(array $content): void
                         href="<?= $h($card['link_url']) ?>"
                         class="btn btn--ghost btn--sm"
                         tabindex="-1"
-                        <?= \App\Service\Language\SiteText::attrs($card['link_label_nl'], $card['link_label_en']) ?>
-                        ><?= $h(\App\Service\Language\SiteText::visible($card['link_label_nl'], $card['link_label_en'])) ?>
+                        <?= $pair($card['link_label']) ?>
+                        ><?= $h($text($card['link_label'])) ?>
                         <svg
                           viewBox="0 0 24 24"
                           fill="none"

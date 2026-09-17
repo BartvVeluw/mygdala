@@ -86,7 +86,7 @@ final class BlockTranslationSchemaTest extends TestCase
                 $legacy = $this->query(
                     "SELECT column_name AS name FROM information_schema.columns
                       WHERE table_schema = DATABASE() AND table_name = ?
-                        AND (column_name LIKE '%\\_nl' OR column_name LIKE '%\\_en')",
+                        AND (column_name LIKE '%\\_nl' OR column_name LIKE '%\\_en' OR column_name = 'content_html')",
                     [$table]
                 );
 

@@ -289,7 +289,6 @@ final class NoFallbackCopyTest extends TestCase
     private function storeLegacyRow(string $type, bool $active): void
     {
         [$pageSlug, $sectionKey] = self::LEGACY_INSTANCES[$type];
-        $heading = ['eyebrow_nl' => '', 'eyebrow_en' => '', 'title_nl' => '', 'title_en' => '', 'is_active' => $active];
 
         match ($type) {
             // The words of the converted blocks are per language
@@ -298,19 +297,17 @@ final class NoFallbackCopyTest extends TestCase
             'feature_grid' => (new FeatureGridRepository())->upsertGrid($pageSlug, $sectionKey, ['is_active' => $active]),
             'step_list' => (new StepListRepository())->upsertSection($pageSlug, $sectionKey, ['is_active' => $active]),
             'stat_strip' => (new StatStripRepository())->upsertStrip($pageSlug, $sectionKey, ['is_active' => $active]),
-            'text_image_split' => (new TextImageSplitRepository())->upsertSection($pageSlug, $sectionKey, $heading + [
+            'text_image_split' => (new TextImageSplitRepository())->upsertSection($pageSlug, $sectionKey, [
                 'layout' => 'image_right',
-                'button_label_nl' => '',
-                'button_label_en' => '',
                 'button_url' => '',
+                'is_active' => $active,
             ]),
-            'page_hero' => (new PageHeroRepository())->upsert($pageSlug, $heading + [
+            'page_hero' => (new PageHeroRepository())->upsert($pageSlug, [
                 'media_id' => null,
                 'content_position' => PageHeroContent::POSITION_LEFT,
                 'title_size' => PageHeroContent::SIZE_NORMAL,
                 'text_size' => PageHeroContent::SIZE_NORMAL,
-                'lead_nl' => '',
-                'lead_en' => '',
+                'is_active' => $active,
             ]),
             'homepage_hero' => (new HomepageHeroRepository())->upsert($pageSlug, self::homepageHeroValues(['is_active' => $active])),
         };
@@ -377,9 +374,8 @@ final class NoFallbackCopyTest extends TestCase
                 return [$pageSection, 'Eigen cijfer'];
 
             case 'text_image_split':
-                (new TextImageSplitRepository())->createParagraph($sectionId, [
-                    'content_nl' => 'Eigen alinea',
-                    'content_en' => '',
+                BlockLocalization::save('text_image_split_paragraphs', (new TextImageSplitRepository())->createParagraph($sectionId), 'nl', [
+                    'content' => 'Eigen alinea',
                 ]);
 
                 return [$pageSection, 'Eigen alinea'];

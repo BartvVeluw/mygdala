@@ -7,12 +7,14 @@ namespace Tests\Service;
 use App\Database;
 use App\Repository\AdminUserRepository;
 use App\Repository\BlockTranslationRepository;
+use App\Repository\MediaRepository;
 use App\Repository\PageRepository;
 use App\Repository\PageSectionRepository;
 use App\Repository\SiteLanguageRepository;
 use App\Service\AdminPermissions;
 use App\Service\Blocks\BlockLocalization;
 use App\Service\Language\SiteLanguages;
+use App\Service\Media\MediaService;
 use App\Service\PageContent;
 use App\Service\PageService;
 use App\Service\SectionRegistry;
@@ -51,8 +53,8 @@ final class BlockChildWordsEditorHttpTest extends TestCase
      *   create    endpoint that adds a row; `parent` the request field naming the block row
      *   update    endpoint that saves a row; `item` the request field naming the row
      *   delete    endpoint that deletes a row
-     *   settings  language-neutral fields a valid create/update carries
-     *   words     Dutch words for every field, valid
+     *   settings  language-neutral fields a valid create/update carries; `{media}` is a library item of this test's own
+     *   words     Dutch words for every field the item's form has, valid
      */
     private const CHILDREN = [
         'faq_items' => [
@@ -117,6 +119,69 @@ final class BlockChildWordsEditorHttpTest extends TestCase
             'settings' => ['is_active' => '1'],
             'words' => ['primary_text' => '300+', 'secondary_text' => 'projecten'],
         ],
+        // Phase 3B, wave C: two child tables under one block, and a tag
+        // under a card (block()). A card's alt text is on its image form, a
+        // rule of its own below.
+        'text_image_split_paragraphs' => [
+            'block' => 'text_image_split',
+            'create' => '/api/admin/create-text-image-split-paragraph.php',
+            'update' => '/api/admin/update-text-image-split-paragraph.php',
+            'delete' => '/api/admin/delete-text-image-split-paragraph.php',
+            'parent' => 'section_id',
+            'item' => 'paragraph_id',
+            'settings' => [],
+            'words' => ['content' => 'Wij maken alles op maat.'],
+        ],
+        'text_image_split_images' => [
+            'block' => 'text_image_split',
+            'create' => '/api/admin/create-text-image-split-image.php',
+            'update' => '/api/admin/update-text-image-split-image.php',
+            'delete' => '/api/admin/delete-text-image-split-image.php',
+            'parent' => 'section_id',
+            'item' => 'image_id',
+            'settings' => ['media_id' => '{media}'],
+            'words' => ['alt' => 'De werkplaats van binnen'],
+        ],
+        'detail_section_points' => [
+            'block' => 'detail_section',
+            'create' => '/api/admin/create-detail-section-point.php',
+            'update' => '/api/admin/update-detail-section-point.php',
+            'delete' => '/api/admin/delete-detail-section-point.php',
+            'parent' => 'section_id',
+            'item' => 'point_id',
+            'settings' => ['is_active' => '1'],
+            'words' => ['title' => 'Massief eiken', 'body' => 'Uit Europese bossen.'],
+        ],
+        'detail_section_images' => [
+            'block' => 'detail_section',
+            'create' => '/api/admin/create-detail-section-image.php',
+            'update' => '/api/admin/update-detail-section-image.php',
+            'delete' => '/api/admin/delete-detail-section-image.php',
+            'parent' => 'section_id',
+            'item' => 'image_id',
+            'settings' => ['media_id' => '{media}'],
+            'words' => ['alt' => 'Een eiken tafelblad'],
+        ],
+        'carousel_cards' => [
+            'block' => 'card_carousel',
+            'create' => '/api/admin/create-carousel-card.php',
+            'update' => '/api/admin/update-carousel-card.php',
+            'delete' => '/api/admin/delete-carousel-card.php',
+            'parent' => 'carousel_id',
+            'item' => 'card_id',
+            'settings' => ['link_url' => '/materialen', 'is_active' => '1'],
+            'words' => ['title' => 'Hout', 'body' => 'Warm en tijdloos.', 'link_label' => 'Lees meer'],
+        ],
+        'carousel_card_tags' => [
+            'block' => 'card_carousel',
+            'create' => '/api/admin/create-carousel-card-tag.php',
+            'update' => '/api/admin/update-carousel-card-tag.php',
+            'delete' => '/api/admin/delete-carousel-card-tag.php',
+            'parent' => 'card_id',
+            'item' => 'tag_id',
+            'settings' => [],
+            'words' => ['label' => 'Duurzaam'],
+        ],
     ];
 
     private static ?BuiltInServer $server = null;
@@ -126,6 +191,9 @@ final class BlockChildWordsEditorHttpTest extends TestCase
     private int $pageId = 0;
 
     private bool $addedGerman = false;
+
+    /** The library item `{media}` stands for, made on first use. */
+    private ?int $mediaId = null;
 
     public static function setUpBeforeClass(): void
     {
@@ -158,6 +226,13 @@ final class BlockChildWordsEditorHttpTest extends TestCase
     protected function tearDown(): void
     {
         $this->removePage();
+
+        // After the page: an image row that shows a library item keeps it from going.
+        if ($this->mediaId !== null) {
+            (new MediaRepository())->delete($this->mediaId);
+            $this->mediaId = null;
+            MediaService::clearCache();
+        }
 
         if ($this->addedGerman) {
             Database::connection()->prepare("DELETE FROM block_translations WHERE language_code = 'de'")->execute();
@@ -301,6 +376,42 @@ final class BlockChildWordsEditorHttpTest extends TestCase
         )), 'nothing is left for the orphan check to purge');
     }
 
+    // ------------------------------------------------------------ rules of one child table
+
+    public function testACardsImageFormWritesOnlyItsAltTextAndARemovedImageTakesItInEveryLanguage(): void
+    {
+        $table = 'carousel_cards';
+        $parentId = $this->block($table);
+        $session = $this->signIn(null);
+        $words = self::CHILDREN[$table]['words'];
+        $media = (string) $this->mediaItem();
+
+        $this->assertSaved($this->create($session, $table, $parentId, $words));
+        [$cardId] = $this->itemIds($table, $parentId);
+        $this->assertSaved($this->update($session, $table, $cardId, 'en', ['title' => 'Wood']));
+
+        $image = fn (string $language, array $fields): array => $this->post($session, '/api/admin/update-carousel-card-image.php', [
+            'card_id' => (string) $cardId,
+            'language_code' => $language,
+        ] + $fields);
+
+        $this->assertSaved($image('nl', ['media_id' => $media, 'image_alt' => 'Een eiken plank']));
+        $this->assertSaved($image('en', ['media_id' => $media, 'image_alt' => 'An <oak> board']));
+
+        self::assertSame('Een eiken plank', $this->stored($table, $cardId, 'nl')['image_alt']);
+        self::assertSame($words, array_diff_key($this->stored($table, $cardId, 'nl'), ['image_alt' => true]), 'the image form writes nothing but its alt text');
+        self::assertSame(['title' => 'Wood', 'image_alt' => 'An <oak> board'], $this->stored($table, $cardId, 'en'));
+
+        // The card's text form keeps the alt text it does not show.
+        $this->assertSaved($this->update($session, $table, $cardId, 'en', ['title' => 'Oak']));
+        self::assertSame(['title' => 'Oak', 'image_alt' => 'An <oak> board'], $this->stored($table, $cardId, 'en'));
+
+        // Removing the image takes its alt text in every language, and nothing else.
+        $this->assertSaved($image('nl', ['remove_image' => '1']));
+        self::assertSame($words, $this->stored($table, $cardId, 'nl'));
+        self::assertSame(['title' => 'Oak'], $this->stored($table, $cardId, 'en'));
+    }
+
     // ------------------------------------------------------------ helpers
 
     /** Places the owning block on the test page and returns the id of the row its children hang under. */
@@ -318,7 +429,58 @@ final class BlockChildWordsEditorHttpTest extends TestCase
         [$id, $key] = SectionRegistry::create($type, self::KEY);
         (new PageSectionRepository())->create($this->pageId, self::KEY, $type, $key, $id);
 
+        // A tag hangs under a card of the carousel, not under the carousel.
+        if ($table === 'carousel_card_tags') {
+            $cardId = (new \App\Repository\CardCarouselRepository())->createCard((int) $id);
+            BlockLocalization::save('carousel_cards', $cardId, 'nl', ['title' => 'Kaart met labels']);
+
+            return $cardId;
+        }
+
         return (int) $id;
+    }
+
+    /**
+     * @param array<string, string> $fields
+     * @return array{status: int, location: string, body: string, headers: string}
+     */
+    private function post(string $session, string $endpoint, array $fields): array
+    {
+        $response = self::$server->request('POST', $endpoint, $session, [
+            'csrf_token' => (string) $this->accounts->read($session, 'csrf_token'),
+        ] + $fields);
+        BlockLocalization::clearCache();
+
+        return $response;
+    }
+
+    /** A media row for a file that does not exist: neither the forms nor the saves read the disk. */
+    private function mediaItem(): int
+    {
+        if ($this->mediaId === null) {
+            $this->mediaId = (new MediaRepository())->create([
+                'path' => 'assets/media/__block_child_words_' . bin2hex(random_bytes(4)) . '__.webp',
+                'original_filename' => 'plank.webp',
+                'mime_type' => 'image/webp',
+                'width' => 1600,
+                'height' => 900,
+                'file_size' => 100,
+                'alt_text' => 'Plank',
+                'checksum' => null,
+            ]);
+            MediaService::clearCache();
+        }
+
+        return $this->mediaId;
+    }
+
+    /**
+     * @param array<string, string> $settings
+     * @return array<string, string> with `{media}` replaced by this test's library item
+     */
+    private function settings(array $settings): array
+    {
+        return array_map(fn (string $value): string => $value === '{media}' ? (string) $this->mediaItem() : $value, $settings);
     }
 
     private function signIn(?string $editingLanguage): string
@@ -343,7 +505,7 @@ final class BlockChildWordsEditorHttpTest extends TestCase
         $response = self::$server->request('POST', $child['create'], $session, [
             'csrf_token' => (string) $this->accounts->read($session, 'csrf_token'),
             $child['parent'] => (string) $parentId,
-        ] + $fields + $child['settings']);
+        ] + $fields + $this->settings($child['settings']));
         BlockLocalization::clearCache();
 
         return $response;
@@ -361,7 +523,7 @@ final class BlockChildWordsEditorHttpTest extends TestCase
             'csrf_token' => (string) $this->accounts->read($session, 'csrf_token'),
             $child['item'] => (string) $itemId,
             'language_code' => $language,
-        ] + $words + $child['settings']);
+        ] + $words + $this->settings($child['settings']));
         BlockLocalization::clearCache();
 
         return $response;

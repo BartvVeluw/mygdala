@@ -6,10 +6,18 @@
  * Edits one image of a Text + image split section: which media item it shows
  * (`media_id`, from the picker) and its own local alt text.
  *
- * The local alt fields are deliberately still here. A media item carries a
- * default alt text and it is used whenever these are empty — but the same
+ * The local alt text is deliberately still here. A media item carries a
+ * default alt text and it is used whenever this one is empty — but the same
  * photo can mean something different in two places, so the override stays
- * (MEDIA.md). Nothing was migrated away from these columns.
+ * (MEDIA.md).
+ *
+ * ONE WEBSITE LANGUAGE (Multilingual 2.0): the alt text is the word of the
+ * language named in `language_code`, which must be an active language of the
+ * website registry (TextImageSplitBlock::translatableFields(), through
+ * App\Service\Blocks\BlockLocalization). Only that language is written, so
+ * saving the Dutch alt text never removes an English or German one. The
+ * media item is the same in every language and is saved in the same
+ * transaction.
  *
  * No file is uploaded, replaced or deleted here any more. Swapping the image
  * changes a reference; the file belongs to the Media Library, which may well
@@ -21,10 +29,14 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../../vendor/autoload.php';
 
+use App\Database;
 use App\Service\Language\AdminTranslator;
 use App\Repository\TextImageSplitRepository;
 use App\Service\AdminAuth;
+use App\Service\Blocks\BlockLocalization;
 use App\Service\Csrf;
+use App\Service\Language\LanguageCode;
+use App\Service\Language\SiteLanguages;
 use App\Service\Media\BlockImage;
 use App\Service\TextImageSplitContent;
 
@@ -73,15 +85,46 @@ if ($chosen['media_id'] === null) {
     exit;
 }
 
-$fields = $chosen + [
-    'alt_nl' => trim((string) ($_POST['alt_nl'] ?? '')),
-    'alt_en' => trim((string) ($_POST['alt_en'] ?? '')),
-];
+$languageCode = LanguageCode::normalise((string) ($_POST['language_code'] ?? '')) ?? '';
+
+// Exactly the fields the block declares, never a name taken from the request.
+$words = [];
+foreach (array_keys(BlockLocalization::fields('text_image_split_images')) as $field) {
+    $words[$field] = trim((string) ($_POST[$field] ?? ''));
+}
+
+$errors = [];
+
+if ($languageCode === '' || !SiteLanguages::isActive($languageCode)) {
+    $errors[] = AdminTranslator::trans('validation.language_unknown');
+} else {
+    foreach (BlockLocalization::messageKeys(BlockLocalization::problems('text_image_split_images', $languageCode, $words)) as $key) {
+        $errors[] = AdminTranslator::trans($key);
+    }
+}
+
+if ($errors !== []) {
+    $_SESSION['admin_tis_image_errors'] = $errors;
+    header('Location: ' . $redirect);
+    exit;
+}
+
+$db = Database::connection();
 
 try {
-    $repository->updateImage($imageId, $fields);
+    // The media item and the alt text in this language are one save.
+    $db->beginTransaction();
+
+    $repository->updateImage($imageId, $chosen);
+    BlockLocalization::save('text_image_split_images', $imageId, $languageCode, $words);
+
+    $db->commit();
     TextImageSplitContent::clearCache();
 } catch (\Throwable $e) {
+    if ($db->inTransaction()) {
+        $db->rollBack();
+    }
+
     error_log('[api/admin/update-text-image-split-image.php] ' . $e->getMessage());
 
     $_SESSION['admin_tis_image_errors'] = [AdminTranslator::trans('validation.afbeelding_kon_opgeslagen_probeer_opnieuw')];

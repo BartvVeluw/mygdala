@@ -69,7 +69,7 @@ final class QuicknavBlock extends FixedBlockDefinition
     {
         $items = [];
         foreach (range(0, 3) as $index) {
-            $items[] = ['anchor' => 'voorbeeld-' . ($index + 1), ...$samples->itemFields('label', 'item', $index)];
+            $items[] = ['anchor' => 'voorbeeld-' . ($index + 1), 'label' => $samples->localizedItem('item', $index)];
         }
 
         return ['items' => $items];

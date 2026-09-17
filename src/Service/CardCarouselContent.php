@@ -3,6 +3,8 @@
 namespace App\Service;
 
 use App\Repository\CardCarouselRepository;
+use App\Service\Blocks\BlockLocalization;
+use App\Service\Language\LocalizedValue;
 use App\Service\Media\BlockImage;
 
 /**
@@ -30,6 +32,23 @@ use App\Service\Media\BlockImage;
  * the visible cards, never stored — the same "derived, not stored" treatment
  * it had when the carousel was generated from a fixed list of four.
  *
+ * WORDS PER LANGUAGE (Multilingual 2.0 phase 3B). The heading, every card's
+ * title, body, alt text and link label and every tag's label are stored per
+ * website language in block_translations, each on the id of its own row,
+ * three levels deep (CardCarouselBlock::childTables()). They come out of
+ * App\Service\Blocks\BlockLocalization as one LocalizedValue per field, the
+ * fallback already applied; is_active, the order, the link URL and the image
+ * reference stay in the tables. This class decides no language itself. The
+ * words of the carousel, all of its cards and all of their tags are loaded in
+ * one query (BlockLocalization::preloadBlocks()), so reading a card or a tag
+ * never costs a query of its own.
+ *
+ * The default language decides whether a card or a tag is there at all: a
+ * card without a title in it, or a tag without a label in it, is left out,
+ * exactly as a row without its Dutch words could not exist before. A link
+ * button needs a URL and a label in the default language, the label every
+ * other language falls back to.
+ *
  * There are no hardcoded DEFAULTS: like every block phase 2 converted, this
  * type's content lives in the database only, so a missing row (or an
  * unreachable database) renders nothing at all.
@@ -45,21 +64,28 @@ class CardCarouselContent
     /** A row exists and is_active = false — an intentional hide; render nothing. */
     public const STATE_HIDDEN = 'hidden';
 
+    /** The owner tables of this block's words (CardCarouselBlock::translatableFields()). */
+    private const TABLE = 'card_carousels';
+    private const CARDS = 'carousel_cards';
+    private const TAGS = 'carousel_card_tags';
+
     /** @var array<string, array<string, mixed>> */
     private static array $cache = [];
 
     /**
-     * @return array<string, mixed> 'state' (one of STATE_*), plus
-     *                                eyebrow_nl/en, title_nl/en, lead_nl/en
+     * @return array<string, mixed> 'state' (one of STATE_*), plus eyebrow,
+     *                                title and lead (a LocalizedValue each)
      *                                and 'cards': a list (possibly empty) of
-     *                                index_label, image_path (+
-     *                                image_alt_nl/en), title_nl/en,
-     *                                body_nl/en, link_url +
-     *                                link_label_nl/en (all three ''
-     *                                together when there is no link) and
-     *                                'tags' (list of label_nl/en).
-     *                                Templates must check 'state' !==
-     *                                STATE_HIDDEN before rendering.
+     *                                index_label, image_path (+ image_alt, a
+     *                                LocalizedValue, and image_width /
+     *                                image_height), title, body and
+     *                                link_label (a LocalizedValue each),
+     *                                link_url (with link_label empty and
+     *                                link_url '' together when there is no
+     *                                link) and 'tags' (a list of 'label', a
+     *                                LocalizedValue each). Templates must
+     *                                check 'state' !== STATE_HIDDEN before
+     *                                rendering.
      */
     public static function forSection(string $pageSlug, string $sectionKey): array
     {
@@ -69,43 +95,34 @@ class CardCarouselContent
             return self::$cache[$cacheKey];
         }
 
-        $empty = [
-            'id' => 0,
-            'eyebrow_nl' => '', 'eyebrow_en' => '',
-            'title_nl' => '', 'title_en' => '',
-            'lead_nl' => '', 'lead_en' => '',
-            'cards' => [],
-        ];
-
         try {
             $repository = new CardCarouselRepository();
             $row = $repository->findBySlugAndKey($pageSlug, $sectionKey);
         } catch (\Throwable $e) {
             error_log('[CardCarouselContent] lookup failed for "' . $cacheKey . '": ' . $e->getMessage());
 
-            return self::$cache[$cacheKey] = ['state' => self::STATE_FALLBACK] + $empty;
+            return self::$cache[$cacheKey] = ['state' => self::STATE_FALLBACK] + self::emptyContent();
         }
 
         if ($row === null) {
-            return self::$cache[$cacheKey] = ['state' => self::STATE_FALLBACK] + $empty;
+            return self::$cache[$cacheKey] = ['state' => self::STATE_FALLBACK] + self::emptyContent();
         }
 
         if (!(bool) $row['is_active']) {
-            return self::$cache[$cacheKey] = ['state' => self::STATE_HIDDEN] + $empty;
+            return self::$cache[$cacheKey] = ['state' => self::STATE_HIDDEN] + self::emptyContent();
         }
 
-        $content = [
-            'id' => (int) $row['id'],
-            'eyebrow_nl' => (string) ($row['eyebrow_nl'] ?? ''),
-            'title_nl' => (string) ($row['title_nl'] ?? ''),
-            'lead_nl' => (string) ($row['lead_nl'] ?? ''),
-        ];
-        $content['eyebrow_en'] = self::valueOrDefault($row['eyebrow_en'] ?? null, $content['eyebrow_nl']);
-        $content['title_en'] = self::valueOrDefault($row['title_en'] ?? null, $content['title_nl']);
-        $content['lead_en'] = self::valueOrDefault($row['lead_en'] ?? null, $content['lead_nl']);
+        $carouselId = (int) $row['id'];
+
+        // The words of the carousel, of every card and of every tag at once;
+        // nothing when the page already loaded them
+        // (SectionRegistry::renderPage()).
+        BlockLocalization::preloadBlocks([self::TABLE => [$carouselId]]);
+
+        $content = ['id' => $carouselId] + BlockLocalization::words(self::TABLE, $carouselId);
 
         try {
-            $cards = $repository->findCardsByCarouselId((int) $row['id'], true);
+            $cards = $repository->findCardsByCarouselId($carouselId, true);
             $tagsByCard = $repository->findTagsByCardIds(array_map(
                 static fn (array $card): int => (int) $card['id'],
                 $cards
@@ -113,12 +130,17 @@ class CardCarouselContent
         } catch (\Throwable $e) {
             error_log('[CardCarouselContent] card lookup failed for "' . $cacheKey . '": ' . $e->getMessage());
 
-            return self::$cache[$cacheKey] = ['state' => self::STATE_FALLBACK] + $empty;
+            return self::$cache[$cacheKey] = ['state' => self::STATE_FALLBACK] + self::emptyContent();
         }
 
         $content['cards'] = [];
-        foreach (array_values($cards) as $index => $card) {
-            $content['cards'][] = self::card($card, $index, $tagsByCard[(int) $card['id']] ?? []);
+        foreach ($cards as $card) {
+            if (!BlockLocalization::hasRequiredWords(self::CARDS, (int) $card['id'])) {
+                continue;
+            }
+
+            // Numbered among the cards that actually show.
+            $content['cards'][] = self::card($card, count($content['cards']), $tagsByCard[(int) $card['id']] ?? []);
         }
 
         $content['state'] = self::STATE_ACTIVE;
@@ -127,12 +149,14 @@ class CardCarouselContent
     }
 
     /**
-     * Clears the in-process cache — used by the admin save handlers right
-     * after writing a new value, and by tests.
+     * Clears the in-process cache, and the block words BlockLocalization
+     * holds — used by the admin save handlers right after writing a new
+     * value, and by tests.
      */
     public static function clearCache(): void
     {
         self::$cache = [];
+        BlockLocalization::clearCache();
     }
 
     /**
@@ -143,53 +167,55 @@ class CardCarouselContent
      */
     private static function card(array $card, int $index, array $tags): array
     {
+        $cardId = (int) $card['id'];
+
         // Media Library first, the card's own image_path second, and the
-        // card's own alt text over the media item's default — see
-        // App\Service\Media\BlockImage. An empty result still means "no
+        // card's own alt text in each language over the media item's default
+        // — see App\Service\Media\BlockImage. An empty result still means "no
         // photo, render the theme's fixed icon", exactly as before.
-        $image = BlockImage::fromRow($card, 'media_id', 'image_path', 'image_alt_nl', 'image_alt_en');
+        $image = BlockImage::fromOwner($card, BlockLocalization::bilingual(self::CARDS, $cardId, 'image_alt'));
 
         $result = [
-            'id' => (int) $card['id'],
+            'id' => $cardId,
             'index_label' => sprintf('%02d', $index + 1),
             'image_path' => $image['image_path'],
-            'image_alt_nl' => $image['alt_nl'],
             'image_width' => $image['width'],
             'image_height' => $image['height'],
-            'title_nl' => (string) $card['title_nl'],
-            'body_nl' => (string) ($card['body_nl'] ?? ''),
-            'link_url' => (string) ($card['link_url'] ?? ''),
-            'link_label_nl' => (string) ($card['link_label_nl'] ?? ''),
-        ];
+        ] + BlockLocalization::words(self::CARDS, $cardId);
 
-        $result['image_alt_en'] = $image['alt_en'];
-        $result['title_en'] = self::valueOrDefault($card['title_en'] ?? null, $result['title_nl']);
-        $result['body_en'] = self::valueOrDefault($card['body_en'] ?? null, $result['body_nl']);
-        $result['link_label_en'] = self::valueOrDefault($card['link_label_en'] ?? null, $result['link_label_nl']);
+        $result['image_alt'] = $image['alt'];
+        $result['link_url'] = (string) ($card['link_url'] ?? '');
 
         // A link only renders when it has both a label and a URL — the same
         // all-or-nothing rule every other optional button in this project
-        // follows.
-        if ($result['link_url'] === '' || $result['link_label_nl'] === '') {
+        // follows. The label that counts is the default language's, the one
+        // every other language falls back to.
+        $defaultLabel = BlockLocalization::raw(self::CARDS, $cardId, 'link_label', BlockLocalization::defaultLanguage());
+
+        if ($result['link_url'] === '' || $defaultLabel === '') {
             $result['link_url'] = '';
-            $result['link_label_nl'] = '';
-            $result['link_label_en'] = '';
+            $result['link_label'] = LocalizedValue::of([]);
         }
 
-        $result['tags'] = array_map(static function (array $tag): array {
-            $labelNl = (string) $tag['label_nl'];
+        $result['tags'] = [];
+        foreach ($tags as $tag) {
+            $tagId = (int) $tag['id'];
 
-            return [
-                'label_nl' => $labelNl,
-                'label_en' => self::valueOrDefault($tag['label_en'] ?? null, $labelNl),
-            ];
-        }, array_values($tags));
+            if (BlockLocalization::hasRequiredWords(self::TAGS, $tagId)) {
+                $result['tags'][] = BlockLocalization::words(self::TAGS, $tagId);
+            }
+        }
 
         return $result;
     }
 
-    private static function valueOrDefault(?string $value, string $default): string
+    /**
+     * The shape of a carousel with nothing to show.
+     *
+     * @return array<string, mixed>
+     */
+    private static function emptyContent(): array
     {
-        return ($value !== null && $value !== '') ? $value : $default;
+        return ['id' => 0] + BlockLocalization::words(self::TABLE, 0) + ['cards' => []];
     }
 }

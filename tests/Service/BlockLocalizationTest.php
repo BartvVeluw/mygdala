@@ -43,6 +43,28 @@ final class BlockLocalizationTest extends TestCase
 
     // ------------------------------------------------------------ the fallback
 
+    public function testTheFirstFieldWithWordsInTheAskedLanguageWinsBeforeTheDefaultLanguage(): void
+    {
+        BlockLocalization::overrideRegistryForTests([
+            self::TABLE => [
+                TranslatableField::plain('label', 20),
+                TranslatableField::plain('title', 20),
+                TranslatableField::rich('body', 100),
+            ],
+        ]);
+        $this->store(['nl' => ['label' => 'Kort', 'title' => 'Een lange titel'], 'en' => ['title' => 'A long title']]);
+
+        $value = BlockLocalization::bilingualFirst(self::TABLE, self::ID, ['label', 'title']);
+        self::assertSame('Kort', $value->in('nl'));
+        self::assertSame('A long title', $value->in('en'), 'the English title before the Dutch short label');
+
+        $this->store(['nl' => ['title' => 'Alleen titel']]);
+        self::assertSame('Alleen titel', BlockLocalization::bilingualFirst(self::TABLE, self::ID, ['label', 'title'])->in('en'), 'nothing in English: the default language, the same order');
+
+        $this->expectException(\InvalidArgumentException::class);
+        BlockLocalization::bilingualFirst(self::TABLE, self::ID, ['label', 'body']);
+    }
+
     public function testTheAskedLanguageThenTheDefaultThenNothing(): void
     {
         $this->store(['nl' => ['title' => 'Titel', 'lead' => 'Inleiding'], 'en' => ['title' => 'Title']]);

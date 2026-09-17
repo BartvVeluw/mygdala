@@ -5,9 +5,10 @@ declare(strict_types=1);
 require_once __DIR__ . '/../vendor/autoload.php';
 require_once __DIR__ . '/_translate.php';
 require_once __DIR__ . '/_save_bar.php';
-require_once __DIR__ . '/_language_fields.php';
+require_once __DIR__ . '/_localized_fields.php';
 
 use App\Service\AdminAuth;
+use App\Service\Blocks\BlockLocalization;
 use App\Service\Csrf;
 use App\Service\SectionRegistry;
 use App\Repository\CardCarouselRepository;
@@ -24,6 +25,16 @@ use App\Repository\PageRepository;
  * (admin/carousel-card.php), the same "list screen + item screen" split
  * admin/portfolio.php and admin/portfolio-item.php use — a card carries a
  * repeater of its own, which does not fit one flat form.
+ *
+ * ONE WEBSITE LANGUAGE AT A TIME (Multilingual 2.0, admin/_localized_fields.php):
+ * the heading shows the language chosen in the CMS shell, as stored and
+ * without the default language's words in an empty translation, and a save
+ * writes that language only; the heading is optional in every language, and
+ * is_active is the same in all of them. The card list names each card by its
+ * title in the default language. A NEW card is written in the default
+ * language, like a new page, and translated afterwards on its own screen.
+ * Input a refused heading save hands back comes back in the language it was
+ * typed in, and that form then starts out unsaved in the save bar.
  */
 
 AdminAuth::requireLogin();
@@ -58,30 +69,30 @@ unset($_SESSION['admin_carousel_card_errors']);
 
 $saved = isset($_GET['saved']);
 
-if ($old !== null) {
-    $values = $old;
-} else {
-    $values = [
-        'eyebrow_nl' => (string) ($carousel['eyebrow_nl'] ?? ''),
-        'eyebrow_en' => (string) ($carousel['eyebrow_en'] ?? ''),
-        'title_nl' => (string) ($carousel['title_nl'] ?? ''),
-        'title_en' => (string) ($carousel['title_en'] ?? ''),
-        'lead_nl' => (string) ($carousel['lead_nl'] ?? ''),
-        'lead_en' => (string) ($carousel['lead_en'] ?? ''),
-        'is_active' => (bool) $carousel['is_active'],
-    ];
-}
+$editLanguage = admin_localized_language();
+$defaultLanguage = admin_localized_default();
+
+// The words of the carousel, of every card and of every tag, in one query.
+BlockLocalization::preloadBlocks(['card_carousels' => [$carouselId]]);
+
+$oldInThisLanguage = is_array($old) && ($old['language_code'] ?? null) === $editLanguage;
+$isActive = is_array($old) ? !empty($old['is_active']) : (bool) $carousel['is_active'];
+
+/** The heading's words on screen: typed and handed back in this language, else stored in it. */
+$carouselWord = static function (string $field) use ($old, $oldInThisLanguage, $carouselId, $editLanguage): string {
+    if ($oldInThisLanguage) {
+        return (string) ($old[$field] ?? '');
+    }
+
+    return BlockLocalization::raw('card_carousels', $carouselId, $field, $editLanguage);
+};
 
 $csrfToken = Csrf::token();
 $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
-
-/**
- * @param array<string, mixed> $values
- */
-function carouselValue(array $values, string $key): string
-{
-    return htmlspecialchars((string) ($values[$key] ?? ''), ENT_QUOTES, 'UTF-8');
-}
+$placeholder = admin_localized_placeholder_attr($editLanguage);
+// An optional field says so in the default language; in a translation its
+// placeholder says what a visitor sees while it is empty.
+$optional = $placeholder !== '' ? $placeholder : ' placeholder="Optioneel"';
 ?>
 <!doctype html>
 <html lang="<?= htmlspecialchars(\App\Service\Language\AdminLocale::current(), ENT_QUOTES, 'UTF-8') ?>">
@@ -116,53 +127,33 @@ function carouselValue(array $values, string $key): string
 
   <section class="admin-card">
     <h2><?= admin_te('block_carousel.kop_boven_carrousel') ?></h2>
-    <form method="post" action="/api/admin/update-card-carousel.php" class="admin-product-form">
+    <form method="post" action="/api/admin/update-card-carousel.php" class="admin-product-form"<?= is_array($old) ? ' data-save-bar-unsaved' : '' ?>>
       <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
       <input type="hidden" name="section" value="<?= $h($sectionParam) ?>">
+      <?= admin_localized_input($editLanguage) ?>
 
-      <?php admin_lang_bar(); ?>
-      <div class="admin-form-row admin-form-row--split">
-        <?php admin_lang_pane_start('nl'); ?>
+      <?php admin_localized_bar($editLanguage); ?>
+      <div class="admin-form-row">
         <label><?= admin_te('block_carousel.eyebrow') ?>
-          <input type="text" name="eyebrow_nl" maxlength="255" value="<?= carouselValue($values, 'eyebrow_nl') ?>" placeholder="Optioneel">
+          <input type="text" name="eyebrow" maxlength="255" value="<?= $h($carouselWord('eyebrow')) ?>"<?= $optional ?>>
         </label>
-        <?php admin_lang_pane_end(); ?>
-        <?php admin_lang_pane_start('en'); ?>
-        <label><?= admin_te('block_carousel.eyebrow_2') ?>
-          <input type="text" name="eyebrow_en" maxlength="255" value="<?= carouselValue($values, 'eyebrow_en') ?>"<?= admin_lang_placeholder_attr('en') ?>>
-        </label>
-        <?php admin_lang_pane_end(); ?>
       </div>
 
-      <div class="admin-form-row admin-form-row--split">
-        <?php admin_lang_pane_start('nl'); ?>
+      <div class="admin-form-row">
         <label><?= admin_te('block_carousel.titel_h2') ?>
-          <input type="text" name="title_nl" maxlength="255" value="<?= carouselValue($values, 'title_nl') ?>" placeholder="Optioneel">
+          <input type="text" name="title" maxlength="255" value="<?= $h($carouselWord('title')) ?>"<?= $optional ?>>
         </label>
-        <?php admin_lang_pane_end(); ?>
-        <?php admin_lang_pane_start('en'); ?>
-        <label><?= admin_te('block_carousel.titel_h2_2') ?>
-          <input type="text" name="title_en" maxlength="255" value="<?= carouselValue($values, 'title_en') ?>"<?= admin_lang_placeholder_attr('en') ?>>
-        </label>
-        <?php admin_lang_pane_end(); ?>
       </div>
 
-      <div class="admin-form-row admin-form-row--split">
-        <?php admin_lang_pane_start('nl'); ?>
+      <div class="admin-form-row">
         <label><?= admin_te('block_carousel.lead') ?>
-          <textarea name="lead_nl" maxlength="1000" rows="3" placeholder="Optioneel"><?= carouselValue($values, 'lead_nl') ?></textarea>
+          <textarea name="lead" maxlength="1000" rows="3"<?= $optional ?>><?= $h($carouselWord('lead')) ?></textarea>
         </label>
-        <?php admin_lang_pane_end(); ?>
-        <?php admin_lang_pane_start('en'); ?>
-        <label><?= admin_te('block_carousel.lead_2') ?>
-          <textarea name="lead_en" maxlength="1000" rows="3"<?= admin_lang_placeholder_attr('en') ?>><?= carouselValue($values, 'lead_en') ?></textarea>
-        </label>
-        <?php admin_lang_pane_end(); ?>
       </div>
       <p class="admin-text-muted"><?= admin_te('block_carousel.alles_hierboven_optioneel_laat') ?></p>
 
       <label class="admin-checkbox-label">
-        <input type="checkbox" name="is_active" value="1" <?= ($values['is_active'] ?? true) ? 'checked' : '' ?>>
+        <input type="checkbox" name="is_active" value="1" <?= $isActive ? 'checked' : '' ?>>
         <?= admin_te('block_carousel.actief_uitgevinkt_hele_carrousel') ?>
       </label>
 
@@ -191,7 +182,7 @@ function carouselValue(array $values, string $key): string
         <?php endif; ?>
 
         <p>
-          <strong><?= $h((string) $card['title_nl']) ?></strong>
+          <strong><?= $h(BlockLocalization::name('carousel_cards', $cardId, 'title')) ?></strong>
           <?php if (!(bool) $card['is_active']): ?>
             <span class="admin-text-muted">— verborgen</span>
           <?php endif; ?>
@@ -227,18 +218,12 @@ function carouselValue(array $values, string $key): string
       <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
       <input type="hidden" name="carousel_id" value="<?= $carouselId ?>">
 
-      <?php admin_lang_bar(); ?>
-      <div class="admin-form-row admin-form-row--split">
-        <?php admin_lang_pane_start('nl'); ?>
+      <?php admin_localized_bar($defaultLanguage); ?>
+      <?php admin_localized_new_item_note($editLanguage); ?>
+      <div class="admin-form-row">
         <label><?= admin_te('common.title') ?>*
-          <input type="text" name="title_nl" maxlength="255" <?= admin_lang_required('nl') ?>>
+          <input type="text" name="title" maxlength="255" required>
         </label>
-        <?php admin_lang_pane_end(); ?>
-        <?php admin_lang_pane_start('en'); ?>
-        <label><?= admin_te('common.title') ?>
-          <input type="text" name="title_en" maxlength="255"<?= admin_lang_placeholder_attr('en') ?>>
-        </label>
-        <?php admin_lang_pane_end(); ?>
       </div>
 
       <button type="submit"><?= admin_te('block_carousel.kaart_toevoegen') ?></button>
@@ -248,6 +233,5 @@ function carouselValue(array $values, string $key): string
 </main>
 <?php save_bar(); ?>
 <?php save_bar_script(); ?>
-<?php admin_lang_script(); ?>
 </body>
 </html>

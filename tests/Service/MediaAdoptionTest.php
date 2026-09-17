@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Service;
 
+use App\Service\Language\LocalizedValue;
 use App\Service\Media\BlockImage;
 use App\Service\Media\MediaService;
 use App\Service\Media\MediaUploader;
@@ -43,6 +44,16 @@ final class MediaAdoptionTest extends TestCase
 
     /** The migration that gave every item a name of its own (MEDIA.md, "Bestandsnaam"). */
     private const DISPLAY_NAME_MIGRATION = '20260914100000';
+
+    /**
+     * The last migration before the alt texts of the Tekst met afbeelding,
+     * Detailsectie and Kaarten-carrousel blocks moved into block_translations
+     * (Multilingual 2.0 phase 3B, 20260917200000). This test is about the
+     * adoption, which reads those alt columns, so its installation stops
+     * there and keeps storing them the way the adoption found them; that the
+     * move carries them over is Tests\Install\RemainingBlockWordsMigrationTest's.
+     */
+    private const BEFORE_BLOCK_WORDS = '20260917190000';
 
     private const SHARED = 'assets/images/zz-media-adoption/werkplaats.jpg';
     private const CAPTIONED_LATER = 'assets/images/zz-media-adoption/detail.png';
@@ -154,10 +165,10 @@ final class MediaAdoptionTest extends TestCase
         self::insert('site_settings', ['setting_key' => 'logo_path', 'setting_value' => self::LOGO]);
         self::insert('site_settings', ['setting_key' => 'favicon_path', 'setting_value' => self::EXTERNAL_FAVICON]);
 
-        self::$install->catchUp();
+        self::$install->catchUp(self::BEFORE_BLOCK_WORDS);
         self::$afterFirstRun = self::adoptionSnapshot();
 
-        self::$install->replay(self::ADOPTION_MIGRATION);
+        self::$install->replay(self::ADOPTION_MIGRATION, self::BEFORE_BLOCK_WORDS);
     }
 
     public static function tearDownAfterClass(): void
@@ -317,6 +328,13 @@ final class MediaAdoptionTest extends TestCase
         $inherited = BlockImage::fromRow(['media_id' => 42, 'alt_nl' => '', 'alt_en' => '']);
         $this->assertSame('Centrale omschrijving', $inherited['alt_nl'], 'an empty local field falls back to the library');
 
+        // The same layering for a block whose alt text is stored per language.
+        $ownWords = BlockImage::fromOwner(['media_id' => 42], LocalizedValue::of(['nl' => 'Lokale omschrijving', 'en' => ''], 'nl'));
+        $this->assertSame('Lokale omschrijving', $ownWords['alt']->in('en'), 'the block\'s own alt text in the default language serves every language');
+
+        $noWords = BlockImage::fromOwner(['media_id' => 42], LocalizedValue::of([], 'nl'));
+        $this->assertSame('Centrale omschrijving', $noWords['alt']->in('nl'), 'no alt text of its own: the library\'s');
+
         MediaService::overrideForTests(null);
     }
 
@@ -406,7 +424,7 @@ final class MediaAdoptionTest extends TestCase
     {
         $before = $this->install()->rows('SELECT id, display_name FROM media ORDER BY id');
 
-        $this->install()->replay(self::DISPLAY_NAME_MIGRATION);
+        $this->install()->replay(self::DISPLAY_NAME_MIGRATION, self::BEFORE_BLOCK_WORDS);
 
         $this->assertNotSame([], $before);
         $this->assertSame($before, $this->install()->rows('SELECT id, display_name FROM media ORDER BY id'));

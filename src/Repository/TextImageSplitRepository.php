@@ -12,6 +12,12 @@ namespace App\Repository;
  * fallback layer built on top of this. This repository only stores the
  * resulting image_path for images; the actual upload/validation/delete is
  * App\Service\SectionImageUploader's job, called from the API layer.
+ *
+ * Only what is the same in every language is stored here. The eyebrow,
+ * title and button label of a section, the text of each paragraph and each
+ * image's own alt text are stored per website language through
+ * App\Service\Blocks\BlockLocalization, against the id of the row they belong
+ * to (db/migrations/20260917200000).
  */
 class TextImageSplitRepository extends Repository
 {
@@ -43,28 +49,22 @@ class TextImageSplitRepository extends Repository
     }
 
     /**
-     * Inserts or updates the single row for this page_slug + section_key.
-     * Used by the admin Text + image split edit form's section-level fields.
+     * Inserts or updates the single row for this page_slug + section_key:
+     * what is the same in every language. Used by the admin Text + image
+     * split edit form's section-level fields, which saves the eyebrow, title
+     * and button label through BlockLocalization in the same transaction.
      *
-     * @param array<string, string|bool|null> $values
+     * @param array{layout?: string|null, button_url?: string|null, is_active?: bool} $values
      */
     public function upsertSection(string $pageSlug, string $sectionKey, array $values): void
     {
         $stmt = $this->db->prepare(
             'INSERT INTO text_image_splits
-                (page_slug, section_key, layout, eyebrow_nl, eyebrow_en, title_nl, title_en,
-                 button_label_nl, button_label_en, button_url, is_active, created_at, updated_at)
+                (page_slug, section_key, layout, button_url, is_active, created_at, updated_at)
              VALUES
-                (:page_slug, :section_key, :layout, :eyebrow_nl, :eyebrow_en, :title_nl, :title_en,
-                 :button_label_nl, :button_label_en, :button_url, :is_active, NOW(), NOW())
+                (:page_slug, :section_key, :layout, :button_url, :is_active, NOW(), NOW())
              ON DUPLICATE KEY UPDATE
                 layout = VALUES(layout),
-                eyebrow_nl = VALUES(eyebrow_nl),
-                eyebrow_en = VALUES(eyebrow_en),
-                title_nl = VALUES(title_nl),
-                title_en = VALUES(title_en),
-                button_label_nl = VALUES(button_label_nl),
-                button_label_en = VALUES(button_label_en),
                 button_url = VALUES(button_url),
                 is_active = VALUES(is_active),
                 updated_at = NOW()'
@@ -74,12 +74,6 @@ class TextImageSplitRepository extends Repository
             'page_slug' => $pageSlug,
             'section_key' => $sectionKey,
             'layout' => in_array($values['layout'] ?? null, ['image_left', 'image_right'], true) ? $values['layout'] : 'image_right',
-            'eyebrow_nl' => self::nullIfEmpty($values['eyebrow_nl'] ?? null),
-            'eyebrow_en' => self::nullIfEmpty($values['eyebrow_en'] ?? null),
-            'title_nl' => self::nullIfEmpty($values['title_nl'] ?? null),
-            'title_en' => self::nullIfEmpty($values['title_en'] ?? null),
-            'button_label_nl' => self::nullIfEmpty($values['button_label_nl'] ?? null),
-            'button_label_en' => self::nullIfEmpty($values['button_label_en'] ?? null),
             'button_url' => self::nullIfEmpty($values['button_url'] ?? null),
             'is_active' => ($values['is_active'] ?? true) ? 1 : 0,
         ]);
@@ -115,24 +109,23 @@ class TextImageSplitRepository extends Repository
     }
 
     /**
-     * Appends a new paragraph to the end of a section.
-     *
-     * @param array<string, string> $values content_nl, content_en
+     * Appends a new paragraph to the end of a section and returns its id. Its
+     * text is words, stored per website language against that id
+     * (App\Service\Blocks\BlockLocalization), in the same transaction as this
+     * insert.
      */
-    public function createParagraph(int $sectionId, array $values): int
+    public function createParagraph(int $sectionId): int
     {
         $nextSortOrder = $this->nextSortOrder('text_image_split_paragraphs', 'text_image_split_id', $sectionId);
 
         $stmt = $this->db->prepare(
             'INSERT INTO text_image_split_paragraphs
-                (text_image_split_id, content_nl, content_en, sort_order, created_at, updated_at)
+                (text_image_split_id, sort_order, created_at, updated_at)
              VALUES
-                (:text_image_split_id, :content_nl, :content_en, :sort_order, NOW(), NOW())'
+                (:text_image_split_id, :sort_order, NOW(), NOW())'
         );
         $stmt->execute([
             'text_image_split_id' => $sectionId,
-            'content_nl' => $values['content_nl'],
-            'content_en' => self::nullIfEmpty($values['content_en'] ?? null),
             'sort_order' => $nextSortOrder,
         ]);
 
@@ -140,24 +133,27 @@ class TextImageSplitRepository extends Repository
     }
 
     /**
-     * @param array<string, string> $values content_nl, content_en
+     * A paragraph has nothing that is the same in every language except its
+     * place, which moveParagraph() changes, so a save only marks it updated;
+     * its text is saved through BlockLocalization in the same transaction.
+     * The id never changes, so the words of every language stay attached to
+     * it.
      */
-    public function updateParagraph(int $id, array $values): void
+    public function updateParagraph(int $id): void
     {
         $stmt = $this->db->prepare(
             'UPDATE text_image_split_paragraphs SET
-                content_nl = :content_nl,
-                content_en = :content_en,
                 updated_at = NOW()
              WHERE id = :id'
         );
-        $stmt->execute([
-            'content_nl' => $values['content_nl'],
-            'content_en' => self::nullIfEmpty($values['content_en'] ?? null),
-            'id' => $id,
-        ]);
+        $stmt->execute(['id' => $id]);
     }
 
+    /**
+     * Permanently removes a paragraph. Used by the admin "Verwijderen"
+     * action, which removes the paragraph's words first, in the same
+     * transaction (BlockLocalization::deleteOwner()).
+     */
     public function deleteParagraph(int $id): bool
     {
         $stmt = $this->db->prepare('DELETE FROM text_image_split_paragraphs WHERE id = :id');
@@ -211,15 +207,17 @@ class TextImageSplitRepository extends Repository
     }
 
     /**
-     * Appends a new image to the end of a section.
+     * Appends a new image to the end of a section and returns its id.
      *
      * `media_id` names an item in the Media Library. `image_path` is written
      * alongside it with that item's own path, so the legacy column stays
      * TRUE rather than stale for as long as it exists — and the two always
      * move together, so an image with no media item has neither. This
-     * repository never touches the filesystem itself.
+     * repository never touches the filesystem itself. The image's own alt
+     * text is words, stored per website language against the returned id
+     * (BlockLocalization), in the same transaction as this insert.
      *
-     * @param array<string, mixed> $values media_id, image_path, alt_nl, alt_en
+     * @param array{media_id?: int|null, image_path?: string} $values
      */
     public function createImage(int $sectionId, array $values): int
     {
@@ -227,16 +225,14 @@ class TextImageSplitRepository extends Repository
 
         $stmt = $this->db->prepare(
             'INSERT INTO text_image_split_images
-                (text_image_split_id, media_id, image_path, alt_nl, alt_en, sort_order, created_at, updated_at)
+                (text_image_split_id, media_id, image_path, sort_order, created_at, updated_at)
              VALUES
-                (:text_image_split_id, :media_id, :image_path, :alt_nl, :alt_en, :sort_order, NOW(), NOW())'
+                (:text_image_split_id, :media_id, :image_path, :sort_order, NOW(), NOW())'
         );
         $stmt->execute([
             'text_image_split_id' => $sectionId,
             'media_id' => self::positiveOrNull($values['media_id'] ?? null),
             'image_path' => (string) ($values['image_path'] ?? ''),
-            'alt_nl' => self::nullIfEmpty($values['alt_nl'] ?? null),
-            'alt_en' => self::nullIfEmpty($values['alt_en'] ?? null),
             'sort_order' => $nextSortOrder,
         ]);
 
@@ -244,7 +240,11 @@ class TextImageSplitRepository extends Repository
     }
 
     /**
-     * @param array<string, mixed> $values media_id, image_path, alt_nl, alt_en
+     * Which media item an image shows: the same in every language. Its alt
+     * text is saved through BlockLocalization in the same transaction. The id
+     * never changes, so the alt text of every language stays attached to it.
+     *
+     * @param array{media_id?: int|null, image_path?: string} $values
      */
     public function updateImage(int $id, array $values): void
     {
@@ -252,16 +252,12 @@ class TextImageSplitRepository extends Repository
             'UPDATE text_image_split_images SET
                 media_id = :media_id,
                 image_path = :image_path,
-                alt_nl = :alt_nl,
-                alt_en = :alt_en,
                 updated_at = NOW()
              WHERE id = :id'
         );
         $stmt->execute([
             'media_id' => self::positiveOrNull($values['media_id'] ?? null),
             'image_path' => (string) ($values['image_path'] ?? ''),
-            'alt_nl' => self::nullIfEmpty($values['alt_nl'] ?? null),
-            'alt_en' => self::nullIfEmpty($values['alt_en'] ?? null),
             'id' => $id,
         ]);
     }
@@ -274,6 +270,11 @@ class TextImageSplitRepository extends Repository
         return $value > 0 ? $value : null;
     }
 
+    /**
+     * Removes one image row. Used by the admin "Verwijderen" action, which
+     * removes the image's alt text first, in the same transaction
+     * (BlockLocalization::deleteOwner()).
+     */
     public function deleteImage(int $id): bool
     {
         $stmt = $this->db->prepare('DELETE FROM text_image_split_images WHERE id = :id');
@@ -299,9 +300,11 @@ class TextImageSplitRepository extends Repository
     /**
      * Permanently removes the section and (via ON DELETE CASCADE) all of its
      * paragraphs/images — used by the page builder's "Delete section"
-     * action. Unlike the other repeater types, this one DOES have uploaded
-     * media (text_image_split_images.image_path); the CASCADE only removes
-     * the database rows, so the caller must delete each image's file via
+     * action, whose SectionRegistry::delete() removes the words of the
+     * section, of every paragraph and of every image first. Unlike the other
+     * repeater types, this one DOES have uploaded media
+     * (text_image_split_images.image_path); the CASCADE only removes the
+     * database rows, so the caller must delete each image's file via
      * SectionImageUploader::delete() (using findImagesBySectionId() to get
      * the paths) BEFORE calling this — same convention as
      * api/admin/delete-text-image-split-image.php.

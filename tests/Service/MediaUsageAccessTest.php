@@ -284,8 +284,6 @@ final class MediaUsageAccessTest extends TestCase
         (new TextImageSplitRepository())->createImage($sectionId, [
             'media_id' => $mediaId,
             'image_path' => $path,
-            'alt_nl' => '',
-            'alt_en' => '',
         ]);
 
         MediaService::clearCache();
