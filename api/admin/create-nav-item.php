@@ -9,6 +9,11 @@
  * that tell them apart live in api/admin/_nav_item_input.php, shared with
  * update-nav-item.php. The new row goes to the end of its own group.
  *
+ * The label is written in the website's DEFAULT language
+ * (App\Service\NavigationLocalization), in the same transaction as the row,
+ * whatever language the editor was working in: a new item starts where every
+ * other language falls back to, like a new page.
+ *
  * Same guard order and PRG/session-flash pattern as
  * api/admin/create-portfolio-item.php; a successful save lands on the new
  * item's own editor, like api/admin/update-form.php, so the save bar there
@@ -20,11 +25,13 @@ declare(strict_types=1);
 require_once __DIR__ . '/../../vendor/autoload.php';
 require_once __DIR__ . '/_nav_item_input.php';
 
+use App\Database;
 use App\Repository\NavigationRepository;
 use App\Repository\PageRepository;
 use App\Service\AdminAuth;
 use App\Service\Csrf;
 use App\Service\Language\AdminTranslator;
+use App\Service\NavigationLocalization;
 use App\Service\NavigationPresentation;
 
 AdminAuth::requireLoginForApi();
@@ -41,7 +48,8 @@ if (!Csrf::validate($_POST['csrf_token'] ?? null)) {
     exit('Invalid or missing CSRF token.');
 }
 
-$repository = new NavigationRepository();
+$db = Database::connection();
+$repository = new NavigationRepository($db);
 
 [$errors, $data, $old] = validateNavItemInput($_POST, null, $repository, new PageRepository());
 
@@ -62,8 +70,14 @@ if ($errors !== []) {
 }
 
 try {
+    $db->beginTransaction();
     $id = $repository->create($data);
+    NavigationLocalization::save($id, $data['language_code'], $data['label']);
+    $db->commit();
 } catch (\Throwable $e) {
+    if ($db->inTransaction()) {
+        $db->rollBack();
+    }
     error_log('[api/admin/create-nav-item.php] ' . $e->getMessage());
     $_SESSION['admin_nav_item_errors'] = [AdminTranslator::trans('validation.navigation_item_not_created')];
     $_SESSION['admin_nav_item_old'] = $old;

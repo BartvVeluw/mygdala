@@ -205,8 +205,14 @@ final class LegacyUpgradeTest extends TestCase
         $labels = array_column(
             // The menu links only: the header button lives in the same table
             // since 20260916230000 and is checked with the other header data.
-            $this->install()->rows("SELECT label_nl FROM nav_items WHERE presentation = 'link' ORDER BY sort_order"),
-            'label_nl'
+            // The Dutch label lives in nav_item_translations since
+            // Multilingual 2.0 phase 4.
+            $this->install()->rows(
+                "SELECT t.label FROM nav_items i
+                   LEFT JOIN nav_item_translations t ON t.nav_item_id = i.id AND t.language_code = 'nl'
+                  WHERE i.presentation = 'link' ORDER BY i.sort_order"
+            ),
+            'label'
         );
 
         $this->assertSame(['Home', 'Diensten', 'Portfolio', 'Shop', 'Over mij', 'Contact'], $labels);
@@ -256,7 +262,11 @@ final class LegacyUpgradeTest extends TestCase
         // the pinned button must be there as exactly one visible button to
         // the same page, and the settings above stay as they were.
         $buttons = $this->install()->rows(
-            "SELECT label_nl, label_en, link_type, target_page_id, button_variant, is_visible, parent_id FROM nav_items WHERE presentation = 'button'"
+            "SELECT nl.label AS label_nl, en.label AS label_en, i.link_type, i.target_page_id, i.button_variant, i.is_visible, i.parent_id
+               FROM nav_items i
+               LEFT JOIN nav_item_translations nl ON nl.nav_item_id = i.id AND nl.language_code = 'nl'
+               LEFT JOIN nav_item_translations en ON en.nav_item_id = i.id AND en.language_code = 'en'
+              WHERE i.presentation = 'button'"
         );
 
         $this->assertCount(1, $buttons);

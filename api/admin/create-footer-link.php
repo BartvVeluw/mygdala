@@ -18,10 +18,12 @@ declare(strict_types=1);
 require_once __DIR__ . '/../../vendor/autoload.php';
 require_once __DIR__ . '/_footer_link_input.php';
 
+use App\Database;
 use App\Repository\FooterRepository;
 use App\Repository\PageRepository;
 use App\Service\AdminAuth;
 use App\Service\Csrf;
+use App\Service\FooterLocalization;
 use App\Service\Language\AdminTranslator;
 
 AdminAuth::requireLoginForApi();
@@ -38,7 +40,8 @@ if (!Csrf::validate($_POST['csrf_token'] ?? null)) {
     exit('Invalid or missing CSRF token.');
 }
 
-$repository = new FooterRepository();
+$db = Database::connection();
+$repository = new FooterRepository($db);
 
 $column = footerLinkTargetColumn($_POST, $repository);
 if ($column === null) {
@@ -59,8 +62,15 @@ if ($errors !== []) {
 }
 
 try {
+    // The row and its label in the default language are one save.
+    $db->beginTransaction();
     $id = $repository->createLink(['column_id' => $columnId] + $data);
+    FooterLocalization::saveLinkLabel($id, $data['language_code'], $data['label']);
+    $db->commit();
 } catch (\Throwable $e) {
+    if ($db->inTransaction()) {
+        $db->rollBack();
+    }
     error_log('[api/admin/create-footer-link.php] ' . $e->getMessage());
     $_SESSION['admin_footer_link_errors'] = [AdminTranslator::trans('footer.link_not_created')];
     $_SESSION['admin_footer_link_old'] = $old;

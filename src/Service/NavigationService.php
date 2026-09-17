@@ -3,7 +3,6 @@
 namespace App\Service;
 
 use App\Repository\NavigationRepository;
-use App\Service\Language\SiteText;
 
 /**
  * Public read side of the CMS-managed header navigation — replaces
@@ -19,6 +18,12 @@ use App\Service\Language\SiteText;
  * unpublished page, a route of a switched-off module — is left out exactly
  * like a menu link, and its row is left alone.
  *
+ * LABELS are App\Service\NavigationLocalization's: each item carries its
+ * label as one App\Service\Language\LocalizedValue (the temporary NL/EN
+ * pair of the public language switch, each half already resolved by the
+ * one fallback), loaded for the whole header in one query. Neither this
+ * class nor the partial decides a language.
+ *
  * Static, try/catch-with-fallback, same convention as SiteSettings/
  * InformationPageContent — a navigation problem must never break every
  * public page; on any failure this returns an empty menu and no buttons
@@ -30,12 +35,13 @@ class NavigationService
     /**
      * The menu tree and the header buttons from one query.
      *
-     * @return array{items: list<array<string, mixed>>, buttons: list<array{id:int,label_nl:string,label_en:string,href:string,open_in_new_tab:bool,rel:?string,class:string}>}
+     * @return array{items: list<array<string, mixed>>, buttons: list<array{id:int,label:\App\Service\Language\LocalizedValue,href:string,open_in_new_tab:bool,rel:?string,class:string}>}
      */
     public static function header(): array
     {
         try {
             $rows = (new NavigationRepository())->findVisibleForPublic();
+            NavigationLocalization::preload(array_map(static fn (array $row): int => (int) $row['id'], $rows));
         } catch (\Throwable $e) {
             error_log('[NavigationService] falling back to an empty header: ' . $e->getMessage());
             return ['items' => [], 'buttons' => []];
@@ -45,7 +51,7 @@ class NavigationService
     }
 
     /**
-     * @return list<array{id:int,label_nl:string,label_en:string,href:?string,open_in_new_tab:bool,rel:?string,children:list<array<string,mixed>>}>
+     * @return list<array{id:int,label:\App\Service\Language\LocalizedValue,href:?string,open_in_new_tab:bool,rel:?string,children:list<array<string,mixed>>}>
      */
     public static function tree(): array
     {
@@ -91,8 +97,7 @@ class NavigationService
                 }
                 $childItems[] = [
                     'id' => (int) $child['id'],
-                    'label_nl' => (string) $child['label_nl'],
-                    'label_en' => (string) $child['label_en'],
+                    'label' => NavigationLocalization::label((int) $child['id']),
                     'href' => $resolvedChild['href'],
                     'open_in_new_tab' => $resolvedChild['open_in_new_tab'],
                     'rel' => $resolvedChild['rel'],
@@ -102,8 +107,7 @@ class NavigationService
 
             $tree[] = [
                 'id' => (int) $row['id'],
-                'label_nl' => (string) $row['label_nl'],
-                'label_en' => (string) $row['label_en'],
+                'label' => NavigationLocalization::label((int) $row['id']),
                 'href' => $resolved['href'],
                 'open_in_new_tab' => $resolved['open_in_new_tab'],
                 'rel' => $resolved['rel'],
@@ -121,17 +125,18 @@ class NavigationService
 
     /**
      * The header buttons, in their own order. A button needs somewhere to go
-     * and something to say: one that resolves to no href, or whose label is
-     * empty in every language, is not rendered — the same two rules the
-     * single header CTA had. The class comes from the closed variant list,
-     * never from the row.
+     * and something to say: one that resolves to no href, or that has no
+     * label in the website's DEFAULT language, is not rendered — the same two
+     * rules the single header CTA had, with the default language deciding
+     * (a translation alone never makes a button appear). The class comes from
+     * the closed variant list, never from the row.
      *
      * Only top-level rows count. The admin endpoints never store a button
      * inside a submenu; a row that somehow is one is not shown rather than
      * shown in the wrong place.
      *
      * @param list<array<string, mixed>> $rows
-     * @return list<array{id:int,label_nl:string,label_en:string,href:string,open_in_new_tab:bool,rel:?string,class:string}>
+     * @return list<array{id:int,label:\App\Service\Language\LocalizedValue,href:string,open_in_new_tab:bool,rel:?string,class:string}>
      */
     public static function buildButtons(array $rows): array
     {
@@ -143,9 +148,7 @@ class NavigationService
 
         $result = [];
         foreach ($buttons as $row) {
-            $labelNl = (string) ($row['label_nl'] ?? '');
-            $labelEn = (string) ($row['label_en'] ?? '');
-            if (trim(SiteText::visible($labelNl, $labelEn)) === '') {
+            if (!NavigationLocalization::hasDefaultLabel((int) $row['id'])) {
                 continue;
             }
 
@@ -156,8 +159,7 @@ class NavigationService
 
             $result[] = [
                 'id' => (int) $row['id'],
-                'label_nl' => $labelNl,
-                'label_en' => $labelEn,
+                'label' => NavigationLocalization::label((int) $row['id']),
                 'href' => $resolved['href'],
                 'open_in_new_tab' => $resolved['open_in_new_tab'],
                 'rel' => $resolved['rel'],

@@ -14,6 +14,7 @@ use App\Repository\SiteSettingRepository;
 use App\Service\AppUrl;
 use App\Service\Branding;
 use App\Service\Media\MediaService;
+use App\Service\NavigationLocalization;
 use App\Service\PageContent;
 use App\Service\PageLocalization;
 use App\Service\PageService;
@@ -22,6 +23,7 @@ use App\Service\PageTemplates\PageTemplateInstaller;
 use App\Service\PageTemplates\PageTemplates;
 use App\Service\Language\ContentLanguages;
 use App\Service\Language\LanguageCode;
+use App\Service\Language\LanguageFallback;
 use App\Service\SiteSettings;
 use App\Service\Theme\ThemeSettings;
 
@@ -676,6 +678,11 @@ final class SetupWizard
      * link in this CMS, so they follow a later slug change and simply do not
      * render while the page is still a draft (App\Service\LinkResolver).
      *
+     * The label is the page's title, written in the website's DEFAULT
+     * language like the page itself (App\Service\NavigationLocalization);
+     * every other language falls back to it. Row and label are one
+     * transaction, so an item never exists without its words.
+     *
      * @param list<array{key: string, id: int, slug: string, title: string}> $created
      */
     private static function addMenuItems(array $created): void
@@ -684,24 +691,33 @@ final class SetupWizard
             return;
         }
 
-        $navigation = new NavigationRepository();
+        $db = Database::connection();
+        $navigation = new NavigationRepository($db);
+        $language = LanguageFallback::defaultLanguage();
 
         foreach ($created as $starter) {
             if ($navigation->countByTargetPageId($starter['id']) > 0) {
                 continue;
             }
 
-            $navigation->create([
-                'label_nl' => $starter['title'],
-                'label_en' => $starter['title'],
-                'link_type' => 'page',
-                'target_page_id' => $starter['id'],
-                'target_route' => null,
-                'external_url' => null,
-                'open_in_new_tab' => false,
-                'parent_id' => null,
-                'is_visible' => true,
-            ]);
+            $db->beginTransaction();
+            try {
+                $itemId = $navigation->create([
+                    'link_type' => 'page',
+                    'target_page_id' => $starter['id'],
+                    'target_route' => null,
+                    'external_url' => null,
+                    'open_in_new_tab' => false,
+                    'parent_id' => null,
+                    'is_visible' => true,
+                ]);
+                NavigationLocalization::save($itemId, $language, $starter['title']);
+                $db->commit();
+            } catch (\Throwable $e) {
+                $db->rollBack();
+
+                throw $e;
+            }
         }
     }
 }

@@ -4,23 +4,25 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../vendor/autoload.php';
 require_once __DIR__ . '/_translate.php';
-require_once __DIR__ . '/_language_fields.php';
+require_once __DIR__ . '/_localized_fields.php';
 require_once __DIR__ . '/_save_bar.php';
 
 use App\Repository\FooterRepository;
 use App\Service\AdminAuth;
 use App\Service\Csrf;
+use App\Service\FooterLocalization;
 
 AdminAuth::requireLogin();
 AdminAuth::requirePermission('pages.manage');
 
 /**
- * The editor of one footer column: its title per language and whether it is
+ * The editor of one footer column: its title in one website language at a
+ * time (admin/_localized_fields.php) and whether it is
  * on the website. The links in it are managed on the Footer screen itself
  * (admin/footer.php), where they are listed under the column.
  *
  * Same shape as admin/navigation-item.php: the visibility switch first, the
- * text in the language panes, one form so the save bar guards it and a
+ * text of the language chosen in the CMS shell, one form so the save bar guards it and a
  * refused save starts out unsaved, and a delete that asks first in the CMS's
  * own dialog.
  */
@@ -44,12 +46,14 @@ unset($_SESSION['admin_footer_column_errors'], $_SESSION['admin_footer_column_ol
 
 $saved = isset($_GET['saved']) && $old === null;
 
-$titleNl = is_array($old) ? (string) $old['title_nl'] : (string) $column['title_nl'];
-$titleEn = is_array($old) ? (string) $old['title_en'] : (string) $column['title_en'];
+$editLanguage = admin_localized_language();
+$title = is_array($old) && ($old['language_code'] ?? null) === $editLanguage
+    ? (string) ($old['title'] ?? '')
+    : FooterLocalization::rawColumnTitle($idParam, $editLanguage);
 $isVisible = is_array($old) ? !empty($old['is_visible']) : (int) $column['is_visible'] === 1;
 $linkCount = count($repository->findLinksForColumn($idParam));
 
-$pageTitle = admin_lang_summary($column, 'title');
+$pageTitle = FooterLocalization::columnName($idParam);
 if ($pageTitle === '') {
     $pageTitle = admin_t('footer.edit_column');
 }
@@ -102,20 +106,11 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
 
     <section class="admin-card">
       <h2><?= admin_te('footer.column_title_heading') ?></h2>
-      <?php admin_lang_bar(); ?>
-      <div class="admin-form-row admin-form-row--split">
-        <?php admin_lang_pane_start('nl'); ?>
-        <div class="admin-field">
-          <?= admin_field_label('footer-column-title-nl', admin_t('footer.column_title_label'), admin_t('help.footer.column_title'), admin_lang_primary() === 'nl') ?>
-          <input type="text" id="footer-column-title-nl" name="title_nl" maxlength="100"<?= admin_lang_required('nl') ?> value="<?= $h($titleNl) ?>"<?= admin_lang_placeholder_attr('nl') ?>>
-        </div>
-        <?php admin_lang_pane_end(); ?>
-        <?php admin_lang_pane_start('en'); ?>
-        <div class="admin-field">
-          <?= admin_field_label('footer-column-title-en', admin_t('footer.column_title_label'), admin_t('help.footer.column_title'), admin_lang_primary() === 'en') ?>
-          <input type="text" id="footer-column-title-en" name="title_en" maxlength="100"<?= admin_lang_required('en') ?> value="<?= $h($titleEn) ?>"<?= admin_lang_placeholder_attr('en') ?>>
-        </div>
-        <?php admin_lang_pane_end(); ?>
+      <?php admin_localized_bar($editLanguage); ?>
+      <?= admin_localized_input($editLanguage) ?>
+      <div class="admin-field">
+        <?= admin_field_label('footer-column-title', admin_t('footer.column_title_label'), admin_t('help.footer.column_title'), admin_localized_required($editLanguage) !== '') ?>
+        <input type="text" id="footer-column-title" name="title" maxlength="<?= FooterLocalization::TITLE_MAX_LENGTH ?>"<?= admin_localized_required($editLanguage) ?> value="<?= $h($title) ?>"<?= admin_localized_placeholder_attr($editLanguage) ?>>
       </div>
     </section>
 
@@ -140,7 +135,6 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
 </main>
 <?php save_bar(); ?>
 <?= admin_confirm_dialog() ?>
-<?php admin_lang_script(); ?>
 <?php save_bar_script(); ?>
 </body>
 </html>

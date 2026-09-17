@@ -9,7 +9,10 @@ declare(strict_types=1);
  * api/admin/_nav_item_input.php: read that file's docblock first, the rules
  * are the same wherever a footer link and a menu item share a field.
  *
- *   - the labels: only the site's own language is required (MULTILINGUAL.md);
+ *   - the label, in ONE website language, stored through
+ *     App\Service\FooterLocalization: a new link in the default language,
+ *     an update in the active language named by `language_code`; required
+ *     only in the default language;
  *   - the destination: App\Service\LinkResolver::validate() with the footer's
  *     kinds, which add one controlled action (open the cookie settings) to a
  *     page, a fixed part of the site and another address;
@@ -31,14 +34,17 @@ declare(strict_types=1);
 
 use App\Repository\FooterRepository;
 use App\Repository\PageRepository;
+use App\Service\FooterLocalization;
 use App\Service\Language\AdminTranslator;
-use App\Service\Language\LocalizedValue;
+use App\Service\Language\LanguageCode;
+use App\Service\Language\LanguageFallback;
+use App\Service\Language\SiteLanguages;
 use App\Service\LinkResolver;
 
 /**
  * @param array<string, mixed>      $input    raw $_POST
  * @param array<string, mixed>|null $existing the stored row on update, null on create
- * @return array{0: list<string>, 1: array<string, mixed>, 2: array<string, mixed>} [errors, data for the repository, old input for the form]
+ * @return array{0: list<string>, 1: array<string, mixed>, 2: array<string, mixed>} [errors, data for the repository plus `label` and `language_code`, old input for the form]
  */
 function validateFooterLinkInput(
     array $input,
@@ -47,8 +53,10 @@ function validateFooterLinkInput(
 ): array {
     $text = static fn (string $name): string => is_string($input[$name] ?? null) ? trim($input[$name]) : '';
 
-    $labelNl = $text('label_nl');
-    $labelEn = $text('label_en');
+    $label = $text('label');
+    $languageCode = $existing === null
+        ? LanguageFallback::defaultLanguage()
+        : (LanguageCode::normalise($text('language_code')) ?? '');
     $linkType = $text('link_type');
     $targetPageIdRaw = $text('target_page_id');
     $targetPageId = ctype_digit($targetPageIdRaw) ? (int) $targetPageIdRaw : null;
@@ -60,11 +68,16 @@ function validateFooterLinkInput(
 
     $errors = [];
 
-    if (LocalizedValue::ofDutchEnglish($labelNl, $labelEn)->primaryValue() === '') {
-        $errors[] = AdminTranslator::trans('validation.label_verplicht');
-    }
-    if (mb_strlen($labelNl) > 100 || mb_strlen($labelEn) > 100) {
-        $errors[] = AdminTranslator::trans('validation.label_mag_maximaal_100_tekens');
+    if ($languageCode === '' || !SiteLanguages::isActive($languageCode)) {
+        $errors[] = AdminTranslator::trans('validation.language_unknown');
+    } else {
+        $problems = FooterLocalization::links()->problems($languageCode, [FooterLocalization::LABEL => $label], [FooterLocalization::LABEL]);
+        if (($problems[FooterLocalization::LABEL] ?? null) === 'missing') {
+            $errors[] = AdminTranslator::trans('validation.label_verplicht');
+        }
+        if (($problems[FooterLocalization::LABEL] ?? null) === 'too_long') {
+            $errors[] = AdminTranslator::trans('validation.label_mag_maximaal_100_tekens');
+        }
     }
 
     $keepsUnavailableRoute = $existing !== null
@@ -89,8 +102,8 @@ function validateFooterLinkInput(
     }
 
     $data = [
-        'label_nl' => $labelNl,
-        'label_en' => $labelEn,
+        'label' => $label,
+        'language_code' => $languageCode,
         'link_type' => $linkType,
         // Only the companion field of the chosen kind is stored, so a row can
         // never carry a leftover target of a kind nobody selected any more.
@@ -104,8 +117,8 @@ function validateFooterLinkInput(
     ];
 
     $old = [
-        'label_nl' => $labelNl,
-        'label_en' => $labelEn,
+        'language_code' => $languageCode,
+        'label' => $label,
         'link_type' => $linkType,
         'target_page_id' => $targetPageIdRaw,
         'target_route' => $targetRoute,

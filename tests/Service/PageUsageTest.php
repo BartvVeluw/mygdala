@@ -8,6 +8,8 @@ use App\Database;
 use App\Repository\FooterRepository;
 use App\Repository\NavigationRepository;
 use App\Repository\PageRepository;
+use App\Service\FooterLocalization;
+use App\Service\NavigationLocalization;
 use App\Service\NavigationPresentation;
 use App\Service\PageContent;
 use App\Service\PageService;
@@ -50,6 +52,8 @@ final class PageUsageTest extends TestCase
 
     protected function tearDown(): void
     {
+        NavigationLocalization::clearCache();
+        FooterLocalization::clearCache();
         $db = Database::connection();
 
         foreach ($this->navIds as $id) {
@@ -91,8 +95,6 @@ final class PageUsageTest extends TestCase
     private function menuItem(int $pageId, bool $visible = true, string $type = 'page', ?string $externalUrl = null): int
     {
         $id = $this->navigation->create([
-            'label_nl' => 'Testmenu',
-            'label_en' => 'Test menu',
             'link_type' => $type,
             'target_page_id' => $type === 'page' ? $pageId : null,
             'target_route' => null,
@@ -102,19 +104,21 @@ final class PageUsageTest extends TestCase
             'is_visible' => $visible,
         ]);
         $this->navIds[] = $id;
+        NavigationLocalization::save($id, 'nl', 'Testmenu');
+        NavigationLocalization::save($id, 'en', 'Test menu');
 
         return $id;
     }
 
     private function footerLink(int $pageId): int
     {
-        $columnId = $this->footer->createColumn(['title_nl' => 'Testkolom', 'title_en' => 'Test column', 'is_visible' => true]);
+        $columnId = $this->footer->createColumn(['is_visible' => true]);
         $this->columnIds[] = $columnId;
+        FooterLocalization::saveColumnTitle($columnId, 'nl', 'Testkolom');
+        FooterLocalization::saveColumnTitle($columnId, 'en', 'Test column');
 
-        return $this->footer->createLink([
+        $linkId = $this->footer->createLink([
             'column_id' => $columnId,
-            'label_nl' => 'Testlink',
-            'label_en' => 'Test link',
             'link_type' => 'page',
             'target_page_id' => $pageId,
             'target_route' => null,
@@ -123,13 +127,15 @@ final class PageUsageTest extends TestCase
             'open_in_new_tab' => false,
             'is_visible' => true,
         ]);
+        FooterLocalization::saveLinkLabel($linkId, 'nl', 'Testlink');
+        FooterLocalization::saveLinkLabel($linkId, 'en', 'Test link');
+
+        return $linkId;
     }
 
     private function headerButtonPointingAt(int $pageId, bool $visible = true): int
     {
         $id = $this->navigation->create([
-            'label_nl' => 'Vraag offerte aan',
-            'label_en' => 'Request a quote',
             'link_type' => 'page',
             'target_page_id' => $pageId,
             'target_route' => null,
@@ -141,6 +147,8 @@ final class PageUsageTest extends TestCase
             'button_variant' => NavigationPresentation::VARIANT_PRIMARY,
         ]);
         $this->navIds[] = $id;
+        NavigationLocalization::save($id, 'nl', 'Vraag offerte aan');
+        NavigationLocalization::save($id, 'en', 'Request a quote');
 
         return $id;
     }

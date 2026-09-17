@@ -3,7 +3,9 @@
 /**
  * POST /api/admin/update-nav-item.php
  *
- * Updates an existing nav_items row: its labels, destination, visibility and
+ * Updates an existing nav_items row: its label in ONE website language
+ * (`language_code`, App\Service\NavigationLocalization; every other
+ * language's label stays as it is), destination, visibility and
  * — for a top-level item — whether it is a menu link or a header button
  * (App\Service\NavigationPresentation). The shared rules are in
  * api/admin/_nav_item_input.php.
@@ -25,11 +27,13 @@ declare(strict_types=1);
 require_once __DIR__ . '/../../vendor/autoload.php';
 require_once __DIR__ . '/_nav_item_input.php';
 
+use App\Database;
 use App\Repository\NavigationRepository;
 use App\Repository\PageRepository;
 use App\Service\AdminAuth;
 use App\Service\Csrf;
 use App\Service\Language\AdminTranslator;
+use App\Service\NavigationLocalization;
 
 AdminAuth::requireLoginForApi();
 AdminAuth::requirePermissionForApi('pages.manage');
@@ -51,7 +55,8 @@ if ($idParam === false || $idParam === null || $idParam < 1) {
     exit('Menu-item niet gevonden.');
 }
 
-$repository = new NavigationRepository();
+$db = Database::connection();
+$repository = new NavigationRepository($db);
 $existing = $repository->findById($idParam);
 if ($existing === null) {
     http_response_code(404);
@@ -70,8 +75,16 @@ if ($errors !== []) {
 }
 
 try {
+    // The item's language-neutral settings and its label in this language
+    // are one save.
+    $db->beginTransaction();
     $repository->update($idParam, $data);
+    NavigationLocalization::save($idParam, $data['language_code'], $data['label']);
+    $db->commit();
 } catch (\Throwable $e) {
+    if ($db->inTransaction()) {
+        $db->rollBack();
+    }
     error_log('[api/admin/update-nav-item.php] ' . $e->getMessage());
     $_SESSION['admin_nav_item_errors'] = [AdminTranslator::trans('validation.navigation_item_not_saved')];
     $_SESSION['admin_nav_item_old'] = $old;

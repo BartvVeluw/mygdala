@@ -33,6 +33,12 @@ use Tests\Support\ScratchInstall;
  * run adds no second button; and a button that was switched off, or whose
  * page no longer exists, or whose route belongs to a module, is kept rather
  * than dropped.
+ *
+ * The deployed database STOPS AT THIS MIGRATION: phase 4 of Multilingual 2.0
+ * (20260918110000) moves nav_items.label_nl/en into nav_item_translations and
+ * drops the columns this migration writes, so replaying it on a later schema
+ * would test a state no real installation is in (Tests\Install\
+ * NavigationFooterLabelMigrationTest covers the move).
  */
 #[Group('migration-backfill')]
 final class HeaderButtonMigrationTest extends TestCase
@@ -89,7 +95,7 @@ final class HeaderButtonMigrationTest extends TestCase
         ];
         self::writeSettings(self::$settings);
 
-        self::$deployed->catchUp();
+        self::$deployed->catchUp(self::MOVE);
     }
 
     protected function setUp(): void
@@ -178,7 +184,7 @@ final class HeaderButtonMigrationTest extends TestCase
     {
         $this->assertNotNull(self::$deployed);
 
-        self::$deployed->replay(self::MOVE);
+        self::$deployed->replay(self::MOVE, self::MOVE);
 
         $this->assertCount(1, $this->buttons(self::$deployed));
     }
@@ -195,7 +201,7 @@ final class HeaderButtonMigrationTest extends TestCase
         self::$deployed->pdo()->exec("DELETE FROM nav_items WHERE presentation = 'button'");
         self::writeSettings(['header_cta_enabled' => '0', 'header_cta_target_page_id' => '999999']);
 
-        self::$deployed->replay(self::MOVE);
+        self::$deployed->replay(self::MOVE, self::MOVE);
 
         $buttons = $this->buttons(self::$deployed);
         $this->assertCount(1, $buttons);
@@ -222,7 +228,7 @@ final class HeaderButtonMigrationTest extends TestCase
             'header_cta_open_in_new_tab' => '0',
         ]);
 
-        self::$deployed->replay(self::MOVE);
+        self::$deployed->replay(self::MOVE, self::MOVE);
 
         $buttons = $this->buttons(self::$deployed);
         $this->assertCount(1, $buttons);

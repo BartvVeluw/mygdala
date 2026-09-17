@@ -16,13 +16,18 @@ use App\Repository\FooterRepository;
  * truth for company data; this class only ever decides *whether* to show
  * each field, never stores a second copy of it.
  *
+ * WORDS. A column's title and a link's label arrive as one
+ * App\Service\Language\LocalizedValue each, from
+ * App\Service\FooterLocalization, loaded for the whole footer in two
+ * queries. Neither this class nor partials/footer.php decides a language.
+ *
  * Static, try/catch-with-fallback, same convention as NavigationService —
  * a footer problem must never break every public page.
  */
 class FooterService
 {
     /**
-     * @return list<array{id:int,title_nl:string,title_en:string,links:list<array<string,mixed>>}>
+     * @return list<array{id:int,title:\App\Service\Language\LocalizedValue,links:list<array<string,mixed>>}>
      */
     public static function columns(): array
     {
@@ -30,6 +35,10 @@ class FooterService
             $repository = new FooterRepository();
             $columns = $repository->findVisibleColumnsForPublic();
             $allLinks = $repository->findAllVisibleLinks();
+            FooterLocalization::preload(
+                array_map(static fn (array $column): int => (int) $column['id'], $columns),
+                array_map(static fn (array $link): int => (int) $link['id'], $allLinks)
+            );
         } catch (\Throwable $e) {
             error_log('[FooterService] falling back to empty footer columns: ' . $e->getMessage());
             return [];
@@ -51,8 +60,7 @@ class FooterService
 
                 $columnLinks[] = [
                     'id' => (int) $link['id'],
-                    'label_nl' => (string) $link['label_nl'],
-                    'label_en' => (string) $link['label_en'],
+                    'label' => FooterLocalization::linkLabel((int) $link['id']),
                     'href' => $resolved['href'],
                     'open_in_new_tab' => $resolved['open_in_new_tab'],
                     'rel' => $resolved['rel'],
@@ -69,8 +77,7 @@ class FooterService
 
             $result[] = [
                 'id' => (int) $column['id'],
-                'title_nl' => (string) $column['title_nl'],
-                'title_en' => (string) $column['title_en'],
+                'title' => FooterLocalization::columnTitle((int) $column['id']),
                 'links' => $columnLinks,
             ];
         }

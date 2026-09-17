@@ -5,6 +5,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/../vendor/autoload.php';
 require_once __DIR__ . '/_translate.php';
 require_once __DIR__ . '/_language_fields.php';
+require_once __DIR__ . '/_localized_fields.php';
 require_once __DIR__ . '/_link_destination.php';
 require_once __DIR__ . '/_save_bar.php';
 
@@ -14,6 +15,7 @@ use App\Repository\PageRepository;
 use App\Service\AdminAuth;
 use App\Service\Branding;
 use App\Service\Csrf;
+use App\Service\FooterLocalization;
 use App\Service\RouteRegistry;
 use App\Service\SiteSettings;
 use App\Service\SocialProfiles;
@@ -67,6 +69,10 @@ $linksByColumn = [];
 foreach ($columns as $column) {
     $linksByColumn[(int) $column['id']] = $repository->findLinksForColumn((int) $column['id']);
 }
+FooterLocalization::preload(
+    array_map(static fn (array $column): int => (int) $column['id'], $columns),
+    array_map(static fn (array $link): int => (int) $link['id'], array_merge([], ...array_values($linksByColumn)))
+);
 
 $socialLinks = (new FooterSocialLinkRepository())->findAll();
 
@@ -352,7 +358,7 @@ function footer_social_fields(int $id, array $values, array $errors): void
         <?php
           $columnId = (int) $column['id'];
           $columnHidden = !(bool) $column['is_visible'];
-          $columnTitle = admin_lang_summary($column, 'title');
+          $columnTitle = FooterLocalization::columnName($columnId);
           $links = $linksByColumn[$columnId];
           $visibleWorkingLinks = array_filter(
               $links,
@@ -399,7 +405,7 @@ function footer_social_fields(int $id, array $values, array $errors): void
               <?php
                 $linkId = (int) $link['id'];
                 $linkHidden = !(bool) $link['is_visible'];
-                $linkLabel = admin_lang_summary($link, 'label');
+                $linkLabel = FooterLocalization::linkName($linkId);
                 $linkReachable = admin_link_is_reachable($link);
               ?>
               <div class="admin-section-row admin-footer-link-row<?= $linkHidden ? ' is-hidden-section' : '' ?>" id="footer-link-<?= $linkId ?>" data-footer-link-id="<?= $linkId ?>">
@@ -439,18 +445,11 @@ function footer_social_fields(int $id, array $values, array $errors): void
 
     <form method="post" action="/api/admin/create-footer-column.php" class="admin-inline-form admin-add-section-form admin-footer-add-column" data-no-dirty-track>
       <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
-      <?php admin_lang_pane_start('nl'); ?>
-        <div class="admin-field">
-          <?= admin_field_label('footer-new-column-nl', admin_t('footer.add_column_title')) ?>
-          <input type="text" id="footer-new-column-nl" name="title_nl" maxlength="100"<?= admin_lang_required('nl') ?>>
-        </div>
-      <?php admin_lang_pane_end(); ?>
-      <?php admin_lang_pane_start('en'); ?>
-        <div class="admin-field">
-          <?= admin_field_label('footer-new-column-en', admin_t('footer.add_column_title')) ?>
-          <input type="text" id="footer-new-column-en" name="title_en" maxlength="100"<?= admin_lang_required('en') ?>>
-        </div>
-      <?php admin_lang_pane_end(); ?>
+      <?php admin_localized_new_item_note(admin_localized_language()); ?>
+      <div class="admin-field">
+        <?= admin_field_label('footer-new-column', admin_t('footer.add_column_title')) ?>
+        <input type="text" id="footer-new-column" name="title" maxlength="<?= FooterLocalization::TITLE_MAX_LENGTH ?>" required>
+      </div>
       <button type="submit" class="admin-btn-secondary"><?= admin_te('footer.add_column') ?></button>
     </form>
   </section>

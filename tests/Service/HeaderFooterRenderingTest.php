@@ -62,6 +62,7 @@ final class HeaderFooterRenderingTest extends TestCase
 
         SiteSettings::overrideForTests(null);
         ModuleRegistry::overrideForTests(null);
+        \App\Service\NavigationLocalization::clearCache();
     }
 
     private function makePage(string $slug, bool $published = true): int
@@ -79,8 +80,6 @@ final class HeaderFooterRenderingTest extends TestCase
     private function buttonPointingAtPage(int $pageId): int
     {
         $id = $this->navigation->create([
-            'label_nl' => 'Vraag offerte aan',
-            'label_en' => 'Request a quote',
             'link_type' => 'page',
             'target_page_id' => $pageId,
             'target_route' => null,
@@ -92,6 +91,8 @@ final class HeaderFooterRenderingTest extends TestCase
             'button_variant' => NavigationPresentation::VARIANT_PRIMARY,
         ]);
         $this->createdNavIds[] = $id;
+        \App\Service\NavigationLocalization::save($id, 'nl', 'Vraag offerte aan');
+        \App\Service\NavigationLocalization::save($id, 'en', 'Request a quote');
 
         return $id;
     }

@@ -111,12 +111,10 @@ class LinkResolverTest extends TestCase
         // A column of this test's own: whether the installation already has
         // a footer is ordinary CMS data and no precondition of this guarantee.
         $footerRepository = new \App\Repository\FooterRepository();
-        $columnId = $footerRepository->createColumn(['title_nl' => 'Zz testkolom', 'title_en' => 'Zz test column', 'is_visible' => false]);
+        $columnId = $footerRepository->createColumn(['is_visible' => false]);
 
         $linkId = $footerRepository->createLink([
             'column_id' => $columnId,
-            'label_nl' => 'Testlink',
-            'label_en' => 'Test link',
             'link_type' => 'page',
             'target_page_id' => $pageId,
             'target_route' => null,

@@ -100,13 +100,13 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
       </div>
 <?php foreach ($footerColumns as $column): ?>
       <div class="footer-col">
-        <h4 <?= \App\Service\Language\SiteText::attrs($column['title_nl'], $column['title_en']) ?>><?= $h(\App\Service\Language\SiteText::visible($column['title_nl'], $column['title_en'])) ?></h4>
+        <h4<?= \App\Service\Language\SiteText::attrsOf($column['title']) ?>><?= $h(\App\Service\Language\SiteText::visibleOf($column['title'])) ?></h4>
         <ul>
 <?php foreach ($column['links'] as $link): ?>
 <?php if ($link['is_action']): ?>
-          <li><button type="button" class="footer-col__action-link" data-cookie-settings-open <?= \App\Service\Language\SiteText::attrs($link['label_nl'], $link['label_en']) ?>><?= $h(\App\Service\Language\SiteText::visible($link['label_nl'], $link['label_en'])) ?></button></li>
+          <li><button type="button" class="footer-col__action-link" data-cookie-settings-open<?= \App\Service\Language\SiteText::attrsOf($link['label']) ?>><?= $h(\App\Service\Language\SiteText::visibleOf($link['label'])) ?></button></li>
 <?php else: ?>
-          <li><a href="<?= $h((string) $link['href']) ?>"<?= $link['open_in_new_tab'] ? ' target="_blank" rel="' . $h((string) $link['rel']) . '"' : '' ?> <?= \App\Service\Language\SiteText::attrs($link['label_nl'], $link['label_en']) ?>><?= $h(\App\Service\Language\SiteText::visible($link['label_nl'], $link['label_en'])) ?></a></li>
+          <li><a href="<?= $h((string) $link['href']) ?>"<?= $link['open_in_new_tab'] ? ' target="_blank" rel="' . $h((string) $link['rel']) . '"' : '' ?><?= \App\Service\Language\SiteText::attrsOf($link['label']) ?>><?= $h(\App\Service\Language\SiteText::visibleOf($link['label'])) ?></a></li>
 <?php endif; ?>
 <?php endforeach; ?>
         </ul>

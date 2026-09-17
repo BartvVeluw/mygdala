@@ -35,6 +35,12 @@ declare(strict_types=1);
  * header stays coherent on desktop and mobile; the wrapper's layout —
  * wrapping long labels, stacking on a phone — lives with the rest of the
  * header in assets/css/core.css.
+ *
+ * LABELS arrive as one App\Service\Language\LocalizedValue per item
+ * (App\Service\NavigationLocalization) and are printed through SiteText's
+ * visibleOf()/attrsOf(): plain text, switched by assets/js/core.js with
+ * textContent. A submenu heading carries its pair on an inner <span>, so the
+ * switch replaces the words and never the chevron next to them.
  */
 
 require_once __DIR__ . '/../vendor/autoload.php';
@@ -42,6 +48,7 @@ require_once __DIR__ . '/../vendor/autoload.php';
 use App\Module\ModuleRegistry;
 use App\Service\Analytics\PageViewTracker;
 use App\Service\Branding;
+use App\Service\Language\SiteText;
 use App\Service\NavigationService;
 use App\Service\SiteSettings;
 
@@ -94,19 +101,19 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
 ?>
 <?php if ($hasChildren): ?>
         <li class="main-nav__item main-nav__item--has-children">
-          <button type="button" class="main-nav__toggle" aria-haspopup="true" aria-expanded="false" <?= \App\Service\Language\SiteText::attrs($item['label_nl'], $item['label_en']) ?>>
-            <?= $h(\App\Service\Language\SiteText::visible($item['label_nl'], $item['label_en'])) ?>
+          <button type="button" class="main-nav__toggle" aria-haspopup="true" aria-expanded="false">
+            <span<?= SiteText::attrsOf($item['label']) ?>><?= $h(SiteText::visibleOf($item['label'])) ?></span>
             <svg class="main-nav__chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
           </button>
           <ul class="main-nav__submenu">
 <?php foreach ($item['children'] as $child): ?>
 <?php if ($child['href'] === null) continue; ?>
-            <li><a href="<?= $h($child['href']) ?>"<?= $child['open_in_new_tab'] ? ' target="_blank" rel="' . $h((string) $child['rel']) . '"' : '' ?> <?= \App\Service\Language\SiteText::attrs($child['label_nl'], $child['label_en']) ?>><?= $h(\App\Service\Language\SiteText::visible($child['label_nl'], $child['label_en'])) ?></a></li>
+            <li><a href="<?= $h($child['href']) ?>"<?= $child['open_in_new_tab'] ? ' target="_blank" rel="' . $h((string) $child['rel']) . '"' : '' ?><?= SiteText::attrsOf($child['label']) ?>><?= $h(SiteText::visibleOf($child['label'])) ?></a></li>
 <?php endforeach; ?>
           </ul>
         </li>
 <?php elseif ($item['href'] !== null): ?>
-        <li><a href="<?= $h($item['href']) ?>"<?= $isActive ? ' aria-current="page"' : '' ?><?= $item['open_in_new_tab'] ? ' target="_blank" rel="' . $h((string) $item['rel']) . '"' : '' ?> <?= \App\Service\Language\SiteText::attrs($item['label_nl'], $item['label_en']) ?>><?= $h(\App\Service\Language\SiteText::visible($item['label_nl'], $item['label_en'])) ?></a></li>
+        <li><a href="<?= $h($item['href']) ?>"<?= $isActive ? ' aria-current="page"' : '' ?><?= $item['open_in_new_tab'] ? ' target="_blank" rel="' . $h((string) $item['rel']) . '"' : '' ?><?= SiteText::attrsOf($item['label']) ?>><?= $h(SiteText::visibleOf($item['label'])) ?></a></li>
 <?php endif; ?>
 <?php endforeach; ?>
       </ul>
@@ -129,7 +136,7 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
 <?php if ($headerButtons !== []): ?>
         <div class="header-buttons">
 <?php foreach ($headerButtons as $headerButton): ?>
-          <a href="<?= $h($headerButton['href']) ?>" class="<?= $h($headerButton['class']) ?>"<?= $headerButton['open_in_new_tab'] ? ' target="_blank" rel="' . $h((string) $headerButton['rel']) . '"' : '' ?><?= \App\Service\Language\SiteText::attrs($headerButton['label_nl'], $headerButton['label_en']) ?>><?= $h(\App\Service\Language\SiteText::visible($headerButton['label_nl'], $headerButton['label_en'])) ?></a>
+          <a href="<?= $h($headerButton['href']) ?>" class="<?= $h($headerButton['class']) ?>"<?= $headerButton['open_in_new_tab'] ? ' target="_blank" rel="' . $h((string) $headerButton['rel']) . '"' : '' ?><?= SiteText::attrsOf($headerButton['label']) ?>><?= $h(SiteText::visibleOf($headerButton['label'])) ?></a>
 <?php endforeach; ?>
         </div>
 <?php endif; ?>

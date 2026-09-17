@@ -55,10 +55,13 @@ final class PageUsage
         $menu = [];
         $buttons = [];
 
-        foreach ((new NavigationRepository())->findByTargetPageId($pageId) as $item) {
+        $items = (new NavigationRepository())->findByTargetPageId($pageId);
+        NavigationLocalization::preload(array_map(static fn (array $item): int => (int) $item['id'], $items));
+
+        foreach ($items as $item) {
             $place = [
                 'kind' => NavigationPresentation::isButton($item) ? self::KIND_HEADER_BUTTON : self::KIND_MENU,
-                'label' => self::label($item),
+                'label' => NavigationLocalization::name((int) $item['id']),
                 'context' => '',
                 'hidden' => (int) $item['is_visible'] !== 1,
                 'edit_url' => '/admin/navigation-item.php?id=' . (int) $item['id'],
@@ -71,29 +74,23 @@ final class PageUsage
             }
         }
 
+        $links = (new FooterRepository())->findLinksByTargetPageId($pageId);
+        FooterLocalization::preload(
+            array_map(static fn (array $link): int => (int) $link['column_id'], $links),
+            array_map(static fn (array $link): int => (int) $link['id'], $links)
+        );
+
         $footer = [];
-        foreach ((new FooterRepository())->findLinksByTargetPageId($pageId) as $link) {
+        foreach ($links as $link) {
             $footer[] = [
                 'kind' => self::KIND_FOOTER,
-                'label' => self::label($link),
-                'context' => trim((string) ($link['column_title_nl'] ?? '')),
+                'label' => FooterLocalization::linkName((int) $link['id']),
+                'context' => FooterLocalization::columnName((int) $link['column_id']),
                 'hidden' => (int) $link['is_visible'] !== 1 || (int) $link['column_is_visible'] !== 1,
                 'edit_url' => '/admin/footer-link.php?id=' . (int) $link['id'],
             ];
         }
 
         return array_merge($menu, $footer, $buttons);
-    }
-
-    /**
-     * A row's Dutch label, or its English one when only that was filled in.
-     *
-     * @param array<string, mixed> $row
-     */
-    private static function label(array $row): string
-    {
-        $label = trim((string) ($row['label_nl'] ?? ''));
-
-        return $label !== '' ? $label : trim((string) ($row['label_en'] ?? ''));
     }
 }

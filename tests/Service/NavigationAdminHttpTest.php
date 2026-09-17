@@ -8,6 +8,7 @@ use App\Database;
 use App\Repository\NavigationRepository;
 use App\Repository\PageRepository;
 use App\Service\AdminPermissions;
+use App\Service\NavigationLocalization;
 use App\Service\NavigationPresentation;
 use App\Service\PageContent;
 use PHPUnit\Framework\TestCase;
@@ -23,7 +24,9 @@ use Tests\Support\BuiltInServer;
  *   - the menu and the header buttons are two lists on one screen, each row
  *     saying where it goes in words, with ↑/↓ and a delete that asks first;
  *   - an internal link stores the page id, an external link its address, and
- *     both labels are kept separately;
+ *     the label is stored per website language, a new item's in the default
+ *     language (App\Service\NavigationLocalization; the per-language editor
+ *     is Tests\Service\NavigationFooterLocalizationEditorHttpTest);
  *   - a button is a navigation item presented as a button: it gets a style
  *     from a closed list, renders in the header's action area in its own
  *     order, and cannot be a submenu item, a submenu heading or a link that
@@ -100,6 +103,7 @@ final class NavigationAdminHttpTest extends TestCase
         $this->navIds = [];
         $this->pageIds = [];
         $this->accounts->forget();
+        NavigationLocalization::clearCache();
     }
 
     // ------------------------------------------------------------ the screen
@@ -157,8 +161,9 @@ final class NavigationAdminHttpTest extends TestCase
         $this->assertSame(200, $response['status']);
         $xpath = $this->xpath($response['body']);
 
-        $this->assertSame('Offerte', $xpath->query('//input[@name="label_nl"]')->item(0)?->getAttribute('value'));
-        $this->assertSame('Quote', $xpath->query('//input[@name="label_en"]')->item(0)?->getAttribute('value'));
+        $this->assertSame('Offerte', $xpath->query('//input[@name="label"]')->item(0)?->getAttribute('value'), 'the default language, as stored');
+        $this->assertSame('nl', $xpath->query('//input[@name="language_code"]')->item(0)?->getAttribute('value'));
+        $this->assertSame(0, $xpath->query('//input[@name="label_en"]')->length, 'no hidden pane of another language');
         $this->assertSame('button', $xpath->query('//select[@name="presentation"]/option[@selected]')->item(0)?->getAttribute('value'));
         $this->assertSame('ghost', $xpath->query('//select[@name="button_variant"]/option[@selected]')->item(0)?->getAttribute('value'));
         $this->assertSame('external', $xpath->query('//select[@name="link_type"]/option[@selected]')->item(0)?->getAttribute('value'));
@@ -169,31 +174,34 @@ final class NavigationAdminHttpTest extends TestCase
 
     // --------------------------------------------------------------- saving
 
-    public function testAnInternalAndAnExternalLinkAreStoredWithBothLabels(): void
+    public function testAnInternalAndAnExternalLinkAreStoredWithTheirLabelInTheDefaultLanguage(): void
     {
         $pageId = $this->page('Contact');
         [$session, $token] = $this->accounts->signIn([AdminPermissions::PAGES_MANAGE]);
 
         $internal = $this->create($session, $token, [
-            'label_nl' => 'Neem contact op', 'label_en' => 'Get in touch',
+            'label' => 'Neem contact op',
+            // A new item is always written in the default language; a posted
+            // language is not the endpoint's to follow.
+            'language_code' => 'en',
             'link_type' => 'page', 'target_page_id' => (string) $pageId,
             // A leftover of another kind never reaches the row.
             'external_url' => 'https://example.com/restje',
             'is_visible' => '1',
         ]);
         $this->assertSame(
-            ['Neem contact op', 'Get in touch', 'page', $pageId, null, 'link', 1],
-            [$internal['label_nl'], $internal['label_en'], $internal['link_type'], (int) $internal['target_page_id'], $internal['external_url'], $internal['presentation'], (int) $internal['is_visible']]
+            ['Neem contact op', '', 'page', $pageId, null, 'link', 1],
+            [$this->label($internal, 'nl'), $this->label($internal, 'en'), $internal['link_type'], (int) $internal['target_page_id'], $internal['external_url'], $internal['presentation'], (int) $internal['is_visible']]
         );
 
         $external = $this->create($session, $token, [
-            'label_nl' => 'Webshop partner', 'label_en' => '',
+            'label' => 'Webshop partner',
             'link_type' => 'external', 'external_url' => 'https://example.com/partner',
             'open_in_new_tab' => '1',
         ]);
         $this->assertSame(
             ['external', 'https://example.com/partner', null, 1, 0, ''],
-            [$external['link_type'], $external['external_url'], $external['target_page_id'], (int) $external['open_in_new_tab'], (int) $external['is_visible'], (string) $external['label_en']]
+            [$external['link_type'], $external['external_url'], $external['target_page_id'], (int) $external['open_in_new_tab'], (int) $external['is_visible'], $this->label($external, 'en')]
         );
     }
 
@@ -203,7 +211,7 @@ final class NavigationAdminHttpTest extends TestCase
         $label = '__nav_http_' . bin2hex(random_bytes(4));
 
         $response = self::$server->request('POST', '/api/admin/create-nav-item.php', $session, [
-            'csrf_token' => $token, 'label_nl' => $label, 'link_type' => 'external', 'external_url' => 'javascript:alert(1)',
+            'csrf_token' => $token, 'label' => $label, 'link_type' => 'external', 'external_url' => 'javascript:alert(1)',
         ]);
 
         $this->assertSame(302, $response['status']);
@@ -227,7 +235,7 @@ final class NavigationAdminHttpTest extends TestCase
         foreach ($refusals as $what => $fields) {
             $label = '__nav_http_' . bin2hex(random_bytes(4));
             $response = self::$server->request('POST', '/api/admin/create-nav-item.php', $session, $fields + [
-                'csrf_token' => $token, 'label_nl' => $label, 'presentation' => 'button', 'is_visible' => '1',
+                'csrf_token' => $token, 'label' => $label, 'presentation' => 'button', 'is_visible' => '1',
             ]);
 
             $this->assertSame(302, $response['status'], $what);
@@ -237,7 +245,7 @@ final class NavigationAdminHttpTest extends TestCase
 
         // A link that still has submenu items cannot become a button.
         $response = self::$server->request('POST', '/api/admin/update-nav-item.php', $session, [
-            'csrf_token' => $token, 'id' => (string) $parent, 'label_nl' => 'Met submenu', 'link_type' => 'none',
+            'csrf_token' => $token, 'id' => (string) $parent, 'language_code' => 'nl', 'label' => 'Met submenu', 'link_type' => 'none',
             'presentation' => 'button', 'is_visible' => '1',
         ]);
         $this->assertStringNotContainsString('saved=1', $response['location']);
@@ -258,13 +266,13 @@ final class NavigationAdminHttpTest extends TestCase
         $prefix = '__nav_http_' . bin2hex(random_bytes(3));
 
         $first = (int) $this->create($session, $token, [
-            'label_nl' => $prefix . ' Offerte', 'label_en' => $prefix . ' Quote', 'link_type' => 'external', 'external_url' => '/zz-offerte',
+            'label' => $prefix . ' Offerte', 'link_type' => 'external', 'external_url' => '/zz-offerte',
             'presentation' => 'button', 'button_variant' => 'primary', 'is_visible' => '1',
         ])['id'];
         $this->assertSame([[$prefix . ' Offerte', '/zz-offerte', 'btn btn--sm']], $this->headerButtons($prefix));
 
         $second = (int) $this->create($session, $token, [
-            'label_nl' => $prefix . ' Bel ons', 'link_type' => 'external', 'external_url' => '/zz-bel',
+            'label' => $prefix . ' Bel ons', 'link_type' => 'external', 'external_url' => '/zz-bel',
             'presentation' => 'button', 'button_variant' => 'ghost', 'is_visible' => '1',
         ])['id'];
         $this->assertSame(
@@ -309,12 +317,12 @@ final class NavigationAdminHttpTest extends TestCase
         $this->assertSame(1, $xpath->query('//*[contains(@class, "admin-alert--warning")]')->length, 'the editor is told why it is not on the website');
 
         $saved = self::$shopOff->request('POST', '/api/admin/update-nav-item.php', $session, [
-            'csrf_token' => $token, 'id' => (string) $button, 'label_nl' => $prefix . ' Naar de webwinkel',
+            'csrf_token' => $token, 'id' => (string) $button, 'language_code' => 'nl', 'label' => $prefix . ' Naar de webwinkel',
             'link_type' => 'route', 'target_route' => 'shop', 'presentation' => 'button', 'button_variant' => 'primary', 'is_visible' => '1',
         ]);
         $this->assertStringContainsString('saved=1', $saved['location']);
         $row = $this->navigation->findById($button);
-        $this->assertSame(['shop', $prefix . ' Naar de webwinkel'], [$row['target_route'], $row['label_nl']]);
+        $this->assertSame(['shop', $prefix . ' Naar de webwinkel'], [$row['target_route'], $this->label($row, 'nl')]);
 
         $this->assertSame([[$prefix . ' Naar de webwinkel', '/shop.php', 'btn btn--sm']], $this->headerButtons($prefix, self::$server));
     }
@@ -335,12 +343,18 @@ final class NavigationAdminHttpTest extends TestCase
 
     // --------------------------------------------------------------- helpers
 
-    /** @param array<string, mixed> $overrides */
+    /**
+     * A row of this test's own. `label_nl`/`label_en` in $overrides are the
+     * words it gets in those languages, stored where the CMS stores them.
+     *
+     * @param array<string, mixed> $overrides
+     */
     private function item(array $overrides): int
     {
+        $labels = ['nl' => (string) ($overrides['label_nl'] ?? 'Item'), 'en' => (string) ($overrides['label_en'] ?? '')];
+        unset($overrides['label_nl'], $overrides['label_en']);
+
         $id = $this->navigation->create(array_merge([
-            'label_nl' => 'Item',
-            'label_en' => '',
             'link_type' => 'external',
             'target_page_id' => null,
             'target_route' => null,
@@ -352,8 +366,19 @@ final class NavigationAdminHttpTest extends TestCase
             'button_variant' => NavigationPresentation::VARIANT_PRIMARY,
         ], $overrides));
         $this->navIds[] = $id;
+        foreach ($labels as $language => $label) {
+            NavigationLocalization::save($id, $language, $label);
+        }
 
         return $id;
+    }
+
+    /** @param array<string, mixed> $row */
+    private function label(array $row, string $language): string
+    {
+        NavigationLocalization::clearCache();
+
+        return NavigationLocalization::raw((int) $row['id'], $language);
     }
 
     private function page(string $title): int
@@ -395,7 +420,7 @@ final class NavigationAdminHttpTest extends TestCase
     private function findByLabel(string $label): ?array
     {
         foreach ($this->navigation->findAllForAdmin() as $row) {
-            if ($row['label_nl'] === $label) {
+            if ($this->label($row, 'nl') === $label) {
                 $this->navIds[] = (int) $row['id'];
                 return $row;
             }

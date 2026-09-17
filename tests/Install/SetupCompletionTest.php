@@ -313,11 +313,16 @@ final class SetupCompletionTest extends TestCase
 
     public function testEachCreatedPageGetsOneMenuItemAndNothingElseIsInvented(): void
     {
+        // The label is in nav_item_translations since Multilingual 2.0 phase 4,
+        // in the default language this wizard run chose (Dutch).
         $items = $this->install()->rows(
-            'SELECT label_nl, link_type, target_route, target_page_id FROM nav_items ORDER BY sort_order'
+            "SELECT t.label, i.link_type, i.target_route, i.target_page_id
+               FROM nav_items i
+               LEFT JOIN nav_item_translations t ON t.nav_item_id = i.id AND t.language_code = 'nl'
+              ORDER BY i.sort_order"
         );
 
-        $labels = array_column($items, 'label_nl');
+        $labels = array_column($items, 'label');
 
         // No Shop item: the install bootstrap no longer seeds a storefront
         // page or its menu link (INSTALL-BOOTSTRAP.md), and this wizard adds
@@ -325,7 +330,7 @@ final class SetupCompletionTest extends TestCase
         $this->assertSame(['Home', 'Over ons', 'Contact'], $labels);
 
         foreach ($items as $item) {
-            if (in_array($item['label_nl'], ['Over ons', 'Contact'], true)) {
+            if (in_array($item['label'], ['Over ons', 'Contact'], true)) {
                 $this->assertSame('page', $item['link_type'], 'a starter page is linked as a PAGE, so it follows a rename');
                 $this->assertNotNull($item['target_page_id']);
             }

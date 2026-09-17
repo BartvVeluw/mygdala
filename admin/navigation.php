@@ -4,13 +4,13 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../vendor/autoload.php';
 require_once __DIR__ . '/_translate.php';
-require_once __DIR__ . '/_language_fields.php';
 require_once __DIR__ . '/_link_destination.php';
 
 use App\Repository\NavigationRepository;
 use App\Repository\PageRepository;
 use App\Service\AdminAuth;
 use App\Service\Csrf;
+use App\Service\NavigationLocalization;
 use App\Service\NavigationPresentation;
 use App\Service\RouteRegistry;
 
@@ -51,6 +51,7 @@ AdminAuth::requirePermission('pages.manage');
 
 $repository = new NavigationRepository();
 $allItems = $repository->findAllForAdmin();
+NavigationLocalization::preload(array_map(static fn (array $item): int => (int) $item['id'], $allItems));
 
 $menuByParent = [];
 $buttons = [];
@@ -93,7 +94,7 @@ function navigation_row(array $item, int $position, int $count, int $childCount,
     $isHidden = !(bool) $item['is_visible'];
     $isChild = $item['parent_id'] !== null;
     $isButton = NavigationPresentation::isButton($item);
-    $label = admin_lang_summary($item, 'label');
+    $label = NavigationLocalization::name($id);
     $isReachable = admin_link_is_reachable($item);
     ?>
     <div class="admin-section-row admin-nav-item-row<?= $isChild ? ' admin-nav-item-row--child' : '' ?><?= $isHidden ? ' is-hidden-section' : '' ?>" id="nav-item-<?= $id ?>" data-nav-item-id="<?= $id ?>">

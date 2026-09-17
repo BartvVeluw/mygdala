@@ -1689,6 +1689,155 @@ final class MultilingualBoundaryTest extends TestCase
         self::assertSame(1, $htmlDoc->getElementsByTagName('a')->length);
     }
 
+    // ---------- Navigation, footer, settings and forms on per-language storage (phase 4)
+
+    /**
+     * The typed translation tables of phase 4. Their SQL is written by ONE
+     * class, App\Repository\EntityTranslationRepository, from a closed
+     * declaration (App\Service\Language\TranslationTable), so no file names
+     * one in a statement.
+     */
+    private const PHASE_4_TABLES = [
+        'nav_item_translations',
+        'footer_column_translations',
+        'footer_link_translations',
+    ];
+
+    /** The domain APIs that may declare a typed translation table and hold its store. */
+    private const PHASE_4_DOMAIN_APIS = [
+        'src/Service/NavigationLocalization.php',
+        'src/Service/FooterLocalization.php',
+    ];
+
+    /** Wave A: every file that used to read or write a menu or footer label column. */
+    private const NAVIGATION_FOOTER_FILES = [
+        'src/Repository/NavigationRepository.php',
+        'src/Repository/FooterRepository.php',
+        'src/Service/NavigationService.php',
+        'src/Service/FooterService.php',
+        'src/Service/PageUsage.php',
+        'src/Install/SetupWizard.php',
+        'partials/header.php',
+        'partials/footer.php',
+        'admin/navigation.php',
+        'admin/navigation-item.php',
+        'admin/footer.php',
+        'admin/footer-column.php',
+        'admin/footer-link.php',
+        'api/admin/_nav_item_input.php',
+        'api/admin/create-nav-item.php',
+        'api/admin/update-nav-item.php',
+        'api/admin/create-footer-column.php',
+        'api/admin/update-footer-column.php',
+        'api/admin/_footer_link_input.php',
+        'api/admin/create-footer-link.php',
+        'api/admin/update-footer-link.php',
+    ];
+
+    public function testOnlyTheSharedRepositoryQueriesThePhase4TranslationTables(): void
+    {
+        $statement = '/\b(?:FROM|INTO|UPDATE|JOIN|TABLE)\s+`?(?:' . implode('|', self::PHASE_4_TABLES) . ')\b/i';
+        $offenders = [];
+
+        foreach (self::applicationSources() as $relative => $file) {
+            if (preg_match($statement, (string) file_get_contents($file)) === 1) {
+                $offenders[] = $relative;
+            }
+        }
+
+        self::assertSame([], $offenders, 'the typed translation tables are reached through their domain API only');
+    }
+
+    public function testOnlyTheDomainApisDeclareATranslationTableAndOnlyTheStoreUsesItsRepository(): void
+    {
+        $offenders = [];
+
+        foreach (self::applicationSources() as $relative => $file) {
+            $code = self::withoutComments((string) file_get_contents($file));
+
+            if (str_contains($code, 'new EntityTranslationRepository') && $relative !== 'src/Service/Language/EntityTranslations.php') {
+                $offenders[] = $relative . ' (EntityTranslationRepository)';
+            }
+            if ((str_contains($code, 'new TranslationTable(') || str_contains($code, 'new EntityTranslations(')) && !in_array($relative, self::PHASE_4_DOMAIN_APIS, true)) {
+                $offenders[] = $relative . ' (declares a translation table)';
+            }
+        }
+
+        self::assertSame([], $offenders);
+    }
+
+    public function testNothingReadsTheDroppedNavigationAndFooterColumns(): void
+    {
+        // 20260918110000 dropped nav_items.label_nl/en, footer_columns.title_nl/en
+        // and footer_links.label_nl/en. What these files may still name is
+        // another domain's pair: a route's name in the closed RouteRegistry and
+        // the cookie-settings link of CookieConsentConfig.
+        $allowed = ["\$route['label_nl']", "\$cookieFooterLink['label_nl']", "\$cookieFooterLink['label_en']"];
+        $offenders = [];
+
+        foreach (self::NAVIGATION_FOOTER_FILES as $file) {
+            $code = str_replace($allowed, '', self::withoutComments(self::read($file)));
+
+            if (preg_match_all('/(?<![a-z_])(?:label|title)_(?:nl|en)\b/', $code, $matches) > 0) {
+                $offenders[] = $file . ' (' . implode(', ', array_unique($matches[0])) . ')';
+            }
+        }
+
+        self::assertSame([], $offenders);
+    }
+
+    public function testTheNavigationAndFooterDecideNoLanguageOrFallbackThemselves(): void
+    {
+        foreach (self::NAVIGATION_FOOTER_FILES as $file) {
+            $code = self::withoutComments(self::read($file));
+
+            // The fallback is App\Service\Language\LanguageFallback's. Asking
+            // the registry for the default language, or building a pair by
+            // hand, is the first step of a second one.
+            self::assertStringNotContainsString('SiteLanguages::defaultCode', $code, $file);
+            self::assertStringNotContainsString('ContentLanguages::primary', $code, $file);
+            self::assertStringNotContainsString('LocalizedValue::of', $code, $file);
+        }
+
+        // The header prints its labels as one LocalizedValue each, plain text.
+        $header = self::withoutComments(self::read('partials/header.php'));
+        self::assertStringNotContainsString('SiteText::attrs(', $header);
+        self::assertStringNotContainsString('SiteText::visible(', $header);
+        self::assertStringNotContainsString('htmlAttrsOf', $header, 'a menu label is never HTML');
+        self::assertStringNotContainsString('htmlAttrsOf', self::withoutComments(self::read('partials/footer.php')), 'a footer label is never HTML');
+    }
+
+    public function testTheMenuAndFooterEditorsShowOneLanguageAndTheirEndpointsWriteOnlyThatLanguage(): void
+    {
+        foreach (['admin/navigation-item.php', 'admin/footer-column.php', 'admin/footer-link.php'] as $screen) {
+            $code = self::read($screen);
+
+            self::assertStringContainsString("require_once __DIR__ . '/_localized_fields.php';", $code, $screen);
+            self::assertStringContainsString('admin_localized_input(', $code, $screen);
+            self::assertStringNotContainsString('admin_lang_pane_start', $code, $screen . ' has no V1 language panes');
+        }
+
+        foreach (['api/admin/_nav_item_input.php', 'api/admin/update-footer-column.php', 'api/admin/_footer_link_input.php'] as $endpoint) {
+            $code = self::withoutComments(self::read($endpoint));
+
+            self::assertStringContainsString("'language_code'", $code, $endpoint);
+            self::assertStringContainsString('SiteLanguages::isActive(', $code, $endpoint . ' writes only an active website language');
+        }
+
+        // A new item, column or link starts in the default language.
+        foreach (['api/admin/_nav_item_input.php', 'api/admin/create-footer-column.php', 'api/admin/_footer_link_input.php'] as $file) {
+            self::assertStringContainsString('LanguageFallback::defaultLanguage()', self::withoutComments(self::read($file)), $file);
+        }
+
+        // Row and words are one save.
+        foreach (['api/admin/create-nav-item.php', 'api/admin/update-nav-item.php', 'api/admin/create-footer-column.php', 'api/admin/update-footer-column.php', 'api/admin/create-footer-link.php', 'api/admin/update-footer-link.php'] as $endpoint) {
+            $code = self::withoutComments(self::read($endpoint));
+
+            self::assertStringContainsString('beginTransaction()', $code, $endpoint);
+            self::assertStringContainsString('commit()', $code, $endpoint);
+        }
+    }
+
     /**
      * What a browser would RENDER from an admin template: the text between
      * tags, with PHP, comments and <script>/<style> masked out first.

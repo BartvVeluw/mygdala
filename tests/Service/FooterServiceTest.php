@@ -4,6 +4,7 @@ namespace Tests\Service;
 
 use App\Repository\FooterRepository;
 use App\Repository\SiteSettingRepository;
+use App\Service\FooterLocalization;
 use App\Service\FooterService;
 use App\Service\SiteSettings;
 use PHPUnit\Framework\TestCase;
@@ -30,26 +31,43 @@ class FooterServiceTest extends TestCase
             $this->repository->deleteColumn($id);
         }
         SiteSettings::clearCache();
+        FooterLocalization::clearCache();
+    }
+
+    /** A column with its title in Dutch and English, as footer_column_translations holds it. */
+    private function column(string $titleNl, string $titleEn, bool $visible): int
+    {
+        $id = $this->repository->createColumn(['is_visible' => $visible]);
+        FooterLocalization::saveColumnTitle($id, 'nl', $titleNl);
+        FooterLocalization::saveColumnTitle($id, 'en', $titleEn);
+
+        return $id;
+    }
+
+    /** @return list<string> the Dutch titles of the public footer's columns */
+    private static function publicTitles(): array
+    {
+        return array_map(static fn (array $c): string => $c['title']->in('nl'), FooterService::columns());
     }
 
     public function testHiddenColumnsAreExcludedFromPublicOutput(): void
     {
-        $visibleId = $this->repository->createColumn(['title_nl' => 'Zichtbaar', 'title_en' => 'Visible', 'is_visible' => true]);
-        $hiddenId = $this->repository->createColumn(['title_nl' => 'Verborgen', 'title_en' => 'Hidden', 'is_visible' => false]);
+        $visibleId = $this->column('Zichtbaar', 'Visible', true);
+        $hiddenId = $this->column('Verborgen', 'Hidden', false);
         $this->createdColumnIds = [$visibleId, $hiddenId];
 
         $this->repository->createLink([
-            'column_id' => $visibleId, 'label_nl' => 'Link', 'label_en' => 'Link', 'link_type' => 'external',
+            'column_id' => $visibleId, 'link_type' => 'external',
             'target_page_id' => null, 'target_route' => null, 'external_url' => '/test',
             'action_key' => null, 'open_in_new_tab' => false, 'is_visible' => true,
         ]);
         $this->repository->createLink([
-            'column_id' => $hiddenId, 'label_nl' => 'Link', 'label_en' => 'Link', 'link_type' => 'external',
+            'column_id' => $hiddenId, 'link_type' => 'external',
             'target_page_id' => null, 'target_route' => null, 'external_url' => '/test',
             'action_key' => null, 'open_in_new_tab' => false, 'is_visible' => true,
         ]);
 
-        $titles = array_map(static fn (array $c): string => $c['title_nl'], FooterService::columns());
+        $titles = self::publicTitles();
 
         $this->assertContains('Zichtbaar', $titles);
         $this->assertNotContains('Verborgen', $titles);
@@ -57,34 +75,32 @@ class FooterServiceTest extends TestCase
 
     public function testColumnWithOnlyHiddenLinksIsOmitted(): void
     {
-        $columnId = $this->repository->createColumn(['title_nl' => 'Alles verborgen', 'title_en' => 'All hidden', 'is_visible' => true]);
+        $columnId = $this->column('Alles verborgen', 'All hidden', true);
         $this->createdColumnIds = [$columnId];
 
         $linkId = $this->repository->createLink([
-            'column_id' => $columnId, 'label_nl' => 'Link', 'label_en' => 'Link', 'link_type' => 'external',
+            'column_id' => $columnId, 'link_type' => 'external',
             'target_page_id' => null, 'target_route' => null, 'external_url' => '/test',
             'action_key' => null, 'open_in_new_tab' => false, 'is_visible' => true,
         ]);
         $this->repository->setLinkVisible($linkId, false);
 
-        $titles = array_map(static fn (array $c): string => $c['title_nl'], FooterService::columns());
-
-        $this->assertNotContains('Alles verborgen', $titles);
+        $this->assertNotContains('Alles verborgen', self::publicTitles());
     }
 
     public function testActionLinkIsExposedAsAnActionNotAHref(): void
     {
-        $columnId = $this->repository->createColumn(['title_nl' => 'Legal', 'title_en' => 'Legal', 'is_visible' => true]);
+        $columnId = $this->column('Legal', 'Legal', true);
         $this->createdColumnIds = [$columnId];
 
         $this->repository->createLink([
-            'column_id' => $columnId, 'label_nl' => 'Cookie-instellingen', 'label_en' => 'Cookie settings',
+            'column_id' => $columnId,
             'link_type' => 'action', 'target_page_id' => null, 'target_route' => null, 'external_url' => null,
             'action_key' => 'cookie_preferences', 'open_in_new_tab' => false, 'is_visible' => true,
         ]);
 
         $columns = FooterService::columns();
-        $legal = array_values(array_filter($columns, static fn (array $c): bool => $c['title_nl'] === 'Legal'));
+        $legal = array_values(array_filter($columns, static fn (array $c): bool => $c['title']->in('nl') === 'Legal'));
 
         $this->assertCount(1, $legal);
         $this->assertTrue($legal[0]['links'][0]['is_action']);

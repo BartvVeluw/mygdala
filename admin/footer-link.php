@@ -4,13 +4,14 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../vendor/autoload.php';
 require_once __DIR__ . '/_translate.php';
-require_once __DIR__ . '/_language_fields.php';
+require_once __DIR__ . '/_localized_fields.php';
 require_once __DIR__ . '/_save_bar.php';
 
 use App\Repository\FooterRepository;
 use App\Repository\PageRepository;
 use App\Service\AdminAuth;
 use App\Service\Csrf;
+use App\Service\FooterLocalization;
 use App\Service\LinkResolver;
 use App\Service\PageContent;
 use App\Service\RouteRegistry;
@@ -23,7 +24,9 @@ AdminAuth::requirePermission('pages.manage');
  * admin/navigation-item.php, and deliberately the same screen in its parts:
  *
  *   Tonen       the visibility switch
- *   Tekst       the label, per language (only the site's own is required)
+ *   Tekst       the label, in ONE website language at a time
+ *               (admin/_localized_fields.php), required only in the default
+ *               language; a NEW link is written in the default language
  *   Bestemming  where it goes, in words: a page of this site, a fixed part of
  *               the site (RouteRegistry), another address, or — the footer's
  *               one extra — an action on the page itself, of which the only
@@ -79,8 +82,6 @@ if ($isNew) {
 $link ??= [
     'id' => null,
     'column_id' => $column['id'],
-    'label_nl' => '',
-    'label_en' => '',
     'link_type' => 'page',
     'target_page_id' => null,
     'target_route' => null,
@@ -95,6 +96,13 @@ $old = $_SESSION['admin_footer_link_old'] ?? null;
 unset($_SESSION['admin_footer_link_errors'], $_SESSION['admin_footer_link_old']);
 
 $saved = !$isNew && isset($_GET['saved']) && $old === null;
+
+// The label's language: the shell's choice on an existing link, the default
+// language on a new one (api/admin/create-footer-link.php writes it there).
+$editLanguage = $isNew ? admin_localized_default() : admin_localized_language();
+$label = is_array($old) && ($old['language_code'] ?? null) === $editLanguage
+    ? (string) ($old['label'] ?? '')
+    : ($isNew ? '' : FooterLocalization::rawLinkLabel((int) $link['id'], $editLanguage));
 
 $field = static function (string $key) use ($old, $link): string {
     if (is_array($old) && array_key_exists($key, $old)) {
@@ -134,11 +142,11 @@ $unavailable = !$isNew && $old === null && LinkResolver::resolve($link) === null
 $csrfToken = Csrf::token();
 $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
 
-$columnTitle = $column !== null ? admin_lang_summary($column, 'title') : '';
+$columnTitle = $column !== null ? FooterLocalization::columnName((int) $column['id']) : '';
 if ($isNew) {
     $pageTitle = admin_t('footer.new_link');
 } else {
-    $pageTitle = admin_lang_summary($link, 'label');
+    $pageTitle = FooterLocalization::linkName((int) $link['id']);
     if ($pageTitle === '') {
         $pageTitle = admin_t('footer.edit_link');
     }
@@ -197,20 +205,15 @@ if ($isNew) {
 
     <section class="admin-card">
       <h2><?= admin_te('navigation.text_heading') ?></h2>
-      <?php admin_lang_bar(); ?>
-      <div class="admin-form-row admin-form-row--split">
-        <?php admin_lang_pane_start('nl'); ?>
-        <div class="admin-field">
-          <?= admin_field_label('footer-link-label-nl', admin_t('navigation.text_label'), admin_t('help.footer.link_text'), admin_lang_primary() === 'nl') ?>
-          <input type="text" id="footer-link-label-nl" name="label_nl" maxlength="100"<?= admin_lang_required('nl') ?> value="<?= $h($field('label_nl')) ?>"<?= admin_lang_placeholder_attr('nl') ?>>
-        </div>
-        <?php admin_lang_pane_end(); ?>
-        <?php admin_lang_pane_start('en'); ?>
-        <div class="admin-field">
-          <?= admin_field_label('footer-link-label-en', admin_t('navigation.text_label'), admin_t('help.footer.link_text'), admin_lang_primary() === 'en') ?>
-          <input type="text" id="footer-link-label-en" name="label_en" maxlength="100"<?= admin_lang_required('en') ?> value="<?= $h($field('label_en')) ?>"<?= admin_lang_placeholder_attr('en') ?>>
-        </div>
-        <?php admin_lang_pane_end(); ?>
+      <?php admin_localized_bar($editLanguage); ?>
+      <?php if ($isNew): ?>
+        <?php admin_localized_new_item_note(admin_localized_language()); ?>
+      <?php else: ?>
+        <?= admin_localized_input($editLanguage) ?>
+      <?php endif; ?>
+      <div class="admin-field">
+        <?= admin_field_label('footer-link-label', admin_t('navigation.text_label'), admin_t('help.footer.link_text'), admin_localized_required($editLanguage) !== '') ?>
+        <input type="text" id="footer-link-label" name="label" maxlength="<?= FooterLocalization::LABEL_MAX_LENGTH ?>"<?= admin_localized_required($editLanguage) ?> value="<?= $h($label) ?>"<?= admin_localized_placeholder_attr($editLanguage) ?>>
       </div>
     </section>
 
@@ -296,7 +299,6 @@ if ($isNew) {
 </main>
 <?php save_bar(); ?>
 <?= admin_confirm_dialog() ?>
-<?php admin_lang_script(); ?>
 <script src="<?= \App\Service\AssetVersion::url('/admin/assets/navigation-item.js') ?>" defer></script>
 <?php save_bar_script(); ?>
 </body>

@@ -410,7 +410,7 @@ final class FooterAdminHttpTest extends TestCase
         $second = $this->createColumn($session, $token, $tag . ' Leeg');
 
         $internal = $this->createLink($session, $token, $first, [
-            'label_nl' => $tag . ' Voorwaarden', 'link_type' => 'page', 'target_page_id' => (string) $pageId, 'is_visible' => '1',
+            'label' => $tag . ' Voorwaarden', 'link_type' => 'page', 'target_page_id' => (string) $pageId, 'is_visible' => '1',
             'external_url' => 'https://example.com/restje',
         ]);
         $row = $this->footer->findLinkById($internal);
@@ -420,7 +420,7 @@ final class FooterAdminHttpTest extends TestCase
         // endpoint would trim.
         $longLabel = mb_substr($tag . ' ' . str_repeat('Heel lange linktekst ', 5), 0, 99) . 'x';
         $external = $this->createLink($session, $token, $first, [
-            'label_nl' => $longLabel, 'link_type' => 'external', 'external_url' => 'https://example.com/' . $tag, 'open_in_new_tab' => '1', 'is_visible' => '1',
+            'label' => $longLabel, 'link_type' => 'external', 'external_url' => 'https://example.com/' . $tag, 'open_in_new_tab' => '1', 'is_visible' => '1',
         ]);
 
         $page = $this->pages->findById($pageId);
@@ -481,7 +481,7 @@ final class FooterAdminHttpTest extends TestCase
         [$session, $token] = $this->accounts->signIn([AdminPermissions::PAGES_MANAGE]);
         $tag = 'Fb' . bin2hex(random_bytes(3));
         $column = $this->createColumn($session, $token, $tag . ' Winkel');
-        $link = $this->createLink($session, $token, $column, ['label_nl' => $tag . ' Naar de winkel', 'link_type' => 'route', 'target_route' => 'shop', 'is_visible' => '1']);
+        $link = $this->createLink($session, $token, $column, ['label' => $tag . ' Naar de winkel', 'link_type' => 'route', 'target_route' => 'shop', 'is_visible' => '1']);
 
         $this->assertNull($this->renderedColumn($tag . ' Winkel', self::$shopOff), 'no link into a 404, and no heading over nothing');
 
@@ -491,10 +491,11 @@ final class FooterAdminHttpTest extends TestCase
         $this->assertSame(1, $xpath->query('//*[contains(@class, "admin-alert--warning")]')->length, 'the editor is told why it is not on the website');
 
         $saved = self::$shopOff->request('POST', '/api/admin/update-footer-link.php', $session, [
-            'csrf_token' => $token, 'id' => (string) $link, 'label_nl' => $tag . ' Naar de webwinkel', 'link_type' => 'route', 'target_route' => 'shop', 'is_visible' => '1',
+            'csrf_token' => $token, 'id' => (string) $link, 'language_code' => 'nl', 'label' => $tag . ' Naar de webwinkel', 'link_type' => 'route', 'target_route' => 'shop', 'is_visible' => '1',
         ]);
         $this->assertSame('/admin/footer-link.php?id=' . $link . '&saved=1', $saved['location']);
-        $this->assertSame(['shop', $tag . ' Naar de webwinkel'], [$this->footer->findLinkById($link)['target_route'], $this->footer->findLinkById($link)['label_nl']]);
+        \App\Service\FooterLocalization::clearCache();
+        $this->assertSame(['shop', $tag . ' Naar de webwinkel'], [$this->footer->findLinkById($link)['target_route'], \App\Service\FooterLocalization::rawLinkLabel($link, 'nl')]);
 
         $this->assertSame([[$tag . ' Naar de webwinkel', '/shop.php']], $this->renderedColumn($tag . ' Winkel', self::$server));
     }
@@ -534,7 +535,7 @@ final class FooterAdminHttpTest extends TestCase
 
     private function createColumn(string $session, string $token, string $title): int
     {
-        $response = self::$server->request('POST', '/api/admin/create-footer-column.php', $session, ['csrf_token' => $token, 'title_nl' => $title, 'title_en' => '']);
+        $response = self::$server->request('POST', '/api/admin/create-footer-column.php', $session, ['csrf_token' => $token, 'title' => $title]);
 
         $this->assertMatchesRegularExpression('#^/admin/footer\.php\?saved=1\#footer-column-(\d+)$#', $response['location']);
         preg_match('#footer-column-(\d+)$#', $response['location'], $match);
@@ -546,7 +547,7 @@ final class FooterAdminHttpTest extends TestCase
     /** @param array<string, string> $fields */
     private function createLink(string $session, string $token, int $columnId, array $fields): int
     {
-        $response = self::$server->request('POST', '/api/admin/create-footer-link.php', $session, $fields + ['csrf_token' => $token, 'column_id' => (string) $columnId, 'label_en' => '']);
+        $response = self::$server->request('POST', '/api/admin/create-footer-link.php', $session, $fields + ['csrf_token' => $token, 'column_id' => (string) $columnId]);
 
         $this->assertMatchesRegularExpression('#^/admin/footer-link\.php\?id=(\d+)&saved=1$#', $response['location'], (string) json_encode($this->accounts->read($session, 'admin_footer_link_errors')));
         preg_match('#id=(\d+)#', $response['location'], $match);

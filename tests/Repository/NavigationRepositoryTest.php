@@ -4,6 +4,7 @@ namespace Tests\Repository;
 
 use App\Database;
 use App\Repository\NavigationRepository;
+use App\Service\NavigationLocalization;
 use App\Service\NavigationPresentation;
 use PHPUnit\Framework\TestCase;
 
@@ -28,6 +29,7 @@ class NavigationRepositoryTest extends TestCase
 
     protected function tearDown(): void
     {
+        NavigationLocalization::clearCache();
         if ($this->createdIds === []) {
             return;
         }
@@ -41,8 +43,6 @@ class NavigationRepositoryTest extends TestCase
     private function makeItem(?int $parentId = null, string $label = 'Test item'): int
     {
         $id = $this->repository->create([
-            'label_nl' => $label,
-            'label_en' => $label,
             'link_type' => 'none',
             'target_page_id' => null,
             'target_route' => null,
@@ -52,6 +52,8 @@ class NavigationRepositoryTest extends TestCase
             'is_visible' => true,
         ]);
         $this->createdIds[] = $id;
+        NavigationLocalization::save($id, 'nl', $label);
+        NavigationLocalization::save($id, 'en', $label);
 
         return $id;
     }
@@ -178,8 +180,6 @@ class NavigationRepositoryTest extends TestCase
     private function makeButton(string $label = 'Test button', string $variant = NavigationPresentation::VARIANT_PRIMARY): int
     {
         $id = $this->repository->create([
-            'label_nl' => $label,
-            'label_en' => $label . ' EN',
             'link_type' => 'external',
             'target_page_id' => null,
             'target_route' => null,
@@ -191,6 +191,8 @@ class NavigationRepositoryTest extends TestCase
             'button_variant' => $variant,
         ]);
         $this->createdIds[] = $id;
+        NavigationLocalization::save($id, 'nl', $label);
+        NavigationLocalization::save($id, 'en', $label . ' EN');
 
         return $id;
     }
@@ -215,14 +217,18 @@ class NavigationRepositoryTest extends TestCase
         $this->assertSame(NavigationPresentation::VARIANT_PRIMARY, $row['button_variant']);
     }
 
-    /** What an editor saves is what comes back, for a link and for a button. */
+    /**
+     * What an editor saves is what comes back, for a link and for a button.
+     * The label is not a column of nav_items any more; it round-trips through
+     * App\Service\NavigationLocalization, one language at a time.
+     */
     public function testEveryFieldRoundTrips(): void
     {
         $id = $this->makeItem(null, 'Rondje');
 
+        NavigationLocalization::save($id, 'nl', 'Over ons');
+        NavigationLocalization::save($id, 'en', 'About us');
         $this->repository->update($id, [
-            'label_nl' => 'Over ons',
-            'label_en' => 'About us',
             'link_type' => 'route',
             'target_page_id' => null,
             'target_route' => 'home',
@@ -234,15 +240,16 @@ class NavigationRepositoryTest extends TestCase
         $row = $this->repository->findById($id);
         $this->assertSame(
             ['Over ons', 'About us', 'route', 'home', 1, 0, NavigationPresentation::LINK],
-            [$row['label_nl'], $row['label_en'], $row['link_type'], $row['target_route'], (int) $row['open_in_new_tab'], (int) $row['is_visible'], $row['presentation']],
+            [NavigationLocalization::raw($id, 'nl'), NavigationLocalization::raw($id, 'en'), $row['link_type'], $row['target_route'], (int) $row['open_in_new_tab'], (int) $row['is_visible'], $row['presentation']],
             'an update without a presentation keeps the stored one'
         );
 
         $button = $this->repository->findById($this->makeButton('Rustig', NavigationPresentation::VARIANT_GHOST));
         $this->assertSame(
             [NavigationPresentation::BUTTON, NavigationPresentation::VARIANT_GHOST, 'external', 'Rustig EN'],
-            [$button['presentation'], $button['button_variant'], $button['link_type'], $button['label_en']]
+            [$button['presentation'], $button['button_variant'], $button['link_type'], NavigationLocalization::raw((int) $button['id'], 'en')]
         );
+        $this->assertArrayNotHasKey('label_nl', $button, 'nav_items holds no words of its own');
     }
 
     public function testAButtonIsNeverAParent(): void
@@ -337,11 +344,7 @@ class NavigationRepositoryTest extends TestCase
     {
         $button = $this->makeButton('Bestaand');
         $link = $this->makeItem(null, 'Wordt knop');
-        $row = $this->repository->findById($link);
-
         $this->repository->update($link, [
-            'label_nl' => (string) $row['label_nl'],
-            'label_en' => (string) $row['label_en'],
             'link_type' => 'external',
             'target_page_id' => null,
             'target_route' => null,

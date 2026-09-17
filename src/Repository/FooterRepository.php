@@ -8,6 +8,11 @@ namespace App\Repository;
  * rationale. App\Service\FooterService composes these into the nested
  * shape the footer template renders and resolves each link via
  * App\Service\LinkResolver.
+ *
+ * NO WORDS HERE. A column's title and a link's label are stored per website
+ * language and read and written only through App\Service\FooterLocalization
+ * (Multilingual 2.0 phase 4). What this class stores is the same in every
+ * language.
  */
 class FooterRepository extends Repository
 {
@@ -41,17 +46,15 @@ class FooterRepository extends Repository
     }
 
     /**
-     * @param array{title_nl:string,title_en:string,is_visible:bool} $data
+     * @param array{is_visible:bool} $data
      */
     public function createColumn(array $data): int
     {
         $stmt = $this->db->prepare(
-            'INSERT INTO footer_columns (title_nl, title_en, sort_order, is_visible, created_at, updated_at)
-             VALUES (:title_nl, :title_en, :sort_order, :is_visible, NOW(), NOW())'
+            'INSERT INTO footer_columns (sort_order, is_visible, created_at, updated_at)
+             VALUES (:sort_order, :is_visible, NOW(), NOW())'
         );
         $stmt->execute([
-            'title_nl' => $data['title_nl'],
-            'title_en' => $data['title_en'],
             'sort_order' => $this->nextColumnSortOrder(),
             'is_visible' => $data['is_visible'] ? 1 : 0,
         ]);
@@ -60,16 +63,14 @@ class FooterRepository extends Repository
     }
 
     /**
-     * @param array{title_nl:string,title_en:string,is_visible:bool} $data
+     * @param array{is_visible:bool} $data
      */
     public function updateColumn(int $id, array $data): void
     {
         $stmt = $this->db->prepare(
-            'UPDATE footer_columns SET title_nl = :title_nl, title_en = :title_en, is_visible = :is_visible, updated_at = NOW() WHERE id = :id'
+            'UPDATE footer_columns SET is_visible = :is_visible, updated_at = NOW() WHERE id = :id'
         );
         $stmt->execute([
-            'title_nl' => $data['title_nl'],
-            'title_en' => $data['title_en'],
             'is_visible' => $data['is_visible'] ? 1 : 0,
             'id' => $id,
         ]);
@@ -151,7 +152,7 @@ class FooterRepository extends Repository
     }
 
     /**
-     * The footer links that point at one CMS page, each with the title and
+     * The footer links that point at one CMS page, each with the id and
      * visibility of the column it sits in — the footer half of
      * App\Service\PageUsage. Hidden links and links in a hidden column are
      * included: they still point at the page and still follow it.
@@ -161,8 +162,7 @@ class FooterRepository extends Repository
     public function findLinksByTargetPageId(int $pageId): array
     {
         $stmt = $this->db->prepare(
-            "SELECT l.id, l.label_nl, l.label_en, l.is_visible,
-                    c.title_nl AS column_title_nl, c.is_visible AS column_is_visible
+            "SELECT l.id, l.is_visible, l.column_id, c.is_visible AS column_is_visible
                FROM footer_links l
                JOIN footer_columns c ON c.id = l.column_id
               WHERE l.link_type = 'page' AND l.target_page_id = :page_id
@@ -174,20 +174,18 @@ class FooterRepository extends Repository
     }
 
     /**
-     * @param array{column_id:int,label_nl:string,label_en:string,link_type:string,target_page_id:?int,target_route:?string,external_url:?string,action_key:?string,open_in_new_tab:bool,is_visible:bool} $data
+     * @param array{column_id:int,link_type:string,target_page_id:?int,target_route:?string,external_url:?string,action_key:?string,open_in_new_tab:bool,is_visible:bool} $data
      */
     public function createLink(array $data): int
     {
         $stmt = $this->db->prepare(
             'INSERT INTO footer_links
-                (column_id, label_nl, label_en, link_type, target_page_id, target_route, external_url, action_key, open_in_new_tab, sort_order, is_visible, created_at, updated_at)
+                (column_id, link_type, target_page_id, target_route, external_url, action_key, open_in_new_tab, sort_order, is_visible, created_at, updated_at)
              VALUES
-                (:column_id, :label_nl, :label_en, :link_type, :target_page_id, :target_route, :external_url, :action_key, :open_in_new_tab, :sort_order, :is_visible, NOW(), NOW())'
+                (:column_id, :link_type, :target_page_id, :target_route, :external_url, :action_key, :open_in_new_tab, :sort_order, :is_visible, NOW(), NOW())'
         );
         $stmt->execute([
             'column_id' => $data['column_id'],
-            'label_nl' => $data['label_nl'],
-            'label_en' => $data['label_en'],
             'link_type' => $data['link_type'],
             'target_page_id' => $data['target_page_id'],
             'target_route' => $data['target_route'],
@@ -202,20 +200,18 @@ class FooterRepository extends Repository
     }
 
     /**
-     * @param array{label_nl:string,label_en:string,link_type:string,target_page_id:?int,target_route:?string,external_url:?string,action_key:?string,open_in_new_tab:bool,is_visible:bool} $data
+     * @param array{link_type:string,target_page_id:?int,target_route:?string,external_url:?string,action_key:?string,open_in_new_tab:bool,is_visible:bool} $data
      */
     public function updateLink(int $id, array $data): void
     {
         $stmt = $this->db->prepare(
             'UPDATE footer_links SET
-                label_nl = :label_nl, label_en = :label_en, link_type = :link_type,
+                link_type = :link_type,
                 target_page_id = :target_page_id, target_route = :target_route, external_url = :external_url,
                 action_key = :action_key, open_in_new_tab = :open_in_new_tab, is_visible = :is_visible, updated_at = NOW()
              WHERE id = :id'
         );
         $stmt->execute([
-            'label_nl' => $data['label_nl'],
-            'label_en' => $data['label_en'],
             'link_type' => $data['link_type'],
             'target_page_id' => $data['target_page_id'],
             'target_route' => $data['target_route'],

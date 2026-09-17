@@ -296,8 +296,6 @@ final class ContentBlockArchitectureTest extends TestCase
         $this->assertSame(0, PageService::references((int) $page['id'])['total'], 'precondition: nothing links to the test page yet');
 
         (new NavigationRepository())->create([
-            'label_nl' => 'Zz sjabloontest',
-            'label_en' => 'Zz template test',
             'link_type' => 'page',
             'target_page_id' => (int) $page['id'],
             'target_route' => null,

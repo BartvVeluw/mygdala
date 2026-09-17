@@ -10,7 +10,12 @@ declare(strict_types=1);
  *
  * What is decided here, and what is not:
  *
- *   - the labels: only the site's own language is required (MULTILINGUAL.md);
+ *   - the label, in ONE website language (Multilingual 2.0 phase 4): a new
+ *     item is written in the default language, an update in the language
+ *     named by `language_code`, which must be an active website language.
+ *     The label is required only in the default language, where every other
+ *     language falls back to. It is stored through
+ *     App\Service\NavigationLocalization, never in nav_items;
  *   - the destination: App\Service\LinkResolver::validate(), the one check
  *     every link in the header and footer goes through;
  *   - the presentation and button variant: App\Service\NavigationPresentation,
@@ -34,14 +39,17 @@ declare(strict_types=1);
 use App\Repository\NavigationRepository;
 use App\Repository\PageRepository;
 use App\Service\Language\AdminTranslator;
-use App\Service\Language\LocalizedValue;
+use App\Service\Language\LanguageCode;
+use App\Service\Language\LanguageFallback;
+use App\Service\Language\SiteLanguages;
 use App\Service\LinkResolver;
+use App\Service\NavigationLocalization;
 use App\Service\NavigationPresentation;
 
 /**
  * @param array<string, mixed>      $input    raw $_POST
  * @param array<string, mixed>|null $existing the stored row on update, null on create
- * @return array{0: list<string>, 1: array<string, mixed>, 2: array<string, mixed>} [errors, data for the repository, old input for the form]
+ * @return array{0: list<string>, 1: array<string, mixed>, 2: array<string, mixed>} [errors, data for the repository plus `label` and `language_code`, old input for the form]
  */
 function validateNavItemInput(
     array $input,
@@ -51,8 +59,12 @@ function validateNavItemInput(
 ): array {
     $text = static fn (string $name): string => is_string($input[$name] ?? null) ? trim($input[$name]) : '';
 
-    $labelNl = $text('label_nl');
-    $labelEn = $text('label_en');
+    $label = $text('label');
+    $defaultLanguage = LanguageFallback::defaultLanguage();
+    $languageCode = $existing === null
+        ? $defaultLanguage
+        : (LanguageCode::normalise($text('language_code')) ?? '');
+    $languageIsWritable = $languageCode !== '' && SiteLanguages::isActive($languageCode);
     $linkType = $text('link_type');
     $targetPageIdRaw = $text('target_page_id');
     $targetPageId = ctype_digit($targetPageIdRaw) ? (int) $targetPageIdRaw : null;
@@ -81,11 +93,16 @@ function validateNavItemInput(
 
     $errors = [];
 
-    if (LocalizedValue::ofDutchEnglish($labelNl, $labelEn)->primaryValue() === '') {
-        $errors[] = AdminTranslator::trans('validation.label_verplicht');
-    }
-    if (mb_strlen($labelNl) > 100 || mb_strlen($labelEn) > 100) {
-        $errors[] = AdminTranslator::trans('validation.label_mag_maximaal_100_tekens');
+    if (!$languageIsWritable) {
+        $errors[] = AdminTranslator::trans('validation.language_unknown');
+    } else {
+        $problems = NavigationLocalization::items()->problems($languageCode, [NavigationLocalization::LABEL => $label], [NavigationLocalization::LABEL]);
+        if (($problems[NavigationLocalization::LABEL] ?? null) === 'missing') {
+            $errors[] = AdminTranslator::trans('validation.label_verplicht');
+        }
+        if (($problems[NavigationLocalization::LABEL] ?? null) === 'too_long') {
+            $errors[] = AdminTranslator::trans('validation.label_mag_maximaal_100_tekens');
+        }
     }
 
     if ($parentId !== null) {
@@ -128,8 +145,8 @@ function validateNavItemInput(
     $isButton = $presentation === NavigationPresentation::BUTTON;
 
     $data = [
-        'label_nl' => $labelNl,
-        'label_en' => $labelEn,
+        'label' => $label,
+        'language_code' => $languageCode,
         'link_type' => $linkType,
         // Only the companion field of the chosen kind is stored, so a row can
         // never carry a leftover target of a kind nobody selected any more.
@@ -144,8 +161,8 @@ function validateNavItemInput(
     ];
 
     $old = [
-        'label_nl' => $labelNl,
-        'label_en' => $labelEn,
+        'language_code' => $languageCode,
+        'label' => $label,
         'link_type' => $linkType,
         'target_page_id' => $targetPageIdRaw,
         'target_route' => $targetRoute,

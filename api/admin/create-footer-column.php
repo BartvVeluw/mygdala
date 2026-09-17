@@ -4,8 +4,9 @@
  * POST /api/admin/create-footer-column.php
  *
  * The "Kolom toevoegen" form on admin/footer.php: a new, visible column at
- * the end, with a title in the site's own language at least
- * (MULTILINGUAL.md). Links are added to it afterwards.
+ * the end, with its title in the website's DEFAULT language
+ * (App\Service\FooterLocalization), in the same transaction as the row.
+ * Translations are added on the column's own editor, links afterwards.
  *
  * Back to the Footer screen at the new column, with saved=1. On a refused
  * title the screen says why in its own alert.
@@ -15,11 +16,13 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../../vendor/autoload.php';
 
+use App\Database;
 use App\Repository\FooterRepository;
 use App\Service\AdminAuth;
 use App\Service\Csrf;
+use App\Service\FooterLocalization;
 use App\Service\Language\AdminTranslator;
-use App\Service\Language\LocalizedValue;
+use App\Service\Language\LanguageFallback;
 
 AdminAuth::requireLoginForApi();
 AdminAuth::requirePermissionForApi('pages.manage');
@@ -35,21 +38,26 @@ if (!Csrf::validate($_POST['csrf_token'] ?? null)) {
     exit('Invalid or missing CSRF token.');
 }
 
-$titleNl = trim((string) ($_POST['title_nl'] ?? ''));
-$titleEn = trim((string) ($_POST['title_en'] ?? ''));
+$title = trim((string) ($_POST['title'] ?? ''));
+$language = LanguageFallback::defaultLanguage();
 
-if (LocalizedValue::ofDutchEnglish($titleNl, $titleEn)->primaryValue() === ''
-    || mb_strlen($titleNl) > 100
-    || mb_strlen($titleEn) > 100
-) {
+if (FooterLocalization::columns()->problems($language, [FooterLocalization::TITLE => $title], [FooterLocalization::TITLE]) !== []) {
     $_SESSION['admin_footer_error'] = AdminTranslator::trans('validation.titel_verplicht_max_100_tekens');
     header('Location: /admin/footer.php#footer-columns');
     exit;
 }
 
+$db = Database::connection();
+
 try {
-    $id = (new FooterRepository())->createColumn(['title_nl' => $titleNl, 'title_en' => $titleEn, 'is_visible' => true]);
+    $db->beginTransaction();
+    $id = (new FooterRepository($db))->createColumn(['is_visible' => true]);
+    FooterLocalization::saveColumnTitle($id, $language, $title);
+    $db->commit();
 } catch (\Throwable $e) {
+    if ($db->inTransaction()) {
+        $db->rollBack();
+    }
     error_log('[api/admin/create-footer-column.php] ' . $e->getMessage());
     $_SESSION['admin_footer_error'] = AdminTranslator::trans('validation.kolom_kon_aangemaakt');
     header('Location: /admin/footer.php#footer-columns');

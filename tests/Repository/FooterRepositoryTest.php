@@ -33,7 +33,10 @@ class FooterRepositoryTest extends TestCase
 
     private function makeColumn(string $title = 'Test column'): int
     {
-        $id = $this->repository->createColumn(['title_nl' => $title, 'title_en' => $title, 'is_visible' => true]);
+        // The title is not a column of footer_columns any more
+        // (App\Service\FooterLocalization); this test is about order and
+        // visibility only.
+        $id = $this->repository->createColumn(['is_visible' => true]);
         $this->createdColumnIds[] = $id;
 
         return $id;
@@ -43,8 +46,6 @@ class FooterRepositoryTest extends TestCase
     {
         return $this->repository->createLink([
             'column_id' => $columnId,
-            'label_nl' => $label,
-            'label_en' => $label,
             'link_type' => 'external',
             'target_page_id' => null,
             'target_route' => null,

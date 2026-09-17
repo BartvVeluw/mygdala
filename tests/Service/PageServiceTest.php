@@ -161,8 +161,6 @@ class PageServiceTest extends TestCase
 
         $navRepository = new NavigationRepository();
         $this->createdNavItemIds[] = $navRepository->create([
-            'label_nl' => 'Testlink',
-            'label_en' => 'Test link',
             'link_type' => 'page',
             'target_page_id' => $pageId,
             'target_route' => null,

@@ -3,9 +3,11 @@
 namespace Tests\Service;
 
 use App\Module\ModuleRegistry;
+use App\Service\NavigationLocalization;
 use App\Service\NavigationPresentation;
 use App\Service\NavigationService;
 use PHPUnit\Framework\TestCase;
+use Tests\Support\SiteLanguageFixture;
 
 /**
  * Pure unit tests for the public read side of the header: the menu tree
@@ -21,21 +23,41 @@ use PHPUnit\Framework\TestCase;
  * new tab gets the safe rel, a switched-off module's route disappears
  * without the row changing) now holds per button, plus the order and the
  * closed list of styles.
+ *
+ * Labels are not part of a row any more (Multilingual 2.0 phase 4): they are
+ * put in App\Service\NavigationLocalization's cache per item, per language,
+ * the way nav_item_translations holds them.
  */
 class NavigationServiceTest extends TestCase
 {
+    protected function setUp(): void
+    {
+        SiteLanguageFixture::useBilingual('nl');
+    }
+
     protected function tearDown(): void
     {
         ModuleRegistry::overrideForTests(null);
+        NavigationLocalization::clearCache();
+        SiteLanguageFixture::reset();
+    }
+
+    /** @param array<string, string> $labels language code => label */
+    private function labels(int $id, array $labels): void
+    {
+        NavigationLocalization::items()->overrideForTests(
+            $id,
+            array_map(static fn (string $label): array => ['label' => $label], $labels)
+        );
     }
 
     private function row(int $id, ?int $parentId, string $linkType, ?string $route, int $sortOrder, bool $visible = true): array
     {
+        $this->labels($id, ['nl' => 'Item ' . $id, 'en' => 'Item ' . $id]);
+
         return [
             'id' => $id,
             'parent_id' => $parentId,
-            'label_nl' => 'Item ' . $id,
-            'label_en' => 'Item ' . $id,
             'link_type' => $linkType,
             'target_page_id' => null,
             'target_route' => $route,
@@ -49,13 +71,14 @@ class NavigationServiceTest extends TestCase
     /** @param array<string, mixed> $overrides */
     private function button(int $id, int $sortOrder, array $overrides = []): array
     {
-        return array_merge($this->row($id, null, 'external', null, $sortOrder), [
-            'label_nl' => 'Knop ' . $id,
-            'label_en' => 'Button ' . $id,
+        $row = array_merge($this->row($id, null, 'external', null, $sortOrder), [
             'external_url' => '/knop-' . $id,
             'presentation' => NavigationPresentation::BUTTON,
             'button_variant' => NavigationPresentation::VARIANT_PRIMARY,
         ], $overrides);
+        $this->labels($id, ['nl' => 'Knop ' . $id, 'en' => 'Button ' . $id]);
+
+        return $row;
     }
 
     /** @param list<array<string, mixed>> $items */
@@ -151,21 +174,22 @@ class NavigationServiceTest extends TestCase
 
     public function testOneButtonKeepsTheLookTheSingleHeaderButtonHad(): void
     {
-        $buttons = NavigationService::buildButtons([$this->button(7, 0, [
-            'label_nl' => 'Vraag offerte aan',
-            'label_en' => 'Request a quote',
-            'external_url' => '/contact.php',
-        ])]);
+        $row = $this->button(7, 0, ['external_url' => '/contact.php']);
+        $this->labels(7, ['nl' => 'Vraag offerte aan', 'en' => 'Request a quote']);
 
-        $this->assertSame([[
+        $buttons = NavigationService::buildButtons([$row]);
+
+        $this->assertCount(1, $buttons);
+        $label = $buttons[0]['label'];
+        unset($buttons[0]['label']);
+        $this->assertSame([
             'id' => 7,
-            'label_nl' => 'Vraag offerte aan',
-            'label_en' => 'Request a quote',
             'href' => '/contact.php',
             'open_in_new_tab' => false,
             'rel' => null,
             'class' => 'btn btn--sm',
-        ]], $buttons);
+        ], $buttons[0]);
+        $this->assertSame(['nl' => 'Vraag offerte aan', 'en' => 'Request a quote'], $label->attributeValues());
     }
 
     public function testSeveralButtonsFollowTheirOwnOrder(): void
@@ -192,17 +216,51 @@ class NavigationServiceTest extends TestCase
 
     public function testAButtonWithoutAnyLabelRendersNothing(): void
     {
-        $rows = [$this->button(1, 0, ['label_nl' => '', 'label_en' => ''])];
+        $rows = [$this->button(1, 0)];
+        $this->labels(1, []);
 
         $this->assertSame([], NavigationService::buildButtons($rows));
     }
 
-    public function testAnEmptyTranslationStillRendersTheButton(): void
+    public function testAnEmptyTranslationStillRendersTheButtonWithTheDefaultLanguagesLabel(): void
     {
-        $buttons = NavigationService::buildButtons([$this->button(1, 0, ['label_en' => ''])]);
+        $rows = [$this->button(1, 0)];
+        $this->labels(1, ['nl' => 'Knop 1']);
+
+        $buttons = NavigationService::buildButtons($rows);
 
         $this->assertCount(1, $buttons);
-        $this->assertSame('Knop 1', $buttons[0]['label_nl']);
+        $this->assertSame(['nl' => 'Knop 1', 'en' => 'Knop 1'], $buttons[0]['label']->attributeValues());
+    }
+
+    /**
+     * The default language decides whether a button exists: a translation
+     * alone never makes one appear, on a Dutch or an English site alike.
+     */
+    public function testAButtonWithOnlyATranslatedLabelRendersNothing(): void
+    {
+        $rows = [$this->button(1, 0)];
+        $this->labels(1, ['en' => 'Button 1']);
+        $this->assertSame([], NavigationService::buildButtons($rows));
+
+        SiteLanguageFixture::useBilingual('en');
+        $this->labels(1, ['nl' => 'Knop 1']);
+        $this->assertSame([], NavigationService::buildButtons($rows));
+
+        $this->labels(1, ['en' => 'Button 1']);
+        $this->assertCount(1, NavigationService::buildButtons($rows));
+    }
+
+    public function testAMenuLabelFallsBackPerLanguageToTheDefaultLanguage(): void
+    {
+        $rows = [$this->row(1, null, 'route', 'home', 0), $this->row(2, null, 'route', 'shop', 1)];
+        $this->labels(1, ['nl' => 'Thuis']);
+        $this->labels(2, ['nl' => 'Winkel', 'en' => 'Store']);
+
+        $tree = NavigationService::buildTree($rows);
+
+        $this->assertSame(['nl' => 'Thuis', 'en' => 'Thuis'], $tree[0]['label']->attributeValues());
+        $this->assertSame(['nl' => 'Winkel', 'en' => 'Store'], $tree[1]['label']->attributeValues());
     }
 
     public function testAButtonWithoutADestinationRendersNothing(): void

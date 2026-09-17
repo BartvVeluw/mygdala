@@ -9,6 +9,11 @@ use App\Service\NavigationPresentation;
  * for the schema rationale. This repository only ever deals in flat rows —
  * App\Service\NavigationService builds the 2-level tree and resolves links.
  *
+ * NO WORDS HERE. An item's label is stored per website language in
+ * nav_item_translations and read and written only through
+ * App\Service\NavigationLocalization (Multilingual 2.0 phase 4). What this
+ * class stores is the same in every language.
+ *
  * ORDER IS KEPT PER GROUP. A group is one parent (NULL for the top level)
  * plus one presentation: the menu links and the header buttons are both
  * top-level rows, but they are shown in different places and ordered
@@ -91,7 +96,7 @@ class NavigationRepository extends Repository
     public function findByTargetPageId(int $pageId): array
     {
         $stmt = $this->db->prepare(
-            "SELECT id, label_nl, label_en, parent_id, is_visible, presentation FROM nav_items
+            "SELECT id, parent_id, is_visible, presentation FROM nav_items
               WHERE link_type = 'page' AND target_page_id = :page_id
               ORDER BY presentation DESC, sort_order ASC, id ASC"
         );
@@ -125,7 +130,7 @@ class NavigationRepository extends Repository
      * button_variant are optional, so a caller that predates header buttons
      * still creates a plain menu link.
      *
-     * @param array{label_nl:string,label_en:string,link_type:string,target_page_id:?int,target_route:?string,external_url:?string,open_in_new_tab:bool,parent_id:?int,is_visible:bool,presentation?:string,button_variant?:string} $data
+     * @param array{link_type:string,target_page_id:?int,target_route:?string,external_url:?string,open_in_new_tab:bool,parent_id:?int,is_visible:bool,presentation?:string,button_variant?:string} $data
      */
     public function create(array $data): int
     {
@@ -133,13 +138,11 @@ class NavigationRepository extends Repository
 
         $stmt = $this->db->prepare(
             'INSERT INTO nav_items
-                (label_nl, label_en, link_type, target_page_id, target_route, external_url, open_in_new_tab, presentation, button_variant, parent_id, sort_order, is_visible, created_at, updated_at)
+                (link_type, target_page_id, target_route, external_url, open_in_new_tab, presentation, button_variant, parent_id, sort_order, is_visible, created_at, updated_at)
              VALUES
-                (:label_nl, :label_en, :link_type, :target_page_id, :target_route, :external_url, :open_in_new_tab, :presentation, :button_variant, :parent_id, :sort_order, :is_visible, NOW(), NOW())'
+                (:link_type, :target_page_id, :target_route, :external_url, :open_in_new_tab, :presentation, :button_variant, :parent_id, :sort_order, :is_visible, NOW(), NOW())'
         );
         $stmt->execute([
-            'label_nl' => $data['label_nl'],
-            'label_en' => $data['label_en'],
             'link_type' => $data['link_type'],
             'target_page_id' => $data['target_page_id'],
             'target_route' => $data['target_route'],
@@ -162,7 +165,7 @@ class NavigationRepository extends Repository
      * of an order the editor arranged there. Without presentation or
      * button_variant in $data the stored values are kept.
      *
-     * @param array{label_nl:string,label_en:string,link_type:string,target_page_id:?int,target_route:?string,external_url:?string,open_in_new_tab:bool,is_visible:bool,presentation?:string,button_variant?:string} $data
+     * @param array{link_type:string,target_page_id:?int,target_route:?string,external_url:?string,open_in_new_tab:bool,is_visible:bool,presentation?:string,button_variant?:string} $data
      */
     public function update(int $id, array $data): void
     {
@@ -181,15 +184,13 @@ class NavigationRepository extends Repository
 
         $stmt = $this->db->prepare(
             'UPDATE nav_items SET
-                label_nl = :label_nl, label_en = :label_en, link_type = :link_type,
+                link_type = :link_type,
                 target_page_id = :target_page_id, target_route = :target_route, external_url = :external_url,
                 open_in_new_tab = :open_in_new_tab, presentation = :presentation, button_variant = :button_variant,
                 sort_order = :sort_order, is_visible = :is_visible, updated_at = NOW()
              WHERE id = :id'
         );
         $stmt->execute([
-            'label_nl' => $data['label_nl'],
-            'label_en' => $data['label_en'],
             'link_type' => $data['link_type'],
             'target_page_id' => $data['target_page_id'],
             'target_route' => $data['target_route'],
