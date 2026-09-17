@@ -22,10 +22,11 @@ widgetzones en geen derde menuniveau. Dit is een CMS, geen layoutbouwer.
 
 | Onderdeel | Waar |
 |---|---|
-| Opslag menu en headerknoppen | `nav_items` — één tabel, `presentation` zegt link of knop |
-| Opslag footerkolommen en -links | `footer_columns`, `footer_links` |
+| Opslag menu en headerknoppen | `nav_items` — één tabel, `presentation` zegt link of knop; het label per taal in `nav_item_translations` |
+| Opslag footerkolommen en -links | `footer_columns`, `footer_links`; titel en label per taal in `footer_column_translations` en `footer_link_translations` |
 | Opslag social profielen | `footer_social_links` |
-| Opslag zichtbaarheid, footer-omschrijving, copyright en slotregel | `site_settings` — sleutels in `App\Service\SiteSettings::DEFAULTS` |
+| Opslag zichtbaarheid en copyright | `site_settings` — sleutels in `App\Service\SiteSettings::DEFAULTS` |
+| Opslag footer-omschrijving en slotregel | `site_setting_translations`, één rij per taal, via `App\Service\LocalizedSiteSettings` |
 | Menu en headerknoppen (lezen) | `App\Service\NavigationService::header()` |
 | Link of knop, en de knopstijlen | `App\Service\NavigationPresentation` |
 | Volgorde, opslag | `App\Repository\NavigationRepository`, `FooterRepository`, `FooterSocialLinkRepository` |
@@ -183,10 +184,10 @@ zelf staan.
 
 | Kaart | Wat | Opslag |
 |---|---|---|
-| **Bedrijfsblok** | welke bedrijfsgegevens de footer toont, en de footer-omschrijving | `site_settings`: `footer_show_*`, `footer_description_nl/en` |
+| **Bedrijfsblok** | welke bedrijfsgegevens de footer toont, en de footer-omschrijving | `site_settings`: `footer_show_*`; de omschrijving per taal in `site_setting_translations` (`footer_description`) |
 | **Kolommen & links** | kolommen met links naast het bedrijfsblok | `footer_columns`, `footer_links` |
 | **Social media** | de iconen naar je profielen | `footer_social_links` |
-| **Slotregel & copyright** | de onderste regel | `site_settings`: `footer_copyright_template`, `footer_slogan_*` |
+| **Slotregel & copyright** | de onderste regel | `site_settings`: `footer_copyright_template`, `footer_slogan_enabled`; de slotregel per taal in `site_setting_translations` (`footer_slogan`) |
 
 ### Wie is eigenaar van wat
 
@@ -205,11 +206,12 @@ met de schakelaar aan niet in de footer.
 
 **De footer-omschrijving heeft één plek.** Tot fase B stond hij ook op
 Site-instellingen → Algemeen. Die editor is weg, en
-`App\Service\SiteSettingsValidator::FIELDS` noemt de twee sleutels niet meer,
-zodat `update-site-settings.php` ze ook niet kan schrijven als een oud
-formulier ze nog meestuurt. Site-instellingen zegt op die plek waar hij nu
-staat. De sleutels zelf zijn niet veranderd, dus de bestaande tekst staat er
-gewoon. De installatiewizard vraagt de omschrijving nog één keer bij het
+`App\Service\SiteSettingsValidator::FIELDS` noemt de sleutel niet meer,
+zodat `update-site-settings.php` hem ook niet kan schrijven als een oud
+formulier hem nog meestuurt. Site-instellingen zegt op die plek waar hij nu
+staat. Sinds Multilingual 2.0 fase 4 staat de tekst per taal in
+`site_setting_translations` onder de sleutel `footer_description`; de migratie
+heeft de bestaande Nederlandse en Engelse tekst meegenomen. De installatiewizard vraagt de omschrijving nog één keer bij het
 inrichten (`SETUP.md`); dat is geen beheerscherm.
 
 ### Zichtbaarheid
@@ -235,11 +237,16 @@ opslaan de standaard `© {{year}} {{site_name}}`.
 ### Slotregel & copyright
 
 ```text
-footer_copyright_template  tekst met {{year}} en {{site_name}}
-footer_slogan_enabled      '1' / '0'
-footer_slogan_nl           de tekst
-footer_slogan_en           leeg = gelijk aan NL
+footer_copyright_template  tekst met {{year}} en {{site_name}}   site_settings
+footer_slogan_enabled      '1' / '0'                            site_settings
+footer_slogan              de tekst, één rij per websitetaal     site_setting_translations
 ```
+
+De slotregel en de footer-omschrijving zijn sinds Multilingual 2.0 fase 4
+geen `_nl`/`_en`-sleutels meer maar rijen per taal, met de terugval van
+`LanguageFallback` (gevraagde taal, dan de standaardtaal, dan leeg). Is de
+tekst in de standaardtaal leeg, dan rendert de footer hem niet, in geen enkele
+taal.
 
 Staat onderin naast het copyright en de juridische links. Uit of leeg betekent
 dat er geen `<span>` gerenderd wordt — geen lege regel.
@@ -638,7 +645,8 @@ alle migraties precies één zichtbare knop naar de Contact-pagina heeft. Zie
 verder `TESTING.md`.
 
 Raakte je een **taalveld** van de navigatie of de footer aan — een menulabel,
-een kolomtitel, een footerlink of de footertekst — dan is
-`Tests\Repository\LocalizedNavigationFooterPersistenceTest` (suite `cms`) de
-test die vasthoudt dat het opslaan van de ene taal de andere niet
-overschrijft, en `MULTILINGUAL.md` de regel erachter.
+een kolomtitel, een footerlink of de footertekst — dan houden
+`Tests\Repository\NavigationFooterTranslationTest` en
+`Tests\Repository\LocalizedSiteSettingsTest` (suite `cms`) vast dat het opslaan
+van de ene taal de andere niet overschrijft, en `MULTILINGUAL.md` en
+`docs/multilingual/ARCHITECTURE.md` beschrijven de regel erachter.

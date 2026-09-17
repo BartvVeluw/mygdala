@@ -44,13 +44,14 @@ werkt identiek met de Shop aan en uit (`MODULES.md`).
 
 | Onderdeel | Pad |
 |---|---|
-| Migraties + tabellen | `db/migrations/20260909300000_create_the_core_forms_tables.php`, `…310000_migrate_the_contact_form_into_a_form.php`, `…320000_add_a_default_choice_to_form_fields.php` |
+| Migraties + tabellen | `db/migrations/20260909300000_create_the_core_forms_tables.php`, `…310000_migrate_the_contact_form_into_a_form.php`, `…320000_add_a_default_choice_to_form_fields.php`; de woorden en opties per taal in `20260918140000_create_the_form_translation_and_option_tables.php` en `…150000_move_form_words_and_options_into_translation_tables.php` |
 | Veldtypes (gesloten register) | `src/Service/Forms/FieldTypes/`, plus `FormFieldTypes` — dé registratielijst |
 | Namen van veldtypes | `formfieldtype.<key>.label` en `.description` in `src/Service/Language/messages/` |
 | Wat een typewissel kost | `FormFieldTypeChange` |
-| Leesmodel | `FormDefinition`, `FormField`, `FormFieldOptions`, `FormText` |
+| Leesmodel | `FormDefinition`, `FormField`, `FormFieldOptions`, `FormOption`, `FormText` |
+| Woorden per taal | `FormLocalization` (de drie vertaaltabellen), `src/Repository/FormFieldOptionRepository.php` |
 | Opzoeken + cache | `FormCatalog` |
-| SQL | `src/Repository/FormRepository.php`, `FormSubmissionRepository.php`, `FormBlockRepository.php` |
+| SQL | `src/Repository/FormRepository.php`, `FormSubmissionRepository.php`, `FormBlockRepository.php`, `FormFieldOptionRepository.php` |
 | Validatie | `FormValidator`, `FormValidationResult` |
 | Verwerking | `FormSubmissionHandler`, `FormSubmissionContext`, `FormSubmissionOutcome` |
 | Spam-afweer | `FormSpamGuard` |
@@ -63,17 +64,22 @@ werkt identiek met de Shop aan en uit (`MODULES.md`).
 | Blok "Offerte-/contactformulier" | `src/Service/Blocks/ContactFormBlock.php`, `ContactFormContent`, `partials/section-contact-form.php`, `admin/contact-form.php` |
 | Adminschermen | `admin/forms.php`, `admin/form.php`, `admin/form-field.php`, `admin/form-submissions.php`, `admin/form-submission.php`; gedeeld: `admin/_form_fields.php` (typenamen, typekaarten, wat een wissel kost) en `admin/assets/forms-admin.js` |
 | Frontend | `assets/css/blocks/form.css`, `assets/js/blocks/form.js` |
-| Tests | `tests/Service/Form*.php`, `tests/Repository/ContactFormMigrationTest.php` |
+| Tests | `tests/Service/Form*.php`, `tests/Repository/ContactFormMigrationTest.php`, `tests/Install/FormWordsAndOptionMigrationTest.php`; helper `tests/Support/FormFixture.php` |
 
 ## Het model
 
 ### `forms`
 
 Wat het formulier is en wat het doet als iemand het verstuurt: naam (alleen
-voor de beheerder), een gegenereerde `internal_key`, aan/uit, de tekst op de
-knop, het bedankbericht, het ontvangende e-mailadres, welk veld het
-antwoordadres levert, en of inzendingen bewaard worden. Allemaal tweetalig
-waar dat zin heeft.
+voor de beheerder), een gegenereerde `internal_key`, aan/uit, het ontvangende
+e-mailadres, welk veld het antwoordadres levert, en of inzendingen bewaard
+worden. Allemaal taalneutraal.
+
+Wat de bezoeker leest staat ernaast, één rij per websitetaal: de tekst op de
+knop (`submit_label`) en het bedankbericht (`success_message`) in
+`form_translations`, via `App\Service\Forms\FormLocalization` (Multilingual
+2.0 fase 4, `docs/multilingual/ARCHITECTURE.md`). Leeg betekent: de standaard
+van het CMS.
 
 De `internal_key` is **geen publieke sleutel**: hij staat in het verborgen
 veld waarmee het endpoint weet welk formulier is verstuurd, en verder nergens.
@@ -81,18 +87,47 @@ Een formulier wordt geadresseerd door het blok dat het toont.
 
 ### `form_fields`
 
-Eén rij per veld: `field_key`, `field_type`, tweetalig label, placeholder en
-uitleg, verplicht ja/nee, volgorde, en bij een keuzeveld de opties plus
-eventueel een standaardwaarde.
+Eén rij per veld: `field_key`, `field_type`, verplicht ja/nee, volgorde, en
+bij een keuzeveld eventueel een standaardwaarde. Allemaal taalneutraal.
+
+Wat de bezoeker leest staat in `form_field_translations`, één rij per
+websitetaal: `label`, `placeholder` en `help_text`.
 
 **Geen EAV.** Een veld is een rij met echte kolommen. De enige
 type-specifieke instelling die bestaat is de optielijst van een keuzeveld, en
-die staat in één `TEXT`-kolom die `FormFieldOptions` leest — één keuze per
-regel, `NL|EN` met de Engelse helft optioneel. Een kindtabel zou daar drie
-schrijfendpoints voor kosten en niets opleveren. De redacteur ziet die regels
-niet: de veldeditor toont één rij per optie, met een vak per taal, en
-`FormFieldOptions::rowsToStored()` maakt daar dezelfde regels van, met
-dezelfde regels voor lege en dubbele opties en het maximum van vijftig.
+die is sinds Multilingual 2.0 fase 4 een echte kindtabel:
+
+```text
+form_field_options              id, form_field_id, value, sort_order
+form_field_option_translations  form_field_option_id, language_code, label
+```
+
+Daarvóór stonden de opties in één `TEXT`-kolom, één keuze per regel, `NL|EN`
+met de Engelse helft optioneel. Dat kon niet mee naar een derde taal, en
+belangrijker: de verstuurde waarde wás de Nederlandse tekst, zodat een
+taalwissel de betekenis van een inzending veranderde. Zie *Een optie heeft een
+waarde en een label* hieronder.
+
+De redacteur ziet van dit alles niets: de veldeditor toont één rij per optie,
+in de taal die hij bewerkt, en `api/admin/update-form-field.php` houdt de rijen
+op hun `id` bij elkaar, met dezelfde regels voor lege en dubbele opties en het
+maximum van vijftig.
+
+### Een optie heeft een waarde en een label
+
+| | Wat | Waar |
+|---|---|---|
+| **waarde** | de identiteit: wat het formulier post, wat een inzending bewaart, waar `default_value` naar wijst. In elke taal dezelfde, uniek per veld, byte voor byte vergeleken | `form_field_options.value` |
+| **label** | wat de bezoeker leest | `form_field_option_translations.label`, één rij per taal |
+
+Een taalwissel verandert dus wél wat er op het scherm staat en **nooit** wat er
+verstuurd wordt. Een optie hernoemen in welke taal dan ook laat haar waarde,
+haar plaats en de standaardkeuze die naar haar wijst staan.
+
+De migratie `20260918150000` nam als waarde de Nederlandse helft van de oude
+regel, byte voor byte, zodat bestaande defaults en alle bewaarde inzendingen
+blijven kloppen. Een nieuwe optie krijgt het label in de standaardtaal als
+waarde, zo nodig uniek gemaakt met ` (2)`.
 
 **Een keuzeveld mag op een van zijn eigen opties beginnen** (`default_value`).
 Dat is de enige vorm van vooringevulde inhoud die dit CMS kent, en met opzet:
@@ -121,7 +156,10 @@ Alleen als het formulier "inzendingen bewaren" aan heeft staan.
 **Een inzending bewaart haar eigen kopie van alles.** `form_submissions`
 houdt de naam van het formulier vast, en elke rij in `form_submission_values`
 houdt de `field_key`, het **label** en het **type** vast zoals ze op het
-moment van versturen waren. Er wordt nergens teruggejoined naar `form_fields`.
+moment van versturen waren. Er wordt nergens teruggejoined naar `form_fields`,
+en dus ook niet naar een vertaling: het label is het label van dat moment, in
+de standaardtaal van toen. Multilingual 2.0 fase 4 heeft geen enkele bestaande
+inzending aangeraakt en geen taalkolom toegevoegd.
 Daarom blijft een aanvraag van vorig voorjaar leesbaar nadat de redactie een
 veld hernoemt, verplaatst of weghaalt — en blijft het antwoord op een
 verwijderd veld gewoon staan.
@@ -181,7 +219,7 @@ typewisselbeleid. Het admin heeft geen eigen lijst:
 | `requiredIsFixed()` | nee | nee | nee | nee | ja |
 | `holdsEmailAddress()` | nee | ja | nee | nee | nee |
 
-Label, Engels label en uitleg gebruikt elk type.
+Label en uitleg gebruikt elk type, in elke websitetaal.
 
 ### Een veldtype toevoegen
 
@@ -201,19 +239,30 @@ Label, Engels label en uitleg gebruikt elk type.
 Meer is er niet. De renderer, de validator, de veldeditor, de typekiezer en
 de e-mail hebben er geen regel voor nodig.
 
-## Tweetaligheid
+## Talen
 
-NL is de inhoud, EN optioneel, leeg EN betekent "gelijk aan NL" — dezelfde
-regel als de rest van het CMS. Die terugval wordt op **één** plek toegepast,
-in `FormText::of()`, zodat geen template, validator of e-mailbouwer hem hoeft
-te onthouden.
+Een formulier heeft zoveel talen als de site actief heeft (`site_languages`).
+De woorden staan per taal in `form_translations`,
+`form_field_translations` en `form_field_option_translations`, en
+`FormLocalization` haalt ze op. De terugval — gevraagde taal, dan de
+standaardtaal, dan leeg — staat op **één** plek,
+`App\Service\Language\LanguageFallback`, zodat geen template, validator of
+e-mailbouwer hem hoeft te onthouden. Alleen zinnen die het CMS zelf bezit
+(*Versturen*, *Bedankt…*) blijven een vast paar in `FormText::of()`.
 
-De publieke markup schrijft beide talen in `data-nl`/`data-en` (en
-`data-nl-placeholder`/`data-en-placeholder`), en `assets/js/core.js` wisselt
-ze in de browser. Er wordt niets server-side vertaald.
+Tot de frontend-flip (fase 7) schrijft de publieke markup nog steeds beide
+talen in `data-nl`/`data-en` (en `data-nl-placeholder`/`data-en-placeholder`),
+en wisselt `assets/js/core.js` ze in de browser. Dat paar komt nu uit de nieuwe
+opslag, via `LanguageFallback::bilingual()`. Er wordt niets server-side
+vertaald, en een label is altijd platte tekst: `core.js` zet het met
+`textContent`, nooit als HTML.
 
-Een bewaarde inzending legt het **Nederlandse** label vast, zodat historie
-niet afhangt van welke taal iemand toevallig aanstond.
+De **waarde** van een keuzeoptie wisselt niet mee: die is in elke taal
+dezelfde, zodat wat de bezoeker verstuurt niet afhangt van de taal die
+aanstond. Zie *Een optie heeft een waarde en een label*.
+
+Een bewaarde inzending legt het label in de **standaardtaal** vast, zodat
+historie niet afhangt van welke taal iemand toevallig aanstond.
 
 ## Actief en uit
 
@@ -590,7 +639,7 @@ type gebruikt"):
 | Kaart | Wat erin staat |
 |---|---|
 | Soort veld | het huidige type met zijn uitleg, en ingeklapt *Ander soort veld kiezen* |
-| Wat de bezoeker leest | label en uitleg in de taalpanes; de voorbeeldtekst (placeholder) alleen bij een type dat die gebruikt |
+| Wat de bezoeker leest | label en uitleg in de taal die je bewerkt; de voorbeeldtekst (placeholder) alleen bij een type dat die gebruikt |
 | Opties | alleen bij een keuzeveld: een rij per optie met *Standaard*, ↑ en ↓ |
 | Invullen | de schakelaar *Verplicht invullen*; bij Toestemming alleen de zin dat het altijd verplicht is |
 | Technische gegevens | ingeklapt, buiten het formulier: de interne naam |
@@ -614,19 +663,23 @@ standaardkeuze die uit de **opgeslagen** opties werd opgebouwd. Een nieuwe
 optie kon dus pas na een tweede keer opslaan standaard worden, en een
 hernoemde standaardoptie maakte het opslaan kapot.
 
-Nu is elke optie een rij met een vak per taal en een radio *Standaard*, plus
-*Geen standaardkeuze*. De radio wijst naar de **rij**, niet naar een tekst.
-Daardoor kan een optie die je net typt of hernoemt in dezelfde opslag de
-standaard zijn.
+Nu is elke optie een rij met één vak — het label in de taal die je bewerkt —
+en een radio *Standaard*, plus *Geen standaardkeuze*. De radio wijst naar de
+**rij**, niet naar een tekst. Daardoor kan een optie die je net typt of
+hernoemt in dezelfde opslag de standaard zijn.
 
-- **Opgeslagen blijft wat er altijd stond**: dezelfde regels in dezelfde
-  kolom, en `default_value` bevat het Nederlandse label van die optie.
+- **De rij houdt haar identiteit vast.** Elke bestaande optie stuurt haar `id`
+  mee, dus hernoemen in welke taal dan ook laat haar waarde, haar plaats en de
+  standaardkeuze staan. `default_value` bevat die waarde, niet het label van
+  het moment.
+- **Bewerk je een andere taal dan de standaardtaal**, dan staat het label uit
+  de standaardtaal als voorbeeldtekst in het vak: laat je het leeg, dan leest
+  de bezoeker dat label.
 - **Een geleegde rij is geen optie meer.** Was die rij de standaard, dan
   heeft het veld na opslaan geen standaard, en de editor meldt dat. Nooit een
   standaard die naar niets wijst.
 - **Lege en dubbele rijen** vallen weg volgens de regels die er al waren. Een
-  `|` in de Nederlandse helft wordt geweigerd, want daar begint in de
-  opslag de Engelse helft.
+  `|` is sinds de opties echte rijen zijn gewoon een teken in een label.
 - **Zonder JavaScript** staan er drie lege rijen onder de ingevulde; na
   opslaan komen er weer drie. `admin/assets/forms-admin.js` voegt rijen toe
   en haalt ze weg. Haal je de standaardrij weg, dan springt de keuze terug op
@@ -636,19 +689,17 @@ standaard zijn.
 
 De volgorde is **de volgorde van de rijen op het moment van versturen**. De
 browser verstuurt de velden in documentvolgorde,
-`api/admin/update-form-field.php` leest `option_nl[…]` in die volgorde,
-`FormFieldOptions::rowsToStored()` schrijft de regels in die volgorde, en het
-publieke formulier toont ze in de opgeslagen volgorde. Er is dus geen
-positiekolom en geen nieuw opslagmodel: dezelfde `NL|EN`-regels, dezelfde
-regels voor lege en dubbele opties.
+`api/admin/update-form-field.php` leest `option_label[…]` in die volgorde en
+schrijft `form_field_options.sort_order` in diezelfde volgorde, en het publieke
+formulier toont ze zo. Dezelfde regels voor lege en dubbele opties als altijd.
 
 Met JavaScript heeft elke rij **↑** en **↓** (naam voor een schermlezer:
 *Optie 2 omhoog*). Het script verplaatst de rij in de pagina en doet verder
 niets:
 
-- **De index gaat mee.** `option_nl[i]`, `option_en[i]` en de radio
-  *Standaard* met waarde `i` zitten in dezelfde rij, dus de twee talen blijven
-  één optie en de standaardkeuze blijft bij dezelfde optie, waar die ook
+- **De index gaat mee.** `option_id[i]`, `option_label[i]` en de radio
+  *Standaard* met waarde `i` zitten in dezelfde rij, dus de optie houdt haar
+  identiteit en de standaardkeuze blijft bij dezelfde optie, waar die ook
   heen gaat.
 - **De eerste rij kan niet omhoog, de laatste niet omlaag.** Een lege rij is
   ook een rij; een lege rij valt bij opslaan weg zoals altijd.
@@ -903,6 +954,12 @@ wissel kost.
 Shop-koppeling, geen bedrijfsnaam in generieke code, en de `prime()`-aanroep
 in elk paginatemplate. Hij bewaakt ook dat geen Forms-scherm nog `confirm()`
 gebruikt, en wat het script van de optierijen doet bij verplaatsen.
+`MultilingualBoundaryTest` bewaakt de talenkant: dat niets de gedropte
+woordkolommen nog leest, dat de terugval alleen van `LanguageFallback` komt,
+dat een optie op haar waarde gepost wordt en alleen haar label vertaald is, en
+dat de twee editors één taal tegelijk schrijven.
+`FormWordsAndOptionMigrationTest` (`migration`) draait de verhuizing op een
+verse, een bijgewerkte en een kapotte wegwerpdatabase.
 
 ## Bewust niet ondersteund
 

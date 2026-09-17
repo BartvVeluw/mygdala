@@ -27,6 +27,7 @@ modules aan staan" en "Vanuit een git worktree".
 | Migratie of wat een verse installatie krijgt | `migration` |
 | Paginatekst per taal (`PageLocalization`, `page_translations`, de pagina-editor) | `fast` → `cms` |
 | Blokwoorden per taal (`BlockLocalization`, `block_translations`, een omgezet blok of zijn editor) | `fast` → `blocks` |
+| Navigatie-, footer-, formulier- of instellingentekst per taal (fase 4: een getypeerde `*_translations`-tabel, `LocalizedSiteSettings`, een optie of zijn label) | `fast` → `cms` |
 
 ## De bestanden
 
@@ -63,7 +64,13 @@ netwerk. Het talenregister vervangen ze in het geheugen met
 
 In `cms`:
 
-- `tests/Repository/LocalizedNavigationFooterPersistenceTest.php`
+- `tests/Repository/NavigationFooterTranslationTest.php` — fase 4: de drie
+  getypeerde tabellen van navigatie en footer tegen echte rijen, opslaan per
+  taal, een Duitse rij zonder schemawijziging, en wat er gebeurt als een
+  menu-item, kolom of link verdwijnt
+- `tests/Repository/LocalizedSiteSettingsTest.php` — fase 4: de gesloten
+  catalogus van gelokaliseerde instellingen, een geweigerde sleutel, een
+  geweigerde taal, en opslaan per taal
 - `tests/Repository/SiteLanguageRepositoryTest.php` — de invarianten van
   `site_languages` tegen de testdatabase, elke test in een transactie die
   wordt teruggedraaid

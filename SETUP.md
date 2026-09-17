@@ -80,8 +80,8 @@ gewoon onder elkaar en werkt dezelfde knop.
 | Taal van de website | nee | de standaardtaal in `site_languages` — zie `MULTILINGUAL.md` |
 | Publiek webadres | nee | `site_settings.canonical_base_url` — zie hieronder |
 | Contact-e-mailadres | nee | `site_settings.email` |
-| Korte omschrijving | nee | `site_settings.footer_description_nl` |
-| Plaats, KVK-nummer | nee | `site_settings.city_nl`, `kvk_number` |
+| Korte omschrijving | nee | `site_setting_translations`: `footer_description` in de gekozen standaardtaal |
+| Plaats, KVK-nummer | nee | `site_setting_translations`: `city` in de gekozen standaardtaal; `site_settings.kvk_number` |
 
 **Taal van de website** is de standaardtaal: de taal die een bezoeker eerst
 krijgt en waarop een ontbrekende vertaling terugvalt. Nederlands en Engels zijn

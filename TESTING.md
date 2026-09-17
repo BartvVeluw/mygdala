@@ -307,9 +307,12 @@ partials zelf (`HEADER-FOOTER.md`):
                         CMS-pagina tegen echte rijen, en wat een pagina echt
                         rendert
 --testsuite migration   als je aan de kolommen van nav_items, de overzetting
-                        van de oude knop of die van de oude social-
-                        instellingen zat (HeaderButtonMigrationTest,
-                        FooterSocialLinkMigrationTest, LegacyUpgradeTest)
+                        van de oude knop, die van de oude social-instellingen
+                        of die van de labels en tekstinstellingen naar hun
+                        tabel per taal zat (HeaderButtonMigrationTest,
+                        FooterSocialLinkMigrationTest,
+                        NavigationFooterLabelMigrationTest,
+                        LocalizedSiteSettingMigrationTest, LegacyUpgradeTest)
 --testsuite modules     als je aan een header-slot van een module zat
 ```
 
@@ -333,10 +336,12 @@ een editor of automatisch vertalen (`MULTILINGUAL.md`):
                         MultilingualBoundaryTest (de grenzen) — database,
                         webserver noch netwerk nodig
 --testsuite cms         dezelfde zes, plus de scherm- en instellingenkant,
-                        en LocalizedNavigationFooterPersistenceTest: de
-                        bewaarmatrix van Navigatie en Footer tegen echte
-                        rijen (een taal opslaan mag de andere nooit
-                        overschrijven)
+                        en de fase-4-opslag tegen echte rijen:
+                        NavigationFooterTranslationTest en
+                        LocalizedSiteSettingsTest (een taal opslaan mag de
+                        andere nooit overschrijven), met de editors in
+                        NavigationAdminHttpTest, FooterAdminHttpTest,
+                        FormAdminHttpTest en FormFieldEditorHttpTest
 --testsuite blocks      als je een editor op de taalvelden aansloot
 ```
 

@@ -47,12 +47,42 @@ per vorm (alleen een ouder, één niveau kinderen, meerdere kindtabellen, drie
 niveaus), alleen NL, alleen EN, beide, leeg, alt-teksten, rich text, opnieuw
 draaien, een ontbrekende taal, en onaangeroerde id's en taalneutrale velden.
 
+## Multilingual 2.0: navigatie, footer, instellingen en formulieren (fase 4)
+
+Dezelfde uitzondering voor de vier domeinen die geen blok zijn, in drie golven
+van elk een schema- en een verhuismigratie:
+
+| Migratie | Van | Naar |
+|---|---|---|
+| `20260918100000` / `110000` | `nav_items.label_nl/en`, `footer_columns.title_nl/en`, `footer_links.label_nl/en` | `nav_item_translations`, `footer_column_translations`, `footer_link_translations` |
+| `20260918120000` / `130000` | `site_settings`: `city_nl/en`, `footer_description_nl/en`, `footer_slogan_nl/en` | `site_setting_translations` |
+| `20260918140000` / `150000` | `forms.submit_label_nl/en` en `success_message_nl/en`, `form_fields.label_nl/en`, `placeholder_nl/en`, `help_text_nl/en` en `options` | `form_translations`, `form_field_translations`, `form_field_options` + `form_field_option_translations` |
+
+Dezelfde regels als in 3A en 3B: NL blijft NL, EN blijft EN, byte voor byte,
+leeg of alleen witruimte krijgt geen rij, opnieuw draaien doet niets, en een
+taal die het register mist stopt de migratie vóór de drop.
+
+Twee dingen die alleen hier spelen. **Optiewaarden**: elke oude optieregel
+wordt een rij in `form_field_options` waarvan de waarde de Nederlandse helft
+is, byte voor byte, zodat `form_fields.default_value` en elke bestaande
+inzending blijven kloppen; de regels die het oude leesmodel weggooide (een
+regel zonder Nederlandse helft, een dubbele, alles voorbij vijftig) gooit de
+migratie net zo weg. **Dode sleutels**: `130000` verwijdert naast de zes
+verhuisde sleutels ook de acht `header_cta_*`-sleutels, waarvan de enige lezer
+de migratie was die de headerknoppen naar `nav_items` bracht.
+
+De tests zijn `tests/Install/NavigationFooterLabelMigrationTest.php`,
+`LocalizedSiteSettingMigrationTest.php` en
+`FormWordsAndOptionMigrationTest.php` (`migration`): vers, bijgewerkt en
+kapot naast elkaar, met de neutrale kolommen ervoor en erna vergeleken.
+
 **Oude migraties die de gedropte kolommen lezen.** `20260909270000` (media
 adopteren) leest de alt-kolommen van Tekst met afbeelding, Detailsectie en
 kaarten. Op een echte installatie draait die ruim vóór 3B, en Phinx draait een
 migratie nooit twee keer. `MediaAdoptionTest` draait hem wél opnieuw, en stopt
 daarom zijn installatie vóór `20260917200000`, net zoals
-`ContactFormMigrationTest` stopt vóór `20260917180000`.
+`ContactFormMigrationTest` stopt vóór `20260917180000` en
+`HeaderButtonMigrationTest` vóór `20260918110000`.
 
 ## Wat hiervóór fout was
 

@@ -21,8 +21,12 @@ die door elkaar halen is precies de fout die hier eerder is gemaakt:
   CMS-taal.
 - Van bewerktaal wisselen mag nooit iets weggooien.
 - Paginatekst staat per websitetaal in `page_translations` en loopt alleen via
-  `App\Service\PageLocalization`; de terugval (gevraagde taal, standaardtaal,
-  leeg) staat daar en nergens anders.
+  `App\Service\PageLocalization`.
+- **De terugval staat op één plek: `LanguageFallback`** (gevraagde taal,
+  standaardtaal, leeg). Blokwoorden lopen via `BlockLocalization`; navigatie,
+  footer, formulieren en gelokaliseerde instellingen via hun eigen dunne API op
+  `TranslationTable` + `EntityTranslations`. Bouw hier geen tweede terugval en
+  geen `LocalizationService` die alle domeinen kent.
 
 Lees `../../../MULTILINGUAL.md`. Meertaligheid is Core en raakt elk domein,
 dus het heeft geen eigen suite: de tests zitten in `fast` en `cms`.

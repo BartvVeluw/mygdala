@@ -17,7 +17,7 @@ frontend-flip in fase 7. Wat 2.0 al vervangen heeft, staat hieronder.
 | 1 | Taalkern: talenregister, standaardtaal, Core-API, V1-adapter | **gebouwd** |
 | 2 | Gelokaliseerde velden (editorcomponent) + Pages | **gebouwd** |
 | 3 | Contentblokken | **gebouwd**: generiek model + drie blokken (3A), alle overige blokken met hun kindrijen (3B) |
-| 4 | Navigatie, footer, instellingen, formulieren | gepland |
+| 4 | Navigatie, footer, instellingen, formulieren | **gebouwd**: getypeerde tabellen per domein, gelokaliseerde site-instellingen, optie-identiteit |
 | 5 | Modules: Portfolio, Blog, Shop, Personalisatie | gepland |
 | 6 | Dunne dispatcher en schone URL's, nog eentalig | gepland |
 | 7 | Server-side taalweergave, de module `multilingual`, de wisselaar, SEO | gepland |
@@ -707,25 +707,150 @@ DE-woorden van dat item laat staan; `move-` verandert alleen `sort_order`;
 bewijst toevoegen, opslaan per taal en verwijderen voor alle twaalf
 kindtabellen over echte HTTP.
 
-### Wat fase 4 nog moet doen
+### Wat fase 4 gedaan heeft
 
-Geen blok heeft nog woorden in kolommen. Wat nog `_nl`/`_en` is, hoort bij een
-ander domein:
+Geen blok heeft nog woorden in kolommen, en sinds fase 4 geen menu-item,
+footerkolom, footerlink, formulier, veld of optie ook. Wat daarvoor gebouwd
+is, staat hieronder: *Navigatie, footer, instellingen en formulieren*.
 
-- **Navigatie en footer**: `nav_items.label_nl/en`, `footer_columns.title_nl/en`,
-  `footer_links.label_nl/en`.
-- **Formulieren**: `forms.submit_label_*` en `success_message_*`,
-  `form_fields.label_*`, `placeholder_*` en `help_text_*`.
-- **Site-instellingen**: `city_nl`/`city_en` (het Offerte-/contactformulier
-  leest ze nog met `SiteText::attrs()`) en de overige tweetalige instellingen.
+## Navigatie, footer, instellingen en formulieren (fase 4)
 
-Pas daarna (fase 5) volgen de modules: `portfolio_gallery_items`,
+Vier domeinen die geen contentblok zijn en toch tekst tonen. Ze delen één
+fundament en houden ieder een eigen, dunne API. Er is bewust **geen**
+`LocalizationService` die alles weet: het fundament kent geen enkel domein, en
+een domein-API kent alleen zijn eigen tabel.
+
+### Het gedeelde fundament
+
+| Klasse | Wat het is |
+|---|---|
+| `App\Service\Language\LanguageFallback` | **De** terugval van fase 4: gevraagde taal → standaardtaal → leeg. Ook `name()` (beheerdersnaam: eerste gevulde taal als extra stap) en `bilingual()` (het tijdelijke NL/EN-paar) |
+| `App\Service\Language\TranslationTable` | Gesloten declaratie van één getypeerde tabel: naam, eigenaarskolom, en per veld zijn maximumlengte. Weigert `language_code` als veldnaam |
+| `App\Repository\EntityTranslationRepository` | **Alle** SQL van **alle** getypeerde tabellen, gebouwd uit die declaratie: `findForOwners()`, `save()` (upsert), `delete()` |
+| `App\Service\Language\EntityTranslations` | De API per tabel: cache, `words/raw/value/name/bilingual/preload/problems/save/forget` |
+
+`save()` legt één taal neer over wat er staat, en verwijdert de rij zodra elk
+veld van die taal leeg is. Lengte wordt alleen gemeten over de velden die de
+aanroeper meestuurt, zodat NL opslaan nooit afketst op een te lange EN-tekst.
+
+### De getypeerde tabellen
+
+Elke tabel heeft dezelfde vorm: eigenaar-id, `language_code`, alleen
+gelokaliseerde velden, `UNIQUE(eigenaar, language_code)`, FK op de eigenaar met
+`ON DELETE CASCADE` en FK `language_code` → `site_languages.code` met
+`ON DELETE RESTRICT`. Geen JSON, geen `_de`/`_fr`-kolommen, geen polymorfe
+eigenaar.
+
+| Tabel | Eigenaar | Velden (max) | Domein-API |
+|---|---|---|---|
+| `nav_item_translations` | `nav_item_id` | `label` (100) | `App\Service\NavigationLocalization` |
+| `footer_column_translations` | `footer_column_id` | `title` (100) | `App\Service\FooterLocalization` |
+| `footer_link_translations` | `footer_link_id` | `label` (100) | `App\Service\FooterLocalization` |
+| `form_translations` | `form_id` | `submit_label` (150), `success_message` (1000) | `App\Service\Forms\FormLocalization` |
+| `form_field_translations` | `form_field_id` | `label` (200), `placeholder` (200), `help_text` (500) | `App\Service\Forms\FormLocalization` |
+| `form_field_option_translations` | `form_field_option_id` | `label` (255) | `App\Service\Forms\FormLocalization` |
+
+Alles wat geen tekst is, blijft staan waar het stond: soort en bestemming van
+een menu-item, `page_id`, routesleutel, externe URL, presentatie, knopvariant,
+ouder, volgorde en zichtbaarheid; social-URL's, logo's, media-id's en neutrale
+bedrijfsgegevens; formulier-id, status, veldtype, veldsleutel, verplichtheid,
+volgorde, opslag- en mailinstellingen. Een paginalink blijft een `page_id`:
+gelokaliseerde URL's zijn fase 6.
+
+### Gelokaliseerde site-instellingen
+
+Eén kleine winkel, geen vergaarbak: `site_setting_translations`
+(`setting_key`, `language_code`, `value`), `UNIQUE(setting_key,
+language_code)`, FK op `site_languages` met `RESTRICT`.
+
+`App\Service\LocalizedSiteSettings` heeft een **gesloten catalogus** van
+sleutels die echt websitetekst zijn — `city` (150), `footer_description` (500),
+`footer_slogan` (200) — en weigert elke andere sleutel en elke taal die niet in
+het register staat. Een request kan dus nooit een nieuw instellingstype laten
+ontstaan. Neutrale configuratie (`footer_show_*`, `footer_copyright_template`,
+KVK, e-mailadressen) blijft gewoon `site_settings`, en CMS-teksten horen hier
+nooit: die staan in `src/Service/Language/messages/`.
+
+Niet elk oud `_nl`/`_en`-paar is meeverhuisd. Per paar is gekozen: tekst →
+nieuwe winkel, neutraal → `site_settings`, dood → weg. Zo zijn de acht
+`header_cta_*`-sleutels verdwenen (hun enige lezer was de migratie die de
+headerknoppen naar `nav_items` bracht), en blijft
+`related_products_heading_nl/en` staan tot fase 5, omdat de Shop hem deelt met
+`collections.related_heading_nl/en`.
+
+### Formulieren: identiteit en label
+
+Het scherpste punt van deze fase. Een keuzeoptie heeft sinds nu **twee**
+dingen: een waarde en een label.
+
+- `form_field_options.value` — de identiteit. Uniek per veld, vergeleken in
+  `utf8mb4_bin`, in elke taal dezelfde. Dit is wat het publieke formulier post,
+  wat `ChoiceFieldType` accepteert, wat een inzending bewaart en waar
+  `form_fields.default_value` naar wijst.
+- `form_field_option_translations.label` — wat de bezoeker leest, per taal.
+
+Een taalwissel verandert dus wél wat er op het scherm staat en **nooit** wat er
+verstuurd of opgeslagen wordt. De migratie neemt als waarde de Nederlandse
+helft van de oude optieregel, byte voor byte, zodat bestaande defaults en alle
+historische inzendingen blijven kloppen. Een nieuwe optie krijgt het label in
+de standaardtaal als waarde, zo nodig uniek gemaakt met ` (2)`.
+
+**Inzendingen zijn een momentopname.** `form_submission_values` bewaart
+`field_label` en `value` zoals ze golden toen de bezoeker verstuurde, zonder
+join terug naar het veld. Fase 4 raakt geen enkele bestaande inzending aan en
+voegt geen taalkolom toe: dat zou een schema-uitbreiding buiten deze fase zijn.
+
+### De editors
+
+Navigatie-item, footerkolom, footerlink, site-instellingen, footerinstellingen,
+formulier en veld bewerken **één** websitetaal tegelijk, via hetzelfde
+`admin/_localized_fields.php` als Pages en de blokken. Actieve talen komen uit
+`site_languages`, de standaardtaal is herkenbaar, neutrale velden staan er
+altijd, en taal A opslaan laat taal B staan. Een nieuw item, een nieuwe kolom,
+link of veld begint in de standaardtaal. Rij, woorden en opties zijn één
+transactie; een geweigerde opslag schrijft niets en houdt de POST vast.
+
+### De tijdelijke NL/EN-uitvoer
+
+Header, footer, het Offerte-/contactformulier en het publieke formulier printen
+hun paar uit de nieuwe opslag via `LanguageFallback::bilingual()` en
+`SiteText::visibleOf()`/`attrsOf()`, net als de blokken. Geen nieuwe
+NL/EN-kolom, geen terugval per template. Het XSS-contract blijft: platte tekst
+gaat als `textContent` door `core.js`, HTML alleen met de expliciete marker. Een
+menulabel, footerlabel, veldlabel en optielabel zijn altijd platte tekst. De
+kop van een submenu draagt zijn paar op een eigen `<span>`, zodat de wissel de
+chevron niet wist.
+
+### De migraties
+
+Forward-only, één golf per paar, en elke migratie weigert te droppen wat hij
+niet kon verplaatsen.
+
+| Migratie | Wat |
+|---|---|
+| `20260918100000` | de drie navigatie-/footertabellen |
+| `20260918110000` | labels erheen, daarna de zes kolommen weg |
+| `20260918120000` | `site_setting_translations` |
+| `20260918130000` | `city`, `footer_description` en `footer_slogan` erheen, de zes oude sleutels en de acht dode `header_cta_*`-sleutels weg |
+| `20260918140000` | `form_field_options` en de drie formuliertabellen |
+| `20260918150000` | woorden en opties erheen, daarna elf kolommen weg |
+
+NL wordt `nl` en EN wordt `en`; lege en witruimte-waarden krijgen geen rij; een
+tweede run verandert niets; en als het register de taal niet kent die de
+kolommen nog bevatten, stopt de migratie vóór elke drop met een melding die de
+taal noemt.
+
+### Wat fase 5 nog moet doen
+
+Na fase 4 staat er nog `_nl`/`_en` in de **modules**: `portfolio_gallery_items`,
 `portfolio_item_images` en `portfolio_categories` (ook de kaarten in de Galerij
 en Projecten lezen die nog als NL/EN-paar), Blog (`*_en`), Shop (`products`,
-`collections`, `order_items`) en Personalisatie. `BlockImage::fromRow()`
-blijft tot dan voor Blog bestaan, en `SiteText::attrs()`/`visible()` voor alles
-wat nog kolommen heeft. De tijdelijke uitvoeradapter
-(`BlockLocalization::bilingual()`, `SiteText::*Of()`) blijft tot de flip in
+`collections`, `order_items`, en de gedeelde koppen
+`site_settings.related_products_heading_nl/en`) en Personalisatie.
+`BlockImage::fromRow()` blijft tot dan voor Blog bestaan, en
+`SiteText::attrs()`/`visible()` voor alles wat nog kolommen heeft. De tijdelijke
+uitvoeradapter (`BlockLocalization::bilingual()`,
+`LanguageFallback::bilingual()`, `SiteText::*Of()`) blijft tot de flip in
 fase 7.
 
 ## Nog niet, bewust
@@ -766,11 +891,12 @@ providerklassen blijven ongebruikt staan.
 
 ## Vastgelegd voor later, nog niet gebouwd
 
-- **Hybride opslag.** Echte domeinentiteiten (pagina's, blogberichten,
-  categorieën, tags, producten, collecties, portfolio-items, formulieren,
-  velden en opties, menu-items, footer, productopties, personalisatie) krijgen
-  **getypeerde** `<entiteit>_translations`-tabellen: FK met `ON DELETE
-  CASCADE`, één rij per taal, ook voor de standaardtaal.
+- **Hybride opslag.** Echte domeinentiteiten krijgen **getypeerde**
+  `<entiteit>_translations`-tabellen: FK met `ON DELETE CASCADE`, één rij per
+  taal, ook voor de standaardtaal. Gebouwd voor pagina's (fase 2) en voor
+  menu-items, footer, formulieren, velden en opties (fase 4); nog te doen voor
+  blogberichten, categorieën, tags, producten, collecties, portfolio-items,
+  productopties en personalisatie (fase 5).
 - **Contentblokken** op één generieke `block_translations`, met de
   weesrij-guards: gebouwd in fase 3A en 3B, alle bloktypes en hun kindrijen,
   zie *Contentblokken per taal*.
@@ -789,10 +915,10 @@ providerklassen blijven ongebruikt staan.
   het huidige gedrag is, niet als die keuze.
 - **Oude kolommen** vallen per domein, in de migratie van de fase die dat
   domein omzet. Dat mag pas na een grep die bewijst dat geen andere fase ze
-  nog leest (bekend: het blok *Offerte-/contactformulier* leest de
-  site-instellingen `city_nl`/`city_en`). Pages is zo gegaan in fase 2
-  (`20260917150000`), de drie proof-blocks in fase 3A (`20260917170000`) en
-  alle overige blokken in fase 3B (`20260917180000`, `190000`, `200000`);
+  nog leest. Pages is zo gegaan in fase 2 (`20260917150000`), de drie
+  proof-blocks in fase 3A (`20260917170000`), alle overige blokken in fase 3B
+  (`20260917180000`, `190000`, `200000`) en navigatie, footer, instellingen en
+  formulieren in fase 4 (`20260918110000`, `130000`, `150000`);
   `MultilingualBoundaryTest` bewaakt dat niets de gedropte kolommen nog leest.
 
 ## Waar het staat
@@ -816,3 +942,8 @@ providerklassen blijven ongebruikt staan.
 | Blokwoorden: de drie blokken | `RichTextBlock`, `CtaBandBlock`, `ContactCardBlock` met hun `*Content`, repository, partial, editor en endpoint; consumenten `LegalPages`, `portfolio-detail.php` |
 | Tests fase 3A | `TranslatableFieldTest`, `BlockLocalizationTest`, `BlockLocalizedRenderingTest` (`fast`); `BlockTranslationRepositoryTest`, `BlockTranslationIntegrityTest`, `BlockWordsPreloadTest`, `BlockLocalizationEditorHttpTest`, `BlockTranslationSchemaTest` (`blocks`); `BlockTranslationMigrationTest` (`migration`); het declaratiecontract in `BlockDefinitionContractTest`; de blokgrenzen in `MultilingualBoundaryTest`; test-helper `Tests\Support\BlockTextFixture` |
 | Tests fase 3B | `RemainingBlocksRenderingTest` (`fast`); `BlockTranslationTreeTest`, `BlockWordsEditorHttpTest`, `BlockChildWordsEditorHttpTest` (`blocks`); `RemainingBlockWordsMigrationTest` (`migration` en `blocks`); de kindrijen in `BlockTranslationIntegrityTest`, `BlockTranslationSchemaTest`, `BlockDefinitionContractTest` en `BlockWordsPreloadTest`; de 3B-grenzen in `MultilingualBoundaryTest` |
+| Fase 4: het fundament | `src/Service/Language/LanguageFallback.php`, `TranslationTable.php`, `EntityTranslations.php`, `src/Repository/EntityTranslationRepository.php` |
+| Fase 4: navigatie en footer | `db/migrations/20260918100000_create_the_navigation_and_footer_translation_tables.php`, `20260918110000_move_navigation_and_footer_labels_into_translation_tables.php`; `src/Service/NavigationLocalization.php`, `src/Service/FooterLocalization.php` |
+| Fase 4: site-instellingen | `db/migrations/20260918120000_create_the_site_setting_translations_table.php`, `20260918130000_move_localized_site_settings_into_site_setting_translations.php`; `src/Service/LocalizedSiteSettings.php`, `src/Repository/SiteSettingTranslationRepository.php` |
+| Fase 4: formulieren | `db/migrations/20260918140000_create_the_form_translation_and_option_tables.php`, `20260918150000_move_form_words_and_options_into_translation_tables.php`; `src/Service/Forms/FormLocalization.php`, `FormOption.php`, `FormFieldOptions.php`, `src/Repository/FormFieldOptionRepository.php` |
+| Tests fase 4 | `EntityTranslationsTest`, `FormFieldTypeTest` (`fast`); `LocalizedSiteSettingsTest`, `NavigationFooterTranslationTest`, `NavigationAdminHttpTest`, `FooterAdminHttpTest`, `FormAdminHttpTest`, `FormFieldEditorHttpTest` (`cms`); `NavigationFooterLabelMigrationTest`, `LocalizedSiteSettingMigrationTest`, `FormWordsAndOptionMigrationTest` (`migration`); de fase-4-grenzen in `MultilingualBoundaryTest`; test-helper `Tests\Support\FormFixture` |
