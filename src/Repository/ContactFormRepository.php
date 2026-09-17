@@ -48,20 +48,21 @@ class ContactFormRepository extends Repository
     }
 
     /**
-     * Inserts or updates the single row for this page_slug + section_key.
+     * Inserts or updates the single row for this page_slug + section_key:
+     * what is the same in every language. The block's heading is stored per
+     * website language through App\Service\Blocks\BlockLocalization
+     * (db/migrations/20260917180000).
      *
-     * @param array<string, mixed> $values title_nl, title_en, form_id, allow_attachment, is_active
+     * @param array<string, mixed> $values form_id, allow_attachment, is_active
      */
     public function upsertSection(string $pageSlug, string $sectionKey, array $values): void
     {
         $stmt = $this->db->prepare(
             'INSERT INTO contact_form_sections
-                (page_slug, section_key, title_nl, title_en, form_id, allow_attachment, is_active, created_at, updated_at)
+                (page_slug, section_key, form_id, allow_attachment, is_active, created_at, updated_at)
              VALUES
-                (:page_slug, :section_key, :title_nl, :title_en, :form_id, :allow_attachment, :is_active, NOW(), NOW())
+                (:page_slug, :section_key, :form_id, :allow_attachment, :is_active, NOW(), NOW())
              ON DUPLICATE KEY UPDATE
-                title_nl = VALUES(title_nl),
-                title_en = VALUES(title_en),
                 form_id = VALUES(form_id),
                 allow_attachment = VALUES(allow_attachment),
                 is_active = VALUES(is_active),
@@ -71,8 +72,6 @@ class ContactFormRepository extends Repository
         $stmt->execute([
             'page_slug' => $pageSlug,
             'section_key' => $sectionKey,
-            'title_nl' => (string) ($values['title_nl'] ?? ''),
-            'title_en' => self::nullIfEmpty($values['title_en'] ?? null),
             'form_id' => self::positiveIntOrNull($values['form_id'] ?? null),
             'allow_attachment' => ($values['allow_attachment'] ?? true) ? 1 : 0,
             'is_active' => ($values['is_active'] ?? true) ? 1 : 0,
@@ -113,13 +112,6 @@ class ContactFormRepository extends Repository
         $stmt->execute(['id' => $id]);
 
         return $stmt->rowCount() > 0;
-    }
-
-    private static function nullIfEmpty(mixed $value): ?string
-    {
-        $value = is_string($value) ? trim($value) : null;
-
-        return ($value !== null && $value !== '') ? $value : null;
     }
 
     private static function positiveIntOrNull(mixed $value): ?int

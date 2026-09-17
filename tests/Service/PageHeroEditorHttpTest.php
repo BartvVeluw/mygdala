@@ -10,6 +10,7 @@ use App\Repository\PageHeroRepository;
 use App\Repository\PageRepository;
 use App\Repository\PageSectionRepository;
 use App\Service\AdminPermissions;
+use App\Service\Blocks\BlockLocalization;
 use App\Service\Language\AdminTranslator;
 use App\Service\Media\MediaService;
 use App\Service\PageHeroContent;
@@ -124,8 +125,8 @@ final class PageHeroEditorHttpTest extends TestCase
         );
         $this->assertSame((string) $mediaId, $form['values']['media_id'] ?? null, 'the picker carries the chosen item');
 
-        $this->assertNotContains('eyebrow_nl', $form['required'], 'the eyebrow is optional');
-        $this->assertContains('title_nl', $form['required'], 'the title is not');
+        $this->assertNotContains('eyebrow', $form['required'], 'the eyebrow is optional');
+        $this->assertContains('title', $form['required'], 'the title is not, in the default language');
     }
 
     /* ------------------------------------------------------------------ */
@@ -138,9 +139,9 @@ final class PageHeroEditorHttpTest extends TestCase
         $mediaId = $this->mediaItem();
 
         $response = $this->post($session, $csrf, [
-            'eyebrow_nl' => '',
-            'title_nl' => 'Een kop met een foto',
-            'lead_nl' => 'Een korte inleiding.',
+            'eyebrow' => '',
+            'title' => 'Een kop met een foto',
+            'lead' => 'Een korte inleiding.',
             'media_id' => (string) $mediaId,
             'content_position' => PageHeroContent::POSITION_CENTER,
             'title_size' => PageHeroContent::SIZE_LARGE,
@@ -151,9 +152,7 @@ final class PageHeroEditorHttpTest extends TestCase
         $this->assertStringEndsWith('&saved=1', $response['location'], 'the save bar recognises a save by this marker');
 
         $row = $this->storedHeader();
-        $this->assertSame('', $row['eyebrow_nl']);
-        $this->assertSame('Een kop met een foto', $row['title_nl']);
-        $this->assertSame('Een korte inleiding.', $row['lead_nl']);
+        $this->assertSame(['title' => 'Een kop met een foto', 'lead' => 'Een korte inleiding.'], $row['words']['nl'], 'an empty eyebrow has no row');
         $this->assertSame($mediaId, (int) $row['media_id']);
         $this->assertSame(
             ['center', 'large', 'small'],
@@ -167,7 +166,8 @@ final class PageHeroEditorHttpTest extends TestCase
             $form['selected']
         );
         $this->assertSame((string) $mediaId, $form['values']['media_id'] ?? null);
-        $this->assertSame('', $form['values']['eyebrow_nl'] ?? null);
+        $this->assertSame('', $form['values']['eyebrow'] ?? null);
+        $this->assertSame('nl', $form['values']['language_code'] ?? null, 'the form says which language its words are in');
     }
 
     public function testRemovingTheImageClearsOnlyTheReference(): void
@@ -241,7 +241,7 @@ final class PageHeroEditorHttpTest extends TestCase
         $before = $this->storedHeader();
 
         $response = $this->post($session, $csrf, [
-            'title_nl' => 'Deze titel mag niet worden opgeslagen',
+            'title' => 'Deze titel mag niet worden opgeslagen',
             $field => $value,
         ]);
 
@@ -259,7 +259,7 @@ final class PageHeroEditorHttpTest extends TestCase
         [$session, $csrf] = $this->accounts->signIn([AdminPermissions::PAGES_MANAGE]);
         $before = $this->storedHeader();
 
-        $response = $this->post($session, $csrf, ['title_nl' => '', 'eyebrow_nl' => '']);
+        $response = $this->post($session, $csrf, ['title' => '', 'eyebrow' => '']);
 
         $this->assertStringNotContainsString('saved=1', $response['location']);
         $this->assertSame($before, $this->storedHeader());
@@ -284,12 +284,10 @@ final class PageHeroEditorHttpTest extends TestCase
         return self::$server->request('POST', self::ENDPOINT, $session, array_merge([
             'csrf_token' => $csrf,
             'slug' => self::TEST_PAGE,
-            'eyebrow_nl' => 'Bovenschrift',
-            'eyebrow_en' => '',
-            'title_nl' => 'Een paginakop',
-            'title_en' => '',
-            'lead_nl' => '',
-            'lead_en' => '',
+            'language_code' => 'nl',
+            'eyebrow' => 'Bovenschrift',
+            'title' => 'Een paginakop',
+            'lead' => '',
             'media_id' => '',
             'content_position' => PageHeroContent::POSITION_LEFT,
             'title_size' => PageHeroContent::SIZE_NORMAL,
@@ -343,22 +341,27 @@ final class PageHeroEditorHttpTest extends TestCase
     /** @param array<string, mixed> $overrides */
     private function storeHeader(array $overrides): void
     {
-        (new PageHeroRepository())->upsert(self::TEST_PAGE, array_merge(
+        $repository = new PageHeroRepository();
+        $repository->upsert(self::TEST_PAGE, array_merge(
             PageHeroContent::startingValues(),
-            ['title_nl' => 'Een opgeslagen kop', 'is_active' => true],
+            ['is_active' => true],
             $overrides
         ));
+        BlockLocalization::save('page_heroes', (int) $repository->findBySlug(self::TEST_PAGE)['id'], 'nl', ['title' => 'Een opgeslagen kop']);
 
         PageHeroContent::clearCache();
     }
 
-    /** @return array<string, mixed> */
+    /** @return array<string, mixed> the header's row, with its stored words per language under `words` */
     private function storedHeader(): array
     {
         $row = (new PageHeroRepository())->findBySlug(self::TEST_PAGE);
         $this->assertNotNull($row, 'the test page has its header');
 
-        return $row;
+        // The endpoint wrote in another process: read the words afresh.
+        BlockLocalization::clearCache();
+
+        return $row + ['words' => BlockLocalization::translations('page_heroes', (int) $row['id'])];
     }
 
     /** A media row for a file that does not exist: neither the form nor the save reads the disk. */
@@ -394,7 +397,12 @@ final class PageHeroEditorHttpTest extends TestCase
             Database::connection()->prepare('DELETE FROM pages WHERE id = :id')->execute(['id' => (int) $page['id']]);
         }
 
-        // A header an interrupted run left behind has no page to go with.
+        // A header an interrupted run left behind has no page to go with; its
+        // words go first, so they cannot outlive it.
+        $leftover = (new PageHeroRepository())->findBySlug(self::TEST_PAGE);
+        if ($leftover !== null) {
+            BlockLocalization::deleteOwner('page_heroes', (int) $leftover['id']);
+        }
         (new PageHeroRepository())->deleteBySlug(self::TEST_PAGE);
     }
 }

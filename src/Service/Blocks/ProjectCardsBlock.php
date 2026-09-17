@@ -91,10 +91,21 @@ final class ProjectCardsBlock extends BlockDefinition
     }
 
     /**
+     * The gallery's own declaration, word for word: both blocks keep their
+     * words on the same item_galleries rows, and a table has one set of
+     * fields (BlockDefinitionContractTest). This block's editor offers only
+     * the title and the lead; rowWords() keeps the others empty.
+     */
+    public function translatableFields(): array
+    {
+        return (new ItemGalleryBlock())->translatableFields();
+    }
+
+    /**
      * Every visible project, in the Portfolio's own order, as plain cards: no
-     * heading and no filter buttons until the editor asks for them. Nothing
-     * site-specific, since a page template creates blocks through here too
-     * (CONTENT-BLOCKS.md).
+     * heading and no filter buttons until the editor asks for them, so no
+     * words either. Nothing site-specific, since a page template creates
+     * blocks through here too (CONTENT-BLOCKS.md).
      */
     public function create(string $pageSlug): array
     {
@@ -161,15 +172,17 @@ final class ProjectCardsBlock extends BlockDefinition
             ];
         }
 
-        $content = self::rowValues([
-            ...$samples->fields('title', 'title'),
-            ...$samples->fields('lead', 'lead'),
-        ]);
+        $content = self::rowValues([]);
         unset($content['is_active']);
 
         return [
             'id' => 0,
             ...$content,
+            'eyebrow' => $samples->none(),
+            'title' => $samples->localized('title'),
+            'lead' => $samples->localized('lead'),
+            'footer_note' => $samples->none(),
+            'button_label' => $samples->none(),
             'filter_categories' => [],
             'items' => $items,
         ];
@@ -186,12 +199,12 @@ final class ProjectCardsBlock extends BlockDefinition
      */
     public function instanceTitle(array $pageSection): string
     {
-        $content = ItemGalleryContent::forSection($this->pageSlug($pageSection), $this->sectionKey($pageSection));
-
-        $title = (string) ($content['title_nl'] ?? '');
+        $title = BlockLocalization::name('item_galleries', $this->sectionId($pageSection), 'title');
         if ($title !== '') {
             return $title;
         }
+
+        $content = ItemGalleryContent::forSection($this->pageSlug($pageSection), $this->sectionKey($pageSection));
 
         return AdminTranslator::trans(
             $content['portfolio_scope'] === ItemGalleryContent::SCOPE_FEATURED
@@ -233,18 +246,19 @@ final class ProjectCardsBlock extends BlockDefinition
     }
 
     /**
-     * Everything a Projecten row stores: what its editor offers, taken from
-     * $editable, and every gallery setting this block does not have, fixed.
-     * create() and api/admin/update-project-cards.php both store through here,
-     * so no request can set the source, and no save leaves a setting behind
-     * that this block's editor does not show: a zoom, a fallback link or a
-     * button nobody could switch off again.
+     * Everything a Projecten row stores that is the same in every language:
+     * what its editor offers, taken from $editable, and every gallery setting
+     * this block does not have, fixed. create() and
+     * api/admin/update-project-cards.php both store through here, so no
+     * request can set the source, and no save leaves a setting behind that
+     * this block's editor does not show: a zoom, a fallback link or a button
+     * nobody could switch off again. The words go through rowWords().
      *
      * Validating $editable is the caller's job, before it gets here
      * (ItemGalleryContent::isPortfolioScope() and isBackground()), as for every
      * write through ItemGalleryRepository.
      *
-     * @param array<string, mixed> $editable portfolio_scope, max_items, show_filter_bar, background, title_nl/en, lead_nl/en, is_active
+     * @param array<string, mixed> $editable portfolio_scope, max_items, show_filter_bar, background, is_active
      *
      * @return array<string, string|bool|int|null> in ItemGalleryRepository::upsertSection()'s shape
      */
@@ -260,20 +274,32 @@ final class ProjectCardsBlock extends BlockDefinition
             'show_filter_bar' => (bool) ($editable['show_filter_bar'] ?? false),
             'enable_lightbox' => false,
             'fallback_link_url' => '',
-            'eyebrow_nl' => '',
-            'eyebrow_en' => '',
-            'title_nl' => (string) ($editable['title_nl'] ?? ''),
-            'title_en' => (string) ($editable['title_en'] ?? ''),
-            'lead_nl' => (string) ($editable['lead_nl'] ?? ''),
-            'lead_en' => (string) ($editable['lead_en'] ?? ''),
-            'footer_note_nl' => '',
-            'footer_note_en' => '',
-            'button_label_nl' => '',
-            'button_label_en' => '',
             'button_url' => '',
             'background' => (string) ($editable['background'] ?? 'default'),
             'tight_top' => false,
             'is_active' => (bool) ($editable['is_active'] ?? true),
+        ];
+    }
+
+    /**
+     * The words of one language a Projecten save stores, for
+     * BlockLocalization::save(): the title and the lead from $editable, and
+     * the gallery's other words empty, so a save never keeps an eyebrow, a
+     * closing text or a button label in that language this block's editor
+     * does not show.
+     *
+     * @param array<string, string> $editable title, lead
+     *
+     * @return array<string, string> every field of item_galleries
+     */
+    public static function rowWords(array $editable): array
+    {
+        return [
+            'eyebrow' => '',
+            'title' => (string) ($editable['title'] ?? ''),
+            'lead' => (string) ($editable['lead'] ?? ''),
+            'footer_note' => '',
+            'button_label' => '',
         ];
     }
 }

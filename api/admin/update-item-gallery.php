@@ -21,9 +21,13 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../../vendor/autoload.php';
 
+use App\Database;
 use App\Service\Language\AdminTranslator;
 use App\Service\AdminAuth;
+use App\Service\Blocks\BlockLocalization;
 use App\Service\Csrf;
+use App\Service\Language\LanguageCode;
+use App\Service\Language\SiteLanguages;
 use App\Service\ItemGalleryContent;
 use App\Service\ItemGallerySources;
 use App\Repository\CollectionRepository;
@@ -76,23 +80,32 @@ $fields = [
     'show_filter_bar' => isset($_POST['show_filter_bar']),
     'enable_lightbox' => isset($_POST['enable_lightbox']),
     'fallback_link_url' => trim((string) ($_POST['fallback_link_url'] ?? '')),
-    'eyebrow_nl' => trim((string) ($_POST['eyebrow_nl'] ?? '')),
-    'eyebrow_en' => trim((string) ($_POST['eyebrow_en'] ?? '')),
-    'title_nl' => trim((string) ($_POST['title_nl'] ?? '')),
-    'title_en' => trim((string) ($_POST['title_en'] ?? '')),
-    'lead_nl' => trim((string) ($_POST['lead_nl'] ?? '')),
-    'lead_en' => trim((string) ($_POST['lead_en'] ?? '')),
-    'footer_note_nl' => trim((string) ($_POST['footer_note_nl'] ?? '')),
-    'footer_note_en' => trim((string) ($_POST['footer_note_en'] ?? '')),
-    'button_label_nl' => trim((string) ($_POST['button_label_nl'] ?? '')),
-    'button_label_en' => trim((string) ($_POST['button_label_en'] ?? '')),
     'button_url' => trim((string) ($_POST['button_url'] ?? '')),
     'background' => trim((string) ($_POST['background'] ?? '')),
     'tight_top' => isset($_POST['tight_top']),
     'is_active' => isset($_POST['is_active']),
 ];
 
+$sectionId = (int) $section['id'];
+$languageCode = LanguageCode::normalise((string) ($_POST['language_code'] ?? '')) ?? '';
+$languageIsWritable = $languageCode !== '' && SiteLanguages::isActive($languageCode);
+$isDefaultLanguage = $languageIsWritable && $languageCode === BlockLocalization::defaultLanguage();
+
+// Exactly the fields the block declares, never a name taken from the request.
+$words = [];
+foreach (array_keys(BlockLocalization::fields('item_galleries')) as $field) {
+    $words[$field] = trim((string) ($_POST[$field] ?? ''));
+}
+
 $errors = [];
+
+if (!$languageIsWritable) {
+    $errors[] = AdminTranslator::trans('validation.language_unknown');
+} else {
+    foreach (BlockLocalization::messageKeys(BlockLocalization::problems('item_galleries', $languageCode, $words)) as $key) {
+        $errors[] = AdminTranslator::trans($key);
+    }
+}
 
 /**
  * The source is validated against the CLOSED list of sources this deployment
@@ -144,26 +157,48 @@ if (ItemGallerySources::needsCollection($fields['source_type']) && $fields['coll
 }
 
 // A URL without a label would be an invisible button, and a label without a
-// URL a button that goes nowhere.
-if (($fields['button_url'] !== '') !== ($fields['button_label_nl'] !== '')) {
+// URL a button that goes nowhere. The label that counts is the default
+// language's, the one every other language falls back to, so a translation
+// save checks the stored default label, and a translated label without a URL
+// is refused too, since it could never show.
+$defaultButtonLabel = $isDefaultLanguage
+    ? $words['button_label']
+    : BlockLocalization::raw('item_galleries', $sectionId, 'button_label', BlockLocalization::defaultLanguage());
+$buttonUrlSet = $fields['button_url'] !== '';
+
+if ($languageIsWritable && (($defaultButtonLabel !== '') !== $buttonUrlSet || ($words['button_label'] !== '' && !$buttonUrlSet))) {
     $errors[] = AdminTranslator::trans('validation.vul_zowel_knoplabel_knop_url');
 }
 
+$old = ['language_code' => $languageCode] + $words + $fields;
+
 if ($errors !== []) {
     $_SESSION['admin_item_gallery_errors'] = $errors;
-    $_SESSION['admin_item_gallery_old'] = $fields;
+    $_SESSION['admin_item_gallery_old'] = $old;
     header('Location: /admin/item-gallery.php?section=' . urlencode($sectionParam));
     exit;
 }
 
+$db = Database::connection();
+
 try {
+    // The gallery's settings and its words in this language are one save.
+    $db->beginTransaction();
+
     $repository->upsertSection($pageSlug, $sectionKey, $fields);
+    BlockLocalization::save('item_galleries', $sectionId, $languageCode, $words);
+
+    $db->commit();
     ItemGalleryContent::clearCache();
 } catch (\Throwable $e) {
+    if ($db->inTransaction()) {
+        $db->rollBack();
+    }
+
     error_log('[api/admin/update-item-gallery.php] ' . $e->getMessage());
 
     $_SESSION['admin_item_gallery_errors'] = ['Kon niet worden opgeslagen. Probeer het opnieuw.'];
-    $_SESSION['admin_item_gallery_old'] = $fields;
+    $_SESSION['admin_item_gallery_old'] = $old;
     header('Location: /admin/item-gallery.php?section=' . urlencode($sectionParam));
     exit;
 }

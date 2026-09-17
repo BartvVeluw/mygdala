@@ -41,6 +41,7 @@
             <file>tests/Service/TranslatableFieldTest.php</file>
             <file>tests/Service/BlockLocalizationTest.php</file>
             <file>tests/Service/BlockLocalizedRenderingTest.php</file>
+            <file>tests/Service/RemainingBlocksRenderingTest.php</file>
             <file>tests/Install/SetupWizardValidationTest.php</file>
             <file>tests/Mail/EmailPlaceholdersTest.php</file>
             <file>tests/Mail/OrderConfirmationBuilderTest.php</file>
@@ -157,6 +158,7 @@
             <file>tests/Service/TranslatableFieldTest.php</file>
             <file>tests/Service/BlockLocalizationTest.php</file>
             <file>tests/Service/BlockLocalizedRenderingTest.php</file>
+            <file>tests/Service/RemainingBlocksRenderingTest.php</file>
             <file>tests/Service/MultilingualBoundaryTest.php</file>
             <file>tests/Architecture/ContextSetupTest.php</file>
             <file>tests/Architecture/TestSuiteCoverageTest.php</file>
@@ -304,6 +306,7 @@
             <file>tests/Install/PageTranslationMigrationTest.php</file>
             <file>tests/Install/BlockTranslationSchemaTest.php</file>
             <file>tests/Install/BlockTranslationMigrationTest.php</file>
+            <file>tests/Install/RemainingBlockWordsMigrationTest.php</file>
             <file>tests/Install/PortfolioCatalogueSchemaTest.php</file>
             <file>tests/Install/PortfolioModulePinTest.php</file>
             <file>tests/Install/PortfolioPageLinkMigrationTest.php</file>
@@ -340,8 +343,11 @@
             <file>tests/Service/BlockLocalizationTest.php</file>
             <file>tests/Install/BlockTranslationSchemaTest.php</file>
             <file>tests/Install/BlockTranslationMigrationTest.php</file>
+            <file>tests/Install/RemainingBlockWordsMigrationTest.php</file>
             <file>tests/Service/BlockLocalizationEditorHttpTest.php</file>
+            <file>tests/Service/BlockWordsEditorHttpTest.php</file>
             <file>tests/Service/BlockLocalizedRenderingTest.php</file>
+            <file>tests/Service/RemainingBlocksRenderingTest.php</file>
             <file>tests/Service/BlockWordsPreloadTest.php</file>
             <file>tests/Service/BlockLibraryScreenTest.php</file>
             <file>tests/Service/BlockPickerTest.php</file>
@@ -351,6 +357,7 @@
             <file>tests/Service/BlockPresentationTest.php</file>
             <file>tests/Service/BreadcrumbTest.php</file>
             <file>tests/Repository/BlockTranslationRepositoryTest.php</file>
+            <file>tests/Repository/BlockTranslationTreeTest.php</file>
             <file>tests/Service/BlockTranslationIntegrityTest.php</file>
             <file>tests/Service/ContentBlockArchitectureTest.php</file>
             <file>tests/Service/FormRenderingTest.php</file>

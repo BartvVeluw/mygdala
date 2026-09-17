@@ -29,6 +29,10 @@ use Tests\Support\ScratchInstall;
  * URLs and is_active do not change; no other block type is touched; a second
  * run changes nothing; and words that cannot be moved stop the migration
  * before anything is dropped.
+ *
+ * Every database stops at MOVE: phase 3B moves the other block types in later
+ * migrations (Tests\Install\RemainingBlockWordsMigrationTest), and "no other
+ * block type is touched" is a statement about this migration.
  */
 #[Group('migration-backfill')]
 final class BlockTranslationMigrationTest extends TestCase
@@ -82,7 +86,7 @@ final class BlockTranslationMigrationTest extends TestCase
             return;
         }
 
-        self::$fresh = ScratchInstall::fresh(self::FRESH);
+        self::$fresh = ScratchInstall::upTo(self::FRESH, self::MOVE);
 
         self::$upgraded = ScratchInstall::upTo(self::UPGRADED, self::BEFORE);
         self::seed(self::$upgraded);
@@ -90,14 +94,14 @@ final class BlockTranslationMigrationTest extends TestCase
             self::$neutralBefore[$table] = self::$upgraded->rows("SELECT {$columns} FROM {$table} ORDER BY id");
         }
         self::$otherBlocksBefore = self::$upgraded->rows('SELECT * FROM feature_grids ORDER BY id');
-        self::$upgraded->catchUp();
+        self::$upgraded->catchUp(self::MOVE);
 
         $broken = ScratchInstall::upTo(self::BROKEN, self::SCHEMA);
         self::seed($broken);
         $broken->pdo()->exec("DELETE FROM page_translations WHERE language_code = 'en'");
         $broken->pdo()->exec("DELETE FROM site_languages WHERE code = 'en'");
         try {
-            $broken->catchUp();
+            $broken->catchUp(self::MOVE);
         } catch (\RuntimeException $e) {
             self::$brokenFailure = $e->getMessage();
         }
@@ -240,8 +244,8 @@ final class BlockTranslationMigrationTest extends TestCase
         $before = self::$upgraded->rows($query);
         $shapes = array_map(static fn (string $table): array => self::shape(self::$upgraded, $table), array_keys(self::LEGACY_COLUMNS));
 
-        self::$upgraded->replay(self::SCHEMA);
-        self::$upgraded->replay(self::MOVE);
+        self::$upgraded->replay(self::SCHEMA, self::MOVE);
+        self::$upgraded->replay(self::MOVE, self::MOVE);
 
         self::assertSame($before, self::$upgraded->rows($query));
         self::assertSame($shapes, array_map(static fn (string $table): array => self::shape(self::$upgraded, $table), array_keys(self::LEGACY_COLUMNS)));

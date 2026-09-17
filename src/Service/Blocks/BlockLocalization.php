@@ -38,15 +38,24 @@ use App\Service\RichTextSanitizer;
  * READS NEVER THROW: a lookup that fails is logged and reads as "no words".
  * Writes do throw, because an editor must hear that a save did not happen.
  *
+ * CHILD ROWS (phase 3B). A repeater's item, a card, a tag or an image owns
+ * its own words exactly like a block row does: its table is the owner table
+ * and its own id the owner id. BlockDefinition::childTables() says which
+ * table hangs under which, so this class can find a block's child rows by
+ * their parent: to load their words with the block's, and to remove their
+ * words before the rows go.
+ *
  * ONE QUERY PER PAGE. preloadSections() loads the words of every block on a
- * page at once (SectionRegistry::renderPage() calls it); a block read that
- * was not preloaded costs one query for that block, never one per language
- * or per field.
+ * page at once, child rows included (SectionRegistry::renderPage() calls it);
+ * a block read that was not preloaded costs one query for that block, never
+ * one per language, per field or per item.
  *
  * INTEGRITY without a foreign key on the owner (see the migration
  * 20260917160000): save() refuses an owner row that does not exist,
- * deleteOwner() runs inside SectionRegistry::delete()'s transaction, and
- * orphans() / purgeOrphans() find and remove whatever slipped past, for
+ * deleteOwner() removes the words of an owner and of every child row under it
+ * and runs inside the transaction of the delete it belongs to
+ * (SectionRegistry::delete(), and each child delete endpoint), and orphans() /
+ * purgeOrphans() find and remove whatever slipped past, for
  * scripts/block-translation-orphans.php.
  */
 final class BlockLocalization
@@ -54,11 +63,17 @@ final class BlockLocalization
     /** @var array<string, array<int, array<string, array<string, string>>>> table => id => language => field => words */
     private static array $cache = [];
 
+    /** @var array<string, array<int, true>> block rows whose child rows' words are loaded too */
+    private static array $loadedTrees = [];
+
     /** @var array<string, string> sanitized rich text per table|id|field|language, so one body is purified once per request */
     private static array $sanitized = [];
 
     /** @var array<string, array<string, TranslatableField>>|null owner table => field key => field */
     private static ?array $registry = null;
+
+    /** @var array<string, array<string, string>> parent table => child table => the child's column holding the parent id */
+    private static array $children = [];
 
     // ------------------------------------------------------------ the registry
 
@@ -83,6 +98,7 @@ final class BlockLocalization
     public static function forgetRegistry(): void
     {
         self::$registry = null;
+        self::$children = [];
     }
 
     // ------------------------------------------------------------ reading
@@ -193,6 +209,23 @@ final class BlockLocalization
     }
 
     /**
+     * bilingual() for every field one owner table declares, keyed by field:
+     * what a *Content class hands its partial. Owner id 0 gives every field
+     * empty, the shape of a block with nothing to show.
+     *
+     * @return array<string, LocalizedValue> field key => words
+     */
+    public static function words(string $ownerTable, int $ownerId): array
+    {
+        $words = [];
+        foreach (array_keys(self::fields($ownerTable)) as $field) {
+            $words[$field] = self::bilingual($ownerTable, $ownerId, $field);
+        }
+
+        return $words;
+    }
+
+    /**
      * Load the words of many owners in one query. Owners already loaded, and
      * tables no block declares, are left alone.
      *
@@ -221,26 +254,92 @@ final class BlockLocalization
     }
 
     /**
-     * preload() for the blocks of one page, straight from its page_sections
-     * rows: the content row of every block whose definition declares
-     * translatable fields for its content table.
+     * preloadBlocks() for the blocks of one page, straight from its
+     * page_sections rows.
      *
      * @param list<array<string, mixed>> $pageSections
      */
     public static function preloadSections(array $pageSections): void
     {
-        $ownerIds = [];
+        $blockIds = [];
 
         foreach ($pageSections as $pageSection) {
             $definition = BlockDefinitions::get((string) ($pageSection['section_type'] ?? ''));
             $table = $definition?->contentTable();
 
-            if ($table !== null && self::fields($table) !== []) {
-                $ownerIds[$table][] = (int) ($pageSection['section_id'] ?? 0);
+            if ($table !== null) {
+                $blockIds[$table][] = (int) ($pageSection['section_id'] ?? 0);
             }
         }
 
-        self::preload($ownerIds);
+        self::preloadBlocks($blockIds);
+    }
+
+    /**
+     * Load the words of whole blocks in ONE query: the words of their own
+     * rows, and of every row in the child tables their definitions declare,
+     * however deep. Afterwards every child row of those blocks counts as
+     * loaded, also the ones without a single word, so reading an item never
+     * costs a query of its own. Blocks already loaded are left alone.
+     *
+     * @param array<string, list<int>> $blockIds content table => block row ids
+     */
+    public static function preloadBlocks(array $blockIds): void
+    {
+        $owners = [];
+        $children = [];
+        $trees = [];
+
+        foreach ($blockIds as $table => $ids) {
+            $table = (string) $table;
+            $ids = array_values(array_unique(array_filter(array_map('intval', $ids), static fn (int $id): bool => $id > 0)));
+
+            if (self::fields($table) !== []) {
+                foreach ($ids as $id) {
+                    if (!array_key_exists($id, self::$cache[$table] ?? [])) {
+                        $owners[$table][] = $id;
+                    }
+                }
+            }
+
+            $unloaded = array_values(array_filter($ids, static fn (int $id): bool => !isset(self::$loadedTrees[$table][$id])));
+            foreach (self::descendants($table) as $descendant) {
+                if ($unloaded !== [] && self::fields($descendant['table']) !== []) {
+                    $children[] = ['chain' => $descendant['chain'], 'root_ids' => $unloaded];
+                    $trees[$table] = $unloaded;
+                }
+            }
+        }
+
+        if ($owners === [] && $children === []) {
+            return;
+        }
+
+        try {
+            $rows = (new BlockTranslationRepository())->findForOwnerTrees($owners, $children);
+        } catch (\Throwable $e) {
+            error_log('[BlockLocalization] block words could not be read: ' . $e->getMessage());
+            $rows = [];
+        }
+
+        foreach ($owners as $table => $ids) {
+            foreach ($ids as $id) {
+                self::$cache[$table][$id] = $rows[$table][$id] ?? [];
+            }
+        }
+
+        foreach ($children as $child) {
+            $table = $child['chain'][0][0];
+            foreach ($rows[$table] ?? [] as $id => $words) {
+                self::$cache[$table][$id] = $words;
+            }
+        }
+
+        foreach ($trees as $table => $ids) {
+            foreach ($ids as $id) {
+                self::$loadedTrees[$table][$id] = true;
+            }
+        }
     }
 
     /**
@@ -372,10 +471,17 @@ final class BlockLocalization
     }
 
     /**
-     * Remove every language of one owner. SectionRegistry::delete() calls
-     * this for every block it deletes, inside its transaction and for every
-     * content table, declared fields or not, so no block can leave words
-     * behind. Throws, so that transaction rolls back.
+     * Remove every language of one owner AND of every child row under it,
+     * however deep (BlockDefinition::childTables()): a block with its items,
+     * or a card with its tags.
+     *
+     * Call it BEFORE the rows are deleted, in the same transaction: the child
+     * ids are looked up through their parent here, and once the database's
+     * ON DELETE CASCADE has removed the child rows there is nothing left to
+     * find them by. SectionRegistry::delete() calls this for every block it
+     * deletes, for every content table, declared fields or not, and every
+     * endpoint that deletes a single child row calls it for that row. Throws,
+     * so that transaction rolls back.
      */
     public static function deleteOwner(string $ownerTable, int $ownerId): void
     {
@@ -383,10 +489,26 @@ final class BlockLocalization
             return;
         }
 
+        $repository = new BlockTranslationRepository();
+        $owners = [$ownerTable => [$ownerId]];
+
         try {
-            (new BlockTranslationRepository())->deleteOwner($ownerTable, $ownerId);
+            // Parents come before their children in descendants(), so the
+            // ids a child table is looked up by are always known already.
+            foreach (self::descendants($ownerTable) as $descendant) {
+                [$child, $column] = $descendant['chain'][0];
+                $parent = $descendant['chain'][1][0] ?? $ownerTable;
+
+                $owners[$child] = $repository->findChildOwnerIds($child, $column, $owners[$parent] ?? []);
+            }
+
+            $repository->deleteOwners($owners);
         } finally {
-            self::forget($ownerTable, $ownerId);
+            foreach ($owners as $table => $ids) {
+                foreach ($ids as $id) {
+                    self::forget($table, $id);
+                }
+            }
         }
     }
 
@@ -446,6 +568,7 @@ final class BlockLocalization
     public static function clearCache(): void
     {
         self::$cache = [];
+        self::$loadedTrees = [];
         self::$sanitized = [];
     }
 
@@ -462,14 +585,16 @@ final class BlockLocalization
     }
 
     /**
-     * Test seam: pretend the block registry declares exactly these fields.
-     * null goes back to the real registry.
+     * Test seam: pretend the block registry declares exactly these fields and
+     * child tables. null goes back to the real registry.
      *
      * @param array<string, list<TranslatableField>>|null $fields owner table => fields
+     * @param array<string, array{parent: string, column: string}> $childTables as BlockDefinition::childTables()
      */
-    public static function overrideRegistryForTests(?array $fields): void
+    public static function overrideRegistryForTests(?array $fields, array $childTables = []): void
     {
         self::$registry = $fields === null ? null : self::index($fields);
+        self::$children = $fields === null ? [] : self::indexChildren($childTables);
         self::clearCache();
     }
 
@@ -481,14 +606,66 @@ final class BlockLocalization
         }
 
         $declared = [];
+        $childTables = [];
         foreach (BlockDefinitions::all() as $definition) {
             // A table two block types share (item_gallery, project_cards) is
             // declared by both; the first declaration is used, and
-            // BlockTranslatableFieldsContractTest proves the two agree.
+            // BlockDefinitionContractTest::testBlocksThatShareATableDeclareTheSameFields
+            // proves the two agree.
             $declared += $definition->translatableFields();
+            $childTables += $definition->childTables();
         }
 
+        self::$children = self::indexChildren($childTables);
+
         return self::$registry = self::index($declared);
+    }
+
+    /**
+     * @param array<string, array{parent: string, column: string}> $childTables
+     * @return array<string, array<string, string>> parent table => child table => column
+     */
+    private static function indexChildren(array $childTables): array
+    {
+        $children = [];
+        foreach ($childTables as $child => $link) {
+            $children[(string) $link['parent']][(string) $child] = (string) $link['column'];
+        }
+
+        return $children;
+    }
+
+    /**
+     * Every table under one owner table, parents before their children, each
+     * with its chain of [table, column holding the parent's id] up to that
+     * owner table.
+     *
+     * @return list<array{table: string, chain: list<array{0: string, 1: string}>}>
+     */
+    private static function descendants(string $ownerTable): array
+    {
+        self::registry();
+
+        $found = [];
+        $seen = [$ownerTable => true];
+        $queue = [[$ownerTable, []]];
+
+        while ($queue !== []) {
+            [$parent, $chain] = array_shift($queue);
+
+            foreach (self::$children[$parent] ?? [] as $child => $column) {
+                if (isset($seen[$child])) {
+                    continue;
+                }
+
+                $seen[$child] = true;
+                $childChain = array_merge([[$child, $column]], $chain);
+                $found[] = ['table' => $child, 'chain' => $childChain];
+                $queue[] = [$child, $childChain];
+            }
+        }
+
+        return $found;
     }
 
     /**

@@ -22,16 +22,26 @@
  *
  * Which projects and the background are checked against the gallery's own
  * closed lists (App\Service\ItemGalleryContent) before anything is stored.
+ *
+ * ONE WEBSITE LANGUAGE (Multilingual 2.0): the title and lead are the words of
+ * the language named in `language_code`, which must be an active language of
+ * the website registry, and only that language is written, through
+ * ProjectCardsBlock::rowWords() and App\Service\Blocks\BlockLocalization, in
+ * the same transaction as the settings.
  */
 
 declare(strict_types=1);
 
 require_once __DIR__ . '/../../vendor/autoload.php';
 
+use App\Database;
 use App\Service\Language\AdminTranslator;
 use App\Service\AdminAuth;
+use App\Service\Blocks\BlockLocalization;
 use App\Service\Blocks\ProjectCardsBlock;
 use App\Service\Csrf;
+use App\Service\Language\LanguageCode;
+use App\Service\Language\SiteLanguages;
 use App\Service\ItemGalleryContent;
 use App\Service\SectionRegistry;
 use App\Repository\ItemGalleryRepository;
@@ -81,14 +91,27 @@ $fields = [
     'max_items' => $rawMaxItems === '' ? null : (int) $rawMaxItems,
     'show_filter_bar' => isset($_POST['show_filter_bar']),
     'background' => trim((string) ($_POST['background'] ?? '')),
-    'title_nl' => trim((string) ($_POST['title_nl'] ?? '')),
-    'title_en' => trim((string) ($_POST['title_en'] ?? '')),
-    'lead_nl' => trim((string) ($_POST['lead_nl'] ?? '')),
-    'lead_en' => trim((string) ($_POST['lead_en'] ?? '')),
     'is_active' => isset($_POST['is_active']),
 ];
 
+$languageCode = LanguageCode::normalise((string) ($_POST['language_code'] ?? '')) ?? '';
+$languageIsWritable = $languageCode !== '' && SiteLanguages::isActive($languageCode);
+
+// Only the two words this block's editor offers; rowWords() empties the rest.
+$words = ProjectCardsBlock::rowWords([
+    'title' => trim((string) ($_POST['title'] ?? '')),
+    'lead' => trim((string) ($_POST['lead'] ?? '')),
+]);
+
 $errors = [];
+
+if (!$languageIsWritable) {
+    $errors[] = AdminTranslator::trans('validation.language_unknown');
+} else {
+    foreach (BlockLocalization::messageKeys(BlockLocalization::problems('item_galleries', $languageCode, $words)) as $key) {
+        $errors[] = AdminTranslator::trans($key);
+    }
+}
 
 if (!ItemGalleryContent::isPortfolioScope($fields['portfolio_scope'])) {
     $errors[] = AdminTranslator::trans('validation.kies_welke_projecten');
@@ -102,21 +125,35 @@ if ($fields['max_items'] !== null && ($fields['max_items'] < 1 || $fields['max_i
     $errors[] = AdminTranslator::trans('validation.maximum_aantal_projecten');
 }
 
+$old = ['language_code' => $languageCode, 'title' => $words['title'], 'lead' => $words['lead']] + $fields;
+
 if ($errors !== []) {
     $_SESSION['admin_project_cards_errors'] = $errors;
-    $_SESSION['admin_project_cards_old'] = $fields;
+    $_SESSION['admin_project_cards_old'] = $old;
     header('Location: /admin/project-cards.php?section=' . urlencode($sectionParam));
     exit;
 }
 
+$db = Database::connection();
+
 try {
+    // The block's settings and its words in this language are one save.
+    $db->beginTransaction();
+
     $repository->upsertSection($pageSlug, $sectionKey, ProjectCardsBlock::rowValues($fields));
+    BlockLocalization::save('item_galleries', (int) $section['id'], $languageCode, $words);
+
+    $db->commit();
     ItemGalleryContent::clearCache();
 } catch (\Throwable $e) {
+    if ($db->inTransaction()) {
+        $db->rollBack();
+    }
+
     error_log('[api/admin/update-project-cards.php] ' . $e->getMessage());
 
     $_SESSION['admin_project_cards_errors'] = [AdminTranslator::trans('validation.projecten_niet_opgeslagen')];
-    $_SESSION['admin_project_cards_old'] = $fields;
+    $_SESSION['admin_project_cards_old'] = $old;
     header('Location: /admin/project-cards.php?section=' . urlencode($sectionParam));
     exit;
 }

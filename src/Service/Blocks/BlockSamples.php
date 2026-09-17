@@ -240,6 +240,12 @@ final class BlockSamples
         ]);
     }
 
+    /** A field this sample leaves empty, as one value in every language. */
+    public function none(): LocalizedValue
+    {
+        return LocalizedValue::of([]);
+    }
+
     /**
      * The $index-th text of a list role, as a field pair.
      *
@@ -259,10 +265,11 @@ final class BlockSamples
     }
 
     /**
-     * The sample picture, in the shape App\Service\Media\BlockImage resolves
-     * a stored one to.
+     * The sample picture, in the shapes App\Service\Media\BlockImage resolves
+     * a stored one to: `alt` as one value in every language (fromOwner()),
+     * and the alt_nl/alt_en pair of fromRow().
      *
-     * @return array{image_path: string, alt_nl: string, alt_en: string, width: int, height: int}
+     * @return array{image_path: string, alt: LocalizedValue, alt_nl: string, alt_en: string, width: int, height: int}
      */
     public function image(): array
     {
@@ -270,6 +277,7 @@ final class BlockSamples
 
         return [
             'image_path' => self::IMAGE_PATH,
+            'alt' => $this->localized('image_alt'),
             'alt_nl' => $alt['alt_nl'],
             'alt_en' => $alt['alt_en'],
             'width' => self::IMAGE_WIDTH,

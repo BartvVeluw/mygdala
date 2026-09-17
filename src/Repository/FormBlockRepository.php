@@ -45,23 +45,22 @@ class FormBlockRepository extends Repository
     }
 
     /**
-     * Inserts or updates the single row for this page_slug + section_key.
+     * Inserts or updates the single row for this page_slug + section_key:
+     * what is the same in every language. The block's heading and
+     * introduction are stored per website language through
+     * App\Service\Blocks\BlockLocalization (db/migrations/20260917180000).
      *
-     * @param array<string, mixed> $values form_id, title_nl/en, intro_nl/en, is_active
+     * @param array<string, mixed> $values form_id, is_active
      */
     public function upsertSection(string $pageSlug, string $sectionKey, array $values): void
     {
         $stmt = $this->db->prepare(
             'INSERT INTO form_blocks
-                (page_slug, section_key, form_id, title_nl, title_en, intro_nl, intro_en, is_active, created_at, updated_at)
+                (page_slug, section_key, form_id, is_active, created_at, updated_at)
              VALUES
-                (:page_slug, :section_key, :form_id, :title_nl, :title_en, :intro_nl, :intro_en, :is_active, NOW(), NOW())
+                (:page_slug, :section_key, :form_id, :is_active, NOW(), NOW())
              ON DUPLICATE KEY UPDATE
                 form_id = VALUES(form_id),
-                title_nl = VALUES(title_nl),
-                title_en = VALUES(title_en),
-                intro_nl = VALUES(intro_nl),
-                intro_en = VALUES(intro_en),
                 is_active = VALUES(is_active),
                 updated_at = NOW()'
         );
@@ -70,10 +69,6 @@ class FormBlockRepository extends Repository
             'page_slug' => $pageSlug,
             'section_key' => $sectionKey,
             'form_id' => self::positiveIntOrNull($values['form_id'] ?? null),
-            'title_nl' => self::nullIfEmpty($values['title_nl'] ?? null),
-            'title_en' => self::nullIfEmpty($values['title_en'] ?? null),
-            'intro_nl' => self::nullIfEmpty($values['intro_nl'] ?? null),
-            'intro_en' => self::nullIfEmpty($values['intro_en'] ?? null),
             'is_active' => ($values['is_active'] ?? true) ? 1 : 0,
         ]);
     }
@@ -117,13 +112,6 @@ class FormBlockRepository extends Repository
         $stmt->execute(['form_id' => $formId]);
 
         return $stmt->fetchAll();
-    }
-
-    private static function nullIfEmpty(mixed $value): ?string
-    {
-        $value = is_string($value) ? trim($value) : null;
-
-        return ($value !== null && $value !== '') ? $value : null;
     }
 
     private static function positiveIntOrNull(mixed $value): ?int

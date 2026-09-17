@@ -438,8 +438,6 @@ final class PortfolioModuleTest extends TestCase
             'max_items' => '6',
             'show_filter_bar' => true,
             'background' => 'soft',
-            'title_nl' => 'Werk',
-            'lead_nl' => 'Een greep',
             'is_active' => false,
             // What a crafted request might carry. None of it is read.
             'source_type' => 'collection',
@@ -457,16 +455,30 @@ final class PortfolioModuleTest extends TestCase
         $this->assertNull($row['collection_id']);
         $this->assertFalse($row['enable_lightbox']);
         $this->assertFalse($row['tight_top']);
-        foreach (['fallback_link_url', 'button_label_nl', 'button_label_en', 'button_url', 'eyebrow_nl', 'eyebrow_en', 'footer_note_nl', 'footer_note_en'] as $leftOut) {
+        foreach (['fallback_link_url', 'button_url'] as $leftOut) {
             $this->assertSame('', $row[$leftOut], $leftOut);
         }
+        foreach (['button_label_nl', 'eyebrow_nl', 'footer_note_nl', 'title_nl', 'lead_nl'] as $words) {
+            $this->assertArrayNotHasKey($words, $row, 'the words are stored per website language, not in the row');
+        }
+
+        // The words of one language: the title and the lead, and every other
+        // gallery word empty, whatever a crafted request carries.
+        $this->assertSame(
+            ['eyebrow' => '', 'title' => 'Werk', 'lead' => 'Een greep', 'footer_note' => '', 'button_label' => ''],
+            ProjectCardsBlock::rowWords([
+                'title' => 'Werk',
+                'lead' => 'Een greep',
+                'eyebrow' => 'Boven',
+                'footer_note' => 'Onder',
+                'button_label' => 'Klik',
+            ])
+        );
 
         $this->assertSame(ItemGalleryContent::SCOPE_FEATURED, $row['portfolio_scope']);
         $this->assertSame(6, $row['max_items']);
         $this->assertTrue($row['show_filter_bar']);
         $this->assertSame('soft', $row['background']);
-        $this->assertSame('Werk', $row['title_nl']);
-        $this->assertSame('Een greep', $row['lead_nl']);
         $this->assertFalse($row['is_active']);
 
         $this->assertSame(

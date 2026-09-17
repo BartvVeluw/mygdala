@@ -1,0 +1,241 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Tests\Service;
+
+use App\Service\Blocks\BlockLocalization;
+use App\Service\Blocks\BlockSamples;
+use App\Service\Forms\FormRenderState;
+use App\Service\Language\LocalizedValue;
+use App\Service\Media\BlockImage;
+use PHPUnit\Framework\TestCase;
+use Tests\Support\SiteLanguageFixture;
+
+require_once dirname(__DIR__, 2) . '/partials/section-page-hero.php';
+require_once dirname(__DIR__, 2) . '/partials/section-form.php';
+require_once dirname(__DIR__, 2) . '/partials/section-contact-form.php';
+require_once dirname(__DIR__, 2) . '/partials/section-item-gallery.php';
+
+/**
+ * What a visitor gets from the block types phase 3B moved onto per-language
+ * storage (Multilingual 2.0, docs/multilingual/ARCHITECTURE.md), rendered
+ * through their real partials from words pinned in
+ * App\Service\Blocks\BlockLocalization, for every default language the
+ * registry can have. The phase 3A blocks are
+ * Tests\Service\BlockLocalizedRenderingTest's.
+ *
+ * Per block: the first render shows the website's default language with the
+ * fallback applied; the V1 switch gets its data-nl/data-en pair from the same
+ * words; the default language decides whether a block (or an item) shows
+ * anything, so a translation alone shows nothing; a third language is only a
+ * row; and every word is plain text, escaped, never data-lang-html. No
+ * database: the registry comes from SiteLanguageFixture.
+ */
+final class RemainingBlocksRenderingTest extends TestCase
+{
+    private const ID = 43;
+
+    protected function tearDown(): void
+    {
+        BlockLocalization::clearCache();
+        SiteLanguageFixture::reset();
+    }
+
+    // ------------------------------------------------------------ Paginakop
+
+    public function testAPageHeroShowsTheDutchWordsFirstOnADutchSiteWithTheV1Pair(): void
+    {
+        SiteLanguageFixture::useBilingual('nl');
+        $this->words('page_heroes', [
+            'nl' => ['eyebrow' => 'Over ons', 'title' => 'Wie wij zijn', 'lead' => 'Een inleiding.'],
+            'en' => ['title' => 'Who we are'],
+        ]);
+
+        $html = $this->pageHero();
+
+        self::assertStringContainsString('<h1  data-nl="Wie wij zijn" data-en="Who we are">Wie wij zijn</h1>', $html);
+        self::assertStringContainsString('<p class="eyebrow"  data-nl="Over ons" data-en="Over ons">Over ons</p>', $html, 'an untranslated eyebrow falls back to Dutch in both halves');
+        self::assertStringNotContainsString('data-lang-html', $html);
+    }
+
+    public function testAPageHeroShowsTheEnglishWordsFirstOnAnEnglishSite(): void
+    {
+        SiteLanguageFixture::useBilingual('en');
+        $this->words('page_heroes', [
+            'nl' => ['title' => 'Wie wij zijn'],
+            'en' => ['title' => 'Who we are', 'lead' => 'An introduction.'],
+        ]);
+
+        $html = $this->pageHero();
+
+        self::assertStringContainsString('>Who we are</h1>', $html, 'the first render is the default language, not the Dutch words');
+        self::assertStringContainsString('data-nl="An introduction." data-en="An introduction.">An introduction.</p>', $html, 'untranslated Dutch falls back to English');
+    }
+
+    public function testAPageHeroInAThirdDefaultLanguageIsWhatBothV1HalvesFallBackTo(): void
+    {
+        SiteLanguageFixture::useLanguages([
+            SiteLanguageFixture::language('de', isDefault: true, sortOrder: 0),
+            SiteLanguageFixture::language('nl', sortOrder: 1),
+            SiteLanguageFixture::language('en', sortOrder: 2),
+        ]);
+        $this->words('page_heroes', ['de' => ['title' => 'Wer wir sind'], 'en' => ['title' => 'Who we are']]);
+
+        $html = $this->pageHero();
+
+        self::assertStringContainsString('data-nl="Wer wir sind" data-en="Who we are"', $html);
+    }
+
+    public function testAPageHeroWithATitleOnlyInTheTranslationRendersNothing(): void
+    {
+        SiteLanguageFixture::useBilingual('nl');
+        $this->words('page_heroes', ['en' => ['eyebrow' => 'About', 'title' => 'Only English on a Dutch site']]);
+
+        self::assertSame('', trim($this->pageHero()), 'the default language decides whether the header is there');
+    }
+
+    public function testAPageHeroEscapesItsWordsAndItsAltText(): void
+    {
+        SiteLanguageFixture::useBilingual('nl');
+        $this->words('page_heroes', [
+            'nl' => ['title' => '<script>alert(1)</script> & "kop"', 'lead' => '<img src=x onerror=alert(1)>'],
+            'en' => ['title' => '"><svg onload=alert(1)>'],
+        ]);
+
+        $html = $this->pageHero(['image_path' => '/assets/media/x.webp', 'image_alt' => LocalizedValue::of(['nl' => 'Foto "met" <b>markup</b>', 'en' => "Photo ' quote"])]);
+
+        self::assertStringContainsString('&lt;script&gt;alert(1)&lt;/script&gt; &amp; &quot;kop&quot;</h1>', $html);
+        self::assertStringContainsString('data-en="&quot;&gt;&lt;svg onload=alert(1)&gt;"', $html);
+        self::assertStringContainsString('alt="Foto &quot;met&quot; &lt;b&gt;markup&lt;/b&gt;" data-nl-alt="Foto &quot;met&quot; &lt;b&gt;markup&lt;/b&gt;" data-en-alt="Photo &#039; quote"', $html, 'alt text stays in its attribute, escaped, with its V1 pair');
+        self::assertStringNotContainsString('<script', $html);
+        self::assertStringNotContainsString('<svg', $html);
+        self::assertStringNotContainsString('<img src=x', $html);
+        self::assertStringNotContainsString('data-lang-html', $html);
+    }
+
+    // ------------------------------------------------------------ Formulier and Offerte-/contactformulier
+
+    public function testAFormBlockPrintsItsHeadingAndIntroductionInTheDefaultLanguage(): void
+    {
+        SiteLanguageFixture::useBilingual('en');
+        $this->words('form_blocks', ['nl' => ['title' => 'Stuur <b>een</b> bericht', 'intro' => 'Wij antwoorden.'], 'en' => ['title' => 'Send a message']]);
+
+        $html = $this->capture(fn () => render_section_form(
+            BlockLocalization::words('form_blocks', self::ID),
+            (new BlockSamples())->form(),
+            FormRenderState::fresh(FormRenderState::tokenFor('rendering-test', 'form'))
+        ));
+
+        self::assertStringContainsString('data-nl="Stuur &lt;b&gt;een&lt;/b&gt; bericht" data-en="Send a message">Send a message</h2>', $html, 'the English default first, the Dutch half escaped');
+        self::assertStringNotContainsString('form-block__intro', $html, 'an introduction only in Dutch is no introduction on an English-default site');
+        self::assertStringNotContainsString('data-lang-html', $html);
+    }
+
+    public function testAContactFormBlockPrintsItsHeadingFromTheDefaultLanguage(): void
+    {
+        SiteLanguageFixture::useBilingual('nl');
+        $this->words('contact_form_sections', ['nl' => ['title' => 'Vraag een offerte aan'], 'en' => ['title' => 'Request a quote']]);
+
+        $html = $this->capture(fn () => render_section_contact_form(
+            ['state' => 'active', 'title' => BlockLocalization::words('contact_form_sections', self::ID)['title'], 'form_id' => null, 'allow_attachment' => false],
+            null,
+            FormRenderState::fresh(FormRenderState::tokenFor('rendering-test', 'contact')),
+            ['email' => '', 'city_nl' => '', 'city_en' => '']
+        ));
+
+        self::assertStringContainsString('data-nl="Vraag een offerte aan" data-en="Request a quote">Vraag een offerte aan</h2>', $html);
+    }
+
+    // ------------------------------------------------------------ Galerij and Projecten
+
+    public function testAGalleryPrintsItsOwnWordsFromTheDefaultLanguageAndItsItemsAsTheyCame(): void
+    {
+        SiteLanguageFixture::useBilingual('en');
+        $this->words('item_galleries', [
+            'nl' => ['title' => 'Onze projecten', 'footer_note' => 'En meer.', 'button_label' => 'Al het werk'],
+            'en' => ['title' => 'Our projects', 'button_label' => '<b>All</b> work'],
+        ]);
+
+        $html = $this->gallery(['button_url' => '/work']);
+
+        self::assertStringContainsString('<h2  data-nl="Onze projecten" data-en="Our projects">Our projects</h2>', $html);
+        self::assertStringNotContainsString('En meer.', $html, 'a closing text only in Dutch is no closing text on an English-default site');
+        self::assertStringContainsString('data-nl="Al het werk" data-en="&lt;b&gt;All&lt;/b&gt; work">&lt;b&gt;All&lt;/b&gt; work</a>', $html);
+        self::assertStringNotContainsString('class="eyebrow"', $html, 'no eyebrow in the default language: no element');
+        self::assertStringContainsString('data-nl="Kaart NL" data-en="Card EN">Card EN</p>', $html, 'an item keeps its own source\'s Dutch/English pair');
+    }
+
+    public function testAGalleryButtonOnlyInTheTranslationDoesNotShow(): void
+    {
+        SiteLanguageFixture::useBilingual('nl');
+        $this->words('item_galleries', ['en' => ['button_label' => 'All work', 'title' => 'Only English']]);
+
+        $html = $this->gallery(['button_url' => '/work']);
+
+        self::assertStringNotContainsString('btn--ghost', $html, 'the default language has no label');
+        self::assertStringNotContainsString('section-head', $html, 'nor a heading');
+    }
+
+    // ------------------------------------------------------------ helpers
+
+    /** @param array<string, array<string, string>> $translations */
+    private function words(string $table, array $translations): void
+    {
+        BlockLocalization::overrideForTests($table, self::ID, $translations);
+    }
+
+    /** @param array<string, mixed> $image */
+    private function pageHero(array $image = []): string
+    {
+        $content = BlockLocalization::words('page_heroes', self::ID) + $image + [
+            'state' => 'active',
+            'media_id' => null,
+            'image_path' => '',
+            'image_alt' => BlockImage::fromOwner([], null)['alt'],
+            'image_width' => null,
+            'image_height' => null,
+            'content_position' => 'left',
+            'title_size' => 'normal',
+            'text_size' => 'normal',
+        ];
+
+        return $this->capture(static fn () => render_section_page_hero($content));
+    }
+
+    /** @param array<string, mixed> $settings */
+    private function gallery(array $settings): string
+    {
+        $content = BlockLocalization::words('item_galleries', self::ID) + $settings + [
+            'enable_lightbox' => false,
+            'filter_categories' => [],
+            'fallback_link_url' => '',
+            'button_url' => '',
+            'background' => 'default',
+            'tight_top' => false,
+            'items' => [[
+                'image_path' => 'assets/images/x.jpg',
+                'alt_nl' => '', 'alt_en' => '',
+                'title_nl' => 'Kaart NL', 'title_en' => 'Card EN',
+                'subtitle_nl' => '', 'subtitle_en' => '',
+                'categories' => '',
+                'url' => '',
+                'is_detail_link' => false,
+            ]],
+        ];
+
+        return $this->capture(static fn () => render_section_item_gallery($content, 'rendering-test'));
+    }
+
+    private function capture(\Closure $render): string
+    {
+        ob_start();
+        try {
+            $render();
+        } finally {
+            $html = (string) ob_get_clean();
+        }
+
+        return $html;
+    }
+}

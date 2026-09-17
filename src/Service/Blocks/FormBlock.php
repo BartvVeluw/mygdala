@@ -73,20 +73,31 @@ final class FormBlock extends BlockDefinition
         ];
     }
 
+    /**
+     * The block's own heading and introduction, per website language; which
+     * form it shows is the same in every language and stays in form_blocks.
+     * The form's own words are the form's (FORMS.md), not this block's.
+     */
+    public function translatableFields(): array
+    {
+        return [
+            'form_blocks' => [
+                TranslatableField::plain('title', 255),
+                TranslatableField::plain('intro', 1000),
+            ],
+        ];
+    }
+
     public function create(string $pageSlug): array
     {
         $key = self::newSectionKey();
 
         $repository = new FormBlockRepository();
-        // Deliberately empty: a new block asks the editor which form to
-        // show rather than guessing at one, and it renders nothing until
-        // they have chosen.
+        // Deliberately empty, and without words: a new block asks the editor
+        // which form to show rather than guessing at one, and it renders
+        // nothing until they have chosen.
         $repository->upsertSection($pageSlug, $key, [
             'form_id' => null,
-            'title_nl' => '',
-            'title_en' => '',
-            'intro_nl' => '',
-            'intro_en' => '',
             'is_active' => true,
         ]);
 
@@ -124,8 +135,8 @@ final class FormBlock extends BlockDefinition
         return [
             'form_id' => null,
             'form' => $samples->form(),
-            ...$samples->fields('title', 'form_title'),
-            ...$samples->fields('intro', 'form_intro'),
+            'title' => $samples->localized('form_title'),
+            'intro' => $samples->localized('form_intro'),
         ];
     }
 

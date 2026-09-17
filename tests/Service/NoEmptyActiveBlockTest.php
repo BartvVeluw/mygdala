@@ -13,6 +13,7 @@ use App\Repository\StatStripRepository;
 use App\Repository\StepListRepository;
 use App\Repository\TextImageSplitRepository;
 use App\Service\Blocks\BlockDefinitions;
+use App\Service\Blocks\BlockLocalization;
 use App\Service\FaqContent;
 use App\Service\FeatureGridContent;
 use App\Service\HomepageHeroContent;
@@ -186,13 +187,12 @@ final class NoEmptyActiveBlockTest extends TestCase
                 'checksum' => null,
             ]);
             (new PageHeroRepository())->upsert(self::TEST_SLUG, self::pageHeroValues([
-                'eyebrow_nl' => 'Bovenschrift',
-                'lead_nl' => 'Een inleiding',
                 'media_id' => $mediaId,
                 'content_position' => PageHeroContent::POSITION_CENTER,
                 'title_size' => PageHeroContent::SIZE_LARGE,
                 'text_size' => PageHeroContent::SIZE_LARGE,
             ]));
+            self::pageHeroWords(['eyebrow' => 'Bovenschrift', 'lead' => 'Een inleiding']);
             $pageSection = self::pageSection($type, self::TEST_SLUG, null, 0);
         } else {
             $this->deleteHomepageHero();
@@ -379,7 +379,8 @@ final class NoEmptyActiveBlockTest extends TestCase
         $words = 'Zichtbaar ' . $what;
 
         if ($type === 'page_hero') {
-            (new PageHeroRepository())->upsert(self::TEST_SLUG, self::pageHeroValues(['title_nl' => $words]));
+            (new PageHeroRepository())->upsert(self::TEST_SLUG, self::pageHeroValues([]));
+            self::pageHeroWords(['title' => $words]);
 
             return [self::pageSection($type, self::TEST_SLUG, null, 0), $words];
         }
@@ -435,7 +436,6 @@ final class NoEmptyActiveBlockTest extends TestCase
             'stat_strip' => (new StatStripRepository())->upsertStrip(self::TEST_SLUG, $sectionKey, ['is_active' => false]),
             'text_image_split' => (new TextImageSplitRepository())->upsertSection(self::TEST_SLUG, $sectionKey, ['is_active' => false]),
             'page_hero' => (new PageHeroRepository())->upsert(self::TEST_SLUG, self::pageHeroValues([
-                'title_nl' => 'Zichtbaar title',
                 'is_active' => false,
             ])),
             'homepage_hero' => (new HomepageHeroRepository())->upsert(HomepageHeroContent::PAGE_SLUG, self::homepageHeroValues([
@@ -515,8 +515,20 @@ final class NoEmptyActiveBlockTest extends TestCase
     }
 
     /**
+     * The Dutch words of the test page's Paginakop, in block_translations
+     * (Multilingual 2.0 phase 3B); the header row must exist.
+     *
+     * @param array<string, string> $words field => words
+     */
+    private static function pageHeroWords(array $words): void
+    {
+        $row = (new PageHeroRepository())->findBySlug(self::TEST_SLUG);
+        BlockLocalization::save('page_heroes', (int) $row['id'], 'nl', $words);
+    }
+
+    /**
      * Every column PageHeroRepository::upsert() writes, empty unless
-     * overridden.
+     * overridden. The words are pageHeroWords().
      *
      * @param array<string, mixed> $overrides
      *
@@ -525,9 +537,6 @@ final class NoEmptyActiveBlockTest extends TestCase
     private static function pageHeroValues(array $overrides): array
     {
         return array_merge([
-            'eyebrow_nl' => '', 'eyebrow_en' => '',
-            'title_nl' => '', 'title_en' => '',
-            'lead_nl' => '', 'lead_en' => '',
             'media_id' => null,
             'content_position' => PageHeroContent::POSITION_LEFT,
             'title_size' => PageHeroContent::SIZE_NORMAL,

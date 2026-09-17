@@ -5,12 +5,13 @@ declare(strict_types=1);
 require_once __DIR__ . '/../vendor/autoload.php';
 require_once __DIR__ . '/_translate.php';
 require_once __DIR__ . '/_save_bar.php';
-require_once __DIR__ . '/_language_fields.php';
+require_once __DIR__ . '/_localized_fields.php';
 
 use App\Repository\ContactFormRepository;
 use App\Repository\FormRepository;
 use App\Repository\PageRepository;
 use App\Service\AdminAuth;
+use App\Service\Blocks\BlockLocalization;
 use App\Service\Csrf;
 use App\Service\SectionRegistry;
 
@@ -60,17 +61,24 @@ $old = $_SESSION['admin_contact_form_old'] ?? null;
 unset($_SESSION['admin_contact_form_errors'], $_SESSION['admin_contact_form_old']);
 
 $saved = isset($_GET['saved']);
+$editLanguage = admin_localized_language();
 
+// What is the same in every language: handed back, else stored.
 $values = $old ?? [
-    'title_nl' => (string) $section['title_nl'],
-    'title_en' => (string) ($section['title_en'] ?? ''),
     'form_id' => $currentFormId === null ? '' : (string) $currentFormId,
     'allow_attachment' => (bool) $section['allow_attachment'],
     'is_active' => (bool) $section['is_active'],
 ];
 
+// The heading in the language on screen: typed and handed back in this
+// language, else stored in it (Multilingual 2.0, admin/_localized_fields.php).
+$title = is_array($old) && ($old['language_code'] ?? null) === $editLanguage
+    ? (string) ($old['title'] ?? '')
+    : BlockLocalization::raw('contact_form_sections', (int) $section['id'], 'title', $editLanguage);
+
 $csrfToken = Csrf::token();
 $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
+$required = admin_localized_required($editLanguage);
 ?>
 <!doctype html>
 <html lang="<?= htmlspecialchars(\App\Service\Language\AdminLocale::current(), ENT_QUOTES, 'UTF-8') ?>">
@@ -106,9 +114,10 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
   <?php endif; ?>
 
   <section class="admin-card">
-    <form method="post" action="/api/admin/update-contact-form.php" class="admin-product-form">
+    <form method="post" action="/api/admin/update-contact-form.php" class="admin-product-form"<?= is_array($old) ? ' data-save-bar-unsaved' : '' ?>>
       <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
       <input type="hidden" name="section" value="<?= $h($sectionParam) ?>">
+      <?= admin_localized_input($editLanguage) ?>
 
       <label><?= admin_te('block_contactform.welk_formulier') ?>
         <select name="form_id">
@@ -122,18 +131,11 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
       </label>
       <p class="admin-text-muted"><?= admin_te('block_contactform.zonder_formulier_formulier_uit') ?></p>
 
-      <?php admin_lang_bar(); ?>
-      <div class="admin-form-row admin-form-row--split">
-        <?php admin_lang_pane_start('nl'); ?>
-        <label><?= admin_te('block_contactform.kop_boven_formulier') ?>*
-          <input type="text" name="title_nl" maxlength="255" <?= admin_lang_required('nl') ?> value="<?= $h((string) ($values['title_nl'] ?? '')) ?>">
+      <?php admin_localized_bar($editLanguage); ?>
+      <div class="admin-form-row">
+        <label><?= admin_te('block_contactform.kop_boven_formulier') ?><?= $required !== '' ? '*' : '' ?>
+          <input type="text" name="title" maxlength="255"<?= $required ?> value="<?= $h($title) ?>"<?= admin_localized_placeholder_attr($editLanguage) ?>>
         </label>
-        <?php admin_lang_pane_end(); ?>
-        <?php admin_lang_pane_start('en'); ?>
-        <label><?= admin_te('block_contactform.kop_boven_formulier_2') ?>
-          <input type="text" name="title_en" maxlength="255" value="<?= $h((string) ($values['title_en'] ?? '')) ?>"<?= admin_lang_placeholder_attr('en') ?>>
-        </label>
-        <?php admin_lang_pane_end(); ?>
       </div>
 
       <label class="admin-checkbox-label">
@@ -153,6 +155,5 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
 </main>
 <?php save_bar(); ?>
 <?php save_bar_script(); ?>
-<?php admin_lang_script(); ?>
 </body>
 </html>

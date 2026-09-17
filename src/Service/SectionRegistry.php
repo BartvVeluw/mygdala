@@ -400,16 +400,19 @@ class SectionRegistry
         $db = \App\Database::connection();
         $db->beginTransaction();
         try {
-            $definition->deleteContent($pageSection);
-
-            // The block's words in every website language go in the same
-            // transaction, for every block with a content table: there is no
-            // foreign key that could cascade them (see BlockLocalization), so
-            // this line is what keeps block_translations free of orphans.
+            // The block's words in every website language, and those of its
+            // child rows, go in the same transaction, for every block with a
+            // content table: there is no foreign key that could cascade them
+            // (see BlockLocalization), so this line is what keeps
+            // block_translations free of orphans. BEFORE deleteContent(),
+            // because the child rows are found through the block's row and
+            // the database's own cascade removes them without a trace.
             $contentTable = $definition->contentTable();
             if ($contentTable !== null) {
                 BlockLocalization::deleteOwner($contentTable, (int) ($pageSection['section_id'] ?? 0));
             }
+
+            $definition->deleteContent($pageSection);
 
             $pageSectionRepository->delete((int) $pageSection['id']);
 

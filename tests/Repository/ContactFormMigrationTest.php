@@ -43,6 +43,14 @@ final class ContactFormMigrationTest extends TestCase
     private const FORM_MIGRATION = '20260909310000';
 
     /**
+     * The last migration before the block's heading moved into
+     * block_translations (Multilingual 2.0 phase 3B, 20260917180000). This
+     * test is about the forms migration, so its installation stops there and
+     * keeps storing a block the way the forms migration found one.
+     */
+    private const BEFORE_BLOCK_WORDS = '20260917170000';
+
+    /**
      * The five fields, in the order partials/section-contact-form.php used
      * to render them, with the keys the old markup posted under. These come
      * from this CMS's own former markup, not from any site's content.
@@ -82,7 +90,7 @@ final class ContactFormMigrationTest extends TestCase
         self::placeBlock(self::$slugs['quote'], 'main', 'Stel je vraag', 'Ask your question', true);
         self::placeBlock(self::$slugs['hidden'], 'custom-1a2b3c4d', 'Tweede formulier', null, false);
 
-        self::$install->catchUp();
+        self::$install->catchUp(self::BEFORE_BLOCK_WORDS);
         self::$afterFirstRun = self::migratedFormSnapshot();
 
         // The site lives on: a block that is still unlinked, and one an
@@ -92,7 +100,7 @@ final class ContactFormMigrationTest extends TestCase
         self::$editorFormId = self::createEditorForm();
         self::placeBlock(self::$slugs['editor'], 'main', 'Eigen keuze', null, true, self::$editorFormId);
 
-        self::$install->replay(self::FORM_MIGRATION);
+        self::$install->replay(self::FORM_MIGRATION, self::BEFORE_BLOCK_WORDS);
     }
 
     public static function tearDownAfterClass(): void

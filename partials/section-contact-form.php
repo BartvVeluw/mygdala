@@ -35,6 +35,12 @@
  * under the details card is its own repeatable block now
  * (partials/section-contact-card.php).
  *
+ * The block's own heading arrives as one LocalizedValue
+ * (App\Service\Blocks\BlockLocalization) and is printed through SiteText's
+ * visibleOf()/attrsOf(), plain text. The contact details are Site-instellingen
+ * and still a Dutch/English pair until that domain moves (Multilingual 2.0
+ * phase 4), so they keep the V1 helpers.
+ *
  * Everything this file shows arrives as arguments: the form and its state,
  * and the contact details, all looked up by
  * App\Service\Blocks\ContactFormBlock::render(). This file only renders, so
@@ -72,7 +78,7 @@ function render_section_contact_form(array $content, ?FormDefinition $form, Form
       <div class="contact-grid">
 
         <div class="contact-card" data-reveal>
-          <h2 style="font-size:1.4rem; margin-bottom:1.5rem;" <?= \App\Service\Language\SiteText::attrs($content['title_nl'], $content['title_en']) ?>><?= $h(\App\Service\Language\SiteText::visible($content['title_nl'], $content['title_en'])) ?></h2>
+          <h2 style="font-size:1.4rem; margin-bottom:1.5rem;" <?= \App\Service\Language\SiteText::attrsOf($content['title']) ?>><?= $h(\App\Service\Language\SiteText::visibleOf($content['title'])) ?></h2>
 
           <?php if ($form === null): ?>
             <?php

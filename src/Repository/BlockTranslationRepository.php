@@ -13,9 +13,10 @@ namespace App\Repository;
  * business, and nothing else calls this class.
  *
  * `owner_table` reaches SQL as a bound VALUE everywhere, except where the
- * owner table itself has to be read (ownerExists() and the orphan queries).
- * Those take the name from BlockLocalization's closed registry and refuse
- * anything that is not a plain table identifier before it is interpolated.
+ * owner table itself has to be read (ownerExists(), the child-row lookups of
+ * a block and the orphan queries). Those take table and column names from
+ * BlockLocalization's closed registry and refuse anything that is not a plain
+ * identifier before it is interpolated.
  */
 final class BlockTranslationRepository extends Repository
 {
@@ -60,6 +61,110 @@ final class BlockTranslationRepository extends Repository
         }
 
         return $rows;
+    }
+
+    /**
+     * findForOwners() for whole blocks at once: the words of the blocks' own
+     * rows by id, and the words of every row of their child tables, found
+     * through the child tables themselves. One statement (UNION ALL), so a
+     * page with twenty repeaters costs one query for all their words.
+     *
+     * A child row without a single word still comes back, as [], because
+     * the caller has to know it was looked for: otherwise every untranslated
+     * item would cost a query of its own later.
+     *
+     * @param array<string, list<int>> $ownerIds owner table => row ids
+     * @param list<array{chain: list<array{0: string, 1: string}>, root_ids: list<int>}> $children
+     *        per child table: the chain of [table, column holding its parent's id] from that
+     *        child table up to the block's own table, and the ids of those block rows
+     * @return array<string, array<int, array<string, array<string, string>>>> table => id => language => field => value
+     */
+    public function findForOwnerTrees(array $ownerIds, array $children): array
+    {
+        $parts = [];
+        $parameters = [];
+        $tables = [];
+
+        foreach ($ownerIds as $table => $ids) {
+            $ids = self::ids($ids);
+            if ($ids === []) {
+                continue;
+            }
+
+            $tables[] = (string) $table;
+            $parts[] = 'SELECT ' . (count($tables) - 1) . ' AS part, owner_id, language_code, field, value
+                          FROM block_translations
+                         WHERE owner_table = ? AND owner_id IN (' . self::placeholders($ids) . ')';
+            $parameters[] = (string) $table;
+            array_push($parameters, ...$ids);
+        }
+
+        foreach ($children as $child) {
+            $chain = $child['chain'];
+            $rootIds = self::ids($child['root_ids']);
+            if ($chain === [] || $rootIds === []) {
+                continue;
+            }
+
+            $tables[] = $chain[0][0];
+            $sql = 'SELECT ' . (count($tables) - 1) . ' AS part, c0.id AS owner_id, t.language_code, t.field, t.value
+                      FROM `' . self::identifier($chain[0][0]) . '` c0';
+
+            for ($i = 1, $n = count($chain); $i < $n; $i++) {
+                $sql .= ' JOIN `' . self::identifier($chain[$i][0]) . '` c' . $i
+                    . ' ON c' . $i . '.id = c' . ($i - 1) . '.`' . self::identifier($chain[$i - 1][1]) . '`';
+            }
+
+            $last = count($chain) - 1;
+            $parts[] = $sql . ' LEFT JOIN block_translations t ON t.owner_table = ? AND t.owner_id = c0.id
+                               WHERE c' . $last . '.`' . self::identifier($chain[$last][1]) . '` IN (' . self::placeholders($rootIds) . ')';
+            $parameters[] = $chain[0][0];
+            array_push($parameters, ...$rootIds);
+        }
+
+        if ($parts === []) {
+            return [];
+        }
+
+        $stmt = $this->db->prepare(implode(' UNION ALL ', $parts));
+        $stmt->execute($parameters);
+
+        $rows = [];
+        foreach ($stmt->fetchAll() as $row) {
+            $table = $tables[(int) $row['part']];
+            $id = (int) $row['owner_id'];
+            $rows[$table][$id] ??= [];
+
+            if ($row['language_code'] !== null) {
+                $rows[$table][$id][(string) $row['language_code']][(string) $row['field']] = (string) $row['value'];
+            }
+        }
+
+        return $rows;
+    }
+
+    /**
+     * The ids of the rows of one child table that hang under the given parent
+     * rows: what has to be known BEFORE a delete removes those rows.
+     *
+     * @param list<int> $parentIds
+     * @return list<int>
+     */
+    public function findChildOwnerIds(string $childTable, string $parentColumn, array $parentIds): array
+    {
+        $parentIds = self::ids($parentIds);
+        if ($parentIds === []) {
+            return [];
+        }
+
+        $stmt = $this->db->prepare(
+            'SELECT id FROM `' . self::identifier($childTable) . '`
+              WHERE `' . self::identifier($parentColumn) . '` IN (' . self::placeholders($parentIds) . ')
+              ORDER BY id'
+        );
+        $stmt->execute($parentIds);
+
+        return array_map('intval', $stmt->fetchAll(\PDO::FETCH_COLUMN));
     }
 
     /**
@@ -128,8 +233,37 @@ final class BlockTranslationRepository extends Repository
     /** Removes every language of one owner. Takes part in an open transaction. */
     public function deleteOwner(string $ownerTable, int $ownerId): int
     {
-        $stmt = $this->db->prepare('DELETE FROM block_translations WHERE owner_table = ? AND owner_id = ?');
-        $stmt->execute([$ownerTable, $ownerId]);
+        return $this->deleteOwners([$ownerTable => [$ownerId]]);
+    }
+
+    /**
+     * Removes every language of many owners in one statement: a block and
+     * all of its child rows. Takes part in an open transaction.
+     *
+     * @param array<string, list<int>> $ownerIds owner table => row ids
+     */
+    public function deleteOwners(array $ownerIds): int
+    {
+        $clauses = [];
+        $parameters = [];
+
+        foreach ($ownerIds as $table => $ids) {
+            $ids = self::ids($ids);
+            if ($ids === []) {
+                continue;
+            }
+
+            $clauses[] = '(owner_table = ? AND owner_id IN (' . self::placeholders($ids) . '))';
+            $parameters[] = (string) $table;
+            array_push($parameters, ...$ids);
+        }
+
+        if ($clauses === []) {
+            return 0;
+        }
+
+        $stmt = $this->db->prepare('DELETE FROM block_translations WHERE ' . implode(' OR ', $clauses));
+        $stmt->execute($parameters);
 
         return $stmt->rowCount();
     }
@@ -225,6 +359,7 @@ final class BlockTranslationRepository extends Repository
         );
     }
 
+    /** A table or column name from the block registry, refused unless it is a plain identifier. */
     private static function identifier(string $table): string
     {
         if (preg_match('/\A[a-z][a-z0-9_]{0,63}\z/', $table) !== 1) {
@@ -232,5 +367,20 @@ final class BlockTranslationRepository extends Repository
         }
 
         return $table;
+    }
+
+    /**
+     * @param array<mixed> $ids
+     * @return list<int> positive, unique
+     */
+    private static function ids(array $ids): array
+    {
+        return array_values(array_unique(array_filter(array_map('intval', $ids), static fn (int $id): bool => $id > 0)));
+    }
+
+    /** @param list<int> $ids */
+    private static function placeholders(array $ids): string
+    {
+        return implode(',', array_fill(0, count($ids), '?'));
     }
 }

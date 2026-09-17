@@ -30,7 +30,9 @@ use PHPUnit\Framework\TestCase;
  * - the trail no longer lives inside the Paginakop, so hiding, deleting or
  *   never adding that block leaves it standing;
  * - its label is the page's own title, read per render, instead of a copy
- *   typed into `page_heroes.breadcrumb_label_nl` that fell behind a rename;
+ *   typed into the Paginakop that fell behind a rename (those legacy
+ *   `page_heroes.breadcrumb_label_*` columns are gone since
+ *   db/migrations/20260917180000);
  * - the homepage link has one spelling, the site root's own address, instead
  *   of the three the templates had grown;
  * - the markup is a named `<nav>` around an `<ol>`, the current page is not a
@@ -466,54 +468,31 @@ final class BreadcrumbTest extends TestCase
         $this->assertSame(['Home', 'Testpagina kruimelpad'], $this->labels(PageBreadcrumb::forPage($page)));
     }
 
-    public function testAStoredLegacyBreadcrumbLabelIsNeverRead(): void
+    public function testThePageHeroCarriesNoBreadcrumbLabelAnyMore(): void
     {
         $page = $this->storePage();
-        $this->storeHeader(true);
-
-        // The value an editor typed before this phase, left in place on
-        // purpose (db/migrations/20260916120000) and deliberately different
-        // from the page's title.
-        Database::connection()
-            ->prepare('UPDATE page_heroes SET breadcrumb_label_nl = :label WHERE page_slug = :slug')
-            ->execute(['label' => 'Oude kruimel', 'slug' => self::TEST_KEY]);
-        PageHeroContent::clearCache();
-
-        $html = $this->render(PageBreadcrumb::forPage($page));
-
-        $this->assertStringNotContainsString('Oude kruimel', $html);
-        $this->assertStringContainsString('Testpagina kruimelpad', $html);
-        $this->assertArrayNotHasKey(
-            'breadcrumb_label_nl',
-            PageHeroContent::forSlug(self::TEST_KEY),
-            'the block does not carry the field any more either'
-        );
-    }
-
-    public function testCreatingAPageHeroLeavesTheLegacyColumnsAlone(): void
-    {
-        $this->storePage();
         $definition = BlockDefinitions::get('page_hero');
         $this->assertNotNull($definition);
         $definition->create(self::TEST_KEY);
+        PageHeroContent::clearCache();
+
+        // The legacy columns an editor once typed a label into are gone
+        // (db/migrations/20260917180000): nothing read them since the trail
+        // became the page's own navigation.
+        $columns = Database::connection()->query(
+            "SELECT column_name FROM information_schema.columns
+              WHERE table_schema = DATABASE() AND table_name = 'page_heroes' AND column_name LIKE 'breadcrumb%'"
+        )->fetchAll();
+        $this->assertSame([], $columns);
 
         $row = (new PageHeroRepository())->findBySlug(self::TEST_KEY);
         $this->assertNotNull($row);
-        $this->assertSame('', (string) $row['breadcrumb_label_nl'], 'a new row writes nothing into it');
 
-        Database::connection()
-            ->prepare('UPDATE page_heroes SET breadcrumb_label_nl = :label WHERE page_slug = :slug')
-            ->execute(['label' => 'Bewaard', 'slug' => self::TEST_KEY]);
+        foreach (array_keys(PageHeroContent::forSlug(self::TEST_KEY)) as $key) {
+            $this->assertStringNotContainsString('breadcrumb', (string) $key, 'the block does not carry the field either');
+        }
 
-        (new PageHeroRepository())->upsert(self::TEST_KEY, PageHeroContent::startingValues() + ['is_active' => true]);
-
-        $row = (new PageHeroRepository())->findBySlug(self::TEST_KEY);
-        $this->assertNotNull($row);
-        $this->assertSame(
-            'Bewaard',
-            (string) $row['breadcrumb_label_nl'],
-            'saving the header again must not blank a legacy value; removing the column is a separate decision'
-        );
+        $this->assertSame(['Home', 'Testpagina kruimelpad'], $this->labels(PageBreadcrumb::forPage($page)));
     }
 
     /* ------------------------------------------------------------------ */

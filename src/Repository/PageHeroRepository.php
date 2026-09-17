@@ -22,9 +22,12 @@ class PageHeroRepository extends Repository
     }
 
     /**
-     * Inserts or updates the single row for this page slug. Used by the
-     * admin Page Hero edit form, which always submits every field together,
-     * and by PageHeroBlock::create() with PageHeroContent::startingValues().
+     * Inserts or updates the single row for this page slug: what is the same
+     * in every language. The header's words (eyebrow, title, lead) are stored
+     * per website language through App\Service\Blocks\BlockLocalization
+     * (Multilingual 2.0 phase 3B), so this writes none. Used by the admin Page
+     * Hero edit form and by PageHeroBlock::create() with
+     * PageHeroContent::startingValues().
      *
      * Every key is required, the image and the three presentation choices
      * included: a caller that left one out would silently reset what an
@@ -32,35 +35,18 @@ class PageHeroRepository extends Repository
      * the Media Library (BlockImage::fromRequest()) or null, and each choice
      * one of PageHeroContent's closed lists — so this only writes them.
      *
-     * THE TWO BREADCRUMB COLUMNS ARE LEGACY and no caller passes them any
-     * more: the breadcrumb is the page's own navigation now
-     * (App\Service\Breadcrumbs\PageBreadcrumb). `breadcrumb_label_nl` is NOT
-     * NULL with no default, so an INSERT still has to name it and writes the
-     * empty string; the UPDATE half leaves both columns alone, so a value an
-     * editor typed before this change survives every later save instead of
-     * being blanked by it. Removing the columns is a separate, destructive
-     * decision — see db/migrations/20260916120000.
-     *
-     * @param array<string, string|bool|int|null> $values
+     * @param array{media_id: int|null, content_position: string, title_size: string, text_size: string, is_active: bool} $values
      */
     public function upsert(string $pageSlug, array $values): void
     {
         $stmt = $this->db->prepare(
             'INSERT INTO page_heroes
-                (page_slug, eyebrow_nl, eyebrow_en, title_nl, title_en, lead_nl, lead_en,
-                 breadcrumb_label_nl, media_id, content_position, title_size, text_size,
+                (page_slug, media_id, content_position, title_size, text_size,
                  is_active, created_at, updated_at)
              VALUES
-                (:page_slug, :eyebrow_nl, :eyebrow_en, :title_nl, :title_en, :lead_nl, :lead_en,
-                 :breadcrumb_label_nl, :media_id, :content_position, :title_size, :text_size,
+                (:page_slug, :media_id, :content_position, :title_size, :text_size,
                  :is_active, NOW(), NOW())
              ON DUPLICATE KEY UPDATE
-                eyebrow_nl = VALUES(eyebrow_nl),
-                eyebrow_en = VALUES(eyebrow_en),
-                title_nl = VALUES(title_nl),
-                title_en = VALUES(title_en),
-                lead_nl = VALUES(lead_nl),
-                lead_en = VALUES(lead_en),
                 media_id = VALUES(media_id),
                 content_position = VALUES(content_position),
                 title_size = VALUES(title_size),
@@ -71,14 +57,6 @@ class PageHeroRepository extends Repository
 
         $stmt->execute([
             'page_slug' => $pageSlug,
-            'eyebrow_nl' => $values['eyebrow_nl'],
-            'eyebrow_en' => $values['eyebrow_en'] !== '' ? $values['eyebrow_en'] : null,
-            'title_nl' => $values['title_nl'],
-            'title_en' => $values['title_en'] !== '' ? $values['title_en'] : null,
-            'lead_nl' => $values['lead_nl'] !== '' ? $values['lead_nl'] : null,
-            'lead_en' => $values['lead_en'] !== '' ? $values['lead_en'] : null,
-            // A legacy column that only the INSERT still has to name; see above.
-            'breadcrumb_label_nl' => '',
             'media_id' => $values['media_id'] !== null ? (int) $values['media_id'] : null,
             'content_position' => $values['content_position'],
             'title_size' => $values['title_size'],

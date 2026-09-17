@@ -158,8 +158,15 @@ final class LegacyUpgradeTest extends TestCase
      */
     public function testEveryPageHeaderKeepsItsTextAndTheLookItHad(): void
     {
+        // Since 20260917180000 the title is the Dutch `title` of the header in
+        // block_translations rather than a column of page_heroes.
         $rows = $this->install()->rows(
-            'SELECT page_slug, title_nl, media_id, content_position, title_size, text_size FROM page_heroes ORDER BY page_slug'
+            "SELECT h.page_slug AS page_slug, t.value AS title_nl, h.media_id AS media_id, h.content_position AS content_position,
+                    h.title_size AS title_size, h.text_size AS text_size
+               FROM page_heroes h
+               LEFT JOIN block_translations t
+                 ON t.owner_table = 'page_heroes' AND t.owner_id = h.id AND t.language_code = 'nl' AND t.field = 'title'
+              ORDER BY h.page_slug"
         );
 
         $this->assertNotSame([], $rows, 'the existing site had page headers to keep');

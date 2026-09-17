@@ -11,6 +11,7 @@ use App\Repository\ItemGalleryRepository;
 use App\Repository\PageRepository;
 use App\Repository\PageSectionRepository;
 use App\Repository\PortfolioGalleryRepository;
+use App\Service\Blocks\BlockLocalization;
 use App\Service\Blocks\ProjectCardsBlock;
 use App\Service\ItemGalleryContent;
 use App\Service\PageContent;
@@ -123,7 +124,7 @@ final class ProjectCardsBlockTest extends TestCase
         $this->assertNull($row['collection_id']);
         $this->assertSame(0, (int) $row['show_filter_bar']);
         $this->assertSame(0, (int) $row['enable_lightbox']);
-        $this->assertNull($row['title_nl'], 'no heading until the editor writes one');
+        $this->assertSame([], BlockLocalization::translations('item_galleries', (int) $row['id']), 'no heading until the editor writes one');
         $this->assertSame(1, (int) $row['is_active']);
 
         $html = $this->renderBlock($blockId);
@@ -263,14 +264,14 @@ final class ProjectCardsBlockTest extends TestCase
         $this->assertStringContainsString('gallery-grid', $bare);
         $this->assertStringNotContainsString('section-head', $bare, 'no title and no introduction: no heading markup at all');
 
-        $this->configure($pageKey, $sectionKey, ['title_nl' => 'ZZ Onze projecten ' . $marker]);
+        $this->configure($pageKey, $sectionKey, ['title' => 'ZZ Onze projecten ' . $marker]);
 
         $titled = $this->renderBlock($blockId);
         $this->assertStringContainsString('ZZ Onze projecten ' . $marker . '</h2>', $titled);
         $this->assertStringNotContainsString('class="lead"', $titled);
         $this->assertStringNotContainsString('class="eyebrow"', $titled);
 
-        $this->configure($pageKey, $sectionKey, ['title_nl' => '', 'lead_nl' => 'ZZ Een greep uit ons werk ' . $marker]);
+        $this->configure($pageKey, $sectionKey, ['title' => '', 'lead' => 'ZZ Een greep uit ons werk ' . $marker]);
 
         $introduced = $this->renderBlock($blockId);
         $this->assertStringContainsString('ZZ Een greep uit ons werk ' . $marker . '</p>', $introduced);
@@ -279,7 +280,7 @@ final class ProjectCardsBlockTest extends TestCase
 
     public function testWithoutProjectsTheBlockLeavesNoSection(): void
     {
-        [$blockId] = $this->projectsBlock(['title_nl' => 'ZZ Kop zonder projecten']);
+        [$blockId] = $this->projectsBlock(['title' => 'ZZ Kop zonder projecten']);
 
         // Every project hidden, inside a transaction tearDown() rolls back: the
         // one way to ask a database that holds projects for "none at all".
@@ -300,7 +301,7 @@ final class ProjectCardsBlockTest extends TestCase
         $this->item('ZZ Blijft ' . $marker);
 
         [$blockId, $sectionKey, $pageKey, $pageId] = $this->projectsBlock([
-            'title_nl' => 'ZZ Projecten ' . $marker,
+            'title' => 'ZZ Projecten ' . $marker,
             'max_items' => 200,
             'show_filter_bar' => true,
             'background' => 'soft',
@@ -370,7 +371,8 @@ final class ProjectCardsBlockTest extends TestCase
 
     /**
      * $settings over what the block holds, stored through
-     * ProjectCardsBlock::rowValues(): exactly what its endpoint stores.
+     * ProjectCardsBlock::rowValues() and, for its Dutch title and lead,
+     * rowWords(): exactly what its endpoint stores.
      *
      * @param array<string, mixed> $settings
      */
@@ -378,17 +380,19 @@ final class ProjectCardsBlockTest extends TestCase
     {
         $repository = new ItemGalleryRepository();
         $current = (array) $repository->findBySlugAndKey($pageKey, $sectionKey);
+        $id = (int) $current['id'];
 
         $repository->upsertSection($pageKey, $sectionKey, ProjectCardsBlock::rowValues($settings + [
             'portfolio_scope' => (string) $current['portfolio_scope'],
             'max_items' => $current['max_items'] === null ? null : (int) $current['max_items'],
             'show_filter_bar' => (bool) $current['show_filter_bar'],
             'background' => (string) $current['background'],
-            'title_nl' => (string) ($current['title_nl'] ?? ''),
-            'title_en' => (string) ($current['title_en'] ?? ''),
-            'lead_nl' => (string) ($current['lead_nl'] ?? ''),
-            'lead_en' => (string) ($current['lead_en'] ?? ''),
             'is_active' => (bool) $current['is_active'],
+        ]));
+
+        BlockLocalization::save('item_galleries', $id, 'nl', ProjectCardsBlock::rowWords([
+            'title' => (string) ($settings['title'] ?? BlockLocalization::raw('item_galleries', $id, 'title', 'nl')),
+            'lead' => (string) ($settings['lead'] ?? BlockLocalization::raw('item_galleries', $id, 'lead', 'nl')),
         ]));
 
         ItemGalleryContent::clearCache();

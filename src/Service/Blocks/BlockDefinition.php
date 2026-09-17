@@ -252,8 +252,8 @@ abstract class BlockDefinition
     /**
      * The fields of this block whose words are stored per website language
      * in `block_translations` (Multilingual 2.0, docs/multilingual/ARCHITECTURE.md),
-     * keyed by the table whose rows own them — contentTable(), and in phase
-     * 3B also a child table:
+     * keyed by the table whose rows own them — contentTable(), or a child
+     * table this block declares in childTables():
      *
      *     return ['cta_bands' => [
      *         TranslatableField::plain('title', 255)->required(),
@@ -275,6 +275,33 @@ abstract class BlockDefinition
      * @return array<string, list<TranslatableField>> owner table => fields
      */
     public function translatableFields(): array
+    {
+        return [];
+    }
+
+    /**
+     * The child tables of this block whose rows own words of their own in
+     * `block_translations` (Multilingual 2.0 phase 3B), each with the table
+     * its rows belong to and the column that holds that row's id:
+     *
+     *     return [
+     *         'carousel_cards' => ['parent' => 'card_carousels', 'column' => 'carousel_id'],
+     *         'carousel_card_tags' => ['parent' => 'carousel_cards', 'column' => 'card_id'],
+     *     ];
+     *
+     * A child row is an owner like the block's own row: its table is the
+     * owner table, its own id the owner id, so sorting never touches it. This
+     * is what lets App\Service\Blocks\BlockLocalization find the child rows
+     * of a block BEFORE they go: the database's ON DELETE CASCADE runs no PHP,
+     * so their words would otherwise be left behind. The chain of parents
+     * always ends at contentTable(), and BlockTranslationSchemaTest holds each
+     * entry against the real foreign key.
+     *
+     * Empty for a block without child rows.
+     *
+     * @return array<string, array{parent: string, column: string}> child table => where its rows hang
+     */
+    public function childTables(): array
     {
         return [];
     }

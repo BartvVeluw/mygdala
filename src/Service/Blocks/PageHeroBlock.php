@@ -17,7 +17,8 @@ require_once dirname(__DIR__, 3) . '/partials/section-page-hero.php';
  *
  * The image belongs to the library, not to this block, so deleting a hero
  * removes only the reference and deleteFiles() keeps its empty default
- * (MEDIA.md, "Een nieuw blok aansluiten").
+ * (MEDIA.md, "Een nieuw blok aansluiten"). Its words are stored per website
+ * language in block_translations (BlockLocalization).
  */
 final class PageHeroBlock extends BlockDefinition
 {
@@ -81,14 +82,34 @@ final class PageHeroBlock extends BlockDefinition
         ];
     }
 
+    /**
+     * The words of the header, per website language; the image and the three
+     * choices are the same in every language and stay in page_heroes. The
+     * lengths are the ones the editor always allowed.
+     */
+    public function translatableFields(): array
+    {
+        return [
+            'page_heroes' => [
+                TranslatableField::plain('eyebrow', 150),
+                TranslatableField::plain('title', 255)->required(),
+                TranslatableField::plain('lead', 500),
+            ],
+        ];
+    }
+
     public function create(string $pageSlug): array
     {
         $repository = new PageHeroRepository();
         $repository->upsert($pageSlug, PageHeroContent::startingValues() + ['is_active' => true]);
 
-        $row = $repository->findBySlug($pageSlug);
+        $id = (int) $repository->findBySlug($pageSlug)['id'];
 
-        return [(int) $row['id'], null];
+        // Generic starting words in the website's default language, the
+        // language every other language falls back to until it is written.
+        BlockLocalization::save('page_heroes', $id, BlockLocalization::defaultLanguage(), PageHeroContent::startingWords());
+
+        return [$id, null];
     }
 
     public function deleteContent(array $pageSection): void
@@ -118,13 +139,12 @@ final class PageHeroBlock extends BlockDefinition
         $image = $samples->image();
 
         return [
-            ...$samples->fields('eyebrow', 'eyebrow'),
-            ...$samples->fields('title', 'title'),
-            ...$samples->fields('lead', 'lead'),
+            'eyebrow' => $samples->localized('eyebrow'),
+            'title' => $samples->localized('title'),
+            'lead' => $samples->localized('lead'),
             'media_id' => null,
             'image_path' => $image['image_path'],
-            'image_alt_nl' => $image['alt_nl'],
-            'image_alt_en' => $image['alt_en'],
+            'image_alt' => $image['alt'],
             'image_width' => $image['width'],
             'image_height' => $image['height'],
             'content_position' => PageHeroContent::POSITION_LEFT,
@@ -150,7 +170,7 @@ final class PageHeroBlock extends BlockDefinition
 
     public function instanceTitle(array $pageSection): string
     {
-        return (string) (PageHeroContent::forSlug($this->pageSlug($pageSection))['title_nl'] ?? '');
+        return BlockLocalization::name('page_heroes', $this->sectionId($pageSection), 'title');
     }
 
     public function tightensFollowingBlock(): bool

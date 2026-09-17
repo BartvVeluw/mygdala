@@ -100,6 +100,22 @@ final class SiteText
     }
 
     /**
+     * attrsFor() for a value that arrives as ONE value in every language: the
+     * escaped ` data-nl-alt="..." data-en-alt="..."` pair of an alt text, an
+     * aria label, a placeholder or a content attribute. Plain text by
+     * definition: core.js writes these into attributes, never into markup.
+     */
+    public static function attrsForOf(string $kind, LocalizedValue $text): string
+    {
+        $attributes = '';
+        foreach ($text->attributeValues() as $code => $value) {
+            $attributes .= ' data-' . $code . '-' . $kind . '="' . self::escape($value) . '"';
+        }
+
+        return $attributes;
+    }
+
+    /**
      * The pair for SANITIZED rich text, marked `data-lang-html` so core.js
      * re-renders it with innerHTML rather than textContent — the one opt-in
      * the language switch allows (MULTILINGUAL.md). Nothing at all when every

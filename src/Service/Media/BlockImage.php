@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Service\Media;
 
+use App\Service\Language\LocalizedValue;
+
 /**
  * One image on a content block, resolved once for every block that uses the
  * Media Library.
@@ -78,6 +80,60 @@ final class BlockImage
             'image_path' => self::normalisePath((string) ($row[$pathKey] ?? '')),
             'alt_nl' => $altNl,
             'alt_en' => $altEn,
+            'width' => null,
+            'height' => null,
+            'media_id' => null,
+        ];
+    }
+
+    /**
+     * fromRow() for a block whose alt text is stored per website language
+     * (Multilingual 2.0, App\Service\Blocks\BlockLocalization): the same two
+     * layers, with the block's own words arriving as one value in every
+     * language, their fallback to the default language already applied.
+     *
+     *     the block's alt in this language  ->  in the default language
+     *                                        ->  the media item's alt text
+     *
+     * The last layer is this class's, as it is in fromRow(); a partial prints
+     * `alt` through App\Service\Language\SiteText and decides nothing.
+     *
+     * A block without an alt text of its own (the Paginakop) passes null and
+     * gets the media item's.
+     *
+     * @param array<string, mixed> $row      the block's own row
+     * @param LocalizedValue|null  $alt      the block's own alt text (BlockLocalization::bilingual())
+     * @param string               $mediaKey column holding the media id
+     * @param string               $pathKey  column holding the legacy path
+     *
+     * @return array{image_path: string, alt: LocalizedValue, width: int|null, height: int|null, media_id: int|null}
+     */
+    public static function fromOwner(array $row, ?LocalizedValue $alt, string $mediaKey = 'media_id', string $pathKey = 'image_path'): array
+    {
+        $media = MediaService::find(isset($row[$mediaKey]) ? (int) $row[$mediaKey] : null);
+        $central = trim((string) ($media?->altText ?? ''));
+        $alt ??= LocalizedValue::of([]);
+
+        $words = [];
+        foreach ($alt->attributeValues() as $code => $value) {
+            $words[$code] = $value !== '' ? $value : $central;
+        }
+
+        $layered = LocalizedValue::of($words, $alt->primaryLanguage());
+
+        if ($media !== null) {
+            return [
+                'image_path' => $media->publicPath(),
+                'alt' => $layered,
+                'width' => $media->hasDimensions() ? $media->width : null,
+                'height' => $media->hasDimensions() ? $media->height : null,
+                'media_id' => $media->id,
+            ];
+        }
+
+        return [
+            'image_path' => self::normalisePath((string) ($row[$pathKey] ?? '')),
+            'alt' => $layered,
             'width' => null,
             'height' => null,
             'media_id' => null,

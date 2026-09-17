@@ -5,9 +5,10 @@ declare(strict_types=1);
 require_once __DIR__ . '/../vendor/autoload.php';
 require_once __DIR__ . '/_translate.php';
 require_once __DIR__ . '/_save_bar.php';
-require_once __DIR__ . '/_language_fields.php';
+require_once __DIR__ . '/_localized_fields.php';
 
 use App\Service\AdminAuth;
+use App\Service\Blocks\BlockLocalization;
 use App\Service\Csrf;
 use App\Service\ItemGalleryContent;
 use App\Service\ItemGallerySources;
@@ -64,7 +65,9 @@ $old = $_SESSION['admin_item_gallery_old'] ?? null;
 unset($_SESSION['admin_item_gallery_errors'], $_SESSION['admin_item_gallery_old']);
 
 $saved = isset($_GET['saved']);
+$editLanguage = admin_localized_language();
 
+// What is the same in every language: handed back, else stored.
 $values = $old ?? [
     'source_type' => (string) $section['source_type'],
     'portfolio_scope' => (string) $section['portfolio_scope'],
@@ -73,21 +76,28 @@ $values = $old ?? [
     'show_filter_bar' => (bool) $section['show_filter_bar'],
     'enable_lightbox' => (bool) $section['enable_lightbox'],
     'fallback_link_url' => (string) ($section['fallback_link_url'] ?? ''),
-    'eyebrow_nl' => (string) ($section['eyebrow_nl'] ?? ''),
-    'eyebrow_en' => (string) ($section['eyebrow_en'] ?? ''),
-    'title_nl' => (string) ($section['title_nl'] ?? ''),
-    'title_en' => (string) ($section['title_en'] ?? ''),
-    'lead_nl' => (string) ($section['lead_nl'] ?? ''),
-    'lead_en' => (string) ($section['lead_en'] ?? ''),
-    'footer_note_nl' => (string) ($section['footer_note_nl'] ?? ''),
-    'footer_note_en' => (string) ($section['footer_note_en'] ?? ''),
-    'button_label_nl' => (string) ($section['button_label_nl'] ?? ''),
-    'button_label_en' => (string) ($section['button_label_en'] ?? ''),
     'button_url' => (string) ($section['button_url'] ?? ''),
     'background' => (string) $section['background'],
     'tight_top' => (bool) $section['tight_top'],
     'is_active' => (bool) $section['is_active'],
 ];
+
+$sectionId = (int) $section['id'];
+$oldInThisLanguage = is_array($old) && ($old['language_code'] ?? null) === $editLanguage;
+
+/**
+ * The words of one field on screen (Multilingual 2.0, admin/_localized_fields.php):
+ * typed and handed back in this language, else stored in it, without the
+ * default language's words in an empty translation.
+ */
+$word = static function (string $field) use ($old, $oldInThisLanguage, $sectionId, $editLanguage): string {
+    if ($oldInThisLanguage) {
+        return (string) ($old[$field] ?? '');
+    }
+
+    return BlockLocalization::raw('item_galleries', $sectionId, $field, $editLanguage);
+};
+$placeholder = admin_localized_placeholder_attr($editLanguage);
 
 /**
  * Which sources this deployment offers, and whether any of them needs a
@@ -162,9 +172,10 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
   <p class="admin-text-muted"><?= admin_t('block_gallery.galerij_toont_moment_item', ['v1' => (int) $itemCount]) ?></p>
 
   <section class="admin-card">
-    <form method="post" action="/api/admin/update-item-gallery.php" class="admin-product-form">
+    <form method="post" action="/api/admin/update-item-gallery.php" class="admin-product-form"<?= is_array($old) ? ' data-save-bar-unsaved' : '' ?>>
       <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
       <input type="hidden" name="section" value="<?= $h($sectionParam) ?>">
+      <?= admin_localized_input($editLanguage) ?>
 
       <h2><?= admin_te('block_gallery.inhoudsbron') ?></h2>
       <div class="admin-form-row admin-form-row--split">
@@ -244,68 +255,33 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
       </label>
 
       <h2 style="margin-top:2rem;"><?= admin_te('block_gallery.kop_optioneel') ?></h2>
-      <?php admin_lang_bar(); ?>
-      <div class="admin-form-row admin-form-row--split">
-        <?php admin_lang_pane_start('nl'); ?>
+      <?php admin_localized_bar($editLanguage); ?>
+      <div class="admin-form-row">
         <label><?= admin_te('block_gallery.bovenkop') ?>
-          <input type="text" name="eyebrow_nl" maxlength="255" value="<?= $h((string) ($values['eyebrow_nl'] ?? '')) ?>">
+          <input type="text" name="eyebrow" maxlength="255" value="<?= $h($word('eyebrow')) ?>"<?= $placeholder ?>>
         </label>
-        <?php admin_lang_pane_end(); ?>
-        <?php admin_lang_pane_start('en'); ?>
-        <label><?= admin_te('block_gallery.bovenkop_2') ?>
-          <input type="text" name="eyebrow_en" maxlength="255" value="<?= $h((string) ($values['eyebrow_en'] ?? '')) ?>"<?= admin_lang_placeholder_attr('en') ?>>
-        </label>
-        <?php admin_lang_pane_end(); ?>
       </div>
-      <div class="admin-form-row admin-form-row--split">
-        <?php admin_lang_pane_start('nl'); ?>
+      <div class="admin-form-row">
         <label><?= admin_te('common.title') ?>
-          <input type="text" name="title_nl" maxlength="255" value="<?= $h((string) ($values['title_nl'] ?? '')) ?>">
+          <input type="text" name="title" maxlength="255" value="<?= $h($word('title')) ?>"<?= $placeholder ?>>
         </label>
-        <?php admin_lang_pane_end(); ?>
-        <?php admin_lang_pane_start('en'); ?>
-        <label><?= admin_te('common.title') ?>
-          <input type="text" name="title_en" maxlength="255" value="<?= $h((string) ($values['title_en'] ?? '')) ?>"<?= admin_lang_placeholder_attr('en') ?>>
-        </label>
-        <?php admin_lang_pane_end(); ?>
       </div>
-      <div class="admin-form-row admin-form-row--split">
-        <?php admin_lang_pane_start('nl'); ?>
+      <div class="admin-form-row">
         <label><?= admin_te('block_gallery.introtekst') ?>
-          <textarea name="lead_nl" maxlength="600" rows="3"><?= $h((string) ($values['lead_nl'] ?? '')) ?></textarea>
+          <textarea name="lead" maxlength="600" rows="3"<?= $placeholder ?>><?= $h($word('lead')) ?></textarea>
         </label>
-        <?php admin_lang_pane_end(); ?>
-        <?php admin_lang_pane_start('en'); ?>
-        <label><?= admin_te('block_gallery.introtekst_2') ?>
-          <textarea name="lead_en" maxlength="600" rows="3"<?= admin_lang_placeholder_attr('en') ?>><?= $h((string) ($values['lead_en'] ?? '')) ?></textarea>
-        </label>
-        <?php admin_lang_pane_end(); ?>
       </div>
 
       <h2 style="margin-top:2rem;"><?= admin_te('block_gallery.onder_galerij_optioneel') ?></h2>
-      <div class="admin-form-row admin-form-row--split">
-        <?php admin_lang_pane_start('nl'); ?>
+      <div class="admin-form-row">
         <label><?= admin_te('block_gallery.slottekst') ?>
-          <textarea name="footer_note_nl" maxlength="600" rows="3"><?= $h((string) ($values['footer_note_nl'] ?? '')) ?></textarea>
+          <textarea name="footer_note" maxlength="600" rows="3"<?= $placeholder ?>><?= $h($word('footer_note')) ?></textarea>
         </label>
-        <?php admin_lang_pane_end(); ?>
-        <?php admin_lang_pane_start('en'); ?>
-        <label><?= admin_te('block_gallery.slottekst_2') ?>
-          <textarea name="footer_note_en" maxlength="600" rows="3"<?= admin_lang_placeholder_attr('en') ?>><?= $h((string) ($values['footer_note_en'] ?? '')) ?></textarea>
-        </label>
-        <?php admin_lang_pane_end(); ?>
       </div>
-      <div class="admin-form-row admin-form-row--split">
-        <?php admin_lang_pane_start('nl'); ?>
+      <div class="admin-form-row">
         <label><?= admin_te('block_gallery.knoplabel') ?>
-          <input type="text" name="button_label_nl" maxlength="150" value="<?= $h((string) ($values['button_label_nl'] ?? '')) ?>">
+          <input type="text" name="button_label" maxlength="150" value="<?= $h($word('button_label')) ?>"<?= $placeholder ?>>
         </label>
-        <?php admin_lang_pane_end(); ?>
-        <?php admin_lang_pane_start('en'); ?>
-        <label><?= admin_te('block_gallery.knoplabel_2') ?>
-          <input type="text" name="button_label_en" maxlength="150" value="<?= $h((string) ($values['button_label_en'] ?? '')) ?>"<?= admin_lang_placeholder_attr('en') ?>>
-        </label>
-        <?php admin_lang_pane_end(); ?>
       </div>
       <div class="admin-form-row">
         <label><?= admin_te('block_gallery.knop_url') ?>
@@ -324,6 +300,5 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
 </main>
 <?php save_bar(); ?>
 <?php save_bar_script(); ?>
-<?php admin_lang_script(); ?>
 </body>
 </html>

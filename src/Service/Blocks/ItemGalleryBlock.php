@@ -76,6 +76,25 @@ final class ItemGalleryBlock extends BlockDefinition
         ];
     }
 
+    /**
+     * The block's own words, per website language; the source and every
+     * display setting are the same in every language and stay in
+     * item_galleries. ProjectCardsBlock shares the table and this declaration.
+     * The lengths are the ones the editor always allowed.
+     */
+    public function translatableFields(): array
+    {
+        return [
+            'item_galleries' => [
+                TranslatableField::plain('eyebrow', 255),
+                TranslatableField::plain('title', 255),
+                TranslatableField::plain('lead', 600),
+                TranslatableField::plain('footer_note', 600),
+                TranslatableField::plain('button_label', 150),
+            ],
+        ];
+    }
+
     public function create(string $pageSlug): array
     {
         $key = self::newSectionKey();
@@ -146,11 +165,11 @@ final class ItemGalleryBlock extends BlockDefinition
             'show_filter_bar' => true,
             'enable_lightbox' => true,
             'fallback_link_url' => '',
-            ...$samples->fields('eyebrow', 'eyebrow'),
-            ...$samples->fields('title', 'title'),
-            ...$samples->fields('lead', 'lead'),
-            ...$samples->fields('footer_note', 'note'),
-            ...$samples->fields('button_label', 'button'),
+            'eyebrow' => $samples->localized('eyebrow'),
+            'title' => $samples->localized('title'),
+            'lead' => $samples->localized('lead'),
+            'footer_note' => $samples->localized('note'),
+            'button_label' => $samples->localized('button'),
             'button_url' => BlockSamples::LINK,
             'background' => 'default',
             'tight_top' => false,
@@ -174,12 +193,12 @@ final class ItemGalleryBlock extends BlockDefinition
      */
     public function instanceTitle(array $pageSection): string
     {
-        $content = ItemGalleryContent::forSection($this->pageSlug($pageSection), $this->sectionKey($pageSection));
-
-        $title = (string) ($content['title_nl'] ?? '');
+        $title = BlockLocalization::name('item_galleries', $this->sectionId($pageSection), 'title');
         if ($title !== '') {
             return $title;
         }
+
+        $content = ItemGalleryContent::forSection($this->pageSlug($pageSection), $this->sectionKey($pageSection));
 
         return ItemGalleryContent::sourceLabel((string) $content['source_type']);
     }

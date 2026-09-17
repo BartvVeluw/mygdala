@@ -352,13 +352,13 @@ final class BlockDefinitionContractTest extends TestCase
      * translatableFields() is the one list of a block's words per language
      * (Multilingual 2.0, docs/multilingual/ARCHITECTURE.md). Its keys become
      * `block_translations.owner_table`, so they may only name the block's own
-     * content table: a block that declared somebody else's table could write
-     * words onto rows it does not own. Phase 3B widens this to the block's
-     * own child tables, declared as such.
+     * content table or a child table the block declares as its own: a block
+     * that declared somebody else's table could write words onto rows it does
+     * not own.
      *
      * @dataProvider registeredTypes
      */
-    public function testTranslatableFieldsBelongToTheBlocksOwnTable(string $type): void
+    public function testTranslatableFieldsBelongToTheBlocksOwnTables(string $type): void
     {
         $definition = BlockDefinitions::get($type);
         $declared = $definition->translatableFields();
@@ -370,7 +370,8 @@ final class BlockDefinitionContractTest extends TestCase
         }
 
         $this->assertNotNull($definition->contentTable(), "{$type} declares translatable fields but owns no content table");
-        $this->assertSame([$definition->contentTable()], array_keys($declared), "{$type} may only declare fields for its own content table");
+        $ownTables = array_merge([$definition->contentTable()], array_keys($definition->childTables()));
+        $this->assertSame([], array_diff(array_keys($declared), $ownTables), "{$type} may only declare fields for its own content table and its declared child tables");
 
         foreach ($declared as $fields) {
             $this->assertNotSame([], $fields);
@@ -385,9 +386,48 @@ final class BlockDefinitionContractTest extends TestCase
         }
     }
 
+    /**
+     * A child table hangs under a table of the SAME block, and the chain of
+     * parents ends at the block's content table: that chain is how
+     * BlockLocalization finds a block's child rows before they are deleted.
+     * The column is checked against the real foreign key in
+     * Tests\Install\BlockTranslationSchemaTest.
+     *
+     * @dataProvider registeredTypes
+     */
+    public function testChildTablesHangUnderTheBlocksOwnRows(string $type): void
+    {
+        $definition = BlockDefinitions::get($type);
+        $children = $definition->childTables();
+
+        if ($children === []) {
+            $this->assertTrue(true, "{$type} has no child rows with words of their own");
+
+            return;
+        }
+
+        $this->assertNotNull($definition->contentTable(), "{$type} declares child tables but owns no content table");
+
+        foreach ($children as $child => $link) {
+            $this->assertMatchesRegularExpression('/\A[a-z][a-z0-9_]*\z/', (string) $child);
+            $this->assertSame(['parent', 'column'], array_keys($link), "{$type}: {$child} names its parent table and the column holding the parent's id");
+            $this->assertMatchesRegularExpression('/\A[a-z][a-z0-9_]*\z/', $link['column']);
+            $this->assertNotSame($definition->contentTable(), $child);
+
+            $table = (string) $child;
+            $steps = 0;
+            while ($table !== $definition->contentTable()) {
+                $this->assertArrayHasKey($table, $children, "{$type}: the chain above {$child} leaves the block");
+                $table = $children[$table]['parent'];
+                $this->assertLessThan(10, ++$steps, "{$type}: the chain above {$child} never ends");
+            }
+        }
+    }
+
     public function testBlocksThatShareATableDeclareTheSameFields(): void
     {
         $byTable = [];
+        $childrenByTable = [];
 
         foreach (BlockDefinitions::all() as $type => $definition) {
             $this->assertIsArray($definition->translatableFields(), $type);
@@ -398,10 +438,22 @@ final class BlockDefinitionContractTest extends TestCase
                     $fields
                 );
             }
+
+            if ($definition->contentTable() !== null) {
+                $childrenByTable[$definition->contentTable()][$type] = $definition->childTables();
+            }
+
+            foreach ($definition->childTables() as $child => $link) {
+                $childrenByTable['child:' . $child][$type] = $link;
+            }
         }
 
         foreach ($byTable as $table => $declarations) {
             $this->assertCount(1, array_unique(array_map('serialize', $declarations)), "the blocks sharing {$table} disagree about its words");
+        }
+
+        foreach ($childrenByTable as $table => $declarations) {
+            $this->assertCount(1, array_unique(array_map('serialize', $declarations)), "the blocks sharing {$table} disagree about its child tables");
         }
     }
 }

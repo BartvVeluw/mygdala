@@ -5,12 +5,13 @@ declare(strict_types=1);
 require_once __DIR__ . '/../vendor/autoload.php';
 require_once __DIR__ . '/_translate.php';
 require_once __DIR__ . '/_save_bar.php';
-require_once __DIR__ . '/_language_fields.php';
+require_once __DIR__ . '/_localized_fields.php';
 
 use App\Repository\FormBlockRepository;
 use App\Repository\FormRepository;
 use App\Repository\PageRepository;
 use App\Service\AdminAuth;
+use App\Service\Blocks\BlockLocalization;
 use App\Service\Csrf;
 use App\Service\SectionRegistry;
 
@@ -35,6 +36,13 @@ use App\Service\SectionRegistry;
  * not thereby get to change it, or to read what people sent: those are
  * `forms.manage` and `forms.submissions`, and this screen only needs
  * `pages.manage`.
+ *
+ * ONE WEBSITE LANGUAGE AT A TIME (Multilingual 2.0, admin/_localized_fields.php):
+ * the heading and introduction show the language chosen in the CMS shell, as
+ * stored and without the default language's words in an empty translation;
+ * the save writes that language only. The chosen form and "Actief" are the
+ * same in every language. Input a refused save hands back comes back in the
+ * language it was typed in, and the form then starts out unsaved.
  */
 
 AdminAuth::requireLogin();
@@ -69,19 +77,29 @@ $old = $_SESSION['admin_form_block_old'] ?? null;
 unset($_SESSION['admin_form_block_errors'], $_SESSION['admin_form_block_old']);
 
 $saved = isset($_GET['saved']);
+$editLanguage = admin_localized_language();
 
+// What is the same in every language: handed back, else stored.
 $values = $old ?? [
     'form_id' => $currentFormId === null ? '' : (string) $currentFormId,
-    'title_nl' => (string) ($section['title_nl'] ?? ''),
-    'title_en' => (string) ($section['title_en'] ?? ''),
-    'intro_nl' => (string) ($section['intro_nl'] ?? ''),
-    'intro_en' => (string) ($section['intro_en'] ?? ''),
     'is_active' => (bool) $section['is_active'],
 ];
 
+$sectionId = (int) $section['id'];
+$oldInThisLanguage = is_array($old) && ($old['language_code'] ?? null) === $editLanguage;
+
+/** The words of one field on screen: typed and handed back in this language, else stored in it. */
+$word = static function (string $field) use ($old, $oldInThisLanguage, $sectionId, $editLanguage): string {
+    if ($oldInThisLanguage) {
+        return (string) ($old[$field] ?? '');
+    }
+
+    return BlockLocalization::raw('form_blocks', $sectionId, $field, $editLanguage);
+};
+
 $csrfToken = Csrf::token();
+$placeholder = admin_localized_placeholder_attr($editLanguage);
 $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
-$v = static fn (array $values, string $key): string => htmlspecialchars((string) ($values[$key] ?? ''), ENT_QUOTES, 'UTF-8');
 ?>
 <!doctype html>
 <html lang="<?= htmlspecialchars(\App\Service\Language\AdminLocale::current(), ENT_QUOTES, 'UTF-8') ?>">
@@ -116,9 +134,10 @@ $v = static fn (array $values, string $key): string => htmlspecialchars((string)
   <?php endif; ?>
 
   <section class="admin-card">
-    <form method="post" action="/api/admin/update-form-block.php" class="admin-product-form">
+    <form method="post" action="/api/admin/update-form-block.php" class="admin-product-form"<?= is_array($old) ? ' data-save-bar-unsaved' : '' ?>>
       <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
       <input type="hidden" name="section" value="<?= $h($sectionParam) ?>">
+      <?= admin_localized_input($editLanguage) ?>
 
       <label><?= admin_te('forms.welk_formulier') ?>
         <select name="form_id">
@@ -132,31 +151,17 @@ $v = static fn (array $values, string $key): string => htmlspecialchars((string)
       </label>
       <p class="admin-text-muted"><?= admin_te('forms.zolang_er_formulier_gekozen') ?></p>
 
-      <?php admin_lang_bar(); ?>
-      <div class="admin-form-row admin-form-row--split">
-        <?php admin_lang_pane_start('nl'); ?>
+      <?php admin_localized_bar($editLanguage); ?>
+      <div class="admin-form-row">
         <label><?= admin_te('forms.kop_boven_formulier') ?>
-          <input type="text" name="title_nl" maxlength="255" value="<?= $v($values, 'title_nl') ?>">
+          <input type="text" name="title" maxlength="255" value="<?= $h($word('title')) ?>"<?= $placeholder ?>>
         </label>
-        <?php admin_lang_pane_end(); ?>
-        <?php admin_lang_pane_start('en'); ?>
-        <label><?= admin_te('forms.kop_boven_formulier_2') ?>
-          <input type="text" name="title_en" maxlength="255" value="<?= $v($values, 'title_en') ?>"<?= admin_lang_placeholder_attr('en') ?>>
-        </label>
-        <?php admin_lang_pane_end(); ?>
       </div>
 
-      <div class="admin-form-row admin-form-row--split">
-        <?php admin_lang_pane_start('nl'); ?>
+      <div class="admin-form-row">
         <label><?= admin_te('forms.inleiding') ?>
-          <textarea name="intro_nl" maxlength="1000" rows="3"><?= $v($values, 'intro_nl') ?></textarea>
+          <textarea name="intro" maxlength="1000" rows="3"<?= $placeholder ?>><?= $h($word('intro')) ?></textarea>
         </label>
-        <?php admin_lang_pane_end(); ?>
-        <?php admin_lang_pane_start('en'); ?>
-        <label><?= admin_te('forms.inleiding_2') ?>
-          <textarea name="intro_en" maxlength="1000" rows="3"<?= admin_lang_placeholder_attr('en') ?>><?= $v($values, 'intro_en') ?></textarea>
-        </label>
-        <?php admin_lang_pane_end(); ?>
       </div>
 
       <label class="admin-checkbox-label">
@@ -170,6 +175,5 @@ $v = static fn (array $values, string $key): string => htmlspecialchars((string)
 </main>
 <?php save_bar(); ?>
 <?php save_bar_script(); ?>
-<?php admin_lang_script(); ?>
 </body>
 </html>

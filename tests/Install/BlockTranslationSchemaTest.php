@@ -98,6 +98,76 @@ final class BlockTranslationSchemaTest extends TestCase
     }
 
     /**
+     * BlockDefinition::childTables() is how a block's child rows are found
+     * before a delete. Each entry must be the real thing: a foreign key from
+     * that column to the parent's id that cascades, because a declared link
+     * the database does not have would find the wrong rows, or none.
+     */
+    public function testEveryDeclaredChildTableHangsOnItsParentByACascadingForeignKey(): void
+    {
+        foreach (BlockDefinitions::all() as $type => $definition) {
+            foreach ($definition->childTables() as $child => $link) {
+                self::assertSame(
+                    [['target' => $link['parent'], 'target_column' => 'id', 'on_delete' => 'CASCADE']],
+                    $this->foreignKeys((string) $child, $link['column']),
+                    "{$type}: {$child}.{$link['column']}"
+                );
+            }
+        }
+
+        self::assertTrue(true, 'every declared child table was held against the schema');
+    }
+
+    /**
+     * The other direction: a block on per-language storage declares EVERY
+     * table that cascades from its rows. A child table it forgot is a table
+     * whose rows the database deletes without BlockLocalization ever seeing
+     * them, so their words would be left behind.
+     */
+    public function testABlockOnPerLanguageStorageDeclaresEveryTableThatCascadesFromItsRows(): void
+    {
+        foreach (BlockDefinitions::all() as $type => $definition) {
+            if ($definition->translatableFields() === [] || $definition->contentTable() === null) {
+                continue;
+            }
+
+            $own = array_merge([$definition->contentTable()], array_keys($definition->childTables()));
+
+            foreach ($own as $table) {
+                foreach ($this->query(
+                    "SELECT k.table_name AS child, k.column_name AS column_name
+                       FROM information_schema.key_column_usage k
+                       JOIN information_schema.referential_constraints r
+                         ON r.constraint_schema = k.constraint_schema AND r.constraint_name = k.constraint_name
+                      WHERE k.table_schema = DATABASE() AND k.referenced_table_name = ? AND r.delete_rule = 'CASCADE'",
+                    [$table]
+                ) as $row) {
+                    self::assertSame(
+                        ['parent' => $table, 'column' => $row['column_name']],
+                        $definition->childTables()[$row['child']] ?? null,
+                        "{$type}: {$row['child']} cascades from {$table} but is not declared in childTables()"
+                    );
+                }
+            }
+        }
+
+        self::assertTrue(true, 'every table cascading from a converted block was looked for');
+    }
+
+    /** @return list<array<string, mixed>> */
+    private function foreignKeys(string $table, string $column): array
+    {
+        return $this->query(
+            "SELECT k.referenced_table_name AS target, k.referenced_column_name AS target_column, r.delete_rule AS on_delete
+               FROM information_schema.key_column_usage k
+               JOIN information_schema.referential_constraints r
+                 ON r.constraint_schema = k.constraint_schema AND r.constraint_name = k.constraint_name
+              WHERE k.table_schema = DATABASE() AND k.table_name = ? AND k.column_name = ?",
+            [$table, $column]
+        );
+    }
+
+    /**
      * @param list<mixed> $parameters
      * @return list<array<string, mixed>>
      */

@@ -14,15 +14,28 @@
  * a reference. A choice outside PageHeroContent's closed lists is refused
  * rather than corrected — the form's selects cannot send one, so it can only
  * come from a crafted request, and then nothing is written.
+ *
+ * ONE WEBSITE LANGUAGE (Multilingual 2.0): the eyebrow, title and lead are the
+ * words of the language named in `language_code`, which must be an active
+ * language of the website registry. Which fields exist, how long they may be
+ * and that the title is required in the default language comes from
+ * PageHeroBlock::translatableFields(), through
+ * App\Service\Blocks\BlockLocalization, and only that language is written.
+ * The image, the choices and is_active are the same in every language, and
+ * are saved in the same transaction as the words.
  */
 
 declare(strict_types=1);
 
 require_once __DIR__ . '/../../vendor/autoload.php';
 
+use App\Database;
 use App\Service\Language\AdminTranslator;
 use App\Service\AdminAuth;
+use App\Service\Blocks\BlockLocalization;
 use App\Service\Csrf;
+use App\Service\Language\LanguageCode;
+use App\Service\Language\SiteLanguages;
 use App\Service\Media\BlockImage;
 use App\Service\PageHeroContent;
 use App\Repository\PageHeroRepository;
@@ -55,13 +68,16 @@ if (!array_key_exists($slug, PageHeroContent::PAGES) && !$isDynamicallyAttached)
     exit('Unknown page.');
 }
 
-$fields = [
-    'eyebrow_nl' => trim((string) ($_POST['eyebrow_nl'] ?? '')),
-    'eyebrow_en' => trim((string) ($_POST['eyebrow_en'] ?? '')),
-    'title_nl' => trim((string) ($_POST['title_nl'] ?? '')),
-    'title_en' => trim((string) ($_POST['title_en'] ?? '')),
-    'lead_nl' => trim((string) ($_POST['lead_nl'] ?? '')),
-    'lead_en' => trim((string) ($_POST['lead_en'] ?? '')),
+$languageCode = LanguageCode::normalise((string) ($_POST['language_code'] ?? '')) ?? '';
+$languageIsWritable = $languageCode !== '' && SiteLanguages::isActive($languageCode);
+
+// Exactly the fields the block declares, never a name taken from the request.
+$words = [];
+foreach (array_keys(BlockLocalization::fields('page_heroes')) as $field) {
+    $words[$field] = trim((string) ($_POST[$field] ?? ''));
+}
+
+$settings = [
     'media_id' => BlockImage::fromRequest($_POST['media_id'] ?? null)['media_id'],
     'content_position' => trim((string) ($_POST['content_position'] ?? '')),
     'title_size' => trim((string) ($_POST['title_size'] ?? '')),
@@ -74,13 +90,13 @@ $fields = [
 // here; the breadcrumb is the page's own navigation now and this form no
 // longer carries it (App\Service\Breadcrumbs\PageBreadcrumb). A forged
 // request that still sends one is simply ignored — the field is not read.
-$required = ['title_nl'];
 $errors = [];
 
-foreach ($required as $key) {
-    if ($fields[$key] === '') {
-        $errors[] = AdminTranslator::trans('validation.veld_verplicht');
-        break;
+if (!$languageIsWritable) {
+    $errors[] = AdminTranslator::trans('validation.language_unknown');
+} else {
+    foreach (BlockLocalization::messageKeys(BlockLocalization::problems('page_heroes', $languageCode, $words)) as $key) {
+        $errors[] = AdminTranslator::trans($key);
     }
 }
 
@@ -91,27 +107,44 @@ $choices = [
 ];
 
 foreach ($choices as $key => $allowed) {
-    if (!in_array($fields[$key], $allowed, true)) {
+    if (!in_array($settings[$key], $allowed, true)) {
         $errors[] = AdminTranslator::trans('validation.ongeldige_keuze');
         break;
     }
 }
 
+$old = ['language_code' => $languageCode] + $words + $settings;
+
 if ($errors !== []) {
     $_SESSION['admin_page_hero_errors'] = $errors;
-    $_SESSION['admin_page_hero_old'] = $fields;
+    $_SESSION['admin_page_hero_old'] = $old;
     header('Location: /admin/page-hero.php?slug=' . urlencode($slug));
     exit;
 }
 
+$db = Database::connection();
+
 try {
-    (new PageHeroRepository())->upsert($slug, $fields);
+    // The header's settings and its words in this language are one save. A
+    // page that had no header row yet gets one here, so its id exists before
+    // the words are written.
+    $db->beginTransaction();
+
+    $repository = new PageHeroRepository();
+    $repository->upsert($slug, $settings);
+    BlockLocalization::save('page_heroes', (int) $repository->findBySlug($slug)['id'], $languageCode, $words);
+
+    $db->commit();
     PageHeroContent::clearCache();
 } catch (\Throwable $e) {
+    if ($db->inTransaction()) {
+        $db->rollBack();
+    }
+
     error_log('[api/admin/update-page-hero.php] ' . $e->getMessage());
 
     $_SESSION['admin_page_hero_errors'] = ['Kon niet worden opgeslagen. Probeer het opnieuw.'];
-    $_SESSION['admin_page_hero_old'] = $fields;
+    $_SESSION['admin_page_hero_old'] = $old;
     header('Location: /admin/page-hero.php?slug=' . urlencode($slug));
     exit;
 }

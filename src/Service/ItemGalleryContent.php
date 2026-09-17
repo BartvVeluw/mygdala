@@ -3,6 +3,7 @@
 namespace App\Service;
 
 use App\Repository\ItemGalleryRepository;
+use App\Service\Blocks\BlockLocalization;
 
 /**
  * Content for the "Portfolio-/collectiegalerij" block
@@ -47,6 +48,14 @@ use App\Repository\ItemGalleryRepository;
  * collection has no such taxonomy, so a collection-backed block simply has
  * no bar — a source property, not a per-page exception.
  *
+ * WORDS PER LANGUAGE (Multilingual 2.0 phase 3B). The block's own eyebrow,
+ * title, lead, footer note and button label are stored per website language
+ * in block_translations and come out of App\Service\Blocks\BlockLocalization
+ * as one LocalizedValue each, the fallback already applied; the source and
+ * every display setting stay in item_galleries. The items' own words belong
+ * to their source (Portfolio, Shop) and keep that domain's shape until it
+ * moves. This class decides no language itself.
+ *
  * `is_active = false` on an existing row is a deliberate hide, and a
  * different case from a missing row — the same three-state contract
  * (STATE_*) every other block Content class in this project uses. Like every
@@ -85,6 +94,9 @@ class ItemGalleryContent
         'default' => ['label' => 'Standaard'],
         'soft' => ['label' => 'Zachte achtergrond'],
     ];
+
+    /** The owner table of the block's words (ItemGalleryBlock::translatableFields()). */
+    private const TABLE = 'item_galleries';
 
     /** @var array<string, array<string, mixed>> */
     private static array $cache = [];
@@ -191,13 +203,7 @@ class ItemGalleryContent
 
         $showFilterBar = (bool) $row['show_filter_bar'];
 
-        $titleNl = (string) ($row['title_nl'] ?? '');
-        $eyebrowNl = (string) ($row['eyebrow_nl'] ?? '');
-        $leadNl = (string) ($row['lead_nl'] ?? '');
-        $footerNl = (string) ($row['footer_note_nl'] ?? '');
-        $buttonLabelNl = (string) ($row['button_label_nl'] ?? '');
-
-        return [
+        return BlockLocalization::words(self::TABLE, (int) ($row['id'] ?? 0)) + [
             'id' => (int) ($row['id'] ?? 0),
             'source_type' => $source,
             'portfolio_scope' => $scope,
@@ -206,16 +212,6 @@ class ItemGalleryContent
             'show_filter_bar' => $showFilterBar,
             'enable_lightbox' => (bool) $row['enable_lightbox'],
             'fallback_link_url' => (string) ($row['fallback_link_url'] ?? ''),
-            'eyebrow_nl' => $eyebrowNl,
-            'eyebrow_en' => self::valueOrDefault($row['eyebrow_en'] ?? null, $eyebrowNl),
-            'title_nl' => $titleNl,
-            'title_en' => self::valueOrDefault($row['title_en'] ?? null, $titleNl),
-            'lead_nl' => $leadNl,
-            'lead_en' => self::valueOrDefault($row['lead_en'] ?? null, $leadNl),
-            'footer_note_nl' => $footerNl,
-            'footer_note_en' => self::valueOrDefault($row['footer_note_en'] ?? null, $footerNl),
-            'button_label_nl' => $buttonLabelNl,
-            'button_label_en' => self::valueOrDefault($row['button_label_en'] ?? null, $buttonLabelNl),
             'button_url' => (string) ($row['button_url'] ?? ''),
             'background' => $background,
             'tight_top' => (bool) $row['tight_top'],
@@ -246,18 +242,15 @@ class ItemGalleryContent
     }
 
     /**
-     * Clears the in-process cache — used by the admin save handler right
-     * after writing a new value, and by tests.
+     * Clears the in-process cache, and the block words BlockLocalization
+     * holds — used by the admin save handler right after writing a new
+     * value, and by tests.
      */
     public static function clearCache(): void
     {
         self::$cache = [];
         self::$lightboxOverlayClaimed = false;
-    }
-
-    private static function valueOrDefault(?string $value, string $default): string
-    {
-        return ($value !== null && $value !== '') ? $value : $default;
+        BlockLocalization::clearCache();
     }
 
     /**
@@ -265,7 +258,7 @@ class ItemGalleryContent
      */
     private static function emptyContent(): array
     {
-        return [
+        return BlockLocalization::words(self::TABLE, 0) + [
             'id' => 0,
             'source_type' => '',
             'portfolio_scope' => self::SCOPE_ALL,
@@ -274,11 +267,6 @@ class ItemGalleryContent
             'show_filter_bar' => false,
             'enable_lightbox' => false,
             'fallback_link_url' => '',
-            'eyebrow_nl' => '', 'eyebrow_en' => '',
-            'title_nl' => '', 'title_en' => '',
-            'lead_nl' => '', 'lead_en' => '',
-            'footer_note_nl' => '', 'footer_note_en' => '',
-            'button_label_nl' => '', 'button_label_en' => '',
             'button_url' => '',
             'background' => 'default',
             'tight_top' => false,

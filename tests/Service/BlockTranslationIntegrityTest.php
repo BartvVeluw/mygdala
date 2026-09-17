@@ -65,6 +65,51 @@ final class BlockTranslationIntegrityTest extends TestCase
         self::assertSame([], BlockLocalization::translations('rich_text_sections', $sectionId));
     }
 
+    /**
+     * Every deletable block type whose words are on per-language storage.
+     *
+     * @return array<string, array{string}>
+     */
+    public static function convertedTypes(): array
+    {
+        $cases = [];
+        foreach (\App\Service\Blocks\BlockDefinitions::all() as $type => $definition) {
+            if ($definition->translatableFields() !== [] && SectionRegistry::isDeletable($type) && SectionRegistry::isManuallyAddable($type)) {
+                $cases[$type] = [$type];
+            }
+        }
+
+        return $cases;
+    }
+
+    /**
+     * The same guarantee for every converted block type, through the one
+     * delete path they share: words in two languages for every field its own
+     * row declares, and none left once the block is gone.
+     *
+     * @dataProvider convertedTypes
+     */
+    public function testDeletingAnyConvertedBlockTakesItsWordsInEveryLanguage(string $type): void
+    {
+        [$sectionId, $pageSection] = $this->attach($type);
+        $table = (string) SectionRegistry::contentTable($type);
+        $fields = array_keys(BlockLocalization::fields($table));
+        self::assertNotSame([], $fields, $type . ' declares words for its own row');
+
+        foreach (['nl', 'en'] as $language) {
+            BlockLocalization::save($table, $sectionId, $language, array_fill_keys($fields, 'Woorden ' . $language));
+        }
+        self::assertSame(2, $this->wordsOf($table, $sectionId), $type . ': the words are there, in both languages');
+
+        SectionRegistry::delete($pageSection, $this->sections);
+
+        self::assertSame(0, $this->wordsOf($table, $sectionId), $type . ': not one word outlives the block');
+        self::assertSame([], array_values(array_filter(
+            BlockLocalization::orphans()['missing_owner'],
+            static fn (array $row): bool => $row['owner_table'] === $table && $row['owner_id'] === $sectionId
+        )));
+    }
+
     public function testDeletingAPageTakesTheWordsOfEveryBlockOnIt(): void
     {
         [$richId] = $this->attach('rich_text');
@@ -171,7 +216,7 @@ final class BlockTranslationIntegrityTest extends TestCase
         }
 
         $db = Database::connection();
-        foreach (['rich_text_sections', 'contact_cards'] as $table) {
+        foreach (['rich_text_sections', 'contact_cards', 'form_blocks', 'contact_form_sections', 'item_galleries'] as $table) {
             $db->prepare("DELETE t FROM block_translations t JOIN `{$table}` o ON o.id = t.owner_id WHERE t.owner_table = ? AND o.page_slug = ?")
                 ->execute([$table, self::KEY]);
             $db->prepare("DELETE FROM `{$table}` WHERE page_slug = ?")->execute([self::KEY]);

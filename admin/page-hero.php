@@ -13,15 +13,25 @@ declare(strict_types=1);
  * PageHeroContent's closed list, so the form cannot send a value the endpoint
  * refuses. Nothing is shown conditionally: every choice applies with and
  * without an image.
+ *
+ * ONE WEBSITE LANGUAGE AT A TIME (Multilingual 2.0, admin/_localized_fields.php):
+ * the eyebrow, title and lead show the language chosen in the CMS shell, as
+ * stored and without the default language's words in an empty translation,
+ * and the title is required only in the default language; the save writes
+ * that language only. The image, the choices and "Tonen op de pagina" are the
+ * same in every language and stay on screen in each. Input a refused save
+ * hands back comes back in the language it was typed in, and the form then
+ * starts out unsaved in the save bar.
  */
 
 require_once __DIR__ . '/../vendor/autoload.php';
 require_once __DIR__ . '/_translate.php';
 require_once __DIR__ . '/_save_bar.php';
-require_once __DIR__ . '/_language_fields.php';
+require_once __DIR__ . '/_localized_fields.php';
 require_once __DIR__ . '/_media_picker.php';
 
 use App\Service\AdminAuth;
+use App\Service\Blocks\BlockLocalization;
 use App\Service\Csrf;
 use App\Service\Media\MediaService;
 use App\Service\PageHeroContent;
@@ -53,37 +63,55 @@ $old = $_SESSION['admin_page_hero_old'] ?? null;
 unset($_SESSION['admin_page_hero_errors'], $_SESSION['admin_page_hero_old']);
 
 $saved = isset($_GET['saved']);
+$editLanguage = admin_localized_language();
 
-if ($old !== null) {
-    $values = $old;
-} else {
-    try {
-        $row = (new PageHeroRepository())->findBySlug($slug);
-    } catch (\Throwable $e) {
-        error_log('[admin/page-hero.php] ' . $e->getMessage());
-        $row = null;
-    }
-
-    if ($row !== null) {
-        $values = [
-            'eyebrow_nl' => (string) $row['eyebrow_nl'],
-            'eyebrow_en' => (string) ($row['eyebrow_en'] ?? ''),
-            'title_nl' => (string) $row['title_nl'],
-            'title_en' => (string) ($row['title_en'] ?? ''),
-            'lead_nl' => (string) ($row['lead_nl'] ?? ''),
-            'lead_en' => (string) ($row['lead_en'] ?? ''),
-            'media_id' => isset($row['media_id']) ? (int) $row['media_id'] : null,
-            'content_position' => (string) ($row['content_position'] ?? PageHeroContent::POSITION_LEFT),
-            'title_size' => (string) ($row['title_size'] ?? PageHeroContent::SIZE_NORMAL),
-            'text_size' => (string) ($row['text_size'] ?? PageHeroContent::SIZE_NORMAL),
-            'is_active' => (bool) $row['is_active'],
-        ];
-    } else {
-        $values = PageHeroContent::startingValues() + ['is_active' => true];
-    }
+try {
+    $row = (new PageHeroRepository())->findBySlug($slug);
+} catch (\Throwable $e) {
+    error_log('[admin/page-hero.php] ' . $e->getMessage());
+    $row = null;
 }
 
+// What is the same in every language: handed back, else stored, else what a
+// header that does not exist yet starts out with.
+if ($old !== null) {
+    $values = $old;
+} elseif ($row !== null) {
+    $values = [
+        'media_id' => isset($row['media_id']) ? (int) $row['media_id'] : null,
+        'content_position' => (string) ($row['content_position'] ?? PageHeroContent::POSITION_LEFT),
+        'title_size' => (string) ($row['title_size'] ?? PageHeroContent::SIZE_NORMAL),
+        'text_size' => (string) ($row['text_size'] ?? PageHeroContent::SIZE_NORMAL),
+        'is_active' => (bool) $row['is_active'],
+    ];
+} else {
+    $values = PageHeroContent::startingValues() + ['is_active' => true];
+}
+
+$heroId = (int) ($row['id'] ?? 0);
+$oldInThisLanguage = is_array($old) && ($old['language_code'] ?? null) === $editLanguage;
+
+/**
+ * The words of one field on screen: typed and handed back in this language,
+ * else stored in it, else (a header without a row yet, in the default
+ * language only) its starting words.
+ */
+$word = static function (string $field) use ($old, $oldInThisLanguage, $heroId, $editLanguage): string {
+    if ($oldInThisLanguage) {
+        return (string) ($old[$field] ?? '');
+    }
+
+    if ($heroId > 0) {
+        return BlockLocalization::raw('page_heroes', $heroId, $field, $editLanguage);
+    }
+
+    return $editLanguage === BlockLocalization::defaultLanguage() ? (PageHeroContent::startingWords()[$field] ?? '') : '';
+};
+
 $csrfToken = Csrf::token();
+$h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
+$placeholder = admin_localized_placeholder_attr($editLanguage);
+$required = admin_localized_required($editLanguage);
 
 // The options of the three choices, in the order the selects offer them. The
 // values are PageHeroContent's constants, so the lists stay the ones the
@@ -99,14 +127,6 @@ $sizeLabels = [
     PageHeroContent::SIZE_NORMAL => admin_t('block_pagehero.size_normal'),
     PageHeroContent::SIZE_LARGE => admin_t('block_pagehero.size_large'),
 ];
-
-/**
- * @param array<string, mixed> $values
- */
-function pageHeroValue(array $values, string $key): string
-{
-    return htmlspecialchars((string) ($values[$key] ?? ''), ENT_QUOTES, 'UTF-8');
-}
 
 /**
  * The <option>s of one choice, with the current value selected.
@@ -157,56 +177,27 @@ function pageHeroOptions(array $labels, string $current): string
   <?php endif; ?>
 
   <section class="admin-card">
-    <form method="post" action="/api/admin/update-page-hero.php" class="admin-product-form">
+    <form method="post" action="/api/admin/update-page-hero.php" class="admin-product-form"<?= is_array($old) ? ' data-save-bar-unsaved' : '' ?>>
       <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
       <input type="hidden" name="slug" value="<?= htmlspecialchars($slug, ENT_QUOTES, 'UTF-8') ?>">
+      <?= admin_localized_input($editLanguage) ?>
 
       <h2><?= admin_te('block_pagehero.group_content') ?></h2>
 
-      <?php admin_lang_bar(); ?>
-      <div class="admin-form-row admin-form-row--split">
-        <?php admin_lang_pane_start('nl'); ?>
-        <div class="admin-field">
-          <?= admin_field_label('page-hero-eyebrow-nl', admin_t('block_pagehero.eyebrow'), admin_t('help.page_hero.eyebrow')) ?>
-          <input type="text" id="page-hero-eyebrow-nl" name="eyebrow_nl" maxlength="150" value="<?= pageHeroValue($values, 'eyebrow_nl') ?>">
-        </div>
-        <?php admin_lang_pane_end(); ?>
-        <?php admin_lang_pane_start('en'); ?>
-        <div class="admin-field">
-          <?= admin_field_label('page-hero-eyebrow-en', admin_t('block_pagehero.eyebrow'), admin_t('help.page_hero.eyebrow')) ?>
-          <input type="text" id="page-hero-eyebrow-en" name="eyebrow_en" maxlength="150" value="<?= pageHeroValue($values, 'eyebrow_en') ?>"<?= admin_lang_placeholder_attr('en') ?>>
-        </div>
-        <?php admin_lang_pane_end(); ?>
+      <?php admin_localized_bar($editLanguage); ?>
+      <div class="admin-field">
+        <?= admin_field_label('page-hero-eyebrow', admin_t('block_pagehero.eyebrow'), admin_t('help.page_hero.eyebrow')) ?>
+        <input type="text" id="page-hero-eyebrow" name="eyebrow" maxlength="150" value="<?= $h($word('eyebrow')) ?>"<?= $placeholder ?>>
       </div>
 
-      <div class="admin-form-row admin-form-row--split">
-        <?php admin_lang_pane_start('nl'); ?>
-        <div class="admin-field">
-          <?= admin_field_label('page-hero-title-nl', admin_t('block_pagehero.titel_h1'), admin_t('help.page_hero.title'), true) ?>
-          <input type="text" id="page-hero-title-nl" name="title_nl" maxlength="255" <?= admin_lang_required('nl') ?> value="<?= pageHeroValue($values, 'title_nl') ?>">
-        </div>
-        <?php admin_lang_pane_end(); ?>
-        <?php admin_lang_pane_start('en'); ?>
-        <div class="admin-field">
-          <?= admin_field_label('page-hero-title-en', admin_t('block_pagehero.titel_h1'), admin_t('help.page_hero.title')) ?>
-          <input type="text" id="page-hero-title-en" name="title_en" maxlength="255" value="<?= pageHeroValue($values, 'title_en') ?>"<?= admin_lang_placeholder_attr('en') ?>>
-        </div>
-        <?php admin_lang_pane_end(); ?>
+      <div class="admin-field">
+        <?= admin_field_label('page-hero-title', admin_t('block_pagehero.titel_h1'), admin_t('help.page_hero.title'), $required !== '') ?>
+        <input type="text" id="page-hero-title" name="title" maxlength="255"<?= $required ?> value="<?= $h($word('title')) ?>"<?= $placeholder ?>>
       </div>
 
-      <div class="admin-form-row admin-form-row--split">
-        <?php admin_lang_pane_start('nl'); ?>
-        <div class="admin-field">
-          <?= admin_field_label('page-hero-lead-nl', admin_t('block_pagehero.introtekst_lead'), admin_t('help.page_hero.lead')) ?>
-          <textarea id="page-hero-lead-nl" name="lead_nl" maxlength="500" rows="3"><?= pageHeroValue($values, 'lead_nl') ?></textarea>
-        </div>
-        <?php admin_lang_pane_end(); ?>
-        <?php admin_lang_pane_start('en'); ?>
-        <div class="admin-field">
-          <?= admin_field_label('page-hero-lead-en', admin_t('block_pagehero.introtekst_lead'), admin_t('help.page_hero.lead')) ?>
-          <textarea id="page-hero-lead-en" name="lead_en" maxlength="500" rows="3"<?= admin_lang_placeholder_attr('en') ?>><?= pageHeroValue($values, 'lead_en') ?></textarea>
-        </div>
-        <?php admin_lang_pane_end(); ?>
+      <div class="admin-field">
+        <?= admin_field_label('page-hero-lead', admin_t('block_pagehero.introtekst_lead'), admin_t('help.page_hero.lead')) ?>
+        <textarea id="page-hero-lead" name="lead" maxlength="500" rows="3"<?= $placeholder ?>><?= $h($word('lead')) ?></textarea>
       </div>
 
       <?php /* There is no "Naam in het kruimelpad" here any more. The
@@ -262,7 +253,6 @@ function pageHeroOptions(array $labels, string $current): string
 <?php media_picker_modal(); ?>
 <?php save_bar(); ?>
 <?php save_bar_script(); ?>
-<?php admin_lang_script(); ?>
 <?php media_picker_script(); ?>
 </body>
 </html>

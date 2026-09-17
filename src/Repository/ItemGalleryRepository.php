@@ -51,8 +51,11 @@ class ItemGalleryRepository extends Repository
     }
 
     /**
-     * Inserts or updates the single row for this page_slug + section_key.
-     * The admin form always submits every field together.
+     * Inserts or updates the single row for this page_slug + section_key:
+     * what is the same in every language. The admin form always submits every
+     * field together. The block's words (eyebrow, title, lead, footer note,
+     * button label) are stored per website language through
+     * App\Service\Blocks\BlockLocalization (db/migrations/20260917180000).
      *
      * `source_type` and `portfolio_scope` are stored as given; the caller
      * (api/admin/update-item-gallery.php, App\Service\SectionRegistry) is
@@ -68,17 +71,11 @@ class ItemGalleryRepository extends Repository
         $stmt = $this->db->prepare(
             'INSERT INTO item_galleries
                 (page_slug, section_key, source_type, portfolio_scope, collection_id, max_items,
-                 show_filter_bar, enable_lightbox, fallback_link_url,
-                 eyebrow_nl, eyebrow_en, title_nl, title_en, lead_nl, lead_en,
-                 footer_note_nl, footer_note_en,
-                 button_label_nl, button_label_en, button_url,
+                 show_filter_bar, enable_lightbox, fallback_link_url, button_url,
                  background, tight_top, is_active, created_at, updated_at)
              VALUES
                 (:page_slug, :section_key, :source_type, :portfolio_scope, :collection_id, :max_items,
-                 :show_filter_bar, :enable_lightbox, :fallback_link_url,
-                 :eyebrow_nl, :eyebrow_en, :title_nl, :title_en, :lead_nl, :lead_en,
-                 :footer_note_nl, :footer_note_en,
-                 :button_label_nl, :button_label_en, :button_url,
+                 :show_filter_bar, :enable_lightbox, :fallback_link_url, :button_url,
                  :background, :tight_top, :is_active, NOW(), NOW())
              ON DUPLICATE KEY UPDATE
                 source_type = VALUES(source_type),
@@ -88,16 +85,6 @@ class ItemGalleryRepository extends Repository
                 show_filter_bar = VALUES(show_filter_bar),
                 enable_lightbox = VALUES(enable_lightbox),
                 fallback_link_url = VALUES(fallback_link_url),
-                eyebrow_nl = VALUES(eyebrow_nl),
-                eyebrow_en = VALUES(eyebrow_en),
-                title_nl = VALUES(title_nl),
-                title_en = VALUES(title_en),
-                lead_nl = VALUES(lead_nl),
-                lead_en = VALUES(lead_en),
-                footer_note_nl = VALUES(footer_note_nl),
-                footer_note_en = VALUES(footer_note_en),
-                button_label_nl = VALUES(button_label_nl),
-                button_label_en = VALUES(button_label_en),
                 button_url = VALUES(button_url),
                 background = VALUES(background),
                 tight_top = VALUES(tight_top),
@@ -120,16 +107,6 @@ class ItemGalleryRepository extends Repository
             'show_filter_bar' => ($values['show_filter_bar'] ?? false) ? 1 : 0,
             'enable_lightbox' => ($values['enable_lightbox'] ?? false) ? 1 : 0,
             'fallback_link_url' => self::nullIfEmpty($values['fallback_link_url'] ?? null),
-            'eyebrow_nl' => self::nullIfEmpty($values['eyebrow_nl'] ?? null),
-            'eyebrow_en' => self::nullIfEmpty($values['eyebrow_en'] ?? null),
-            'title_nl' => self::nullIfEmpty($values['title_nl'] ?? null),
-            'title_en' => self::nullIfEmpty($values['title_en'] ?? null),
-            'lead_nl' => self::nullIfEmpty($values['lead_nl'] ?? null),
-            'lead_en' => self::nullIfEmpty($values['lead_en'] ?? null),
-            'footer_note_nl' => self::nullIfEmpty($values['footer_note_nl'] ?? null),
-            'footer_note_en' => self::nullIfEmpty($values['footer_note_en'] ?? null),
-            'button_label_nl' => self::nullIfEmpty($values['button_label_nl'] ?? null),
-            'button_label_en' => self::nullIfEmpty($values['button_label_en'] ?? null),
             'button_url' => self::nullIfEmpty($values['button_url'] ?? null),
             'background' => (string) ($values['background'] ?? 'default'),
             'tight_top' => ($values['tight_top'] ?? false) ? 1 : 0,

@@ -1155,8 +1155,10 @@ final class MultilingualBoundaryTest extends TestCase
         // path every block goes through is the integrity guard.
         $registry = self::withoutComments(self::read('src/Service/SectionRegistry.php'));
 
+        // The words go first: a block's child rows are found through its row,
+        // and deleteContent() lets the database cascade them away.
         self::assertMatchesRegularExpression(
-            '/beginTransaction\(\);\s*try\s*\{.*?->deleteContent\(\$pageSection\);.*?BlockLocalization::deleteOwner\(\$contentTable,.*?\$db->commit\(\);/s',
+            '/beginTransaction\(\);\s*try\s*\{.*?BlockLocalization::deleteOwner\(\$contentTable,.*?->deleteContent\(\$pageSection\);.*?\$db->commit\(\);/s',
             $registry
         );
     }
@@ -1172,7 +1174,11 @@ final class MultilingualBoundaryTest extends TestCase
         );
     }
 
-    /** The files of the three block types phase 3A moved onto block_translations. */
+    /**
+     * The files of the block types on block_translations: the three of phase
+     * 3A, and the ones phase 3B moved, wave by wave. Always six, in this
+     * order: definition, repository, content class, partial, editor, endpoint.
+     */
     private const CONVERTED_BLOCK_FILES = [
         'rich_text' => [
             'src/Service/Blocks/RichTextBlock.php', 'src/Repository/RichTextRepository.php', 'src/Service/RichTextContent.php',
@@ -1186,21 +1192,60 @@ final class MultilingualBoundaryTest extends TestCase
             'src/Service/Blocks/ContactCardBlock.php', 'src/Repository/ContactCardRepository.php', 'src/Service/ContactCardContent.php',
             'partials/section-contact-card.php', 'admin/contact-card.php', 'api/admin/update-contact-card.php',
         ],
+        // Phase 3B, wave A: blocks without child rows.
+        'page_hero' => [
+            'src/Service/Blocks/PageHeroBlock.php', 'src/Repository/PageHeroRepository.php', 'src/Service/PageHeroContent.php',
+            'partials/section-page-hero.php', 'admin/page-hero.php', 'api/admin/update-page-hero.php',
+        ],
+        'form' => [
+            'src/Service/Blocks/FormBlock.php', 'src/Repository/FormBlockRepository.php', 'src/Service/FormBlockContent.php',
+            'partials/section-form.php', 'admin/form-block.php', 'api/admin/update-form-block.php',
+        ],
+        'contact_form' => [
+            'src/Service/Blocks/ContactFormBlock.php', 'src/Repository/ContactFormRepository.php', 'src/Service/ContactFormContent.php',
+            'partials/section-contact-form.php', 'admin/contact-form.php', 'api/admin/update-contact-form.php',
+        ],
+        'item_gallery' => [
+            'src/Service/Blocks/ItemGalleryBlock.php', 'src/Repository/ItemGalleryRepository.php', 'src/Service/ItemGalleryContent.php',
+            'partials/section-item-gallery.php', 'admin/item-gallery.php', 'api/admin/update-item-gallery.php',
+        ],
+        'project_cards' => [
+            'src/Service/Blocks/ProjectCardsBlock.php', 'src/Repository/ItemGalleryRepository.php', 'src/Service/ItemGalleryContent.php',
+            'partials/section-item-gallery.php', 'admin/project-cards.php', 'api/admin/update-project-cards.php',
+        ],
+    ];
+
+    /**
+     * What a converted block's own files may still print the V1 way, because
+     * it is another domain's Dutch/English pair that moves in its own phase:
+     * file => the keys and helpers it may name.
+     */
+    private const OTHER_DOMAINS_PAIRS = [
+        // The contact details are Site-instellingen (phase 4).
+        'partials/section-contact-form.php' => ['city_nl', 'city_en', 'SiteText::attrs(', 'SiteText::visible(', 'LocalizedValue::ofDutchEnglish'],
+        'src/Service/Blocks/ContactFormBlock.php' => ['city_nl', 'city_en'],
+        // The cards are a Portfolio item or a product, with its category (phase 5).
+        'partials/section-item-gallery.php' => ['alt_nl', 'alt_en', 'title_nl', 'title_en', 'subtitle_nl', 'subtitle_en', 'name_nl', 'name_en', 'SiteText::attrs(', 'SiteText::visible('],
+        'src/Service/Blocks/ItemGalleryBlock.php' => ['alt_nl', 'alt_en'],
+        'src/Service/Blocks/ProjectCardsBlock.php' => ['alt_nl', 'alt_en'],
     ];
 
     public function testNothingReadsTheDroppedColumnsOfTheConvertedBlocks(): void
     {
-        // 20260917170000 dropped the Dutch/English word columns of these
-        // three blocks. A file that still names one fails at runtime, or
-        // silently reads nothing.
+        // 20260917170000 and the phase 3B migrations dropped the Dutch/English
+        // word columns of these blocks. A file that still names one fails at
+        // runtime, or silently reads nothing.
         $offenders = [];
 
         foreach (self::CONVERTED_BLOCK_FILES as $files) {
             foreach ($files as $file) {
                 $code = self::withoutComments(self::read($file));
 
-                if (preg_match('/[\x27"$\[>]\s*(?:content_html(?:_en)?|[a-z_]+_(?:nl|en))\b/', $code, $match) === 1) {
-                    $offenders[] = $file . ' (' . trim($match[0]) . ')';
+                preg_match_all('/[\x27"$\[>]\s*((?:content_html(?:_en)?|[a-z_]+_(?:nl|en)))\b/', $code, $matches);
+                foreach (array_unique($matches[1]) as $name) {
+                    if (!in_array($name, self::OTHER_DOMAINS_PAIRS[$file] ?? [], true)) {
+                        $offenders[] = $file . ' (' . $name . ')';
+                    }
                 }
             }
         }
@@ -1229,7 +1274,9 @@ final class MultilingualBoundaryTest extends TestCase
 
                 // The fallback and the default language are BlockLocalization's.
                 foreach (['SiteLanguages::defaultCode', 'ContentLanguages::primary', 'LocalizedValue::ofDutchEnglish', 'SiteText::attrs(', 'SiteText::visible(', 'LanguageRegistry::'] as $forbidden) {
-                    self::assertStringNotContainsString($forbidden, $code, $file);
+                    if (!in_array($forbidden, self::OTHER_DOMAINS_PAIRS[$file] ?? [], true)) {
+                        self::assertStringNotContainsString($forbidden, $code, $file);
+                    }
                 }
             }
         }
@@ -1241,7 +1288,12 @@ final class MultilingualBoundaryTest extends TestCase
         self::assertStringContainsString('SiteText::htmlAttrsOf($section[\'body\'])', $rich, 'the body is marked data-lang-html through the one helper');
         self::assertStringContainsString('SiteText::visibleOf(', $rich);
 
-        foreach (['partials/section-cta-band.php', 'partials/section-contact-card.php'] as $plain) {
+        $plainPartials = array_unique(array_filter(
+            array_map(static fn (array $files): string => $files[3], self::CONVERTED_BLOCK_FILES),
+            static fn (string $partial): bool => $partial !== 'partials/section-rich-text.php'
+        ));
+
+        foreach ($plainPartials as $plain) {
             $code = self::withoutComments(self::read($plain));
             self::assertStringContainsString('SiteText::attrsOf(', $code, $plain);
             self::assertStringNotContainsString('htmlAttrsOf', $code, $plain . ' prints only plain text');
@@ -1270,7 +1322,7 @@ final class MultilingualBoundaryTest extends TestCase
             self::assertStringContainsString('SiteLanguages::isActive($languageCode)', $write, $endpoint);
             self::assertMatchesRegularExpression('/BlockLocalization::save\(\x27[a-z_]+\x27, [^,]+, \$languageCode,/', $write, $endpoint);
             self::assertStringContainsString('BlockLocalization::problems(', $write, $endpoint . ': the declared fields are the validation');
-            self::assertMatchesRegularExpression('/beginTransaction\(\);.*?upsertSection\(.*?BlockLocalization::save\(.*?commit\(\);/s', $write, $endpoint . ': settings and words are one save');
+            self::assertMatchesRegularExpression('/beginTransaction\(\);.*?upsert(?:Section)?\(.*?BlockLocalization::save\(.*?commit\(\);/s', $write, $endpoint . ': settings and words are one save');
         }
     }
 

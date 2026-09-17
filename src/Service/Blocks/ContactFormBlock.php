@@ -80,14 +80,26 @@ final class ContactFormBlock extends BlockDefinition
         ];
     }
 
+    /**
+     * The block's own heading, per website language; the form, the
+     * attachment switch and is_active are the same in every language and stay
+     * in contact_form_sections. The form's own words are the form's.
+     */
+    public function translatableFields(): array
+    {
+        return [
+            'contact_form_sections' => [
+                TranslatableField::plain('title', 255)->required(),
+            ],
+        ];
+    }
+
     public function create(string $pageSlug): array
     {
         $key = self::newSectionKey();
 
         $repository = new ContactFormRepository();
         $repository->upsertSection($pageSlug, $key, [
-            'title_nl' => 'Neem contact op',
-            'title_en' => 'Get in touch',
             // No form guessed at: the editor picks one, and the block shows
             // its heading and the contact card until they have.
             'form_id' => null,
@@ -95,7 +107,15 @@ final class ContactFormBlock extends BlockDefinition
             'is_active' => true,
         ]);
 
-        return [(int) $repository->findBySlugAndKey($pageSlug, $key)['id'], $key];
+        $id = (int) $repository->findBySlugAndKey($pageSlug, $key)['id'];
+
+        // A generic starting heading in the website's default language, the
+        // language every other language falls back to until it is written.
+        BlockLocalization::save('contact_form_sections', $id, BlockLocalization::defaultLanguage(), [
+            'title' => 'Neem contact op',
+        ]);
+
+        return [$id, $key];
     }
 
     public function deleteContent(array $pageSection): void
@@ -137,7 +157,7 @@ final class ContactFormBlock extends BlockDefinition
         return [
             'form_id' => null,
             'form' => $samples->form(),
-            ...$samples->fields('title', 'form_title'),
+            'title' => $samples->localized('form_title'),
             // On, so the preview shows the one control this block adds to a
             // form (and the neutrality test reads its label).
             'allow_attachment' => true,

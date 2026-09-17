@@ -484,11 +484,9 @@ final class PortfolioProjectPageTest extends TestCase
             'enable_lightbox' => false,
             'filter_categories' => [],
             'fallback_link_url' => '',
-            'eyebrow_nl' => '', 'eyebrow_en' => '',
-            'title_nl' => '', 'title_en' => '',
-            'lead_nl' => '', 'lead_en' => '',
-            'footer_note_nl' => '', 'footer_note_en' => '',
-            'button_label_nl' => '', 'button_label_en' => '',
+            // The block's own words, all empty (per website language since
+            // Multilingual 2.0 phase 3B).
+            ...\App\Service\Blocks\BlockLocalization::words('item_galleries', 0),
             'button_url' => '',
             'background' => 'default',
             'tight_top' => false,

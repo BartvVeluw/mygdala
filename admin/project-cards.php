@@ -5,9 +5,10 @@ declare(strict_types=1);
 require_once __DIR__ . '/../vendor/autoload.php';
 require_once __DIR__ . '/_translate.php';
 require_once __DIR__ . '/_save_bar.php';
-require_once __DIR__ . '/_language_fields.php';
+require_once __DIR__ . '/_localized_fields.php';
 
 use App\Service\AdminAuth;
+use App\Service\Blocks\BlockLocalization;
 use App\Service\Csrf;
 use App\Service\ItemGalleryContent;
 use App\Service\SectionRegistry;
@@ -67,18 +68,32 @@ $old = $_SESSION['admin_project_cards_old'] ?? null;
 unset($_SESSION['admin_project_cards_errors'], $_SESSION['admin_project_cards_old']);
 
 $saved = isset($_GET['saved']);
+$editLanguage = admin_localized_language();
 
+// What is the same in every language: handed back, else stored.
 $values = $old ?? [
     'portfolio_scope' => (string) $section['portfolio_scope'],
     'max_items' => $section['max_items'] === null ? '' : (string) $section['max_items'],
     'show_filter_bar' => (bool) $section['show_filter_bar'],
     'background' => (string) $section['background'],
-    'title_nl' => (string) ($section['title_nl'] ?? ''),
-    'title_en' => (string) ($section['title_en'] ?? ''),
-    'lead_nl' => (string) ($section['lead_nl'] ?? ''),
-    'lead_en' => (string) ($section['lead_en'] ?? ''),
     'is_active' => (bool) $section['is_active'],
 ];
+
+$sectionId = (int) $section['id'];
+$oldInThisLanguage = is_array($old) && ($old['language_code'] ?? null) === $editLanguage;
+
+/**
+ * The words of one field on screen (Multilingual 2.0, admin/_localized_fields.php):
+ * typed and handed back in this language, else stored in it.
+ */
+$word = static function (string $field) use ($old, $oldInThisLanguage, $sectionId, $editLanguage): string {
+    if ($oldInThisLanguage) {
+        return (string) ($old[$field] ?? '');
+    }
+
+    return BlockLocalization::raw('item_galleries', $sectionId, $field, $editLanguage);
+};
+$placeholder = admin_localized_placeholder_attr($editLanguage);
 
 // The choices come from the gallery's own closed lists, the ones the endpoint
 // validates against; only the words are this screen's.
@@ -132,9 +147,10 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
   <?php endif; ?>
 
   <section class="admin-card">
-    <form method="post" action="/api/admin/update-project-cards.php" class="admin-product-form">
+    <form method="post" action="/api/admin/update-project-cards.php" class="admin-product-form"<?= is_array($old) ? ' data-save-bar-unsaved' : '' ?>>
       <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
       <input type="hidden" name="section" value="<?= $h($sectionParam) ?>">
+      <?= admin_localized_input($editLanguage) ?>
 
       <h2><?= admin_te('block_projects.which') ?></h2>
       <div class="admin-form-row admin-form-row--split">
@@ -168,30 +184,16 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
 
       <h2 style="margin-top:2rem;"><?= admin_te('block_projects.heading') ?></h2>
       <p class="admin-text-muted"><?= admin_te('block_projects.heading_hint') ?></p>
-      <?php admin_lang_bar(); ?>
-      <div class="admin-form-row admin-form-row--split">
-        <?php admin_lang_pane_start('nl'); ?>
+      <?php admin_localized_bar($editLanguage); ?>
+      <div class="admin-form-row">
         <label><?= admin_te('common.title') ?>
-          <input type="text" name="title_nl" maxlength="255" value="<?= $h((string) ($values['title_nl'] ?? '')) ?>">
+          <input type="text" name="title" maxlength="255" value="<?= $h($word('title')) ?>"<?= $placeholder ?>>
         </label>
-        <?php admin_lang_pane_end(); ?>
-        <?php admin_lang_pane_start('en'); ?>
-        <label><?= admin_te('common.title') ?>
-          <input type="text" name="title_en" maxlength="255" value="<?= $h((string) ($values['title_en'] ?? '')) ?>"<?= admin_lang_placeholder_attr('en') ?>>
-        </label>
-        <?php admin_lang_pane_end(); ?>
       </div>
-      <div class="admin-form-row admin-form-row--split">
-        <?php admin_lang_pane_start('nl'); ?>
+      <div class="admin-form-row">
         <label><?= admin_te('block_projects.intro_text') ?>
-          <textarea name="lead_nl" maxlength="600" rows="3"><?= $h((string) ($values['lead_nl'] ?? '')) ?></textarea>
+          <textarea name="lead" maxlength="600" rows="3"<?= $placeholder ?>><?= $h($word('lead')) ?></textarea>
         </label>
-        <?php admin_lang_pane_end(); ?>
-        <?php admin_lang_pane_start('en'); ?>
-        <label><?= admin_te('block_projects.intro_text') ?>
-          <textarea name="lead_en" maxlength="600" rows="3"<?= admin_lang_placeholder_attr('en') ?>><?= $h((string) ($values['lead_en'] ?? '')) ?></textarea>
-        </label>
-        <?php admin_lang_pane_end(); ?>
       </div>
 
       <label class="admin-checkbox-label">
@@ -205,6 +207,5 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
 </main>
 <?php save_bar(); ?>
 <?php save_bar_script(); ?>
-<?php admin_lang_script(); ?>
 </body>
 </html>

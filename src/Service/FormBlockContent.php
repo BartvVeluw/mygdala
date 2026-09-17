@@ -3,6 +3,7 @@
 namespace App\Service;
 
 use App\Repository\FormBlockRepository;
+use App\Service\Blocks\BlockLocalization;
 
 /**
  * Content for the reusable "Formulier" block (partials/section-form.php):
@@ -13,6 +14,13 @@ use App\Repository\FormBlockRepository;
  * → Formulieren and placed by as many blocks as an editor likes; this class
  * only answers "which one, and what does the block say above it". That split
  * is the whole reason Core Forms exists (FORMS.md).
+ *
+ * WORDS PER LANGUAGE (Multilingual 2.0 phase 3B). The heading and the
+ * introduction are stored per website language in block_translations and
+ * come out of App\Service\Blocks\BlockLocalization as one LocalizedValue each,
+ * the fallback already applied; which form, and is_active, stay in
+ * form_blocks. The form's own words (labels, button, confirmation) belong to
+ * the form, not to this block. This class decides no language itself.
  *
  * `is_active = false` on an existing row is a deliberate hide, and a
  * different case from a missing row — the same three-state contract every
@@ -29,13 +37,17 @@ class FormBlockContent
     /** A row exists and is_active = false — an intentional hide; render nothing. */
     public const STATE_HIDDEN = 'hidden';
 
+    /** The owner table of this block's words (FormBlock::translatableFields()). */
+    private const TABLE = 'form_blocks';
+
     /** @var array<string, array<string, mixed>> */
     private static array $cache = [];
 
     /**
      * @return array<string, mixed> 'state' (one of STATE_*), form_id (int|null),
-     *                              title_nl/en and intro_nl/en. Templates must
-     *                              check 'state' !== STATE_HIDDEN before rendering.
+     *                              and title and intro (a LocalizedValue each,
+     *                              either may be empty). Templates must check
+     *                              'state' !== STATE_HIDDEN before rendering.
      */
     public static function forSection(string $pageSlug, string $sectionKey): array
     {
@@ -59,19 +71,10 @@ class FormBlockContent
             return self::$cache[$cacheKey] = self::empty(self::STATE_HIDDEN);
         }
 
-        $titleNl = (string) ($row['title_nl'] ?? '');
-        $titleEn = (string) ($row['title_en'] ?? '');
-        $introNl = (string) ($row['intro_nl'] ?? '');
-        $introEn = (string) ($row['intro_en'] ?? '');
-
         return self::$cache[$cacheKey] = [
             'state' => self::STATE_ACTIVE,
             'form_id' => $row['form_id'] === null ? null : (int) $row['form_id'],
-            'title_nl' => $titleNl,
-            'title_en' => $titleEn !== '' ? $titleEn : $titleNl,
-            'intro_nl' => $introNl,
-            'intro_en' => $introEn !== '' ? $introEn : $introNl,
-        ];
+        ] + BlockLocalization::words(self::TABLE, (int) $row['id']);
     }
 
     /**
@@ -82,19 +85,17 @@ class FormBlockContent
         return [
             'state' => $state,
             'form_id' => null,
-            'title_nl' => '',
-            'title_en' => '',
-            'intro_nl' => '',
-            'intro_en' => '',
-        ];
+        ] + BlockLocalization::words(self::TABLE, 0);
     }
 
     /**
-     * Clears the in-process cache — used by the admin save handler right
-     * after writing a new value, and by tests.
+     * Clears the in-process cache, and the block words BlockLocalization
+     * holds — used by the admin save handler right after writing a new
+     * value, and by tests.
      */
     public static function clearCache(): void
     {
         self::$cache = [];
+        BlockLocalization::clearCache();
     }
 }

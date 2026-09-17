@@ -3,6 +3,7 @@
 namespace App\Service;
 
 use App\Repository\ContactFormRepository;
+use App\Service\Blocks\BlockLocalization;
 
 /**
  * Content for the "Offerte-/contactformulier" block
@@ -63,15 +64,19 @@ class ContactFormContent
      */
     public const MIGRATED_FORM_KEY = 'contactformulier';
 
+    /** The owner table of this block's words (ContactFormBlock::translatableFields()). */
+    private const TABLE = 'contact_form_sections';
+
     /** @var array<string, array<string, mixed>> */
     private static array $cache = [];
 
     /**
-     * @return array<string, mixed> 'state' (one of STATE_*), title_nl,
-     *                              title_en, form_id (int|null) and
-     *                              allow_attachment (bool). Templates must
-     *                              check 'state' !== STATE_HIDDEN before
-     *                              rendering.
+     * @return array<string, mixed> 'state' (one of STATE_*), title (a
+     *                              LocalizedValue, stored per website
+     *                              language in block_translations), form_id
+     *                              (int|null) and allow_attachment (bool).
+     *                              Templates must check 'state' !==
+     *                              STATE_HIDDEN before rendering.
      */
     public static function forSection(string $pageSlug, string $sectionKey): array
     {
@@ -95,13 +100,9 @@ class ContactFormContent
             return self::$cache[$cacheKey] = self::empty(self::STATE_HIDDEN);
         }
 
-        $titleNl = (string) ($row['title_nl'] ?? '');
-        $titleEn = (string) ($row['title_en'] ?? '');
-
         return self::$cache[$cacheKey] = [
             'state' => self::STATE_ACTIVE,
-            'title_nl' => $titleNl,
-            'title_en' => $titleEn !== '' ? $titleEn : $titleNl,
+            'title' => BlockLocalization::words(self::TABLE, (int) $row['id'])['title'],
             'form_id' => ($row['form_id'] ?? null) === null ? null : (int) $row['form_id'],
             'allow_attachment' => (bool) ($row['allow_attachment'] ?? true),
         ];
@@ -114,19 +115,20 @@ class ContactFormContent
     {
         return [
             'state' => $state,
-            'title_nl' => '',
-            'title_en' => '',
+            'title' => BlockLocalization::words(self::TABLE, 0)['title'],
             'form_id' => null,
             'allow_attachment' => false,
         ];
     }
 
     /**
-     * Clears the in-process cache — used by the admin save handler right
-     * after writing a new value, and by tests.
+     * Clears the in-process cache, and the block words BlockLocalization
+     * holds — used by the admin save handler right after writing a new
+     * value, and by tests.
      */
     public static function clearCache(): void
     {
         self::$cache = [];
+        BlockLocalization::clearCache();
     }
 }

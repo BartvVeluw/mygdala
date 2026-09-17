@@ -8,6 +8,7 @@ use App\Database;
 use App\Repository\MediaRepository;
 use App\Repository\PageHeroRepository;
 use App\Service\Blocks\BlockDefinitions;
+use App\Service\Blocks\BlockLocalization;
 use App\Service\Language\ContentLanguages;
 use App\Service\Media\MediaService;
 use App\Service\PageHeroContent;
@@ -68,23 +69,21 @@ final class PageHeroHeaderTest extends TestCase
 
     public function testAHeaderNobodyGaveAChoiceKeepsTheMarkupItAlwaysHad(): void
     {
-        // Only the columns a page_heroes row had before the choices existed,
-        // the way 20260908100300 inserts one; MySQL fills in the rest.
+        // Only the columns a page_heroes row has had since before the choices
+        // existed, the way 20260908100300 inserts one; MySQL fills in the
+        // rest. Its words are where 20260917180000 moved them: Dutch, in
+        // block_translations.
         Database::connection()->prepare(
-            'INSERT INTO page_heroes
-                (page_slug, eyebrow_nl, eyebrow_en, title_nl, title_en, lead_nl, lead_en,
-                 breadcrumb_label_nl, breadcrumb_label_en, is_active, created_at, updated_at)
-             VALUES (:slug, :eyebrow, NULL, :title, NULL, :lead, NULL, :breadcrumb, NULL, 1, NOW(), NOW())'
-        )->execute([
-            'slug' => self::TEST_SLUG,
-            'eyebrow' => 'Over ons',
-            'title' => 'Een bestaande kop',
-            'lead' => 'Een bestaande inleiding.',
-            'breadcrumb' => 'Over ons',
-        ]);
+            'INSERT INTO page_heroes (page_slug, is_active, created_at, updated_at) VALUES (:slug, 1, NOW(), NOW())'
+        )->execute(['slug' => self::TEST_SLUG]);
 
         $row = (new PageHeroRepository())->findBySlug(self::TEST_SLUG);
         $this->assertNotNull($row);
+        BlockLocalization::save('page_heroes', (int) $row['id'], 'nl', [
+            'eyebrow' => 'Over ons',
+            'title' => 'Een bestaande kop',
+            'lead' => 'Een bestaande inleiding.',
+        ]);
         $this->assertNull($row['media_id'], 'an existing header has no image');
         $this->assertSame(
             [PageHeroContent::POSITION_LEFT, PageHeroContent::SIZE_NORMAL, PageHeroContent::SIZE_NORMAL],
@@ -117,7 +116,7 @@ final class PageHeroHeaderTest extends TestCase
 
         $row = (new PageHeroRepository())->findBySlug(self::TEST_SLUG);
         $this->assertNotNull($row);
-        $this->assertSame('', $row['eyebrow_nl'], 'an optional eyebrow nobody chose is not written for them');
+        $this->assertSame('', BlockLocalization::raw('page_heroes', (int) $row['id'], 'eyebrow', BlockLocalization::defaultLanguage()), 'an optional eyebrow nobody chose is not written for them');
         $this->assertNull($row['media_id']);
         $this->assertSame(
             [PageHeroContent::POSITION_LEFT, PageHeroContent::SIZE_NORMAL, PageHeroContent::SIZE_NORMAL],
@@ -137,7 +136,7 @@ final class PageHeroHeaderTest extends TestCase
 
     public function testAnEmptyEyebrowPrintsNoEyebrowElement(): void
     {
-        $this->store(['eyebrow_nl' => '', 'eyebrow_en' => '']);
+        $this->store([], ['nl' => ['eyebrow' => '']]);
 
         $html = $this->render();
 
@@ -147,18 +146,18 @@ final class PageHeroHeaderTest extends TestCase
 
     public function testAnEyebrowOnlyInTheTranslationPrintsNoElement(): void
     {
-        // What decides is what a visitor sees first: the primary language's
-        // own text (SiteText::visible()). A translation without it would be
-        // an empty decoration for everyone reading the primary language.
+        // What decides is what a visitor sees first: the default language's
+        // own words (SiteText::visibleOf()). A translation without them would
+        // be an empty decoration for everyone reading the default language.
         $this->assertSame('nl', ContentLanguages::primary(), 'written for the Dutch-primary site the test database is');
-        $this->store(['eyebrow_nl' => '', 'eyebrow_en' => 'About us']);
+        $this->store([], ['nl' => ['eyebrow' => ''], 'en' => ['eyebrow' => 'About us']]);
 
         $this->assertStringNotContainsString('class="eyebrow"', $this->render());
     }
 
     public function testAnEmptyIntroTextPrintsNoParagraph(): void
     {
-        $this->store(['lead_nl' => '', 'lead_en' => '']);
+        $this->store([], ['nl' => ['lead' => '']]);
 
         $html = $this->render();
 
@@ -332,24 +331,31 @@ final class PageHeroHeaderTest extends TestCase
     /* ------------------------------------------------------------------ */
 
     /**
-     * Every column PageHeroRepository::upsert() writes: a header with a title,
-     * an eyebrow and an intro text, no image and today's look, overridden
-     * where a test says so.
+     * Every column PageHeroRepository::upsert() writes, no image and today's
+     * look, and Dutch words for a title, an eyebrow and an intro text, each
+     * overridden where a test says so. $words holds the words per language;
+     * the Dutch ones are merged over the defaults.
      *
-     * @param array<string, mixed> $overrides
+     * @param array<string, mixed>                 $overrides
+     * @param array<string, array<string, string>> $words language => field => words
      */
-    private function store(array $overrides): void
+    private function store(array $overrides, array $words = []): void
     {
-        (new PageHeroRepository())->upsert(self::TEST_SLUG, array_merge([
-            'eyebrow_nl' => 'Bovenschrift', 'eyebrow_en' => '',
-            'title_nl' => 'Een paginakop', 'title_en' => '',
-            'lead_nl' => 'Een inleiding.', 'lead_en' => '',
+        $repository = new PageHeroRepository();
+        $repository->upsert(self::TEST_SLUG, array_merge([
             'media_id' => null,
             'content_position' => PageHeroContent::POSITION_LEFT,
             'title_size' => PageHeroContent::SIZE_NORMAL,
             'text_size' => PageHeroContent::SIZE_NORMAL,
             'is_active' => true,
         ], $overrides));
+
+        $id = (int) $repository->findBySlug(self::TEST_SLUG)['id'];
+        $words['nl'] = array_merge(['eyebrow' => 'Bovenschrift', 'title' => 'Een paginakop', 'lead' => 'Een inleiding.'], $words['nl'] ?? []);
+
+        foreach ($words as $language => $fields) {
+            BlockLocalization::save('page_heroes', $id, $language, $fields);
+        }
     }
 
     /** A media row for a file that does not exist: rendering never reads the disk. */

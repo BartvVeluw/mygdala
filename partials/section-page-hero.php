@@ -17,8 +17,14 @@
  * Everything optional leaves no trace when it is empty: no eyebrow element
  * without an eyebrow, no lead paragraph without a lead, no media wrapper
  * without an image. "Empty" is judged on what a visitor sees first, the
- * primary language's own text (SiteText::visible()): a translation on its own
- * would be an empty decoration for everyone reading the primary language.
+ * default language's words (SiteText::visibleOf()): a translation on its own
+ * would be an empty decoration for everyone reading the default language.
+ *
+ * Every word arrives as one LocalizedValue per field
+ * (App\Service\Blocks\BlockLocalization): SiteText prints the words a visitor
+ * sees first and the escaped data-nl/data-en pair for the V1 switch, so this
+ * file knows no language, no default and no fallback. All of it is plain
+ * text, so nothing here is marked data-lang-html.
  *
  * THE CHOICES become modifier classes through the closed maps below, and only
  * a choice that differs from its default adds one. A header that was never
@@ -45,15 +51,18 @@
  */
 function render_section_page_hero(array $pageHero, ?string $titleMaxWidthCh = null): void
 {
-    if ($pageHero['title_nl'] === '') {
+    $text = static fn (string $field): string => \App\Service\Language\SiteText::visibleOf($pageHero[$field]);
+
+    if ($text('title') === '') {
         return;
     }
 
     $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
+    $pair = static fn (string $field): string => \App\Service\Language\SiteText::attrsOf($pageHero[$field]);
     $titleStyle = $titleMaxWidthCh !== null ? ' style="max-width:' . $h($titleMaxWidthCh) . ';"' : '';
 
-    $hasEyebrow = \App\Service\Language\SiteText::visible($pageHero['eyebrow_nl'], $pageHero['eyebrow_en']) !== '';
-    $hasLead = \App\Service\Language\SiteText::visible($pageHero['lead_nl'], $pageHero['lead_en']) !== '';
+    $hasEyebrow = $text('eyebrow') !== '';
+    $hasLead = $text('lead') !== '';
     $hasImage = (string) ($pageHero['image_path'] ?? '') !== '';
 
     // choice => [value => class]. The default of each choice is deliberately
@@ -90,16 +99,16 @@ function render_section_page_hero(array $pageHero, ?string $titleMaxWidthCh = nu
     <section class="<?= $h(implode(' ', $classes)) ?>">
       <?php if ($hasImage): ?>
       <div class="page-hero__media">
-        <img src="<?= $h((string) $pageHero['image_path']) ?>" alt="<?= $h(\App\Service\Language\SiteText::visible($pageHero['image_alt_nl'], $pageHero['image_alt_en'])) ?>"<?= \App\Service\Language\SiteText::attrsFor('alt', $pageHero['image_alt_nl'], $pageHero['image_alt_en']) ?><?= \App\Service\Media\BlockImage::dimensionAttributes(['width' => $pageHero['image_width'] ?? null, 'height' => $pageHero['image_height'] ?? null]) ?> loading="eager" decoding="async" fetchpriority="high">
+        <img src="<?= $h((string) $pageHero['image_path']) ?>" alt="<?= $h($text('image_alt')) ?>"<?= \App\Service\Language\SiteText::attrsForOf('alt', $pageHero['image_alt']) ?><?= \App\Service\Media\BlockImage::dimensionAttributes(['width' => $pageHero['image_width'] ?? null, 'height' => $pageHero['image_height'] ?? null]) ?> loading="eager" decoding="async" fetchpriority="high">
       </div>
       <?php endif; ?>
       <div class="container">
         <?php if ($hasEyebrow): ?>
-        <p class="eyebrow" <?= \App\Service\Language\SiteText::attrs($pageHero['eyebrow_nl'], $pageHero['eyebrow_en']) ?>><?= $h(\App\Service\Language\SiteText::visible($pageHero['eyebrow_nl'], $pageHero['eyebrow_en'])) ?></p>
+        <p class="eyebrow" <?= $pair('eyebrow') ?>><?= $h($text('eyebrow')) ?></p>
         <?php endif; ?>
-        <h1<?= $titleStyle ?> <?= \App\Service\Language\SiteText::attrs($pageHero['title_nl'], $pageHero['title_en']) ?>><?= $h(\App\Service\Language\SiteText::visible($pageHero['title_nl'], $pageHero['title_en'])) ?></h1>
+        <h1<?= $titleStyle ?> <?= $pair('title') ?>><?= $h($text('title')) ?></h1>
         <?php if ($hasLead): ?>
-          <p class="lead" style="margin-top:1rem;" <?= \App\Service\Language\SiteText::attrs($pageHero['lead_nl'], $pageHero['lead_en']) ?>><?= $h(\App\Service\Language\SiteText::visible($pageHero['lead_nl'], $pageHero['lead_en'])) ?></p>
+          <p class="lead" style="margin-top:1rem;" <?= $pair('lead') ?>><?= $h($text('lead')) ?></p>
         <?php endif; ?>
       </div>
     </section>

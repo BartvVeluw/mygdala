@@ -56,8 +56,16 @@ function render_section_item_gallery(array $content, string $revealGroup = 'gall
     $filterCategories = $content['filter_categories'];
     $fallbackUrl = (string) $content['fallback_link_url'];
 
-    $hasHead = $content['eyebrow_nl'] !== '' || $content['title_nl'] !== '' || $content['lead_nl'] !== '';
-    $hasButton = $content['button_label_nl'] !== '' && $content['button_url'] !== '';
+    // The block's own words arrive as one LocalizedValue per field
+    // (App\Service\Blocks\BlockLocalization), printed through SiteText's
+    // visibleOf()/attrsOf(), all plain text. The items' words are their
+    // source's (a Portfolio item, a product) and keep that domain's
+    // Dutch/English pair until it moves (Multilingual 2.0 phase 5).
+    $text = static fn (string $field): string => \App\Service\Language\SiteText::visibleOf($content[$field]);
+    $pair = static fn (string $field): string => \App\Service\Language\SiteText::attrsOf($content[$field]);
+
+    $hasHead = $text('eyebrow') !== '' || $text('title') !== '' || $text('lead') !== '';
+    $hasButton = $text('button_label') !== '' && $content['button_url'] !== '';
 
     $sectionAttrs = $content['background'] === 'soft' ? ' class="bg-soft"' : '';
     $sectionAttrs .= $content['tight_top'] ? ' style="padding-top:0;"' : '';
@@ -68,14 +76,14 @@ function render_section_item_gallery(array $content, string $revealGroup = 'gall
     <div class="container">
       <?php if ($hasHead): ?>
       <div class="section-head" data-reveal>
-        <?php if ($content['eyebrow_nl'] !== ''): ?>
-        <p class="eyebrow" <?= \App\Service\Language\SiteText::attrs($content['eyebrow_nl'], $content['eyebrow_en']) ?>><?= $h(\App\Service\Language\SiteText::visible($content['eyebrow_nl'], $content['eyebrow_en'])) ?></p>
+        <?php if ($text('eyebrow') !== ''): ?>
+        <p class="eyebrow" <?= $pair('eyebrow') ?>><?= $h($text('eyebrow')) ?></p>
         <?php endif; ?>
-        <?php if ($content['title_nl'] !== ''): ?>
-        <h2 <?= \App\Service\Language\SiteText::attrs($content['title_nl'], $content['title_en']) ?>><?= $h(\App\Service\Language\SiteText::visible($content['title_nl'], $content['title_en'])) ?></h2>
+        <?php if ($text('title') !== ''): ?>
+        <h2 <?= $pair('title') ?>><?= $h($text('title')) ?></h2>
         <?php endif; ?>
-        <?php if ($content['lead_nl'] !== ''): ?>
-        <p class="lead" <?= \App\Service\Language\SiteText::attrs($content['lead_nl'], $content['lead_en']) ?>><?= $h(\App\Service\Language\SiteText::visible($content['lead_nl'], $content['lead_en'])) ?></p>
+        <?php if ($text('lead') !== ''): ?>
+        <p class="lead" <?= $pair('lead') ?>><?= $h($text('lead')) ?></p>
         <?php endif; ?>
       </div>
       <?php endif; ?>
@@ -137,13 +145,13 @@ function render_section_item_gallery(array $content, string $revealGroup = 'gall
         <?php endforeach; ?>
       </div>
 
-      <?php if ($content['footer_note_nl'] !== ''): ?>
-      <p class="lead" style="margin-top:var(--sp-6); max-width: 60ch;" data-reveal <?= \App\Service\Language\SiteText::attrs($content['footer_note_nl'], $content['footer_note_en']) ?>><?= $h(\App\Service\Language\SiteText::visible($content['footer_note_nl'], $content['footer_note_en'])) ?></p>
+      <?php if ($text('footer_note') !== ''): ?>
+      <p class="lead" style="margin-top:var(--sp-6); max-width: 60ch;" data-reveal <?= $pair('footer_note') ?>><?= $h($text('footer_note')) ?></p>
       <?php endif; ?>
 
       <?php if ($hasButton): ?>
       <div class="text-center" style="margin-top: var(--sp-5)">
-        <a href="<?= $h($content['button_url']) ?>" class="btn btn--ghost" <?= \App\Service\Language\SiteText::attrs($content['button_label_nl'], $content['button_label_en']) ?>><?= $h(\App\Service\Language\SiteText::visible($content['button_label_nl'], $content['button_label_en'])) ?></a>
+        <a href="<?= $h($content['button_url']) ?>" class="btn btn--ghost" <?= $pair('button_label') ?>><?= $h($text('button_label')) ?></a>
       </div>
       <?php endif; ?>
     </div>

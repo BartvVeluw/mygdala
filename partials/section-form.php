@@ -17,6 +17,11 @@
  * public page. The page builder is where the editor is told about it — see
  * App\Service\Blocks\FormBlock::instanceTitle().
  *
+ * The heading and the introduction arrive as one LocalizedValue each
+ * (App\Service\Blocks\BlockLocalization): SiteText prints the words a visitor
+ * sees first and the escaped data-nl/data-en pair, so this file knows no
+ * language, no default and no fallback. Both are plain text.
+ *
  * The form and its state arrive as arguments, looked up by
  * App\Service\Blocks\FormBlock::render() (FormCatalog::renderable() and
  * FormRenderState::forInstance()). This file only renders, so the block
@@ -40,19 +45,18 @@ function render_section_form(array $content, ?FormDefinition $form, FormRenderSt
     }
 
     $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
-
-    $title = (string) ($content['title_nl'] ?? '');
-    $intro = (string) ($content['intro_nl'] ?? '');
+    $text = static fn (string $field): string => \App\Service\Language\SiteText::visibleOf($content[$field]);
+    $pair = static fn (string $field): string => \App\Service\Language\SiteText::attrsOf($content[$field]);
     ?>
   <section class="form-block">
     <div class="container">
       <div class="form-block__card contact-card" data-reveal>
-        <?php if ($title !== ''): ?>
-          <h2 class="form-block__title" <?= \App\Service\Language\SiteText::attrs($title, (string) $content['title_en']) ?>><?= $h(\App\Service\Language\SiteText::visible($title, (string) $content['title_en'])) ?></h2>
+        <?php if ($text('title') !== ''): ?>
+          <h2 class="form-block__title" <?= $pair('title') ?>><?= $h($text('title')) ?></h2>
         <?php endif; ?>
 
-        <?php if ($intro !== ''): ?>
-          <p class="form-block__intro" <?= \App\Service\Language\SiteText::attrs($intro, (string) $content['intro_en']) ?>><?= $h(\App\Service\Language\SiteText::visible($intro, (string) $content['intro_en'])) ?></p>
+        <?php if ($text('intro') !== ''): ?>
+          <p class="form-block__intro" <?= $pair('intro') ?>><?= $h($text('intro')) ?></p>
         <?php endif; ?>
 
         <?php render_form($form, $state); ?>
