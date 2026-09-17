@@ -20,6 +20,7 @@ herhaalbaar blok:
 | Onderdeel | Pad |
 |---|---|
 | Migratie + tabel | `db/migrations/*_create_cta_bands_table.php` → `cta_bands` |
+| Woorden per taal | `translatableFields()` in de definitie → `block_translations`, via `App\Service\Blocks\BlockLocalization` (geen eigen migratie) |
 | Repository (alle SQL) | `src/Repository/CtaBandRepository.php` |
 | Inhoudsklasse | `src/Service/CtaBandContent.php` |
 | Frontend-partial | `partials/section-cta-band.php` |
@@ -58,16 +59,36 @@ Twee onafhankelijke schakelaars verbergen een blok, en beide tellen:
   controleert dat apart. Een blok weer aanzetten in de page builder overschrijft
   dus nooit een hide die in de blok-editor is gezet.
 
-**Taal:** een site heeft een hóófdtaal en optioneel één tweede taal
-(`MULTILINGUAL.md`). De partial schrijft beide in `data-nl`/`data-en` via
-`App\Service\Language\SiteText::attrs()` en print de hoofdtaal als zichtbare
-tekst met `::visible()`; een lege vertaling betekent "gelijk aan de
-hoofdtaal". Er wordt niets server-side vertaald.
+**Taal.** Er zijn tijdelijk twee manieren waarop een blok zijn woorden per taal
+bewaart. Het volledige contract staat in
+[`docs/multilingual/ARCHITECTURE.md`](docs/multilingual/ARCHITECTURE.md),
+*Contentblokken per taal*.
 
-In de **editor** zet je de twee velden in een taalpaneel
-(`admin/_language_fields.php`), zodat een eentalige site er maar één toont en
-een tweetalige site tabbladen krijgt. Een uitgezette taal blijft verborgen
-meegestuurd, dus een taal uitzetten gooit nooit een vertaling weg.
+- **Per websitetaal in `block_translations`** (Multilingual 2.0, fase 3A):
+  Tekstblok, Oproep met knop en Contactkaart. **Een nieuw blok begint hier.**
+  - De definitie declareert de woorden in `translatableFields()`; de
+    inhoudstabel houdt alleen wat in elke taal gelijk is (URL's, `is_active`,
+    media, weergavekeuzes). Geen `_nl`/`_en`-kolommen.
+  - De `*Content`-klasse geeft de partial per veld een `LocalizedValue` uit
+    `BlockLocalization::bilingual()`; de terugval (gevraagde taal →
+    standaardtaal → leeg) zit daar, niet in het blok.
+  - De partial print met `SiteText::visibleOf()` en `::attrsOf()`, en
+    gesaneerde rich text met `::htmlAttrsOf()`. Hij kent geen taal.
+  - De editor staat op `admin/_localized_fields.php`: één taal op het scherm,
+    verplicht alleen in de standaardtaal. Het endpoint controleert
+    `language_code` tegen `SiteLanguages::isActive()`, valideert met
+    `BlockLocalization::problems()` en schrijft instellingen en
+    `BlockLocalization::save()` in één transactie.
+  - Verwijderen hoef je niet te regelen: `SectionRegistry::delete()` neemt de
+    woorden mee.
+- **In `_nl`/`_en`-kolommen** (V1): alle andere blokken, tot fase 3B. De partial
+  schrijft beide talen in `data-nl`/`data-en` via
+  `App\Service\Language\SiteText::attrs()` en print de hoofdtaal met
+  `::visible()`; de editor zet de twee velden in een taalpaneel
+  (`admin/_language_fields.php`). Wijzig je zo'n blok, dan hoef je het niet om
+  te zetten; voeg er alleen geen nieuwe `_nl`/`_en`-kolom aan toe.
+
+Er wordt niets server-side vertaald.
 
 ## Instantie-identiteit
 
@@ -105,7 +126,9 @@ geen gedeeld bestand meer waarin je op zeven plekken per type moet uitsplitsen:
 1. **Migratie.** Nieuwe tabel `<type>s` met minimaal `page_slug`,
    `section_key`, `is_active` en `UNIQUE(page_slug, section_key)`.
    Forward-only, idempotent, MySQL-compatibel. Bestaat er al inhoud die dit blok
-   overneemt, migreer die dan mee in dezelfde migratie.
+   overneemt, migreer die dan mee in dezelfde migratie. **Woorden krijgen geen
+   kolom**: die declareer je in `translatableFields()` (stap 7) en ze staan in
+   `block_translations`.
 2. **Repository** — `src/Repository/<Type>Repository.php`, extends
    `Repository`. Alle SQL hier, inclusief `findBySlugAndKey()`, een
    `createSection()`-achtige en `deleteSection()`.
@@ -140,15 +163,19 @@ geen gedeeld bestand meer waarin je op zeven plekken per type moet uitsplitsen:
    | `description()` | Eén of twee zinnen: wat zet dit blok op de pagina? In de taal van de redacteur, nooit met de type-key erin — zie [`PAGE-EDITOR.md`](PAGE-EDITOR.md) |
    | `category()` | Een sleutel uit `BlockCategories`; bepaalt alleen onder welk kopje het blok in de kiezer en de catalogus staat |
    | `icon()` | De *binnenkant* van een 24x24 stroke-`<svg>`, net als de sidebar-iconen. Vaste, eigen markup — nooit uit een request of de database |
-   | `create()` | Maakt een lege inhoudsrij en geeft `[section_id, section_key]` — een herhaalbaar blok haalt zijn key bij `self::newSectionKey()` |
-   | `deleteContent()` | Ruimt de inhoudsrij op; draait in de transactie van de registry, dus zelf niet committen |
+   | `create()` | Maakt een lege inhoudsrij en geeft `[section_id, section_key]` — een herhaalbaar blok haalt zijn key bij `self::newSectionKey()`; startwoorden schrijft het met `BlockLocalization::save()` in de standaardtaal |
+   | `deleteContent()` | Ruimt de inhoudsrij op; draait in de transactie van de registry, dus zelf niet committen. De woorden in `block_translations` ruimt de registry in diezelfde transactie zelf op |
    | `render()` | Roept `forSection()` aan, vangt `STATE_HIDDEN` af en roept de partial aan |
    | `editUrl()` | Meestal `$this->sectionEditUrl('<admin-bestand>', $pageSection)` |
    | `clearCache()` | `<Type>Content::clearCache()` |
    | `contentTable()` | De tabelnaam — vertrouwde metadata waarmee tests hun eigen rijen opruimen |
    | `styles()` / `scripts()` / `vendorScripts()` | De eigen frontend van dit blok; standaard leeg — zie stap 8 |
 
-   Optioneel, met een veilige standaard: `preview()` (de vormen waaruit de
+   Optioneel, met een veilige standaard: `translatableFields()` (de woorden
+   per websitetaal, per eigen tabel, met `TranslatableField::plain()` of
+   `::rich()`; een nieuw blok declareert ze hier, zie *Taal* hierboven — de
+   methode is pas `abstract` als fase 3B alle blokken heeft omgezet),
+   `preview()` (de vormen waaruit de
    schets op de blokkaart wordt getekend, uit de gesloten lijst in
    `BlockPreview`) en `useCases()` (twee tot vier voorbeeldsituaties: de
    catalogus toont ze, de blokkenkiezer zoekt erop),

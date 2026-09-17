@@ -16,7 +16,7 @@ frontend-flip in fase 7. Wat 2.0 al vervangen heeft, staat hieronder.
 |---|---|---|
 | 1 | Taalkern: talenregister, standaardtaal, Core-API, V1-adapter | **gebouwd** |
 | 2 | Gelokaliseerde velden (editorcomponent) + Pages | **gebouwd** |
-| 3 | Contentblokken | gepland |
+| 3 | Contentblokken | **3A gebouwd**: generiek model + Tekstblok, Oproep met knop, Contactkaart; 3B (de overige blokken) gepland |
 | 4 | Navigatie, footer, instellingen, formulieren | gepland |
 | 5 | Modules: Portfolio, Blog, Shop, Personalisatie | gepland |
 | 6 | Dunne dispatcher en schone URL's, nog eentalig | gepland |
@@ -139,7 +139,9 @@ Er is geen dual-read: niets leest nog een instellingenrij voor de taal.
 
 Sinds fase 2 leest Pages zijn tekst niet meer uit `_nl`/`_en`-kolommen; de
 `data-nl`/`data-en`-paren van een pagina komen uit
-`PageLocalization::bilingual()` (hieronder). De rest van de site is nog V1.
+`PageLocalization::bilingual()` (hieronder). Sinds fase 3A geldt hetzelfde voor
+drie bloktypes, via `BlockLocalization::bilingual()`. De rest van de site is
+nog V1.
 
 ## Pagina's per taal (fase 2)
 
@@ -253,7 +255,8 @@ nieuwe NL/EN-opslag. Paginavelden zijn platte tekst: alles wat ze print blijft
 
 `admin/_localized_fields.php` is de Admin-primitieve voor velden die per
 websitetaal worden opgeslagen. Hij is bewezen op `admin/page.php` en
-`admin/page-new.php`.
+`admin/page-new.php`, en sinds fase 3A ook gebruikt door drie blok-editors (zie
+*Contentblokken per taal*).
 
 | Functie | Doet |
 |---|---|
@@ -314,6 +317,286 @@ koppelen een pagina nog steeds via `page_id`.
   standaardtaal (`PageTemplateInstaller::install()` met `$translations`, in
   dezelfde transactie).
 
+## Contentblokken per taal (fase 3A)
+
+Blokken zijn het tweede contentdomein op de nieuwe opslag, en het eerste op
+het **generieke** model. Fase 3A bouwt dat model en bewijst het op drie
+bloktypes; fase 3B zet de overige blokken om.
+
+| Bloktype | Tabel | Velden per taal | Taalneutraal gebleven |
+|---|---|---|---|
+| Tekstblok (`rich_text`) | `rich_text_sections` | `body` (rich text) | `is_active` |
+| Oproep met knop (`cta_band`) | `cta_bands` | `eyebrow`, `title`, `lead`, `primary_label`, `secondary_label` | `primary_url`, `secondary_url`, `is_active` |
+| Contactkaart (`contact_card`) | `contact_cards` | `title`, `body`, `button_label` | `button_url`, `is_active` |
+
+Samen bewijzen ze rich en platte tekst, verplicht en optioneel, taalneutrale
+velden naast vertaalde, een regel over twee velden heen (label en URL van een
+knop) en een consument buiten het blok (`portfolio-detail.php`, `LegalPages`).
+
+### De tabel `block_translations`
+
+Eén tabel voor álle blokken (`20260917160000`): **één rij per veld, per taal,
+per eigenaar**.
+
+| Kolom | Betekenis |
+|---|---|
+| `owner_table` | de inhoudstabel van het blok (`cta_bands`); in 3B ook een kindtabel. `ascii_bin` |
+| `owner_id` | de rij in die tabel; `page_sections.section_id` van het blok |
+| `language_code` | FK op `site_languages.code`, `ON DELETE RESTRICT`, zelfde type |
+| `field` | de veldsleutel uit `translatableFields()`, zonder taal (`title`, nooit `title_nl`). `ascii_bin` |
+| `value` | de woorden, `MEDIUMTEXT NOT NULL`: platte tekst of gesaneerde HTML |
+| `created_at`, `updated_at` | per veld; een onveranderd veld houdt zijn `updated_at` |
+
+`UNIQUE(owner_table, owner_id, language_code, field)`. **Een veld zonder woorden
+heeft geen rij**, dus "niet vertaald" en "leeg vertaald" zijn één toestand. Er
+is geen `value_type`: of een veld rich is, staat in de definitie.
+
+**Waarom één rij per veld en niet één JSON-rij per blok per taal.** Beide zijn
+één generieke tabel en beide valideren in PHP. De doorslag:
+
+- een migratie is een gewone `INSERT … SELECT` per oude kolom, zonder
+  JSON-functies, dus gelijk op MySQL 5.7 en MariaDB;
+- de `UNIQUE` bewaakt elk veld, en een veld dat geen blok meer declareert is
+  met SQL te vinden (`orphans()`);
+- elk veld heeft een eigen `updated_at`, zodat een afgeleide vertaalstatus
+  later kan zien welk veld na zijn vertaling veranderd is;
+- een verhuizing is per kolom te controleren (kolom tegen rij).
+
+De prijs is dat opslaan twee statements zijn (overbodige velden weg, de rest
+upserten). Die lopen in een transactie.
+
+**Waarom geen getypeerde `<blok>_translations`.** Blokken worden nooit op
+tekst gerouteerd, gesorteerd of doorzocht, en een nieuw bloktype mag geen
+vertaalmigratie kosten.
+
+### Het integriteitscontract
+
+`owner_id` wijst polymorf naar de tabel die `owner_table` noemt en kan dus
+**geen foreign key** hebben. Wat een FK anders zou doen, staat hier:
+
+| Invariant | Afgedwongen door |
+|---|---|
+| een veld bestaat één keer per taal per eigenaar | `UNIQUE` |
+| alleen een geregistreerde taal; een taal met blokwoorden is niet te verwijderen | FK `RESTRICT` op `site_languages.code` |
+| alleen een tabel en veld die een geregistreerd blok declareert | `BlockLocalization` (gesloten register uit `BlockDefinitions`); `owner_table` komt nooit uit een request |
+| geen woorden voor een eigenaar die niet bestaat | `BlockLocalization::save()` controleert de eigenaarrij vóór het schrijven |
+| een verwijderd blok neemt zijn woorden mee | `SectionRegistry::delete()` roept `BlockLocalization::deleteOwner()` aan **in dezelfde transactie**, voor elk blok met een inhoudstabel; `PageService::delete()` loopt voor elk verwijderbaar blok via die methode |
+| niemand omzeilt de API | `MultilingualBoundaryTest`: alleen `BlockTranslationRepository` noemt de tabel in SQL, alleen `BlockLocalization` gebruikt die repository |
+| wat er toch doorheen glipt, wordt gevonden | `BlockLocalization::orphans()` / `purgeOrphans()`, en `scripts/block-translation-orphans.php` als cronjob |
+
+`orphans()` meldt drie soorten: woorden waarvan de eigenaarrij weg is (alleen
+díé verwijdert `purgeOrphans()`), woorden in een veld dat het blok niet meer
+declareert, en woorden van een tabel die geen geregistreerd blok declareert.
+Die laatste twee worden alleen gemeld: zo ziet ook een blok van een
+uitgeschakelde module eruit, en een module uitzetten gooit nooit data weg.
+Er zijn geen triggers.
+
+### `BlockDefinition::translatableFields()`
+
+Een blok declareert zijn woorden in zijn eigen definitie, per eigenaartabel:
+
+```php
+public function translatableFields(): array
+{
+    return ['cta_bands' => [
+        TranslatableField::plain('title', 255)->required(),
+        TranslatableField::plain('lead', 500),
+    ]];
+}
+```
+
+`App\Service\Blocks\TranslatableField` is klein: een sleutel (geen
+taalachtervoegsel), `plain` of `rich`, een maximumlengte in tekens en
+`required()` (alleen in de standaardtaal). `normalise()` trimt platte tekst en
+stuurt rich text door `RichTextSanitizer`. Er is geen label en geen widget: het
+editorscherm blijft een handgeschreven formulier.
+
+Die declaratie is de enige lijst. `BlockLocalization` weigert elke andere tabel
+of sleutel, leest er lengte en verplicht uit, en saneert een veld omdat het
+`rich` gedeclareerd is. `BlockDefinitionContractTest` bewaakt dat een blok
+alleen zijn eigen inhoudstabel declareert en dat blokken die een tabel delen
+hetzelfde declareren.
+
+**Nog niet `abstract`.** Zolang fase 3B de andere blokken niet heeft
+omgezet, staan hun woorden nog in `_nl`/`_en`-kolommen, en een lege declaratie
+zou iets anders beweren. `[]` betekent "nog niet op `block_translations`".
+`BlockTranslationSchemaTest` faalt zodra een blok velden declareert terwijl
+zijn tabel nog `_nl`/`_en`-kolommen heeft.
+
+### De Blocks-API
+
+`App\Service\Blocks\BlockLocalization` is de enige lezer en schrijver van
+`block_translations`, de tegenhanger van `PageLocalization`.
+`App\Repository\BlockTranslationRepository` heeft de SQL.
+
+| Methode | Antwoord |
+|---|---|
+| `fields($tabel)`, `ownerTables()` | het gesloten register uit de blokdefinities |
+| `translations($tabel, $id)` | alle opgeslagen woorden, per taal per veld |
+| `raw($tabel, $id, $veld, $taal)` | de opgeslagen woorden, **zonder** terugval: voor een redacteur |
+| `value($tabel, $id, $veld, $taal)` | met terugval, rich text gesaneerd: voor een bezoeker |
+| `name($tabel, $id, $veld)` | hoe het CMS een blok noemt (de standaardtaal, anders de eerste taal met woorden) |
+| `bilingual($tabel, $id, $veld)` | de tijdelijke NL/EN-adapter, hieronder |
+| `preload([$tabel => $ids])`, `preloadSections($rijen)` | woorden van veel blokken in één query |
+| `problems($tabel, $taal, $waarden)`, `messageKeys()` | de validatie uit de declaratie: `missing` (alleen standaardtaal), `too_long` |
+| `save($tabel, $id, $taal, $waarden)` | één taal opslaan; andere talen blijven staan; neemt deel aan een open transactie |
+| `deleteOwner($tabel, $id)` | alle talen van één blok weg |
+| `orphans()`, `purgeOrphans()` | het vangnet |
+| `defaultLanguage()` | de taal waarop alles terugvalt |
+
+Lezen gooit nooit een fout (gelogd, leest als "geen woorden"); schrijven wel.
+
+### Terugval
+
+Per veld, hetzelfde contract als Pages:
+
+1. de gevraagde taal;
+2. de standaardtaal;
+3. leeg.
+
+Dat staat in `BlockLocalization::value()` en nergens anders. De inhoudsklassen,
+partials en editors vragen de standaardtaal niet zelf;
+`MultilingualBoundaryTest` bewaakt dat voor de omgezette blokken.
+
+**De standaardtaal beslist of een blok iets toont.** Een Oproep met knop zonder
+titel én knoplabel in de standaardtaal, een Contactkaart zonder kop én tekst,
+of een Tekstblok zonder body in de standaardtaal rendert niets, ook als een
+andere taal wél woorden heeft. Een vertaling alleen laat geen blok verschijnen.
+Een secundaire knop verschijnt alleen met een label in de standaardtaal én een
+URL.
+
+### Eén query per pagina
+
+`SectionRegistry::renderPage()` roept `BlockLocalization::preloadSections()`
+aan vóór het eerste blok: één `SELECT` met de woorden van alle blokken op de
+pagina, in alle talen. Het lijstje van de paginabouwer (`admin/page.php`) doet
+hetzelfde voor zijn bloklabels. Een blok dat buiten een pagina gelezen wordt
+(`CtaBandContent::firstOnPage()`) kost één query voor zijn eigen woorden.
+
+Gemeten op een pagina met 15 blokken (5 × Tekstblok, 5 × Oproep met knop, 5 ×
+Contactkaart, woorden in NL en EN), koude caches:
+
+| | Vóór (main, `_nl`/`_en`) | Na (3A) | Zonder preload |
+|---|---|---|---|
+| `renderPage()` | 19 SELECTs | 20 | 34 (één extra per blok) |
+| bloklabels in de paginabouwer | 17 | 3 | — |
+| tweede render in hetzelfde request | 1 | 1 | — |
+
+De ene query per blok die blijft, is de inhoudsrij van het blok zelf; die was er
+al. `BlockWordsPreloadTest` bewaakt dat twaalf blokken meer precies twaalf
+queries meer kosten.
+
+### De tijdelijke NL/EN-uitvoeradapter
+
+De publieke wissel (`data-nl`/`data-en`, `core.js`) blijft tot de flip.
+`BlockLocalization::bilingual()` bouwt het paar uit `block_translations`, elke
+helft al opgelost via `value()`, als `LocalizedValue`. Een inhoudsklasse geeft
+de partial per veld zo'n waarde; de partial print hem met drie methodes van
+`SiteText`:
+
+| Methode | Print |
+|---|---|
+| `visibleOf($waarde)` | de woorden die een bezoeker eerst ziet (de standaardtaal, met terugval) |
+| `attrsOf($waarde)` | het ge-escapete paar voor platte tekst: `core.js` schrijft het met `textContent` |
+| `htmlAttrsOf($waarde)` | het paar met `data-lang-html`, **alleen voor gesaneerde rich text**, en alleen als de talen echt verschillen |
+
+Een partial kent zo geen taal, geen standaard en geen terugval; de flip hoeft
+straks `SiteText` te veranderen en niet elke partial. Het XSS-contract blijft:
+platte tekst wordt nooit `data-lang-html`, rich text is altijd
+`RichTextSanitizer`-uitvoer.
+
+**De rich-textbug is weg.** Met Engels als standaardtaal toont een Tekstblok bij
+de eerste render de Engelse body (`visibleOf()`), niet de Nederlandse kolom. Op
+een site met Nederlands als standaard is de uitvoer byte-identiek aan vóór 3A:
+een body zonder vertaling krijgt nog steeds geen taalattributen.
+
+### De editors
+
+`admin/rich-text.php`, `admin/cta-band.php` en `admin/contact-card.php` staan op
+`admin/_localized_fields.php`, hetzelfde patroon als de pagina-editor:
+
+- de taal uit de schakelaar in de schil, als het register hem heeft; anders de
+  standaardtaal. Een derde taal is een rij in `site_languages`;
+- alleen de velden van die taal, zoals opgeslagen (`raw()`), met de
+  terugval als placeholder; geen verborgen panelen van andere talen;
+- `required` alleen in de standaardtaal, op het scherm en in het endpoint
+  (`BlockLocalization::problems()`);
+- URL's en *Actief* staan in elke taal, en worden in dezelfde transactie als de
+  woorden opgeslagen;
+- een geweigerde save komt terug met `data-save-bar-unsaved`; de getypte woorden
+  alleen in de taal waarin ze getypt zijn;
+- **knopregels volgen de standaardtaal**: een secundaire knop (Oproep) heeft een
+  label in de standaardtaal én een URL, of geen van beide, en een vertaald label
+  zonder URL wordt geweigerd; een knop-URL op een Contactkaart vraagt een label
+  in de standaardtaal.
+
+De vertaalknop van V1 (`admin_lang_translate_bar()`) staat niet op deze drie
+schermen, net als op de pagina-editor: automatisch vertalen valt buiten V1.
+
+### De migratie
+
+`20260917170000` verhuist de woorden en dropt de oude kolommen in dezelfde stap.
+
+| Oude kolommen | Naar |
+|---|---|
+| `rich_text_sections.content_html` / `content_html_en` | `body` in `nl` / `en` |
+| `cta_bands.<veld>_nl` / `<veld>_en` voor eyebrow, title, lead, primary_label, secondary_label | `<veld>` in `nl` / `en` |
+| `contact_cards.<veld>_nl` / `<veld>_en` voor title, body, button_label | `<veld>` in `nl` / `en` |
+
+De kolommen houden hun V1-betekenis, wat de standaardtaal ook is. Woorden gaan
+byte voor byte mee. `NULL`, `''` en alleen spaties, tabs of regeleinden krijgen
+geen rij. Id's, pagina, sleutel, URL's en `is_active` blijven ongemoeid, net als
+elk ander bloktype. Opnieuw draaien doet niets. Staan er woorden in een taal die
+het register niet heeft, dan stopt de migratie vóór de drop.
+
+### Kopiëren, verwijderen en media
+
+- **Kopiëren of dupliceren** van blokken bestaat niet in het CMS (geen
+  "pagina dupliceren", geen herbruikbare blokken, geen export).
+  `PageTemplateInstaller` maakt verse blokken via `create()`, en die schrijft zijn
+  startwoorden in de standaardtaal via `BlockLocalization::save()`. Komt er ooit
+  een kopie, dan kopieert die ook de rijen van `block_translations`.
+- **Verwijderen** loopt altijd via `SectionRegistry::delete()`, zie het
+  integriteitscontract.
+- **Media**: gebruik wordt alleen uit `media_id`-kolommen afgeleid.
+  Blokwoorden zijn tekst; een id of pad in een Tekstblok telt niet als gebruik
+  (`MediaUsageTest`).
+
+### Wat fase 3B nog moet doen
+
+- De overige blokken omzetten, elk met zijn migratie en de drop van zijn
+  kolommen: Paginakop (`page_hero`, per pagina geadresseerd, met de legacy
+  `breadcrumb_label_*`), Openingssectie homepage, Kenmerken in kaartjes,
+  Veelgestelde vragen, Cijferbalk, Stappenplan, Tekst met afbeelding,
+  Woordenband, Detailsectie (tweede rich-textveld), Kaarten-carrousel,
+  Formulier, Offerte-/contactformulier en de galerij
+  (`item_gallery`/`project_cards`, één gedeelde tabel).
+- Daarna `translatableFields()` `abstract` maken en de V1-panelen van de
+  blok-editors laten verdwijnen.
+
+**Het besluit over kindrijen.** Twaalf kindtabellen hebben vertaalde velden:
+`homepage_hero_stats`, `feature_grid_items`, `faq_items`, `stat_strip_items`,
+`step_list_items`, `text_image_split_paragraphs`, `text_image_split_images`
+(alt), `marquee_items`, `detail_section_points`, `detail_section_images` (alt),
+`carousel_cards` en `carousel_card_tags` (kleinkind).
+
+- **Hetzelfde model**: een kindrij is een eigenaar als elke andere,
+  `owner_table = 'faq_items'`, `owner_id` = de id van het item. Geen tweede
+  architectuur en geen `items.12.question`-sleutels.
+- **Eigen stabiele identiteit**: elke kindtabel heeft al een eigen `id`; die is
+  de identiteit. Sorteren raakt hem niet.
+- **De declaratie** groeit met de kindtabel: `translatableFields()` noemt dan
+  `['faq_sections' => […], 'faq_items' => […]]`, en de contracttest staat een
+  tabel toe die het blok als kindtabel declareert (met zijn verwijzende kolom,
+  bijvoorbeeld `faq_section_id`), niet een willekeurige tabel.
+- **Verwijderen**: een kind dat los verwijderd wordt, gaat via
+  `BlockLocalization::deleteOwner()` in het delete-endpoint van dat kind; bij
+  het verwijderen van het hele blok verzamelt `SectionRegistry::delete()` de
+  kind-id's vóór `deleteContent()` (de `ON DELETE CASCADE` van de database draait
+  geen PHP), en `purgeOrphans()` blijft het vangnet.
+- **Alt-teksten** worden gewone platte velden (`alt`) op de rij die het
+  `media_id` houdt; `BlockImage` leest ze dan via de API.
+
 ## Nog niet, bewust
 
 **Voor de routingfase (6) en de flip (7):**
@@ -326,12 +609,10 @@ koppelen een pagina nog steeds via `page_id`.
 
 **In het voorbijgaan gevonden, niet in Pages:**
 
-- **De rich-textbug is Blocks, fase 3.** Met Engels als standaardtaal toont
-  een tekstblok bij de eerste render Nederlands, omdat
-  `partials/section-rich-text.php` altijd `content_html` (de NL-kolom) print.
-  Heeft het blok geen Engelse tekst, dan krijgt het ook geen
-  `data-nl`/`data-en`. Dat zit niet in de taallaag van fase 2 en is daarom
-  niet hier opgelost.
+- De rich-textbug uit fase 2 (een Tekstblok toonde op een Engelstalige site bij
+  de eerste render de Nederlandse body) is in fase 3A opgelost, zie
+  *De tijdelijke NL/EN-uitvoeradapter* bij de contentblokken. Een
+  Detailsectie heeft hetzelfde probleem nog tot fase 3B.
 - **De zichtbare `<title>` en `content` van de meta description** in
   `partials/seo-head.php` (gedeeld met Shop en Blog) printen de NL-helft, ook
   als Engels de standaardtaal is; `core.js` wisselt pas in de browser. Het
@@ -361,14 +642,9 @@ providerklassen blijven ongebruikt staan.
   velden en opties, menu-items, footer, productopties, personalisatie) krijgen
   **getypeerde** `<entiteit>_translations`-tabellen: FK met `ON DELETE
   CASCADE`, één rij per taal, ook voor de standaardtaal.
-- **Contentblokken** krijgen **één generieke** `block_translations`
-  (`owner_table`, `owner_id`, `field`, `language_code`, `value`), met de
-  veldspecificatie in `BlockDefinition::translatableFields()`. `owner_table`
-  komt nooit uit een request en wordt tegen het gesloten register gehouden.
-- **Weesrijen in `block_translations`.** Een polymorfe verwijzing kan geen FK
-  hebben. Fase 3 levert daarom expliciete guards mee: verwijderen in dezelfde
-  transactie als de blokrij, een idempotente opruimquery en een
-  integriteitstest.
+- **Contentblokken** op één generieke `block_translations`, met de
+  weesrij-guards: gebouwd in fase 3A, zie *Contentblokken per taal*. Nog te
+  doen in 3B: de overige bloktypes en hun kindrijen.
 - **Gelokaliseerde slugs** alleen voor contenttypes waarvan V1 echt een
   gelokaliseerde publieke URL heeft, met `UNIQUE(language_code, slug)`.
 - **Productslugs per taal** vallen buiten deze keten. Een product houdt
@@ -384,9 +660,11 @@ providerklassen blijven ongebruikt staan.
   het huidige gedrag is, niet als die keuze.
 - **Oude kolommen** vallen per domein, in de migratie van de fase die dat
   domein omzet. Dat mag pas na een grep die bewijst dat geen andere fase ze
-  nog leest (bekend: het blok *Contactkaart* leest `city_nl`/`city_en`).
-  Pages is zo gegaan in fase 2 (`20260917150000`);
-  `MultilingualBoundaryTest` bewaakt dat niets de zes kolommen nog leest.
+  nog leest (bekend: het blok *Offerte-/contactformulier* leest de
+  site-instellingen `city_nl`/`city_en`). Pages is zo gegaan in fase 2
+  (`20260917150000`), de drie proof-blocks in fase 3A (`20260917170000`);
+  `MultilingualBoundaryTest` bewaakt voor beide dat niets de gedropte kolommen
+  nog leest.
 
 ## Waar het staat
 
@@ -399,6 +677,12 @@ providerklassen blijven ongebruikt staan.
 | Tests | `LanguageCodeTest`, `SiteLanguagesTest` (`fast`); `SiteLanguageRepositoryTest` (`cms`); `SiteLanguageRegistryMigrationTest` (`migration`); grenzen in `MultilingualBoundaryTest` |
 | Paginatekst: schema en verhuizing | `db/migrations/20260917140000_create_the_page_translations_table.php`, `20260917150000_move_page_text_into_page_translations.php` |
 | Paginatekst: SQL, rij en API | `src/Repository/PageTranslationRepository.php`, `src/Service/PageTranslation.php`, `src/Service/PageLocalization.php` |
-| Editorcomponent | `admin/_localized_fields.php`, gebruikt door `admin/page.php` en `admin/page-new.php`; schrijven in `api/admin/update-page.php` en `create-page.php` |
+| Editorcomponent | `admin/_localized_fields.php`, gebruikt door `admin/page.php`, `admin/page-new.php` en (fase 3A) `admin/rich-text.php`, `admin/cta-band.php`, `admin/contact-card.php`; schrijven in `api/admin/update-page.php`, `create-page.php` en de drie blok-endpoints |
 | Schakelaar in de schil | `ContentEditingLanguage::choices()`, `admin/_header.php`, `.admin-sidebar__contentlang-option.is-default` |
 | Tests fase 2 | `PageLocalizationTest` (`fast`); `PageTranslationRepositoryTest`, `PageLocalizationEditorHttpTest` (`cms`); `PageTranslationMigrationTest` (`migration`); de Pages-grenzen in `MultilingualBoundaryTest`; test-helper `Tests\Support\PageFixture` |
+| Blokwoorden: schema en verhuizing | `db/migrations/20260917160000_create_the_block_translations_table.php`, `20260917170000_move_rich_text_cta_band_and_contact_card_words_into_block_translations.php` |
+| Blokwoorden: SQL, declaratie en API | `src/Repository/BlockTranslationRepository.php`, `src/Service/Blocks/TranslatableField.php`, `src/Service/Blocks/BlockLocalization.php`, `BlockDefinition::translatableFields()` |
+| Blokwoorden: integriteit | `SectionRegistry::delete()`, `BlockLocalization::orphans()`/`purgeOrphans()`, `scripts/block-translation-orphans.php` |
+| Blokwoorden: uitvoer | `SiteText::visibleOf()`/`attrsOf()`/`htmlAttrsOf()`; preload in `SectionRegistry::renderPage()` en `admin/page.php` |
+| Blokwoorden: de drie blokken | `RichTextBlock`, `CtaBandBlock`, `ContactCardBlock` met hun `*Content`, repository, partial, editor en endpoint; consumenten `LegalPages`, `portfolio-detail.php` |
+| Tests fase 3A | `TranslatableFieldTest`, `BlockLocalizationTest`, `BlockLocalizedRenderingTest` (`fast`); `BlockTranslationRepositoryTest`, `BlockTranslationIntegrityTest`, `BlockWordsPreloadTest`, `BlockLocalizationEditorHttpTest`, `BlockTranslationSchemaTest` (`blocks`); `BlockTranslationMigrationTest` (`migration`); het declaratiecontract in `BlockDefinitionContractTest`; de blokgrenzen in `MultilingualBoundaryTest`; test-helper `Tests\Support\BlockTextFixture` |

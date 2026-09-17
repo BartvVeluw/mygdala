@@ -15,6 +15,19 @@ leeg, en ontbreekt een taal in het register, dan stopt de migratie vóór de
 drop. Details in [`ARCHITECTURE.md`](ARCHITECTURE.md), *De migratie*; de test
 is `tests/Install/PageTranslationMigrationTest.php` (`migration`).
 
+## Multilingual 2.0: blokwoorden per taal (fase 3A)
+
+Een tweede uitzondering, van dezelfde soort: de woorden van Tekstblok
+(`rich_text_sections.content_html`/`_en`), Oproep met knop (vijf
+`cta_bands`-paren) en Contactkaart (drie `contact_cards`-paren) zijn per veld
+verhuisd naar `block_translations` en daarna verwijderd
+(`20260917160000`, `20260917170000`). NL blijft NL, EN blijft EN, woorden gaan
+byte voor byte mee, leeg of alleen witruimte krijgt geen rij, en ontbreekt een
+taal in het register, dan stopt de migratie vóór de drop. Alle andere
+bloktypes houden hun kolommen tot fase 3B. Details in
+[`ARCHITECTURE.md`](ARCHITECTURE.md), *Contentblokken per taal*; de test is
+`tests/Install/BlockTranslationMigrationTest.php` (`migration`).
+
 ## Wat hiervóór fout was
 
 De eerste versie had laag 2 niet. "Welke taal bewerk ik" werd afgeleid uit de

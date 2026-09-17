@@ -26,6 +26,7 @@ modules aan staan" en "Vanuit een git worktree".
 | Instellingen-, account- of wizardscherm | `fast` → `cms` |
 | Migratie of wat een verse installatie krijgt | `migration` |
 | Paginatekst per taal (`PageLocalization`, `page_translations`, de pagina-editor) | `fast` → `cms` |
+| Blokwoorden per taal (`BlockLocalization`, `block_translations`, een omgezet blok of zijn editor) | `fast` → `blocks` |
 
 ## De bestanden
 
@@ -41,8 +42,16 @@ In `fast`:
 - `tests/Service/SiteLanguagesTest.php`
 - `tests/Service/PageLocalizationTest.php` — de Pages-API van fase 2: terugval
   per veld, de naam in het CMS, de NL/EN-uitvoeradapter en een derde taal
+- `tests/Service/TranslatableFieldTest.php` — fase 3A: wat een veldsleutel mag
+  zijn, trimmen en saneren, verplicht alleen in de standaardtaal
+- `tests/Service/BlockLocalizationTest.php` — de Blocks-API: terugval, `raw()`
+  zonder terugval, rich text gesaneerd bij het lezen, de naam in het CMS, de
+  NL/EN-adapter bij een NL-, EN- en Duitse standaardtaal, het gesloten register
+- `tests/Service/BlockLocalizedRenderingTest.php` — de drie omgezette blokken
+  door hun echte partials: eerste render in de standaardtaal, terugval, een
+  derde taal, `data-lang-html` alleen voor rich text, kwaadaardige markup
 
-Alle negen de bestanden zitten in `fast`: geen database, geen webserver, geen
+Alle twaalf de bestanden zitten in `fast`: geen database, geen webserver, geen
 netwerk. Het talenregister vervangen ze in het geheugen met
 `Tests\Support\SiteLanguageFixture`.
 
@@ -61,9 +70,25 @@ In `cms`:
   pagina in de standaardtaal, en de NL/EN-uitvoer op de publieke pagina en in
   het concept-voorbeeld
 
-De drie migratietests, `MigrationTableNamesTest`,
-`ContentLanguageSettingRepairTest` en `SiteLanguageRegistryMigrationTest`,
-staan met uitleg in [`MIGRATIONS.md`](MIGRATIONS.md).
+In `blocks`:
+
+- `tests/Repository/BlockTranslationRepositoryTest.php` — `block_translations`:
+  uniek per veld, de taal als foreign key, opslaan per taal, één query voor veel
+  eigenaren, wezen vinden en opruimen
+- `tests/Service/BlockTranslationIntegrityTest.php` — een blok of pagina
+  verwijderen neemt de woorden mee, een mislukte delete niets
+- `tests/Service/BlockWordsPreloadTest.php` — één query voor de woorden van een
+  hele pagina
+- `tests/Service/BlockLocalizationEditorHttpTest.php` — de drie blok-editors
+  over echte HTTP: één taal, opslaan per taal, Duits via het register,
+  knopregels, sanitizer, een geweigerde save in zijn eigen taal
+- `tests/Install/BlockTranslationSchemaTest.php` — de vorm van de tabel, en dat
+  een omgezet blok geen `_nl`/`_en`-kolom meer heeft
+
+De migratietests, `MigrationTableNamesTest`,
+`ContentLanguageSettingRepairTest`, `SiteLanguageRegistryMigrationTest`,
+`PageTranslationMigrationTest` en `BlockTranslationMigrationTest`, staan met
+uitleg in [`MIGRATIONS.md`](MIGRATIONS.md).
 
 ## Wat de twee grenstests bewaken
 
@@ -87,7 +112,13 @@ installatiewizard), en dat alleen `SiteLanguageRepository` SQL op
 paginakolommen nog leest, dat de terugval van paginatekst op één plek staat,
 dat de editorcomponent geen taal bij naam kent, dat de pagina-endpoints alleen
 via de API schrijven, en dat de schakelaar in de schil zijn talen uit het
-register haalt.
+register haalt. Sinds fase 3A ook: dat alleen `BlockTranslationRepository` SQL
+op `block_translations` uitvoert en alleen `BlockLocalization` die repository
+gebruikt, dat een blok verwijderen zijn woorden in dezelfde transactie
+meeneemt, dat een pagina de woorden van al zijn blokken in één keer laadt, dat
+de drie omgezette blokken geen gedropte kolom meer lezen en zelf geen taal
+kiezen, dat alleen rich text `data-lang-html` krijgt, en dat hun editors één
+taal tonen en hun endpoints alleen die taal schrijven.
 
 `LanguageCodeTest` bewijst dat de coderegel een vorm is en geen lijst: alle
 676 paren van twee kleine letters zijn geldig, ook talen die nergens in PHP
