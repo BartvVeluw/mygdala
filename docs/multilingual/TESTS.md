@@ -25,6 +25,7 @@ modules aan staan" en "Vanuit een git worktree".
 | Een editor aansluiten op de taalvelden | `fast` → `blocks` |
 | Instellingen-, account- of wizardscherm | `fast` → `cms` |
 | Migratie of wat een verse installatie krijgt | `migration` |
+| Paginatekst per taal (`PageLocalization`, `page_translations`, de pagina-editor) | `fast` → `cms` |
 
 ## De bestanden
 
@@ -38,8 +39,10 @@ In `fast`:
 - `tests/Service/MultilingualBoundaryTest.php`
 - `tests/Service/LanguageCodeTest.php`
 - `tests/Service/SiteLanguagesTest.php`
+- `tests/Service/PageLocalizationTest.php` — de Pages-API van fase 2: terugval
+  per veld, de naam in het CMS, de NL/EN-uitvoeradapter en een derde taal
 
-Alle acht de bestanden zitten in `fast`: geen database, geen webserver, geen
+Alle negen de bestanden zitten in `fast`: geen database, geen webserver, geen
 netwerk. Het talenregister vervangen ze in het geheugen met
 `Tests\Support\SiteLanguageFixture`.
 
@@ -49,6 +52,14 @@ In `cms`:
 - `tests/Repository/SiteLanguageRepositoryTest.php` — de invarianten van
   `site_languages` tegen de testdatabase, elke test in een transactie die
   wordt teruggedraaid
+- `tests/Repository/PageTranslationRepositoryTest.php` — `page_translations`:
+  uniek per taal, de twee foreign keys, opslaan per taal en een Duitse rij
+  zonder schemawijziging
+- `tests/Service/PageLocalizationEditorHttpTest.php` — de pagina-editor over
+  echte HTTP: één taal op het scherm, opslaan per taal, de verplichte titel in
+  de standaardtaal, een geweigerde taal, Duits via het register, een nieuwe
+  pagina in de standaardtaal, en de NL/EN-uitvoer op de publieke pagina en in
+  het concept-voorbeeld
 
 De drie migratietests, `MigrationTableNamesTest`,
 `ContentLanguageSettingRepairTest` en `SiteLanguageRegistryMigrationTest`,
@@ -70,7 +81,13 @@ ook: dat de taalkern en de CMS-taal elkaars opslag niet noemen, dat de
 taalkern geen taalcode of taalnaam in code noemt (commentaar telt niet mee),
 dat geen websitetaal via `AdminLocale` gevalideerd wordt (ook niet in de
 installatiewizard), en dat alleen `SiteLanguageRepository` SQL op
-`site_languages` uitvoert.
+`site_languages` uitvoert. Sinds fase 2 ook: dat alleen
+`PageTranslationRepository` SQL op `page_translations` uitvoert en alleen
+`PageLocalization` die repository gebruikt, dat niets de zes gedropte
+paginakolommen nog leest, dat de terugval van paginatekst op één plek staat,
+dat de editorcomponent geen taal bij naam kent, dat de pagina-endpoints alleen
+via de API schrijven, en dat de schakelaar in de schil zijn talen uit het
+register haalt.
 
 `LanguageCodeTest` bewijst dat de coderegel een vorm is en geen lijst: alle
 676 paren van twee kleine letters zijn geldig, ook talen die nergens in PHP

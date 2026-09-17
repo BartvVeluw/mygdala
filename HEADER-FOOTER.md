@@ -499,11 +499,10 @@ dat werd voorgelezen en met een huidige pagina die soms naar zichzelf linkte.
 De **naam** in het kruimelpad is de titel van de pagina zelf, per render
 gelezen, in beide talen. Er wordt niets gekopieerd: hernoem je een pagina, dan
 verandert het kruimelpad mee, en vertaal je hem, dan vertaalt het kruimelpad
-mee. De paginatitel is een gewoon tweetalig veld: `pages.title` is de
-hoofdtaal en `pages.title_en` de vertaling, gelezen via
-`App\Service\PageContent::titleValue()` — de enige plek die die twee kolommen
-kent. Een lege vertaling betekent "hetzelfde als de hoofdtaal"
-(`MULTILINGUAL.md`), nooit een lege naam.
+mee. De titel staat per websitetaal in `page_translations` en wordt gelezen
+via `App\Service\PageLocalization::bilingual()`, de enige plek die de opslag
+en de terugval kent (`docs/multilingual/ARCHITECTURE.md`). Een lege vertaling
+betekent "hetzelfde als de standaardtaal", nooit een lege naam.
 
 De **slug verandert niet mee**. Beide talen wonen op één URL; gelokaliseerde
 adressen zijn bewust uitgesteld (`MULTILINGUAL.md`, *Wat V1 bewust niet doet*).
@@ -517,7 +516,7 @@ aanmaken.
 | Eén niveau | `App\Service\Breadcrumbs\BreadcrumbItem` — label NL/EN en een adres, of geen adres |
 | Het hele pad | `App\Service\Breadcrumbs\BreadcrumbTrail` — `home()`, `to()`, `toPage()`, `toRoute()` |
 | Een gewone CMS-pagina | `App\Service\Breadcrumbs\PageBreadcrumb::forPage()` |
-| Opslag van de naam | `pages.title` + `pages.title_en` (vertaling optioneel, `NULL` = niet vertaald) |
+| Opslag van de naam | `page_translations.title`, één rij per taal (vertaling optioneel; geen rij = niet vertaald) |
 | Opslag van de keuze | `pages.show_breadcrumb` (`NOT NULL DEFAULT 1`) |
 | Scherm | Pagina bewerken → tabblad **Pagina** (`admin/page.php`) |
 | Opslaan | `api/admin/update-page.php` |
@@ -588,7 +587,8 @@ verwijderd.
 `page_heroes.breadcrumb_label_nl` en `breadcrumb_label_en` bestaan nog. Ze
 worden niet meer gelezen en niet meer overschreven. Wat een redacteur ooit in
 het **Engelse** label typte is wél éénmalig overgenomen als `pages.title_en`
-(migratie `20260916140000`), want dat was de enige plek waar de Engelse naam
+(migratie `20260916140000`; sinds `20260917150000` de rij `en` in
+`page_translations`), want dat was de enige plek waar de Engelse naam
 van een pagina kon staan; alleen waar de pagina nog bestaat, `title_en` nog
 leeg is en het label iets anders zegt dan de Nederlandse titel. Verder: de INSERT van
 `PageHeroRepository::upsert()` zet `breadcrumb_label_nl` op de lege string

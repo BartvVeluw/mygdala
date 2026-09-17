@@ -5,6 +5,16 @@ meertaligheid met een database doen, wat een bestaande site daarvan merkt, en
 wat er vóór de correctie van V1 fout was. Nodig bij installatie-, upgrade- en
 migratiewerk.
 
+## Multilingual 2.0: paginatekst per taal
+
+Eén uitzondering op "onaangeraakt" hieronder, bewust: de zes tekstkolommen van
+`pages` (`title`, `meta_title`, `meta_description` en hun `_en`) zijn
+verhuisd naar `page_translations` en daarna verwijderd
+(`20260917140000`, `20260917150000`). NL blijft NL, EN blijft EN, leeg blijft
+leeg, en ontbreekt een taal in het register, dan stopt de migratie vóór de
+drop. Details in [`ARCHITECTURE.md`](ARCHITECTURE.md), *De migratie*; de test
+is `tests/Install/PageTranslationMigrationTest.php` (`migration`).
+
 ## Wat hiervóór fout was
 
 De eerste versie had laag 2 niet. "Welke taal bewerk ik" werd afgeleid uit de

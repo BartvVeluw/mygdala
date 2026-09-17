@@ -261,7 +261,8 @@ gaat over waar een bezoeker *is*, en dat verandert niet als een kop verdwijnt.
 
 Gevolg: één generieke renderer (`partials/breadcrumb.php`) met kleine
 waarde-objecten erachter (`App\Service\Breadcrumbs`), aangeroepen door de
-route vóór de inhoud van de pagina. De naam komt uit `pages.title` in plaats
+route vóór de inhoud van de pagina. De naam komt uit de titel van de pagina
+(sinds Multilingual 2.0 fase 2 per taal in `page_translations`) in plaats
 van uit een tweede, met de hand overgetypte kolom, en of een pagina er een
 toont is `pages.show_breadcrumb` — een eigenschap van de pagina, niet van een
 blok. `page_heroes.breadcrumb_label_nl/en` blijven staan als legacydata.

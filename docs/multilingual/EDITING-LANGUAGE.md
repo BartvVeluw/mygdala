@@ -18,7 +18,15 @@ CONTENT BEWERKEN
 
 Hij staat in `admin/_header.php`, direct onder de sitenaam, en hij POST't naar
 `api/admin/update-content-language.php` met een CSRF-token zoals elke andere
-schrijfactie hier. Daarna keert hij terug naar het scherm waar je was: welke
+schrijfactie hier.
+
+Sinds Multilingual 2.0 fase 2 toont hij de actieve talen van het talenregister
+(`ContentEditingLanguage::choices()`), de standaardtaal eerst en gemarkeerd
+met een stip en *standaardtaal* in de naam van de knop. Op een site met
+Nederlands en Engels ziet hij er hetzelfde uit als voorheen. Een derde taal is
+één rij in `site_languages`. Een scherm dat nog op de panelen hieronder staat,
+kan alleen NL/EN opslaan: kies je een andere taal, dan toont dat scherm de
+standaardtaal en zegt het dat. Daarna keert hij terug naar het scherm waar je was: welke
 taal een formulier toont wordt op de **server** beslist, dus de pagina moet
 opnieuw gerenderd worden — maar het is een taalwissel, geen navigatie.
 
@@ -175,6 +183,17 @@ Twee dingen die `php -l` niet ziet en de suite wel:
 - een label dat nog `(NL)` of `(EN)` achter zich draagt. Binnen een paneel
   zegt de indicator al in welke taal je zit.
 
+### Velden die per websitetaal worden opgeslagen
+
+Pagina's zijn sinds fase 2 niet meer op deze panelen gebouwd. Ze gebruiken
+`admin/_localized_fields.php`: de velden van één taal op het scherm én in het
+verzoek, een verborgen `language_code`, en een endpoint dat alleen die taal
+schrijft. Er worden geen verborgen panelen van andere talen meegestuurd.
+Contract, terugval en de lijst functies staan in
+[`ARCHITECTURE.md`](ARCHITECTURE.md), *De editorcomponent*. Een scherm dat
+naar per-taal-opslag verhuist, stapt over op die component; de panelen
+hieronder blijven voor de rest tot hun eigen fase.
+
 ### Meer dan één formulier op een scherm
 
 Een scherm is niet altijd één formulier. Een portfolio-item heeft een klein
@@ -203,3 +222,4 @@ verspringt als je van bewerktaal wisselt is moeilijker terug te vinden.
 | Bewerktaal, per persoon | `src/Service/Language/ContentEditingLanguage.php`, kolom `admin_users.content_editing_language` |
 | De schakelaar *Content bewerken* | `admin/_header.php`, `api/admin/update-content-language.php` |
 | Taalvelden in het CMS | `admin/_language_fields.php`, `admin/assets/admin-language-translate.js`, `.admin-lang-*` en `.admin-sidebar__contentlang*` in `admin/assets/admin.css` |
+| Velden per websitetaal (Pages) | `admin/_localized_fields.php`, zie [`ARCHITECTURE.md`](ARCHITECTURE.md) |

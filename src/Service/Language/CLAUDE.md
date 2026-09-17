@@ -20,6 +20,9 @@ die door elkaar halen is precies de fout die hier eerder is gemaakt:
 - `SiteLanguages` en `AdminLocale` noemen elkaar niet: websitetaal is geen
   CMS-taal.
 - Van bewerktaal wisselen mag nooit iets weggooien.
+- Paginatekst staat per websitetaal in `page_translations` en loopt alleen via
+  `App\Service\PageLocalization`; de terugval (gevraagde taal, standaardtaal,
+  leeg) staat daar en nergens anders.
 
 Lees `../../../MULTILINGUAL.md`. Meertaligheid is Core en raakt elk domein,
 dus het heeft geen eigen suite: de tests zitten in `fast` en `cms`.

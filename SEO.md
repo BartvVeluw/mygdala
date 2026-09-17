@@ -78,7 +78,11 @@ eigen SEO-titel (meta_title)     → letterlijk, precies zoals getypt
 
 Een pagina die al zo heet als de site krijgt de naam niet twee keer:
 "Testbedrijf — Testbedrijf" ontstaat nergens. Een lege Engelse waarde valt
-terug op de Nederlandse, zoals elk tweetalig veld in dit project.
+terug op de Nederlandse, zoals elk tweetalig veld in dit project. Voor
+CMS-pagina's staan titel, SEO-titel en omschrijving per websitetaal in
+`page_translations`, en valt elk veld terug op de standaardtaal
+(`App\Service\PageLocalization`, `docs/multilingual/ARCHITECTURE.md`). De
+canonical blijft één URL per pagina tot de routingfase.
 
 Vaste routes zonder CMS-rij (winkelwagen, afrekenen, bestelstatus,
 cookiebeleid, herroeping) gebruiken `Seo::routeTitle()`: `"<naam> | <site_name>"`.
