@@ -20,11 +20,15 @@ declare(strict_types=1);
 require_once __DIR__ . '/../../vendor/autoload.php';
 
 use App\Service\Language\AdminTranslator;
+use App\Database;
 use App\Repository\FormRepository;
 use App\Service\AdminAuth;
 use App\Service\Csrf;
 use App\Service\Forms\FormCatalog;
 use App\Service\Forms\FormFieldTypes;
+use App\Service\Forms\FormLocalization;
+use App\Service\Language\LanguageCode;
+use App\Service\Language\SiteLanguages;
 use App\Service\Forms\FormRecipient;
 
 AdminAuth::requireLoginForApi();
@@ -47,7 +51,8 @@ if ($id === false || $id === null || $id < 1) {
     exit('Invalid form id.');
 }
 
-$repository = new FormRepository();
+$db = Database::connection();
+$repository = new FormRepository($db);
 
 if ($repository->find($id) === null) {
     http_response_code(404);
@@ -57,16 +62,25 @@ if ($repository->find($id) === null) {
 $fields = [
     'name' => mb_substr(trim((string) ($_POST['name'] ?? '')), 0, 150),
     'is_active' => isset($_POST['is_active']),
-    'submit_label_nl' => mb_substr(trim((string) ($_POST['submit_label_nl'] ?? '')), 0, 150),
-    'submit_label_en' => mb_substr(trim((string) ($_POST['submit_label_en'] ?? '')), 0, 150),
-    'success_message_nl' => mb_substr(trim((string) ($_POST['success_message_nl'] ?? '')), 0, 1000),
-    'success_message_en' => mb_substr(trim((string) ($_POST['success_message_en'] ?? '')), 0, 1000),
     'notification_email' => trim((string) ($_POST['notification_email'] ?? '')),
     'reply_to_field_key' => trim((string) ($_POST['reply_to_field_key'] ?? '')),
     'store_submissions' => isset($_POST['store_submissions']),
 ];
 
+// The button text and the thank-you message are written in the active
+// website language named by `language_code`, and in no other.
+$languageCode = LanguageCode::normalise((string) ($_POST['language_code'] ?? '')) ?? '';
+$words = [
+    FormLocalization::SUBMIT_LABEL => mb_substr(trim((string) ($_POST['submit_label'] ?? '')), 0, 150),
+    FormLocalization::SUCCESS_MESSAGE => mb_substr(trim((string) ($_POST['success_message'] ?? '')), 0, 1000),
+];
+$old = ['language_code' => $languageCode] + $fields + $words;
+
 $errors = [];
+
+if ($languageCode === '' || !SiteLanguages::isActive($languageCode)) {
+    $errors[] = AdminTranslator::trans('validation.language_unknown');
+}
 
 if ($fields['name'] === '') {
     $errors[] = AdminTranslator::trans('validation.naam_formulier_verplicht');
@@ -101,18 +115,25 @@ if ($fields['reply_to_field_key'] !== '') {
 
 if ($errors !== []) {
     $_SESSION['admin_form_errors'] = $errors;
-    $_SESSION['admin_form_old'] = $fields;
+    $_SESSION['admin_form_old'] = $old;
     header('Location: /admin/form.php?id=' . $id);
     exit;
 }
 
 try {
+    // The form's settings and its words in this language are one save.
+    $db->beginTransaction();
     $repository->update($id, $fields);
+    FormLocalization::forms()->save($id, $languageCode, $words);
+    $db->commit();
     FormCatalog::clearCache();
 } catch (\Throwable $e) {
+    if ($db->inTransaction()) {
+        $db->rollBack();
+    }
     error_log('[api/admin/update-form.php] ' . $e->getMessage());
     $_SESSION['admin_form_errors'] = ['Kon niet worden opgeslagen. Probeer het opnieuw.'];
-    $_SESSION['admin_form_old'] = $fields;
+    $_SESSION['admin_form_old'] = $old;
     header('Location: /admin/form.php?id=' . $id);
     exit;
 }

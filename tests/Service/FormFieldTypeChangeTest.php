@@ -121,23 +121,48 @@ final class FormFieldTypeChangeTest extends TestCase
      * @param array<string, mixed> $overrides
      * @return array<string, mixed>
      */
+    /**
+     * A stored field as App\Service\Forms\FormLocalization hands it over: its
+     * words per website language and its option rows. The Dutch/English
+     * placeholder keys stay in this test's own vocabulary, because "a
+     * placeholder in any language is a loss" is exactly what it asks about.
+     *
+     * @param array<string, mixed> $overrides
+     * @return array<string, mixed>
+     */
     private function row(string $type, array $overrides = []): array
     {
+        $translations = [];
+        foreach (['nl' => $overrides['placeholder_nl'] ?? 'Uw naam', 'en' => $overrides['placeholder_en'] ?? null] as $code => $placeholder) {
+            $words = $code === 'nl' ? ['label' => 'Contact'] : [];
+            if (trim((string) $placeholder) !== '') {
+                $words['placeholder'] = (string) $placeholder;
+            }
+            if ($words !== []) {
+                $translations[$code] = $words;
+            }
+        }
+
+        $options = array_key_exists('options', $overrides) ? $overrides['options'] : 'Ja|Yes';
+        $choices = $options === null ? [] : [
+            ['id' => 1, 'value' => 'Ja', 'sort_order' => 0, 'labels' => ['nl' => 'Ja', 'en' => 'Yes']],
+            ['id' => 2, 'value' => 'Nee', 'sort_order' => 1, 'labels' => ['nl' => 'Nee', 'en' => 'No']],
+        ];
+
+        foreach (['placeholder_nl', 'placeholder_en', 'options'] as $moved) {
+            unset($overrides[$moved]);
+        }
+
         return $overrides + [
             'id' => 7,
             'form_id' => 3,
             'field_key' => 'contact',
             'field_type' => $type,
-            'label_nl' => 'Contact',
-            'label_en' => null,
-            'placeholder_nl' => 'Uw naam',
-            'placeholder_en' => null,
-            'help_text_nl' => null,
-            'help_text_en' => null,
             'is_required' => 1,
             'sort_order' => 0,
-            'options' => "Ja|Yes\nNee|No",
             'default_value' => 'Ja',
+            'translations' => $translations,
+            'choices' => $choices,
         ];
     }
 }

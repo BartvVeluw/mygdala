@@ -308,6 +308,7 @@
             <file>tests/Install/PageTranslationMigrationTest.php</file>
             <file>tests/Install/NavigationFooterLabelMigrationTest.php</file>
             <file>tests/Install/LocalizedSiteSettingMigrationTest.php</file>
+            <file>tests/Install/FormWordsAndOptionMigrationTest.php</file>
             <file>tests/Install/BlockTranslationSchemaTest.php</file>
             <file>tests/Install/BlockTranslationMigrationTest.php</file>
             <file>tests/Install/RemainingBlockWordsMigrationTest.php</file>
@@ -476,6 +477,7 @@
             <file>tests/Install/PageTranslationMigrationTest.php</file>
             <file>tests/Install/NavigationFooterLabelMigrationTest.php</file>
             <file>tests/Install/LocalizedSiteSettingMigrationTest.php</file>
+            <file>tests/Install/FormWordsAndOptionMigrationTest.php</file>
             <file>tests/Service/BlockPreviewAccessTest.php</file>
             <file>tests/Service/PagePreviewAccessTest.php</file>
             <file>tests/Service/PagePreviewContractTest.php</file>

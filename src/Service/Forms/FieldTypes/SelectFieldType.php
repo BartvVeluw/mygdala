@@ -25,11 +25,13 @@ final class SelectFieldType extends ChoiceFieldType
         echo '<option value=""' . ($control->value === '' ? ' selected' : '') . '>&mdash;</option>';
 
         foreach ($control->field->options->all() as $option) {
-            echo '<option value="' . $control->escape($option->nl) . '"'
-                . ($control->value === $option->nl ? ' selected' : '')
-                . ' data-nl="' . $control->escape($option->nl) . '"'
-                . ' data-en="' . $control->escape($option->en) . '">'
-                . $control->escape($option->nl)
+            // The value is the option's stable identity; only the label
+            // follows the language switch (App\Service\Forms\FormOption).
+            echo '<option value="' . $control->escape($option->value) . '"'
+                . ($control->value === $option->value ? ' selected' : '')
+                . ' data-nl="' . $control->escape($option->label->nl) . '"'
+                . ' data-en="' . $control->escape($option->label->en) . '">'
+                . $control->escape($option->label->nl)
                 . '</option>';
         }
 

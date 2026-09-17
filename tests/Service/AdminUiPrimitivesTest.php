@@ -712,9 +712,8 @@ final class AdminUiPrimitivesTest extends TestCase
         $fields = [
             'is_active' => 'help.forms.active',
             'name' => 'help.forms.name',
-            // Both language panes: only the one being edited is on screen.
-            'success_message_nl' => 'help.forms.thank_you_message',
-            'success_message_en' => 'help.forms.thank_you_message',
+            // One website language at a time (Multilingual 2.0 phase 4).
+            'success_message' => 'help.forms.thank_you_message',
             'notification_email' => 'help.forms.notification_email',
             'store_submissions' => 'help.forms.store_submissions',
             'reply_to_field_key' => 'help.forms.reply_to',

@@ -45,12 +45,12 @@ final class RadioFieldType extends ChoiceFieldType
             echo '<label class="check-pill" for="' . $control->escape($id) . '">'
                 . '<input type="radio" id="' . $control->escape($id) . '"'
                 . ' name="' . $control->escape($control->name) . '"'
-                . ' value="' . $control->escape($option->nl) . '"'
-                . ($control->value === $option->nl ? ' checked' : '')
+                . ' value="' . $control->escape($option->value) . '"'
+                . ($control->value === $option->value ? ' checked' : '')
                 . $attributes . '>'
-                . '<span data-nl="' . $control->escape($option->nl) . '"'
-                . ' data-en="' . $control->escape($option->en) . '">'
-                . $control->escape($option->nl)
+                . '<span data-nl="' . $control->escape($option->label->nl) . '"'
+                . ' data-en="' . $control->escape($option->label->en) . '">'
+                . $control->escape($option->label->nl)
                 . '</span>'
                 . '</label>';
         }

@@ -14,6 +14,12 @@ namespace App\Repository;
  * value interpolated into SQL, and nothing here decides anything — a caller
  * that wants a FormDefinition asks FormCatalog, which asks this class for
  * rows.
+ *
+ * NO WORDS HERE since Multilingual 2.0 phase 4: a form's submit label and
+ * thank-you message, a field's label, placeholder and help text, and an
+ * option's label are stored per website language through
+ * App\Service\Forms\FormLocalization; a field's options are rows of
+ * App\Repository\FormFieldOptionRepository.
  */
 class FormRepository extends Repository
 {
@@ -134,12 +140,10 @@ class FormRepository extends Repository
     {
         $stmt = $this->db->prepare(
             'INSERT INTO forms
-                (name, internal_key, is_active, submit_label_nl, submit_label_en,
-                 success_message_nl, success_message_en, notification_email,
+                (name, internal_key, is_active, notification_email,
                  reply_to_field_key, store_submissions, created_at, updated_at)
              VALUES
-                (:name, :internal_key, :is_active, :submit_label_nl, :submit_label_en,
-                 :success_message_nl, :success_message_en, :notification_email,
+                (:name, :internal_key, :is_active, :notification_email,
                  :reply_to_field_key, :store_submissions, NOW(), NOW())'
         );
 
@@ -157,10 +161,6 @@ class FormRepository extends Repository
             'UPDATE forms SET
                 name = :name,
                 is_active = :is_active,
-                submit_label_nl = :submit_label_nl,
-                submit_label_en = :submit_label_en,
-                success_message_nl = :success_message_nl,
-                success_message_en = :success_message_en,
                 notification_email = :notification_email,
                 reply_to_field_key = :reply_to_field_key,
                 store_submissions = :store_submissions,
@@ -199,12 +199,10 @@ class FormRepository extends Repository
     {
         $stmt = $this->db->prepare(
             'INSERT INTO form_fields
-                (form_id, field_key, field_type, label_nl, label_en, placeholder_nl, placeholder_en,
-                 help_text_nl, help_text_en, is_required, sort_order, options, default_value,
+                (form_id, field_key, field_type, is_required, sort_order, default_value,
                  created_at, updated_at)
              VALUES
-                (:form_id, :field_key, :field_type, :label_nl, :label_en, :placeholder_nl, :placeholder_en,
-                 :help_text_nl, :help_text_en, :is_required, :sort_order, :options, :default_value,
+                (:form_id, :field_key, :field_type, :is_required, :sort_order, :default_value,
                  NOW(), NOW())'
         );
 
@@ -230,14 +228,7 @@ class FormRepository extends Repository
         $stmt = $this->db->prepare(
             'UPDATE form_fields SET
                 field_type = :field_type,
-                label_nl = :label_nl,
-                label_en = :label_en,
-                placeholder_nl = :placeholder_nl,
-                placeholder_en = :placeholder_en,
-                help_text_nl = :help_text_nl,
-                help_text_en = :help_text_en,
                 is_required = :is_required,
-                options = :options,
                 default_value = :default_value,
                 updated_at = NOW()
               WHERE id = :id'
@@ -332,10 +323,6 @@ class FormRepository extends Repository
         return [
             'name' => (string) ($values['name'] ?? ''),
             'is_active' => !empty($values['is_active']) ? 1 : 0,
-            'submit_label_nl' => (string) ($values['submit_label_nl'] ?? ''),
-            'submit_label_en' => self::nullIfEmpty($values['submit_label_en'] ?? null),
-            'success_message_nl' => (string) ($values['success_message_nl'] ?? ''),
-            'success_message_en' => self::nullIfEmpty($values['success_message_en'] ?? null),
             'notification_email' => self::nullIfEmpty($values['notification_email'] ?? null),
             'reply_to_field_key' => self::nullIfEmpty($values['reply_to_field_key'] ?? null),
             'store_submissions' => !empty($values['store_submissions']) ? 1 : 0,
@@ -349,15 +336,8 @@ class FormRepository extends Repository
     private function fieldParameters(array $values): array
     {
         return [
-            'label_nl' => (string) ($values['label_nl'] ?? ''),
-            'label_en' => self::nullIfEmpty($values['label_en'] ?? null),
-            'placeholder_nl' => self::nullIfEmpty($values['placeholder_nl'] ?? null),
-            'placeholder_en' => self::nullIfEmpty($values['placeholder_en'] ?? null),
-            'help_text_nl' => self::nullIfEmpty($values['help_text_nl'] ?? null),
-            'help_text_en' => self::nullIfEmpty($values['help_text_en'] ?? null),
             'is_required' => !empty($values['is_required']) ? 1 : 0,
-            'options' => self::nullIfEmpty($values['options'] ?? null),
-            // The pre-selected option of a choice field. Validated against
+            // The pre-selected option VALUE of a choice field. Validated against
             // that field's own option list before it ever gets here — see
             // api/admin/update-form-field.php and App\Service\Forms\FormField.
             'default_value' => self::nullIfEmpty($values['default_value'] ?? null),

@@ -6,56 +6,64 @@ namespace App\Service\Forms;
 
 /**
  * The choices of a select or radio field: an ordered, closed list of
- * bilingual labels.
+ * App\Service\Forms\FormOption — a stable value and a localized label each.
  *
- * STORED AS ONE TEXT COLUMN, one option per line, `NL|EN` with the English
- * half optional. That is not a shortcut around a proper table — it is the
- * whole configuration a Forms V1 choice field has, an editor fills it in as
- * a list of rows on one screen, and a child table would buy nothing but
- * three more write endpoints.
- * A JSON blob would buy even less and read worse in a database client.
+ * STORED AS ROWS since Multilingual 2.0 phase 4: one `form_field_options` row
+ * per option (its value and position) and its labels per website language in
+ * `form_field_option_translations`, through App\Service\Forms\FormLocalization.
+ * They used to be `NL|EN` lines in one text column, where the Dutch label was
+ * the value too; a third language had nowhere to go, and translating a label
+ * would have changed what a submission stores.
  *
- * THE SUBMITTED VALUE IS THE DUTCH LABEL. There is deliberately no separate
- * machine value for an editor to invent and keep in sync: the notification
- * e-mail and the stored submission then read as the visitor saw them, and
- * validation is a plain "is this one of the configured labels" comparison
- * (App\Service\Forms\FieldTypes\SelectFieldType). Renaming an option later
- * cannot corrupt history, because a submission snapshots the value it was
- * given rather than pointing back at this list.
+ * THE SUBMITTED VALUE IS THE OPTION'S VALUE, never its label in the
+ * visitor's language. It reads as a word (it was made from the default
+ * language's label when the option was created), so the notification e-mail
+ * and a stored submission still say what was chosen without looking anything
+ * up, and validation is a plain "is this one of the configured values"
+ * comparison. A submission snapshots the value it was given rather than
+ * pointing back at this list, so deleting an option later cannot corrupt
+ * history.
  */
 final class FormFieldOptions
 {
     /** An editor cannot make a dropdown longer than this. */
     public const MAX_OPTIONS = 50;
 
-    /** Where a stored line's English half starts. */
-    public const SEPARATOR = '|';
+    /** The longest value and label a choice may have (the columns hold 255). */
+    public const MAX_LENGTH = 255;
 
-    /** @param list<FormText> $options */
+    /** @param list<FormOption> $options */
     private function __construct(private readonly array $options)
     {
     }
 
     /**
-     * Parses the stored column. Blank lines are dropped, duplicates (by
-     * Dutch label) are dropped, and everything past MAX_OPTIONS is ignored —
-     * a malformed row degrades to fewer choices, never to an error.
+     * Builds the list from the option rows FormLocalization hands a field,
+     * in their stored order. An empty value or a value seen before is
+     * dropped, and everything past MAX_OPTIONS is ignored: a malformed row
+     * degrades to fewer choices, never to an error. A label with no words in
+     * any language shows the value, so a choice is never blank.
+     *
+     * @param list<array{value?: mixed, labels?: array<string, string>}> $rows
      */
-    public static function fromStored(?string $stored): self
+    public static function fromRows(array $rows): self
     {
         $options = [];
         $seen = [];
 
-        foreach (preg_split('/\R/', (string) $stored) ?: [] as $line) {
-            [$nl, $en] = array_pad(explode(self::SEPARATOR, $line, 2), 2, null);
-
-            $option = FormText::of($nl, $en);
-            if ($option->nl === '' || isset($seen[$option->nl])) {
+        foreach ($rows as $row) {
+            $value = trim((string) ($row['value'] ?? ''));
+            if ($value === '' || isset($seen[$value])) {
                 continue;
             }
 
-            $seen[$option->nl] = true;
-            $options[] = $option;
+            $label = FormText::fromWords(
+                array_map(static fn (mixed $words): array => ['label' => (string) $words], (array) ($row['labels'] ?? [])),
+                'label'
+            );
+
+            $seen[$value] = true;
+            $options[] = new FormOption($value, $label->isEmpty() ? FormText::of($value) : $label);
 
             if (count($options) >= self::MAX_OPTIONS) {
                 break;
@@ -65,54 +73,16 @@ final class FormFieldOptions
         return new self($options);
     }
 
-    /**
-     * Canonical form for storage: the same parsing rules applied to whatever
-     * the admin textarea submitted, written back as one clean line per
-     * option. What comes out of the editor is therefore always what
-     * fromStored() will read back.
-     */
-    public static function toStored(?string $submitted): string
+    public static function none(): self
     {
-        $lines = [];
-
-        foreach (self::fromStored($submitted)->all() as $option) {
-            $lines[] = $option->nl === $option->en
-                ? $option->nl
-                : $option->nl . self::SEPARATOR . $option->en;
-        }
-
-        return implode("\n", $lines);
+        return new self([]);
     }
 
     /**
-     * The same canonical text, from the field editor's option rows: a Dutch
-     * and an English box per option (admin/form-field.php) instead of
-     * `NL|EN` typed into a textarea. Each row becomes the line the textarea
-     * used to hold and goes through toStored(), so empty rows, duplicates
-     * and the cap follow the one set of rules this class already has, and
-     * the stored format is exactly what it always was.
-     *
-     * A row's Dutch half must not hold the separator — it would start the
-     * English half — so api/admin/update-form-field.php refuses one
-     * (holdsSeparator()) before it gets here.
-     *
-     * @param list<array{nl: string, en: string}> $rows as rowText() cleaned them
-     */
-    public static function rowsToStored(array $rows): string
-    {
-        $lines = [];
-
-        foreach ($rows as $row) {
-            $lines[] = $row['en'] === '' ? $row['nl'] : $row['nl'] . self::SEPARATOR . $row['en'];
-        }
-
-        return self::toStored(implode("\n", $lines));
-    }
-
-    /**
-     * One half of an option row, as it will be stored: one line, trimmed. A
-     * line break would split the option in two, so every control character
-     * becomes a space; anything that is not a string is empty.
+     * One option label as the field editor sends it, as it will be stored:
+     * one line, trimmed. A line break has no place in a choice, so every
+     * control character becomes a space; anything that is not a string is
+     * empty.
      */
     public static function rowText(mixed $value): string
     {
@@ -123,13 +93,7 @@ final class FormFieldOptions
         return trim(preg_replace('/[\x00-\x1F\x7F]+/u', ' ', $value) ?? '');
     }
 
-    /** Whether a row's Dutch half holds the character that starts the English one. */
-    public static function holdsSeparator(string $dutch): bool
-    {
-        return str_contains($dutch, self::SEPARATOR);
-    }
-
-    /** @return list<FormText> */
+    /** @return list<FormOption> */
     public function all(): array
     {
         return $this->options;
@@ -148,20 +112,14 @@ final class FormFieldOptions
     /** Whether a submitted value is one of the configured choices. */
     public function contains(string $value): bool
     {
-        foreach ($this->options as $option) {
-            if ($option->nl === $value) {
-                return true;
-            }
-        }
-
-        return false;
+        return $this->find($value) !== null;
     }
 
-    /** The option matching a submitted value, or null — used to show it bilingually. */
-    public function find(string $value): ?FormText
+    /** The option with this value, or null. */
+    public function find(string $value): ?FormOption
     {
         foreach ($this->options as $option) {
-            if ($option->nl === $value) {
+            if ($option->value === $value) {
                 return $option;
             }
         }

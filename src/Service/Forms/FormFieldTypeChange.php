@@ -40,7 +40,8 @@ final class FormFieldTypeChange
     public const REPLY_TO = 'reply_to';
 
     /**
-     * @param array<string, mixed> $row        the field's stored `form_fields` row
+     * @param array<string, mixed> $row        the field's stored `form_fields` row, with its
+     *                                         `translations` and `choices` (FormLocalization::attachFieldWords())
      * @param string|null          $replyToKey the form's stored `reply_to_field_key`
      * @return list<string> the settings that would be lost, as the constants
      *                      above, in that order; [] when nothing would be
@@ -57,13 +58,17 @@ final class FormFieldTypeChange
 
         $losses = [];
 
-        if ($from->usesPlaceholder() && !$to->usesPlaceholder()
-            && (self::holds($row['placeholder_nl'] ?? null) || self::holds($row['placeholder_en'] ?? null))
-        ) {
+        // A placeholder in ANY language is something an editor wrote.
+        $placeholder = false;
+        foreach ((array) ($row['translations'] ?? []) as $fields) {
+            $placeholder = $placeholder || self::holds($fields['placeholder'] ?? null);
+        }
+
+        if ($from->usesPlaceholder() && !$to->usesPlaceholder() && $placeholder) {
             $losses[] = self::PLACEHOLDER;
         }
 
-        $options = FormFieldOptions::fromStored(is_string($row['options'] ?? null) ? $row['options'] : null);
+        $options = FormFieldOptions::fromRows(is_array($row['choices'] ?? null) ? $row['choices'] : []);
 
         if ($from->usesOptions() && !$to->usesOptions() && !$options->isEmpty()) {
             $losses[] = self::OPTIONS;

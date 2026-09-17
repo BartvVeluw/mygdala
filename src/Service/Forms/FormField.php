@@ -5,12 +5,18 @@ declare(strict_types=1);
 namespace App\Service\Forms;
 
 use App\Service\Forms\FieldTypes\FormFieldType;
+use App\Service\Language\LanguageFallback;
 
 /**
  * One field of a form, as everything downstream sees it: its key, its type
- * object, its already-bilingual texts and its options.
+ * object, its texts (as the V1 pair, the fallback already applied) and its
+ * options.
  *
- * Built ONLY from a `form_fields` row (fromRow()), and only when that row
+ * Built ONLY from a `form_fields` row (fromRow()) that
+ * App\Service\Forms\FormLocalization has given its words — `translations`,
+ * language code => label/placeholder/help_text — and its option rows —
+ * `choices`, each a value with its labels per language. Nothing here reads
+ * storage. And only when that row
  * names a type App\Service\Forms\FormFieldTypes actually knows — a row with
  * an unregistered `field_type` yields null and is skipped by the definition,
  * so a half-rolled-back migration or a hand-edited row makes a form render
@@ -30,16 +36,22 @@ final class FormField
         public readonly int $sortOrder,
         public readonly FormFieldOptions $options,
         /**
-         * The option this field starts on, or '' for none. Guaranteed to be
-         * one of $options — fromRow() drops anything else — so a renderer can
-         * print it without checking.
+         * The option VALUE this field starts on, or '' for none. Guaranteed
+         * to be one of $options — fromRow() drops anything else — so a
+         * renderer can print it without checking.
          */
         public readonly string $defaultValue,
+        /**
+         * The label in the website's DEFAULT language: what a stored
+         * submission and the notification e-mail record as the field's name,
+         * whatever language the visitor had on screen.
+         */
+        public readonly string $recordedLabel,
     ) {
     }
 
     /**
-     * @param array<string, mixed> $row a `form_fields` row
+     * @param array<string, mixed> $row a `form_fields` row with its `translations` and `choices`
      * @return self|null null when the row names a type that is not registered
      */
     public static function fromRow(array $row): ?self
@@ -54,19 +66,20 @@ final class FormField
             return null;
         }
 
+        $translations = is_array($row['translations'] ?? null) ? $row['translations'] : [];
         $options = $type->usesOptions()
-            ? FormFieldOptions::fromStored($row['options'] ?? null)
-            : FormFieldOptions::fromStored(null);
+            ? FormFieldOptions::fromRows(is_array($row['choices'] ?? null) ? $row['choices'] : [])
+            : FormFieldOptions::none();
 
         return new self(
             (int) ($row['id'] ?? 0),
             $key,
             $type,
-            FormText::of($row['label_nl'] ?? '', $row['label_en'] ?? null),
+            FormText::fromWords($translations, 'label'),
             $type->usesPlaceholder()
-                ? FormText::of($row['placeholder_nl'] ?? '', $row['placeholder_en'] ?? null)
+                ? FormText::fromWords($translations, 'placeholder')
                 : FormText::of(''),
-            FormText::of($row['help_text_nl'] ?? '', $row['help_text_en'] ?? null),
+            FormText::fromWords($translations, 'help_text'),
             // A consent box is required whatever the row says: see
             // App\Service\Forms\FieldTypes\ConsentFieldType.
             $type->requiredIsFixed() ? true : (bool) ($row['is_required'] ?? false),
@@ -77,7 +90,24 @@ final class FormField
             // option that was renamed, a hand-edited row — yields no default
             // rather than a pre-selection nothing matches.
             self::usableDefault($type, $options, $row['default_value'] ?? null),
+            self::recordedLabel($translations),
         );
+    }
+
+    /**
+     * The label a submission records: the default language's, else the first
+     * language with one (a label only a translation has is still a name).
+     *
+     * @param array<string, array<string, string>> $translations
+     */
+    private static function recordedLabel(array $translations): string
+    {
+        $labels = [];
+        foreach ($translations as $code => $fields) {
+            $labels[(string) $code] = (string) ($fields['label'] ?? '');
+        }
+
+        return LanguageFallback::name($labels);
     }
 
     /**

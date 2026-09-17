@@ -6,8 +6,14 @@ namespace App\Service\Forms;
 
 /**
  * A whole form as the renderer, the validator, the submission handler and
- * the e-mail builder see it: its settings, already bilingual, plus its
- * fields in display order.
+ * the e-mail builder see it: its settings, its texts as the V1 pair (the
+ * fallback already applied), plus its fields in display order.
+ *
+ * Its words — the submit label and the thank-you message per website
+ * language — arrive on the rows as `translations`, put there by
+ * App\Service\Forms\FormLocalization::attachWords(); the fields' words and
+ * options likewise. This class reads no storage, which is also what lets the
+ * block library build a form in memory (App\Service\Blocks\BlockSamples).
  *
  * This is the READ MODEL. Nothing here writes; App\Repository\FormRepository
  * owns the SQL and App\Service\Forms\FormCatalog owns the per-request cache.
@@ -38,8 +44,8 @@ final class FormDefinition
     }
 
     /**
-     * @param array<string, mixed>            $form   a `forms` row
-     * @param list<array<string, mixed>>      $fields its `form_fields` rows, already ordered
+     * @param array<string, mixed>            $form   a `forms` row with its `translations`
+     * @param list<array<string, mixed>>      $fields its `form_fields` rows, already ordered, with their words
      */
     public static function fromRows(array $form, array $fields): self
     {
@@ -52,19 +58,20 @@ final class FormDefinition
         }
 
         $replyTo = trim((string) ($form['reply_to_field_key'] ?? ''));
+        $translations = is_array($form['translations'] ?? null) ? $form['translations'] : [];
 
         return new self(
             (int) ($form['id'] ?? 0),
             trim((string) ($form['name'] ?? '')),
             (string) ($form['internal_key'] ?? ''),
             (bool) ($form['is_active'] ?? false),
-            // The submit button always says something: an empty stored label
-            // would render a nameless button, which is worse than a generic
-            // one. Neither default names a company or a product.
-            self::textOrDefault($form['submit_label_nl'] ?? '', $form['submit_label_en'] ?? null, 'Versturen', 'Send'),
+            // The submit button always says something: a form without a label
+            // in any language would render a nameless button, which is worse
+            // than a generic one. Neither default names a company or a
+            // product. A new form stores no words at all and starts on these.
+            self::textOrDefault(FormText::fromWords($translations, 'submit_label'), 'Versturen', 'Send'),
             self::textOrDefault(
-                $form['success_message_nl'] ?? '',
-                $form['success_message_en'] ?? null,
+                FormText::fromWords($translations, 'success_message'),
                 'Bedankt — je bericht is verstuurd.',
                 'Thanks — your message has been sent.'
             ),
@@ -134,10 +141,8 @@ final class FormDefinition
         ));
     }
 
-    private static function textOrDefault(mixed $nl, mixed $en, string $defaultNl, string $defaultEn): FormText
+    private static function textOrDefault(FormText $text, string $defaultNl, string $defaultEn): FormText
     {
-        $text = FormText::of(is_string($nl) ? $nl : '', is_string($en) ? $en : null);
-
         return $text->isEmpty() ? FormText::of($defaultNl, $defaultEn) : $text;
     }
 }

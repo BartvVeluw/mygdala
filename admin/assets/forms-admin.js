@@ -168,7 +168,7 @@
     function nextIndex() {
       var highest = -1;
 
-      Array.prototype.forEach.call(list.querySelectorAll('input[name^="option_nl["]'), function (input) {
+      Array.prototype.forEach.call(list.querySelectorAll('input[name^="option_label["]'), function (input) {
         var match = /\[(\d+)\]/.exec(input.name);
         if (match) highest = Math.max(highest, parseInt(match[1], 10));
       });
@@ -262,8 +262,12 @@
           input.checked = false;
           input.defaultChecked = false;
         } else {
+          // Empty, and with no option id: a copied row is a NEW option, and
+          // it may not carry the one it was copied from. Its placeholder, the
+          // name of that other option in the default language, goes too.
           input.value = "";
           input.defaultValue = "";
+          input.removeAttribute("placeholder");
         }
       });
 

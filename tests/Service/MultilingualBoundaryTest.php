@@ -1701,12 +1701,16 @@ final class MultilingualBoundaryTest extends TestCase
         'nav_item_translations',
         'footer_column_translations',
         'footer_link_translations',
+        'form_translations',
+        'form_field_translations',
+        'form_field_option_translations',
     ];
 
     /** The domain APIs that may declare a typed translation table and hold its store. */
     private const PHASE_4_DOMAIN_APIS = [
         'src/Service/NavigationLocalization.php',
         'src/Service/FooterLocalization.php',
+        'src/Service/Forms/FormLocalization.php',
     ];
 
     /** Wave A: every file that used to read or write a menu or footer label column. */
@@ -1910,6 +1914,125 @@ final class MultilingualBoundaryTest extends TestCase
 
         // The wizard writes the description and the place in the language it chose.
         self::assertStringContainsString("LocalizedSiteSettings::save(\$values['languages']['primary'], \$localized)", self::read('src/Install/SetupWizard.php'));
+    }
+
+    // ------------------------------------------------------- forms (phase 4 wave C)
+
+    /** Wave C: every file that used to read or write a form's or a field's words. */
+    private const FORMS_FILES = [
+        'src/Repository/FormRepository.php',
+        'src/Repository/FormFieldOptionRepository.php',
+        'src/Service/Forms/FormCatalog.php',
+        'src/Service/Forms/FormDefinition.php',
+        'src/Service/Forms/FormField.php',
+        'src/Service/Forms/FormFieldOptions.php',
+        'src/Service/Forms/FormFieldTypeChange.php',
+        'src/Service/Forms/FormValidator.php',
+        'src/Service/Forms/FieldTypes/SelectFieldType.php',
+        'src/Service/Forms/FieldTypes/RadioFieldType.php',
+        'partials/form.php',
+        'admin/form.php',
+        'admin/form-field.php',
+        'admin/_form_fields.php',
+        'api/admin/create-form.php',
+        'api/admin/update-form.php',
+        'api/admin/create-form-field.php',
+        'api/admin/update-form-field.php',
+    ];
+
+    public function testNothingReadsTheDroppedFormColumns(): void
+    {
+        // 20260918150000 dropped forms.submit_label_nl/en and
+        // success_message_nl/en, form_fields.label_nl/en, placeholder_nl/en
+        // and help_text_nl/en, and the options column that held every option
+        // of a field as one text.
+        $offenders = [];
+
+        foreach (self::FORMS_FILES as $file) {
+            $code = self::withoutComments(self::read($file));
+
+            if (preg_match_all('/(?<![a-z_])(?:submit_label|success_message|label|placeholder|help_text)_(?:nl|en)\b/', $code, $matches) > 0) {
+                $offenders[] = $file . ' (' . implode(', ', array_unique($matches[0])) . ')';
+            }
+            // `field_label` on a submission is another thing: the label as it
+            // stood when the visitor sent it, and no join back to the field.
+            if (preg_match('/\[[\'"]options[\'"]\]/', $code) === 1) {
+                $offenders[] = $file . ' (reads the dropped options column)';
+            }
+        }
+
+        self::assertSame([], $offenders);
+    }
+
+    public function testTheFormsDecideNoLanguageOrFallbackThemselves(): void
+    {
+        foreach (self::FORMS_FILES as $file) {
+            $code = self::withoutComments(self::read($file));
+
+            // The fallback is App\Service\Language\LanguageFallback's, reached
+            // through App\Service\Forms\FormLocalization. Asking the registry
+            // for the default language here is the first step of a second one.
+            self::assertStringNotContainsString('SiteLanguages::defaultCode', $code, $file);
+            self::assertStringNotContainsString('ContentLanguages::primary', $code, $file);
+            self::assertStringNotContainsString('EntityTranslations', $code, $file . ' goes through FormLocalization');
+        }
+    }
+
+    /**
+     * The identity of an option is its value, and a value is the same in every
+     * language: a language switch changes what the visitor reads, never what
+     * the form posts or what a submission stores.
+     */
+    public function testAnOptionIsPostedByValueAndOnlyItsLabelIsLocalized(): void
+    {
+        foreach (['src/Service/Forms/FieldTypes/SelectFieldType.php', 'src/Service/Forms/FieldTypes/RadioFieldType.php'] as $file) {
+            $code = self::withoutComments(self::read($file));
+
+            self::assertStringContainsString('$control->escape($option->value)', $code, $file . ' posts the value');
+            self::assertStringNotContainsString('value="\' . $control->escape($option->label', $code, $file . ' never posts a label');
+            self::assertMatchesRegularExpression('/data-nl="[^"]*\' \. \$control->escape\(\$option->label->nl\)/', $code, $file . ' shows the label as text in both languages');
+        }
+
+        // What a choice field accepts is the value, never a label of the day.
+        self::assertStringContainsString(
+            '$field->options->contains($value)',
+            self::withoutComments(self::read('src/Service/Forms/FieldTypes/ChoiceFieldType.php'))
+        );
+
+        // And what the submission keeps is that value, with the label of the
+        // moment beside it as a snapshot.
+        $validator = self::withoutComments(self::read('src/Service/Forms/FormValidator.php'));
+        self::assertStringContainsString("'field_label' => \$field->recordedLabel", $validator);
+        self::assertStringContainsString("'value' => \$values[\$field->key] ?? ''", $validator);
+    }
+
+    public function testTheFormEditorsShowOneLanguageAndTheirEndpointsWriteOnlyThatLanguage(): void
+    {
+        foreach (['admin/form.php', 'admin/form-field.php'] as $screen) {
+            $code = self::read($screen);
+
+            self::assertStringContainsString("require_once __DIR__ . '/_localized_fields.php';", $code, $screen);
+            self::assertStringContainsString('admin_localized_input(', $code, $screen);
+            self::assertStringNotContainsString('admin_lang_pane_start', $code, $screen . ' has no V1 language panes');
+        }
+
+        foreach (['api/admin/update-form.php', 'api/admin/update-form-field.php'] as $endpoint) {
+            $code = self::withoutComments(self::read($endpoint));
+
+            self::assertStringContainsString("'language_code'", $code, $endpoint);
+            self::assertStringContainsString('SiteLanguages::isActive(', $code, $endpoint . ' writes only an active website language');
+        }
+
+        // A new field starts in the default language, and row plus words are
+        // one save everywhere a form or a field is written.
+        self::assertStringContainsString('FormLocalization::defaultLanguage()', self::withoutComments(self::read('api/admin/create-form-field.php')));
+
+        foreach (['api/admin/create-form-field.php', 'api/admin/update-form.php', 'api/admin/update-form-field.php'] as $endpoint) {
+            $code = self::withoutComments(self::read($endpoint));
+
+            self::assertStringContainsString('beginTransaction()', $code, $endpoint);
+            self::assertStringContainsString('commit()', $code, $endpoint);
+        }
     }
 
     /**

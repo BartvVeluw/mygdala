@@ -10,25 +10,45 @@
  * one of them. Renaming a label is free and is what an editor means by
  * renaming a field — a submission keeps the label it was sent with.
  *
+ * ONE WEBSITE LANGUAGE (Multilingual 2.0 phase 4, admin/_localized_fields.php).
+ * The label, help text and placeholder are written in the active website
+ * language named by `language_code` only (App\Service\Forms\FormLocalization);
+ * every other language stays exactly as it is. The label is required in the
+ * default language only. The type, the required switch, the default and the
+ * options as a list (which exist, in which order) are the same in every
+ * language and may be changed from any language's screen.
+ *
  * WHAT IS WRITTEN IS WHAT THE SCREEN SHOWED. The editor shows only the
  * settings the field's type uses, so a setting that was not on the submitted
  * form is left exactly as it is stored instead of being saved as empty — the
  * rule this endpoint's neighbour api/admin/update-page.php applies to the
  * social image. A field whose type has no placeholder keeps one it once had,
- * unused and untouched, and the editor sent back unchanged writes back what
- * was there. `is_required` has a hidden 0 in front of its switch
+ * unused and untouched. `is_required` has a hidden 0 in front of its switch
  * (admin/form-field.php) so that "unticked" arrives at all; a consent box is
  * required whatever arrives.
  *
- * OPTIONS AND THEIR DEFAULT ARRIVE TOGETHER. One row per option
- * (`option_nl[i]`, `option_en[i]`), and the default is the ROW that was
- * marked (`default_option` = i), not a label typed in or picked from the
- * stored list. An option added, renamed or marked in this save can be the
- * default of this save. A marked row that was emptied is no option any
- * more, so the field is left without a default — never with one that
- * points at nothing — and the editor is told. The stored text is built by
- * App\Service\Forms\FormFieldOptions, so its format and its rules are the
- * ones the read model parses.
+ * OPTIONS KEEP THEIR IDENTITY. One row per option: `option_id[i]` (empty for
+ * a row added on screen), its label in this language `option_label[i]`, and
+ * the default is the ROW that was marked (`default_option` = i). What the
+ * rows mean:
+ *
+ *   - an existing option keeps its id and its VALUE (App\Service\Forms\
+ *     FormOption), whatever its label becomes, so renaming or translating it
+ *     never changes what a submission stores; its label is written in this
+ *     language, and the rows' order becomes the options' order;
+ *   - an existing option left out, or emptied on the DEFAULT language's
+ *     screen, is no option any more (its labels go with it); emptied on a
+ *     translation's screen it only loses that translation;
+ *   - a new row with words becomes a new option written in the DEFAULT
+ *     language, like a new field: its label there is what was typed, and its
+ *     value is that label, made unique within the field. It never changes
+ *     afterwards;
+ *   - two options with the same label in the default language are one: the
+ *     later row is dropped, as it always was.
+ *
+ * An option added, renamed or marked in this save can be the default of this
+ * save. A marked row that is no option any more leaves the field without a
+ * default — never with one that points at nothing — and the editor is told.
  *
  * CHANGING THE TYPE NEVER LOSES ANYTHING UNASKED.
  * App\Service\Forms\FormFieldTypeChange says what the new type would throw
@@ -40,14 +60,18 @@
  * carries `confirmed_type` for that same type goes through — the flow
  * api/admin/update-page.php uses for a new web address, and enforced here,
  * so a scripted request cannot skip it either. What was confirmed as lost is
- * cleared; nothing else is. A change that loses nothing and needs nothing
- * new is saved at once.
+ * cleared — a placeholder in every language, every option — and nothing
+ * else. A change that loses nothing and needs nothing new is saved at once.
+ *
+ * The field, its words and its options are one transaction.
  */
 
 declare(strict_types=1);
 
 require_once __DIR__ . '/../../vendor/autoload.php';
 
+use App\Database;
+use App\Repository\FormFieldOptionRepository;
 use App\Repository\FormRepository;
 use App\Service\AdminAuth;
 use App\Service\Csrf;
@@ -56,7 +80,10 @@ use App\Service\Forms\FormField;
 use App\Service\Forms\FormFieldOptions;
 use App\Service\Forms\FormFieldTypeChange;
 use App\Service\Forms\FormFieldTypes;
+use App\Service\Forms\FormLocalization;
 use App\Service\Language\AdminTranslator;
+use App\Service\Language\LanguageCode;
+use App\Service\Language\SiteLanguages;
 
 AdminAuth::requireLoginForApi();
 AdminAuth::requirePermissionForApi('forms.manage');
@@ -78,7 +105,8 @@ if ($fieldId === false || $fieldId === null || $fieldId < 1) {
     exit('Invalid field id.');
 }
 
-$repository = new FormRepository();
+$db = Database::connection();
+$repository = new FormRepository($db);
 $existing = $repository->findField($fieldId);
 
 if ($existing === null) {
@@ -86,9 +114,18 @@ if ($existing === null) {
     exit('Field not found.');
 }
 
+// The stored words per language and the option rows, which the type change
+// and the option rules below read.
+[$existing] = FormLocalization::attachFieldWords([$existing]);
+
 $formId = (int) $existing['form_id'];
 $form = $repository->find($formId);
 $editorUrl = '/admin/form-field.php?id=' . $fieldId;
+
+$languageCode = LanguageCode::normalise((string) ($_POST['language_code'] ?? '')) ?? '';
+$languageIsWritable = $languageCode !== '' && SiteLanguages::isActive($languageCode);
+$defaultLanguage = FormLocalization::defaultLanguage();
+$isDefaultLanguage = $languageCode === $defaultLanguage;
 
 $text = static fn (string $name, int $maxLength): string => is_string($_POST[$name] ?? null)
     ? mb_substr(trim($_POST[$name]), 0, $maxLength)
@@ -100,32 +137,31 @@ $type = FormFieldTypes::get($typeKey);
 // What the editor sent, and only the groups of settings it sent: this is
 // also what goes back to the screen when nothing is written.
 $submitted = [
+    'language_code' => $languageCode,
     'field_type' => $type === null ? (string) $existing['field_type'] : $type->key(),
-    'label_nl' => $text('label_nl', 200),
-    'label_en' => $text('label_en', 200),
-    'help_text_nl' => $text('help_text_nl', 500),
-    'help_text_en' => $text('help_text_en', 500),
+    'label' => $text('label', 200),
+    'help_text' => $text('help_text', 500),
 ];
 
-if (array_key_exists('placeholder_nl', $_POST) || array_key_exists('placeholder_en', $_POST)) {
-    $submitted['placeholder_nl'] = $text('placeholder_nl', 200);
-    $submitted['placeholder_en'] = $text('placeholder_en', 200);
+if (array_key_exists('placeholder', $_POST)) {
+    $submitted['placeholder'] = $text('placeholder', 200);
 }
 
 if (array_key_exists('is_required', $_POST)) {
     $submitted['is_required'] = ($_POST['is_required'] ?? '') === '1';
 }
 
-if (array_key_exists('option_nl', $_POST)) {
-    $dutch = is_array($_POST['option_nl']) ? $_POST['option_nl'] : [];
-    $english = is_array($_POST['option_en'] ?? null) ? $_POST['option_en'] : [];
+if (array_key_exists('option_label', $_POST)) {
+    $labels = is_array($_POST['option_label']) ? $_POST['option_label'] : [];
+    $ids = is_array($_POST['option_id'] ?? null) ? $_POST['option_id'] : [];
     $rows = [];
 
-    foreach ($dutch as $index => $value) {
+    foreach ($labels as $index => $value) {
+        $id = is_string($ids[$index] ?? null) && ctype_digit($ids[$index]) ? (int) $ids[$index] : 0;
         $rows[] = [
             'index' => (string) $index,
-            'nl' => FormFieldOptions::rowText($value),
-            'en' => FormFieldOptions::rowText($english[$index] ?? ''),
+            'id' => $id,
+            'label' => FormFieldOptions::rowText($value),
         ];
     }
 
@@ -135,7 +171,9 @@ if (array_key_exists('option_nl', $_POST)) {
 
 $errors = [];
 
-if ($submitted['label_nl'] === '') {
+if (!$languageIsWritable) {
+    $errors[] = AdminTranslator::trans('validation.language_unknown');
+} elseif ($isDefaultLanguage && $submitted['label'] === '') {
     $errors[] = AdminTranslator::trans('validation.label_verplicht_2');
 }
 
@@ -150,7 +188,7 @@ $sendBack = static function (array $submitted, array $errors) use ($editorUrl): 
     exit;
 };
 
-if ($type === null) {
+if ($type === null || !$languageIsWritable) {
     $sendBack($submitted, $errors);
 }
 
@@ -162,7 +200,7 @@ if ($type->key() !== (string) $existing['field_type']) {
     // The settings the new type has that the submitted form did not show:
     // the editor has not seen them yet, so it must before anything is saved.
     $unseen = ($type->usesOptions() && !array_key_exists('option_rows', $submitted))
-        || ($type->usesPlaceholder() && !array_key_exists('placeholder_nl', $submitted))
+        || ($type->usesPlaceholder() && !array_key_exists('placeholder', $submitted))
         || (!$type->requiredIsFixed() && !array_key_exists('is_required', $submitted));
 
     if (!$confirmed && ($losses !== [] || $unseen)) {
@@ -173,20 +211,17 @@ if ($type->key() !== (string) $existing['field_type']) {
 // Start from the stored row, so a setting that was not sent stays as it is.
 $values = [
     'field_type' => $type->key(),
-    'label_nl' => $submitted['label_nl'],
-    'label_en' => $submitted['label_en'],
-    'help_text_nl' => $submitted['help_text_nl'],
-    'help_text_en' => $submitted['help_text_en'],
-    'placeholder_nl' => $existing['placeholder_nl'],
-    'placeholder_en' => $existing['placeholder_en'],
     'is_required' => (bool) $existing['is_required'],
-    'options' => $existing['options'],
     'default_value' => $existing['default_value'],
 ];
 
-if ($type->usesPlaceholder() && array_key_exists('placeholder_nl', $submitted)) {
-    $values['placeholder_nl'] = $submitted['placeholder_nl'];
-    $values['placeholder_en'] = $submitted['placeholder_en'];
+$words = [
+    FormLocalization::LABEL => $submitted['label'],
+    FormLocalization::HELP_TEXT => $submitted['help_text'],
+];
+
+if ($type->usesPlaceholder() && array_key_exists('placeholder', $submitted)) {
+    $words[FormLocalization::PLACEHOLDER] = $submitted['placeholder'];
 }
 
 if ($type->requiredIsFixed()) {
@@ -199,40 +234,95 @@ if ($type->requiredIsFixed()) {
 
 $defaultDropped = false;
 
+/** @var list<array{id: int, value: string, label: string}>|null $plan the options after this save, in order */
+$plan = null;
+
+$existingOptions = [];
+foreach ($existing['choices'] as $choice) {
+    $existingOptions[(int) $choice['id']] = $choice;
+}
+
 if ($type->usesOptions() && array_key_exists('option_rows', $submitted)) {
+    $plan = [];
+    $seenDefaultLabels = [];
+    $takenValues = array_map(static fn (array $choice): string => (string) $choice['value'], $existingOptions);
+    $markedValue = null;
+
     foreach ($submitted['option_rows'] as $row) {
-        if (FormFieldOptions::holdsSeparator($row['nl'])) {
-            $errors[] = AdminTranslator::trans('validation.form_option_separator');
+        $isExisting = isset($existingOptions[$row['id']]);
+        $label = $row['label'];
+
+        if (mb_strlen($label) > FormFieldOptions::MAX_LENGTH) {
+            $errors[] = AdminTranslator::trans('validation.a_field_is_too_long');
+            break;
+        }
+
+        if (!$isExisting && $label === '') {
+            continue; // an empty new row is no option
+        }
+        if ($isExisting && $label === '' && $isDefaultLanguage) {
+            continue; // emptied where every language falls back to: no option any more
+        }
+
+        // Duplicates are judged on the default language's label, the one
+        // every language falls back to.
+        $defaultLabel = $isExisting && !$isDefaultLanguage
+            ? trim((string) ($existingOptions[$row['id']]['labels'][$defaultLanguage] ?? ''))
+            : $label;
+        if ($defaultLabel !== '' && isset($seenDefaultLabels[$defaultLabel])) {
+            continue;
+        }
+        if ($defaultLabel !== '') {
+            $seenDefaultLabels[$defaultLabel] = true;
+        }
+
+        if ($isExisting) {
+            $value = (string) $existingOptions[$row['id']]['value'];
+        } else {
+            // A new option's value is its label, once and for good, made
+            // unique within the field.
+            $value = mb_substr($label, 0, FormFieldOptions::MAX_LENGTH);
+            for ($suffix = 2; in_array($value, $takenValues, true); $suffix++) {
+                $tail = ' (' . $suffix . ')';
+                $value = mb_substr($label, 0, FormFieldOptions::MAX_LENGTH - mb_strlen($tail)) . $tail;
+            }
+            $takenValues[] = $value;
+        }
+
+        $plan[] = ['id' => $isExisting ? $row['id'] : 0, 'value' => $value, 'label' => $label];
+
+        if ($submitted['default_option'] !== '' && $row['index'] === $submitted['default_option']) {
+            $markedValue = $value;
+        }
+
+        if (count($plan) >= FormFieldOptions::MAX_OPTIONS) {
             break;
         }
     }
 
-    $values['options'] = FormFieldOptions::rowsToStored($submitted['option_rows']);
     $values['default_value'] = null;
 
-    $marked = null;
-    foreach ($submitted['option_rows'] as $row) {
-        if ($submitted['default_option'] !== '' && $row['index'] === $submitted['default_option']) {
-            $marked = $row['nl'];
-            break;
-        }
-    }
+    // THE one rule about defaults (FormField::isUsableDefault()), applied to
+    // the options this save is about to store: a marked row that holds no
+    // option any more simply leaves the field without a default.
+    $planned = FormFieldOptions::fromRows(array_map(
+        static fn (array $item): array => ['value' => $item['value']],
+        $plan
+    ));
 
-    // The ONE rule about defaults (FormField::isUsableDefault()), applied to
-    // the options being saved. A marked row that holds no option any more
-    // simply leaves the field without a default.
-    if ($marked !== null && FormField::isUsableDefault($type, FormFieldOptions::fromStored($values['options']), $marked)) {
-        if (mb_strlen($marked) > 200) {
+    if ($markedValue !== null && FormField::isUsableDefault($type, $planned, $markedValue)) {
+        if (mb_strlen($markedValue) > 200) {
             $errors[] = AdminTranslator::trans('validation.standaardwaarde_opties_veld');
         } else {
-            $values['default_value'] = $marked;
+            $values['default_value'] = $markedValue;
         }
     } elseif ($submitted['default_option'] !== '') {
         $defaultDropped = true;
     }
 }
 
-if ($type->usesOptions() && FormFieldOptions::fromStored(is_string($values['options']) ? $values['options'] : null)->isEmpty()) {
+$optionCount = $plan === null ? count($existingOptions) : count($plan);
+if ($type->usesOptions() && $optionCount === 0) {
     $errors[] = AdminTranslator::trans('validation.choice_field_needs_option');
 }
 
@@ -241,13 +331,11 @@ if ($errors !== []) {
 }
 
 // Exactly what the editor confirmed losing, and nothing else.
-if (in_array(FormFieldTypeChange::PLACEHOLDER, $losses, true)) {
-    $values['placeholder_nl'] = null;
-    $values['placeholder_en'] = null;
-}
+$clearPlaceholder = in_array(FormFieldTypeChange::PLACEHOLDER, $losses, true);
+$clearOptions = in_array(FormFieldTypeChange::OPTIONS, $losses, true);
 
-if (in_array(FormFieldTypeChange::OPTIONS, $losses, true)) {
-    $values['options'] = null;
+if ($clearPlaceholder) {
+    unset($words[FormLocalization::PLACEHOLDER]);
 }
 
 if (in_array(FormFieldTypeChange::DEFAULT_VALUE, $losses, true)) {
@@ -255,7 +343,39 @@ if (in_array(FormFieldTypeChange::DEFAULT_VALUE, $losses, true)) {
 }
 
 try {
+    $db->beginTransaction();
+
     $repository->updateField($fieldId, $values);
+    FormLocalization::fields()->save($fieldId, $languageCode, $words);
+
+    if ($clearPlaceholder) {
+        foreach (array_keys($existing['translations']) as $code) {
+            FormLocalization::fields()->save($fieldId, (string) $code, [FormLocalization::PLACEHOLDER => '']);
+        }
+    }
+
+    $options = new FormFieldOptionRepository($db);
+
+    if ($clearOptions) {
+        $options->deleteForField($fieldId);
+    } elseif ($plan !== null) {
+        $kept = array_filter(array_map(static fn (array $item): int => $item['id'], $plan));
+        foreach (array_keys($existingOptions) as $optionId) {
+            if (!in_array($optionId, $kept, true)) {
+                $options->delete($fieldId, $optionId);
+            }
+        }
+
+        foreach ($plan as $position => $item) {
+            if ($item['id'] > 0) {
+                $options->setPosition($fieldId, $item['id'], $position);
+                FormLocalization::options()->save($item['id'], $languageCode, [FormLocalization::LABEL => $item['label']]);
+            } else {
+                $optionId = $options->create($fieldId, $item['value'], $position);
+                FormLocalization::options()->save($optionId, $defaultLanguage, [FormLocalization::LABEL => $item['label']]);
+            }
+        }
+    }
 
     // A field that is no longer an e-mail field cannot go on being the
     // form's Reply-To (FormFieldTypeChange::REPLY_TO, confirmed above).
@@ -263,8 +383,13 @@ try {
         $repository->clearReplyToField($formId, (string) $existing['field_key']);
     }
 
+    $db->commit();
     FormCatalog::clearCache();
 } catch (\Throwable $e) {
+    if ($db->inTransaction()) {
+        $db->rollBack();
+    }
+    FormCatalog::clearCache();
     error_log('[api/admin/update-form-field.php] ' . $e->getMessage());
     $sendBack($submitted, [AdminTranslator::trans('validation.field_not_saved')]);
 }

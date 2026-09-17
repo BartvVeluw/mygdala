@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Tests\Repository;
 
 use App\Service\ContactFormContent;
-use App\Service\Forms\FormFieldOptions;
 use App\Service\Forms\FormFieldTypes;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
@@ -152,10 +151,10 @@ final class ContactFormMigrationTest extends TestCase
 
     public function testTheAudienceChoiceKeptBothOfItsOptionsInBothLanguages(): void
     {
-        $options = FormFieldOptions::fromStored((string) $this->field('voor-wie')['options']);
+        $options = $this->optionLines('voor-wie');
 
-        $this->assertSame(['Particulier', 'Zakelijk'], array_map(static fn ($o) => $o->nl, $options->all()));
-        $this->assertSame(['Personal', 'Business'], array_map(static fn ($o) => $o->en, $options->all()));
+        $this->assertSame(['Particulier', 'Zakelijk'], array_column($options, 0));
+        $this->assertSame(['Personal', 'Business'], array_column($options, 1));
     }
 
     /**
@@ -168,8 +167,9 @@ final class ContactFormMigrationTest extends TestCase
         $field = $this->field('voor-wie');
 
         $this->assertSame('Particulier', (string) $field['default_value']);
-        $this->assertTrue(
-            FormFieldOptions::fromStored((string) $field['options'])->contains((string) $field['default_value']),
+        $this->assertContains(
+            (string) $field['default_value'],
+            array_column($this->optionLines('voor-wie'), 0),
             'a default must always be one of the options actually offered'
         );
     }
@@ -296,6 +296,26 @@ final class ContactFormMigrationTest extends TestCase
             'SELECT * FROM form_fields WHERE form_id = ? ORDER BY sort_order, id',
             [(int) $this->migratedForm()['id']]
         );
+    }
+
+    /**
+     * The option lines of a field as the column held them back then: one per
+     * line, the Dutch half before the pipe and the English one after it.
+     * Multilingual 2.0 phase 4 gave every option a row of its own, so that
+     * reading is no longer a class of the application (App\Service\Forms\
+     * FormFieldOptions) but part of the history this test stands in.
+     *
+     * @return list<array{0: string, 1: string}>
+     */
+    private function optionLines(string $key): array
+    {
+        $lines = [];
+        foreach (explode("\n", (string) $this->field($key)['options']) as $line) {
+            [$nl, $en] = array_pad(explode('|', $line, 2), 2, '');
+            $lines[] = [trim($nl), trim($en)];
+        }
+
+        return $lines;
     }
 
     /** @return array<string, mixed> */

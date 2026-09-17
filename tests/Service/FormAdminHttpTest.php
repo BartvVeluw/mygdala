@@ -20,6 +20,7 @@ use App\Service\SectionRegistry;
 use PHPUnit\Framework\TestCase;
 use Tests\Support\AdminTestSession;
 use Tests\Support\BuiltInServer;
+use Tests\Support\FormFixture;
 
 /**
  * A form switched on and off, over real HTTP: what the public endpoint
@@ -299,7 +300,7 @@ final class FormAdminHttpTest extends TestCase
         $this->assertSame(1, $xpath->query($advanced . '//select[@name="reply_to_field_key"]')->length);
         $this->assertSame('e-mail', $xpath->query($advanced . '//select[@name="reply_to_field_key"]/option[@selected]')->item(0)?->getAttribute('value'));
 
-        foreach (['is_active', 'name', 'submit_label_nl', 'success_message_nl', 'notification_email'] as $everyday) {
+        foreach (['is_active', 'name', 'submit_label', 'success_message', 'notification_email'] as $everyday) {
             $this->assertSame(0, $xpath->query($advanced . '//*[@name="' . $everyday . '"]')->length, $everyday . ' stays on the main screen');
         }
 
@@ -437,7 +438,7 @@ final class FormAdminHttpTest extends TestCase
         $formId = $this->createForm(['name' => 'Offerte aanvragen']);
         $fields = [];
         foreach ($this->forms->fieldsFor($formId) as $field) {
-            $fields[(int) $field['id']] = (string) $field['label_nl'];
+            $fields[(int) $field['id']] = \App\Service\Forms\FormLocalization::fieldName((int) $field['id']);
         }
         $fieldId = array_key_first($fields);
 
@@ -603,7 +604,7 @@ final class FormAdminHttpTest extends TestCase
         sort($settingNames);
         $this->assertSame([
             'is_active', 'name', 'notification_email', 'reply_to_field_key', 'store_submissions',
-            'submit_label_en', 'submit_label_nl', 'success_message_en', 'success_message_nl',
+            'submit_label', 'success_message',
         ], $settingNames, 'every setting is a control of the watched form');
 
         $advanced = $settings . '//details[@data-form-advanced]';
@@ -775,16 +776,16 @@ final class FormAdminHttpTest extends TestCase
             'name' => 'Formulierstatus test',
             'internal_key' => FormCatalog::internalKeyFor('zz test formulierstatus', $this->forms),
             'is_active' => true,
-            'submit_label_nl' => 'Verstuur',
-            'submit_label_en' => 'Send',
-            'success_message_nl' => 'Bedankt.',
-            'success_message_en' => 'Thanks.',
             'notification_email' => 'formulierstatus@example.com',
             'reply_to_field_key' => 'e-mail',
             'store_submissions' => true,
         ]);
 
         $this->createdFormIds[] = $id;
+        FormFixture::formWords($id, [
+            'nl' => ['submit_label' => 'Verstuur', 'success_message' => 'Bedankt.'],
+            'en' => ['submit_label' => 'Send', 'success_message' => 'Thanks.'],
+        ]);
 
         $fields = [
             ['Naam', 'text', true, null, null],
@@ -796,19 +797,12 @@ final class FormAdminHttpTest extends TestCase
         foreach ($fields as [$label, $type, $required, $options, $default]) {
             $taken = array_map(static fn (array $row): string => (string) $row['field_key'], $this->forms->fieldsFor($id));
 
-            $this->forms->createField($id, [
+            FormFixture::field($id, [
                 'field_key' => FormFieldKey::fromLabel($label, $taken),
                 'field_type' => $type,
-                'label_nl' => $label,
-                'label_en' => null,
-                'placeholder_nl' => null,
-                'placeholder_en' => null,
-                'help_text_nl' => null,
-                'help_text_en' => null,
                 'is_required' => $required,
-                'options' => $options,
                 'default_value' => $default,
-            ]);
+            ], ['nl' => ['label' => $label]], $options);
         }
 
         FormCatalog::clearCache();

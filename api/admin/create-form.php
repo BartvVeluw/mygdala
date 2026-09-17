@@ -50,14 +50,14 @@ $name = mb_substr($name, 0, 150);
 try {
     $repository = new FormRepository();
 
+    // A new form stores no words at all: its button and its thank-you
+    // message start on the generic texts of
+    // App\Service\Forms\FormDefinition, in whatever language a visitor
+    // reads, until an editor writes their own on the form's own screen.
     $formId = $repository->create([
         'name' => $name,
         'internal_key' => FormCatalog::internalKeyFor($name, $repository),
         'is_active' => true,
-        'submit_label_nl' => 'Versturen',
-        'submit_label_en' => 'Send',
-        'success_message_nl' => 'Bedankt — je bericht is verstuurd.',
-        'success_message_en' => 'Thanks — your message has been sent.',
         'notification_email' => null,
         'reply_to_field_key' => null,
         'store_submissions' => false,

@@ -8,6 +8,7 @@ require_once __DIR__ . '/_admin_ui.php';
 use App\Service\Forms\FormFieldOptions;
 use App\Service\Forms\FormFieldTypeChange;
 use App\Service\Forms\FormFieldTypes;
+use App\Service\Language\LanguageFallback;
 
 /**
  * What the CMS calls a form field type, the cards an editor picks one from,
@@ -93,20 +94,23 @@ function form_field_type_cards(string $name, string $checked, array $notes = [])
  * judge it without opening anything else. Plain text.
  *
  * @param list<string>         $losses from App\Service\Forms\FormFieldTypeChange::losses()
- * @param array<string, mixed> $row    the field's stored row those losses were read from
+ * @param array<string, mixed> $row    the field's stored row with its words and options
+ *                                    (App\Service\Forms\FormLocalization::attachFieldWords())
  * @return list<string>
  */
 function form_field_loss_sentences(array $losses, array $row): array
 {
-    $options = FormFieldOptions::fromStored(is_string($row['options'] ?? null) ? $row['options'] : null);
+    $options = FormFieldOptions::fromRows(is_array($row['choices'] ?? null) ? $row['choices'] : []);
+    $placeholders = [];
+    foreach ((array) ($row['translations'] ?? []) as $words) {
+        $placeholders[] = trim((string) ($words['placeholder'] ?? ''));
+    }
     $sentences = [];
 
     foreach ($losses as $loss) {
         $sentences[] = match ($loss) {
             FormFieldTypeChange::PLACEHOLDER => admin_t('forms.loses.placeholder', [
-                'text' => trim((string) ($row['placeholder_nl'] ?? '')) !== ''
-                    ? trim((string) $row['placeholder_nl'])
-                    : trim((string) ($row['placeholder_en'] ?? '')),
+                'text' => (string) (array_values(array_filter($placeholders))[0] ?? ''),
             ]),
             FormFieldTypeChange::OPTIONS => admin_t($options->count() === 1 ? 'forms.loses.options_one' : 'forms.loses.options', [
                 'count' => $options->count(),
@@ -141,11 +145,14 @@ function form_field_loss_note(array $losses): string
     ]);
 }
 
-/** The first few options by their Dutch label, for a sentence. */
+/** The first few options by the name the CMS gives them, for a sentence. */
 function form_field_option_names(FormFieldOptions $options): string
 {
     $shown = 5;
-    $names = array_map(static fn ($option): string => $option->nl, array_slice($options->all(), 0, $shown));
+    $names = array_map(
+        static fn (\App\Service\Forms\FormOption $option): string => $option->label->nl,
+        array_slice($options->all(), 0, $shown)
+    );
 
     return implode(', ', $names) . ($options->count() > $shown ? ', …' : '');
 }

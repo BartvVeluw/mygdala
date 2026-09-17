@@ -46,7 +46,11 @@ final class FormCatalog
                 return self::$cache[$id] = null;
             }
 
-            return self::$cache[$id] = FormDefinition::fromRows($row, $repository->fieldsFor($id));
+            // The words per website language and the option rows come along
+            // (FormLocalization), so the definition itself reads no storage.
+            [$row, $fields] = FormLocalization::attachWords($row, $repository->fieldsFor($id));
+
+            return self::$cache[$id] = FormDefinition::fromRows($row, $fields);
         } catch (\Throwable $e) {
             error_log('[FormCatalog] lookup failed for form #' . $id . ': ' . $e->getMessage());
 
@@ -116,5 +120,6 @@ final class FormCatalog
     public static function clearCache(): void
     {
         self::$cache = [];
+        FormLocalization::clearCache();
     }
 }

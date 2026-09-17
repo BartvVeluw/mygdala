@@ -221,8 +221,8 @@ final class BlockSamples
      * shape of the rows a block SHOWS but does not own, which still have
      * `_nl`/`_en` columns until their domain moves in Multilingual 2.0 phase
      * 5: a Portfolio item or a product in a gallery card. Words of the block
-     * itself, and of Site-instellingen and Forms since phase 4, come from
-     * localized().
+     * itself and of the site's place come from localized(), and a form's
+     * from form() (phase 4).
      *
      * @return array<string, string>
      */
@@ -333,7 +333,9 @@ final class BlockSamples
             'field_type' => $type,
             'is_required' => $required,
             'sort_order' => $order,
-        ] + $this->fields('label', $role);
+            'translations' => $this->words(['label' => $role]),
+            'choices' => [],
+        ];
 
         return FormDefinition::fromRows(
             [
@@ -342,13 +344,34 @@ final class BlockSamples
                 'internal_key' => self::FORM_KEY,
                 'is_active' => true,
                 'store_submissions' => false,
-            ] + $this->fields('submit_label', 'submit') + $this->fields('success_message', 'form_success'),
+                'translations' => $this->words(['submit_label' => 'submit', 'success_message' => 'form_success']),
+            ],
             [
                 $field(1, 'naam', 'text', 'field_name', true),
                 $field(2, 'email', 'email', 'field_email', true),
                 $field(3, 'bericht', 'textarea', 'field_message', false),
             ]
         );
+    }
+
+    /**
+     * Sample words in the shape a row carries once
+     * App\Service\Forms\FormLocalization has attached them: language code =>
+     * field => words, in the two sample languages.
+     *
+     * @param array<string, string> $roles field => sample role
+     * @return array<string, array<string, string>>
+     */
+    private function words(array $roles): array
+    {
+        $words = [];
+        foreach ($roles as $field => $role) {
+            $pair = self::TEXT[$role] ?? throw new \InvalidArgumentException('No sample text for ' . $role);
+            $words[LanguageRegistry::DUTCH][$field] = ($this->text)($pair[0]);
+            $words[LanguageRegistry::ENGLISH][$field] = ($this->text)($pair[1]);
+        }
+
+        return $words;
     }
 
     /**

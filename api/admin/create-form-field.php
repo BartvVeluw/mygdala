@@ -29,11 +29,13 @@ declare(strict_types=1);
 require_once __DIR__ . '/../../vendor/autoload.php';
 
 use App\Service\Language\AdminTranslator;
+use App\Database;
 use App\Repository\FormRepository;
 use App\Service\AdminAuth;
 use App\Service\Csrf;
 use App\Service\Forms\FormCatalog;
 use App\Service\Forms\FormFieldKey;
+use App\Service\Forms\FormLocalization;
 use App\Service\Forms\FormFieldTypes;
 
 AdminAuth::requireLoginForApi();
@@ -56,14 +58,15 @@ if ($formId === false || $formId === null || $formId < 1) {
     exit('Invalid form id.');
 }
 
-$repository = new FormRepository();
+$db = Database::connection();
+$repository = new FormRepository($db);
 
 if ($repository->find($formId) === null) {
     http_response_code(404);
     exit('Form not found.');
 }
 
-$label = is_string($_POST['label_nl'] ?? null) ? mb_substr(trim($_POST['label_nl']), 0, 200) : '';
+$label = is_string($_POST['label'] ?? null) ? mb_substr(trim($_POST['label']), 0, 200) : '';
 $typeKey = is_string($_POST['field_type'] ?? null) ? $_POST['field_type'] : '';
 
 $errors = [];
@@ -83,7 +86,7 @@ if ($errors !== []) {
     // Only a registered key goes back to be pre-selected; anything else was
     // never a choice the dialog offered.
     $_SESSION['admin_form_field_add_old'] = [
-        'label_nl' => $label,
+        'label' => $label,
         'field_type' => $type === null ? '' : $type->key(),
     ];
     header('Location: ' . $dialogUrl);
@@ -96,30 +99,34 @@ try {
         $repository->fieldsFor($formId)
     );
 
+    $db->beginTransaction();
+
     $fieldId = $repository->createField($formId, [
         'field_key' => FormFieldKey::fromLabel($label, $taken),
         'field_type' => $type->key(),
-        'label_nl' => $label,
-        'label_en' => null,
-        'placeholder_nl' => null,
-        'placeholder_en' => null,
-        'help_text_nl' => null,
-        'help_text_en' => null,
         // A consent box is required whatever anybody ticks; every other type
         // starts optional, which is the safer default for a public form.
         'is_required' => $type->requiredIsFixed(),
-        'options' => null,
         // A brand-new field has no options yet, so it can have no
         // default either; the field's own screen offers one once the
         // choices exist.
         'default_value' => null,
     ]);
 
+    // The label is written in the website's DEFAULT language, whatever
+    // language the editor is working in: that is where every other language
+    // falls back to, and the field key was made from it.
+    FormLocalization::fields()->save($fieldId, FormLocalization::defaultLanguage(), [FormLocalization::LABEL => $label]);
+
+    $db->commit();
     FormCatalog::clearCache();
 } catch (\Throwable $e) {
+    if ($db->inTransaction()) {
+        $db->rollBack();
+    }
     error_log('[api/admin/create-form-field.php] ' . $e->getMessage());
     $_SESSION['admin_form_field_add_errors'] = [AdminTranslator::trans('validation.field_not_added')];
-    $_SESSION['admin_form_field_add_old'] = ['label_nl' => $label, 'field_type' => $type->key()];
+    $_SESSION['admin_form_field_add_old'] = ['label' => $label, 'field_type' => $type->key()];
     header('Location: ' . $dialogUrl);
     exit;
 }

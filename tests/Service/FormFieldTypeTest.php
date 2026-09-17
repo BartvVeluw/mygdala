@@ -222,7 +222,7 @@ class FormFieldTypeTest extends TestCase
     {
         foreach (['select', 'radio'] as $key) {
             $type = FormFieldTypes::get($key);
-            $field = $this->field($key, "Particulier|Personal\nZakelijk|Business");
+            $field = $this->field($key, [['Particulier', 'Personal'], ['Zakelijk', 'Business']]);
 
             $this->assertNull($type->validate('Particulier', $field), $key . ' should accept a configured option');
             $this->assertNull($type->validate('Zakelijk', $field), $key . ' should accept a configured option');
@@ -251,7 +251,7 @@ class FormFieldTypeTest extends TestCase
     public function testEveryTypeRendersAControlCarryingItsIdAndName(): void
     {
         foreach (FormFieldTypes::all() as $key => $type) {
-            $field = $this->field($key, "Een|One\nTwee|Two");
+            $field = $this->field($key, [['Een', 'One'], ['Twee', 'Two']]);
 
             ob_start();
             $type->renderControl(new FormFieldControl($field, 'form-abc-veld', 'veld', '', 'form-abc-veld-error', false));
@@ -291,72 +291,89 @@ class FormFieldTypeTest extends TestCase
 
     // ---------------------------------------------------------------- options
 
-    public function testOptionsParseOnePerLineWithAnOptionalEnglishHalf(): void
+    public function testAnOptionKeepsItsValueAndShowsItsLabelPerLanguage(): void
     {
-        $options = FormFieldOptions::fromStored("Particulier|Personal\nZakelijk\n\n  Overig | Other  ");
+        $options = FormFieldOptions::fromRows([
+            ['id' => 1, 'value' => 'Particulier', 'labels' => ['nl' => 'Particulier', 'en' => 'Personal']],
+            ['id' => 2, 'value' => 'Zakelijk', 'labels' => ['nl' => 'Zakelijk']],
+            ['id' => 3, 'value' => 'overig-2', 'labels' => []],
+        ]);
 
         $this->assertSame(3, $options->count());
-        $this->assertSame(['Particulier', 'Zakelijk', 'Overig'], array_map(static fn ($o) => $o->nl, $options->all()));
-        $this->assertSame(['Personal', 'Zakelijk', 'Other'], array_map(static fn ($o) => $o->en, $options->all()));
+        $this->assertSame(['Particulier', 'Zakelijk', 'overig-2'], array_map(static fn ($o) => $o->value, $options->all()));
+        $this->assertSame(['Particulier', 'Zakelijk', 'overig-2'], array_map(static fn ($o) => $o->label->nl, $options->all()));
+        $this->assertSame(
+            ['Personal', 'Zakelijk', 'overig-2'],
+            array_map(static fn ($o) => $o->label->en, $options->all()),
+            'an untranslated label falls back to the default language, and a label with no words at all shows the value'
+        );
     }
 
-    public function testDuplicateAndEmptyOptionsAreDropped(): void
+    public function testARowWithoutAValueAndADuplicateValueAreDropped(): void
     {
-        $options = FormFieldOptions::fromStored("Ja|Yes\n\nJa|Anders\n   \nNee|No");
+        $options = FormFieldOptions::fromRows([
+            ['id' => 1, 'value' => 'Ja', 'labels' => ['nl' => 'Ja', 'en' => 'Yes']],
+            ['id' => 2, 'value' => '  ', 'labels' => ['nl' => 'Leeg']],
+            ['id' => 3, 'value' => 'Ja', 'labels' => ['nl' => 'Ja', 'en' => 'Anders']],
+            ['id' => 4, 'value' => 'Nee', 'labels' => ['nl' => 'Nee', 'en' => 'No']],
+        ]);
 
         $this->assertSame(2, $options->count());
-        $this->assertSame('Yes', $options->find('Ja')->en, 'the first spelling of an option wins');
+        $this->assertSame('Yes', $options->find('Ja')?->label->en, 'the first row with a value wins');
+        $this->assertNull($options->find('Leeg'));
     }
 
     public function testAnOptionListCannotGrowWithoutBound(): void
     {
-        $lines = [];
+        $rows = [];
         for ($i = 0; $i < FormFieldOptions::MAX_OPTIONS + 20; $i++) {
-            $lines[] = 'Optie ' . $i;
+            $rows[] = ['id' => $i + 1, 'value' => 'Optie ' . $i, 'labels' => ['nl' => 'Optie ' . $i]];
         }
 
-        $this->assertSame(FormFieldOptions::MAX_OPTIONS, FormFieldOptions::fromStored(implode("\n", $lines))->count());
-    }
-
-    /**
-     * The field editor's option rows become exactly the stored text the
-     * textarea used to produce: one line per option, `NL|EN` only where the
-     * English differs, empty and duplicate rows dropped by the same parser.
-     */
-    public function testOptionRowsBecomeTheStoredTextTheParserReads(): void
-    {
-        $rows = [
-            ['nl' => 'Ja', 'en' => 'Yes'],
-            ['nl' => 'Nee', 'en' => ''],
-            ['nl' => '', 'en' => 'Maybe'],
-            ['nl' => 'Ja', 'en' => 'Yes please'],
-            ['nl' => 'Later', 'en' => 'Later'],
-        ];
-
-        $stored = FormFieldOptions::rowsToStored($rows);
-
-        $this->assertSame("Ja|Yes\nNee\nLater", $stored);
-        $this->assertSame($stored, FormFieldOptions::toStored($stored), 'already canonical');
-        $this->assertSame('', FormFieldOptions::rowsToStored([['nl' => '', 'en' => '']]));
+        $this->assertSame(FormFieldOptions::MAX_OPTIONS, FormFieldOptions::fromRows($rows)->count());
     }
 
     /** A row is one line: a line break cannot split one option into two. */
     public function testAnOptionRowIsCleanedToOneLine(): void
     {
-        $this->assertSame('Ja graag', FormFieldOptions::rowText("  Ja\r\ngraag \t"));
+        $this->assertSame('Ja graag', FormFieldOptions::rowText("  Ja
+graag 	"));
         $this->assertSame('', FormFieldOptions::rowText(['Ja']));
         $this->assertSame('', FormFieldOptions::rowText(null));
-
-        $this->assertTrue(FormFieldOptions::holdsSeparator('Ja|Yes'));
-        $this->assertFalse(FormFieldOptions::holdsSeparator('Ja / Yes'));
     }
 
-    public function testStoredOptionsRoundTripThroughTheParser(): void
+    /**
+     * What a visitor submits is the option's VALUE, whatever language the
+     * labels are in: translating an option can never change what is stored.
+     */
+    public function testTheSubmittedValueIsTheOptionValueAndNotALabel(): void
     {
-        $stored = FormFieldOptions::toStored("  Particulier | Personal \r\nZakelijk|Zakelijk\n\n");
+        foreach (['select', 'radio'] as $key) {
+            $type = FormFieldTypes::get($key);
+            $field = FormField::fromRow([
+                'id' => 1,
+                'field_key' => 'veld',
+                'field_type' => $key,
+                'is_required' => 0,
+                'sort_order' => 0,
+                'translations' => ['nl' => ['label' => 'Veld']],
+                'choices' => [
+                    ['id' => 1, 'value' => 'support', 'labels' => ['nl' => 'Ondersteuning', 'en' => 'Support']],
+                    ['id' => 2, 'value' => 'sales', 'labels' => ['nl' => 'Verkoop', 'en' => 'Sales']],
+                ],
+            ]);
 
-        $this->assertSame("Particulier|Personal\nZakelijk", $stored, 'an English half equal to the Dutch one is not written twice');
-        $this->assertSame($stored, FormFieldOptions::toStored($stored), 'storing what was stored must change nothing');
+            $this->assertNull($type->validate('support', $field), $key . ' accepts the stable value');
+            $this->assertInstanceOf(FormText::class, $type->validate('Ondersteuning', $field), $key . ' refuses a label');
+            $this->assertInstanceOf(FormText::class, $type->validate('Support', $field), $key . ' refuses a translated label');
+
+            ob_start();
+            $type->renderControl(new FormFieldControl($field, 'form-abc-veld', 'veld', 'support', '', false));
+            $html = (string) ob_get_clean();
+            $this->assertStringContainsString('value="support"', $html, $key . ' posts the value');
+            $this->assertStringContainsString('data-nl="Ondersteuning"', $html);
+            $this->assertStringContainsString('data-en="Support"', $html);
+        }
     }
 
     // ------------------------------------------------------------- field keys
@@ -562,17 +579,32 @@ class FormFieldTypeTest extends TestCase
     /**
      * @param string $typeKey a registered field type
      */
-    private function field(string $typeKey, ?string $options = null): FormField
+    /**
+     * A field as App\Service\Forms\FormLocalization hands it over: its words
+     * per website language, and its options as rows with a stable value.
+     *
+     * @param list<array{0: string, 1: string}> $options [the value, which is also the Dutch label, the English label]
+     */
+    private function field(string $typeKey, array $options = []): FormField
     {
+        $choices = [];
+        foreach ($options as $position => [$value, $english]) {
+            $choices[] = [
+                'id' => $position + 1,
+                'value' => $value,
+                'sort_order' => $position,
+                'labels' => ['nl' => $value, 'en' => $english],
+            ];
+        }
+
         $field = FormField::fromRow([
             'id' => 1,
             'field_key' => 'veld',
             'field_type' => $typeKey,
-            'label_nl' => 'Veld',
-            'label_en' => 'Field',
             'is_required' => 0,
             'sort_order' => 0,
-            'options' => $options,
+            'translations' => ['nl' => ['label' => 'Veld'], 'en' => ['label' => 'Field']],
+            'choices' => $choices,
         ]);
 
         $this->assertNotNull($field, 'the fixture field should have been built');

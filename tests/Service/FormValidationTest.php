@@ -29,7 +29,7 @@ class FormValidationTest extends TestCase
 {
     // -------------------------------------------------------- the read model
 
-    public function testAFormIsBuiltFromItsRowsWithTheBilingualFallbackApplied(): void
+    public function testAFormIsBuiltFromItsRowsWithTheFallbackApplied(): void
     {
         $form = $this->form(['submit_label_nl' => 'Verstuur', 'submit_label_en' => ''], [
             $this->row('naam', 'text', ['label_nl' => 'Naam', 'label_en' => '']),
@@ -212,18 +212,18 @@ class FormValidationTest extends TestCase
      */
     public function testTheDefaultRuleIsTheSameOneTheAdminApplies(): void
     {
-        $options = FormFieldOptions::fromStored("Ochtend|Morning\nMiddag|Afternoon");
+        $options = self::options("Ochtend|Morning\nMiddag|Afternoon");
         $radio = FormFieldTypes::get('radio');
         $text = FormFieldTypes::get('text');
 
         $this->assertTrue(FormField::isUsableDefault($radio, $options, 'Ochtend'));
         $this->assertTrue(FormField::isUsableDefault($radio, $options, '  Middag  '));
 
-        $this->assertFalse(FormField::isUsableDefault($radio, $options, 'Morning'), 'the English label is a display value');
+        $this->assertFalse(FormField::isUsableDefault($radio, $options, 'Morning'), 'the English label is a display value, never the stored value');
         $this->assertFalse(FormField::isUsableDefault($radio, $options, 'Avond'));
         $this->assertFalse(FormField::isUsableDefault($radio, $options, ''));
         $this->assertFalse(FormField::isUsableDefault($text, $options, 'Ochtend'), 'a text field takes no default');
-        $this->assertFalse(FormField::isUsableDefault($radio, FormFieldOptions::fromStored(null), 'Ochtend'));
+        $this->assertFalse(FormField::isUsableDefault($radio, self::options(null), 'Ochtend'));
     }
 
     // --------------------------------------------------- rendering precedence
@@ -463,48 +463,116 @@ class FormValidationTest extends TestCase
     }
 
     /**
+     * A form row as App\Service\Forms\FormLocalization hands it over: its
+     * words per website language on `translations`. The Dutch/English keys
+     * this test writes are the two languages of the test database.
+     *
      * @param array<string, mixed>       $form
      * @param list<array<string, mixed>> $fields
      */
     private function form(array $form = [], array $fields = []): FormDefinition
     {
+        $words = [
+            'submit_label' => [$form['submit_label_nl'] ?? 'Versturen', $form['submit_label_en'] ?? 'Send'],
+            'success_message' => [$form['success_message_nl'] ?? 'Bedankt.', $form['success_message_en'] ?? 'Thanks.'],
+        ];
+        unset($form['submit_label_nl'], $form['submit_label_en'], $form['success_message_nl'], $form['success_message_en']);
+
         return FormDefinition::fromRows($form + [
             'id' => 1,
             'name' => 'Testformulier',
             'internal_key' => 'testformulier',
             'is_active' => 1,
-            'submit_label_nl' => 'Versturen',
-            'submit_label_en' => 'Send',
-            'success_message_nl' => 'Bedankt.',
-            'success_message_en' => 'Thanks.',
             'notification_email' => null,
             'reply_to_field_key' => null,
             'store_submissions' => 0,
+            'translations' => self::words($words),
         ], $fields);
     }
 
     /**
+     * A field row with its words and its option rows. `options` is written as
+     * the editor's list for brevity — one option per line, its value (and
+     * Dutch label) before the `|` and its English label after it.
+     *
      * @param array<string, mixed> $overrides
      * @return array<string, mixed>
      */
     private function row(string $key, string $type, array $overrides = []): array
     {
         static $id = 0;
+        $id++;
+
+        $words = [
+            'label' => [$overrides['label_nl'] ?? ucfirst($key), $overrides['label_en'] ?? null],
+            'placeholder' => [$overrides['placeholder_nl'] ?? null, $overrides['placeholder_en'] ?? null],
+            'help_text' => [$overrides['help_text_nl'] ?? null, $overrides['help_text_en'] ?? null],
+        ];
+        $options = $overrides['options'] ?? null;
+        foreach (['label_nl', 'label_en', 'placeholder_nl', 'placeholder_en', 'help_text_nl', 'help_text_en', 'options'] as $moved) {
+            unset($overrides[$moved]);
+        }
 
         return $overrides + [
-            'id' => ++$id,
+            'id' => $id,
             'field_key' => $key,
             'field_type' => $type,
-            'label_nl' => ucfirst($key),
-            'label_en' => null,
-            'placeholder_nl' => null,
-            'placeholder_en' => null,
-            'help_text_nl' => null,
-            'help_text_en' => null,
             'is_required' => 0,
             'sort_order' => $id,
-            'options' => null,
             'default_value' => null,
+            'translations' => self::words($words),
+            'choices' => self::choices(is_string($options) ? $options : null),
         ];
+    }
+
+    /**
+     * @param array<string, array{0: ?string, 1: ?string}> $words field => [Dutch, English]
+     * @return array<string, array<string, string>>
+     */
+    private static function words(array $words): array
+    {
+        $translations = [];
+        foreach ($words as $field => [$dutch, $english]) {
+            if (trim((string) $dutch) !== '') {
+                $translations['nl'][$field] = (string) $dutch;
+            }
+            if (trim((string) $english) !== '') {
+                $translations['en'][$field] = (string) $english;
+            }
+        }
+
+        return $translations;
+    }
+
+    /** @return list<array{id: int, value: string, sort_order: int, labels: array<string, string>}> */
+    private static function choices(?string $options): array
+    {
+        if ($options === null || trim($options) === '') {
+            return [];
+        }
+
+        $choices = [];
+        foreach (explode("\n", $options) as $position => $line) {
+            [$value, $english] = array_pad(explode('|', $line, 2), 2, null);
+            $labels = ['nl' => trim((string) $value)];
+            if (trim((string) $english) !== '') {
+                $labels['en'] = trim((string) $english);
+            }
+
+            $choices[] = [
+                'id' => $position + 1,
+                'value' => trim((string) $value),
+                'sort_order' => $position,
+                'labels' => $labels,
+            ];
+        }
+
+        return $choices;
+    }
+
+    /** The same options as a read model, for the rule the admin applies too. */
+    private static function options(?string $options): FormFieldOptions
+    {
+        return FormFieldOptions::fromRows(self::choices($options));
     }
 }

@@ -613,16 +613,16 @@ class FormRenderingTest extends TestCase
             'name' => 'Testformulier',
             'internal_key' => FormCatalog::internalKeyFor('zz test render', $this->forms),
             'is_active' => true,
-            'submit_label_nl' => 'Verstuur dit',
-            'submit_label_en' => 'Send this',
-            'success_message_nl' => 'Bedankt, het is verstuurd.',
-            'success_message_en' => 'Thanks, it has been sent.',
             'notification_email' => 'formulier-test@example.com',
             'reply_to_field_key' => 'e-mail',
             'store_submissions' => false,
         ]);
 
         $this->createdFormIds[] = $id;
+        \Tests\Support\FormFixture::formWords($id, [
+            'nl' => ['submit_label' => 'Verstuur dit', 'success_message' => 'Bedankt, het is verstuurd.'],
+            'en' => ['submit_label' => 'Send this', 'success_message' => 'Thanks, it has been sent.'],
+        ]);
 
         $fields = [
             ['Naam', 'Name', 'text', true, null, null, null],
@@ -640,19 +640,17 @@ class FormRenderingTest extends TestCase
                 $this->forms->fieldsFor($id)
             );
 
-            $this->forms->createField($id, [
+            $words = ['nl' => array_filter(['label' => $labelNl, 'help_text' => $help])];
+            if ($labelEn !== null) {
+                $words['en'] = ['label' => $labelEn];
+            }
+
+            \Tests\Support\FormFixture::field($id, [
                 'field_key' => FormFieldKey::fromLabel($labelNl, $taken),
                 'field_type' => $type,
-                'label_nl' => $labelNl,
-                'label_en' => $labelEn,
-                'placeholder_nl' => null,
-                'placeholder_en' => null,
-                'help_text_nl' => $help,
-                'help_text_en' => null,
                 'is_required' => $required,
-                'options' => $options,
                 'default_value' => $default,
-            ]);
+            ], $words, $options);
         }
 
         FormCatalog::clearCache();
@@ -673,13 +671,14 @@ class FormRenderingTest extends TestCase
     {
         $row = $this->forms->find($formId);
 
+        $words = \App\Service\Forms\FormLocalization::forms()->words($formId);
+
         return $overrides + [
             'name' => (string) $row['name'],
             'is_active' => (bool) $row['is_active'],
-            'submit_label_nl' => (string) $row['submit_label_nl'],
-            'submit_label_en' => (string) ($row['submit_label_en'] ?? ''),
-            'success_message_nl' => (string) $row['success_message_nl'],
-            'success_message_en' => (string) ($row['success_message_en'] ?? ''),
+            'language_code' => 'nl',
+            'submit_label' => (string) ($words['nl']['submit_label'] ?? ''),
+            'success_message' => (string) ($words['nl']['success_message'] ?? ''),
             'notification_email' => (string) ($row['notification_email'] ?? ''),
             'reply_to_field_key' => (string) ($row['reply_to_field_key'] ?? ''),
             'store_submissions' => (bool) $row['store_submissions'],

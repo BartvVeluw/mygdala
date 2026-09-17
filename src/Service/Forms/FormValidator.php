@@ -84,7 +84,9 @@ final class FormValidator
         foreach ($form->fields as $field) {
             $snapshot[] = [
                 'field_key' => $field->key,
-                'field_label' => $field->label->nl,
+                // The default language's label, whatever the visitor had on
+                // screen, so history does not depend on a language switch.
+                'field_label' => $field->recordedLabel,
                 'field_type' => $field->type->key(),
                 'value' => $values[$field->key] ?? '',
             ];

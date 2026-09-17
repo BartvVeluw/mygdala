@@ -13,10 +13,12 @@ use App\Service\AdminPermissions;
 use App\Service\Forms\FormCatalog;
 use App\Service\Forms\FormFieldKey;
 use App\Service\Forms\FormFieldTypes;
+use App\Service\Forms\FormLocalization;
 use App\Service\SectionRegistry;
 use PHPUnit\Framework\TestCase;
 use Tests\Support\AdminTestSession;
 use Tests\Support\BuiltInServer;
+use Tests\Support\FormFixture;
 
 /**
  * Adding and editing the fields of a form, over real HTTP and without a
@@ -30,9 +32,14 @@ use Tests\Support\BuiltInServer;
  * default in one go, sends an untouched field back unchanged, never changes
  * the key, and never lets a type change throw a setting away until that
  * change was confirmed. A type card is named by its type alone, the save
- * bar watches the settings and nothing else, and options keep their
- * translation and their default wherever a row is moved to. Deleting a field
- * is Tests\Service\FormAdminHttpTest, with the other deletions.
+ * bar watches the settings and nothing else, and options keep their value,
+ * their translation and their default wherever a row is moved to. Deleting a
+ * field is Tests\Service\FormAdminHttpTest, with the other deletions.
+ *
+ * ONE WEBSITE LANGUAGE per save since Multilingual 2.0 phase 4: the words
+ * are written in the language named by `language_code`, an option keeps the
+ * value it was created with whatever its label becomes, and a new option is
+ * written in the default language.
  *
  * Like Tests\Service\FormAdminHttpTest this starts PHP's built-in server on
  * this checkout (Tests\Support\BuiltInServer), so it runs wherever the `cms`
@@ -141,7 +148,7 @@ final class FormFieldEditorHttpTest extends TestCase
 
         $this->assertSame(FormFieldTypes::keys(), $offered, 'every registered kind, once, in registration order');
 
-        $label = $xpath->query($dialog . '//input[@name="label_nl"]')->item(0);
+        $label = $xpath->query($dialog . '//input[@name="label"]')->item(0);
         $this->assertTrue($label?->hasAttribute('required'), 'and the label is asked for too');
 
         $opener = $xpath->query('//a[@data-form-field-add-open]')->item(0);
@@ -176,7 +183,7 @@ final class FormFieldEditorHttpTest extends TestCase
                 'csrf_token' => $token,
                 'form_id' => (string) $formId,
                 'field_type' => $key,
-                'label_nl' => 'Nieuw ' . $key,
+                'label' => 'Nieuw ' . $key,
             ]);
 
             $fields = $this->forms->fieldsFor($formId);
@@ -187,6 +194,12 @@ final class FormFieldEditorHttpTest extends TestCase
             $this->assertSame('nieuw-' . $key, $field['field_key'], 'the key comes from the label');
             $this->assertSame('/admin/form-field.php?id=' . $field['id'], $response['location'], 'straight into the new field');
             $this->assertSame($key === 'consent' ? 1 : 0, (int) $field['is_required'], 'only consent starts required');
+            FormLocalization::clearCache();
+            $this->assertSame(
+                ['nl' => ['label' => 'Nieuw ' . $key]],
+                FormLocalization::fields()->words((int) $field['id']),
+                $key . ': the label is written in the default language and nowhere else'
+            );
 
             $this->assertSame(200, self::$server->request('GET', $response['location'], $session)['status'], $key . ': its editor opens');
         }
@@ -207,7 +220,7 @@ final class FormFieldEditorHttpTest extends TestCase
                 'csrf_token' => $token,
                 'form_id' => (string) $formId,
                 'field_type' => $attempt,
-                'label_nl' => 'Bijlage',
+                'label' => 'Bijlage',
             ]);
 
             $this->assertSame('/admin/form.php?id=' . $formId . '&add_field=1#form-field-add', $response['location'], var_export($attempt, true));
@@ -217,7 +230,7 @@ final class FormFieldEditorHttpTest extends TestCase
             $dialog = $xpath->query('//dialog[@id="form-field-add"]')->item(0);
             $this->assertTrue($dialog->hasAttribute('open'), 'the dialog is back');
             $this->assertStringContainsString($this->catalog('nl')['validation.kies_geldig_veldtype'], $dialog->textContent);
-            $this->assertSame('Bijlage', $xpath->query('.//input[@name="label_nl"]', $dialog)->item(0)->getAttribute('value'), 'what was typed stays');
+            $this->assertSame('Bijlage', $xpath->query('.//input[@name="label"]', $dialog)->item(0)->getAttribute('value'), 'what was typed stays');
             $this->assertSame(0, $xpath->query('.//input[@name="field_type"][@checked]', $dialog)->length, 'nothing unregistered is pre-selected');
         }
     }
@@ -232,7 +245,7 @@ final class FormFieldEditorHttpTest extends TestCase
             'csrf_token' => $token,
             'form_id' => (string) $formId,
             'field_type' => 'radio',
-            'label_nl' => '   ',
+            'label' => '   ',
         ]);
 
         $this->assertSame([], $this->forms->fieldsFor($formId));
@@ -286,10 +299,11 @@ final class FormFieldEditorHttpTest extends TestCase
             $xpath = $this->xpath($body);
             $form = '//form[@action="' . self::UPDATE_ENDPOINT . '"]';
 
-            $this->assertSame(1, $xpath->query($form . '//input[@name="label_nl"]')->length, $key . ': a label');
-            $this->assertSame(1, $xpath->query($form . '//input[@name="help_text_nl"]')->length, $key . ': an explanation');
-            $this->assertSame($type->usesPlaceholder() ? 1 : 0, $xpath->query($form . '//input[@name="placeholder_nl"]')->length, $key . ': a placeholder only where it is used');
-            $this->assertSame($type->usesOptions(), $xpath->query($form . '//input[starts-with(@name, "option_nl[")]')->length > 0, $key . ': options only where they are used');
+            $this->assertSame(1, $xpath->query($form . '//input[@name="label"]')->length, $key . ': a label');
+            $this->assertSame(1, $xpath->query($form . '//input[@name="help_text"]')->length, $key . ': an explanation');
+            $this->assertSame($type->usesPlaceholder() ? 1 : 0, $xpath->query($form . '//input[@name="placeholder"]')->length, $key . ': a placeholder only where it is used');
+            $this->assertSame($type->usesOptions(), $xpath->query($form . '//input[starts-with(@name, "option_label[")]')->length > 0, $key . ': options only where they are used');
+            $this->assertSame(1, $xpath->query($form . '//input[@name="language_code"]')->length, $key . ': the language its words are saved in');
             $this->assertSame($type->usesDefaultValue(), $xpath->query($form . '//input[@type="radio"][@name="default_option"]')->length > 0, $key . ': a default only where it is used');
             $this->assertSame(0, $xpath->query($form . '//*[@name="options" or @name="default_value"]')->length, $key . ': no textarea of options and no typed default');
 
@@ -330,12 +344,12 @@ final class FormFieldEditorHttpTest extends TestCase
 
         [$fields] = $this->editorSubmission($session, $fieldId);
         $fields['field_key'] = 'iets-anders';
-        $fields['label_nl'] = 'Je volledige naam';
+        $fields['label'] = 'Je volledige naam';
         $response = self::$server->request('POST', self::UPDATE_ENDPOINT, $session, $fields);
 
         $this->assertSame('/admin/form-field.php?id=' . $fieldId . '&saved=1', $response['location']);
         $this->assertSame('uw-naam', $this->forms->findField($fieldId)['field_key'], 'a new label, the same key');
-        $this->assertSame('Je volledige naam', $this->forms->findField($fieldId)['label_nl']);
+        $this->assertSame('Je volledige naam', $this->fieldWords($fieldId, 'nl')['label']);
     }
 
     /**
@@ -363,12 +377,16 @@ final class FormFieldEditorHttpTest extends TestCase
 
         foreach ($ids as $name => $fieldId) {
             $before = $this->withoutTimestamp($this->forms->findField($fieldId));
+            $beforeWords = [$this->fieldWords($fieldId, 'nl'), $this->fieldWords($fieldId, 'en')];
+            $beforeOptions = [$this->optionValues($fieldId), $this->optionLabels($fieldId, 'nl'), $this->optionLabels($fieldId, 'en')];
 
             [$fields] = $this->editorSubmission($session, $fieldId);
             $response = self::$server->request('POST', self::UPDATE_ENDPOINT, $session, $fields);
 
             $this->assertSame('/admin/form-field.php?id=' . $fieldId . '&saved=1', $response['location'], $name . ' was saved');
             $this->assertSame($before, $this->withoutTimestamp($this->forms->findField($fieldId)), $name . ': nothing changed');
+            $this->assertSame($beforeWords, [$this->fieldWords($fieldId, 'nl'), $this->fieldWords($fieldId, 'en')], $name . ': and no word of any language');
+            $this->assertSame($beforeOptions, [$this->optionValues($fieldId), $this->optionLabels($fieldId, 'nl'), $this->optionLabels($fieldId, 'en')], $name . ': nor an option');
         }
 
         $this->assertSame($this->withoutTimestamp($formBefore), $this->withoutTimestamp($this->forms->find($formId)), 'and the form kept its Reply-To');
@@ -390,30 +408,35 @@ final class FormFieldEditorHttpTest extends TestCase
         $fieldId = $this->addField($formId, 'Dagdeel', 'select');
 
         [$fields, $xpath] = $this->editorSubmission($session, $fieldId);
-        $rows = $xpath->query('//input[starts-with(@name, "option_nl[")]');
+        $rows = $xpath->query('//input[starts-with(@name, "option_label[")]');
         $this->assertSame(3, $rows->length, 'three empty rows to fill in');
         $this->assertSame('', $fields['default_option'], 'no default yet');
 
-        $fields = $this->withOptionRows($fields, [['Ochtend', 'Morning'], ['Middag', ''], ['Avond', 'Evening']]);
+        $fields = $this->withOptionRows($fields, [['Ochtend', ''], ['Middag', ''], ['Avond', '']]);
         $fields['default_option'] = '1';
 
         $response = self::$server->request('POST', self::UPDATE_ENDPOINT, $session, $fields);
         $this->assertSame('/admin/form-field.php?id=' . $fieldId . '&saved=1', $response['location']);
 
-        $row = $this->forms->findField($fieldId);
-        $this->assertSame("Ochtend|Morning\nMiddag\nAvond|Evening", $row['options']);
-        $this->assertSame('Middag', $row['default_value'], 'the default of the same save');
+        $this->assertSame(['Ochtend', 'Middag', 'Avond'], $this->optionValues($fieldId), 'a new option takes its label as its value');
+        $this->assertSame(['Ochtend', 'Middag', 'Avond'], $this->optionLabels($fieldId, 'nl'));
+        $this->assertSame(['', '', ''], $this->optionLabels($fieldId, 'en'), 'and is written in the default language only');
+        $this->assertSame('Middag', $this->forms->findField($fieldId)['default_value'], 'the default of the same save');
 
         FormCatalog::clearCache();
         $this->assertSame('Middag', FormCatalog::find($formId)->field('dagdeel')->defaultValue, 'and the form starts on it');
 
         [$again, $xpath] = $this->editorSubmission($session, $fieldId);
-        $this->assertSame(6, $xpath->query('//input[starts-with(@name, "option_nl[")]')->length, 'three options and three empty rows');
+        $this->assertSame(6, $xpath->query('//input[starts-with(@name, "option_label[")]')->length, 'three options and three empty rows');
         $this->assertSame('1', $again['default_option'], 'the marked row is the stored default');
     }
 
-    /** An option renamed in the same save stays the default: the mark is on the row. */
-    public function testARenamedOptionStaysTheDefault(): void
+    /**
+     * Renaming an option changes its LABEL and nothing else: its value, what
+     * a visitor posts and what a submission stores, stays what it was, and
+     * the mark on that row keeps the field's default pointing at it.
+     */
+    public function testARenamedOptionKeepsItsValueAndStaysTheDefault(): void
     {
         [$session] = $this->accounts->signIn([AdminPermissions::FORMS_MANAGE]);
         $formId = $this->createForm();
@@ -421,13 +444,51 @@ final class FormFieldEditorHttpTest extends TestCase
 
         [$fields] = $this->editorSubmission($session, $fieldId);
         $this->assertSame('1', $fields['default_option']);
-        $fields['option_nl[1]'] = 'E-mailen';
+        $fields['option_label[1]'] = 'E-mailen';
 
         self::$server->request('POST', self::UPDATE_ENDPOINT, $session, $fields);
 
-        $row = $this->forms->findField($fieldId);
-        $this->assertSame("Bellen\nE-mailen", $row['options']);
-        $this->assertSame('E-mailen', $row['default_value']);
+        $this->assertSame(['Bellen', 'Mailen'], $this->optionValues($fieldId), 'the identity of an option never changes');
+        $this->assertSame(['Bellen', 'E-mailen'], $this->optionLabels($fieldId, 'nl'), 'only what a visitor reads');
+        $this->assertSame('Mailen', $this->forms->findField($fieldId)['default_value']);
+
+        FormCatalog::clearCache();
+        $option = FormCatalog::find($formId)->field('voorkeur')->options->find('Mailen');
+        $this->assertNotNull($option);
+        $this->assertSame('E-mailen', $option->label->nl, 'the public form shows the new label under the old value');
+    }
+
+    /**
+     * Translating an option is a save of that language alone: the value, the
+     * default and the other languages' labels stay as they are, and a new
+     * option added from a translation's screen is written in the DEFAULT
+     * language, like a new field.
+     */
+    public function testTranslatingAnOptionTouchesNoValueAndNoOtherLanguage(): void
+    {
+        [$session] = $this->accounts->signIn([AdminPermissions::FORMS_MANAGE]);
+        $formId = $this->createForm();
+        $fieldId = $this->addField($formId, 'Voorkeur', 'radio', "Bellen\nMailen", ['default_value' => 'Mailen']);
+
+        [$fields] = $this->editorSubmission($session, $fieldId);
+        $fields['language_code'] = 'en';
+        $fields['label'] = 'Preference';
+        $fields = $this->withOptionRows($fields, [
+            ['Call', $fields['option_id[0]']],
+            ['Email', $fields['option_id[1]']],
+            ['Visit', ''],
+        ]);
+        $fields['default_option'] = '1';
+
+        $response = self::$server->request('POST', self::UPDATE_ENDPOINT, $session, $fields);
+
+        $this->assertSame('/admin/form-field.php?id=' . $fieldId . '&saved=1', $response['location']);
+        $this->assertSame(['Bellen', 'Mailen', 'Visit'], $this->optionValues($fieldId), 'a new option is its own value; the others keep theirs');
+        $this->assertSame(['Bellen', 'Mailen', 'Visit'], $this->optionLabels($fieldId, 'nl'), 'the default language is untouched, and the new option is written there');
+        $this->assertSame(['Call', 'Email', ''], $this->optionLabels($fieldId, 'en'));
+        $this->assertSame('Mailen', $this->forms->findField($fieldId)['default_value']);
+        $this->assertSame(['label' => 'Voorkeur'], $this->fieldWords($fieldId, 'nl'), 'the Dutch label stayed');
+        $this->assertSame(['label' => 'Preference'], $this->fieldWords($fieldId, 'en'));
     }
 
     /**
@@ -443,14 +504,13 @@ final class FormFieldEditorHttpTest extends TestCase
         $fieldId = $this->addField($formId, 'Voorkeur', 'radio', "Bellen\nMailen\nLangskomen", ['default_value' => 'Mailen']);
 
         [$fields] = $this->editorSubmission($session, $fieldId);
-        $fields['option_nl[1]'] = '';
+        $fields['option_label[1]'] = '';
 
         $response = self::$server->request('POST', self::UPDATE_ENDPOINT, $session, $fields);
         $this->assertSame('/admin/form-field.php?id=' . $fieldId . '&saved=1', $response['location']);
 
-        $row = $this->forms->findField($fieldId);
-        $this->assertSame("Bellen\nLangskomen", $row['options']);
-        $this->assertNull($row['default_value']);
+        $this->assertSame(['Bellen', 'Langskomen'], $this->optionValues($fieldId));
+        $this->assertNull($this->forms->findField($fieldId)['default_value']);
         $this->assertStringContainsString($this->catalog('nl')['forms.default_dropped'], $this->get($session, $response['location']));
 
         [$fields] = $this->editorSubmission($session, $fieldId);
@@ -471,36 +531,35 @@ final class FormFieldEditorHttpTest extends TestCase
     }
 
     /**
-     * The existing option rules, now on rows: a choice field without any
-     * option is refused, as is a Dutch option holding the separator the
-     * stored format splits on. Nothing is written, and what was typed comes
-     * back.
+     * A choice field without any option is refused and nothing is written.
+     * A label holding a `|` is now ordinary text: the stored format has no
+     * separator any more, because an option's value and its labels are
+     * columns of their own.
      */
-    public function testAChoiceFieldWithoutOptionsOrWithTheSeparatorIsRefused(): void
+    public function testAChoiceFieldWithoutOptionsIsRefusedAndAPipeIsJustText(): void
     {
         [$session] = $this->accounts->signIn([AdminPermissions::FORMS_MANAGE]);
         $formId = $this->createForm();
         $fieldId = $this->addField($formId, 'Voorkeur', 'select', "Bellen\nMailen");
-        $before = $this->forms->findField($fieldId);
+        $before = $this->optionValues($fieldId);
         $catalog = $this->catalog('nl');
 
         [$fields] = $this->editorSubmission($session, $fieldId);
-        $fields['option_nl[0]'] = '';
-        $fields['option_nl[1]'] = '  ';
+        $fields['option_label[0]'] = '';
+        $fields['option_label[1]'] = '  ';
         $response = self::$server->request('POST', self::UPDATE_ENDPOINT, $session, $fields);
 
         $this->assertSame('/admin/form-field.php?id=' . $fieldId, $response['location']);
-        $this->assertSame($before, $this->forms->findField($fieldId));
+        $this->assertSame($before, $this->optionValues($fieldId), 'nothing was written');
         $this->assertStringContainsString($catalog['validation.choice_field_needs_option'], $this->get($session, $response['location']));
 
         [$fields] = $this->editorSubmission($session, $fieldId);
-        $fields['option_nl[0]'] = 'Bellen|Call';
+        $fields['option_label[0]'] = 'Bellen|Call';
         $response = self::$server->request('POST', self::UPDATE_ENDPOINT, $session, $fields);
 
-        $this->assertSame($before, $this->forms->findField($fieldId));
-        $body = $this->get($session, $response['location']);
-        $this->assertStringContainsString($catalog['validation.form_option_separator'], $body);
-        $this->assertStringContainsString('value="Bellen|Call"', $body, 'what was typed comes back');
+        $this->assertSame('/admin/form-field.php?id=' . $fieldId . '&saved=1', $response['location']);
+        $this->assertSame($before, $this->optionValues($fieldId), 'the value it was created with stays');
+        $this->assertSame(['Bellen|Call', 'Mailen'], $this->optionLabels($fieldId, 'nl'), 'and the pipe is part of the label');
     }
 
     /* ------------------------------------------------------------------ */
@@ -521,6 +580,7 @@ final class FormFieldEditorHttpTest extends TestCase
 
         foreach ([[$choice, 'radio'], [$text, 'textarea'], [$text, 'tel'], [$text, 'email']] as [$fieldId, $to]) {
             $before = $this->withoutTimestamp($this->forms->findField($fieldId));
+            $beforeOptions = [$this->optionValues($fieldId), $this->optionLabels($fieldId, 'nl')];
 
             [$fields] = $this->editorSubmission($session, $fieldId);
             $fields['field_type'] = $to;
@@ -528,6 +588,7 @@ final class FormFieldEditorHttpTest extends TestCase
 
             $this->assertSame('/admin/form-field.php?id=' . $fieldId . '&saved=1', $response['location'], '-> ' . $to . ' is saved at once');
             $this->assertSame(array_replace($before, ['field_type' => $to]), $this->withoutTimestamp($this->forms->findField($fieldId)), '-> ' . $to . ': only the type changed');
+            $this->assertSame($beforeOptions, [$this->optionValues($fieldId), $this->optionLabels($fieldId, 'nl')], '-> ' . $to . ': its options too');
         }
     }
 
@@ -550,11 +611,12 @@ final class FormFieldEditorHttpTest extends TestCase
         $this->assertStringContainsString('de opties, de standaardkeuze', $textCard->textContent, 'the card says it in advance');
 
         $fields['field_type'] = 'text';
-        $fields['label_nl'] = 'Hoe wil je contact?';
+        $fields['label'] = 'Hoe wil je contact?';
         $response = self::$server->request('POST', self::UPDATE_ENDPOINT, $session, $fields);
 
         $this->assertSame('/admin/form-field.php?id=' . $fieldId, $response['location']);
         $this->assertSame($before, $this->forms->findField($fieldId), 'nothing was written, not even the new label');
+        $this->assertSame(['label' => 'Voorkeur'], $this->fieldWords($fieldId, 'nl'), 'and no word of it either');
 
         [$confirming, $xpath] = $this->editorSubmission($session, $fieldId);
         $card = $xpath->query('//section[contains(@class, "admin-type-change")]')->item(0);
@@ -563,9 +625,9 @@ final class FormFieldEditorHttpTest extends TestCase
         $this->assertStringContainsString('de standaardkeuze ‘Mailen’', $card->textContent);
         $this->assertSame('text', $confirming['confirmed_type']);
         $this->assertSame('text', $confirming['field_type'], 'the new type is the one on screen');
-        $this->assertSame('Hoe wil je contact?', $confirming['label_nl'], 'what was typed is still there');
-        $this->assertArrayHasKey('placeholder_nl', $confirming, 'the text box editor, with its placeholder');
-        $this->assertSame(0, $xpath->query('//input[starts-with(@name, "option_nl[")]')->length, 'and without options');
+        $this->assertSame('Hoe wil je contact?', $confirming['label'], 'what was typed is still there');
+        $this->assertArrayHasKey('placeholder', $confirming, 'the text box editor, with its placeholder');
+        $this->assertSame(0, $xpath->query('//input[starts-with(@name, "option_label[")]')->length, 'and without options');
         $this->assertStringContainsString($catalog['forms.type_change.submit_losing'], $card->textContent);
 
         $response = self::$server->request('POST', self::UPDATE_ENDPOINT, $session, $confirming);
@@ -573,10 +635,10 @@ final class FormFieldEditorHttpTest extends TestCase
 
         $after = $this->forms->findField($fieldId);
         $this->assertSame('text', $after['field_type']);
-        $this->assertNull($after['options']);
+        $this->assertSame([], $this->optionValues($fieldId), 'the options are gone, labels and all');
         $this->assertNull($after['default_value']);
-        $this->assertSame('Hoe wil je contact?', $after['label_nl']);
-        $this->assertSame('Preference', $after['label_en'], 'what both types use is kept');
+        $this->assertSame('Hoe wil je contact?', $this->fieldWords($fieldId, 'nl')['label']);
+        $this->assertSame('Preference', $this->fieldWords($fieldId, 'en')['label'], 'what both types use is kept, in every language');
         $this->assertSame(1, (int) $after['is_required']);
         $this->assertSame($before['field_key'], $after['field_key']);
     }
@@ -656,8 +718,8 @@ final class FormFieldEditorHttpTest extends TestCase
         [$confirming, $xpath] = $this->editorSubmission($session, $fieldId);
         $card = $xpath->query('//section[contains(@class, "admin-type-change")]')->item(0);
         $this->assertStringContainsString($this->catalog('nl')['forms.type_change.loses_nothing'], $card->textContent);
-        $this->assertSame(3, $xpath->query('//input[starts-with(@name, "option_nl[")]')->length);
-        $this->assertArrayNotHasKey('placeholder_nl', $confirming, 'a dropdown has no placeholder');
+        $this->assertSame(3, $xpath->query('//input[starts-with(@name, "option_label[")]')->length);
+        $this->assertArrayNotHasKey('placeholder', $confirming, 'a dropdown has no placeholder');
 
         $confirming = $this->withOptionRows($confirming, [['Ochtend', ''], ['Middag', '']]);
         $confirming['default_option'] = '0';
@@ -665,7 +727,8 @@ final class FormFieldEditorHttpTest extends TestCase
 
         $this->assertSame('/admin/form-field.php?id=' . $fieldId . '&saved=1', $response['location']);
         $after = $this->forms->findField($fieldId);
-        $this->assertSame(['select', "Ochtend\nMiddag", 'Ochtend'], [$after['field_type'], $after['options'], $after['default_value']]);
+        $this->assertSame(['select', 'Ochtend'], [$after['field_type'], $after['default_value']]);
+        $this->assertSame(['Ochtend', 'Middag'], $this->optionValues($fieldId));
     }
 
     /**
@@ -835,7 +898,7 @@ final class FormFieldEditorHttpTest extends TestCase
         $this->assertFalse($xpath->query('//form[@action="' . self::UPDATE_ENDPOINT . '"]')->item(0)->hasAttribute('data-save-bar-unsaved'), 'a fresh screen starts saved');
 
         [$fields] = $this->editorSubmission($session, $fieldId);
-        $fields['label_nl'] = 'Hoe wil je contact?';
+        $fields['label'] = 'Hoe wil je contact?';
         $response = self::$server->request('POST', self::UPDATE_ENDPOINT, $session, $fields);
 
         $this->assertMatchesRegularExpression('/[?&](saved|updated|created)=1(&|$)/', $response['location'], 'the success marker the save bar reads');
@@ -857,7 +920,7 @@ final class FormFieldEditorHttpTest extends TestCase
         $settings = '//form[@action="' . self::UPDATE_ENDPOINT . '"]';
 
         [$fields] = $this->editorSubmission($session, $fieldId);
-        $fields['label_nl'] = '';
+        $fields['label'] = '';
         $response = self::$server->request('POST', self::UPDATE_ENDPOINT, $session, $fields);
         $this->assertSame('/admin/form-field.php?id=' . $fieldId, $response['location'], 'refused');
         $this->assertTrue($this->xpath($this->get($session, $response['location']))->query($settings)->item(0)->hasAttribute('data-save-bar-unsaved'), 'a refused save is unsaved');
@@ -882,12 +945,12 @@ final class FormFieldEditorHttpTest extends TestCase
     /* ------------------------------------------------------------------ */
 
     /**
-     * Rows moved in the browser arrive in their new order, each still under
-     * its own index. The options are stored in that order with each Dutch
-     * and English half still together, the default is still the option that
-     * was marked, the editor reopens in that order, and the public form shows
-     * the options in that order. The move buttons are the script's: without
-     * it they stay hidden and the rows are saved as they stand.
+     * Rows moved in the browser arrive in their new order, each still with its
+     * own id. The options are stored in that order, each keeping its value
+     * and every language's label, the default is still the option that was
+     * marked, the editor reopens in that order, and the public form shows the
+     * options in that order. The move buttons are the script's: without it
+     * they stay hidden and the rows are saved as they stand.
      */
     public function testMovedOptionRowsKeepTheirTranslationAndTheirDefaultEverywhere(): void
     {
@@ -930,14 +993,13 @@ final class FormFieldEditorHttpTest extends TestCase
         $fields = $this->withRowsInOrder($fields, [2, 1, 0, 3, 4, 5]);
         self::$server->request('POST', self::UPDATE_ENDPOINT, $session, $fields);
 
-        $stored = $this->forms->findField($radio);
-        $this->assertSame("Langskomen|Visit\nBellen|Call\nMailen|Email", $stored['options'], 'stored in the new order, each option still with its translation');
-        $this->assertSame('Mailen', $stored['default_value'], 'and the same option is the default');
-        $this->assertSame("Avond|Evening\nMiddag|Afternoon\nOchtend|Morning", $this->forms->findField($select)['options']);
+        $this->assertSame(['Langskomen', 'Bellen', 'Mailen'], $this->optionValues($radio), 'stored in the new order');
+        $this->assertSame(['Visit', 'Call', 'Email'], $this->optionLabels($radio, 'en'), 'each option still with its translation');
+        $this->assertSame('Mailen', $this->forms->findField($radio)['default_value'], 'and the same option is the default');
+        $this->assertSame(['Avond', 'Middag', 'Ochtend'], $this->optionValues($select));
 
         [$again, $xpath] = $this->editorSubmission($session, $radio);
-        $this->assertSame(['Langskomen', 'Bellen', 'Mailen'], [$again['option_nl[0]'], $again['option_nl[1]'], $again['option_nl[2]']], 'the editor reopens in that order');
-        $this->assertSame(['Visit', 'Call', 'Email'], [$again['option_en[0]'], $again['option_en[1]'], $again['option_en[2]']]);
+        $this->assertSame(['Langskomen', 'Bellen', 'Mailen'], [$again['option_label[0]'], $again['option_label[1]'], $again['option_label[2]']], 'the editor reopens in that order');
         $this->assertSame('2', $again['default_option'], 'with the mark on Mailen, now the third row');
 
         $public = $this->xpath($this->publicPageWith($formId));
@@ -972,8 +1034,8 @@ final class FormFieldEditorHttpTest extends TestCase
 
     /**
      * The option rows of an editor submission as a browser sends them after
-     * rows were moved: in this order of their indexes, each under its own
-     * index. The rest of the submission is untouched.
+     * rows were moved: in this order of their indexes, each label still with
+     * its own id. The rest of the submission is untouched.
      *
      * @param array<string, string> $fields
      * @param list<int>             $order
@@ -983,17 +1045,48 @@ final class FormFieldEditorHttpTest extends TestCase
     {
         $rows = [];
         foreach ($order as $index) {
-            $rows['option_nl[' . $index . ']'] = $fields['option_nl[' . $index . ']'];
-            $rows['option_en[' . $index . ']'] = $fields['option_en[' . $index . ']'];
+            $rows['option_id[' . $index . ']'] = $fields['option_id[' . $index . ']'];
+            $rows['option_label[' . $index . ']'] = $fields['option_label[' . $index . ']'];
         }
 
         foreach (array_keys($fields) as $name) {
-            if (str_starts_with($name, 'option_nl[') || str_starts_with($name, 'option_en[')) {
+            if (str_starts_with($name, 'option_id[') || str_starts_with($name, 'option_label[')) {
                 unset($fields[$name]);
             }
         }
 
         return $fields + $rows;
+    }
+
+    /** @return list<string> the stored option values, in order */
+    private function optionValues(int $fieldId): array
+    {
+        FormLocalization::clearCache();
+
+        return array_map(
+            static fn (array $option): string => (string) $option['value'],
+            (new \App\Repository\FormFieldOptionRepository())->findForFields([$fieldId])[$fieldId] ?? []
+        );
+    }
+
+    /** @return list<string> the stored option labels in one language, in order ('' when untranslated) */
+    private function optionLabels(int $fieldId, string $language): array
+    {
+        FormLocalization::clearCache();
+        [$field] = FormLocalization::attachFieldWords([['id' => $fieldId]]);
+
+        return array_map(
+            static fn (array $option): string => (string) ($option['labels'][$language] ?? ''),
+            $field['choices']
+        );
+    }
+
+    /** The words of a field in one language, as an editor sees them. */
+    private function fieldWords(int $fieldId, string $language): array
+    {
+        FormLocalization::clearCache();
+
+        return FormLocalization::fields()->words($fieldId)[$language] ?? [];
     }
 
     /** @return list<string> */
@@ -1093,8 +1186,8 @@ final class FormFieldEditorHttpTest extends TestCase
     }
 
     /**
-     * The editor's option rows replaced by these [nl, en] pairs, in order,
-     * with indexes 0, 1, 2 ...
+     * The editor's option rows replaced by these [label, id] pairs, in order,
+     * with indexes 0, 1, 2 ... An empty id is a new option.
      *
      * @param array<string, string>     $fields
      * @param list<array{0: string, 1: string}> $rows
@@ -1103,14 +1196,14 @@ final class FormFieldEditorHttpTest extends TestCase
     private function withOptionRows(array $fields, array $rows): array
     {
         foreach (array_keys($fields) as $name) {
-            if (str_starts_with($name, 'option_nl[') || str_starts_with($name, 'option_en[')) {
+            if (str_starts_with($name, 'option_id[') || str_starts_with($name, 'option_label[')) {
                 unset($fields[$name]);
             }
         }
 
-        foreach ($rows as $index => [$nl, $en]) {
-            $fields['option_nl[' . $index . ']'] = $nl;
-            $fields['option_en[' . $index . ']'] = $en;
+        foreach ($rows as $index => [$label, $id]) {
+            $fields['option_id[' . $index . ']'] = $id;
+            $fields['option_label[' . $index . ']'] = $label;
         }
 
         return $fields;
@@ -1137,16 +1230,13 @@ final class FormFieldEditorHttpTest extends TestCase
             'name' => 'Veldeditor test',
             'internal_key' => FormCatalog::internalKeyFor('zz test veldeditor', $this->forms),
             'is_active' => true,
-            'submit_label_nl' => 'Verstuur',
-            'submit_label_en' => null,
-            'success_message_nl' => 'Bedankt.',
-            'success_message_en' => null,
             'notification_email' => 'veldeditor@example.com',
             'reply_to_field_key' => null,
             'store_submissions' => true,
         ]);
 
         $this->createdFormIds[] = $id;
+        FormFixture::formWords($id, ['nl' => ['submit_label' => 'Verstuur', 'success_message' => 'Bedankt.']]);
 
         return $id;
     }
@@ -1158,19 +1248,29 @@ final class FormFieldEditorHttpTest extends TestCase
     {
         $taken = array_map(static fn (array $row): string => (string) $row['field_key'], $this->forms->fieldsFor($formId));
 
-        $id = $this->forms->createField($formId, $overrides + [
+        $words = [
+            'nl' => array_filter([
+                'label' => $label,
+                'help_text' => $overrides['help_text_nl'] ?? null,
+                'placeholder' => $overrides['placeholder_nl'] ?? null,
+            ]),
+            'en' => array_filter([
+                'label' => $overrides['label_en'] ?? null,
+                'help_text' => $overrides['help_text_en'] ?? null,
+                'placeholder' => $overrides['placeholder_en'] ?? null,
+            ]),
+        ];
+
+        foreach (['label_en', 'help_text_nl', 'help_text_en', 'placeholder_nl', 'placeholder_en'] as $moved) {
+            unset($overrides[$moved]);
+        }
+
+        $id = FormFixture::field($formId, $overrides + [
             'field_key' => FormFieldKey::fromLabel($label, $taken),
             'field_type' => $type,
-            'label_nl' => $label,
-            'label_en' => null,
-            'placeholder_nl' => null,
-            'placeholder_en' => null,
-            'help_text_nl' => null,
-            'help_text_en' => null,
             'is_required' => $type === 'consent',
-            'options' => $options,
             'default_value' => null,
-        ]);
+        ], array_filter($words), $options);
 
         FormCatalog::clearCache();
 

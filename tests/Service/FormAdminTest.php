@@ -15,6 +15,7 @@ use App\Service\Forms\FormRenderState;
 use App\Service\Forms\FormUsage;
 use App\Service\SectionRegistry;
 use PHPUnit\Framework\TestCase;
+use Tests\Support\FormFixture;
 
 /**
  * Core Forms against the test database: defining a form, ordering its
@@ -245,16 +246,13 @@ class FormAdminTest extends TestCase
         $id = $this->createForm('Optie hernoemd');
         $fieldId = $this->addField($id, 'Voorkeur', 'radio', "Ochtend\nMiddag", 'Middag');
 
+        // The options are replaced: the old rows go, new ones take their
+        // place, and the stored default names none of them any more.
+        (new \App\Repository\FormFieldOptionRepository())->deleteForField($fieldId);
+        FormFixture::options($fieldId, "Ochtend\nAvond");
         $this->forms->updateField($fieldId, [
             'field_type' => 'radio',
-            'label_nl' => 'Voorkeur',
-            'label_en' => null,
-            'placeholder_nl' => null,
-            'placeholder_en' => null,
-            'help_text_nl' => null,
-            'help_text_en' => null,
             'is_required' => false,
-            'options' => "Ochtend\nAvond",
             'default_value' => 'Middag',
         ]);
         FormCatalog::clearCache();
@@ -475,16 +473,16 @@ class FormAdminTest extends TestCase
             'name' => $name,
             'internal_key' => FormCatalog::internalKeyFor('zz test ' . $name, $this->forms),
             'is_active' => true,
-            'submit_label_nl' => 'Versturen',
-            'submit_label_en' => 'Send',
-            'success_message_nl' => 'Bedankt.',
-            'success_message_en' => 'Thanks.',
             'notification_email' => null,
             'reply_to_field_key' => null,
             'store_submissions' => false,
         ]);
 
         $this->createdFormIds[] = $id;
+        FormFixture::formWords($id, [
+            'nl' => ['submit_label' => 'Versturen', 'success_message' => 'Bedankt.'],
+            'en' => ['submit_label' => 'Send', 'success_message' => 'Thanks.'],
+        ]);
         FormCatalog::clearCache();
 
         return $id;
@@ -502,19 +500,12 @@ class FormAdminTest extends TestCase
             $this->forms->fieldsFor($formId)
         );
 
-        $id = $this->forms->createField($formId, [
+        $id = FormFixture::field($formId, [
             'field_key' => \App\Service\Forms\FormFieldKey::fromLabel($label, $taken),
             'field_type' => $type,
-            'label_nl' => $label,
-            'label_en' => null,
-            'placeholder_nl' => null,
-            'placeholder_en' => null,
-            'help_text_nl' => null,
-            'help_text_en' => null,
             'is_required' => false,
-            'options' => $options,
             'default_value' => $defaultValue,
-        ]);
+        ], ['nl' => ['label' => $label]], $options);
 
         FormCatalog::clearCache();
 
@@ -529,13 +520,14 @@ class FormAdminTest extends TestCase
     {
         $row = $this->forms->find($formId);
 
+        $words = \App\Service\Forms\FormLocalization::forms()->words($formId);
+
         return $overrides + [
             'name' => (string) $row['name'],
             'is_active' => (bool) $row['is_active'],
-            'submit_label_nl' => (string) $row['submit_label_nl'],
-            'submit_label_en' => (string) ($row['submit_label_en'] ?? ''),
-            'success_message_nl' => (string) $row['success_message_nl'],
-            'success_message_en' => (string) ($row['success_message_en'] ?? ''),
+            'language_code' => 'nl',
+            'submit_label' => (string) ($words['nl']['submit_label'] ?? ''),
+            'success_message' => (string) ($words['nl']['success_message'] ?? ''),
             'notification_email' => (string) ($row['notification_email'] ?? ''),
             'reply_to_field_key' => (string) ($row['reply_to_field_key'] ?? ''),
             'store_submissions' => (bool) $row['store_submissions'],

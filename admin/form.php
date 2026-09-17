@@ -5,7 +5,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/../vendor/autoload.php';
 require_once __DIR__ . '/_translate.php';
 
-require_once __DIR__ . '/_language_fields.php';
+require_once __DIR__ . '/_localized_fields.php';
 require_once __DIR__ . '/_form_fields.php';
 require_once __DIR__ . '/_save_bar.php';
 
@@ -14,7 +14,7 @@ use App\Repository\FormSubmissionRepository;
 use App\Service\AdminAuth;
 use App\Service\Csrf;
 use App\Service\Forms\FormCatalog;
-use App\Service\Forms\FormFieldOptions;
+use App\Service\Forms\FormLocalization;
 use App\Service\Forms\FormFieldTypes;
 use App\Service\Forms\FormRecipient;
 use App\Service\Forms\FormUsage;
@@ -87,7 +87,7 @@ if ($id === false || $id === null || $id < 1) {
 try {
     $repository = new FormRepository();
     $row = $repository->find($id);
-    $fieldRows = $row === null ? [] : $repository->fieldsFor($id);
+    $fieldRows = $row === null ? [] : FormLocalization::attachFieldWords($repository->fieldsFor($id));
     // Only a number, never a submission: counting is what this permission
     // may see (admin/forms.php says why).
     $submissionCount = $row === null ? 0 : (new FormSubmissionRepository())->countForForm($id);
@@ -121,20 +121,35 @@ $saved = isset($_GET['saved']);
 // Open as the page renders: the no-JavaScript route to "Veld toevoegen", or
 // an add the endpoint sent back.
 $addOpen = isset($_GET['add_field']) || $addErrors !== [];
-$addLabel = (string) ($addOld['label_nl'] ?? '');
+$addLabel = (string) ($addOld['label'] ?? '');
 $addType = (string) ($addOld['field_type'] ?? '');
 
-$values = $old ?? [
+// The button text and the thank-you message are website text, one language
+// at a time (admin/_localized_fields.php); everything else on this screen is
+// the same in every language.
+$editLanguage = admin_localized_language();
+$words = FormLocalization::forms()->words($id);
+
+$values = [
     'name' => (string) $row['name'],
     'is_active' => (bool) $row['is_active'],
-    'submit_label_nl' => (string) $row['submit_label_nl'],
-    'submit_label_en' => (string) ($row['submit_label_en'] ?? ''),
-    'success_message_nl' => (string) $row['success_message_nl'],
-    'success_message_en' => (string) ($row['success_message_en'] ?? ''),
+    'submit_label' => (string) ($words[$editLanguage][FormLocalization::SUBMIT_LABEL] ?? ''),
+    'success_message' => (string) ($words[$editLanguage][FormLocalization::SUCCESS_MESSAGE] ?? ''),
     'notification_email' => (string) ($row['notification_email'] ?? ''),
     'reply_to_field_key' => (string) ($row['reply_to_field_key'] ?? ''),
     'store_submissions' => (bool) $row['store_submissions'],
 ];
+
+// What a refused save sent comes back, but its words only in the language
+// they were typed in.
+if (is_array($old)) {
+    $values = array_replace($values, array_intersect_key($old, $values));
+
+    if (($old['language_code'] ?? null) !== $editLanguage) {
+        $values['submit_label'] = (string) ($words[$editLanguage][FormLocalization::SUBMIT_LABEL] ?? '');
+        $values['success_message'] = (string) ($words[$editLanguage][FormLocalization::SUCCESS_MESSAGE] ?? '');
+    }
+}
 
 $csrfToken = Csrf::token();
 $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
@@ -216,39 +231,20 @@ $advancedOpen = $errors !== [] || $losesSubmissions;
         <input type="text" id="form-name" name="name" maxlength="150" required value="<?= $v($values, 'name') ?>">
       </div>
 
-      <?php admin_lang_bar(); ?>
-      <div class="admin-form-row admin-form-row--split">
-        <?php admin_lang_pane_start('nl'); ?>
-        <div class="admin-field">
-          <?= admin_field_label('form-submit-label-nl', admin_t('forms.tekst_verstuurknop')) ?>
-          <input type="text" id="form-submit-label-nl" name="submit_label_nl" maxlength="150" value="<?= $v($values, 'submit_label_nl') ?>" placeholder="Versturen">
-        </div>
-        <?php admin_lang_pane_end(); ?>
-        <?php admin_lang_pane_start('en'); ?>
-        <div class="admin-field">
-          <?= admin_field_label('form-submit-label-en', admin_t('forms.tekst_verstuurknop')) ?>
-          <input type="text" id="form-submit-label-en" name="submit_label_en" maxlength="150" value="<?= $v($values, 'submit_label_en') ?>"<?= admin_lang_placeholder_attr('en') ?>>
-        </div>
-        <?php admin_lang_pane_end(); ?>
+      <?php admin_localized_bar($editLanguage); ?>
+      <?= admin_localized_input($editLanguage) ?>
+      <div class="admin-field">
+        <?= admin_field_label('form-submit-label', admin_t('forms.tekst_verstuurknop')) ?>
+        <input type="text" id="form-submit-label" name="submit_label" maxlength="150" value="<?= $v($values, 'submit_label') ?>" placeholder="Versturen">
       </div>
     </section>
 
     <section class="admin-card">
       <h2><?= admin_te('forms.after_sending') ?></h2>
 
-      <div class="admin-form-row admin-form-row--split">
-        <?php admin_lang_pane_start('nl'); ?>
-        <div class="admin-field">
-          <?= admin_field_label('form-success-message-nl', admin_t('forms.thank_you_message'), admin_t('help.forms.thank_you_message')) ?>
-          <textarea id="form-success-message-nl" name="success_message_nl" maxlength="1000" rows="3" placeholder="Bedankt — je bericht is verstuurd."><?= $v($values, 'success_message_nl') ?></textarea>
-        </div>
-        <?php admin_lang_pane_end(); ?>
-        <?php admin_lang_pane_start('en'); ?>
-        <div class="admin-field">
-          <?= admin_field_label('form-success-message-en', admin_t('forms.thank_you_message'), admin_t('help.forms.thank_you_message')) ?>
-          <textarea id="form-success-message-en" name="success_message_en" maxlength="1000" rows="3"<?= admin_lang_placeholder_attr('en') ?>><?= $v($values, 'success_message_en') ?></textarea>
-        </div>
-        <?php admin_lang_pane_end(); ?>
+      <div class="admin-field">
+        <?= admin_field_label('form-success-message', admin_t('forms.thank_you_message'), admin_t('help.forms.thank_you_message')) ?>
+        <textarea id="form-success-message" name="success_message" maxlength="1000" rows="3" placeholder="Bedankt — je bericht is verstuurd."><?= $v($values, 'success_message') ?></textarea>
       </div>
 
       <div class="admin-field">
@@ -308,7 +304,7 @@ $advancedOpen = $errors !== [] || $losesSubmissions;
             <select name="reply_to_field_key" id="form-reply-to" class="admin-select">
               <option value=""><?= admin_te('forms.reply_to_none') ?></option>
               <?php foreach ($replyToCandidates as $candidate): ?>
-                <option value="<?= $h($candidate->key) ?>" <?= ($values['reply_to_field_key'] ?? '') === $candidate->key ? 'selected' : '' ?>><?= $h($candidate->label->nl) ?></option>
+                <option value="<?= $h($candidate->key) ?>" <?= ($values['reply_to_field_key'] ?? '') === $candidate->key ? 'selected' : '' ?>><?= $h($candidate->recordedLabel) ?></option>
               <?php endforeach; ?>
             </select>
           </div>
@@ -335,13 +331,11 @@ $advancedOpen = $errors !== [] || $losesSubmissions;
         $type = FormFieldTypes::get((string) $field['field_type']);
         $isFirst = $index === 0;
         $isLast = $index === count($fieldRows) - 1;
-        $optionCount = $type !== null && $type->usesOptions()
-            ? FormFieldOptions::fromStored($field['options'] ?? null)->count()
-            : 0;
+        $optionCount = $type !== null && $type->usesOptions() ? count($field['choices'] ?? []) : 0;
       ?>
       <article class="admin-card" style="margin-top:1rem;">
         <div class="admin-main__heading">
-          <h3 style="margin:0;"><?= $h((string) $field['label_nl']) ?></h3>
+          <h3 style="margin:0;"><?= $h(FormLocalization::fieldName($fieldId)) ?></h3>
           <?php if ((int) $field['is_required'] === 1): ?>
             <span class="admin-badge admin-badge--info"><?= admin_te('common.required_badge') ?></span>
           <?php endif; ?>
@@ -374,7 +368,7 @@ $advancedOpen = $errors !== [] || $losesSubmissions;
           </form>
           <form method="post" action="/api/admin/delete-form-field.php" class="admin-inline-form"<?= admin_confirm_attributes(
               admin_t('forms.delete_field.title'),
-              admin_t('forms.delete_field.message', ['field' => (string) $field['label_nl'], 'form' => (string) $row['name']]),
+              admin_t('forms.delete_field.message', ['field' => FormLocalization::fieldName($fieldId), 'form' => (string) $row['name']]),
               admin_t('common.delete')
           ) ?>>
             <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
@@ -421,9 +415,10 @@ $advancedOpen = $errors !== [] || $losesSubmissions;
 
       <div class="admin-field">
         <?= admin_field_label('form-field-add-label', admin_t('forms.label'), admin_t('help.forms.field_label'), true) ?>
-        <input type="text" id="form-field-add-label" name="label_nl" maxlength="200" required value="<?= $h($addLabel) ?>">
+        <input type="text" id="form-field-add-label" name="label" maxlength="200" required value="<?= $h($addLabel) ?>">
       </div>
       <p class="admin-text-muted"><?= admin_te('forms.add_field_after') ?></p>
+      <?php admin_localized_new_item_note($editLanguage); ?>
 
       <div class="admin-field-picker__actions">
         <a class="admin-btn-secondary" href="/admin/form.php?id=<?= $id ?>" data-form-field-add-close><?= admin_te('common.cancel') ?></a>
@@ -457,7 +452,6 @@ $advancedOpen = $errors !== [] || $losesSubmissions;
 </main>
 <?php save_bar(); ?>
 <?= admin_confirm_dialog() ?>
-<?php admin_lang_script(); ?>
 <script src="<?= \App\Service\AssetVersion::url('/admin/assets/forms-admin.js') ?>" defer></script>
 <?php save_bar_script(); ?>
 </body>
