@@ -88,15 +88,15 @@ $v = static fn (array $values, string $key): string => htmlspecialchars((string)
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title><?= $h(SectionRegistry::label('form')) ?> <?= admin_t('forms.admin', ['v1' => $h((string) $page['title'])]) ?></title>
+<title><?= $h(SectionRegistry::label('form')) ?> <?= admin_t('forms.admin', ['v1' => $h(\App\Service\PageLocalization::name((int) $page['id']))]) ?></title>
 <link rel="stylesheet" href="<?= \App\Service\AssetVersion::url('/admin/assets/admin.css') ?>">
 </head>
 <body<?= \App\Service\AdminTheme::bodyAttribute() ?>>
 <?php require __DIR__ . '/_header.php'; ?>
 <main class="admin-main">
-  <p class="admin-text-muted"><a href="/admin/page.php?id=<?= (int) $page['id'] ?>"><?= admin_t('forms.text', ['v1' => $h((string) $page['title'])]) ?></a></p>
+  <p class="admin-text-muted"><a href="/admin/page.php?id=<?= (int) $page['id'] ?>"><?= admin_t('forms.text', ['v1' => $h(\App\Service\PageLocalization::name((int) $page['id']))]) ?></a></p>
   <h1><?= $h(SectionRegistry::label('form')) ?></h1>
-  <p class="admin-text-muted"><?= admin_t('forms.sectie_kiest_hier_welk', ['v1' => $h((string) $page['title'])]) ?></p>
+  <p class="admin-text-muted"><?= admin_t('forms.sectie_kiest_hier_welk', ['v1' => $h(\App\Service\PageLocalization::name((int) $page['id']))]) ?></p>
 
   <?php if ($saved): ?>
     <p class="admin-alert admin-alert--success"><?= admin_te('common.saved') ?></p>

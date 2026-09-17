@@ -369,16 +369,11 @@ final class PortfolioProjectPageTest extends TestCase
     {
         $key = 'zz-projectpagina-' . bin2hex(random_bytes(4));
 
-        $id = (new PageRepository())->create([
+        $id = \Tests\Support\PageFixture::create([
             'content_key' => $key,
             'slug' => $key,
-            'title' => 'ZZ Projectpagina',
             'status' => $status,
-            'meta_title' => null,
-            'meta_title_en' => null,
-            'meta_description' => null,
-            'meta_description_en' => null,
-        ]);
+        ], 'ZZ Projectpagina');
         $this->pageIds[] = $id;
 
         return $id;
@@ -406,12 +401,7 @@ final class PortfolioProjectPageTest extends TestCase
 
         $pages->update($pageId, $changes + [
             'slug' => (string) $page['slug'],
-            'title' => (string) $page['title'],
             'status' => (string) $page['status'],
-            'meta_title' => null,
-            'meta_title_en' => null,
-            'meta_description' => null,
-            'meta_description_en' => null,
         ]);
     }
 
@@ -425,16 +415,11 @@ final class PortfolioProjectPageTest extends TestCase
     private function galleryBlock(array $settings): int
     {
         $key = 'zz-galerij-' . bin2hex(random_bytes(4));
-        $pageId = (new PageRepository())->create([
+        $pageId = \Tests\Support\PageFixture::create([
             'content_key' => $key,
             'slug' => $key,
-            'title' => 'ZZ Galerij',
             'status' => PageContent::STATUS_PUBLISHED,
-            'meta_title' => null,
-            'meta_title_en' => null,
-            'meta_description' => null,
-            'meta_description_en' => null,
-        ]);
+        ], 'ZZ Galerij');
         $this->pageIds[] = $pageId;
 
         [$sectionId, $sectionKey] = SectionRegistry::create('item_gallery', $key);

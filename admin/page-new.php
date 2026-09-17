@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/../vendor/autoload.php';
-require_once __DIR__ . '/_language_fields.php';
+require_once __DIR__ . '/_localized_fields.php';
 require_once __DIR__ . '/_translate.php';
 
 use App\Service\AdminAuth;
@@ -34,6 +34,11 @@ use App\Service\SectionRegistry;
  * editor can change every block afterwards. "Lege pagina" is pre-selected,
  * so an editor who ignores this section gets exactly the empty page this
  * screen made before templates existed. See PAGE-TEMPLATES.md.
+ *
+ * A new page is always written in the website's DEFAULT language
+ * (admin/_localized_fields.php), whatever language the editor is working in:
+ * that is the language every other one falls back to, so it is the one a page
+ * cannot be without. Translating comes afterwards, on admin/page.php.
  */
 
 AdminAuth::requireLogin();
@@ -44,6 +49,7 @@ $old = $_SESSION['admin_page_old'] ?? null;
 unset($_SESSION['admin_page_errors'], $_SESSION['admin_page_old']);
 
 $value = static fn (string $key): string => (string) ($old[$key] ?? '');
+$newPageLanguage = admin_localized_default();
 $status = (string) ($old['status'] ?? PageContent::STATUS_DRAFT);
 $selectedTemplate = (string) ($old['template'] ?? PageTemplates::DEFAULT_KEY);
 
@@ -55,8 +61,7 @@ $slugPreview = PageService::sanitizeSlug($value('slug') !== '' ? $value('slug') 
 
 // The SEO card folds shut — every field on it is optional — unless a refused
 // save handed back something typed into it, which must not be hidden.
-$seoOpen = $value('meta_title') !== '' || $value('meta_title_en') !== ''
-    || $value('meta_description') !== '' || $value('meta_description_en') !== '';
+$seoOpen = $value('meta_title') !== '' || $value('meta_description') !== '';
 
 // The automatic title, spelled out with this site's own name in the SEO
 // title's explanation.
@@ -96,25 +101,20 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
     <section class="admin-card">
       <h2><?= admin_te('page.algemeen') ?></h2>
       <?php /* The title is content, not just a name in a list: the breadcrumb
-               prints it and the automatic <title> is built from it, so it has
-               the same language panes as the SEO fields. The address is made
-               from the PRIMARY language's title only — a slug is never
-               translated (MULTILINGUAL.md) — so data-slug-source stays on
-               that one field. */ ?>
-      <?php admin_lang_bar(); ?>
+               prints it and the automatic <title> is built from it. It is
+               written in the default language, the one the address is made
+               from — a slug is never translated (MULTILINGUAL.md) — so
+               data-slug-source sits on this field. */ ?>
+      <?php admin_localized_bar($newPageLanguage); ?>
+      <?php if (admin_localized_language() !== $newPageLanguage): ?>
+        <p class="admin-text-muted"><?= admin_te('language.new_in_default') ?></p>
+      <?php endif; ?>
       <?php /* The shared field styling, as on the SEO card below. */ ?>
       <div class="admin-product-form admin-product-form--wide">
       <div class="admin-form-row admin-form-row--split">
-        <?php admin_lang_pane_start('nl'); ?>
-          <label><?= admin_te('common.title') ?>*
-            <input type="text" name="title" maxlength="<?= PageService::MAX_TITLE_LENGTH ?>"<?= admin_lang_required('nl') ?> value="<?= $h($value('title')) ?>" data-slug-source>
-          </label>
-        <?php admin_lang_pane_end(); ?>
-        <?php admin_lang_pane_start('en'); ?>
-          <label><?= admin_te('common.title') ?>
-            <input type="text" name="title_en" maxlength="<?= PageService::MAX_TITLE_LENGTH ?>" value="<?= $h($value('title_en')) ?>"<?= admin_lang_placeholder_attr('en') ?>>
-          </label>
-        <?php admin_lang_pane_end(); ?>
+        <label><?= admin_te('common.title') ?>*
+          <input type="text" name="title" maxlength="<?= PageService::MAX_TITLE_LENGTH ?>"<?= admin_localized_required($newPageLanguage) ?> value="<?= $h($value('title')) ?>" data-slug-source>
+        </label>
         <?php /* The address starts out as the title's (admin/assets/admin.js)
                  and stays the editor's to change until the page exists. The
                  hidden flag says which of the two it is when the form is
@@ -146,9 +146,8 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
              belongs with its title and address, while a template only
              decides which blocks it starts with. The card is a native
              <details> in the collapse styling (admin/_admin_collapse.php),
-             folded shut unless something in it is already filled in. The
-             language panes are the ones admin/page.php's SEO tab uses — see
-             the note there. */ ?>
+             folded shut unless something in it is already filled in. Its
+             fields are the default language's, like the title. */ ?>
     <section class="admin-card">
       <details class="admin-collapse admin-collapse--card"<?= $seoOpen ? ' open' : '' ?>>
         <summary class="admin-collapse__summary">
@@ -157,28 +156,16 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
         </summary>
         <div class="admin-collapse__body">
           <?= admin_info_panel(admin_t('help.page.seo')) ?>
-          <?php admin_lang_bar(); ?>
+          <?php admin_localized_bar($newPageLanguage); ?>
           <div class="admin-product-form admin-product-form--wide">
-            <?php admin_lang_pane_start('nl'); ?>
-              <div class="admin-field">
-                <?= admin_field_label('page-new-meta-title-nl', admin_t('page.meta_title'), $seoTitleHelp) ?>
-                <input type="text" name="meta_title" id="page-new-meta-title-nl" maxlength="<?= PageService::MAX_META_TITLE_LENGTH ?>" value="<?= $h($value('meta_title')) ?>"<?= admin_lang_placeholder_attr('nl') ?>>
-              </div>
-              <div class="admin-field">
-                <?= admin_field_label('page-new-meta-description-nl', admin_t('page.meta_description'), admin_t('help.page.meta_description')) ?>
-                <textarea name="meta_description" rows="3" id="page-new-meta-description-nl" maxlength="<?= PageService::MAX_META_DESCRIPTION_LENGTH ?>"<?= admin_lang_placeholder_attr('nl') ?>><?= $h($value('meta_description')) ?></textarea>
-              </div>
-            <?php admin_lang_pane_end(); ?>
-            <?php admin_lang_pane_start('en'); ?>
-              <div class="admin-field">
-                <?= admin_field_label('page-new-meta-title-en', admin_t('page.meta_title'), $seoTitleHelp) ?>
-                <input type="text" name="meta_title_en" id="page-new-meta-title-en" maxlength="<?= PageService::MAX_META_TITLE_LENGTH ?>" value="<?= $h($value('meta_title_en')) ?>"<?= admin_lang_placeholder_attr('en') ?>>
-              </div>
-              <div class="admin-field">
-                <?= admin_field_label('page-new-meta-description-en', admin_t('page.meta_description'), admin_t('help.page.meta_description')) ?>
-                <textarea name="meta_description_en" rows="3" id="page-new-meta-description-en" maxlength="<?= PageService::MAX_META_DESCRIPTION_LENGTH ?>"<?= admin_lang_placeholder_attr('en') ?>><?= $h($value('meta_description_en')) ?></textarea>
-              </div>
-            <?php admin_lang_pane_end(); ?>
+            <div class="admin-field">
+              <?= admin_field_label('page-new-meta-title', admin_t('page.meta_title'), $seoTitleHelp) ?>
+              <input type="text" name="meta_title" id="page-new-meta-title" maxlength="<?= PageService::MAX_META_TITLE_LENGTH ?>" value="<?= $h($value('meta_title')) ?>">
+            </div>
+            <div class="admin-field">
+              <?= admin_field_label('page-new-meta-description', admin_t('page.meta_description'), admin_t('help.page.meta_description')) ?>
+              <textarea name="meta_description" rows="3" id="page-new-meta-description" maxlength="<?= PageService::MAX_META_DESCRIPTION_LENGTH ?>"><?= $h($value('meta_description')) ?></textarea>
+            </div>
           </div>
         </div>
       </details>
@@ -228,6 +215,5 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
     </section>
   </form>
 </main>
-<?php admin_lang_script(); ?>
 </body>
 </html>

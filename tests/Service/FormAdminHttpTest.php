@@ -950,16 +950,11 @@ final class FormAdminHttpTest extends TestCase
      */
     private function placeBothBlocks(int $formId): array
     {
-        $pageId = (new PageRepository())->create([
+        $pageId = \Tests\Support\PageFixture::create([
             'content_key' => self::TEST_PAGE,
             'slug' => self::TEST_PAGE,
-            'title' => 'Formulierstatus testpagina',
             'status' => 'published',
-            'meta_title' => null,
-            'meta_title_en' => null,
-            'meta_description' => null,
-            'meta_description_en' => null,
-        ]);
+        ], 'Formulierstatus testpagina');
 
         $pageSections = new PageSectionRepository();
         $rows = [];

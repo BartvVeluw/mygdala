@@ -35,7 +35,7 @@ if ($section === null) {
     $section = [
         'page_slug' => $dynPageSlug,
         'section_key' => $dynSectionKey,
-        'page_label' => (string) (new \App\Repository\PageRepository())->findByContentKey($dynPageSlug)['title'],
+        'page_label' => \App\Service\PageLocalization::name((int) (new \App\Repository\PageRepository())->findByContentKey($dynPageSlug)['id']),
         'section_label' => \App\Service\SectionRegistry::label('step_list'),
     ];
 }

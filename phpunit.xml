@@ -475,6 +475,7 @@
             <file>tests/Repository/SiteSettingsPersistenceTest.php</file>
             <file>tests/Repository/SiteLanguageRepositoryTest.php</file>
             <file>tests/Repository/PageTranslationRepositoryTest.php</file>
+            <file>tests/Service/PageLocalizationEditorHttpTest.php</file>
             <file>tests/Service/SitemapRoutingTest.php</file>
             <file>tests/Service/SitemapTest.php</file>
             <file>tests/Service/ThemePersistenceTest.php</file>

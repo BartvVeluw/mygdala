@@ -8,7 +8,7 @@ require_once __DIR__ . '/_block_picker.php';
 require_once __DIR__ . '/_save_bar.php';
 require_once __DIR__ . '/_admin_tabs.php';
 require_once __DIR__ . '/_admin_collapse.php';
-require_once __DIR__ . '/_language_fields.php';
+require_once __DIR__ . '/_localized_fields.php';
 require_once __DIR__ . '/_translate.php';
 
 use App\Service\AdminAuth;
@@ -17,7 +17,9 @@ use App\Service\Breadcrumbs\PageBreadcrumb;
 use App\Service\Csrf;
 use App\Service\Media\MediaService;
 use App\Service\PageContent;
+use App\Service\PageLocalization;
 use App\Service\PageService;
+use App\Service\PageTranslation;
 use App\Service\PageUsage;
 use App\Service\Redirects\Redirect;
 use App\Service\SectionRegistry;
@@ -71,6 +73,13 @@ use App\Repository\RedirectRepository;
  * in between: their URL is fixed, but they can be set to Concept and deleted
  * like any other page. Title and the SEO fields are editable everywhere.
  *
+ * THE PAGE'S TEXT IS EDITED ONE WEBSITE LANGUAGE AT A TIME
+ * (admin/_localized_fields.php): the title and the two SEO fields show the
+ * language chosen in the CMS shell, as stored per language and read through
+ * App\Service\PageLocalization, and the save writes that language only.
+ * Address, status, the breadcrumb switch, indexability and the social image
+ * belong to the page itself and are the same in every language.
+ *
  * EVERY OTHER PAGE'S WEB ADDRESS is changed on purpose, never in passing. It
  * is shown as the link it is; the field sits behind "Webadres wijzigen", with
  * where the page is linked from (App\Service\PageUsage) written out above it;
@@ -99,6 +108,10 @@ if ($page === null) {
 }
 
 $pageId = (int) $page['id'];
+// What the CMS calls this page (its name in the default language), and the
+// website language whose text the Pagina and SEO tabs show and save.
+$pageName = PageLocalization::name($pageId);
+$editLanguage = admin_localized_language();
 $isProtected = PageContent::isProtected($page);
 $hasFixedUrl = PageContent::isRouteBound($page);
 
@@ -181,6 +194,20 @@ $fieldValue = static function (string $key) use ($old, $page): string {
     return (string) ($page[$key] ?? '');
 };
 
+/**
+ * The same precedence for the page's text in the language on screen, read
+ * RAW: an empty translation is an empty field, never the default language's
+ * words (App\Service\PageLocalization::raw()). Handed-back input only counts
+ * when it was typed in this same language.
+ */
+$textValue = static function (string $field) use ($old, $pageId, $editLanguage): string {
+    if ($old !== null && ($old['language_code'] ?? null) === $editLanguage && array_key_exists($field, $old)) {
+        return (string) ($old[$field] ?? '');
+    }
+
+    return PageLocalization::raw($pageId, $field, $editLanguage);
+};
+
 $status = $old !== null ? (string) ($old['status'] ?? '') : (string) $page['status'];
 
 // The two SEO fields that are not plain text. Both follow the same
@@ -205,10 +232,13 @@ $pageSocialMedia = MediaService::find(
 );
 
 // The search-result preview below shows what this page's head will really
-// contain, resolved by the same App\Service\PageSeo the public page uses —
-// never a second guess at the fallback rules. It is built from the STORED
-// row, so it shows what is live, not what is half-typed in the form.
+// contain in the language on screen, resolved by the same PageContent
+// methods App\Service\PageSeo uses for the public page — never a second guess
+// at the fallback rules. It is built from what is STORED, so it shows what is
+// live, not what is half-typed in the form.
 $seoPreview = \App\Service\PageSeo::forPage($page);
+$seoPreviewTitle = PageContent::seoTitle($page, $editLanguage);
+$seoPreviewDescription = PageContent::metaDescription($page, $editLanguage);
 
 // The SEO title's explanation names the automatic title with this site's own
 // name, so an editor can see what an empty field turns into.
@@ -249,7 +279,7 @@ $urlFieldOpen = !$hasFixedUrl
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title><?= $h((string) $page['title']) ?> <?= admin_te('page.admin') ?></title>
+<title><?= $h($pageName) ?> <?= admin_te('page.admin') ?></title>
 <link rel="stylesheet" href="<?= \App\Service\AssetVersion::url('/admin/assets/admin.css') ?>">
 </head>
 <body<?= \App\Service\AdminTheme::bodyAttribute() ?>>
@@ -258,7 +288,7 @@ $urlFieldOpen = !$hasFixedUrl
   <p><a href="/admin/pages.php"><?= admin_t('page.terug_pagina_s') ?></a></p>
   <header class="admin-page-head">
     <div>
-      <h1 class="admin-page-head__title"><?= $h((string) $page['title']) ?></h1>
+      <h1 class="admin-page-head__title"><?= $h($pageName) ?></h1>
       <p class="admin-page-head__desc"><?= admin_t('page.beheer_instellingen_inhoud_pagina') ?></p>
     </div>
     <?php /* A published page opens where visitors see it. A draft has no public
@@ -319,6 +349,7 @@ $urlFieldOpen = !$hasFixedUrl
   <form method="post" action="/api/admin/update-page.php">
     <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
     <input type="hidden" name="id" value="<?= $pageId ?>">
+    <?= admin_localized_input($editLanguage) ?>
 
     <?php admin_tab_panel('pagina'); ?>
     <?php if ($urlChange !== null): ?>
@@ -363,26 +394,17 @@ $urlFieldOpen = !$hasFixedUrl
       <h2><?= admin_te('page.algemeen') ?></h2>
       <?php /* The title is the page's NAME, and it is content: it is what the
                breadcrumb prints and what the automatic <title> is built from
-               (HEADER-FOOTER.md). So it gets the same language panes the SEO
-               fields below have — one language on screen, the other still
-               rendered, still carrying its value and still submitted. */ ?>
-      <?php admin_lang_bar(); ?>
+               (HEADER-FOOTER.md). So it is localized like the SEO fields: the
+               language on screen only, required in the default language. */ ?>
+      <?php admin_localized_bar($editLanguage); ?>
       <?php /* The shared field styling (label above a full-width control, one
                rhythm between fields) — the same wrapper the SEO tab uses. */ ?>
       <div class="admin-product-form admin-product-form--wide">
       <div class="admin-form-row">
-        <?php admin_lang_pane_start('nl'); ?>
-          <div class="admin-field">
-            <?= admin_field_label('page-title-nl', admin_t('common.title'), '', true) ?>
-            <input type="text" id="page-title-nl" name="title" maxlength="<?= PageService::MAX_TITLE_LENGTH ?>"<?= admin_lang_required('nl') ?> value="<?= $h($fieldValue('title')) ?>">
-          </div>
-        <?php admin_lang_pane_end(); ?>
-        <?php admin_lang_pane_start('en'); ?>
-          <div class="admin-field">
-            <?= admin_field_label('page-title-en', admin_t('common.title')) ?>
-            <input type="text" id="page-title-en" name="title_en" maxlength="<?= PageService::MAX_TITLE_LENGTH ?>" value="<?= $h($fieldValue('title_en')) ?>"<?= admin_lang_placeholder_attr('en') ?>>
-          </div>
-        <?php admin_lang_pane_end(); ?>
+        <div class="admin-field">
+          <?= admin_field_label('page-title', admin_t('common.title'), '', admin_localized_required($editLanguage) !== '') ?>
+          <input type="text" id="page-title" name="title" maxlength="<?= PageService::MAX_TITLE_LENGTH ?>"<?= admin_localized_required($editLanguage) ?> value="<?= $h($textValue(PageTranslation::TITLE)) ?>"<?= admin_localized_placeholder_attr($editLanguage) ?>>
+        </div>
       </div>
 
       <?php /* The web address, shown as the link it is and changed only on
@@ -488,44 +510,29 @@ $urlFieldOpen = !$hasFixedUrl
                a paragraph of its own here; it is part of the SEO title's
                explanation now. */ ?>
       <?= admin_info_panel(admin_t('help.page.seo')) ?>
-      <?php /* One pane per language, not one column per language. On a
-               single-language site only the site's own language is on
-               screen; the other pane is still rendered, still carries its
-               stored value and is still submitted, but `hidden` — that is
-               what keeps a translation alive through a save after the
-               language was switched off (admin/_language_fields.php). */ ?>
-      <?php admin_lang_bar(); ?>
+      <?php /* The language on screen only, as on the Pagina tab: the same
+               form, the same hidden language_code. Another language's SEO
+               text stays in storage, untouched by this save. */ ?>
+      <?php admin_localized_bar($editLanguage); ?>
       <div class="admin-product-form admin-product-form--wide">
-        <?php admin_lang_pane_start('nl'); ?>
-          <div class="admin-field">
-            <?= admin_field_label('page-meta-title-nl', admin_t('page.meta_title'), $seoTitleHelp) ?>
-            <input type="text" name="meta_title" id="page-meta-title-nl" maxlength="<?= PageService::MAX_META_TITLE_LENGTH ?>" value="<?= $h($fieldValue('meta_title')) ?>"<?= admin_lang_placeholder_attr('nl') ?>>
-          </div>
-          <div class="admin-field">
-            <?= admin_field_label('page-meta-description-nl', admin_t('page.meta_description'), admin_t('help.page.meta_description')) ?>
-            <textarea name="meta_description" rows="3" id="page-meta-description-nl" maxlength="<?= PageService::MAX_META_DESCRIPTION_LENGTH ?>"<?= admin_lang_placeholder_attr('nl') ?>><?= $h($fieldValue('meta_description')) ?></textarea>
-          </div>
-        <?php admin_lang_pane_end(); ?>
-        <?php admin_lang_pane_start('en'); ?>
-          <div class="admin-field">
-            <?= admin_field_label('page-meta-title-en', admin_t('page.meta_title'), $seoTitleHelp) ?>
-            <input type="text" name="meta_title_en" id="page-meta-title-en" maxlength="<?= PageService::MAX_META_TITLE_LENGTH ?>" value="<?= $h($fieldValue('meta_title_en')) ?>"<?= admin_lang_placeholder_attr('en') ?>>
-          </div>
-          <div class="admin-field">
-            <?= admin_field_label('page-meta-description-en', admin_t('page.meta_description'), admin_t('help.page.meta_description')) ?>
-            <textarea name="meta_description_en" rows="3" id="page-meta-description-en" maxlength="<?= PageService::MAX_META_DESCRIPTION_LENGTH ?>"<?= admin_lang_placeholder_attr('en') ?>><?= $h($fieldValue('meta_description_en')) ?></textarea>
-          </div>
-        <?php admin_lang_pane_end(); ?>
+        <div class="admin-field">
+          <?= admin_field_label('page-meta-title', admin_t('page.meta_title'), $seoTitleHelp) ?>
+          <input type="text" name="meta_title" id="page-meta-title" maxlength="<?= PageService::MAX_META_TITLE_LENGTH ?>" value="<?= $h($textValue(PageTranslation::META_TITLE)) ?>"<?= admin_localized_placeholder_attr($editLanguage) ?>>
+        </div>
+        <div class="admin-field">
+          <?= admin_field_label('page-meta-description', admin_t('page.meta_description'), admin_t('help.page.meta_description')) ?>
+          <textarea name="meta_description" rows="3" id="page-meta-description" maxlength="<?= PageService::MAX_META_DESCRIPTION_LENGTH ?>"<?= admin_localized_placeholder_attr($editLanguage) ?>><?= $h($textValue(PageTranslation::META_DESCRIPTION)) ?></textarea>
+        </div>
       </div>
 
       <h3 class="admin-seo-lang__title"><?= admin_te('page.google_preview') ?></h3>
       <p class="admin-text-muted"><?= admin_te('page.zo_ziet_pagina_er') ?></p>
       <div class="admin-seo-preview">
         <div class="admin-seo-preview__url"><?= $h((string) ($seoPreview->canonical ?? PageContent::publicUrl($page))) ?></div>
-        <div class="admin-seo-preview__title"><?= $h($seoPreview->titleNl) ?></div>
+        <div class="admin-seo-preview__title"><?= $h($seoPreviewTitle) ?></div>
         <div class="admin-seo-preview__description">
-          <?php if ($seoPreview->hasDescription()): ?>
-            <?= $h($seoPreview->descriptionNl) ?>
+          <?php if ($seoPreviewDescription !== ''): ?>
+            <?= $h($seoPreviewDescription) ?>
           <?php else: ?>
             <em><?= admin_te('page.no_description') ?></em>
           <?php endif; ?>
@@ -746,6 +753,5 @@ $urlFieldOpen = !$hasFixedUrl
 <?php admin_collapse_script(); ?>
 <?php save_bar_script(); ?>
 <?php media_picker_script(); ?>
-<?php admin_lang_script(); ?>
 </body>
 </html>

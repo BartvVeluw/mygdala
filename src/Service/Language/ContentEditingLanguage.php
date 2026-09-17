@@ -35,6 +35,16 @@ use App\Service\AdminAuth;
  * nowhere to store a preference and gets the site's default website
  * language — the safe, repeatable direction.
  *
+ * WHICH LANGUAGES, since Multilingual 2.0 phase 2: every active language of
+ * the website language registry (App\Service\Language\SiteLanguages), plus
+ * the V1 languages the `_nl`/`_en` columns store, which stay editable until
+ * the frontend flip whatever the registry's active flag says
+ * (ContentLanguages::enabled()). A third language is therefore one row away
+ * from being choosable here. A screen that can only store the V1 pair shows
+ * the default language instead of it (admin/_language_fields.php); a screen
+ * converted to per-language storage shows exactly this language
+ * (admin/_localized_fields.php).
+ *
  * NOTHING HERE READS OR WRITES AdminLocale, and nothing here writes
  * site_settings. Tests\Service\MultilingualBoundaryTest fails the build if
  * that changes.
@@ -108,25 +118,77 @@ final class ContentEditingLanguage
     }
 
     /**
-     * Keep only a code this site can actually store content in. Anything
-     * else — null, empty, an interface-only language, a code from a newer
-     * version — becomes the site's default website language.
+     * Keep only a language an administrator may choose (::choices()).
+     * Anything else — null, empty, an interface-only language, a language
+     * the website does not have, a malformed code — becomes the site's
+     * default website language.
      */
     public static function normalise(?string $code): string
     {
         $wanted = trim((string) $code);
 
-        if (ContentLanguages::isEnabled($wanted)) {
-            return $wanted;
+        foreach (self::choices() as $language) {
+            if ($language->code === $wanted) {
+                return $wanted;
+            }
         }
 
-        return ContentLanguages::primary();
+        return self::defaultCode();
     }
 
-    /** @return LanguageDefinition[] what an administrator may switch between, default first */
+    /**
+     * What an administrator may switch between: the website's active
+     * languages and the V1 pair, the default first and the rest in the
+     * registry's order.
+     *
+     * A V1 language the registry cannot describe (an unreadable registry, or
+     * a row switched off before the flip) is still offered, described by the
+     * closed V1 registry, so no editor ever loses a language the old columns
+     * hold.
+     *
+     * @return list<SiteLanguage>
+     */
     public static function choices(): array
     {
-        return ContentLanguages::definitions();
+        $default = self::defaultCode();
+        $choices = [];
+
+        foreach (SiteLanguages::active() as $language) {
+            $choices[$language->code] = $language;
+        }
+
+        foreach (ContentLanguages::definitions() as $definition) {
+            $choices[$definition->code] ??= new SiteLanguage(
+                code: $definition->code,
+                name: $definition->englishLabel,
+                nativeName: $definition->nativeLabel,
+                isDefault: $definition->code === $default,
+                isActive: true,
+                sortOrder: PHP_INT_MAX,
+            );
+        }
+
+        $ordered = isset($choices[$default]) ? [$choices[$default]] : [];
+        foreach ($choices as $code => $language) {
+            if ($code !== $default) {
+                $ordered[] = $language;
+            }
+        }
+
+        return $ordered;
+    }
+
+    /**
+     * The website's default language, or the V1 adapter's answer when the
+     * registry cannot give one.
+     */
+    private static function defaultCode(): string
+    {
+        try {
+            return SiteLanguages::defaultCode();
+        } catch (\RuntimeException) {
+            return ContentLanguages::primary();
+        }
     }
 
     /**

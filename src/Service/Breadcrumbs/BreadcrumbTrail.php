@@ -6,6 +6,8 @@ namespace App\Service\Breadcrumbs;
 
 use App\Service\Language\LanguageRegistry;
 use App\Service\PageContent;
+use App\Service\PageLocalization;
+use App\Service\PageTranslation;
 use App\Service\RouteRegistry;
 
 /**
@@ -99,10 +101,10 @@ final class BreadcrumbTrail
 
         $reachable = PageContent::isPublished($page) && PageContent::isServedByAnEnabledModule($page);
 
-        // Both halves exactly as stored; the renderer decides which one is
-        // visible. PageContent::titleValue() is the one place that knows a
-        // page name is `title` + `title_en`.
-        $title = PageContent::titleValue($page);
+        // Both halves of the V1 switch, resolved by the page's own fallback;
+        // the renderer decides which one is visible. PageLocalization is the
+        // one place that knows where a page's name is stored.
+        $title = PageLocalization::bilingual((int) $page['id'], PageTranslation::TITLE);
 
         return $this->to(BreadcrumbItem::link(
             $title->raw(LanguageRegistry::DUTCH),

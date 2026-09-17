@@ -547,16 +547,11 @@ class FormAdminTest extends TestCase
     {
         $pages = new PageRepository();
 
-        $pages->create([
+        \Tests\Support\PageFixture::create([
             'content_key' => self::TEST_PAGE,
             'slug' => self::TEST_PAGE,
-            'title' => 'Formulierentestpagina',
             'status' => 'draft',
-            'meta_title' => null,
-            'meta_title_en' => null,
-            'meta_description' => null,
-            'meta_description_en' => null,
-        ]);
+        ], 'Formulierentestpagina');
 
         $page = $pages->findByContentKey(self::TEST_PAGE);
         $this->assertNotNull($page);

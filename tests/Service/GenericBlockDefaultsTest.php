@@ -73,16 +73,11 @@ final class GenericBlockDefaultsTest extends TestCase
 
         $this->removeTestPage();
 
-        $this->pageId = $this->pages->create([
+        $this->pageId = \Tests\Support\PageFixture::create([
             'content_key' => self::TEST_KEY,
             'slug' => self::TEST_KEY,
-            'title' => 'Generieke blokstandaarden',
             'status' => 'draft',
-            'meta_title' => null,
-            'meta_title_en' => null,
-            'meta_description' => null,
-            'meta_description_en' => null,
-        ]);
+        ], 'Generieke blokstandaarden');
     }
 
     protected function tearDown(): void

@@ -133,7 +133,7 @@ function detailErrorList(array $errors): void
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title><?= $h(SectionRegistry::label('detail_section')) ?> <?= admin_t('block_detail.admin', ['v1' => $h((string) $page['title'])]) ?></title>
+<title><?= $h(SectionRegistry::label('detail_section')) ?> <?= admin_t('block_detail.admin', ['v1' => $h(\App\Service\PageLocalization::name((int) $page['id']))]) ?></title>
 <link rel="stylesheet" href="<?= \App\Service\AssetVersion::url('/admin/assets/vendor/quill/quill.snow.css') ?>">
 <link rel="stylesheet" href="<?= \App\Service\AssetVersion::url('/admin/assets/admin.css') ?>">
 <script src="<?= \App\Service\AssetVersion::url('/admin/assets/vendor/quill/quill.min.js') ?>" defer></script>
@@ -142,9 +142,9 @@ function detailErrorList(array $errors): void
 <body<?= \App\Service\AdminTheme::bodyAttribute() ?>>
 <?php require __DIR__ . '/_header.php'; ?>
 <main class="admin-main">
-  <p class="admin-text-muted"><a href="/admin/page.php?id=<?= (int) $page['id'] ?>"><?= admin_t('block_detail.terug', ['v1' => $h((string) $page['title'])]) ?></a></p>
+  <p class="admin-text-muted"><a href="/admin/page.php?id=<?= (int) $page['id'] ?>"><?= admin_t('block_detail.terug', ['v1' => $h(\App\Service\PageLocalization::name((int) $page['id']))]) ?></a></p>
   <h1><?= $h(SectionRegistry::label('detail_section')) ?></h1>
-  <p class="admin-text-muted"><?= admin_t('block_detail.sectie_pagina_wijzigingen_direct', ['v1' => $h((string) $page['title'])]) ?></p>
+  <p class="admin-text-muted"><?= admin_t('block_detail.sectie_pagina_wijzigingen_direct', ['v1' => $h(\App\Service\PageLocalization::name((int) $page['id']))]) ?></p>
 
   <?php if ($saved): ?>
     <p class="admin-alert admin-alert--success"><?= admin_te('common.saved') ?></p>

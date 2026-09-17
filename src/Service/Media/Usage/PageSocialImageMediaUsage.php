@@ -8,6 +8,7 @@ use App\Database;
 use App\Service\AdminPermissions;
 use App\Service\Media\MediaUsage;
 use App\Service\Media\MediaUsageProvider;
+use App\Service\PageLocalization;
 
 /**
  * A CMS page's own social-sharing image (`pages.og_media_id`) — the per-page
@@ -34,16 +35,21 @@ final class PageSocialImageMediaUsage extends MediaUsageProvider
         $ids = array_values(array_map('intval', $mediaIds));
 
         $stmt = Database::connection()->prepare(
-            'SELECT id, title, og_media_id FROM pages WHERE og_media_id IN (' . $this->placeholders(count($ids)) . ')'
+            'SELECT id, og_media_id FROM pages WHERE og_media_id IN (' . $this->placeholders(count($ids)) . ')'
         );
         $stmt->execute($ids);
 
+        $rows = $stmt->fetchAll();
+        // The page's name lives per language; the CMS calls a page by its
+        // name in the default language (App\Service\PageLocalization).
+        PageLocalization::preload(array_map(static fn (array $row): int => (int) $row['id'], $rows));
+
         $usages = [];
 
-        foreach ($stmt->fetchAll() as $row) {
+        foreach ($rows as $row) {
             $usages[(int) $row['og_media_id']][] = new MediaUsage(
                 source: $this->key(),
-                label: 'Deel-afbeelding van "' . (string) $row['title'] . '"',
+                label: 'Deel-afbeelding van "' . PageLocalization::name((int) $row['id']) . '"',
                 // What admin/page.php itself demands.
                 permission: AdminPermissions::PAGES_MANAGE,
                 editUrl: '/admin/page.php?id=' . (int) $row['id'],

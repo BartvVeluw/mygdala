@@ -9,6 +9,7 @@ use App\Repository\PageRepository;
 use App\Repository\PageSectionRepository;
 use App\Service\Blocks\BlockDefinitions;
 use App\Service\PageContent;
+use App\Service\PageLocalization;
 use App\Service\SectionRegistry;
 
 /**
@@ -16,7 +17,8 @@ use App\Service\SectionRegistry;
  * with — the ONE place a template is ever applied.
  *
  * It owns no storage logic of its own. The page row goes through
- * App\Repository\PageRepository, each block's content row through
+ * App\Repository\PageRepository, the page's text in each language through
+ * App\Service\PageLocalization, each block's content row through
  * App\Service\SectionRegistry::create() (which hands off to the block's own
  * definition), and the attachment through
  * App\Repository\PageSectionRepository — the very same three calls
@@ -46,9 +48,14 @@ final class PageTemplateInstaller
      * $pageData is passed straight to PageRepository::create(), which
      * hardcodes is_system = 0 and route_path = NULL — so a page made here is
      * an ordinary CMS content page by construction, whatever the caller
-     * sends. Its slug, status and SEO fields must already have been resolved
-     * and validated by App\Service\PageService, exactly as
+     * sends. Its slug and status must already have been resolved and
+     * validated by App\Service\PageService, exactly as
      * api/admin/create-page.php does.
+     *
+     * $translations is the page's text, per website language: title, SEO
+     * title and meta description, handed to PageLocalization::save() inside
+     * the same transaction, so a page never exists without the name it was
+     * created with.
      *
      * Nothing about the template is stored on the page. Once this method
      * returns, no column, table or file records which template ran — the
@@ -56,10 +63,12 @@ final class PageTemplateInstaller
      * block, which is the whole point (PAGE-TEMPLATES.md).
      *
      * @param array<string, mixed> $pageData the resolved `pages` row fields
+     * @param array<string, array<string, string|null>> $translations language code => the page's text in it
      *
      * @throws \RuntimeException when the template names a block that cannot be placed
+     * @throws \InvalidArgumentException when a language is not a registered website language
      */
-    public static function install(PageTemplateDefinition $template, array $pageData): int
+    public static function install(PageTemplateDefinition $template, array $pageData, array $translations = []): int
     {
         $blocks = $template->blocks();
 
@@ -77,6 +86,10 @@ final class PageTemplateInstaller
         try {
             $pageRepository = new PageRepository();
             $pageId = $pageRepository->create($pageData);
+
+            foreach ($translations as $languageCode => $fields) {
+                PageLocalization::save($pageId, (string) $languageCode, $fields);
+            }
 
             $page = $pageRepository->findById($pageId);
             if ($page === null) {

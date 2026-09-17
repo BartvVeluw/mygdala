@@ -3,35 +3,56 @@
 namespace Tests\Service;
 
 use App\Service\PageContent;
+use App\Service\PageLocalization;
+use App\Service\PageTranslation;
 use App\Service\SiteSettings;
 use PHPUnit\Framework\TestCase;
+use Tests\Support\SiteLanguageFixture;
 
 /**
  * The derived, per-page values every caller shares: a page's public URL, its
  * canonical path, its resolved SEO title/meta description per language, and
  * which page-builder zones it has. All of these take a `pages` row as input,
  * so they are exercised here with plain arrays — no database rows are
- * created; only SiteSettings::get('site_name') reads the real settings, the
- * same value the live site renders with.
+ * created: the page's text is handed to App\Service\PageLocalization in
+ * memory, with Dutch as the default language and English beside it. Only
+ * SiteSettings::get('site_name') reads the real settings, the same value the
+ * live site renders with.
  */
 class PageContentTest extends TestCase
 {
+    protected function setUp(): void
+    {
+        SiteLanguageFixture::useBilingual('nl');
+    }
+
+    protected function tearDown(): void
+    {
+        PageLocalization::clearCache();
+        SiteLanguageFixture::reset();
+    }
+
     /**
+     * A `pages` row, and its text per language: code => [title, SEO title,
+     * meta description].
+     *
      * @param array<string, mixed> $overrides
+     * @param array<string, array{0: ?string, 1: ?string, 2: ?string}> $text
      * @return array<string, mixed>
      */
-    private function page(array $overrides = []): array
+    private function page(array $overrides = [], array $text = ['nl' => ['Veelgestelde vragen', null, null]]): array
     {
+        $translations = [];
+        foreach ($text as $code => [$title, $metaTitle, $metaDescription]) {
+            $translations[] = new PageTranslation(42, $code, $title, $metaTitle, $metaDescription);
+        }
+        PageLocalization::overrideForTests(42, $translations);
+
         return $overrides + [
             'id' => 42,
             'content_key' => 'veelgestelde-vragen',
             'slug' => 'veelgestelde-vragen',
-            'title' => 'Veelgestelde vragen',
             'status' => PageContent::STATUS_PUBLISHED,
-            'meta_title' => null,
-            'meta_title_en' => null,
-            'meta_description' => null,
-            'meta_description_en' => null,
             'is_system' => 0,
             'route_path' => null,
         ];
@@ -65,7 +86,7 @@ class PageContentTest extends TestCase
 
     public function testHomepageStillResolvesToTheSiteRoot(): void
     {
-        $home = $this->page(['content_key' => 'index', 'slug' => 'index', 'title' => 'Homepage', 'is_system' => 1, 'route_path' => '/']);
+        $home = $this->page(['content_key' => 'index', 'slug' => 'index', 'is_system' => 1, 'route_path' => '/'], ['nl' => ['Homepage', null, null]]);
 
         $this->assertSame('/', PageContent::publicUrl($home));
         // canonical('') is exactly what index.php rendered before this
@@ -83,9 +104,9 @@ class PageContentTest extends TestCase
 
     public function testSeoTitleIsRenderedVerbatimWhenSet(): void
     {
-        $page = $this->page([
-            'meta_title' => 'Alles over lasergraveren | Van Veluw Laserdesign',
-            'meta_title_en' => 'All about laser engraving | Van Veluw Laserdesign',
+        $page = $this->page([], [
+            'nl' => ['Veelgestelde vragen', 'Alles over lasergraveren | Van Veluw Laserdesign', null],
+            'en' => [null, 'All about laser engraving | Van Veluw Laserdesign', null],
         ]);
 
         $this->assertSame('Alles over lasergraveren | Van Veluw Laserdesign', PageContent::seoTitle($page, 'nl'));
@@ -94,9 +115,26 @@ class PageContentTest extends TestCase
 
     public function testEnglishSeoTitleFallsBackToTheDutchOne(): void
     {
-        $page = $this->page(['meta_title' => 'Alleen Nederlands', 'meta_title_en' => '']);
+        $page = $this->page([], ['nl' => ['Veelgestelde vragen', 'Alleen Nederlands', null], 'en' => [null, '', null]]);
 
         $this->assertSame('Alleen Nederlands', PageContent::seoTitle($page, 'en'));
+    }
+
+    public function testAnEnglishNameIsWhatTheEnglishAutomaticTitleIsBuiltFrom(): void
+    {
+        $page = $this->page([], ['nl' => ['Veelgestelde vragen', null, null], 'en' => ['Frequently asked questions', null, null]]);
+
+        $this->assertSame('Frequently asked questions — ' . SiteSettings::get('site_name'), PageContent::seoTitle($page, 'en'));
+        $this->assertSame('Veelgestelde vragen — ' . SiteSettings::get('site_name'), PageContent::seoTitle($page, 'nl'));
+    }
+
+    public function testOnAnEnglishDefaultSiteDutchFallsBackToEnglish(): void
+    {
+        SiteLanguageFixture::useBilingual('en');
+        $page = $this->page([], ['nl' => [null, null, null], 'en' => ['About us', 'About us | Test', 'What we do']]);
+
+        $this->assertSame('About us | Test', PageContent::seoTitle($page, 'nl'));
+        $this->assertSame('What we do', PageContent::metaDescription($page, 'nl'));
     }
 
     public function testSeoTitleForAnUnloadablePageIsJustTheSiteName(): void
@@ -112,12 +150,12 @@ class PageContentTest extends TestCase
 
     public function testMetaDescriptionUsesTheRequestedLanguageWithDutchFallback(): void
     {
-        $page = $this->page(['meta_description' => 'Nederlandse tekst', 'meta_description_en' => 'English text']);
+        $page = $this->page([], ['nl' => ['Veelgestelde vragen', null, 'Nederlandse tekst'], 'en' => [null, null, 'English text']]);
 
         $this->assertSame('Nederlandse tekst', PageContent::metaDescription($page, 'nl'));
         $this->assertSame('English text', PageContent::metaDescription($page, 'en'));
 
-        $dutchOnly = $this->page(['meta_description' => 'Nederlandse tekst']);
+        $dutchOnly = $this->page([], ['nl' => ['Veelgestelde vragen', null, 'Nederlandse tekst']]);
         $this->assertSame('Nederlandse tekst', PageContent::metaDescription($dutchOnly, 'en'));
     }
 

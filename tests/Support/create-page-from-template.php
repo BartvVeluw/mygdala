@@ -25,7 +25,9 @@ declare(strict_types=1);
 require_once dirname(__DIR__, 2) . '/vendor/autoload.php';
 
 use App\Repository\PageRepository;
+use App\Service\PageLocalization;
 use App\Service\PageService;
+use App\Service\PageTranslation;
 use App\Service\PageTemplates\PageTemplates;
 use App\Service\PageTemplates\PageTemplateInstaller;
 
@@ -44,15 +46,14 @@ if (!PageTemplates::has($templateKey)) {
 try {
     $repository = new PageRepository();
 
+    // The title in the website's default language, as the Nieuwe pagina
+    // flow (api/admin/create-page.php) stores it.
     $id = PageTemplateInstaller::install(PageTemplates::resolve($templateKey), [
         'content_key' => PageService::generateContentKey($repository, $slug),
         'slug' => $slug,
-        'title' => $title,
         'status' => 'draft',
-        'meta_title' => null,
-        'meta_title_en' => null,
-        'meta_description' => null,
-        'meta_description_en' => null,
+    ], [
+        PageLocalization::defaultLanguage() => [PageTranslation::TITLE => $title],
     ]);
 } catch (\Throwable $e) {
     fwrite(STDERR, get_class($e) . ': ' . $e->getMessage() . "\n");

@@ -32,7 +32,7 @@ function admin_link_destination_summary(array $row, array $pagesById, array $rou
 {
     $summary = match ((string) $row['link_type']) {
         'page' => isset($pagesById[(int) ($row['target_page_id'] ?? 0)])
-            ? admin_t('navigation.destination_page', ['page' => (string) $pagesById[(int) $row['target_page_id']]['title']])
+            ? admin_t('navigation.destination_page', ['page' => \App\Service\PageLocalization::name((int) $row['target_page_id'])])
                 . (PageContent::isPublished($pagesById[(int) $row['target_page_id']]) ? '' : ' ' . admin_t('navigation.destination_draft'))
             : admin_t('navigation.destination_page_missing'),
         'route' => isset($routes[(string) $row['target_route']])

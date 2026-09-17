@@ -67,16 +67,11 @@ final class PageHeroEditorHttpTest extends TestCase
 
         $this->removeTestPage();
 
-        $pageId = (new PageRepository())->create([
+        $pageId = \Tests\Support\PageFixture::create([
             'content_key' => self::TEST_PAGE,
             'slug' => self::TEST_PAGE,
-            'title' => 'Paginakop-testpagina',
             'status' => 'draft',
-            'meta_title' => null,
-            'meta_title_en' => null,
-            'meta_description' => null,
-            'meta_description_en' => null,
-        ]);
+        ], 'Paginakop-testpagina');
 
         // Attached exactly as the block picker attaches one.
         [$sectionId, $sectionKey] = SectionRegistry::create('page_hero', self::TEST_PAGE);

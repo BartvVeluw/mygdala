@@ -22,7 +22,10 @@ declare(strict_types=1);
  * <title>, typically — requires this file itself; it is require_once-safe.
  */
 
+use App\Service\Language\AdminLocale;
 use App\Service\Language\AdminTranslator;
+use App\Service\Language\LanguageRegistry;
+use App\Service\Language\SiteLanguages;
 
 if (!function_exists('admin_t')) {
     /**
@@ -59,4 +62,23 @@ if (!function_exists('admin_t')) {
 function admin_registry_label(string $key, string $fallback): string
 {
     return admin_t($key) === $key ? $fallback : admin_t($key);
+}
+
+/**
+ * What the CMS calls a website language: its name in the CMS interface
+ * language when the closed V1 registry has one ("Engels" in a Dutch CMS),
+ * else its own name from the website language registry ("Deutsch"), else its
+ * code. A website language is never a CMS language, so a language beyond the
+ * V1 pair has no translated name to give, and its own name is the one an
+ * editor recognises.
+ */
+function admin_website_language_label(string $code): string
+{
+    if (LanguageRegistry::has($code)) {
+        return LanguageRegistry::label($code, AdminLocale::current());
+    }
+
+    $language = SiteLanguages::find($code);
+
+    return $language !== null && $language->nativeName !== '' ? $language->nativeName : strtoupper($code);
 }

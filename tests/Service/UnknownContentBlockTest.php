@@ -307,16 +307,11 @@ class UnknownContentBlockTest extends TestCase
     {
         $slug = self::SLUG_PREFIX . bin2hex(random_bytes(4));
 
-        $pageId = $this->pages->create([
+        $pageId = \Tests\Support\PageFixture::create([
             'content_key' => $slug,
             'slug' => $slug,
-            'title' => 'Onbekend-blok-testpagina',
             'status' => $status,
-            'meta_title' => null,
-            'meta_title_en' => null,
-            'meta_description' => null,
-            'meta_description_en' => null,
-        ]);
+        ], 'Onbekend-blok-testpagina');
 
         PageContent::clearCache();
 

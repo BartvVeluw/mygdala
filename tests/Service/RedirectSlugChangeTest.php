@@ -67,16 +67,11 @@ class RedirectSlugChangeTest extends TestCase
 
     private function createPage(string $slug, string $status = PageContent::STATUS_PUBLISHED): int
     {
-        return $this->pages->create([
+        return \Tests\Support\PageFixture::create([
             'content_key' => self::PAGE_KEY,
             'slug' => $slug,
-            'title' => 'Redirect-hernoemtest',
             'status' => $status,
-            'meta_title' => null,
-            'meta_title_en' => null,
-            'meta_description' => null,
-            'meta_description_en' => null,
-        ]);
+        ], 'Redirect-hernoemtest');
     }
 
     /** @return array<string, mixed>|null */
@@ -200,12 +195,7 @@ class RedirectSlugChangeTest extends TestCase
 
         $this->pages->update($pageId, [
             'slug' => self::SECOND_SLUG,
-            'title' => 'Redirect-hernoemtest',
             'status' => PageContent::STATUS_PUBLISHED,
-            'meta_title' => null,
-            'meta_title_en' => null,
-            'meta_description' => null,
-            'meta_description_en' => null,
             'noindex' => false,
         ]);
         $this->service->record(self::FIRST_SLUG, self::SECOND_SLUG);

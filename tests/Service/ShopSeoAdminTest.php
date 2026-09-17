@@ -55,7 +55,11 @@ final class ShopSeoAdminTest extends TestCase
     {
         $pageEditor = $this->fileSource('admin/page.php');
 
-        foreach (self::SEO_TEXT_FIELDS as $field) {
+        // The page editor stores its text per website language since
+        // Multilingual 2.0 phase 2 and submits one language at a time, so it
+        // shares the base names; the `_en` twins stay the Shop's until its
+        // own phase.
+        foreach (['meta_title', 'meta_description'] as $field) {
             $this->assertStringContainsString('name="' . $field . '"', $pageEditor);
         }
     }

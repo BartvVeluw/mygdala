@@ -111,7 +111,7 @@ $t = static fn (string $key, array $r = []): string => AdminTranslator::trans($k
 
     <?php if ($isBreakGlass): ?>
       <p class="admin-text-muted">
-        <?= $h(LanguageRegistry::label($currentEditingLanguage, $currentLocale)) ?>
+        <?= $h(admin_website_language_label($currentEditingLanguage)) ?>
       </p>
     <?php else: ?>
       <?php /* Posts to the same endpoint as the shell switch, so there is one
@@ -125,9 +125,9 @@ $t = static fn (string $key, array $r = []): string => AdminTranslator::trans($k
         <div class="admin-form-row">
           <label for="field-content-editing-language"><?= $h($t('account.content_language')) ?>
             <select name="content_editing_language" id="field-content-editing-language">
-              <?php foreach (ContentEditingLanguage::choices() as $definition): ?>
-                <option value="<?= $h($definition->code) ?>"<?= $definition->code === $currentEditingLanguage ? ' selected' : '' ?>>
-                  <?= $h($definition->labelIn($currentLocale)) ?>
+              <?php foreach (ContentEditingLanguage::choices() as $language): ?>
+                <option value="<?= $h($language->code) ?>"<?= $language->code === $currentEditingLanguage ? ' selected' : '' ?>>
+                  <?= $h(admin_website_language_label($language->code)) ?>
                 </option>
               <?php endforeach; ?>
             </select>

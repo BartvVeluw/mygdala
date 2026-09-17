@@ -52,16 +52,11 @@ class SectionRegistryTest extends TestCase
         $this->removeTestPage();
 
         $pages = new PageRepository();
-        $pages->create([
+        \Tests\Support\PageFixture::create([
             'content_key' => self::TEST_PAGE,
             'slug' => self::TEST_PAGE,
-            'title' => 'Sectieregister-testpagina',
             'status' => 'draft',
-            'meta_title' => null,
-            'meta_title_en' => null,
-            'meta_description' => null,
-            'meta_description_en' => null,
-        ]);
+        ], 'Sectieregister-testpagina');
 
         $page = $pages->findByContentKey(self::TEST_PAGE);
         $this->assertNotNull($page, 'the test page should have been created');

@@ -5,10 +5,13 @@ declare(strict_types=1);
 namespace Tests\Service;
 
 use App\Service\AppUrl;
+use App\Service\PageLocalization;
 use App\Service\PageSeo;
+use App\Service\PageTranslation;
 use App\Service\SiteSettings;
 use App\Service\SocialProfiles;
 use PHPUnit\Framework\TestCase;
+use Tests\Support\SiteLanguageFixture;
 
 /**
  * How a `pages` row becomes effective SEO metadata: the title and
@@ -16,8 +19,9 @@ use PHPUnit\Framework\TestCase;
  * own social image), and the Organization node the site root publishes.
  *
  * Plain arrays rather than database rows, on purpose — these are resolution
- * rules, and they are the same rules whatever wrote the row. Neither a
- * database nor a web server.
+ * rules, and they are the same rules whatever wrote the row. The page's text
+ * is handed to App\Service\PageLocalization in memory, and the registry is
+ * Dutch (default) plus English. Neither a database nor a web server.
  */
 final class PageSeoTest extends TestCase
 {
@@ -26,27 +30,38 @@ final class PageSeoTest extends TestCase
         SiteSettings::overrideForTests(['site_name' => 'Testbedrijf']);
         // No footer_social_links rows unless a test installs some.
         SocialProfiles::overrideForTests([]);
+        SiteLanguageFixture::useBilingual('nl');
     }
 
     protected function tearDown(): void
     {
         SiteSettings::overrideForTests(null);
         SocialProfiles::overrideForTests(null);
+        PageLocalization::clearCache();
+        SiteLanguageFixture::reset();
     }
 
-    /** @param array<string, mixed> $overrides */
-    private function page(array $overrides = []): array
+    /**
+     * A `pages` row, with its Dutch text (title, SEO title, meta description)
+     * and, when given, its English text.
+     *
+     * @param array<string, mixed> $overrides
+     * @param array{0: ?string, 1: ?string, 2: ?string} $dutch
+     * @param array{0: ?string, 1: ?string, 2: ?string}|null $english
+     */
+    private function page(array $overrides = [], array $dutch = ['Een pagina', null, null], ?array $english = null): array
     {
+        $translations = [new PageTranslation(42, 'nl', ...$dutch)];
+        if ($english !== null) {
+            $translations[] = new PageTranslation(42, 'en', ...$english);
+        }
+        PageLocalization::overrideForTests(42, $translations);
+
         return array_merge([
             'id' => 42,
             'content_key' => 'zz-test',
             'slug' => 'zz-test',
-            'title' => 'Een pagina',
             'status' => 'published',
-            'meta_title' => null,
-            'meta_title_en' => null,
-            'meta_description' => null,
-            'meta_description_en' => null,
             'og_image_path' => null,
             'noindex' => 0,
             'is_system' => 0,
@@ -63,7 +78,7 @@ final class PageSeoTest extends TestCase
 
     public function testAnSeoTitleIsUsedExactlyAsTyped(): void
     {
-        $metadata = PageSeo::forPage($this->page(['meta_title' => 'Iets heel anders']));
+        $metadata = PageSeo::forPage($this->page([], ['Een pagina', 'Iets heel anders', null]));
 
         $this->assertSame('Iets heel anders', $metadata->titleNl);
     }
@@ -72,14 +87,28 @@ final class PageSeoTest extends TestCase
     {
         // The homepage case: a page called "Testbedrijf" must not become
         // "Testbedrijf — Testbedrijf".
-        $this->assertSame('Testbedrijf', PageSeo::forPage($this->page(['title' => 'Testbedrijf']))->titleNl);
+        $this->assertSame('Testbedrijf', PageSeo::forPage($this->page([], ['Testbedrijf', null, null]))->titleNl);
     }
 
     public function testTheEnglishTitleFallsBackToTheDutchOne(): void
     {
-        $metadata = PageSeo::forPage($this->page(['meta_title' => 'Alleen Nederlands']));
+        $metadata = PageSeo::forPage($this->page([], ['Een pagina', 'Alleen Nederlands', null]));
 
         $this->assertSame('Alleen Nederlands', $metadata->titleEn);
+    }
+
+    public function testEachHalfOfTheHeadReadsItsOwnLanguage(): void
+    {
+        $metadata = PageSeo::forPage($this->page(
+            [],
+            ['Over ons', null, 'Wie wij zijn.'],
+            ['About us', 'About us | Testbedrijf', null]
+        ));
+
+        $this->assertSame('Over ons — Testbedrijf', $metadata->titleNl);
+        $this->assertSame('About us | Testbedrijf', $metadata->titleEn);
+        $this->assertSame('Wie wij zijn.', $metadata->descriptionNl);
+        $this->assertSame('Wie wij zijn.', $metadata->descriptionEn, 'an English page without its own description gets the default language\'s');
     }
 
     public function testAMissingPageRowStillProducesAValidHead(): void
@@ -99,7 +128,7 @@ final class PageSeoTest extends TestCase
             'seo_default_description' => 'De standaardzin.',
         ]);
 
-        $metadata = PageSeo::forPage($this->page(['meta_description' => 'De eigen zin.']));
+        $metadata = PageSeo::forPage($this->page([], ['Een pagina', null, 'De eigen zin.']));
 
         $this->assertSame('De eigen zin.', $metadata->descriptionNl);
     }

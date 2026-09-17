@@ -45,8 +45,6 @@ use App\Service\AdminAuth;
 use App\Service\AdminNavigation;
 use App\Service\Csrf;
 use App\Service\Language\ContentEditingLanguage;
-use App\Service\Language\ContentLanguages;
-use App\Service\Language\LanguageRegistry;
 
 require_once __DIR__ . '/_translate.php';
 require_once __DIR__ . '/_admin_ui.php';
@@ -72,10 +70,16 @@ $adminCurrentUserIsSuperAdmin = AdminAuth::isSuperAdmin();
  * round: a Dutch CMS editing English content is a normal Tuesday for a Dutch
  * owner writing an English page.
  *
+ * It lists the website's languages from the language registry
+ * (ContentEditingLanguage::choices()), the default first and marked as such,
+ * so a language added to the website is one row away from being editable.
+ * A screen that can only store the V1 Dutch/English pair says so when another
+ * language is chosen (admin/_language_fields.php).
+ *
  * A break-glass session has no row to store a preference on, so it reads the
  * site's default website language and the switch is not offered.
  */
-$adminContentLanguages = ContentLanguages::enabled();
+$adminContentLanguages = ContentEditingLanguage::choices();
 $adminEditingLanguage = ContentEditingLanguage::current();
 $adminShowsContentLanguageSwitch = count($adminContentLanguages) > 1 && AdminAuth::userId() !== null;
 $adminReturnPath = (string) ($_SERVER['REQUEST_URI'] ?? '/admin/index.php');
@@ -152,11 +156,17 @@ function adminNavIcon(string $key): string
     <p class="admin-sidebar__contentlang-label" id="admin-contentlang-label"><?= admin_te('language.editing_switch') ?></p>
     <div class="admin-sidebar__contentlang-options" role="group" aria-labelledby="admin-contentlang-label">
       <?php foreach ($adminContentLanguages as $adminContentLanguage): ?>
-        <button type="submit" name="content_editing_language" value="<?= htmlspecialchars($adminContentLanguage, ENT_QUOTES, 'UTF-8') ?>"
-                class="admin-sidebar__contentlang-option<?= $adminContentLanguage === $adminEditingLanguage ? ' is-active' : '' ?>"
-                aria-pressed="<?= $adminContentLanguage === $adminEditingLanguage ? 'true' : 'false' ?>"
-                title="<?= htmlspecialchars(LanguageRegistry::label($adminContentLanguage, \App\Service\Language\AdminLocale::current()), ENT_QUOTES, 'UTF-8') ?>">
-          <?= htmlspecialchars(strtoupper($adminContentLanguage), ENT_QUOTES, 'UTF-8') ?>
+        <?php
+          $adminContentLanguageCode = $adminContentLanguage->code;
+          $adminContentLanguageName = admin_website_language_label($adminContentLanguageCode)
+              . ($adminContentLanguage->isDefault ? ' — ' . admin_t('language.default_marker') : '');
+        ?>
+        <button type="submit" name="content_editing_language" value="<?= htmlspecialchars($adminContentLanguageCode, ENT_QUOTES, 'UTF-8') ?>"
+                class="admin-sidebar__contentlang-option<?= $adminContentLanguageCode === $adminEditingLanguage ? ' is-active' : '' ?><?= $adminContentLanguage->isDefault ? ' is-default' : '' ?>"
+                aria-pressed="<?= $adminContentLanguageCode === $adminEditingLanguage ? 'true' : 'false' ?>"
+                aria-label="<?= htmlspecialchars($adminContentLanguageName, ENT_QUOTES, 'UTF-8') ?>"
+                title="<?= htmlspecialchars($adminContentLanguageName, ENT_QUOTES, 'UTF-8') ?>">
+          <?= htmlspecialchars(strtoupper($adminContentLanguageCode), ENT_QUOTES, 'UTF-8') ?>
         </button>
       <?php endforeach; ?>
     </div>

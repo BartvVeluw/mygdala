@@ -120,7 +120,14 @@ final class LegacyUpgradeTest extends TestCase
 
     public function testTheSeededSeoTextSurvives(): void
     {
-        $rows = $this->install()->rows('SELECT meta_title FROM pages WHERE content_key = ?', ['diensten']);
+        // Since Multilingual 2.0 phase 2 a page's SEO text lives per language
+        // in page_translations; the seeded Dutch text is the `nl` row.
+        $rows = $this->install()->rows(
+            "SELECT t.meta_title AS meta_title FROM page_translations t
+               JOIN pages p ON p.id = t.page_id
+              WHERE p.content_key = ? AND t.language_code = 'nl'",
+            ['diensten']
+        );
 
         $this->assertNotSame([], $rows);
         $this->assertStringContainsString('Van Veluw Laserdesign', (string) $rows[0]['meta_title']);

@@ -63,6 +63,7 @@ if ($isEdit) {
 
     $itemCategoryIds = $repository->categoryIdsForItem($id);
     $linkablePages = PortfolioGalleryContent::linkablePages();
+    \App\Service\PageLocalization::preload(array_map(static fn (array $p): int => (int) $p['id'], $linkablePages));
 }
 
 $errors = $_SESSION['admin_portfolio_item_errors'] ?? [];
@@ -358,8 +359,8 @@ $cmsImageSrc = static fn (array $row): string => '/' . ltrim((string) ($row['thu
                   // A draft is offered too, marked the way the menu picker marks
                   // one: a card links to its page only once that page is published.
                   $pageLabel = PageContent::isPublished($page)
-                      ? $h((string) $page['title'])
-                      : admin_te('portfolio.page_option_draft', ['title' => (string) $page['title']]);
+                      ? $h(\App\Service\PageLocalization::name((int) $page['id']))
+                      : admin_te('portfolio.page_option_draft', ['title' => \App\Service\PageLocalization::name((int) $page['id'])]);
                 ?>
                 <option value="<?= (int) $page['id'] ?>"<?= (int) $page['id'] === $selectedPageId ? ' selected' : '' ?>><?= $pageLabel ?></option>
               <?php endforeach; ?>

@@ -77,10 +77,18 @@ function admin_lang_has_tabs(): bool
 /**
  * The language this screen's fields are showing: the administrator's own
  * choice from the CMS shell, not a per-screen state.
+ *
+ * A screen built on these panes can only store the V1 pair. Since the shell
+ * also offers the website's other languages (Multilingual 2.0 phase 2), a
+ * choice this screen cannot store shows the default language instead, and
+ * the bar says so (admin_lang_bar()). Only screens on per-language storage
+ * (admin/_localized_fields.php) follow that choice exactly.
  */
 function admin_lang_current(): string
 {
-    return ContentEditingLanguage::current();
+    $current = ContentEditingLanguage::current();
+
+    return ContentLanguages::isEnabled($current) ? $current : ContentLanguages::primary();
 }
 
 /** @return string[] the languages an editor may type in, primary first */
@@ -142,6 +150,19 @@ function admin_lang_bar(string $formId = ''): void
         . '<strong class="admin-lang-bar__value">' . $h(LanguageRegistry::label($current, $locale)) . '</strong>'
         . '</p>';
 
+    // The shell asked for a language this screen cannot store yet: say which
+    // one it is showing instead, rather than letting the editor type German
+    // into a Dutch field.
+    $chosen = ContentEditingLanguage::current();
+    if ($chosen !== $current) {
+        echo '<p class="admin-lang-bar__hint">'
+            . $h(AdminTranslator::trans('language.editing_not_on_this_screen', [
+                'chosen' => admin_website_language_label($chosen),
+                'language' => LanguageRegistry::label($current, $locale),
+            ]))
+            . '</p>';
+    }
+
     // Says out loud what an empty field means here, so nobody reads a blank
     // English input as "the CMS lost my text". The public site falls back;
     // this form does not.
@@ -190,7 +211,7 @@ function admin_lang_translate_bar(): void
     $target = admin_lang_current();
     $source = ContentEditingLanguage::source();
 
-    if ($source === null || !$service->canTranslateInto($target, $source)) {
+    if ($source === null || $source === $target || !$service->canTranslateInto($target, $source)) {
         return;
     }
 

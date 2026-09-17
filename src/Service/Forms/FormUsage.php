@@ -7,6 +7,7 @@ namespace App\Service\Forms;
 use App\Database;
 use App\Repository\FormBlockRepository;
 use App\Repository\FormSubmissionRepository;
+use App\Service\PageLocalization;
 use App\Service\SectionRegistry;
 
 /**
@@ -50,9 +51,19 @@ final class FormUsage
         $placements = [];
 
         try {
-            foreach ((new FormBlockRepository())->placementsOf($formId) as $row) {
+            $formBlocks = (new FormBlockRepository())->placementsOf($formId);
+            $contactForms = self::contactFormPlacements($formId);
+
+            // A page is named in the website's default language, which is
+            // what every other CMS list calls it; one query for all of them.
+            PageLocalization::preload(array_map(
+                static fn (array $row): int => (int) $row['page_id'],
+                array_merge($formBlocks, $contactForms)
+            ));
+
+            foreach (self::byPageName($formBlocks) as $row) {
                 $placements[] = [
-                    'page_title' => (string) $row['page_title'],
+                    'page_title' => PageLocalization::name((int) $row['page_id']),
                     'page_id' => (int) $row['page_id'],
                     'edit_url' => '/admin/form-block.php?section='
                         . urlencode((string) $row['page_slug'] . ':' . (string) $row['section_key']),
@@ -60,9 +71,9 @@ final class FormUsage
                 ];
             }
 
-            foreach (self::contactFormPlacements($formId) as $row) {
+            foreach (self::byPageName($contactForms) as $row) {
                 $placements[] = [
-                    'page_title' => (string) $row['page_title'],
+                    'page_title' => PageLocalization::name((int) $row['page_id']),
                     'page_id' => (int) $row['page_id'],
                     'edit_url' => '/admin/contact-form.php?section='
                         . urlencode((string) $row['page_slug'] . ':' . (string) $row['section_key']),
@@ -96,17 +107,35 @@ final class FormUsage
     private static function contactFormPlacements(int $formId): array
     {
         $stmt = Database::connection()->prepare(
-            "SELECT c.page_slug, c.section_key, p.title AS page_title, p.id AS page_id
+            "SELECT c.page_slug, c.section_key, p.id AS page_id
                FROM contact_form_sections c
                JOIN page_sections ps
                  ON ps.section_type = 'contact_form' AND ps.section_id = c.id
                JOIN pages p ON p.id = ps.page_id
               WHERE c.form_id = :form_id
-              ORDER BY p.title ASC, c.section_key ASC"
+              ORDER BY p.id ASC, c.section_key ASC"
         );
         $stmt->execute(['form_id' => $formId]);
 
         return $stmt->fetchAll();
+    }
+
+    /**
+     * Placements in the order an editor reads them: by the name of their
+     * page, case-insensitively, then by block — the order the queries used
+     * to sort in when the name was still a column on `pages`.
+     *
+     * @param array<int, array<string, mixed>> $rows
+     * @return array<int, array<string, mixed>>
+     */
+    private static function byPageName(array $rows): array
+    {
+        usort($rows, static function (array $a, array $b): int {
+            return [mb_strtolower(PageLocalization::name((int) $a['page_id'])), (string) $a['section_key']]
+                <=> [mb_strtolower(PageLocalization::name((int) $b['page_id'])), (string) $b['section_key']];
+        });
+
+        return $rows;
     }
 
     public static function isPlaced(int $formId): bool

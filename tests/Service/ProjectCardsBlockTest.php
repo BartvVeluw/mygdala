@@ -350,16 +350,11 @@ final class ProjectCardsBlockTest extends TestCase
     private function projectsBlock(array $settings = []): array
     {
         $key = 'zz-projecten-' . bin2hex(random_bytes(4));
-        $pageId = (new PageRepository())->create([
+        $pageId = \Tests\Support\PageFixture::create([
             'content_key' => $key,
             'slug' => $key,
-            'title' => 'ZZ Projecten',
             'status' => PageContent::STATUS_PUBLISHED,
-            'meta_title' => null,
-            'meta_title_en' => null,
-            'meta_description' => null,
-            'meta_description_en' => null,
-        ]);
+        ], 'ZZ Projecten');
         $this->pageIds[] = $pageId;
 
         [$sectionId, $sectionKey] = SectionRegistry::create('project_cards', $key);
@@ -440,16 +435,11 @@ final class ProjectCardsBlockTest extends TestCase
     {
         $key = 'zz-projectpagina-' . bin2hex(random_bytes(4));
 
-        $id = (new PageRepository())->create([
+        $id = \Tests\Support\PageFixture::create([
             'content_key' => $key,
             'slug' => $key,
-            'title' => 'ZZ Projectpagina',
             'status' => $status,
-            'meta_title' => null,
-            'meta_title_en' => null,
-            'meta_description' => null,
-            'meta_description_en' => null,
-        ]);
+        ], 'ZZ Projectpagina');
         $this->pageIds[] = $id;
 
         return $id;
@@ -469,12 +459,7 @@ final class ProjectCardsBlockTest extends TestCase
 
         $pages->update($pageId, [
             'slug' => $slug,
-            'title' => (string) $page['title'],
             'status' => (string) $page['status'],
-            'meta_title' => null,
-            'meta_title_en' => null,
-            'meta_description' => null,
-            'meta_description_en' => null,
         ]);
 
         return $slug;

@@ -15,7 +15,9 @@ use App\Service\AppUrl;
 use App\Service\Branding;
 use App\Service\Media\MediaService;
 use App\Service\PageContent;
+use App\Service\PageLocalization;
 use App\Service\PageService;
+use App\Service\PageTranslation;
 use App\Service\PageTemplates\PageTemplateInstaller;
 use App\Service\PageTemplates\PageTemplates;
 use App\Service\Language\ContentLanguages;
@@ -637,15 +639,16 @@ final class SetupWizard
             $id = PageTemplateInstaller::install($template, [
                 'content_key' => PageService::generateContentKey($repository, $slug),
                 'slug' => $slug,
-                'title' => $definition['title'],
                 // Draft, like every page a template makes: a starter page is
                 // a beginning, not something to put in front of visitors
                 // before its owner has read it.
                 'status' => PageContent::STATUS_DRAFT,
-                'meta_title' => null,
-                'meta_title_en' => null,
-                'meta_description' => null,
-                'meta_description_en' => null,
+            ], [
+                // Its name in the website's default language, which step 2
+                // has just stored: a new page is always created in the
+                // default language, as admin/page-new.php creates one. No SEO
+                // text is invented; the automatic title covers it.
+                PageLocalization::defaultLanguage() => [PageTranslation::TITLE => $definition['title']],
             ]);
 
             $created[] = [
@@ -683,16 +686,16 @@ final class SetupWizard
 
         $navigation = new NavigationRepository();
 
-        foreach ($created as $page) {
-            if ($navigation->countByTargetPageId($page['id']) > 0) {
+        foreach ($created as $starter) {
+            if ($navigation->countByTargetPageId($starter['id']) > 0) {
                 continue;
             }
 
             $navigation->create([
-                'label_nl' => $page['title'],
-                'label_en' => $page['title'],
+                'label_nl' => $starter['title'],
+                'label_en' => $starter['title'],
                 'link_type' => 'page',
-                'target_page_id' => $page['id'],
+                'target_page_id' => $starter['id'],
                 'target_route' => null,
                 'external_url' => null,
                 'open_in_new_tab' => false,

@@ -74,6 +74,7 @@ $pagesById = [];
 foreach ((new PageRepository())->findAllForAdmin() as $page) {
     $pagesById[(int) $page['id']] = $page;
 }
+\App\Service\PageLocalization::preload(array_keys($pagesById));
 $routes = RouteRegistry::all();
 
 $settings = SiteSettings::all();

@@ -150,14 +150,17 @@ final class ScratchInstall
      *
      * The honest proof of "idempotent": the file that ships, run again on
      * the state its own first run produced, rather than a copy of its SQL.
+     *
+     * $upTo keeps a database that was stopped at an older migration where it
+     * stood, instead of letting the replay run every later one as well.
      */
-    public function replay(string $version): void
+    public function replay(string $version, ?string $upTo = null): void
     {
         $this->pdo
             ->prepare('DELETE FROM `' . self::MIGRATION_LOG . '` WHERE version = ?')
             ->execute([$version]);
 
-        $this->migrate();
+        $this->migrate($upTo);
     }
 
     public function pdo(): PDO

@@ -3,12 +3,19 @@
 /**
  * POST /api/admin/update-page.php
  *
- * Saves one page's settings (admin/page.php's "Pagina" and "SEO" tabs) —
- * Title in both content languages, web address (slug), Status, whether the
- * page shows its breadcrumb,
- * SEO title, Meta description, indexability and the page's own social sharing
- * image, for every CMS page alike. Same guard order and PRG/session-flash
- * pattern as every other admin endpoint.
+ * Saves one page's settings (admin/page.php's "Pagina" and "SEO" tabs) — web
+ * address (slug), Status, whether the page shows its breadcrumb, indexability
+ * and the page's own social sharing image, plus its Title, SEO title and Meta
+ * description in ONE website language — for every CMS page alike. Same guard
+ * order and PRG/session-flash pattern as every other admin endpoint.
+ *
+ * ONE LANGUAGE PER SAVE (Multilingual 2.0 phase 2). The form carries the text
+ * of the language on screen and says which one in `language_code`; that
+ * language is checked against the website language registry and its text is
+ * written through App\Service\PageLocalization, which is the only writer of
+ * page_translations. Every other language's text is left exactly as stored.
+ * The title is required in the default language only: a translation falls
+ * back to it.
  *
  * Two INDEPENDENT locks are enforced HERE, not by the form, so a forged
  * request cannot get past either:
@@ -36,11 +43,16 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../../vendor/autoload.php';
 
+use App\Database;
 use App\Service\Language\AdminTranslator;
+use App\Service\Language\LanguageCode;
+use App\Service\Language\SiteLanguages;
 use App\Service\AdminAuth;
 use App\Service\Csrf;
 use App\Service\PageContent;
+use App\Service\PageLocalization;
 use App\Service\PageService;
+use App\Service\PageTranslation;
 use App\Service\Redirects\SlugChangeRedirects;
 use App\Service\Media\MediaService;
 use App\Repository\PageRepository;
@@ -76,18 +88,18 @@ if ($page === null) {
 $isProtected = PageContent::isProtected($page);
 $hasFixedUrl = PageContent::isRouteBound($page);
 
+// The website language the text fields below are in. Only a language the
+// registry has, and has switched on, can be written; anything else is refused
+// before a word is stored, and it never becomes a column name.
+$languageCode = LanguageCode::normalise((string) ($_POST['language_code'] ?? '')) ?? '';
+$languageIsWritable = $languageCode !== '' && SiteLanguages::isActive($languageCode);
+$isDefaultLanguage = $languageIsWritable && $languageCode === PageLocalization::defaultLanguage();
+
 $title = trim((string) ($_POST['title'] ?? ''));
-// The translation is optional by definition — the site falls back to the
-// primary language — so it is never required and an empty one is stored as
-// NULL by the repository. The field is always submitted, `hidden` or not
-// (admin/_language_fields.php), so a save can never blank it by accident.
-$titleEn = trim((string) ($_POST['title_en'] ?? ''));
 $slugInput = trim((string) ($_POST['slug'] ?? ''));
 $statusInput = trim((string) ($_POST['status'] ?? ''));
 $metaTitle = trim((string) ($_POST['meta_title'] ?? ''));
-$metaTitleEn = trim((string) ($_POST['meta_title_en'] ?? ''));
 $metaDescription = trim((string) ($_POST['meta_description'] ?? ''));
-$metaDescriptionEn = trim((string) ($_POST['meta_description_en'] ?? ''));
 
 // The address the editor confirmed on admin/page.php, present only on the
 // save that follows a confirmation card. See the confirmation step below.
@@ -132,13 +144,15 @@ if ($socialImageSubmitted && $socialMedia === null && trim((string) $_POST['og_m
     $errors[] = AdminTranslator::trans('validation.gekozen_deel_afbeelding_bestaat_meer');
 }
 
-if ($title === '') {
-    $errors[] = AdminTranslator::trans('validation.titel_verplicht');
-} elseif (mb_strlen($title) > PageService::MAX_TITLE_LENGTH) {
-    $errors[] = 'Titel mag maximaal ' . PageService::MAX_TITLE_LENGTH . ' tekens zijn.';
+if (!$languageIsWritable) {
+    $errors[] = AdminTranslator::trans('validation.language_unknown');
 }
 
-if (mb_strlen($titleEn) > PageService::MAX_TITLE_LENGTH) {
+// Required in the default language only. A translation left empty is not a
+// missing title: visitors get the default language's (PageLocalization).
+if ($title === '' && $isDefaultLanguage) {
+    $errors[] = AdminTranslator::trans('validation.titel_verplicht');
+} elseif (mb_strlen($title) > PageService::MAX_TITLE_LENGTH) {
     $errors[] = 'Titel mag maximaal ' . PageService::MAX_TITLE_LENGTH . ' tekens zijn.';
 }
 
@@ -169,10 +183,8 @@ if ($hasFixedUrl) {
 }
 
 foreach ([
-    'SEO-titel (NL)' => [$metaTitle, PageService::MAX_META_TITLE_LENGTH],
-    'SEO-titel (EN)' => [$metaTitleEn, PageService::MAX_META_TITLE_LENGTH],
-    'Meta description (NL)' => [$metaDescription, PageService::MAX_META_DESCRIPTION_LENGTH],
-    'Meta description (EN)' => [$metaDescriptionEn, PageService::MAX_META_DESCRIPTION_LENGTH],
+    'SEO-titel' => [$metaTitle, PageService::MAX_META_TITLE_LENGTH],
+    'Meta description' => [$metaDescription, PageService::MAX_META_DESCRIPTION_LENGTH],
 ] as $label => [$value, $max]) {
     if (mb_strlen($value) > $max) {
         $errors[] = $label . ' mag maximaal ' . $max . ' tekens zijn.';
@@ -187,14 +199,14 @@ foreach ([
  * the stored image back.
  */
 $submitted = [
+    // Which language the three text fields were typed in: admin/page.php only
+    // hands them back to a form showing that same language.
+    'language_code' => $languageCode,
     'title' => $title,
-    'title_en' => $titleEn,
     'slug' => $slugInput,
     'status' => $statusInput,
     'meta_title' => $metaTitle,
-    'meta_title_en' => $metaTitleEn,
     'meta_description' => $metaDescription,
-    'meta_description_en' => $metaDescriptionEn,
     'noindex' => $noindex,
     'show_breadcrumb' => $showBreadcrumb,
 ];
@@ -243,18 +255,24 @@ if (PageService::urlChangeNeedsConfirmation($page, $slug, $confirmedSlug)) {
     exit;
 }
 
+$db = Database::connection();
+
 try {
+    // The page's own settings and its text in this language are one save:
+    // both land, or neither does.
+    $db->beginTransaction();
+
     $repository->update($id, [
         'slug' => $slug,
-        'title' => $title,
-        'title_en' => $titleEn,
         'status' => $status,
-        'meta_title' => $metaTitle === '' ? null : $metaTitle,
-        'meta_title_en' => $metaTitleEn === '' ? null : $metaTitleEn,
-        'meta_description' => $metaDescription === '' ? null : $metaDescription,
-        'meta_description_en' => $metaDescriptionEn === '' ? null : $metaDescriptionEn,
         'noindex' => $noindex,
         'show_breadcrumb' => $showBreadcrumb,
+    ]);
+
+    PageLocalization::save($id, $languageCode, [
+        PageTranslation::TITLE => $title,
+        PageTranslation::META_TITLE => $metaTitle,
+        PageTranslation::META_DESCRIPTION => $metaDescription,
     ]);
 
     // Only when the field was on the submitted form at all, so a save from a
@@ -270,8 +288,14 @@ try {
         }
     }
 
+    $db->commit();
+
     PageContent::clearCache();
 } catch (\Throwable $e) {
+    if ($db->inTransaction()) {
+        $db->rollBack();
+    }
+
     error_log('[api/admin/update-page.php] ' . $e->getMessage());
 
     $_SESSION['admin_page_errors'] = ['Pagina kon niet worden opgeslagen. Probeer het opnieuw.'];

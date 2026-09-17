@@ -78,16 +78,11 @@ final class PageUsageTest extends TestCase
     {
         $key = '__test-page-usage-' . bin2hex(random_bytes(4));
 
-        $id = $this->pages->create([
+        $id = \Tests\Support\PageFixture::create([
             'content_key' => $key,
             'slug' => $key,
-            'title' => 'Gebruikstest',
             'status' => PageContent::STATUS_PUBLISHED,
-            'meta_title' => null,
-            'meta_title_en' => null,
-            'meta_description' => null,
-            'meta_description_en' => null,
-        ]);
+        ], 'Gebruikstest');
         $this->pageIds[] = $id;
 
         return $id;

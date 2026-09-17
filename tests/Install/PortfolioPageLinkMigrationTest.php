@@ -141,7 +141,7 @@ final class PortfolioPageLinkMigrationTest extends TestCase
     {
         $pdo = $this->install(self::$fresh)->pdo();
 
-        $pdo->exec("INSERT INTO pages (content_key, slug, title, status, created_at, updated_at) VALUES ('zz-project', 'zz-project', 'ZZ Project', 'published', NOW(), NOW())");
+        $pdo->exec("INSERT INTO pages (content_key, slug, status, created_at, updated_at) VALUES ('zz-project', 'zz-project', 'published', NOW(), NOW())");
         $pageId = (int) $pdo->lastInsertId();
 
         $pdo->exec('INSERT INTO portfolio_galleries (created_at, updated_at) VALUES (NOW(), NOW())');

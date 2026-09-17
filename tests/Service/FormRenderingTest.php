@@ -691,16 +691,11 @@ class FormRenderingTest extends TestCase
     {
         $pages = new PageRepository();
 
-        $pages->create([
+        \Tests\Support\PageFixture::create([
             'content_key' => $slug,
             'slug' => $slug,
-            'title' => $title,
             'status' => 'published',
-            'meta_title' => null,
-            'meta_title_en' => null,
-            'meta_description' => null,
-            'meta_description_en' => null,
-        ]);
+        ], $title);
 
         $page = $pages->findByContentKey($slug);
         $this->assertNotNull($page);

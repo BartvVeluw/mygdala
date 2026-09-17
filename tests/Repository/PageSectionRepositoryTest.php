@@ -43,16 +43,11 @@ class PageSectionRepositoryTest extends TestCase
 
         $this->removeTestPage();
 
-        $this->pageId = $this->pageRepository->create([
+        $this->pageId = \Tests\Support\PageFixture::create([
             'content_key' => self::TEST_PAGE_KEY,
             'slug' => self::TEST_PAGE_KEY,
-            'title' => 'Test page',
             'status' => 'draft',
-            'meta_title' => null,
-            'meta_title_en' => null,
-            'meta_description' => null,
-            'meta_description_en' => null,
-        ]);
+        ], 'Test page');
     }
 
     protected function tearDown(): void
@@ -176,16 +171,11 @@ class PageSectionRepositoryTest extends TestCase
     {
         $ourSection = $this->attach('feature_grid', 'a', 900010);
 
-        $otherPageId = $this->pageRepository->create([
+        $otherPageId = \Tests\Support\PageFixture::create([
             'content_key' => self::OTHER_TEST_PAGE_KEY,
             'slug' => self::OTHER_TEST_PAGE_KEY,
-            'title' => 'Other test page',
             'status' => 'draft',
-            'meta_title' => null,
-            'meta_title_en' => null,
-            'meta_description' => null,
-            'meta_description_en' => null,
-        ]);
+        ], 'Other test page');
         $foreign = $this->repository->create($otherPageId, self::OTHER_TEST_PAGE_KEY, 'faq', 'b', 900011);
 
         // A forged/stale id from another page must never be able to join

@@ -9,6 +9,11 @@
  * admin endpoint: session login, POST-only, CSRF, then server-side
  * validation.
  *
+ * Text: the title, SEO title and meta description are the page's text in the
+ * website's DEFAULT language, where every page starts (Multilingual 2.0 phase
+ * 2); translating it happens afterwards, on admin/page.php. They are written
+ * through App\Service\PageLocalization inside the installer's transaction.
+ *
  * Slug: an explicitly typed slug is sanitized and then validated as-is
  * (unique + not a reserved application route); an empty one — or one the
  * form was still filling in from the title by itself (`slug_auto`, see
@@ -37,7 +42,9 @@ use App\Service\Language\AdminTranslator;
 use App\Service\AdminAuth;
 use App\Service\Csrf;
 use App\Service\PageContent;
+use App\Service\PageLocalization;
 use App\Service\PageService;
+use App\Service\PageTranslation;
 use App\Service\PageTemplates\PageTemplateInstaller;
 use App\Service\PageTemplates\PageTemplates;
 use App\Repository\PageRepository;
@@ -59,9 +66,6 @@ if (!Csrf::validate($_POST['csrf_token'] ?? null)) {
 $repository = new PageRepository();
 
 $title = trim((string) ($_POST['title'] ?? ''));
-// Optional, like every translation in this project: empty means "not
-// translated" and the site falls back to the primary language.
-$titleEn = trim((string) ($_POST['title_en'] ?? ''));
 $slugInput = trim((string) ($_POST['slug'] ?? ''));
 // "1" while admin/page-new.php was still filling the address in from the
 // title. Such an address was never typed by the editor, so it is made unique
@@ -71,9 +75,7 @@ $slugInput = trim((string) ($_POST['slug'] ?? ''));
 $slugIsAutomatic = ($_POST['slug_auto'] ?? '') === '1';
 $status = trim((string) ($_POST['status'] ?? PageContent::STATUS_DRAFT));
 $metaTitle = trim((string) ($_POST['meta_title'] ?? ''));
-$metaTitleEn = trim((string) ($_POST['meta_title_en'] ?? ''));
 $metaDescription = trim((string) ($_POST['meta_description'] ?? ''));
-$metaDescriptionEn = trim((string) ($_POST['meta_description_en'] ?? ''));
 $template = PageTemplates::resolve(isset($_POST['template']) ? trim((string) $_POST['template']) : null);
 
 $errors = [];
@@ -81,10 +83,6 @@ $errors = [];
 if ($title === '') {
     $errors[] = AdminTranslator::trans('validation.titel_verplicht');
 } elseif (mb_strlen($title) > PageService::MAX_TITLE_LENGTH) {
-    $errors[] = 'Titel mag maximaal ' . PageService::MAX_TITLE_LENGTH . ' tekens zijn.';
-}
-
-if (mb_strlen($titleEn) > PageService::MAX_TITLE_LENGTH) {
     $errors[] = 'Titel mag maximaal ' . PageService::MAX_TITLE_LENGTH . ' tekens zijn.';
 }
 
@@ -108,10 +106,8 @@ if ($slugInput === '' || $slugIsAutomatic) {
 }
 
 foreach ([
-    'SEO-titel (NL)' => [$metaTitle, PageService::MAX_META_TITLE_LENGTH],
-    'SEO-titel (EN)' => [$metaTitleEn, PageService::MAX_META_TITLE_LENGTH],
-    'Meta description (NL)' => [$metaDescription, PageService::MAX_META_DESCRIPTION_LENGTH],
-    'Meta description (EN)' => [$metaDescriptionEn, PageService::MAX_META_DESCRIPTION_LENGTH],
+    'SEO-titel' => [$metaTitle, PageService::MAX_META_TITLE_LENGTH],
+    'Meta description' => [$metaDescription, PageService::MAX_META_DESCRIPTION_LENGTH],
 ] as $label => [$value, $max]) {
     if (mb_strlen($value) > $max) {
         $errors[] = $label . ' mag maximaal ' . $max . ' tekens zijn.';
@@ -120,13 +116,10 @@ foreach ([
 
 $old = [
     'title' => $title,
-    'title_en' => $titleEn,
     'slug' => $slugInput,
     'status' => $status,
     'meta_title' => $metaTitle,
-    'meta_title_en' => $metaTitleEn,
     'meta_description' => $metaDescription,
-    'meta_description_en' => $metaDescriptionEn,
     'template' => $template->key(),
     'slug_auto' => $slugIsAutomatic ? '1' : '0',
 ];
@@ -142,13 +135,13 @@ try {
     $id = PageTemplateInstaller::install($template, [
         'content_key' => PageService::generateContentKey($repository, $slug),
         'slug' => $slug,
-        'title' => $title,
-        'title_en' => $titleEn,
         'status' => $status,
-        'meta_title' => $metaTitle === '' ? null : $metaTitle,
-        'meta_title_en' => $metaTitleEn === '' ? null : $metaTitleEn,
-        'meta_description' => $metaDescription === '' ? null : $metaDescription,
-        'meta_description_en' => $metaDescriptionEn === '' ? null : $metaDescriptionEn,
+    ], [
+        PageLocalization::defaultLanguage() => [
+            PageTranslation::TITLE => $title,
+            PageTranslation::META_TITLE => $metaTitle,
+            PageTranslation::META_DESCRIPTION => $metaDescription,
+        ],
     ]);
 } catch (\Throwable $e) {
     error_log('[api/admin/create-page.php] ' . $e->getMessage());

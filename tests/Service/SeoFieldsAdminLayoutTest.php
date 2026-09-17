@@ -12,11 +12,12 @@ use PHPUnit\Framework\TestCase;
  * browser test harness) for the SEO block in the two page editors,
  * admin/page.php and admin/page-new.php.
  *
- * This was purely a LAYOUT change — two language columns with full-width
- * fields and a real textarea for the meta descriptions — so what these tests
- * mostly protect is what did NOT change: the field names the save endpoints
- * read, the maxlengths, the "leeg = Nederlandse ..." fallback hints, and the
- * fact that nothing about the SEO logic itself moved into the template.
+ * It started as a LAYOUT change — full-width fields and a real textarea for
+ * the meta description — and since Multilingual 2.0 phase 2 the fields hold
+ * ONE website language at a time (admin/_localized_fields.php). What these
+ * tests protect: the field names the save endpoints read, the maxlengths,
+ * the fallback hint coming from the component, one language on screen, and
+ * the fact that nothing about the SEO logic itself moved into the template.
  */
 final class SeoFieldsAdminLayoutTest extends TestCase
 {
@@ -26,46 +27,42 @@ final class SeoFieldsAdminLayoutTest extends TestCase
      * The names api/admin/update-page.php and api/admin/create-page.php read
      * out of $_POST. Renaming or dropping one silently stops saving that
      * field, with no error anywhere.
+     *
+     * Since Multilingual 2.0 phase 2 a save carries ONE website language's
+     * text, so each field has one name and no `_en` twin: a leftover twin
+     * would be a field no endpoint reads any more.
      */
-    public function testEveryEditorStillSubmitsTheSameFourFieldNames(): void
+    public function testEveryEditorSubmitsOneNamePerLocalizedField(): void
     {
         foreach (self::EDITORS as $editor) {
             $source = $this->fileSource($editor);
 
-            foreach (['meta_title', 'meta_title_en', 'meta_description', 'meta_description_en'] as $field) {
-                $this->assertStringContainsString(
-                    'name="' . $field . '"',
-                    $source,
-                    $editor . ' must still submit ' . $field
-                );
+            foreach (['title', 'meta_title', 'meta_description'] as $field) {
+                $this->assertStringContainsString('name="' . $field . '"', $source, $editor . ' must still submit ' . $field);
+                $this->assertStringNotContainsString('name="' . $field . '_en"', $source, $editor . ' must not submit a fixed English twin of ' . $field);
+                $this->assertStringNotContainsString('name="' . $field . '_nl"', $source, $editor . ' must not submit a fixed Dutch twin of ' . $field);
             }
         }
     }
 
     /**
-     * Both descriptions are multi-line textareas now, both titles are still
-     * single-line inputs.
+     * The description is a multi-line textarea, the title a single-line input.
      */
     public function testMetaDescriptionsAreMultiLineTextareas(): void
     {
         foreach (self::EDITORS as $editor) {
             $source = $this->fileSource($editor);
 
-            foreach (['meta_description', 'meta_description_en'] as $field) {
-                $this->assertMatchesRegularExpression(
-                    '/<textarea name="' . $field . '" rows="3"/',
-                    $source,
-                    $editor . ': ' . $field . ' must be a textarea with room for several lines'
-                );
-            }
-
-            foreach (['meta_title', 'meta_title_en'] as $field) {
-                $this->assertStringContainsString(
-                    '<input type="text" name="' . $field . '"',
-                    $source,
-                    $editor . ': ' . $field . ' must stay a single-line input'
-                );
-            }
+            $this->assertMatchesRegularExpression(
+                '/<textarea name="meta_description" rows="3"/',
+                $source,
+                $editor . ': meta_description must be a textarea with room for several lines'
+            );
+            $this->assertStringContainsString(
+                '<input type="text" name="meta_title"',
+                $source,
+                $editor . ': meta_title must stay a single-line input'
+            );
         }
     }
 
@@ -77,17 +74,10 @@ final class SeoFieldsAdminLayoutTest extends TestCase
     public function testTextareasCarryTheirExistingValueAsContent(): void
     {
         foreach (self::EDITORS as $editor) {
-            $source = $this->fileSource($editor);
-
             $this->assertMatchesRegularExpression(
-                '/<textarea name="meta_description" .*?><\?= \$h\(\$(fieldValue|value)\(\'meta_description\'\)\) \?><\/textarea>/',
-                $source,
-                $editor . ': the NL meta description must render its stored value inside the textarea'
-            );
-            $this->assertMatchesRegularExpression(
-                '/<textarea name="meta_description_en" .*?><\?= \$h\(\$(fieldValue|value)\(\'meta_description_en\'\)\) \?><\/textarea>/',
-                $source,
-                $editor . ': the EN meta description must render its stored value inside the textarea'
+                '/<textarea name="meta_description" .*?><\?= \$h\(\$(textValue|value)\((PageTranslation::META_DESCRIPTION|\'meta_description\')\)\) \?><\/textarea>/',
+                $this->fileSource($editor),
+                $editor . ': the meta description must render its value inside the textarea'
             );
         }
     }
@@ -98,76 +88,69 @@ final class SeoFieldsAdminLayoutTest extends TestCase
             $source = $this->fileSource($editor);
 
             $this->assertSame(
-                2,
+                1,
                 substr_count($source, 'maxlength="<?= PageService::MAX_META_TITLE_LENGTH ?>"'),
-                $editor . ' must cap both SEO titles at MAX_META_TITLE_LENGTH'
+                $editor . ' must cap the SEO title at MAX_META_TITLE_LENGTH'
             );
             $this->assertSame(
-                2,
+                1,
                 substr_count($source, 'maxlength="<?= PageService::MAX_META_DESCRIPTION_LENGTH ?>"'),
-                $editor . ' must cap both meta descriptions at MAX_META_DESCRIPTION_LENGTH'
+                $editor . ' must cap the meta description at MAX_META_DESCRIPTION_LENGTH'
             );
         }
     }
 
     /**
-     * A translation field still says what leaving it empty does — but the
-     * sentence is built from the site's actual primary language now
-     * (admin_lang_fallback_placeholder), because "Leeg = Nederlandse titel"
-     * is simply untrue on an English-primary website.
+     * A translation field still says what leaving it empty does, and the
+     * sentence comes from the component, built from the site's actual default
+     * language — never "Leeg = Nederlandse titel", which is untrue on a site
+     * whose default is another language.
      */
-    public function testTheEnglishFallbackHintComesFromTheSitesPrimaryLanguage(): void
+    public function testTheFallbackHintComesFromTheLocalizedFieldsComponent(): void
     {
+        $pageEditor = $this->fileSource('admin/page.php');
+
+        $this->assertSame(
+            3,
+            substr_count($pageEditor, 'admin_localized_placeholder_attr($editLanguage)'),
+            'the title, the SEO title and the meta description each carry the fallback hint'
+        );
+
         foreach (self::EDITORS as $editor) {
             $source = $this->fileSource($editor);
 
-            $this->assertStringContainsString(
-                "admin_lang_placeholder_attr('en')",
-                $source,
-                $editor . ' must let the language component write the fallback hint'
-            );
             $this->assertStringNotContainsString('Leeg = Nederlandse titel', $source);
             $this->assertStringNotContainsString('Leeg = Nederlandse tekst', $source);
         }
     }
 
     /**
-     * The layout this replaced printed a Dutch column beside an English one
-     * on every site, including the Dutch-only ones — the defect Multilingual
-     * V1 set out to remove and did not finish removing (MULTILINGUAL.md).
-     * One pane per language, one on screen at a time.
+     * One website language on screen and in the request: the localized-fields
+     * component (admin/_localized_fields.php), not the V1 panes that rendered
+     * a hidden copy of every field per language. The page editor says which
+     * language it saves exactly once; a new page is always written in the
+     * default language, so its form does not ask.
      */
-    public function testTheSeoBlockUsesOneLanguagePanePerLanguage(): void
+    public function testTheEditorsShowOneWebsiteLanguageAtATime(): void
     {
         foreach (self::EDITORS as $editor) {
             $source = $this->fileSource($editor);
 
-            $this->assertStringNotContainsString(
-                'admin-seo-grid',
-                $source,
-                $editor . ' must not put two languages side by side'
-            );
-            // As many panes as the screen has localized field groups — the
-            // title is one of them since the breadcrumb started printing it
-            // (HEADER-FOOTER.md) — but never one language without the other.
-            // An unbalanced pair is the old defect coming back: a field that
-            // exists in Dutch and simply cannot be translated.
-            $dutch = substr_count($source, "admin_lang_pane_start('nl')");
-
-            $this->assertGreaterThan(0, $dutch, $editor . ' must render language panes');
-            $this->assertSame(
-                $dutch,
-                substr_count($source, "admin_lang_pane_start('en')"),
-                $editor . ' must render as many English panes as Dutch ones'
-            );
-            $this->assertSame(
-                $dutch * 2,
-                substr_count($source, 'admin_lang_pane_end()'),
-                $editor . ' must close every pane it opens'
-            );
-            $this->assertStringContainsString('admin_lang_bar(', $source);
-            $this->assertStringContainsString('admin_lang_script()', $source);
+            $this->assertStringNotContainsString('admin-seo-grid', $source, $editor . ' must not put two languages side by side');
+            $this->assertStringNotContainsString('admin_lang_pane_start', $source, $editor . ' must not render V1 language panes');
+            $this->assertStringNotContainsString('_language_fields.php', $source, $editor);
+            $this->assertStringContainsString("require_once __DIR__ . '/_localized_fields.php';", $source, $editor);
+            $this->assertStringContainsString('admin_localized_bar(', $source, $editor);
+            $this->assertDoesNotMatchRegularExpression("/[\x27\"](?:nl|en)[\x27\"]/", $this->seoSection($source), $editor . ': the SEO card names no language');
         }
+
+        $pageEditor = $this->fileSource('admin/page.php');
+        $this->assertSame(1, substr_count($pageEditor, 'admin_localized_input($editLanguage)'), 'the settings form says once which language it saves');
+        $this->assertStringContainsString('$editLanguage = admin_localized_language();', $pageEditor);
+
+        $newPage = $this->fileSource('admin/page-new.php');
+        $this->assertStringNotContainsString('admin_localized_input(', $newPage, 'a new page is written in the default language, decided by the endpoint');
+        $this->assertStringContainsString('$newPageLanguage = admin_localized_default();', $newPage);
     }
 
     /**

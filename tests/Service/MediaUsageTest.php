@@ -62,16 +62,11 @@ final class MediaUsageTest extends TestCase
 
         $this->removeTestPage();
 
-        (new PageRepository())->create([
+        \Tests\Support\PageFixture::create([
             'content_key' => self::TEST_PAGE,
             'slug' => self::TEST_PAGE,
-            'title' => 'Mediagebruik-testpagina',
             'status' => 'draft',
-            'meta_title' => null,
-            'meta_title_en' => null,
-            'meta_description' => null,
-            'meta_description_en' => null,
-        ]);
+        ], 'Mediagebruik-testpagina');
     }
 
     protected function tearDown(): void

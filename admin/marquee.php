@@ -43,7 +43,7 @@ if ($page === null || $sectionKeyPart === null || $sectionKeyPart === ''
 $section = [
     'page_slug' => $pageSlug,
     'section_key' => $sectionKeyPart,
-    'page_label' => (string) $page['title'],
+    'page_label' => \App\Service\PageLocalization::name((int) $page['id']),
     'section_label' => SectionRegistry::label('marquee'),
 ];
 

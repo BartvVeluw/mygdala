@@ -99,12 +99,11 @@ final class PageTemplateCreationTest extends TestCase
         $pageId = PageTemplateInstaller::install(PageTemplates::get($templateKey), [
             'content_key' => $contentKey,
             'slug' => $slug,
-            'title' => 'Paginasjabloon-test ' . $slug,
             'status' => $status,
-            'meta_title' => null,
-            'meta_title_en' => null,
-            'meta_description' => null,
-            'meta_description_en' => null,
+        ], [
+            \App\Service\PageLocalization::defaultLanguage() => [
+                \App\Service\PageTranslation::TITLE => 'Paginasjabloon-test ' . $slug,
+            ],
         ]);
 
         $this->createdPageIds[] = $pageId;
@@ -381,12 +380,9 @@ final class PageTemplateCreationTest extends TestCase
             PageTemplateInstaller::install($template, [
                 'content_key' => $contentKey,
                 'slug' => $contentKey,
-                'title' => 'Rollback-test',
                 'status' => PageContent::STATUS_DRAFT,
-                'meta_title' => null,
-                'meta_title_en' => null,
-                'meta_description' => null,
-                'meta_description_en' => null,
+            ], [
+                \App\Service\PageLocalization::defaultLanguage() => [\App\Service\PageTranslation::TITLE => 'Rollback-test'],
             ]);
 
             self::fail('Expected the duplicate block to make the installation fail.');
@@ -446,12 +442,9 @@ final class PageTemplateCreationTest extends TestCase
             PageTemplateInstaller::install($template, [
                 'content_key' => $contentKey,
                 'slug' => $contentKey,
-                'title' => 'Onplaatsbaar-test',
                 'status' => PageContent::STATUS_DRAFT,
-                'meta_title' => null,
-                'meta_title_en' => null,
-                'meta_description' => null,
-                'meta_description_en' => null,
+            ], [
+                \App\Service\PageLocalization::defaultLanguage() => [\App\Service\PageTranslation::TITLE => 'Onplaatsbaar-test'],
             ]);
         } finally {
             $stmt = Database::connection()->prepare('SELECT COUNT(*) AS total FROM pages WHERE content_key = :key');
@@ -474,12 +467,19 @@ final class PageTemplateCreationTest extends TestCase
     {
         [, $page] = $this->createFromTemplate('about', self::PREFIX . 'seo');
 
-        self::assertNull($page['meta_title'], 'A template must not hardcode an SEO title.');
-        self::assertNull($page['meta_description'], 'A template must not hardcode a meta description.');
+        $default = \App\Service\PageLocalization::defaultLanguage();
+        $pageId = (int) $page['id'];
+        self::assertSame('', \App\Service\PageLocalization::raw($pageId, \App\Service\PageTranslation::META_TITLE, $default), 'A template must not hardcode an SEO title.');
+        self::assertSame('', \App\Service\PageLocalization::raw($pageId, \App\Service\PageTranslation::META_DESCRIPTION, $default), 'A template must not hardcode a meta description.');
+        self::assertSame(
+            'Paginasjabloon-test ' . self::PREFIX . 'seo',
+            \App\Service\PageLocalization::raw($pageId, \App\Service\PageTranslation::TITLE, $default),
+            'The page keeps the title it was created with, in the default language.'
+        );
 
         $metadata = PageSeo::forPage($page);
 
-        self::assertStringContainsString((string) $page['title'], $metadata->titleNl);
+        self::assertStringContainsString(\App\Service\PageLocalization::name($pageId), $metadata->titleNl);
         self::assertStringEndsWith('/' . self::PREFIX . 'seo', (string) $metadata->canonical);
         self::assertSame(PageContent::canonicalUrl($page), $metadata->canonical);
         self::assertSame(0, (int) $page['noindex'], 'A template must not set a page to noindex.');
@@ -513,12 +513,7 @@ final class PageTemplateCreationTest extends TestCase
 
         $this->pages->update($pageId, [
             'slug' => (string) $page['slug'],
-            'title' => (string) $page['title'],
             'status' => PageContent::STATUS_PUBLISHED,
-            'meta_title' => null,
-            'meta_title_en' => null,
-            'meta_description' => null,
-            'meta_description_en' => null,
         ]);
         PageContent::clearCache();
 

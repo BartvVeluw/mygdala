@@ -159,17 +159,17 @@ final class PagePreviewAccessTest extends TestCase
     {
         $key = 'zz-voorbeeld-' . bin2hex(random_bytes(4));
 
+        $title = 'ZZ Voorbeeldtest ' . bin2hex(random_bytes(4));
+
         $id = $this->pages->create([
             'content_key' => $key,
             'slug' => $key,
-            'title' => 'ZZ Voorbeeldtest ' . bin2hex(random_bytes(4)),
             'status' => $status,
-            'meta_title' => null,
-            'meta_title_en' => null,
-            'meta_description' => null,
-            'meta_description_en' => null,
         ]);
         $this->pageIds[] = $id;
+        \App\Service\PageLocalization::save($id, \App\Service\PageLocalization::defaultLanguage(), [
+            \App\Service\PageTranslation::TITLE => $title,
+        ]);
 
         // A rich text block with words of its own: a new, empty body renders
         // nothing at all (partials/section-rich-text.php), and a preview that
@@ -185,7 +185,9 @@ final class PagePreviewAccessTest extends TestCase
 
         PageContent::clearCache();
 
-        return (array) $this->pages->findById($id) + ['block_text' => $blockText];
+        // The row carries no text of its own; the title travels along so the
+        // assertions can look for the page's own words in a response.
+        return (array) $this->pages->findById($id) + ['block_text' => $blockText, 'title' => $title];
     }
 
     /**

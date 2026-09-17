@@ -169,33 +169,27 @@ class PageRepository extends Repository
      * this always writes is_system = 0 / route_path = NULL — an admin can
      * never mint a new protected page through the CMS.
      *
-     * @param array{content_key:string,slug:string,title:string,title_en?:?string,status:string,meta_title:?string,meta_title_en:?string,meta_description:?string,meta_description_en:?string} $data
+     * The page's text is not a column here: its title, SEO title and meta
+     * description are written per language through
+     * App\Service\PageLocalization::save(), in the same transaction as this
+     * row (App\Service\PageTemplates\PageTemplateInstaller).
+     *
+     * @param array{content_key:string,slug:string,status:string} $data
      */
     public function create(array $data): int
     {
         $stmt = $this->db->prepare(
             'INSERT INTO pages
-                (content_key, slug, title, title_en, status, meta_title, meta_title_en,
-                 meta_description, meta_description_en, is_system, route_path,
+                (content_key, slug, status, is_system, route_path,
                  sort_order, created_at, updated_at)
              VALUES
-                (:content_key, :slug, :title, :title_en, :status, :meta_title, :meta_title_en,
-                 :meta_description, :meta_description_en, 0, NULL,
+                (:content_key, :slug, :status, 0, NULL,
                  :sort_order, NOW(), NOW())'
         );
         $stmt->execute([
             'content_key' => $data['content_key'],
             'slug' => $data['slug'],
-            'title' => $data['title'],
-            // NULL is "not translated", never the empty string: that is what
-            // App\Service\Language\LocalizedValue reads as "the same as the
-            // primary language", and what an editor form shows as empty.
-            'title_en' => self::translationOrNull($data['title_en'] ?? null),
             'status' => $data['status'],
-            'meta_title' => $data['meta_title'],
-            'meta_title_en' => $data['meta_title_en'],
-            'meta_description' => $data['meta_description'],
-            'meta_description_en' => $data['meta_description_en'],
             'sort_order' => $this->nextSortOrder(),
         ]);
 
@@ -203,35 +197,28 @@ class PageRepository extends Repository
     }
 
     /**
-     * Updates the admin-editable settings of one page. content_key,
+     * Updates the language-neutral settings of one page. content_key,
      * is_system and route_path are deliberately absent: they are structural
      * identity, never editable content (see the create-table migration).
      * Callers must have already resolved slug/status through
      * App\Service\PageService, which is what keeps a system page's slug and
-     * status locked to their current values.
+     * status locked to their current values. The page's text in each language
+     * is App\Service\PageLocalization's.
      *
-     * @param array{slug:string,title:string,title_en?:?string,status:string,meta_title:?string,meta_title_en:?string,meta_description:?string,meta_description_en:?string,noindex?:bool,show_breadcrumb?:bool} $data
+     * @param array{slug:string,status:string,noindex?:bool,show_breadcrumb?:bool} $data
      */
     public function update(int $id, array $data): void
     {
         $stmt = $this->db->prepare(
             'UPDATE pages SET
-                slug = :slug, title = :title, title_en = :title_en, status = :status,
-                meta_title = :meta_title, meta_title_en = :meta_title_en,
-                meta_description = :meta_description, meta_description_en = :meta_description_en,
+                slug = :slug, status = :status,
                 noindex = :noindex, show_breadcrumb = :show_breadcrumb,
                 updated_at = NOW()
              WHERE id = :id'
         );
         $stmt->execute([
             'slug' => $data['slug'],
-            'title' => $data['title'],
-            'title_en' => self::translationOrNull($data['title_en'] ?? null),
             'status' => $data['status'],
-            'meta_title' => $data['meta_title'],
-            'meta_title_en' => $data['meta_title_en'],
-            'meta_description' => $data['meta_description'],
-            'meta_description_en' => $data['meta_description_en'],
             'noindex' => !empty($data['noindex']) ? 1 : 0,
             // Absent means "leave it on": every page showed a breadcrumb
             // before this was a choice (App\Service\Breadcrumbs\PageBreadcrumb).
@@ -267,25 +254,13 @@ class PageRepository extends Repository
     }
 
     /**
-     * Removes the page row itself. Never call this directly for an admin
-     * delete — App\Service\PageService::delete() first refuses protected
+     * Removes the page row itself, and with it the page's text in every
+     * language (page_translations cascades). Never call this directly for an
+     * admin delete — App\Service\PageService::delete() first refuses protected
      * pages and pages still referenced by navigation/footer links, and
      * removes every attached section (and its content/media) inside one
      * transaction.
      */
-    /**
-     * What a translation column stores: the words, or NULL when there are
-     * none. Never '' — an empty string would read as a real translation to
-     * an editor form, and "not translated" is exactly the distinction
-     * App\Service\Language\LocalizedValue::raw() has to be able to make.
-     */
-    private static function translationOrNull(mixed $value): ?string
-    {
-        $value = trim((string) ($value ?? ''));
-
-        return $value === '' ? null : $value;
-    }
-
     public function delete(int $id): void
     {
         $stmt = $this->db->prepare('DELETE FROM pages WHERE id = :id');

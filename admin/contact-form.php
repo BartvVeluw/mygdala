@@ -77,15 +77,15 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title><?= $h(SectionRegistry::label('contact_form')) ?> <?= admin_t('block_contactform.admin', ['v1' => $h((string) $page['title'])]) ?></title>
+<title><?= $h(SectionRegistry::label('contact_form')) ?> <?= admin_t('block_contactform.admin', ['v1' => $h(\App\Service\PageLocalization::name((int) $page['id']))]) ?></title>
 <link rel="stylesheet" href="<?= \App\Service\AssetVersion::url('/admin/assets/admin.css') ?>">
 </head>
 <body<?= \App\Service\AdminTheme::bodyAttribute() ?>>
 <?php require __DIR__ . '/_header.php'; ?>
 <main class="admin-main">
-  <p class="admin-text-muted"><a href="/admin/page.php?id=<?= (int) $page['id'] ?>"><?= admin_t('block_contactform.text', ['v1' => $h((string) $page['title'])]) ?></a></p>
+  <p class="admin-text-muted"><a href="/admin/page.php?id=<?= (int) $page['id'] ?>"><?= admin_t('block_contactform.text', ['v1' => $h(\App\Service\PageLocalization::name((int) $page['id']))]) ?></a></p>
   <h1><?= $h(SectionRegistry::label('contact_form')) ?></h1>
-  <p class="admin-text-muted"><?= admin_t('block_contactform.sectie_kiest_hier_welk', ['v1' => $h((string) $page['title'])]) ?></p>
+  <p class="admin-text-muted"><?= admin_t('block_contactform.sectie_kiest_hier_welk', ['v1' => $h(\App\Service\PageLocalization::name((int) $page['id']))]) ?></p>
   <p class="admin-text-muted"><?= admin_t('block_contactform.kaart_direct_contact_ernaast') ?></p>
 
   <?php if ($saved): ?>

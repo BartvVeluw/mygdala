@@ -75,16 +75,11 @@ class PageServiceTest extends TestCase
     {
         $key = self::PREFIX . $suffix;
 
-        return $this->repository->create([
+        return \Tests\Support\PageFixture::create([
             'content_key' => $key,
             'slug' => $key,
-            'title' => 'Testpagina ' . $suffix,
             'status' => $status,
-            'meta_title' => null,
-            'meta_title_en' => null,
-            'meta_description' => null,
-            'meta_description_en' => null,
-        ]);
+        ], 'Testpagina ' . $suffix);
     }
 
     // ---------------------------------------------------------------- slug

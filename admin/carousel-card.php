@@ -107,7 +107,7 @@ function cardValue(array $values, string $key): string
   <p class="admin-text-muted"><a href="/admin/card-carousel.php?section=<?= $h(urlencode($sectionParam)) ?>"><?= admin_t('block_carousel.terug_carrousel') ?></a></p>
   <h1><?= admin_t('block_carousel.kaart', ['v1' => $h((string) $card['title_nl'])]) ?></h1>
   <?php if ($page !== null): ?>
-    <p class="admin-text-muted"><?= admin_t('block_carousel.kaart_kaarten_carrousel_pagina', ['v1' => $h((string) $page['title'])]) ?></p>
+    <p class="admin-text-muted"><?= admin_t('block_carousel.kaart_kaarten_carrousel_pagina', ['v1' => $h(\App\Service\PageLocalization::name((int) $page['id']))]) ?></p>
   <?php endif; ?>
 
   <?php if ($saved): ?>

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Service;
 
+use App\Service\Language\LanguageRegistry;
 use App\Service\Media\MediaService;
 
 /**
@@ -63,11 +64,14 @@ class PageSeo
             return SeoMetadata::create(titleNl: SeoDefaults::siteName(), canonical: null);
         }
 
+        // The head still carries the V1 NL/EN pair for the client-side
+        // language switch. Each half is one language of the page's text,
+        // read through App\Service\PageLocalization with its fallback.
         return SeoMetadata::create(
-            titleNl: PageContent::seoTitle($page, 'nl'),
-            titleEn: PageContent::seoTitle($page, 'en'),
-            descriptionNl: PageContent::metaDescription($page, 'nl'),
-            descriptionEn: PageContent::metaDescription($page, 'en'),
+            titleNl: PageContent::seoTitle($page, LanguageRegistry::DUTCH),
+            titleEn: PageContent::seoTitle($page, LanguageRegistry::ENGLISH),
+            descriptionNl: PageContent::metaDescription($page, LanguageRegistry::DUTCH),
+            descriptionEn: PageContent::metaDescription($page, LanguageRegistry::ENGLISH),
             canonical: PageContent::canonicalUrl($page),
             indexable: self::isIndexable($page),
             // Every CMS page is og:type "website". Nothing here guesses

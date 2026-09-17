@@ -24,6 +24,10 @@ use Tests\Support\ScratchInstall;
  * The registry each database had right after migrating is read once in
  * setUpBeforeClass(), so the tests that write afterwards (the wizard, the
  * replays) cannot change what the others assert.
+ *
+ * The two deployed databases stop at this migration. From 20260917140000 on,
+ * page text refers to a registry row by foreign key, so a later database
+ * refuses the "empty the registry and run it again" the replays below need.
  */
 #[Group('migration-backfill')]
 final class SiteLanguageRegistryMigrationTest extends TestCase
@@ -59,13 +63,13 @@ final class SiteLanguageRegistryMigrationTest extends TestCase
 
         self::$dutch = ScratchInstall::upTo(self::DUTCH, self::BEFORE);
         self::$englishLabelsBefore[self::DUTCH] = self::englishLabels(self::$dutch);
-        self::$dutch->catchUp();
+        self::$dutch->catchUp(self::REGISTRY);
 
         self::$english = ScratchInstall::upTo(self::ENGLISH, self::BEFORE);
         self::$english->pdo()->exec(
             "UPDATE site_settings SET setting_value = 'en', updated_at = NOW() WHERE setting_key = 'primary_content_language'"
         );
-        self::$english->catchUp();
+        self::$english->catchUp(self::REGISTRY);
 
         foreach ([self::$fresh, self::$dutch, self::$english] as $install) {
             self::$registryAfterMigrating[$install->database] = self::registry($install);
@@ -189,7 +193,7 @@ final class SiteLanguageRegistryMigrationTest extends TestCase
 
     public function testRunningItAgainAddsNoLanguageAndKeepsTheDefault(): void
     {
-        self::$english->replay(self::REGISTRY);
+        self::$english->replay(self::REGISTRY, self::REGISTRY);
 
         self::assertSame(self::$registryAfterMigrating[self::ENGLISH], self::registry(self::$english));
     }
@@ -202,7 +206,7 @@ final class SiteLanguageRegistryMigrationTest extends TestCase
         $pdo->exec("UPDATE site_languages SET is_default = NULL WHERE code = 'nl'");
         $pdo->exec("UPDATE site_languages SET is_default = 1 WHERE code = 'en'");
 
-        self::$dutch->replay(self::REGISTRY);
+        self::$dutch->replay(self::REGISTRY, self::REGISTRY);
 
         self::assertSame(['en'], self::defaults(self::$dutch));
         self::assertCount(2, self::registry(self::$dutch));
@@ -212,7 +216,7 @@ final class SiteLanguageRegistryMigrationTest extends TestCase
     {
         $this->emptyTheRegistry(self::$dutch, 'de');
 
-        self::$dutch->replay(self::REGISTRY);
+        self::$dutch->replay(self::REGISTRY, self::REGISTRY);
 
         self::assertSame(['nl'], self::defaults(self::$dutch));
         self::assertSame(['nl', 'en'], array_column(self::registry(self::$dutch), 'code'));
@@ -223,7 +227,7 @@ final class SiteLanguageRegistryMigrationTest extends TestCase
     {
         $this->emptyTheRegistry(self::$dutch, null);
 
-        self::$dutch->replay(self::REGISTRY);
+        self::$dutch->replay(self::REGISTRY, self::REGISTRY);
 
         self::assertSame(['nl'], self::defaults(self::$dutch));
         self::assertSame(['nl', 'en'], array_column(self::registry(self::$dutch), 'code'));

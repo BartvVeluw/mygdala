@@ -1010,16 +1010,11 @@ final class FormFieldEditorHttpTest extends TestCase
     /** This form on a published page of its own, as a visitor gets it. */
     private function publicPageWith(int $formId): string
     {
-        $pageId = (new PageRepository())->create([
+        $pageId = \Tests\Support\PageFixture::create([
             'content_key' => self::TEST_PAGE,
             'slug' => self::TEST_PAGE,
-            'title' => 'Veldvolgorde testpagina',
             'status' => 'published',
-            'meta_title' => null,
-            'meta_title_en' => null,
-            'meta_description' => null,
-            'meta_description_en' => null,
-        ]);
+        ], 'Veldvolgorde testpagina');
 
         [$sectionId, $sectionKey] = SectionRegistry::create('form', self::TEST_PAGE);
         (new PageSectionRepository())->create($pageId, self::TEST_PAGE, 'form', $sectionKey, $sectionId);

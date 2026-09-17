@@ -188,28 +188,18 @@ final class SeoRoutingTest extends TestCase
     {
         return [
             'slug' => self::TEST_KEY,
-            'title' => 'SEO testpagina',
             'status' => $status,
-            'meta_title' => null,
-            'meta_title_en' => null,
-            'meta_description' => null,
-            'meta_description_en' => null,
             'noindex' => $noindex,
         ];
     }
 
     private function createTestPage(bool $noindex, string $status = 'published'): int
     {
-        $id = $this->repository->create([
+        $id = \Tests\Support\PageFixture::create([
             'content_key' => self::TEST_KEY,
             'slug' => self::TEST_KEY,
-            'title' => 'SEO testpagina',
             'status' => $status,
-            'meta_title' => null,
-            'meta_title_en' => null,
-            'meta_description' => null,
-            'meta_description_en' => null,
-        ]);
+        ], 'SEO testpagina');
 
         $this->repository->update($id, $this->updateData($noindex, $status));
         PageContent::clearCache();

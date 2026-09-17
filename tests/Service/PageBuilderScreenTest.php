@@ -264,12 +264,11 @@ final class PageBuilderScreenTest extends TestCase
         $id = PageTemplateInstaller::install(PageTemplates::get(PageTemplates::DEFAULT_KEY), [
             'content_key' => PageService::generateContentKey($this->pages, $slug),
             'slug' => $slug,
-            'title' => 'ZZ Paginabouwertest ' . bin2hex(random_bytes(4)),
             'status' => PageContent::STATUS_DRAFT,
-            'meta_title' => null,
-            'meta_title_en' => null,
-            'meta_description' => null,
-            'meta_description_en' => null,
+        ], [
+            \App\Service\PageLocalization::defaultLanguage() => [
+                \App\Service\PageTranslation::TITLE => 'ZZ Paginabouwertest ' . bin2hex(random_bytes(4)),
+            ],
         ]);
         $this->pageIds[] = $id;
 

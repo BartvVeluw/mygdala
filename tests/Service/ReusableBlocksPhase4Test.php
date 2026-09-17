@@ -66,16 +66,11 @@ final class ReusableBlocksPhase4Test extends TestCase
 
         $this->cleanUp();
 
-        $this->pageId = $this->pages->create([
+        $this->pageId = \Tests\Support\PageFixture::create([
             'content_key' => self::TEST_KEY,
             'slug' => self::TEST_KEY,
-            'title' => 'Fase 4 blokkentest',
             'status' => 'draft',
-            'meta_title' => null,
-            'meta_title_en' => null,
-            'meta_description' => null,
-            'meta_description_en' => null,
-        ]);
+        ], 'Fase 4 blokkentest');
     }
 
     protected function tearDown(): void

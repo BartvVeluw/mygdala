@@ -66,16 +66,11 @@ final class HeaderFooterRenderingTest extends TestCase
 
     private function makePage(string $slug, bool $published = true): int
     {
-        $id = $this->pages->create([
+        $id = \Tests\Support\PageFixture::create([
             'content_key' => $slug,
             'slug' => $slug,
-            'title' => 'Test page ' . $slug,
             'status' => $published ? 'published' : 'draft',
-            'meta_title' => null,
-            'meta_title_en' => null,
-            'meta_description' => null,
-            'meta_description_en' => null,
-        ]);
+        ], 'Test page ' . $slug);
         $this->createdPageIds[] = $id;
 
         return $id;
@@ -139,12 +134,7 @@ final class HeaderFooterRenderingTest extends TestCase
 
         $this->pages->update($pageId, [
             'slug' => '__test_cta_after__',
-            'title' => 'Test page renamed',
             'status' => 'published',
-            'meta_title' => null,
-            'meta_title_en' => null,
-            'meta_description' => null,
-            'meta_description_en' => null,
         ]);
 
         $this->assertSame('/__test_cta_after__', $this->renderedButtons($buttonId)[0]['href'] ?? null);

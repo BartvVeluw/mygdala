@@ -69,7 +69,7 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title><?= admin_t('block_richtext.tekstblok_admin', ['v1' => $h((string) $page['title'])]) ?></title>
+<title><?= admin_t('block_richtext.tekstblok_admin', ['v1' => $h(\App\Service\PageLocalization::name((int) $page['id']))]) ?></title>
 <link rel="stylesheet" href="<?= \App\Service\AssetVersion::url('/admin/assets/vendor/quill/quill.snow.css') ?>">
 <link rel="stylesheet" href="<?= \App\Service\AssetVersion::url('/admin/assets/admin.css') ?>">
 <script src="<?= \App\Service\AssetVersion::url('/admin/assets/vendor/quill/quill.min.js') ?>" defer></script>
@@ -78,9 +78,9 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
 <body<?= \App\Service\AdminTheme::bodyAttribute() ?>>
 <?php require __DIR__ . '/_header.php'; ?>
 <main class="admin-main">
-  <p><a href="/admin/page.php?id=<?= (int) $page['id'] ?>"><?= admin_t('block_richtext.terug', ['v1' => $h((string) $page['title'])]) ?></a></p>
+  <p><a href="/admin/page.php?id=<?= (int) $page['id'] ?>"><?= admin_t('block_richtext.terug', ['v1' => $h(\App\Service\PageLocalization::name((int) $page['id']))]) ?></a></p>
   <h1><?= $h(SectionRegistry::label('rich_text')) ?></h1>
-  <p class="admin-text-muted"><?= admin_t('block_richtext.sectie_pagina', ['v1' => $h((string) $page['title'])]) ?></p>
+  <p class="admin-text-muted"><?= admin_t('block_richtext.sectie_pagina', ['v1' => $h(\App\Service\PageLocalization::name((int) $page['id']))]) ?></p>
 
   <?php if ($saved): ?>
     <p class="admin-alert admin-alert--success"><?= admin_te('common.saved') ?></p>

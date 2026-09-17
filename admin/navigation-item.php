@@ -143,6 +143,7 @@ $linkablePages = array_values(array_filter(
     (new PageRepository())->findAllForAdmin(),
     static fn (array $p): bool => PageContent::isPublished($p) || (int) $p['id'] === $currentTargetPageId
 ));
+\App\Service\PageLocalization::preload(array_map(static fn (array $p): int => (int) $p['id'], $linkablePages));
 
 // Only routes that exist right now; a switched-off module contributes none.
 // A stored route that is not among them is offered as its own option below,
@@ -265,7 +266,7 @@ if ($isNew) {
         <select class="admin-select" id="nav-target-page" name="target_page_id">
           <option value=""><?= admin_te('navigation.choose_page') ?></option>
           <?php foreach ($linkablePages as $page): ?>
-            <option value="<?= (int) $page['id'] ?>" <?= $field('target_page_id') === (string) $page['id'] ? 'selected' : '' ?>><?= $h((string) $page['title']) ?><?= PageContent::isPublished($page) ? '' : ' ' . admin_te('navigation.destination_draft') ?></option>
+            <option value="<?= (int) $page['id'] ?>" <?= $field('target_page_id') === (string) $page['id'] ? 'selected' : '' ?>><?= $h(\App\Service\PageLocalization::name((int) $page['id'])) ?><?= PageContent::isPublished($page) ? '' : ' ' . admin_te('navigation.destination_draft') ?></option>
           <?php endforeach; ?>
         </select>
       </div>

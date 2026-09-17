@@ -57,16 +57,11 @@ final class ContentBlockArchitectureTest extends TestCase
 
         $this->cleanUp();
 
-        $this->pageId = $this->pages->create([
+        $this->pageId = \Tests\Support\PageFixture::create([
             'content_key' => self::TEST_KEY,
             'slug' => self::TEST_KEY,
-            'title' => 'Blokkentestpagina',
             'status' => 'draft',
-            'meta_title' => null,
-            'meta_title_en' => null,
-            'meta_description' => null,
-            'meta_description_en' => null,
-        ]);
+        ], 'Blokkentestpagina');
     }
 
     protected function tearDown(): void
@@ -130,16 +125,11 @@ final class ContentBlockArchitectureTest extends TestCase
         $page = $this->pages->findByContentKey(self::TEMPLATE_TEST_KEY);
 
         if ($page === null) {
-            $id = $this->pages->create([
+            $id = \Tests\Support\PageFixture::create([
                 'content_key' => self::TEMPLATE_TEST_KEY,
                 'slug' => self::TEMPLATE_TEST_KEY,
-                'title' => 'Sjabloontestpagina',
                 'status' => PageContent::STATUS_PUBLISHED,
-                'meta_title' => null,
-                'meta_title_en' => null,
-                'meta_description' => null,
-                'meta_description_en' => null,
-            ]);
+            ], 'Sjabloontestpagina');
 
             $stmt = Database::connection()->prepare(
                 "UPDATE pages SET is_system = 1, route_path = '/zz-sjabloontest.php' WHERE id = :id"

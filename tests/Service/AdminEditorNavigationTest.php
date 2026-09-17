@@ -288,10 +288,10 @@ final class AdminEditorNavigationTest extends TestCase
             'title' => 'pagina',
             'slug' => 'pagina',
             'status' => 'pagina',
+            // One language's text per save (admin/_localized_fields.php), so
+            // there is no `_en` twin of a field any more.
             'meta_title' => 'seo',
-            'meta_title_en' => 'seo',
             'meta_description' => 'seo',
-            'meta_description_en' => 'seo',
             'noindex' => 'seo',
         ];
 

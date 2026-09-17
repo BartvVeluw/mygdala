@@ -7,6 +7,7 @@ namespace Tests\Service;
 use App\Database;
 use App\Repository\PageHeroRepository;
 use App\Repository\PageRepository;
+use App\Repository\PageTranslationRepository;
 use App\Service\Blocks\BlockDefinitions;
 use App\Service\Breadcrumbs\BreadcrumbItem;
 use App\Service\Breadcrumbs\BreadcrumbTrail;
@@ -14,6 +15,8 @@ use App\Service\Breadcrumbs\PageBreadcrumb;
 use App\Service\Language\LanguageRegistry;
 use App\Service\PageContent;
 use App\Service\PageHeroContent;
+use App\Service\PageLocalization;
+use App\Service\PageTranslation;
 use App\Service\SiteSettings;
 use PHPUnit\Framework\TestCase;
 
@@ -293,41 +296,24 @@ final class BreadcrumbTest extends TestCase
         $this->assertStringContainsString('data-en="&lt;script&gt;alert(1)&lt;/script&gt;"', $html);
     }
 
-    public function testTheRepositoryStoresATranslationAndNeverAnEmptyString(): void
+    public function testATranslationIsStoredPerLanguageAndNeverAsAnEmptyString(): void
     {
         $page = $this->storePage();
-        $repository = new PageRepository();
-        $settings = [
-            'slug' => (string) $page['slug'],
-            'title' => (string) $page['title'],
-            'status' => PageContent::STATUS_PUBLISHED,
-            'meta_title' => null, 'meta_title_en' => null,
-            'meta_description' => null, 'meta_description_en' => null,
-        ];
+        $translations = new PageTranslationRepository();
 
-        $repository->update((int) $page['id'], $settings + ['title_en' => '  Breadcrumb test page  ']);
-        $this->assertSame('Breadcrumb test page', (string) $this->reload()['title_en'], 'trimmed, and stored');
+        PageLocalization::save((int) $page['id'], 'en', [PageTranslation::TITLE => '  Breadcrumb test page  ']);
+        $this->assertSame('Breadcrumb test page', $translations->find((int) $page['id'], 'en')['title'], 'trimmed, and stored');
 
-        $repository->update((int) $page['id'], $settings + ['title_en' => '   ']);
+        PageLocalization::save((int) $page['id'], 'en', [PageTranslation::TITLE => '   ']);
         $this->assertNull(
-            $this->reload()['title_en'],
-            'blank is "not translated" — NULL, never an empty string an editor form would read as a translation'
+            $translations->find((int) $page['id'], 'en'),
+            'blank is "not translated" — no row, never an empty string an editor form would read as a translation'
         );
-
-        // A page created with a translation keeps it; one created without gets
-        // NULL rather than ''.
-        $id = $repository->create([
-            'content_key' => self::TEST_KEY . '-2',
-            'slug' => self::TEST_SLUG . '-2',
-            'title' => 'Tweede testpagina',
-            'title_en' => 'Second test page',
-            'status' => PageContent::STATUS_PUBLISHED,
-            'meta_title' => null, 'meta_title_en' => null,
-            'meta_description' => null, 'meta_description_en' => null,
-        ]);
-        $created = $repository->findById($id);
-        $this->assertNotNull($created);
-        $this->assertSame('Second test page', (string) $created['title_en']);
+        $this->assertSame(
+            'Testpagina kruimelpad',
+            $translations->find((int) $page['id'], 'nl')['title'],
+            'saving one language leaves the other alone'
+        );
     }
 
     public function testTheLocalizedTitleIsReadInOnePlaceAndReachesTheAutomaticPageTitle(): void
@@ -336,7 +322,7 @@ final class BreadcrumbTest extends TestCase
         $this->translateTo('Breadcrumb test page');
         $page = $this->reload();
 
-        $value = PageContent::titleValue($page);
+        $value = PageLocalization::bilingual((int) $page['id'], PageTranslation::TITLE);
         $this->assertSame('Testpagina kruimelpad', $value->raw(LanguageRegistry::DUTCH));
         $this->assertSame('Breadcrumb test page', $value->raw(LanguageRegistry::ENGLISH));
 
@@ -346,20 +332,28 @@ final class BreadcrumbTest extends TestCase
         $this->assertStringStartsWith('Testpagina kruimelpad', PageContent::seoTitle($page, 'nl'));
     }
 
-    public function testThePageScreensCarryBothLanguagesOfTheTitle(): void
+    public function testThePageScreensEditTheTitleOneWebsiteLanguageAtATime(): void
     {
         foreach (['admin/page.php', 'admin/page-new.php'] as $screen) {
             $source = self::source($screen);
 
             $this->assertStringContainsString('name="title"', $source);
-            $this->assertStringContainsString('name="title_en"', $source, $screen . ' offers the translation');
-            $this->assertStringContainsString("admin_lang_pane_start('en')", $source, $screen . ' uses the shared panes');
+            $this->assertStringNotContainsString('name="title_en"', $source, $screen . ' has no fixed English twin any more');
+            $this->assertStringContainsString('admin_localized_bar(', $source, $screen . ' uses the localized-fields component');
         }
 
+        $this->assertStringContainsString('admin_localized_input($editLanguage)', self::source('admin/page.php'));
+
         foreach (['api/admin/update-page.php', 'api/admin/create-page.php'] as $endpoint) {
-            $this->assertStringContainsString("\$_POST['title_en']", self::source($endpoint));
-            $this->assertStringContainsString("'title_en' => \$titleEn", self::source($endpoint));
+            $source = self::source($endpoint);
+
+            $this->assertStringContainsString("\$_POST['title']", $source);
+            $this->assertStringContainsString('PageTranslation::TITLE => $title', $source);
+            $this->assertStringNotContainsString('title_en', $source);
         }
+
+        $this->assertStringContainsString("\$_POST['language_code']", self::source('api/admin/update-page.php'));
+        $this->assertStringContainsString('PageLocalization::defaultLanguage()', self::source('api/admin/create-page.php'));
     }
 
     public function testTheSiteRootHasNoTrail(): void
@@ -412,10 +406,7 @@ final class BreadcrumbTest extends TestCase
         $repository = new PageRepository();
         $settings = [
             'slug' => (string) $page['slug'],
-            'title' => (string) $page['title'],
             'status' => PageContent::STATUS_PUBLISHED,
-            'meta_title' => null, 'meta_title_en' => null,
-            'meta_description' => null, 'meta_description_en' => null,
         ];
 
         $repository->update((int) $page['id'], $settings + ['show_breadcrumb' => false]);
@@ -635,16 +626,12 @@ final class BreadcrumbTest extends TestCase
     /** @return array<string, mixed> */
     private function storePage(): array
     {
-        (new PageRepository())->create([
+        $id = (new PageRepository())->create([
             'content_key' => self::TEST_KEY,
             'slug' => self::TEST_SLUG,
-            'title' => 'Testpagina kruimelpad',
             'status' => PageContent::STATUS_PUBLISHED,
-            'meta_title' => null,
-            'meta_title_en' => null,
-            'meta_description' => null,
-            'meta_description_en' => null,
         ]);
+        PageLocalization::save($id, 'nl', [PageTranslation::TITLE => 'Testpagina kruimelpad']);
         PageContent::clearCache();
 
         return $this->reload();
@@ -662,17 +649,13 @@ final class BreadcrumbTest extends TestCase
 
     private function translateTo(string $titleEn): void
     {
-        Database::connection()
-            ->prepare('UPDATE pages SET title_en = :title WHERE content_key = :key')
-            ->execute(['title' => $titleEn === '' ? null : $titleEn, 'key' => self::TEST_KEY]);
+        PageLocalization::save((int) $this->reload()['id'], 'en', [PageTranslation::TITLE => $titleEn]);
         PageContent::clearCache();
     }
 
     private function renameTo(string $title): void
     {
-        Database::connection()
-            ->prepare('UPDATE pages SET title = :title WHERE content_key = :key')
-            ->execute(['title' => $title, 'key' => self::TEST_KEY]);
+        PageLocalization::save((int) $this->reload()['id'], 'nl', [PageTranslation::TITLE => $title]);
         PageContent::clearCache();
     }
 

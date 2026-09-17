@@ -177,16 +177,11 @@ final class PortfolioPageLinkTest extends TestCase
     {
         $key = 'zz-projectpagina-' . bin2hex(random_bytes(4));
 
-        $id = (new PageRepository())->create([
+        $id = \Tests\Support\PageFixture::create([
             'content_key' => $key,
             'slug' => $key,
-            'title' => 'ZZ Projectpagina',
             'status' => $status,
-            'meta_title' => null,
-            'meta_title_en' => null,
-            'meta_description' => null,
-            'meta_description_en' => null,
-        ]);
+        ], 'ZZ Projectpagina');
         $this->pageIds[] = $id;
 
         return $id;

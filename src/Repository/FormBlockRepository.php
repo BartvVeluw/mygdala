@@ -97,20 +97,22 @@ class FormBlockRepository extends Repository
      * Joined to `page_sections` and `pages` so a content row that is no
      * longer attached to a page (an orphan a failed delete could leave) does
      * NOT count as a usage: it would block a deletion the editor cannot
-     * undo from any screen.
+     * undo from any screen. The page's NAME is not selected here: a page's
+     * text lives per language, and App\Service\Forms\FormUsage asks
+     * App\Service\PageLocalization for it.
      *
      * @return array<int, array<string, mixed>>
      */
     public function placementsOf(int $formId): array
     {
         $stmt = $this->db->prepare(
-            "SELECT b.page_slug, b.section_key, p.title AS page_title, p.id AS page_id
+            "SELECT b.page_slug, b.section_key, p.id AS page_id
                FROM form_blocks b
                JOIN page_sections ps
                  ON ps.section_type = 'form' AND ps.section_id = b.id
                JOIN pages p ON p.id = ps.page_id
               WHERE b.form_id = :form_id
-              ORDER BY p.title ASC, b.section_key ASC"
+              ORDER BY p.id ASC, b.section_key ASC"
         );
         $stmt->execute(['form_id' => $formId]);
 

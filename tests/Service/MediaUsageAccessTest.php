@@ -258,16 +258,11 @@ final class MediaUsageAccessTest extends TestCase
     {
         $this->pageKey = 'zz-mediagebruik-' . bin2hex(random_bytes(4));
 
-        $pageId = (new PageRepository())->create([
+        $pageId = \Tests\Support\PageFixture::create([
             'content_key' => $this->pageKey,
             'slug' => $this->pageKey,
-            'title' => 'ZZ Mediagebruiktest',
             'status' => 'draft',
-            'meta_title' => null,
-            'meta_title_en' => null,
-            'meta_description' => null,
-            'meta_description_en' => null,
-        ]);
+        ], 'ZZ Mediagebruiktest');
 
         $path = 'assets/media/__usage_access_' . bin2hex(random_bytes(4)) . '__.png';
 

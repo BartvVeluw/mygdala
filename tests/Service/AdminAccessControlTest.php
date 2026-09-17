@@ -71,6 +71,10 @@ final class AdminAccessControlTest extends TestCase
         // and the one endpoint it points at
         // (api/admin/translate-fields.php) checks pages.manage itself.
         '_language_fields.php',
+        // The Multilingual 2.0 localized-fields bar and helpers: markup and
+        // helpers around fields the calling editor renders behind its own
+        // permission check. No endpoint of its own.
+        '_localized_fields.php',
         '_order_personalization.php',
         '_personalization_builder.php',
         // The website-statistics block on the dashboard: rendered by

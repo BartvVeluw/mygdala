@@ -512,16 +512,11 @@ final class PortfolioModuleHttpTest extends TestCase
         $key = 'zz-projectpagina-' . bin2hex(random_bytes(4));
         $pages = new PageRepository();
 
-        $id = $pages->create([
+        $id = \Tests\Support\PageFixture::create([
             'content_key' => $key,
             'slug' => $key,
-            'title' => 'ZZ Projectpagina',
             'status' => $status,
-            'meta_title' => null,
-            'meta_title_en' => null,
-            'meta_description' => null,
-            'meta_description_en' => null,
-        ]);
+        ], 'ZZ Projectpagina');
         $this->pageIds[] = $id;
 
         PageContent::clearCache();
@@ -539,12 +534,7 @@ final class PortfolioModuleHttpTest extends TestCase
 
         $pages->update($id, [
             'slug' => 'zz-hernoemd-' . bin2hex(random_bytes(4)),
-            'title' => (string) $page['title'],
             'status' => (string) $page['status'],
-            'meta_title' => null,
-            'meta_title_en' => null,
-            'meta_description' => null,
-            'meta_description_en' => null,
         ]);
 
         PageContent::clearCache();
@@ -569,16 +559,11 @@ final class PortfolioModuleHttpTest extends TestCase
         }
 
         $marker = bin2hex(random_bytes(3));
-        $id = $pages->create([
+        $id = \Tests\Support\PageFixture::create([
             'content_key' => 'portfolio',
             'slug' => 'zz-portfolio-' . $marker,
-            'title' => 'ZZ Portfolio ' . $marker,
             'status' => PageContent::STATUS_PUBLISHED,
-            'meta_title' => null,
-            'meta_title_en' => null,
-            'meta_description' => null,
-            'meta_description_en' => null,
-        ]);
+        ], 'ZZ Portfolio ' . $marker);
         $this->pageIds[] = $id;
 
         // PageRepository::create() never writes a fixed route — only the
@@ -604,16 +589,11 @@ final class PortfolioModuleHttpTest extends TestCase
         $key = 'zz-galerij-' . bin2hex(random_bytes(4));
         $pages = new PageRepository();
 
-        $id = $pages->create([
+        $id = \Tests\Support\PageFixture::create([
             'content_key' => $key,
             'slug' => $key,
-            'title' => 'ZZ Galerijtest',
             'status' => PageContent::STATUS_PUBLISHED,
-            'meta_title' => null,
-            'meta_title_en' => null,
-            'meta_description' => null,
-            'meta_description_en' => null,
-        ]);
+        ], 'ZZ Galerijtest');
         $this->pageIds[] = $id;
 
         [$sectionId, $sectionKey] = SectionRegistry::create('item_gallery', $key);

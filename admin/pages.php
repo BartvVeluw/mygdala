@@ -41,6 +41,8 @@ AdminAuth::requirePermission('pages.manage');
 
 try {
     $pages = (new PageRepository())->findAllForAdmin();
+    // Every row prints the page's name; one query for all of them.
+    \App\Service\PageLocalization::preload(array_map(static fn (array $p): int => (int) $p['id'], $pages));
 } catch (\Throwable $e) {
     error_log('[admin/pages.php] ' . $e->getMessage());
     $pages = null;
@@ -140,7 +142,7 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
               $publicUrl = PageContent::publicUrl($page);
             ?>
             <tr>
-              <td><a href="/admin/page.php?id=<?= $pageId ?>"><?= $h((string) $page['title']) ?></a></td>
+              <td><a href="/admin/page.php?id=<?= $pageId ?>"><?= $h(\App\Service\PageLocalization::name($pageId)) ?></a></td>
               <td><code><?= $h($publicUrl) ?></code></td>
               <td><span class="admin-badge admin-badge--<?= $isPublished ? 'published' : 'draft' ?>"><?= admin_te('page.status_' . ((string) $page['status'])) ?></span></td>
               <td>

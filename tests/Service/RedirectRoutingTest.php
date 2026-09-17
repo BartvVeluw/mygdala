@@ -189,16 +189,11 @@ class RedirectRoutingTest extends TestCase
      */
     public function testALivePageWinsOverAConflictingRedirect(): void
     {
-        (new PageRepository())->create([
+        \Tests\Support\PageFixture::create([
             'content_key' => self::PAGE_KEY,
             'slug' => self::PAGE_KEY,
-            'title' => 'Redirect-routing testpagina',
             'status' => PageContent::STATUS_PUBLISHED,
-            'meta_title' => null,
-            'meta_title_en' => null,
-            'meta_description' => null,
-            'meta_description_en' => null,
-        ]);
+        ], 'Redirect-routing testpagina');
 
         $this->store('/' . self::PAGE_KEY, '/contact.php');
 

@@ -143,16 +143,11 @@ class PageRoutingTest extends TestCase
 
     private function createTestPage(string $status): void
     {
-        $this->pageId = $this->repository->create([
+        $this->pageId = \Tests\Support\PageFixture::create([
             'content_key' => self::TEST_KEY,
             'slug' => self::TEST_KEY,
-            'title' => 'Routing testpagina',
             'status' => $status,
-            'meta_title' => null,
-            'meta_title_en' => null,
-            'meta_description' => null,
-            'meta_description_en' => null,
-        ]);
+        ], 'Routing testpagina');
     }
 
     private function attachRichText(string $html): void
@@ -256,12 +251,7 @@ class PageRoutingTest extends TestCase
         $this->createTestPage(PageContent::STATUS_PUBLISHED);
         $this->repository->update((int) $this->pageId, [
             'slug' => self::TEST_KEY,
-            'title' => 'Routing testpagina',
             'status' => PageContent::STATUS_PUBLISHED,
-            'meta_title' => 'Aangepaste SEO-titel voor de test',
-            'meta_title_en' => null,
-            'meta_description' => 'Een testomschrijving met "aanhalingstekens" & een ampersand.',
-            'meta_description_en' => null,
         ]);
 
         $response = $this->request('/' . self::TEST_KEY);

@@ -557,16 +557,11 @@ final class FooterAdminHttpTest extends TestCase
     private function page(string $title): int
     {
         $key = 'zz-footer-http-' . bin2hex(random_bytes(4));
-        $id = $this->pages->create([
+        $id = \Tests\Support\PageFixture::create([
             'content_key' => $key,
             'slug' => $key,
-            'title' => $title,
             'status' => PageContent::STATUS_PUBLISHED,
-            'meta_title' => null,
-            'meta_title_en' => null,
-            'meta_description' => null,
-            'meta_description_en' => null,
-        ]);
+        ], $title);
         $this->pageIds[] = $id;
 
         return $id;

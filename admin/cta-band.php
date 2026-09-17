@@ -39,7 +39,7 @@ if ($page === null || $sectionKey === null || $sectionKey === ''
 }
 
 $pageId = (int) $page['id'];
-$pageLabel = (string) $page['title'];
+$pageLabel = \App\Service\PageLocalization::name((int) $page['id']);
 
 $errors = $_SESSION['admin_cta_band_errors'] ?? [];
 $old = $_SESSION['admin_cta_band_old'] ?? null;

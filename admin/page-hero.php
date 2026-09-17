@@ -44,8 +44,9 @@ if (!array_key_exists($slug, PageHeroContent::PAGES) && !$isDynamicallyAttached)
     exit(admin_t('screen.onbekende_pagina'));
 }
 
+$pageLabelRow = (new \App\Repository\PageRepository())->findByContentKey($slug);
 $pageLabel = PageHeroContent::PAGES[$slug]
-    ?? ((new \App\Repository\PageRepository())->findByContentKey($slug)['title'] ?? $slug);
+    ?? ($pageLabelRow !== null ? \App\Service\PageLocalization::name((int) $pageLabelRow['id']) : $slug);
 
 $errors = $_SESSION['admin_page_hero_errors'] ?? [];
 $old = $_SESSION['admin_page_hero_old'] ?? null;

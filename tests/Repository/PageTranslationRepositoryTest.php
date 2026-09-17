@@ -204,12 +204,7 @@ final class PageTranslationRepositoryTest extends TestCase
         return (new PageRepository($this->db))->create([
             'content_key' => $key,
             'slug' => $key,
-            'title' => 'Testpagina',
             'status' => 'draft',
-            'meta_title' => null,
-            'meta_title_en' => null,
-            'meta_description' => null,
-            'meta_description_en' => null,
         ]);
     }
 

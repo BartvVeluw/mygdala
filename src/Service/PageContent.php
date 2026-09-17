@@ -7,7 +7,6 @@ namespace App\Service;
 use App\Module\ModuleRegistry;
 use App\Repository\PageRepository;
 use App\Repository\PageSectionRepository;
-use App\Service\Language\LocalizedValue;
 
 /**
  * Public read side of the unified CMS page model (pagina.php, the six
@@ -15,6 +14,11 @@ use App\Service\Language\LocalizedValue;
  * the small set of derived values every caller would otherwise re-derive:
  * a page's public URL, its canonical path, and its resolved SEO title/meta
  * description per language.
+ *
+ * A `pages` row carries no text since Multilingual 2.0 phase 2: the title and
+ * the SEO fields live per language in `page_translations`, and the SEO
+ * methods below read them through App\Service\PageLocalization, the one
+ * owner of that table and of the fallback.
  *
  * Static, try/catch-with-fallback, same convention as SiteSettings /
  * NavigationService: a page-lookup failure must never fatal a public
@@ -247,7 +251,8 @@ class PageContent
 
     /**
      * Whether a page stays in the Pages overview for what an editor typed in
-     * its search field: its title, or the address it is served at — the
+     * its search field: its name — what the overview itself prints,
+     * PageLocalization::name() — or the address it is served at — the
      * publicUrl() the overview shows, so a fixed-route page is found by its
      * route and not by a slug nobody sees. Case-insensitive, and an empty
      * search keeps every page.
@@ -265,7 +270,7 @@ class PageContent
             return true;
         }
 
-        return mb_stripos((string) ($page['title'] ?? ''), $query) !== false
+        return mb_stripos(PageLocalization::name((int) ($page['id'] ?? 0)), $query) !== false
             || mb_stripos(self::publicUrl($page), $query) !== false;
     }
 
@@ -313,32 +318,6 @@ class PageContent
     }
 
     /**
-     * The page's own NAME, as this project's one localized value.
-     *
-     * `pages.title` is the Dutch column and `title_en` its translation
-     * (db/migrations/20260916140000). An empty translation means "the same as
-     * the primary language" and never an empty name, which is the rule
-     * App\Service\Language\LocalizedValue holds for every other pair of
-     * columns in this project — so this is where the pair is read, and the
-     * only place that has to know the column names.
-     *
-     * Callers that print it to a visitor take ::raw() for both halves and let
-     * App\Service\Language\SiteText resolve which one is visible
-     * (App\Service\Breadcrumbs\PageBreadcrumb); callers that need one
-     * language take ::in(), like seoTitle() below. Neither asks "is this
-     * English".
-     *
-     * @param array<string, mixed>|null $page
-     */
-    public static function titleValue(?array $page): LocalizedValue
-    {
-        return LocalizedValue::ofDutchEnglish(
-            $page === null ? '' : (string) ($page['title'] ?? ''),
-            $page === null ? null : ($page['title_en'] ?? null)
-        );
-    }
-
-    /**
      * The complete <title> text for one language.
      *
      * meta_title, when set, IS the whole title — it is rendered verbatim,
@@ -349,13 +328,14 @@ class PageContent
      * falls back to "<Title> — <site name>", the convention the CMS
      * information pages already rendered with.
      *
-     * An empty English value falls back to the Dutch one, matching
-     * PageHeroContent and every other bilingual field in this project. That
-     * holds for the automatic title too: the page name it is built from is
-     * localized (titleValue()), so an English page with an English name no
-     * longer advertises its Dutch one.
+     * Both halves follow the field fallback of App\Service\PageLocalization:
+     * the SEO title in $lang, else the default language's SEO title; and only
+     * when neither exists, the page's name in $lang, else in the default
+     * language. An English page with an English name therefore never
+     * advertises its Dutch one, and a page nobody translated reads exactly
+     * like the default language.
      */
-    public static function seoTitle(?array $page, string $lang = 'nl'): string
+    public static function seoTitle(?array $page, string $lang): string
     {
         $siteName = SiteSettings::get('site_name');
 
@@ -363,17 +343,15 @@ class PageContent
             return $siteName;
         }
 
-        $custom = trim((string) ($page['meta_title'] ?? ''));
-        if ($lang === 'en') {
-            $customEn = trim((string) ($page['meta_title_en'] ?? ''));
-            $custom = $customEn !== '' ? $customEn : $custom;
-        }
+        $pageId = (int) ($page['id'] ?? 0);
+
+        $custom = PageLocalization::value($pageId, PageTranslation::META_TITLE, $lang);
 
         if ($custom !== '') {
             return $custom;
         }
 
-        $title = self::titleValue($page)->in($lang);
+        $title = PageLocalization::title($pageId, $lang);
 
         if ($title === '' || $title === $siteName) {
             // A page whose title already IS the site name must not get the
@@ -387,23 +365,18 @@ class PageContent
     }
 
     /**
-     * The page's meta description for one language, or '' when it has none
-     * (in which case no <meta name="description"> tag is rendered at all —
-     * an empty description tag is worse than none).
+     * The page's meta description for one language — with the default
+     * language's as the fallback (App\Service\PageLocalization) — or '' when
+     * it has none (in which case no <meta name="description"> tag is rendered
+     * at all — an empty description tag is worse than none).
      */
-    public static function metaDescription(?array $page, string $lang = 'nl'): string
+    public static function metaDescription(?array $page, string $lang): string
     {
         if ($page === null) {
             return '';
         }
 
-        $value = trim((string) ($page['meta_description'] ?? ''));
-        if ($lang === 'en') {
-            $valueEn = trim((string) ($page['meta_description_en'] ?? ''));
-            $value = $valueEn !== '' ? $valueEn : $value;
-        }
-
-        return $value;
+        return PageLocalization::value((int) ($page['id'] ?? 0), PageTranslation::META_DESCRIPTION, $lang);
     }
 
     public static function isValidStatus(string $status): bool
@@ -419,5 +392,6 @@ class PageContent
     {
         self::$cache = [];
         self::$applicationCriticalPageIds = null;
+        PageLocalization::clearCache();
     }
 }

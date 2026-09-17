@@ -31,6 +31,12 @@ use Tests\Support\ScratchInstall;
  * not; a translation an editor already typed is never overwritten; and
  * `page_heroes` keeps every value it had, because dropping those columns is a
  * separate decision.
+ *
+ * Both databases stop at this migration. Multilingual 2.0 phase 2
+ * (20260917150000) moves `title_en` into page_translations and drops it, so a
+ * database that ran every later migration no longer has the column this test
+ * is about; Tests\Install\PageTranslationMigrationTest follows the value
+ * from there.
  */
 #[Group('migration-backfill')]
 final class PageEnglishTitleMigrationTest extends TestCase
@@ -52,7 +58,7 @@ final class PageEnglishTitleMigrationTest extends TestCase
             return;
         }
 
-        self::$fresh = ScratchInstall::fresh(self::FRESH);
+        self::$fresh = ScratchInstall::upTo(self::FRESH, self::TITLE_EN);
 
         self::$deployed = ScratchInstall::upTo(self::DEPLOYED, self::BEFORE);
         $pdo = self::$deployed->pdo();
@@ -79,7 +85,7 @@ final class PageEnglishTitleMigrationTest extends TestCase
         $pages->execute(['zz-title-en-empty', 'zz-title-en-empty', 'Diensten', 'published', 902]);
         $heroes->execute(['zz-title-en-empty', '', 'Diensten', 'Diensten', null]);
 
-        self::$deployed->catchUp();
+        self::$deployed->catchUp(self::TITLE_EN);
     }
 
     protected function setUp(): void
@@ -158,7 +164,7 @@ final class PageEnglishTitleMigrationTest extends TestCase
         $pdo->prepare('UPDATE pages SET title_en = ? WHERE content_key = ?')
             ->execute(['About our workshop', 'zz-title-en-translated']);
 
-        self::$deployed->replay(self::TITLE_EN);
+        self::$deployed->replay(self::TITLE_EN, self::TITLE_EN);
 
         $this->assertSame('About our workshop', $this->titleEn('zz-title-en-translated'));
         $this->assertNull($this->titleEn('zz-title-en-echo'));

@@ -4817,6 +4817,23 @@ body.admin-block-picker-open{ overflow: hidden; }
   background: var(--admin-accent);
 }
 
+/* The website's default language: a dot under its code, and "default
+   language" in the button's accessible name and tooltip (admin/_header.php).
+   The dot takes the button's own colour, so it reads on the filled button
+   too. */
+.admin-sidebar__contentlang-option.is-default{ position: relative; }
+.admin-sidebar__contentlang-option.is-default::after{
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: 2px;
+  width: 4px;
+  height: 4px;
+  margin-left: -2px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
 /* --- the passive indicator on an editor screen --------------------------
    Quiet, and deliberately not shaped like a control: nothing here is
    clickable, because the one place to change this is the switch above. */

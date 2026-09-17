@@ -1005,6 +1005,155 @@ final class MultilingualBoundaryTest extends TestCase
         );
     }
 
+    // ------------------------------------- Pages on per-language storage (phase 2)
+
+    public function testOnlyItsRepositoryQueriesPageTranslations(): void
+    {
+        // PageLocalization owns the fallback and the rule that a language
+        // must be registered; SQL anywhere else would walk past both.
+        $statement = '/\b(?:FROM|INTO|UPDATE|JOIN|TABLE)\s+`?page_translations\b/i';
+        $offenders = [];
+
+        foreach (self::applicationSources() as $relative => $file) {
+            if ($relative === 'src/Repository/PageTranslationRepository.php') {
+                continue;
+            }
+
+            if (preg_match($statement, (string) file_get_contents($file)) === 1) {
+                $offenders[] = $relative;
+            }
+        }
+
+        self::assertSame([], $offenders);
+    }
+
+    public function testOnlyThePageLocalizationApiUsesThatRepository(): void
+    {
+        $offenders = [];
+
+        foreach (self::applicationSources() as $relative => $file) {
+            if (in_array($relative, ['src/Repository/PageTranslationRepository.php', 'src/Service/PageLocalization.php'], true)) {
+                continue;
+            }
+
+            if (str_contains((string) file_get_contents($file), 'PageTranslationRepository')) {
+                $offenders[] = $relative;
+            }
+        }
+
+        self::assertSame([], $offenders, 'templates, endpoints and services reach page text through App\Service\PageLocalization');
+    }
+
+    public function testNothingReadsTheDroppedPageTextColumns(): void
+    {
+        // 20260917150000 dropped title, title_en, meta_title(_en) and
+        // meta_description(_en) from `pages`. SQL that still names one fails
+        // at runtime, and a row key that still reads one silently reads NULL.
+        $offenders = [];
+
+        foreach (self::applicationSources() as $relative => $file) {
+            $source = (string) file_get_contents($file);
+
+            // `p.title` only where `p` is `pages`: the blog aliases its own
+            // table as `p` too.
+            // A quoted `'pages.title'` is a catalogue key, not SQL.
+            $sql = preg_match('/\bpages\s+(?:AS\s+)?p\b/i', $source) === 1
+                ? '/(?<![\x27\w.])(?:p|pages)\.(?:title|meta_title|meta_description)\b/'
+                : '/(?<![\x27\w.])pages\.(?:title|meta_title|meta_description)\b/';
+
+            if (preg_match($sql, $source) === 1) {
+                $offenders[] = $relative . ' (SQL)';
+            }
+
+            if (preg_match('/\$(?:page|pageRow|pageLabelRow|targetPage|linkedPage)\[[\x27"](?:title|title_en|meta_title|meta_title_en|meta_description|meta_description_en)[\x27"]\]/', $source) === 1) {
+                $offenders[] = $relative . ' (row key)';
+            }
+        }
+
+        foreach (['src/Repository/PageRepository.php', 'src/Service/PageContent.php', 'src/Service/PageSeo.php'] as $file) {
+            $code = self::withoutComments(self::read($file));
+
+            foreach (['title_en', 'meta_title', 'meta_description'] as $column) {
+                if (str_contains($code, "'" . $column)) {
+                    $offenders[] = $file . ' (' . $column . ')';
+                }
+            }
+        }
+
+        self::assertSame([], $offenders);
+    }
+
+    public function testThePageFallbackIsDecidedInOnePlace(): void
+    {
+        // requested language -> default language -> '' lives in
+        // PageLocalization::value(). A breadcrumb, the SEO head, an editor or a
+        // template that asked for the default language itself would be a
+        // second fallback that can drift from the first.
+        foreach ([
+            'src/Service/Breadcrumbs/PageBreadcrumb.php',
+            'src/Service/Breadcrumbs/BreadcrumbTrail.php',
+            'src/Service/PageSeo.php',
+            'src/Service/PageContent.php',
+            'admin/page.php',
+            'partials/page-head.php',
+            'pagina.php',
+        ] as $file) {
+            $code = self::withoutComments(self::read($file));
+
+            // Asking for the default language is the first step of writing a
+            // fallback, so none of these may ask.
+            self::assertStringNotContainsString('SiteLanguages::defaultCode', $code, $file);
+            self::assertStringNotContainsString('ContentLanguages::primary', $code, $file);
+            self::assertStringNotContainsString('PageLocalization::defaultLanguage', $code, $file);
+            self::assertStringNotContainsString('LocalizedValue::of', $code, $file);
+        }
+    }
+
+    public function testTheLocalizedFieldsComponentKnowsNoLanguageByName(): void
+    {
+        // The Admin primitive of phase 2: the languages are rows of
+        // site_languages, so a code, a language name or a `_nl`/`_en` suffix in
+        // its code would make it a closed list again.
+        $code = self::withoutComments(self::read('admin/_localized_fields.php'));
+
+        preg_match_all(self::QUOTED_CODE, $code, $quoted);
+        self::assertSame([], $quoted[0], 'no quoted language code');
+        self::assertSame(0, preg_match(self::LANGUAGE_NAME, $code), 'no language name');
+        self::assertDoesNotMatchRegularExpression('/_(?:nl|en)\b/', $code, 'no fixed language suffix');
+        self::assertStringNotContainsString('LanguageRegistry::', $code, 'the V1 registry is not its list');
+        self::assertStringContainsString('SiteLanguages::active()', $code);
+        self::assertStringContainsString('ContentEditingLanguage::current()', $code, 'the shell switch is the one language control');
+        self::assertStringNotContainsString(' hidden', $code, 'nothing of another language is rendered hidden');
+    }
+
+    public function testThePageEndpointsWriteTextOnlyThroughTheLocalizationApi(): void
+    {
+        $update = self::read('api/admin/update-page.php');
+        $create = self::read('api/admin/create-page.php');
+
+        self::assertStringContainsString('PageLocalization::save($id, $languageCode,', $update);
+        self::assertStringContainsString('SiteLanguages::isActive($languageCode)', $update, 'the language is checked against the registry before anything is written');
+        self::assertMatchesRegularExpression('/\$title === \'\' && \$isDefaultLanguage/', $update, 'the title is required in the default language only');
+
+        self::assertStringContainsString('PageLocalization::defaultLanguage() => [', $create, 'a new page is written in the default language');
+
+        foreach ([$update, $create] as $source) {
+            self::assertStringNotContainsString('_en', self::withoutComments($source));
+        }
+    }
+
+    public function testTheShellSwitchListsTheWebsiteLanguagesFromTheRegistry(): void
+    {
+        $header = self::withoutComments(self::read('admin/_header.php'));
+        $service = self::withoutComments(self::read('src/Service/Language/ContentEditingLanguage.php'));
+
+        self::assertStringContainsString('ContentEditingLanguage::choices()', $header);
+        self::assertStringContainsString('isDefault', $header, 'the default language is marked');
+        self::assertStringNotContainsString('ContentLanguages::enabled()', $header);
+        self::assertStringContainsString('SiteLanguages::active()', $service);
+        self::assertStringNotContainsString('AdminLocale', $service);
+    }
+
     // ---------------------------------- the language switch renders text as text
 
     /**
