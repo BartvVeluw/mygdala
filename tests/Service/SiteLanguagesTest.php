@@ -169,6 +169,32 @@ final class SiteLanguagesTest extends TestCase
         self::assertFalse(SiteLanguages::exists('nl'));
     }
 
+    public function testLanguagesThatNoCodeNamesWorkLikeAnyOther(): void
+    {
+        // Nothing in src/ names these six. A new language is a row, so every
+        // question is answered for them exactly as it is for Dutch.
+        SiteLanguageFixture::useLanguages([
+            SiteLanguageFixture::language('pt', sortOrder: 1),
+            SiteLanguageFixture::language('es', isDefault: true, sortOrder: 0),
+            SiteLanguageFixture::language('pl', sortOrder: 2),
+            SiteLanguageFixture::language('sv', sortOrder: 3),
+            SiteLanguageFixture::language('da', isActive: false, sortOrder: 4),
+            SiteLanguageFixture::language('cs', sortOrder: 5),
+        ]);
+
+        self::assertSame('es', SiteLanguages::defaultCode());
+        self::assertSame(['es', 'pt', 'pl', 'sv', 'da', 'cs'], self::codes(SiteLanguages::all()));
+        self::assertSame(['es', 'pt', 'pl', 'sv', 'cs'], SiteLanguages::activeCodes());
+        self::assertSame('pl', SiteLanguages::find('PL')?->code);
+        self::assertTrue(SiteLanguages::exists('da'));
+        self::assertFalse(SiteLanguages::isActive('da'));
+        self::assertNull(SiteLanguages::find('pt-BR'), 'a region variant is outside V1, also for a registered language');
+
+        foreach (['es', 'pt', 'pl', 'sv', 'da', 'cs'] as $code) {
+            self::assertSame($code, SiteLanguage::fromRow(['code' => $code, 'is_active' => '1'])?->code, $code . ' as a stored row');
+        }
+    }
+
     public function testSetDefaultRefusesAnInvalidCodeBeforeReachingStorage(): void
     {
         $this->expectException(\InvalidArgumentException::class);

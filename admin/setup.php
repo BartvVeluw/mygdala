@@ -133,12 +133,14 @@ $siteName = SiteSettings::get('site_name');
  * otherwise the project default. Never a guess from the browser's
  * Accept-Language — a visitor's browser says nothing about which language the
  * owner intends to publish in.
+ *
+ * A website language, so a rejected submission is read back the way the save
+ * reads it (SetupWizard::websiteLanguage()), never through AdminLocale: that
+ * one is only the language this screen itself is shown in.
  */
-$setupPrimaryLanguage = \App\Service\Language\AdminLocale::normalise(
-    $previous('primary_content_language') !== ''
-        ? $previous('primary_content_language')
-        : \App\Service\Language\ContentLanguages::primary()
-);
+$setupPrimaryLanguage = $previous('primary_content_language') !== ''
+    ? SetupWizard::websiteLanguage($previous('primary_content_language'))
+    : \App\Service\Language\ContentLanguages::primary();
 ?>
 <!doctype html>
 <html lang="<?= htmlspecialchars(\App\Service\Language\AdminLocale::current(), ENT_QUOTES, 'UTF-8') ?>">

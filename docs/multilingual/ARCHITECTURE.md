@@ -52,10 +52,15 @@ Eén tabel, `site_languages`, gemaakt door migratie `20260917120000`.
 | `sort_order` | volgorde; bij gelijke waarde beslist `id` |
 
 **Codes.** `LanguageCode` beslist wat een code is: in V1 precies twee kleine
-letters (`nl`, `en`, `de`, `fr`, `it`). Hoofdletters en spaties eromheen worden
-vergeven, al het andere wordt geweigerd: `en-gb`, `pt_BR`, drie letters, paden
-en markup. De kolom is 12 tekens breed, dus regionale varianten later
-toestaan wijzigt die klasse en niet het schema.
+letters, het patroon `\A[a-z]{2}\z`. Dat is een vorm en geen lijst: `es`, `pt`,
+`pl`, `sv`, `da` en `cs` zijn net zo geldig als `nl`, zonder dat PHP ze ergens
+noemt. Een taal toevoegen is een rij, geen codewijziging. Hoofdletters en
+spaties eromheen worden vergeven, al het andere wordt geweigerd: `pt-BR`,
+`en_GB`, `zh-Hans`, drie letters, cijfers, paden en markup. Regionale codes,
+schrifttypen en RTL vallen bewust buiten V1. De kolom is 12 tekens breed, dus
+die later toestaan wijzigt die klasse en niet het schema.
+`MultilingualBoundaryTest` faalt zodra de kern een taalcode of taalnaam in
+code noemt.
 
 **De invarianten, en waar ze staan.** MySQL 5.7 kent geen partiële index en
 dwingt `CHECK` niet af, en een trigger vraagt rechten die gedeelde hosting
@@ -108,6 +113,12 @@ De standaardtaal is **`site_languages.is_default`**, en niets anders.
   is, ook als de eigenaar de standaard intussen verplaatst heeft.
 - **Schrijven** gaat via één methode, `ContentLanguages::savePrimary()`,
   voor het tabblad *Talen* en voor de wizard.
+- **De wizard leest de gekozen taal** via `SetupWizard::websiteLanguage()`:
+  de vorm via `LanguageCode`, wat V1 kan publiceren via de adapter. Het
+  scherm gebruikt dezelfde methode voor de beginwaarde van de keuzelijst.
+  Nooit via `AdminLocale`: die bepaalt alleen in welke taal het CMS zelf
+  getoond wordt. Alleen de schermen van de CMS-taal mogen een taal via
+  `AdminLocale` valideren, en `MultilingualBoundaryTest` bewaakt dat.
 
 ## De V1-adapter
 

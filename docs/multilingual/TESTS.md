@@ -67,5 +67,13 @@ schrijft, dat de publieke taalwissel niet achter een instelling zit, dat
 `::enabled()` geen opgeslagen waarde leest, dat er geen `_nl`/`_en`-kolom
 verdwijnt en dat er geen hreflang binnensluipt. Sinds Multilingual 2.0 fase 1
 ook: dat de taalkern en de CMS-taal elkaars opslag niet noemen, dat de
-taalkern geen taal bij naam kent, en dat alleen `SiteLanguageRepository` SQL
-op `site_languages` uitvoert.
+taalkern geen taalcode of taalnaam in code noemt (commentaar telt niet mee),
+dat geen websitetaal via `AdminLocale` gevalideerd wordt (ook niet in de
+installatiewizard), en dat alleen `SiteLanguageRepository` SQL op
+`site_languages` uitvoert.
+
+`LanguageCodeTest` bewijst dat de coderegel een vorm is en geen lijst: alle
+676 paren van twee kleine letters zijn geldig, ook talen die nergens in PHP
+staan. `SiteLanguagesTest` doet hetzelfde voor het register met `es`, `pt`,
+`pl`, `sv`, `da` en `cs`. `SetupWizardValidationTest` (`fast`) legt vast hoe
+de wizard de websitetaal leest.

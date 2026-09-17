@@ -9,7 +9,11 @@ die door elkaar halen is precies de fout die hier eerder is gemaakt:
 
 - Een lege vertaling betekent voor de bezoeker "gelijk aan de standaardtaal"
   en voor de redacteur een leeg veld. Nooit andersom.
-- Het talenregister is een gesloten lijst.
+- Het V1-talenregister (`LanguageRegistry`, NL/EN voor de `_nl`/`_en`-kolommen)
+  is een gesloten lijst. De websitetalen (`SiteLanguages`, `LanguageCode`) zijn
+  dat niet: daar staat geen enkele taal in code, een taal is een rij.
+- Een websitetaal valideer je nooit met `AdminLocale`, ook niet als de lijst
+  toevallig klopt.
 - De standaardtaal van de website staat in het register `site_languages`
   (`SiteLanguages`), niet in `site_settings`. `ContentLanguages` is de
   V1-adapter erop. Zie `docs/multilingual/ARCHITECTURE.md`.

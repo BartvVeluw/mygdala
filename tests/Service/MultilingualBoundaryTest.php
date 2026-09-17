@@ -240,17 +240,106 @@ final class MultilingualBoundaryTest extends TestCase
         }
     }
 
+    /** A quoted language code, with or without a region: 'nl', "de", 'pt-BR'. */
+    private const QUOTED_CODE = '/[\x27"]([a-z]{2}(?:[-_][a-z]{2})?)[\x27"]/i';
+
+    /** A language by its English, Dutch or own name. */
+    private const LANGUAGE_NAME = '/\b(?:Dutch|Nederlands|English|Engels|German|Deutsch|Duits|French|Français|Frans|Italian|Italiano|Spanish|Español|Portuguese|Polish|Swedish|Danish|Czech)\b/iu';
+
     public function testTheLanguageCoreKnowsNoLanguageByName(): void
     {
-        // Dynamic languages are rows. A literal code, or a reach back into
-        // the closed V1 registry, would make the core bilingual again.
+        // Dynamic languages are rows. A code or a language name in the code,
+        // be it a whitelist, a match arm or a default, or a reach back into
+        // the closed V1 registry, would make the core a closed list again.
+        // Comments are left out, so a docblock may still give an example.
         foreach (self::LANGUAGE_CORE as $file) {
             $source = self::read($file);
+            $code = self::withoutComments($source);
 
-            self::assertDoesNotMatchRegularExpression('/[\x27"](nl|en)[\x27"]/', $source, $file . ' names a language');
+            preg_match_all(self::QUOTED_CODE, $code, $quoted);
+            // `id` is the row id column of site_languages, not a language.
+            $codes = array_values(array_diff($quoted[1], ['id']));
+
+            self::assertSame([], $codes, $file . ' names a language code');
+            self::assertDoesNotMatchRegularExpression(self::LANGUAGE_NAME, $code, $file . ' names a language');
             self::assertStringNotContainsString('LanguageRegistry', $source, $file);
+            self::assertStringNotContainsString('LanguageDefinition', $code, $file);
             self::assertStringNotContainsString('ModuleRegistry', $source, $file . ' must not check a module');
         }
+    }
+
+    public function testTheCoreNameCheckWouldNoticeAWhitelist(): void
+    {
+        // The check above only proves something if it fails on the thing it
+        // guards against.
+        $whitelist = "<?php\n/** Supported: nl, en. */\nconst CODES = ['nl', \"de\", 'pt-BR'];\n\$label = 'Deutsch';\n\$row['id'];\n";
+        $code = self::withoutComments($whitelist);
+
+        preg_match_all(self::QUOTED_CODE, $code, $quoted);
+
+        self::assertSame(['nl', 'de', 'pt-BR'], array_values(array_diff($quoted[1], ['id'])));
+        self::assertMatchesRegularExpression(self::LANGUAGE_NAME, $code);
+        self::assertStringNotContainsString('Supported', $code, 'a comment is not code');
+    }
+
+    /** The files that decide a WEBSITE language, next to the Core itself. */
+    private const WEBSITE_LANGUAGE_CALLERS = [
+        'src/Service/Language/ContentLanguages.php',
+        'src/Install/SetupWizard.php',
+        'api/admin/update-language-settings.php',
+        'admin/setup.php',
+    ];
+
+    /** The files that own the CMS interface language (docs/multilingual/CMS-LANGUAGE.md). */
+    private const CMS_LANGUAGE_OWNERS = [
+        'src/Service/Language/AdminLocale.php',
+        'src/Service/Language/AdminTranslator.php',
+        'api/admin/update-account-preferences.php',
+        'admin/account.php',
+    ];
+
+    public function testNoWebsiteLanguageIsValidatedThroughTheCmsLanguage(): void
+    {
+        // AdminLocale is the CMS interface language, and nothing else. Its
+        // list holds Dutch and English as well, so borrowing its normalise()
+        // for a website language works today and quietly breaks the day a
+        // site gets a language the CMS is not translated into. admin/setup.php
+        // did exactly that until Multilingual 2.0 phase 1.
+        $validating = '/\bAdminLocale::(?:normalise|choices|is|persist)\s*\(/';
+
+        foreach (array_merge(self::LANGUAGE_CORE, self::WEBSITE_LANGUAGE_CALLERS) as $file) {
+            self::assertDoesNotMatchRegularExpression($validating, self::read($file), $file . ' is about the website language');
+        }
+
+        $offenders = [];
+        foreach (self::applicationSources() as $relative => $file) {
+            if (!in_array($relative, self::CMS_LANGUAGE_OWNERS, true)
+                && preg_match($validating, (string) file_get_contents($file)) === 1) {
+                $offenders[] = $relative;
+            }
+        }
+
+        self::assertSame([], $offenders, 'only the CMS language screens may validate through AdminLocale; a website language goes through LanguageCode and SiteLanguages');
+    }
+
+    public function testTheSetupWizardTakesItsWebsiteLanguageFromTheWebsiteLanguageLayer(): void
+    {
+        $screen = self::read('admin/setup.php');
+
+        // The one AdminLocale call left is the language the screen itself is
+        // shown in, for <html lang>.
+        preg_match_all('/\bAdminLocale::(\w+)/', $screen, $calls);
+        self::assertSame(['current'], array_values(array_unique($calls[1])));
+        self::assertStringContainsString('SetupWizard::websiteLanguage(', $screen, 'the dropdown reads a rejected submission back the way the save reads it');
+
+        $wizard = self::read('src/Install/SetupWizard.php');
+        $method = substr($wizard, (int) strpos($wizard, 'public static function websiteLanguage('));
+        $method = substr($method, 0, (int) strpos($method, "\n    }"));
+
+        self::assertStringContainsString('LanguageCode::normalise(', $method);
+        self::assertStringContainsString('ContentLanguages::normalisePrimary(', $method);
+        self::assertStringContainsString("self::websiteLanguage(\$input['primary_content_language']", $wizard, 'the save goes through the same method');
+        self::assertStringNotContainsString('AdminLocale::', $wizard);
     }
 
     public function testOnlyItsRepositoryWritesTheRegistryTable(): void
@@ -259,21 +348,10 @@ final class MultilingualBoundaryTest extends TestCase
         // deleted) are in that repository's SQL. A statement anywhere else
         // would walk past them.
         $statement = '/\b(?:FROM|INTO|UPDATE|JOIN|TABLE)\s+`?site_languages\b/i';
-        $files = array_merge(
-            self::glob('src/*.php'),
-            self::glob('src/*/*.php'),
-            self::glob('src/*/*/*.php'),
-            self::glob('src/*/*/*/*.php'),
-            self::glob('api/*.php'),
-            self::glob('api/*/*.php'),
-            self::glob('admin/*.php'),
-            self::glob('partials/*.php'),
-            self::glob('*.php'),
-        );
+        $files = self::applicationSources();
 
         $offenders = [];
-        foreach ($files as $file) {
-            $relative = ltrim(substr(str_replace(DIRECTORY_SEPARATOR, '/', $file), strlen(self::root())), '/');
+        foreach ($files as $relative => $file) {
             if ($relative === 'src/Repository/SiteLanguageRepository.php') {
                 continue;
             }
@@ -285,6 +363,45 @@ final class MultilingualBoundaryTest extends TestCase
 
         self::assertNotSame([], $files);
         self::assertSame([], $offenders);
+    }
+
+    /** @return array<string, string> every application PHP file, relative path => absolute path */
+    private static function applicationSources(): array
+    {
+        $files = array_merge(
+            self::glob('src/*.php'),
+            self::glob('src/*/*.php'),
+            self::glob('src/*/*/*.php'),
+            self::glob('src/*/*/*/*.php'),
+            self::glob('api/*.php'),
+            self::glob('api/*/*.php'),
+            self::glob('admin/*.php'),
+            self::glob('partials/*.php'),
+            self::glob('scripts/*.php'),
+            self::glob('*.php'),
+        );
+
+        $sources = [];
+        foreach ($files as $file) {
+            $sources[ltrim(substr(str_replace(DIRECTORY_SEPARATOR, '/', $file), strlen(str_replace(DIRECTORY_SEPARATOR, '/', self::root()))), '/')] = $file;
+        }
+
+        return $sources;
+    }
+
+    /** PHP source with its comments and docblocks left out. */
+    private static function withoutComments(string $source): string
+    {
+        $code = '';
+        foreach (token_get_all($source) as $token) {
+            if (is_array($token) && in_array($token[0], [T_COMMENT, T_DOC_COMMENT], true)) {
+                continue;
+            }
+
+            $code .= is_array($token) ? $token[1] : $token;
+        }
+
+        return $code;
     }
 
     // ---------------------------------------------- the CMS interface is curated

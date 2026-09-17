@@ -9,6 +9,7 @@ use App\Module\ModuleConfig;
 use App\Module\ModuleRegistry;
 use App\Module\ModuleSettings;
 use App\Service\AppUrl;
+use App\Service\Language\AdminLocale;
 use App\Service\Media\MediaService;
 use App\Service\PageTemplates\PageTemplates;
 use App\Service\SiteSettings;
@@ -61,6 +62,7 @@ final class SetupWizardValidationTest extends TestCase
         ModuleSettings::overrideForTests(null);
         SiteSettings::overrideForTests(null);
         ModuleRegistry::overrideForTests(null);
+        AdminLocale::overrideForTests(null);
     }
 
     /**
@@ -162,6 +164,55 @@ final class SetupWizardValidationTest extends TestCase
 
         $this->assertSame([], $result['errors']);
         $this->assertArrayNotHasKey(AppUrl::SETTING_KEY, $result['values']['identity']);
+    }
+
+    /* ------------------------------------------------------------------ */
+    /* Step 1: the website language                                        */
+    /* ------------------------------------------------------------------ */
+
+    private function websiteLanguage(mixed $submitted): string
+    {
+        $result = $this->validate(['primary_content_language' => $submitted]);
+
+        $this->assertSame([], $result['errors'], 'the website language has no error case');
+
+        return $result['values']['languages']['primary'];
+    }
+
+    public function testBothLanguagesOfTheDropdownAreKept(): void
+    {
+        $this->assertSame('nl', $this->websiteLanguage('nl'));
+        $this->assertSame('en', $this->websiteLanguage('en'));
+    }
+
+    public function testTheWebsiteLanguageIsNormalisedAsAWebsiteLanguageCode(): void
+    {
+        // LanguageCode's rule, not AdminLocale's: that one does not forgive
+        // case, so it would have turned `EN` into Dutch.
+        $this->assertSame('en', $this->websiteLanguage('EN'));
+        $this->assertSame('en', $this->websiteLanguage(' en '));
+        $this->assertSame('nl', AdminLocale::normalise('EN'), 'if this changes, the line above no longer proves anything');
+    }
+
+    public function testAnythingV1CannotPublishBecomesTheProjectDefault(): void
+    {
+        // A well-formed code of a language the `_nl`/`_en` columns cannot
+        // store, a region variant, and plain rubbish all end as Dutch, which
+        // is what the wizard did before.
+        foreach (['de', 'es', 'en-GB', 'xx1', '', '<b>'] as $submitted) {
+            $this->assertSame('nl', $this->websiteLanguage($submitted), var_export($submitted, true));
+        }
+
+        $this->assertSame('nl', $this->websiteLanguage(['en']), 'an array is not a code');
+        $this->assertSame('nl', SetupWizard::validate(['site_name' => 'Testbedrijf'])['values']['languages']['primary']);
+    }
+
+    public function testTheCmsLanguageHasNoSayInTheWebsiteLanguage(): void
+    {
+        AdminLocale::overrideForTests('en');
+
+        $this->assertSame('nl', $this->websiteLanguage('nl'));
+        $this->assertSame('nl', SetupWizard::validate(['site_name' => 'Testbedrijf'])['values']['languages']['primary']);
     }
 
     /* ------------------------------------------------------------------ */

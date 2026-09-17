@@ -19,6 +19,7 @@ use App\Service\PageService;
 use App\Service\PageTemplates\PageTemplateInstaller;
 use App\Service\PageTemplates\PageTemplates;
 use App\Service\Language\ContentLanguages;
+use App\Service\Language\LanguageCode;
 use App\Service\SiteSettings;
 use App\Service\Theme\ThemeSettings;
 
@@ -223,10 +224,10 @@ final class SetupWizard
      * confusion this feature exists to end, so the wizard labels this one
      * "Taal van de website".
      *
-     * There is no error case: App\Service\Language\ContentLanguages::
-     * normalisePrimary() turns anything unusable into the project default,
-     * and ContentLanguages::savePrimary() is the same writer the settings
-     * endpoint uses, so a valid choice means the same thing in both places.
+     * There is no error case: {@see websiteLanguage()} turns anything
+     * unusable into the project default, and ContentLanguages::savePrimary()
+     * is the same writer the settings endpoint uses, so a valid choice means
+     * the same thing in both places.
      *
      * @param array<string, mixed> $input
      *
@@ -235,10 +236,31 @@ final class SetupWizard
     private static function validateLanguages(array $input): array
     {
         return [
-            'primary' => ContentLanguages::normalisePrimary(
-                trim((string) ($input['primary_content_language'] ?? '')),
-            ),
+            'primary' => self::websiteLanguage($input['primary_content_language'] ?? null),
         ];
+    }
+
+    /**
+     * The website language a submitted wizard value stands for.
+     *
+     * A WEBSITE language, so it goes through the website language layer only:
+     * the shape through App\Service\Language\LanguageCode, and what V1 can
+     * publish through the ContentLanguages adapter, whose savePrimary() then
+     * stores it in App\Service\Language\SiteLanguages. Never through
+     * AdminLocale: that is the CMS interface language of one person, and that
+     * its list holds Dutch and English as well is a coincidence of V1, not a
+     * rule (Tests\Service\MultilingualBoundaryTest).
+     *
+     * Anything unusable becomes the project default, as it did before: a
+     * tampered dropdown must not lock an owner out of their own site.
+     * admin/setup.php takes the dropdown's starting value from here too, so
+     * the screen and the save cannot disagree.
+     */
+    public static function websiteLanguage(mixed $submitted): string
+    {
+        $code = LanguageCode::normalise(is_string($submitted) ? $submitted : null);
+
+        return ContentLanguages::normalisePrimary($code ?? '');
     }
 
     /**
