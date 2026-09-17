@@ -336,7 +336,7 @@ final class AdminEditorNavigationTest extends TestCase
             'the page settings must post once, from one form'
         );
 
-        $formOpen = strpos($source, '<form method="post" action="/api/admin/update-page.php">');
+        $formOpen = strpos($source, '<form method="post" action="/api/admin/update-page.php"');
         $paginaPanel = strpos($source, "admin_tab_panel('pagina')");
         $seoEnd = strpos($source, "admin_tab_panel('seo')");
         $formClose = strpos($source, '</form>', (int) $seoEnd);

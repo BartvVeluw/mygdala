@@ -13,6 +13,7 @@ use App\Service\AdminPermissions;
 use App\Service\Language\SiteLanguages;
 use App\Service\PageContent;
 use App\Service\PageLocalization;
+use App\Service\PageService;
 use App\Service\PageTranslation;
 use PHPUnit\Framework\TestCase;
 use Tests\Support\AdminTestSession;
@@ -25,8 +26,10 @@ use Tests\Support\PageFixture;
  * screen shows the fields of one website language — the one chosen in the
  * CMS shell — the save writes that language and no other, the default
  * language is the only one whose title is required, a language the website
- * does not have is refused, and a third language needs a row in
- * site_languages and nothing else.
+ * does not have is refused, a third language needs a row in
+ * site_languages and nothing else, and input the server hands back unwritten
+ * starts out unsaved in the save bar (admin/_save_bar.php), whatever the
+ * language.
  *
  * Over real HTTP against PHP's built-in server, like
  * Tests\Service\PageHeroEditorHttpTest: an endpoint's answer is its redirect
@@ -239,6 +242,138 @@ final class PageLocalizationEditorHttpTest extends TestCase
         self::assertSame('Omschrijving bij aanmaken', $rows['nl']['meta_description']);
     }
 
+    // ------------------------------------------------------------ unsaved input
+
+    public function testAFreshEditorAndASuccessfulSaveStartOutSaved(): void
+    {
+        $session = $this->signIn(null);
+
+        $fresh = $this->xpath($this->editor($session));
+        self::assertFalse($this->settingsForm($fresh)->hasAttribute('data-save-bar-unsaved'), 'a plain visit starts saved');
+        self::assertSame(0, $fresh->query('//*[@data-save-bar-discard]')->length, 'and has no input to throw away');
+
+        $response = $this->save($session, 'nl', 'Vertaaltest pagina', 'Vertaaltest SEO', 'Nieuwe omschrijving');
+        self::assertStringContainsString('updated=1', $response['location']);
+
+        $saved = $this->xpath(self::$server->request('GET', $response['location'], $session)['body']);
+        self::assertFalse($this->settingsForm($saved)->hasAttribute('data-save-bar-unsaved'), 'what was written is saved');
+    }
+
+    /**
+     * A save the server refuses comes back with what was typed still in the
+     * fields, and the settings form then starts out unsaved, so leaving asks
+     * first instead of dropping that input silently. The same in the default
+     * language, a translation and a language that is only a registry row. The
+     * next plain visit shows the stored page again, saved.
+     */
+    public function testARefusedSaveKeepsTheInputOnScreenAndStartsOutUnsavedInEveryLanguage(): void
+    {
+        (new SiteLanguageRepository())->create('de', 'German', 'Deutsch');
+        $this->addedGerman = true;
+        SiteLanguages::clearCache();
+
+        $tooLong = str_repeat('x', PageService::MAX_TITLE_LENGTH + 1);
+        $refusals = [
+            'nl without its required title' => ['nl', ''],
+            'nl with a title too long' => ['nl', $tooLong],
+            'en with a title too long' => ['en', $tooLong],
+            'de with a title too long' => ['de', $tooLong],
+        ];
+
+        foreach ($refusals as $what => [$language, $title]) {
+            $session = $this->signIn($language);
+
+            $response = $this->save($session, $language, $title, 'SEO ' . $language, 'Omschrijving ' . $language);
+            self::assertSame('/admin/page.php?id=' . $this->pageId, $response['location'], $what . ': refused, without the success marker');
+
+            $xpath = $this->xpath($this->editor($session));
+            $form = $this->settingsForm($xpath);
+            self::assertTrue($form->hasAttribute('data-save-bar-unsaved'), $what . ': what came back unwritten is unsaved');
+            $this->assertTheSaveBarWatches($xpath, $form, $what);
+            self::assertSame(1, $xpath->query('//*[contains(@class, "admin-alert--error")]')->length, $what . ': with the reason');
+
+            self::assertSame($language, $this->control($xpath, $form, 'input[@name="language_code"]')->getAttribute('value'), $what);
+            self::assertSame($title, $this->control($xpath, $form, 'input[@name="title"]')->getAttribute('value'), $what . ': the typed title is still there');
+            self::assertSame('SEO ' . $language, $this->control($xpath, $form, 'input[@name="meta_title"]')->getAttribute('value'), $what);
+            self::assertSame('Omschrijving ' . $language, $this->control($xpath, $form, 'textarea[@name="meta_description"]')->textContent, $what);
+
+            $again = $this->xpath($this->editor($session));
+            self::assertFalse($this->settingsForm($again)->hasAttribute('data-save-bar-unsaved'), $what . ': the next visit shows the stored page, saved');
+        }
+
+        self::assertSame(['Vertaaltest pagina', 'Vertaaltest SEO', 'Nederlandse omschrijving'], $this->row('nl'), 'nothing was written');
+        self::assertNull($this->row('en'));
+        self::assertNull($this->row('de'));
+    }
+
+    /**
+     * A new web address waits for confirmation with nothing written: the
+     * input is on screen and unsaved, and the confirmation's "Annuleren" is
+     * the one link that throws it away without the browser asking again.
+     */
+    public function testANewAddressWaitingForConfirmationStartsOutUnsavedAndCancelDiscardsIt(): void
+    {
+        $session = $this->signIn('en');
+        $moved = self::KEY . '-moved';
+
+        $response = $this->save($session, 'en', 'Moved translation test', null, null, ['slug' => $moved]);
+        self::assertSame('/admin/page.php?id=' . $this->pageId, $response['location'], 'nothing is written before the move is confirmed');
+
+        $xpath = $this->xpath($this->editor($session));
+        $form = $this->settingsForm($xpath);
+        self::assertTrue($form->hasAttribute('data-save-bar-unsaved'), 'input waiting for confirmation is unsaved');
+        self::assertSame($moved, $this->control($xpath, $form, 'input[@name="confirmed_slug"]')->getAttribute('value'));
+        self::assertSame('Moved translation test', $this->control($xpath, $form, 'input[@name="title"]')->getAttribute('value'));
+
+        $discard = $xpath->query('//*[@data-save-bar-discard]');
+        self::assertSame(1, $discard->length, 'one link throws the input away');
+        self::assertSame('/admin/page.php?id=' . $this->pageId, $discard->item(0)->getAttribute('href'));
+        self::assertSame(1, $xpath->query('ancestor::section[contains(@class, "admin-url-confirm")]', $discard->item(0))->length, 'and it is the confirmation\'s Annuleren');
+
+        self::assertSame(self::KEY, (new PageRepository())->findById($this->pageId)['slug']);
+        self::assertNull($this->row('en'));
+    }
+
+    /**
+     * The unsaved mark belongs to the settings form alone. The draft preview
+     * carries none of it and does not use the refused input up; the CMS
+     * shell's language switch sits outside what the bar watches, and the
+     * language it opens shows its stored text, saved.
+     */
+    public function testTheUnsavedMarkLeavesTheDraftPreviewAndTheLanguageSwitchAlone(): void
+    {
+        Database::connection()->prepare("UPDATE pages SET status = 'draft' WHERE id = ?")->execute([$this->pageId]);
+        $session = $this->signIn(null);
+
+        $refused = $this->save($session, 'nl', '', 'Geweigerd', null, ['status' => PageContent::STATUS_DRAFT]);
+        self::assertStringNotContainsString('updated=1', $refused['location']);
+
+        $preview = self::$server->request('GET', '/admin/page-preview.php?id=' . $this->pageId, $session);
+        self::assertSame(200, $preview['status']);
+        self::assertStringNotContainsString('data-save-bar-unsaved', $preview['body']);
+        self::assertStringNotContainsString('data-save-bar-discard', $preview['body']);
+
+        $xpath = $this->xpath($this->editor($session));
+        self::assertTrue($this->settingsForm($xpath)->hasAttribute('data-save-bar-unsaved'), 'the preview did not use up the refused input');
+
+        $switch = $xpath->query('//form[@action="/api/admin/update-content-language.php"]');
+        self::assertSame(1, $switch->length);
+        self::assertFalse($switch->item(0)->hasAttribute('data-save-bar-unsaved'));
+        self::assertSame(0, $xpath->query('ancestor::main', $switch->item(0))->length, 'the save bar never watches the language switch');
+
+        $switched = self::$server->request('POST', '/api/admin/update-content-language.php', $session, [
+            'csrf_token' => $this->csrf($session),
+            'content_editing_language' => 'en',
+            'return_to' => '/admin/page.php?id=' . $this->pageId,
+        ]);
+        self::assertSame('/admin/page.php?id=' . $this->pageId, $switched['location']);
+
+        $english = $this->xpath($this->editor($session));
+        $form = $this->settingsForm($english);
+        self::assertSame('en', $this->control($english, $form, 'input[@name="language_code"]')->getAttribute('value'));
+        self::assertFalse($form->hasAttribute('data-save-bar-unsaved'), 'the other language opens saved');
+    }
+
     // ------------------------------------------------------------ the V1 output
 
     public function testThePublicPageAndTheDraftPreviewPrintBothSwitchLanguagesFromTheNewStorage(): void
@@ -288,10 +423,13 @@ final class PageLocalizationEditorHttpTest extends TestCase
         return $response['body'];
     }
 
-    /** @return array{status: int, location: string, body: string, headers: string} */
-    private function save(string $session, string $language, string $title, ?string $metaTitle, ?string $metaDescription): array
+    /**
+     * @param array<string, string> $overrides other settings fields, as the form would send them
+     * @return array{status: int, location: string, body: string, headers: string}
+     */
+    private function save(string $session, string $language, string $title, ?string $metaTitle, ?string $metaDescription, array $overrides = []): array
     {
-        return self::$server->request('POST', '/api/admin/update-page.php', $session, [
+        return self::$server->request('POST', '/api/admin/update-page.php', $session, array_merge([
             'csrf_token' => $this->csrf($session),
             'id' => (string) $this->pageId,
             'language_code' => $language,
@@ -302,7 +440,53 @@ final class PageLocalizationEditorHttpTest extends TestCase
             'meta_description' => (string) $metaDescription,
             'noindex' => '0',
             'show_breadcrumb' => '1',
-        ]);
+        ], $overrides));
+    }
+
+    private function xpath(string $html): \DOMXPath
+    {
+        $document = new \DOMDocument();
+        $previous = libxml_use_internal_errors(true);
+        $document->loadHTML('<?xml encoding="UTF-8">' . $html);
+        libxml_clear_errors();
+        libxml_use_internal_errors($previous);
+
+        return new \DOMXPath($document);
+    }
+
+    /** The one form that saves the page's settings and its text. */
+    private function settingsForm(\DOMXPath $xpath): \DOMElement
+    {
+        $forms = $xpath->query('//form[@action="/api/admin/update-page.php"]');
+        self::assertSame(1, $forms->length, 'the page settings post from one form');
+
+        return $forms->item(0);
+    }
+
+    private function control(\DOMXPath $xpath, \DOMElement $form, string $path): \DOMElement
+    {
+        $controls = $xpath->query('.//' . $path, $form);
+        self::assertSame(1, $controls->length, $path);
+
+        return $controls->item(0);
+    }
+
+    /**
+     * The bar only protects a form it watches (admin/assets/save-bar.js): a
+     * POST form inside the page's own <main>, not a one-button form, not opted
+     * out, with something to type and something that sends it — and the bar
+     * and its script on the screen.
+     */
+    private function assertTheSaveBarWatches(\DOMXPath $xpath, \DOMElement $form, string $what): void
+    {
+        self::assertSame('post', strtolower($form->getAttribute('method')), $what);
+        self::assertSame(1, $xpath->query('ancestor::main[contains(concat(" ", @class, " "), " admin-main ")]', $form)->length, $what . ': inside the page\'s own <main>');
+        self::assertStringNotContainsString('admin-inline-form', $form->getAttribute('class'), $what);
+        self::assertFalse($form->hasAttribute('data-no-dirty-track'), $what);
+        self::assertGreaterThan(0, $xpath->query('.//input[@type="text"]', $form)->length, $what);
+        self::assertGreaterThan(0, $xpath->query('.//*[@type="submit"] | .//button[not(@type)]', $form)->length, $what);
+        self::assertSame(1, $xpath->query('//*[@data-save-bar]')->length, $what . ': the bar is on the screen');
+        self::assertSame(1, $xpath->query('//script[contains(@src, "/admin/assets/save-bar.js")]')->length, $what . ': with its script');
     }
 
     /** @return array{0: ?string, 1: ?string, 2: ?string}|null the stored title, SEO title and description */

@@ -529,7 +529,11 @@ Een scherm zegt ze in de markup:
 
 Zonder die attributen verandert er niets. De eerste gebruiker is de veldeditor
 van Formulieren, waar een typewissel eerst terugkomt met wat hij kost
-([`FORMS.md`](FORMS.md), "Niet-opgeslagen wijzigingen").
+([`FORMS.md`](FORMS.md), "Niet-opgeslagen wijzigingen"). De pagina-editor
+gebruikt ze allebei: het instellingenformulier van `admin/page.php` begint als
+gewijzigd na een geweigerde opslag en na een nieuw webadres dat op bevestiging
+wacht, in welke websitetaal er ook getypt was, en *Annuleren* van die
+bevestiging draagt `data-save-bar-discard`.
 
 ## Dezelfde tabbladen op een ander scherm
 

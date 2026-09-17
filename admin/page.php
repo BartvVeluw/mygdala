@@ -88,6 +88,13 @@ use App\Repository\RedirectRepository;
  * (api/admin/update-page.php). That card is part of the settings form rather
  * than a form of its own: the fields already hold what the editor typed, so
  * confirming is sending them again with the address they agreed to.
+ *
+ * UNSAVED CHANGES are the save bar's (admin/_save_bar.php), which watches the
+ * settings form like any other. Input that came back unwritten — a refused
+ * save, or a new address waiting for confirmation — starts out unsaved
+ * (`data-save-bar-unsaved`), in whichever website language it was typed, so
+ * leaving still asks; the confirmation's "Annuleren" throws it away without a
+ * second question (`data-save-bar-discard`).
  */
 
 AdminAuth::requireLogin();
@@ -346,7 +353,7 @@ $urlFieldOpen = !$hasFixedUrl
            meta fields from one request, so two forms would each blank what
            the other carries. Both panels therefore end in the same
            "Instellingen opslaan", and either one saves both. */ ?>
-  <form method="post" action="/api/admin/update-page.php">
+  <form method="post" action="/api/admin/update-page.php"<?= is_array($old) ? ' data-save-bar-unsaved' : '' ?>>
     <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
     <input type="hidden" name="id" value="<?= $pageId ?>">
     <?= admin_localized_input($editLanguage) ?>
@@ -386,7 +393,7 @@ $urlFieldOpen = !$hasFixedUrl
       <input type="hidden" name="confirmed_slug" value="<?= $h((string) $urlChange['new_slug']) ?>">
       <div class="admin-url-confirm__actions">
         <button type="submit"><?= admin_te('page.url_confirm_submit') ?></button>
-        <a href="/admin/page.php?id=<?= $pageId ?>" class="admin-btn-secondary"><?= admin_te('page.url_confirm_cancel') ?></a>
+        <a href="/admin/page.php?id=<?= $pageId ?>" class="admin-btn-secondary" data-save-bar-discard><?= admin_te('page.url_confirm_cancel') ?></a>
       </div>
     </section>
     <?php endif; ?>
