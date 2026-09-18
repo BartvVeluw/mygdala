@@ -20,10 +20,12 @@ declare(strict_types=1);
 require_once __DIR__ . '/../../vendor/autoload.php';
 require_once __DIR__ . '/_personalization_validation.php';
 
+use App\Database;
 use App\Service\Language\AdminTranslator;
 use App\Repository\ProductPersonalizationRepository;
 use App\Service\AdminAuth;
 use App\Service\Csrf;
+use App\Service\Personalization\PersonalizationLocalization;
 use App\Service\Personalization\PersonalizationRules;
 use App\Service\Personalization\ProductPersonalizationContent;
 
@@ -48,7 +50,8 @@ if ($viewId === false || $viewId === null || $viewId < 1) {
     exit('Invalid view id.');
 }
 
-$repository = new ProductPersonalizationRepository();
+$db = Database::connection();
+$repository = new ProductPersonalizationRepository($db);
 $view = $repository->findViewById($viewId);
 
 if ($view === null) {
@@ -62,6 +65,9 @@ $settingsId = (int) $view['settings_id'];
 $errors = [];
 $fields = normalizePersonalizationZoneInput($_POST, $errors);
 $zoneKey = normalizePersonalizationKey($_POST['zone_key'] ?? null, 'de zone', $errors);
+// `true`: a new zone is named in the DEFAULT language, whatever language the
+// screen showed (Multilingual 2.0 phase 5 wave D).
+$language = personalizationLanguage($_POST, true, $errors);
 
 if ($zoneKey !== '' && $repository->zoneKeyExists($settingsId, $zoneKey)) {
     $errors[] = AdminTranslator::trans('validation.zone_key_exists', ['v1' => $zoneKey]);
@@ -79,9 +85,24 @@ if ($errors !== []) {
 }
 
 try {
-    $repository->createZone($settingsId, $viewId, $fields + ['zone_key' => $zoneKey]);
+    // Row and words are ONE transaction: a zone is never in the editor
+    // without the name that identifies it there.
+    $db->beginTransaction();
+    $zoneId = $repository->createZone($settingsId, $viewId, $fields + ['zone_key' => $zoneKey]);
+    PersonalizationLocalization::saveZone($zoneId, $language, [
+        PersonalizationLocalization::LABEL => $fields[PersonalizationLocalization::LABEL],
+        PersonalizationLocalization::INSTRUCTIONS => $fields[PersonalizationLocalization::INSTRUCTIONS],
+        PersonalizationLocalization::PLACEHOLDER => $fields[PersonalizationLocalization::PLACEHOLDER],
+    ]);
+    $db->commit();
+
     ProductPersonalizationContent::clearCache();
+    PersonalizationLocalization::clearCache();
 } catch (\Throwable $e) {
+    if ($db->inTransaction()) {
+        $db->rollBack();
+    }
+
     error_log('[api/admin/create-personalization-zone.php] ' . $e->getMessage());
     personalizationFail($productId, ['De zone kon niet worden aangemaakt. Probeer het opnieuw.']);
 }

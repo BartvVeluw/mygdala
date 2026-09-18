@@ -4,11 +4,12 @@ declare(strict_types=1);
 
 
 require_once __DIR__ . '/_translate.php';
-// The language panes below come from this component; required here as well
-// as by the screen that includes this file, so neither can forget.
-require_once __DIR__ . '/_language_fields.php';
+// The localized-fields component below; required here as well as by the
+// screen that includes this file, so neither can forget.
+require_once __DIR__ . '/_localized_fields.php';
 
 use App\Service\Personalization\Money;
+use App\Service\Personalization\PersonalizationLocalization;
 use App\Service\Personalization\PersonalizationPreviewImageUploader;
 use App\Service\Personalization\PersonalizationRules;
 
@@ -97,6 +98,18 @@ function renderPersonalizationBuilder(array $product, array $personalization, st
         return $old['fields'] ?? null;
     };
 
+    // The website language this screen's words are in. ONE language on the
+    // screen and in every request it sends; the CMS shell's switch is the only
+    // control (admin/_localized_fields.php).
+    $editingLanguage = admin_localized_language();
+
+    /** What the CMS calls a zone: its default language's label, else its key. */
+    $zoneName = static function (array $zone): string {
+        $name = PersonalizationLocalization::zoneName((int) $zone['id']);
+
+        return $name !== '' ? $name : (string) $zone['zone_key'];
+    };
+
     $settingsOld = $oldFor('settings');
     $isEnabled = $settingsOld !== null
         ? !empty($settingsOld['personalization_enabled'])
@@ -106,12 +119,12 @@ function renderPersonalizationBuilder(array $product, array $personalization, st
             ? ($settingsOld['personalization_mode'] ?? null)
             : ($settings['personalization_mode'] ?? null)
     );
+    // The words of ONE language, the one the CMS shell points at
+    // (Multilingual 2.0 phase 5 wave D). A refused save comes back with what
+    // was typed, in the language it was typed in.
     $instructions = $settingsOld !== null
         ? (string) ($settingsOld['instructions'] ?? '')
-        : (string) ($settings['instructions'] ?? '');
-    $instructionsEn = $settingsOld !== null
-        ? (string) ($settingsOld['instructions_en'] ?? '')
-        : (string) ($settings['instructions_en'] ?? '');
+        : PersonalizationLocalization::rawInstructions((int) ($settings['id'] ?? 0), $editingLanguage);
 
     // A product that is not in the shop has no ordinary purchase path, so
     // personalization is mandatory for it whatever the radio below says —
@@ -194,18 +207,12 @@ function renderPersonalizationBuilder(array $product, array $personalization, st
       </p>
     <?php endif; ?>
 
-    <?php admin_lang_bar(); ?>
+    <?= admin_localized_input($editingLanguage) ?>
+    <?php admin_localized_bar($editingLanguage); ?>
     <div class="admin-pz-grid">
-      <?php admin_lang_pane_start('nl'); ?>
         <label><?= admin_te('personalization.algemene_uitleg') ?>
-          <textarea name="instructions" rows="2" maxlength="500" placeholder="Bijv. Personaliseer dit product met een naam of logo."><?= $esc($instructions) ?></textarea>
+          <textarea name="instructions" rows="2" maxlength="<?= PersonalizationLocalization::INSTRUCTIONS_MAX_LENGTH ?>" placeholder="Bijv. Personaliseer dit product met een naam of logo."<?= admin_localized_placeholder_attr($editingLanguage) ?>><?= $esc($instructions) ?></textarea>
         </label>
-      <?php admin_lang_pane_end(); ?>
-      <?php admin_lang_pane_start('en'); ?>
-        <label><?= admin_te('personalization.algemene_uitleg_2') ?>
-          <textarea name="instructions_en" rows="2" maxlength="500"<?= admin_lang_placeholder_attr('en') ?>><?= $esc($instructionsEn) ?></textarea>
-        </label>
-      <?php admin_lang_pane_end(); ?>
     </div>
 
     <button type="submit"><?= admin_te('personalization.instellingen_opslaan') ?></button>
@@ -241,12 +248,17 @@ function renderPersonalizationBuilder(array $product, array $personalization, st
     <?php
       $viewId = (int) $view['id'];
       $viewOld = $oldFor('view', $viewId);
-      $viewLabel = $viewOld !== null ? (string) ($viewOld['label'] ?? '') : (string) ($view['label'] ?? '');
-      $viewLabelEn = $viewOld !== null ? (string) ($viewOld['label_en'] ?? '') : (string) ($view['label_en'] ?? '');
+      $viewLabel = $viewOld !== null
+          ? (string) ($viewOld['label'] ?? '')
+          : PersonalizationLocalization::rawViewLabel($viewId, $editingLanguage);
       $viewImage = trim((string) ($view['preview_image_path'] ?? ''));
       $isFirstView = $viewIndex === 0;
       $isLastView = $viewIndex === count($views) - 1;
-      $displayName = $viewLabel !== '' ? $viewLabel : (string) $view['view_key'];
+      // The heading of the block names the view the way the CMS does — in the
+      // default language — so a view stays findable while its translation is
+      // being written.
+      $viewName = PersonalizationLocalization::viewName($viewId);
+      $displayName = $viewName !== '' ? $viewName : (string) $view['view_key'];
       $zoneCount = count($view['zones']);
       // A block whose own form was just rejected must open regardless, or
       // the administrator cannot see what went wrong.
@@ -295,18 +307,12 @@ function renderPersonalizationBuilder(array $product, array $personalization, st
           <input type="hidden" name="csrf_token" value="<?= $esc($csrfToken) ?>">
           <input type="hidden" name="view_id" value="<?= $viewId ?>">
 
-          <?php admin_lang_bar(); ?>
+          <?= admin_localized_input($editingLanguage) ?>
+          <?php admin_localized_bar($editingLanguage); ?>
           <div class="admin-pz-grid">
-            <?php admin_lang_pane_start('nl'); ?>
               <label><?= admin_te('personalization.naam_klant') ?>
-                <input type="text" name="label" maxlength="100" value="<?= $esc($viewLabel) ?>" placeholder="Bijv. Voorkant">
+                <input type="text" name="label" maxlength="<?= PersonalizationLocalization::LABEL_MAX_LENGTH ?>" value="<?= $esc($viewLabel) ?>" placeholder="Bijv. Voorkant"<?= admin_localized_placeholder_attr($editingLanguage) ?>>
               </label>
-            <?php admin_lang_pane_end(); ?>
-            <?php admin_lang_pane_start('en'); ?>
-              <label><?= admin_te('personalization.naam_klant_2') ?>
-                <input type="text" name="label_en" maxlength="100" value="<?= $esc($viewLabelEn) ?>"<?= admin_lang_placeholder_attr('en') ?>>
-              </label>
-            <?php admin_lang_pane_end(); ?>
           </div>
 
           <div class="admin-pz-image">
@@ -348,9 +354,9 @@ function renderPersonalizationBuilder(array $product, array $personalization, st
                 <div class="admin-zone-editor__box<?= $zoneIndex === 0 ? ' is-selected' : '' ?>"
                      data-zone-box="<?= $zoneId ?>"
                      tabindex="0" role="application"
-                     aria-label="Zone <?= $esc($zone['label'] !== null && $zone['label'] !== '' ? (string) $zone['label'] : (string) $zone['zone_key']) ?> — verplaats met de pijltjestoetsen, houd Shift ingedrukt om het formaat te wijzigen"
+                     aria-label="Zone <?= $esc($zoneName($zone)) ?> — verplaats met de pijltjestoetsen, houd Shift ingedrukt om het formaat te wijzigen"
                      style="left:<?= $esc(number_format((float) $zone['area_x'], 3, '.', '')) ?>%;top:<?= $esc(number_format((float) $zone['area_y'], 3, '.', '')) ?>%;width:<?= $esc(number_format((float) $zone['area_width'], 3, '.', '')) ?>%;height:<?= $esc(number_format((float) $zone['area_height'], 3, '.', '')) ?>%;">
-                  <span class="admin-zone-editor__tag"><?= $esc($zone['label'] !== null && $zone['label'] !== '' ? (string) $zone['label'] : (string) $zone['zone_key']) ?></span>
+                  <span class="admin-zone-editor__tag"><?= $esc($zoneName($zone)) ?></span>
                   <span class="admin-zone-editor__handle admin-zone-editor__handle--nw" data-zone-handle="nw" aria-hidden="true"></span>
                   <span class="admin-zone-editor__handle admin-zone-editor__handle--ne" data-zone-handle="ne" aria-hidden="true"></span>
                   <span class="admin-zone-editor__handle admin-zone-editor__handle--sw" data-zone-handle="sw" aria-hidden="true"></span>
@@ -399,28 +405,20 @@ function renderPersonalizationBuilder(array $product, array $personalization, st
     <form method="post" action="/api/admin/create-personalization-view.php" class="admin-pz-grid admin-pz-grid--create">
       <input type="hidden" name="csrf_token" value="<?= $esc($csrfToken) ?>">
       <input type="hidden" name="product_id" value="<?= $productId ?>">
-      <?php /* Its own call: the indicator prints once per screen, but the
-               translate button belongs to each form, and this create form is
-               a form of its own. */ ?>
-      <?php admin_lang_bar(); ?>
+      <?php /* A NEW view is named in the default language, like a new page
+               or a new blog post, and translated on the view itself
+               afterwards (Multilingual 2.0 phase 5 wave D). */ ?>
+      <?php admin_localized_new_item_note($editingLanguage); ?>
       <label><?= admin_te('personalization.sleutel') ?>*
         <input type="text" name="view_key" maxlength="32" required
                value="<?= $esc($viewCreateOld !== null ? (string) ($viewCreateOld['view_key'] ?? '') : '') ?>"
                placeholder="achterkant">
       </label>
-      <?php admin_lang_pane_start('nl'); ?>
-        <label><?= admin_te('common.name') ?>
-          <input type="text" name="label" maxlength="100"
-                 value="<?= $esc($viewCreateOld !== null ? (string) ($viewCreateOld['label'] ?? '') : '') ?>"
-                 placeholder="Achterkant">
-        </label>
-      <?php admin_lang_pane_end(); ?>
-      <?php admin_lang_pane_start('en'); ?>
-        <label><?= admin_te('common.name') ?>
-          <input type="text" name="label_en" maxlength="100"
-                 value="<?= $esc($viewCreateOld !== null ? (string) ($viewCreateOld['label_en'] ?? '') : '') ?>"<?= admin_lang_placeholder_attr('en') ?>>
-        </label>
-      <?php admin_lang_pane_end(); ?>
+      <label><?= admin_te('common.name') ?>
+        <input type="text" name="label" maxlength="<?= PersonalizationLocalization::LABEL_MAX_LENGTH ?>"
+               value="<?= $esc($viewCreateOld !== null ? (string) ($viewCreateOld['label'] ?? '') : '') ?>"
+               placeholder="Achterkant">
+      </label>
       <div class="admin-pz-grid__action">
         <button type="submit"><?= admin_te('personalization.voorbeeld_toevoegen_3') ?></button>
       </div>
@@ -455,6 +453,16 @@ function renderPersonalizationZoneForm(
 ): void {
     $esc = static fn (?string $value): string => htmlspecialchars((string) $value, ENT_QUOTES, 'UTF-8');
     $zoneId = (int) $zone['id'];
+    $editingLanguage = admin_localized_language();
+
+    /** One word of this zone in the language on screen, or what was typed. */
+    $word = static function (string $field) use ($old, $zoneId, $editingLanguage): string {
+        if ($old !== null && array_key_exists($field, $old)) {
+            return (string) $old[$field];
+        }
+
+        return PersonalizationLocalization::rawZoneWord($zoneId, $field, $editingLanguage);
+    };
 
     $value = static function (string $key, mixed $fallback) use ($old, $zone) {
         if ($old !== null && array_key_exists($key, $old)) {
@@ -483,7 +491,8 @@ function renderPersonalizationZoneForm(
             : (float) ($zone['area_' . $key] ?? 0);
     }
 
-    $label = $zone['label'] !== null && $zone['label'] !== '' ? (string) $zone['label'] : (string) $zone['zone_key'];
+    $cmsName = PersonalizationLocalization::zoneName($zoneId);
+    $label = $cmsName !== '' ? $cmsName : (string) $zone['zone_key'];
     $allowsText = $checked('allow_text', true);
     $allowsImage = $checked('allow_image', true);
     $accepts = $allowsText && $allowsImage ? admin_t('personalization.text_and_image') : ($allowsImage ? admin_t('common.image_label') : admin_t('common.text'));
@@ -531,18 +540,12 @@ function renderPersonalizationZoneForm(
       <input type="hidden" name="csrf_token" value="<?= $esc($csrfToken) ?>">
       <input type="hidden" name="zone_id" value="<?= $zoneId ?>">
 
-      <?php admin_lang_bar(); ?>
+      <?= admin_localized_input($editingLanguage) ?>
+      <?php admin_localized_bar($editingLanguage); ?>
       <div class="admin-pz-grid">
-        <?php admin_lang_pane_start('nl'); ?>
           <label><?= admin_te('personalization.naam_klant_3') ?>
-            <input type="text" name="label" maxlength="100" value="<?= $esc((string) $value('label', '')) ?>" placeholder="Bijv. Naam">
+            <input type="text" name="label" maxlength="<?= PersonalizationLocalization::LABEL_MAX_LENGTH ?>" value="<?= $esc($word(PersonalizationLocalization::LABEL)) ?>" placeholder="Bijv. Naam"<?= admin_localized_placeholder_attr($editingLanguage) ?>>
           </label>
-        <?php admin_lang_pane_end(); ?>
-        <?php admin_lang_pane_start('en'); ?>
-          <label><?= admin_te('personalization.naam_klant_4') ?>
-            <input type="text" name="label_en" maxlength="100" value="<?= $esc((string) $value('label_en', '')) ?>"<?= admin_lang_placeholder_attr('en') ?>>
-          </label>
-        <?php admin_lang_pane_end(); ?>
       </div>
 
       <fieldset class="admin-pz-checks">
@@ -573,29 +576,15 @@ function renderPersonalizationZoneForm(
         <label><?= admin_t('personalization.meerprijs') ?>
           <input type="text" inputmode="decimal" name="surcharge" value="<?= $esc(Money::format($surchargeCents)) ?>" placeholder="0.00">
         </label>
-        <?php admin_lang_pane_start('nl'); ?>
           <label><?= admin_te('personalization.voorbeeldtekst') ?>
-            <input type="text" name="placeholder" maxlength="100" value="<?= $esc((string) $value('placeholder', '')) ?>" placeholder="Bijv. Bart">
+            <input type="text" name="placeholder" maxlength="<?= PersonalizationLocalization::PLACEHOLDER_MAX_LENGTH ?>" value="<?= $esc($word(PersonalizationLocalization::PLACEHOLDER)) ?>" placeholder="Bijv. Bart"<?= admin_localized_placeholder_attr($editingLanguage) ?>>
           </label>
-        <?php admin_lang_pane_end(); ?>
-        <?php admin_lang_pane_start('en'); ?>
-          <label><?= admin_te('personalization.voorbeeldtekst_2') ?>
-            <input type="text" name="placeholder_en" maxlength="100" value="<?= $esc((string) $value('placeholder_en', '')) ?>"<?= admin_lang_placeholder_attr('en') ?>>
-          </label>
-        <?php admin_lang_pane_end(); ?>
       </div>
 
       <div class="admin-pz-grid">
-        <?php admin_lang_pane_start('nl'); ?>
           <label><?= admin_te('personalization.uitleg_zone') ?>
-            <textarea name="instructions" rows="2" maxlength="500"><?= $esc((string) $value('instructions', '')) ?></textarea>
+            <textarea name="instructions" rows="2" maxlength="<?= PersonalizationLocalization::INSTRUCTIONS_MAX_LENGTH ?>"<?= admin_localized_placeholder_attr($editingLanguage) ?>><?= $esc($word(PersonalizationLocalization::INSTRUCTIONS)) ?></textarea>
           </label>
-        <?php admin_lang_pane_end(); ?>
-        <?php admin_lang_pane_start('en'); ?>
-          <label><?= admin_te('personalization.uitleg_zone_2') ?>
-            <textarea name="instructions_en" rows="2" maxlength="500"<?= admin_lang_placeholder_attr('en') ?>><?= $esc((string) $value('instructions_en', '')) ?></textarea>
-          </label>
-        <?php admin_lang_pane_end(); ?>
       </div>
 
       <fieldset class="admin-pz-area">
@@ -640,12 +629,14 @@ function renderPersonalizationZoneForm(
 function renderPersonalizationZoneCreateForm(int $viewId, string $viewName, ?array $old, string $csrfToken): void
 {
     $esc = static fn (?string $value): string => htmlspecialchars((string) $value, ENT_QUOTES, 'UTF-8');
+    $editingLanguage = admin_localized_language();
     ?>
 <form method="post" action="/api/admin/create-personalization-zone.php" class="admin-pz-grid admin-pz-grid--create">
   <input type="hidden" name="csrf_token" value="<?= $esc($csrfToken) ?>">
   <input type="hidden" name="view_id" value="<?= $viewId ?>">
-  <?php admin_lang_bar(); ?>
-  <?php /* A new zone starts as a centred, text-and-image, optional zone. */ ?>
+  <?php /* A new zone starts as a centred, text-and-image, optional zone, and
+           is named in the default language (Multilingual 2.0 phase 5 wave D). */ ?>
+  <?php admin_localized_new_item_note($editingLanguage); ?>
   <input type="hidden" name="allow_text" value="1">
   <input type="hidden" name="allow_image" value="1">
   <input type="hidden" name="is_enabled" value="1">
@@ -662,19 +653,11 @@ function renderPersonalizationZoneCreateForm(int $viewId, string $viewName, ?arr
            value="<?= $esc($old !== null ? (string) ($old['zone_key'] ?? '') : '') ?>"
            placeholder="naam">
   </label>
-  <?php admin_lang_pane_start('nl'); ?>
-    <label><?= admin_te('common.name') ?>
-      <input type="text" name="label" maxlength="100"
-             value="<?= $esc($old !== null ? (string) ($old['label'] ?? '') : '') ?>"
-             placeholder="Naam">
-    </label>
-  <?php admin_lang_pane_end(); ?>
-  <?php admin_lang_pane_start('en'); ?>
-    <label><?= admin_te('common.name') ?>
-      <input type="text" name="label_en" maxlength="100"
-             value="<?= $esc($old !== null ? (string) ($old['label_en'] ?? '') : '') ?>"<?= admin_lang_placeholder_attr('en') ?>>
-    </label>
-  <?php admin_lang_pane_end(); ?>
+  <label><?= admin_te('common.name') ?>
+    <input type="text" name="label" maxlength="<?= PersonalizationLocalization::LABEL_MAX_LENGTH ?>"
+           value="<?= $esc($old !== null ? (string) ($old['label'] ?? '') : '') ?>"
+           placeholder="Naam">
+  </label>
   <div class="admin-pz-grid__action">
     <button type="submit"><?= admin_t('personalization.zone', ['v1' => $esc($viewName)]) ?></button>
   </div>

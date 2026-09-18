@@ -28,6 +28,7 @@ modules aan staan" en "Vanuit een git worktree".
 | Paginatekst per taal (`PageLocalization`, `page_translations`, de pagina-editor) | `fast` → `cms` |
 | Blokwoorden per taal (`BlockLocalization`, `block_translations`, een omgezet blok of zijn editor) | `fast` → `blocks` |
 | Navigatie-, footer-, formulier- of instellingentekst per taal (fase 4: een getypeerde `*_translations`-tabel, `LocalizedSiteSettings`, een optie of zijn label) | `fast` → `cms` |
+| Woorden van een module per taal (fase 5: `PortfolioLocalization`, `BlogLocalization`, `ShopLocalization`, `PersonalizationLocalization`, `OrderItemNameSnapshot`) | `fast` → de suite van de module |
 
 ## De bestanden
 
@@ -255,3 +256,32 @@ de mail en het besteloverzicht nooit een actuele productnaam afdrukken, dat de
 Shop geen taal en geen terugval zelf kiest en één sanitizer houdt, dat geen
 Shop-query op woorden sorteert, en dat de drie editors één taal tonen en hun
 vijf endpoints alleen die taal schrijven, in één transactie met de rij.
+
+**Golf D, Personalisatie.** `PersonalizationLocalizationTest` (`fast`) vraagt
+zonder database wat `PersonalizationLocalization` toevoegt: welk veld bij welke
+tabel hoort, de lengtes die de kolommen hadden, de terugval, een derde taal, en
+— de assertie waar deze golf aan hangt — dat **geen enkele vertaaltabel iets
+kent waar de configuratie een besluit mee neemt**: geen `view_key`, geen
+`zone_key`, geen coördinaat, geen schakelaar en geen meerprijs.
+
+De echte SQL en het gedrag staan in de bestaande Personalisatie-suite, nu op de
+nieuwe opslag: `ProductPersonalizationRepositoryIntegrationTest`,
+`PersonalizationCmsSeparationTest`, `PersonalizationValidationTest`,
+`PersonalizationPreviewImageTest` (waar een voorbeeld hernoemen zijn
+afbeelding nooit mag raken — nu twee schrijfacties in één transactie) en
+`OrderPersonalizationIntegrationTest` (waar de momentopname van een geplaatste
+bestelling moet blijven zeggen wat ze zei). `Tests\Support\PersonalizationTestConfig`
+is het gedeelde fixture: het spreekt nog het `<veld>`/`<veld>_en`-paar, omdat
+dat is wat een test wil zeggen, en is de ene plek die weet waar elke helft
+heen gaat. `PersonalizationWordsMigrationTest` (`migration` en
+`personalization`) is de backfill op een verse, een bijgewerkte en een kapotte
+database.
+
+De golf-D-grenzen in `MultilingualBoundaryTest`: dat niets de tien gedropte
+kolommen nog leest (op de V1-uitvoersleutels van de opgeloste configuratie na,
+die als zodanig gemarkeerd zijn), dat niets waar de configuratie een besluit
+mee neemt een woord is geworden, dat de module geen taal en geen terugval zelf
+kiest — met een eigen assertie op de oude `label ?? label_en`-regel van de
+validator — dat geen personalisatiequery op woorden sorteert, en dat de
+bouwer één taal toont en zijn vijf endpoints alleen die taal schrijven, in één
+transactie met de rij.

@@ -19,11 +19,13 @@ declare(strict_types=1);
 require_once __DIR__ . '/../../vendor/autoload.php';
 require_once __DIR__ . '/_personalization_validation.php';
 
+use App\Database;
 use App\Service\Language\AdminTranslator;
 use App\Repository\ProductPersonalizationRepository;
 use App\Repository\ProductRepository;
 use App\Service\AdminAuth;
 use App\Service\Csrf;
+use App\Service\Personalization\PersonalizationLocalization;
 use App\Service\Personalization\PersonalizationRules;
 use App\Service\Personalization\ProductPersonalizationContent;
 
@@ -53,22 +55,22 @@ if ((new ProductRepository())->findByIdForAdmin($productId) === null) {
     exit('Product not found.');
 }
 
-$repository = new ProductPersonalizationRepository();
+$db = Database::connection();
+$repository = new ProductPersonalizationRepository($db);
 $errors = [];
 
 $fields = normalizePersonalizationViewInput($_POST, $errors);
 $viewKey = normalizePersonalizationKey($_POST['view_key'] ?? null, 'de weergave', $errors);
+// `true`: a new view is named in the DEFAULT language, whatever language the
+// screen showed (Multilingual 2.0 phase 5 wave D).
+$language = personalizationLanguage($_POST, true, $errors);
 
 try {
     // Creating a view on a product that was never configured also creates its
     // settings row (switched off), so the administrator can build the
     // configuration first and enable it when it is ready.
     $settingsId = $repository->settingsIdForProduct($productId)
-        ?? $repository->saveSettings($productId, [
-            'is_enabled' => false,
-            'instructions' => null,
-            'instructions_en' => null,
-        ]);
+        ?? $repository->saveSettings($productId, ['is_enabled' => false]);
 
     if ($viewKey !== '' && $repository->viewKeyExists($settingsId, $viewKey)) {
         $errors[] = AdminTranslator::trans('validation.view_key_exists', ['v1' => $viewKey]);
@@ -85,9 +87,20 @@ try {
         personalizationFail($productId, $errors, ['form' => 'view-create'], $fields + ['view_key' => $viewKey]);
     }
 
-    $repository->createView($settingsId, $fields + ['view_key' => $viewKey]);
+    // Row and label are ONE transaction: a view is never in the editor
+    // without the name that identifies it there.
+    $db->beginTransaction();
+    $viewId = $repository->createView($settingsId, ['view_key' => $viewKey]);
+    PersonalizationLocalization::saveViewLabel($viewId, $language, $fields['label']);
+    $db->commit();
+
     ProductPersonalizationContent::clearCache();
+    PersonalizationLocalization::clearCache();
 } catch (\Throwable $e) {
+    if ($db->inTransaction()) {
+        $db->rollBack();
+    }
+
     error_log('[api/admin/create-personalization-view.php] ' . $e->getMessage());
     personalizationFail($productId, ['De weergave kon niet worden aangemaakt. Probeer het opnieuw.']);
 }

@@ -7,6 +7,7 @@ namespace Tests\Service;
 use App\Database;
 use App\Repository\ProductPersonalizationRepository;
 use App\Repository\ProductRepository;
+use App\Service\Personalization\PersonalizationLocalization;
 use App\Service\Personalization\PersonalizationPreviewImageUploader;
 use App\Service\Personalization\ProductPersonalizationContent;
 use App\Service\ProductImageUploader;
@@ -311,11 +312,16 @@ final class PersonalizationPreviewImageTest extends TestCase
 
         $viewId = $built['view_ids']['front'];
 
-        $this->personalization->updateView($viewId, ['label' => 'Nieuwe naam', 'label_en' => null]);
+        // Renaming a view is now two writes in one transaction: the row is
+        // touched, the label is a word (Multilingual 2.0 phase 5 wave D).
+        // Neither may go near the image.
+        $this->personalization->touchView($viewId);
+        PersonalizationLocalization::saveViewLabel($viewId, 'nl', 'Nieuwe naam');
+        PersonalizationLocalization::clearCache();
 
         $view = $this->personalization->findViewById($viewId);
 
-        $this->assertSame('Nieuwe naam', $view['label']);
+        $this->assertSame('Nieuwe naam', PersonalizationLocalization::viewName($viewId));
         $this->assertSame(self::FRONT_IMAGE, $view['preview_image_path']);
     }
 }

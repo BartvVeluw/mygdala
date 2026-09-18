@@ -23,9 +23,11 @@ declare(strict_types=1);
 require_once __DIR__ . '/../../vendor/autoload.php';
 require_once __DIR__ . '/_personalization_validation.php';
 
+use App\Database;
 use App\Repository\ProductPersonalizationRepository;
 use App\Service\AdminAuth;
 use App\Service\Csrf;
+use App\Service\Personalization\PersonalizationLocalization;
 use App\Service\Personalization\ProductPersonalizationContent;
 use App\Service\Personalization\PersonalizationPreviewImageUploader;
 
@@ -50,7 +52,8 @@ if ($viewId === false || $viewId === null || $viewId < 1) {
     exit('Invalid view id.');
 }
 
-$repository = new ProductPersonalizationRepository();
+$db = Database::connection();
+$repository = new ProductPersonalizationRepository($db);
 $view = $repository->findViewById($viewId);
 
 if ($view === null) {
@@ -65,6 +68,9 @@ $existingImagePath = (string) ($view['preview_image_path'] ?? '');
 
 $errors = [];
 $fields = normalizePersonalizationViewInput($_POST, $errors);
+// `false`: an existing view, so the label written is the one of the language
+// the form names; every other translation of it stays as it is.
+$language = personalizationLanguage($_POST, false, $errors);
 $removeImage = ($_POST['remove_preview_image'] ?? null) === '1';
 
 $uploader = new PersonalizationPreviewImageUploader();
@@ -89,28 +95,43 @@ if ($errors !== []) {
     personalizationFail($productId, $errors, ['form' => 'view', 'view_id' => $viewId], $fields);
 }
 
+// The file this save leaves unreferenced. It is deleted AFTER the commit,
+// never inside the transaction: an unlink cannot be rolled back, so a later
+// failure would leave the database pointing at a file that no longer exists.
+// delete() is a no-op outside assets/images/personalization/, so replacing a
+// preview can never remove a product photo — including the one a Phase 1/2
+// view may still point at, which a historical order's snapshot still refers
+// to.
+$unreferenced = null;
+
 try {
-    $repository->updateView($viewId, $fields);
+    // Row and label are ONE transaction, and the label is only this
+    // language's.
+    $db->beginTransaction();
+    $repository->touchView($viewId);
+    PersonalizationLocalization::saveViewLabel($viewId, $language, $fields['label']);
 
     if ($newImagePath !== null) {
         $repository->updateViewPreviewImagePath($viewId, $newImagePath);
 
-        // Only after the new path is stored: the old file is unreferenced
-        // from here on, and an unlink cannot be rolled back. delete() is a
-        // no-op outside assets/images/personalization/, so replacing a
-        // preview can never remove a product photo — including the one a
-        // Phase 1/2 view may still point at, which a historical order's
-        // snapshot still refers to.
         if ($existingImagePath !== '' && $existingImagePath !== $newImagePath) {
-            $uploader->delete($existingImagePath);
+            $unreferenced = $existingImagePath;
         }
     } elseif ($removeImage && $existingImagePath !== '') {
         $repository->updateViewPreviewImagePath($viewId, null);
-        $uploader->delete($existingImagePath);
+        $unreferenced = $existingImagePath;
     }
 
+    $db->commit();
+    $uploader->delete($unreferenced);
+
     ProductPersonalizationContent::clearCache();
+    PersonalizationLocalization::clearCache();
 } catch (\Throwable $e) {
+    if ($db->inTransaction()) {
+        $db->rollBack();
+    }
+
     error_log('[api/admin/update-personalization-view.php] ' . $e->getMessage());
 
     if ($newImagePath !== null) {

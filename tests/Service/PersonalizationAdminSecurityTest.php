@@ -357,14 +357,18 @@ final class PersonalizationAdminSecurityTest extends TestCase
 
     /**
      * A view's preview image is what every zone coordinate on that view is
-     * measured against, so renaming a view must not be able to drop it:
-     * updateView() may not write that column at all.
+     * measured against, so renaming a view must not be able to drop it.
+     *
+     * Since Multilingual 2.0 phase 5 wave D a view's NAME is a word in
+     * product_personalization_view_translations, so the row-level write left
+     * here only stamps `updated_at` — and that write may not go near the image
+     * column either.
      */
     public function testRenamingAViewCannotDropItsPreviewImage(): void
     {
         $repository = self::sourceOf('src/Repository/ProductPersonalizationRepository.php');
 
-        $start = strpos($repository, 'public function updateView(');
+        $start = strpos($repository, 'public function touchView(');
         $end = strpos($repository, 'public function updateViewPreviewImagePath(');
 
         $this->assertNotFalse($start);

@@ -28,14 +28,22 @@ use App\Service\Personalization\PersonalizationRules;
  */
 class ProductPersonalizationRepository extends Repository
 {
+    /**
+     * NO WORDS. A zone's label, instructions and placeholder live per website
+     * language in product_personalization_zone_translations since
+     * Multilingual 2.0 phase 5 wave D, read through
+     * App\Service\Personalization\PersonalizationLocalization. What is left
+     * here is the configuration: the key an order points at, the geometry,
+     * and the rules.
+     */
     private const ZONE_COLUMNS =
-        'id, settings_id, view_id, zone_key, label, label_en, instructions, instructions_en,
-         placeholder, placeholder_en, allow_text, allow_image, is_enabled, is_required,
+        'id, settings_id, view_id, zone_key, allow_text, allow_image, is_enabled, is_required,
          allow_rotation, max_text_length, default_font, allowed_fonts, surcharge,
          area_x, area_y, area_width, area_height, sort_order';
 
+    /** Likewise: a view's label is a word, its key and its image are not. */
     private const VIEW_COLUMNS =
-        'id, settings_id, view_key, label, label_en, preview_image_path, sort_order';
+        'id, settings_id, view_key, preview_image_path, sort_order';
 
     /* ------------------------------------------------------------------ */
     /* Reads                                                               */
@@ -53,8 +61,7 @@ class ProductPersonalizationRepository extends Repository
     public function findForProduct(int $productId): ?array
     {
         $stmt = $this->db->prepare(
-            'SELECT id, product_id, is_enabled, personalization_mode,
-                    instructions, instructions_en, created_at, updated_at
+            'SELECT id, product_id, is_enabled, personalization_mode, created_at, updated_at
              FROM product_personalization_settings
              WHERE product_id = :product_id
              LIMIT 1'
@@ -125,7 +132,7 @@ class ProductPersonalizationRepository extends Repository
     public function findViewById(int $viewId): ?array
     {
         $stmt = $this->db->prepare(
-            'SELECT v.id, v.settings_id, v.view_key, v.label, v.label_en,
+            'SELECT v.id, v.settings_id, v.view_key,
                     v.preview_image_path, v.sort_order, s.product_id
              FROM product_personalization_views v
              INNER JOIN product_personalization_settings s ON s.id = v.settings_id
@@ -142,8 +149,7 @@ class ProductPersonalizationRepository extends Repository
     public function findZoneById(int $zoneId): ?array
     {
         $stmt = $this->db->prepare(
-            'SELECT z.id, z.settings_id, z.view_id, z.zone_key, z.label, z.label_en,
-                    z.instructions, z.instructions_en, z.placeholder, z.placeholder_en,
+            'SELECT z.id, z.settings_id, z.view_id, z.zone_key,
                     z.allow_text, z.allow_image, z.is_enabled, z.is_required, z.allow_rotation,
                     z.max_text_length, z.default_font, z.allowed_fonts, z.surcharge,
                     z.area_x, z.area_y, z.area_width, z.area_height, z.sort_order,
@@ -234,27 +240,28 @@ class ProductPersonalizationRepository extends Repository
      * only the product-level fields — never a view, never a zone — so saving
      * the top of the form can't disturb the configuration below it.
      *
-     * @param array{is_enabled: bool, personalization_mode: string, instructions: ?string, instructions_en: ?string} $settings
+     * The general instructions are NOT written here: they are words, and
+     * the endpoint saves the one language it carries through
+     * App\Service\Personalization\PersonalizationLocalization, in the same
+     * transaction as this row.
+     *
+     * @param array{is_enabled: bool, personalization_mode: string} $settings
      */
     public function saveSettings(int $productId, array $settings): int
     {
         $stmt = $this->db->prepare(
             'INSERT INTO product_personalization_settings
-                (product_id, is_enabled, personalization_mode, instructions, instructions_en, created_at, updated_at)
-             VALUES (:product_id, :is_enabled, :personalization_mode, :instructions, :instructions_en, NOW(), NOW())
+                (product_id, is_enabled, personalization_mode, created_at, updated_at)
+             VALUES (:product_id, :is_enabled, :personalization_mode, NOW(), NOW())
              ON DUPLICATE KEY UPDATE
                 is_enabled = VALUES(is_enabled),
                 personalization_mode = VALUES(personalization_mode),
-                instructions = VALUES(instructions),
-                instructions_en = VALUES(instructions_en),
                 updated_at = NOW()'
         );
         $stmt->execute([
             'product_id' => $productId,
             'is_enabled' => $settings['is_enabled'] ? 1 : 0,
             'personalization_mode' => PersonalizationRules::purchaseMode($settings['personalization_mode'] ?? null),
-            'instructions' => $settings['instructions'],
-            'instructions_en' => $settings['instructions_en'],
         ]);
 
         $settingsId = $this->settingsIdForProduct($productId);
@@ -289,8 +296,8 @@ class ProductPersonalizationRepository extends Repository
 
         $stmt = $this->db->prepare(
             'INSERT INTO product_personalization_settings
-                (product_id, is_enabled, personalization_mode, instructions, instructions_en, created_at, updated_at)
-             VALUES (:product_id, 0, :mode, NULL, NULL, NOW(), NOW())'
+                (product_id, is_enabled, personalization_mode, created_at, updated_at)
+             VALUES (:product_id, 0, :mode, NOW(), NOW())'
         );
         $stmt->execute([
             'product_id' => $productId,
@@ -415,20 +422,21 @@ class ProductPersonalizationRepository extends Repository
     /* ------------------------------------------------------------------ */
 
     /**
-     * @param array{view_key: string, label: ?string, label_en: ?string} $data
+     * Its label is a word and is saved separately, per language, through
+     * App\Service\Personalization\PersonalizationLocalization.
+     *
+     * @param array{view_key: string} $data
      */
     public function createView(int $settingsId, array $data): int
     {
         $stmt = $this->db->prepare(
             'INSERT INTO product_personalization_views
-                (settings_id, view_key, label, label_en, preview_image_path, sort_order, created_at, updated_at)
-             VALUES (:settings_id, :view_key, :label, :label_en, NULL, :sort_order, NOW(), NOW())'
+                (settings_id, view_key, preview_image_path, sort_order, created_at, updated_at)
+             VALUES (:settings_id, :view_key, NULL, :sort_order, NOW(), NOW())'
         );
         $stmt->execute([
             'settings_id' => $settingsId,
             'view_key' => $data['view_key'],
-            'label' => $data['label'],
-            'label_en' => $data['label_en'],
             'sort_order' => $this->nextViewSortOrder($settingsId),
         ]);
 
@@ -436,20 +444,18 @@ class ProductPersonalizationRepository extends Repository
     }
 
     /**
-     * Renames a view. `view_key` is deliberately NOT updatable: order rows
-     * store it, so changing it would rewrite what a historical order says it
-     * was engraved on.
-     *
-     * @param array{label: ?string, label_en: ?string} $data
+     * Marks a view as changed. Its NAME is a word and is written per language
+     * by App\Service\Personalization\PersonalizationLocalization, so all this
+     * row has left to record is that it was touched. `view_key` is
+     * deliberately NOT updatable: order rows store it, so changing it would
+     * rewrite what a historical order says it was engraved on.
      */
-    public function updateView(int $viewId, array $data): void
+    public function touchView(int $viewId): void
     {
         $stmt = $this->db->prepare(
-            'UPDATE product_personalization_views
-             SET label = :label, label_en = :label_en, updated_at = NOW()
-             WHERE id = :id'
+            'UPDATE product_personalization_views SET updated_at = NOW() WHERE id = :id'
         );
-        $stmt->execute(['label' => $data['label'], 'label_en' => $data['label_en'], 'id' => $viewId]);
+        $stmt->execute(['id' => $viewId]);
     }
 
     /**
@@ -496,13 +502,11 @@ class ProductPersonalizationRepository extends Repository
     {
         $stmt = $this->db->prepare(
             'INSERT INTO product_personalization_zones
-                (settings_id, view_id, zone_key, label, label_en, instructions, instructions_en,
-                 placeholder, placeholder_en, allow_text, allow_image, is_enabled, is_required,
+                (settings_id, view_id, zone_key, allow_text, allow_image, is_enabled, is_required,
                  allow_rotation, max_text_length, default_font, allowed_fonts, surcharge,
                  area_x, area_y, area_width, area_height, sort_order, created_at, updated_at)
              VALUES
-                (:settings_id, :view_id, :zone_key, :label, :label_en, :instructions, :instructions_en,
-                 :placeholder, :placeholder_en, :allow_text, :allow_image, :is_enabled, :is_required,
+                (:settings_id, :view_id, :zone_key, :allow_text, :allow_image, :is_enabled, :is_required,
                  :allow_rotation, :max_text_length, :default_font, :allowed_fonts, :surcharge,
                  :area_x, :area_y, :area_width, :area_height, :sort_order, NOW(), NOW())'
         );
@@ -526,9 +530,6 @@ class ProductPersonalizationRepository extends Repository
     {
         $stmt = $this->db->prepare(
             'UPDATE product_personalization_zones SET
-                label = :label, label_en = :label_en,
-                instructions = :instructions, instructions_en = :instructions_en,
-                placeholder = :placeholder, placeholder_en = :placeholder_en,
                 allow_text = :allow_text, allow_image = :allow_image,
                 is_enabled = :is_enabled, is_required = :is_required,
                 allow_rotation = :allow_rotation,
@@ -576,12 +577,6 @@ class ProductPersonalizationRepository extends Repository
         $allowedFonts = PersonalizationFonts::sanitize($data['allowed_fonts'] ?? null);
 
         return [
-            'label' => $data['label'],
-            'label_en' => $data['label_en'],
-            'instructions' => $data['instructions'],
-            'instructions_en' => $data['instructions_en'],
-            'placeholder' => $data['placeholder'],
-            'placeholder_en' => $data['placeholder_en'],
             'allow_text' => $data['allow_text'] ? 1 : 0,
             'allow_image' => $data['allow_image'] ? 1 : 0,
             'is_enabled' => $data['is_enabled'] ? 1 : 0,

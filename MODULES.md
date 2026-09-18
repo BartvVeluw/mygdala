@@ -427,6 +427,23 @@ prijsopslag en `api/checkout.php` weigert een regel die tóch
 personalisatiegegevens meestuurt. Andersom hoeft de Shop niets van
 personalisatie te weten behalve die prijsopslag.
 
+**De woorden van de module staan per websitetaal.** Sinds Multilingual 2.0
+fase 5 (`docs/multilingual/ARCHITECTURE.md`) is
+`App\Service\Personalization\PersonalizationLocalization` dé ingang naar de
+algemene uitleg van een product, de naam van een voorbeeld en het label, de
+uitleg en de voorbeeldtekst van een zone. Ze staan in drie getypeerde
+tabellen, één rij per eigenaar per taal.
+
+**Woorden zijn niet de configuratie.** `view_key` en `zone_key` — de sleutels
+waar een bestelregel naar wijst — de geometrie, `allow_text`, `allow_image`,
+`is_enabled`, `is_required`, `allow_rotation`, `max_text_length`, de meerprijs,
+de lettertype-instellingen, `personalization_mode`, de voorbeeldafbeelding en
+elke sorteervolgorde blijven op hun eigen rij en zijn in elke taal hetzelfde.
+Een taalwissel verandert alleen zichtbare labels — nooit wat een klant mag
+graveren, waar, of wat dat kost. En wat een zone heette toen iemand hem kocht
+staat in de eigen `config_snapshot_json` van die bestelregel, die zijn vorm
+houdt.
+
 ### Portfolio (module `portfolio`)
 
 Eigen tabellen, eigen admin (`admin/portfolio.php`, `admin/portfolio-item.php`,

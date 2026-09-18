@@ -18,9 +18,11 @@ declare(strict_types=1);
 require_once __DIR__ . '/../../vendor/autoload.php';
 require_once __DIR__ . '/_personalization_validation.php';
 
+use App\Database;
 use App\Repository\ProductPersonalizationRepository;
 use App\Service\AdminAuth;
 use App\Service\Csrf;
+use App\Service\Personalization\PersonalizationLocalization;
 use App\Service\Personalization\ProductPersonalizationContent;
 
 AdminAuth::requireLoginForApi();
@@ -44,7 +46,8 @@ if ($zoneId === false || $zoneId === null || $zoneId < 1) {
     exit('Invalid zone id.');
 }
 
-$repository = new ProductPersonalizationRepository();
+$db = Database::connection();
+$repository = new ProductPersonalizationRepository($db);
 $zone = $repository->findZoneById($zoneId);
 
 if ($zone === null) {
@@ -56,15 +59,33 @@ $productId = (int) $zone['product_id'];
 
 $errors = [];
 $fields = normalizePersonalizationZoneInput($_POST, $errors);
+// `false`: an existing zone, so the words written are those of the language
+// the form names; every other translation of it stays as it is.
+$language = personalizationLanguage($_POST, false, $errors);
 
 if ($errors !== []) {
-    personalizationFail($productId, $errors, ['form' => 'zone', 'zone_id' => $zoneId], $fields);
+    personalizationFail($productId, $errors, ['form' => 'zone', 'zone_id' => $zoneId], $fields + ['language_code' => $language]);
 }
 
 try {
+    // Row and words are ONE transaction, and the words are only this
+    // language's.
+    $db->beginTransaction();
     $repository->updateZone($zoneId, $fields);
+    PersonalizationLocalization::saveZone($zoneId, $language, [
+        PersonalizationLocalization::LABEL => $fields[PersonalizationLocalization::LABEL],
+        PersonalizationLocalization::INSTRUCTIONS => $fields[PersonalizationLocalization::INSTRUCTIONS],
+        PersonalizationLocalization::PLACEHOLDER => $fields[PersonalizationLocalization::PLACEHOLDER],
+    ]);
+    $db->commit();
+
     ProductPersonalizationContent::clearCache();
+    PersonalizationLocalization::clearCache();
 } catch (\Throwable $e) {
+    if ($db->inTransaction()) {
+        $db->rollBack();
+    }
+
     error_log('[api/admin/update-personalization-zone.php] ' . $e->getMessage());
     personalizationFail($productId, ['De zone kon niet worden opgeslagen. Probeer het opnieuw.']);
 }

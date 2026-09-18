@@ -15,6 +15,9 @@ declare(strict_types=1);
  */
 
 use App\Service\Language\AdminTranslator;
+use App\Service\Language\LanguageCode;
+use App\Service\Language\SiteLanguages;
+use App\Service\Personalization\PersonalizationLocalization;
 use App\Service\Personalization\PersonalizationRules;
 
 /**
@@ -74,23 +77,49 @@ function normalizePersonalizationKey(mixed $submitted, string $what, array &$err
 }
 
 /**
+ * The website language a save carries, or '' with an error when it is not one
+ * this website has. ONE language per request since Multilingual 2.0 phase 5
+ * wave D: the form shows the language the CMS shell points at and the endpoint
+ * writes exactly that one, leaving every other translation alone.
+ *
+ * A NEW view or zone is written in the DEFAULT language, like a new page or a
+ * new blog post, so a card can never be nameless in the language the CMS calls
+ * things by.
+ *
  * @param array<string, mixed> $input raw $_POST
  * @param list<string> $errors
- * @return array{label: ?string, label_en: ?string}
+ */
+function personalizationLanguage(array $input, bool $isNew, array &$errors): string
+{
+    $language = $isNew
+        ? PersonalizationLocalization::defaultLanguage()
+        : (LanguageCode::normalise((string) ($input['language_code'] ?? '')) ?? '');
+
+    if ($language === '' || !SiteLanguages::isActive($language)) {
+        $errors[] = AdminTranslator::trans('validation.language_unknown');
+
+        return '';
+    }
+
+    return $language;
+}
+
+/**
+ * A view has one word: its label, in the language of this request.
+ *
+ * @param array<string, mixed> $input raw $_POST
+ * @param list<string> $errors
+ * @return array{label: string}
  */
 function normalizePersonalizationViewInput(array $input, array &$errors): array
 {
     $label = trim((string) ($input['label'] ?? ''));
-    $labelEn = trim((string) ($input['label_en'] ?? ''));
 
-    if (mb_strlen($label) > 100 || mb_strlen($labelEn) > 100) {
+    if (mb_strlen($label) > PersonalizationLocalization::LABEL_MAX_LENGTH) {
         $errors[] = AdminTranslator::trans('validation.naam_weergave_mag_maximaal_100');
     }
 
-    return [
-        'label' => $label === '' ? null : $label,
-        'label_en' => $labelEn === '' ? null : $labelEn,
-    ];
+    return ['label' => $label];
 }
 
 /**
@@ -104,21 +133,18 @@ function normalizePersonalizationViewInput(array $input, array &$errors): array
 function normalizePersonalizationZoneInput(array $input, array &$errors): array
 {
     $label = trim((string) ($input['label'] ?? ''));
-    $labelEn = trim((string) ($input['label_en'] ?? ''));
     $instructions = trim((string) ($input['instructions'] ?? ''));
-    $instructionsEn = trim((string) ($input['instructions_en'] ?? ''));
     $placeholder = trim((string) ($input['placeholder'] ?? ''));
-    $placeholderEn = trim((string) ($input['placeholder_en'] ?? ''));
 
-    if (mb_strlen($label) > 100 || mb_strlen($labelEn) > 100) {
+    if (mb_strlen($label) > PersonalizationLocalization::LABEL_MAX_LENGTH) {
         $errors[] = AdminTranslator::trans('validation.naam_zone_mag_maximaal_100');
     }
 
-    if (mb_strlen($placeholder) > 100 || mb_strlen($placeholderEn) > 100) {
+    if (mb_strlen($placeholder) > PersonalizationLocalization::PLACEHOLDER_MAX_LENGTH) {
         $errors[] = AdminTranslator::trans('validation.voorbeeldtekst_mag_maximaal_100_tekens');
     }
 
-    if (mb_strlen($instructions) > 500 || mb_strlen($instructionsEn) > 500) {
+    if (mb_strlen($instructions) > PersonalizationLocalization::INSTRUCTIONS_MAX_LENGTH) {
         $errors[] = AdminTranslator::trans('validation.uitleg_zone_mag_maximaal_500');
     }
 
@@ -144,12 +170,10 @@ function normalizePersonalizationZoneInput(array $input, array &$errors): array
     // as NULL by the repository and read by nothing.
 
     return [
-        'label' => $label === '' ? null : $label,
-        'label_en' => $labelEn === '' ? null : $labelEn,
-        'instructions' => $instructions === '' ? null : $instructions,
-        'instructions_en' => $instructionsEn === '' ? null : $instructionsEn,
-        'placeholder' => $placeholder === '' ? null : $placeholder,
-        'placeholder_en' => $placeholderEn === '' ? null : $placeholderEn,
+        // The three WORDS of this zone, in the one language of this request.
+        'label' => $label,
+        'instructions' => $instructions,
+        'placeholder' => $placeholder,
         'allow_text' => $allowText,
         'allow_image' => $allowImage,
         'is_enabled' => ($input['is_enabled'] ?? null) === '1',

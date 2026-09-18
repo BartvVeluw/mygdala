@@ -41,6 +41,7 @@
             <file>tests/Service/EntityTranslationsTest.php</file>
             <file>tests/Service/PortfolioLocalizationTest.php</file>
             <file>tests/Service/ShopLocalizationTest.php</file>
+            <file>tests/Service/PersonalizationLocalizationTest.php</file>
             <file>tests/Service/OrderItemNameSnapshotTest.php</file>
             <file>tests/Service/TranslatableFieldTest.php</file>
             <file>tests/Service/BlockLocalizationTest.php</file>
@@ -163,6 +164,7 @@
             <file>tests/Service/EntityTranslationsTest.php</file>
             <file>tests/Service/PortfolioLocalizationTest.php</file>
             <file>tests/Service/ShopLocalizationTest.php</file>
+            <file>tests/Service/PersonalizationLocalizationTest.php</file>
             <file>tests/Service/OrderItemNameSnapshotTest.php</file>
             <file>tests/Service/TranslatableFieldTest.php</file>
             <file>tests/Service/BlockLocalizationTest.php</file>
@@ -320,6 +322,7 @@
             <file>tests/Install/PortfolioWordsMigrationTest.php</file>
             <file>tests/Install/BlogWordsMigrationTest.php</file>
             <file>tests/Install/ShopWordsMigrationTest.php</file>
+            <file>tests/Install/PersonalizationWordsMigrationTest.php</file>
             <file>tests/Install/OrderItemNameSnapshotMigrationTest.php</file>
             <file>tests/Install/BlockTranslationSchemaTest.php</file>
             <file>tests/Install/BlockTranslationMigrationTest.php</file>
@@ -419,6 +422,7 @@
             <file>tests/Service/EntityTranslationsTest.php</file>
             <file>tests/Service/PortfolioLocalizationTest.php</file>
             <file>tests/Service/ShopLocalizationTest.php</file>
+            <file>tests/Service/PersonalizationLocalizationTest.php</file>
             <file>tests/Service/OrderItemNameSnapshotTest.php</file>
             <file>tests/Service/MultilingualBoundaryTest.php</file>
             <file>tests/Install/ExampleEnvironmentTest.php</file>
@@ -579,6 +583,8 @@
         <testsuite name="personalization">
             <file>tests/Repository/OrderPersonalizationIntegrationTest.php</file>
             <file>tests/Repository/ProductPersonalizationRepositoryIntegrationTest.php</file>
+            <file>tests/Install/PersonalizationWordsMigrationTest.php</file>
+            <file>tests/Service/PersonalizationLocalizationTest.php</file>
             <directory>tests/Service/Personalization</directory>
             <file>tests/Service/PersonalizationAdminSecurityTest.php</file>
             <file>tests/Service/PersonalizationCatalogTest.php</file>

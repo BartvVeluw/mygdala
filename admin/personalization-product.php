@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../vendor/autoload.php';
 require_once __DIR__ . '/_translate.php';
-require_once __DIR__ . '/_language_fields.php';
+require_once __DIR__ . '/_localized_fields.php';
 
 use App\Repository\ProductPersonalizationRepository;
 use App\Repository\ProductRepository;
@@ -114,6 +114,5 @@ require __DIR__ . '/_personalization_builder.php';
 
   <?php renderPersonalizationBuilder($product, $personalization, $csrfToken, $personalizationFlash); ?>
 </main>
-<?php admin_lang_script(); ?>
 </body>
 </html>

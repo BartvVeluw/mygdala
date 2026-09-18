@@ -1118,18 +1118,71 @@ dezelfde stap; `20260918220000` maakt de momentopnametabel en `20260918230000`
 verhuist `order_items.product_name_en` en dropt die ene kolom. `product_name`
 zelf wordt niet aangeraakt.
 
+### Personalisatie (golf D)
+
+| Tabel | Eigenaar | Velden (max) | Domein-API |
+|---|---|---|---|
+| `product_personalization_translations` | `settings_id` | `instructions` (500) | `App\Service\Personalization\PersonalizationLocalization` |
+| `product_personalization_view_translations` | `view_id` | `label` (100) | idem |
+| `product_personalization_zone_translations` | `zone_id` | `label` (100), `instructions` (500), `placeholder` (100) | idem |
+
+Dezelfde vorm en dezelfde regels als de vorige drie golven. Niets hiervan is
+rich text — een uitleg, een label en een voorbeeldtekst worden ge-escaped
+afgedrukt — dus deze API heeft geen sanitizer en hoort die ook niet te hebben.
+
+**Woorden zijn niet de configuratie.** Dat is hier de regel waar alles aan
+hangt. Wat bepaalt wat een klant mág doen blijft op de eigen rij en is in elke
+taal hetzelfde: `view_key` en `zone_key` — de sleutels waar een bestelregel
+naar wijst — de geometrie (`area_x`, `area_y`, `area_width`, `area_height`),
+`allow_text`, `allow_image`, `is_enabled`, `is_required`, `allow_rotation`,
+`max_text_length`, `surcharge`, de lettertype-instellingen,
+`personalization_mode`, de voorbeeldafbeelding en elke sorteervolgorde. Een
+taalwissel kan dus geen zone verplaatsen, aanzetten of duurder maken.
+
+**De momentopname van een bestelling houdt haar vorm.** Wat een zone heette
+toen iemand hem kocht staat in de eigen `config_snapshot_json` (versie 3) van
+die regel, met precies de sleutels die hij had — `label`/`label_en` incluis —
+zodat een document van vóór deze golf net zo leest als een van erna. Er wordt
+niets herschreven, en niets in deze golf leest of schrijft
+`order_item_personalizations`. Eén ding verandert wél aan wat een *nieuwe*
+momentopname vastlegt: een taal zonder eigen label legde vroeger `null` vast en
+legt nu de terugvalwaarde vast — dus wat de klant werkelijk op het scherm zag,
+wat voor een momentopname het juiste antwoord is.
+
+**Eén terugvalregel, ook in de validator.**
+`PersonalizationValidator::zoneLabel()` antwoordde "het Nederlandse label,
+anders het Engelse, anders de sleutel" — een tweede terugvalregel van de module
+zelf. Dat is nu "het label zoals de leeslaag het al opgeloste heeft, anders de
+sleutel": de module kiest geen taal meer en `MultilingualBoundaryTest` faalt
+zodra dat terugkomt.
+
+**De editor.** `admin/_personalization_builder.php` staat op
+`admin/_localized_fields.php`: één uitleg, één naam per voorbeeld en één label,
+uitleg en voorbeeldtekst per zone, in de taal die de schil aanwijst. Een
+**nieuw** voorbeeld en een **nieuwe** zone worden in de standaardtaal benoemd,
+zodat een kaart in het CMS nooit naamloos kan zijn. De koppen van de blokken
+noemen een voorbeeld en een zone bij de naam die het CMS gebruikt (de
+standaardtaal), zodat ze vindbaar blijven terwijl een vertaling nog geschreven
+wordt.
+
+**De migraties.** `20260918240000` maakt de drie tabellen, `20260918250000`
+verhuist tien kolommen en dropt ze in dezelfde stap.
+
 ### Wat fase 5 nog moet doen
 
-Na golf C staat er nog `_nl`/`_en` in Personalisatie
-(`product_personalization_settings`, `_views`, `_zones`). Daarnaast houdt de
-Blog twee **instellingssleutels** in zijn eigen `blog_settings`:
-`blog_title(_en)` en `blog_intro(_en)`. Die zijn bewust niet meeverhuisd in
-golf B — zie het fase-5-rapport voor de reden en de drie opties.
-`BlockImage::fromRow()` blijft tot dan voor Blog bestaan, en
-`SiteText::attrs()`/`visible()` voor alles wat nog kolommen heeft. De tijdelijke
-uitvoeradapter (`BlockLocalization::bilingual()`,
-`LanguageFallback::bilingual()`, `SiteText::*Of()`) blijft tot de flip in
-fase 7.
+Na golf D staat er **geen enkele `_nl`/`_en`-kolom** meer in de database.
+
+Wat wél openstaat: de Blog houdt twee **instellingssleutels** in zijn eigen
+`blog_settings`, `blog_title(_en)` en `blog_intro(_en)`. Die zijn bewust niet
+meeverhuisd in golf B — zie het fase-5-rapport voor de reden en de drie opties.
+Verder zijn er de vaste `label_nl`/`label_en`-paren in **code**-catalogi
+(`RouteRegistry`, `ModuleDefinition`, `CookieConsentConfig`): dat is geen
+opslag, en ze horen bij het opruimen van de frontend in fase 6/7.
+
+`SiteText::attrs()`/`visible()` blijft voor alles wat nog een paar in een
+payload draagt, en de tijdelijke uitvoeradapter
+(`BlockLocalization::bilingual()`, `LanguageFallback::bilingual()`,
+`SiteText::*Of()`) blijft tot de flip in fase 7.
 
 ## Nog niet, bewust
 

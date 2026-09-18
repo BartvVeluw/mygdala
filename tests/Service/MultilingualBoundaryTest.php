@@ -1713,6 +1713,9 @@ final class MultilingualBoundaryTest extends TestCase
         'product_translations',
         'collection_translations',
         'order_item_translations',
+        'product_personalization_translations',
+        'product_personalization_view_translations',
+        'product_personalization_zone_translations',
     ];
 
     /** The domain APIs that may declare a typed translation table and hold its store. */
@@ -1727,6 +1730,7 @@ final class MultilingualBoundaryTest extends TestCase
         // bought. Its own class on purpose, with its own reading rule — see
         // the docblock there (Multilingual 2.0 phase 5 wave C).
         'src/Service/OrderItemNameSnapshot.php',
+        'src/Service/Personalization/PersonalizationLocalization.php',
     ];
 
     /** Wave A: every file that used to read or write a menu or footer label column. */
@@ -2639,6 +2643,142 @@ final class MultilingualBoundaryTest extends TestCase
 
             self::assertStringContainsString('beginTransaction()', $code, $endpoint);
             self::assertStringContainsString('commit()', $code, $endpoint);
+        }
+    }
+
+    // ---------- Personalisatie on per-language storage (phase 5 wave D)
+
+    /** Every file that used to read or write a personalization word column. */
+    private const PERSONALIZATION_FILES = [
+        'src/Repository/ProductPersonalizationRepository.php',
+        'src/Service/Personalization/ProductPersonalizationContent.php',
+        'src/Service/Personalization/PersonalizationValidator.php',
+        'admin/_personalization_builder.php',
+        'admin/personalization-product.php',
+        'api/admin/_personalization_validation.php',
+        'api/admin/create-personalization-view.php',
+        'api/admin/update-personalization-view.php',
+        'api/admin/create-personalization-zone.php',
+        'api/admin/update-personalization-zone.php',
+        'api/admin/update-product-personalization.php',
+    ];
+
+    /**
+     * 20260918250000 dropped ten columns: `instructions` on the settings,
+     * `label` on a view, and `label`/`instructions`/`placeholder` on a zone,
+     * each as a bare Dutch column plus an `_en` one.
+     *
+     * The one place these files may still name an `_en` key is the resolved
+     * configuration and the order SNAPSHOT built from it: `label_en` and
+     * friends are keys of a payload the browser reads and of a version-3
+     * `config_snapshot_json` that must keep its shape, not columns.
+     */
+    public function testNothingReadsTheDroppedPersonalizationColumns(): void
+    {
+        $payloadBuilders = ['src/Service/Personalization/ProductPersonalizationContent.php'];
+        $offenders = [];
+
+        foreach (self::PERSONALIZATION_FILES as $file) {
+            if (in_array($file, $payloadBuilders, true)) {
+                continue;
+            }
+
+            $code = self::withoutComments(self::read($file));
+
+            if (preg_match_all('/(?<![a-z_-])(?:label|instructions|placeholder)_en\b/', $code, $matches) > 0) {
+                $offenders[] = $file . ' (' . implode(', ', array_unique($matches[0])) . ')';
+            }
+        }
+
+        self::assertSame([], $offenders);
+    }
+
+    /**
+     * WORDS ARE NOT THE CONFIGURATION. The keys an order line points at, the
+     * geometry and every rule stayed on their own rows, so a language switch
+     * cannot move a zone, enable one, or change what engraving costs.
+     */
+    public function testNothingTheConfigurationDecidesWithBecameAWord(): void
+    {
+        foreach ([
+            \App\Service\Personalization\PersonalizationLocalization::settings(),
+            \App\Service\Personalization\PersonalizationLocalization::views(),
+            \App\Service\Personalization\PersonalizationLocalization::zones(),
+        ] as $store) {
+            foreach ([
+                'view_key', 'zone_key', 'preview_image_path', 'personalization_mode',
+                'area_x', 'area_y', 'area_width', 'area_height',
+                'allow_text', 'allow_image', 'is_enabled', 'is_required', 'allow_rotation',
+                'max_text_length', 'surcharge', 'sort_order',
+            ] as $neutral) {
+                self::assertNotContains($neutral, $store->table()->fieldNames(), $store->table()->name . '.' . $neutral);
+            }
+        }
+    }
+
+    /**
+     * The module picks no language and writes no fallback of its own. The
+     * validator in particular used to answer "the Dutch label, else the
+     * English one, else the key" — a second fallback rule, which this phase
+     * does not allow.
+     */
+    public function testPersonalisatieDecidesNoLanguageOrFallbackItself(): void
+    {
+        foreach (self::PERSONALIZATION_FILES as $file) {
+            $code = self::withoutComments(self::read($file));
+
+            self::assertStringNotContainsString('SiteLanguages::defaultCode(', $code, $file . ' asks for the default language itself');
+            self::assertStringNotContainsString('Seo::pick(', $code, $file . ' builds a bilingual fallback of its own');
+        }
+
+        self::assertDoesNotMatchRegularExpression(
+            "/\\\$zone\\['label'\\]\\s*\\?\\?\\s*\\\$zone\\['label_en'\\]/",
+            self::withoutComments(self::read('src/Service/Personalization/PersonalizationValidator.php')),
+            'the validator must not have a fallback rule of its own'
+        );
+    }
+
+    /** No personalization query may order on words either. */
+    public function testNoPersonalizationQueryOrdersOnWords(): void
+    {
+        self::assertDoesNotMatchRegularExpression(
+            '/ORDER BY[^\']*(?<![a-z_])(?:label|instructions|placeholder)\b/i',
+            self::withoutComments(self::read('src/Repository/ProductPersonalizationRepository.php')),
+            'the personalization repository orders on words'
+        );
+    }
+
+    /**
+     * The builder is on the dynamic component, sends exactly one language, and
+     * its five endpoints write it in one transaction with the row.
+     */
+    public function testTheBuilderShowsOneLanguageAndItsEndpointsWriteOnlyThatLanguage(): void
+    {
+        $builder = self::read('admin/_personalization_builder.php');
+
+        self::assertStringContainsString("require_once __DIR__ . '/_localized_fields.php';", $builder);
+        self::assertStringContainsString('admin_localized_input($editingLanguage)', $builder);
+        self::assertStringNotContainsString('admin_lang_pane_start', $builder, 'no V1 language panes');
+        self::assertStringNotContainsString('admin_lang_bar(', $builder);
+
+        self::assertStringContainsString(
+            'SiteLanguages::isActive(',
+            self::withoutComments(self::read('api/admin/_personalization_validation.php')),
+            'the language a save carries is checked against the registry'
+        );
+
+        foreach ([
+            'api/admin/create-personalization-view.php',
+            'api/admin/update-personalization-view.php',
+            'api/admin/create-personalization-zone.php',
+            'api/admin/update-personalization-zone.php',
+            'api/admin/update-product-personalization.php',
+        ] as $endpoint) {
+            $code = self::withoutComments(self::read($endpoint));
+
+            self::assertStringContainsString('beginTransaction()', $code, $endpoint);
+            self::assertStringContainsString('commit()', $code, $endpoint);
+            self::assertStringContainsString('$language', $code, $endpoint . ' writes one named language');
         }
     }
 

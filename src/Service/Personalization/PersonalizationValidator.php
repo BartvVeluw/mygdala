@@ -500,10 +500,16 @@ class PersonalizationValidator
      * A name a customer can act on. Falls back to the zone key only when the
      * administrator never labelled the zone — never to an internal id.
      *
+     * The zone arrives from App\Service\Personalization\ProductPersonalizationContent,
+     * so `label` already carries the one fallback rule
+     * (App\Service\Language\LanguageFallback): the asked-for language, then
+     * the default one. This class picks no language of its own and has no
+     * "else the English one" branch any more.
+     *
      * @param array<string, mixed> $zone
      */
     private static function zoneLabel(array $zone): string
     {
-        return $zone['label'] ?? $zone['label_en'] ?? $zone['zone_key'];
+        return $zone['label'] ?? $zone['zone_key'];
     }
 }

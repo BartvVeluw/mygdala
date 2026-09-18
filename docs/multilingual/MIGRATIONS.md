@@ -87,6 +87,7 @@ verhuismigratie.
 | B | `20260918180000` / `190000` | `blog_posts.{title,excerpt,body,meta_title,meta_description}` en hun `_en`; `blog_categories.{name,description}` en hun `_en`; `blog_tags.name` en `name_en` — 16 kolommen | `blog_post_translations`, `blog_category_translations`, `blog_tag_translations` |
 | C | `20260918200000` / `210000` | `products.{name,description,meta_title,meta_description}` en hun `_en`; dezelfde vier van `collections` plus `related_heading_nl/en` — 19 kolommen; en de twee rijen `site_settings.related_products_heading_nl/en` | `product_translations`, `collection_translations`; de kop naar `site_setting_translations` |
 | C | `20260918220000` / `230000` | `order_items.product_name_en` — 1 kolom | `order_item_translations` |
+| D | `20260918240000` / `250000` | `product_personalization_settings.instructions` en `_en`; `_views.label` en `_en`; `_zones.{label,instructions,placeholder}` en hun `_en` — 10 kolommen | `product_personalization_translations`, `product_personalization_view_translations`, `product_personalization_zone_translations` |
 
 Dezelfde regels als in 3A, 3B en 4: NL blijft NL, EN blijft EN, byte voor byte
 (rich text inbegrepen), leeg of alleen witruimte krijgt geen rij, opnieuw
@@ -130,13 +131,23 @@ productnaam — de migratie kopieert bytes en dropt één kolom, en joint nooit
 naar `products`. Een regel waarvan het product intussen verwijderd is
 (`product_id` NULL) houdt zijn naam gewoon.
 
+Bij golf D verhuist alleen tekst en blijft de **configuratie** staan: elke
+`view_key` en `zone_key` (waar een bestelregel naar wijst), de geometrie, de
+schakelaars, de meerprijs, de voorbeeldafbeelding en elke sorteervolgorde. Wat
+een zone heette toen iemand hem kocht staat in de eigen `config_snapshot_json`
+van die bestelregel en wordt niet aangeraakt.
+
 De tests zijn `tests/Install/PortfolioWordsMigrationTest.php`,
-`BlogWordsMigrationTest.php`, `ShopWordsMigrationTest.php` en
-`OrderItemNameSnapshotMigrationTest.php` (`migration`): vers, bijgewerkt en
+`BlogWordsMigrationTest.php`, `ShopWordsMigrationTest.php`,
+`OrderItemNameSnapshotMigrationTest.php` en
+`PersonalizationWordsMigrationTest.php` (`migration`): vers, bijgewerkt en
 kapot naast elkaar, met de neutrale kolommen ervoor en erna vergeleken, een rij
 in elke toestand waarin zijn kolommen konden staan, bij golf B ook de
-taxonomiekoppelingen en elke slug, en bij golf C elke prijs, elk
-collectielidmaatschap en elke bestelregel.
+taxonomiekoppelingen en elke slug, bij golf C elke prijs, elk
+collectielidmaatschap en elke bestelregel, en bij golf D elke sleutel en elke
+coördinaat.
+
+**Na golf D staat er geen enkele `_nl`/`_en`-kolom meer in de database.**
 
 **Oude migraties die de gedropte kolommen lezen.** `20260909270000` (media
 adopteren) leest de alt-kolommen van Tekst met afbeelding, Detailsectie en

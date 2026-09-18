@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Support;
 
 use App\Repository\ProductPersonalizationRepository;
+use App\Service\Personalization\PersonalizationLocalization;
 use App\Service\Personalization\PersonalizationRules;
 use App\Service\Personalization\ProductPersonalizationContent;
 
@@ -77,9 +78,18 @@ final class PersonalizationTestConfig
         $settingsId = $repository->saveSettings($productId, $settings + [
             'is_enabled' => true,
             'personalization_mode' => PersonalizationRules::PURCHASE_OPTIONAL,
-            'instructions' => null,
-            'instructions_en' => null,
         ]);
+
+        // The words, per website language, where they live since Multilingual
+        // 2.0 phase 5 wave D. The description above still speaks the
+        // `<field>`/`<field>_en` pair, because that is what a test wants to
+        // say; this is the one place that knows where each half goes.
+        self::words(
+            static fn (string $language, string $value): mixed
+                => PersonalizationLocalization::saveInstructions($settingsId, $language, $value),
+            $settings['instructions'] ?? null,
+            $settings['instructions_en'] ?? null
+        );
 
         $viewIds = [];
         $zoneIds = [];
@@ -87,12 +97,15 @@ final class PersonalizationTestConfig
         foreach ($views as $index => $view) {
             $viewKey = $view['view_key'] ?? ($index === 0 ? PersonalizationRules::DEFAULT_VIEW_KEY : 'view' . $index);
 
-            $viewId = $repository->createView($settingsId, [
-                'view_key' => $viewKey,
-                'label' => $view['label'] ?? null,
-                'label_en' => $view['label_en'] ?? null,
-            ]);
+            $viewId = $repository->createView($settingsId, ['view_key' => $viewKey]);
             $viewIds[$viewKey] = $viewId;
+
+            self::words(
+                static fn (string $language, string $value): mixed
+                    => PersonalizationLocalization::saveViewLabel($viewId, $language, $value),
+                $view['label'] ?? null,
+                $view['label_en'] ?? null
+            );
 
             // array_key_exists, not ??: a test that deliberately configures a
             // view WITHOUT an image passes null and must keep it.
@@ -102,13 +115,42 @@ final class PersonalizationTestConfig
             }
 
             foreach ($view['zones'] as $zone) {
-                $zoneIds[$zone['zone_key']] = $repository->createZone($settingsId, $viewId, $zone);
+                $zoneId = $repository->createZone($settingsId, $viewId, $zone);
+                $zoneIds[$zone['zone_key']] = $zoneId;
+
+                foreach ([
+                    PersonalizationLocalization::LABEL => 'label',
+                    PersonalizationLocalization::INSTRUCTIONS => 'instructions',
+                    PersonalizationLocalization::PLACEHOLDER => 'placeholder',
+                ] as $field => $key) {
+                    self::words(
+                        static fn (string $language, string $value): mixed
+                            => PersonalizationLocalization::saveZone($zoneId, $language, [$field => $value]),
+                        $zone[$key] ?? null,
+                        $zone[$key . '_en'] ?? null
+                    );
+                }
             }
         }
 
         ProductPersonalizationContent::clearCache();
+        PersonalizationLocalization::clearCache();
 
         return ['settings_id' => $settingsId, 'view_ids' => $viewIds, 'zone_ids' => $zoneIds];
+    }
+
+    /**
+     * Hands one field's Dutch and English halves to the writer that owns them,
+     * skipping a language that has nothing to say — which is how "not
+     * translated" is stored.
+     */
+    private static function words(callable $save, ?string $dutch, ?string $english): void
+    {
+        foreach (['nl' => $dutch, 'en' => $english] as $language => $value) {
+            if ($value !== null && trim($value) !== '') {
+                $save((string) $language, $value);
+            }
+        }
     }
 
     /**

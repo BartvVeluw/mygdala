@@ -22,11 +22,13 @@ declare(strict_types=1);
 require_once __DIR__ . '/../../vendor/autoload.php';
 require_once __DIR__ . '/_personalization_validation.php';
 
+use App\Database;
 use App\Service\Language\AdminTranslator;
 use App\Repository\ProductPersonalizationRepository;
 use App\Repository\ProductRepository;
 use App\Service\AdminAuth;
 use App\Service\Csrf;
+use App\Service\Personalization\PersonalizationLocalization;
 use App\Service\Personalization\PersonalizationRules;
 use App\Service\Personalization\ProductPersonalizationContent;
 
@@ -62,10 +64,13 @@ $isEnabled = ($_POST['personalization_enabled'] ?? null) === '1';
 // Anything but the literal 'required' is 'optional' — the safe direction, and
 // the behaviour every product configured before this setting existed keeps.
 $mode = PersonalizationRules::purchaseMode($_POST['personalization_mode'] ?? null);
+// The general instructions of ONE website language, the one the form names
+// (Multilingual 2.0 phase 5 wave D). The switch and the purchase mode are
+// language-neutral and are written whatever language this save carries.
 $instructions = trim((string) ($_POST['instructions'] ?? ''));
-$instructionsEn = trim((string) ($_POST['instructions_en'] ?? ''));
+$language = personalizationLanguage($_POST, false, $errors);
 
-if (mb_strlen($instructions) > 500 || mb_strlen($instructionsEn) > 500) {
+if (mb_strlen($instructions) > PersonalizationLocalization::INSTRUCTIONS_MAX_LENGTH) {
     $errors[] = AdminTranslator::trans('validation.uitlegtekst_mag_maximaal_500_tekens');
 }
 
@@ -74,20 +79,30 @@ if ($errors !== []) {
         'personalization_enabled' => $isEnabled,
         'personalization_mode' => $mode,
         'instructions' => $instructions,
-        'instructions_en' => $instructionsEn,
+        'language_code' => $language,
     ]);
 }
 
+$db = Database::connection();
+
 try {
-    (new ProductPersonalizationRepository())->saveSettings($productId, [
+    // Row and words are ONE transaction, and the words are only this
+    // language's.
+    $db->beginTransaction();
+    $settingsId = (new ProductPersonalizationRepository($db))->saveSettings($productId, [
         'is_enabled' => $isEnabled,
         'personalization_mode' => $mode,
-        'instructions' => $instructions === '' ? null : $instructions,
-        'instructions_en' => $instructionsEn === '' ? null : $instructionsEn,
     ]);
+    PersonalizationLocalization::saveInstructions($settingsId, $language, $instructions);
+    $db->commit();
 
     ProductPersonalizationContent::clearCache();
+    PersonalizationLocalization::clearCache();
 } catch (\Throwable $e) {
+    if ($db->inTransaction()) {
+        $db->rollBack();
+    }
+
     error_log('[api/admin/update-product-personalization.php] ' . $e->getMessage());
     personalizationFail($productId, ['Personalisatie kon niet worden opgeslagen. Probeer het opnieuw.']);
 }
