@@ -19,6 +19,7 @@ require_once __DIR__ . '/../../vendor/autoload.php';
 
 use App\Repository\BlogTagRepository;
 use App\Service\AdminAuth;
+use App\Service\Blog\BlogLocalization;
 use App\Service\Csrf;
 
 AdminAuth::requireLoginForApi();
@@ -51,9 +52,15 @@ try {
         exit;
     }
 
+    // The name for the message, READ BEFORE THE DELETE. A tag is named per
+    // website language since Multilingual 2.0 phase 5 wave B, and those rows
+    // go with the tag (ON DELETE CASCADE) — asking afterwards would name an
+    // empty string.
+    $name = BlogLocalization::tagLabel($id);
+
     $repository->delete($id);
 
-    $_SESSION['admin_blog_taxonomy_flash'] = 'Tag "' . (string) $tag['name'] . '" is verwijderd.';
+    $_SESSION['admin_blog_taxonomy_flash'] = 'Tag "' . $name . '" is verwijderd.';
 } catch (\Throwable $e) {
     error_log('[api/admin/delete-blog-tag.php] ' . $e->getMessage());
     $_SESSION['admin_blog_taxonomy_errors'] = ['De tag kon niet worden verwijderd. Probeer het opnieuw.'];

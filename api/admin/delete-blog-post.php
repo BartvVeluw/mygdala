@@ -28,6 +28,7 @@ require_once __DIR__ . '/../../vendor/autoload.php';
 
 use App\Repository\BlogPostRepository;
 use App\Service\AdminAuth;
+use App\Service\Blog\BlogLocalization;
 use App\Service\Csrf;
 
 AdminAuth::requireLoginForApi();
@@ -60,9 +61,15 @@ try {
         exit;
     }
 
+    // The title for the message, READ BEFORE THE DELETE. A post is titled per
+    // website language since Multilingual 2.0 phase 5 wave B, and those rows
+    // go with the post (ON DELETE CASCADE) — asking afterwards would name an
+    // empty string.
+    $title = BlogLocalization::postName($id);
+
     $repository->delete($id);
 
-    $_SESSION['admin_blog_flash'] = 'Bericht "' . (string) $post['title'] . '" is verwijderd.';
+    $_SESSION['admin_blog_flash'] = 'Bericht "' . $title . '" is verwijderd.';
 } catch (\Throwable $e) {
     error_log('[api/admin/delete-blog-post.php] ' . $e->getMessage());
     $_SESSION['admin_blog_errors'] = ['Het bericht kon niet worden verwijderd. Probeer het opnieuw.'];

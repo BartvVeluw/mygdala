@@ -13,6 +13,7 @@ use App\Service\Csrf;
 use App\Service\ItemGalleryContent;
 use App\Service\ItemGallerySources;
 use App\Service\SectionRegistry;
+use App\Service\ShopLocalization;
 use App\Repository\CollectionRepository;
 use App\Repository\ItemGalleryRepository;
 use App\Repository\PageRepository;
@@ -126,6 +127,15 @@ $collections = [];
 if ($needsCollectionPicker) {
     try {
         $collections = (new CollectionRepository())->findAll();
+
+        // Every option's collection name in one query rather than one per
+        // option. A collection is named per website language since
+        // Multilingual 2.0 phase 5 wave C, and the picker uses the one name
+        // the CMS calls it by.
+        ShopLocalization::preloadCollections(array_map(
+            static fn (array $collection): int => (int) $collection['id'],
+            $collections
+        ));
     } catch (\Throwable $e) {
         error_log('[admin/item-gallery.php] collection list failed: ' . $e->getMessage());
         $collections = [];
@@ -212,7 +222,7 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
           <select name="collection_id">
             <option value=""><?= admin_te('block_gallery.kies_collectie') ?></option>
             <?php foreach ($collections as $collection): ?>
-            <option value="<?= (int) $collection['id'] ?>" <?= (string) ($values['collection_id'] ?? '') === (string) $collection['id'] ? 'selected' : '' ?>><?= $h((string) $collection['name']) ?><?= (bool) $collection['is_active'] ? '' : ' (concept)' ?></option>
+            <option value="<?= (int) $collection['id'] ?>" <?= (string) ($values['collection_id'] ?? '') === (string) $collection['id'] ? 'selected' : '' ?>><?= $h(ShopLocalization::collectionName((int) $collection['id'])) ?><?= (bool) $collection['is_active'] ? '' : ' (concept)' ?></option>
             <?php endforeach; ?>
           </select>
         </label>

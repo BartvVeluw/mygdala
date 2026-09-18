@@ -305,3 +305,23 @@ kiest — met een eigen assertie op de oude `label ?? label_en`-regel van de
 validator — dat geen personalisatiequery op woorden sorteert, en dat de
 bouwer één taal toont en zijn vijf endpoints alleen die taal schrijven, in één
 transactie met de rij.
+
+**De lezer die achterbleef.** Elke golfgrens hierboven zoekt een `_nl`/`_en`
+achter een kolomnaam. Dat werkt voor het Portfolio, waar de kolommen een paar
+vormden, en het ziet de Blog en de Shop niet: daar wás de Nederlandse kolom de
+kale naam. Een scherm dat `$category['name']` van een repositoryrij bleef
+lezen, kwam dus door elke controle heen, drukte een lege string af en zette
+`Warning: Undefined array key` in het log. Zes schermen deden dat na de golven
+A tot en met D; `e685c77` had er met de hand al een zevende gevonden.
+
+Twee grenstests sluiten dat gat, en geen van beide probeert een repositoryrij
+van een zelfgebouwde array te onderscheiden — dat kan een reguliere expressie
+niet. Ze leggen de zeven aanroepplekken vast:
+`testEveryScreenThatNamesAStrippedRowAsksTheWordsStore` eist dat elk van die
+schermen de woordenopslag noemt, wat de enige plek is waar de naam nog vandaan
+kan komen, en `testADeleteEndpointReadsTheNameBeforeItDeletesTheRow` eist dat
+een verwijderendpoint die naam **boven** zijn eigen `delete(` leest: de
+vertaalrijen hangen met `CASCADE` aan hun eigenaar, dus wie erna vraagt krijgt
+`Bericht "" is verwijderd`. Het is de vorm van `e685c77` — beweer dat het
+scherm echt afdrukt waarvoor het naar de database ging — statisch uitgevoerd,
+omdat deze schermen geen eigen HTTP-test hebben.

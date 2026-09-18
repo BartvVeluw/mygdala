@@ -21,6 +21,7 @@ require_once __DIR__ . '/../../vendor/autoload.php';
 
 use App\Service\AdminAuth;
 use App\Service\Csrf;
+use App\Service\PortfolioLocalization;
 use App\Repository\PortfolioCategoryRepository;
 
 AdminAuth::requireLoginForApi();
@@ -62,7 +63,9 @@ foreach ($withCounts as $row) {
 
 if ($itemCount > 0) {
     $_SESSION['admin_portfolio_category_errors'] = [
-        'Categorie "' . $category['name_nl'] . '" is nog toegewezen aan ' . $itemCount . ' portfolio-item(s) en kan niet worden verwijderd. Verwijder eerst de toewijzing bij die items.',
+        // A category is named per website language since Multilingual 2.0
+        // phase 5 wave A; the message uses the one name the CMS calls it by.
+        'Categorie "' . PortfolioLocalization::categoryLabel($categoryId) . '" is nog toegewezen aan ' . $itemCount . ' portfolio-item(s) en kan niet worden verwijderd. Verwijder eerst de toewijzing bij die items.',
     ];
     header('Location: /admin/portfolio.php');
     exit;

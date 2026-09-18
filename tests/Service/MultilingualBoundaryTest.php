@@ -2073,6 +2073,9 @@ final class MultilingualBoundaryTest extends TestCase
         'api/admin/update-portfolio-category.php',
         'api/admin/create-portfolio-item.php',
         'api/admin/update-portfolio-item.php',
+        // The delete endpoint belongs here too: it names the category it
+        // refused to remove, which is a read of a word.
+        'api/admin/delete-portfolio-category.php',
     ];
 
     /**
@@ -2241,6 +2244,11 @@ final class MultilingualBoundaryTest extends TestCase
         'api/admin/create-blog-category.php',
         'api/admin/update-blog-category.php',
         'api/admin/update-blog-tag.php',
+        // The delete endpoints belong here too: each names the thing it
+        // removed in its confirmation, which is a read of a word.
+        'api/admin/delete-blog-post.php',
+        'api/admin/delete-blog-category.php',
+        'api/admin/delete-blog-tag.php',
     ];
 
     /**
@@ -2486,6 +2494,9 @@ final class MultilingualBoundaryTest extends TestCase
         'api/admin/create-collection.php',
         'api/admin/update-collection.php',
         'api/admin/update-related-products-settings.php',
+        // Not a Shop screen, but it offers a collection picker and therefore
+        // names collections, exactly like admin/product-form.php does.
+        'admin/item-gallery.php',
     ];
 
     /** The Shop's own editors, all on the dynamic localized-fields component. */
@@ -2752,6 +2763,77 @@ final class MultilingualBoundaryTest extends TestCase
         }
 
         self::assertSame([], $offenders);
+    }
+
+    /**
+     * THE READER THAT GETS LEFT BEHIND, AND WHY THE TESTS ABOVE CANNOT SEE IT.
+     *
+     * Each of those tests hunts for an `_nl`/`_en` SUFFIX. That works for the
+     * Portfolio, whose columns were a Dutch/English pair, and it is blind to
+     * the Blog and the Shop, whose Dutch column was the BARE name — `name`,
+     * `title`, `body`. A screen left reading `$category['name']` off a
+     * repository row therefore passed every check, printed an empty string,
+     * and put `Warning: Undefined array key` in the log. Six of them did, in
+     * the wave that dropped those columns; `e685c77` had already found a
+     * seventh by hand.
+     *
+     * A regex cannot tell a repository row from an array a screen built
+     * itself, so this does not try. It pins the seven call sites instead:
+     * each one names the words store, which is the only place the name can
+     * come from now. That is `e685c77`'s shape — assert the screen really
+     * prints what it went to the database for — as a static check, because
+     * these particular screens have no HTTP test of their own.
+     */
+    public function testEveryScreenThatNamesAStrippedRowAsksTheWordsStore(): void
+    {
+        $callers = [
+            'admin/blog-post.php' => 'BlogLocalization::categoryLabel(',
+            'api/admin/delete-blog-post.php' => 'BlogLocalization::postName(',
+            'api/admin/delete-blog-category.php' => 'BlogLocalization::categoryLabel(',
+            'api/admin/delete-blog-tag.php' => 'BlogLocalization::tagLabel(',
+            'api/admin/delete-portfolio-category.php' => 'PortfolioLocalization::categoryLabel(',
+            'admin/item-gallery.php' => 'ShopLocalization::collectionName(',
+            'admin/product-form.php' => 'ShopLocalization::collectionName(',
+        ];
+
+        foreach ($callers as $file => $call) {
+            self::assertStringContainsString(
+                $call,
+                self::withoutComments(self::read($file)),
+                $file . ' must name its rows through the words store'
+            );
+        }
+    }
+
+    /**
+     * A DELETE NAMES WHAT IT REMOVED, SO IT MUST READ THE NAME FIRST.
+     *
+     * Translation rows hang off their owner with ON DELETE CASCADE, so the
+     * words are gone the moment the row is. An endpoint that deletes and then
+     * asks for the name gets an empty string — the confirmation would read
+     * `Bericht "" is verwijderd`, which is worse than saying nothing. Each of
+     * these reads its name above its own `delete(`.
+     */
+    public function testADeleteEndpointReadsTheNameBeforeItDeletesTheRow(): void
+    {
+        foreach ([
+            'api/admin/delete-blog-post.php' => 'BlogLocalization::postName(',
+            'api/admin/delete-blog-category.php' => 'BlogLocalization::categoryLabel(',
+            'api/admin/delete-blog-tag.php' => 'BlogLocalization::tagLabel(',
+        ] as $file => $call) {
+            $code = self::withoutComments(self::read($file));
+
+            $read = strpos($code, $call);
+            $delete = strpos($code, '->delete(');
+
+            self::assertIsInt($read, $file);
+            self::assertIsInt($delete, $file);
+            self::assertLessThan(
+                $delete,
+                $read,
+                $file . ' asks for the name after the cascade already took it'
+            );
+        }
     }
 
     /**

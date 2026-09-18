@@ -77,6 +77,15 @@ if ($post === null) {
 $postId = (int) $post['id'];
 
 $categories = (new BlogCategoryRepository())->all();
+
+// Every tick box's category name in one query rather than one per box. A
+// category is named per website language since Multilingual 2.0 phase 5 wave
+// B, and the picker uses the one name the CMS calls it by.
+BlogLocalization::preloadCategories(array_map(
+    static fn (array $category): int => (int) $category['id'],
+    $categories
+));
+
 $selectedCategoryIds = $repository->categoryIdsFor($postId);
 $tagLine = BlogPostService::tagLine($repository->tagsForPosts([$postId])[$postId] ?? []);
 
@@ -256,7 +265,7 @@ $forcedTab = $errors !== [] ? 'inhoud' : null;
             <label class="admin-checkbox-label admin-permission-option">
               <input type="checkbox" name="categories[]" value="<?= (int) $category['id'] ?>" <?= in_array((int) $category['id'], $checkedCategoryIds, true) ? 'checked' : '' ?>>
               <span>
-                <strong><?= $h((string) $category['name']) ?></strong>
+                <strong><?= $h(BlogLocalization::categoryLabel((int) $category['id'])) ?></strong>
                 <?php if ((int) $category['is_active'] !== 1): ?>
                   <span class="admin-text-muted"><?= admin_t('blog.category_inactive') ?></span>
                 <?php endif; ?>

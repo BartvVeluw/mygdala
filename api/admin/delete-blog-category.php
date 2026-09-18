@@ -26,6 +26,7 @@ require_once __DIR__ . '/../../vendor/autoload.php';
 
 use App\Repository\BlogCategoryRepository;
 use App\Service\AdminAuth;
+use App\Service\Blog\BlogLocalization;
 use App\Service\Csrf;
 
 AdminAuth::requireLoginForApi();
@@ -58,9 +59,15 @@ try {
         exit;
     }
 
+    // The name for the message, READ BEFORE THE DELETE. A category is named
+    // per website language since Multilingual 2.0 phase 5 wave B, and those
+    // rows go with the category (ON DELETE CASCADE) — asking afterwards would
+    // name an empty string.
+    $name = BlogLocalization::categoryLabel($id);
+
     $repository->delete($id);
 
-    $_SESSION['admin_blog_taxonomy_flash'] = 'Categorie "' . (string) $category['name']
+    $_SESSION['admin_blog_taxonomy_flash'] = 'Categorie "' . $name
         . '" is verwijderd. De berichten die erin stonden zijn ongewijzigd gebleven.';
 } catch (\Throwable $e) {
     error_log('[api/admin/delete-blog-category.php] ' . $e->getMessage());
