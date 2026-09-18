@@ -369,6 +369,31 @@ Facturen, retourverzoeken en verzending zijn deelgebieden *binnen* de Shop.
 Ze zijn niet zelfstandig bruikbaar (een factuur hoort bij een order, een
 herroeping ook, een tarief bij een winkelmandje), dus geen aparte modules.
 
+**De woorden van de Shop staan per websitetaal.** Sinds Multilingual 2.0
+fase 5 (`docs/multilingual/ARCHITECTURE.md`) is `App\Service\ShopLocalization`
+dé ingang naar de naam, de beschrijving en de SEO-velden van een product en
+een collectie, plus de eigen kop van een collectie boven de gerelateerde
+producten. Ze staan in `product_translations` en `collection_translations`,
+één rij per eigenaar per taal; geen repository, geen `*Content`-klasse en geen
+endpoint komt er buiten die klasse om bij.
+
+**Woorden zijn geen identiteit.** Alles waar de winkel een besluit mee neemt
+blijft op de rij zelf en is in elke taal hetzelfde: id, slug, prijs, voorraad,
+verzendinstellingen, `active`, `in_shop`, `in_personalization_catalog`,
+afbeeldingspaden, varianten, `is_active`, `show_related_products`,
+sorteervolgorde en elke relatie. Een taalwissel verandert alleen zichtbare
+labels — nooit welk product in de winkelwagen zit of wat het kost.
+
+**En een bestelling is een momentopname, geen vertaling.**
+`order_items.product_name` blijft één taalvrije naam op de regel zelf: dat is
+wat de factuur, de bevestigingsmail en het CMS-besteloverzicht afdrukken. Wat
+het product in de *andere* websitetalen heette staat in
+`order_item_translations`, via `App\Service\OrderItemNameSnapshot`, met een
+eigen leesregel ("de rij van deze taal, anders de taalvrije naam") die niet van
+het talenregister afhangt. Een geplaatste bestelling verandert dus niet als een
+product hernoemd of verwijderd wordt, en ook niet als de site een taal
+toevoegt, verwijdert of tot standaard maakt.
+
 ### Blog (module `blog`)
 
 Eigen namespace (`App\Service\Blog`), eigen CMS-sectie (`admin/blog*.php`),

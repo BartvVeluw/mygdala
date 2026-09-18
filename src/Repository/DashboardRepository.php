@@ -143,12 +143,17 @@ class DashboardRepository extends Repository
      * product whose only photos sit on a deactivated variant is correctly
      * reported as having none.
      *
+     * NO NAME, and a language-neutral order. A product's name lives per
+     * website language in `product_translations` since Multilingual 2.0 phase
+     * 5 wave C, so the caller adds it (App\Service\ShopLocalization) and
+     * decides the alphabetical order the dashboard shows.
+     *
      * @return array<int, array<string, mixed>>
      */
     public function findActiveProductsForAttention(): array
     {
         $stmt = $this->db->query(
-            "SELECT p.id, p.name, p.price, p.in_shop, p.in_personalization_catalog,
+            "SELECT p.id, p.price, p.in_shop, p.in_personalization_catalog,
                     CASE
                         WHEN dv.id IS NOT NULL
                             THEN EXISTS (SELECT 1 FROM variant_images vi WHERE vi.variant_id = dv.id)
@@ -163,7 +168,7 @@ class DashboardRepository extends Repository
                  LIMIT 1
              )
              WHERE p.active = 1
-             ORDER BY p.name ASC, p.id ASC"
+             ORDER BY p.id ASC"
         );
 
         return $stmt->fetchAll();

@@ -210,3 +210,48 @@ zijn waar rich text door de sanitizer gaat (de weg naar binnen en de weg naar
 buiten) en geen derde, dat geen Blog-query op woorden sorteert, en dat de drie
 editors één taal tonen en hun endpoints alleen die taal schrijven, in één
 transactie met de rij.
+
+**Golf C, Shop.** `ShopLocalizationTest` (`fast`) vraagt zonder database wat
+`ShopLocalization` toevoegt: welk veld bij welke tabel hoort, de lengtes die de
+kolommen hadden, de terugval, het saneren van `description` per taal *vóór* de
+terugval, een derde taal, en — de assertie waar de golf aan hangt — dat **geen
+enkele vertaaltabel van de Shop iets kent waar een winkel een besluit mee
+neemt**: geen slug, prijs, voorraad, verkoopkanaal, afbeeldingspad of
+sorteervolgorde.
+
+`OrderItemNameSnapshotTest` (`fast`) doet hetzelfde voor de momentopname, en is
+het bestand dat uitlegt waaróm dat een eigen klasse is: de leesregel is "de rij
+van deze taal, anders de taalvrije momentopname" en níet `LanguageFallback`, en
+daarom verandert een geplaatst document niet als de website een taal
+verwijdert, toevoegt of tot standaard maakt. Het legt ook vast dat alleen de
+naam een woord werd — prijs, aantal en variantlabel blijven op de regel zelf.
+
+`ShopEditingHttpTest` (`shop`) bewijst over echte HTTP dat de endpoints precies
+één taal schrijven: Nederlands opslaan laat Engels staan en omgekeerd, een taal
+buiten het register wordt geweigerd en schrijft niets, een geweigerde opslag
+houdt de getypte woorden én hun taal vast, een nieuw product wordt in de
+standaardtaal geschreven en krijgt daaruit zijn slug, een hergenereerde
+collectieslug volgt de standaardtaal en niet het scherm, en — het belangrijkste
+— een vertaling opslaan verandert geen id, geen slug en geen prijs.
+
+De echte SQL en het leesgedrag staan in de bestaande Shop-suite, nu op de
+nieuwe opslag: `CollectionContentTest`, `CollectionSeoTest`, `ProductSeoTest`,
+`ProductBreadcrumbTest`, `CollectionRepositoryIntegrationTest`,
+`OrderSnapshotIntegrationTest` en `ProductDeletionIntegrationTest` (die er een
+test bij kreeg: een product verwijderen neemt zijn woorden mee, via `CASCADE`).
+De vier `RelatedProducts*`-bestanden (`blocks`) staan op de nieuwe
+voorrangsketen, met één test die alle vijf stappen naast elkaar zet.
+`ShopWordsMigrationTest` en `OrderItemNameSnapshotMigrationTest` (`migration`
+en `shop`) zijn de backfills op een verse, een bijgewerkte en een kapotte
+database; de eerste let apart op elke prijs en elk collectielidmaatschap, de
+tweede op elke regel van een geplaatste bestelling.
+
+De golf-C-grenzen in `MultilingualBoundaryTest`: dat niets de twintig gedropte
+kolommen of de twee verdwenen instellingssleutels nog leest (op de
+V1-uitvoerparen van de JSON-payloads en de SEO-kop na, die als zodanig
+gemarkeerd zijn), dat niets waar een winkel een besluit mee neemt een woord is
+geworden, dat een momentopname de levende catalogus niet leest en de factuur,
+de mail en het besteloverzicht nooit een actuele productnaam afdrukken, dat de
+Shop geen taal en geen terugval zelf kiest en één sanitizer houdt, dat geen
+Shop-query op woorden sorteert, en dat de drie editors één taal tonen en hun
+vijf endpoints alleen die taal schrijven, in één transactie met de rij.

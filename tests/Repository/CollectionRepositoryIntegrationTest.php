@@ -8,6 +8,7 @@ use App\Database;
 use App\Repository\CollectionRepository;
 use App\Repository\ProductRepository;
 use App\Service\CollectionService;
+use App\Service\ShopLocalization;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -60,14 +61,18 @@ final class CollectionRepositoryIntegrationTest extends TestCase
         $slug = self::SLUG_PREFIX . strtolower(preg_replace('/[^a-z0-9]+/i', '-', $name) ?? '') . '-' . bin2hex(random_bytes(4));
 
         $id = $this->collections->create([
-            'name' => $name,
-            'name_en' => null,
             'slug' => $slug,
-            'description' => $description,
-            'description_en' => null,
             'image_path' => null,
             'is_active' => $isActive,
         ]);
+
+        // The words are rows in `collection_translations` since Multilingual
+        // 2.0 phase 5 wave C, written by the same class the endpoints use.
+        ShopLocalization::saveCollection($id, 'nl', [
+            ShopLocalization::NAME => $name,
+            ShopLocalization::DESCRIPTION => (string) $description,
+        ]);
+        ShopLocalization::clearCache();
 
         $this->collectionIds[] = $id;
 
@@ -77,18 +82,19 @@ final class CollectionRepositoryIntegrationTest extends TestCase
     private function createProduct(string $name, bool $active = true): int
     {
         $id = $this->products->create([
-            'name' => $name,
-            'name_en' => null,
             'slug' => self::PRODUCT_SLUG_PREFIX . bin2hex(random_bytes(6)),
-            'description' => null,
-            'description_en' => null,
             'price' => 9.95,
             'image_path' => null,
             'active' => $active,
+            'in_shop' => true,
+            'in_personalization_catalog' => false,
             'shipping_profile' => 'letter',
             'shipping_weight_grams' => 25,
             'requires_parcel' => false,
         ]);
+
+        ShopLocalization::saveProduct($id, 'nl', [ShopLocalization::NAME => $name]);
+        ShopLocalization::clearCache();
 
         $this->productIds[] = $id;
 
@@ -103,7 +109,7 @@ final class CollectionRepositoryIntegrationTest extends TestCase
         $stored = $this->collections->findById($first);
 
         $this->assertNotNull($stored);
-        $this->assertSame('Sleutelhangers test', $stored['name']);
+        $this->assertSame('Sleutelhangers test', ShopLocalization::collectionName($first));
         $this->assertSame(1, (int) $stored['is_active']);
 
         $secondStored = $this->collections->findById($second);
@@ -129,10 +135,7 @@ final class CollectionRepositoryIntegrationTest extends TestCase
         // Two collections asking for the same name-derived slug must not both
         // get it — the second is suffixed.
         $slugA = CollectionService::generateSlug($this->collections, 'ZZ Vier Daagse Test');
-        $idA = $this->collections->create([
-            'name' => 'ZZ Vier Daagse Test', 'name_en' => null, 'slug' => $slugA,
-            'description' => null, 'description_en' => null, 'image_path' => null, 'is_active' => true,
-        ]);
+        $idA = $this->collections->create(['slug' => $slugA, 'image_path' => null, 'is_active' => true]);
         $this->collectionIds[] = $idA;
 
         $slugB = CollectionService::generateSlug($this->collections, 'ZZ Vier Daagse Test');

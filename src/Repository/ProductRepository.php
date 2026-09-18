@@ -55,8 +55,7 @@ class ProductRepository extends Repository
             // from the database before building this list.
             $placeholders = implode(',', array_fill(0, count($ids), '?'));
             $stmt = $this->db->prepare(
-                "SELECT id, name, name_en, slug, description, description_en,
-                        price, image_path, stock
+                "SELECT id, slug, price, image_path, stock
                  FROM products
                  WHERE active = 1 AND id IN ({$placeholders})
                  ORDER BY FIELD(id, {$placeholders})"
@@ -68,8 +67,7 @@ class ProductRepository extends Repository
 
         if ($collectionId !== null) {
             $stmt = $this->db->prepare(
-                'SELECT p.id, p.name, p.name_en, p.slug, p.description, p.description_en,
-                        p.price, p.image_path, p.stock
+                'SELECT p.id, p.slug, p.price, p.image_path, p.stock
                  FROM products p
                  INNER JOIN collection_products cp
                     ON cp.product_id = p.id AND cp.collection_id = :collection_id
@@ -82,8 +80,7 @@ class ProductRepository extends Repository
         }
 
         $stmt = $this->db->prepare(
-            'SELECT id, name, name_en, slug, description, description_en,
-                    price, image_path, stock
+            'SELECT id, slug, price, image_path, stock
              FROM products
              WHERE active = 1 AND in_shop = 1
              ORDER BY id ASC'
@@ -95,8 +92,11 @@ class ProductRepository extends Repository
 
     /**
      * The products the public Personalisatie page lists: publicly visible AND
-     * flagged for that catalogue. Ordered by name, because this page has no
-     * curated order of its own the way a collection has.
+     * flagged for that catalogue. Ordered by id, because this page has no
+     * curated order of its own the way a collection has — and since
+     * Multilingual 2.0 phase 5 wave C a name is not a column to sort on, so
+     * ordering alphabetically here would mean ordering by ONE language's
+     * words and shuffling the page on every other one.
      *
      * Whether each of them can ACTUALLY be personalized (an enabled
      * configuration with a preview image and a usable zone) is not decided
@@ -110,10 +110,10 @@ class ProductRepository extends Repository
     public function findPersonalizationCatalog(): array
     {
         $stmt = $this->db->query(
-            'SELECT id, name, name_en, slug, price, image_path
+            'SELECT id, slug, price, image_path
              FROM products
              WHERE active = 1 AND in_personalization_catalog = 1
-             ORDER BY name ASC, id ASC'
+             ORDER BY id ASC'
         );
 
         return $stmt->fetchAll();
@@ -133,8 +133,7 @@ class ProductRepository extends Repository
     public function findActiveById(int $id): ?array
     {
         $stmt = $this->db->prepare(
-            'SELECT id, name, name_en, slug, description, description_en,
-                    price, image_path, stock
+            'SELECT id, slug, price, image_path, stock
              FROM products
              WHERE id = :id AND active = 1
              LIMIT 1'
@@ -173,9 +172,7 @@ class ProductRepository extends Repository
     public function findActiveByIdWithSeo(int $id): ?array
     {
         $stmt = $this->db->prepare(
-            'SELECT id, name, name_en, slug, description, description_en,
-                    price, image_path,
-                    meta_title, meta_title_en, meta_description, meta_description_en,
+            'SELECT id, slug, price, image_path,
                     og_image_path
              FROM products
              WHERE id = :id AND active = 1
@@ -220,8 +217,7 @@ class ProductRepository extends Repository
     public function findAllForAdmin(): array
     {
         $stmt = $this->db->query(
-            'SELECT id, name, name_en, slug, description, description_en,
-                    price, image_path, active, in_shop, in_personalization_catalog, created_at
+            'SELECT id, slug, price, image_path, active, in_shop, in_personalization_catalog, created_at
              FROM products
              ORDER BY id DESC'
         );
@@ -236,10 +232,8 @@ class ProductRepository extends Repository
     public function findByIdForAdmin(int $id): ?array
     {
         $stmt = $this->db->prepare(
-            'SELECT id, name, name_en, slug, description, description_en,
-                    price, image_path, active, in_shop, in_personalization_catalog,
+            'SELECT id, slug, price, image_path, active, in_shop, in_personalization_catalog,
                     shipping_profile, shipping_weight_grams, requires_parcel,
-                    meta_title, meta_title_en, meta_description, meta_description_en,
                     og_image_path
              FROM products
              WHERE id = :id
@@ -266,16 +260,6 @@ class ProductRepository extends Repository
     }
 
     /**
-     * The four editable SEO text columns. Optional in $data everywhere they
-     * appear, so an existing caller that knows nothing about SEO (a seeder,
-     * a test fixture) keeps working and simply stores NULL — which is what
-     * makes App\Service\ProductSeo fall back to the product's own content.
-     *
-     * @var list<string>
-     */
-    private const SEO_FIELDS = ['meta_title', 'meta_title_en', 'meta_description', 'meta_description_en'];
-
-    /**
      * @param array<string, mixed> $data
      * @return array<string, ?string>
      */
@@ -297,52 +281,38 @@ class ProductRepository extends Repository
     }
 
     /**
-     * @param array<string, mixed> $data
-     * @return array<string, ?string>
-     */
-    private function seoValues(array $data): array
-    {
-        $values = [];
-        foreach (self::SEO_FIELDS as $field) {
-            $value = trim((string) ($data[$field] ?? ''));
-            $values[$field] = $value === '' ? null : $value;
-        }
-
-        return $values;
-    }
-
-    /**
-     * @param array{name:string,name_en:?string,slug:string,description:?string,description_en:?string,price:float,image_path:?string,active:bool,shipping_profile:string,shipping_weight_grams:int,requires_parcel:bool,meta_title?:?string,meta_title_en?:?string,meta_description?:?string,meta_description_en?:?string} $data
+     * Adds a product row. Its WORDS are not here: since Multilingual 2.0
+     * phase 5 wave C the name, description and SEO copy live per website
+     * language in product_translations and are written through
+     * App\Service\ShopLocalization, in the same transaction as this row. What
+     * is left is everything a shop DECIDES with: the slug, the price, the
+     * stock channels, the shipping settings and the photo.
+     *
+     * @param array{slug:string,price:float,image_path:?string,active:bool,shipping_profile:string,shipping_weight_grams:int,requires_parcel:bool} $data
      */
     public function create(array $data): int
     {
         $stmt = $this->db->prepare(
             'INSERT INTO products
-                (name, name_en, slug, description, description_en, price, image_path, active,
+                (slug, price, image_path, active,
                  in_shop, in_personalization_catalog,
                  shipping_profile, shipping_weight_grams, requires_parcel,
-                 meta_title, meta_title_en, meta_description, meta_description_en,
                  created_at, updated_at)
              VALUES
-                (:name, :name_en, :slug, :description, :description_en, :price, :image_path, :active,
+                (:slug, :price, :image_path, :active,
                  :in_shop, :in_personalization_catalog,
                  :shipping_profile, :shipping_weight_grams, :requires_parcel,
-                 :meta_title, :meta_title_en, :meta_description, :meta_description_en,
                  NOW(), NOW())'
         );
         $stmt->execute([
-            'name' => $data['name'],
-            'name_en' => $data['name_en'],
             'slug' => $data['slug'],
-            'description' => $data['description'],
-            'description_en' => $data['description_en'],
             'price' => number_format($data['price'], 2, '.', ''),
             'image_path' => $data['image_path'],
             'active' => $data['active'] ? 1 : 0,
             'shipping_profile' => $data['shipping_profile'],
             'shipping_weight_grams' => $data['shipping_weight_grams'],
             'requires_parcel' => $data['requires_parcel'] ? 1 : 0,
-        ] + $this->channelValues($data) + $this->seoValues($data));
+        ] + $this->channelValues($data));
 
         return (int) $this->db->lastInsertId();
     }
@@ -353,38 +323,32 @@ class ProductRepository extends Repository
      * saving the form (e.g. a text-only edit) can never accidentally clear
      * or replace an uploaded photo.
      *
-     * @param array{name:string,name_en:?string,description:?string,description_en:?string,price:float,active:bool,shipping_profile:string,shipping_weight_grams:int,requires_parcel:bool,meta_title?:?string,meta_title_en?:?string,meta_description?:?string,meta_description_en?:?string} $data
+     * Its words are saved separately and per language, through
+     * App\Service\ShopLocalization, in the same transaction.
+     *
+     * @param array{price:float,active:bool,shipping_profile:string,shipping_weight_grams:int,requires_parcel:bool} $data
      */
     public function update(int $id, array $data): void
     {
         $stmt = $this->db->prepare(
             'UPDATE products SET
-                name = :name, name_en = :name_en,
-                description = :description, description_en = :description_en,
                 price = :price, active = :active,
                 in_shop = :in_shop,
                 in_personalization_catalog = :in_personalization_catalog,
                 shipping_profile = :shipping_profile,
                 shipping_weight_grams = :shipping_weight_grams,
                 requires_parcel = :requires_parcel,
-                meta_title = :meta_title, meta_title_en = :meta_title_en,
-                meta_description = :meta_description,
-                meta_description_en = :meta_description_en,
                 updated_at = NOW()
              WHERE id = :id'
         );
         $stmt->execute([
-            'name' => $data['name'],
-            'name_en' => $data['name_en'],
-            'description' => $data['description'],
-            'description_en' => $data['description_en'],
             'price' => number_format($data['price'], 2, '.', ''),
             'active' => $data['active'] ? 1 : 0,
             'shipping_profile' => $data['shipping_profile'],
             'shipping_weight_grams' => $data['shipping_weight_grams'],
             'requires_parcel' => $data['requires_parcel'] ? 1 : 0,
             'id' => $id,
-        ] + $this->channelValues($data) + $this->seoValues($data));
+        ] + $this->channelValues($data));
     }
 
     public function updateImagePath(int $id, ?string $imagePath): void
@@ -458,10 +422,15 @@ class ProductRepository extends Repository
     }
 
     /**
-     * Loads the current, authoritative price (and name) for a set of product ids.
-     * Used by checkout so the backend never has to trust prices sent by the frontend.
-     * Inactive/unknown ids are simply absent from the result — the caller decides
-     * how to react (e.g. reject the checkout).
+     * Loads the current, authoritative PRICE for a set of product ids. Used by
+     * checkout so the backend never has to trust prices sent by the frontend.
+     * Inactive/unknown ids are simply absent from the result — the caller
+     * decides how to react (e.g. reject the checkout).
+     *
+     * It used to load the name too, for the snapshot an order line keeps.
+     * Since Multilingual 2.0 phase 5 wave C that name is words, so checkout
+     * asks App\Service\ShopLocalization for them — and this method stays what
+     * it is for: money and identity.
      *
      * @param array<int, int> $ids
      * @return array<int, array<string, mixed>> keyed by product id
@@ -475,7 +444,7 @@ class ProductRepository extends Repository
 
         $placeholders = implode(',', array_fill(0, count($ids), '?'));
         $stmt = $this->db->prepare(
-            "SELECT id, name, name_en, price, image_path
+            "SELECT id, price, image_path
              FROM products
              WHERE active = 1 AND id IN ({$placeholders})"
         );

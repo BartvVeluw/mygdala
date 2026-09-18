@@ -47,7 +47,7 @@ class CollectionContent
      * the collection before filling it without that half-finished state
      * showing up on the shop.
      *
-     * @return array<int, array{id:int, slug:string, name_nl:string, name_en:string, description_nl:string, description_en:string, image_path:?string, product_count:int, url:string}>
+     * @return array<int, array{id:int, slug:string, name:\App\Service\Language\LocalizedValue, description:\App\Service\Language\LocalizedValue, image_path:?string, product_count:int, url:string}>
      */
     public static function activeForShop(): array
     {
@@ -63,6 +63,12 @@ class CollectionContent
             return self::$cache['shop'] = [];
         }
 
+        // One query for the words of every tile on /shop.
+        ShopLocalization::preloadCollections(array_map(
+            static fn (array $row): int => (int) $row['id'],
+            $rows
+        ));
+
         return self::$cache['shop'] = array_map(
             static fn (array $row): array => self::mapRow($row, (int) $row['product_count']),
             $rows
@@ -75,7 +81,7 @@ class CollectionContent
      * slug produces, so an inactive collection is indistinguishable from a
      * non-existent one — unpublished content cannot leak through this route.
      *
-     * @return array{id:int, slug:string, name_nl:string, name_en:string, description_nl:string, description_en:string, image_path:?string, product_count:int, url:string}|null
+     * @return array{id:int, slug:string, name:\App\Service\Language\LocalizedValue, description:\App\Service\Language\LocalizedValue, image_path:?string, product_count:int, url:string}|null
      */
     public static function forPublicPage(string $slug): ?array
     {
@@ -136,7 +142,7 @@ class CollectionContent
     /**
      * The complete <title> text for one language.
      *
-     * A custom SEO title (meta_title/meta_title_en) IS the whole title and is
+     * A custom SEO title IS the whole title and is
      * rendered verbatim — the same rule PageContent::seoTitle() and
      * ProductSeo::title() apply. Left empty it falls back to
      * "<collection name> | Shop — <site name>", the exact wording
@@ -147,13 +153,14 @@ class CollectionContent
      */
     public static function seoTitle(array $collection, string $lang = 'nl'): string
     {
-        $custom = Seo::pick($collection['meta_title'] ?? '', $collection['meta_title_en'] ?? '', $lang);
+        $id = (int) ($collection['id'] ?? 0);
+        $custom = ShopLocalization::collection($id, ShopLocalization::META_TITLE, $lang);
 
         if ($custom !== '') {
             return $custom;
         }
 
-        return Seo::shopTitle(Seo::pick($collection['name_nl'] ?? '', $collection['name_en'] ?? '', $lang));
+        return Seo::shopTitle(ShopLocalization::collection($id, ShopLocalization::NAME, $lang));
     }
 
     /**
@@ -172,13 +179,14 @@ class CollectionContent
      */
     public static function metaDescription(array $collection, string $lang = 'nl'): string
     {
-        $custom = Seo::pick($collection['meta_description'] ?? '', $collection['meta_description_en'] ?? '', $lang);
+        $id = (int) ($collection['id'] ?? 0);
+        $custom = ShopLocalization::collection($id, ShopLocalization::META_DESCRIPTION, $lang);
 
         if ($custom !== '') {
             return $custom;
         }
 
-        return self::excerpt(Seo::pick($collection['description_nl'] ?? '', $collection['description_en'] ?? '', $lang));
+        return self::excerpt(ShopLocalization::collectionDescription($id, $lang));
     }
 
     /**
@@ -250,49 +258,36 @@ class CollectionContent
     }
 
     /**
-     * The four SEO text columns and og_image_path are carried through RAW
-     * (trimmed, never sanitized as HTML and never rewritten): they are plain
-     * text destined for <meta> attributes, and seoTitle()/metaDescription()
-     * are the only things that interpret them. An empty value stays '' so
-     * those two methods can apply the fallback.
+     * The row's own, language-neutral fields plus its WORDS as one
+     * LocalizedValue each — since Multilingual 2.0 phase 5 wave C the words
+     * are rows in collection_translations, read through
+     * App\Service\ShopLocalization with the fallback already applied.
+     *
+     * The SEO copy is deliberately NOT in this shape: seoTitle() and
+     * metaDescription() are the only things that interpret it, and they ask
+     * ShopLocalization for the one language they are building a head for.
+     * `description` arrives sanitized per language (DescriptionSanitizer),
+     * the "sanitize again on read" half of the pattern.
      *
      * @param array<string, mixed> $row
-     * @return array{id:int, slug:string, name_nl:string, name_en:string, description_nl:string, description_en:string, image_path:?string, meta_title:string, meta_title_en:string, meta_description:string, meta_description_en:string, og_image_path:?string, product_count:int, url:string}
+     * @return array{id:int, slug:string, name:\App\Service\Language\LocalizedValue, description:\App\Service\Language\LocalizedValue, image_path:?string, product_count:int, url:string}
      */
     private static function mapRow(array $row, ?int $productCount): array
     {
-        $nameNl = (string) $row['name'];
-        $descriptionNl = RichTextSanitizer::sanitize($row['description'] ?? null) ?? '';
-        $descriptionEn = RichTextSanitizer::sanitize($row['description_en'] ?? null);
+        $id = (int) $row['id'];
         $imagePath = (string) ($row['image_path'] ?? '');
         $ogImagePath = trim((string) ($row['og_image_path'] ?? ''));
 
         return [
-            'id' => (int) $row['id'],
+            'id' => $id,
             'slug' => (string) $row['slug'],
-            'name_nl' => $nameNl,
-            'name_en' => self::valueOrDefault($row['name_en'] ?? null, $nameNl),
-            'description_nl' => $descriptionNl,
-            'description_en' => $descriptionEn ?? $descriptionNl,
+            'name' => ShopLocalization::collectionValue($id, ShopLocalization::NAME),
+            'description' => ShopLocalization::collectionDescriptionValue($id),
             'image_path' => $imagePath === '' ? null : $imagePath,
-            'meta_title' => trim((string) ($row['meta_title'] ?? '')),
-            'meta_title_en' => trim((string) ($row['meta_title_en'] ?? '')),
-            'meta_description' => trim((string) ($row['meta_description'] ?? '')),
-            'meta_description_en' => trim((string) ($row['meta_description_en'] ?? '')),
             'og_image_path' => $ogImagePath === '' ? null : $ogImagePath,
             'product_count' => $productCount ?? 0,
             'url' => self::publicPath((string) $row['slug']),
         ];
     }
 
-    /**
-     * The project-wide bilingual fallback: a blank `_en` field falls back to
-     * the Dutch value (see PortfolioGalleryContent's identical helper).
-     */
-    private static function valueOrDefault(?string $value, string $default): string
-    {
-        $value = trim((string) $value);
-
-        return $value === '' ? $default : $value;
-    }
 }

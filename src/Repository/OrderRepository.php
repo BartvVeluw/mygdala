@@ -353,15 +353,20 @@ class OrderRepository extends Repository
      * a line that was never personalized, and for every order placed before
      * personalization surcharges existed.
      *
-     * @param array<int, array{product_id:int, variant_id:?int, variant_label:?string, quantity:int, unit_price:float|string, product_name:string, product_name_en:?string, base_unit_price?:float|string|null, personalization_surcharge?:float|string|null}> $items
+     * `product_name` is the ONE language-free snapshot every document
+     * prints. What the product was called in the other website languages is
+     * recorded beside it by App\Service\OrderItemNameSnapshot, once the line
+     * has an id — see api/checkout.php.
+     *
+     * @param array<int, array{product_id:int, variant_id:?int, variant_label:?string, quantity:int, unit_price:float|string, product_name:string, base_unit_price?:float|string|null, personalization_surcharge?:float|string|null}> $items
      * @return array<int, int>
      */
     public function addItems(int $orderId, array $items): array
     {
         $stmt = $this->db->prepare(
-            'INSERT INTO order_items (order_id, product_id, variant_id, variant_label, product_name, product_name_en,
+            'INSERT INTO order_items (order_id, product_id, variant_id, variant_label, product_name,
                                       quantity, unit_price, base_unit_price, personalization_surcharge, created_at, updated_at)
-             VALUES (:order_id, :product_id, :variant_id, :variant_label, :product_name, :product_name_en,
+             VALUES (:order_id, :product_id, :variant_id, :variant_label, :product_name,
                      :quantity, :unit_price, :base_unit_price, :personalization_surcharge, NOW(), NOW())'
         );
 
@@ -374,7 +379,6 @@ class OrderRepository extends Repository
                 'variant_id' => $item['variant_id'] ?? null,
                 'variant_label' => $item['variant_label'] ?? null,
                 'product_name' => $item['product_name'],
-                'product_name_en' => $item['product_name_en'] ?? null,
                 'quantity' => $item['quantity'],
                 'unit_price' => self::decimal($item['unit_price']),
                 'base_unit_price' => self::nullableDecimal($item['base_unit_price'] ?? null),
@@ -441,13 +445,18 @@ class OrderRepository extends Repository
     }
 
     /**
-     * `name`/`name_en` come from the order_items snapshot columns
-     * (product_name/product_name_en — see db/migrations/
-     * 20260907170000_add_product_snapshot_to_order_items.php), never from a
-     * live join to `products`, so a later product rename never changes what
-     * a historical order shows. `image_path` is still a live join — purely
-     * decorative, not commercial data that needs to survive a product being
-     * re-photographed.
+     * `name` comes from the order_items snapshot column `product_name`
+     * (see db/migrations/20260907170000_add_product_snapshot_to_order_items.php),
+     * never from a live join to `products`, so a later product rename never
+     * changes what a historical order shows. `image_path` is still a live join
+     * — purely decorative, not commercial data that needs to survive a product
+     * being re-photographed.
+     *
+     * What the product was called in the OTHER website languages is a snapshot
+     * of its own since Multilingual 2.0 phase 5 wave C; the one page that
+     * offers it to a visitor asks App\Service\OrderItemNameSnapshot, with the
+     * line's own `name` as its fallback. Nothing here joins to it, so an
+     * invoice cannot start depending on the language registry.
      *
      * The join to `products` is deliberately a LEFT JOIN: since
      * db/migrations/20260908120000_relax_order_item_product_foreign_keys.php
@@ -471,7 +480,7 @@ class OrderRepository extends Repository
         $stmt = $this->db->prepare(
             'SELECT oi.id, oi.quantity, oi.unit_price, oi.base_unit_price, oi.personalization_surcharge,
                     oi.variant_label,
-                    oi.product_name AS name, oi.product_name_en AS name_en, p.image_path
+                    oi.product_name AS name, p.image_path
              FROM order_items oi
              LEFT JOIN products p ON p.id = oi.product_id
              WHERE oi.order_id = :order_id

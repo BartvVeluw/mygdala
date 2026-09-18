@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace Tests\Service;
 
 use App\Service\ProductSeo;
+use App\Service\ShopLocalization;
 use App\Service\SiteSettings;
 use PHPUnit\Framework\TestCase;
+use Tests\Support\SiteLanguageFixture;
 
 /**
  * The product SEO resolution rules: which title, description and social
@@ -19,6 +21,14 @@ use PHPUnit\Framework\TestCase;
  * variant product actually contributes, and that an inactive product
  * resolves to nothing at all) are covered by
  * tests/Service/ShopSeoRoutingTest.php against the real page.
+ *
+ * THE WORDS ARE NOT IN THE ROW. Since Multilingual 2.0 phase 5 wave C a
+ * product's name, description and SEO fields live per website language in
+ * `product_translations`, so they are pinned through
+ * App\Service\Language\EntityTranslations' test seam instead of being handed
+ * in as `name`/`name_en` columns. The $overrides argument below still speaks
+ * that pair language, because these tests are about the RULES, not about
+ * where the words sit.
  */
 final class ProductSeoTest extends TestCase
 {
@@ -48,6 +58,10 @@ final class ProductSeoTest extends TestCase
         $this->originalAppUrl = $_ENV['APP_URL'] ?? null;
         unset($_ENV['APP_URL']);
 
+        SiteLanguageFixture::useBilingual('nl');
+        ShopLocalization::clearCache();
+        ProductSeo::clearCache();
+
         SiteSettings::overrideForTests([
             'site_name' => self::SITE,
             'canonical_base_url' => self::BASE_URL,
@@ -57,6 +71,9 @@ final class ProductSeoTest extends TestCase
     protected function tearDown(): void
     {
         SiteSettings::overrideForTests(null);
+        ShopLocalization::clearCache();
+        ProductSeo::clearCache();
+        SiteLanguageFixture::reset();
 
         if ($this->originalAppUrl === null) {
             unset($_ENV['APP_URL']);
@@ -65,24 +82,38 @@ final class ProductSeoTest extends TestCase
         }
     }
 
+    /** The product this file resolves, and the id its canonical URL carries. */
+    private const PRODUCT = 42;
+
     /**
+     * The four localized fields, each as the `<field>` / `<field>_en` pair the
+     * $overrides argument speaks.
+     */
+    private const WORD_DEFAULTS = [
+        'name' => 'Houten onderzetter',
+        'name_en' => 'Wooden coaster',
+        'description' => '<p>Van berkenhout.</p>',
+        'description_en' => '<p>Made of birch.</p>',
+        'meta_title' => null,
+        'meta_title_en' => null,
+        'meta_description' => null,
+        'meta_description_en' => null,
+    ];
+
+    /**
+     * The language-NEUTRAL half of a `products` row: what really is a column.
+     * Word overrides are filtered out here and pinned in the words store by
+     * resolve() below.
+     *
      * @param array<string, mixed> $overrides
      * @return array<string, mixed>
      */
     private function product(array $overrides = []): array
     {
-        return $overrides + [
-            'id' => 42,
-            'name' => 'Houten onderzetter',
-            'name_en' => 'Wooden coaster',
-            'description' => '<p>Van berkenhout.</p>',
-            'description_en' => '<p>Made of birch.</p>',
+        return array_diff_key($overrides, self::WORD_DEFAULTS) + [
+            'id' => self::PRODUCT,
             'price' => '12.50',
             'image_path' => null,
-            'meta_title' => null,
-            'meta_title_en' => null,
-            'meta_description' => null,
-            'meta_description_en' => null,
             'og_image_path' => null,
         ];
     }
@@ -95,6 +126,22 @@ final class ProductSeoTest extends TestCase
      */
     private function resolve(array $overrides = [], array $imagePaths = [], array $variantPrices = []): array
     {
+        $words = array_intersect_key($overrides, self::WORD_DEFAULTS) + self::WORD_DEFAULTS;
+        $byLanguage = ['nl' => [], 'en' => []];
+
+        foreach ([
+            ShopLocalization::NAME,
+            ShopLocalization::DESCRIPTION,
+            ShopLocalization::META_TITLE,
+            ShopLocalization::META_DESCRIPTION,
+        ] as $field) {
+            $byLanguage['nl'][$field] = (string) ($words[$field] ?? '');
+            $byLanguage['en'][$field] = (string) ($words[$field . '_en'] ?? '');
+        }
+
+        ShopLocalization::products()->overrideForTests(self::PRODUCT, $byLanguage);
+        ProductSeo::clearCache();
+
         return ProductSeo::resolve($this->product($overrides), $imagePaths, $variantPrices);
     }
 

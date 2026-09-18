@@ -23,7 +23,9 @@ require_once __DIR__ . '/../vendor/autoload.php';
 
 
 use App\Repository\OrderRepository;
+use App\Service\Language\LanguageRegistry;
 use App\Service\MollieClientFactory;
+use App\Service\OrderItemNameSnapshot;
 use App\Service\OrderPaymentSync;
 
 header('Content-Type: application/json; charset=utf-8');
@@ -68,6 +70,13 @@ try {
 
     $items = $orderRepository->findItems($orderId);
 
+    // What each line's product was called in the OTHER website languages, so
+    // this page can offer a visitor both halves (Multilingual 2.0 phase 5
+    // wave C). A line without its own name in a language falls back to the
+    // neutral snapshot the invoice prints — never to a product's CURRENT
+    // name, which is the whole point of a snapshot.
+    OrderItemNameSnapshot::preload(array_map(static fn (array $item): int => (int) $item['id'], $items));
+
     echo json_encode(['data' => [
         'order_id' => $orderId,
         'order_number' => OrderRepository::orderNumber($order),
@@ -78,9 +87,12 @@ try {
         'confirmation_sent' => $order['confirmation_sent_at'] !== null,
         'customer_first_name' => explode(' ', trim((string) $order['customer_name']))[0] ?? '',
         'items' => array_map(static function (array $item): array {
+            $name = (string) $item['name'];
+            $pair = OrderItemNameSnapshot::pair((int) $item['id'], $name);
+
             return [
-                'name' => $item['name'],
-                'name_en' => $item['name_en'],
+                'name' => $pair->in(LanguageRegistry::DUTCH),
+                'name_en' => $pair->in(LanguageRegistry::ENGLISH),
                 'variant_label' => $item['variant_label'],
                 'quantity' => (int) $item['quantity'],
                 'unit_price' => $item['unit_price'],

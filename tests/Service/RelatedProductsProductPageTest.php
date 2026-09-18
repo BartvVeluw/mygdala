@@ -9,6 +9,7 @@ use App\Repository\CollectionRepository;
 use App\Repository\ProductRepository;
 use App\Repository\SiteSettingRepository;
 use App\Service\RelatedProductsContent;
+use App\Service\ShopLocalization;
 use App\Service\SectionRegistry;
 use App\Service\SiteSettings;
 use PHPUnit\Framework\TestCase;
@@ -32,10 +33,9 @@ final class RelatedProductsProductPageTest extends TestCase
 {
     private const SLUG_PREFIX = 'zz-test-relatedpage-';
 
+    /** The language-neutral keys; the heading is a site_setting_translations row since phase 5 wave C. */
     private const SETTING_KEYS = [
         'related_products_enabled',
-        'related_products_heading_nl',
-        'related_products_heading_en',
         'related_products_max_items',
     ];
 
@@ -129,18 +129,17 @@ final class RelatedProductsProductPageTest extends TestCase
     private function createCollection(string $name, bool $showRelated = true): int
     {
         $id = $this->collections->create([
-            'name' => $name,
-            'name_en' => null,
             'slug' => self::SLUG_PREFIX . bin2hex(random_bytes(5)),
-            'description' => null,
-            'description_en' => null,
             'image_path' => null,
             'is_active' => true,
         ]);
         $this->collectionIds[] = $id;
 
+        ShopLocalization::saveCollection($id, 'nl', [ShopLocalization::NAME => $name]);
+        ShopLocalization::clearCache();
+
         if (!$showRelated) {
-            $this->collections->updateRelatedProductsSettings($id, false, null, null);
+            $this->collections->updateRelatedProductsSettings($id, false);
         }
 
         return $id;
@@ -149,19 +148,20 @@ final class RelatedProductsProductPageTest extends TestCase
     private function createProduct(string $name): int
     {
         $id = $this->products->create([
-            'name' => $name,
-            'name_en' => null,
             'slug' => self::SLUG_PREFIX . 'product-' . bin2hex(random_bytes(6)),
-            'description' => null,
-            'description_en' => null,
             'price' => 8.75,
             'image_path' => null,
             'active' => true,
+            'in_shop' => true,
+            'in_personalization_catalog' => false,
             'shipping_profile' => 'letter',
             'shipping_weight_grams' => 25,
             'requires_parcel' => false,
         ]);
         $this->productIds[] = $id;
+
+        ShopLocalization::saveProduct($id, 'nl', [ShopLocalization::NAME => $name]);
+        ShopLocalization::clearCache();
 
         return $id;
     }

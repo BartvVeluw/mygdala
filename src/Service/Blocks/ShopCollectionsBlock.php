@@ -3,7 +3,6 @@
 namespace App\Service\Blocks;
 
 use App\Service\CollectionContent;
-use App\Service\RichTextSanitizer;
 
 require_once dirname(__DIR__, 3) . '/partials/section-shop-collections.php';
 
@@ -82,16 +81,13 @@ final class ShopCollectionsBlock extends FixedBlockDefinition
     {
         $collections = [];
         foreach (range(0, 2) as $index) {
-            $body = $samples->itemFields('description', 'item_body', $index);
-
             $collections[] = [
                 'id' => 0,
                 'slug' => 'voorbeeld-' . ($index + 1),
-                ...$samples->itemFields('name', 'collection', $index),
-                // A description is stored as rich text; CollectionContent
-                // sanitizes it on the way out, and so does the sample.
-                'description_nl' => (string) RichTextSanitizer::sanitize($body['description_nl']),
-                'description_en' => (string) RichTextSanitizer::sanitize($body['description_en']),
+                // One LocalizedValue per field, the shape CollectionContent
+                // hands the partial since Multilingual 2.0 phase 5 wave C.
+                'name' => $samples->localizedItem('collection', $index),
+                'description' => $samples->localizedItem('item_body', $index),
                 'image_path' => ltrim(BlockSamples::IMAGE_PATH, '/'),
                 'url' => BlockSamples::LINK,
             ];

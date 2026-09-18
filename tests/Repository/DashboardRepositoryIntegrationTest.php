@@ -9,6 +9,7 @@ use App\Repository\CustomerRepository;
 use App\Repository\DashboardRepository;
 use App\Repository\OrderRepository;
 use App\Repository\ProductRepository;
+use App\Service\ShopLocalization;
 use App\Repository\ProductVariantRepository;
 use App\Repository\VariantImageRepository;
 use App\Service\DashboardMetrics;
@@ -127,18 +128,19 @@ final class DashboardRepositoryIntegrationTest extends TestCase
     private function createProduct(string $suffix, array $overrides = []): int
     {
         $productId = (new ProductRepository())->create($overrides + [
-            'name' => 'Dashboardtest ' . $suffix,
-            'name_en' => null,
             'slug' => '__test_dashboard_' . $suffix . '__',
-            'description' => null,
-            'description_en' => null,
             'price' => 12.50,
             'image_path' => null,
             'active' => true,
+            'in_shop' => true,
+            'in_personalization_catalog' => false,
             'shipping_profile' => 'letter',
             'shipping_weight_grams' => 25,
             'requires_parcel' => false,
         ]);
+
+        ShopLocalization::saveProduct($productId, 'nl', [ShopLocalization::NAME => 'Dashboardtest ' . $suffix]);
+        ShopLocalization::clearCache();
 
         $this->productIds[] = $productId;
 
@@ -405,6 +407,11 @@ final class DashboardRepositoryIntegrationTest extends TestCase
         $this->assertSame(19.95, (float) $row['price']);
         $this->assertSame(0, (int) $row['in_shop']);
         $this->assertSame(1, (int) $row['in_personalization_catalog']);
-        $this->assertSame('Dashboardtest channels', $row['name']);
+
+        // The query carries no name since Multilingual 2.0 phase 5 wave C: a
+        // product is named per website language, so admin/_dashboard_shop.php
+        // adds the words and decides the alphabetical order.
+        $this->assertArrayNotHasKey('name', $row);
+        $this->assertSame('Dashboardtest channels', ShopLocalization::productName($productId));
     }
 }

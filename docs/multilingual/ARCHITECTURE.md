@@ -1023,11 +1023,104 @@ horen en zou het endpoint geen taal horen.
 verhuist zestien kolommen en dropt ze in dezelfde stap, met hetzelfde
 `INSERT … SELECT` + `UPDATE … JOIN`-paar per veld per taal als golf A.
 
+### Shop (golf C)
+
+| Tabel | Eigenaar | Velden (max) | Domein-API |
+|---|---|---|---|
+| `product_translations` | `product_id` | `name` (150), `description` (rich, 50000), `meta_title` (255), `meta_description` (500) | `App\Service\ShopLocalization` |
+| `collection_translations` | `collection_id` | dezelfde vier, plus `related_heading` (255) | idem |
+| `order_item_translations` | `order_item_id` | `product_name` (255) | `App\Service\OrderItemNameSnapshot` |
+
+De eerste twee hebben dezelfde vorm en dezelfde regels als golf A en B. De
+derde is iets anders, en dat staat hieronder.
+
+**Woorden zijn geen identiteit.** Dat is de regel waar deze hele golf aan
+hangt. Alles waar een winkel een besluit mee neemt blijft op zijn eigen rij en
+is in elke taal hetzelfde: het id, de slug, de prijs, de voorraad, de
+verzendinstellingen, `active`, `in_shop`, `in_personalization_catalog`, de
+afbeeldingspaden, de varianten en hun identiteit, de
+personalisatie-instellingen; van een collectie het id, de slug, de
+afbeeldingen, `is_active`, `show_related_products` en de sorteervolgorde; en
+elke relatie ertussen. Een bezoeker die van taal wisselt leest andere woorden
+en krijgt hetzelfde product, voor dezelfde prijs, opgezocht op hetzelfde id, in
+een winkelwagen met dezelfde regel. `MultilingualBoundaryTest` en
+`ShopWordsMigrationTest` bewaken beide kanten: geen vertaaltabel van de Shop
+kent een van die kolommen, en na de migratie staat elke prijs, elk id en elke
+slug nog precies zoals hij stond.
+
+**Een momentopname is geen vertaling.** `order_items.product_name(_en)` is wat
+een product **heette** toen iemand het kocht. Dat is geen vertaling van wat het
+nu heet, en het mag nooit meer veranderen — niet als het product hernoemd
+wordt, niet als het verwijderd wordt, en niet als de standaardtaal van de site
+verschuift. Daarom heeft het een eigen klasse met een eigen leesregel:
+
+- `order_items.product_name` blijft één **taalvrije** naam op de regel zelf.
+  Dat is wat de factuur, de bevestigingsmail en het CMS-besteloverzicht
+  afdrukken, en dat is het enige wat zij lezen.
+- `order_item_translations` houdt de **andere** taalversies, voor de
+  besteloverzichtspagina die een bezoeker beide helften aanbiedt.
+- De leesregel is "de rij van deze taal, anders de taalvrije momentopname" —
+  níet `LanguageFallback`. De taalvrije naam is de terugval *door zijn vorm*
+  in plaats van doordat hij van een taal is, dus een taal toevoegen,
+  verwijderen of tot standaard maken kan een geplaatst document niet raken.
+  Dat is ook precies wat de browser al deed: `assets/js/shop/shop.js` rendert
+  een regel als `item.name_en || item.name`.
+
+Wat afrekenen schrijft: de taalvrije naam is de naam in de **standaardtaal**,
+plus één rij per andere actieve websitetaal die eigen woorden heeft —
+`rawProduct()`, niet `product()`, zodat een taal zonder eigen naam geen kopie
+van de standaardtaal krijgt. Op een Nederlandstalige site met Nederlands en
+Engels is dat byte voor byte wat de twee kolommen hielden.
+
+**De kop boven de gerelateerde producten** was de enige gelokaliseerde
+*instelling* van deze golf. Hij gaat naar de bestaande catalogus
+`site_setting_translations` (`App\Service\LocalizedSiteSettings`), niet naar
+een tabel van de Shop zelf, omdat hij echt site-breed is: één kop voor de hele
+winkel, op één scherm. De kop van een collectie is wél een woord van die
+collectie. `RelatedProductsContent::heading()` leest ze samen als één
+voorrangsketen:
+
+1. de kop van de collectie in deze taal;
+2. de kop van de collectie in de standaardtaal;
+3. de algemene instelling in deze taal;
+4. de algemene instelling in de standaardtaal;
+5. niets — en dan rendert het blok geen kop.
+
+De collectie wint dus **als eenheid**: een collectie die überhaupt een kop
+heeft spreekt voor zichzelf, in welke taal ze hem ook heeft. Binnen elke bron
+geldt de gewone terugval, en dat is `LanguageFallback`'s ene regel, twee keer
+toegepast in bronvolgorde — geen tweede terugval van de Shop zelf. Op een
+Nederlandstalige site geeft dit waarde voor waarde dezelfde twee ketens als
+vóór de golf; `RelatedProductsContentTest` legt dat vast. Op een site met een
+ándere standaardtaal verschilt het bewust: de oude Engelse keten eindigde op de
+Nederlandse kop, en één terugvalregel kan dat niet.
+
+**Sorteren mag niet van de lezer afhangen.** `products.name` en
+`collections.name` waren kolommen om op te sorteren — het productoverzicht van
+het dashboard, de personalisatielijst en zijn productkiezer deden dat alle
+drie. Ze sorteren nu taalneutraal in SQL (op `id`, respectievelijk op de
+`sort_order` die de beheerder zelf sleepte), en waar een alfabetische lijst
+telt, sorteert het scherm op het **CMS-label** (de standaardtaal), zodat de
+lijst in elke CMS-taal dezelfde volgorde heeft.
+
+**De editors.** `admin/product-form.php`, `admin/collection.php` en
+`admin/related-products.php` staan op `admin/_localized_fields.php`: één naam,
+één beschrijving, één SEO-paar en één kop, in de taal die de schil aanwijst.
+Een **nieuw** product en een **nieuwe** collectie worden in de standaardtaal
+geschreven, zoals een nieuwe pagina en een nieuw bericht, zodat de slug uit een
+naam komt die de winkel ook echt toont. De slug van een collectie blijft
+taalneutraal: wordt het slugveld leeg gelaten, dan wordt hij hergenereerd uit
+de naam in de **standaardtaal** — nooit uit de vertaling op het scherm.
+
+**De migraties.** `20260918200000` maakt de twee tabellen, `20260918210000`
+verhuist negentien kolommen plus de twee instellingsrijen en dropt ze in
+dezelfde stap; `20260918220000` maakt de momentopnametabel en `20260918230000`
+verhuist `order_items.product_name_en` en dropt die ene kolom. `product_name`
+zelf wordt niet aangeraakt.
+
 ### Wat fase 5 nog moet doen
 
-Na golf B staat er nog `_nl`/`_en` in Shop (`products`, `collections`,
-`order_items` en de gedeelde koppen
-`site_settings.related_products_heading_nl/en`) en Personalisatie
+Na golf C staat er nog `_nl`/`_en` in Personalisatie
 (`product_personalization_settings`, `_views`, `_zones`). Daarnaast houdt de
 Blog twee **instellingssleutels** in zijn eigen `blog_settings`:
 `blog_title(_en)` en `blog_intro(_en)`. Die zijn bewust niet meeverhuisd in

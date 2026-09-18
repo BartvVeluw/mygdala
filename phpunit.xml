@@ -40,6 +40,8 @@
             <file>tests/Service/PageLocalizationTest.php</file>
             <file>tests/Service/EntityTranslationsTest.php</file>
             <file>tests/Service/PortfolioLocalizationTest.php</file>
+            <file>tests/Service/ShopLocalizationTest.php</file>
+            <file>tests/Service/OrderItemNameSnapshotTest.php</file>
             <file>tests/Service/TranslatableFieldTest.php</file>
             <file>tests/Service/BlockLocalizationTest.php</file>
             <file>tests/Service/BlockLocalizedRenderingTest.php</file>
@@ -160,6 +162,8 @@
             <file>tests/Service/PageLocalizationTest.php</file>
             <file>tests/Service/EntityTranslationsTest.php</file>
             <file>tests/Service/PortfolioLocalizationTest.php</file>
+            <file>tests/Service/ShopLocalizationTest.php</file>
+            <file>tests/Service/OrderItemNameSnapshotTest.php</file>
             <file>tests/Service/TranslatableFieldTest.php</file>
             <file>tests/Service/BlockLocalizationTest.php</file>
             <file>tests/Service/BlockLocalizedRenderingTest.php</file>
@@ -315,6 +319,8 @@
             <file>tests/Install/FormWordsAndOptionMigrationTest.php</file>
             <file>tests/Install/PortfolioWordsMigrationTest.php</file>
             <file>tests/Install/BlogWordsMigrationTest.php</file>
+            <file>tests/Install/ShopWordsMigrationTest.php</file>
+            <file>tests/Install/OrderItemNameSnapshotMigrationTest.php</file>
             <file>tests/Install/BlockTranslationSchemaTest.php</file>
             <file>tests/Install/BlockTranslationMigrationTest.php</file>
             <file>tests/Install/RemainingBlockWordsMigrationTest.php</file>
@@ -412,6 +418,8 @@
             <file>tests/Service/PageLocalizationTest.php</file>
             <file>tests/Service/EntityTranslationsTest.php</file>
             <file>tests/Service/PortfolioLocalizationTest.php</file>
+            <file>tests/Service/ShopLocalizationTest.php</file>
+            <file>tests/Service/OrderItemNameSnapshotTest.php</file>
             <file>tests/Service/MultilingualBoundaryTest.php</file>
             <file>tests/Install/ExampleEnvironmentTest.php</file>
             <file>tests/Install/MigrationTableNamesTest.php</file>
@@ -541,6 +549,8 @@
             <file>tests/Repository/OrderRepositoryAddressResolutionTest.php</file>
             <file>tests/Repository/OrderSnapshotIntegrationTest.php</file>
             <file>tests/Repository/ProductDeletionIntegrationTest.php</file>
+            <file>tests/Install/ShopWordsMigrationTest.php</file>
+            <file>tests/Install/OrderItemNameSnapshotMigrationTest.php</file>
             <directory>tests/Service/Address</directory>
             <file>tests/Service/CollectionAdminSecurityTest.php</file>
             <file>tests/Service/CollectionContentTest.php</file>
@@ -560,6 +570,7 @@
             <file>tests/Service/ProductBreadcrumbTest.php</file>
             <directory>tests/Service/Shipping</directory>
             <file>tests/Service/ShopSeoAdminTest.php</file>
+            <file>tests/Service/ShopEditingHttpTest.php</file>
             <file>tests/Service/ShopSeoRoutingTest.php</file>
             <file>tests/Service/ShopSettingsTest.php</file>
             <file>tests/Service/TurnstileVerifierTest.php</file>

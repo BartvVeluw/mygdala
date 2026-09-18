@@ -95,12 +95,14 @@ use App\Service\Address\AddressValidationException;
 use App\Service\Address\CheckoutAddressResolver;
 use App\Service\LegalPages;
 use App\Service\MollieClientFactory;
+use App\Service\OrderItemNameSnapshot;
 use App\Service\MolliePaymentData;
 use App\Service\Personalization\Money;
 use App\Service\Personalization\PersonalizationValidationException;
 use App\Service\Personalization\PersonalizationValidator;
 use App\Service\Personalization\ProductPersonalizationContent;
 use App\Service\Shipping\ShippingCalculationService;
+use App\Service\ShopLocalization;
 use App\Service\Shipping\ShippingUnavailableException;
 use App\Service\TurnstileVerifier;
 use Mollie\Api\Exceptions\ApiException;
@@ -411,6 +413,25 @@ $variantRepository = new ProductVariantRepository();
  */
 $orderItems = [];
 $subtotalCents = 0;
+
+// The languages this order's name snapshots are taken in: the default one
+// for the neutral name every document prints, and every other active
+// website language beside it — but only where the product has words of
+// its own, so "no English name" stays "no English name"
+// (App\Service\OrderItemNameSnapshot).
+$snapshotLanguage = ShopLocalization::defaultLanguage();
+$snapshotNames = static function (int $productId): array {
+    $names = [];
+    foreach (OrderItemNameSnapshot::extraLanguages() as $code) {
+        $own = trim(ShopLocalization::rawProduct($productId, ShopLocalization::NAME, $code));
+        if ($own !== '') {
+            $names[$code] = $own;
+        }
+    }
+
+    return $names;
+};
+
 foreach ($requestedLines as $line) {
     $productId = $line['product_id'];
     $qty = $line['qty'];
@@ -448,9 +469,15 @@ foreach ($requestedLines as $line) {
         'personalization_surcharge' => Money::format($surchargeCents),
         // Snapshot of the product title at the moment of purchase — see
         // db/migrations/20260907170000_add_product_snapshot_to_order_items.php.
-        // Taken from the same product row already loaded above, never re-read later.
-        'product_name' => $products[$productId]['name'],
-        'product_name_en' => $products[$productId]['name_en'],
+        //
+        // Since Multilingual 2.0 phase 5 wave C a product's name is words
+        // rather than a column, so the neutral snapshot is its name in the
+        // DEFAULT language and the other active languages are recorded beside
+        // it once the line has an id (App\Service\OrderItemNameSnapshot).
+        // Read here, inside the transaction, so a rename a second later cannot
+        // change what this order says.
+        'product_name' => ShopLocalization::product($productId, ShopLocalization::NAME, $snapshotLanguage),
+        'product_name_words' => $snapshotNames($productId),
         // Never written to order_items — kept alongside it so the order-line
         // personalization rows can be created once the line has an id. Null
         // for every unpersonalized line.
@@ -551,6 +578,23 @@ try {
         $billingAddress
     );
     $orderItemIds = $orderRepository->addItems($orderId, $orderItems);
+
+    /**
+     * What each product was called in the OTHER website languages, recorded
+     * once, in this same transaction. The neutral name already sits on the
+     * line; these are the versions the order-status page offers a visitor
+     * (App\Service\OrderItemNameSnapshot). A language a product has no own
+     * name in gets no row, which is exactly what the two fixed columns did.
+     */
+    foreach ($orderItems as $index => $orderItem) {
+        if (!isset($orderItemIds[$index])) {
+            continue;
+        }
+
+        foreach ($orderItem['product_name_words'] as $code => $name) {
+            OrderItemNameSnapshot::record((int) $orderItemIds[$index], (string) $code, (string) $name);
+        }
+    }
 
     /**
      * Personalization becomes ORDER DATA here, inside the same transaction

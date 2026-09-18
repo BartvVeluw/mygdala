@@ -4,6 +4,9 @@ namespace App\Service;
 
 use App\Repository\CollectionRepository;
 use App\Repository\ProductRepository;
+use App\Service\Language\LanguageFallback;
+use App\Service\Language\LanguageRegistry;
+use App\Service\Language\LocalizedValue;
 
 /**
  * "Gerelateerde producten" on a product detail page: which other products to
@@ -69,7 +72,7 @@ class RelatedProductsContent
      * product page keeps working, it just has no related products — the same
      * fallback philosophy every Content class in this project follows.
      *
-     * @return array{heading_nl: string, heading_en: string, product_ids: list<int>, collection: array<string, mixed>}|null
+     * @return array{heading: LocalizedValue, product_ids: list<int>, collection: array<string, mixed>}|null
      */
     public static function forProduct(int $productId): ?array
     {
@@ -119,23 +122,8 @@ class RelatedProductsContent
             return self::$cache[$productId] = null;
         }
 
-        $headingNl = self::firstNonEmpty(
-            (string) ($collection['related_heading_nl'] ?? ''),
-            SiteSettings::get('related_products_heading_nl')
-        );
-        // The EN heading follows the collection's own override when it has
-        // one, then the global EN setting, and finally the NL heading —
-        // the same "empty EN falls back" rule as every bilingual pair here.
-        $headingEn = self::firstNonEmpty(
-            (string) ($collection['related_heading_en'] ?? ''),
-            (string) ($collection['related_heading_nl'] ?? ''),
-            SiteSettings::get('related_products_heading_en'),
-            $headingNl
-        );
-
         return self::$cache[$productId] = [
-            'heading_nl' => $headingNl,
-            'heading_en' => $headingEn,
+            'heading' => self::heading((int) $collection['id']),
             'product_ids' => $productIds,
             'collection' => $collection,
         ];
@@ -161,6 +149,51 @@ class RelatedProductsContent
         }
 
         return null;
+    }
+
+    /**
+     * THE HEADING, with its precedence intact.
+     *
+     * Two sources, and the collection's own words win as a UNIT: a collection
+     * that has a heading at all speaks for itself, in whatever language it has
+     * it, before the global setting is consulted. Within each source the
+     * ordinary fallback applies — the asked-for language, the default
+     * language — and that is App\Service\Language\LanguageFallback's one rule,
+     * applied twice in source order rather than a second fallback written here.
+     *
+     *   1. the collection's heading in this language
+     *   2. the collection's heading in the default language
+     *   3. the global setting in this language
+     *   4. the global setting in the default language
+     *   5. ''  (and then nothing is rendered)
+     *
+     * Before Multilingual 2.0 phase 5 wave C this was two fixed chains:
+     * NL = the collection's Dutch heading, else the global Dutch setting; and
+     * EN = the collection's English heading, else its Dutch one, else the
+     * global English setting, else the Dutch answer. On a Dutch-default site
+     * the five steps above produce exactly those two chains, value for value —
+     * Tests\Service\RelatedProductsContentTest pins that down. On a site whose
+     * default language is NOT Dutch they differ deliberately: the old English
+     * chain ended on the Dutch heading, and one fallback rule cannot.
+     */
+    public static function heading(int $collectionId): LocalizedValue
+    {
+        $ownWords = [];
+        foreach (ShopLocalization::collections()->words($collectionId) as $code => $fields) {
+            if (($fields[ShopLocalization::RELATED_HEADING] ?? '') !== '') {
+                $ownWords[(string) $code] = $fields[ShopLocalization::RELATED_HEADING];
+            }
+        }
+
+        $globalWords = LocalizedSiteSettings::words(LocalizedSiteSettings::RELATED_PRODUCTS_HEADING);
+
+        $headings = [];
+        foreach (LanguageRegistry::codes() as $code) {
+            $own = LanguageFallback::resolve($ownWords, $code);
+            $headings[$code] = $own !== '' ? $own : LanguageFallback::resolve($globalWords, $code);
+        }
+
+        return LocalizedValue::of($headings);
     }
 
     public static function isEnabled(): bool
@@ -208,14 +241,4 @@ class RelatedProductsContent
         self::$cache = [];
     }
 
-    private static function firstNonEmpty(string ...$values): string
-    {
-        foreach ($values as $value) {
-            if ($value !== '') {
-                return $value;
-            }
-        }
-
-        return '';
-    }
 }

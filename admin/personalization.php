@@ -10,6 +10,7 @@ use App\Service\AdminAuth;
 use App\Service\Csrf;
 use App\Service\Personalization\PersonalizationRules;
 use App\Service\Personalization\ProductPersonalizationContent;
+use App\Service\ShopLocalization;
 
 AdminAuth::requireLogin();
 AdminAuth::requirePermission('personalization.manage');
@@ -41,10 +42,41 @@ AdminAuth::requirePermission('personalization.manage');
  */
 $loadError = null;
 
+/**
+ * Rows in the order their products' CMS names read, as the alphabet of the
+ * DEFAULT language — the same order whatever language the CMS itself is in.
+ *
+ * Both lists used to be ordered on `products.name` in SQL. That column is
+ * gone: a product's name lives per website language in `product_translations`
+ * since Multilingual 2.0 phase 5 wave C, so the ordering moved here, onto the
+ * one name the CMS shows.
+ *
+ * @param list<array<string, mixed>> $rows
+ * @param string $idKey the column holding the product id
+ * @return list<array<string, mixed>>
+ */
+$byProductName = static function (array $rows, string $idKey): array {
+    usort($rows, static fn (array $a, array $b): int => strnatcasecmp(
+        ShopLocalization::productName((int) ($a[$idKey] ?? 0)),
+        ShopLocalization::productName((int) ($b[$idKey] ?? 0))
+    ));
+
+    return $rows;
+};
+
 try {
     $repository = new ProductPersonalizationRepository();
     $configured = $repository->findAllConfigured();
     $available = $repository->findProductsWithoutConfiguration();
+
+    // One query for every name on the screen instead of one per row.
+    ShopLocalization::preloadProducts(array_merge(
+        array_map(static fn (array $row): int => (int) $row['product_id'], $configured),
+        array_map(static fn (array $row): int => (int) $row['id'], $available)
+    ));
+
+    $configured = $byProductName($configured, 'product_id');
+    $available = $byProductName($available, 'id');
 } catch (\Throwable $e) {
     error_log('[admin/personalization.php] ' . $e->getMessage());
     $configured = [];
@@ -124,7 +156,7 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
             <option value=""><?= admin_te('personalization.kies_product') ?></option>
             <?php foreach ($available as $product): ?>
               <option value="<?= (int) $product['id'] ?>">
-                <?= $h((string) $product['name']) ?><?= (int) $product['active'] === 1 ? '' : ' (inactief)' ?>
+                <?= $h(ShopLocalization::productName((int) $product['id'])) ?><?= (int) $product['active'] === 1 ? '' : ' (inactief)' ?>
               </option>
             <?php endforeach; ?>
           </select>
@@ -165,7 +197,7 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
                 $viewsWithImage = (int) $row['view_with_image_count'];
                 $zoneCount = (int) $row['zone_count'];
                 $imagePath = trim((string) ($row['image_path'] ?? ''));
-                $name = (string) $row['product_name'];
+                $name = ShopLocalization::productName((int) $row['product_id']);
                 $inShop = (int) ($row['in_shop'] ?? 1) === 1;
                 $inCatalog = (int) ($row['in_personalization_catalog'] ?? 0) === 1;
                 // The same "is there anything to show" rule the storefront

@@ -35,8 +35,14 @@ function render_section_shop_collections(array $shopCollections): void
         <?php foreach ($shopCollections as $shopCollection): ?>
           <?php
             $collectionH = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
-            $collectionTeaserNl = \App\Service\CollectionContent::excerpt($shopCollection['description_nl'], 90);
-            $collectionTeaserEn = \App\Service\CollectionContent::excerpt($shopCollection['description_en'], 90);
+            // A tile's words arrive as one LocalizedValue per field
+            // (Multilingual 2.0 phase 5 wave C); the teaser is that value with
+            // the excerpt rule applied to each half.
+            $collectionName = $shopCollection['name'];
+            $collectionTeaser = \App\Service\Language\LocalizedValue::of([
+                \App\Service\Language\LanguageRegistry::DUTCH => \App\Service\CollectionContent::excerpt($shopCollection['description']->in(\App\Service\Language\LanguageRegistry::DUTCH), 90),
+                \App\Service\Language\LanguageRegistry::ENGLISH => \App\Service\CollectionContent::excerpt($shopCollection['description']->in(\App\Service\Language\LanguageRegistry::ENGLISH), 90),
+            ]);
           ?>
           <a class="collection-tile" href="<?= $collectionH($shopCollection['url']) ?>" data-reveal data-reveal-group="collections">
             <div class="collection-tile__media">
@@ -51,9 +57,9 @@ function render_section_shop_collections(array $shopCollections): void
               <?php endif; ?>
             </div>
             <div class="collection-tile__body">
-              <h3 class="collection-tile__name" data-nl="<?= $collectionH($shopCollection['name_nl']) ?>" data-en="<?= $collectionH($shopCollection['name_en']) ?>"><?= $collectionH($shopCollection['name_nl']) ?></h3>
-              <?php if ($collectionTeaserNl !== ''): ?>
-                <p class="collection-tile__desc" data-nl="<?= $collectionH($collectionTeaserNl) ?>" data-en="<?= $collectionH($collectionTeaserEn) ?>"><?= $collectionH($collectionTeaserNl) ?></p>
+              <h3 class="collection-tile__name"<?= \App\Service\Language\SiteText::attrsOf($collectionName) ?>><?= $collectionH(\App\Service\Language\SiteText::visibleOf($collectionName)) ?></h3>
+              <?php if (\App\Service\Language\SiteText::visibleOf($collectionTeaser) !== ''): ?>
+                <p class="collection-tile__desc"<?= \App\Service\Language\SiteText::attrsOf($collectionTeaser) ?>><?= $collectionH(\App\Service\Language\SiteText::visibleOf($collectionTeaser)) ?></p>
               <?php endif; ?>
             </div>
           </a>

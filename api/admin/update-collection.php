@@ -21,6 +21,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/../../vendor/autoload.php';
 require_once __DIR__ . '/_collection_validation.php';
 
+use App\Database;
 use App\Repository\CollectionRepository;
 use App\Repository\ProductRepository;
 use App\Service\AdminAuth;
@@ -28,6 +29,7 @@ use App\Service\CollectionContent;
 use App\Service\CollectionService;
 use App\Service\Csrf;
 use App\Service\SectionImageUploader;
+use App\Service\ShopLocalization;
 
 AdminAuth::requireLoginForApi();
 AdminAuth::requirePermissionForApi('collections.manage');
@@ -50,7 +52,8 @@ if ($id === false || $id === null || $id < 1) {
     exit('Invalid collection id.');
 }
 
-$collectionRepository = new CollectionRepository();
+$db = Database::connection();
+$collectionRepository = new CollectionRepository($db);
 $existing = $collectionRepository->findById($id);
 
 if ($existing === null) {
@@ -58,16 +61,30 @@ if ($existing === null) {
     exit('Collection not found.');
 }
 
-[$errors, $fields] = validateCollectionInput($_POST);
+// `false`: an existing collection, so the words written are those of the one
+// language the form's hidden field names (Multilingual 2.0 phase 5 wave C).
+[$errors, $fields] = validateCollectionInput($_POST, false);
 
-$productIds = CollectionService::validateProductIds($fields['product_ids'], new ProductRepository());
+$productIds = CollectionService::validateProductIds($fields['product_ids'], new ProductRepository($db));
 
 $slug = $fields['slug'];
 if ($slug === '') {
     // Blank slug field: regenerate from the (possibly renamed) collection
     // name rather than refusing to save. Excluding this collection's own id
     // means an unchanged name keeps producing its current slug.
-    $slug = CollectionService::generateSlug($collectionRepository, $fields['name'], $id);
+    //
+    // A SLUG IS LANGUAGE-NEUTRAL, so it is always generated from the DEFAULT
+    // language's name (Multilingual 2.0 phase 5 wave C): the submitted name
+    // when this request is in that language, else the name already stored.
+    // Saving a translation therefore cannot move a collection's address.
+    $defaultLanguage = ShopLocalization::defaultLanguage();
+    $slug = CollectionService::generateSlug(
+        $collectionRepository,
+        $fields['language_code'] === $defaultLanguage
+            ? $fields['name']
+            : ShopLocalization::collection($id, ShopLocalization::NAME, $defaultLanguage),
+        $id
+    );
 } else {
     $slugError = CollectionService::validateSlug($collectionRepository, $slug, $id);
     if ($slugError !== null) {
@@ -117,29 +134,37 @@ if ($errors !== []) {
 }
 
 try {
+    // Row and words are ONE transaction, and the words are only this
+    // language's: every other translation of this collection stays exactly as
+    // it is (Multilingual 2.0 phase 5 wave C).
+    $db->beginTransaction();
+
     $collectionRepository->update($id, [
-        'name' => $fields['name'],
-        'name_en' => $fields['name_en'],
         'slug' => $slug,
-        'description' => $fields['description'],
-        'description_en' => $fields['description_en'],
         'is_active' => $fields['is_active'],
-        'meta_title' => $fields['meta_title'],
-        'meta_title_en' => $fields['meta_title_en'],
-        'meta_description' => $fields['meta_description'],
-        'meta_description_en' => $fields['meta_description_en'],
     ]);
+
+    ShopLocalization::saveCollection($id, $fields['language_code'], [
+        ShopLocalization::NAME => $fields['name'],
+        ShopLocalization::DESCRIPTION => (string) $fields['description'],
+        ShopLocalization::META_TITLE => $fields['meta_title'],
+        ShopLocalization::META_DESCRIPTION => $fields['meta_description'],
+    ]);
+
+    // The files this save leaves unreferenced. They are deleted AFTER the
+    // commit, never inside the transaction: an unlink cannot be rolled back,
+    // so a later failure would leave the database pointing at a file that no
+    // longer exists. delete() is a no-op for anything outside
+    // assets/images/sections/, so a shared site asset can never be removed by
+    // replacing a collection image.
+    $unreferenced = [];
 
     if ($newImagePath !== null) {
         $collectionRepository->updateImagePath($id, $newImagePath);
 
-        // Only after the new path is stored: the old file is unreferenced
-        // from here on, and an unlink cannot be rolled back. delete() is a
-        // no-op for anything outside assets/images/sections/, so a shared
-        // site asset can never be removed by replacing a collection image.
         $oldImagePath = $existing['image_path'] ?? null;
         if ($oldImagePath !== null && $oldImagePath !== '' && $oldImagePath !== $newImagePath) {
-            $uploader->delete((string) $oldImagePath);
+            $unreferenced[] = (string) $oldImagePath;
         }
     }
 
@@ -149,13 +174,13 @@ try {
         $collectionRepository->updateOgImagePath($id, $newOgImagePath);
 
         if ($oldOgImagePath !== '' && $oldOgImagePath !== $newOgImagePath) {
-            $uploader->delete($oldOgImagePath);
+            $unreferenced[] = $oldOgImagePath;
         }
     } elseif ($fields['remove_og_image'] && $oldOgImagePath !== '') {
         // Back to NULL: CollectionContent::socialImagePath() then falls back
         // to the collection image, a product photo, and the site image.
         $collectionRepository->updateOgImagePath($id, null);
-        $uploader->delete($oldOgImagePath);
+        $unreferenced[] = $oldOgImagePath;
     }
 
     // Only synchronise membership when the form actually carried the product
@@ -167,8 +192,19 @@ try {
         $collectionRepository->setCollectionProducts($id, $productIds);
     }
 
+    $db->commit();
+
+    foreach ($unreferenced as $path) {
+        $uploader->delete($path);
+    }
+
     CollectionContent::clearCache();
+    ShopLocalization::clearCache();
 } catch (\Throwable $e) {
+    if ($db->inTransaction()) {
+        $db->rollBack();
+    }
+
     error_log('[api/admin/update-collection.php] ' . $e->getMessage());
 
     if ($newImagePath !== null) {

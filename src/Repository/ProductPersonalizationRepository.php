@@ -351,6 +351,12 @@ class ProductPersonalizationRepository extends Repository
      * PREVIEW images are a different thing entirely and are only ever shown
      * inside the editor.
      *
+     * NO PRODUCT NAME, and a language-neutral order. A product's name lives
+     * per website language in `product_translations` since Multilingual 2.0
+     * phase 5 wave C, so the screen adds it
+     * (App\Service\ShopLocalization::productName()) and decides the
+     * alphabetical order it lists them in.
+     *
      * @return list<array<string, mixed>>
      */
     public function findAllConfigured(): array
@@ -358,7 +364,7 @@ class ProductPersonalizationRepository extends Repository
         $stmt = $this->db->query(
             "SELECT s.id AS settings_id, s.product_id, s.is_enabled, s.personalization_mode,
                     s.updated_at,
-                    p.name AS product_name, p.active AS product_active, p.image_path,
+                    p.active AS product_active, p.image_path,
                     p.in_shop, p.in_personalization_catalog,
                     (SELECT COUNT(*) FROM product_personalization_views v
                       WHERE v.settings_id = s.id) AS view_count,
@@ -370,7 +376,7 @@ class ProductPersonalizationRepository extends Repository
                       WHERE z.settings_id = s.id) AS zone_count
              FROM product_personalization_settings s
              INNER JOIN products p ON p.id = s.product_id
-             ORDER BY p.name ASC, p.id ASC"
+             ORDER BY p.id ASC"
         );
 
         return $stmt->fetchAll();
@@ -386,16 +392,19 @@ class ProductPersonalizationRepository extends Repository
      * personalization of a product before publishing it is an ordinary order
      * of work.
      *
+     * The picker's labels come from App\Service\ShopLocalization, for the
+     * reason findAllConfigured() above gives.
+     *
      * @return list<array<string, mixed>>
      */
     public function findProductsWithoutConfiguration(): array
     {
         $stmt = $this->db->query(
-            'SELECT p.id, p.name, p.active
+            'SELECT p.id, p.active
              FROM products p
              LEFT JOIN product_personalization_settings s ON s.product_id = p.id
              WHERE s.id IS NULL
-             ORDER BY p.name ASC, p.id ASC'
+             ORDER BY p.id ASC'
         );
 
         return $stmt->fetchAll();

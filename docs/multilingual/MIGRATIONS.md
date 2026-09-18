@@ -85,6 +85,8 @@ verhuismigratie.
 |---|---|---|---|
 | A | `20260918160000` / `170000` | `portfolio_categories.name_nl/en`; `portfolio_gallery_items.{title,subtitle,alt,intro,description}_nl/en`; `portfolio_item_images.alt_nl/en` — 14 kolommen | `portfolio_category_translations`, `portfolio_item_translations`, `portfolio_item_image_translations` |
 | B | `20260918180000` / `190000` | `blog_posts.{title,excerpt,body,meta_title,meta_description}` en hun `_en`; `blog_categories.{name,description}` en hun `_en`; `blog_tags.name` en `name_en` — 16 kolommen | `blog_post_translations`, `blog_category_translations`, `blog_tag_translations` |
+| C | `20260918200000` / `210000` | `products.{name,description,meta_title,meta_description}` en hun `_en`; dezelfde vier van `collections` plus `related_heading_nl/en` — 19 kolommen; en de twee rijen `site_settings.related_products_heading_nl/en` | `product_translations`, `collection_translations`; de kop naar `site_setting_translations` |
+| C | `20260918220000` / `230000` | `order_items.product_name_en` — 1 kolom | `order_item_translations` |
 
 Dezelfde regels als in 3A, 3B en 4: NL blijft NL, EN blijft EN, byte voor byte
 (rich text inbegrepen), leeg of alleen witruimte krijgt geen rij, opnieuw
@@ -112,11 +114,29 @@ altijd had. En **geen slug verhuist**: `blog_posts.slug`,
 precies hetzelfde antwoorden en elke opgeslagen redirect van een hernoemd
 archief blijft kloppen.
 
-De tests zijn `tests/Install/PortfolioWordsMigrationTest.php` en
-`BlogWordsMigrationTest.php` (`migration`): vers, bijgewerkt en kapot naast
-elkaar, met de neutrale kolommen ervoor en erna vergeleken, een rij in elke
-toestand waarin zijn kolommen konden staan, en bij golf B ook de
-taxonomiekoppelingen en elke slug.
+Bij golf C is de Nederlandse helft van een product en een collectie óók de
+kale kolomnaam; alleen `related_heading` heeft `_nl` aan beide kanten. Wat er
+**niet** verhuist is wat een winkel een besluit mee neemt: id's, slugs,
+prijzen, voorraad, verzendinstellingen, verkoopkanalen, afbeeldingspaden,
+sorteervolgordes en elke relatie houden hun exacte waarde, zodat een
+taalwissel na de migratie net zo min een prijs kan veranderen als ervoor.
+
+**En een bestelling is geen vertaling.** `order_items.product_name_en` verhuist
+in een eigen paar migraties (`220000`/`230000`) naar een eigen tabel, met een
+eigen leesregel. `order_items.product_name` wordt niet aangeraakt: dat blijft
+de ene taalvrije momentopname die de factuur, de bevestigingsmail en het
+CMS-besteloverzicht afdrukken. Er wordt niets herschreven uit een actuele
+productnaam — de migratie kopieert bytes en dropt één kolom, en joint nooit
+naar `products`. Een regel waarvan het product intussen verwijderd is
+(`product_id` NULL) houdt zijn naam gewoon.
+
+De tests zijn `tests/Install/PortfolioWordsMigrationTest.php`,
+`BlogWordsMigrationTest.php`, `ShopWordsMigrationTest.php` en
+`OrderItemNameSnapshotMigrationTest.php` (`migration`): vers, bijgewerkt en
+kapot naast elkaar, met de neutrale kolommen ervoor en erna vergeleken, een rij
+in elke toestand waarin zijn kolommen konden staan, bij golf B ook de
+taxonomiekoppelingen en elke slug, en bij golf C elke prijs, elk
+collectielidmaatschap en elke bestelregel.
 
 **Oude migraties die de gedropte kolommen lezen.** `20260909270000` (media
 adopteren) leest de alt-kolommen van Tekst met afbeelding, Detailsectie en

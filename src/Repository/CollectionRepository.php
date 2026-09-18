@@ -193,54 +193,28 @@ class CollectionRepository extends Repository
     }
 
     /**
-     * The four editable SEO text columns, mirroring
-     * ProductRepository::SEO_FIELDS exactly — same names, same optionality,
-     * same "empty means NULL means fall back to the real content" rule.
+     * Adds a collection row. Its WORDS are not here: since Multilingual 2.0
+     * phase 5 wave C the name, description, SEO copy and related-products
+     * heading live per website language in collection_translations and are
+     * written through App\Service\ShopLocalization, in the same transaction
+     * as this row.
      *
-     * @var list<string>
-     */
-    private const SEO_FIELDS = ['meta_title', 'meta_title_en', 'meta_description', 'meta_description_en'];
-
-    /**
-     * @param array<string, mixed> $data
-     * @return array<string, ?string>
-     */
-    private function seoValues(array $data): array
-    {
-        $values = [];
-        foreach (self::SEO_FIELDS as $field) {
-            $value = trim((string) ($data[$field] ?? ''));
-            $values[$field] = $value === '' ? null : $value;
-        }
-
-        return $values;
-    }
-
-    /**
-     * @param array{name:string,name_en:?string,slug:string,description:?string,description_en:?string,image_path:?string,is_active:bool,meta_title?:?string,meta_title_en?:?string,meta_description?:?string,meta_description_en?:?string} $data
+     * @param array{slug:string,image_path:?string,is_active:bool} $data
      */
     public function create(array $data): int
     {
         $stmt = $this->db->prepare(
             'INSERT INTO collections
-                (name, name_en, slug, description, description_en, image_path, is_active,
-                 meta_title, meta_title_en, meta_description, meta_description_en,
-                 sort_order, created_at, updated_at)
+                (slug, image_path, is_active, sort_order, created_at, updated_at)
              VALUES
-                (:name, :name_en, :slug, :description, :description_en, :image_path, :is_active,
-                 :meta_title, :meta_title_en, :meta_description, :meta_description_en,
-                 :sort_order, NOW(), NOW())'
+                (:slug, :image_path, :is_active, :sort_order, NOW(), NOW())'
         );
         $stmt->execute([
-            'name' => $data['name'],
-            'name_en' => $data['name_en'],
             'slug' => $data['slug'],
-            'description' => $data['description'],
-            'description_en' => $data['description_en'],
             'image_path' => $data['image_path'],
             'is_active' => $data['is_active'] ? 1 : 0,
             'sort_order' => $this->nextSortOrder(),
-        ] + $this->seoValues($data));
+        ]);
 
         return (int) $this->db->lastInsertId();
     }
@@ -251,30 +225,21 @@ class CollectionRepository extends Repository
      * reason ProductRepository::update() does: saving the form without
      * picking a new file must never clear or replace the existing image.
      *
-     * @param array{name:string,name_en:?string,slug:string,description:?string,description_en:?string,is_active:bool,meta_title?:?string,meta_title_en?:?string,meta_description?:?string,meta_description_en?:?string} $data
+     * Its words are saved separately and per language, through
+     * App\Service\ShopLocalization, in the same transaction.
+     *
+     * @param array{slug:string,is_active:bool} $data
      */
     public function update(int $id, array $data): void
     {
         $stmt = $this->db->prepare(
-            'UPDATE collections SET
-                name = :name, name_en = :name_en, slug = :slug,
-                description = :description, description_en = :description_en,
-                is_active = :is_active,
-                meta_title = :meta_title, meta_title_en = :meta_title_en,
-                meta_description = :meta_description,
-                meta_description_en = :meta_description_en,
-                updated_at = NOW()
-             WHERE id = :id'
+            'UPDATE collections SET slug = :slug, is_active = :is_active, updated_at = NOW() WHERE id = :id'
         );
         $stmt->execute([
-            'name' => $data['name'],
-            'name_en' => $data['name_en'],
             'slug' => $data['slug'],
-            'description' => $data['description'],
-            'description_en' => $data['description_en'],
             'is_active' => $data['is_active'] ? 1 : 0,
             'id' => $id,
-        ] + $this->seoValues($data));
+        ]);
     }
 
     public function updateImagePath(int $id, ?string $imagePath): void
@@ -301,25 +266,25 @@ class CollectionRepository extends Repository
      * optional heading override (NULL/'' = use the global heading).
      *
      * Kept separate from update() for the same reason updateImagePath() is:
-     * these fields are edited on their own screen
-     * (admin/related-products.php), and saving that screen must not be able
-     * to touch a collection's name, slug, description or published state —
-     * nor the collection editor able to reset these.
+     * this field is edited on its own screen (admin/related-products.php),
+     * and saving that screen must not be able to touch a collection's slug or
+     * published state — nor the collection editor able to reset it.
+     *
+     * The HEADING itself is words, and since Multilingual 2.0 phase 5 wave C
+     * it lives per website language in collection_translations, written
+     * through App\Service\ShopLocalization in the same transaction. What is
+     * left here is the switch.
      */
-    public function updateRelatedProductsSettings(int $id, bool $showRelatedProducts, ?string $headingNl, ?string $headingEn): void
+    public function updateRelatedProductsSettings(int $id, bool $showRelatedProducts): void
     {
         $stmt = $this->db->prepare(
             'UPDATE collections SET
                 show_related_products = :show_related_products,
-                related_heading_nl = :related_heading_nl,
-                related_heading_en = :related_heading_en,
                 updated_at = NOW()
              WHERE id = :id'
         );
         $stmt->execute([
             'show_related_products' => $showRelatedProducts ? 1 : 0,
-            'related_heading_nl' => ($headingNl !== null && $headingNl !== '') ? $headingNl : null,
-            'related_heading_en' => ($headingEn !== null && $headingEn !== '') ? $headingEn : null,
             'id' => $id,
         ]);
     }

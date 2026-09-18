@@ -18,20 +18,33 @@ use App\Service\Language\AdminTranslator;
 use App\Repository\ProductRepository;
 use App\Service\CollectionService;
 use App\Service\DescriptionSanitizer;
+use App\Service\Language\LanguageCode;
+use App\Service\Language\SiteLanguages;
 use App\Service\Shipping\ShippingProfile;
+use App\Service\ShopLocalization;
 
 /**
  * @param array<string, mixed> $input raw $_POST
+ * @param bool $isNew a NEW product is written in the default language, like a
+ *                    new page or a new blog post: its slug comes from that
+ *                    name, and translating it happens on the product itself
+ *                    afterwards. An existing product is edited in the
+ *                    language the form's hidden field names.
  * @return array{0: array<int, string>, 1: array<string, mixed>} [errors, normalized fields]
  */
-function validateProductInput(array $input): array
+function validateProductInput(array $input, bool $isNew): array
 {
     $errors = [];
 
+    // ONE website language per request (Multilingual 2.0 phase 5 wave C):
+    // one name, one description, and the language they belong to. Every other
+    // translation of this product stays exactly as it is.
     $name = is_string($input['name'] ?? null) ? trim($input['name']) : '';
-    $nameEn = is_string($input['name_en'] ?? null) ? trim($input['name_en']) : '';
     $descriptionRaw = is_string($input['description'] ?? null) ? $input['description'] : '';
-    $descriptionEnRaw = is_string($input['description_en'] ?? null) ? $input['description_en'] : '';
+    $language = $isNew
+        ? ShopLocalization::defaultLanguage()
+        : (LanguageCode::normalise((string) ($input['language_code'] ?? '')) ?? '');
+    $isDefaultLanguage = $language !== '' && $language === ShopLocalization::defaultLanguage();
     $priceRaw = is_string($input['price'] ?? null) ? trim(str_replace(',', '.', $input['price'])) : '';
     $active = ($input['active'] ?? null) === '1';
     // Where the product may be SOLD. Two independent channels, both plain
@@ -40,14 +53,16 @@ function validateProductInput(array $input): array
     $inShop = ($input['in_shop'] ?? null) === '1';
     $inPersonalizationCatalog = ($input['in_personalization_catalog'] ?? null) === '1';
 
-    if ($name === '') {
-        $errors[] = AdminTranslator::trans('validation.naam_verplicht');
-    } elseif (mb_strlen($name) > 150) {
-        $errors[] = AdminTranslator::trans('validation.naam_mag_maximaal_150_tekens');
+    if ($language === '' || !SiteLanguages::isActive($language)) {
+        $errors[] = AdminTranslator::trans('validation.language_unknown');
     }
 
-    if (mb_strlen($nameEn) > 150) {
-        $errors[] = AdminTranslator::trans('validation.engelse_naam_mag_maximaal_150');
+    // A name is required only in the DEFAULT language: a translation is
+    // optional by definition, because it falls back.
+    if ($name === '' && $isDefaultLanguage) {
+        $errors[] = AdminTranslator::trans('validation.naam_verplicht');
+    } elseif (mb_strlen($name) > ShopLocalization::NAME_MAX_LENGTH) {
+        $errors[] = AdminTranslator::trans('validation.naam_mag_maximaal_150_tekens');
     }
 
     // The rich-text editor sends HTML (paragraphs/bold/italic/links/line
@@ -55,14 +70,9 @@ function validateProductInput(array $input): array
     // tags, unsafe URL schemes) before it ever reaches the database. Plain
     // text with no tags passes through unchanged as escaped text.
     $description = DescriptionSanitizer::sanitize($descriptionRaw);
-    $descriptionEn = DescriptionSanitizer::sanitize($descriptionEnRaw);
 
     if ($description !== null && strlen($description) > 20000) {
         $errors[] = 'Beschrijving is te lang.';
-    }
-
-    if ($descriptionEn !== null && strlen($descriptionEn) > 20000) {
-        $errors[] = 'Engelse beschrijving is te lang.';
     }
 
     $price = 0.0;
@@ -91,10 +101,9 @@ function validateProductInput(array $input): array
     $requiresParcel = ($input['requires_parcel'] ?? null) === '1';
 
     $fields = [
+        'language_code' => $language,
         'name' => $name,
-        'name_en' => $nameEn === '' ? null : $nameEn,
         'description' => $description,
-        'description_en' => $descriptionEn,
         'price' => $price,
         'price_input' => $priceRaw,
         'active' => $active,

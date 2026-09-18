@@ -8,6 +8,7 @@ use App\Database;
 use App\Repository\CollectionRepository;
 use App\Repository\ProductRepository;
 use App\Service\CollectionContent;
+use App\Service\ShopLocalization;
 use App\Service\SiteSettings;
 use PHPUnit\Framework\TestCase;
 
@@ -20,6 +21,12 @@ use PHPUnit\Framework\TestCase;
  * "the first photo of the first active product in the collection" is a
  * database question, and it is the one step of the chain that could silently
  * start returning something else.
+ *
+ * The words are written where they live since Multilingual 2.0 phase 5
+ * wave C: one row per website language in `collection_translations`, through
+ * App\Service\ShopLocalization. The fixture below still speaks the
+ * `<field>`/`<field>_en` pair, because that is what these SEO rules are
+ * about — which language wins, and what an empty English field falls back to.
  */
 final class CollectionSeoTest extends TestCase
 {
@@ -75,21 +82,41 @@ final class CollectionSeoTest extends TestCase
         CollectionContent::clearCache();
     }
 
+    /** The localized fields a collection has, as the pair the fixture speaks. */
+    private const WORD_DEFAULTS = [
+        'name' => 'Onderzetters',
+        'name_en' => 'Coasters',
+        'description' => '<p>Onderzetters van berkenhout.</p>',
+        'description_en' => '<p>Birch coasters.</p>',
+        'meta_title' => null,
+        'meta_title_en' => null,
+        'meta_description' => null,
+        'meta_description_en' => null,
+    ];
+
     /** @param array<string, mixed> $overrides */
     private function createCollection(array $overrides = []): array
     {
         $slug = self::SLUG_PREFIX . bin2hex(random_bytes(4));
+        $words = array_intersect_key($overrides, self::WORD_DEFAULTS) + self::WORD_DEFAULTS;
 
-        $id = $this->collections->create($overrides + [
-            'name' => 'Onderzetters',
-            'name_en' => 'Coasters',
+        $id = $this->collections->create([
             'slug' => $slug,
-            'description' => '<p>Onderzetters van berkenhout.</p>',
-            'description_en' => '<p>Birch coasters.</p>',
-            'image_path' => null,
-            'is_active' => true,
+            'image_path' => $overrides['image_path'] ?? null,
+            'is_active' => $overrides['is_active'] ?? true,
         ]);
         $this->collectionIds[] = $id;
+
+        foreach (['nl' => '', 'en' => '_en'] as $code => $suffix) {
+            ShopLocalization::saveCollection($id, $code, [
+                ShopLocalization::NAME => (string) ($words['name' . $suffix] ?? ''),
+                ShopLocalization::DESCRIPTION => (string) ($words['description' . $suffix] ?? ''),
+                ShopLocalization::META_TITLE => (string) ($words['meta_title' . $suffix] ?? ''),
+                ShopLocalization::META_DESCRIPTION => (string) ($words['meta_description' . $suffix] ?? ''),
+            ]);
+        }
+
+        ShopLocalization::clearCache();
 
         $collection = CollectionContent::forPublicPage($slug);
         $this->assertNotNull($collection);
@@ -101,18 +128,19 @@ final class CollectionSeoTest extends TestCase
     private function createProduct(string $name, ?string $imagePath, bool $active = true): int
     {
         $id = $this->products->create([
-            'name' => $name,
-            'name_en' => null,
             'slug' => '__test-seo-product-' . bin2hex(random_bytes(6)),
-            'description' => null,
-            'description_en' => null,
             'price' => 9.95,
             'image_path' => $imagePath,
             'active' => $active,
+            'in_shop' => true,
+            'in_personalization_catalog' => false,
             'shipping_profile' => 'letter',
             'shipping_weight_grams' => 20,
             'requires_parcel' => false,
         ]);
+
+        ShopLocalization::saveProduct($id, 'nl', [ShopLocalization::NAME => $name]);
+        ShopLocalization::clearCache();
 
         $this->productIds[] = $id;
 

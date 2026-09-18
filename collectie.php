@@ -57,10 +57,12 @@ if ($collection !== null) {
     // then rendered by partials/shop-seo-head.php, the same block product.php
     // uses.
     $seo = [
-        'title_nl' => \App\Service\CollectionContent::seoTitle($collection, 'nl'),
-        'title_en' => \App\Service\CollectionContent::seoTitle($collection, 'en'),
-        'description_nl' => \App\Service\CollectionContent::metaDescription($collection, 'nl'),
-        'description_en' => \App\Service\CollectionContent::metaDescription($collection, 'en'),
+        // The head still carries the V1 pair for the client-side switch; each
+        // half is one language, resolved by CollectionContent.
+        'title_nl' => \App\Service\CollectionContent::seoTitle($collection, \App\Service\Language\LanguageRegistry::DUTCH),
+        'title_en' => \App\Service\CollectionContent::seoTitle($collection, \App\Service\Language\LanguageRegistry::ENGLISH),
+        'description_nl' => \App\Service\CollectionContent::metaDescription($collection, \App\Service\Language\LanguageRegistry::DUTCH),
+        'description_en' => \App\Service\CollectionContent::metaDescription($collection, \App\Service\Language\LanguageRegistry::ENGLISH),
         // The canonical URL of a collection page is the collection page
         // itself. Products keep their own canonical URLs — a product
         // appearing in three collections is still one page at
@@ -132,37 +134,40 @@ require __DIR__ . '/partials/header.php';
   <?php render_breadcrumb(
       \App\Service\Breadcrumbs\BreadcrumbTrail::home()
           ->toPage('shop', 'shop')
-          ->to(\App\Service\Breadcrumbs\BreadcrumbItem::current((string) $collection['name_nl'], (string) $collection['name_en']))
+          ->to(\App\Service\Breadcrumbs\BreadcrumbItem::current(
+              $collection['name']->in(\App\Service\Language\LanguageRegistry::DUTCH),
+              $collection['name']->in(\App\Service\Language\LanguageRegistry::ENGLISH)
+          ))
   ); ?>
   <section class="page-hero">
     <div class="container">
       <p class="eyebrow" data-nl="Collectie" data-en="Collection">Collectie</p>
-      <h1 data-nl="<?= $h($collection['name_nl']) ?>" data-en="<?= $h($collection['name_en']) ?>"><?= $h($collection['name_nl']) ?></h1>
+      <h1<?= \App\Service\Language\SiteText::attrsOf($collection['name']) ?>><?= $h(\App\Service\Language\SiteText::visibleOf($collection['name'])) ?></h1>
     </div>
   </section>
 
-  <?php if ($collection['image_path'] !== null || $collection['description_nl'] !== ''): ?>
+  <?php if ($collection['image_path'] !== null || \App\Service\Language\SiteText::visibleOf($collection['description']) !== ''): ?>
   <section style="padding-top:0;">
     <div class="container">
       <div class="collection-intro<?= $collection['image_path'] === null ? ' collection-intro--text-only' : '' ?>">
         <?php if ($collection['image_path'] !== null): ?>
           <figure class="collection-intro__media" data-reveal>
-            <img src="/<?= $h(ltrim($collection['image_path'], '/')) ?>" alt="<?= $h($collection['name_nl']) ?>" data-nl-alt="<?= $h($collection['name_nl']) ?>" data-en-alt="<?= $h($collection['name_en']) ?>" fetchpriority="high">
+            <img src="/<?= $h(ltrim($collection['image_path'], '/')) ?>" alt="<?= $h(\App\Service\Language\SiteText::visibleOf($collection['name'])) ?>"<?= \App\Service\Language\SiteText::attrsForOf('alt', $collection['name']) ?> fetchpriority="high">
           </figure>
         <?php endif; ?>
-        <?php if ($collection['description_nl'] !== ''): ?>
+        <?php if (\App\Service\Language\SiteText::visibleOf($collection['description']) !== ''): ?>
           <?php
-            // description_nl/en are already sanitized HTML (RichTextSanitizer,
-            // both at save time and again in CollectionContent) — rendered as
-            // real markup here, never escaped back to plain text. $h() below
-            // is for the data-nl/data-en ATTRIBUTE, a different escaping
-            // context, so assets/js/core.js's language switch gets exactly this
-            // HTML back on an NL/EN toggle. data-lang-html marks this element
-            // as genuinely HTML: applyLang() re-renders it with innerHTML,
-            // where a plain-text field now gets textContent by default.
-            // Identical treatment to portfolio-detail.php's rich-text blocks.
+            // The description is already sanitized HTML in every language
+            // (DescriptionSanitizer, at save time and again per language in
+            // App\Service\ShopLocalization) — rendered as real markup here,
+            // never escaped back to plain text. SiteText::htmlAttrsOf() writes
+            // the language pair with the data-lang-html marker that lets
+            // assets/js/core.js's applyLang() re-render it with innerHTML
+            // instead of the plain-text textContent it uses by default, and
+            // writes nothing at all when every language shows the same markup.
+            // Identical treatment to the Blog's body and the Detailsectie's.
           ?>
-          <div class="rich-content collection-intro__text" data-reveal data-lang-html data-nl="<?= $h($collection['description_nl']) ?>" data-en="<?= $h($collection['description_en']) ?>"><?= $collection['description_nl'] ?></div>
+          <div class="rich-content collection-intro__text" data-reveal<?= \App\Service\Language\SiteText::htmlAttrsOf($collection['description']) ?>><?= \App\Service\Language\SiteText::visibleOf($collection['description']) ?></div>
         <?php endif; ?>
       </div>
     </div>

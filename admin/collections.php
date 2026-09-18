@@ -9,6 +9,7 @@ use App\Repository\CollectionRepository;
 use App\Service\AdminAuth;
 use App\Service\CollectionContent;
 use App\Service\Csrf;
+use App\Service\ShopLocalization;
 
 AdminAuth::requireLogin();
 AdminAuth::requirePermission('collections.manage');
@@ -26,6 +27,15 @@ AdminAuth::requirePermission('collections.manage');
  */
 try {
     $collections = (new CollectionRepository())->findAllWithProductCounts();
+
+    // Every card's name in one query rather than one per card. A collection
+    // is listed under the name the CMS calls it by — its default language's,
+    // see App\Service\Language\LanguageFallback::name() — in the
+    // sort_order the admin dragged it into, which is language-neutral.
+    ShopLocalization::preloadCollections(array_map(
+        static fn (array $collection): int => (int) $collection['id'],
+        $collections
+    ));
 } catch (\Throwable $e) {
     error_log('[admin/collections.php] ' . $e->getMessage());
     $collections = null;
@@ -81,7 +91,7 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
           $collectionId = (int) $collection['id'];
           $isActive = (int) $collection['is_active'] === 1;
           $productCount = (int) $collection['product_count'];
-          $name = (string) $collection['name'];
+          $name = ShopLocalization::collectionName($collectionId);
           $slug = (string) $collection['slug'];
           $imagePath = (string) ($collection['image_path'] ?? '');
         ?>

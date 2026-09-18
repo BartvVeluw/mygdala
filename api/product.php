@@ -18,7 +18,8 @@ use App\Repository\ProductImageRepository;
 use App\Repository\ProductOptionRepository;
 use App\Repository\ProductVariantRepository;
 use App\Repository\ProductRepository;
-use App\Service\DescriptionSanitizer;
+use App\Service\ShopLocalization;
+use App\Service\Language\LanguageRegistry;
 
 header('Content-Type: application/json; charset=utf-8');
 
@@ -46,11 +47,18 @@ try {
         exit;
     }
 
-    // Defense in depth: descriptions are already sanitized on write (see
-    // api/admin/_product_validation.php), re-sanitizing here protects
-    // against anything ever written directly to the database.
-    $product['description'] = DescriptionSanitizer::sanitize($product['description'] ?? null);
-    $product['description_en'] = DescriptionSanitizer::sanitize($product['description_en'] ?? null);
+    // The payload keeps the four keys assets/js/shop/shop.js has always
+    // read (Multilingual 2.0 phase 5 wave C); what fills them is the words
+    // store. Descriptions are sanitized on write (see
+    // api/admin/_product_validation.php) AND again per language on the way out
+    // of App\Service\ShopLocalization, which protects against anything ever
+    // written directly to the database.
+    $name = ShopLocalization::productValue($id, ShopLocalization::NAME);
+    $description = ShopLocalization::productDescriptionValue($id);
+    $product['name'] = $name->in(LanguageRegistry::DUTCH);
+    $product['name_en'] = $name->in(LanguageRegistry::ENGLISH);
+    $product['description'] = $description->in(LanguageRegistry::DUTCH);
+    $product['description_en'] = $description->in(LanguageRegistry::ENGLISH);
 
     $product['images'] = (new ProductImageRepository())->findByProductId($id);
     $product['options'] = (new ProductOptionRepository())->findByProductId($id);

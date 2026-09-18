@@ -10,6 +10,7 @@ use App\Repository\ProductPersonalizationRepository;
 use App\Repository\ProductRepository;
 use App\Service\Personalization\PersonalizationRules;
 use App\Service\Personalization\ProductPersonalizationContent;
+use App\Service\ShopLocalization;
 use PHPUnit\Framework\TestCase;
 use Tests\Support\PersonalizationTestConfig;
 
@@ -66,18 +67,22 @@ final class PersonalizationCmsSeparationTest extends TestCase
     private function createProduct(string $name = 'Testproduct personalisatie CMS'): int
     {
         $id = $this->products->create([
-            'name' => $name,
-            'name_en' => null,
             'slug' => self::SLUG_PREFIX . bin2hex(random_bytes(6)),
-            'description' => 'Beschrijving die niet mag veranderen.',
-            'description_en' => null,
             'price' => 21.5,
             'image_path' => 'assets/images/products/zz-test-gallery.png',
             'active' => true,
+            'in_shop' => true,
+            'in_personalization_catalog' => false,
             'shipping_profile' => 'letter',
             'shipping_weight_grams' => 40,
             'requires_parcel' => false,
         ]);
+
+        ShopLocalization::saveProduct($id, 'nl', [
+            ShopLocalization::NAME => $name,
+            ShopLocalization::DESCRIPTION => 'Beschrijving die niet mag veranderen.',
+        ]);
+        ShopLocalization::clearCache();
 
         $this->productIds[] = $id;
 
@@ -221,7 +226,11 @@ final class PersonalizationCmsSeparationTest extends TestCase
         $this->assertArrayHasKey($productId, $rows);
         $row = $rows[$productId];
 
-        $this->assertSame('Testproduct overzicht', $row['product_name']);
+        // The overview names a product through App\Service\ShopLocalization
+        // since Multilingual 2.0 phase 5 wave C; the query carries ids and
+        // counts, not words.
+        $this->assertArrayNotHasKey('product_name', $row);
+        $this->assertSame('Testproduct overzicht', ShopLocalization::productName($productId));
         $this->assertSame(2, (int) $row['view_count']);
         // One of the two views has no dedicated image, which is exactly what
         // the overview has to be able to show.

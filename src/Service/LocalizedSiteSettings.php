@@ -23,14 +23,23 @@ use App\Service\Language\SiteLanguages;
  *   city                the place in the contact block's details card
  *   footer_description  the short text in the footer's company block
  *   footer_slogan       the footer's closing line
+ *   related_products_heading  the SHOP-WIDE heading above the related products
+ *                       under a product, when the collection the products came
+ *                       from has no heading of its own
+ *
+ * The last one is the Shop's, added in phase 5 wave C. It is here rather than
+ * in a store of the Shop's own because it is genuinely SITE-WIDE — one heading
+ * for the whole shop, set on one screen — and because its per-collection
+ * override lives with the collection, where App\Service\RelatedProductsContent
+ * reads them together as one precedence chain. A setting that belongs to one
+ * module's own screens and nothing else stays in that module's own table.
  *
  * Everything else stays a language-neutral row in `site_settings`
  * (App\Service\SiteSettings): the company's name, e-mail address, phone and
  * KVK number, its postal address, the copyright template, every switch, the
  * logos. So does what is not the website's words at all: the CMS's own
  * interface language (App\Service\Language\AdminLocale) and module
- * configuration. The Shop's related-products heading is a Shop setting with
- * per-collection overrides and moves with the Shop (phase 5).
+ * configuration.
  *
  * THE FALLBACK is App\Service\Language\LanguageFallback's: the asked-for
  * language, the default language, ''. READS NEVER THROW (logged, read as no
@@ -41,12 +50,14 @@ final class LocalizedSiteSettings
     public const CITY = 'city';
     public const FOOTER_DESCRIPTION = 'footer_description';
     public const FOOTER_SLOGAN = 'footer_slogan';
+    public const RELATED_PRODUCTS_HEADING = 'related_products_heading';
 
     /** @var array<string, int> key => maximum length in characters */
     public const KEYS = [
         self::CITY => 150,
         self::FOOTER_DESCRIPTION => 500,
         self::FOOTER_SLOGAN => 200,
+        self::RELATED_PRODUCTS_HEADING => 255,
     ];
 
     /** @var array<string, array<string, string>>|null key => language code => words (non-empty only) */

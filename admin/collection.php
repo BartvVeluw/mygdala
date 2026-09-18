@@ -5,7 +5,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/../vendor/autoload.php';
 require_once __DIR__ . '/_translate.php';
 
-require_once __DIR__ . '/_language_fields.php';
+require_once __DIR__ . '/_localized_fields.php';
 
 use App\Repository\CollectionRepository;
 use App\Repository\ProductRepository;
@@ -14,6 +14,7 @@ use App\Service\AdminAuth;
 use App\Service\CollectionContent;
 use App\Service\Csrf;
 use App\Service\Seo;
+use App\Service\ShopLocalization;
 
 AdminAuth::requireLogin();
 AdminAuth::requirePermission('collections.manage');
@@ -101,6 +102,21 @@ function collectionFieldValue(?array $old, ?array $collection, string $key, stri
     return $default;
 }
 
+/**
+ * A collection's WORDS, in the one website language this screen is editing
+ * (Multilingual 2.0 phase 5 wave C): the refused POST first, so a rejected
+ * save keeps what was typed, then what is stored FOR THAT LANGUAGE with no
+ * fallback — the fallback is the placeholder.
+ */
+function collectionWord(?array $old, ?int $collectionId, string $field, string $language): string
+{
+    if ($old !== null && array_key_exists($field, $old)) {
+        return (string) ($old[$field] ?? '');
+    }
+
+    return $collectionId === null ? '' : ShopLocalization::rawCollection($collectionId, $field, $language);
+}
+
 $slugValue = $old !== null
     ? (string) ($old['slug_input'] ?? '')
     : ($collection !== null ? (string) $collection['slug'] : '');
@@ -132,8 +148,24 @@ foreach ($productsById as $productRow) {
     $orderedProducts[] = $productRow;
 }
 
+// Every picker row's product name in one query rather than one per row. The
+// picker names a product the way the rest of the CMS does, in the default
+// language — a product is the same product in every language, and ticking it
+// is not a translation.
+ShopLocalization::preloadProducts(array_map(
+    static fn (array $productRow): int => (int) $productRow['id'],
+    $orderedProducts
+));
+
 $csrfToken = Csrf::token();
-$pageTitle = $isEdit ? (string) $collection['name'] : admin_t('shop.new_collection');
+// The website language this screen's words are in, and the id they hang
+// off. ONE language on the screen and in the request.
+$editingLanguage = admin_localized_language();
+$collectionId = $isEdit ? (int) $collection['id'] : null;
+
+$pageTitle = $isEdit
+    ? ShopLocalization::collectionName((int) $collection['id'])
+    : admin_t('shop.new_collection');
 $currentImagePath = $collection !== null ? (string) ($collection['image_path'] ?? '') : '';
 
 // The SEO card's social image, and the "remove it on save" tick — which
@@ -193,18 +225,12 @@ require __DIR__ . '/_richtext_field.php';
     <section class="admin-card">
       <h2><?= admin_te('shop.basisgegevens') ?></h2>
 
-      <?php admin_lang_bar(); ?>
-      <div class="admin-form-row admin-form-row--split">
-        <?php admin_lang_pane_start('nl'); ?>
-        <label><?= admin_te('common.name') ?>*
-          <input type="text" name="name" maxlength="150" <?= admin_lang_required('nl') ?> data-slug-source value="<?= $h(collectionFieldValue($old, $collection, 'name')) ?>">
+      <?= admin_localized_input($editingLanguage) ?>
+      <?php admin_localized_bar($editingLanguage); ?>
+      <div class="admin-form-row">
+        <label><?= admin_te('common.name') ?><?= admin_localized_required($editingLanguage) === '' ? '' : '*' ?>
+          <input type="text" name="name" maxlength="<?= ShopLocalization::NAME_MAX_LENGTH ?>"<?= admin_localized_required($editingLanguage) ?> data-slug-source value="<?= $h(collectionWord($old, $collectionId, ShopLocalization::NAME, $editingLanguage)) ?>"<?= admin_localized_placeholder_attr($editingLanguage) ?>>
         </label>
-        <?php admin_lang_pane_end(); ?>
-        <?php admin_lang_pane_start('en'); ?>
-        <label><?= admin_te('common.name') ?>
-          <input type="text" name="name_en" maxlength="150" value="<?= $h(collectionFieldValue($old, $collection, 'name_en')) ?>"<?= admin_lang_placeholder_attr('en') ?>>
-        </label>
-        <?php admin_lang_pane_end(); ?>
       </div>
 
       <div class="admin-form-row">
@@ -221,12 +247,7 @@ require __DIR__ . '/_richtext_field.php';
       </div>
 
       <div class="admin-form-row">
-        <?php admin_lang_pane_start('nl'); ?>
-          <?php renderRichTextField('description', 'Beschrijving', collectionFieldValue($old, $collection, 'description'), 'full', 'admin-richtext-editor--md'); ?>
-        <?php admin_lang_pane_end(); ?>
-        <?php admin_lang_pane_start('en'); ?>
-          <?php renderRichTextField('description_en', 'Beschrijving', collectionFieldValue($old, $collection, 'description_en'), 'full', 'admin-richtext-editor--md'); ?>
-        <?php admin_lang_pane_end(); ?>
+        <?php renderRichTextField('description', 'Beschrijving', collectionWord($old, $collectionId, ShopLocalization::DESCRIPTION, $editingLanguage), 'full', 'admin-richtext-editor--md'); ?>
       </div>
 
       <div class="admin-form-row">
@@ -272,30 +293,17 @@ require __DIR__ . '/_richtext_field.php';
         <?= admin_t('shop.allemaal_optioneel_laat_veld', ['v1' => $h($siteName)]) ?>
       </p>
       <div class="admin-product-form admin-product-form--wide">
-        <?php admin_lang_pane_start('nl'); ?>
-          <div class="admin-form-row">
-            <label><?= admin_te('page.meta_title') ?>
-              <input type="text" name="meta_title" maxlength="<?= Seo::MAX_META_TITLE_LENGTH ?>" data-char-count value="<?= $h(collectionFieldValue($old, $collection, 'meta_title')) ?>" placeholder="Leeg = automatische titel">
-            </label>
-          </div>
-          <div class="admin-form-row">
-            <label><?= admin_te('page.meta_description') ?>
-              <textarea name="meta_description" rows="3" maxlength="<?= Seo::MAX_META_DESCRIPTION_LENGTH ?>" data-char-count placeholder="Leeg = korte samenvatting van de beschrijving"><?= $h(collectionFieldValue($old, $collection, 'meta_description')) ?></textarea>
-            </label>
-          </div>
-        <?php admin_lang_pane_end(); ?>
-        <?php admin_lang_pane_start('en'); ?>
-          <div class="admin-form-row">
-            <label><?= admin_te('page.meta_title') ?>
-              <input type="text" name="meta_title_en" maxlength="<?= Seo::MAX_META_TITLE_LENGTH ?>" data-char-count value="<?= $h(collectionFieldValue($old, $collection, 'meta_title_en')) ?>"<?= admin_lang_placeholder_attr('en') ?>>
-            </label>
-          </div>
-          <div class="admin-form-row">
-            <label><?= admin_te('page.meta_description') ?>
-              <textarea name="meta_description_en" rows="3" maxlength="<?= Seo::MAX_META_DESCRIPTION_LENGTH ?>" data-char-count<?= admin_lang_placeholder_attr('en') ?>><?= $h(collectionFieldValue($old, $collection, 'meta_description_en')) ?></textarea>
-            </label>
-          </div>
-        <?php admin_lang_pane_end(); ?>
+        <?php admin_localized_bar($editingLanguage); ?>
+        <div class="admin-form-row">
+          <label><?= admin_te('page.meta_title') ?>
+            <input type="text" name="meta_title" maxlength="<?= Seo::MAX_META_TITLE_LENGTH ?>" data-char-count value="<?= $h(collectionWord($old, $collectionId, ShopLocalization::META_TITLE, $editingLanguage)) ?>" placeholder="Leeg = automatische titel">
+          </label>
+        </div>
+        <div class="admin-form-row">
+          <label><?= admin_te('page.meta_description') ?>
+            <textarea name="meta_description" rows="3" maxlength="<?= Seo::MAX_META_DESCRIPTION_LENGTH ?>" data-char-count placeholder="Leeg = korte samenvatting van de beschrijving"><?= $h(collectionWord($old, $collectionId, ShopLocalization::META_DESCRIPTION, $editingLanguage)) ?></textarea>
+          </label>
+        </div>
       </div>
 
       <div class="admin-form-row admin-seo-image">
@@ -349,7 +357,7 @@ require __DIR__ . '/_richtext_field.php';
             <?php
               $productId = (int) $productRow['id'];
               $isSelected = in_array($productId, $selectedProductIds, true);
-              $productName = (string) $productRow['name'];
+              $productName = ShopLocalization::productName($productId);
               $productActive = (int) $productRow['active'] === 1;
               $productImage = (string) ($productRow['image_path'] ?? '');
             ?>
@@ -397,6 +405,5 @@ require __DIR__ . '/_richtext_field.php';
     </section>
   <?php endif; ?>
 </main>
-<?php admin_lang_script(); ?>
 </body>
 </html>

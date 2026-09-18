@@ -45,8 +45,10 @@ function render_related_products(array $related): void
         return;
     }
 
-    $headingNl = (string) ($related['heading_nl'] ?? '');
-    $headingEn = (string) ($related['heading_en'] ?? '');
+    // One LocalizedValue with the whole precedence already applied — the
+    // collection's own heading, else the shop-wide setting, each with the
+    // ordinary language fallback (App\Service\RelatedProductsContent::heading()).
+    $heading = $related['heading'];
     ?>
     <?php // .bg-soft is the site's existing "next section, softly separated"
           // modifier (index.php, over-mij.php, diensten.php) — it sets this
@@ -54,9 +56,9 @@ function render_related_products(array $related): void
           // CSS. data-related-products is a hook, not styling. ?>
     <section class="bg-soft" data-related-products>
       <div class="container">
-        <?php if ($headingNl !== ''): ?>
+        <?php if (\App\Service\Language\SiteText::visibleOf($heading) !== ''): ?>
         <div class="section-head" data-reveal>
-          <h2 <?= \App\Service\Language\SiteText::attrs($headingNl, $headingEn) ?>><?= $h(\App\Service\Language\SiteText::visible($headingNl, $headingEn)) ?></h2>
+          <h2<?= \App\Service\Language\SiteText::attrsOf($heading) ?>><?= $h(\App\Service\Language\SiteText::visibleOf($heading)) ?></h2>
         </div>
         <?php endif; ?>
 

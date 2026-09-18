@@ -8,6 +8,7 @@ use App\Database;
 use App\Repository\CollectionRepository;
 use App\Repository\ProductRepository;
 use App\Service\CollectionContent;
+use App\Service\ShopLocalization;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -16,6 +17,11 @@ use PHPUnit\Framework\TestCase;
  * The visibility rules are the security-relevant part here — an unpublished
  * collection must be indistinguishable from one that does not exist — so
  * they are asserted against real rows rather than mocked.
+ *
+ * A mapped row carries its words as one LocalizedValue each since
+ * Multilingual 2.0 phase 5 wave C (they are rows in
+ * `collection_translations`, not columns), so the assertions below read
+ * `$collection['name']->in('en')` rather than a `name_en` key.
  */
 final class CollectionContentTest extends TestCase
 {
@@ -54,15 +60,19 @@ final class CollectionContentTest extends TestCase
     {
         $slug = self::SLUG_PREFIX . bin2hex(random_bytes(4));
 
-        $this->collectionIds[] = $this->collections->create([
-            'name' => $name,
-            'name_en' => $nameEn,
+        $id = $this->collections->create([
             'slug' => $slug,
-            'description' => $description,
-            'description_en' => null,
             'image_path' => null,
             'is_active' => $isActive,
         ]);
+        $this->collectionIds[] = $id;
+
+        ShopLocalization::saveCollection($id, 'nl', [
+            ShopLocalization::NAME => $name,
+            ShopLocalization::DESCRIPTION => (string) $description,
+        ]);
+        ShopLocalization::saveCollection($id, 'en', [ShopLocalization::NAME => (string) $nameEn]);
+        ShopLocalization::clearCache();
 
         return $slug;
     }
@@ -70,18 +80,19 @@ final class CollectionContentTest extends TestCase
     private function createProduct(): int
     {
         $id = (new ProductRepository())->create([
-            'name' => 'Content testproduct',
-            'name_en' => null,
             'slug' => '__test_content_product_' . bin2hex(random_bytes(6)),
-            'description' => null,
-            'description_en' => null,
             'price' => 7.50,
             'image_path' => null,
             'active' => true,
+            'in_shop' => true,
+            'in_personalization_catalog' => false,
             'shipping_profile' => 'letter',
             'shipping_weight_grams' => 10,
             'requires_parcel' => false,
         ]);
+
+        ShopLocalization::saveProduct($id, 'nl', [ShopLocalization::NAME => 'Content testproduct']);
+        ShopLocalization::clearCache();
 
         $this->productIds[] = $id;
 
@@ -100,8 +111,8 @@ final class CollectionContentTest extends TestCase
         $collection = CollectionContent::forPublicPage($slug);
 
         $this->assertNotNull($collection);
-        $this->assertSame('Publiek', $collection['name_nl']);
-        $this->assertSame('Public', $collection['name_en']);
+        $this->assertSame('Publiek', $collection['name']->in('nl'));
+        $this->assertSame('Public', $collection['name']->in('en'));
         $this->assertSame('/collecties/' . $slug, $collection['url']);
     }
 
@@ -128,7 +139,7 @@ final class CollectionContentTest extends TestCase
         $collection = CollectionContent::forPublicPage($slug);
 
         $this->assertNotNull($collection);
-        $this->assertSame('Alleen Nederlands', $collection['name_en']);
+        $this->assertSame('Alleen Nederlands', $collection['name']->in('en'));
     }
 
     public function testDescriptionsAreSanitizedOnRead(): void
@@ -140,8 +151,8 @@ final class CollectionContentTest extends TestCase
         $collection = CollectionContent::forPublicPage($slug);
 
         $this->assertNotNull($collection);
-        $this->assertStringNotContainsString('<script', $collection['description_nl']);
-        $this->assertStringContainsString('Veilig', $collection['description_nl']);
+        $this->assertStringNotContainsString('<script', $collection['description']->in('nl'));
+        $this->assertStringContainsString('Veilig', $collection['description']->in('nl'));
     }
 
     public function testActiveForShopListsActiveCollectionsWithActiveProductsInSortOrder(): void
@@ -197,20 +208,27 @@ final class CollectionContentTest extends TestCase
 
     public function testMetaDescriptionUsesTheCollectionsOwnDescriptionAndFallsBackToDutch(): void
     {
-        $collection = [
-            'description_nl' => '<p>Nederlandse tekst.</p>',
-            'description_en' => '',
-        ];
+        $slug = $this->createCollection('Beschreven', true, '<p>Nederlandse tekst.</p>');
+        $collection = CollectionContent::forPublicPage($slug);
+        $this->assertNotNull($collection);
 
         $this->assertSame('Nederlandse tekst.', CollectionContent::metaDescription($collection, 'nl'));
         $this->assertSame('Nederlandse tekst.', CollectionContent::metaDescription($collection, 'en'));
 
-        $collection['description_en'] = '<p>English text.</p>';
+        ShopLocalization::saveCollection((int) $collection['id'], 'en', [
+            ShopLocalization::DESCRIPTION => '<p>English text.</p>',
+        ]);
+        ShopLocalization::clearCache();
+
         $this->assertSame('English text.', CollectionContent::metaDescription($collection, 'en'));
     }
 
     public function testMetaDescriptionIsEmptyWithoutADescriptionSoTheTagCanBeOmitted(): void
     {
-        $this->assertSame('', CollectionContent::metaDescription(['description_nl' => '', 'description_en' => '']));
+        $slug = $this->createCollection('Woordloos', true);
+        $collection = CollectionContent::forPublicPage($slug);
+        $this->assertNotNull($collection);
+
+        $this->assertSame('', CollectionContent::metaDescription($collection));
     }
 }

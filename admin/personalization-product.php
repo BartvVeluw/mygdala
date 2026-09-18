@@ -10,6 +10,7 @@ use App\Repository\ProductPersonalizationRepository;
 use App\Repository\ProductRepository;
 use App\Service\AdminAuth;
 use App\Service\Csrf;
+use App\Service\ShopLocalization;
 
 AdminAuth::requireLogin();
 AdminAuth::requirePermission('personalization.manage');
@@ -77,6 +78,12 @@ unset($_SESSION['admin_personalization_errors'], $_SESSION['admin_personalizatio
 $csrfToken = Csrf::token();
 $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
 
+// What Producten calls this product. This screen only names it, so it uses
+// the CMS's one name for it (the default language's) rather than the
+// administrator's editing language: the configuration below is about a
+// product, not about a translation of it.
+$productName = ShopLocalization::productName($productId);
+
 require __DIR__ . '/_personalization_builder.php';
 ?>
 <!doctype html>
@@ -84,7 +91,7 @@ require __DIR__ . '/_personalization_builder.php';
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title><?= admin_t('personalization.for_product_admin', ['v1' => $h((string) $product['name'])]) ?></title>
+<title><?= admin_t('personalization.for_product_admin', ['v1' => $h($productName)]) ?></title>
 <link rel="stylesheet" href="<?= \App\Service\AssetVersion::url('/admin/assets/admin.css') ?>">
 <script src="<?= \App\Service\AssetVersion::url('/admin/assets/admin.js') ?>" defer></script>
 <?php /* The visual zone editor — only ever used on this screen. */ ?>
@@ -96,7 +103,7 @@ require __DIR__ . '/_personalization_builder.php';
   <p><a href="/admin/personalization.php"><?= admin_t('personalization.terug_personalisatie') ?></a></p>
 
   <div class="admin-main__heading">
-    <h1><?= admin_t('personalization.for_product', ['v1' => $h((string) $product['name'])]) ?></h1>
+    <h1><?= admin_t('personalization.for_product', ['v1' => $h($productName)]) ?></h1>
     <a href="/admin/product-form.php?id=<?= $productId ?>" class="admin-btn-link"><?= admin_te('personalization.product_bewerken') ?></a>
   </div>
 

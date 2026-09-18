@@ -5,12 +5,14 @@ declare(strict_types=1);
 require_once __DIR__ . '/../vendor/autoload.php';
 require_once __DIR__ . '/_translate.php';
 
-require_once __DIR__ . '/_language_fields.php';
+require_once __DIR__ . '/_localized_fields.php';
 
 use App\Repository\CollectionRepository;
 use App\Service\AdminAuth;
 use App\Service\Csrf;
 use App\Service\RelatedProductsContent;
+use App\Service\ShopLocalization;
+use App\Service\LocalizedSiteSettings;
 use App\Service\SiteSettings;
 
 /**
@@ -51,24 +53,33 @@ unset($_SESSION['admin_related_products_errors'], $_SESSION['admin_related_produ
 
 $saved = isset($_GET['saved']);
 
+// The website language this screen's headings are in. ONE language on the
+// screen and in the request (Multilingual 2.0 phase 5 wave C): the shop-wide
+// heading is a localized site setting, each collection's override a word of
+// that collection, and saving one language leaves the others alone.
+$editingLanguage = admin_localized_language();
+
 $globals = [
     'enabled' => RelatedProductsContent::isEnabled(),
-    'heading_nl' => SiteSettings::get('related_products_heading_nl'),
-    'heading_en' => SiteSettings::get('related_products_heading_en'),
+    'heading' => LocalizedSiteSettings::raw(LocalizedSiteSettings::RELATED_PRODUCTS_HEADING, $editingLanguage),
     'max_items' => SiteSettings::get('related_products_max_items'),
 ];
 
 if ($old !== null) {
     $globals = [
         'enabled' => !empty($old['enabled']),
-        'heading_nl' => (string) ($old['heading_nl'] ?? ''),
-        'heading_en' => (string) ($old['heading_en'] ?? ''),
+        'heading' => (string) ($old['heading'] ?? ''),
         'max_items' => (string) ($old['max_items'] ?? ''),
     ];
 }
 
-/** @var array<int, array{enabled: bool, heading_nl: string, heading_en: string}> */
+/** @var array<int, array{enabled: bool, heading: string}> */
 $oldCollections = ($old !== null && is_array($old['collections'] ?? null)) ? $old['collections'] : [];
+
+ShopLocalization::preloadCollections(array_map(
+    static fn (array $collection): int => (int) $collection['id'],
+    $collections
+));
 
 $csrfToken = Csrf::token();
 $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
@@ -113,18 +124,12 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
           <?= admin_te('shop.gerelateerde_producten_tonen_uitgevinkt') ?>
         </label>
 
-        <?php admin_lang_bar(); ?>
-        <div class="admin-form-row admin-form-row--split">
-          <?php admin_lang_pane_start('nl'); ?>
-          <label><?= admin_te('common.title') ?>*
-            <input type="text" name="heading_nl" maxlength="255" <?= admin_lang_required('nl') ?> value="<?= $h((string) $globals['heading_nl']) ?>">
+        <?= admin_localized_input($editingLanguage) ?>
+        <?php admin_localized_bar($editingLanguage); ?>
+        <div class="admin-form-row">
+          <label><?= admin_te('common.title') ?><?= admin_localized_required($editingLanguage) === '' ? '' : '*' ?>
+            <input type="text" name="heading" maxlength="<?= ShopLocalization::RELATED_HEADING_MAX_LENGTH ?>"<?= admin_localized_required($editingLanguage) ?> value="<?= $h((string) $globals['heading']) ?>"<?= admin_localized_placeholder_attr($editingLanguage) ?>>
           </label>
-          <?php admin_lang_pane_end(); ?>
-          <?php admin_lang_pane_start('en'); ?>
-          <label><?= admin_te('common.title') ?>
-            <input type="text" name="heading_en" maxlength="255" value="<?= $h((string) $globals['heading_en']) ?>"<?= admin_lang_placeholder_attr('en') ?>>
-          </label>
-          <?php admin_lang_pane_end(); ?>
         </div>
 
         <div class="admin-form-row">
@@ -161,12 +166,9 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
               $isEnabled = $stored !== null
                   ? !empty($stored['enabled'])
                   : (int) $collection['show_related_products'] === 1;
-              $headingNl = $stored !== null
-                  ? (string) ($stored['heading_nl'] ?? '')
-                  : (string) ($collection['related_heading_nl'] ?? '');
-              $headingEn = $stored !== null
-                  ? (string) ($stored['heading_en'] ?? '')
-                  : (string) ($collection['related_heading_en'] ?? '');
+              $heading = $stored !== null
+                  ? (string) ($stored['heading'] ?? '')
+                  : ShopLocalization::rawCollection($collectionId, ShopLocalization::RELATED_HEADING, $editingLanguage);
               $productCount = (int) ($collection['product_count'] ?? 0);
               $isActive = (int) $collection['is_active'] === 1;
             ?>
@@ -174,7 +176,7 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
               <label class="admin-checkbox-label admin-related-collection-row__pick">
                 <input type="checkbox" name="collections[<?= $collectionId ?>][enabled]" value="1" <?= $isEnabled ? 'checked' : '' ?>>
                 <span class="admin-section-row__body">
-                  <span class="admin-section-row__name"><?= $h((string) $collection['name']) ?></span>
+                  <span class="admin-section-row__name"><?= $h(ShopLocalization::collectionName($collectionId)) ?></span>
                   <span class="admin-text-muted"><?= $productCount === 1 ? '1 product' : $productCount . ' producten' ?></span>
                 </span>
               </label>
@@ -185,18 +187,10 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
 
               <?php // Visually secondary on purpose: the checkbox is the
                     // setting that matters, the override is a nicety. ?>
-              <?php admin_lang_pane_start('nl'); ?>
               <label class="admin-related-collection-row__override">
                 <span class="admin-text-muted"><?= admin_te('shop.eigen_titel') ?></span>
-                <input type="text" name="collections[<?= $collectionId ?>][heading_nl]" maxlength="255" value="<?= $h($headingNl) ?>" placeholder="Leeg = algemene titel">
+                <input type="text" name="collections[<?= $collectionId ?>][heading]" maxlength="<?= ShopLocalization::RELATED_HEADING_MAX_LENGTH ?>" value="<?= $h($heading) ?>" placeholder="Leeg = algemene titel">
               </label>
-              <?php admin_lang_pane_end(); ?>
-              <?php admin_lang_pane_start('en'); ?>
-              <label class="admin-related-collection-row__override">
-                <span class="admin-text-muted"><?= admin_te('shop.eigen_titel_2') ?></span>
-                <input type="text" name="collections[<?= $collectionId ?>][heading_en]" maxlength="255" value="<?= $h($headingEn) ?>"<?= admin_lang_placeholder_attr('en') ?>>
-              </label>
-              <?php admin_lang_pane_end(); ?>
             </div>
           <?php endforeach; ?>
         </div>
@@ -208,6 +202,5 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
     </section>
   </form>
 </main>
-<?php admin_lang_script(); ?>
 </body>
 </html>

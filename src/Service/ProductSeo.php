@@ -7,6 +7,7 @@ namespace App\Service;
 use App\Repository\ProductImageRepository;
 use App\Repository\ProductRepository;
 use App\Repository\ProductVariantRepository;
+use App\Service\Language\LanguageRegistry;
 
 /**
  * The SEO read model for one shop product: its resolved <title>, meta
@@ -125,8 +126,12 @@ class ProductSeo
     public static function resolve(array $product, ?array $imagePaths = null, ?array $variantPrices = null): array
     {
         $id = (int) $product['id'];
-        $nameNl = trim((string) ($product['name'] ?? ''));
-        $nameEn = Seo::pick($product['name'] ?? '', $product['name_en'] ?? '', 'en');
+        // The head still carries the V1 pair for the client-side switch; each
+        // half is one language of the product's own name, read through
+        // App\Service\ShopLocalization with its fallback (Multilingual 2.0
+        // phase 5 wave C).
+        $nameNl = ShopLocalization::product($id, ShopLocalization::NAME, LanguageRegistry::DUTCH);
+        $nameEn = ShopLocalization::product($id, ShopLocalization::NAME, LanguageRegistry::ENGLISH);
 
         $imagePaths ??= self::imagePaths($id, $product['image_path'] ?? null);
         $variantPrices ??= self::variantPrices($id, (float) ($product['price'] ?? 0));
@@ -140,10 +145,10 @@ class ProductSeo
             'id' => $id,
             'name_nl' => $nameNl,
             'name_en' => $nameEn,
-            'title_nl' => self::title($product, 'nl'),
-            'title_en' => self::title($product, 'en'),
-            'description_nl' => self::metaDescription($product, 'nl'),
-            'description_en' => self::metaDescription($product, 'en'),
+            'title_nl' => self::title($product, LanguageRegistry::DUTCH),
+            'title_en' => self::title($product, LanguageRegistry::ENGLISH),
+            'description_nl' => self::metaDescription($product, LanguageRegistry::DUTCH),
+            'description_en' => self::metaDescription($product, LanguageRegistry::ENGLISH),
             'canonical_url' => self::canonicalUrl($id),
             'og_image_path' => $ogImagePath === '' ? null : $ogImagePath,
         ];
@@ -163,13 +168,14 @@ class ProductSeo
      */
     public static function title(array $product, string $lang = 'nl'): string
     {
-        $custom = Seo::pick($product['meta_title'] ?? '', $product['meta_title_en'] ?? '', $lang);
+        $id = (int) ($product['id'] ?? 0);
+        $custom = ShopLocalization::product($id, ShopLocalization::META_TITLE, $lang);
 
         if ($custom !== '') {
             return $custom;
         }
 
-        return Seo::shopTitle(Seo::pick($product['name'] ?? '', $product['name_en'] ?? '', $lang));
+        return Seo::shopTitle(ShopLocalization::product($id, ShopLocalization::NAME, $lang));
     }
 
     /**
@@ -186,13 +192,14 @@ class ProductSeo
      */
     public static function metaDescription(array $product, string $lang = 'nl'): string
     {
-        $custom = Seo::pick($product['meta_description'] ?? '', $product['meta_description_en'] ?? '', $lang);
+        $id = (int) ($product['id'] ?? 0);
+        $custom = ShopLocalization::product($id, ShopLocalization::META_DESCRIPTION, $lang);
 
         if ($custom !== '') {
             return $custom;
         }
 
-        return Seo::excerpt(Seo::pick($product['description'] ?? '', $product['description_en'] ?? '', $lang));
+        return Seo::excerpt(ShopLocalization::productDescription($id, $lang));
     }
 
     /**
@@ -204,7 +211,7 @@ class ProductSeo
      */
     public static function descriptionText(array $product, string $lang = 'nl'): string
     {
-        return Seo::plainText(Seo::pick($product['description'] ?? '', $product['description_en'] ?? '', $lang));
+        return Seo::plainText(ShopLocalization::productDescription((int) ($product['id'] ?? 0), $lang));
     }
 
     /**

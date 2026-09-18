@@ -11,7 +11,9 @@ use App\Repository\ProductImageRepository;
 use App\Repository\ProductOptionRepository;
 use App\Repository\ProductRepository;
 use App\Repository\ProductVariantRepository;
+use App\Service\OrderItemNameSnapshot;
 use App\Service\ProductDeletionService;
+use App\Service\ShopLocalization;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -64,18 +66,22 @@ final class ProductDeletionIntegrationTest extends TestCase
     private function createProduct(string $name = 'Te verwijderen testproduct'): int
     {
         $this->productId = (new ProductRepository())->create([
-            'name' => $name,
-            'name_en' => null,
             'slug' => self::SLUG,
-            'description' => null,
-            'description_en' => null,
             'price' => 12.50,
             'image_path' => null,
             'active' => true,
+            'in_shop' => true,
+            'in_personalization_catalog' => false,
             'shipping_profile' => 'letter',
             'shipping_weight_grams' => 25,
             'requires_parcel' => false,
         ]);
+
+        // Its name is a row in `product_translations` since Multilingual 2.0
+        // phase 5 wave C — and deleting the product must take that row with
+        // it, which testDeletingAProductTakesItsWordsWithIt below proves.
+        ShopLocalization::saveProduct($this->productId, 'nl', [ShopLocalization::NAME => $name]);
+        ShopLocalization::clearCache();
 
         return $this->productId;
     }
@@ -145,8 +151,14 @@ final class ProductDeletionIntegrationTest extends TestCase
             'quantity' => 2,
             'unit_price' => 12.50,
             'product_name' => 'Historische Productnaam',
-            'product_name_en' => 'Historic Product Name',
         ]]);
+
+        // The English half of the snapshot, exactly as api/checkout.php
+        // records it (App\Service\OrderItemNameSnapshot).
+        foreach ($orders->findItems($this->orderId) as $item) {
+            OrderItemNameSnapshot::record((int) $item['id'], 'en', 'Historic Product Name');
+        }
+        OrderItemNameSnapshot::clearCache();
 
         return $this->orderId;
     }
@@ -159,6 +171,30 @@ final class ProductDeletionIntegrationTest extends TestCase
 
         $this->assertTrue((new ProductDeletionService())->delete($productId));
         $this->assertNull((new ProductRepository())->findByIdForAdmin($productId));
+
+        $this->productId = null;
+    }
+
+    /**
+     * A product's words go with it, because they belong to it: the foreign key
+     * on `product_translations.product_id` is ON DELETE CASCADE (Multilingual
+     * 2.0 phase 5 wave C). Nothing in App\Service\ProductDeletionService
+     * mentions the table, and nothing should have to.
+     */
+    public function testDeletingAProductTakesItsWordsWithIt(): void
+    {
+        $productId = $this->createProduct('Product met woorden');
+
+        $this->assertSame('Product met woorden', ShopLocalization::productName($productId));
+
+        (new ProductDeletionService())->delete($productId);
+        ShopLocalization::clearCache();
+
+        $stmt = Database::connection()
+            ->prepare('SELECT COUNT(*) FROM product_translations WHERE product_id = :id');
+        $stmt->execute(['id' => $productId]);
+
+        $this->assertSame(0, (int) $stmt->fetchColumn(), 'a deleted product leaves no orphaned words behind');
 
         $this->productId = null;
     }
@@ -283,8 +319,14 @@ final class ProductDeletionIntegrationTest extends TestCase
 
         $item = $items[0];
 
+        OrderItemNameSnapshot::clearCache();
+
         $this->assertSame('Historische Productnaam', $item['name'], 'historical product name must be unchanged');
-        $this->assertSame('Historic Product Name', $item['name_en']);
+        $this->assertSame(
+            'Historic Product Name',
+            OrderItemNameSnapshot::name((int) $item['id'], 'en', (string) $item['name']),
+            'the English half of the snapshot survives the product it came from'
+        );
         $this->assertSame('Kleur: Noten', $item['variant_label'], 'historical variant must be unchanged');
         $this->assertSame(2, (int) $item['quantity'], 'historical quantity must be unchanged');
         $this->assertSame('12.50', $item['unit_price'], 'historical price must be unchanged');

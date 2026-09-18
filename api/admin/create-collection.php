@@ -21,6 +21,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/../../vendor/autoload.php';
 require_once __DIR__ . '/_collection_validation.php';
 
+use App\Database;
 use App\Repository\CollectionRepository;
 use App\Repository\ProductRepository;
 use App\Service\AdminAuth;
@@ -28,6 +29,7 @@ use App\Service\CollectionContent;
 use App\Service\CollectionService;
 use App\Service\Csrf;
 use App\Service\SectionImageUploader;
+use App\Service\ShopLocalization;
 
 AdminAuth::requireLoginForApi();
 AdminAuth::requirePermissionForApi('collections.manage');
@@ -43,14 +45,18 @@ if (!Csrf::validate($_POST['csrf_token'] ?? null)) {
     exit('Invalid or missing CSRF token.');
 }
 
-[$errors, $fields] = validateCollectionInput($_POST);
+// `true`: a new collection is written in the DEFAULT website language, so the
+// slug it generates comes from a name the shop will really show (Multilingual
+// 2.0 phase 5 wave C). Translating it happens on the collection afterwards.
+[$errors, $fields] = validateCollectionInput($_POST, true);
 
-$collectionRepository = new CollectionRepository();
+$db = Database::connection();
+$collectionRepository = new CollectionRepository($db);
 
 // Never trust the ids or the ordering values the browser sent: every id is
 // confirmed against the products table, and the position in this validated
 // list — not any submitted sort_order — becomes the stored sort_order.
-$productIds = CollectionService::validateProductIds($fields['product_ids'], new ProductRepository());
+$productIds = CollectionService::validateProductIds($fields['product_ids'], new ProductRepository($db));
 
 $slug = $fields['slug'];
 if ($slug === '') {
@@ -108,18 +114,21 @@ if ($errors !== []) {
 }
 
 try {
+    // Row and words are ONE transaction: a collection is never in the shop
+    // without the name that titles it there.
+    $db->beginTransaction();
+
     $collectionId = $collectionRepository->create([
-        'name' => $fields['name'],
-        'name_en' => $fields['name_en'],
         'slug' => $slug,
-        'description' => $fields['description'],
-        'description_en' => $fields['description_en'],
         'image_path' => $imagePath,
         'is_active' => $fields['is_active'],
-        'meta_title' => $fields['meta_title'],
-        'meta_title_en' => $fields['meta_title_en'],
-        'meta_description' => $fields['meta_description'],
-        'meta_description_en' => $fields['meta_description_en'],
+    ]);
+
+    ShopLocalization::saveCollection($collectionId, $fields['language_code'], [
+        ShopLocalization::NAME => $fields['name'],
+        ShopLocalization::DESCRIPTION => (string) $fields['description'],
+        ShopLocalization::META_TITLE => $fields['meta_title'],
+        ShopLocalization::META_DESCRIPTION => $fields['meta_description'],
     ]);
 
     if ($ogImagePath !== null) {
@@ -127,8 +136,15 @@ try {
     }
 
     $collectionRepository->setCollectionProducts($collectionId, $productIds);
+
+    $db->commit();
     CollectionContent::clearCache();
+    ShopLocalization::clearCache();
 } catch (\Throwable $e) {
+    if ($db->inTransaction()) {
+        $db->rollBack();
+    }
+
     error_log('[api/admin/create-collection.php] ' . $e->getMessage());
 
     if ($imagePath !== null) {

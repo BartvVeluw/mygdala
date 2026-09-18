@@ -10,7 +10,9 @@ use App\Repository\CollectionRepository;
 use App\Repository\SiteSettingRepository;
 use App\Service\AdminNavigation;
 use App\Service\AdminPermissions;
+use App\Service\LocalizedSiteSettings;
 use App\Service\RelatedProductsContent;
+use App\Service\ShopLocalization;
 use App\Service\SiteSettings;
 use PHPUnit\Framework\TestCase;
 
@@ -27,10 +29,13 @@ final class RelatedProductsAdminTest extends TestCase
     private const ENDPOINT = 'api/admin/update-related-products-settings.php';
     private const SCREEN = 'admin/related-products.php';
 
+    /**
+     * The language-NEUTRAL keys. The heading moved to
+     * `site_setting_translations` in Multilingual 2.0 phase 5 wave C and is
+     * captured separately below.
+     */
     private const SETTING_KEYS = [
         'related_products_enabled',
-        'related_products_heading_nl',
-        'related_products_heading_en',
         'related_products_max_items',
     ];
 
@@ -40,6 +45,8 @@ final class RelatedProductsAdminTest extends TestCase
     private array $collectionIds = [];
     /** @var array<string, string> */
     private array $originalSettings = [];
+    /** @var array<string, string> */
+    private array $originalHeadings = [];
 
     protected function setUp(): void
     {
@@ -50,13 +57,15 @@ final class RelatedProductsAdminTest extends TestCase
             $this->originalSettings[$key] = $stored[$key] ?? SiteSettings::defaults()[$key];
         }
 
-        SiteSettings::clearCache();
-        RelatedProductsContent::clearCache();
+        $this->originalHeadings = LocalizedSiteSettings::words(LocalizedSiteSettings::RELATED_PRODUCTS_HEADING);
+
+        $this->clearCaches();
     }
 
     protected function tearDown(): void
     {
         (new SiteSettingRepository())->upsertMany($this->originalSettings);
+        $this->setHeadings($this->originalHeadings);
 
         $db = Database::connection();
         foreach ($this->collectionIds as $id) {
@@ -64,9 +73,29 @@ final class RelatedProductsAdminTest extends TestCase
         }
         $this->collectionIds = [];
         $this->originalSettings = [];
+        $this->originalHeadings = [];
 
+        $this->clearCaches();
+    }
+
+    private function clearCaches(): void
+    {
         SiteSettings::clearCache();
+        LocalizedSiteSettings::clearCache();
+        ShopLocalization::clearCache();
         RelatedProductsContent::clearCache();
+    }
+
+    /** @param array<string, string> $byLanguage */
+    private function setHeadings(array $byLanguage): void
+    {
+        foreach (['nl', 'en'] as $code) {
+            LocalizedSiteSettings::save($code, [
+                LocalizedSiteSettings::RELATED_PRODUCTS_HEADING => $byLanguage[$code] ?? '',
+            ]);
+        }
+
+        $this->clearCaches();
     }
 
     private function sourceOf(string $relativePath): string
@@ -102,15 +131,14 @@ final class RelatedProductsAdminTest extends TestCase
     private function createCollection(string $name): int
     {
         $id = $this->collections->create([
-            'name' => $name,
-            'name_en' => null,
             'slug' => 'zz-test-relatedadmin-' . bin2hex(random_bytes(5)),
-            'description' => null,
-            'description_en' => null,
             'image_path' => null,
             'is_active' => true,
         ]);
         $this->collectionIds[] = $id;
+
+        ShopLocalization::saveCollection($id, 'nl', [ShopLocalization::NAME => $name]);
+        ShopLocalization::clearCache();
 
         return $id;
     }
@@ -119,21 +147,28 @@ final class RelatedProductsAdminTest extends TestCase
     /* Settings really persist                                             */
     /* ------------------------------------------------------------------ */
 
-    public function testGlobalSettingsRoundTripThroughSiteSettings(): void
+    public function testGlobalSettingsRoundTripThroughTheStorageEachOneBelongsIn(): void
     {
         (new SiteSettingRepository())->upsertMany([
             'related_products_enabled' => '0',
-            'related_products_heading_nl' => 'Bekijk ook',
-            'related_products_heading_en' => 'Also have a look',
             'related_products_max_items' => '6',
         ]);
-        SiteSettings::clearCache();
-        RelatedProductsContent::clearCache();
+        $this->setHeadings(['nl' => 'Bekijk ook', 'en' => 'Also have a look']);
 
         $this->assertFalse(RelatedProductsContent::isEnabled());
-        $this->assertSame('Bekijk ook', SiteSettings::get('related_products_heading_nl'));
-        $this->assertSame('Also have a look', SiteSettings::get('related_products_heading_en'));
         $this->assertSame(6, RelatedProductsContent::maxItems());
+
+        // The switch and the maximum are language-neutral rows in
+        // `site_settings`; the heading is website text and therefore a row per
+        // language in `site_setting_translations`.
+        $this->assertSame(
+            'Bekijk ook',
+            LocalizedSiteSettings::raw(LocalizedSiteSettings::RELATED_PRODUCTS_HEADING, 'nl')
+        );
+        $this->assertSame(
+            'Also have a look',
+            LocalizedSiteSettings::raw(LocalizedSiteSettings::RELATED_PRODUCTS_HEADING, 'en')
+        );
     }
 
     public function testAStoredZeroReallyTurnsTheFeatureOff(): void
@@ -153,8 +188,13 @@ final class RelatedProductsAdminTest extends TestCase
         $first = $this->createCollection('ZZ Admin een');
         $second = $this->createCollection('ZZ Admin twee');
 
-        $this->collections->updateRelatedProductsSettings($first, false, null, null);
-        $this->collections->updateRelatedProductsSettings($second, true, 'Meer hiervan', 'More of this');
+        // The switch is a column of the collection; its heading is a word of
+        // it, per language (Multilingual 2.0 phase 5 wave C).
+        $this->collections->updateRelatedProductsSettings($first, false);
+        $this->collections->updateRelatedProductsSettings($second, true);
+        ShopLocalization::saveCollection($second, 'nl', [ShopLocalization::RELATED_HEADING => 'Meer hiervan']);
+        ShopLocalization::saveCollection($second, 'en', [ShopLocalization::RELATED_HEADING => 'More of this']);
+        $this->clearCaches();
 
         $storedFirst = $this->collections->findById($first);
         $storedSecond = $this->collections->findById($second);
@@ -163,25 +203,35 @@ final class RelatedProductsAdminTest extends TestCase
         $this->assertNotNull($storedSecond);
 
         $this->assertSame(0, (int) $storedFirst['show_related_products']);
-        $this->assertNull($storedFirst['related_heading_nl']);
+        $this->assertSame('', ShopLocalization::rawCollection($first, ShopLocalization::RELATED_HEADING, 'nl'));
 
         $this->assertSame(1, (int) $storedSecond['show_related_products']);
-        $this->assertSame('Meer hiervan', $storedSecond['related_heading_nl']);
-        $this->assertSame('More of this', $storedSecond['related_heading_en']);
+        $this->assertSame('Meer hiervan', ShopLocalization::rawCollection($second, ShopLocalization::RELATED_HEADING, 'nl'));
+        $this->assertSame('More of this', ShopLocalization::rawCollection($second, ShopLocalization::RELATED_HEADING, 'en'));
     }
 
-    public function testAnEmptyHeadingOverrideIsStoredAsNullNotAsAnEmptyString(): void
+    public function testAnEmptyHeadingOverrideLeavesNoRowNotAnEmptyOne(): void
     {
         $id = $this->createCollection('ZZ Admin leeg');
 
-        $this->collections->updateRelatedProductsSettings($id, true, 'Iets', 'Something');
-        $this->collections->updateRelatedProductsSettings($id, true, '', '');
+        ShopLocalization::saveCollection($id, 'nl', [ShopLocalization::RELATED_HEADING => 'Iets']);
+        ShopLocalization::saveCollection($id, 'en', [ShopLocalization::RELATED_HEADING => 'Something']);
+        ShopLocalization::saveCollection($id, 'nl', [ShopLocalization::RELATED_HEADING => '']);
+        ShopLocalization::saveCollection($id, 'en', [ShopLocalization::RELATED_HEADING => '']);
+        $this->clearCaches();
 
-        $stored = $this->collections->findById($id);
+        // "Not translated" and "translated as nothing" are one state, and both
+        // mean "use the global heading". The collection's name is untouched:
+        // clearing one field of a language never empties the row.
+        foreach (['nl', 'en'] as $code) {
+            $this->assertArrayNotHasKey(
+                ShopLocalization::RELATED_HEADING,
+                ShopLocalization::collections()->words($id)[$code] ?? [],
+                $code . ': an emptied heading leaves no value behind'
+            );
+        }
 
-        $this->assertNotNull($stored);
-        $this->assertNull($stored['related_heading_nl'], 'clearing the field must mean "use the global heading"');
-        $this->assertNull($stored['related_heading_en']);
+        $this->assertSame('ZZ Admin leeg', ShopLocalization::collectionName($id));
     }
 
     public function testSavingRelatedProductsSettingsNeverTouchesTheCollectionsOwnContent(): void
@@ -190,14 +240,17 @@ final class RelatedProductsAdminTest extends TestCase
         $before = $this->collections->findById($id);
         $this->assertNotNull($before);
 
-        $this->collections->updateRelatedProductsSettings($id, false, 'Andere kop', null);
+        $this->collections->updateRelatedProductsSettings($id, false);
+        $this->clearCaches();
 
         $after = $this->collections->findById($id);
         $this->assertNotNull($after);
 
-        foreach (['name', 'name_en', 'slug', 'description', 'description_en', 'image_path', 'is_active', 'sort_order'] as $column) {
+        foreach (['slug', 'image_path', 'is_active', 'sort_order'] as $column) {
             $this->assertSame($before[$column], $after[$column], $column . ' must be untouched by the settings screen');
         }
+
+        $this->assertSame('ZZ Admin inhoud', ShopLocalization::collectionName($id), 'its name is untouched too');
     }
 
     /* ------------------------------------------------------------------ */
@@ -353,8 +406,10 @@ final class RelatedProductsAdminTest extends TestCase
 
         $this->assertStringContainsString('name="csrf_token" value="<?= $h($csrfToken) ?>"', $source);
         $this->assertStringContainsString('method="post"', $source);
-        $this->assertStringContainsString("<?= \$h((string) \$collection['name']) ?>", $source);
-        $this->assertStringNotContainsString("<?= \$collection['name'] ?>", $source);
+        // A collection's name is a word now, not a column, so the screen asks
+        // App\Service\ShopLocalization for it — and still escapes it.
+        $this->assertStringContainsString('<?= $h(ShopLocalization::collectionName($collectionId)) ?>', $source);
+        $this->assertStringNotContainsString('<?= ShopLocalization::collectionName($collectionId) ?>', $source);
     }
 
     public function testTheRedirectTargetIsALiteral(): void

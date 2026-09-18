@@ -8,7 +8,10 @@ use App\Database;
 use App\Repository\CollectionRepository;
 use App\Repository\ProductRepository;
 use App\Repository\SiteSettingRepository;
+use App\Service\Language\SiteText;
+use App\Service\LocalizedSiteSettings;
 use App\Service\RelatedProductsContent;
+use App\Service\ShopLocalization;
 use App\Service\SiteSettings;
 use PHPUnit\Framework\TestCase;
 
@@ -31,11 +34,14 @@ final class RelatedProductsContentTest extends TestCase
 {
     private const SLUG_PREFIX = 'zz-test-related-';
 
-    /** The global keys this feature owns; captured in setUp, restored in tearDown. */
+    /**
+     * The language-NEUTRAL global keys this feature owns; captured in setUp,
+     * restored in tearDown. The heading is website text in a language and
+     * lives in `site_setting_translations` since Multilingual 2.0 phase 5
+     * wave C — see $originalHeadings below.
+     */
     private const SETTING_KEYS = [
         'related_products_enabled',
-        'related_products_heading_nl',
-        'related_products_heading_en',
         'related_products_max_items',
     ];
 
@@ -48,6 +54,8 @@ final class RelatedProductsContentTest extends TestCase
     private array $productIds = [];
     /** @var array<string, string> */
     private array $originalSettings = [];
+    /** @var array<string, string> */
+    private array $originalHeadings = [];
 
     protected function setUp(): void
     {
@@ -59,12 +67,15 @@ final class RelatedProductsContentTest extends TestCase
             $this->originalSettings[$key] = $stored[$key] ?? SiteSettings::defaults()[$key];
         }
 
+        $this->originalHeadings = LocalizedSiteSettings::words(LocalizedSiteSettings::RELATED_PRODUCTS_HEADING);
+
         $this->clearCaches();
     }
 
     protected function tearDown(): void
     {
         (new SiteSettingRepository())->upsertMany($this->originalSettings);
+        $this->setHeadings($this->originalHeadings);
 
         $db = Database::connection();
         foreach ($this->collectionIds as $id) {
@@ -77,6 +88,7 @@ final class RelatedProductsContentTest extends TestCase
         $this->collectionIds = [];
         $this->productIds = [];
         $this->originalSettings = [];
+        $this->originalHeadings = [];
 
         $this->clearCaches();
     }
@@ -84,6 +96,8 @@ final class RelatedProductsContentTest extends TestCase
     private function clearCaches(): void
     {
         SiteSettings::clearCache();
+        LocalizedSiteSettings::clearCache();
+        ShopLocalization::clearCache();
         RelatedProductsContent::clearCache();
     }
 
@@ -96,23 +110,46 @@ final class RelatedProductsContentTest extends TestCase
         $this->clearCaches();
     }
 
+    /**
+     * The shop-wide heading per website language. '' removes that language's
+     * row, which is what "not translated" means in this storage.
+     *
+     * @param array<string, string> $byLanguage
+     */
+    private function setHeadings(array $byLanguage): void
+    {
+        foreach (['nl', 'en'] as $code) {
+            LocalizedSiteSettings::save($code, [
+                LocalizedSiteSettings::RELATED_PRODUCTS_HEADING => $byLanguage[$code] ?? '',
+            ]);
+        }
+
+        $this->clearCaches();
+    }
+
     private function createCollection(string $name, bool $isActive = true, bool $showRelated = true, ?string $headingNl = null, ?string $headingEn = null): int
     {
         $id = $this->collections->create([
-            'name' => $name,
-            'name_en' => null,
             'slug' => self::SLUG_PREFIX . bin2hex(random_bytes(5)),
-            'description' => null,
-            'description_en' => null,
             'image_path' => null,
             'is_active' => $isActive,
         ]);
 
         $this->collectionIds[] = $id;
 
-        if (!$showRelated || $headingNl !== null || $headingEn !== null) {
-            $this->collections->updateRelatedProductsSettings($id, $showRelated, $headingNl, $headingEn);
+        ShopLocalization::saveCollection($id, 'nl', [
+            ShopLocalization::NAME => $name,
+            ShopLocalization::RELATED_HEADING => (string) $headingNl,
+        ]);
+        ShopLocalization::saveCollection($id, 'en', [
+            ShopLocalization::RELATED_HEADING => (string) $headingEn,
+        ]);
+
+        if (!$showRelated) {
+            $this->collections->updateRelatedProductsSettings($id, $showRelated);
         }
+
+        $this->clearCaches();
 
         return $id;
     }
@@ -120,18 +157,19 @@ final class RelatedProductsContentTest extends TestCase
     private function createProduct(string $name, bool $active = true): int
     {
         $id = $this->products->create([
-            'name' => $name,
-            'name_en' => null,
             'slug' => self::SLUG_PREFIX . 'product-' . bin2hex(random_bytes(6)),
-            'description' => null,
-            'description_en' => null,
             'price' => 11.50,
             'image_path' => null,
             'active' => $active,
+            'in_shop' => true,
+            'in_personalization_catalog' => false,
             'shipping_profile' => 'letter',
             'shipping_weight_grams' => 25,
             'requires_parcel' => false,
         ]);
+
+        ShopLocalization::saveProduct($id, 'nl', [ShopLocalization::NAME => $name]);
+        ShopLocalization::clearCache();
 
         $this->productIds[] = $id;
 
@@ -145,8 +183,13 @@ final class RelatedProductsContentTest extends TestCase
     public function testTheFeatureIsGloballyEnabledByDefault(): void
     {
         $this->assertSame('1', SiteSettings::defaults()['related_products_enabled']);
-        $this->assertSame('Gerelateerde producten', SiteSettings::defaults()['related_products_heading_nl']);
         $this->assertSame('4', SiteSettings::defaults()['related_products_max_items']);
+
+        // The heading is not a `site_settings` default any more: it is website
+        // text in a language, so the generic Dutch one is a seeded
+        // `site_setting_translations` row (Multilingual 2.0 phase 5 wave C).
+        $this->assertArrayNotHasKey('related_products_heading_nl', SiteSettings::defaults());
+        $this->assertArrayNotHasKey('related_products_heading', SiteSettings::defaults());
     }
 
     public function testEveryExistingCollectionDefaultsToEnabled(): void
@@ -156,7 +199,10 @@ final class RelatedProductsContentTest extends TestCase
         // database that came out of it switched off.
         foreach ($this->collections->findAll() as $collection) {
             $this->assertArrayHasKey('show_related_products', $collection);
-            $this->assertNotNull($collection['show_related_products'], (string) $collection['name']);
+            $this->assertNotNull(
+                $collection['show_related_products'],
+                ShopLocalization::collectionName((int) $collection['id'])
+            );
         }
 
         $stmt = Database::connection()->query(
@@ -171,11 +217,7 @@ final class RelatedProductsContentTest extends TestCase
         // the column — so this asserts the DATABASE default, the thing that
         // will still apply to a collection made a year from now.
         $id = $this->collections->create([
-            'name' => 'ZZ nieuwe collectie',
-            'name_en' => null,
             'slug' => self::SLUG_PREFIX . bin2hex(random_bytes(5)),
-            'description' => null,
-            'description_en' => null,
             'image_path' => null,
             'is_active' => true,
         ]);
@@ -185,7 +227,11 @@ final class RelatedProductsContentTest extends TestCase
 
         $this->assertNotNull($stored);
         $this->assertSame(1, (int) $stored['show_related_products']);
-        $this->assertNull($stored['related_heading_nl'], 'no heading override until one is set');
+        $this->assertSame(
+            '',
+            ShopLocalization::rawCollection($id, ShopLocalization::RELATED_HEADING, 'nl'),
+            'no heading override until one is set'
+        );
     }
 
     /* ------------------------------------------------------------------ */
@@ -517,16 +563,17 @@ final class RelatedProductsContentTest extends TestCase
         $b = $this->createProduct('ZZ Kop B');
         $this->collections->setCollectionProducts($collection, [$a, $b]);
 
-        $this->setSettings([
-            'related_products_heading_nl' => 'Gerelateerde producten',
-            'related_products_heading_en' => '',
-        ]);
+        $this->setHeadings(['nl' => 'Gerelateerde producten']);
 
         $result = RelatedProductsContent::forProduct($a);
 
         $this->assertNotNull($result);
-        $this->assertSame('Gerelateerde producten', $result['heading_nl']);
-        $this->assertSame('Gerelateerde producten', $result['heading_en'], 'an empty EN setting falls back to NL');
+        $this->assertSame('Gerelateerde producten', $result['heading']->in('nl'));
+        $this->assertSame(
+            'Gerelateerde producten',
+            $result['heading']->in('en'),
+            'an untranslated heading falls back to the default language'
+        );
     }
 
     public function testACollectionCanOverrideTheHeading(): void
@@ -540,8 +587,8 @@ final class RelatedProductsContentTest extends TestCase
         $result = RelatedProductsContent::forProduct($a);
 
         $this->assertNotNull($result);
-        $this->assertSame('Meer onderzetters bekijken', $result['heading_nl']);
-        $this->assertSame('More coasters', $result['heading_en']);
+        $this->assertSame('Meer onderzetters bekijken', $result['heading']->in('nl'));
+        $this->assertSame('More coasters', $result['heading']->in('en'));
     }
 
     public function testACollectionOverrideWithoutAnEnglishValueFallsBackToItsOwnDutchOverride(): void
@@ -551,16 +598,67 @@ final class RelatedProductsContentTest extends TestCase
         $b = $this->createProduct('ZZ Half B');
         $this->collections->setCollectionProducts($collection, [$a, $b]);
 
-        $this->setSettings(['related_products_heading_en' => 'Related products']);
+        $this->setHeadings(['nl' => 'Gerelateerde producten', 'en' => 'Related products']);
 
         $result = RelatedProductsContent::forProduct($a);
 
         $this->assertNotNull($result);
         $this->assertSame(
             'Meer onderzetters bekijken',
-            $result['heading_en'],
+            $result['heading']->in('en'),
             "a collection's own override must win over the global EN heading, not mix with it"
         );
+    }
+
+    /**
+     * The whole precedence chain in one place, because it is the one rule of
+     * this feature that reads differently after Multilingual 2.0 phase 5
+     * wave C: the collection's own words win as a UNIT, and within each
+     * source the ordinary fallback applies (App\Service\Language\LanguageFallback,
+     * applied twice in source order — there is no second fallback of this
+     * feature's own).
+     *
+     * On a Dutch-default site these five steps produce exactly the two fixed
+     * chains the Shop had before the wave, value for value, which is what
+     * makes the change safe to ship.
+     */
+    public function testTheHeadingPrecedenceIsTheCollectionThenTheGlobalSetting(): void
+    {
+        $a = $this->createProduct('ZZ Precedentie A');
+        $b = $this->createProduct('ZZ Precedentie B');
+
+        // 1 + 2: the collection speaks for itself, in the language it has.
+        $own = $this->createCollection('ZZ Precedentie eigen', true, true, 'Eigen kop', null);
+        $this->collections->setCollectionProducts($own, [$a, $b]);
+        $this->setHeadings(['nl' => 'Globale kop', 'en' => 'Global heading']);
+
+        $result = RelatedProductsContent::forProduct($a);
+        $this->assertNotNull($result);
+        $this->assertSame('Eigen kop', $result['heading']->in('nl'), '1: the collection in this language');
+        $this->assertSame('Eigen kop', $result['heading']->in('en'), '2: the collection in the default language');
+
+        // 3 + 4: no heading of its own, so the global setting, with the same
+        // fallback inside it.
+        $this->collections->setCollectionProducts($own, []);
+        $bare = $this->createCollection('ZZ Precedentie kaal');
+        $this->collections->setCollectionProducts($bare, [$a, $b]);
+        $this->setHeadings(['nl' => 'Globale kop', 'en' => 'Global heading']);
+
+        $result = RelatedProductsContent::forProduct($a);
+        $this->assertNotNull($result);
+        $this->assertSame('Globale kop', $result['heading']->in('nl'), '3: the setting in this language');
+
+        $this->setHeadings(['nl' => 'Globale kop']);
+        $result = RelatedProductsContent::forProduct($a);
+        $this->assertNotNull($result);
+        $this->assertSame('Globale kop', $result['heading']->in('en'), '4: the setting in the default language');
+
+        // 5: nothing anywhere is nothing, and then the block renders no
+        // heading rather than an empty one.
+        $this->setHeadings([]);
+        $result = RelatedProductsContent::forProduct($a);
+        $this->assertNotNull($result);
+        $this->assertSame('', SiteText::visibleOf($result['heading']), '5: no heading at all');
     }
 
     /* ------------------------------------------------------------------ */

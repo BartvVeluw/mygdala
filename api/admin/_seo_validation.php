@@ -18,8 +18,11 @@ declare(strict_types=1);
 use App\Service\Seo;
 
 /**
- * Normalises meta_title / meta_title_en / meta_description /
- * meta_description_en out of a submitted form.
+ * Normalises meta_title and meta_description out of a submitted form, in the
+ * ONE website language the request names (Multilingual 2.0 phase 5 wave C).
+ * Before that wave it normalised a Dutch and an English pair; there is one set
+ * of fields now, and which language they are stored in is the endpoint's
+ * business.
  *
  * They are stored as PLAIN TEXT, not rich text: they end up inside <title>
  * and <meta> attributes, where markup has no meaning and would only ever
@@ -37,15 +40,13 @@ use App\Service\Seo;
  * @param array<string, mixed> $input  raw $_POST
  * @param array<int, string>   $errors appended to in place
  *
- * @return array{meta_title:?string, meta_title_en:?string, meta_description:?string, meta_description_en:?string}
+ * @return array{meta_title:?string, meta_description:?string}
  */
 function normalizeSeoInput(array $input, array &$errors): array
 {
     $limits = [
-        'meta_title' => [Seo::MAX_META_TITLE_LENGTH, 'SEO-titel (NL)'],
-        'meta_title_en' => [Seo::MAX_META_TITLE_LENGTH, 'SEO-titel (EN)'],
-        'meta_description' => [Seo::MAX_META_DESCRIPTION_LENGTH, 'Meta description (NL)'],
-        'meta_description_en' => [Seo::MAX_META_DESCRIPTION_LENGTH, 'Meta description (EN)'],
+        'meta_title' => [Seo::MAX_META_TITLE_LENGTH, 'SEO-titel'],
+        'meta_description' => [Seo::MAX_META_DESCRIPTION_LENGTH, 'Meta description'],
     ];
 
     $fields = [];

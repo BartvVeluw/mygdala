@@ -9,6 +9,7 @@ use App\Repository\CollectionRepository;
 use App\Repository\ProductRepository;
 use App\Repository\SiteSettingRepository;
 use App\Service\RelatedProductsContent;
+use App\Service\ShopLocalization;
 use App\Service\SiteSettings;
 use PHPUnit\Framework\TestCase;
 use Tests\Support\TestEnvironment;
@@ -39,10 +40,9 @@ final class RelatedProductsEmptyStateTest extends TestCase
 {
     private const SLUG_PREFIX = 'zz-test-related-empty-';
 
+    /** The language-neutral keys; the heading is a site_setting_translations row since phase 5 wave C. */
     private const SETTING_KEYS = [
         'related_products_enabled',
-        'related_products_heading_nl',
-        'related_products_heading_en',
         'related_products_max_items',
     ];
 
@@ -128,18 +128,19 @@ final class RelatedProductsEmptyStateTest extends TestCase
     private function createProduct(bool $active = true): int
     {
         $id = $this->products->create([
-            'name' => 'Testproduct gerelateerd',
-            'name_en' => null,
             'slug' => self::SLUG_PREFIX . bin2hex(random_bytes(6)),
-            'description' => null,
-            'description_en' => null,
             'price' => 9.95,
             'image_path' => null,
             'active' => $active,
+            'in_shop' => true,
+            'in_personalization_catalog' => false,
             'shipping_profile' => 'letter',
             'shipping_weight_grams' => 40,
             'requires_parcel' => false,
         ]);
+
+        ShopLocalization::saveProduct($id, 'nl', [ShopLocalization::NAME => 'Testproduct gerelateerd']);
+        ShopLocalization::clearCache();
 
         $this->productIds[] = $id;
 
@@ -149,23 +150,13 @@ final class RelatedProductsEmptyStateTest extends TestCase
     private function createCollection(): int
     {
         $id = $this->collections->create([
-            'name' => 'Testcollectie gerelateerd',
-            'name_en' => null,
             'slug' => self::SLUG_PREFIX . bin2hex(random_bytes(6)),
-            'description' => null,
-            'description_en' => null,
             'image_path' => null,
-            'image_alt' => null,
             'is_active' => true,
-            'show_related_products' => true,
-            'related_heading_nl' => null,
-            'related_heading_en' => null,
-            'seo_title' => null,
-            'seo_title_en' => null,
-            'seo_description' => null,
-            'seo_description_en' => null,
-            'og_image_path' => null,
         ]);
+
+        ShopLocalization::saveCollection($id, 'nl', [ShopLocalization::NAME => 'Testcollectie gerelateerd']);
+        ShopLocalization::clearCache();
 
         $this->collectionIds[] = $id;
 

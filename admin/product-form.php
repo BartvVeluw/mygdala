@@ -5,9 +5,10 @@ declare(strict_types=1);
 require_once __DIR__ . '/../vendor/autoload.php';
 require_once __DIR__ . '/_translate.php';
 
-require_once __DIR__ . '/_language_fields.php';
+require_once __DIR__ . '/_localized_fields.php';
 
 use App\Service\AdminAuth;
+use App\Service\ShopLocalization;
 use App\Service\Csrf;
 use App\Service\Seo;
 use App\Service\Shipping\ShippingProfile;
@@ -99,6 +100,21 @@ function fieldValue(?array $old, ?array $product, string $key, string $default =
     return $default;
 }
 
+/**
+ * A product's WORDS, in the one website language this screen is editing
+ * (Multilingual 2.0 phase 5 wave C): the refused POST first, so a rejected
+ * save keeps what was typed, then what is stored FOR THAT LANGUAGE with no
+ * fallback — the fallback is the placeholder.
+ */
+function productWord(?array $old, ?int $productId, string $field, string $language): string
+{
+    if ($old !== null && array_key_exists($field, $old)) {
+        return (string) ($old[$field] ?? '');
+    }
+
+    return $productId === null ? '' : ShopLocalization::rawProduct($productId, $field, $language);
+}
+
 $activeChecked = $old !== null
     ? !empty($old['active'])
     : ($product !== null ? (int) $product['active'] === 1 : true);
@@ -153,6 +169,13 @@ $siteName = \App\Service\SiteSettings::get('site_name');
 $csrfToken = Csrf::token();
 $pageTitle = $isEdit ? admin_t('shop.edit_product') : admin_t('shop.new_product');
 
+// The website language this screen's words are in, and the id they hang
+// off. ONE language on the screen and in the request (Multilingual 2.0
+// phase 5 wave C), so saving Dutch can never overwrite an English
+// translation with a stale copy.
+$editingLanguage = admin_localized_language();
+$productId = $isEdit ? (int) $product['id'] : null;
+
 // renderRichTextField() now lives in admin/_richtext_field.php, shared with
 // admin/portfolio-item.php's Introtekst/Projectbeschrijving fields — its
 // 'simple' toolbar default (bold/italic/link/unlink/clear only) keeps this
@@ -197,27 +220,16 @@ require __DIR__ . '/_richtext_field.php';
         <input type="hidden" name="id" value="<?= (int) $product['id'] ?>">
       <?php endif; ?>
 
-      <?php admin_lang_bar(); ?>
-      <div class="admin-form-row admin-form-row--split">
-        <?php admin_lang_pane_start('nl'); ?>
-        <label><?= admin_te('common.name') ?>*
-          <input type="text" name="name" maxlength="150" <?= admin_lang_required('nl') ?> value="<?= htmlspecialchars(fieldValue($old, $product, 'name'), ENT_QUOTES, 'UTF-8') ?>">
+      <?= admin_localized_input($editingLanguage) ?>
+      <?php admin_localized_bar($editingLanguage); ?>
+      <div class="admin-form-row">
+        <label><?= admin_te('common.name') ?><?= admin_localized_required($editingLanguage) === '' ? '' : '*' ?>
+          <input type="text" name="name" maxlength="<?= ShopLocalization::NAME_MAX_LENGTH ?>"<?= admin_localized_required($editingLanguage) ?> value="<?= htmlspecialchars(productWord($old, $productId, ShopLocalization::NAME, $editingLanguage), ENT_QUOTES, 'UTF-8') ?>"<?= admin_localized_placeholder_attr($editingLanguage) ?>>
         </label>
-        <?php admin_lang_pane_end(); ?>
-        <?php admin_lang_pane_start('en'); ?>
-        <label><?= admin_te('common.name') ?>
-          <input type="text" name="name_en" maxlength="150" value="<?= htmlspecialchars(fieldValue($old, $product, 'name_en'), ENT_QUOTES, 'UTF-8') ?>">
-        </label>
-        <?php admin_lang_pane_end(); ?>
       </div>
 
       <div class="admin-form-row">
-        <?php admin_lang_pane_start('nl'); ?>
-          <?php renderRichTextField('description', 'Beschrijving', fieldValue($old, $product, 'description')); ?>
-        <?php admin_lang_pane_end(); ?>
-        <?php admin_lang_pane_start('en'); ?>
-          <?php renderRichTextField('description_en', 'Beschrijving', fieldValue($old, $product, 'description_en')); ?>
-        <?php admin_lang_pane_end(); ?>
+        <?php renderRichTextField('description', 'Beschrijving', productWord($old, $productId, ShopLocalization::DESCRIPTION, $editingLanguage)); ?>
       </div>
 
       <div class="admin-form-row admin-form-row--split">
@@ -315,30 +327,17 @@ require __DIR__ . '/_richtext_field.php';
         <?= admin_t('shop.allemaal_optioneel_laat_veld', ['v1' => htmlspecialchars($siteName, ENT_QUOTES, 'UTF-8')]) ?>
       </p>
       <div class="admin-product-form admin-product-form--wide">
-        <?php admin_lang_pane_start('nl'); ?>
-          <div class="admin-form-row">
-            <label><?= admin_te('page.meta_title') ?>
-              <input type="text" name="meta_title" maxlength="<?= Seo::MAX_META_TITLE_LENGTH ?>" data-char-count value="<?= htmlspecialchars(fieldValue($old, $product, 'meta_title'), ENT_QUOTES, 'UTF-8') ?>" placeholder="Leeg = automatische titel">
-            </label>
-          </div>
-          <div class="admin-form-row">
-            <label><?= admin_te('page.meta_description') ?>
-              <textarea name="meta_description" rows="3" maxlength="<?= Seo::MAX_META_DESCRIPTION_LENGTH ?>" data-char-count placeholder="Leeg = korte samenvatting van de beschrijving"><?= htmlspecialchars(fieldValue($old, $product, 'meta_description'), ENT_QUOTES, 'UTF-8') ?></textarea>
-            </label>
-          </div>
-        <?php admin_lang_pane_end(); ?>
-        <?php admin_lang_pane_start('en'); ?>
-          <div class="admin-form-row">
-            <label><?= admin_te('page.meta_title') ?>
-              <input type="text" name="meta_title_en" maxlength="<?= Seo::MAX_META_TITLE_LENGTH ?>" data-char-count value="<?= htmlspecialchars(fieldValue($old, $product, 'meta_title_en'), ENT_QUOTES, 'UTF-8') ?>"<?= admin_lang_placeholder_attr('en') ?>>
-            </label>
-          </div>
-          <div class="admin-form-row">
-            <label><?= admin_te('page.meta_description') ?>
-              <textarea name="meta_description_en" rows="3" maxlength="<?= Seo::MAX_META_DESCRIPTION_LENGTH ?>" data-char-count<?= admin_lang_placeholder_attr('en') ?>><?= htmlspecialchars(fieldValue($old, $product, 'meta_description_en'), ENT_QUOTES, 'UTF-8') ?></textarea>
-            </label>
-          </div>
-        <?php admin_lang_pane_end(); ?>
+        <?php admin_localized_bar($editingLanguage); ?>
+        <div class="admin-form-row">
+          <label><?= admin_te('page.meta_title') ?>
+            <input type="text" name="meta_title" maxlength="<?= Seo::MAX_META_TITLE_LENGTH ?>" data-char-count value="<?= htmlspecialchars(productWord($old, $productId, ShopLocalization::META_TITLE, $editingLanguage), ENT_QUOTES, 'UTF-8') ?>" placeholder="Leeg = automatische titel">
+          </label>
+        </div>
+        <div class="admin-form-row">
+          <label><?= admin_te('page.meta_description') ?>
+            <textarea name="meta_description" rows="3" maxlength="<?= Seo::MAX_META_DESCRIPTION_LENGTH ?>" data-char-count placeholder="Leeg = korte samenvatting van de beschrijving"><?= htmlspecialchars(productWord($old, $productId, ShopLocalization::META_DESCRIPTION, $editingLanguage), ENT_QUOTES, 'UTF-8') ?></textarea>
+          </label>
+        </div>
       </div>
 
       <div class="admin-form-row admin-seo-image">
@@ -716,6 +715,5 @@ require __DIR__ . '/_richtext_field.php';
     </section>
   <?php endif; ?>
 </main>
-<?php admin_lang_script(); ?>
 </body>
 </html>

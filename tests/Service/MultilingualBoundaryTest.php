@@ -1710,6 +1710,9 @@ final class MultilingualBoundaryTest extends TestCase
         'blog_post_translations',
         'blog_category_translations',
         'blog_tag_translations',
+        'product_translations',
+        'collection_translations',
+        'order_item_translations',
     ];
 
     /** The domain APIs that may declare a typed translation table and hold its store. */
@@ -1719,6 +1722,11 @@ final class MultilingualBoundaryTest extends TestCase
         'src/Service/Forms/FormLocalization.php',
         'src/Service/PortfolioLocalization.php',
         'src/Service/Blog/BlogLocalization.php',
+        'src/Service/ShopLocalization.php',
+        // A SNAPSHOT, not a translation: what a product was CALLED when it was
+        // bought. Its own class on purpose, with its own reading rule — see
+        // the docblock there (Multilingual 2.0 phase 5 wave C).
+        'src/Service/OrderItemNameSnapshot.php',
     ];
 
     /** Wave A: every file that used to read or write a menu or footer label column. */
@@ -1877,7 +1885,10 @@ final class MultilingualBoundaryTest extends TestCase
     {
         // Adding a key is a decision this test makes visible: only words a
         // visitor reads belong here, never CMS interface text or module config.
-        self::assertSame(['city', 'footer_description', 'footer_slogan'], array_keys(\App\Service\LocalizedSiteSettings::KEYS));
+        self::assertSame(
+            ['city', 'footer_description', 'footer_slogan', 'related_products_heading'],
+            array_keys(\App\Service\LocalizedSiteSettings::KEYS)
+        );
 
         foreach (array_keys(\App\Service\LocalizedSiteSettings::KEYS) as $key) {
             self::assertArrayNotHasKey($key, \App\Service\SiteSettings::defaults(), $key . ' is not also a site_settings row');
@@ -2364,6 +2375,266 @@ final class MultilingualBoundaryTest extends TestCase
             'api/admin/update-blog-category.php',
             'api/admin/update-blog-tag.php',
         ] as $endpoint) {
+            $code = self::withoutComments(self::read($endpoint));
+
+            self::assertStringContainsString('beginTransaction()', $code, $endpoint);
+            self::assertStringContainsString('commit()', $code, $endpoint);
+        }
+    }
+
+    // ---------- The Shop on per-language storage (phase 5 wave C)
+
+    /** Every file that used to read or write a Shop word column. */
+    private const SHOP_FILES = [
+        'src/Repository/ProductRepository.php',
+        'src/Repository/CollectionRepository.php',
+        'src/Repository/OrderRepository.php',
+        'src/Repository/DashboardRepository.php',
+        'src/Repository/ProductPersonalizationRepository.php',
+        'src/Service/CollectionContent.php',
+        'src/Service/CollectionGalleryItems.php',
+        'src/Service/ProductSeo.php',
+        'src/Service/RelatedProductsContent.php',
+        'src/Service/ProductDeletionService.php',
+        'src/Service/SiteSettings.php',
+        'src/Service/Blocks/ShopCollectionsBlock.php',
+        'collectie.php',
+        'partials/related-products.php',
+        'partials/section-shop-collections.php',
+        'api/products.php',
+        'api/product.php',
+        'api/checkout.php',
+        'api/order-status.php',
+        'admin/products.php',
+        'admin/product-form.php',
+        'admin/collections.php',
+        'admin/collection.php',
+        'admin/related-products.php',
+        'admin/personalization.php',
+        'admin/personalization-product.php',
+        'admin/_dashboard_shop.php',
+        'api/admin/_product_validation.php',
+        'api/admin/_collection_validation.php',
+        'api/admin/_seo_validation.php',
+        'api/admin/create-product.php',
+        'api/admin/update-product.php',
+        'api/admin/create-collection.php',
+        'api/admin/update-collection.php',
+        'api/admin/update-related-products-settings.php',
+    ];
+
+    /** The Shop's own editors, all on the dynamic localized-fields component. */
+    private const SHOP_EDITORS = [
+        'admin/product-form.php',
+        'admin/collection.php',
+        'admin/related-products.php',
+    ];
+
+    /** The five endpoints that write a Shop word. */
+    private const SHOP_WRITE_ENDPOINTS = [
+        'api/admin/create-product.php',
+        'api/admin/update-product.php',
+        'api/admin/create-collection.php',
+        'api/admin/update-collection.php',
+        'api/admin/update-related-products-settings.php',
+    ];
+
+    /**
+     * 20260918210000 dropped nineteen columns: four fields of `products` and
+     * five of `collections`, each as a bare Dutch column plus an `_en` one
+     * (`related_heading` has `_nl` on both sides), and it removed the two
+     * `related_products_heading_*` setting rows. 20260918230000 dropped
+     * `order_items.product_name_en`.
+     *
+     * What these files may still name is the V1 OUTPUT pair — the
+     * `name_en`/`description_en` KEYS of a JSON payload and of a
+     * `data-nl`/`data-en` attribute, which the browser still reads until the
+     * flip of phase 7. Those are payload keys, not columns, so they are
+     * allowed only where a payload is built.
+     */
+    public function testNothingReadsTheDroppedShopColumns(): void
+    {
+        $payloadBuilders = [
+            'api/products.php',
+            'api/product.php',
+            'api/order-status.php',
+            'src/Service/ProductSeo.php',
+            // Builds the same `*_nl`/`*_en` pair for partials/shop-seo-head.php.
+            'collectie.php',
+        ];
+
+        $offenders = [];
+
+        foreach (self::SHOP_FILES as $file) {
+            if (in_array($file, $payloadBuilders, true)) {
+                continue;
+            }
+
+            $code = self::withoutComments(self::read($file));
+
+            if (preg_match_all(
+                '/(?<![a-z_-])(?:name|description|meta_title|meta_description|related_heading|product_name)_(?:en|nl)\b/',
+                $code,
+                $matches
+            ) > 0) {
+                $offenders[] = $file . ' (' . implode(', ', array_unique($matches[0])) . ')';
+            }
+
+            if (str_contains($code, 'related_products_heading_')) {
+                $offenders[] = $file . ' (related_products_heading_*)';
+            }
+        }
+
+        self::assertSame([], $offenders);
+    }
+
+    /**
+     * WORDS ARE NOT IDENTITY. No slug, price, stock, channel switch, image
+     * path or sort order became a word, so a language switch cannot change
+     * which product a visitor is looking at or what it costs. This is the one
+     * assertion the whole wave is judged by.
+     */
+    public function testNothingAShopDecidesWithBecameAWord(): void
+    {
+        foreach ([
+            \App\Service\ShopLocalization::products(),
+            \App\Service\ShopLocalization::collections(),
+            \App\Service\OrderItemNameSnapshot::names(),
+        ] as $store) {
+            foreach ([
+                'slug', 'price', 'unit_price', 'stock', 'sku', 'image_path', 'og_image_path',
+                'active', 'in_shop', 'in_personalization_catalog', 'is_active',
+                'show_related_products', 'sort_order', 'quantity', 'variant_label',
+            ] as $neutral) {
+                self::assertNotContains($neutral, $store->table()->fieldNames(), $store->table()->name . '.' . $neutral);
+            }
+        }
+    }
+
+    /**
+     * A SNAPSHOT IS NOT A TRANSLATION. What a product was called when it was
+     * bought lives in a class of its own with a rule of its own, and the live
+     * catalogue is never read for a historical order — nothing in the order
+     * path names App\Service\ShopLocalization for a name, and nothing in the
+     * snapshot class falls back through LanguageFallback.
+     */
+    public function testTheOrderSnapshotIsNotTheLiveCatalogue(): void
+    {
+        $snapshot = self::withoutComments(self::read('src/Service/OrderItemNameSnapshot.php'));
+
+        self::assertStringNotContainsString(
+            'LanguageFallback::resolve',
+            $snapshot,
+            "a document's fallback is its own neutral snapshot, not the website's default language"
+        );
+        self::assertStringNotContainsString('ShopLocalization', $snapshot, 'a snapshot never reads the live catalogue');
+
+        // And the documents themselves read the line, not a product.
+        foreach ([
+            'src/Mail/OrderConfirmationBuilder.php',
+            'src/Service/PdfInvoiceRenderer.php',
+            'admin/order.php',
+        ] as $document) {
+            self::assertStringNotContainsString(
+                'ShopLocalization',
+                self::withoutComments(self::read($document)),
+                $document . ' must print the snapshot, never a current product name'
+            );
+        }
+    }
+
+    /**
+     * The fallback is App\Service\Language\LanguageFallback's, stated once in
+     * App\Service\ShopLocalization. And the Shop keeps ONE sanitizer for its
+     * one rich field: `description` is cleaned in that class on the way out,
+     * and by the two validators on the way in.
+     */
+    public function testTheShopDecidesNoLanguageOrFallbackItselfAndKeepsOneSanitizer(): void
+    {
+        foreach (self::SHOP_FILES as $file) {
+            $code = self::withoutComments(self::read($file));
+
+            self::assertStringNotContainsString('SiteLanguages::defaultCode(', $code, $file . ' asks for the default language itself');
+            self::assertStringNotContainsString('Seo::pick(', $code, $file . ' builds a bilingual fallback of its own');
+        }
+
+        $sanitizers = [];
+        foreach (array_merge(self::SHOP_FILES, ['src/Service/ShopLocalization.php']) as $file) {
+            if (str_contains(self::withoutComments(self::read($file)), 'DescriptionSanitizer')) {
+                $sanitizers[] = $file;
+            }
+        }
+
+        self::assertSame(
+            [
+                'api/admin/_product_validation.php',
+                'src/Service/ShopLocalization.php',
+            ],
+            $sanitizers,
+            'the description is sanitized on its way in and on its way out, and in no third place'
+        );
+    }
+
+    /**
+     * An ORDER may never depend on the reader's language: a name is not a
+     * column to sort on any more, and sorting on one language's words would
+     * shuffle the same catalogue per language.
+     */
+    public function testNoShopQueryOrdersOnWords(): void
+    {
+        foreach ([
+            'src/Repository/ProductRepository.php',
+            'src/Repository/CollectionRepository.php',
+            'src/Repository/DashboardRepository.php',
+            'src/Repository/ProductPersonalizationRepository.php',
+        ] as $file) {
+            self::assertDoesNotMatchRegularExpression(
+                '/ORDER BY[^\']*(?<![a-z_])(?:name|title|heading)\b/i',
+                self::withoutComments(self::read($file)),
+                $file . ' orders on words'
+            );
+        }
+    }
+
+    /**
+     * All three Shop editors are on the dynamic component, send exactly one
+     * language, and their endpoints write it in one transaction with the row.
+     */
+    public function testTheShopEditorsShowOneLanguageAndTheirEndpointsWriteOnlyThatLanguage(): void
+    {
+        foreach (self::SHOP_EDITORS as $screen) {
+            $code = self::read($screen);
+
+            self::assertStringContainsString("require_once __DIR__ . '/_localized_fields.php';", $code, $screen);
+            self::assertStringContainsString('admin_localized_input(', $code, $screen);
+            self::assertStringNotContainsString('admin_lang_pane_start', $code, $screen . ' has no V1 language panes');
+            self::assertStringNotContainsString('admin_lang_bar(', $code, $screen);
+        }
+
+        // The language a save carries is checked against the registry before
+        // anything is written. For a product and a collection that check lives
+        // in the validation include both their endpoints share; the
+        // related-products screen has no such include and does it itself.
+        foreach ([
+            'api/admin/_product_validation.php',
+            'api/admin/_collection_validation.php',
+            'api/admin/update-related-products-settings.php',
+        ] as $validator) {
+            $code = self::withoutComments(self::read($validator));
+
+            self::assertStringContainsString("'language_code'", $code, $validator);
+            self::assertStringContainsString('SiteLanguages::isActive(', $code, $validator . ' writes only an active website language');
+        }
+
+        foreach (['api/admin/update-product.php', 'api/admin/update-collection.php'] as $endpoint) {
+            self::assertStringContainsString(
+                "\$fields['language_code']",
+                self::withoutComments(self::read($endpoint)),
+                $endpoint . ' writes the one language its validator accepted'
+            );
+        }
+
+        foreach (self::SHOP_WRITE_ENDPOINTS as $endpoint) {
             $code = self::withoutComments(self::read($endpoint));
 
             self::assertStringContainsString('beginTransaction()', $code, $endpoint);

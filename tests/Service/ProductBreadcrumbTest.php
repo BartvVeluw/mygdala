@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace Tests\Service;
 
 use App\Service\ProductSeo;
+use App\Service\ShopLocalization;
 use PHPUnit\Framework\TestCase;
+use Tests\Support\SiteLanguageFixture;
 
 /**
  * The product page's breadcrumb, which used to be the one on this site that a
@@ -27,18 +29,46 @@ use PHPUnit\Framework\TestCase;
  */
 final class ProductBreadcrumbTest extends TestCase
 {
+    protected function setUp(): void
+    {
+        SiteLanguageFixture::useBilingual('nl');
+        ShopLocalization::clearCache();
+        ProductSeo::clearCache();
+    }
+
+    protected function tearDown(): void
+    {
+        ShopLocalization::clearCache();
+        ProductSeo::clearCache();
+        SiteLanguageFixture::reset();
+    }
+
     private static function root(): string
     {
         return dirname(__DIR__, 2);
     }
 
+    /**
+     * Pins one product's name per website language and resolves it. The words
+     * live in `product_translations` since Multilingual 2.0 phase 5 wave C,
+     * so they are given to the store rather than to the row.
+     *
+     * @return array<string, mixed>
+     */
+    private function resolve(int $productId, string $dutch, string $english): array
+    {
+        ShopLocalization::products()->overrideForTests($productId, [
+            'nl' => [ShopLocalization::NAME => $dutch],
+            'en' => [ShopLocalization::NAME => $english],
+        ]);
+        ProductSeo::clearCache();
+
+        return ProductSeo::resolve(['id' => $productId, 'price' => 10.0], [], [10.0]);
+    }
+
     public function testTheResolvedProductCarriesItsNameInBothLanguages(): void
     {
-        $resolved = ProductSeo::resolve(
-            ['id' => 1, 'name' => 'Gegraveerde plank', 'name_en' => 'Engraved board', 'price' => 10.0],
-            [],
-            [10.0]
-        );
+        $resolved = $this->resolve(1, 'Gegraveerde plank', 'Engraved board');
 
         $this->assertSame('Gegraveerde plank', $resolved['name_nl']);
         $this->assertSame('Engraved board', $resolved['name_en']);
@@ -49,11 +79,7 @@ final class ProductBreadcrumbTest extends TestCase
         // The same rule the trail's own LocalizedValue applies, so the two
         // halves of the breadcrumb can never disagree about which words a
         // visitor sees.
-        $resolved = ProductSeo::resolve(
-            ['id' => 2, 'name' => 'Gegraveerde plank', 'name_en' => '', 'price' => 10.0],
-            [],
-            [10.0]
-        );
+        $resolved = $this->resolve(2, 'Gegraveerde plank', '');
 
         $this->assertSame('Gegraveerde plank', $resolved['name_en']);
     }

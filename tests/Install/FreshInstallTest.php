@@ -367,7 +367,16 @@ final class FreshInstallTest extends TestCase
             );
         }
 
-        $this->assertSame(0, $this->install()->count('site_setting_translations'), 'and no website text of somebody else in any language');
+        // And no website text of somebody else in any language. The one row a
+        // from-zero install does have is the generic Dutch heading above the
+        // related products, which db/migrations/20260908170000 has always
+        // seeded and 20260918210000 moved into this table (Multilingual 2.0
+        // phase 5 wave C). It names no company and no place, which is exactly
+        // what the list below asserts.
+        $this->assertSame(
+            [['setting_key' => 'related_products_heading', 'language_code' => 'nl', 'value' => 'Gerelateerde producten']],
+            $this->install()->rows('SELECT setting_key, language_code, value FROM site_setting_translations ORDER BY setting_key, language_code')
+        );
     }
 
     /**

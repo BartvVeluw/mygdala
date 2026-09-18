@@ -22,9 +22,11 @@ use PDO;
  * ## Why historical orders survive
  *
  * `order_items` carries its own authoritative snapshot of each purchased line —
- * `product_name`/`product_name_en`, `variant_label`, `unit_price` and
- * `quantity` — so nothing an order displays is read from `products` at render
- * time (see App\Repository\OrderRepository::findItems()). Since
+ * `product_name`, `variant_label`, `unit_price` and `quantity`, plus what that
+ * product was called in the website's other languages
+ * (App\Service\OrderItemNameSnapshot) — so nothing an order displays is read
+ * from `products` at render time (see
+ * App\Repository\OrderRepository::findItems()). Since
  * db/migrations/20260908120000_relax_order_item_product_foreign_keys.php the
  * `product_id`/`variant_id` foreign keys are ON DELETE SET NULL, so deleting a
  * product detaches those order lines instead of blocking or cascading. Order

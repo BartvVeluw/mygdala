@@ -7,6 +7,7 @@ require_once __DIR__ . '/_translate.php';
 
 use App\Service\AdminAuth;
 use App\Service\Csrf;
+use App\Service\ShopLocalization;
 use App\Repository\ProductRepository;
 use App\Repository\ProductVariantRepository;
 
@@ -31,6 +32,16 @@ try {
             }
         }
         unset($product);
+
+        // Every card's name in one query rather than one per card. The
+        // overview is language-neutral: a product is listed under the name
+        // the CMS calls it by (its default language's, see
+        // App\Service\Language\LanguageFallback::name()), in the
+        // language-neutral order the repository returned.
+        ShopLocalization::preloadProducts(array_map(
+            static fn (array $product): int => (int) $product['id'],
+            $products
+        ));
     }
 } catch (\Throwable $e) {
     error_log('[admin/products.php] ' . $e->getMessage());
@@ -96,7 +107,7 @@ $canManageProducts = AdminAuth::can('products.manage');
           $productId = (int) $product['id'];
           $isActive = (int) $product['active'] === 1;
           $inUse = in_array($productId, $referencedIds, true);
-          $name = (string) $product['name'];
+          $name = ShopLocalization::productName($productId);
           $editUrl = '/admin/product-form.php?id=' . $productId;
         ?>
         <article class="admin-product-card">

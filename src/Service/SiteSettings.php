@@ -193,20 +193,19 @@ class SiteSettings
 
         // "Gerelateerde producten" on a product detail page — see
         // App\Service\RelatedProductsContent, which owns the reading and
-        // validation of these three, and
+        // validation of these, and
         // db/migrations/20260908170000_add_related_products_settings.php.
-        // The per-collection on/off switch and heading override live on the
-        // `collections` row itself, not here.
+        // The per-collection on/off switch lives on the `collections` row
+        // itself, not here.
         //
-        // related_products_heading_en is deliberately EMPTY by default:
-        // empty means "use the NL heading", the bilingual fallback used
-        // everywhere else, rather than storing a second copy of the Dutch
-        // text. Note that all() only overrides a default when the stored
-        // value is !== '' (a strict comparison), so a stored '0' really does
-        // turn related_products_enabled off.
+        // Only the two language-NEUTRAL ones are here. The heading is website
+        // text in a language and lives in `site_setting_translations` as
+        // App\Service\LocalizedSiteSettings::RELATED_PRODUCTS_HEADING
+        // (Multilingual 2.0 phase 5 wave C); a collection's own heading is a
+        // word of that collection. Note that all() only overrides a default
+        // when the stored value is !== '' (a strict comparison), so a stored
+        // '0' really does turn related_products_enabled off.
         'related_products_enabled' => '1',
-        'related_products_heading_nl' => 'Gerelateerde producten',
-        'related_products_heading_en' => '',
         'related_products_max_items' => '4',
 
         // The header's former single call-to-action button (header_cta_*)

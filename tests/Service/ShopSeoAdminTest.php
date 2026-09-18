@@ -19,6 +19,12 @@ use PHPUnit\Framework\TestCase;
  * product-SEO endpoint, that the uploaded social image goes through an
  * uploader instead of a client-supplied path, and that the endpoints keep
  * their AdminAuth/permission/CSRF guards.
+ *
+ * ONE LANGUAGE PER FORM since Multilingual 2.0 phase 5 wave C: both editors
+ * carry `meta_title` and `meta_description` once, for the language
+ * admin/_localized_fields.php names, and both endpoints save exactly that
+ * language's words. There is no `_en` twin on screen any more, and a form
+ * with five website languages still submits two SEO fields.
  */
 final class ShopSeoAdminTest extends TestCase
 {
@@ -31,7 +37,7 @@ final class ShopSeoAdminTest extends TestCase
         'api/admin/update-collection.php',
     ];
 
-    private const SEO_TEXT_FIELDS = ['meta_title', 'meta_title_en', 'meta_description', 'meta_description_en'];
+    private const SEO_TEXT_FIELDS = ['meta_title', 'meta_description'];
 
     public function testBothEditorsSubmitTheSameSeoFieldNames(): void
     {
@@ -55,11 +61,10 @@ final class ShopSeoAdminTest extends TestCase
     {
         $pageEditor = $this->fileSource('admin/page.php');
 
-        // The page editor stores its text per website language since
-        // Multilingual 2.0 phase 2 and submits one language at a time, so it
-        // shares the base names; the `_en` twins stay the Shop's until its
-        // own phase.
-        foreach (['meta_title', 'meta_description'] as $field) {
+        // Every editor in this CMS stores its text per website language and
+        // submits one language at a time (Multilingual 2.0), so they all
+        // share these two names and none of them has an `_en` twin.
+        foreach (self::SEO_TEXT_FIELDS as $field) {
             $this->assertStringContainsString('name="' . $field . '"', $pageEditor);
         }
     }
@@ -69,29 +74,25 @@ final class ShopSeoAdminTest extends TestCase
         foreach (self::EDITORS as $editor) {
             $source = $this->fileSource($editor);
 
-            foreach (['meta_description', 'meta_description_en'] as $field) {
-                $this->assertMatchesRegularExpression(
-                    '/<textarea name="' . $field . '" rows="3"/',
-                    $source,
-                    $editor . ': ' . $field . ' must be a textarea with room for several lines'
-                );
-                // A textarea carries its value as element content, not a
-                // value attribute — getting that wrong loses every stored
-                // meta description on the first save.
-                $this->assertMatchesRegularExpression(
-                    '#<textarea name="' . $field . '" rows="3".*?(fieldValue|collectionFieldValue)\(.*?</textarea>#s',
-                    $source,
-                    $editor . ': ' . $field . ' must render its stored value inside the textarea'
-                );
-            }
+            $this->assertMatchesRegularExpression(
+                '/<textarea name="meta_description" rows="3"/',
+                $source,
+                $editor . ': meta_description must be a textarea with room for several lines'
+            );
+            // A textarea carries its value as element content, not a value
+            // attribute — getting that wrong loses every stored meta
+            // description on the first save.
+            $this->assertMatchesRegularExpression(
+                '#<textarea name="meta_description" rows="3".*?(productWord|collectionWord)\(.*?</textarea>#s',
+                $source,
+                $editor . ': meta_description must render its stored value inside the textarea'
+            );
 
-            foreach (['meta_title', 'meta_title_en'] as $field) {
-                $this->assertStringContainsString(
-                    '<input type="text" name="' . $field . '"',
-                    $source,
-                    $editor . ': ' . $field . ' must stay a single-line input'
-                );
-            }
+            $this->assertStringContainsString(
+                '<input type="text" name="meta_title"',
+                $source,
+                $editor . ': meta_title must stay a single-line input'
+            );
         }
     }
 
@@ -100,15 +101,17 @@ final class ShopSeoAdminTest extends TestCase
         foreach (self::EDITORS as $editor) {
             $source = $this->fileSource($editor);
 
+            // ONE of each: the form carries the language on screen, so a
+            // second copy would be a second language's field sneaking back in.
             $this->assertSame(
-                2,
+                1,
                 substr_count($source, 'maxlength="<?= Seo::MAX_META_TITLE_LENGTH ?>"'),
-                $editor . ' must cap both SEO titles at Seo::MAX_META_TITLE_LENGTH'
+                $editor . ' must cap its one SEO title at Seo::MAX_META_TITLE_LENGTH'
             );
             $this->assertSame(
-                2,
+                1,
                 substr_count($source, 'maxlength="<?= Seo::MAX_META_DESCRIPTION_LENGTH ?>"'),
-                $editor . ' must cap both meta descriptions at Seo::MAX_META_DESCRIPTION_LENGTH'
+                $editor . ' must cap its one meta description at Seo::MAX_META_DESCRIPTION_LENGTH'
             );
         }
     }
@@ -124,23 +127,44 @@ final class ShopSeoAdminTest extends TestCase
 
             $this->assertStringContainsString('optioneel', mb_strtolower($seo), $editor . ' must say the fields are optional');
             $this->assertStringContainsString('automatisch', $seo, $editor . ' must say what happens when a field is left empty');
-            $this->assertStringContainsString("admin_lang_placeholder_attr('en')", $seo);
+            $this->assertStringContainsString(
+                'admin_localized_bar($editingLanguage)',
+                $seo,
+                $editor . ' must say which language the SEO card is in, and what an empty translation falls back to'
+            );
         }
     }
 
-    public function testBothEditorsUseTheSharedLanguagePanes(): void
+    /**
+     * Neither editor may hold a language list, a second language's fields or a
+     * pane switcher of its own: the languages come from `site_languages`
+     * through admin/_localized_fields.php, and adding German is a row there
+     * rather than a line of PHP here (Multilingual 2.0 phase 5 wave C).
+     */
+    public function testBothEditorsUseTheSharedLocalizedFieldsPrimitive(): void
     {
         foreach (self::EDITORS as $editor) {
             $source = $this->fileSource($editor);
 
-            $this->assertStringNotContainsString(
+            $this->assertStringContainsString("require_once __DIR__ . '/_localized_fields.php';", $source);
+            $this->assertStringContainsString('$editingLanguage = admin_localized_language();', $source);
+            $this->assertStringContainsString('admin_localized_input($editingLanguage)', $source, $editor . ' must tell its endpoint which language it carries');
+            $this->assertStringContainsString('admin_localized_bar($editingLanguage)', $source);
+
+            foreach ([
                 'admin-seo-grid',
-                $source,
-                $editor . ' must not put two languages side by side'
-            );
-            $this->assertStringContainsString("admin_lang_pane_start('nl')", $source);
-            $this->assertStringContainsString("admin_lang_pane_start('en')", $source);
-            $this->assertStringContainsString('admin_lang_bar(', $source);
+                'admin_lang_pane_start',
+                'admin_lang_bar(',
+                'admin_lang_placeholder_attr',
+                "'nl' =>",
+                "'en' =>",
+            ] as $forbidden) {
+                $this->assertStringNotContainsString(
+                    $forbidden,
+                    $source,
+                    $editor . ' must not know a fixed pair of languages'
+                );
+            }
         }
     }
 
@@ -196,12 +220,21 @@ final class ShopSeoAdminTest extends TestCase
             $source = $this->fileSource($endpoint);
 
             foreach (self::SEO_TEXT_FIELDS as $field) {
+                // Written as words of the ONE language the form named, through
+                // the class that owns the Shop's storage — never as a column
+                // on the `products`/`collections` row.
                 $this->assertStringContainsString(
-                    "'" . $field . "' => \$fields['" . $field . "']",
+                    'ShopLocalization::' . strtoupper($field) . " => \$fields['" . $field . "']",
                     $source,
                     $endpoint . ' must persist ' . $field
                 );
             }
+
+            $this->assertMatchesRegularExpression(
+                "/ShopLocalization::save(Product|Collection)\\(\\\$\\w+, \\\$fields\\['language_code'\\],/",
+                $source,
+                $endpoint . ' must save the words of the language the form carried, and no other'
+            );
         }
     }
 

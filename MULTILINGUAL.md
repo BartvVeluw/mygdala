@@ -89,6 +89,7 @@ Waarom de bewerktaal eigen staat is, en wat er daarvóór fout was:
 | Paginatekst per taal: `page_translations`, `PageLocalization`, de terugval, de editorcomponent `_localized_fields.php` | [`ARCHITECTURE.md`](docs/multilingual/ARCHITECTURE.md) | `fast` → `cms` |
 | Blokwoorden per taal: `block_translations`, `BlockLocalization`, `translatableFields()` en `childTables()`, de wezen-guards, alle contentblokken en hun kindrijen | [`ARCHITECTURE.md`](docs/multilingual/ARCHITECTURE.md) | `fast` → `blocks` |
 | Navigatie, footer, formulieren en gelokaliseerde site-instellingen per taal: de getypeerde `*_translations`-tabellen, `LocalizedSiteSettings`, de waarde en het label van een keuze-optie | [`ARCHITECTURE.md`](docs/multilingual/ARCHITECTURE.md) | `fast` → `cms` |
+| Woorden van een module per taal: `PortfolioLocalization`, `BlogLocalization`, `ShopLocalization`, en waarom `OrderItemNameSnapshot` een momentopname is en geen vertaling | [`ARCHITECTURE.md`](docs/multilingual/ARCHITECTURE.md) | `fast` → de suite van de module |
 | Welke test wat bewaakt, en hoe je ze draait | [`TESTS.md`](docs/multilingual/TESTS.md) | — |
 
 Een derde taal toevoegen ligt op de grens: het register in

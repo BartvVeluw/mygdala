@@ -42,8 +42,9 @@ require_once __DIR__ . '/../vendor/autoload.php';
 
 use App\Repository\CollectionRepository;
 use App\Repository\ProductRepository;
+use App\Service\ShopLocalization;
+use App\Service\Language\LanguageRegistry;
 use App\Repository\ProductVariantRepository;
-use App\Service\DescriptionSanitizer;
 
 header('Content-Type: application/json; charset=utf-8');
 
@@ -114,10 +115,25 @@ try {
     $products = (new ProductRepository())->findAllActive($collectionId, $productIds);
     $variantRepository = new ProductVariantRepository();
 
+    // One query for the words of the whole grid (Multilingual 2.0 phase 5
+    // wave C).
+    ShopLocalization::preloadProducts(array_map(
+        static fn (array $product): int => (int) $product['id'],
+        $products
+    ));
+
     foreach ($products as &$product) {
-        // Defense in depth: same re-sanitization as api/product.php.
-        $product['description'] = DescriptionSanitizer::sanitize($product['description'] ?? null);
-        $product['description_en'] = DescriptionSanitizer::sanitize($product['description_en'] ?? null);
+        // The payload keeps the four keys assets/js/shop/shop.js has always
+        // read, so the browser's language switch is unchanged; what fills them
+        // is the words store, with each half already resolved and the rich
+        // description sanitized per language.
+        $id = (int) $product['id'];
+        $name = ShopLocalization::productValue($id, ShopLocalization::NAME);
+        $description = ShopLocalization::productDescriptionValue($id);
+        $product['name'] = $name->in(LanguageRegistry::DUTCH);
+        $product['name_en'] = $name->in(LanguageRegistry::ENGLISH);
+        $product['description'] = $description->in(LanguageRegistry::DUTCH);
+        $product['description_en'] = $description->in(LanguageRegistry::ENGLISH);
 
         $defaultVariant = $variantRepository->findDefaultForProduct((int) $product['id']);
         if ($defaultVariant === null) {

@@ -8,6 +8,8 @@ use App\Database;
 use App\Repository\CustomerRepository;
 use App\Repository\OrderRepository;
 use App\Repository\ProductRepository;
+use App\Service\OrderItemNameSnapshot;
+use App\Service\ShopLocalization;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -54,18 +56,18 @@ final class OrderSnapshotIntegrationTest extends TestCase
     private function placeTestOrder(ProductRepository $products, OrderRepository $orders, CustomerRepository $customers): void
     {
         $this->productId = $products->create([
-            'name' => 'Oorspronkelijke Productnaam',
-            'name_en' => 'Original Product Name',
             'slug' => self::PRODUCT_SLUG,
-            'description' => null,
-            'description_en' => null,
             'price' => 4.95,
             'image_path' => null,
             'active' => true,
+            'in_shop' => true,
+            'in_personalization_catalog' => false,
             'shipping_profile' => 'letter',
             'shipping_weight_grams' => 10,
             'requires_parcel' => false,
         ]);
+
+        $this->nameProduct('Oorspronkelijke Productnaam', 'Original Product Name');
 
         $this->customerId = $customers->findOrCreateByEmail([
             'name' => 'Snapshot Test',
@@ -103,8 +105,27 @@ final class OrderSnapshotIntegrationTest extends TestCase
             'quantity' => 2,
             'unit_price' => 4.95,
             'product_name' => 'Oorspronkelijke Productnaam',
-            'product_name_en' => 'Original Product Name',
         ]]);
+
+        // What api/checkout.php does after addItems(): the neutral snapshot is
+        // on the line itself, the website's OTHER languages get a row of their
+        // own (App\Service\OrderItemNameSnapshot).
+        $items = $orders->findItems($this->orderId);
+        OrderItemNameSnapshot::record((int) $items[0]['id'], 'en', 'Original Product Name');
+        OrderItemNameSnapshot::clearCache();
+    }
+
+    /**
+     * Names the test product in both website languages. A product's name is a
+     * row in `product_translations` since Multilingual 2.0 phase 5 wave C, so
+     * renaming it below never touches the `products` row at all — which is
+     * exactly what makes the snapshot assertions below meaningful.
+     */
+    private function nameProduct(string $dutch, string $english): void
+    {
+        ShopLocalization::saveProduct((int) $this->productId, 'nl', [ShopLocalization::NAME => $dutch]);
+        ShopLocalization::saveProduct((int) $this->productId, 'en', [ShopLocalization::NAME => $english]);
+        ShopLocalization::clearCache();
     }
 
     public function testOrderItemPriceIsUnaffectedByALaterProductPriceChange(): void
@@ -114,12 +135,10 @@ final class OrderSnapshotIntegrationTest extends TestCase
         $this->placeTestOrder($products, $orders, new CustomerRepository());
 
         $products->update($this->productId, [
-            'name' => 'Oorspronkelijke Productnaam',
-            'name_en' => 'Original Product Name',
-            'description' => null,
-            'description_en' => null,
             'price' => 5.95,
             'active' => true,
+            'in_shop' => true,
+            'in_personalization_catalog' => false,
             'shipping_profile' => 'letter',
             'shipping_weight_grams' => 10,
             'requires_parcel' => false,
@@ -136,22 +155,17 @@ final class OrderSnapshotIntegrationTest extends TestCase
         $orders = new OrderRepository();
         $this->placeTestOrder($products, $orders, new CustomerRepository());
 
-        $products->update($this->productId, [
-            'name' => 'Gewijzigde Productnaam',
-            'name_en' => 'Renamed Product',
-            'description' => null,
-            'description_en' => null,
-            'price' => 4.95,
-            'active' => true,
-            'shipping_profile' => 'letter',
-            'shipping_weight_grams' => 10,
-            'requires_parcel' => false,
-        ]);
+        $this->nameProduct('Gewijzigde Productnaam', 'Renamed Product');
 
         $items = $orders->findItems($this->orderId);
+        OrderItemNameSnapshot::clearCache();
 
         $this->assertSame('Oorspronkelijke Productnaam', $items[0]['name']);
-        $this->assertSame('Original Product Name', $items[0]['name_en']);
+        $this->assertSame(
+            'Original Product Name',
+            OrderItemNameSnapshot::name((int) $items[0]['id'], 'en', (string) $items[0]['name']),
+            'the English half of the snapshot is just as frozen as the neutral one'
+        );
     }
 
     public function testExportSummaryAlsoUsesTheSnapshotNameNotTheLiveName(): void
@@ -160,17 +174,7 @@ final class OrderSnapshotIntegrationTest extends TestCase
         $orders = new OrderRepository();
         $this->placeTestOrder($products, $orders, new CustomerRepository());
 
-        $products->update($this->productId, [
-            'name' => 'Gewijzigde Productnaam',
-            'name_en' => 'Renamed Product',
-            'description' => null,
-            'description_en' => null,
-            'price' => 4.95,
-            'active' => true,
-            'shipping_profile' => 'letter',
-            'shipping_weight_grams' => 10,
-            'requires_parcel' => false,
-        ]);
+        $this->nameProduct('Gewijzigde Productnaam', 'Renamed Product');
 
         $rows = array_filter($orders->findForExport(null, null), fn (array $row): bool => (int) $row['id'] === $this->orderId);
         $row = array_values($rows)[0];
@@ -235,7 +239,6 @@ final class OrderSnapshotIntegrationTest extends TestCase
                 'quantity' => $line,
                 'unit_price' => 4.95,
                 'product_name' => 'Regel ' . $number . ' ' . str_repeat('P', 40),
-                'product_name_en' => null,
             ];
         }
 

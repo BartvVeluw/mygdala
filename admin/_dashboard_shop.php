@@ -88,6 +88,36 @@ try {
     if ($canManagePersonalization) {
         $personalizationRows = (new ProductPersonalizationRepository())->findAllConfigured();
     }
+
+    // The name of every product either list mentions, in one query, and the
+    // alphabetical order both lists used to get from SQL.
+    //
+    // App\Service\DashboardAttention is pure — it is handed rows and never
+    // queries — so the words are attached here rather than there. They live
+    // per website language in `product_translations` since Multilingual 2.0
+    // phase 5 wave C; the dashboard shows the one name the CMS calls a
+    // product by, which is the default language's.
+    $namedByProduct = static function (array $rows, string $idKey, string $nameKey): array {
+        \App\Service\ShopLocalization::preloadProducts(array_map(
+            static fn (array $row): int => (int) ($row[$idKey] ?? 0),
+            $rows
+        ));
+
+        foreach ($rows as &$row) {
+            $row[$nameKey] = \App\Service\ShopLocalization::productName((int) ($row[$idKey] ?? 0));
+        }
+        unset($row);
+
+        usort($rows, static fn (array $a, array $b): int => strnatcasecmp(
+            (string) $a[$nameKey],
+            (string) $b[$nameKey]
+        ));
+
+        return $rows;
+    };
+
+    $activeProducts = $namedByProduct($activeProducts, 'id', 'name');
+    $personalizationRows = $namedByProduct($personalizationRows, 'product_id', 'product_name');
 } catch (\Throwable $e) {
     // Same fallback philosophy as every other admin screen: the page still
     // renders (its navigation cards are what someone came for), this panel

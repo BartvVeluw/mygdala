@@ -19,11 +19,13 @@ require_once __DIR__ . '/../../vendor/autoload.php';
 require_once __DIR__ . '/_product_validation.php';
 require_once __DIR__ . '/_product_image_helpers.php';
 
+use App\Database;
 use App\Service\AdminAuth;
 use App\Service\CollectionContent;
 use App\Service\CollectionService;
 use App\Service\Csrf;
 use App\Service\ProductImageUploader;
+use App\Service\ShopLocalization;
 use App\Repository\CollectionRepository;
 use App\Repository\ProductRepository;
 use App\Repository\ProductImageRepository;
@@ -42,7 +44,10 @@ if (!Csrf::validate($_POST['csrf_token'] ?? null)) {
     exit('Invalid or missing CSRF token.');
 }
 
-[$errors, $fields] = validateProductInput($_POST);
+// `true`: a new product is written in the DEFAULT website language, so its
+// slug comes from a name the shop will really show (Multilingual 2.0 phase 5
+// wave C). Translating it happens on the product itself afterwards.
+[$errors, $fields] = validateProductInput($_POST, true);
 
 $uploader = new ProductImageUploader();
 $uploadedPaths = [];
@@ -83,18 +88,20 @@ if ($errors !== []) {
     exit;
 }
 
-$productRepository = new ProductRepository();
-$imageRepository = new ProductImageRepository();
+$db = Database::connection();
+$productRepository = new ProductRepository($db);
+$imageRepository = new ProductImageRepository($db);
 
 try {
+    // Row and words are ONE transaction: a product is never in the catalogue
+    // without the name that identifies it there. Every repository below gets
+    // the same connection, so a failure anywhere leaves nothing behind.
+    $db->beginTransaction();
+
     $slug = generateUniqueSlug($productRepository, $fields['name']);
 
     $productId = $productRepository->create([
-        'name' => $fields['name'],
-        'name_en' => $fields['name_en'],
         'slug' => $slug,
-        'description' => $fields['description'],
-        'description_en' => $fields['description_en'],
         'price' => $fields['price'],
         'image_path' => null,
         'active' => $fields['active'],
@@ -103,10 +110,13 @@ try {
         'shipping_profile' => $fields['shipping_profile'],
         'shipping_weight_grams' => $fields['shipping_weight_grams'],
         'requires_parcel' => $fields['requires_parcel'],
-        'meta_title' => $fields['meta_title'],
-        'meta_title_en' => $fields['meta_title_en'],
-        'meta_description' => $fields['meta_description'],
-        'meta_description_en' => $fields['meta_description_en'],
+    ]);
+
+    ShopLocalization::saveProduct($productId, $fields['language_code'], [
+        ShopLocalization::NAME => $fields['name'],
+        ShopLocalization::DESCRIPTION => (string) $fields['description'],
+        ShopLocalization::META_TITLE => $fields['meta_title'],
+        ShopLocalization::META_DESCRIPTION => $fields['meta_description'],
     ]);
 
     foreach ($uploadedPaths as $path) {
@@ -121,11 +131,18 @@ try {
 
     // File the new product into the collections that were ticked on the
     // form. Same validated, never-trusted-ids path as update-product.php.
-    $collectionRepository = new CollectionRepository();
+    $collectionRepository = new CollectionRepository($db);
     $collectionIds = CollectionService::validateCollectionIds($fields['collection_ids'], $collectionRepository);
     $collectionRepository->setProductCollections($productId, $collectionIds);
+
+    $db->commit();
     CollectionContent::clearCache();
+    ShopLocalization::clearCache();
 } catch (\Throwable $e) {
+    if ($db->inTransaction()) {
+        $db->rollBack();
+    }
+
     error_log('[api/admin/create-product.php] ' . $e->getMessage());
     foreach ($uploadedPaths as $path) {
         $uploader->delete($path);

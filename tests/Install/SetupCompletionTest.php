@@ -200,8 +200,16 @@ final class SetupCompletionTest extends TestCase
         // Website text, in the language the wizard chose (Multilingual 2.0
         // phase 4): a site_setting_translations row, not a site_settings row.
         $this->assertArrayNotHasKey('footer_description_nl', $settings);
+        // The third row is not the wizard's: it is the generic heading above
+        // the related products, seeded by db/migrations/20260908170000 and
+        // moved into this table by 20260918210000 (Multilingual 2.0 phase 5
+        // wave C). It is here to prove the wizard leaves it alone.
         $this->assertSame(
-            [['setting_key' => 'city', 'language_code' => 'nl', 'value' => 'Utrecht'], ['setting_key' => 'footer_description', 'language_code' => 'nl', 'value' => 'Wij maken dingen.']],
+            [
+                ['setting_key' => 'city', 'language_code' => 'nl', 'value' => 'Utrecht'],
+                ['setting_key' => 'footer_description', 'language_code' => 'nl', 'value' => 'Wij maken dingen.'],
+                ['setting_key' => 'related_products_heading', 'language_code' => 'nl', 'value' => 'Gerelateerde producten'],
+            ],
             $this->install()->rows('SELECT setting_key, language_code, value FROM site_setting_translations ORDER BY setting_key, language_code')
         );
         $this->assertSame('12345678', $settings['kvk_number']);
