@@ -65,6 +65,14 @@ if ($isEdit) {
  */
 try {
     $allCollections = (new CollectionRepository())->findAll();
+
+    // Every tick box's collection name in one query rather than one per box.
+    // A collection is named per website language since Multilingual 2.0
+    // phase 5 wave C, and the picker uses the one name the CMS calls it by.
+    ShopLocalization::preloadCollections(array_map(
+        static fn (array $collection): int => (int) $collection['id'],
+        $allCollections
+    ));
 } catch (\Throwable $e) {
     error_log('[admin/product-form.php] ' . $e->getMessage());
     $allCollections = [];
@@ -279,7 +287,7 @@ require __DIR__ . '/_richtext_field.php';
                      name="collection_ids[]"
                      value="<?= $collectionOptionId ?>"
                      <?= in_array($collectionOptionId, $selectedCollectionIds, true) ? 'checked' : '' ?>>
-              <?= htmlspecialchars((string) $collectionOption['name'], ENT_QUOTES, 'UTF-8') ?><?= (int) $collectionOption['is_active'] === 1 ? '' : ' (inactief)' ?>
+              <?= htmlspecialchars(ShopLocalization::collectionName($collectionOptionId), ENT_QUOTES, 'UTF-8') ?><?= (int) $collectionOption['is_active'] === 1 ? '' : ' (inactief)' ?>
             </label>
           <?php endforeach; ?>
         <?php endif; ?>

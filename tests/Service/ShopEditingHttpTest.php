@@ -401,6 +401,74 @@ final class ShopEditingHttpTest extends TestCase
     }
 
     /* ------------------------------------------------------------------ */
+    /* The screens render at all                                           */
+    /* ------------------------------------------------------------------ */
+
+    /**
+     * EVERY Shop screen answers, and prints no PHP diagnostic.
+     *
+     * A wave that drops columns can leave one reader behind in a template,
+     * and a template is where no other test looks. That is exactly what
+     * happened to admin/product-form.php's collection picker during phase 5
+     * wave C: `Warning: Undefined array key "name"` above the form, and every
+     * test still green.
+     *
+     * Be honest about what this half catches: a warning only reaches the body
+     * where `display_errors` is on, which is a development container and not
+     * the test one, so here it is mostly a guard against a fatal error and a
+     * white page. The test below is the one that would have caught that
+     * particular bug, and the shape to copy: assert the screen really PRINTS
+     * what it went to the database for.
+     */
+    public function testEveryShopScreenRendersWithoutAPhpDiagnostic(): void
+    {
+        $productId = $this->storedProduct('ZZ Render');
+        $collectionId = $this->storedCollection('ZZ Render collectie');
+        [$session] = $this->accounts->signIn([ShopModule::PRODUCTS_MANAGE, ShopModule::COLLECTIONS_MANAGE]);
+
+        foreach ([
+            '/admin/products.php',
+            '/admin/product-form.php',
+            '/admin/product-form.php?id=' . $productId,
+            '/admin/collections.php',
+            '/admin/collection.php',
+            '/admin/collection.php?id=' . $collectionId,
+            '/admin/related-products.php',
+            '/shop.php',
+            '/product.php?id=' . $productId,
+        ] as $path) {
+            $response = self::$server->request('GET', $path, $session);
+
+            $this->assertSame(200, $response['status'], $path);
+            $this->assertDoesNotMatchRegularExpression(
+                '/\b(?:Warning|Notice|Deprecated|Fatal error|Parse error):/',
+                $response['body'],
+                $path . ' printed a PHP diagnostic'
+            );
+        }
+    }
+
+    /**
+     * And the one that got away: the collection picker on the product form
+     * names its collections, which it can only do through the words store.
+     */
+    public function testTheProductFormNamesTheCollectionsItOffers(): void
+    {
+        $collectionId = $this->storedCollection('ZZ Picker collectie');
+        [$session] = $this->accounts->signIn([ShopModule::PRODUCTS_MANAGE]);
+
+        $response = self::$server->request('GET', '/admin/product-form.php', $session);
+
+        $this->assertSame(200, $response['status']);
+        $this->assertMatchesRegularExpression(
+            '/name="collection_ids\[\]"\s+value="' . $collectionId . '"/',
+            $response['body'],
+            'the picker must offer this collection'
+        );
+        $this->assertStringContainsString('ZZ Picker collectie', $response['body'], 'and name it');
+    }
+
+    /* ------------------------------------------------------------------ */
     /* Fixtures                                                            */
     /* ------------------------------------------------------------------ */
 

@@ -235,6 +235,17 @@ standaardtaal geschreven en krijgt daaruit zijn slug, een hergenereerde
 collectieslug volgt de standaardtaal en niet het scherm, en — het belangrijkste
 — een vertaling opslaan verandert geen id, geen slug en geen prijs.
 
+Datzelfde bestand rendert ook élk Shop-scherm en controleert dat de
+productvorm zijn collecties écht bij naam noemt. **Dat laatste staat er om een
+reden**: een golf die kolommen dropt kan één lezer in een *sjabloon* laten
+staan, en daar kijkt geen enkele andere test. Precies dat gebeurde in golf C
+met de collectiekiezer van `admin/product-form.php` — een
+`Warning: Undefined array key "name"` boven het formulier, met alle tests
+groen. Het browserharnas ving het; de test hierboven vangt het voortaan. De
+vorm om te kopiëren is niet "geen waarschuwing in de body" (die haalt de body
+alleen met `display_errors` aan) maar "het scherm drukt écht af waarvoor het
+naar de database ging".
+
 De echte SQL en het leesgedrag staan in de bestaande Shop-suite, nu op de
 nieuwe opslag: `CollectionContentTest`, `CollectionSeoTest`, `ProductSeoTest`,
 `ProductBreadcrumbTest`, `CollectionRepositoryIntegrationTest`,
