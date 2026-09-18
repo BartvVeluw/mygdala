@@ -20,7 +20,11 @@ use App\Service\Redirects\SlugChangeRedirects;
  */
 final class BlogPostService
 {
-    /** Matched to the column widths in the Blog migration. */
+    /**
+     * Matched to the column widths in the Blog migration — since Multilingual
+     * 2.0 phase 5 wave B the widths of blog_post_translations, which
+     * App\Service\Blog\BlogLocalization declares from these very constants.
+     */
     public const MAX_TITLE_LENGTH = 200;
     public const MAX_EXCERPT_LENGTH = 500;
     public const MAX_AUTHOR_LENGTH = 120;
@@ -42,26 +46,24 @@ final class BlogPostService
     {
         $errors = [];
 
+        // ONE LANGUAGE per save since Multilingual 2.0 phase 5 wave B, so
+        // there is one set of word fields rather than a Dutch and an English
+        // one. A title is required only in the DEFAULT language: a
+        // translation is optional by definition, because it falls back.
+        $language = (string) ($values['language_code'] ?? '');
         $title = trim((string) ($values['title'] ?? ''));
 
-        if ($title === '') {
+        if ($title === '' && $language === BlogLocalization::defaultLanguage()) {
             $errors[] = 'Titel is verplicht.';
-        } elseif (mb_strlen($title) > self::MAX_TITLE_LENGTH) {
-            $errors[] = 'Titel mag maximaal ' . self::MAX_TITLE_LENGTH . ' tekens zijn.';
-        }
-
-        if (mb_strlen(trim((string) ($values['title_en'] ?? ''))) > self::MAX_TITLE_LENGTH) {
-            $errors[] = 'Titel (EN) mag maximaal ' . self::MAX_TITLE_LENGTH . ' tekens zijn.';
         }
 
         foreach ([
-            'Samenvatting (NL)' => [$values['excerpt'] ?? '', self::MAX_EXCERPT_LENGTH],
-            'Samenvatting (EN)' => [$values['excerpt_en'] ?? '', self::MAX_EXCERPT_LENGTH],
+            'Titel' => [$title, self::MAX_TITLE_LENGTH],
+            'Samenvatting' => [$values['excerpt'] ?? '', self::MAX_EXCERPT_LENGTH],
             'Auteur' => [$values['author_name'] ?? '', self::MAX_AUTHOR_LENGTH],
-            'SEO-titel (NL)' => [$values['meta_title'] ?? '', self::MAX_META_TITLE_LENGTH],
-            'SEO-titel (EN)' => [$values['meta_title_en'] ?? '', self::MAX_META_TITLE_LENGTH],
-            'Meta description (NL)' => [$values['meta_description'] ?? '', self::MAX_META_DESCRIPTION_LENGTH],
-            'Meta description (EN)' => [$values['meta_description_en'] ?? '', self::MAX_META_DESCRIPTION_LENGTH],
+            'SEO-titel' => [$values['meta_title'] ?? '', self::MAX_META_TITLE_LENGTH],
+            'Meta description' => [$values['meta_description'] ?? '', self::MAX_META_DESCRIPTION_LENGTH],
+            'Inhoud' => [$values['body'] ?? '', BlogLocalization::BODY_MAX_LENGTH],
         ] as $label => [$value, $max]) {
             if (mb_strlen(trim((string) $value)) > $max) {
                 $errors[] = $label . ' mag maximaal ' . $max . ' tekens zijn.';
@@ -144,10 +146,21 @@ final class BlogPostService
 
             $seenSlugs[] = $slug;
 
+            $existing = $tags->findBySlug($slug);
             $id = $tags->findOrCreateByName($name);
 
             if ($id !== null) {
                 $ids[] = $id;
+
+                // A NEW tag is named in the DEFAULT language, like every new
+                // row since phase 3B: its slug is made from that name, and a
+                // tag that had a name in no language would render an empty
+                // chip. An existing tag keeps every name it has — typing it on
+                // a post is reusing it, never renaming it (that is what the
+                // Blogtags screen is for).
+                if ($existing === null) {
+                    BlogLocalization::saveTagName($id, BlogLocalization::defaultLanguage(), $name);
+                }
             }
 
             if (count($ids) >= self::MAX_TAGS_PER_POST) {
@@ -166,7 +179,15 @@ final class BlogPostService
      */
     public static function tagLine(array $tags): string
     {
-        return implode(', ', array_map(static fn (array $tag): string => (string) $tag['name'], $tags));
+        // What the CMS calls a tag, since its name is stored per website
+        // language (Multilingual 2.0 phase 5 wave B). The editing language is
+        // deliberately not used: this one line both shows the tags and, when
+        // it is saved back, names them, and a tag is named in the default
+        // language — see resolveTagIds().
+        return implode(', ', array_map(
+            static fn (array $tag): string => BlogLocalization::tagLabel((int) $tag['id']),
+            $tags
+        ));
     }
 
     /**
@@ -207,6 +228,12 @@ final class BlogPostService
 
     /**
      * A unique slug for a post, from what the editor typed or from the title.
+     *
+     * ONE SLUG, LANGUAGE-NEUTRAL. $title is the title in the DEFAULT language,
+     * so /blog/<slug> is one address whatever a visitor reads; translating a
+     * post never moves it, and the old-URL redirect above keeps working
+     * unchanged. A slug per language needs a router that uses it, which is
+     * phase 6 of Multilingual 2.0.
      */
     public static function slugFor(
         string $submitted,

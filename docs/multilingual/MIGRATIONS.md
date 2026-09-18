@@ -84,6 +84,7 @@ verhuismigratie.
 | Golf | Migratie | Van | Naar |
 |---|---|---|---|
 | A | `20260918160000` / `170000` | `portfolio_categories.name_nl/en`; `portfolio_gallery_items.{title,subtitle,alt,intro,description}_nl/en`; `portfolio_item_images.alt_nl/en` — 14 kolommen | `portfolio_category_translations`, `portfolio_item_translations`, `portfolio_item_image_translations` |
+| B | `20260918180000` / `190000` | `blog_posts.{title,excerpt,body,meta_title,meta_description}` en hun `_en`; `blog_categories.{name,description}` en hun `_en`; `blog_tags.name` en `name_en` — 16 kolommen | `blog_post_translations`, `blog_category_translations`, `blog_tag_translations` |
 
 Dezelfde regels als in 3A, 3B en 4: NL blijft NL, EN blijft EN, byte voor byte
 (rich text inbegrepen), leeg of alleen witruimte krijgt geen rij, opnieuw
@@ -103,10 +104,19 @@ installatie met de module uit eindigt op hetzelfde schema als een met hem aan.
 De testdatabases van `ScratchInstall` hebben geen enkele `MODULE_*`-variabele
 gezet, dus dat wordt ook echt zo getest.
 
-De test van golf A is `tests/Install/PortfolioWordsMigrationTest.php`
-(`migration`): vers, bijgewerkt en kapot naast elkaar, met de neutrale kolommen
-ervoor en erna vergeleken, en een item in elke toestand waarin zijn kolommen
-konden staan.
+Bij golf B is de Nederlandse helft de **kale** kolomnaam (`title`, niet
+`title_nl`) en draagt alleen de Engelse een achtervoegsel — de vorm die de Blog
+altijd had. En **geen slug verhuist**: `blog_posts.slug`,
+`blog_categories.slug` en `blog_tags.slug` houden hun exacte waarden, zodat
+`/blog/<slug>`, `/blog/categorie/<slug>` en `/blog/tag/<slug>` na de upgrade
+precies hetzelfde antwoorden en elke opgeslagen redirect van een hernoemd
+archief blijft kloppen.
+
+De tests zijn `tests/Install/PortfolioWordsMigrationTest.php` en
+`BlogWordsMigrationTest.php` (`migration`): vers, bijgewerkt en kapot naast
+elkaar, met de neutrale kolommen ervoor en erna vergeleken, een rij in elke
+toestand waarin zijn kolommen konden staan, en bij golf B ook de
+taxonomiekoppelingen en elke slug.
 
 **Oude migraties die de gedropte kolommen lezen.** `20260909270000` (media
 adopteren) leest de alt-kolommen van Tekst met afbeelding, Detailsectie en

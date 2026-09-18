@@ -186,3 +186,27 @@ attributenparen van de lightbox en de SEO-kop), dat de module zelf geen taal
 of terugval kiest, dat alleen `PortfolioLocalization` bij de woorden komt en de
 partial alles via `SiteText` print, en dat beide editors één taal tonen en hun
 endpoints alleen die taal schrijven, in één transactie met de rij.
+
+**Golf B, Blog.** `BlogLocalizationTest` (`fast`) vraagt zonder database wat
+`BlogLocalization` toevoegt: welk veld bij welke tabel hoort, de lengtes die de
+editor al valideerde, de terugval, het saneren van de body per taal *voordat*
+de terugval loopt, een derde taal, en dat **geen enkele vertaaltabel van Blog
+het woord `slug` kent** — de belofte waaraan de hele golf hangt.
+
+De echte SQL en het gedrag staan in de bestaande Blog-suite, nu op de nieuwe
+opslag: `BlogPostLifecycleTest` (een bericht met en zonder woorden, een titel
+die alleen in de standaardtaal verplicht is, één taal opslaan die de andere
+laat staan), `BlogTaxonomyTest` (een categorie met woorden in twee talen, een
+naam die geen kolom meer is), `BlogSeoTest` en `BlogMediaAndSettingsTest`
+(waar de mediabibliotheek een bericht bij naam noemt).
+`BlogWordsMigrationTest` (`migration` en `blog`) is de backfill op een verse,
+een bijgewerkte en een kapotte database, en let er apart op dat elke slug en
+elke taxonomiekoppeling ongemoeid blijft.
+
+De golf-B-grenzen in `MultilingualBoundaryTest`: dat niets de zestien gedropte
+kolommen nog leest, dat elke slug één taalneutrale kolom is gebleven, dat de
+Blog geen taal en geen terugval zelf kiest, dat er precies **twee** plekken
+zijn waar rich text door de sanitizer gaat (de weg naar binnen en de weg naar
+buiten) en geen derde, dat geen Blog-query op woorden sorteert, en dat de drie
+editors één taal tonen en hun endpoints alleen die taal schrijven, in één
+transactie met de rij.

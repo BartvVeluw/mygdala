@@ -33,6 +33,14 @@ use App\Service\SeoDefaults;
  * introduction or the site's default. No domain name and no company name is
  * written into this class.
  *
+ * ONE LANGUAGE: the site's DEFAULT one. A feed is a single document at a
+ * single address and carries no language switch, so it says what a visitor who
+ * has not chosen sees. It used to say "Dutch" in so many words; since
+ * Multilingual 2.0 phase 5 wave B it asks
+ * App\Service\Blog\BlogLocalization::defaultLanguage(), which on every
+ * existing installation is exactly that. A feed per language belongs to the
+ * routing phase, with the URLs that would carry it.
+ *
  * ESCAPING. Every value goes through htmlspecialchars(ENT_XML1) on its way
  * in, like Sitemap does. Titles and excerpts are administrator-typed content
  * and may hold ampersands and angle brackets; a feed reader is a parser, not
@@ -88,10 +96,10 @@ final class BlogFeed
     private static function item(array $post): string
     {
         $url = BlogUrls::post((string) ($post['slug'] ?? ''));
-        $description = Seo::plainText(BlogContent::excerpt($post, 'nl'));
+        $description = Seo::plainText(BlogContent::excerpt($post, BlogLocalization::defaultLanguage()));
 
         $item = '    <item>' . "\n";
-        $item .= '      <title>' . self::escape(BlogContent::title($post, 'nl')) . '</title>' . "\n";
+        $item .= '      <title>' . self::escape(BlogContent::title($post, BlogLocalization::defaultLanguage())) . '</title>' . "\n";
         $item .= '      <link>' . self::escape($url) . '</link>' . "\n";
         // The canonical URL is a permanent, unique identifier for this post,
         // so it is also its guid — isPermaLink is then true by definition.
@@ -112,7 +120,7 @@ final class BlogFeed
     private static function channelTitle(): string
     {
         $siteName = SeoDefaults::siteName();
-        $blogTitle = BlogSettings::title('nl');
+        $blogTitle = BlogSettings::title(BlogLocalization::defaultLanguage());
 
         if ($siteName === '' || $siteName === $blogTitle) {
             return $blogTitle;
@@ -123,7 +131,7 @@ final class BlogFeed
 
     private static function channelDescription(): string
     {
-        $intro = Seo::plainText(BlogSettings::intro('nl'));
+        $intro = Seo::plainText(BlogSettings::intro(BlogLocalization::defaultLanguage()));
 
         if ($intro !== '') {
             return $intro;

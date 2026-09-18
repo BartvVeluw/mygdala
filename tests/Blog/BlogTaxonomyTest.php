@@ -12,6 +12,7 @@ use App\Service\Blog\BlogClock;
 use App\Service\Blog\BlogContent;
 use App\Service\Blog\BlogPostService;
 use App\Service\Blog\BlogPostStatus;
+use App\Service\Blog\BlogLocalization;
 use App\Service\Blog\BlogSlug;
 use App\Service\Blog\BlogTaxonomy;
 use App\Service\Blog\BlogUrls;
@@ -79,21 +80,22 @@ final class BlogTaxonomyTest extends TestCase
     public function testACategoryCarriesANameASlugAndAnOptionalDescriptionInBothLanguages(): void
     {
         $id = $this->createCategory('Testcategorie materialen', [
-            'name_en' => 'Test category materials',
-            'description' => 'Waar we mee werken.',
-            'description_en' => 'What we work with.',
+            'nl' => ['name' => 'Testcategorie materialen', 'description' => 'Waar we mee werken.'],
+            'en' => ['name' => 'Test category materials', 'description' => 'What we work with.'],
         ]);
 
         $category = $this->categories->find($id);
 
         $this->assertSame('Testcategorie materialen', BlogContent::categoryName($category, 'nl'));
         $this->assertSame('Test category materials', BlogContent::categoryName($category, 'en'));
-        $this->assertSame('Waar we mee werken.', $category['description']);
+        $this->assertSame('Waar we mee werken.', BlogLocalization::categoryDescription($id, 'nl'));
+        $this->assertSame('What we work with.', BlogLocalization::categoryDescription($id, 'en'));
+        $this->assertArrayNotHasKey('name', $category, 'a name is not a column of blog_categories any more');
     }
 
     public function testAnEmptyEnglishCategoryNameFallsBackToTheDutchOne(): void
     {
-        $id = $this->createCategory('Testcategorie zonder EN', ['name_en' => '']);
+        $id = $this->createCategory('Testcategorie zonder EN');
 
         $this->assertSame('Testcategorie zonder EN', BlogContent::categoryName($this->categories->find($id), 'en'));
     }
@@ -327,10 +329,24 @@ final class BlogTaxonomyTest extends TestCase
     }
 
     /** @param array<string, mixed> $values */
+    /**
+     * $values may carry the row's own fields and, per website language, its
+     * words: ['nl' => ['name' => …, 'description' => …], 'en' => […]]. Since
+     * Multilingual 2.0 phase 5 wave B a name is not a column.
+     *
+     * @param array<string, mixed> $values
+     */
     private function createCategory(string $name, array $values = []): int
     {
+        $words = [];
+        foreach ($values as $key => $value) {
+            if (is_array($value)) {
+                $words[(string) $key] = $value;
+                unset($values[$key]);
+            }
+        }
+
         $id = $this->categories->create($values + [
-            'name' => $name,
             'slug' => BlogSlug::unique(
                 self::PREFIX . BlogSlug::sanitize($name),
                 $name,
@@ -341,6 +357,12 @@ final class BlogTaxonomyTest extends TestCase
         ]);
 
         $this->createdCategories[] = $id;
+
+        $words[BlogLocalization::defaultLanguage()][BlogLocalization::NAME] ??= $name;
+        foreach ($words as $language => $fields) {
+            BlogLocalization::saveCategory($id, $language, $fields);
+        }
+        BlogLocalization::clearCache();
 
         return $id;
     }

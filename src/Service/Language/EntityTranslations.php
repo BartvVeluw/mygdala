@@ -115,6 +115,26 @@ final class EntityTranslations
     }
 
     /**
+     * The owners whose $field contains $needle in ANY language — what a CMS
+     * search box asks. Reads never throw, so an unreachable table is "nothing
+     * matched" rather than an error page; that is the same rule as words().
+     *
+     * @return list<int>
+     */
+    public function ownersMatching(string $field, string $needle): array
+    {
+        $this->assertField($field);
+
+        try {
+            return (new EntityTranslationRepository($this->table))->ownersMatching($field, $needle);
+        } catch (\Throwable $e) {
+            error_log('[EntityTranslations] ' . $this->table->name . ' could not be searched: ' . $e->getMessage());
+
+            return [];
+        }
+    }
+
+    /**
      * What is wrong with one language's input, by field: 'missing' for a
      * required field that is empty IN THE DEFAULT LANGUAGE (a translation is
      * optional by definition, because it falls back), 'too_long' for a value

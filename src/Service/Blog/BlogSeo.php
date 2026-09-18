@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Service\Blog;
 
 use App\Service\Branding;
+use App\Service\Language\LanguageRegistry;
 use App\Service\Media\MediaService;
 use App\Service\Seo;
 use App\Service\SeoDefaults;
@@ -64,14 +65,14 @@ final class BlogSeo
      */
     public static function forIndex(int $page = 1): SeoMetadata
     {
-        $titleNl = self::listingTitle(BlogSettings::title('nl'), $page);
-        $titleEn = self::listingTitle(BlogSettings::title('en'), $page);
+        $titleNl = self::listingTitle(BlogSettings::title(LanguageRegistry::DUTCH), $page);
+        $titleEn = self::listingTitle(BlogSettings::title(LanguageRegistry::ENGLISH), $page);
 
         return SeoMetadata::create(
             titleNl: $titleNl,
             titleEn: $titleEn,
-            descriptionNl: Seo::plainText(BlogSettings::intro('nl')),
-            descriptionEn: Seo::plainText(BlogSettings::intro('en')),
+            descriptionNl: Seo::plainText(BlogSettings::intro(LanguageRegistry::DUTCH)),
+            descriptionEn: Seo::plainText(BlogSettings::intro(LanguageRegistry::ENGLISH)),
             canonical: BlogUrls::index($page),
             indexable: true,
             ogType: 'website',
@@ -90,10 +91,10 @@ final class BlogSeo
         $slug = (string) ($post['slug'] ?? '');
 
         return SeoMetadata::create(
-            titleNl: self::postTitle($post, 'nl'),
-            titleEn: self::postTitle($post, 'en'),
-            descriptionNl: self::postDescription($post, 'nl'),
-            descriptionEn: self::postDescription($post, 'en'),
+            titleNl: self::postTitle($post, LanguageRegistry::DUTCH),
+            titleEn: self::postTitle($post, LanguageRegistry::ENGLISH),
+            descriptionNl: self::postDescription($post, LanguageRegistry::DUTCH),
+            descriptionEn: self::postDescription($post, LanguageRegistry::ENGLISH),
             canonical: BlogUrls::post($slug),
             indexable: (int) ($post['noindex'] ?? 0) !== 1,
             ogType: self::POST_OG_TYPE,
@@ -110,12 +111,16 @@ final class BlogSeo
     public static function forCategory(array $category, int $page = 1): SeoMetadata
     {
         $slug = (string) ($category['slug'] ?? '');
+        $id = (int) ($category['id'] ?? 0);
 
         return SeoMetadata::create(
-            titleNl: self::archiveTitle(BlogContent::categoryName($category, 'nl'), $page),
-            titleEn: self::archiveTitle(BlogContent::categoryName($category, 'en'), $page),
-            descriptionNl: Seo::plainText((string) ($category['description'] ?? '')),
-            descriptionEn: Seo::plainText((string) ($category['description_en'] ?? ($category['description'] ?? ''))),
+            titleNl: self::archiveTitle(BlogContent::categoryName($category, LanguageRegistry::DUTCH), $page),
+            titleEn: self::archiveTitle(BlogContent::categoryName($category, LanguageRegistry::ENGLISH), $page),
+            // The head still carries the V1 pair for the client-side switch;
+            // each half is one language of the category's own introduction,
+            // read through BlogLocalization with its fallback.
+            descriptionNl: Seo::plainText(BlogLocalization::categoryDescription($id, LanguageRegistry::DUTCH)),
+            descriptionEn: Seo::plainText(BlogLocalization::categoryDescription($id, LanguageRegistry::ENGLISH)),
             canonical: BlogUrls::category($slug, $page),
             indexable: true,
             ogType: 'website',
@@ -134,8 +139,8 @@ final class BlogSeo
         $slug = (string) ($tag['slug'] ?? '');
 
         return SeoMetadata::create(
-            titleNl: self::archiveTitle(BlogContent::tagName($tag, 'nl'), $page),
-            titleEn: self::archiveTitle(BlogContent::tagName($tag, 'en'), $page),
+            titleNl: self::archiveTitle(BlogContent::tagName($tag, LanguageRegistry::DUTCH), $page),
+            titleEn: self::archiveTitle(BlogContent::tagName($tag, LanguageRegistry::ENGLISH), $page),
             canonical: BlogUrls::tag($slug, $page),
             indexable: false,
             ogType: 'website',
@@ -173,7 +178,7 @@ final class BlogSeo
     private static function archiveTitle(string $name, int $page): string
     {
         $siteName = SeoDefaults::siteName();
-        $blogTitle = BlogSettings::title('nl');
+        $blogTitle = BlogSettings::title(LanguageRegistry::DUTCH);
         $name = trim($name);
 
         $title = $name === ''
@@ -188,7 +193,7 @@ final class BlogSeo
      */
     private static function postTitle(array $post, string $lang): string
     {
-        $own = Seo::pick($post['meta_title'] ?? '', $post['meta_title_en'] ?? '', $lang);
+        $own = BlogLocalization::post((int) ($post['id'] ?? 0), BlogLocalization::META_TITLE, $lang);
 
         if (trim($own) !== '') {
             return trim($own);
@@ -210,7 +215,7 @@ final class BlogSeo
      */
     private static function postDescription(array $post, string $lang): string
     {
-        $own = Seo::pick($post['meta_description'] ?? '', $post['meta_description_en'] ?? '', $lang);
+        $own = BlogLocalization::post((int) ($post['id'] ?? 0), BlogLocalization::META_DESCRIPTION, $lang);
 
         if (trim($own) !== '') {
             return trim($own);
@@ -264,7 +269,7 @@ final class BlogSeo
             return null;
         }
 
-        $headline = BlogContent::title($post, 'nl');
+        $headline = BlogContent::title($post, LanguageRegistry::DUTCH);
 
         if ($headline === '') {
             return null;
@@ -290,7 +295,7 @@ final class BlogSeo
             $data['dateModified'] = $updated->format(\DateTimeInterface::ATOM);
         }
 
-        $description = Seo::plainText(BlogContent::excerpt($post, 'nl'));
+        $description = Seo::plainText(BlogContent::excerpt($post, LanguageRegistry::DUTCH));
         if ($description !== '') {
             $data['description'] = $description;
         }

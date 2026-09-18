@@ -19,7 +19,11 @@ use App\Service\Language\AdminTranslator;
 use App\Repository\BlogTagRepository;
 use App\Service\AdminAuth;
 use App\Service\Blog\BlogSlug;
+use App\Database;
+use App\Service\Blog\BlogLocalization;
 use App\Service\Blog\BlogTaxonomy;
+use App\Service\Language\LanguageCode;
+use App\Service\Language\SiteLanguages;
 use App\Service\Csrf;
 
 AdminAuth::requireLoginForApi();
@@ -42,7 +46,8 @@ if ($id === false || $id === null || $id < 1) {
     exit('Invalid tag id.');
 }
 
-$repository = new BlogTagRepository();
+$db = Database::connection();
+$repository = new BlogTagRepository($db);
 $tag = $repository->find($id);
 
 if ($tag === null) {
@@ -50,13 +55,22 @@ if ($tag === null) {
     exit('Tag not found.');
 }
 
+// ONE LANGUAGE per request (Multilingual 2.0 phase 5 wave B): the name
+// written is that of the language `language_code` names, and every other
+// name of this tag stays as it is. A name is required only in the DEFAULT
+// language — a translation is optional because it falls back.
+$language = LanguageCode::normalise((string) ($_POST['language_code'] ?? '')) ?? '';
 $name = trim((string) ($_POST['name'] ?? ''));
 $slug = BlogSlug::sanitize((string) ($_POST['slug'] ?? ''));
 
 $errors = [];
 
-if ($name === '') {
+if ($language === '' || !SiteLanguages::isActive($language)) {
+    $errors[] = AdminTranslator::trans('validation.language_unknown');
+} elseif ($name === '' && $language === BlogLocalization::defaultLanguage()) {
     $errors[] = AdminTranslator::trans('validation.geef_tag_naam');
+} elseif (mb_strlen($name) > BlogLocalization::TAG_NAME_MAX_LENGTH) {
+    $errors[] = AdminTranslator::trans('validation.naam_mag_maximaal_100_tekens');
 }
 
 $slugError = BlogSlug::validationError(
@@ -75,14 +89,17 @@ if ($errors !== []) {
 }
 
 try {
-    $repository->update($id, [
-        'name' => mb_substr($name, 0, 100),
-        'name_en' => mb_substr(trim((string) ($_POST['name_en'] ?? '')), 0, 100),
-        'slug' => $slug,
-    ]);
+    // Row and name are ONE transaction.
+    $db->beginTransaction();
+    $repository->update($id, ['slug' => $slug]);
+    BlogLocalization::saveTagName($id, $language, $name);
+    $db->commit();
 
     $_SESSION['admin_blog_taxonomy_flash'] = 'Tag "' . $name . '" is opgeslagen.';
 } catch (\Throwable $e) {
+    if ($db->inTransaction()) {
+        $db->rollBack();
+    }
     error_log('[api/admin/update-blog-tag.php] ' . $e->getMessage());
     $_SESSION['admin_blog_taxonomy_errors'] = ['De tag kon niet worden opgeslagen. Probeer het opnieuw.'];
     header('Location: /admin/blog-tags.php');

@@ -7,8 +7,10 @@ namespace App\Service\Blog;
 use App\Repository\BlogCategoryRepository;
 use App\Repository\BlogPostRepository;
 use App\Repository\BlogTagRepository;
+use App\Service\Language\LanguageFallback;
+use App\Service\Language\LanguageRegistry;
+use App\Service\Language\LocalizedValue;
 use App\Service\Media\BlockImage;
-use App\Service\RichTextSanitizer;
 use App\Service\Seo;
 
 /**
@@ -28,15 +30,28 @@ use App\Service\Seo;
  * null. The listing, the archives, the related posts, the feed and the
  * sitemap all read through the same rule.
  *
- * BILINGUAL like the rest of the site: the Dutch value is the real content,
- * an empty English one falls back to it (App\Service\Seo::pick()), and both
- * ride along in data-nl/data-en so assets/js/core.js can swap them in the
- * browser. There are no separate English URLs (SEO.md).
+ * WORDS PER LANGUAGE (Multilingual 2.0 phase 5 wave B). A post's title,
+ * excerpt, body and SEO copy, a category's name and description and a tag's
+ * name are stored per website language and read through
+ * App\Service\Blog\BlogLocalization, which states the one fallback: the
+ * asked-for language, the default language, ''. This class offers both shapes
+ * of the same words — title()/excerpt()/body() for ONE language, which is what
+ * the SEO head, the RSS feed and the JSON-LD want, and titleValue() and
+ * friends as one LocalizedValue, which is what a template prints through
+ * App\Service\Language\SiteText. It decides no language itself, and a third
+ * language is a row in `site_languages`.
+ *
+ * Everything else a post has is language-neutral: THE SLUG above all — there
+ * are no separate English URLs (SEO.md) and a translation never moves an
+ * address — plus the status, the publication date, the author, the images and
+ * the taxonomy relations. Which categories and tags a post has, and in which
+ * order, is the same in every language; only their labels differ.
  *
  * RICH TEXT is re-sanitised on the way OUT as well as on the way in, exactly
  * as PortfolioGalleryContent does: the body was already cleaned when it was
  * saved, and cleaning it again means a row written before a rule tightened,
  * or by hand in the database, still cannot put a script on a public page.
+ * BlogLocalization is where that happens, once, for every reader.
  */
 final class BlogContent
 {
@@ -191,7 +206,99 @@ final class BlogContent
     /** @param array<string, mixed> $post */
     public static function title(array $post, string $lang = 'nl'): string
     {
-        return Seo::pick($post['title'] ?? '', $post['title_en'] ?? '', $lang);
+        return BlogLocalization::post(self::idOf($post), BlogLocalization::TITLE, $lang);
+    }
+
+    /**
+     * The same five values as one LocalizedValue each, the fallback already
+     * applied — what a public template prints through
+     * App\Service\Language\SiteText. The $lang accessors above stay for the
+     * callers that genuinely want ONE language: the SEO head's V1 pair, the
+     * RSS feed (Dutch) and the JSON-LD.
+     *
+     * @param array<string, mixed> $post
+     */
+    public static function titleValue(array $post): LocalizedValue
+    {
+        return BlogLocalization::postValue(self::idOf($post), BlogLocalization::TITLE);
+    }
+
+    /**
+     * The teaser's pair, with the same "own excerpt, else the opening of the
+     * body" rule per language as excerpt() below.
+     *
+     * @param array<string, mixed> $post
+     */
+    public static function excerptValue(array $post): LocalizedValue
+    {
+        $words = [];
+        foreach (LanguageRegistry::codes() as $code) {
+            $teaser = self::excerpt($post, $code);
+            if ($teaser !== '') {
+                $words[$code] = $teaser;
+            }
+        }
+
+        return LanguageFallback::bilingual($words);
+    }
+
+    /** @param array<string, mixed> $post */
+    public static function bodyValue(array $post): LocalizedValue
+    {
+        return BlogLocalization::bodyValue(self::idOf($post));
+    }
+
+    /** @param array<string, mixed> $category */
+    public static function categoryNameValue(array $category): LocalizedValue
+    {
+        return BlogLocalization::categoryNameValue(self::idOf($category));
+    }
+
+    /** @param array<string, mixed> $tag */
+    public static function tagNameValue(array $tag): LocalizedValue
+    {
+        return BlogLocalization::tagNameValue(self::idOf($tag));
+    }
+
+    /** @param array<string, mixed> $row */
+    private static function idOf(array $row): int
+    {
+        return (int) ($row['id'] ?? 0);
+    }
+
+    /**
+     * Tag rows in the order their CMS labels read, as the alphabet of the
+     * DEFAULT language: the same order on every language of the site.
+     *
+     * @param list<array<string, mixed>> $tags
+     * @return list<array<string, mixed>>
+     */
+    private static function sortedByLabel(array $tags): array
+    {
+        usort($tags, static fn (array $a, array $b): int => strnatcasecmp(
+            BlogLocalization::tagLabel((int) $a['id']),
+            BlogLocalization::tagLabel((int) $b['id'])
+        ));
+
+        return $tags;
+    }
+
+    /**
+     * Every id in a per-post map of taxonomy rows, once.
+     *
+     * @param array<int, array<int, array<string, mixed>>> $byPostId
+     * @return list<int>
+     */
+    private static function idsOf(array $byPostId): array
+    {
+        $ids = [];
+        foreach ($byPostId as $rows) {
+            foreach ($rows as $row) {
+                $ids[(int) $row['id']] = true;
+            }
+        }
+
+        return array_map('intval', array_keys($ids));
     }
 
     /**
@@ -203,7 +310,7 @@ final class BlogContent
      */
     public static function excerpt(array $post, string $lang = 'nl'): string
     {
-        $own = Seo::pick($post['excerpt'] ?? '', $post['excerpt_en'] ?? '', $lang);
+        $own = BlogLocalization::post(self::idOf($post), BlogLocalization::EXCERPT, $lang);
 
         if (trim($own) !== '') {
             return trim($own);
@@ -213,27 +320,36 @@ final class BlogContent
     }
 
     /**
-     * The sanitised rich-text body, ready to print as markup.
+     * The sanitised rich-text body, ready to print as markup. The sanitizer is
+     * App\Service\Blog\BlogLocalization's, which is the Blog's only one.
      *
      * @param array<string, mixed> $post
      */
     public static function body(array $post, string $lang = 'nl'): string
     {
-        $html = Seo::pick($post['body'] ?? '', $post['body_en'] ?? '', $lang);
-
-        return (string) (RichTextSanitizer::sanitize($html) ?? '');
+        return BlogLocalization::body(self::idOf($post), $lang);
     }
 
     /** @param array<string, mixed> $category */
     public static function categoryName(array $category, string $lang = 'nl'): string
     {
-        return Seo::pick($category['name'] ?? '', $category['name_en'] ?? '', $lang);
+        return BlogLocalization::categoryName(self::idOf($category), $lang);
     }
 
     /** @param array<string, mixed> $tag */
     public static function tagName(array $tag, string $lang = 'nl'): string
     {
-        return Seo::pick($tag['name'] ?? '', $tag['name_en'] ?? '', $lang);
+        return BlogLocalization::tagName(self::idOf($tag), $lang);
+    }
+
+    /**
+     * A category's own short introduction above its archive, as a pair.
+     *
+     * @param array<string, mixed> $category
+     */
+    public static function categoryDescriptionValue(array $category): LocalizedValue
+    {
+        return BlogLocalization::categoryDescriptionValue(self::idOf($category));
     }
 
     /**
@@ -325,6 +441,13 @@ final class BlogContent
         $categories = $repository->categoriesForPosts($ids);
         $tags = $repository->tagsForPosts($ids);
 
+        // And the words of the lot in one query per store, so a page of nine
+        // cards with their category and tag chips costs three lookups rather
+        // than three per card.
+        BlogLocalization::preloadPosts($ids);
+        BlogLocalization::preloadCategories(self::idsOf($categories));
+        BlogLocalization::preloadTags(self::idsOf($tags));
+
         $decorated = [];
         foreach ($rows as $row) {
             $id = (int) $row['id'];
@@ -356,7 +479,14 @@ final class BlogContent
         $row['has_image'] = $row['image']['image_path'] !== '';
 
         $row['categories'] = array_map(static fn (array $category): array => self::decorateCategory($category), $categories);
-        $row['tags'] = array_map(static fn (array $tag): array => self::decorateTag($tag), $tags);
+        // Tags have no sort order of their own, so they used to be ordered on
+        // their Dutch name in SQL. They are sorted here instead, on what the
+        // CMS calls them, because the column is gone and an order that follows
+        // the reader's language would shuffle the chips per language.
+        $row['tags'] = self::sortedByLabel(array_map(
+            static fn (array $tag): array => self::decorateTag($tag),
+            $tags
+        ));
         // The PRIMARY category is simply the first one in the editor's own
         // ordering — there is no "is primary" column that could disagree with
         // it. A card shows this one; the detail page shows them all.
@@ -379,10 +509,11 @@ final class BlogContent
             return null;
         }
 
+        // Its id travels along, because that is what its words hang off since
+        // Multilingual 2.0 phase 5 wave B: the template asks
+        // BlogContent::titleValue() for the pair it prints.
         return [
             'id' => (int) $row['id'],
-            'title' => (string) $row['title'],
-            'title_en' => (string) ($row['title_en'] ?? ''),
             'url' => BlogUrls::postPath((string) $row['slug']),
         ];
     }
@@ -426,8 +557,14 @@ final class BlogContent
         $posts ??= new BlogPostRepository();
         $counts = $posts->publicCountsByCategory($now ?? BlogClock::nowForSql());
 
+        $active = (new BlogCategoryRepository())->allActive();
+        BlogLocalization::preloadCategories(array_map(
+            static fn (array $category): int => (int) $category['id'],
+            $active
+        ));
+
         $categories = [];
-        foreach ((new BlogCategoryRepository())->allActive() as $category) {
+        foreach ($active as $category) {
             $count = $counts[(int) $category['id']] ?? 0;
 
             if ($count < 1) {

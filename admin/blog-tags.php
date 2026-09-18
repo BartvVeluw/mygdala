@@ -4,11 +4,12 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../vendor/autoload.php';
 require_once __DIR__ . '/_translate.php';
-require_once __DIR__ . '/_language_fields.php';
+require_once __DIR__ . '/_localized_fields.php';
 
 use App\Repository\BlogPostRepository;
 use App\Repository\BlogTagRepository;
 use App\Service\AdminAuth;
+use App\Service\Blog\BlogLocalization;
 use App\Service\Blog\BlogSlug;
 use App\Service\Blog\BlogUrls;
 use App\Service\Csrf;
@@ -48,6 +49,17 @@ try {
 
 $csrfToken = Csrf::token();
 $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
+
+// The website language this screen's names are in, and the names of every
+// tag it is about to print — one query rather than one per row. The list
+// itself is sorted on what the CMS calls a tag, because a tag has no sort
+// order of its own and its name is no longer a column to ORDER BY.
+$editingLanguage = admin_localized_language();
+BlogLocalization::preloadTags(array_map(static fn (array $tag): int => (int) $tag['id'], $tags));
+usort($tags, static fn (array $a, array $b): int => strnatcasecmp(
+    BlogLocalization::tagLabel((int) $a['id']),
+    BlogLocalization::tagLabel((int) $b['id'])
+));
 
 $flash = $_SESSION['admin_blog_taxonomy_flash'] ?? null;
 $errors = $_SESSION['admin_blog_taxonomy_errors'] ?? [];
@@ -93,7 +105,7 @@ unset($_SESSION['admin_blog_taxonomy_flash'], $_SESSION['admin_blog_taxonomy_err
     <?php /* One indicator for the whole table rather than one per row: every
              row carries the same field in the same language, and the language
              is the CMS-wide editing language anyway. */ ?>
-    <?php admin_lang_bar(); ?>
+    <?php admin_localized_bar($editingLanguage); ?>
     <div class="admin-table-wrap">
     <table class="admin-table">
       <thead>
@@ -115,16 +127,13 @@ unset($_SESSION['admin_blog_taxonomy_flash'], $_SESSION['admin_blog_taxonomy_err
             <td>
               <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>" form="tag-form-<?= $tagId ?>">
               <input type="hidden" name="id" value="<?= $tagId ?>" form="tag-form-<?= $tagId ?>">
-              <?php /* Both names in ONE cell, one pane visible at a time. The
-                       hidden pane still submits — its control names the row's
-                       form, so where it sits in the DOM changes nothing about
-                       what gets saved. */ ?>
-              <?php admin_lang_pane_start('nl'); ?>
-                <input type="text" name="name" maxlength="100"<?= admin_lang_required('nl') ?> value="<?= $h((string) $tag['name']) ?>" form="tag-form-<?= $tagId ?>"<?= admin_lang_placeholder_attr('nl') ?>>
-              <?php admin_lang_pane_end(); ?>
-              <?php admin_lang_pane_start('en'); ?>
-                <input type="text" name="name_en" maxlength="100" value="<?= $h((string) ($tag['name_en'] ?? '')) ?>" form="tag-form-<?= $tagId ?>"<?= admin_lang_placeholder_attr('en') ?>>
-              <?php admin_lang_pane_end(); ?>
+              <?php /* ONE name, in the language this screen is editing
+                       (Multilingual 2.0 phase 5 wave B). The hidden
+                       language_code rides along on the row's own form, so
+                       saving a tag writes exactly that language and leaves
+                       every other name of the same tag standing. */ ?>
+              <?= admin_localized_input($editingLanguage, 'tag-form-' . $tagId) ?>
+              <input type="text" name="name" maxlength="<?= BlogLocalization::TAG_NAME_MAX_LENGTH ?>"<?= admin_localized_required($editingLanguage) ?> value="<?= $h(BlogLocalization::rawTagName($tagId, $editingLanguage)) ?>" form="tag-form-<?= $tagId ?>"<?= admin_localized_placeholder_attr($editingLanguage) ?>>
             </td>
             <td><input type="text" name="slug" maxlength="<?= BlogSlug::MAX_LENGTH ?>" required value="<?= $h((string) $tag['slug']) ?>" form="tag-form-<?= $tagId ?>"></td>
             <td>
@@ -158,6 +167,5 @@ unset($_SESSION['admin_blog_taxonomy_flash'], $_SESSION['admin_blog_taxonomy_err
     <?php endforeach; ?>
   <?php endif; ?>
 </main>
-<?php admin_lang_script(); ?>
 </body>
 </html>

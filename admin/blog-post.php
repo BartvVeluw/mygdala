@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../vendor/autoload.php';
 require_once __DIR__ . '/_media_picker.php';
-require_once __DIR__ . '/_language_fields.php';
+require_once __DIR__ . '/_localized_fields.php';
 require_once __DIR__ . '/_translate.php';
 require_once __DIR__ . '/_richtext_field.php';
 require_once __DIR__ . '/_save_bar.php';
@@ -14,6 +14,7 @@ use App\Repository\BlogCategoryRepository;
 use App\Repository\BlogPostRepository;
 use App\Service\AdminAuth;
 use App\Service\Blog\BlogClock;
+use App\Service\Blog\BlogLocalization;
 use App\Service\Blog\BlogPostService;
 use App\Service\Blog\BlogPostStatus;
 use App\Service\Blog\BlogSeo;
@@ -25,7 +26,7 @@ use App\Service\Media\MediaService;
 /**
  * One blog post's editor: three tabs over ONE form.
  *
- *   Inhoud      title, excerpt and body in both languages, the featured
+ *   Inhoud      title, excerpt and body in ONE website language, the featured
  *               image, the categories and the tags
  *   Publicatie  status, publication moment, author, and the post's URL
  *   SEO         SEO title, meta description, indexability, the social image
@@ -46,6 +47,13 @@ use App\Service\Media\MediaService;
  * plain textarea that Quill enhances — and the server sanitises what arrives
  * whichever of the two produced it. V1 gives a post a rich-text body rather
  * than a content-block layout on purpose (BLOG.md).
+ *
+ * ONE WEBSITE LANGUAGE at a time since Multilingual 2.0 phase 5 wave B, via
+ * admin/_localized_fields.php like every other converted screen: the language
+ * comes from the switch in the shell, its hidden field rides along on the one
+ * form, and the endpoint writes exactly that language. The panels that show
+ * language-neutral fields — the image, the categories, the tags, the status,
+ * the slug — show them in every language.
  */
 
 AdminAuth::requireLogin();
@@ -81,13 +89,30 @@ $updated = isset($_GET['updated']);
 $csrfToken = Csrf::token();
 $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
 
-/** Value precedence: a rejected save's own input, then what is stored. */
+// The website language this screen's words are in. ONE language on the
+// screen and in the request (Multilingual 2.0 phase 5 wave B), so saving
+// Dutch can never overwrite an English translation with a stale copy.
+$editingLanguage = admin_localized_language();
+
+/**
+ * Value precedence: a rejected save's own input, then what is stored FOR
+ * THIS LANGUAGE with no fallback — the fallback is the placeholder. A
+ * language-neutral column is read from the row as it always was.
+ */
 $fieldValue = static function (string $key) use ($old, $post): string {
     if ($old !== null && array_key_exists($key, $old)) {
         return (string) ($old[$key] ?? '');
     }
 
     return (string) ($post[$key] ?? '');
+};
+
+$word = static function (string $field) use ($old, $postId, $editingLanguage): string {
+    if ($old !== null && array_key_exists($field, $old)) {
+        return (string) ($old[$field] ?? '');
+    }
+
+    return BlogLocalization::rawPost($postId, $field, $editingLanguage);
 };
 
 $status = $old !== null ? BlogPostStatus::normalize($old['status'] ?? '') : BlogPostStatus::normalize($post['status']);
@@ -120,7 +145,7 @@ $forcedTab = $errors !== [] ? 'inhoud' : null;
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title><?= $h((string) $post['title']) ?> <?= admin_te('blog.admin') ?></title>
+<title><?= $h(BlogLocalization::postName($postId)) ?> <?= admin_te('blog.admin') ?></title>
 <link rel="stylesheet" href="<?= \App\Service\AssetVersion::url('/admin/assets/admin.css') ?>">
 <link rel="stylesheet" href="<?= \App\Service\AssetVersion::url('/admin/assets/vendor/quill/quill.snow.css') ?>">
 <script src="<?= \App\Service\AssetVersion::url('/admin/assets/vendor/quill/quill.min.js') ?>" defer></script>
@@ -132,7 +157,7 @@ $forcedTab = $errors !== [] ? 'inhoud' : null;
   <p><a href="/admin/blog.php"><?= admin_t('blog.terug_blogberichten') ?></a></p>
   <header class="admin-page-head">
     <div>
-      <h1 class="admin-page-head__title"><?= $h((string) $post['title']) ?></h1>
+      <h1 class="admin-page-head__title"><?= $h(BlogLocalization::postName($postId)) ?></h1>
       <p class="admin-page-head__desc">
         <?php if ($isPublic): ?>
           <?= admin_te('blog.post_is_online') ?>
@@ -177,49 +202,33 @@ $forcedTab = $errors !== [] ? 'inhoud' : null;
   <form method="post" action="/api/admin/update-blog-post.php">
     <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
     <input type="hidden" name="id" value="<?= $postId ?>">
+    <?php /* ONE language per request: the endpoint writes exactly this one and
+             leaves every other translation of this post alone. */ ?>
+    <?= admin_localized_input($editingLanguage) ?>
 
     <?php admin_tab_panel('inhoud'); ?>
     <section class="admin-card">
       <h2><?= admin_te('blog.tekst') ?></h2>
-      <p class="admin-text-muted"><?= admin_te('blog.nederlands_inhoud_laat_engels') ?></p>
 
-      <?php admin_lang_bar(); ?>
-      <div class="admin-form-row admin-form-row--split">
-        <?php admin_lang_pane_start('nl'); ?>
-        <label><?= admin_te('common.title') ?>*
-          <input type="text" name="title" maxlength="<?= BlogPostService::MAX_TITLE_LENGTH ?>" <?= admin_lang_required('nl') ?> value="<?= $h($fieldValue('title')) ?>">
+      <?php admin_localized_bar($editingLanguage); ?>
+      <div class="admin-form-row">
+        <label><?= admin_te('common.title') ?><?= admin_localized_required($editingLanguage) === '' ? '' : '*' ?>
+          <input type="text" name="title" maxlength="<?= BlogPostService::MAX_TITLE_LENGTH ?>"<?= admin_localized_required($editingLanguage) ?> value="<?= $h($word(BlogLocalization::TITLE)) ?>"<?= admin_localized_placeholder_attr($editingLanguage) ?>>
         </label>
-        <?php admin_lang_pane_end(); ?>
-        <?php admin_lang_pane_start('en'); ?>
-        <label><?= admin_te('common.title') ?>
-          <input type="text" name="title_en" maxlength="<?= BlogPostService::MAX_TITLE_LENGTH ?>" value="<?= $h($fieldValue('title_en')) ?>"<?= admin_lang_placeholder_attr('en') ?>>
-        </label>
-        <?php admin_lang_pane_end(); ?>
       </div>
 
-      <div class="admin-form-row admin-form-row--split">
-        <?php admin_lang_pane_start('nl'); ?>
+      <div class="admin-form-row">
         <label><?= admin_te('blog.samenvatting') ?>
-          <textarea name="excerpt" rows="3" maxlength="<?= BlogPostService::MAX_EXCERPT_LENGTH ?>"><?= $h($fieldValue('excerpt')) ?></textarea>
+          <textarea name="excerpt" rows="3" maxlength="<?= BlogPostService::MAX_EXCERPT_LENGTH ?>"<?= admin_localized_placeholder_attr($editingLanguage) ?>><?= $h($word(BlogLocalization::EXCERPT)) ?></textarea>
         </label>
-        <?php admin_lang_pane_end(); ?>
-        <?php admin_lang_pane_start('en'); ?>
-        <label><?= admin_te('blog.samenvatting_2') ?>
-          <textarea name="excerpt_en" rows="3" maxlength="<?= BlogPostService::MAX_EXCERPT_LENGTH ?>"<?= admin_lang_placeholder_attr('en') ?>><?= $h($fieldValue('excerpt_en')) ?></textarea>
-        </label>
-        <?php admin_lang_pane_end(); ?>
       </div>
       <p class="admin-text-muted"><?= admin_te('blog.samenvatting_staat_overzicht_rss') ?></p>
     </section>
 
     <section class="admin-card">
       <h2><?= admin_te('blog.bericht') ?></h2>
-      <?php admin_lang_pane_start('nl'); ?>
-        <?php renderRichTextField('body', 'Tekst', $fieldValue('body'), 'full', 'admin-richtext-editor--lg'); ?>
-      <?php admin_lang_pane_end(); ?>
-      <?php admin_lang_pane_start('en'); ?>
-        <?php renderRichTextField('body_en', 'Tekst', $fieldValue('body_en'), 'full', 'admin-richtext-editor--lg'); ?>
-      <?php admin_lang_pane_end(); ?>
+      <?php admin_localized_bar($editingLanguage); ?>
+      <?php renderRichTextField('body', 'Tekst', $word(BlogLocalization::BODY), 'full', 'admin-richtext-editor--lg'); ?>
     </section>
 
     <section class="admin-card">
@@ -316,33 +325,20 @@ $forcedTab = $errors !== [] ? 'inhoud' : null;
     <?php admin_tab_panel('seo'); ?>
     <section class="admin-card">
       <h2><?= admin_te('blog.seo') ?></h2>
-      <p class="admin-text-muted"><?= admin_t('blog.seo_title_fallback', ['blog' => $h(BlogSettings::title('nl')), 'site' => $h(\App\Service\SiteSettings::get('site_name'))]) ?></p>
+      <p class="admin-text-muted"><?= admin_t('blog.seo_title_fallback', ['blog' => $h(BlogSettings::title(BlogLocalization::defaultLanguage())), 'site' => $h(\App\Service\SiteSettings::get('site_name'))]) ?></p>
 
       <div class="admin-product-form admin-product-form--wide">
-        <?php admin_lang_pane_start('nl'); ?>
-          <div class="admin-form-row">
-            <label><?= admin_te('page.meta_title') ?>
-              <input type="text" name="meta_title" maxlength="<?= BlogPostService::MAX_META_TITLE_LENGTH ?>" value="<?= $h($fieldValue('meta_title')) ?>">
-            </label>
-          </div>
-          <div class="admin-form-row">
-            <label><?= admin_te('page.meta_description') ?>
-              <textarea name="meta_description" rows="3" maxlength="<?= BlogPostService::MAX_META_DESCRIPTION_LENGTH ?>"><?= $h($fieldValue('meta_description')) ?></textarea>
-            </label>
-          </div>
-        <?php admin_lang_pane_end(); ?>
-        <?php admin_lang_pane_start('en'); ?>
-          <div class="admin-form-row">
-            <label><?= admin_te('page.meta_title') ?>
-              <input type="text" name="meta_title_en" maxlength="<?= BlogPostService::MAX_META_TITLE_LENGTH ?>" value="<?= $h($fieldValue('meta_title_en')) ?>"<?= admin_lang_placeholder_attr('en') ?>>
-            </label>
-          </div>
-          <div class="admin-form-row">
-            <label><?= admin_te('page.meta_description') ?>
-              <textarea name="meta_description_en" rows="3" maxlength="<?= BlogPostService::MAX_META_DESCRIPTION_LENGTH ?>"<?= admin_lang_placeholder_attr('en') ?>><?= $h($fieldValue('meta_description_en')) ?></textarea>
-            </label>
-          </div>
-        <?php admin_lang_pane_end(); ?>
+        <?php admin_localized_bar($editingLanguage); ?>
+        <div class="admin-form-row">
+          <label><?= admin_te('page.meta_title') ?>
+            <input type="text" name="meta_title" maxlength="<?= BlogPostService::MAX_META_TITLE_LENGTH ?>" value="<?= $h($word(BlogLocalization::META_TITLE)) ?>"<?= admin_localized_placeholder_attr($editingLanguage) ?>>
+          </label>
+        </div>
+        <div class="admin-form-row">
+          <label><?= admin_te('page.meta_description') ?>
+            <textarea name="meta_description" rows="3" maxlength="<?= BlogPostService::MAX_META_DESCRIPTION_LENGTH ?>"<?= admin_localized_placeholder_attr($editingLanguage) ?>><?= $h($word(BlogLocalization::META_DESCRIPTION)) ?></textarea>
+          </label>
+        </div>
       </div>
 
       <h3 class="admin-seo-lang__title"><?= admin_te('blog.voorbeeld_google') ?></h3>
@@ -397,6 +393,5 @@ $forcedTab = $errors !== [] ? 'inhoud' : null;
 <?php save_bar_script(); ?>
 <?php media_picker_script(); ?>
 <?php admin_tabs_script(); ?>
-<?php admin_lang_script(); ?>
 </body>
 </html>

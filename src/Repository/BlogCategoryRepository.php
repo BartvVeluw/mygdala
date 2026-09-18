@@ -6,9 +6,18 @@ namespace App\Repository;
  * All `blog_categories` SQL.
  *
  * A category is an editorial grouping with its own public archive at
- * /blog/categorie/<slug>, so it carries a name, a slug, an optional short
- * description and a sort order. It carries no hierarchy: there are no parent
- * categories, and that is a decision rather than an omission (BLOG.md).
+ * /blog/categorie/<slug>, so it carries a slug, a sort order and — since
+ * Multilingual 2.0 phase 5 wave B, per website language in
+ * blog_category_translations — a name and an optional short description. It
+ * carries no hierarchy: there are no parent categories, and that is a decision
+ * rather than an omission (BLOG.md).
+ *
+ * ORDER IS LANGUAGE-NEUTRAL. The list used to fall back to the Dutch name when
+ * two categories shared a sort order; it now falls back to the id, because an
+ * order that depends on the reader's language would put the same two
+ * categories in a different order on every language of the site. The CMS's own
+ * sort order still decides, and nextPosition() gives every new category a
+ * distinct one.
  *
  * Deleting one is SAFE BY CONSTRUCTION: `blog_post_categories` cascades, so
  * the link rows go and the posts themselves are untouched. A post that loses
@@ -63,7 +72,7 @@ class BlogCategoryRepository extends Repository
     public function all(): array
     {
         return $this->db
-            ->query('SELECT * FROM blog_categories ORDER BY sort_order ASC, name ASC, id ASC')
+            ->query('SELECT * FROM blog_categories ORDER BY sort_order ASC, id ASC')
             ->fetchAll();
     }
 
@@ -75,7 +84,7 @@ class BlogCategoryRepository extends Repository
     public function allActive(): array
     {
         return $this->db
-            ->query('SELECT * FROM blog_categories WHERE is_active = 1 ORDER BY sort_order ASC, name ASC, id ASC')
+            ->query('SELECT * FROM blog_categories WHERE is_active = 1 ORDER BY sort_order ASC, id ASC')
             ->fetchAll();
     }
 
@@ -90,13 +99,18 @@ class BlogCategoryRepository extends Repository
     }
 
     /**
+     * Adds a category row. Its NAME and DESCRIPTION are not here: since
+     * Multilingual 2.0 phase 5 wave B they live per website language in
+     * blog_category_translations and are written through
+     * App\Service\Blog\BlogLocalization, in the same transaction as this row.
+     *
      * @param array<string, mixed> $values
      */
     public function create(array $values): int
     {
         $stmt = $this->db->prepare(
-            'INSERT INTO blog_categories (name, name_en, slug, description, description_en, is_active, sort_order, created_at, updated_at)
-             VALUES (:name, :name_en, :slug, :description, :description_en, :is_active, :sort_order, NOW(), NOW())'
+            'INSERT INTO blog_categories (slug, is_active, sort_order, created_at, updated_at)
+             VALUES (:slug, :is_active, :sort_order, NOW(), NOW())'
         );
         $stmt->execute($this->parameters($values));
 
@@ -113,9 +127,7 @@ class BlogCategoryRepository extends Repository
 
         $stmt = $this->db->prepare(
             'UPDATE blog_categories
-             SET name = :name, name_en = :name_en, slug = :slug, description = :description,
-                 description_en = :description_en, is_active = :is_active, sort_order = :sort_order,
-                 updated_at = NOW()
+             SET slug = :slug, is_active = :is_active, sort_order = :sort_order, updated_at = NOW()
              WHERE id = :id'
         );
         $stmt->execute($parameters);
@@ -147,20 +159,9 @@ class BlogCategoryRepository extends Repository
     private function parameters(array $values): array
     {
         return [
-            'name' => (string) ($values['name'] ?? ''),
-            'name_en' => self::nullIfEmpty($values['name_en'] ?? null),
             'slug' => (string) ($values['slug'] ?? ''),
-            'description' => self::nullIfEmpty($values['description'] ?? null),
-            'description_en' => self::nullIfEmpty($values['description_en'] ?? null),
             'is_active' => (int) (bool) ($values['is_active'] ?? true),
             'sort_order' => (int) ($values['sort_order'] ?? 0),
         ];
-    }
-
-    private static function nullIfEmpty(mixed $value): ?string
-    {
-        $value = trim((string) ($value ?? ''));
-
-        return $value === '' ? null : $value;
     }
 }

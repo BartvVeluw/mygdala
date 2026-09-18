@@ -10,6 +10,7 @@ use App\Repository\BlogTagRepository;
 use App\Service\Blog\BlogClock;
 use App\Service\Blog\BlogContent;
 use App\Service\Blog\BlogPostService;
+use App\Service\Blog\BlogLocalization;
 use App\Service\Blog\BlogPostStatus;
 use App\Service\Blog\BlogSettings;
 use App\Service\Blog\BlogSlug;
@@ -78,7 +79,7 @@ final class BlogPostLifecycleTest extends TestCase
     {
         $id = $this->createPost([
             'title' => 'Testbericht over hout',
-            'title_en' => 'Test post about wood',
+
             'excerpt' => 'Korte samenvatting.',
             'body' => '<p>De inhoud.</p>',
             'author_name' => 'Testauteur',
@@ -89,24 +90,39 @@ final class BlogPostLifecycleTest extends TestCase
         $post = $this->posts->find($id);
 
         $this->assertNotNull($post);
-        $this->assertSame('Testbericht over hout', $post['title']);
-        $this->assertSame('Test post about wood', $post['title_en']);
-        $this->assertSame('Korte samenvatting.', $post['excerpt']);
-        $this->assertSame('<p>De inhoud.</p>', $post['body']);
         $this->assertSame('Testauteur', $post['author_name']);
+
+        // The words are rows now, one per website language (Multilingual 2.0
+        // phase 5 wave B). The fixture wrote them in the default language.
+        BlogLocalization::clearCache();
+        $default = BlogLocalization::defaultLanguage();
+        $this->assertSame('Testbericht over hout', BlogLocalization::rawPost($id, BlogLocalization::TITLE, $default));
+        $this->assertSame('Korte samenvatting.', BlogLocalization::rawPost($id, BlogLocalization::EXCERPT, $default));
+        $this->assertSame('<p>De inhoud.</p>', BlogLocalization::rawPost($id, BlogLocalization::BODY, $default));
         $this->assertSame(BlogPostStatus::PUBLISHED, $post['status']);
     }
 
-    /** An empty optional field is NULL, not an empty string — the fallbacks test for it. */
-    public function testAnEmptyOptionalFieldIsStoredAsNull(): void
+    /**
+     * An empty field is NO WORDS, which since Multilingual 2.0 phase 5 wave B
+     * means no value in the row of that language — and a language with nothing
+     * at all in it has no row. "Not written" and "written as nothing" are one
+     * state, and the fallbacks test for exactly that.
+     */
+    public function testAnEmptyOptionalFieldIsStoredAsNoWords(): void
     {
-        $id = $this->createPost(['title' => 'Testbericht zonder extras', 'title_en' => '', 'excerpt' => '']);
+        $id = $this->createPost(['title' => 'Testbericht zonder extras', 'excerpt' => '']);
 
         $post = $this->posts->find($id);
-
-        $this->assertNull($post['title_en']);
-        $this->assertNull($post['excerpt']);
         $this->assertNull($post['published_at']);
+
+        BlogLocalization::clearCache();
+        $default = BlogLocalization::defaultLanguage();
+        $this->assertSame('', BlogLocalization::rawPost($id, BlogLocalization::EXCERPT, $default));
+        $this->assertSame(
+            ['title' => 'Testbericht zonder extras'],
+            BlogLocalization::posts()->words($id)[$default] ?? [],
+            'only the field that had words has a value'
+        );
     }
 
     public function testDeletingAPostRemovesItAndItsTaxonomyLinksAndNothingElse(): void
@@ -293,11 +309,25 @@ final class BlogPostLifecycleTest extends TestCase
         $this->assertStringContainsString('publicatiedatum', implode(' ', $errors));
     }
 
-    public function testAPostWithoutATitleIsRefused(): void
+    /**
+     * A title is required in the DEFAULT language and optional in every other
+     * one, because a translation falls back (Multilingual 2.0 phase 5 wave B).
+     */
+    public function testAPostWithoutATitleIsRefusedInTheDefaultLanguageOnly(): void
     {
-        $errors = BlogPostService::validate(['title' => '   ', 'status' => BlogPostStatus::DRAFT]);
+        $default = BlogLocalization::defaultLanguage();
 
-        $this->assertContains('Titel is verplicht.', $errors);
+        $this->assertContains('Titel is verplicht.', BlogPostService::validate([
+            'language_code' => $default,
+            'title' => '   ',
+            'status' => BlogPostStatus::DRAFT,
+        ]));
+
+        $this->assertNotContains('Titel is verplicht.', BlogPostService::validate([
+            'language_code' => $default === 'en' ? 'nl' : 'en',
+            'title' => '   ',
+            'status' => BlogPostStatus::DRAFT,
+        ]));
     }
 
     /* ------------------------------------------------------------------ */
@@ -308,11 +338,8 @@ final class BlogPostLifecycleTest extends TestCase
     {
         $id = $this->createPost([
             'title' => 'Testbericht tweetalig',
-            'title_en' => '',
             'excerpt' => 'Nederlandse samenvatting.',
-            'excerpt_en' => '',
             'body' => '<p>Nederlandse tekst.</p>',
-            'body_en' => '',
         ]);
         $post = $this->posts->find($id);
 
@@ -325,10 +352,17 @@ final class BlogPostLifecycleTest extends TestCase
     {
         $id = $this->createPost([
             'title' => 'Testbericht tweetalig twee',
-            'title_en' => 'Bilingual test post two',
             'excerpt' => 'NL',
-            'excerpt_en' => 'EN',
         ]);
+
+        // A translation is a SECOND save, of one language (Multilingual 2.0
+        // phase 5 wave B), and it leaves the default language alone.
+        BlogLocalization::savePost($id, 'en', [
+            BlogLocalization::TITLE => 'Bilingual test post two',
+            BlogLocalization::EXCERPT => 'EN',
+        ]);
+        BlogLocalization::clearCache();
+
         $post = $this->posts->find($id);
 
         $this->assertSame('Bilingual test post two', BlogContent::title($post, 'en'));
@@ -474,8 +508,14 @@ final class BlogPostLifecycleTest extends TestCase
         );
         $values['status'] ??= BlogPostStatus::DRAFT;
 
-        $id = $this->posts->create($values);
+        $words = array_intersect_key($values, BlogLocalization::POST_FIELDS);
+        $id = $this->posts->create(array_diff_key($values, BlogLocalization::POST_FIELDS));
         $this->createdPosts[] = $id;
+
+        if ($words !== []) {
+            // Words per website language since Multilingual 2.0 phase 5 wave B.
+            BlogLocalization::savePost($id, BlogLocalization::defaultLanguage(), array_map('strval', $words));
+        }
 
         return $id;
     }

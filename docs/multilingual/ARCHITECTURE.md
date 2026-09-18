@@ -941,12 +941,97 @@ bereikt via `SectionRegistry::renderPage()`, die bij een mislukte paginalookup
 helemaal niets rendert, dus het net kon nooit iets vangen. Het was ook de
 laatste vaste NL/EN-opslag van deze module, in code.
 
+### Blog (golf B)
+
+| Tabel | Eigenaar | Velden (max) | Domein-API |
+|---|---|---|---|
+| `blog_post_translations` | `blog_post_id` | `title` (200), `excerpt` (500), `body` (rich, 50000), `meta_title` (255), `meta_description` (500) | `App\Service\Blog\BlogLocalization` |
+| `blog_category_translations` | `blog_category_id` | `name` (150), `description` (500) | idem |
+| `blog_tag_translations` | `blog_tag_id` | `name` (100) | idem |
+
+Dezelfde vorm en dezelfde regels als golf A. Eén verschil in de *oude* opslag:
+bij Blog was de Nederlandse helft de **kale** kolom (`title`, niet `title_nl`)
+en droeg alleen de Engelse een achtervoegsel. Beide houden hun V1-betekenis.
+
+**De slug is niet verhuisd, en dat is het punt.** `blog_posts.slug`,
+`blog_categories.slug` en `blog_tags.slug` zijn enkelvoudig en taalneutraal, en
+dat blijven ze: `/blog/<slug>`, `/blog/categorie/<slug>` en `/blog/tag/<slug>`
+antwoorden na deze golf precies wat ze ervoor antwoordden, en elke opgeslagen
+redirect van een hernoemd archief (`BlogTaxonomy`) blijft wijzen waar hij
+wees. Een slug per taal vraagt een router die hem gebruikt, en dat is fase 6;
+nu zou het een tweede bron van waarheid zijn die niemand leest. De slug van een
+nieuw bericht of een nieuwe categorie komt uit de titel in de **standaardtaal**.
+`MultilingualBoundaryTest` en `BlogWordsMigrationTest` bewaken beide kanten:
+geen vertaaltabel van Blog kent het woord `slug`, en na de migratie staat elke
+slug nog op zijn eigen rij.
+
+**Eén sanitizer, op één plek.** `body` is het enige rich veld.
+`BlogLocalization::body()` en `bodyValue()` halen het door de bestaande
+`RichTextSanitizer` — per taal, vóór de terugval, net als bij Portfolio — en
+`api/admin/update-blog-post.php` doet hetzelfde op de weg naar binnen. Nergens
+anders in de Blog wordt gesaneerd, en `MultilingualBoundaryTest` faalt zodra
+dat verandert.
+
+**Twee vormen van dezelfde woorden.** `BlogContent::title()/excerpt()/body()`
+geven één taal — dat is wat de SEO-kop, de RSS-feed en de JSON-LD willen —
+en `titleValue()`, `excerptValue()`, `bodyValue()`, `categoryNameValue()` en
+`tagNameValue()` geven één `LocalizedValue`, wat een template via `SiteText`
+print. `blog.php` en `blog-post.php` staan op de tweede vorm, dus een bericht
+op een Engelstalige site opent in het Engels; de vaste `data-nl`/`data-en` van
+de UI-woorden ("Alles", "Lees verder") blijven tot de flip.
+
+**De RSS-feed is de standaardtaal.** Eén document op één adres, zonder
+taalwissel, dus het zegt wat een bezoeker zonder keuze ziet. Dat stond er
+letterlijk als `'nl'` en is nu `BlogLocalization::defaultLanguage()`; op elke
+bestaande installatie is dat hetzelfde. Een feed per taal hoort bij de URL's
+die hem zouden dragen.
+
+**Sorteren mag niet van de lezer afhangen.** Een naam was een kolom om op te
+sorteren: `blog_categories` viel bij een gelijke `sort_order` terug op de
+Nederlandse naam, en `blog_tags` had helemaal geen andere orde dan zijn naam.
+Beide sorteren nu taalneutraal — categorieën op `sort_order`, dan `id`; tags op
+`id` — en waar een alfabetische lijst telt, sorteert de leeslaag op het
+**CMS-label** (de standaardtaal), zodat de chips en de tagbeheerder op elke
+taal van de site dezelfde volgorde hebben. `MultilingualBoundaryTest` faalt
+zodra een Blog-query weer op woorden sorteert.
+
+**Zoeken kijkt in élke taal.** De titelzoekbalk van `admin/blog.php` gebruikte
+twee kolommen, `title` en `title_en`. Nu vraagt hij
+`BlogLocalization::postIdsMatchingTitle()`, en die vraagt
+`EntityTranslations::ownersMatching()` — nieuw in het fundament — om de
+eigenaars met een treffer in wélke taal dan ook. `BlogPostRepository` krijgt
+daarna alleen id's, want een domeinrepository noemt geen vertaaltabel in zijn
+eigen SQL. Geen treffers is iets anders dan niet zoeken, dus dat is een eigen
+sleutel (`title_ids`) en geen leeg zoekwoord.
+
+**Identiteit versus label.** Welke categorieën en tags een bericht heeft, in
+welke volgorde, en welke slug ze hebben is in elke taal gelijk; alleen hun
+label verschilt. Een tag hernoemen in een tweede taal maakt geen tweede tag,
+en een tag die op een bericht wordt getypt wordt **hergebruikt** op zijn slug —
+nooit hernoemd. Een nieuwe tag wordt in de standaardtaal benoemd, zodat een
+chip nooit leeg kan zijn.
+
+**De editors.** `admin/blog-post.php` (drie tabbladen, één formulier),
+`admin/blog-categories.php` en `admin/blog-tags.php` staan op
+`admin/_localized_fields.php`. De tagbeheerder is een tabel met één formulier
+per rij, dus zijn besturingselementen staan buiten hun formulier;
+`admin_localized_input()` heeft daarvoor een tweede argument gekregen, het
+`form`-id — zonder dat zou het verborgen taalveld bij geen enkel formulier
+horen en zou het endpoint geen taal horen.
+
+**De migraties.** `20260918180000` maakt de drie tabellen, `20260918190000`
+verhuist zestien kolommen en dropt ze in dezelfde stap, met hetzelfde
+`INSERT … SELECT` + `UPDATE … JOIN`-paar per veld per taal als golf A.
+
 ### Wat fase 5 nog moet doen
 
-Na golf A staat er nog `_nl`/`_en` in Blog (`blog_posts`, `blog_categories`,
-`blog_tags`), Shop (`products`, `collections`, `order_items` en de gedeelde
-koppen `site_settings.related_products_heading_nl/en`) en Personalisatie
-(`product_personalization_settings`, `_views`, `_zones`).
+Na golf B staat er nog `_nl`/`_en` in Shop (`products`, `collections`,
+`order_items` en de gedeelde koppen
+`site_settings.related_products_heading_nl/en`) en Personalisatie
+(`product_personalization_settings`, `_views`, `_zones`). Daarnaast houdt de
+Blog twee **instellingssleutels** in zijn eigen `blog_settings`:
+`blog_title(_en)` en `blog_intro(_en)`. Die zijn bewust niet meeverhuisd in
+golf B — zie het fase-5-rapport voor de reden en de drie opties.
 `BlockImage::fromRow()` blijft tot dan voor Blog bestaan, en
 `SiteText::attrs()`/`visible()` voor alles wat nog kolommen heeft. De tijdelijke
 uitvoeradapter (`BlockLocalization::bilingual()`,
@@ -1049,3 +1134,5 @@ providerklassen blijven ongebruikt staan.
 | Tests fase 4 | `EntityTranslationsTest`, `FormFieldTypeTest` (`fast`); `LocalizedSiteSettingsTest`, `NavigationFooterTranslationTest`, `NavigationAdminHttpTest`, `FooterAdminHttpTest`, `FormAdminHttpTest`, `FormFieldEditorHttpTest` (`cms`); `NavigationFooterLabelMigrationTest`, `LocalizedSiteSettingMigrationTest`, `FormWordsAndOptionMigrationTest` (`migration`); de fase-4-grenzen in `MultilingualBoundaryTest`; test-helper `Tests\Support\FormFixture` |
 | Fase 5 golf A: Portfolio | `db/migrations/20260918160000_create_the_portfolio_translation_tables.php`, `20260918170000_move_portfolio_words_into_translation_tables.php`; `src/Service/PortfolioLocalization.php`; `PortfolioGalleryContent`, `CollectionGalleryItems`, `partials/section-item-gallery.php`, `portfolio-detail.php`, `admin/portfolio.php`, `admin/portfolio-item.php` en de vier `*-portfolio-*`-endpoints |
 | Tests fase 5 golf A | `PortfolioLocalizationTest` (`fast`); `PortfolioTranslationTest`, `PortfolioItemContentTest`, `PortfolioItemEditingHttpTest`, `PortfolioProjectPageTest`, `PortfolioPageLinkTest` (`cms`); `PortfolioModuleHttpTest` (`modules`, ook het bewaren bij module uit/aan); `PortfolioWordsMigrationTest` (`migration`); de golf-A-grenzen in `MultilingualBoundaryTest` |
+| Fase 5 golf B: Blog | `db/migrations/20260918180000_create_the_blog_translation_tables.php`, `20260918190000_move_blog_words_into_translation_tables.php`; `src/Service/Blog/BlogLocalization.php`; `BlogContent`, `BlogSeo`, `BlogFeed`, `BlogPostService`, `BlogPostMediaUsage`, de drie Blog-repositories, `blog.php`, `blog-post.php`, `admin/blog*.php` en de vijf `*-blog-*`-endpoints; `EntityTranslations::ownersMatching()` in het fundament |
+| Tests fase 5 golf B | `BlogLocalizationTest` (`fast`); `BlogPostLifecycleTest`, `BlogTaxonomyTest`, `BlogSeoTest`, `BlogMediaAndSettingsTest` (`blog`); `BlogWordsMigrationTest` (`migration` en `blog`); de golf-B-grenzen in `MultilingualBoundaryTest` |

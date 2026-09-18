@@ -46,6 +46,8 @@ use App\Service\Blog\BlogContent;
 use App\Service\Blog\BlogSeo;
 use App\Service\Blog\BlogSettings;
 use App\Service\Blog\BlogUrls;
+use App\Service\Language\LanguageRegistry;
+use App\Service\Language\SiteText;
 use App\Service\PageAssets;
 use App\Service\Redirects\RedirectGate;
 
@@ -88,18 +90,23 @@ if ($listing === null) {
         $category = (array) $listing['category'];
         $eyebrowNl = 'Categorie';
         $eyebrowEn = 'Category';
-        $headingNl = BlogContent::categoryName($category, 'nl');
-        $headingEn = BlogContent::categoryName($category, 'en');
-        $introNl = (string) ($category['description'] ?? '');
-        $introEn = (string) ($category['description_en'] ?? '') !== ''
-            ? (string) $category['description_en']
-            : $introNl;
+        // An archive's heading and introduction are the category's own words,
+        // per website language since Multilingual 2.0 phase 5 wave B. The
+        // template still prints the V1 pair; each half already carries the
+        // fallback.
+        $heading = BlogContent::categoryNameValue($category);
+        $headingNl = $heading->in(LanguageRegistry::DUTCH);
+        $headingEn = $heading->in(LanguageRegistry::ENGLISH);
+        $intro = BlogContent::categoryDescriptionValue($category);
+        $introNl = $intro->in(LanguageRegistry::DUTCH);
+        $introEn = $intro->in(LanguageRegistry::ENGLISH);
     } elseif ($listing['mode'] === 'tag') {
         $tag = (array) $listing['tag'];
         $eyebrowNl = 'Tag';
         $eyebrowEn = 'Tag';
-        $headingNl = BlogContent::tagName($tag, 'nl');
-        $headingEn = BlogContent::tagName($tag, 'en');
+        $heading = BlogContent::tagNameValue($tag);
+        $headingNl = $heading->in(LanguageRegistry::DUTCH);
+        $headingEn = $heading->in(LanguageRegistry::ENGLISH);
         $introNl = '';
         $introEn = '';
     }
@@ -190,7 +197,8 @@ require __DIR__ . '/partials/header.php';
           <a href="<?= $h(BlogUrls::indexPath()) ?>" class="blog-filter<?= $listing['mode'] === 'index' ? ' is-active' : '' ?>"<?= $listing['mode'] === 'index' ? ' aria-current="page"' : '' ?> data-nl="Alles" data-en="All">Alles</a>
           <?php foreach ($listing['categories'] as $category): ?>
             <?php $isActive = $listing['mode'] === 'category' && (int) $listing['category']['id'] === (int) $category['id']; ?>
-            <a href="<?= $h((string) $category['url']) ?>" class="blog-filter<?= $isActive ? ' is-active' : '' ?>"<?= $isActive ? ' aria-current="page"' : '' ?> data-nl="<?= $h(BlogContent::categoryName($category, 'nl')) ?>" data-en="<?= $h(BlogContent::categoryName($category, 'en')) ?>"><?= $h(BlogContent::categoryName($category, 'nl')) ?></a>
+            <?php $categoryName = BlogContent::categoryNameValue($category); ?>
+            <a href="<?= $h((string) $category['url']) ?>" class="blog-filter<?= $isActive ? ' is-active' : '' ?>"<?= $isActive ? ' aria-current="page"' : '' ?><?= SiteText::attrsOf($categoryName) ?>><?= $h(SiteText::visibleOf($categoryName)) ?></a>
           <?php endforeach; ?>
         </nav>
       <?php endif; ?>
@@ -201,10 +209,12 @@ require __DIR__ . '/partials/header.php';
         <div class="blog-grid">
           <?php foreach ($listing['posts'] as $post): ?>
             <?php
-              $titleNl = BlogContent::title($post, 'nl');
-              $titleEn = BlogContent::title($post, 'en');
-              $excerptNl = BlogContent::excerpt($post, 'nl');
-              $excerptEn = BlogContent::excerpt($post, 'en');
+              // One LocalizedValue per field, printed through SiteText: the
+              // visible half is the DEFAULT language's, so a card on an
+              // English-default site opens in English (Multilingual 2.0
+              // phase 5 wave B).
+              $title = BlogContent::titleValue($post);
+              $excerpt = BlogContent::excerptValue($post);
               $image = $post['image'];
             ?>
             <article class="blog-card" data-reveal>
@@ -221,15 +231,16 @@ require __DIR__ . '/partials/header.php';
                 <div class="blog-card__body">
                   <p class="blog-card__meta">
                     <?php if ($post['primary_category'] !== null): ?>
-                      <span class="blog-card__category" data-nl="<?= $h(BlogContent::categoryName($post['primary_category'], 'nl')) ?>" data-en="<?= $h(BlogContent::categoryName($post['primary_category'], 'en')) ?>"><?= $h(BlogContent::categoryName($post['primary_category'], 'nl')) ?></span>
+                      <?php $primary = BlogContent::categoryNameValue($post['primary_category']); ?>
+                      <span class="blog-card__category"<?= SiteText::attrsOf($primary) ?>><?= $h(SiteText::visibleOf($primary)) ?></span>
                     <?php endif; ?>
                     <?php if (BlogSettings::showDate() && BlogContent::publicationDate($post['published_at']) !== ''): ?>
                       <time datetime="<?= $h(BlogContent::publicationDateAttribute($post['published_at'])) ?>" data-nl="<?= $h(BlogContent::publicationDate($post['published_at'], 'nl')) ?>" data-en="<?= $h(BlogContent::publicationDate($post['published_at'], 'en')) ?>"><?= $h(BlogContent::publicationDate($post['published_at'], 'nl')) ?></time>
                     <?php endif; ?>
                   </p>
-                  <h2 class="blog-card__title" data-nl="<?= $h($titleNl) ?>" data-en="<?= $h($titleEn) ?>"><?= $h($titleNl) ?></h2>
-                  <?php if ($excerptNl !== ''): ?>
-                    <p class="blog-card__excerpt" data-nl="<?= $h($excerptNl) ?>" data-en="<?= $h($excerptEn) ?>"><?= $h($excerptNl) ?></p>
+                  <h2 class="blog-card__title"<?= SiteText::attrsOf($title) ?>><?= $h(SiteText::visibleOf($title)) ?></h2>
+                  <?php if (SiteText::visibleOf($excerpt) !== ''): ?>
+                    <p class="blog-card__excerpt"<?= SiteText::attrsOf($excerpt) ?>><?= $h(SiteText::visibleOf($excerpt)) ?></p>
                   <?php endif; ?>
                   <span class="blog-card__more" data-nl="Lees verder" data-en="Read more">Lees verder</span>
                 </div>

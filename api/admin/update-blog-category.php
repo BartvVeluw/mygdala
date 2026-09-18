@@ -20,7 +20,11 @@ use App\Service\Language\AdminTranslator;
 use App\Repository\BlogCategoryRepository;
 use App\Service\AdminAuth;
 use App\Service\Blog\BlogSlug;
+use App\Database;
+use App\Service\Blog\BlogLocalization;
 use App\Service\Blog\BlogTaxonomy;
+use App\Service\Language\LanguageCode;
+use App\Service\Language\SiteLanguages;
 use App\Service\Csrf;
 
 AdminAuth::requireLoginForApi();
@@ -43,7 +47,8 @@ if ($id === false || $id === null || $id < 1) {
     exit('Invalid category id.');
 }
 
-$repository = new BlogCategoryRepository();
+$db = Database::connection();
+$repository = new BlogCategoryRepository($db);
 $category = $repository->find($id);
 
 if ($category === null) {
@@ -51,14 +56,36 @@ if ($category === null) {
     exit('Category not found.');
 }
 
+// ONE LANGUAGE per request (Multilingual 2.0 phase 5 wave B): the name
+// and description written are those of the language `language_code` names,
+// and every other translation of this category stays as it is. A name is
+// required only in the DEFAULT language.
+$language = LanguageCode::normalise((string) ($_POST['language_code'] ?? '')) ?? '';
 $name = trim((string) ($_POST['name'] ?? ''));
+$description = trim((string) ($_POST['description'] ?? ''));
 $slug = BlogSlug::sanitize((string) ($_POST['slug'] ?? ''));
 $isActive = ($_POST['is_active'] ?? '0') === '1';
 
 $errors = [];
 
-if ($name === '') {
-    $errors[] = AdminTranslator::trans('validation.geef_categorie_naam');
+if ($language === '' || !SiteLanguages::isActive($language)) {
+    $errors[] = AdminTranslator::trans('validation.language_unknown');
+} else {
+    $problems = BlogLocalization::categories()->problems(
+        $language,
+        [BlogLocalization::NAME => $name, BlogLocalization::DESCRIPTION => $description],
+        [BlogLocalization::NAME]
+    );
+
+    if (($problems[BlogLocalization::NAME] ?? null) === 'missing') {
+        $errors[] = AdminTranslator::trans('validation.geef_categorie_naam');
+    }
+    foreach ($problems as $problem) {
+        if ($problem === 'too_long') {
+            $errors[] = AdminTranslator::trans('validation.naam_mag_maximaal_100_tekens');
+            break;
+        }
+    }
 }
 
 $slugError = BlogSlug::validationError(
@@ -77,18 +104,24 @@ if ($errors !== []) {
 }
 
 try {
+    // Row and words are ONE transaction.
+    $db->beginTransaction();
     $repository->update($id, [
-        'name' => mb_substr($name, 0, 150),
-        'name_en' => mb_substr(trim((string) ($_POST['name_en'] ?? '')), 0, 150),
         'slug' => $slug,
-        'description' => mb_substr(trim((string) ($_POST['description'] ?? '')), 0, 500),
-        'description_en' => mb_substr(trim((string) ($_POST['description_en'] ?? '')), 0, 500),
         'is_active' => $isActive,
         'sort_order' => (int) ($_POST['sort_order'] ?? 0),
     ]);
+    BlogLocalization::saveCategory($id, $language, [
+        BlogLocalization::NAME => $name,
+        BlogLocalization::DESCRIPTION => $description,
+    ]);
+    $db->commit();
 
     $_SESSION['admin_blog_taxonomy_flash'] = 'Categorie "' . $name . '" is opgeslagen.';
 } catch (\Throwable $e) {
+    if ($db->inTransaction()) {
+        $db->rollBack();
+    }
     error_log('[api/admin/update-blog-category.php] ' . $e->getMessage());
     $_SESSION['admin_blog_taxonomy_errors'] = ['De categorie kon niet worden opgeslagen. Probeer het opnieuw.'];
     header('Location: /admin/blog-categories.php');

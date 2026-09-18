@@ -141,9 +141,15 @@ function admin_localized_bar(string $language): void
  * fields of this form hold. Once per form. The endpoint checks it against the
  * registry; it never becomes a column name.
  */
-function admin_localized_input(string $language): string
+function admin_localized_input(string $language, string $formId = ''): string
 {
-    return '<input type="hidden" name="language_code" value="' . htmlspecialchars($language, ENT_QUOTES, 'UTF-8') . '">';
+    // $formId is for a screen whose controls sit OUTSIDE the form they submit
+    // to — a table with one form per row, like admin/blog-tags.php. Without
+    // it the hidden field would belong to no form and the endpoint would hear
+    // no language at all.
+    return '<input type="hidden" name="language_code" value="' . htmlspecialchars($language, ENT_QUOTES, 'UTF-8') . '"'
+        . ($formId === '' ? '' : ' form="' . htmlspecialchars($formId, ENT_QUOTES, 'UTF-8') . '"')
+        . '>';
 }
 
 /**

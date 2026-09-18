@@ -9,6 +9,7 @@ use App\Repository\BlogCategoryRepository;
 use App\Repository\BlogPostRepository;
 use App\Service\AdminAuth;
 use App\Service\Blog\BlogClock;
+use App\Service\Blog\BlogLocalization;
 use App\Service\Blog\BlogPostStatus;
 use App\Service\Blog\BlogUrls;
 use App\Service\Csrf;
@@ -48,15 +49,25 @@ $search = trim((string) ($_GET['q'] ?? ''));
 
 try {
     $repository = new BlogPostRepository();
-    $posts = $repository->findForAdmin([
-        'status' => $statusFilter,
-        'category_id' => $categoryFilter,
-        'search' => $search,
-    ]);
+    // The title search is answered by the words store, which looks in
+    // EVERY website language (Multilingual 2.0 phase 5 wave B); the query
+    // then narrows on the ids it found. No search at all is a different
+    // thing from a search that matched nothing, hence the array_filter.
+    $filters = ['status' => $statusFilter, 'category_id' => $categoryFilter];
+    if ($search !== '') {
+        $filters['title_ids'] = BlogLocalization::postIdsMatchingTitle($search);
+    }
+
+    $posts = $repository->findForAdmin($filters);
     $postIds = array_map(static fn (array $post): int => (int) $post['id'], $posts);
     $categoriesByPost = $repository->categoriesForPosts($postIds);
+    BlogLocalization::preloadPosts($postIds);
     $counts = $repository->countsByStatus();
     $categories = (new BlogCategoryRepository())->all();
+    BlogLocalization::preloadCategories(array_map(
+        static fn (array $category): int => (int) $category['id'],
+        $categories
+    ));
     $loadFailed = false;
 } catch (\Throwable $e) {
     error_log('[admin/blog.php] ' . $e->getMessage());
@@ -161,13 +172,13 @@ foreach (array_keys(BlogPostStatus::LABELS) as $statusKey) {
       <?php endif; ?>
       <div class="admin-form-row admin-form-row--split">
         <label><?= admin_te('blog.zoeken_titel') ?>
-          <input type="search" name="q" value="<?= $h($search) ?>" placeholder="Zoek in NL- en EN-titels">
+          <input type="search" name="q" value="<?= $h($search) ?>" placeholder="Zoek in titels, in elke taal">
         </label>
         <label><?= admin_te('blog.categorie') ?>
           <select name="category">
             <option value=""><?= admin_te('blog.alle_categorie_n') ?></option>
             <?php foreach ($categories as $category): ?>
-              <option value="<?= (int) $category['id'] ?>" <?= $categoryFilter === (int) $category['id'] ? 'selected' : '' ?>><?= $h((string) $category['name']) ?></option>
+              <option value="<?= (int) $category['id'] ?>" <?= $categoryFilter === (int) $category['id'] ? 'selected' : '' ?>><?= $h(BlogLocalization::categoryLabel((int) $category['id'])) ?></option>
             <?php endforeach; ?>
           </select>
         </label>
@@ -212,7 +223,7 @@ foreach (array_keys(BlogPostStatus::LABELS) as $statusKey) {
           ?>
           <tr>
             <td>
-              <a href="/admin/blog-post.php?id=<?= $postId ?>"><?= $h((string) $post['title']) ?></a>
+              <a href="/admin/blog-post.php?id=<?= $postId ?>"><?= $h(BlogLocalization::postName($postId)) ?></a>
               <?php if ($isPublic): ?>
                 <br><a class="admin-text-muted" href="<?= $h(BlogUrls::postPath((string) $post['slug'])) ?>" target="_blank" rel="noopener"><?= $h(BlogUrls::postPath((string) $post['slug'])) ?></a>
               <?php endif; ?>
@@ -232,7 +243,7 @@ foreach (array_keys(BlogPostStatus::LABELS) as $statusKey) {
               <?php if ($postCategories === []): ?>
                 <span class="admin-text-muted">—</span>
               <?php else: ?>
-                <?= $h(implode(', ', array_map(static fn (array $category): string => (string) $category['name'], $postCategories))) ?>
+                <?= $h(implode(', ', array_map(static fn (array $category): string => BlogLocalization::categoryLabel((int) $category['id']), $postCategories))) ?>
               <?php endif; ?>
             </td>
             <td><?= $h(BlogClock::forAdmin($post['updated_at'])) ?></td>

@@ -68,17 +68,24 @@ final class BlogPostMediaUsage extends MediaUsageProvider
         // prepares off, so the same positional set is passed again rather
         // than a named placeholder being reused.
         $stmt = Database::connection()->prepare(
-            'SELECT id, title, featured_media_id, og_media_id
+            'SELECT id, featured_media_id, og_media_id
              FROM blog_posts
              WHERE featured_media_id IN (' . $placeholders . ')
                 OR og_media_id IN (' . $placeholders . ')'
         );
         $stmt->execute([...$ids, ...$ids]);
 
+        $rows = $stmt->fetchAll();
+
+        // The title is not a column of this table any more (Multilingual 2.0
+        // phase 5 wave B): it is what the CMS calls the post, in the default
+        // language, and one lookup covers every row.
+        BlogLocalization::preloadPosts(array_map(static fn (array $row): int => (int) $row['id'], $rows));
+
         $usages = [];
 
-        foreach ($stmt->fetchAll() as $row) {
-            $title = (string) $row['title'];
+        foreach ($rows as $row) {
+            $title = BlogLocalization::postName((int) $row['id']);
             $editUrl = '/admin/blog-post.php?id=' . (int) $row['id'];
 
             foreach (['featured_media_id', 'og_media_id'] as $column) {

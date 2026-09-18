@@ -28,10 +28,14 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../../vendor/autoload.php';
 
+use App\Database;
 use App\Service\Language\AdminTranslator;
+use App\Service\Language\LanguageCode;
+use App\Service\Language\SiteLanguages;
 use App\Repository\BlogCategoryRepository;
 use App\Repository\BlogPostRepository;
 use App\Service\AdminAuth;
+use App\Service\Blog\BlogLocalization;
 use App\Service\Blog\BlogPostService;
 use App\Service\Blog\BlogPostStatus;
 use App\Service\Blog\BlogSlug;
@@ -59,7 +63,8 @@ if ($id === false || $id === null || $id < 1) {
     exit('Invalid post id.');
 }
 
-$repository = new BlogPostRepository();
+$db = Database::connection();
+$repository = new BlogPostRepository($db);
 $post = $repository->find($id);
 
 if ($post === null) {
@@ -67,16 +72,21 @@ if ($post === null) {
     exit('Post not found.');
 }
 
+// ONE LANGUAGE per request (Multilingual 2.0 phase 5 wave B): the words
+// written are those of the language `language_code` names, which must be an
+// active website language. Every other translation of this post stays exactly
+// as it is. The rich body travels along unsanitized here and is cleaned on
+// its way into storage, as it always was.
+$language = LanguageCode::normalise((string) ($_POST['language_code'] ?? '')) ?? '';
+
 $submitted = [
+    'language_code' => $language,
     'title' => trim((string) ($_POST['title'] ?? '')),
-    'title_en' => trim((string) ($_POST['title_en'] ?? '')),
     'excerpt' => trim((string) ($_POST['excerpt'] ?? '')),
-    'excerpt_en' => trim((string) ($_POST['excerpt_en'] ?? '')),
+    'body' => (string) ($_POST['body'] ?? ''),
     'author_name' => trim((string) ($_POST['author_name'] ?? '')),
     'meta_title' => trim((string) ($_POST['meta_title'] ?? '')),
-    'meta_title_en' => trim((string) ($_POST['meta_title_en'] ?? '')),
     'meta_description' => trim((string) ($_POST['meta_description'] ?? '')),
-    'meta_description_en' => trim((string) ($_POST['meta_description_en'] ?? '')),
     'status' => trim((string) ($_POST['status'] ?? '')),
     'published_at' => trim((string) ($_POST['published_at'] ?? '')),
 ];
@@ -87,6 +97,10 @@ $submitted = [
 $noindex = ($_POST['noindex'] ?? '0') === '1';
 
 $errors = BlogPostService::validate($submitted);
+
+if ($language === '' || !SiteLanguages::isActive($language)) {
+    $errors[] = AdminTranslator::trans('validation.language_unknown');
+}
 
 $slugInput = trim((string) ($_POST['slug'] ?? ''));
 $slug = BlogSlug::sanitize($slugInput);
@@ -130,8 +144,6 @@ if ($errors !== []) {
     $_SESSION['admin_blog_post_errors'] = $errors;
     $_SESSION['admin_blog_post_old'] = $submitted + [
         'slug' => $slugInput,
-        'body' => (string) ($_POST['body'] ?? ''),
-        'body_en' => (string) ($_POST['body_en'] ?? ''),
         'noindex' => $noindex,
         'categories' => $categoryIds,
         'tags' => $tagLine,
@@ -143,32 +155,42 @@ if ($errors !== []) {
 $status = BlogPostStatus::normalize($submitted['status']);
 
 try {
+    // Row, words, categories and tags are ONE transaction.
+    $db->beginTransaction();
     $repository->update($id, [
-        'title' => $submitted['title'],
-        'title_en' => $submitted['title_en'],
         'slug' => $slug,
-        'excerpt' => $submitted['excerpt'],
-        'excerpt_en' => $submitted['excerpt_en'],
-        'body' => RichTextSanitizer::sanitize((string) ($_POST['body'] ?? '')),
-        'body_en' => RichTextSanitizer::sanitize((string) ($_POST['body_en'] ?? '')),
         'featured_media_id' => $featuredMedia?->id,
         'status' => $status,
         'published_at' => BlogPostService::resolvePublishedAt($status, $submitted['published_at']),
         'author_name' => $submitted['author_name'],
-        'meta_title' => $submitted['meta_title'],
-        'meta_title_en' => $submitted['meta_title_en'],
-        'meta_description' => $submitted['meta_description'],
-        'meta_description_en' => $submitted['meta_description_en'],
         'noindex' => $noindex,
         'og_media_id' => $socialMedia?->id,
     ]);
 
+    BlogLocalization::savePost($id, $language, [
+        BlogLocalization::TITLE => $submitted['title'],
+        BlogLocalization::EXCERPT => $submitted['excerpt'],
+        BlogLocalization::BODY => RichTextSanitizer::sanitize($submitted['body']),
+        BlogLocalization::META_TITLE => $submitted['meta_title'],
+        BlogLocalization::META_DESCRIPTION => $submitted['meta_description'],
+    ]);
+
     $repository->setCategories($id, $categoryIds);
     $repository->setTags($id, BlogPostService::resolveTagIds($tagLine));
+    $db->commit();
 } catch (\Throwable $e) {
+    if ($db->inTransaction()) {
+        $db->rollBack();
+    }
     error_log('[api/admin/update-blog-post.php] ' . $e->getMessage());
 
     $_SESSION['admin_blog_post_errors'] = ['Het bericht kon niet worden opgeslagen. Probeer het opnieuw.'];
+    $_SESSION['admin_blog_post_old'] = $submitted + [
+        'slug' => $slugInput,
+        'noindex' => $noindex,
+        'categories' => $categoryIds,
+        'tags' => $tagLine,
+    ];
     header('Location: /admin/blog-post.php?id=' . $id);
     exit;
 }

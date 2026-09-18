@@ -75,6 +75,40 @@ final class EntityTranslationRepository extends Repository
     }
 
     /**
+     * The owners whose $field contains $needle IN ANY LANGUAGE — what a CMS
+     * search box needs, and the reason it lives here: a domain repository must
+     * not name a translation table in its own SQL
+     * (Tests\Service\MultilingualBoundaryTest).
+     *
+     * Searching every language rather than a chosen one is deliberate: an
+     * editor looking for a post looks for a title they remember, and which
+     * language they remember it in is not the search's business.
+     *
+     * $needle is matched with LIKE and escaped for it, so a search for "50%"
+     * or "a_b" finds those characters rather than any two characters.
+     *
+     * @return list<int> ascending, each owner once
+     */
+    public function ownersMatching(string $field, string $needle): array
+    {
+        if (!$this->table->has($field) || trim($needle) === '') {
+            return [];
+        }
+
+        $stmt = $this->db->prepare(
+            "SELECT DISTINCT `{$this->table->ownerColumn}` AS owner_id
+               FROM `{$this->table->name}`
+              WHERE `{$field}` LIKE :needle
+              ORDER BY owner_id ASC"
+        );
+        $stmt->execute([
+            'needle' => '%' . str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $needle) . '%',
+        ]);
+
+        return array_map('intval', $stmt->fetchAll(PDO::FETCH_COLUMN));
+    }
+
+    /**
      * Writes one language's row of one owner: a new row, or every field of
      * the existing row replaced.
      *

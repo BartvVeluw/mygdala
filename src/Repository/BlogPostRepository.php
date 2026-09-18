@@ -279,7 +279,15 @@ class BlogPostRepository extends Repository
      * listed whatever its status — this is the editorial view, not a public
      * one — newest publication date first, then newest created.
      *
-     * @param array{status?: string, category_id?: int, search?: string} $filters
+     * `title_ids` is how the title search arrives since Multilingual 2.0
+     * phase 5 wave B: the caller asks App\Service\Blog\BlogLocalization which
+     * posts have a matching title in any website language and passes the ids,
+     * because a post's words are not columns of this table any more and a
+     * domain repository does not name a translation table in its own SQL. An
+     * empty list means "nothing matched", which is not the same as no search
+     * at all — hence a separate key rather than an empty `search`.
+     *
+     * @param array{status?: string, category_id?: int, title_ids?: list<int>} $filters
      *
      * @return array<int, array<string, mixed>>
      */
@@ -301,15 +309,21 @@ class BlogPostRepository extends Repository
             $params['category_id'] = $categoryId;
         }
 
-        $search = trim((string) ($filters['search'] ?? ''));
-        if ($search !== '') {
-            // Title only, in both languages. A full-text search over the body
-            // is a different feature with different costs; an editor looking
-            // for a post looks for its title.
-            $where[] = '(p.title LIKE :search OR p.title_en LIKE :search_en)';
-            $escaped = '%' . str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $search) . '%';
-            $params['search'] = $escaped;
-            $params['search_en'] = $escaped;
+        // Title only. A full-text search over the body is a different feature
+        // with different costs; an editor looking for a post looks for its
+        // title. The matching is done by the words store (see the docblock);
+        // ids that came back from nowhere match nothing at all.
+        if (array_key_exists('title_ids', $filters)) {
+            $ids = array_values(array_unique(array_filter(
+                array_map('intval', (array) $filters['title_ids']),
+                static fn (int $id): bool => $id > 0
+            )));
+
+            if ($ids === []) {
+                return [];
+            }
+
+            $where[] = 'p.id IN (' . implode(', ', $ids) . ')';
         }
 
         $sql = 'SELECT p.* FROM blog_posts p' . $join
@@ -404,7 +418,7 @@ class BlogPostRepository extends Repository
             'SELECT pc.category_id FROM blog_post_categories pc
              INNER JOIN blog_categories c ON c.id = pc.category_id
              WHERE pc.post_id = :post_id
-             ORDER BY c.sort_order ASC, c.name ASC'
+             ORDER BY c.sort_order ASC, c.id ASC'
         );
         $stmt->execute(['post_id' => $postId]);
 
@@ -418,7 +432,7 @@ class BlogPostRepository extends Repository
             'SELECT pt.tag_id FROM blog_post_tags pt
              INNER JOIN blog_tags t ON t.id = pt.tag_id
              WHERE pt.post_id = :post_id
-             ORDER BY t.name ASC'
+             ORDER BY t.id ASC'
         );
         $stmt->execute(['post_id' => $postId]);
 
@@ -440,7 +454,7 @@ class BlogPostRepository extends Repository
             'SELECT pc.post_id, c.* FROM blog_post_categories pc
              INNER JOIN blog_categories c ON c.id = pc.category_id
              WHERE pc.post_id IN (%s)
-             ORDER BY c.sort_order ASC, c.name ASC'
+             ORDER BY c.sort_order ASC, c.id ASC'
         );
     }
 
@@ -456,7 +470,7 @@ class BlogPostRepository extends Repository
             'SELECT pt.post_id, t.* FROM blog_post_tags pt
              INNER JOIN blog_tags t ON t.id = pt.tag_id
              WHERE pt.post_id IN (%s)
-             ORDER BY t.name ASC'
+             ORDER BY t.id ASC'
         );
     }
 
@@ -627,10 +641,14 @@ class BlogPostRepository extends Repository
      */
     private function parameters(array $values): array
     {
+        // The WORDS are not here: since Multilingual 2.0 phase 5 wave B
+        // title, excerpt, body, meta_title and meta_description live per
+        // website language in blog_post_translations and are written through
+        // App\Service\Blog\BlogLocalization, in the same transaction as this
+        // row. What is left is the slug and everything that is the same in
+        // every language.
         $columns = [
-            'title', 'title_en', 'slug', 'excerpt', 'excerpt_en', 'body', 'body_en',
-            'featured_media_id', 'status', 'published_at', 'author_name',
-            'meta_title', 'meta_title_en', 'meta_description', 'meta_description_en',
+            'slug', 'featured_media_id', 'status', 'published_at', 'author_name',
             'noindex', 'og_media_id',
         ];
 
@@ -647,10 +665,10 @@ class BlogPostRepository extends Repository
                 'noindex' => (int) (bool) $value,
                 'featured_media_id', 'og_media_id' => ($value === null || (int) $value <= 0) ? null : (int) $value,
                 'status' => BlogPostStatus::normalize($value),
-                // The two NOT NULL columns are stored as given: they are
-                // validated before they get here, and turning an empty one
-                // into NULL would swap a rejected save for a fatal.
-                'title', 'slug' => (string) $value,
+                // The one NOT NULL column is stored as given: it is validated
+                // before it gets here, and turning an empty one into NULL
+                // would swap a rejected save for a fatal.
+                'slug' => (string) $value,
                 // Everywhere else an empty field IS "nothing", so it is
                 // stored as NULL rather than as an empty string — the
                 // bilingual fallback and the SEO hierarchy both test for it.

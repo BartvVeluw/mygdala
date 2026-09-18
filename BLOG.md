@@ -57,24 +57,37 @@ voorgoed onbereikbaar zijn.
 
 ## Het berichtmodel
 
-Eén tabel, `blog_posts`, met de naamgeving van `collections`: NL is de kolom
-zonder achtervoegsel, EN krijgt `_en`, en een lege EN-waarde valt terug op NL.
+Twee tabellen sinds fase 5 van Multilingual 2.0: `blog_posts` voor alles wat
+in elke taal gelijk is, en `blog_post_translations` voor de woorden — één rij
+per bericht per websitetaal, gelezen en geschreven door
+`App\Service\Blog\BlogLocalization`. Er zijn geen `_nl`/`_en`-kolommen meer.
 
 ```text
-title / title_en                     verplicht
-slug                                 uniek; de laatste segment van /blog/<slug>
-excerpt / excerpt_en                 platte tekst, voor de kaart en de feed
-body / body_en                       gesaneerde rich-text-HTML
-featured_media_id                    → media (ON DELETE RESTRICT)
-status                               draft | published | scheduled
-published_at                         wanneer het naar buiten mag
-author_name                          vrije tekst, geen koppeling naar een account
-meta_title / meta_title_en           SEO
-meta_description / meta_description_en
-noindex
-og_media_id                          eigen deel-afbeelding, → media
-created_at, updated_at
+blog_posts
+  slug                               uniek; het laatste segment van /blog/<slug>
+  featured_media_id                  → media (ON DELETE RESTRICT)
+  status                             draft | published | scheduled
+  published_at                       wanneer het naar buiten mag
+  author_name                        vrije tekst, geen koppeling naar een account
+  noindex
+  og_media_id                        eigen deel-afbeelding, → media
+  created_at, updated_at
+
+blog_post_translations               UNIQUE(blog_post_id, language_code)
+  title                              verplicht in de standaardtaal
+  excerpt                            platte tekst, voor de kaart en de feed
+  body                               gesaneerde rich-text-HTML
+  meta_title, meta_description       SEO
 ```
+
+**Eén slug, taalneutraal.** `/blog/<slug>` is één adres, wat een bezoeker ook
+leest; een bericht vertalen verplaatst het nooit. De slug komt bij het
+aanmaken uit de titel in de **standaardtaal**. Gelokaliseerde URL's zijn
+fase 6 van Multilingual 2.0.
+
+**De terugval** is die van het hele CMS: de gevraagde taal, de standaardtaal,
+leeg. En de standaardtaal beslist: een bericht met alleen een Engelse titel op
+een Nederlandstalige site heeft geen titel.
 
 **`author_name` is met opzet geen foreign key** naar `admin_users`: wie een
 bericht schreef en wiens account het opsloeg zijn twee verschillende vragen, en
@@ -107,15 +120,17 @@ seconde vóór en één seconde ná het moment — te testen is zonder te wachte
 
 ## Taxonomie
 
-**Categorieën** zijn de vaste indeling: naam NL/EN, slug, optionele korte
-omschrijving NL/EN, een actief-vinkje en een volgorde. Een bericht mag in
+**Categorieën** zijn de vaste indeling: een slug, een actief-vinkje, een
+volgorde, en per websitetaal een naam en een optionele korte omschrijving
+(`blog_category_translations`). Een bericht mag in
 meerdere categorieën staan. De **primaire** categorie — die op een kaart en
 boven een bericht staat — is simpelweg de eerste in de volgorde die de
 redacteur zelf instelde. Er is geen `is_primary`-kolom die daarmee in
 tegenspraak kan raken. Een inactieve categorie geeft een 404 op zijn archief
 en staat niet in de sitemap; zijn berichten blijven gewoon bereikbaar.
 
-**Tags** zijn een naam, een optionele EN-naam en een slug. Meer niet: geen
+**Tags** zijn een slug en, per websitetaal, een naam
+(`blog_tag_translations`). Meer niet: geen
 hiërarchie, geen omschrijving, geen eigen SEO-teksten. Ze worden aangemaakt
 waar ze gebruikt worden — op een bericht — en de **genormaliseerde slug is de
 identiteit**, dus "Laser graveren", "laser-graveren" en "LASER GRAVEREN" zijn
@@ -161,8 +176,8 @@ zegt er "nog niet zichtbaar" bij.
 **De editor** is één formulier over drie tabbladen (`admin/_admin_tabs.php`):
 
 ```text
-[ Inhoud ]  titel, samenvatting, tekst NL/EN, uitgelichte afbeelding,
-            categorieën, tags
+[ Inhoud ]  titel, samenvatting en tekst in één websitetaal, plus de
+            uitgelichte afbeelding, de categorieën en de tags
 [ Publicatie ]  status, publicatiedatum en -tijd, auteur, slug
 [ SEO ]  SEO-titel, meta description, indexeerbaarheid, deel-afbeelding,
          en een voorbeeld van het zoekresultaat
@@ -177,6 +192,14 @@ opslagbalk (`admin/_save_bar.php`) bewaakt datzelfde formulier.
 De tekst is het gedeelde rich-text-veld (`admin/_richtext_field.php`): een
 gewone `<textarea>` die Quill vervangt als hij laadt. De server saneert wat
 binnenkomt, welke van de twee het ook stuurde.
+
+**Eén websitetaal per keer**, via `admin/_localized_fields.php` zoals elk
+ander omgezet scherm (fase 5 van Multilingual 2.0): de taal komt uit de
+schakelaar in de schil, rijdt mee als verborgen veld op het ene formulier, en
+het endpoint schrijft precies die taal. De taalneutrale velden — de
+afbeelding, de categorieën, de tags, de status, de slug — staan er in elke
+taal. Een nieuw bericht en een nieuwe categorie worden in de standaardtaal
+geschreven; het zoekveld op het overzicht zoekt in élke taal.
 
 ## Publieke kant
 
@@ -347,6 +370,15 @@ RSS-feed                      aan
 Meer wordt dit niet. Hoe de blog eruitziet komt uit Vormgeving, net als bij
 elke andere pagina; een tweede vormgevingsscherm voor één module is precies wat
 een module duur maakt.
+
+**De twee tekstinstellingen staan nog op NL/EN.** `blog_title_en` en
+`blog_intro_en` zijn sleutels in `blog_settings`, de eigen sleutel/waarde-tabel
+van de module. Fase 5 van Multilingual 2.0 heeft de *entiteiten* van de Blog
+omgezet en deze twee bewust laten staan: ze naar `site_setting_translations`
+brengen zou Core een sleutel laten dragen die alleen de Blog begrijpt, precies
+wat `BlogSettings` in zijn eigen docblock afwijst, en een eigen
+vertaaltabel voor sleutel/waarde-instellingen is in die fase uitgesloten. Zie
+`docs/multilingual/ARCHITECTURE.md`, *Wat fase 5 nog moet doen*.
 
 ## Testen
 

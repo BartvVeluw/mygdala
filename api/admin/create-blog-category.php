@@ -9,6 +9,12 @@
  *
  * A new category is ACTIVE and lands after the last one in the ordering, so
  * it works the moment it is made and nothing else moves.
+ *
+ * ITS NAME IS WRITTEN IN THE DEFAULT LANGUAGE (Multilingual 2.0 phase 5
+ * wave B), like a new page and every new row since phase 3B: the slug comes
+ * from that name and never changes again by itself, so a category cannot be
+ * born in a translation. Row and name are one transaction. Translating it, and
+ * giving it a description, happens on its own card afterwards.
  */
 
 declare(strict_types=1);
@@ -16,7 +22,9 @@ declare(strict_types=1);
 require_once __DIR__ . '/../../vendor/autoload.php';
 
 use App\Service\Language\AdminTranslator;
+use App\Database;
 use App\Repository\BlogCategoryRepository;
+use App\Service\Blog\BlogLocalization;
 use App\Service\AdminAuth;
 use App\Service\Blog\BlogSlug;
 use App\Service\Csrf;
@@ -35,19 +43,25 @@ if (!Csrf::validate($_POST['csrf_token'] ?? null)) {
     exit('Invalid or missing CSRF token.');
 }
 
+// A new category is always written in the default language, whatever the
+// screen's editing language is, so `language_code` from the form is not
+// consulted here — this is the one place that decides it.
+$language = BlogLocalization::defaultLanguage();
 $name = trim((string) ($_POST['name'] ?? ''));
 
-if ($name === '') {
+if ($name === '' || mb_strlen($name) > BlogLocalization::CATEGORY_NAME_MAX_LENGTH) {
     $_SESSION['admin_blog_taxonomy_errors'] = [AdminTranslator::trans('validation.geef_categorie_naam')];
     header('Location: /admin/blog-categories.php');
     exit;
 }
 
-try {
-    $repository = new BlogCategoryRepository();
+$db = Database::connection();
+$repository = new BlogCategoryRepository($db);
 
-    $repository->create([
-        'name' => mb_substr($name, 0, 150),
+try {
+    $db->beginTransaction();
+
+    $id = $repository->create([
         'slug' => BlogSlug::unique(
             (string) ($_POST['slug'] ?? ''),
             $name,
@@ -56,9 +70,15 @@ try {
         'is_active' => true,
         'sort_order' => $repository->nextPosition(),
     ]);
+    BlogLocalization::saveCategory($id, $language, [BlogLocalization::NAME => $name]);
+
+    $db->commit();
 
     $_SESSION['admin_blog_taxonomy_flash'] = 'Categorie "' . $name . '" is aangemaakt.';
 } catch (\Throwable $e) {
+    if ($db->inTransaction()) {
+        $db->rollBack();
+    }
     error_log('[api/admin/create-blog-category.php] ' . $e->getMessage());
     $_SESSION['admin_blog_taxonomy_errors'] = ['De categorie kon niet worden aangemaakt. Probeer het opnieuw.'];
 }

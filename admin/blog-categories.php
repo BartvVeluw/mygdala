@@ -5,11 +5,12 @@ declare(strict_types=1);
 require_once __DIR__ . '/../vendor/autoload.php';
 require_once __DIR__ . '/_translate.php';
 
-require_once __DIR__ . '/_language_fields.php';
+require_once __DIR__ . '/_localized_fields.php';
 
 use App\Repository\BlogCategoryRepository;
 use App\Repository\BlogPostRepository;
 use App\Service\AdminAuth;
+use App\Service\Blog\BlogLocalization;
 use App\Service\Blog\BlogSlug;
 use App\Service\Blog\BlogUrls;
 use App\Service\Csrf;
@@ -48,6 +49,15 @@ try {
 
 $csrfToken = Csrf::token();
 $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
+
+// The website language this screen's words are in, and the words of every
+// category it is about to print — one query rather than one per row.
+$editingLanguage = admin_localized_language();
+$isDefaultLanguage = $editingLanguage === admin_localized_default();
+BlogLocalization::preloadCategories(array_map(
+    static fn (array $category): int => (int) $category['id'],
+    $categories
+));
 
 $flash = $_SESSION['admin_blog_taxonomy_flash'] ?? null;
 $errors = $_SESSION['admin_blog_taxonomy_errors'] ?? [];
@@ -97,23 +107,17 @@ unset($_SESSION['admin_blog_taxonomy_flash'], $_SESSION['admin_blog_taxonomy_err
       $postCount = $posts === null ? 0 : $posts->countByCategory($categoryId);
     ?>
     <section class="admin-card">
-      <h2><?= $h((string) $category['name']) ?></h2>
+      <h2><?= $h(BlogLocalization::categoryLabel($categoryId)) ?></h2>
       <form method="post" action="/api/admin/update-blog-category.php" class="admin-product-form admin-product-form--wide">
         <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
         <input type="hidden" name="id" value="<?= $categoryId ?>">
 
-        <?php admin_lang_bar(); ?>
-        <div class="admin-form-row admin-form-row--split">
-          <?php admin_lang_pane_start('nl'); ?>
-          <label><?= admin_te('common.name') ?>*
-            <input type="text" name="name" maxlength="150" <?= admin_lang_required('nl') ?> value="<?= $h((string) $category['name']) ?>">
+        <?php admin_localized_bar($editingLanguage); ?>
+        <?= admin_localized_input($editingLanguage) ?>
+        <div class="admin-form-row">
+          <label><?= admin_te('common.name') ?><?= $isDefaultLanguage ? '*' : '' ?>
+            <input type="text" name="name" maxlength="<?= BlogLocalization::CATEGORY_NAME_MAX_LENGTH ?>"<?= admin_localized_required($editingLanguage) ?> value="<?= $h(BlogLocalization::rawCategory($categoryId, BlogLocalization::NAME, $editingLanguage)) ?>"<?= admin_localized_placeholder_attr($editingLanguage) ?>>
           </label>
-          <?php admin_lang_pane_end(); ?>
-          <?php admin_lang_pane_start('en'); ?>
-          <label><?= admin_te('common.name') ?>
-            <input type="text" name="name_en" maxlength="150" value="<?= $h((string) ($category['name_en'] ?? '')) ?>"<?= admin_lang_placeholder_attr('en') ?>>
-          </label>
-          <?php admin_lang_pane_end(); ?>
         </div>
 
         <div class="admin-form-row admin-form-row--split">
@@ -125,17 +129,10 @@ unset($_SESSION['admin_blog_taxonomy_flash'], $_SESSION['admin_blog_taxonomy_err
           </label>
         </div>
 
-        <div class="admin-form-row admin-form-row--split">
-          <?php admin_lang_pane_start('nl'); ?>
+        <div class="admin-form-row">
           <label><?= admin_te('blog.korte_omschrijving') ?>
-            <textarea name="description" rows="2" maxlength="500"><?= $h((string) ($category['description'] ?? '')) ?></textarea>
+            <textarea name="description" rows="2" maxlength="<?= BlogLocalization::CATEGORY_DESCRIPTION_MAX_LENGTH ?>"<?= admin_localized_placeholder_attr($editingLanguage) ?>><?= $h(BlogLocalization::rawCategory($categoryId, BlogLocalization::DESCRIPTION, $editingLanguage)) ?></textarea>
           </label>
-          <?php admin_lang_pane_end(); ?>
-          <?php admin_lang_pane_start('en'); ?>
-          <label><?= admin_te('blog.korte_omschrijving_2') ?>
-            <textarea name="description_en" rows="2" maxlength="500"<?= admin_lang_placeholder_attr('en') ?>><?= $h((string) ($category['description_en'] ?? '')) ?></textarea>
-          </label>
-          <?php admin_lang_pane_end(); ?>
         </div>
         <p class="admin-text-muted"><?= admin_te('blog.omschrijving_staat_boven_categorie') ?></p>
 
@@ -165,18 +162,22 @@ unset($_SESSION['admin_blog_taxonomy_flash'], $_SESSION['admin_blog_taxonomy_err
 
   <section class="admin-card">
     <h2><?= admin_te('blog.nieuwe_categorie') ?></h2>
+    <?php /* A NEW category is written in the DEFAULT language, like a new page
+             and every new item since phase 3B: its slug is generated from that
+             name. Translating it happens on its own card afterwards. */ ?>
     <form method="post" action="/api/admin/create-blog-category.php" class="admin-product-form">
       <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
+      <?= admin_localized_input(admin_localized_default()) ?>
       <label><?= admin_te('common.name') ?>*
-        <input type="text" name="name" maxlength="150" required placeholder="Bijvoorbeeld: Achter de schermen">
+        <input type="text" name="name" maxlength="<?= BlogLocalization::CATEGORY_NAME_MAX_LENGTH ?>" required placeholder="Bijvoorbeeld: Achter de schermen">
       </label>
       <label><?= admin_te('blog.url_slug_2') ?>
         <input type="text" name="slug" maxlength="<?= BlogSlug::MAX_LENGTH ?>" placeholder="Leeg = automatisch uit de naam">
       </label>
       <button type="submit"><?= admin_te('blog.categorie_aanmaken') ?></button>
     </form>
+    <?php admin_localized_new_item_note($editingLanguage); ?>
   </section>
 </main>
-<?php admin_lang_script(); ?>
 </body>
 </html>

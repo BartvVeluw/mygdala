@@ -17,7 +17,9 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../../vendor/autoload.php';
 
+use App\Database;
 use App\Repository\BlogPostRepository;
+use App\Service\Blog\BlogLocalization;
 use App\Service\AdminAuth;
 use App\Service\Blog\BlogPostService;
 use App\Service\Blog\BlogPostStatus;
@@ -37,6 +39,10 @@ if (!Csrf::validate($_POST['csrf_token'] ?? null)) {
     exit('Invalid or missing CSRF token.');
 }
 
+// A NEW POST IS WRITTEN IN THE DEFAULT LANGUAGE (Multilingual 2.0 phase 5
+// wave B), like a new page: its slug comes from that title, and translating
+// it happens on the post itself afterwards.
+$language = BlogLocalization::defaultLanguage();
 $title = trim((string) ($_POST['title'] ?? ''));
 
 if ($title === '') {
@@ -47,16 +53,26 @@ if ($title === '') {
 
 $title = mb_substr($title, 0, BlogPostService::MAX_TITLE_LENGTH);
 
+$db = Database::connection();
+$repository = new BlogPostRepository($db);
+
 try {
-    $repository = new BlogPostRepository();
+    // Row and title are ONE transaction: a post is never in the overview
+    // without the title that names it there.
+    $db->beginTransaction();
 
     $postId = $repository->create([
-        'title' => $title,
         'slug' => BlogPostService::slugFor('', $title, $repository),
         'status' => BlogPostStatus::DRAFT,
         'published_at' => null,
     ]);
+    BlogLocalization::savePost($postId, $language, [BlogLocalization::TITLE => $title]);
+
+    $db->commit();
 } catch (\Throwable $e) {
+    if ($db->inTransaction()) {
+        $db->rollBack();
+    }
     error_log('[api/admin/create-blog-post.php] ' . $e->getMessage());
     $_SESSION['admin_blog_errors'] = ['Het bericht kon niet worden aangemaakt. Probeer het opnieuw.'];
     header('Location: /admin/blog.php');

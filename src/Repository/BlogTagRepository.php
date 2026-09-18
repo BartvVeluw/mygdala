@@ -10,13 +10,23 @@ use App\Service\Blog\BlogSlug;
  * A tag is a name and a slug, and that is the whole model: no description, no
  * hierarchy, no per-tag SEO copy, no colours. Tags exist to gather posts that
  * mention the same thing; a taxonomy that needs a description is a category
- * (BLOG.md).
+ * (BLOG.md). Since Multilingual 2.0 phase 5 wave B the NAME lives per website
+ * language in blog_tag_translations, through
+ * App\Service\Blog\BlogLocalization; this table holds the slug.
  *
  * THE SLUG IS THE IDENTITY. "Laser cutting", "laser-cutting" and "Laser
  * Cutting" normalise to one slug, and findOrCreate() below reuses the
  * existing row instead of making a third one — which is what keeps a tag
  * list from filling up with near-duplicates that each hold a third of the
- * posts. The unique index is the backstop.
+ * posts. The unique index is the backstop. That identity is language-neutral:
+ * naming a tag in a second language never makes a second tag, and never moves
+ * /blog/tag/<slug>.
+ *
+ * ORDER IS LANGUAGE-NEUTRAL TOO. A tag has no sort order, so this table used
+ * to order alphabetically on its Dutch name. It now orders by id, and what a
+ * visitor or an editor sees alphabetically is sorted by its LABEL, one step
+ * later — because an order that depends on the reader's language would shuffle
+ * the chips on every language of the site.
  */
 class BlogTagRepository extends Repository
 {
@@ -45,7 +55,7 @@ class BlogTagRepository extends Repository
      */
     public function all(): array
     {
-        return $this->db->query('SELECT * FROM blog_tags ORDER BY name ASC, id ASC')->fetchAll();
+        return $this->db->query('SELECT * FROM blog_tags ORDER BY id ASC')->fetchAll();
     }
 
     public function slugExists(string $slug, ?int $excludeId = null): bool
@@ -80,10 +90,12 @@ class BlogTagRepository extends Repository
             return (int) $existing['id'];
         }
 
-        $stmt = $this->db->prepare(
-            'INSERT INTO blog_tags (name, slug, created_at, updated_at) VALUES (:name, :slug, NOW(), NOW())'
-        );
-        $stmt->execute(['name' => mb_substr($name, 0, 100), 'slug' => $slug]);
+        // Only the row. Its NAME is written per website language by the
+        // caller, through App\Service\Blog\BlogLocalization, in the same
+        // transaction — see api/admin/update-blog-post.php.
+        $this->db
+            ->prepare('INSERT INTO blog_tags (slug, created_at, updated_at) VALUES (:slug, NOW(), NOW())')
+            ->execute(['slug' => $slug]);
 
         return (int) $this->db->lastInsertId();
     }
@@ -93,13 +105,9 @@ class BlogTagRepository extends Repository
      */
     public function update(int $id, array $values): void
     {
-        $stmt = $this->db->prepare(
-            'UPDATE blog_tags SET name = :name, name_en = :name_en, slug = :slug, updated_at = NOW() WHERE id = :id'
-        );
+        $stmt = $this->db->prepare('UPDATE blog_tags SET slug = :slug, updated_at = NOW() WHERE id = :id');
         $stmt->execute([
             'id' => $id,
-            'name' => (string) ($values['name'] ?? ''),
-            'name_en' => trim((string) ($values['name_en'] ?? '')) === '' ? null : (string) $values['name_en'],
             'slug' => (string) ($values['slug'] ?? ''),
         ]);
     }

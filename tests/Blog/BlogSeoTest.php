@@ -12,6 +12,7 @@ use App\Service\Blog\BlogFeed;
 use App\Service\Blog\BlogPostStatus;
 use App\Service\Blog\BlogSeo;
 use App\Service\Blog\BlogSettings;
+use App\Service\Blog\BlogLocalization;
 use App\Service\Blog\BlogSlug;
 use App\Service\Blog\BlogUrls;
 use App\Service\SeoDefaults;
@@ -347,8 +348,16 @@ final class BlogSeoTest extends TestCase
             ? (new \DateTimeImmutable((string) $values['published_at']))->format(BlogClock::SQL_FORMAT)
             : (new \DateTimeImmutable('-1 hour'))->format(BlogClock::SQL_FORMAT);
 
-        $id = $this->posts->create($values);
+        // The words are rows now, one per website language (Multilingual 2.0
+        // phase 5 wave B), written in the default language by this fixture.
+        $words = array_intersect_key($values, BlogLocalization::POST_FIELDS);
+        $id = $this->posts->create(array_diff_key($values, BlogLocalization::POST_FIELDS));
         $this->createdPosts[] = $id;
+
+        if ($words !== []) {
+            BlogLocalization::savePost($id, BlogLocalization::defaultLanguage(), array_map('strval', $words));
+        }
+        BlogLocalization::clearCache();
 
         return (array) $this->posts->find($id);
     }
@@ -357,7 +366,6 @@ final class BlogSeoTest extends TestCase
     private function category(string $name, array $values = []): int
     {
         $id = $this->categories->create($values + [
-            'name' => $name,
             'slug' => BlogSlug::unique(
                 self::PREFIX . BlogSlug::sanitize($name),
                 $name,
@@ -368,6 +376,8 @@ final class BlogSeoTest extends TestCase
         ]);
 
         $this->createdCategories[] = $id;
+        BlogLocalization::saveCategory($id, BlogLocalization::defaultLanguage(), [BlogLocalization::NAME => $name]);
+        BlogLocalization::clearCache();
 
         return $id;
     }

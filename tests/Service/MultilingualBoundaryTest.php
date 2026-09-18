@@ -1707,6 +1707,9 @@ final class MultilingualBoundaryTest extends TestCase
         'portfolio_category_translations',
         'portfolio_item_translations',
         'portfolio_item_image_translations',
+        'blog_post_translations',
+        'blog_category_translations',
+        'blog_tag_translations',
     ];
 
     /** The domain APIs that may declare a typed translation table and hold its store. */
@@ -1715,6 +1718,7 @@ final class MultilingualBoundaryTest extends TestCase
         'src/Service/FooterLocalization.php',
         'src/Service/Forms/FormLocalization.php',
         'src/Service/PortfolioLocalization.php',
+        'src/Service/Blog/BlogLocalization.php',
     ];
 
     /** Wave A: every file that used to read or write a menu or footer label column. */
@@ -2196,6 +2200,169 @@ final class MultilingualBoundaryTest extends TestCase
             'api/admin/update-portfolio-category.php',
             'api/admin/create-portfolio-item.php',
             'api/admin/update-portfolio-item.php',
+        ] as $endpoint) {
+            $code = self::withoutComments(self::read($endpoint));
+
+            self::assertStringContainsString('beginTransaction()', $code, $endpoint);
+            self::assertStringContainsString('commit()', $code, $endpoint);
+        }
+    }
+
+    // ---------- The Blog on per-language storage (phase 5 wave B)
+
+    /** Every file that used to read or write a Blog word column. */
+    private const BLOG_FILES = [
+        'src/Repository/BlogPostRepository.php',
+        'src/Repository/BlogCategoryRepository.php',
+        'src/Repository/BlogTagRepository.php',
+        'src/Service/Blog/BlogContent.php',
+        'src/Service/Blog/BlogSeo.php',
+        'src/Service/Blog/BlogFeed.php',
+        'src/Service/Blog/BlogPostService.php',
+        'src/Service/Blog/BlogPostMediaUsage.php',
+        'blog.php',
+        'blog-post.php',
+        'admin/blog.php',
+        'admin/blog-post.php',
+        'admin/blog-categories.php',
+        'admin/blog-tags.php',
+        'api/admin/create-blog-post.php',
+        'api/admin/update-blog-post.php',
+        'api/admin/create-blog-category.php',
+        'api/admin/update-blog-category.php',
+        'api/admin/update-blog-tag.php',
+    ];
+
+    /**
+     * 20260918190000 dropped sixteen columns: the five word fields of
+     * `blog_posts`, the two of `blog_categories` and the one of `blog_tags`,
+     * each as a bare Dutch column plus an `_en` one. What these files may
+     * still name is the Blog's own SETTINGS keys, which are rows in
+     * `blog_settings` and not entity content — see the phase 5 report.
+     */
+    public function testNothingReadsTheDroppedBlogColumns(): void
+    {
+        $allowed = ['blog_title_en', 'blog_intro_en', 'TITLE_EN', 'INTRO_EN', 'DEFAULT_TITLE_EN'];
+        $offenders = [];
+
+        foreach (self::BLOG_FILES as $file) {
+            $code = str_replace($allowed, '', self::withoutComments(self::read($file)));
+
+            if (preg_match_all('/(?<![a-z_-])(?:title|excerpt|body|meta_title|meta_description|name|description)_en\b/', $code, $matches) > 0) {
+                $offenders[] = $file . ' (' . implode(', ', array_unique($matches[0])) . ')';
+            }
+        }
+
+        self::assertSame([], $offenders);
+    }
+
+    /**
+     * THE SLUG DID NOT MOVE, and that is what keeps every Blog address
+     * answering exactly what it answered before: one slug per post, category
+     * and tag, language-neutral, on the row. A slug per language needs the
+     * router of phase 6.
+     */
+    public function testEveryBlogSlugIsStillOneLanguageNeutralColumn(): void
+    {
+        // The declaration is the closed list, so asking it is asking the
+        // schema: no store of the Blog's words knows what a slug is.
+        foreach ([
+            \App\Service\Blog\BlogLocalization::posts(),
+            \App\Service\Blog\BlogLocalization::categories(),
+            \App\Service\Blog\BlogLocalization::tags(),
+        ] as $store) {
+            self::assertNotContains('slug', $store->table()->fieldNames(), $store->table()->name);
+        }
+
+        // And the slug of a new post or category still comes from its title in
+        // the DEFAULT language, never from the language on the screen.
+        self::assertStringContainsString(
+            'BlogLocalization::defaultLanguage()',
+            self::withoutComments(self::read('api/admin/create-blog-post.php'))
+        );
+        self::assertStringContainsString(
+            'BlogLocalization::defaultLanguage()',
+            self::withoutComments(self::read('api/admin/create-blog-category.php'))
+        );
+    }
+
+    /**
+     * The fallback is App\Service\Language\LanguageFallback's, stated once in
+     * App\Service\Blog\BlogLocalization. And the Blog keeps ONE sanitizer: the
+     * body is cleaned in that class, so no reader can forget it and no second
+     * one can appear.
+     */
+    public function testTheBlogDecidesNoLanguageOrFallbackItselfAndKeepsOneSanitizer(): void
+    {
+        foreach (self::BLOG_FILES as $file) {
+            $code = self::withoutComments(self::read($file));
+
+            self::assertStringNotContainsString('SiteLanguages::defaultCode(', $code, $file . ' asks for the default language itself');
+            self::assertStringNotContainsString('Seo::pick(', $code, $file . ' builds a bilingual fallback of its own');
+        }
+
+        // RichTextSanitizer is named by BlogLocalization and by the endpoint
+        // that writes a body — nowhere else in the Blog.
+        $sanitizers = [];
+        foreach (array_merge(self::BLOG_FILES, ['src/Service/Blog/BlogLocalization.php']) as $file) {
+            if (str_contains(self::withoutComments(self::read($file)), 'RichTextSanitizer')) {
+                $sanitizers[] = $file;
+            }
+        }
+
+        self::assertSame(
+            ['api/admin/update-blog-post.php', 'src/Service/Blog/BlogLocalization.php'],
+            $sanitizers,
+            'the body is sanitized on its way in and on its way out, and in no third place'
+        );
+    }
+
+    /**
+     * An ORDER may never depend on the reader's language: a name is not a
+     * column to sort on any more, and sorting on one language's words would
+     * shuffle the same list per language.
+     */
+    public function testNoBlogQueryOrdersOnWords(): void
+    {
+        foreach (['src/Repository/BlogPostRepository.php', 'src/Repository/BlogCategoryRepository.php', 'src/Repository/BlogTagRepository.php'] as $file) {
+            $code = self::withoutComments(self::read($file));
+
+            self::assertDoesNotMatchRegularExpression(
+                '/ORDER BY[^\']*(?<![a-z_])(?:name|title)\b/i',
+                $code,
+                $file . ' orders on words'
+            );
+        }
+    }
+
+    /**
+     * All four Blog editors are on the dynamic component, send exactly one
+     * language, and write it in one transaction with the row.
+     */
+    public function testTheBlogEditorsShowOneLanguageAndTheirEndpointsWriteOnlyThatLanguage(): void
+    {
+        foreach (['admin/blog-post.php', 'admin/blog-categories.php', 'admin/blog-tags.php'] as $screen) {
+            $code = self::read($screen);
+
+            self::assertStringContainsString("require_once __DIR__ . '/_localized_fields.php';", $code, $screen);
+            self::assertStringContainsString('admin_localized_input(', $code, $screen);
+            self::assertStringNotContainsString('admin_lang_pane_start', $code, $screen . ' has no V1 language panes');
+            self::assertStringNotContainsString('admin_lang_bar(', $code, $screen);
+        }
+
+        foreach (['api/admin/update-blog-post.php', 'api/admin/update-blog-category.php', 'api/admin/update-blog-tag.php'] as $endpoint) {
+            $code = self::withoutComments(self::read($endpoint));
+
+            self::assertStringContainsString("'language_code'", $code, $endpoint);
+            self::assertStringContainsString('SiteLanguages::isActive(', $code, $endpoint . ' writes only an active website language');
+        }
+
+        foreach ([
+            'api/admin/create-blog-post.php',
+            'api/admin/update-blog-post.php',
+            'api/admin/create-blog-category.php',
+            'api/admin/update-blog-category.php',
+            'api/admin/update-blog-tag.php',
         ] as $endpoint) {
             $code = self::withoutComments(self::read($endpoint));
 

@@ -34,6 +34,8 @@ use App\Service\Blog\BlogContent;
 use App\Service\Blog\BlogSeo;
 use App\Service\Blog\BlogSettings;
 use App\Service\Blog\BlogUrls;
+use App\Service\Language\LanguageRegistry;
+use App\Service\Language\SiteText;
 use App\Service\Media\BlockImage;
 use App\Service\PageAssets;
 use App\Service\Redirects\RedirectGate;
@@ -54,10 +56,11 @@ if ($post === null) {
 } else {
     $seoMetadata = BlogSeo::forPost($post);
 
-    $titleNl = BlogContent::title($post, 'nl');
-    $titleEn = BlogContent::title($post, 'en');
-    $bodyNl = BlogContent::body($post, 'nl');
-    $bodyEn = BlogContent::body($post, 'en');
+    // One LocalizedValue per field, printed through SiteText: the visible
+    // half is the DEFAULT language's (Multilingual 2.0 phase 5 wave B), so a
+    // post on an English-default site opens in English.
+    $title = BlogContent::titleValue($post);
+    $body = BlogContent::bodyValue($post);
     $author = BlogContent::author($post);
     $showDate = BlogSettings::showDate() && BlogContent::publicationDate($post['published_at']) !== '';
 }
@@ -101,17 +104,18 @@ require __DIR__ . '/partials/header.php';
     <?php render_breadcrumb(
         \App\Service\Breadcrumbs\BreadcrumbTrail::home()
             ->to(\App\Service\Breadcrumbs\BreadcrumbItem::link(BlogSettings::title('nl'), BlogSettings::title('en'), BlogUrls::indexPath()))
-            ->to(\App\Service\Breadcrumbs\BreadcrumbItem::current($titleNl, $titleEn)),
+            ->to(\App\Service\Breadcrumbs\BreadcrumbItem::current($title->in(LanguageRegistry::DUTCH), $title->in(LanguageRegistry::ENGLISH))),
         true
     ); ?>
 
     <section class="page-hero">
       <div class="container container--narrow">
         <?php if ($post['primary_category'] !== null): ?>
-          <p class="eyebrow" data-nl="<?= $h(BlogContent::categoryName($post['primary_category'], 'nl')) ?>" data-en="<?= $h(BlogContent::categoryName($post['primary_category'], 'en')) ?>"><?= $h(BlogContent::categoryName($post['primary_category'], 'nl')) ?></p>
+          <?php $primary = BlogContent::categoryNameValue($post['primary_category']); ?>
+          <p class="eyebrow"<?= SiteText::attrsOf($primary) ?>><?= $h(SiteText::visibleOf($primary)) ?></p>
         <?php endif; ?>
 
-        <h1 data-nl="<?= $h($titleNl) ?>" data-en="<?= $h($titleEn) ?>"><?= $h($titleNl) ?></h1>
+        <h1<?= SiteText::attrsOf($title) ?>><?= $h(SiteText::visibleOf($title)) ?></h1>
 
         <?php if ($showDate || $author !== ''): ?>
           <p class="blog-post__meta">
@@ -136,18 +140,19 @@ require __DIR__ . '/partials/header.php';
       </section>
     <?php endif; ?>
 
-    <?php if ($bodyNl !== ''): ?>
+    <?php if (SiteText::visibleOf($body) !== ''): ?>
       <section style="padding-top:0;">
         <div class="container container--narrow">
-          <?php /* Already-sanitised HTML (RichTextSanitizer), printed as
-                   markup. $h() below is for the data-nl/data-en ATTRIBUTE, a
-                   different escaping context, so the language switch gets
-                   exactly this HTML back. data-lang-html marks this as one of
-                   the few genuinely-HTML bilingual elements, which is what lets
+          <?php /* Already-sanitised HTML in every language
+                   (App\Service\Blog\BlogLocalization::bodyValue(), which runs
+                   RichTextSanitizer per language before the fallback),
+                   printed as markup. SiteText::htmlAttrsOf() writes the
+                   language pair with the data-lang-html marker that lets
                    assets/js/core.js's applyLang() re-render it with innerHTML
-                   instead of the plain-text textContent it now uses by default.
-                   Identical treatment to collectie.php's rich-text intro. */ ?>
-          <div class="rich-content blog-post__body" data-reveal data-lang-html data-nl="<?= $h($bodyNl) ?>" data-en="<?= $h($bodyEn) ?>"><?= $bodyNl ?></div>
+                   instead of the plain-text textContent it uses by default —
+                   and writes nothing at all when every language shows the same
+                   markup. Identical treatment to the Detailsectie's body. */ ?>
+          <div class="rich-content blog-post__body" data-reveal<?= SiteText::htmlAttrsOf($body) ?>><?= SiteText::visibleOf($body) ?></div>
         </div>
       </section>
     <?php endif; ?>
@@ -157,10 +162,16 @@ require __DIR__ . '/partials/header.php';
         <div class="container container--narrow">
           <nav class="blog-taxonomy" aria-label="Categorieën en tags">
             <?php foreach ($post['categories'] as $category): ?>
-              <a href="<?= $h((string) $category['url']) ?>" class="blog-chip blog-chip--category" data-nl="<?= $h(BlogContent::categoryName($category, 'nl')) ?>" data-en="<?= $h(BlogContent::categoryName($category, 'en')) ?>"><?= $h(BlogContent::categoryName($category, 'nl')) ?></a>
+              <?php $chip = BlogContent::categoryNameValue($category); ?>
+              <a href="<?= $h((string) $category['url']) ?>" class="blog-chip blog-chip--category"<?= SiteText::attrsOf($chip) ?>><?= $h(SiteText::visibleOf($chip)) ?></a>
             <?php endforeach; ?>
             <?php foreach ($post['tags'] as $tag): ?>
-              <a href="<?= $h((string) $tag['url']) ?>" class="blog-chip" data-nl="<?= $h(BlogContent::tagName($tag, 'nl')) ?>" data-en="<?= $h(BlogContent::tagName($tag, 'en')) ?>">#<?= $h(BlogContent::tagName($tag, 'nl')) ?></a>
+              <?php /* The hash is markup, not part of the name, so it stays
+                       outside the swapped element: core.js writes a tag's own
+                       words with textContent into the inner span and the "#"
+                       is never part of any language's text. */ ?>
+              <?php $chip = BlogContent::tagNameValue($tag); ?>
+              <a href="<?= $h((string) $tag['url']) ?>" class="blog-chip">#<span<?= SiteText::attrsOf($chip) ?>><?= $h(SiteText::visibleOf($chip)) ?></span></a>
             <?php endforeach; ?>
           </nav>
         </div>
@@ -176,7 +187,8 @@ require __DIR__ . '/partials/header.php';
           <?php if ($post['previous'] !== null): ?>
             <a class="blog-neighbour" href="<?= $h((string) $post['previous']['url']) ?>" rel="prev">
               <span class="blog-neighbour__label" data-nl="Vorige bericht" data-en="Previous post">Vorige bericht</span>
-              <span class="blog-neighbour__title" data-nl="<?= $h(BlogContent::title($post['previous'], 'nl')) ?>" data-en="<?= $h(BlogContent::title($post['previous'], 'en')) ?>"><?= $h(BlogContent::title($post['previous'], 'nl')) ?></span>
+              <?php $neighbour = BlogContent::titleValue($post['previous']); ?>
+              <span class="blog-neighbour__title"<?= SiteText::attrsOf($neighbour) ?>><?= $h(SiteText::visibleOf($neighbour)) ?></span>
             </a>
           <?php else: ?>
             <span></span>
@@ -184,7 +196,8 @@ require __DIR__ . '/partials/header.php';
           <?php if ($post['next'] !== null): ?>
             <a class="blog-neighbour blog-neighbour--next" href="<?= $h((string) $post['next']['url']) ?>" rel="next">
               <span class="blog-neighbour__label" data-nl="Volgende bericht" data-en="Next post">Volgende bericht</span>
-              <span class="blog-neighbour__title" data-nl="<?= $h(BlogContent::title($post['next'], 'nl')) ?>" data-en="<?= $h(BlogContent::title($post['next'], 'en')) ?>"><?= $h(BlogContent::title($post['next'], 'nl')) ?></span>
+              <?php $neighbour = BlogContent::titleValue($post['next']); ?>
+              <span class="blog-neighbour__title"<?= SiteText::attrsOf($neighbour) ?>><?= $h(SiteText::visibleOf($neighbour)) ?></span>
             </a>
           <?php else: ?>
             <span></span>
@@ -217,7 +230,8 @@ require __DIR__ . '/partials/header.php';
                       <time datetime="<?= $h(BlogContent::publicationDateAttribute($related['published_at'])) ?>" data-nl="<?= $h(BlogContent::publicationDate($related['published_at'], 'nl')) ?>" data-en="<?= $h(BlogContent::publicationDate($related['published_at'], 'en')) ?>"><?= $h(BlogContent::publicationDate($related['published_at'], 'nl')) ?></time>
                     </p>
                   <?php endif; ?>
-                  <h3 class="blog-card__title" data-nl="<?= $h(BlogContent::title($related, 'nl')) ?>" data-en="<?= $h(BlogContent::title($related, 'en')) ?>"><?= $h(BlogContent::title($related, 'nl')) ?></h3>
+                  <?php $relatedTitle = BlogContent::titleValue($related); ?>
+                  <h3 class="blog-card__title"<?= SiteText::attrsOf($relatedTitle) ?>><?= $h(SiteText::visibleOf($relatedTitle)) ?></h3>
                 </div>
               </a>
             </article>

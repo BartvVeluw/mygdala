@@ -97,6 +97,7 @@
         <testsuite name="contract">
             <file>tests/Service/MultilingualBoundaryTest.php</file>
             <file>tests/Blog/BlogModuleTest.php</file>
+            <file>tests/Blog/BlogLocalizationTest.php</file>
             <file>tests/Architecture/ContextSetupTest.php</file>
             <file>tests/Architecture/TestSuiteCoverageTest.php</file>
             <file>tests/Install/ExampleEnvironmentTest.php</file>
@@ -167,6 +168,7 @@
             <file>tests/Architecture/ContextSetupTest.php</file>
             <file>tests/Architecture/TestSuiteCoverageTest.php</file>
             <file>tests/Blog/BlogModuleTest.php</file>
+            <file>tests/Blog/BlogLocalizationTest.php</file>
             <file>tests/Install/ExampleEnvironmentTest.php</file>
             <file>tests/Install/MigrationTableNamesTest.php</file>
             <file>tests/Install/FreshSiteCopyTest.php</file>
@@ -312,6 +314,7 @@
             <file>tests/Install/LocalizedSiteSettingMigrationTest.php</file>
             <file>tests/Install/FormWordsAndOptionMigrationTest.php</file>
             <file>tests/Install/PortfolioWordsMigrationTest.php</file>
+            <file>tests/Install/BlogWordsMigrationTest.php</file>
             <file>tests/Install/BlockTranslationSchemaTest.php</file>
             <file>tests/Install/BlockTranslationMigrationTest.php</file>
             <file>tests/Install/RemainingBlockWordsMigrationTest.php</file>
@@ -343,6 +346,7 @@
              say "the Blog" without running the whole CMS. -->
         <testsuite name="blog">
             <directory>tests/Blog</directory>
+            <file>tests/Install/BlogWordsMigrationTest.php</file>
         </testsuite>
 
         <testsuite name="blocks">

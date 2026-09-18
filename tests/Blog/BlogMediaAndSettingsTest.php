@@ -9,6 +9,7 @@ use App\Module\ModuleRegistry;
 use App\Repository\BlogPostRepository;
 use App\Service\AdminPermissions;
 use App\Service\Blog\BlogContent;
+use App\Service\Blog\BlogLocalization;
 use App\Service\Blog\BlogPostStatus;
 use App\Service\Blog\BlogSettings;
 use App\Service\Blog\BlogSlug;
@@ -335,8 +336,14 @@ final class BlogMediaAndSettingsTest extends TestCase
         );
         $values['status'] ??= BlogPostStatus::DRAFT;
 
-        $id = $this->posts->create($values);
+        $words = array_intersect_key($values, BlogLocalization::POST_FIELDS);
+        $id = $this->posts->create(array_diff_key($values, BlogLocalization::POST_FIELDS));
         $this->createdPosts[] = $id;
+
+        if ($words !== []) {
+            // Words per website language since Multilingual 2.0 phase 5 wave B.
+            BlogLocalization::savePost($id, BlogLocalization::defaultLanguage(), array_map('strval', $words));
+        }
 
         return $id;
     }
