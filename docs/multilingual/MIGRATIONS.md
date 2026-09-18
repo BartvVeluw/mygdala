@@ -76,6 +76,38 @@ De tests zijn `tests/Install/NavigationFooterLabelMigrationTest.php`,
 `FormWordsAndOptionMigrationTest.php` (`migration`): vers, bijgewerkt en
 kapot naast elkaar, met de neutrale kolommen ervoor en erna vergeleken.
 
+## Multilingual 2.0: de modules (fase 5)
+
+Dezelfde uitzondering voor de vier modules, elk in een schema- en een
+verhuismigratie.
+
+| Golf | Migratie | Van | Naar |
+|---|---|---|---|
+| A | `20260918160000` / `170000` | `portfolio_categories.name_nl/en`; `portfolio_gallery_items.{title,subtitle,alt,intro,description}_nl/en`; `portfolio_item_images.alt_nl/en` — 14 kolommen | `portfolio_category_translations`, `portfolio_item_translations`, `portfolio_item_image_translations` |
+
+Dezelfde regels als in 3A, 3B en 4: NL blijft NL, EN blijft EN, byte voor byte
+(rich text inbegrepen), leeg of alleen witruimte krijgt geen rij, opnieuw
+draaien doet niets, en een taal die het register mist stopt de migratie vóór
+elke drop.
+
+Eén ding dat alleen hier speelt: **meerdere velden in één rij**. De tabellen
+van fase 4 hadden één of twee velden per eigenaar; `portfolio_item_translations`
+heeft vijf. Per veld per taal doet de migratie daarom twee statements: een
+`INSERT … SELECT` voor de eigenaars die voor die taal nog geen rij hebben, en
+een `UPDATE … JOIN` die een nog lege kolom van een bestaande rij vult. Een al
+gevulde kolom wordt nooit overschreven, dus een tweede run verandert niets.
+
+**Een module hoeft niet aan te staan.** Geen van deze migraties vraagt of de
+module actief is: een uitgeschakelde module houdt zijn content, en een verse
+installatie met de module uit eindigt op hetzelfde schema als een met hem aan.
+De testdatabases van `ScratchInstall` hebben geen enkele `MODULE_*`-variabele
+gezet, dus dat wordt ook echt zo getest.
+
+De test van golf A is `tests/Install/PortfolioWordsMigrationTest.php`
+(`migration`): vers, bijgewerkt en kapot naast elkaar, met de neutrale kolommen
+ervoor en erna vergeleken, en een item in elke toestand waarin zijn kolommen
+konden staan.
+
 **Oude migraties die de gedropte kolommen lezen.** `20260909270000` (media
 adopteren) leest de alt-kolommen van Tekst met afbeelding, Detailsectie en
 kaarten. Op een echte installatie draait die ruim vóór 3B, en Phinx draait een

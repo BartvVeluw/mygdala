@@ -12,6 +12,11 @@
  * marks a decorative image, and the page renders alt="" for it rather than
  * inventing one from the file name.
  *
+ * ONE LANGUAGE, THE DEFAULT ONE (Multilingual 2.0 phase 5 wave A). A new item
+ * is born in the website's default language, like a new page and every new
+ * child row, whatever language the screen was showing; translating it happens
+ * on the item afterwards. Row, words and categories are one transaction.
+ *
  * Detail-page fields (slug, intro, description, additional images) are edited
  * afterwards on the item's own edit page, same as how a new product's
  * variants/extra photos are only added after the product itself exists.
@@ -27,11 +32,12 @@ declare(strict_types=1);
 require_once __DIR__ . '/../../vendor/autoload.php';
 require_once __DIR__ . '/_portfolio_validation.php';
 
-use App\Service\Language\AdminTranslator;
+use App\Database;
 use App\Service\AdminAuth;
 use App\Service\Csrf;
 use App\Service\PortfolioImageProcessor;
 use App\Service\PortfolioGalleryContent;
+use App\Service\PortfolioLocalization;
 use App\Repository\PortfolioCategoryRepository;
 use App\Repository\PortfolioGalleryRepository;
 
@@ -49,32 +55,17 @@ if (!Csrf::validate($_POST['csrf_token'] ?? null)) {
     exit('Invalid or missing CSRF token.');
 }
 
-$repository = new PortfolioGalleryRepository();
+$db = Database::connection();
+$repository = new PortfolioGalleryRepository($db);
 $galleryId = (int) $repository->ensureCatalogue()['id'];
 
-$altNl = trim((string) ($_POST['alt_nl'] ?? ''));
-$altEn = trim((string) ($_POST['alt_en'] ?? ''));
-$titleNl = trim((string) ($_POST['title_nl'] ?? ''));
-$titleEn = trim((string) ($_POST['title_en'] ?? ''));
-$subtitleNl = trim((string) ($_POST['subtitle_nl'] ?? ''));
-$subtitleEn = trim((string) ($_POST['subtitle_en'] ?? ''));
-$categoryIds = validatePortfolioCategoryIds($_POST['categories'] ?? null, new PortfolioCategoryRepository());
+$categoryIds = validatePortfolioCategoryIds($_POST['categories'] ?? null, new PortfolioCategoryRepository($db));
 
-$errors = [];
-if (mb_strlen($altNl) > 255 || mb_strlen($altEn) > 255) {
-    $errors[] = AdminTranslator::trans('validation.alt_tekst_mag_maximaal_255');
-}
-if (mb_strlen($titleNl) > 150 || mb_strlen($titleEn) > 150) {
-    $errors[] = AdminTranslator::trans('validation.titel_mag_maximaal_150_tekens');
-}
-if (mb_strlen($subtitleNl) > 150 || mb_strlen($subtitleEn) > 150) {
-    $errors[] = AdminTranslator::trans('validation.onderschrift_mag_maximaal_150_tekens');
-}
+// A new item is written in the DEFAULT language, whatever language the screen
+// was showing — hence `true`.
+[$errors, $language, $words] = validatePortfolioItemWords($_POST, true);
 
-$old = [
-    'alt_nl' => $altNl, 'alt_en' => $altEn,
-    'title_nl' => $titleNl, 'title_en' => $titleEn,
-    'subtitle_nl' => $subtitleNl, 'subtitle_en' => $subtitleEn,
+$old = $words + [
     'categories' => is_array($_POST['categories'] ?? null) ? $_POST['categories'] : [],
 ];
 
@@ -102,19 +93,21 @@ $imagePath = $uploadResult['path'];
 $thumbnailPath = $uploadResult['thumbnail_path'];
 
 try {
+    // Row, words and categories are ONE transaction: an item is never in the
+    // catalogue without the words that were typed for it.
+    $db->beginTransaction();
     $itemId = $repository->createItem($galleryId, [
         'image_path' => $imagePath,
         'thumbnail_path' => $thumbnailPath,
-        'alt_nl' => $altNl,
-        'alt_en' => $altEn,
-        'title_nl' => $titleNl,
-        'title_en' => $titleEn,
-        'subtitle_nl' => $subtitleNl,
-        'subtitle_en' => $subtitleEn,
     ]);
+    PortfolioLocalization::saveItem($itemId, $language, $words);
     $repository->setItemCategories($itemId, $categoryIds);
+    $db->commit();
     PortfolioGalleryContent::clearCache();
 } catch (\Throwable $e) {
+    if ($db->inTransaction()) {
+        $db->rollBack();
+    }
     error_log('[api/admin/create-portfolio-item.php] ' . $e->getMessage());
     $imageProcessor->delete($imagePath, $thumbnailPath);
     $_SESSION['admin_portfolio_item_errors'] = ['Portfolio-item kon niet worden opgeslagen. Probeer het opnieuw.'];

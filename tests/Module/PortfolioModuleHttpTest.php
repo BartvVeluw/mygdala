@@ -14,6 +14,7 @@ use App\Service\AdminPermissions;
 use App\Service\PageContent;
 use App\Service\PortfolioGalleryContent;
 use App\Service\PortfolioImageProcessor;
+use App\Service\PortfolioLocalization;
 use App\Service\SectionRegistry;
 use PHPUnit\Framework\TestCase;
 use Tests\Support\AdminTestSession;
@@ -104,7 +105,7 @@ final class PortfolioModuleHttpTest extends TestCase
 
         $categories = new PortfolioCategoryRepository();
         foreach ($categories->findAll() as $category) {
-            if (in_array((string) $category['name_nl'], $this->categoryNames, true)) {
+            if (in_array(PortfolioLocalization::categoryLabel((int) $category['id']), $this->categoryNames, true)) {
                 $categories->delete((int) $category['id']);
             }
         }
@@ -185,7 +186,7 @@ final class PortfolioModuleHttpTest extends TestCase
     {
         [$session, $csrf] = $this->accounts->signIn([PortfolioModule::PORTFOLIO_MANAGE]);
         $name = $this->categoryName();
-        $fields = ['csrf_token' => $csrf, 'name_nl' => $name];
+        $fields = ['csrf_token' => $csrf, 'name' => $name];
 
         $off = self::$off->request('POST', '/api/admin/create-portfolio-category.php', $session, $fields);
 
@@ -212,12 +213,12 @@ final class PortfolioModuleHttpTest extends TestCase
 
         $on = self::$on->request('GET', $path);
         $this->assertSame(200, $on['status']);
-        $this->assertStringContainsString((string) $item['title_nl'], $on['body']);
+        $this->assertStringContainsString((string) $item['title'], $on['body']);
 
         $off = self::$off->request('GET', $path);
         $this->assertSame(404, $off['status']);
         $this->assertStringContainsString('Pagina niet gevonden', $off['body'], "the site's own 404, as for a page that never existed");
-        $this->assertStringNotContainsString((string) $item['title_nl'], $off['body']);
+        $this->assertStringNotContainsString((string) $item['title'], $off['body']);
     }
 
     /**
@@ -237,7 +238,7 @@ final class PortfolioModuleHttpTest extends TestCase
         $on = self::$on->request('GET', $oldAddress);
         $this->assertSame(302, $on['status'], 'temporary: the link behind a compatibility route may still change');
         $this->assertSame(PageContent::canonicalUrl($page), $on['location']);
-        $this->assertStringNotContainsString((string) $item['title_nl'], $on['body'], 'nothing of the old page is rendered');
+        $this->assertStringNotContainsString((string) $item['title'], $on['body'], 'nothing of the old page is rendered');
         $this->assertSame(200, self::$on->request('GET', '/pagina.php?slug=' . $page['slug'])['status']);
 
         $renamed = $this->renamePage((int) $page['id']);
@@ -277,7 +278,7 @@ final class PortfolioModuleHttpTest extends TestCase
         $unlinked = self::$on->request('GET', $oldAddress);
         $this->assertSame(200, $unlinked['status'], 'unlinked, the old project page answers again');
         $this->assertSame('', $unlinked['location']);
-        $this->assertStringContainsString((string) $item['title_nl'], $unlinked['body']);
+        $this->assertStringContainsString((string) $item['title'], $unlinked['body']);
     }
 
     /**
@@ -295,7 +296,7 @@ final class PortfolioModuleHttpTest extends TestCase
 
         $this->assertSame(200, $on['status'], 'no redirect to a draft');
         $this->assertSame('', $on['location']);
-        $this->assertStringContainsString((string) $item['title_nl'], $on['body'], 'the old project page answers as it did');
+        $this->assertStringContainsString((string) $item['title'], $on['body'], 'the old project page answers as it did');
         $this->assertStringNotContainsString((string) $draft['slug'], $on['body'], "and the draft's address appears nowhere");
     }
 
@@ -325,12 +326,12 @@ final class PortfolioModuleHttpTest extends TestCase
         $on = self::$on->request('GET', $path);
         $this->assertSame(200, $on['status']);
         $this->assertStringContainsString('data-gallery-block', $on['body']);
-        $this->assertStringContainsString((string) $item['title_nl'], $on['body']);
+        $this->assertStringContainsString((string) $item['title'], $on['body']);
 
         $off = self::$off->request('GET', $path);
         $this->assertSame(200, $off['status'], 'the page itself is Core and keeps answering');
         $this->assertStringNotContainsString('data-gallery-block', $off['body']);
-        $this->assertStringNotContainsString((string) $item['title_nl'], $off['body']);
+        $this->assertStringNotContainsString((string) $item['title'], $off['body']);
 
         $stored = Database::connection()->prepare('SELECT source_type FROM item_galleries WHERE page_slug = :slug');
         $stored->execute(['slug' => $page['content_key']]);
@@ -419,16 +420,16 @@ final class PortfolioModuleHttpTest extends TestCase
 
         $this->assertSame(302, self::$on->request('POST', '/api/admin/create-portfolio-category.php', $session, [
             'csrf_token' => $csrf,
-            'name_nl' => $categoryName,
+            'name' => $categoryName,
         ])['status']);
         $category = $this->categoryNamed($categoryName);
         $this->assertNotNull($category);
 
         $created = self::$on->request('POST', '/api/admin/create-portfolio-item.php', $session, [
             'csrf_token' => $csrf,
-            'title_nl' => $title,
-            'alt_nl' => 'Een testafbeelding',
-            'subtitle_nl' => 'Een bewaard onderschrift',
+            'title' => $title,
+            'alt' => 'Een testafbeelding',
+            'subtitle' => 'Een bewaard onderschrift',
             'categories[0]' => (string) $category['id'],
         ], ['image' => $this->uploadableImage()]);
 
@@ -466,32 +467,34 @@ final class PortfolioModuleHttpTest extends TestCase
     /* ------------------------------------------------------------------ */
 
     /**
-     * @return array<string, mixed> the stored item row
+     * @return array<string, mixed> the stored item row, plus `title`: its own
+     *         words in the default language, which the row no longer carries
+     *         (Multilingual 2.0 phase 5 wave A)
      */
     private function item(bool $projectPage): array
     {
         $repository = new PortfolioGalleryRepository();
         $galleryId = (int) $repository->ensureCatalogue()['id'];
         $marker = bin2hex(random_bytes(3));
+        $title = 'ZZ Portfoliotest ' . $marker;
 
-        $values = [
+        $id = $repository->createItem($galleryId, [
             'image_path' => 'assets/images/sections/zz-portfoliotest-' . $marker . '.jpg',
             'thumbnail_path' => null,
-            'alt_nl' => 'ZZ alt ' . $marker,
-            'alt_en' => null,
-            'title_nl' => 'ZZ Portfoliotest ' . $marker,
-            'title_en' => null,
-            'subtitle_nl' => 'ZZ onderschrift ' . $marker,
-            'subtitle_en' => null,
-        ];
-
-        $id = $repository->createItem($galleryId, $values);
+        ]);
         $this->itemIds[] = $id;
+
+        PortfolioLocalization::saveItem($id, PortfolioLocalization::defaultLanguage(), [
+            PortfolioLocalization::ALT => 'ZZ alt ' . $marker,
+            PortfolioLocalization::TITLE => $title,
+            PortfolioLocalization::SUBTITLE => 'ZZ onderschrift ' . $marker,
+        ]);
 
         if ($projectPage) {
             // The old project page. Nothing in the application writes its
-            // columns any more, so the fixture sets them directly, the way
-            // portfolioPage() below sets a fixed route.
+            // switch or slug any more, so the fixture sets them directly, the
+            // way portfolioPage() below sets a fixed route. Its rich text does
+            // go through the API, like any other word.
             Database::connection()
                 ->prepare('UPDATE portfolio_gallery_items SET has_detail_page = 1, slug = :slug WHERE id = :id')
                 ->execute(['slug' => 'zz-portfoliotest-' . $marker, 'id' => $id]);
@@ -499,7 +502,7 @@ final class PortfolioModuleHttpTest extends TestCase
 
         PortfolioGalleryContent::clearCache();
 
-        return (array) $repository->findItemById($id);
+        return ['title' => $title] + (array) $repository->findItemById($id);
     }
 
     /**
@@ -616,7 +619,7 @@ final class PortfolioModuleHttpTest extends TestCase
     private function categoryNamed(string $name): ?array
     {
         foreach ((new PortfolioCategoryRepository())->findAll() as $category) {
-            if ((string) $category['name_nl'] === $name) {
+            if (PortfolioLocalization::categoryLabel((int) $category['id']) === $name) {
                 return $category;
             }
         }
@@ -649,8 +652,14 @@ final class PortfolioModuleHttpTest extends TestCase
 
         $root = dirname(__DIR__, 2) . '/';
 
+        // The words are part of the snapshot since Multilingual 2.0 phase 5:
+        // switching a module off must not remove a translation either, and
+        // switching it back on must show the very same words.
+        PortfolioLocalization::clearCache();
+
         return [
             'item' => $item,
+            'words' => PortfolioLocalization::items()->words($itemId),
             'categories' => $repository->categoryIdsForItem($itemId),
             'image_on_disk' => is_file($root . $item['image_path']),
             'thumbnail_on_disk' => is_file($root . (string) $item['thumbnail_path']),

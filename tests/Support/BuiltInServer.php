@@ -108,6 +108,19 @@ final class BuiltInServer
      */
     public function request(string $method, string $path, ?string $sessionId = null, array $fields = [], array $files = [], array $headers = []): array
     {
+        // NEVER hold a session open while asking the server for one. PHP's
+        // built-in server is single-threaded and session_start() takes an
+        // exclusive lock on the session file, so a test process that still has
+        // that same session open makes the request wait for its own lock until
+        // curl gives up — a 30-second timeout reported as status 0, with
+        // nothing in the server's log to explain it. Anything that reads the
+        // signed-in administrator in the test process opens that session
+        // (App\Service\Language\AdminTranslator does, through AdminLocale), so
+        // closing it here rather than in every test is the only reliable place.
+        if (session_status() === PHP_SESSION_ACTIVE) {
+            session_write_close();
+        }
+
         $handle = curl_init('http://127.0.0.1:' . $this->port . $path);
 
         $options = [

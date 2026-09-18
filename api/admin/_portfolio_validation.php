@@ -3,16 +3,70 @@
 declare(strict_types=1);
 
 /**
- * Shared validation for the admin Portfolio endpoints: the categories an
- * item's forms send, the page an item's editor chooses as its project page,
- * and a new category's slug (same algorithm as
- * api/admin/_product_validation.php's generateUniqueSlug(), reused against
- * PortfolioCategoryRepository).
+ * Shared validation for the admin Portfolio endpoints: the words an item's
+ * forms send in one website language, the categories they send, the page an
+ * item's editor chooses as its project page, and a new category's slug (same
+ * algorithm as api/admin/_product_validation.php's generateUniqueSlug(),
+ * reused against PortfolioCategoryRepository).
  */
 
 use App\Repository\PageRepository;
 use App\Repository\PortfolioCategoryRepository;
+use App\Service\Language\AdminTranslator;
+use App\Service\Language\LanguageCode;
+use App\Service\Language\LanguageFallback;
+use App\Service\Language\SiteLanguages;
 use App\Service\PortfolioGalleryContent;
+use App\Service\PortfolioLocalization;
+
+/**
+ * The words an item's form submits, in the ONE website language it names, and
+ * what is wrong with them (Multilingual 2.0 phase 5 wave A).
+ *
+ * A new item is born in the default language, like a new page, so $isNew
+ * decides the language rather than the form: `language_code` is only read for
+ * an existing item. Nothing about these three fields is required, in any
+ * language — the picture is the item (see create-portfolio-item.php) — so
+ * only their declared length is checked, through
+ * App\Service\Language\EntityTranslations::problems(), which is where those
+ * lengths live.
+ *
+ * @param array<string, mixed> $input raw $_POST
+ * @return array{0: list<string>, 1: string, 2: array<string, string>} [errors, the language, the words by field]
+ */
+function validatePortfolioItemWords(array $input, bool $isNew): array
+{
+    $text = static fn (string $name): string => is_string($input[$name] ?? null) ? trim($input[$name]) : '';
+
+    $language = $isNew
+        ? LanguageFallback::defaultLanguage()
+        : (LanguageCode::normalise($text('language_code')) ?? '');
+
+    $words = [
+        PortfolioLocalization::ALT => $text(PortfolioLocalization::ALT),
+        PortfolioLocalization::TITLE => $text(PortfolioLocalization::TITLE),
+        PortfolioLocalization::SUBTITLE => $text(PortfolioLocalization::SUBTITLE),
+    ];
+
+    if ($language === '' || !SiteLanguages::isActive($language)) {
+        return [[AdminTranslator::trans('validation.language_unknown')], $language, $words];
+    }
+
+    $messages = [
+        PortfolioLocalization::ALT => 'validation.alt_tekst_mag_maximaal_255',
+        PortfolioLocalization::TITLE => 'validation.titel_mag_maximaal_150_tekens',
+        PortfolioLocalization::SUBTITLE => 'validation.onderschrift_mag_maximaal_150_tekens',
+    ];
+
+    $errors = [];
+    foreach (PortfolioLocalization::items()->problems($language, $words) as $field => $problem) {
+        if ($problem === 'too_long' && isset($messages[$field])) {
+            $errors[] = AdminTranslator::trans($messages[$field]);
+        }
+    }
+
+    return [$errors, $language, $words];
+}
 
 /**
  * Validates a submitted `categories[]` array (from admin/portfolio-item.php's
@@ -75,15 +129,16 @@ function validatePortfolioPageChoice(mixed $submitted, PageRepository $pages): i
 }
 
 /**
- * Generates a URL-safe slug from a new category's Dutch name and makes it
- * unique against portfolio_categories.slug. Only called on create — the
- * slug is never regenerated on rename (see
+ * Generates a URL-safe slug from a new category's name in the website's
+ * DEFAULT language, and makes it unique against portfolio_categories.slug.
+ * Only called on create — the slug is never regenerated on rename, so no
+ * translation can ever move an address (see
  * db/migrations/20260906070000_create_portfolio_categories_table.php).
  */
-function generatePortfolioCategorySlug(PortfolioCategoryRepository $repository, string $nameNl): string
+function generatePortfolioCategorySlug(PortfolioCategoryRepository $repository, string $name): string
 {
-    $ascii = function_exists('iconv') ? @iconv('UTF-8', 'ASCII//TRANSLIT', $nameNl) : $nameNl;
-    $base = strtolower((string) ($ascii !== false ? $ascii : $nameNl));
+    $ascii = function_exists('iconv') ? @iconv('UTF-8', 'ASCII//TRANSLIT', $name) : $name;
+    $base = strtolower((string) ($ascii !== false ? $ascii : $name));
     $base = preg_replace('/[^a-z0-9]+/', '-', $base) ?? '';
     $base = trim($base, '-');
 

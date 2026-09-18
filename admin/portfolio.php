@@ -5,12 +5,13 @@ declare(strict_types=1);
 require_once __DIR__ . '/../vendor/autoload.php';
 require_once __DIR__ . '/_translate.php';
 
-require_once __DIR__ . '/_language_fields.php';
+require_once __DIR__ . '/_localized_fields.php';
 
 use App\Service\AdminAuth;
 use App\Service\Csrf;
 use App\Repository\PortfolioCategoryRepository;
 use App\Repository\PortfolioGalleryRepository;
+use App\Service\PortfolioLocalization;
 
 AdminAuth::requireLogin();
 AdminAuth::requirePermission('portfolio.manage');
@@ -84,7 +85,24 @@ $cardImageSrc = static fn (array $row): string => '/' . ltrim((string) ($row['th
  * one still gets a name on its card, in its link and in the homepage list —
  * never an empty line.
  */
-$itemName = static fn (array $row): string => (string) $row['title_nl'] !== '' ? (string) $row['title_nl'] : admin_t('portfolio.untitled');
+$itemName = static function (array $row): string {
+    $name = PortfolioLocalization::itemLabel((int) $row['id']);
+
+    return $name !== '' ? $name : admin_t('portfolio.untitled');
+};
+
+// The language this screen's localized fields are in, and the words already
+// loaded for every category and item it is about to print — one query each,
+// rather than one per row.
+$editingLanguage = admin_localized_language();
+PortfolioLocalization::preloadCategories(array_map(
+    static fn (array $category): int => (int) $category['id'],
+    $categoriesWithCounts
+));
+PortfolioLocalization::preloadItems(array_map(
+    static fn (array $row): int => (int) $row['id'],
+    array_merge($items, $featuredItems)
+));
 ?>
 <!doctype html>
 <html lang="<?= htmlspecialchars(\App\Service\Language\AdminLocale::current(), ENT_QUOTES, 'UTF-8') ?>">
@@ -182,7 +200,7 @@ $itemName = static fn (array $row): string => (string) $row['title_nl'] !== '' ?
     <?php /* ONE indicator for the whole list, not one per row: every category
              is its own little form here, and repeating "Editing: English"
              above each of them would be a column of furniture. */ ?>
-    <?php admin_lang_bar(); ?>
+    <?php admin_localized_bar($editingLanguage); ?>
 
     <?php if ($categoriesWithCounts === []): ?>
       <p class="admin-text-muted"><?= admin_te('portfolio.categorie_n') ?></p>
@@ -197,18 +215,14 @@ $itemName = static fn (array $row): string => (string) $row['title_nl'] !== '' ?
             <form method="post" action="/api/admin/update-portfolio-category.php" class="admin-portfolio-category-row__form">
               <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
               <input type="hidden" name="category_id" value="<?= $categoryId ?>">
-              <?php admin_lang_pane_start('nl'); ?>
-              <input type="text" name="name_nl" maxlength="100"<?= admin_lang_required('nl') ?> value="<?= $h((string) $category['name_nl']) ?>" aria-label="Naam">
-              <?php admin_lang_pane_end(); ?>
-              <?php admin_lang_pane_start('en'); ?>
-              <input type="text" name="name_en" maxlength="100" value="<?= $h((string) ($category['name_en'] ?? '')) ?>"<?= admin_lang_placeholder_attr('en') ?> aria-label="Naam">
-              <?php admin_lang_pane_end(); ?>
+              <?= admin_localized_input($editingLanguage) ?>
+              <input type="text" name="name" maxlength="<?= PortfolioLocalization::NAME_MAX_LENGTH ?>"<?= admin_localized_required($editingLanguage) ?> value="<?= $h(PortfolioLocalization::rawCategoryName($categoryId, $editingLanguage)) ?>"<?= admin_localized_placeholder_attr($editingLanguage) ?> aria-label="Naam">
               <button type="submit" class="admin-btn-text"><?= admin_te('common.save') ?></button>
             </form>
             <span class="admin-text-muted admin-portfolio-category-row__count"><?= $itemCount ?> <?= admin_t('portfolio.project', ['v1' => $itemCount === 1 ? '' : 'en']) ?></span>
             <form method="post" action="/api/admin/delete-portfolio-category.php" class="admin-inline-form"<?= admin_confirm_attributes(
                 admin_t('portfolio.categorie_verwijderen_titel'),
-                admin_t('portfolio.categorie_verwijderen_uitleg', ['name' => (string) $category['name_nl']]),
+                admin_t('portfolio.categorie_verwijderen_uitleg', ['name' => PortfolioLocalization::categoryLabel($categoryId)]),
                 admin_t('common.delete')
             ) ?>>
               <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
@@ -224,16 +238,18 @@ $itemName = static fn (array $row): string => (string) $row['title_nl'] !== '' ?
       </div>
     <?php endif; ?>
 
+    <?php /* A NEW category is always written in the default language, like a
+             new page and every new child row since phase 3B: its slug is
+             generated from that name and never renamed, so it cannot be born
+             in a translation. Translating it happens on the row above,
+             afterwards. */ ?>
     <form method="post" action="/api/admin/create-portfolio-category.php" class="admin-portfolio-category-row__form admin-portfolio-category-row__form--new">
       <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
-      <?php admin_lang_pane_start('nl'); ?>
-        <input type="text" name="name_nl" maxlength="100"<?= admin_lang_required('nl') ?> placeholder="Nieuwe categorie" aria-label="Naam">
-      <?php admin_lang_pane_end(); ?>
-      <?php admin_lang_pane_start('en'); ?>
-        <input type="text" name="name_en" maxlength="100" placeholder="Nieuwe categorie" aria-label="Naam">
-      <?php admin_lang_pane_end(); ?>
+      <?= admin_localized_input(admin_localized_default()) ?>
+      <input type="text" name="name" maxlength="<?= PortfolioLocalization::NAME_MAX_LENGTH ?>" required placeholder="Nieuwe categorie" aria-label="Naam">
       <button type="submit"><?= admin_te('portfolio.nieuwe_categorie') ?></button>
     </form>
+    <?php admin_localized_new_item_note($editingLanguage); ?>
   </details>
 
   <div class="admin-portfolio-toolbar" data-portfolio-toolbar>
@@ -249,7 +265,7 @@ $itemName = static fn (array $row): string => (string) $row['title_nl'] !== '' ?
                to be called "None" can still be filtered on. */ ?>
       <option value="_none" <?= $initialCategory === '_none' ? 'selected' : '' ?>><?= admin_te('portfolio.zonder_categorie') ?></option>
       <?php foreach ($categoriesWithCounts as $category): ?>
-        <option value="<?= $h((string) $category['slug']) ?>" <?= $initialCategory === $category['slug'] ? 'selected' : '' ?>><?= $h((string) $category['name_nl']) ?></option>
+        <option value="<?= $h((string) $category['slug']) ?>" <?= $initialCategory === $category['slug'] ? 'selected' : '' ?>><?= $h(PortfolioLocalization::categoryLabel((int) $category['id'])) ?></option>
       <?php endforeach; ?>
     </select>
 
@@ -280,7 +296,7 @@ $itemName = static fn (array $row): string => (string) $row['title_nl'] !== '' ?
     <?php
       $categoryNameBySlug = [];
       foreach ($categoriesWithCounts as $category) {
-          $categoryNameBySlug[$category['slug']] = (string) $category['name_nl'];
+          $categoryNameBySlug[$category['slug']] = PortfolioLocalization::categoryLabel((int) $category['id']);
       }
     ?>
     <div class="admin-portfolio-grid"
@@ -297,8 +313,10 @@ $itemName = static fn (array $row): string => (string) $row['title_nl'] !== '' ?
           // so an editor can find the ones that still need a page (MODULES.md).
           $hasDetail = $item['page_id'] !== null;
           $hasOldProjectPage = !$hasDetail && !empty($item['has_detail_page']) && (string) ($item['slug'] ?? '') !== '';
-          $title = (string) $item['title_nl'];
+          // The searchable title is what the CMS calls the item, so searching
+          // finds an untitled item by the word the card actually shows.
           $name = $itemName($item);
+          $title = $name;
           $itemCategorySlugs = $categorySlugsByItemId[$itemId] ?? [];
           $categoriesAttr = implode(' ', $itemCategorySlugs);
           $editUrl = '/admin/portfolio-item.php?id=' . $itemId . ($backQueryString !== '' ? '&back=' . urlencode($backQueryString) : '');
@@ -340,6 +358,5 @@ $itemName = static fn (array $row): string => (string) $row['title_nl'] !== '' ?
 
   <?= admin_confirm_dialog() ?>
 </main>
-<?php admin_lang_script(); ?>
 </body>
 </html>

@@ -18,7 +18,7 @@ frontend-flip in fase 7. Wat 2.0 al vervangen heeft, staat hieronder.
 | 2 | Gelokaliseerde velden (editorcomponent) + Pages | **gebouwd** |
 | 3 | Contentblokken | **gebouwd**: generiek model + drie blokken (3A), alle overige blokken met hun kindrijen (3B) |
 | 4 | Navigatie, footer, instellingen, formulieren | **gebouwd**: getypeerde tabellen per domein, gelokaliseerde site-instellingen, optie-identiteit |
-| 5 | Modules: Portfolio, Blog, Shop, Personalisatie | gepland |
+| 5 | Modules: Portfolio, Blog, Shop, Personalisatie | **in uitvoering**: Portfolio (golf A) gebouwd |
 | 6 | Dunne dispatcher en schone URL's, nog eentalig | gepland |
 | 7 | Server-side taalweergave, de module `multilingual`, de wisselaar, SEO | gepland |
 
@@ -840,13 +840,113 @@ tweede run verandert niets; en als het register de taal niet kent die de
 kolommen nog bevatten, stopt de migratie vóór elke drop met een melding die de
 taal noemt.
 
+## De modules per taal (fase 5)
+
+Vier domeinen die geen Core zijn: Portfolio (golf A), Blog (B), Shop (C) en
+Personalisatie (D). Ze staan op het fundament van fase 4 — `LanguageFallback`,
+`TranslationTable`, `EntityTranslationRepository`, `EntityTranslations` — en
+elk houdt een eigen dunne API. Er komt geen tweede generieke laag en geen
+`LocalizationService`.
+
+**De inventaris bij de start van fase 5** (na fase 4, `5bc9a2e`): 38
+`_nl`/`_en`-kolommen plus hun 22 kale NL-tegenhangers, dus 60 kolommen voor 30
+velden, en één gelokaliseerde instellingssleutel
+(`related_products_heading_nl/en`). Daarvan is er één géén live content maar
+een historische momentopname: `order_items.product_name(_en)`.
+
+### Portfolio (golf A)
+
+| Tabel | Eigenaar | Velden (max) | Domein-API |
+|---|---|---|---|
+| `portfolio_category_translations` | `portfolio_category_id` | `name` (100) | `App\Service\PortfolioLocalization` |
+| `portfolio_item_translations` | `portfolio_item_id` | `title` (150), `subtitle` (150), `alt` (255), `intro` (rich), `description` (rich) | idem |
+| `portfolio_item_image_translations` | `portfolio_item_image_id` | `alt` (255) | idem |
+
+Dezelfde vorm als de tabellen van fase 4: `UNIQUE(eigenaar, language_code)`, FK
+op de eigenaar met `ON DELETE CASCADE`, FK `language_code` →
+`site_languages.code` met `ON DELETE RESTRICT`. De twee rich velden zijn
+`MEDIUMTEXT`, zoals `block_translations.value`, zodat geen waarde uit de oude
+`TEXT`-kolom ineens niet meer past.
+
+**Eén API, geen omweg.** `PortfolioLocalization` is de enige lezer en schrijver
+van die drie tabellen. De repositories bewaren rijen en kennen geen woord meer;
+`PortfolioGalleryContent` geeft per veld één `LocalizedValue`, de terugval al
+toegepast, en beslist zelf geen taal. `MultilingualBoundaryTest` bewaakt dat.
+
+**Rich text wordt per taal gesaneerd, vóór de terugval.** `intro` en
+`description` zijn de rich text van de oude projectpagina. De editor die ze
+schreef is er niet meer, dus `itemRichValue()` haalt elke taal apart door
+`RichTextSanitizer` en geeft het resultaat daarna aan
+`LanguageFallback::bilingual()`. Een taal waarvan de markup wegsaneert heeft
+dus geen woorden, en de terugval neemt het over. Eén sanitizer, geen tweede.
+
+**Wat taalneutraal blijft:** de slug van een categorie en van een item, de
+afbeelding en haar thumbnail, de gekoppelde pagina, de categorieën van een
+item, `is_active`, `is_featured` en elke sorteervolgorde. De slug van een
+nieuwe categorie komt eenmalig uit de naam in de **standaardtaal** en wordt
+nooit hernoemd, dus een vertaling verplaatst nooit een adres. Gelokaliseerde
+URL's zijn fase 6.
+
+**De standaardtaal beslist of een kaart woorden heeft**, hetzelfde contract als
+de blokken sinds fase 3A: hij is het eind van de keten en valt terug op niets.
+Een item met alleen Engelse woorden heeft op een Nederlandstalige site dus geen
+titel. Op elke bestaande installatie is Nederlands de standaardtaal
+(`20260917120000` leest `primary_content_language`) en is de uitvoer
+byte-identiek aan vóór deze golf: Engels valt terug op Nederlands zoals de
+kolommen deden. Alleen op een Engelstalige site verandert het: daar kopieerden
+de kolommen de Nederlandse helft naar de Engelse voordat ze werden geprint, en
+dat doet de nieuwe opslag niet.
+
+**De gedeelde kaartvorm.** Het blok Galerij (Core) en Projecten (Portfolio)
+renderen dezelfde kaart, met Portfolio-items óf producten als bron. Die
+genormaliseerde vorm draagt sinds deze golf `alt`, `title` en `subtitle` als
+één `LocalizedValue` per veld — welke bron hem ook bouwt. `CollectionGalleryItems`
+bouwt dat paar tot golf C nog uit de kolommen van de Shop; wat dan verandert is
+de bron, niet de partial.
+
+**De editors.** `admin/portfolio.php` (de categoriebeheerder) en
+`admin/portfolio-item.php` staan op `admin/_localized_fields.php`, net als
+Pages, de blokken en de schermen van fase 4: één taal op het scherm én in het
+verzoek, `language_code` in een verborgen veld, de standaardtaal herkenbaar, de
+terugval als placeholder. Een nieuwe categorie en een nieuw item worden altijd
+in de standaardtaal geschreven. Rij, woorden, categorieën en de paginakeuze
+zijn één transactie, en een geweigerde opslag schrijft niets en houdt de POST
+vast.
+
+**Het item-formulier kan de oude projectpagina niet leegmaken.** Het toont
+`title`, `subtitle` en `alt`, en stuurt precies die drie; `EntityTranslations::save()`
+laat een gedeclareerd veld dat niet meegestuurd is staan. `intro` en
+`description` houden dus hun woorden, in elke taal.
+
+**Module uit verandert niets.** De drie tabellen worden gemaakt en gevuld of
+Portfolio aan staat of niet, en uitzetten verwijdert geen rij en geen woord.
+Een verse installatie met de module uit eindigt op hetzelfde schema als een met
+hem aan.
+
+**De migraties.** `20260918160000` maakt de drie tabellen. `20260918170000`
+verhuist veertien kolommen (zeven velden × twee talen) en dropt ze in dezelfde
+stap. Anders dan de tabellen van fase 4 heeft één eigenaar hier **meerdere**
+velden in één rij: per veld per taal is het één `INSERT … SELECT` voor de
+eigenaars die nog geen rij hebben, en één `UPDATE … JOIN` die een nog lege
+kolom van een bestaande rij vult. Woorden gaan byte voor byte mee, rich text
+inbegrepen; `NULL`, `''` en alleen witruimte krijgen geen rij; opnieuw draaien
+doet niets; en kan een taal niet verhuisd worden omdat het register hem niet
+heeft, dan stopt de migratie vóór elke drop met een melding die de taal noemt.
+
+**De hardcoded filtercategorieën zijn weg.** `PortfolioGalleryContent` had nog
+een lijstje van drie categorieën met een Nederlandse en een Engelse naam, als
+vangnet voor een onbereikbare database. Datzelfde vangnet was voor de items al
+verwijderd, met de reden die de klasse zelf opschrijft: een blok wordt alleen
+bereikt via `SectionRegistry::renderPage()`, die bij een mislukte paginalookup
+helemaal niets rendert, dus het net kon nooit iets vangen. Het was ook de
+laatste vaste NL/EN-opslag van deze module, in code.
+
 ### Wat fase 5 nog moet doen
 
-Na fase 4 staat er nog `_nl`/`_en` in de **modules**: `portfolio_gallery_items`,
-`portfolio_item_images` en `portfolio_categories` (ook de kaarten in de Galerij
-en Projecten lezen die nog als NL/EN-paar), Blog (`*_en`), Shop (`products`,
-`collections`, `order_items`, en de gedeelde koppen
-`site_settings.related_products_heading_nl/en`) en Personalisatie.
+Na golf A staat er nog `_nl`/`_en` in Blog (`blog_posts`, `blog_categories`,
+`blog_tags`), Shop (`products`, `collections`, `order_items` en de gedeelde
+koppen `site_settings.related_products_heading_nl/en`) en Personalisatie
+(`product_personalization_settings`, `_views`, `_zones`).
 `BlockImage::fromRow()` blijft tot dan voor Blog bestaan, en
 `SiteText::attrs()`/`visible()` voor alles wat nog kolommen heeft. De tijdelijke
 uitvoeradapter (`BlockLocalization::bilingual()`,
@@ -947,3 +1047,5 @@ providerklassen blijven ongebruikt staan.
 | Fase 4: site-instellingen | `db/migrations/20260918120000_create_the_site_setting_translations_table.php`, `20260918130000_move_localized_site_settings_into_site_setting_translations.php`; `src/Service/LocalizedSiteSettings.php`, `src/Repository/SiteSettingTranslationRepository.php` |
 | Fase 4: formulieren | `db/migrations/20260918140000_create_the_form_translation_and_option_tables.php`, `20260918150000_move_form_words_and_options_into_translation_tables.php`; `src/Service/Forms/FormLocalization.php`, `FormOption.php`, `FormFieldOptions.php`, `src/Repository/FormFieldOptionRepository.php` |
 | Tests fase 4 | `EntityTranslationsTest`, `FormFieldTypeTest` (`fast`); `LocalizedSiteSettingsTest`, `NavigationFooterTranslationTest`, `NavigationAdminHttpTest`, `FooterAdminHttpTest`, `FormAdminHttpTest`, `FormFieldEditorHttpTest` (`cms`); `NavigationFooterLabelMigrationTest`, `LocalizedSiteSettingMigrationTest`, `FormWordsAndOptionMigrationTest` (`migration`); de fase-4-grenzen in `MultilingualBoundaryTest`; test-helper `Tests\Support\FormFixture` |
+| Fase 5 golf A: Portfolio | `db/migrations/20260918160000_create_the_portfolio_translation_tables.php`, `20260918170000_move_portfolio_words_into_translation_tables.php`; `src/Service/PortfolioLocalization.php`; `PortfolioGalleryContent`, `CollectionGalleryItems`, `partials/section-item-gallery.php`, `portfolio-detail.php`, `admin/portfolio.php`, `admin/portfolio-item.php` en de vier `*-portfolio-*`-endpoints |
+| Tests fase 5 golf A | `PortfolioLocalizationTest` (`fast`); `PortfolioTranslationTest`, `PortfolioItemContentTest`, `PortfolioItemEditingHttpTest`, `PortfolioProjectPageTest`, `PortfolioPageLinkTest` (`cms`); `PortfolioModuleHttpTest` (`modules`, ook het bewaren bij module uit/aan); `PortfolioWordsMigrationTest` (`migration`); de golf-A-grenzen in `MultilingualBoundaryTest` |

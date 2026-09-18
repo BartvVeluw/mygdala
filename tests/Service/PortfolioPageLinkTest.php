@@ -10,6 +10,7 @@ use App\Repository\PortfolioGalleryRepository;
 use App\Service\PageContent;
 use App\Service\PageService;
 use App\Service\PortfolioGalleryContent;
+use App\Service\PortfolioLocalization;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -96,7 +97,14 @@ final class PortfolioPageLinkTest extends TestCase
         $changing = ['page_id' => true, 'updated_at' => true];
         $this->assertSame(array_diff_key($before, $changing), array_diff_key($after, $changing));
         $this->assertSame('1', (string) $after['has_detail_page']);
-        $this->assertSame('<p>ZZ oude intro</p>', $after['intro_nl']);
+
+        // And the words of that old page, in every language, are untouched
+        // (Multilingual 2.0 phase 5 wave A moved them out of the row).
+        PortfolioLocalization::clearCache();
+        $this->assertSame(
+            '<p>ZZ oude intro</p>',
+            PortfolioLocalization::rawItemValue($itemId, PortfolioLocalization::INTRO, PortfolioLocalization::defaultLanguage())
+        );
     }
 
     public function testTheDatabaseRefusesAPageThatDoesNotExist(): void
@@ -145,32 +153,34 @@ final class PortfolioPageLinkTest extends TestCase
         $id = $repository->createItem((int) $repository->ensureCatalogue()['id'], [
             'image_path' => 'assets/images/sections/zz-portfolio-link-' . $marker . '.jpg',
             'thumbnail_path' => null,
-            'alt_nl' => 'ZZ alt ' . $marker,
-            'alt_en' => null,
-            'title_nl' => 'ZZ Gekoppeld werk ' . $marker,
-            'title_en' => null,
-            'subtitle_nl' => 'ZZ onderschrift ' . $marker,
-            'subtitle_en' => null,
         ]);
         $this->itemIds[] = $id;
+
+        PortfolioLocalization::saveItem($id, PortfolioLocalization::defaultLanguage(), [
+            PortfolioLocalization::ALT => 'ZZ alt ' . $marker,
+            PortfolioLocalization::TITLE => 'ZZ Gekoppeld werk ' . $marker,
+            PortfolioLocalization::SUBTITLE => 'ZZ onderschrift ' . $marker,
+        ]);
 
         return $id;
     }
 
     /**
-     * The old project page's columns, filled the way that editor filled them.
-     * Nothing in the application writes them any more, so the fixture does it
-     * directly, as Tests\Module\PortfolioModuleHttpTest sets a fixed route.
+     * The old project page, filled the way that editor filled it. Nothing in
+     * the application writes its switch or its slug any more, so the fixture
+     * does those directly, as Tests\Module\PortfolioModuleHttpTest sets a
+     * fixed route; its rich text goes through the words API like any other.
      */
     private function giveItAnOldProjectPage(int $itemId): void
     {
         Database::connection()
-            ->prepare(
-                "UPDATE portfolio_gallery_items
-                    SET has_detail_page = 1, slug = :slug, intro_nl = '<p>ZZ oude intro</p>', description_nl = '<p>ZZ oude beschrijving</p>'
-                  WHERE id = :id"
-            )
+            ->prepare('UPDATE portfolio_gallery_items SET has_detail_page = 1, slug = :slug WHERE id = :id')
             ->execute(['slug' => 'zz-oud-project-' . bin2hex(random_bytes(4)), 'id' => $itemId]);
+
+        PortfolioLocalization::saveItem($itemId, PortfolioLocalization::defaultLanguage(), [
+            PortfolioLocalization::INTRO => '<p>ZZ oude intro</p>',
+            PortfolioLocalization::DESCRIPTION => '<p>ZZ oude beschrijving</p>',
+        ]);
     }
 
     private function page(string $status = PageContent::STATUS_PUBLISHED): int

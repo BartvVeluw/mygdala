@@ -14,6 +14,7 @@ use App\Service\ItemGalleryContent;
 use App\Service\PageContent;
 use App\Service\PageService;
 use App\Service\PortfolioGalleryContent;
+use App\Service\PortfolioLocalization;
 use App\Service\SectionRegistry;
 use App\Service\Sitemap;
 use PHPUnit\Framework\TestCase;
@@ -324,14 +325,15 @@ final class PortfolioProjectPageTest extends TestCase
         $id = $repository->createItem((int) $repository->ensureCatalogue()['id'], [
             'image_path' => 'assets/images/sections/zz-portfolio-project-' . $marker . '.jpg',
             'thumbnail_path' => null,
-            'alt_nl' => 'ZZ alt ' . $marker,
-            'alt_en' => null,
-            'title_nl' => $title !== '' ? $title : 'ZZ Project ' . $marker,
-            'title_en' => null,
-            'subtitle_nl' => 'ZZ onderschrift ' . $marker,
-            'subtitle_en' => null,
         ]);
         $this->itemIds[] = $id;
+
+        // Words per website language since Multilingual 2.0 phase 5 wave A.
+        PortfolioLocalization::saveItem($id, PortfolioLocalization::defaultLanguage(), [
+            PortfolioLocalization::ALT => 'ZZ alt ' . $marker,
+            PortfolioLocalization::TITLE => $title !== '' ? $title : 'ZZ Project ' . $marker,
+            PortfolioLocalization::SUBTITLE => 'ZZ onderschrift ' . $marker,
+        ]);
 
         return $id;
     }
@@ -347,12 +349,15 @@ final class PortfolioProjectPageTest extends TestCase
         $slug = 'zz-oud-project-' . bin2hex(random_bytes(4));
 
         Database::connection()
-            ->prepare(
-                "UPDATE portfolio_gallery_items
-                    SET has_detail_page = 1, slug = :slug, intro_nl = '<p>ZZ oude intro</p>', description_nl = '<p>ZZ oude beschrijving</p>'
-                  WHERE id = :id"
-            )
+            ->prepare('UPDATE portfolio_gallery_items SET has_detail_page = 1, slug = :slug WHERE id = :id')
             ->execute(['slug' => $slug, 'id' => $itemId]);
+
+        // Its rich text goes through the words API like any other word since
+        // Multilingual 2.0 phase 5 wave A.
+        PortfolioLocalization::saveItem($itemId, PortfolioLocalization::defaultLanguage(), [
+            PortfolioLocalization::INTRO => '<p>ZZ oude intro</p>',
+            PortfolioLocalization::DESCRIPTION => '<p>ZZ oude beschrijving</p>',
+        ]);
 
         return $slug;
     }

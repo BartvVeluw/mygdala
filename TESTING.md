@@ -686,6 +686,16 @@ van `PageRoutingTest`. Kan de server niet starten, dan slaan deze tests
 zichzelf over. Ze staan niet in de suite `http`: die telt alleen de tests die
 op de webserver van `php_test` schieten.
 
+**Nooit een sessie openhouden terwijl je de server erom vraagt.** `php -S` is
+eenkoppig en `session_start()` neemt een exclusieve lock op het sessiebestand.
+Heeft het testproces diezelfde sessie nog open, dan wacht het verzoek op de
+lock van het testproces zelf tot cURL het opgeeft: dertig seconden, een
+antwoord met status `0`, en niets in het serverlog dat het uitlegt. Alles wat
+in het testproces de ingelogde beheerder leest opent die sessie — ook
+`AdminTranslator::trans()`, via `AdminLocale`. `BuiltInServer::request()`
+sluit daarom een actieve sessie vóór elk verzoek. Doe je hetzelfde met de hand,
+vergeet dan `session_write_close()` niet.
+
 ## Een test toevoegen voor een nieuw contentblok
 
 Het blok zelf bouw je met [`CONTENT-BLOCKS.md`](CONTENT-BLOCKS.md); hieronder

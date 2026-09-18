@@ -24,11 +24,15 @@ final class PortfolioAdminScreenTest extends TestCase
     private const ITEM_SCREEN = 'admin/portfolio-item.php';
     private const OVERVIEW = 'admin/portfolio.php';
 
-    /** @var list<string> the words an item has, per language */
-    private const WORDS = ['title_nl', 'title_en', 'alt_nl', 'alt_en', 'subtitle_nl', 'subtitle_en'];
+    /**
+     * @var list<string> the words an item has. One field each since
+     *      Multilingual 2.0 phase 5 wave A: the screen edits ONE website
+     *      language at a time, so there is no `_nl`/`_en` pair on the form.
+     */
+    private const WORDS = ['title', 'alt', 'subtitle'];
 
     /** @var list<string> what the project page the Portfolio used to own was made of */
-    private const OLD_PROJECT_PAGE_FIELDS = ['has_detail_page', 'slug', 'intro_nl', 'intro_en', 'description_nl', 'description_en'];
+    private const OLD_PROJECT_PAGE_FIELDS = ['has_detail_page', 'slug', 'intro', 'description'];
 
     public function testTheNewItemFormAsksForAnImageAndNothingElse(): void
     {
@@ -69,16 +73,21 @@ final class PortfolioAdminScreenTest extends TestCase
     /** The alt text is not required, and its help says when it may stay empty. */
     public function testTheAltTextExplainsWhenItMayStayEmpty(): void
     {
+        // ONE alt field, in the website language the screen is editing
+        // (Multilingual 2.0 phase 5 wave A) — not a Dutch and an English pane.
         foreach (['create-portfolio-item.php', 'update-portfolio-item.php'] as $endpoint) {
             $form = self::form($endpoint);
 
-            foreach (['alt_nl', 'alt_en'] as $name) {
-                $this->assertMatchesRegularExpression(
-                    '/admin_field_label\(\'portfolio-alt-(nl|en)\', admin_t\(\'common\.alt_text\'\), admin_t\(\'help\.portfolio\.alt\'\)\)\s*\?>\s*<input type="text" id="portfolio-alt-\1" name="alt_\1"/',
-                    $form,
-                    $endpoint . ': ' . $name . ' carries its explanation'
-                );
-            }
+            $this->assertMatchesRegularExpression(
+                '/admin_field_label\(\'portfolio-alt\', admin_t\(\'common\.alt_text\'\), admin_t\(\'help\.portfolio\.alt\'\)\)\s*\?>\s*<input type="text" id="portfolio-alt" name="alt"/',
+                $form,
+                $endpoint . ': the alt text carries its explanation'
+            );
+            $this->assertDoesNotMatchRegularExpression(
+                '/name="alt_(?:nl|en)"/',
+                $form,
+                $endpoint . ': no fixed Dutch/English alt field is left'
+            );
         }
 
         $nl = require dirname(__DIR__, 2) . '/src/Service/Language/messages/nl.php';

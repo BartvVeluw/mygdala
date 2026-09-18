@@ -14,6 +14,13 @@
  * create-portfolio-item.php: an editor may empty every word and untick every
  * category, and that is a valid save.
  *
+ * ONE LANGUAGE PER REQUEST (Multilingual 2.0 phase 5 wave A). The words
+ * written are those of the language `language_code` names, which must be an
+ * active website language; every other translation of this item stays exactly
+ * as it is, so switching the editing language cannot overwrite a translation
+ * with a stale copy. The row, the words, the categories and the page choice
+ * are one transaction.
+ *
  * THE PROJECT PAGE is one posted id, `page_id`: empty for no page, otherwise a
  * page an item may link to (validatePortfolioPageChoice()). A choice that is
  * neither is refused before a single column is written, never quietly turned
@@ -21,10 +28,11 @@
  * id is stored (PortfolioGalleryRepository::setItemPage()); the page's
  * address, texts, SEO and publication stay the page's own.
  *
- * WHAT THIS NO LONGER WRITES. has_detail_page, slug, intro_* and description_*
- * belong to the project page the Portfolio used to own. Nothing posted here
- * reaches them: they keep their values for the old address that page still
- * answers at (MODULES.md, "Portfolio").
+ * WHAT THIS NO LONGER WRITES. has_detail_page, slug, and the item's intro and
+ * description words belong to the project page the Portfolio used to own.
+ * Nothing posted here reaches them: they keep their values, in every
+ * language, for the old address that page still answers at (MODULES.md,
+ * "Portfolio").
  *
  * Categories are CMS-managed (App\Repository\PortfolioCategoryRepository) —
  * `categories[]` posts category ids, validated against what actually exists
@@ -38,11 +46,13 @@ declare(strict_types=1);
 require_once __DIR__ . '/../../vendor/autoload.php';
 require_once __DIR__ . '/_portfolio_validation.php';
 
+use App\Database;
 use App\Service\Language\AdminTranslator;
 use App\Service\AdminAuth;
 use App\Service\Csrf;
 use App\Service\PortfolioImageProcessor;
 use App\Service\PortfolioGalleryContent;
+use App\Service\PortfolioLocalization;
 use App\Repository\PageRepository;
 use App\Repository\PortfolioCategoryRepository;
 use App\Repository\PortfolioGalleryRepository;
@@ -67,7 +77,8 @@ if ($itemId === false || $itemId === null || $itemId < 1) {
     exit('Invalid item id.');
 }
 
-$repository = new PortfolioGalleryRepository();
+$db = Database::connection();
+$repository = new PortfolioGalleryRepository($db);
 $item = $repository->findItemById($itemId);
 
 if ($item === null) {
@@ -75,31 +86,26 @@ if ($item === null) {
     exit('Item not found.');
 }
 
-$altNl = trim((string) ($_POST['alt_nl'] ?? ''));
-$altEn = trim((string) ($_POST['alt_en'] ?? ''));
-$titleNl = trim((string) ($_POST['title_nl'] ?? ''));
-$titleEn = trim((string) ($_POST['title_en'] ?? ''));
-$subtitleNl = trim((string) ($_POST['subtitle_nl'] ?? ''));
-$subtitleEn = trim((string) ($_POST['subtitle_en'] ?? ''));
-$categoryIds = validatePortfolioCategoryIds($_POST['categories'] ?? null, new PortfolioCategoryRepository());
-$pageId = validatePortfolioPageChoice($_POST['page_id'] ?? null, new PageRepository());
+$categoryIds = validatePortfolioCategoryIds($_POST['categories'] ?? null, new PortfolioCategoryRepository($db));
+$pageId = validatePortfolioPageChoice($_POST['page_id'] ?? null, new PageRepository($db));
 
-$errors = [];
-if (mb_strlen($altNl) > 255 || mb_strlen($altEn) > 255) {
-    $errors[] = AdminTranslator::trans('validation.alt_tekst_mag_maximaal_255');
-}
-if (mb_strlen($titleNl) > 150 || mb_strlen($titleEn) > 150) {
-    $errors[] = AdminTranslator::trans('validation.titel_mag_maximaal_150_tekens');
-}
-if (mb_strlen($subtitleNl) > 150 || mb_strlen($subtitleEn) > 150) {
-    $errors[] = AdminTranslator::trans('validation.onderschrift_mag_maximaal_150_tekens');
-}
+// The words of exactly ONE language, the one the form's hidden field names
+// (`false`: an existing item, so the language comes from the screen).
+[$errors, $language, $words] = validatePortfolioItemWords($_POST, false);
+
 if ($pageId === false) {
     $errors[] = AdminTranslator::trans('validation.portfolio_page_unknown');
 }
 
+// A refused save comes back with what was typed, in the language it was typed
+// in — nothing is written, and nothing is lost either.
+$old = $words + [
+    'categories' => is_array($_POST['categories'] ?? null) ? $_POST['categories'] : [],
+];
+
 if ($errors !== []) {
     $_SESSION['admin_portfolio_item_errors'] = $errors;
+    $_SESSION['admin_portfolio_item_old'] = $old;
     header('Location: /admin/portfolio-item.php?id=' . $itemId);
     exit;
 }
@@ -117,6 +123,7 @@ if ($hasNewFile) {
         $newThumbnailPath = $uploadResult['thumbnail_path'];
     } catch (\RuntimeException $e) {
         $_SESSION['admin_portfolio_item_errors'] = [$e->getMessage()];
+        $_SESSION['admin_portfolio_item_old'] = $old;
         header('Location: /admin/portfolio-item.php?id=' . $itemId);
         exit;
     }
@@ -136,32 +143,37 @@ if ($isFeatured && !$wasFeatured) {
 $fields = [
     'image_path' => $newImagePath ?? (string) $item['image_path'],
     'thumbnail_path' => $newImagePath !== null ? $newThumbnailPath : ($item['thumbnail_path'] ?? null),
-    'alt_nl' => $altNl,
-    'alt_en' => $altEn,
-    'title_nl' => $titleNl,
-    'title_en' => $titleEn,
-    'subtitle_nl' => $subtitleNl,
-    'subtitle_en' => $subtitleEn,
     'is_active' => isset($_POST['is_active']),
     'is_featured' => $isFeatured,
     'featured_sort_order' => $featuredSortOrder,
 ];
 
 try {
+    // Row, words, categories and the page choice are ONE transaction. Only
+    // the three fields this form shows are handed to saveItem(), so the old
+    // project page's `intro` and `description` in this language keep exactly
+    // what they hold, and every OTHER language keeps all of its words.
+    $db->beginTransaction();
     $repository->updateItem($itemId, $fields);
+    PortfolioLocalization::saveItem($itemId, $language, $words);
     $repository->setItemCategories($itemId, $categoryIds);
     $repository->setItemPage($itemId, $pageId);
+    $db->commit();
     PortfolioGalleryContent::clearCache();
 
     if ($newImagePath !== null) {
         $imageProcessor->delete((string) $item['image_path'], $item['thumbnail_path'] ?? null);
     }
 } catch (\Throwable $e) {
+    if ($db->inTransaction()) {
+        $db->rollBack();
+    }
     error_log('[api/admin/update-portfolio-item.php] ' . $e->getMessage());
     if ($newImagePath !== null) {
         $imageProcessor->delete($newImagePath, $newThumbnailPath);
     }
     $_SESSION['admin_portfolio_item_errors'] = ['Portfolio-item kon niet worden opgeslagen. Probeer het opnieuw.'];
+    $_SESSION['admin_portfolio_item_old'] = $old;
     header('Location: /admin/portfolio-item.php?id=' . $itemId);
     exit;
 }

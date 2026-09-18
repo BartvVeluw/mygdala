@@ -134,18 +134,20 @@ class PortfolioGalleryRepository extends Repository
     }
 
     /**
-     * The full category rows (slug + display names) assigned to one item —
-     * used by portfolio-detail.php to render its metadata pills. Unlike
-     * categoryIdsForItem() (admin checkbox state) this carries display data,
-     * and unlike categorySlugsByItemIds() (bulk, slugs only, keyed by item
-     * id) it's a single-item convenience for the one-item detail page.
+     * The category rows (id + slug) assigned to one item — used by
+     * portfolio-detail.php to render its metadata pills, whose NAMES come
+     * per website language from App\Service\PortfolioLocalization. Unlike
+     * categoryIdsForItem() (admin checkbox state) this carries the slug the
+     * pill links on, and unlike categorySlugsByItemIds() (bulk, slugs only,
+     * keyed by item id) it's a single-item convenience for the one-item
+     * detail page.
      *
-     * @return array<int, array<string, mixed>> slug/name_nl/name_en, ordered by sort_order ASC, id ASC
+     * @return array<int, array<string, mixed>> id/slug, ordered by sort_order ASC, id ASC
      */
     public function categoriesForItemId(int $itemId): array
     {
         $stmt = $this->db->prepare(
-            'SELECT pc.slug, pc.name_nl, pc.name_en
+            'SELECT pc.id, pc.slug
              FROM portfolio_item_categories pic
              INNER JOIN portfolio_categories pc ON pc.id = pic.portfolio_category_id
              WHERE pic.portfolio_item_id = :item_id
@@ -304,7 +306,12 @@ class PortfolioGalleryRepository extends Repository
      * written by this method — see
      * db/migrations/20260906080000_create_portfolio_item_categories_table.php.
      *
-     * @param array<string, string|null> $values image_path, thumbnail_path, alt_nl, alt_en, title_nl, title_en, subtitle_nl, subtitle_en
+     * Its WORDS are not here: since Multilingual 2.0 phase 5 the alt text,
+     * title and subtitle live per website language in
+     * portfolio_item_translations and are written through
+     * App\Service\PortfolioLocalization, in the same transaction as this row.
+     *
+     * @param array<string, string|null> $values image_path, thumbnail_path
      */
     public function createItem(int $galleryId, array $values): int
     {
@@ -312,20 +319,14 @@ class PortfolioGalleryRepository extends Repository
 
         $stmt = $this->db->prepare(
             'INSERT INTO portfolio_gallery_items
-                (portfolio_gallery_id, image_path, thumbnail_path, alt_nl, alt_en, title_nl, title_en, subtitle_nl, subtitle_en, sort_order, is_active, created_at, updated_at)
+                (portfolio_gallery_id, image_path, thumbnail_path, sort_order, is_active, created_at, updated_at)
              VALUES
-                (:portfolio_gallery_id, :image_path, :thumbnail_path, :alt_nl, :alt_en, :title_nl, :title_en, :subtitle_nl, :subtitle_en, :sort_order, 1, NOW(), NOW())'
+                (:portfolio_gallery_id, :image_path, :thumbnail_path, :sort_order, 1, NOW(), NOW())'
         );
         $stmt->execute([
             'portfolio_gallery_id' => $galleryId,
             'image_path' => $values['image_path'],
             'thumbnail_path' => $values['thumbnail_path'] ?? null,
-            'alt_nl' => $values['alt_nl'],
-            'alt_en' => self::nullIfEmpty($values['alt_en'] ?? null),
-            'title_nl' => $values['title_nl'],
-            'title_en' => self::nullIfEmpty($values['title_en'] ?? null),
-            'subtitle_nl' => $values['subtitle_nl'],
-            'subtitle_en' => self::nullIfEmpty($values['subtitle_en'] ?? null),
             'sort_order' => $nextSortOrder,
         ]);
 
@@ -333,18 +334,21 @@ class PortfolioGalleryRepository extends Repository
     }
 
     /**
-     * Saves what an item's own editor edits: its image, its words, and whether
-     * and where it is shown. Categories and the linked page are saved
-     * separately, through setItemCategories() and setItemPage() — see
+     * Saves what an item's own editor edits about the ROW: its image, and
+     * whether and where it is shown. Its words are saved separately and per
+     * language, through App\Service\PortfolioLocalization, in the same
+     * transaction; categories and the linked page through
+     * setItemCategories() and setItemPage() — see
      * api/admin/update-portfolio-item.php. The legacy `categories` string
      * column is never written by this method (see createItem()'s docblock).
      *
-     * Neither are the old project page's columns (has_detail_page, slug,
-     * intro_*, description_*): nothing edits that page any more, and a save
+     * Neither is the old project page (has_detail_page, slug, and its `intro`
+     * and `description` words): nothing edits that page any more, and a save
      * must never blank what it still shows at its old address
-     * (portfolio-detail.php). They keep exactly the values they have.
+     * (portfolio-detail.php). It keeps exactly what it has, which is also why
+     * the editor sends only the three fields it shows.
      *
-     * @param array<string, string|bool|int|null> $values image_path, thumbnail_path, alt_nl, alt_en, title_nl, title_en, subtitle_nl, subtitle_en, is_active, is_featured, featured_sort_order
+     * @param array<string, string|bool|int|null> $values image_path, thumbnail_path, is_active, is_featured, featured_sort_order
      */
     public function updateItem(int $id, array $values): void
     {
@@ -352,12 +356,6 @@ class PortfolioGalleryRepository extends Repository
             'UPDATE portfolio_gallery_items SET
                 image_path = :image_path,
                 thumbnail_path = :thumbnail_path,
-                alt_nl = :alt_nl,
-                alt_en = :alt_en,
-                title_nl = :title_nl,
-                title_en = :title_en,
-                subtitle_nl = :subtitle_nl,
-                subtitle_en = :subtitle_en,
                 is_active = :is_active,
                 is_featured = :is_featured,
                 featured_sort_order = :featured_sort_order,
@@ -367,12 +365,6 @@ class PortfolioGalleryRepository extends Repository
         $stmt->execute([
             'image_path' => $values['image_path'],
             'thumbnail_path' => $values['thumbnail_path'] ?? null,
-            'alt_nl' => $values['alt_nl'],
-            'alt_en' => self::nullIfEmpty($values['alt_en'] ?? null),
-            'title_nl' => $values['title_nl'],
-            'title_en' => self::nullIfEmpty($values['title_en'] ?? null),
-            'subtitle_nl' => $values['subtitle_nl'],
-            'subtitle_en' => self::nullIfEmpty($values['subtitle_en'] ?? null),
             'is_active' => $values['is_active'] ? 1 : 0,
             'is_featured' => $values['is_featured'] ? 1 : 0,
             'featured_sort_order' => $values['featured_sort_order'] ?? null,
@@ -534,10 +526,5 @@ class PortfolioGalleryRepository extends Repository
         $stmt->execute(['portfolio_gallery_id' => $galleryId]);
 
         return (int) $stmt->fetch()['next_sort_order'];
-    }
-
-    private static function nullIfEmpty(?string $value): ?string
-    {
-        return ($value !== null && $value !== '') ? $value : null;
     }
 }

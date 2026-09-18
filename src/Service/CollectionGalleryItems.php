@@ -6,6 +6,7 @@ namespace App\Service;
 
 use App\Repository\CollectionRepository;
 use App\Repository\ProductRepository;
+use App\Service\Language\LocalizedValue;
 
 /**
  * One shop collection as gallery cards — the Shop's side of the
@@ -22,6 +23,11 @@ use App\Repository\ProductRepository;
  * anywhere of "what is in a collection". An unpicked, unknown or unpublished
  * collection yields nothing rather than an error — the same fallback rule
  * every *Content class in this project follows.
+ *
+ * WORDS. A card's words leave here as one LocalizedValue each, the shape the
+ * partial reads since Multilingual 2.0 phase 5 wave A. Until wave C moves the
+ * Shop's own storage, those values are still built from the products' fixed
+ * Dutch/English columns — the pair, not the partial, is what changes then.
  */
 final class CollectionGalleryItems
 {
@@ -72,20 +78,24 @@ final class CollectionGalleryItems
      */
     private static function mapProduct(array $product): array
     {
-        $nameNl = (string) $product['name'];
-        $nameEn = self::valueOrDefault($product['name_en'] ?? null, $nameNl);
+        $name = LocalizedValue::ofDutchEnglish(
+            (string) $product['name'],
+            self::valueOrDefault($product['name_en'] ?? null, (string) $product['name'])
+        );
 
         $subtitleNl = Seo::excerpt($product['description'] ?? null, 70);
         $subtitleEn = Seo::excerpt($product['description_en'] ?? null, 70);
 
         return [
             'image_path' => (string) ($product['image_path'] ?? ''),
-            'alt_nl' => $nameNl,
-            'alt_en' => $nameEn,
-            'title_nl' => $nameNl,
-            'title_en' => $nameEn,
-            'subtitle_nl' => $subtitleNl,
-            'subtitle_en' => $subtitleEn === '' ? $subtitleNl : $subtitleEn,
+            // A product has no alt text of its own; its name is what the
+            // photo is of, in whatever language the visitor reads.
+            'alt' => $name,
+            'title' => $name,
+            'subtitle' => LocalizedValue::ofDutchEnglish(
+                $subtitleNl,
+                $subtitleEn === '' ? $subtitleNl : $subtitleEn
+            ),
             'categories' => '',
             'url' => ProductSeo::publicPath((int) $product['id']),
             'is_detail_link' => true,

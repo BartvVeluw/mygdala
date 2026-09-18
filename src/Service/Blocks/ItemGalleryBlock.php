@@ -145,10 +145,9 @@ final class ItemGalleryBlock extends BlockDefinition
         foreach (range(0, 5) as $index) {
             $items[] = [
                 'image_path' => $image['image_path'],
-                'alt_nl' => $image['alt_nl'],
-                'alt_en' => $image['alt_en'],
-                ...$samples->itemFields('title', 'item', $index),
-                ...$samples->itemFields('subtitle', 'category', $index),
+                'alt' => $image['alt'],
+                'title' => $samples->localizedItem('item', $index),
+                'subtitle' => $samples->localizedItem('category', $index),
                 'categories' => $slugs[$index % 2],
                 'url' => '',
                 'is_detail_link' => false,
@@ -174,8 +173,8 @@ final class ItemGalleryBlock extends BlockDefinition
             'background' => 'default',
             'tight_top' => false,
             'filter_categories' => [
-                ['slug' => $slugs[0], ...$samples->itemFields('name', 'category', 0)],
-                ['slug' => $slugs[1], ...$samples->itemFields('name', 'category', 1)],
+                ['slug' => $slugs[0], 'name' => $samples->localizedItem('category', 0)],
+                ['slug' => $slugs[1], 'name' => $samples->localizedItem('category', 1)],
             ],
             'items' => $items,
         ];

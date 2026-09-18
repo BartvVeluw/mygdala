@@ -37,7 +37,13 @@ final class PortfolioPageLinkMigrationTest extends TestCase
     private const LINK = '20260914200000';
 
     /** What the old project page kept on the item, and must go on keeping. */
-    private const OLD_PROJECT_PAGE_COLUMNS = ['has_detail_page', 'slug', 'intro_nl', 'intro_en', 'description_nl', 'description_en'];
+    /**
+     * What the old project page still is on the row. Its WORDS left the row in
+     * Multilingual 2.0 phase 5 wave A (20260918170000) and now live per
+     * website language in portfolio_item_translations; catching up runs that
+     * migration too, so only the switch and the slug are columns here.
+     */
+    private const OLD_PROJECT_PAGE_COLUMNS = ['has_detail_page', 'slug'];
 
     private static ?ScratchInstall $fresh = null;
     private static ?ScratchInstall $legacy = null;
@@ -144,10 +150,12 @@ final class PortfolioPageLinkMigrationTest extends TestCase
         $pdo->exec("INSERT INTO pages (content_key, slug, status, created_at, updated_at) VALUES ('zz-project', 'zz-project', 'published', NOW(), NOW())");
         $pageId = (int) $pdo->lastInsertId();
 
+        // No words on the row: this install is caught up past 20260918170000,
+        // which moved them into portfolio_item_translations.
         $pdo->exec('INSERT INTO portfolio_galleries (created_at, updated_at) VALUES (NOW(), NOW())');
         $pdo->prepare(
-            "INSERT INTO portfolio_gallery_items (portfolio_gallery_id, page_id, image_path, alt_nl, title_nl, sort_order, is_active, created_at, updated_at)
-             VALUES (?, ?, 'assets/images/zz-portfolio/werk.jpg', '', 'ZZ Werk', 0, 1, NOW(), NOW())"
+            "INSERT INTO portfolio_gallery_items (portfolio_gallery_id, page_id, image_path, sort_order, is_active, created_at, updated_at)
+             VALUES (?, ?, 'assets/images/zz-portfolio/werk.jpg', 0, 1, NOW(), NOW())"
         )->execute([(int) $pdo->lastInsertId(), $pageId]);
         $itemId = (int) $pdo->lastInsertId();
 
@@ -168,13 +176,26 @@ final class PortfolioPageLinkMigrationTest extends TestCase
         $after = self::data($this->install(self::$deployed));
 
         $this->assertNotSame([], self::$deployedBefore['items']);
+
+        // Compared on the columns the row has in BOTH states: catching up also
+        // runs 20260918170000, which MOVES the words out of the row without
+        // changing one of them (Tests\Install\PortfolioWordsMigrationTest
+        // proves that side).
+        $shared = static fn (array $row, array $other): array => array_intersect_key($row, $other);
+        $stripLink = static fn (array $row): array => array_diff_key($row, ['page_id' => true]);
+        $afterItems = array_map($stripLink, $after['items']);
+
         $this->assertSame(
-            self::$deployedBefore['items'],
-            array_map(static fn (array $row): array => array_diff_key($row, ['page_id' => true]), $after['items']),
+            array_map($shared, self::$deployedBefore['items'], $afterItems),
+            array_map($shared, $afterItems, self::$deployedBefore['items']),
             'adding the link must not change one value of an existing item'
         );
         $this->assertSame([null], array_column($after['items'], 'page_id'), 'an existing item starts without a page');
-        $this->assertSame(self::$deployedBefore['images'], $after['images'], 'portfolio_item_images is left alone');
+        $this->assertSame(
+            array_map($shared, self::$deployedBefore['images'], $after['images']),
+            array_map($shared, $after['images'], self::$deployedBefore['images']),
+            'portfolio_item_images is left alone'
+        );
 
         foreach ([self::$fresh, self::$legacy, self::$deployed] as $install) {
             $columns = array_column($this->install($install)->rows(

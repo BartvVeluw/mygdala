@@ -111,15 +111,21 @@ class PortfolioCategoryRepository extends Repository
         return $stmt->fetch() !== false;
     }
 
-    public function create(string $nameNl, ?string $nameEn, string $slug): int
+    /**
+     * Adds a category row. Its NAME is not here: since Multilingual 2.0
+     * phase 5 it lives per website language in
+     * portfolio_category_translations and is written through
+     * App\Service\PortfolioLocalization, in the same transaction as this row
+     * (see api/admin/create-portfolio-category.php). The slug is generated
+     * once, from the name in the default language.
+     */
+    public function create(string $slug): int
     {
         $stmt = $this->db->prepare(
-            'INSERT INTO portfolio_categories (name_nl, name_en, slug, sort_order, created_at, updated_at)
-             VALUES (:name_nl, :name_en, :slug, :sort_order, NOW(), NOW())'
+            'INSERT INTO portfolio_categories (slug, sort_order, created_at, updated_at)
+             VALUES (:slug, :sort_order, NOW(), NOW())'
         );
         $stmt->execute([
-            'name_nl' => $nameNl,
-            'name_en' => $nameEn,
             'slug' => $slug,
             'sort_order' => $this->nextSortOrder(),
         ]);
@@ -128,15 +134,15 @@ class PortfolioCategoryRepository extends Repository
     }
 
     /**
-     * Renames a category. The slug is deliberately never touched here — see
-     * this table's migration docblock on why it must stay stable.
+     * Marks a category as changed. Renaming one is writing its name in one
+     * language, which is PortfolioLocalization's business; all this row still
+     * carries is when it last changed. The slug is deliberately never touched
+     * — see this table's migration docblock on why it must stay stable.
      */
-    public function rename(int $id, string $nameNl, ?string $nameEn): void
+    public function touch(int $id): void
     {
-        $stmt = $this->db->prepare(
-            'UPDATE portfolio_categories SET name_nl = :name_nl, name_en = :name_en, updated_at = NOW() WHERE id = :id'
-        );
-        $stmt->execute(['name_nl' => $nameNl, 'name_en' => $nameEn, 'id' => $id]);
+        $stmt = $this->db->prepare('UPDATE portfolio_categories SET updated_at = NOW() WHERE id = :id');
+        $stmt->execute(['id' => $id]);
     }
 
     /**

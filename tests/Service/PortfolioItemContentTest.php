@@ -7,7 +7,10 @@ namespace Tests\Service;
 use App\Repository\PortfolioCategoryRepository;
 use App\Repository\PortfolioGalleryRepository;
 use App\Service\ItemGalleryContent;
+use App\Service\Language\LocalizedValue;
+use App\Service\Language\SiteText;
 use App\Service\PortfolioGalleryContent;
+use App\Service\PortfolioLocalization;
 use PHPUnit\Framework\TestCase;
 
 require_once dirname(__DIR__, 2) . '/partials/section-item-gallery.php';
@@ -52,18 +55,22 @@ final class PortfolioItemContentTest extends TestCase
         PortfolioGalleryContent::clearCache();
     }
 
-    public function testAnItemWithOnlyAnImageIsStoredWithEmptyWordsAndNoCategory(): void
+    /**
+     * A picture with no words at all: since Multilingual 2.0 phase 5 wave A
+     * that is not three empty columns but NO ROW in
+     * portfolio_item_translations — "not written" and "written as nothing" are
+     * one state, and the card still renders (alt="", no overlay).
+     */
+    public function testAnItemWithOnlyAnImageHasNoWordsInAnyLanguageAndNoCategory(): void
     {
         $repository = new PortfolioGalleryRepository();
-        $id = $this->item(['title_nl' => '', 'alt_nl' => '', 'subtitle_nl' => '']);
-        $row = (array) $repository->findItemById($id);
+        $id = $this->item([]);
 
-        foreach (['title_nl', 'alt_nl', 'subtitle_nl'] as $column) {
-            $this->assertSame('', $row[$column], $column . ' is stored empty, not refused and not NULL');
-        }
+        $this->assertSame([], PortfolioLocalization::items()->words($id));
 
-        foreach (['title_en', 'alt_en', 'subtitle_en'] as $column) {
-            $this->assertNull($row[$column]);
+        foreach ([PortfolioLocalization::TITLE, PortfolioLocalization::ALT, PortfolioLocalization::SUBTITLE] as $field) {
+            $this->assertSame('', PortfolioLocalization::rawItemValue($id, $field, 'nl'), $field . ' has no words');
+            $this->assertSame('', PortfolioLocalization::rawItemValue($id, $field, 'en'));
         }
 
         $this->assertSame([], $repository->categoryIdsForItem($id));
@@ -78,21 +85,18 @@ final class PortfolioItemContentTest extends TestCase
         $second = $this->category();
 
         $id = $this->item([
-            'title_nl' => 'ZZ Skyline',
-            'title_en' => 'ZZ Skyline EN',
-            'alt_nl' => 'Houten skyline van een stad',
-            'alt_en' => 'Wooden city skyline',
-            'subtitle_nl' => 'Wanddecoratie, hout',
-            'subtitle_en' => 'Wall decor, wood',
+            'nl' => ['title' => 'ZZ Skyline', 'alt' => 'Houten skyline van een stad', 'subtitle' => 'Wanddecoratie, hout'],
+            'en' => ['title' => 'ZZ Skyline EN', 'alt' => 'Wooden city skyline', 'subtitle' => 'Wall decor, wood'],
         ], [(int) $first['id'], (int) $second['id']]);
 
-        $row = (array) $repository->findItemById($id);
-        $this->assertSame('ZZ Skyline', $row['title_nl']);
-        $this->assertSame('ZZ Skyline EN', $row['title_en']);
-        $this->assertSame('Houten skyline van een stad', $row['alt_nl']);
-        $this->assertSame('Wooden city skyline', $row['alt_en']);
-        $this->assertSame('Wanddecoratie, hout', $row['subtitle_nl']);
-        $this->assertSame('Wall decor, wood', $row['subtitle_en']);
+        PortfolioLocalization::clearCache();
+
+        $this->assertSame('ZZ Skyline', PortfolioLocalization::rawItemValue($id, 'title', 'nl'));
+        $this->assertSame('ZZ Skyline EN', PortfolioLocalization::rawItemValue($id, 'title', 'en'));
+        $this->assertSame('Houten skyline van een stad', PortfolioLocalization::rawItemValue($id, 'alt', 'nl'));
+        $this->assertSame('Wooden city skyline', PortfolioLocalization::rawItemValue($id, 'alt', 'en'));
+        $this->assertSame('Wanddecoratie, hout', PortfolioLocalization::rawItemValue($id, 'subtitle', 'nl'));
+        $this->assertSame('Wall decor, wood', PortfolioLocalization::rawItemValue($id, 'subtitle', 'en'));
 
         $this->assertEqualsCanonicalizing([(int) $first['id'], (int) $second['id']], $repository->categoryIdsForItem($id));
     }
@@ -106,7 +110,7 @@ final class PortfolioItemContentTest extends TestCase
     {
         $repository = new PortfolioGalleryRepository();
         $category = $this->category();
-        $id = $this->item(['title_nl' => 'ZZ Met categorie'], [(int) $category['id']]);
+        $id = $this->item(['nl' => ['title' => 'ZZ Met categorie']], [(int) $category['id']]);
 
         $repository->setItemCategories($id, []);
 
@@ -130,8 +134,8 @@ final class PortfolioItemContentTest extends TestCase
     public function testTheGalleryListsAnUncategorisedItemAndItsFilterBarStaysClean(): void
     {
         $category = $this->category();
-        $with = $this->item(['title_nl' => 'ZZ Met categorie'], [(int) $category['id']]);
-        $without = $this->item(['title_nl' => '', 'alt_nl' => '', 'subtitle_nl' => '']);
+        $with = $this->item(['nl' => ['title' => 'ZZ Met categorie']], [(int) $category['id']]);
+        $without = $this->item([]);
 
         $byImage = [];
         foreach (PortfolioGalleryContent::catalogueItems(false) as $item) {
@@ -145,8 +149,12 @@ final class PortfolioItemContentTest extends TestCase
         $this->assertNotNull($withoutItem, 'an uncategorised item is listed just the same');
         $this->assertSame((string) $category['slug'], $withItem['categories']);
         $this->assertSame('', $withoutItem['categories']);
-        $this->assertSame('', $withoutItem['alt_nl'], 'no alt text is invented');
-        $this->assertSame('', $withoutItem['alt_en'], 'not from the other language either');
+        $this->assertSame('', SiteText::visibleOf($withoutItem['alt']), 'no alt text is invented');
+        $this->assertSame(
+            ' data-nl-alt="" data-en-alt=""',
+            SiteText::attrsForOf('alt', $withoutItem['alt']),
+            'not from the other language either'
+        );
 
         $slugs = array_column(PortfolioGalleryContent::filterCategories(), 'slug');
         $this->assertContains((string) $category['slug'], $slugs);
@@ -192,7 +200,7 @@ final class PortfolioItemContentTest extends TestCase
     /* ------------------------------------------------------------------ */
 
     /**
-     * @param array<string, string> $words
+     * @param array<string, array<string, string>> $words language code => field => words
      * @param list<int> $categoryIds
      */
     private function item(array $words, array $categoryIds = []): int
@@ -200,17 +208,16 @@ final class PortfolioItemContentTest extends TestCase
         $repository = new PortfolioGalleryRepository();
         $marker = bin2hex(random_bytes(4));
 
-        $id = $repository->createItem((int) $repository->ensureCatalogue()['id'], $words + [
+        $id = $repository->createItem((int) $repository->ensureCatalogue()['id'], [
             'image_path' => 'assets/images/sections/zz-portfolio-content-' . $marker . '.jpg',
             'thumbnail_path' => null,
-            'alt_nl' => '',
-            'alt_en' => null,
-            'title_nl' => '',
-            'title_en' => null,
-            'subtitle_nl' => '',
-            'subtitle_en' => null,
         ]);
         $this->itemIds[] = $id;
+
+        foreach ($words as $language => $fields) {
+            PortfolioLocalization::saveItem($id, (string) $language, $fields);
+        }
+
         $repository->setItemCategories($id, $categoryIds);
 
         PortfolioGalleryContent::clearCache();
@@ -228,8 +235,9 @@ final class PortfolioItemContentTest extends TestCase
     {
         $repository = new PortfolioCategoryRepository();
         $marker = bin2hex(random_bytes(3));
-        $id = $repository->create('ZZ Categorie ' . $marker, null, 'zz-categorie-' . $marker);
+        $id = $repository->create('zz-categorie-' . $marker);
         $this->categoryIds[] = $id;
+        PortfolioLocalization::saveCategory($id, PortfolioLocalization::defaultLanguage(), 'ZZ Categorie ' . $marker);
 
         return (array) $repository->findById($id);
     }
@@ -239,12 +247,11 @@ final class PortfolioItemContentTest extends TestCase
     {
         return [
             'image_path' => $imagePath,
-            'alt_nl' => '',
-            'alt_en' => '',
-            'title_nl' => $title,
-            'title_en' => $title,
-            'subtitle_nl' => $subtitle,
-            'subtitle_en' => $subtitle,
+            // One LocalizedValue per field since Multilingual 2.0 phase 5
+            // wave A; an empty one is "no words in any language".
+            'alt' => LocalizedValue::of([]),
+            'title' => LocalizedValue::ofDutchEnglish($title, $title),
+            'subtitle' => LocalizedValue::ofDutchEnglish($subtitle, $subtitle),
             'categories' => '',
             'url' => '',
             'is_detail_link' => false,

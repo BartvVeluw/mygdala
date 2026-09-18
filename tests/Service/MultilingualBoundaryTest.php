@@ -1692,25 +1692,29 @@ final class MultilingualBoundaryTest extends TestCase
     // ---------- Navigation, footer, settings and forms on per-language storage (phase 4)
 
     /**
-     * The typed translation tables of phase 4. Their SQL is written by ONE
-     * class, App\Repository\EntityTranslationRepository, from a closed
-     * declaration (App\Service\Language\TranslationTable), so no file names
-     * one in a statement.
+     * EVERY typed translation table, of phase 4 and of phase 5. Their SQL is
+     * written by ONE class, App\Repository\EntityTranslationRepository, from
+     * a closed declaration (App\Service\Language\TranslationTable), so no
+     * file names one in a statement.
      */
-    private const PHASE_4_TABLES = [
+    private const TYPED_TRANSLATION_TABLES = [
         'nav_item_translations',
         'footer_column_translations',
         'footer_link_translations',
         'form_translations',
         'form_field_translations',
         'form_field_option_translations',
+        'portfolio_category_translations',
+        'portfolio_item_translations',
+        'portfolio_item_image_translations',
     ];
 
     /** The domain APIs that may declare a typed translation table and hold its store. */
-    private const PHASE_4_DOMAIN_APIS = [
+    private const TRANSLATION_DOMAIN_APIS = [
         'src/Service/NavigationLocalization.php',
         'src/Service/FooterLocalization.php',
         'src/Service/Forms/FormLocalization.php',
+        'src/Service/PortfolioLocalization.php',
     ];
 
     /** Wave A: every file that used to read or write a menu or footer label column. */
@@ -1738,9 +1742,9 @@ final class MultilingualBoundaryTest extends TestCase
         'api/admin/update-footer-link.php',
     ];
 
-    public function testOnlyTheSharedRepositoryQueriesThePhase4TranslationTables(): void
+    public function testOnlyTheSharedRepositoryQueriesTheTypedTranslationTables(): void
     {
-        $statement = '/\b(?:FROM|INTO|UPDATE|JOIN|TABLE)\s+`?(?:' . implode('|', self::PHASE_4_TABLES) . ')\b/i';
+        $statement = '/\b(?:FROM|INTO|UPDATE|JOIN|TABLE)\s+`?(?:' . implode('|', self::TYPED_TRANSLATION_TABLES) . ')\b/i';
         $offenders = [];
 
         foreach (self::applicationSources() as $relative => $file) {
@@ -1762,7 +1766,7 @@ final class MultilingualBoundaryTest extends TestCase
             if (str_contains($code, 'new EntityTranslationRepository') && $relative !== 'src/Service/Language/EntityTranslations.php') {
                 $offenders[] = $relative . ' (EntityTranslationRepository)';
             }
-            if ((str_contains($code, 'new TranslationTable(') || str_contains($code, 'new EntityTranslations(')) && !in_array($relative, self::PHASE_4_DOMAIN_APIS, true)) {
+            if ((str_contains($code, 'new TranslationTable(') || str_contains($code, 'new EntityTranslations(')) && !in_array($relative, self::TRANSLATION_DOMAIN_APIS, true)) {
                 $offenders[] = $relative . ' (declares a translation table)';
             }
         }
@@ -2028,6 +2032,171 @@ final class MultilingualBoundaryTest extends TestCase
         self::assertStringContainsString('FormLocalization::defaultLanguage()', self::withoutComments(self::read('api/admin/create-form-field.php')));
 
         foreach (['api/admin/create-form-field.php', 'api/admin/update-form.php', 'api/admin/update-form-field.php'] as $endpoint) {
+            $code = self::withoutComments(self::read($endpoint));
+
+            self::assertStringContainsString('beginTransaction()', $code, $endpoint);
+            self::assertStringContainsString('commit()', $code, $endpoint);
+        }
+    }
+
+    // ---------- The Portfolio module on per-language storage (phase 5 wave A)
+
+    /** Every file that used to read or write a Portfolio word column. */
+    private const PORTFOLIO_FILES = [
+        'src/Repository/PortfolioCategoryRepository.php',
+        'src/Repository/PortfolioGalleryRepository.php',
+        'src/Repository/PortfolioItemImageRepository.php',
+        'src/Service/PortfolioGalleryContent.php',
+        'src/Service/CollectionGalleryItems.php',
+        'src/Service/Blocks/ItemGalleryBlock.php',
+        'src/Service/Blocks/ProjectCardsBlock.php',
+        'partials/section-item-gallery.php',
+        'portfolio-detail.php',
+        'admin/portfolio.php',
+        'admin/portfolio-item.php',
+        'api/admin/_portfolio_validation.php',
+        'api/admin/create-portfolio-category.php',
+        'api/admin/update-portfolio-category.php',
+        'api/admin/create-portfolio-item.php',
+        'api/admin/update-portfolio-item.php',
+    ];
+
+    /**
+     * 20260918170000 dropped fourteen columns: portfolio_categories.name_nl/en,
+     * portfolio_gallery_items.{title,subtitle,alt,intro,description}_nl/en and
+     * portfolio_item_images.alt_nl/en. What these files may still name is the
+     * lightbox's OWN attribute pair (data-alt-nl/data-alt-en, read by
+     * assets/js/portfolio-detail.js, replaced by the frontend flip) and
+     * another domain's pair: a product's name and description columns, which
+     * wave C moves.
+     */
+    public function testNothingReadsTheDroppedPortfolioColumns(): void
+    {
+        $allowed = [
+            'data-alt-nl',
+            'data-alt-en',
+            "\$product['name_en']",
+            "\$product['description_en']",
+        ];
+        $offenders = [];
+
+        foreach (self::PORTFOLIO_FILES as $file) {
+            $code = str_replace($allowed, '', self::withoutComments(self::read($file)));
+
+            if (preg_match_all('/(?<![a-z_-])(?:name|title|subtitle|alt|intro|description)_(?:nl|en)\b/', $code, $matches) > 0) {
+                $offenders[] = $file . ' (' . implode(', ', array_unique($matches[0])) . ')';
+            }
+        }
+
+        self::assertSame([], $offenders);
+    }
+
+    /**
+     * The fallback is App\Service\Language\LanguageFallback's, stated once in
+     * App\Service\PortfolioLocalization. Asking the registry for the default
+     * language, or building a language pair by hand, is the first step of a
+     * second fallback — and a hardcoded 'nl'/'en' in a runtime path is the
+     * first step of a third.
+     */
+    public function testThePortfolioDecidesNoLanguageOrFallbackItself(): void
+    {
+        foreach (self::PORTFOLIO_FILES as $file) {
+            $code = self::withoutComments(self::read($file));
+
+            self::assertStringNotContainsString('SiteLanguages::defaultCode(', $code, $file . ' asks for the default language itself');
+            self::assertStringNotContainsString('LocalizedValue::of(', $code, $file . ' builds a language pair by hand');
+        }
+
+        // The Shop's side of the gallery still builds the V1 pair from its own
+        // columns until wave C; the Portfolio's side must not.
+        self::assertStringNotContainsString(
+            'LocalizedValue::ofDutchEnglish(',
+            self::withoutComments(self::read('src/Service/PortfolioGalleryContent.php'))
+        );
+
+        // Two places name a language on purpose, both marked: the SEO head's
+        // V1 pair (the same shape App\Service\PageSeo builds) and the lightbox
+        // attribute pair that portfolio-detail.js reads.
+        $detail = self::withoutComments(self::read('portfolio-detail.php'));
+        self::assertSame(
+            2,
+            preg_match_all('/LanguageRegistry::(?:DUTCH|ENGLISH)/', $detail) > 0 ? 2 : 0,
+            'portfolio-detail.php names a language only through the closed V1 registry'
+        );
+        self::assertStringNotContainsString("'nl'", $detail, 'never a hardcoded language code');
+        self::assertStringNotContainsString("'en'", $detail);
+    }
+
+    /**
+     * The Portfolio's words are reached through App\Service\PortfolioLocalization
+     * and nothing else: not through a repository, not through a template.
+     */
+    public function testOnlyThePortfolioApiReachesItsWords(): void
+    {
+        foreach (['src/Repository/PortfolioCategoryRepository.php', 'src/Repository/PortfolioGalleryRepository.php', 'src/Repository/PortfolioItemImageRepository.php'] as $repository) {
+            self::assertStringNotContainsString(
+                'PortfolioLocalization',
+                self::withoutComments(self::read($repository)),
+                $repository . ' stores rows, not words'
+            );
+        }
+
+        // A card's words leave the read model as one LocalizedValue per field,
+        // and the partial prints them through SiteText — so it knows no
+        // language, no default and no fallback.
+        $partial = self::withoutComments(self::read('partials/section-item-gallery.php'));
+        self::assertStringContainsString("SiteText::attrsForOf('alt', \$item['alt'])", $partial);
+        self::assertStringContainsString("SiteText::attrsOf(\$item['title'])", $partial);
+        self::assertStringNotContainsString('SiteText::attrs(', $partial, 'no V1 pair is built in the partial any more');
+        self::assertStringNotContainsString('SiteText::visible(', $partial);
+    }
+
+    /**
+     * Both Portfolio editors are on the dynamic component, send exactly one
+     * language, and write it in one transaction with the row. A new category
+     * and a new item are born in the default language, whatever the screen
+     * shows.
+     */
+    public function testThePortfolioEditorsShowOneLanguageAndTheirEndpointsWriteOnlyThatLanguage(): void
+    {
+        foreach (['admin/portfolio.php', 'admin/portfolio-item.php'] as $screen) {
+            $code = self::read($screen);
+
+            self::assertStringContainsString("require_once __DIR__ . '/_localized_fields.php';", $code, $screen);
+            self::assertStringContainsString('admin_localized_input(', $code, $screen);
+            self::assertStringNotContainsString('admin_lang_pane_start', $code, $screen . ' has no V1 language panes');
+            self::assertStringNotContainsString('admin_lang_bar(', $code, $screen);
+        }
+
+        // An item's endpoints read the posted language through the shared
+        // include; a category's endpoint does it itself.
+        $shared = self::withoutComments(self::read('api/admin/_portfolio_validation.php'));
+
+        foreach ([
+            'api/admin/update-portfolio-category.php' => self::withoutComments(self::read('api/admin/update-portfolio-category.php')),
+            'api/admin/update-portfolio-item.php' => $shared,
+        ] as $endpoint => $code) {
+            self::assertStringContainsString("'language_code'", $code, $endpoint);
+            self::assertStringContainsString('SiteLanguages::isActive(', $code, $endpoint . ' writes only an active website language');
+        }
+
+        foreach ([
+            'api/admin/create-portfolio-category.php' => self::withoutComments(self::read('api/admin/create-portfolio-category.php')),
+            'api/admin/create-portfolio-item.php' => $shared,
+        ] as $endpoint => $code) {
+            self::assertStringContainsString(
+                'LanguageFallback::defaultLanguage()',
+                $code,
+                $endpoint . ' writes a new row in the default language'
+            );
+        }
+
+        foreach ([
+            'api/admin/create-portfolio-category.php',
+            'api/admin/update-portfolio-category.php',
+            'api/admin/create-portfolio-item.php',
+            'api/admin/update-portfolio-item.php',
+        ] as $endpoint) {
             $code = self::withoutComments(self::read($endpoint));
 
             self::assertStringContainsString('beginTransaction()', $code, $endpoint);

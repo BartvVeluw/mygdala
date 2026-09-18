@@ -51,6 +51,16 @@ use App\Repository\PortfolioItemImageRepository;
  * links to that old page (mapItemRow()), and legacyProjectPagesForSitemap()
  * lists exactly the addresses that still show one.
  *
+ * WORDS PER LANGUAGE (Multilingual 2.0 phase 5 wave A). An item's alt text,
+ * title and subtitle, a category's name, and the old project page's intro,
+ * description and photo alt texts are stored per website language in the
+ * typed tables of App\Service\PortfolioLocalization and come out of it as one
+ * LocalizedValue each, the fallback already applied. Everything else about an
+ * item — which page it links to, its categories, its image, whether it is
+ * active or featured, its order — is language-neutral and unchanged. This
+ * class decides no language itself, and a third language is a row in
+ * `site_languages`.
+ *
  * There is deliberately no hardcoded DEFAULTS item list any more. It existed
  * as a "database unreachable" safety net for a template that rendered the
  * grid directly; a block is only reached through
@@ -61,18 +71,6 @@ use App\Repository\PortfolioItemImageRepository;
  */
 class PortfolioGalleryContent
 {
-    /**
-     * Filter-bar fallback when portfolio_categories is unreachable — the
-     * three categories the site has always shipped with, so a database
-     * outage degrades to a known set rather than to an empty/broken filter
-     * bar.
-     */
-    private const FALLBACK_FILTER_CATEGORIES = [
-        ['slug' => 'hout', 'name_nl' => 'Hout', 'name_en' => 'Wood'],
-        ['slug' => 'metaal', 'name_nl' => 'Metaal', 'name_en' => 'Metal'],
-        ['slug' => 'zakelijk', 'name_nl' => 'Zakelijk', 'name_en' => 'Business'],
-    ];
-
     /** @var array<string, list<array<string, mixed>>> */
     private static array $cache = [];
 
@@ -120,6 +118,14 @@ class PortfolioGalleryContent
         $categoriesByItemId = self::categorySlugsByItemIds($items);
         $pagesById = self::publishedPagesById($items);
 
+        // One query for the words of every card on the page, the way
+        // App\Service\Blocks\BlockLocalization::preloadSections() does it for
+        // a block's own words.
+        PortfolioLocalization::preloadItems(array_map(
+            static fn (array $item): int => (int) $item['id'],
+            $items
+        ));
+
         return self::$cache[$cacheKey] = array_map(
             static fn (array $item): array => self::mapItemRow($item, $categoriesByItemId, $pagesById),
             $items
@@ -130,30 +136,36 @@ class PortfolioGalleryContent
      * Categories to show in a gallery block's filter bar: only those used by
      * at least one currently visible item, in their own admin-managed order
      * — see App\Repository\PortfolioCategoryRepository::findUsedByActiveItems().
-     * Falls back to FALLBACK_FILTER_CATEGORIES if the database is
-     * unreachable, so the filter bar never breaks.
+     * A lookup that fails is no filter bar, the same "no row, no render" rule
+     * every block follows; there is deliberately no hardcoded fallback list
+     * any more, for the reason the class docblock gives about the DEFAULTS
+     * items: the bar is only ever reached through
+     * App\Service\SectionRegistry::renderPage(), which renders nothing at all
+     * when the page lookup fails, so the net could never catch anything — and
+     * a hardcoded pair of Dutch and English names would be the last fixed
+     * NL/EN storage of this module (Multilingual 2.0 phase 5).
      *
-     * @return list<array{slug: string, name_nl: string, name_en: string}>
+     * @return list<array{slug: string, name: \App\Service\Language\LocalizedValue}>
      */
     public static function filterCategories(): array
     {
         try {
             $categories = (new PortfolioCategoryRepository())->findUsedByActiveItems();
         } catch (\Throwable $e) {
-            error_log('[PortfolioGalleryContent] filterCategories falling back: ' . $e->getMessage());
+            error_log('[PortfolioGalleryContent] filterCategories found none: ' . $e->getMessage());
 
-            return self::FALLBACK_FILTER_CATEGORIES;
+            return [];
         }
 
-        return array_map(static function (array $category): array {
-            $nameNl = (string) $category['name_nl'];
+        PortfolioLocalization::preloadCategories(array_map(
+            static fn (array $category): int => (int) $category['id'],
+            $categories
+        ));
 
-            return [
-                'slug' => (string) $category['slug'],
-                'name_nl' => $nameNl,
-                'name_en' => self::valueOrDefault($category['name_en'] ?? null, $nameNl),
-            ];
-        }, $categories);
+        return array_map(static fn (array $category): array => [
+            'slug' => (string) $category['slug'],
+            'name' => PortfolioLocalization::categoryName((int) $category['id']),
+        ], $categories);
     }
 
     /**
@@ -260,12 +272,15 @@ class PortfolioGalleryContent
      * Also clears App\Service\ItemGalleryContent, which caches whole
      * rendered item lists built from these rows: a catalogue change that
      * left that derived cache standing would show the old items for the rest
-     * of the request.
+     * of the request. And App\Service\PortfolioLocalization, which caches
+     * the words of those same rows per request — a renamed category or a
+     * deleted item must not keep answering with what it used to say.
      */
     public static function clearCache(): void
     {
         self::$cache = [];
         ItemGalleryContent::clearCache();
+        PortfolioLocalization::clearCache();
     }
 
     private static function valueOrDefault(?string $value, string $default): string
@@ -306,8 +321,7 @@ class PortfolioGalleryContent
      */
     private static function mapItemRow(array $item, array $categoriesByItemId = [], array $pagesById = []): array
     {
-        $titleNl = (string) $item['title_nl'];
-        $subtitleNl = (string) $item['subtitle_nl'];
+        $itemId = (int) $item['id'];
 
         $page = $pagesById[(int) ($item['page_id'] ?? 0)] ?? null;
         $oldSlug = (string) ($item['slug'] ?? '');
@@ -322,13 +336,10 @@ class PortfolioGalleryContent
 
         return [
             'image_path' => (string) $item['image_path'],
-            'alt_nl' => (string) $item['alt_nl'],
-            'alt_en' => self::valueOrDefault($item['alt_en'] ?? null, (string) $item['alt_nl']),
-            'title_nl' => $titleNl,
-            'title_en' => self::valueOrDefault($item['title_en'] ?? null, $titleNl),
-            'subtitle_nl' => $subtitleNl,
-            'subtitle_en' => self::valueOrDefault($item['subtitle_en'] ?? null, $subtitleNl),
-            'categories' => implode(' ', $categoriesByItemId[(int) $item['id']] ?? []),
+            'alt' => PortfolioLocalization::itemValue($itemId, PortfolioLocalization::ALT),
+            'title' => PortfolioLocalization::itemValue($itemId, PortfolioLocalization::TITLE),
+            'subtitle' => PortfolioLocalization::itemValue($itemId, PortfolioLocalization::SUBTITLE),
+            'categories' => implode(' ', $categoriesByItemId[$itemId] ?? []),
             'url' => $url,
             'is_detail_link' => $url !== '',
             'follows_fallback_link' => false,
@@ -477,49 +488,42 @@ class PortfolioGalleryContent
             $images = [];
         }
 
-        $titleNl = (string) $item['title_nl'];
-        $subtitleNl = (string) $item['subtitle_nl'];
+        $itemId = (int) $item['id'];
 
         try {
-            $categories = $repository->categoriesForItemId((int) $item['id']);
+            $categories = $repository->categoriesForItemId($itemId);
         } catch (\Throwable $e) {
             error_log('[PortfolioGalleryContent] itemForDetailPage categories lookup failed for "' . $slug . '": ' . $e->getMessage());
             $categories = [];
         }
 
-        // Sanitized on read, defensively: the editor that wrote this HTML is
-        // gone, but nothing renders it without going through this first — the
-        // "sanitize again on read" half of the pattern
-        // DescriptionSanitizer/api/product.php follow.
-        $introNl = RichTextSanitizer::sanitize($item['intro_nl'] ?? null) ?? '';
-        $introEn = RichTextSanitizer::sanitize($item['intro_en'] ?? null);
-        $descriptionNl = RichTextSanitizer::sanitize($item['description_nl'] ?? null) ?? '';
-        $descriptionEn = RichTextSanitizer::sanitize($item['description_en'] ?? null);
+        PortfolioLocalization::preloadCategories(array_map(
+            static fn (array $category): int => (int) $category['id'],
+            $categories
+        ));
+        PortfolioLocalization::preloadImages(array_map(
+            static fn (array $image): int => (int) $image['id'],
+            $images
+        ));
 
         return [
             'slug' => (string) $item['slug'],
             'image_path' => (string) $item['image_path'],
-            'alt_nl' => (string) $item['alt_nl'],
-            'alt_en' => self::valueOrDefault($item['alt_en'] ?? null, (string) $item['alt_nl']),
-            'title_nl' => $titleNl,
-            'title_en' => self::valueOrDefault($item['title_en'] ?? null, $titleNl),
-            'subtitle_nl' => $subtitleNl,
-            'subtitle_en' => self::valueOrDefault($item['subtitle_en'] ?? null, $subtitleNl),
-            'categories' => array_map(static function (array $category): array {
-                $nameNl = (string) $category['name_nl'];
-
-                return [
-                    'slug' => (string) $category['slug'],
-                    'name_nl' => $nameNl,
-                    'name_en' => self::valueOrDefault($category['name_en'] ?? null, $nameNl),
-                ];
-            }, $categories),
-            'intro_nl' => $introNl,
-            'intro_en' => $introEn ?? $introNl,
-            'description_nl' => $descriptionNl,
-            'description_en' => $descriptionEn ?? $descriptionNl,
+            'alt' => PortfolioLocalization::itemValue($itemId, PortfolioLocalization::ALT),
+            'title' => PortfolioLocalization::itemValue($itemId, PortfolioLocalization::TITLE),
+            'subtitle' => PortfolioLocalization::itemValue($itemId, PortfolioLocalization::SUBTITLE),
+            'categories' => array_map(static fn (array $category): array => [
+                'slug' => (string) $category['slug'],
+                'name' => PortfolioLocalization::categoryName((int) $category['id']),
+            ], $categories),
+            // Sanitized per language on read, defensively: the editor that
+            // wrote this HTML is gone, but nothing renders it without going
+            // through PortfolioLocalization::itemRichValue() first — the
+            // "sanitize again on read" half of the pattern
+            // DescriptionSanitizer/api/product.php follow.
+            'intro' => PortfolioLocalization::itemRichValue($itemId, PortfolioLocalization::INTRO),
+            'description' => PortfolioLocalization::itemRichValue($itemId, PortfolioLocalization::DESCRIPTION),
             'images' => array_map(static function (array $image): array {
-                $altNl = (string) ($image['alt_nl'] ?? '');
                 $imagePath = (string) $image['image_path'];
 
                 return [
@@ -529,8 +533,7 @@ class PortfolioGalleryContent
                     // migration's docblock): the gallery grid always has an
                     // image to show, just not always the smaller one.
                     'thumbnail_path' => self::valueOrDefault($image['thumbnail_path'] ?? null, $imagePath),
-                    'alt_nl' => $altNl,
-                    'alt_en' => self::valueOrDefault($image['alt_en'] ?? null, $altNl),
+                    'alt' => PortfolioLocalization::imageAlt((int) $image['id']),
                 ];
             }, $images),
         ];

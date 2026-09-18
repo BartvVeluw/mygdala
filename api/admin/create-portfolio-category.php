@@ -4,9 +4,14 @@
  * POST /api/admin/create-portfolio-category.php
  *
  * Adds a new Portfolio category (admin/portfolio.php's "Portfolio
- * categorieën" manager, "+ Nieuwe categorie" form). The slug is generated
- * once here, from name_nl, and never changes again — see
- * db/migrations/20260906070000_create_portfolio_categories_table.php.
+ * categorieën" manager, "+ Nieuwe categorie" form).
+ *
+ * A NEW CATEGORY IS BORN IN THE DEFAULT LANGUAGE (Multilingual 2.0 phase 5
+ * wave A), like a new page and every new child row: its slug is generated
+ * once here, from that name, and never changes again — see
+ * db/migrations/20260906070000_create_portfolio_categories_table.php. Row and
+ * name are one transaction, so a category can never exist without a name.
+ * Translating it happens on the category's own row afterwards.
  */
 
 declare(strict_types=1);
@@ -14,9 +19,12 @@ declare(strict_types=1);
 require_once __DIR__ . '/../../vendor/autoload.php';
 require_once __DIR__ . '/_portfolio_validation.php';
 
+use App\Database;
 use App\Service\Language\AdminTranslator;
+use App\Service\Language\LanguageFallback;
 use App\Service\AdminAuth;
 use App\Service\Csrf;
+use App\Service\PortfolioLocalization;
 use App\Repository\PortfolioCategoryRepository;
 
 AdminAuth::requireLoginForApi();
@@ -33,13 +41,22 @@ if (!Csrf::validate($_POST['csrf_token'] ?? null)) {
     exit('Invalid or missing CSRF token.');
 }
 
-$nameNl = trim((string) ($_POST['name_nl'] ?? ''));
-$nameEn = trim((string) ($_POST['name_en'] ?? ''));
+// A new category is always written in the default language, whatever the
+// screen's editing language is, so `language_code` from the form is not
+// consulted here — the form sends the default language and this is the one
+// place that decides it.
+$language = LanguageFallback::defaultLanguage();
+$name = trim((string) ($_POST['name'] ?? ''));
 
 $errors = [];
-if ($nameNl === '') {
+$problems = PortfolioLocalization::categories()->problems(
+    $language,
+    [PortfolioLocalization::NAME => $name],
+    [PortfolioLocalization::NAME]
+);
+if (($problems[PortfolioLocalization::NAME] ?? null) === 'missing') {
     $errors[] = AdminTranslator::trans('validation.naam_nl_verplicht');
-} elseif (mb_strlen($nameNl) > 100 || mb_strlen($nameEn) > 100) {
+} elseif (($problems[PortfolioLocalization::NAME] ?? null) === 'too_long') {
     $errors[] = AdminTranslator::trans('validation.naam_mag_maximaal_100_tekens');
 }
 
@@ -49,12 +66,19 @@ if ($errors !== []) {
     exit;
 }
 
-$repository = new PortfolioCategoryRepository();
+$db = Database::connection();
+$repository = new PortfolioCategoryRepository($db);
 
 try {
-    $slug = generatePortfolioCategorySlug($repository, $nameNl);
-    $repository->create($nameNl, $nameEn !== '' ? $nameEn : null, $slug);
+    $db->beginTransaction();
+    $slug = generatePortfolioCategorySlug($repository, $name);
+    $categoryId = $repository->create($slug);
+    PortfolioLocalization::saveCategory($categoryId, $language, $name);
+    $db->commit();
 } catch (\Throwable $e) {
+    if ($db->inTransaction()) {
+        $db->rollBack();
+    }
     error_log('[api/admin/create-portfolio-category.php] ' . $e->getMessage());
     $_SESSION['admin_portfolio_category_errors'] = ['Categorie kon niet worden opgeslagen. Probeer het opnieuw.'];
     header('Location: /admin/portfolio.php');

@@ -56,6 +56,22 @@ $portfolioItem = \App\Service\PortfolioGalleryContent::itemForDetailPage($slug);
 $cta = \App\Service\CtaBandContent::firstOnPage('portfolio');
 $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
 
+// The item's words arrive as one LocalizedValue per field from
+// App\Service\PortfolioLocalization, the fallback already applied. $t() is
+// what a visitor sees first; the pair for the language switch comes from
+// SiteText. This file therefore names no language of its own, except in the
+// two places V1 still demands it: the SEO head and the lightbox's own
+// attribute pair below.
+$t = static fn (\App\Service\Language\LocalizedValue $value): string => \App\Service\Language\SiteText::visibleOf($value);
+
+// assets/js/portfolio-detail.js reads the lightbox caption from its OWN
+// attribute pair (data-alt-nl/data-alt-en, dataset.altNl/altEn), not from the
+// data-nl-alt family core.js swaps. Kept exactly as it was: the frontend flip
+// of phase 7 is what replaces it, not this phase.
+$altPair = static fn (\App\Service\Language\LocalizedValue $value): string =>
+    'data-alt-nl="' . htmlspecialchars($value->in(\App\Service\Language\LanguageRegistry::DUTCH), ENT_QUOTES, 'UTF-8') . '"'
+    . ' data-alt-en="' . htmlspecialchars($value->in(\App\Service\Language\LanguageRegistry::ENGLISH), ENT_QUOTES, 'UTF-8') . '"';
+
 if ($portfolioItem === null) {
     http_response_code(404);
 }
@@ -74,10 +90,14 @@ $seoMetadata = $portfolioItem === null
         'Project not found — ' . \App\Service\SeoDefaults::siteName()
     )
     : \App\Service\SeoMetadata::create(
-        titleNl: $portfolioItem['title_nl'] . ' | Portfolio — ' . \App\Service\SeoDefaults::siteName(),
-        titleEn: $portfolioItem['title_en'] . ' | Portfolio — ' . \App\Service\SeoDefaults::siteName(),
-        descriptionNl: (string) $portfolioItem['subtitle_nl'],
-        descriptionEn: (string) $portfolioItem['subtitle_en'],
+        // The head still carries the V1 NL/EN pair for the client-side
+        // language switch; each half is one language of the item's own words,
+        // read through App\Service\PortfolioLocalization with its fallback —
+        // the same shape App\Service\PageSeo builds.
+        titleNl: $portfolioItem['title']->in(\App\Service\Language\LanguageRegistry::DUTCH) . ' | Portfolio — ' . \App\Service\SeoDefaults::siteName(),
+        titleEn: $portfolioItem['title']->in(\App\Service\Language\LanguageRegistry::ENGLISH) . ' | Portfolio — ' . \App\Service\SeoDefaults::siteName(),
+        descriptionNl: $portfolioItem['subtitle']->in(\App\Service\Language\LanguageRegistry::DUTCH),
+        descriptionEn: $portfolioItem['subtitle']->in(\App\Service\Language\LanguageRegistry::ENGLISH),
         canonical: \App\Service\PortfolioGalleryContent::canonicalUrlForSlug((string) $portfolioItem['slug']),
         // og:type stays "website", the value this page has always emitted —
         // the same call product.php makes, for the same reason (SEO.md).
@@ -137,9 +157,9 @@ require __DIR__ . '/partials/header.php';
         <figure class="project-hero__media" data-reveal>
           <button type="button" class="project-hero__zoom" data-project-lightbox-trigger
             data-src="/<?= $h($portfolioItem['image_path']) ?>"
-            data-alt-nl="<?= $h($portfolioItem['alt_nl']) ?>" data-alt-en="<?= $h($portfolioItem['alt_en']) ?>"
+            <?= $altPair($portfolioItem['alt']) ?>
             aria-label="Bekijk in groot formaat" data-nl-aria="Bekijk in groot formaat" data-en-aria="View full size">
-            <img src="/<?= $h($portfolioItem['image_path']) ?>" alt="<?= $h($portfolioItem['alt_nl']) ?>" data-nl-alt="<?= $h($portfolioItem['alt_nl']) ?>" data-en-alt="<?= $h($portfolioItem['alt_en']) ?>" class="project-hero__image" fetchpriority="high">
+            <img src="/<?= $h($portfolioItem['image_path']) ?>" alt="<?= $h($t($portfolioItem['alt'])) ?>"<?= \App\Service\Language\SiteText::attrsForOf('alt', $portfolioItem['alt']) ?> class="project-hero__image" fetchpriority="high">
           </button>
         </figure>
 
@@ -147,34 +167,35 @@ require __DIR__ . '/partials/header.php';
           <?php if ($portfolioItem['categories'] !== []): ?>
             <ul class="tag-list">
               <?php foreach ($portfolioItem['categories'] as $category): ?>
-                <li class="tag" data-nl="<?= $h($category['name_nl']) ?>" data-en="<?= $h($category['name_en']) ?>"><?= $h($category['name_nl']) ?></li>
+                <li class="tag"<?= \App\Service\Language\SiteText::attrsOf($category['name']) ?>><?= $h($t($category['name'])) ?></li>
               <?php endforeach; ?>
             </ul>
           <?php endif; ?>
 
-          <h1 class="project-hero__title" data-nl="<?= $h($portfolioItem['title_nl']) ?>" data-en="<?= $h($portfolioItem['title_en']) ?>"><?= $h($portfolioItem['title_nl']) ?></h1>
+          <h1 class="project-hero__title"<?= \App\Service\Language\SiteText::attrsOf($portfolioItem['title']) ?>><?= $h($t($portfolioItem['title'])) ?></h1>
 
-          <?php if ($portfolioItem['subtitle_nl'] !== ''): ?>
-            <p class="lead project-hero__subtitle" data-nl="<?= $h($portfolioItem['subtitle_nl']) ?>" data-en="<?= $h($portfolioItem['subtitle_en']) ?>"><?= $h($portfolioItem['subtitle_nl']) ?></p>
+          <?php if ($t($portfolioItem['subtitle']) !== ''): ?>
+            <p class="lead project-hero__subtitle"<?= \App\Service\Language\SiteText::attrsOf($portfolioItem['subtitle']) ?>><?= $h($t($portfolioItem['subtitle'])) ?></p>
           <?php endif; ?>
 
           <span class="project-hero__divider" aria-hidden="true"></span>
 
-          <?php if ($portfolioItem['intro_nl'] !== ''): ?>
+          <?php if ($t($portfolioItem['intro']) !== ''): ?>
             <?php
-              // intro_nl/en are already sanitized HTML (RichTextSanitizer, both at
-              // save time and again in PortfolioGalleryContent::itemForDetailPage())
-              // — rendered here as real markup, never escaped back to plain text.
-              // $h() below is for the data-nl/data-en ATTRIBUTE (a different
-              // escaping context, so assets/js/core.js's language switch gets the
-              // exact same HTML back out on an NL/EN toggle. data-lang-html marks
-              // this as genuinely HTML: applyLang() re-renders a marked element
-              // with innerHTML, where a plain-text field now gets textContent.
+              // `intro` and `description` are already sanitized HTML in every
+              // language (RichTextSanitizer, both at save time and again in
+              // App\Service\PortfolioLocalization::itemRichValue()) — rendered
+              // here as real markup, never escaped back to plain text.
+              // SiteText::htmlAttrsOf() writes the language pair with the
+              // data-lang-html marker that tells assets/js/core.js's
+              // applyLang() to re-render with innerHTML, where a plain-text
+              // field gets textContent. It writes nothing at all when every
+              // language shows the same markup.
             ?>
-            <div class="rich-content rich-content--intro" data-lang-html data-nl="<?= $h($portfolioItem['intro_nl']) ?>" data-en="<?= $h($portfolioItem['intro_en']) ?>"><?= $portfolioItem['intro_nl'] ?></div>
+            <div class="rich-content rich-content--intro"<?= \App\Service\Language\SiteText::htmlAttrsOf($portfolioItem['intro']) ?>><?= $t($portfolioItem['intro']) ?></div>
           <?php endif; ?>
-          <?php if ($portfolioItem['description_nl'] !== ''): ?>
-            <div class="rich-content" data-lang-html data-nl="<?= $h($portfolioItem['description_nl']) ?>" data-en="<?= $h($portfolioItem['description_en']) ?>"><?= $portfolioItem['description_nl'] ?></div>
+          <?php if ($t($portfolioItem['description']) !== ''): ?>
+            <div class="rich-content"<?= \App\Service\Language\SiteText::htmlAttrsOf($portfolioItem['description']) ?>><?= $t($portfolioItem['description']) ?></div>
           <?php endif; ?>
         </div>
       </div>
@@ -188,10 +209,10 @@ require __DIR__ . '/partials/header.php';
         <?php foreach ($portfolioItem['images'] as $extraImage): ?>
           <button type="button" class="project-gallery__item" data-project-lightbox-trigger
             data-src="/<?= $h($extraImage['image_path']) ?>"
-            data-alt-nl="<?= $h($extraImage['alt_nl']) ?>" data-alt-en="<?= $h($extraImage['alt_en']) ?>"
+            <?= $altPair($extraImage['alt']) ?>
             aria-label="Bekijk in groot formaat" data-nl-aria="Bekijk in groot formaat" data-en-aria="View full size"
             data-reveal data-reveal-group="project-gallery">
-            <img src="/<?= $h($extraImage['thumbnail_path']) ?>" alt="<?= $h($extraImage['alt_nl']) ?>" data-nl-alt="<?= $h($extraImage['alt_nl']) ?>" data-en-alt="<?= $h($extraImage['alt_en']) ?>" loading="lazy">
+            <img src="/<?= $h($extraImage['thumbnail_path']) ?>" alt="<?= $h($t($extraImage['alt'])) ?>"<?= \App\Service\Language\SiteText::attrsForOf('alt', $extraImage['alt']) ?> loading="lazy">
           </button>
         <?php endforeach; ?>
       </div>

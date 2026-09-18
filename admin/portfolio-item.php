@@ -5,13 +5,14 @@ declare(strict_types=1);
 require_once __DIR__ . '/../vendor/autoload.php';
 require_once __DIR__ . '/_translate.php';
 
-require_once __DIR__ . '/_language_fields.php';
+require_once __DIR__ . '/_localized_fields.php';
 
 use App\Service\AdminAuth;
 use App\Service\AdminPermissions;
 use App\Service\Csrf;
 use App\Service\PageContent;
 use App\Service\PortfolioGalleryContent;
+use App\Service\PortfolioLocalization;
 use App\Repository\PortfolioCategoryRepository;
 use App\Repository\PortfolioGalleryRepository;
 
@@ -80,23 +81,20 @@ $updated = isset($_GET['updated']);
 $backQuery = (string) ($_GET['back'] ?? '');
 $backUrl = '/admin/portfolio.php' . ($backQuery !== '' ? '?' . $backQuery : '');
 
-/**
- * Value precedence: freshly re-submitted (invalid) input, then the stored
- * item (edit), then a sane default. Same helper as product-form.php's
- * fieldValue().
- */
-function fieldValue(?array $old, ?array $item, string $key, string $default = ''): string
-{
-    if ($old !== null && array_key_exists($key, $old)) {
-        return (string) ($old[$key] ?? '');
+// The language this screen's words are in, and the words themselves: the
+// refused POST first, so a rejected save keeps what was typed, then what is
+// stored FOR THAT LANGUAGE with no fallback (the fallback is the placeholder).
+$editingLanguage = admin_localized_language();
+
+$word = static function (string $field) use ($old, $item, $editingLanguage): string {
+    if ($old !== null && array_key_exists($field, $old)) {
+        return (string) ($old[$field] ?? '');
     }
 
-    if ($item !== null && array_key_exists($key, $item)) {
-        return (string) ($item[$key] ?? '');
-    }
-
-    return $default;
-}
+    return $item === null
+        ? ''
+        : PortfolioLocalization::rawItemValue((int) $item['id'], $field, $editingLanguage);
+};
 
 $selectedCategoryIds = $old !== null
     ? array_map('intval', is_array($old['categories'] ?? null) ? $old['categories'] : [])
@@ -113,7 +111,9 @@ $csrfToken = Csrf::token();
 // screen — never an empty heading.
 $pageTitle = !$isEdit
     ? admin_t('portfolio.new_item')
-    : ((string) $item['title_nl'] !== '' ? (string) $item['title_nl'] : admin_t('portfolio.untitled'));
+    : (PortfolioLocalization::itemLabel((int) $item['id']) !== ''
+        ? PortfolioLocalization::itemLabel((int) $item['id'])
+        : admin_t('portfolio.untitled'));
 
 /**
  * The category choice: one checkbox per CMS-managed category, and no box
@@ -144,7 +144,7 @@ function portfolioCategoryField(array $categories, array $selectedIds): string
         $html .= '<label class="admin-checkbox-label">'
             . '<input type="checkbox" class="admin-checkbox" name="categories[]" value="' . $categoryId . '"'
             . (in_array($categoryId, $selectedIds, true) ? ' checked' : '') . '> '
-            . htmlspecialchars((string) $category['name_nl'], ENT_QUOTES, 'UTF-8')
+            . htmlspecialchars(PortfolioLocalization::categoryLabel($categoryId), ENT_QUOTES, 'UTF-8')
             . '</label>';
     }
 
@@ -206,50 +206,31 @@ $cmsImageSrc = static fn (array $row): string => '/' . ltrim((string) ($row['thu
           </div>
         </div>
 
-        <?php admin_lang_bar(); ?>
-        <div class="admin-form-row admin-form-row--split">
-          <?php admin_lang_pane_start('nl'); ?>
+        <?php /* A NEW item is written in the DEFAULT language, like a new page
+                 and every new child row since phase 3B; translating it happens
+                 on the item itself afterwards. */ ?>
+        <?= admin_localized_input(admin_localized_default()) ?>
+        <?php admin_localized_new_item_note($editingLanguage); ?>
+        <?php admin_localized_bar(admin_localized_default()); ?>
+        <div class="admin-form-row">
           <div class="admin-field">
-            <?= admin_field_label('portfolio-alt-nl', admin_t('common.alt_text'), admin_t('help.portfolio.alt')) ?>
-            <input type="text" id="portfolio-alt-nl" name="alt_nl" maxlength="255" value="<?= $h(fieldValue($old, null, 'alt_nl')) ?>">
+            <?= admin_field_label('portfolio-alt', admin_t('common.alt_text'), admin_t('help.portfolio.alt')) ?>
+            <input type="text" id="portfolio-alt" name="alt" maxlength="<?= PortfolioLocalization::ALT_MAX_LENGTH ?>" value="<?= $h((string) ($old['alt'] ?? '')) ?>">
           </div>
-          <?php admin_lang_pane_end(); ?>
-          <?php admin_lang_pane_start('en'); ?>
-          <div class="admin-field">
-            <?= admin_field_label('portfolio-alt-en', admin_t('common.alt_text'), admin_t('help.portfolio.alt')) ?>
-            <input type="text" id="portfolio-alt-en" name="alt_en" maxlength="255" value="<?= $h(fieldValue($old, null, 'alt_en')) ?>"<?= admin_lang_placeholder_attr('en') ?>>
-          </div>
-          <?php admin_lang_pane_end(); ?>
         </div>
 
-        <div class="admin-form-row admin-form-row--split">
-          <?php admin_lang_pane_start('nl'); ?>
+        <div class="admin-form-row">
           <div class="admin-field">
-            <?= admin_field_label('portfolio-title-nl', admin_t('common.title'), admin_t('help.portfolio.title')) ?>
-            <input type="text" id="portfolio-title-nl" name="title_nl" maxlength="150" value="<?= $h(fieldValue($old, null, 'title_nl')) ?>">
+            <?= admin_field_label('portfolio-title', admin_t('common.title'), admin_t('help.portfolio.title')) ?>
+            <input type="text" id="portfolio-title" name="title" maxlength="<?= PortfolioLocalization::TITLE_MAX_LENGTH ?>" value="<?= $h((string) ($old['title'] ?? '')) ?>">
           </div>
-          <?php admin_lang_pane_end(); ?>
-          <?php admin_lang_pane_start('en'); ?>
-          <div class="admin-field">
-            <?= admin_field_label('portfolio-title-en', admin_t('common.title'), admin_t('help.portfolio.title')) ?>
-            <input type="text" id="portfolio-title-en" name="title_en" maxlength="150" value="<?= $h(fieldValue($old, null, 'title_en')) ?>"<?= admin_lang_placeholder_attr('en') ?>>
-          </div>
-          <?php admin_lang_pane_end(); ?>
         </div>
 
-        <div class="admin-form-row admin-form-row--split">
-          <?php admin_lang_pane_start('nl'); ?>
+        <div class="admin-form-row">
           <div class="admin-field">
-            <?= admin_field_label('portfolio-subtitle-nl', admin_t('portfolio.onderschrift'), admin_t('help.portfolio.subtitle')) ?>
-            <input type="text" id="portfolio-subtitle-nl" name="subtitle_nl" maxlength="150" value="<?= $h(fieldValue($old, null, 'subtitle_nl')) ?>">
+            <?= admin_field_label('portfolio-subtitle', admin_t('portfolio.onderschrift'), admin_t('help.portfolio.subtitle')) ?>
+            <input type="text" id="portfolio-subtitle" name="subtitle" maxlength="<?= PortfolioLocalization::SUBTITLE_MAX_LENGTH ?>" value="<?= $h((string) ($old['subtitle'] ?? '')) ?>">
           </div>
-          <?php admin_lang_pane_end(); ?>
-          <?php admin_lang_pane_start('en'); ?>
-          <div class="admin-field">
-            <?= admin_field_label('portfolio-subtitle-en', admin_t('portfolio.onderschrift'), admin_t('help.portfolio.subtitle')) ?>
-            <input type="text" id="portfolio-subtitle-en" name="subtitle_en" maxlength="150" value="<?= $h(fieldValue($old, null, 'subtitle_en')) ?>"<?= admin_lang_placeholder_attr('en') ?>>
-          </div>
-          <?php admin_lang_pane_end(); ?>
         </div>
 
         <div class="admin-form-row">
@@ -263,6 +244,9 @@ $cmsImageSrc = static fn (array $row): string => '/' . ltrim((string) ($row['thu
     <form method="post" action="/api/admin/update-portfolio-item.php" enctype="multipart/form-data">
       <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
       <input type="hidden" name="item_id" value="<?= (int) $item['id'] ?>">
+      <?php /* ONE language per request: the endpoint writes exactly this one
+               and leaves every other translation of this item alone. */ ?>
+      <?= admin_localized_input($editingLanguage) ?>
 
       <section class="admin-card">
         <h2><?= admin_te('portfolio.hoofdafbeelding') ?></h2>
@@ -274,52 +258,29 @@ $cmsImageSrc = static fn (array $row): string => '/' . ltrim((string) ($row['thu
           </div>
         </div>
 
-        <?php admin_lang_bar(); ?>
-        <div class="admin-form-row admin-form-row--split">
-          <?php admin_lang_pane_start('nl'); ?>
+        <?php admin_localized_bar($editingLanguage); ?>
+        <div class="admin-form-row">
           <div class="admin-field">
-            <?= admin_field_label('portfolio-alt-nl', admin_t('common.alt_text'), admin_t('help.portfolio.alt')) ?>
-            <input type="text" id="portfolio-alt-nl" name="alt_nl" maxlength="255" value="<?= $h(fieldValue($old, $item, 'alt_nl')) ?>">
+            <?= admin_field_label('portfolio-alt', admin_t('common.alt_text'), admin_t('help.portfolio.alt')) ?>
+            <input type="text" id="portfolio-alt" name="alt" maxlength="<?= PortfolioLocalization::ALT_MAX_LENGTH ?>" value="<?= $h($word(PortfolioLocalization::ALT)) ?>"<?= admin_localized_placeholder_attr($editingLanguage) ?>>
           </div>
-          <?php admin_lang_pane_end(); ?>
-          <?php admin_lang_pane_start('en'); ?>
-          <div class="admin-field">
-            <?= admin_field_label('portfolio-alt-en', admin_t('common.alt_text'), admin_t('help.portfolio.alt')) ?>
-            <input type="text" id="portfolio-alt-en" name="alt_en" maxlength="255" value="<?= $h(fieldValue($old, $item, 'alt_en')) ?>"<?= admin_lang_placeholder_attr('en') ?>>
-          </div>
-          <?php admin_lang_pane_end(); ?>
         </div>
       </section>
 
       <section class="admin-card">
         <h2><?= admin_te('portfolio.basisgegevens') ?></h2>
-        <div class="admin-form-row admin-form-row--split">
-          <?php admin_lang_pane_start('nl'); ?>
+        <?php admin_localized_bar($editingLanguage); ?>
+        <div class="admin-form-row">
           <div class="admin-field">
-            <?= admin_field_label('portfolio-title-nl', admin_t('common.title'), admin_t('help.portfolio.title')) ?>
-            <input type="text" id="portfolio-title-nl" name="title_nl" maxlength="150" value="<?= $h(fieldValue($old, $item, 'title_nl')) ?>">
+            <?= admin_field_label('portfolio-title', admin_t('common.title'), admin_t('help.portfolio.title')) ?>
+            <input type="text" id="portfolio-title" name="title" maxlength="<?= PortfolioLocalization::TITLE_MAX_LENGTH ?>" value="<?= $h($word(PortfolioLocalization::TITLE)) ?>"<?= admin_localized_placeholder_attr($editingLanguage) ?>>
           </div>
-          <?php admin_lang_pane_end(); ?>
-          <?php admin_lang_pane_start('en'); ?>
-          <div class="admin-field">
-            <?= admin_field_label('portfolio-title-en', admin_t('common.title'), admin_t('help.portfolio.title')) ?>
-            <input type="text" id="portfolio-title-en" name="title_en" maxlength="150" value="<?= $h(fieldValue($old, $item, 'title_en')) ?>"<?= admin_lang_placeholder_attr('en') ?>>
-          </div>
-          <?php admin_lang_pane_end(); ?>
         </div>
-        <div class="admin-form-row admin-form-row--split">
-          <?php admin_lang_pane_start('nl'); ?>
+        <div class="admin-form-row">
           <div class="admin-field">
-            <?= admin_field_label('portfolio-subtitle-nl', admin_t('portfolio.onderschrift'), admin_t('help.portfolio.subtitle')) ?>
-            <input type="text" id="portfolio-subtitle-nl" name="subtitle_nl" maxlength="150" value="<?= $h(fieldValue($old, $item, 'subtitle_nl')) ?>">
+            <?= admin_field_label('portfolio-subtitle', admin_t('portfolio.onderschrift'), admin_t('help.portfolio.subtitle')) ?>
+            <input type="text" id="portfolio-subtitle" name="subtitle" maxlength="<?= PortfolioLocalization::SUBTITLE_MAX_LENGTH ?>" value="<?= $h($word(PortfolioLocalization::SUBTITLE)) ?>"<?= admin_localized_placeholder_attr($editingLanguage) ?>>
           </div>
-          <?php admin_lang_pane_end(); ?>
-          <?php admin_lang_pane_start('en'); ?>
-          <div class="admin-field">
-            <?= admin_field_label('portfolio-subtitle-en', admin_t('portfolio.onderschrift'), admin_t('help.portfolio.subtitle')) ?>
-            <input type="text" id="portfolio-subtitle-en" name="subtitle_en" maxlength="150" value="<?= $h(fieldValue($old, $item, 'subtitle_en')) ?>"<?= admin_lang_placeholder_attr('en') ?>>
-          </div>
-          <?php admin_lang_pane_end(); ?>
         </div>
       </section>
 
@@ -423,6 +384,5 @@ $cmsImageSrc = static fn (array $row): string => '/' . ltrim((string) ($row['thu
     <?= admin_confirm_dialog() ?>
   <?php endif; ?>
 </main>
-<?php admin_lang_script(); ?>
 </body>
 </html>

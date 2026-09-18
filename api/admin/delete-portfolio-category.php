@@ -10,6 +10,9 @@
  * as a defense-in-depth backstop, so even a race (another tab assigning the
  * category between this check and the DELETE) fails safely rather than
  * silently orphaning relationships.
+ *
+ * ITS NAME GOES WITH IT, in every language: portfolio_category_translations
+ * hangs off the row with ON DELETE CASCADE (Multilingual 2.0 phase 5 wave A).
  */
 
 declare(strict_types=1);

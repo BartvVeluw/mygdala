@@ -146,6 +146,22 @@ final class ReusableBlocksPhase4Test extends TestCase
         ItemGalleryContent::clearCache();
     }
 
+    /** The block's own heading, in the default language (phase 3B storage). */
+    private function title(string $sectionKey, string $title): void
+    {
+        $row = (new ItemGalleryRepository())->findBySlugAndKey(self::TEST_KEY, $sectionKey);
+        $this->assertNotNull($row);
+
+        \App\Service\Blocks\BlockLocalization::save(
+            'item_galleries',
+            (int) $row['id'],
+            \App\Service\Language\LanguageFallback::defaultLanguage(),
+            ['title' => $title]
+        );
+
+        ItemGalleryContent::clearCache();
+    }
+
     private function renderBlock(int $pageSectionId): string
     {
         ItemGalleryContent::clearCache();
@@ -176,6 +192,22 @@ final class ReusableBlocksPhase4Test extends TestCase
      * has. Returns null when the shop has no active products at all, so the
      * collection-source tests can skip instead of asserting on nothing.
      */
+    /**
+     * The card titles a visitor sees first. Since Multilingual 2.0 phase 5
+     * wave A a card's words are one LocalizedValue per field, whichever
+     * source built it, so there is nothing to compare by column any more.
+     *
+     * @param list<array<string, mixed>> $items
+     * @return list<string>
+     */
+    private static function titles(array $items): array
+    {
+        return array_map(
+            static fn (array $item): string => \App\Service\Language\SiteText::visibleOf($item['title']),
+            $items
+        );
+    }
+
     private function collectionWithProducts(): ?int
     {
         if ($this->collectionId !== null) {
@@ -310,14 +342,14 @@ final class ReusableBlocksPhase4Test extends TestCase
         $content = ItemGalleryContent::forSection(self::TEST_KEY, $sectionKey);
         $this->assertSame(ItemGalleryContent::STATE_ACTIVE, $content['state']);
         $this->assertSame(
-            array_column($expected, 'title_nl'),
-            array_column($content['items'], 'title_nl'),
+            self::titles($expected),
+            self::titles($content['items']),
             'the portfolio source must yield the catalogue items, in the catalogue order'
         );
 
         $html = $this->renderBlock($blockId);
         $this->assertStringContainsString('gallery-grid', $html);
-        $this->assertStringContainsString((string) $expected[0]['title_nl'], $html);
+        $this->assertStringContainsString(self::titles($expected)[0], $html);
     }
 
     public function testTheFeaturedScopeYieldsOnlyTheHomepageSelection(): void
@@ -333,7 +365,7 @@ final class ReusableBlocksPhase4Test extends TestCase
 
         $content = ItemGalleryContent::forSection(self::TEST_KEY, $sectionKey);
 
-        $this->assertSame(array_column($featured, 'title_nl'), array_column($content['items'], 'title_nl'));
+        $this->assertSame(self::titles($featured), self::titles($content['items']));
         $this->assertLessThanOrEqual(count($all), count($content['items']));
     }
 
@@ -357,7 +389,7 @@ final class ReusableBlocksPhase4Test extends TestCase
 
         $this->assertSame(
             array_map(static fn (array $p): string => (string) $p['name'], $expected),
-            array_column($content['items'], 'title_nl'),
+            self::titles($content['items']),
             'the collection source must yield that collection\'s active products, in its own order'
         );
 
@@ -510,9 +542,11 @@ final class ReusableBlocksPhase4Test extends TestCase
         render_section_item_gallery([
             'items' => [[
                 'image_path' => 'assets/images/sections/zz-phase4-fallback.jpg',
-                'alt_nl' => '', 'alt_en' => '',
-                'title_nl' => 'ZZ Kaart zonder eigen pagina', 'title_en' => 'ZZ Kaart zonder eigen pagina',
-                'subtitle_nl' => '', 'subtitle_en' => '',
+                // One LocalizedValue per field, the shape every source hands
+                // the partial since Multilingual 2.0 phase 5 wave A.
+                'alt' => \App\Service\Language\LocalizedValue::of([]),
+                'title' => \App\Service\Language\LocalizedValue::ofDutchEnglish('ZZ Kaart zonder eigen pagina', 'ZZ Kaart zonder eigen pagina'),
+                'subtitle' => \App\Service\Language\LocalizedValue::of([]),
                 'categories' => '',
                 'url' => '',
                 'is_detail_link' => false,
@@ -561,24 +595,28 @@ final class ReusableBlocksPhase4Test extends TestCase
         [$secondId, $secondKey] = $this->addBlock('item_gallery');
 
         $this->configure($firstKey, [
-            'title_nl' => 'Eerste galerij',
             'show_filter_bar' => true,
             'enable_lightbox' => true,
             'background' => 'default',
         ]);
         $this->configure($secondKey, [
-            'title_nl' => 'Tweede galerij',
             'show_filter_bar' => false,
             'enable_lightbox' => false,
             'background' => 'soft',
             'max_items' => 1,
         ]);
 
+        // A block's own heading is not a column any more (Multilingual 2.0
+        // phase 3B): it is stored per website language and read back through
+        // App\Service\Blocks\BlockLocalization.
+        $this->title($firstKey, 'Eerste galerij');
+        $this->title($secondKey, 'Tweede galerij');
+
         $first = ItemGalleryContent::forSection(self::TEST_KEY, $firstKey);
         $second = ItemGalleryContent::forSection(self::TEST_KEY, $secondKey);
 
-        $this->assertSame('Eerste galerij', $first['title_nl']);
-        $this->assertSame('Tweede galerij', $second['title_nl']);
+        $this->assertSame('Eerste galerij', \App\Service\Language\SiteText::visibleOf($first['title']));
+        $this->assertSame('Tweede galerij', \App\Service\Language\SiteText::visibleOf($second['title']));
         $this->assertTrue($first['show_filter_bar']);
         $this->assertFalse($second['show_filter_bar']);
         $this->assertTrue($first['enable_lightbox']);
@@ -605,10 +643,8 @@ final class ReusableBlocksPhase4Test extends TestCase
     public function testAnEmptySourceLeavesNoGapOnThePage(): void
     {
         [$blockId, $sectionKey] = $this->addBlock('item_gallery');
-        $this->configure($sectionKey, [
-            'source_type' => ShopModule::GALLERY_SOURCE_COLLECTION,
-            'title_nl' => 'Kop zonder items',
-        ]);
+        $this->configure($sectionKey, ['source_type' => ShopModule::GALLERY_SOURCE_COLLECTION]);
+        $this->title($sectionKey, 'Kop zonder items');
 
         $this->assertSame('', $this->renderBlock($blockId), 'a block with no items must render nothing at all');
     }

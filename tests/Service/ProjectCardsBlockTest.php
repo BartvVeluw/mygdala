@@ -16,6 +16,7 @@ use App\Service\Blocks\ProjectCardsBlock;
 use App\Service\ItemGalleryContent;
 use App\Service\PageContent;
 use App\Service\PortfolioGalleryContent;
+use App\Service\PortfolioLocalization;
 use App\Service\SectionRegistry;
 use PHPUnit\Framework\TestCase;
 
@@ -406,14 +407,16 @@ final class ProjectCardsBlockTest extends TestCase
         $id = $repository->createItem((int) $repository->ensureCatalogue()['id'], [
             'image_path' => 'assets/images/sections/zz-projecten-' . $marker . '.jpg',
             'thumbnail_path' => null,
-            'alt_nl' => 'ZZ alt ' . $marker,
-            'alt_en' => null,
-            'title_nl' => $title,
-            'title_en' => null,
-            'subtitle_nl' => 'ZZ onderschrift ' . $marker,
-            'subtitle_en' => null,
         ]);
         $this->itemIds[] = $id;
+
+        // Its words live per website language since Multilingual 2.0 phase 5
+        // wave A; the default language is what a card shows first.
+        PortfolioLocalization::saveItem($id, PortfolioLocalization::defaultLanguage(), [
+            PortfolioLocalization::ALT => 'ZZ alt ' . $marker,
+            PortfolioLocalization::TITLE => $title,
+            PortfolioLocalization::SUBTITLE => 'ZZ onderschrift ' . $marker,
+        ]);
 
         return $id;
     }

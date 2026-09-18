@@ -161,10 +161,9 @@ final class ProjectCardsBlock extends BlockDefinition
         foreach (range(0, 5) as $index) {
             $items[] = [
                 'image_path' => $image['image_path'],
-                'alt_nl' => $image['alt_nl'],
-                'alt_en' => $image['alt_en'],
-                ...$samples->itemFields('title', 'item', $index),
-                ...$samples->itemFields('subtitle', 'category', $index),
+                'alt' => $image['alt'],
+                'title' => $samples->localizedItem('item', $index),
+                'subtitle' => $samples->localizedItem('category', $index),
                 'categories' => '',
                 'url' => BlockSamples::LINK,
                 'is_detail_link' => true,

@@ -9,6 +9,12 @@
  * automatically, but the files they reference on disk are only removed by
  * this loop first (the database cascade doesn't touch the filesystem).
  *
+ * ITS WORDS GO WITH IT, in every language, and so do its photos' alt texts:
+ * portfolio_item_translations and portfolio_item_image_translations both hang
+ * off their row with ON DELETE CASCADE (Multilingual 2.0 phase 5 wave A).
+ * Unlike a block's words in the polymorphic block_translations, these need no
+ * PHP step before the DELETE — the database has a real foreign key here.
+ *
  * A page the item links to is not the item's: it is an ordinary CMS page, and
  * deleting the item leaves it exactly as it is.
  */

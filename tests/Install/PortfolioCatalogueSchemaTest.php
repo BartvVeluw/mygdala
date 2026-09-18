@@ -131,16 +131,16 @@ final class PortfolioCatalogueSchemaTest extends TestCase
         $after = self::catalogueData($this->install(self::$deployed));
 
         $this->assertNotSame([], self::$deployedDataBefore['items']);
+
+        // Compared on the columns the item has in BOTH states: catching up
+        // also runs every later migration, and one that ADDS a column
+        // (page_id, in 20260914200000) or MOVES one out of the row (the words,
+        // in 20260918170000) changes no value this correction must keep.
+        $shared = static fn (array $row, array $other): array => array_intersect_key($row, $other);
+
         $this->assertSame(
-            self::$deployedDataBefore['items'],
-            // Compared on the columns the item had then: catching up also runs
-            // every later migration, and one that ADDS a column (page_id, in
-            // 20260914200000) changes no value this correction must keep.
-            array_map(
-                static fn (array $row, array $before): array => array_intersect_key($row, $before),
-                $after['items'],
-                self::$deployedDataBefore['items']
-            ),
+            array_map($shared, self::$deployedDataBefore['items'], $after['items']),
+            array_map($shared, $after['items'], self::$deployedDataBefore['items']),
             'dropping section columns must not touch a single portfolio item'
         );
 

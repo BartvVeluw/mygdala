@@ -28,7 +28,7 @@ use App\Service\Blocks\BlockLocalization;
  * has a single rendering path and knows nothing about portfolios or
  * products:
  *
- *   image_path, alt_nl/en, title_nl/en, subtitle_nl/en,
+ *   image_path, alt, title, subtitle (one LocalizedValue each),
  *   categories (space-separated filter slugs),
  *   url ('' = not a link), is_detail_link (its own page, so it gets the
  *   "opens its own page" arrow), and optionally follows_fallback_link
@@ -53,8 +53,9 @@ use App\Service\Blocks\BlockLocalization;
  * in block_translations and come out of App\Service\Blocks\BlockLocalization
  * as one LocalizedValue each, the fallback already applied; the source and
  * every display setting stay in item_galleries. The items' own words belong
- * to their source (Portfolio, Shop) and keep that domain's shape until it
- * moves. This class decides no language itself.
+ * to their source (Portfolio, Shop), and since phase 5 wave A they arrive in
+ * the same shape — one LocalizedValue per field, whichever source built it.
+ * This class decides no language itself.
  *
  * `is_active = false` on an existing row is a deliberate hide, and a
  * different case from a missing row — the same three-state contract

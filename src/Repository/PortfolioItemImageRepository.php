@@ -17,6 +17,10 @@ namespace App\Repository;
  *
  * Same shape/conventions as VariantImageRepository: no is_primary flag, the
  * first row in sort_order order is simply the first image in the gallery.
+ *
+ * Its ALT TEXT is not here: since Multilingual 2.0 phase 5 it lives per
+ * website language in portfolio_item_image_translations and is read through
+ * App\Service\PortfolioLocalization.
  */
 class PortfolioItemImageRepository extends Repository
 {
@@ -26,7 +30,7 @@ class PortfolioItemImageRepository extends Repository
     public function findByPortfolioItemId(int $portfolioItemId): array
     {
         $stmt = $this->db->prepare(
-            'SELECT id, portfolio_item_id, image_path, thumbnail_path, alt_nl, alt_en, sort_order
+            'SELECT id, portfolio_item_id, image_path, thumbnail_path, sort_order
              FROM portfolio_item_images
              WHERE portfolio_item_id = :portfolio_item_id
              ORDER BY sort_order ASC, id ASC'

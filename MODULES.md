@@ -421,6 +421,30 @@ uit**, net als de Blog. Een installatie die Portfolio al draaide toen het nog
 Core was, houdt het via de opgeslagen voorkeur die een migratie schreef (zie
 "Aan- en uitzetten").
 
+**Woorden per websitetaal.** Sinds fase 5 van Multilingual 2.0 staan de
+woorden van Portfolio niet meer in `_nl`/`_en`-kolommen, maar per websitetaal
+in drie getypeerde tabellen. `App\Service\PortfolioLocalization` is de enige
+lezer en schrijver; de rest van de module bewaart rijen, geen woorden.
+
+| Tabel | Eigenaar | Velden |
+|---|---|---|
+| `portfolio_category_translations` | `portfolio_category_id` | `name` |
+| `portfolio_item_translations` | `portfolio_item_id` | `title`, `subtitle`, `alt`, `intro` (rich), `description` (rich) |
+| `portfolio_item_image_translations` | `portfolio_item_image_id` | `alt` |
+
+Wat taalneutraal blijft: de slug van een categorie en van een item, de
+afbeelding en haar thumbnail, de gekoppelde pagina, de categorieën van een
+item, `is_active`, `is_featured` en elke sorteervolgorde. De slug van een
+nieuwe categorie wordt eenmalig uit de naam in de **standaardtaal** gemaakt en
+daarna nooit hernoemd, dus een vertaling verplaatst nooit een adres.
+
+Beide schermen bewerken **één** taal tegelijk, via `admin/_localized_fields.php`
+zoals elk ander omgezet scherm; een nieuwe categorie en een nieuw item worden
+altijd in de standaardtaal geschreven. **Portfolio uitzetten verwijdert geen
+woord**, en opnieuw aanzetten toont precies dezelfde tekst: de
+vertaaltabellen bestaan los van de module, en de migraties vragen nooit of hij
+aan staat. Zie `docs/multilingual/ARCHITECTURE.md`.
+
 **Een projectpagina is een gewone CMS-pagina.** Een portfolio-item heeft
 hoogstens één koppeling naar een pagina: `portfolio_gallery_items.page_id`,
 nullable, met een foreign key naar `pages.id` die `NULL` wordt als de pagina
@@ -452,8 +476,12 @@ Portfolio slaat alleen het id op, nooit een adres.
 **De oude projectpagina blijft, voor haar adres.** Vóór de koppeling had
 Portfolio een eigen projectpagina: `has_detail_page`, de slug, introtekst,
 beschrijving en `portfolio_item_images`. Niets bewerkt die nog, en niets
-ervan is verwijderd of gemigreerd. Tijdens de overgang is `/portfolio/<slug>`
-een compatibiliteitsroute, en `portfolio-detail.php` beantwoordt zo'n adres zo:
+ervan is verwijderd. Haar wóórden zijn wel verhuisd — sinds fase 5 van
+Multilingual 2.0 staan `intro`, `description` en de alt-teksten van haar foto's
+per websitetaal in `portfolio_item_translations` en
+`portfolio_item_image_translations`, read-only zoals ze waren. Tijdens de
+overgang is `/portfolio/<slug>` een compatibiliteitsroute, en
+`portfolio-detail.php` beantwoordt zo'n adres zo:
 
 | Situatie | Antwoord |
 |---|---|

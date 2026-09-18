@@ -89,7 +89,13 @@ final class PortfolioModulePinTest extends TestCase
         // Only a category, no item: somebody started building a portfolio.
         $pdo->exec('DELETE FROM module_settings');
         $pdo->exec('DELETE FROM portfolio_gallery_items');
-        $pdo->exec("INSERT INTO portfolio_categories (name_nl, slug, sort_order, created_at, updated_at) VALUES ('Hout', 'hout', 0, NOW(), NOW())");
+        // Caught up past 20260918170000, so a category's NAME is a row in
+        // portfolio_category_translations, not a column here.
+        $pdo->exec("INSERT INTO portfolio_categories (slug, sort_order, created_at, updated_at) VALUES ('hout', 0, NOW(), NOW())");
+        $pdo->prepare(
+            "INSERT INTO portfolio_category_translations (portfolio_category_id, language_code, name, created_at, updated_at)
+             VALUES (?, 'nl', 'Hout', NOW(), NOW())"
+        )->execute([(int) $pdo->lastInsertId()]);
         $this->install->replay(self::THE_PIN);
 
         $this->assertSame('1', $this->storedPreference($this->install), 'a category is portfolio content too');

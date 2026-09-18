@@ -14,6 +14,7 @@ use App\Service\Language\AdminTranslator;
 use App\Service\PageContent;
 use App\Service\PortfolioGalleryContent;
 use App\Service\PortfolioImageProcessor;
+use App\Service\PortfolioLocalization;
 use PHPUnit\Framework\TestCase;
 use Tests\Support\AdminTestSession;
 use Tests\Support\BuiltInServer;
@@ -133,13 +134,14 @@ final class PortfolioItemEditingHttpTest extends TestCase
         $item = (new PortfolioGalleryRepository())->findItemById($itemId);
         $this->assertNotNull($item);
 
-        foreach (['title_nl', 'alt_nl', 'subtitle_nl'] as $column) {
-            $this->assertSame('', $item[$column], $column . ' may be left empty');
-        }
-
-        foreach (['title_en', 'alt_en', 'subtitle_en'] as $column) {
-            $this->assertNull($item[$column], $column . ' stays untranslated');
-        }
+        // No words at all in any language: no row, which is the same state as
+        // "written as nothing" since Multilingual 2.0 phase 5 wave A.
+        $this->assertSame([], PortfolioLocalization::items()->words($itemId), 'every word may be left empty');
+        $this->assertSame(
+            [PortfolioLocalization::TITLE => '', PortfolioLocalization::ALT => '', PortfolioLocalization::SUBTITLE => ''],
+            $this->storedWords($itemId, 'en'),
+            'and nothing is translated'
+        );
 
         $this->assertSame([], (new PortfolioGalleryRepository())->categoryIdsForItem($itemId), 'no category is a valid choice');
         $this->assertNull($item['page_id'], 'and so is no page');
@@ -152,13 +154,12 @@ final class PortfolioItemEditingHttpTest extends TestCase
         $category = $this->category();
         [$session, $csrf] = $this->accounts->signIn([PortfolioModule::PORTFOLIO_MANAGE]);
 
+        // ONE language per request (phase 5 wave A), and a new item is written
+        // in the default language whatever the screen showed.
         $words = [
-            'title_nl' => 'ZZ Snijplank',
-            'title_en' => 'ZZ Cutting board',
-            'alt_nl' => 'Houten snijplank met een gegraveerde naam',
-            'alt_en' => 'Wooden cutting board with an engraved name',
-            'subtitle_nl' => 'Cadeau, hout',
-            'subtitle_en' => 'Gift, wood',
+            'title' => 'ZZ Snijplank',
+            'alt' => 'Houten snijplank met een gegraveerde naam',
+            'subtitle' => 'Cadeau, hout',
         ];
 
         $response = self::$server->request(
@@ -171,13 +172,52 @@ final class PortfolioItemEditingHttpTest extends TestCase
 
         $itemId = $this->createdItemId($response);
         $repository = new PortfolioGalleryRepository();
-        $item = (array) $repository->findItemById($itemId);
 
-        foreach ($words as $column => $typed) {
-            $this->assertSame($typed, $item[$column], $column);
-        }
+        $this->assertSame($words, $this->storedWords($itemId));
+        $this->assertSame(
+            ['title' => '', 'alt' => '', 'subtitle' => ''],
+            $this->storedWords($itemId, 'en'),
+            'the request named one language, so only that one was written'
+        );
 
         $this->assertSame([(int) $category['id']], $repository->categoryIdsForItem($itemId));
+    }
+
+    /**
+     * Saving Dutch leaves English standing, and the other way round. That used
+     * to be a property of a form that posted both columns at once; since
+     * phase 5 wave A it is a property of the storage.
+     */
+    public function testSavingOneLanguageThroughTheEndpointLeavesTheOtherAlone(): void
+    {
+        $itemId = $this->storedItem('ZZ Snijplank', []);
+        [$session, $csrf] = $this->accounts->signIn([PortfolioModule::PORTFOLIO_MANAGE]);
+
+        $save = function (string $language, string $title) use ($session, $csrf, $itemId): array {
+            return self::$server->request('POST', '/api/admin/update-portfolio-item.php', $session, [
+                'csrf_token' => $csrf,
+                'item_id' => (string) $itemId,
+                'language_code' => $language,
+                'title' => $title,
+                'alt' => '',
+                'subtitle' => '',
+                'is_active' => '1',
+            ]);
+        };
+
+        $this->assertSame(302, $save('en', 'ZZ Cutting board')['status']);
+        $this->assertSame('ZZ Snijplank', $this->storedWords($itemId)['title'], 'English did not touch Dutch');
+        $this->assertSame('ZZ Cutting board', $this->storedWords($itemId, 'en')['title']);
+
+        $this->assertSame(302, $save('nl', 'ZZ Plank')['status']);
+        $this->assertSame('ZZ Plank', $this->storedWords($itemId)['title']);
+        $this->assertSame('ZZ Cutting board', $this->storedWords($itemId, 'en')['title'], 'Dutch did not touch English');
+
+        // A language the registry does not have is refused, and nothing moves.
+        $refused = $save('xx', 'ZZ Nope');
+        $this->assertSame('/admin/portfolio-item.php?id=' . $itemId, $refused['location']);
+        $this->assertNotEmpty($this->accounts->read($session, 'admin_portfolio_item_errors'));
+        $this->assertSame('ZZ Plank', $this->storedWords($itemId)['title']);
     }
 
     /** No image, no item — and the editor is told why. */
@@ -188,7 +228,7 @@ final class PortfolioItemEditingHttpTest extends TestCase
 
         $response = self::$server->request('POST', '/api/admin/create-portfolio-item.php', $session, [
             'csrf_token' => $csrf,
-            'title_nl' => 'ZZ Zonder afbeelding',
+            'title' => 'ZZ Zonder afbeelding',
         ]);
 
         $this->assertSame(302, $response['status']);
@@ -215,9 +255,10 @@ final class PortfolioItemEditingHttpTest extends TestCase
         $response = self::$server->request('POST', '/api/admin/update-portfolio-item.php', $session, [
             'csrf_token' => $csrf,
             'item_id' => (string) $itemId,
-            'title_nl' => '',
-            'alt_nl' => '',
-            'subtitle_nl' => '',
+            'language_code' => PortfolioLocalization::defaultLanguage(),
+            'title' => '',
+            'alt' => '',
+            'subtitle' => '',
             'is_active' => '1',
         ]);
 
@@ -225,11 +266,13 @@ final class PortfolioItemEditingHttpTest extends TestCase
         $this->assertSame('/admin/portfolio-item.php?id=' . $itemId . '&updated=1', $response['location']);
 
         $repository = new PortfolioGalleryRepository();
-        $item = (array) $repository->findItemById($itemId);
 
-        foreach (['title_nl', 'alt_nl', 'subtitle_nl'] as $column) {
-            $this->assertSame('', $item[$column], $column);
-        }
+        // Emptied means "no words", so that language has no row left at all.
+        $this->assertSame(
+            ['title' => '', 'alt' => '', 'subtitle' => ''],
+            $this->storedWords($itemId)
+        );
+        $this->assertSame([], PortfolioLocalization::items()->words($itemId));
 
         $this->assertSame([], $repository->categoryIdsForItem($itemId));
         $this->assertNotNull((new PortfolioCategoryRepository())->findById((int) $category['id']), 'the category itself stays');
@@ -282,8 +325,9 @@ final class PortfolioItemEditingHttpTest extends TestCase
     /* ------------------------------------------------------------------ */
 
     /**
-     * Choosing a page stores its id, and only its id: the old project page's
-     * columns keep every value, because nothing on this form reaches them.
+     * Choosing a page stores its id, and only its id: the old project page
+     * keeps its switch, its slug and every word it held, because nothing on
+     * this form reaches them.
      */
     public function testChoosingAPageStoresItsIdAndLeavesTheOldProjectPageAlone(): void
     {
@@ -297,7 +341,10 @@ final class PortfolioItemEditingHttpTest extends TestCase
         $response = self::$server->request('POST', '/api/admin/update-portfolio-item.php', $session, [
             'csrf_token' => $csrf,
             'item_id' => (string) $itemId,
-            'title_nl' => 'ZZ Project',
+            'language_code' => PortfolioLocalization::defaultLanguage(),
+            'title' => 'ZZ Project',
+            'alt' => '',
+            'subtitle' => '',
             'is_active' => '1',
             'page_id' => (string) $pageId,
         ]);
@@ -308,9 +355,23 @@ final class PortfolioItemEditingHttpTest extends TestCase
         $after = (array) $repository->findItemById($itemId);
         $this->assertSame($pageId, (int) $after['page_id']);
 
-        foreach (['has_detail_page', 'slug', 'intro_nl', 'intro_en', 'description_nl', 'description_en'] as $column) {
+        foreach (['has_detail_page', 'slug'] as $column) {
             $this->assertSame($before[$column], $after[$column], $column . ' belongs to the old project page and is left alone');
         }
+
+        // And its rich text, which since phase 5 wave A is two rows the form
+        // never mentions: saveItem() writes only the fields it is given, so
+        // the words of the page this item is moving away from stay readable at
+        // its old address.
+        PortfolioLocalization::clearCache();
+        $this->assertSame(
+            '<p>ZZ oude intro</p>',
+            PortfolioLocalization::rawItemValue($itemId, PortfolioLocalization::INTRO, PortfolioLocalization::defaultLanguage())
+        );
+        $this->assertSame(
+            '<p>ZZ oude beschrijving</p>',
+            PortfolioLocalization::rawItemValue($itemId, PortfolioLocalization::DESCRIPTION, PortfolioLocalization::defaultLanguage())
+        );
     }
 
     /** "Geen gekoppelde pagina" is a valid answer: the link goes, the page stays. */
@@ -325,7 +386,10 @@ final class PortfolioItemEditingHttpTest extends TestCase
         $response = self::$server->request('POST', '/api/admin/update-portfolio-item.php', $session, [
             'csrf_token' => $csrf,
             'item_id' => (string) $itemId,
-            'title_nl' => 'ZZ Project',
+            'language_code' => PortfolioLocalization::defaultLanguage(),
+            'title' => 'ZZ Project',
+            'alt' => '',
+            'subtitle' => '',
             'is_active' => '1',
             'page_id' => '',
         ]);
@@ -355,7 +419,10 @@ final class PortfolioItemEditingHttpTest extends TestCase
             $response = self::$server->request('POST', '/api/admin/update-portfolio-item.php', $session, [
                 'csrf_token' => $csrf,
                 'item_id' => (string) $itemId,
-                'title_nl' => 'ZZ Gewijzigd',
+                'language_code' => PortfolioLocalization::defaultLanguage(),
+                'title' => 'ZZ Gewijzigd',
+                'alt' => '',
+                'subtitle' => '',
                 'is_active' => '1',
                 'page_id' => $choice,
             ]);
@@ -368,7 +435,7 @@ final class PortfolioItemEditingHttpTest extends TestCase
 
             $item = (array) $repository->findItemById($itemId);
             $this->assertSame($pageId, (int) $item['page_id'], 'the link the item had is kept');
-            $this->assertSame('ZZ Onveranderd', $item['title_nl'], 'a refused save writes nothing');
+            $this->assertSame('ZZ Onveranderd', $this->storedWords($itemId)['title'], 'a refused save writes nothing');
         }
     }
 
@@ -402,7 +469,7 @@ final class PortfolioItemEditingHttpTest extends TestCase
         );
         $this->assertStringNotContainsString('<option value="' . $templatePageId . '"', $editor['body'], 'a page with a template of its own is no project page');
 
-        foreach (['has_detail_page', 'slug', 'intro_nl', 'description_nl'] as $name) {
+        foreach (['has_detail_page', 'slug', 'intro', 'description'] as $name) {
             $this->assertStringNotContainsString('name="' . $name . '"', $editor['body'], $name . ' belonged to the old project page');
         }
 
@@ -422,8 +489,9 @@ final class PortfolioItemEditingHttpTest extends TestCase
     {
         $repository = new PortfolioCategoryRepository();
         $marker = bin2hex(random_bytes(3));
-        $id = $repository->create('ZZ Categorie ' . $marker, null, 'zz-categorie-' . $marker);
+        $id = $repository->create('zz-categorie-' . $marker);
         $this->categoryIds[] = $id;
+        PortfolioLocalization::saveCategory($id, PortfolioLocalization::defaultLanguage(), 'ZZ Categorie ' . $marker);
 
         return (array) $repository->findById($id);
     }
@@ -437,33 +505,54 @@ final class PortfolioItemEditingHttpTest extends TestCase
         $id = $repository->createItem((int) $repository->ensureCatalogue()['id'], [
             'image_path' => 'assets/images/sections/zz-portfoliotest-' . $marker . '.jpg',
             'thumbnail_path' => null,
-            'alt_nl' => $title === '' ? '' : 'ZZ alt ' . $marker,
-            'alt_en' => null,
-            'title_nl' => $title,
-            'title_en' => null,
-            'subtitle_nl' => $title === '' ? '' : 'ZZ onderschrift ' . $marker,
-            'subtitle_en' => null,
         ]);
         $this->itemIds[] = $id;
+
+        PortfolioLocalization::saveItem($id, PortfolioLocalization::defaultLanguage(), [
+            PortfolioLocalization::ALT => $title === '' ? '' : 'ZZ alt ' . $marker,
+            PortfolioLocalization::TITLE => $title,
+            PortfolioLocalization::SUBTITLE => $title === '' ? '' : 'ZZ onderschrift ' . $marker,
+        ]);
+
         $repository->setItemCategories($id, $categoryIds);
 
         return $id;
     }
 
     /**
-     * The old project page's columns, filled the way its editor filled them.
-     * Nothing in the application writes them any more, so the fixture does it
-     * directly.
+     * The old project page, filled the way its editor filled it. Nothing in
+     * the application writes its switch or its slug any more, so the fixture
+     * does those directly; its rich text goes through the words API like any
+     * other word.
      */
     private function giveItAnOldProjectPage(int $itemId): void
     {
         Database::connection()
-            ->prepare(
-                "UPDATE portfolio_gallery_items
-                    SET has_detail_page = 1, slug = :slug, intro_nl = '<p>ZZ oude intro</p>', description_nl = '<p>ZZ oude beschrijving</p>'
-                  WHERE id = :id"
-            )
+            ->prepare('UPDATE portfolio_gallery_items SET has_detail_page = 1, slug = :slug WHERE id = :id')
             ->execute(['slug' => 'zz-oud-project-' . bin2hex(random_bytes(4)), 'id' => $itemId]);
+
+        PortfolioLocalization::saveItem($itemId, PortfolioLocalization::defaultLanguage(), [
+            PortfolioLocalization::INTRO => '<p>ZZ oude intro</p>',
+            PortfolioLocalization::DESCRIPTION => '<p>ZZ oude beschrijving</p>',
+        ]);
+    }
+
+    /**
+     * What is stored for one item in one language, with no fallback — the
+     * per-language storage of Multilingual 2.0 phase 5 wave A.
+     *
+     * @return array<string, string>
+     */
+    private function storedWords(int $itemId, string $language = 'nl'): array
+    {
+        PortfolioLocalization::clearCache();
+
+        $words = [];
+        foreach ([PortfolioLocalization::TITLE, PortfolioLocalization::ALT, PortfolioLocalization::SUBTITLE] as $field) {
+            $words[$field] = PortfolioLocalization::rawItemValue($itemId, $field, $language);
+        }
+
+        return $words;
     }
 
     private function page(string $status): int

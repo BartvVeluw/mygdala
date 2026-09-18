@@ -58,9 +58,11 @@ function render_section_item_gallery(array $content, string $revealGroup = 'gall
 
     // The block's own words arrive as one LocalizedValue per field
     // (App\Service\Blocks\BlockLocalization), printed through SiteText's
-    // visibleOf()/attrsOf(), all plain text. The items' words are their
-    // source's (a Portfolio item, a product) and keep that domain's
-    // Dutch/English pair until it moves (Multilingual 2.0 phase 5).
+    // visibleOf()/attrsOf(), all plain text. Since Multilingual 2.0 phase 5
+    // so do the items' words, whichever source they come from: a Portfolio
+    // item (App\Service\PortfolioLocalization) or a product
+    // (App\Service\ShopLocalization). This partial knows no language, no
+    // default and no fallback.
     $text = static fn (string $field): string => \App\Service\Language\SiteText::visibleOf($content[$field]);
     $pair = static fn (string $field): string => \App\Service\Language\SiteText::attrsOf($content[$field]);
 
@@ -92,7 +94,7 @@ function render_section_item_gallery(array $content, string $revealGroup = 'gall
       <div class="filter-bar" role="group" aria-label="Filter op categorie">
         <button type="button" data-filter="all" aria-pressed="true" data-nl="Alles" data-en="All">Alles</button>
         <?php foreach ($filterCategories as $filterCategory): ?>
-        <button type="button" data-filter="<?= $h($filterCategory['slug']) ?>" aria-pressed="false" <?= \App\Service\Language\SiteText::attrs($filterCategory['name_nl'], $filterCategory['name_en']) ?>><?= $h(\App\Service\Language\SiteText::visible($filterCategory['name_nl'], $filterCategory['name_en'])) ?></button>
+        <button type="button" data-filter="<?= $h($filterCategory['slug']) ?>" aria-pressed="false" <?= \App\Service\Language\SiteText::attrsOf($filterCategory['name']) ?>><?= $h(\App\Service\Language\SiteText::visibleOf($filterCategory['name'])) ?></button>
         <?php endforeach; ?>
       </div>
       <?php endif; ?>
@@ -113,19 +115,18 @@ function render_section_item_gallery(array $content, string $revealGroup = 'gall
           // an image, say). The card then renders as the theme's empty
           // surface tile rather than a broken <img>.
           $imageTag = (string) $item['image_path'] === '' ? '' : '<img src="'
-              . $h($rootPath((string) $item['image_path'])) . '" alt="' . $h((string) $item['alt_nl'])
-              . '" data-nl-alt="' . $h((string) $item['alt_nl'])
-              . '" data-en-alt="' . $h((string) $item['alt_en']) . '" loading="lazy">';
-          // Only the words the item has, in either language: SiteText::visible()
-          // already falls back to the other one, so '' means there are none.
-          $itemTitle = \App\Service\Language\SiteText::visible((string) $item['title_nl'], (string) $item['title_en']);
-          $itemSubtitle = \App\Service\Language\SiteText::visible((string) $item['subtitle_nl'], (string) $item['subtitle_en']);
+              . $h($rootPath((string) $item['image_path'])) . '" alt="' . $h(\App\Service\Language\SiteText::visibleOf($item['alt']))
+              . '"' . \App\Service\Language\SiteText::attrsForOf('alt', $item['alt']) . ' loading="lazy">';
+          // Only the words the item has: visibleOf() has the fallback of its
+          // source applied already, so '' means there are none.
+          $itemTitle = \App\Service\Language\SiteText::visibleOf($item['title']);
+          $itemSubtitle = \App\Service\Language\SiteText::visibleOf($item['subtitle']);
           $overlay = '';
           if ($itemTitle !== '') {
-              $overlay .= '<p ' . \App\Service\Language\SiteText::attrs((string) $item['title_nl'], (string) $item['title_en']) . '>' . $h($itemTitle) . '</p>';
+              $overlay .= '<p' . \App\Service\Language\SiteText::attrsOf($item['title']) . '>' . $h($itemTitle) . '</p>';
           }
           if ($itemSubtitle !== '') {
-              $overlay .= '<span ' . \App\Service\Language\SiteText::attrs((string) $item['subtitle_nl'], (string) $item['subtitle_en']) . '>' . $h($itemSubtitle) . '</span>';
+              $overlay .= '<span' . \App\Service\Language\SiteText::attrsOf($item['subtitle']) . '>' . $h($itemSubtitle) . '</span>';
           }
         ?>
         <?php if ($itemUrl !== ''): ?>

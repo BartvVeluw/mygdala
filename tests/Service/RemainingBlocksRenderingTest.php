@@ -502,9 +502,11 @@ final class RemainingBlocksRenderingTest extends TestCase
             'tight_top' => false,
             'items' => [[
                 'image_path' => 'assets/images/x.jpg',
-                'alt_nl' => '', 'alt_en' => '',
-                'title_nl' => 'Kaart NL', 'title_en' => 'Card EN',
-                'subtitle_nl' => '', 'subtitle_en' => '',
+                // One LocalizedValue per field, the shape every source hands
+                // the partial since phase 5 wave A.
+                'alt' => \App\Service\Language\LocalizedValue::of([]),
+                'title' => \App\Service\Language\LocalizedValue::ofDutchEnglish('Kaart NL', 'Card EN'),
+                'subtitle' => \App\Service\Language\LocalizedValue::of([]),
                 'categories' => '',
                 'url' => '',
                 'is_detail_link' => false,

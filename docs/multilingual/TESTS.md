@@ -152,3 +152,37 @@ taal tonen en hun endpoints alleen die taal schrijven.
 staan. `SiteLanguagesTest` doet hetzelfde voor het register met `es`, `pt`,
 `pl`, `sv`, `da` en `cs`. `SetupWizardValidationTest` (`fast`) legt vast hoe
 de wizard de websitetaal leest.
+
+## Fase 5: de modules
+
+**Golf A, Portfolio.** `PortfolioLocalizationTest` (`fast`) vraagt zonder
+database wat `PortfolioLocalization` boven `EntityTranslations` toevoegt: welk
+veld bij welke tabel hoort, de lengtes die de kolommen hadden, de terugval van
+een kaart, het saneren van de twee rich velden *voordat* de terugval loopt, een
+derde taal zonder schema- of codewijziging, en het weigeren van een veld dat
+niet van dit domein is. Het legt ook vast dat de **standaardtaal** beslist of
+een kaart woorden heeft: een item met alleen een vertaling heeft geen titel.
+
+`PortfolioTranslationTest` (`cms`) doet hetzelfde tegen de echte database, met
+de vragen die alleen daar te stellen zijn: één taal opslaan laat de andere
+staan, een formulier dat een veld niet toont kan het niet leegmaken, een taal
+zonder woorden heeft geen rij, een te lang woord wordt geweigerd in plaats van
+afgekapt, en de regels die het schema afdwingt — een item verwijderen neemt
+zijn woorden én de alt-teksten van zijn foto's mee (`CASCADE`), en een taal met
+portfoliowoorden is niet te verwijderen (`RESTRICT`).
+
+`PortfolioItemEditingHttpTest` (`cms`) bewijst over echte HTTP dat het endpoint
+precies één taal schrijft: Nederlands opslaan laat Engels staan en omgekeerd,
+een taal buiten het register wordt geweigerd en schrijft niets, en een
+geweigerde opslag houdt de getypte woorden vast.
+`PortfolioModuleHttpTest` (`modules`) neemt de woorden mee in zijn
+momentopname, zodat "module uit en weer aan" ook over vertalingen gaat.
+`PortfolioWordsMigrationTest` (`migration`) is de backfill, op een verse, een
+bijgewerkte en een kapotte database.
+
+De golf-A-grenzen in `MultilingualBoundaryTest`: dat niets de veertien gedropte
+kolommen nog leest (op twee gemarkeerde uitzonderingen na — de eigen
+attributenparen van de lightbox en de SEO-kop), dat de module zelf geen taal
+of terugval kiest, dat alleen `PortfolioLocalization` bij de woorden komt en de
+partial alles via `SiteText` print, en dat beide editors één taal tonen en hun
+endpoints alleen die taal schrijven, in één transactie met de rij.

@@ -426,9 +426,12 @@ Tot fase B was er één optionele URL per netwerk, als zeven instellingen
 Een verse installatie heeft geen social-instellingen en krijgt dus geen rij.
 
 **Legacy.** De zeven `social_*_url`-rijen blijven fysiek in `site_settings` en
-staan nog in `SiteSettings::DEFAULTS`, net als `header_cta_*`. Niets leest of
-schrijft ze: de footer en `PageSeo` lezen `footer_social_links`, het scherm
-schrijft daar ook. Ze echt verwijderen is een aparte, destructieve beslissing.
+staan nog in `SiteSettings::DEFAULTS`. Niets leest of schrijft ze: de footer en
+`PageSeo` lezen `footer_social_links`, het scherm schrijft daar ook. Ze echt
+verwijderen is een aparte, destructieve beslissing. De acht
+`header_cta_*`-sleutels zijn wél verdwenen — fase 4 van Multilingual 2.0
+(`20260918130000`) heeft ze weggehaald, omdat hun enige lezer de migratie was
+die de headerknoppen naar `nav_items` bracht.
 
 ## Standaarden: bestaande site versus verse installatie
 
