@@ -29,6 +29,7 @@ modules aan staan" en "Vanuit een git worktree".
 | Blokwoorden per taal (`BlockLocalization`, `block_translations`, een omgezet blok of zijn editor) | `fast` → `blocks` |
 | Navigatie-, footer-, formulier- of instellingentekst per taal (fase 4: een getypeerde `*_translations`-tabel, `LocalizedSiteSettings`, een optie of zijn label) | `fast` → `cms` |
 | Woorden van een module per taal (fase 5: `PortfolioLocalization`, `BlogLocalization`, `ShopLocalization`, `PersonalizationLocalization`, `OrderItemNameSnapshot`) | `fast` → de suite van de module |
+| Een gelokaliseerde **instelling** van een module (fase 5 golf E: `BlogLocalizedSettings` op de gedeelde `site_setting_translations`) | `fast` → de suite van de module |
 
 ## De bestanden
 
@@ -70,8 +71,13 @@ In `cms`:
   taal, een Duitse rij zonder schemawijziging, en wat er gebeurt als een
   menu-item, kolom of link verdwijnt
 - `tests/Repository/LocalizedSiteSettingsTest.php` — fase 4: de gesloten
-  catalogus van gelokaliseerde instellingen, een geweigerde sleutel, een
+  catalogus van Core's gelokaliseerde instellingen, een geweigerde sleutel, een
   geweigerde taal, en opslaan per taal
+- `tests/Blog/BlogLocalizedSettingsTest.php` — fase 5 golf E: dezelfde vragen
+  voor de eigen catalogus van de Blog, plus dat de twee catalogi dezelfde
+  fysieke tabel delen zonder elkaars sleutels te kunnen lezen of schrijven, dat
+  de module uitzetten geen woord weggooit, en dat `blog_settings` de vier oude
+  sleutels niet terug kan krijgen
 - `tests/Repository/SiteLanguageRepositoryTest.php` — de invarianten van
   `site_languages` tegen de testdatabase, elke test in een transactie die
   wordt teruggedraaid
@@ -202,7 +208,10 @@ naam die geen kolom meer is), `BlogSeoTest` en `BlogMediaAndSettingsTest`
 (waar de mediabibliotheek een bericht bij naam noemt).
 `BlogWordsMigrationTest` (`migration` en `blog`) is de backfill op een verse,
 een bijgewerkte en een kapotte database, en let er apart op dat elke slug en
-elke taxonomiekoppeling ongemoeid blijft.
+elke taxonomiekoppeling ongemoeid blijft. `BlogSettingsTextMigrationTest`
+(dezelfde twee suites) doet hetzelfde voor golf E — de blogtitel en de
+introtekst — en zet er een rij van een andere catalogus naast om te bewijzen
+dat die byte voor byte blijft staan.
 
 De golf-B-grenzen in `MultilingualBoundaryTest`: dat niets de zestien gedropte
 kolommen nog leest, dat elke slug één taalneutrale kolom is gebleven, dat de

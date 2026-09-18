@@ -1278,7 +1278,6 @@ From the first label the CMS also makes the fixed name answers are stored under.
     'blog.overzicht' => 'Overview',
     'blog.tegelijk_meta_description_pagina' => 'and is also that page\'s meta description. Leave it empty to show the title only.',
     'blog.introtekst_staat_onder_titel' => 'The intro text sits under the title at',
-    'blog.introtekst_2' => 'Intro text',
     'blog.introtekst' => 'Intro text',
     'blog.kop_blog' => 'Heading of the blog',
     'blog.hoe_blog_zich_voorstelt' => 'How the blog introduces itself and what sits under a post. The styling itself comes from <a href="/admin/theme.php">Design</a>, as it does for every other page.',

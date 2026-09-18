@@ -120,7 +120,7 @@ final class BlogFeed
     private static function channelTitle(): string
     {
         $siteName = SeoDefaults::siteName();
-        $blogTitle = BlogSettings::title(BlogLocalization::defaultLanguage());
+        $blogTitle = BlogLocalizedSettings::title(BlogLocalizedSettings::defaultLanguage());
 
         if ($siteName === '' || $siteName === $blogTitle) {
             return $blogTitle;
@@ -131,7 +131,7 @@ final class BlogFeed
 
     private static function channelDescription(): string
     {
-        $intro = Seo::plainText(BlogSettings::intro(BlogLocalization::defaultLanguage()));
+        $intro = Seo::plainText(BlogLocalizedSettings::intro(BlogLocalizedSettings::defaultLanguage()));
 
         if ($intro !== '') {
             return $intro;

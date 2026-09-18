@@ -43,6 +43,7 @@ require_once __DIR__ . '/partials/breadcrumb.php';
  */
 
 use App\Service\Blog\BlogContent;
+use App\Service\Blog\BlogLocalizedSettings;
 use App\Service\Blog\BlogSeo;
 use App\Service\Blog\BlogSettings;
 use App\Service\Blog\BlogUrls;
@@ -79,10 +80,15 @@ if ($listing === null) {
     };
 
     // What this page is called and what it says about itself, per mode.
-    $headingNl = BlogSettings::title('nl');
-    $headingEn = BlogSettings::title('en');
-    $introNl = BlogSettings::intro('nl');
-    $introEn = BlogSettings::intro('en');
+    // The listing's own heading and introduction: one pair, each half already
+    // resolved per website language (BlogLocalizedSettings). An archive
+    // overwrites them with the category's or the tag's own words below.
+    $blogTitle = BlogLocalizedSettings::titleValue();
+    $blogIntro = BlogLocalizedSettings::introValue();
+    $headingNl = $blogTitle->in(LanguageRegistry::DUTCH);
+    $headingEn = $blogTitle->in(LanguageRegistry::ENGLISH);
+    $introNl = $blogIntro->in(LanguageRegistry::DUTCH);
+    $introEn = $blogIntro->in(LanguageRegistry::ENGLISH);
     $eyebrowNl = '';
     $eyebrowEn = '';
 
@@ -131,7 +137,7 @@ if ($listing === null) {
 <?php else: ?>
 <?php require __DIR__ . '/partials/seo-head.php'; ?>
 <?php if (BlogSettings::rssEnabled()): ?>
-<link rel="alternate" type="application/rss+xml" title="<?= $h(BlogSettings::title('nl')) ?>" href="<?= $h(BlogUrls::feedPath()) ?>">
+<link rel="alternate" type="application/rss+xml" title="<?= $h(BlogLocalizedSettings::title(LanguageRegistry::DUTCH)) ?>" href="<?= $h(BlogUrls::feedPath()) ?>">
 <?php endif; ?>
 <?php endif; ?>
 <?php
@@ -160,14 +166,15 @@ require __DIR__ . '/partials/header.php';
   <?php
     /**
      * The Blog names its own levels — its title is the one the owner typed
-     * (BlogSettings), not a fixed word — and hands them to the site's one
-     * renderer. Core never learns that a blog exists; see MODULES.md.
+     * (BlogLocalizedSettings), not a fixed word — and hands them to the
+     * site's one renderer. Core never learns that a blog exists; see
+     * MODULES.md.
      */
     $blogTrail = \App\Service\Breadcrumbs\BreadcrumbTrail::home();
     $blogTrail = $listing['mode'] === 'index'
-        ? $blogTrail->to(\App\Service\Breadcrumbs\BreadcrumbItem::current(BlogSettings::title('nl'), BlogSettings::title('en')))
+        ? $blogTrail->to(\App\Service\Breadcrumbs\BreadcrumbItem::current($blogTitle->in(LanguageRegistry::DUTCH), $blogTitle->in(LanguageRegistry::ENGLISH)))
         : $blogTrail
-            ->to(\App\Service\Breadcrumbs\BreadcrumbItem::link(BlogSettings::title('nl'), BlogSettings::title('en'), BlogUrls::indexPath()))
+            ->to(\App\Service\Breadcrumbs\BreadcrumbItem::link($blogTitle->in(LanguageRegistry::DUTCH), $blogTitle->in(LanguageRegistry::ENGLISH), BlogUrls::indexPath()))
             ->to(\App\Service\Breadcrumbs\BreadcrumbItem::current($headingNl, $headingEn));
     render_breadcrumb($blogTrail);
   ?>

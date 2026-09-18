@@ -11,6 +11,7 @@ use App\Service\AdminPermissions;
 use App\Service\Blog\BlogContent;
 use App\Service\Blog\BlogLocalization;
 use App\Service\Blog\BlogPostStatus;
+use App\Service\Blog\BlogLocalizedSettings;
 use App\Service\Blog\BlogSettings;
 use App\Service\Blog\BlogSlug;
 use App\Service\Media\MediaService;
@@ -69,6 +70,7 @@ final class BlogMediaAndSettingsTest extends TestCase
 
         BlogSettings::overrideForTests(null);
         ModuleRegistry::overrideForTests(null);
+        BlogLocalizedSettings::overrideForTests(null);
         MediaService::clearCache();
     }
 
@@ -224,9 +226,10 @@ final class BlogMediaAndSettingsTest extends TestCase
     public function testAFreshInstallationHasCoherentBlogDefaults(): void
     {
         BlogSettings::overrideForTests([]);
+        BlogLocalizedSettings::overrideForTests([]);
 
-        $this->assertSame(BlogSettings::DEFAULT_TITLE, BlogSettings::title('nl'));
-        $this->assertSame('', BlogSettings::intro('nl'));
+        $this->assertSame(BlogLocalizedSettings::DEFAULT_TITLE, BlogLocalizedSettings::title('nl'));
+        $this->assertSame('', BlogLocalizedSettings::intro('nl'));
         $this->assertSame(BlogSettings::DEFAULT_POSTS_PER_PAGE, BlogSettings::postsPerPage());
         $this->assertTrue(BlogSettings::showDate());
         $this->assertTrue(BlogSettings::showAuthor());
@@ -234,17 +237,22 @@ final class BlogMediaAndSettingsTest extends TestCase
         $this->assertTrue(BlogSettings::rssEnabled());
     }
 
-    public function testASettingIsReadBackAndAnEmptyEnglishTitleFallsBack(): void
+    /**
+     * The two texts come from the per-language store now, and an untranslated
+     * one falls back to the default language. The real storage is
+     * Tests\Blog\BlogLocalizedSettingsTest's; this is the reading rule the
+     * Blog's own pages depend on.
+     */
+    public function testATextIsReadBackAndAnUntranslatedOneFallsBack(): void
     {
-        BlogSettings::overrideForTests([
-            BlogSettings::TITLE => 'Werkplaatslogboek',
-            BlogSettings::TITLE_EN => '',
-            BlogSettings::INTRO => 'Wat er bij ons gebeurt.',
+        BlogLocalizedSettings::overrideForTests([
+            BlogLocalizedSettings::TITLE => ['nl' => 'Werkplaatslogboek'],
+            BlogLocalizedSettings::INTRO => ['nl' => 'Wat er bij ons gebeurt.'],
         ]);
 
-        $this->assertSame('Werkplaatslogboek', BlogSettings::title('nl'));
-        $this->assertSame('Werkplaatslogboek', BlogSettings::title('en'));
-        $this->assertSame('Wat er bij ons gebeurt.', BlogSettings::intro('en'));
+        $this->assertSame('Werkplaatslogboek', BlogLocalizedSettings::title('nl'));
+        $this->assertSame('Werkplaatslogboek', BlogLocalizedSettings::title('en'));
+        $this->assertSame('Wat er bij ons gebeurt.', BlogLocalizedSettings::intro('en'));
     }
 
     public function testAnImpossiblePageSizeFallsBackToTheDefault(): void
@@ -286,7 +294,8 @@ final class BlogMediaAndSettingsTest extends TestCase
     {
         $keys = BlogSettings::keys();
 
-        $this->assertContains(BlogSettings::TITLE, $keys);
+        $this->assertContains(BlogSettings::POSTS_PER_PAGE, $keys);
+        $this->assertNotContains(BlogLocalizedSettings::TITLE, $keys, 'the words live per website language, not here');
         $this->assertNotContains('site_name', $keys, 'Core identity settings are not the Blog\'s to write');
     }
 

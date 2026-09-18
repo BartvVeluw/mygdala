@@ -65,14 +65,14 @@ final class BlogSeo
      */
     public static function forIndex(int $page = 1): SeoMetadata
     {
-        $titleNl = self::listingTitle(BlogSettings::title(LanguageRegistry::DUTCH), $page);
-        $titleEn = self::listingTitle(BlogSettings::title(LanguageRegistry::ENGLISH), $page);
+        $titleNl = self::listingTitle(BlogLocalizedSettings::title(LanguageRegistry::DUTCH), $page);
+        $titleEn = self::listingTitle(BlogLocalizedSettings::title(LanguageRegistry::ENGLISH), $page);
 
         return SeoMetadata::create(
             titleNl: $titleNl,
             titleEn: $titleEn,
-            descriptionNl: Seo::plainText(BlogSettings::intro(LanguageRegistry::DUTCH)),
-            descriptionEn: Seo::plainText(BlogSettings::intro(LanguageRegistry::ENGLISH)),
+            descriptionNl: Seo::plainText(BlogLocalizedSettings::intro(LanguageRegistry::DUTCH)),
+            descriptionEn: Seo::plainText(BlogLocalizedSettings::intro(LanguageRegistry::ENGLISH)),
             canonical: BlogUrls::index($page),
             indexable: true,
             ogType: 'website',
@@ -178,7 +178,7 @@ final class BlogSeo
     private static function archiveTitle(string $name, int $page): string
     {
         $siteName = SeoDefaults::siteName();
-        $blogTitle = BlogSettings::title(LanguageRegistry::DUTCH);
+        $blogTitle = BlogLocalizedSettings::title(LanguageRegistry::DUTCH);
         $name = trim($name);
 
         $title = $name === ''
@@ -200,7 +200,7 @@ final class BlogSeo
         }
 
         $siteName = SeoDefaults::siteName();
-        $blogTitle = BlogSettings::title($lang);
+        $blogTitle = BlogLocalizedSettings::title($lang);
         $title = BlogContent::title($post, $lang);
 
         if ($title === '') {

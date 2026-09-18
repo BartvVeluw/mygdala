@@ -1168,16 +1168,53 @@ wordt.
 **De migraties.** `20260918240000` maakt de drie tabellen, `20260918250000`
 verhuist tien kolommen en dropt ze in dezelfde stap.
 
-### Wat fase 5 nog moet doen
+### Golf E: de laatste instellingssleutels
 
-Na golf D staat er **geen enkele `_nl`/`_en`-kolom** meer in de database.
+Golf B verhuisde de *entiteiten* van de Blog en liet zijn twee
+**tekstinstellingen** staan: `blog_title(_en)` en `blog_intro(_en)`, vier vaste
+sleutels in de eigen `blog_settings` van de module. Dat waren de laatste levende
+NL/EN-opslagplekken van het project. Migratie `20260918260000` haalt ze weg.
 
-Wat wél openstaat: de Blog houdt twee **instellingssleutels** in zijn eigen
-`blog_settings`, `blog_title(_en)` en `blog_intro(_en)`. Die zijn bewust niet
-meeverhuisd in golf B — zie het fase-5-rapport voor de reden en de drie opties.
-Verder zijn er de vaste `label_nl`/`label_en`-paren in **code**-catalogi
-(`RouteRegistry`, `ModuleDefinition`, `CookieConsentConfig`): dat is geen
-opslag, en ze horen bij het opruimen van de frontend in fase 6/7.
+**Eén fysieke store, een catalogus per domein.** De woorden gaan naar
+`site_setting_translations`, dezelfde tabel als de gelokaliseerde
+Core-instellingen, maar niet in dezelfde catalogus. Het opslagprimitief is
+losgetrokken:
+
+```text
+App\Service\Language\LocalizedSettings        kent geen enkele sleutel
+  ├── App\Service\LocalizedSiteSettings       city, footer_description,
+  │                                           footer_slogan,
+  │                                           related_products_heading
+  └── App\Service\Blog\BlogLocalizedSettings  blog_title, blog_intro
+```
+
+`LocalizedSettings` is voor sleutel/waarde-instellingen wat
+`EntityTranslations` is voor de getypeerde vertaaltabellen: het leest en
+schrijft, en verder niets. Een domein houdt er één van, geeft hem zijn eigen
+gesloten lijst en zet er een getypeerde gevel op. Daarom hoeft **Core de
+Blog-sleutels niet te kennen**: `LocalizedSiteSettings::KEYS` noemt
+`blog_title` nergens, dus Core weet nog steeds niet dat er een blog bestaat
+(`MODULES.md`), terwijl de Blog geen tweede tabel, geen tweede terugval en geen
+generieke vertaalbak nodig had. Een verzoek kan bij geen van beide catalogi een
+sleutel verzinnen; `MultilingualBoundaryTest` bewaakt dat er precies twee
+houders van een catalogus zijn en dat hun sleutels elkaar niet overlappen.
+
+`blog_settings` houdt wat in elke taal hetzelfde leest: de paginagrootte en de
+vier schakelaars. Het instellingenscherm staat op
+`admin/_localized_fields.php` en toont één websitetaal tegelijk; het endpoint
+schrijft de twee stores in één transactie. De codestandaard blijft: een blog
+die niemand hernoemd heeft heet in elke taal "Blog".
+
+**Daarmee is er geen levende `_nl`/`_en`-opslag meer.** Geen kolom
+(sinds golf D) en geen instellingssleutel (sinds golf E), gecontroleerd op een
+database die vanaf nul is opgebouwd. Wat overblijft is geen opslag:
+
+- de vaste `label_nl`/`label_en`-paren in **code**-catalogi (`RouteRegistry`,
+  `ModuleDefinition`, `CookieConsentConfig`);
+- de tijdelijke `data-nl`/`data-en`-paren en JSON-sleutels van de frontend;
+- de historische migraties en hun testfixtures.
+
+Die drie horen bij het opruimen van de frontend in fase 6/7.
 
 `SiteText::attrs()`/`visible()` blijft voor alles wat nog een paar in een
 payload draagt, en de tijdelijke uitvoeradapter

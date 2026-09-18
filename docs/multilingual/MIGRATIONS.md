@@ -88,6 +88,7 @@ verhuismigratie.
 | C | `20260918200000` / `210000` | `products.{name,description,meta_title,meta_description}` en hun `_en`; dezelfde vier van `collections` plus `related_heading_nl/en` — 19 kolommen; en de twee rijen `site_settings.related_products_heading_nl/en` | `product_translations`, `collection_translations`; de kop naar `site_setting_translations` |
 | C | `20260918220000` / `230000` | `order_items.product_name_en` — 1 kolom | `order_item_translations` |
 | D | `20260918240000` / `250000` | `product_personalization_settings.instructions` en `_en`; `_views.label` en `_en`; `_zones.{label,instructions,placeholder}` en hun `_en` — 10 kolommen | `product_personalization_translations`, `product_personalization_view_translations`, `product_personalization_zone_translations` |
+| E | `20260918260000` | `blog_settings.blog_title` en `blog_title_en`; `blog_intro` en `blog_intro_en` — 4 sleutels, geen kolom | `site_setting_translations`, in de eigen catalogus van de Blog |
 
 Dezelfde regels als in 3A, 3B en 4: NL blijft NL, EN blijft EN, byte voor byte
 (rich text inbegrepen), leeg of alleen witruimte krijgt geen rij, opnieuw
@@ -147,7 +148,17 @@ taxonomiekoppelingen en elke slug, bij golf C elke prijs, elk
 collectielidmaatschap en elke bestelregel, en bij golf D elke sleutel en elke
 coördinaat.
 
-**Na golf D staat er geen enkele `_nl`/`_en`-kolom meer in de database.**
+Golf E heeft geen schemamigratie: `site_setting_translations` bestaat al sinds
+`20260918120000`. Wat er nieuw aan is, is dat een **tweede catalogus** die
+tabel gebruikt zonder dat Core zijn sleutels kent — zie
+`ARCHITECTURE.md`, *Golf E*. De migratie vraagt niet of de Blog aanstaat, en
+verwijdert de vier oude sleutels pas nadat elke taal een rij heeft gekregen.
+De test is `tests/Install/BlogSettingsTextMigrationTest.php` (`migration`,
+`blog`), die er ook een rij van een andere catalogus naast zet en byte voor
+byte controleert dat die niet is aangeraakt.
+
+**Na golf D staat er geen enkele `_nl`/`_en`-kolom meer in de database, en na
+golf E ook geen levende `_nl`/`_en`-instellingssleutel.**
 
 **Oude migraties die de gedropte kolommen lezen.** `20260909270000` (media
 adopteren) leest de alt-kolommen van Tekst met afbeelding, Detailsectie en

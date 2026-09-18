@@ -11,6 +11,7 @@ use App\Service\Blog\BlogClock;
 use App\Service\Blog\BlogFeed;
 use App\Service\Blog\BlogPostStatus;
 use App\Service\Blog\BlogSeo;
+use App\Service\Blog\BlogLocalizedSettings;
 use App\Service\Blog\BlogSettings;
 use App\Service\Blog\BlogLocalization;
 use App\Service\Blog\BlogSlug;
@@ -72,7 +73,7 @@ final class BlogSeoTest extends TestCase
         $seo = BlogSeo::forPost($post);
 
         $this->assertStringStartsWith('Testbericht SEO titel | ', $seo->titleNl);
-        $this->assertStringContainsString(BlogSettings::title('nl'), $seo->titleNl);
+        $this->assertStringContainsString(BlogLocalizedSettings::title('nl'), $seo->titleNl);
         $this->assertStringContainsString(SeoDefaults::siteName(), $seo->titleNl);
     }
 

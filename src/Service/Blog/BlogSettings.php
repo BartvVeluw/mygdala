@@ -28,22 +28,21 @@ use App\Repository\BlogSettingRepository;
  * storage (MODULES.md), and Core's identity settings must not carry a key
  * only the Blog understands. See the migration for the four tables this now
  * sits beside and why they are all separate.
+ *
+ * THE WORDS ARE NOT HERE. What the listing is CALLED and the paragraph under
+ * that heading are website text in a language; they live one row per website
+ * language in `site_setting_translations`, through
+ * App\Service\Blog\BlogLocalizedSettings (Multilingual 2.0 phase 5, migration
+ * 20260918260000). This class keeps what reads the same in every language — a
+ * page size and four switches — and knows no title or introduction key at all.
  */
 final class BlogSettings
 {
-    public const TITLE = 'blog_title';
-    public const TITLE_EN = 'blog_title_en';
-    public const INTRO = 'blog_intro';
-    public const INTRO_EN = 'blog_intro_en';
     public const POSTS_PER_PAGE = 'blog_posts_per_page';
     public const SHOW_AUTHOR = 'blog_show_author';
     public const SHOW_DATE = 'blog_show_date';
     public const RELATED_POSTS = 'blog_related_posts';
     public const RSS_ENABLED = 'blog_rss_enabled';
-
-    /** What the listing is called when nobody has renamed it. */
-    public const DEFAULT_TITLE = 'Blog';
-    public const DEFAULT_TITLE_EN = 'Blog';
 
     public const DEFAULT_POSTS_PER_PAGE = 9;
     public const MIN_POSTS_PER_PAGE = 3;
@@ -51,9 +50,6 @@ final class BlogSettings
 
     /** How many related posts a detail page shows at most. Not a setting: a row is a row. */
     public const RELATED_POSTS_LIMIT = 3;
-
-    public const MAX_TITLE_LENGTH = 150;
-    public const MAX_INTRO_LENGTH = 1000;
 
     /** @var array<string, string>|null resolved once per request */
     private static ?array $cache = null;
@@ -64,35 +60,6 @@ final class BlogSettings
     /* ---------------------------------------------------------------- */
     /* The individual answers                                            */
     /* ---------------------------------------------------------------- */
-
-    /** The listing's heading, in one language, with the usual NL fallback. */
-    public static function title(string $lang = 'nl'): string
-    {
-        $nl = self::value(self::TITLE, self::DEFAULT_TITLE);
-        $nl = $nl === '' ? self::DEFAULT_TITLE : $nl;
-
-        if ($lang !== 'en') {
-            return $nl;
-        }
-
-        $en = self::value(self::TITLE_EN, '');
-
-        return $en !== '' ? $en : $nl;
-    }
-
-    /** The optional paragraph under that heading. '' means: print none. */
-    public static function intro(string $lang = 'nl'): string
-    {
-        $nl = self::value(self::INTRO, '');
-
-        if ($lang !== 'en') {
-            return $nl;
-        }
-
-        $en = self::value(self::INTRO_EN, '');
-
-        return $en !== '' ? $en : $nl;
-    }
 
     /**
      * How many posts one listing page shows. Clamped to a sane range: a
@@ -199,10 +166,6 @@ final class BlogSettings
     public static function keys(): array
     {
         return [
-            self::TITLE,
-            self::TITLE_EN,
-            self::INTRO,
-            self::INTRO_EN,
             self::POSTS_PER_PAGE,
             self::SHOW_AUTHOR,
             self::SHOW_DATE,

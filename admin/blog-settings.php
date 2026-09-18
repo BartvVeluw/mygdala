@@ -4,9 +4,10 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../vendor/autoload.php';
 require_once __DIR__ . '/_translate.php';
-require_once __DIR__ . '/_language_fields.php';
+require_once __DIR__ . '/_localized_fields.php';
 
 use App\Service\AdminAuth;
+use App\Service\Blog\BlogLocalizedSettings;
 use App\Service\Blog\BlogSettings;
 use App\Service\Blog\BlogUrls;
 use App\Service\Csrf;
@@ -24,6 +25,14 @@ use App\Service\Csrf;
  *
  * One form to one endpoint, and every field it reads is on it — so a save
  * from this screen can never blank a setting that was not shown.
+ *
+ * TWO STORES, ONE FORM. The title and the introduction are website text and
+ * live per website language (App\Service\Blog\BlogLocalizedSettings); the
+ * page size and the four switches read the same in every language and stay in
+ * the module's own `blog_settings` (App\Service\Blog\BlogSettings). ONE
+ * LANGUAGE PER SCREEN, the one the CMS shell points at: saving English leaves
+ * Dutch exactly as it is, and a website with five languages still posts one
+ * language's words.
  */
 
 AdminAuth::requireLogin();
@@ -34,10 +43,37 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
 
 $flash = $_SESSION['admin_blog_settings_flash'] ?? null;
 $errors = $_SESSION['admin_blog_settings_errors'] ?? [];
-unset($_SESSION['admin_blog_settings_flash'], $_SESSION['admin_blog_settings_errors']);
+$old = $_SESSION['admin_blog_settings_old'] ?? null;
+unset($_SESSION['admin_blog_settings_flash'], $_SESSION['admin_blog_settings_errors'], $_SESSION['admin_blog_settings_old']);
 
 $stored = BlogSettings::all();
 $value = static fn (string $key, string $default = ''): string => (string) ($stored[$key] ?? $default);
+
+// The website language the two texts on this screen are in: the one the CMS
+// shell points at, else the default language. There is no second language
+// control here.
+$editingLanguage = admin_localized_language();
+
+$words = [
+    BlogLocalizedSettings::TITLE => BlogLocalizedSettings::raw(BlogLocalizedSettings::TITLE, $editingLanguage),
+    BlogLocalizedSettings::INTRO => BlogLocalizedSettings::raw(BlogLocalizedSettings::INTRO, $editingLanguage),
+];
+
+// A refused save comes back with what was typed, so nothing has to be typed
+// again — but only for the language that form actually carried. Words of
+// another language are never shown in this one's fields.
+if (is_array($old) && ($old['language_code'] ?? null) === $editingLanguage) {
+    foreach (array_keys($words) as $key) {
+        $words[$key] = (string) ($old[$key] ?? '');
+    }
+}
+
+// Neither text is required, in any language: an empty title means the Blog is
+// called "Blog" and an empty introduction means no paragraph is printed. So
+// admin_localized_required() is deliberately not used here.
+$titlePlaceholder = $editingLanguage === admin_localized_default()
+    ? ' placeholder="' . $h(BlogLocalizedSettings::DEFAULT_TITLE) . '"'
+    : admin_localized_placeholder_attr($editingLanguage);
 ?>
 <!doctype html>
 <html lang="<?= htmlspecialchars(\App\Service\Language\AdminLocale::current(), ENT_QUOTES, 'UTF-8') ?>">
@@ -74,31 +110,18 @@ $value = static fn (string $key, string $default = ''): string => (string) ($sto
 
     <section class="admin-card">
       <h2><?= admin_te('blog.kop_blog') ?></h2>
-      <?php admin_lang_bar(); ?>
-      <?php admin_lang_pane_start('nl'); ?>
-        <div class="admin-form-row">
-          <label><?= admin_te('common.title') ?>
-            <input type="text" name="<?= BlogSettings::TITLE ?>" maxlength="<?= BlogSettings::MAX_TITLE_LENGTH ?>" value="<?= $h($value(BlogSettings::TITLE, BlogSettings::DEFAULT_TITLE)) ?>" placeholder="<?= $h(BlogSettings::DEFAULT_TITLE) ?>">
-          </label>
-        </div>
-        <div class="admin-form-row">
-          <label><?= admin_te('blog.introtekst') ?>
-            <textarea name="<?= BlogSettings::INTRO ?>" rows="3" maxlength="<?= BlogSettings::MAX_INTRO_LENGTH ?>"><?= $h($value(BlogSettings::INTRO)) ?></textarea>
-          </label>
-        </div>
-      <?php admin_lang_pane_end(); ?>
-      <?php admin_lang_pane_start('en'); ?>
-        <div class="admin-form-row">
-          <label><?= admin_te('common.title') ?>
-            <input type="text" name="<?= BlogSettings::TITLE_EN ?>" maxlength="<?= BlogSettings::MAX_TITLE_LENGTH ?>" value="<?= $h($value(BlogSettings::TITLE_EN)) ?>"<?= admin_lang_placeholder_attr('en') ?>>
-          </label>
-        </div>
-        <div class="admin-form-row">
-          <label><?= admin_te('blog.introtekst_2') ?>
-            <textarea name="<?= BlogSettings::INTRO_EN ?>" rows="3" maxlength="<?= BlogSettings::MAX_INTRO_LENGTH ?>"<?= admin_lang_placeholder_attr('en') ?>><?= $h($value(BlogSettings::INTRO_EN)) ?></textarea>
-          </label>
-        </div>
-      <?php admin_lang_pane_end(); ?>
+      <?= admin_localized_input($editingLanguage) ?>
+      <?php admin_localized_bar($editingLanguage); ?>
+      <div class="admin-form-row">
+        <label><?= admin_te('common.title') ?>
+          <input type="text" name="<?= BlogLocalizedSettings::TITLE ?>" maxlength="<?= BlogLocalizedSettings::TITLE_MAX_LENGTH ?>" value="<?= $h($words[BlogLocalizedSettings::TITLE]) ?>"<?= $titlePlaceholder ?>>
+        </label>
+      </div>
+      <div class="admin-form-row">
+        <label><?= admin_te('blog.introtekst') ?>
+          <textarea name="<?= BlogLocalizedSettings::INTRO ?>" rows="3" maxlength="<?= BlogLocalizedSettings::INTRO_MAX_LENGTH ?>"<?= admin_localized_placeholder_attr($editingLanguage) ?>><?= $h($words[BlogLocalizedSettings::INTRO]) ?></textarea>
+        </label>
+      </div>
       <p class="admin-text-muted"><?= admin_te('blog.introtekst_staat_onder_titel') ?> <a href="<?= $h(BlogUrls::indexPath()) ?>" target="_blank" rel="noopener"><?= $h(BlogUrls::indexPath()) ?></a> <?= admin_te('blog.tegelijk_meta_description_pagina') ?></p>
     </section>
 
@@ -150,6 +173,5 @@ $value = static fn (string $key, string $default = ''): string => (string) ($sto
     </section>
   </form>
 </main>
-<?php admin_lang_script(); ?>
 </body>
 </html>

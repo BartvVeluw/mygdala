@@ -15,6 +15,7 @@ use App\Repository\BlogPostRepository;
 use App\Service\AdminAuth;
 use App\Service\Blog\BlogClock;
 use App\Service\Blog\BlogLocalization;
+use App\Service\Blog\BlogLocalizedSettings;
 use App\Service\Blog\BlogPostService;
 use App\Service\Blog\BlogPostStatus;
 use App\Service\Blog\BlogSeo;
@@ -325,7 +326,7 @@ $forcedTab = $errors !== [] ? 'inhoud' : null;
     <?php admin_tab_panel('seo'); ?>
     <section class="admin-card">
       <h2><?= admin_te('blog.seo') ?></h2>
-      <p class="admin-text-muted"><?= admin_t('blog.seo_title_fallback', ['blog' => $h(BlogSettings::title(BlogLocalization::defaultLanguage())), 'site' => $h(\App\Service\SiteSettings::get('site_name'))]) ?></p>
+      <p class="admin-text-muted"><?= admin_t('blog.seo_title_fallback', ['blog' => $h(BlogLocalizedSettings::title(BlogLocalization::defaultLanguage())), 'site' => $h(\App\Service\SiteSettings::get('site_name'))]) ?></p>
 
       <div class="admin-product-form admin-product-form--wide">
         <?php admin_localized_bar($editingLanguage); ?>

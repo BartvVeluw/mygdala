@@ -321,6 +321,7 @@
             <file>tests/Install/FormWordsAndOptionMigrationTest.php</file>
             <file>tests/Install/PortfolioWordsMigrationTest.php</file>
             <file>tests/Install/BlogWordsMigrationTest.php</file>
+            <file>tests/Install/BlogSettingsTextMigrationTest.php</file>
             <file>tests/Install/ShopWordsMigrationTest.php</file>
             <file>tests/Install/PersonalizationWordsMigrationTest.php</file>
             <file>tests/Install/OrderItemNameSnapshotMigrationTest.php</file>
@@ -356,6 +357,7 @@
         <testsuite name="blog">
             <directory>tests/Blog</directory>
             <file>tests/Install/BlogWordsMigrationTest.php</file>
+            <file>tests/Install/BlogSettingsTextMigrationTest.php</file>
         </testsuite>
 
         <testsuite name="blocks">

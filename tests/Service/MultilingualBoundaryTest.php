@@ -602,74 +602,49 @@ final class MultilingualBoundaryTest extends TestCase
         );
     }
 
-    public function testNoEditorStillHardcodesADutchOnlyFallbackPlaceholder(): void
+    /**
+     * NO ADMIN SCREEN RENDERS V1 LANGUAGE PANES ANY MORE (Multilingual 2.0
+     * phase 5, closing entry). admin/blog-settings.php was the last screen on
+     * them; every editor now shows ONE website language at a time through
+     * admin/_localized_fields.php, which is the only shape that can hold a
+     * third language.
+     *
+     * This replaces the two tests that walked the screens which still had
+     * panes and checked how they used them — how they hinted the fallback,
+     * and which script they loaded. With that set empty they asserted nothing
+     * at all, so what is left to guard is that it stays empty, including the
+     * hardcoded "Leeg = zelfde als NL" that was wrong on an English-primary
+     * site.
+     *
+     * admin/_language_fields.php itself is left where it is: retiring the V1
+     * component is part of the phase 6/7 frontend cleanup, not of moving one
+     * more screen off it.
+     */
+    public function testNoAdminScreenRendersV1LanguagePanesAnyMore(): void
     {
-        // "Leeg = zelfde als NL" is wrong on an English-primary site. Every
-        // converted editor asks admin_lang_placeholder_attr() instead.
-        foreach (self::glob('admin/*.php') as $file) {
-            $source = (string) file_get_contents($file);
+        $offenders = [];
 
-            if (basename($file) === '_language_fields.php' || !str_contains($source, 'admin_lang_pane_start')) {
+        foreach (self::glob('admin/*.php') as $file) {
+            if (basename($file) === '_language_fields.php') {
                 continue;
             }
 
-            self::assertStringNotContainsString(
-                'Leeg = zelfde als NL',
-                $source,
-                basename($file) . ' must not hardcode a Dutch-only fallback hint',
-            );
-        }
-    }
-
-    public function testEveryEditorWithLanguagePanesLoadsTheComponentAndItsScript(): void
-    {
-        foreach (self::glob('admin/*.php') as $file) {
             $source = (string) file_get_contents($file);
 
-            if (basename($file) === '_language_fields.php' || !str_contains($source, 'admin_lang_pane_start')) {
-                continue;
-            }
-
-            self::assertStringContainsString(
-                "_language_fields.php",
-                $source,
-                basename($file) . ' must require the language component',
-            );
-            self::assertStringContainsString(
+            foreach ([
+                'admin_lang_pane_start',
                 'admin_lang_bar(',
-                $source,
-                basename($file) . ' must render the localized-fields bar',
-            );
-
-            // A PARTIAL has no </body> of its own and so cannot load a
-            // script; the screen that includes it does. What matters is that
-            // the script reaches the browser, not which file wrote the tag.
-            if (str_starts_with(basename($file), '_')) {
-                $screens = self::screensIncluding(basename($file));
-
-                self::assertNotSame(
-                    [],
-                    $screens,
-                    basename($file) . ' renders language panes but no screen includes it',
-                );
-
-                foreach ($screens as $screen) {
-                    self::assertStringContainsString(
-                        'admin_lang_script()',
-                        (string) file_get_contents($screen),
-                        basename($screen) . ' includes ' . basename($file) . ' and must load the language script',
-                    );
+                'admin_lang_script(',
+                'admin_lang_placeholder_attr',
+                'Leeg = zelfde als NL',
+            ] as $v1) {
+                if (str_contains($source, $v1)) {
+                    $offenders[] = basename($file) . ' (' . $v1 . ')';
                 }
-
-                continue;
             }
-
-            self::assertStringContainsString(
-                'admin_lang_script()',
-                $source,
-                basename($file) . ' must load the language script',
-            );
         }
+
+        self::assertSame([], $offenders);
     }
 
     // ------------------------------------------- no editor is bilingual on screen
@@ -856,23 +831,6 @@ final class MultilingualBoundaryTest extends TestCase
      * then translates.
      */
     private const SCREENS_WITHOUT_A_SECOND_LANGUAGE = ['setup.php', 'form.php'];
-
-    /** @return string[] every admin screen that require()s $partial */
-    private static function screensIncluding(string $partial): array
-    {
-        $screens = [];
-        foreach (self::glob('admin/*.php') as $file) {
-            if (basename($file) === $partial) {
-                continue;
-            }
-
-            if (str_contains((string) file_get_contents($file), $partial)) {
-                $screens[] = $file;
-            }
-        }
-
-        return $screens;
-    }
 
     /** @return string[] the 'key' of every navigation entry Core and the modules declare */
     private static function navigationKeys(): array
@@ -1875,14 +1833,51 @@ final class MultilingualBoundaryTest extends TestCase
             if ($relative !== 'src/Repository/SiteSettingTranslationRepository.php' && preg_match($statement, $source) === 1) {
                 $offenders[] = $relative . ' (SQL)';
             }
-            if (!in_array($relative, ['src/Repository/SiteSettingTranslationRepository.php', 'src/Service/LocalizedSiteSettings.php'], true)
+            if (!in_array($relative, ['src/Repository/SiteSettingTranslationRepository.php', 'src/Service/Language/LocalizedSettings.php'], true)
                 && str_contains(self::withoutComments($source), 'SiteSettingTranslationRepository')
             ) {
                 $offenders[] = $relative . ' (repository)';
             }
         }
 
-        self::assertSame([], $offenders, 'the localized settings are reached through App\Service\LocalizedSiteSettings only');
+        self::assertSame([], $offenders, 'the localized settings are reached through App\Service\Language\LocalizedSettings only');
+    }
+
+    /**
+     * ONE PHYSICAL STORE, AS MANY CLOSED CATALOGUES AS THERE ARE DOMAINS.
+     * App\Service\Language\LocalizedSettings holds no key of its own; the
+     * catalogues are the two classes below, and nobody else may make one — a
+     * third holder would be a place where a key could appear without anybody
+     * deciding it should.
+     */
+    public function testEveryLocalizedSettingsCatalogueBelongsToOneDomain(): void
+    {
+        $holders = [];
+
+        foreach (self::applicationSources() as $relative => $file) {
+            if ($relative === 'src/Service/Language/LocalizedSettings.php') {
+                continue;
+            }
+            if (str_contains(self::withoutComments((string) file_get_contents($file)), 'new LocalizedSettings(')) {
+                $holders[] = $relative;
+            }
+        }
+
+        sort($holders);
+
+        self::assertSame(
+            ['src/Service/Blog/BlogLocalizedSettings.php', 'src/Service/LocalizedSiteSettings.php'],
+            $holders
+        );
+
+        // No catalogue may name a key of another, in either direction.
+        self::assertSame(
+            [],
+            array_intersect(
+                array_keys(\App\Service\LocalizedSiteSettings::KEYS),
+                array_keys(\App\Service\Blog\BlogLocalizedSettings::KEYS)
+            )
+        );
     }
 
     public function testTheLocalizedSettingsCatalogueIsClosedToWebsiteText(): void
@@ -2251,24 +2246,90 @@ final class MultilingualBoundaryTest extends TestCase
     /**
      * 20260918190000 dropped sixteen columns: the five word fields of
      * `blog_posts`, the two of `blog_categories` and the one of `blog_tags`,
-     * each as a bare Dutch column plus an `_en` one. What these files may
-     * still name is the Blog's own SETTINGS keys, which are rows in
-     * `blog_settings` and not entity content — see the phase 5 report.
+     * each as a bare Dutch column plus an `_en` one. 20260918260000 took the
+     * last four Dutch/English SETTING KEYS with it, so there is no allowlist
+     * here any more: nothing in the Blog names an `_en` anything.
      */
     public function testNothingReadsTheDroppedBlogColumns(): void
     {
-        $allowed = ['blog_title_en', 'blog_intro_en', 'TITLE_EN', 'INTRO_EN', 'DEFAULT_TITLE_EN'];
         $offenders = [];
 
-        foreach (self::BLOG_FILES as $file) {
-            $code = str_replace($allowed, '', self::withoutComments(self::read($file)));
+        foreach (array_merge(self::BLOG_FILES, self::BLOG_SETTINGS_FILES) as $file) {
+            $code = self::withoutComments(self::read($file));
 
-            if (preg_match_all('/(?<![a-z_-])(?:title|excerpt|body|meta_title|meta_description|name|description)_en\b/', $code, $matches) > 0) {
+            if (preg_match_all('/(?<![a-z_-])(?:blog_title|blog_intro|title|excerpt|body|meta_title|meta_description|name|description)_en\b/', $code, $matches) > 0) {
                 $offenders[] = $file . ' (' . implode(', ', array_unique($matches[0])) . ')';
             }
         }
 
         self::assertSame([], $offenders);
+    }
+
+    /** The four files the Blog's two word settings pass through. */
+    private const BLOG_SETTINGS_FILES = [
+        'src/Service/Blog/BlogSettings.php',
+        'src/Service/Blog/BlogLocalizedSettings.php',
+        'admin/blog-settings.php',
+        'api/admin/update-blog-settings.php',
+    ];
+
+    /**
+     * THE BLOG'S OWN WORD SETTINGS (phase 5, closing entry). They sit in the
+     * shared `site_setting_translations`, under a catalogue of the Blog's own
+     * — so Core never learns that a blog exists (MODULES.md) — while the
+     * module's own `blog_settings` keeps only what reads the same in every
+     * language.
+     */
+    public function testTheBlogsOwnTextSettingsLiveInTheSharedLocalizedStore(): void
+    {
+        self::assertSame(
+            ['blog_title', 'blog_intro'],
+            array_keys(\App\Service\Blog\BlogLocalizedSettings::KEYS)
+        );
+
+        // The module's own key/value store knows none of them any more, and
+        // Core's settings do not carry them either.
+        foreach (\App\Service\Blog\BlogSettings::keys() as $key) {
+            self::assertStringNotContainsString('title', $key, 'blog_settings keeps no words');
+            self::assertStringNotContainsString('intro', $key, 'blog_settings keeps no words');
+        }
+        foreach (array_keys(\App\Service\Blog\BlogLocalizedSettings::KEYS) as $key) {
+            self::assertArrayNotHasKey($key, \App\Service\SiteSettings::defaults(), $key . ' is not a site_settings row');
+        }
+
+        // One language on the screen, one language in the request, and the
+        // whole save in one transaction across the two stores it writes.
+        $screen = self::read('admin/blog-settings.php');
+        self::assertStringContainsString("require_once __DIR__ . '/_localized_fields.php';", $screen);
+        self::assertStringContainsString('admin_localized_input(', $screen);
+        self::assertStringNotContainsString('_language_fields.php', $screen, 'no V1 language panes left');
+        self::assertStringNotContainsString('admin_lang_pane_start', $screen);
+
+        $endpoint = self::withoutComments(self::read('api/admin/update-blog-settings.php'));
+        self::assertStringContainsString("'language_code'", $endpoint);
+        self::assertStringContainsString('SiteLanguages::isActive(', $endpoint);
+        self::assertStringContainsString('BlogLocalizedSettings::save(', $endpoint);
+        self::assertStringContainsString('beginTransaction()', $endpoint);
+        self::assertStringContainsString('commit()', $endpoint);
+    }
+
+    /**
+     * And every reader of those two texts asks the Blog's localization API,
+     * so the fallback is LanguageFallback's once and not a rule per page.
+     */
+    public function testEveryReaderOfTheBlogsTextSettingsAsksTheLocalizedApi(): void
+    {
+        $offenders = [];
+
+        foreach (self::applicationSources() as $relative => $file) {
+            $code = self::withoutComments((string) file_get_contents($file));
+
+            if (preg_match('/BlogSettings::(?:title|intro|DEFAULT_TITLE|MAX_TITLE_LENGTH|MAX_INTRO_LENGTH)\b/', $code) === 1) {
+                $offenders[] = $relative;
+            }
+        }
+
+        self::assertSame([], $offenders, 'the Blog title and introduction come from BlogLocalizedSettings');
     }
 
     /**

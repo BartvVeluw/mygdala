@@ -8,19 +8,39 @@ namespace App\Repository;
  * All `site_setting_translations` SQL (db/migrations/20260918120000).
  *
  * Deliberately dumb: which keys exist, which language a reader gets and what
- * an empty value falls back to is App\Service\LocalizedSiteSettings's
+ * an empty value falls back to is App\Service\Language\LocalizedSettings's
  * business, and nothing else calls this class. The schema holds the rules no
  * caller can walk past: one row per key per language (UNIQUE) and only a
  * registered language (a foreign key on site_languages.code).
+ *
+ * ONE TABLE, SEVERAL CATALOGUES. The rows of Core's own website text and
+ * those of a module's settings sit side by side here, each read by the
+ * catalogue that owns its keys — which is why there is no "give me
+ * everything" read: a caller asks for the keys it owns and gets nothing else.
  */
 final class SiteSettingTranslationRepository extends Repository
 {
-    /** @return list<array{setting_key: string, language_code: string, value: string}> */
-    public function findAll(): array
+    /**
+     * The rows of the keys one catalogue owns.
+     *
+     * @param list<string> $keys
+     * @return list<array{setting_key: string, language_code: string, value: string}>
+     */
+    public function findByKeys(array $keys): array
     {
-        return $this->db
-            ->query('SELECT setting_key, language_code, value FROM site_setting_translations ORDER BY setting_key ASC, id ASC')
-            ->fetchAll();
+        if ($keys === []) {
+            return [];
+        }
+
+        $placeholders = implode(', ', array_fill(0, count($keys), '?'));
+        $stmt = $this->db->prepare(
+            'SELECT setting_key, language_code, value FROM site_setting_translations
+              WHERE setting_key IN (' . $placeholders . ')
+              ORDER BY setting_key ASC, id ASC'
+        );
+        $stmt->execute(array_values($keys));
+
+        return $stmt->fetchAll();
     }
 
     /**

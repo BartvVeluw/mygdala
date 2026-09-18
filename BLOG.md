@@ -358,8 +358,6 @@ andere: niets wat de een reset mag bij de ander kunnen. Leeg geseed, dus een
 ontbrekende rij betekent de codestandaard.
 
 ```text
-blogtitel NL/EN               "Blog"
-introtekst NL/EN              leeg
 berichten per pagina          9   (tussen 3 en 48)
 publicatiedatum tonen         aan
 auteur tonen                  aan
@@ -371,14 +369,36 @@ Meer wordt dit niet. Hoe de blog eruitziet komt uit Vormgeving, net als bij
 elke andere pagina; een tweede vormgevingsscherm voor één module is precies wat
 een module duur maakt.
 
-**De twee tekstinstellingen staan nog op NL/EN.** `blog_title_en` en
-`blog_intro_en` zijn sleutels in `blog_settings`, de eigen sleutel/waarde-tabel
-van de module. Fase 5 van Multilingual 2.0 heeft de *entiteiten* van de Blog
-omgezet en deze twee bewust laten staan: ze naar `site_setting_translations`
-brengen zou Core een sleutel laten dragen die alleen de Blog begrijpt, precies
-wat `BlogSettings` in zijn eigen docblock afwijst, en een eigen
-vertaaltabel voor sleutel/waarde-instellingen is in die fase uitgesloten. Zie
-`docs/multilingual/ARCHITECTURE.md`, *Wat fase 5 nog moet doen*.
+**De blogtitel en de introtekst staan per websitetaal.** Het zijn geen rijen
+in `blog_settings` maar woorden, en woorden staan sinds Multilingual 2.0 per
+taal. Ze wonen in `site_setting_translations` — dezelfde fysieke tabel als de
+gelokaliseerde Core-instellingen — maar in een **eigen gesloten catalogus** van
+de Blog:
+
+```text
+App\Service\Blog\BlogLocalizedSettings   blog_title, blog_intro
+App\Service\LocalizedSiteSettings        city, footer_description,
+                                         footer_slogan,
+                                         related_products_heading
+```
+
+Beide staan op hetzelfde opslagprimitief, `LocalizedSettings` in
+`App\Service\Language`, dat zelf geen enkele sleutel kent. **De opslag is
+gedeeld, de catalogus niet**: Core noemt `blog_title` nergens, dus Core weet
+nog steeds niet dat er een blog bestaat (`MODULES.md`), en de Blog kent de
+Core-sleutels niet. Geen van beide kan de sleutels van de ander lezen of
+schrijven, en een request kan bij geen van beide een sleutel verzinnen.
+
+De terugval is die van `LanguageFallback`: gevraagde taal, standaardtaal, leeg.
+Daarna komt nog één codestandaard: een blog die niemand hernoemd heeft heet in
+elke taal "Blog". Een lege introtekst blijft leeg — dan staat er gewoon geen
+alinea. Migratie `20260918260000` heeft de vier oude sleutels
+(`blog_title`/`blog_title_en`, `blog_intro`/`blog_intro_en`) uit
+`blog_settings` gehaald en verwijderd.
+
+Het instellingenscherm toont daarom **één websitetaal tegelijk**, die van de
+schil, net als elke andere editor: opslaan in het Engels laat het Nederlands
+staan, en een derde taal is een rij in `site_languages`, geen kolom.
 
 ## Testen
 

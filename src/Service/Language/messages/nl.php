@@ -1286,7 +1286,6 @@ Uit het eerste label maakt het CMS ook de vaste naam waaronder antwoorden worden
     'blog.overzicht' => 'Overzicht',
     'blog.tegelijk_meta_description_pagina' => 'en is tegelijk de meta description van die pagina. Laat \'m leeg om alleen de titel te tonen.',
     'blog.introtekst_staat_onder_titel' => 'De introtekst staat onder de titel op',
-    'blog.introtekst_2' => 'Introtekst',
     'blog.introtekst' => 'Introtekst',
     'blog.kop_blog' => 'Kop van de blog',
     'blog.hoe_blog_zich_voorstelt' => 'Hoe de blog zich voorstelt en wat er onder een bericht staat. De vormgeving zelf komt uit <a href="/admin/theme.php">Vormgeving</a>, net als bij elke andere pagina.',

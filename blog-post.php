@@ -31,6 +31,7 @@ require_once __DIR__ . '/partials/breadcrumb.php';
  */
 
 use App\Service\Blog\BlogContent;
+use App\Service\Blog\BlogLocalizedSettings;
 use App\Service\Blog\BlogSeo;
 use App\Service\Blog\BlogSettings;
 use App\Service\Blog\BlogUrls;
@@ -75,7 +76,7 @@ if ($post === null) {
 <?php else: ?>
 <?php require __DIR__ . '/partials/seo-head.php'; ?>
 <?php if (BlogSettings::rssEnabled()): ?>
-<link rel="alternate" type="application/rss+xml" title="<?= $h(BlogSettings::title('nl')) ?>" href="<?= $h(BlogUrls::feedPath()) ?>">
+<link rel="alternate" type="application/rss+xml" title="<?= $h(BlogLocalizedSettings::title(LanguageRegistry::DUTCH)) ?>" href="<?= $h(BlogUrls::feedPath()) ?>">
 <?php endif; ?>
 <?php endif; ?>
 <?php
@@ -103,7 +104,7 @@ require __DIR__ . '/partials/header.php';
              and the trail has to line up with the title under it. */ ?>
     <?php render_breadcrumb(
         \App\Service\Breadcrumbs\BreadcrumbTrail::home()
-            ->to(\App\Service\Breadcrumbs\BreadcrumbItem::link(BlogSettings::title('nl'), BlogSettings::title('en'), BlogUrls::indexPath()))
+            ->to(\App\Service\Breadcrumbs\BreadcrumbItem::link(BlogLocalizedSettings::title(LanguageRegistry::DUTCH), BlogLocalizedSettings::title(LanguageRegistry::ENGLISH), BlogUrls::indexPath()))
             ->to(\App\Service\Breadcrumbs\BreadcrumbItem::current($title->in(LanguageRegistry::DUTCH), $title->in(LanguageRegistry::ENGLISH))),
         true
     ); ?>

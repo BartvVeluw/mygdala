@@ -4,21 +4,19 @@ declare(strict_types=1);
 
 namespace App\Service;
 
-use App\Repository\SiteSettingTranslationRepository;
-use App\Service\Language\LanguageCode;
-use App\Service\Language\LanguageFallback;
+use App\Service\Language\LocalizedSettings;
 use App\Service\Language\LocalizedValue;
-use App\Service\Language\SiteLanguages;
 
 /**
- * THE way into the few site settings that are WEBSITE TEXT in a language
+ * THE way into the few CORE site settings that are WEBSITE TEXT in a language
  * (Multilingual 2.0 phase 4, docs/multilingual/ARCHITECTURE.md): stored one
- * row per key per website language in `site_setting_translations`.
+ * row per key per website language in `site_setting_translations`, through
+ * App\Service\Language\LocalizedSettings.
  *
  * A CLOSED CATALOGUE, not a generic translation bin. KEYS below is the whole
- * list; save() refuses any other key, so no request, row or module can invent
- * a localized setting, and nothing that is not website text for a visitor
- * belongs here:
+ * list; the store refuses any other key, so no request, row or module can
+ * invent a localized setting, and nothing that is not website text for a
+ * visitor belongs here:
  *
  *   city                the place in the contact block's details card
  *   footer_description  the short text in the footer's company block
@@ -32,7 +30,10 @@ use App\Service\Language\SiteLanguages;
  * for the whole shop, set on one screen — and because its per-collection
  * override lives with the collection, where App\Service\RelatedProductsContent
  * reads them together as one precedence chain. A setting that belongs to one
- * module's own screens and nothing else stays in that module's own table.
+ * module's own screens and nothing else stays in that module's own catalogue:
+ * App\Service\Blog\BlogLocalizedSettings holds the Blog's title and
+ * introduction in the same physical table, and CORE DOES NOT KNOW THOSE KEYS
+ * EXIST.
  *
  * Everything else stays a language-neutral row in `site_settings`
  * (App\Service\SiteSettings): the company's name, e-mail address, phone and
@@ -60,8 +61,13 @@ final class LocalizedSiteSettings
         self::RELATED_PRODUCTS_HEADING => 255,
     ];
 
-    /** @var array<string, array<string, string>>|null key => language code => words (non-empty only) */
-    private static ?array $cache = null;
+    private static ?LocalizedSettings $store = null;
+
+    /** Core's own catalogue. It never holds a key of a module's own screens. */
+    public static function store(): LocalizedSettings
+    {
+        return self::$store ??= new LocalizedSettings(self::KEYS);
+    }
 
     /**
      * Every language one key has words in.
@@ -70,33 +76,31 @@ final class LocalizedSiteSettings
      */
     public static function words(string $key): array
     {
-        self::assertKey($key);
-
-        return self::all()[$key] ?? [];
+        return self::store()->words($key);
     }
 
     /** The stored words in one language, no fallback: what an editor sees. */
     public static function raw(string $key, string $languageCode): string
     {
-        return self::words($key)[$languageCode] ?? '';
+        return self::store()->raw($key, $languageCode);
     }
 
     /** The words a visitor gets in one language, with the fallback. */
     public static function value(string $key, string $languageCode): string
     {
-        return LanguageFallback::resolve(self::words($key), $languageCode);
+        return self::store()->value($key, $languageCode);
     }
 
     /** Has the key words in the website's default language? */
     public static function hasDefault(string $key): bool
     {
-        return self::raw($key, LanguageFallback::defaultLanguage()) !== '';
+        return self::store()->hasDefault($key);
     }
 
     /** The temporary V1 `data-nl`/`data-en` pair of one key. Plain text. */
     public static function bilingual(string $key): LocalizedValue
     {
-        return LanguageFallback::bilingual(self::words($key));
+        return self::store()->bilingual($key);
     }
 
     /**
@@ -109,16 +113,7 @@ final class LocalizedSiteSettings
      */
     public static function problems(array $values): array
     {
-        $problems = [];
-        foreach ($values as $key => $value) {
-            self::assertKey((string) $key);
-
-            if (mb_strlen(trim((string) $value)) > self::KEYS[$key]) {
-                $problems[(string) $key] = 'too_long';
-            }
-        }
-
-        return $problems;
+        return self::store()->problems($values);
     }
 
     /**
@@ -135,37 +130,12 @@ final class LocalizedSiteSettings
      */
     public static function save(string $languageCode, array $values): void
     {
-        $code = LanguageCode::normalise($languageCode);
-
-        if ($code === null || !SiteLanguages::exists($code)) {
-            throw new \InvalidArgumentException('A localized setting can only be stored in a registered website language.');
-        }
-
-        foreach ($values as $key => $value) {
-            self::assertKey((string) $key);
-
-            if (mb_strlen(trim((string) $value)) > self::KEYS[$key]) {
-                throw new \InvalidArgumentException('The setting "' . $key . '" is longer than ' . self::KEYS[$key] . ' characters.');
-            }
-        }
-
-        $repository = new SiteSettingTranslationRepository();
-        foreach ($values as $key => $value) {
-            $words = trim((string) $value);
-
-            if ($words === '') {
-                $repository->delete((string) $key, $code);
-            } else {
-                $repository->save((string) $key, $code, $words);
-            }
-        }
-
-        self::$cache = null;
+        self::store()->save($languageCode, $values);
     }
 
     public static function clearCache(): void
     {
-        self::$cache = null;
+        self::store()->clearCache();
     }
 
     /**
@@ -176,43 +146,6 @@ final class LocalizedSiteSettings
      */
     public static function overrideForTests(?array $words): void
     {
-        self::$cache = $words;
-    }
-
-    /** @return array<string, array<string, string>> */
-    private static function all(): array
-    {
-        if (self::$cache !== null) {
-            return self::$cache;
-        }
-
-        try {
-            $rows = (new SiteSettingTranslationRepository())->findAll();
-        } catch (\Throwable $e) {
-            error_log('[LocalizedSiteSettings] the localized settings could not be read: ' . $e->getMessage());
-            $rows = [];
-        }
-
-        $words = [];
-        foreach ($rows as $row) {
-            $key = (string) $row['setting_key'];
-            $value = trim((string) $row['value']);
-
-            // A key the catalogue no longer names is left alone in the
-            // database and ignored here, like SiteSettings::all() ignores a
-            // row it does not list.
-            if ($value !== '' && isset(self::KEYS[$key])) {
-                $words[$key][(string) $row['language_code']] = $value;
-            }
-        }
-
-        return self::$cache = $words;
-    }
-
-    private static function assertKey(string $key): void
-    {
-        if (!isset(self::KEYS[$key])) {
-            throw new \InvalidArgumentException('"' . $key . '" is not a localized site setting.');
-        }
+        self::store()->overrideForTests($words);
     }
 }
