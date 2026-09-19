@@ -12,11 +12,13 @@ use App\Repository\CollectionRepository;
 use App\Repository\ItemGalleryRepository;
 use App\Repository\PageRepository;
 use App\Repository\PageSectionRepository;
+use App\Repository\PortfolioCategoryRepository;
 use App\Repository\PortfolioGalleryRepository;
 use App\Repository\ProductRepository;
 use App\Service\ItemGalleryContent;
 use App\Service\PageContent;
 use App\Service\PortfolioGalleryContent;
+use App\Service\PortfolioLocalization;
 use App\Service\SectionRegistry;
 use PHPUnit\Framework\TestCase;
 
@@ -49,6 +51,8 @@ final class ReusableBlocksPhase4Test extends TestCase
 {
     private const TEST_KEY = '__test_phase4__';
     private const TEST_COLLECTION_SLUG = 'test-phase4-collectie';
+    private const TEST_CATEGORY_SLUG = 'test-phase4-categorie';
+    private const TEST_ITEM_IMAGE = 'assets/images/sections/__test_phase4__.jpg';
 
     private PageRepository $pages;
     private PageSectionRepository $sections;
@@ -116,6 +120,20 @@ final class ReusableBlocksPhase4Test extends TestCase
         $del->execute(['slug' => self::TEST_COLLECTION_SLUG]);
         $this->collectionId = null;
 
+        // This test's own Portfolio fixture, found by two markers nothing
+        // else uses. The item goes first: portfolio_item_categories' key to
+        // the category is RESTRICT and its key to the item CASCADE, so
+        // deleting the item takes the link with it and frees the category.
+        // The words of both follow their row (CASCADE). No other item and no
+        // other category is ever matched.
+        $del = $db->prepare('DELETE FROM portfolio_gallery_items WHERE image_path = :path');
+        $del->execute(['path' => self::TEST_ITEM_IMAGE]);
+
+        $del = $db->prepare('DELETE FROM portfolio_categories WHERE slug = :slug');
+        $del->execute(['slug' => self::TEST_CATEGORY_SLUG]);
+
+        PortfolioLocalization::clearCache();
+
         PageContent::clearCache();
     }
 
@@ -159,6 +177,43 @@ final class ReusableBlocksPhase4Test extends TestCase
             ['title' => $title]
         );
 
+        ItemGalleryContent::clearCache();
+    }
+
+    /**
+     * One active catalogue item in a category of this test's own, so that a
+     * filter bar really has something to show.
+     *
+     * The bar lists the categories ACTIVE ITEMS USE
+     * (PortfolioCategoryRepository::findUsedByActiveItems()), which is why a
+     * test asserting on it brings both halves itself: an installation may
+     * well hold items and categories and still no link between them, and
+     * then there is nothing to filter by. What it already has is left
+     * exactly as it is — this only ever ADDS a row.
+     */
+    private function categorisedPortfolioItem(): void
+    {
+        $gallery = new PortfolioGalleryRepository();
+        $categories = new PortfolioCategoryRepository();
+
+        $itemId = $gallery->createItem(
+            (int) $gallery->ensureCatalogue()['id'],
+            ['image_path' => self::TEST_ITEM_IMAGE]
+        );
+
+        // A category row and its name are two writes since Multilingual 2.0
+        // phase 5, the way api/admin/create-portfolio-category.php does it.
+        $categoryId = $categories->create(self::TEST_CATEGORY_SLUG);
+        PortfolioLocalization::saveCategory(
+            $categoryId,
+            PortfolioLocalization::defaultLanguage(),
+            'Fase 4 testcategorie'
+        );
+
+        $gallery->setItemCategories($itemId, [$categoryId]);
+
+        PortfolioLocalization::clearCache();
+        PortfolioGalleryContent::clearCache();
         ItemGalleryContent::clearCache();
     }
 
@@ -490,9 +545,7 @@ final class ReusableBlocksPhase4Test extends TestCase
 
     public function testTheFilterBarFollowsTheBlockSetting(): void
     {
-        if (PortfolioGalleryContent::catalogueItems(false) === []) {
-            $this->markTestSkipped('no visible portfolio items in this database');
-        }
+        $this->categorisedPortfolioItem();
 
         [$blockId, $sectionKey] = $this->addBlock('item_gallery');
 
@@ -587,9 +640,7 @@ final class ReusableBlocksPhase4Test extends TestCase
 
     public function testTwoInstancesOnOnePageKeepIndependentSettings(): void
     {
-        if (PortfolioGalleryContent::catalogueItems(false) === []) {
-            $this->markTestSkipped('no visible portfolio items in this database');
-        }
+        $this->categorisedPortfolioItem();
 
         [$firstId, $firstKey] = $this->addBlock('item_gallery');
         [$secondId, $secondKey] = $this->addBlock('item_gallery');
