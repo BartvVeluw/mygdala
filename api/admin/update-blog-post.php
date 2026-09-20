@@ -102,15 +102,49 @@ if ($language === '' || !SiteLanguages::isActive($language)) {
     $errors[] = AdminTranslator::trans('validation.language_unknown');
 }
 
+/**
+ * THE ADDRESS BELONGS TO THE LANGUAGE BEING EDITED (Multilingual 2.0 phase 6,
+ * docs/multilingual/ROUTING.md). Saving the English version writes the English
+ * address and leaves /blog/mijn-bericht exactly where it is; a collision is a
+ * collision inside one language only, because /blog/x and /en/blog/x are
+ * different URLs.
+ *
+ * `blog_posts.slug` stays in step with the DEFAULT language's address: it is
+ * the neutral key the stored redirects were written against.
+ *
+ * A translation's FIRST address is made from its own title when the field is
+ * left blank, the way a new post's is made from its title, and an existing one
+ * is never regenerated. Only the default language must have one at all — a
+ * translation without an address simply has no public URL yet.
+ */
+$isDefaultLanguage = $language !== '' && $language === BlogLocalization::defaultLanguage();
+$postSlugs = BlogLocalization::posts();
+
 $slugInput = trim((string) ($_POST['slug'] ?? ''));
 $slug = BlogSlug::sanitize($slugInput);
-$slugError = BlogSlug::validationError(
-    $slug,
-    static fn (string $candidate): bool => $repository->slugExists($candidate, $id)
-);
 
-if ($slugError !== null) {
-    $errors[] = $slugError;
+$currentSlug = $language === '' ? null : BlogLocalization::postSlug($post, $language);
+
+if ($slug === '' && !$isDefaultLanguage && $language !== '' && $submitted['title'] !== '' && $currentSlug === null) {
+    $slug = BlogSlug::unique(
+        '',
+        $submitted['title'],
+        static fn (string $candidate): bool => $postSlugs->slugTaken($candidate, $language, $id)
+    );
+}
+
+if ($slug !== '' || $isDefaultLanguage) {
+    $slugError = BlogSlug::validationError(
+        $slug,
+        static fn (string $candidate): bool => $language !== '' && (
+            $postSlugs->slugTaken($candidate, $language, $id)
+            || ($isDefaultLanguage && $repository->slugExists($candidate, $id))
+        )
+    );
+
+    if ($slugError !== null) {
+        $errors[] = $slugError;
+    }
 }
 
 $featuredMedia = MediaService::find(
@@ -158,7 +192,8 @@ try {
     // Row, words, categories and tags are ONE transaction.
     $db->beginTransaction();
     $repository->update($id, [
-        'slug' => $slug,
+        // Only the default language moves the neutral key.
+        'slug' => ($isDefaultLanguage && $slug !== '') ? $slug : (string) $post['slug'],
         'featured_media_id' => $featuredMedia?->id,
         'status' => $status,
         'published_at' => BlogPostService::resolvePublishedAt($status, $submitted['published_at']),
@@ -168,6 +203,8 @@ try {
     ]);
 
     BlogLocalization::savePost($id, $language, [
+        // '' is "this language has no public route", not an address.
+        BlogLocalization::SLUG => $slug === '' ? null : $slug,
         BlogLocalization::TITLE => $submitted['title'],
         BlogLocalization::EXCERPT => $submitted['excerpt'],
         BlogLocalization::BODY => RichTextSanitizer::sanitize($submitted['body']),
@@ -203,7 +240,7 @@ try {
  * redirect can never point at a slug the post did not actually get. See
  * App\Service\Blog\BlogPostService::recordSlugChange().
  */
-BlogPostService::recordSlugChange($post, $repository->find($id) ?? []);
+BlogPostService::recordSlugChange($post, $repository->find($id) ?? [], $language, $currentSlug, $slug);
 
 header('Location: /admin/blog-post.php?id=' . $id . '&updated=1');
 exit;

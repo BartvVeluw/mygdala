@@ -70,6 +70,25 @@ class BlogPostRepository extends Repository
      *
      * @return array<string, mixed>|null
      */
+    /**
+     * findPublicBySlug() by id, for the localized address lookup: the address
+     * of a language resolves to a post id (App\Service\Language\EntityTranslations),
+     * and whether that post may be SHOWN is still this one visibility rule
+     * and not a second copy of it.
+     *
+     * @return array<string, mixed>|null
+     */
+    public function findPublicById(int $id, string $now): ?array
+    {
+        $stmt = $this->db->prepare(
+            'SELECT p.* FROM blog_posts p WHERE p.id = :id AND ' . self::PUBLIC_WHERE . ' LIMIT 1'
+        );
+        $stmt->execute(['id' => $id, 'now' => $now]);
+        $row = $stmt->fetch();
+
+        return $row === false ? null : $row;
+    }
+
     public function findPublicBySlug(string $slug, string $now): ?array
     {
         $stmt = $this->db->prepare(

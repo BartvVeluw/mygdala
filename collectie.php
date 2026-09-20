@@ -93,6 +93,11 @@ if ($collection === null) {
     );
     require __DIR__ . '/partials/seo-head.php';
 } else {
+    // The language versions this collection really has, for hreflang and
+    // for the language switch (docs/multilingual/ROUTING.md).
+    \App\Service\Routing\LanguageAlternates::declareVersions(
+        \App\Service\CollectionContent::alternates($collection)
+    );
     require __DIR__ . '/partials/shop-seo-head.php';
 }
 ?>

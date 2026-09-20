@@ -331,12 +331,8 @@ class PageContent
      * (App\Service\PageService), so "has this language an address" cannot be
      * answered two ways.
      *
-     * For the DEFAULT language the neutral `pages.slug` stands in when
-     * `page_translations` holds none: db/migrations/20260920100000 keeps the
-     * two byte-identical, and that fallback is what stops a page created by a
-     * path that only wrote the neutral column from silently having no URL at
-     * all. Every other language has an address only when it really has one —
-     * doing this for them would answer /de/over-ons with the Dutch page.
+     * The rule itself is App\Service\Routing\LocalizedSlug's, shared with
+     * the Blog and the Shop so all three answer it the same way.
      *
      * A route-bound page has no slug in any language; its address is its
      * route.
@@ -349,19 +345,11 @@ class PageContent
             return null;
         }
 
-        $slug = PageLocalization::slug((int) ($page['id'] ?? 0), $language);
-
-        if ($slug !== null) {
-            return $slug;
-        }
-
-        if ($language !== \App\Service\Routing\LanguageResolver::defaultLanguage()) {
-            return null;
-        }
-
-        $neutral = trim((string) ($page['slug'] ?? ''));
-
-        return $neutral === '' ? null : $neutral;
+        return \App\Service\Routing\LocalizedSlug::resolve(
+            PageLocalization::slug((int) ($page['id'] ?? 0), $language),
+            (string) ($page['slug'] ?? ''),
+            $language
+        );
     }
 
     /**

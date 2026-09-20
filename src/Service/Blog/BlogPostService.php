@@ -207,10 +207,31 @@ final class BlogPostService
      * @param array<string, mixed> $before the stored row as it was
      * @param array<string, mixed> $after  the row as it has just been saved
      */
-    public static function recordSlugChange(array $before, array $after): bool
-    {
-        $oldSlug = trim((string) ($before['slug'] ?? ''));
-        $newSlug = trim((string) ($after['slug'] ?? ''));
+    public static function recordSlugChange(
+        array $before,
+        array $after,
+        ?string $languageCode = null,
+        ?string $oldLocalizedSlug = null,
+        ?string $newLocalizedSlug = null
+    ): bool {
+        /**
+         * THE ADDRESS THAT MOVED IS THE EDITED LANGUAGE'S (Multilingual 2.0
+         * phase 6): renaming the English version records /en/old -> /en/new
+         * and leaves every Dutch address alone. The caller passes both halves
+         * because only it knows what this language's address was before the
+         * save.
+         *
+         * Without a language the neutral column decides, which is exactly
+         * what this method did before phase 6 and what the default language
+         * still does.
+         */
+        if ($languageCode === null) {
+            $oldSlug = trim((string) ($before['slug'] ?? ''));
+            $newSlug = trim((string) ($after['slug'] ?? ''));
+        } else {
+            $oldSlug = trim((string) $oldLocalizedSlug);
+            $newSlug = trim((string) $newLocalizedSlug);
+        }
 
         if ($oldSlug === '' || $newSlug === '' || $oldSlug === $newSlug) {
             return false;
@@ -221,8 +242,9 @@ final class BlogPostService
         }
 
         return (new SlugChangeRedirects())->record(
-            BlogUrls::postRedirectPath($oldSlug),
-            BlogUrls::postRedirectPath($newSlug)
+            BlogUrls::postRedirectPath($oldSlug, $languageCode),
+            BlogUrls::postRedirectPath($newSlug, $languageCode),
+            $languageCode
         );
     }
 

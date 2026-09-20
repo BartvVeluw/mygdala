@@ -2379,20 +2379,17 @@ final class MultilingualBoundaryTest extends TestCase
      * and tag, language-neutral, on the row. A slug per language needs the
      * router of phase 6.
      */
-    public function testEveryBlogSlugIsStillOneLanguageNeutralColumn(): void
+    /**
+     * REPLACES "every blog slug is still one language-neutral column", which
+     * held until phase 6 gave each language its own URL.
+     *
+     * What still holds, and is the part worth guarding: a NEW post or category
+     * is created in the DEFAULT language, so its first address comes from the
+     * title in that language and never from whichever language the editor
+     * happens to be looking at.
+     */
+    public function testANewBlogRowIsStillCreatedInTheDefaultLanguage(): void
     {
-        // The declaration is the closed list, so asking it is asking the
-        // schema: no store of the Blog's words knows what a slug is.
-        foreach ([
-            \App\Service\Blog\BlogLocalization::posts(),
-            \App\Service\Blog\BlogLocalization::categories(),
-            \App\Service\Blog\BlogLocalization::tags(),
-        ] as $store) {
-            self::assertNotContains('slug', $store->table()->fieldNames(), $store->table()->name);
-        }
-
-        // And the slug of a new post or category still comes from its title in
-        // the DEFAULT language, never from the language on the screen.
         self::assertStringContainsString(
             'BlogLocalization::defaultLanguage()',
             self::withoutComments(self::read('api/admin/create-blog-post.php'))
@@ -2611,7 +2608,7 @@ final class MultilingualBoundaryTest extends TestCase
             \App\Service\OrderItemNameSnapshot::names(),
         ] as $store) {
             foreach ([
-                'slug', 'price', 'unit_price', 'stock', 'sku', 'image_path', 'og_image_path',
+                'price', 'unit_price', 'stock', 'sku', 'image_path', 'og_image_path',
                 'active', 'in_shop', 'in_personalization_catalog', 'is_active',
                 'show_related_products', 'sort_order', 'quantity', 'variant_label',
             ] as $neutral) {

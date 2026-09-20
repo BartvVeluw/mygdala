@@ -6,6 +6,10 @@ namespace App\Service;
 
 use App\Repository\CollectionRepository;
 use App\Repository\ProductRepository;
+use App\Service\Routing\LanguageResolver;
+use App\Service\Routing\LocalizedUrl;
+use App\Service\Routing\RequestLanguage;
+use App\Service\Routing\RouteSegments;
 
 /**
  * The public read model for shop collections: what /shop's Collections
@@ -83,14 +87,31 @@ class CollectionContent
      *
      * @return array{id:int, slug:string, name:\App\Service\Language\LocalizedValue, description:\App\Service\Language\LocalizedValue, image_path:?string, product_count:int, url:string}|null
      */
-    public static function forPublicPage(string $slug): ?array
+    public static function forPublicPage(string $slug, ?string $language = null): ?array
     {
         if ($slug === '') {
             return null;
         }
 
+        $language ??= RequestLanguage::current();
+
+        /**
+         * THE ADDRESS BELONGS TO ONE LANGUAGE (docs/multilingual/ROUTING.md):
+         * /en/collections/wood asks for the collection whose ENGLISH address
+         * it is, and gets nothing when only its Dutch address matches.
+         *
+         * The neutral `collections.slug` still answers for the DEFAULT
+         * language, so every /collecties/... URL that existed before phase 6
+         * keeps working.
+         */
         try {
-            $collection = (new CollectionRepository())->findBySlug($slug);
+            $repository = new CollectionRepository();
+            $id = ShopLocalization::collections()->ownerForSlug($slug, $language);
+            $collection = $id === null ? null : $repository->findById($id);
+
+            if ($collection === null && $language === LanguageResolver::defaultLanguage()) {
+                $collection = $repository->findBySlug($slug);
+            }
         } catch (\Throwable $e) {
             error_log('[CollectionContent] forPublicPage lookup failed for "' . $slug . '": ' . $e->getMessage());
 
@@ -110,9 +131,67 @@ class CollectionContent
      * links all go through here (or through AppUrl::canonical() with this
      * path), so the route exists in exactly one string.
      */
-    public static function publicPath(string $slug): string
+    public static function publicPath(string $slug, ?string $language = null): string
     {
-        return '/collecties/' . $slug;
+        $language ??= RequestLanguage::current();
+
+        // The namespace word itself is localized — "collecties" in Dutch,
+        // "collections" in English — and comes from the same catalogue the
+        // router matches against (App\Service\Routing\RouteSegments), so a
+        // link and the route that answers it cannot spell it differently.
+        return LocalizedUrl::path(
+            '/' . RouteSegments::value('shop.collections', $language) . '/' . $slug,
+            $language
+        );
+    }
+
+    /**
+     * A collection's URL in the language this page is being read in, falling
+     * back to the DEFAULT language's when this one has no address for it: a
+     * tile is somebody asking to go there, and landing on a real page beats
+     * landing on nothing (docs/multilingual/ROUTING.md).
+     *
+     * @param array<string, mixed> $collection a `collections` row
+     */
+    public static function urlFor(array $collection): string
+    {
+        $language = RequestLanguage::current();
+        $slug = ShopLocalization::collectionSlug($collection, $language);
+
+        if ($slug !== null) {
+            return self::publicPath($slug, $language);
+        }
+
+        $default = LanguageResolver::defaultLanguage();
+
+        return self::publicPath(
+            ShopLocalization::collectionSlug($collection, $default) ?? (string) ($collection['slug'] ?? ''),
+            $default
+        );
+    }
+
+    /**
+     * Every language one collection can be read in, code => site-relative
+     * path, for App\Service\Routing\LanguageAlternates. Only the languages
+     * whose address really exists: an alternate may never name a URL that
+     * 404s.
+     *
+     * @param array<string, mixed> $collection a `collections` row
+     * @return array<string, string>
+     */
+    public static function alternates(array $collection): array
+    {
+        $paths = [];
+
+        foreach (\App\Service\Language\SiteLanguages::activeCodes() as $code) {
+            $slug = ShopLocalization::collectionSlug($collection, $code);
+
+            if ($slug !== null) {
+                $paths[$code] = self::publicPath($slug, $code);
+            }
+        }
+
+        return $paths;
     }
 
     /**
@@ -125,7 +204,7 @@ class CollectionContent
      */
     public static function canonicalUrl(array $collection): string
     {
-        return self::canonicalUrlForSlug((string) $collection['slug']);
+        return AppUrl::canonical(self::urlFor($collection));
     }
 
     /**
@@ -134,9 +213,9 @@ class CollectionContent
      * must build a collection's URL with exactly this code and not a second
      * copy of it.
      */
-    public static function canonicalUrlForSlug(string $slug): string
+    public static function canonicalUrlForSlug(string $slug, ?string $language = null): string
     {
-        return AppUrl::canonical(ltrim(self::publicPath($slug), '/'));
+        return AppUrl::canonical(self::publicPath($slug, $language));
     }
 
     /**
@@ -286,7 +365,7 @@ class CollectionContent
             'image_path' => $imagePath === '' ? null : $imagePath,
             'og_image_path' => $ogImagePath === '' ? null : $ogImagePath,
             'product_count' => $productCount ?? 0,
-            'url' => self::publicPath((string) $row['slug']),
+            'url' => self::urlFor($row),
         ];
     }
 

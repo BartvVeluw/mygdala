@@ -26,6 +26,19 @@ namespace App\Service\Language;
  */
 final class TranslationTable
 {
+    /**
+     * The one field that is an ADDRESS rather than words (Multilingual 2.0
+     * phase 6, docs/multilingual/ROUTING.md).
+     *
+     * A table that declares it is routable per language: its rows have a
+     * public URL of their own in every language they have one for. It is
+     * declared like any other field — same column, same width check, same
+     * save path — and read completely differently, because a URL may never
+     * fall back to another language's. App\Service\Language\EntityTranslations
+     * refuses to hand it to any reader that applies a fallback.
+     */
+    public const SLUG = 'slug';
+
     private const IDENTIFIER = '/\A[a-z][a-z0-9_]{0,63}\z/';
 
     /**
@@ -60,6 +73,12 @@ final class TranslationTable
     public function has(string $field): bool
     {
         return array_key_exists($field, $this->fields);
+    }
+
+    /** Do this table's rows have a public address per language? */
+    public function hasSlug(): bool
+    {
+        return $this->has(self::SLUG);
     }
 
     public function maxLength(string $field): int

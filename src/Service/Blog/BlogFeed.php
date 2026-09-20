@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Service\Blog;
 
 use App\Repository\BlogPostRepository;
+use App\Service\Routing\RequestLanguage;
 use App\Service\Seo;
 use App\Service\SeoDefaults;
 
@@ -75,7 +76,10 @@ final class BlogFeed
         $xml .= '    <title>' . self::escape($channelTitle) . '</title>' . "\n";
         $xml .= '    <link>' . self::escape(BlogUrls::index()) . '</link>' . "\n";
         $xml .= '    <description>' . self::escape($channelDescription) . '</description>' . "\n";
-        $xml .= '    <language>nl</language>' . "\n";
+        // The language this feed is published in: the request's, which is
+        // the default language for /blog/feed.xml and the prefixed one for
+        // /en/blog/feed.xml.
+        $xml .= '    <language>' . self::escape(RequestLanguage::current()) . '</language>' . "\n";
         // The feed's own address, which is what a reader stores and what
         // tells an aggregator it has not been moved.
         $xml .= '    <atom:link href="' . self::escape(BlogUrls::feed()) . '" rel="self" type="application/rss+xml"/>' . "\n";
@@ -95,7 +99,10 @@ final class BlogFeed
      */
     private static function item(array $post): string
     {
-        $url = BlogUrls::post((string) ($post['slug'] ?? ''));
+        // An item's link is the post's address IN THE FEED'S OWN LANGUAGE: a
+        // Dutch feed links Dutch URLs and /en/blog/feed.xml links English
+        // ones, both resolved exactly as the page itself resolves them.
+        $url = BlogContent::postCanonical($post);
         $description = Seo::plainText(BlogContent::excerpt($post, BlogLocalization::defaultLanguage()));
 
         $item = '    <item>' . "\n";

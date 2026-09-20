@@ -58,6 +58,17 @@ if ($post === null) {
 } else {
     $seoMetadata = BlogSeo::forPost($post);
 
+    /**
+     * WHICH LANGUAGE VERSIONS OF THIS POST EXIST, so the <head> can advertise
+     * exactly those as hreflang alternates and the language switch can offer
+     * exactly those (App\Service\Routing\LanguageAlternates,
+     * docs/multilingual/ROUTING.md). A language this post has no address in
+     * is neither advertised nor offered — it has no URL at all.
+     */
+    \App\Service\Routing\LanguageAlternates::declareVersions(
+        \App\Service\Blog\BlogContent::postAlternates($post)
+    );
+
     // One LocalizedValue per field, printed through SiteText: the visible
     // half is the DEFAULT language's (Multilingual 2.0 phase 5 wave B), so a
     // post on an English-default site opens in English.

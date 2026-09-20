@@ -9,6 +9,7 @@ use App\Service\Language\LanguageFallback;
 use App\Service\Language\LocalizedValue;
 use App\Service\Language\TranslationTable;
 use App\Service\RichTextSanitizer;
+use App\Service\Routing\LocalizedSlug;
 
 /**
  * THE way into the Blog's words in any website language (Multilingual 2.0
@@ -53,6 +54,16 @@ final class BlogLocalization
     public const NAME = 'name';
     public const DESCRIPTION = 'description';
 
+    /**
+     * A post's, category's or tag's public address in one language
+     * (Multilingual 2.0 phase 6, docs/multilingual/ROUTING.md). Declared like
+     * any other field and read completely differently: through
+     * App\Service\Language\EntityTranslations::slug(), which has no fallback
+     * because a URL that fell back would publish one language's post at
+     * another language's address.
+     */
+    public const SLUG = TranslationTable::SLUG;
+
     /** The post fields, with the lengths App\Service\Blog\BlogPostService validates. */
     public const POST_FIELDS = [
         self::TITLE => BlogPostService::MAX_TITLE_LENGTH,
@@ -73,6 +84,9 @@ final class BlogLocalization
     public const CATEGORY_DESCRIPTION_MAX_LENGTH = 500;
     public const TAG_NAME_MAX_LENGTH = 100;
 
+    /** `blog_tags.slug` is narrower than the other two slug columns. */
+    public const TAG_SLUG_MAX_LENGTH = 120;
+
     private static ?EntityTranslations $posts = null;
     private static ?EntityTranslations $categories = null;
     private static ?EntityTranslations $tags = null;
@@ -81,7 +95,14 @@ final class BlogLocalization
     public static function posts(): EntityTranslations
     {
         return self::$posts ??= new EntityTranslations(
-            new TranslationTable('blog_post_translations', 'blog_post_id', self::POST_FIELDS)
+            new TranslationTable(
+                'blog_post_translations',
+                'blog_post_id',
+                // The ADDRESS is a column of the table, not one of the WORDS:
+                // *_FIELDS is what an editor writes and what falls back, and
+                // a slug is neither (docs/multilingual/ROUTING.md).
+                [self::SLUG => BlogSlug::MAX_LENGTH] + self::POST_FIELDS
+            )
         );
     }
 
@@ -89,6 +110,7 @@ final class BlogLocalization
     {
         return self::$categories ??= new EntityTranslations(
             new TranslationTable('blog_category_translations', 'blog_category_id', [
+                self::SLUG => BlogSlug::MAX_LENGTH,
                 self::NAME => self::CATEGORY_NAME_MAX_LENGTH,
                 self::DESCRIPTION => self::CATEGORY_DESCRIPTION_MAX_LENGTH,
             ])
@@ -99,6 +121,7 @@ final class BlogLocalization
     {
         return self::$tags ??= new EntityTranslations(
             new TranslationTable('blog_tag_translations', 'blog_tag_id', [
+                self::SLUG => self::TAG_SLUG_MAX_LENGTH,
                 self::NAME => self::TAG_NAME_MAX_LENGTH,
             ])
         );
@@ -107,6 +130,50 @@ final class BlogLocalization
     /* ------------------------------------------------------------------ */
     /* Posts                                                               */
     /* ------------------------------------------------------------------ */
+
+    /* ------------------------------------------------------------------ */
+    /* Addresses                                                           */
+    /* ------------------------------------------------------------------ */
+
+    /**
+     * A post's address in one language: its own when it has one, else the
+     * neutral `blog_posts.slug` for the DEFAULT language only, else null
+     * (App\Service\Routing\LocalizedSlug — the same rule pages and
+     * collections follow).
+     *
+     * null means this language has no public route to this post at all. It is
+     * NOT a missing translation of a URL: words fall back, addresses do not.
+     *
+     * @param array<string, mixed> $post a `blog_posts` row
+     */
+    public static function postSlug(array $post, string $languageCode): ?string
+    {
+        return LocalizedSlug::resolve(
+            self::posts()->slug((int) ($post['id'] ?? 0), $languageCode),
+            (string) ($post['slug'] ?? ''),
+            $languageCode
+        );
+    }
+
+    /** @param array<string, mixed> $category a `blog_categories` row */
+    public static function categorySlug(array $category, string $languageCode): ?string
+    {
+        return LocalizedSlug::resolve(
+            self::categories()->slug((int) ($category['id'] ?? 0), $languageCode),
+            (string) ($category['slug'] ?? ''),
+            $languageCode
+        );
+    }
+
+    /** @param array<string, mixed> $tag a `blog_tags` row */
+    public static function tagSlug(array $tag, string $languageCode): ?string
+    {
+        return LocalizedSlug::resolve(
+            self::tags()->slug((int) ($tag['id'] ?? 0), $languageCode),
+            (string) ($tag['slug'] ?? ''),
+            $languageCode
+        );
+    }
 
     /** The words a visitor gets for one post field, with the fallback. */
     public static function post(int $postId, string $field, string $languageCode): string

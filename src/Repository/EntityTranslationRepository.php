@@ -146,6 +146,66 @@ final class EntityTranslationRepository extends Repository
         $stmt->execute($parameters);
     }
 
+    /**
+     * The owner one localized address belongs to, in one language, or null.
+     *
+     * The public lookup behind every localized module URL: /en/blog/my-post
+     * asks for the post whose ENGLISH address is "my-post", and gets nothing
+     * when only its Dutch address matches. Resolving across languages here is
+     * exactly what would publish one language's content under another's URL.
+     *
+     * Only the id comes back. Whether that row may be shown — published,
+     * active, scheduled — is the owning domain's question, asked with the
+     * query it already has.
+     */
+    public function ownerIdForSlug(string $slug, string $languageCode): ?int
+    {
+        $this->assertSlug();
+
+        $stmt = $this->db->prepare(
+            "SELECT `{$this->table->ownerColumn}` AS owner_id
+               FROM `{$this->table->name}`
+              WHERE language_code = :language_code AND slug = :slug
+              LIMIT 1"
+        );
+        $stmt->execute(['language_code' => $languageCode, 'slug' => $slug]);
+        $row = $stmt->fetch();
+
+        return $row === false ? null : (int) $row['owner_id'];
+    }
+
+    /** Is this address already taken IN THIS LANGUAGE by another owner? */
+    public function slugExists(string $slug, string $languageCode, ?int $excludeOwnerId = null): bool
+    {
+        $this->assertSlug();
+
+        $owner = $this->table->ownerColumn;
+
+        if ($excludeOwnerId !== null) {
+            $stmt = $this->db->prepare(
+                "SELECT 1 FROM `{$this->table->name}`
+                  WHERE language_code = :language_code AND slug = :slug AND `{$owner}` != :owner_id
+                  LIMIT 1"
+            );
+            $stmt->execute(['language_code' => $languageCode, 'slug' => $slug, 'owner_id' => $excludeOwnerId]);
+        } else {
+            $stmt = $this->db->prepare(
+                "SELECT 1 FROM `{$this->table->name}`
+                  WHERE language_code = :language_code AND slug = :slug LIMIT 1"
+            );
+            $stmt->execute(['language_code' => $languageCode, 'slug' => $slug]);
+        }
+
+        return $stmt->fetch() !== false;
+    }
+
+    private function assertSlug(): void
+    {
+        if (!$this->table->hasSlug()) {
+            throw new \InvalidArgumentException('Table ' . $this->table->name . ' has no localized address.');
+        }
+    }
+
     public function delete(int $ownerId, string $languageCode): void
     {
         $stmt = $this->db->prepare(

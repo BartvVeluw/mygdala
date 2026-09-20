@@ -8,6 +8,7 @@ use App\Service\Language\EntityTranslations;
 use App\Service\Language\LanguageFallback;
 use App\Service\Language\LocalizedValue;
 use App\Service\Language\TranslationTable;
+use App\Service\Routing\LocalizedSlug;
 
 /**
  * THE way into the Shop's visitor-facing words in any website language
@@ -79,6 +80,22 @@ final class ShopLocalization
     ];
 
     /** A collection has the same four, plus its own related-products heading. */
+    /**
+     * A collection's public address in one language (Multilingual 2.0 phase 6,
+     * docs/multilingual/ROUTING.md), read through
+     * App\Service\Language\EntityTranslations::slug(), which has no fallback.
+     *
+     * PRODUCTS HAVE NO SUCH FIELD, and that is deliberate: a product is one
+     * page at /product.php?id=… however many collections it appears in
+     * (App\Service\ProductSeo). Giving it a slug URL is a URL decision with
+     * nothing to do with language, so a column here would be one nothing
+     * reads.
+     */
+    public const SLUG = TranslationTable::SLUG;
+
+    /** Matches `collections.slug`. */
+    public const SLUG_MAX_LENGTH = 170;
+
     public const COLLECTION_FIELDS = self::PRODUCT_FIELDS + [
         self::RELATED_HEADING => self::RELATED_HEADING_MAX_LENGTH,
     ];
@@ -96,13 +113,40 @@ final class ShopLocalization
     public static function collections(): EntityTranslations
     {
         return self::$collections ??= new EntityTranslations(
-            new TranslationTable('collection_translations', 'collection_id', self::COLLECTION_FIELDS)
+            new TranslationTable(
+                'collection_translations',
+                'collection_id',
+                // The ADDRESS is a column of the table, not one of the WORDS:
+                // *_FIELDS is what an editor writes and what falls back, and
+                // a slug is neither (docs/multilingual/ROUTING.md).
+                [self::SLUG => self::SLUG_MAX_LENGTH] + self::COLLECTION_FIELDS
+            )
         );
     }
 
     /* ------------------------------------------------------------------ */
     /* Products                                                            */
     /* ------------------------------------------------------------------ */
+
+    /**
+     * A collection's address in one language: its own when it has one, else
+     * the neutral `collections.slug` for the DEFAULT language only, else null
+     * (App\Service\Routing\LocalizedSlug — the same rule pages and blog
+     * posts follow).
+     *
+     * null is "this language has no public route to this collection". Words
+     * fall back; an address does not.
+     *
+     * @param array<string, mixed> $collection a `collections` row
+     */
+    public static function collectionSlug(array $collection, string $languageCode): ?string
+    {
+        return LocalizedSlug::resolve(
+            self::collections()->slug((int) ($collection['id'] ?? 0), $languageCode),
+            (string) ($collection['slug'] ?? ''),
+            $languageCode
+        );
+    }
 
     /** The words a visitor gets for one product field, with the fallback. */
     public static function product(int $productId, string $field, string $languageCode): string

@@ -109,6 +109,27 @@ $editingLanguage = admin_localized_language();
  * THIS LANGUAGE with no fallback — the fallback is the placeholder. A
  * language-neutral column is read from the row as it always was.
  */
+/**
+ * The post's address IN THE LANGUAGE BEING EDITED (Multilingual 2.0 phase 6,
+ * docs/multilingual/ROUTING.md). A refused save's own input wins, but only
+ * when it was typed in this language; '' means this language has no public
+ * route to this post yet, which is a real and ordinary state.
+ */
+$slugValue = static function () use ($old, $post, $editingLanguage): string {
+    if ($old !== null && ($old['language_code'] ?? null) === $editingLanguage && array_key_exists('slug', $old)) {
+        return (string) ($old['slug'] ?? '');
+    }
+
+    return (string) (\App\Service\Blog\BlogLocalization::postSlug($post, $editingLanguage) ?? '');
+};
+
+/** The address this post can be visited at in the language being edited. */
+$localizedPostPath = static function () use ($post, $editingLanguage): ?string {
+    $slug = \App\Service\Blog\BlogLocalization::postSlug($post, $editingLanguage);
+
+    return $slug === null ? null : BlogUrls::postPath($slug, $editingLanguage);
+};
+
 $fieldValue = static function (string $key) use ($old, $post): string {
     if ($old !== null && array_key_exists($key, $old)) {
         return (string) ($old[$key] ?? '');
@@ -179,7 +200,10 @@ $forcedTab = $errors !== [] ? 'inhoud' : null;
       </p>
     </div>
     <?php if ($isPublic): ?>
-      <a href="<?= $h(BlogUrls::postPath((string) $post['slug'])) ?>" class="admin-btn-secondary" target="_blank" rel="noopener">Bekijk bericht &#8594;</a>
+<?php $viewPath = $localizedPostPath(); ?>
+<?php if ($viewPath !== null): ?>
+      <a href="<?= $h($viewPath) ?>" class="admin-btn-secondary" target="_blank" rel="noopener">Bekijk bericht &#8594;</a>
+<?php endif; ?>
     <?php endif; ?>
   </header>
 
@@ -319,11 +343,20 @@ $forcedTab = $errors !== [] ? 'inhoud' : null;
 
       <div class="admin-form-row">
         <label><?= admin_te('blog.url_slug') ?>*
-          <input type="text" name="slug" maxlength="<?= \App\Service\Blog\BlogSlug::MAX_LENGTH ?>" required value="<?= $h($fieldValue('slug')) ?>">
+          <?php /* Not `required`: only the default language must have an
+                   address. A translation without one simply has no public URL
+                   yet, and the endpoint makes one from the title when this
+                   field is left blank. */ ?>
+          <input type="text" name="slug" maxlength="<?= \App\Service\Blog\BlogSlug::MAX_LENGTH ?>"<?= $editingLanguage === \App\Service\Blog\BlogLocalization::defaultLanguage() ? ' required' : '' ?> value="<?= $h($slugValue()) ?>">
         </label>
       </div>
       <p class="admin-text-muted">
-        <?= admin_te('blog.live') ?> <a href="<?= $h(BlogUrls::postPath((string) $post['slug'])) ?>" target="_blank" rel="noopener"><?= $h(BlogUrls::postPath((string) $post['slug'])) ?></a><?= admin_te('blog.wijzig_slug_bericht_al') ?>
+<?php $livePath = $localizedPostPath(); ?>
+<?php if ($livePath === null): ?>
+        <?= admin_te('blog.url_none_in_language') ?>
+<?php else: ?>
+        <?= admin_te('blog.live') ?> <a href="<?= $h($livePath) ?>" target="_blank" rel="noopener"><?= $h($livePath) ?></a><?= admin_te('blog.wijzig_slug_bericht_al') ?>
+<?php endif; ?>
       </p>
     </section>
 

@@ -51,15 +51,15 @@ final class BlogLocalizationTest extends TestCase
 
         self::assertSame('blog_post_translations', $posts->name);
         self::assertSame('blog_post_id', $posts->ownerColumn);
-        self::assertSame(['title', 'excerpt', 'body', 'meta_title', 'meta_description'], $posts->fieldNames());
+        self::assertSame(['slug', 'title', 'excerpt', 'body', 'meta_title', 'meta_description'], $posts->fieldNames());
 
         self::assertSame('blog_category_translations', $categories->name);
         self::assertSame('blog_category_id', $categories->ownerColumn);
-        self::assertSame(['name', 'description'], $categories->fieldNames());
+        self::assertSame(['slug', 'name', 'description'], $categories->fieldNames());
 
         self::assertSame('blog_tag_translations', $tags->name);
         self::assertSame('blog_tag_id', $tags->ownerColumn);
-        self::assertSame(['name'], $tags->fieldNames());
+        self::assertSame(['slug', 'name'], $tags->fieldNames());
     }
 
     /**
@@ -68,11 +68,36 @@ final class BlogLocalizationTest extends TestCase
      * /blog/tag/<slug> keep answering exactly what they answered before, and a
      * translation can never move an address. Localized URLs are phase 6.
      */
-    public function testNoStoreOfTheBlogsWordsKnowsWhatASlugIs(): void
+    /**
+     * REPLACES "no store of the Blog's words knows what a slug is", which was
+     * true until Multilingual 2.0 phase 6 gave every language its own URL
+     * (docs/multilingual/ROUTING.md). A slug is stored per language now — and
+     * it is still not a WORD, which is the part that still has to be true:
+     *
+     *   - it is read with slug(), which has NO fallback, so a language
+     *     without an address has no public route rather than another
+     *     language's URL;
+     *   - every reader that DOES fall back refuses it outright, so the
+     *     mistake cannot be made by accident in a codebase where almost every
+     *     other field does fall back.
+     */
+    public function testTheBlogsAddressIsStoredPerLanguageAndNeverFallsBack(): void
     {
         foreach ([BlogLocalization::posts(), BlogLocalization::categories(), BlogLocalization::tags()] as $store) {
-            self::assertNotContains('slug', $store->table()->fieldNames(), $store->table()->name);
-            self::assertFalse($store->table()->has('slug'));
+            $name = $store->table()->name;
+
+            self::assertTrue($store->table()->hasSlug(), $name . ' is routable per language');
+
+            foreach (['value', 'name', 'bilingual'] as $reader) {
+                try {
+                    $reader === 'value'
+                        ? $store->value(1, 'slug', 'nl')
+                        : $store->{$reader}(1, 'slug');
+                    self::fail($name . ': ' . $reader . '() must refuse the address');
+                } catch (\InvalidArgumentException $e) {
+                    self::assertStringContainsString('slug()', $e->getMessage());
+                }
+            }
         }
     }
 

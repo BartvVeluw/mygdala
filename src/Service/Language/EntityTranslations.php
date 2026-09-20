@@ -80,18 +80,104 @@ final class EntityTranslations
     /** The words a visitor gets for one field in one language, with the fallback. */
     public function value(int $ownerId, string $field, string $languageCode): string
     {
+        $this->assertNotTheAddress($field);
+
         return LanguageFallback::resolve($this->column($ownerId, $field), $languageCode);
+    }
+
+    /**
+     * This owner's public address IN THIS LANGUAGE, or null when it has none
+     * (Multilingual 2.0 phase 6, docs/multilingual/ROUTING.md).
+     *
+     * THE ONE READER HERE WITHOUT A FALLBACK, and that is the point. Words
+     * fall back to the default language, because showing a visitor the words
+     * they can read beats showing them nothing. An address may not: falling
+     * back would publish this row in German at a URL that says it is the
+     * German version, when no German version exists. "No slug" therefore
+     * means "no route", and route existence is a different question from
+     * field fallback.
+     */
+    public function slug(int $ownerId, string $languageCode): ?string
+    {
+        $slug = $this->raw($ownerId, TranslationTable::SLUG, $languageCode);
+
+        return $slug === '' ? null : $slug;
+    }
+
+    /**
+     * Every language this owner has a public address in, in the site's order.
+     *
+     * What the language switch, the hreflang block and the sitemap ask before
+     * they name a URL.
+     *
+     * @return list<string>
+     */
+    public function routableLanguages(int $ownerId): array
+    {
+        $codes = [];
+
+        foreach (SiteLanguages::activeCodes() as $code) {
+            if ($this->slug($ownerId, $code) !== null) {
+                $codes[] = $code;
+            }
+        }
+
+        return $codes;
+    }
+
+    /**
+     * The owner one address belongs to in one language, or null.
+     *
+     * Reads never throw here, like every other read in this class: a lookup
+     * that failed is a URL that does not resolve, which is what a visitor was
+     * about to be told anyway.
+     */
+    public function ownerForSlug(string $slug, string $languageCode): ?int
+    {
+        if (trim($slug) === '') {
+            return null;
+        }
+
+        try {
+            return (new EntityTranslationRepository($this->table))->ownerIdForSlug($slug, $languageCode);
+        } catch (\Throwable $e) {
+            error_log('[EntityTranslations] ' . $this->table->name . ' address lookup failed: ' . $e->getMessage());
+
+            return null;
+        }
+    }
+
+    /**
+     * Is this address already another owner's, in this language?
+     *
+     * A lookup that FAILS counts as taken: refusing a save an editor can
+     * retry is the safe direction, handing out somebody else's address is
+     * not.
+     */
+    public function slugTaken(string $slug, string $languageCode, ?int $excludeOwnerId = null): bool
+    {
+        try {
+            return (new EntityTranslationRepository($this->table))->slugExists($slug, $languageCode, $excludeOwnerId);
+        } catch (\Throwable $e) {
+            error_log('[EntityTranslations] ' . $this->table->name . ' address check failed: ' . $e->getMessage());
+
+            return true;
+        }
     }
 
     /** What the CMS calls this owner by one of its fields (LanguageFallback::name()). */
     public function name(int $ownerId, string $field): string
     {
+        $this->assertNotTheAddress($field);
+
         return LanguageFallback::name($this->column($ownerId, $field));
     }
 
     /** The temporary V1 `data-nl`/`data-en` pair of one field (LanguageFallback::bilingual()). */
     public function bilingual(int $ownerId, string $field): LocalizedValue
     {
+        $this->assertNotTheAddress($field);
+
         return LanguageFallback::bilingual($this->column($ownerId, $field));
     }
 
@@ -292,6 +378,24 @@ final class EntityTranslations
     {
         if (!$this->table->has($field)) {
             throw new \InvalidArgumentException('Table ' . $this->table->name . ' has no localized field "' . $field . '".');
+        }
+    }
+
+    /**
+     * An ADDRESS may never be read by something that applies a fallback.
+     *
+     * Enforced rather than documented, because the mistake it prevents is
+     * invisible in a test that only has one language: value() would hand back
+     * the DEFAULT language's slug for a language that has none, and the
+     * caller would build a URL out of it that claims to be that language's.
+     * ::slug() is the only reader of it.
+     */
+    private function assertNotTheAddress(string $field): void
+    {
+        if ($this->table->hasSlug() && $field === TranslationTable::SLUG) {
+            throw new \InvalidArgumentException(
+                'The localized address of ' . $this->table->name . ' is read with slug(), which has no fallback.'
+            );
         }
     }
 }

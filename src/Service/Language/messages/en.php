@@ -1245,6 +1245,7 @@ From the first label the CMS also makes the fixed name answers are stored under.
     'blog.seo' => 'SEO',
     'blog.bericht_opslaan_2' => 'Save post',
     'blog.wijzig_slug_bericht_al' => '. If you change the slug of a post that is already online, the old URL keeps working through an automatic redirect.',
+    'blog.url_none_in_language' => 'This post has no web address in this language yet, so it cannot be read in it. Fill in an address above, or leave it empty to use the title.',
     'blog.live' => 'Live at',
     'blog.auteur' => 'Author',
     'blog.concept_nooit_zichtbaar_gepubliceerd' => 'Draft</strong> is never visible. <strong>Published</strong> without a date means: now. <strong>Scheduled</strong> appears by itself once the date arrives &mdash; nothing runs in the background for that, the server simply looks at the clock on every visit.',

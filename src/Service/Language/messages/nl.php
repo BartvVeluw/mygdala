@@ -1253,6 +1253,7 @@ Uit het eerste label maakt het CMS ook de vaste naam waaronder antwoorden worden
     'blog.seo' => 'SEO',
     'blog.bericht_opslaan_2' => 'Bericht opslaan',
     'blog.wijzig_slug_bericht_al' => '. Wijzig je de slug van een bericht dat al online staat, dan blijft de oude URL werken via een automatische redirect.',
+    'blog.url_none_in_language' => 'Dit bericht heeft nog geen webadres in deze taal en is er dus niet te lezen. Vul hierboven een adres in, of laat het leeg en gebruik de titel.',
     'blog.live' => 'Live op',
     'blog.auteur' => 'Auteur',
     'blog.concept_nooit_zichtbaar_gepubliceerd' => 'Concept</strong> is nooit zichtbaar. <strong>Gepubliceerd</strong> zonder datum betekent: nu. <strong>Ingepland</strong> verschijnt vanzelf zodra de datum bereikt is &mdash; daar draait niets voor op de achtergrond, de server kijkt gewoon naar de klok bij elk bezoek.',

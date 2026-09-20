@@ -11,6 +11,10 @@ use App\Service\Language\LanguageFallback;
 use App\Service\Language\LanguageRegistry;
 use App\Service\Language\LocalizedValue;
 use App\Service\Media\BlockImage;
+use App\Service\AppUrl;
+use App\Service\Language\SiteLanguages;
+use App\Service\Routing\LanguageResolver;
+use App\Service\Routing\RequestLanguage;
 use App\Service\Seo;
 
 /**
@@ -92,14 +96,18 @@ final class BlogContent
         $tag = null;
         $mode = 'index';
 
+        // Same rule as a post's address: this language's own slug, with the
+        // neutral column answering for the default language.
+        $language = RequestLanguage::current();
+
         if ($categorySlug !== '') {
-            $category = (new BlogCategoryRepository())->findActiveBySlug($categorySlug);
+            $category = self::activeCategoryBySlug($categorySlug, $language);
             if ($category === null) {
                 return null;
             }
             $mode = 'category';
         } elseif ($tagSlug !== '') {
-            $tag = (new BlogTagRepository())->findBySlug($tagSlug);
+            $tag = self::tagBySlug($tagSlug, $language);
             if ($tag === null) {
                 return null;
             }
@@ -148,7 +156,7 @@ final class BlogContent
      *
      * @return array<string, mixed>|null
      */
-    public static function post(string $slug): ?array
+    public static function post(string $slug, ?string $language = null): ?array
     {
         $slug = trim($slug);
 
@@ -158,8 +166,23 @@ final class BlogContent
 
         $repository = new BlogPostRepository();
         $now = BlogClock::nowForSql();
+        $language ??= RequestLanguage::current();
 
-        $row = $repository->findPublicBySlug($slug, $now);
+        /**
+         * THE ADDRESS BELONGS TO ONE LANGUAGE (docs/multilingual/ROUTING.md):
+         * /en/blog/my-post asks for the post whose ENGLISH address it is, and
+         * gets nothing when only its Dutch address matches.
+         *
+         * The neutral `blog_posts.slug` still answers for the DEFAULT
+         * language, so every URL that existed before phase 6 keeps working
+         * even for a post whose localized row was never written.
+         */
+        $postId = BlogLocalization::posts()->ownerForSlug($slug, $language);
+        $row = $postId === null ? null : $repository->findPublicById($postId, $now);
+
+        if ($row === null && $language === LanguageResolver::defaultLanguage()) {
+            $row = $repository->findPublicBySlug($slug, $now);
+        }
 
         if ($row === null) {
             return null;
@@ -457,6 +480,160 @@ final class BlogContent
         return $decorated;
     }
 
+    /* ------------------------------------------------------------------ */
+    /* Addresses                                                           */
+    /* ------------------------------------------------------------------ */
+
+    /**
+     * One post's URL in the language this page is being read in.
+     *
+     * A post with no address in that language is linked at its DEFAULT
+     * language address instead of not at all: a card, a neighbour link or a
+     * related post is somebody asking to go there, and landing on a real post
+     * in another language beats landing on nothing. The page they land on
+     * says in its own canonical tag and <html lang> which language it is.
+     *
+     * The language SWITCH is the one place that rule is reversed — see
+     * docs/multilingual/ROUTING.md.
+     *
+     * @param array<string, mixed> $row a `blog_posts` row
+     */
+    public static function postUrl(array $row): string
+    {
+        $language = RequestLanguage::current();
+        $slug = BlogLocalization::postSlug($row, $language);
+
+        if ($slug !== null) {
+            return BlogUrls::postPath($slug, $language);
+        }
+
+        $default = LanguageResolver::defaultLanguage();
+
+        return BlogUrls::postPath(
+            BlogLocalization::postSlug($row, $default) ?? (string) ($row['slug'] ?? ''),
+            $default
+        );
+    }
+
+    /**
+     * The ABSOLUTE form of postUrl(), for a canonical tag, a feed item and
+     * structured data — three things that must never name three addresses.
+     *
+     * A decorated row already carries it; a raw row is resolved on the spot,
+     * which is what the feed hands over.
+     *
+     * @param array<string, mixed> $row
+     */
+    public static function postCanonical(array $row): string
+    {
+        $canonical = trim((string) ($row['canonical_url'] ?? ''));
+
+        return $canonical !== '' ? $canonical : AppUrl::canonical(self::postUrl($row));
+    }
+
+    /** @param array<string, mixed> $category a `blog_categories` row */
+    public static function categoryUrl(array $category, int $page = 1): string
+    {
+        $language = RequestLanguage::current();
+        $slug = BlogLocalization::categorySlug($category, $language);
+
+        if ($slug !== null) {
+            return BlogUrls::categoryPath($slug, $page, $language);
+        }
+
+        $default = LanguageResolver::defaultLanguage();
+
+        return BlogUrls::categoryPath(
+            BlogLocalization::categorySlug($category, $default) ?? (string) ($category['slug'] ?? ''),
+            $page,
+            $default
+        );
+    }
+
+    /** @param array<string, mixed> $tag a `blog_tags` row */
+    public static function tagUrl(array $tag, int $page = 1): string
+    {
+        $language = RequestLanguage::current();
+        $slug = BlogLocalization::tagSlug($tag, $language);
+
+        if ($slug !== null) {
+            return BlogUrls::tagPath($slug, $page, $language);
+        }
+
+        $default = LanguageResolver::defaultLanguage();
+
+        return BlogUrls::tagPath(
+            BlogLocalization::tagSlug($tag, $default) ?? (string) ($tag['slug'] ?? ''),
+            $page,
+            $default
+        );
+    }
+
+    /**
+     * Every language one post can be READ in, code => site-relative path, for
+     * App\Service\Routing\LanguageAlternates. Only the languages whose
+     * address really exists: an alternate may never name a URL that 404s.
+     *
+     * @param array<string, mixed> $row
+     * @return array<string, string>
+     */
+    public static function postAlternates(array $row): array
+    {
+        $paths = [];
+
+        foreach (SiteLanguages::activeCodes() as $code) {
+            $slug = BlogLocalization::postSlug($row, $code);
+
+            if ($slug !== null) {
+                $paths[$code] = BlogUrls::postPath($slug, $code);
+            }
+        }
+
+        return $paths;
+    }
+
+    /**
+     * The active category one address names in one language, or null.
+     *
+     * @return array<string, mixed>|null
+     */
+    private static function activeCategoryBySlug(string $slug, string $language): ?array
+    {
+        $categories = new BlogCategoryRepository();
+
+        $id = BlogLocalization::categories()->ownerForSlug($slug, $language);
+        $category = $id === null ? null : $categories->find($id);
+
+        if ($category !== null && (int) ($category['is_active'] ?? 0) !== 1) {
+            $category = null;
+        }
+
+        if ($category === null && $language === LanguageResolver::defaultLanguage()) {
+            $category = $categories->findActiveBySlug($slug);
+        }
+
+        return $category;
+    }
+
+    /**
+     * The tag one address names in one language, or null.
+     *
+     * @return array<string, mixed>|null
+     */
+    private static function tagBySlug(string $slug, string $language): ?array
+    {
+        $tags = new BlogTagRepository();
+
+        $id = BlogLocalization::tags()->ownerForSlug($slug, $language);
+        $tag = $id === null ? null : $tags->find($id);
+
+        if ($tag === null && $language === LanguageResolver::defaultLanguage()) {
+            $tag = $tags->findBySlug($slug);
+        }
+
+        return $tag;
+    }
+
     /**
      * @param array<string, mixed>             $row
      * @param array<int, array<string, mixed>> $categories
@@ -466,8 +643,12 @@ final class BlogContent
      */
     private static function withDecoration(array $row, array $categories, array $tags): array
     {
-        $row['url'] = BlogUrls::postPath((string) $row['slug']);
-        $row['canonical_url'] = BlogUrls::post((string) $row['slug']);
+        // The address of the language this page is being read in, and the
+        // default language's when this one has none: a card must land a
+        // visitor on a real post rather than nowhere
+        // (docs/multilingual/ROUTING.md, "Links to content without a route").
+        $row['url'] = self::postUrl($row);
+        $row['canonical_url'] = AppUrl::canonical($row['url']);
 
         // The featured image comes straight from the Media Library: there is
         // no legacy path column on this table and no per-post alt override,
@@ -514,7 +695,7 @@ final class BlogContent
         // BlogContent::titleValue() for the pair it prints.
         return [
             'id' => (int) $row['id'],
-            'url' => BlogUrls::postPath((string) $row['slug']),
+            'url' => self::postUrl($row),
         ];
     }
 
@@ -526,8 +707,8 @@ final class BlogContent
     private static function decorateCategory(array $category): array
     {
         $category['id'] = (int) $category['id'];
-        $category['url'] = BlogUrls::categoryPath((string) $category['slug']);
-        $category['canonical_url'] = BlogUrls::category((string) $category['slug']);
+        $category['url'] = self::categoryUrl($category);
+        $category['canonical_url'] = AppUrl::canonical($category['url']);
 
         return $category;
     }
@@ -540,8 +721,8 @@ final class BlogContent
     private static function decorateTag(array $tag): array
     {
         $tag['id'] = (int) $tag['id'];
-        $tag['url'] = BlogUrls::tagPath((string) $tag['slug']);
-        $tag['canonical_url'] = BlogUrls::tag((string) $tag['slug']);
+        $tag['url'] = self::tagUrl($tag);
+        $tag['canonical_url'] = AppUrl::canonical($tag['url']);
 
         return $tag;
     }

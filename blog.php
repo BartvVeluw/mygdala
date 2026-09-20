@@ -121,8 +121,11 @@ if ($listing === null) {
     /** The page's own URL builder, so the pager and the canonical agree. */
     $pageUrl = static function (int $page) use ($listing): string {
         return match ($listing['mode']) {
-            'category' => BlogUrls::categoryPath((string) $listing['category']['slug'], $page),
-            'tag' => BlogUrls::tagPath((string) $listing['tag']['slug'], $page),
+            // Through BlogContent, so a paginated archive keeps the address
+            // of the language it is being read in rather than falling back to
+            // the neutral column (docs/multilingual/ROUTING.md).
+            'category' => BlogContent::categoryUrl($listing['category'], $page),
+            'tag' => BlogContent::tagUrl($listing['tag'], $page),
             default => BlogUrls::indexPath($page),
         };
     };

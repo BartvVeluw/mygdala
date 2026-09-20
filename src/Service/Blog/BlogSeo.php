@@ -7,6 +7,8 @@ namespace App\Service\Blog;
 use App\Service\Branding;
 use App\Service\Language\LanguageRegistry;
 use App\Service\Media\MediaService;
+use App\Service\AppUrl;
+use App\Service\Routing\RequestLanguage;
 use App\Service\Seo;
 use App\Service\SeoDefaults;
 use App\Service\SeoMetadata;
@@ -73,7 +75,8 @@ final class BlogSeo
             titleEn: $titleEn,
             descriptionNl: Seo::plainText(BlogLocalizedSettings::intro(LanguageRegistry::DUTCH)),
             descriptionEn: Seo::plainText(BlogLocalizedSettings::intro(LanguageRegistry::ENGLISH)),
-            canonical: BlogUrls::index($page),
+            // This language's own index URL (docs/multilingual/ROUTING.md).
+            canonical: BlogUrls::index($page, RequestLanguage::current()),
             indexable: true,
             ogType: 'website',
             socialImage: null,
@@ -88,14 +91,16 @@ final class BlogSeo
      */
     public static function forPost(array $post): SeoMetadata
     {
-        $slug = (string) ($post['slug'] ?? '');
-
         return SeoMetadata::create(
             titleNl: self::postTitle($post, LanguageRegistry::DUTCH),
             titleEn: self::postTitle($post, LanguageRegistry::ENGLISH),
             descriptionNl: self::postDescription($post, LanguageRegistry::DUTCH),
             descriptionEn: self::postDescription($post, LanguageRegistry::ENGLISH),
-            canonical: BlogUrls::post($slug),
+            // The URL this post is actually being read at. A decorated row
+            // carries it already; a raw one is resolved on the spot, so this
+            // works for both and the canonical tag can never disagree with
+            // the link that got the visitor here.
+            canonical: BlogContent::postCanonical($post),
             indexable: (int) ($post['noindex'] ?? 0) !== 1,
             ogType: self::POST_OG_TYPE,
             socialImage: self::socialImagePath($post),
@@ -110,7 +115,6 @@ final class BlogSeo
      */
     public static function forCategory(array $category, int $page = 1): SeoMetadata
     {
-        $slug = (string) ($category['slug'] ?? '');
         $id = (int) ($category['id'] ?? 0);
 
         return SeoMetadata::create(
@@ -121,7 +125,7 @@ final class BlogSeo
             // read through BlogLocalization with its fallback.
             descriptionNl: Seo::plainText(BlogLocalization::categoryDescription($id, LanguageRegistry::DUTCH)),
             descriptionEn: Seo::plainText(BlogLocalization::categoryDescription($id, LanguageRegistry::ENGLISH)),
-            canonical: BlogUrls::category($slug, $page),
+            canonical: AppUrl::canonical(BlogContent::categoryUrl($category, $page)),
             indexable: true,
             ogType: 'website',
             socialImage: null,
@@ -136,12 +140,10 @@ final class BlogSeo
      */
     public static function forTag(array $tag, int $page = 1): SeoMetadata
     {
-        $slug = (string) ($tag['slug'] ?? '');
-
         return SeoMetadata::create(
             titleNl: self::archiveTitle(BlogContent::tagName($tag, LanguageRegistry::DUTCH), $page),
             titleEn: self::archiveTitle(BlogContent::tagName($tag, LanguageRegistry::ENGLISH), $page),
-            canonical: BlogUrls::tag($slug, $page),
+            canonical: AppUrl::canonical(BlogContent::tagUrl($tag, $page)),
             indexable: false,
             ogType: 'website',
         );
@@ -275,7 +277,9 @@ final class BlogSeo
             return null;
         }
 
-        $url = BlogUrls::post((string) ($post['slug'] ?? ''));
+        // The URL this post is being read at, so the structured data, the
+        // canonical tag and the link that led here all name one address.
+        $url = BlogContent::postCanonical($post);
 
         $data = [
             '@context' => 'https://schema.org',

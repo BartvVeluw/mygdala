@@ -56,9 +56,9 @@ final class ShopLocalizationTest extends TestCase
         self::assertSame('collection_translations', $collections->name);
         self::assertSame('collection_id', $collections->ownerColumn);
         self::assertSame(
-            ['name', 'description', 'meta_title', 'meta_description', 'related_heading'],
+            ['slug', 'name', 'description', 'meta_title', 'meta_description', 'related_heading'],
             $collections->fieldNames(),
-            'a collection has one field more: its own heading above the related products'
+            'a collection has two fields more than a product: its own address per language, and its own heading above the related products'
         );
     }
 
@@ -69,11 +69,26 @@ final class ShopLocalizationTest extends TestCase
      * language therefore cannot change which product they are looking at or
      * what it costs (MODULES.md "Shop").
      */
+    /**
+     * A COLLECTION's address is stored per language since Multilingual 2.0
+     * phase 6 (docs/multilingual/ROUTING.md) — and a PRODUCT's is not, because
+     * a product has no slug URL at all: it is one page at /product.php?id=…
+     * however many collections it appears in (App\Service\ProductSeo).
+     */
+    public function testOnlyTheThingWithAUrlHasAnAddressPerLanguage(): void
+    {
+        self::assertTrue(ShopLocalization::collections()->table()->hasSlug());
+        self::assertFalse(
+            ShopLocalization::products()->table()->hasSlug(),
+            'a product is reached by id, so a slug here would be a column nothing reads'
+        );
+    }
+
     public function testNoStoreOfShopWordsKnowsAnythingAShopDecidesWith(): void
     {
         foreach ([ShopLocalization::products(), ShopLocalization::collections()] as $store) {
             foreach ([
-                'id', 'slug', 'price', 'stock', 'sku', 'image_path', 'og_image_path',
+                'id', 'price', 'stock', 'sku', 'image_path', 'og_image_path',
                 'active', 'in_shop', 'in_personalization_catalog', 'is_active',
                 'show_related_products', 'sort_order',
                 'shipping_profile', 'shipping_weight_grams', 'requires_parcel',
