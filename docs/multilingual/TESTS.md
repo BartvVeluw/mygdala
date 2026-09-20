@@ -325,3 +325,52 @@ vertaalrijen hangen met `CASCADE` aan hun eigenaar, dus wie erna vraagt krijgt
 `Bericht "" is verwijderd`. Het is de vorm van `e685c77` — beweer dat het
 scherm echt afdrukt waarvoor het naar de database ging — statisch uitgevoerd,
 omdat deze schermen geen eigen HTTP-test hebben.
+
+## Fase 6: routing per taal
+
+**Zonder database (`fast`)**, in `tests/Service/Routing/`:
+
+- `AcceptLanguageTest` — de parser tegen de headers die browsers echt sturen:
+  q-waarden, `q=0` als weigering, `de-DE`/`pt-BR`/`zh-Hans` versmald tot hun
+  basistaal, een genegeerde `*`, en een absurd lange header die geweigerd wordt.
+- `RequestPathTest` — half routing, half beveiliging: traversal, een
+  gecodeerde `%2F` die nooit een scheidingsteken mag worden, controletekens,
+  backslashes en de querystring die woordelijk meereist.
+- `LocalizedUrlTest` — het URL-contract, met als belangrijkste de
+  **standaardtaalwissel**: maak Engels de standaard en de prefixen wisselen om.
+- `LanguageResolverTest` — de keten, en vooral dat een URL zonder prefix
+  **niet** onderhandeld wordt.
+- `RouteResolverTest` — compatibiliteit: elke URL-vorm die `.htaccess` bediende
+  resolvt naar hetzelfde template met dezelfde parameters, en elke vorm die
+  Apache weigerde resolvt nog steeds naar niets.
+- `ReservedPathsTest` — taalcodes (ook van een uitgeschakelde taal) en elk
+  woord dat een vast segment kan spellen.
+
+**Met database (`cms`):**
+
+- `PageLocalizedRoutingTest` — één adres per taal, strikt in beide richtingen,
+  een taal zonder adres heeft geen route, de neutrale kolom telt voor de
+  standaardtaal en nooit voor een andere, en een standaardtaalwissel
+  verplaatst prefixen maar geen slugs.
+- `DispatcherRoutingTest` — over echte HTTP, omdat een redirect een header is
+  en "de URL wint van de cookie" alleen waar is als er een cookie gestuurd
+  werd. PHP's ingebouwde server leest geen `.htaccess`, dus hij start met
+  `tests/Support/dispatcher-router.php`, dat die regels spiegelt; `.htaccess`
+  blijft de productiewaarheid.
+- `PageLocalizationEditorHttpTest`, `PageUrlChangeTest`, `PageServiceTest` —
+  het adres hoort bij de bewerkte taal, een vertaling krijgt haar eerste adres
+  uit haar titel, en een lege vertaling laat woorden noch URL achter.
+
+**Wat de grenstests sindsdien bewaken** (`MultilingualBoundaryTest`,
+`BlogLocalizationTest`, `ShopLocalizationTest`): hreflang wordt op één plek
+gerenderd en alleen uit verklaarde versies; een adres is per taal opgeslagen
+maar wordt **nooit** door een terugvallende lezer gelezen — `value()`,
+`name()` en `bilingual()` weigeren het — en alleen wat een URL heeft krijgt
+een adres per taal (een collectie wel, een product niet).
+
+**Twee dingen die lokaal niet te bewijzen zijn** en op een staging horen:
+Apache's eigen padnormalisatie (`/en/%2e%2e` wordt `/` vóórdat er PHP draait —
+identiek op de baseline, dus geen gedrag van deze fase) en het antwoord op een
+ontbrekend bestand onder `/admin/` of `/assets/`, dat onder Apache via
+`ErrorDocument` loopt en onder `php -S` op de dichtstbijzijnde `index.php`
+terugvalt.

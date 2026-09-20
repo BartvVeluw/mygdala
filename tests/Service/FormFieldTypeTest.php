@@ -496,6 +496,52 @@ graag 	"));
         $this->assertStringContainsString('form-status=success', $target);
     }
 
+    /**
+     * A form on /en/contact comes back to /en/contact (Multilingual 2.0
+     * phase 6, docs/multilingual/ROUTING.md). The POST itself is
+     * language-neutral — /api/form-submit.php has no prefix and gets none —
+     * and the language survives because the SOURCE PATH carries it: success,
+     * a refused submission and a validation error all redirect to the page
+     * the visitor was reading, in the language they were reading it in.
+     */
+    public function testALanguagePrefixSurvivesTheRoundTripSoTheVisitorStaysInTheirLanguage(): void
+    {
+        foreach (['/en/contact', '/en/', '/de/kontakt?bron=nieuwsbrief', '/en/shop.php'] as $source) {
+            $this->assertSame($source, FormSourcePath::clean($source), $source . ' is an ordinary same-site path');
+        }
+
+        foreach (['success', 'error'] as $status) {
+            $target = FormSourcePath::withStatus('/en/contact', $status, 'form-abc');
+
+            $this->assertStringStartsWith('/en/contact?', $target, 'a ' . $status . ' must not drop the visitor into the default language');
+            $this->assertStringContainsString('form-status=' . $status, $target);
+        }
+
+        $withQuery = FormSourcePath::withStatus('/de/kontakt?bron=nieuwsbrief', 'error', 'form-abc');
+        $this->assertStringStartsWith('/de/kontakt?', $withQuery);
+        $this->assertStringContainsString('bron=nieuwsbrief', $withQuery, 'the query string of the page itself still travels along');
+    }
+
+    /**
+     * A language prefix is no way around the open-redirect guard: what is
+     * refused without one is refused behind one.
+     *
+     * A double slash in the MIDDLE of a path is deliberately not on this list.
+     * Only a LEADING "//" is protocol-relative; "/en//evil.example.com" is a
+     * path on this host, the browser never leaves the origin, and
+     * dispatcher.php collapses the empty segment into one canonical redirect.
+     */
+    public function testALanguagePrefixIsNoWayAroundTheOpenRedirectGuard(): void
+    {
+        foreach (['/en/\\evil.example.com', '/en/@evil.example.com', "/en/contact\r\nLocation: https://evil.example.com"] as $invalid) {
+            $this->assertNull(FormSourcePath::clean($invalid), var_export($invalid, true) . ' must be refused');
+        }
+
+        $target = FormSourcePath::withStatus('/en//evil.example.com', 'error', 'form-abc');
+        $this->assertStringStartsWith('/en/', $target, 'a mid-path double slash stays on this host');
+        $this->assertStringStartsNotWith('//', $target);
+    }
+
     // ------------------------------------------------------------- recipients
 
     public function testOnlyASafeAddressCanReachAMailHeader(): void

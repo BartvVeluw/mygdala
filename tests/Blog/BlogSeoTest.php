@@ -231,6 +231,57 @@ final class BlogSeoTest extends TestCase
         }
     }
 
+    /**
+     * REGRESSION (Multilingual 2.0 phase 6). The first multilingual sitemap
+     * listed a post in the DEFAULT language only, and nothing failed: the
+     * sitemap query selected no `id`, so the lookup of the post's addresses
+     * per language ran against owner 0 and quietly found none. An English
+     * post that never reaches a crawler is a loss no visitor ever reports.
+     */
+    public function testAPostIsListedInEveryLanguageItHasAnAddressInWithReciprocalAlternates(): void
+    {
+        $default = BlogLocalization::defaultLanguage();
+        $other = null;
+        foreach (\App\Service\Language\SiteLanguages::activeCodes() as $code) {
+            if ($code !== $default) {
+                $other = $code;
+                break;
+            }
+        }
+
+        if ($other === null) {
+            $this->markTestSkipped('this installation publishes one language');
+        }
+
+        $post = $this->post(['title' => 'Testbericht tweetalig sitemap', 'status' => BlogPostStatus::PUBLISHED, 'published_at' => '-1 hour']);
+        $otherSlug = (string) $post['slug'] . '-' . $other;
+
+        BlogLocalization::savePost((int) $post['id'], $other, [
+            BlogLocalization::SLUG => $otherSlug,
+            BlogLocalization::TITLE => 'Bilingual sitemap test post',
+        ]);
+        BlogLocalization::clearCache();
+
+        $defaultUrl = BlogUrls::post((string) $post['slug'], $default);
+        $otherUrl = BlogUrls::post($otherSlug, $other);
+
+        $entries = [];
+        foreach (Sitemap::entries() as $entry) {
+            $entries[$entry['loc']] = $entry;
+        }
+
+        $this->assertArrayHasKey($defaultUrl, $entries);
+        $this->assertArrayHasKey($otherUrl, $entries, 'the ' . $other . ' version has an address, so a crawler must learn it');
+
+        foreach ([$defaultUrl, $otherUrl] as $loc) {
+            $this->assertSame(
+                [$default => $defaultUrl, $other => $otherUrl],
+                $entries[$loc]['alternates'],
+                $loc . ' names every version of this post, itself included'
+            );
+        }
+    }
+
     public function testAnEmptyOrInactiveCategoryIsNotInTheSitemapButAFilledOneIs(): void
     {
         $filled = $this->category('Testcategorie gevuld');

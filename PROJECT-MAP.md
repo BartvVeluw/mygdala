@@ -91,7 +91,8 @@ adminpaneel is.
 | `docs/content-blocks/` | Architectuur en beslissingen achter de content-blokken |
 | `sitemap.php`, `robots.php` | De twee gegenereerde crawlerdocumenten, geserveerd op `/sitemap.xml` en `/robots.txt` via een rewrite (`SEO.md`) |
 | `404.php` | Apache's `ErrorDocument`: het enige punt waar een URL die Apache niet kon plaatsen PHP bereikt — eerst de Redirect Manager, anders de eigen 404-pagina (`REDIRECTS.md`) |
-| `.htaccess` | Routing, blokkades en headers |
+| `.htaccess` | Blokkades, de twee crawlerdocumenten en één regel: een bestaand bestand is van Apache, al het andere gaat naar `dispatcher.php` |
+| `dispatcher.php` | De ene deur voor elke publieke URL die geen bestand is: taalsegment afpellen, normaliseren, route zoeken in `App\Service\Routing\RouteTable`, het bestaande template `require`n. Rendert zelf niets (`docs/multilingual/ROUTING.md`) |
 
 ## Domeinen
 
@@ -133,7 +134,8 @@ welke Core, staat in `MODULES.md`; dat document gaat over de grenzen zelf.
 **Een CMS-pagina renderen**
 
 ```text
-.htaccess  →  paginatemplate (pagina.php of een van de zes eigen templates)
+.htaccess  →  dispatcher.php (taal + route)  →  paginatemplate (pagina.php);
+              een eigen template als /shop.php serveert Apache rechtstreeks
            →  ModuleGuard (alleen op een route van een module: uit = 404)
            →  PageContent::forContentKey()        pagina bestaat + gepubliceerd?
                                                    zo nee: RedirectGate (REDIRECTS.md), dan 404

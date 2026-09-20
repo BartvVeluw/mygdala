@@ -1,9 +1,10 @@
 # Multilingual 2.0 — fase 6, routinginventaris
 
-Read-only opname van `origin/main` = `2a5647c`, gemaakt vóórdat er één regel
-routingcode of schema is gewijzigd. Dit is het feitenblad waar de rest van
-fase 6 op bouwt; wijkt de code hiervan af, dan heeft de code gelijk en wordt
-dit bestand bijgewerkt.
+**Een momentopname, geen levend document.** Read-only opname van
+`origin/main` = `2a5647c`, gemaakt vóórdat er één regel routingcode of schema
+was gewijzigd: hoe de routing er vóór fase 6 uitzag, en dus waaróm
+[`ROUTING.md`](ROUTING.md) de keuzes maakt die het maakt. Hoe het nu werkt
+staat dáár; dit bestand wordt niet bijgehouden.
 
 ---
 

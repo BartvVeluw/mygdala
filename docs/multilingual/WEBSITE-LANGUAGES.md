@@ -126,39 +126,39 @@ Forms-refactor zijn, geen meertaligheidswijziging.
 
 ## De publieke website
 
-**De taalwissel staat er altijd.** `NL | EN`, in de gedeelde header
-(`partials/header.php`), op élke publieke route: de homepage, elke CMS-pagina,
-de Blog en zijn berichten, de Shop, een product, een collectie, het
-portfolio en de portfolio-detailpagina. Eén partial, geen enkele module die
-zijn eigen wissel meebrengt.
+**De taalwissel is een rij links** sinds Multilingual 2.0 fase 6
+(`App\Service\Routing\LanguageSwitch`, `docs/multilingual/ROUTING.md`). Elke
+taal heeft eigen URL's, dus wisselen is navigeren naar de versie van dezelfde
+pagina in die taal, en niet langer een tekstwissel in de browser. Hij staat in
+de gedeelde header (`partials/header.php`), op élke publieke route, zodra de
+site meer dan één **actieve** taal heeft — uit het talenregister, niet uit het
+gesloten V1-paar, dus een derde taal verschijnt zonder codewijziging. Eén
+partial, geen enkele module die zijn eigen wissel meebrengt.
 
-Hij verscheen vroeger alleen op "een site met meer dan één taal", en dat was
-precies de fout: een bezoeker van een site waar niemand Engels had
-*aangezet* kreeg geen enkele manier om erom te vragen — ook niet als er
-Engelse inhoud in de `_en`-kolommen stond.
+- **Een taal waarin deze pagina niet bestaat is zichtbaar maar niet
+  aanklikbaar.** Geen link die 404't en geen stille doorverwijzing naar een
+  andere taal onder een Duits label; welke versies bestaan verklaart de route
+  zelf (`App\Service\Routing\LanguageAlternates`).
+- **De zichtbare tekst is die van de taal van het verzoek**:
+  `SiteText::visibleOf()` en `::visible()` vragen
+  `App\Service\Routing\RequestLanguage`, met de veldterugval naar de
+  standaardtaal. Op een URL zonder prefix is dat dezelfde waarde als vóór
+  fase 6, dus elke bestaande installatie rendert byte-voor-byte hetzelfde.
+- `<html lang>`, `data-primary-lang` en de nieuwe `data-url-prefix` volgen de
+  taal van het verzoek. De laatste is er voor de scripts die zelf links
+  bouwen (`assets/js/shop/cart.js`, `localeUrl()`).
+- **De voorkeur van de bezoeker** staat in één first-party cookie
+  (`site_language`, `App\Service\Routing\LanguagePreference`) met een
+  taalcode en verder niets, en beslist alleen iets op de siteroot.
 
-- `partials/section-*.php` schrijven `data-nl`/`data-en` en
-  `assets/js/core.js` wisselt ze in de browser. De attribuutnamen en de
-  server-side afdruk zijn ongewijzigd; alleen hoe `core.js` de waarde
-  terugschrijft is aangescherpt.
-- **`data-nl`/`data-en` zijn platte tekst**, en `core.js` zet ze met
-  `textContent`. De waarde komt van de redacteur en wordt door de server in
-  het attribuut geëscaped, maar de browser decodeert hem bij het lezen weer,
-  dus hem aan `innerHTML` toekennen zou een label als `<img onerror=…>` als
-  echte markup uitvoeren — een opgeslagen-XSS-route. Alleen een element dat
-  écht HTML draagt krijgt `data-lang-html`, en alléén dat element gaat via
-  `innerHTML`. Die waarde is altijd `RichTextSanitizer`-uitvoer of een
-  door de server gebouwd fragment van vaste tags met geëscapete tekst
-  (rijke tekst, de Hero-titel, de cookie- en afrekenlinkjes). Een gewoon
-  label, een titel, een navigatie- of Footertekst krijgt de marker nooit;
-  `Tests\Service\MultilingualBoundaryTest` bewaakt dat.
-- Welke van de twee bij de eerste paint zichtbaar is, is de **standaardtaal**
-  van de site, via `SiteText::visible()`.
-- `<html lang>` volgt de standaardtaal en draagt daarnaast
-  `data-primary-lang`, zodat `core.js` weet in welke taal de server de pagina
-  al heeft afgedrukt en hem niet nodeloos overschrijft.
-- De keuze van de bezoeker staat in `localStorage` onder `vvl-lang` en blijft
-  staan terwijl hij doorklikt.
+**Wat er van V1 nog staat, en tot fase 7 blijft staan.** De
+`data-nl`/`data-en`-attributen worden nog afgedrukt en `assets/js/core.js`
+bevat de wisselcode nog, maar er handelt niets meer op: `core.js` bindt
+uitsluitend aan `.lang-switch button`, en die knoppen zijn er niet meer. De
+`localStorage`-sleutel `vvl-lang` wordt dus ook niet meer gelezen of
+geschreven. De regel dat `data-nl`/`data-en` platte tekst zijn en alleen een
+element met `data-lang-html` via `innerHTML` gaat, blijft gelden zolang de
+attributen bestaan; `Tests\Service\MultilingualBoundaryTest` bewaakt hem.
 
 **Geen adminvoorkeur raakt hier iets.** Niet de CMS-taal van een beheerder,
 niet zijn bewerktaal. Die staan op een rij in `admin_users`; dit leest

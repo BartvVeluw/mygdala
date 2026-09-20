@@ -133,7 +133,14 @@ class Sitemap
         $core = [
             'pages' => static function (): array {
                 $entries = [];
-                foreach ((new PageRepository())->findAllPublished() as $page) {
+                $pages = (new PageRepository())->findAllPublished();
+
+                // Every page's addresses in ONE query. Without it each page
+                // asked for its own — measured: the document grew by exactly
+                // one query per page (docs/multilingual/ROUTING.md).
+                PageLocalization::preload(array_map(static fn (array $page): int => (int) $page['id'], $pages));
+
+                foreach ($pages as $page) {
                     // ONE indexability rule for the whole application. A page
                     // whose own template belongs to a switched-off module
                     // answers 404, and a page marked `noindex` in the CMS

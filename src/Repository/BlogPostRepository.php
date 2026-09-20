@@ -160,7 +160,10 @@ class BlogPostRepository extends Repository
     public function findPublicForSitemap(string $now): array
     {
         $stmt = $this->db->prepare(
-            'SELECT p.slug, p.updated_at, p.noindex, p.status, p.published_at FROM blog_posts p WHERE ' . self::PUBLIC_WHERE
+            // `id` travels along since Multilingual 2.0 phase 6: a post's
+            // addresses per language hang off its id, and without it the
+            // sitemap could only ever list the default language's URL.
+            'SELECT p.id, p.slug, p.updated_at, p.noindex, p.status, p.published_at FROM blog_posts p WHERE ' . self::PUBLIC_WHERE
             . ' ORDER BY ' . self::PUBLIC_ORDER
         );
         $stmt->execute(['now' => $now]);

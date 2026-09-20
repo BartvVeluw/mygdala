@@ -42,6 +42,23 @@ use App\Service\Language\SiteLanguages;
 final class LanguageSwitch
 {
     /**
+     * The one query parameter a language choice may travel in, and only ever
+     * on the way to the DEFAULT language's home.
+     *
+     * Everywhere else a switch link needs nothing: /en/about-us names its
+     * language, the page is rendered in it, and the visitor's preference
+     * follows what they read. The unprefixed site root is the single URL where
+     * that cannot work, because it is also the single URL where the stored
+     * preference DECIDES (App\Service\Routing\LanguageResolver): a visitor
+     * whose cookie says English and who clicks "NL" on /en/ would ask for "/",
+     * be read as "named no language", and be sent straight back to /en/ —
+     * found in the browser, not on paper. So that one link says what it means,
+     * dispatcher.php records the choice and answers with the clean URL, and
+     * the parameter never reaches a page, a canonical tag or a sitemap.
+     */
+    public const CHOICE_PARAMETER = 'lang';
+
+    /**
      * One entry per ACTIVE website language, in the site's own order.
      *
      * @return list<array{code: string, label: string, href: ?string, is_current: bool}>
@@ -53,10 +70,18 @@ final class LanguageSwitch
 
         $items = [];
         foreach (SiteLanguages::active() as $language) {
+            $href = $alternates[$language->code] ?? null;
+
+            // See CHOICE_PARAMETER: the default language's home is the one
+            // target whose URL cannot say which language was chosen.
+            if ($href === '/' && $language->code !== $current) {
+                $href = '/?' . self::CHOICE_PARAMETER . '=' . rawurlencode($language->code);
+            }
+
             $items[] = [
                 'code' => $language->code,
                 'label' => self::label($language),
-                'href' => $alternates[$language->code] ?? null,
+                'href' => $href,
                 'is_current' => $language->code === $current,
             ];
         }

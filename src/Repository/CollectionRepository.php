@@ -64,16 +64,20 @@ class CollectionRepository extends Repository
      * page that returns 200, so leaving it out of the sitemap would hide a
      * URL the owner deliberately published.
      *
-     * @return array<int, array{slug:string, updated_at:?string}>
+     * @return array<int, array{id:int, slug:string, updated_at:?string}>
      */
     public function findActiveForSitemap(): array
     {
         $stmt = $this->db->query(
-            'SELECT slug, updated_at FROM collections WHERE is_active = 1 ORDER BY sort_order ASC, id ASC'
+            // `id` travels along since Multilingual 2.0 phase 6: a collection's
+            // addresses per language hang off its id, and without it the
+            // sitemap could only ever list the default language's URL.
+            'SELECT id, slug, updated_at FROM collections WHERE is_active = 1 ORDER BY sort_order ASC, id ASC'
         );
 
         return array_map(
             static fn (array $row): array => [
+                'id' => (int) $row['id'],
                 'slug' => (string) $row['slug'],
                 'updated_at' => $row['updated_at'] !== null ? (string) $row['updated_at'] : null,
             ],

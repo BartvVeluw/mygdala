@@ -168,6 +168,61 @@ daarom zijn installatie vóór `20260917200000`, net zoals
 `ContactFormMigrationTest` stopt vóór `20260917180000` en
 `HeaderButtonMigrationTest` vóór `20260918110000`.
 
+## Multilingual 2.0: een adres per taal (fase 6)
+
+Twee migraties, en geen van beide verplaatst of verwijdert iets
+(`docs/multilingual/ROUTING.md`).
+
+| Migratie | Tabel(len) | Wat erbij komt |
+|---|---|---|
+| `20260920100000` | `page_translations` | `slug`, `UNIQUE(language_code, slug)` |
+| `20260920110000` | `blog_post_translations`, `blog_category_translations`, `blog_tag_translations`, `collection_translations` | idem, per tabel |
+
+**De neutrale `slug`-kolommen blijven staan** (`pages.slug`, `blog_posts.slug`,
+`blog_categories.slug`, `blog_tags.slug`, `collections.slug`). Ze zijn de
+sleutel waar elke bestaande link en elke geïndexeerde URL naar wijst, waar de
+opgeslagen redirects tegen geschreven zijn en waar `content_key` van is
+afgeleid. De code blijft ze ook lezen: voor de **standaardtaal** telt de
+neutrale kolom als adres wanneer de vertaaltabel er geen heeft
+(`App\Service\Routing\LocalizedSlug`), zodat een rij die alleen de neutrale
+kolom kreeg — een fixture, een import, een script — bereikbaar blijft.
+
+**De backfill, per rij:**
+
+- een **route-gebonden pagina** (`route_path`: de homepage, `/shop.php`)
+  krijgt in geen enkele taal een slug; zijn adres ís zijn route;
+- de **standaardtaal** krijgt de neutrale slug, byte-identiek, met
+  `INSERT … ON DUPLICATE KEY UPDATE`, zodat een rij zonder woorden in die taal
+  er een bijkrijgt die alleen een adres draagt;
+- **elke andere actieve taal** die woorden heeft (een titel of een naam) maar
+  geen adres, krijgt er een gegenereerd uit die woorden, met de slugger die
+  het CMS zelf gebruikt (`PageService::sanitizeSlug()`,
+  `BlogSlug::sanitize()`), en bij een botsing binnen die taal het `-2`-suffix
+  dat `generateSlug()` altijd al gebruikte;
+- een taal **zonder woorden** krijgt niets, en heeft daarmee geen publieke
+  route. Dat is het punt van de fase: een URL bestaat wanneer de versie
+  erachter bestaat.
+
+**Gevolg voor een bestaande site:** elke pagina, elk bericht en elke collectie
+houdt exact de URL die hij had. Een pagina waarvan alleen Engelse woorden
+bestonden krijgt er een Nederlandse rij bij die **alleen een adres** draagt;
+`Tests\Install\PageTranslationMigrationTest` legt dat vast.
+
+**Wat de migratie weigert stil te doen.** Een pagina waarvan de slug nu een
+taalcode is (`en`, `nl`) wordt **gemeld** en met rust gelaten: zijn adres
+wordt overschaduwd door de prefix, maar een live URL hernoemen is geen
+beslissing van een migratie. Het CMS weigert de volgende opslag van die slug
+met een melding waar de redacteur iets mee kan.
+
+**Idempotent.** De kolom en de index komen er alleen als ze ontbreken; de
+backfill van de standaardtaal schrijft dezelfde waarde opnieuw, en die van de
+andere talen slaat elke rij over die al een adres heeft.
+
+**Geen slug per taal** voor producten (één pagina op `/product.php?id=…`),
+portfolio-items (`/portfolio/<slug>` is een compatibiliteitsroute naar een
+CMS-pagina, die zijn adres per taal al heeft) en portfoliocategorieën (een
+filterwaarde, nooit een URL).
+
 ## Wat hiervóór fout was
 
 De eerste versie had laag 2 niet. "Welke taal bewerk ik" werd afgeleid uit de
@@ -309,3 +364,5 @@ van deze test.
 | `db/migrations/20260911100000_add_the_content_editing_language_column.php` | voegt `admin_users.content_editing_language` toe |
 | `db/migrations/20260911200000_correct_the_stored_content_languages.php` | zet `enabled_content_languages` recht |
 | `db/migrations/20260917120000_create_the_site_language_registry.php` | maakt `site_languages`, zet de standaardtaal erin en verwijdert de twee oude instellingenrijen |
+| `db/migrations/20260920100000_give_every_page_a_slug_per_language.php` | voegt `page_translations.slug` toe en geeft elke pagina haar adres per taal |
+| `db/migrations/20260920110000_give_module_entities_a_slug_per_language.php` | hetzelfde voor blogberichten, blogcategorieën, blogtags en collecties |

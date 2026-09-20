@@ -9,6 +9,7 @@ use App\Service\Language\SiteLanguages;
 use App\Service\Redirects\RedirectGate;
 use App\Service\Routing\LanguagePreference;
 use App\Service\Routing\LanguageResolver;
+use App\Service\Routing\LanguageSwitch;
 use App\Service\Routing\LocalizedUrl;
 use App\Service\Routing\RequestLanguage;
 use App\Service\Routing\RequestPath;
@@ -168,6 +169,27 @@ if ($dispatcherIsRetrieval && $dispatcherCanonical !== $dispatcherRequested) {
  */
 if ($dispatcherIsRetrieval && $dispatcherUrlLanguage === null && $dispatcherRest->isRoot()) {
     header('Vary: Accept-Language, Cookie', false);
+
+    /**
+     * AN EXPLICIT CHOICE BEATS A REMEMBERED ONE. The language switch's link
+     * to the default language's home carries the choice in a parameter
+     * (App\Service\Routing\LanguageSwitch::CHOICE_PARAMETER), because "/" is
+     * the one URL that cannot say which language was asked for — without it a
+     * visitor whose cookie says English could never reach the Dutch homepage
+     * through the switch at all.
+     *
+     * Only an ACTIVE website language counts; anything else is ignored and
+     * the request is negotiated as if the parameter were not there. The
+     * answer is the chosen language's CLEAN home, built by LocalizedUrl, so
+     * the parameter never reaches a page and nothing a visitor types can
+     * name another destination.
+     */
+    $dispatcherChosen = LanguageCode::normalise((string) ($_GET[LanguageSwitch::CHOICE_PARAMETER] ?? ''));
+
+    if ($dispatcherChosen !== null && SiteLanguages::isActive($dispatcherChosen)) {
+        LanguagePreference::remember($dispatcherChosen);
+        $dispatcherRedirect(LocalizedUrl::home($dispatcherChosen), 302);
+    }
 
     $dispatcherNegotiated = LanguageResolver::negotiate();
 

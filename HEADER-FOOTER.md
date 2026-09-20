@@ -48,11 +48,16 @@ Vormgeving niet bij kan.
 ## De taalwissel
 
 Staat links van de knoppen, en verschijnt **alleen op een site die meer dan één
-taal publiceert** (`MULTILINGUAL.md`). Op een eentalige site waren het twee
-knoppen die allebei dezelfde pagina in dezelfde woorden toonden, dus daar
-rendert de header er geen — geen leeg besturingselement en geen extra
-tabstop. Welke talen erin staan en welke voorop staat komt uit
-Instellingen → Talen; de vormgeving en de plaats zijn van Core.
+actieve taal heeft**. Op een eentalige site rendert de header er geen — geen
+leeg besturingselement en geen extra tabstop. Welke talen erin staan en in
+welke volgorde komt uit het talenregister; de vormgeving en de plaats zijn van
+Core.
+
+Sinds Multilingual 2.0 fase 6 is het **een rij links**, geen knoppen: elke taal
+heeft eigen URL's, dus wisselen is navigeren naar dezelfde pagina in die taal
+(`App\Service\Routing\LanguageSwitch`, `docs/multilingual/ROUTING.md`). Een
+taal waarin de huidige pagina niet bestaat blijft zichtbaar maar is niet
+aanklikbaar — geen link die 404't en geen stille omweg naar een andere taal.
 
 ## Het menu en de knoppen: één itemmodel
 
@@ -513,10 +518,12 @@ via `App\Service\PageLocalization::bilingual()`, de enige plek die de opslag
 en de terugval kent (`docs/multilingual/ARCHITECTURE.md`). Een lege vertaling
 betekent "hetzelfde als de standaardtaal", nooit een lege naam.
 
-De **slug verandert niet mee**. Beide talen wonen op één URL; gelokaliseerde
-adressen zijn bewust uitgesteld (`MULTILINGUAL.md`, *Wat V1 bewust niet doet*).
-Een adres wordt alleen uit de hoofdtaaltitel gemaakt, en alleen bij het
-aanmaken.
+De **slug hoort bij de taal** sinds Multilingual 2.0 fase 6: elke taalversie
+van een pagina heeft haar eigen adres, en het kruimelpad linkt naar het adres
+van de taal waarin de pagina gelezen wordt (`docs/multilingual/ROUTING.md`).
+Een adres wordt alleen automatisch gemaakt wanneer het veld leeg is op het
+moment dat die taalversie voor het eerst wordt opgeslagen — uit de titel van
+díé taal — en daarna nooit meer uit een gewijzigde titel.
 
 ### Waar het staat
 

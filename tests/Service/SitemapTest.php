@@ -261,6 +261,136 @@ final class SitemapTest extends TestCase
         }
     }
 
+    /* ------------------------------------------------------------------ */
+    /* One <url> per language version (Multilingual 2.0 phase 6)           */
+    /* ------------------------------------------------------------------ */
+
+    /**
+     * REGRESSION. The first version of the multilingual sitemap listed a
+     * collection in the default language ONLY, and nothing failed: the
+     * sitemap query selected `slug, updated_at` and no `id`, so the lookup of
+     * its addresses per language ran against owner 0 and quietly found none.
+     * A site whose English collections never reach a crawler is exactly the
+     * kind of loss no visitor ever reports.
+     */
+    public function testACollectionIsListedInEveryLanguageItHasAnAddressIn(): void
+    {
+        $other = $this->otherLanguage();
+        if ($other === null) {
+            $this->markTestSkipped('this installation publishes one language');
+        }
+
+        $slug = $this->createCollection(true);
+        $id = (int) end($this->collectionIds);
+
+        \App\Service\ShopLocalization::collections()->save($id, $other, [
+            \App\Service\ShopLocalization::SLUG => $slug . '-' . $other,
+            \App\Service\ShopLocalization::NAME => 'ZZ sitemap collection',
+        ]);
+        \App\Service\ShopLocalization::collections()->clearCache();
+        CollectionContent::clearCache();
+
+        $default = self::CANONICAL_BASE . \App\Service\CollectionContent::publicPath($slug, $this->defaultLanguage());
+        $localized = self::CANONICAL_BASE . \App\Service\CollectionContent::publicPath($slug . '-' . $other, $other);
+
+        $locations = $this->locations();
+        $this->assertContains($default, $locations);
+        $this->assertContains($localized, $locations, 'the ' . $other . ' version has an address, so it is a URL a crawler must learn');
+
+        // Reciprocal: BOTH entries carry BOTH versions.
+        foreach ([$default, $localized] as $loc) {
+            $this->assertSame(
+                [$this->defaultLanguage() => $default, $other => $localized],
+                $this->entryFor($loc)['alternates'],
+                $loc . ' names every version of this collection, itself included'
+            );
+        }
+    }
+
+    public function testACollectionWithoutAnAddressInALanguageIsNotListedThere(): void
+    {
+        $other = $this->otherLanguage();
+        if ($other === null) {
+            $this->markTestSkipped('this installation publishes one language');
+        }
+
+        $slug = $this->createCollection(true);
+
+        $default = self::CANONICAL_BASE . \App\Service\CollectionContent::publicPath($slug, $this->defaultLanguage());
+
+        $this->assertContains($default, $this->locations());
+        $this->assertSame([], $this->entryFor($default)['alternates'], 'one version needs no alternates');
+
+        foreach ($this->locations() as $loc) {
+            if (str_contains($loc, $slug)) {
+                $this->assertStringNotContainsString('/' . $other . '/', $loc, 'no address in ' . $other . ', so no URL there');
+            }
+        }
+    }
+
+    public function testAPageIsListedOncePerLanguageVersionWithReciprocalAlternates(): void
+    {
+        $other = $this->otherLanguage();
+        if ($other === null) {
+            $this->markTestSkipped('this installation publishes one language');
+        }
+
+        $slug = $this->createPage(PageContent::STATUS_PUBLISHED);
+        $id = (int) end($this->pageIds);
+
+        \App\Service\PageLocalization::save($id, $this->defaultLanguage(), [\App\Service\PageTranslation::TITLE => 'ZZ'], $slug);
+        \App\Service\PageLocalization::save($id, $other, [\App\Service\PageTranslation::TITLE => 'ZZ'], $slug . '-' . $other);
+        \App\Service\PageLocalization::clearCache();
+        PageContent::clearCache();
+
+        $default = self::CANONICAL_BASE . '/' . $slug;
+        $localized = self::CANONICAL_BASE . '/' . $other . '/' . $slug . '-' . $other;
+
+        foreach ([$default, $localized] as $loc) {
+            $this->assertSame(
+                [$this->defaultLanguage() => $default, $other => $localized],
+                $this->entryFor($loc)['alternates']
+            );
+        }
+    }
+
+    public function testTheXmlDeclaresAlternatesAndXDefaultOnlyWhenThereAreSome(): void
+    {
+        $plain = Sitemap::toXml([Sitemap::entryFor(self::CANONICAL_BASE . '/een', null)]);
+        $this->assertStringNotContainsString('xmlns:xhtml', $plain, 'a single-language sitemap is byte for byte what it was');
+        $this->assertStringNotContainsString('hreflang', $plain);
+
+        $versions = Sitemap::entriesForVersions(
+            [$this->defaultLanguage() => '/een', 'zz' => '/zz/one'],
+            null
+        );
+        $xml = Sitemap::toXml($versions);
+
+        $this->assertStringContainsString('xmlns:xhtml="http://www.w3.org/1999/xhtml"', $xml);
+        $this->assertSame(2, substr_count($xml, '<url>'), 'one <url> per version');
+        $this->assertSame(2, substr_count($xml, 'hreflang="x-default"'), 'x-default on every version');
+        $this->assertSame(4, substr_count($xml, 'hreflang="' . $this->defaultLanguage() . '"') + substr_count($xml, 'hreflang="zz"'));
+
+        $document = new \DOMDocument();
+        $this->assertTrue($document->loadXML($xml), 'the document is well-formed XML');
+    }
+
+    private function defaultLanguage(): string
+    {
+        return \App\Service\PageLocalization::defaultLanguage();
+    }
+
+    private function otherLanguage(): ?string
+    {
+        foreach (\App\Service\Language\SiteLanguages::activeCodes() as $code) {
+            if ($code !== $this->defaultLanguage()) {
+                return $code;
+            }
+        }
+
+        return null;
+    }
+
     public function testEveryListedUrlIsUniqueSoNoPageIsSubmittedTwice(): void
     {
         $locations = $this->locations();

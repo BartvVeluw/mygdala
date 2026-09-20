@@ -37,8 +37,11 @@ final class BuiltInServer
      * caller then skips, the same way the HTTP tier does (TESTING.md).
      *
      * @param array<string, string> $environment on top of this process's own
+     * @param string|null            $router      a project-relative router script, for a
+     *                                            test that needs the ROUTING rather than the
+     *                                            files — see tests/Support/dispatcher-router.php
      */
-    public static function start(array $environment = []): ?self
+    public static function start(array $environment = [], ?string $router = null): ?self
     {
         $probe = @stream_socket_server('tcp://127.0.0.1:0');
         if ($probe === false) {
@@ -53,7 +56,9 @@ final class BuiltInServer
         $discard = DIRECTORY_SEPARATOR === '\\' ? 'NUL' : '/dev/null';
 
         $process = proc_open(
-            [PHP_BINARY, '-S', '127.0.0.1:' . $port, '-t', $root],
+            $router === null
+                ? [PHP_BINARY, '-S', '127.0.0.1:' . $port, '-t', $root]
+                : [PHP_BINARY, '-S', '127.0.0.1:' . $port, '-t', $root, $root . '/' . ltrim($router, '/')],
             [0 => ['pipe', 'r'], 1 => ['file', $discard, 'w'], 2 => ['file', $discard, 'w']],
             $pipes,
             $root,

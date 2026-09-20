@@ -328,6 +328,7 @@
             <file>tests/Install/FooterSocialLinkMigrationTest.php</file>
             <file>tests/Install/SiteLanguageRegistryMigrationTest.php</file>
             <file>tests/Install/PageTranslationMigrationTest.php</file>
+            <file>tests/Install/LocalizedSlugMigrationTest.php</file>
             <file>tests/Install/NavigationFooterLabelMigrationTest.php</file>
             <file>tests/Install/LocalizedSiteSettingMigrationTest.php</file>
             <file>tests/Install/FormWordsAndOptionMigrationTest.php</file>
@@ -440,6 +441,7 @@
             <file>tests/Service/SiteLanguagesTest.php</file>
             <file>tests/Service/PageLocalizationTest.php</file>
             <file>tests/Service/PageLocalizedRoutingTest.php</file>
+            <file>tests/Service/DispatcherRoutingTest.php</file>
             <file>tests/Service/EntityTranslationsTest.php</file>
             <file>tests/Service/PortfolioLocalizationTest.php</file>
             <file>tests/Service/ShopLocalizationTest.php</file>
@@ -517,6 +519,7 @@
             <file>tests/Install/FooterSocialLinkMigrationTest.php</file>
             <file>tests/Install/SiteLanguageRegistryMigrationTest.php</file>
             <file>tests/Install/PageTranslationMigrationTest.php</file>
+            <file>tests/Install/LocalizedSlugMigrationTest.php</file>
             <file>tests/Install/NavigationFooterLabelMigrationTest.php</file>
             <file>tests/Install/LocalizedSiteSettingMigrationTest.php</file>
             <file>tests/Install/FormWordsAndOptionMigrationTest.php</file>

@@ -298,7 +298,15 @@ final class BlogModule extends ModuleDefinition
 
                 $entries = Sitemap::entriesForVersions($indexPaths, null);
 
-                foreach ($posts->findPublicForSitemap($now) as $post) {
+                $sitemapPosts = $posts->findPublicForSitemap($now);
+
+                // Every post's addresses in ONE query rather than one per
+                // post (docs/multilingual/ROUTING.md, "Querygedrag").
+                BlogLocalization::posts()->preload(
+                    array_map(static fn (array $post): int => (int) ($post['id'] ?? 0), $sitemapPosts)
+                );
+
+                foreach ($sitemapPosts as $post) {
                     if (!BlogSeo::isIndexable($post)) {
                         continue;
                     }
@@ -314,8 +322,13 @@ final class BlogModule extends ModuleDefinition
                 }
 
                 $counts = $posts->publicCountsByCategory($now);
+                $sitemapCategories = (new BlogCategoryRepository())->allActive();
 
-                foreach ((new BlogCategoryRepository())->allActive() as $category) {
+                BlogLocalization::categories()->preload(
+                    array_map(static fn (array $category): int => (int) $category['id'], $sitemapCategories)
+                );
+
+                foreach ($sitemapCategories as $category) {
                     if (($counts[(int) $category['id']] ?? 0) < 1) {
                         continue;
                     }

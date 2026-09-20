@@ -21,8 +21,8 @@ Dit is het model. Alles in `docs/multilingual/` is uitwerking.
                        ContentEditingLanguage   de schakelaar in de CMS-schil
 
 3. Bezoekerstaal       waarin een BEZOEKER de website leest
-                       per bezoeker       localStorage `vvl-lang`
-                       assets/js/core.js  de NL|EN-knoppen in de header
+                       per VERZOEK        het taalsegment in de URL
+                       RequestLanguage    de taallinks in de header
 ```
 
 **Alle drie zijn onafhankelijk. Alle vier de combinaties van 1 en 2 moeten
@@ -118,12 +118,16 @@ instellen van DeepL staan in
 
 ## Wat V1 bewust niet doet
 
-- **Geen `/en/`- of `/nl/`-URL's en geen hreflang.** Beide talen wonen op één
-  URL en wisselen in de browser, precies zoals eerder (`SEO.md`). Een
-  Multilingual V2 kan gelokaliseerde URL's introduceren zodra het
-  inhoudsmodel zich bewezen heeft; dit is uitgesteld en niet vergeten.
-- **Geen taaldetectie op IP of browser.** Een bezoeker krijgt de hoofdtaal van
-  de site, tenzij hij zelf wisselt.
+- **Geen `/en/`- of `/nl/`-URL's en geen hreflang.** *Dit gold voor V1 en is
+  sinds Multilingual 2.0 fase 6 niet meer waar.* Elke taal heeft nu eigen
+  URL's — de standaardtaal zonder prefix, elke andere met — met een slug per
+  taal, een canonical per versie, hreflang en een meertalige sitemap. Het
+  hele contract staat in
+  [`docs/multilingual/ROUTING.md`](docs/multilingual/ROUTING.md).
+- **Geen taaldetectie op IP.** Dat is zo gebleven: geen GeoIP en geen externe
+  dienst. Wél leest de siteroot sinds fase 6 de opgeslagen voorkeur en
+  `Accept-Language`, en alleen daar; elke andere URL zonder prefix ís de URL
+  van de standaardtaal en wordt ook zo beantwoord.
 - **Geen generieke vertaaltabellen.** De bestaande kolommen blijven de opslag.
   Hoe Multilingual 2.0 dat per fase vervangt, staat in
   [`ARCHITECTURE.md`](docs/multilingual/ARCHITECTURE.md).
@@ -153,6 +157,7 @@ terug. Elk document eindigt met zijn eigen *Waar het staat*.
 | Automatisch vertalen; DeepL instellen | `docs/multilingual/AUTOMATIC-TRANSLATION.md` |
 | Wat hiervóór fout was; Wat er met een bestaande site gebeurt | `docs/multilingual/MIGRATIONS.md` |
 | Testen | `docs/multilingual/TESTS.md` |
+| URL's per taal, de dispatcher, taalresolutie, slugs per taal, canonical, hreflang, sitemap | `docs/multilingual/ROUTING.md` |
 
 Twee docblocks noemen een Engelse hoofdstuknaam die nooit bestaan heeft:
 "What V1 does not do" en "URLs and hreflang are deferred" bedoelen allebei

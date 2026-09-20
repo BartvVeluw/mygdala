@@ -303,7 +303,15 @@ final class ShopModule extends ModuleDefinition
             },
             'collections' => static function (): array {
                 $entries = [];
-                foreach ((new CollectionRepository())->findActiveForSitemap() as $collection) {
+                $sitemapCollections = (new CollectionRepository())->findActiveForSitemap();
+
+                // Every collection's addresses in ONE query rather than one
+                // per collection (docs/multilingual/ROUTING.md).
+                \App\Service\ShopLocalization::collections()->preload(
+                    array_map(static fn (array $collection): int => (int) ($collection['id'] ?? 0), $sitemapCollections)
+                );
+
+                foreach ($sitemapCollections as $collection) {
                     // Only the languages this collection really has an
                     // address in: a sitemap entry for a URL that 404s is
                     // worse than no entry.

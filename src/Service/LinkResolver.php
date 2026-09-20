@@ -132,6 +132,37 @@ class LinkResolver
     }
 
     /**
+     * Load the per-language ADDRESSES of every page a list of link rows
+     * points at, in one query, before those rows are resolved one by one.
+     *
+     * Since Multilingual 2.0 phase 6 a page link is built from the page's
+     * address in the language being read (App\Service\PageContent::publicUrl()),
+     * and that address lives in `page_translations`. Without this, resolving
+     * a menu cost one extra query per DISTINCT linked page — measured, not
+     * guessed: a menu of ten page links went from N to 2N queries. With it
+     * the whole menu costs exactly one, however long it is
+     * (docs/multilingual/ROUTING.md, "Querygedrag").
+     *
+     * The per-link `pages` lookup in resolve() is older than this phase and
+     * is left as it was.
+     *
+     * @param list<array<string, mixed>> $rows nav_items or footer_links rows
+     */
+    public static function preloadPageAddresses(array $rows): void
+    {
+        $pageIds = [];
+        foreach ($rows as $row) {
+            if ((string) ($row['link_type'] ?? '') === 'page' && ($row['target_page_id'] ?? null) !== null) {
+                $pageIds[] = (int) $row['target_page_id'];
+            }
+        }
+
+        if ($pageIds !== []) {
+            PageLocalization::preload($pageIds);
+        }
+    }
+
+    /**
      * Server-side validation of a submitted link_type + its companion
      * field, shared by the nav-item and footer-link admin endpoints.
      * Returns an error message, or null when valid.

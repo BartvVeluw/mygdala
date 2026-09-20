@@ -212,11 +212,30 @@ geschreven; het zoekveld op het overzicht zoekt in élke taal.
 /blog/feed.xml            de RSS-feed
 ```
 
-De rewrites staan in `.htaccess`, in dezelfde smalle vorm als die van
-`/portfolio/<slug>` en `/collecties/<slug>`: vaste segmenten en een
-slug-tekenset, geen generieke padrouter. Omdat de hele module onder één
-URL-woord leeft, kan een berichtslug nooit botsen met een applicatieroute —
-alleen met een ander bericht, en dat bewaakt de unieke index.
+De routes staan sinds Multilingual 2.0 fase 6 niet meer in `.htaccess` maar in
+`BlogModule::publicRoutes()`, die `App\Service\Routing\RouteTable` voedt
+(`docs/multilingual/ROUTING.md`). De vorm is dezelfde gebleven: vaste
+segmenten en een slug-tekenset, geen generieke padrouter. Omdat de hele module
+onder één URL-woord leeft, kan een berichtslug nooit botsen met een
+applicatieroute — alleen met een ander bericht **in dezelfde taal**, en dat
+bewaakt de unieke index op `(language_code, slug)`.
+
+**Elke taal heeft haar eigen adressen.** De standaardtaal houdt precies de
+URL's hierboven; elke andere taal krijgt dezelfde vorm achter haar prefix, met
+een eigen slug en een eigen woord voor het segment dat taal ís:
+
+```text
+/en/blog/my-post            /en/blog/category/wood
+/en/blog/feed.xml           <language>en</language>, itemlinks in het Engels
+```
+
+Een bericht, categorie of tag heeft in een taal alleen een URL wanneer hij
+daar een adres heeft (`BlogLocalization::postSlug()` en verwanten, die de
+gedeelde regel `App\Service\Routing\LocalizedSlug` toepassen). Een kaart of
+een "vorige/volgende"-link naar een bericht zonder adres in de gelezen taal
+wijst naar het adres in de standaardtaal; de taalwisselaar biedt die taal
+dan juist níét aan. In de editor hoort het adresveld bij de taal op het
+scherm, en een vertaling krijgt haar eerste adres uit haar eigen titel.
 
 **Eén template voor de drie lijsten** (`blog.php`), om dezelfde reden waarom
 `collectie.php` het productraster van de shop hergebruikt: een archief ís het

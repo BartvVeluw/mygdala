@@ -42,6 +42,9 @@ class NavigationService
         try {
             $rows = (new NavigationRepository())->findVisibleForPublic();
             NavigationLocalization::preload(array_map(static fn (array $row): int => (int) $row['id'], $rows));
+            // The addresses of every linked page, in one query rather than
+            // one per page (App\Service\LinkResolver::preloadPageAddresses()).
+            LinkResolver::preloadPageAddresses($rows);
         } catch (\Throwable $e) {
             error_log('[NavigationService] falling back to an empty header: ' . $e->getMessage());
             return ['items' => [], 'buttons' => []];

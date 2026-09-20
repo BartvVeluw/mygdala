@@ -81,8 +81,11 @@ Een pagina die al zo heet als de site krijgt de naam niet twee keer:
 terug op de Nederlandse, zoals elk tweetalig veld in dit project. Voor
 CMS-pagina's staan titel, SEO-titel en omschrijving per websitetaal in
 `page_translations`, en valt elk veld terug op de standaardtaal
-(`App\Service\PageLocalization`, `docs/multilingual/ARCHITECTURE.md`). De
-canonical blijft één URL per pagina tot de routingfase.
+(`App\Service\PageLocalization`, `docs/multilingual/ARCHITECTURE.md`). Sinds
+Multilingual 2.0 fase 6 heeft elke taalversie een eigen URL, en daarmee een
+eigen canonical: de tag die een crawler leest is die van de taal van het
+verzoek (`SeoMetadata::title()` en `::description()`), nooit een andere.
+Zie `docs/multilingual/ROUTING.md`.
 
 Vaste routes zonder CMS-rij (winkelwagen, afrekenen, bestelstatus,
 cookiebeleid, herroeping) gebruiken `Seo::routeTitle()`: `"<naam> | <site_name>"`.
@@ -157,12 +160,25 @@ houdt zijn `?id=`-querystring, want dát is zijn URL; die wordt uit een
 gevalideerd geheel getal gebouwd, nooit uit request-invoer, dus
 trackingparameters kunnen er niet in lekken.
 
-**Geen hreflang.** De talen van een site wonen op dezelfde URL en wisselen in
-de browser via `data-nl`/`data-en`; er zijn geen aparte gelokaliseerde URL's om
-naar te verwijzen, dus er wordt er ook geen verzonnen. Dat is sinds
-Multilingual V1 een *uitgestelde* keuze en geen vergeten keuze: gelokaliseerde
-URL's en hreflang zijn expliciet voor een latere stap
-(`MULTILINGUAL.md`).
+**Eén canonical per taalversie, en nooit taaloverschrijdend.** De
+standaardtaal heeft geen prefix (`/over-ons`), elke andere taal wel
+(`/en/about-us`). Een canonical wijst altijd naar de versie die gerenderd
+wordt, ook wanneer een véld is teruggevallen op de standaardtaal: veldterugval
+verzint geen route en verplaatst ook geen canonical.
+
+**hreflang, uit verklaarde versies.** `partials/seo-head.php` rendert één
+`<link rel="alternate" hreflang="xx">` per taalversie die **echt bestaat**, de
+eigen taal inbegrepen, plus `x-default` naar de versie in de standaardtaal. De
+lijst komt uit `App\Service\Routing\LanguageAlternates`: een route verklaart
+vóór zijn `<head>` welke versies routeerbaar zijn, en een route die niets
+verklaart adverteert niets. Daardoor kan een alternate nooit een URL noemen
+die 404't of die alleen maar terugvalt — precies de twee signalen waarvan
+zoekmachines zeggen dat ze ze niet vertrouwen. Bij minder dan twee versies
+komt er geen enkele tag: een hreflang-blok dat één URL noemt zegt niets.
+
+`og:locale` is de taal van het verzoek, `og:locale:alternate` noemt de andere
+versies, en `<html lang>` volgt dezelfde taal. Het hele contract staat in
+`docs/multilingual/ROUTING.md`.
 
 ## Indexeerbaarheid
 
@@ -207,6 +223,15 @@ kan toevoegen, en met de Blog uit geen dat een blog-URL kan toevoegen.
 
 Tag-archieven staan er met opzet **niet** in: die zijn `noindex,follow` (zie
 `BLOG.md`), en de sitemap zegt hetzelfde als de robots-tag op de pagina zelf.
+
+**Meertalig sinds Multilingual 2.0 fase 6.** Elke taalversie van één ding is
+een eigen `<url>`, en elk van die `<url>`'s draagt de volledige set
+`<xhtml:link rel="alternate">` plus `x-default` — de wederkerigheid ís het
+signaal. Een collector geeft de paden die hij al als bestaand heeft
+vastgesteld aan `Sitemap::entriesForVersions()`; een versie zonder adres in
+een taal komt er in die taal dus niet in. De `xhtml`-naamruimte wordt alleen
+gedeclareerd wanneer er alternates zijn, zodat de sitemap van een eentalige
+site byte-voor-byte is wat hij was. Zie `docs/multilingual/ROUTING.md`.
 
 `<lastmod>` komt alleen uit de echte `updated_at` van de rij, als datum
 (`YYYY-MM-DD`). Geen waarde betekent geen `<lastmod>`; "nu" wordt nooit
@@ -361,7 +386,6 @@ docker compose exec php_test php vendor/bin/phpunit --testsuite cms
   index te schrijven.
 - **Aparte Open Graph titel/beschrijving per pagina.** Twee velden die
   hetzelfde zeggen tot iemand er één van bijwerkt.
-- **hreflang** — zie Canonical.
 - **`og:type` van een product op `product`.** Klopt beter dan `website`, maar
   het is een wijziging aan live metadata die deze stap niet nodig heeft.
 - **`ProductSeo`/`CollectionContent` die zelf een `SeoMetadata` teruggeven.**

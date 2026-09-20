@@ -28,46 +28,61 @@ waar de opzoeking staat.
 
 ## Waar de opzoeking gebeurt
 
-Deze applicatie heeft **geen front controller**. Een publiek verzoek raakt een
-echt PHP-bestand in de projectroot, of het matcht één van drie smalle
-rewrites, of Apache weigert het vóór er PHP draait. Er is dus geen enkel punt
-waar élk verzoek langskomt, en dat punt alsnog bouwen zou betekenen dat de
-routing van een draaiende site herschreven wordt voor een functie die
-uitsluitend werkt op URL's die tóch al falen.
+Deze applicatie heeft **geen front controller**, en dat is sinds Multilingual
+2.0 fase 6 nog steeds zo: de templates in de projectroot renderen zichzelf.
+Wat wél veranderde is dat er nu één plek is waar elke publieke URL langskomt
+die geen bestand op schijf is: `dispatcher.php`
+(`docs/multilingual/ROUTING.md`). `.htaccess` doet nog precies één ding —
+bestaat het bestand of de map, dan is het van Apache; al het andere gaat naar
+de dispatcher.
 
-De poort staat daarom op de momenten waarop een verzoek nog te redden is, en
-nergens anders:
+De poort staat op de momenten waarop een verzoek nog te redden is, en nergens
+anders:
 
 ```text
 verzoek
    │
-   ├── Apache kan het niet plaatsen (/oud_pad, /oude/pagina, /legacy.html)
-   │        → ErrorDocument 404 → 404.php → RedirectGate
+   ├── bestaand bestand (/shop.php, /assets/..., /admin/...)
+   │        → Apache serveert het; de poort komt er niet aan te pas
    │
-   ├── Apache stuurt /<slug> naar pagina.php
-   │        → geen gepubliceerde pagina met die slug
-   │             → RedirectGate
+   ├── al het andere → dispatcher.php
+   │        → taalsegment afpellen, normaliseren, route zoeken
+   │             ├── geen route met die vorm            → RedirectGate → 404
+   │             └── wel een route → het template
+   │                      → geen pagina, bericht of archief met die slug
+   │                           → RedirectGate (in het template zelf)
    │
-   └── Apache stuurt een /blog-URL naar blog.php of blog-post.php
-            → geen publiek bericht of archief met die slug
-                 → RedirectGate
+   └── Apache kan het niet plaatsen (een ontbrekend bestand onder
+       /admin/, /api/, /assets/, ...)
+            → ErrorDocument 404 → 404.php → RedirectGate
 ```
 
-De derde tak kwam met de Blog-module (`BLOG.md`) en is dezelfde constructie als
-de tweede: Apache hééft het verzoek gerouteerd, dus zijn `ErrorDocument` gaat
-nooit af en `404.php` ziet die URL nooit. Een module die publieke URL's van
-zichzelf toevoegt, voegt zo'n regel toe op het punt waar hij 404 gaat zeggen.
+De dispatcher roept de poort aan wanneer geen enkele **routevorm** past
+(`/oude/pagina`, `/oud_pad`, `/legacy.html`). Past de vorm wél — één segment is
+altijd een mogelijke CMS-pagina, `/blog/<slug>` altijd een mogelijk bericht —
+dan beslist het template of er inhoud is, en roept hét de poort aan op het
+punt waar het anders 404 zou zeggen: `pagina.php`, `blog.php` en
+`blog-post.php`. Een module die publieke URL's van zichzelf toevoegt, voegt
+zo'n regel toe op dat punt.
 
-Beide staan ná de mislukte contentopzoeking. Daarom kan een redirect geen
-werkende URL overschaduwen, ook niet als de opslaancontrole ooit een geval
-mist.
+Alle aanroepen staan ná de mislukte contentopzoeking. Daarom kan een redirect
+geen werkende URL overschaduwen, ook niet als de opslaancontrole ooit een
+geval mist. Vóór fase 6 werd die volgorde bewaakt door de plekken die de poort
+aanriepen; nu ook doordat de dispatcher hem structureel pas ná de
+routeresolutie bereikt.
 
-`ErrorDocument 404 /404.php` is nieuw en verandert één ding buiten deze
-functie om: een URL die Apache niet kon plaatsen krijgt nu de eigen
-"Pagina niet gevonden"-pagina van de site in plaats van Apache's standaard
-foutpagina. Onder `/api/`, `/admin/`, `/assets/` en `/vendor/` — en bij een
-ander verzoek dan GET of HEAD — blijft het antwoord kale tekst, want daar
-leest niemand een pagina.
+**Een bron mag een taalprefix dragen.** `/en/old-address` is een echte,
+opslaanbare bron — het is de vorm die een hernoemde Engelse pagina oplevert —
+en `RedirectValidator::routeOwner()` pelt het taalsegment af voordat hij iets
+vraagt: of een bron botst met levende inhoud wordt beslist op de rest van het
+pad, opgezocht in díé taal. Een kale `/en` is de homepage van die taal en is
+net zomin door te sturen als `/`.
+
+`ErrorDocument 404 /404.php` vangt wat Apache zelf niet kan plaatsen. Onder
+`/api/`, `/admin/`, `/assets/` en `/vendor/` — en bij een ander verzoek dan
+GET of HEAD — blijft het antwoord kale tekst, want daar leest niemand een
+pagina. Die naamruimtes bereiken de dispatcher nooit: `.htaccess` houdt ze
+tegen, en de dispatcher weigert ze daarnaast zelf.
 
 ## Matchen en normaliseren
 
@@ -133,6 +148,15 @@ bevestigde adres in `confirmed_slug`, en
 `PageService::urlChangeNeedsConfirmation()` laat precies dat adres door. Wie
 daarna nog iets anders typt, krijgt de vraag opnieuw. Een pagina op een vaste
 URL heeft geen adresveld.
+
+**Het adres dat verhuist is dat van de bewerkte taal** (Multilingual 2.0
+fase 6, `docs/multilingual/ROUTING.md`). De Engelse versie hernoemen vraagt
+naar `/en/about-us`, legt `/en/oud` → `/en/nieuw` vast en laat elk Nederlands
+adres met rust; `SlugChangeRedirects::record()` krijgt de taal mee en bouwt
+beide paden in de URL-ruimte van die taal. Een taal die nog géén adres had,
+verhuist niets — die wordt voor het eerst gepubliceerd — en vraagt dus ook
+niets. Voor de standaardtaal is er niets veranderd: die heeft geen prefix, en
+elke redirect van vóór fase 6 houdt precies de vorm die hij had.
 
 Daarna roept `api/admin/update-page.php` `SlugChangeRedirects` aan, en alleen
 wanneer alle vier waar zijn. De laatste drie staan samen in

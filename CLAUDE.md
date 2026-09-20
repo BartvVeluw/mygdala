@@ -54,6 +54,7 @@ de checklist al klaarzet. Roep die eerst aan.
 | Header-knop, footer-slotregel, social profielen, het kruimelpad | — | `HEADER-FOOTER.md` |
 | Titels, meta description, canonical, sitemap, robots | — | `SEO.md` |
 | Een oude URL die moet blijven werken, een pagina hernoemen | — | `REDIRECTS.md` |
+| Een publieke route, de dispatcher, URL's en slugs per taal, canonical en hreflang per taal | — | `docs/multilingual/ROUTING.md` |
 | Tests draaien of toevoegen | — | `TESTING.md` |
 | Docker, database, lokaal draaien, meerdere installaties naast elkaar | — | `README.md` |
 | Iets toevoegen aan deze opzet: een skill, een regel, een document | — | `WORKFLOW.md` |

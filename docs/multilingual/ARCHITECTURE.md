@@ -19,10 +19,15 @@ frontend-flip in fase 7. Wat 2.0 al vervangen heeft, staat hieronder.
 | 3 | Contentblokken | **gebouwd**: generiek model + drie blokken (3A), alle overige blokken met hun kindrijen (3B) |
 | 4 | Navigatie, footer, instellingen, formulieren | **gebouwd**: getypeerde tabellen per domein, gelokaliseerde site-instellingen, optie-identiteit |
 | 5 | Modules: Portfolio, Blog, Shop, Personalisatie | **in uitvoering**: Portfolio (golf A) gebouwd |
-| 6 | Dunne dispatcher en schone URL's, nog eentalig | gepland |
-| 7 | Server-side taalweergave, de module `multilingual`, de wisselaar, SEO | gepland |
+| 6 | Routing per taal: dispatcher, taalresolutie, slugs per taal, links, wisselaar, canonical, hreflang, sitemap | **gebouwd**, zie [`ROUTING.md`](ROUTING.md) |
+| 7 | De V1-uitvoer verwijderen (`data-nl`/`data-en`, de wisselcode in `core.js`, de bilinguale adapters), de module `multilingual` | gepland |
 
-Zolang fase 7 er niet is, ziet een bezoeker niets van 2.0.
+Fase 6 is breder uitgevallen dan deze tabel eerder aankondigde ("nog
+eentalig"): de routing is meteen meertalig gebouwd, inclusief server-side
+weergave in de taal van het verzoek, omdat een taal-URL die nog de
+standaardtaal toont precies het signaal is dat deze fase moest voorkomen.
+Sindsdien ziet een bezoeker 2.0 wél: elke actieve taal heeft eigen URL's.
+Fase 7 ruimt op wat daardoor dood is geworden.
 
 ## CMS-taal is geen websitetaal
 
@@ -1223,13 +1228,17 @@ payload draagt, en de tijdelijke uitvoeradapter
 
 ## Nog niet, bewust
 
-**Voor de routingfase (6) en de flip (7):**
+**Gebouwd in de routingfase (6)**, zie [`ROUTING.md`](ROUTING.md):
 
-- slug per taal en publicatie per taal;
-- `UNIQUE(language_code, slug)`;
+- slug per taal, met `UNIQUE(language_code, slug)`, op `page_translations` en
+  op de vier moduletabellen die een slug-URL hebben;
 - `/xx/`-prefixen en de dispatcher;
 - hreflang, sitemap-alternates en een canonical per taal;
-- `<html lang>` per URL en `Accept-Language`.
+- `<html lang>` per URL, en `Accept-Language` op de siteroot.
+
+**Nog niet gebouwd:** *publicatie* per taal als eigen vlag. Een taalversie is
+publiek zodra hij een adres heeft en de pagina zelf gepubliceerd is; een
+aparte `is_published` per taal is er niet, en fase 6 had hem niet nodig.
 
 **In het voorbijgaan gevonden, niet in Pages:**
 
@@ -1238,10 +1247,10 @@ payload draagt, en de tijdelijke uitvoeradapter
   *De tijdelijke NL/EN-uitvoeradapter* bij de contentblokken; voor de
   Detailsectie in fase 3B.
 - **De zichtbare `<title>` en `content` van de meta description** in
-  `partials/seo-head.php` (gedeeld met Shop en Blog) printen de NL-helft, ook
-  als Engels de standaardtaal is; `core.js` wisselt pas in de browser. Het
-  paar zelf komt correct uit `PageLocalization`. De server-side weergave
-  hoort bij fase 7.
+  `partials/seo-head.php` printten de NL-helft, ook als Engels de
+  standaardtaal was. Opgelost in fase 6: `SeoMetadata::title()` en
+  `::description()` geven de taal van het verzoek, en Open Graph en Twitter
+  volgen dezelfde waarden.
 
 ## V1-scope van Multilingual 2.0
 
@@ -1268,14 +1277,16 @@ providerklassen blijven ongebruikt staan.
 - **Contentblokken** op één generieke `block_translations`, met de
   weesrij-guards: gebouwd in fase 3A en 3B, alle bloktypes en hun kindrijen,
   zie *Contentblokken per taal*.
-- **Gelokaliseerde slugs** alleen voor contenttypes waarvan V1 echt een
-  gelokaliseerde publieke URL heeft, met `UNIQUE(language_code, slug)`.
+- **Gelokaliseerde slugs**: gebouwd in fase 6 voor pagina's, blogberichten,
+  blogcategorieën, blogtags en collecties, met `UNIQUE(language_code, slug)`.
+  De neutrale `slug`-kolommen blijven staan als sleutel van de standaardtaal.
 - **Productslugs per taal** vallen buiten deze keten. Een product houdt
-  `/product.php?id=N`, met een taalprefix zodra er meer talen zijn.
-- **Router.** Eén dunne `dispatcher.php` achter `.htaccess`. De bestaande
-  templates blijven renderen, en er komt geen front controller en geen
-  frameworklaag. De standaardtaal krijgt geen prefix, andere talen `/xx/`.
-  Pas in fase 6, en bewezen op een Vimexx-staging.
+  `/product.php?id=N`, met een taalprefix voor elke niet-standaardtaal.
+- **Router.** Eén dunne `dispatcher.php` achter `.htaccess`: gebouwd in fase 6.
+  De bestaande templates blijven renderen, er is geen front controller en geen
+  frameworklaag. **Nog te doen: het bewijs op een Vimexx-staging** — het
+  `.htaccess`-gedrag, `MultiViews` en een eventuele cachelaag zijn lokaal niet
+  na te bootsen, en lokaal is alleen tegen Apache in Docker getest.
 - **Verse installaties** krijgen de module `multilingual` straks **uit**.
 - **Bestaande installaties met de oude NL/EN-wissel.** Wat die bij de flip
   krijgen (module aan of uit, Engels actief of niet), wordt pas vlak vóór de
