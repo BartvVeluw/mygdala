@@ -6,6 +6,7 @@ namespace App\Service;
 
 use App\Module\ModuleRegistry;
 use App\Repository\PageRepository;
+use App\Service\Routing\LanguageResolver;
 
 /**
  * Builds /sitemap.xml from the database, every request — see sitemap.php and
@@ -99,7 +100,7 @@ class Sitemap
      * than fataling the whole document — an incomplete sitemap is a far
      * smaller problem than a 500 at /sitemap.xml.
      *
-     * @return list<array{loc:string, lastmod:?string}>
+     * @return list<array{loc:string, lastmod:?string, alternates:array<string, string>}>
      */
     public static function entries(): array
     {
@@ -146,7 +147,12 @@ class Sitemap
                         continue;
                     }
 
-                    $entries[] = self::entryFor(PageContent::canonicalUrl($page), $page['updated_at'] ?? null);
+                    // One <url> per language version this page really has,
+                    // and none at all for a language it has no address in
+                    // (docs/multilingual/ROUTING.md).
+                    foreach (self::entriesForVersions(PageContent::localizedPaths($page), $page['updated_at'] ?? null) as $entry) {
+                        $entries[] = $entry;
+                    }
                 }
 
                 return $entries;
@@ -178,8 +184,21 @@ class Sitemap
      */
     public static function toXml(array $entries): string
     {
+        // The xhtml namespace is declared only when something uses it, so a
+        // single-language site's sitemap is byte-for-byte what it was before
+        // Multilingual 2.0 phase 6.
+        $hasAlternates = false;
+        foreach ($entries as $entry) {
+            if (($entry['alternates'] ?? []) !== []) {
+                $hasAlternates = true;
+                break;
+            }
+        }
+
         $xml = '<?xml version="1.0" encoding="UTF-8"?>' . "\n";
-        $xml .= '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">' . "\n";
+        $xml .= '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"';
+        $xml .= $hasAlternates ? ' xmlns:xhtml="http://www.w3.org/1999/xhtml"' : '';
+        $xml .= '>' . "\n";
 
         foreach ($entries as $entry) {
             $xml .= '  <url>' . "\n";
@@ -187,6 +206,21 @@ class Sitemap
 
             if ($entry['lastmod'] !== null) {
                 $xml .= '    <lastmod>' . self::escape($entry['lastmod']) . '</lastmod>' . "\n";
+            }
+
+            // Every version of this thing, on EVERY version's <url>, plus
+            // x-default pointing at the default language's — the reciprocity
+            // is the signal, and a one-sided alternate is worse than none.
+            $alternates = $entry['alternates'] ?? [];
+            foreach ($alternates as $code => $href) {
+                $xml .= '    <xhtml:link rel="alternate" hreflang="' . self::escape((string) $code)
+                    . '" href="' . self::escape((string) $href) . '"/>' . "\n";
+            }
+
+            $default = $alternates[LanguageResolver::defaultLanguage()] ?? null;
+            if ($default !== null) {
+                $xml .= '    <xhtml:link rel="alternate" hreflang="x-default" href="'
+                    . self::escape((string) $default) . '"/>' . "\n";
             }
 
             $xml .= '  </url>' . "\n";
@@ -203,9 +237,55 @@ class Sitemap
      *
      * @return array{loc:string, lastmod:?string}
      */
-    public static function entryFor(string $loc, mixed $updatedAt): array
+    public static function entryFor(string $loc, mixed $updatedAt, array $alternates = []): array
     {
-        return ['loc' => $loc, 'lastmod' => self::lastmod($updatedAt)];
+        return [
+            'loc' => $loc,
+            'lastmod' => self::lastmod($updatedAt),
+            // Every language version of this one thing, code => absolute URL
+            // (Multilingual 2.0 phase 6). Empty means "this URL has one
+            // version", which is what every entry meant before phase 6 and
+            // what a single-language site still means.
+            'alternates' => $alternates,
+        ];
+    }
+
+    /**
+     * One entry per language version of one thing, each carrying the full set
+     * of alternates (docs/multilingual/ROUTING.md).
+     *
+     * The Sitemap protocol wants every version listed as its own <url>, with
+     * the same <xhtml:link> block on each — that reciprocity is the whole
+     * signal. A collector hands over the site-relative paths it has already
+     * decided really exist, and gets back the <url> entries for them.
+     *
+     * Fewer than two versions produces one plain entry with no alternates:
+     * an hreflang block naming a single URL says nothing.
+     *
+     * @param array<string, string> $pathsByLanguage language code => site-relative path
+     * @return list<array{loc: string, lastmod: ?string, alternates: array<string, string>}>
+     */
+    public static function entriesForVersions(array $pathsByLanguage, mixed $updatedAt): array
+    {
+        $absolute = [];
+        foreach ($pathsByLanguage as $code => $path) {
+            $absolute[(string) $code] = AppUrl::canonical((string) $path);
+        }
+
+        if ($absolute === []) {
+            return [];
+        }
+
+        if (count($absolute) === 1) {
+            return [self::entryFor((string) reset($absolute), $updatedAt)];
+        }
+
+        $entries = [];
+        foreach ($absolute as $loc) {
+            $entries[] = self::entryFor($loc, $updatedAt, $absolute);
+        }
+
+        return $entries;
     }
 
     /**

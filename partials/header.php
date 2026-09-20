@@ -84,7 +84,7 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
 
 <header class="site-header">
   <div class="container site-header__inner">
-    <a href="/index.php" class="brand" aria-label="<?= $h($siteName) ?> — home" data-nl-aria="<?= $h($siteName) ?> — home" data-en-aria="<?= $h($siteName) ?> — home">
+    <a href="<?= $h(\App\Service\Routing\LocalizedUrl::path('/')) ?>" class="brand" aria-label="<?= $h($siteName) ?> — home" data-nl-aria="<?= $h($siteName) ?> — home" data-en-aria="<?= $h($siteName) ?> — home">
 <?php if ($logoPath !== ''): ?>
       <img class="brand__logo" src="<?= $h($logoPath) ?>" alt="<?= $h($siteName) ?>"/>
 <?php else: ?>

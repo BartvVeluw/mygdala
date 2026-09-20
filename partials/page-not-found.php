@@ -43,7 +43,7 @@ function render_page_not_found(): void
     <div class="container">
       <h1 data-nl="Pagina niet gevonden" data-en="Page not found">Pagina niet gevonden</h1>
       <p class="lead" style="margin-top:1rem;" data-nl="Deze pagina bestaat niet (meer) of is niet zichtbaar." data-en="This page doesn't exist (anymore) or isn't visible.">Deze pagina bestaat niet (meer) of is niet zichtbaar.</p>
-      <a href="/index.php" class="btn" style="margin-top:1.5rem;" data-nl="Naar de homepage" data-en="To the homepage">Naar de homepage
+      <a href="<?= htmlspecialchars(\App\Service\Routing\LocalizedUrl::path('/'), ENT_QUOTES, 'UTF-8') ?>" class="btn" style="margin-top:1.5rem;" data-nl="Naar de homepage" data-en="To the homepage">Naar de homepage
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
       </a>
     </div>

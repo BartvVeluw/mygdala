@@ -665,6 +665,24 @@ try {
     fail(500, 'Could not create your order right now.');
 }
 
+/**
+ * THE LANGUAGE THIS CHECKOUT IS HAPPENING IN.
+ *
+ * This endpoint is reached by fetch() and has no URL of its own to read a
+ * language prefix from, so the browser sends the one its page is in and the
+ * registry decides whether to believe it (docs/multilingual/ROUTING.md).
+ * Anything that is not an ACTIVE website language falls back to the default,
+ * exactly as an unprefixed URL does.
+ *
+ * All it can influence is which of THIS site's order pages the customer comes
+ * back to: the URL is built by App\Service\Routing\LocalizedUrl from the
+ * configured base URL, so a forged value cannot name another host.
+ */
+$checkoutLanguage = \App\Service\Language\LanguageCode::normalise((string) ($body['language'] ?? ''));
+if ($checkoutLanguage === null || !\App\Service\Language\SiteLanguages::isActive($checkoutLanguage)) {
+    $checkoutLanguage = \App\Service\Routing\LanguageResolver::defaultLanguage();
+}
+
 $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
 $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
 $baseUrl = $scheme . '://' . $host;
@@ -687,7 +705,12 @@ try {
         PAYMENT_METHODS[$betaalmethode],
         // Mollie rejects webhook URLs that point at localhost/private hosts — skip it there
         // (local testing falls back to the return page re-checking the payment status live).
-        !$isLocalHost
+        !$isLocalHost,
+        // The language this checkout happened in, so the customer comes back
+        // to the order page in it (docs/multilingual/ROUTING.md). The browser
+        // sends it with the order because this endpoint is reached by fetch()
+        // and has no URL of its own to read it from.
+        $checkoutLanguage
     ));
 
     (new OrderRepository($db))->setMolliePaymentId($orderId, $payment->id);

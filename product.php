@@ -139,7 +139,7 @@ function renderProductAddRow(): void
 $siteName = \App\Service\SiteSettings::get('site_name');
 ?>
 <!doctype html>
-<html lang="<?= htmlspecialchars(\App\Service\Language\SiteText::documentLanguage(), ENT_QUOTES, 'UTF-8') ?>" data-primary-lang="<?= htmlspecialchars(\App\Service\Language\SiteText::documentLanguage(), ENT_QUOTES, 'UTF-8') ?>">
+<html lang="<?= htmlspecialchars(\App\Service\Language\SiteText::documentLanguage(), ENT_QUOTES, 'UTF-8') ?>" data-primary-lang="<?= htmlspecialchars(\App\Service\Language\SiteText::documentLanguage(), ENT_QUOTES, 'UTF-8') ?>" data-url-prefix="<?= htmlspecialchars(\App\Service\Routing\LocalizedUrl::prefix(), ENT_QUOTES, 'UTF-8') ?>">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -245,7 +245,7 @@ require __DIR__ . '/partials/header.php';
                      so beats a button the server would refuse. */ ?>
             <p class="product-detail__personalize-cue">
               <span data-nl="Dit product is op dit moment niet te bestellen." data-en="This product cannot be ordered right now.">Dit product is op dit moment niet te bestellen.</span>
-              <a href="/contact.php" data-nl="Neem contact op" data-en="Get in touch">Neem contact op</a>
+              <a href="<?= htmlspecialchars(\App\Service\Routing\LocalizedUrl::path('/contact.php'), ENT_QUOTES, 'UTF-8') ?>" data-nl="Neem contact op" data-en="Get in touch">Neem contact op</a>
             </p>
           <?php elseif ($personalization !== null): ?>
             <?php /* No add-to-cart here: the single purchase action sits at
@@ -269,7 +269,7 @@ require __DIR__ . '/partials/header.php';
       </div>
 
       <div style="margin-top:var(--sp-5);">
-        <a href="shop.php" class="btn btn--ghost" data-nl="Terug naar producten" data-en="Back to products">Terug naar producten</a>
+        <a href="<?= htmlspecialchars(\App\Service\Routing\LocalizedUrl::path('/shop.php'), ENT_QUOTES, 'UTF-8') ?>" class="btn btn--ghost" data-nl="Terug naar producten" data-en="Back to products">Terug naar producten</a>
       </div>
 
     </div>

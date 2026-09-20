@@ -107,7 +107,7 @@ $seoMetadata = $portfolioItem === null
 
 ?>
 <!doctype html>
-<html lang="<?= htmlspecialchars(\App\Service\Language\SiteText::documentLanguage(), ENT_QUOTES, 'UTF-8') ?>" data-primary-lang="<?= htmlspecialchars(\App\Service\Language\SiteText::documentLanguage(), ENT_QUOTES, 'UTF-8') ?>">
+<html lang="<?= htmlspecialchars(\App\Service\Language\SiteText::documentLanguage(), ENT_QUOTES, 'UTF-8') ?>" data-primary-lang="<?= htmlspecialchars(\App\Service\Language\SiteText::documentLanguage(), ENT_QUOTES, 'UTF-8') ?>" data-url-prefix="<?= htmlspecialchars(\App\Service\Routing\LocalizedUrl::prefix(), ENT_QUOTES, 'UTF-8') ?>">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -144,7 +144,7 @@ require __DIR__ . '/partials/header.php';
     <div class="container">
       <h1 data-nl="Project niet gevonden" data-en="Project not found">Project niet gevonden</h1>
       <p class="lead" style="margin-top:1rem;" data-nl="Dit project bestaat niet (meer) of is niet zichtbaar. Bekijk de rest van het portfolio hieronder." data-en="This project doesn't exist (anymore) or isn't visible. Browse the rest of the portfolio below.">Dit project bestaat niet (meer) of is niet zichtbaar. Bekijk de rest van het portfolio hieronder.</p>
-      <a href="/portfolio.php" class="btn" style="margin-top:1.5rem;" data-nl="Naar portfolio" data-en="To portfolio">Naar portfolio
+      <a href="<?= $h(\App\Service\Routing\LocalizedUrl::path('/portfolio.php')) ?>" class="btn" style="margin-top:1.5rem;" data-nl="Naar portfolio" data-en="To portfolio">Naar portfolio
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
       </a>
     </div>
@@ -152,7 +152,7 @@ require __DIR__ . '/partials/header.php';
 <?php else: ?>
   <section class="project-hero">
     <div class="container">
-      <a class="project-hero__back" href="/portfolio.php" data-nl="&larr; Terug naar portfolio" data-en="&larr; Back to portfolio">&larr; Terug naar portfolio</a>
+      <a class="project-hero__back" href="<?= $h(\App\Service\Routing\LocalizedUrl::path('/portfolio.php')) ?>" data-nl="&larr; Terug naar portfolio" data-en="&larr; Back to portfolio">&larr; Terug naar portfolio</a>
 
       <div class="project-hero__grid">
         <figure class="project-hero__media" data-reveal>

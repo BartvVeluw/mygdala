@@ -60,7 +60,7 @@ $seo = [
 ];
 ?>
 <!doctype html>
-<html lang="<?= htmlspecialchars(\App\Service\Language\SiteText::documentLanguage(), ENT_QUOTES, 'UTF-8') ?>" data-primary-lang="<?= htmlspecialchars(\App\Service\Language\SiteText::documentLanguage(), ENT_QUOTES, 'UTF-8') ?>">
+<html lang="<?= htmlspecialchars(\App\Service\Language\SiteText::documentLanguage(), ENT_QUOTES, 'UTF-8') ?>" data-primary-lang="<?= htmlspecialchars(\App\Service\Language\SiteText::documentLanguage(), ENT_QUOTES, 'UTF-8') ?>" data-url-prefix="<?= htmlspecialchars(\App\Service\Routing\LocalizedUrl::prefix(), ENT_QUOTES, 'UTF-8') ?>">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -105,7 +105,7 @@ require __DIR__ . '/partials/header.php';
                  words. */ ?>
         <p class="lead" data-nl="Er zijn op dit moment geen producten om te personaliseren. Kijk gerust rond in de shop — of vraag een offerte aan voor volledig maatwerk." data-en="There are no products to personalise right now. Feel free to browse the shop — or request a quote for fully custom work.">Er zijn op dit moment geen producten om te personaliseren. Kijk gerust rond in de shop — of vraag een offerte aan voor volledig maatwerk.</p>
         <p style="margin-top:var(--sp-4);">
-          <a href="/shop.php" class="btn btn--ghost" data-nl="Naar de shop" data-en="To the shop">Naar de shop</a>
+          <a href="<?= $h(\App\Service\Routing\LocalizedUrl::path('/shop.php')) ?>" class="btn btn--ghost" data-nl="Naar de shop" data-en="To the shop">Naar de shop</a>
         </p>
       <?php else: ?>
         <div class="shop-grid" data-products-grid data-product-ids="<?= $h(implode(',', $catalog['product_ids'])) ?>">

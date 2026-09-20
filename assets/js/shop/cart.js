@@ -14,6 +14,32 @@
 (function () {
   "use strict";
 
+  /* ---------------------------------------------------------------------
+     THE LANGUAGE PREFIX of the page this script is running on.
+
+     Every language has its own URLs since Multilingual 2.0 phase 6
+     (docs/multilingual/ROUTING.md), and a link this file builds in the
+     browser has to carry the same prefix the server would have put on it —
+     otherwise a customer on /en/... is dropped back into the default
+     language the moment they click a cart line.
+
+     PHP stamps it on <html data-url-prefix>: "" for the default language and
+     "/en" for any other. It is read once, it is never parsed out of the
+     current path (a two-letter first segment could just as well be a page
+     slug), and a value that is not a plain /xx is ignored — a rewritten
+     attribute must not be able to point links at another origin.
+     --------------------------------------------------------------------- */
+  var URL_PREFIX = (function () {
+    var raw = document.documentElement.getAttribute("data-url-prefix") || "";
+
+    return /^\/[a-z]{2}$/.test(raw) ? raw : "";
+  })();
+
+  /** A root-relative site path in the language this page is being read in. */
+  function localeUrl(path) {
+    return URL_PREFIX + path;
+  }
+
   var docEl = document.documentElement;
 
   /* ---------------------------------------------------------------------
@@ -286,7 +312,7 @@
    * plain product URL it always had.
    */
   function cartItemEditUrl(item) {
-    var url = "/product.php?id=" + encodeURIComponent(item.id);
+    var url = localeUrl("/product.php?id=" + encodeURIComponent(item.id));
     if (item.line_id) url += "&line=" + encodeURIComponent(item.line_id);
     return url;
   }
@@ -640,7 +666,7 @@
     if (cartToastEl) return cartToastEl;
     cartToastEl = document.createElement("a");
     cartToastEl.className = "cart-toast";
-    cartToastEl.href = "cart.php";
+    cartToastEl.href = localeUrl("/cart.php");
     cartToastEl.setAttribute("data-cart-toast", "");
     cartToastEl.setAttribute("aria-live", "polite");
     cartToastEl.innerHTML =
@@ -857,6 +883,7 @@
       escapeHtml: escapeHtml,
       escapeAttr: escapeAttr,
       rootPath: rootPath,
+      localeUrl: localeUrl,
       formatPrice: formatPrice,
       bilingualAttrs: bilingualAttrs,
       currentLangText: currentLangText,

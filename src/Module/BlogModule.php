@@ -9,6 +9,8 @@ use App\Repository\BlogCategoryRepository;
 use App\Repository\BlogPostRepository;
 use App\Service\AdminPermissions;
 use App\Service\Blog\BlogClock;
+use App\Service\Blog\BlogContent;
+use App\Service\Blog\BlogLocalization;
 use App\Service\Blog\BlogPostMediaUsage;
 use App\Service\Blog\BlogSeo;
 use App\Service\Blog\BlogUrls;
@@ -278,17 +280,37 @@ final class BlogModule extends ModuleDefinition
                 $now = BlogClock::nowForSql();
                 $posts = new BlogPostRepository();
 
-                $entries = [Sitemap::entryFor(BlogUrls::index(), null)];
+                /**
+                 * ONE <url> PER LANGUAGE VERSION since Multilingual 2.0
+                 * phase 6 (docs/multilingual/ROUTING.md), each carrying the
+                 * others as hreflang alternates.
+                 *
+                 * The index exists in every active language: it is a listing,
+                 * not a slug, so there is no address that could be missing. A
+                 * POST is listed only in the languages it really has an
+                 * address in — a sitemap entry for a URL that 404s is worse
+                 * than no entry.
+                 */
+                $indexPaths = [];
+                foreach (\App\Service\Language\SiteLanguages::activeCodes() as $code) {
+                    $indexPaths[$code] = BlogUrls::indexPath(1, $code);
+                }
+
+                $entries = Sitemap::entriesForVersions($indexPaths, null);
 
                 foreach ($posts->findPublicForSitemap($now) as $post) {
                     if (!BlogSeo::isIndexable($post)) {
                         continue;
                     }
 
-                    $entries[] = Sitemap::entryFor(
-                        BlogUrls::post((string) $post['slug']),
-                        $post['updated_at'] ?? null
-                    );
+                    foreach (
+                        Sitemap::entriesForVersions(
+                            BlogContent::postAlternates($post),
+                            $post['updated_at'] ?? null
+                        ) as $entry
+                    ) {
+                        $entries[] = $entry;
+                    }
                 }
 
                 $counts = $posts->publicCountsByCategory($now);
@@ -298,10 +320,20 @@ final class BlogModule extends ModuleDefinition
                         continue;
                     }
 
-                    $entries[] = Sitemap::entryFor(
-                        BlogUrls::category((string) $category['slug']),
-                        $category['updated_at'] ?? null
-                    );
+                    $categoryPaths = [];
+                    foreach (\App\Service\Language\SiteLanguages::activeCodes() as $code) {
+                        $slug = BlogLocalization::categorySlug($category, $code);
+
+                        if ($slug !== null) {
+                            $categoryPaths[$code] = BlogUrls::categoryPath($slug, 1, $code);
+                        }
+                    }
+
+                    foreach (
+                        Sitemap::entriesForVersions($categoryPaths, $category['updated_at'] ?? null) as $entry
+                    ) {
+                        $entries[] = $entry;
+                    }
                 }
 
                 return $entries;

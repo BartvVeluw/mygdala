@@ -61,14 +61,41 @@ class ProductSeo
      * — it is built from a validated integer, never from request input, so
      * tracking parameters on the incoming request cannot leak into it.
      */
-    public static function publicPath(int $productId): string
+    public static function publicPath(int $productId, ?string $language = null): string
     {
-        return '/product.php?id=' . $productId;
+        // A product has no slug URL, so the LANGUAGE is the only thing that
+        // differs between its versions: /product.php?id=7 and
+        // /en/product.php?id=7 are the same product in two languages
+        // (docs/multilingual/ROUTING.md). The id is the identity and is
+        // language-neutral by construction.
+        return \App\Service\Routing\LocalizedUrl::path('/product.php?id=' . $productId, $language);
     }
 
-    public static function canonicalUrl(int $productId): string
+    public static function canonicalUrl(int $productId, ?string $language = null): string
     {
-        return AppUrl::canonical(ltrim(self::publicPath($productId), '/'));
+        return AppUrl::canonical(self::publicPath($productId, $language));
+    }
+
+    /**
+     * Every language a product can be read in, code => site-relative path.
+     *
+     * A product is routable in EVERY active language: there is no slug that
+     * could be missing, so /en/product.php?id=7 always answers. Its words
+     * fall back where a translation is missing, which is field fallback
+     * inside a route that exists — the distinction
+     * docs/multilingual/ROUTING.md is built on.
+     *
+     * @return array<string, string>
+     */
+    public static function alternates(int $productId): array
+    {
+        $paths = [];
+
+        foreach (\App\Service\Language\SiteLanguages::activeCodes() as $code) {
+            $paths[$code] = self::publicPath($productId, $code);
+        }
+
+        return $paths;
     }
 
     /**

@@ -84,7 +84,7 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
       </ul>
 
       <p class="cookie-modal__policy-link">
-        <a href="cookiebeleid.php" <?= \App\Service\Language\SiteText::attrs($modal['policy_link_nl'], $modal['policy_link_en']) ?>><?= $h(\App\Service\Language\SiteText::visible($modal['policy_link_nl'], $modal['policy_link_en'])) ?></a>
+        <a href="<?= $h(\App\Service\Routing\LocalizedUrl::path('/cookiebeleid.php')) ?>" <?= \App\Service\Language\SiteText::attrs($modal['policy_link_nl'], $modal['policy_link_en']) ?>><?= $h(\App\Service\Language\SiteText::visible($modal['policy_link_nl'], $modal['policy_link_en'])) ?></a>
       </p>
 
       <div class="cookie-modal__actions">

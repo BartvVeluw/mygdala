@@ -123,7 +123,12 @@
             // /collecties/product.php and 404. A product keeps its one
             // canonical product page no matter which collection it was
             // reached from.
-            '<a class="product-card is-visible" href="/product.php?id=' + encodeURIComponent(product.id) + '">' +
+            //
+            // And in the language the page is being read in: since
+            // Multilingual 2.0 phase 6 a card on /en/shop.php has to link to
+            // /en/product.php?id=..., or clicking it drops the customer back
+            // into the default language (S.localeUrl, see cart.js).
+            '<a class="product-card is-visible" href="' + S.escapeAttr(S.localeUrl("/product.php?id=" + encodeURIComponent(product.id))) + '">' +
             '<div class="product-card__media">' + media + "</div>" +
             '<div class="product-card__body">' +
             "<h3 " + S.bilingualAttrs(product.name, product.name_en) + ">" +
@@ -1167,7 +1172,14 @@
         }),
         terms_accepted: termsAccepted,
         turnstile_token: turnstileToken,
-        facturatie_zelfde: billingSame
+        facturatie_zelfde: billingSame,
+        /* The language this checkout is happening in. /api/checkout.php has
+           no URL of its own to read it from (it is reached by fetch), so it
+           travels with the order and the server validates it against the
+           website language registry before it decides anything — see
+           docs/multilingual/ROUTING.md. It only ever picks which of this
+           site's own order pages the customer returns to. */
+        language: document.documentElement.lang || ""
       };
 
       if (!billingSame) {

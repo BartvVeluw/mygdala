@@ -78,7 +78,7 @@ if ($collection !== null) {
 }
 ?>
 <!doctype html>
-<html lang="<?= htmlspecialchars(\App\Service\Language\SiteText::documentLanguage(), ENT_QUOTES, 'UTF-8') ?>" data-primary-lang="<?= htmlspecialchars(\App\Service\Language\SiteText::documentLanguage(), ENT_QUOTES, 'UTF-8') ?>">
+<html lang="<?= htmlspecialchars(\App\Service\Language\SiteText::documentLanguage(), ENT_QUOTES, 'UTF-8') ?>" data-primary-lang="<?= htmlspecialchars(\App\Service\Language\SiteText::documentLanguage(), ENT_QUOTES, 'UTF-8') ?>" data-url-prefix="<?= htmlspecialchars(\App\Service\Routing\LocalizedUrl::prefix(), ENT_QUOTES, 'UTF-8') ?>">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -131,7 +131,7 @@ require __DIR__ . '/partials/header.php';
     <div class="container">
       <h1 data-nl="Collectie niet gevonden" data-en="Collection not found">Collectie niet gevonden</h1>
       <p class="lead" style="margin-top:1rem;" data-nl="Deze collectie bestaat niet (meer) of is niet zichtbaar. Bekijk hieronder de rest van de shop." data-en="This collection doesn't exist (anymore) or isn't visible. Browse the rest of the shop below.">Deze collectie bestaat niet (meer) of is niet zichtbaar. Bekijk hieronder de rest van de shop.</p>
-      <a href="/shop.php" class="btn" style="margin-top:1.5rem;" data-nl="Naar de shop" data-en="To the shop">Naar de shop
+      <a href="<?= $h(\App\Service\Routing\LocalizedUrl::path('/shop.php')) ?>" class="btn" style="margin-top:1.5rem;" data-nl="Naar de shop" data-en="To the shop">Naar de shop
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
       </a>
     </div>
@@ -188,7 +188,7 @@ require __DIR__ . '/partials/header.php';
       <p class="lead" data-products-error hidden data-nl="Producten kunnen op dit moment niet worden geladen. Probeer het later opnieuw of neem contact op via het offerteformulier." data-en="Products can't be loaded right now. Please try again later or get in touch via the quote form.">Producten kunnen op dit moment niet worden geladen. Probeer het later opnieuw of neem contact op via het offerteformulier.</p>
 
       <div style="margin-top:var(--sp-5);">
-        <a href="/shop.php" class="btn btn--ghost" data-nl="Alle producten bekijken" data-en="Browse all products">Alle producten bekijken</a>
+        <a href="<?= $h(\App\Service\Routing\LocalizedUrl::path('/shop.php')) ?>" class="btn btn--ghost" data-nl="Alle producten bekijken" data-en="Browse all products">Alle producten bekijken</a>
       </div>
     </div>
   </section>

@@ -26,7 +26,7 @@ $seoMetadata = \App\Service\SeoMetadata::create(
 
 ?>
 <!doctype html>
-<html lang="<?= htmlspecialchars(\App\Service\Language\SiteText::documentLanguage(), ENT_QUOTES, 'UTF-8') ?>" data-primary-lang="<?= htmlspecialchars(\App\Service\Language\SiteText::documentLanguage(), ENT_QUOTES, 'UTF-8') ?>">
+<html lang="<?= htmlspecialchars(\App\Service\Language\SiteText::documentLanguage(), ENT_QUOTES, 'UTF-8') ?>" data-primary-lang="<?= htmlspecialchars(\App\Service\Language\SiteText::documentLanguage(), ENT_QUOTES, 'UTF-8') ?>" data-url-prefix="<?= htmlspecialchars(\App\Service\Routing\LocalizedUrl::prefix(), ENT_QUOTES, 'UTF-8') ?>">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -86,7 +86,7 @@ require __DIR__ . '/partials/header.php';
           <p class="eyebrow" data-nl="Niet gelukt" data-en="Not successful">Niet gelukt</p>
           <h2 data-nl="De betaling is niet gelukt" data-en="The payment wasn't successful">De betaling is niet gelukt</h2>
           <p class="lead" data-nl="Er is niets afgeschreven. Je winkelwagen staat nog klaar, dus je kunt het opnieuw proberen." data-en="Nothing was charged. Your cart is still waiting, so you can try again.">Er is niets afgeschreven. Je winkelwagen staat nog klaar, dus je kunt het opnieuw proberen.</p>
-          <a href="checkout.php" class="btn" data-nl="Opnieuw proberen" data-en="Try again">Opnieuw proberen</a>
+          <a href="<?= $h(\App\Service\Routing\LocalizedUrl::path('/checkout.php')) ?>" class="btn" data-nl="Opnieuw proberen" data-en="Try again">Opnieuw proberen</a>
         </div>
 
         <div class="order-summary" style="margin-top:var(--sp-4);">
@@ -106,7 +106,7 @@ require __DIR__ . '/partials/header.php';
         </div>
 
         <div style="margin-top:var(--sp-4);">
-          <a href="shop.php" class="btn btn--ghost" data-nl="Terug naar de shop" data-en="Back to shop">Terug naar de shop</a>
+          <a href="<?= $h(\App\Service\Routing\LocalizedUrl::path('/shop.php')) ?>" class="btn btn--ghost" data-nl="Terug naar de shop" data-en="Back to shop">Terug naar de shop</a>
         </div>
 
         <?php /* data-lang-html: developer-authored HTML with hardcoded <a> tags

@@ -25,7 +25,7 @@ $seoMetadata = \App\Service\SeoMetadata::create(
 
 ?>
 <!doctype html>
-<html lang="<?= htmlspecialchars(\App\Service\Language\SiteText::documentLanguage(), ENT_QUOTES, 'UTF-8') ?>" data-primary-lang="<?= htmlspecialchars(\App\Service\Language\SiteText::documentLanguage(), ENT_QUOTES, 'UTF-8') ?>">
+<html lang="<?= htmlspecialchars(\App\Service\Language\SiteText::documentLanguage(), ENT_QUOTES, 'UTF-8') ?>" data-primary-lang="<?= htmlspecialchars(\App\Service\Language\SiteText::documentLanguage(), ENT_QUOTES, 'UTF-8') ?>" data-url-prefix="<?= htmlspecialchars(\App\Service\Routing\LocalizedUrl::prefix(), ENT_QUOTES, 'UTF-8') ?>">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -64,7 +64,7 @@ require __DIR__ . '/partials/header.php';
     <div class="container">
       <p class="lead" data-checkout-empty hidden>
         <span data-nl="Je winkelwagen is leeg — er is niets om af te rekenen." data-en="Your cart is empty — there's nothing to check out.">Je winkelwagen is leeg — er is niets om af te rekenen.</span>
-        <a href="shop.php" data-nl="Naar de shop" data-en="Go to shop">Naar de shop</a>
+        <a href="<?= htmlspecialchars(\App\Service\Routing\LocalizedUrl::path('/shop.php'), ENT_QUOTES, 'UTF-8') ?>" data-nl="Naar de shop" data-en="Go to shop">Naar de shop</a>
       </p>
 
       <form class="checkout-layout" data-checkout-form>

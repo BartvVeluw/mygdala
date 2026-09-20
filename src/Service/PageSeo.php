@@ -180,7 +180,9 @@ class PageSeo
             '@context' => 'https://schema.org',
             '@type' => 'Organization',
             'name' => $siteName,
-            'url' => AppUrl::canonical('/'),
+            // The site root OF THIS LANGUAGE: structured data on /en/ must
+            // not point a crawler at the Dutch homepage.
+            'url' => AppUrl::canonical(\App\Service\Routing\LocalizedUrl::home()),
         ];
 
         $logo = Seo::absoluteImageUrl(Branding::logoPath());

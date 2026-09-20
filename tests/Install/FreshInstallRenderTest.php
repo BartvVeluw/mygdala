@@ -155,12 +155,30 @@ final class FreshInstallRenderTest extends TestCase
         $this->assertNoIdentityIn($html, 'the storefront');
     }
 
-    public function testTheSitemapListsTheStorefrontExactlyOnce(): void
+    /**
+     * ONCE PER LANGUAGE since Multilingual 2.0 phase 6: the storefront is a
+     * listing at a fixed path, so it exists in every active language
+     * (docs/multilingual/ROUTING.md). What must still never happen is the
+     * same URL being contributed TWICE — by Core's pages collector and by
+     * the Shop's own — which is what this test has always been about.
+     */
+    public function testTheSitemapListsTheStorefrontOncePerLanguage(): void
     {
+        $sitemap = $this->render('sitemap.php');
+
+        $expected = count(\App\Service\Language\SiteLanguages::activeCodes());
+
         $this->assertSame(
-            1,
-            substr_count($this->render('sitemap.php'), '/shop.php</loc>'),
-            'Without a Shop page the Shop module lists its storefront itself, and only once.'
+            $expected,
+            substr_count($sitemap, '/shop.php</loc>'),
+            'Without a Shop page the Shop module lists its storefront itself, once per language.'
+        );
+
+        preg_match_all('#<loc>([^<]*/shop\\.php)</loc>#', $sitemap, $matches);
+        $this->assertSame(
+            $matches[1],
+            array_values(array_unique($matches[1])),
+            'and never the same URL twice'
         );
     }
 

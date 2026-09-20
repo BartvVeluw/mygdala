@@ -250,7 +250,14 @@ final class SitemapTest extends TestCase
 
             parse_str($query, $params);
             $this->assertSame(['id'], array_keys($params), $loc . ' may only carry a product id');
-            $this->assertStringStartsWith(self::CANONICAL_BASE . '/product.php?', $loc);
+
+            // A product has no slug URL, so the LANGUAGE is the only thing
+            // that differs between its versions since Multilingual 2.0
+            // phase 6: /product.php?id=N and /en/product.php?id=N.
+            $this->assertMatchesRegularExpression(
+                '#^' . preg_quote(self::CANONICAL_BASE, '#') . '(/[a-z]{2})?/product\\.php\\?#',
+                $loc
+            );
         }
     }
 

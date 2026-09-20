@@ -32,7 +32,14 @@ final class MolliePaymentData
      * @param bool $withWebhook false where Mollie cannot reach this host (localhost)
      * @return array{amount: array{currency: string, value: string}, description: string, redirectUrl: string, method: string, metadata: array{order_id: int, order_number: string}, webhookUrl?: string}
      */
-    public static function forOrder(array $order, string $siteName, string $baseUrl, string $method, bool $withWebhook): array
+    public static function forOrder(
+        array $order,
+        string $siteName,
+        string $baseUrl,
+        string $method,
+        bool $withWebhook,
+        ?string $language = null
+    ): array
     {
         $orderId = (int) $order['id'];
         $orderNumber = OrderRepository::orderNumber($order);
@@ -47,7 +54,15 @@ final class MolliePaymentData
             // What the customer sees on their bank statement: the site's own
             // name, not one written into the code.
             'description' => $siteName . ' — bestelling ' . $orderNumber,
-            'redirectUrl' => $baseUrl . '/bestelling-status.php?order=' . $orderId,
+            // Where the customer comes back to, IN THE LANGUAGE THEY WERE
+            // CHECKING OUT IN (docs/multilingual/ROUTING.md). Somebody who
+            // paid on /en/checkout.php must not be returned to a Dutch order
+            // page; the prefix is the only thing language adds to this URL,
+            // because the order is identified by its id.
+            'redirectUrl' => $baseUrl . \App\Service\Routing\LocalizedUrl::path(
+                '/bestelling-status.php?order=' . $orderId,
+                $language
+            ),
             'method' => $method,
             'metadata' => ['order_id' => $orderId, 'order_number' => $orderNumber],
         ];

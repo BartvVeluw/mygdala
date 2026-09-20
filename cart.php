@@ -28,7 +28,7 @@ $seoMetadata = \App\Service\SeoMetadata::create(
 
 ?>
 <!doctype html>
-<html lang="<?= htmlspecialchars(\App\Service\Language\SiteText::documentLanguage(), ENT_QUOTES, 'UTF-8') ?>" data-primary-lang="<?= htmlspecialchars(\App\Service\Language\SiteText::documentLanguage(), ENT_QUOTES, 'UTF-8') ?>">
+<html lang="<?= htmlspecialchars(\App\Service\Language\SiteText::documentLanguage(), ENT_QUOTES, 'UTF-8') ?>" data-primary-lang="<?= htmlspecialchars(\App\Service\Language\SiteText::documentLanguage(), ENT_QUOTES, 'UTF-8') ?>" data-url-prefix="<?= htmlspecialchars(\App\Service\Routing\LocalizedUrl::prefix(), ENT_QUOTES, 'UTF-8') ?>">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -75,11 +75,11 @@ require __DIR__ . '/partials/header.php';
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 4h2l2.4 12.2a2 2 0 0 0 2 1.6h7.6a2 2 0 0 0 2-1.6L21 8H6"/><circle cx="10" cy="20" r="1.4"/><circle cx="17" cy="20" r="1.4"/></svg>
             <h3 data-nl="Je winkelwagen is leeg" data-en="Your cart is empty">Je winkelwagen is leeg</h3>
             <p data-nl="Nog niets toegevoegd? Bekijk de shop voor beschikbare producten." data-en="Nothing added yet? Browse the shop for available products.">Nog niets toegevoegd? Bekijk de shop voor beschikbare producten.</p>
-            <a href="shop.php" class="btn" data-nl="Naar de shop" data-en="Go to shop">Naar de shop</a>
+            <a href="<?= htmlspecialchars(\App\Service\Routing\LocalizedUrl::path('/shop.php'), ENT_QUOTES, 'UTF-8') ?>" class="btn" data-nl="Naar de shop" data-en="Go to shop">Naar de shop</a>
           </div>
 
           <div style="margin-top:var(--sp-4);">
-            <a href="shop.php" class="btn btn--ghost btn--sm" data-nl="Verder winkelen" data-en="Continue shopping">&larr; Verder winkelen</a>
+            <a href="<?= htmlspecialchars(\App\Service\Routing\LocalizedUrl::path('/shop.php'), ENT_QUOTES, 'UTF-8') ?>" class="btn btn--ghost btn--sm" data-nl="Verder winkelen" data-en="Continue shopping">&larr; Verder winkelen</a>
           </div>
         </div>
 
@@ -97,7 +97,7 @@ require __DIR__ . '/partials/header.php';
             <span data-nl="Totaal" data-en="Total">Totaal</span>
             <strong data-cart-total>&euro;0,00</strong>
           </div>
-          <a href="checkout.php" class="btn btn--block" data-nl="Afrekenen" data-en="Proceed to checkout">Afrekenen
+          <a href="<?= htmlspecialchars(\App\Service\Routing\LocalizedUrl::path('/checkout.php'), ENT_QUOTES, 'UTF-8') ?>" class="btn btn--block" data-nl="Afrekenen" data-en="Proceed to checkout">Afrekenen
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
           </a>
           <p class="order-summary__note" data-nl="Betaling via iDEAL en overige methoden bij Mollie. Prijzen zijn inclusief btw." data-en="Payment via iDEAL and other methods through Mollie. Prices include VAT.">Betaling via iDEAL en overige methoden bij Mollie. Prijzen zijn inclusief btw.</p>

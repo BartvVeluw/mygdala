@@ -48,8 +48,8 @@
               <strong>&euro;0,00</strong>
             </div>
             <div class="cart-dropdown__actions">
-              <a href="/cart.php" class="btn btn--ghost btn--sm btn--block" data-nl="Bekijk winkelwagen" data-en="View cart">Bekijk winkelwagen</a>
-              <a href="/checkout.php" class="btn btn--sm btn--block" data-nl="Afrekenen" data-en="Checkout">Afrekenen</a>
+              <a href="<?= htmlspecialchars(\App\Service\Routing\LocalizedUrl::path('/cart.php'), ENT_QUOTES, 'UTF-8') ?>" class="btn btn--ghost btn--sm btn--block" data-nl="Bekijk winkelwagen" data-en="View cart">Bekijk winkelwagen</a>
+              <a href="<?= htmlspecialchars(\App\Service\Routing\LocalizedUrl::path('/checkout.php'), ENT_QUOTES, 'UTF-8') ?>" class="btn btn--sm btn--block" data-nl="Afrekenen" data-en="Checkout">Afrekenen</a>
             </div>
           </div>
         </div>

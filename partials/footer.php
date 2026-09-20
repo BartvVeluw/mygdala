@@ -115,7 +115,7 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
     <div class="footer-bottom">
       <span><?= $h($copyright) ?></span>
       <span class="footer-legal-links">
-        <a href="cookiebeleid.php" <?= \App\Service\Language\SiteText::attrs($cookieFooterLink['policy_label_nl'], $cookieFooterLink['policy_label_en']) ?>><?= $h(\App\Service\Language\SiteText::visible($cookieFooterLink['policy_label_nl'], $cookieFooterLink['policy_label_en'])) ?></a>
+        <a href="<?= $h(\App\Service\Routing\LocalizedUrl::path('/cookiebeleid.php')) ?>" <?= \App\Service\Language\SiteText::attrs($cookieFooterLink['policy_label_nl'], $cookieFooterLink['policy_label_en']) ?>><?= $h(\App\Service\Language\SiteText::visible($cookieFooterLink['policy_label_nl'], $cookieFooterLink['policy_label_en'])) ?></a>
         <button type="button" class="footer-legal-links__btn" data-cookie-settings-open <?= \App\Service\Language\SiteText::attrs($cookieFooterLink['label_nl'], $cookieFooterLink['label_en']) ?>><?= $h(\App\Service\Language\SiteText::visible($cookieFooterLink['label_nl'], $cookieFooterLink['label_en'])) ?></button>
       </span>
 <?php if ($slogan !== null): ?>

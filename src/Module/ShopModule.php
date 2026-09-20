@@ -291,15 +291,30 @@ final class ShopModule extends ModuleDefinition
                     return [];
                 }
 
-                return [Sitemap::entryFor(AppUrl::canonical('shop.php'), null)];
+                // The storefront exists in every active language: it is a
+                // listing at a fixed path, so there is no address that could
+                // be missing (docs/multilingual/ROUTING.md).
+                $paths = [];
+                foreach (\App\Service\Language\SiteLanguages::activeCodes() as $code) {
+                    $paths[$code] = \App\Service\Routing\LocalizedUrl::path('/shop.php', $code);
+                }
+
+                return Sitemap::entriesForVersions($paths, null);
             },
             'collections' => static function (): array {
                 $entries = [];
                 foreach ((new CollectionRepository())->findActiveForSitemap() as $collection) {
-                    $entries[] = Sitemap::entryFor(
-                        CollectionContent::canonicalUrlForSlug((string) $collection['slug']),
-                        $collection['updated_at'] ?? null
-                    );
+                    // Only the languages this collection really has an
+                    // address in: a sitemap entry for a URL that 404s is
+                    // worse than no entry.
+                    foreach (
+                        Sitemap::entriesForVersions(
+                            CollectionContent::alternates($collection),
+                            $collection['updated_at'] ?? null
+                        ) as $entry
+                    ) {
+                        $entries[] = $entry;
+                    }
                 }
 
                 return $entries;
@@ -307,10 +322,17 @@ final class ShopModule extends ModuleDefinition
             'products' => static function (): array {
                 $entries = [];
                 foreach ((new ProductRepository())->findActiveForSitemap() as $product) {
-                    $entries[] = Sitemap::entryFor(
-                        ProductSeo::canonicalUrl((int) $product['id']),
-                        $product['updated_at'] ?? null
-                    );
+                    // A product is reachable in EVERY active language: it has
+                    // no slug that could be missing, only words that fall
+                    // back inside a route that exists.
+                    foreach (
+                        Sitemap::entriesForVersions(
+                            ProductSeo::alternates((int) $product['id']),
+                            $product['updated_at'] ?? null
+                        ) as $entry
+                    ) {
+                        $entries[] = $entry;
+                    }
                 }
 
                 return $entries;

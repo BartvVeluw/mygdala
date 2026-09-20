@@ -42,7 +42,12 @@ class LegalPages
     {
         $page = PageContent::forContentKey(self::TERMS_SLUG);
 
-        return $page !== null ? PageContent::publicUrl($page) : '/' . self::TERMS_SLUG;
+        // In the language the visitor is reading, like every other internal
+        // link (docs/multilingual/ROUTING.md). The fallback keeps the shape
+        // the page has by default, prefixed for a non-default language.
+        return $page !== null
+            ? PageContent::publicUrl($page)
+            : \App\Service\Routing\LocalizedUrl::path('/' . self::TERMS_SLUG);
     }
 
     /**

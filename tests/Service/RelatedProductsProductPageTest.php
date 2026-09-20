@@ -377,10 +377,18 @@ final class RelatedProductsProductPageTest extends TestCase
     {
         $js = self::sourceOf('assets/js/shop/shop.js');
 
+        // The URL carries the page's language prefix since Multilingual 2.0
+        // phase 6 (S.localeUrl, see assets/js/shop/cart.js), so the literal
+        // moved — there is still exactly one place that builds a card.
         $this->assertSame(
             1,
-            substr_count($js, '\'<a class="product-card is-visible" href="/product.php?id=\''),
+            substr_count($js, 'class="product-card is-visible" href='),
             'a second product-card construction would let the shop and related products drift apart'
+        );
+        $this->assertStringContainsString(
+            'S.localeUrl("/product.php?id="',
+            $js,
+            'and it links in the language the page is being read in'
         );
     }
 
