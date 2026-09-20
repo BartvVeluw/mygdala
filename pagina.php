@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/vendor/autoload.php';
+require_once __DIR__ . '/partials/public-request.php';
 
 // A failed form submission is redirected back to this page, and the
 // answers the visitor typed are waiting in the public session. Reading

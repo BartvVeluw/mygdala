@@ -210,6 +210,55 @@ final class BlogModule extends ModuleDefinition
     }
 
     /**
+     * The five URL shapes this module serves — the same five that used to be
+     * five `RewriteRule`s in `.htaccess`, in the same order and with the same
+     * meaning (App\Service\Routing\RouteTable).
+     *
+     * Order is what keeps them apart: `feed.xml` and the two archive
+     * namespaces are matched before the two-segment post route, so a post can
+     * never be shadowed by one of them nor shadow one of them.
+     */
+    public function publicRoutes(): array
+    {
+        return [
+            ['key' => 'blog.feed', 'pattern' => '{blog.root}/feed.xml', 'template' => 'blog-feed.php'],
+            ['key' => 'blog.index', 'pattern' => '{blog.root}', 'template' => 'blog.php'],
+            [
+                'key' => 'blog.category',
+                'pattern' => '{blog.root}/{blog.category}/{slug}',
+                'template' => 'blog.php',
+                'query' => ['category' => 'slug'],
+            ],
+            [
+                'key' => 'blog.tag',
+                'pattern' => '{blog.root}/{blog.tag}/{slug}',
+                'template' => 'blog.php',
+                'query' => ['tag' => 'slug'],
+            ],
+            [
+                'key' => 'blog.post',
+                'pattern' => '{blog.root}/{slug}',
+                'template' => 'blog-post.php',
+                'query' => ['slug' => 'slug'],
+            ],
+        ];
+    }
+
+    /**
+     * `blog` and `tag` are the same word in Dutch and in English and have no
+     * per-language entry; `categorie` is a Dutch word a visitor reads as
+     * language, so English gets its own.
+     */
+    public function routeSegments(): array
+    {
+        return [
+            'blog.root' => ['default' => BlogUrls::ROOT],
+            'blog.category' => ['default' => BlogUrls::CATEGORY_SEGMENT, 'en' => 'category'],
+            'blog.tag' => ['default' => BlogUrls::TAG_SEGMENT],
+        ];
+    }
+
+    /**
      * The Blog's sitemap entries: the index, every indexable public post, and
      * every active category archive that actually holds one.
      *

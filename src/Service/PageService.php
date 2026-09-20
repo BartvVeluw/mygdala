@@ -8,6 +8,7 @@ use App\Repository\FooterRepository;
 use App\Repository\NavigationRepository;
 use App\Repository\PageRepository;
 use App\Repository\PageSectionRepository;
+use App\Service\Routing\ReservedPaths;
 
 /**
  * The write-side rules of the unified CMS page model: slug normalisation and
@@ -65,7 +66,7 @@ class PageService
 
         $slug = $base;
         $suffix = 2;
-        while ($repository->slugExists($slug, $excludeId) || ReservedRoutes::isReserved($slug)) {
+        while ($repository->slugExists($slug, $excludeId) || ReservedPaths::isReserved($slug)) {
             $slug = $base . '-' . $suffix;
             $suffix++;
         }
@@ -80,7 +81,7 @@ class PageService
      */
     public static function validateSlug(PageRepository $repository, string $slug, ?int $excludeId): ?string
     {
-        if (ReservedRoutes::isReserved($slug)) {
+        if (ReservedPaths::isReserved($slug)) {
             return 'Deze slug is gereserveerd voor een bestaande pagina/route van de website en kan niet worden gebruikt.';
         }
 

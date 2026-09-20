@@ -458,20 +458,46 @@ final class MultilingualBoundaryTest extends TestCase
 
     // ---------------------------------------------- V1's deliberate limits
 
-    public function testNoLocalizedUrlsOrHreflangWereIntroduced(): void
+    public function testHreflangIsRenderedInOnePlaceAndBuiltFromDeclaredVersionsOnly(): void
     {
-        // Part P. Both languages still live on one URL; localized routes and
-        // hreflang are deferred to a later step, and SEO.md says so.
+        /**
+         * REPLACES the V1 rule "no partial may emit hreflang at all"
+         * (Multilingual V1, part P), which was true exactly as long as both
+         * languages lived on one URL. Since phase 6 they do not
+         * (docs/multilingual/ROUTING.md), so the guard changes from "never"
+         * to "only where it can be kept honest":
+         *
+         *   - the <head> renders it in ONE partial, so the alternates, the
+         *     canonical and the sitemap cannot drift apart;
+         *   - the header's language switch may carry it on its own links,
+         *     which is what hreflang on an <a> is for;
+         *   - everything else must not invent one.
+         *
+         * WHAT KEEPS IT HONEST is App\Service\Routing\LanguageAlternates:
+         * hreflang is built from the versions a route DECLARED, and a route
+         * that declared nothing advertises nothing. A partial that built the
+         * list itself could not know whether a version really exists, which
+         * is the one mistake this tag must never make.
+         */
+        $allowed = ['seo-head.php', 'header.php'];
+
         foreach (self::glob('partials/*.php') as $file) {
-            // The rendered ATTRIBUTE, not the word: partials/seo-head.php
-            // explains in a comment why this project emits none, and that
-            // comment is the documentation of the decision.
+            if (in_array(basename($file), $allowed, true)) {
+                continue;
+            }
+
             self::assertStringNotContainsString(
                 'hreflang="',
                 (string) file_get_contents($file),
-                basename($file) . ' must not emit hreflang in V1',
+                basename($file) . ' must not emit hreflang of its own',
             );
         }
+
+        self::assertStringContainsString(
+            'LanguageAlternates::forHreflang()',
+            (string) file_get_contents(self::root() . '/partials/seo-head.php'),
+            'the <head> must build hreflang from the declared language versions and nothing else',
+        );
     }
 
     public function testTheRegistryIsClosedAndWrittenInCode(): void

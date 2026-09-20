@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/vendor/autoload.php';
+require_once __DIR__ . '/partials/public-request.php';
 // This route belongs to a module — see blog.php for what the guard does.
 \App\Module\ModuleGuard::requirePublicRoute('blog');
 

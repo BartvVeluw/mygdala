@@ -61,6 +61,9 @@ class ReservedRoutes
         'herroeping',
         'pagina',
         'phinx',
+        // The router every public URL that is not a file on disk comes
+        // through (dispatcher.php, see docs/multilingual/ROUTING.md).
+        'dispatcher',
         // Apache's ErrorDocument target (404.php). Not a page anyone browses
         // to, but a real root-level file, so a CMS page named "404" would sit
         // permanently behind it.

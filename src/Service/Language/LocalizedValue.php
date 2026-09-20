@@ -59,9 +59,16 @@ final class LocalizedValue
             $primaryCode = LanguageRegistry::DEFAULT_LANGUAGE;
         }
 
+        // Which codes may be carried at all: the closed V1 registry plus the
+        // languages this site actually publishes. Identical lists on a Dutch
+        // and English site, which is every installation today; on a site with
+        // a third language it is what lets that language's words survive as
+        // far as the page (App\Service\Language\LanguageFallback).
+        $renderable = LanguageFallback::renderableLanguages();
+
         $raw = [];
         foreach ($values as $code => $value) {
-            if (is_string($code) && LanguageRegistry::has($code)) {
+            if (is_string($code) && in_array($code, $renderable, true)) {
                 $raw[$code] = trim((string) $value);
             }
         }
@@ -71,7 +78,7 @@ final class LocalizedValue
         $primaryValue = $raw[$primaryCode];
 
         $resolved = [];
-        foreach (LanguageRegistry::codes() as $code) {
+        foreach ($renderable as $code) {
             if (!array_key_exists($code, $raw)) {
                 continue;
             }

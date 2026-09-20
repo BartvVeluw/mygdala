@@ -143,6 +143,41 @@ abstract class ModuleDefinition
     }
 
     /**
+     * The PUBLIC URL SHAPES this module serves, in
+     * App\Service\Routing\RouteTable's shape: a key, a pattern, the
+     * root-level template that answers it, and which captures that template
+     * reads out of $_GET.
+     *
+     * Read for EVERY registered module, enabled or not, for the same reason
+     * reservedSlugs() is: a disabled module's URLs must keep reaching its own
+     * template, which answers the site's ordinary 404 through
+     * App\Module\ModuleGuard. A URL that starts resolving differently the
+     * moment a module is switched off is a URL nobody can reason about.
+     *
+     * @return list<array{key: string, pattern: string, template: string, query?: array<string, string>}>
+     */
+    public function publicRoutes(): array
+    {
+        return [];
+    }
+
+    /**
+     * Fixed URL words of this module's routes that are a natural-language
+     * word rather than a technical one, per language, in
+     * App\Service\Routing\RouteSegments' shape.
+     *
+     * Read for every registered module, enabled or not: the words are
+     * reserved against page slugs whatever the module's state, exactly like
+     * reservedSlugs().
+     *
+     * @return array<string, array<string, string>> key => ['default' => word, '<code>' => word]
+     */
+    public function routeSegments(): array
+    {
+        return [];
+    }
+
+    /**
      * Fixed public paths this module's own root-level templates answer at,
      * beyond the menu destinations routes() offers — "/portfolio.php".
      *

@@ -230,6 +230,49 @@ final class ShopModule extends ModuleDefinition
             'cart',
             'checkout',
             'bestelling-status',
+            // The English word for the collection namespace
+            // (App\Service\Routing\RouteSegments). It is a root-level URL word
+            // on an English-speaking site exactly as "collecties" is on a
+            // Dutch one, so it is reserved for the same reason — and reserved
+            // whatever the site's languages are, because adding English later
+            // must not have to take a page away from anybody.
+            'collections',
+        ];
+    }
+
+    /**
+     * The Shop's public URL shapes. The collection namespace was a
+     * `RewriteRule`; the rest are real root-level templates, listed so a
+     * language-prefixed URL (/en/shop.php) reaches them — their unprefixed
+     * form keeps being served straight off disk by Apache.
+     *
+     * Products deliberately have no slug URL: a product is one page at
+     * /product.php?id=… however many collections it appears in
+     * (App\Service\ProductSeo), and giving it one is a URL decision that has
+     * nothing to do with language.
+     */
+    public function publicRoutes(): array
+    {
+        return [
+            ['key' => 'shop.index', 'pattern' => 'shop.php', 'template' => 'shop.php'],
+            ['key' => 'shop.product', 'pattern' => 'product.php', 'template' => 'product.php'],
+            ['key' => 'shop.cart', 'pattern' => 'cart.php', 'template' => 'cart.php'],
+            ['key' => 'shop.checkout', 'pattern' => 'checkout.php', 'template' => 'checkout.php'],
+            ['key' => 'shop.order-status', 'pattern' => 'bestelling-status.php', 'template' => 'bestelling-status.php'],
+            [
+                'key' => 'shop.collection',
+                'pattern' => '{shop.collections}/{slug}',
+                'template' => 'collectie.php',
+                'query' => ['slug' => 'slug'],
+            ],
+        ];
+    }
+
+    /** "collecties" is a Dutch word a visitor reads as language. */
+    public function routeSegments(): array
+    {
+        return [
+            'shop.collections' => ['default' => 'collecties', 'en' => 'collections'],
         ];
     }
 

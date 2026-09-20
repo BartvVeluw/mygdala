@@ -27,12 +27,16 @@ declare(strict_types=1);
  * personaliseren.php. Four title conventions, a canonical URL hardcoded to
  * one domain, and two indexable checkout pages came out of that.
  *
- * BILINGUAL, unchanged from what it replaces: the Dutch value is the real
- * tag content, with data-nl/data-en (data-nl-content/data-en-content on
- * <meta>) so assets/js/core.js's applyLang() swaps them on the language
- * toggle. Open Graph and Twitter carry the Dutch copy — a crawler fetches
- * one document in one language, and this project has no separate localized
- * URLs to offer it (hence no hreflang; see SEO.md).
+ * ONE LANGUAGE PER DOCUMENT since Multilingual 2.0 phase 6. Every tag here
+ * carries the REQUEST's language, because that language now has a URL of its
+ * own (docs/multilingual/ROUTING.md): the title, the description, the Open
+ * Graph copy and the canonical all describe the version a crawler actually
+ * fetched, and the other versions are named as hreflang alternates instead of
+ * being smuggled into the same document.
+ *
+ * The data-nl/data-en attribute pairs are still printed. They are V1
+ * compatibility output that phase 7 removes; nothing acts on them any more,
+ * because the language switch became ordinary links to those other URLs.
  *
  * ONLY NON-EMPTY TAGS ARE RENDERED. No description tag when there is no
  * description, no canonical when the page has no canonical URL, no og:image
@@ -65,6 +69,40 @@ $seoHeadTwitterCard = $seoMetadata->twitterCard();
 <meta name="robots" content="<?= $seoHeadH($seoMetadata->robots) ?>">
 <?php if ($seoMetadata->canonical !== null): ?>
 <link rel="canonical" href="<?= $seoHeadH($seoMetadata->canonical) ?>">
+<?php endif; ?>
+<?php
+/**
+ * HREFLANG — one <link rel="alternate"> per language version that REALLY
+ * EXISTS, plus x-default pointing at the default language's version
+ * (docs/multilingual/ROUTING.md).
+ *
+ * Built from App\Service\Routing\LanguageAlternates, and from nothing else.
+ * A route says which of its versions are routable before it renders its head;
+ * a route that has said nothing advertises nothing, which is the state every
+ * page of this project was in before phase 6. That is the whole safety
+ * property: an alternate may never name a URL that 404s, and may never name
+ * one that merely falls back to another language's words — both are exactly
+ * what search engines are told not to trust.
+ *
+ * ONLY ON A PAGE THAT HAS A CANONICAL. A 404 and the order-status page are no
+ * version of anything, so they get no alternates either, for the same reason
+ * they get no share block below.
+ *
+ * The set always includes the page's OWN language, which is what makes the
+ * alternates reciprocal: every version names every version, itself included.
+ */
+$seoHeadAlternates = $seoMetadata->canonical === null
+    ? []
+    : \App\Service\Routing\LanguageAlternates::forHreflang();
+?>
+<?php if (count($seoHeadAlternates) > 1): ?>
+<?php foreach ($seoHeadAlternates as $seoHeadCode => $seoHeadPath): ?>
+<link rel="alternate" hreflang="<?= $seoHeadH($seoHeadCode) ?>" href="<?= $seoHeadH(\App\Service\AppUrl::canonical($seoHeadPath)) ?>">
+<?php endforeach; ?>
+<?php $seoHeadDefault = $seoHeadAlternates[\App\Service\Routing\LanguageResolver::defaultLanguage()] ?? null; ?>
+<?php if ($seoHeadDefault !== null): ?>
+<link rel="alternate" hreflang="x-default" href="<?= $seoHeadH(\App\Service\AppUrl::canonical($seoHeadDefault)) ?>">
+<?php endif; ?>
 <?php endif; ?>
 <?php
 /**

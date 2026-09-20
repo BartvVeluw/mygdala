@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/vendor/autoload.php';
+require_once __DIR__ . '/partials/public-request.php';
 require_once __DIR__ . '/partials/breadcrumb.php';
 
 use App\Service\CookieConsentConfig;

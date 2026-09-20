@@ -153,6 +153,31 @@ final class PortfolioModule extends ModuleDefinition
     }
 
     /**
+     * The Portfolio page's own template, and the old project addresses.
+     * "portfolio" is the same word in Dutch and in English, so the namespace
+     * has no per-language entry (App\Service\Routing\RouteSegments).
+     */
+    public function publicRoutes(): array
+    {
+        return [
+            ['key' => 'portfolio.index', 'pattern' => 'portfolio.php', 'template' => 'portfolio.php'],
+            [
+                'key' => 'portfolio.legacy-project',
+                'pattern' => '{portfolio.root}/{slug}',
+                'template' => 'portfolio-detail.php',
+                'query' => ['slug' => 'slug'],
+            ],
+        ];
+    }
+
+    public function routeSegments(): array
+    {
+        return [
+            'portfolio.root' => ['default' => 'portfolio'],
+        ];
+    }
+
+    /**
      * /portfolio.php serves the CMS page with content_key "portfolio": an
      * ordinary content page that is linked as a page, and therefore NOT one of
      * routes() (App\Service\RouteRegistry). Naming the path here is what makes

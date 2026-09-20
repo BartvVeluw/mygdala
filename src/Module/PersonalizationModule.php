@@ -96,6 +96,20 @@ final class PersonalizationModule extends ModuleDefinition
         return ['personaliseren'];
     }
 
+    /**
+     * The catalogue page's own template. `personaliseren` is a Dutch word,
+     * but it is a FILE NAME rather than a URL word this project composes —
+     * turning it into a translatable segment would move an existing canonical
+     * URL, which fase 6 deliberately does not do (see
+     * docs/multilingual/ROUTING.md).
+     */
+    public function publicRoutes(): array
+    {
+        return [
+            ['key' => 'personalization.catalog', 'pattern' => 'personaliseren.php', 'template' => 'personaliseren.php'],
+        ];
+    }
+
     public function sitemapCollectors(): array
     {
         return [

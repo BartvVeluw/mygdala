@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/vendor/autoload.php';
+require_once __DIR__ . '/partials/public-request.php';
 // This route belongs to a module. With that module switched off the file
 // is still on disk and still reachable, so the URL must stop answering:
 // App\Module\ModuleGuard renders the site's own 404 and exits, exactly as

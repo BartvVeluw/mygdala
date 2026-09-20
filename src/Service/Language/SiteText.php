@@ -40,7 +40,7 @@ final class SiteText
      */
     public static function visible(?string $nl, ?string $en): string
     {
-        return LocalizedValue::ofDutchEnglish($nl, $en)->primaryValue();
+        return LocalizedValue::ofDutchEnglish($nl, $en)->in(self::documentLanguage());
     }
 
     /**
@@ -85,7 +85,7 @@ final class SiteText
      */
     public static function visibleOf(LocalizedValue $text): string
     {
-        return $text->primaryValue();
+        return $text->in(self::documentLanguage());
     }
 
     /** The escaped ` data-nl="..." data-en="..."` pair of a plain-text value, for core.js's textContent switch. */
@@ -138,11 +138,17 @@ final class SiteText
 
     /**
      * The language code a page's <html lang> should carry, and the one
-     * assets/js/core.js starts in when a visitor has expressed no preference.
+     * assets/js/core.js is told the server has already printed.
+     *
+     * SINCE MULTILINGUAL 2.0 PHASE 6 this is the language OF THE REQUEST
+     * (App\Service\Routing\RequestLanguage), not the site's primary language:
+     * /en/about-us renders English server-side and says so. On an unprefixed
+     * URL the two are the same value, which is why every existing
+     * installation renders byte for byte what it rendered before.
      */
     public static function documentLanguage(): string
     {
-        return ContentLanguages::primary();
+        return \App\Service\Routing\RequestLanguage::current();
     }
 
     /**

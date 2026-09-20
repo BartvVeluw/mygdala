@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/vendor/autoload.php';
+require_once __DIR__ . '/partials/public-request.php';
 // An old project address belongs to the Portfolio module: with it switched off
 // every /portfolio/<slug> answers the site's own 404, like a project that never
 // existed (App\Module\ModuleGuard). Nothing below runs — the redirect neither,

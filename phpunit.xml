@@ -36,6 +36,12 @@
             <file>tests/Service/ThreeLanguageStatesTest.php</file>
             <file>tests/Service/TranslationProviderTest.php</file>
             <file>tests/Service/LanguageCodeTest.php</file>
+            <file>tests/Service/Routing/AcceptLanguageTest.php</file>
+            <file>tests/Service/Routing/RequestPathTest.php</file>
+            <file>tests/Service/Routing/LocalizedUrlTest.php</file>
+            <file>tests/Service/Routing/LanguageResolverTest.php</file>
+            <file>tests/Service/Routing/RouteResolverTest.php</file>
+            <file>tests/Service/Routing/ReservedPathsTest.php</file>
             <file>tests/Service/SiteLanguagesTest.php</file>
             <file>tests/Service/PageLocalizationTest.php</file>
             <file>tests/Service/EntityTranslationsTest.php</file>
@@ -154,6 +160,12 @@
              to run constantly while writing code. -->
         <testsuite name="fast">
             <file>tests/Service/LanguageRegistryTest.php</file>
+            <file>tests/Service/Routing/AcceptLanguageTest.php</file>
+            <file>tests/Service/Routing/RequestPathTest.php</file>
+            <file>tests/Service/Routing/LocalizedUrlTest.php</file>
+            <file>tests/Service/Routing/LanguageResolverTest.php</file>
+            <file>tests/Service/Routing/RouteResolverTest.php</file>
+            <file>tests/Service/Routing/ReservedPathsTest.php</file>
             <file>tests/Service/LocalizedValueTest.php</file>
             <file>tests/Service/AdminLocaleTest.php</file>
             <file>tests/Service/ThreeLanguageStatesTest.php</file>
@@ -414,6 +426,12 @@
 
         <testsuite name="cms">
             <file>tests/Service/LanguageRegistryTest.php</file>
+            <file>tests/Service/Routing/AcceptLanguageTest.php</file>
+            <file>tests/Service/Routing/RequestPathTest.php</file>
+            <file>tests/Service/Routing/LocalizedUrlTest.php</file>
+            <file>tests/Service/Routing/LanguageResolverTest.php</file>
+            <file>tests/Service/Routing/RouteResolverTest.php</file>
+            <file>tests/Service/Routing/ReservedPathsTest.php</file>
             <file>tests/Service/LocalizedValueTest.php</file>
             <file>tests/Service/AdminLocaleTest.php</file>
             <file>tests/Service/ThreeLanguageStatesTest.php</file>

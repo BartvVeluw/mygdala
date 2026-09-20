@@ -1,6 +1,7 @@
 <?php
 
 require_once __DIR__ . '/vendor/autoload.php';
+require_once __DIR__ . '/partials/public-request.php';
 // This route belongs to the Portfolio module. With it switched off the file is
 // still on disk and still reachable, so the URL must stop answering:
 // App\Module\ModuleGuard renders the site's own 404 and exits, exactly as an

@@ -119,14 +119,28 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
       </ul>
       <div class="header-actions">
 <?php /* The switch exists only on a site that actually publishes more than
-         one language (Multilingual V1, MULTILINGUAL.md). On a single-language
-         site both buttons would have shown the visitor the same page in the
-         same words, so there is nothing to switch between and nothing is
-         rendered — no empty control, no stray focus stop. */ ?>
-<?php if (\App\Service\Language\SiteText::showsLanguageSwitch()): ?>
+         one language. On a single-language site every option would show the
+         visitor the same page in the same words, so there is nothing to
+         switch between and nothing is rendered — no empty control, no stray
+         focus stop.
+
+         SINCE PHASE 6 THESE ARE LINKS, not buttons: each language has its own
+         URL, so switching is a navigation and not a text swap in the browser
+         (App\Service\Routing\LanguageSwitch). That is also what switches the
+         old client-side swap off — assets/js/core.js binds to
+         `.lang-switch button`, and there are none any more.
+
+         A language this page has no version of is rendered as a disabled
+         span: offering a link that 404s, or one that quietly shows another
+         language's words, is worse than saying the version is not there. */ ?>
+<?php if (\App\Service\Routing\LanguageSwitch::isAvailable()): ?>
         <div class="lang-switch" role="group" aria-label="Taal / Language">
-<?php foreach (\App\Service\Language\SiteText::switchableLanguages() as $switchLanguage): ?>
-          <button type="button" data-lang="<?= $h($switchLanguage) ?>" aria-pressed="<?= $switchLanguage === \App\Service\Language\SiteText::documentLanguage() ? 'true' : 'false' ?>"><?= $h(strtoupper($switchLanguage)) ?></button>
+<?php foreach (\App\Service\Routing\LanguageSwitch::items() as $switchItem): ?>
+<?php if ($switchItem['href'] === null): ?>
+          <span class="lang-switch__unavailable" aria-disabled="true" title="<?= $h(\App\Service\Routing\LanguageSwitch::accessibleName($switchItem['code'])) ?>"><?= $h($switchItem['label']) ?></span>
+<?php else: ?>
+          <a href="<?= $h($switchItem['href']) ?>" hreflang="<?= $h($switchItem['code']) ?>" lang="<?= $h($switchItem['code']) ?>" aria-label="<?= $h(\App\Service\Routing\LanguageSwitch::accessibleName($switchItem['code'])) ?>"<?= $switchItem['is_current'] ? ' aria-current="true"' : '' ?>><?= $h($switchItem['label']) ?></a>
+<?php endif; ?>
 <?php endforeach; ?>
         </div>
 <?php endif; ?>

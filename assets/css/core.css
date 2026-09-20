@@ -444,7 +444,15 @@ p{ margin: 0; }
   padding: 3px;
   gap: 2px;
 }
-.lang-switch button{
+/* Links since Multilingual 2.0 phase 6: every language has its own URL, so
+   switching is a navigation rather than a text swap. `button` stays in the
+   selector because the control is still rendered as buttons wherever there is
+   no URL to go to, and losing its styling there would be a visible
+   regression for no gain. */
+.lang-switch button,
+.lang-switch a,
+.lang-switch__unavailable{
+  display: inline-block;
   border: none;
   background: transparent;
   color: var(--color-text-muted);
@@ -454,9 +462,14 @@ p{ margin: 0; }
   padding: 0.3rem 0.65rem;
   border-radius: 999px;
   cursor: pointer;
+  text-decoration: none;
   transition: background var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
 }
-.lang-switch button[aria-pressed="true"]{ background: var(--color-primary); color: var(--color-on-primary); }
+.lang-switch button[aria-pressed="true"],
+.lang-switch a[aria-current="true"]{ background: var(--color-primary); color: var(--color-on-primary); }
+/* A language this page has no version of: visible, so the switch never
+   silently loses an option, but not clickable and not a focus stop. */
+.lang-switch__unavailable{ opacity: 0.45; cursor: default; }
 
 .nav-toggle{
   display: none;
