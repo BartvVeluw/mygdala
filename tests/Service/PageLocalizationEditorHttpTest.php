@@ -166,6 +166,38 @@ final class PageLocalizationEditorHttpTest extends TestCase
         self::assertStringContainsString('updated=1', $response['location']);
         self::assertNull($this->row('en'), 'a language with no words has no row: it falls back');
         self::assertSame('Vertaaltest pagina', PageLocalization::title($this->pageId, 'en'));
+        self::assertNull(
+            PageLocalization::slug($this->pageId, 'en'),
+            'and no address either, so the page has no English URL at all'
+        );
+    }
+
+    /**
+     * Writing a translation publishes a URL for it: the address is made from
+     * the title the way a new page's is made from its own, per language. An
+     * address that is already there is never regenerated.
+     */
+    public function testATranslationGetsItsOwnAddressFromItsTitle(): void
+    {
+        $session = $this->signIn('en');
+
+        $this->save($session, 'en', 'About this company', null, null);
+        self::assertSame('about-this-company', PageLocalization::slug($this->pageId, 'en'));
+
+        // The Dutch address is untouched by an English save. This fixture's
+        // page has its address only in the neutral column, which IS the
+        // default language's address (App\Service\PageContent::localizedSlug()).
+        self::assertSame(
+            self::KEY,
+            \App\Service\PageContent::localizedSlug(
+                (new PageRepository())->findById($this->pageId),
+                PageLocalization::defaultLanguage()
+            )
+        );
+
+        // A changed title leaves the address where it is.
+        $this->save($session, 'en', 'About us instead', null, null, ['slug' => 'about-this-company']);
+        self::assertSame('about-this-company', PageLocalization::slug($this->pageId, 'en'));
     }
 
     public function testTheDefaultLanguagesTitleIsRequired(): void
@@ -316,6 +348,13 @@ final class PageLocalizationEditorHttpTest extends TestCase
         $session = $this->signIn('en');
         $moved = self::KEY . '-moved';
 
+        // Give the English version an address first: since Multilingual 2.0
+        // phase 6 the address that moves is the EDITED LANGUAGE's, and a
+        // language that had none is not moving anything — it is being
+        // published for the first time, which asks nothing.
+        $this->save($session, 'en', 'Moved translation test', null, null, ['slug' => self::KEY . '-en']);
+        self::assertSame(self::KEY . '-en', PageLocalization::slug($this->pageId, 'en'));
+
         $response = $this->save($session, 'en', 'Moved translation test', null, null, ['slug' => $moved]);
         self::assertSame('/admin/page.php?id=' . $this->pageId, $response['location'], 'nothing is written before the move is confirmed');
 
@@ -330,8 +369,11 @@ final class PageLocalizationEditorHttpTest extends TestCase
         self::assertSame('/admin/page.php?id=' . $this->pageId, $discard->item(0)->getAttribute('href'));
         self::assertSame(1, $xpath->query('ancestor::section[contains(@class, "admin-url-confirm")]', $discard->item(0))->length, 'and it is the confirmation\'s Annuleren');
 
+        // The page's neutral key — the Dutch address — never moves when an
+        // English address does, and the English version still sits at the
+        // address it had before the refused move.
         self::assertSame(self::KEY, (new PageRepository())->findById($this->pageId)['slug']);
-        self::assertNull($this->row('en'));
+        self::assertSame(self::KEY . '-en', PageLocalization::slug($this->pageId, 'en'), 'the move was not written');
     }
 
     /**
@@ -434,7 +476,11 @@ final class PageLocalizationEditorHttpTest extends TestCase
             'id' => (string) $this->pageId,
             'language_code' => $language,
             'title' => $title,
-            'slug' => self::KEY,
+            // The address of the LANGUAGE BEING EDITED, exactly as
+            // admin/page.php renders it since Multilingual 2.0 phase 6: the
+            // page's own for the default language, and empty for a language
+            // that has no public route yet (docs/multilingual/ROUTING.md).
+            'slug' => $language === PageLocalization::defaultLanguage() ? self::KEY : '',
             'status' => PageContent::STATUS_PUBLISHED,
             'meta_title' => (string) $metaTitle,
             'meta_description' => (string) $metaDescription,

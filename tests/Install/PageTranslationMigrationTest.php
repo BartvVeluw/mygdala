@@ -117,10 +117,14 @@ final class PageTranslationMigrationTest extends TestCase
         $fresh = self::shape(self::$fresh);
 
         self::assertSame($fresh, self::shape(self::$upgraded));
+        // `slug` arrives with db/migrations/20260920100000: a page's public
+        // address per language (docs/multilingual/ROUTING.md).
         self::assertSame(
-            ['id', 'page_id', 'language_code', 'title', 'meta_title', 'meta_description', 'created_at', 'updated_at'],
+            ['id', 'page_id', 'language_code', 'slug', 'title', 'meta_title', 'meta_description', 'created_at', 'updated_at'],
             array_keys($fresh)
         );
+        self::assertSame('varchar(170)', $fresh['slug']['column_type']);
+        self::assertSame('YES', $fresh['slug']['is_nullable'], 'NULL is "this language has no public route"');
         self::assertSame('int unsigned', $fresh['page_id']['column_type']);
         self::assertSame('NO', $fresh['page_id']['is_nullable']);
         self::assertSame('varchar(12)', $fresh['language_code']['column_type']);
@@ -153,7 +157,17 @@ final class PageTranslationMigrationTest extends TestCase
             [self::FRESH, 'page_translations']
         ), 'columns', 'index_name');
 
-        self::assertSame(['PRIMARY' => 'id', 'uq_page_translations_page_language' => 'page_id,language_code'], $unique);
+        // The second unique index is phase 6's: one address per language, and
+        // NULL as often as needed — two languages may spell the same word,
+        // because /over-ons and /en/over-ons are different URLs.
+        self::assertSame(
+            [
+                'PRIMARY' => 'id',
+                'uq_page_translations_language_slug' => 'language_code,slug',
+                'uq_page_translations_page_language' => 'page_id,language_code',
+            ],
+            $unique
+        );
     }
 
     public function testThePageCascadesAndTheLanguageRestricts(): void
@@ -208,9 +222,33 @@ final class PageTranslationMigrationTest extends TestCase
         self::assertSame(['nl' => ['Alleen Nederlands', null, null]], self::text('zz-dutch-only'), "'' becomes NULL");
     }
 
-    public function testAPageWithOnlyEnglishGetsNoDutchRow(): void
+    /**
+     * Its WORDS are still only English. What it also has since phase 6 is a
+     * Dutch row holding nothing but the page's address: the default language
+     * is where a page's URL lives, whatever language its text happens to be
+     * in, and /zz-english-only is that URL (docs/multilingual/ROUTING.md).
+     */
+    public function testAPageWithOnlyEnglishGetsNoDutchWords(): void
     {
-        self::assertSame(['en' => ['Only English', 'English SEO', null]], self::text('zz-english-only'));
+        // In row order: the English words arrived with phase 2, the Dutch
+        // row only with phase 6, and it carries an address rather than words.
+        self::assertSame(
+            ['en' => ['Only English', 'English SEO', null], 'nl' => [null, null, null]],
+            self::text('zz-english-only')
+        );
+    }
+
+    /** And that Dutch row is an address and nothing else. */
+    public function testTheDefaultLanguageHoldsThePagesAddress(): void
+    {
+        self::assertSame(
+            'zz-english-only',
+            self::$upgraded->rows(
+                "SELECT t.slug AS slug FROM page_translations t
+                   JOIN pages p ON p.id = t.page_id
+                  WHERE p.slug = 'zz-english-only' AND t.language_code = 'nl'"
+            )[0]['slug'] ?? null
+        );
     }
 
     public function testABlankTranslationIsNoTranslation(): void

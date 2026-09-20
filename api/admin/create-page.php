@@ -86,19 +86,27 @@ if ($title === '') {
     $errors[] = 'Titel mag maximaal ' . PageService::MAX_TITLE_LENGTH . ' tekens zijn.';
 }
 
+/**
+ * A NEW PAGE IS CREATED IN THE DEFAULT LANGUAGE. This screen has no language
+ * switch of its own — a page has to exist before it can be translated — so
+ * the title, the SEO fields and the address all belong to that language
+ * (docs/multilingual/ROUTING.md).
+ */
+$pageLanguage = PageLocalization::defaultLanguage();
+
 if (!PageContent::isValidStatus($status)) {
     $errors[] = AdminTranslator::trans('validation.ongeldige_status');
 }
 
 $slug = '';
 if ($slugInput === '' || $slugIsAutomatic) {
-    $slug = $title !== '' ? PageService::generateSlug($repository, $title) : '';
+    $slug = $title !== '' ? PageService::generateSlug($repository, $title, $pageLanguage) : '';
 } else {
     $slug = PageService::sanitizeSlug($slugInput);
     if ($slug === '') {
         $errors[] = AdminTranslator::trans('validation.slug_bevat_geldige_tekens');
     } else {
-        $slugError = PageService::validateSlug($repository, $slug, null);
+        $slugError = PageService::validateSlug($repository, $slug, null, $pageLanguage);
         if ($slugError !== null) {
             $errors[] = $slugError;
         }
@@ -137,11 +145,17 @@ try {
         'slug' => $slug,
         'status' => $status,
     ], [
-        PageLocalization::defaultLanguage() => [
+        $pageLanguage => [
             PageTranslation::TITLE => $title,
             PageTranslation::META_TITLE => $metaTitle,
             PageTranslation::META_DESCRIPTION => $metaDescription,
         ],
+    ], [
+        // A new page is created in the default language, so that is the
+        // language whose address it gets. Every other language stays without
+        // one until an editor writes it, and therefore has no public URL —
+        // see docs/multilingual/ROUTING.md.
+        $pageLanguage => $slug,
     ]);
 } catch (\Throwable $e) {
     error_log('[api/admin/create-page.php] ' . $e->getMessage());

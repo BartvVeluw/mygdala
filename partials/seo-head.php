@@ -61,10 +61,14 @@ use App\Service\SeoMetadata;
 /** @var SeoMetadata $seoMetadata */
 $seoHeadH = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
 $seoHeadTwitterCard = $seoMetadata->twitterCard();
+// The words this document actually carries: the request language's. The
+// data-nl/data-en pair beside them is V1 compatibility output (phase 7).
+$seoHeadTitle = $seoMetadata->title();
+$seoHeadDescription = $seoMetadata->description();
 ?>
-<title data-nl="<?= $seoHeadH($seoMetadata->titleNl) ?>" data-en="<?= $seoHeadH($seoMetadata->titleEn) ?>"><?= $seoHeadH($seoMetadata->titleNl) ?></title>
+<title data-nl="<?= $seoHeadH($seoMetadata->titleNl) ?>" data-en="<?= $seoHeadH($seoMetadata->titleEn) ?>"><?= $seoHeadH($seoHeadTitle) ?></title>
 <?php if ($seoMetadata->hasDescription()): ?>
-<meta name="description" content="<?= $seoHeadH($seoMetadata->descriptionNl) ?>" data-nl-content="<?= $seoHeadH($seoMetadata->descriptionNl) ?>" data-en-content="<?= $seoHeadH($seoMetadata->descriptionEn) ?>">
+<meta name="description" content="<?= $seoHeadH($seoHeadDescription) ?>" data-nl-content="<?= $seoHeadH($seoMetadata->descriptionNl) ?>" data-en-content="<?= $seoHeadH($seoMetadata->descriptionEn) ?>">
 <?php endif; ?>
 <meta name="robots" content="<?= $seoHeadH($seoMetadata->robots) ?>">
 <?php if ($seoMetadata->canonical !== null): ?>
@@ -120,12 +124,20 @@ $seoHeadAlternates = $seoMetadata->canonical === null
  */
 ?>
 <?php if ($seoMetadata->canonical !== null): ?>
-<meta property="og:title" content="<?= $seoHeadH($seoMetadata->titleNl) ?>">
+<meta property="og:title" content="<?= $seoHeadH($seoHeadTitle) ?>">
 <?php if ($seoMetadata->hasDescription()): ?>
-<meta property="og:description" content="<?= $seoHeadH($seoMetadata->descriptionNl) ?>">
+<meta property="og:description" content="<?= $seoHeadH($seoHeadDescription) ?>">
 <?php endif; ?>
 <meta property="og:url" content="<?= $seoHeadH($seoMetadata->canonical) ?>">
 <meta property="og:type" content="<?= $seoHeadH($seoMetadata->ogType) ?>">
+<?php /* The document's own language, and every other version of it — what
+         og:locale is for now that each language has a URL of its own. */ ?>
+<meta property="og:locale" content="<?= $seoHeadH(\App\Service\Routing\RequestLanguage::current()) ?>">
+<?php foreach (array_keys($seoHeadAlternates) as $seoHeadOtherCode): ?>
+<?php if ($seoHeadOtherCode !== \App\Service\Routing\RequestLanguage::current()): ?>
+<meta property="og:locale:alternate" content="<?= $seoHeadH((string) $seoHeadOtherCode) ?>">
+<?php endif; ?>
+<?php endforeach; ?>
 <?php if ($seoMetadata->ogImageUrl !== null): ?>
 <meta property="og:image" content="<?= $seoHeadH($seoMetadata->ogImageUrl) ?>">
 <?php endif; ?>
@@ -134,9 +146,9 @@ $seoHeadAlternates = $seoMetadata->canonical === null
 <?php endif; ?>
 <?php if ($seoHeadTwitterCard !== null): ?>
 <meta name="twitter:card" content="<?= $seoHeadH($seoHeadTwitterCard) ?>">
-<meta name="twitter:title" content="<?= $seoHeadH($seoMetadata->titleNl) ?>">
+<meta name="twitter:title" content="<?= $seoHeadH($seoHeadTitle) ?>">
 <?php if ($seoMetadata->hasDescription()): ?>
-<meta name="twitter:description" content="<?= $seoHeadH($seoMetadata->descriptionNl) ?>">
+<meta name="twitter:description" content="<?= $seoHeadH($seoHeadDescription) ?>">
 <?php endif; ?>
 <meta name="twitter:image" content="<?= $seoHeadH((string) $seoMetadata->ogImageUrl) ?>">
 <?php endif; ?>

@@ -585,7 +585,7 @@ final class PageTemplateCreationTest extends TestCase
     {
         foreach (['contact', 'diensten', 'shop', 'admin', 'api', 'storage', 'index'] as $reserved) {
             self::assertNotNull(
-                PageService::validateSlug($this->pages, $reserved, null),
+                PageService::validateSlug($this->pages, $reserved, null, \App\Service\PageLocalization::defaultLanguage()),
                 'Slug "' . $reserved . '" should still be reserved.'
             );
         }

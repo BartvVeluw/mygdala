@@ -166,16 +166,61 @@ if ($isProtected) {
     }
 }
 
+/**
+ * THE ADDRESS BELONGS TO THE LANGUAGE BEING EDITED (Multilingual 2.0 phase 6,
+ * docs/multilingual/ROUTING.md). Saving the English version writes the English
+ * address and leaves the Dutch one exactly where it is; the two are checked
+ * for collisions inside their own language only, because /over-ons and
+ * /en/over-ons are different URLs.
+ *
+ * `pages.slug` stays in step with the DEFAULT language's address. It is the
+ * page's neutral key — what stored redirects were written against and what
+ * `content_key` was derived from — so the default language writes both, and
+ * every other language writes only its own row.
+ */
 if ($hasFixedUrl) {
     // The URL comes from the route this page is served at; the submitted
     // slug is discarded rather than stored as a value that does nothing.
     $slug = (string) $page['slug'];
 } else {
     $slug = PageService::sanitizeSlug($slugInput);
-    if ($slug === '') {
+
+    /**
+     * AN ADDRESS IS REQUIRED IN THE DEFAULT LANGUAGE AND OPTIONAL IN EVERY
+     * OTHER (docs/multilingual/ROUTING.md).
+     *
+     * The default language's address is the page's address: it is kept in
+     * step with the neutral `pages.slug`, every existing link names it, and a
+     * page without one would not be reachable at all.
+     *
+     * A translation without one is an ordinary, meaningful state: the page
+     * simply has no public URL in that language, the language switch shows
+     * that version as unavailable and no hreflang advertises it. Demanding a
+     * slug here would be demanding that every translation be published the
+     * moment a word of it is written.
+     */
+    /**
+     * A TRANSLATION'S FIRST ADDRESS is made from its title when the editor
+     * left the field blank — the convention api/admin/create-page.php has
+     * always used, applied per language instead of once per page. Saving the
+     * English version of a page therefore publishes an English URL without
+     * anybody having to think about slugs, and an existing address is never
+     * regenerated from a changed title.
+     */
+    if (
+        $slug === ''
+        && !$isDefaultLanguage
+        && $languageIsWritable
+        && $title !== ''
+        && PageService::currentSlug($page, $languageCode) === null
+    ) {
+        $slug = PageService::generateSlug($repository, $title, $languageCode, $id);
+    }
+
+    if ($slug === '' && $isDefaultLanguage) {
         $errors[] = AdminTranslator::trans('validation.slug_bevat_geldige_tekens');
-    } else {
-        $slugError = PageService::validateSlug($repository, $slug, $id);
+    } elseif ($slug !== '' && $languageIsWritable) {
+        $slugError = PageService::validateSlug($repository, $slug, $id, $languageCode);
         if ($slugError !== null) {
             $errors[] = $slugError;
         }
@@ -223,7 +268,11 @@ if ($errors !== []) {
     exit;
 }
 
-$oldSlug = (string) ($page['slug'] ?? '');
+// The address THIS LANGUAGE had before this save — what a rename has to keep
+// working. For the default language that is the page's own slug; for any
+// other it is that language's row, and null when it had no address at all
+// (giving a language its first address moves nothing).
+$oldSlug = (string) (PageService::currentSlug($page, $languageCode) ?? '');
 
 /**
  * A new web address is confirmed before it is written.
@@ -243,7 +292,7 @@ $oldSlug = (string) ($page['slug'] ?? '');
  * App\Service\PageUsage explains why links by id need no rewriting and typed
  * links must not get one.
  */
-if (PageService::urlChangeNeedsConfirmation($page, $slug, $confirmedSlug)) {
+if (PageService::urlChangeNeedsConfirmation($page, $slug, $confirmedSlug, $languageCode)) {
     $_SESSION['admin_page_old'] = ['slug' => $slug] + $submitted;
     $_SESSION['admin_page_url_change'] = [
         'page_id' => $id,
@@ -263,17 +312,27 @@ try {
     $db->beginTransaction();
 
     $repository->update($id, [
-        'slug' => $slug,
+        // Only the default language moves the neutral key; an English rename
+        // must not silently rewrite the Dutch URL every redirect was written
+        // against.
+        'slug' => ($isDefaultLanguage && $slug !== '') ? $slug : (string) $page['slug'],
         'status' => $status,
         'noindex' => $noindex,
         'show_breadcrumb' => $showBreadcrumb,
     ]);
 
-    PageLocalization::save($id, $languageCode, [
-        PageTranslation::TITLE => $title,
-        PageTranslation::META_TITLE => $metaTitle,
-        PageTranslation::META_DESCRIPTION => $metaDescription,
-    ]);
+    PageLocalization::save(
+        $id,
+        $languageCode,
+        [
+            PageTranslation::TITLE => $title,
+            PageTranslation::META_TITLE => $metaTitle,
+            PageTranslation::META_DESCRIPTION => $metaDescription,
+        ],
+        // A route-bound page has no address of its own in any language, and
+        // '' is "this language has no public route" rather than an address.
+        ($hasFixedUrl || $slug === '') ? null : $slug
+    );
 
     // Only when the field was on the submitted form at all, so a save from a
     // section of this screen that does not carry it leaves the choice alone.
@@ -333,7 +392,9 @@ if (
     && $oldSlug !== $slug
     && PageService::oldAddressWillRedirect($page, $status)
 ) {
-    (new SlugChangeRedirects())->record($oldSlug, $slug);
+    // In this language's URL space: renaming the English version records
+    // /en/old -> /en/new, and leaves the Dutch addresses alone.
+    (new SlugChangeRedirects())->record($oldSlug, $slug, $languageCode);
 }
 
 header('Location: /admin/page.php?id=' . $id . '&updated=1');

@@ -54,8 +54,12 @@ class PageService
      * pages AND against App\Service\ReservedRoutes — only used when the
      * admin left the slug field blank while creating a page.
      */
-    public static function generateSlug(PageRepository $repository, string $title, ?int $excludeId = null): string
-    {
+    public static function generateSlug(
+        PageRepository $repository,
+        string $title,
+        string $languageCode,
+        ?int $excludeId = null
+    ): string {
         $base = self::sanitizeSlug($title);
 
         if ($base === '') {
@@ -66,7 +70,7 @@ class PageService
 
         $slug = $base;
         $suffix = 2;
-        while ($repository->slugExists($slug, $excludeId) || ReservedPaths::isReserved($slug)) {
+        while (self::slugIsTaken($repository, $slug, $languageCode, $excludeId) || ReservedPaths::isReserved($slug)) {
             $slug = $base . '-' . $suffix;
             $suffix++;
         }
@@ -79,17 +83,64 @@ class PageService
      * rules generateSlug() enforces automatically. Returns the message to
      * show, or null when the slug is fine.
      */
-    public static function validateSlug(PageRepository $repository, string $slug, ?int $excludeId): ?string
-    {
+    public static function validateSlug(
+        PageRepository $repository,
+        string $slug,
+        ?int $excludeId,
+        string $languageCode
+    ): ?string {
         if (ReservedPaths::isReserved($slug)) {
             return 'Deze slug is gereserveerd voor een bestaande pagina/route van de website en kan niet worden gebruikt.';
         }
 
-        if ($repository->slugExists($slug, $excludeId)) {
+        if (self::slugIsTaken($repository, $slug, $languageCode, $excludeId)) {
             return 'Deze slug is al in gebruik door een andere pagina.';
         }
 
         return null;
+    }
+
+    /**
+     * Is this address already another page's, IN THIS LANGUAGE?
+     *
+     * Two questions since Multilingual 2.0 phase 6, and both have to be asked:
+     *
+     *   - `page_translations` holds the address of every language, so that is
+     *     where a clash between two pages' Dutch slugs, or two pages' English
+     *     ones, shows up. Dutch and English may share a word — /over-ons and
+     *     /en/over-ons are different URLs — so the check is scoped to one
+     *     language and never across them;
+     *   - `pages.slug` is still the page's neutral key, kept in step with the
+     *     DEFAULT language's address (docs/multilingual/ROUTING.md). It is
+     *     unique for its own reasons — stored redirects and `content_key`
+     *     were derived from it — so a default-language slug has to clear that
+     *     column too, even while a row exists in both places.
+     *
+     * A lookup that fails counts as TAKEN. Refusing a save the editor can
+     * retry is the safe direction; handing out an address that turns out to
+     * be somebody else's is not.
+     */
+    private static function slugIsTaken(
+        PageRepository $repository,
+        string $slug,
+        string $languageCode,
+        ?int $excludeId
+    ): bool {
+        try {
+            if (PageLocalization::slugExists($slug, $languageCode, $excludeId)) {
+                return true;
+            }
+        } catch (\Throwable $e) {
+            error_log('[PageService] localized slug check failed for "' . $slug . '": ' . $e->getMessage());
+
+            return true;
+        }
+
+        if ($languageCode !== PageLocalization::defaultLanguage()) {
+            return false;
+        }
+
+        return $repository->slugExists($slug, $excludeId);
     }
 
     /**
@@ -171,13 +222,39 @@ class PageService
      * @param array<string, mixed> $page    the stored `pages` row
      * @param string               $newSlug the sanitized slug this save would write
      */
-    public static function urlChangeNeedsConfirmation(array $page, string $newSlug, string $confirmedSlug): bool
-    {
+    public static function urlChangeNeedsConfirmation(
+        array $page,
+        string $newSlug,
+        string $confirmedSlug,
+        string $languageCode
+    ): bool {
         if (PageContent::isRouteBound($page)) {
             return false;
         }
 
-        return $newSlug !== (string) ($page['slug'] ?? '') && $newSlug !== $confirmedSlug;
+        // The address that is moving is THIS LANGUAGE's, not the page's
+        // neutral key: renaming the English version leaves /over-ons exactly
+        // where it is, and the editor must be asked about the URL they are
+        // actually changing. A language that has no address yet is not moving
+        // anything, so giving it one asks nothing.
+        $current = self::currentSlug($page, $languageCode);
+
+        if ($current === null) {
+            return false;
+        }
+
+        return $newSlug !== $current && $newSlug !== $confirmedSlug;
+    }
+
+    /**
+     * The address this page has in one language right now, or null when it
+     * has none there.
+     *
+     * @param array<string, mixed> $page
+     */
+    public static function currentSlug(array $page, string $languageCode): ?string
+    {
+        return PageContent::localizedSlug($page, $languageCode);
     }
 
     /**

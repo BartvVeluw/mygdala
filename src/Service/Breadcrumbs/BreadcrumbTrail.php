@@ -48,8 +48,11 @@ final class BreadcrumbTrail
     private const HOME_LABEL_NL = 'Home';
     private const HOME_LABEL_EN = 'Home';
 
-    /** The site root's address when its `pages` row cannot be read. */
-    private const HOME_FALLBACK_URL = '/';
+    /**
+     * The site root's address when its `pages` row cannot be read: the
+     * current language's home, which is "/" in the default language and
+     * "/en/" in every other (App\Service\Routing\LocalizedUrl).
+     */
 
     /** The content key of the site root, as index.php addresses it. */
     private const HOME_CONTENT_KEY = 'index';
@@ -132,7 +135,14 @@ final class BreadcrumbTrail
             return $this;
         }
 
-        return $this->to(BreadcrumbItem::link($route['label_nl'], $route['label_en'], $route['url']));
+        // The route's address in the language this page is being read in:
+        // a trail on /en/... must not drop a visitor back into the default
+        // language halfway up (docs/multilingual/ROUTING.md).
+        return $this->to(BreadcrumbItem::link(
+            $route['label_nl'],
+            $route['label_en'],
+            \App\Service\Routing\LocalizedUrl::path((string) $route['url'])
+        ));
     }
 
     /**
@@ -161,6 +171,8 @@ final class BreadcrumbTrail
     {
         $home = PageContent::forContentKey(self::HOME_CONTENT_KEY);
 
-        return $home === null ? self::HOME_FALLBACK_URL : PageContent::publicUrl($home);
+        return $home === null
+            ? \App\Service\Routing\LocalizedUrl::home()
+            : PageContent::publicUrl($home);
     }
 }

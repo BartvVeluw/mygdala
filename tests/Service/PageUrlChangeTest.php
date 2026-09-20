@@ -5,8 +5,11 @@ declare(strict_types=1);
 namespace Tests\Service;
 
 use App\Service\PageContent;
+use App\Service\PageLocalization;
 use App\Service\PageService;
+use App\Service\PageTranslation;
 use PHPUnit\Framework\TestCase;
+use Tests\Support\SiteLanguageFixture;
 
 /**
  * Changing a page's web address on purpose, and only on purpose.
@@ -25,13 +28,51 @@ use PHPUnit\Framework\TestCase;
  */
 final class PageUrlChangeTest extends TestCase
 {
+    private const PAGE_ID = 7;
+
+    protected function setUp(): void
+    {
+        SiteLanguageFixture::useBilingual('nl');
+    }
+
+    protected function tearDown(): void
+    {
+        SiteLanguageFixture::reset();
+        PageLocalization::clearCache();
+    }
+
     /**
+     * A page row plus the addresses it has per language — since Multilingual
+     * 2.0 phase 6 the address that is moving belongs to the language being
+     * edited, so a test about moving one has to say which language holds it.
+     *
+     * @param array<string, string> $slugs language code => that language's address
      * @return array<string, mixed>
      */
-    private static function page(string $slug, string $status = PageContent::STATUS_PUBLISHED, ?string $routePath = null): array
-    {
+    private static function page(
+        string $slug,
+        string $status = PageContent::STATUS_PUBLISHED,
+        ?string $routePath = null,
+        array $slugs = []
+    ): array {
+        $slugs = $slugs === [] ? ['nl' => $slug] : $slugs;
+
+        $translations = [];
+        foreach ($slugs as $code => $languageSlug) {
+            $translations[] = new PageTranslation(
+                pageId: self::PAGE_ID,
+                languageCode: (string) $code,
+                title: 'Titel',
+                metaTitle: null,
+                metaDescription: null,
+                slug: $languageSlug,
+            );
+        }
+
+        PageLocalization::overrideForTests(self::PAGE_ID, $translations);
+
         return [
-            'id' => 7,
+            'id' => self::PAGE_ID,
             'content_key' => 'test',
             'slug' => $slug,
             'status' => $status,
@@ -49,22 +90,41 @@ final class PageUrlChangeTest extends TestCase
 
     public function testASaveThatKeepsTheAddressIsNeverAskedAbout(): void
     {
-        $this->assertFalse(PageService::urlChangeNeedsConfirmation(self::page('over-ons'), 'over-ons', ''));
+        $this->assertFalse(PageService::urlChangeNeedsConfirmation(self::page('over-ons'), 'over-ons', '', 'nl'));
     }
 
     public function testANewAddressIsAskedAboutFirst(): void
     {
-        $this->assertTrue(PageService::urlChangeNeedsConfirmation(self::page('over-ons'), 'over-mij', ''));
+        $this->assertTrue(PageService::urlChangeNeedsConfirmation(self::page('over-ons'), 'over-mij', '', 'nl'));
+    }
+
+    public function testRenamingOneLanguageLeavesTheOthersAddressAlone(): void
+    {
+        $page = self::page('over-ons', slugs: ['nl' => 'over-ons', 'en' => 'about-us']);
+
+        // The English version moves, so the editor is asked about /en/about-us
+        // and not about /over-ons, which is not going anywhere.
+        $this->assertTrue(PageService::urlChangeNeedsConfirmation($page, 'who-we-are', '', 'en'));
+        $this->assertFalse(PageService::urlChangeNeedsConfirmation($page, 'about-us', '', 'en'));
+    }
+
+    public function testGivingALanguageItsFirstAddressMovesNothing(): void
+    {
+        // German had no public route at all, so nothing is being moved and
+        // there is nothing to confirm.
+        $page = self::page('over-ons', slugs: ['nl' => 'over-ons']);
+
+        $this->assertFalse(PageService::urlChangeNeedsConfirmation($page, 'ueber-uns', '', 'de'));
     }
 
     public function testTheConfirmedAddressGoesThrough(): void
     {
-        $this->assertFalse(PageService::urlChangeNeedsConfirmation(self::page('over-ons'), 'over-mij', 'over-mij'));
+        $this->assertFalse(PageService::urlChangeNeedsConfirmation(self::page('over-ons'), 'over-mij', 'over-mij', 'nl'));
     }
 
     public function testAnAddressChangedAgainAfterConfirmingIsAskedAboutAgain(): void
     {
-        $this->assertTrue(PageService::urlChangeNeedsConfirmation(self::page('over-ons'), 'wie-wij-zijn', 'over-mij'));
+        $this->assertTrue(PageService::urlChangeNeedsConfirmation(self::page('over-ons'), 'wie-wij-zijn', 'over-mij', 'nl'));
     }
 
     /**
@@ -75,14 +135,14 @@ final class PageUrlChangeTest extends TestCase
     public function testADraftIsAskedAboutToo(): void
     {
         $this->assertTrue(
-            PageService::urlChangeNeedsConfirmation(self::page('concept', PageContent::STATUS_DRAFT), 'concept-2', '')
+            PageService::urlChangeNeedsConfirmation(self::page('concept', PageContent::STATUS_DRAFT), 'concept-2', '', 'nl')
         );
     }
 
     public function testAPageOnAFixedUrlNeverAsks(): void
     {
         $this->assertFalse(
-            PageService::urlChangeNeedsConfirmation(self::page('shop', routePath: '/shop.php'), 'winkel', '')
+            PageService::urlChangeNeedsConfirmation(self::page('shop', routePath: '/shop.php'), 'winkel', '', 'nl')
         );
     }
 
@@ -118,7 +178,7 @@ final class PageUrlChangeTest extends TestCase
     {
         $source = self::source('api/admin/update-page.php');
 
-        $ask = strpos($source, 'PageService::urlChangeNeedsConfirmation($page, $slug, $confirmedSlug)');
+        $ask = strpos($source, 'PageService::urlChangeNeedsConfirmation($page, $slug, $confirmedSlug, $languageCode)');
         $write = strpos($source, '$repository->update(');
 
         $this->assertIsInt($ask);

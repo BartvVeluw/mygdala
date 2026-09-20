@@ -271,7 +271,13 @@ class RedirectSlugChangeTest extends TestCase
     {
         $source = (string) file_get_contents(dirname(__DIR__, 2) . '/api/admin/update-page.php');
 
-        $this->assertStringContainsString('(new SlugChangeRedirects())->record($oldSlug, $slug)', $source);
+        // The language is part of the call since Multilingual 2.0 phase 6:
+        // a rename is recorded in the URL space of the language it happened
+        // in (docs/multilingual/ROUTING.md).
+        $this->assertStringContainsString(
+            '(new SlugChangeRedirects())->record($oldSlug, $slug, $languageCode)',
+            $source
+        );
         $this->assertStringContainsString('$oldSlug !== $slug', $source, 'only a real slug change may write one');
         // The other three conditions — no fixed URL, was published, stays
         // published — live in one rule the confirmation screen asks as well;

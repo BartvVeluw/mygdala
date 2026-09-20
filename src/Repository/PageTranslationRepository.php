@@ -94,14 +94,21 @@ final class PageTranslationRepository extends Repository
      * open on the connection, as App\Service\PageTemplates\PageTemplateInstaller
      * needs.
      */
-    public function save(int $pageId, string $languageCode, ?string $title, ?string $metaTitle, ?string $metaDescription): void
-    {
+    public function save(
+        int $pageId,
+        string $languageCode,
+        ?string $title,
+        ?string $metaTitle,
+        ?string $metaDescription,
+        ?string $slug = null
+    ): void {
         $stmt = $this->db->prepare(
             'INSERT INTO page_translations
-                (page_id, language_code, title, meta_title, meta_description, created_at, updated_at)
+                (page_id, language_code, slug, title, meta_title, meta_description, created_at, updated_at)
              VALUES
-                (:page_id, :language_code, :title, :meta_title, :meta_description, NOW(), NOW())
+                (:page_id, :language_code, :slug, :title, :meta_title, :meta_description, NOW(), NOW())
              ON DUPLICATE KEY UPDATE
+                slug = :slug_update,
                 title = :title_update,
                 meta_title = :meta_title_update,
                 meta_description = :meta_description_update,
@@ -115,10 +122,63 @@ final class PageTranslationRepository extends Repository
             'title' => $title,
             'meta_title' => $metaTitle,
             'meta_description' => $metaDescription,
+            'slug' => $slug,
+            'slug_update' => $slug,
             'title_update' => $title,
             'meta_title_update' => $metaTitle,
             'meta_description_update' => $metaDescription,
         ]);
+    }
+
+    /**
+     * The published page one localized address belongs to, in one language.
+     *
+     * A `pages` row, reached through this table because the ADDRESS is what
+     * is being looked up and this table owns addresses. /en/about-us asks for
+     * the page whose ENGLISH address is "about-us", and gets nothing when
+     * only its Dutch address matches — resolving across languages here is
+     * exactly what would publish Dutch content under an English URL.
+     *
+     * A route-bound page can never come out of this: its address is its
+     * route, so its localized slug is NULL, and NULL never equals a submitted
+     * slug.
+     *
+     * @return array<string, mixed>|null a `pages` row
+     */
+    public function findPageBySlug(string $slug, string $languageCode): ?array
+    {
+        $stmt = $this->db->prepare(
+            "SELECT p.*
+               FROM page_translations t
+               JOIN pages p ON p.id = t.page_id
+              WHERE t.language_code = :language_code
+                AND t.slug = :slug
+                AND p.status = 'published'
+              LIMIT 1"
+        );
+        $stmt->execute(['language_code' => $languageCode, 'slug' => $slug]);
+        $row = $stmt->fetch();
+
+        return $row === false ? null : $row;
+    }
+
+    /** Is this address already taken IN THIS LANGUAGE by another page? */
+    public function slugExists(string $slug, string $languageCode, ?int $excludePageId = null): bool
+    {
+        if ($excludePageId !== null) {
+            $stmt = $this->db->prepare(
+                'SELECT 1 FROM page_translations
+                  WHERE language_code = :language_code AND slug = :slug AND page_id != :page_id LIMIT 1'
+            );
+            $stmt->execute(['language_code' => $languageCode, 'slug' => $slug, 'page_id' => $excludePageId]);
+        } else {
+            $stmt = $this->db->prepare(
+                'SELECT 1 FROM page_translations WHERE language_code = :language_code AND slug = :slug LIMIT 1'
+            );
+            $stmt->execute(['language_code' => $languageCode, 'slug' => $slug]);
+        }
+
+        return $stmt->fetch() !== false;
     }
 
     public function delete(int $pageId, string $languageCode): void

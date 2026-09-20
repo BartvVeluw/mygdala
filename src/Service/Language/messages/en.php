@@ -257,6 +257,7 @@ From the first label the CMS also makes the fixed name answers are stored under.
     // The web address of a page (admin/page.php, admin/page-new.php). The
     // technical word "slug" lives in help.page.url only.
     'page.url_label' => 'Web address',
+    'page.url_none_in_language' => 'This page has no web address in this language yet, so it cannot be visited in it. Fill in an address below to change that.',
     'page.url_fixed' => 'This web address is fixed because the website shows this page through a part of its own. You can still change the title, the SEO details and the content.',
     'page.url_change' => 'Change web address',
     'page.url_change_warning' => 'Careful: visitors, search engines and links outside your website, for example in e-mails or on social media, use the current address now. Only change it when you really need to.',

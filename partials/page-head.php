@@ -33,5 +33,25 @@ require_once __DIR__ . '/../vendor/autoload.php';
 
 use App\Service\PageSeo;
 
+/**
+ * WHICH LANGUAGE VERSIONS OF THIS PAGE EXIST, declared before the head is
+ * rendered so seo-head.php can turn them into hreflang alternates and the
+ * language switch can offer exactly the ones that answer
+ * (App\Service\Routing\LanguageAlternates, docs/multilingual/ROUTING.md).
+ *
+ * Declared here rather than in each of the templates that include this file,
+ * for the same reason the metadata is: every CMS page route goes through this
+ * partial, and a rule stated once cannot drift.
+ *
+ * A page with no row at all declares nothing, which leaves the switch on its
+ * assumed paths and renders no hreflang — the honest answer when we do not
+ * know what exists.
+ */
+if (($page ?? null) !== null) {
+    \App\Service\Routing\LanguageAlternates::declareVersions(
+        \App\Service\PageContent::localizedPaths($page)
+    );
+}
+
 $seoMetadata = PageSeo::forPage($page ?? null);
 require __DIR__ . '/seo-head.php';

@@ -540,12 +540,12 @@ final class SetupWizard
                 return null;
             }
 
-            if (PageService::validateSlug($repository, $slug, null) === null) {
+            if (PageService::validateSlug($repository, $slug, null, PageLocalization::defaultLanguage()) === null) {
                 return $slug;
             }
         }
 
-        return PageService::generateSlug($repository, $definition['title']);
+        return PageService::generateSlug($repository, $definition['title'], PageLocalization::defaultLanguage());
     }
 
     // -------------------------------------------------------------- writing
@@ -663,6 +663,10 @@ final class SetupWizard
                 // default language, as admin/page-new.php creates one. No SEO
                 // text is invented; the automatic title covers it.
                 PageLocalization::defaultLanguage() => [PageTranslation::TITLE => $definition['title']],
+            ], [
+                // And its address in that same language — a page without one
+                // has no public URL at all (docs/multilingual/ROUTING.md).
+                PageLocalization::defaultLanguage() => $slug,
             ]);
 
             $created[] = [

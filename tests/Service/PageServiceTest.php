@@ -93,11 +93,22 @@ class PageServiceTest extends TestCase
         $this->assertSame('', PageService::sanitizeSlug('***'));
     }
 
+    /**
+     * A slug belongs to ONE language since Multilingual 2.0 phase 6
+     * (docs/multilingual/ROUTING.md), so every call below says which. The
+     * default language is what a new page is created in, and the language
+     * whose address is kept in step with the neutral `pages.slug` column.
+     */
+    private function defaultLanguage(): string
+    {
+        return \App\Service\PageLocalization::defaultLanguage();
+    }
+
     public function testSlugIsSuggestedFromTheTitle(): void
     {
         $this->assertSame(
             'frequently-asked-questions',
-            PageService::generateSlug($this->repository, 'Frequently Asked Questions')
+            PageService::generateSlug($this->repository, 'Frequently Asked Questions', $this->defaultLanguage())
         );
     }
 
@@ -105,7 +116,7 @@ class PageServiceTest extends TestCase
     {
         $this->createPage('-dup');
 
-        $generated = PageService::generateSlug($this->repository, 'Testpagina dup');
+        $generated = PageService::generateSlug($this->repository, 'Testpagina dup', $this->defaultLanguage());
         $this->assertNotSame(self::PREFIX . '-dup', $generated);
     }
 
@@ -113,17 +124,21 @@ class PageServiceTest extends TestCase
     {
         $existingId = $this->createPage('-taken');
 
-        $this->assertNotNull(PageService::validateSlug($this->repository, self::PREFIX . '-taken', null));
+        $this->assertNotNull(
+            PageService::validateSlug($this->repository, self::PREFIX . '-taken', null, $this->defaultLanguage())
+        );
 
         // ...but a page may of course keep its own slug when saving itself.
-        $this->assertNull(PageService::validateSlug($this->repository, self::PREFIX . '-taken', $existingId));
+        $this->assertNull(
+            PageService::validateSlug($this->repository, self::PREFIX . '-taken', $existingId, $this->defaultLanguage())
+        );
     }
 
     public function testReservedSlugIsRejected(): void
     {
         foreach (['admin', 'api', 'shop', 'cart', 'checkout', 'product', 'pagina', 'storage'] as $reserved) {
             $this->assertNotNull(
-                PageService::validateSlug($this->repository, $reserved, null),
+                PageService::validateSlug($this->repository, $reserved, null, $this->defaultLanguage()),
                 "\"{$reserved}\" is an application route and must never be usable as a page slug"
             );
         }
@@ -131,7 +146,54 @@ class PageServiceTest extends TestCase
 
     public function testGeneratedSlugSkipsReservedRoutes(): void
     {
-        $this->assertNotSame('checkout', PageService::generateSlug($this->repository, 'Checkout'));
+        $this->assertNotSame(
+            'checkout',
+            PageService::generateSlug($this->repository, 'Checkout', $this->defaultLanguage())
+        );
+    }
+
+    /**
+     * A LANGUAGE CODE can never be a page slug: /en would be
+     * indistinguishable from the English prefix, and the dispatcher peels the
+     * prefix first — so the page would simply be unreachable
+     * (App\Service\Routing\ReservedPaths).
+     */
+    public function testALanguageCodeIsReservedAsASlug(): void
+    {
+        foreach (\App\Service\Language\SiteLanguages::all() as $language) {
+            $this->assertNotNull(
+                PageService::validateSlug($this->repository, $language->code, null, $this->defaultLanguage()),
+                'a page must never be able to claim the language word "' . $language->code . '"'
+            );
+        }
+    }
+
+    /**
+     * Two languages may spell the same address: /over-ons and /en/over-ons
+     * are different URLs. A clash is only a clash inside ONE language.
+     */
+    public function testTheSameWordIsFreeInAnotherLanguage(): void
+    {
+        $other = null;
+        foreach (\App\Service\Language\SiteLanguages::activeCodes() as $code) {
+            if ($code !== $this->defaultLanguage()) {
+                $other = $code;
+                break;
+            }
+        }
+
+        if ($other === null) {
+            $this->markTestSkipped('this installation publishes one language');
+        }
+
+        $this->createPage('-shared');
+
+        $this->assertNotNull(
+            PageService::validateSlug($this->repository, self::PREFIX . '-shared', null, $this->defaultLanguage())
+        );
+        $this->assertNull(
+            PageService::validateSlug($this->repository, self::PREFIX . '-shared', null, $other)
+        );
     }
 
     public function testContentKeyIsUniqueEvenWhenASlugIsReused(): void

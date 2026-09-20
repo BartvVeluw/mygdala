@@ -1500,11 +1500,18 @@ final class MultilingualBoundaryTest extends TestCase
         $update = self::read('api/admin/update-page.php');
         $create = self::read('api/admin/create-page.php');
 
-        self::assertStringContainsString('PageLocalization::save($id, $languageCode,', $update);
+        self::assertMatchesRegularExpression(
+            '/PageLocalization::save\(\s*\$id,\s*\$languageCode,/',
+            $update
+        );
         self::assertStringContainsString('SiteLanguages::isActive($languageCode)', $update, 'the language is checked against the registry before anything is written');
         self::assertMatchesRegularExpression('/\$title === \'\' && \$isDefaultLanguage/', $update, 'the title is required in the default language only');
 
-        self::assertStringContainsString('PageLocalization::defaultLanguage() => [', $create, 'a new page is written in the default language');
+        self::assertStringContainsString(
+            '$pageLanguage = PageLocalization::defaultLanguage();',
+            $create,
+            'a new page is written in the default language'
+        );
 
         foreach ([$update, $create] as $source) {
             self::assertStringNotContainsString('_en', self::withoutComments($source));

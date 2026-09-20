@@ -103,6 +103,92 @@ final class PageLocalization
         return $default === $languageCode ? '' : self::raw($pageId, $field, $default);
     }
 
+    /**
+     * This page's public address IN THIS LANGUAGE, or null when it has none
+     * (Multilingual 2.0 phase 6, docs/multilingual/ROUTING.md).
+     *
+     * THE ONE READER IN THIS CLASS WITH NO FALLBACK, and that is the point.
+     * Every field above falls back to the default language, because showing a
+     * visitor the words they can read beats showing them nothing. An address
+     * may not: falling back would publish this page in German at a URL that
+     * says it is the German version, when no German version exists. "No slug"
+     * therefore means "no route", and route existence is a different question
+     * from field fallback — see docs/multilingual/ROUTING.md.
+     *
+     * A route-bound page has no slug in any language; its address is its
+     * route (App\Service\PageContent::publicUrl()).
+     */
+    public static function slug(int $pageId, string $languageCode): ?string
+    {
+        $slug = self::translation($pageId, $languageCode)?->slug;
+
+        return ($slug === null || $slug === '') ? null : $slug;
+    }
+
+    /**
+     * Every language this page has a public address in, in registry order.
+     *
+     * What the language switch, the hreflang block and the sitemap all ask
+     * before they name a URL.
+     *
+     * @return list<string>
+     */
+    public static function routableLanguages(int $pageId): array
+    {
+        $codes = [];
+
+        foreach (SiteLanguages::activeCodes() as $code) {
+            if (self::slug($pageId, $code) !== null) {
+                $codes[] = $code;
+            }
+        }
+
+        return $codes;
+    }
+
+    /**
+     * The published page that owns one address in one language, or null.
+     *
+     * The public lookup behind every localized URL, here rather than on
+     * App\Repository\PageRepository because the ADDRESS is what is being
+     * looked up, and this class owns addresses along with the rest of
+     * `page_translations`.
+     *
+     * Reads never throw: a lookup that failed is a page that does not exist,
+     * which is what a visitor was about to be told anyway.
+     *
+     * @return array<string, mixed>|null a `pages` row
+     */
+    public static function pageForSlug(string $slug, string $languageCode): ?array
+    {
+        try {
+            return (new PageTranslationRepository())->findPageBySlug($slug, $languageCode);
+        } catch (\Throwable $e) {
+            error_log('[PageLocalization] address lookup failed for "' . $slug . '": ' . $e->getMessage());
+
+            return null;
+        }
+    }
+
+    /**
+     * Is this address already another page's, in this language?
+     *
+     * Asked by App\Service\PageService before it lets a save through; here
+     * because this class is the only reader of `page_translations`.
+     *
+     * @throws \RuntimeException when the question could not be answered —
+     *         a slug check that silently said "free" would hand out an
+     *         address that is somebody else's
+     */
+    public static function slugExists(string $slug, string $languageCode, ?int $excludePageId = null): bool
+    {
+        try {
+            return (new PageTranslationRepository())->slugExists($slug, $languageCode, $excludePageId);
+        } catch (\Throwable $e) {
+            throw new \RuntimeException('The localized page addresses could not be read.', 0, $e);
+        }
+    }
+
     /** The page's name in a language, with the fallback. */
     public static function title(int $pageId, string $languageCode): string
     {
@@ -179,10 +265,14 @@ final class PageLocalization
      * Takes part in a transaction already open on the shared connection.
      *
      * @param array<string, string|null> $fields keyed by PageTranslation::FIELDS; a missing key is empty
+     * @param string|null                $slug   this language's public address, or null for none.
+     *                                           Already sanitized and validated by the caller
+     *                                           (App\Service\PageService) — this class stores it,
+     *                                           it does not decide whether it is allowed.
      *
      * @throws \InvalidArgumentException when the language is not a registered website language
      */
-    public static function save(int $pageId, string $languageCode, array $fields): void
+    public static function save(int $pageId, string $languageCode, array $fields, ?string $slug = null): void
     {
         $code = LanguageCode::normalise($languageCode);
 
@@ -200,6 +290,7 @@ final class PageLocalization
             title: PageTranslation::textOrNull($fields[PageTranslation::TITLE] ?? null),
             metaTitle: PageTranslation::textOrNull($fields[PageTranslation::META_TITLE] ?? null),
             metaDescription: PageTranslation::textOrNull($fields[PageTranslation::META_DESCRIPTION] ?? null),
+            slug: PageTranslation::textOrNull($slug),
         );
 
         $repository = new PageTranslationRepository();
@@ -207,7 +298,14 @@ final class PageLocalization
         if ($translation->isEmpty()) {
             $repository->delete($pageId, $code);
         } else {
-            $repository->save($pageId, $code, $translation->title, $translation->metaTitle, $translation->metaDescription);
+            $repository->save(
+                $pageId,
+                $code,
+                $translation->title,
+                $translation->metaTitle,
+                $translation->metaDescription,
+                $translation->slug
+            );
         }
 
         unset(self::$cache[$pageId]);
@@ -244,7 +342,7 @@ final class PageLocalization
     public static function bilingual(int $pageId, string $field): LocalizedValue
     {
         $values = [];
-        foreach (LanguageRegistry::codes() as $code) {
+        foreach (\App\Service\Language\LanguageFallback::renderableLanguages() as $code) {
             $values[$code] = self::value($pageId, $field, $code);
         }
 

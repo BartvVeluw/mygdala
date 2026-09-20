@@ -262,6 +262,7 @@ Uit het eerste label maakt het CMS ook de vaste naam waaronder antwoorden worden
     // The web address of a page (admin/page.php, admin/page-new.php). The
     // technical word "slug" lives in help.page.url only.
     'page.url_label' => 'Webadres',
+    'page.url_none_in_language' => 'Deze pagina heeft nog geen webadres in deze taal en is er dus niet te bekijken. Vul hieronder een adres in om dat te veranderen.',
     'page.url_fixed' => 'Dit webadres ligt vast, omdat de website deze pagina met een eigen onderdeel toont. De titel, de SEO-gegevens en de inhoud kun je gewoon aanpassen.',
     'page.url_change' => 'Webadres wijzigen',
     'page.url_change_warning' => 'Let op: bezoekers, zoekmachines en links buiten je website, bijvoorbeeld in e-mails of op sociale media, gebruiken nu het huidige adres. Wijzig het alleen als dat echt nodig is.',

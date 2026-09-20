@@ -64,14 +64,20 @@ class PageSeo
             return SeoMetadata::create(titleNl: SeoDefaults::siteName(), canonical: null);
         }
 
-        // The head still carries the V1 NL/EN pair for the client-side
-        // language switch. Each half is one language of the page's text,
-        // read through App\Service\PageLocalization with its fallback.
-        return SeoMetadata::create(
-            titleNl: PageContent::seoTitle($page, LanguageRegistry::DUTCH),
-            titleEn: PageContent::seoTitle($page, LanguageRegistry::ENGLISH),
-            descriptionNl: PageContent::metaDescription($page, LanguageRegistry::DUTCH),
-            descriptionEn: PageContent::metaDescription($page, LanguageRegistry::ENGLISH),
+        // A page's text is stored per language, so the head gets it per
+        // language: the tag a crawler reads is the REQUEST's, and the V1
+        // NL/EN pair is derived from the same map
+        // (App\Service\SeoMetadata::createLocalized()).
+        $titles = [];
+        $descriptions = [];
+        foreach (\App\Service\Language\LanguageFallback::renderableLanguages() as $code) {
+            $titles[$code] = PageContent::seoTitle($page, $code);
+            $descriptions[$code] = PageContent::metaDescription($page, $code);
+        }
+
+        return SeoMetadata::createLocalized(
+            title: $titles,
+            description: $descriptions,
             canonical: PageContent::canonicalUrl($page),
             indexable: self::isIndexable($page),
             // Every CMS page is og:type "website". Nothing here guesses

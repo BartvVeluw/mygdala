@@ -20,6 +20,7 @@ use App\Service\Language\LanguageCode;
  */
 final class PageTranslation
 {
+    public const SLUG = 'slug';
     public const TITLE = 'title';
     public const META_TITLE = 'meta_title';
     public const META_DESCRIPTION = 'meta_description';
@@ -39,6 +40,20 @@ final class PageTranslation
         public readonly ?string $title,
         public readonly ?string $metaTitle,
         public readonly ?string $metaDescription,
+        /**
+         * This language's public address, or NULL when this language has no
+         * public route at all (Multilingual 2.0 phase 6,
+         * docs/multilingual/ROUTING.md).
+         *
+         * DELIBERATELY NOT ONE OF ::FIELDS. Those are words, and words fall
+         * back to the default language when a translation is missing. A slug
+         * does not and must not: a URL that falls back would publish one
+         * language's content under another language's address. NULL here is
+         * "there is no version of this page in this language", full stop —
+         * see App\Service\PageLocalization::slug(), which has no fallback
+         * where every other reader there has one.
+         */
+        public readonly ?string $slug = null,
     ) {
     }
 
@@ -61,6 +76,7 @@ final class PageTranslation
             title: self::textOrNull($row[self::TITLE] ?? null),
             metaTitle: self::textOrNull($row[self::META_TITLE] ?? null),
             metaDescription: self::textOrNull($row[self::META_DESCRIPTION] ?? null),
+            slug: self::textOrNull($row[self::SLUG] ?? null),
         );
     }
 
@@ -79,10 +95,20 @@ final class PageTranslation
         };
     }
 
-    /** No words in any field: a row like this is not stored at all. */
+    /**
+     * Nothing at all in this language: no words AND no address, so the row
+     * carries nothing and is not stored.
+     *
+     * The slug counts. A language that has only an address is still a
+     * language this page is routable in, and deleting that row would take a
+     * live URL away as a side effect of an empty title.
+     */
     public function isEmpty(): bool
     {
-        return $this->title === null && $this->metaTitle === null && $this->metaDescription === null;
+        return $this->title === null
+            && $this->metaTitle === null
+            && $this->metaDescription === null
+            && $this->slug === null;
     }
 
     /**

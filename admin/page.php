@@ -210,6 +210,23 @@ $fieldValue = static function (string $key) use ($old, $page): string {
  * words (App\Service\PageLocalization::raw()). Handed-back input only counts
  * when it was typed in this same language.
  */
+/**
+ * The web address of the language being edited (Multilingual 2.0 phase 6,
+ * docs/multilingual/ROUTING.md). A refused save's own input wins, as it does
+ * for every other field, but only when it was typed in THIS language — moving
+ * to another tab must show that language's stored address rather than the one
+ * that was just refused somewhere else.
+ *
+ * '' means this language has no public address yet, which is a real state:
+ * the page then has no URL in it at all, and the editor gives it one here.
+ */
+$slugValue = static function () use ($old, $pageId, $editLanguage): string {
+    if ($old !== null && ($old['language_code'] ?? null) === $editLanguage && array_key_exists('slug', $old)) {
+        return (string) ($old['slug'] ?? '');
+    }
+
+    return (string) (PageLocalization::slug($pageId, $editLanguage) ?? '');
+};
 $textValue = static function (string $field) use ($old, $pageId, $editLanguage): string {
     if ($old !== null && ($old['language_code'] ?? null) === $editLanguage && array_key_exists($field, $old)) {
         return (string) ($old[$field] ?? '');
@@ -282,7 +299,8 @@ $forcedTab = ($errors !== [] || $pagesError !== null || $urlChange !== null) ? '
 // editor sees what they typed instead of a closed "Webadres wijzigen".
 $urlFieldOpen = !$hasFixedUrl
     && $old !== null
-    && PageService::sanitizeSlug((string) ($old['slug'] ?? '')) !== (string) $page['slug'];
+    && ($old['language_code'] ?? null) === $editLanguage
+    && PageService::sanitizeSlug((string) ($old['slug'] ?? '')) !== (string) (PageLocalization::slug($pageId, $editLanguage) ?? '');
 ?>
 <!doctype html>
 <html lang="<?= htmlspecialchars(\App\Service\Language\AdminLocale::current(), ENT_QUOTES, 'UTF-8') ?>">
@@ -429,9 +447,24 @@ $urlFieldOpen = !$hasFixedUrl
           <span><?= admin_te('page.url_label') ?></span>
           <?= admin_help(admin_t('page.url_label'), admin_t('help.page.url')) ?>
         </div>
+        <?php
+        /**
+         * The address this page has IN THE LANGUAGE BEING EDITED, or a plain
+         * note that it has none there yet. A link to another language's
+         * version under the heading "web address" would be the one thing this
+         * screen must not say (docs/multilingual/ROUTING.md): a page is
+         * reachable per language, and an editor deciding whether to write a
+         * German version needs to see that there is no German URL.
+         */
+        $currentLocalizedPath = PageContent::localizedPath($page, $editLanguage);
+        ?>
+        <?php if ($currentLocalizedPath === null): ?>
+          <p class="admin-url-field__current admin-text-muted"><?= admin_te('page.url_none_in_language') ?></p>
+        <?php else: ?>
         <p class="admin-url-field__current">
-          <a href="<?= $h(PageContent::publicUrl($page)) ?>" target="_blank" rel="noopener"><?= $h(PageContent::canonicalUrl($page)) ?></a>
+          <a href="<?= $h($currentLocalizedPath) ?>" target="_blank" rel="noopener"><?= $h(AppUrl::canonical($currentLocalizedPath)) ?></a>
         </p>
+        <?php endif; ?>
         <?php if ($hasFixedUrl): ?>
           <p class="admin-text-muted"><?= admin_te('page.url_fixed') ?></p>
         <?php else: ?>
@@ -468,8 +501,12 @@ $urlFieldOpen = !$hasFixedUrl
               <div class="admin-field">
                 <?= admin_field_label('page-slug', admin_t('page.url_new')) ?>
                 <div class="admin-url-input">
-                  <span class="admin-url-input__base" aria-hidden="true"><?= $h(AppUrl::canonical('/')) ?></span>
-                  <input type="text" id="page-slug" name="slug" maxlength="<?= PageService::MAX_SLUG_LENGTH ?>" value="<?= $h($fieldValue('slug')) ?>" autocomplete="off" spellcheck="false">
+                  <?php /* The base of THIS language's addresses: no prefix for
+                           the default language, "/en/" for every other one
+                           (App\Service\Routing\LocalizedUrl), so an editor
+                           sees the URL they are actually making. */ ?>
+                  <span class="admin-url-input__base" aria-hidden="true"><?= $h(AppUrl::canonical(\App\Service\Routing\LocalizedUrl::home($editLanguage))) ?></span>
+                  <input type="text" id="page-slug" name="slug" maxlength="<?= PageService::MAX_SLUG_LENGTH ?>" value="<?= $h($slugValue()) ?>" autocomplete="off" spellcheck="false">
                 </div>
               </div>
             </div>

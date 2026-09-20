@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Service\Redirects;
 
 use App\Repository\RedirectRepository;
+use App\Service\Routing\LocalizedUrl;
 
 /**
  * Keeps a renamed CMS page's OLD URL working, automatically.
@@ -56,13 +57,21 @@ final class SlugChangeRedirects
     /**
      * Records that a published page moved from one slug to another.
      *
-     * Both arguments are raw slugs as stored on the `pages` row, not paths.
+     * Both slug arguments are raw slugs, not paths. $languageCode says which
+     * language's URL space they live in; null means the request's, which for
+     * the default language is the unprefixed one this method always used.
+     *
      * Returns true when a redirect for the old path now exists.
      */
-    public function record(string $oldSlug, string $newSlug): bool
+    public function record(string $oldSlug, string $newSlug, ?string $languageCode = null): bool
     {
-        $oldPath = RedirectPath::normalize('/' . ltrim(trim($oldSlug), '/'));
-        $newPath = RedirectPath::normalize('/' . ltrim(trim($newSlug), '/'));
+        // The slugs belong to ONE language, and so do the paths built from
+        // them (Multilingual 2.0 phase 6): renaming the English version of a
+        // page records /en/old -> /en/new. The default language has no
+        // prefix, so every redirect written before phase 6 keeps exactly the
+        // shape it already had.
+        $oldPath = RedirectPath::normalize(LocalizedUrl::path('/' . ltrim(trim($oldSlug), '/'), $languageCode));
+        $newPath = RedirectPath::normalize(LocalizedUrl::path('/' . ltrim(trim($newSlug), '/'), $languageCode));
 
         if ($oldPath === null || $newPath === null || $oldPath === $newPath || $oldPath === '/') {
             return false;

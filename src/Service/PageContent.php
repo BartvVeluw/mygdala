@@ -7,6 +7,7 @@ namespace App\Service;
 use App\Module\ModuleRegistry;
 use App\Repository\PageRepository;
 use App\Repository\PageSectionRepository;
+use App\Service\Routing\RequestLanguage;
 
 /**
  * Public read side of the unified CMS page model (pagina.php, the six
@@ -66,23 +67,48 @@ class PageContent
      *
      * @return array<string, mixed>|null
      */
-    public static function forSlug(string $slug): ?array
+    public static function forSlug(string $slug, ?string $language = null): ?array
     {
         if ($slug === '') {
             return null;
         }
 
-        $cacheKey = 'slug:' . $slug;
+        // Since Multilingual 2.0 phase 6 a slug belongs to ONE language
+        // (docs/multilingual/ROUTING.md): /over-ons asks for the page whose
+        // Dutch address is "over-ons", /en/about-us for the page whose
+        // English address is "about-us". A lookup that fell through to
+        // another language would answer a German URL with Dutch content,
+        // which is precisely what this phase exists to make impossible.
+        $language ??= RequestLanguage::current();
+
+        $cacheKey = 'slug:' . $language . ':' . $slug;
         if (array_key_exists($cacheKey, self::$cache)) {
             return self::$cache[$cacheKey];
         }
 
-        try {
-            $page = (new PageRepository())->findBySlugPublished($slug);
-        } catch (\Throwable $e) {
-            error_log('[PageContent] forSlug lookup failed for "' . $slug . '": ' . $e->getMessage());
+        $page = PageLocalization::pageForSlug($slug, $language);
 
-            return self::$cache[$cacheKey] = null;
+        /**
+         * THE NEUTRAL COLUMN IS THE DEFAULT LANGUAGE'S ADDRESS, and it is
+         * consulted when `page_translations` has no row for it.
+         *
+         * db/migrations/20260920100000 keeps the two byte-identical, which is
+         * what makes every URL of every existing installation keep answering.
+         * This fallback is what keeps that true for a page created AFTER the
+         * migration by a path that only wrote `pages.slug` — a fixture, a
+         * script, a future endpoint — instead of letting it become a page
+         * that exists and cannot be visited.
+         *
+         * ONLY FOR THE DEFAULT LANGUAGE. Doing it for any other would answer
+         * /de/over-ons with the Dutch page, which is the one thing this phase
+         * exists to make impossible.
+         */
+        if ($page === null && $language === \App\Service\Routing\LanguageResolver::defaultLanguage()) {
+            try {
+                $page = (new PageRepository())->findBySlugPublished($slug);
+            } catch (\Throwable $e) {
+                error_log('[PageContent] forSlug fallback failed for "' . $slug . '": ' . $e->getMessage());
+            }
         }
 
         return self::$cache[$cacheKey] = $page;
@@ -240,13 +266,124 @@ class PageContent
      * ('/', '/shop.php', ...); every other page lives at /<slug> via
      * .htaccess -> pagina.php.
      */
-    public static function publicUrl(array $page): string
+    public static function publicUrl(array $page, ?string $language = null): string
     {
-        if (self::isRouteBound($page)) {
-            return trim((string) $page['route_path']);
+        $language ??= RequestLanguage::current();
+
+        $localized = self::localizedPath($page, $language);
+        if ($localized !== null) {
+            return $localized;
         }
 
-        return '/' . ltrim((string) $page['slug'], '/');
+        /**
+         * NO VERSION IN THIS LANGUAGE, so this link goes to the DEFAULT
+         * language's address (docs/multilingual/ROUTING.md, "Links to content
+         * without a route in this language").
+         *
+         * That is the opposite of what the language SWITCH does, and
+         * deliberately so. A menu item, a card or a CTA is somebody asking to
+         * go THERE: landing on a real page in another language beats landing
+         * on nothing, and the page they land on says in its own canonical tag
+         * and <html lang> which language it is. "Read this page in German",
+         * on the other hand, has no honest answer when there is no German
+         * page — so App\Service\Routing\LanguageSwitch renders that option
+         * unavailable instead of sending the visitor somewhere else.
+         */
+        return self::localizedPath($page, \App\Service\Routing\LanguageResolver::defaultLanguage())
+            ?? \App\Service\Routing\LocalizedUrl::path('/' . ltrim((string) $page['slug'], '/'), $language);
+    }
+
+    /**
+     * This page's address IN THIS LANGUAGE, or null when it has no version
+     * there.
+     *
+     * The honest half of publicUrl(): what the language switch, the hreflang
+     * block and the sitemap ask, because all three may only ever name a URL
+     * that really answers.
+     *
+     * A ROUTE-BOUND page has a version in every language: its address is its
+     * route, there is no slug that could be missing, and /en/shop.php is the
+     * English rendering of the same template. A page whose module is switched
+     * off has none at all — that URL answers 404 in every language.
+     *
+     * @param array<string, mixed> $page
+     */
+    public static function localizedPath(array $page, string $language): ?string
+    {
+        if (self::isRouteBound($page)) {
+            return self::isServedByAnEnabledModule($page)
+                ? \App\Service\Routing\LocalizedUrl::path(trim((string) $page['route_path']), $language)
+                : null;
+        }
+
+        $slug = self::localizedSlug($page, $language);
+
+        return $slug === null
+            ? null
+            : \App\Service\Routing\LocalizedUrl::path('/' . $slug, $language);
+    }
+
+    /**
+     * THE address of one page in one language, as a bare slug, or null when
+     * it has none there.
+     *
+     * One definition, used by the URL builder above and by the write side
+     * (App\Service\PageService), so "has this language an address" cannot be
+     * answered two ways.
+     *
+     * For the DEFAULT language the neutral `pages.slug` stands in when
+     * `page_translations` holds none: db/migrations/20260920100000 keeps the
+     * two byte-identical, and that fallback is what stops a page created by a
+     * path that only wrote the neutral column from silently having no URL at
+     * all. Every other language has an address only when it really has one —
+     * doing this for them would answer /de/over-ons with the Dutch page.
+     *
+     * A route-bound page has no slug in any language; its address is its
+     * route.
+     *
+     * @param array<string, mixed> $page
+     */
+    public static function localizedSlug(array $page, string $language): ?string
+    {
+        if (self::isRouteBound($page)) {
+            return null;
+        }
+
+        $slug = PageLocalization::slug((int) ($page['id'] ?? 0), $language);
+
+        if ($slug !== null) {
+            return $slug;
+        }
+
+        if ($language !== \App\Service\Routing\LanguageResolver::defaultLanguage()) {
+            return null;
+        }
+
+        $neutral = trim((string) ($page['slug'] ?? ''));
+
+        return $neutral === '' ? null : $neutral;
+    }
+
+    /**
+     * Every language this page can be reached in, code => site-relative path,
+     * for App\Service\Routing\LanguageAlternates.
+     *
+     * @param array<string, mixed> $page
+     * @return array<string, string>
+     */
+    public static function localizedPaths(array $page): array
+    {
+        $paths = [];
+
+        foreach (\App\Service\Language\SiteLanguages::activeCodes() as $code) {
+            $path = self::localizedPath($page, $code);
+
+            if ($path !== null) {
+                $paths[$code] = $path;
+            }
+        }
+
+        return $paths;
     }
 
     /**
@@ -300,9 +437,9 @@ class PageContent
      * public URL without its leading slash, so the homepage ('/') canonicals
      * to the bare base URL exactly as index.php did before.
      */
-    public static function canonicalPath(array $page): string
+    public static function canonicalPath(array $page, ?string $language = null): string
     {
-        return ltrim(self::publicUrl($page), '/');
+        return ltrim(self::publicUrl($page, $language), '/');
     }
 
     /**
@@ -312,9 +449,9 @@ class PageContent
      * and the sitemap both call this, so a page can never be listed in the
      * sitemap under a URL different from its own <link rel="canonical">.
      */
-    public static function canonicalUrl(array $page): string
+    public static function canonicalUrl(array $page, ?string $language = null): string
     {
-        return AppUrl::canonical(self::canonicalPath($page));
+        return AppUrl::canonical(self::canonicalPath($page, $language));
     }
 
     /**

@@ -93,7 +93,11 @@ class LinkResolver
                 }
 
                 return [
-                    'href' => $url,
+                    // In the language this page is being read in. A menu on
+                    // /en/... keeps the visitor there
+                    // (docs/multilingual/ROUTING.md); the stored row is
+                    // language-neutral and says only WHICH route it means.
+                    'href' => \App\Service\Routing\LocalizedUrl::path($url),
                     'open_in_new_tab' => $openInNewTab,
                     'rel' => $openInNewTab ? 'noopener noreferrer' : null,
                     'is_action' => false,

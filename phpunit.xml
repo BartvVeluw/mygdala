@@ -439,6 +439,7 @@
             <file>tests/Service/LanguageCodeTest.php</file>
             <file>tests/Service/SiteLanguagesTest.php</file>
             <file>tests/Service/PageLocalizationTest.php</file>
+            <file>tests/Service/PageLocalizedRoutingTest.php</file>
             <file>tests/Service/EntityTranslationsTest.php</file>
             <file>tests/Service/PortfolioLocalizationTest.php</file>
             <file>tests/Service/ShopLocalizationTest.php</file>

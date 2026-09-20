@@ -6,6 +6,8 @@ namespace App\Service\Redirects;
 
 use App\Repository\PageRepository;
 use App\Repository\RedirectRepository;
+use App\Service\Routing\LanguageResolver;
+use App\Service\Routing\LocalizedUrl;
 use App\Service\ReservedRoutes;
 
 /**
@@ -143,7 +145,23 @@ final class RedirectValidator
      */
     public function routeOwner(string $source): ?string
     {
-        $segments = array_values(array_filter(explode('/', $source), static fn (string $s): bool => $s !== ''));
+        /**
+         * A SOURCE MAY CARRY A LANGUAGE PREFIX, and it is peeled off before
+         * anything else is asked (Multilingual 2.0 phase 6,
+         * docs/multilingual/ROUTING.md). /en/old-address is a real, storable
+         * source — that is the shape a renamed English page produces — and
+         * what decides whether it collides with live content is the REST of
+         * the path, looked up in THAT language. Asking the reserved list
+         * about "en" would refuse every redirect a translated page ever
+         * needs.
+         *
+         * A bare "/en" is that language's homepage, and a homepage is no more
+         * redirectable than "/" is.
+         */
+        [$bare, $prefixLanguage] = LocalizedUrl::strip($source);
+        $language = $prefixLanguage ?? LanguageResolver::defaultLanguage();
+
+        $segments = array_values(array_filter(explode('/', $bare), static fn (string $s): bool => $s !== ''));
 
         if ($segments === []) {
             return 'De homepage kan niet worden doorgestuurd.';
@@ -172,7 +190,12 @@ final class RedirectValidator
         }
 
         if (count($segments) === 1) {
-            $page = $this->pages->findBySlugPublished($first);
+            // Through PageContent, so this asks the same question a visitor's
+            // URL does — including the default language's neutral-column
+            // address (App\Service\PageContent::forSlug()). Asking the
+            // translation store alone would let a redirect be written on top
+            // of a page that is perfectly reachable.
+            $page = \App\Service\PageContent::forSlug($first, $language);
             if ($page !== null) {
                 return 'Er bestaat al een gepubliceerde pagina op dit pad ("' . $first . '").';
             }

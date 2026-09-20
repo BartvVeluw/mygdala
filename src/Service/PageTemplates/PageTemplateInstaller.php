@@ -62,14 +62,25 @@ final class PageTemplateInstaller
      * result is indistinguishable from a page an editor built block by
      * block, which is the whole point (PAGE-TEMPLATES.md).
      *
+     * $slugs is the page's public address per language (Multilingual 2.0
+     * phase 6): a language named here becomes routable, one that is not has
+     * no public URL at all. A caller that names none — every test fixture, and
+     * anything creating a route-bound page — gets a page whose only address is
+     * the neutral `pages.slug`, which is what this project had before phase 6.
+     *
      * @param array<string, mixed> $pageData the resolved `pages` row fields
      * @param array<string, array<string, string|null>> $translations language code => the page's text in it
+     * @param array<string, string> $slugs language code => that language's slug
      *
      * @throws \RuntimeException when the template names a block that cannot be placed
      * @throws \InvalidArgumentException when a language is not a registered website language
      */
-    public static function install(PageTemplateDefinition $template, array $pageData, array $translations = []): int
-    {
+    public static function install(
+        PageTemplateDefinition $template,
+        array $pageData,
+        array $translations = [],
+        array $slugs = []
+    ): int {
         $blocks = $template->blocks();
 
         // Checked BEFORE anything is written, and against the same registry
@@ -88,7 +99,17 @@ final class PageTemplateInstaller
             $pageId = $pageRepository->create($pageData);
 
             foreach ($translations as $languageCode => $fields) {
-                PageLocalization::save($pageId, (string) $languageCode, $fields);
+                $code = (string) $languageCode;
+                PageLocalization::save($pageId, $code, $fields, $slugs[$code] ?? null);
+            }
+
+            // A language that has an address but no words is still a language
+            // this page is routable in, so its row has to be written too.
+            foreach ($slugs as $languageCode => $slug) {
+                $code = (string) $languageCode;
+                if (!array_key_exists($code, $translations)) {
+                    PageLocalization::save($pageId, $code, [], $slug);
+                }
             }
 
             $page = $pageRepository->findById($pageId);
