@@ -182,5 +182,28 @@ final class PageLocalizedRoutingTest extends TestCase
         // moved, and both versions are still reachable.
         self::assertSame('/' . $neutral . '-en', PageContent::localizedPath($page, 'en'));
         self::assertSame('/nl/' . $neutral, PageContent::localizedPath($page, 'nl'));
+
+        // The lookup has to agree with the path in BOTH directions.
+        PageContent::clearCache();
+        self::assertNotNull(PageContent::forSlug($neutral . '-en', 'en'));
+        self::assertNotNull(PageContent::forSlug($neutral, 'nl'));
+
+        // REGRESSION, found by flipping the default language on a real site:
+        // `pages.slug` still holds the OLD default's slug, and the neutral
+        // column answers for the default language — so /<dutch-slug> served
+        // the English page as a second URL for one version.
+        self::assertNull(
+            PageContent::forSlug($neutral, 'en'),
+            'the neutral column is no second address for a page that has its own'
+        );
+    }
+
+    public function testTheNeutralColumnIsNoSecondAddressForAPageThatHasItsOwn(): void
+    {
+        $neutral = self::PREFIX . '-own';
+        $this->page('-own', ['nl' => $neutral . '-eigen']);
+
+        self::assertNotNull(PageContent::forSlug($neutral . '-eigen', 'nl'));
+        self::assertNull(PageContent::forSlug($neutral, 'nl'), 'one version, one address');
     }
 }

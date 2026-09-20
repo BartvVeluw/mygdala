@@ -450,4 +450,62 @@ final class DispatcherRoutingTest extends TestCase
             $response['headers']
         );
     }
+
+    // ------------------------------------------------ the default-language flip
+
+    /**
+     * "No prefix" means THE CURRENT DEFAULT LANGUAGE, never "Dutch". Proven
+     * over HTTP with the registry really flipped, and flipped back whatever
+     * happens in between.
+     *
+     * The last assertion inside the flip is a REGRESSION: the neutral
+     * `pages.slug` still holds the old default's slug, and it used to answer
+     * for the new default language as a second URL of the same version
+     * (App\Service\Routing\LocalizedSlug::answersTo()).
+     */
+    public function testFlippingTheDefaultLanguageMovesThePrefixesAndNothingElse(): void
+    {
+        $other = $this->otherLanguage();
+        if ($other === null) {
+            $this->markTestSkipped('this installation publishes one language');
+        }
+
+        $default = $this->defaultLanguage();
+        $defaultSlug = self::PREFIX . '-flip';
+        $otherSlug = self::PREFIX . '-flip-' . $other;
+
+        $this->page('-flip', [$default => $defaultSlug, $other => $otherSlug]);
+
+        self::assertSame(200, $this->get('/' . $defaultSlug)['status']);
+        self::assertSame(200, $this->get('/' . $other . '/' . $otherSlug)['status']);
+
+        \App\Service\Language\SiteLanguages::setDefault($other);
+
+        try {
+            $unprefixed = $this->get('/' . $otherSlug);
+            self::assertSame(200, $unprefixed['status'], 'the new default language lost its prefix');
+            self::assertStringContainsString('lang="' . $other . '"', $unprefixed['body']);
+
+            $prefixed = $this->get('/' . $default . '/' . $defaultSlug);
+            self::assertSame(200, $prefixed['status'], 'the old default language gained one');
+            self::assertStringContainsString('lang="' . $default . '"', $prefixed['body']);
+
+            $old = $this->get('/' . $other . '/' . $otherSlug);
+            self::assertSame(301, $old['status']);
+            self::assertSame('/' . $otherSlug, $old['location'], 'the default language never keeps its prefix');
+
+            self::assertSame(
+                404,
+                $this->get('/' . $defaultSlug)['status'],
+                'the neutral column is no second address for a page that has its own'
+            );
+        } finally {
+            \App\Service\Language\SiteLanguages::setDefault($default);
+            PageLocalization::clearCache();
+            PageContent::clearCache();
+        }
+
+        self::assertSame(200, $this->get('/' . $defaultSlug)['status'], 'and flipping back restores every URL');
+        self::assertSame(200, $this->get('/' . $other . '/' . $otherSlug)['status']);
+    }
 }

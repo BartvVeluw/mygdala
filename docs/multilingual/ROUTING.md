@@ -270,6 +270,35 @@ wijst, waar de opgeslagen redirects tegen geschreven zijn en waar
 `content_key` van is afgeleid. De **standaardtaal-slug wordt er byte-identiek
 aan gehouden**, en daarom verhuist geen enkele bestaande URL.
 
+### Opzoeken volgt dezelfde regel als opbouwen
+
+`App\Service\Routing\LocalizedSlug` zegt wat het adres van een rij in een taal
+is: de slug van die taal, anders de neutrale kolom **alleen voor de
+standaardtaal**, anders geen adres. Het opzoeken van een rij bij een slug
+(`PageContent::forSlug()`, `BlogContent`, `CollectionContent`) vraagt eerst de
+vertaaltabel en daarna, voor de standaardtaal, de neutrale kolom — maar een
+neutrale treffer telt alleen wanneer `LocalizedSlug::answersTo()` hem
+bevestigt. Een rij met een eigen adres in die taal is dus **alleen** op dat
+adres bereikbaar.
+
+### De standaardtaal wisselen
+
+Er is nog geen beheerscherm voor; `SiteLanguages::setDefault()` bestaat wel, en
+het contract houdt er rekening mee. Na een wissel van NL naar EN:
+
+- verhuizen de **prefixen**, niet de slugs: `/about-us` en `/nl/over-ons`;
+  `/en/about-us` stuurt met één 301 naar `/about-us`;
+- volgen canonical, `hreflang`, `x-default` en de sitemap vanzelf;
+- antwoordt de **oude** standaardtaal-URL `/over-ons` met 404, want de neutrale
+  kolom is geen tweede adres. Er worden **geen redirects aangemaakt**: wie een
+  live site wisselt, zet de oude URL's zelf in de Redirect Manager;
+- is een pagina zonder woorden in de nieuwe standaardtaal nog steeds bereikbaar
+  op zijn neutrale slug. Dat is de compatibiliteitsregel van hierboven, en een
+  reden om eerst te vertalen en dan pas te wisselen.
+
+Terugwisselen herstelt exact de oude toestand; op de speelinstallatie was de
+URL-tabel na NL → EN → NL identiek aan die ervoor.
+
 Geen adres per taal krijgen:
 
 - **producten** — die hebben helemaal geen slug-URL: één pagina op

@@ -111,6 +111,12 @@ class CollectionContent
 
             if ($collection === null && $language === LanguageResolver::defaultLanguage()) {
                 $collection = $repository->findBySlug($slug);
+
+                // ...and only for a collection with NO address of its own in
+                // this language (App\Service\Routing\LocalizedSlug::answersTo()).
+                if ($collection !== null && ShopLocalization::collectionSlug($collection, $language) !== $slug) {
+                    $collection = null;
+                }
             }
         } catch (\Throwable $e) {
             error_log('[CollectionContent] forPublicPage lookup failed for "' . $slug . '": ' . $e->getMessage());

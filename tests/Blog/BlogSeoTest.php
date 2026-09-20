@@ -282,6 +282,36 @@ final class BlogSeoTest extends TestCase
         }
     }
 
+    /**
+     * REGRESSION, found by flipping the default language on a real site. The
+     * neutral `blog_posts.slug` answers for the default language, but only for
+     * a post that has NO address of its own there — otherwise one version of a
+     * post is reachable at two URLs
+     * (App\Service\Routing\LocalizedSlug::answersTo()).
+     */
+    public function testTheNeutralSlugIsNoSecondAddressForAPostThatHasItsOwn(): void
+    {
+        $default = BlogLocalization::defaultLanguage();
+
+        $post = $this->post(['title' => 'Testbericht eigen adres', 'status' => BlogPostStatus::PUBLISHED, 'published_at' => '-1 hour']);
+        $neutral = (string) $post['slug'];
+        $own = $neutral . '-eigen';
+
+        $this->assertNotNull(
+            \App\Service\Blog\BlogContent::post($neutral, $default),
+            'a post with only its neutral slug is still reachable'
+        );
+
+        BlogLocalization::savePost((int) $post['id'], $default, [
+            BlogLocalization::SLUG => $own,
+            BlogLocalization::TITLE => 'Testbericht eigen adres',
+        ]);
+        BlogLocalization::clearCache();
+
+        $this->assertNotNull(\App\Service\Blog\BlogContent::post($own, $default));
+        $this->assertNull(\App\Service\Blog\BlogContent::post($neutral, $default), 'one version, one address');
+    }
+
     public function testAnEmptyOrInactiveCategoryIsNotInTheSitemapButAFilledOneIs(): void
     {
         $filled = $this->category('Testcategorie gevuld');

@@ -52,4 +52,25 @@ final class LocalizedSlug
 
         return $neutral === '' ? null : $neutral;
     }
+
+    /**
+     * The same rule read BACKWARDS: a row was found by its NEUTRAL slug — is
+     * that slug really its address in this language?
+     *
+     * Every lookup (App\Service\PageContent::forSlug(), the Blog's and the
+     * Shop's) asks the translation store first and the neutral column second.
+     * That second step used to accept whatever it found, which is only right
+     * while the two columns agree. They stop agreeing the moment the default
+     * language changes: `pages.slug` still holds "over-ons", the new default's
+     * own address is "about-us", and /over-ons answered with the English page
+     * — a second URL for one version, under a slug resolve() would never have
+     * produced. Found by flipping the default language on a real site.
+     *
+     * So the neutral match counts only when resolve() agrees with it, and a
+     * row's address can never be answered two ways.
+     */
+    public static function answersTo(string $requested, ?string $localized, ?string $neutral, string $language): bool
+    {
+        return self::resolve($localized, $neutral, $language) === $requested;
+    }
 }

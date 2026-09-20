@@ -109,6 +109,18 @@ class PageContent
             } catch (\Throwable $e) {
                 error_log('[PageContent] forSlug fallback failed for "' . $slug . '": ' . $e->getMessage());
             }
+
+            // ...and only for a page that has NO address of its own in this
+            // language. One that has is reached by that address and by no
+            // other (App\Service\Routing\LocalizedSlug::answersTo()).
+            if ($page !== null && !\App\Service\Routing\LocalizedSlug::answersTo(
+                $slug,
+                PageLocalization::slug((int) $page['id'], $language),
+                (string) ($page['slug'] ?? ''),
+                $language
+            )) {
+                $page = null;
+            }
         }
 
         return self::$cache[$cacheKey] = $page;

@@ -182,6 +182,12 @@ final class BlogContent
 
         if ($row === null && $language === LanguageResolver::defaultLanguage()) {
             $row = $repository->findPublicBySlug($slug, $now);
+
+            // ...and only for a post with NO address of its own in this
+            // language (App\Service\Routing\LocalizedSlug::answersTo()).
+            if ($row !== null && BlogLocalization::postSlug($row, $language) !== $slug) {
+                $row = null;
+            }
         }
 
         if ($row === null) {
@@ -610,6 +616,10 @@ final class BlogContent
 
         if ($category === null && $language === LanguageResolver::defaultLanguage()) {
             $category = $categories->findActiveBySlug($slug);
+
+            if ($category !== null && BlogLocalization::categorySlug($category, $language) !== $slug) {
+                $category = null;
+            }
         }
 
         return $category;
@@ -629,6 +639,10 @@ final class BlogContent
 
         if ($tag === null && $language === LanguageResolver::defaultLanguage()) {
             $tag = $tags->findBySlug($slug);
+
+            if ($tag !== null && BlogLocalization::tagSlug($tag, $language) !== $slug) {
+                $tag = null;
+            }
         }
 
         return $tag;

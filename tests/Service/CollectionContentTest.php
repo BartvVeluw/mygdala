@@ -126,6 +126,29 @@ final class CollectionContentTest extends TestCase
         );
     }
 
+    /**
+     * REGRESSION, found by flipping the default language on a real site. The
+     * neutral `collections.slug` answers for the default language, but only
+     * for a collection that has NO address of its own there
+     * (App\Service\Routing\LocalizedSlug::answersTo()).
+     */
+    public function testTheNeutralSlugIsNoSecondAddressForACollectionThatHasItsOwn(): void
+    {
+        $default = ShopLocalization::defaultLanguage();
+        $slug = $this->createCollection('Eigen adres', true);
+
+        $collection = CollectionContent::forPublicPage($slug, $default);
+        $this->assertNotNull($collection, 'a collection with only its neutral slug is still reachable');
+
+        ShopLocalization::saveCollection((int) $collection['id'], $default, [
+            ShopLocalization::SLUG => $slug . '-eigen',
+        ]);
+        ShopLocalization::clearCache();
+
+        $this->assertNotNull(CollectionContent::forPublicPage($slug . '-eigen', $default));
+        $this->assertNull(CollectionContent::forPublicPage($slug, $default), 'one version, one address');
+    }
+
     public function testAnUnknownOrEmptySlugIsNotPubliclyAvailable(): void
     {
         $this->assertNull(CollectionContent::forPublicPage(self::SLUG_PREFIX . 'bestaat-niet'));
