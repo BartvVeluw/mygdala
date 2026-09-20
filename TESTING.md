@@ -212,6 +212,19 @@ Een testbestand mag in meerdere suites zitten — `blocks` en `http` overlappen
 met opzet. `full` is de standaardsuite, dus een kaal `phpunit` draait elk
 bestand precies één keer.
 
+### Het geheugen van de testrunner
+
+`phpunit.xml` zet `memory_limit` voor **het phpunit-proces** op 512M. Eén
+proces houdt een hele run vast, dus het geheugen groeit met het **aantal**
+tests: onder de 128M van de container haalde `full` het bij 4083 tests nog, en
+eindigde hij daarna met een fatal (`Allowed memory size exhausted`, exit 255,
+**geen eindtelling**) in een testbestand dat niets met de wijziging te maken
+had. Zie je dat, dan is het de runner en niet die test.
+
+De applicatie krijgt hiermee geen ruimer budget: een pagina die een test
+opvraagt loopt via `Tests\Support\BuiltInServer`, een apart PHP-proces onder
+de limiet van `php.ini`.
+
 ### De groep `migration-backfill`
 
 De migratie- en installatiecontroles zitten in eigen testklassen, plus één

@@ -645,4 +645,25 @@
             <directory>tests</directory>
         </testsuite>
     </testsuites>
+
+    <!--
+        The test RUNNER's own ceiling, not the application's.
+
+        One phpunit process holds a whole run, so its memory grows with the
+        NUMBER of tests rather than with what any one of them does. Under the
+        container's default of 128M `full` passed at 4083 tests and was then
+        killed by "Allowed memory size exhausted" once Multilingual 2.0
+        phase 6 added its own - in Tests\Service\MediaLibraryTest, a file
+        that phase never touched, while every domain suite stayed far below
+        the limit (`fast` peaks at 78 MB, `cms` at 66 MB).
+
+        This raises the limit for the phpunit process only. A page rendered
+        by a test goes through Tests\Support\BuiltInServer, which is a
+        separate PHP process under php.ini's own limit, so "a request fits
+        in 128M" keeps being tested. 512M and not -1: a real leak must still
+        end a run instead of the machine.
+    -->
+    <php>
+        <ini name="memory_limit" value="512M"/>
+    </php>
 </phpunit>
