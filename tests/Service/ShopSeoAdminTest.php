@@ -230,11 +230,24 @@ final class ShopSeoAdminTest extends TestCase
                 );
             }
 
+            // The language argument is the one the FORM carried, never a
+            // literal. Two spellings are allowed and no more: the submitted
+            // field itself, or a $language the same file assigned from it —
+            // which api/admin/update-collection.php does because the address
+            // rules need it several times (Multilingual 2.0 phase 6).
             $this->assertMatchesRegularExpression(
-                "/ShopLocalization::save(Product|Collection)\\(\\\$\\w+, \\\$fields\\['language_code'\\],/",
+                "/ShopLocalization::save(Product|Collection)\\(\\\$\\w+, (\\\$fields\\['language_code'\\]|\\\$language),/",
                 $source,
                 $endpoint . ' must save the words of the language the form carried, and no other'
             );
+
+            if (preg_match("/ShopLocalization::save(?:Product|Collection)\\(\\\$\\w+, \\\$language,/", $source) === 1) {
+                $this->assertMatchesRegularExpression(
+                    "/\\\$language = \\(string\\) \\\$fields\\['language_code'\\];/",
+                    $source,
+                    $endpoint . ": \$language must come from the form's own field"
+                );
+            }
         }
     }
 

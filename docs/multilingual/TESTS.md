@@ -360,6 +360,23 @@ omdat deze schermen geen eigen HTTP-test hebben.
 - `PageLocalizationEditorHttpTest`, `PageUrlChangeTest`, `PageServiceTest` —
   het adres hoort bij de bewerkte taal, een vertaling krijgt haar eerste adres
   uit haar titel, en een lege vertaling laat woorden noch URL achter.
+- `BlogTaxonomyAddressEditorTest` (`blog`) en `CollectionAddressEditorTest`
+  (`shop`) — hetzelfde contract voor de drie schermen die het als laatste
+  kregen: blogcategorieën, blogtags en collecties. Ze draaien over echte HTTP
+  met `tests/Support/dispatcher-router.php` ervoor, zodat één test zowel de
+  opslag als de URL die eruit komt kan bewijzen: taal A opslaan laat taal B
+  staan, een hernoeming verplaatst een bestaand adres niet, een botsing geldt
+  binnen één taal (plus de neutrale kolom voor de standaardtaal), `categorie`
+  én `category` zijn gereserveerd, een geweigerde opslag houdt de getypte
+  invoer vast op de kaart waar hij getypt werd, en het adres dat eruit komt
+  antwoordt met 200 — terwijl het adres van de ándere taal 404't. De
+  collectietest bewaakt bovendien dat een vertaling niets anders verplaatst:
+  id, neutrale slug, productkoppelingen met volgorde, de
+  gerelateerde-producteninstelling en de zichtbaarheid.
+- `CollectionRepositoryIntegrationTest` — beide schrijvers van de
+  product/collectie-koppeling **sluiten aan** bij een transactie die de
+  aanroeper al open heeft. PDO weigert een geneste `beginTransaction()`, en
+  sinds fase 5 golf C openen alle vier de endpoints er zelf een.
 
 **Wat de grenstests sindsdien bewaken** (`MultilingualBoundaryTest`,
 `BlogLocalizationTest`, `ShopLocalizationTest`): hreflang wordt op één plek

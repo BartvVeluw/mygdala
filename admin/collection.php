@@ -117,10 +117,6 @@ function collectionWord(?array $old, ?int $collectionId, string $field, string $
     return $collectionId === null ? '' : ShopLocalization::rawCollection($collectionId, $field, $language);
 }
 
-$slugValue = $old !== null
-    ? (string) ($old['slug_input'] ?? '')
-    : ($collection !== null ? (string) $collection['slug'] : '');
-
 $isActiveChecked = $old !== null
     ? !empty($old['is_active'])
     : ($collection !== null ? (int) $collection['is_active'] === 1 : true);
@@ -162,6 +158,29 @@ $csrfToken = Csrf::token();
 // off. ONE language on the screen and in the request.
 $editingLanguage = admin_localized_language();
 $collectionId = $isEdit ? (int) $collection['id'] : null;
+
+/**
+ * THE COLLECTION'S ADDRESS IN THE LANGUAGE BEING EDITED (Multilingual 2.0
+ * phase 6, docs/multilingual/ROUTING.md): a refused save's own input first,
+ * then this language's stored address, and '' when it has none — which means
+ * this language has no public URL for the collection yet, a real and
+ * ordinary state.
+ *
+ * Only the default language's address is required: it is the one kept
+ * byte-identical to the neutral `collections.slug`.
+ */
+$slugValue = $old !== null
+    ? (string) ($old['slug_input'] ?? '')
+    : ($collection !== null ? (string) (ShopLocalization::collectionSlug($collection, $editingLanguage) ?? '') : '');
+
+/** The path this collection can be visited at in the language being edited. */
+$publicPath = $collection === null
+    ? null
+    : (static function (array $row, string $language): ?string {
+        $slug = ShopLocalization::collectionSlug($row, $language);
+
+        return $slug === null ? null : CollectionContent::publicPath($slug, $language);
+    })($collection, $editingLanguage);
 
 $pageTitle = $isEdit
     ? ShopLocalization::collectionName((int) $collection['id'])
@@ -234,15 +253,20 @@ require __DIR__ . '/_richtext_field.php';
       </div>
 
       <div class="admin-form-row">
+        <?php /* Not `required`, in any language: blank means "make one from
+                 the name" in the default language, and "no public URL in this
+                 language yet" in a translation — see the endpoint. */ ?>
         <label><?= admin_te('shop.slug') ?>
-          <input type="text" name="slug" maxlength="170" data-slug-target value="<?= $h($slugValue) ?>" placeholder="Leeg = automatisch gegenereerd uit de naam">
+          <input type="text" name="slug" maxlength="<?= ShopLocalization::SLUG_MAX_LENGTH ?>" data-slug-target value="<?= $h($slugValue) ?>" placeholder="Leeg = automatisch gegenereerd uit de naam">
         </label>
-        <?php if ($isEdit && (string) $collection['slug'] !== ''): ?>
+        <?php if ($isEdit && $publicPath !== null): ?>
           <p class="admin-text-muted">
             <?= admin_te('shop.publieke_pagina') ?>
-            <a href="<?= $h(CollectionContent::publicPath((string) $collection['slug'])) ?>" target="_blank" rel="noopener"><?= $h(CollectionContent::publicPath((string) $collection['slug'])) ?></a>
+            <a href="<?= $h($publicPath) ?>" target="_blank" rel="noopener"><?= $h($publicPath) ?></a>
             <?= (int) $collection['is_active'] === 1 ? '' : ' (nu niet zichtbaar — collectie staat op inactief)' ?>
           </p>
+        <?php elseif ($isEdit): ?>
+          <p class="admin-text-muted"><?= admin_te('shop.collection_url_none_in_language') ?></p>
         <?php endif; ?>
       </div>
 

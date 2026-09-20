@@ -25,6 +25,7 @@ use App\Service\Blog\BlogLocalization;
 use App\Service\Blog\BlogTaxonomy;
 use App\Service\Language\LanguageCode;
 use App\Service\Language\SiteLanguages;
+use App\Service\Routing\LocalizedSlugInput;
 use App\Service\Csrf;
 
 AdminAuth::requireLoginForApi();
@@ -63,12 +64,15 @@ if ($category === null) {
 $language = LanguageCode::normalise((string) ($_POST['language_code'] ?? '')) ?? '';
 $name = trim((string) ($_POST['name'] ?? ''));
 $description = trim((string) ($_POST['description'] ?? ''));
-$slug = BlogSlug::sanitize((string) ($_POST['slug'] ?? ''));
+$slugInput = (string) ($_POST['slug'] ?? '');
+$slug = BlogSlug::sanitize($slugInput);
 $isActive = ($_POST['is_active'] ?? '0') === '1';
+$sortOrder = (int) ($_POST['sort_order'] ?? 0);
 
 $errors = [];
+$isWritableLanguage = $language !== '' && SiteLanguages::isActive($language);
 
-if ($language === '' || !SiteLanguages::isActive($language)) {
+if (!$isWritableLanguage) {
     $errors[] = AdminTranslator::trans('validation.language_unknown');
 } else {
     $problems = BlogLocalization::categories()->problems(
@@ -88,17 +92,57 @@ if ($language === '' || !SiteLanguages::isActive($language)) {
     }
 }
 
-$slugError = BlogSlug::validationError(
-    $slug,
-    static fn (string $candidate): bool => $repository->slugExists($candidate, $id)
-);
+/**
+ * THE ARCHIVE'S ADDRESS BELONGS TO THE LANGUAGE BEING EDITED (Multilingual
+ * 2.0 phase 6, docs/multilingual/ROUTING.md). Saving the English version
+ * writes /en/blog/category/<slug> and leaves /blog/categorie/<slug> exactly
+ * where it is; a collision is a collision inside one language only.
+ *
+ * `blog_categories.slug` stays in step with the DEFAULT language's address:
+ * it is the neutral key the stored redirects were written against. The rule
+ * that decides all of this is App\Service\Routing\LocalizedSlugInput's, the
+ * same one the page and the post editor follow — there is no second copy of
+ * it here.
+ */
+$categorySlugs = BlogLocalization::categories();
+$currentSlug = $isWritableLanguage ? BlogLocalization::categorySlug($category, $language) : null;
 
-if ($slugError !== null) {
-    $errors[] = $slugError;
+if ($isWritableLanguage && LocalizedSlugInput::needsFirstAddress($slug, $language, $currentSlug, $name)) {
+    $slug = BlogSlug::unique(
+        '',
+        $name,
+        static fn (string $candidate): bool => $categorySlugs->slugTaken($candidate, $language, $id)
+    );
+}
+
+if ($isWritableLanguage && ($slug !== '' || LocalizedSlugInput::addressIsRequired($language))) {
+    $slugError = BlogSlug::validationError(
+        $slug,
+        static fn (string $candidate): bool => $categorySlugs->slugTaken($candidate, $language, $id)
+            || (LocalizedSlugInput::addressIsRequired($language) && $repository->slugExists($candidate, $id))
+    );
+
+    if ($slugError !== null) {
+        $errors[] = $slugError;
+    }
 }
 
 if ($errors !== []) {
+    // What was sent but not written, so the card comes back with the
+    // editor's own input rather than the stored row — the same PRG
+    // arrangement admin/page.php and admin/blog-post.php use. It is kept per
+    // category AND per language, because the screen shows one card per
+    // category in one language.
     $_SESSION['admin_blog_taxonomy_errors'] = $errors;
+    $_SESSION['admin_blog_taxonomy_old'] = [
+        'id' => $id,
+        'language_code' => $language,
+        'name' => $name,
+        'description' => $description,
+        'slug' => $slugInput,
+        'is_active' => $isActive,
+        'sort_order' => $sortOrder,
+    ];
     header('Location: /admin/blog-categories.php');
     exit;
 }
@@ -107,11 +151,14 @@ try {
     // Row and words are ONE transaction.
     $db->beginTransaction();
     $repository->update($id, [
-        'slug' => $slug,
+        // Only the default language moves the neutral key.
+        'slug' => LocalizedSlugInput::neutralSlug($slug, $language, (string) $category['slug']),
         'is_active' => $isActive,
-        'sort_order' => (int) ($_POST['sort_order'] ?? 0),
+        'sort_order' => $sortOrder,
     ]);
     BlogLocalization::saveCategory($id, $language, [
+        // NULL is "this language has no public route", not an address.
+        BlogLocalization::SLUG => LocalizedSlugInput::stored($slug),
         BlogLocalization::NAME => $name,
         BlogLocalization::DESCRIPTION => $description,
     ]);
@@ -128,11 +175,14 @@ try {
     exit;
 }
 
+// In the URL space of the language that was edited: the address that moved is
+// that language's, and a language that had none is not moving anything.
 BlogTaxonomy::recordCategorySlugChange(
-    (string) $category['slug'],
+    (string) ($currentSlug ?? ''),
     $slug,
     (int) $category['is_active'] === 1,
-    $isActive
+    $isActive,
+    $language
 );
 
 // ?saved=1 only on the successful path, the convention every admin write

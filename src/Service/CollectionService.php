@@ -24,7 +24,15 @@ use App\Repository\ProductRepository;
  * collection's slug from a changed name. Unlike a page slug, a collection
  * slug needs no App\Service\ReservedRoutes check: it lives under
  * /collecties/<slug>, a namespace no application route or CMS page can
- * occupy.
+ * occupy — and since Multilingual 2.0 phase 6 under /en/collections/<slug>
+ * too, whose first two segments are just as much a namespace of their own.
+ *
+ * A SLUG BELONGS TO ONE LANGUAGE since that phase
+ * (docs/multilingual/ROUTING.md). Generation and validation therefore take
+ * the language they are for, and ask it of the store that holds the
+ * addresses; which language an editor is writing, and what an empty field
+ * means, is App\Service\Routing\LocalizedSlugInput's answer and not this
+ * class's.
  */
 class CollectionService
 {
@@ -52,10 +60,15 @@ class CollectionService
 
     /**
      * A URL-safe slug derived from the collection name, made unique against
-     * existing collections — used when the admin left the slug field blank.
+     * existing collections IN THIS LANGUAGE — used when the admin left the
+     * slug field blank.
      */
-    public static function generateSlug(CollectionRepository $repository, string $name, ?int $excludeId = null): string
-    {
+    public static function generateSlug(
+        CollectionRepository $repository,
+        string $name,
+        string $languageCode,
+        ?int $excludeId = null
+    ): string {
         $base = self::sanitizeSlug($name);
 
         if ($base === '') {
@@ -66,7 +79,7 @@ class CollectionService
 
         $slug = $base;
         $suffix = 2;
-        while ($repository->slugExists($slug, $excludeId)) {
+        while (self::slugIsTaken($repository, $slug, $languageCode, $excludeId)) {
             $slug = $base . '-' . $suffix;
             $suffix++;
         }
@@ -78,8 +91,12 @@ class CollectionService
      * Validates a sanitized, non-empty slug the admin typed by hand.
      * Returns the message to show, or null when the slug is fine.
      */
-    public static function validateSlug(CollectionRepository $repository, string $slug, ?int $excludeId): ?string
-    {
+    public static function validateSlug(
+        CollectionRepository $repository,
+        string $slug,
+        ?int $excludeId,
+        string $languageCode
+    ): ?string {
         if ($slug === '') {
             return 'Slug is verplicht en mag alleen letters, cijfers en koppeltekens bevatten.';
         }
@@ -88,11 +105,48 @@ class CollectionService
             return 'Slug mag alleen kleine letters, cijfers en koppeltekens bevatten.';
         }
 
-        if ($repository->slugExists($slug, $excludeId)) {
+        if (self::slugIsTaken($repository, $slug, $languageCode, $excludeId)) {
             return 'Deze slug is al in gebruik door een andere collectie.';
         }
 
         return null;
+    }
+
+    /**
+     * Is this address already another collection's, IN THIS LANGUAGE?
+     *
+     * Two questions since Multilingual 2.0 phase 6, and both have to be
+     * asked — the same pair App\Service\PageService::slugIsTaken() explains
+     * for pages:
+     *
+     *   - `collection_translations` holds the address of every language, so
+     *     that is where two collections' Dutch slugs, or two collections'
+     *     English ones, clash. Dutch and English may share a word —
+     *     /collecties/hout and /en/collections/hout are different URLs — so
+     *     the check is scoped to one language and never across them;
+     *   - `collections.slug` is still the neutral key, kept in step with the
+     *     DEFAULT language's address, so a default-language slug has to clear
+     *     that column too.
+     *
+     * A lookup that fails counts as TAKEN (App\Service\Language\
+     * EntityTranslations::slugTaken()): refusing a save the editor can retry
+     * is the safe direction.
+     */
+    private static function slugIsTaken(
+        CollectionRepository $repository,
+        string $slug,
+        string $languageCode,
+        ?int $excludeId
+    ): bool {
+        if (ShopLocalization::collections()->slugTaken($slug, $languageCode, $excludeId)) {
+            return true;
+        }
+
+        if ($languageCode !== ShopLocalization::defaultLanguage()) {
+            return false;
+        }
+
+        return $repository->slugExists($slug, $excludeId);
     }
 
     /**

@@ -20,12 +20,18 @@ use App\Service\Routing\LocalizedSlug;
  *   blog_category_translations  name, description
  *   blog_tag_translations       name
  *
+ * SINCE PHASE 6 each of those tables also carries the row's ADDRESS in that
+ * language (docs/multilingual/ROUTING.md): /blog/mijn-bericht and
+ * /en/blog/my-post are two URLs for two versions of one post, and the same
+ * holds for a category and a tag archive. It is a column of the table and not
+ * one of the WORDS, because it is the only thing here that must never fall
+ * back — see the SLUG constant below.
+ *
  * Everything else about a post, a category or a tag is language-neutral and
- * stays on its own row: THE SLUG above all — /blog/<slug>,
- * /blog/categorie/<slug> and /blog/tag/<slug> are one address each and a
- * translation never moves one — plus the status, the publication date, the
- * author, the featured and share image, noindex, is_active and sort order.
- * A slug per language needs a router that uses it, which is phase 6.
+ * stays on its own row: the status, the publication date, the author, the
+ * featured and share image, noindex, is_active and sort order. The neutral
+ * `slug` columns stay too, kept byte-identical to the default language's
+ * address, because every existing link and every stored redirect names them.
  *
  * Nothing else reads or writes those tables: not a repository, not
  * App\Service\Blog\BlogContent, not an endpoint. The fallback — the asked-for
@@ -85,7 +91,7 @@ final class BlogLocalization
     public const TAG_NAME_MAX_LENGTH = 100;
 
     /** `blog_tags.slug` is narrower than the other two slug columns. */
-    public const TAG_SLUG_MAX_LENGTH = 120;
+    public const TAG_SLUG_MAX_LENGTH = BlogSlug::TAG_MAX_LENGTH;
 
     private static ?EntityTranslations $posts = null;
     private static ?EntityTranslations $categories = null;
@@ -335,6 +341,20 @@ final class BlogLocalization
     public static function saveTagName(int $tagId, string $languageCode, string $name): void
     {
         self::tags()->save($tagId, $languageCode, [self::NAME => $name]);
+    }
+
+    /**
+     * One language's name AND address for a tag: what the tag editor writes.
+     *
+     * Separate from saveTagName() on purpose. A tag created on a post gets a
+     * name and nothing else (App\Service\Blog\BlogPostService), and a save
+     * that did not show the address field may not clear it.
+     *
+     * @param array<string, string|null> $values
+     */
+    public static function saveTag(int $tagId, string $languageCode, array $values): void
+    {
+        self::tags()->save($tagId, $languageCode, $values);
     }
 
     /** The language every field falls back to. */

@@ -24,6 +24,7 @@ use App\Service\Blog\BlogLocalization;
 use App\Service\Blog\BlogTaxonomy;
 use App\Service\Language\LanguageCode;
 use App\Service\Language\SiteLanguages;
+use App\Service\Routing\LocalizedSlugInput;
 use App\Service\Csrf;
 
 AdminAuth::requireLoginForApi();
@@ -61,11 +62,14 @@ if ($tag === null) {
 // language — a translation is optional because it falls back.
 $language = LanguageCode::normalise((string) ($_POST['language_code'] ?? '')) ?? '';
 $name = trim((string) ($_POST['name'] ?? ''));
-$slug = BlogSlug::sanitize((string) ($_POST['slug'] ?? ''));
+$slugInput = (string) ($_POST['slug'] ?? '');
+// A tag slug is measured against its own, narrower column.
+$slug = BlogSlug::sanitize($slugInput, BlogLocalization::TAG_SLUG_MAX_LENGTH);
 
 $errors = [];
+$isWritableLanguage = $language !== '' && SiteLanguages::isActive($language);
 
-if ($language === '' || !SiteLanguages::isActive($language)) {
+if (!$isWritableLanguage) {
     $errors[] = AdminTranslator::trans('validation.language_unknown');
 } elseif ($name === '' && $language === BlogLocalization::defaultLanguage()) {
     $errors[] = AdminTranslator::trans('validation.geef_tag_naam');
@@ -73,17 +77,45 @@ if ($language === '' || !SiteLanguages::isActive($language)) {
     $errors[] = AdminTranslator::trans('validation.naam_mag_maximaal_100_tekens');
 }
 
-$slugError = BlogSlug::validationError(
-    $slug,
-    static fn (string $candidate): bool => $repository->slugExists($candidate, $id)
-);
+/**
+ * THE ARCHIVE'S ADDRESS BELONGS TO THE LANGUAGE BEING EDITED — the same rule
+ * api/admin/update-blog-category.php states, through the same
+ * App\Service\Routing\LocalizedSlugInput.
+ */
+$tagSlugs = BlogLocalization::tags();
+$currentSlug = $isWritableLanguage ? BlogLocalization::tagSlug($tag, $language) : null;
 
-if ($slugError !== null) {
-    $errors[] = $slugError;
+if ($isWritableLanguage && LocalizedSlugInput::needsFirstAddress($slug, $language, $currentSlug, $name)) {
+    $slug = BlogSlug::unique(
+        '',
+        $name,
+        static fn (string $candidate): bool => $tagSlugs->slugTaken($candidate, $language, $id),
+        BlogLocalization::TAG_SLUG_MAX_LENGTH
+    );
+}
+
+if ($isWritableLanguage && ($slug !== '' || LocalizedSlugInput::addressIsRequired($language))) {
+    $slugError = BlogSlug::validationError(
+        $slug,
+        static fn (string $candidate): bool => $tagSlugs->slugTaken($candidate, $language, $id)
+            || (LocalizedSlugInput::addressIsRequired($language) && $repository->slugExists($candidate, $id))
+    );
+
+    if ($slugError !== null) {
+        $errors[] = $slugError;
+    }
 }
 
 if ($errors !== []) {
+    // What was sent but not written, per tag and per language — see
+    // api/admin/update-blog-category.php.
     $_SESSION['admin_blog_taxonomy_errors'] = $errors;
+    $_SESSION['admin_blog_taxonomy_old'] = [
+        'id' => $id,
+        'language_code' => $language,
+        'name' => $name,
+        'slug' => $slugInput,
+    ];
     header('Location: /admin/blog-tags.php');
     exit;
 }
@@ -91,8 +123,15 @@ if ($errors !== []) {
 try {
     // Row and name are ONE transaction.
     $db->beginTransaction();
-    $repository->update($id, ['slug' => $slug]);
-    BlogLocalization::saveTagName($id, $language, $name);
+    // Only the default language moves the neutral key.
+    $repository->update($id, [
+        'slug' => LocalizedSlugInput::neutralSlug($slug, $language, (string) $tag['slug']),
+    ]);
+    BlogLocalization::saveTag($id, $language, [
+        // NULL is "this language has no public route", not an address.
+        BlogLocalization::SLUG => LocalizedSlugInput::stored($slug),
+        BlogLocalization::NAME => $name,
+    ]);
     $db->commit();
 
     $_SESSION['admin_blog_taxonomy_flash'] = 'Tag "' . $name . '" is opgeslagen.';
@@ -106,7 +145,9 @@ try {
     exit;
 }
 
-BlogTaxonomy::recordTagSlugChange((string) $tag['slug'], $slug);
+// In the URL space of the language that was edited — see
+// api/admin/update-blog-category.php.
+BlogTaxonomy::recordTagSlugChange((string) ($currentSlug ?? ''), $slug, $language);
 
 // ?saved=1 on the successful path only — see update-blog-category.php.
 header('Location: /admin/blog-tags.php?saved=1');

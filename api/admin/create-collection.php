@@ -58,11 +58,16 @@ $collectionRepository = new CollectionRepository($db);
 // list — not any submitted sort_order — becomes the stored sort_order.
 $productIds = CollectionService::validateProductIds($fields['product_ids'], new ProductRepository($db));
 
+// A new collection is created in the DEFAULT language, so that is the
+// language its address is checked against and stored for (Multilingual 2.0
+// phase 6, docs/multilingual/ROUTING.md).
+$language = (string) $fields['language_code'];
+
 $slug = $fields['slug'];
 if ($slug === '') {
-    $slug = CollectionService::generateSlug($collectionRepository, $fields['name']);
+    $slug = CollectionService::generateSlug($collectionRepository, $fields['name'], $language);
 } else {
-    $slugError = CollectionService::validateSlug($collectionRepository, $slug, null);
+    $slugError = CollectionService::validateSlug($collectionRepository, $slug, null, $language);
     if ($slugError !== null) {
         $errors[] = $slugError;
     }
@@ -124,7 +129,10 @@ try {
         'is_active' => $fields['is_active'],
     ]);
 
-    ShopLocalization::saveCollection($collectionId, $fields['language_code'], [
+    ShopLocalization::saveCollection($collectionId, $language, [
+        // The default language's address. Every other language stays without
+        // one until an editor writes it, and therefore has no public URL.
+        ShopLocalization::SLUG => $slug,
         ShopLocalization::NAME => $fields['name'],
         ShopLocalization::DESCRIPTION => (string) $fields['description'],
         ShopLocalization::META_TITLE => $fields['meta_title'],

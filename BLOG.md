@@ -80,10 +80,14 @@ blog_post_translations               UNIQUE(blog_post_id, language_code)
   meta_title, meta_description       SEO
 ```
 
-**Eén slug, taalneutraal.** `/blog/<slug>` is één adres, wat een bezoeker ook
-leest; een bericht vertalen verplaatst het nooit. De slug komt bij het
-aanmaken uit de titel in de **standaardtaal**. Gelokaliseerde URL's zijn
-fase 6 van Multilingual 2.0.
+**Een slug per taal**, sinds Multilingual 2.0 fase 6
+(`docs/multilingual/ROUTING.md`). `blog_posts.slug` blijft bestaan als de
+neutrale sleutel waar elke bestaande link en elke opgeslagen redirect naar
+wijst, en het adres van de **standaardtaal** wordt er byte-identiek aan
+gehouden; elke andere taal heeft haar eigen `blog_post_translations.slug`, en
+zonder zo'n rij heeft die taal geen publieke URL. Een adres valt nooit terug
+zoals woorden dat doen. Bij het aanmaken komt de slug uit de titel in de
+standaardtaal; een vertaling krijgt haar eerste adres uit haar eigen titel.
 
 **De terugval** is die van het hele CMS: de gevraagde taal, de standaardtaal,
 leeg. En de standaardtaal beslist: een bericht met alleen een Engelse titel op
@@ -120,16 +124,16 @@ seconde vóór en één seconde ná het moment — te testen is zonder te wachte
 
 ## Taxonomie
 
-**Categorieën** zijn de vaste indeling: een slug, een actief-vinkje, een
-volgorde, en per websitetaal een naam en een optionele korte omschrijving
-(`blog_category_translations`). Een bericht mag in
+**Categorieën** zijn de vaste indeling: een actief-vinkje, een volgorde, en
+per websitetaal een naam, een optionele korte omschrijving en het **adres van
+haar archief** (`blog_category_translations`). Een bericht mag in
 meerdere categorieën staan. De **primaire** categorie — die op een kaart en
 boven een bericht staat — is simpelweg de eerste in de volgorde die de
 redacteur zelf instelde. Er is geen `is_primary`-kolom die daarmee in
 tegenspraak kan raken. Een inactieve categorie geeft een 404 op zijn archief
 en staat niet in de sitemap; zijn berichten blijven gewoon bereikbaar.
 
-**Tags** zijn een slug en, per websitetaal, een naam
+**Tags** zijn, per websitetaal, een naam en het adres van hun archief
 (`blog_tag_translations`). Meer niet: geen
 hiërarchie, geen omschrijving, geen eigen SEO-teksten. Ze worden aangemaakt
 waar ze gebruikt worden — op een bericht — en de **genormaliseerde slug is de
@@ -197,9 +201,13 @@ binnenkomt, welke van de twee het ook stuurde.
 ander omgezet scherm (fase 5 van Multilingual 2.0): de taal komt uit de
 schakelaar in de schil, rijdt mee als verborgen veld op het ene formulier, en
 het endpoint schrijft precies die taal. De taalneutrale velden — de
-afbeelding, de categorieën, de tags, de status, de slug — staan er in elke
-taal. Een nieuw bericht en een nieuwe categorie worden in de standaardtaal
-geschreven; het zoekveld op het overzicht zoekt in élke taal.
+afbeelding, de categorieën, de tags, de status — staan er in elke taal. De
+**slug hoort sinds fase 6 bij de bewerkte taal**: hij is alleen in de
+standaardtaal verplicht, een lege slug in een vertaling betekent "in deze taal
+geen publieke URL", en het scherm zegt dat met zoveel woorden. Datzelfde geldt
+op *Blogcategorieën* en *Blogtags*. Een nieuw bericht en een nieuwe categorie
+worden in de standaardtaal geschreven; het zoekveld op het overzicht zoekt in
+élke taal.
 
 ## Publieke kant
 

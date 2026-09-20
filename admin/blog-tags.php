@@ -10,7 +10,6 @@ use App\Repository\BlogPostRepository;
 use App\Repository\BlogTagRepository;
 use App\Service\AdminAuth;
 use App\Service\Blog\BlogLocalization;
-use App\Service\Blog\BlogSlug;
 use App\Service\Blog\BlogUrls;
 use App\Service\Csrf;
 
@@ -63,7 +62,49 @@ usort($tags, static fn (array $a, array $b): int => strnatcasecmp(
 
 $flash = $_SESSION['admin_blog_taxonomy_flash'] ?? null;
 $errors = $_SESSION['admin_blog_taxonomy_errors'] ?? [];
-unset($_SESSION['admin_blog_taxonomy_flash'], $_SESSION['admin_blog_taxonomy_errors']);
+$old = $_SESSION['admin_blog_taxonomy_old'] ?? null;
+unset(
+    $_SESSION['admin_blog_taxonomy_flash'],
+    $_SESSION['admin_blog_taxonomy_errors'],
+    $_SESSION['admin_blog_taxonomy_old']
+);
+
+$isDefaultLanguage = $editingLanguage === admin_localized_default();
+
+/**
+ * A refused save comes back with what was typed, on the row it was typed on
+ * and in the language it was typed in — the same arrangement
+ * admin/blog-categories.php uses.
+ *
+ * @return array<string, mixed>|null
+ */
+$refusedInput = static function (int $tagId) use ($old, $editingLanguage): ?array {
+    if (!is_array($old)
+        || (int) ($old['id'] ?? 0) !== $tagId
+        || ($old['language_code'] ?? null) !== $editingLanguage
+    ) {
+        return null;
+    }
+
+    return $old;
+};
+
+/**
+ * The tag's address IN THE LANGUAGE BEING EDITED (Multilingual 2.0 phase 6,
+ * docs/multilingual/ROUTING.md); '' means it has no public archive URL in
+ * that language yet.
+ *
+ * @param array<string, mixed> $tag
+ */
+$slugValue = static function (array $tag) use ($refusedInput, $editingLanguage): string {
+    $input = $refusedInput((int) $tag['id']);
+
+    if ($input !== null && array_key_exists('slug', $input)) {
+        return (string) ($input['slug'] ?? '');
+    }
+
+    return (string) (BlogLocalization::tagSlug($tag, $editingLanguage) ?? '');
+};
 ?>
 <!doctype html>
 <html lang="<?= htmlspecialchars(\App\Service\Language\AdminLocale::current(), ENT_QUOTES, 'UTF-8') ?>">
@@ -122,6 +163,8 @@ unset($_SESSION['admin_blog_taxonomy_flash'], $_SESSION['admin_blog_taxonomy_err
           <?php
             $tagId = (int) $tag['id'];
             $postCount = $posts === null ? 0 : $posts->countByTag($tagId);
+            $input = $refusedInput($tagId);
+            $archiveSlug = BlogLocalization::tagSlug($tag, $editingLanguage);
           ?>
           <tr>
             <td>
@@ -133,14 +176,18 @@ unset($_SESSION['admin_blog_taxonomy_flash'], $_SESSION['admin_blog_taxonomy_err
                        saving a tag writes exactly that language and leaves
                        every other name of the same tag standing. */ ?>
               <?= admin_localized_input($editingLanguage, 'tag-form-' . $tagId) ?>
-              <input type="text" name="name" maxlength="<?= BlogLocalization::TAG_NAME_MAX_LENGTH ?>"<?= admin_localized_required($editingLanguage) ?> value="<?= $h(BlogLocalization::rawTagName($tagId, $editingLanguage)) ?>" form="tag-form-<?= $tagId ?>"<?= admin_localized_placeholder_attr($editingLanguage) ?>>
+              <input type="text" name="name" maxlength="<?= BlogLocalization::TAG_NAME_MAX_LENGTH ?>"<?= admin_localized_required($editingLanguage) ?> value="<?= $h($input !== null ? (string) ($input['name'] ?? '') : BlogLocalization::rawTagName($tagId, $editingLanguage)) ?>" form="tag-form-<?= $tagId ?>"<?= admin_localized_placeholder_attr($editingLanguage) ?>>
             </td>
-            <td><input type="text" name="slug" maxlength="<?= BlogSlug::MAX_LENGTH ?>" required value="<?= $h((string) $tag['slug']) ?>" form="tag-form-<?= $tagId ?>"></td>
+            <?php /* Not `required`, and measured against the tag's own,
+                     narrower column: only the default language must have an
+                     address, and a translation left blank gets one made from
+                     its name (docs/multilingual/ROUTING.md). */ ?>
+            <td><input type="text" name="slug" maxlength="<?= BlogLocalization::TAG_SLUG_MAX_LENGTH ?>"<?= admin_localized_required($editingLanguage) ?> value="<?= $h($slugValue($tag)) ?>" form="tag-form-<?= $tagId ?>"></td>
             <td>
-              <?php if ($postCount > 0): ?>
-                <a href="<?= $h(BlogUrls::tagPath((string) $tag['slug'])) ?>" target="_blank" rel="noopener"><?= $postCount ?></a>
+              <?php if ($postCount > 0 && $archiveSlug !== null): ?>
+                <a href="<?= $h(BlogUrls::tagPath($archiveSlug, 1, $editingLanguage)) ?>" target="_blank" rel="noopener"><?= $postCount ?></a>
               <?php else: ?>
-                <span class="admin-text-muted">0</span>
+                <span class="admin-text-muted"><?= $postCount ?></span>
               <?php endif; ?>
             </td>
             <td><button type="submit" class="admin-btn-text" form="tag-form-<?= $tagId ?>"><?= admin_te('common.save') ?></button></td>
@@ -165,6 +212,13 @@ unset($_SESSION['admin_blog_taxonomy_flash'], $_SESSION['admin_blog_taxonomy_err
     <?php foreach ($tags as $tag): ?>
       <form method="post" action="/api/admin/update-blog-tag.php" id="tag-form-<?= (int) $tag['id'] ?>"></form>
     <?php endforeach; ?>
+
+    <?php /* One line for the whole table, for the same reason the language
+             indicator above it is one: every row carries the same field in
+             the same language. */ ?>
+    <?php if (!$isDefaultLanguage): ?>
+      <p class="admin-text-muted"><?= admin_te('blog.tag_url_none_in_language') ?></p>
+    <?php endif; ?>
   <?php endif; ?>
 </main>
 </body>

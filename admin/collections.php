@@ -92,7 +92,6 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
           $isActive = (int) $collection['is_active'] === 1;
           $productCount = (int) $collection['product_count'];
           $name = ShopLocalization::collectionName($collectionId);
-          $slug = (string) $collection['slug'];
           $imagePath = (string) ($collection['image_path'] ?? '');
         ?>
         <article class="admin-product-card" data-collection-card data-id="<?= $collectionId ?>">
@@ -115,7 +114,11 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
           </a>
           <div class="admin-product-card__footer">
             <?php if ($isActive): ?>
-              <a class="admin-btn-text" href="<?= $h(CollectionContent::publicPath($slug)) ?>" target="_blank" rel="noopener">Bekijken</a>
+              <?php /* The address the collection really has, rather than its
+                       neutral key: they are byte-identical in the default
+                       language, and urlFor() is the one place that knows it
+                       (docs/multilingual/ROUTING.md). */ ?>
+              <a class="admin-btn-text" href="<?= $h(CollectionContent::urlFor($collection)) ?>" target="_blank" rel="noopener">Bekijken</a>
             <?php else: ?>
               <span class="admin-text-muted" title="Een inactieve collectie is niet publiek zichtbaar."><?= admin_te('common.not_visible') ?></span>
             <?php endif; ?>

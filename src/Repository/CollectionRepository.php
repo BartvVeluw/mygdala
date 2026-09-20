@@ -418,7 +418,20 @@ class CollectionRepository extends Repository
     {
         $productIds = array_values(array_unique(array_map('intval', $productIds)));
 
-        $this->db->beginTransaction();
+        // JOINS A TRANSACTION THAT IS ALREADY OPEN, and opens one only when
+        // there is none — the same rule App\Service\Language\
+        // EntityTranslations::save() follows, and for the same reason: since
+        // Multilingual 2.0 phase 5 wave C the collection endpoints write the
+        // row and its words in ONE transaction and call this inside it. PDO
+        // refuses a nested beginTransaction(), so opening a second one here
+        // turned every save that carried the product picker into "Collectie
+        // kon niet worden opgeslagen" — with the membership untouched and
+        // nothing on screen to say why.
+        $ownsTransaction = !$this->db->inTransaction();
+
+        if ($ownsTransaction) {
+            $this->db->beginTransaction();
+        }
 
         try {
             $delete = $this->db->prepare('DELETE FROM collection_products WHERE collection_id = :collection_id');
@@ -439,9 +452,16 @@ class CollectionRepository extends Repository
                 }
             }
 
-            $this->db->commit();
+            if ($ownsTransaction) {
+                $this->db->commit();
+            }
         } catch (\Throwable $e) {
-            $this->db->rollBack();
+            // Only the owner rolls back; a caller's transaction is the
+            // caller's to undo, and its catch block already does.
+            if ($ownsTransaction && $this->db->inTransaction()) {
+                $this->db->rollBack();
+            }
+
             throw $e;
         }
     }
@@ -472,7 +492,14 @@ class CollectionRepository extends Repository
             return;
         }
 
-        $this->db->beginTransaction();
+        // Joins an open transaction — see setCollectionProducts(). The
+        // product endpoints write the row, its words and this membership in
+        // one transaction too.
+        $ownsTransaction = !$this->db->inTransaction();
+
+        if ($ownsTransaction) {
+            $this->db->beginTransaction();
+        }
 
         try {
             if ($toRemove !== []) {
@@ -501,9 +528,14 @@ class CollectionRepository extends Repository
                 }
             }
 
-            $this->db->commit();
+            if ($ownsTransaction) {
+                $this->db->commit();
+            }
         } catch (\Throwable $e) {
-            $this->db->rollBack();
+            if ($ownsTransaction && $this->db->inTransaction()) {
+                $this->db->rollBack();
+            }
+
             throw $e;
         }
     }

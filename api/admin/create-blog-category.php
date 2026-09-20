@@ -61,16 +61,25 @@ $repository = new BlogCategoryRepository($db);
 try {
     $db->beginTransaction();
 
+    $slug = BlogSlug::unique(
+        (string) ($_POST['slug'] ?? ''),
+        $name,
+        static fn (string $candidate): bool => $repository->slugExists($candidate)
+    );
+
     $id = $repository->create([
-        'slug' => BlogSlug::unique(
-            (string) ($_POST['slug'] ?? ''),
-            $name,
-            static fn (string $candidate): bool => $repository->slugExists($candidate)
-        ),
+        'slug' => $slug,
         'is_active' => true,
         'sort_order' => $repository->nextPosition(),
     ]);
-    BlogLocalization::saveCategory($id, $language, [BlogLocalization::NAME => $name]);
+    // A new category is created in the default language, so that is the
+    // language whose ADDRESS it gets (Multilingual 2.0 phase 6,
+    // docs/multilingual/ROUTING.md). Every other language stays without one
+    // until an editor writes it, and therefore has no public URL.
+    BlogLocalization::saveCategory($id, $language, [
+        BlogLocalization::SLUG => $slug,
+        BlogLocalization::NAME => $name,
+    ]);
 
     $db->commit();
 

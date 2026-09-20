@@ -8,6 +8,7 @@ use App\Database;
 use App\Repository\CollectionRepository;
 use App\Repository\ProductRepository;
 use App\Service\CollectionService;
+use App\Service\ShopLocalization;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -125,7 +126,7 @@ final class CollectionServiceTest extends TestCase
 
     public function testGenerateSlugDerivesTheSlugFromTheName(): void
     {
-        $slug = CollectionService::generateSlug($this->collections, self::SLUG_PREFIX . 'Sleutelhangers');
+        $slug = CollectionService::generateSlug($this->collections, self::SLUG_PREFIX . 'Sleutelhangers', ShopLocalization::defaultLanguage());
 
         $this->assertStringStartsWith(self::SLUG_PREFIX, $slug);
         $this->assertMatchesRegularExpression('/^[a-z0-9-]+$/', $slug);
@@ -133,7 +134,7 @@ final class CollectionServiceTest extends TestCase
 
     public function testGenerateSlugFallsBackToCollectieForANamelessCollection(): void
     {
-        $slug = CollectionService::generateSlug($this->collections, '!!!');
+        $slug = CollectionService::generateSlug($this->collections, '!!!', ShopLocalization::defaultLanguage());
 
         $this->assertStringStartsWith('collectie', $slug);
     }
@@ -145,7 +146,7 @@ final class CollectionServiceTest extends TestCase
         $this->createCollection('Eerste', $base);
         $this->createCollection('Tweede', $base . '-2');
 
-        $this->assertSame($base . '-3', CollectionService::generateSlug($this->collections, $base));
+        $this->assertSame($base . '-3', CollectionService::generateSlug($this->collections, $base, ShopLocalization::defaultLanguage()));
     }
 
     public function testValidateSlugRejectsAnAlreadyUsedSlug(): void
@@ -153,26 +154,26 @@ final class CollectionServiceTest extends TestCase
         $slug = self::SLUG_PREFIX . 'bezet-' . bin2hex(random_bytes(3));
         $existing = $this->createCollection('Bezet', $slug);
 
-        $this->assertNotNull(CollectionService::validateSlug($this->collections, $slug, null));
+        $this->assertNotNull(CollectionService::validateSlug($this->collections, $slug, null, ShopLocalization::defaultLanguage()));
         $this->assertNull(
-            CollectionService::validateSlug($this->collections, $slug, $existing),
+            CollectionService::validateSlug($this->collections, $slug, $existing, ShopLocalization::defaultLanguage()),
             'a collection keeping its own slug is not a collision'
         );
     }
 
     public function testValidateSlugRejectsAnEmptyOrMalformedSlug(): void
     {
-        $this->assertNotNull(CollectionService::validateSlug($this->collections, '', null));
-        $this->assertNotNull(CollectionService::validateSlug($this->collections, 'Met Spaties', null));
-        $this->assertNotNull(CollectionService::validateSlug($this->collections, '-leading', null));
-        $this->assertNotNull(CollectionService::validateSlug($this->collections, 'trailing-', null));
-        $this->assertNotNull(CollectionService::validateSlug($this->collections, 'dubbele--koppelteken', null));
+        $this->assertNotNull(CollectionService::validateSlug($this->collections, '', null, ShopLocalization::defaultLanguage()));
+        $this->assertNotNull(CollectionService::validateSlug($this->collections, 'Met Spaties', null, ShopLocalization::defaultLanguage()));
+        $this->assertNotNull(CollectionService::validateSlug($this->collections, '-leading', null, ShopLocalization::defaultLanguage()));
+        $this->assertNotNull(CollectionService::validateSlug($this->collections, 'trailing-', null, ShopLocalization::defaultLanguage()));
+        $this->assertNotNull(CollectionService::validateSlug($this->collections, 'dubbele--koppelteken', null, ShopLocalization::defaultLanguage()));
     }
 
     public function testValidateSlugAcceptsAWellFormedUnusedSlug(): void
     {
         $this->assertNull(
-            CollectionService::validateSlug($this->collections, self::SLUG_PREFIX . 'vrij-' . bin2hex(random_bytes(3)), null)
+            CollectionService::validateSlug($this->collections, self::SLUG_PREFIX . 'vrij-' . bin2hex(random_bytes(3)), null, ShopLocalization::defaultLanguage())
         );
     }
 

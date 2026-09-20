@@ -104,6 +104,28 @@ final class RouteSegments
     }
 
     /**
+     * Every word ONE key can spell, in no particular language — what a slug
+     * check asks when it wants to keep a row away from a namespace it owns
+     * (App\Service\Blog\BlogSlug::reservedSegments()).
+     *
+     * variants() needs a language because it puts that language's word first;
+     * this does not, and asking it nothing about languages keeps it usable
+     * where there is no request and no registry to read.
+     *
+     * @return list<string>
+     */
+    public static function words(string $key): array
+    {
+        $entry = self::all()[$key] ?? null;
+
+        if ($entry === null) {
+            throw new \InvalidArgumentException(sprintf('Unknown route segment "%s".', $key));
+        }
+
+        return array_values(array_unique(array_values($entry)));
+    }
+
+    /**
      * Every word any segment can spell, in any language — what
      * App\Service\Routing\ReservedPaths keeps a page slug away from, so
      * `collections` can no more become a page than `collecties` already

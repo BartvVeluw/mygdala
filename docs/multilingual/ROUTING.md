@@ -314,17 +314,49 @@ Geen adres per taal krijgen:
 
 - een slug hoort bij **de taal die de redacteur op dat moment bewerkt**;
 - taal A wijzigen raakt het adres van taal B niet;
-- de slug blijft staan als alleen de titel verandert — hij wordt alleen
-  automatisch gemaakt wanneer het veld leeg is bij het aanmaken;
+- de slug blijft staan als alleen de titel of de naam verandert — hij wordt
+  alleen automatisch gemaakt wanneer het veld leeg is **én die taal nog geen
+  adres heeft**;
 - een botsing wordt binnen **één** taal gecontroleerd, plus — voor de
   standaardtaal — tegen de neutrale kolom;
 - een geweigerde opslag houdt de invoer én de "niet opgeslagen"-staat vast;
 - een pagina die in een taal nog geen adres heeft, heeft in die taal **geen
   publieke URL**, en het scherm zegt dat met zoveel woorden.
 
+Alleen de **standaardtaal** móét een adres hebben; in elke andere taal is het
+veld leeg toegestaan, en het leegmaken van een bestaand adres betekent "deze
+taal heeft hier geen publieke URL meer". Die ene regel staat op één plek in
+code: `App\Service\Routing\LocalizedSlugInput`. Sanitizen, uniciteit en de
+gereserveerde woorden blijven van het domein zelf (`PageService`,
+`Blog\BlogSlug`, `CollectionService`), want alleen dat kent zijn eigen
+tekenset, lengte en naamruimte.
+
 Een naamswijziging legt een 301 aan **in de URL-ruimte van die taal**: de
 Engelse versie hernoemen geeft `/en/oud` → `/en/nieuw` en laat de Nederlandse
 adressen met rust.
+
+### Welke schermen een adres per taal bewerken
+
+| Scherm | Endpoint | Adres van |
+|---|---|---|
+| `admin/page.php` | `update-page.php` | de pagina |
+| `admin/blog-post.php` | `update-blog-post.php` | het bericht |
+| `admin/blog-categories.php` | `update-blog-category.php` | het categoriearchief |
+| `admin/blog-tags.php` | `update-blog-tag.php` | het tagarchief |
+| `admin/collection.php` | `update-collection.php` | de collectiepagina |
+
+Een **nieuw** item wordt in de standaardtaal aangemaakt en krijgt daar zijn
+adres; elke andere taal blijft zonder, en dus zonder publieke URL, tot een
+redacteur er een schrijft.
+
+Bij een collectie verandert een vertaling **alleen** het adres van die taal.
+Het id, de neutrale slug, de gekoppelde producten met hun volgorde, de
+gerelateerde-producteninstelling en de zichtbaarheid zijn taalneutraal en
+blijven staan.
+
+De blognaamruimte is per taal gespeld, dus `categorie` **en** `category` zijn
+allebei gereserveerd voor een blogslug — `BlogSlug::reservedSegments()` haalt
+die woorden uit dezelfde catalogus als de router (`RouteSegments`).
 
 ---
 

@@ -28,6 +28,8 @@ use App\Service\AdminAuth;
 use App\Service\CollectionContent;
 use App\Service\CollectionService;
 use App\Service\Csrf;
+use App\Service\Language\SiteLanguages;
+use App\Service\Routing\LocalizedSlugInput;
 use App\Service\SectionImageUploader;
 use App\Service\ShopLocalization;
 
@@ -67,26 +69,49 @@ if ($existing === null) {
 
 $productIds = CollectionService::validateProductIds($fields['product_ids'], new ProductRepository($db));
 
+/**
+ * THE ADDRESS BELONGS TO THE LANGUAGE BEING EDITED (Multilingual 2.0 phase 6,
+ * docs/multilingual/ROUTING.md). Saving the English version writes
+ * /en/collections/<slug> and leaves /collecties/<slug> exactly where it is;
+ * a collision is a collision inside one language only.
+ *
+ * `collections.slug` stays in step with the DEFAULT language's address: it is
+ * the neutral key every existing link and every stored redirect names. The
+ * rule that decides which of the two a save writes is
+ * App\Service\Routing\LocalizedSlugInput's — the same one the page, the post
+ * and the taxonomy editors follow.
+ *
+ * Everything else about this collection is language-neutral and untouched
+ * here: its id, its product membership and order, its related-products
+ * heading configuration, its images and its published state.
+ */
+$language = (string) $fields['language_code'];
+$isWritableLanguage = $language !== '' && SiteLanguages::isActive($language);
+$currentSlug = ShopLocalization::collectionSlug($existing, $language);
 $slug = $fields['slug'];
-if ($slug === '') {
-    // Blank slug field: regenerate from the (possibly renamed) collection
-    // name rather than refusing to save. Excluding this collection's own id
-    // means an unchanged name keeps producing its current slug.
-    //
-    // A SLUG IS LANGUAGE-NEUTRAL, so it is always generated from the DEFAULT
-    // language's name (Multilingual 2.0 phase 5 wave C): the submitted name
-    // when this request is in that language, else the name already stored.
-    // Saving a translation therefore cannot move a collection's address.
-    $defaultLanguage = ShopLocalization::defaultLanguage();
-    $slug = CollectionService::generateSlug(
-        $collectionRepository,
-        $fields['language_code'] === $defaultLanguage
-            ? $fields['name']
-            : ShopLocalization::collection($id, ShopLocalization::NAME, $defaultLanguage),
-        $id
-    );
-} else {
-    $slugError = CollectionService::validateSlug($collectionRepository, $slug, $id);
+
+/**
+ * A BLANK FIELD MEANS "MAKE ONE FROM THE NAME", in two cases that produce
+ * the same slug from the same name and differ only in why:
+ *
+ *   - the DEFAULT language regenerates rather than refusing to save, which is
+ *     what this endpoint has always done. Excluding this collection's own id
+ *     means an unchanged name keeps producing its current slug;
+ *   - a TRANSLATION gets its FIRST address, the way a new collection gets its
+ *     first — and only its first: an address that already exists is never
+ *     regenerated, so a rename leaves the URL where it is. Blanking the field
+ *     of a translation that HAS one therefore takes its public URL away,
+ *     which is what an editor asking for that means.
+ */
+if ($isWritableLanguage && $slug === '' && (
+    LocalizedSlugInput::addressIsRequired($language)
+    || LocalizedSlugInput::needsFirstAddress($slug, $language, $currentSlug, $fields['name'])
+)) {
+    $slug = CollectionService::generateSlug($collectionRepository, $fields['name'], $language, $id);
+}
+
+if ($isWritableLanguage && $slug !== '') {
+    $slugError = CollectionService::validateSlug($collectionRepository, $slug, $id, $language);
     if ($slugError !== null) {
         $errors[] = $slugError;
     }
@@ -140,11 +165,14 @@ try {
     $db->beginTransaction();
 
     $collectionRepository->update($id, [
-        'slug' => $slug,
+        // Only the default language moves the neutral key.
+        'slug' => LocalizedSlugInput::neutralSlug($slug, $language, (string) $existing['slug']),
         'is_active' => $fields['is_active'],
     ]);
 
-    ShopLocalization::saveCollection($id, $fields['language_code'], [
+    ShopLocalization::saveCollection($id, $language, [
+        // NULL is "this language has no public route", not an address.
+        ShopLocalization::SLUG => LocalizedSlugInput::stored($slug),
         ShopLocalization::NAME => $fields['name'],
         ShopLocalization::DESCRIPTION => (string) $fields['description'],
         ShopLocalization::META_TITLE => $fields['meta_title'],

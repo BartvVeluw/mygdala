@@ -337,14 +337,21 @@ final class ShopEditingHttpTest extends TestCase
     }
 
     /**
-     * And a BLANK slug field still means "make one from the name" — from the
-     * DEFAULT language's name, never from the translation on screen. Before
-     * wave C the form posted both names at once and this produced the Dutch
-     * slug; it still does, which is the whole point.
+     * And a BLANK slug field means "make one from the name" — the name ON
+     * SCREEN, for the language on screen, and it lands in THAT language's
+     * address (Multilingual 2.0 phase 6, docs/multilingual/ROUTING.md).
+     *
+     * Until phase 6 a collection had one address, so a blank field could only
+     * mean the default language's name and a translation was not allowed to
+     * touch it. Now a translation has an address of its own, and giving it
+     * one still leaves `collections.slug` — the neutral key every existing
+     * link and every stored redirect names — exactly where it was.
+     * Tests\Service\CollectionAddressEditorTest holds the whole contract.
      */
-    public function testARegeneratedSlugComesFromTheDefaultLanguagesNameNotTheTranslation(): void
+    public function testABlankSlugGivesTheTranslationItsOwnAddressAndMovesNothingElse(): void
     {
         $collectionId = $this->storedCollection('ZZ Onderzetters');
+        $before = (new CollectionRepository())->findById($collectionId);
         [$session, $csrf] = $this->accounts->signIn([ShopModule::COLLECTIONS_MANAGE]);
 
         $response = self::$server->request('POST', '/api/admin/update-collection.php', $session, [
@@ -363,8 +370,19 @@ final class ShopEditingHttpTest extends TestCase
 
         $after = (new CollectionRepository())->findById($collectionId);
         $this->assertNotNull($after);
-        $this->assertSame('zz-onderzetters', $after['slug'], 'the slug follows the default language, not the screen');
-        $this->assertStringNotContainsString('english', (string) $after['slug']);
+        $this->assertSame($before['slug'], $after['slug'], 'the neutral key never moves for a translation');
+
+        ShopLocalization::clearCache();
+        $this->assertSame(
+            'zz-completely-different-english-name',
+            ShopLocalization::collectionSlug($after, 'en'),
+            'the English address is made from the English name'
+        );
+        $this->assertSame(
+            $before['slug'],
+            ShopLocalization::collectionSlug($after, 'nl'),
+            'and the Dutch address is still the neutral one'
+        );
     }
 
     /**

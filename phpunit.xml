@@ -580,6 +580,7 @@
             <file>tests/Install/ShopWordsMigrationTest.php</file>
             <file>tests/Install/OrderItemNameSnapshotMigrationTest.php</file>
             <directory>tests/Service/Address</directory>
+            <file>tests/Service/CollectionAddressEditorTest.php</file>
             <file>tests/Service/CollectionAdminSecurityTest.php</file>
             <file>tests/Service/CollectionContentTest.php</file>
             <file>tests/Service/CollectionRoutingTest.php</file>

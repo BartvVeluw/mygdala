@@ -378,11 +378,22 @@ producten. Ze staan in `product_translations` en `collection_translations`,
 endpoint komt er buiten die klasse om bij.
 
 **Woorden zijn geen identiteit.** Alles waar de winkel een besluit mee neemt
-blijft op de rij zelf en is in elke taal hetzelfde: id, slug, prijs, voorraad,
-verzendinstellingen, `active`, `in_shop`, `in_personalization_catalog`,
-afbeeldingspaden, varianten, `is_active`, `show_related_products`,
-sorteervolgorde en elke relatie. Een taalwissel verandert alleen zichtbare
-labels — nooit welk product in de winkelwagen zit of wat het kost.
+blijft op de rij zelf en is in elke taal hetzelfde: id, de neutrale slug,
+prijs, voorraad, verzendinstellingen, `active`, `in_shop`,
+`in_personalization_catalog`, afbeeldingspaden, varianten, `is_active`,
+`show_related_products`, sorteervolgorde en elke relatie. Een taalwissel
+verandert alleen zichtbare labels — nooit welk product in de winkelwagen zit
+of wat het kost.
+
+**Eén ding is er sinds Multilingual 2.0 fase 6 bij gekomen, en het is geen
+woord: het adres.** Een collectie heeft per taal een `slug` in
+`collection_translations`, want `/collecties/hout` en `/en/collections/wood`
+zijn twee URL's voor één collectie (`docs/multilingual/ROUTING.md`). Het wordt
+gelezen zonder terugval, en de collectie-editor schrijft alleen het adres van
+de taal die op dat moment bewerkt wordt — het id, de neutrale slug, de
+productkoppelingen met hun volgorde en de gerelateerde-producteninstelling
+blijven staan. **Een product krijgt er met opzet geen**: dat is één pagina op
+`/product.php?id=…`, hoeveel collecties het ook in zit.
 
 **En een bestelling is een momentopname, geen vertaling.**
 `order_items.product_name` blijft één taalvrije naam op de regel zelf: dat is

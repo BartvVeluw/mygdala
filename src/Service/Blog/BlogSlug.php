@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Service\Blog;
 
 use App\Service\PageService;
+use App\Service\Routing\RouteSegments;
 
 /**
  * Slugs for posts, categories and tags.
@@ -29,29 +30,72 @@ use App\Service\PageService;
  * three-segment rewrite), but /blog/categorie would then mean two things
  * depending on how many segments followed it, which is exactly the kind of
  * URL nobody should have to reason about. Those words are therefore refused.
+ *
+ * SINCE MULTILINGUAL 2.0 PHASE 6 those sub-paths are words per language: the
+ * category archive is /blog/categorie/… in Dutch and /en/blog/category/… in
+ * English (App\Service\Routing\RouteSegments). Both spellings have to be
+ * refused for exactly the same reason, so the list below is joined with every
+ * word the Blog's own segments can take — asked of the one catalogue the
+ * router matches against, never spelled a second time here.
  */
 final class BlogSlug
 {
     /** Matches the `slug` column width on `blog_posts` and `blog_categories`. */
     public const MAX_LENGTH = 170;
 
+    /** `blog_tags.slug` and `blog_tag_translations.slug` are narrower. */
+    public const TAG_MAX_LENGTH = 120;
+
     /**
      * Words the Blog's own routing owns inside /blog/. Not a security list:
      * refusing them keeps one URL from meaning two things.
+     *
+     * The Dutch spellings are written out because two of them are not route
+     * segments at all: `feed`/`feed.xml` is a fixed file name and `pagina` is
+     * the pagination parameter. The localized ones come from the catalogue;
+     * see reservedSegments().
      *
      * @var list<string>
      */
     public const RESERVED_SEGMENTS = ['categorie', 'tag', 'feed', 'feed.xml', 'pagina'];
 
-    /** The canonical form of whatever an editor typed, or '' when nothing survives. */
-    public static function sanitize(string $raw): string
+    /**
+     * The canonical form of whatever an editor typed, or '' when nothing
+     * survives.
+     *
+     * $maxLength is the width of the column this slug is going into: 170 for
+     * a post or a category, App\Service\Blog\BlogSlug::TAG_MAX_LENGTH for a
+     * tag. Cutting here rather than at the database means a too-long slug is
+     * shortened the same way in every language, instead of being refused in
+     * one and truncated in another.
+     */
+    public static function sanitize(string $raw, int $maxLength = self::MAX_LENGTH): string
     {
-        return substr(PageService::sanitizeSlug($raw), 0, self::MAX_LENGTH);
+        return substr(PageService::sanitizeSlug($raw), 0, $maxLength);
     }
 
     public static function isReserved(string $slug): bool
     {
-        return in_array(strtolower(trim($slug)), self::RESERVED_SEGMENTS, true);
+        return in_array(strtolower(trim($slug)), self::reservedSegments(), true);
+    }
+
+    /**
+     * Every word a blog slug may not be: the fixed ones above plus each
+     * language's spelling of the Blog's own sub-paths.
+     *
+     * @return list<string>
+     */
+    public static function reservedSegments(): array
+    {
+        $words = self::RESERVED_SEGMENTS;
+
+        foreach (['blog.category', 'blog.tag'] as $key) {
+            foreach (RouteSegments::words($key) as $word) {
+                $words[] = $word;
+            }
+        }
+
+        return array_values(array_unique($words));
     }
 
     /**
@@ -63,12 +107,16 @@ final class BlogSlug
      *
      * @param callable(string): bool $exists
      */
-    public static function unique(string $preferred, string $fallbackTitle, callable $exists): string
-    {
-        $base = self::sanitize($preferred);
+    public static function unique(
+        string $preferred,
+        string $fallbackTitle,
+        callable $exists,
+        int $maxLength = self::MAX_LENGTH
+    ): string {
+        $base = self::sanitize($preferred, $maxLength);
 
         if ($base === '') {
-            $base = self::sanitize($fallbackTitle);
+            $base = self::sanitize($fallbackTitle, $maxLength);
         }
 
         if ($base === '' || self::isReserved($base)) {
@@ -78,7 +126,7 @@ final class BlogSlug
             $base = 'bericht';
         }
 
-        $base = substr($base, 0, self::MAX_LENGTH - 8);
+        $base = substr($base, 0, $maxLength - 8);
 
         $slug = $base;
         $suffix = 2;
@@ -104,7 +152,7 @@ final class BlogSlug
         }
 
         if (self::isReserved($slug)) {
-            return 'Deze slug is gereserveerd voor de blogindeling zelf (' . implode(', ', self::RESERVED_SEGMENTS) . ').';
+            return 'Deze slug is gereserveerd voor de blogindeling zelf (' . implode(', ', self::reservedSegments()) . ').';
         }
 
         if ($exists($slug)) {

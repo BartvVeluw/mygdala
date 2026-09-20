@@ -134,11 +134,11 @@ final class CollectionRepositoryIntegrationTest extends TestCase
 
         // Two collections asking for the same name-derived slug must not both
         // get it — the second is suffixed.
-        $slugA = CollectionService::generateSlug($this->collections, 'ZZ Vier Daagse Test');
+        $slugA = CollectionService::generateSlug($this->collections, 'ZZ Vier Daagse Test', ShopLocalization::defaultLanguage());
         $idA = $this->collections->create(['slug' => $slugA, 'image_path' => null, 'is_active' => true]);
         $this->collectionIds[] = $idA;
 
-        $slugB = CollectionService::generateSlug($this->collections, 'ZZ Vier Daagse Test');
+        $slugB = CollectionService::generateSlug($this->collections, 'ZZ Vier Daagse Test', ShopLocalization::defaultLanguage());
 
         $this->assertNotSame($slugA, $slugB);
         $this->assertSame($slugA . '-2', $slugB);
@@ -263,6 +263,58 @@ final class CollectionRepositoryIntegrationTest extends TestCase
         $stmt = $db->prepare('SELECT COUNT(*) AS c FROM collection_products WHERE product_id = :p');
         $stmt->execute(['p' => $product]);
         $this->assertSame(2, (int) $stmt->fetch()['c']);
+    }
+
+    /**
+     * BOTH MEMBERSHIP WRITERS JOIN A TRANSACTION THAT IS ALREADY OPEN.
+     *
+     * Every one of the four admin endpoints that touches this pivot
+     * (create/update-collection.php, create/update-product.php) writes the
+     * row and its words in ONE transaction and calls the writer inside it.
+     * PDO refuses a nested beginTransaction(), so a writer that opened its
+     * own turned those saves into "kon niet worden opgeslagen" with the
+     * membership untouched — which is exactly what happened between
+     * Multilingual 2.0 phase 5 wave C and this test.
+     *
+     * The caller's transaction stays the caller's: it is still open when the
+     * writer returns, and committing it is what makes the write real.
+     */
+    public function testBothMembershipWritersRunInsideACallersOwnTransaction(): void
+    {
+        $collection = $this->createCollection('Transactie');
+        $other = $this->createCollection('Transactie tweede');
+        $first = $this->createProduct('Transactie een');
+        $second = $this->createProduct('Transactie twee');
+
+        $db = Database::connection();
+
+        $db->beginTransaction();
+        $this->collections->setCollectionProducts($collection, [$second, $first]);
+        $this->assertTrue($db->inTransaction(), 'the caller still owns its transaction');
+        $db->commit();
+
+        $this->assertSame([$second, $first], $this->collections->productIdsForCollection($collection));
+
+        $db->beginTransaction();
+        $this->collections->setProductCollections($first, [$collection, $other]);
+        $this->assertTrue($db->inTransaction());
+        $db->commit();
+
+        $this->assertSame([$collection, $other], $this->collections->collectionIdsForProduct($first));
+    }
+
+    /** And a caller that rolls back takes the membership write with it. */
+    public function testAMembershipWriteInsideARolledBackTransactionNeverHappened(): void
+    {
+        $collection = $this->createCollection('Terugdraaien');
+        $product = $this->createProduct('Terugdraaien product');
+
+        $db = Database::connection();
+        $db->beginTransaction();
+        $this->collections->setCollectionProducts($collection, [$product]);
+        $db->rollBack();
+
+        $this->assertSame([], $this->collections->productIdsForCollection($collection));
     }
 
     public function testSyncingFromTheProductSideKeepsAnExistingPositionInsideACollection(): void

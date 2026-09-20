@@ -61,7 +61,61 @@ BlogLocalization::preloadCategories(array_map(
 
 $flash = $_SESSION['admin_blog_taxonomy_flash'] ?? null;
 $errors = $_SESSION['admin_blog_taxonomy_errors'] ?? [];
-unset($_SESSION['admin_blog_taxonomy_flash'], $_SESSION['admin_blog_taxonomy_errors']);
+$old = $_SESSION['admin_blog_taxonomy_old'] ?? null;
+unset(
+    $_SESSION['admin_blog_taxonomy_flash'],
+    $_SESSION['admin_blog_taxonomy_errors'],
+    $_SESSION['admin_blog_taxonomy_old']
+);
+
+/**
+ * A refused save comes back with what was typed, on the card it was typed on
+ * and in the language it was typed in — one card per category, so the input
+ * is matched on both before it is used. Every other card shows what is
+ * stored, which is exactly what admin/page.php and admin/blog-post.php do
+ * with their own `$old`.
+ *
+ * @return array<string, mixed>|null
+ */
+$refusedInput = static function (int $categoryId) use ($old, $editingLanguage): ?array {
+    if (!is_array($old)
+        || (int) ($old['id'] ?? 0) !== $categoryId
+        || ($old['language_code'] ?? null) !== $editingLanguage
+    ) {
+        return null;
+    }
+
+    return $old;
+};
+
+/**
+ * The category's address IN THE LANGUAGE BEING EDITED (Multilingual 2.0
+ * phase 6, docs/multilingual/ROUTING.md). '' means this language has no
+ * public archive URL for it yet, which is a real and ordinary state.
+ *
+ * @param array<string, mixed> $category
+ */
+$slugValue = static function (array $category) use ($refusedInput, $editingLanguage): string {
+    $input = $refusedInput((int) $category['id']);
+
+    if ($input !== null && array_key_exists('slug', $input)) {
+        return (string) ($input['slug'] ?? '');
+    }
+
+    return (string) (BlogLocalization::categorySlug($category, $editingLanguage) ?? '');
+};
+
+/**
+ * The archive path this category can be visited at in the language being
+ * edited, or null when it has no address there.
+ *
+ * @param array<string, mixed> $category
+ */
+$archivePath = static function (array $category) use ($editingLanguage): ?string {
+    $slug = BlogLocalization::categorySlug($category, $editingLanguage);
+
+    return $slug === null ? null : BlogUrls::categoryPath($slug, 1, $editingLanguage);
+};
 ?>
 <!doctype html>
 <html lang="<?= htmlspecialchars(\App\Service\Language\AdminLocale::current(), ENT_QUOTES, 'UTF-8') ?>">
@@ -105,6 +159,8 @@ unset($_SESSION['admin_blog_taxonomy_flash'], $_SESSION['admin_blog_taxonomy_err
     <?php
       $categoryId = (int) $category['id'];
       $postCount = $posts === null ? 0 : $posts->countByCategory($categoryId);
+      $input = $refusedInput($categoryId);
+      $path = $archivePath($category);
     ?>
     <section class="admin-card">
       <h2><?= $h(BlogLocalization::categoryLabel($categoryId)) ?></h2>
@@ -116,22 +172,29 @@ unset($_SESSION['admin_blog_taxonomy_flash'], $_SESSION['admin_blog_taxonomy_err
         <?= admin_localized_input($editingLanguage) ?>
         <div class="admin-form-row">
           <label><?= admin_te('common.name') ?><?= $isDefaultLanguage ? '*' : '' ?>
-            <input type="text" name="name" maxlength="<?= BlogLocalization::CATEGORY_NAME_MAX_LENGTH ?>"<?= admin_localized_required($editingLanguage) ?> value="<?= $h(BlogLocalization::rawCategory($categoryId, BlogLocalization::NAME, $editingLanguage)) ?>"<?= admin_localized_placeholder_attr($editingLanguage) ?>>
+            <input type="text" name="name" maxlength="<?= BlogLocalization::CATEGORY_NAME_MAX_LENGTH ?>"<?= admin_localized_required($editingLanguage) ?> value="<?= $h($input !== null ? (string) ($input['name'] ?? '') : BlogLocalization::rawCategory($categoryId, BlogLocalization::NAME, $editingLanguage)) ?>"<?= admin_localized_placeholder_attr($editingLanguage) ?>>
           </label>
         </div>
 
         <div class="admin-form-row admin-form-row--split">
-          <label><?= admin_te('blog.url_slug') ?>*
-            <input type="text" name="slug" maxlength="<?= BlogSlug::MAX_LENGTH ?>" required value="<?= $h((string) $category['slug']) ?>">
+          <?php /* Not `required`: only the default language must have an
+                   address. A translation without one simply has no public
+                   archive URL yet, and the endpoint makes one from the name
+                   when this field is left blank. */ ?>
+          <label><?= admin_te('blog.url_slug') ?><?= $isDefaultLanguage ? '*' : '' ?>
+            <input type="text" name="slug" maxlength="<?= BlogSlug::MAX_LENGTH ?>"<?= admin_localized_required($editingLanguage) ?> value="<?= $h($slugValue($category)) ?>">
           </label>
           <label><?= admin_te('common.order') ?>
-            <input type="number" name="sort_order" value="<?= (int) $category['sort_order'] ?>" step="10">
+            <input type="number" name="sort_order" value="<?= (int) ($input !== null ? ($input['sort_order'] ?? 0) : $category['sort_order']) ?>" step="10">
           </label>
         </div>
+<?php if ($path === null): ?>
+        <p class="admin-text-muted"><?= admin_te('blog.category_url_none_in_language') ?></p>
+<?php endif; ?>
 
         <div class="admin-form-row">
           <label><?= admin_te('blog.korte_omschrijving') ?>
-            <textarea name="description" rows="2" maxlength="<?= BlogLocalization::CATEGORY_DESCRIPTION_MAX_LENGTH ?>"<?= admin_localized_placeholder_attr($editingLanguage) ?>><?= $h(BlogLocalization::rawCategory($categoryId, BlogLocalization::DESCRIPTION, $editingLanguage)) ?></textarea>
+            <textarea name="description" rows="2" maxlength="<?= BlogLocalization::CATEGORY_DESCRIPTION_MAX_LENGTH ?>"<?= admin_localized_placeholder_attr($editingLanguage) ?>><?= $h($input !== null ? (string) ($input['description'] ?? '') : BlogLocalization::rawCategory($categoryId, BlogLocalization::DESCRIPTION, $editingLanguage)) ?></textarea>
           </label>
         </div>
         <p class="admin-text-muted"><?= admin_te('blog.omschrijving_staat_boven_categorie') ?></p>
@@ -140,14 +203,16 @@ unset($_SESSION['admin_blog_taxonomy_flash'], $_SESSION['admin_blog_taxonomy_err
                  has one: an unticked checkbox sends nothing at all. */ ?>
         <input type="hidden" name="is_active" value="0">
         <label class="admin-checkbox-label">
-          <input type="checkbox" name="is_active" value="1" <?= (int) $category['is_active'] === 1 ? 'checked' : '' ?>>
+          <input type="checkbox" name="is_active" value="1" <?= ($input !== null ? !empty($input['is_active']) : (int) $category['is_active'] === 1) ? 'checked' : '' ?>>
           <?= admin_te('common.active') ?>
         </label>
         <p class="admin-text-muted"><?= admin_te('blog.uit_betekent_archief_categorie') ?></p>
 
         <div>
           <button type="submit"><?= admin_te('blog.categorie_opslaan') ?></button>
-          <a href="<?= $h(BlogUrls::categoryPath((string) $category['slug'])) ?>" class="admin-btn-text" target="_blank" rel="noopener"><?= admin_te('blog.bekijk_archief') ?> &#8594;</a>
+<?php if ($path !== null): ?>
+          <a href="<?= $h($path) ?>" class="admin-btn-text" target="_blank" rel="noopener"><?= admin_te('blog.bekijk_archief') ?> &#8594;</a>
+<?php endif; ?>
         </div>
       </form>
 

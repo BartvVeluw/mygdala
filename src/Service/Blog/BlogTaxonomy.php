@@ -43,17 +43,19 @@ final class BlogTaxonomy
         string $oldSlug,
         string $newSlug,
         bool $wasActive,
-        bool $isActive
+        bool $isActive,
+        ?string $languageCode = null
     ): bool {
         if (!$wasActive || !$isActive) {
             return false;
         }
 
         return self::record(
-            BlogUrls::categoryRedirectPath($oldSlug),
-            BlogUrls::categoryRedirectPath($newSlug),
+            BlogUrls::categoryRedirectPath($oldSlug, $languageCode),
+            BlogUrls::categoryRedirectPath($newSlug, $languageCode),
             $oldSlug,
-            $newSlug
+            $newSlug,
+            $languageCode
         );
     }
 
@@ -61,22 +63,39 @@ final class BlogTaxonomy
      * The same for a tag. A tag has no active flag — it exists or it does
      * not — so there is no visibility condition to check.
      */
-    public static function recordTagSlugChange(string $oldSlug, string $newSlug): bool
-    {
+    public static function recordTagSlugChange(
+        string $oldSlug,
+        string $newSlug,
+        ?string $languageCode = null
+    ): bool {
         return self::record(
-            BlogUrls::tagRedirectPath($oldSlug),
-            BlogUrls::tagRedirectPath($newSlug),
+            BlogUrls::tagRedirectPath($oldSlug, $languageCode),
+            BlogUrls::tagRedirectPath($newSlug, $languageCode),
             $oldSlug,
-            $newSlug
+            $newSlug,
+            $languageCode
         );
     }
 
-    private static function record(string $oldPath, string $newPath, string $oldSlug, string $newSlug): bool
-    {
+    /**
+     * IN THE URL SPACE OF ONE LANGUAGE (Multilingual 2.0 phase 6): renaming
+     * the English archive records /en/oud -> /en/nieuw and leaves every Dutch
+     * address alone, exactly as a renamed page does
+     * (App\Service\Redirects\SlugChangeRedirects). $languageCode is null for
+     * a caller with no language of its own, which is the request's — and for
+     * the default language that is the unprefixed path this always wrote.
+     */
+    private static function record(
+        string $oldPath,
+        string $newPath,
+        string $oldSlug,
+        string $newSlug,
+        ?string $languageCode
+    ): bool {
         if (trim($oldSlug) === '' || trim($newSlug) === '' || $oldSlug === $newSlug) {
             return false;
         }
 
-        return (new SlugChangeRedirects())->record($oldPath, $newPath);
+        return (new SlugChangeRedirects())->record($oldPath, $newPath, $languageCode);
     }
 }
