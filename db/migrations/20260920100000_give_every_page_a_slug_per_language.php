@@ -3,6 +3,8 @@
 declare(strict_types=1);
 
 use App\Service\PageService;
+use App\Service\ReservedRoutes;
+use App\Service\Routing\RouteSegments;
 use Phinx\Migration\AbstractMigration;
 
 /**
@@ -35,8 +37,9 @@ use Phinx\Migration\AbstractMigration;
  *     from that title, through App\Service\PageService::sanitizeSlug() — the
  *     same slugger the CMS uses, so an editor gets a slug they could have
  *     typed themselves rather than a second transliteration convention. A
- *     collision inside that language takes the "-2" suffix
- *     PageService::generateSlug() has always used;
+ *     collision inside that language, or a word the router owns, takes the
+ *     "-2" suffix PageService::generateSlug() has always used — the same way
+ *     out the CMS takes when it makes a first address itself;
  *   - a language with no title gets nothing, and therefore has no public
  *     route at all. That is the point of the whole phase: a URL exists when
  *     the version behind it exists, and never because another language's
@@ -46,11 +49,17 @@ use Phinx\Migration\AbstractMigration;
  * URLs and may both exist. NULL is allowed many times over, which is what
  * makes "no version in this language" storable at all.
  *
- * WHAT IT REFUSES TO DO SILENTLY. A page whose slug is now a reserved word —
- * a language code, or a word a fixed route segment spells — is REPORTED and
- * left alone. Renaming somebody's live URL without asking is not a migration's
- * decision; the page keeps its row, and the CMS will refuse the next save of
- * that slug with a message the editor can act on.
+ * WHAT IT REFUSES TO DO SILENTLY. A page whose EXISTING slug is now a
+ * reserved word — a language code — is REPORTED and left alone. Renaming
+ * somebody's live URL without asking is not a migration's decision; the page
+ * keeps its row, and the CMS will refuse the next save of that slug with a
+ * message the editor can act on.
+ *
+ * A GENERATED slug is the opposite case: nobody's URL yet, published the
+ * moment this migration writes it. It therefore never takes a reserved word
+ * (App\Service\Routing\ReservedPaths) — /en/blog would be a page hidden
+ * behind the Blog's own index, /en/nl one nothing can reach, and the next
+ * save of either would be refused.
  */
 final class GiveEveryPageASlugPerLanguage extends AbstractMigration
 {
@@ -135,6 +144,7 @@ final class GiveEveryPageASlugPerLanguage extends AbstractMigration
     private function backfillOtherLanguages(): void
     {
         $default = $this->defaultLanguage();
+        $reserved = $this->reservedWords();
 
         foreach ($this->activeLanguages() as $language) {
             if ($language === $default) {
@@ -155,7 +165,7 @@ final class GiveEveryPageASlugPerLanguage extends AbstractMigration
             ));
 
             foreach ($rows as $row) {
-                $slug = $this->uniqueSlug(PageService::sanitizeSlug((string) $row['title']), $language);
+                $slug = $this->uniqueSlug(PageService::sanitizeSlug((string) $row['title']), $language, $reserved);
 
                 if ($slug === '') {
                     continue;
@@ -173,11 +183,14 @@ final class GiveEveryPageASlugPerLanguage extends AbstractMigration
     }
 
     /**
-     * A slug that is free in this language, with the CMS's own "-2" suffix.
+     * A slug that is free in this language and no reserved word, with the
+     * CMS's own "-2" suffix — the loop PageService::generateSlug() runs.
      * Returns '' when the title yields nothing usable at all, which leaves the
      * language without a route rather than inventing "pagina-7" for it.
+     *
+     * @param list<string> $reserved
      */
-    private function uniqueSlug(string $base, string $language): string
+    private function uniqueSlug(string $base, string $language, array $reserved): string
     {
         if ($base === '') {
             return '';
@@ -187,7 +200,7 @@ final class GiveEveryPageASlugPerLanguage extends AbstractMigration
         $slug = $base;
         $suffix = 2;
 
-        while ($this->slugTaken($slug, $language)) {
+        while ($this->slugTaken($slug, $language) || in_array($slug, $reserved, true)) {
             $slug = $base . '-' . $suffix;
             $suffix++;
 
@@ -218,10 +231,10 @@ final class GiveEveryPageASlugPerLanguage extends AbstractMigration
     {
         $words = $this->activeLanguages();
 
-        // The words a fixed route segment can spell are code, not data, and
-        // reading them here would tie a migration to a catalogue that changes
-        // per release. The language codes are the ones that actually became
-        // reserved by THIS migration's contract, and they are in the database.
+        // Only the language codes are reported: they are the words THIS
+        // migration's contract turned into URL prefixes, which shadow an
+        // existing page outright. (A generated slug avoids every reserved
+        // word instead — see reservedWords().)
         if ($words === []) {
             return;
         }
@@ -243,6 +256,31 @@ final class GiveEveryPageASlugPerLanguage extends AbstractMigration
                 (string) $clash['slug']
             ));
         }
+    }
+
+    /**
+     * Every word a GENERATED address may not be: what
+     * App\Service\Routing\ReservedPaths::all() answers, put together without
+     * the application's own database connection — the root-level files and
+     * module namespaces (App\Service\ReservedRoutes), every word a fixed
+     * route segment spells in any language (App\Service\Routing\RouteSegments),
+     * and every REGISTERED language code, active or not, read through this
+     * migration's own adapter.
+     *
+     * The first two are code, and deliberately the code that runs the
+     * upgrade: a generated address has to pass exactly the check the CMS
+     * would apply to it on its next save.
+     *
+     * @return list<string>
+     */
+    private function reservedWords(): array
+    {
+        $codes = array_map(
+            static fn (array $row): string => (string) $row['code'],
+            $this->fetchAll('SELECT code FROM site_languages')
+        );
+
+        return array_values(array_unique(array_merge(ReservedRoutes::all(), RouteSegments::allWords(), $codes)));
     }
 
     /** @return list<string> */

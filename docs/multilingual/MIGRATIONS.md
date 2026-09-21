@@ -198,7 +198,13 @@ kolom kreeg — een fixture, een import, een script — bereikbaar blijft.
   geen adres, krijgt er een gegenereerd uit die woorden, met de slugger die
   het CMS zelf gebruikt (`PageService::sanitizeSlug()`,
   `BlogSlug::sanitize()`), en bij een botsing binnen die taal het `-2`-suffix
-  dat `generateSlug()` altijd al gebruikte;
+  dat `generateSlug()` altijd al gebruikte. Een gegenereerd adres neemt ook
+  **nooit een gereserveerd woord**: het staat live zodra de migratie het
+  schrijft, en het CMS zou het bij de volgende opslag weigeren. Een pagina
+  krijgt dan het `-2`-suffix (`/en/blog-2` in plaats van een pagina achter de
+  Blog-index, `/en/nl-2` in plaats van een onbereikbare), een blogentiteit
+  wordt `bericht`, zoals `BlogSlug::unique()` in het CMS doet. Een collectie
+  heeft geen gereserveerde woorden;
 - een taal **zonder woorden** krijgt niets, en heeft daarmee geen publieke
   route. Dat is het punt van de fase: een URL bestaat wanneer de versie
   erachter bestaat.

@@ -43,6 +43,13 @@ use Phinx\Migration\AbstractMigration;
  * follows), made unique inside that language with the same "-2" suffix. A
  * language with no words gets nothing and therefore has no public route,
  * which is the whole point: a URL exists when the version behind it exists.
+ *
+ * A GENERATED blog address never takes a word the Blog's own routing owns
+ * (App\Service\Blog\BlogSlug::isReserved()): it is published the moment it is
+ * written, and the CMS would refuse it on the next save. It becomes
+ * "bericht" instead, the way out App\Service\Blog\BlogSlug::unique() takes
+ * when the CMS makes a first address itself. A collection's address lives
+ * under its own segment and has no reserved words, in the CMS or here.
  */
 final class GiveModuleEntitiesASlugPerLanguage extends AbstractMigration
 {
@@ -171,6 +178,10 @@ final class GiveModuleEntitiesASlugPerLanguage extends AbstractMigration
     {
         if ($base === '') {
             return '';
+        }
+
+        if ($table !== 'collection_translations' && BlogSlug::isReserved($base)) {
+            $base = 'bericht';
         }
 
         $base = substr($base, 0, $width - 10);

@@ -139,19 +139,32 @@ final class LocalizedSlugMigrationTest extends TestCase
         $page('zz-route-bound', 'Vaste route', 'Fixed route', '/zz-fixed.php');
         // The one slug this phase turns into a reserved word.
         $page('en', 'Botsing', null);
+        // English titles whose slug is a word the router owns: a module
+        // namespace and a language code.
+        $page('zz-reserved-route', 'Weblog', 'Blog');
+        $page('zz-reserved-code', 'Taalkeuze', 'NL');
 
         $pdo->exec(
             "INSERT INTO blog_posts (slug, status, published_at, created_at, updated_at)
              VALUES ('zz-bericht', 'published', NOW() - INTERVAL 1 DAY, NOW(), NOW()),
-                    ('zz-alleen-nl', 'published', NOW() - INTERVAL 1 DAY, NOW(), NOW())"
+                    ('zz-alleen-nl', 'published', NOW() - INTERVAL 1 DAY, NOW(), NOW()),
+                    ('zz-gereserveerd', 'published', NOW() - INTERVAL 1 DAY, NOW(), NOW())"
         );
         $posts = array_column($install->rows("SELECT id, slug FROM blog_posts WHERE slug LIKE 'zz-%'"), 'id', 'slug');
         $pdo->prepare(
             "INSERT INTO blog_post_translations (blog_post_id, language_code, title, excerpt, body, created_at, updated_at) VALUES
              (?, 'nl', 'Mijn bericht', 'Samenvatting.', '<p>Inhoud.</p>', NOW(), NOW()),
              (?, 'en', 'My post', 'Summary.', '<p>Content.</p>', NOW(), NOW()),
-             (?, 'nl', 'Alleen Nederlands', NULL, NULL, NOW(), NOW())"
-        )->execute([$posts['zz-bericht'], $posts['zz-bericht'], $posts['zz-alleen-nl']]);
+             (?, 'nl', 'Alleen Nederlands', NULL, NULL, NOW(), NOW()),
+             (?, 'nl', 'Etiket', NULL, NULL, NOW(), NOW()),
+             (?, 'en', 'Tag', NULL, NULL, NOW(), NOW())"
+        )->execute([
+            $posts['zz-bericht'],
+            $posts['zz-bericht'],
+            $posts['zz-alleen-nl'],
+            $posts['zz-gereserveerd'],
+            $posts['zz-gereserveerd'],
+        ]);
 
         $pdo->exec("INSERT INTO blog_categories (slug, is_active, sort_order, created_at, updated_at) VALUES ('zz-hout', 1, 1, NOW(), NOW())");
         $categoryId = (int) $pdo->lastInsertId();
@@ -337,6 +350,26 @@ final class LocalizedSlugMigrationTest extends TestCase
         $b = self::slugs(self::$upgraded, 'page_translations', 'pages', 'zz-twin-b')['en'];
 
         self::assertSame(['the-same-title', 'the-same-title-2'], [$a, $b]);
+    }
+
+    /**
+     * REGRESSION. A generated address is a NEW URL, published the moment the
+     * migration writes it, so it has to obey the same reserved words the CMS
+     * enforces when it makes a first address itself: /en/blog would otherwise
+     * be a page hidden behind the Blog's own index, /en/nl a page that can
+     * never be reached, and the next save of either refused. The way out is
+     * the CMS's own: "-2" for a page (App\Service\PageService::generateSlug()),
+     * "bericht" for a blog entity (App\Service\Blog\BlogSlug::unique()).
+     */
+    public function testAGeneratedAddressNeverClaimsAWordTheRouterOwns(): void
+    {
+        self::assertSame('blog-2', self::slugs(self::$upgraded, 'page_translations', 'pages', 'zz-reserved-route')['en']);
+        self::assertSame('nl-2', self::slugs(self::$upgraded, 'page_translations', 'pages', 'zz-reserved-code')['en']);
+        self::assertSame('bericht', self::slugs(self::$upgraded, 'blog_post_translations', 'blog_posts', 'zz-gereserveerd')['en']);
+
+        // The default language's addresses are the existing URLs, and those
+        // are never renamed (see the next test for the one that clashes).
+        self::assertSame('zz-reserved-route', self::slugs(self::$upgraded, 'page_translations', 'pages', 'zz-reserved-route')['nl']);
     }
 
     public function testWordsThatYieldNoSlugLeaveTheLanguageWithoutARoute(): void
