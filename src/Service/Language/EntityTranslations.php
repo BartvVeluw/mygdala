@@ -173,14 +173,6 @@ final class EntityTranslations
         return LanguageFallback::name($this->column($ownerId, $field));
     }
 
-    /** The temporary V1 `data-nl`/`data-en` pair of one field (LanguageFallback::bilingual()). */
-    public function bilingual(int $ownerId, string $field): LocalizedValue
-    {
-        $this->assertNotTheAddress($field);
-
-        return LanguageFallback::bilingual($this->column($ownerId, $field));
-    }
-
     /**
      * Load the words of many owners in one query, for a screen or a menu that
      * is about to print every one of them. Owners already loaded are left

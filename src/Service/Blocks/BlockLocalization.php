@@ -6,8 +6,8 @@ namespace App\Service\Blocks;
 
 use App\Database;
 use App\Repository\BlockTranslationRepository;
-use App\Service\Language\ContentLanguages;
 use App\Service\Language\LanguageCode;
+use App\Service\Language\LanguageFallback;
 use App\Service\Language\SiteLanguages;
 use App\Service\RichTextSanitizer;
 use App\Service\Routing\RequestLanguage;
@@ -399,17 +399,10 @@ final class BlockLocalization
         }
     }
 
-    /**
-     * The website's default language: the language every field falls back
-     * to. When the registry cannot answer, the V1 adapter's answer.
-     */
+    /** The website's default language: the language every field falls back to. */
     public static function defaultLanguage(): string
     {
-        try {
-            return SiteLanguages::defaultCode();
-        } catch (\RuntimeException) {
-            return ContentLanguages::primary();
-        }
+        return LanguageFallback::defaultLanguage();
     }
 
     // ------------------------------------------------------------ writing

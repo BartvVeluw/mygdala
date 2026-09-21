@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Service;
 
 use App\Service\Language\LocalizedSettings;
-use App\Service\Language\LocalizedValue;
 
 /**
  * THE way into the few CORE site settings that are WEBSITE TEXT in a language
@@ -95,12 +94,6 @@ final class LocalizedSiteSettings
     public static function hasDefault(string $key): bool
     {
         return self::store()->hasDefault($key);
-    }
-
-    /** The temporary V1 `data-nl`/`data-en` pair of one key. Plain text. */
-    public static function bilingual(string $key): LocalizedValue
-    {
-        return self::store()->bilingual($key);
     }
 
     /**

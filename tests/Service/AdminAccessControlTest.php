@@ -65,12 +65,6 @@ final class AdminAccessControlTest extends TestCase
         '_labels.php',
         '_translate.php',
         '_richtext_field.php',
-        // The language tabs on a content editor: a tab strip plus a wrapper
-        // around fields the calling editor already renders behind its own
-        // permission check (MULTILINGUAL.md). It reads no content of its own,
-        // and the one endpoint it points at
-        // (api/admin/translate-fields.php) checks pages.manage itself.
-        '_language_fields.php',
         // The Multilingual 2.0 localized-fields bar and helpers: markup and
         // helpers around fields the calling editor renders behind its own
         // permission check. No endpoint of its own.

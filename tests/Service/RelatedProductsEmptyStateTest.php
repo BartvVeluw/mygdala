@@ -313,7 +313,9 @@ final class RelatedProductsEmptyStateTest extends TestCase
 
         // The shop/collection empty state is still there for the grids that
         // legitimately need it.
-        $this->assertStringContainsString('Er zijn op dit moment geen producten beschikbaar.', $main);
+        // Its sentence comes from the Shop's catalogue, in the page's language
+        // (App\Service\ShopScriptText).
+        $this->assertStringContainsString('S.escapeHtml(S.text("no_products"))', $main);
     }
 
     /**

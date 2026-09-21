@@ -31,7 +31,6 @@
         <!-- No database, no web server. -->
         <testsuite name="unit">
             <file>tests/Service/LanguageRegistryTest.php</file>
-            <file>tests/Service/LocalizedValueTest.php</file>
             <file>tests/Service/AdminLocaleTest.php</file>
             <file>tests/Service/ThreeLanguageStatesTest.php</file>
             <file>tests/Service/TranslationProviderTest.php</file>
@@ -169,7 +168,6 @@
             <file>tests/Service/Routing/LanguageResolverTest.php</file>
             <file>tests/Service/Routing/RouteResolverTest.php</file>
             <file>tests/Service/Routing/ReservedPathsTest.php</file>
-            <file>tests/Service/LocalizedValueTest.php</file>
             <file>tests/Service/AdminLocaleTest.php</file>
             <file>tests/Service/ThreeLanguageStatesTest.php</file>
             <file>tests/Service/TranslationProviderTest.php</file>
@@ -441,7 +439,6 @@
             <file>tests/Service/Routing/ReservedPathsTest.php</file>
             <file>tests/Service/Routing/QueryIdentityRoutesTest.php</file>
             <file>tests/Service/Routing/PublicRouteContractTest.php</file>
-            <file>tests/Service/LocalizedValueTest.php</file>
             <file>tests/Service/AdminLocaleTest.php</file>
             <file>tests/Service/ThreeLanguageStatesTest.php</file>
             <file>tests/Service/TranslationProviderTest.php</file>
@@ -655,7 +652,6 @@
         <!-- Everything, exactly once. The default, and the checkpoint. -->
         <testsuite name="full">
             <file>tests/Service/LanguageRegistryTest.php</file>
-            <file>tests/Service/LocalizedValueTest.php</file>
             <file>tests/Service/AdminLocaleTest.php</file>
             <file>tests/Service/ThreeLanguageStatesTest.php</file>
             <file>tests/Service/TranslationProviderTest.php</file>

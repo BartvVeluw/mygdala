@@ -5,9 +5,8 @@ declare(strict_types=1);
 namespace App\Service;
 
 use App\Repository\PageTranslationRepository;
-use App\Service\Language\ContentLanguages;
 use App\Service\Language\LanguageCode;
-use App\Service\Language\LocalizedValue;
+use App\Service\Language\LanguageFallback;
 use App\Service\Language\SiteLanguages;
 
 /**
@@ -310,42 +309,10 @@ final class PageLocalization
         unset(self::$cache[$pageId]);
     }
 
-    /**
-     * The website's default language: the language every field falls back
-     * to. When the registry cannot answer, the V1 adapter's answer, which is
-     * a language every existing installation has text in.
-     */
+    /** The website's default language: the language every field falls back to. */
     public static function defaultLanguage(): string
     {
-        try {
-            return SiteLanguages::defaultCode();
-        } catch (\RuntimeException) {
-            return ContentLanguages::primary();
-        }
-    }
-
-    /**
-     * TEMPORARY OUTPUT ADAPTER for the V1 public language switch, until the
-     * frontend flip (docs/multilingual/ARCHITECTURE.md).
-     *
-     * The public templates still print one field as a `data-nl`/`data-en`
-     * pair and let assets/js/core.js swap them. This builds that pair from
-     * `page_translations`, with each half already resolved by value() — so
-     * the switch, the visible text and the fallback all follow the one rule
-     * above, and no template or partial learns where page text is stored.
-     * The two codes come from the closed V1 registry, not from here.
-     *
-     * Plain text: the page's fields are never HTML, so whatever prints this
-     * never marks it data-lang-html.
-     */
-    public static function bilingual(int $pageId, string $field): LocalizedValue
-    {
-        $values = [];
-        foreach (\App\Service\Language\LanguageFallback::renderableLanguages() as $code) {
-            $values[$code] = self::value($pageId, $field, $code);
-        }
-
-        return LocalizedValue::of($values);
+        return LanguageFallback::defaultLanguage();
     }
 
     /** Drop the per-request cache. PageContent::clearCache() calls this too. */

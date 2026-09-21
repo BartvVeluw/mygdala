@@ -7,9 +7,9 @@ declare(strict_types=1);
  * docs/multilingual/ARCHITECTURE.md): an editor screen whose text is stored
  * per website language, one language at a time.
  *
- * The page editor is the first screen on it. It replaces, for such a screen,
- * the V1 panes of admin/_language_fields.php, which render a hidden Dutch and
- * a hidden English copy of every field and cannot hold a third language.
+ * Every localized editor of the CMS is on it. It replaced the V1 panes that
+ * rendered a hidden Dutch and a hidden English copy of every field and could
+ * not hold a third language (removed in Multilingual 2.0 phase 7).
  *
  * WHAT AN EDITOR SEES. The fields of ONE language, under a bar that says
  * which one and whether it is the default:
@@ -45,7 +45,7 @@ declare(strict_types=1);
 
 use App\Service\Language\AdminTranslator;
 use App\Service\Language\ContentEditingLanguage;
-use App\Service\Language\ContentLanguages;
+use App\Service\Language\LanguageFallback;
 use App\Service\Language\SiteLanguage;
 use App\Service\Language\SiteLanguages;
 
@@ -74,14 +74,10 @@ function admin_localized_languages(): array
     return array_merge($first, $rest);
 }
 
-/** The website's default language; the V1 adapter's answer if the registry cannot give one. */
+/** The website's default language (LanguageFallback answers even when the registry cannot). */
 function admin_localized_default(): string
 {
-    try {
-        return SiteLanguages::defaultCode();
-    } catch (\RuntimeException) {
-        return ContentLanguages::primary();
-    }
+    return LanguageFallback::defaultLanguage();
 }
 
 /**

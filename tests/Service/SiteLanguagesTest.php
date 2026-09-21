@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Tests\Service;
 
 use App\Service\Language\AdminLocale;
-use App\Service\Language\ContentLanguages;
 use App\Service\Language\SiteLanguage;
 use App\Service\Language\SiteLanguages;
 use PHPUnit\Framework\TestCase;
@@ -236,7 +235,6 @@ final class SiteLanguagesTest extends TestCase
 
         self::assertSame('en', AdminLocale::current());
         self::assertSame('nl', SiteLanguages::defaultCode());
-        self::assertSame('nl', ContentLanguages::primary());
     }
 
     public function testTheWebsiteDefaultDoesNotMoveTheCmsLanguage(): void

@@ -5,27 +5,23 @@ declare(strict_types=1);
 namespace App\Service\Language;
 
 /**
- * THE list of languages this CMS knows about.
+ * THE languages the CMS ITSELF speaks: the languages its own screens are
+ * translated into (App\Service\Language\AdminLocale), what it calls each of
+ * them, and the codes a translation provider uses for them.
+ *
+ * NOT the website's languages. Those are rows in `site_languages`
+ * (App\Service\Language\SiteLanguages): a website in German is a row there
+ * and nothing here, and a CMS interface in German would be an entry here and
+ * nothing there. Multilingual 2.0 phase 7 removed the last place where this
+ * list decided what the website publishes.
  *
  * Closed and written in code, for exactly the same reason as
  * App\Service\Blocks\BlockDefinitions, App\Module\ModuleRegistry,
  * App\Service\Theme\ThemeFonts and App\Service\SocialProfiles: a language
- * code arrives from an admin form, from a settings row and from a URL, and
- * the only thing such a value may ever do is hit a key of this list or miss
- * it. Missing is missing; it never becomes a column name, a class name, a
- * file path or a provider parameter.
- *
- * That last point is not decoration. A language code is concatenated into
- * column names (`title_` . $code), so a code that could come from a request
- * would be an SQL injection surface. It cannot: every reader goes through
- * ::has() or ::get() first.
- *
- * V1 registers Dutch and English, which is what the existing `_nl`/`_en`
- * columns can store (MULTILINGUAL.md). Adding German later is one entry
- * here plus storage for it — no editor, no renderer and no provider changes.
- * The two `availableAs*` flags exist so a language can arrive in stages: a
- * curated CMS interface translation and website content storage are separate
- * questions with separate answers.
+ * code arrives from an admin form and from a settings row, and the only
+ * thing such a value may ever do is hit a key of this list or miss it.
+ * Missing is missing; it never becomes a class name, a file path or a
+ * provider parameter.
  */
 final class LanguageRegistry
 {
@@ -59,7 +55,6 @@ final class LanguageRegistry
                 deeplSource: 'NL',
                 deeplTarget: 'NL',
                 availableAsAdminLocale: true,
-                availableAsContentLanguage: true,
             ),
             self::ENGLISH => new LanguageDefinition(
                 code: self::ENGLISH,
@@ -71,7 +66,6 @@ final class LanguageRegistry
                 // other option and neither is more correct for a Dutch site.
                 deeplTarget: 'EN-GB',
                 availableAsAdminLocale: true,
-                availableAsContentLanguage: true,
             ),
         ];
     }
@@ -97,33 +91,6 @@ final class LanguageRegistry
     public static function adminLocales(): array
     {
         return array_filter(self::all(), static fn (LanguageDefinition $d): bool => $d->availableAsAdminLocale);
-    }
-
-    /** @return array<string, LanguageDefinition> the ones a website can store content in */
-    public static function contentLanguages(): array
-    {
-        return array_filter(self::all(), static fn (LanguageDefinition $d): bool => $d->availableAsContentLanguage);
-    }
-
-    /**
-     * Keep only codes this CMS knows, in registry order, without duplicates.
-     * Every settings reader and every request handler runs its input through
-     * here, so an unknown code is dropped rather than rejected loudly — a
-     * stored row from a future version must never lock an editor out.
-     *
-     * @param string[] $codes
-     * @return string[]
-     */
-    public static function filter(array $codes): array
-    {
-        $wanted = [];
-        foreach ($codes as $code) {
-            if (is_string($code) && self::has($code)) {
-                $wanted[$code] = true;
-            }
-        }
-
-        return array_values(array_filter(self::codes(), static fn (string $c): bool => isset($wanted[$c])));
     }
 
     /** The label of $code inside a CMS interface running in $locale. */

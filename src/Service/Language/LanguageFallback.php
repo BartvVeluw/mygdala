@@ -26,48 +26,19 @@ final class LanguageFallback
 {
     /**
      * The website's default language: the language every field falls back
-     * to. When the registry cannot answer, the V1 adapter's answer, which is
-     * a language every existing installation has words in.
+     * to. THE one place that answers it when the registry cannot be read (the
+     * reason is already logged by App\Service\Language\SiteLanguages): the
+     * project's own default, a language every installation has words in.
+     * Every other "default language, even when the registry is down" asks
+     * this method rather than keeping a second answer.
      */
     public static function defaultLanguage(): string
     {
         try {
             return SiteLanguages::defaultCode();
         } catch (\RuntimeException) {
-            return ContentLanguages::primary();
+            return LanguageRegistry::DEFAULT_LANGUAGE;
         }
-    }
-
-    /**
-     * Every language a PUBLIC PAGE may have to render right now: the closed
-     * V1 registry, plus every language this site has switched on.
-     *
-     * The two lists are the same on a site that publishes Dutch and English,
-     * which is every installation that exists today — so this changes nothing
-     * for them. It matters the moment somebody adds a third: the storage has
-     * been per-language since phases 2 to 5, the router serves /de/ since
-     * phase 6, and the only thing still narrowing a page to two languages was
-     * the closed V1 list this widens. Adding German is then a registry row,
-     * as App\Service\Language\SiteLanguages has always promised.
-     *
-     * The V1 `data-nl`/`data-en` ATTRIBUTES deliberately do NOT widen: they
-     * are a compatibility output that phase 7 removes, and giving them a
-     * third half would be building something new on top of the thing being
-     * taken away.
-     *
-     * @return list<string> registry order first, then the site's own order
-     */
-    public static function renderableLanguages(): array
-    {
-        $codes = LanguageRegistry::codes();
-
-        foreach (SiteLanguages::activeCodes() as $code) {
-            if (!in_array($code, $codes, true)) {
-                $codes[] = $code;
-            }
-        }
-
-        return array_values($codes);
     }
 
     /**
@@ -116,34 +87,5 @@ final class LanguageFallback
         }
 
         return '';
-    }
-
-    /**
-     * TEMPORARY OUTPUT ADAPTER for the V1 public language switch, until the
-     * frontend flip: the `data-nl`/`data-en` pair, with each half already
-     * resolved by resolve(). The two codes come from the closed V1 registry,
-     * not from here, and no new NL/EN storage is involved.
-     *
-     * Plain text or sanitized markup alike: whether a value may be printed as
-     * HTML is the caller's business (App\Service\Language\SiteText), never
-     * decided here.
-     *
-     * @param array<string, string> $wordsByLanguage
-     */
-    public static function bilingual(array $wordsByLanguage): LocalizedValue
-    {
-        $default = self::defaultLanguage();
-        $values = [];
-
-        // Every language that could have to be printed, not only the V1 pair:
-        // the visible half of the result is the REQUEST's language since
-        // phase 6 (App\Service\Language\SiteText::visibleOf()), and a third
-        // language whose words were dropped here would render the default
-        // language's on a URL that promised its own.
-        foreach (self::renderableLanguages() as $code) {
-            $values[$code] = self::resolve($wordsByLanguage, $code, $default);
-        }
-
-        return LocalizedValue::of($values);
     }
 }

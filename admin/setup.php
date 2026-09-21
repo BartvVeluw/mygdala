@@ -140,7 +140,7 @@ $siteName = SiteSettings::get('site_name');
  */
 $setupPrimaryLanguage = $previous('primary_content_language') !== ''
     ? SetupWizard::websiteLanguage($previous('primary_content_language'))
-    : \App\Service\Language\ContentLanguages::primary();
+    : \App\Service\Language\LanguageFallback::defaultLanguage();
 ?>
 <!doctype html>
 <html lang="<?= htmlspecialchars(\App\Service\Language\AdminLocale::current(), ENT_QUOTES, 'UTF-8') ?>">
@@ -241,8 +241,8 @@ $setupPrimaryLanguage = $previous('primary_content_language') !== ''
       <div class="admin-form-row">
         <label for="setup-primary-language"><?= admin_te('setup.taal_website') ?>
           <select id="setup-primary-language" name="primary_content_language">
-            <?php foreach (\App\Service\Language\LanguageRegistry::contentLanguages() as $languageCode => $languageDefinition): ?>
-              <option value="<?= $h($languageCode) ?>"<?= $languageCode === $setupPrimaryLanguage ? ' selected' : '' ?>><?= $h($languageDefinition->nativeLabel) ?></option>
+            <?php foreach (\App\Service\Language\SiteLanguages::active() as $websiteLanguage): ?>
+              <option value="<?= $h($websiteLanguage->code) ?>"<?= $websiteLanguage->code === $setupPrimaryLanguage ? ' selected' : '' ?>><?= $h($websiteLanguage->nativeName !== '' ? $websiteLanguage->nativeName : strtoupper($websiteLanguage->code)) ?></option>
             <?php endforeach; ?>
           </select>
         </label>

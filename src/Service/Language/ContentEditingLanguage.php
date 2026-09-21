@@ -35,14 +35,10 @@ use App\Service\AdminAuth;
  * nowhere to store a preference and gets the site's default website
  * language — the safe, repeatable direction.
  *
- * WHICH LANGUAGES, since Multilingual 2.0 phase 2: every active language of
- * the website language registry (App\Service\Language\SiteLanguages), plus
- * the V1 languages the `_nl`/`_en` columns store, which stay editable until
- * the frontend flip whatever the registry's active flag says
- * (ContentLanguages::enabled()). A third language is therefore one row away
- * from being choosable here. A screen that can only store the V1 pair shows
- * the default language instead of it (admin/_language_fields.php); a screen
- * converted to per-language storage shows exactly this language
+ * WHICH LANGUAGES: every active language of the website language registry
+ * (App\Service\Language\SiteLanguages), the default first. A language
+ * added to the website is therefore one row away from being choosable here,
+ * and every localized editor shows exactly this language
  * (admin/_localized_fields.php).
  *
  * NOTHING HERE READS OR WRITES AdminLocale, and nothing here writes
@@ -90,33 +86,6 @@ final class ContentEditingLanguage
         return self::current() === $code;
     }
 
-    /** Is the editor writing in the language everything else falls back to? */
-    public static function isPrimary(): bool
-    {
-        return self::current() === ContentLanguages::primary();
-    }
-
-    /**
-     * The language an editor would translate FROM while writing the current
-     * one: the site's default website language, or — when that IS the current
-     * one — the other language this site publishes.
-     *
-     * Null on a site with only one content language, which V1 does not have
-     * but the class must not assume away.
-     */
-    public static function source(): ?string
-    {
-        $current = self::current();
-
-        foreach (ContentLanguages::enabled() as $code) {
-            if ($code !== $current) {
-                return $code;
-            }
-        }
-
-        return null;
-    }
-
     /**
      * Keep only a language an administrator may choose (::choices()).
      * Anything else — null, empty, an interface-only language, a language
@@ -138,13 +107,7 @@ final class ContentEditingLanguage
 
     /**
      * What an administrator may switch between: the website's active
-     * languages and the V1 pair, the default first and the rest in the
-     * registry's order.
-     *
-     * A V1 language the registry cannot describe (an unreadable registry, or
-     * a row switched off before the flip) is still offered, described by the
-     * closed V1 registry, so no editor ever loses a language the old columns
-     * hold.
+     * languages, the default first and the rest in the registry's order.
      *
      * @return list<SiteLanguage>
      */
@@ -157,17 +120,6 @@ final class ContentEditingLanguage
             $choices[$language->code] = $language;
         }
 
-        foreach (ContentLanguages::definitions() as $definition) {
-            $choices[$definition->code] ??= new SiteLanguage(
-                code: $definition->code,
-                name: $definition->englishLabel,
-                nativeName: $definition->nativeLabel,
-                isDefault: $definition->code === $default,
-                isActive: true,
-                sortOrder: PHP_INT_MAX,
-            );
-        }
-
         $ordered = isset($choices[$default]) ? [$choices[$default]] : [];
         foreach ($choices as $code => $language) {
             if ($code !== $default) {
@@ -178,17 +130,10 @@ final class ContentEditingLanguage
         return $ordered;
     }
 
-    /**
-     * The website's default language, or the V1 adapter's answer when the
-     * registry cannot give one.
-     */
+    /** The website's default language (LanguageFallback answers even when the registry cannot). */
     private static function defaultCode(): string
     {
-        try {
-            return SiteLanguages::defaultCode();
-        } catch (\RuntimeException) {
-            return ContentLanguages::primary();
-        }
+        return LanguageFallback::defaultLanguage();
     }
 
     /**

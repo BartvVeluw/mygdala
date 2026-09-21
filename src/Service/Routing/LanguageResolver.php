@@ -102,11 +102,7 @@ final class LanguageResolver
      */
     public static function defaultLanguage(): string
     {
-        try {
-            return SiteLanguages::defaultCode();
-        } catch (\RuntimeException) {
-            return \App\Service\Language\ContentLanguages::primary();
-        }
+        return \App\Service\Language\LanguageFallback::defaultLanguage();
     }
 
     /** Is this the language whose URLs carry no prefix? */

@@ -12,7 +12,6 @@ use App\Service\Blocks\BlockDefinitions;
 use App\Service\Breadcrumbs\BreadcrumbItem;
 use App\Service\Breadcrumbs\BreadcrumbTrail;
 use App\Service\Breadcrumbs\PageBreadcrumb;
-use App\Service\Language\LanguageRegistry;
 use App\Service\PageContent;
 use App\Service\PageHeroContent;
 use App\Service\PageLocalization;
@@ -324,9 +323,8 @@ final class BreadcrumbTest extends TestCase
         $this->translateTo('Breadcrumb test page');
         $page = $this->reload();
 
-        $value = PageLocalization::bilingual((int) $page['id'], PageTranslation::TITLE);
-        $this->assertSame('Testpagina kruimelpad', $value->raw(LanguageRegistry::DUTCH));
-        $this->assertSame('Breadcrumb test page', $value->raw(LanguageRegistry::ENGLISH));
+        $this->assertSame('Testpagina kruimelpad', PageLocalization::title((int) $page['id'], 'nl'));
+        $this->assertSame('Breadcrumb test page', PageLocalization::title((int) $page['id'], 'en'));
 
         // The <title> a page without its own SEO title falls back to is built
         // from the same value, so the trail and the tab cannot disagree.

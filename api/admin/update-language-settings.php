@@ -18,9 +18,10 @@
  * settings row (docs/multilingual/ARCHITECTURE.md). Nothing else changes:
  * both languages stay published and no `_nl` or `_en` column is touched.
  *
- * VALIDATION AND WRITING ARE App\Service\Language\ContentLanguages::
- * savePrimary()'s, and the Setup Wizard calls the same method. One definition
- * of a valid default language, used by both places that can choose one.
+ * VALIDATION AND WRITING ARE App\Service\Language\SiteLanguages::
+ * setDefault()'s, and the Setup Wizard calls the same method. One definition
+ * of a valid default language (a registered, active one), used by both
+ * places that can choose one.
  */
 
 declare(strict_types=1);
@@ -29,7 +30,7 @@ require_once __DIR__ . '/../../vendor/autoload.php';
 
 use App\Service\AdminAuth;
 use App\Service\Csrf;
-use App\Service\Language\ContentLanguages;
+use App\Service\Language\SiteLanguages;
 
 AdminAuth::requireLoginForApi();
 AdminAuth::requirePermissionForApi('settings.manage');
@@ -47,12 +48,11 @@ if (!Csrf::validate($_POST['csrf_token'] ?? null)) {
 
 $primary = trim((string) ($_POST['primary_content_language'] ?? ''));
 
-// There is no "second language" question to answer: this product publishes
-// Dutch and English, always, and the only thing an owner chooses is which of
-// the two a visitor gets first. An old form posting the removed field changes
-// nothing.
+// Only a registered, active website language can become the default
+// (App\Service\Language\SiteLanguages::setDefault()); anything else is
+// refused with the same message as a failed save, and changes nothing.
 try {
-    ContentLanguages::savePrimary($primary);
+    SiteLanguages::setDefault($primary);
 } catch (\Throwable $e) {
     error_log('[api/admin/update-language-settings.php] ' . $e->getMessage());
 

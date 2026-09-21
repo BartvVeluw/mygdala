@@ -9,17 +9,18 @@ namespace App\Service\Language;
  *
  * Deliberately a value object with public readonly fields and no behaviour:
  * everything that decides something about languages lives in
- * App\Service\Language\LanguageRegistry (which languages exist),
- * App\Service\Language\ContentLanguages (which the website uses) or
- * App\Service\Language\AdminLocale (which the CMS interface uses). A
- * definition only describes.
+ * App\Service\Language\LanguageRegistry (the languages the CMS itself
+ * speaks, and their DeepL codes) or App\Service\Language\AdminLocale
+ * (which of them one person's CMS interface uses). The WEBSITE's languages
+ * are rows in site_languages (App\Service\Language\SiteLanguages), not
+ * definitions. A definition only describes.
  *
  * See MULTILINGUAL.md.
  */
 final class LanguageDefinition
 {
     public function __construct(
-        /** ISO 639-1 code, lowercase. Also the column suffix: title_nl / title_en. */
+        /** ISO 639-1 code, lowercase. */
         public readonly string $code,
         /** The language's name in its own language — what a speaker recognises. */
         public readonly string $nativeLabel,
@@ -33,8 +34,6 @@ final class LanguageDefinition
         public readonly ?string $deeplTarget,
         /** Is there a curated CMS interface translation for this language? */
         public readonly bool $availableAsAdminLocale,
-        /** May a site store website content in this language? */
-        public readonly bool $availableAsContentLanguage,
     ) {
     }
 

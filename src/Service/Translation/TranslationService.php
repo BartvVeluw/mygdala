@@ -5,8 +5,9 @@ declare(strict_types=1);
 namespace App\Service\Translation;
 
 use App\Repository\TranslationStateRepository;
-use App\Service\Language\ContentLanguages;
+use App\Service\Language\LanguageFallback;
 use App\Service\Language\LanguageRegistry;
+use App\Service\Language\SiteLanguages;
 use App\Service\RichTextSanitizer;
 
 /**
@@ -73,9 +74,9 @@ final class TranslationService
      */
     public function canTranslateInto(string $target, ?string $source = null): bool
     {
-        $from = $source ?? ContentLanguages::primary();
+        $from = $source ?? LanguageFallback::defaultLanguage();
 
-        if (!ContentLanguages::isEnabled($target) || !ContentLanguages::isEnabled($from)) {
+        if (!SiteLanguages::exists($target) || !SiteLanguages::exists($from)) {
             return false;
         }
 
@@ -105,7 +106,7 @@ final class TranslationService
         array $requests,
         ?string $sourceLanguage = null,
     ): TranslationResult {
-        $source = $sourceLanguage ?? ContentLanguages::primary();
+        $source = $sourceLanguage ?? LanguageFallback::defaultLanguage();
 
         if (!$this->canTranslateInto($target, $source)) {
             throw new TranslationException('This site cannot machine-translate into that language.');

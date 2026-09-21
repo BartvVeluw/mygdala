@@ -73,8 +73,6 @@ $adminCurrentUserIsSuperAdmin = AdminAuth::isSuperAdmin();
  * It lists the website's languages from the language registry
  * (ContentEditingLanguage::choices()), the default first and marked as such,
  * so a language added to the website is one row away from being editable.
- * A screen that can only store the V1 Dutch/English pair says so when another
- * language is chosen (admin/_language_fields.php).
  *
  * A break-glass session has no row to store a preference on, so it reads the
  * site's default website language and the switch is not offered.

@@ -45,7 +45,8 @@ require_once __DIR__ . '/../../vendor/autoload.php';
 
 use App\Service\AdminAuth;
 use App\Service\Csrf;
-use App\Service\Language\ContentLanguages;
+use App\Service\Language\LanguageFallback;
+use App\Service\Language\SiteLanguages;
 use App\Service\Translation\TranslationException;
 use App\Service\Translation\TranslationRequest;
 use App\Service\Translation\TranslationService;
@@ -75,12 +76,12 @@ $target = trim((string) ($_POST['target_language'] ?? ''));
 // caller wanted before the editor could choose which version it was editing.
 $source = trim((string) ($_POST['source_language'] ?? ''));
 if ($source === '') {
-    $source = ContentLanguages::primary();
+    $source = LanguageFallback::defaultLanguage();
 }
 $entityType = substr(trim((string) ($_POST['entity_type'] ?? '')), 0, 100);
 $entityKey = substr(trim((string) ($_POST['entity_key'] ?? '')), 0, 191);
 
-if (!ContentLanguages::isEnabled($target) || !ContentLanguages::isEnabled($source)) {
+if (!SiteLanguages::exists($target) || !SiteLanguages::exists($source)) {
     $fail(422, 'Deze site publiceert die taal niet.');
 }
 

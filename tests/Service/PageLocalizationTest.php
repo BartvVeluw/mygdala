@@ -157,34 +157,6 @@ final class PageLocalizationTest extends TestCase
         self::assertSame('', PageLocalization::title(self::PAGE, 'nl'), 'a visitor never gets that step');
     }
 
-    // ------------------------------------------------------------ the V1 output adapter
-
-    public function testTheOutputAdapterGivesTheSwitchBothLanguagesResolved(): void
-    {
-        SiteLanguageFixture::useBilingual('nl');
-        $this->page(['nl' => ['Over ons', null, null]]);
-
-        $value = PageLocalization::bilingual(self::PAGE, PageTranslation::TITLE);
-
-        self::assertSame(
-            [LanguageRegistry::DUTCH => 'Over ons', LanguageRegistry::ENGLISH => 'Over ons'],
-            $value->attributeValues()
-        );
-        self::assertSame('Over ons', $value->primaryValue());
-    }
-
-    public function testTheOutputAdapterShowsTheDefaultLanguageFirst(): void
-    {
-        SiteLanguageFixture::useBilingual('en');
-        $this->page(['nl' => ['Over ons', null, null], 'en' => ['About us', null, null]]);
-
-        $value = PageLocalization::bilingual(self::PAGE, PageTranslation::TITLE);
-
-        self::assertSame('About us', $value->primaryValue());
-        self::assertSame('Over ons', $value->in(LanguageRegistry::DUTCH));
-        self::assertSame('About us', $value->in(LanguageRegistry::ENGLISH));
-    }
-
     // ------------------------------------------------------------ writing
 
     public function testTextCannotBeStoredForALanguageTheSiteDoesNotHave(): void

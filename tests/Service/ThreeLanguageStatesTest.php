@@ -7,8 +7,7 @@ namespace Tests\Service;
 use App\Service\Language\AdminLocale;
 use App\Service\Language\AdminTranslator;
 use App\Service\Language\ContentEditingLanguage;
-use App\Service\Language\ContentLanguages;
-use App\Service\Language\LocalizedValue;
+use App\Service\Language\LanguageFallback;
 use App\Service\Language\SiteLanguages;
 use App\Service\Language\SiteText;
 use App\Service\Routing\LanguageSwitch;
@@ -57,7 +56,7 @@ final class ThreeLanguageStatesTest extends TestCase
         return [
             'interface' => AdminLocale::current(),
             'editing' => ContentEditingLanguage::current(),
-            'required_on_primary' => ContentEditingLanguage::current() === ContentLanguages::primary(),
+            'required_on_primary' => ContentEditingLanguage::current() === SiteLanguages::defaultCode(),
         ];
     }
 
@@ -96,8 +95,8 @@ final class ThreeLanguageStatesTest extends TestCase
         self::assertSame($expectedLabel, AdminTranslator::trans('common.save'));
 
         // The website's own configuration is untouched by either preference.
-        self::assertSame('nl', ContentLanguages::primary(), 'the website default is unchanged');
-        self::assertSame(['nl', 'en'], ContentLanguages::enabled(), 'both languages stay published');
+        self::assertSame('nl', SiteLanguages::defaultCode(), 'the website default is unchanged');
+        self::assertSame(['nl', 'en'], SiteLanguages::activeCodes(), 'both languages stay published');
     }
 
     /** @dataProvider matrix */
@@ -107,13 +106,13 @@ final class ThreeLanguageStatesTest extends TestCase
     ): void {
         $this->cms($interface, $editing);
 
-        // One row, both languages filled. Whichever language the editor is
-        // looking at, the OTHER one's stored words are still there — that is
-        // what makes the hidden pane safe to submit.
-        $value = LocalizedValue::ofDutchEnglish('Neem contact op', 'Get in touch');
+        // One field, both languages filled. Whichever language the editor is
+        // looking at, a visitor of each language reads that language's own
+        // stored words: an editing preference touches no stored words.
+        $words = ['nl' => 'Neem contact op', 'en' => 'Get in touch'];
 
-        self::assertSame('Neem contact op', $value->raw('nl'));
-        self::assertSame('Get in touch', $value->raw('en'));
+        self::assertSame('Neem contact op', LanguageFallback::resolve($words, 'nl'));
+        self::assertSame('Get in touch', LanguageFallback::resolve($words, 'en'));
     }
 
     public function testTheInterfaceLanguageNeverMovesTheEditingLanguage(): void
@@ -160,15 +159,6 @@ final class ThreeLanguageStatesTest extends TestCase
         self::assertSame('nl', ContentEditingLanguage::normalise('nl; DROP TABLE pages'));
     }
 
-    public function testTheTranslationSourceIsTheOtherLanguage(): void
-    {
-        $this->cms('nl', 'en');
-        self::assertSame('nl', ContentEditingLanguage::source());
-
-        $this->cms('nl', 'nl');
-        self::assertSame('en', ContentEditingLanguage::source());
-    }
-
     // ------------------------------------------------------- the public site
 
     /** @dataProvider matrix */
@@ -201,13 +191,13 @@ final class ThreeLanguageStatesTest extends TestCase
     {
         SiteLanguageFixture::useBilingual('nl');
 
-        $translated = LocalizedValue::ofDutchEnglish('Neem contact op', 'Get in touch');
-        self::assertSame('Neem contact op', $translated->in('nl'));
-        self::assertSame('Get in touch', $translated->in('en'));
+        $translated = ['nl' => 'Neem contact op', 'en' => 'Get in touch'];
+        self::assertSame('Neem contact op', LanguageFallback::resolve($translated, 'nl'));
+        self::assertSame('Get in touch', LanguageFallback::resolve($translated, 'en'));
 
-        $untranslated = LocalizedValue::ofDutchEnglish('Neem contact op', '');
-        self::assertSame('Neem contact op', $untranslated->in('nl'));
-        self::assertSame('Neem contact op', $untranslated->in('en'), 'a visitor never sees a blank button');
+        $untranslated = ['nl' => 'Neem contact op'];
+        self::assertSame('Neem contact op', LanguageFallback::resolve($untranslated, 'nl'));
+        self::assertSame('Neem contact op', LanguageFallback::resolve($untranslated, 'en'), 'a visitor never sees a blank button');
     }
 
     public function testTheFallbackIsForVisitorsOnlyAndNeverFillsAnEditorField(): void
@@ -218,11 +208,13 @@ final class ThreeLanguageStatesTest extends TestCase
         // translated.
         SiteLanguageFixture::useBilingual('nl');
 
-        $value = LocalizedValue::ofDutchEnglish('Neem contact op', '');
+        // What storage holds: no English row. The fallback is applied on the
+        // way to a visitor (LanguageFallback::resolve()), never on the way to
+        // an editor's field, which reads the stored words as they are.
+        $stored = ['nl' => 'Neem contact op'];
 
-        self::assertSame('Neem contact op', $value->in('en'), 'the visitor gets the fallback');
-        self::assertSame('', $value->raw('en'), 'the editor gets an empty field');
-        self::assertFalse($value->isTranslated('en'));
+        self::assertSame('Neem contact op', LanguageFallback::resolve($stored, 'en'), 'the visitor gets the fallback');
+        self::assertSame('', $stored['en'] ?? '', 'the editor gets an empty field');
     }
 
     // ------------------------------------------------ automatic translation
@@ -236,7 +228,7 @@ final class ThreeLanguageStatesTest extends TestCase
 
         $service->translateEntity('cta-band', '', ContentEditingLanguage::current(), [
             new TranslationRequest('title', 'Neem contact op', ''),
-        ], ContentEditingLanguage::source());
+        ], LanguageFallback::defaultLanguage());
 
         self::assertSame('nl', $provider->calls[0]['source']);
         self::assertSame('en', $provider->calls[0]['target']);

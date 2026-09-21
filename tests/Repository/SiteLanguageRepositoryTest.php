@@ -6,7 +6,6 @@ namespace Tests\Repository;
 
 use App\Database;
 use App\Repository\SiteLanguageRepository;
-use App\Service\Language\ContentLanguages;
 use App\Service\Language\SiteLanguages;
 use PDO;
 use PHPUnit\Framework\TestCase;
@@ -61,7 +60,6 @@ final class SiteLanguageRepositoryTest extends TestCase
     {
         self::assertSame(['nl', 'en'], $this->codes());
         self::assertSame('nl', SiteLanguages::defaultCode());
-        self::assertSame('nl', ContentLanguages::primary());
     }
 
     public function testTheOrderIsTheSameEveryTime(): void
@@ -79,21 +77,13 @@ final class SiteLanguageRepositoryTest extends TestCase
         self::assertSame(['nl', 'en'], $this->codes(), 'moving the default is not a reorder');
     }
 
-    public function testTheV1AdapterFollowsTheRegistry(): void
+    /** The settings screen and the Setup Wizard move the default through SiteLanguages::setDefault(). */
+    public function testTheDefaultMovesThroughTheRegistryAndNowhereElse(): void
     {
-        self::assertSame('en', ContentLanguages::savePrimary('en'));
+        SiteLanguages::setDefault('en');
 
         self::assertSame('en', SiteLanguages::defaultCode());
-        self::assertSame('en', ContentLanguages::primary());
-        self::assertSame(['en', 'nl'], ContentLanguages::enabled());
-    }
-
-    public function testTheV1AdapterStoresAnUnsupportedChoiceAsDutch(): void
-    {
-        $this->repository->setDefault('en');
-
-        self::assertSame('nl', ContentLanguages::savePrimary('de'));
-        self::assertSame(['nl'], $this->defaultCodes());
+        self::assertSame(['en'], $this->defaultCodes());
     }
 
     public function testMakingTheDefaultTheDefaultAgainChangesNothing(): void

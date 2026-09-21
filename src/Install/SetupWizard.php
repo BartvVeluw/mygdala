@@ -13,6 +13,7 @@ use App\Repository\PageRepository;
 use App\Repository\SiteSettingRepository;
 use App\Service\AppUrl;
 use App\Service\Branding;
+use App\Service\Language\SiteLanguages;
 use App\Service\Media\MediaService;
 use App\Service\NavigationLocalization;
 use App\Service\PageContent;
@@ -21,7 +22,6 @@ use App\Service\PageService;
 use App\Service\PageTranslation;
 use App\Service\PageTemplates\PageTemplateInstaller;
 use App\Service\PageTemplates\PageTemplates;
-use App\Service\Language\ContentLanguages;
 use App\Service\Language\LanguageCode;
 use App\Service\Language\LanguageFallback;
 use App\Service\LocalizedSiteSettings;
@@ -38,7 +38,7 @@ use App\Service\Theme\ThemeSettings;
  * and this class writes through those same owners rather than beside them:
  *
  *   identity     App\Service\SiteSettings   (site_settings rows)
- *   language     App\Service\Language\ContentLanguages::savePrimary()
+ *   language     App\Service\Language\SiteLanguages::setDefault()
  *   appearance   App\Service\Theme\ThemeSettings::save()
  *   modules      App\Module\ModuleSettings::save()
  *   pages        App\Service\PageTemplates\PageTemplateInstaller
@@ -234,9 +234,9 @@ final class SetupWizard
      * "Taal van de website".
      *
      * There is no error case: {@see websiteLanguage()} turns anything
-     * unusable into the project default, and ContentLanguages::savePrimary()
-     * is the same writer the settings endpoint uses, so a valid choice means
-     * the same thing in both places.
+     * unusable into the website's default language, and
+     * SiteLanguages::setDefault() is the same writer the settings endpoint
+     * uses, so a valid choice means the same thing in both places.
      *
      * @param array<string, mixed> $input
      *
@@ -253,12 +253,12 @@ final class SetupWizard
      * The website language a submitted wizard value stands for.
      *
      * A WEBSITE language, so it goes through the website language layer only:
-     * the shape through App\Service\Language\LanguageCode, and what V1 can
-     * publish through the ContentLanguages adapter, whose savePrimary() then
-     * stores it in App\Service\Language\SiteLanguages. Never through
-     * AdminLocale: that is the CMS interface language of one person, and that
-     * its list holds Dutch and English as well is a coincidence of V1, not a
-     * rule (Tests\Service\MultilingualBoundaryTest).
+     * the shape through App\Service\Language\LanguageCode, and whether the
+     * website has it through App\Service\Language\SiteLanguages (an active
+     * language of the registry). Never through AdminLocale: that is the CMS
+     * interface language of one person, and that its list holds Dutch and
+     * English as well is a coincidence, not a rule
+     * (Tests\Service\MultilingualBoundaryTest).
      *
      * Anything unusable becomes the project default, as it did before: a
      * tampered dropdown must not lock an owner out of their own site.
@@ -269,7 +269,16 @@ final class SetupWizard
     {
         $code = LanguageCode::normalise(is_string($submitted) ? $submitted : null);
 
-        return ContentLanguages::normalisePrimary($code ?? '');
+        try {
+            if ($code !== null && SiteLanguages::isActive($code)) {
+                return $code;
+            }
+        } catch (\RuntimeException) {
+            // An unreadable registry: the default below, as for any other
+            // unusable value.
+        }
+
+        return LanguageFallback::defaultLanguage();
     }
 
     /**
@@ -578,7 +587,7 @@ final class SetupWizard
             // take part in it rather than committing early. The website
             // language is the default of the language registry, not a
             // settings row (docs/multilingual/ARCHITECTURE.md).
-            ContentLanguages::savePrimary($values['languages']['primary']);
+            SiteLanguages::setDefault($values['languages']['primary']);
 
             // The description and the place are words in that language.
             $localized = array_intersect_key($values['identity'], LocalizedSiteSettings::KEYS);

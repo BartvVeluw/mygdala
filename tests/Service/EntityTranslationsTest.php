@@ -64,13 +64,6 @@ final class EntityTranslationsTest extends TestCase
         self::assertSame('', LanguageFallback::name([]));
     }
 
-    public function testTheBilingualAdapterResolvesEachHalf(): void
-    {
-        self::assertSame(['nl' => 'Winkel', 'en' => 'Store'], LanguageFallback::bilingual(['nl' => 'Winkel', 'en' => 'Store'])->attributeValues());
-        self::assertSame(['nl' => 'Winkel', 'en' => 'Winkel'], LanguageFallback::bilingual(['nl' => 'Winkel', 'de' => 'Laden'])->attributeValues());
-        self::assertSame('Winkel', LanguageFallback::bilingual(['nl' => 'Winkel'])->primaryValue());
-    }
-
     // ----------------------------------------------------------- declaration
 
     /** @return iterable<string, array{0: string, 1: string, 2: array<string, int>}> */

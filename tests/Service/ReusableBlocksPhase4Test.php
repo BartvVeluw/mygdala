@@ -243,11 +243,6 @@ final class ReusableBlocksPhase4Test extends TestCase
     }
 
     /**
-     * A throwaway collection holding the first few products the shop already
-     * has. Returns null when the shop has no active products at all, so the
-     * collection-source tests can skip instead of asserting on nothing.
-     */
-    /**
      * The card titles, in the language of the request: whichever source
      * built a card, its words arrive as one string per field.
      *
@@ -259,6 +254,11 @@ final class ReusableBlocksPhase4Test extends TestCase
         return array_column($items, 'title');
     }
 
+    /**
+     * A throwaway collection holding the first few products the shop already
+     * has. Returns null when the shop has no active products at all, so the
+     * collection-source tests can skip instead of asserting on nothing.
+     */
     private function collectionWithProducts(): ?int
     {
         if ($this->collectionId !== null) {

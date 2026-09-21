@@ -20,9 +20,6 @@ use App\Repository\SiteLanguageRepository;
  *   - the CMS interface language: that is a preference per administrator,
  *     App\Service\Language\AdminLocale, with its own list. Nothing here
  *     reads it, and it does not read this.
- *   - the V1 bilingual contract: App\Service\Language\ContentLanguages
- *     still decides what the NL/EN switch and the editors show. Until the
- *     frontend flip only its primary language comes from here.
  *   - a module check. Multilingual as a module does not exist yet, and when
  *     it does, Core still asks this class and nothing else.
  *

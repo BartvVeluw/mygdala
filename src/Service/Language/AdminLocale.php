@@ -19,7 +19,7 @@ use App\Service\AdminAuth;
  * THE RULE THIS CLASS EXISTS TO ENFORCE: changing the CMS interface language
  * changes not one character of public website content. It is a preference
  * about a person, stored on that person's row, and nothing here reads or
- * writes App\Service\Language\ContentLanguages. The reverse holds too: an
+ * writes the website's own language registry. The reverse holds too: an
  * English-primary website can be administered in Dutch.
  *
  * A break-glass session (App\Service\AdminAuth, no database row) has nowhere

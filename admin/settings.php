@@ -76,14 +76,11 @@ if (FormRecipient::siteFallback() === null) {
 $csrfToken = Csrf::token();
 
 /**
- * The WEBSITE's languages (MULTILINGUAL.md). Read through
- * App\Service\Language\ContentLanguages rather than out of $values, because
- * that class owns every rule about them — the primary is always enabled, an
- * unknown stored code falls back, and V1 allows one secondary at most. A
- * screen that read the raw setting would be a second, weaker copy of those
- * rules.
+ * The website's default language and the languages it may be moved to: the
+ * active languages of the website language registry
+ * (App\Service\Language\SiteLanguages), which owns every rule about them.
  */
-$primaryLanguage = \App\Service\Language\ContentLanguages::primary();
+$primaryLanguage = \App\Service\Language\LanguageFallback::defaultLanguage();
 $adminLocale = \App\Service\Language\AdminLocale::current();
 
 $languageErrors = $_SESSION['admin_language_errors'] ?? [];
@@ -368,8 +365,8 @@ function brandingImageField(
         <div class="admin-field">
           <?= admin_field_label('field-primary-language', \App\Service\Language\AdminTranslator::trans('language.default_website'), admin_t('help.settings.primary_language')) ?>
           <select name="primary_content_language" id="field-primary-language" class="admin-select">
-            <?php foreach (\App\Service\Language\LanguageRegistry::contentLanguages() as $languageCode => $languageDefinition): ?>
-              <option value="<?= $h($languageCode) ?>"<?= $languageCode === $primaryLanguage ? ' selected' : '' ?>><?= $h($languageDefinition->labelIn($adminLocale)) ?></option>
+            <?php foreach (\App\Service\Language\SiteLanguages::active() as $websiteLanguage): ?>
+              <option value="<?= $h($websiteLanguage->code) ?>"<?= $websiteLanguage->code === $primaryLanguage ? ' selected' : '' ?>><?= $h(admin_website_language_label($websiteLanguage->code)) ?></option>
             <?php endforeach; ?>
           </select>
         </div>

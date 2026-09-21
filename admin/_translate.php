@@ -66,11 +66,12 @@ function admin_registry_label(string $key, string $fallback): string
 
 /**
  * What the CMS calls a website language: its name in the CMS interface
- * language when the closed V1 registry has one ("Engels" in a Dutch CMS),
- * else its own name from the website language registry ("Deutsch"), else its
- * code. A website language is never a CMS language, so a language beyond the
- * V1 pair has no translated name to give, and its own name is the one an
- * editor recognises.
+ * language when the CMS's own language list has one ("Engels" in a Dutch
+ * CMS, App\Service\Language\LanguageRegistry), else its own name from the
+ * website language registry ("Deutsch"), else its code. A website language is
+ * never a CMS language, so a language the CMS does not speak has no
+ * translated name to give, and its own name is the one an editor
+ * recognises.
  */
 function admin_website_language_label(string $code): string
 {

@@ -6,8 +6,8 @@ namespace Tests\Service;
 
 use App\Service\Language\AdminLocale;
 use App\Service\Language\AdminTranslator;
-use App\Service\Language\ContentLanguages;
 use App\Service\Language\LanguageRegistry;
+use App\Service\Language\SiteLanguages;
 use PHPUnit\Framework\TestCase;
 use Tests\Support\SiteLanguageFixture;
 
@@ -65,8 +65,8 @@ final class AdminLocaleTest extends TestCase
         AdminLocale::overrideForTests('en');
 
         self::assertSame('en', AdminLocale::current(), 'the CMS is in English');
-        self::assertSame('nl', ContentLanguages::primary(), 'the website is still Dutch');
-        self::assertSame(['nl', 'en'], ContentLanguages::enabled());
+        self::assertSame('nl', SiteLanguages::defaultCode(), 'the website is still Dutch');
+        self::assertSame(['nl', 'en'], SiteLanguages::activeCodes());
     }
 
     public function testTheWebsiteLanguageDoesNotChangeTheCmsLanguage(): void
@@ -75,7 +75,7 @@ final class AdminLocaleTest extends TestCase
 
         AdminLocale::overrideForTests('nl');
 
-        self::assertSame('en', ContentLanguages::primary(), 'the website is English');
+        self::assertSame('en', SiteLanguages::defaultCode(), 'the website is English');
         self::assertSame('nl', AdminLocale::current(), 'the CMS is still Dutch');
     }
 

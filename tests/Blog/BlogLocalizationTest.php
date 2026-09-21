@@ -87,7 +87,7 @@ final class BlogLocalizationTest extends TestCase
 
             self::assertTrue($store->table()->hasSlug(), $name . ' is routable per language');
 
-            foreach (['value', 'name', 'bilingual'] as $reader) {
+            foreach (['value', 'name'] as $reader) {
                 try {
                     $reader === 'value'
                         ? $store->value(1, 'slug', 'nl')

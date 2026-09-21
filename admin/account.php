@@ -10,7 +10,6 @@ use App\Service\Csrf;
 use App\Service\Language\AdminLocale;
 use App\Service\Language\AdminTranslator;
 use App\Service\Language\ContentEditingLanguage;
-use App\Service\Language\ContentLanguages;
 use App\Service\Language\LanguageRegistry;
 
 AdminAuth::requireLogin();
@@ -145,8 +144,8 @@ $t = static fn (string $key, array $r = []): string => AdminTranslator::trans($k
     <p>
       <?php
         $labels = [];
-        foreach (ContentLanguages::definitions() as $definition) {
-            $labels[] = $definition->labelIn($currentLocale);
+        foreach (\App\Service\Language\SiteLanguages::active() as $websiteLanguage) {
+            $labels[] = admin_website_language_label($websiteLanguage->code);
         }
       ?>
       <strong><?= $h(implode(' + ', $labels)) ?></strong>

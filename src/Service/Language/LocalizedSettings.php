@@ -88,12 +88,6 @@ final class LocalizedSettings
         return $this->raw($key, LanguageFallback::defaultLanguage()) !== '';
     }
 
-    /** The temporary V1 `data-nl`/`data-en` pair of one key. Plain text. */
-    public function bilingual(string $key): LocalizedValue
-    {
-        return LanguageFallback::bilingual($this->words($key));
-    }
-
     /**
      * Which of the given values are too long, by key. No localized setting is
      * required: each is optional in every language, and an empty one either

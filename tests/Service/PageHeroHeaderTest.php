@@ -9,7 +9,7 @@ use App\Repository\MediaRepository;
 use App\Repository\PageHeroRepository;
 use App\Service\Blocks\BlockDefinitions;
 use App\Service\Blocks\BlockLocalization;
-use App\Service\Language\ContentLanguages;
+use App\Service\Language\SiteLanguages;
 use App\Service\Media\MediaService;
 use App\Service\PageHeroContent;
 use App\Service\SiteSettings;
@@ -146,10 +146,11 @@ final class PageHeroHeaderTest extends TestCase
 
     public function testAnEyebrowOnlyInTheTranslationPrintsNoElement(): void
     {
-        // What decides is what a visitor sees first: the default language's
-        // own words (SiteText::visibleOf()). A translation without them would
-        // be an empty decoration for everyone reading the default language.
-        $this->assertSame('nl', ContentLanguages::primary(), 'written for the Dutch-primary site the test database is');
+        // What decides is the default language's own words
+        // (BlockLocalization::hasDefaultWords()). A translation without them
+        // would be an empty decoration for everyone reading the default
+        // language.
+        $this->assertSame('nl', SiteLanguages::defaultCode(), 'written for the Dutch-default site the test database is');
         $this->store([], ['nl' => ['eyebrow' => ''], 'en' => ['eyebrow' => 'About us']]);
 
         $this->assertStringNotContainsString('class="eyebrow"', $this->render());
