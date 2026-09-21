@@ -329,6 +329,16 @@ de samenvatting als `description`. De **volledige tekst wordt bewust niet
 meegestuurd**. De kanaalgegevens komen uit de instellingen van de site en uit
 `APP_URL`; er staat geen domeinnaam in de code.
 
+**Elke taal heeft haar eigen feed, helemaal in die taal.** `/blog/feed.xml` is
+de standaardtaal, `/en/blog/feed.xml` Engels. De kanaaltitel en -beschrijving,
+de titel en samenvatting van elk item, `<language>` en elke link volgen de taal
+van het verzoek, met dezelfde terugval als de pagina's zelf: gevraagde taal →
+standaardtaal → leeg, of "Blog" voor de titel. Categorie- en tagnamen staan
+niet in de feed. Elke feed bevat dezelfde berichten; een bericht zonder adres in
+die taal linkt naar zijn adres in de standaardtaal, zoals elke andere interne
+link. De `<head>` van `/en/blog` en van een Engels bericht verwijst naar de
+Engelse feed, onder de Engelse blogtitel.
+
 Concepten en berichten die nog moeten verschijnen zitten er niet in. Een
 `noindex`-bericht wél: `noindex` is een instructie aan een zoekmachine over
 zijn resultatenpagina's, en wie zich op deze blog abonneert heeft om alle
@@ -440,6 +450,7 @@ docker compose exec php_test php vendor/bin/phpunit --testsuite blog   # alles
 | `tests/Blog/BlogPostLifecycleTest.php` | CRUD, slugs, de drie statussen, de inplangrens op de seconde, tweetalige terugval, buren en gerelateerde berichten |
 | `tests/Blog/BlogTaxonomyTest.php` | categorieën, tag-ontdubbeling, veilig verwijderen, archief-redirects |
 | `tests/Blog/BlogSeoTest.php` | metadata, `BlogPosting`, sitemap in/uit, de feed |
+| `tests/Blog/BlogFeedLanguageTest.php` | één feed per taal: kanaal, items, `<language>` en links in de taal van het verzoek, de terugval, XML-escaping, en `/en/blog/feed.xml` over echt HTTP |
 | `tests/Blog/BlogMediaAndSettingsTest.php` | uitgelichte afbeeldingen, gebruiksmelding, niet-verwijderbaar, en de instellingen |
 | `tests/Blog/BlogRoutingTest.php` | echte verzoeken naar alle vijf de URL's, paginering, de slugredirect, en de CMS-only stand |
 

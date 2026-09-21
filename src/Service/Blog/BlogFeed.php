@@ -34,13 +34,25 @@ use App\Service\SeoDefaults;
  * introduction or the site's default. No domain name and no company name is
  * written into this class.
  *
- * ONE LANGUAGE: the site's DEFAULT one. A feed is a single document at a
- * single address and carries no language switch, so it says what a visitor who
- * has not chosen sees. It used to say "Dutch" in so many words; since
- * Multilingual 2.0 phase 5 wave B it asks
- * App\Service\Blog\BlogLocalization::defaultLanguage(), which on every
- * existing installation is exactly that. A feed per language belongs to the
- * routing phase, with the URLs that would carry it.
+ * ONE LANGUAGE PER FEED: the request's. Every language has its own feed at its
+ * own address — /blog/feed.xml for the default language, /en/blog/feed.xml
+ * behind a prefix (docs/multilingual/ROUTING.md) — and each one is written
+ * entirely in that language: the channel title and description, every item's
+ * title and description, `<language>`, and the links. A feed that said
+ * `<language>en</language>` over Dutch words would be exactly the mixed
+ * signal the per-language URLs exist to remove.
+ *
+ * The words fall back the way they do on the page itself, and nowhere else:
+ * BlogContent::title()/excerpt() and BlogLocalizedSettings::title()/intro()
+ * give the requested language, then the default language, then '' — or the
+ * code default where the Blog has one ("Blog" for its title). This class
+ * adds no fallback of its own. It carries no category or tag names, so there
+ * are no taxonomy words to localize either.
+ *
+ * WHICH POSTS: the same ones in every language — the listing's own rule, as
+ * /en/blog shows them. A post without an address in the feed's language
+ * links its default-language URL, which is what every other internal link to
+ * it does (BlogContent::postUrl()).
  *
  * ESCAPING. Every value goes through htmlspecialchars(ENT_XML1) on its way
  * in, like Sitemap does. Titles and excerpts are administrator-typed content
@@ -67,8 +79,11 @@ final class BlogFeed
      */
     public static function toXml(array $posts): string
     {
-        $channelTitle = self::channelTitle();
-        $channelDescription = self::channelDescription();
+        // Resolved once, so the channel, every item and <language> can never
+        // disagree about which language this document is in.
+        $language = RequestLanguage::current();
+        $channelTitle = self::channelTitle($language);
+        $channelDescription = self::channelDescription($language);
 
         $xml = '<?xml version="1.0" encoding="UTF-8"?>' . "\n";
         $xml .= '<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">' . "\n";
@@ -79,13 +94,13 @@ final class BlogFeed
         // The language this feed is published in: the request's, which is
         // the default language for /blog/feed.xml and the prefixed one for
         // /en/blog/feed.xml.
-        $xml .= '    <language>' . self::escape(RequestLanguage::current()) . '</language>' . "\n";
+        $xml .= '    <language>' . self::escape($language) . '</language>' . "\n";
         // The feed's own address, which is what a reader stores and what
         // tells an aggregator it has not been moved.
         $xml .= '    <atom:link href="' . self::escape(BlogUrls::feed()) . '" rel="self" type="application/rss+xml"/>' . "\n";
 
         foreach ($posts as $post) {
-            $xml .= self::item($post);
+            $xml .= self::item($post, $language);
         }
 
         $xml .= '  </channel>' . "\n";
@@ -97,16 +112,16 @@ final class BlogFeed
     /**
      * @param array<string, mixed> $post
      */
-    private static function item(array $post): string
+    private static function item(array $post, string $language): string
     {
         // An item's link is the post's address IN THE FEED'S OWN LANGUAGE: a
         // Dutch feed links Dutch URLs and /en/blog/feed.xml links English
         // ones, both resolved exactly as the page itself resolves them.
         $url = BlogContent::postCanonical($post);
-        $description = Seo::plainText(BlogContent::excerpt($post, BlogLocalization::defaultLanguage()));
+        $description = Seo::plainText(BlogContent::excerpt($post, $language));
 
         $item = '    <item>' . "\n";
-        $item .= '      <title>' . self::escape(BlogContent::title($post, BlogLocalization::defaultLanguage())) . '</title>' . "\n";
+        $item .= '      <title>' . self::escape(BlogContent::title($post, $language)) . '</title>' . "\n";
         $item .= '      <link>' . self::escape($url) . '</link>' . "\n";
         // The canonical URL is a permanent, unique identifier for this post,
         // so it is also its guid — isPermaLink is then true by definition.
@@ -124,10 +139,10 @@ final class BlogFeed
         return $item . '    </item>' . "\n";
     }
 
-    private static function channelTitle(): string
+    private static function channelTitle(string $language): string
     {
         $siteName = SeoDefaults::siteName();
-        $blogTitle = BlogLocalizedSettings::title(BlogLocalizedSettings::defaultLanguage());
+        $blogTitle = BlogLocalizedSettings::title($language);
 
         if ($siteName === '' || $siteName === $blogTitle) {
             return $blogTitle;
@@ -136,19 +151,21 @@ final class BlogFeed
         return $blogTitle . ' — ' . $siteName;
     }
 
-    private static function channelDescription(): string
+    private static function channelDescription(string $language): string
     {
-        $intro = Seo::plainText(BlogLocalizedSettings::intro(BlogLocalizedSettings::defaultLanguage()));
+        $intro = Seo::plainText(BlogLocalizedSettings::intro($language));
 
         if ($intro !== '') {
             return $intro;
         }
 
+        // The site-wide default description is one value for every language
+        // (App\Service\SeoDefaults), exactly as every page's <head> uses it.
         $default = SeoDefaults::description();
 
         // A channel description is required by the format, so an install
         // that has written neither gets the one thing that is always true.
-        return $default !== '' ? $default : self::channelTitle();
+        return $default !== '' ? $default : self::channelTitle($language);
     }
 
     private static function escape(string $value): string

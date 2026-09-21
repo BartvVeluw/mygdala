@@ -144,6 +144,23 @@ $siteName = \App\Service\SiteSettings::get('site_name');
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <?php
+// WHERE THIS PRODUCT LIVES IN EACH LANGUAGE, for the language switch and for
+// hreflang (docs/multilingual/ROUTING.md). A product has no slug: its identity
+// is the id in the query string, and the switch's assumed paths carry the
+// path only, so undeclared it offered /en/product.php — the bare route, not
+// this product. App\Service\ProductSeo builds each version from the validated
+// integer, so no other parameter of this request can travel along.
+//
+// Declared for every id the URL names, found or not: the same id is the same
+// product in every language, and the switch on a product that is gone leads
+// to that language's answer for it (the same 404), never to a different
+// page. hreflang follows only for a found product, because only that head
+// has a canonical. An id that is not a positive integer names no product and
+// declares nothing, so the switch offers the bare route.
+if ($productId > 0) {
+    \App\Service\Routing\LanguageAlternates::declareVersions(\App\Service\ProductSeo::alternates($productId));
+}
+
 // An inactive or unknown product renders a "not found" head — a title,
 // noindex,follow and nothing else — and the found case goes through the
 // shop's own resolver. Both end up in partials/seo-head.php, so the two

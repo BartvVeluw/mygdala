@@ -88,7 +88,8 @@ if ($post === null) {
 <?php else: ?>
 <?php require __DIR__ . '/partials/seo-head.php'; ?>
 <?php if (BlogSettings::rssEnabled()): ?>
-<link rel="alternate" type="application/rss+xml" title="<?= $h(BlogLocalizedSettings::title(LanguageRegistry::DUTCH)) ?>" href="<?= $h(BlogUrls::feedPath()) ?>">
+<?php /* The feed in the language this page is read in: its address and its name (App\Service\Blog\BlogFeed). */ ?>
+<link rel="alternate" type="application/rss+xml" title="<?= $h(BlogLocalizedSettings::title(\App\Service\Routing\RequestLanguage::current())) ?>" href="<?= $h(BlogUrls::feedPath()) ?>">
 <?php endif; ?>
 <?php endif; ?>
 <?php

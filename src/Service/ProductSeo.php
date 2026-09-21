@@ -85,6 +85,10 @@ class ProductSeo
      * inside a route that exists — the distinction
      * docs/multilingual/ROUTING.md is built on.
      *
+     * The sitemap lists exactly these, and product.php declares exactly these
+     * for its language switch and hreflang, so a crawler and a visitor are
+     * offered the same set of URLs.
+     *
      * @return array<string, string>
      */
     public static function alternates(int $productId): array

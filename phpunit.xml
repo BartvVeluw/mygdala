@@ -597,6 +597,7 @@
             <file>tests/Service/ProductDeletionAdminSecurityTest.php</file>
             <file>tests/Service/ProductSeoTest.php</file>
             <file>tests/Service/ProductBreadcrumbTest.php</file>
+            <file>tests/Service/ProductLanguageSwitchTest.php</file>
             <directory>tests/Service/Shipping</directory>
             <file>tests/Service/ShopSeoAdminTest.php</file>
             <file>tests/Service/ShopEditingHttpTest.php</file>

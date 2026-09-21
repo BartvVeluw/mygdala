@@ -390,6 +390,21 @@ route die in elke taal hetzelfde pad heeft (de blogindex, de winkelwagen, het
 afrekenen) verklaart niets. Daar biedt de wisselaar hetzelfde pad onder elk
 prefix aan, en hreflang blijft weg.
 
+Dat aangenomen pad is **alleen het pad**. De querystring wordt nooit
+gekopieerd: daar kan tracking in staan, een formulierstatus, of iets anders
+waarmee een bezoeker binnenkwam. Een route waarvan de **identiteit in de
+querystring** staat, verklaart daarom ook: een product. `product.php` noemt
+`/product.php?id=7`, `/en/product.php?id=7` en zo verder voor elke actieve
+taal, via `ProductSeo::alternates()` gebouwd uit het gevalideerde id — dezelfde
+set die de sitemap noemt. Zonder die verklaring bood de wisselaar
+`/en/product.php` aan, zonder product.
+
+- een product dat niet (meer) bestaat, houdt zijn id: de wisselaar leidt naar
+  dezelfde 404 in de andere taal, niet naar de kale route en niet naar een
+  uitgeschakelde optie. Een 404 heeft geen canonical en dus geen hreflang;
+- een id dat geen positief geheel getal is (`abc`, `0`, `-5`, `1e3`) noemt geen
+  product. Dan verklaart de route niets en biedt de wisselaar de kale route.
+
 De wisselaar drukt de verklaarde URL ongewijzigd af, op één link na: die naar
 de **home van de standaardtaal** vanaf een andere taal wordt `/?lang=<code>`.
 Waarom staat in §3, "De ene uitzondering".

@@ -243,7 +243,7 @@ final class BlogContent
      * applied — what a public template prints through
      * App\Service\Language\SiteText. The $lang accessors above stay for the
      * callers that genuinely want ONE language: the SEO head's V1 pair, the
-     * RSS feed (Dutch) and the JSON-LD.
+     * RSS feed (the request's language) and the JSON-LD.
      *
      * @param array<string, mixed> $post
      */

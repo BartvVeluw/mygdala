@@ -34,6 +34,12 @@ use App\Service\Language\SiteLanguages;
  *              good enough for `hreflang`, which is therefore not rendered at
  *              all until a route declares.
  *
+ *              The PATH ONLY: the query string is never copied, because it
+ *              may carry tracking, a form status or anything else a visitor
+ *              was sent with. A route whose identity lives in the query
+ *              (product.php?id=…) must therefore declare, building each
+ *              version from its own validated parameter.
+ *
  * A route declares once, before it prints its <head>. Nothing polls, nothing
  * scans, and no language version is ever inferred from content that merely
  * fell back.

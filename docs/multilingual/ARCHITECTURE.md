@@ -985,11 +985,11 @@ print. `blog.php` en `blog-post.php` staan op de tweede vorm, dus een bericht
 op een Engelstalige site opent in het Engels; de vaste `data-nl`/`data-en` van
 de UI-woorden ("Alles", "Lees verder") blijven tot de flip.
 
-**De RSS-feed is de standaardtaal.** Eén document op één adres, zonder
-taalwissel, dus het zegt wat een bezoeker zonder keuze ziet. Dat stond er
-letterlijk als `'nl'` en is nu `BlogLocalization::defaultLanguage()`; op elke
-bestaande installatie is dat hetzelfde. Een feed per taal hoort bij de URL's
-die hem zouden dragen.
+**De RSS-feed volgt de taal van het verzoek.** In deze fase was hij nog de
+standaardtaal: één document op één adres, en de vaste `'nl'` werd
+`BlogLocalization::defaultLanguage()`. Sinds fase 6 heeft elke taal een eigen
+feed-URL (`/en/blog/feed.xml`), en `BlogFeed` schrijft kanaal en items in de
+taal van die URL, met de gewone terugval (`BLOG.md`, "RSS").
 
 **Sorteren mag niet van de lezer afhangen.** Een naam was een kolom om op te
 sorteren: `blog_categories` viel bij een gelijke `sort_order` terug op de
