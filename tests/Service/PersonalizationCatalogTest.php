@@ -424,6 +424,44 @@ final class PersonalizationCatalogTest extends TestCase
         $this->assertStringContainsString('geen producten om te personaliseren', $page);
     }
 
+    /**
+     * The catalogue is one fixed route answered in every published language,
+     * so the sitemap lists every language's address, each naming all of them,
+     * and the page declares the same set for hreflang and the language
+     * switch. Before phase 7 wave E only the default address was listed.
+     */
+    public function testTheCatalogueIsListedInEveryPublishedLanguage(): void
+    {
+        if (!\App\Module\ModuleRegistry::isEnabled('personalization')) {
+            $this->markTestSkipped('the Personalisatie module is off here');
+        }
+
+        $this->createPersonalizationOnlyProduct();
+        PersonalizationCatalog::clearCache();
+
+        $expected = [];
+        foreach (\App\Service\Language\SiteLanguages::activeCodes() as $code) {
+            $expected[$code] = \App\Service\AppUrl::canonical(
+                \App\Service\Routing\LocalizedUrl::path(PersonalizationCatalog::publicPath(), $code)
+            );
+        }
+
+        $entries = [];
+        foreach (\App\Service\Sitemap::entries() as $entry) {
+            if (in_array($entry['loc'], $expected, true)) {
+                $entries[$entry['loc']] = $entry;
+            }
+        }
+
+        $this->assertSame(array_values($expected), array_keys($entries), 'one entry per published language');
+        foreach ($entries as $loc => $entry) {
+            $this->assertSame(count($expected) > 1 ? $expected : [], $entry['alternates'], $loc . ' names every version, itself included');
+        }
+
+        $page = (string) file_get_contents(dirname(__DIR__, 2) . '/personaliseren.php');
+        $this->assertStringContainsString('LanguageAlternates::declareVersions($personalizationVersions)', $page);
+    }
+
     public function testTheCataloguePathIsReservedAgainstCmsPageSlugs(): void
     {
         $this->assertSame('/personaliseren.php', PersonalizationCatalog::publicPath());

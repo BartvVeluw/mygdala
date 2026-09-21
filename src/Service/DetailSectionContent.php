@@ -6,6 +6,7 @@ use App\Repository\DetailSectionRepository;
 use App\Service\Blocks\BlockLocalization;
 use App\Service\Media\BlockImage;
 use App\Service\Routing\RequestLanguage;
+use App\Service\Routing\TypedLink;
 
 /**
  * Content for the "Detailsectie" page-builder block
@@ -316,7 +317,7 @@ class DetailSectionContent
         $content['image_position'] = in_array($row['image_position'] ?? null, self::IMAGE_POSITIONS, true)
             ? (string) $row['image_position']
             : 'image_right';
-        $content['cta_url'] = (string) ($row['cta_url'] ?? '');
+        $content['cta_url'] = TypedLink::href((string) ($row['cta_url'] ?? ''));
 
         // A CTA only renders when it has both a label in the default language
         // and a URL — a half-filled optional CTA would be a broken/dead link,

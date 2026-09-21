@@ -5,6 +5,7 @@ namespace App\Service;
 use App\Repository\ContactCardRepository;
 use App\Service\Blocks\BlockLocalization;
 use App\Service\Routing\RequestLanguage;
+use App\Service\Routing\TypedLink;
 
 /**
  * Content for the "Contactkaart" block (partials/section-contact-card.php) —
@@ -128,7 +129,9 @@ class ContactCardContent
     private static function resolveButtonUrl(string $stored): string
     {
         if ($stored !== '') {
-            return $stored;
+            // Typed by an editor, printed in the language being read
+            // (App\Service\Routing\TypedLink).
+            return TypedLink::href($stored);
         }
 
         $email = trim((string) SiteSettings::get('email'));

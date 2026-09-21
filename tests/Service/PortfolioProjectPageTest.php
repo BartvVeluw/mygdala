@@ -340,6 +340,34 @@ final class PortfolioProjectPageTest extends TestCase
         $this->assertNotContains(PortfolioGalleryContent::canonicalUrlForSlug($linkedSlug), $locations);
     }
 
+    /**
+     * An old project page answers at its one slug in every published
+     * language (portfolio-detail.php declares each prefixed address as a
+     * version), so the sitemap lists every version, each naming all of them.
+     * Before phase 7 wave E only the default-language address was listed.
+     */
+    public function testTheSitemapListsAnOldProjectPageInEveryPublishedLanguage(): void
+    {
+        $slug = $this->giveItAnOldProjectPage($this->item());
+
+        $expected = [];
+        foreach (\App\Service\Language\SiteLanguages::activeCodes() as $code) {
+            $expected[$code] = PortfolioGalleryContent::canonicalUrlForSlug($slug, $code);
+        }
+
+        $entries = [];
+        foreach (Sitemap::entries() as $entry) {
+            if (in_array($entry['loc'], $expected, true)) {
+                $entries[$entry['loc']] = $entry;
+            }
+        }
+
+        $this->assertSame(array_values($expected), array_keys($entries), 'one entry per published language');
+        foreach ($entries as $loc => $entry) {
+            $this->assertSame(count($expected) > 1 ? $expected : [], $entry['alternates'], $loc . ' names every version, itself included');
+        }
+    }
+
     /* ------------------------------------------------------------------ */
 
     private function item(string $title = ''): int

@@ -6,6 +6,7 @@ use App\Repository\TextImageSplitRepository;
 use App\Service\Blocks\BlockLocalization;
 use App\Service\Media\BlockImage;
 use App\Service\Routing\RequestLanguage;
+use App\Service\Routing\TypedLink;
 
 /**
  * Content for the "Text + image split" section (`.service-detail__head`,
@@ -168,7 +169,7 @@ class TextImageSplitContent
         $content = [
             'layout' => in_array($row['layout'] ?? null, ['image_left', 'image_right'], true) ? $row['layout'] : 'image_right',
         ] + BlockLocalization::words(self::TABLE, $sectionId) + [
-            'button_url' => (string) ($row['button_url'] ?? ''),
+            'button_url' => TypedLink::href((string) ($row['button_url'] ?? '')),
         ];
 
         // A button only renders when it has both a label in the default

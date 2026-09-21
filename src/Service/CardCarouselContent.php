@@ -6,6 +6,7 @@ use App\Repository\CardCarouselRepository;
 use App\Service\Blocks\BlockLocalization;
 use App\Service\Media\BlockImage;
 use App\Service\Routing\RequestLanguage;
+use App\Service\Routing\TypedLink;
 
 /**
  * Content for the "Kaarten-carrousel" page-builder block
@@ -184,7 +185,7 @@ class CardCarouselContent
         ] + BlockLocalization::words(self::CARDS, $cardId);
 
         $result['image_alt'] = $image['alt'];
-        $result['link_url'] = (string) ($card['link_url'] ?? '');
+        $result['link_url'] = TypedLink::href((string) ($card['link_url'] ?? ''));
 
         // A link only renders when it has both a label and a URL — the same
         // all-or-nothing rule every other optional button in this project

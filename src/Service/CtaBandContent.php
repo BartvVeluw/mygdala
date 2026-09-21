@@ -5,6 +5,7 @@ namespace App\Service;
 use App\Repository\CtaBandRepository;
 use App\Service\Blocks\BlockLocalization;
 use App\Service\Routing\RequestLanguage;
+use App\Service\Routing\TypedLink;
 
 /**
  * Content for the "CTA band" block (`.cta-band.cta-band--card`) — the
@@ -159,8 +160,10 @@ class CtaBandContent
             $content[$field] = $hasWords ? BlockLocalization::text(self::TABLE, $bandId, $field) : '';
         }
 
-        $content['primary_url'] = (string) ($row['primary_url'] ?? '');
-        $content['secondary_url'] = (string) ($row['secondary_url'] ?? '');
+        // Typed by an editor, printed in the language being read
+        // (App\Service\Routing\TypedLink).
+        $content['primary_url'] = TypedLink::href((string) ($row['primary_url'] ?? ''));
+        $content['secondary_url'] = TypedLink::href((string) ($row['secondary_url'] ?? ''));
 
         // A secondary button only renders when it has both a label and a
         // URL — a half-filled optional button would be broken/dead. The

@@ -209,15 +209,18 @@ final class PortfolioModule extends ModuleDefinition
                 $entries = [];
 
                 foreach (PortfolioGalleryContent::legacyProjectPagesForSitemap() as $project) {
-                    // The default language's address, named rather than left
-                    // to whatever language the sitemap request resolved to.
-                    $entries[] = Sitemap::entryFor(
-                        PortfolioGalleryContent::canonicalUrlForSlug(
-                            $project['slug'],
-                            \App\Service\Routing\LanguageResolver::defaultLanguage()
-                        ),
-                        $project['updated_at']
-                    );
+                    // Every published language's version of the page, each
+                    // naming the others, exactly as portfolio-detail.php
+                    // declares them.
+                    $paths = [];
+                    foreach (\App\Service\Language\SiteLanguages::activeCodes() as $code) {
+                        $paths[$code] = \App\Service\Routing\LocalizedUrl::path(
+                            PortfolioGalleryContent::publicPath($project['slug']),
+                            $code
+                        );
+                    }
+
+                    $entries = array_merge($entries, Sitemap::entriesForVersions($paths, $project['updated_at']));
                 }
 
                 return $entries;

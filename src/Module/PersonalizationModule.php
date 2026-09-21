@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Module;
 
-use App\Service\AppUrl;
 use App\Service\Personalization\PersonalizationCatalog;
 use App\Service\Sitemap;
 
@@ -124,7 +123,14 @@ final class PersonalizationModule extends ModuleDefinition
                     return [];
                 }
 
-                return [Sitemap::entryFor(AppUrl::canonical(PersonalizationCatalog::publicPath()), null)];
+                // Every published language's version, each naming the others
+                // (hreflang), exactly as personaliseren.php declares them.
+                $paths = [];
+                foreach (\App\Service\Language\SiteLanguages::activeCodes() as $code) {
+                    $paths[$code] = \App\Service\Routing\LocalizedUrl::path(PersonalizationCatalog::publicPath(), $code);
+                }
+
+                return Sitemap::entriesForVersions($paths, null);
             },
         ];
     }

@@ -41,6 +41,21 @@ require_once __DIR__ . '/partials/breadcrumb.php';
 
 $catalog = \App\Service\Personalization\PersonalizationCatalog::forPublicPage();
 
+// The catalogue is one fixed route, answered in every published language, so
+// each language's address is a real version of it — declared, so hreflang and
+// the language switch name exactly those (docs/multilingual/ROUTING.md). An
+// empty catalogue advertises nothing: the sitemap leaves it out as well.
+if ($catalog !== null) {
+    $personalizationVersions = [];
+    foreach (\App\Service\Language\SiteLanguages::activeCodes() as $personalizationLanguage) {
+        $personalizationVersions[$personalizationLanguage] = \App\Service\Routing\LocalizedUrl::path(
+            \App\Service\Personalization\PersonalizationCatalog::publicPath(),
+            $personalizationLanguage
+        );
+    }
+    \App\Service\Routing\LanguageAlternates::declareVersions($personalizationVersions);
+}
+
 $siteName = \App\Service\SiteSettings::get('site_name');
 $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
 

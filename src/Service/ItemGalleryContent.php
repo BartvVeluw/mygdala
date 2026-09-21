@@ -5,6 +5,7 @@ namespace App\Service;
 use App\Repository\ItemGalleryRepository;
 use App\Service\Blocks\BlockLocalization;
 use App\Service\Routing\RequestLanguage;
+use App\Service\Routing\TypedLink;
 
 /**
  * Content for the "Portfolio-/collectiegalerij" block
@@ -223,8 +224,10 @@ class ItemGalleryContent
             'max_items' => $maxItems,
             'show_filter_bar' => $showFilterBar,
             'enable_lightbox' => (bool) $row['enable_lightbox'],
-            'fallback_link_url' => (string) ($row['fallback_link_url'] ?? ''),
-            'button_url' => (string) ($row['button_url'] ?? ''),
+            // Typed by an editor, printed in the language being read
+            // (App\Service\Routing\TypedLink).
+            'fallback_link_url' => TypedLink::href((string) ($row['fallback_link_url'] ?? '')),
+            'button_url' => TypedLink::href((string) ($row['button_url'] ?? '')),
             'background' => $background,
             'tight_top' => (bool) $row['tight_top'],
             // Only a source that HAS a taxonomy can offer a filter bar; a

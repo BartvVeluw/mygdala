@@ -5,6 +5,7 @@ namespace App\Service;
 use App\Repository\HomepageHeroRepository;
 use App\Service\Blocks\BlockLocalization;
 use App\Service\Routing\RequestLanguage;
+use App\Service\Routing\TypedLink;
 
 /**
  * Content for the dedicated "Homepage Hero" section (`.hero` on index.php) —
@@ -245,8 +246,10 @@ class HomepageHeroContent
 
         $content = BlockLocalization::words(self::TABLE, $heroId) + [
             'title_highlight_size' => self::clampHighlightSize($row['title_highlight_size'] ?? null),
-            'primary_url' => (string) ($row['primary_url'] ?? ''),
-            'secondary_url' => (string) ($row['secondary_url'] ?? ''),
+            // Typed by an editor, printed in the language being read
+            // (App\Service\Routing\TypedLink).
+            'primary_url' => TypedLink::href((string) ($row['primary_url'] ?? '')),
+            'secondary_url' => TypedLink::href((string) ($row['secondary_url'] ?? '')),
             // Once a row exists, its media is authoritative: an empty
             // image_path means "this Hero has no image" — see hasMedia().
             'image_path' => (string) ($row['image_path'] ?? ''),

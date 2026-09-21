@@ -66,6 +66,18 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
 
 if ($portfolioItem === null) {
     http_response_code(404);
+} else {
+    // One neutral slug, answered in every published language: each prefixed
+    // address is a version of this page, declared for hreflang and the
+    // language switch like every other route (docs/multilingual/ROUTING.md).
+    $projectVersions = [];
+    foreach (\App\Service\Language\SiteLanguages::activeCodes() as $projectLanguage) {
+        $projectVersions[$projectLanguage] = \App\Service\Routing\LocalizedUrl::path(
+            \App\Service\PortfolioGalleryContent::publicPath((string) $portfolioItem['slug']),
+            $projectLanguage
+        );
+    }
+    \App\Service\Routing\LanguageAlternates::declareVersions($projectVersions);
 }
 // A Portfolio project is not a CMS page and not a shop item, so its
 // metadata is resolved here — but through the same App\Service\SeoMetadata
