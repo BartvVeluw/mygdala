@@ -333,7 +333,9 @@ tekenset, lengte en naamruimte.
 
 Een naamswijziging legt een 301 aan **in de URL-ruimte van die taal**: de
 Engelse versie hernoemen geeft `/en/oud` → `/en/nieuw` en laat de Nederlandse
-adressen met rust.
+adressen met rust. Een adres **leegmaken** is geen naamswijziging: die
+taalversie verdwijnt, er komt geen redirect naar de taalhome, en de oude URL
+geeft een gewone 404 (`App\Service\Redirects\SlugChangeRedirects`).
 
 ### Welke schermen een adres per taal bewerken
 

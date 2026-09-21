@@ -65,6 +65,16 @@ final class SlugChangeRedirects
      */
     public function record(string $oldSlug, string $newSlug, ?string $languageCode = null): bool
     {
+        // An EMPTY new slug is not a move but an address taken away: a
+        // translation whose slug was cleared has no public URL in that
+        // language any more (docs/multilingual/ROUTING.md). Built into a path
+        // it would be the language's homepage, and pointing the old URL there
+        // is the soft 404 this class already refuses to create for a deleted
+        // page. The Blog's callers stop before this; now every caller does.
+        if (trim(trim($newSlug), '/') === '') {
+            return false;
+        }
+
         // The slugs belong to ONE language, and so do the paths built from
         // them (Multilingual 2.0 phase 6): renaming the English version of a
         // page records /en/old -> /en/new. The default language has no

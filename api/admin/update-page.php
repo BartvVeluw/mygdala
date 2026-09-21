@@ -367,10 +367,14 @@ try {
  * redirect from the old path to the new one, visible and editable in
  * Beheer → Redirects like any other. See REDIRECTS.md.
  *
- * Four conditions, all of them about not inventing a redirect nobody needs:
+ * Five conditions, all of them about not inventing a redirect nobody needs:
  *
  *   - the slug really changed. An ordinary save — new title, new meta
  *     description, a section added — leaves the slug alone and writes nothing;
+ *   - it changed INTO an address. A translation whose slug was cleared has no
+ *     public URL in that language any more (docs/multilingual/ROUTING.md);
+ *     that is the language version going away, not moving, so its old URL
+ *     404s like any other gone page's instead of being sent to /en;
  *   - and the three in PageService::oldAddressWillRedirect(): the page has no
  *     fixed URL, it was published before this save (a draft's slug was never
  *     a working URL, which is also what keeps a brand-new page from
@@ -390,6 +394,7 @@ try {
 if (
     $oldSlug !== ''
     && $oldSlug !== $slug
+    && $slug !== ''
     && PageService::oldAddressWillRedirect($page, $status)
 ) {
     // In this language's URL space: renaming the English version records

@@ -42,6 +42,9 @@ final class PageLocalizationEditorHttpTest extends TestCase
     /** A slug the address rules accept as it is, so a save never asks to move the page. */
     private const KEY = 'zz-page-localization-test';
 
+    /** The English address testClearingATranslationsAddressIsNoMove() gives and takes away. */
+    private const CLEARED_ADDRESS = 'zz-page-localization-cleared';
+
     private static ?BuiltInServer $server = null;
 
     private AdminTestSession $accounts;
@@ -89,6 +92,11 @@ final class PageLocalizationEditorHttpTest extends TestCase
     protected function tearDown(): void
     {
         $this->removePages();
+
+        // The redirect testClearingATranslationsAddressIsNoMove() must never
+        // produce, removed in case it did.
+        Database::connection()->prepare('DELETE FROM redirects WHERE source_path = ?')
+            ->execute(['/en/' . self::CLEARED_ADDRESS]);
 
         if ($this->addedGerman) {
             Database::connection()->prepare("DELETE FROM page_translations WHERE language_code = 'de'")->execute();
@@ -198,6 +206,40 @@ final class PageLocalizationEditorHttpTest extends TestCase
         // A changed title leaves the address where it is.
         $this->save($session, 'en', 'About us instead', null, null, ['slug' => 'about-this-company']);
         self::assertSame('about-this-company', PageLocalization::slug($this->pageId, 'en'));
+    }
+
+    /**
+     * REGRESSION. Clearing a translation's address means that language
+     * version has no public URL any more (docs/multilingual/ROUTING.md). It
+     * used to be recorded as a MOVE to an empty slug, which is the language's
+     * homepage: /en/<old> answered with a 301 to /en, the soft 404 this CMS
+     * already refuses to create when a page is deleted or unpublished.
+     */
+    public function testClearingATranslationsAddressIsNoMove(): void
+    {
+        $session = $this->signIn('en');
+        $this->save($session, 'en', 'Cleared later', null, null, ['slug' => self::CLEARED_ADDRESS]);
+        self::assertSame(self::CLEARED_ADDRESS, PageLocalization::slug($this->pageId, 'en'));
+
+        $response = $this->save($session, 'en', 'Cleared later', null, null, ['slug' => '']);
+
+        self::assertStringContainsString('updated=1', $response['location'], 'an ordinary save, with nothing to confirm');
+        PageLocalization::clearCache();
+        PageContent::clearCache();
+
+        self::assertNull(PageLocalization::slug($this->pageId, 'en'), 'the English version has no address any more');
+        self::assertNull(
+            (new \App\Repository\RedirectRepository())->findBySourcePath('/en/' . self::CLEARED_ADDRESS),
+            'and its old URL is not sent to the English homepage'
+        );
+
+        // Every other part of the site agrees that there is no English URL:
+        // the lookup, the versions the switch and hreflang are built from,
+        // and a link, which goes to the default language's real address.
+        $page = (new PageRepository())->findById($this->pageId);
+        self::assertNull(PageContent::forSlug(self::CLEARED_ADDRESS, 'en'));
+        self::assertArrayNotHasKey('en', PageContent::localizedPaths($page));
+        self::assertSame('/' . self::KEY, PageContent::publicUrl($page, 'en'));
     }
 
     public function testTheDefaultLanguagesTitleIsRequired(): void

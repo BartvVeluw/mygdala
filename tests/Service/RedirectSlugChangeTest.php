@@ -57,6 +57,7 @@ class RedirectSlugChangeTest extends TestCase
         foreach ([self::FIRST_SLUG, self::SECOND_SLUG, self::THIRD_SLUG] as $slug) {
             $stmt = $db->prepare('DELETE FROM redirects WHERE source_path = :source');
             $stmt->execute(['source' => '/' . $slug]);
+            $stmt->execute(['source' => '/en/' . $slug]);
         }
 
         $stmt = $db->prepare('DELETE FROM pages WHERE content_key = :key');
@@ -126,6 +127,22 @@ class RedirectSlugChangeTest extends TestCase
     {
         $this->assertFalse($this->service->record(self::FIRST_SLUG, self::FIRST_SLUG));
         $this->assertNull($this->redirectFor(self::FIRST_SLUG));
+    }
+
+    /**
+     * An address that is taken AWAY is not a move (Multilingual 2.0 phase 6):
+     * clearing a translation's slug leaves that language without a public
+     * URL. An empty new slug used to become the language's homepage, so the
+     * old URL answered with a 301 to "/" or "/en" — the soft 404 deleting a
+     * page already refuses to create.
+     */
+    public function testAnAddressThatIsTakenAwayIsNoMove(): void
+    {
+        $this->assertFalse($this->service->record(self::FIRST_SLUG, ''));
+        $this->assertNull($this->redirectFor(self::FIRST_SLUG));
+
+        $this->assertFalse($this->service->record(self::FIRST_SLUG, '', 'en'));
+        $this->assertNull($this->redirects->findBySourcePath('/en/' . self::FIRST_SLUG));
     }
 
     /**
