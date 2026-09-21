@@ -746,10 +746,12 @@ final class PersonalizationValidationTest extends TestCase
         $byKey = array_column($result['zones'], null, 'zone_key');
 
         $name = $byKey['name']['config_snapshot'];
-        $this->assertSame(3, $name['version']);
+        $this->assertSame(4, $name['version']);
         $this->assertSame('front', $name['view']['view_key']);
         $this->assertSame('Voorkant', $name['view']['label']);
         $this->assertSame('Naam', $name['zone']['label']);
+        $this->assertArrayNotHasKey('label_en', $name['view'], 'since version 4 a snapshot records one label, in the language ordered in');
+        $this->assertArrayNotHasKey('label_en', $name['zone']);
         $this->assertTrue($name['zone']['is_required']);
         $this->assertSame(10, $name['zone']['max_text_length']);
         $this->assertSame(PersonalizationFonts::activeKeys(), $name['zone']['allowed_fonts']);
@@ -899,7 +901,7 @@ final class PersonalizationValidationTest extends TestCase
         $this->assertSame(0.25, $result['zones'][0]['transform']['text']['x']);
         $this->assertSame(0, $result['surcharge_cents']);
         // It still gets a current-generation snapshot: the order is placed now.
-        $this->assertSame(3, $result['zones'][0]['config_snapshot']['version']);
+        $this->assertSame(4, $result['zones'][0]['config_snapshot']['version']);
     }
 
     public function testAPhase1FlatPayloadWithoutAZoneKeyUsesTheDefaultZone(): void

@@ -1,7 +1,7 @@
 <?php
 
 /**
- * GET /api/order-status.php?order=123
+ * GET /api/order-status.php?order=123[&lang=en]
  *
  * Used by the return page (bestelling-status.php) the customer lands on
  * after Mollie's checkout. If the order is still "pending" we ask Mollie
@@ -11,6 +11,10 @@
  *
  * Only minimal, non-sensitive order info is returned (no email/phone/address) —
  * this endpoint is reachable with just a guessable numeric order id.
+ *
+ * Each line's `name` is the one recorded for the language of the page asking
+ * (?lang=, App\Service\Routing\ApiLanguage), from the order's own name
+ * snapshots — never the product's current name.
  */
 
 declare(strict_types=1);
@@ -23,10 +27,10 @@ require_once __DIR__ . '/../vendor/autoload.php';
 
 
 use App\Repository\OrderRepository;
-use App\Service\Language\LanguageRegistry;
 use App\Service\MollieClientFactory;
 use App\Service\OrderItemNameSnapshot;
 use App\Service\OrderPaymentSync;
+use App\Service\Routing\ApiLanguage;
 
 header('Content-Type: application/json; charset=utf-8');
 
@@ -46,6 +50,7 @@ if ($orderId === false || $orderId === null || $orderId < 1) {
 }
 
 try {
+    $language = ApiLanguage::apply($_GET['lang'] ?? null);
     $orderRepository = new OrderRepository();
     $order = $orderRepository->findById($orderId);
 
@@ -70,11 +75,11 @@ try {
 
     $items = $orderRepository->findItems($orderId);
 
-    // What each line's product was called in the OTHER website languages, so
-    // this page can offer a visitor both halves (Multilingual 2.0 phase 5
-    // wave C). A line without its own name in a language falls back to the
-    // neutral snapshot the invoice prints — never to a product's CURRENT
-    // name, which is the whole point of a snapshot.
+    // What each line's product was called in the language of this page, as
+    // recorded when the order was placed. A line without its own name in
+    // that language falls back to the neutral snapshot the invoice prints —
+    // never to a product's CURRENT name, which is the whole point of a
+    // snapshot.
     OrderItemNameSnapshot::preload(array_map(static fn (array $item): int => (int) $item['id'], $items));
 
     echo json_encode(['data' => [
@@ -86,13 +91,9 @@ try {
         'currency' => $order['currency'],
         'confirmation_sent' => $order['confirmation_sent_at'] !== null,
         'customer_first_name' => explode(' ', trim((string) $order['customer_name']))[0] ?? '',
-        'items' => array_map(static function (array $item): array {
-            $name = (string) $item['name'];
-            $pair = OrderItemNameSnapshot::pair((int) $item['id'], $name);
-
+        'items' => array_map(static function (array $item) use ($language): array {
             return [
-                'name' => $pair->in(LanguageRegistry::DUTCH),
-                'name_en' => $pair->in(LanguageRegistry::ENGLISH),
+                'name' => OrderItemNameSnapshot::name((int) $item['id'], $language, (string) $item['name']),
                 'variant_label' => $item['variant_label'],
                 'quantity' => (int) $item['quantity'],
                 'unit_price' => $item['unit_price'],

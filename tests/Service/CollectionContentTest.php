@@ -18,10 +18,10 @@ use PHPUnit\Framework\TestCase;
  * collection must be indistinguishable from one that does not exist — so
  * they are asserted against real rows rather than mocked.
  *
- * A mapped row carries its words as one LocalizedValue each since
- * Multilingual 2.0 phase 5 wave C (they are rows in
- * `collection_translations`, not columns), so the assertions below read
- * `$collection['name']->in('en')` rather than a `name_en` key.
+ * A mapped row carries its words as one string each, in the language it is
+ * read in (the rows are in `collection_translations`, not columns), so the
+ * assertions below ask CollectionContent::forPublicPage() for a language
+ * rather than reading a `name_en` key.
  */
 final class CollectionContentTest extends TestCase
 {
@@ -108,12 +108,15 @@ final class CollectionContentTest extends TestCase
     {
         $slug = $this->createCollection('Publiek', true, '<p>Hallo</p>', 'Public');
 
-        $collection = CollectionContent::forPublicPage($slug);
+        $collection = CollectionContent::forPublicPage($slug, 'nl');
 
         $this->assertNotNull($collection);
-        $this->assertSame('Publiek', $collection['name']->in('nl'));
-        $this->assertSame('Public', $collection['name']->in('en'));
+        $this->assertSame('Publiek', $collection['name']);
         $this->assertSame('/collecties/' . $slug, $collection['url']);
+
+        // Its English page answers at its Dutch address when it has no
+        // English one of its own; the words are English all the same.
+        $this->assertSame('Public', $this->english($slug)['name'] ?? null);
     }
 
     public function testAnInactiveCollectionIsNotPubliclyAvailable(): void
@@ -159,10 +162,7 @@ final class CollectionContentTest extends TestCase
     {
         $slug = $this->createCollection('Alleen Nederlands', true);
 
-        $collection = CollectionContent::forPublicPage($slug);
-
-        $this->assertNotNull($collection);
-        $this->assertSame('Alleen Nederlands', $collection['name']->in('en'));
+        $this->assertSame('Alleen Nederlands', $this->english($slug)['name'] ?? null);
     }
 
     public function testDescriptionsAreSanitizedOnRead(): void
@@ -171,11 +171,11 @@ final class CollectionContentTest extends TestCase
         // sanitizer, to prove the read path is a second, independent boundary.
         $slug = $this->createCollection('Onveilig', true, '<p>Veilig</p><script>alert(1)</script>');
 
-        $collection = CollectionContent::forPublicPage($slug);
+        $collection = CollectionContent::forPublicPage($slug, 'nl');
 
         $this->assertNotNull($collection);
-        $this->assertStringNotContainsString('<script', $collection['description']->in('nl'));
-        $this->assertStringContainsString('Veilig', $collection['description']->in('nl'));
+        $this->assertStringNotContainsString('<script', $collection['description']);
+        $this->assertStringContainsString('Veilig', $collection['description']);
     }
 
     public function testActiveForShopListsActiveCollectionsWithActiveProductsInSortOrder(): void
@@ -253,5 +253,23 @@ final class CollectionContentTest extends TestCase
         $this->assertNotNull($collection);
 
         $this->assertSame('', CollectionContent::metaDescription($collection));
+    }
+
+    /**
+     * The collection with this Dutch slug as an English visitor reads it: its
+     * words in English (or the default language's where it has none).
+     *
+     * @return array<string, mixed>|null
+     */
+    private function english(string $slug): ?array
+    {
+        $dutch = CollectionContent::forPublicPage($slug, 'nl');
+        $this->assertNotNull($dutch);
+
+        $id = (int) $dutch['id'];
+        $name = ShopLocalization::collection($id, ShopLocalization::NAME, 'en');
+        $description = ShopLocalization::collectionDescription($id, 'en');
+
+        return ['name' => $name, 'description' => $description];
     }
 }

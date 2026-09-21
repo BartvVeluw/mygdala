@@ -318,8 +318,12 @@ final class GenericDistributionTest extends TestCase
         $this->assertStringContainsString('data-cart-count>0<', $markup);
         $this->assertStringContainsString('cart-dropdown__subtotal" hidden', $markup);
 
+        // Both take the sentence from the one catalogue
+        // (App\Service\ShopScriptText), resolved for the request.
+        $partial = (string) file_get_contents($this->root() . '/partials/header-cart.php');
+        $this->assertStringContainsString("ShopScriptText::text('cart_empty')", $partial);
         $script = (string) file_get_contents($this->root() . '/assets/js/shop/cart.js');
-        $this->assertStringContainsString('Je winkelwagen is leeg.', $script);
+        $this->assertStringContainsString('escapeHtml(text("cart_empty"))', $script);
     }
 
     private function renderMiniCart(): string

@@ -95,8 +95,7 @@
           return;
         }
 
-        grid.innerHTML =
-          '<p class="lead" data-nl="Er zijn op dit moment geen producten beschikbaar." data-en="No products are available right now.">Er zijn op dit moment geen producten beschikbaar.</p>';
+        grid.innerHTML = '<p class="lead">' + S.escapeHtml(S.text("no_products")) + "</p>";
         return;
       }
 
@@ -106,12 +105,10 @@
           // stripped, and CSS (.product-card__desc) clamps it to ~3 lines.
           // The full formatted description is on product.php.
           var descPlain = S.stripHtmlToText(product.description);
-          var descPlainEn = S.stripHtmlToText(product.description_en);
-          var description = (descPlain || descPlainEn) ?
-            '<p class="product-card__desc" ' + S.bilingualAttrs(descPlain, descPlainEn) + ">" +
-            S.currentLangText(descPlain, descPlainEn) + "</p>" : "";
-          var cardName = S.currentLangText(product.name, product.name_en);
-          var cardAlt = product.image_alt || cardName || "";
+          var description = descPlain ?
+            '<p class="product-card__desc">' + S.escapeHtml(descPlain) + "</p>" : "";
+          var cardName = product.name || "";
+          var cardAlt = product.image_alt || cardName;
           var media = product.image_path ?
             '<img src="' + S.escapeAttr(S.rootPath(product.image_path)) + '" alt="' + S.escapeAttr(cardAlt) + '" loading="lazy">' :
             S.genericProductIcon;
@@ -131,8 +128,7 @@
             '<a class="product-card is-visible" href="' + S.escapeAttr(S.localeUrl("/product.php?id=" + encodeURIComponent(product.id))) + '">' +
             '<div class="product-card__media">' + media + "</div>" +
             '<div class="product-card__body">' +
-            "<h3 " + S.bilingualAttrs(product.name, product.name_en) + ">" +
-            S.currentLangText(product.name, product.name_en) + "</h3>" +
+            "<h3>" + S.escapeHtml(cardName) + "</h3>" +
             description +
             '<div class="product-card__footer">' +
             '<span class="product-card__price">' + S.formatPrice(product.price) + "</span>" +
@@ -197,15 +193,12 @@
     }
 
     function renderProduct(product) {
-      var titleText = S.currentLangText(product.name, product.name_en);
-
-      // document.title is deliberately NOT touched here. product.php now
-      // renders the product's real <title> server-side (App\Service\ProductSeo
-      // — which honours the SEO title the owner can type in the CMS), with
-      // data-nl/data-en so applyLang() swaps it on the language toggle like
-      // every other bilingual element. Rebuilding a title here from a
-      // hardcoded " | Shop — …" suffix would silently overwrite that custom
-      // title the moment the API response arrived.
+      // document.title is deliberately NOT touched here. product.php renders
+      // the product's real <title> server-side, in the language of the page
+      // (App\Service\ProductSeo — which honours the SEO title the owner can
+      // type in the CMS). Rebuilding a title here from a hardcoded
+      // " | Shop — …" suffix would silently overwrite that custom title the
+      // moment the API response arrived.
 
       // The BREADCRUMB is deliberately NOT touched here either. product.php
       // prints the product's real name into it server-side, from the same
@@ -215,30 +208,20 @@
       // "Product"; rewriting it now would only put the same words back.
 
       var nameEl = document.querySelector("[data-product-name]");
-      if (nameEl) {
-        nameEl.setAttribute("data-nl", product.name || "");
-        nameEl.setAttribute("data-en", product.name_en || product.name || "");
-        nameEl.textContent = titleText;
-      }
+      if (nameEl) nameEl.textContent = product.name || "";
 
       var priceEl = document.querySelector("[data-product-price]");
       if (priceEl) priceEl.innerHTML = S.formatPrice(product.price);
 
       var descEl = document.querySelector("[data-product-description]");
       if (descEl) {
-        if (product.description || product.description_en) {
+        if (product.description) {
           // Full formatted description here (unlike the shop card): the
-          // value is server-sanitized HTML (DescriptionSanitizer, or plain
-          // legacy text), so it's safe to render with innerHTML. It is one of
-          // the few genuinely-HTML bilingual elements, so it carries
-          // data-lang-html: that is the flag assets/js/core.js's applyLang()
-          // now requires before it re-renders a data-nl value with innerHTML
-          // instead of textContent (every plain-text field — the product name
-          // above included — stays textContent, which is the XSS fix).
-          descEl.setAttribute("data-lang-html", "");
-          descEl.setAttribute("data-nl", product.description || "");
-          descEl.setAttribute("data-en", product.description_en || product.description || "");
-          descEl.innerHTML = S.currentLangHtml(product.description, product.description_en);
+          // value is server-sanitized HTML (sanitized on write AND again by
+          // App\Service\ShopLocalization on the way out), so it is the one
+          // value this page renders with innerHTML. Every plain-text field —
+          // the product name above included — stays textContent.
+          descEl.innerHTML = product.description;
           descEl.hidden = false;
         } else {
           descEl.hidden = true;
@@ -501,7 +484,6 @@
           var cartProduct = {
             id: product.id,
             name: product.name,
-            name_en: product.name_en,
             price: effectivePrice,
             image_path: effectiveImage,
             variant_id: selectedVariant ? selectedVariant.id : null,
@@ -607,20 +589,14 @@
       clearMessages();
       if (statusEl) {
         statusEl.hidden = false;
-        statusEl.textContent = S.currentLangText("Adres opzoeken…", "Looking up address…");
+        statusEl.textContent = S.text("address_lookup_busy");
       }
     }
 
     function showInvalid(reason) {
       clearMessages();
       if (!errorEl) return;
-      errorEl.textContent = reason === "unavailable" ? S.currentLangText(
-        "We konden dit adres nu niet verifiëren door een tijdelijk probleem. Probeer het straks opnieuw.",
-        "We could not verify this address right now due to a temporary problem. Please try again shortly."
-      ) : S.currentLangText(
-        "We konden dit adres niet verifiëren. Controleer je postcode en huisnummer.",
-        "We couldn't verify this address. Please check your postal code and house number."
-      );
+      errorEl.textContent = S.text(reason === "unavailable" ? "address_lookup_unavailable" : "address_lookup_not_found");
       errorEl.classList.add("is-visible");
     }
 
@@ -779,10 +755,7 @@
 
     function showTermsError() {
       if (!termsErrorEl) return;
-      termsErrorEl.textContent = S.currentLangText(
-        "Je moet akkoord gaan met de algemene voorwaarden voordat je verder kunt.",
-        "You must agree to the Terms & Conditions before continuing."
-      );
+      termsErrorEl.textContent = S.text("terms_required");
       termsErrorEl.classList.add("is-visible");
       if (termsCheckbox) termsCheckbox.setAttribute("aria-invalid", "true");
     }
@@ -793,10 +766,7 @@
 
     function showTurnstileError(message) {
       if (!turnstileErrorEl) return;
-      turnstileErrorEl.textContent = message || S.currentLangText(
-        "De beveiligingscontrole kon niet worden voltooid. Probeer het opnieuw.",
-        "The security check could not be completed. Please try again."
-      );
+      turnstileErrorEl.textContent = message || S.text("security_check_failed");
       turnstileErrorEl.classList.add("is-visible");
     }
 
@@ -814,10 +784,7 @@
         },
         "expired-callback": function () {
           turnstileToken = null;
-          showTurnstileError(S.currentLangText(
-            "De beveiligingscontrole is verlopen. Probeer het opnieuw.",
-            "The security check has expired. Please try again."
-          ));
+          showTurnstileError(S.text("security_check_expired"));
         },
         "error-callback": function () {
           turnstileToken = null;
@@ -852,14 +819,13 @@
 
     function loadShippingCountries() {
       if (!landSelect) return;
-      fetch("/api/shipping-zones.php")
+      fetch(S.apiUrl("/api/shipping-zones.php"))
         .then(function (res) { return res.ok ? res.json() : null; })
         .then(function (data) {
           if (!data || !Array.isArray(data.countries) || !data.countries.length) return;
           var previous = landSelect.value;
           landSelect.innerHTML = data.countries.map(function (country) {
-            return '<option value="' + S.escapeAttr(country.code) + '" ' +
-              S.bilingualAttrs(country.label, country.label_en) + ">" + S.currentLangText(country.label, country.label_en) + "</option>";
+            return '<option value="' + S.escapeAttr(country.code) + '">' + S.escapeHtml(country.label) + "</option>";
           }).join("");
           var stillExists = data.countries.some(function (c) { return c.code === previous; });
           landSelect.value = stillExists ? previous : data.countries[0].code;
@@ -875,10 +841,7 @@
 
     function showShippingError(message) {
       if (shippingOptionPriceEl) shippingOptionPriceEl.textContent = "—";
-      showError(message || S.currentLangText(
-        "Voor deze bestelling is geen verzendmethode beschikbaar. Neem contact met ons op.",
-        "No shipping method is available for this order. Please contact us."
-      ));
+      showError(message || S.text("no_shipping_method"));
     }
 
     function requestShippingQuote() {
@@ -889,7 +852,7 @@
       var land = landSelect ? landSelect.value : "";
 
       if (pickup) {
-        currentShipping = { shipping_cost: 0, shipping_method: "afhalen", shipping_method_label: S.currentLangText("Afhalen", "Pickup") };
+        currentShipping = { shipping_cost: 0, shipping_method: "afhalen", shipping_method_label: S.text("pickup") };
         clearError();
         renderSummary();
         return;
@@ -904,7 +867,7 @@
       var token = ++quoteToken;
       if (shippingOptionPriceEl) shippingOptionPriceEl.textContent = "…";
 
-      fetch("/api/shipping-quote.php", {
+      fetch(S.apiUrl("/api/shipping-quote.php"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -959,7 +922,7 @@
             '<div class="checkout-summary-item">' +
             '<div class="cart-row__media">' + S.cartItemMedia(item) + "</div>" +
             '<div class="checkout-summary-item__info">' +
-            "<strong " + S.bilingualAttrs(item.name, item.name_en) + ">" + S.currentLangText(item.name, item.name_en) + "</strong>" +
+            "<strong>" + S.escapeHtml(item.name) + "</strong>" +
             variantLine +
             S.cartPersonalizationHtml(item, "cart-personalization--compact") +
             "<span>" + item.qty + "x</span>" +
@@ -977,7 +940,7 @@
       if (subtotalEl) subtotalEl.innerHTML = S.formatPrice(subtotal);
       if (shippingEl) {
         shippingEl.innerHTML = currentShipping ?
-          (shipping > 0 ? S.formatPrice(shipping) : S.currentLangText("Gratis", "Free")) :
+          (shipping > 0 ? S.formatPrice(shipping) : S.escapeHtml(S.text("free"))) :
           "&hellip;";
       }
       if (shippingMethodEl) {
@@ -992,10 +955,7 @@
 
     function showError(message) {
       if (!errorEl) return;
-      errorEl.textContent = message || S.currentLangText(
-        "Er ging iets mis bij het plaatsen van je bestelling. Probeer het opnieuw.",
-        "Something went wrong while placing your order. Please try again."
-      );
+      errorEl.textContent = message || S.text("order_failed");
       errorEl.classList.add("is-visible");
     }
 
@@ -1007,8 +967,8 @@
       if (submitBtn) submitBtn.disabled = isSubmitting;
       if (submitLabelEl) {
         submitLabelEl.textContent = isSubmitting ?
-          S.currentLangText("Bezig…", "Processing…") :
-          S.currentLangText("Bestelling plaatsen", "Place order");
+          S.text("processing") :
+          S.text("place_order");
       }
       if (overlayEl) overlayEl.hidden = !isSubmitting;
     }
@@ -1084,10 +1044,7 @@
       // independently re-verifies both addresses server-side regardless (see
       // initAddressLookup() above and MAIN.MD "Dutch address validation").
       if (!shippingAddressLookup.isValidForSubmit()) {
-        showError(S.currentLangText(
-          "Controleer de postcode en het huisnummer van je verzendadres.",
-          "Please check the postal code and house number of your shipping address."
-        ));
+        showError(S.text("shipping_address_invalid"));
         shippingAddressLookup.focus();
         return;
       }
@@ -1100,19 +1057,13 @@
         ];
         for (var bi = 0; bi < billingRequiredFields.length; bi++) {
           if (!billingRequiredFields[bi] || !billingRequiredFields[bi].value.trim()) {
-            showError(S.currentLangText(
-              "Vul alle verplichte factuuradresvelden in.",
-              "Please fill in all required billing address fields."
-            ));
+            showError(S.text("billing_address_required"));
             billingRequiredFields[bi].focus();
             return;
           }
         }
         if (!billingAddressLookup.isValidForSubmit()) {
-          showError(S.currentLangText(
-            "Controleer de postcode en het huisnummer van je factuuradres.",
-            "Please check the postal code and house number of your billing address."
-          ));
+          showError(S.text("billing_address_invalid"));
           billingAddressLookup.focus();
           return;
         }
@@ -1273,7 +1224,7 @@
             '<div class="checkout-summary-item">' +
             '<div class="cart-row__media">' + S.cartItemMedia(item) + "</div>" +
             '<div class="checkout-summary-item__info">' +
-            "<strong " + S.bilingualAttrs(item.name, item.name_en) + ">" + S.currentLangText(item.name, item.name_en) + "</strong>" +
+            "<strong>" + S.escapeHtml(item.name) + "</strong>" +
             variantLine +
             "<span>" + item.quantity + "x</span>" +
             "</div>" +
@@ -1305,7 +1256,7 @@
       return;
     }
 
-    fetch("/api/order-status.php?order=" + encodeURIComponent(orderId))
+    fetch(S.apiUrl("/api/order-status.php?order=" + encodeURIComponent(orderId)))
       .then(function (res) {
         if (!res.ok) throw new Error("Request failed: " + res.status);
         return res.json();

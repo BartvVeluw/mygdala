@@ -20,9 +20,11 @@ final class ShippingProfileTest extends TestCase
 
     public function testLabelsAreDutch(): void
     {
-        $this->assertSame('Briefpost', ShippingProfile::label('letter'));
-        $this->assertSame('Brievenbuspakket', ShippingProfile::label('letterbox'));
-        $this->assertSame('Pakket', ShippingProfile::label('parcel'));
+        $this->assertSame('Briefpost', ShippingProfile::label('letter', 'nl'));
+        $this->assertSame('Brievenbuspakket', ShippingProfile::label('letterbox', 'nl'));
+        $this->assertSame('Pakket', ShippingProfile::label('parcel', 'nl'));
+        $this->assertSame('Letter post', ShippingProfile::label('letter', 'en'));
+        $this->assertSame('Parcel', ShippingProfile::label('parcel', 'en'));
     }
 
     public function testLabelFallsBackToRawValueForUnknownProfile(): void

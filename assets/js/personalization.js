@@ -51,10 +51,21 @@
     return;
   }
 
-  var docEl = document.documentElement;
+  /* The panel's own sentences, in the language of this page: the server
+     resolved them for this request and put them in the configuration
+     (App\Service\Personalization\PersonalizationScriptText). This script
+     never picks a language and never holds a Dutch/English pair; a missing
+     key is an empty string. {label}/{max} are filled in here, and the result
+     is plain text, written with textContent. */
+  var TEXT = config.text && typeof config.text === "object" ? config.text : {};
 
-  function t(nl, en) {
-    return docEl.lang === "en" ? en : nl;
+  function text(key, values) {
+    var sentence = Object.prototype.hasOwnProperty.call(TEXT, key) && typeof TEXT[key] === "string" ? TEXT[key] : "";
+    if (!values) return sentence;
+
+    return sentence.replace(/\{(\w+)\}/g, function (match, name) {
+      return Object.prototype.hasOwnProperty.call(values, name) ? String(values[name]) : match;
+    });
   }
 
   function clamp(value, min, max) {
@@ -144,10 +155,10 @@
     });
   });
 
+  /* The zone's name in the language of this page, or its key when the
+     administrator never named it. */
   function zoneLabel(zone) {
-    var nl = zone.label || zone.zone_key;
-    var en = zone.label_en || nl;
-    return t(nl, en);
+    return zone.label || zone.zone_key;
   }
 
   /* ---------------------------------------------------------------------
@@ -700,7 +711,7 @@
       activeUpload = sequence;
 
       showError(null);
-      setBusy(true, t("Afbeelding uploaden…", "Uploading image…"));
+      setBusy(true, text("upload_busy"));
 
       var body = new FormData();
       body.append("product_id", String(config.product_id));
@@ -728,10 +739,7 @@
           if (!result.ok || !result.data || !result.data.token) {
             // The server's message is already customer-facing and never
             // contains a path, an id or a technical detail.
-            showError((result.data && result.data.error) || t(
-              "De afbeelding kon niet worden geüpload. Probeer een andere PNG of JPG.",
-              "The image could not be uploaded. Please try another PNG or JPG."
-            ));
+            showError((result.data && result.data.error) || text("upload_failed"));
             clearImage(zoneKey);
             return;
           }
@@ -749,10 +757,7 @@
           if (sequence !== uploadSequence) return;
           finish();
 
-          showError(t(
-            "De afbeelding kon niet worden geüpload. Controleer je verbinding en probeer het opnieuw.",
-            "The image could not be uploaded. Please check your connection and try again."
-          ));
+          showError(text("upload_connection_failed"));
           clearImage(zoneKey);
         });
     });
@@ -1250,7 +1255,6 @@
             zone_key: key,
             view_key: viewOfZone[key].view_key,
             label: zone.label || key,
-            label_en: zone.label_en || zone.label || key,
             text: zoneState.text,
             font: zoneState.text ? zoneState.font : null,
             font_label: zoneState.text ? fontLabel(zoneState.font) : null,
@@ -1281,10 +1285,7 @@
       // described yet. The button is disabled while this is true; this is the
       // check behind it.
       if (isUploading()) {
-        return t(
-          "Wacht even tot de afbeelding is geüpload.",
-          "Please wait until the image has finished uploading."
-        );
+        return text("wait_for_upload");
       }
 
       /* A personalization-REQUIRED product cannot be bought plain. This is
@@ -1293,10 +1294,7 @@
          is the half that tells the customer WHAT is missing instead of just
          refusing. */
       if (config.is_required && usedZoneKeys().length === 0) {
-        return t(
-          "Vul eerst je personalisatie in — dit product wordt speciaal voor jou gemaakt.",
-          "Please fill in your personalisation first — this product is made especially for you."
-        );
+        return text("fill_in_first");
       }
 
       Object.keys(zonesByKey).some(function (key) {
@@ -1304,10 +1302,7 @@
         var zoneState = state.zones[key];
 
         if (zoneState.text.length > zone.max_text_length) {
-          problem = t(
-            "De tekst bij “" + zoneLabel(zone) + "” is te lang (maximaal " + zone.max_text_length + " tekens).",
-            "The text for “" + zoneLabel(zone) + "” is too long (maximum " + zone.max_text_length + " characters)."
-          );
+          problem = text("text_too_long", { label: zoneLabel(zone), max: zone.max_text_length });
           return true;
         }
 
@@ -1318,10 +1313,7 @@
         var filled = zone.mode === "text" ? hasText : (zone.mode === "image" ? hasImage : (hasText || hasImage));
 
         if (!filled) {
-          problem = t(
-            "Vul “" + zoneLabel(zone) + "” nog in — dat is verplicht voor dit product.",
-            "Please complete “" + zoneLabel(zone) + "” — it is required for this product."
-          );
+          problem = text("zone_required", { label: zoneLabel(zone) });
           // Bring the customer to the zone they still have to fill in.
           switchView(viewOfZone[key].view_key);
           return true;

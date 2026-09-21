@@ -109,6 +109,9 @@ function render_product_personalization(array $personalization, callable|string|
             'text_base_height_ratio' => PersonalizationRules::TEXT_BASE_HEIGHT_RATIO,
             'image_base_width_ratio' => PersonalizationRules::IMAGE_BASE_WIDTH_RATIO,
         ],
+        // The panel's own sentences, already in the language of the request:
+        // the script never picks a language itself.
+        'text' => \App\Service\Personalization\PersonalizationScriptText::forRequest(),
         'views' => array_map(
             static fn (array $view): array => [
                 'view_key' => $view['view_key'],

@@ -23,11 +23,18 @@
  * for a genuinely empty cart, so the hand-over is now invisible instead of a
  * visible jump from one product to none.
  *
+ * THE SHOP'S SCRIPT WORDS travel with it: the sentences cart.js and shop.js
+ * put in the markup they build (App\Service\ShopScriptText), resolved for
+ * this request and printed as a JSON data block. It sits here because this is
+ * the one Shop partial every Shop page has, and it stays data: every
+ * character that could close the element is escaped.
+ *
  * Expects the including header to have prepared:
  *
  *   $h  the header's htmlspecialchars() helper.
  */
 ?>
+        <script type="application/json" id="shop-text"><?= \App\Service\ShopScriptText::json() ?></script>
         <div class="cart-trigger" data-cart-trigger>
           <button type="button" class="cart-trigger__btn" aria-haspopup="true" aria-expanded="false" aria-controls="cart-dropdown" aria-label="<?= \App\Service\Language\SiteText::escaped(['nl' => 'Winkelwagen', 'en' => 'Shopping cart']) ?>">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 4h2l2.4 12.2a2 2 0 0 0 2 1.6h7.6a2 2 0 0 0 2-1.6L21 8H6"/><circle cx="10" cy="20" r="1.4"/><circle cx="17" cy="20" r="1.4"/></svg>
@@ -36,10 +43,10 @@
           <div class="cart-dropdown" id="cart-dropdown" data-cart-dropdown>
             <div class="cart-dropdown__head">
               <p><?= \App\Service\Language\SiteText::escaped(['nl' => 'Winkelwagen', 'en' => 'Shopping cart']) ?></p>
-              <span class="cart-dropdown__count"><?= \App\Service\Language\SiteText::escaped(['nl' => '0 producten', 'en' => '0 items']) ?></span>
+              <span class="cart-dropdown__count"><?= $h(\App\Service\ShopScriptText::text('cart_count_many', ['count' => 0])) ?></span>
             </div>
             <ul class="cart-dropdown__items">
-              <li class="cart-dropdown__empty"><?= \App\Service\Language\SiteText::escaped(['nl' => 'Je winkelwagen is leeg.', 'en' => 'Your cart is empty.']) ?></li>
+              <li class="cart-dropdown__empty"><?= $h(\App\Service\ShopScriptText::text('cart_empty')) ?></li>
             </ul>
             <!-- Hidden while the cart is empty, exactly as cart.js hides it
                  (renderCartHeader()) — a subtotal of nothing is noise. -->

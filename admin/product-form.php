@@ -299,7 +299,7 @@ require __DIR__ . '/_richtext_field.php';
           <select name="shipping_profile" required>
             <?php foreach (ShippingProfile::ALL as $profileValue): ?>
               <option value="<?= htmlspecialchars($profileValue, ENT_QUOTES, 'UTF-8') ?>" <?= $shippingProfileValue === $profileValue ? 'selected' : '' ?>>
-                <?= htmlspecialchars(ShippingProfile::label($profileValue), ENT_QUOTES, 'UTF-8') ?>
+                <?= htmlspecialchars(ShippingProfile::label($profileValue, \App\Service\Language\AdminLocale::current()), ENT_QUOTES, 'UTF-8') ?>
               </option>
             <?php endforeach; ?>
           </select>

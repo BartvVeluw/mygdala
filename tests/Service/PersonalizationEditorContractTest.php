@@ -253,7 +253,7 @@ final class PersonalizationEditorContractTest extends TestCase
         $this->assertStringContainsString('root.setAttribute("aria-busy", busy ? "true" : "false");', $editor);
         $this->assertStringContainsString('root.classList.toggle("is-busy", !!busy);', $editor);
         $this->assertStringContainsString('all("input, select, button, textarea").forEach', $editor);
-        $this->assertStringContainsString('setBusy(true, t("Afbeelding uploaden…", "Uploading image…"));', $editor);
+        $this->assertStringContainsString('setBusy(true, text("upload_busy"));', $editor);
 
         // Only what WE disabled is re-enabled, so unlocking never enables a
         // control that was disabled for its own reasons.
@@ -302,7 +302,8 @@ final class PersonalizationEditorContractTest extends TestCase
             'both the success and the failure path must unlock the editor'
         );
 
-        $this->assertStringContainsString('De afbeelding kon niet worden geüpload', $editor);
+        $this->assertStringContainsString('showError((result.data && result.data.error) || text("upload_failed"));', $editor, 'the server\'s reason, else the panel\'s own sentence');
+        $this->assertStringContainsString('showError(text("upload_connection_failed"));', $editor);
     }
 
     /* ------------------------------------------------------------------ */

@@ -105,6 +105,7 @@
              server, so CMS content cannot affect them at all. -->
         <testsuite name="contract">
             <file>tests/Service/MultilingualBoundaryTest.php</file>
+            <file>tests/Service/ShopScriptTextContractTest.php</file>
             <file>tests/Blog/BlogModuleTest.php</file>
             <file>tests/Blog/BlogLocalizationTest.php</file>
             <file>tests/Architecture/ContextSetupTest.php</file>
@@ -185,6 +186,7 @@
             <file>tests/Service/BlockLocalizedRenderingTest.php</file>
             <file>tests/Service/RemainingBlocksRenderingTest.php</file>
             <file>tests/Service/MultilingualBoundaryTest.php</file>
+            <file>tests/Service/ShopScriptTextContractTest.php</file>
             <file>tests/Architecture/ContextSetupTest.php</file>
             <file>tests/Architecture/TestSuiteCoverageTest.php</file>
             <file>tests/Blog/BlogModuleTest.php</file>
@@ -606,6 +608,8 @@
             <file>tests/Service/ProductSeoTest.php</file>
             <file>tests/Service/ProductBreadcrumbTest.php</file>
             <file>tests/Service/ProductLanguageSwitchTest.php</file>
+            <file>tests/Service/ShopApiLanguageTest.php</file>
+            <file>tests/Service/ShopScriptTextContractTest.php</file>
             <file>tests/Service/QueryIdentityLanguageSwitchTest.php</file>
             <directory>tests/Service/Shipping</directory>
             <file>tests/Service/ShopSeoAdminTest.php</file>

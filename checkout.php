@@ -126,8 +126,8 @@ require __DIR__ . '/partials/header.php';
               <div class="form-field form-field--full" data-checkout-land-field hidden>
                 <label for="land"><?= \App\Service\Language\SiteText::escaped(['nl' => 'Land', 'en' => 'Country']) ?> <span class="req">*</span></label>
                 <select id="land" name="land" data-address-country>
-                  <option value="NL"><?= \App\Service\Language\SiteText::escaped(['nl' => 'Nederland', 'en' => 'Netherlands']) ?></option>
-                  <option value="BE"><?= \App\Service\Language\SiteText::escaped(['nl' => 'België', 'en' => 'Belgium']) ?></option>
+                  <option value="NL"><?= htmlspecialchars(\App\Service\Shipping\ShippingCountries::name('NL'), ENT_QUOTES, 'UTF-8') ?></option>
+                  <option value="BE"><?= htmlspecialchars(\App\Service\Shipping\ShippingCountries::name('BE'), ENT_QUOTES, 'UTF-8') ?></option>
                 </select>
               </div>
               <div class="form-field form-field--full">
@@ -169,8 +169,8 @@ require __DIR__ . '/partials/header.php';
               <div class="form-field form-field--full">
                 <label for="facturatie_land"><?= \App\Service\Language\SiteText::escaped(['nl' => 'Land', 'en' => 'Country']) ?> <span class="req">*</span></label>
                 <select id="facturatie_land" name="facturatie_land" data-address-country>
-                  <option value="NL"><?= \App\Service\Language\SiteText::escaped(['nl' => 'Nederland', 'en' => 'Netherlands']) ?></option>
-                  <option value="BE"><?= \App\Service\Language\SiteText::escaped(['nl' => 'België', 'en' => 'Belgium']) ?></option>
+                  <option value="NL"><?= htmlspecialchars(\App\Service\Shipping\ShippingCountries::name('NL'), ENT_QUOTES, 'UTF-8') ?></option>
+                  <option value="BE"><?= htmlspecialchars(\App\Service\Shipping\ShippingCountries::name('BE'), ENT_QUOTES, 'UTF-8') ?></option>
                 </select>
               </div>
               <div class="form-field">

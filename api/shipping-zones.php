@@ -28,13 +28,13 @@ require_once __DIR__ . '/../vendor/autoload.php';
 
 
 use App\Repository\ShippingZoneRepository;
+use App\Service\Routing\ApiLanguage;
+use App\Service\Shipping\ShippingCountries;
 
 header('Content-Type: application/json; charset=utf-8');
 
-const COUNTRY_LABELS = [
-    'NL' => ['Nederland', 'Netherlands'],
-    'BE' => ['België', 'Belgium'],
-];
+// Every country is named in the language of the page asking (?lang=).
+ApiLanguage::apply($_GET['lang'] ?? null);
 
 try {
     $zones = (new ShippingZoneRepository())->findAllWithCountries();
@@ -48,8 +48,7 @@ try {
 $countries = [];
 foreach ($zones as $zone) {
     foreach ($zone['countries'] as $code) {
-        [$labelNl, $labelEn] = COUNTRY_LABELS[$code] ?? [$code, $code];
-        $countries[] = ['code' => $code, 'label' => $labelNl, 'label_en' => $labelEn];
+        $countries[] = ['code' => $code, 'label' => ShippingCountries::name($code)];
     }
 }
 

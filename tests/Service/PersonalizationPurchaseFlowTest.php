@@ -276,8 +276,8 @@ final class PersonalizationPurchaseFlowTest extends TestCase
         $editor = (string) file_get_contents(dirname(__DIR__, 2) . '/assets/js/personalization.js');
 
         $this->assertStringContainsString('if (config.is_required && usedZoneKeys().length === 0)', $editor);
-        $this->assertStringContainsString('Vul eerst je personalisatie in', $editor);
-        $this->assertStringContainsString('dat is verplicht voor dit product', $editor);
+        $this->assertStringContainsString('return text("fill_in_first");', $editor);
+        $this->assertStringContainsString('problem = text("zone_required", { label: zoneLabel(zone) });', $editor);
         // ...and it brings the customer to the view holding the unfilled zone.
         $this->assertStringContainsString('switchView(viewOfZone[key].view_key);', $editor);
     }

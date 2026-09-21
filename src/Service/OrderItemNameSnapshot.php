@@ -6,8 +6,6 @@ namespace App\Service;
 
 use App\Service\Language\EntityTranslations;
 use App\Service\Language\LanguageFallback;
-use App\Service\Language\LanguageRegistry;
-use App\Service\Language\LocalizedValue;
 use App\Service\Language\TranslationTable;
 
 /**
@@ -83,21 +81,6 @@ final class OrderItemNameSnapshot
         $own = trim(self::names()->raw($orderItemId, self::PRODUCT_NAME, $languageCode));
 
         return $own !== '' ? $own : $neutralName;
-    }
-
-    /**
-     * The temporary V1 `data-nl`/`data-en` pair of one order line's name, for
-     * the order-status page. Built with the rule above rather than with
-     * LanguageFallback::bilingual(), for the reason the class docblock gives.
-     */
-    public static function pair(int $orderItemId, string $neutralName): LocalizedValue
-    {
-        $values = [];
-        foreach (LanguageRegistry::codes() as $code) {
-            $values[$code] = self::name($orderItemId, $code, $neutralName);
-        }
-
-        return LocalizedValue::of($values);
     }
 
     /** @param list<int> $orderItemIds */

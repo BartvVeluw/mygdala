@@ -7,8 +7,10 @@ namespace Tests\Service;
 use App\Database;
 use App\Repository\CustomerRepository;
 use App\Repository\OrderRepository;
+use App\Repository\ProductRepository;
 use App\Repository\SiteLanguageRepository;
 use App\Service\Language\SiteLanguages;
+use App\Service\OrderItemNameSnapshot;
 use PHPUnit\Framework\TestCase;
 use Tests\Support\BuiltInServer;
 
@@ -39,6 +41,9 @@ final class OrderStatusLanguageSwitchTest extends TestCase
 
     /** @var list<int> */
     private array $orderIds = [];
+
+    /** @var list<int> */
+    private array $productIds = [];
 
     private ?int $customerId = null;
 
@@ -79,6 +84,12 @@ final class OrderStatusLanguageSwitchTest extends TestCase
             $db->prepare('DELETE FROM customers WHERE id = :id')->execute(['id' => $this->customerId]);
             $this->customerId = null;
         }
+
+        foreach ($this->productIds as $id) {
+            $db->prepare('DELETE FROM products WHERE id = :id')->execute(['id' => $id]);
+        }
+        $this->productIds = [];
+        OrderItemNameSnapshot::clearCache();
 
         if ($this->addedGerman) {
             $db->prepare("DELETE FROM site_languages WHERE code = 'de'")->execute();
@@ -228,6 +239,43 @@ final class OrderStatusLanguageSwitchTest extends TestCase
             self::assertSame('/en/bestelling-status.php?order=' . $id, $this->switchHref($page['body'], 'en'), $query);
             self::assertSame($id, $this->orderShownAt((string) $this->switchHref($page['body'], 'en'))['order_id'] ?? null, $query);
         }
+    }
+
+    /**
+     * What the page lists is each line as it was ORDERED, in the page's
+     * language: the name snapshot recorded for that language, else the
+     * neutral one — one `name` per line, never a pair, and never the
+     * product's current name (Multilingual 2.0 phase 7, wave B).
+     */
+    public function testEachLineIsNamedAsItWasOrderedInThePagesLanguage(): void
+    {
+        $this->addGerman();
+        $id = $this->order('paid');
+        [$line] = (new OrderRepository())->addItems($id, [[
+            'product_id' => $this->product(),
+            'variant_id' => null,
+            'variant_label' => null,
+            'quantity' => 1,
+            'unit_price' => 24.95,
+            'product_name' => 'Gegraveerde plank zz',
+        ]]);
+        OrderItemNameSnapshot::record($line, 'en', 'Engraved board zz');
+
+        $names = function (string $language) use ($id): array {
+            $answer = $this->get('/api/order-status.php?order=' . $id . '&lang=' . $language);
+            self::assertSame(200, $answer['status']);
+            $items = json_decode($answer['body'], true)['data']['items'] ?? [];
+            foreach ($items as $item) {
+                self::assertArrayNotHasKey('name_en', $item, 'one name per line');
+            }
+
+            return array_column($items, 'name');
+        };
+
+        self::assertSame(['Gegraveerde plank zz'], $names('nl'));
+        self::assertSame(['Engraved board zz'], $names('en'));
+        self::assertSame(['Gegraveerde plank zz'], $names('de'), 'no German name was recorded: the neutral snapshot');
+        self::assertSame(['Gegraveerde plank zz'], $names('xx'), 'not a website language: the default');
     }
 
     /**
@@ -491,6 +539,25 @@ final class OrderStatusLanguageSwitchTest extends TestCase
         self::assertIsArray($payload);
 
         return $payload['data'] ?? null;
+    }
+
+    /** A product for an order line to point at; the line keeps its own name. */
+    private function product(): int
+    {
+        $id = (new ProductRepository())->create([
+            'slug' => 'zz-test-orderstatus-' . bin2hex(random_bytes(6)),
+            'price' => 24.95,
+            'image_path' => null,
+            'active' => true,
+            'in_shop' => true,
+            'in_personalization_catalog' => false,
+            'shipping_profile' => 'letter',
+            'shipping_weight_grams' => 25,
+            'requires_parcel' => false,
+        ]);
+        $this->productIds[] = $id;
+
+        return $id;
     }
 
     private function addGerman(): void

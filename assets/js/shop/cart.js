@@ -40,28 +40,60 @@
     return URL_PREFIX + path;
   }
 
+  /* The language this page is being read in: <html lang>, which the server
+     set from the URL. A code, never a decision — this script chooses no
+     language, it only passes this one on. "" when it is not a plain code. */
+  var PAGE_LANG = (function () {
+    var raw = document.documentElement.getAttribute("lang") || "";
+
+    return /^[a-z]{2}$/.test(raw) ? raw : "";
+  })();
+
   /**
    * An /api/ address that says which language this page is being read in.
    *
    * The endpoints have no language prefix of their own, so the page's
-   * <html lang> travels as ?lang= and the server decides whether to believe
-   * it (App\Service\Routing\ApiLanguage: an active website language, or
-   * the default). It picks words only — never a price or an identity.
+   * language travels as ?lang= and the server decides whether to believe it
+   * (App\Service\Routing\ApiLanguage: an active website language, or the
+   * default). It picks words only — never a price or an identity.
    */
   function apiUrl(path) {
-    var lang = document.documentElement.getAttribute("lang") || "";
-    if (!/^[a-z]{2}$/.test(lang)) return path;
+    if (!PAGE_LANG) return path;
 
-    return path + (path.indexOf("?") === -1 ? "?" : "&") + "lang=" + lang;
+    return path + (path.indexOf("?") === -1 ? "?" : "&") + "lang=" + PAGE_LANG;
   }
 
-  var docEl = document.documentElement;
+  /* ---------------------------------------------------------------------
+     THE SHOP'S WORDS, in the language of this page.
+
+     partials/header-cart.php prints them as a JSON data block, resolved by
+     the server for this request (App\Service\ShopScriptText). A script asks
+     for a sentence by its key and never holds a Dutch/English pair or picks
+     a language: a missing block or key is an empty string, never another
+     language. {count}-style placeholders are filled in here; the result is
+     plain text, so it goes through textContent or escapeHtml like any other.
+     --------------------------------------------------------------------- */
+  var TEXT = (function () {
+    var el = document.getElementById("shop-text");
+    try {
+      var parsed = JSON.parse(el ? el.textContent : "{}");
+      return parsed && typeof parsed === "object" ? parsed : {};
+    } catch (e) { return {}; }
+  })();
+
+  function text(key, values) {
+    var sentence = Object.prototype.hasOwnProperty.call(TEXT, key) && typeof TEXT[key] === "string" ? TEXT[key] : "";
+    if (!values) return sentence;
+
+    return sentence.replace(/\{(\w+)\}/g, function (match, name) {
+      return Object.prototype.hasOwnProperty.call(values, name) ? String(values[name]) : match;
+    });
+  }
 
   /* ---------------------------------------------------------------------
      Shared helpers for rendering product data (used by the shop grid and
-     the product detail page): HTML escaping, price formatting, and the
-     same NL/EN fallback rule the rest of the site uses (data-nl/data-en,
-     EN value if present, otherwise NL).
+     the product detail page): HTML escaping and price formatting. Product
+     words arrive from the server already in the language of this page.
      --------------------------------------------------------------------- */
   var genericProductIcon =
     '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round" aria-hidden="true">' +
@@ -104,34 +136,6 @@
     return "&euro;" + num.toFixed(2).replace(".", ",");
   }
 
-  function bilingualAttrs(nl, en) {
-    var nlVal = nl || "";
-    var enVal = en || nlVal;
-    return 'data-nl="' + escapeAttr(nlVal) + '" data-en="' + escapeAttr(enVal) + '"';
-  }
-
-  function currentLangText(nl, en) {
-    var lang = docEl.lang === "en" ? "en" : "nl";
-    var nlVal = nl || "";
-    var enVal = en || nlVal;
-    return escapeHtml(lang === "en" ? enVal : nlVal);
-  }
-
-  /**
-   * Product descriptions are stored server-side as sanitized HTML (see
-   * DescriptionSanitizer — only p/br/strong/em/a survive) or, for older
-   * rows, plain text. currentLangHtml() returns that value as-is (no
-   * escaping) for the product detail page, which renders it with
-   * innerHTML/data-nl-data-en so formatting shows up. Never use this for
-   * content that hasn't gone through the server-side sanitizer.
-   */
-  function currentLangHtml(nl, en) {
-    var lang = docEl.lang === "en" ? "en" : "nl";
-    var nlVal = nl || "";
-    var enVal = en || nlVal;
-    return lang === "en" ? enVal : nlVal;
-  }
-
   /**
    * Plain-text preview of a (possibly HTML) description, for the shop card
    * — formatting is dropped entirely there, only the clamped text remains.
@@ -147,9 +151,9 @@
      Cart state — shared by every page that includes the header cart
      trigger, the standalone cart page (cart.php) and the product detail
      page's "Add to cart" button. Persisted to localStorage so it survives
-     navigation between pages. Items: {id, name, name_en, price,
-     image_path, qty, variant_id, variant_label}. variant_id/variant_label
-     are null for a product without variants. Two lines are the "same" line
+     navigation between pages. Items: {id, name, lang, price, image_path,
+     qty, variant_id, variant_label}. variant_id/variant_label are null for a
+     product without variants. Two lines are the "same" line
      (quantity just adds up) only when both id AND variant_id match — two
      different variants of the same product are always separate lines.
 
@@ -165,11 +169,54 @@
      exactly the key it has always had, so a cart saved before this feature
      existed keeps working unchanged.
 
+     A LINE'S NAME IS DISPLAY ONLY. `name` is the product's name in `lang`,
+     the language of the page it was last shown on; a line is identified by
+     its product and variant id (and its personalization), never by a name,
+     so switching language changes nothing about what is in the cart. A page
+     in another language re-reads the names by id (refreshCartNames()).
+
      None of this is trusted at checkout: api/checkout.php re-reads every
      price from the database and re-validates every personalization against
      the product's live configuration.
      --------------------------------------------------------------------- */
   var CART_KEY = "vvl-cart";
+
+  /**
+   * Reads a cart saved before Multilingual 2.0 phase 7.
+   *
+   * Such a line carried a Dutch `name` beside an English `name_en` (and a
+   * personalized zone a `label` beside a `label_en`), written when the site
+   * had exactly those two languages and the browser swapped between them.
+   * The customer's cart lives in their browser and outlives the deploy, so
+   * it is read here — the half that matches this page is kept, the other is
+   * dropped — and written back in the new shape: one name and the language
+   * it is in. This is the only place that knows the old field names.
+   */
+  function upgradeLegacyLines(items) {
+    var changed = false;
+
+    items.forEach(function (item) {
+      if (!item || typeof item !== "object") return;
+
+      if (Object.prototype.hasOwnProperty.call(item, "name_en")) {
+        var english = PAGE_LANG === "en" && item.name_en;
+        if (english) item.name = item.name_en;
+        item.lang = english ? "en" : "nl";
+        delete item.name_en;
+        changed = true;
+      }
+
+      var zones = item.personalization && Array.isArray(item.personalization.zones) ? item.personalization.zones : [];
+      zones.forEach(function (zone) {
+        if (!zone || !Object.prototype.hasOwnProperty.call(zone, "label_en")) return;
+        if (PAGE_LANG === "en" && zone.label_en) zone.label = zone.label_en;
+        delete zone.label_en;
+        changed = true;
+      });
+    });
+
+    return changed;
+  }
 
   /**
    * Gives every personalized line the line_id it needs.
@@ -207,8 +254,59 @@
   function readCart() {
     try {
       var items = JSON.parse(localStorage.getItem(CART_KEY) || "[]");
-      return Array.isArray(items) ? backfillCartLineIds(items) : [];
+      if (!Array.isArray(items)) return [];
+
+      // Written straight to storage, like backfillCartLineIds(): nothing the
+      // customer can see has changed.
+      if (upgradeLegacyLines(items)) {
+        try { localStorage.setItem(CART_KEY, JSON.stringify(items)); } catch (e) {}
+      }
+
+      return backfillCartLineIds(items);
     } catch (e) { return []; }
+  }
+
+  /**
+   * Re-reads the names of the lines that were last shown in another language.
+   *
+   * By product id, from /api/products.php in this page's language — the same
+   * words the product page shows. A product that is no longer on sale keeps
+   * the name it had (checkout refuses it anyway); either way the line is
+   * marked as read in this language, so this costs one request after a
+   * language switch and none on the pages after it.
+   */
+  function refreshCartNames() {
+    if (!PAGE_LANG) return;
+
+    var stale = readCart().filter(function (item) { return item.lang !== PAGE_LANG; });
+    if (!stale.length) return;
+
+    var ids = [];
+    stale.forEach(function (item) {
+      var id = parseInt(item.id, 10);
+      if (id > 0 && ids.indexOf(id) === -1) ids.push(id);
+    });
+    if (!ids.length) return;
+
+    fetch(apiUrl("/api/products.php?ids=" + ids.join(",")))
+      .then(function (res) { return res.ok ? res.json() : null; })
+      .then(function (payload) {
+        var names = {};
+        (payload && Array.isArray(payload.data) ? payload.data : []).forEach(function (product) {
+          names[String(product.id)] = product.name;
+        });
+
+        var items = readCart();
+        items.forEach(function (item) {
+          if (item.lang === PAGE_LANG) return;
+          if (typeof names[String(item.id)] === "string" && names[String(item.id)] !== "") {
+            item.name = names[String(item.id)];
+          }
+          item.lang = PAGE_LANG;
+        });
+        writeCart(items);
+      })
+      .catch(function () { /* the names already shown stay: display only */ });
   }
 
   function writeCart(items) {
@@ -268,7 +366,7 @@
       var line = {
         id: product.id,
         name: product.name || "",
-        name_en: product.name_en || "",
+        lang: PAGE_LANG,
         price: parseFloat(product.price) || 0,
         image_path: product.image_path || null,
         variant_id: variantId,
@@ -427,7 +525,6 @@
       return [{
         zone_key: personalization.zone_key || "default",
         label: null,
-        label_en: null,
         text: personalization.text || "",
         upload_token: personalization.upload_token || null,
         upload_name: personalization.upload_name || null,
@@ -439,10 +536,11 @@
     return [];
   }
 
+  /* The zone's name as the customer saw it while personalizing: stored with
+     the line, in the language of that page. Display only — checkout
+     re-validates the zone against the product's live configuration. */
   function zoneDisplayLabel(zone) {
-    var nl = zone.label || null;
-    var en = zone.label_en || nl;
-    return nl ? currentLangText(nl, en) : null;
+    return zone.label ? String(zone.label) : null;
   }
 
   /* The one renderer for "this line is personalized", reused by the header
@@ -465,7 +563,7 @@
       if (zone.font_label) parts.push(escapeHtml(zone.font_label));
       if (zone.upload_token) {
         parts.push(
-          currentLangText("eigen afbeelding", "own image") +
+          escapeHtml(text("own_image")) +
           (zone.upload_name ? " (" + escapeHtml(zone.upload_name) + ")" : "")
         );
       }
@@ -483,7 +581,7 @@
         '<img class="cart-personalization__thumb" src="' + escapeAttr(zone.upload_preview_url) + '" alt="" loading="lazy">' : "";
 
       return '<span class="cart-personalization__zone">' + thumb + "<span>" +
-        (label ? "<b>" + label + ":</b> " : "") + parts.join(", ") + surcharge +
+        (label ? "<b>" + escapeHtml(label) + ":</b> " : "") + parts.join(", ") + surcharge +
         "</span></span>";
     }).filter(Boolean);
 
@@ -491,7 +589,7 @@
 
     return '<p class="cart-personalization' + (modifier ? " " + modifier : "") + '">' +
       '<span class="cart-personalization__heading">' +
-      currentLangText("Personalisatie", "Personalisation") + "</span>" +
+      escapeHtml(text("personalization")) + "</span>" +
       rows.join("") + "</p>";
   }
 
@@ -501,7 +599,6 @@
     var items = readCart();
     var count = cartCount(items);
     var subtotal = cartSubtotal(items);
-    var isEn = docEl.lang === "en";
 
     document.querySelectorAll("[data-cart-trigger]").forEach(function (trigger) {
       var badge = trigger.querySelector("[data-cart-count]");
@@ -509,11 +606,7 @@
 
       var countLabel = trigger.querySelector(".cart-dropdown__count");
       if (countLabel) {
-        var nl = count + (count === 1 ? " product" : " producten");
-        var en = count + (count === 1 ? " item" : " items");
-        countLabel.setAttribute("data-nl", nl);
-        countLabel.setAttribute("data-en", en);
-        countLabel.textContent = isEn ? en : nl;
+        countLabel.textContent = text(count === 1 ? "cart_count_one" : "cart_count_many", { count: count });
       }
 
       var itemsList = trigger.querySelector(".cart-dropdown__items");
@@ -521,9 +614,7 @@
 
       if (!items.length) {
         if (itemsList) {
-          itemsList.innerHTML = '<li class="cart-dropdown__empty" ' +
-            bilingualAttrs("Je winkelwagen is leeg.", "Your cart is empty.") + ">" +
-            currentLangText("Je winkelwagen is leeg.", "Your cart is empty.") + "</li>";
+          itemsList.innerHTML = '<li class="cart-dropdown__empty">' + escapeHtml(text("cart_empty")) + "</li>";
         }
         if (footer) footer.hidden = true;
         return;
@@ -543,14 +634,14 @@
             '<a class="cart-dropdown__item-link" href="' + escapeAttr(cartItemEditUrl(item)) + '">' +
             '<div class="cart-dropdown__item-media">' + cartItemMedia(item) + "</div>" +
             '<div class="cart-dropdown__item-info">' +
-            "<p " + bilingualAttrs(item.name, item.name_en) + ">" + currentLangText(item.name, item.name_en) + "</p>" +
+            "<p>" + escapeHtml(item.name) + "</p>" +
             variantLine +
             cartPersonalizationHtml(item, "cart-personalization--compact") +
             "<span>" + item.qty + "x</span>" +
             "</div>" +
             "</a>" +
             '<div class="cart-dropdown__item-price">' + formatPrice(cartLineCents(item) / 100) + "</div>" +
-            '<button type="button" class="cart-dropdown__item-remove" data-cart-remove="' + escapeAttr(cartLineKey(item)) + '" aria-label="Verwijderen" data-nl-aria="Verwijderen" data-en-aria="Remove">' +
+            '<button type="button" class="cart-dropdown__item-remove" data-cart-remove="' + escapeAttr(cartLineKey(item)) + '" aria-label="' + escapeAttr(text("remove")) + '">' +
             '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>' +
             "</li>"
           );
@@ -585,18 +676,18 @@
           '<a class="cart-row__link" href="' + escapeAttr(cartItemEditUrl(item)) + '">' +
           '<div class="cart-row__media">' + cartItemMedia(item) + "</div>" +
           '<div class="cart-row__info">' +
-          "<h3 " + bilingualAttrs(item.name, item.name_en) + ">" + currentLangText(item.name, item.name_en) + "</h3>" +
+          "<h3>" + escapeHtml(item.name) + "</h3>" +
           variantLine +
           cartPersonalizationHtml(item, "") +
           "</div>" +
           "</a>" +
           '<div class="qty-stepper qty-stepper--sm">' +
-          '<button type="button" data-cart-qty-dec="' + escapeAttr(key) + '" aria-label="Aantal verlagen" data-nl-aria="Aantal verlagen" data-en-aria="Decrease quantity">&minus;</button>' +
-          '<input type="number" value="' + item.qty + '" min="1" max="20" inputmode="numeric" data-cart-qty-input="' + escapeAttr(key) + '" aria-label="Aantal" data-nl-aria="Aantal" data-en-aria="Quantity">' +
-          '<button type="button" data-cart-qty-inc="' + escapeAttr(key) + '" aria-label="Aantal verhogen" data-nl-aria="Aantal verhogen" data-en-aria="Increase quantity">+</button>' +
+          '<button type="button" data-cart-qty-dec="' + escapeAttr(key) + '" aria-label="' + escapeAttr(text("quantity_decrease")) + '">&minus;</button>' +
+          '<input type="number" value="' + item.qty + '" min="1" max="20" inputmode="numeric" data-cart-qty-input="' + escapeAttr(key) + '" aria-label="' + escapeAttr(text("quantity")) + '">' +
+          '<button type="button" data-cart-qty-inc="' + escapeAttr(key) + '" aria-label="' + escapeAttr(text("quantity_increase")) + '">+</button>' +
           "</div>" +
           '<div class="cart-row__price">' + formatPrice(cartLineCents(item) / 100) + "</div>" +
-          '<button type="button" class="cart-row__remove" data-cart-remove="' + escapeAttr(key) + '" aria-label="Verwijderen" data-nl-aria="Verwijderen" data-en-aria="Remove">' +
+          '<button type="button" class="cart-row__remove" data-cart-remove="' + escapeAttr(key) + '" aria-label="' + escapeAttr(text("remove")) + '">' +
           '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>' +
           "</div>"
         );
@@ -752,13 +843,13 @@
       }
 
       var titleEl = toast.querySelector("[data-cart-toast-title]");
-      if (titleEl) titleEl.textContent = currentLangText("Toegevoegd aan je winkelwagen", "Added to your cart");
+      if (titleEl) titleEl.textContent = text("added_to_cart");
 
       var mediaEl = toast.querySelector("[data-cart-toast-media]");
       if (mediaEl) mediaEl.innerHTML = cartItemMedia(product);
 
       var detailEl = toast.querySelector("[data-cart-toast-detail]");
-      if (detailEl) detailEl.textContent = qty + "× " + currentLangText(product.name, product.name_en);
+      if (detailEl) detailEl.textContent = qty + "× " + (product.name || "");
 
       toast.classList.remove("is-hiding");
       toast.classList.add("is-visible");
@@ -900,10 +991,8 @@
       rootPath: rootPath,
       localeUrl: localeUrl,
       apiUrl: apiUrl,
+      text: text,
       formatPrice: formatPrice,
-      bilingualAttrs: bilingualAttrs,
-      currentLangText: currentLangText,
-      currentLangHtml: currentLangHtml,
       stripHtmlToText: stripHtmlToText
     }
   };
@@ -920,5 +1009,6 @@
     renderCartUI();
     initQtySteppers();
     initProductTotal();
+    refreshCartNames();
   });
 })();

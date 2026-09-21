@@ -22,7 +22,7 @@ function adminShippingMethodLabel(?string $shippingMethod, string $shippingCost)
         return admin_t('status.shipping_pickup');
     }
     if ($shippingMethod !== null && ShippingProfile::isValid($shippingMethod)) {
-        return ShippingProfile::label($shippingMethod);
+        return ShippingProfile::label($shippingMethod, \App\Service\Language\AdminLocale::current());
     }
     if ($shippingMethod === 'verzenden') {
         return admin_t('status.shipping_ship');

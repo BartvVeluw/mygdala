@@ -33,6 +33,8 @@ require_once __DIR__ . '/../vendor/autoload.php';
 \App\Module\ModuleGuard::requireApi('shop');
 
 
+use App\Service\Language\SiteText;
+use App\Service\Routing\ApiLanguage;
 use App\Service\Shipping\ShippingCalculationService;
 use App\Service\Shipping\ShippingProfile;
 use App\Service\Shipping\ShippingUnavailableException;
@@ -53,6 +55,9 @@ function quoteFail(int $status, string $message): never
     exit;
 }
 
+// The method's name comes back in the language of the page asking (?lang=).
+ApiLanguage::apply($_GET['lang'] ?? null);
+
 $raw = file_get_contents('php://input');
 $body = json_decode($raw ?: '', true);
 
@@ -72,7 +77,7 @@ if ($verzendmethode === 'afhalen') {
     echo json_encode([
         'shipping_cost' => 0.0,
         'shipping_method' => 'afhalen',
-        'shipping_method_label' => 'Afhalen',
+        'shipping_method_label' => SiteText::pick(['nl' => 'Afhalen', 'en' => 'Pickup']),
     ]);
     exit;
 }

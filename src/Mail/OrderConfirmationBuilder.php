@@ -237,7 +237,9 @@ class OrderConfirmationBuilder
             return 'Afhalen';
         }
         if (ShippingProfile::isValid($shippingMethod)) {
-            return ShippingProfile::label($shippingMethod);
+            // Dutch, like every other word of this mail (a confirmation in
+            // the customer's language is on the backlog).
+            return ShippingProfile::label($shippingMethod, 'nl');
         }
 
         return 'Verzenden';

@@ -188,8 +188,8 @@ final class ProductPersonalizationRepositoryIntegrationTest extends TestCase
 
         $this->assertCount(2, $config['views']);
         $this->assertSame('front', $config['views'][0]['view_key']);
-        $this->assertSame('Voorkant', $config['views'][0]['label']);
-        $this->assertSame('Front', $config['views'][0]['label_en']);
+        $this->assertSame('Voorkant', $config['views'][0]['label'], 'one label, in the language of the request');
+        $this->assertArrayNotHasKey('label_en', $config['views'][0]);
         $this->assertSame('back', $config['views'][1]['view_key']);
 
         $this->assertCount(2, $config['views'][0]['zones']);

@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Tests\Service;
 
-use App\Service\Language\LanguageRegistry;
 use App\Service\OrderItemNameSnapshot;
 use App\Service\ShopLocalization;
 use PHPUnit\Framework\TestCase;
@@ -137,21 +136,6 @@ final class OrderItemNameSnapshotTest extends TestCase
             OrderItemNameSnapshot::name(self::LINE, 'de', 'Oorspronkelijke Productnaam'),
             'and a brand new language reads the neutral snapshot, not a live product name'
         );
-    }
-
-    /**
-     * The pair the order-status page hands the browser. Built with the rule
-     * above, which is what assets/js/shop/shop.js already did with
-     * `item.name_en || item.name`.
-     */
-    public function testThePairIsTheRuleAppliedPerLanguage(): void
-    {
-        $this->stored(['en' => 'Original Product Name']);
-
-        $pair = OrderItemNameSnapshot::pair(self::LINE, 'Oorspronkelijke Productnaam');
-
-        self::assertSame('Oorspronkelijke Productnaam', $pair->in(LanguageRegistry::DUTCH));
-        self::assertSame('Original Product Name', $pair->in(LanguageRegistry::ENGLISH));
     }
 
     /* ------------------------------------------------------------------ */

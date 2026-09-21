@@ -82,7 +82,7 @@ $csrfToken = Csrf::token();
             <?php foreach ($zone['rates'] as $rate): ?>
               <article class="admin-variant-panel">
                 <div class="admin-variant-panel__head">
-                  <strong><?= htmlspecialchars(ShippingProfile::label((string) $rate['shipping_profile']), ENT_QUOTES, 'UTF-8') ?></strong>
+                  <strong><?= htmlspecialchars(ShippingProfile::label((string) $rate['shipping_profile'], \App\Service\Language\AdminLocale::current()), ENT_QUOTES, 'UTF-8') ?></strong>
                   <span class="admin-badge admin-badge--<?= $rate['enabled'] ? 'paid' : 'canceled' ?>">
                     <?= $rate['enabled'] ? admin_t('common.active') : 'Uitgeschakeld' ?>
                   </span>
@@ -95,7 +95,7 @@ $csrfToken = Csrf::token();
                     <select name="shipping_profile">
                       <?php foreach (ShippingProfile::ALL as $profileValue): ?>
                         <option value="<?= htmlspecialchars($profileValue, ENT_QUOTES, 'UTF-8') ?>" <?= $rate['shipping_profile'] === $profileValue ? 'selected' : '' ?>>
-                          <?= htmlspecialchars(ShippingProfile::label($profileValue), ENT_QUOTES, 'UTF-8') ?>
+                          <?= htmlspecialchars(ShippingProfile::label($profileValue, \App\Service\Language\AdminLocale::current()), ENT_QUOTES, 'UTF-8') ?>
                         </option>
                       <?php endforeach; ?>
                     </select>
@@ -146,7 +146,7 @@ $csrfToken = Csrf::token();
           <label><?= admin_te('shop.methode_2') ?>
             <select name="shipping_profile">
               <?php foreach (ShippingProfile::ALL as $profileValue): ?>
-                <option value="<?= htmlspecialchars($profileValue, ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars(ShippingProfile::label($profileValue), ENT_QUOTES, 'UTF-8') ?></option>
+                <option value="<?= htmlspecialchars($profileValue, ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars(ShippingProfile::label($profileValue, \App\Service\Language\AdminLocale::current()), ENT_QUOTES, 'UTF-8') ?></option>
               <?php endforeach; ?>
             </select>
           </label>
