@@ -536,11 +536,11 @@ final class BlockPickerTest extends TestCase
 
     public function testTheShopsBlocksFollowTheirModuleInAndOutOfTheCatalogue(): void
     {
-        ModuleRegistry::overrideForTests(['shop' => true]);
+        ModuleRegistry::overrideForTests(['shop' => true, 'multilingual' => true]);
         $shopPage = ['id' => 9, 'content_key' => 'shop', 'slug' => 'shop', 'title' => 'Shop', 'status' => 'published'];
         $this->assertArrayHasKey('product_grid', BlockDefinitions::all());
 
-        ModuleRegistry::overrideForTests(['shop' => false]);
+        ModuleRegistry::overrideForTests(['shop' => false, 'multilingual' => true]);
         SectionRegistry::reset();
 
         $html = $this->renderPicker();

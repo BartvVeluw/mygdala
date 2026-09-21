@@ -146,11 +146,11 @@ final class SiteSettingsPersistenceTest extends TestCase
             'order_email_intro' => 'Hoi {{customer_name}}, dank je wel!',
         ]);
 
-        ModuleRegistry::overrideForTests(['shop' => false, 'personalization' => false]);
+        ModuleRegistry::overrideForTests(['shop' => false, 'personalization' => false, 'multilingual' => true]);
         $this->saveSiteSettings(['company_city' => 'Utrecht']);
         $this->assertStoredShopSettings();
 
-        ModuleRegistry::overrideForTests(['shop' => true, 'personalization' => true]);
+        ModuleRegistry::overrideForTests(['shop' => true, 'personalization' => true, 'multilingual' => true]);
         SiteSettings::clearCache();
         $this->assertStoredShopSettings();
     }

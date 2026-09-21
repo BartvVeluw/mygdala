@@ -188,7 +188,7 @@ final class ThemeRenderingTest extends TestCase
 
     public function testTheThemeStillRendersWithTheShopSwitchedOff(): void
     {
-        ModuleRegistry::overrideForTests(['shop' => false]);
+        ModuleRegistry::overrideForTests(['shop' => false, 'multilingual' => true]);
         ThemeSettings::overrideForTests(['primary_color' => '#2F6FED']);
 
         $html = $this->renderStyles();

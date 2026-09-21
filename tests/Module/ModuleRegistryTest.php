@@ -47,9 +47,10 @@ final class ModuleRegistryTest extends TestCase
         }
     }
 
-    public function testTheRegisteredModulesAreShopPersonalizationBlogAndPortfolio(): void
+    public function testTheRegisteredModulesAreShopPersonalizationBlogPortfolioAndMultilingual(): void
     {
-        $this->assertSame(['shop', 'personalization', 'blog', 'portfolio'], ModuleRegistry::keys());
+        $this->assertSame(['shop', 'personalization', 'blog', 'portfolio', 'multilingual'], ModuleRegistry::keys());
+        $this->assertInstanceOf(\App\Module\MultilingualModule::class, ModuleRegistry::definition('multilingual'));
         $this->assertInstanceOf(ShopModule::class, ModuleRegistry::definition('shop'));
         $this->assertInstanceOf(PersonalizationModule::class, ModuleRegistry::definition('personalization'));
         $this->assertInstanceOf(BlogModule::class, ModuleRegistry::definition('blog'));

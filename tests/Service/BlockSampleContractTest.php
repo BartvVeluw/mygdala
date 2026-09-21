@@ -90,7 +90,7 @@ final class BlockSampleContractTest extends TestCase
     protected function setUp(): void
     {
         // Every module on, so every block a module can bring is checked.
-        ModuleRegistry::overrideForTests(['shop' => true, 'portfolio' => true, 'blog' => true, 'personalization' => true]);
+        ModuleRegistry::overrideForTests(['shop' => true, 'portfolio' => true, 'blog' => true, 'personalization' => true, 'multilingual' => true]);
     }
 
     protected function tearDown(): void
@@ -103,7 +103,7 @@ final class BlockSampleContractTest extends TestCase
     /** @return array<string, array{0: string}> */
     public static function registeredTypes(): array
     {
-        ModuleRegistry::overrideForTests(['shop' => true, 'portfolio' => true, 'blog' => true, 'personalization' => true]);
+        ModuleRegistry::overrideForTests(['shop' => true, 'portfolio' => true, 'blog' => true, 'personalization' => true, 'multilingual' => true]);
 
         $cases = [];
         foreach (BlockDefinitions::types() as $type) {
@@ -569,7 +569,7 @@ final class BlockSampleContractTest extends TestCase
         $this->assertNotNull(BlockDefinitions::get('project_cards'));
         $this->assertNotNull(BlockDefinitions::get('shop_collections'));
 
-        ModuleRegistry::overrideForTests(['shop' => false, 'portfolio' => false, 'blog' => false, 'personalization' => false]);
+        ModuleRegistry::overrideForTests(['shop' => false, 'portfolio' => false, 'blog' => false, 'personalization' => false, 'multilingual' => true]);
 
         $this->assertNull(BlockDefinitions::get('project_cards'));
         $this->assertNull(BlockDefinitions::get('shop_collections'));

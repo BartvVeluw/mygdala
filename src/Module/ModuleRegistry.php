@@ -38,6 +38,7 @@ final class ModuleRegistry
         'personalization' => PersonalizationModule::class,
         'blog' => BlogModule::class,
         'portfolio' => PortfolioModule::class,
+        'multilingual' => MultilingualModule::class,
     ];
 
     /** @var array<string, ModuleDefinition> */
@@ -145,6 +146,23 @@ final class ModuleRegistry
     public static function isEnabled(string $key): bool
     {
         return array_key_exists($key, self::enabled());
+    }
+
+    /**
+     * Does an enabled module let the website publish its other languages
+     * (ModuleDefinition::publishesTranslations())? The one question the
+     * language layer asks about modules, by capability and never by key —
+     * see App\Service\Language\SiteLanguages::active().
+     */
+    public static function publishesTranslations(): bool
+    {
+        foreach (self::enabled() as $module) {
+            if ($module->publishesTranslations()) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**

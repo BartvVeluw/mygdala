@@ -302,4 +302,19 @@ abstract class ModuleDefinition
     {
         return [];
     }
+
+    /**
+     * Whether this module lets the website publish MORE than its default
+     * language: every active language of the website language registry, with
+     * its prefix, its place in the language switch, the sitemap and hreflang.
+     *
+     * False for every module but App\Module\MultilingualModule. Core never
+     * asks a module by key: App\Service\Language\SiteLanguages asks
+     * ModuleRegistry::publishesTranslations() once, and every public route,
+     * editor and endpoint asks SiteLanguages.
+     */
+    public function publishesTranslations(): bool
+    {
+        return false;
+    }
 }

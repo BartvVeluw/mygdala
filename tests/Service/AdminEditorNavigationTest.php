@@ -61,6 +61,15 @@ final class AdminEditorNavigationTest extends TestCase
         // tab is also where the copy explains that the CMS's own language is
         // a different, per-person choice.
         'primary_content_language' => 'talen',
+        // Managing those languages (Multilingual 2.0 phase 7): whether the
+        // others are published, and per language its code, its two names,
+        // its place in the order and whether it is on.
+        'enabled' => 'talen',
+        'code' => 'talen',
+        'name' => 'talen',
+        'native_name' => 'talen',
+        'direction' => 'talen',
+        'is_active' => 'talen',
                 'seo_default_description' => 'seo',
         'seo_robots_index_default' => 'seo',
         // Invoices, order numbers and the order e-mail are the Shop's own
@@ -678,7 +687,7 @@ final class AdminEditorNavigationTest extends TestCase
         }
 
         foreach ([true, false] as $shopEnabled) {
-            ModuleRegistry::overrideForTests(['shop' => $shopEnabled]);
+            ModuleRegistry::overrideForTests(['shop' => $shopEnabled, 'multilingual' => true]);
 
             $this->assertSame(
                 ['algemeen', 'talen', 'seo', 'dashboard'],

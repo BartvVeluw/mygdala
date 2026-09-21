@@ -119,6 +119,66 @@ final class SiteLanguageRepository extends Repository
         return $row !== null && (int) $row['is_active'] === 0;
     }
 
+    /** Switch a language on. True when $code exists and is active afterwards. */
+    public function activate(string $code): bool
+    {
+        $this->db
+            ->prepare('UPDATE site_languages SET is_active = 1, updated_at = NOW() WHERE code = :code')
+            ->execute(['code' => $code]);
+
+        $row = $this->findByCode($code);
+
+        return $row !== null && (int) $row['is_active'] === 1;
+    }
+
+    /** Store a language's two names. True when $code exists. */
+    public function rename(string $code, string $name, string $nativeName): bool
+    {
+        $this->db
+            ->prepare('UPDATE site_languages SET name = :name, native_name = :native_name, updated_at = NOW() WHERE code = :code')
+            ->execute(['code' => $code, 'name' => $name, 'native_name' => $nativeName]);
+
+        return $this->findByCode($code) !== null;
+    }
+
+    /**
+     * Swap $code with its neighbour in the order: -1 up, +1 down. False,
+     * with nothing changed, for an unknown code or at either end.
+     *
+     * The whole order is written back as 0..n-1, so two rows that happened to
+     * share a position (the column allows it) can never make a swap ambiguous.
+     */
+    public function move(string $code, int $direction): bool
+    {
+        return $this->inTransaction(function () use ($code, $direction): bool {
+            $rows = $this->db
+                ->query('SELECT id, code FROM site_languages ORDER BY sort_order ASC, id ASC FOR UPDATE')
+                ->fetchAll();
+
+            $index = null;
+            foreach ($rows as $position => $row) {
+                if ((string) $row['code'] === $code) {
+                    $index = $position;
+                    break;
+                }
+            }
+
+            $other = $index === null ? null : $index + ($direction < 0 ? -1 : 1);
+            if ($index === null || !isset($rows[$other])) {
+                return false;
+            }
+
+            [$rows[$index], $rows[$other]] = [$rows[$other], $rows[$index]];
+
+            $stmt = $this->db->prepare('UPDATE site_languages SET sort_order = :sort_order, updated_at = NOW() WHERE id = :id');
+            foreach (array_values($rows) as $position => $row) {
+                $stmt->execute(['sort_order' => $position, 'id' => (int) $row['id']]);
+            }
+
+            return true;
+        });
+    }
+
     /** Remove a language. Never the default: true only when a row was removed. */
     public function delete(string $code): bool
     {

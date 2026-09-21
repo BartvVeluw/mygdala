@@ -47,7 +47,7 @@ final class BlogMediaAndSettingsTest extends TestCase
     {
         $this->posts = new BlogPostRepository();
         $this->media = new MediaService(null, new TestMediaUploader());
-        ModuleRegistry::overrideForTests(['shop' => true, 'personalization' => true, 'blog' => true]);
+        ModuleRegistry::overrideForTests(['shop' => true, 'personalization' => true, 'blog' => true, 'multilingual' => true]);
     }
 
     protected function tearDown(): void
@@ -208,7 +208,7 @@ final class BlogMediaAndSettingsTest extends TestCase
         $mediaId = $this->upload('blog-disabled-usage.png');
         $this->createPost(['featured_media_id' => $mediaId, 'title' => 'Testbericht module uit']);
 
-        ModuleRegistry::overrideForTests(['shop' => true, 'personalization' => true, 'blog' => false]);
+        ModuleRegistry::overrideForTests(['shop' => true, 'personalization' => true, 'blog' => false, 'multilingual' => true]);
 
         $labels = array_map(
             static fn ($usage): string => $usage->label,

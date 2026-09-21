@@ -121,10 +121,10 @@ final class ShopSettingsTest extends TestCase
 
     public function testTheScreenIsInTheSidebarOnlyWhileTheShopRuns(): void
     {
-        ModuleRegistry::overrideForTests(['shop' => false, 'personalization' => false]);
+        ModuleRegistry::overrideForTests(['shop' => false, 'personalization' => false, 'multilingual' => true]);
         $this->assertNotContains('shop_settings', array_column(AdminNavigation::items(), 'key'));
 
-        ModuleRegistry::overrideForTests(['shop' => true, 'personalization' => true]);
+        ModuleRegistry::overrideForTests(['shop' => true, 'personalization' => true, 'multilingual' => true]);
         $entries = array_values(array_filter(AdminNavigation::items(), static fn (array $item): bool => $item['key'] === 'shop_settings'));
 
         $this->assertCount(1, $entries);

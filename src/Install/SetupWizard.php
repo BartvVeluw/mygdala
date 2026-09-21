@@ -254,8 +254,9 @@ final class SetupWizard
      *
      * A WEBSITE language, so it goes through the website language layer only:
      * the shape through App\Service\Language\LanguageCode, and whether the
-     * website has it through App\Service\Language\SiteLanguages (an active
-     * language of the registry). Never through AdminLocale: that is the CMS
+     * website has it through App\Service\Language\SiteLanguages: a language
+     * switched on in the registry, whether or not the Multilingual module
+     * publishes the others yet (SiteLanguages::switchedOn()). Never through AdminLocale: that is the CMS
      * interface language of one person, and that its list holds Dutch and
      * English as well is a coincidence, not a rule
      * (Tests\Service\MultilingualBoundaryTest).
@@ -270,8 +271,10 @@ final class SetupWizard
         $code = LanguageCode::normalise(is_string($submitted) ? $submitted : null);
 
         try {
-            if ($code !== null && SiteLanguages::isActive($code)) {
-                return $code;
+            foreach (SiteLanguages::switchedOn() as $language) {
+                if ($language->code === $code) {
+                    return $code;
+                }
             }
         } catch (\RuntimeException) {
             // An unreadable registry: the default below, as for any other

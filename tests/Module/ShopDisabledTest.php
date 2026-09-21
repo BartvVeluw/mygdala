@@ -43,12 +43,12 @@ final class ShopDisabledTest extends TestCase
      */
     private function withShopOff(): void
     {
-        ModuleRegistry::overrideForTests(['shop' => false, 'personalization' => false, 'portfolio' => true]);
+        ModuleRegistry::overrideForTests(['shop' => false, 'personalization' => false, 'portfolio' => true, 'multilingual' => true]);
     }
 
     private function withEverythingOn(): void
     {
-        ModuleRegistry::overrideForTests(['shop' => true, 'personalization' => true, 'portfolio' => true]);
+        ModuleRegistry::overrideForTests(['shop' => true, 'personalization' => true, 'portfolio' => true, 'multilingual' => true]);
     }
 
     /* ------------------------------------------------------------------ */

@@ -280,7 +280,12 @@ final class MultilingualBoundaryTest extends TestCase
             self::assertDoesNotMatchRegularExpression(self::LANGUAGE_NAME, $code, $file . ' names a language');
             self::assertStringNotContainsString('LanguageRegistry', $source, $file);
             self::assertStringNotContainsString('LanguageDefinition', $code, $file);
-            self::assertStringNotContainsString('ModuleRegistry', $source, $file . ' must not check a module');
+            // One question by capability, asked by SiteLanguages alone
+            // (Multilingual 2.0 phase 7): whether the other languages are
+            // published. Never a module by key.
+            $withoutTheOneQuestion = str_replace('\\App\\Module\\ModuleRegistry::publishesTranslations()', '', self::withoutComments($source));
+            self::assertStringNotContainsString('ModuleRegistry', $withoutTheOneQuestion, $file . ' must not check a module');
+            self::assertStringNotContainsString("'multilingual'", $source, $file . ' must not name a module');
         }
     }
 
@@ -352,7 +357,7 @@ final class MultilingualBoundaryTest extends TestCase
         $method = substr($method, 0, (int) strpos($method, "\n    }"));
 
         self::assertStringContainsString('LanguageCode::normalise(', $method);
-        self::assertStringContainsString('SiteLanguages::isActive(', $method, 'only a language the website publishes is accepted');
+        self::assertStringContainsString('SiteLanguages::switchedOn()', $method, 'only a language switched on in the registry is accepted, published or not');
         self::assertStringContainsString("self::websiteLanguage(\$input['primary_content_language']", $wizard, 'the save goes through the same method');
         self::assertStringNotContainsString('AdminLocale::', $wizard);
     }

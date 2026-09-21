@@ -69,7 +69,7 @@ final class BlogFeedLanguageTest extends TestCase
     protected function setUp(): void
     {
         $this->posts = new BlogPostRepository();
-        ModuleRegistry::overrideForTests(['shop' => true, 'personalization' => true, 'blog' => true]);
+        ModuleRegistry::overrideForTests(['shop' => true, 'personalization' => true, 'blog' => true, 'multilingual' => true]);
 
         if (BlogLocalization::defaultLanguage() !== 'nl' || !SiteLanguages::isActive('en')) {
             $this->markTestSkipped('this test expects the test database to publish nl (default) and en');

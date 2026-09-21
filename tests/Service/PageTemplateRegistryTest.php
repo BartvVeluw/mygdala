@@ -225,10 +225,10 @@ final class PageTemplateRegistryTest extends TestCase
     {
         $withShop = self::catalogueSnapshot();
 
-        ModuleRegistry::overrideForTests(['shop' => false, 'personalization' => false]);
+        ModuleRegistry::overrideForTests(['shop' => false, 'personalization' => false, 'multilingual' => true]);
         $withoutShop = self::catalogueSnapshot();
 
-        ModuleRegistry::overrideForTests(['shop' => true, 'personalization' => true]);
+        ModuleRegistry::overrideForTests(['shop' => true, 'personalization' => true, 'multilingual' => true]);
         $withShopAgain = self::catalogueSnapshot();
 
         self::assertSame($withShop, $withoutShop);

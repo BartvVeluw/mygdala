@@ -180,10 +180,10 @@ final class HeaderFooterRenderingTest extends TestCase
 
         $buttonId = $this->buttonPointingAtPage((int) $shopPage['id']);
 
-        ModuleRegistry::overrideForTests(['shop' => true, 'personalization' => true]);
+        ModuleRegistry::overrideForTests(['shop' => true, 'personalization' => true, 'multilingual' => true]);
         $this->assertCount(1, $this->renderedButtons($buttonId), 'with the Shop on, a Shop page target must resolve');
 
-        ModuleRegistry::overrideForTests(['shop' => false, 'personalization' => false]);
+        ModuleRegistry::overrideForTests(['shop' => false, 'personalization' => false, 'multilingual' => true]);
         $this->assertSame([], $this->renderedButtons($buttonId));
         $this->assertSame((int) $shopPage['id'], (int) $this->navigation->findById($buttonId)['target_page_id']);
     }

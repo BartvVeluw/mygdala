@@ -638,7 +638,8 @@ final class AdminUiPrimitivesTest extends TestCase
             'company_phone' => 'help.settings.phone',
             'company_city' => 'help.settings.company_city',
             'company_country' => 'help.settings.country',
-            'primary_content_language' => 'help.settings.primary_language',
+            // The code of a language being added (Settings > Talen).
+            'code' => 'help.language.code',
             'seo_default_description' => 'help.settings.seo_description',
             'seo_robots_index_default' => 'help.settings.robots',
         ];
@@ -657,7 +658,7 @@ final class AdminUiPrimitivesTest extends TestCase
         }
 
         // The two new controls on this screen.
-        $this->assertStringContainsString('id="field-primary-language" class="admin-select"', $source);
+        $this->assertStringContainsString('id="field-language-code" name="code"', $source);
         $this->assertStringContainsString('class="admin-switch" role="switch" name="seo_robots_index_default"', $source);
     }
 

@@ -89,6 +89,9 @@ services:
       # that keeps it on and a fresh one does not, so this container asks for
       # it explicitly: every Portfolio test runs against the module switched on.
       MODULE_PORTFOLIO_ENABLED: "true"
+      # Multilingual starts OFF on a new installation too, and the test
+      # database is multilingual: every language test runs against it on.
+      MODULE_MULTILINGUAL_ENABLED: "true"
     volumes:
       - ./:/var/www/html
       - test_attachments:/var/www/storage

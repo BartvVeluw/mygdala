@@ -81,12 +81,12 @@ final class BlogModuleTest extends TestCase
 
     private function withBlogOn(): void
     {
-        ModuleRegistry::overrideForTests(['shop' => true, 'personalization' => true, 'blog' => true, 'portfolio' => true]);
+        ModuleRegistry::overrideForTests(['shop' => true, 'personalization' => true, 'blog' => true, 'portfolio' => true, 'multilingual' => true]);
     }
 
     private function withBlogOff(): void
     {
-        ModuleRegistry::overrideForTests(['shop' => true, 'personalization' => true, 'blog' => false, 'portfolio' => true]);
+        ModuleRegistry::overrideForTests(['shop' => true, 'personalization' => true, 'blog' => false, 'portfolio' => true, 'multilingual' => true]);
     }
 
     /* ------------------------------------------------------------------ */
@@ -116,7 +116,7 @@ final class BlogModuleTest extends TestCase
         }
 
         $this->assertSame(
-            ['shop' => true, 'personalization' => true, 'blog' => false, 'portfolio' => false],
+            ['shop' => true, 'personalization' => true, 'blog' => false, 'portfolio' => false, 'multilingual' => false],
             $defaults
         );
     }
@@ -296,7 +296,7 @@ final class BlogModuleTest extends TestCase
     public function testNoBlogAssetIsInTheSiteShell(): void
     {
         foreach ([true, false] as $enabled) {
-            ModuleRegistry::overrideForTests(['shop' => true, 'personalization' => true, 'blog' => $enabled]);
+            ModuleRegistry::overrideForTests(['shop' => true, 'personalization' => true, 'blog' => $enabled, 'multilingual' => true]);
             PageAssets::reset();
 
             foreach (PageAssets::collected() as $group) {

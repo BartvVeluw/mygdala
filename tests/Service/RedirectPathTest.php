@@ -164,7 +164,7 @@ class RedirectPathTest extends TestCase
      */
     public function testAnInternalTargetInsideADisabledModuleIsReportedAsUnavailable(): void
     {
-        ModuleRegistry::overrideForTests(['shop' => false, 'personalization' => false]);
+        ModuleRegistry::overrideForTests(['shop' => false, 'personalization' => false, 'multilingual' => true]);
 
         $this->assertSame(
             'shop',
@@ -176,7 +176,7 @@ class RedirectPathTest extends TestCase
             'an external destination is never this application\'s to switch off'
         );
 
-        ModuleRegistry::overrideForTests(['shop' => true, 'personalization' => true]);
+        ModuleRegistry::overrideForTests(['shop' => true, 'personalization' => true, 'multilingual' => true]);
 
         $this->assertNull(RedirectTarget::disabledModuleFor(RedirectTarget::TYPE_INTERNAL, '/shop.php'));
     }

@@ -347,6 +347,7 @@
             <file>tests/Install/RemainingBlockWordsMigrationTest.php</file>
             <file>tests/Install/PortfolioCatalogueSchemaTest.php</file>
             <file>tests/Install/PortfolioModulePinTest.php</file>
+            <file>tests/Install/MultilingualModulePinTest.php</file>
             <file>tests/Install/PortfolioPageLinkMigrationTest.php</file>
             <file>tests/Install/SetupCompletionTest.php</file>
             <file>tests/Repository/ContactFormMigrationTest.php</file>
@@ -430,6 +431,7 @@
         </testsuite>
 
         <testsuite name="cms">
+            <file>tests/Service/WebsiteLanguageAdminHttpTest.php</file>
             <file>tests/Service/LanguageRegistryTest.php</file>
             <file>tests/Service/Routing/AcceptLanguageTest.php</file>
             <file>tests/Service/Routing/RequestPathTest.php</file>
@@ -467,6 +469,7 @@
             <file>tests/Install/OrderNumberSnapshotMigrationTest.php</file>
             <file>tests/Install/PortfolioCatalogueSchemaTest.php</file>
             <file>tests/Install/PortfolioModulePinTest.php</file>
+            <file>tests/Install/MultilingualModulePinTest.php</file>
             <file>tests/Install/PortfolioPageLinkMigrationTest.php</file>
             <file>tests/Install/SetupCompletionTest.php</file>
             <file>tests/Install/SetupWizardValidationTest.php</file>

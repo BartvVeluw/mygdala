@@ -48,7 +48,7 @@ final class BlogLocalizedSettingsTest extends TestCase
     {
         self::assertSame('nl', SiteLanguages::defaultCode(), 'this test expects the Dutch-default test database');
 
-        ModuleRegistry::overrideForTests(['shop' => true, 'personalization' => true, 'blog' => true]);
+        ModuleRegistry::overrideForTests(['shop' => true, 'personalization' => true, 'blog' => true, 'multilingual' => true]);
 
         BlogLocalizedSettings::clearCache();
         LocalizedSiteSettings::clearCache();
@@ -277,13 +277,13 @@ final class BlogLocalizedSettingsTest extends TestCase
         BlogLocalizedSettings::save('nl', [BlogLocalizedSettings::TITLE => 'Werkplaatslogboek']);
         BlogLocalizedSettings::save('en', [BlogLocalizedSettings::TITLE => 'Workshop log']);
 
-        ModuleRegistry::overrideForTests(['shop' => true, 'personalization' => true, 'blog' => false]);
+        ModuleRegistry::overrideForTests(['shop' => true, 'personalization' => true, 'blog' => false, 'multilingual' => true]);
         BlogLocalizedSettings::clearCache();
 
         self::assertSame('Werkplaatslogboek', BlogLocalizedSettings::title('nl'));
         self::assertCount(2, $this->rowsOfBlogKeys(), 'a disabled module keeps its rows');
 
-        ModuleRegistry::overrideForTests(['shop' => true, 'personalization' => true, 'blog' => true]);
+        ModuleRegistry::overrideForTests(['shop' => true, 'personalization' => true, 'blog' => true, 'multilingual' => true]);
         BlogLocalizedSettings::clearCache();
 
         self::assertSame('Workshop log', BlogLocalizedSettings::title('en'), 'the same words come back');

@@ -329,7 +329,7 @@ final class FrontendAssetOwnershipTest extends TestCase
      */
     public function testTheSiteShellLoadsNoShopAssetAtAllWithTheShopDisabled(): void
     {
-        ModuleRegistry::overrideForTests(['shop' => false, 'personalization' => false]);
+        ModuleRegistry::overrideForTests(['shop' => false, 'personalization' => false, 'multilingual' => true]);
 
         try {
             PageAssets::reset();

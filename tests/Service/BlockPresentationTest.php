@@ -191,7 +191,7 @@ final class BlockPresentationTest extends TestCase
      */
     public function testEveryRegisteredCategoryIsOneSomeBlockActuallyUses(): void
     {
-        ModuleRegistry::overrideForTests(['shop' => true, 'personalization' => true]);
+        ModuleRegistry::overrideForTests(['shop' => true, 'personalization' => true, 'multilingual' => true]);
 
         $used = [];
         foreach (BlockDefinitions::all() as $definition) {
@@ -238,7 +238,7 @@ final class BlockPresentationTest extends TestCase
      */
     public function testAModuleBlockIsFullyDescribedWhileEnabledAndGoneWhileDisabled(): void
     {
-        ModuleRegistry::overrideForTests(['shop' => true]);
+        ModuleRegistry::overrideForTests(['shop' => true, 'multilingual' => true]);
         $enabled = BlockDefinitions::all();
 
         $this->assertArrayHasKey('product_grid', $enabled);
@@ -246,7 +246,7 @@ final class BlockPresentationTest extends TestCase
         $this->assertNotSame('', trim($enabled['product_grid']->description()));
         $this->assertArrayHasKey(BlockCategories::SHOP, BlockCategories::group($enabled));
 
-        ModuleRegistry::overrideForTests(['shop' => false]);
+        ModuleRegistry::overrideForTests(['shop' => false, 'multilingual' => true]);
         $disabled = BlockDefinitions::all();
 
         $this->assertArrayNotHasKey('product_grid', $disabled);

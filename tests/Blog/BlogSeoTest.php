@@ -44,7 +44,7 @@ final class BlogSeoTest extends TestCase
     {
         $this->posts = new BlogPostRepository();
         $this->categories = new BlogCategoryRepository();
-        ModuleRegistry::overrideForTests(['shop' => true, 'personalization' => true, 'blog' => true]);
+        ModuleRegistry::overrideForTests(['shop' => true, 'personalization' => true, 'blog' => true, 'multilingual' => true]);
     }
 
     protected function tearDown(): void
@@ -340,7 +340,7 @@ final class BlogSeoTest extends TestCase
     {
         $post = $this->post(['title' => 'Testbericht sitemap uit', 'status' => BlogPostStatus::PUBLISHED, 'published_at' => '-1 hour']);
 
-        ModuleRegistry::overrideForTests(['shop' => true, 'personalization' => true, 'blog' => false]);
+        ModuleRegistry::overrideForTests(['shop' => true, 'personalization' => true, 'blog' => false, 'multilingual' => true]);
 
         foreach (array_column(Sitemap::entries(), 'loc') as $loc) {
             $this->assertStringNotContainsString('/' . BlogUrls::ROOT, $loc);

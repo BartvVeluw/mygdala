@@ -75,6 +75,7 @@ final class PortfolioModuleTest extends TestCase
             'personalization' => $shop,
             'blog' => true,
             'portfolio' => $enabled,
+            'multilingual' => true,
         ]);
     }
 

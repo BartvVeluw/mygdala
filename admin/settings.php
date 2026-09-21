@@ -75,13 +75,6 @@ if (FormRecipient::siteFallback() === null) {
 
 $csrfToken = Csrf::token();
 
-/**
- * The website's default language and the languages it may be moved to: the
- * active languages of the website language registry
- * (App\Service\Language\SiteLanguages), which owns every rule about them.
- */
-$primaryLanguage = \App\Service\Language\LanguageFallback::defaultLanguage();
-$adminLocale = \App\Service\Language\AdminLocale::current();
 
 $languageErrors = $_SESSION['admin_language_errors'] ?? [];
 unset($_SESSION['admin_language_errors']);
@@ -333,17 +326,32 @@ function brandingImageField(
            must never be confused, so they are not on the same screen
            (MULTILINGUAL.md).
 
-           There is no "enable English" control any more, and that is the
-           correction: this product is bilingual, so a visitor can always ask
-           for either language and an editor can always write either one. All
-           that is left to configure is which of the two a visitor gets
-           first. */ ?>
+           The registry (App\Service\Language\SiteLanguages) is Core and is
+           managed here with the Multilingual module on or off: a website
+           always has a default language. The module only decides whether the
+           OTHER active languages are published (SiteLanguages::active()).
+           Nothing on this tab deletes a word: switching a language or the
+           module off keeps every translation, and a language that holds
+           words cannot be removed at all (ON DELETE RESTRICT). */ ?>
+  <?php
+  $websiteLanguages = \App\Service\Language\SiteLanguages::all();
+  $publishesTranslations = \App\Service\Language\SiteLanguages::publishesTranslations();
+  $translationModuleKey = null;
+  foreach (\App\Module\ModuleRegistry::all() as $moduleKey => $moduleDefinition) {
+      if ($moduleDefinition->publishesTranslations()) {
+          $translationModuleKey = $moduleKey;
+          break;
+      }
+  }
+  $translationModulePinned = $translationModuleKey !== null && \App\Module\ModuleConfig::isPinnedByEnvironment($translationModuleKey);
+  $lastLanguageIndex = count($websiteLanguages) - 1;
+  ?>
   <section class="admin-card">
-    <h2><?= $h(\App\Service\Language\AdminTranslator::trans('language.settings_title')) ?></h2>
-    <p class="admin-text-muted"><?= $h(\App\Service\Language\AdminTranslator::trans('language.settings_intro')) ?></p>
+    <h2><?= admin_te('language.settings_title') ?></h2>
+    <p class="admin-text-muted"><?= admin_te('language.settings_intro') ?></p>
 
     <?php if ($languageSaved): ?>
-      <p class="admin-alert admin-alert--success"><?= $h(\App\Service\Language\AdminTranslator::trans('common.saved')) ?></p>
+      <p class="admin-alert admin-alert--success"><?= admin_te('common.saved') ?></p>
     <?php endif; ?>
 
     <?php if ($languageErrors !== []): ?>
@@ -355,33 +363,151 @@ function brandingImageField(
         </ul>
       </div>
     <?php endif; ?>
+  </section>
 
-    <form method="post" action="/api/admin/update-language-settings.php" class="admin-product-form">
+  <?php if ($translationModuleKey !== null): ?>
+  <section class="admin-card" id="talen-meertaligheid">
+    <h2><?= admin_te('language.module_title') ?></h2>
+    <p class="admin-text-muted admin-lang-note"><?= admin_te($publishesTranslations ? 'language.module_on' : 'language.module_off') ?></p>
+
+    <form method="post" action="/api/admin/update-multilingual-publishing.php" class="admin-product-form">
       <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
-
-      <p class="admin-text-muted admin-lang-note"><?= $h(\App\Service\Language\AdminTranslator::trans('language.always_bilingual')) ?></p>
-
-      <div class="admin-form-row">
-        <div class="admin-field">
-          <?= admin_field_label('field-primary-language', \App\Service\Language\AdminTranslator::trans('language.default_website'), admin_t('help.settings.primary_language')) ?>
-          <select name="primary_content_language" id="field-primary-language" class="admin-select">
-            <?php foreach (\App\Service\Language\SiteLanguages::active() as $websiteLanguage): ?>
-              <option value="<?= $h($websiteLanguage->code) ?>"<?= $websiteLanguage->code === $primaryLanguage ? ' selected' : '' ?>><?= $h(admin_website_language_label($websiteLanguage->code)) ?></option>
-            <?php endforeach; ?>
-          </select>
-        </div>
-        <p class="admin-text-muted"><?= $h(\App\Service\Language\AdminTranslator::trans('language.default_website_help')) ?></p>
+      <input type="hidden" name="enabled" value="0">
+      <div class="admin-field admin-field--inline">
+        <label class="admin-checkbox-label">
+          <input type="checkbox" class="admin-switch" role="switch" name="enabled" value="1"<?= $publishesTranslations ? ' checked' : '' ?><?= $translationModulePinned ? ' disabled' : '' ?>>
+          <?= admin_te('language.module_switch') ?>
+        </label>
       </div>
+      <?php if ($translationModulePinned): ?>
+        <p class="admin-text-muted"><?= admin_te('language.module_pinned', ['variable' => \App\Module\ModuleConfig::variableName($translationModuleKey)]) ?></p>
+      <?php else: ?>
+        <button type="submit"><?= admin_te('common.save') ?></button>
+      <?php endif; ?>
+    </form>
+  </section>
+  <?php endif; ?>
 
-      <button type="submit"><?= $h(\App\Service\Language\AdminTranslator::trans('common.save')) ?></button>
+  <section class="admin-card" id="talen-lijst">
+    <h2><?= admin_te('language.list_title') ?></h2>
+    <p class="admin-text-muted"><?= admin_te('language.list_intro') ?></p>
+    <p class="admin-text-muted"><?= admin_te('language.disabled_preserved') ?></p>
+
+    <div class="admin-section-list">
+      <?php foreach ($websiteLanguages as $languageIndex => $websiteLanguage):
+          $languageLabel = admin_website_language_label($websiteLanguage->code);
+          $languagePublished = \App\Service\Language\SiteLanguages::isActive($websiteLanguage->code);
+      ?>
+      <div class="admin-section-row admin-website-language-row<?= $websiteLanguage->isActive ? '' : ' is-hidden-section' ?>" id="language-<?= $h($websiteLanguage->code) ?>">
+        <div class="admin-section-row__body">
+          <p class="admin-section-row__name">
+            <?= $h($websiteLanguage->nativeName !== '' ? $websiteLanguage->nativeName : $languageLabel) ?>
+            <span class="admin-text-muted">(<?= $h($websiteLanguage->code) ?>)</span>
+            <?php if ($websiteLanguage->isDefault): ?>
+              <span class="admin-badge admin-badge--info"><?= admin_te('language.default_marker') ?></span>
+            <?php elseif (!$websiteLanguage->isActive): ?>
+              <span class="admin-badge admin-badge--muted"><?= admin_te('language.badge_off') ?></span>
+            <?php elseif (!$languagePublished): ?>
+              <span class="admin-badge admin-badge--muted"><?= admin_te('language.badge_unpublished') ?></span>
+            <?php endif; ?>
+          </p>
+          <p class="admin-section-row__note"><?= $h($websiteLanguage->name) ?></p>
+
+          <details class="admin-website-language-row__names">
+            <summary><?= admin_te('language.edit_names') ?></summary>
+            <form method="post" action="/api/admin/update-website-language.php" class="admin-product-form">
+              <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
+              <input type="hidden" name="code" value="<?= $h($websiteLanguage->code) ?>">
+              <div class="admin-form-row admin-form-row--split">
+                <label><?= admin_te('language.native_name_label') ?>
+                  <input type="text" name="native_name" required maxlength="<?= \App\Service\Language\SiteLanguages::NAME_MAX_LENGTH ?>" value="<?= $h($websiteLanguage->nativeName) ?>">
+                </label>
+                <label><?= admin_te('language.name_label') ?>
+                  <input type="text" name="name" required maxlength="<?= \App\Service\Language\SiteLanguages::NAME_MAX_LENGTH ?>" value="<?= $h($websiteLanguage->name) ?>">
+                </label>
+              </div>
+              <button type="submit"><?= admin_te('language.save_names') ?></button>
+            </form>
+          </details>
+        </div>
+
+        <div class="admin-section-row__actions">
+          <form method="post" action="/api/admin/move-website-language.php" class="admin-inline-form">
+            <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
+            <input type="hidden" name="code" value="<?= $h($websiteLanguage->code) ?>">
+            <input type="hidden" name="direction" value="up">
+            <button type="submit" class="admin-btn-ghost" aria-label="<?= admin_te('language.move_up_label', ['language' => $languageLabel]) ?>"<?= $languageIndex === 0 ? ' disabled' : '' ?>><span aria-hidden="true">&uarr;</span></button>
+          </form>
+          <form method="post" action="/api/admin/move-website-language.php" class="admin-inline-form">
+            <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
+            <input type="hidden" name="code" value="<?= $h($websiteLanguage->code) ?>">
+            <input type="hidden" name="direction" value="down">
+            <button type="submit" class="admin-btn-ghost" aria-label="<?= admin_te('language.move_down_label', ['language' => $languageLabel]) ?>"<?= $languageIndex === $lastLanguageIndex ? ' disabled' : '' ?>><span aria-hidden="true">&darr;</span></button>
+          </form>
+
+          <?php if (!$websiteLanguage->isDefault && $websiteLanguage->isActive): ?>
+            <form method="post" action="/api/admin/update-language-settings.php" class="admin-inline-form">
+              <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
+              <input type="hidden" name="primary_content_language" value="<?= $h($websiteLanguage->code) ?>">
+              <button type="submit" class="admin-btn-secondary admin-section-row__button"><?= admin_te('language.make_default') ?></button>
+            </form>
+          <?php endif; ?>
+
+          <?php if (!$websiteLanguage->isDefault): ?>
+            <form method="post" action="/api/admin/toggle-website-language.php" class="admin-inline-form">
+              <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
+              <input type="hidden" name="code" value="<?= $h($websiteLanguage->code) ?>">
+              <input type="hidden" name="is_active" value="<?= $websiteLanguage->isActive ? '0' : '1' ?>">
+              <button type="submit" class="admin-btn-secondary admin-section-row__button"><?= admin_te($websiteLanguage->isActive ? 'language.deactivate' : 'language.activate') ?></button>
+            </form>
+          <?php endif; ?>
+
+          <?php if (!$websiteLanguage->isDefault && !$websiteLanguage->isActive): ?>
+            <form method="post" action="/api/admin/delete-website-language.php" class="admin-inline-form admin-section-row__delete"<?= admin_confirm_attributes(
+                admin_t('language.delete_title'),
+                admin_t('language.delete_message', ['language' => $languageLabel]),
+                admin_t('common.delete')
+            ) ?>>
+              <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
+              <input type="hidden" name="code" value="<?= $h($websiteLanguage->code) ?>">
+              <button type="submit" class="admin-btn-danger admin-section-row__button"><?= admin_te('common.delete') ?></button>
+            </form>
+          <?php endif; ?>
+        </div>
+      </div>
+      <?php endforeach; ?>
+    </div>
+  </section>
+
+  <section class="admin-card" id="talen-toevoegen">
+    <h2><?= admin_te('language.add_title') ?></h2>
+    <p class="admin-text-muted"><?= admin_te('language.add_intro') ?></p>
+
+    <form method="post" action="/api/admin/create-website-language.php" class="admin-product-form">
+      <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
+      <div class="admin-form-row admin-form-row--split">
+        <div class="admin-field">
+          <?= admin_field_label('field-language-code', admin_t('language.code_label'), admin_t('help.language.code')) ?>
+          <input type="text" id="field-language-code" name="code" required minlength="2" maxlength="2" pattern="[A-Za-z]{2}" autocomplete="off" spellcheck="false">
+        </div>
+        <div class="admin-field">
+          <label for="field-language-native-name"><?= admin_te('language.native_name_label') ?></label>
+          <input type="text" id="field-language-native-name" name="native_name" required maxlength="<?= \App\Service\Language\SiteLanguages::NAME_MAX_LENGTH ?>">
+        </div>
+        <div class="admin-field">
+          <label for="field-language-name"><?= admin_te('language.name_label') ?></label>
+          <input type="text" id="field-language-name" name="name" required maxlength="<?= \App\Service\Language\SiteLanguages::NAME_MAX_LENGTH ?>">
+        </div>
+      </div>
+      <button type="submit"><?= admin_te('language.add_button') ?></button>
     </form>
   </section>
 
   <section class="admin-card">
-    <h2><?= $h(\App\Service\Language\AdminTranslator::trans('language.cms')) ?></h2>
-    <p class="admin-text-muted"><?= $h(\App\Service\Language\AdminTranslator::trans('account.interface_language_help')) ?></p>
-    <p class="admin-text-muted"><?= $h(\App\Service\Language\AdminTranslator::trans('account.content_language_help')) ?></p>
-    <p><a href="/admin/account.php" class="admin-btn-link"><?= $h(\App\Service\Language\AdminTranslator::trans('shell.my_account')) ?> &rarr;</a></p>
+    <h2><?= admin_te('language.cms') ?></h2>
+    <p class="admin-text-muted"><?= admin_te('account.interface_language_help') ?></p>
+    <p class="admin-text-muted"><?= admin_te('account.content_language_help') ?></p>
+    <p><a href="/admin/account.php" class="admin-btn-link"><?= admin_te('shell.my_account') ?> &rarr;</a></p>
   </section>
   <?php admin_tab_panel_end(); ?>
 

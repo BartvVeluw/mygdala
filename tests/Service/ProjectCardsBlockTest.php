@@ -338,6 +338,7 @@ final class ProjectCardsBlockTest extends TestCase
             'personalization' => true,
             'blog' => true,
             'portfolio' => $enabled,
+            'multilingual' => true,
         ]);
     }
 

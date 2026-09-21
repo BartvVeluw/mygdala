@@ -31,7 +31,7 @@ final class BlockLibraryScreenTest extends TestCase
     protected function setUp(): void
     {
         AdminLocale::overrideForTests('nl');
-        ModuleRegistry::overrideForTests(['shop' => true, 'portfolio' => true, 'blog' => true, 'personalization' => true]);
+        ModuleRegistry::overrideForTests(['shop' => true, 'portfolio' => true, 'blog' => true, 'personalization' => true, 'multilingual' => true]);
     }
 
     protected function tearDown(): void
@@ -165,7 +165,7 @@ final class BlockLibraryScreenTest extends TestCase
     {
         $this->assertStringContainsString('type=project_cards', self::library());
 
-        ModuleRegistry::overrideForTests(['shop' => false, 'portfolio' => false, 'blog' => false, 'personalization' => false]);
+        ModuleRegistry::overrideForTests(['shop' => false, 'portfolio' => false, 'blog' => false, 'personalization' => false, 'multilingual' => true]);
         $html = self::library();
 
         foreach (['project_cards', 'shop_collections', 'product_grid'] as $type) {

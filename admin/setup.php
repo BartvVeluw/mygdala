@@ -241,7 +241,7 @@ $setupPrimaryLanguage = $previous('primary_content_language') !== ''
       <div class="admin-form-row">
         <label for="setup-primary-language"><?= admin_te('setup.taal_website') ?>
           <select id="setup-primary-language" name="primary_content_language">
-            <?php foreach (\App\Service\Language\SiteLanguages::active() as $websiteLanguage): ?>
+            <?php foreach (\App\Service\Language\SiteLanguages::switchedOn() as $websiteLanguage): ?>
               <option value="<?= $h($websiteLanguage->code) ?>"<?= $websiteLanguage->code === $setupPrimaryLanguage ? ' selected' : '' ?>><?= $h($websiteLanguage->nativeName !== '' ? $websiteLanguage->nativeName : strtoupper($websiteLanguage->code)) ?></option>
             <?php endforeach; ?>
           </select>

@@ -71,7 +71,7 @@ class RedirectModuleTest extends TestCase
     {
         $this->storeShopRedirect();
 
-        ModuleRegistry::overrideForTests(['shop' => false, 'personalization' => false]);
+        ModuleRegistry::overrideForTests(['shop' => false, 'personalization' => false, 'multilingual' => true]);
 
         $this->assertNull((new RedirectResolver($this->repository))->resolve(self::SOURCE));
     }
@@ -81,7 +81,7 @@ class RedirectModuleTest extends TestCase
     {
         $id = $this->storeShopRedirect();
 
-        ModuleRegistry::overrideForTests(['shop' => false, 'personalization' => false]);
+        ModuleRegistry::overrideForTests(['shop' => false, 'personalization' => false, 'multilingual' => true]);
 
         $stored = $this->repository->findById($id);
 
@@ -94,10 +94,10 @@ class RedirectModuleTest extends TestCase
     {
         $this->storeShopRedirect();
 
-        ModuleRegistry::overrideForTests(['shop' => false, 'personalization' => false]);
+        ModuleRegistry::overrideForTests(['shop' => false, 'personalization' => false, 'multilingual' => true]);
         $this->assertNull((new RedirectResolver($this->repository))->resolve(self::SOURCE));
 
-        ModuleRegistry::overrideForTests(['shop' => true, 'personalization' => true]);
+        ModuleRegistry::overrideForTests(['shop' => true, 'personalization' => true, 'multilingual' => true]);
 
         $resolved = (new RedirectResolver($this->repository))->resolve(self::SOURCE);
 
@@ -113,7 +113,7 @@ class RedirectModuleTest extends TestCase
      */
     public function testADisabledModulesOwnRoutesStayClosedToRedirectSources(): void
     {
-        ModuleRegistry::overrideForTests(['shop' => false, 'personalization' => false]);
+        ModuleRegistry::overrideForTests(['shop' => false, 'personalization' => false, 'multilingual' => true]);
 
         $validator = new RedirectValidator($this->repository);
 

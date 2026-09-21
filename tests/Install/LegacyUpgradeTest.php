@@ -385,14 +385,15 @@ final class LegacyUpgradeTest extends TestCase
 
     /**
      * An existing site keeps running whatever its environment says, so no
-     * preference is invented for it — with one deliberate exception. The
-     * Portfolio was part of the core until it became a module a new
-     * installation only gets on request. This site already ran it, so
-     * 20260914170000_pin_the_portfolio_module_where_it_is_in_use stored "on"
-     * (Tests\Install\PortfolioModulePinTest). The environment still overrules
-     * that row, like any stored preference.
+     * preference is invented for it — with two deliberate exceptions, both a
+     * module that a new installation now only gets on request while this site
+     * already ran it: the Portfolio (20260914170000,
+     * Tests\Install\PortfolioModulePinTest) and Meertaligheid, because every
+     * existing site published Dutch and English (20260921100000,
+     * Tests\Install\MultilingualModulePinTest). The environment still
+     * overrules those rows, like any stored preference.
      */
-    public function testTheOnlyModulePreferenceAnExistingSiteGetsIsThePortfolioItAlreadyRan(): void
+    public function testTheOnlyModulePreferencesAnExistingSiteGetsAreTheModulesItAlreadyRan(): void
     {
         $this->assertTrue($this->install()->hasTable('module_settings'));
 
@@ -401,7 +402,8 @@ final class LegacyUpgradeTest extends TestCase
             $stored[(string) $row['setting_key']] = (string) $row['setting_value'];
         }
 
-        $this->assertSame(['module_portfolio_enabled' => '1'], $stored);
+        ksort($stored);
+        $this->assertSame(['module_multilingual_enabled' => '1', 'module_portfolio_enabled' => '1'], $stored);
     }
 
     public function testAnExistingCmsKeepsTheAdminItAlreadyHad(): void

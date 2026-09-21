@@ -312,14 +312,14 @@ class NavigationServiceTest extends TestCase
     {
         $row = $this->button(1, 0, ['link_type' => 'route', 'target_route' => 'shop', 'external_url' => null]);
 
-        ModuleRegistry::overrideForTests(['shop' => true, 'personalization' => true]);
+        ModuleRegistry::overrideForTests(['shop' => true, 'personalization' => true, 'multilingual' => true]);
         $this->assertSame(['/shop.php'], array_column(NavigationService::buildButtons([$row]), 'href'));
 
-        ModuleRegistry::overrideForTests(['shop' => false, 'personalization' => false]);
+        ModuleRegistry::overrideForTests(['shop' => false, 'personalization' => false, 'multilingual' => true]);
         $this->assertSame([], NavigationService::buildButtons([$row]));
         $this->assertSame([], NavigationService::buildTree([array_merge($row, ['presentation' => 'link'])]), 'the same holds for a menu link');
 
-        ModuleRegistry::overrideForTests(['shop' => true, 'personalization' => true]);
+        ModuleRegistry::overrideForTests(['shop' => true, 'personalization' => true, 'multilingual' => true]);
         $this->assertCount(1, NavigationService::buildButtons([$row]));
     }
 
