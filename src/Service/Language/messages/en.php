@@ -134,7 +134,6 @@ From the first label the CMS also makes the fixed name answers are stored under.
     'language.fallback_placeholder' => 'Not translated - visitors see the text in :language',
     'language.new_in_default' => 'A new page is created in the default language. You translate it afterwards, on the page itself.',
     'language.new_item_in_default' => 'A new item is added in the default language (:language). You translate it afterwards, on the item itself.',
-    'language.always_bilingual' => 'This website can always be read in Dutch and in English. Visitors choose which language they see.',
     'language.default_website' => 'Default website language',
     'language.default_website_help' => 'The language a visitor gets before they choose one, and the language every missing translation falls back to.',
     'account.content_language' => 'Language of the content you edit',

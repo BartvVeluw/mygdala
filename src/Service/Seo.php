@@ -175,21 +175,4 @@ class Seo
     {
         return SiteSettings::get('og_image_path');
     }
-
-    /**
-     * The bilingual fallback used by every translatable field in this
-     * project: an empty English value falls back to the Dutch one.
-     */
-    public static function pick(?string $nl, ?string $en, string $lang): string
-    {
-        $nl = trim((string) $nl);
-
-        if ($lang !== 'en') {
-            return $nl;
-        }
-
-        $en = trim((string) $en);
-
-        return $en !== '' ? $en : $nl;
-    }
 }

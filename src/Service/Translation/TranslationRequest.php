@@ -18,8 +18,9 @@ namespace App\Service\Translation;
  *             a person wrote. False is the safe default and every caller
  *             gets it unless the request explicitly said otherwise.
  *
- * $field is the base column name without its language suffix ('title' for
- * title_nl/title_en). It is used to look up translation state and to name a
+ * $field is the field's name as its translation table declares it ('title'
+ * for a title stored per language). It is used to look up translation state
+ * and to name a
  * field in a response, and it is validated against the field list the
  * SERVER built for that entity — never used to reach a column directly.
  */

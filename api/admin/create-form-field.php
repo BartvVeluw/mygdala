@@ -132,6 +132,6 @@ try {
 }
 
 // Straight into the field's own screen: a choice field is unusable until its
-// options are filled in, and every type has bilingual text worth adding.
+// options are filled in, and every type has text worth translating.
 header('Location: /admin/form-field.php?id=' . $fieldId);
 exit;

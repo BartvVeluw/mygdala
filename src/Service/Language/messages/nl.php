@@ -135,7 +135,6 @@ Uit het eerste label maakt het CMS ook de vaste naam waaronder antwoorden worden
     'language.fallback_placeholder' => 'Niet vertaald - bezoekers zien de tekst in het :language',
     'language.new_in_default' => 'Een nieuwe pagina maak je in de standaardtaal. Vertalen doe je daarna, op de pagina zelf.',
     'language.new_item_in_default' => 'Een nieuw item voeg je toe in de standaardtaal (:language). Vertalen doe je daarna, bij het item zelf.',
-    'language.always_bilingual' => 'Deze website is altijd in het Nederlands en het Engels te lezen. Bezoekers kiezen zelf welke taal ze zien.',
     'language.default_website' => 'Standaardtaal van de website',
     'language.default_website_help' => 'De taal die een bezoeker ziet voordat hij zelf kiest, en de taal waarop elke ontbrekende vertaling terugvalt.',
     'account.content_language' => 'Taal van de content die je bewerkt',

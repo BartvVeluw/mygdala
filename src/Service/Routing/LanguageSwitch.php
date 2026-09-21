@@ -21,9 +21,9 @@ use App\Service\Language\SiteLanguages;
  * Making them links is also the compatibility boundary: core.js only binds to
  * `.lang-switch button`, so the moment the switch stops rendering buttons the
  * old client-side swap stops running, stops reading localStorage and stops
- * being able to put a page back into the wrong language. The `data-nl` /
- * `data-en` attributes stay in the markup until phase 7 removes them; nothing
- * acts on them any more.
+ * being able to put a page back into the wrong language. Phase 7 removed the
+ * `data-nl` / `data-en` attributes and the swap itself: core.js knows no
+ * language, and every page prints the words of its own.
  *
  * AN UNAVAILABLE LANGUAGE IS SHOWN, NOT HIDDEN, and carries no href
  * (App\Service\Routing\LanguageAlternates). A page that has no German version

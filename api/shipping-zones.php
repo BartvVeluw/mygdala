@@ -10,12 +10,14 @@
  * "Shipping zones") makes it show up here automatically, no frontend code
  * change needed.
  *
- * Display names for country codes are a small presentation-only lookup
- * table here (not stored in the database, which only needs the code) —
- * extend COUNTRY_LABELS when a new country is added; an unlisted code still
- * works, it just falls back to showing the raw code.
+ * Display names for country codes are a small presentation-only catalogue
+ * (App\Service\Shipping\ShippingCountries, not stored in the database, which
+ * only needs the code), in the language of the page that asks (?lang=,
+ * App\Service\Routing\ApiLanguage). Extend its NAMES when a new country is
+ * added; an unlisted code still works, it just shows the raw code.
  *
- * Response (200): { "countries": [ { "code": "NL", "label": "Nederland", "label_en": "Netherlands" }, ... ] }
+ * Response (200): { "countries": [ { "code": "NL", "label": "Netherlands" }, ... ] }
+ * (one label per country, in the page's language)
  */
 
 declare(strict_types=1);

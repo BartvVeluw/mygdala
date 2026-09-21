@@ -693,7 +693,7 @@ class BlogPostRepository extends Repository
                 'slug' => (string) $value,
                 // Everywhere else an empty field IS "nothing", so it is
                 // stored as NULL rather than as an empty string — the
-                // bilingual fallback and the SEO hierarchy both test for it.
+                // language fallback and the SEO hierarchy both test for it.
                 default => is_string($value) && trim($value) === '' ? null : $value,
             };
         }

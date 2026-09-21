@@ -39,10 +39,10 @@ use App\Service\Language\TranslationTable;
  * touches `order_items.product_name` and nothing here consults the registry to
  * decide what to fall back to.
  *
- * It is also exactly what the browser already did. assets/js/shop/shop.js
- * renders an order line as `item.name_en || item.name`, so "no English name"
- * has always meant "show the neutral one"; this class states that rule on the
- * server instead of leaving it to JavaScript.
+ * It is also exactly what the browser did before phase 7: shop.js rendered an
+ * order line as `item.name_en || item.name`, so "no English name" always
+ * meant "show the neutral one". This class states that rule on the server,
+ * and api/order-status.php sends the one name it picks.
  *
  * WHAT CHECKOUT WRITES. The neutral name is the product's name in the DEFAULT
  * language (api/checkout.php), and one row per other active website language
