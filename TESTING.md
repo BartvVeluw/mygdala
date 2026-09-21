@@ -339,9 +339,9 @@ De talen van een site, de taal van het CMS, de bewerktaal, de taalvelden in
 een editor of automatisch vertalen (`MULTILINGUAL.md`):
 
 ```
---testsuite fast        LanguageRegistryTest (het gesloten register en de
-                        sitetalen), LocalizedValueTest (de terugvalregel, in
-                        beide richtingen), AdminLocaleTest (de CMS-taal, en
+--testsuite fast        LanguageRegistryTest (de talen van het CMS zelf),
+                        SiteLanguagesTest (de websitetalen en de module
+                        Meertaligheid), AdminLocaleTest (de CMS-taal, en
                         dat hij de website niet raakt), ThreeLanguageStatesTest
                         (de matrix CMS-taal × bewerktaal, en dat geen van
                         beide de bezoeker raakt), TranslationProviderTest
@@ -354,7 +354,11 @@ een editor of automatisch vertalen (`MULTILINGUAL.md`):
                         LocalizedSiteSettingsTest (een taal opslaan mag de
                         andere nooit overschrijven), met de editors in
                         NavigationAdminHttpTest, FooterAdminHttpTest,
-                        FormAdminHttpTest en FormFieldEditorHttpTest
+                        FormAdminHttpTest en FormFieldEditorHttpTest, het
+                        tabblad Talen in WebsiteLanguageAdminHttpTest, en
+                        TypedLinkTest
+--testsuite modules     de module Meertaligheid aan en uit
+                        (MultilingualModuleTest, MultilingualModuleHttpTest)
 --testsuite blocks      als je een editor op de taalvelden aansloot
 ```
 

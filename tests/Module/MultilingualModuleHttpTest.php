@@ -79,11 +79,12 @@ final class MultilingualModuleHttpTest extends TestCase
         self::assertStringNotContainsString('class="lang-switch"', $home['body'], 'no language switch');
         self::assertStringNotContainsString('hreflang=', $home['body'], 'no hreflang, and no x-default either');
 
-        // /en/ is an ordinary path now: the trailing slash is normalised away
-        // like on any page URL, and /en is nothing.
+        // /en/ is not a website language any more, and it answers 404 at
+        // once: a permanent trailing-slash redirect to /en would be cached by
+        // the browser and loop against /en -> /en/ once the module is back on.
         $root = self::$off->request('GET', '/en/');
-        self::assertNotSame(200, $root['status'], '/en/ is not a website language any more');
-        self::assertStringEndsWith('/en', $root['location']);
+        self::assertSame(404, $root['status'], '/en/ is not a website language any more');
+        self::assertSame('', $root['location'], 'no redirect a browser could cache');
         self::assertSame(404, self::$off->request('GET', '/en')['status']);
         self::assertSame(404, self::$off->request('GET', '/en/' . self::SLUG_EN)['status']);
 
@@ -123,6 +124,57 @@ final class MultilingualModuleHttpTest extends TestCase
 
         PageLocalization::clearCache();
         self::assertSame('Multilingual test', PageLocalization::raw((int) $this->pageId, PageTranslation::TITLE, 'en'));
+    }
+
+    /**
+     * The blog index is one fixed route in every published language. On, it
+     * names every version in its head, exactly as the Blog sitemap collector
+     * lists it; off, it names none. Before phase 7 the index declared nothing,
+     * so its head had no hreflang while the sitemap gave it alternates.
+     */
+    public function testTheBlogIndexNamesItsVersionsExactlyWhenTheModuleIsOn(): void
+    {
+        if (!\App\Module\ModuleRegistry::isEnabled('blog')) {
+            self::markTestSkipped('the Blog module is off here');
+        }
+
+        $on = self::$on->request('GET', '/blog');
+        self::assertSame(200, $on['status']);
+        foreach (SiteLanguages::activeCodes() as $code) {
+            self::assertMatchesRegularExpression(
+                '#<link rel="alternate" hreflang="' . $code . '" href="[^"]*' . preg_quote(\App\Service\Blog\BlogUrls::indexPath(1, $code), '#') . '">#',
+                $on['body'],
+                'the index names its ' . $code . ' version'
+            );
+        }
+
+        $off = self::$off->request('GET', '/blog');
+        self::assertSame(200, $off['status']);
+        self::assertStringNotContainsString('hreflang=', $off['body']);
+    }
+
+    /**
+     * A language that is registered but switched off answers 404 on its own
+     * home and below it, without a redirect: the same loop-free answer as
+     * every language while the module is off.
+     */
+    public function testASwitchedOffLanguageAnswers404WithoutARedirect(): void
+    {
+        if (SiteLanguages::exists('zy')) {
+            self::markTestSkipped('the test database already registers zy');
+        }
+
+        (new \App\Repository\SiteLanguageRepository())->create('zy', 'Test language', 'Testtaal', false);
+        try {
+            foreach (['/zy/', '/zy', '/zy/' . self::SLUG_EN] as $path) {
+                $response = self::$on->request('GET', $path);
+                self::assertSame(404, $response['status'], $path);
+                self::assertSame('', $response['location'], $path . ': no redirect a browser could cache');
+            }
+        } finally {
+            (new \App\Repository\SiteLanguageRepository())->delete('zy');
+            SiteLanguages::clearCache();
+        }
     }
 
     /** OFF -> ON -> OFF -> ON: every request answers the same way for the same state. */

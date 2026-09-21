@@ -344,7 +344,10 @@ final class SiteLanguages
         $nativeName = trim($nativeName);
 
         foreach ([$name, $nativeName] as $value) {
-            if ($value === '' || mb_strlen($value) > self::NAME_MAX_LENGTH || preg_match('/[\x00-\x1F\x7F<>]/u', $value) === 1) {
+            // Invalid UTF-8 first: preg_match() with /u answers false, not 1,
+            // for it, so the pattern alone would let it through to the
+            // database, which refuses it.
+            if ($value === '' || !mb_check_encoding($value, 'UTF-8') || mb_strlen($value) > self::NAME_MAX_LENGTH || preg_match('/[\x00-\x1F\x7F<>]/u', $value) === 1) {
                 throw new \InvalidArgumentException('name');
             }
         }

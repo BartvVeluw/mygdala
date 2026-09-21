@@ -73,14 +73,16 @@ Twee onafhankelijke schakelaars verbergen een blok, en beide tellen:
   hun eigen woorden, onder hun eigen tabel en `id`. De definitie noemt elke
   kindtabel in `childTables()`, met de tabel en kolom waaraan hij hangt;
   `BlockTranslationSchemaTest` houdt dat tegen de echte foreign key.
-- De `*Content`-klasse geeft de partial per veld een `LocalizedValue`
-  (`BlockLocalization::words()` of `::bilingual()`); de terugval (gevraagde
-  taal → standaardtaal → leeg) zit daar, niet in het blok. **De standaardtaal
+- De `*Content`-klasse geeft de partial per veld één string in de taal van
+  het verzoek (`BlockLocalization::words()`, `::text()` of `::first()`); de
+  terugval (gevraagde taal → standaardtaal → leeg) zit daar, niet in het
+  blok. **De standaardtaal
   beslist of iets verschijnt**: een blok, en elk item, zonder zijn verplichte
   woorden in de standaardtaal rendert niet (`BlockLocalization::hasRequiredWords()`).
-- De partial print met `SiteText::visibleOf()` en `::attrsOf()`, een alt-tekst
-  met `::attrsForOf('alt', …)` en gesaneerde rich text met `::htmlAttrsOf()`.
-  Hij kent geen taal.
+- De partial print platte tekst met `htmlspecialchars()` en gesaneerde rich
+  text zoals hij is. Hij kent geen taal. Een URL die de redacteur typte gaat
+  in de `*Content`-klasse door `App\Service\Routing\TypedLink::href()`, zodat
+  een knop op `/en/` naar de Engelse versie van de pagina wijst.
 - De editor staat op `admin/_localized_fields.php`: één taal op het scherm,
   verplicht alleen in de standaardtaal. Het endpoint controleert
   `language_code` tegen `SiteLanguages::isActive()`, valideert met

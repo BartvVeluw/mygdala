@@ -34,13 +34,14 @@ adminpaneel is.
   gewoon aan, en dat is de standaard.
 - **Personalisatie**: de klant ontwerpt tekst/afbeeldingen op een product vóór
   het bestellen.
-- **Meertalig**: de website is NL + EN, altijd allebei, en een bezoeker heeft
-  overal een `NL | EN`-wissel. Daarnaast twee voorkeuren per beheerder, die
+- **Meertalig**: de talen van de website zijn rijen in `site_languages`,
+  met één standaardtaal; de module *Meertaligheid* beslist of de andere talen
+  gepubliceerd worden. Elke taal heeft eigen URL's (`/en/…`) en de server
+  drukt per antwoord één taal af. Daarnaast twee voorkeuren per beheerder, die
   niets met elkaar of met de bezoeker te maken hebben: in welke taal het CMS
-  aan hem wordt getóónd, en welke taalversie van de inhoud hij bewérkt. De
-  frontend wisselt in de browser via `data-nl`/`data-en`-attributen; een lege
-  vertaling betekent voor de bezoeker "gelijk aan de standaardtaal" en voor de
-  redacteur een leeg veld (`MULTILINGUAL.md`).
+  aan hem wordt getóónd, en welke taalversie van de inhoud hij bewérkt. Een
+  lege vertaling betekent voor de bezoeker "gelijk aan de standaardtaal" en
+  voor de redacteur een leeg veld (`MULTILINGUAL.md`).
 - **Hosting is de belangrijkste beperking**: Vimexx gedeelde hosting, PHP +
   MySQL, geen Node.js. De projectroot is de siteroot, dus alles wat niet
   publiek mag zijn staat buiten de webroot of wordt door `.htaccess` geblokt.
@@ -111,7 +112,7 @@ welke Core, staat in `MODULES.md`; dat document gaat over de grenzen zelf.
 | **Admin-UI-bouwstenen** | Uitleg bij velden, de help-knop in de schil, de infobalk, en zoekveld, select, checkbox, switch, bestandskiezer en knoppen in de CMS-stijl | `admin/_admin_ui.php`, `admin/assets/admin-ui.js`, sectie *ADMIN UI PRIMITIVES* in `admin/assets/admin.css` — zie `ADMIN-UI.md` |
 | **Auth/rechten** | Adminlogin, sessie, permissies, CSRF | `AdminAuth`, `AdminPermissions`, `AdminUserService`, `Csrf`, `admin/login.php`, `admin/users.php` |
 | **Instellingen/navigatie** | Site-instellingen, menu, footer, de headerknoppen, de slotregel, social profielen, linkresolutie | `SiteSettings`, `NavigationService`, `NavigationPresentation`, `FooterService`, `FooterRepository`, `FooterSocialLinkRepository`, `SocialProfiles`, `LinkResolver`, `RouteRegistry`, `admin/settings.php`, `admin/navigation.php`, `admin/footer.php` (één scherm voor de hele footer; `admin/header-footer.php` verwijst ernaar door) |
-| **Meertaligheid** | De drie onafhankelijke taalstaten — CMS-taal, bewerktaal, bezoekerstaal — de terugvalregel, de taalvelden in elke editor en automatisch vertalen | `Service\Language\*` (waaronder `SiteLanguages`), `SiteLanguageRepository`, `Service\Translation\*`, `admin/_language_fields.php`, `admin/_header.php`, `admin/account.php` — zie `MULTILINGUAL.md` |
+| **Meertaligheid** | De drie onafhankelijke taalstaten — CMS-taal, bewerktaal, bezoekerstaal — de terugvalregel, de taalvelden in elke editor en automatisch vertalen | `Service\Language\*` (waaronder `SiteLanguages`), `SiteLanguageRepository`, `Service\Routing\*`, `Service\Translation\*`, `Module\MultilingualModule`, `admin/_localized_fields.php`, `admin/_header.php`, `admin/account.php`, het tabblad *Talen* in `admin/settings.php` — zie `MULTILINGUAL.md` |
 | **Vormgeving/branding** | Kleuren, lettertypecombinatie, knopvorm; logo, tweede logo, favicon, deel-afbeelding | `Service\Theme\*`, `Branding`, `partials/head-branding.php`, `admin/theme.php` |
 | **Dashboard-thema** | Hoe het adminpaneel er voor de redactie uitziet: vier gesloten skins over één stylesheet en één set schermen | `Service\AdminTheme`, `AdminSettingRepository`, `admin/assets/admin.css`, de kaart *Dashboard uiterlijk* op `admin/settings.php` |
 | **Mediabibliotheek** | Herbruikbaar publiek sitebeeld: identiteit, alt-tekst, hergebruik, gebruiksoverzicht, veilig verwijderen | `Service\Media\*`, `MediaRepository`, `admin/media.php`, `admin/_media_picker.php` — zie `MEDIA.md` |

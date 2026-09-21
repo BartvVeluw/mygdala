@@ -193,6 +193,10 @@
     }
 
     function renderProduct(product) {
+      // The name in the page's language (the API answers in it, one value
+      // per field), also the alt text of a picture that has none.
+      var titleText = product.name || "";
+
       // document.title is deliberately NOT touched here. product.php renders
       // the product's real <title> server-side, in the language of the page
       // (App\Service\ProductSeo — which honours the SEO title the owner can
@@ -208,7 +212,7 @@
       // "Product"; rewriting it now would only put the same words back.
 
       var nameEl = document.querySelector("[data-product-name]");
-      if (nameEl) nameEl.textContent = product.name || "";
+      if (nameEl) nameEl.textContent = titleText;
 
       var priceEl = document.querySelector("[data-product-price]");
       if (priceEl) priceEl.innerHTML = S.formatPrice(product.price);

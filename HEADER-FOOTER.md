@@ -136,7 +136,8 @@ knop schuift nooit tussen twee menulinks door.
 
 - **Geen knoppen**: geen `.header-buttons` in de markup.
 - **Eén knop**: dezelfde markup als de oude ene headerknop,
-  `<a href="…" class="btn btn--sm" data-nl="…" data-en="…">`, op dezelfde plek.
+  `<a href="…" class="btn btn--sm">`, op dezelfde plek, met de tekst in de
+  taal van de pagina.
 - **Meerdere knoppen**: naast elkaar in hun eigen volgorde. Een lange tekst
   breekt binnen zijn eigen knop af (maximaal 16rem breed) in plaats van de
   header breder dan het scherm te duwen.
@@ -389,7 +390,7 @@ zegt *Niet op de website*.
 Alleen zichtbare rijen die door de controle komen, in `sort_order`. Zonder
 zulke rijen rendert de footer géén rij en géén kop. Elke link opent in een
 nieuw tabblad met `rel="noopener noreferrer me"`, draagt een eigen
-`aria-label` (tweetalig, via `data-nl-aria`/`data-en-aria`), en de `<svg>`
+`aria-label` in de taal van de pagina, en de `<svg>`
 staat op `aria-hidden`. `PageSeo` claimt dezelfde profielen als `sameAs`, elk
 adres één keer.
 
@@ -511,10 +512,10 @@ dat werd voorgelezen en met een huidige pagina die soms naar zichzelf linkte.
 | De markup, de plek op de pagina, de vormgeving, het woord *Home*, welke niveaus een route heeft | Óf een pagina zijn kruimelpad toont |
 
 De **naam** in het kruimelpad is de titel van de pagina zelf, per render
-gelezen, in beide talen. Er wordt niets gekopieerd: hernoem je een pagina, dan
+gelezen, in de taal van de pagina. Er wordt niets gekopieerd: hernoem je een pagina, dan
 verandert het kruimelpad mee, en vertaal je hem, dan vertaalt het kruimelpad
 mee. De titel staat per websitetaal in `page_translations` en wordt gelezen
-via `App\Service\PageLocalization::bilingual()`, de enige plek die de opslag
+via `App\Service\PageLocalization::value()`, de enige plek die de opslag
 en de terugval kent (`docs/multilingual/ARCHITECTURE.md`). Een lege vertaling
 betekent "hetzelfde als de standaardtaal", nooit een lege naam.
 

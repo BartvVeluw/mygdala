@@ -143,6 +143,16 @@ krijgt via `20260914170000_pin_the_portfolio_module_where_it_is_in_use` een
 opgeslagen *aan* (`Tests\Install\PortfolioModulePinTest`), zodat een deploy
 niemands portfolio uit de lucht haalt.
 
+**Meertaligheid** brengt geen tabellen en geen inhoud mee: het talenregister
+(`site_languages`, met `nl` als standaard en `en`) en de vertaaltabellen
+bestaan op elke installatie. De module beslist alleen of de andere talen dan
+de standaardtaal gepubliceerd worden, en staat op een verse installatie uit:
+één taal, geen `/en/`-adressen, geen taalkeuze. Een bestaande installatie, en
+een verse waarvan de wizard al klaar was, krijgt via
+`20260921100000_pin_the_multilingual_module_where_it_is_in_use` een opgeslagen
+*aan* (`Tests\Install\MultilingualModulePinTest`), zodat een deploy geen
+enkele vertaling offline haalt.
+
 **De Shop-seed is uit de bootstrap zelf gehaald, niet door een latere migratie
 teruggedraaid.** Phinx draait een migratie nooit twee keer, dus elke database
 die hem al had, ook een verse van vóór deze wijziging, houdt haar Shop-pagina

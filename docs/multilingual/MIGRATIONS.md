@@ -229,6 +229,35 @@ portfolio-items (`/portfolio/<slug>` is een compatibiliteitsroute naar een
 CMS-pagina, die zijn adres per taal al heeft) en portfoliocategorieën (een
 filterwaarde, nooit een URL).
 
+## Multilingual 2.0: de module Meertaligheid (fase 7)
+
+Eén migratie, alleen data, geen schema: `20260921100000`.
+
+De module `multilingual` beslist sinds fase 7 of een site méér dan zijn
+standaardtaal publiceert, en staat op een nieuwe installatie **uit**. Een
+bestaande site heeft altijd Nederlands en Engels gepubliceerd en heeft nooit
+iets over die module kunnen zeggen: zonder opgeslagen voorkeur zou elke
+Engelse pagina verdwijnen zodra de code gedeployd is. De migratie schrijft
+daarom `module_multilingual_enabled = 1` in `module_settings`, met
+`INSERT IGNORE`, precies zoals de Portfolio-pin (`20260914170000`):
+
+| Installatie | Wat de migratie doet |
+|---|---|
+| bestaand (legacy volgens `InstallState`) | module **aan** |
+| vers, wizard al afgerond | module **aan**: een draaiende site, die al twee talen publiceerde |
+| vers, nu vanaf nul opgebouwd | niets: de eigen standaard van de module geldt (uit), en de wizard biedt hem aan |
+| er staat al een voorkeur | niets: een bestaande rij blijft staan |
+
+Of een database woorden in een andere taal heeft, telt bewust niet mee: de
+seedmigraties van elke verse installatie schrijven zelf Engelse woorden.
+
+**Er verandert niets aan de talen zelf**: hun rijen, hun eigen aan/uit en elke
+vertaling blijven zoals ze zijn. De omgeving (`MODULE_MULTILINGUAL_ENABLED`)
+wint nog steeds, en de eigenaar kan de voorkeur wijzigen onder
+*Site-instellingen → Talen*. `down()` doet niets: de rij weghalen zou elke
+andere taal weer offline halen. `Tests\Install\MultilingualModulePinTest`
+bewijst de drie paden (vanaf nul, vers en draaiend, legacy).
+
 ## Wat hiervóór fout was
 
 De eerste versie had laag 2 niet. "Welke taal bewerk ik" werd afgeleid uit de
@@ -372,3 +401,4 @@ van deze test.
 | `db/migrations/20260917120000_create_the_site_language_registry.php` | maakt `site_languages`, zet de standaardtaal erin en verwijdert de twee oude instellingenrijen |
 | `db/migrations/20260920100000_give_every_page_a_slug_per_language.php` | voegt `page_translations.slug` toe en geeft elke pagina haar adres per taal |
 | `db/migrations/20260920110000_give_module_entities_a_slug_per_language.php` | hetzelfde voor blogberichten, blogcategorieën, blogtags en collecties |
+| `db/migrations/20260921100000_pin_the_multilingual_module_where_it_is_in_use.php` | zet de module Meertaligheid aan op elke installatie die al meer dan één taal publiceerde |

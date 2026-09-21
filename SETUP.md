@@ -124,10 +124,12 @@ maakt (`THEMING.md`).
 
 ### 4. Onderdelen
 
-Eén vinkje per first-party module — vandaag Shop, Personalisatie, Blog en
-Portfolio. Een vinkje staat zoals de installatie het nu wil
-(`ModuleConfig::wants()`), dus op een verse installatie staan de Blog en
-Portfolio uit. Zie [Modules](#modules-vanuit-het-cms) hieronder voor wat er
+Eén vinkje per first-party module — vandaag Shop, Personalisatie, Blog,
+Portfolio en Meertaligheid. Een vinkje staat zoals de installatie het nu wil
+(`ModuleConfig::wants()`), dus op een verse installatie staan de Blog,
+Portfolio en Meertaligheid uit. Zonder Meertaligheid publiceert de site alleen
+zijn standaardtaal; talen toevoegen en aanzetten gaat daarna onder
+*Site-instellingen → Talen* (`docs/multilingual/WEBSITE-LANGUAGES.md`). Zie [Modules](#modules-vanuit-het-cms) hieronder voor wat er
 opgeslagen wordt en waarom `.env` er nog steeds bovenop gaat.
 
 Personalisatie hangt van de Shop af, en dat wordt hier **gemeld in plaats van
@@ -211,7 +213,8 @@ De ketting staat op één plek, `App\Module\ModuleConfig`:
 ```text
 1. MODULE_<KEY>_ENABLED in de omgeving, als hij gezet en niet leeg is
 2. de voorkeur die in het CMS is opgeslagen (module_settings)
-3. de eigen standaard van de module: aan, behalve voor de Blog en Portfolio
+3. de eigen standaard van de module: aan, behalve voor de Blog, Portfolio en
+   Meertaligheid
 ```
 
 **De omgeving wint dus nog steeds.** Een hostingaccount dat zijn modules in

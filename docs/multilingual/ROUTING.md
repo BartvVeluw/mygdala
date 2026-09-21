@@ -43,6 +43,14 @@ een `"/en/" . $slug`.
 URL heeft geen sluitende slash; `/over-ons/` stuurt permanent door naar
 `/over-ons`.
 
+**Behalve onder de prefix van een taal die niet gepubliceerd is** (uitgezet,
+of elke taal behalve de standaard zolang Meertaligheid uit staat). Die prefix
+blijft gereserveerd (`ReservedPaths`), dus daar kan geen pagina staan, en
+`/de/`, `/de` en `/de/…` antwoorden meteen 404, zonder redirect. Een
+permanente `/de/` → `/de` zou de browser onthouden, en zodra de taal weer
+gepubliceerd is stuurt `/de` terug naar `/de/`: een lus voor iedere bezoeker
+die het eerste antwoord zag (fase 7, gevonden met het browserharnas).
+
 ---
 
 ## 2. Route bestaat ≠ veld valt terug
@@ -77,8 +85,8 @@ In code is het verschil zichtbaar:
 | `EntityTranslations::slug($id, $lang)` | idem, voor modules | **nee** |
 | `EntityTranslations::value($id, $veld, $lang)` | idem | ja |
 
-`EntityTranslations` weigert het adresveld aan `value()`, `name()` en
-`bilingual()` te geven. Dat is afgedwongen en niet alleen opgeschreven: de
+`EntityTranslations` weigert het adresveld aan `value()` en `name()` te
+geven. Dat is afgedwongen en niet alleen opgeschreven: de
 fout is onzichtbaar op een site met één taal.
 
 ---
@@ -527,24 +535,63 @@ maar op één plek gerenderd wordt en alleen uit verklaarde versies.
 
 ---
 
-## 11. Wat fase 7 nog opruimt
+## 11. Wat fase 7 afmaakte
 
-De `data-nl`/`data-en`-attributen staan nog in de opmaak en worden nog
-gevuld, maar **er handelt niets meer op**: de wisselaar is een rij links
-geworden, en `assets/js/core.js` bindt alleen aan `.lang-switch button`. De
-V1-paren in `SeoMetadata`, de bilinguale adapters en de JSON-helften gaan
-samen met die attributen weg in fase 7.
+Sinds Multilingual 2.0 fase 7 is de server de enige die een taal kiest: de
+browser krijgt één taal per antwoord, er staan geen `data-nl`/`data-en` meer
+in de opmaak en `assets/js/core.js` kent geen taal
+([`WEBSITE-LANGUAGES.md`](WEBSITE-LANGUAGES.md)). Daarbij gingen ook de links
+mee die de taal nog niet volgden:
 
-In die vaste V1-teksten staan nog links die de taal niet volgen, en die gaan
-met de teksten mee:
+- de verwijzing naar de verzend- en retourpagina en de privacyverklaring
+  wordt op content-key opgezocht (`LegalPages::publishedPageUrl()`), in de
+  taal van het verzoek, en alleen afgedrukt als de pagina gepubliceerd is;
+- de link naar het cookiebeleid in de cookiemelding is
+  `LocalizedUrl::path('/cookiebeleid.php')`, ook onder een genest pad.
 
-- `/verzenden-retourneren`, een Nederlandse paginaslug, in de inleiding van
-  `herroeping.php` en in de hint op `bestelling-status.php`;
-- `cookiebeleid.php`, een relatieve link, in de tekst van de cookiemelding
-  (`CookieConsentConfig`). Onder `/en/` blijft hij toevallig Engels, maar onder
-  een genest pad als `/blog/categorie/hout` wijst hij naar een adres dat niet
-  bestaat. De link in het voorkeurenvenster is wél goed
-  (`LocalizedUrl::path('/cookiebeleid.php')`).
+### Door redacteuren getypte URL's
+
+Een knop, kaart of "bekijk alles" in een blok bewaart een adres zoals de
+redacteur het typte: `/contact`, `/shop.php`, `/over-ons#team`.
+`App\Service\Routing\TypedLink::href()` leest dat per render in de taal van
+het verzoek, volgens dezelfde regels als een menulink (§9), en herschrijft
+alleen wat hij precies kan plaatsen:
+
+| Getypt | Onder `/en/` |
+|---|---|
+| `https://…`, `//…`, `mailto:`, `tel:` | letterlijk |
+| `#anker`, `?query` | letterlijk |
+| `/en/…` (noemt al een taal) | letterlijk |
+| `/` | `/en/` (query en anker gaan mee) |
+| `/<slug>` van een gepubliceerde standaardtaalpagina | die pagina in het Engels, of zijn standaardadres als hij geen Engelse versie heeft |
+| het adres van een geregistreerde route (`/shop.php`, `/cookiebeleid.php`) | die route in het Engels |
+| al het andere (`/iets/onbekends`) | letterlijk |
+
+Geen opslag en geen migratie: wat de redacteur typte blijft staan, en een
+latere slugwijziging of nieuwe vertaling volgt vanzelf. Nooit een naïeve
+`/en` . `$pad`. De acht velden (Openingssectie, Oproep, Contactkaart,
+Detailsectie, Galerij ×2, Tekst met afbeelding, Kaarten-carrousel) lopen er
+in hun inhoudsklasse doorheen; `Tests\Service\TypedLinkTest` pint beide
+helften.
+
+### JSON-verzoeken van een pagina
+
+De scripts van een pagina vragen hun data aan `/api/*.php`, dat geen
+taalprefix heeft. Ze sturen de taal van hun pagina mee als `?lang=`
+(`cart.js`: `apiUrl()`), en `App\Service\Routing\ApiLanguage` neemt die alleen
+over als het een gepubliceerde taal is, anders de standaardtaal. Het kiest
+woorden, nooit een prijs of een identiteit. De checkout stuurt zijn taal in
+de body (`language`), met dezelfde regel.
+
+### Met de module Meertaligheid uit
+
+Dan publiceert de site alleen zijn standaardtaal
+(`SiteLanguages::active()`, [`WEBSITE-LANGUAGES.md`](WEBSITE-LANGUAGES.md)).
+Voor de routing betekent dat: elke URL zonder prefix is de standaardtaal,
+`/en/…` antwoordt 404 zonder redirect (zie *De taalhome houdt zijn slash*),
+er is geen taalkeuze, geen hreflang en geen
+`x-default`, de sitemap is eentalig en de siteroot onderhandelt niet. Zet de
+module weer aan en dezelfde adressen werken weer.
 
 ---
 
@@ -563,8 +610,11 @@ De `xhtml`-naamruimte wordt alleen gedeclareerd wanneer er iets gebruikmaakt
 van alternates, zodat de sitemap van een eentalige site byte-voor-byte is wat
 hij vóór fase 6 was.
 
-Een **storefront, een blogindex of een product** bestaat in elke actieve taal:
-dat zijn vaste paden of id-routes, er is geen adres dat kan ontbreken. Een
+Een **storefront, een blogindex, een product, de personalisatiecatalogus of
+een oude projectpagina** bestaat in elke actieve taal: dat zijn vaste paden,
+id-routes of één neutrale slug, er is geen adres dat kan ontbreken. Sinds
+fase 7 verklaren ook de catalogus, de projectpagina en de blogindex hun
+versies, zodat hun `<head>` dezelfde alternates noemt als de sitemap. Een
 **post, categorie, pagina of collectie** staat er alleen in voor de talen
 waarin hij een adres heeft.
 
@@ -579,7 +629,8 @@ valt een klant op `/en/shop.php` bij de eerste klik terug in het Nederlands.
 
 PHP stempelt hem op `<html data-url-prefix>`: `""` voor de standaardtaal,
 `/en` voor elke andere. `cart.js` leest hem één keer en biedt één
-`localeUrl()`-helper aan, ook aan `shop.js`.
+`localeUrl()`-helper aan, ook aan `shop.js`, naast `apiUrl()` voor de
+JSON-verzoeken (§11).
 
 Hij wordt **nooit uit het huidige pad afgeleid** — een eerste segment van twee
 letters kan net zo goed een paginaslug zijn — en een waarde die geen kale

@@ -165,10 +165,13 @@ final class WebsiteLanguageAdminHttpTest extends TestCase
             [['code' => 'de', 'name' => '', 'native_name' => 'Deutsch'], 'language.error_name'],
             [['code' => 'de', 'name' => 'German', 'native_name' => '<b>Deutsch</b>'], 'language.error_name'],
             [['code' => 'de', 'name' => str_repeat('x', 65), 'native_name' => 'Deutsch'], 'language.error_name'],
+            // Latin-1 bytes, not UTF-8: refused here, never sent to MySQL
+            // (which refuses it with an error of its own).
+            [['code' => 'fr', 'name' => 'French', 'native_name' => "Fran\xE7ais"], 'language.error_name'],
         ] as [$fields, $expected]) {
             $response = $this->post($session, 'create-website-language.php', $fields, false);
-            self::assertSame('/admin/settings.php#tab-talen', $response['location'], json_encode($fields));
-            self::assertSame([\App\Service\Language\AdminTranslator::trans($expected)], $this->accounts->read($session, 'admin_language_errors'), json_encode($fields));
+            self::assertSame('/admin/settings.php#tab-talen', $response['location'], (string) json_encode($fields, JSON_INVALID_UTF8_SUBSTITUTE));
+            self::assertSame([\App\Service\Language\AdminTranslator::trans($expected)], $this->accounts->read($session, 'admin_language_errors'), (string) json_encode($fields, JSON_INVALID_UTF8_SUBSTITUTE));
         }
 
         self::assertSame($before, $this->rows(), 'nothing was written');

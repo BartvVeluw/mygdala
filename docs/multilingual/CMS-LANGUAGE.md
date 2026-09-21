@@ -37,7 +37,7 @@ admin_t('pages.delete_confirm')     // de kale string, voor in een array
 ```
 
 `admin/_translate.php`, ingesloten door `admin/_header.php` en door
-`admin/_language_fields.php`. Een scherm dat een sleutel nodig heeft vóór de
+`admin/_localized_fields.php`. Een scherm dat een sleutel nodig heeft vóór de
 schil — in zijn `<title>` — sluit het bestand zelf in; het is
 `require_once`-veilig.
 

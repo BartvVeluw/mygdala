@@ -5,6 +5,23 @@ website-inhoud; de CMS-interface wordt nooit machinaal vertaald. Van de
 bewerktaal ([`EDITING-LANGUAGE.md`](EDITING-LANGUAGE.md)) is hier alleen nodig
 dat de vertaalknop de taal vult die je op dat moment bewerkt.
 
+## Stand sinds Multilingual 2.0 fase 7
+
+**Er is op dit moment geen vertaalknop.** De knop hoorde bij de V1-panelen
+(`admin/_language_fields.php`), die een verborgen Nederlandse en Engelse kopie
+van elk veld meestuurden: de woorden om uit te vertalen stonden al in het
+formulier. Sinds de editors per taal werken (fases 2–5) staat er maar één taal
+in een formulier, en fase 7 heeft de panelen met hun knop verwijderd.
+
+De lagen hieronder staan klaar voor een nieuwe aanroeper: `TranslationService`
+en `api/admin/translate-fields.php` controleren hun talen tegen het
+websiteregister (`SiteLanguages::exists()`). Twee dingen moet die aanroeper
+nog oplossen, en die staan in de backlog van
+[`ARCHITECTURE.md`](ARCHITECTURE.md): de bróntekst in de standaardtaal ophalen
+(hij staat niet meer in het formulier), en de vertaalstatus voor een taal die
+het CMS zelf niet spreekt (`TranslationService` legt die nu alleen vast voor
+een taal van `LanguageRegistry`).
+
 ## De lagen
 
 ```text
@@ -60,8 +77,9 @@ is de test die dat vasthoudt.
 ## Vertaalstatus
 
 Vier toestanden, en de tabel `content_translation_state` bewaart **geen
-vertaalde tekst**. De vertaling blijft staan waar hij altijd stond: in de
-`_en`-kolom van de rij zelf.
+vertaalde tekst**. De vertaling staat waar elke vertaling staat: in de
+vertaaltabel van het domein (`page_translations`, `block_translations`, de
+getypeerde `*_translations`).
 
 | Toestand | Wat het betekent |
 |---|---|
@@ -85,7 +103,7 @@ translation_hash   wat de provider terúggaf                 →  met de hand aa
 
 Die tweede is waarom "handmatige bewerkingen winnen" werkt **zonder dat één
 van de ±77 schrijf-endpoints iets van vertalen hoeft te weten**: staat er in de
-kolom niet meer de tekst waar die hash bij hoort, dan heeft iemand hem
+opslag niet meer de tekst waar die hash bij hoort, dan heeft iemand hem
 herschreven, en automatisch vertalen blijft er vanaf. De tekst zelf meldt de
 bewerking.
 
@@ -144,4 +162,4 @@ en twee subklassen die de ene HTTP-methode vervangen dekken elke tak.
 | Vertaaldienst | `src/Service/Translation/TranslationService.php` |
 | Vertaalstatus | `src/Service/Translation/TranslationState.php`, `src/Repository/TranslationStateRepository.php`, tabel `content_translation_state` |
 | Vertaalendpoint | `api/admin/translate-fields.php` |
-| Vertaalknop in een editor | `admin_lang_translate_bar()` in `admin/_language_fields.php`, `admin/assets/admin-language-translate.js` |
+| Vertaalknop in een editor | geen, sinds fase 7 (zie *Stand sinds Multilingual 2.0 fase 7*) |

@@ -87,10 +87,18 @@ if ($listing === null) {
      * version: the switch links only the languages it has an address in and
      * shows the rest as unavailable, and hreflang names exactly those.
      *
-     * The index needs no declaration: /blog is one fixed route that exists in
-     * every language, so the switch's assumed paths already are its versions.
+     * The index is one fixed route that exists in every published language,
+     * so each language's index is a version of it. It is declared all the
+     * same: hreflang names only declared versions, and the sitemap
+     * (App\Module\BlogModule) lists the index with these alternates.
      */
-    if ($listing['mode'] === 'category') {
+    if ($listing['mode'] === 'index') {
+        $indexVersions = [];
+        foreach (\App\Service\Language\SiteLanguages::activeCodes() as $indexLanguage) {
+            $indexVersions[$indexLanguage] = BlogUrls::indexPath((int) $listing['page'], $indexLanguage);
+        }
+        \App\Service\Routing\LanguageAlternates::declareVersions($indexVersions);
+    } elseif ($listing['mode'] === 'category') {
         \App\Service\Routing\LanguageAlternates::declareVersions(
             BlogContent::categoryAlternates((array) $listing['category'], (int) $listing['page'])
         );

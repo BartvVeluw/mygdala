@@ -48,7 +48,7 @@ werkt identiek met de Shop aan en uit (`MODULES.md`).
 | Veldtypes (gesloten register) | `src/Service/Forms/FieldTypes/`, plus `FormFieldTypes` — dé registratielijst |
 | Namen van veldtypes | `formfieldtype.<key>.label` en `.description` in `src/Service/Language/messages/` |
 | Wat een typewissel kost | `FormFieldTypeChange` |
-| Leesmodel | `FormDefinition`, `FormField`, `FormFieldOptions`, `FormOption`, `FormText` |
+| Leesmodel | `FormDefinition`, `FormField`, `FormFieldOptions`, `FormOption` |
 | Woorden per taal | `FormLocalization` (de drie vertaaltabellen), `src/Repository/FormFieldOptionRepository.php` |
 | Opzoeken + cache | `FormCatalog` |
 | SQL | `src/Repository/FormRepository.php`, `FormSubmissionRepository.php`, `FormBlockRepository.php`, `FormFieldOptionRepository.php` |
@@ -247,15 +247,15 @@ De woorden staan per taal in `form_translations`,
 `FormLocalization` haalt ze op. De terugval — gevraagde taal, dan de
 standaardtaal, dan leeg — staat op **één** plek,
 `App\Service\Language\LanguageFallback`, zodat geen template, validator of
-e-mailbouwer hem hoeft te onthouden. Alleen zinnen die het CMS zelf bezit
-(*Versturen*, *Bedankt…*) blijven een vast paar in `FormText::of()`.
+e-mailbouwer hem hoeft te onthouden. Zinnen die het CMS zelf bezit (de
+standaardknop *Versturen*, *Bedankt…*, de meldingen) zijn een codecatalogus
+per taalcode (`SiteText::pick()`), met terugval op de standaardtaal.
 
-Tot de frontend-flip (fase 7) schrijft de publieke markup nog steeds beide
-talen in `data-nl`/`data-en` (en `data-nl-placeholder`/`data-en-placeholder`),
-en wisselt `assets/js/core.js` ze in de browser. Dat paar komt nu uit de nieuwe
-opslag, via `LanguageFallback::bilingual()`. Er wordt niets server-side
-vertaald, en een label is altijd platte tekst: `core.js` zet het met
-`textContent`, nooit als HTML.
+Sinds Multilingual 2.0 fase 7 drukt de publieke markup **één** taal af: die
+van de URL. Geen `data-nl`/`data-en` meer, geen wissel in de browser. Een
+label en een placeholder zijn altijd platte tekst en worden ge-escaped. Een
+foutmelding na een geweigerde inzending komt terug in de taal waarin het
+formulier werd verstuurd.
 
 De **waarde** van een keuzeoptie wisselt niet mee: die is in elke taal
 dezelfde, zodat wat de bezoeker verstuurt niet afhangt van de taal die

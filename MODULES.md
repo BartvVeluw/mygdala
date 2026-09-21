@@ -26,7 +26,7 @@ packages, geen microservices.
 | Configuratie | `src/Module/ModuleConfig.php` — dé volgorde: `MODULE_<KEY>_ENABLED` in `.env`, dan de opgeslagen voorkeur, dan aan |
 | Opgeslagen voorkeur | `src/Module/ModuleSettings.php` + tabel `module_settings` — wat de installatiewizard schrijft (`SETUP.md`) |
 | Guard | `src/Module/ModuleGuard.php` — het regeltje bovenaan een route of endpoint van een module |
-| Modules | `src/Module/ShopModule.php`, `src/Module/PersonalizationModule.php`, `src/Module/BlogModule.php`, `src/Module/PortfolioModule.php` |
+| Modules | `src/Module/ShopModule.php`, `src/Module/PersonalizationModule.php`, `src/Module/BlogModule.php`, `src/Module/PortfolioModule.php`, `src/Module/MultilingualModule.php` |
 
 Het register:
 
@@ -36,6 +36,7 @@ private const MAP = [
     'personalization' => PersonalizationModule::class,
     'blog' => BlogModule::class,
     'portfolio' => PortfolioModule::class,
+    'multilingual' => MultilingualModule::class,
 ];
 ```
 
@@ -54,6 +55,7 @@ MODULE_SHOP_ENABLED=false
 MODULE_PERSONALIZATION_ENABLED=false
 MODULE_BLOG_ENABLED=true
 MODULE_PORTFOLIO_ENABLED=true
+MODULE_MULTILINGUAL_ENABLED=true
 ```
 
 **De standaard is die van de module zelf, en voor de Shop en Personalisatie is
@@ -80,6 +82,15 @@ elke bestaande installatie, en voor een verse installatie die al
 portfolio-inhoud heeft, de voorkeur *aan* op. Hetzelfde patroon als de andere
 `pin_*`-migraties: een nieuwe standaard geldt voor een nieuwe site, nooit met
 terugwerkende kracht.
+
+**Meertaligheid** start op een nieuwe installatie ook uit: een nieuwe site
+publiceert zijn standaardtaal tot iemand om meer vraagt. Elke bestaande
+installatie publiceerde Nederlands en Engels, dus
+`20260921100000_pin_the_multilingual_module_where_it_is_in_use` slaat de
+voorkeur *aan* op voor elke installatie van vóór de installatiemarker en voor
+een verse installatie waarvan de wizard al klaar was. Anders dan bij de andere
+modules is er een scherm dat hem na de installatie aan- en uitzet:
+*Site-instellingen → Talen* (`MULTILINGUAL.md`).
 
 Waarom de omgeving vóóraan staat: dit is deploy-configuratie, net als `DB_*`.
 Het is één regel in het bestand dat de hosting toch al heeft, het werkt op
@@ -144,6 +155,7 @@ hij gebruikt.
 | Afhankelijkheden | `dependencies()` | `App\Module\ModuleRegistry` |
 | Eén zin over zichzelf | `description()` | `admin/setup.php` (de installatiewizard) |
 | Standaard aan of uit | `enabledByDefault()` | `App\Module\ModuleConfig` (stap 3 van de ketting) |
+| Andere talen dan de standaardtaal publiceren | `publishesTranslations()` | `App\Service\Language\SiteLanguages::active()`, via `ModuleRegistry::publishesTranslations()` |
 
 Drie van die lijsten komen ergens in het midden van een bestaande, bewust
 geordende lijst terecht (de zijbalk, het permissieformulier, de routekiezer).
@@ -597,6 +609,17 @@ De bestanden staan nog waar ze stonden (`src/Service/Portfolio*.php`,
 `src/Repository/Portfolio*Repository.php`): verhuisd is het eigenaarschap van
 de koppelpunten, geen namespace.
 
+### Meertaligheid (module `multilingual`)
+
+Eén bijdrage: `publishesTranslations()`. Staat de module aan, dan publiceert
+de website elke actieve taal van zijn talenregister; staat hij uit, alleen de
+standaardtaal. `SiteLanguages::active()` is de enige plek die dat vraagt, op
+capaciteit en niet op sleutel, en elke route, taalkeuze, editor en elk
+endpoint vraagt `SiteLanguages` — dus niemand in Core noemt de module. Het
+talenregister zelf (welke talen er zijn, welke de standaard is) is Core en
+blijft beheerd met de module aan of uit. Uitzetten raakt geen taal en geen
+vertaling (`MULTILINGUAL.md`, `docs/multilingual/WEBSITE-LANGUAGES.md`).
+
 ### Formulieren
 
 `Service\Forms\*` plus `FormRepository`, `FormSubmissionRepository`, de twee
@@ -659,7 +682,9 @@ Bewust, en niet gepland tenzij er een concrete aanleiding komt:
 - **Geen install/uninstall-UI.** Er is geen permanent "Modules
   beheren"-scherm. De installatiewizard vraagt het één keer bij het inrichten
   van een nieuwe site (`SETUP.md`); daarna is aan en uit een regel in `.env`,
-  of een rij in `module_settings` die iemand met de hand zet.
+  of een rij in `module_settings` die iemand met de hand zet. De enige
+  uitzondering is Meertaligheid, die *Site-instellingen → Talen* aan- en
+  uitzet, omdat dat scherm toch al over de talen van de site gaat.
 - **Geen plug-ins van derden**, geen marktplaats, geen runtime downloaden of
   laden van code.
 - **Geen packages per module**, geen aparte repositories, geen Composer-

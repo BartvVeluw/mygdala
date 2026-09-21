@@ -196,6 +196,29 @@ final class ShopScriptTextContractTest extends TestCase
         self::assertStringContainsString('refreshCartNames();', $cart);
     }
 
+    /**
+     * The product page takes its name from the API's one `name` key and
+     * declares it before anything reads it. Wave B removed the old
+     * `currentLangText(name, name_en)` line but left three readers of its
+     * variable, so every product page threw inside renderProduct() - swallowed
+     * by the fetch chain's catch - and showed "product not found". Found by
+     * the phase 7 browser harness; a PHP test never runs the script, so the
+     * declaration is pinned here.
+     */
+    public function testTheProductPageDeclaresTheNameItReadsFromTheApi(): void
+    {
+        $shop = self::withoutComments(self::read('assets/js/shop/shop.js'));
+        $render = self::functionBody($shop, 'renderProduct');
+
+        $declaration = strpos($render, 'var titleText = product.name || "";');
+        self::assertNotFalse($declaration, 'renderProduct() declares the name it shows');
+        preg_match_all('/\btitleText\b/', $render, $uses, PREG_OFFSET_CAPTURE);
+        foreach ($uses[0] as [, $offset]) {
+            self::assertGreaterThanOrEqual($declaration, $offset, 'titleText is read only after it is declared');
+        }
+        self::assertStringNotContainsString('currentLangText', $shop);
+    }
+
     public function testEveryShopApiCallSaysWhichLanguageThePageIsIn(): void
     {
         $shop = self::withoutComments(self::read('assets/js/shop/shop.js'));

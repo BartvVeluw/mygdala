@@ -30,13 +30,20 @@ modules aan staan" en "Vanuit een git worktree".
 | Navigatie-, footer-, formulier- of instellingentekst per taal (fase 4: een getypeerde `*_translations`-tabel, `LocalizedSiteSettings`, een optie of zijn label) | `fast` → `cms` |
 | Woorden van een module per taal (fase 5: `PortfolioLocalization`, `BlogLocalization`, `ShopLocalization`, `PersonalizationLocalization`, `OrderItemNameSnapshot`) | `fast` → de suite van de module |
 | Een gelokaliseerde **instelling** van een module (fase 5 golf E: `BlogLocalizedSettings` op de gedeelde `site_setting_translations`) | `fast` → de suite van de module |
+| Wat een publieke pagina, partial of script afdrukt (één taal per antwoord, een codecatalogus, een scriptcatalogus) | `fast` → `blocks` → `shop` |
+| Een publieke JSON-API of de winkelwagen | `fast` → `shop` → `personalization` |
+| Talenbeheer, de module Meertaligheid | `fast` → `modules` → `cms` |
+| Een door een redacteur getypte URL in een blok (`TypedLink`) | `fast` → `blocks` |
 
 ## De bestanden
 
 In `fast`:
 
-- `tests/Service/LanguageRegistryTest.php`
-- `tests/Service/LocalizedValueTest.php`
+- `tests/Service/LanguageRegistryTest.php` — de talen van het CMS zelf, en
+  dat ze niets meer beslissen over de talen van de website
+- `tests/Service/ShopScriptTextContractTest.php` — fase 7: elke zin die een
+  Shop-script toont staat in de catalogus, geen script kiest een taal, de
+  winkelwagen is taalneutraal en leest zijn oude vorm op één plek
 - `tests/Service/AdminLocaleTest.php`
 - `tests/Service/ThreeLanguageStatesTest.php`
 - `tests/Service/TranslationProviderTest.php`
@@ -44,19 +51,20 @@ In `fast`:
 - `tests/Service/LanguageCodeTest.php`
 - `tests/Service/SiteLanguagesTest.php`
 - `tests/Service/PageLocalizationTest.php` — de Pages-API van fase 2: terugval
-  per veld, de naam in het CMS, de NL/EN-uitvoeradapter en een derde taal
+  per veld, de naam in het CMS en een derde taal
 - `tests/Service/TranslatableFieldTest.php` — fase 3A: wat een veldsleutel mag
   zijn, trimmen en saneren, verplicht alleen in de standaardtaal
 - `tests/Service/BlockLocalizationTest.php` — de Blocks-API: terugval, `raw()`
-  zonder terugval, rich text gesaneerd bij het lezen, de naam in het CMS, de
-  NL/EN-adapter bij een NL-, EN- en Duitse standaardtaal, het gesloten register
+  zonder terugval, rich text gesaneerd bij het lezen, de naam in het CMS,
+  `text()`/`words()` in de taal van het verzoek bij een NL-, EN- en Duitse
+  standaardtaal, het gesloten register
 - `tests/Service/BlockLocalizedRenderingTest.php` — de drie omgezette blokken
-  door hun echte partials: eerste render in de standaardtaal, terugval, een
-  derde taal, `data-lang-html` alleen voor rich text, kwaadaardige markup
+  door hun echte partials: één taal per render, terugval, een derde taal, de
+  standaardtaal die beslist of iets bestaat, kwaadaardige markup
 - `tests/Service/RemainingBlocksRenderingTest.php` — fase 3B: de overige
   blokken door hun echte partials, met woorden op hun kindrijen; de
   Detailsectie-body bij een NL-, EN- en Duitse standaardtaal, een ontbrekende
-  vertaling, de sanitizer en `data-lang-html`; platte labels met HTML erin,
+  vertaling en de sanitizer; platte labels met HTML erin,
   alt-teksten met aanhalingstekens, de kop van de Openingssectie homepage en de
   quicknav
 
@@ -133,9 +141,13 @@ blijft, en dat geen van beide voorkeuren de bezoeker raakt.
 
 `MultilingualBoundaryTest` bewaakt de grenzen — de API-sleutel, de
 onafhankelijkheid van de drie taalstaten, dat het vertaalendpoint niets
-schrijft, dat de publieke taalwissel niet achter een instelling zit, dat
-`::enabled()` geen opgeslagen waarde leest, dat er geen `_nl`/`_en`-kolom
-verdwijnt en dat er geen hreflang binnensluipt. Sinds Multilingual 2.0 fase 1
+schrijft, dat de publieke taalwissel niet achter een instelling zit en dat er
+geen hreflang binnensluipt. Sinds fase 7 ook: dat geen publiek sjabloon of
+partial een taalpaar afdrukt, dat geen publiek script een taal wisselt, dat de
+V1-adapters (`ContentLanguages`, `LocalizedValue`, `bilingual()`,
+`_language_fields.php`) weg zijn en geen applicatiecode ze terugbrengt, en dat
+de taalkern een module alleen op capaciteit vraagt
+(`ModuleRegistry::publishesTranslations()`). Sinds Multilingual 2.0 fase 1
 ook: dat de taalkern en de CMS-taal elkaars opslag niet noemen, dat de
 taalkern geen taalcode of taalnaam in code noemt (commentaar telt niet mee),
 dat geen websitetaal via `AdminLocale` gevalideerd wordt (ook niet in de
@@ -151,7 +163,7 @@ op `block_translations` uitvoert en alleen `BlockLocalization` die repository
 gebruikt, dat een blok verwijderen zijn woorden in dezelfde transactie
 meeneemt, dat een pagina de woorden van al zijn blokken in één keer laadt, dat
 de drie omgezette blokken geen gedropte kolom meer lezen en zelf geen taal
-kiezen, dat alleen rich text `data-lang-html` krijgt, en dat hun editors één
+kiezen, dat (tot fase 7) alleen rich text `data-lang-html` kreeg, en dat hun editors één
 taal tonen en hun endpoints alleen die taal schrijven.
 
 `LanguageCodeTest` bewijst dat de coderegel een vorm is en geen lijst: alle
@@ -405,7 +417,7 @@ omdat deze schermen geen eigen HTTP-test hebben.
 `BlogLocalizationTest`, `ShopLocalizationTest`): hreflang wordt op één plek
 gerenderd en alleen uit verklaarde versies; een adres is per taal opgeslagen
 maar wordt **nooit** door een terugvallende lezer gelezen — `value()`,
-`name()` en `bilingual()` weigeren het — en alleen wat een URL heeft krijgt
+en `name()` weigeren het — en alleen wat een URL heeft krijgt
 een adres per taal (een collectie wel, een product niet).
 
 **Twee dingen die lokaal niet te bewijzen zijn** en op een staging horen:
@@ -414,3 +426,24 @@ identiek op de baseline, dus geen gedrag van deze fase) en het antwoord op een
 ontbrekend bestand onder `/admin/` of `/assets/`, dat onder Apache via
 `ErrorDocument` loopt en onder `php -S` op de dichtstbijzijnde `index.php`
 terugvalt.
+
+## Fase 7: één taal per antwoord, de module, talenbeheer
+
+| Test | Suite | Bewaakt |
+|---|---|---|
+| `MultilingualBoundaryTest` | `fast` | geen taalpaar in een publiek sjabloon, geen taalwissel in een publiek script, geen V1-adapter, één modulevraag op capaciteit |
+| `ShopScriptTextContractTest` | `fast`, `shop` | de Shop-catalogus tegen de scripts, geen taalkeuze in een script, de identiteit van een winkelwagenregel, de oude wagenvorm op één plek, `apiUrl()` bij elk API-verzoek |
+| `ShopApiLanguageTest` | `shop` | de product-API's en verzendzones in NL, EN, DE en een onbekende taal, over HTTP; de scriptcatalogus op elke Shop-pagina |
+| `OrderStatusLanguageSwitchTest` | `shop` | de naam van een bestelregel in de taal van de pagina, uit de eigen momentopname |
+| `BlockLocalizedRenderingTest`, `RemainingBlocksRenderingTest` | `fast` | elk blok in één taal, en de standaardtaal die beslist of het bestaat |
+| `TypedLinkTest` | `blocks` | een getypte URL: extern, anker, onbekend letterlijk; `/`, een pagina en een route in de taal van het verzoek; een derde taal |
+| `MultilingualModuleTest` | `modules` | de module op capaciteit, aan en uit, uit → aan → uit → aan zonder verlies |
+| `MultilingualModuleHttpTest` | `modules` | met de dispatcher ervoor: uit geen `/en/`, geen taalkeuze, geen hreflang, eentalige sitemap, geen onderhandeling; aan dezelfde Engelse pagina op hetzelfde adres |
+| `WebsiteLanguageAdminHttpTest` | `cms` | talenbeheer: toevoegen (start uit), weigeringen, standaard, verwijderen met en zonder woorden, volgorde, de modulevoorkeur, een omgevingspin, de vier guards |
+| `MultilingualModulePinTest` | `migration` | wie de pin krijgt: vanaf nul niet, een draaiende verse installatie en een oude installatie wel, een eigen keuze overleeft een herhaling |
+
+**Wat alleen in de browser te zien is** — de winkelwagen die een oude
+`localStorage`-regel omzet en na een taalwissel zijn namen opnieuw leest —
+is in fase 7 bewezen door `cart.js` in Node met een minimale nep-DOM uit te
+voeren tegen oude en nieuwe wagens, en in de browser-acceptatie; er is geen
+JavaScript-testrunner in dit project.

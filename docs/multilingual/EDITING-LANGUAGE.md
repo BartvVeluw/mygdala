@@ -2,10 +2,10 @@
 
 Deel van [`MULTILINGUAL.md`](../../MULTILINGUAL.md). Laag 2, welke taalversie
 van de website-inhoud een beheerder bewerkt: de schakelaar in de schil, de
-taalvelden in elke editor en wat een schrijf-endpoint met een vertaling mag.
-Wat een bezoeker bij een lege vertaling ziet, staat in
-[`WEBSITE-LANGUAGES.md`](WEBSITE-LANGUAGES.md); de vertaalknop in
-[`AUTOMATIC-TRANSLATION.md`](AUTOMATIC-TRANSLATION.md).
+velden per taal in elke editor en wat een schrijf-endpoint met een vertaling
+mag. Wat een bezoeker bij een lege vertaling ziet, staat in
+[`WEBSITE-LANGUAGES.md`](WEBSITE-LANGUAGES.md); de opslag per domein in
+[`ARCHITECTURE.md`](ARCHITECTURE.md).
 
 ## De taalwissel in het CMS
 
@@ -13,22 +13,26 @@ Eén schakelaar, in de schil, op élk adminscherm:
 
 ```text
 CONTENT BEWERKEN
-[ NL ] [ EN ]
+[ NL ] [ EN ] [ DE ]
 ```
 
 Hij staat in `admin/_header.php`, direct onder de sitenaam, en hij POST't naar
 `api/admin/update-content-language.php` met een CSRF-token zoals elke andere
-schrijfactie hier.
+schrijfactie hier. De keuze is per beheerder
+(`admin_users.content_editing_language`, `ContentEditingLanguage`).
 
-Sinds Multilingual 2.0 fase 2 toont hij de actieve talen van het talenregister
-(`ContentEditingLanguage::choices()`), de standaardtaal eerst en gemarkeerd
-met een stip en *standaardtaal* in de naam van de knop. Op een site met
-Nederlands en Engels ziet hij er hetzelfde uit als voorheen. Een derde taal is
-één rij in `site_languages`. Een scherm dat nog op de panelen hieronder staat,
-kan alleen NL/EN opslaan: kies je een andere taal, dan toont dat scherm de
-standaardtaal en zegt het dat. Daarna keert hij terug naar het scherm waar je was: welke
-taal een formulier toont wordt op de **server** beslist, dus de pagina moet
-opnieuw gerenderd worden — maar het is een taalwissel, geen navigatie.
+Hij toont de **gepubliceerde** talen van het talenregister
+(`ContentEditingLanguage::choices()`, uit `SiteLanguages::active()`), de
+standaardtaal eerst en gemarkeerd met een stip en *standaardtaal* in de naam
+van de knop. Een derde taal is één rij in `site_languages`. Staat de module
+Meertaligheid uit, of publiceert de site maar één taal, dan is er niets te
+kiezen en verschijnt de schakelaar niet: elke editor staat dan op de
+standaardtaal. De vertalingen van een uitgezette taal blijven bewaard.
+
+Na een wissel keert hij terug naar het scherm waar je was: welke taal een
+formulier toont wordt op de **server** beslist, dus de pagina wordt opnieuw
+gerenderd. Staan er onopgeslagen wijzigingen in een formulier, dan vraagt de
+opslagbalk eerst of je die wilt laten staan (`admin/assets/save-bar.js`).
 
 **Geen tweede taalkiezer.** Bewerkschermen tónen alleen in welke taal je zit:
 
@@ -37,18 +41,16 @@ Je bewerkt: English
 Leeg betekent nog niet vertaald. Bezoekers zien dan de tekst in het Nederlands.
 ```
 
-Passief, één keer per scherm. Er stond vroeger een tabbladenrij per formulier,
-en dat was precies de fout: de taalkeuze zat per scherm (dus opnieuw kiezen op
-elke pagina die je opende) en was vanuit de rest van het CMS onzichtbaar. Twee
-knoppen die het over dezelfde staat oneens kunnen zijn is erger dan één.
+Er stond vroeger een tabbladenrij per formulier, en dat was precies de fout:
+de taalkeuze zat per scherm en was vanuit de rest van het CMS onzichtbaar.
+Twee knoppen die het over dezelfde staat oneens kunnen zijn is erger dan één.
 
 ## Bewerken in één taal tegelijk
 
-Dit is waar de hele stap om begonnen is.
-
 Een bewerkscherm toont de velden van **één** taal: die van de schakelaar in de
-schil. Nooit twee kolommen, nooit een `(NL)`-achtervoegsel, nooit een tweede
-taalkiezer op het scherm zelf.
+schil, als de website die taal publiceert, anders de standaardtaal
+(`admin_localized_language()`). Nooit twee kolommen, nooit een
+`(NL)`-achtervoegsel.
 
 ```text
 Je bewerkt: English
@@ -59,167 +61,97 @@ Introtekst   [ ............... ]
 Knoptekst    [ ............... ]
 ```
 
-De indicator staat **één keer per scherm**; de vertaalknop staat één keer per
-**formulier**. Een detailsectie is zes kleine formulieren onder elkaar en elk
-daarvan heeft zijn eigen vertaalknop nodig, want vertalen leest de velden van
-het formulier waar de knop in staat. Zes keer "Je bewerkt: English" onder
-elkaar is ruis, en de schil zegt het toch al.
+Taalneutrale velden (adres, status, schakelaars, afbeeldingen) staan in elke
+taal op het scherm.
 
-### Hoe van taal wisselen niets weggooit
+### Niets verborgens wordt meegestuurd
 
-Dit is de belangrijkste eigenschap van het onderdeel. De schrijf-endpoints van
-dit project schrijven **elke kolom van hun formulier bij elke opslag** — dat is
-precies waarom een gedeeltelijke POST hier gevaarlijk is ([`PAGE-EDITOR.md`](../../PAGE-EDITOR.md)).
-Een veld dat gewoon uit de markup wordt weggelaten zou dus als leeg worden
-opgeslagen, en de vertaling zou weg zijn.
+Het formulier draagt alleen de velden van de taal op het scherm, plus één
+verborgen `language_code` (`admin_localized_input()`). Het endpoint controleert
+die code tegen het register en schrijft precies die taal. De woorden van elke
+andere taal blijven in de opslag staan, dus een taalwissel kan nooit een
+vertaling overschrijven met een verouderde kopie, en een site met vijf talen
+stuurt de velden van één taal, niet van vijf.
 
-Daarom staat het veld van de andere taal er nog steeds, met zijn opgeslagen
-waarde, en het wordt nog steeds meegestuurd — het draagt alleen `hidden`, wat
-het uit de weergave, uit de tabvolgorde én uit de toegankelijkheidsboom haalt.
-**Geen van de ±77 schrijf-endpoints hoefde te veranderen**, en geen redacteur
-kan een vertaling kwijtraken door van taal te wisselen.
+Tot Multilingual 2.0 fase 7 bestond hiernaast het V1-model: een verborgen
+Nederlands én Engels paneel per veld (`admin/_language_fields.php`), dat geen
+derde taal kon houden. Fase 7 heeft het verwijderd;
+`MultilingualBoundaryTest` houdt vast dat het niet terugkomt.
 
-Datzelfde verborgen paneel is ook waaróm automatisch vertalen werkt zonder
-extra verzoek: de woorden om *uit* te vertalen staan al in hetzelfde
-formulier.
+### Verplicht is alleen de standaardtaal
 
-`required` staat daarom alleen op de hoofdtaal **én alleen zolang de hoofdtaal
-de taal op het scherm is**. Een verplicht en leeg veld binnen een `hidden`
-element laat de browser weigeren te versturen zonder te kunnen aanwijzen wat
-er mis is. Dat wordt nu op de server beslist bij het renderen, niet achteraf
-door JavaScript weggehaald. De servervalidatie is ongewijzigd en blijft de
-echte grens.
+`required` staat alleen op een veld van de standaardtaal
+(`admin_localized_required()`). Een vertaling is per definitie optioneel,
+want elk veld valt terug op de standaardtaal, en een endpoint dat een
+vertaling eist maakt een scherm onopslaanbaar. De servervalidatie is de echte
+grens: `BlockLocalization::problems()` en de `problems()` van elke
+`*Localization`-klasse melden `missing` alleen voor de standaardtaal.
 
-Een editor schrijft dat attribuut dus **nooit met de hand** in een taalveld;
-hij vraagt het aan `admin_lang_required()`.
-`Tests\Service\MultilingualBoundaryTest::testNoLocalizedFieldSpellsRequiredByHand`
-loopt over elk scherm en valt op een letterlijke `required` naast een
-`_nl`/`_en`-naam.
+Een nieuw kindrij-item (een vraag, een kaart, een stap) wordt in de
+standaardtaal geschreven, zoals een nieuwe pagina, en daarna op het item zelf
+vertaald; `admin_localized_new_item_note()` zegt dat op een scherm in een
+andere taal.
 
-#### Dat verborgen paneel moet ook echt verborgen zijn
-
-Dit is de regel waar Navigatie en Footer een tijd lang op stuk zijn gegaan, en
-hij is de moeite van het opschrijven waard omdat hij in CSS woont en niet in
-PHP.
-
-`.admin-lang-pane` geeft het paneel een `display`, en een klasse die `display`
-zet wint van de eigen `[hidden]{display:none}` van de browser. Zonder een
-eigen `[hidden]`-regel stond het paneel van de taal die je *niet* bewerkt dus
-gewoon naast dat van de taal die je wél bewerkt — twee tekstvelden onder
-labels die met opzet niet meer zeggen welke taal ze zijn. Een redacteur die
-net op **EN** had geklikt typte zijn vertaling in het Nederlandse veld, en de
-opslag schreef precies wat het formulier meestuurde.
-
-Het viel niet meteen op omdat de blok-editors hun `<form>` in
-`.admin-product-form` zetten, en die component herstelt het attribuut voor zijn
-eigen subtree. Navigatie, Footer, het portfolio en de personalisatiebouwer doen
-dat niet — en dat was exact de lijst schermen waar de fout zichtbaar was.
-
-```css
-.admin-lang-pane{ display: block; }
-.admin-lang-pane[hidden]{ display: none !important; }   /* hoort bij het paneel */
-```
-
-`Tests\Service\MultilingualBoundaryTest::testAHiddenLanguagePaneIsActuallyHidden`
-laat de build vallen zodra die tweede regel verdwijnt.
-
-#### Lezen, schrijven en terugvallen: de drie richtingen
-
-Eén tabel, want de fout hierboven is precies wat er gebeurt als iemand ze door
-elkaar haalt.
+### Lezen, schrijven en terugvallen: de drie richtingen
 
 | | Wat er gebeurt |
 |---|---|
-| **Lezen voor een bezoeker** | gevraagde taal → leeg? dan de hoofdtaal. `LocalizedValue::in()`, via `SiteText` |
-| **Lezen voor een redacteur** | de bewerktaal, **ruw**. Leeg is zichtbaar leeg. `LocalizedValue::raw()` |
-| **Schrijven vanuit een editor** | alleen de bewerktaal krijgt een nieuwe waarde; de andere kolom gaat ongewijzigd mee terug naar de database |
+| **Lezen voor een bezoeker** | gevraagde taal → leeg? dan de standaardtaal. `value()` van de `*Localization`-klasse, of `LanguageFallback::resolve()` |
+| **Lezen voor een redacteur** | de bewerktaal, **ruw**. Leeg is zichtbaar leeg. `raw()` |
+| **Schrijven vanuit een editor** | alleen de taal van het formulier krijgt een nieuwe waarde; de andere talen worden niet aangeraakt |
 
 **Een teruggevallen waarde wordt nooit opgeslagen.** Terugvallen is een
 rendering-regel; zou een editorveld hem tonen, dan schreef de eerstvolgende
 Opslaan hem weg als échte vertaling en was het verschil tussen "vertaald" en
-"nog niet vertaald" weg.
-
-Daaruit volgt ook wat een schrijf-endpoint mag eisen: **verplicht is alleen de
-hoofdtaal**. Een vertaling is per definitie optioneel — de site valt terug —
-en een endpoint dat beide talen eist maakt een scherm onopslaanbaar zodra de
-helft ervan buiten beeld staat. De vraag wordt overal hetzelfde gesteld:
-
-```php
-if (LocalizedValue::ofDutchEnglish($nl, $en)->primaryValue() === '') {
-    // pas hier is het veld echt leeg
-}
-```
+"nog niet vertaald" weg. Een leeg vertaalveld zegt daarom in zijn placeholder
+dat een bezoeker de standaardtaal krijgt zolang het leeg is
+(`admin_localized_placeholder_attr()`); de woorden van de standaardtaal worden
+nooit als waarde voorgevuld.
 
 ### Een editor aansluiten
 
 ```php
-require_once __DIR__ . '/_language_fields.php';   // bovenaan
+require_once __DIR__ . '/_localized_fields.php';   // bovenaan
 
-admin_lang_bar();                                  // één keer per <form>
+$language = admin_localized_language();
 
-<?php admin_lang_pane_start('nl'); ?>
-  <label>Titel<?= admin_lang_required('nl') ?> … </label>
-<?php admin_lang_pane_end(); ?>
-<?php admin_lang_pane_start('en'); ?>
-  <label>Titel <input … <?= admin_lang_placeholder_attr('en') ?>></label>
-<?php admin_lang_pane_end(); ?>
-
-<?php admin_lang_script(); ?>                      // vóór </body>
+<form …>
+  <?= admin_localized_input($language) ?>
+  <?php admin_localized_bar($language); ?>
+  <label>Titel<?= admin_localized_required($language) ?>
+    <input name="title" … <?= admin_localized_placeholder_attr($language) ?>>
+  </label>
+</form>
 ```
 
-`admin/_language_fields.php` wordt door de schermen zelf ingesloten, niet door
-`admin/_header.php`. Het bestand sluit zelf `admin/_translate.php` in, want een
-scherm met taalpanelen drukt er ook vertaalde labels omheen.
-
-`Tests\Service\MultilingualBoundaryTest` faalt als een editor met panelen de
-component niet insluit, geen bar rendert of het script vergeet — en ook
-andersom: als er ergens in `admin/` een `_nl`- of `_en`-veld buiten een paneel
-staat.
-
-Twee dingen die `php -l` niet ziet en de suite wel:
-
-- een scherm dat `admin_lang_bar()` aanroept zonder `_language_fields.php`
-  in te sluiten. Dat is een fatal op de eerste regel van zijn `<form>`.
-- een label dat nog `(NL)` of `(EN)` achter zich draagt. Binnen een paneel
-  zegt de indicator al in welke taal je zit.
-
-### Velden die per websitetaal worden opgeslagen
-
-Pagina's zijn sinds fase 2 niet meer op deze panelen gebouwd. Ze gebruiken
-`admin/_localized_fields.php`: de velden van één taal op het scherm én in het
-verzoek, een verborgen `language_code`, en een endpoint dat alleen die taal
-schrijft. Er worden geen verborgen panelen van andere talen meegestuurd.
-Contract, terugval en de lijst functies staan in
-[`ARCHITECTURE.md`](ARCHITECTURE.md), *De editorcomponent*. Een scherm dat
-naar per-taal-opslag verhuist, stapt over op die component; de panelen
-hieronder blijven voor de rest tot hun eigen fase.
+Het endpoint leest `language_code`, normaliseert hem met `LanguageCode`,
+weigert een taal die de website niet publiceert en geeft de velden aan de
+`save()` van de klasse van het domein (`PageLocalization`,
+`BlockLocalization`, `EntityTranslations` via de domeinklasse). Contract,
+terugval en de lijst functies staan in [`ARCHITECTURE.md`](ARCHITECTURE.md),
+*De editorcomponent*.
 
 ### Meer dan één formulier op een scherm
 
-Een scherm is niet altijd één formulier. Een portfolio-item heeft een klein
-formulier per afbeelding, de footer heeft een "kolom toevoegen"-formulier
-naast de lijst, en de blogtags zijn een tabel met een formulier per rij.
-
-Dat is geen probleem meer, en dat is het verschil met de tabbladenversie: elk
-paneel op elk formulier op elk scherm staat op dezelfde taal, omdat die taal
-niet uit het scherm komt maar uit de beheerder. Er is niets te synchroniseren.
+Een portfolio-item heeft een klein formulier per afbeelding, de footer een
+"kolom toevoegen"-formulier naast de lijst, de blogtags een formulier per rij.
+Elk formulier draagt zijn eigen `admin_localized_input()` en staat op dezelfde
+taal, omdat die taal niet uit het scherm komt maar uit de beheerder. Er is
+niets te synchroniseren.
 
 ### En in de overzichten
 
-`admin_lang_summary($rij, 'label')` geeft de naam in de hoofdtaal, met
-terugval op wat er wél is ingevuld. De lijstschermen printten allebei de talen
-naast elkaar — "Contact / Contact" — een naam plus een vertaling die niemand
-in een lijst vroeg te zien.
-
-Een overzicht volgt dus de **hoofdtaal van de site**, niet de bewerktaal: het
-is een lijst van dingen, niet een bewerkscherm, en een rij die van naam
-verspringt als je van bewerktaal wisselt is moeilijker terug te vinden.
+Een overzicht noemt een rij in de **standaardtaal**, met terugval op de eerste
+taal die woorden heeft (de `name()` van de `*Localization`-klasse, of
+`LanguageFallback::name()`). Het is een lijst van dingen, geen bewerkscherm,
+en een rij die van naam verspringt als je van bewerktaal wisselt is moeilijker
+terug te vinden.
 
 ## Waar het staat
 
 | Onderdeel | Waar |
 |---|---|
 | Bewerktaal, per persoon | `src/Service/Language/ContentEditingLanguage.php`, kolom `admin_users.content_editing_language` |
-| De schakelaar *Content bewerken* | `admin/_header.php`, `api/admin/update-content-language.php` |
-| Taalvelden in het CMS | `admin/_language_fields.php`, `admin/assets/admin-language-translate.js`, `.admin-lang-*` en `.admin-sidebar__contentlang*` in `admin/assets/admin.css` |
-| Velden per websitetaal (Pages) | `admin/_localized_fields.php`, zie [`ARCHITECTURE.md`](ARCHITECTURE.md) |
+| De schakelaar *Content bewerken* | `admin/_header.php`, `api/admin/update-content-language.php`, `.admin-sidebar__contentlang*` in `admin/assets/admin.css` |
+| Velden per websitetaal | `admin/_localized_fields.php`, in elke editor met tekst per taal; zie [`ARCHITECTURE.md`](ARCHITECTURE.md) |
+| Bewakers | `MultilingualBoundaryTest` (geen V1-panelen, `required` alleen via de component), `ThreeLanguageStatesTest` |

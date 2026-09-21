@@ -1,200 +1,205 @@
 # De talen van de website
 
 Deel van [`MULTILINGUAL.md`](../../MULTILINGUAL.md). Laag 3, de taal van de
-bezoeker, en wat een site zelf over zijn talen vastlegt: het talenregister, de
-hoofdtaal, de terugvalregel en de publieke taalwissel. De taal van het CMS
-staat in [`CMS-LANGUAGE.md`](CMS-LANGUAGE.md), de bewerktaal in
-[`EDITING-LANGUAGE.md`](EDITING-LANGUAGE.md).
+bezoeker, en wat een site zelf over zijn talen vastlegt: het talenregister,
+de standaardtaal, de module Meertaligheid, de terugvalregel en wat de
+publieke website afdrukt. De taal van het CMS staat in
+[`CMS-LANGUAGE.md`](CMS-LANGUAGE.md), de bewerktaal in
+[`EDITING-LANGUAGE.md`](EDITING-LANGUAGE.md), URL's per taal in
+[`ROUTING.md`](ROUTING.md).
 
 ## Het talenregister
 
-Gesloten en in code geschreven, om dezelfde reden als `BlockDefinitions`,
-`ModuleRegistry`, `ThemeFonts` en `SocialProfiles`: een taalcode komt uit een
-adminformulier, uit een instellingenrij en uit een URL, en het enige wat zo'n
-waarde ooit mag doen is een sleutel van die lijst raken of missen.
-
-Dat is hier extra dragend. Een taalcode wordt aan een kolomnaam geplakt
-(`title_` . `$code`), dus een code die uit een verzoek kon komen zou een
-SQL-injectie zijn. Dat kan niet: elke lezer gaat eerst langs `::has()` of
-`::get()`.
-
-V1 registreert **Nederlands en Engels**, want dat is wat de bestaande
-`_nl`/`_en`-kolommen kunnen opslaan. Per taal legt het register vast:
+De talen van de website zijn de rijen van **`site_languages`**
+(`App\Service\Language\SiteLanguages`, `App\Repository\SiteLanguageRepository`)
+en niets anders. Een taal toevoegen is een rij, geen codewijziging: Duits is
+`de` met een naam en een eigen naam, net als `nl` en `en`.
 
 ```text
-code                          nl
-nativeLabel                   Nederlands
-dutchLabel / englishLabel     Nederlands / Dutch
-deeplSource / deeplTarget     NL / NL
-availableAsAdminLocale        ja
-availableAsContentLanguage    ja
+code   name      native_name   is_default   is_active   sort_order
+nl     Dutch     Nederlands    1            1           0
+en     English   English       NULL         1           1
+de     German    Deutsch       NULL         0           2
 ```
 
-Duits toevoegen is later één regel in dit register plus opslag ervoor. Geen
-editor, geen renderer en geen provider verandert mee — dat is waar de twee
-`availableAs*`-vlaggen voor zijn: een taal mag in stappen binnenkomen, want
-"er is een verzorgde CMS-vertaling" en "de site kan er inhoud in opslaan" zijn
-twee verschillende vragen met twee verschillende antwoorden.
+De regels staan in de SQL en in `SiteLanguages`, niet in een scherm:
 
-## De talen van de website
+- **Precies één standaardtaal**, en die is actief. Een nieuwe taal wordt nooit
+  als standaard aangemaakt; alleen `setDefault()` verplaatst de standaard, en
+  alleen naar een actieve taal.
+- **De standaardtaal gaat niet uit en niet weg.** `deactivate()` en `delete()`
+  matchen de standaardrij nooit.
+- **Uitzetten verwijdert niets.** Een taal die uit staat houdt al zijn
+  vertalingen en krijgt ze terug zodra hij weer aan gaat.
+- **Een taal met woorden kan niet verwijderd worden.** Elke vertaaltabel
+  verwijst naar `site_languages.code` met `ON DELETE RESTRICT`
+  (21 tabellen, van `page_translations` tot `order_item_translations`).
+  Verwijderen kan alleen voor een taal die uit staat, niet de standaard is en
+  nog nergens een woord heeft — een verkeerd getypte taal, bijvoorbeeld.
+  Voor alles daarna is er uitzetten.
 
-**Dit product is tweetalig. Nederlands en Engels zijn er altijd allebei** —
-voor de bezoeker en voor de redacteur. Er is geen instelling die er een
-weghaalt, want die instelling was het probleem.
+`LanguageRegistry` is iets anders: de talen die het **CMS zelf** spreekt
+(de interfacetalen van `AdminLocale`, hun namen, de DeepL-codes). Een
+websitetaal wordt daar nooit uit gekozen en hoeft er niet in te staan.
 
-Wat een site wél kiest, is welke van de twee de **standaard** is. Sinds
-Multilingual 2.0 fase 1 is dat de rij met `is_default = 1` in het
-talenregister `site_languages` ([`ARCHITECTURE.md`](ARCHITECTURE.md)), en geen
-instelling meer:
+## Talen beheren
 
-```text
-site_languages     nl  is_default = 1     (of: en)
-                   en  is_default = NULL
-```
+*Site-instellingen → Talen* (`admin/settings.php`, permissie
+`settings.manage`). Alles hier gaat via `SiteLanguages`, en elke weigering is
+een melding, nooit een halve wijziging.
 
-Dat betekent twee dingen, en alleen die twee:
+| Handeling | Endpoint | Regel |
+|---|---|---|
+| Taal toevoegen (code, naam, eigen naam) | `create-website-language.php` | twee letters (`LanguageCode`); start **uit** |
+| Namen wijzigen | `update-website-language.php` | beide ingevuld, hooguit 64 tekens, geen `<`/`>` |
+| Aan- of uitzetten | `toggle-website-language.php` | nooit de standaardtaal uit |
+| Standaard maken | `update-language-settings.php` | alleen een actieve taal |
+| Volgorde | `move-website-language.php` | één plek per klik; de volgorde van de taalkeuze en de editors |
+| Verwijderen | `delete-website-language.php` | alleen uit, niet standaard, zonder woorden |
+| Meertaligheid aan/uit | `update-multilingual-publishing.php` | zie hieronder; een omgevingsvariabele wint |
 
-- een bezoeker die nog niets gekozen heeft krijgt deze taal;
-- een ontbrekende vertaling valt op deze taal terug.
+Een nieuwe taal staat eerst uit, zodat je kunt vertalen voordat een bezoeker
+hem ziet. Aanzetten publiceert hem meteen: eigen URL's (`/de/...`), een plek
+in de taalkeuze, de sitemap en hreflang. Wat nog niet vertaald is, valt op de
+standaardtaal terug.
 
-Een eigen tabel en niet `theme_settings`, om de reden die bovenaan
-[`THEMING.md`](../../THEMING.md) staat: dit is wie de site *is*, en "standaardvormgeving
-herstellen" mag nooit de talen van een site meenemen.
+`Tests\Service\WebsiteLanguageAdminHttpTest` loopt de hele levenscyclus en
+de vier guards van elk endpoint af.
 
-De regels, allemaal op één plek (`ContentLanguages`, sinds fase 1 de adapter
-tussen het register en de V1-code):
+## De module Meertaligheid
 
-- **`primary()` leest de standaardtaal van het register**, maar alleen een
-  taal die de `_nl`/`_en`-kolommen kunnen opslaan.
-- **De hoofdtaal staat altijd vooraan.** "Vooraan" is precies wat de publieke
-  wissel, de standaard-bewerktaal en de terugvalregel er alle drie mee
-  bedoelen.
-- **Een onbekende of onleesbare standaard valt terug** op Nederlands in plaats
-  van te weigeren. Een rij uit een nieuwere versie mag een redacteur nooit
-  buitensluiten.
-- **`enabled()` leest het gesloten register in code, niet een opgeslagen
-  rij.** Elke taal waarin dit build inhoud kán opslaan is een taal die deze
-  site publiceert. Ook `is_active` in `site_languages` verbergt tot de
-  frontend-flip niets.
-- **Opslaan** gaat via `ContentLanguages::savePrimary()`, voor het tabblad
-  *Talen* en voor de installatiewizard.
+`App\Module\MultilingualModule`, sleutel `multilingual`
+(`MODULE_MULTILINGUAL_ENABLED`, [`MODULES.md`](../../MODULES.md)). Hij beslist
+één ding: of de website méér dan zijn standaardtaal publiceert.
 
-### De oude instellingenrijen
+**Op een nieuwe installatie staat hij uit**: een nieuwe site publiceert zijn
+standaardtaal tot iemand om meer vraagt — in de installatiewizard, onder
+*Talen* of met de omgevingsvariabele. **Elke bestaande installatie houdt hem
+aan**: migratie `20260921100000_pin_the_multilingual_module_where_it_is_in_use`
+slaat "aan" op voor een installatie van vóór de installatiemarker en voor een
+verse installatie waarvan de wizard al klaar was, want die publiceerden
+allemaal Nederlands en Engels. Een nieuwe standaard geldt nooit met
+terugwerkende kracht (hetzelfde patroon als de Portfolio-pin).
 
-`primary_content_language` en het al deprecated
-`enabled_content_languages` stonden in `site_settings`. Migratie
-`20260917120000` heeft hun informatie in het register gezet en daarna beide
-rijen verwijderd ([`MIGRATIONS.md`](MIGRATIONS.md)), zodat er geen tweede
-antwoord op "welke taal is de standaard" kan blijven staan.
-`SiteSettings` kent de sleutels niet meer.
+**Eén vraag, op één plek.** `SiteLanguages::active()` is "de talen die de
+website nu publiceert": de actieve rijen zolang de module aan staat, alleen de
+standaardtaal als hij uit staat. `SiteLanguages` vraagt dat aan het
+moduleregister op capaciteit
+(`ModuleRegistry::publishesTranslations()` →
+`ModuleDefinition::publishesTranslations()`), nooit op sleutel. Elke route,
+taalkeuze, editor en elk endpoint vraagt `SiteLanguages`, dus uitzetten raakt
+ze allemaal tegelijk zonder dat één ervan de module kent.
 
-Wat `enabled_content_languages` vroeger misdeed (een rij `nl` verborg de
-taalwissel en elk Engels veld) kan niet terugkomen:
-`Tests\Service\LanguageRegistryTest::testAnInactiveLanguageInTheRegistryDoesNotTakeEnglishAway`
-houdt vast dat ook het register dat niet doet.
+Met de module **uit**:
 
-`MAX_ENABLED` blijft 2, want dat is wat de `_nl`/`_en`-kolommen kunnen
-opslaan. Een derde taal is een register-entry plus opslag ervoor, niet een
-instelling.
+- zijn alleen de URL's van de standaardtaal er; `/en/...` is een gewoon pad
+  (en dus meestal een 404);
+- is er geen taalkeuze, geen hreflang en geen `x-default`, en is de sitemap
+  eentalig;
+- stuurt `Accept-Language` of een opgeslagen voorkeur niemand naar een andere
+  taal;
+- bewerken redacteuren alleen de standaardtaal (geen schakelaar in de schil),
+  en weigeren de schrijf-endpoints een andere taal;
+- blijven het register, de eigen aan/uit-vlag van elke taal en **elke
+  vertaling** staan. Aanzetten brengt dezelfde talen terug op dezelfde
+  adressen, met dezelfde woorden.
+
+Het register zelf (welke talen er zijn, welke de standaard is) blijft beheerd
+met de module aan of uit: een website heeft altijd een standaardtaal.
+
+`Tests\Module\MultilingualModuleTest` en `MultilingualModuleHttpTest`
+bewaken uit → aan → uit → aan, over echte HTTP met de dispatcher ervoor.
 
 ## De terugvalregel
 
-Vroeger stond die zo in de code: "Nederlands is de inhoud, Engels optioneel,
-leeg Engels betekent gelijk aan Nederlands" — en hij werd op ongeveer 280
-plekken in `src/` met de hand toegepast. Dat klopte zolang Nederlands de enige
-mogelijke hoofdtaal was.
-
-Nu staat hij één keer, in `LocalizedValue`, en in termen van de **hoofdtaal**
-in plaats van van het Nederlands:
+Eén regel, voor elk domein:
 
 ```text
-gevraagde taal   →  eigen waarde
-leeg             →  de waarde van de hoofdtaal
+gevraagde taal   →  eigen woorden
+leeg             →  de woorden van de standaardtaal
+leeg             →  ''
 ```
 
-Een ontbrekende vertaling toont dus de woorden van de hoofdtaal, nooit een
-lege pagina. Voor een bezoeker verandert er niets; alleen de náám van de taal
-waarop wordt teruggevallen kan nu anders zijn.
+Hij staat één keer, in `App\Service\Language\LanguageFallback::resolve()`,
+en elke domein-API past hem toe: `PageLocalization`, `BlockLocalization`,
+`NavigationLocalization`, `FooterLocalization`, `LocalizedSiteSettings`,
+`FormLocalization`, `PortfolioLocalization`, `BlogLocalization`,
+`ShopLocalization`, `PersonalizationLocalization`. Rich text wordt per taal
+gesaneerd vóór de terugval, zodat markup die tot niets saneert geen vertaling
+telt.
 
-`LocalizedValue::raw()` bestaat naast `::in()` en is wat een **editor**-formulier
-toont: een vertaalveld dat stilletjes de woorden van de hoofdtaal laat zien,
-zou bij de eerstvolgende Opslaan als echte vertaling worden weggeschreven.
+**Terugval is voor de bezoeker; een redacteur ziet een leeg veld.** De
+editors lezen de opgeslagen woorden (`raw()`), nooit de teruggevallen waarde,
+want de eerstvolgende Opslaan zou die als echte vertaling wegschrijven.
 
-`App\Service\Forms\FormText` doet hetzelfde, één domein eerder, en blijft zoals
-hij is: dat is een vast NL/EN-paar binnen Core Forms en hem omzetten zou een
-Forms-refactor zijn, geen meertaligheidswijziging.
+```text
+                        Nederlands (standaard)   Engels
+opgeslagen              "Neem contact op"        —
+bezoeker leest EN   ->  "Neem contact op"        resolve()
+redacteur bewerkt EN -> leeg veld                raw()
+```
 
-## De publieke website
+**De standaardtaal beslist of iets bestaat.** Een blok, een knop of een item
+zonder woorden in de standaardtaal toont in géén taal, ook niet op `/en/` —
+een vertaling zonder de woorden van de standaardtaal zou voor iedereen die de
+standaardtaal leest een lege versiering zijn (`BlockLocalization::hasDefaultWords()`).
 
-**De taalwissel is een rij links** sinds Multilingual 2.0 fase 6
-(`App\Service\Routing\LanguageSwitch`, `docs/multilingual/ROUTING.md`). Elke
-taal heeft eigen URL's, dus wisselen is navigeren naar de versie van dezelfde
-pagina in die taal, en niet langer een tekstwissel in de browser. Hij staat in
-de gedeelde header (`partials/header.php`), op élke publieke route, zodra de
-site meer dan één **actieve** taal heeft — uit het talenregister, niet uit het
-gesloten V1-paar, dus een derde taal verschijnt zonder codewijziging. Eén
-partial, geen enkele module die zijn eigen wissel meebrengt.
+## Wat de publieke website afdrukt
 
-- **Een taal waarin deze pagina niet bestaat is zichtbaar maar niet
-  aanklikbaar.** Geen link die 404't en geen stille doorverwijzing naar een
-  andere taal onder een Duits label; welke versies bestaan verklaart de route
-  zelf (`App\Service\Routing\LanguageAlternates`).
-- **De zichtbare tekst is die van de taal van het verzoek**:
-  `SiteText::visibleOf()` en `::visible()` vragen
-  `App\Service\Routing\RequestLanguage`, met de veldterugval naar de
-  standaardtaal. Op een URL zonder prefix is dat dezelfde waarde als vóór
-  fase 6, dus elke bestaande installatie rendert byte-voor-byte hetzelfde.
-- `<html lang>`, `data-primary-lang` en de nieuwe `data-url-prefix` volgen de
-  taal van het verzoek. De laatste is er voor de scripts die zelf links
-  bouwen (`assets/js/shop/cart.js`, `localeUrl()`).
+**Eén taal per antwoord, op de server beslist.** Sinds Multilingual 2.0 fase 7
+krijgt de browser uitsluitend de woorden van de taal van de URL
+(`App\Service\Routing\RequestLanguage`). Er is geen tekstwissel in de browser
+meer: geen `data-nl`/`data-en`/`data-lang-html`, geen `applyLang()` in
+`core.js`, geen `localStorage`-taal. De taalkeuze is een rij links naar de
+versie van dezelfde pagina in een andere taal (`LanguageSwitch`,
+[`ROUTING.md`](ROUTING.md)).
+
+- **Inhoud** komt uit de domein-API's hierboven, in de taal van het verzoek,
+  één string per veld. Platte tekst gaat door `htmlspecialchars()`, attributen
+  door dezelfde escaping, rich text alleen als gesaneerde markup.
+- **Systeemteksten** — "Winkelwagen", "Kruimelpad", de cookiebanner, de
+  foutmeldingen van een formulier, een maandnaam — staan in kleine, gesloten
+  **codecatalogi** naast de code die ze gebruikt, per taalcode:
+  `SiteText::pick(['nl' => '…', 'en' => '…'])` of `::escaped()`. Een taal
+  zonder eigen zin leest die van de standaardtaal; een derde taal is een
+  sleutel erbij, nooit een `if`. Voorbeelden: `RouteRegistry` (routelabels),
+  `CookieConsentConfig`, `PersonalizationColors`, `ShippingProfile`,
+  `ShippingCountries`, `PickupLocation`, `BlogContent` (maanden).
+- **Scripts** kiezen geen taal. Wat `cart.js`, `shop.js` en
+  `personalization.js` in hun eigen markup zetten, komt uit een catalogus die
+  de server voor het verzoek oplost (`ShopScriptText` als JSON-datablok in de
+  mini-winkelwagen, `PersonalizationScriptText` in de configuratie van het
+  paneel). JSON-API's antwoorden in de taal die de pagina meestuurt (`?lang=`,
+  `App\Service\Routing\ApiLanguage`: alleen een gepubliceerde taal, anders de
+  standaardtaal) met één waarde per veld.
+- **De winkelwagen** in `localStorage` is taalneutraal waar het telt: een
+  regel is zijn product, variant en personalisatie. `name` + `lang` zijn
+  weergave, en een pagina in een andere taal leest de namen één keer opnieuw
+  per id. Een wagen van vóór fase 7 (`name` + `name_en`) wordt gelezen en in
+  de nieuwe vorm teruggeschreven.
+- `<html lang>` en `data-url-prefix` volgen de taal van het verzoek. De
+  laatste is er voor de scripts die zelf links bouwen.
 - **De voorkeur van de bezoeker** staat in één first-party cookie
-  (`site_language`, `App\Service\Routing\LanguagePreference`) met een
-  taalcode en verder niets, en beslist alleen iets op de siteroot.
-
-**Wat er van V1 nog staat, en tot fase 7 blijft staan.** De
-`data-nl`/`data-en`-attributen worden nog afgedrukt en `assets/js/core.js`
-bevat de wisselcode nog, maar er handelt niets meer op: `core.js` bindt
-uitsluitend aan `.lang-switch button`, en die knoppen zijn er niet meer. De
-`localStorage`-sleutel `vvl-lang` wordt dus ook niet meer gelezen of
-geschreven. De regel dat `data-nl`/`data-en` platte tekst zijn en alleen een
-element met `data-lang-html` via `innerHTML` gaat, blijft gelden zolang de
-attributen bestaan; `Tests\Service\MultilingualBoundaryTest` bewaakt hem.
+  (`site_language`, `LanguagePreference`) met een taalcode en verder niets, en
+  beslist alleen iets op de siteroot.
 
 **Geen adminvoorkeur raakt hier iets.** Niet de CMS-taal van een beheerder,
-niet zijn bewerktaal. Die staan op een rij in `admin_users`; dit leest
-`site_settings` en de browser van de bezoeker.
+niet zijn bewerktaal.
 
-**Applicatieteksten in de schil** — de winkelwagen, de 404, de foutmeldingen
-van een formulier — dragen nog steeds een vast NL/EN-paar in de markup en
-worden door `core.js` gewisseld. Een frontend-tekstcatalogus zoals het CMS die
-nu heeft is bewust geen onderdeel van V1.
-
-### Een ontbrekende vertaling: terugval voor de bezoeker, leeg voor de redacteur
-
-Dit onderscheid draagt het hele model.
-
-```text
-                        Nederlands (hoofdtaal)   Engels
-opgeslagen              "Neem contact op"        ""
-
-bezoeker kiest EN   ->  "Neem contact op"        via LocalizedValue::in()
-redacteur bewerkt EN -> leeg veld                via LocalizedValue::raw()
-```
-
-Een bezoeker krijgt nooit een lege knop of een lege kop. Een redacteur ziet
-nooit woorden die hij niet geschreven heeft in een vertaalveld — want de
-eerstvolgende Opslaan zou die als échte vertaling wegschrijven, en de site
-zou het verschil tussen "vertaald" en "nog niet vertaald" kwijt zijn.
-
-`LocalizedValue::isTranslated()` is dezelfde vraag, expliciet.
+`Tests\Service\MultilingualBoundaryTest` bewaakt dat geen publiek sjabloon
+een taalpaar afdrukt en geen publiek script een taal wisselt;
+`Tests\Service\ShopScriptTextContractTest` doet hetzelfde voor de
+Shop-scripts en de winkelwagen.
 
 ## Waar het staat
 
 | Onderdeel | Waar |
 |---|---|
-| Talenregister (gesloten) | `src/Service/Language/LanguageRegistry.php` + `LanguageDefinition.php` |
-| Talen van de website (V1-adapter) | `src/Service/Language/ContentLanguages.php` |
-| Talenregister van de website (2.0) | `src/Service/Language/SiteLanguages.php`, `src/Repository/SiteLanguageRepository.php` |
-| Terugvalregel op één plek | `src/Service/Language/LocalizedValue.php` |
-| Wat een publieke partial afdrukt | `src/Service/Language/SiteText.php` |
-| Tabblad *Talen* | `admin/settings.php`, `api/admin/update-language-settings.php` |
+| Talenregister van de website | `src/Service/Language/SiteLanguages.php`, `src/Repository/SiteLanguageRepository.php` |
+| De module Meertaligheid | `src/Module/MultilingualModule.php` (`ModuleDefinition::publishesTranslations()`) |
+| Tabblad *Talen* | `admin/settings.php`, `api/admin/*-website-language.php`, `update-language-settings.php`, `update-multilingual-publishing.php` |
+| Terugvalregel | `src/Service/Language/LanguageFallback.php` |
+| Systeemteksten | `src/Service/Language/SiteText.php` (`pick()`, `escaped()`) |
+| Scriptcatalogi | `src/Service/ShopScriptText.php`, `src/Service/Personalization/PersonalizationScriptText.php` |
+| Taal van een JSON-verzoek | `src/Service/Routing/ApiLanguage.php` |
+| De talen van het CMS zelf | `src/Service/Language/LanguageRegistry.php` + `LanguageDefinition.php` |

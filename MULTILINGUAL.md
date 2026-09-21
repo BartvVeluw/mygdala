@@ -25,49 +25,52 @@ Dit is het model. Alles in `docs/multilingual/` is uitwerking.
                        RequestLanguage    de taallinks in de header
 ```
 
-**Alle drie zijn onafhankelijk. Alle vier de combinaties van 1 en 2 moeten
-kunnen, en kunnen:**
-
-```text
-CMS-taal = Nederlands   +   Bewerktaal = NL     Nederlands CMS, Nederlandse velden
-CMS-taal = Nederlands   +   Bewerktaal = EN     Nederlands CMS, Engelse velden
-CMS-taal = English      +   Bewerktaal = NL     Engels CMS, Nederlandse velden
-CMS-taal = English      +   Bewerktaal = EN     Engels CMS, Engelse velden
-```
+**Alle drie zijn onafhankelijk. Elke combinatie van 1 en 2 moet kunnen, en
+kan:** een Nederlands CMS dat de Engelse versie bewerkt is een gewone dinsdag.
 
 En laag 3 beweegt met geen van beide mee. Een beheerder die zijn CMS op Engels
 zet verandert niets aan wat een bezoeker op dat moment leest, en een beheerder
 die naar de Engelse bewerktaal wisselt ook niet.
 
 Dat is geen belofte maar een eigenschap van de code: het endpoint dat een
-CMS-taal schrijft kan `site_settings` niet bereiken, het endpoint dat de
-bewerktaal schrijft kan noch `site_settings` noch de CMS-taalkolom bereiken,
-en de publieke taalwissel vraagt geen van beide iets.
+CMS-taal schrijft kan het talenregister niet bereiken, het endpoint dat de
+bewerktaal schrijft kan noch het register noch de CMS-taalkolom bereiken, en
+de publieke taalwissel vraagt geen van beide iets.
 `Tests\Service\MultilingualBoundaryTest` laat de build vallen zodra een van de
-drie een van de andere noemt, en
-`Tests\Service\ThreeLanguageStatesTest` loopt de hele matrix af.
+drie een van de andere noemt, en `Tests\Service\ThreeLanguageStatesTest`
+loopt de hele matrix af.
 
 Waarom de bewerktaal eigen staat is, en wat er daarvóór fout was:
 [`MIGRATIONS.md`](docs/multilingual/MIGRATIONS.md), "Wat hiervóór fout was".
 
 ## Regels die altijd gelden
 
+- **De talen van de website zijn de rijen van `site_languages`**, en niets
+  anders. Een taal toevoegen is een rij, geen codewijziging; er is precies één
+  standaardtaal en die is actief. →
+  [`WEBSITE-LANGUAGES.md`](docs/multilingual/WEBSITE-LANGUAGES.md)
+- **De module Meertaligheid beslist of de andere talen gepubliceerd worden.**
+  Uit is alleen de standaardtaal publiek; geen vertaling verdwijnt. →
+  [`WEBSITE-LANGUAGES.md`](docs/multilingual/WEBSITE-LANGUAGES.md)
+- **Eén taal per antwoord, op de server beslist.** De browser krijgt alleen de
+  woorden van de taal van de URL; niets wisselt een document in de browser. →
+  [`WEBSITE-LANGUAGES.md`](docs/multilingual/WEBSITE-LANGUAGES.md),
+  [`ROUTING.md`](docs/multilingual/ROUTING.md)
 - **Leeg is voor de bezoeker terugval, voor de redacteur een leeg veld.**
-  `LocalizedValue::in()` tegenover `::raw()`; een teruggevallen waarde wordt
-  nooit opgeslagen. → [`WEBSITE-LANGUAGES.md`](docs/multilingual/WEBSITE-LANGUAGES.md)
-- **Het talenregister is gesloten.** Een taalcode raakt pas een kolomnaam als
-  `LanguageRegistry::has()` of `::get()` hem kent. → [`WEBSITE-LANGUAGES.md`](docs/multilingual/WEBSITE-LANGUAGES.md)
-- **Nederlands en Engels zijn er altijd allebei.** Een site kiest alleen zijn
-  standaardtaal, en die staat sinds Multilingual 2.0 fase 1 in het
-  talenregister `site_languages`, niet in een instelling.
-  → [`WEBSITE-LANGUAGES.md`](docs/multilingual/WEBSITE-LANGUAGES.md),
-  [`ARCHITECTURE.md`](docs/multilingual/ARCHITECTURE.md)
+  `LanguageFallback::resolve()` tegenover de opgeslagen woorden; een
+  teruggevallen waarde wordt nooit opgeslagen. →
+  [`WEBSITE-LANGUAGES.md`](docs/multilingual/WEBSITE-LANGUAGES.md)
+- **De standaardtaal beslist of iets bestaat.** Een blok, knop of item zonder
+  woorden in de standaardtaal toont in geen enkele taal.
+- **Systeemtekst is een gesloten codecatalogus per taalcode**
+  (`SiteText::pick()`), met terugval op de standaardtaal; nooit een
+  `if ($taal === 'de')` en nooit een opgeslagen `label_de`.
 - **De websitetaal is geen CMS-taal.** `SiteLanguages` en `AdminLocale` lezen
   elkaars opslag nooit. → [`ARCHITECTURE.md`](docs/multilingual/ARCHITECTURE.md)
 - **Van bewerktaal wisselen gooit niets weg en vertaalt niets.**
   → [`EDITING-LANGUAGE.md`](docs/multilingual/EDITING-LANGUAGE.md)
-- **Verplicht is alleen de hoofdtaal**, en `required` komt in een taalveld
-  altijd uit `admin_lang_required()`. → [`EDITING-LANGUAGE.md`](docs/multilingual/EDITING-LANGUAGE.md)
+- **Verplicht is alleen de standaardtaal**; een vertaling is per definitie
+  optioneel. → [`EDITING-LANGUAGE.md`](docs/multilingual/EDITING-LANGUAGE.md)
 - **Een adminscherm of endpoint schrijft geen eigen Nederlandse zin uit**; het
   vraagt een sleutel uit de catalogus. → [`CMS-LANGUAGE.md`](docs/multilingual/CMS-LANGUAGE.md)
 - **De CMS-interface wordt nooit machinaal vertaald**, automatisch vertalen
@@ -80,66 +83,51 @@ Waarom de bewerktaal eigen staat is, en wat er daarvóór fout was:
 |---|---|---|
 | Een zin op een adminscherm of in de melding van een endpoint, een statuswoord, een zijbalklabel, het label van een blok, permissie of sjabloon | [`CMS-LANGUAGE.md`](docs/multilingual/CMS-LANGUAGE.md) | `fast` |
 | Het scherm *Mijn account* | [`CMS-LANGUAGE.md`](docs/multilingual/CMS-LANGUAGE.md) | `fast` → `cms` |
-| Een editor of schrijf-endpoint met `_nl`/`_en`-velden, de schakelaar *Content bewerken*, een overzicht van zulke rijen | [`EDITING-LANGUAGE.md`](docs/multilingual/EDITING-LANGUAGE.md) | `fast` → `blocks` |
-| Wat een bezoeker ziet: de publieke taalwissel, `data-nl`/`data-en`, `SiteText`, de hoofdtaal, de terugvalregel, het talenregister | [`WEBSITE-LANGUAGES.md`](docs/multilingual/WEBSITE-LANGUAGES.md) | `fast` |
-| Het tabblad *Talen* in de instellingen | [`WEBSITE-LANGUAGES.md`](docs/multilingual/WEBSITE-LANGUAGES.md) | `fast` → `cms` |
+| Een editor of schrijf-endpoint met tekst per taal, de schakelaar *Content bewerken*, `_localized_fields.php` | [`EDITING-LANGUAGE.md`](docs/multilingual/EDITING-LANGUAGE.md) | `fast` → `blocks` |
+| Wat een bezoeker ziet: één taal per antwoord, systeemteksten, scriptcatalogi, de terugvalregel, de winkelwagen | [`WEBSITE-LANGUAGES.md`](docs/multilingual/WEBSITE-LANGUAGES.md) | `fast` |
+| Het tabblad *Talen*: talen toevoegen, aan/uit, standaard, volgorde, de module Meertaligheid | [`WEBSITE-LANGUAGES.md`](docs/multilingual/WEBSITE-LANGUAGES.md) | `fast` → `cms` → `modules` |
+| URL's per taal, de dispatcher, taalresolutie, slugs per taal, canonical, hreflang, sitemap, door redacteuren getypte URL's | [`ROUTING.md`](docs/multilingual/ROUTING.md) | `fast` → `http` |
 | De vertaalknop, een vertaalprovider, DeepL, de vertaalstatus | [`AUTOMATIC-TRANSLATION.md`](docs/multilingual/AUTOMATIC-TRANSLATION.md) | `fast` |
 | Een migratie, wat een verse of bestaande installatie krijgt | [`MIGRATIONS.md`](docs/multilingual/MIGRATIONS.md) | `migration` |
-| Multilingual 2.0: het talenregister, de standaardtaal, `SiteLanguages`, en wat de volgende fases moeten volgen | [`ARCHITECTURE.md`](docs/multilingual/ARCHITECTURE.md) | `fast` → `migration` |
-| Paginatekst per taal: `page_translations`, `PageLocalization`, de terugval, de editorcomponent `_localized_fields.php` | [`ARCHITECTURE.md`](docs/multilingual/ARCHITECTURE.md) | `fast` → `cms` |
-| Blokwoorden per taal: `block_translations`, `BlockLocalization`, `translatableFields()` en `childTables()`, de wezen-guards, alle contentblokken en hun kindrijen | [`ARCHITECTURE.md`](docs/multilingual/ARCHITECTURE.md) | `fast` → `blocks` |
-| Navigatie, footer, formulieren en gelokaliseerde site-instellingen per taal: de getypeerde `*_translations`-tabellen, `LocalizedSiteSettings`, de waarde en het label van een keuze-optie | [`ARCHITECTURE.md`](docs/multilingual/ARCHITECTURE.md) | `fast` → `cms` |
-| Woorden van een module per taal: `PortfolioLocalization`, `BlogLocalization`, `ShopLocalization`, en waarom `OrderItemNameSnapshot` een momentopname is en geen vertaling | [`ARCHITECTURE.md`](docs/multilingual/ARCHITECTURE.md) | `fast` → de suite van de module |
+| Het talenregister, de standaardtaal, `SiteLanguages`, de domein-API's per fase | [`ARCHITECTURE.md`](docs/multilingual/ARCHITECTURE.md) | `fast` → `migration` |
+| Paginatekst, blokwoorden, navigatie, footer, formulieren, gelokaliseerde instellingen per taal | [`ARCHITECTURE.md`](docs/multilingual/ARCHITECTURE.md) | `fast` → `cms`/`blocks` |
+| Woorden van een module per taal (`PortfolioLocalization`, `BlogLocalization`, `ShopLocalization`), en waarom `OrderItemNameSnapshot` een momentopname is en geen vertaling | [`ARCHITECTURE.md`](docs/multilingual/ARCHITECTURE.md) | `fast` → de suite van de module |
 | Welke test wat bewaakt, en hoe je ze draait | [`TESTS.md`](docs/multilingual/TESTS.md) | — |
-
-Een derde taal toevoegen ligt op de grens: het register in
-[`WEBSITE-LANGUAGES.md`](docs/multilingual/WEBSITE-LANGUAGES.md) plus opslag
-ervoor, zie [`MIGRATIONS.md`](docs/multilingual/MIGRATIONS.md).
 
 ## Raakt je taak meertaligheid?
 
 Een Shop-, Blog- of Forms-taak opent deze documenten alleen als hij een van
-deze drie dingen doet:
+deze dingen doet:
 
-- een zin toevoegen die een beheerder leest — op een scherm, in de melding van
-  een endpoint of als zijbalkentry → `CMS-LANGUAGE.md`;
-- een `_nl`/`_en`-veld toevoegen aan een editor of een schrijf-endpoint →
-  `EDITING-LANGUAGE.md`;
-- tekst met een `_nl`/`_en`-paar publiek afdrukken → `WEBSITE-LANGUAGES.md`.
+- een zin toevoegen die een beheerder leest → `CMS-LANGUAGE.md`;
+- een veld toevoegen dat per taal wordt opgeslagen, aan een editor of een
+  schrijf-endpoint → `EDITING-LANGUAGE.md` en `ARCHITECTURE.md`;
+- tekst publiek afdrukken — inhoud, een systeemzin of iets wat een script
+  toont → `WEBSITE-LANGUAGES.md`;
+- een publieke route, link of JSON-endpoint toevoegen → `ROUTING.md`.
 
-Doet de taak geen van drieën, open dan niets hiervan.
+Doet de taak geen van deze, open dan niets hiervan.
 
 ## Automatisch vertalen
 
 Geldt uitsluitend voor website-inhoud, nooit voor de CMS-interface. De lagen
-van editor tot provider, de vier regels, de vertaalstatus, rich text en het
-instellen van DeepL staan in
+van provider tot endpoint, de vier regels, de vertaalstatus en het instellen
+van DeepL staan in
 [`docs/multilingual/AUTOMATIC-TRANSLATION.md`](docs/multilingual/AUTOMATIC-TRANSLATION.md).
+Sinds de editors per taal werken (fases 2–5) heeft de vertaalknop geen scherm
+meer; de service en het endpoint staan klaar voor een nieuwe aanroeper (zie de
+backlog in [`ARCHITECTURE.md`](docs/multilingual/ARCHITECTURE.md)).
 
-## Wat V1 bewust niet doet
+## Wat bewust niet
 
-- **Geen `/en/`- of `/nl/`-URL's en geen hreflang.** *Dit gold voor V1 en is
-  sinds Multilingual 2.0 fase 6 niet meer waar.* Elke taal heeft nu eigen
-  URL's — de standaardtaal zonder prefix, elke andere met — met een slug per
-  taal, een canonical per versie, hreflang en een meertalige sitemap. Het
-  hele contract staat in
-  [`docs/multilingual/ROUTING.md`](docs/multilingual/ROUTING.md).
-- **Geen taaldetectie op IP.** Dat is zo gebleven: geen GeoIP en geen externe
-  dienst. Wél leest de siteroot sinds fase 6 de opgeslagen voorkeur en
-  `Accept-Language`, en alleen daar; elke andere URL zonder prefix ís de URL
-  van de standaardtaal en wordt ook zo beantwoord.
-- **Geen generieke vertaaltabellen.** De bestaande kolommen blijven de opslag.
-  Hoe Multilingual 2.0 dat per fase vervangt, staat in
-  [`ARCHITECTURE.md`](docs/multilingual/ARCHITECTURE.md).
+- **Geen taaldetectie op IP.** Geen GeoIP en geen externe dienst. Wél leest de
+  siteroot de opgeslagen voorkeur en `Accept-Language`, en alleen daar; elke
+  andere URL zonder prefix ís de URL van de standaardtaal.
+- **Geen regionale codes, schrifttypen of RTL.** Een taalcode is precies twee
+  kleine letters (`LanguageCode`); `pt-BR` of `zh-Hans` vallen erbuiten.
 - **Geen slugs, e-mailadressen, telefoonnummers, bestandsnamen, mediapaden,
   CSS, code, SKU's, id's, module-instellingen of gebruikersnamen vertalen.**
-- **Geen vertaaldashboard** en geen hele-site-bulkvertaling. De provider-laag
-  is er wel op gebouwd: een toekomstige "vertaal alles wat nog ontbreekt" is
-  een nieuwe aanroeper van dezelfde `TranslationService`.
-- **Geen tien talen in de editors.** Twee, met een register dat er meer aankan.
-- **Geen instelling die een taal uitzet.** Dit product is NL + EN. Het
-  talenregister kent wel `is_active`, maar tot de frontend-flip van
-  Multilingual 2.0 verbergt dat geen wissel en geen veld.
+- **Geen vertaaldashboard** en geen hele-site-bulkvertaling.
 - **Geen automatische vertaling van de CMS-interface zelf.**
 
 ## Hoofdstukken van vóór de opsplitsing
@@ -150,7 +138,7 @@ terug. Elk document eindigt met zijn eigen *Waar het staat*.
 
 | Oud hoofdstuk | Staat nu in |
 |---|---|
-| Drie talen die niets met elkaar te maken hebben; Wat V1 bewust niet doet | dit bestand |
+| Drie talen die niets met elkaar te maken hebben; Wat V1 bewust niet doet | dit bestand ("Wat bewust niet") |
 | Het talenregister; De talen van de website; De terugvalregel; De publieke website | `docs/multilingual/WEBSITE-LANGUAGES.md` |
 | Het CMS in het Nederlands of het Engels | `docs/multilingual/CMS-LANGUAGE.md` |
 | De taalwissel in het CMS; Bewerken in één taal tegelijk | `docs/multilingual/EDITING-LANGUAGE.md` |
@@ -161,4 +149,4 @@ terug. Elk document eindigt met zijn eigen *Waar het staat*.
 
 Twee docblocks noemen een Engelse hoofdstuknaam die nooit bestaan heeft:
 "What V1 does not do" en "URLs and hreflang are deferred" bedoelen allebei
-*Wat V1 bewust niet doet*, hierboven.
+*Wat bewust niet*, hierboven (vroeger *Wat V1 bewust niet doet*).

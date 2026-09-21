@@ -6,9 +6,11 @@ randvoorwaarden die latere fases moeten volgen. Bron is de architectuuraudit
 van fase 0/0B (niet in de repository). Wat hier staat is de afspraak, en de
 code heeft gelijk als die afwijkt.
 
-De rest van `docs/multilingual/` beschrijft V1: beide talen in de HTML, een
-wissel in de browser en `_nl`/`_en`-kolommen. Dat model blijft werken tot de
-frontend-flip in fase 7. Wat 2.0 al vervangen heeft, staat hieronder.
+Sinds fase 7 is er geen V1 meer: de server kiest de taal, de browser krijgt
+de woorden van één taal per antwoord, en `_nl`/`_en`-kolommen,
+`data-nl`/`data-en`, de wisselcode in `core.js` en de bilinguale adapters zijn
+weg. Waar een sectie hieronder nog "tot fase 7" zegt, is dat geschiedenis;
+*Fase 7* verderop zegt wat ervoor in de plaats kwam.
 
 ## Stand
 
@@ -18,16 +20,16 @@ frontend-flip in fase 7. Wat 2.0 al vervangen heeft, staat hieronder.
 | 2 | Gelokaliseerde velden (editorcomponent) + Pages | **gebouwd** |
 | 3 | Contentblokken | **gebouwd**: generiek model + drie blokken (3A), alle overige blokken met hun kindrijen (3B) |
 | 4 | Navigatie, footer, instellingen, formulieren | **gebouwd**: getypeerde tabellen per domein, gelokaliseerde site-instellingen, optie-identiteit |
-| 5 | Modules: Portfolio, Blog, Shop, Personalisatie | **in uitvoering**: Portfolio (golf A) gebouwd |
+| 5 | Modules: Portfolio, Blog, Shop, Personalisatie | **gebouwd**: Portfolio (A), Blog (B), Shop (C), Personalisatie (D), de laatste instellingssleutels (E) |
 | 6 | Routing per taal: dispatcher, taalresolutie, slugs per taal, links, wisselaar, canonical, hreflang, sitemap | **gebouwd**, zie [`ROUTING.md`](ROUTING.md) |
-| 7 | De V1-uitvoer verwijderen (`data-nl`/`data-en`, de wisselcode in `core.js`, de bilinguale adapters), de module `multilingual` | gepland |
+| 7 | De V1-uitvoer verwijderen (`data-nl`/`data-en`, de wisselcode in `core.js`, de bilinguale adapters), de module `multilingual`, talenbeheer, getypte URL's | **gebouwd**, zie *Fase 7* hieronder |
 
 Fase 6 is breder uitgevallen dan deze tabel eerder aankondigde ("nog
 eentalig"): de routing is meteen meertalig gebouwd, inclusief server-side
 weergave in de taal van het verzoek, omdat een taal-URL die nog de
 standaardtaal toont precies het signaal is dat deze fase moest voorkomen.
 Sindsdien ziet een bezoeker 2.0 wél: elke actieve taal heeft eigen URL's.
-Fase 7 ruimt op wat daardoor dood is geworden.
+Fase 7 heeft opgeruimd wat daardoor dood was.
 
 ## CMS-taal is geen websitetaal
 
@@ -78,10 +80,12 @@ niet altijd geeft. Daarom:
 | de standaardtaal is actief | `SiteLanguageRepository::setDefault()` kiest alleen een actieve rij |
 | de standaardtaal wordt niet uitgezet of verwijderd | `deactivate()` en `delete()` matchen nooit de standaardrij (`is_default IS NULL` in de SQL) |
 | precies één standaardtaal | de migratie zet er één neer; `SiteLanguages::defaultLanguage()` gooit een fout als het er niet precies één actieve is |
+| een taal met woorden wordt niet verwijderd | `ON DELETE RESTRICT` op `language_code` in elke vertaaltabel (21 tabellen); `SiteLanguages::remove()` meldt dat als reden `in_use` |
+| alleen een taal die uit staat wordt verwijderd | `SiteLanguages::remove()` (reden `active`) |
 | niemand omzeilt de repository | `MultilingualBoundaryTest`: geen andere SQL noemt de tabel |
 
-Een nieuwe taal wordt nooit als standaard aangemaakt. Alleen `setDefault()`
-verplaatst de standaard.
+Een nieuwe taal wordt nooit als standaard aangemaakt, en start sinds fase 7
+uit. Alleen `setDefault()` verplaatst de standaard.
 
 ## De Core-API
 
@@ -90,12 +94,15 @@ verplaatst de standaard.
 | Methode | Antwoord |
 |---|---|
 | `all()` | alle talen, op `sort_order` |
-| `active()`, `activeCodes()` | de actieve talen, in volgorde |
+| `active()`, `activeCodes()` | de **gepubliceerde** talen, in volgorde: de actieve talen als de module Meertaligheid aan staat, anders alleen de standaardtaal (fase 7) |
+| `switchedOn()` | de talen die zelf aan staan, wat de module ook zegt: waaruit de wizard en het tabblad *Talen* een standaard kiezen |
 | `defaultLanguage()`, `defaultCode()` | de standaardtaal; een fout bij een kapot register |
 | `find($code)`, `exists($code)`, `isActive($code)` | opzoeken; code wordt eerst genormaliseerd |
 | `setDefault($code)` | standaard verplaatsen; neemt deel aan een open transactie |
+| `add()`, `rename()`, `activate()`, `deactivate()`, `move()`, `remove()` | talenbeheer (fase 7); een weigering is een `InvalidArgumentException` met een reden (`code`, `exists`, `name`, `default`, `active`, `in_use`, `unknown`) |
 
-De klasse kent geen taal bij naam en vraagt geen module na. Is het register
+De klasse kent geen taal bij naam en vraagt geen module bij naam na: sinds
+fase 7 vraagt `active()` één capaciteit, `ModuleRegistry::publishesTranslations()`. Is het register
 onleesbaar, dan logt ze dat één keer en is het register leeg.
 `SiteLanguageFixture` (tests) vervangt het in het geheugen.
 
@@ -116,37 +123,29 @@ De standaardtaal is **`site_languages.is_default`**, en niets anders.
   transactie als de rest van de wizard.
 - **Opnieuw draaien** voegt niets toe: een gevuld register blijft zoals het
   is, ook als de eigenaar de standaard intussen verplaatst heeft.
-- **Schrijven** gaat via één methode, `ContentLanguages::savePrimary()`,
-  voor het tabblad *Talen* en voor de wizard.
+- **Schrijven** gaat via één methode, `SiteLanguages::setDefault()`, voor het
+  tabblad *Talen*, de wizard en het endpoint (tot fase 7
+  `ContentLanguages::savePrimary()`).
 - **De wizard leest de gekozen taal** via `SetupWizard::websiteLanguage()`:
-  de vorm via `LanguageCode`, wat V1 kan publiceren via de adapter. Het
-  scherm gebruikt dezelfde methode voor de beginwaarde van de keuzelijst.
+  de vorm via `LanguageCode`, de keuze uit `SiteLanguages::switchedOn()`, zodat
+  ook een site met de module uit zijn standaard kan kiezen. Het scherm gebruikt
+  dezelfde methode voor de beginwaarde van de keuzelijst.
   Nooit via `AdminLocale`: die bepaalt alleen in welke taal het CMS zelf
   getoond wordt. Alleen de schermen van de CMS-taal mogen een taal via
   `AdminLocale` valideren, en `MultilingualBoundaryTest` bewaakt dat.
 
-## De V1-adapter
+## De V1-adapter (tot fase 7)
 
-Tot fase 7 verwacht de productiecode het vaste paar NL/EN.
-`ContentLanguages` is de kleinste brug:
+Van fase 1 tot fase 7 verwachtte de productiecode het vaste paar NL/EN, en
+`ContentLanguages` was de brug: `primary()` las het register, maar alleen een
+taal die de `_nl`/`_en`-kolommen konden opslaan, en `enabled()` gaf altijd NL
+en EN. `LocalizedValue`, de `bilingual()`-methodes en `SiteText::visibleOf()`/
+`attrsOf()` bouwden daaruit de `data-nl`/`data-en`-paren voor de wissel in de
+browser.
 
-- **`primary()` leest het register**, maar alleen een taal die de
-  `_nl`/`_en`-kolommen kunnen opslaan. Is dat niet zo, of is het register
-  onleesbaar, dan geeft hij Nederlands, zoals een onbekende instelling vroeger.
-- **`enabled()` blijft V1**: altijd NL en EN, de hoofdtaal eerst, uit het
-  gesloten `LanguageRegistry`. `is_active` in het register verbergt tot fase 7
-  geen wissel en geen veld.
-- `SiteText`, `LocalizedValue`, `data-nl`/`data-en`, `applyLang()` en de
-  `data-lang-html`-regel (platte tekst via `textContent`, alleen gemarkeerde
-  HTML via `innerHTML`) zijn **ongewijzigd**.
-
-Er is geen dual-read: niets leest nog een instellingenrij voor de taal.
-
-Sinds fase 2 leest Pages zijn tekst niet meer uit `_nl`/`_en`-kolommen; de
-`data-nl`/`data-en`-paren van een pagina komen uit
-`PageLocalization::bilingual()` (hieronder). Sinds fase 3A geldt hetzelfde voor
-drie bloktypes, via `BlockLocalization::bilingual()`. De rest van de site is
-nog V1.
+Fase 7 heeft dat allemaal verwijderd. Een onleesbaar register valt nu terug op
+`LanguageFallback::defaultLanguage()`, en die op de projectstandaard
+`LanguageRegistry::DEFAULT_LANGUAGE`: één terugval, op één plek.
 
 ## Pagina's per taal (fase 2)
 
@@ -214,7 +213,6 @@ rij.
 | `preload($ids)` | alle tekst van een lijst pagina's in één query |
 | `save($id, $code, $velden)` | één taal opslaan; weigert een taal die het register niet heeft |
 | `defaultLanguage()` | de standaardtaal waarop alles terugvalt |
-| `bilingual($id, $veld)` | de tijdelijke NL/EN-adapter, zie hieronder |
 
 Leest nooit met een fout: een mislukte lookup wordt gelogd en leest als "geen
 tekst". Schrijven gooit wel een fout.
@@ -244,17 +242,14 @@ SEO-kop, de editor en de templates vragen de standaardtaal niet zelf op;
 Dit is terugval op **veldniveau**. Of een complete taalversie van een URL
 bestaat, beslist pas de routingfase.
 
-### De tijdelijke NL/EN-uitvoeradapter
+### Uitvoer
 
-De publieke wissel in de browser (`data-nl`/`data-en`, `core.js`) blijft tot de
-frontend-flip. `PageLocalization::bilingual()` bouwt dat paar uit
-`page_translations`, met elke helft al opgelost via `value()`, en geeft een
-`LocalizedValue` terug. De twee codes komen uit het gesloten V1-register.
-
-Gebruikt door `PageBreadcrumb`, `BreadcrumbTrail::toPage()` en `PageSeo` (via
-`PageContent::seoTitle()`/`metaDescription()` met `nl` en `en`). Er is geen
-nieuwe NL/EN-opslag. Paginavelden zijn platte tekst: alles wat ze print blijft
-`textContent`, nooit `data-lang-html`.
+Een pagina print één waarde per veld, in de taal van het verzoek, met de
+terugval al toegepast (`PageLocalization::value()`, via `PageContent`). Het
+kruimelpad (`PageBreadcrumb`, `BreadcrumbTrail::toPage()`) en `PageSeo` lezen
+dezelfde waarden. Paginavelden zijn platte tekst en worden altijd ge-escaped.
+Tot fase 7 bouwde `PageLocalization::bilingual()` er een paar van voor de
+wissel in de browser; die is weg.
 
 ### De editorcomponent
 
@@ -485,9 +480,10 @@ blijven de woorden geldig en onaangeroerd als de module uit staat.
 | `raw($tabel, $id, $veld, $taal)` | de opgeslagen woorden, **zonder** terugval: voor een redacteur |
 | `value($tabel, $id, $veld, $taal)` | met terugval, rich text gesaneerd: voor een bezoeker |
 | `name($tabel, $id, $veld)` | hoe het CMS een blok noemt (de standaardtaal, anders de eerste taal met woorden) |
-| `bilingual($tabel, $id, $veld)` | de tijdelijke NL/EN-adapter, hieronder |
-| `words($tabel, $id)` | `bilingual()` voor elk gedeclareerd veld van één eigenaar: wat een `*Content`-klasse aan de partial geeft |
-| `bilingualFirst($tabel, $id, [$veld, …])` | het eerste platte veld met woorden, per taal, en pas dan de standaardtaal: het quicknav-label (korte naam, anders de titel) |
+| `text($tabel, $id, $veld)` | `value()` in de taal van het verzoek (fase 7) |
+| `words($tabel, $id)` | `text()` voor elk gedeclareerd veld van één eigenaar: wat een `*Content`-klasse aan de partial geeft |
+| `first($tabel, $id, [$veld, …])` | het eerste platte veld met woorden in de taal van het verzoek, en pas dan de standaardtaal: het quicknav-label (korte naam, anders de titel) |
+| `hasDefaultWords($tabel, $id, $veld)` | heeft dit veld woorden in de standaardtaal? Die beslist of het blok iets toont, in elke taal (fase 7) |
 | `hasRequiredWords($tabel, $id)` | heeft deze eigenaar zijn verplichte woorden in de standaardtaal? De vraag die een `*Content`-klasse per item stelt |
 | `preload([$tabel => $ids])`, `preloadSections($rijen)`, `preloadBlocks([$tabel => $ids])` | woorden van veel blokken in één query; de laatste twee met de woorden van alle kind- en kleinkindrijen erbij |
 | `problems($tabel, $taal, $waarden)`, `messageKeys()` | de validatie uit de declaratie: `missing` (alleen standaardtaal), `too_long` |
@@ -567,31 +563,24 @@ De HTML was op witruimte na gelijk. `BlockWordsPreloadTest` bewaakt dat een
 FAQ, Detailsectie, Tekst met afbeelding en Kaarten-carrousel met zes keer zoveel
 items en tags geen enkele query meer kosten.
 
-### De tijdelijke NL/EN-uitvoeradapter
+### Uitvoer
 
-De publieke wissel (`data-nl`/`data-en`, `core.js`) blijft tot de flip.
-`BlockLocalization::bilingual()` bouwt het paar uit `block_translations`, elke
-helft al opgelost via `value()`, als `LocalizedValue`. Een inhoudsklasse geeft
-de partial per veld zo'n waarde; de partial print hem met drie methodes van
-`SiteText`:
+Een inhoudsklasse geeft de partial per veld **één string**, in de taal van het
+verzoek, met de terugval al toegepast: `BlockLocalization::text()`,
+`::first()` en `::words()`. De partial print platte tekst met
+`htmlspecialchars()` en gesaneerde rich text (`RichTextSanitizer`) zoals hij
+is. Een partial kent zo geen taal, geen standaard en geen terugval. Tot fase 7
+was dit een `LocalizedValue`-paar uit `BlockLocalization::bilingual()`, met
+`SiteText::visibleOf()`/`attrsOf()`/`htmlAttrsOf()` in de partial; die zijn
+weg.
 
-| Methode | Print |
-|---|---|
-| `visibleOf($waarde)` | de woorden die een bezoeker eerst ziet (de standaardtaal, met terugval) |
-| `attrsOf($waarde)` | het ge-escapete paar voor platte tekst: `core.js` schrijft het met `textContent` |
-| `attrsForOf('alt', $waarde)` | hetzelfde paar voor een attribuut: `data-nl-alt`/`data-en-alt` bij een alt-tekst, `data-nl-aria`/`data-en-aria` bij een label |
-| `htmlAttrsOf($waarde)` | het paar met `data-lang-html`, **alleen voor gesaneerde rich text**, en alleen als de talen echt verschillen |
+**De standaardtaal beslist of een blok iets toont**, in elke taal:
+`BlockLocalization::hasDefaultWords()`. Een Tekstblok zonder body in de
+standaardtaal toont ook op `/en/` niets, ook als er een Engelse body is.
 
-Een partial kent zo geen taal, geen standaard en geen terugval; de flip hoeft
-straks `SiteText` te veranderen en niet elke partial. Het XSS-contract blijft:
-platte tekst wordt nooit `data-lang-html`, rich text is altijd
-`RichTextSanitizer`-uitvoer.
-
-**De rich-textbug is weg.** Met Engels als standaardtaal toont een Tekstblok bij
-de eerste render de Engelse body (`visibleOf()`), niet de Nederlandse kolom. Op
-een site met Nederlands als standaard is de uitvoer byte-identiek aan vóór 3A:
-een body zonder vertaling krijgt nog steeds geen taalattributen. Sinds 3B geldt
-hetzelfde voor de body van de Detailsectie, het tweede rich veld.
+**De rich-textbug is weg** (sinds 3A): met Engels als standaardtaal toont een
+Tekstblok de Engelse body, niet de Nederlandse. Sinds 3B geldt hetzelfde voor
+de body van de Detailsectie, het tweede rich veld.
 
 **Alt-teksten** zijn gewone platte velden op de rij die het beeld houdt
 (`alt`, `image_alt`, `main_image_alt`). `BlockImage::fromOwner($rij, $alt)`
@@ -599,9 +588,8 @@ legt de alt-tekst van de mediabibliotheek eronder als laatste laag: een blok
 zonder eigen alt-tekst in de standaardtaal krijgt die van het media-item.
 
 **Eén uitzondering op "platte tekst is nooit HTML":** de kop van de
-Openingssectie homepage. `HomepageHeroContent::titleHtml()` bouwt per taal
-markup uit ge-escapete woorden en één vaste `<em>` rond de highlight, en alleen
-die `<h1>` krijgt `data-lang-html`. `MultilingualBoundaryTest` bewaakt dat.
+Openingssectie homepage. `HomepageHeroContent::renderTitleFragment()` bouwt
+markup uit ge-escapete woorden en één vaste `<em>` rond de highlight.
 
 ### De editors
 
@@ -729,10 +717,10 @@ een domein-API kent alleen zijn eigen tabel.
 
 | Klasse | Wat het is |
 |---|---|
-| `App\Service\Language\LanguageFallback` | **De** terugval van fase 4: gevraagde taal → standaardtaal → leeg. Ook `name()` (beheerdersnaam: eerste gevulde taal als extra stap) en `bilingual()` (het tijdelijke NL/EN-paar) |
+| `App\Service\Language\LanguageFallback` | **De** terugval van fase 4: gevraagde taal → standaardtaal → leeg. Ook `name()` (beheerdersnaam: eerste gevulde taal als extra stap) en `defaultLanguage()`, de enige terugval bij een onleesbaar register (fase 7) |
 | `App\Service\Language\TranslationTable` | Gesloten declaratie van één getypeerde tabel: naam, eigenaarskolom, en per veld zijn maximumlengte. Weigert `language_code` als veldnaam |
 | `App\Repository\EntityTranslationRepository` | **Alle** SQL van **alle** getypeerde tabellen, gebouwd uit die declaratie: `findForOwners()`, `save()` (upsert), `delete()` |
-| `App\Service\Language\EntityTranslations` | De API per tabel: cache, `words/raw/value/name/bilingual/preload/problems/save/forget` |
+| `App\Service\Language\EntityTranslations` | De API per tabel: cache, `words/raw/value/name/preload/problems/save/forget` |
 
 `save()` legt één taal neer over wat er staat, en verwijdert de rij zodra elk
 veld van die taal leeg is. Lengte wordt alleen gemeten over de velden die de
@@ -815,16 +803,14 @@ altijd, en taal A opslaan laat taal B staan. Een nieuw item, een nieuwe kolom,
 link of veld begint in de standaardtaal. Rij, woorden en opties zijn één
 transactie; een geweigerde opslag schrijft niets en houdt de POST vast.
 
-### De tijdelijke NL/EN-uitvoer
+### Uitvoer
 
 Header, footer, het Offerte-/contactformulier en het publieke formulier printen
-hun paar uit de nieuwe opslag via `LanguageFallback::bilingual()` en
-`SiteText::visibleOf()`/`attrsOf()`, net als de blokken. Geen nieuwe
-NL/EN-kolom, geen terugval per template. Het XSS-contract blijft: platte tekst
-gaat als `textContent` door `core.js`, HTML alleen met de expliciete marker. Een
-menulabel, footerlabel, veldlabel en optielabel zijn altijd platte tekst. De
-kop van een submenu draagt zijn paar op een eigen `<span>`, zodat de wissel de
-chevron niet wist.
+één waarde per veld, in de taal van het verzoek, opgelost via
+`LanguageFallback::resolve()`. Geen terugval per template. Een menulabel,
+footerlabel, veldlabel en optielabel zijn altijd platte tekst en worden
+ge-escaped. Tot fase 7 was dat een paar via `LanguageFallback::bilingual()` en
+`SiteText::visibleOf()`/`attrsOf()`.
 
 ### De migraties
 
@@ -875,14 +861,15 @@ op de eigenaar met `ON DELETE CASCADE`, FK `language_code` →
 
 **Eén API, geen omweg.** `PortfolioLocalization` is de enige lezer en schrijver
 van die drie tabellen. De repositories bewaren rijen en kennen geen woord meer;
-`PortfolioGalleryContent` geeft per veld één `LocalizedValue`, de terugval al
-toegepast, en beslist zelf geen taal. `MultilingualBoundaryTest` bewaakt dat.
+`PortfolioGalleryContent` geeft per veld één waarde in de taal van het verzoek
+(tot fase 7 een `LocalizedValue`-paar), de terugval al toegepast, en beslist
+zelf geen taal. `MultilingualBoundaryTest` bewaakt dat.
 
 **Rich text wordt per taal gesaneerd, vóór de terugval.** `intro` en
 `description` zijn de rich text van de oude projectpagina. De editor die ze
 schreef is er niet meer, dus `itemRichValue()` haalt elke taal apart door
-`RichTextSanitizer` en geeft het resultaat daarna aan
-`LanguageFallback::bilingual()`. Een taal waarvan de markup wegsaneert heeft
+`RichTextSanitizer` en geeft het resultaat daarna aan de terugval
+(`LanguageFallback`). Een taal waarvan de markup wegsaneert heeft
 dus geen woorden, en de terugval neemt het over. Eén sanitizer, geen tweede.
 
 **Wat taalneutraal blijft:** de slug van een categorie en van een item, de
@@ -904,8 +891,9 @@ dat doet de nieuwe opslag niet.
 
 **De gedeelde kaartvorm.** Het blok Galerij (Core) en Projecten (Portfolio)
 renderen dezelfde kaart, met Portfolio-items óf producten als bron. Die
-genormaliseerde vorm draagt sinds deze golf `alt`, `title` en `subtitle` als
-één `LocalizedValue` per veld — welke bron hem ook bouwt. `CollectionGalleryItems`
+genormaliseerde vorm draagt sinds deze golf `alt`, `title` en `subtitle` per
+veld — sinds fase 7 als één string in de taal van het verzoek — welke bron hem
+ook bouwt. `CollectionGalleryItems`
 bouwt dat paar tot golf C nog uit de kolommen van de Shop; wat dan verandert is
 de bron, niet de partial.
 
@@ -979,11 +967,10 @@ dat verandert.
 
 **Twee vormen van dezelfde woorden.** `BlogContent::title()/excerpt()/body()`
 geven één taal — dat is wat de SEO-kop, de RSS-feed en de JSON-LD willen —
-en `titleValue()`, `excerptValue()`, `bodyValue()`, `categoryNameValue()` en
-`tagNameValue()` geven één `LocalizedValue`, wat een template via `SiteText`
-print. `blog.php` en `blog-post.php` staan op de tweede vorm, dus een bericht
-op een Engelstalige site opent in het Engels; de vaste `data-nl`/`data-en` van
-de UI-woorden ("Alles", "Lees verder") blijven tot de flip.
+en tot fase 7 gaven `titleValue()`, `excerptValue()`, `bodyValue()`,
+`categoryNameValue()` en `tagNameValue()` een `LocalizedValue`-paar voor de
+wissel in de browser. Sinds fase 7 is er alleen de eerste vorm, in de taal van
+het verzoek, en zijn de UI-woorden ("Alles", "Lees verder") een codecatalogus.
 
 **De RSS-feed volgt de taal van het verzoek.** In deze fase was hij nog de
 standaardtaal: één document op één adres, en de vaste `'nl'` werd
@@ -1219,12 +1206,222 @@ database die vanaf nul is opgebouwd. Wat overblijft is geen opslag:
 - de tijdelijke `data-nl`/`data-en`-paren en JSON-sleutels van de frontend;
 - de historische migraties en hun testfixtures.
 
-Die drie horen bij het opruimen van de frontend in fase 6/7.
+De eerste twee heeft fase 7 opgeruimd: de codecatalogi zijn kaarten per
+taalcode (`SiteText::pick()`), de frontend drukt één taal af en de JSON-API's
+geven één waarde per veld. De historische migraties blijven zoals ze zijn.
 
-`SiteText::attrs()`/`visible()` blijft voor alles wat nog een paar in een
-payload draagt, en de tijdelijke uitvoeradapter
-(`BlockLocalization::bilingual()`, `LanguageFallback::bilingual()`,
-`SiteText::*Of()`) blijft tot de flip in fase 7.
+## Fase 7: één taal per antwoord, de module, en het einde van V1
+
+Fase 6 gaf elke taal eigen URL's; fase 7 maakte de server de enige die een
+taal kiest en ruimde op wat daardoor dood was. Zes golven, elk een commit.
+
+### Golf A: de frontend-flip
+
+De browser krijgt de woorden van **één** taal per antwoord, en wisselt nooit
+meer een document in een andere taal.
+
+- **`core.js`** kent geen taal meer: `applyLang()`, `initLang()`, de
+  `localStorage`-sleutel `vvl-lang` en `data-primary-lang` zijn weg. De
+  taalkeuze is de rij links van fase 6.
+- **Geen publiek sjabloon of partial print nog een paar**: geen
+  `data-nl`/`data-en`, geen `data-lang-html`, geen `-alt`/`-aria`/`-content`/
+  `-placeholder`-families. `MultilingualBoundaryTest::testNoPublicTemplatePrintsALanguagePair`
+  loopt alle root-sjablonen en partials af.
+- **Inhoudsklassen** geven een partial één string per veld, in de taal van het
+  verzoek, met de terugval al toegepast (`BlockLocalization::text()`,
+  `::first()`, `::words()`), en hun caches zijn per taal gesleuteld.
+- **De standaardtaal beslist of iets bestaat**, ook op `/en/` en `/de/`: een
+  Tekstblok, Oproep, Contactkaart, Paginakop, de body van een Detailsectie of
+  een galerij-/contactknop zonder woorden in de standaardtaal toont in geen
+  taal (`BlockLocalization::hasDefaultWords()`). Vóór de flip hield alleen de
+  zichtbare helft zich daaraan.
+- **Systeemtekst** staat in kleine, gesloten codecatalogi per taalcode naast
+  de code die hem gebruikt: `SiteText::pick()` en `::escaped()`, met terugval
+  op de standaardtaal. `SeoMetadata`, het kruimelpad, de routelabels
+  (`RouteRegistry`), de cookiebanner en het cookiebeleid, de meldingen van
+  formulieren (`FormText` is weg), blogdata en archieftitels, de JSON-LD van
+  een product en alle schiltekst van de sjablonen volgen de taal van het
+  verzoek.
+
+### Golf B: API's, Shop en winkelwagen
+
+- **Elke publieke JSON-API** antwoordt in de taal van de pagina die vraagt
+  (`?lang=`, `App\Service\Routing\ApiLanguage`: alleen een gepubliceerde taal,
+  anders de standaardtaal), met één waarde per veld: `products.php`,
+  `product.php`, `order-status.php` (uit de eigen naam-momentopnames van de
+  bestelling), `shipping-zones.php` en `shipping-quote.php`. Geen `*_en` meer.
+- **De scripts kiezen geen taal**: `cart.js`, `shop.js` en
+  `personalization.js` krijgen hun zinnen uit `ShopScriptText` (een
+  JSON-datablok in de mini-winkelwagen) en `PersonalizationScriptText` (in de
+  configuratie van het paneel). `bilingualAttrs()`, `currentLangText()` en
+  `currentLangHtml()` zijn weg — en daarmee ook dubbel ge-escapete namen en
+  "Terms &amp;amp; Conditions".
+- **De winkelwagen** in `localStorage`: zie *Momentopnames en opgeslagen
+  browserdata* hieronder.
+- Landnamen (`ShippingCountries`) en verzendprofielnamen (`ShippingProfile`)
+  zijn codecatalogi; het CMS leest profielnamen in zijn interfacetaal, de
+  (Nederlandstalige) bevestigingsmail in het Nederlands.
+
+### Golf C: de V1-adapters weg
+
+`ContentLanguages`, `LocalizedValue`, elke `bilingual()` (`LanguageFallback`,
+`EntityTranslations`, `LocalizedSettings`, `LocalizedSiteSettings`,
+`PageLocalization`), `renderableLanguages()`, `OrderItemNameSnapshot::pair()`,
+de contentrol van `LanguageRegistry` (en `filter()`),
+`ContentEditingLanguage::source()`/`isPrimary()`, `admin/_language_fields.php`,
+`admin/assets/admin-language-translate.js` en de
+`.admin-lang-pane`/`.admin-lang-translate`-styling. Niets daarvan had nog een
+aanroeper; `MultilingualBoundaryTest::testNoStoredValueDecidesWhichLanguagesArePublished`
+houdt vast dat geen applicatiecode ze terugbrengt.
+
+- **Eén terugval bij een onleesbaar register**:
+  `LanguageFallback::defaultLanguage()` (de projectstandaard). Elke plek die
+  vroeger "het register, anders `ContentLanguages::primary()`" deed, vraagt
+  die.
+- **`LanguageRegistry`** is alleen nog de lijst van talen die het **CMS zelf**
+  spreekt: interfacetalen, hun namen, de DeepL-codes.
+- **De standaardtaal verplaatsen** gaat via `SiteLanguages::setDefault()`, voor
+  het tabblad *Talen*, de installatiewizard en het endpoint.
+- **Automatisch vertalen** heeft sinds de editors per taal werken (fases 2–5)
+  geen knop meer; `TranslationService` en `api/admin/translate-fields.php`
+  staan klaar, nu op het register (backlog).
+
+### Golf D: de module Meertaligheid en talenbeheer
+
+`App\Module\MultilingualModule` (sleutel `multilingual`) beslist of de website
+méér dan zijn standaardtaal publiceert. Core vraagt dat op capaciteit
+(`ModuleDefinition::publishesTranslations()`), één keer, in
+`SiteLanguages::active()`; alles wat talen publiceert, vraagt al
+`SiteLanguages`. Uit: alleen de standaardtaal, geen prefix-routes, geen
+taalkeuze, geen hreflang of `x-default`, een eentalige sitemap, geen
+`Accept-Language`-onderhandeling, editors en schrijf-endpoints op de
+standaardtaal. Het register, de eigen vlag van elke taal en elke vertaling
+blijven staan.
+
+**Op een nieuwe installatie uit**, zoals bij *Vastgelegd voor later* al
+stond. Bestaande installaties houden hun gedrag: migratie
+`20260921100000` pint de module aan voor elke installatie van vóór de
+installatiemarker en voor een verse installatie waarvan de wizard al klaar
+was. Die keuze volgt uit de regel van elke `pin_*`-migratie — een nieuwe
+standaard geldt voor een nieuwe site, nooit met terugwerkende kracht — en uit
+het principe van heel 2.0 dat een bestaande site niets ziet veranderen.
+
+Talenbeheer staat onder *Site-instellingen → Talen*
+([`WEBSITE-LANGUAGES.md`](WEBSITE-LANGUAGES.md)): toevoegen (start uit),
+namen, aan/uit, standaard, volgorde, verwijderen. `SiteLanguages` kreeg
+`add()`, `rename()`, `activate()`, `deactivate()`, `move()` en `remove()`;
+`SiteLanguageRepository` `activate()`, `rename()` en `move()`. Verwijderen kan
+alleen voor een taal die uit staat, niet de standaard is en nergens woorden
+heeft: de 21 vertaaltabellen verwijzen er met `ON DELETE RESTRICT` naar.
+
+### Golf E: de laatste locale-links
+
+- **Door redacteuren getypte URL's** in blokken (knoppen, kaarten, "bekijk
+  alles") gaan door `App\Service\Routing\TypedLink`: extern, anker, query en
+  een pad dat al een taal noemt blijven letterlijk; `/` wordt de home van die
+  taal; `/<slug>` van een gepubliceerde standaardtaalpagina wordt die pagina
+  in deze taal (of zijn standaardadres als hij hier geen versie heeft); het
+  adres van een geregistreerde route wordt die route in deze taal, zoals een
+  menulink; al het andere blijft letterlijk. Geen opslag, geen migratie, geen
+  naïeve `/en`-prefix. Zie [`ROUTING.md`](ROUTING.md).
+- **Sitemap**: de personalisatiecatalogus en de oude projectpagina's bestaan
+  in elke gepubliceerde taal, declareren die versies (hreflang) en staan met
+  alle versies in de sitemap.
+- `/verzenden-retourneren` en `/privacyverklaring` waren al sinds golf A op
+  content-key opgelost (`LegalPages::publishedPageUrl()`), in de taal van het
+  verzoek.
+
+### Golf F: harden en opruimen
+
+- **Een zoektocht door de hele repository** naar `_nl`/`_en`, `data-nl`,
+  `data-lang-html`, `bilingual(`, `ContentLanguages`, `LocalizedValue`,
+  `admin-lang-pane` en `_language_fields`: wat in code overblijft is
+  commentaar dat zegt dat het er niet meer is, de bewakers in
+  `MultilingualBoundaryTest`, historische migraties met hun tests, en de
+  upgrade van oude winkelwagenregels in `cart.js`.
+- **`db/seeds/ProductSeeder.php`** schreef nog `products.name`/`name_en`, die
+  fase 5 gedropt had, zodat `phinx seed:run` uit de README op elke
+  installatie faalde. Hij schrijft de woorden nu als `product_translations` in
+  de standaardtaal; `ProductSeederSchemaTest` leest hem tegen het schema.
+- **De blogindex** noemde in zijn `<head>` geen enkele taalversie, terwijl de
+  sitemap hem met alternates gaf: `blog.php` verklaarde alleen de versies van
+  een categorie- of tagarchief. Hij verklaart nu ook de zijne
+  (`MultilingualModuleHttpTest`); gevonden met het browserharnas.
+- **Een uitgezette taalprefix** (of elke taal behalve de standaard met de
+  module uit) antwoordt in `dispatcher.php` meteen 404, niet eerst met de
+  permanente redirect die een sluitende slash weghaalt. Die redirect bleef in
+  de browser hangen en gaf een lus zodra de taal weer aan ging (`/de` → `/de/`
+  → `/de`). Gevonden met het browserharnas; `MultilingualModuleHttpTest` houdt
+  het vast.
+- **`shop.js`** las op de productpagina nog een variabele (`titleText`) die
+  golf B met de oude `currentLangText()`-regel had weggehaald. Elke
+  productpagina gooide daardoor een fout in `renderProduct()`, die de
+  fetch-keten opving als "product niet gevonden". Geen PHP-test voert het
+  script uit; `ShopScriptTextContractTest` pint de declaratie nu vast, en een
+  scan van alle projectscripts op niet-gedeclareerde namen vond verder niets.
+  Gevonden met het browserharnas.
+- **Metingen** (SELECT's per verzoek, voor en na fase 7, op dezelfde
+  geüpgradede database): gelijk op elke route behalve de checkout (21 naar
+  24: de twee pagina-opzoekingen van golf A, vast en niet per product); de HTML
+  is 25–30% kleiner omdat elke tekst er nog één keer in staat.
+
+### Momentopnames en opgeslagen browserdata
+
+Wat opgeslagen is op het moment van een bestelling, of in de browser van een
+klant, blijft leesbaar; het wordt nooit herschreven.
+
+| Opslag | Beleid |
+|---|---|
+| `order_item_translations` (`OrderItemNameSnapshot`) | de historische naam per taal; een bestelling toont de naam in de taal van de pagina, anders de neutrale momentopname, nooit de huidige productnaam |
+| Personalisatie `config_snapshot_json` | versie 4 legt **één** label vast, in de standaardtaal; versies 1–3 met `label` + `label_en` blijven leesbaar zoals ze zijn opgeslagen |
+| Winkelwagen in `localStorage` | lezen-oud/schrijven-nieuw: een regel is product + variant + personalisatie; `name` + `lang` zijn weergave en worden na een taalwissel één keer per id opnieuw gelezen. Een regel van vóór fase 7 (`name` + `name_en`, zone `label` + `label_en`) wordt in `upgradeLegacyLines()` gelezen en in de nieuwe vorm teruggeschreven — de enige plek die de oude veldnamen kent |
+| `site_language`-cookie | alleen een taalcode; beslist alleen iets op de siteroot |
+| Cookie-toestemming | taalneutraal; een taalwissel reset niets |
+
+Geen van deze vraagt om meerdere taalversies tegelijk op te slaan.
+
+### Codecatalogi: wat is CMS-tekst, wat is sitetekst
+
+| Catalogus | Soort | Waar |
+|---|---|---|
+| `RouteRegistry` routelabels | sitetekst (kruimelpad) en CMS-tekst (`adminLabel()`) | `label()` via `SiteText::pick()`, `adminLabel()` via `AdminLocale` |
+| `ModuleDefinition::label()`/`description()` | CMS-tekst (wizard, zijbalk) | Nederlands, zoals elke CMS-tekst voor de redacteur |
+| `CookieConsentConfig` | sitetekst | `SiteText::pick()` |
+| `LanguageDefinition` | CMS-tekst (namen van talen in de interface) | `labelIn()` per interfacetaal |
+| `PersonalizationColors` | sitetekst (kleurnamen), momentopname in de standaardtaal | `SiteText::pick()` |
+| `ShippingProfile`, `ShippingCountries`, `PickupLocation` | sitetekst, en CMS-tekst waar het CMS ze toont | `SiteText::pick()` met de taal van de aanroeper |
+| `ShopScriptText`, `PersonalizationScriptText` | sitetekst voor scripts | JSON in de taal van het verzoek |
+| `BlogContent` maanden, `BlogSeo` paginaknip | sitetekst | `SiteText::pick()` |
+
+Geen van deze wordt opgeslagen en geen heeft een `label_de`: een derde taal is
+een sleutel in de catalogus, anders valt hij terug op de standaardtaal.
+
+### Neutrale slugkolommen
+
+Bewust **niet** gedropt:
+
+- `pages`, `blog_posts`, `blog_categories`, `blog_tags`, `collections`: de
+  neutrale `slug` is het adres van de standaardtaal en blijft byte-gelijk aan
+  de standaardrij (migratie `20260920100000`). Hij bedient de
+  terugval voor rijen die alleen de neutrale kolom schreven (fixtures,
+  scripts), bestaande redirects en oude links.
+- `portfolio_gallery_items`, `portfolio_categories`: één slug voor elke taal
+  (`/portfolio/<slug>`, de filterbalk); per-taal-slugs zijn er niet.
+- `products`: een interne sleutel, geen adres — een product blijft
+  `/product.php?id=N`.
+
+## Backlog na fase 7
+
+- **Meldingen van de checkout-API** (`api/checkout.php`, en de uitzonderingen
+  van adrescontrole, verzending en personalisatievalidatie) zijn nog Engels,
+  in elke taal. Geen V1-paar, wel een gat.
+- **De orderbevestiging** is Nederlandstalig, in welke taal er ook besteld is.
+- **Automatisch vertalen** heeft geen knop in de editors per taal.
+- **Productopties en variantlabels** zijn één-talige gegevens.
+- **Publicatie per taal** als eigen vlag bestaat niet: een taalversie is
+  publiek zodra hij een adres heeft.
+- **Vimexx-staging**: het `.htaccess`-gedrag van fase 6 is lokaal alleen
+  tegen Apache in Docker bewezen.
 
 ## Nog niet, bewust
 
@@ -1244,8 +1441,7 @@ aparte `is_published` per taal is er niet, en fase 6 had hem niet nodig.
 
 - De rich-textbug uit fase 2 (een Tekstblok toonde op een Engelstalige site bij
   de eerste render de Nederlandse body) is in fase 3A opgelost, zie
-  *De tijdelijke NL/EN-uitvoeradapter* bij de contentblokken; voor de
-  Detailsectie in fase 3B.
+  *Uitvoer* bij de contentblokken; voor de Detailsectie in fase 3B.
 - **De zichtbare `<title>` en `content` van de meta description** in
   `partials/seo-head.php` printten de NL-helft, ook als Engels de
   standaardtaal was. Opgelost in fase 6: `SeoMetadata::title()` en
@@ -1259,7 +1455,7 @@ websitetalen; één standaardtaal; talen toevoegen, uitzetten en ordenen; een
 dynamische editor; server-side weergave; handmatig vertalen; gelokaliseerde
 URL's en slugs; canonical, hreflang en sitemap; een taalwisselaar;
 `Accept-Language` als suggestie; de keuze van een bezoeker onthouden; een
-terugval op veldniveau.
+terugval op veldniveau. Sinds fase 7 is dat allemaal gebouwd.
 
 **Buiten, en voor geen enkele fase een voorwaarde:** externe API's
 (automatisch vertalen, DeepL, Azure), bulkvertaling, een statusworkflow voor
@@ -1271,9 +1467,10 @@ providerklassen blijven ongebruikt staan.
 - **Hybride opslag.** Echte domeinentiteiten krijgen **getypeerde**
   `<entiteit>_translations`-tabellen: FK met `ON DELETE CASCADE`, één rij per
   taal, ook voor de standaardtaal. Gebouwd voor pagina's (fase 2) en voor
-  menu-items, footer, formulieren, velden en opties (fase 4); nog te doen voor
-  blogberichten, categorieën, tags, producten, collecties, portfolio-items,
-  productopties en personalisatie (fase 5).
+  menu-items, footer, formulieren, velden en opties (fase 4) en voor
+  blogberichten, categorieën, tags, producten, collecties, portfolio-items en
+  personalisatie (fase 5). Productopties en variantlabels zijn nog één-talig
+  (backlog).
 - **Contentblokken** op één generieke `block_translations`, met de
   weesrij-guards: gebouwd in fase 3A en 3B, alle bloktypes en hun kindrijen,
   zie *Contentblokken per taal*.
@@ -1287,18 +1484,18 @@ providerklassen blijven ongebruikt staan.
   frameworklaag. **Nog te doen: het bewijs op een Vimexx-staging** — het
   `.htaccess`-gedrag, `MultiViews` en een eventuele cachelaag zijn lokaal niet
   na te bootsen, en lokaal is alleen tegen Apache in Docker getest.
-- **Verse installaties** krijgen de module `multilingual` straks **uit**.
-- **Bestaande installaties met de oude NL/EN-wissel.** Wat die bij de flip
-  krijgen (module aan of uit, Engels actief of niet), wordt pas vlak vóór de
-  frontend-flip definitief gekozen. Fase 1 zet beide talen actief omdat dat
-  het huidige gedrag is, niet als die keuze.
+- **Verse installaties** krijgen de module `multilingual` **uit**: gebouwd
+  in fase 7.
+- **Bestaande installaties met de oude NL/EN-wissel** houden bij de flip hun
+  gedrag: de module aan (migratie `20260921100000`), hun talen zoals ze
+  stonden. Gekozen in fase 7, zie *Golf D*.
 - **Oude kolommen** vallen per domein, in de migratie van de fase die dat
   domein omzet. Dat mag pas na een grep die bewijst dat geen andere fase ze
   nog leest. Pages is zo gegaan in fase 2 (`20260917150000`), de drie
   proof-blocks in fase 3A (`20260917170000`), alle overige blokken in fase 3B
   (`20260917180000`, `190000`, `200000`) en navigatie, footer, instellingen en
-  formulieren in fase 4 (`20260918110000`, `130000`, `150000`);
-  `MultilingualBoundaryTest` bewaakt dat niets de gedropte kolommen nog leest.
+  formulieren in fase 4 (`20260918110000`, `130000`, `150000`), de modules in
+  fase 5; `MultilingualBoundaryTest` bewaakt dat niets de gedropte kolommen nog leest.
 
 ## Waar het staat
 
@@ -1307,7 +1504,9 @@ providerklassen blijven ongebruikt staan.
 | Schema en bootstrap | `db/migrations/20260917120000_create_the_site_language_registry.php` |
 | SQL en invarianten | `src/Repository/SiteLanguageRepository.php` |
 | Core-API | `src/Service/Language/SiteLanguages.php`, `SiteLanguage.php`, `LanguageCode.php` |
-| V1-adapter | `src/Service/Language/ContentLanguages.php` |
+| Module en talenbeheer (fase 7) | `src/Module/MultilingualModule.php`, `ModuleDefinition::publishesTranslations()`; het tabblad *Talen* in `admin/settings.php`; `api/admin/create-`, `update-`, `toggle-`, `move-` en `delete-website-language.php`, `update-multilingual-publishing.php`; `db/migrations/20260921100000_pin_the_multilingual_module_where_it_is_in_use.php` |
+| Uitvoer in één taal (fase 7) | `SiteText::pick()`/`escaped()`, `App\Service\Routing\ApiLanguage`, `App\Service\Routing\TypedLink`, `ShopScriptText`, `PersonalizationScriptText`, `ShippingCountries`, `LegalPages::publishedPageUrl()` |
+| Tests fase 7 | `ShopScriptTextContractTest`, de fase-7-grenzen in `MultilingualBoundaryTest` (`fast`); `ShopApiLanguageTest` (`shop`); `TypedLinkTest` (`cms`, `blocks`); `WebsiteLanguageAdminHttpTest` (`cms`); `MultilingualModuleTest`, `MultilingualModuleHttpTest` (`modules`); `MultilingualModulePinTest` (`migration`, `cms`); `ProductSeederSchemaTest` (`migration`, `shop`) |
 | Tests | `LanguageCodeTest`, `SiteLanguagesTest` (`fast`); `SiteLanguageRepositoryTest` (`cms`); `SiteLanguageRegistryMigrationTest` (`migration`); grenzen in `MultilingualBoundaryTest` |
 | Paginatekst: schema en verhuizing | `db/migrations/20260917140000_create_the_page_translations_table.php`, `20260917150000_move_page_text_into_page_translations.php` |
 | Paginatekst: SQL, rij en API | `src/Repository/PageTranslationRepository.php`, `src/Service/PageTranslation.php`, `src/Service/PageLocalization.php` |
@@ -1317,7 +1516,7 @@ providerklassen blijven ongebruikt staan.
 | Blokwoorden: schema en verhuizing | `db/migrations/20260917160000_create_the_block_translations_table.php`, `20260917170000_move_rich_text_cta_band_and_contact_card_words_into_block_translations.php`; fase 3B `20260917180000_move_page_hero_form_and_gallery_words_into_block_translations.php`, `20260917190000_move_homepage_hero_and_repeater_words_into_block_translations.php`, `20260917200000_move_text_image_detail_and_carousel_words_into_block_translations.php` |
 | Blokwoorden: SQL, declaratie en API | `src/Repository/BlockTranslationRepository.php`, `src/Service/Blocks/TranslatableField.php`, `src/Service/Blocks/BlockLocalization.php`, `BlockDefinition::translatableFields()` en `::childTables()`, `BlockImage::fromOwner()` |
 | Blokwoorden: integriteit | `SectionRegistry::delete()`, `BlockLocalization::orphans()`/`purgeOrphans()`, `scripts/block-translation-orphans.php` |
-| Blokwoorden: uitvoer | `SiteText::visibleOf()`/`attrsOf()`/`htmlAttrsOf()`; preload in `SectionRegistry::renderPage()` en `admin/page.php` |
+| Blokwoorden: uitvoer | `BlockLocalization::text()`/`first()`/`words()`/`hasDefaultWords()`; preload in `SectionRegistry::renderPage()` en `admin/page.php` |
 | Blokwoorden: de drie blokken | `RichTextBlock`, `CtaBandBlock`, `ContactCardBlock` met hun `*Content`, repository, partial, editor en endpoint; consumenten `LegalPages`, `portfolio-detail.php` |
 | Tests fase 3A | `TranslatableFieldTest`, `BlockLocalizationTest`, `BlockLocalizedRenderingTest` (`fast`); `BlockTranslationRepositoryTest`, `BlockTranslationIntegrityTest`, `BlockWordsPreloadTest`, `BlockLocalizationEditorHttpTest`, `BlockTranslationSchemaTest` (`blocks`); `BlockTranslationMigrationTest` (`migration`); het declaratiecontract in `BlockDefinitionContractTest`; de blokgrenzen in `MultilingualBoundaryTest`; test-helper `Tests\Support\BlockTextFixture` |
 | Tests fase 3B | `RemainingBlocksRenderingTest` (`fast`); `BlockTranslationTreeTest`, `BlockWordsEditorHttpTest`, `BlockChildWordsEditorHttpTest` (`blocks`); `RemainingBlockWordsMigrationTest` (`migration` en `blocks`); de kindrijen in `BlockTranslationIntegrityTest`, `BlockTranslationSchemaTest`, `BlockDefinitionContractTest` en `BlockWordsPreloadTest`; de 3B-grenzen in `MultilingualBoundaryTest` |

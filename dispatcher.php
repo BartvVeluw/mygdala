@@ -137,6 +137,24 @@ if (
 $dispatcherLanguage = LanguageResolver::forRequest($dispatcherUrlLanguage);
 RequestLanguage::set($dispatcherLanguage, $dispatcherUrlLanguage !== null);
 
+/**
+ * A registered language that is not published (switched off, or any language
+ * but the default while Meertaligheid is off) keeps its prefix reserved: no
+ * page can live there (App\Service\Routing\ReservedPaths). Its addresses
+ * answer 404 at once, never with the trailing-slash redirect below. That
+ * redirect is permanent, so a browser caches /de/ -> /de; once the language
+ * is published again /de redirects back to /de/ (a language home keeps its
+ * slash), and every visitor who saw the first answer is stuck in a loop.
+ */
+if (
+    $dispatcherUrlLanguage === null
+    && $dispatcherFirst !== null
+    && LanguageCode::isValid($dispatcherFirst)
+    && SiteLanguages::exists($dispatcherFirst)
+) {
+    $dispatcherNotFound();
+}
+
 /* 3 — one canonical spelling ---------------------------------------------- */
 
 $dispatcherRequested = $dispatcherPath->path();

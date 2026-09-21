@@ -18,8 +18,8 @@ Dit is de regel die het vaakst fout gaat.
 | Docblocks en commentaar in PHP, CSS en JS | **Engels** |
 | Commitberichten | **Engels** |
 | Teksten die een **beheerder** in het CMS ziet: labels, beschrijvingen, foutmeldingen, knoppen | **Nederlands** |
-| Teksten die een **bezoeker** ziet | Nederlands én Engels, via `data-nl` / `data-en` |
-| Database: tabel- en kolomnamen | **Engels** (met `_en`-suffix voor de Engelse inhoudsvelden) |
+| Teksten die een **bezoeker** ziet | in elke websitetaal: inhoud per taal in de vertaaltabellen, systeemtekst als codecatalogus per taalcode (`SiteText::pick()`) |
+| Database: tabel- en kolomnamen | **Engels**; woorden per taal staan in een `*_translations`-tabel met `language_code`, nooit in een `_nl`/`_en`-kolom |
 
 Een `'label' => 'Veelgestelde vragen'` in een blokdefinitie is dus Nederlands,
 en de docblock erboven Engels. Dat ziet er raar uit en het klopt.

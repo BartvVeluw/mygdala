@@ -503,9 +503,10 @@ een, en heeft dus ook alleen een `media_id`.
    `ON DELETE RESTRICT`.
 2. Repository: `media_id` meeschrijven, en `image_path` met het pad van het
    gekozen item (zolang die kolom bestaat).
-3. Inhoudsklasse: `BlockImage::fromOwner($row, BlockLocalization::bilingual(<tabel>, $id, 'alt'))`
-   in plaats van het pad zelf lezen. Je krijgt `image_path`, `alt` (een
-   `LocalizedValue`), `width`, `height` en `media_id`. De alt-tekst declareer
+3. Inhoudsklasse: `BlockImage::fromOwner($row, BlockLocalization::text(<tabel>, $id, 'alt'))`
+   in plaats van het pad zelf lezen. Je krijgt `image_path`, `alt` (in de
+   taal van het verzoek, anders die van het media-item), `width`, `height` en
+   `media_id`. De alt-tekst declareer
    je als plat veld in `translatableFields()`.
 4. Editor: `media_picker_field()`, plus één keer `media_picker_modal()` en
    `media_picker_script()`.

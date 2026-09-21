@@ -321,6 +321,7 @@
              what the test database happens to contain. -->
         <testsuite name="migration">
             <file>tests/Install/AdminAccountMigrationTest.php</file>
+            <file>tests/Install/ProductSeederSchemaTest.php</file>
             <file>tests/Install/FreshInstallRenderTest.php</file>
             <file>tests/Install/FreshInstallTest.php</file>
             <file>tests/Install/ContentLanguageSettingRepairTest.php</file>
@@ -578,6 +579,7 @@
         </testsuite>
 
         <testsuite name="shop">
+            <file>tests/Install/ProductSeederSchemaTest.php</file>
             <file>tests/Mail/EmailPlaceholdersTest.php</file>
             <file>tests/Mail/OrderConfirmationBuilderTest.php</file>
             <file>tests/Repository/CollectionRepositoryIntegrationTest.php</file>
