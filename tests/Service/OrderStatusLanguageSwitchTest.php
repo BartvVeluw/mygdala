@@ -198,21 +198,51 @@ final class OrderStatusLanguageSwitchTest extends TestCase
     }
 
     /**
-     * Only the plain form of a positive integer is an order: the digits the
-     * Mollie return URL carries, nothing around them. Anything else — no id,
-     * an empty one, a sign, a leading zero, trailing words, an array, a URL —
-     * declares nothing, so the switch offers the bare route in each language,
-     * which is what this URL is. In particular a value shop.js refuses to
-     * show ('+7', '07') must not come out the other side as a valid ?order=7.
+     * shop.js shows the order for the FIRST `order` in the URL once
+     * JavaScript's trim() has taken the whitespace off it, so the switch reads
+     * it that way too: an id with a space, a tab or a no-break space around it
+     * is that order on this page, and therefore in every language; of a
+     * repeated parameter the first one counts, where PHP's $_GET would have
+     * kept the last and sent the customer to a different order.
+     */
+    public function testWhatShopJsShowsIsWhatTravels(): void
+    {
+        $id = $this->order('paid');
+        $other = $this->order('failed');
+
+        foreach (
+            [
+                '?order=%20' . $id,
+                '?order=' . $id . '%20',
+                '?order=+' . $id,
+                '?order=%09' . $id . '%0A',
+                '?order=%C2%A0' . $id,
+                '?order=' . $id . '&order=' . $other,
+                '?order=' . $id . '&order[]=' . $other,
+            ] as $query
+        ) {
+            $page = $this->get('/bestelling-status.php' . $query);
+            self::assertSame(200, $page['status'], $query);
+            self::assertSame('/en/bestelling-status.php?order=' . $id, $this->switchHref($page['body'], 'en'), $query);
+            self::assertSame($id, $this->orderShownAt((string) $this->switchHref($page['body'], 'en'))['order_id'] ?? null, $query);
+        }
+    }
+
+    /**
+     * Where shop.js shows no order, the switch declares nothing and offers the
+     * bare route in each language, which is what this URL is: no id, an empty
+     * one, a sign, a leading zero, trailing words, an array, a URL. In
+     * particular a value shop.js refuses to show ('+7' as an encoded plus,
+     * '07') must not come out the other side as a valid ?order=7.
      */
     public function testAMalformedOrMissingOrderCarriesNothing(): void
     {
         $id = $this->order('paid');
 
-        $queries = ['', '?utm_source=news', '?order=', '?order[]=' . $id, '?order[x]=' . $id];
+        $queries = ['', '?utm_source=news', '?order', '?order=', '?order[]=' . $id, '?order[x]=' . $id];
         foreach (
             [
-                'abc', '0', '-' . $id, '+' . $id, '0' . $id, $id . 'abc', $id . '.0', '1e3', ' ' . $id, $id . ' ',
+                'abc', '0', '-' . $id, '+' . $id, '0' . $id, $id . 'abc', $id . '.0', '1e3', "\u{85}" . $id,
                 '0x1A', '99999999999999999999', '//evil.test', 'https://evil.test', "1\r\nLocation: https://evil.test",
             ] as $value
         ) {

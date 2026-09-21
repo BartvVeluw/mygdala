@@ -378,6 +378,13 @@ omdat deze schermen geen eigen HTTP-test hebben.
   productpagina leidt naar hetzelfde id in elke taal en neemt verder niets uit
   de querystring mee; een feed is helemaal in de taal van zijn adres; en twintig
   paginalinks in een menu kosten evenveel queries als één (`Com_select`).
+- `QueryIdentityRoutesTest` (contract), `QueryIdentityLanguageSwitchTest`,
+  `OrderStatusLanguageSwitchTest` en `WithdrawalLanguageSwitchTest` (`shop`) —
+  elke route waarvan de querystring de resource noemt (product, orderstatus,
+  herroeping) houdt die resource vast bij een taalwissel, leest haar precies
+  zoals de pagina dat doet, en draagt verder niets mee (ROUTING.md §9). De
+  contracttest dwingt dat elke template uit de routetabel is ingedeeld, zodat
+  een nieuwe route met een identiteit in de querystring niet ongemerkt blijft.
 - `CollectionRepositoryIntegrationTest` — beide schrijvers van de
   product/collectie-koppeling **sluiten aan** bij een transactie die de
   aanroeper al open heeft. PDO weigert een geneste `beginTransaction()`, en

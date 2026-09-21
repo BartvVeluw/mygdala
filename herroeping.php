@@ -22,6 +22,32 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
 $prefillOrder = filter_input(INPUT_GET, 'order', FILTER_VALIDATE_INT);
 $prefillOrderValue = ($prefillOrder !== null && $prefillOrder !== false && $prefillOrder >= 1) ? (string) $prefillOrder : '';
 
+// WHERE THIS FORM, FOR THIS ORDER, LIVES IN EACH LANGUAGE, for the language
+// switch (docs/multilingual/ROUTING.md, §9). The order a customer came to
+// withdraw is named by the id in the query string, and the switch's assumed
+// paths carry the path only, so undeclared it offered /en/herroeping.php: the
+// same form with the order field empty. Each version is this route with that
+// one id under the language's prefix (the default language unprefixed), so
+// nothing else from the request travels: not the status and reason of a
+// refused request, no tracking, no `lang`.
+//
+// Built from $prefillOrderValue and from nothing else: the value the order
+// field below is filled with. So the switch reads the id exactly as this page
+// does, and the other language fills in the same order; whatever fills in
+// nothing here ('05', '1e3', an array, a URL, an empty value) declares nothing
+// and the switch offers the bare route, as before. The order is not looked up
+// here; api/withdrawal-request.php checks it against the e-mail address on
+// submit, the same in every language. This page has a canonical, so these
+// versions are also its hreflang alternates: exactly what the switch links,
+// on a page that stays noindex.
+if ($prefillOrderValue !== '') {
+    $withdrawalVersions = [];
+    foreach (\App\Service\Language\SiteLanguages::activeCodes() as $withdrawalLanguage) {
+        $withdrawalVersions[$withdrawalLanguage] = \App\Service\Routing\LocalizedUrl::path('/herroeping.php?order=' . $prefillOrderValue, $withdrawalLanguage);
+    }
+    \App\Service\Routing\LanguageAlternates::declareVersions($withdrawalVersions);
+}
+
 $formStatus = $_GET['status'] ?? null;
 $formSuccess = $formStatus === 'success';
 $formBanner = null;

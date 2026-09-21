@@ -118,6 +118,7 @@
             <file>tests/Module/PortfolioModuleTest.php</file>
             <file>tests/Module/ShopDisabledTest.php</file>
             <file>tests/Repository/OrderNumberSnapshotContractTest.php</file>
+            <file>tests/Service/Routing/QueryIdentityRoutesTest.php</file>
             <file>tests/Service/AdminAccessControlTest.php</file>
             <file>tests/Service/AdminEditorNavigationTest.php</file>
             <file>tests/Service/AdminUiPrimitivesTest.php</file>
@@ -200,6 +201,7 @@
             <file>tests/Module/ShopDisabledTest.php</file>
             <file>tests/Repository/OrderNumberFormatTest.php</file>
             <file>tests/Repository/OrderNumberSnapshotContractTest.php</file>
+            <file>tests/Service/Routing/QueryIdentityRoutesTest.php</file>
             <file>tests/Repository/OrderRepositoryAddressResolutionTest.php</file>
             <file>tests/Service/Address/CheckoutAddressResolverTest.php</file>
             <file>tests/Service/Address/DutchAddressLookupServiceTest.php</file>
@@ -433,6 +435,7 @@
             <file>tests/Service/Routing/LanguageResolverTest.php</file>
             <file>tests/Service/Routing/RouteResolverTest.php</file>
             <file>tests/Service/Routing/ReservedPathsTest.php</file>
+            <file>tests/Service/Routing/QueryIdentityRoutesTest.php</file>
             <file>tests/Service/LocalizedValueTest.php</file>
             <file>tests/Service/AdminLocaleTest.php</file>
             <file>tests/Service/ThreeLanguageStatesTest.php</file>
@@ -599,12 +602,14 @@
             <file>tests/Service/ProductSeoTest.php</file>
             <file>tests/Service/ProductBreadcrumbTest.php</file>
             <file>tests/Service/ProductLanguageSwitchTest.php</file>
+            <file>tests/Service/QueryIdentityLanguageSwitchTest.php</file>
             <directory>tests/Service/Shipping</directory>
             <file>tests/Service/ShopSeoAdminTest.php</file>
             <file>tests/Service/ShopEditingHttpTest.php</file>
             <file>tests/Service/ShopSeoRoutingTest.php</file>
             <file>tests/Service/ShopSettingsTest.php</file>
             <file>tests/Service/TurnstileVerifierTest.php</file>
+            <file>tests/Service/WithdrawalLanguageSwitchTest.php</file>
         </testsuite>
 
         <testsuite name="personalization">

@@ -393,31 +393,81 @@ prefix aan, en hreflang blijft weg.
 Dat aangenomen pad is **alleen het pad**. De querystring wordt nooit
 gekopieerd: daar kan tracking in staan, een formulierstatus, of iets anders
 waarmee een bezoeker binnenkwam. Een route waarvan de **identiteit in de
-querystring** staat, verklaart daarom ook: een product. `product.php` noemt
-`/product.php?id=7`, `/en/product.php?id=7` en zo verder voor elke actieve
-taal, via `ProductSeo::alternates()` gebouwd uit het gevalideerde id — dezelfde
-set die de sitemap noemt. Zonder die verklaring bood de wisselaar
-`/en/product.php` aan, zonder product.
+querystring** staat, verklaart daarom ook. Dat zijn er drie, en de lijst is
+gesloten (zie "De lijst en de test" hieronder):
+
+| Route | Identiteit | Wie leest haar voor de pagina |
+|---|---|---|
+| `product.php` | `?id=` | de server: `FILTER_VALIDATE_INT`, minstens 1 |
+| `bestelling-status.php` | `?order=` | `assets/js/shop/shop.js` |
+| `herroeping.php` | `?order=` | de server: `FILTER_VALIDATE_INT`, minstens 1 |
+
+Elke versie is dezelfde route met alleen die identiteit erin, onder het prefix
+van de taal, gebouwd met `LocalizedUrl::path()` en verklaard met
+`LanguageAlternates::declareVersions()`. De wisselaar **leest de identiteit
+precies zoals de pagina haar leest**, niet strenger en niet losser: wat hier
+een resource toont, toont aan de overkant dezelfde, en wat hier niets toont,
+verklaart niets, zodat de wisselaar de kale route biedt. Een waarde die hier
+geen resource is, mag aan de overkant nooit een geldige worden.
+
+**Het product.** `product.php` noemt `/product.php?id=7`, `/en/product.php?id=7`
+en zo verder voor elke actieve taal, via `ProductSeo::alternates()` gebouwd uit
+hetzelfde id waarmee de server het product opzoekt, en dat is dezelfde set die
+de sitemap noemt. Zonder die verklaring bood de wisselaar `/en/product.php`
+aan, zonder product.
 
 - een product dat niet (meer) bestaat, houdt zijn id: de wisselaar leidt naar
   dezelfde 404 in de andere taal, niet naar de kale route en niet naar een
   uitgeschakelde optie. Een 404 heeft geen canonical en dus geen hreflang;
-- een id dat geen positief geheel getal is (`abc`, `0`, `-5`, `1e3`) noemt geen
-  product. Dan verklaart de route niets en biedt de wisselaar de kale route.
+- een id dat geen positief geheel getal is (`abc`, `0`, `-5`, `07`, `1e3`, een
+  array) noemt geen product. Dan verklaart de route niets en biedt de wisselaar
+  de kale route;
+- de server beslist welk product de pagina is (status, canonical, gerelateerde
+  producten), dus zijn lezing telt: `?id=%2B7` en `?id=%207` zijn product 7,
+  met canonical `?id=7`, en de wisselaar volgt die. Het product zelf tekent
+  `shop.js`, en dat weigert `+7`. Voor die ene waarde zegt de body "niet
+  gevonden" terwijl de kop product 7 noemt. Dat verschil zit in de pagina, niet
+  in de wisselaar, en is in fase 6 niet opgelost.
 
-De **orderstatuspagina** doet hetzelfde met haar order: `bestelling-status.php`
-verklaart `/bestelling-status.php?order=7`, `/en/bestelling-status.php?order=7`
-en zo verder, met `LocalizedUrl::path()` gebouwd uit het gevalideerde id. Twee
-verschillen met het product:
+**De orderstatuspagina.** `bestelling-status.php` verklaart
+`/bestelling-status.php?order=7`, `/en/bestelling-status.php?order=7` en zo
+verder. De order wordt getoond door `shop.js`, dus de wisselaar leest haar
+zoals dat script dat doet: de **eerste** `order` in de querystring (zoals
+`URLSearchParams.get()`; PHP's `$_GET` houdt de laatste), zonder de
+witruimte die JavaScript's `trim()` weghaalt, en dan alleen de cijfers van een
+positief geheel getal. `?order=%207` toont hier order 7 en reist mee als 7;
+`%2B7`, `07`, `7abc` of een array tonen niets en verklaren niets. Verandert
+`shop.js` hoe het de order leest, dan faalt `QueryIdentityRoutesTest`, omdat
+de PHP-lezing dan niet meer klopt. De pagina zoekt de order niet op, dat doet
+`api/order-status.php`, in elke taal met hetzelfde antwoord. Ze heeft geen
+canonical en dus geen hreflang: de verklaring voedt alleen de wisselaar.
 
-- alleen de **kale vorm** telt: de cijfers van een positief geheel getal en
-  verder niets, zoals de Mollie-terugkeer-URL ze draagt. Zo reist het id byte
-  voor byte mee. `+7`, `07` of een id met spaties eromheen verklaren niets, want
-  `assets/js/shop/shop.js` (dat de order toont) weigert de eerste twee, en een
-  waarde die hier geen order is mag aan de overkant er geen worden;
-- de pagina zoekt de order niet op, dat doet `api/order-status.php`, in elke
-  taal met hetzelfde antwoord. Ze heeft geen canonical en dus geen hreflang;
-  de verklaring voedt alleen de wisselaar.
+**Het herroepingsformulier.** `herroeping.php` verklaart
+`/herroeping.php?order=7`, `/en/herroeping.php?order=7` en zo verder, gebouwd
+uit de waarde waarmee het het veld "Ordernummer" vult. De lezing is daardoor
+die van de pagina zelf: `?order=%207` en `?order=%2B7` vullen 7 in en reizen
+als 7, en van een herhaalde parameter telt de laatste, net als voor het veld.
+De status en reden van een geweigerd verzoek (`?status=error&reason=…`) reizen
+niet mee. Deze pagina heeft wél een canonical (de kale route, `noindex`), dus
+haar verklaarde versies zijn ook haar hreflang: precies wat de wisselaar linkt.
+
+**View state is geen identiteit** en blijft bewust achter: `?pagina=N` op de
+Blog-index (§15), de status van een formulier (`?form-status`, `?status`,
+`?reason`), tracking, en `?line=` op een productpagina. Dat laatste is de
+winkelwagenregel die de klant aan het bewerken is, een verwijzing naar de
+opslag van de eigen browser. Zonder die parameter toont de editor het
+concept van dat product.
+
+**De lijst en de test.** `Tests\Service\Routing\QueryIdentityRoutesTest`
+(contract, dus ook `fast`) deelt elke template uit de routetabel in: óf zijn
+querystring noemt de resource die hij toont (`QUERY_IDENTITY`), óf niet, met
+de reden erbij. Een nieuwe route faalt die test tot iemand die vraag heeft
+beantwoord. `Tests\Service\QueryIdentityLanguageSwitchTest` (`shop`) bewijst
+voor elke route op de lijst over HTTP dat hij verklaart, dat elke doel-URL
+alleen in prefix verschilt en alleen de identiteit draagt, en dat één reeks
+lastige waarden (opvulling, een plus, een voorloopnul, een exponent, een
+array, een herhaalde parameter, een URL, niets) in elke taal hetzelfde toont
+als hier.
 
 De wisselaar drukt de verklaarde URL ongewijzigd af, op één link na: die naar
 de **home van de standaardtaal** vanaf een andere taal wordt `/?lang=<code>`.

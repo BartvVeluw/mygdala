@@ -21,19 +21,38 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
 // one id under the language's prefix (the default language unprefixed), so
 // nothing else from the request travels: no tracking, no status, no `lang`.
 //
-// Declared only when the id arrived in its plain form, the digits of a
-// positive integer and nothing else, which is what the Mollie return URL
-// carries; so it travels byte for byte. assets/js/shop/shop.js is what shows
-// the order, and it refuses '+5', '05' or '5abc', so none of those may
-// become a valid order on the other side: they declare nothing and the
-// switch offers the bare route, as before. Whether the order exists is not
-// looked up here; api/order-status.php answers that, the same in every
-// language. This page has no canonical, so this feeds the switch only and
-// never hreflang.
-if (is_int($statusOrderId) && $statusOrderId >= 1 && (string) $statusOrderId === filter_input(INPUT_GET, 'order')) {
+// The id is read EXACTLY as assets/js/shop/shop.js reads it, because that
+// script is what shows the order, and the switch may be neither stricter nor
+// looser than the page: the FIRST `order` in the query string, as
+// URLSearchParams.get() finds it (PHP's $_GET keeps the last), with the
+// whitespace JavaScript's trim() removes taken off (a space, a tab, a line
+// break, a no-break space, a byte-order mark), and then only the digits of a
+// positive integer. So ' 5' shows order 5 here and travels as 5, while '+5'
+// (an encoded plus), '05', '5abc', '1e3', an array or a URL show no order and
+// declare nothing: the switch offers the bare route, as before, and a value
+// shop.js refuses never becomes a valid order on the other side. Digits too
+// large for any order (api/order-status.php refuses what PHP cannot hold as
+// an integer) declare nothing either. Whether the order exists is not looked
+// up here; api/order-status.php answers that, the same in every language.
+// This page has no canonical, so this feeds the switch only and never
+// hreflang. $statusOrderId above is the withdrawal link's reading, not this.
+$orderStatusShown = null;
+foreach (explode('&', (string) ($_SERVER['QUERY_STRING'] ?? '')) as $orderStatusPair) {
+    $orderStatusPair = explode('=', $orderStatusPair, 2);
+    if (urldecode($orderStatusPair[0]) === 'order') {
+        $orderStatusShown = urldecode($orderStatusPair[1] ?? '');
+        break;
+    }
+}
+$orderStatusTrimmed = '\x{9}-\x{D}\x{20}\x{A0}\x{1680}\x{2000}-\x{200A}\x{2028}\x{2029}\x{202F}\x{205F}\x{3000}\x{FEFF}';
+if (
+    $orderStatusShown !== null
+    && preg_match('/\A[' . $orderStatusTrimmed . ']*([1-9][0-9]*)[' . $orderStatusTrimmed . ']*\z/u', $orderStatusShown, $orderStatusDigits) === 1
+    && is_int(filter_var($orderStatusDigits[1], FILTER_VALIDATE_INT))
+) {
     $orderStatusVersions = [];
     foreach (\App\Service\Language\SiteLanguages::activeCodes() as $orderStatusLanguage) {
-        $orderStatusVersions[$orderStatusLanguage] = \App\Service\Routing\LocalizedUrl::path('/bestelling-status.php?order=' . $statusOrderId, $orderStatusLanguage);
+        $orderStatusVersions[$orderStatusLanguage] = \App\Service\Routing\LocalizedUrl::path('/bestelling-status.php?order=' . $orderStatusDigits[1], $orderStatusLanguage);
     }
     \App\Service\Routing\LanguageAlternates::declareVersions($orderStatusVersions);
 }
