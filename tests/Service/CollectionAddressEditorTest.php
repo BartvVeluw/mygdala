@@ -284,6 +284,32 @@ final class CollectionAddressEditorTest extends TestCase
         self::assertSame('', $this->slugField($again), 'the next visit shows the stored collection');
     }
 
+    /**
+     * REGRESSION. The handed-back input belongs to the language it was typed
+     * in, as it does on the page editor and the two blog taxonomy screens: an
+     * editor who moves to another language before looking again must see
+     * THAT language's stored words and address, not the ones just refused.
+     */
+    public function testARefusedSaveInOneLanguageNeverAppearsOnAnotherLanguagesForm(): void
+    {
+        $taken = $this->collection('Bezet', self::PREFIX . 'bezet3');
+        $id = $this->collection('Taalgebonden', self::PREFIX . 'taalgebonden');
+        $session = $this->signIn('en');
+
+        $this->save($session, $taken, 'en', ['name' => 'Taken', 'slug' => self::PREFIX . 'taken3']);
+        $this->save($session, $id, 'en', ['name' => 'Refused in English', 'slug' => self::PREFIX . 'taken3']);
+
+        (new AdminUserRepository())->updateContentEditingLanguage(
+            (int) $this->accounts->read($session, 'admin_user_id'),
+            'nl'
+        );
+
+        $html = $this->screen($session, '/admin/collection.php?id=' . $id);
+
+        self::assertSame(self::PREFIX . 'taalgebonden', $this->slugField($html), 'the Dutch form shows the Dutch address');
+        self::assertStringNotContainsString('Refused in English', $html, 'and not the English words that were refused');
+    }
+
     /* ------------------------------------------------------------------ */
     /* The address really resolves                                         */
     /* ------------------------------------------------------------------ */

@@ -100,9 +100,10 @@ if (!$isWritableLanguage) {
  *
  * `blog_categories.slug` stays in step with the DEFAULT language's address:
  * it is the neutral key the stored redirects were written against. The rule
- * that decides all of this is App\Service\Routing\LocalizedSlugInput's, the
- * same one the page and the post editor follow — there is no second copy of
- * it here.
+ * that decides all of this is App\Service\Routing\LocalizedSlugInput's, which
+ * the tag and the collection editor ask as well — there is no second copy of
+ * it here. The page and the post editor state the same rule inline
+ * (api/admin/update-page.php, api/admin/update-blog-post.php).
  */
 $categorySlugs = BlogLocalization::categories();
 $currentSlug = $isWritableLanguage ? BlogLocalization::categorySlug($category, $language) : null;

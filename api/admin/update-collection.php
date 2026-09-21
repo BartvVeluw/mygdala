@@ -78,8 +78,9 @@ $productIds = CollectionService::validateProductIds($fields['product_ids'], new 
  * `collections.slug` stays in step with the DEFAULT language's address: it is
  * the neutral key every existing link and every stored redirect names. The
  * rule that decides which of the two a save writes is
- * App\Service\Routing\LocalizedSlugInput's — the same one the page, the post
- * and the taxonomy editors follow.
+ * App\Service\Routing\LocalizedSlugInput's, which the two blog taxonomy
+ * editors ask as well. The page and the post editor state the same rule
+ * inline (api/admin/update-page.php, api/admin/update-blog-post.php).
  *
  * Everything else about this collection is language-neutral and untouched
  * here: its id, its product membership and order, its related-products

@@ -160,6 +160,17 @@ $editingLanguage = admin_localized_language();
 $collectionId = $isEdit ? (int) $collection['id'] : null;
 
 /**
+ * A refused save's WORDS and ADDRESS only come back on a form showing the
+ * language they were typed in, as on admin/page.php and the two blog taxonomy
+ * screens: an editor who has moved to another language since sees that
+ * language's stored text, not what was just refused in another one. A new
+ * collection is always written in the default language, so everything handed
+ * back to the new-collection form is its own. The fields that belong to no
+ * language — active, products, social image — keep using $old.
+ */
+$oldWords = ($old !== null && (!$isEdit || ($old['language_code'] ?? null) === $editingLanguage)) ? $old : null;
+
+/**
  * THE COLLECTION'S ADDRESS IN THE LANGUAGE BEING EDITED (Multilingual 2.0
  * phase 6, docs/multilingual/ROUTING.md): a refused save's own input first,
  * then this language's stored address, and '' when it has none — which means
@@ -169,8 +180,8 @@ $collectionId = $isEdit ? (int) $collection['id'] : null;
  * Only the default language's address is required: it is the one kept
  * byte-identical to the neutral `collections.slug`.
  */
-$slugValue = $old !== null
-    ? (string) ($old['slug_input'] ?? '')
+$slugValue = $oldWords !== null
+    ? (string) ($oldWords['slug_input'] ?? '')
     : ($collection !== null ? (string) (ShopLocalization::collectionSlug($collection, $editingLanguage) ?? '') : '');
 
 /** The path this collection can be visited at in the language being edited. */
@@ -248,7 +259,7 @@ require __DIR__ . '/_richtext_field.php';
       <?php admin_localized_bar($editingLanguage); ?>
       <div class="admin-form-row">
         <label><?= admin_te('common.name') ?><?= admin_localized_required($editingLanguage) === '' ? '' : '*' ?>
-          <input type="text" name="name" maxlength="<?= ShopLocalization::NAME_MAX_LENGTH ?>"<?= admin_localized_required($editingLanguage) ?> data-slug-source value="<?= $h(collectionWord($old, $collectionId, ShopLocalization::NAME, $editingLanguage)) ?>"<?= admin_localized_placeholder_attr($editingLanguage) ?>>
+          <input type="text" name="name" maxlength="<?= ShopLocalization::NAME_MAX_LENGTH ?>"<?= admin_localized_required($editingLanguage) ?> data-slug-source value="<?= $h(collectionWord($oldWords, $collectionId, ShopLocalization::NAME, $editingLanguage)) ?>"<?= admin_localized_placeholder_attr($editingLanguage) ?>>
         </label>
       </div>
 
@@ -271,7 +282,7 @@ require __DIR__ . '/_richtext_field.php';
       </div>
 
       <div class="admin-form-row">
-        <?php renderRichTextField('description', 'Beschrijving', collectionWord($old, $collectionId, ShopLocalization::DESCRIPTION, $editingLanguage), 'full', 'admin-richtext-editor--md'); ?>
+        <?php renderRichTextField('description', 'Beschrijving', collectionWord($oldWords, $collectionId, ShopLocalization::DESCRIPTION, $editingLanguage), 'full', 'admin-richtext-editor--md'); ?>
       </div>
 
       <div class="admin-form-row">
@@ -320,12 +331,12 @@ require __DIR__ . '/_richtext_field.php';
         <?php admin_localized_bar($editingLanguage); ?>
         <div class="admin-form-row">
           <label><?= admin_te('page.meta_title') ?>
-            <input type="text" name="meta_title" maxlength="<?= Seo::MAX_META_TITLE_LENGTH ?>" data-char-count value="<?= $h(collectionWord($old, $collectionId, ShopLocalization::META_TITLE, $editingLanguage)) ?>" placeholder="Leeg = automatische titel">
+            <input type="text" name="meta_title" maxlength="<?= Seo::MAX_META_TITLE_LENGTH ?>" data-char-count value="<?= $h(collectionWord($oldWords, $collectionId, ShopLocalization::META_TITLE, $editingLanguage)) ?>" placeholder="Leeg = automatische titel">
           </label>
         </div>
         <div class="admin-form-row">
           <label><?= admin_te('page.meta_description') ?>
-            <textarea name="meta_description" rows="3" maxlength="<?= Seo::MAX_META_DESCRIPTION_LENGTH ?>" data-char-count placeholder="Leeg = korte samenvatting van de beschrijving"><?= $h(collectionWord($old, $collectionId, ShopLocalization::META_DESCRIPTION, $editingLanguage)) ?></textarea>
+            <textarea name="meta_description" rows="3" maxlength="<?= Seo::MAX_META_DESCRIPTION_LENGTH ?>" data-char-count placeholder="Leeg = korte samenvatting van de beschrijving"><?= $h(collectionWord($oldWords, $collectionId, ShopLocalization::META_DESCRIPTION, $editingLanguage)) ?></textarea>
           </label>
         </div>
       </div>

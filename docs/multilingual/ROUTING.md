@@ -325,8 +325,11 @@ Geen adres per taal krijgen:
 
 Alleen de **standaardtaal** móét een adres hebben; in elke andere taal is het
 veld leeg toegestaan, en het leegmaken van een bestaand adres betekent "deze
-taal heeft hier geen publieke URL meer". Die ene regel staat op één plek in
-code: `App\Service\Routing\LocalizedSlugInput`. Sanitizen, uniciteit en de
+taal heeft hier geen publieke URL meer". Die regel staat in
+`App\Service\Routing\LocalizedSlugInput`, die de editors voor categorieën,
+tags en collecties aanroepen; de pagina- en de berichteditor
+(`api/admin/update-page.php`, `api/admin/update-blog-post.php`) schrijven
+dezelfde regel nog inline uit. Sanitizen, uniciteit en de
 gereserveerde woorden blijven van het domein zelf (`PageService`,
 `Blog\BlogSlug`, `CollectionService`), want alleen dat kent zijn eigen
 tekenset, lengte en naamruimte.

@@ -11,10 +11,12 @@ namespace App\Service\Routing;
  *
  * LocalizedSlug answers "where does this row live in this language" for a
  * reader. This class answers the four questions every save endpoint has to
- * ask before it writes, and it exists so that they are answered the same way
- * for a page, a post, a category, a tag and a collection. Five endpoints with
- * five slightly different readings of "the field was left empty" is exactly
- * how one language ends up publishing another language's URL.
+ * ask before it writes, so that they are answered the same way everywhere:
+ * five endpoints with five slightly different readings of "the field was
+ * left empty" is exactly how one language ends up publishing another
+ * language's URL. The category, tag and collection editors ask it; the page
+ * and the post editor (api/admin/update-page.php,
+ * api/admin/update-blog-post.php) still state the same rule inline.
  *
  * THE FOUR QUESTIONS
  *
