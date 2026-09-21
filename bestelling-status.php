@@ -12,6 +12,31 @@ require_once __DIR__ . '/partials/breadcrumb.php';
 $statusOrderId = filter_input(INPUT_GET, 'order', FILTER_VALIDATE_INT);
 $withdrawalUrl = '/herroeping.php' . (($statusOrderId !== null && $statusOrderId !== false && $statusOrderId >= 1) ? '?order=' . $statusOrderId : '');
 $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
+
+// WHERE THIS ORDER'S STATUS LIVES IN EACH LANGUAGE, for the language switch
+// (docs/multilingual/ROUTING.md, §9). The order is identified by the id in
+// the query string, and the switch's assumed paths carry the path only, so
+// undeclared it offered /en/bestelling-status.php: the bare route, which
+// answers "this order can't be found". Each version is this route with that
+// one id under the language's prefix (the default language unprefixed), so
+// nothing else from the request travels: no tracking, no status, no `lang`.
+//
+// Declared only when the id arrived in its plain form, the digits of a
+// positive integer and nothing else, which is what the Mollie return URL
+// carries; so it travels byte for byte. assets/js/shop/shop.js is what shows
+// the order, and it refuses '+5', '05' or '5abc', so none of those may
+// become a valid order on the other side: they declare nothing and the
+// switch offers the bare route, as before. Whether the order exists is not
+// looked up here; api/order-status.php answers that, the same in every
+// language. This page has no canonical, so this feeds the switch only and
+// never hreflang.
+if (is_int($statusOrderId) && $statusOrderId >= 1 && (string) $statusOrderId === filter_input(INPUT_GET, 'order')) {
+    $orderStatusVersions = [];
+    foreach (\App\Service\Language\SiteLanguages::activeCodes() as $orderStatusLanguage) {
+        $orderStatusVersions[$orderStatusLanguage] = \App\Service\Routing\LocalizedUrl::path('/bestelling-status.php?order=' . $statusOrderId, $orderStatusLanguage);
+    }
+    \App\Service\Routing\LanguageAlternates::declareVersions($orderStatusVersions);
+}
 // A per-order page reached from a payment return link. Never indexable,
 // and deliberately WITHOUT a canonical URL: every visit is about a
 // different order, so there is no one URL this page is the canonical

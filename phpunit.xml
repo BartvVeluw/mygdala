@@ -593,6 +593,7 @@
             <file>tests/Service/OrderCsvExportTest.php</file>
             <file>tests/Service/OrderHandlingAdminSecurityTest.php</file>
             <file>tests/Service/OrderPaymentSyncTest.php</file>
+            <file>tests/Service/OrderStatusLanguageSwitchTest.php</file>
             <file>tests/Service/PdfInvoiceRendererTest.php</file>
             <file>tests/Service/ProductDeletionAdminSecurityTest.php</file>
             <file>tests/Service/ProductSeoTest.php</file>

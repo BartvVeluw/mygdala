@@ -405,6 +405,20 @@ set die de sitemap noemt. Zonder die verklaring bood de wisselaar
 - een id dat geen positief geheel getal is (`abc`, `0`, `-5`, `1e3`) noemt geen
   product. Dan verklaart de route niets en biedt de wisselaar de kale route.
 
+De **orderstatuspagina** doet hetzelfde met haar order: `bestelling-status.php`
+verklaart `/bestelling-status.php?order=7`, `/en/bestelling-status.php?order=7`
+en zo verder, met `LocalizedUrl::path()` gebouwd uit het gevalideerde id. Twee
+verschillen met het product:
+
+- alleen de **kale vorm** telt: de cijfers van een positief geheel getal en
+  verder niets, zoals de Mollie-terugkeer-URL ze draagt. Zo reist het id byte
+  voor byte mee. `+7`, `07` of een id met spaties eromheen verklaren niets, want
+  `assets/js/shop/shop.js` (dat de order toont) weigert de eerste twee, en een
+  waarde die hier geen order is mag aan de overkant er geen worden;
+- de pagina zoekt de order niet op, dat doet `api/order-status.php`, in elke
+  taal met hetzelfde antwoord. Ze heeft geen canonical en dus geen hreflang;
+  de verklaring voedt alleen de wisselaar.
+
 De wisselaar drukt de verklaarde URL ongewijzigd af, op één link na: die naar
 de **home van de standaardtaal** vanaf een andere taal wordt `/?lang=<code>`.
 Waarom staat in §3, "De ene uitzondering".
@@ -520,6 +534,12 @@ terechtkomen.
   hoeveel collecties hij ook in zit. Een slug-URL is een URL-beslissing die
   niets met taal te maken heeft.
 - **`personaliseren` blijft een bestandsnaam.** Zie §5.
+- **De wisselaar op de Blog-index houdt `?pagina=N` niet vast.** Voorlopig
+  bewust: de wissel opent de index in de doeltaal vanaf pagina 1.
+- **De terugvalvolgorde van een Blog-excerpt blijft zoals hij is.**
+  `BlogContent::excerpt()` neemt het excerpt met de gewone terugval
+  (gevraagde taal, dan standaardtaal) vóór de opening van de tekst in de
+  gevraagde taal. Dat is inhoudssemantiek, geen routingvraag.
 
 ---
 
