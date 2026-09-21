@@ -415,6 +415,85 @@ final class BlogTaxonomyAddressEditorTest extends TestCase
     }
 
     /* ------------------------------------------------------------------ */
+    /* The language switch on an archive                                   */
+    /* ------------------------------------------------------------------ */
+
+    /**
+     * REGRESSION. An archive used to leave its language versions undeclared,
+     * so the switch offered the same path under every prefix: the English
+     * link on /blog/categorie/<dutch> went to /en/blog/categorie/<dutch>,
+     * which redirects to /en/blog/category/<dutch> — and that 404s, because
+     * the English archive lives at its own address.
+     */
+    public function testTheSwitchOnACategoryArchiveLinksEachLanguagesOwnAddress(): void
+    {
+        $id = $this->category('Schakelaar', self::PREFIX . 'switch');
+        BlogLocalization::saveCategory($id, 'en', [
+            BlogLocalization::SLUG => self::PREFIX . 'switch-en',
+            BlogLocalization::NAME => 'Switch',
+        ]);
+        BlogLocalization::clearCache();
+        $this->publishedPostIn($id, 'Zz Taxaddr schakelbericht');
+
+        $dutchPath = BlogUrls::categoryPath(self::PREFIX . 'switch', 1, 'nl');
+        $englishPath = BlogUrls::categoryPath(self::PREFIX . 'switch-en', 1, 'en');
+
+        $dutch = $this->get($dutchPath);
+        self::assertSame(200, $dutch['status']);
+        self::assertSame($englishPath, $this->switchHref($dutch['body'], 'en'), 'EN links the English archive at its own address');
+
+        $english = $this->get($englishPath);
+        self::assertSame(200, $english['status'], 'and that address answers');
+        self::assertSame($dutchPath, $this->switchHref($english['body'], 'nl'), 'and the way back is the Dutch address');
+        self::assertStringContainsString(
+            'hreflang="en" href="' . \App\Service\AppUrl::canonical($englishPath) . '"',
+            $dutch['body'],
+            'the alternates name the same two addresses the switch links'
+        );
+    }
+
+    /**
+     * A language this category has no address in has no archive, so the
+     * switch shows it as unavailable — exactly what a page and a post do —
+     * instead of linking a URL that 404s.
+     */
+    public function testTheSwitchOnACategoryArchiveOffersNoLanguageWithoutAnAddress(): void
+    {
+        $id = $this->category('Alleen Nederlands', self::PREFIX . 'switch-nl');
+        $this->publishedPostIn($id, 'Zz Taxaddr alleen nl');
+
+        $dutch = $this->get(BlogUrls::categoryPath(self::PREFIX . 'switch-nl', 1, 'nl'));
+
+        self::assertSame(200, $dutch['status']);
+        self::assertNull($this->switchHref($dutch['body'], 'en'), 'no English address, so no English link');
+        self::assertTrue($this->switchIsUnavailable($dutch['body'], 'en'), 'but the unavailable state');
+    }
+
+    /** The same two rules for a tag archive. */
+    public function testTheSwitchOnATagArchiveLinksOnlyAddressesThatExist(): void
+    {
+        $both = $this->tag(self::PREFIX . 'tagswitch', 'Tagschakelaar');
+        BlogLocalization::saveTag($both, 'en', [
+            BlogLocalization::SLUG => self::PREFIX . 'tagswitch-en',
+            BlogLocalization::NAME => 'Tag switch',
+        ]);
+        $dutchOnly = $this->tag(self::PREFIX . 'tagswitch-nl', 'Alleen tag');
+        BlogLocalization::clearCache();
+
+        $post = $this->publishedPost('Zz Taxaddr tagschakelbericht');
+        $this->posts->setTags($post, [$both, $dutchOnly]);
+
+        $tagged = $this->get(BlogUrls::tagPath(self::PREFIX . 'tagswitch', 1, 'nl'));
+        self::assertSame(200, $tagged['status']);
+        self::assertSame(BlogUrls::tagPath(self::PREFIX . 'tagswitch-en', 1, 'en'), $this->switchHref($tagged['body'], 'en'));
+
+        $single = $this->get(BlogUrls::tagPath(self::PREFIX . 'tagswitch-nl', 1, 'nl'));
+        self::assertSame(200, $single['status']);
+        self::assertNull($this->switchHref($single['body'], 'en'));
+        self::assertTrue($this->switchIsUnavailable($single['body'], 'en'));
+    }
+
+    /* ------------------------------------------------------------------ */
     /* Helpers                                                             */
     /* ------------------------------------------------------------------ */
 
@@ -518,6 +597,36 @@ final class BlogTaxonomyAddressEditorTest extends TestCase
         $input = $nodes->item(0);
 
         return ['value' => $input->getAttribute('value'), 'required' => $input->hasAttribute('required')];
+    }
+
+    /** Where the public language switch sends a visitor for one language, or null when it links nothing. */
+    private function switchHref(string $html, string $language): ?string
+    {
+        $links = $this->switchXpath($html)->query('//div[contains(@class, "lang-switch")]/a[@hreflang="' . $language . '"]');
+        self::assertNotFalse($links);
+
+        return $links->length === 0 ? null : $links->item(0)->getAttribute('href');
+    }
+
+    /** Is this language shown as a version the page does not have? */
+    private function switchIsUnavailable(string $html, string $language): bool
+    {
+        $spans = $this->switchXpath($html)->query(
+            '//div[contains(@class, "lang-switch")]/span[contains(@class, "lang-switch__unavailable")][normalize-space() = "' . strtoupper($language) . '"]'
+        );
+        self::assertNotFalse($spans);
+
+        return $spans->length === 1;
+    }
+
+    private function switchXpath(string $html): \DOMXPath
+    {
+        $document = new \DOMDocument();
+        $previous = libxml_use_internal_errors(true);
+        $document->loadHTML('<?xml encoding="utf-8" ?>' . $html);
+        libxml_use_internal_errors($previous);
+
+        return new \DOMXPath($document);
     }
 
     private function category(string $name, string $slug): int

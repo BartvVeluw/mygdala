@@ -599,6 +599,53 @@ final class BlogContent
     }
 
     /**
+     * The same for a category archive, at one page of its listing.
+     *
+     * Needed because an archive's address is the category's own slug in each
+     * language, behind a segment that is spelled per language too: without a
+     * declaration the switch could only offer the same path under another
+     * prefix, which 404s the moment the two languages' slugs differ.
+     *
+     * @param array<string, mixed> $category a `blog_categories` row
+     * @return array<string, string>
+     */
+    public static function categoryAlternates(array $category, int $page = 1): array
+    {
+        $paths = [];
+
+        foreach (SiteLanguages::activeCodes() as $code) {
+            $slug = BlogLocalization::categorySlug($category, $code);
+
+            if ($slug !== null) {
+                $paths[$code] = BlogUrls::categoryPath($slug, $page, $code);
+            }
+        }
+
+        return $paths;
+    }
+
+    /**
+     * The same for a tag archive.
+     *
+     * @param array<string, mixed> $tag a `blog_tags` row
+     * @return array<string, string>
+     */
+    public static function tagAlternates(array $tag, int $page = 1): array
+    {
+        $paths = [];
+
+        foreach (SiteLanguages::activeCodes() as $code) {
+            $slug = BlogLocalization::tagSlug($tag, $code);
+
+            if ($slug !== null) {
+                $paths[$code] = BlogUrls::tagPath($slug, $page, $code);
+            }
+        }
+
+        return $paths;
+    }
+
+    /**
      * The active category one address names in one language, or null.
      *
      * @return array<string, mixed>|null

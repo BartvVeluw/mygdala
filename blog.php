@@ -80,6 +80,27 @@ if ($listing === null) {
         default => BlogSeo::forIndex((int) $listing['page']),
     };
 
+    /**
+     * WHICH LANGUAGE VERSIONS OF THIS ARCHIVE EXIST, declared the way
+     * blog-post.php declares a post's (App\Service\Routing\LanguageAlternates,
+     * docs/multilingual/ROUTING.md). A category or a tag has its own address
+     * per language, so the same path under another prefix is not its other
+     * version: the switch links only the languages it has an address in and
+     * shows the rest as unavailable, and hreflang names exactly those.
+     *
+     * The index needs no declaration: /blog is one fixed route that exists in
+     * every language, so the switch's assumed paths already are its versions.
+     */
+    if ($listing['mode'] === 'category') {
+        \App\Service\Routing\LanguageAlternates::declareVersions(
+            BlogContent::categoryAlternates((array) $listing['category'], (int) $listing['page'])
+        );
+    } elseif ($listing['mode'] === 'tag') {
+        \App\Service\Routing\LanguageAlternates::declareVersions(
+            BlogContent::tagAlternates((array) $listing['tag'], (int) $listing['page'])
+        );
+    }
+
     // What this page is called and what it says about itself, per mode.
     // The listing's own heading and introduction: one pair, each half already
     // resolved per website language (BlogLocalizedSettings). An archive

@@ -379,6 +379,12 @@ verzinnen is precies het SEO-probleem waarvoor deze fase bestaat.
 **verklaart** welke versies bestaan, en wat niet verklaard is, wordt niet
 geadverteerd.
 
+Elke route waarvan het adres per taal een eigen slug heeft, verklaart: een
+pagina, een blogbericht, een categorie- en een tagarchief, een collectie. Een
+route die in elke taal hetzelfde pad heeft (de blogindex, de winkelwagen, het
+afrekenen) verklaart niets. Daar biedt de wisselaar hetzelfde pad onder elk
+prefix aan, en hreflang blijft weg.
+
 De wisselaar drukt de verklaarde URL ongewijzigd af, op één link na: die naar
 de **home van de standaardtaal** vanaf een andere taal wordt `/?lang=<code>`.
 Waarom staat in §3, "De ene uitzondering".
