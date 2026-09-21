@@ -119,6 +119,7 @@
             <file>tests/Module/ShopDisabledTest.php</file>
             <file>tests/Repository/OrderNumberSnapshotContractTest.php</file>
             <file>tests/Service/Routing/QueryIdentityRoutesTest.php</file>
+            <file>tests/Service/Routing/PublicRouteContractTest.php</file>
             <file>tests/Service/AdminAccessControlTest.php</file>
             <file>tests/Service/AdminEditorNavigationTest.php</file>
             <file>tests/Service/AdminUiPrimitivesTest.php</file>
@@ -202,6 +203,7 @@
             <file>tests/Repository/OrderNumberFormatTest.php</file>
             <file>tests/Repository/OrderNumberSnapshotContractTest.php</file>
             <file>tests/Service/Routing/QueryIdentityRoutesTest.php</file>
+            <file>tests/Service/Routing/PublicRouteContractTest.php</file>
             <file>tests/Repository/OrderRepositoryAddressResolutionTest.php</file>
             <file>tests/Service/Address/CheckoutAddressResolverTest.php</file>
             <file>tests/Service/Address/DutchAddressLookupServiceTest.php</file>
@@ -436,6 +438,7 @@
             <file>tests/Service/Routing/RouteResolverTest.php</file>
             <file>tests/Service/Routing/ReservedPathsTest.php</file>
             <file>tests/Service/Routing/QueryIdentityRoutesTest.php</file>
+            <file>tests/Service/Routing/PublicRouteContractTest.php</file>
             <file>tests/Service/LocalizedValueTest.php</file>
             <file>tests/Service/AdminLocaleTest.php</file>
             <file>tests/Service/ThreeLanguageStatesTest.php</file>
@@ -445,6 +448,7 @@
             <file>tests/Service/PageLocalizationTest.php</file>
             <file>tests/Service/PageLocalizedRoutingTest.php</file>
             <file>tests/Service/DispatcherRoutingTest.php</file>
+            <file>tests/Service/PublicRouteLanguageTest.php</file>
             <file>tests/Service/EntityTranslationsTest.php</file>
             <file>tests/Service/PortfolioLocalizationTest.php</file>
             <file>tests/Service/ShopLocalizationTest.php</file>
@@ -611,6 +615,7 @@
             <file>tests/Service/TurnstileVerifierTest.php</file>
             <file>tests/Service/WithdrawalLanguageSwitchTest.php</file>
             <file>tests/Service/WithdrawalRequestLanguageTest.php</file>
+            <file>tests/Service/PublicRouteLanguageTest.php</file>
         </testsuite>
 
         <testsuite name="personalization">

@@ -385,6 +385,17 @@ omdat deze schermen geen eigen HTTP-test hebben.
   zoals de pagina dat doet, en draagt verder niets mee (ROUTING.md §9). De
   contracttest dwingt dat elke template uit de routetabel is ingedeeld, zodat
   een nieuwe route met een identiteit in de querystring niet ongemerkt blijft.
+- `PublicRouteContractTest` (contract) en `PublicRouteLanguageTest` (`cms`,
+  `shop`) — elke publieke route in elke taal (ROUTING.md §9, §10, §14). De
+  contracttest geeft elke route uit de routetabel een getuige, een canonical en
+  een formulierafspraak, en laat de routematcher bewijzen dat de getuige in
+  elke taal dezelfde route is. De HTTP-test vraagt elke getuige op in het
+  Nederlands, Engels en Duits: canonical in de eigen taal, geen link naar een
+  systeemroute in een andere taal, de wisselaar per taal, en het antwoord op
+  elk formulier in de taal waarin het werd ingevuld. `WithdrawalRequestLanguageTest`
+  (`shop`) doet het herroepingsformulier grondig: geweigerd, geaccepteerd, een
+  bot, de order die terugkomt, en geen enkele ingestuurde waarde die de
+  bestemming kiest.
 - `CollectionRepositoryIntegrationTest` — beide schrijvers van de
   product/collectie-koppeling **sluiten aan** bij een transactie die de
   aanroeper al open heeft. PDO weigert een geneste `beginTransaction()`, en

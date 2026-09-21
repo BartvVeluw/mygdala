@@ -476,6 +476,23 @@ lastige waarden (opvulling, een plus, een voorloopnul, een exponent, een
 array, een herhaalde parameter, een URL, niets) in elke taal hetzelfde toont
 als hier.
 
+**Elke publieke route, in elke taal.** `Tests\Service\Routing\PublicRouteContractTest`
+(contract) legt voor elke route uit de routetabel vast wat hij in een taal
+doet: zijn getuige (de URL in de standaardtaal, met de identiteit als die er
+is), zijn canonical, en hoe het antwoord op een formulier erop de taal
+terugvindt. Een route waarvan het adres een slug per taal is, heeft geen
+getuige maar een reden. Een nieuwe route faalt die test tot iemand de vragen
+heeft beantwoord, en de routematcher zelf bewijst dat elke getuige in elke taal
+dezelfde route is. `Tests\Service\PublicRouteLanguageTest` (`cms`, `shop`)
+vraagt elke getuige op in het Nederlands, Engels en Duits en controleert: de
+canonical is de eigen route in díe taal (of ontbreekt waar dat de afspraak is),
+elke link naar een systeemroute draagt de prefix van die taal, elke optie van
+de wisselaar leidt naar zijn eigen taal en houdt een query-identiteit vast, en
+elk formulier dat POST krijgt zijn antwoord in de taal waarin het werd
+ingevuld. Waar een CMS-pagina achter de route zit, is `<main>` van de redacteur
+(§15) en kijkt de test alleen naar de eigen links van de site: header, footer,
+cookiemelding, kruimelpad.
+
 De wisselaar drukt de verklaarde URL ongewijzigd af, op één link na: die naar
 de **home van de standaardtaal** vanaf een andere taal wordt `/?lang=<code>`.
 Waarom staat in §3, "De ene uitzondering".

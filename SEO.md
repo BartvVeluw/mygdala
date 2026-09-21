@@ -154,7 +154,8 @@ bouwt zijn eigen URL één keer:
 
 Een systeempagina roept `AppUrl::canonical()` nooit rechtstreeks aan: dat
 kent geen taal, en noemde vanaf `/en/cart.php` de winkelwagen van de
-standaardtaal.
+standaardtaal. `Tests\Service\PublicRouteLanguageTest` vraagt elke publieke
+route in drie talen op en controleert dat.
 
 Dezelfde methodes vullen de sitemap, dus een `<loc>` is per constructie
 identiek aan de canonical van de pagina waar hij naar wijst.
