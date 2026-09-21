@@ -41,9 +41,9 @@ class FooterService
                 array_map(static fn (array $column): int => (int) $column['id'], $columns),
                 array_map(static fn (array $link): int => (int) $link['id'], $allLinks)
             );
-            // The addresses of every linked page, in one query rather than
-            // one per page (App\Service\LinkResolver::preloadPageAddresses()).
-            LinkResolver::preloadPageAddresses($allLinks);
+            // Every linked page and its addresses, in two queries however
+            // many links there are (App\Service\LinkResolver::preloadPages()).
+            LinkResolver::preloadPages($allLinks);
         } catch (\Throwable $e) {
             error_log('[FooterService] falling back to empty footer columns: ' . $e->getMessage());
             return [];

@@ -30,6 +30,16 @@ class LinkResolver
     public const ALLOWED_ACTIONS = ['cookie_preferences'];
 
     /**
+     * The linked pages preloadPages() fetched, by id: the published row, or
+     * null for "asked for and not published" — so a draft or deleted target
+     * costs no second lookup either. Only resolve() without a repository of
+     * its own reads it; an id that was never preloaded is looked up as before.
+     *
+     * @var array<int, array<string, mixed>|null>
+     */
+    private static array $preloadedPages = [];
+
+    /**
      * @param array<string, mixed> $row must contain 'link_type' and,
      *                                   depending on it, one of
      *                                   target_page_id/target_route/
@@ -51,12 +61,16 @@ class LinkResolver
                 if ($pageId === null) {
                     return null;
                 }
-                $pageRepository ??= new PageRepository();
-                try {
-                    $page = $pageRepository->findByIdPublished((int) $pageId);
-                } catch (\Throwable $e) {
-                    error_log('[LinkResolver] page lookup failed: ' . $e->getMessage());
-                    return null;
+                if ($pageRepository === null && array_key_exists((int) $pageId, self::$preloadedPages)) {
+                    $page = self::$preloadedPages[(int) $pageId];
+                } else {
+                    $pageRepository ??= new PageRepository();
+                    try {
+                        $page = $pageRepository->findByIdPublished((int) $pageId);
+                    } catch (\Throwable $e) {
+                        error_log('[LinkResolver] page lookup failed: ' . $e->getMessage());
+                        return null;
+                    }
                 }
                 if ($page === null) {
                     return null;
@@ -132,23 +146,30 @@ class LinkResolver
     }
 
     /**
-     * Load the per-language ADDRESSES of every page a list of link rows
-     * points at, in one query, before those rows are resolved one by one.
+     * Load every page a list of link rows points at — its `pages` row and its
+     * per-language addresses — in two queries, before those rows are resolved
+     * one by one (docs/multilingual/ROUTING.md, "Querygedrag").
      *
-     * Since Multilingual 2.0 phase 6 a page link is built from the page's
-     * address in the language being read (App\Service\PageContent::publicUrl()),
-     * and that address lives in `page_translations`. Without this, resolving
-     * a menu cost one extra query per DISTINCT linked page — measured, not
-     * guessed: a menu of ten page links went from N to 2N queries. With it
-     * the whole menu costs exactly one, however long it is
-     * (docs/multilingual/ROUTING.md, "Querygedrag").
+     * Measured, not guessed. A page link needs the page's published row (is it
+     * still there, is it served by an enabled module, what is its neutral
+     * slug) and, since Multilingual 2.0 phase 6, its address in the language
+     * being read (App\Service\PageContent::publicUrl()), which lives in
+     * `page_translations`. The addresses were already preloaded, but every
+     * link still asked `pages` for its own row: 20 page links cost 21
+     * queries. Now it is two, however long the menu is — the addresses through
+     * PageLocalization::preload(), the rows through
+     * PageRepository::findPublishedByIds(), the bulk form of the very lookup
+     * resolve() makes, with the same `status = 'published'` rule.
      *
-     * The per-link `pages` lookup in resolve() is older than this phase and
-     * is left as it was.
+     * The header and the footer call this right before they resolve, so what
+     * resolve() reads is never older than the render it is part of. Each call
+     * replaces the entries for the ids it was given. A failed bulk lookup
+     * stores nothing, and resolve() then falls back to one lookup per link,
+     * exactly as it worked before.
      *
      * @param list<array<string, mixed>> $rows nav_items or footer_links rows
      */
-    public static function preloadPageAddresses(array $rows): void
+    public static function preloadPages(array $rows): void
     {
         $pageIds = [];
         foreach ($rows as $row) {
@@ -157,9 +178,30 @@ class LinkResolver
             }
         }
 
-        if ($pageIds !== []) {
-            PageLocalization::preload($pageIds);
+        $pageIds = array_values(array_unique($pageIds));
+        if ($pageIds === []) {
+            return;
         }
+
+        PageLocalization::preload($pageIds);
+
+        try {
+            $published = (new PageRepository())->findPublishedByIds($pageIds);
+        } catch (\Throwable $e) {
+            error_log('[LinkResolver] preloading ' . count($pageIds) . ' linked pages failed: ' . $e->getMessage());
+
+            return;
+        }
+
+        foreach ($pageIds as $pageId) {
+            self::$preloadedPages[$pageId] = $published[$pageId] ?? null;
+        }
+    }
+
+    /** Forget every preloaded page. Tests, and nothing else. */
+    public static function clearCache(): void
+    {
+        self::$preloadedPages = [];
     }
 
     /**

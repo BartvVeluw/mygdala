@@ -27,6 +27,9 @@ class LinkResolverTest extends TestCase
         foreach ($this->createdPageIds as $id) {
             $this->pageRepository->delete($id);
         }
+
+        LinkResolver::clearCache();
+        \App\Service\PageLocalization::clearCache();
     }
 
     private function makePage(string $slug, bool $published = true): int
@@ -178,6 +181,141 @@ class LinkResolverTest extends TestCase
         $this->createdPageIds = array_values(array_diff($this->createdPageIds, [$pageId]));
 
         $this->assertNull(LinkResolver::resolve(['link_type' => 'page', 'target_page_id' => $pageId], $this->pageRepository));
+    }
+
+    /* ------------------------------------------------------------------ */
+    /* Query behaviour (docs/multilingual/ROUTING.md, "Querygedrag")        */
+    /* ------------------------------------------------------------------ */
+
+    /**
+     * REGRESSION, measured before the fix with Com_select on this connection:
+     * with the addresses preloaded, every page link still asked `pages` for
+     * its own row — 1 link cost 2 queries, 5 cost 6, 20 cost 21. The rows now
+     * come in the same preload, so the count no longer depends on the length
+     * of the list.
+     */
+    public function testTwentyPageLinksCostNoMoreQueriesThanOne(): void
+    {
+        $rows = [];
+        for ($i = 1; $i <= 20; $i++) {
+            $rows[] = ['link_type' => 'page', 'target_page_id' => $this->makePage('zz-linkresolver-bulk-' . $i)];
+        }
+        $this->warmUp($rows[0]);
+
+        $one = $this->selectsToResolve(array_slice($rows, 0, 1));
+        $five = $this->selectsToResolve(array_slice($rows, 0, 5));
+        $twenty = $this->selectsToResolve($rows);
+
+        $this->assertSame(2, $one, 'the rows and the addresses, one query each');
+        $this->assertSame($one, $five);
+        $this->assertSame($one, $twenty, '20 page links must not cost 20 page queries');
+    }
+
+    /** The bulk lookup applies the same rule the single one does. */
+    public function testAPreloadedDraftOrDeletedTargetStaysHiddenAtNoExtraCost(): void
+    {
+        $published = $this->makePage('zz-linkresolver-bulk-published');
+        $draft = $this->makePage('zz-linkresolver-bulk-draft', published: false);
+        $deleted = $this->makePage('zz-linkresolver-bulk-deleted');
+        $this->pageRepository->delete($deleted);
+        $this->createdPageIds = array_values(array_diff($this->createdPageIds, [$deleted]));
+
+        $rows = [
+            ['link_type' => 'page', 'target_page_id' => $published],
+            ['link_type' => 'page', 'target_page_id' => $draft],
+            ['link_type' => 'page', 'target_page_id' => $deleted],
+        ];
+        $this->warmUp($rows[0]);
+
+        LinkResolver::preloadPages($rows);
+        $before = $this->selects();
+
+        $this->assertSame('/zz-linkresolver-bulk-published', LinkResolver::resolve($rows[0])['href'] ?? null);
+        $this->assertNull(LinkResolver::resolve($rows[1]), 'a draft is not linked');
+        $this->assertNull(LinkResolver::resolve($rows[2]), 'a deleted page is not linked');
+        $this->assertSame(0, $this->selects() - $before, 'and knowing that took no second lookup');
+    }
+
+    /**
+     * The same holds for the header as a whole: a menu of twenty page links
+     * costs what a menu of one does.
+     */
+    public function testTheHeaderCostsTheSameWithOneOrTwentyPageLinks(): void
+    {
+        $navigation = new \App\Repository\NavigationRepository();
+        $navIds = [];
+
+        try {
+            $add = function (int $i) use ($navigation, &$navIds): void {
+                $navIds[] = $navigation->create([
+                    'link_type' => 'page',
+                    'target_page_id' => $this->makePage('zz-linkresolver-menu-' . $i),
+                    'target_route' => null,
+                    'external_url' => null,
+                    'open_in_new_tab' => false,
+                    'parent_id' => null,
+                    'sort_order' => 900 + $i,
+                    'is_visible' => true,
+                ]);
+            };
+
+            $add(1);
+            $this->headerSelects();
+            $withOne = $this->headerSelects();
+
+            for ($i = 2; $i <= 20; $i++) {
+                $add($i);
+            }
+            $withTwenty = $this->headerSelects();
+
+            $hrefs = array_column(\App\Service\NavigationService::header()['items'], 'href');
+            $this->assertContains('/zz-linkresolver-menu-20', $hrefs, 'every added link is really in the menu');
+            $this->assertSame($withOne, $withTwenty);
+        } finally {
+            foreach ($navIds as $id) {
+                $navigation->delete($id);
+            }
+        }
+    }
+
+    /** SELECTs spent by preload + resolve for these rows, with cold caches. */
+    private function selectsToResolve(array $rows): int
+    {
+        LinkResolver::clearCache();
+        \App\Service\PageLocalization::clearCache();
+
+        $before = $this->selects();
+        LinkResolver::preloadPages($rows);
+        foreach ($rows as $row) {
+            $this->assertNotNull(LinkResolver::resolve($row));
+        }
+
+        return $this->selects() - $before;
+    }
+
+    /** SELECTs spent by one header() with cold per-render caches. */
+    private function headerSelects(): int
+    {
+        LinkResolver::clearCache();
+        \App\Service\PageLocalization::clearCache();
+        \App\Service\NavigationLocalization::clearCache();
+
+        $before = $this->selects();
+        \App\Service\NavigationService::header();
+
+        return $this->selects() - $before;
+    }
+
+    /** The registries (languages, modules) load once per request; do that outside the count. */
+    private function warmUp(array $row): void
+    {
+        LinkResolver::preloadPages([$row]);
+        LinkResolver::resolve($row);
+    }
+
+    private function selects(): int
+    {
+        return (int) \App\Database::connection()->query("SHOW SESSION STATUS LIKE 'Com_select'")->fetch()['Value'];
     }
 
     public function testValidateRejectsLinkTypeNotInAllowlist(): void

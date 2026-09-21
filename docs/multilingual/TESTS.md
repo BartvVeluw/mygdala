@@ -373,6 +373,11 @@ omdat deze schermen geen eigen HTTP-test hebben.
   collectietest bewaakt bovendien dat een vertaling niets anders verplaatst:
   id, neutrale slug, productkoppelingen met volgorde, de
   gerelateerde-producteninstelling en de zichtbaarheid.
+- `ProductLanguageSwitchTest` (`shop`), `BlogFeedLanguageTest` (`blog`) en
+  `LinkResolverTest` — de afronding van deze fase. De wisselaar op een
+  productpagina leidt naar hetzelfde id in elke taal en neemt verder niets uit
+  de querystring mee; een feed is helemaal in de taal van zijn adres; en twintig
+  paginalinks in een menu kosten evenveel queries als één (`Com_select`).
 - `CollectionRepositoryIntegrationTest` — beide schrijvers van de
   product/collectie-koppeling **sluiten aan** bij een transactie die de
   aanroeper al open heeft. PDO weigert een geneste `beginTransaction()`, en

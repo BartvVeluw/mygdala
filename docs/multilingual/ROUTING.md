@@ -520,3 +520,25 @@ terechtkomen.
   hoeveel collecties hij ook in zit. Een slug-URL is een URL-beslissing die
   niets met taal te maken heeft.
 - **`personaliseren` blijft een bestandsnaam.** Zie §5.
+
+---
+
+## 16. Querygedrag
+
+Een lijst die per regel een adres per taal nodig heeft, laadt die adressen in
+bulk. Anders kost elke regel een query, en groeit een menu of een sitemap
+lineair in queries.
+
+- **Menu en footer.** `LinkResolver::preloadPages()` haalt voor alle
+  paginalinks in één keer de gepubliceerde `pages`-rijen op
+  (`PageRepository::findPublishedByIds()`, dezelfde regel als de losse
+  lookup) en hun adressen per taal (`PageLocalization::preload()`). Twee
+  queries, hoe lang het menu ook is. Gemeten met `Com_select` op de
+  testdatabase: vóór deze stap kostten 1, 5 en 20 paginalinks 2, 6 en 21
+  queries, nu 2, 2 en 2 (`Tests\Service\LinkResolverTest`).
+- **De sitemap.** De adressen van alle blogberichten komen in één query
+  (`BlogLocalization::posts()->preload()`), niet één per bericht.
+
+Een losse `LinkResolver::resolve()` zonder preload — een beheerscherm dat
+één link beoordeelt — vraagt zijn pagina nog gewoon zelf op. Dat is één rij,
+geen lijst.
