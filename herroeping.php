@@ -62,13 +62,15 @@ if ($formSuccess) {
 }
 // This route has no CMS page behind it — same reasoning as cart.php. Not
 // indexable, as it already was, and its Open Graph tags are kept: a page
-// nobody may index is still a page somebody can link to.
+// nobody may index is still a page somebody can link to. The canonical is the
+// bare form in the request's own language, never the default language's
+// (docs/multilingual/ROUTING.md, §10).
 $seoMetadata = \App\Service\SeoMetadata::create(
     titleNl: \App\Service\Seo::routeTitle('Herroepingsrecht'),
     titleEn: \App\Service\Seo::routeTitle('Right of withdrawal'),
     descriptionNl: 'Meld een bestelling aan voor herroeping (bedenktijd).',
     descriptionEn: 'Report an order for withdrawal (cooling-off period).',
-    canonical: \App\Service\AppUrl::canonical('herroeping.php'),
+    canonical: \App\Service\Routing\LocalizedUrl::absolute('/herroeping.php'),
     indexable: false,
 );
 
@@ -110,6 +112,10 @@ require __DIR__ . '/partials/page-assets.php';
           <input type="text" id="wr-hp-note" name="hp-note" tabindex="-1" autocomplete="off">
         </div>
         <input type="hidden" name="form_ts" value="<?= time() ?>">
+        <?php /* The endpoint's path has no language, so the answer finds this
+                 page's language back through this field, checked against the
+                 registry there (api/withdrawal-request.php, formLanguage()). */ ?>
+        <input type="hidden" name="language" value="<?= $h(\App\Service\Routing\RequestLanguage::current()) ?>">
 
         <div class="form-grid">
           <div class="form-field">

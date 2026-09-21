@@ -52,7 +52,9 @@ $seo = [
     'title_en' => $titleEn,
     'description_nl' => 'Ontdek welke producten je zelf kunt personaliseren met je eigen naam, tekst of afbeelding. Bekijk het live voorbeeld voordat je bestelt.',
     'description_en' => 'Discover which products you can personalise with your own name, text or image. See a live preview before you order.',
-    'canonical_url' => \App\Service\AppUrl::canonical(
+    // This route in the request's own language: /en/personaliseren.php is its
+    // own version, not a copy of the default language's (ROUTING.md, §10).
+    'canonical_url' => \App\Service\Routing\LocalizedUrl::absolute(
         \App\Service\Personalization\PersonalizationCatalog::publicPath()
     ),
     'og_image_path' => null,

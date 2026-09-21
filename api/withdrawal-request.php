@@ -8,9 +8,9 @@
  * on that order must match, otherwise this endpoint would let anyone probe
  * arbitrary order ids) -> reject if already withdrawn/duplicate-pending ->
  * persist -> best-effort notification + confirmation emails -> redirect back
- * to herroeping.php with a status the page renders as a banner (same
- * redirect-only pattern as api/contact.php's no-JS path — this form has no
- * JS/fetch variant).
+ * to herroeping.php, in the language the form was filled in (formLanguage()),
+ * with a status the page renders as a banner (same redirect-only pattern as
+ * api/contact.php's no-JS path — this form has no JS/fetch variant).
  *
  * Deliberately does NOT try to determine whether (part of) the order is
  * personalised/made-to-order and does NOT auto-accept or auto-reject the
@@ -39,6 +39,37 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     exit('Method not allowed');
 }
 
+/**
+ * THE LANGUAGE THE FORM WAS FILLED IN, so every answer (refused, accepted, or a
+ * bot's fake success) lands on the form in that language
+ * (docs/multilingual/ROUTING.md, §14). This endpoint's own path has no
+ * language, so herroeping.php sends the one its page is in as a hidden field
+ * and the registry decides whether to believe it, exactly as api/checkout.php
+ * does with its payload: anything that is not an ACTIVE website language is the
+ * default language, like an unprefixed URL.
+ *
+ * All it can choose is WHICH LANGUAGE's /herroeping.php the customer returns
+ * to. The path is this endpoint's own and App\Service\Routing\LocalizedUrl puts
+ * the prefix on it, so no submitted value can name another path or another
+ * host. Nothing else of the request is read for the redirect: no return path,
+ * no Referer.
+ */
+function formLanguage(): string
+{
+    static $language = null;
+
+    if ($language === null) {
+        $submitted = $_POST['language'] ?? null;
+        $language = \App\Service\Language\LanguageCode::normalise(is_string($submitted) ? $submitted : null);
+
+        if ($language === null || !\App\Service\Language\SiteLanguages::isActive($language)) {
+            $language = \App\Service\Routing\LanguageResolver::defaultLanguage();
+        }
+    }
+
+    return $language;
+}
+
 function redirectToForm(string $status, ?string $reason = null, ?int $orderId = null): never
 {
     $params = ['status' => $status];
@@ -48,7 +79,7 @@ function redirectToForm(string $status, ?string $reason = null, ?int $orderId = 
     if ($orderId !== null) {
         $params['order'] = $orderId;
     }
-    header('Location: /herroeping.php?' . http_build_query($params), true, 303);
+    header('Location: ' . \App\Service\Routing\LocalizedUrl::path('/herroeping.php?' . http_build_query($params), formLanguage()), true, 303);
     exit;
 }
 

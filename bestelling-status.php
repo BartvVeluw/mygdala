@@ -9,8 +9,6 @@ require_once __DIR__ . '/partials/public-request.php';
 require_once __DIR__ . '/partials/breadcrumb.php';
 
 
-$statusOrderId = filter_input(INPUT_GET, 'order', FILTER_VALIDATE_INT);
-$withdrawalUrl = '/herroeping.php' . (($statusOrderId !== null && $statusOrderId !== false && $statusOrderId >= 1) ? '?order=' . $statusOrderId : '');
 $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
 
 // WHERE THIS ORDER'S STATUS LIVES IN EACH LANGUAGE, for the language switch
@@ -35,8 +33,9 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
 // an integer) declare nothing either. Whether the order exists is not looked
 // up here; api/order-status.php answers that, the same in every language.
 // This page has no canonical, so this feeds the switch only and never
-// hreflang. $statusOrderId above is the withdrawal link's reading, not this.
+// hreflang. The withdrawal link below reads the order from here too.
 $orderStatusShown = null;
+$orderStatusOrder = null;
 foreach (explode('&', (string) ($_SERVER['QUERY_STRING'] ?? '')) as $orderStatusPair) {
     $orderStatusPair = explode('=', $orderStatusPair, 2);
     if (urldecode($orderStatusPair[0]) === 'order') {
@@ -50,12 +49,24 @@ if (
     && preg_match('/\A[' . $orderStatusTrimmed . ']*([1-9][0-9]*)[' . $orderStatusTrimmed . ']*\z/u', $orderStatusShown, $orderStatusDigits) === 1
     && is_int(filter_var($orderStatusDigits[1], FILTER_VALIDATE_INT))
 ) {
+    $orderStatusOrder = $orderStatusDigits[1];
     $orderStatusVersions = [];
     foreach (\App\Service\Language\SiteLanguages::activeCodes() as $orderStatusLanguage) {
-        $orderStatusVersions[$orderStatusLanguage] = \App\Service\Routing\LocalizedUrl::path('/bestelling-status.php?order=' . $orderStatusDigits[1], $orderStatusLanguage);
+        $orderStatusVersions[$orderStatusLanguage] = \App\Service\Routing\LocalizedUrl::path('/bestelling-status.php?order=' . $orderStatusOrder, $orderStatusLanguage);
     }
     \App\Service\Routing\LanguageAlternates::declareVersions($orderStatusVersions);
 }
+
+// THE WITHDRAWAL LINK names the order this page shows, read the one way above,
+// and nothing else from the query string, on the withdrawal form in this
+// page's own language (docs/multilingual/ROUTING.md, §9). It used to read
+// $_GET's LAST `order` with PHP's looser integer rule and to drop the prefix,
+// so /en/…?order=7&order=8 showed order 7 and offered to withdraw order 8, in
+// Dutch. No order shown, no order carried: the bare form, still in this
+// language.
+$withdrawalUrl = \App\Service\Routing\LocalizedUrl::path(
+    '/herroeping.php' . ($orderStatusOrder !== null ? '?order=' . $orderStatusOrder : '')
+);
 // A per-order page reached from a payment return link. Never indexable,
 // and deliberately WITHOUT a canonical URL: every visit is about a
 // different order, so there is no one URL this page is the canonical

@@ -37,11 +37,13 @@ if ($page === null) {
     // The same shape as cart.php's head: a route without a CMS page builds its
     // metadata here, through the one App\Service\SeoMetadata. Unlike the cart
     // this is public content a crawler should find, so it stays indexable and
-    // the Shop lists it in the sitemap (App\Module\ShopModule).
+    // the Shop lists it in the sitemap (App\Module\ShopModule), once per
+    // active language — and each of those is its own canonical, in the
+    // request's language like the cart's.
     $seoMetadata = \App\Service\SeoMetadata::create(
         titleNl: \App\Service\Seo::routeTitle('Shop'),
         titleEn: \App\Service\Seo::routeTitle('Shop'),
-        canonical: \App\Service\AppUrl::canonical('shop.php'),
+        canonical: \App\Service\Routing\LocalizedUrl::absolute('/shop.php'),
     );
 }
 

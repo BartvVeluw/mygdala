@@ -13,13 +13,14 @@ $turnstileSiteKey = htmlspecialchars(\App\Service\TurnstileVerifier::siteKey(), 
 // This route has no CMS page behind it — see cart.php for the reasoning
 // behind building the metadata here and rendering it with the one shared
 // partial. Not indexable: a checkout form is transactional, and it carried
-// a canonical plus Open Graph tags and no robots tag before this.
+// a canonical plus Open Graph tags and no robots tag before this. The
+// canonical is this route in the request's own language, as on cart.php.
 $seoMetadata = \App\Service\SeoMetadata::create(
     titleNl: \App\Service\Seo::routeTitle('Afrekenen'),
     titleEn: \App\Service\Seo::routeTitle('Checkout'),
     descriptionNl: 'Rond je bestelling af: gegevens, verzending en betaling via Mollie.',
     descriptionEn: 'Complete your order: details, shipping and payment via Mollie.',
-    canonical: \App\Service\AppUrl::canonical('checkout.php'),
+    canonical: \App\Service\Routing\LocalizedUrl::absolute('/checkout.php'),
     indexable: false,
 );
 

@@ -22,7 +22,9 @@ use Tests\Support\BuiltInServer;
  * the path only. So it used to offer /en/bestelling-status.php: the bare
  * route, which tells the customer their order cannot be found.
  * bestelling-status.php now declares its versions, built from the id it
- * validated, the way product.php declares a product's.
+ * validated, the way product.php declares a product's. Its link to the
+ * withdrawal form reads the order the same way and stays in the page's
+ * language.
  *
  * Over real HTTP with the dispatcher router in front, because what matters is
  * what a customer clicks and what that shows. The order itself is drawn by
@@ -101,7 +103,7 @@ final class OrderStatusLanguageSwitchTest extends TestCase
         $english = $this->follow($dutch['body'], 'en');
         self::assertSame(200, $english['status']);
         self::assertStringContainsString('<html lang="en"', $english['body']);
-        $this->assertShowsOrder($id, 'paid', $this->switchHref($dutch['body'], 'en'), $english['body']);
+        $this->assertShowsOrder($id, 'paid', $this->switchHref($dutch['body'], 'en'), $english['body'], '/en');
     }
 
     public function testTheEnglishPageLinksTheSameOrderBackInDutch(): void
@@ -116,7 +118,7 @@ final class OrderStatusLanguageSwitchTest extends TestCase
         $dutch = $this->follow($english['body'], 'nl');
         self::assertSame(200, $dutch['status']);
         self::assertStringContainsString('<html lang="nl"', $dutch['body']);
-        $this->assertShowsOrder($id, 'failed', $this->switchHref($english['body'], 'nl'), $dutch['body']);
+        $this->assertShowsOrder($id, 'failed', $this->switchHref($english['body'], 'nl'), $dutch['body'], '');
     }
 
     /**
@@ -134,7 +136,7 @@ final class OrderStatusLanguageSwitchTest extends TestCase
         $german = $this->follow($dutch['body'], 'de');
         self::assertSame(200, $german['status']);
         self::assertStringContainsString('<html lang="de"', $german['body']);
-        $this->assertShowsOrder($id, 'paid', $this->switchHref($dutch['body'], 'de'), $german['body']);
+        $this->assertShowsOrder($id, 'paid', $this->switchHref($dutch['body'], 'de'), $german['body'], '/de');
 
         self::assertSame('/en/bestelling-status.php?order=' . $id, $this->switchHref($german['body'], 'en'));
         self::assertSame('/bestelling-status.php?order=' . $id, $this->switchHref($german['body'], 'nl'));
@@ -283,6 +285,87 @@ final class OrderStatusLanguageSwitchTest extends TestCase
     }
 
     /* ------------------------------------------------------------------ */
+    /* The link to the withdrawal form                                     */
+    /* ------------------------------------------------------------------ */
+
+    /**
+     * "Report your order for withdrawal" opens the withdrawal form for the
+     * order this page shows, in the language this page is in. It used to drop
+     * the prefix, so an English or German customer landed on the Dutch form.
+     */
+    public function testTheWithdrawalLinkOpensTheSameOrderInThePagesLanguage(): void
+    {
+        $this->addGerman();
+        $id = $this->order('paid');
+
+        foreach (['nl' => '', 'en' => '/en', 'de' => '/de'] as $language => $prefix) {
+            $page = $this->get($prefix . '/bestelling-status.php?order=' . $id);
+            self::assertSame(200, $page['status'], $language);
+
+            $href = $this->withdrawalHref($page['body']);
+            self::assertSame($prefix . '/herroeping.php?order=' . $id, $href, $language);
+
+            $form = $this->get((string) $href);
+            self::assertSame(200, $form['status'], $language);
+            self::assertStringContainsString('<html lang="' . $language . '"', $form['body'], 'the form is in ' . $language);
+            self::assertSame((string) $id, $this->prefilled($form['body']), 'filled in with the same order in ' . $language);
+        }
+    }
+
+    /**
+     * The link names the order the page SHOWS, read the one way the switch
+     * reads it (as shop.js does): the first `order`, trimmed as JavaScript
+     * trims. It used to read $_GET's last one, so ?order=7&order=8 showed
+     * order 7 and offered to withdraw order 8.
+     */
+    public function testTheWithdrawalLinkCarriesTheOrderThePageShows(): void
+    {
+        $id = $this->order('paid');
+        $other = $this->order('failed');
+
+        foreach (
+            [
+                '?order=%20' . $id,
+                '?order=+' . $id,
+                '?order=%09' . $id . '%0A',
+                '?order=%C2%A0' . $id,
+                '?order=' . $id . '&order=' . $other,
+                '?order=' . $id . '&order[]=' . $other,
+                '?utm_source=news&order=' . $id . '&status=error&lang=nl',
+            ] as $query
+        ) {
+            foreach (['', '/en'] as $prefix) {
+                $page = $this->get($prefix . '/bestelling-status.php' . $query);
+                self::assertSame('/en/bestelling-status.php?order=' . $id, $this->switchHref($page['body'], 'en'), 'the page shows ' . $id . ' for ' . $prefix . $query);
+                self::assertSame($prefix . '/herroeping.php?order=' . $id, $this->withdrawalHref($page['body']), $prefix . $query);
+            }
+        }
+    }
+
+    /**
+     * Where the page shows no order, the link names none: the bare form, in
+     * this page's language, never an order shop.js refused to show and never
+     * anything typed into the URL.
+     */
+    public function testTheWithdrawalLinkCarriesNoOrderWhereThePageShowsNone(): void
+    {
+        $id = $this->order('paid');
+
+        $queries = ['', '?order=', '?order[]=' . $id, '?order=' . $id . 'abc'];
+        foreach (['+' . $id, '0' . $id, '1e3', '//evil.test', "1\r\nLocation: https://evil.test"] as $value) {
+            $queries[] = '?order=' . rawurlencode($value);
+        }
+
+        foreach ($queries as $query) {
+            foreach (['', '/en'] as $prefix) {
+                $page = $this->get($prefix . '/bestelling-status.php' . $query);
+                self::assertNull($this->orderShownAt($prefix . '/bestelling-status.php' . $query), json_encode($query));
+                self::assertSame($prefix . '/herroeping.php', $this->withdrawalHref($page['body']), json_encode($prefix . $query));
+            }
+        }
+    }
+
+    /* ------------------------------------------------------------------ */
     /* The prefix belongs to the default language, not to Dutch             */
     /* ------------------------------------------------------------------ */
 
@@ -301,6 +384,9 @@ final class OrderStatusLanguageSwitchTest extends TestCase
             self::assertSame(200, $dutch['status']);
             self::assertStringContainsString('<html lang="nl"', $dutch['body']);
             self::assertSame('/bestelling-status.php?order=' . $id, $this->switchHref($dutch['body'], 'en'));
+
+            self::assertSame('/herroeping.php?order=' . $id, $this->withdrawalHref($english['body']), 'the default language is unprefixed');
+            self::assertSame('/nl/herroeping.php?order=' . $id, $this->withdrawalHref($dutch['body']));
         } finally {
             SiteLanguages::setDefault('nl');
             SiteLanguages::clearCache();
@@ -360,9 +446,10 @@ final class OrderStatusLanguageSwitchTest extends TestCase
     /**
      * The page reached through $href shows order $id in $status: the id
      * shop.js reads from that URL is answered with this order, and the page's
-     * own server-rendered link to the withdrawal form names the same order.
+     * own server-rendered link to the withdrawal form names the same order, on
+     * the form in the language that page is in ($prefix).
      */
-    private function assertShowsOrder(int $id, string $status, ?string $href, string $body): void
+    private function assertShowsOrder(int $id, string $status, ?string $href, string $body, string $prefix): void
     {
         $order = (new OrderRepository())->findById($id);
         self::assertNotNull($order);
@@ -374,7 +461,7 @@ final class OrderStatusLanguageSwitchTest extends TestCase
         self::assertSame($status, $shown['status'], 'with the same status');
 
         self::assertStringContainsString('data-order-status', $body);
-        self::assertStringContainsString("href='/herroeping.php?order=" . $id . "'", $body);
+        self::assertSame($prefix . '/herroeping.php?order=' . $id, $this->withdrawalHref($body));
     }
 
     /**
@@ -432,6 +519,28 @@ final class OrderStatusLanguageSwitchTest extends TestCase
         self::assertStringStartsNotWith('//', $href, 'a switch link never leaves this site');
 
         return $this->get(html_entity_decode($href, ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+    }
+
+    /** Where "report your order for withdrawal" leads, as the page renders it. */
+    private function withdrawalHref(string $html): ?string
+    {
+        $links = $this->xpath($html)->query('//p[contains(@class, "hint")]/a[contains(@href, "herroeping.php")]');
+        self::assertNotFalse($links);
+        self::assertSame(1, $links->length, 'the page links the withdrawal form once');
+
+        return $links->item(0)->getAttribute('href');
+    }
+
+    /** The order the withdrawal form is filled in with, or null when its field is empty. */
+    private function prefilled(string $html): ?string
+    {
+        $inputs = $this->xpath($html)->query('//input[@id="wr-order"]');
+        self::assertNotFalse($inputs);
+        self::assertSame(1, $inputs->length, 'this is the withdrawal form');
+
+        $value = $inputs->item(0)->getAttribute('value');
+
+        return $value === '' ? null : $value;
     }
 
     /** Where the public language switch sends a visitor for one language, or null when it links nothing. */

@@ -442,6 +442,13 @@ de PHP-lezing dan niet meer klopt. De pagina zoekt de order niet op, dat doet
 `api/order-status.php`, in elke taal met hetzelfde antwoord. Ze heeft geen
 canonical en dus geen hreflang: de verklaring voedt alleen de wisselaar.
 
+Haar link "meld je bestelling aan voor herroeping" leest de order op precies
+die manier en blijft in de taal van de pagina: `/en/bestelling-status.php?order=7`
+linkt `/en/herroeping.php?order=7`. Toont de pagina geen order, dan linkt hij
+het kale formulier in die taal. Vroeger las die link de láátste `order` uit
+`$_GET` en liet hij de prefix vallen, zodat `?order=7&order=8` order 7 toonde
+en aanbood order 8 te herroepen, in het Nederlands.
+
 **Het herroepingsformulier.** `herroeping.php` verklaart
 `/herroeping.php?order=7`, `/en/herroeping.php?order=7` en zo verder, gebouwd
 uit de waarde waarmee het het veld "Ordernummer" vult. De lezing is daardoor
@@ -481,6 +488,16 @@ Elke routeerbare pagina geeft **precies één** canonical: zijn eigen taalversie
 absoluut via `App\Service\AppUrl`, standaardtaal zonder prefix en elke andere
 met. Nooit taaloverschrijdend, ook niet wanneer een veld is teruggevallen.
 
+Dat geldt ook voor de **systeempagina's** zonder CMS-pagina erachter: de
+winkelwagen, het afrekenen, het cookiebeleid, het herroepingsformulier,
+`personaliseren.php`, de eigen storefront van de Shop-module en een oud
+projectadres (`/portfolio/<slug>`). Ze bouwen hun canonical met
+`LocalizedUrl::absolute()`, nooit met `AppUrl::canonical()` alleen, want dat
+kent geen taal. `noindex` verandert daar niets aan: een pagina die niet in de
+index hoort maar wel een canonical heeft, noemt haar eigen taalversie. De
+orderstatuspagina, een 404 en de feed hebben geen canonical en krijgen er ook
+geen.
+
 `hreflang` wordt in één partial gerenderd (`partials/seo-head.php`), uit de
 versies die de route heeft verklaard, plus `x-default` naar de versie in de
 standaardtaal. Een route die niets verklaart adverteert niets — de toestand
@@ -500,6 +517,17 @@ gevuld, maar **er handelt niets meer op**: de wisselaar is een rij links
 geworden, en `assets/js/core.js` bindt alleen aan `.lang-switch button`. De
 V1-paren in `SeoMetadata`, de bilinguale adapters en de JSON-helften gaan
 samen met die attributen weg in fase 7.
+
+In die vaste V1-teksten staan nog links die de taal niet volgen, en die gaan
+met de teksten mee:
+
+- `/verzenden-retourneren`, een Nederlandse paginaslug, in de inleiding van
+  `herroeping.php` en in de hint op `bestelling-status.php`;
+- `cookiebeleid.php`, een relatieve link, in de tekst van de cookiemelding
+  (`CookieConsentConfig`). Onder `/en/` blijft hij toevallig Engels, maar onder
+  een genest pad als `/blog/categorie/hout` wijst hij naar een adres dat niet
+  bestaat. De link in het voorkeurenvenster is wél goed
+  (`LocalizedUrl::path('/cookiebeleid.php')`).
 
 ---
 
@@ -561,6 +589,14 @@ Waar de bezoeker daarna terechtkomt is wél per taal:
   Het enige dat hij kan bepalen is naar welke bestelpagina van deze site de
   klant terugkeert; de URL zelf wordt door `LocalizedUrl` uit de geconfigureerde
   basis-URL gebouwd, dus een vervalste waarde kan geen andere host noemen.
+- **Het herroepingsformulier** stuurt de taal van zijn pagina mee in een
+  verborgen veld `language`. `api/withdrawal-request.php` gelooft die alleen
+  als actieve websitetaal, anders geldt de standaardtaal (zoals bij een pad
+  zonder prefix), en zet met `LocalizedUrl` de prefix op zijn eigen vaste pad.
+  Een weigering, een bevestiging en het nepsucces voor een bot komen dus allemaal
+  terug op `/en/herroeping.php?…` als het formulier Engels was. In die URL staan
+  alleen `status`, `reason` en de order die de server zelf heeft gecontroleerd;
+  een terugkeerpad of Referer wordt niet gelezen.
 
 Een **omleiding om taalredenen gebeurt alleen bij GET en HEAD**. Een POST
 wordt beantwoord waar hij naartoe gestuurd is: een `Location`-header verliest
@@ -590,6 +626,16 @@ terechtkomen.
   `BlogContent::excerpt()` neemt het excerpt met de gewone terugval
   (gevraagde taal, dan standaardtaal) vóór de opening van de tekst in de
   gevraagde taal. Dat is inhoudssemantiek, geen routingvraag.
+- **`/portfolio-detail.php?slug=…` is geen publiek adres.** Het is het template
+  achter `/portfolio/<slug>` en alleen bereikbaar omdat het een bestand is.
+  Niets in de applicatie linkt ernaar: geen kaart, geen canonical (die noemt
+  `/portfolio/<slug>`), geen sitemap, geen redirect. De wisselaar biedt daar
+  `/en/portfolio-detail.php` aan, en dat 404't, omdat het geen route is. Er
+  komt geen compatibiliteitsroute voor.
+- **Een URL die een redacteur in een blokveld typt, staat er zoals hij getypt
+  is.** De knop van de homepage-hero met `/` linkt vanaf `/en/` naar de
+  Nederlandse home. Dat is inhoud, geen link die de code bouwt, en hoort bij
+  een linkkiezer voor blokvelden, niet bij de routing.
 
 ---
 

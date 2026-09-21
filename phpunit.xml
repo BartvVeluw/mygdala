@@ -610,6 +610,7 @@
             <file>tests/Service/ShopSettingsTest.php</file>
             <file>tests/Service/TurnstileVerifierTest.php</file>
             <file>tests/Service/WithdrawalLanguageSwitchTest.php</file>
+            <file>tests/Service/WithdrawalRequestLanguageTest.php</file>
         </testsuite>
 
         <testsuite name="personalization">

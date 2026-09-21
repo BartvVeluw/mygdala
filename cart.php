@@ -16,13 +16,16 @@ require_once __DIR__ . '/partials/breadcrumb.php';
 // NOT INDEXABLE, and that is the point of stating it: the cart is a private,
 // per-visitor, always-empty-to-a-crawler page. Before SEO Foundation V1 this
 // page carried a canonical tag and Open Graph tags and no robots tag at all,
-// which made it a candidate for the index.
+// which made it a candidate for the index. Its canonical is this route in the
+// request's own language (docs/multilingual/ROUTING.md, §10), like every
+// system page's: App\Service\AppUrl alone knows no language, and named the
+// default language's cart from /en/cart.php.
 $seoMetadata = \App\Service\SeoMetadata::create(
     titleNl: \App\Service\Seo::routeTitle('Winkelwagen'),
     titleEn: \App\Service\Seo::routeTitle('Shopping cart'),
     descriptionNl: 'Bekijk en pas je winkelwagen aan voordat je afrekent.',
     descriptionEn: 'Review and adjust your cart before checking out.',
-    canonical: \App\Service\AppUrl::canonical('cart.php'),
+    canonical: \App\Service\Routing\LocalizedUrl::absolute('/cart.php'),
     indexable: false,
 );
 

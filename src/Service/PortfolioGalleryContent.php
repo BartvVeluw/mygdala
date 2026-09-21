@@ -329,7 +329,9 @@ class PortfolioGalleryContent
         if ($page !== null) {
             $url = PageContent::publicUrl($page);
         } elseif (!empty($item['has_detail_page']) && $oldSlug !== '') {
-            $url = self::publicPath($oldSlug);
+            // In the language the visitor is reading, like the page link above:
+            // the old address answers under every prefix.
+            $url = \App\Service\Routing\LocalizedUrl::path(self::publicPath($oldSlug));
         } else {
             $url = '';
         }
@@ -441,15 +443,24 @@ class PortfolioGalleryContent
      *
      * The counterpart of App\Service\CollectionContent::publicPath() and
      * App\Service\ProductSeo::publicPath().
+     *
+     * UNPREFIXED: the address is the same in every language, so a language is
+     * only ever its prefix, which App\Service\Routing\LocalizedUrl puts on in
+     * canonicalUrlForSlug() and on the card link in mapItemRow().
      */
     public static function publicPath(string $slug): string
     {
         return '/portfolio/' . $slug;
     }
 
-    public static function canonicalUrlForSlug(string $slug): string
+    /**
+     * The old project page's canonical in $language, the request's when null:
+     * /en/portfolio/<slug> is that page's English version and says so, rather
+     * than naming the default language's (docs/multilingual/ROUTING.md, §10).
+     */
+    public static function canonicalUrlForSlug(string $slug, ?string $language = null): string
     {
-        return AppUrl::canonical(ltrim(self::publicPath($slug), '/'));
+        return \App\Service\Routing\LocalizedUrl::absolute(self::publicPath($slug), $language);
     }
 
     /**

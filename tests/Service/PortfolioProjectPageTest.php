@@ -133,6 +133,31 @@ final class PortfolioProjectPageTest extends TestCase
     }
 
     /**
+     * The old address answers under every language's prefix, so a card read
+     * in another language links there, as a card linked to a page already did
+     * (docs/multilingual/ROUTING.md, §9). It used to send every language to
+     * the default language's copy.
+     */
+    public function testAnOldProjectCardLinksInTheLanguageBeingRead(): void
+    {
+        if (!\App\Service\Language\SiteLanguages::isActive('en') || \App\Service\Language\SiteLanguages::defaultCode() !== 'nl') {
+            $this->markTestSkipped('this test expects the test database to publish nl (default) and en');
+        }
+
+        $itemId = $this->item();
+        $oldSlug = $this->giveItAnOldProjectPage($itemId);
+
+        \App\Service\Routing\RequestLanguage::set('en', true);
+        try {
+            $this->assertSame('/en/portfolio/' . $oldSlug, $this->card($itemId)['url']);
+        } finally {
+            \App\Service\Routing\RequestLanguage::reset();
+        }
+
+        $this->assertSame('/portfolio/' . $oldSlug, $this->card($itemId)['url'], 'the default language keeps the unprefixed address');
+    }
+
+    /**
      * Rule 1 before rule 2, and only for a published page. Linked to a draft,
      * the card keeps the old address and names the draft nowhere; once the
      * page is published the card links to it; unlinked again, the old address

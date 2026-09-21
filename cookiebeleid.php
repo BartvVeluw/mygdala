@@ -15,14 +15,15 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
 // Not indexable, as before — but the canonical URL is now derived from the
 // configured application URL instead of being the one literal production
 // domain written into a template, which is what made this file the last
-// place a second site could not be deployed from.
+// place a second site could not be deployed from. It is this route in the
+// request's own language, as on cart.php.
 $siteName = \App\Service\SiteSettings::get('site_name');
 $seoMetadata = \App\Service\SeoMetadata::create(
     titleNl: \App\Service\Seo::routeTitle('Cookiebeleid'),
     titleEn: \App\Service\Seo::routeTitle('Cookie policy'),
     descriptionNl: 'Welke cookies en lokale opslag ' . $siteName . ' gebruikt, waarvoor, en hoe je je voorkeuren kunt beheren.',
     descriptionEn: 'Which cookies and local storage ' . $siteName . ' uses, what for, and how to manage your preferences.',
-    canonical: \App\Service\AppUrl::canonical('cookiebeleid.php'),
+    canonical: \App\Service\Routing\LocalizedUrl::absolute('/cookiebeleid.php'),
     indexable: false,
 );
 

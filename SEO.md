@@ -150,6 +150,11 @@ bouwt zijn eigen URL één keer:
 | Product | `ProductSeo::canonicalUrl()` |
 | Collectie | `CollectionContent::canonicalUrl()` |
 | Oude portfolio-projectpagina (zonder gekoppelde, gepubliceerde pagina) | `PortfolioGalleryContent::canonicalUrlForSlug()` |
+| Systeempagina zonder CMS-pagina (winkelwagen, afrekenen, cookiebeleid, herroeping, personaliseren, de eigen storefront van de Shop) | `LocalizedUrl::absolute('/<route>.php')` in het template |
+
+Een systeempagina roept `AppUrl::canonical()` nooit rechtstreeks aan: dat
+kent geen taal, en noemde vanaf `/en/cart.php` de winkelwagen van de
+standaardtaal.
 
 Dezelfde methodes vullen de sitemap, dus een `<loc>` is per constructie
 identiek aan de canonical van de pagina waar hij naar wijst.
