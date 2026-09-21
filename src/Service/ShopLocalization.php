@@ -6,7 +6,6 @@ namespace App\Service;
 
 use App\Service\Language\EntityTranslations;
 use App\Service\Language\LanguageFallback;
-use App\Service\Language\LocalizedValue;
 use App\Service\Language\TranslationTable;
 use App\Service\Routing\LocalizedSlug;
 
@@ -160,28 +159,14 @@ final class ShopLocalization
         return self::products()->raw($productId, $field, $languageCode);
     }
 
-    /** The pair a public template or a JSON payload prints (the temporary V1 adapter). */
-    public static function productValue(int $productId, string $field): LocalizedValue
-    {
-        return self::products()->bilingual($productId, $field);
-    }
-
-    /** One product's sanitized description in one language. */
+    /**
+     * One product's sanitized description in one language, sanitized BEFORE
+     * the fallback runs: a language whose markup sanitizes away to nothing
+     * simply has no description, and the fallback takes over.
+     */
     public static function productDescription(int $productId, string $languageCode): string
     {
-        return (string) (DescriptionSanitizer::sanitize(
-            self::product($productId, self::DESCRIPTION, $languageCode)
-        ) ?? '');
-    }
-
-    /**
-     * The description's pair, each half sanitized BEFORE the fallback runs, so
-     * a language whose markup sanitizes away to nothing simply has no
-     * description and the fallback takes over.
-     */
-    public static function productDescriptionValue(int $productId): LocalizedValue
-    {
-        return self::sanitizedPair(self::products()->words($productId), self::DESCRIPTION);
+        return self::sanitized(self::products()->words($productId), self::DESCRIPTION, $languageCode);
     }
 
     /** What the CMS calls a product in its lists, pickers and headings. */
@@ -232,21 +217,10 @@ final class ShopLocalization
         return self::collections()->raw($collectionId, $field, $languageCode);
     }
 
-    public static function collectionValue(int $collectionId, string $field): LocalizedValue
-    {
-        return self::collections()->bilingual($collectionId, $field);
-    }
-
+    /** A collection's sanitized description in one language, the way productDescription() reads one. */
     public static function collectionDescription(int $collectionId, string $languageCode): string
     {
-        return (string) (DescriptionSanitizer::sanitize(
-            self::collection($collectionId, self::DESCRIPTION, $languageCode)
-        ) ?? '');
-    }
-
-    public static function collectionDescriptionValue(int $collectionId): LocalizedValue
-    {
-        return self::sanitizedPair(self::collections()->words($collectionId), self::DESCRIPTION);
+        return self::sanitized(self::collections()->words($collectionId), self::DESCRIPTION, $languageCode);
     }
 
     /** What the CMS calls a collection in its lists, pickers and headings. */
@@ -280,15 +254,16 @@ final class ShopLocalization
     }
 
     /**
-     * One rich field of one owner as a pair, sanitized per language before the
-     * fallback runs. A language whose markup sanitizes away to nothing has no
-     * words, so the fallback takes over rather than a visitor getting an empty
-     * block — the same rule App\Service\PortfolioLocalization::itemRichValue()
-     * and App\Service\Blog\BlogLocalization::bodyValue() follow.
+     * One rich field of one owner in one language, sanitized per language
+     * before the fallback runs. A language whose markup sanitizes away to
+     * nothing has no words, so the fallback takes over rather than a visitor
+     * getting an empty block — the same rule
+     * App\Service\PortfolioLocalization::itemRich() and
+     * App\Service\Blog\BlogLocalization::body() follow.
      *
      * @param array<string, array<string, string>> $words language code => field => words
      */
-    private static function sanitizedPair(array $words, string $field): LocalizedValue
+    private static function sanitized(array $words, string $field, string $languageCode): string
     {
         $html = [];
         foreach ($words as $code => $fields) {
@@ -298,6 +273,6 @@ final class ShopLocalization
             }
         }
 
-        return LanguageFallback::bilingual($html);
+        return LanguageFallback::resolve($html, $languageCode);
     }
 }

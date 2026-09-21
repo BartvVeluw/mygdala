@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Service\Forms\FieldTypes;
 
 use App\Service\Forms\FormField;
-use App\Service\Forms\FormText;
+use App\Service\Language\SiteText;
 
 /**
  * A telephone number.
@@ -39,7 +39,7 @@ final class TelephoneFieldType extends FormFieldType
         return $this->clean($raw, $this->maxLength());
     }
 
-    public function validate(string $value, FormField $field): ?FormText
+    public function validate(string $value, FormField $field): ?string
     {
         // Digits, and the punctuation international numbers are actually
         // written with. At least three digits, so a stray word is caught
@@ -50,10 +50,10 @@ final class TelephoneFieldType extends FormFieldType
             return null;
         }
 
-        return FormText::of(
-            'Vul een geldig telefoonnummer in.',
-            'Please enter a valid phone number.'
-        );
+        return SiteText::pick([
+            'nl' => 'Vul een geldig telefoonnummer in.',
+            'en' => 'Please enter a valid phone number.',
+        ]);
     }
 
     public function renderControl(FormFieldControl $control): void

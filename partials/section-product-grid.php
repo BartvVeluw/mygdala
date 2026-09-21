@@ -25,12 +25,12 @@ function render_section_product_grid(): void
   <section style="padding-top:0;">
     <div class="container">
       <?php if ($shopCollections !== []): ?>
-        <h2 class="collection-tiles__heading" data-nl="Alle producten" data-en="All products">Alle producten</h2>
+        <h2 class="collection-tiles__heading"><?= \App\Service\Language\SiteText::escaped(['nl' => 'Alle producten', 'en' => 'All products']) ?></h2>
       <?php endif; ?>
       <div class="shop-grid" data-products-grid>
-        <p class="lead" data-products-loading data-nl="Producten laden…" data-en="Loading products…">Producten laden…</p>
+        <p class="lead" data-products-loading><?= \App\Service\Language\SiteText::escaped(['nl' => 'Producten laden…', 'en' => 'Loading products…']) ?></p>
       </div>
-      <p class="lead" data-products-error hidden data-nl="Producten kunnen op dit moment niet worden geladen. Probeer het later opnieuw of neem contact op via het offerteformulier." data-en="Products can't be loaded right now. Please try again later or get in touch via the quote form.">Producten kunnen op dit moment niet worden geladen. Probeer het later opnieuw of neem contact op via het offerteformulier.</p>
+      <p class="lead" data-products-error hidden><?= \App\Service\Language\SiteText::escaped(['nl' => 'Producten kunnen op dit moment niet worden geladen. Probeer het later opnieuw of neem contact op via het offerteformulier.', 'en' => 'Products can\'t be loaded right now. Please try again later or get in touch via the quote form.']) ?></p>
     </div>
   </section>
   <?php

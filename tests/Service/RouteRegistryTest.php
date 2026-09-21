@@ -45,7 +45,9 @@ class RouteRegistryTest extends TestCase
 
         $this->assertArrayHasKey('home', $all);
         $this->assertArrayHasKey('url', $all['home']);
-        $this->assertArrayHasKey('label_nl', $all['home']);
-        $this->assertArrayHasKey('label_en', $all['home']);
+        $this->assertArrayHasKey('label', $all['home']);
+        $this->assertArrayNotHasKey('label_nl', $all['home'], 'a catalogue keyed by language, not a fixed pair');
+        $this->assertSame('Home', RouteRegistry::label('home'));
+        $this->assertSame('Cookiebeleid', RouteRegistry::label('cookiebeleid'));
     }
 }

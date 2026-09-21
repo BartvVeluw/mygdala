@@ -4,6 +4,7 @@ namespace App\Service;
 
 use App\Repository\MarqueeRepository;
 use App\Service\Blocks\BlockLocalization;
+use App\Service\Routing\RequestLanguage;
 
 /**
  * Content for the "Marquee" section (`.marquee` > `.marquee__track`) — the
@@ -33,7 +34,7 @@ use App\Service\Blocks\BlockLocalization;
  * WORDS PER LANGUAGE (Multilingual 2.0 phase 3B). Every item's label is
  * stored per website language in block_translations, on the item's own row
  * (MarqueeBlock::childTables()); the section itself has no words. It comes
- * out of App\Service\Blocks\BlockLocalization as one LocalizedValue, the
+ * out of App\Service\Blocks\BlockLocalization as one string, the
  * fallback already applied; is_active and the order stay in the tables. This
  * class decides no language itself.
  *
@@ -70,14 +71,14 @@ class MarqueeContent
 
     /**
      * @return array<string, mixed> 'state' (one of STATE_*) and 'items': a
-     *                                list of label (a LocalizedValue each).
+     *                                list of label (a string each).
      *                                Templates must check 'state' !==
      *                                STATE_HIDDEN before rendering the
      *                                section at all.
      */
     public static function forSection(string $pageSlug, string $sectionKey): array
     {
-        $cacheKey = $pageSlug . ':' . $sectionKey;
+        $cacheKey = RequestLanguage::current() . '|' . $pageSlug . ':' . $sectionKey;
 
         if (isset(self::$cache[$cacheKey])) {
             return self::$cache[$cacheKey];

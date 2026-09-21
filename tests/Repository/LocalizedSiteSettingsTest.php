@@ -93,7 +93,6 @@ final class LocalizedSiteSettingsTest extends TestCase
         self::assertSame(['nl'], $this->languagesWithARow(LocalizedSiteSettings::CITY));
         self::assertSame('', LocalizedSiteSettings::raw(LocalizedSiteSettings::CITY, 'en'), 'an editor sees the empty translation');
         self::assertSame('Utrecht', LocalizedSiteSettings::value(LocalizedSiteSettings::CITY, 'en'), 'a visitor gets the default language');
-        self::assertSame(['nl' => 'Utrecht', 'en' => 'Utrecht'], LocalizedSiteSettings::bilingual(LocalizedSiteSettings::CITY)->attributeValues());
     }
 
     public function testTheCatalogueIsClosed(): void
@@ -144,7 +143,10 @@ final class LocalizedSiteSettingsTest extends TestCase
         LocalizedSiteSettings::save('de', [LocalizedSiteSettings::FOOTER_SLOGAN => '']);
     }
 
-    /** The one consumer outside the settings screens: the contact block prints the place from here. */
+    /**
+     * The one consumer outside the settings screens: the contact block prints
+     * the place from here, in the language being read, as text.
+     */
     public function testTheContactBlockPrintsThePlaceFromTheLocalizedStore(): void
     {
         require_once dirname(__DIR__, 2) . '/partials/section-contact-form.php';
@@ -154,14 +156,15 @@ final class LocalizedSiteSettingsTest extends TestCase
 
         ob_start();
         render_section_contact_form(
-            ['state' => 'active', 'title' => \App\Service\Language\LocalizedValue::of(['nl' => 'Contact']), 'form_id' => null, 'allow_attachment' => false],
+            ['state' => 'active', 'title' => 'Contact', 'form_id' => null, 'allow_attachment' => false],
             null,
             FormRenderState::fresh(FormRenderState::tokenFor('localized-settings-test', 'contact')),
-            ['email' => '', 'city' => LocalizedSiteSettings::bilingual(LocalizedSiteSettings::CITY)]
+            ['email' => '', 'city' => LocalizedSiteSettings::value(LocalizedSiteSettings::CITY, 'en')]
         );
         $html = (string) ob_get_clean();
 
-        self::assertStringContainsString('<span data-nl="Nijmegen, Nederland" data-en="&lt;b&gt;Nijmegen&lt;/b&gt;">Nijmegen, Nederland</span>', $html);
+        self::assertStringContainsString('<span>&lt;b&gt;Nijmegen&lt;/b&gt;</span>', $html);
+        self::assertStringNotContainsString('Nijmegen, Nederland', $html, 'one language per page');
     }
 
     private function clearAll(): void

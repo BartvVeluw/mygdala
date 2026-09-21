@@ -4,7 +4,7 @@ namespace App\Service;
 
 use App\Repository\CtaBandRepository;
 use App\Service\Blocks\BlockLocalization;
-use App\Service\Language\LocalizedValue;
+use App\Service\Routing\RequestLanguage;
 
 /**
  * Content for the "CTA band" block (`.cta-band.cta-band--card`) — the
@@ -19,12 +19,12 @@ use App\Service\Language\LocalizedValue;
  * copy: the content of every instance lives in the database, where the
  * migration that first created this table already put it.
  *
- * WORDS PER LANGUAGE (Multilingual 2.0 phase 3A). The eyebrow, title, lead
- * and both button labels are stored per website language in
- * block_translations and come out of App\Service\Blocks\BlockLocalization as
- * one LocalizedValue each, the fallback already applied; the two URLs and
- * is_active stay in cta_bands, the same in every language. This class
- * decides no language itself.
+ * WORDS PER LANGUAGE (Multilingual 2.0 phase 3A). The eyebrow, title, lead and
+ * both button labels are stored per website language in block_translations and
+ * come out of App\Service\Blocks\BlockLocalization as one string each, in the
+ * language of the request, the fallback already applied; the two URLs and
+ * is_active stay in cta_bands, the same in every language. This class decides
+ * no language itself.
  *
  * The secondary button is fully optional, and renders only with both a label
  * and a URL: a half-filled optional button would be broken or dead, so a
@@ -65,7 +65,7 @@ class CtaBandContent
     private static array $cache = [];
 
     /**
-     * @return array<string, mixed> 'state' (one of STATE_*), a LocalizedValue
+     * @return array<string, mixed> 'state' (one of STATE_*), a string
      *                              per field in WORDS, and the strings
      *                              primary_url and secondary_url. lead and
      *                              the secondary button may be empty.
@@ -75,7 +75,7 @@ class CtaBandContent
      */
     public static function forSection(string $pageSlug, string $sectionKey): array
     {
-        $cacheKey = $pageSlug . ':' . $sectionKey;
+        $cacheKey = RequestLanguage::current() . '|' . $pageSlug . ':' . $sectionKey;
         if (isset(self::$cache[$cacheKey])) {
             return self::$cache[$cacheKey];
         }
@@ -100,7 +100,7 @@ class CtaBandContent
      */
     public static function firstOnPage(string $pageSlug): array
     {
-        $cacheKey = $pageSlug . ':#first';
+        $cacheKey = RequestLanguage::current() . '|' . $pageSlug . ':#first';
         if (isset(self::$cache[$cacheKey])) {
             return self::$cache[$cacheKey];
         }
@@ -144,18 +144,30 @@ class CtaBandContent
             return self::emptyContent() + ['state' => self::STATE_HIDDEN];
         }
 
+        $bandId = (int) $row['id'];
+
+        // THE DEFAULT LANGUAGE DECIDES WHETHER THE BAND SAYS ANYTHING
+        // (docs/multilingual/ARCHITECTURE.md): without a title and without a
+        // button label in the default language there is no band in any
+        // language, however much a translation holds. Its words then stay
+        // empty, and the partial renders nothing.
+        $hasWords = BlockLocalization::hasDefaultWords(self::TABLE, $bandId, 'title')
+            || BlockLocalization::hasDefaultWords(self::TABLE, $bandId, 'primary_label');
+
         $content = [];
         foreach (self::WORDS as $field) {
-            $content[$field] = BlockLocalization::bilingual(self::TABLE, (int) $row['id'], $field);
+            $content[$field] = $hasWords ? BlockLocalization::text(self::TABLE, $bandId, $field) : '';
         }
 
         $content['primary_url'] = (string) ($row['primary_url'] ?? '');
         $content['secondary_url'] = (string) ($row['secondary_url'] ?? '');
 
         // A secondary button only renders when it has both a label and a
-        // URL — a half-filled optional button would be broken/dead.
-        if ($content['secondary_label']->primaryValue() === '' || $content['secondary_url'] === '') {
-            $content['secondary_label'] = LocalizedValue::of([]);
+        // URL — a half-filled optional button would be broken/dead. The
+        // default language decides whether it has a label, whatever
+        // language is being read.
+        if (!BlockLocalization::hasDefaultWords(self::TABLE, (int) $row['id'], 'secondary_label') || $content['secondary_url'] === '') {
+            $content['secondary_label'] = '';
             $content['secondary_url'] = '';
         }
 
@@ -171,7 +183,7 @@ class CtaBandContent
     {
         $content = [];
         foreach (self::WORDS as $field) {
-            $content[$field] = LocalizedValue::of([]);
+            $content[$field] = '';
         }
 
         return $content + ['primary_url' => '', 'secondary_url' => ''];

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Service;
 
 use App\Service\ProductSeo;
+use App\Service\Routing\RequestLanguage;
 use App\Service\ShopLocalization;
 use App\Service\SiteSettings;
 use PHPUnit\Framework\TestCase;
@@ -26,9 +27,10 @@ use Tests\Support\SiteLanguageFixture;
  * product's name, description and SEO fields live per website language in
  * `product_translations`, so they are pinned through
  * App\Service\Language\EntityTranslations' test seam instead of being handed
- * in as `name`/`name_en` columns. The $overrides argument below still speaks
- * that pair language, because these tests are about the RULES, not about
- * where the words sit.
+ * in as columns. The $overrides argument below speaks a Dutch/English pair
+ * (`name`/`name_en`) only as a compact way to fill that store in two
+ * languages; what ProductSeo hands back is ONE language, the request's
+ * (App\Service\Routing\RequestLanguage), which resolveIn() sets.
  */
 final class ProductSeoTest extends TestCase
 {
@@ -119,6 +121,23 @@ final class ProductSeoTest extends TestCase
     }
 
     /**
+     * resolve() while the request is answered in $language.
+     *
+     * @param array<string, mixed> $overrides
+     * @return array<string, mixed>
+     */
+    private function resolveIn(string $language, array $overrides = []): array
+    {
+        RequestLanguage::set($language, true);
+
+        try {
+            return $this->resolve($overrides);
+        } finally {
+            RequestLanguage::reset();
+        }
+    }
+
+    /**
      * @param array<string, mixed> $overrides
      * @param list<string>         $imagePaths
      * @param list<float>          $variantPrices
@@ -149,21 +168,19 @@ final class ProductSeoTest extends TestCase
 
     public function testACustomSeoTitleIsUsedVerbatim(): void
     {
-        $seo = $this->resolve([
+        $overrides = [
             'meta_title' => 'Onderzetters kopen in Nijmegen',
             'meta_title_en' => 'Buy coasters in Nijmegen',
-        ]);
+        ];
 
-        $this->assertSame('Onderzetters kopen in Nijmegen', $seo['title_nl']);
-        $this->assertSame('Buy coasters in Nijmegen', $seo['title_en']);
+        $this->assertSame('Onderzetters kopen in Nijmegen', $this->resolve($overrides)['title']);
+        $this->assertSame('Buy coasters in Nijmegen', $this->resolveIn('en', $overrides)['title']);
     }
 
     public function testTheTitleFallsBackToTheProductNamePlusTheSiteTitleConvention(): void
     {
-        $seo = $this->resolve();
-
-        $this->assertSame('Houten onderzetter | Shop — ' . self::SITE, $seo['title_nl']);
-        $this->assertSame('Wooden coaster | Shop — ' . self::SITE, $seo['title_en']);
+        $this->assertSame('Houten onderzetter | Shop — ' . self::SITE, $this->resolve()['title']);
+        $this->assertSame('Wooden coaster | Shop — ' . self::SITE, $this->resolveIn('en')['title']);
     }
 
     public function testTheSiteNameInATitleIsWhicheverSiteNameIsConfigured(): void
@@ -175,15 +192,27 @@ final class ProductSeoTest extends TestCase
 
         $seo = $this->resolve();
 
-        $this->assertSame('Houten onderzetter | Shop — Andere Site', $seo['title_nl']);
+        $this->assertSame('Houten onderzetter | Shop — Andere Site', $seo['title']);
         $this->assertSame('Andere Site', $seo['json_ld']['brand']['name']);
     }
 
-    public function testAnEmptyEnglishSeoTitleFallsBackToTheDutchOne(): void
+    public function testAnUntranslatedSeoTitleFallsBackToTheDefaultLanguage(): void
     {
-        $seo = $this->resolve(['meta_title' => 'Alleen Nederlands', 'meta_title_en' => '']);
+        $seo = $this->resolveIn('en', ['meta_title' => 'Alleen Nederlands', 'meta_title_en' => '']);
 
-        $this->assertSame('Alleen Nederlands', $seo['title_en']);
+        $this->assertSame('Alleen Nederlands', $seo['title']);
+    }
+
+    public function testTheHeadCarriesOneLanguageAndNoPair(): void
+    {
+        $seo = $this->resolveIn('en');
+
+        $this->assertSame('Wooden coaster', $seo['name']);
+        $this->assertSame('Wooden coaster', $seo['json_ld']['name'], 'the structured data quotes the language being read');
+
+        foreach (['name_nl', 'name_en', 'title_nl', 'title_en', 'description_nl', 'description_en'] as $v1Key) {
+            $this->assertArrayNotHasKey($v1Key, $seo);
+        }
     }
 
     // ---------------------------------------------------------- description
@@ -194,16 +223,14 @@ final class ProductSeoTest extends TestCase
 
         $seo = $this->resolve(['meta_description' => $long]);
 
-        $this->assertSame($long, $seo['description_nl']);
-        $this->assertStringNotContainsString('…', $seo['description_nl']);
+        $this->assertSame($long, $seo['description']);
+        $this->assertStringNotContainsString('…', $seo['description']);
     }
 
     public function testTheDescriptionFallsBackToThePlainTextProductDescription(): void
     {
-        $seo = $this->resolve();
-
-        $this->assertSame('Van berkenhout.', $seo['description_nl']);
-        $this->assertSame('Made of birch.', $seo['description_en']);
+        $this->assertSame('Van berkenhout.', $this->resolve()['description']);
+        $this->assertSame('Made of birch.', $this->resolveIn('en')['description']);
     }
 
     public function testTheFallbackDescriptionStripsHtmlAndNormalizesWhitespace(): void
@@ -212,26 +239,26 @@ final class ProductSeoTest extends TestCase
             'description' => "<p>Sterk   &amp;   <strong>mooi</strong>.</p>\n<p>Tweede zin.</p>",
         ]);
 
-        $this->assertSame('Sterk & mooi. Tweede zin.', $seo['description_nl']);
-        $this->assertStringNotContainsString('<', $seo['description_nl']);
-        $this->assertStringNotContainsString('&amp;', $seo['description_nl']);
+        $this->assertSame('Sterk & mooi. Tweede zin.', $seo['description']);
+        $this->assertStringNotContainsString('<', $seo['description']);
+        $this->assertStringNotContainsString('&amp;', $seo['description']);
     }
 
     public function testTheFallbackDescriptionIsShortenedOnAWordBoundary(): void
     {
         $seo = $this->resolve(['description' => '<p>' . str_repeat('woord ', 80) . '</p>']);
 
-        $this->assertLessThanOrEqual(161, mb_strlen($seo['description_nl']));
-        $this->assertStringEndsWith('…', $seo['description_nl']);
-        $this->assertStringNotContainsString('woor…', $seo['description_nl']);
+        $this->assertLessThanOrEqual(161, mb_strlen($seo['description']));
+        $this->assertStringEndsWith('…', $seo['description']);
+        $this->assertStringNotContainsString('woor…', $seo['description']);
     }
 
     public function testAProductWithNoDescriptionAndNoCustomTextGetsNoDescriptionAtAll(): void
     {
-        $seo = $this->resolve(['description' => null, 'description_en' => null]);
+        $overrides = ['description' => null, 'description_en' => null];
 
-        $this->assertSame('', $seo['description_nl']);
-        $this->assertSame('', $seo['description_en']);
+        $this->assertSame('', $this->resolve($overrides)['description']);
+        $this->assertSame('', $this->resolveIn('en', $overrides)['description']);
     }
 
     // --------------------------------------------------------- social image

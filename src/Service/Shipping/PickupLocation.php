@@ -2,6 +2,7 @@
 
 namespace App\Service\Shipping;
 
+use App\Service\Language\SiteText;
 use App\Service\SiteSettings;
 
 /**
@@ -32,19 +33,19 @@ final class PickupLocation
         return trim(SiteSettings::get('company_city'));
     }
 
-    /** Dutch label for the pickup option, with the town when there is one. */
-    public static function labelNl(): string
+    /**
+     * The label of the pickup option in the request's language, with the
+     * town when there is one: code-owned website text, read through
+     * App\Service\Language\SiteText::pick() like every other piece of it.
+     */
+    public static function label(): string
     {
         $city = self::city();
 
-        return $city === '' ? 'Afhalen' : 'Afhalen in ' . $city;
-    }
+        if ($city === '') {
+            return SiteText::pick(['nl' => 'Afhalen', 'en' => 'Pickup']);
+        }
 
-    /** English label for the pickup option, same rule. */
-    public static function labelEn(): string
-    {
-        $city = self::city();
-
-        return $city === '' ? 'Pickup' : 'Pick up in ' . $city;
+        return sprintf(SiteText::pick(['nl' => 'Afhalen in %s', 'en' => 'Pick up in %s']), $city);
     }
 }

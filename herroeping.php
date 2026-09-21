@@ -66,17 +66,18 @@ if ($formSuccess) {
 // bare form in the request's own language, never the default language's
 // (docs/multilingual/ROUTING.md, §10).
 $seoMetadata = \App\Service\SeoMetadata::create(
-    titleNl: \App\Service\Seo::routeTitle('Herroepingsrecht'),
-    titleEn: \App\Service\Seo::routeTitle('Right of withdrawal'),
-    descriptionNl: 'Meld een bestelling aan voor herroeping (bedenktijd).',
-    descriptionEn: 'Report an order for withdrawal (cooling-off period).',
+    title: \App\Service\Seo::routeTitle(\App\Service\Language\SiteText::pick(['nl' => 'Herroepingsrecht', 'en' => 'Right of withdrawal'])),
+    description: \App\Service\Language\SiteText::pick([
+        'nl' => 'Meld een bestelling aan voor herroeping (bedenktijd).',
+        'en' => 'Report an order for withdrawal (cooling-off period).',
+    ]),
     canonical: \App\Service\Routing\LocalizedUrl::absolute('/herroeping.php'),
     indexable: false,
 );
 
 ?>
 <!doctype html>
-<html lang="<?= htmlspecialchars(\App\Service\Language\SiteText::documentLanguage(), ENT_QUOTES, 'UTF-8') ?>" data-primary-lang="<?= htmlspecialchars(\App\Service\Language\SiteText::documentLanguage(), ENT_QUOTES, 'UTF-8') ?>" data-url-prefix="<?= htmlspecialchars(\App\Service\Routing\LocalizedUrl::prefix(), ENT_QUOTES, 'UTF-8') ?>">
+<html lang="<?= htmlspecialchars(\App\Service\Language\SiteText::documentLanguage(), ENT_QUOTES, 'UTF-8') ?>" data-url-prefix="<?= htmlspecialchars(\App\Service\Routing\LocalizedUrl::prefix(), ENT_QUOTES, 'UTF-8') ?>">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -96,9 +97,29 @@ require __DIR__ . '/partials/page-assets.php';
 
   <section class="page-hero">
     <div class="container">
-      <p class="eyebrow" data-nl="Juridisch" data-en="Legal">Juridisch</p>
-      <h1 data-nl="Bestelling herroepen" data-en="Withdraw an order">Bestelling herroepen</h1>
-      <p class="lead" style="margin-top:1rem;" data-nl="Wil je gebruikmaken van je herroepingsrecht (bedenktijd)? Meld je bestelling hieronder aan, dan nemen we het verzoek in behandeling. Lees ook onze pagina Verzenden &amp; retourneren voor meer uitleg, waaronder de uitzondering voor gepersonaliseerde/op maat gemaakte producten." data-en="Want to use your right of withdrawal (cooling-off period)? Report your order below and we'll take the request into review. See also our Shipping &amp; returns page for more details, including the exception for personalised/made-to-order products.">Wil je gebruikmaken van je herroepingsrecht (bedenktijd)? Meld je bestelling hieronder aan, dan nemen we het verzoek in behandeling. Lees ook onze pagina <a href="/verzenden-retourneren">Verzenden &amp; retourneren</a> voor meer uitleg, waaronder de uitzondering voor gepersonaliseerde/op maat gemaakte producten.</p>
+      <p class="eyebrow"><?= \App\Service\Language\SiteText::escaped(['nl' => 'Juridisch', 'en' => 'Legal']) ?></p>
+      <h1><?= \App\Service\Language\SiteText::escaped(['nl' => 'Bestelling herroepen', 'en' => 'Withdraw an order']) ?></h1>
+      <?php
+        // Built from escaped pieces. The shipping & returns page is named by
+        // its content key and linked in the language being read, and only
+        // when it is published (App\Service\LegalPages::publishedPageUrl());
+        // without it the sentence simply ends after the request.
+        $shippingReturnsUrl = \App\Service\LegalPages::publishedPageUrl(\App\Service\LegalPages::SHIPPING_RETURNS_KEY);
+        $withdrawalLead = \App\Service\Language\SiteText::escaped([
+            'nl' => 'Wil je gebruikmaken van je herroepingsrecht (bedenktijd)? Meld je bestelling hieronder aan, dan nemen we het verzoek in behandeling.',
+            'en' => 'Want to use your right of withdrawal (cooling-off period)? Report your order below and we\'ll take the request into review.',
+        ]);
+        if ($shippingReturnsUrl !== null) {
+            $withdrawalLead .= ' ' . sprintf(
+                \App\Service\Language\SiteText::escaped([
+                    'nl' => 'Lees ook onze pagina %s voor meer uitleg, waaronder de uitzondering voor gepersonaliseerde/op maat gemaakte producten.',
+                    'en' => 'See also our %s page for more details, including the exception for personalised/made-to-order products.',
+                ]),
+                '<a href="' . $h($shippingReturnsUrl) . '">' . \App\Service\Language\SiteText::escaped(['nl' => 'Verzenden & retourneren', 'en' => 'Shipping & returns']) . '</a>'
+            );
+        }
+      ?>
+      <p class="lead" style="margin-top:1rem;"><?= $withdrawalLead ?></p>
     </div>
   </section>
 
@@ -119,20 +140,20 @@ require __DIR__ . '/partials/page-assets.php';
 
         <div class="form-grid">
           <div class="form-field">
-            <label for="wr-order" data-nl="Ordernummer" data-en="Order number">Ordernummer <span class="req">*</span></label>
+            <label for="wr-order"><?= \App\Service\Language\SiteText::escaped(['nl' => 'Ordernummer', 'en' => 'Order number']) ?> <span class="req">*</span></label>
             <input type="text" inputmode="numeric" id="wr-order" name="order_id" required value="<?= $h($prefillOrderValue) ?>">
           </div>
           <div class="form-field">
-            <label for="wr-email" data-nl="E-mailadres bij de bestelling" data-en="Email address used for the order">E-mailadres bij de bestelling <span class="req">*</span></label>
+            <label for="wr-email"><?= \App\Service\Language\SiteText::escaped(['nl' => 'E-mailadres bij de bestelling', 'en' => 'Email address used for the order']) ?> <span class="req">*</span></label>
             <input type="email" id="wr-email" name="email" required autocomplete="email">
           </div>
           <div class="form-field form-field--full">
-            <label for="wr-reason" data-nl="Toelichting (optioneel)" data-en="Explanation (optional)">Toelichting (optioneel)</label>
+            <label for="wr-reason"><?= \App\Service\Language\SiteText::escaped(['nl' => 'Toelichting (optioneel)', 'en' => 'Explanation (optional)']) ?></label>
             <textarea id="wr-reason" name="reason" maxlength="2000"></textarea>
           </div>
         </div>
 
-        <button type="submit" class="btn btn--block" data-nl="Verzoek indienen" data-en="Submit request">Verzoek indienen
+        <button type="submit" class="btn btn--block"><?= \App\Service\Language\SiteText::escaped(['nl' => 'Verzoek indienen', 'en' => 'Submit request']) ?>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
         </button>
       </form>

@@ -9,7 +9,6 @@ use App\Module\ModuleRegistry;
 use App\Repository\SiteLanguageRepository;
 use App\Service\Blog\BlogLocalizedSettings;
 use App\Service\Blog\BlogSettings;
-use App\Service\Language\LanguageRegistry;
 use App\Service\Language\SiteLanguages;
 use App\Service\LocalizedSiteSettings;
 use PHPUnit\Framework\TestCase;
@@ -200,33 +199,18 @@ final class BlogLocalizedSettingsTest extends TestCase
         self::assertSame(BlogLocalizedSettings::DEFAULT_TITLE, BlogLocalizedSettings::title('en'));
         self::assertSame('', BlogLocalizedSettings::intro('nl'));
         self::assertSame('', BlogLocalizedSettings::intro('en'));
-
-        self::assertSame(
-            [LanguageRegistry::DUTCH => 'Blog', LanguageRegistry::ENGLISH => 'Blog'],
-            BlogLocalizedSettings::titleValue()->attributeValues()
-        );
-        self::assertSame(
-            [LanguageRegistry::DUTCH => '', LanguageRegistry::ENGLISH => ''],
-            BlogLocalizedSettings::introValue()->attributeValues()
-        );
     }
 
-    /** The temporary V1 pair the public templates still print, each half resolved. */
-    public function testTheV1PairCarriesTheFallbackInBothHalves(): void
+    /** An untranslated title and intro read the default language's words in every other language. */
+    public function testAnUntranslatedTitleAndIntroFallBackToTheDefaultLanguage(): void
     {
         BlogLocalizedSettings::save('nl', [
             BlogLocalizedSettings::TITLE => 'Werkplaatslogboek',
             BlogLocalizedSettings::INTRO => 'Wat er bij ons gebeurt.',
         ]);
 
-        self::assertSame(
-            [LanguageRegistry::DUTCH => 'Werkplaatslogboek', LanguageRegistry::ENGLISH => 'Werkplaatslogboek'],
-            BlogLocalizedSettings::titleValue()->attributeValues()
-        );
-        self::assertSame(
-            [LanguageRegistry::DUTCH => 'Wat er bij ons gebeurt.', LanguageRegistry::ENGLISH => 'Wat er bij ons gebeurt.'],
-            BlogLocalizedSettings::introValue()->attributeValues()
-        );
+        self::assertSame('Werkplaatslogboek', BlogLocalizedSettings::title('en'));
+        self::assertSame('Wat er bij ons gebeurt.', BlogLocalizedSettings::intro('en'));
     }
 
     /**

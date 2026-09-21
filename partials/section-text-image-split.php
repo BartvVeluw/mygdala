@@ -12,11 +12,10 @@ require_once __DIR__ . '/text-image-split-media.php';
  * or a button. `layout` only decides where things go, so a section with
  * nothing but a layout — one that was just added — has nothing to show.
  *
- * Every word arrives as one LocalizedValue per field
- * (App\Service\Blocks\BlockLocalization), the section's and each
- * paragraph's: SiteText prints the words a visitor sees first and the
- * escaped data-nl/data-en pair for the V1 switch, so this file knows no
- * language, no default and no fallback. All of it is plain text.
+ * Every word arrives as one string per field, already in the language of
+ * the request (App\Service\Blocks\BlockLocalization) — the section's and each
+ * paragraph's — so this file knows no language, no default and no fallback.
+ * All of it is plain text.
  *
  * $tightTop reproduces the original "intro" instance's `padding-top:0` —
  * that instance sits directly beneath a Page Hero, which already ends with
@@ -31,16 +30,14 @@ require_once __DIR__ . '/text-image-split-media.php';
  */
 function render_section_text_image_split(array $section, bool $tightTop = false, ?string $revealGroup = null): void
 {
-    $text = static fn (\App\Service\Language\LocalizedValue $value): string => \App\Service\Language\SiteText::visibleOf($value);
-    $pair = static fn (\App\Service\Language\LocalizedValue $value): string => \App\Service\Language\SiteText::attrsOf($value);
 
     // The button label is already empty whenever the button is half-filled —
     // TextImageSplitContent drops a label without a URL.
-    $hasContent = $text($section['eyebrow']) !== ''
-        || $text($section['title']) !== ''
+    $hasContent = $section['eyebrow'] !== ''
+        || $section['title'] !== ''
         || $section['paragraphs'] !== []
         || $section['images'] !== []
-        || $text($section['button_label']) !== '';
+        || $section['button_label'] !== '';
 
     if (!$hasContent) {
         // Nothing to show yet: an empty block leaves no gap, the same rule as
@@ -57,21 +54,21 @@ function render_section_text_image_split(array $section, bool $tightTop = false,
           <?php render_text_image_split_media($section['images'], $revealGroup); ?>
           <?php endif; ?>
           <div data-reveal>
-            <?php if ($text($section['eyebrow']) !== ''): ?>
-              <p class="eyebrow" <?= $pair($section['eyebrow']) ?>><?= $h($text($section['eyebrow'])) ?></p>
+            <?php if ($section['eyebrow'] !== ''): ?>
+              <p class="eyebrow"><?= $h($section['eyebrow']) ?></p>
             <?php endif; ?>
-            <?php if ($text($section['title']) !== ''): ?>
-              <h2 style="margin-top:0.75rem;" <?= $pair($section['title']) ?>><?= $h($text($section['title'])) ?></h2>
+            <?php if ($section['title'] !== ''): ?>
+              <h2 style="margin-top:0.75rem;"><?= $h($section['title']) ?></h2>
             <?php endif; ?>
             <?php foreach ($section['paragraphs'] as $pIndex => $paragraph): ?>
-              <?php if ($pIndex === 0 && $text($section['title']) === ''): ?>
-                <p class="lead" <?= $pair($paragraph['content']) ?>><?= $h($text($paragraph['content'])) ?></p>
+              <?php if ($pIndex === 0 && $section['title'] === ''): ?>
+                <p class="lead"><?= $h($paragraph['content']) ?></p>
               <?php else: ?>
-                <p style="margin-top:1.25rem; color:var(--color-text-muted);" <?= $pair($paragraph['content']) ?>><?= $h($text($paragraph['content'])) ?></p>
+                <p style="margin-top:1.25rem; color:var(--color-text-muted);"><?= $h($paragraph['content']) ?></p>
               <?php endif; ?>
             <?php endforeach; ?>
-            <?php if ($text($section['button_label']) !== ''): ?>
-              <a href="<?= $h($section['button_url']) ?>" class="btn" style="margin-top:1.5rem;" <?= $pair($section['button_label']) ?>><?= $h($text($section['button_label'])) ?>
+            <?php if ($section['button_label'] !== ''): ?>
+              <a href="<?= $h($section['button_url']) ?>" class="btn" style="margin-top:1.5rem;"><?= $h($section['button_label']) ?>
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" /></svg>
               </a>
             <?php endif; ?>

@@ -250,7 +250,7 @@ final class FooterAdminHttpTest extends TestCase
         );
 
         $footer = $this->publicFooter();
-        $this->assertStringContainsString('data-nl="Met zorg gemaakt (fase B)"', $footer);
+        $this->assertStringContainsString('<span>Met zorg gemaakt (fase B)</span>', $footer);
         $this->assertStringContainsString('Footer B test', $footer);
         $this->assertStringContainsString('Omschrijving van fase B', $footer);
         $this->assertStringContainsString('mailto:footer-b@example.test', $footer);
@@ -283,7 +283,7 @@ final class FooterAdminHttpTest extends TestCase
             'csrf_token' => $token, 'section' => 'bottom', 'footer_slogan_enabled' => '1',
             'footer_copyright_template' => '', 'language_code' => 'nl', 'footer_slogan' => 'Met zorg gemaakt (fase B)',
         ]);
-        $this->assertStringContainsString('data-nl="Met zorg gemaakt (fase B)"', $this->publicFooter(), 'switched on again, the same text is back');
+        $this->assertStringContainsString('<span>Met zorg gemaakt (fase B)</span>', $this->publicFooter(), 'switched on again, the same text is back');
         $this->assertSame('© {{year}} {{site_name}}', (new SiteSettingRepository())->findAll()['footer_copyright_template'], 'an empty copyright text is the standard one');
     }
 

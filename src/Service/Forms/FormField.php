@@ -9,8 +9,8 @@ use App\Service\Language\LanguageFallback;
 
 /**
  * One field of a form, as everything downstream sees it: its key, its type
- * object, its texts (as the V1 pair, the fallback already applied) and its
- * options.
+ * object, its texts (in the language of the request, the fallback already
+ * applied) and its options.
  *
  * Built ONLY from a `form_fields` row (fromRow()) that
  * App\Service\Forms\FormLocalization has given its words — `translations`,
@@ -29,9 +29,9 @@ final class FormField
         public readonly int $id,
         public readonly string $key,
         public readonly FormFieldType $type,
-        public readonly FormText $label,
-        public readonly FormText $placeholder,
-        public readonly FormText $helpText,
+        public readonly string $label,
+        public readonly string $placeholder,
+        public readonly string $helpText,
         public readonly bool $isRequired,
         public readonly int $sortOrder,
         public readonly FormFieldOptions $options,
@@ -75,11 +75,11 @@ final class FormField
             (int) ($row['id'] ?? 0),
             $key,
             $type,
-            FormText::fromWords($translations, 'label'),
+            FormLocalization::visible($translations, 'label'),
             $type->usesPlaceholder()
-                ? FormText::fromWords($translations, 'placeholder')
-                : FormText::of(''),
-            FormText::fromWords($translations, 'help_text'),
+                ? FormLocalization::visible($translations, 'placeholder')
+                : '',
+            FormLocalization::visible($translations, 'help_text'),
             // A consent box is required whatever the row says: see
             // App\Service\Forms\FieldTypes\ConsentFieldType.
             $type->requiredIsFixed() ? true : (bool) ($row['is_required'] ?? false),

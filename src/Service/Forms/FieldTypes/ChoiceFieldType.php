@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Service\Forms\FieldTypes;
 
 use App\Service\Forms\FormField;
-use App\Service\Forms\FormText;
+use App\Service\Language\SiteText;
 
 /**
  * What a dropdown and a radio group have in common: an editor-configured,
@@ -37,12 +37,12 @@ abstract class ChoiceFieldType extends FormFieldType
         return $this->clean($raw, $this->maxLength());
     }
 
-    public function validate(string $value, FormField $field): ?FormText
+    public function validate(string $value, FormField $field): ?string
     {
         if ($field->options->contains($value)) {
             return null;
         }
 
-        return FormText::of('Maak een keuze uit de lijst.', 'Please choose one of the options.');
+        return SiteText::pick(['nl' => 'Maak een keuze uit de lijst.', 'en' => 'Please choose one of the options.']);
     }
 }

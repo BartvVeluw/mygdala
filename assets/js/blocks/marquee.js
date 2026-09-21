@@ -23,29 +23,21 @@
     var track = document.querySelector("[data-marquee-track]");
     if (!track) return;
 
+    /* The labels exactly as the server printed them: already in the language
+       of the page, so a copy is simply the same words again. */
     var baseItems = Array.prototype.map.call(track.children, function (el) {
-      return { nl: el.dataset.nl, en: el.dataset.en };
+      return el.textContent;
     });
     if (!baseItems.length) return;
 
-    /* A copy carries both languages, exactly like the server-rendered item
-       it came from, and shows whichever one is current. Reading the language
-       here (instead of always printing NL and relying on assets/js/core.js's
-       applyLang having not run yet) is what lets this file boot before or
-       after Core without a visible difference: before step 4 both lived in
-       main.js and the marquee happened to be initialised first. */
     function renderCopies(copies) {
-      var isEn = document.documentElement.lang === "en";
-      track.innerHTML = "";
+      track.textContent = "";
       for (var c = 0; c < copies; c++) {
-        baseItems.forEach(function (item) {
+        baseItems.forEach(function (label) {
           var span = document.createElement("span");
-          span.setAttribute("data-nl", item.nl);
-          span.setAttribute("data-en", item.en);
           // Marquee labels are plain-text CMS material/category names, so
-          // textContent — never innerHTML — same rule assets/js/core.js's
-          // applyLang() follows for a data-nl element without data-lang-html.
-          span.textContent = isEn && item.en != null ? item.en : item.nl;
+          // textContent — never innerHTML.
+          span.textContent = label;
           track.appendChild(span);
         });
       }

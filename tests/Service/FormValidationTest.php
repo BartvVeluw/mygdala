@@ -10,6 +10,7 @@ use App\Service\Forms\FormFieldOptions;
 use App\Service\Forms\FormFieldTypes;
 use App\Service\Forms\FormRenderState;
 use App\Service\Forms\FormValidator;
+use App\Service\Routing\RequestLanguage;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -31,15 +32,15 @@ class FormValidationTest extends TestCase
 
     public function testAFormIsBuiltFromItsRowsWithTheFallbackApplied(): void
     {
-        $form = $this->form(['submit_label_nl' => 'Verstuur', 'submit_label_en' => ''], [
+        $form = $this->in('en', fn (): FormDefinition => $this->form(['submit_label_nl' => 'Verstuur', 'submit_label_en' => ''], [
             $this->row('naam', 'text', ['label_nl' => 'Naam', 'label_en' => '']),
             $this->row('email', 'email', ['label_nl' => 'E-mail', 'label_en' => 'Email']),
-        ]);
+        ]));
 
         $this->assertSame(['naam', 'email'], $form->fieldKeys());
-        $this->assertSame('Verstuur', $form->submitLabel->en, 'an empty English label falls back to Dutch');
-        $this->assertSame('Naam', $form->field('naam')->label->en);
-        $this->assertSame('Email', $form->field('email')->label->en);
+        $this->assertSame('Verstuur', $form->submitLabel, 'an empty English label falls back to the default language');
+        $this->assertSame('Naam', $form->field('naam')->label);
+        $this->assertSame('Email', $form->field('email')->label);
     }
 
     /**
@@ -107,13 +108,15 @@ class FormValidationTest extends TestCase
 
     public function testTheSubmitLabelAndSuccessMessageFallBackToGenericWording(): void
     {
-        $form = $this->form(['submit_label_nl' => '', 'submit_label_en' => '', 'success_message_nl' => '', 'success_message_en' => '']);
+        $empty = ['submit_label_nl' => '', 'submit_label_en' => '', 'success_message_nl' => '', 'success_message_en' => ''];
+        $dutch = $this->in('nl', fn (): FormDefinition => $this->form($empty));
+        $english = $this->in('en', fn (): FormDefinition => $this->form($empty));
 
-        $this->assertSame('Versturen', $form->submitLabel->nl);
-        $this->assertSame('Send', $form->submitLabel->en);
-        $this->assertNotSame('', $form->successMessage->nl);
+        $this->assertSame('Versturen', $dutch->submitLabel);
+        $this->assertSame('Send', $english->submitLabel);
+        $this->assertNotSame('', $dutch->successMessage);
 
-        foreach ([$form->submitLabel->nl, $form->submitLabel->en, $form->successMessage->nl, $form->successMessage->en] as $text) {
+        foreach ([$dutch->submitLabel, $english->submitLabel, $dutch->successMessage, $english->successMessage] as $text) {
             $this->assertStringNotContainsStringIgnoringCase('veluw', $text, 'a generic default must not name a company');
             $this->assertStringNotContainsStringIgnoringCase('offerte', $text, 'a generic default must not name one site\'s business');
         }
@@ -312,16 +315,17 @@ class FormValidationTest extends TestCase
 
     // ---------------------------------------------------------- the validator
 
-    public function testARequiredFieldThatIsEmptyGetsAMessageInBothLanguages(): void
+    public function testARequiredFieldThatIsEmptyGetsAMessageInTheLanguageOfTheRequest(): void
     {
-        $result = (new FormValidator())->validate(
+        $validate = fn (): \App\Service\Forms\FormValidationResult => (new FormValidator())->validate(
             $this->form([], [$this->row('naam', 'text', ['is_required' => 1, 'label_nl' => 'Naam', 'label_en' => 'Name'])]),
             ['naam' => '   ']
         );
 
-        $this->assertFalse($result->isValid());
-        $this->assertSame('Naam is verplicht.', $result->errorFor('naam')->nl);
-        $this->assertSame('Name is required.', $result->errorFor('naam')->en);
+        $dutch = $this->in('nl', $validate);
+        $this->assertFalse($dutch->isValid());
+        $this->assertSame('Naam is verplicht.', $dutch->errorFor('naam'));
+        $this->assertSame('Name is required.', $this->in('en', $validate)->errorFor('naam'));
     }
 
     public function testAnOptionalFieldLeftBlankIsFine(): void
@@ -375,9 +379,13 @@ class FormValidationTest extends TestCase
         $this->assertFalse($validator->validate($form, [])->isValid());
         $this->assertTrue($validator->validate($form, ['akkoord' => 'Ja'])->isValid());
 
-        $error = $validator->validate($form, [])->errorFor('akkoord');
-        $this->assertStringContainsString('Voorwaarden', $error->nl);
-        $this->assertStringContainsString('Terms', $error->en);
+        $this->assertStringContainsString('Voorwaarden', (string) $validator->validate($form, [])->errorFor('akkoord'));
+
+        $english = $this->in('en', fn (): ?string => $validator->validate(
+            $this->form([], [$this->row('akkoord', 'consent', ['label_nl' => 'Voorwaarden', 'label_en' => 'Terms'])]),
+            []
+        )->errorFor('akkoord'));
+        $this->assertStringContainsString('Terms', (string) $english);
     }
 
     /**
@@ -460,6 +468,25 @@ class FormValidationTest extends TestCase
 
         $this->assertFalse($result->isValid());
         $this->assertSame(['naam' => 'Behouden', 'email' => 'kapot'], $result->retainableValues());
+    }
+
+    /**
+     * Run $work while the request is answered in $language: a form definition
+     * and a validator's messages are built in the language of the request.
+     *
+     * @template T
+     * @param \Closure(): T $work
+     * @return T
+     */
+    private function in(string $language, \Closure $work): mixed
+    {
+        RequestLanguage::set($language, true);
+
+        try {
+            return $work();
+        } finally {
+            RequestLanguage::reset();
+        }
     }
 
     /**

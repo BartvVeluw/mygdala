@@ -5,8 +5,7 @@ declare(strict_types=1);
 namespace App\Service\Blocks;
 
 use App\Service\Forms\FormDefinition;
-use App\Service\Language\LanguageRegistry;
-use App\Service\Language\LocalizedValue;
+use App\Service\Language\SiteText;
 use App\Service\RichTextSanitizer;
 
 /**
@@ -214,108 +213,60 @@ final class BlockSamples
     }
 
     /**
-     * One role's text as a Dutch/English field pair: fields('alt', 'image_alt')
-     * is ['alt_nl' => …, 'alt_en' => …].
-     *
-     * No block stores its words that way any more (phase 3). The pair is the
-     * shape of the rows a block SHOWS but does not own, which still have
-     * `_nl`/`_en` columns until their domain moves in Multilingual 2.0 phase
-     * 5: a Portfolio item or a product in a gallery card. Words of the block
-     * itself and of the site's place come from localized(), and a form's
-     * from form() (phase 4).
-     *
-     * @return array<string, string>
+     * One role's text in the language the preview is rendered in: the shape a
+     * block hands its partial for words stored per website language
+     * (BlockLocalization, and the localized site settings). The sample is a
+     * small code catalogue keyed by language, read like every other one
+     * (App\Service\Language\SiteText::pick()).
      */
-    public function fields(string $field, string $role): array
+    public function localized(string $role): string
     {
-        return $this->pair($field, self::TEXT[$role] ?? throw new \InvalidArgumentException('No sample text for ' . $role));
+        return $this->pick(self::TEXT[$role] ?? throw new \InvalidArgumentException('No sample text for ' . $role));
     }
 
-    /**
-     * One role's text as ONE value in every language: the shape a block
-     * hands its partial for words stored per website language
-     * (BlockLocalization, and the localized site settings of phase 4).
-     */
-    public function localized(string $role): LocalizedValue
-    {
-        $pair = self::TEXT[$role] ?? throw new \InvalidArgumentException('No sample text for ' . $role);
-
-        return LocalizedValue::of([
-            LanguageRegistry::DUTCH => ($this->text)($pair[0]),
-            LanguageRegistry::ENGLISH => ($this->text)($pair[1]),
-        ]);
-    }
-
-    /** The $index-th text of a list role, as ONE value in every language (localized()). */
-    public function localizedItem(string $role, int $index): LocalizedValue
-    {
-        $list = self::LISTS[$role] ?? throw new \InvalidArgumentException('No sample list for ' . $role);
-        $pair = $list[$index % count($list)];
-
-        return LocalizedValue::of([
-            LanguageRegistry::DUTCH => ($this->text)($pair[0]),
-            LanguageRegistry::ENGLISH => ($this->text)($pair[1]),
-        ]);
-    }
-
-    /** A field this sample leaves empty, as one value in every language. */
-    public function none(): LocalizedValue
-    {
-        return LocalizedValue::of([]);
-    }
-
-    /**
-     * The $index-th text of a list role, as a field pair.
-     *
-     * @return array<string, string>
-     */
-    public function itemFields(string $field, string $role, int $index): array
+    /** The $index-th text of a list role, in the language of the preview (localized()). */
+    public function localizedItem(string $role, int $index): string
     {
         $list = self::LISTS[$role] ?? throw new \InvalidArgumentException('No sample list for ' . $role);
 
-        return $this->pair($field, $list[$index % count($list)]);
+        return $this->pick($list[$index % count($list)]);
     }
 
-    /** The Dutch half of one role, for a block that stores a single value. */
+    /** A field this sample leaves empty. */
+    public function none(): string
+    {
+        return '';
+    }
+
+    /** The Dutch half of one role, for the one value that is not website text: the sample form's CMS name. */
     public function dutch(string $role): string
     {
-        return $this->fields('value', $role)['value_nl'];
+        return ($this->text)((self::TEXT[$role] ?? throw new \InvalidArgumentException('No sample text for ' . $role))[0]);
     }
 
     /**
-     * The sample picture, in the shapes App\Service\Media\BlockImage resolves
-     * a stored one to: `alt` as one value in every language (fromOwner()),
-     * and the alt_nl/alt_en pair of fromRow().
+     * The sample picture, in the shape App\Service\Media\BlockImage::fromOwner()
+     * resolves a stored one to: its alt text in the language of the preview.
      *
-     * @return array{image_path: string, alt: LocalizedValue, alt_nl: string, alt_en: string, width: int, height: int}
+     * @return array{image_path: string, alt: string, width: int, height: int}
      */
     public function image(): array
     {
-        $alt = $this->fields('alt', 'image_alt');
-
         return [
             'image_path' => self::IMAGE_PATH,
             'alt' => $this->localized('image_alt'),
-            'alt_nl' => $alt['alt_nl'],
-            'alt_en' => $alt['alt_en'],
             'width' => self::IMAGE_WIDTH,
             'height' => self::IMAGE_HEIGHT,
         ];
     }
 
-    /** The sample rich text as ONE value in every language (sanitized markup), for a block on per-language storage. */
-    public function localizedRichText(): LocalizedValue
+    /** The sample rich text as sanitized markup, in the language of the preview. */
+    public function localizedRichText(): string
     {
-        return LocalizedValue::of($this->richText());
-    }
-
-    /** @return array{nl: string, en: string} sanitized markup */
-    public function richText(): array
-    {
-        return [
+        return SiteText::pick([
             'nl' => (string) RichTextSanitizer::sanitize(self::RICH_TEXT[0]),
             'en' => (string) RichTextSanitizer::sanitize(self::RICH_TEXT[1]),
-        ];
+        ]);
     }
 
     /**
@@ -367,23 +318,20 @@ final class BlockSamples
         $words = [];
         foreach ($roles as $field => $role) {
             $pair = self::TEXT[$role] ?? throw new \InvalidArgumentException('No sample text for ' . $role);
-            $words[LanguageRegistry::DUTCH][$field] = ($this->text)($pair[0]);
-            $words[LanguageRegistry::ENGLISH][$field] = ($this->text)($pair[1]);
+            $words['nl'][$field] = ($this->text)($pair[0]);
+            $words['en'][$field] = ($this->text)($pair[1]);
         }
 
         return $words;
     }
 
     /**
-     * @param array{0: string, 1: string} $pair
+     * One [Dutch, English] sample in the language of the preview.
      *
-     * @return array<string, string>
+     * @param array{0: string, 1: string} $pair
      */
-    private function pair(string $field, array $pair): array
+    private function pick(array $pair): string
     {
-        return [
-            $field . '_nl' => ($this->text)($pair[0]),
-            $field . '_en' => ($this->text)($pair[1]),
-        ];
+        return SiteText::pick(['nl' => ($this->text)($pair[0]), 'en' => ($this->text)($pair[1])]);
     }
 }

@@ -5,9 +5,7 @@ declare(strict_types=1);
 namespace App\Service\Blog;
 
 use App\Service\Language\LanguageFallback;
-use App\Service\Language\LanguageRegistry;
 use App\Service\Language\LocalizedSettings;
-use App\Service\Language\LocalizedValue;
 
 /**
  * THE way into the two Blog settings that are WEBSITE TEXT in a language
@@ -89,31 +87,6 @@ final class BlogLocalizedSettings
     public static function intro(string $languageCode): string
     {
         return self::store()->value(self::INTRO, $languageCode);
-    }
-
-    /**
-     * The title's temporary V1 `data-nl`/`data-en` pair, each half already
-     * resolved — and each half with the code default, so a page can never be
-     * headed by nothing.
-     */
-    public static function titleValue(): LocalizedValue
-    {
-        $words = self::store()->words(self::TITLE);
-        $default = LanguageFallback::defaultLanguage();
-        $values = [];
-
-        foreach (LanguageRegistry::codes() as $code) {
-            $resolved = LanguageFallback::resolve($words, $code, $default);
-            $values[$code] = $resolved !== '' ? $resolved : self::DEFAULT_TITLE;
-        }
-
-        return LocalizedValue::of($values);
-    }
-
-    /** The introduction's V1 pair. Both halves may be empty; then nothing is printed. */
-    public static function introValue(): LocalizedValue
-    {
-        return self::store()->bilingual(self::INTRO);
     }
 
     /* ------------------------------------------------------------------ */

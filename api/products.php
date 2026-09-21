@@ -25,6 +25,11 @@
  * skipped, and an absurdly long list is truncated rather than turned into a
  * huge query.
  *
+ * Optional ?lang=<code> is the language of the page asking
+ * (App\Service\Routing\ApiLanguage): every name and description comes back
+ * in that language, the default language's words where a product has none of
+ * its own. One `name` and one `description` per product — never a pair.
+ *
  * An unknown slug, and an existing but INACTIVE collection, both return an
  * empty list rather than an error: this endpoint must never become a way to
  * discover whether an unpublished collection exists. The page itself already
@@ -42,9 +47,9 @@ require_once __DIR__ . '/../vendor/autoload.php';
 
 use App\Repository\CollectionRepository;
 use App\Repository\ProductRepository;
-use App\Service\ShopLocalization;
-use App\Service\Language\LanguageRegistry;
 use App\Repository\ProductVariantRepository;
+use App\Service\Routing\ApiLanguage;
+use App\Service\ShopLocalization;
 
 header('Content-Type: application/json; charset=utf-8');
 
@@ -96,6 +101,7 @@ function relatedProductIdsFromQuery(mixed $raw): ?array
 }
 
 try {
+    $language = ApiLanguage::apply($_GET['lang'] ?? null);
     $productIds = relatedProductIdsFromQuery($_GET['ids'] ?? null);
 
     $collectionSlug = trim((string) ($_GET['collection'] ?? ''));
@@ -123,17 +129,11 @@ try {
     ));
 
     foreach ($products as &$product) {
-        // The payload keeps the four keys assets/js/shop/shop.js has always
-        // read, so the browser's language switch is unchanged; what fills them
-        // is the words store, with each half already resolved and the rich
-        // description sanitized per language.
+        // The words of the page's language, the fallback applied and the rich
+        // description sanitized (App\Service\ShopLocalization).
         $id = (int) $product['id'];
-        $name = ShopLocalization::productValue($id, ShopLocalization::NAME);
-        $description = ShopLocalization::productDescriptionValue($id);
-        $product['name'] = $name->in(LanguageRegistry::DUTCH);
-        $product['name_en'] = $name->in(LanguageRegistry::ENGLISH);
-        $product['description'] = $description->in(LanguageRegistry::DUTCH);
-        $product['description_en'] = $description->in(LanguageRegistry::ENGLISH);
+        $product['name'] = ShopLocalization::product($id, ShopLocalization::NAME, $language);
+        $product['description'] = ShopLocalization::productDescription($id, $language);
 
         $defaultVariant = $variantRepository->findDefaultForProduct((int) $product['id']);
         if ($defaultVariant === null) {

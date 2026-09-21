@@ -3,7 +3,7 @@
 namespace App\Service;
 
 use App\Repository\FooterRepository;
-use App\Service\Language\LocalizedValue;
+use App\Service\Routing\RequestLanguage;
 
 /**
  * Public read side of the CMS-managed footer — replaces the hardcoded
@@ -18,10 +18,10 @@ use App\Service\Language\LocalizedValue;
  * truth for company data; this class only ever decides *whether* to show
  * each field, never stores a second copy of it.
  *
- * WORDS. A column's title and a link's label arrive as one
- * App\Service\Language\LocalizedValue each, from
- * App\Service\FooterLocalization, loaded for the whole footer in two
- * queries. Neither this class nor partials/footer.php decides a language.
+ * WORDS. A column's title and a link's label arrive as one string each, in
+ * the language of the request, from App\Service\FooterLocalization, loaded
+ * for the whole footer in two queries. Neither this class nor
+ * partials/footer.php decides a fallback.
  *
  * Static, try/catch-with-fallback, same convention as NavigationService —
  * a footer problem must never break every public page.
@@ -29,7 +29,7 @@ use App\Service\Language\LocalizedValue;
 class FooterService
 {
     /**
-     * @return list<array{id:int,title:\App\Service\Language\LocalizedValue,links:list<array<string,mixed>>}>
+     * @return list<array{id:int,title:string,links:list<array<string,mixed>>}>
      */
     public static function columns(): array
     {
@@ -65,7 +65,7 @@ class FooterService
 
                 $columnLinks[] = [
                     'id' => (int) $link['id'],
-                    'label' => FooterLocalization::linkLabel((int) $link['id']),
+                    'label' => FooterLocalization::linkLabel((int) $link['id'], RequestLanguage::current()),
                     'href' => $resolved['href'],
                     'open_in_new_tab' => $resolved['open_in_new_tab'],
                     'rel' => $resolved['rel'],
@@ -82,7 +82,7 @@ class FooterService
 
             $result[] = [
                 'id' => (int) $column['id'],
-                'title' => FooterLocalization::columnTitle((int) $column['id']),
+                'title' => FooterLocalization::columnTitle((int) $column['id'], RequestLanguage::current()),
                 'links' => $columnLinks,
             ];
         }
@@ -112,12 +112,13 @@ class FooterService
      * something a second installation should inherit.
      *
      * The words are App\Service\LocalizedSiteSettings's, one value per
-     * website language, and arrive as one LocalizedValue with the fallback
-     * already applied, so an untranslated line never reaches the page empty.
+     * website language, and arrive in the language of the request with the
+     * fallback already applied, so an untranslated line never reaches the
+     * page empty.
      * The default language decides whether the line exists at all, as it did
      * when that was the Dutch value: a translation alone shows nothing.
      */
-    public static function slogan(): ?LocalizedValue
+    public static function slogan(): ?string
     {
         if (SiteSettings::get('footer_slogan_enabled') !== '1'
             || !LocalizedSiteSettings::hasDefault(LocalizedSiteSettings::FOOTER_SLOGAN)
@@ -125,7 +126,7 @@ class FooterService
             return null;
         }
 
-        return LocalizedSiteSettings::bilingual(LocalizedSiteSettings::FOOTER_SLOGAN);
+        return LocalizedSiteSettings::value(LocalizedSiteSettings::FOOTER_SLOGAN, RequestLanguage::current());
     }
 
     /**
@@ -134,13 +135,13 @@ class FooterService
      * a translation alone never prints a paragraph whose visible words would
      * be empty.
      */
-    public static function description(): ?LocalizedValue
+    public static function description(): ?string
     {
         if (!LocalizedSiteSettings::hasDefault(LocalizedSiteSettings::FOOTER_DESCRIPTION)) {
             return null;
         }
 
-        return LocalizedSiteSettings::bilingual(LocalizedSiteSettings::FOOTER_DESCRIPTION);
+        return LocalizedSiteSettings::value(LocalizedSiteSettings::FOOTER_DESCRIPTION, RequestLanguage::current());
     }
 
     /**

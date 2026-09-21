@@ -4,6 +4,7 @@ namespace App\Service;
 
 use App\Repository\StepListRepository;
 use App\Service\Blocks\BlockLocalization;
+use App\Service\Routing\RequestLanguage;
 
 /**
  * Content for the "Step list" section (`.process` > `.process-step`) — see
@@ -20,13 +21,13 @@ use App\Service\Blocks\BlockLocalization;
  * is STATE_FALLBACK: there is nothing to render, and a failure is logged. See
  * CONTENT-BLOCKS.md, "Het inhoudscontract".
  *
- * WORDS PER LANGUAGE (Multilingual 2.0 phase 3B). The heading and every
- * step's title and description are stored per website language in
- * block_translations: the section's words on its own row, each step's on the
- * step's row (StepListBlock::childTables()). They come out of
- * App\Service\Blocks\BlockLocalization as one LocalizedValue per field, the
- * fallback already applied; is_active and the order stay in the tables. This
- * class decides no language itself.
+ * WORDS PER LANGUAGE (Multilingual 2.0 phase 3B). The heading and every step's
+ * title and description are stored per website language in block_translations:
+ * the section's words on its own row, each step's on the step's row
+ * (StepListBlock::childTables()). They come out of
+ * App\Service\Blocks\BlockLocalization as one string per field, in the
+ * language of the request, the fallback already applied; is_active and the
+ * order stay in the tables. This class decides no language itself.
  *
  * `is_active = false` on an *existing* section row is a deliberate hide, and a
  * different case from a missing row. forSection()'s returned `state` field is
@@ -80,9 +81,9 @@ class StepListContent
 
     /**
      * @return array<string, mixed> 'state' (one of STATE_*), plus eyebrow and
-     *                                title (a LocalizedValue each), and
+     *                                title (a string each), and
      *                                'items': a list of title and body (a
-     *                                LocalizedValue each), in display order.
+     *                                string each), in display order.
      *                                Templates must only render the section
      *                                when 'state' === STATE_ACTIVE; the
      *                                content fields are still present (empty)
@@ -92,7 +93,7 @@ class StepListContent
      */
     public static function forSection(string $pageSlug, string $sectionKey): array
     {
-        $cacheKey = $pageSlug . ':' . $sectionKey;
+        $cacheKey = RequestLanguage::current() . '|' . $pageSlug . ':' . $sectionKey;
 
         if (isset(self::$cache[$cacheKey])) {
             return self::$cache[$cacheKey];

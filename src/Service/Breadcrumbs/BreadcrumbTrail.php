@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace App\Service\Breadcrumbs;
 
-use App\Service\Language\LanguageRegistry;
+use App\Service\Language\SiteText;
 use App\Service\PageContent;
 use App\Service\PageLocalization;
-use App\Service\PageTranslation;
 use App\Service\RouteRegistry;
+use App\Service\Routing\RequestLanguage;
 
 /**
  * The ordered levels of one breadcrumb, from the homepage down to the page a
@@ -34,19 +34,18 @@ use App\Service\RouteRegistry;
  * fallback is the bare "/", which is exactly what publicUrl() returns for the
  * site root anyway.
  *
- * THE WORD "Home" is held here and nowhere else. It is not the site root's CMS
- * title — that is "Homepage", the name an administrator sees in the Pages
- * list, never a word a visitor reads — and it is the same in both languages,
- * as it has been in every template since the beginning.
+ * THE WORD "Home" is held here and nowhere else, as a code catalogue keyed by
+ * language (App\Service\Language\SiteText::pick()). It is not the site root's
+ * CMS title — that is "Homepage", the name an administrator sees in the Pages
+ * list, never a word a visitor reads.
  * App\Service\RouteRegistry names the same route for the admin's link picker;
  * that list answers a different question (which routes may a menu item point
  * at) and carries the route's own "/index.php", not the canonical address.
  */
 final class BreadcrumbTrail
 {
-    /** What the first level is called; the same word in both languages. */
-    private const HOME_LABEL_NL = 'Home';
-    private const HOME_LABEL_EN = 'Home';
+    /** What the first level is called, per language. */
+    private const HOME_LABEL = ['nl' => 'Home', 'en' => 'Home'];
 
     /**
      * The site root's address when its `pages` row cannot be read: the
@@ -65,7 +64,7 @@ final class BreadcrumbTrail
     /** A trail that starts at the homepage — every trail on this site does. */
     public static function home(): self
     {
-        return new self([BreadcrumbItem::link(self::HOME_LABEL_NL, self::HOME_LABEL_EN, self::homeUrl())]);
+        return new self([BreadcrumbItem::link(SiteText::pick(self::HOME_LABEL), self::homeUrl())]);
     }
 
     /** The same trail with one more level below it. */
@@ -104,14 +103,11 @@ final class BreadcrumbTrail
 
         $reachable = PageContent::isPublished($page) && PageContent::isServedByAnEnabledModule($page);
 
-        // Both halves of the V1 switch, resolved by the page's own fallback;
-        // the renderer decides which one is visible. PageLocalization is the
-        // one place that knows where a page's name is stored.
-        $title = PageLocalization::bilingual((int) $page['id'], PageTranslation::TITLE);
-
+        // The page's name in the language being read, resolved by the page's
+        // own fallback. PageLocalization is the one place that knows where a
+        // page's name is stored.
         return $this->to(BreadcrumbItem::link(
-            $title->raw(LanguageRegistry::DUTCH),
-            $title->raw(LanguageRegistry::ENGLISH),
+            PageLocalization::title((int) $page['id'], RequestLanguage::current()),
             $reachable ? PageContent::publicUrl($page) : null
         ));
     }
@@ -120,8 +116,8 @@ final class BreadcrumbTrail
      * One more level that is a real APPLICATION route rather than a page: the
      * storefront, the cart, the checkout, the two legal pages. Its name and
      * its address both come from App\Service\RouteRegistry — the closed list
-     * that already names them in both languages for the admin's link picker,
-     * so a route is named in exactly one place.
+     * that already names them for the admin's link picker, so a route is
+     * named in exactly one place.
      *
      * A key the registry does not know adds no level. That is not a
      * programming error: a module's routes disappear from the list while it is
@@ -139,8 +135,7 @@ final class BreadcrumbTrail
         // a trail on /en/... must not drop a visitor back into the default
         // language halfway up (docs/multilingual/ROUTING.md).
         return $this->to(BreadcrumbItem::link(
-            $route['label_nl'],
-            $route['label_en'],
+            RouteRegistry::label($key),
             \App\Service\Routing\LocalizedUrl::path((string) $route['url'])
         ));
     }

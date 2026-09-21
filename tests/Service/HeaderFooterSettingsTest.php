@@ -7,6 +7,7 @@ namespace Tests\Service;
 use App\Module\ModuleRegistry;
 use App\Service\FooterService;
 use App\Service\LocalizedSiteSettings;
+use App\Service\Routing\RequestLanguage;
 use App\Service\SiteSettings;
 use App\Service\SocialProfiles;
 use PHPUnit\Framework\TestCase;
@@ -52,6 +53,7 @@ final class HeaderFooterSettingsTest extends TestCase
 
     protected function tearDown(): void
     {
+        RequestLanguage::reset();
         SiteLanguageFixture::reset();
         LocalizedSiteSettings::overrideForTests(null);
         SiteSettings::overrideForTests(null);
@@ -146,10 +148,10 @@ final class HeaderFooterSettingsTest extends TestCase
         $this->withSettings(['footer_slogan_enabled' => '1']);
         $this->withSlogan(['nl' => 'Ontworpen & gebouwd met zorg in Nijmegen', 'en' => 'Designed & built with care in Nijmegen']);
 
-        $this->assertSame(
-            ['nl' => 'Ontworpen & gebouwd met zorg in Nijmegen', 'en' => 'Designed & built with care in Nijmegen'],
-            FooterService::slogan()?->attributeValues()
-        );
+        $this->assertSame('Ontworpen & gebouwd met zorg in Nijmegen', FooterService::slogan());
+
+        RequestLanguage::set('en', true);
+        $this->assertSame('Designed & built with care in Nijmegen', FooterService::slogan(), 'the request\'s language');
     }
 
     public function testADisabledSloganRendersNothing(): void
@@ -169,7 +171,10 @@ final class HeaderFooterSettingsTest extends TestCase
         $this->assertNull(FooterService::slogan());
 
         SiteLanguageFixture::useBilingual('en');
-        $this->assertSame(['nl' => 'Made with care', 'en' => 'Made with care'], FooterService::slogan()?->attributeValues());
+        $this->assertSame('Made with care', FooterService::slogan());
+
+        RequestLanguage::set('nl', true);
+        $this->assertSame('Made with care', FooterService::slogan(), 'untranslated Dutch falls back to the English default');
     }
 
     public function testAnEmptyTranslationFallsBackToTheDefaultLanguage(): void
@@ -177,7 +182,8 @@ final class HeaderFooterSettingsTest extends TestCase
         $this->withSettings(['footer_slogan_enabled' => '1']);
         $this->withSlogan(['nl' => 'Met zorg gemaakt']);
 
-        $this->assertSame(['nl' => 'Met zorg gemaakt', 'en' => 'Met zorg gemaakt'], FooterService::slogan()?->attributeValues());
+        RequestLanguage::set('en', true);
+        $this->assertSame('Met zorg gemaakt', FooterService::slogan());
     }
 
     // ---------------------------------------------------------------- social

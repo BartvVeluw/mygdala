@@ -74,14 +74,13 @@ $withdrawalUrl = \App\Service\Routing\LocalizedUrl::path(
 // is the shared renderer and a title that stops repeating the site name
 // when a site is called "Bestelstatus".
 $seoMetadata = \App\Service\SeoMetadata::create(
-    titleNl: \App\Service\Seo::routeTitle('Bestelstatus'),
-    titleEn: \App\Service\Seo::routeTitle('Order status'),
+    title: \App\Service\Seo::routeTitle(\App\Service\Language\SiteText::pick(['nl' => 'Bestelstatus', 'en' => 'Order status'])),
     indexable: false,
 );
 
 ?>
 <!doctype html>
-<html lang="<?= htmlspecialchars(\App\Service\Language\SiteText::documentLanguage(), ENT_QUOTES, 'UTF-8') ?>" data-primary-lang="<?= htmlspecialchars(\App\Service\Language\SiteText::documentLanguage(), ENT_QUOTES, 'UTF-8') ?>" data-url-prefix="<?= htmlspecialchars(\App\Service\Routing\LocalizedUrl::prefix(), ENT_QUOTES, 'UTF-8') ?>">
+<html lang="<?= htmlspecialchars(\App\Service\Language\SiteText::documentLanguage(), ENT_QUOTES, 'UTF-8') ?>" data-url-prefix="<?= htmlspecialchars(\App\Service\Routing\LocalizedUrl::prefix(), ENT_QUOTES, 'UTF-8') ?>">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -106,69 +105,82 @@ require __DIR__ . '/partials/header.php';
   <?php render_breadcrumb(
       \App\Service\Breadcrumbs\BreadcrumbTrail::home()
           ->toPage('shop', 'shop')
-          ->to(\App\Service\Breadcrumbs\BreadcrumbItem::current('Bestelstatus', 'Order status'))
+          ->to(\App\Service\Breadcrumbs\BreadcrumbItem::current(\App\Service\Language\SiteText::pick(['nl' => 'Bestelstatus', 'en' => 'Order status'])))
   ); ?>
 
   <section class="page-hero" style="padding-bottom:0;">
     <div class="container">
-      <h1 style="max-width:20ch;" data-nl="Jouw bestelling" data-en="Your order">Jouw bestelling</h1>
+      <h1 style="max-width:20ch;"><?= \App\Service\Language\SiteText::escaped(['nl' => 'Jouw bestelling', 'en' => 'Your order']) ?></h1>
     </div>
   </section>
 
   <section>
     <div class="container" style="max-width:640px;">
 
-      <p class="lead" data-order-status-loading data-nl="Bestelstatus laden…" data-en="Loading order status…">Bestelstatus laden…</p>
+      <p class="lead" data-order-status-loading><?= \App\Service\Language\SiteText::escaped(['nl' => 'Bestelstatus laden…', 'en' => 'Loading order status…']) ?></p>
 
-      <p class="lead" data-order-status-error hidden data-nl="Deze bestelling kan niet worden gevonden. Klopt de link? Neem anders contact met ons op." data-en="This order can't be found. Is the link correct? Otherwise, please get in touch.">Deze bestelling kan niet worden gevonden. Klopt de link? Neem anders contact met ons op.</p>
+      <p class="lead" data-order-status-error hidden><?= \App\Service\Language\SiteText::escaped(['nl' => 'Deze bestelling kan niet worden gevonden. Klopt de link? Neem anders contact met ons op.', 'en' => 'This order can\'t be found. Is the link correct? Otherwise, please get in touch.']) ?></p>
 
       <div data-order-status-content hidden>
 
         <div data-order-status-paid hidden>
-          <p class="eyebrow" data-nl="Betaald" data-en="Paid">Betaald</p>
-          <h2 data-nl="Bedankt voor je bestelling!" data-en="Thank you for your order!">Bedankt voor je bestelling!</h2>
-          <p class="lead" data-nl="Je betaling is gelukt. We gaan zo snel mogelijk voor je aan de slag." data-en="Your payment was successful. We'll get started on your order as soon as possible.">Je betaling is gelukt. We gaan zo snel mogelijk voor je aan de slag.</p>
-          <p data-order-status-confirmation hidden data-nl="Je ontvangt een bevestigingsmail met de details van je bestelling." data-en="You'll receive a confirmation email with your order details.">Je ontvangt een bevestigingsmail met de details van je bestelling.</p>
+          <p class="eyebrow"><?= \App\Service\Language\SiteText::escaped(['nl' => 'Betaald', 'en' => 'Paid']) ?></p>
+          <h2><?= \App\Service\Language\SiteText::escaped(['nl' => 'Bedankt voor je bestelling!', 'en' => 'Thank you for your order!']) ?></h2>
+          <p class="lead"><?= \App\Service\Language\SiteText::escaped(['nl' => 'Je betaling is gelukt. We gaan zo snel mogelijk voor je aan de slag.', 'en' => 'Your payment was successful. We\'ll get started on your order as soon as possible.']) ?></p>
+          <p data-order-status-confirmation hidden><?= \App\Service\Language\SiteText::escaped(['nl' => 'Je ontvangt een bevestigingsmail met de details van je bestelling.', 'en' => 'You\'ll receive a confirmation email with your order details.']) ?></p>
         </div>
 
         <div data-order-status-pending hidden>
-          <p class="eyebrow" data-nl="In verwerking" data-en="Processing">In verwerking</p>
-          <h2 data-nl="We wachten nog op je betaling" data-en="Still waiting for your payment">We wachten nog op je betaling</h2>
-          <p class="lead" data-nl="Dit kan even duren, bijvoorbeeld bij iDEAL-betalingen. Ververs deze pagina zo nodig." data-en="This can take a moment, for example with iDEAL payments. Refresh this page if needed.">Dit kan even duren, bijvoorbeeld bij iDEAL-betalingen. Ververs deze pagina zo nodig.</p>
+          <p class="eyebrow"><?= \App\Service\Language\SiteText::escaped(['nl' => 'In verwerking', 'en' => 'Processing']) ?></p>
+          <h2><?= \App\Service\Language\SiteText::escaped(['nl' => 'We wachten nog op je betaling', 'en' => 'Still waiting for your payment']) ?></h2>
+          <p class="lead"><?= \App\Service\Language\SiteText::escaped(['nl' => 'Dit kan even duren, bijvoorbeeld bij iDEAL-betalingen. Ververs deze pagina zo nodig.', 'en' => 'This can take a moment, for example with iDEAL payments. Refresh this page if needed.']) ?></p>
         </div>
 
         <div data-order-status-failed hidden>
-          <p class="eyebrow" data-nl="Niet gelukt" data-en="Not successful">Niet gelukt</p>
-          <h2 data-nl="De betaling is niet gelukt" data-en="The payment wasn't successful">De betaling is niet gelukt</h2>
-          <p class="lead" data-nl="Er is niets afgeschreven. Je winkelwagen staat nog klaar, dus je kunt het opnieuw proberen." data-en="Nothing was charged. Your cart is still waiting, so you can try again.">Er is niets afgeschreven. Je winkelwagen staat nog klaar, dus je kunt het opnieuw proberen.</p>
-          <a href="<?= $h(\App\Service\Routing\LocalizedUrl::path('/checkout.php')) ?>" class="btn" data-nl="Opnieuw proberen" data-en="Try again">Opnieuw proberen</a>
+          <p class="eyebrow"><?= \App\Service\Language\SiteText::escaped(['nl' => 'Niet gelukt', 'en' => 'Not successful']) ?></p>
+          <h2><?= \App\Service\Language\SiteText::escaped(['nl' => 'De betaling is niet gelukt', 'en' => 'The payment wasn\'t successful']) ?></h2>
+          <p class="lead"><?= \App\Service\Language\SiteText::escaped(['nl' => 'Er is niets afgeschreven. Je winkelwagen staat nog klaar, dus je kunt het opnieuw proberen.', 'en' => 'Nothing was charged. Your cart is still waiting, so you can try again.']) ?></p>
+          <a href="<?= $h(\App\Service\Routing\LocalizedUrl::path('/checkout.php')) ?>" class="btn"><?= \App\Service\Language\SiteText::escaped(['nl' => 'Opnieuw proberen', 'en' => 'Try again']) ?></a>
         </div>
 
         <div class="order-summary" style="margin-top:var(--sp-4);">
           <h3>
-            <span data-nl="Bestelling" data-en="Order">Bestelling</span>
+            <span><?= \App\Service\Language\SiteText::escaped(['nl' => 'Bestelling', 'en' => 'Order']) ?></span>
             <span data-order-status-id></span>
           </h3>
           <div class="checkout-summary-items" data-order-status-items></div>
           <div class="order-summary__row">
-            <span data-nl="Verzendkosten" data-en="Shipping">Verzendkosten</span>
+            <span><?= \App\Service\Language\SiteText::escaped(['nl' => 'Verzendkosten', 'en' => 'Shipping']) ?></span>
             <span data-order-status-shipping>&euro;0,00</span>
           </div>
           <div class="order-summary__row order-summary__row--total">
-            <span data-nl="Totaal" data-en="Total">Totaal</span>
+            <span><?= \App\Service\Language\SiteText::escaped(['nl' => 'Totaal', 'en' => 'Total']) ?></span>
             <strong data-order-status-total>&euro;0,00</strong>
           </div>
         </div>
 
         <div style="margin-top:var(--sp-4);">
-          <a href="<?= $h(\App\Service\Routing\LocalizedUrl::path('/shop.php')) ?>" class="btn btn--ghost" data-nl="Terug naar de shop" data-en="Back to shop">Terug naar de shop</a>
+          <a href="<?= $h(\App\Service\Routing\LocalizedUrl::path('/shop.php')) ?>" class="btn btn--ghost"><?= \App\Service\Language\SiteText::escaped(['nl' => 'Terug naar de shop', 'en' => 'Back to shop']) ?></a>
         </div>
 
-        <?php /* data-lang-html: developer-authored HTML with hardcoded <a> tags
-                 and only $withdrawalUrl (htmlspecialchars'd) interpolated, so
-                 applyLang() re-renders it with innerHTML on a language switch —
-                 a plain-text field now gets textContent, the XSS-safe default. */ ?>
-        <p class="hint" style="margin-top:var(--sp-3);" data-lang-html data-nl="Bestelling herroepen? Bekijk <a href='/verzenden-retourneren'>verzenden &amp; retourneren</a> of <a href='<?= $h($withdrawalUrl) ?>'>meld je bestelling aan voor herroeping</a>." data-en="Want to withdraw this order? See <a href='/verzenden-retourneren'>shipping &amp; returns</a> or <a href='<?= $h($withdrawalUrl) ?>'>report your order for withdrawal</a>.">Bestelling herroepen? Bekijk <a href="/verzenden-retourneren">verzenden &amp; retourneren</a> of <a href="<?= $h($withdrawalUrl) ?>">meld je bestelling aan voor herroeping</a>.</p>
+        <?php
+          // Built from escaped pieces: the two links are this site's own
+          // addresses in the language being read — the shipping & returns
+          // page by its content key, and only when it is published
+          // (App\Service\LegalPages::publishedPageUrl()), the withdrawal form
+          // by its route. No slug is typed into this template.
+          $shippingReturnsUrl = \App\Service\LegalPages::publishedPageUrl(\App\Service\LegalPages::SHIPPING_RETURNS_KEY);
+          $withdrawalLink = '<a href="' . $h($withdrawalUrl) . '">'
+              . \App\Service\Language\SiteText::escaped(['nl' => 'meld je bestelling aan voor herroeping', 'en' => 'report your order for withdrawal']) . '</a>';
+          $withdrawalHint = $shippingReturnsUrl === null
+              ? sprintf(\App\Service\Language\SiteText::escaped(['nl' => 'Bestelling herroepen? Dan kun je %s.', 'en' => 'Want to withdraw this order? Then you can %s.']), $withdrawalLink)
+              : sprintf(
+                  \App\Service\Language\SiteText::escaped(['nl' => 'Bestelling herroepen? Bekijk %1$s of %2$s.', 'en' => 'Want to withdraw this order? See %1$s or %2$s.']),
+                  '<a href="' . $h($shippingReturnsUrl) . '">' . \App\Service\Language\SiteText::escaped(['nl' => 'verzenden & retourneren', 'en' => 'shipping & returns']) . '</a>',
+                  $withdrawalLink
+              );
+        ?>
+        <p class="hint" style="margin-top:var(--sp-3);"><?= $withdrawalHint ?></p>
 
       </div>
 

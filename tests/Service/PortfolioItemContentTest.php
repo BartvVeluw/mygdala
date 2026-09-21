@@ -7,8 +7,6 @@ namespace Tests\Service;
 use App\Repository\PortfolioCategoryRepository;
 use App\Repository\PortfolioGalleryRepository;
 use App\Service\ItemGalleryContent;
-use App\Service\Language\LocalizedValue;
-use App\Service\Language\SiteText;
 use App\Service\PortfolioGalleryContent;
 use App\Service\PortfolioLocalization;
 use PHPUnit\Framework\TestCase;
@@ -149,12 +147,7 @@ final class PortfolioItemContentTest extends TestCase
         $this->assertNotNull($withoutItem, 'an uncategorised item is listed just the same');
         $this->assertSame((string) $category['slug'], $withItem['categories']);
         $this->assertSame('', $withoutItem['categories']);
-        $this->assertSame('', SiteText::visibleOf($withoutItem['alt']), 'no alt text is invented');
-        $this->assertSame(
-            ' data-nl-alt="" data-en-alt=""',
-            SiteText::attrsForOf('alt', $withoutItem['alt']),
-            'not from the other language either'
-        );
+        $this->assertSame('', $withoutItem['alt'], 'no alt text is invented');
 
         $slugs = array_column(PortfolioGalleryContent::filterCategories(), 'slug');
         $this->assertContains((string) $category['slug'], $slugs);
@@ -247,11 +240,11 @@ final class PortfolioItemContentTest extends TestCase
     {
         return [
             'image_path' => $imagePath,
-            // One LocalizedValue per field since Multilingual 2.0 phase 5
-            // wave A; an empty one is "no words in any language".
-            'alt' => LocalizedValue::of([]),
-            'title' => LocalizedValue::ofDutchEnglish($title, $title),
-            'subtitle' => LocalizedValue::ofDutchEnglish($subtitle, $subtitle),
+            // One string per field, in the language of the request; an
+            // empty one is "no words".
+            'alt' => '',
+            'title' => $title,
+            'subtitle' => $subtitle,
             'categories' => '',
             'url' => '',
             'is_detail_link' => false,

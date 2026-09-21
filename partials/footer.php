@@ -63,7 +63,7 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
         <?php endif; ?>
         <?php // Optional since Site-instellingen stopped requiring it: no text, no empty paragraph. ?>
         <?php if ($footerDescription !== null): ?>
-        <p<?= \App\Service\Language\SiteText::attrsOf($footerDescription) ?>><?= $h(\App\Service\Language\SiteText::visibleOf($footerDescription)) ?></p>
+        <p><?= $h($footerDescription) ?></p>
         <?php endif; ?>
         <?php if ($brand['show_email'] && $email !== ''): ?>
         <p><a href="mailto:<?= $h($email) ?>"><?= $h($email) ?></a></p>
@@ -72,7 +72,7 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
         <p><a href="tel:<?= $h((string) preg_replace('/\s+/', '', $phone)) ?>"><?= $h($phone) ?></a></p>
         <?php endif; ?>
         <?php if ($brand['show_kvk'] && $kvkNumber !== ''): ?>
-        <p data-nl="KVK <?= $h($kvkNumber) ?>" data-en="Chamber of Commerce <?= $h($kvkNumber) ?>">KVK <?= $h($kvkNumber) ?></p>
+        <p><?= \App\Service\Language\SiteText::escaped(['nl' => 'KVK', 'en' => 'Chamber of Commerce']) ?> <?= $h($kvkNumber) ?></p>
         <?php endif; ?>
         <?php if ($socialProfiles !== []): ?>
         <ul class="social-row">
@@ -85,27 +85,27 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
             // name from Site Settings, so nothing a visitor or an editor
             // typed becomes markup. Two profiles on one network get a number
             // each, so a screen reader can tell the two links apart.
-            $socialLabel = $siteName . ' op ' . $profile['label'];
-            $socialLabelEn = $siteName . ' on ' . $profile['label'];
+            $socialLabel = $siteName . ' '
+                . \App\Service\Language\SiteText::pick(['nl' => 'op', 'en' => 'on'])
+                . ' ' . $profile['label'];
             if ($profile['number'] !== null) {
                 $socialLabel .= ' (' . $profile['number'] . ')';
-                $socialLabelEn .= ' (' . $profile['number'] . ')';
             }
           ?>
-          <li><a href="<?= $h($profile['url']) ?>" target="_blank" rel="noopener noreferrer me" aria-label="<?= $h($socialLabel) ?>" data-nl-aria="<?= $h($socialLabel) ?>" data-en-aria="<?= $h($socialLabelEn) ?>"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><?= $profile['icon'] ?></svg></a></li>
+          <li><a href="<?= $h($profile['url']) ?>" target="_blank" rel="noopener noreferrer me" aria-label="<?= $h($socialLabel) ?>"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><?= $profile['icon'] ?></svg></a></li>
           <?php endforeach; ?>
         </ul>
         <?php endif; ?>
       </div>
 <?php foreach ($footerColumns as $column): ?>
       <div class="footer-col">
-        <h4<?= \App\Service\Language\SiteText::attrsOf($column['title']) ?>><?= $h(\App\Service\Language\SiteText::visibleOf($column['title'])) ?></h4>
+        <h4><?= $h($column['title']) ?></h4>
         <ul>
 <?php foreach ($column['links'] as $link): ?>
 <?php if ($link['is_action']): ?>
-          <li><button type="button" class="footer-col__action-link" data-cookie-settings-open<?= \App\Service\Language\SiteText::attrsOf($link['label']) ?>><?= $h(\App\Service\Language\SiteText::visibleOf($link['label'])) ?></button></li>
+          <li><button type="button" class="footer-col__action-link" data-cookie-settings-open><?= $h($link['label']) ?></button></li>
 <?php else: ?>
-          <li><a href="<?= $h((string) $link['href']) ?>"<?= $link['open_in_new_tab'] ? ' target="_blank" rel="' . $h((string) $link['rel']) . '"' : '' ?><?= \App\Service\Language\SiteText::attrsOf($link['label']) ?>><?= $h(\App\Service\Language\SiteText::visibleOf($link['label'])) ?></a></li>
+          <li><a href="<?= $h((string) $link['href']) ?>"<?= $link['open_in_new_tab'] ? ' target="_blank" rel="' . $h((string) $link['rel']) . '"' : '' ?>><?= $h($link['label']) ?></a></li>
 <?php endif; ?>
 <?php endforeach; ?>
         </ul>
@@ -115,11 +115,11 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
     <div class="footer-bottom">
       <span><?= $h($copyright) ?></span>
       <span class="footer-legal-links">
-        <a href="<?= $h(\App\Service\Routing\LocalizedUrl::path('/cookiebeleid.php')) ?>" <?= \App\Service\Language\SiteText::attrs($cookieFooterLink['policy_label_nl'], $cookieFooterLink['policy_label_en']) ?>><?= $h(\App\Service\Language\SiteText::visible($cookieFooterLink['policy_label_nl'], $cookieFooterLink['policy_label_en'])) ?></a>
-        <button type="button" class="footer-legal-links__btn" data-cookie-settings-open <?= \App\Service\Language\SiteText::attrs($cookieFooterLink['label_nl'], $cookieFooterLink['label_en']) ?>><?= $h(\App\Service\Language\SiteText::visible($cookieFooterLink['label_nl'], $cookieFooterLink['label_en'])) ?></button>
+        <a href="<?= $h(CookieConsentConfig::policyUrl()) ?>"><?= $h($cookieFooterLink['policy_label']) ?></a>
+        <button type="button" class="footer-legal-links__btn" data-cookie-settings-open><?= $h($cookieFooterLink['label']) ?></button>
       </span>
 <?php if ($slogan !== null): ?>
-      <span<?= \App\Service\Language\SiteText::attrsOf($slogan) ?>><?= $h(\App\Service\Language\SiteText::visibleOf($slogan)) ?></span>
+      <span><?= $h($slogan) ?></span>
 <?php endif; ?>
     </div>
   </div>

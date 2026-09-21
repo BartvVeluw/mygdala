@@ -16,7 +16,7 @@ final class FormValidationResult
 {
     /**
      * @param array<string, string>   $values cleaned, in definition order
-     * @param array<string, FormText> $errors bilingual, one per failing field
+     * @param array<string, string> $errors in the language of the request, one per failing field
      */
     public function __construct(
         public readonly array $values,
@@ -29,7 +29,7 @@ final class FormValidationResult
         return $this->errors === [];
     }
 
-    public function errorFor(string $fieldKey): ?FormText
+    public function errorFor(string $fieldKey): ?string
     {
         return $this->errors[$fieldKey] ?? null;
     }

@@ -101,35 +101,6 @@ final class LocalizedValueTest extends TestCase
 
     // --------------------------------------------------------- SiteText
 
-    public function testVisibleTextIsThePrimaryLanguage(): void
-    {
-        $this->dutchSite();
-        self::assertSame('Hallo', SiteText::visible('Hallo', 'Hello'));
-
-        $this->englishSite();
-        self::assertSame('Hello', SiteText::visible('Hallo', 'Hello'));
-    }
-
-    public function testAttributesCarryBothLanguagesEscaped(): void
-    {
-        $this->dutchSite();
-        $attrs = SiteText::attrs('Ha & llo', 'He "llo"');
-
-        self::assertStringContainsString('data-nl="Ha &amp; llo"', $attrs);
-        self::assertStringContainsString('data-en="He &quot;llo&quot;"', $attrs);
-    }
-
-    public function testAttributesAreNeverHalfEmptyWhenTheOtherHasText(): void
-    {
-        // This is what stops the language switch blanking a heading that has
-        // no translation yet.
-        $this->dutchSite();
-        $attrs = SiteText::attrs('Hallo', '');
-
-        self::assertStringContainsString('data-nl="Hallo"', $attrs);
-        self::assertStringContainsString('data-en="Hallo"', $attrs);
-    }
-
     public function testTheDocumentLanguageFollowsTheSite(): void
     {
         $this->dutchSite();
@@ -137,33 +108,6 @@ final class LocalizedValueTest extends TestCase
 
         $this->englishSite();
         self::assertSame('en', SiteText::documentLanguage());
-    }
-
-    public function testTheLanguageSwitchIsOfferedEvenWhenTheRegistryHasEnglishSwitchedOff(): void
-    {
-        // THE REGRESSION THIS STEP EXISTS FOR. A visitor of a site whose
-        // owner never turned English "on" was shown no way to ask for it,
-        // including on sites with English sitting in their `_en` columns.
-        // Until the frontend flip, the registry's active flag cannot do that
-        // either.
-        SiteLanguageFixture::useLanguages([
-            SiteLanguageFixture::language('nl', isDefault: true),
-            SiteLanguageFixture::language('en', isActive: false, sortOrder: 1),
-        ]);
-
-        self::assertTrue(SiteText::showsLanguageSwitch());
-        self::assertSame(['nl', 'en'], SiteText::switchableLanguages());
-    }
-
-    public function testAnEnglishPrimarySiteStillOffersDutch(): void
-    {
-        SiteLanguageFixture::useLanguages([
-            SiteLanguageFixture::language('en', isDefault: true),
-            SiteLanguageFixture::language('nl', isActive: false, sortOrder: 1),
-        ]);
-
-        self::assertTrue(SiteText::showsLanguageSwitch());
-        self::assertSame(['en', 'nl'], SiteText::switchableLanguages(), 'the default language comes first');
     }
 
     public function testAMissingTranslationFallsBackForAVisitorButNotForAnEditor(): void

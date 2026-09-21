@@ -45,9 +45,10 @@ function render_related_products(array $related): void
         return;
     }
 
-    // One LocalizedValue with the whole precedence already applied — the
-    // collection's own heading, else the shop-wide setting, each with the
-    // ordinary language fallback (App\Service\RelatedProductsContent::heading()).
+    // One string in the language of the request, the whole precedence
+    // already applied — the collection's own heading, else the shop-wide
+    // setting, each with the ordinary language fallback
+    // (App\Service\RelatedProductsContent::heading()).
     $heading = $related['heading'];
     ?>
     <?php // .bg-soft is the site's existing "next section, softly separated"
@@ -56,14 +57,14 @@ function render_related_products(array $related): void
           // CSS. data-related-products is a hook, not styling. ?>
     <section class="bg-soft" data-related-products>
       <div class="container">
-        <?php if (\App\Service\Language\SiteText::visibleOf($heading) !== ''): ?>
+        <?php if ($heading !== ''): ?>
         <div class="section-head" data-reveal>
-          <h2<?= \App\Service\Language\SiteText::attrsOf($heading) ?>><?= $h(\App\Service\Language\SiteText::visibleOf($heading)) ?></h2>
+          <h2><?= $h($heading) ?></h2>
         </div>
         <?php endif; ?>
 
         <div class="shop-grid" data-products-grid data-product-ids="<?= $h(implode(',', $productIds)) ?>">
-          <p class="lead" data-products-loading data-nl="Producten laden&hellip;" data-en="Loading products&hellip;">Producten laden&hellip;</p>
+          <p class="lead" data-products-loading><?= \App\Service\Language\SiteText::escaped(['nl' => 'Producten laden…', 'en' => 'Loading products…']) ?></p>
         </div>
       </div>
     </section>

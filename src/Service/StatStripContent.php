@@ -4,6 +4,7 @@ namespace App\Service;
 
 use App\Repository\StatStripRepository;
 use App\Service\Blocks\BlockLocalization;
+use App\Service\Routing\RequestLanguage;
 
 /**
  * Content for the "Stat strip" section (`.stat-strip` > `.stat`) — see
@@ -28,8 +29,9 @@ use App\Service\Blocks\BlockLocalization;
  * every stat are stored per website language in block_translations, each
  * stat's on its own row (StatStripBlock::childTables()); the strip itself has
  * no words. They come out of App\Service\Blocks\BlockLocalization as one
- * LocalizedValue per field, the fallback already applied; is_active and the
- * order stay in the tables. This class decides no language itself.
+ * string per field, in the language of the request, the fallback already
+ * applied; is_active and the order stay in the tables. This class decides no
+ * language itself.
  *
  * `is_active = false` on an *existing* strip row is a deliberate hide, and a
  * different case from a missing row. forSection()'s returned 'state' field is
@@ -78,13 +80,13 @@ class StatStripContent
     /**
      * @return array<string, mixed> 'state' (one of STATE_*) and 'items': a
      *                                list of primary_text and secondary_text
-     *                                (a LocalizedValue each). Templates must
+     *                                (a string each). Templates must
      *                                only render the section when 'state'
      *                                === STATE_ACTIVE.
      */
     public static function forSection(string $pageSlug, string $sectionKey): array
     {
-        $cacheKey = $pageSlug . ':' . $sectionKey;
+        $cacheKey = RequestLanguage::current() . '|' . $pageSlug . ':' . $sectionKey;
 
         if (isset(self::$cache[$cacheKey])) {
             return self::$cache[$cacheKey];

@@ -21,6 +21,7 @@ use App\Service\Language\SiteLanguages;
 use App\Service\PageContent;
 use App\Service\PageService;
 use App\Service\RichTextContent;
+use App\Service\Routing\RequestLanguage;
 use App\Service\SectionRegistry;
 use App\Service\SiteSettings;
 use App\Service\TextImageSplitContent;
@@ -69,10 +70,15 @@ final class BlockWordsPreloadTest extends TestCase
 
         self::assertSame(12, $large - $small, 'twelve more blocks cost twelve more content rows and not one query more for their words');
 
+        [$english, $englishHtml] = $this->in('en', fn (): array => $this->render(self::LARGE));
+        self::assertSame($large, $english, 'another language reads the same one query for its words');
+
         foreach (range(0, 4) as $i) {
             self::assertStringContainsString('Tekst ' . $i . ' NL', $largeHtml);
-            self::assertStringContainsString('data-en="Titel ' . $i . ' EN"', $largeHtml);
+            self::assertStringContainsString('Titel ' . $i . ' NL', $largeHtml);
             self::assertStringContainsString('Kaart ' . $i . ' NL', $largeHtml);
+            self::assertStringContainsString('Titel ' . $i . ' EN', $englishHtml, 'the page in English shows the English words');
+            self::assertStringNotContainsString('Titel ' . $i . ' NL', $englishHtml);
         }
         self::assertStringContainsString('Tekst 0 NL', $smallHtml);
     }
@@ -114,7 +120,7 @@ final class BlockWordsPreloadTest extends TestCase
         foreach (['Vraag 5 NL', 'Punt 5 NL', 'Alinea 5 NL', 'Kaart 5 NL', 'Label 5.5 NL'] as $words) {
             self::assertStringContainsString($words, $largeHtml);
         }
-        self::assertStringContainsString('data-en="Question 5 EN"', $largeHtml);
+        self::assertStringContainsString('Question 5 EN', $this->in('en', fn (): array => $this->render(self::LARGE))[1]);
         self::assertStringContainsString('Label 0.0 NL', $smallHtml);
     }
 
@@ -182,6 +188,24 @@ final class BlockWordsPreloadTest extends TestCase
     }
 
     /** @return array{0: int, 1: string} the SELECTs the render cost, and its markup */
+    /**
+     * Run $work while the request is answered in $language.
+     *
+     * @template T
+     * @param \Closure(): T $work
+     * @return T
+     */
+    private function in(string $language, \Closure $work): mixed
+    {
+        RequestLanguage::set($language, true);
+
+        try {
+            return $work();
+        } finally {
+            RequestLanguage::reset();
+        }
+    }
+
     private function render(string $key): array
     {
         $this->coldCaches();

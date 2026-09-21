@@ -32,7 +32,9 @@ final class PersonalizationColorsTest extends TestCase
         foreach (PersonalizationColors::payload() as $color) {
             $this->assertMatchesRegularExpression('/^#[0-9A-Fa-f]{6}$/', $color['hex'], $color['key']);
             $this->assertNotSame('', $color['label']);
-            $this->assertNotSame('', $color['label_en']);
+            $this->assertNotSame('', PersonalizationColors::label($color['key'], 'nl'));
+            $this->assertNotSame('', PersonalizationColors::label($color['key'], 'en'));
+            $this->assertArrayNotHasKey('label_en', $color, 'the payload carries one label, in the language of the request');
         }
     }
 

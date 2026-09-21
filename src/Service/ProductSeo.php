@@ -7,7 +7,7 @@ namespace App\Service;
 use App\Repository\ProductImageRepository;
 use App\Repository\ProductRepository;
 use App\Repository\ProductVariantRepository;
-use App\Service\Language\LanguageRegistry;
+use App\Service\Routing\RequestLanguage;
 
 /**
  * The SEO read model for one shop product: its resolved <title>, meta
@@ -110,10 +110,10 @@ class ProductSeo
      * therefore never emits a title, description, canonical, Open Graph tag
      * or a line of structured data.
      *
+     * Everything is in the language of the request.
+     *
      * @return array{
-     *     id:int, name_nl:string, name_en:string,
-     *     title_nl:string, title_en:string,
-     *     description_nl:string, description_en:string,
+     *     id:int, name:string, title:string, description:string,
      *     canonical_url:string, og_image_path:?string,
      *     json_ld:array<string, mixed>
      * }|null
@@ -124,8 +124,9 @@ class ProductSeo
             return null;
         }
 
-        if (array_key_exists($productId, self::$cache)) {
-            return self::$cache[$productId];
+        $cacheKey = RequestLanguage::current() . '|' . $productId;
+        if (array_key_exists($cacheKey, self::$cache)) {
+            return self::$cache[$cacheKey];
         }
 
         try {
@@ -133,14 +134,14 @@ class ProductSeo
         } catch (\Throwable $e) {
             error_log('[ProductSeo] lookup failed for product ' . $productId . ': ' . $e->getMessage());
 
-            return self::$cache[$productId] = null;
+            return self::$cache[$cacheKey] = null;
         }
 
         if ($product === null) {
-            return self::$cache[$productId] = null;
+            return self::$cache[$cacheKey] = null;
         }
 
-        return self::$cache[$productId] = self::resolve($product);
+        return self::$cache[$cacheKey] = self::resolve($product);
     }
 
     /**
@@ -157,12 +158,9 @@ class ProductSeo
     public static function resolve(array $product, ?array $imagePaths = null, ?array $variantPrices = null): array
     {
         $id = (int) $product['id'];
-        // The head still carries the V1 pair for the client-side switch; each
-        // half is one language of the product's own name, read through
-        // App\Service\ShopLocalization with its fallback (Multilingual 2.0
-        // phase 5 wave C).
-        $nameNl = ShopLocalization::product($id, ShopLocalization::NAME, LanguageRegistry::DUTCH);
-        $nameEn = ShopLocalization::product($id, ShopLocalization::NAME, LanguageRegistry::ENGLISH);
+        // Every word in the language of the request, read through
+        // App\Service\ShopLocalization with its fallback.
+        $language = RequestLanguage::current();
 
         $imagePaths ??= self::imagePaths($id, $product['image_path'] ?? null);
         $variantPrices ??= self::variantPrices($id, (float) ($product['price'] ?? 0));
@@ -174,12 +172,9 @@ class ProductSeo
 
         $resolved = [
             'id' => $id,
-            'name_nl' => $nameNl,
-            'name_en' => $nameEn,
-            'title_nl' => self::title($product, LanguageRegistry::DUTCH),
-            'title_en' => self::title($product, LanguageRegistry::ENGLISH),
-            'description_nl' => self::metaDescription($product, LanguageRegistry::DUTCH),
-            'description_en' => self::metaDescription($product, LanguageRegistry::ENGLISH),
+            'name' => ShopLocalization::product($id, ShopLocalization::NAME, $language),
+            'title' => self::title($product, $language),
+            'description' => self::metaDescription($product, $language),
             'canonical_url' => self::canonicalUrl($id),
             'og_image_path' => $ogImagePath === '' ? null : $ogImagePath,
         ];
@@ -197,8 +192,9 @@ class ProductSeo
      *
      * @param array<string, mixed> $product
      */
-    public static function title(array $product, string $lang = 'nl'): string
+    public static function title(array $product, ?string $lang = null): string
     {
+        $lang ??= RequestLanguage::current();
         $id = (int) ($product['id'] ?? 0);
         $custom = ShopLocalization::product($id, ShopLocalization::META_TITLE, $lang);
 
@@ -221,8 +217,9 @@ class ProductSeo
      *
      * @param array<string, mixed> $product
      */
-    public static function metaDescription(array $product, string $lang = 'nl'): string
+    public static function metaDescription(array $product, ?string $lang = null): string
     {
+        $lang ??= RequestLanguage::current();
         $id = (int) ($product['id'] ?? 0);
         $custom = ShopLocalization::product($id, ShopLocalization::META_DESCRIPTION, $lang);
 
@@ -240,9 +237,9 @@ class ProductSeo
      *
      * @param array<string, mixed> $product
      */
-    public static function descriptionText(array $product, string $lang = 'nl'): string
+    public static function descriptionText(array $product, ?string $lang = null): string
     {
-        return Seo::plainText(ShopLocalization::productDescription((int) ($product['id'] ?? 0), $lang));
+        return Seo::plainText(ShopLocalization::productDescription((int) ($product['id'] ?? 0), $lang ?? RequestLanguage::current()));
     }
 
     /**
@@ -382,16 +379,16 @@ class ProductSeo
         $data = [
             '@context' => 'https://schema.org',
             '@type' => 'Product',
-            'name' => (string) $resolved['name_nl'],
+            'name' => (string) $resolved['name'],
             'url' => $canonical,
         ];
 
-        $description = self::descriptionText($product, 'nl');
+        $description = self::descriptionText($product);
         if ($description === '') {
             // No product description at all: fall back to whatever the page's
             // own meta description says, so the structured data still matches
             // the visible <head> rather than being dropped silently.
-            $description = (string) $resolved['description_nl'];
+            $description = (string) $resolved['description'];
         }
         if ($description !== '') {
             $data['description'] = $description;

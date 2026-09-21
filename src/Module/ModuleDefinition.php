@@ -120,7 +120,7 @@ abstract class ModuleDefinition
      * Application routes an administrator may point a menu or footer link at,
      * in App\Service\RouteRegistry's shape plus `order`.
      *
-     * @return array<string, array{url: string, label_nl: string, label_en: string, order: int}>
+     * @return array<string, array{url: string, label: array<string, string>, order: int}>
      */
     public function routes(): array
     {

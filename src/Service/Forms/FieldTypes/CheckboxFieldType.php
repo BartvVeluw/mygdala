@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Service\Forms\FieldTypes;
 
 use App\Service\Forms\FormField;
-use App\Service\Forms\FormText;
+use App\Service\Language\SiteText;
 
 /**
  * One box to tick: "stuur me de nieuwsbrief", "ik wil graag gebeld worden".
@@ -21,9 +21,12 @@ use App\Service\Forms\FormText;
  */
 class CheckboxFieldType extends FormFieldType
 {
-    /** What a ticked box is recorded as, in both languages. */
+    /**
+     * What a ticked box is recorded as: one stored value, whatever language
+     * the visitor read the form in. A submission is data, not copy, and old
+     * submissions hold exactly this word.
+     */
     public const CHECKED_NL = 'Ja';
-    public const CHECKED_EN = 'Yes';
 
     public function key(): string
     {
@@ -54,12 +57,12 @@ class CheckboxFieldType extends FormFieldType
         return $value !== '' ? self::CHECKED_NL : '';
     }
 
-    public function requiredMessage(FormField $field): FormText
+    public function requiredMessage(FormField $field): string
     {
-        return FormText::of(
-            'Zet een vinkje bij "' . $field->label->nl . '".',
-            'Please tick "' . $field->label->en . '".'
-        );
+        return SiteText::pick([
+            'nl' => 'Zet een vinkje bij "' . $field->label . '".',
+            'en' => 'Please tick "' . $field->label . '".',
+        ]);
     }
 
     public function renderControl(FormFieldControl $control): void

@@ -8,9 +8,8 @@
  * does not own the content. Caller must already have checked
  * $marquee['state'] !== MarqueeContent::STATE_HIDDEN before calling this.
  *
- * Every label arrives as one LocalizedValue (App\Service\Blocks\
- * BlockLocalization), each item's own: SiteText prints the words a visitor
- * sees first and the escaped data-nl/data-en pair for the V1 switch, so this
+ * Every label arrives as one string, each item's own, already in the
+ * language of the request (App\Service\Blocks\BlockLocalization), so this
  * file knows no language, no default and no fallback. All of it is plain
  * text.
  *
@@ -26,13 +25,11 @@ function render_section_marquee(array $marquee): void
     }
 
     $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
-    $text = static fn (\App\Service\Language\LocalizedValue $value): string => \App\Service\Language\SiteText::visibleOf($value);
-    $pair = static fn (\App\Service\Language\LocalizedValue $value): string => \App\Service\Language\SiteText::attrsOf($value);
     ?>
     <div class="marquee" aria-hidden="true">
       <div class="marquee__track" data-marquee-track>
         <?php foreach ($marquee['items'] as $item): ?>
-        <span <?= $pair($item['label']) ?>><?= $h($text($item['label'])) ?></span>
+        <span><?= $h($item['label']) ?></span>
         <?php endforeach; ?>
       </div>
     </div>

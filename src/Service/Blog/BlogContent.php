@@ -7,9 +7,7 @@ namespace App\Service\Blog;
 use App\Repository\BlogCategoryRepository;
 use App\Repository\BlogPostRepository;
 use App\Repository\BlogTagRepository;
-use App\Service\Language\LanguageFallback;
-use App\Service\Language\LanguageRegistry;
-use App\Service\Language\LocalizedValue;
+use App\Service\Language\SiteText;
 use App\Service\Media\BlockImage;
 use App\Service\AppUrl;
 use App\Service\Language\SiteLanguages;
@@ -38,12 +36,12 @@ use App\Service\Seo;
  * excerpt, body and SEO copy, a category's name and description and a tag's
  * name are stored per website language and read through
  * App\Service\Blog\BlogLocalization, which states the one fallback: the
- * asked-for language, the default language, ''. This class offers both shapes
- * of the same words — title()/excerpt()/body() for ONE language, which is what
- * the SEO head, the RSS feed and the JSON-LD want, and titleValue() and
- * friends as one LocalizedValue, which is what a template prints through
- * App\Service\Language\SiteText. It decides no language itself, and a third
- * language is a row in `site_languages`.
+ * asked-for language, the default language, ''. This class hands out those
+ * words for ONE language — title()/excerpt()/body() and friends — which is
+ * what a template prints, and what the SEO head, the RSS feed and the JSON-LD
+ * want. Without a language they answer in the request's
+ * (App\Service\Routing\RequestLanguage). It decides no fallback itself, and a
+ * third language is a row in `site_languages`.
  *
  * Everything else a post has is language-neutral: THE SLUG above all — there
  * are no separate English URLs (SEO.md) and a translation never moves an
@@ -61,6 +59,23 @@ final class BlogContent
 {
     /** How many posts a related-posts row may show. */
     public const RELATED_LIMIT = BlogSettings::RELATED_POSTS_LIMIT;
+
+    /**
+     * The month names of a long date, per language: code-owned website text,
+     * read through App\Service\Language\SiteText::pick() like every other
+     * piece of it. A language this list has no names for gets the default
+     * language's, and then the first — never an empty month.
+     */
+    private const MONTHS = [
+        'nl' => [
+            1 => 'januari', 'februari', 'maart', 'april', 'mei', 'juni',
+            'juli', 'augustus', 'september', 'oktober', 'november', 'december',
+        ],
+        'en' => [
+            1 => 'January', 'February', 'March', 'April', 'May', 'June',
+            'July', 'August', 'September', 'October', 'November', 'December',
+        ],
+    ];
 
     /**
      * One page of a listing — the index, a category archive or a tag archive.
@@ -232,61 +247,14 @@ final class BlogContent
     /* Per-language values                                                 */
     /* ------------------------------------------------------------------ */
 
-    /** @param array<string, mixed> $post */
-    public static function title(array $post, string $lang = 'nl'): string
-    {
-        return BlogLocalization::post(self::idOf($post), BlogLocalization::TITLE, $lang);
-    }
-
     /**
-     * The same five values as one LocalizedValue each, the fallback already
-     * applied — what a public template prints through
-     * App\Service\Language\SiteText. The $lang accessors above stay for the
-     * callers that genuinely want ONE language: the SEO head's V1 pair, the
-     * RSS feed (the request's language) and the JSON-LD.
+     * A post's title in one language, the request's when none is named.
      *
      * @param array<string, mixed> $post
      */
-    public static function titleValue(array $post): LocalizedValue
+    public static function title(array $post, ?string $lang = null): string
     {
-        return BlogLocalization::postValue(self::idOf($post), BlogLocalization::TITLE);
-    }
-
-    /**
-     * The teaser's pair, with the same "own excerpt, else the opening of the
-     * body" rule per language as excerpt() below.
-     *
-     * @param array<string, mixed> $post
-     */
-    public static function excerptValue(array $post): LocalizedValue
-    {
-        $words = [];
-        foreach (LanguageRegistry::codes() as $code) {
-            $teaser = self::excerpt($post, $code);
-            if ($teaser !== '') {
-                $words[$code] = $teaser;
-            }
-        }
-
-        return LanguageFallback::bilingual($words);
-    }
-
-    /** @param array<string, mixed> $post */
-    public static function bodyValue(array $post): LocalizedValue
-    {
-        return BlogLocalization::bodyValue(self::idOf($post));
-    }
-
-    /** @param array<string, mixed> $category */
-    public static function categoryNameValue(array $category): LocalizedValue
-    {
-        return BlogLocalization::categoryNameValue(self::idOf($category));
-    }
-
-    /** @param array<string, mixed> $tag */
-    public static function tagNameValue(array $tag): LocalizedValue
-    {
-        return BlogLocalization::tagNameValue(self::idOf($tag));
+        return BlogLocalization::post(self::idOf($post), BlogLocalization::TITLE, $lang ?? RequestLanguage::current());
     }
 
     /** @param array<string, mixed> $row */
@@ -337,8 +305,9 @@ final class BlogContent
      *
      * @param array<string, mixed> $post
      */
-    public static function excerpt(array $post, string $lang = 'nl'): string
+    public static function excerpt(array $post, ?string $lang = null): string
     {
+        $lang ??= RequestLanguage::current();
         $own = BlogLocalization::post(self::idOf($post), BlogLocalization::EXCERPT, $lang);
 
         if (trim($own) !== '') {
@@ -354,40 +323,42 @@ final class BlogContent
      *
      * @param array<string, mixed> $post
      */
-    public static function body(array $post, string $lang = 'nl'): string
+    public static function body(array $post, ?string $lang = null): string
     {
-        return BlogLocalization::body(self::idOf($post), $lang);
+        return BlogLocalization::body(self::idOf($post), $lang ?? RequestLanguage::current());
     }
 
     /** @param array<string, mixed> $category */
-    public static function categoryName(array $category, string $lang = 'nl'): string
+    public static function categoryName(array $category, ?string $lang = null): string
     {
-        return BlogLocalization::categoryName(self::idOf($category), $lang);
+        return BlogLocalization::categoryName(self::idOf($category), $lang ?? RequestLanguage::current());
     }
 
     /** @param array<string, mixed> $tag */
-    public static function tagName(array $tag, string $lang = 'nl'): string
+    public static function tagName(array $tag, ?string $lang = null): string
     {
-        return BlogLocalization::tagName(self::idOf($tag), $lang);
+        return BlogLocalization::tagName(self::idOf($tag), $lang ?? RequestLanguage::current());
     }
 
     /**
-     * A category's own short introduction above its archive, as a pair.
+     * A category's own short introduction above its archive, sanitized, in
+     * one language.
      *
      * @param array<string, mixed> $category
      */
-    public static function categoryDescriptionValue(array $category): LocalizedValue
+    public static function categoryDescription(array $category, ?string $lang = null): string
     {
-        return BlogLocalization::categoryDescriptionValue(self::idOf($category));
+        return BlogLocalization::categoryDescription(self::idOf($category), $lang ?? RequestLanguage::current());
     }
 
     /**
-     * The publication date as a Dutch long date ("4 maart 2026"), or '' when
-     * there is nothing to print. The month names are spelled out here rather
-     * than left to strftime(), which is deprecated and locale-dependent —
-     * shared hosting has no guaranteed Dutch locale installed.
+     * The publication date as a long date in the request's language
+     * ("4 maart 2026", "4 March 2026"), or '' when there is nothing to print.
+     * The month names are spelled out here rather than left to strftime(),
+     * which is deprecated and locale-dependent — shared hosting has no
+     * guaranteed locale installed.
      */
-    public static function publicationDate(mixed $publishedAt, string $lang = 'nl'): string
+    public static function publicationDate(mixed $publishedAt): string
     {
         $moment = BlogClock::parse($publishedAt);
 
@@ -395,16 +366,12 @@ final class BlogContent
             return '';
         }
 
-        if ($lang === 'en') {
-            return $moment->format('j F Y');
-        }
+        $months = SiteText::pick(array_map(
+            static fn (array $names): string => $names[(int) $moment->format('n')],
+            self::MONTHS
+        ));
 
-        $months = [
-            1 => 'januari', 'februari', 'maart', 'april', 'mei', 'juni',
-            'juli', 'augustus', 'september', 'oktober', 'november', 'december',
-        ];
-
-        return $moment->format('j') . ' ' . $months[(int) $moment->format('n')] . ' ' . $moment->format('Y');
+        return $moment->format('j') . ' ' . $months . ' ' . $moment->format('Y');
     }
 
     /** The machine-readable half of a <time> element, or ''. */
@@ -717,7 +684,7 @@ final class BlogContent
         // (MEDIA.md). BlockImage is asked for a path column that does not
         // exist, which is precisely how it reports "no image" when the post
         // has none.
-        $row['image'] = BlockImage::fromRow($row, 'featured_media_id', 'featured_image_path');
+        $row['image'] = BlockImage::fromOwner($row, null, 'featured_media_id', 'featured_image_path');
         $row['has_image'] = $row['image']['image_path'] !== '';
 
         $row['categories'] = array_map(static fn (array $category): array => self::decorateCategory($category), $categories);
@@ -753,7 +720,7 @@ final class BlogContent
 
         // Its id travels along, because that is what its words hang off since
         // Multilingual 2.0 phase 5 wave B: the template asks
-        // BlogContent::titleValue() for the pair it prints.
+        // BlogContent::title() for the words it prints.
         return [
             'id' => (int) $row['id'],
             'url' => self::postUrl($row),

@@ -129,11 +129,10 @@ final class SiteIdentityTest extends TestCase
         render_page_not_found_head();
         $html = (string) ob_get_clean();
 
-        // The 404 head goes through the one shared renderer since SEO
-        // Foundation V1, so the title carries the bilingual data-nl/data-en
-        // attributes every other page's title has always had.
-        $this->assertStringContainsString('>Pagina niet gevonden — Testbedrijf</title>', $html);
-        $this->assertStringContainsString('data-en="Page not found — Testbedrijf"', $html);
+        // The 404 head goes through the one shared renderer, in the
+        // language of the request and in no other.
+        $this->assertStringContainsString('<title>Pagina niet gevonden — Testbedrijf</title>', $html);
+        $this->assertStringNotContainsString('data-en', $html);
 
         // ...and it is still noindex, with nothing a page that does not
         // exist has any business claiming: no canonical, no share preview.

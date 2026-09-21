@@ -24,7 +24,7 @@ namespace App\Service\Forms;
  */
 final class FormRenderState
 {
-    /** @param array<string, FormText> $errors */
+    /** @param array<string, string> $errors one message per field, in the language the form was filled in */
     private function __construct(
         public readonly string $token,
         public readonly array $values,
@@ -50,15 +50,14 @@ final class FormRenderState
      * App\Service\Forms\PublicFormSession remembered.
      *
      * @param array<string, string> $values
-     * @param array<string, string> $errorsNl
-     * @param array<string, string> $errorsEn
+     * @param array<string, string> $messages one per field, in the language the form was filled in
      */
-    public static function withErrors(string $token, array $values, array $errorsNl, array $errorsEn): self
+    public static function withErrors(string $token, array $values, array $messages): self
     {
         $errors = [];
-        foreach ($errorsNl as $key => $message) {
+        foreach ($messages as $key => $message) {
             if (is_string($key) && is_string($message)) {
-                $errors[$key] = FormText::of($message, $errorsEn[$key] ?? null);
+                $errors[$key] = $message;
             }
         }
 
@@ -114,7 +113,7 @@ final class FormRenderState
             return self::fresh($token);
         }
 
-        return self::withErrors($token, $flash['values'], $flash['errors_nl'], $flash['errors_en']);
+        return self::withErrors($token, $flash['values'], $flash['errors']);
     }
 
     /**
@@ -156,7 +155,7 @@ final class FormRenderState
         return $this->values[$fieldKey] ?? null;
     }
 
-    public function errorFor(string $fieldKey): ?FormText
+    public function errorFor(string $fieldKey): ?string
     {
         return $this->errors[$fieldKey] ?? null;
     }

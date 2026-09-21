@@ -47,15 +47,19 @@ final class SeoMetadataTest extends TestCase
 
     public function testAnEmptyTitleFallsBackToTheSiteName(): void
     {
-        $this->assertSame('Testbedrijf', SeoMetadata::create(titleNl: '')->titleNl);
+        $this->assertSame('Testbedrijf', SeoMetadata::create(title: '')->title());
     }
 
-    public function testAnEmptyEnglishTitleFallsBackToTheDutchOne(): void
+    public function testAResolverHandsOverOneTitleAndOneDescriptionAndNoPair(): void
     {
-        $metadata = SeoMetadata::create(titleNl: 'Over ons');
+        $metadata = SeoMetadata::create(title: 'About us', description: 'Who we are.');
 
-        $this->assertSame('Over ons', $metadata->titleNl);
-        $this->assertSame('Over ons', $metadata->titleEn);
+        $this->assertSame('About us', $metadata->title());
+        $this->assertSame('Who we are.', $metadata->description());
+
+        foreach (['titleNl', 'titleEn', 'descriptionNl', 'descriptionEn'] as $v1Property) {
+            $this->assertFalse(property_exists($metadata, $v1Property), $v1Property . ' is the removed V1 pair');
+        }
     }
 
     public function testTheRouteTitleConventionAppendsTheSiteNameOnce(): void
@@ -86,16 +90,16 @@ final class SeoMetadataTest extends TestCase
             'seo_default_description' => 'Wat dit bedrijf doet, in één zin.',
         ]);
 
-        $metadata = SeoMetadata::create(titleNl: 'Een pagina');
+        $metadata = SeoMetadata::create(title: 'Een pagina');
 
         $this->assertTrue($metadata->hasDescription());
-        $this->assertSame('Wat dit bedrijf doet, in één zin.', $metadata->descriptionNl);
+        $this->assertSame('Wat dit bedrijf doet, in één zin.', $metadata->description());
     }
 
     public function testWithoutAGlobalDefaultThereIsNoDescriptionAtAll(): void
     {
         // Better than a generic sentence on every page: no tag.
-        $this->assertFalse(SeoMetadata::create(titleNl: 'Een pagina')->hasDescription());
+        $this->assertFalse(SeoMetadata::create(title: 'Een pagina')->hasDescription());
     }
 
     public function testAnOwnDescriptionIsNeverReplacedByTheGlobalDefault(): void
@@ -105,16 +109,9 @@ final class SeoMetadataTest extends TestCase
             'seo_default_description' => 'De standaardzin.',
         ]);
 
-        $metadata = SeoMetadata::create(titleNl: 'Een pagina', descriptionNl: 'De eigen zin.');
+        $metadata = SeoMetadata::create(title: 'Een pagina', description: 'De eigen zin.');
 
-        $this->assertSame('De eigen zin.', $metadata->descriptionNl);
-    }
-
-    public function testAnEmptyEnglishDescriptionFallsBackToTheDutchOne(): void
-    {
-        $metadata = SeoMetadata::create(titleNl: 'T', descriptionNl: 'Nederlandse tekst.');
-
-        $this->assertSame('Nederlandse tekst.', $metadata->descriptionEn);
+        $this->assertSame('De eigen zin.', $metadata->description());
     }
 
     // -------------------------------------------------------- social image
@@ -126,7 +123,7 @@ final class SeoMetadataTest extends TestCase
             'og_image_path' => 'assets/images/site-default.png',
         ]);
 
-        $metadata = SeoMetadata::create(titleNl: 'T', canonical: AppUrl::canonical('/'));
+        $metadata = SeoMetadata::create(title: 'T', canonical: AppUrl::canonical('/'));
 
         $this->assertSame(AppUrl::canonical('assets/images/site-default.png'), $metadata->ogImageUrl);
     }
@@ -139,7 +136,7 @@ final class SeoMetadataTest extends TestCase
         ]);
 
         $metadata = SeoMetadata::create(
-            titleNl: 'T',
+            title: 'T',
             canonical: AppUrl::canonical('/'),
             socialImage: 'assets/images/eigen.png'
         );
@@ -149,13 +146,13 @@ final class SeoMetadataTest extends TestCase
 
     public function testAnInstallWithNoImageAtAllGetsNoSocialImage(): void
     {
-        $this->assertNull(SeoMetadata::create(titleNl: 'T')->ogImageUrl);
-        $this->assertNull(SeoMetadata::create(titleNl: 'T')->twitterCard());
+        $this->assertNull(SeoMetadata::create(title: 'T')->ogImageUrl);
+        $this->assertNull(SeoMetadata::create(title: 'T')->twitterCard());
     }
 
     public function testTheTwitterCardIsLargeImageWheneverThereIsAnImage(): void
     {
-        $metadata = SeoMetadata::create(titleNl: 'T', socialImage: 'assets/images/eigen.png');
+        $metadata = SeoMetadata::create(title: 'T', socialImage: 'assets/images/eigen.png');
 
         $this->assertSame('summary_large_image', $metadata->twitterCard());
     }
@@ -166,14 +163,14 @@ final class SeoMetadataTest extends TestCase
     {
         $canonical = AppUrl::canonical('contact.php');
 
-        $this->assertSame($canonical, SeoMetadata::create(titleNl: 'T', canonical: $canonical)->canonical);
+        $this->assertSame($canonical, SeoMetadata::create(title: 'T', canonical: $canonical)->canonical);
     }
 
     public function testARelativeOrHostileCanonicalIsDroppedRatherThanRendered(): void
     {
         foreach (['/contact.php', 'javascript:alert(1)', 'not a url', ''] as $value) {
             $this->assertNull(
-                SeoMetadata::create(titleNl: 'T', canonical: $value)->canonical,
+                SeoMetadata::create(title: 'T', canonical: $value)->canonical,
                 $value . ' must not become a canonical URL'
             );
         }
@@ -183,7 +180,7 @@ final class SeoMetadataTest extends TestCase
 
     public function testPublicContentIsIndexableByDefault(): void
     {
-        $metadata = SeoMetadata::create(titleNl: 'T');
+        $metadata = SeoMetadata::create(title: 'T');
 
         $this->assertSame('index,follow', $metadata->robots);
         $this->assertTrue($metadata->isIndexable());
@@ -191,7 +188,7 @@ final class SeoMetadataTest extends TestCase
 
     public function testAPageCanOptOutOfIndexing(): void
     {
-        $this->assertSame('noindex,follow', SeoMetadata::create(titleNl: 'T', indexable: false)->robots);
+        $this->assertSame('noindex,follow', SeoMetadata::create(title: 'T', indexable: false)->robots);
     }
 
     public function testTheWholeInstallCanBeSetToNoindex(): void
@@ -201,7 +198,7 @@ final class SeoMetadataTest extends TestCase
             'seo_robots_index_default' => '0',
         ]);
 
-        $this->assertSame('noindex,follow', SeoMetadata::create(titleNl: 'T')->robots);
+        $this->assertSame('noindex,follow', SeoMetadata::create(title: 'T')->robots);
     }
 
     public function testOnlyAnExplicitOffValueDeindexesTheSite(): void
@@ -236,8 +233,8 @@ final class SeoMetadataTest extends TestCase
     public function testTheRendererEscapesEverythingItPrints(): void
     {
         $html = $this->render(SeoMetadata::create(
-            titleNl: 'Groot "en" <b>vet</b> & zo',
-            descriptionNl: 'Een "citaat" & <script>alert(1)</script>',
+            title: 'Groot "en" <b>vet</b> & zo',
+            description: 'Een "citaat" & <script>alert(1)</script>',
             canonical: AppUrl::canonical('contact.php')
         ));
 
@@ -249,7 +246,7 @@ final class SeoMetadataTest extends TestCase
 
     public function testTheRendererOmitsEveryTagItHasNoValueFor(): void
     {
-        $html = $this->render(SeoMetadata::create(titleNl: 'Kaal'));
+        $html = $this->render(SeoMetadata::create(title: 'Kaal'));
 
         $this->assertStringNotContainsString('name="description"', $html);
         $this->assertStringNotContainsString('rel="canonical"', $html);
@@ -267,17 +264,17 @@ final class SeoMetadataTest extends TestCase
         ]);
 
         $html = $this->render(SeoMetadata::create(
-            titleNl: 'Contact',
-            titleEn: 'Contact us',
-            descriptionNl: 'Neem contact op.',
-            descriptionEn: 'Get in touch.',
+            title: 'Contact',
+            description: 'Neem contact op.',
             canonical: AppUrl::canonical('contact.php')
         ));
 
+        $this->assertStringNotContainsString('data-nl', $html, 'one language per document: no V1 pair');
+        $this->assertStringNotContainsString('data-en', $html);
+
         foreach ([
-            'data-en="Contact us"',
+            '<title>Contact</title>',
             'name="description" content="Neem contact op."',
-            'data-en-content="Get in touch."',
             'name="robots" content="index,follow"',
             '<link rel="canonical" href="' . AppUrl::canonical('contact.php') . '">',
             'property="og:title" content="Contact"',
@@ -311,7 +308,7 @@ final class SeoMetadataTest extends TestCase
     public function testStructuredDataCannotBreakOutOfItsScriptElement(): void
     {
         $html = $this->render(SeoMetadata::create(
-            titleNl: 'T',
+            title: 'T',
             canonical: AppUrl::canonical('/'),
             jsonLd: ['@type' => 'Organization', 'name' => 'Boze </script><script>alert(1)</script>']
         ));
@@ -333,7 +330,7 @@ final class SeoMetadataTest extends TestCase
         ]);
 
         $html = $this->render(SeoMetadata::create(
-            titleNl: Seo::routeTitle('Winkelwagen'),
+            title: Seo::routeTitle('Winkelwagen'),
             canonical: AppUrl::canonical('cart.php')
         ));
 

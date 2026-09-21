@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace App\Service\Forms;
 
+use App\Service\Language\SiteText;
+
 /**
  * A whole form as the renderer, the validator, the submission handler and
- * the e-mail builder see it: its settings, its texts as the V1 pair (the
- * fallback already applied), plus its fields in display order.
+ * the e-mail builder see it: its settings, its texts in the language of the
+ * request (the fallback already applied), plus its fields in display order.
  *
  * Its words — the submit label and the thank-you message per website
  * language — arrive on the rows as `translations`, put there by
@@ -34,8 +36,8 @@ final class FormDefinition
         public readonly string $name,
         public readonly string $internalKey,
         public readonly bool $isActive,
-        public readonly FormText $submitLabel,
-        public readonly FormText $successMessage,
+        public readonly string $submitLabel,
+        public readonly string $successMessage,
         public readonly string $notificationEmail,
         public readonly ?string $replyToFieldKey,
         public readonly bool $storesSubmissions,
@@ -69,11 +71,13 @@ final class FormDefinition
             // in any language would render a nameless button, which is worse
             // than a generic one. Neither default names a company or a
             // product. A new form stores no words at all and starts on these.
-            self::textOrDefault(FormText::fromWords($translations, 'submit_label'), 'Versturen', 'Send'),
             self::textOrDefault(
-                FormText::fromWords($translations, 'success_message'),
-                'Bedankt — je bericht is verstuurd.',
-                'Thanks — your message has been sent.'
+                FormLocalization::visible($translations, 'submit_label'),
+                ['nl' => 'Versturen', 'en' => 'Send']
+            ),
+            self::textOrDefault(
+                FormLocalization::visible($translations, 'success_message'),
+                ['nl' => 'Bedankt — je bericht is verstuurd.', 'en' => 'Thanks — your message has been sent.']
             ),
             trim((string) ($form['notification_email'] ?? '')),
             $replyTo !== '' ? $replyTo : null,
@@ -141,8 +145,14 @@ final class FormDefinition
         ));
     }
 
-    private static function textOrDefault(FormText $text, string $defaultNl, string $defaultEn): FormText
+    /**
+     * The editor's words, or this code's own generic ones in the request's
+     * language (App\Service\Language\SiteText::pick()).
+     *
+     * @param array<string, string> $default language code => text
+     */
+    private static function textOrDefault(string $text, array $default): string
     {
-        return $text->isEmpty() ? FormText::of($defaultNl, $defaultEn) : $text;
+        return $text === '' ? SiteText::pick($default) : $text;
     }
 }

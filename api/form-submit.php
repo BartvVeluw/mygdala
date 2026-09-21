@@ -9,9 +9,13 @@
  * submitted, hands the request to App\Service\Forms\FormSubmissionHandler,
  * and turns the one outcome into the two answers a caller can want.
  *
- *   fetch (Accept: application/json)   200 {"ok":true,"message":{...}}
- *                                      422 {"ok":false,"errors":{...}}
- *                                      429 / 500 {"ok":false,"message":{...}}
+ *   fetch (Accept: application/json)   200 {"ok":true,"message":"..."}
+ *                                      422 {"ok":false,"errors":{"<field>":"..."}}
+ *                                      429 / 500 {"ok":false,"message":"..."}
+ *
+ * Every message is ONE string, in the language of the page the form sat on
+ * (see $sourceLanguage below): the browser receives the words it shows and
+ * never a pair to choose from.
  *   an ordinary browser POST           303 back to the page it came from,
  *                                      with ?form-status=success|error and
  *                                      the instance token
@@ -54,8 +58,10 @@ use App\Service\Forms\FormSourcePath;
 use App\Service\Forms\FormSubmissionContext;
 use App\Service\Forms\FormSubmissionHandler;
 use App\Service\Forms\FormSubmissionOutcome;
-use App\Service\Forms\FormText;
 use App\Service\Forms\PublicFormSession;
+use App\Service\Language\SiteText;
+use App\Service\Routing\LocalizedUrl;
+use App\Service\Routing\RequestLanguage;
 
 /**
  * True when the caller explicitly asked for JSON — the fetch() in
@@ -66,20 +72,32 @@ use App\Service\Forms\PublicFormSession;
 $wantsJson = stripos((string) ($_SERVER['HTTP_ACCEPT'] ?? ''), 'application/json') !== false;
 
 $sourcePath = FormSourcePath::clean($_POST['form-source'] ?? null);
+
+/**
+ * THE LANGUAGE OF THE ANSWER is the language of the page the form sat on:
+ * the prefix of its own `form-source` path (docs/multilingual/ROUTING.md,
+ * §14). Only an ACTIVE website language counts — LocalizedUrl::strip() peels
+ * nothing else — so a path without a prefix, or a forged one, answers in the
+ * default language, exactly like an unprefixed URL. The endpoint's own
+ * address never carries a language, and no other request value is believed.
+ */
+[, $sourceLanguage] = LocalizedUrl::strip($sourcePath ?? FormSourcePath::FALLBACK);
+if ($sourceLanguage !== null) {
+    RequestLanguage::set($sourceLanguage, true);
+}
 $instanceToken = (string) ($_POST['form-instance'] ?? '');
 if (preg_match('/^form-[a-f0-9]{10}$/', $instanceToken) !== 1) {
     $instanceToken = '';
 }
 
 /**
- * @param array{nl: string, en: string} $message
- * @param array<string, array{nl: string, en: string}> $errors
+ * @param array<string, string> $errors one message per field
  */
 function respond(
     bool $wantsJson,
     int $httpStatus,
     string $formStatus,
-    array $message,
+    string $message,
     array $errors = [],
     ?string $sourcePath = null,
     string $instanceToken = ''
@@ -111,14 +129,14 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     http_response_code(405);
     header('Allow: POST');
     header('Content-Type: application/json; charset=utf-8');
-    echo json_encode(['ok' => false, 'message' => ['nl' => 'Methode niet toegestaan.', 'en' => 'Method not allowed.']]);
+    echo json_encode(['ok' => false, 'message' => SiteText::pick(['nl' => 'Methode niet toegestaan.', 'en' => 'Method not allowed.'])]);
     exit;
 }
 
-$genericFailure = [
+$genericFailure = SiteText::pick([
     'nl' => 'Er ging iets mis. Probeer het later opnieuw.',
     'en' => 'Something went wrong. Please try again later.',
-];
+]);
 
 $form = FormCatalog::findByInternalKey((string) ($_POST['form-key'] ?? ''));
 
@@ -147,7 +165,7 @@ if (($_FILES['bestand']['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_NO_FILE
             $wantsJson,
             422,
             'error',
-            ['nl' => $e->getMessage(), 'en' => $e->getMessage()],
+            $e->getMessage(),
             [],
             $sourcePath,
             $instanceToken
@@ -191,7 +209,7 @@ if ($outcome->looksSuccessfulToTheVisitor()) {
         $wantsJson,
         200,
         'success',
-        ['nl' => $form->successMessage->nl, 'en' => $form->successMessage->en],
+        $form->successMessage,
         [],
         $sourcePath,
         $instanceToken
@@ -199,16 +217,7 @@ if ($outcome->looksSuccessfulToTheVisitor()) {
 }
 
 if ($outcome->status === FormSubmissionOutcome::INVALID && $outcome->validation !== null) {
-    $errors = [];
-    $errorsNl = [];
-    $errorsEn = [];
-
-    foreach ($outcome->validation->errors as $key => $message) {
-        /** @var FormText $message */
-        $errors[$key] = ['nl' => $message->nl, 'en' => $message->en];
-        $errorsNl[$key] = $message->nl;
-        $errorsEn[$key] = $message->en;
-    }
+    $errors = $outcome->validation->errors;
 
     // Only the no-JS answer needs the values carried across a redirect; the
     // fetch flow still has them in the page it never left.
@@ -216,8 +225,7 @@ if ($outcome->status === FormSubmissionOutcome::INVALID && $outcome->validation 
         PublicFormSession::rememberFailure(
             $instanceToken,
             $outcome->validation->retainableValues(),
-            $errorsNl,
-            $errorsEn
+            $errors
         );
     }
 
@@ -225,7 +233,7 @@ if ($outcome->status === FormSubmissionOutcome::INVALID && $outcome->validation 
         $wantsJson,
         422,
         'error',
-        ['nl' => 'Controleer het formulier en probeer het opnieuw.', 'en' => 'Please check the form and try again.'],
+        SiteText::pick(['nl' => 'Controleer het formulier en probeer het opnieuw.', 'en' => 'Please check the form and try again.']),
         $errors,
         $sourcePath,
         $instanceToken
@@ -240,10 +248,10 @@ if ($outcome->status === FormSubmissionOutcome::REJECTED) {
         $wantsJson,
         429,
         'error',
-        [
+        SiteText::pick([
             'nl' => 'Je hebt te veel berichten verstuurd. Probeer het over een paar minuten opnieuw.',
             'en' => 'Too many messages sent. Please try again in a few minutes.',
-        ],
+        ]),
         [],
         $sourcePath,
         $instanceToken

@@ -24,6 +24,13 @@
  * `aria-invalid` and points at its message through `aria-describedby`, and
  * the error summary is a focusable `role="alert"` with a link to each field.
  *
+ * ONE LANGUAGE. Every word arrives already in the language of the request:
+ * the editor's through App\Service\Forms\FormLocalization, the messages from
+ * the validator, and the few sentences this file owns through
+ * App\Service\Language\SiteText::escaped(). The status element carries the
+ * sentences assets/js/blocks/form.js may need, in that same language, so the
+ * script never chooses one.
+ *
  * @param \App\Service\Forms\FormDefinition  $form
  * @param \App\Service\Forms\FormRenderState $state
  */
@@ -33,6 +40,7 @@ use App\Service\Forms\FormDefinition;
 use App\Service\Forms\FormRenderState;
 use App\Service\Forms\FormSourcePath;
 use App\Service\Forms\FormSpamGuard;
+use App\Service\Language\SiteText;
 
 /**
  * The success message, shown INSTEAD of the form after a successful
@@ -44,8 +52,7 @@ function render_form_success(FormDefinition $form, FormRenderState $state): void
     $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
     ?>
   <div class="form-status is-visible form-status--ok" role="status" aria-live="polite" tabindex="-1"
-       id="<?= $h($state->id('status')) ?>"
-       <?= \App\Service\Language\SiteText::attrs($form->successMessage->nl, $form->successMessage->en) ?>><?= $h(\App\Service\Language\SiteText::visible($form->successMessage->nl, $form->successMessage->en)) ?></div>
+       id="<?= $h($state->id('status')) ?>"><?= $h($form->successMessage) ?></div>
     <?php
 }
 
@@ -97,12 +104,12 @@ function render_form(FormDefinition $form, FormRenderState $state, array $extraC
 
     <div class="form-error-summary<?= $state->hasErrors() ? ' is-visible' : '' ?>" role="alert" id="<?= $h($summaryId) ?>"<?= $state->hasErrors() ? ' tabindex="-1"' : '' ?>>
       <?php if ($state->hasErrors()): ?>
-        <p data-nl="Controleer het volgende:" data-en="Please check the following:">Controleer het volgende:</p>
+        <p><?= SiteText::escaped(form_summary_heading()) ?></p>
         <ul>
           <?php foreach ($form->fields as $field): ?>
             <?php $error = $state->errorFor($field->key); ?>
             <?php if ($error !== null): ?>
-              <li><a href="#<?= $h($state->id($field->key)) ?>" <?= \App\Service\Language\SiteText::attrs($error->nl, $error->en) ?>><?= $h(\App\Service\Language\SiteText::visible($error->nl, $error->en)) ?></a></li>
+              <li><a href="#<?= $h($state->id($field->key)) ?>"><?= $h($error) ?></a></li>
             <?php endif; ?>
           <?php endforeach; ?>
         </ul>
@@ -119,14 +126,15 @@ function render_form(FormDefinition $form, FormRenderState $state, array $extraC
       <?php endforeach; ?>
     </div>
 
-    <button type="submit" class="btn btn--block"
-            <?= \App\Service\Language\SiteText::attrs($form->submitLabel->nl, $form->submitLabel->en) ?>><?= $h(\App\Service\Language\SiteText::visible($form->submitLabel->nl, $form->submitLabel->en)) ?>
+    <button type="submit" class="btn btn--block"><?= $h($form->submitLabel) ?>
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
     </button>
   </form>
   <div class="form-status" role="status" aria-live="polite" id="<?= $h($state->id('status')) ?>"
-       data-form-success-nl="<?= $h($form->successMessage->nl) ?>"
-       data-form-success-en="<?= $h($form->successMessage->en) ?>"></div>
+       data-form-success="<?= $h($form->successMessage) ?>"
+       data-form-sending="<?= SiteText::escaped(['nl' => 'Bezig met versturen…', 'en' => 'Sending…']) ?>"
+       data-form-failure="<?= SiteText::escaped(['nl' => 'Er ging iets mis. Probeer het later opnieuw.', 'en' => 'Something went wrong. Please try again later.']) ?>"
+       data-form-summary="<?= SiteText::escaped(form_summary_heading()) ?>"></div>
     <?php
 }
 
@@ -146,7 +154,7 @@ function render_form_field(\App\Service\Forms\FormField $field, FormRenderState 
     $error = $state->errorFor($field->key);
 
     $describedBy = [];
-    if (!$field->helpText->isEmpty()) {
+    if ($field->helpText !== '') {
         $describedBy[] = $hintId;
     }
     // The error element is always present (empty when there is nothing to
@@ -183,14 +191,7 @@ function render_form_field(\App\Service\Forms\FormField $field, FormRenderState 
       // actually take focus.
       ?>
       <fieldset id="<?= $h($id) ?>" tabindex="-1"<?= $describedBy !== [] ? ' aria-describedby="' . $h(implode(' ', $describedBy)) . '"' : '' ?>>
-        <?php
-        // The label text sits in a span of its own INSIDE the legend, for the
-        // same reason it does inside a <label>: assets/js/core.js swaps a
-        // data-nl element's innerHTML wholesale, so anything that must
-        // survive a language switch — here the required marker — has to be
-        // its sibling rather than its content.
-        ?>
-        <legend><span <?= \App\Service\Language\SiteText::attrs($field->label->nl, $field->label->en) ?>><?= $h(\App\Service\Language\SiteText::visible($field->label->nl, $field->label->en)) ?></span><?php
+        <legend><span><?= $h($field->label) ?></span><?php
         if ($field->isRequired) {
             echo ' <span class="req" aria-hidden="true">*</span>';
         }
@@ -203,13 +204,13 @@ function render_form_field(\App\Service\Forms\FormField $field, FormRenderState 
       <?php render_form_hint($field, $hintId); ?>
       <label class="form-check" for="<?= $h($id) ?>"><?php
         $type->renderControl($control);
-        ?><span <?= \App\Service\Language\SiteText::attrs($field->label->nl, $field->label->en) ?>><?= $h(\App\Service\Language\SiteText::visible($field->label->nl, $field->label->en)) ?></span><?php
+        ?><span><?= $h($field->label) ?></span><?php
         if ($field->isRequired) {
             echo ' <span class="req" aria-hidden="true">*</span>';
         }
         ?></label>
     <?php else: ?>
-      <label for="<?= $h($id) ?>"><span <?= \App\Service\Language\SiteText::attrs($field->label->nl, $field->label->en) ?>><?= $h(\App\Service\Language\SiteText::visible($field->label->nl, $field->label->en)) ?></span><?php
+      <label for="<?= $h($id) ?>"><span><?= $h($field->label) ?></span><?php
         if ($field->isRequired) {
             echo ' <span class="req" aria-hidden="true">*</span>';
         }
@@ -218,7 +219,7 @@ function render_form_field(\App\Service\Forms\FormField $field, FormRenderState 
       <?php $type->renderControl($control); ?>
     <?php endif; ?>
 
-    <span class="form-error<?= $error !== null ? ' is-visible' : '' ?>" id="<?= $h($errorId) ?>"<?= $error !== null ? ' data-nl="' . $h($error->nl) . '" data-en="' . $h($error->en) . '"' : '' ?>><?= $error !== null ? $h($error->nl) : '' ?></span>
+    <span class="form-error<?= $error !== null ? ' is-visible' : '' ?>" id="<?= $h($errorId) ?>"><?= $error !== null ? $h($error) : '' ?></span>
   </div>
     <?php
 }
@@ -231,12 +232,23 @@ function render_form_field(\App\Service\Forms\FormField $field, FormRenderState 
  */
 function render_form_hint(\App\Service\Forms\FormField $field, string $hintId): void
 {
-    if ($field->helpText->isEmpty()) {
+    if ($field->helpText === '') {
         return;
     }
 
     $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
     ?>
-    <span class="hint" id="<?= $h($hintId) ?>" <?= \App\Service\Language\SiteText::attrs($field->helpText->nl, $field->helpText->en) ?>><?= $h(\App\Service\Language\SiteText::visible($field->helpText->nl, $field->helpText->en)) ?></span>
+    <span class="hint" id="<?= $h($hintId) ?>"><?= $h($field->helpText) ?></span>
     <?php
+}
+
+/**
+ * The heading above the error list: one sentence, written once, for the
+ * server-rendered summary and for the one assets/js/blocks/form.js builds.
+ *
+ * @return array<string, string> language code => text
+ */
+function form_summary_heading(): array
+{
+    return ['nl' => 'Controleer het volgende:', 'en' => 'Please check the following:'];
 }

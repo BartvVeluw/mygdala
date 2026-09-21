@@ -57,13 +57,13 @@ final class FormFieldOptions
                 continue;
             }
 
-            $label = FormText::fromWords(
+            $label = FormLocalization::visible(
                 array_map(static fn (mixed $words): array => ['label' => (string) $words], (array) ($row['labels'] ?? [])),
                 'label'
             );
 
             $seen[$value] = true;
-            $options[] = new FormOption($value, $label->isEmpty() ? FormText::of($value) : $label);
+            $options[] = new FormOption($value, $label === '' ? $value : $label);
 
             if (count($options) >= self::MAX_OPTIONS) {
                 break;

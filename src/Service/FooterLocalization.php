@@ -6,7 +6,6 @@ namespace App\Service;
 
 use App\Service\Language\EntityTranslations;
 use App\Service\Language\LanguageFallback;
-use App\Service\Language\LocalizedValue;
 use App\Service\Language\TranslationTable;
 
 /**
@@ -50,16 +49,16 @@ final class FooterLocalization
         );
     }
 
-    /** A column's title pair for partials/footer.php (the temporary V1 adapter). */
-    public static function columnTitle(int $columnId): LocalizedValue
+    /** A column's title as a visitor reads it in one language. */
+    public static function columnTitle(int $columnId, string $languageCode): string
     {
-        return self::columns()->bilingual($columnId, self::TITLE);
+        return self::columns()->value($columnId, self::TITLE, $languageCode);
     }
 
-    /** A link's label pair for partials/footer.php (the temporary V1 adapter). */
-    public static function linkLabel(int $linkId): LocalizedValue
+    /** A link's label as a visitor reads it in one language. */
+    public static function linkLabel(int $linkId, string $languageCode): string
     {
-        return self::links()->bilingual($linkId, self::LABEL);
+        return self::links()->value($linkId, self::LABEL, $languageCode);
     }
 
     public static function rawColumnTitle(int $columnId, string $languageCode): string

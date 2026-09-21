@@ -3,6 +3,7 @@
 namespace App\Service;
 
 use App\Repository\NavigationRepository;
+use App\Service\Routing\RequestLanguage;
 
 /**
  * Public read side of the CMS-managed header navigation — replaces
@@ -19,10 +20,9 @@ use App\Repository\NavigationRepository;
  * like a menu link, and its row is left alone.
  *
  * LABELS are App\Service\NavigationLocalization's: each item carries its
- * label as one App\Service\Language\LocalizedValue (the temporary NL/EN
- * pair of the public language switch, each half already resolved by the
- * one fallback), loaded for the whole header in one query. Neither this
- * class nor the partial decides a language.
+ * label as one string in the language of the request, already resolved by
+ * the one fallback, loaded for the whole header in one query. Neither this
+ * class nor the partial decides a fallback.
  *
  * Static, try/catch-with-fallback, same convention as SiteSettings/
  * InformationPageContent — a navigation problem must never break every
@@ -35,7 +35,7 @@ class NavigationService
     /**
      * The menu tree and the header buttons from one query.
      *
-     * @return array{items: list<array<string, mixed>>, buttons: list<array{id:int,label:\App\Service\Language\LocalizedValue,href:string,open_in_new_tab:bool,rel:?string,class:string}>}
+     * @return array{items: list<array<string, mixed>>, buttons: list<array{id:int,label:string,href:string,open_in_new_tab:bool,rel:?string,class:string}>}
      */
     public static function header(): array
     {
@@ -54,7 +54,7 @@ class NavigationService
     }
 
     /**
-     * @return list<array{id:int,label:\App\Service\Language\LocalizedValue,href:?string,open_in_new_tab:bool,rel:?string,children:list<array<string,mixed>>}>
+     * @return list<array{id:int,label:string,href:?string,open_in_new_tab:bool,rel:?string,children:list<array<string,mixed>>}>
      */
     public static function tree(): array
     {
@@ -100,7 +100,7 @@ class NavigationService
                 }
                 $childItems[] = [
                     'id' => (int) $child['id'],
-                    'label' => NavigationLocalization::label((int) $child['id']),
+                    'label' => NavigationLocalization::label((int) $child['id'], RequestLanguage::current()),
                     'href' => $resolvedChild['href'],
                     'open_in_new_tab' => $resolvedChild['open_in_new_tab'],
                     'rel' => $resolvedChild['rel'],
@@ -110,7 +110,7 @@ class NavigationService
 
             $tree[] = [
                 'id' => (int) $row['id'],
-                'label' => NavigationLocalization::label((int) $row['id']),
+                'label' => NavigationLocalization::label((int) $row['id'], RequestLanguage::current()),
                 'href' => $resolved['href'],
                 'open_in_new_tab' => $resolved['open_in_new_tab'],
                 'rel' => $resolved['rel'],
@@ -139,7 +139,7 @@ class NavigationService
      * shown in the wrong place.
      *
      * @param list<array<string, mixed>> $rows
-     * @return list<array{id:int,label:\App\Service\Language\LocalizedValue,href:string,open_in_new_tab:bool,rel:?string,class:string}>
+     * @return list<array{id:int,label:string,href:string,open_in_new_tab:bool,rel:?string,class:string}>
      */
     public static function buildButtons(array $rows): array
     {
@@ -162,7 +162,7 @@ class NavigationService
 
             $result[] = [
                 'id' => (int) $row['id'],
-                'label' => NavigationLocalization::label((int) $row['id']),
+                'label' => NavigationLocalization::label((int) $row['id'], RequestLanguage::current()),
                 'href' => $resolved['href'],
                 'open_in_new_tab' => $resolved['open_in_new_tab'],
                 'rel' => $resolved['rel'],

@@ -9,7 +9,9 @@ use App\Service\Language\AdminTranslator;
 use App\Service\Language\ContentEditingLanguage;
 use App\Service\Language\ContentLanguages;
 use App\Service\Language\LocalizedValue;
+use App\Service\Language\SiteLanguages;
 use App\Service\Language\SiteText;
+use App\Service\Routing\LanguageSwitch;
 use App\Service\Translation\TranslationRequest;
 use App\Service\Translation\TranslationService;
 use PHPUnit\Framework\TestCase;
@@ -176,20 +178,23 @@ final class ThreeLanguageStatesTest extends TestCase
     ): void {
         $this->cms($interface, $editing);
 
-        self::assertTrue(SiteText::showsLanguageSwitch(), 'the switch is always offered');
-        self::assertSame(['nl', 'en'], SiteText::switchableLanguages());
+        self::assertTrue(LanguageSwitch::isAvailable(), 'the switch is offered');
+        self::assertSame(['nl', 'en'], SiteLanguages::activeCodes());
         self::assertSame('nl', SiteText::documentLanguage(), 'the page still renders in the site default');
     }
 
-    public function testTheSwitchSurvivesARegistryWithEnglishSwitchedOff(): void
+    public function testTheSwitchOffersOnlyTheActiveLanguagesOfTheRegistry(): void
     {
         SiteLanguageFixture::useLanguages([
             SiteLanguageFixture::language('nl', isDefault: true),
             SiteLanguageFixture::language('en', isActive: false, sortOrder: 1),
         ]);
 
-        self::assertTrue(SiteText::showsLanguageSwitch());
-        self::assertSame(['nl', 'en'], SiteText::switchableLanguages());
+        // Since the frontend flip the registry decides what a visitor is
+        // offered: a language that is switched off has no URLs, so there is
+        // nothing to switch to.
+        self::assertFalse(LanguageSwitch::isAvailable());
+        self::assertSame(['nl'], SiteLanguages::activeCodes());
     }
 
     public function testAVisitorReadsEachLanguageAndFallsBackPerField(): void

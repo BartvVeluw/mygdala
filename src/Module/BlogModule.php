@@ -193,7 +193,7 @@ final class BlogModule extends ModuleDefinition
     public function routes(): array
     {
         return [
-            'blog' => ['url' => BlogUrls::indexPath(), 'label_nl' => 'Blog', 'label_en' => 'Blog', 'order' => 50],
+            'blog' => ['url' => BlogUrls::indexPath(), 'label' => ['nl' => 'Blog', 'en' => 'Blog'], 'order' => 50],
         ];
     }
 

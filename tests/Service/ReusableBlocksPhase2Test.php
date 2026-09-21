@@ -184,8 +184,8 @@ final class ReusableBlocksPhase2Test extends TestCase
         BlockLocalization::save('cta_bands', $secondId, 'nl', $this->ctaWords('Tweede CTA'));
         CtaBandContent::clearCache();
 
-        $this->assertSame('Eerste CTA', CtaBandContent::forSection(self::TEST_KEY, (string) $firstKey)['title']->primaryValue());
-        $this->assertSame('Tweede CTA', CtaBandContent::forSection(self::TEST_KEY, (string) $secondKey)['title']->primaryValue());
+        $this->assertSame('Eerste CTA', CtaBandContent::forSection(self::TEST_KEY, (string) $firstKey)['title']);
+        $this->assertSame('Tweede CTA', CtaBandContent::forSection(self::TEST_KEY, (string) $secondKey)['title']);
     }
 
     public function testTwoContactCardsOnOnePageKeepSeparateContent(): void
@@ -199,8 +199,8 @@ final class ReusableBlocksPhase2Test extends TestCase
         BlockLocalization::save('contact_cards', $secondId, 'nl', ['title' => 'Kaart B', 'button_label' => 'B']);
         ContactCardContent::clearCache();
 
-        $this->assertSame('Kaart A', ContactCardContent::forSection(self::TEST_KEY, (string) $firstKey)['title']->primaryValue());
-        $this->assertSame('Kaart B', ContactCardContent::forSection(self::TEST_KEY, (string) $secondKey)['title']->primaryValue());
+        $this->assertSame('Kaart A', ContactCardContent::forSection(self::TEST_KEY, (string) $firstKey)['title']);
+        $this->assertSame('Kaart B', ContactCardContent::forSection(self::TEST_KEY, (string) $secondKey)['title']);
     }
 
     public function testDeletingOneCtaBandLeavesTheOtherIntact(): void

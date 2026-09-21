@@ -9,8 +9,6 @@
 (function () {
   "use strict";
 
-  var docEl = document.documentElement;
-
   /* ---------------------------------------------------------------------
      Project detail lightbox (portfolio-detail.php) — a separate instance
      from the item gallery block's (assets/js/blocks/item-gallery.js): that
@@ -35,10 +33,11 @@
     var lastFocused = null;
     var currentIndex = 0;
 
+    /* The trigger's alt text, already in the language of the page: the
+       server prints one `data-alt` per trigger, never a pair to choose from.
+       Written with textContent / as an attribute value, never as markup. */
     function altFor(trigger) {
-      var lang = docEl.lang === "en" ? "en" : "nl";
-      var alt = lang === "en" ? trigger.dataset.altEn : trigger.dataset.altNl;
-      return alt || trigger.dataset.altNl || "";
+      return trigger.dataset.alt || "";
     }
 
     function render(index) {

@@ -72,9 +72,9 @@ final class BlogSeoTest extends TestCase
 
         $seo = BlogSeo::forPost($post);
 
-        $this->assertStringStartsWith('Testbericht SEO titel | ', $seo->titleNl);
-        $this->assertStringContainsString(BlogLocalizedSettings::title('nl'), $seo->titleNl);
-        $this->assertStringContainsString(SeoDefaults::siteName(), $seo->titleNl);
+        $this->assertStringStartsWith('Testbericht SEO titel | ', $seo->title());
+        $this->assertStringContainsString(BlogLocalizedSettings::title('nl'), $seo->title());
+        $this->assertStringContainsString(SeoDefaults::siteName(), $seo->title());
     }
 
     public function testAnOwnSeoTitleIsUsedVerbatim(): void
@@ -84,7 +84,7 @@ final class BlogSeoTest extends TestCase
             'meta_title' => 'Precies deze tekst',
         ]);
 
-        $this->assertSame('Precies deze tekst', BlogSeo::forPost($post)->titleNl);
+        $this->assertSame('Precies deze tekst', BlogSeo::forPost($post)->title());
     }
 
     /** meta_description, then the excerpt, then the site default, then nothing. */
@@ -100,8 +100,8 @@ final class BlogSeoTest extends TestCase
             'excerpt' => 'De samenvatting.',
         ]);
 
-        $this->assertSame('De meta description.', BlogSeo::forPost($withMeta)->descriptionNl);
-        $this->assertSame('De samenvatting.', BlogSeo::forPost($withExcerpt)->descriptionNl);
+        $this->assertSame('De meta description.', BlogSeo::forPost($withMeta)->description());
+        $this->assertSame('De samenvatting.', BlogSeo::forPost($withExcerpt)->description());
     }
 
     public function testAPostsCanonicalIsItsOwnUrlAndNothingElse(): void
@@ -145,7 +145,7 @@ final class BlogSeoTest extends TestCase
     public function testAPaginatedListingIsCanonicalToItself(): void
     {
         $this->assertSame(BlogUrls::index(2), BlogSeo::forIndex(2)->canonical);
-        $this->assertStringContainsString('pagina 2', BlogSeo::forIndex(2)->titleNl);
+        $this->assertStringContainsString('pagina 2', BlogSeo::forIndex(2)->title());
         $this->assertSame(BlogUrls::index(), BlogSeo::forIndex()->canonical);
     }
 

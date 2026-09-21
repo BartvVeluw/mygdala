@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Service\Forms\FieldTypes;
 
 use App\Service\Forms\FormField;
-use App\Service\Forms\FormText;
+use App\Service\Language\SiteText;
 
 /**
  * The box a visitor ticks to agree to something — a privacy statement, terms
@@ -34,11 +34,11 @@ final class ConsentFieldType extends CheckboxFieldType
         return true;
     }
 
-    public function requiredMessage(FormField $field): FormText
+    public function requiredMessage(FormField $field): string
     {
-        return FormText::of(
-            'Je moet akkoord gaan met "' . $field->label->nl . '" om te kunnen versturen.',
-            'You must agree to "' . $field->label->en . '" before sending.'
-        );
+        return SiteText::pick([
+            'nl' => 'Je moet akkoord gaan met "' . $field->label . '" om te kunnen versturen.',
+            'en' => 'You must agree to "' . $field->label . '" before sending.',
+        ]);
     }
 }

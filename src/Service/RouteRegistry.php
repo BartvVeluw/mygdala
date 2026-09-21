@@ -3,6 +3,8 @@
 namespace App\Service;
 
 use App\Module\ModuleRegistry;
+use App\Service\Language\AdminLocale;
+use App\Service\Language\SiteText;
 
 /**
  * The small, fixed list of real APPLICATION routes a nav item or footer link
@@ -36,6 +38,15 @@ use App\Module\ModuleRegistry;
  * Add a new entry here only for a genuinely new CORE application route —
  * never for a page an administrator could have created, and never for a
  * module's route.
+ *
+ * THE LABEL IS A SMALL CODE CATALOGUE, keyed by language code: the words a
+ * route is called by, written by the code itself because no editor ever
+ * wrote them. Two audiences read it. A visitor meets it in a breadcrumb
+ * (::label(), the request's language through
+ * App\Service\Language\SiteText::pick()); an administrator meets it in the
+ * menu and footer link pickers (::adminLabel(), the CMS language through
+ * App\Service\Language\AdminLocale). A language the catalogue has no words
+ * for gets the default language's, then the first — never an empty label.
  */
 class RouteRegistry
 {
@@ -45,12 +56,12 @@ class RouteRegistry
      * about the other. It is stripped from what all() returns.
      */
     private const CORE_ROUTES = [
-        'home' => ['url' => '/index.php', 'label_nl' => 'Home', 'label_en' => 'Home', 'order' => 10],
-        'cookiebeleid' => ['url' => '/cookiebeleid.php', 'label_nl' => 'Cookiebeleid', 'label_en' => 'Cookie policy', 'order' => 90],
-        'herroeping' => ['url' => '/herroeping.php', 'label_nl' => 'Herroepingsrecht', 'label_en' => 'Right of withdrawal', 'order' => 91],
+        'home' => ['url' => '/index.php', 'label' => ['nl' => 'Home', 'en' => 'Home'], 'order' => 10],
+        'cookiebeleid' => ['url' => '/cookiebeleid.php', 'label' => ['nl' => 'Cookiebeleid', 'en' => 'Cookie policy'], 'order' => 90],
+        'herroeping' => ['url' => '/herroeping.php', 'label' => ['nl' => 'Herroepingsrecht', 'en' => 'Right of withdrawal'], 'order' => 91],
     ];
 
-    /** @var array<string, array{url: string, label_nl: string, label_en: string}>|null */
+    /** @var array<string, array{url: string, label: array<string, string>}>|null */
     private static ?array $routes = null;
 
     /** Forgets the merged list; App\Module\ModuleRegistry::reset() calls this. */
@@ -69,8 +80,24 @@ class RouteRegistry
         return self::all()[$key]['url'] ?? null;
     }
 
+    /** What a VISITOR reads a route as — a breadcrumb level — in the request's language; '' for an unknown key. */
+    public static function label(string $key): string
+    {
+        $label = self::all()[$key]['label'] ?? [];
+
+        return $label === [] ? '' : SiteText::pick($label);
+    }
+
+    /** What the CMS calls a route in its link pickers, in the administrator's own CMS language; '' for an unknown key. */
+    public static function adminLabel(string $key): string
+    {
+        $label = self::all()[$key]['label'] ?? [];
+
+        return $label === [] ? '' : ($label[AdminLocale::current()] ?? (string) reset($label));
+    }
+
     /**
-     * @return array<string, array{url: string, label_nl: string, label_en: string}>
+     * @return array<string, array{url: string, label: array<string, string>}>
      */
     public static function all(): array
     {

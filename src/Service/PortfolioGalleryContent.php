@@ -6,6 +6,7 @@ use App\Repository\PageRepository;
 use App\Repository\PortfolioCategoryRepository;
 use App\Repository\PortfolioGalleryRepository;
 use App\Repository\PortfolioItemImageRepository;
+use App\Service\Routing\RequestLanguage;
 
 /**
  * The Portfolio CATALOGUE: the items themselves, their categories and the page
@@ -55,7 +56,8 @@ use App\Repository\PortfolioItemImageRepository;
  * title and subtitle, a category's name, and the old project page's intro,
  * description and photo alt texts are stored per website language in the
  * typed tables of App\Service\PortfolioLocalization and come out of it as one
- * LocalizedValue each, the fallback already applied. Everything else about an
+ * string each, in the language of the request, the fallback already applied.
+ * Everything else about an
  * item — which page it links to, its categories, its image, whether it is
  * active or featured, its order — is language-neutral and unchanged. This
  * class decides no language itself, and a third language is a row in
@@ -87,7 +89,7 @@ class PortfolioGalleryContent
      */
     public static function catalogueItems(bool $featuredOnly = false): array
     {
-        $cacheKey = $featuredOnly ? 'featured' : 'all';
+        $cacheKey = RequestLanguage::current() . '|' . ($featuredOnly ? 'featured' : 'all');
         if (isset(self::$cache[$cacheKey])) {
             return self::$cache[$cacheKey];
         }
@@ -145,10 +147,12 @@ class PortfolioGalleryContent
      * a hardcoded pair of Dutch and English names would be the last fixed
      * NL/EN storage of this module (Multilingual 2.0 phase 5).
      *
-     * @return list<array{slug: string, name: \App\Service\Language\LocalizedValue}>
+     * @return list<array{slug: string, name: string}>
      */
     public static function filterCategories(): array
     {
+        $language = RequestLanguage::current();
+
         try {
             $categories = (new PortfolioCategoryRepository())->findUsedByActiveItems();
         } catch (\Throwable $e) {
@@ -164,7 +168,7 @@ class PortfolioGalleryContent
 
         return array_map(static fn (array $category): array => [
             'slug' => (string) $category['slug'],
-            'name' => PortfolioLocalization::categoryName((int) $category['id']),
+            'name' => PortfolioLocalization::categoryName((int) $category['id'], $language),
         ], $categories);
     }
 
@@ -322,6 +326,7 @@ class PortfolioGalleryContent
     private static function mapItemRow(array $item, array $categoriesByItemId = [], array $pagesById = []): array
     {
         $itemId = (int) $item['id'];
+        $language = RequestLanguage::current();
 
         $page = $pagesById[(int) ($item['page_id'] ?? 0)] ?? null;
         $oldSlug = (string) ($item['slug'] ?? '');
@@ -338,9 +343,9 @@ class PortfolioGalleryContent
 
         return [
             'image_path' => (string) $item['image_path'],
-            'alt' => PortfolioLocalization::itemValue($itemId, PortfolioLocalization::ALT),
-            'title' => PortfolioLocalization::itemValue($itemId, PortfolioLocalization::TITLE),
-            'subtitle' => PortfolioLocalization::itemValue($itemId, PortfolioLocalization::SUBTITLE),
+            'alt' => PortfolioLocalization::item($itemId, PortfolioLocalization::ALT, $language),
+            'title' => PortfolioLocalization::item($itemId, PortfolioLocalization::TITLE, $language),
+            'subtitle' => PortfolioLocalization::item($itemId, PortfolioLocalization::SUBTITLE, $language),
             'categories' => implode(' ', $categoriesByItemId[$itemId] ?? []),
             'url' => $url,
             'is_detail_link' => $url !== '',
@@ -517,24 +522,26 @@ class PortfolioGalleryContent
             $images
         ));
 
+        $language = RequestLanguage::current();
+
         return [
             'slug' => (string) $item['slug'],
             'image_path' => (string) $item['image_path'],
-            'alt' => PortfolioLocalization::itemValue($itemId, PortfolioLocalization::ALT),
-            'title' => PortfolioLocalization::itemValue($itemId, PortfolioLocalization::TITLE),
-            'subtitle' => PortfolioLocalization::itemValue($itemId, PortfolioLocalization::SUBTITLE),
+            'alt' => PortfolioLocalization::item($itemId, PortfolioLocalization::ALT, $language),
+            'title' => PortfolioLocalization::item($itemId, PortfolioLocalization::TITLE, $language),
+            'subtitle' => PortfolioLocalization::item($itemId, PortfolioLocalization::SUBTITLE, $language),
             'categories' => array_map(static fn (array $category): array => [
                 'slug' => (string) $category['slug'],
-                'name' => PortfolioLocalization::categoryName((int) $category['id']),
+                'name' => PortfolioLocalization::categoryName((int) $category['id'], $language),
             ], $categories),
             // Sanitized per language on read, defensively: the editor that
             // wrote this HTML is gone, but nothing renders it without going
-            // through PortfolioLocalization::itemRichValue() first — the
+            // through PortfolioLocalization::itemRich() first — the
             // "sanitize again on read" half of the pattern
             // DescriptionSanitizer/api/product.php follow.
-            'intro' => PortfolioLocalization::itemRichValue($itemId, PortfolioLocalization::INTRO),
-            'description' => PortfolioLocalization::itemRichValue($itemId, PortfolioLocalization::DESCRIPTION),
-            'images' => array_map(static function (array $image): array {
+            'intro' => PortfolioLocalization::itemRich($itemId, PortfolioLocalization::INTRO, $language),
+            'description' => PortfolioLocalization::itemRich($itemId, PortfolioLocalization::DESCRIPTION, $language),
+            'images' => array_map(static function (array $image) use ($language): array {
                 $imagePath = (string) $image['image_path'];
 
                 return [
@@ -544,7 +551,7 @@ class PortfolioGalleryContent
                     // migration's docblock): the gallery grid always has an
                     // image to show, just not always the smaller one.
                     'thumbnail_path' => self::valueOrDefault($image['thumbnail_path'] ?? null, $imagePath),
-                    'alt' => PortfolioLocalization::imageAlt((int) $image['id']),
+                    'alt' => PortfolioLocalization::imageAlt((int) $image['id'], $language),
                 ];
             }, $images),
         ];

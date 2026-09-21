@@ -48,7 +48,6 @@ use App\Service\Blog\BlogLocalizedSettings;
 use App\Service\Blog\BlogSeo;
 use App\Service\Blog\BlogSettings;
 use App\Service\Blog\BlogUrls;
-use App\Service\Language\LanguageRegistry;
 use App\Service\Language\SiteText;
 use App\Service\PageAssets;
 use App\Service\Redirects\RedirectGate;
@@ -101,42 +100,27 @@ if ($listing === null) {
         );
     }
 
-    // What this page is called and what it says about itself, per mode.
-    // The listing's own heading and introduction: one pair, each half already
-    // resolved per website language (BlogLocalizedSettings). An archive
-    // overwrites them with the category's or the tag's own words below.
-    $blogTitle = BlogLocalizedSettings::titleValue();
-    $blogIntro = BlogLocalizedSettings::introValue();
-    $headingNl = $blogTitle->in(LanguageRegistry::DUTCH);
-    $headingEn = $blogTitle->in(LanguageRegistry::ENGLISH);
-    $introNl = $blogIntro->in(LanguageRegistry::DUTCH);
-    $introEn = $blogIntro->in(LanguageRegistry::ENGLISH);
-    $eyebrowNl = '';
-    $eyebrowEn = '';
+    // What this page is called and what it says about itself, per mode, in
+    // the language of the request. The listing's own heading and
+    // introduction come from BlogLocalizedSettings; an archive overwrites
+    // them with the category's or the tag's own words below, each with the
+    // fallback already applied.
+    $language = \App\Service\Routing\RequestLanguage::current();
+    $blogTitle = BlogLocalizedSettings::title($language);
+    $heading = $blogTitle;
+    $intro = BlogLocalizedSettings::intro($language);
+    $eyebrow = '';
 
     if ($listing['mode'] === 'category') {
         $category = (array) $listing['category'];
-        $eyebrowNl = 'Categorie';
-        $eyebrowEn = 'Category';
-        // An archive's heading and introduction are the category's own words,
-        // per website language since Multilingual 2.0 phase 5 wave B. The
-        // template still prints the V1 pair; each half already carries the
-        // fallback.
-        $heading = BlogContent::categoryNameValue($category);
-        $headingNl = $heading->in(LanguageRegistry::DUTCH);
-        $headingEn = $heading->in(LanguageRegistry::ENGLISH);
-        $intro = BlogContent::categoryDescriptionValue($category);
-        $introNl = $intro->in(LanguageRegistry::DUTCH);
-        $introEn = $intro->in(LanguageRegistry::ENGLISH);
+        $eyebrow = SiteText::pick(['nl' => 'Categorie', 'en' => 'Category']);
+        $heading = BlogContent::categoryName($category);
+        $intro = BlogContent::categoryDescription($category);
     } elseif ($listing['mode'] === 'tag') {
         $tag = (array) $listing['tag'];
-        $eyebrowNl = 'Tag';
-        $eyebrowEn = 'Tag';
-        $heading = BlogContent::tagNameValue($tag);
-        $headingNl = $heading->in(LanguageRegistry::DUTCH);
-        $headingEn = $heading->in(LanguageRegistry::ENGLISH);
-        $introNl = '';
-        $introEn = '';
+        $eyebrow = SiteText::pick(['nl' => 'Tag', 'en' => 'Tag']);
+        $heading = BlogContent::tagName($tag);
+        $intro = '';
     }
 
     /** The page's own URL builder, so the pager and the canonical agree. */
@@ -153,7 +137,7 @@ if ($listing === null) {
 }
 ?>
 <!doctype html>
-<html lang="<?= htmlspecialchars(\App\Service\Language\SiteText::documentLanguage(), ENT_QUOTES, 'UTF-8') ?>" data-primary-lang="<?= htmlspecialchars(\App\Service\Language\SiteText::documentLanguage(), ENT_QUOTES, 'UTF-8') ?>" data-url-prefix="<?= htmlspecialchars(\App\Service\Routing\LocalizedUrl::prefix(), ENT_QUOTES, 'UTF-8') ?>">
+<html lang="<?= htmlspecialchars(\App\Service\Language\SiteText::documentLanguage(), ENT_QUOTES, 'UTF-8') ?>" data-url-prefix="<?= htmlspecialchars(\App\Service\Routing\LocalizedUrl::prefix(), ENT_QUOTES, 'UTF-8') ?>">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -198,21 +182,21 @@ require __DIR__ . '/partials/header.php';
      */
     $blogTrail = \App\Service\Breadcrumbs\BreadcrumbTrail::home();
     $blogTrail = $listing['mode'] === 'index'
-        ? $blogTrail->to(\App\Service\Breadcrumbs\BreadcrumbItem::current($blogTitle->in(LanguageRegistry::DUTCH), $blogTitle->in(LanguageRegistry::ENGLISH)))
+        ? $blogTrail->to(\App\Service\Breadcrumbs\BreadcrumbItem::current($blogTitle))
         : $blogTrail
-            ->to(\App\Service\Breadcrumbs\BreadcrumbItem::link($blogTitle->in(LanguageRegistry::DUTCH), $blogTitle->in(LanguageRegistry::ENGLISH), BlogUrls::indexPath()))
-            ->to(\App\Service\Breadcrumbs\BreadcrumbItem::current($headingNl, $headingEn));
+            ->to(\App\Service\Breadcrumbs\BreadcrumbItem::link($blogTitle, BlogUrls::indexPath()))
+            ->to(\App\Service\Breadcrumbs\BreadcrumbItem::current($heading));
     render_breadcrumb($blogTrail);
   ?>
 
   <section class="page-hero">
     <div class="container">
-      <?php if ($eyebrowNl !== ''): ?>
-        <p class="eyebrow" data-nl="<?= $h($eyebrowNl) ?>" data-en="<?= $h($eyebrowEn) ?>"><?= $h($eyebrowNl) ?></p>
+      <?php if ($eyebrow !== ''): ?>
+        <p class="eyebrow"><?= $h($eyebrow) ?></p>
       <?php endif; ?>
-      <h1 data-nl="<?= $h($headingNl) ?>" data-en="<?= $h($headingEn) ?>"><?= $h($headingNl) ?></h1>
-      <?php if (trim($introNl) !== ''): ?>
-        <p class="lead" style="margin-top:1rem;" data-nl="<?= $h($introNl) ?>" data-en="<?= $h($introEn) ?>"><?= $h($introNl) ?></p>
+      <h1><?= $h($heading) ?></h1>
+      <?php if (trim($intro) !== ''): ?>
+        <p class="lead" style="margin-top:1rem;"><?= $h($intro) ?></p>
       <?php endif; ?>
     </div>
   </section>
@@ -226,28 +210,26 @@ require __DIR__ . '/partials/header.php';
                links, not a control: no JavaScript, and every state has its
                own URL. */ ?>
       <?php if ($listing['categories'] !== []): ?>
-        <nav class="blog-filters" aria-label="Categorieën">
-          <a href="<?= $h(BlogUrls::indexPath()) ?>" class="blog-filter<?= $listing['mode'] === 'index' ? ' is-active' : '' ?>"<?= $listing['mode'] === 'index' ? ' aria-current="page"' : '' ?> data-nl="Alles" data-en="All">Alles</a>
+        <nav class="blog-filters" aria-label="<?= SiteText::escaped(['nl' => 'Categorieën', 'en' => 'Categories']) ?>">
+          <a href="<?= $h(BlogUrls::indexPath()) ?>" class="blog-filter<?= $listing['mode'] === 'index' ? ' is-active' : '' ?>"<?= $listing['mode'] === 'index' ? ' aria-current="page"' : '' ?>><?= SiteText::escaped(['nl' => 'Alles', 'en' => 'All']) ?></a>
           <?php foreach ($listing['categories'] as $category): ?>
             <?php $isActive = $listing['mode'] === 'category' && (int) $listing['category']['id'] === (int) $category['id']; ?>
-            <?php $categoryName = BlogContent::categoryNameValue($category); ?>
-            <a href="<?= $h((string) $category['url']) ?>" class="blog-filter<?= $isActive ? ' is-active' : '' ?>"<?= $isActive ? ' aria-current="page"' : '' ?><?= SiteText::attrsOf($categoryName) ?>><?= $h(SiteText::visibleOf($categoryName)) ?></a>
+            <?php $categoryName = BlogContent::categoryName($category); ?>
+            <a href="<?= $h((string) $category['url']) ?>" class="blog-filter<?= $isActive ? ' is-active' : '' ?>"<?= $isActive ? ' aria-current="page"' : '' ?>><?= $h($categoryName) ?></a>
           <?php endforeach; ?>
         </nav>
       <?php endif; ?>
 
       <?php if ($listing['posts'] === []): ?>
-        <p class="lead" data-nl="Er staan hier nog geen berichten." data-en="There are no posts here yet.">Er staan hier nog geen berichten.</p>
+        <p class="lead"><?= SiteText::escaped(['nl' => 'Er staan hier nog geen berichten.', 'en' => 'There are no posts here yet.']) ?></p>
       <?php else: ?>
         <div class="blog-grid">
           <?php foreach ($listing['posts'] as $post): ?>
             <?php
-              // One LocalizedValue per field, printed through SiteText: the
-              // visible half is the DEFAULT language's, so a card on an
-              // English-default site opens in English (Multilingual 2.0
-              // phase 5 wave B).
-              $title = BlogContent::titleValue($post);
-              $excerpt = BlogContent::excerptValue($post);
+              // Every word in the language of the request, the fallback
+              // already applied (App\Service\Blog\BlogContent).
+              $title = BlogContent::title($post);
+              $excerpt = BlogContent::excerpt($post);
               $image = $post['image'];
             ?>
             <article class="blog-card" data-reveal>
@@ -258,24 +240,24 @@ require __DIR__ . '/partials/header.php';
                              knows them, so the browser can reserve the space;
                              unknown means the attributes are simply left off
                              (MEDIA.md). The alt text is the item's own. */ ?>
-                    <img src="<?= $h((string) $image['image_path']) ?>" alt="<?= $h((string) $image['alt_nl']) ?>" data-nl-alt="<?= $h((string) $image['alt_nl']) ?>" data-en-alt="<?= $h((string) $image['alt_en']) ?>" loading="lazy"<?= \App\Service\Media\BlockImage::dimensionAttributes($image) ?>>
+                    <img src="<?= $h((string) $image['image_path']) ?>" alt="<?= $h((string) $image['alt']) ?>" loading="lazy"<?= \App\Service\Media\BlockImage::dimensionAttributes($image) ?>>
                   </div>
                 <?php endif; ?>
                 <div class="blog-card__body">
                   <p class="blog-card__meta">
                     <?php if ($post['primary_category'] !== null): ?>
-                      <?php $primary = BlogContent::categoryNameValue($post['primary_category']); ?>
-                      <span class="blog-card__category"<?= SiteText::attrsOf($primary) ?>><?= $h(SiteText::visibleOf($primary)) ?></span>
+                      <?php $primary = BlogContent::categoryName($post['primary_category']); ?>
+                      <span class="blog-card__category"><?= $h($primary) ?></span>
                     <?php endif; ?>
                     <?php if (BlogSettings::showDate() && BlogContent::publicationDate($post['published_at']) !== ''): ?>
-                      <time datetime="<?= $h(BlogContent::publicationDateAttribute($post['published_at'])) ?>" data-nl="<?= $h(BlogContent::publicationDate($post['published_at'], 'nl')) ?>" data-en="<?= $h(BlogContent::publicationDate($post['published_at'], 'en')) ?>"><?= $h(BlogContent::publicationDate($post['published_at'], 'nl')) ?></time>
+                      <time datetime="<?= $h(BlogContent::publicationDateAttribute($post['published_at'])) ?>"><?= $h(BlogContent::publicationDate($post['published_at'])) ?></time>
                     <?php endif; ?>
                   </p>
-                  <h2 class="blog-card__title"<?= SiteText::attrsOf($title) ?>><?= $h(SiteText::visibleOf($title)) ?></h2>
-                  <?php if (SiteText::visibleOf($excerpt) !== ''): ?>
-                    <p class="blog-card__excerpt"<?= SiteText::attrsOf($excerpt) ?>><?= $h(SiteText::visibleOf($excerpt)) ?></p>
+                  <h2 class="blog-card__title"><?= $h($title) ?></h2>
+                  <?php if ($excerpt !== ''): ?>
+                    <p class="blog-card__excerpt"><?= $h($excerpt) ?></p>
                   <?php endif; ?>
-                  <span class="blog-card__more" data-nl="Lees verder" data-en="Read more">Lees verder</span>
+                  <span class="blog-card__more"><?= SiteText::escaped(['nl' => 'Lees verder', 'en' => 'Read more']) ?></span>
                 </div>
               </a>
             </article>
@@ -289,17 +271,17 @@ require __DIR__ . '/partials/header.php';
                problem deserves. Both links are ordinary URLs a crawler can
                follow. */ ?>
       <?php if ((int) $listing['pages'] > 1): ?>
-        <nav class="blog-pager" aria-label="Paginering">
+        <nav class="blog-pager" aria-label="<?= SiteText::escaped(['nl' => 'Paginering', 'en' => 'Pagination']) ?>">
           <?php if ((int) $listing['page'] > 1): ?>
-            <a class="btn btn--ghost btn--sm" href="<?= $h($pageUrl((int) $listing['page'] - 1)) ?>" rel="prev" data-nl="Vorige" data-en="Previous">Vorige</a>
+            <a class="btn btn--ghost btn--sm" href="<?= $h($pageUrl((int) $listing['page'] - 1)) ?>" rel="prev"><?= SiteText::escaped(['nl' => 'Vorige', 'en' => 'Previous']) ?></a>
           <?php else: ?>
             <span></span>
           <?php endif; ?>
 
-          <p class="blog-pager__status" data-nl="Pagina <?= (int) $listing['page'] ?> van <?= (int) $listing['pages'] ?>" data-en="Page <?= (int) $listing['page'] ?> of <?= (int) $listing['pages'] ?>">Pagina <?= (int) $listing['page'] ?> van <?= (int) $listing['pages'] ?></p>
+          <p class="blog-pager__status"><?= $h(sprintf(SiteText::pick(['nl' => 'Pagina %d van %d', 'en' => 'Page %d of %d']), (int) $listing['page'], (int) $listing['pages'])) ?></p>
 
           <?php if ((int) $listing['page'] < (int) $listing['pages']): ?>
-            <a class="btn btn--ghost btn--sm" href="<?= $h($pageUrl((int) $listing['page'] + 1)) ?>" rel="next" data-nl="Volgende" data-en="Next">Volgende</a>
+            <a class="btn btn--ghost btn--sm" href="<?= $h($pageUrl((int) $listing['page'] + 1)) ?>" rel="next"><?= SiteText::escaped(['nl' => 'Volgende', 'en' => 'Next']) ?></a>
           <?php else: ?>
             <span></span>
           <?php endif; ?>

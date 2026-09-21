@@ -4,8 +4,8 @@ namespace App\Service;
 
 use App\Repository\CardCarouselRepository;
 use App\Service\Blocks\BlockLocalization;
-use App\Service\Language\LocalizedValue;
 use App\Service\Media\BlockImage;
+use App\Service\Routing\RequestLanguage;
 
 /**
  * Content for the "Kaarten-carrousel" page-builder block
@@ -34,14 +34,14 @@ use App\Service\Media\BlockImage;
  *
  * WORDS PER LANGUAGE (Multilingual 2.0 phase 3B). The heading, every card's
  * title, body, alt text and link label and every tag's label are stored per
- * website language in block_translations, each on the id of its own row,
- * three levels deep (CardCarouselBlock::childTables()). They come out of
- * App\Service\Blocks\BlockLocalization as one LocalizedValue per field, the
- * fallback already applied; is_active, the order, the link URL and the image
- * reference stay in the tables. This class decides no language itself. The
- * words of the carousel, all of its cards and all of their tags are loaded in
- * one query (BlockLocalization::preloadBlocks()), so reading a card or a tag
- * never costs a query of its own.
+ * website language in block_translations, each on the id of its own row, three
+ * levels deep (CardCarouselBlock::childTables()). They come out of
+ * App\Service\Blocks\BlockLocalization as one string per field, in the
+ * language of the request, the fallback already applied; is_active, the order,
+ * the link URL and the image reference stay in the tables. This class decides
+ * no language itself. The words of the carousel, all of its cards and all of
+ * their tags are loaded in one query (BlockLocalization::preloadBlocks()), so
+ * reading a card or a tag never costs a query of its own.
  *
  * The default language decides whether a card or a tag is there at all: a
  * card without a title in it, or a tag without a label in it, is left out,
@@ -74,22 +74,22 @@ class CardCarouselContent
 
     /**
      * @return array<string, mixed> 'state' (one of STATE_*), plus eyebrow,
-     *                                title and lead (a LocalizedValue each)
+     *                                title and lead (a string each)
      *                                and 'cards': a list (possibly empty) of
      *                                index_label, image_path (+ image_alt, a
-     *                                LocalizedValue, and image_width /
+     *                                string, and image_width /
      *                                image_height), title, body and
-     *                                link_label (a LocalizedValue each),
+     *                                link_label (a string each),
      *                                link_url (with link_label empty and
      *                                link_url '' together when there is no
      *                                link) and 'tags' (a list of 'label', a
-     *                                LocalizedValue each). Templates must
+     *                                string each). Templates must
      *                                check 'state' !== STATE_HIDDEN before
      *                                rendering.
      */
     public static function forSection(string $pageSlug, string $sectionKey): array
     {
-        $cacheKey = $pageSlug . ':' . $sectionKey;
+        $cacheKey = RequestLanguage::current() . '|' . $pageSlug . ':' . $sectionKey;
 
         if (isset(self::$cache[$cacheKey])) {
             return self::$cache[$cacheKey];
@@ -173,7 +173,7 @@ class CardCarouselContent
         // card's own alt text in each language over the media item's default
         // — see App\Service\Media\BlockImage. An empty result still means "no
         // photo, render the theme's fixed icon", exactly as before.
-        $image = BlockImage::fromOwner($card, BlockLocalization::bilingual(self::CARDS, $cardId, 'image_alt'));
+        $image = BlockImage::fromOwner($card, BlockLocalization::text(self::CARDS, $cardId, 'image_alt'));
 
         $result = [
             'id' => $cardId,
@@ -194,7 +194,7 @@ class CardCarouselContent
 
         if ($result['link_url'] === '' || $defaultLabel === '') {
             $result['link_url'] = '';
-            $result['link_label'] = LocalizedValue::of([]);
+            $result['link_label'] = '';
         }
 
         $result['tags'] = [];

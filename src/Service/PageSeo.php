@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Service;
 
-use App\Service\Language\LanguageRegistry;
 use App\Service\Media\MediaService;
 
 /**
@@ -61,23 +60,16 @@ class PageSeo
     public static function forPage(?array $page): SeoMetadata
     {
         if ($page === null) {
-            return SeoMetadata::create(titleNl: SeoDefaults::siteName(), canonical: null);
+            return SeoMetadata::create(title: SeoDefaults::siteName(), canonical: null);
         }
 
-        // A page's text is stored per language, so the head gets it per
-        // language: the tag a crawler reads is the REQUEST's, and the V1
-        // NL/EN pair is derived from the same map
-        // (App\Service\SeoMetadata::createLocalized()).
-        $titles = [];
-        $descriptions = [];
-        foreach (\App\Service\Language\LanguageFallback::renderableLanguages() as $code) {
-            $titles[$code] = PageContent::seoTitle($page, $code);
-            $descriptions[$code] = PageContent::metaDescription($page, $code);
-        }
+        // A page's text is stored per language: the head gets the REQUEST's,
+        // which is the language a crawler fetched this URL in.
+        $language = \App\Service\Routing\RequestLanguage::current();
 
-        return SeoMetadata::createLocalized(
-            title: $titles,
-            description: $descriptions,
+        return SeoMetadata::create(
+            title: PageContent::seoTitle($page, $language),
+            description: PageContent::metaDescription($page, $language),
             canonical: PageContent::canonicalUrl($page),
             indexable: self::isIndexable($page),
             // Every CMS page is og:type "website". Nothing here guesses

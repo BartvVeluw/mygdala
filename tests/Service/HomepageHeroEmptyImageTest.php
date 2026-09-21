@@ -8,7 +8,7 @@ use App\Database;
 use App\Repository\HomepageHeroRepository;
 use App\Service\Blocks\BlockDefinitions;
 use App\Service\HomepageHeroContent;
-use App\Service\Language\LocalizedValue;
+use App\Service\Language\SiteText;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -171,7 +171,7 @@ final class HomepageHeroEmptyImageTest extends TestCase
         $this->assertStringContainsString('hero__media-frame', $html);
         $this->assertStringContainsString('src="assets/images/hero-collage-a.webp"', $html);
         $this->assertStringContainsString('alt="Een laser graveert een naam"', $html);
-        $this->assertStringContainsString('data-en-alt="A laser engraves a name"', $html);
+        $this->assertStringNotContainsString('data-en-alt', $html, 'one language per page');
         $this->assertStringNotContainsString('hero--no-media', $html);
     }
 
@@ -200,8 +200,7 @@ final class HomepageHeroEmptyImageTest extends TestCase
 
         $this->assertSame(HomepageHeroContent::STATE_ACTIVE, $hero['state']);
         $this->assertSame('', $hero['image_path'], 'An explicitly empty image must not fall back to the default.');
-        $this->assertSame('', $hero['image_alt']->in('nl'));
-        $this->assertSame('', $hero['image_alt']->in('en'));
+        $this->assertSame('', $hero['image_alt']);
     }
 
     public function testNoStoredRowRendersNoHeroAtAll(): void
@@ -217,7 +216,7 @@ final class HomepageHeroEmptyImageTest extends TestCase
 
         $this->assertSame(HomepageHeroContent::STATE_FALLBACK, $hero['state']);
         $this->assertSame('', $hero['image_path'], 'A missing row must not invent an image.');
-        $this->assertSame('', $hero['title']->primaryValue(), 'A missing row must not invent a headline.');
+        $this->assertSame('', $hero['title'], 'A missing row must not invent a headline.');
 
         $definition = BlockDefinitions::get('homepage_hero');
         $this->assertNotNull($definition);
@@ -286,10 +285,10 @@ final class HomepageHeroEmptyImageTest extends TestCase
         return array_merge($base, $overrides);
     }
 
-    /** One field's words as HomepageHeroContent hands them to the partial: one value in every language. */
-    private static function words(string $dutch, string $english): LocalizedValue
+    /** One field's words as HomepageHeroContent hands them to the partial: in the language of the request. */
+    private static function words(string $dutch, string $english): string
     {
-        return LocalizedValue::of(['nl' => $dutch, 'en' => $english]);
+        return SiteText::pick(['nl' => $dutch, 'en' => $english]);
     }
 
     /** @param array<string, mixed> $hero */

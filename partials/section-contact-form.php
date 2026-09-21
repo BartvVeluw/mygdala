@@ -35,12 +35,12 @@
  * under the details card is its own repeatable block now
  * (partials/section-contact-card.php).
  *
- * The block's own heading arrives as one LocalizedValue
- * (App\Service\Blocks\BlockLocalization) and is printed through SiteText's
- * visibleOf()/attrsOf(), plain text. So is the place from Site-instellingen,
- * which is website text per language (App\Service\LocalizedSiteSettings,
- * Multilingual 2.0 phase 4). Only the card's own fixed labels ("Plaats",
- * "E-mail") are still a hand-written Dutch/English pair.
+ * The block's own heading arrives as one string, already in the language of
+ * the request (App\Service\Blocks\BlockLocalization), plain text. So does the
+ * place from Site-instellingen, which is website text per language
+ * (App\Service\LocalizedSiteSettings). The card's own fixed labels
+ * ("Plaats", "E-mail") are code catalogues read through
+ * App\Service\Language\SiteText::escaped().
  *
  * Everything this file shows arrives as arguments: the form and its state,
  * and the contact details, all looked up by
@@ -51,13 +51,14 @@
  * @param array<string, mixed>                             $content see ContactFormContent::forSection()
  * @param FormDefinition|null                              $form    null when no usable form is chosen
  * @param FormRenderState                                  $state   this instance's state
- * @param array{email: string, city: \App\Service\Language\LocalizedValue} $contact from Site-instellingen
+ * @param array{email: string, city: string}               $contact from Site-instellingen
  */
 
 require_once __DIR__ . '/form.php';
 
 use App\Service\Forms\FormDefinition;
 use App\Service\Forms\FormRenderState;
+use App\Service\Language\SiteText;
 
 function render_section_contact_form(array $content, ?FormDefinition $form, FormRenderState $state, array $contact): void
 {
@@ -66,20 +67,13 @@ function render_section_contact_form(array $content, ?FormDefinition $form, Form
     $contactEmail = trim($contact['email']);
     $contactCity = $contact['city'];
     $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
-
-    // A text in both site languages, printed like every other bilingual text
-    // on the page: its data-nl/data-en pair for the language switch, then the
-    // primary language visible (App\Service\Language\SiteText). Opens right
-    // after the tag name and closes the start tag itself.
-    $bilingual = static fn (string $nl, string $en): string => \App\Service\Language\SiteText::attrs($nl, $en) . '>'
-        . htmlspecialchars(\App\Service\Language\SiteText::visible($nl, $en), ENT_QUOTES, 'UTF-8');
     ?>
   <section style="padding-top:0;">
     <div class="container">
       <div class="contact-grid">
 
         <div class="contact-card" data-reveal>
-          <h2 style="font-size:1.4rem; margin-bottom:1.5rem;" <?= \App\Service\Language\SiteText::attrsOf($content['title']) ?>><?= $h(\App\Service\Language\SiteText::visibleOf($content['title'])) ?></h2>
+          <h2 style="font-size:1.4rem; margin-bottom:1.5rem;"><?= $h($content['title']) ?></h2>
 
           <?php if ($form === null): ?>
             <?php
@@ -95,17 +89,17 @@ function render_section_contact_form(array $content, ?FormDefinition $form, Form
 
         <div data-reveal>
           <div class="contact-card">
-            <h2 style="font-size:1.2rem; margin-bottom:1.25rem;"<?= $bilingual('Direct contact', 'Direct contact') ?></h2>
+            <h2 style="font-size:1.2rem; margin-bottom:1.25rem;"><?= SiteText::escaped(['nl' => 'Direct contact', 'en' => 'Direct contact']) ?></h2>
             <?php if ($contactEmail !== ''): ?>
             <div class="contact-detail">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M4 7l8 6 8-6"/></svg>
-              <div><strong<?= $bilingual('E-mail', 'Email') ?></strong><a href="mailto:<?= $h($contactEmail) ?>"><?= $h($contactEmail) ?></a></div>
+              <div><strong><?= SiteText::escaped(['nl' => 'E-mail', 'en' => 'Email']) ?></strong><a href="mailto:<?= $h($contactEmail) ?>"><?= $h($contactEmail) ?></a></div>
             </div>
             <?php endif; ?>
-            <?php if (!$contactCity->isEmpty()): ?>
+            <?php if ($contactCity !== ''): ?>
             <div class="contact-detail">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" aria-hidden="true"><path d="M12 22s7-7.4 7-12.5A7 7 0 105 9.5C5 14.6 12 22 12 22z"/><circle cx="12" cy="9.5" r="2.4"/></svg>
-              <div><strong<?= $bilingual('Plaats', 'Location') ?></strong><span<?= \App\Service\Language\SiteText::attrsOf($contactCity) ?>><?= $h(\App\Service\Language\SiteText::visibleOf($contactCity)) ?></span></div>
+              <div><strong><?= SiteText::escaped(['nl' => 'Plaats', 'en' => 'Location']) ?></strong><span><?= $h($contactCity) ?></span></div>
             </div>
             <?php endif; ?>
           </div>
@@ -144,8 +138,8 @@ function render_contact_form_attachment_control(array $content, FormRenderState 
     ob_start();
     ?>
     <div class="form-field form-field--full">
-      <label for="<?= $h($id) ?>"><span<?= \App\Service\Language\SiteText::attrs('Bijlage (optioneel)', 'Attachment (optional)') ?>><?= $h(\App\Service\Language\SiteText::visible('Bijlage (optioneel)', 'Attachment (optional)')) ?></span></label>
-      <span class="hint" id="<?= $h($id) ?>-hint"<?= \App\Service\Language\SiteText::attrs('JPG, PNG, WEBP, GIF of PDF, max. 8 MB.', 'JPG, PNG, WEBP, GIF or PDF, max. 8 MB.') ?>><?= $h(\App\Service\Language\SiteText::visible('JPG, PNG, WEBP, GIF of PDF, max. 8 MB.', 'JPG, PNG, WEBP, GIF or PDF, max. 8 MB.')) ?></span>
+      <label for="<?= $h($id) ?>"><span><?= SiteText::escaped(['nl' => 'Bijlage (optioneel)', 'en' => 'Attachment (optional)']) ?></span></label>
+      <span class="hint" id="<?= $h($id) ?>-hint"><?= SiteText::escaped(['nl' => 'JPG, PNG, WEBP, GIF of PDF, max. 8 MB.', 'en' => 'JPG, PNG, WEBP, GIF or PDF, max. 8 MB.']) ?></span>
       <input type="file" id="<?= $h($id) ?>" name="bestand" accept="image/jpeg,image/png,image/webp,image/gif,application/pdf,.pdf" aria-describedby="<?= $h($id) ?>-hint">
     </div>
     <?php

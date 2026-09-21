@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace App\Service\Personalization;
 
+use App\Service\Language\LanguageFallback;
+use App\Service\Language\SiteText;
+
 /**
  * The fixed palette a customer may preview their engraving text in.
  *
@@ -29,18 +32,23 @@ class PersonalizationColors
     /**
      * Stable key => customer-facing label + the hex it renders as.
      *
+     * The label is a small code catalogue keyed by language code, read like
+     * every other piece of code-owned website text
+     * (App\Service\Language\SiteText::pick()): the request's language, else
+     * the default language, else the first.
+     *
      * Chosen to stay legible on both light and dark product photos: two
      * near-extremes, a mid grey, and two warm tones that read as engraving
      * rather than as ink.
      *
-     * @var array<string, array{label: string, label_en: string, hex: string}>
+     * @var array<string, array{label: array<string, string>, hex: string}>
      */
     private const COLORS = [
-        'black' => ['label' => 'Zwart', 'label_en' => 'Black', 'hex' => '#1B140D'],
-        'dark_grey' => ['label' => 'Donkergrijs', 'label_en' => 'Dark grey', 'hex' => '#4A443C'],
-        'brown' => ['label' => 'Bruin', 'label_en' => 'Brown', 'hex' => '#6B4A2B'],
-        'gold' => ['label' => 'Goud', 'label_en' => 'Gold', 'hex' => '#C9A063'],
-        'white' => ['label' => 'Wit', 'label_en' => 'White', 'hex' => '#F7F1E6'],
+        'black' => ['label' => ['nl' => 'Zwart', 'en' => 'Black'], 'hex' => '#1B140D'],
+        'dark_grey' => ['label' => ['nl' => 'Donkergrijs', 'en' => 'Dark grey'], 'hex' => '#4A443C'],
+        'brown' => ['label' => ['nl' => 'Bruin', 'en' => 'Brown'], 'hex' => '#6B4A2B'],
+        'gold' => ['label' => ['nl' => 'Goud', 'en' => 'Gold'], 'hex' => '#C9A063'],
+        'white' => ['label' => ['nl' => 'Wit', 'en' => 'White'], 'hex' => '#F7F1E6'],
     ];
 
     /**
@@ -63,14 +71,14 @@ class PersonalizationColors
         return is_string($key) && isset(self::COLORS[$key]);
     }
 
-    public static function label(string $key): string
+    /**
+     * A colour's name in one language — the request's when none is named —
+     * else the default language's, else the catalogue's first; the key
+     * itself for an unknown key.
+     */
+    public static function label(string $key, ?string $languageCode = null): string
     {
-        return self::COLORS[$key]['label'] ?? $key;
-    }
-
-    public static function labelEn(string $key): string
-    {
-        return self::COLORS[$key]['label_en'] ?? self::label($key);
+        return isset(self::COLORS[$key]) ? SiteText::pick(self::COLORS[$key]['label'], $languageCode) : $key;
     }
 
     /**
@@ -97,15 +105,16 @@ class PersonalizationColors
     }
 
     /**
-     * The palette in the shape the browser and the CMS both want.
+     * The palette in the shape the browser wants: every label in the
+     * request's language.
      *
-     * @return list<array{key: string, label: string, label_en: string, hex: string}>
+     * @return list<array{key: string, label: string, hex: string}>
      */
     public static function payload(): array
     {
         $payload = [];
         foreach (self::COLORS as $key => $color) {
-            $payload[] = ['key' => $key] + $color;
+            $payload[] = ['key' => $key, 'label' => self::label($key), 'hex' => $color['hex']];
         }
 
         return $payload;
@@ -115,7 +124,9 @@ class PersonalizationColors
      * One colour as it is recorded on an order line: the key plus the label
      * and hex that key meant AT THAT MOMENT. Copied for the same reason the
      * font's label and stack are copied — so a later palette change cannot
-     * rewrite what a placed order says the customer chose.
+     * rewrite what a placed order says the customer chose. The label is the
+     * website's default language's: a record for the shop owner, the same
+     * rule the view and zone names in the snapshot follow.
      *
      * @return array{key: string, label: string, hex: string}
      */
@@ -123,7 +134,7 @@ class PersonalizationColors
     {
         return [
             'key' => $key,
-            'label' => self::label($key),
+            'label' => self::label($key, LanguageFallback::defaultLanguage()),
             'hex' => self::hex($key),
         ];
     }

@@ -455,7 +455,7 @@ final class FormFieldEditorHttpTest extends TestCase
         FormCatalog::clearCache();
         $option = FormCatalog::find($formId)->field('voorkeur')->options->find('Mailen');
         $this->assertNotNull($option);
-        $this->assertSame('E-mailen', $option->label->nl, 'the public form shows the new label under the old value');
+        $this->assertSame('E-mailen', $option->label, 'the public form shows the new label under the old value');
     }
 
     /**

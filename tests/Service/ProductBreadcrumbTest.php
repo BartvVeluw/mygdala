@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Service;
 
 use App\Service\ProductSeo;
+use App\Service\Routing\RequestLanguage;
 use App\Service\ShopLocalization;
 use PHPUnit\Framework\TestCase;
 use Tests\Support\SiteLanguageFixture;
@@ -66,22 +67,20 @@ final class ProductBreadcrumbTest extends TestCase
         return ProductSeo::resolve(['id' => $productId, 'price' => 10.0], [], [10.0]);
     }
 
-    public function testTheResolvedProductCarriesItsNameInBothLanguages(): void
+    public function testTheResolvedProductCarriesItsNameInTheLanguageOfTheRequest(): void
     {
-        $resolved = $this->resolve(1, 'Gegraveerde plank', 'Engraved board');
-
-        $this->assertSame('Gegraveerde plank', $resolved['name_nl']);
-        $this->assertSame('Engraved board', $resolved['name_en']);
+        $this->assertSame('Gegraveerde plank', $this->resolve(1, 'Gegraveerde plank', 'Engraved board')['name']);
+        $this->assertSame('Engraved board', $this->in('en', fn (): array => $this->resolve(1, 'Gegraveerde plank', 'Engraved board'))['name']);
     }
 
     public function testAProductWithoutAnEnglishNameFallsBackToItsOwn(): void
     {
-        // The same rule the trail's own LocalizedValue applies, so the two
-        // halves of the breadcrumb can never disagree about which words a
+        // The same fallback every other word on the page follows, so the
+        // trail and the heading can never disagree about which words a
         // visitor sees.
-        $resolved = $this->resolve(2, 'Gegraveerde plank', '');
+        $resolved = $this->in('en', fn (): array => $this->resolve(2, 'Gegraveerde plank', ''));
 
-        $this->assertSame('Gegraveerde plank', $resolved['name_en']);
+        $this->assertSame('Gegraveerde plank', $resolved['name']);
     }
 
     public function testTheProductPageBuildsItsTrailFromTheResolvedProduct(): void
@@ -90,8 +89,7 @@ final class ProductBreadcrumbTest extends TestCase
 
         $this->assertStringContainsString('render_breadcrumb(', $template);
         $this->assertStringContainsString("->toPage('shop', 'shop')", $template);
-        $this->assertStringContainsString("\$seo['name_nl']", $template);
-        $this->assertStringContainsString("\$seo['name_en']", $template);
+        $this->assertStringContainsString("BreadcrumbItem::current((string) \$seo['name'])", $template);
         $this->assertStringNotContainsString(
             'data-product-breadcrumb',
             $template,
@@ -105,5 +103,23 @@ final class ProductBreadcrumbTest extends TestCase
 
         $this->assertStringNotContainsString('data-product-breadcrumb', $script);
         $this->assertStringNotContainsString('breadcrumbEl', $script);
+    }
+
+    /**
+     * Run $work while the request is answered in $language.
+     *
+     * @template T
+     * @param \Closure(): T $work
+     * @return T
+     */
+    private function in(string $language, \Closure $work): mixed
+    {
+        RequestLanguage::set($language, true);
+
+        try {
+            return $work();
+        } finally {
+            RequestLanguage::reset();
+        }
     }
 }

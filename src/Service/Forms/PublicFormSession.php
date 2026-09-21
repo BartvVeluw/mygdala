@@ -43,32 +43,31 @@ final class PublicFormSession
     /**
      * What prime() read, held for the rest of the request.
      *
-     * @var array{token: string, values: array<string, string>, errors_nl: array<string, string>, errors_en: array<string, string>}|null
+     * @var array{token: string, values: array<string, string>, errors: array<string, string>}|null
      */
     private static ?array $flash = null;
 
     /**
      * Remembers a failed submission. $errors and $values are already
      * normalised by the validator; only keys the form actually has can be in
-     * them (App\Service\Forms\FormValidator).
+     * them (App\Service\Forms\FormValidator). The messages are in the language
+     * the form was filled in, which is the language of the page the visitor
+     * is sent back to.
      *
      * @param array<string, string> $values
-     * @param array<string, string> $errorsNl
-     * @param array<string, string> $errorsEn
+     * @param array<string, string> $errors
      */
     public static function rememberFailure(
         string $formToken,
         array $values,
-        array $errorsNl,
-        array $errorsEn
+        array $errors
     ): void {
         self::start();
 
         $_SESSION[self::FLASH_KEY] = [
             'token' => $formToken,
             'values' => $values,
-            'errors_nl' => $errorsNl,
-            'errors_en' => $errorsEn,
+            'errors' => $errors,
         ];
 
         session_write_close();
@@ -129,11 +128,16 @@ final class PublicFormSession
         session_write_close();
 
         if (is_array($flash) && ($flash['token'] ?? null) === $token) {
+            // `errors_nl` is the shape a session written before Multilingual
+            // 2.0 phase 7 holds: a visitor whose failed submission straddles
+            // the deploy still gets their messages back, in the one language
+            // that shape always had.
+            $errors = $flash['errors'] ?? $flash['errors_nl'] ?? null;
+
             self::$flash = [
                 'token' => $token,
                 'values' => is_array($flash['values'] ?? null) ? $flash['values'] : [],
-                'errors_nl' => is_array($flash['errors_nl'] ?? null) ? $flash['errors_nl'] : [],
-                'errors_en' => is_array($flash['errors_en'] ?? null) ? $flash['errors_en'] : [],
+                'errors' => is_array($errors) ? $errors : [],
             ];
         }
     }
@@ -143,7 +147,7 @@ final class PublicFormSession
      * comes out of what prime() read at the top of the request; nothing is
      * opened here, so it is safe to call from deep inside a template.
      *
-     * @return array{values: array<string, string>, errors_nl: array<string, string>, errors_en: array<string, string>}|null
+     * @return array{values: array<string, string>, errors: array<string, string>}|null
      */
     public static function takeFailure(string $formToken): ?array
     {
@@ -160,8 +164,7 @@ final class PublicFormSession
 
         return [
             'values' => $flash['values'],
-            'errors_nl' => $flash['errors_nl'],
-            'errors_en' => $flash['errors_en'],
+            'errors' => $flash['errors'],
         ];
     }
 

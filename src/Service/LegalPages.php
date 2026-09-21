@@ -33,6 +33,29 @@ class LegalPages
     public const TERMS_SLUG = 'algemene-voorwaarden';
 
     /**
+     * The content keys of the two information pages the checkout and the
+     * order pages mention in passing. They exist on an installation that was
+     * seeded with them (db/migrations/20260906140000) and nowhere else, so a
+     * link to one is only ever printed when the page is really there.
+     */
+    public const SHIPPING_RETURNS_KEY = 'verzenden-retourneren';
+    public const PRIVACY_KEY = 'privacyverklaring';
+
+    /**
+     * The CURRENT public URL of a published page, identified by its content
+     * key, in the language being read (App\Service\PageContent::publicUrl());
+     * null when there is no such published page. A sentence that mentions
+     * the page then leaves the link out rather than pointing at a 404 or at a
+     * default-language slug typed into the template.
+     */
+    public static function publishedPageUrl(string $contentKey): ?string
+    {
+        $page = PageContent::forContentKey($contentKey);
+
+        return ($page !== null && PageContent::isPublished($page)) ? PageContent::publicUrl($page) : null;
+    }
+
+    /**
      * The page's CURRENT public URL, resolved per call — so a slug change in
      * the admin is picked up automatically here and in checkout.php's link.
      * Falls back to /<content_key> when the page can't be loaded, which is
@@ -99,20 +122,22 @@ class LegalPages
                 continue;
             }
 
+            // Always the website's DEFAULT language, whatever language the
+            // customer is reading: the hash is an audit value, and one
+            // conditions text must hash to one value. On a Dutch-default site
+            // that is the same string the Dutch column held, so stored hashes
+            // stay comparable.
             $content = RichTextContent::forSection(
                 (string) $section['page_slug'],
-                (string) $section['section_key']
+                (string) $section['section_key'],
+                \App\Service\Language\LanguageFallback::defaultLanguage()
             );
 
             if ($content['state'] === RichTextContent::STATE_HIDDEN) {
                 continue;
             }
 
-            // The body a customer sees first when they follow the checkout
-            // link: the website's default language, with its fallback, as
-            // the page renders it. On a Dutch-default site that is the same
-            // string the Dutch column held, so stored hashes stay comparable.
-            $parts[] = \App\Service\Language\SiteText::visibleOf($content[RichTextContent::BODY]);
+            $parts[] = $content[RichTextContent::BODY];
         }
 
         return $parts === [] ? null : implode('', $parts);

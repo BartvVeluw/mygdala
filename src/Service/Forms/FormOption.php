@@ -14,7 +14,7 @@ namespace App\Service\Forms;
  *          the option is created, from its label in the website's default
  *          language, and nothing changes it afterwards: not renaming the
  *          label, not translating it, not a visitor switching language.
- *   label  the words a visitor reads, per website language, as the V1 pair
+ *   label  the words a visitor reads, in the language of the request
  *          of the public language switch.
  *
  * An option that existed before phase 4 kept its Dutch label as its value,
@@ -25,7 +25,7 @@ final class FormOption
 {
     public function __construct(
         public readonly string $value,
-        public readonly FormText $label,
+        public readonly string $label,
     ) {
     }
 }

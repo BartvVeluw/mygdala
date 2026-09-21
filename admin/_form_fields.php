@@ -8,7 +8,6 @@ require_once __DIR__ . '/_admin_ui.php';
 use App\Service\Forms\FormFieldOptions;
 use App\Service\Forms\FormFieldTypeChange;
 use App\Service\Forms\FormFieldTypes;
-use App\Service\Language\LanguageFallback;
 
 /**
  * What the CMS calls a form field type, the cards an editor picks one from,
@@ -150,7 +149,7 @@ function form_field_option_names(FormFieldOptions $options): string
 {
     $shown = 5;
     $names = array_map(
-        static fn (\App\Service\Forms\FormOption $option): string => $option->label->nl,
+        static fn (\App\Service\Forms\FormOption $option): string => $option->label,
         array_slice($options->all(), 0, $shown)
     );
 

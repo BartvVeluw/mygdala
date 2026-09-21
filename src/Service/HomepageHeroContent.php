@@ -4,7 +4,7 @@ namespace App\Service;
 
 use App\Repository\HomepageHeroRepository;
 use App\Service\Blocks\BlockLocalization;
-use App\Service\Language\LocalizedValue;
+use App\Service\Routing\RequestLanguage;
 
 /**
  * Content for the dedicated "Homepage Hero" section (`.hero` on index.php) —
@@ -29,8 +29,9 @@ use App\Service\Language\LocalizedValue;
  * highlight, lead, both button labels, the image's alt text and the badge are
  * stored per website language in block_translations, and so are the two
  * texts of every stat, on the stat's own row (HomepageHeroBlock::childTables()).
- * They come out of App\Service\Blocks\BlockLocalization as one LocalizedValue
- * per field, the fallback already applied; the URLs, the media, the layout,
+ * They come out of App\Service\Blocks\BlockLocalization as one string per
+ * field, in the language of the request and the fallback already applied
+ * (the result is cached per language); the URLs, the media, the layout,
  * the highlight size, is_active and the order of the stats stay in
  * homepage_hero and homepage_hero_stats, the same in every language. This
  * class decides no language itself.
@@ -59,10 +60,10 @@ use App\Service\Language\LocalizedValue;
  * XSS-safe HTML builder: it escapes the title's three pieces (before/match/
  * after) independently and only ever wraps the match in a literal, hardcoded
  * `<em>...</em>` — user-entered text can never itself introduce a tag.
- * titleHtml() applies it to every language. If invalid/legacy data somehow
- * reaches the renderer (highlight no longer found in the title), it fails
- * safe: the complete escaped title, no highlight, rather than breaking the
- * Hero.
+ * It runs on the request language's title and highlight. If invalid/legacy
+ * data somehow reaches the renderer (highlight no longer found in the
+ * title), it fails safe: the complete escaped title, no highlight, rather
+ * than breaking the Hero.
  *
  * Highlight size: `title_highlight_size` is a PERCENTAGE of the headline's
  * own font size (HIGHLIGHT_SIZE_MIN..HIGHLIGHT_SIZE_MAX, default
@@ -72,10 +73,9 @@ use App\Service\Language\LocalizedValue;
  * so the highlight keeps scaling with the existing `clamp()`-based
  * responsive H1 on every breakpoint. Deliberately ONE shared visual setting
  * rather than one per language, even though the highlight TEXT is stored
- * per language: the language switch (assets/js/core.js's applyLang) only
- * swaps innerHTML/attribute values from data-nl/data-en and never touches CSS
- * custom properties, so a per-language size would need a new switching
- * mechanism outside that convention for no editorial gain.
+ * per language: the size is a layout choice for the block, and a
+ * per-language size would be a second setting to keep in step for no
+ * editorial gain.
  * isHighlightSizeValid() is the save-time check (see
  * api/admin/update-homepage-hero.php, which rejects anything else);
  * clampHighlightSize() is the render-time belt-and-braces layer that maps a
@@ -182,16 +182,16 @@ class HomepageHeroContent
         'primary_label' => 'Meer informatie',
     ];
 
-    /** @var array<string, mixed>|null */
-    private static ?array $cache = null;
+    /** @var array<string, array<string, mixed>> per request language */
+    private static array $cache = [];
 
     /**
-     * @return array<string, mixed> 'state' (one of STATE_*), a LocalizedValue
+     * @return array<string, mixed> 'state' (one of STATE_*), a string
      *                                per translatable field, the language-
      *                                neutral fields as strings (the highlight
      *                                size as an int), plus 'stats': a list of
      *                                primary_text and secondary_text (a
-     *                                LocalizedValue each). Templates must only
+     *                                string each). Templates must only
      *                                render the section when 'state' ===
      *                                STATE_ACTIVE; the content fields are
      *                                still present (empty) otherwise, purely
@@ -201,28 +201,32 @@ class HomepageHeroContent
      */
     public static function current(): array
     {
-        if (self::$cache !== null) {
-            return self::$cache;
-        }
+        $language = RequestLanguage::current();
 
+        return self::$cache[$language] ??= self::build();
+    }
+
+    /** @return array<string, mixed> see current() */
+    private static function build(): array
+    {
         try {
             $repository = new HomepageHeroRepository();
             $row = $repository->findBySlug(self::PAGE_SLUG);
         } catch (\Throwable $e) {
             error_log('[HomepageHeroContent] lookup failed: ' . $e->getMessage());
 
-            return self::$cache = self::emptyContent() + ['state' => self::STATE_FALLBACK];
+            return self::emptyContent() + ['state' => self::STATE_FALLBACK];
         }
 
         if ($row === null) {
-            return self::$cache = self::emptyContent() + ['state' => self::STATE_FALLBACK];
+            return self::emptyContent() + ['state' => self::STATE_FALLBACK];
         }
 
         if (!(bool) $row['is_active']) {
             // Intentionally hidden: the content fields are still filled in
             // (empty) purely so a template that forgets to check 'state'
             // fails safe instead of erroring on a missing key.
-            return self::$cache = self::emptyContent() + ['state' => self::STATE_HIDDEN];
+            return self::emptyContent() + ['state' => self::STATE_HIDDEN];
         }
 
         $heroId = (int) $row['id'];
@@ -232,7 +236,7 @@ class HomepageHeroContent
         } catch (\Throwable $e) {
             error_log('[HomepageHeroContent] stats lookup failed: ' . $e->getMessage());
 
-            return self::$cache = self::emptyContent() + ['state' => self::STATE_FALLBACK];
+            return self::emptyContent() + ['state' => self::STATE_FALLBACK];
         }
 
         // The words of the Hero and all of its stats at once; nothing when
@@ -254,17 +258,19 @@ class HomepageHeroContent
         ];
 
         // A secondary button only renders when it has both a label and a
-        // URL — a half-filled optional button would be broken/dead.
-        if ($content['secondary_label']->primaryValue() === '' || $content['secondary_url'] === '') {
-            $content['secondary_label'] = LocalizedValue::of([]);
+        // URL — a half-filled optional button would be broken/dead. The
+        // default language's label decides, whatever language is being read.
+        if (!BlockLocalization::hasDefaultWords(self::TABLE, $heroId, 'secondary_label') || $content['secondary_url'] === '') {
+            $content['secondary_label'] = '';
             $content['secondary_url'] = '';
         }
 
         // The badge only renders when it has both a title and a body text —
         // a half-filled badge would look broken.
-        if ($content['badge_title']->primaryValue() === '' || $content['badge_text']->primaryValue() === '') {
-            $content['badge_title'] = LocalizedValue::of([]);
-            $content['badge_text'] = LocalizedValue::of([]);
+        if (!BlockLocalization::hasDefaultWords(self::TABLE, $heroId, 'badge_title')
+            || !BlockLocalization::hasDefaultWords(self::TABLE, $heroId, 'badge_text')) {
+            $content['badge_title'] = '';
+            $content['badge_text'] = '';
         }
 
         // Defensive fallbacks against stale/invalid data reaching the
@@ -298,7 +304,7 @@ class HomepageHeroContent
 
         $content['state'] = self::STATE_ACTIVE;
 
-        return self::$cache = $content;
+        return $content;
     }
 
     /**
@@ -445,15 +451,12 @@ class HomepageHeroContent
      * match is wrapped in a literal, hardcoded `<em>...</em>` — so
      * user-entered title/highlight text can never itself introduce markup.
      *
-     * This fragment is meant to be echoed directly as element content (the
-     * words a visitor sees first) AND, after one more htmlspecialchars() pass
-     * at the call site, embedded as a `data-nl`/`data-en` attribute value for
-     * the language switch — see titleHtml(), partials/section-homepage-hero.php
-     * and assets/js/core.js's applyLang(), which sets `el.innerHTML` from that
-     * attribute on the data-lang-html element. That second escaping pass is
-     * what makes the round-trip through innerHTML safe: the browser decodes
-     * the attribute back to this exact fragment, which still only ever
-     * contains the hardcoded `<em>`/`</em>` tags plus escaped text.
+     * The partial echoes it as the <h1>'s content, for the request language's
+     * title and highlight (both already resolved by the fallback, so a
+     * translation without a highlight of its own highlights the default
+     * language's words wherever they occur in its title). It is the one
+     * element of this block printed as markup, and it never holds an
+     * editor's markup: only escaped text and the hardcoded `<em>`.
      *
      * If the highlight is empty, or (invalid/legacy data) no longer occurs
      * in the title, this fails safe: the complete escaped title, no
@@ -479,28 +482,6 @@ class HomepageHeroContent
             . htmlspecialchars($after, ENT_QUOTES, 'UTF-8');
     }
 
-    /**
-     * The title with its highlight as ONE safe HTML fragment per language:
-     * renderTitleFragment() applied to each language's title and highlight,
-     * both already resolved by the fallback, so a translation without a
-     * highlight of its own highlights the default language's words wherever
-     * they occur in its title, and shows its title plainly where they do
-     * not. What the partial prints as the <h1>: the one element of this
-     * block whose language values are markup, and therefore marked
-     * data-lang-html. No value ever holds an editor's markup: only escaped
-     * text and the hardcoded `<em>`.
-     */
-    public static function titleHtml(LocalizedValue $title, LocalizedValue $highlight): LocalizedValue
-    {
-        $highlights = $highlight->attributeValues();
-
-        $fragments = [];
-        foreach ($title->attributeValues() as $code => $words) {
-            $fragments[$code] = self::renderTitleFragment($words, $highlights[$code] ?? $highlight->primaryValue());
-        }
-
-        return LocalizedValue::of($fragments, $title->primaryLanguage());
-    }
 
     /**
      * Clears the in-process cache, and the block words BlockLocalization
@@ -509,7 +490,7 @@ class HomepageHeroContent
      */
     public static function clearCache(): void
     {
-        self::$cache = null;
+        self::$cache = [];
         BlockLocalization::clearCache();
     }
 

@@ -6,7 +6,6 @@ namespace App\Service\Blog;
 
 use App\Service\Language\EntityTranslations;
 use App\Service\Language\LanguageFallback;
-use App\Service\Language\LocalizedValue;
 use App\Service\Language\TranslationTable;
 use App\Service\RichTextSanitizer;
 use App\Service\Routing\LocalizedSlug;
@@ -193,28 +192,15 @@ final class BlogLocalization
         return self::posts()->raw($postId, $field, $languageCode);
     }
 
-    /** The pair a public partial prints (the temporary V1 adapter). */
-    public static function postValue(int $postId, string $field): LocalizedValue
-    {
-        return self::posts()->bilingual($postId, $field);
-    }
-
     /**
      * The sanitized body of one post in one language. The sanitizer is the one
      * the Blog always had; it runs here so that no reader can forget it.
+     *
+     * Each language is sanitized BEFORE the fallback runs, so a language whose
+     * markup sanitizes away to nothing simply has no body and the fallback
+     * takes over. Same rule as App\Service\PortfolioLocalization::itemRich().
      */
     public static function body(int $postId, string $languageCode): string
-    {
-        return (string) (RichTextSanitizer::sanitize(self::post($postId, self::BODY, $languageCode)) ?? '');
-    }
-
-    /**
-     * The body's pair, each half sanitized BEFORE the fallback runs, so a
-     * language whose markup sanitizes away to nothing simply has no body and
-     * the fallback takes over. Same rule as
-     * App\Service\PortfolioLocalization::itemRichValue().
-     */
-    public static function bodyValue(int $postId): LocalizedValue
     {
         $html = [];
         foreach (self::posts()->words($postId) as $code => $fields) {
@@ -224,7 +210,7 @@ final class BlogLocalization
             }
         }
 
-        return LanguageFallback::bilingual($html);
+        return LanguageFallback::resolve($html, $languageCode);
     }
 
     /** What the CMS calls a post in its lists and headings: its title. */
@@ -273,19 +259,9 @@ final class BlogLocalization
         return self::categories()->value($categoryId, self::NAME, $languageCode);
     }
 
-    public static function categoryNameValue(int $categoryId): LocalizedValue
-    {
-        return self::categories()->bilingual($categoryId, self::NAME);
-    }
-
     public static function categoryDescription(int $categoryId, string $languageCode): string
     {
         return self::categories()->value($categoryId, self::DESCRIPTION, $languageCode);
-    }
-
-    public static function categoryDescriptionValue(int $categoryId): LocalizedValue
-    {
-        return self::categories()->bilingual($categoryId, self::DESCRIPTION);
     }
 
     public static function rawCategory(int $categoryId, string $field, string $languageCode): string
@@ -314,11 +290,6 @@ final class BlogLocalization
     public static function tagName(int $tagId, string $languageCode): string
     {
         return self::tags()->value($tagId, self::NAME, $languageCode);
-    }
-
-    public static function tagNameValue(int $tagId): LocalizedValue
-    {
-        return self::tags()->bilingual($tagId, self::NAME);
     }
 
     public static function rawTagName(int $tagId, string $languageCode): string

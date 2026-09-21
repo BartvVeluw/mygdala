@@ -163,7 +163,7 @@ $socialMedia = MediaService::find((int) ($post['og_media_id'] ?? 0));
 // resolved by the same App\Service\Blog\BlogSeo the public page uses — never
 // a second guess at the fallback rules. Built from the STORED row, so it
 // shows what is live rather than what is half-typed.
-$seoPreview = BlogSeo::forPost($post);
+$seoPreview = BlogSeo::forPost($post, $editingLanguage);
 
 $isPublic = BlogPostStatus::isPublic($post);
 $isPending = BlogPostStatus::isPending($post);
@@ -388,10 +388,10 @@ $forcedTab = $errors !== [] ? 'inhoud' : null;
       <p class="admin-text-muted"><?= admin_te('blog.titel_tekst_nu_opgeslagen') ?></p>
       <div class="admin-seo-preview">
         <div class="admin-seo-preview__url"><?= $h((string) ($seoPreview->canonical ?? BlogUrls::post((string) $post['slug']))) ?></div>
-        <div class="admin-seo-preview__title"><?= $h($seoPreview->titleNl) ?></div>
+        <div class="admin-seo-preview__title"><?= $h($seoPreview->title()) ?></div>
         <div class="admin-seo-preview__description">
           <?php if ($seoPreview->hasDescription()): ?>
-            <?= $h($seoPreview->descriptionNl) ?>
+            <?= $h($seoPreview->description()) ?>
           <?php else: ?>
             <em><?= admin_t('blog.no_description_no_summary') ?></em>
           <?php endif; ?>

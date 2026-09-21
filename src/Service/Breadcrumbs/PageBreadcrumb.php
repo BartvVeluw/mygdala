@@ -4,10 +4,9 @@ declare(strict_types=1);
 
 namespace App\Service\Breadcrumbs;
 
-use App\Service\Language\LanguageRegistry;
 use App\Service\PageContent;
 use App\Service\PageLocalization;
-use App\Service\PageTranslation;
+use App\Service\Routing\RequestLanguage;
 
 /**
  * The breadcrumb of an ordinary CMS page: Home, then the page itself.
@@ -20,8 +19,8 @@ use App\Service\PageTranslation;
  * this class, and the block. See docs/content-blocks/DECISIONS.md and
  * HEADER-FOOTER.md.
  *
- * THE LABEL IS THE PAGE'S OWN TITLE, read per render, in both languages of the
- * V1 language switch. It comes from App\Service\PageLocalization, which is
+ * THE LABEL IS THE PAGE'S OWN TITLE, read per render, in the language of the
+ * request. It comes from App\Service\PageLocalization, which is
  * the one place that knows where a page's name is stored and how an empty
  * translation falls back. Nothing is copied: the old `page_heroes.breadcrumb_label_nl/en` was a
  * second place to type the same words, and it fell behind the moment a page
@@ -58,16 +57,12 @@ final class PageBreadcrumb
             return null;
         }
 
-        // Both halves of the V1 switch, already resolved by the page's own
-        // fallback: the renderer decides which one a visitor sees and prints
-        // the other for the language switch, the same way every other piece
-        // of editor text on a public page works. The page a visitor is
-        // standing on is never a link to itself.
-        $title = PageLocalization::bilingual((int) $page['id'], PageTranslation::TITLE);
-
+        // The page's name in the language being read, already resolved by
+        // the page's own fallback, the same way every other piece of editor
+        // text on a public page works. The page a visitor is standing on is
+        // never a link to itself.
         return BreadcrumbTrail::home()->to(BreadcrumbItem::current(
-            $title->raw(LanguageRegistry::DUTCH),
-            $title->raw(LanguageRegistry::ENGLISH)
+            PageLocalization::title((int) $page['id'], RequestLanguage::current())
         ));
     }
 

@@ -8,6 +8,7 @@ use App\Repository\FormFieldOptionRepository;
 use App\Service\Language\EntityTranslations;
 use App\Service\Language\LanguageFallback;
 use App\Service\Language\TranslationTable;
+use App\Service\Routing\RequestLanguage;
 
 /**
  * THE way into the words of Core Forms in any website language
@@ -121,6 +122,27 @@ final class FormLocalization
         }
 
         return $fields;
+    }
+
+    /**
+     * The words one field of a form, form field or option row shows a visitor
+     * on THIS request: its `translations` (attachWords()) in the request's
+     * language, else in the default language — THE fallback of
+     * App\Service\Language\LanguageFallback, never a second one.
+     *
+     * @param array<string, array<string, string>> $translations language code => field => words
+     */
+    public static function visible(array $translations, string $field): string
+    {
+        $column = [];
+        foreach ($translations as $code => $fields) {
+            $words = trim((string) ($fields[$field] ?? ''));
+            if ($words !== '') {
+                $column[(string) $code] = $words;
+            }
+        }
+
+        return LanguageFallback::resolve($column, RequestLanguage::current());
     }
 
     /** @return array<string, string> language code => the option's label */

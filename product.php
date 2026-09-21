@@ -123,12 +123,12 @@ function renderProductAddRow(): void
     ?>
     <div class="product-detail__add-row">
       <div class="qty-stepper" data-product-qty>
-        <button type="button" data-step="down" aria-label="Aantal verlagen" data-nl-aria="Aantal verlagen" data-en-aria="Decrease quantity">&minus;</button>
-        <input type="number" value="1" min="1" max="20" inputmode="numeric" aria-label="Aantal" data-nl-aria="Aantal" data-en-aria="Quantity">
-        <button type="button" data-step="up" aria-label="Aantal verhogen" data-nl-aria="Aantal verhogen" data-en-aria="Increase quantity">+</button>
+        <button type="button" data-step="down" aria-label="<?= \App\Service\Language\SiteText::escaped(['nl' => 'Aantal verlagen', 'en' => 'Decrease quantity']) ?>">&minus;</button>
+        <input type="number" value="1" min="1" max="20" inputmode="numeric" aria-label="<?= \App\Service\Language\SiteText::escaped(['nl' => 'Aantal', 'en' => 'Quantity']) ?>">
+        <button type="button" data-step="up" aria-label="<?= \App\Service\Language\SiteText::escaped(['nl' => 'Aantal verhogen', 'en' => 'Increase quantity']) ?>">+</button>
       </div>
       <button type="button" class="btn" data-product-add-to-cart>
-        <span data-nl="Toevoegen aan winkelwagen" data-en="Add to cart">Toevoegen aan winkelwagen</span>
+        <span><?= \App\Service\Language\SiteText::escaped(['nl' => 'Toevoegen aan winkelwagen', 'en' => 'Add to cart']) ?></span>
         <svg class="btn-icon-cart" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 4h2l2.4 12.2a2 2 0 0 0 2 1.6h7.6a2 2 0 0 0 2-1.6L21 8H6"/><circle cx="10" cy="20" r="1.4"/><circle cx="17" cy="20" r="1.4"/></svg>
         <svg class="btn-icon-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12l5 5L20 6"/></svg>
       </button>
@@ -139,7 +139,7 @@ function renderProductAddRow(): void
 $siteName = \App\Service\SiteSettings::get('site_name');
 ?>
 <!doctype html>
-<html lang="<?= htmlspecialchars(\App\Service\Language\SiteText::documentLanguage(), ENT_QUOTES, 'UTF-8') ?>" data-primary-lang="<?= htmlspecialchars(\App\Service\Language\SiteText::documentLanguage(), ENT_QUOTES, 'UTF-8') ?>" data-url-prefix="<?= htmlspecialchars(\App\Service\Routing\LocalizedUrl::prefix(), ENT_QUOTES, 'UTF-8') ?>">
+<html lang="<?= htmlspecialchars(\App\Service\Language\SiteText::documentLanguage(), ENT_QUOTES, 'UTF-8') ?>" data-url-prefix="<?= htmlspecialchars(\App\Service\Routing\LocalizedUrl::prefix(), ENT_QUOTES, 'UTF-8') ?>">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -167,8 +167,7 @@ if ($productId > 0) {
 // branches cannot drift into different tag sets the way they used to.
 if ($seo === null) {
     $seoMetadata = \App\Service\SeoMetadata::notFound(
-        'Product niet gevonden — ' . $siteName,
-        'Product not found — ' . $siteName
+        \App\Service\Language\SiteText::pick(['nl' => 'Product niet gevonden', 'en' => 'Product not found']) . ' — ' . $siteName
     );
     require __DIR__ . '/partials/seo-head.php';
 } else {
@@ -222,17 +221,17 @@ require __DIR__ . '/partials/header.php';
         \App\Service\Breadcrumbs\BreadcrumbTrail::home()
             ->toPage('shop', 'shop')
             ->to($seo === null
-                ? \App\Service\Breadcrumbs\BreadcrumbItem::current('Product', 'Product')
-                : \App\Service\Breadcrumbs\BreadcrumbItem::current((string) $seo['name_nl'], (string) $seo['name_en']))
+                ? \App\Service\Breadcrumbs\BreadcrumbItem::current(\App\Service\Language\SiteText::pick(['nl' => 'Product', 'en' => 'Product']))
+                : \App\Service\Breadcrumbs\BreadcrumbItem::current((string) $seo['name']))
     );
   ?>
 
   <section>
     <div class="container">
 
-      <p class="lead" data-product-loading data-nl="Product laden…" data-en="Loading product…">Product laden…</p>
+      <p class="lead" data-product-loading><?= \App\Service\Language\SiteText::escaped(['nl' => 'Product laden…', 'en' => 'Loading product…']) ?></p>
 
-      <p class="lead" data-product-error hidden data-nl="Dit product kan niet worden gevonden of is niet meer beschikbaar. Probeer het later opnieuw of bekijk de andere producten in de shop." data-en="This product can't be found or is no longer available. Please try again later or browse the other products in the shop.">Dit product kan niet worden gevonden of is niet meer beschikbaar. Probeer het later opnieuw of bekijk de andere producten in de shop.</p>
+      <p class="lead" data-product-error hidden><?= \App\Service\Language\SiteText::escaped(['nl' => 'Dit product kan niet worden gevonden of is niet meer beschikbaar. Probeer het later opnieuw of bekijk de andere producten in de shop.', 'en' => 'This product can\'t be found or is no longer available. Please try again later or browse the other products in the shop.']) ?></p>
 
       <div class="product-detail" data-product-content hidden>
 
@@ -261,8 +260,8 @@ require __DIR__ . '/partials/header.php';
                      is genuinely no way to order this right now, and saying
                      so beats a button the server would refuse. */ ?>
             <p class="product-detail__personalize-cue">
-              <span data-nl="Dit product is op dit moment niet te bestellen." data-en="This product cannot be ordered right now.">Dit product is op dit moment niet te bestellen.</span>
-              <a href="<?= htmlspecialchars(\App\Service\Routing\LocalizedUrl::path('/contact.php'), ENT_QUOTES, 'UTF-8') ?>" data-nl="Neem contact op" data-en="Get in touch">Neem contact op</a>
+              <span><?= \App\Service\Language\SiteText::escaped(['nl' => 'Dit product is op dit moment niet te bestellen.', 'en' => 'This product cannot be ordered right now.']) ?></span>
+              <a href="<?= htmlspecialchars(\App\Service\Routing\LocalizedUrl::path('/contact.php'), ENT_QUOTES, 'UTF-8') ?>"><?= \App\Service\Language\SiteText::escaped(['nl' => 'Neem contact op', 'en' => 'Get in touch']) ?></a>
             </p>
           <?php elseif ($personalization !== null): ?>
             <?php /* No add-to-cart here: the single purchase action sits at
@@ -272,11 +271,11 @@ require __DIR__ . '/partials/header.php';
                      configuration they still have to do. */ ?>
             <p class="product-detail__personalize-cue">
               <?php if ($personalizationRequired): ?>
-                <span data-nl="Dit product maak je zelf af." data-en="You finish this product yourself.">Dit product maak je zelf af.</span>
+                <span><?= \App\Service\Language\SiteText::escaped(['nl' => 'Dit product maak je zelf af.', 'en' => 'You finish this product yourself.']) ?></span>
               <?php else: ?>
-                <span data-nl="Dit product kun je personaliseren." data-en="You can personalise this product.">Dit product kun je personaliseren.</span>
+                <span><?= \App\Service\Language\SiteText::escaped(['nl' => 'Dit product kun je personaliseren.', 'en' => 'You can personalise this product.']) ?></span>
               <?php endif; ?>
-              <a href="#personaliseren" data-nl="Personaliseer het hieronder" data-en="Personalise it below">Personaliseer het hieronder</a>
+              <a href="#personaliseren"><?= \App\Service\Language\SiteText::escaped(['nl' => 'Personaliseer het hieronder', 'en' => 'Personalise it below']) ?></a>
             </p>
           <?php else: ?>
             <?php renderProductAddRow(); ?>
@@ -286,7 +285,7 @@ require __DIR__ . '/partials/header.php';
       </div>
 
       <div style="margin-top:var(--sp-5);">
-        <a href="<?= htmlspecialchars(\App\Service\Routing\LocalizedUrl::path('/shop.php'), ENT_QUOTES, 'UTF-8') ?>" class="btn btn--ghost" data-nl="Terug naar producten" data-en="Back to products">Terug naar producten</a>
+        <a href="<?= htmlspecialchars(\App\Service\Routing\LocalizedUrl::path('/shop.php'), ENT_QUOTES, 'UTF-8') ?>" class="btn btn--ghost"><?= \App\Service\Language\SiteText::escaped(['nl' => 'Terug naar producten', 'en' => 'Back to products']) ?></a>
       </div>
 
     </div>

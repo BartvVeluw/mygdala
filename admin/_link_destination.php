@@ -36,7 +36,7 @@ function admin_link_destination_summary(array $row, array $pagesById, array $rou
                 . (PageContent::isPublished($pagesById[(int) $row['target_page_id']]) ? '' : ' ' . admin_t('navigation.destination_draft'))
             : admin_t('navigation.destination_page_missing'),
         'route' => isset($routes[(string) $row['target_route']])
-            ? admin_t('navigation.destination_route', ['route' => (string) $routes[(string) $row['target_route']]['label_nl']])
+            ? admin_t('navigation.destination_route', ['route' => \App\Service\RouteRegistry::adminLabel((string) $row['target_route'])])
             : admin_t('navigation.destination_route_off'),
         'external' => admin_t('navigation.destination_external', ['url' => (string) $row['external_url']]),
         'none' => admin_t('navigation.destination_none'),

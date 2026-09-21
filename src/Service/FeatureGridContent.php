@@ -4,6 +4,7 @@ namespace App\Service;
 
 use App\Repository\FeatureGridRepository;
 use App\Service\Blocks\BlockLocalization;
+use App\Service\Routing\RequestLanguage;
 
 /**
  * Content for the "Feature grid" section (`.feature-grid` > `.feature-card`)
@@ -26,13 +27,13 @@ use App\Service\Blocks\BlockLocalization;
  * is STATE_FALLBACK: there is nothing to render, and a failure is logged. See
  * CONTENT-BLOCKS.md, "Het inhoudscontract".
  *
- * WORDS PER LANGUAGE (Multilingual 2.0 phase 3B). The heading and every
- * card's title and text are stored per website language in
- * block_translations: the grid's words on its own row, each card's on the
- * card's row (FeatureGridBlock::childTables()). They come out of
- * App\Service\Blocks\BlockLocalization as one LocalizedValue per field, the
- * fallback already applied; is_active, the icon and the order stay in the
- * tables. This class decides no language itself.
+ * WORDS PER LANGUAGE (Multilingual 2.0 phase 3B). The heading and every card's
+ * title and text are stored per website language in block_translations: the
+ * grid's words on its own row, each card's on the card's row
+ * (FeatureGridBlock::childTables()). They come out of
+ * App\Service\Blocks\BlockLocalization as one string per field, in the
+ * language of the request, the fallback already applied; is_active, the icon
+ * and the order stay in the tables. This class decides no language itself.
  *
  * `is_active = false` on an *existing* grid row is a deliberate hide, and a
  * different case from a missing row. forSection()'s returned `state` field is
@@ -103,10 +104,10 @@ class FeatureGridContent
 
     /**
      * @return array<string, mixed> 'state' (one of STATE_*), plus eyebrow,
-     *                                title and lead (a LocalizedValue each,
+     *                                title and lead (a string each,
      *                                empty when the section has no heading),
      *                                and 'items': a list of icon_key plus
-     *                                title and body (a LocalizedValue each).
+     *                                title and body (a string each).
      *                                Templates must only render the section
      *                                when 'state' === STATE_ACTIVE; the
      *                                content fields are still present
@@ -116,7 +117,7 @@ class FeatureGridContent
      */
     public static function forSection(string $pageSlug, string $sectionKey): array
     {
-        $cacheKey = $pageSlug . ':' . $sectionKey;
+        $cacheKey = RequestLanguage::current() . '|' . $pageSlug . ':' . $sectionKey;
 
         if (isset(self::$cache[$cacheKey])) {
             return self::$cache[$cacheKey];

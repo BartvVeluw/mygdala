@@ -17,14 +17,12 @@
  * Everything optional leaves no trace when it is empty: no eyebrow element
  * without an eyebrow, no lead paragraph without a lead, no media wrapper
  * without an image. "Empty" is judged on what a visitor sees first, the
- * default language's words (SiteText::visibleOf()): a translation on its own
+ * default language's words (): a translation on its own
  * would be an empty decoration for everyone reading the default language.
  *
- * Every word arrives as one LocalizedValue per field
- * (App\Service\Blocks\BlockLocalization): SiteText prints the words a visitor
- * sees first and the escaped data-nl/data-en pair for the V1 switch, so this
- * file knows no language, no default and no fallback. All of it is plain
- * text, so nothing here is marked data-lang-html.
+ * Every word arrives as one string per field, already in the language of
+ * the request (App\Service\Blocks\BlockLocalization), so this file knows no
+ * language, no default and no fallback. All of it is plain text.
  *
  * THE CHOICES become modifier classes through the closed maps below, and only
  * a choice that differs from its default adds one. A header that was never
@@ -51,14 +49,13 @@
  */
 function render_section_page_hero(array $pageHero, ?string $titleMaxWidthCh = null): void
 {
-    $text = static fn (string $field): string => \App\Service\Language\SiteText::visibleOf($pageHero[$field]);
+    $text = static fn (string $field): string => $pageHero[$field];
 
     if ($text('title') === '') {
         return;
     }
 
     $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
-    $pair = static fn (string $field): string => \App\Service\Language\SiteText::attrsOf($pageHero[$field]);
     $titleStyle = $titleMaxWidthCh !== null ? ' style="max-width:' . $h($titleMaxWidthCh) . ';"' : '';
 
     $hasEyebrow = $text('eyebrow') !== '';
@@ -99,16 +96,16 @@ function render_section_page_hero(array $pageHero, ?string $titleMaxWidthCh = nu
     <section class="<?= $h(implode(' ', $classes)) ?>">
       <?php if ($hasImage): ?>
       <div class="page-hero__media">
-        <img src="<?= $h((string) $pageHero['image_path']) ?>" alt="<?= $h($text('image_alt')) ?>"<?= \App\Service\Language\SiteText::attrsForOf('alt', $pageHero['image_alt']) ?><?= \App\Service\Media\BlockImage::dimensionAttributes(['width' => $pageHero['image_width'] ?? null, 'height' => $pageHero['image_height'] ?? null]) ?> loading="eager" decoding="async" fetchpriority="high">
+        <img src="<?= $h((string) $pageHero['image_path']) ?>" alt="<?= $h($text('image_alt')) ?>"<?= \App\Service\Media\BlockImage::dimensionAttributes(['width' => $pageHero['image_width'] ?? null, 'height' => $pageHero['image_height'] ?? null]) ?> loading="eager" decoding="async" fetchpriority="high">
       </div>
       <?php endif; ?>
       <div class="container">
         <?php if ($hasEyebrow): ?>
-        <p class="eyebrow" <?= $pair('eyebrow') ?>><?= $h($text('eyebrow')) ?></p>
+        <p class="eyebrow"><?= $h($text('eyebrow')) ?></p>
         <?php endif; ?>
-        <h1<?= $titleStyle ?> <?= $pair('title') ?>><?= $h($text('title')) ?></h1>
+        <h1<?= $titleStyle ?>><?= $h($text('title')) ?></h1>
         <?php if ($hasLead): ?>
-          <p class="lead" style="margin-top:1rem;" <?= $pair('lead') ?>><?= $h($text('lead')) ?></p>
+          <p class="lead" style="margin-top:1rem;"><?= $h($text('lead')) ?></p>
         <?php endif; ?>
       </div>
     </section>

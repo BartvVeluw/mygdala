@@ -6,8 +6,8 @@ use App\Repository\ContactFormRepository;
 use App\Service\ContactFormContent;
 use App\Service\Forms\FormCatalog;
 use App\Service\Forms\FormRenderState;
-use App\Service\Language\LocalizedValue;
 use App\Service\LocalizedSiteSettings;
+use App\Service\Routing\RequestLanguage;
 use App\Service\SiteSettings;
 
 require_once dirname(__DIR__, 3) . '/partials/section-contact-form.php';
@@ -137,9 +137,10 @@ final class ContactFormBlock extends BlockDefinition
 
         // Both details are optional in Site-instellingen; the partial leaves
         // out a line whose value is missing. The place is website text per
-        // language (App\Service\LocalizedSiteSettings), handed over as one
-        // value with the fallback applied; without words in the default
-        // language it is no place at all, as for the footer's texts.
+        // language (App\Service\LocalizedSiteSettings), handed over in the
+        // language of the request with the fallback applied; without words in
+        // the default language it is no place at all, as for the footer's
+        // texts.
         render_section_contact_form(
             $content,
             FormCatalog::renderable($content['form_id'] ?? null),
@@ -147,8 +148,8 @@ final class ContactFormBlock extends BlockDefinition
             [
                 'email' => trim(SiteSettings::get('email')),
                 'city' => LocalizedSiteSettings::hasDefault(LocalizedSiteSettings::CITY)
-                    ? LocalizedSiteSettings::bilingual(LocalizedSiteSettings::CITY)
-                    : LocalizedValue::of([]),
+                    ? LocalizedSiteSettings::value(LocalizedSiteSettings::CITY, RequestLanguage::current())
+                    : '',
             ]
         );
     }

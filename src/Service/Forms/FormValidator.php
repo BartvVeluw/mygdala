@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Service\Forms;
 
+use App\Service\Language\SiteText;
+
 /**
  * THE authority on whether a submission is acceptable.
  *
@@ -51,10 +53,10 @@ final class FormValidator
             }
 
             if (mb_strlen($value) > $type->maxLength()) {
-                $errors[$field->key] = FormText::of(
-                    $field->label->nl . ' mag maximaal ' . $type->maxLength() . ' tekens bevatten.',
-                    $field->label->en . ' may be at most ' . $type->maxLength() . ' characters.'
-                );
+                $errors[$field->key] = SiteText::pick([
+                    'nl' => $field->label . ' mag maximaal ' . $type->maxLength() . ' tekens bevatten.',
+                    'en' => $field->label . ' may be at most ' . $type->maxLength() . ' characters.',
+                ]);
 
                 continue;
             }

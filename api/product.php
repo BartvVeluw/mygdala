@@ -1,8 +1,10 @@
 <?php
 
 /**
- * GET /api/product.php?id=3
- * Read-only lookup of a single active product, as JSON.
+ * GET /api/product.php?id=3[&lang=en]
+ * Read-only lookup of a single active product, as JSON: one `name` and one
+ * `description`, in the language of the page asking
+ * (App\Service\Routing\ApiLanguage).
  */
 
 declare(strict_types=1);
@@ -18,8 +20,8 @@ use App\Repository\ProductImageRepository;
 use App\Repository\ProductOptionRepository;
 use App\Repository\ProductVariantRepository;
 use App\Repository\ProductRepository;
+use App\Service\Routing\ApiLanguage;
 use App\Service\ShopLocalization;
-use App\Service\Language\LanguageRegistry;
 
 header('Content-Type: application/json; charset=utf-8');
 
@@ -39,6 +41,7 @@ if ($id === false || $id === null || $id < 1) {
 }
 
 try {
+    $language = ApiLanguage::apply($_GET['lang'] ?? null);
     $product = (new ProductRepository())->findActiveById($id);
 
     if ($product === null) {
@@ -47,18 +50,12 @@ try {
         exit;
     }
 
-    // The payload keeps the four keys assets/js/shop/shop.js has always
-    // read (Multilingual 2.0 phase 5 wave C); what fills them is the words
-    // store. Descriptions are sanitized on write (see
-    // api/admin/_product_validation.php) AND again per language on the way out
-    // of App\Service\ShopLocalization, which protects against anything ever
-    // written directly to the database.
-    $name = ShopLocalization::productValue($id, ShopLocalization::NAME);
-    $description = ShopLocalization::productDescriptionValue($id);
-    $product['name'] = $name->in(LanguageRegistry::DUTCH);
-    $product['name_en'] = $name->in(LanguageRegistry::ENGLISH);
-    $product['description'] = $description->in(LanguageRegistry::DUTCH);
-    $product['description_en'] = $description->in(LanguageRegistry::ENGLISH);
+    // The words of the page's language, the fallback applied. Descriptions
+    // are sanitized on write (see api/admin/_product_validation.php) AND
+    // again on the way out of App\Service\ShopLocalization, which protects
+    // against anything ever written directly to the database.
+    $product['name'] = ShopLocalization::product($id, ShopLocalization::NAME, $language);
+    $product['description'] = ShopLocalization::productDescription($id, $language);
 
     $product['images'] = (new ProductImageRepository())->findByProductId($id);
     $product['options'] = (new ProductOptionRepository())->findByProductId($id);

@@ -36,11 +36,11 @@ declare(strict_types=1);
  * wrapping long labels, stacking on a phone — lives with the rest of the
  * header in assets/css/core.css.
  *
- * LABELS arrive as one App\Service\Language\LocalizedValue per item
- * (App\Service\NavigationLocalization) and are printed through SiteText's
- * visibleOf()/attrsOf(): plain text, switched by assets/js/core.js with
- * textContent. A submenu heading carries its pair on an inner <span>, so the
- * switch replaces the words and never the chevron next to them.
+ * LABELS arrive as one string per item, already in the language of the
+ * request (App\Service\NavigationLocalization), and are printed escaped. The
+ * few words this partial owns itself — the skip link, the landmark names,
+ * the menu button — are code catalogues read through
+ * App\Service\Language\SiteText::escaped().
  */
 
 require_once __DIR__ . '/../vendor/autoload.php';
@@ -80,18 +80,18 @@ $logoPath = Branding::logoPath();
 
 $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
 ?>
-<a class="skip-link" href="#main" data-nl="Ga naar inhoud" data-en="Skip to content">Ga naar inhoud</a>
+<a class="skip-link" href="#main"><?= SiteText::escaped(['nl' => 'Ga naar inhoud', 'en' => 'Skip to content']) ?></a>
 
 <header class="site-header">
   <div class="container site-header__inner">
-    <a href="<?= $h(\App\Service\Routing\LocalizedUrl::path('/')) ?>" class="brand" aria-label="<?= $h($siteName) ?> — home" data-nl-aria="<?= $h($siteName) ?> — home" data-en-aria="<?= $h($siteName) ?> — home">
+    <a href="<?= $h(\App\Service\Routing\LocalizedUrl::path('/')) ?>" class="brand" aria-label="<?= $h($siteName) ?> — home">
 <?php if ($logoPath !== ''): ?>
       <img class="brand__logo" src="<?= $h($logoPath) ?>" alt="<?= $h($siteName) ?>"/>
 <?php else: ?>
       <span class="brand__name"><?= $h($siteName) ?></span>
 <?php endif; ?>
     </a>
-    <nav class="main-nav" id="main-nav" aria-label="Hoofdnavigatie">
+    <nav class="main-nav" id="main-nav" aria-label="<?= SiteText::escaped(['nl' => 'Hoofdnavigatie', 'en' => 'Main navigation']) ?>">
       <div class="main-nav__panel">
       <ul class="main-nav__list">
 <?php foreach ($navItems as $item): ?>
@@ -102,18 +102,18 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
 <?php if ($hasChildren): ?>
         <li class="main-nav__item main-nav__item--has-children">
           <button type="button" class="main-nav__toggle" aria-haspopup="true" aria-expanded="false">
-            <span<?= SiteText::attrsOf($item['label']) ?>><?= $h(SiteText::visibleOf($item['label'])) ?></span>
+            <span><?= $h($item['label']) ?></span>
             <svg class="main-nav__chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
           </button>
           <ul class="main-nav__submenu">
 <?php foreach ($item['children'] as $child): ?>
 <?php if ($child['href'] === null) continue; ?>
-            <li><a href="<?= $h($child['href']) ?>"<?= $child['open_in_new_tab'] ? ' target="_blank" rel="' . $h((string) $child['rel']) . '"' : '' ?><?= SiteText::attrsOf($child['label']) ?>><?= $h(SiteText::visibleOf($child['label'])) ?></a></li>
+            <li><a href="<?= $h($child['href']) ?>"<?= $child['open_in_new_tab'] ? ' target="_blank" rel="' . $h((string) $child['rel']) . '"' : '' ?>><?= $h($child['label']) ?></a></li>
 <?php endforeach; ?>
           </ul>
         </li>
 <?php elseif ($item['href'] !== null): ?>
-        <li><a href="<?= $h($item['href']) ?>"<?= $isActive ? ' aria-current="page"' : '' ?><?= $item['open_in_new_tab'] ? ' target="_blank" rel="' . $h((string) $item['rel']) . '"' : '' ?><?= SiteText::attrsOf($item['label']) ?>><?= $h(SiteText::visibleOf($item['label'])) ?></a></li>
+        <li><a href="<?= $h($item['href']) ?>"<?= $isActive ? ' aria-current="page"' : '' ?><?= $item['open_in_new_tab'] ? ' target="_blank" rel="' . $h((string) $item['rel']) . '"' : '' ?>><?= $h($item['label']) ?></a></li>
 <?php endif; ?>
 <?php endforeach; ?>
       </ul>
@@ -134,7 +134,7 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
          span: offering a link that 404s, or one that quietly shows another
          language's words, is worse than saying the version is not there. */ ?>
 <?php if (\App\Service\Routing\LanguageSwitch::isAvailable()): ?>
-        <div class="lang-switch" role="group" aria-label="Taal / Language">
+        <div class="lang-switch" role="group" aria-label="<?= SiteText::escaped(['nl' => 'Taal', 'en' => 'Language']) ?>">
 <?php foreach (\App\Service\Routing\LanguageSwitch::items() as $switchItem): ?>
 <?php if ($switchItem['href'] === null): ?>
           <span class="lang-switch__unavailable" aria-disabled="true" title="<?= $h(\App\Service\Routing\LanguageSwitch::accessibleName($switchItem['code'])) ?>"><?= $h($switchItem['label']) ?></span>
@@ -150,14 +150,14 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
 <?php if ($headerButtons !== []): ?>
         <div class="header-buttons">
 <?php foreach ($headerButtons as $headerButton): ?>
-          <a href="<?= $h($headerButton['href']) ?>" class="<?= $h($headerButton['class']) ?>"<?= $headerButton['open_in_new_tab'] ? ' target="_blank" rel="' . $h((string) $headerButton['rel']) . '"' : '' ?><?= SiteText::attrsOf($headerButton['label']) ?>><?= $h(SiteText::visibleOf($headerButton['label'])) ?></a>
+          <a href="<?= $h($headerButton['href']) ?>" class="<?= $h($headerButton['class']) ?>"<?= $headerButton['open_in_new_tab'] ? ' target="_blank" rel="' . $h((string) $headerButton['rel']) . '"' : '' ?>><?= $h($headerButton['label']) ?></a>
 <?php endforeach; ?>
         </div>
 <?php endif; ?>
       </div>
       </div>
     </nav>
-    <button class="nav-toggle" aria-label="Menu" data-nl-aria="Menu" data-en-aria="Menu" aria-expanded="false" aria-controls="main-nav">
+    <button class="nav-toggle" aria-label="<?= SiteText::escaped(['nl' => 'Menu', 'en' => 'Menu']) ?>" aria-expanded="false" aria-controls="main-nav">
       <span class="nav-toggle__box" aria-hidden="true">
         <span class="nav-toggle__bar"></span>
         <span class="nav-toggle__bar"></span>

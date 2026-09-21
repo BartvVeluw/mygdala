@@ -56,15 +56,13 @@ function render_section_item_gallery(array $content, string $revealGroup = 'gall
     $filterCategories = $content['filter_categories'];
     $fallbackUrl = (string) $content['fallback_link_url'];
 
-    // The block's own words arrive as one LocalizedValue per field
-    // (App\Service\Blocks\BlockLocalization), printed through SiteText's
-    // visibleOf()/attrsOf(), all plain text. Since Multilingual 2.0 phase 5
-    // so do the items' words, whichever source they come from: a Portfolio
-    // item (App\Service\PortfolioLocalization) or a product
+    // The block's own words arrive as one string per field, already in the
+    // language of the request (App\Service\Blocks\BlockLocalization), all
+    // plain text. So do the items' words, whichever source they come from: a
+    // Portfolio item (App\Service\PortfolioLocalization) or a product
     // (App\Service\ShopLocalization). This partial knows no language, no
     // default and no fallback.
-    $text = static fn (string $field): string => \App\Service\Language\SiteText::visibleOf($content[$field]);
-    $pair = static fn (string $field): string => \App\Service\Language\SiteText::attrsOf($content[$field]);
+    $text = static fn (string $field): string => $content[$field];
 
     $hasHead = $text('eyebrow') !== '' || $text('title') !== '' || $text('lead') !== '';
     $hasButton = $text('button_label') !== '' && $content['button_url'] !== '';
@@ -79,22 +77,22 @@ function render_section_item_gallery(array $content, string $revealGroup = 'gall
       <?php if ($hasHead): ?>
       <div class="section-head" data-reveal>
         <?php if ($text('eyebrow') !== ''): ?>
-        <p class="eyebrow" <?= $pair('eyebrow') ?>><?= $h($text('eyebrow')) ?></p>
+        <p class="eyebrow"><?= $h($text('eyebrow')) ?></p>
         <?php endif; ?>
         <?php if ($text('title') !== ''): ?>
-        <h2 <?= $pair('title') ?>><?= $h($text('title')) ?></h2>
+        <h2><?= $h($text('title')) ?></h2>
         <?php endif; ?>
         <?php if ($text('lead') !== ''): ?>
-        <p class="lead" <?= $pair('lead') ?>><?= $h($text('lead')) ?></p>
+        <p class="lead"><?= $h($text('lead')) ?></p>
         <?php endif; ?>
       </div>
       <?php endif; ?>
 
       <?php if ($filterCategories !== []): ?>
-      <div class="filter-bar" role="group" aria-label="Filter op categorie">
-        <button type="button" data-filter="all" aria-pressed="true" data-nl="Alles" data-en="All">Alles</button>
+      <div class="filter-bar" role="group" aria-label="<?= \App\Service\Language\SiteText::escaped(['nl' => 'Filter op categorie', 'en' => 'Filter by category']) ?>">
+        <button type="button" data-filter="all" aria-pressed="true"><?= \App\Service\Language\SiteText::escaped(['nl' => 'Alles', 'en' => 'All']) ?></button>
         <?php foreach ($filterCategories as $filterCategory): ?>
-        <button type="button" data-filter="<?= $h($filterCategory['slug']) ?>" aria-pressed="false" <?= \App\Service\Language\SiteText::attrsOf($filterCategory['name']) ?>><?= $h(\App\Service\Language\SiteText::visibleOf($filterCategory['name'])) ?></button>
+        <button type="button" data-filter="<?= $h($filterCategory['slug']) ?>" aria-pressed="false"><?= $h($filterCategory['name']) ?></button>
         <?php endforeach; ?>
       </div>
       <?php endif; ?>
@@ -115,18 +113,18 @@ function render_section_item_gallery(array $content, string $revealGroup = 'gall
           // an image, say). The card then renders as the theme's empty
           // surface tile rather than a broken <img>.
           $imageTag = (string) $item['image_path'] === '' ? '' : '<img src="'
-              . $h($rootPath((string) $item['image_path'])) . '" alt="' . $h(\App\Service\Language\SiteText::visibleOf($item['alt']))
-              . '"' . \App\Service\Language\SiteText::attrsForOf('alt', $item['alt']) . ' loading="lazy">';
-          // Only the words the item has: visibleOf() has the fallback of its
-          // source applied already, so '' means there are none.
-          $itemTitle = \App\Service\Language\SiteText::visibleOf($item['title']);
-          $itemSubtitle = \App\Service\Language\SiteText::visibleOf($item['subtitle']);
+              . $h($rootPath((string) $item['image_path'])) . '" alt="' . $h($item['alt'])
+              . '" loading="lazy">';
+          // Only the words the item has: the fallback of its source is
+          // applied already, so '' means there are none.
+          $itemTitle = $item['title'];
+          $itemSubtitle = $item['subtitle'];
           $overlay = '';
           if ($itemTitle !== '') {
-              $overlay .= '<p' . \App\Service\Language\SiteText::attrsOf($item['title']) . '>' . $h($itemTitle) . '</p>';
+              $overlay .= '<p>' . $h($itemTitle) . '</p>';
           }
           if ($itemSubtitle !== '') {
-              $overlay .= '<span' . \App\Service\Language\SiteText::attrsOf($item['subtitle']) . '>' . $h($itemSubtitle) . '</span>';
+              $overlay .= '<span>' . $h($itemSubtitle) . '</span>';
           }
         ?>
         <?php if ($itemUrl !== ''): ?>
@@ -147,12 +145,12 @@ function render_section_item_gallery(array $content, string $revealGroup = 'gall
       </div>
 
       <?php if ($text('footer_note') !== ''): ?>
-      <p class="lead" style="margin-top:var(--sp-6); max-width: 60ch;" data-reveal <?= $pair('footer_note') ?>><?= $h($text('footer_note')) ?></p>
+      <p class="lead" style="margin-top:var(--sp-6); max-width: 60ch;" data-reveal><?= $h($text('footer_note')) ?></p>
       <?php endif; ?>
 
       <?php if ($hasButton): ?>
       <div class="text-center" style="margin-top: var(--sp-5)">
-        <a href="<?= $h($content['button_url']) ?>" class="btn btn--ghost" <?= $pair('button_label') ?>><?= $h($text('button_label')) ?></a>
+        <a href="<?= $h($content['button_url']) ?>" class="btn btn--ghost"><?= $h($text('button_label')) ?></a>
       </div>
       <?php endif; ?>
     </div>
@@ -173,7 +171,7 @@ function render_item_lightbox_overlay(): void
 {
     ?>
 <div class="lightbox" data-item-lightbox>
-  <button class="lightbox__close" aria-label="Sluiten" data-nl-aria="Sluiten" data-en-aria="Close">
+  <button class="lightbox__close" aria-label="<?= \App\Service\Language\SiteText::escaped(['nl' => 'Sluiten', 'en' => 'Close']) ?>">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
   </button>
   <div class="lightbox__inner">

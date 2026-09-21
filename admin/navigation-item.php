@@ -284,7 +284,7 @@ if ($isNew) {
             <option value="<?= $h($storedRoute) ?>" <?= $field('target_route') === $storedRoute ? 'selected' : '' ?>><?= admin_te('navigation.route_off_option') ?></option>
           <?php endif; ?>
           <?php foreach ($routes as $key => $route): ?>
-            <option value="<?= $h($key) ?>" <?= $field('target_route') === $key ? 'selected' : '' ?>><?= $h((string) $route['label_nl']) ?> (<?= $h((string) $route['url']) ?>)</option>
+            <option value="<?= $h($key) ?>" <?= $field('target_route') === $key ? 'selected' : '' ?>><?= $h(RouteRegistry::adminLabel((string) $key)) ?> (<?= $h((string) $route['url']) ?>)</option>
           <?php endforeach; ?>
         </select>
       </div>

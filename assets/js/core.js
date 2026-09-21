@@ -1,8 +1,14 @@
 /* =========================================================================
    Mygdala — CORE site behaviour
    Loaded on every public page (App\Service\PageAssets), and only what every
-   page genuinely uses: the language switch, the header/navigation, and the
-   generic scroll-reveal every block opts into with data-reveal.
+   page genuinely uses: the header/navigation and the generic scroll-reveal
+   every block opts into with data-reveal.
+
+   No language code. The server renders every page in the language of its
+   URL, and the language switch is a row of ordinary links to the other
+   URLs (App\Service\Routing\LanguageSwitch), so there is nothing to swap
+   in the browser: no data-nl/data-en, no data-lang-html, no stored language
+   (docs/multilingual/ARCHITECTURE.md, "Eén taal per antwoord").
 
    What does NOT belong here: anything a single content block, the portfolio
    detail page or the Shop owns. Those live next to their own markup —
@@ -18,98 +24,6 @@
 
   var docEl = document.documentElement;
   var prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-
-  /* ---------------------------------------------------------------------
-     Language switching
-     Elements carry data-nl / data-en (text), data-nl-alt/data-en-alt,
-     data-nl-placeholder/data-en-placeholder, data-nl-aria/data-en-aria.
-
-     WHICH LANGUAGE THE PAGE STARTS IN is the site's own primary language,
-     not a hardcoded "nl" (Multilingual V1, see MULTILINGUAL.md). The server
-     stamps it on <html data-primary-lang>, PHP having already printed that
-     language's text into the markup — so the first paint is correct and this
-     script only has work to do when a visitor has chosen the other one.
-
-     data-nl / data-en are PLAIN TEXT by default and are written with
-     textContent, never innerHTML: the value is editor-supplied and the server
-     escapes it into the attribute, but the browser decodes it back on read, so
-     assigning it to innerHTML would re-parse an editor's "<img onerror=…>" as
-     live markup — a stored-XSS route for any plain-text field (a nav label, a
-     heading, a footer line). The ONLY elements whose value is real HTML carry
-     data-lang-html, and only those go through innerHTML; that value is always
-     either RichTextSanitizer output or a server-built fragment of hardcoded
-     tags with escaped text (see MULTILINGUAL.md and the partials that set the
-     marker — section-rich-text.php, section-homepage-hero.php, …). Adding the
-     marker to a plain-text field reopens the hole, which is what
-     Tests\Service\MultilingualBoundaryTest guards against.
-
-     A single-language site renders no switch at all, so nothing below
-     changes anything on one.
-     --------------------------------------------------------------------- */
-  var LANG_KEY = "vvl-lang";
-  var PRIMARY_LANG = docEl.getAttribute("data-primary-lang") === "en" ? "en" : "nl";
-
-  function applyLang(lang) {
-    docEl.lang = lang === "en" ? "en" : "nl";
-
-    document.querySelectorAll("[data-nl]").forEach(function (el) {
-      var val = lang === "en" ? (el.dataset.en != null ? el.dataset.en : el.dataset.nl) : el.dataset.nl;
-      if (val == null) return;
-      if (el.hasAttribute("data-lang-html")) {
-        el.innerHTML = val;
-      } else {
-        el.textContent = val;
-      }
-    });
-    document.querySelectorAll("[data-nl-alt]").forEach(function (el) {
-      var val = lang === "en" ? (el.dataset.enAlt != null ? el.dataset.enAlt : el.dataset.nlAlt) : el.dataset.nlAlt;
-      if (val != null) el.setAttribute("alt", val);
-    });
-    document.querySelectorAll("[data-nl-placeholder]").forEach(function (el) {
-      var val = lang === "en" ? (el.dataset.enPlaceholder != null ? el.dataset.enPlaceholder : el.dataset.nlPlaceholder) : el.dataset.nlPlaceholder;
-      if (val != null) el.setAttribute("placeholder", val);
-    });
-    document.querySelectorAll("[data-nl-aria]").forEach(function (el) {
-      var val = lang === "en" ? (el.dataset.enAria != null ? el.dataset.enAria : el.dataset.nlAria) : el.dataset.nlAria;
-      if (val != null) el.setAttribute("aria-label", val);
-    });
-    document.querySelectorAll("meta[data-nl-content]").forEach(function (el) {
-      var val = lang === "en" ? (el.dataset.enContent != null ? el.dataset.enContent : el.dataset.nlContent) : el.dataset.nlContent;
-      if (val != null) el.setAttribute("content", val);
-    });
-    document.querySelectorAll(".lang-switch button").forEach(function (btn) {
-      btn.setAttribute("aria-pressed", btn.dataset.lang === lang ? "true" : "false");
-    });
-
-    try { localStorage.setItem(LANG_KEY, lang); } catch (e) {}
-  }
-
-  function initLang() {
-    var saved = PRIMARY_LANG;
-    try { saved = localStorage.getItem(LANG_KEY) || PRIMARY_LANG; } catch (e) {}
-
-    /* A stored preference for a language this site no longer publishes must
-       not blank the page: fall back to the primary one. */
-    if (!document.querySelector('.lang-switch button[data-lang="' + saved + '"]')) {
-      saved = PRIMARY_LANG;
-    }
-
-    /* Only rewrite the document when the wanted language is NOT the one the
-       server already printed. Re-applying the primary language would replace
-       every element's innerHTML for no reason on every single page view. */
-    if (saved !== PRIMARY_LANG) applyLang(saved);
-    else document.querySelectorAll(".lang-switch button").forEach(function (btn) {
-      btn.setAttribute("aria-pressed", btn.dataset.lang === PRIMARY_LANG ? "true" : "false");
-    });
-
-    document.querySelectorAll(".lang-switch").forEach(function (group) {
-      group.addEventListener("click", function (e) {
-        var btn = e.target.closest("button[data-lang]");
-        if (!btn) return;
-        applyLang(btn.dataset.lang);
-      });
-    });
-  }
 
   /* ---------------------------------------------------------------------
      Header: compact-on-scroll + mobile nav
@@ -252,7 +166,6 @@
      Boot
      --------------------------------------------------------------------- */
   document.addEventListener("DOMContentLoaded", function () {
-    initLang();
     initHeader();
     initNavDropdowns();
     initReveal();

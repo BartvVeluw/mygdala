@@ -151,7 +151,7 @@
       endpoint += "?collection=" + encodeURIComponent(collectionSlug);
     }
 
-    fetch(endpoint)
+    fetch(S.apiUrl(endpoint))
       .then(function (res) {
         if (!res.ok) throw new Error("Request failed: " + res.status);
         return res.json();
@@ -546,7 +546,7 @@
       return;
     }
 
-    fetch("/api/product.php?id=" + encodeURIComponent(id))
+    fetch(S.apiUrl("/api/product.php?id=" + encodeURIComponent(id)))
       .then(function (res) {
         if (!res.ok) throw new Error("Request failed: " + res.status);
         return res.json();

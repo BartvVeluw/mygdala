@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Tests\Service;
 
 use App\Service\Language\LanguageFallback;
-use App\Service\Language\SiteText;
 use App\Service\PortfolioLocalization;
 use PHPUnit\Framework\TestCase;
 use Tests\Support\SiteLanguageFixture;
@@ -80,13 +79,13 @@ final class PortfolioLocalizationTest extends TestCase
     public function testAFieldOfAnotherKindIsRefused(): void
     {
         $this->expectException(\InvalidArgumentException::class);
-        PortfolioLocalization::itemValue(self::ITEM, 'intro');
+        PortfolioLocalization::item(self::ITEM, 'intro', 'nl');
     }
 
     public function testAPlainFieldIsNotARichField(): void
     {
         $this->expectException(\InvalidArgumentException::class);
-        PortfolioLocalization::itemRichValue(self::ITEM, 'title');
+        PortfolioLocalization::itemRich(self::ITEM, 'title', 'nl');
     }
 
     /* ------------------------------------------------------------------ */
@@ -134,7 +133,7 @@ final class PortfolioLocalizationTest extends TestCase
         self::assertSame('en', PortfolioLocalization::defaultLanguage());
         self::assertSame('', PortfolioLocalization::items()->value(self::ITEM, 'title', 'en'));
         self::assertSame('Alleen Nederlands', PortfolioLocalization::items()->value(self::ITEM, 'title', 'nl'));
-        self::assertSame('', SiteText::visibleOf(PortfolioLocalization::itemValue(self::ITEM, 'title')));
+        self::assertSame('', PortfolioLocalization::item(self::ITEM, 'title', 'en'));
     }
 
     /** raw() is for an editor: what is stored in THIS language, with no fallback. */
@@ -147,29 +146,22 @@ final class PortfolioLocalizationTest extends TestCase
     }
 
     /* ------------------------------------------------------------------ */
-    /* The temporary NL/EN output pair                                     */
+    /* One language per request                                            */
     /* ------------------------------------------------------------------ */
 
-    public function testACardsPairIsBothHalvesResolved(): void
+    public function testACardReadsTheLanguageItIsAskedFor(): void
     {
         $this->itemWords([
             'nl' => ['title' => 'Houten bord', 'alt' => 'Een houten bord'],
             'en' => ['title' => 'Wooden sign'],
         ]);
 
-        $title = PortfolioLocalization::itemValue(self::ITEM, 'title');
-        self::assertSame('Houten bord', SiteText::visibleOf($title), 'the visitor sees the default language first');
-        self::assertSame(' data-nl="Houten bord" data-en="Wooden sign"', SiteText::attrsOf($title));
-
-        $alt = PortfolioLocalization::itemValue(self::ITEM, 'alt');
-        self::assertSame(
-            ' data-nl-alt="Een houten bord" data-en-alt="Een houten bord"',
-            SiteText::attrsForOf('alt', $alt),
-            'an untranslated alt text is the default language in both halves, never empty'
-        );
+        self::assertSame('Houten bord', PortfolioLocalization::item(self::ITEM, 'title', 'nl'));
+        self::assertSame('Wooden sign', PortfolioLocalization::item(self::ITEM, 'title', 'en'));
+        self::assertSame('Een houten bord', PortfolioLocalization::item(self::ITEM, 'alt', 'en'), 'an untranslated alt text is the default language, never empty');
     }
 
-    public function testACategoryAndAPhotoHaveTheirOwnPair(): void
+    public function testACategoryAndAPhotoReadTheLanguageTheyAreAskedFor(): void
     {
         PortfolioLocalization::categories()->overrideForTests(self::CATEGORY, [
             'nl' => ['name' => 'Hout'],
@@ -177,8 +169,9 @@ final class PortfolioLocalizationTest extends TestCase
         ]);
         PortfolioLocalization::images()->overrideForTests(self::IMAGE, ['nl' => ['alt' => 'Detailfoto']]);
 
-        self::assertSame(' data-nl="Hout" data-en="Wood"', SiteText::attrsOf(PortfolioLocalization::categoryName(self::CATEGORY)));
-        self::assertSame('Detailfoto', SiteText::visibleOf(PortfolioLocalization::imageAlt(self::IMAGE)));
+        self::assertSame('Hout', PortfolioLocalization::categoryName(self::CATEGORY, 'nl'));
+        self::assertSame('Wood', PortfolioLocalization::categoryName(self::CATEGORY, 'en'));
+        self::assertSame('Detailfoto', PortfolioLocalization::imageAlt(self::IMAGE, 'en'));
     }
 
     /* ------------------------------------------------------------------ */
@@ -199,19 +192,9 @@ final class PortfolioLocalizationTest extends TestCase
             'en' => ['intro' => '<script>alert(2)</script>'],
         ]);
 
-        $intro = PortfolioLocalization::itemRichValue(self::ITEM, 'intro');
-
-        self::assertSame('<p>Van eiken</p>', SiteText::visibleOf($intro));
-        self::assertStringNotContainsString('script', $intro->in('en'));
-        self::assertSame('<p>Van eiken</p>', $intro->in('en'), 'markup that sanitizes away to nothing is no translation');
-    }
-
-    /** A pair whose halves are identical carries no data-lang-html at all. */
-    public function testRichTextWithoutATranslationIsNotMarkedAsHtml(): void
-    {
-        $this->itemWords(['nl' => ['description' => '<p>Eén taal</p>']]);
-
-        self::assertSame('', SiteText::htmlAttrsOf(PortfolioLocalization::itemRichValue(self::ITEM, 'description')));
+        self::assertSame('<p>Van eiken</p>', PortfolioLocalization::itemRich(self::ITEM, 'intro', 'nl'));
+        self::assertStringNotContainsString('script', PortfolioLocalization::itemRich(self::ITEM, 'intro', 'en'));
+        self::assertSame('<p>Van eiken</p>', PortfolioLocalization::itemRich(self::ITEM, 'intro', 'en'), 'markup that sanitizes away to nothing is no translation');
     }
 
     /* ------------------------------------------------------------------ */

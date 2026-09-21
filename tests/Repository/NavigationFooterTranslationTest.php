@@ -11,9 +11,9 @@ use App\Repository\SiteLanguageRepository;
 use App\Service\FooterLocalization;
 use App\Service\FooterService;
 use App\Service\Language\SiteLanguages;
-use App\Service\Language\SiteText;
 use App\Service\NavigationLocalization;
 use App\Service\NavigationService;
+use App\Service\Routing\RequestLanguage;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -101,7 +101,7 @@ final class NavigationFooterTranslationTest extends TestCase
         self::assertSame(['zz Contact', ''], $this->storedLabels($id));
     }
 
-    public function testTheHeaderPrintsThePairFromTheNewStorageWithTheFallback(): void
+    public function testTheHeaderReadsTheLanguageOfTheRequestWithTheFallback(): void
     {
         $translated = $this->navItem('external', '/zz-a');
         NavigationLocalization::save($translated, 'nl', 'zz Winkel');
@@ -110,14 +110,21 @@ final class NavigationFooterTranslationTest extends TestCase
         NavigationLocalization::save($untranslated, 'nl', 'zz Blog');
         NavigationLocalization::clearCache();
 
-        $items = [];
-        foreach (NavigationService::tree() as $item) {
-            $items[$item['id']] = $item;
-        }
+        $labels = static function (): array {
+            $labels = [];
+            foreach (NavigationService::tree() as $item) {
+                $labels[$item['id']] = $item['label'];
+            }
 
-        self::assertSame(' data-nl="zz Winkel" data-en="zz Store"', SiteText::attrsOf($items[$translated]['label']));
-        self::assertSame(' data-nl="zz Blog" data-en="zz Blog"', SiteText::attrsOf($items[$untranslated]['label']), 'an untranslated label falls back to the default language');
-        self::assertSame('zz Winkel', SiteText::visibleOf($items[$translated]['label']));
+            return $labels;
+        };
+
+        $dutch = $this->in('nl', $labels);
+        $english = $this->in('en', $labels);
+
+        self::assertSame('zz Winkel', $dutch[$translated]);
+        self::assertSame('zz Store', $english[$translated]);
+        self::assertSame('zz Blog', $english[$untranslated], 'an untranslated label falls back to the default language');
     }
 
     public function testAThirdLanguageIsOnlyARowInTheRegistry(): void
@@ -203,7 +210,7 @@ final class NavigationFooterTranslationTest extends TestCase
         );
     }
 
-    public function testThePublicFooterCarriesThePairFromTheNewStorage(): void
+    public function testThePublicFooterReadsTheLanguageOfTheRequest(): void
     {
         [$column, $link] = $this->columnWithLink();
         FooterLocalization::saveColumnTitle($column, 'nl', 'zz Juridisch');
@@ -211,11 +218,15 @@ final class NavigationFooterTranslationTest extends TestCase
         FooterLocalization::saveLinkLabel($link, 'en', 'zz Privacy policy');
         FooterLocalization::clearCache();
 
-        $columns = array_values(array_filter(FooterService::columns(), static fn (array $c): bool => $c['id'] === $column));
+        $ours = static fn (): array => array_values(array_filter(FooterService::columns(), static fn (array $c): bool => $c['id'] === $column));
+        $dutch = $this->in('nl', $ours);
+        $english = $this->in('en', $ours);
 
-        self::assertCount(1, $columns);
-        self::assertSame(' data-nl="zz Juridisch" data-en="zz Juridisch"', SiteText::attrsOf($columns[0]['title']));
-        self::assertSame(' data-nl="zz Privacy" data-en="zz Privacy policy"', SiteText::attrsOf($columns[0]['links'][0]['label']));
+        self::assertCount(1, $english);
+        self::assertSame('zz Juridisch', $dutch[0]['title']);
+        self::assertSame('zz Juridisch', $english[0]['title'], 'an untranslated title falls back to the default language');
+        self::assertSame('zz Privacy', $dutch[0]['links'][0]['label']);
+        self::assertSame('zz Privacy policy', $english[0]['links'][0]['label']);
     }
 
     public function testDeletingAColumnTakesTheWordsOfItsLinksToo(): void
@@ -291,6 +302,24 @@ final class NavigationFooterTranslationTest extends TestCase
             (new SiteLanguageRepository())->create('de', 'German', 'Deutsch');
             $this->addedGerman = true;
             SiteLanguages::clearCache();
+        }
+    }
+
+    /**
+     * Run $work while the request is answered in $language.
+     *
+     * @template T
+     * @param \Closure(): T $work
+     * @return T
+     */
+    private function in(string $language, \Closure $work): mixed
+    {
+        RequestLanguage::set($language, true);
+
+        try {
+            return $work();
+        } finally {
+            RequestLanguage::reset();
         }
     }
 }

@@ -4,8 +4,8 @@ namespace App\Service;
 
 use App\Repository\PageHeroRepository;
 use App\Service\Blocks\BlockLocalization;
-use App\Service\Language\LocalizedValue;
 use App\Service\Media\BlockImage;
+use App\Service\Routing\RequestLanguage;
 
 /**
  * Content for the "Page hero" section — the header at the top of an ordinary
@@ -22,11 +22,11 @@ use App\Service\Media\BlockImage;
  * (App\Service\Blocks\PageHeroBlock::create()). Never a schema change.
  *
  * WORDS PER LANGUAGE (Multilingual 2.0 phase 3B). The eyebrow, the title and
- * the lead are stored per website language in block_translations and come
- * out of App\Service\Blocks\BlockLocalization as one LocalizedValue each, the
- * fallback to the default language already applied. The image and the three
- * choices stay in page_heroes, the same in every language. This class
- * decides no language itself.
+ * the lead are stored per website language in block_translations and come out
+ * of App\Service\Blocks\BlockLocalization as one string each, in the language
+ * of the request, the fallback to the default language already applied. The
+ * image and the three choices stay in page_heroes, the same in every language.
+ * This class decides no language itself.
  *
  * There is no hardcoded fallback copy, per page or per field. A missing row,
  * or a lookup that fails, is STATE_FALLBACK: there is nothing to render, and a
@@ -113,9 +113,9 @@ class PageHeroContent
 
     /**
      * @return array<string, mixed> 'state' (one of STATE_*), plus the words
-     *     eyebrow, title and lead (a LocalizedValue each; eyebrow and lead may
+     *     eyebrow, title and lead (a string each; eyebrow and lead may
      *     be empty); the image as media_id (int|null), image_path ('' for no
-     *     image), image_alt (a LocalizedValue) and image_width/height
+     *     image), image_alt (a string) and image_width/height
      *     (int|null when unknown); and content_position, title_size and
      *     text_size, always one of POSITIONS / SIZES.
      *     Templates must only render the section when 'state' ===
@@ -125,8 +125,9 @@ class PageHeroContent
      */
     public static function forSlug(string $pageSlug): array
     {
-        if (isset(self::$cache[$pageSlug])) {
-            return self::$cache[$pageSlug];
+        $cacheKey = RequestLanguage::current() . '|' . $pageSlug;
+        if (isset(self::$cache[$cacheKey])) {
+            return self::$cache[$cacheKey];
         }
 
         $row = null;
@@ -137,20 +138,28 @@ class PageHeroContent
         }
 
         if ($row === null) {
-            return self::$cache[$pageSlug] = self::emptyContent() + ['state' => self::STATE_FALLBACK];
+            return self::$cache[$cacheKey] = self::emptyContent() + ['state' => self::STATE_FALLBACK];
         }
 
         if (!(bool) $row['is_active']) {
             // Intentionally hidden: the content fields are still filled in
             // (empty) purely so a template that forgets to check 'state'
             // fails safe instead of erroring on a missing key.
-            return self::$cache[$pageSlug] = self::emptyContent() + ['state' => self::STATE_HIDDEN];
+            return self::$cache[$cacheKey] = self::emptyContent() + ['state' => self::STATE_HIDDEN];
         }
 
-        $content = BlockLocalization::words(self::TABLE, (int) $row['id']);
+        $heroId = (int) $row['id'];
+
+        // THE DEFAULT LANGUAGE DECIDES WHETHER THE HEADER IS THERE
+        // (docs/multilingual/ARCHITECTURE.md): without a title in the default
+        // language the header says nothing in any language, and the partial
+        // renders nothing.
+        $content = BlockLocalization::hasDefaultWords(self::TABLE, $heroId, 'title')
+            ? BlockLocalization::words(self::TABLE, $heroId)
+            : BlockLocalization::words(self::TABLE, 0);
         $content['state'] = self::STATE_ACTIVE;
 
-        return self::$cache[$pageSlug] = $content + self::imageOf($row) + self::choicesOf($row);
+        return self::$cache[$cacheKey] = $content + self::imageOf($row) + self::choicesOf($row);
     }
 
     /**
@@ -208,7 +217,7 @@ class PageHeroContent
      *
      * @param array<string, mixed> $row
      *
-     * @return array{media_id: int|null, image_path: string, image_alt: LocalizedValue, image_width: int|null, image_height: int|null}
+     * @return array{media_id: int|null, image_path: string, image_alt: string, image_width: int|null, image_height: int|null}
      */
     private static function imageOf(array $row): array
     {

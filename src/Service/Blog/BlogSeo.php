@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Service\Blog;
 
 use App\Service\Branding;
-use App\Service\Language\LanguageRegistry;
+use App\Service\Language\SiteText;
 use App\Service\Media\MediaService;
 use App\Service\AppUrl;
 use App\Service\Routing\RequestLanguage;
@@ -67,14 +67,11 @@ final class BlogSeo
      */
     public static function forIndex(int $page = 1): SeoMetadata
     {
-        $titleNl = self::listingTitle(BlogLocalizedSettings::title(LanguageRegistry::DUTCH), $page);
-        $titleEn = self::listingTitle(BlogLocalizedSettings::title(LanguageRegistry::ENGLISH), $page);
+        $language = RequestLanguage::current();
 
         return SeoMetadata::create(
-            titleNl: $titleNl,
-            titleEn: $titleEn,
-            descriptionNl: Seo::plainText(BlogLocalizedSettings::intro(LanguageRegistry::DUTCH)),
-            descriptionEn: Seo::plainText(BlogLocalizedSettings::intro(LanguageRegistry::ENGLISH)),
+            title: self::listingTitle(BlogLocalizedSettings::title($language), $page),
+            description: Seo::plainText(BlogLocalizedSettings::intro($language)),
             // This language's own index URL (docs/multilingual/ROUTING.md).
             canonical: BlogUrls::index($page, RequestLanguage::current()),
             indexable: true,
@@ -85,17 +82,19 @@ final class BlogSeo
     }
 
     /**
-     * One post.
+     * One post, its words in the request's language — or in $language, which
+     * only the CMS's search preview names: it shows the version the editor is
+     * writing (admin/blog-post.php).
      *
      * @param array<string, mixed> $post a decorated row from BlogContent
      */
-    public static function forPost(array $post): SeoMetadata
+    public static function forPost(array $post, ?string $language = null): SeoMetadata
     {
+        $language ??= RequestLanguage::current();
+
         return SeoMetadata::create(
-            titleNl: self::postTitle($post, LanguageRegistry::DUTCH),
-            titleEn: self::postTitle($post, LanguageRegistry::ENGLISH),
-            descriptionNl: self::postDescription($post, LanguageRegistry::DUTCH),
-            descriptionEn: self::postDescription($post, LanguageRegistry::ENGLISH),
+            title: self::postTitle($post, $language),
+            description: self::postDescription($post, $language),
             // The URL this post is actually being read at. A decorated row
             // carries it already; a raw one is resolved on the spot, so this
             // works for both and the canonical tag can never disagree with
@@ -116,15 +115,13 @@ final class BlogSeo
     public static function forCategory(array $category, int $page = 1): SeoMetadata
     {
         $id = (int) ($category['id'] ?? 0);
+        $language = RequestLanguage::current();
 
         return SeoMetadata::create(
-            titleNl: self::archiveTitle(BlogContent::categoryName($category, LanguageRegistry::DUTCH), $page),
-            titleEn: self::archiveTitle(BlogContent::categoryName($category, LanguageRegistry::ENGLISH), $page),
-            // The head still carries the V1 pair for the client-side switch;
-            // each half is one language of the category's own introduction,
-            // read through BlogLocalization with its fallback.
-            descriptionNl: Seo::plainText(BlogLocalization::categoryDescription($id, LanguageRegistry::DUTCH)),
-            descriptionEn: Seo::plainText(BlogLocalization::categoryDescription($id, LanguageRegistry::ENGLISH)),
+            title: self::archiveTitle(BlogContent::categoryName($category, $language), $page),
+            // The category's own introduction, read through BlogLocalization
+            // with its fallback.
+            description: Seo::plainText(BlogLocalization::categoryDescription($id, $language)),
             canonical: AppUrl::canonical(BlogContent::categoryUrl($category, $page)),
             indexable: true,
             ogType: 'website',
@@ -141,8 +138,7 @@ final class BlogSeo
     public static function forTag(array $tag, int $page = 1): SeoMetadata
     {
         return SeoMetadata::create(
-            titleNl: self::archiveTitle(BlogContent::tagName($tag, LanguageRegistry::DUTCH), $page),
-            titleEn: self::archiveTitle(BlogContent::tagName($tag, LanguageRegistry::ENGLISH), $page),
+            title: self::archiveTitle(BlogContent::tagName($tag, RequestLanguage::current()), $page),
             canonical: AppUrl::canonical(BlogContent::tagUrl($tag, $page)),
             indexable: false,
             ogType: 'website',
@@ -173,21 +169,27 @@ final class BlogSeo
     {
         $title = Seo::routeTitle($blogTitle);
 
-        return $page > 1 ? $title . ' — pagina ' . $page : $title;
+        return $page > 1 ? $title . self::pageSuffix($page) : $title;
+    }
+
+    /** " — pagina 2": the page number of a listing, in the request's language. */
+    private static function pageSuffix(int $page): string
+    {
+        return ' — ' . SiteText::pick(['nl' => 'pagina', 'en' => 'page']) . ' ' . $page;
     }
 
     /** "<archive name> | <blog title> — <site name>". */
     private static function archiveTitle(string $name, int $page): string
     {
         $siteName = SeoDefaults::siteName();
-        $blogTitle = BlogLocalizedSettings::title(LanguageRegistry::DUTCH);
+        $blogTitle = BlogLocalizedSettings::title(RequestLanguage::current());
         $name = trim($name);
 
         $title = $name === ''
             ? Seo::routeTitle($blogTitle)
             : $name . ' | ' . $blogTitle . ($siteName === '' ? '' : ' — ' . $siteName);
 
-        return $page > 1 ? $title . ' — pagina ' . $page : $title;
+        return $page > 1 ? $title . self::pageSuffix($page) : $title;
     }
 
     /**
@@ -271,7 +273,7 @@ final class BlogSeo
             return null;
         }
 
-        $headline = BlogContent::title($post, LanguageRegistry::DUTCH);
+        $headline = BlogContent::title($post, RequestLanguage::current());
 
         if ($headline === '') {
             return null;
@@ -299,7 +301,7 @@ final class BlogSeo
             $data['dateModified'] = $updated->format(\DateTimeInterface::ATOM);
         }
 
-        $description = Seo::plainText(BlogContent::excerpt($post, LanguageRegistry::DUTCH));
+        $description = Seo::plainText(BlogContent::excerpt($post, RequestLanguage::current()));
         if ($description !== '') {
             $data['description'] = $description;
         }

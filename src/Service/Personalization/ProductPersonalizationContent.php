@@ -7,7 +7,7 @@ namespace App\Service\Personalization;
 use App\Module\ModuleRegistry;
 use App\Repository\ProductPersonalizationRepository;
 use App\Repository\ProductRepository;
-use App\Service\Language\LanguageRegistry;
+use App\Service\Routing\RequestLanguage;
 
 /**
  * Resolves a product's personalization CONFIGURATION into the one shape every
@@ -33,7 +33,12 @@ use App\Service\Language\LanguageRegistry;
  */
 class ProductPersonalizationContent
 {
-    /** @var array<int, array<string, mixed>|null> */
+    /**
+     * Per language and product: the labels come back in the request's
+     * language.
+     *
+     * @var array<string, array<string, mixed>|null>
+     */
     private static array $cache = [];
 
     private ProductPersonalizationRepository $repository;
@@ -57,8 +62,9 @@ class ProductPersonalizationContent
      */
     public static function forProduct(int $productId): ?array
     {
-        if (array_key_exists($productId, self::$cache)) {
-            return self::$cache[$productId];
+        $cacheKey = RequestLanguage::current() . '|' . $productId;
+        if (array_key_exists($cacheKey, self::$cache)) {
+            return self::$cache[$cacheKey];
         }
 
         try {
@@ -70,7 +76,7 @@ class ProductPersonalizationContent
             $resolved = null;
         }
 
-        self::$cache[$productId] = $resolved;
+        self::$cache[$cacheKey] = $resolved;
 
         return $resolved;
     }
@@ -104,8 +110,12 @@ class ProductPersonalizationContent
         // Every label, instruction and placeholder this configuration prints,
         // in one query per store rather than one per view and one per zone.
         // They are words per website language since Multilingual 2.0 phase 5
-        // wave D (App\Service\Personalization\PersonalizationLocalization).
+        // wave D (App\Service\Personalization\PersonalizationLocalization),
+        // and this configuration carries them in ONE language: the request's.
+        // `name` is the other one it needs — what the CMS calls a view or a
+        // zone, the words an order snapshot records (see snapshot()).
         self::preloadWords($stored['views']);
+        $language = RequestLanguage::current();
 
         $views = [];
         foreach ($stored['views'] as $view) {
@@ -117,7 +127,7 @@ class ProductPersonalizationContent
 
             $zones = [];
             foreach ($view['zones'] ?? [] as $zone) {
-                $resolvedZone = self::resolveZone($zone);
+                $resolvedZone = self::resolveZone($zone, $language);
                 if ($resolvedZone !== null) {
                     $zones[] = $resolvedZone;
                 }
@@ -131,8 +141,8 @@ class ProductPersonalizationContent
 
             $views[] = [
                 'view_key' => (string) $view['view_key'],
-                'label' => self::word(PersonalizationLocalization::viewLabel($viewId, LanguageRegistry::DUTCH)),
-                'label_en' => self::word(PersonalizationLocalization::viewLabel($viewId, LanguageRegistry::ENGLISH)),
+                'label' => self::word(PersonalizationLocalization::viewLabel($viewId, $language)),
+                'name' => self::word(PersonalizationLocalization::viewName($viewId)),
                 'preview_image_path' => $previewImagePath,
                 'zones' => $zones,
             ];
@@ -167,8 +177,7 @@ class ProductPersonalizationContent
             'is_shop_purchasable' => $isShopPurchasable,
             'is_personalization_only' => !$isShopPurchasable,
             'is_required' => $isRequired,
-            'instructions' => self::word(PersonalizationLocalization::instructions($settingsId, LanguageRegistry::DUTCH)),
-            'instructions_en' => self::word(PersonalizationLocalization::instructions($settingsId, LanguageRegistry::ENGLISH)),
+            'instructions' => self::word(PersonalizationLocalization::instructions($settingsId, $language)),
             // The fonts a customer may pick, resolved ONCE for the whole
             // configuration rather than per zone: the library is global, so
             // every text zone on this product offers exactly this list.
@@ -187,7 +196,7 @@ class ProductPersonalizationContent
      * @param array<string, mixed> $zone a raw row
      * @return array<string, mixed>|null null when the zone cannot be offered
      */
-    private static function resolveZone(array $zone): ?array
+    private static function resolveZone(array $zone, string $language): ?array
     {
         if ((int) ($zone['is_enabled'] ?? 1) !== 1) {
             return null;
@@ -210,18 +219,16 @@ class ProductPersonalizationContent
         $defaultColor = $allowText ? PersonalizationColors::FALLBACK : null;
 
         $zoneId = (int) $zone['id'];
-        $word = static fn (string $field, string $language): ?string => self::word(
+        $word = static fn (string $field): ?string => self::word(
             PersonalizationLocalization::zoneWord($zoneId, $field, $language)
         );
 
         return [
             'zone_key' => (string) $zone['zone_key'],
-            'label' => $word(PersonalizationLocalization::LABEL, LanguageRegistry::DUTCH),
-            'label_en' => $word(PersonalizationLocalization::LABEL, LanguageRegistry::ENGLISH),
-            'instructions' => $word(PersonalizationLocalization::INSTRUCTIONS, LanguageRegistry::DUTCH),
-            'instructions_en' => $word(PersonalizationLocalization::INSTRUCTIONS, LanguageRegistry::ENGLISH),
-            'placeholder' => $word(PersonalizationLocalization::PLACEHOLDER, LanguageRegistry::DUTCH),
-            'placeholder_en' => $word(PersonalizationLocalization::PLACEHOLDER, LanguageRegistry::ENGLISH),
+            'label' => $word(PersonalizationLocalization::LABEL),
+            'name' => self::word(PersonalizationLocalization::zoneName($zoneId)),
+            'instructions' => $word(PersonalizationLocalization::INSTRUCTIONS),
+            'placeholder' => $word(PersonalizationLocalization::PLACEHOLDER),
             'allow_text' => $allowText,
             'allow_image' => $allowImage,
             'mode' => PersonalizationRules::contentMode($allowText, $allowImage),
@@ -335,6 +342,14 @@ class ProductPersonalizationContent
      * required state, the fonts it offered, and the surcharge configuration
      * that was in force.
      *
+     * Version 4 records the view's and the zone's `label` as their NAME —
+     * what the CMS calls them, in the website's default language — whatever
+     * language the customer ordered in, and no longer records `label_en`:
+     * nothing ever read it, and a snapshot is a record for the shop owner,
+     * not a copy of a page in every language. The CMS order screen reads
+     * `label` from every version alike, so a version 1–3 snapshot with its
+     * old `label`/`label_en` pair stays readable exactly as it was stored.
+     *
      * Version 3 ADDS two more things and changes nothing:
      *   - `purchase_mode`, so an order can still say whether this product was
      *     sold as a required-personalization product at the time;
@@ -365,7 +380,7 @@ class ProductPersonalizationContent
         ?string $colorKey = null
     ): array {
         return [
-            'version' => 3,
+            'version' => 4,
             'captured_at' => (new \DateTimeImmutable())->format('c'),
             'preview_image_path' => $view['preview_image_path'],
             'instructions' => $config['instructions'] ?? null,
@@ -382,13 +397,11 @@ class ProductPersonalizationContent
             'color' => $colorKey === null ? null : PersonalizationColors::snapshot($colorKey),
             'view' => [
                 'view_key' => $view['view_key'],
-                'label' => $view['label'],
-                'label_en' => $view['label_en'],
+                'label' => $view['name'] ?? $view['label'] ?? null,
             ],
             'zone' => [
                 'zone_key' => $zone['zone_key'],
-                'label' => $zone['label'],
-                'label_en' => $zone['label_en'],
+                'label' => $zone['name'] ?? $zone['label'] ?? null,
                 'instructions' => $zone['instructions'],
                 'allow_text' => $zone['allow_text'],
                 'allow_image' => $zone['allow_image'],
@@ -448,8 +461,7 @@ class ProductPersonalizationContent
      *
      * The value already carries the one fallback rule
      * (App\Service\Language\LanguageFallback), so a zone labelled only in the
-     * default language reads the same in both halves of the temporary V1 pair
-     * — which is exactly what the browser used to do for itself.
+     * default language reads those words in every language.
      */
     private static function word(string $value): ?string
     {

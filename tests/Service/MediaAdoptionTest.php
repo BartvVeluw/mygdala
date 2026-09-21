@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Tests\Service;
 
-use App\Service\Language\LocalizedValue;
 use App\Service\Media\BlockImage;
 use App\Service\Media\MediaService;
 use App\Service\Media\MediaUploader;
@@ -321,19 +320,16 @@ final class MediaAdoptionTest extends TestCase
             42 => ['path' => 'assets/media/x.png', 'alt_text' => 'Centrale omschrijving', 'mime_type' => 'image/png'],
         ]);
 
-        $local = BlockImage::fromRow(['media_id' => 42, 'alt_nl' => 'Lokale omschrijving', 'alt_en' => '']);
-        $this->assertSame('Lokale omschrijving', $local['alt_nl']);
-        $this->assertSame('Lokale omschrijving', $local['alt_en'], 'empty English still means "same as Dutch"');
+        // The block's own alt text arrives already in the language of the
+        // request, its fallback applied (BlockLocalization::text()).
+        $ownWords = BlockImage::fromOwner(['media_id' => 42], 'Lokale omschrijving');
+        $this->assertSame('Lokale omschrijving', $ownWords['alt']);
 
-        $inherited = BlockImage::fromRow(['media_id' => 42, 'alt_nl' => '', 'alt_en' => '']);
-        $this->assertSame('Centrale omschrijving', $inherited['alt_nl'], 'an empty local field falls back to the library');
+        $noWords = BlockImage::fromOwner(['media_id' => 42], '');
+        $this->assertSame('Centrale omschrijving', $noWords['alt'], 'no alt text of its own: the library\'s');
 
-        // The same layering for a block whose alt text is stored per language.
-        $ownWords = BlockImage::fromOwner(['media_id' => 42], LocalizedValue::of(['nl' => 'Lokale omschrijving', 'en' => ''], 'nl'));
-        $this->assertSame('Lokale omschrijving', $ownWords['alt']->in('en'), 'the block\'s own alt text in the default language serves every language');
-
-        $noWords = BlockImage::fromOwner(['media_id' => 42], LocalizedValue::of([], 'nl'));
-        $this->assertSame('Centrale omschrijving', $noWords['alt']->in('nl'), 'no alt text of its own: the library\'s');
+        $noneAsked = BlockImage::fromOwner(['media_id' => 42], null);
+        $this->assertSame('Centrale omschrijving', $noneAsked['alt'], 'a block without an alt field: the library\'s');
 
         MediaService::overrideForTests(null);
     }

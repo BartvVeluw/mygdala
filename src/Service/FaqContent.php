@@ -4,6 +4,7 @@ namespace App\Service;
 
 use App\Repository\FaqRepository;
 use App\Service\Blocks\BlockLocalization;
+use App\Service\Routing\RequestLanguage;
 
 /**
  * Content for the "FAQ list" section (`.faq-list` > `.faq-item` /
@@ -25,9 +26,9 @@ use App\Service\Blocks\BlockLocalization;
  * question and answer are stored per website language in block_translations:
  * the section's words on its own row, each item's on the item's row
  * (FaqBlock::childTables()). They come out of
- * App\Service\Blocks\BlockLocalization as one LocalizedValue per field, the
- * fallback already applied; is_active and the order stay in the tables. This
- * class decides no language itself.
+ * App\Service\Blocks\BlockLocalization as one string per field, in the
+ * language of the request, the fallback already applied; is_active and the
+ * order stay in the tables. This class decides no language itself.
  *
  * `is_active = false` on an *existing* section row is a deliberate hide, and a
  * different case from a missing row. forSection()'s returned `state` field is
@@ -76,9 +77,9 @@ class FaqContent
 
     /**
      * @return array<string, mixed> 'state' (one of STATE_*), plus eyebrow and
-     *                                title (a LocalizedValue each), and
+     *                                title (a string each), and
      *                                'items': a list of question and answer
-     *                                (a LocalizedValue each). Templates must
+     *                                (a string each). Templates must
      *                                only render the section when 'state' ===
      *                                STATE_ACTIVE; the content fields are
      *                                still present (empty) otherwise, purely
@@ -88,7 +89,7 @@ class FaqContent
      */
     public static function forSection(string $pageSlug, string $sectionKey): array
     {
-        $cacheKey = $pageSlug . ':' . $sectionKey;
+        $cacheKey = RequestLanguage::current() . '|' . $pageSlug . ':' . $sectionKey;
 
         if (isset(self::$cache[$cacheKey])) {
             return self::$cache[$cacheKey];

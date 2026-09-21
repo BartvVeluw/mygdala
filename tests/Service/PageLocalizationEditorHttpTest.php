@@ -58,7 +58,9 @@ final class PageLocalizationEditorHttpTest extends TestCase
 
     public static function setUpBeforeClass(): void
     {
-        self::$server = BuiltInServer::start();
+        // The dispatcher answers /en/… and /de/… the way .htaccess does in
+        // production, so a page can be read in every website language.
+        self::$server = BuiltInServer::start([], 'tests/Support/dispatcher-router.php');
     }
 
     public static function tearDownAfterClass(): void
@@ -458,23 +460,33 @@ final class PageLocalizationEditorHttpTest extends TestCase
         self::assertFalse($form->hasAttribute('data-save-bar-unsaved'), 'the other language opens saved');
     }
 
-    // ------------------------------------------------------------ the V1 output
+    // ------------------------------------------------------------ the public output
 
-    public function testThePublicPageAndTheDraftPreviewPrintBothSwitchLanguagesFromTheNewStorage(): void
+    public function testThePublicPageAndTheDraftPreviewPrintTheLanguageOfTheRequestFromTheNewStorage(): void
     {
-        PageLocalization::save($this->pageId, 'en', [PageTranslation::TITLE => 'Translation test page']);
+        PageLocalization::save($this->pageId, 'en', [PageTranslation::TITLE => 'Translation test page'], self::KEY . '-en');
 
-        $public = self::$server->request('GET', '/pagina.php?slug=' . self::KEY);
-        self::assertSame(200, $public['status']);
-        self::assertMatchesRegularExpression('/<title data-nl="Vertaaltest SEO" data-en="Vertaaltest SEO">/', $public['body'], 'an English page without its own SEO title gets the Dutch one');
-        self::assertStringContainsString('data-nl-content="Nederlandse omschrijving" data-en-content="Nederlandse omschrijving"', $public['body']);
-        self::assertStringContainsString('data-nl="Vertaaltest pagina" data-en="Translation test page"', $public['body'], 'the breadcrumb carries both languages');
+        $dutch = self::$server->request('GET', '/pagina.php?slug=' . self::KEY);
+        self::assertSame(200, $dutch['status']);
+        self::assertMatchesRegularExpression('/<title>Vertaaltest SEO/', $dutch['body']);
+        self::assertStringContainsString('<meta name="description" content="Nederlandse omschrijving">', $dutch['body']);
+        self::assertStringContainsString('>Vertaaltest pagina</span>', $dutch['body'], 'the breadcrumb in Dutch');
+        self::assertStringNotContainsString('data-nl', $dutch['body'], 'one language per page, nothing for a browser to swap');
+
+        PageContent::clearCache();
+        $page = PageContent::forContentKey(self::KEY);
+        self::assertNotNull($page);
+        $english = self::$server->request('GET', PageContent::publicUrl($page, 'en'));
+        self::assertSame(200, $english['status']);
+        self::assertMatchesRegularExpression('/<title>Vertaaltest SEO/', $english['body'], 'an English page without its own SEO title gets the Dutch one');
+        self::assertStringContainsString('<meta name="description" content="Nederlandse omschrijving">', $english['body']);
+        self::assertStringContainsString('>Translation test page</span>', $english['body'], 'the breadcrumb in English');
 
         Database::connection()->prepare("UPDATE pages SET status = 'draft' WHERE id = ?")->execute([$this->pageId]);
         $session = $this->signIn(null);
         $preview = self::$server->request('GET', '/admin/page-preview.php?id=' . $this->pageId, $session);
         self::assertSame(200, $preview['status']);
-        self::assertStringContainsString('data-nl="Vertaaltest pagina" data-en="Translation test page"', $preview['body']);
+        self::assertStringContainsString('>Vertaaltest pagina</span>', $preview['body']);
     }
 
     // ------------------------------------------------------------ helpers

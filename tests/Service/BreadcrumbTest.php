@@ -17,6 +17,7 @@ use App\Service\PageContent;
 use App\Service\PageHeroContent;
 use App\Service\PageLocalization;
 use App\Service\PageTranslation;
+use App\Service\Routing\RequestLanguage;
 use App\Service\SiteSettings;
 use PHPUnit\Framework\TestCase;
 
@@ -86,13 +87,15 @@ final class BreadcrumbTest extends TestCase
 
     public function testATrailIsANamedLandmarkAroundAnOrderedList(): void
     {
-        $html = $this->render($this->pageTrail());
+        $trail = $this->pageTrail();
+        $html = $this->render($trail);
 
         $this->assertStringContainsString('<nav class="breadcrumb-bar" aria-label="Kruimelpad"', $html);
+        $this->assertStringNotContainsString('data-nl', $html, 'one language per page: no pair for a browser to swap');
         $this->assertStringContainsString(
-            'data-nl-aria="Kruimelpad" data-en-aria="Breadcrumb"',
-            $html,
-            'the landmark is named in both languages, so the language switch reaches it too'
+            '<nav class="breadcrumb-bar" aria-label="Breadcrumb"',
+            $this->in('en', fn (): string => $this->render($trail)),
+            'the landmark is named in the language being read'
         );
         $this->assertStringContainsString('<ol class="breadcrumb">', $html);
         $this->assertSame(2, substr_count($html, '<li class="breadcrumb__item">'));
@@ -128,34 +131,31 @@ final class BreadcrumbTest extends TestCase
         );
     }
 
-    public function testBothLanguagesTravelOnTheLeafElement(): void
+    public function testALevelPrintsItsOneLabelAndNothingForABrowserToSwap(): void
     {
-        // assets/js/core.js swaps data-nl/data-en by assigning innerHTML, so a
-        // pair on the <li> would wipe out the link inside it on the first
-        // toggle.
         $html = $this->render(
             BreadcrumbTrail::home()
-                ->to(BreadcrumbItem::link('Blog', 'Journal', '/blog'))
-                ->to(BreadcrumbItem::current('Een bericht', 'A post'))
+                ->to(BreadcrumbItem::link('Blog', '/blog'))
+                ->to(BreadcrumbItem::current('Een bericht'))
         );
 
-        $this->assertStringContainsString('<a href="/blog" data-nl="Blog" data-en="Journal">Blog</a>', $html);
-        $this->assertStringContainsString('data-nl="Een bericht" data-en="A post"', $html);
-        $this->assertStringNotContainsString('<li class="breadcrumb__item" data-nl', $html);
+        $this->assertStringContainsString('<a href="/blog">Blog</a>', $html);
+        $this->assertStringContainsString('aria-current="page">Een bericht</span>', $html);
+        $this->assertStringNotContainsString('data-en', $html);
     }
 
     public function testEveryLabelAndAddressIsEscaped(): void
     {
         $html = $this->render(
             BreadcrumbTrail::home()
-                ->to(BreadcrumbItem::link('Shop', 'Shop', '/zoek?a="b"&c'))
-                ->to(BreadcrumbItem::current('<script>alert(1)</script>', 'A & B'))
+                ->to(BreadcrumbItem::link('A & B', '/zoek?a="b"&c'))
+                ->to(BreadcrumbItem::current('<script>alert(1)</script>'))
         );
 
         $this->assertStringNotContainsString('<script>', $html);
         $this->assertStringContainsString('&lt;script&gt;alert(1)&lt;/script&gt;', $html);
         $this->assertStringContainsString('href="/zoek?a=&quot;b&quot;&amp;c"', $html);
-        $this->assertStringContainsString('data-en="A &amp; B"', $html);
+        $this->assertStringContainsString('>A &amp; B</a>', $html);
     }
 
     public function testALevelWithNothingToReadIsLeftOut(): void
@@ -201,7 +201,7 @@ final class BreadcrumbTest extends TestCase
         $html = $this->render($this->pageTrail());
 
         $this->assertStringContainsString(
-            '<a href="' . PageContent::publicUrl($home) . '" data-nl="Home" data-en="Home">Home</a>',
+            '<a href="' . PageContent::publicUrl($home) . '">Home</a>',
             $html,
             'one spelling, resolved the way every other page link on this site is'
         );
@@ -244,15 +244,13 @@ final class BreadcrumbTest extends TestCase
 
     public function testAnUntranslatedTitleReadsTheSameInBothLanguages(): void
     {
-        // An empty translation means "the same as the primary language"
+        // An empty translation means "the same as the default language"
         // (MULTILINGUAL.md), and that is what the trail prints rather than a
         // blank level.
-        $html = $this->render(PageBreadcrumb::forPage($this->storePage()));
+        $page = $this->storePage();
 
-        $this->assertStringContainsString(
-            'data-nl="Testpagina kruimelpad" data-en="Testpagina kruimelpad"',
-            $html
-        );
+        $this->assertSame(['Home', 'Testpagina kruimelpad'], $this->labels(PageBreadcrumb::forPage($page)));
+        $this->assertSame(['Home', 'Testpagina kruimelpad'], $this->in('en', fn (): array => $this->labels(PageBreadcrumb::forPage($page))));
     }
 
     public function testATranslatedTitleIsWhatAnEnglishVisitorReads(): void
@@ -260,17 +258,17 @@ final class BreadcrumbTest extends TestCase
         $this->storePage();
         $this->translateTo('Breadcrumb test page');
 
-        $html = $this->render(PageBreadcrumb::forPage($this->reload()));
+        $page = $this->reload();
 
         $this->assertStringContainsString(
-            'data-nl="Testpagina kruimelpad" data-en="Breadcrumb test page"',
-            $html,
-            'both halves travel, so the language switch reaches the trail'
+            '>Breadcrumb test page</span>',
+            $this->in('en', fn (): string => $this->render(PageBreadcrumb::forPage($page))),
+            'an English visitor reads the English title'
         );
         $this->assertStringContainsString(
             '>Testpagina kruimelpad</span>',
-            $html,
-            'and a Dutch-primary site still prints the Dutch words first'
+            $this->render(PageBreadcrumb::forPage($page)),
+            'and a Dutch visitor the Dutch one'
         );
     }
 
@@ -280,9 +278,10 @@ final class BreadcrumbTest extends TestCase
         $this->translateTo('Breadcrumb test page');
         $this->translateTo('');
 
+        $page = $this->reload();
         $this->assertStringContainsString(
-            'data-nl="Testpagina kruimelpad" data-en="Testpagina kruimelpad"',
-            $this->render(PageBreadcrumb::forPage($this->reload())),
+            '>Testpagina kruimelpad</span>',
+            $this->in('en', fn (): string => $this->render(PageBreadcrumb::forPage($page))),
             'an emptied translation falls back, it does not blank the level'
         );
     }
@@ -292,10 +291,11 @@ final class BreadcrumbTest extends TestCase
         $this->storePage();
         $this->translateTo('<script>alert(1)</script>');
 
-        $html = $this->render(PageBreadcrumb::forPage($this->reload()));
+        $page = $this->reload();
+        $html = $this->in('en', fn (): string => $this->render(PageBreadcrumb::forPage($page)));
 
         $this->assertStringNotContainsString('<script>', $html);
-        $this->assertStringContainsString('data-en="&lt;script&gt;alert(1)&lt;/script&gt;"', $html);
+        $this->assertStringContainsString('>&lt;script&gt;alert(1)&lt;/script&gt;</span>', $html);
     }
 
     public function testATranslationIsStoredPerLanguageAndNeverAsAnEmptyString(): void
@@ -503,12 +503,12 @@ final class BreadcrumbTest extends TestCase
     {
         $html = $this->render(
             BreadcrumbTrail::home()
-                ->to(BreadcrumbItem::link('Shop', 'Shop', '/shop.php'))
-                ->to(BreadcrumbItem::current('Een product', 'A product'))
+                ->to(BreadcrumbItem::link('Shop', '/shop.php'))
+                ->to(BreadcrumbItem::current('Een product'))
         );
 
         $this->assertSame(3, substr_count($html, '<li class="breadcrumb__item">'));
-        $this->assertStringContainsString('<a href="/shop.php" data-nl="Shop" data-en="Shop">Shop</a>', $html);
+        $this->assertStringContainsString('<a href="/shop.php">Shop</a>', $html);
         $this->assertSame(1, substr_count($html, 'aria-current="page"'), 'exactly one level is the current one');
     }
 
@@ -520,6 +520,7 @@ final class BreadcrumbTest extends TestCase
         $labels = $this->labels(BreadcrumbTrail::home()->toRoute('cookiebeleid'));
 
         $this->assertSame(['Home', 'Cookiebeleid'], $labels);
+        $this->assertSame(['Home', 'Cookie policy'], $this->in('en', fn (): array => $this->labels(BreadcrumbTrail::home()->toRoute('cookiebeleid'))));
         $this->assertSame(
             ['Home'],
             $this->labels(BreadcrumbTrail::home()->toRoute('een-route-die-niet-bestaat')),
@@ -531,7 +532,7 @@ final class BreadcrumbTest extends TestCase
     {
         $this->storePage();
 
-        $trail = BreadcrumbTrail::home()->toPage(self::TEST_KEY)->to(BreadcrumbItem::current('Detail', 'Detail'));
+        $trail = BreadcrumbTrail::home()->toPage(self::TEST_KEY)->to(BreadcrumbItem::current('Detail'));
         $this->assertSame(['Home', 'Testpagina kruimelpad', 'Detail'], $this->labels($trail));
         $this->assertStringContainsString('<a href="/' . self::TEST_SLUG . '"', $this->render($trail));
 
@@ -540,7 +541,7 @@ final class BreadcrumbTest extends TestCase
             ->execute(['status' => 'draft', 'key' => self::TEST_KEY]);
         PageContent::clearCache();
 
-        $html = $this->render(BreadcrumbTrail::home()->toPage(self::TEST_KEY)->to(BreadcrumbItem::current('Detail', 'Detail')));
+        $html = $this->render(BreadcrumbTrail::home()->toPage(self::TEST_KEY)->to(BreadcrumbItem::current('Detail')));
         $this->assertStringContainsString('>Testpagina kruimelpad</span>', $html, 'the level keeps its name');
         $this->assertStringNotContainsString(self::TEST_SLUG, $html, 'but not a link to a page a visitor cannot see');
     }
@@ -586,7 +587,7 @@ final class BreadcrumbTest extends TestCase
     }
 
     /**
-     * The visible label of every level, primary language first.
+     * The label of every level, in the language of the request.
      *
      * @return list<string>
      */
@@ -597,9 +598,27 @@ final class BreadcrumbTest extends TestCase
         }
 
         return array_map(
-            static fn (BreadcrumbItem $item): string => \App\Service\Language\SiteText::visible($item->labelNl, $item->labelEn),
+            static fn (BreadcrumbItem $item): string => $item->label,
             $trail->items()
         );
+    }
+
+    /**
+     * Run $work while the request is answered in $language.
+     *
+     * @template T
+     * @param \Closure(): T $work
+     * @return T
+     */
+    private function in(string $language, \Closure $work): mixed
+    {
+        RequestLanguage::set($language, true);
+
+        try {
+            return $work();
+        } finally {
+            RequestLanguage::reset();
+        }
     }
 
     /** @return array<string, mixed> */

@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Service\Media;
 
-use App\Service\Language\LocalizedValue;
 
 /**
  * One image on a content block, resolved once for every block that uses the
@@ -25,7 +24,7 @@ use App\Service\Language\LocalizedValue;
  * ALT TEXT IS LAYERED, and the layering is the point of centralising media
  * at all:
  *
- *     the block's own alt_nl/alt_en   ->  the media item's default alt text
+ *     the block's own alt text   ->  the media item's default alt text
  *
  * The local field wins when it has something to say, because the same photo
  * can genuinely mean different things in two places. It is not removed and
@@ -41,85 +40,33 @@ use App\Service\Language\LocalizedValue;
 final class BlockImage
 {
     /**
-     * @param array<string, mixed> $row       the block's own row
-     * @param string               $mediaKey  column holding the media id
-     * @param string               $pathKey   column holding the legacy path
-     * @param string               $altNlKey  column holding the local Dutch alt
-     * @param string               $altEnKey  column holding the local English alt
-     *
-     * @return array{image_path: string, alt_nl: string, alt_en: string, width: int|null, height: int|null, media_id: int|null}
-     */
-    public static function fromRow(
-        array $row,
-        string $mediaKey = 'media_id',
-        string $pathKey = 'image_path',
-        string $altNlKey = 'alt_nl',
-        string $altEnKey = 'alt_en'
-    ): array {
-        $media = MediaService::find(isset($row[$mediaKey]) ? (int) $row[$mediaKey] : null);
-
-        $localNl = trim((string) ($row[$altNlKey] ?? ''));
-        $localEn = trim((string) ($row[$altEnKey] ?? ''));
-
-        $altNl = $localNl !== '' ? $localNl : ($media?->altText ?? '');
-        // Empty English has always meant "same as Dutch" in this project.
-        $altEn = $localEn !== '' ? $localEn : $altNl;
-
-        if ($media !== null) {
-            return [
-                'image_path' => $media->publicPath(),
-                'alt_nl' => $altNl,
-                'alt_en' => $altEn,
-                'width' => $media->hasDimensions() ? $media->width : null,
-                'height' => $media->hasDimensions() ? $media->height : null,
-                'media_id' => $media->id,
-            ];
-        }
-
-        return [
-            'image_path' => self::normalisePath((string) ($row[$pathKey] ?? '')),
-            'alt_nl' => $altNl,
-            'alt_en' => $altEn,
-            'width' => null,
-            'height' => null,
-            'media_id' => null,
-        ];
-    }
-
-    /**
-     * fromRow() for a block whose alt text is stored per website language
-     * (Multilingual 2.0, App\Service\Blocks\BlockLocalization): the same two
-     * layers, with the block's own words arriving as one value in every
-     * language, their fallback to the default language already applied.
+     * One image of a block row. The block's own alt text is stored per
+     * website language (App\Service\Blocks\BlockLocalization) and arrives as
+     * one string in the language of the request, its fallback to the default
+     * language already applied:
      *
      *     the block's alt in this language  ->  in the default language
      *                                        ->  the media item's alt text
      *
-     * The last layer is this class's, as it is in fromRow(); a partial prints
-     * `alt` through App\Service\Language\SiteText and decides nothing.
+     * The last layer is this class's; a partial prints `alt` escaped and
+     * decides nothing.
      *
-     * A block without an alt text of its own (the Paginakop) passes null and
-     * gets the media item's.
+     * A row without an alt text of its own (the Paginakop, a blog post's
+     * featured image) passes null and gets the media item's.
      *
      * @param array<string, mixed> $row      the block's own row
-     * @param LocalizedValue|null  $alt      the block's own alt text (BlockLocalization::bilingual())
+     * @param string|null          $alt      the block's own alt text (BlockLocalization::text())
      * @param string               $mediaKey column holding the media id
      * @param string               $pathKey  column holding the legacy path
      *
-     * @return array{image_path: string, alt: LocalizedValue, width: int|null, height: int|null, media_id: int|null}
+     * @return array{image_path: string, alt: string, width: int|null, height: int|null, media_id: int|null}
      */
-    public static function fromOwner(array $row, ?LocalizedValue $alt, string $mediaKey = 'media_id', string $pathKey = 'image_path'): array
+    public static function fromOwner(array $row, ?string $alt, string $mediaKey = 'media_id', string $pathKey = 'image_path'): array
     {
         $media = MediaService::find(isset($row[$mediaKey]) ? (int) $row[$mediaKey] : null);
-        $central = trim((string) ($media?->altText ?? ''));
-        $alt ??= LocalizedValue::of([]);
+        $own = trim((string) $alt);
 
-        $words = [];
-        foreach ($alt->attributeValues() as $code => $value) {
-            $words[$code] = $value !== '' ? $value : $central;
-        }
-
-        $layered = LocalizedValue::of($words, $alt->primaryLanguage());
+        $layered = $own !== '' ? $own : trim((string) ($media?->altText ?? ''));
 
         if ($media !== null) {
             return [

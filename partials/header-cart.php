@@ -29,27 +29,27 @@
  */
 ?>
         <div class="cart-trigger" data-cart-trigger>
-          <button type="button" class="cart-trigger__btn" aria-haspopup="true" aria-expanded="false" aria-controls="cart-dropdown" aria-label="Winkelwagen" data-nl-aria="Winkelwagen" data-en-aria="Shopping cart">
+          <button type="button" class="cart-trigger__btn" aria-haspopup="true" aria-expanded="false" aria-controls="cart-dropdown" aria-label="<?= \App\Service\Language\SiteText::escaped(['nl' => 'Winkelwagen', 'en' => 'Shopping cart']) ?>">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 4h2l2.4 12.2a2 2 0 0 0 2 1.6h7.6a2 2 0 0 0 2-1.6L21 8H6"/><circle cx="10" cy="20" r="1.4"/><circle cx="17" cy="20" r="1.4"/></svg>
             <span class="cart-trigger__badge" data-cart-count>0</span>
           </button>
           <div class="cart-dropdown" id="cart-dropdown" data-cart-dropdown>
             <div class="cart-dropdown__head">
-              <p data-nl="Winkelwagen" data-en="Shopping cart">Winkelwagen</p>
-              <span class="cart-dropdown__count" data-nl="0 producten" data-en="0 items">0 producten</span>
+              <p><?= \App\Service\Language\SiteText::escaped(['nl' => 'Winkelwagen', 'en' => 'Shopping cart']) ?></p>
+              <span class="cart-dropdown__count"><?= \App\Service\Language\SiteText::escaped(['nl' => '0 producten', 'en' => '0 items']) ?></span>
             </div>
             <ul class="cart-dropdown__items">
-              <li class="cart-dropdown__empty" data-nl="Je winkelwagen is leeg." data-en="Your cart is empty.">Je winkelwagen is leeg.</li>
+              <li class="cart-dropdown__empty"><?= \App\Service\Language\SiteText::escaped(['nl' => 'Je winkelwagen is leeg.', 'en' => 'Your cart is empty.']) ?></li>
             </ul>
             <!-- Hidden while the cart is empty, exactly as cart.js hides it
                  (renderCartHeader()) — a subtotal of nothing is noise. -->
             <div class="cart-dropdown__subtotal" hidden>
-              <span data-nl="Subtotaal" data-en="Subtotal">Subtotaal</span>
+              <span><?= \App\Service\Language\SiteText::escaped(['nl' => 'Subtotaal', 'en' => 'Subtotal']) ?></span>
               <strong>&euro;0,00</strong>
             </div>
             <div class="cart-dropdown__actions">
-              <a href="<?= htmlspecialchars(\App\Service\Routing\LocalizedUrl::path('/cart.php'), ENT_QUOTES, 'UTF-8') ?>" class="btn btn--ghost btn--sm btn--block" data-nl="Bekijk winkelwagen" data-en="View cart">Bekijk winkelwagen</a>
-              <a href="<?= htmlspecialchars(\App\Service\Routing\LocalizedUrl::path('/checkout.php'), ENT_QUOTES, 'UTF-8') ?>" class="btn btn--sm btn--block" data-nl="Afrekenen" data-en="Checkout">Afrekenen</a>
+              <a href="<?= htmlspecialchars(\App\Service\Routing\LocalizedUrl::path('/cart.php'), ENT_QUOTES, 'UTF-8') ?>" class="btn btn--ghost btn--sm btn--block"><?= \App\Service\Language\SiteText::escaped(['nl' => 'Bekijk winkelwagen', 'en' => 'View cart']) ?></a>
+              <a href="<?= htmlspecialchars(\App\Service\Routing\LocalizedUrl::path('/checkout.php'), ENT_QUOTES, 'UTF-8') ?>" class="btn btn--sm btn--block"><?= \App\Service\Language\SiteText::escaped(['nl' => 'Afrekenen', 'en' => 'Checkout']) ?></a>
             </div>
           </div>
         </div>

@@ -7,8 +7,9 @@ declare(strict_types=1);
  * from partials/footer.php (which every public page already requires), so
  * it exists exactly once per page without any per-page duplication.
  *
- * All copy/category data comes from App\Service\CookieConsentConfig — the
- * single source of truth also read by assets/js/cookie-consent.js (via the
+ * All copy/category data comes from App\Service\CookieConsentConfig, already
+ * in the language of the request — the single source of truth also read by
+ * assets/js/cookie-consent.js (via the
  * inline VVL_CONSENT_CONFIG blob printed in each page's <head>) and by
  * cookiebeleid.php. Behaviour (show/hide, storing the decision, focus
  * handling) lives entirely in assets/js/cookie-consent.js; this partial is
@@ -27,21 +28,19 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
 ?>
 <div class="cookie-consent" data-cookie-consent data-consent-version="<?= CookieConsentConfig::CONSENT_VERSION ?>" hidden>
 
-  <div class="cookie-banner" data-cookie-banner role="region" aria-label="Cookiemelding" data-nl-aria="Cookiemelding" data-en-aria="Cookie notice" hidden>
+  <div class="cookie-banner" data-cookie-banner role="region" aria-label="<?= $h($banner['region']) ?>" hidden>
     <div class="cookie-banner__inner">
       <div class="cookie-banner__text">
-        <p class="cookie-banner__title" <?= \App\Service\Language\SiteText::attrs($banner['title_nl'], $banner['title_en']) ?>><?= $h(\App\Service\Language\SiteText::visible($banner['title_nl'], $banner['title_en'])) ?></p>
-        <?php /* data-lang-html: the description is developer-authored HTML from
-                 App\Service\CookieConsentConfig (a hardcoded <a> to the cookie
-                 policy, no editor input), so assets/js/core.js's applyLang()
-                 must re-render it with innerHTML rather than the plain-text
-                 textContent it now uses for every unmarked bilingual field. */ ?>
-        <p class="cookie-banner__desc" data-lang-html data-nl="<?= $h($banner['description_nl']) ?>" data-en="<?= $h($banner['description_en']) ?>"><?= $banner['description_nl'] ?></p>
+        <p class="cookie-banner__title"><?= $h($banner['title']) ?></p>
+        <?php /* The one value printed as markup: escaped text around a link to
+                 the cookie policy that App\Service\CookieConsentConfig
+                 builds itself, in the language being read. */ ?>
+        <p class="cookie-banner__desc"><?= $banner['description_html'] ?></p>
       </div>
       <div class="cookie-banner__actions">
-        <button type="button" class="btn btn--ghost btn--sm" data-cookie-action="manage" <?= \App\Service\Language\SiteText::attrs($banner['manage_nl'], $banner['manage_en']) ?>><?= $h(\App\Service\Language\SiteText::visible($banner['manage_nl'], $banner['manage_en'])) ?></button>
-        <button type="button" class="btn btn--sm" data-cookie-action="reject" <?= \App\Service\Language\SiteText::attrs($banner['reject_optional_nl'], $banner['reject_optional_en']) ?>><?= $h(\App\Service\Language\SiteText::visible($banner['reject_optional_nl'], $banner['reject_optional_en'])) ?></button>
-        <button type="button" class="btn btn--sm" data-cookie-action="accept-all" <?= \App\Service\Language\SiteText::attrs($banner['accept_all_nl'], $banner['accept_all_en']) ?>><?= $h(\App\Service\Language\SiteText::visible($banner['accept_all_nl'], $banner['accept_all_en'])) ?></button>
+        <button type="button" class="btn btn--ghost btn--sm" data-cookie-action="manage"><?= $h($banner['manage']) ?></button>
+        <button type="button" class="btn btn--sm" data-cookie-action="reject"><?= $h($banner['reject_optional']) ?></button>
+        <button type="button" class="btn btn--sm" data-cookie-action="accept-all"><?= $h($banner['accept_all']) ?></button>
       </div>
     </div>
   </div>
@@ -49,15 +48,12 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
   <div class="cookie-modal" data-cookie-modal hidden>
     <div class="cookie-modal__backdrop" data-cookie-modal-backdrop></div>
     <div class="cookie-modal__dialog" role="dialog" aria-modal="true" aria-labelledby="cookie-modal-title" tabindex="-1">
-      <button type="button" class="cookie-modal__close" data-cookie-action="close-modal" aria-label="<?= $h($modal['close_nl']) ?>" data-nl-aria="<?= $h($modal['close_nl']) ?>" data-en-aria="<?= $h($modal['close_en']) ?>">
+      <button type="button" class="cookie-modal__close" data-cookie-action="close-modal" aria-label="<?= $h($modal['close']) ?>">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
       </button>
 
-      <h2 id="cookie-modal-title" <?= \App\Service\Language\SiteText::attrs($modal['title_nl'], $modal['title_en']) ?>><?= $h(\App\Service\Language\SiteText::visible($modal['title_nl'], $modal['title_en'])) ?></h2>
-      <?php /* data-lang-html for the same reason as the banner description
-               above: developer-authored HTML from CookieConsentConfig, opted
-               into applyLang()'s innerHTML path by the marker. */ ?>
-      <p class="cookie-modal__intro" data-lang-html data-nl="<?= $h($modal['description_nl']) ?>" data-en="<?= $h($modal['description_en']) ?>"><?= $modal['description_nl'] ?></p>
+      <h2 id="cookie-modal-title"><?= $h($modal['title']) ?></h2>
+      <p class="cookie-modal__intro"><?= $h($modal['description']) ?></p>
 
       <ul class="cookie-categories">
 <?php foreach ($categories as $key => $cat): ?>
@@ -72,24 +68,24 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
                 disabled
 <?php endif; ?>
               />
-              <span class="cookie-category__label" <?= \App\Service\Language\SiteText::attrs($cat['label_nl'], $cat['label_en']) ?>><?= $h(\App\Service\Language\SiteText::visible($cat['label_nl'], $cat['label_en'])) ?></span>
+              <span class="cookie-category__label"><?= $h($cat['label']) ?></span>
             </label>
 <?php if ($cat['required']): ?>
-            <span class="cookie-category__badge" <?= \App\Service\Language\SiteText::attrs($modal['always_on_nl'], $modal['always_on_en']) ?>><?= $h(\App\Service\Language\SiteText::visible($modal['always_on_nl'], $modal['always_on_en'])) ?></span>
+            <span class="cookie-category__badge"><?= $h($modal['always_on']) ?></span>
 <?php endif; ?>
           </div>
-          <p class="cookie-category__desc" <?= \App\Service\Language\SiteText::attrs($cat['description_nl'], $cat['description_en']) ?>><?= $h(\App\Service\Language\SiteText::visible($cat['description_nl'], $cat['description_en'])) ?></p>
+          <p class="cookie-category__desc"><?= $h($cat['description']) ?></p>
         </li>
 <?php endforeach; ?>
       </ul>
 
       <p class="cookie-modal__policy-link">
-        <a href="<?= $h(\App\Service\Routing\LocalizedUrl::path('/cookiebeleid.php')) ?>" <?= \App\Service\Language\SiteText::attrs($modal['policy_link_nl'], $modal['policy_link_en']) ?>><?= $h(\App\Service\Language\SiteText::visible($modal['policy_link_nl'], $modal['policy_link_en'])) ?></a>
+        <a href="<?= $h(CookieConsentConfig::policyUrl()) ?>"><?= $h($modal['policy_link']) ?></a>
       </p>
 
       <div class="cookie-modal__actions">
-        <button type="button" class="btn btn--sm" data-cookie-action="accept-all-modal" <?= \App\Service\Language\SiteText::attrs($modal['accept_all_nl'], $modal['accept_all_en']) ?>><?= $h(\App\Service\Language\SiteText::visible($modal['accept_all_nl'], $modal['accept_all_en'])) ?></button>
-        <button type="button" class="btn btn--ghost btn--sm" data-cookie-action="save" <?= \App\Service\Language\SiteText::attrs($modal['save_nl'], $modal['save_en']) ?>><?= $h(\App\Service\Language\SiteText::visible($modal['save_nl'], $modal['save_en'])) ?></button>
+        <button type="button" class="btn btn--sm" data-cookie-action="accept-all-modal"><?= $h($modal['accept_all']) ?></button>
+        <button type="button" class="btn btn--ghost btn--sm" data-cookie-action="save"><?= $h($modal['save']) ?></button>
       </div>
     </div>
   </div>

@@ -347,8 +347,7 @@ final class ReusableBlocksPhase3Test extends TestCase
         $items = DetailSectionContent::navItemsForPage(self::TEST_KEY);
 
         $this->assertSame(['eerste', 'derde'], array_column($items, 'anchor'));
-        $default = BlockLocalization::defaultLanguage();
-        $this->assertSame(['Eerste', 'Derde sectie'], array_map(static fn (array $item): string => $item['label']->in($default), $items));
+        $this->assertSame(['Eerste', 'Derde sectie'], array_column($items, 'label'));
     }
 
     /** A new, visible card with its title in the default language, the way the CMS adds one. */

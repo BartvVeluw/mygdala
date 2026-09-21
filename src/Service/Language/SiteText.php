@@ -4,184 +4,106 @@ declare(strict_types=1);
 
 namespace App\Service\Language;
 
+use App\Service\Routing\RequestLanguage;
+
 /**
- * How a public partial prints one piece of editor-supplied text.
+ * Which language a public page is printed in, and the one way a template
+ * prints text that the APPLICATION CODE owns.
  *
- * Before Multilingual V1 every partial in this project wrote the same three
- * things by hand:
+ * ONE LANGUAGE PER RESPONSE since Multilingual 2.0 phase 7. Every language has
+ * its own URL (docs/multilingual/ROUTING.md), the server renders the page in
+ * the language of that URL, and the browser receives exactly that text and
+ * nothing else: no `data-nl`/`data-en` pairs, no `data-lang-html` and no
+ * script that rewrites the document. The language switch is a row of links to
+ * the other URLs, so there is nothing left to swap in place.
  *
- *     data-nl="<Dutch>" data-en="<English>"><Dutch>
+ * TWO KINDS OF TEXT reach a public page, and neither is decided here:
  *
- * The visible half of that is the bug this class fixes. It assumed Dutch is
- * always the language a visitor should see first, which stopped being true
- * the moment a site could be English-primary (Part F of Multilingual V1).
- * ::visible() asks the site instead of assuming.
+ *   - words an EDITOR stored per website language arrive already resolved,
+ *     from the domain API that owns them (PageLocalization,
+ *     BlockLocalization, NavigationLocalization, ShopLocalization, ...), with
+ *     THE fallback of App\Service\Language\LanguageFallback applied;
+ *   - words the CODE owns — a checkout heading, a button, an error, the
+ *     cookie banner — are written per language right where they are used,
+ *     as a small closed catalogue keyed by language code, and ::pick()
+ *     chooses one.
  *
- * WHAT DID NOT CHANGE, on purpose: the attribute NAMES are still the language
- * codes, assets/js/core.js still swaps them in the browser, and both
- * languages still live on one URL. Localized URLs and hreflang are
- * deliberately deferred to a later step (MULTILINGUAL.md, "What V1 does not
- * do"), so nothing about routing, canonicals or the sitemap moves here.
- *
- * On a Dutch-primary site — every existing installation, and the default —
- * this class produces byte-for-byte what the old markup produced.
+ * Escaping stays with the caller for editor words: plain text through
+ * htmlspecialchars(), sanitized rich text as it is. For code-owned words
+ * ::escaped() is pick() plus htmlspecialchars(). Nothing here returns
+ * markup.
  */
 final class SiteText
 {
     /**
-     * The text a visitor sees before they touch the language switch: the
-     * primary language's words, or the other language's when the primary has
-     * none.
+     * The language code of the response being rendered: what `<html lang>`
+     * carries and what every piece of text on the page is printed in.
      *
-     * The second half matters more than it looks. An English-primary site
-     * whose editor has filled only the Dutch column would otherwise render an
-     * empty heading, and "render the other language" beats "render nothing"
-     * every time.
-     */
-    public static function visible(?string $nl, ?string $en): string
-    {
-        return LocalizedValue::ofDutchEnglish($nl, $en)->in(self::documentLanguage());
-    }
-
-    /**
-     * The ` data-nl="..." data-en="..."` pair, escaped and ready to print
-     * inside a tag.
-     *
-     * Both halves are resolved, so neither attribute is ever empty while the
-     * other has text — that is what stops the language switch from blanking a
-     * heading that simply has no translation yet.
-     */
-    public static function attrs(?string $nl, ?string $en): string
-    {
-        $value = LocalizedValue::ofDutchEnglish($nl, $en);
-
-        return ' data-nl="' . self::escape($value->in(LanguageRegistry::DUTCH)) . '"'
-            . ' data-en="' . self::escape($value->in(LanguageRegistry::ENGLISH)) . '"';
-    }
-
-    /**
-     * The same pair for one of the attribute families core.js also swaps:
-     * 'alt', 'aria', 'placeholder' or 'content'.
-     */
-    public static function attrsFor(string $kind, ?string $nl, ?string $en): string
-    {
-        $value = LocalizedValue::ofDutchEnglish($nl, $en);
-        $suffix = '-' . $kind;
-
-        return ' data-nl' . $suffix . '="' . self::escape($value->in(LanguageRegistry::DUTCH)) . '"'
-            . ' data-en' . $suffix . '="' . self::escape($value->in(LanguageRegistry::ENGLISH)) . '"';
-    }
-
-    /**
-     * The words a visitor sees first, for text that already arrives as ONE
-     * value in every language — what App\Service\Blocks\BlockLocalization
-     * hands a block partial. Unescaped: the caller escapes plain text, and
-     * prints sanitized rich text as it is.
-     *
-     * A partial built on these three methods never learns which language is
-     * the default, where the words are stored or what an empty translation
-     * falls back to. That is what lets the frontend flip of Multilingual 2.0
-     * change this class instead of every partial.
-     */
-    public static function visibleOf(LocalizedValue $text): string
-    {
-        return $text->in(self::documentLanguage());
-    }
-
-    /** The escaped ` data-nl="..." data-en="..."` pair of a plain-text value, for core.js's textContent switch. */
-    public static function attrsOf(LocalizedValue $text): string
-    {
-        $attributes = '';
-        foreach ($text->attributeValues() as $code => $value) {
-            $attributes .= ' data-' . $code . '="' . self::escape($value) . '"';
-        }
-
-        return $attributes;
-    }
-
-    /**
-     * attrsFor() for a value that arrives as ONE value in every language: the
-     * escaped ` data-nl-alt="..." data-en-alt="..."` pair of an alt text, an
-     * aria label, a placeholder or a content attribute. Plain text by
-     * definition: core.js writes these into attributes, never into markup.
-     */
-    public static function attrsForOf(string $kind, LocalizedValue $text): string
-    {
-        $attributes = '';
-        foreach ($text->attributeValues() as $code => $value) {
-            $attributes .= ' data-' . $code . '-' . $kind . '="' . self::escape($value) . '"';
-        }
-
-        return $attributes;
-    }
-
-    /**
-     * The pair for SANITIZED rich text, marked `data-lang-html` so core.js
-     * re-renders it with innerHTML rather than textContent — the one opt-in
-     * the language switch allows (MULTILINGUAL.md). Nothing at all when every
-     * language shows the same markup, so a body without a translation prints
-     * exactly the element it printed before the switch knew about it.
-     *
-     * Only ever for RichTextSanitizer output: marking editor plain text
-     * data-lang-html would turn the switch into an XSS sink.
-     */
-    public static function htmlAttrsOf(LocalizedValue $html): string
-    {
-        $values = $html->attributeValues();
-
-        if (count(array_unique(array_merge(array_values($values), [$html->primaryValue()]))) < 2) {
-            return '';
-        }
-
-        return ' data-lang-html' . self::attrsOf($html);
-    }
-
-    /**
-     * The language code a page's <html lang> should carry, and the one
-     * assets/js/core.js is told the server has already printed.
-     *
-     * SINCE MULTILINGUAL 2.0 PHASE 6 this is the language OF THE REQUEST
-     * (App\Service\Routing\RequestLanguage), not the site's primary language:
-     * /en/about-us renders English server-side and says so. On an unprefixed
-     * URL the two are the same value, which is why every existing
-     * installation renders byte for byte what it rendered before.
+     * The language OF THE REQUEST (App\Service\Routing\RequestLanguage), not
+     * the site's default language: /en/about-us renders English and says so.
+     * On an unprefixed URL the two are the same value.
      */
     public static function documentLanguage(): string
     {
-        return \App\Service\Routing\RequestLanguage::current();
+        return RequestLanguage::current();
     }
 
     /**
-     * Does this site offer a language switch at all?
+     * One piece of code-owned website text, in the language of this request.
      *
-     * ALWAYS, on the bilingual product this CMS is today, and that is the
-     * point of asking it this way rather than asking a settings row.
+     *     SiteText::pick(['nl' => 'Winkelwagen', 'en' => 'Shopping cart'])
      *
-     * It used to be gated on an "enabled languages" setting, so a site whose
-     * owner had not explicitly turned English on showed visitors no switch —
-     * including sites that had English content sitting in their `_en`
-     * columns. A visitor who wants to read the site in English must always be
-     * able to ask for it; a field nobody has translated yet falls back to the
-     * primary language's words (App\Service\Language\LocalizedValue), so
-     * the switch can never produce a blank page.
+     * The catalogue is keyed by language code, never by a fixed pair of
+     * parameters: a language the code has words for is a key, and adding one
+     * is adding a key — no `_de` field, no schema, no second method.
      *
-     * The question itself stays — a build registering a single content
-     * language would rightly render no switch — it is simply answered from
-     * what this CMS publishes rather than from a row an owner can get wrong.
+     * Chosen in this order:
+     *
+     *   1. the request's language;
+     *   2. the site's default language;
+     *   3. the catalogue's first entry — the language it was written in.
+     *
+     * The third step is what keeps a German-default site that the code has
+     * no German words for from printing an empty button: it prints the words
+     * the text was written in rather than nothing. It never decides which
+     * language a page is IN — that is the request's, and `<html lang>` says
+     * so.
+     *
+     * $languageCode names another language than the request's for the one
+     * case that needs it: a record kept in the site's default language (an
+     * order snapshot), whatever language the visitor was reading.
+     *
+     * @param array<string, string> $byLanguage language code => text; at least one entry
      */
-    public static function showsLanguageSwitch(): bool
+    public static function pick(array $byLanguage, ?string $languageCode = null): string
     {
-        return count(self::switchableLanguages()) > 1;
+        if ($byLanguage === []) {
+            throw new \InvalidArgumentException('A text catalogue needs at least one language.');
+        }
+
+        $language = $languageCode ?? self::documentLanguage();
+        if (isset($byLanguage[$language])) {
+            return $byLanguage[$language];
+        }
+
+        $default = LanguageFallback::defaultLanguage();
+        if (isset($byLanguage[$default])) {
+            return $byLanguage[$default];
+        }
+
+        return (string) reset($byLanguage);
     }
 
-    /** @return string[] the codes a visitor may switch between, primary first */
-    public static function switchableLanguages(): array
+    /**
+     * pick(), escaped for HTML text or a double-quoted attribute: how a
+     * template prints code-owned words, in any scope.
+     *
+     *     <label for="email"><?= SiteText::escaped(['nl' => 'E-mailadres', 'en' => 'Email address']) ?></label>
+     *
+     * @param array<string, string> $byLanguage language code => text; at least one entry
+     */
+    public static function escaped(array $byLanguage): string
     {
-        return ContentLanguages::enabled();
-    }
-
-    private static function escape(string $value): string
-    {
-        return htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
+        return htmlspecialchars(self::pick($byLanguage), ENT_QUOTES, 'UTF-8');
     }
 }

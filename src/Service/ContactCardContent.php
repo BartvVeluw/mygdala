@@ -4,7 +4,7 @@ namespace App\Service;
 
 use App\Repository\ContactCardRepository;
 use App\Service\Blocks\BlockLocalization;
-use App\Service\Language\LocalizedValue;
+use App\Service\Routing\RequestLanguage;
 
 /**
  * Content for the "Contactkaart" block (partials/section-contact-card.php) —
@@ -21,9 +21,10 @@ use App\Service\Language\LocalizedValue;
  *
  * WORDS PER LANGUAGE (Multilingual 2.0 phase 3A). The heading, the text and
  * the button label are stored per website language in block_translations and
- * come out of App\Service\Blocks\BlockLocalization as one LocalizedValue
- * each, the fallback already applied; the URL and is_active stay in
- * contact_cards, the same in every language. This class decides no language.
+ * come out of App\Service\Blocks\BlockLocalization as one string each, in
+ * the language of the request, the fallback already applied; the URL and
+ * is_active stay in contact_cards, the same in every language. This class
+ * decides no language.
  *
  * `is_active = false` on an existing row is a deliberate hide, and a
  * different case from a missing row — the same three-state contract
@@ -56,14 +57,14 @@ class ContactCardContent
     private static array $cache = [];
 
     /**
-     * @return array<string, mixed> 'state' (one of STATE_*), a LocalizedValue
+     * @return array<string, mixed> 'state' (one of STATE_*), a string
      *                              per field in WORDS and a resolved string
      *                              'button_url'. Templates must check
      *                              'state' !== STATE_HIDDEN before rendering.
      */
     public static function forSection(string $pageSlug, string $sectionKey): array
     {
-        $cacheKey = $pageSlug . ':' . $sectionKey;
+        $cacheKey = RequestLanguage::current() . '|' . $pageSlug . ':' . $sectionKey;
         if (isset(self::$cache[$cacheKey])) {
             return self::$cache[$cacheKey];
         }
@@ -83,9 +84,22 @@ class ContactCardContent
             return self::$cache[$cacheKey] = self::emptyContent() + ['state' => self::STATE_HIDDEN];
         }
 
+        $cardId = (int) $row['id'];
+
+        // THE DEFAULT LANGUAGE DECIDES WHETHER THE CARD SAYS ANYTHING
+        // (docs/multilingual/ARCHITECTURE.md): without a heading and without
+        // a text in the default language there is no card in any language.
+        $hasWords = BlockLocalization::hasDefaultWords(self::TABLE, $cardId, 'title')
+            || BlockLocalization::hasDefaultWords(self::TABLE, $cardId, 'body');
+
         $content = [];
         foreach (self::WORDS as $field) {
-            $content[$field] = BlockLocalization::bilingual(self::TABLE, (int) $row['id'], $field);
+            $content[$field] = $hasWords ? BlockLocalization::text(self::TABLE, $cardId, $field) : '';
+        }
+
+        // The button, too, needs its label in the default language.
+        if (!BlockLocalization::hasDefaultWords(self::TABLE, $cardId, 'button_label')) {
+            $content['button_label'] = '';
         }
 
         $content['button_url'] = self::resolveButtonUrl((string) ($row['button_url'] ?? ''));
@@ -129,7 +143,7 @@ class ContactCardContent
     {
         $content = [];
         foreach (self::WORDS as $field) {
-            $content[$field] = LocalizedValue::of([]);
+            $content[$field] = '';
         }
 
         return $content + ['button_url' => ''];

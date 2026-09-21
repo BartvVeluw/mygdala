@@ -48,10 +48,7 @@ final class RadioFieldType extends ChoiceFieldType
                 . ' value="' . $control->escape($option->value) . '"'
                 . ($control->value === $option->value ? ' checked' : '')
                 . $attributes . '>'
-                . '<span data-nl="' . $control->escape($option->label->nl) . '"'
-                . ' data-en="' . $control->escape($option->label->en) . '">'
-                . $control->escape($option->label->nl)
-                . '</span>'
+                . '<span>' . $control->escape($option->label) . '</span>'
                 . '</label>';
         }
 

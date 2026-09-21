@@ -4,8 +4,8 @@ namespace App\Service;
 
 use App\Repository\DetailSectionRepository;
 use App\Service\Blocks\BlockLocalization;
-use App\Service\Language\LocalizedValue;
 use App\Service\Media\BlockImage;
+use App\Service\Routing\RequestLanguage;
 
 /**
  * Content for the "Detailsectie" page-builder block
@@ -46,15 +46,15 @@ use App\Service\Media\BlockImage;
  *
  * WORDS PER LANGUAGE (Multilingual 2.0 phase 3B). The section's words (nav
  * label, title, lead, rich body, main image alt text, closing note, CTA
- * label), every point's title and body, and every gallery image's alt text
- * are stored per website language in block_translations: the section's on
- * its own row, each point's and each image's on that child row
+ * label), every point's title and body, and every gallery image's alt text are
+ * stored per website language in block_translations: the section's on its own
+ * row, each point's and each image's on that child row
  * (DetailSectionBlock::childTables()). They come out of
- * App\Service\Blocks\BlockLocalization as one LocalizedValue per field, the
- * fallback already applied; the anchor, the image position, the CTA URL, the
- * media, the order and is_active stay in the tables. This class decides no
- * language itself, so an English-default site now gets its English words,
- * and its English body, on the first render.
+ * App\Service\Blocks\BlockLocalization as one string per field, in the
+ * language of the request, the fallback already applied; the anchor, the image
+ * position, the CTA URL, the media, the order and is_active stay in the
+ * tables. This class decides no language itself, so an English-default site
+ * now gets its English words, and its English body, on the first render.
  *
  * The body is rich text: BlockLocalization sanitizes it on save and again on
  * the way out — the same "sanitize on write, sanitize again on read" pattern
@@ -87,17 +87,17 @@ class DetailSectionContent
 
     /**
      * @return array<string, mixed> 'state' (one of STATE_*), plus id, anchor,
-     *                                a LocalizedValue each for nav_label,
+     *                                a string each for nav_label,
      *                                title, lead, body (sanitized HTML),
      *                                closing_note and cta_label,
      *                                main_image_path ('' = no main image)
-     *                                with main_image_alt (a LocalizedValue,
+     *                                with main_image_alt (a string,
      *                                layered over the media item's) and
      *                                main_image_width/height,
      *                                image_position, cta_url (cta_label and
      *                                cta_url both empty when there is no
      *                                CTA), 'points': a list of title and body
-     *                                (a LocalizedValue each), and 'images': a
+     *                                (a string each), and 'images': a
      *                                list of App\Service\Media\BlockImage::fromOwner().
      *                                Templates must check 'state' !==
      *                                STATE_HIDDEN before rendering the
@@ -105,7 +105,7 @@ class DetailSectionContent
      */
     public static function forSection(string $pageSlug, string $sectionKey): array
     {
-        $cacheKey = $pageSlug . ':' . $sectionKey;
+        $cacheKey = RequestLanguage::current() . '|' . $pageSlug . ':' . $sectionKey;
 
         if (isset(self::$cache[$cacheKey])) {
             return self::$cache[$cacheKey];
@@ -167,7 +167,7 @@ class DetailSectionContent
         $content['images'] = array_map(
             static fn (array $image): array => BlockImage::fromOwner(
                 $image,
-                BlockLocalization::bilingual(self::IMAGES, (int) $image['id'], 'alt')
+                BlockLocalization::text(self::IMAGES, (int) $image['id'], 'alt')
             ),
             $images
         );
@@ -203,11 +203,11 @@ class DetailSectionContent
      *
      * The label is, per language, the section's short nav label, else its
      * title, and only then the default language's label the same way
-     * (BlockLocalization::bilingualFirst()). A section without a label in the
+     * (BlockLocalization::first()). A section without a label in the
      * default language gets no link: the default language decides whether it
      * is there, as it decides for the section itself.
      *
-     * @return list<array{anchor: string, label: LocalizedValue}>
+     * @return list<array{anchor: string, label: string}>
      */
     public static function navItemsForPage(string $pageSlug): array
     {
@@ -230,14 +230,15 @@ class DetailSectionContent
                 continue;
             }
 
-            $label = BlockLocalization::bilingualFirst(self::TABLE, (int) $row['id'], ['nav_label', 'title']);
-            if ($label->primaryValue() === '') {
+            $sectionId = (int) $row['id'];
+            if (!BlockLocalization::hasDefaultWords(self::TABLE, $sectionId, 'nav_label')
+                && !BlockLocalization::hasDefaultWords(self::TABLE, $sectionId, 'title')) {
                 continue;
             }
 
             $items[] = [
                 'anchor' => $anchor,
-                'label' => $label,
+                'label' => BlockLocalization::first(self::TABLE, $sectionId, ['nav_label', 'title']),
             ];
         }
 
@@ -294,6 +295,12 @@ class DetailSectionContent
         $sectionId = (int) $row['id'];
         $words = BlockLocalization::words(self::TABLE, $sectionId);
 
+        // The body follows the Tekstblok's rule: the default language decides
+        // whether there is one, whatever language is being read.
+        if (!BlockLocalization::hasDefaultWords(self::TABLE, $sectionId, 'body')) {
+            $words['body'] = '';
+        }
+
         // The main image resolves exactly like the extra images below it.
         $mainImage = BlockImage::fromOwner($row, $words['main_image_alt'], 'main_media_id', 'main_image_path');
 
@@ -314,8 +321,8 @@ class DetailSectionContent
         // A CTA only renders when it has both a label in the default language
         // and a URL — a half-filled optional CTA would be a broken/dead link,
         // and a translated label alone could never show.
-        if ($content['cta_label']->primaryValue() === '' || $content['cta_url'] === '') {
-            $content['cta_label'] = LocalizedValue::of([]);
+        if (!BlockLocalization::hasDefaultWords(self::TABLE, $sectionId, 'cta_label') || $content['cta_url'] === '') {
+            $content['cta_label'] = '';
             $content['cta_url'] = '';
         }
 

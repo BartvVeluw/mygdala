@@ -57,7 +57,9 @@ final class NavigationFooterLocalizationEditorHttpTest extends TestCase
 
     public static function setUpBeforeClass(): void
     {
-        self::$server = BuiltInServer::start();
+        // The dispatcher answers /en/… and /de/… the way .htaccess does in
+        // production, so a page can be read in every website language.
+        self::$server = BuiltInServer::start([], 'tests/Support/dispatcher-router.php');
     }
 
     public static function tearDownAfterClass(): void
@@ -136,7 +138,7 @@ final class NavigationFooterLocalizationEditorHttpTest extends TestCase
         self::assertNotSame('', (string) $input?->getAttribute('placeholder'), 'the fallback is said as a placeholder');
     }
 
-    public function testSavingOneLanguageLeavesTheOthersAloneAndTheHeaderPrintsBoth(): void
+    public function testSavingOneLanguageLeavesTheOthersAloneAndTheHeaderPrintsEach(): void
     {
         $id = $this->navItem(['nl' => 'zz Over ons', 'en' => 'zz About us'], '/zz-over-ons');
         $session = $this->signIn('en');
@@ -146,8 +148,10 @@ final class NavigationFooterLocalizationEditorHttpTest extends TestCase
         self::assertStringContainsString('saved=1', $response['location']);
         self::assertSame(['zz Over ons', 'zz Who we are'], $this->labels($id));
 
-        $header = $this->get(null, '/index.php');
-        self::assertStringContainsString('data-nl="zz Over ons" data-en="zz Who we are">zz Over ons</a>', $header);
+        self::assertStringContainsString('>zz Over ons</a>', $this->get(null, '/'));
+        $english = $this->get(null, '/en/');
+        self::assertStringContainsString('>zz Who we are</a>', $english);
+        self::assertStringNotContainsString('zz Over ons', $english, 'one language per page');
     }
 
     public function testTheDefaultLanguagesLabelIsRequiredAndARefusedSaveStaysUnsaved(): void
@@ -237,8 +241,7 @@ final class NavigationFooterLocalizationEditorHttpTest extends TestCase
         $header = $this->get(null, '/index.php');
 
         self::assertStringNotContainsString('<img src=x', $header);
-        self::assertStringContainsString('data-nl="&lt;img src=x onerror=&quot;alert(1)&quot;&gt;zz"', $header);
-        self::assertStringContainsString('&gt;zz</a>', $header);
+        self::assertStringContainsString('>&lt;img src=x onerror=&quot;alert(1)&quot;&gt;zz</a>', $header);
     }
 
     // ---------------------------------------------------------------- footer
@@ -275,9 +278,13 @@ final class NavigationFooterLocalizationEditorHttpTest extends TestCase
             ]
         );
 
-        $footer = $this->get(null, '/index.php');
-        self::assertStringContainsString('<h4 data-nl="zz Service" data-en="zz Support">zz Service</h4>', $footer);
-        self::assertStringContainsString('data-nl="zz Voorwaarden" data-en="zz Terms">zz Voorwaarden</a>', $footer);
+        $footer = $this->get(null, '/');
+        self::assertStringContainsString('<h4>zz Service</h4>', $footer);
+        self::assertStringContainsString('>zz Voorwaarden</a>', $footer);
+
+        $english = $this->get(null, '/en/');
+        self::assertStringContainsString('<h4>zz Support</h4>', $english);
+        self::assertStringContainsString('>zz Terms</a>', $english);
     }
 
     public function testARefusedFooterColumnSaveKeepsTheTypedWordsInTheirLanguage(): void

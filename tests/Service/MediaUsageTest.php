@@ -325,7 +325,7 @@ final class MediaUsageTest extends TestCase
         $this->assertCount(1, $this->service->usagesOf($mediaId), 'the block still uses it');
         $this->assertSame(
             '/' . $before->path,
-            BlockImage::fromRow(['media_id' => $mediaId, 'image_path' => '', 'alt_nl' => '', 'alt_en' => ''])['image_path'],
+            BlockImage::fromOwner(['media_id' => $mediaId, 'image_path' => ''], null)['image_path'],
             'the page still shows the same file'
         );
 

@@ -8,10 +8,9 @@ use App\Database;
 use App\Repository\BlockTranslationRepository;
 use App\Service\Language\ContentLanguages;
 use App\Service\Language\LanguageCode;
-use App\Service\Language\LanguageRegistry;
-use App\Service\Language\LocalizedValue;
 use App\Service\Language\SiteLanguages;
 use App\Service\RichTextSanitizer;
+use App\Service\Routing\RequestLanguage;
 
 /**
  * THE way into a content block's words in any website language (Multilingual
@@ -186,46 +185,35 @@ final class BlockLocalization
     }
 
     /**
-     * TEMPORARY OUTPUT ADAPTER for the V1 public language switch, until the
-     * frontend flip (docs/multilingual/ARCHITECTURE.md), and the block-side
-     * twin of PageLocalization::bilingual().
-     *
-     * The public partials still print a field as a `data-nl`/`data-en` pair
-     * and let assets/js/core.js swap it. This builds that pair from
-     * `block_translations`, each half already resolved by value(), so the
-     * words shown first, the switch and the fallback all follow the one rule
-     * above. A partial prints the result through App\Service\Language\SiteText
-     * and never learns where the words are stored or which language is the
-     * default. The two codes come from the closed V1 registry, not from here.
+     * The words a visitor of THIS request gets for one field: value() in the
+     * request's language (App\Service\Routing\RequestLanguage). What a
+     * *Content class hands its partial, so a partial prints one string and
+     * never learns where the words are stored, which language is the default
+     * or what an empty translation falls back to.
      */
-    public static function bilingual(string $ownerTable, int $ownerId, string $field): LocalizedValue
+    public static function text(string $ownerTable, int $ownerId, string $field): string
     {
-        $values = [];
-        foreach (LanguageRegistry::codes() as $code) {
-            $values[$code] = self::value($ownerTable, $ownerId, $field, $code);
-        }
-
-        return LocalizedValue::of($values);
+        return self::value($ownerTable, $ownerId, $field, RequestLanguage::current());
     }
 
     /**
-     * bilingual() for a value that may come from more than one plain field of
-     * the same owner, in order of preference: a quicknav label that is the
+     * text() for a value that may come from more than one plain field of the
+     * same owner, in order of preference: a quicknav label that is the
      * section's own short label, else its title.
      *
-     * Per language, the first field with words IN THAT LANGUAGE wins; only
-     * when none has any does it fall back to the default language, the same
-     * way. So an English visitor gets the English title before the Dutch
-     * short label: the fallback runs across languages last, never across
-     * fields first.
+     * The first field with words IN THE REQUEST'S LANGUAGE wins; only when
+     * none has any does it fall back to the default language, the same way.
+     * So an English visitor gets the English title before the Dutch short
+     * label: the fallback runs across languages last, never across fields
+     * first.
      *
      * @param list<string> $fields declared plain fields, most preferred first
      */
-    public static function bilingualFirst(string $ownerTable, int $ownerId, array $fields): LocalizedValue
+    public static function first(string $ownerTable, int $ownerId, array $fields): string
     {
         foreach ($fields as $field) {
             if (self::field($ownerTable, $field)->isRich()) {
-                throw new \InvalidArgumentException('bilingualFirst() combines plain fields only; "' . $field . '" is rich text.');
+                throw new \InvalidArgumentException('first() combines plain fields only; "' . $field . '" is rich text.');
             }
         }
 
@@ -240,32 +228,38 @@ final class BlockLocalization
             return '';
         };
 
-        $values = [];
-        foreach (LanguageRegistry::codes() as $code) {
-            $values[$code] = $first($code);
-            if ($values[$code] === '') {
-                $values[$code] = $first(self::defaultLanguage());
-            }
-        }
+        $words = $first(RequestLanguage::current());
 
-        return LocalizedValue::of($values);
+        return $words !== '' ? $words : $first(self::defaultLanguage());
     }
 
     /**
-     * bilingual() for every field one owner table declares, keyed by field:
-     * what a *Content class hands its partial. Owner id 0 gives every field
-     * empty, the shape of a block with nothing to show.
+     * text() for every field one owner table declares, keyed by field: what a
+     * *Content class hands its partial. Owner id 0 gives every field empty,
+     * the shape of a block with nothing to show.
      *
-     * @return array<string, LocalizedValue> field key => words
+     * @return array<string, string> field key => words in the request's language
      */
     public static function words(string $ownerTable, int $ownerId): array
     {
         $words = [];
         foreach (array_keys(self::fields($ownerTable)) as $field) {
-            $words[$field] = self::bilingual($ownerTable, $ownerId, $field);
+            $words[$field] = $ownerId > 0 ? self::text($ownerTable, $ownerId, $field) : '';
         }
 
         return $words;
+    }
+
+    /**
+     * Does this owner have words for one field in the DEFAULT language? The
+     * question a *Content class asks before it shows an optional part — a
+     * secondary button, a badge — because the default language decides
+     * whether a part is there at all, whatever language is being read
+     * (docs/multilingual/ARCHITECTURE.md, "De standaardtaal beslist").
+     */
+    public static function hasDefaultWords(string $ownerTable, int $ownerId, string $field): bool
+    {
+        return $ownerId > 0 && self::raw($ownerTable, $ownerId, $field, self::defaultLanguage()) !== '';
     }
 
     /**

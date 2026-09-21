@@ -45,7 +45,9 @@ final class LocalizedSiteSettingsEditorHttpTest extends TestCase
 
     public static function setUpBeforeClass(): void
     {
-        self::$server = BuiltInServer::start();
+        // The dispatcher answers /en/… and /de/… the way .htaccess does in
+        // production, so a page can be read in every website language.
+        self::$server = BuiltInServer::start([], 'tests/Support/dispatcher-router.php');
     }
 
     public static function tearDownAfterClass(): void
@@ -181,9 +183,18 @@ final class LocalizedSiteSettingsEditorHttpTest extends TestCase
         self::assertSame(['nl' => 'Wij maken dingen.', 'de' => 'Wir machen Dinge.'], LocalizedSiteSettings::words(LocalizedSiteSettings::FOOTER_DESCRIPTION));
         self::assertSame(['nl' => 'Met zorg gemaakt', 'en' => 'Made with care', 'de' => 'Mit Sorgfalt gemacht'], LocalizedSiteSettings::words(LocalizedSiteSettings::FOOTER_SLOGAN));
 
-        $footer = $this->get(null, '/index.php');
-        self::assertStringContainsString('<p data-nl="Wij maken dingen." data-en="Wij maken dingen.">Wij maken dingen.</p>', $footer);
-        self::assertStringContainsString('<span data-nl="Met zorg gemaakt" data-en="Made with care">Met zorg gemaakt</span>', $footer);
+        $dutch = $this->get(null, '/');
+        self::assertStringContainsString('<p>Wij maken dingen.</p>', $dutch);
+        self::assertStringContainsString('<span>Met zorg gemaakt</span>', $dutch);
+
+        $english = $this->get(null, '/en/');
+        self::assertStringContainsString('<p>Wij maken dingen.</p>', $english, 'no English description: the default language');
+        self::assertStringContainsString('<span>Made with care</span>', $english);
+        self::assertStringNotContainsString('Met zorg gemaakt', $english, 'one language per page');
+
+        $german = $this->get(null, '/de/');
+        self::assertStringContainsString('<p>Wir machen Dinge.</p>', $german, 'a third language is only a row in site_languages');
+        self::assertStringContainsString('<span>Mit Sorgfalt gemacht</span>', $german);
 
         LocalizedSiteSettings::save('de', [LocalizedSiteSettings::FOOTER_DESCRIPTION => '', LocalizedSiteSettings::FOOTER_SLOGAN => '']);
     }
@@ -215,7 +226,7 @@ final class LocalizedSiteSettingsEditorHttpTest extends TestCase
         $footer = $this->get(null, '/index.php');
 
         self::assertStringNotContainsString('<script>alert(1)</script>', $footer);
-        self::assertStringContainsString('data-nl="&lt;script&gt;alert(1)&lt;/script&gt; zorg"', $footer);
+        self::assertStringContainsString('<span>&lt;script&gt;alert(1)&lt;/script&gt; zorg</span>', $footer);
     }
 
     // --------------------------------------------------------------- helpers

@@ -326,7 +326,7 @@ final class RelatedProductsEmptyStateTest extends TestCase
 
         $this->assertStringContainsString('catch (\Throwable $e)', $content);
         $this->assertStringContainsString('error_log(', $content);
-        $this->assertStringContainsString('return self::$cache[$productId] = null;', $content);
+        $this->assertStringContainsString('return self::$cache[$cacheKey] = null;', $content);
         $this->assertStringNotContainsString('echo', $content);
     }
 }

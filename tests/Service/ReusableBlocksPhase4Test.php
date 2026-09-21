@@ -248,19 +248,15 @@ final class ReusableBlocksPhase4Test extends TestCase
      * collection-source tests can skip instead of asserting on nothing.
      */
     /**
-     * The card titles a visitor sees first. Since Multilingual 2.0 phase 5
-     * wave A a card's words are one LocalizedValue per field, whichever
-     * source built it, so there is nothing to compare by column any more.
+     * The card titles, in the language of the request: whichever source
+     * built a card, its words arrive as one string per field.
      *
      * @param list<array<string, mixed>> $items
      * @return list<string>
      */
     private static function titles(array $items): array
     {
-        return array_map(
-            static fn (array $item): string => \App\Service\Language\SiteText::visibleOf($item['title']),
-            $items
-        );
+        return array_column($items, 'title');
     }
 
     private function collectionWithProducts(): ?int
@@ -595,11 +591,11 @@ final class ReusableBlocksPhase4Test extends TestCase
         render_section_item_gallery([
             'items' => [[
                 'image_path' => 'assets/images/sections/zz-phase4-fallback.jpg',
-                // One LocalizedValue per field, the shape every source hands
-                // the partial since Multilingual 2.0 phase 5 wave A.
-                'alt' => \App\Service\Language\LocalizedValue::of([]),
-                'title' => \App\Service\Language\LocalizedValue::ofDutchEnglish('ZZ Kaart zonder eigen pagina', 'ZZ Kaart zonder eigen pagina'),
-                'subtitle' => \App\Service\Language\LocalizedValue::of([]),
+                // One string per field, in the language of the request: the
+                // shape every source hands the partial.
+                'alt' => '',
+                'title' => 'ZZ Kaart zonder eigen pagina',
+                'subtitle' => '',
                 'categories' => '',
                 'url' => '',
                 'is_detail_link' => false,
@@ -666,8 +662,8 @@ final class ReusableBlocksPhase4Test extends TestCase
         $first = ItemGalleryContent::forSection(self::TEST_KEY, $firstKey);
         $second = ItemGalleryContent::forSection(self::TEST_KEY, $secondKey);
 
-        $this->assertSame('Eerste galerij', \App\Service\Language\SiteText::visibleOf($first['title']));
-        $this->assertSame('Tweede galerij', \App\Service\Language\SiteText::visibleOf($second['title']));
+        $this->assertSame('Eerste galerij', $first['title']);
+        $this->assertSame('Tweede galerij', $second['title']);
         $this->assertTrue($first['show_filter_bar']);
         $this->assertFalse($second['show_filter_bar']);
         $this->assertTrue($first['enable_lightbox']);

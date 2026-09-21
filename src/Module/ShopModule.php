@@ -206,9 +206,9 @@ final class ShopModule extends ModuleDefinition
     public function routes(): array
     {
         return [
-            'shop' => ['url' => '/shop.php', 'label_nl' => 'Shop', 'label_en' => 'Shop', 'order' => 20],
-            'cart' => ['url' => '/cart.php', 'label_nl' => 'Winkelwagen', 'label_en' => 'Cart', 'order' => 30],
-            'checkout' => ['url' => '/checkout.php', 'label_nl' => 'Afrekenen', 'label_en' => 'Checkout', 'order' => 40],
+            'shop' => ['url' => '/shop.php', 'label' => ['nl' => 'Shop', 'en' => 'Shop'], 'order' => 20],
+            'cart' => ['url' => '/cart.php', 'label' => ['nl' => 'Winkelwagen', 'en' => 'Cart'], 'order' => 30],
+            'checkout' => ['url' => '/checkout.php', 'label' => ['nl' => 'Afrekenen', 'en' => 'Checkout'], 'order' => 40],
         ];
     }
 

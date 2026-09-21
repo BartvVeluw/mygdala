@@ -6,6 +6,7 @@ use App\Module\ModuleRegistry;
 use App\Service\NavigationLocalization;
 use App\Service\NavigationPresentation;
 use App\Service\NavigationService;
+use App\Service\Routing\RequestLanguage;
 use PHPUnit\Framework\TestCase;
 use Tests\Support\SiteLanguageFixture;
 
@@ -37,6 +38,7 @@ class NavigationServiceTest extends TestCase
 
     protected function tearDown(): void
     {
+        RequestLanguage::reset();
         ModuleRegistry::overrideForTests(null);
         NavigationLocalization::clearCache();
         SiteLanguageFixture::reset();
@@ -189,7 +191,10 @@ class NavigationServiceTest extends TestCase
             'rel' => null,
             'class' => 'btn btn--sm',
         ], $buttons[0]);
-        $this->assertSame(['nl' => 'Vraag offerte aan', 'en' => 'Request a quote'], $label->attributeValues());
+        $this->assertSame('Vraag offerte aan', $label);
+
+        RequestLanguage::set('en', true);
+        $this->assertSame('Request a quote', NavigationService::buildButtons([$row])[0]['label'], 'the label is the request\'s language');
     }
 
     public function testSeveralButtonsFollowTheirOwnOrder(): void
@@ -227,10 +232,11 @@ class NavigationServiceTest extends TestCase
         $rows = [$this->button(1, 0)];
         $this->labels(1, ['nl' => 'Knop 1']);
 
+        RequestLanguage::set('en', true);
         $buttons = NavigationService::buildButtons($rows);
 
         $this->assertCount(1, $buttons);
-        $this->assertSame(['nl' => 'Knop 1', 'en' => 'Knop 1'], $buttons[0]['label']->attributeValues());
+        $this->assertSame('Knop 1', $buttons[0]['label']);
     }
 
     /**
@@ -257,10 +263,14 @@ class NavigationServiceTest extends TestCase
         $this->labels(1, ['nl' => 'Thuis']);
         $this->labels(2, ['nl' => 'Winkel', 'en' => 'Store']);
 
-        $tree = NavigationService::buildTree($rows);
+        $dutch = NavigationService::buildTree($rows);
+        $this->assertSame('Thuis', $dutch[0]['label']);
+        $this->assertSame('Winkel', $dutch[1]['label']);
 
-        $this->assertSame(['nl' => 'Thuis', 'en' => 'Thuis'], $tree[0]['label']->attributeValues());
-        $this->assertSame(['nl' => 'Winkel', 'en' => 'Store'], $tree[1]['label']->attributeValues());
+        RequestLanguage::set('en', true);
+        $english = NavigationService::buildTree($rows);
+        $this->assertSame('Thuis', $english[0]['label'], 'an untranslated label falls back to the default language');
+        $this->assertSame('Store', $english[1]['label']);
     }
 
     public function testAButtonWithoutADestinationRendersNothing(): void

@@ -9,9 +9,9 @@ use App\Repository\PortfolioCategoryRepository;
 use App\Repository\PortfolioGalleryRepository;
 use App\Repository\SiteLanguageRepository;
 use App\Service\Language\SiteLanguages;
-use App\Service\Language\SiteText;
 use App\Service\PortfolioGalleryContent;
 use App\Service\PortfolioLocalization;
+use App\Service\Routing\RequestLanguage;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -249,27 +249,31 @@ final class PortfolioTranslationTest extends TestCase
     /* What a card prints                                                  */
     /* ------------------------------------------------------------------ */
 
-    public function testACardPrintsItsPairFromTheNewStorageWithTheFallback(): void
+    public function testACardReadsTheLanguageOfTheRequestWithTheFallback(): void
     {
         $id = $this->item();
         $this->saveWords($id, 'nl', ['title' => 'zz Houten bord', 'alt' => 'zz Een houten bord']);
         $this->saveWords($id, 'en', ['title' => 'zz Wooden sign']);
         PortfolioGalleryContent::clearCache();
 
-        $cards = [];
-        foreach (PortfolioGalleryContent::catalogueItems(false) as $card) {
-            $cards[SiteText::visibleOf($card['title'])] = $card;
-        }
+        $card = static function () use ($id): ?array {
+            foreach (PortfolioGalleryContent::catalogueItems(false) as $card) {
+                if (($card['id'] ?? null) === $id || $card['title'] === 'zz Houten bord' || $card['title'] === 'zz Wooden sign') {
+                    return $card;
+                }
+            }
 
-        self::assertArrayHasKey('zz Houten bord', $cards);
-        $card = $cards['zz Houten bord'];
+            return null;
+        };
 
-        self::assertSame(' data-nl="zz Houten bord" data-en="zz Wooden sign"', SiteText::attrsOf($card['title']));
-        self::assertSame(
-            ' data-nl-alt="zz Een houten bord" data-en-alt="zz Een houten bord"',
-            SiteText::attrsForOf('alt', $card['alt']),
-            'an untranslated alt text is the default language in both halves'
-        );
+        $dutch = $this->in('nl', $card);
+        $english = $this->in('en', $card);
+
+        self::assertNotNull($dutch);
+        self::assertNotNull($english);
+        self::assertSame('zz Houten bord', $dutch['title']);
+        self::assertSame('zz Wooden sign', $english['title']);
+        self::assertSame('zz Een houten bord', $english['alt'], 'an untranslated alt text is the default language');
     }
 
     /* ------------------------------------------------------------------ */
@@ -345,6 +349,24 @@ final class PortfolioTranslationTest extends TestCase
             (new SiteLanguageRepository())->create('de', 'German', 'Deutsch');
             $this->addedGerman = true;
             SiteLanguages::clearCache();
+        }
+    }
+
+    /**
+     * Run $work while the request is answered in $language.
+     *
+     * @template T
+     * @param \Closure(): T $work
+     * @return T
+     */
+    private function in(string $language, \Closure $work): mixed
+    {
+        RequestLanguage::set($language, true);
+
+        try {
+            return $work();
+        } finally {
+            RequestLanguage::reset();
         }
     }
 }

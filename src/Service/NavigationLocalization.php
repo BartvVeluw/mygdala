@@ -6,7 +6,6 @@ namespace App\Service;
 
 use App\Service\Language\EntityTranslations;
 use App\Service\Language\LanguageFallback;
-use App\Service\Language\LocalizedValue;
 use App\Service\Language\TranslationTable;
 
 /**
@@ -41,10 +40,10 @@ final class NavigationLocalization
         );
     }
 
-    /** The label pair a public partial prints (the temporary V1 adapter). */
-    public static function label(int $itemId): LocalizedValue
+    /** The label a visitor reads in one language: its own, else the default language's. */
+    public static function label(int $itemId, string $languageCode): string
     {
-        return self::items()->bilingual($itemId, self::LABEL);
+        return self::items()->value($itemId, self::LABEL, $languageCode);
     }
 
     /**

@@ -41,15 +41,14 @@ if ($page === null) {
     // active language — and each of those is its own canonical, in the
     // request's language like the cart's.
     $seoMetadata = \App\Service\SeoMetadata::create(
-        titleNl: \App\Service\Seo::routeTitle('Shop'),
-        titleEn: \App\Service\Seo::routeTitle('Shop'),
+        title: \App\Service\Seo::routeTitle(\App\Service\Language\SiteText::pick(['nl' => 'Shop', 'en' => 'Shop'])),
         canonical: \App\Service\Routing\LocalizedUrl::absolute('/shop.php'),
     );
 }
 
 ?>
 <!doctype html>
-<html lang="<?= htmlspecialchars(\App\Service\Language\SiteText::documentLanguage(), ENT_QUOTES, 'UTF-8') ?>" data-primary-lang="<?= htmlspecialchars(\App\Service\Language\SiteText::documentLanguage(), ENT_QUOTES, 'UTF-8') ?>" data-url-prefix="<?= htmlspecialchars(\App\Service\Routing\LocalizedUrl::prefix(), ENT_QUOTES, 'UTF-8') ?>">
+<html lang="<?= htmlspecialchars(\App\Service\Language\SiteText::documentLanguage(), ENT_QUOTES, 'UTF-8') ?>" data-url-prefix="<?= htmlspecialchars(\App\Service\Routing\LocalizedUrl::prefix(), ENT_QUOTES, 'UTF-8') ?>">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -101,7 +100,7 @@ require __DIR__ . '/partials/header.php';
   <?php render_breadcrumb(\App\Service\Breadcrumbs\BreadcrumbTrail::home()->toRoute('shop')); ?>
   <section class="page-hero">
     <div class="container">
-      <h1 data-nl="Shop" data-en="Shop">Shop</h1>
+      <h1><?= \App\Service\Language\SiteText::escaped(['nl' => 'Shop', 'en' => 'Shop']) ?></h1>
     </div>
   </section>
   <?php

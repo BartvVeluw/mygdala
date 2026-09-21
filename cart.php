@@ -21,17 +21,18 @@ require_once __DIR__ . '/partials/breadcrumb.php';
 // system page's: App\Service\AppUrl alone knows no language, and named the
 // default language's cart from /en/cart.php.
 $seoMetadata = \App\Service\SeoMetadata::create(
-    titleNl: \App\Service\Seo::routeTitle('Winkelwagen'),
-    titleEn: \App\Service\Seo::routeTitle('Shopping cart'),
-    descriptionNl: 'Bekijk en pas je winkelwagen aan voordat je afrekent.',
-    descriptionEn: 'Review and adjust your cart before checking out.',
+    title: \App\Service\Seo::routeTitle(\App\Service\Language\SiteText::pick(['nl' => 'Winkelwagen', 'en' => 'Shopping cart'])),
+    description: \App\Service\Language\SiteText::pick([
+        'nl' => 'Bekijk en pas je winkelwagen aan voordat je afrekent.',
+        'en' => 'Review and adjust your cart before checking out.',
+    ]),
     canonical: \App\Service\Routing\LocalizedUrl::absolute('/cart.php'),
     indexable: false,
 );
 
 ?>
 <!doctype html>
-<html lang="<?= htmlspecialchars(\App\Service\Language\SiteText::documentLanguage(), ENT_QUOTES, 'UTF-8') ?>" data-primary-lang="<?= htmlspecialchars(\App\Service\Language\SiteText::documentLanguage(), ENT_QUOTES, 'UTF-8') ?>" data-url-prefix="<?= htmlspecialchars(\App\Service\Routing\LocalizedUrl::prefix(), ENT_QUOTES, 'UTF-8') ?>">
+<html lang="<?= htmlspecialchars(\App\Service\Language\SiteText::documentLanguage(), ENT_QUOTES, 'UTF-8') ?>" data-url-prefix="<?= htmlspecialchars(\App\Service\Routing\LocalizedUrl::prefix(), ENT_QUOTES, 'UTF-8') ?>">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -61,8 +62,8 @@ require __DIR__ . '/partials/header.php';
 
   <section class="page-hero" style="padding-bottom:0;">
     <div class="container">
-      <p class="eyebrow" data-nl="Stap 1 van 2" data-en="Step 1 of 2">Stap 1 van 2</p>
-      <h1 style="max-width:20ch;" data-nl="Jouw winkelwagen" data-en="Your shopping cart">Jouw winkelwagen</h1>
+      <p class="eyebrow"><?= \App\Service\Language\SiteText::escaped(['nl' => 'Stap 1 van 2', 'en' => 'Step 1 of 2']) ?></p>
+      <h1 style="max-width:20ch;"><?= \App\Service\Language\SiteText::escaped(['nl' => 'Jouw winkelwagen', 'en' => 'Your shopping cart']) ?></h1>
     </div>
   </section>
 
@@ -76,34 +77,34 @@ require __DIR__ . '/partials/header.php';
           <!-- Lege-winkelwagen staat (verborgen zolang er producten in de winkelwagen zitten) -->
           <div class="cart-empty" data-cart-empty hidden>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 4h2l2.4 12.2a2 2 0 0 0 2 1.6h7.6a2 2 0 0 0 2-1.6L21 8H6"/><circle cx="10" cy="20" r="1.4"/><circle cx="17" cy="20" r="1.4"/></svg>
-            <h3 data-nl="Je winkelwagen is leeg" data-en="Your cart is empty">Je winkelwagen is leeg</h3>
-            <p data-nl="Nog niets toegevoegd? Bekijk de shop voor beschikbare producten." data-en="Nothing added yet? Browse the shop for available products.">Nog niets toegevoegd? Bekijk de shop voor beschikbare producten.</p>
-            <a href="<?= htmlspecialchars(\App\Service\Routing\LocalizedUrl::path('/shop.php'), ENT_QUOTES, 'UTF-8') ?>" class="btn" data-nl="Naar de shop" data-en="Go to shop">Naar de shop</a>
+            <h3><?= \App\Service\Language\SiteText::escaped(['nl' => 'Je winkelwagen is leeg', 'en' => 'Your cart is empty']) ?></h3>
+            <p><?= \App\Service\Language\SiteText::escaped(['nl' => 'Nog niets toegevoegd? Bekijk de shop voor beschikbare producten.', 'en' => 'Nothing added yet? Browse the shop for available products.']) ?></p>
+            <a href="<?= htmlspecialchars(\App\Service\Routing\LocalizedUrl::path('/shop.php'), ENT_QUOTES, 'UTF-8') ?>" class="btn"><?= \App\Service\Language\SiteText::escaped(['nl' => 'Naar de shop', 'en' => 'Go to shop']) ?></a>
           </div>
 
           <div style="margin-top:var(--sp-4);">
-            <a href="<?= htmlspecialchars(\App\Service\Routing\LocalizedUrl::path('/shop.php'), ENT_QUOTES, 'UTF-8') ?>" class="btn btn--ghost btn--sm" data-nl="Verder winkelen" data-en="Continue shopping">&larr; Verder winkelen</a>
+            <a href="<?= htmlspecialchars(\App\Service\Routing\LocalizedUrl::path('/shop.php'), ENT_QUOTES, 'UTF-8') ?>" class="btn btn--ghost btn--sm">&larr; <?= \App\Service\Language\SiteText::escaped(['nl' => 'Verder winkelen', 'en' => 'Continue shopping']) ?></a>
           </div>
         </div>
 
         <aside class="order-summary" data-reveal>
-          <h3 data-nl="Overzicht" data-en="Summary">Overzicht</h3>
+          <h3><?= \App\Service\Language\SiteText::escaped(['nl' => 'Overzicht', 'en' => 'Summary']) ?></h3>
           <div class="order-summary__row">
-            <span data-nl="Subtotaal" data-en="Subtotal">Subtotaal</span>
+            <span><?= \App\Service\Language\SiteText::escaped(['nl' => 'Subtotaal', 'en' => 'Subtotal']) ?></span>
             <strong data-cart-subtotal>&euro;0,00</strong>
           </div>
           <div class="order-summary__row">
-            <span data-nl="Verzending" data-en="Shipping">Verzending</span>
-            <strong data-nl="Bepaald bij afrekenen" data-en="Calculated at checkout">Bepaald bij afrekenen</strong>
+            <span><?= \App\Service\Language\SiteText::escaped(['nl' => 'Verzending', 'en' => 'Shipping']) ?></span>
+            <strong><?= \App\Service\Language\SiteText::escaped(['nl' => 'Bepaald bij afrekenen', 'en' => 'Calculated at checkout']) ?></strong>
           </div>
           <div class="order-summary__row order-summary__row--total">
-            <span data-nl="Totaal" data-en="Total">Totaal</span>
+            <span><?= \App\Service\Language\SiteText::escaped(['nl' => 'Totaal', 'en' => 'Total']) ?></span>
             <strong data-cart-total>&euro;0,00</strong>
           </div>
-          <a href="<?= htmlspecialchars(\App\Service\Routing\LocalizedUrl::path('/checkout.php'), ENT_QUOTES, 'UTF-8') ?>" class="btn btn--block" data-nl="Afrekenen" data-en="Proceed to checkout">Afrekenen
+          <a href="<?= htmlspecialchars(\App\Service\Routing\LocalizedUrl::path('/checkout.php'), ENT_QUOTES, 'UTF-8') ?>" class="btn btn--block"><?= \App\Service\Language\SiteText::escaped(['nl' => 'Afrekenen', 'en' => 'Proceed to checkout']) ?>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
           </a>
-          <p class="order-summary__note" data-nl="Betaling via iDEAL en overige methoden bij Mollie. Prijzen zijn inclusief btw." data-en="Payment via iDEAL and other methods through Mollie. Prices include VAT.">Betaling via iDEAL en overige methoden bij Mollie. Prijzen zijn inclusief btw.</p>
+          <p class="order-summary__note"><?= \App\Service\Language\SiteText::escaped(['nl' => 'Betaling via iDEAL en overige methoden bij Mollie. Prijzen zijn inclusief btw.', 'en' => 'Payment via iDEAL and other methods through Mollie. Prices include VAT.']) ?></p>
         </aside>
 
       </div>

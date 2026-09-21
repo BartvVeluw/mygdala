@@ -9,6 +9,7 @@ use App\Service\Blocks\BlockDefinition;
 use App\Service\Blocks\BlockDefinitions;
 use App\Service\Blocks\BlockSamples;
 use App\Service\ItemGalleryContent;
+use App\Service\Routing\RequestLanguage;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -317,20 +318,30 @@ final class BlockSampleContractTest extends TestCase
     public function testTheWordsNameNoSiteNoCompanyNoPriceAndNobodyToReach(): void
     {
         foreach (BlockDefinitions::all() as $type => $definition) {
-            $sample = $definition->sampleContent(new BlockSamples());
-            if ($sample === null) {
-                continue;
-            }
+            // A sample speaks the language of the request, so read it in
+            // both languages the samples are written in.
+            $words = [];
+            foreach (['nl', 'en'] as $language) {
+                RequestLanguage::set($language, true);
+                try {
+                    $sample = $definition->sampleContent(new BlockSamples());
+                } finally {
+                    RequestLanguage::reset();
+                }
+                if ($sample === null) {
+                    continue 2;
+                }
 
-            $words = self::strings($sample);
+                $words = [...$words, ...self::strings($sample)];
 
-            if ($this->hasForm($sample)) {
-                $form = $sample['form'];
-                $words[] = $form->name;
-                $words[] = $form->submitLabel->nl . ' ' . $form->submitLabel->en;
-                $words[] = $form->successMessage->nl . ' ' . $form->successMessage->en;
-                foreach ($form->fields as $field) {
-                    $words[] = $field->label->nl . ' ' . $field->label->en;
+                if ($this->hasForm($sample)) {
+                    $form = $sample['form'];
+                    $words[] = $form->name;
+                    $words[] = $form->submitLabel;
+                    $words[] = $form->successMessage;
+                    foreach ($form->fields as $field) {
+                        $words[] = $field->label;
+                    }
                 }
             }
 

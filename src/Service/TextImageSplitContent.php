@@ -4,8 +4,8 @@ namespace App\Service;
 
 use App\Repository\TextImageSplitRepository;
 use App\Service\Blocks\BlockLocalization;
-use App\Service\Language\LocalizedValue;
 use App\Service\Media\BlockImage;
+use App\Service\Routing\RequestLanguage;
 
 /**
  * Content for the "Text + image split" section (`.service-detail__head`,
@@ -52,11 +52,11 @@ use App\Service\Media\BlockImage;
  * are stored per website language in block_translations: the section's words
  * on its own row, each paragraph's and each image's on that row
  * (TextImageSplitBlock::childTables()). They come out of
- * App\Service\Blocks\BlockLocalization as one LocalizedValue per field, the
- * fallback already applied; the layout, the button URL, the media and the
- * order stay in the tables. An image's alt text is layered over the media
- * item's own by BlockImage::fromOwner(). This class decides no language
- * itself.
+ * App\Service\Blocks\BlockLocalization as one string per field, in the
+ * language of the request, the fallback already applied; the layout, the
+ * button URL, the media and the order stay in the tables. An image's alt text
+ * is layered over the media item's own by BlockImage::fromOwner(). This class
+ * decides no language itself.
  *
  * There is no hardcoded fallback copy. A missing row, or a lookup that fails,
  * is STATE_FALLBACK: there is nothing to render, and a failure is logged. See
@@ -117,12 +117,12 @@ class TextImageSplitContent
     /**
      * @return array<string, mixed> 'state' (one of STATE_*), plus layout,
      *                                eyebrow, title and button_label (a
-     *                                LocalizedValue each), button_url (the
+     *                                string each), button_url (the
      *                                label empty and the URL '' together
      *                                when there is no button), 'paragraphs':
-     *                                a list of content (a LocalizedValue),
+     *                                a list of content (a string),
      *                                and 'images': a list of image_path, alt
-     *                                (a LocalizedValue), width, height and
+     *                                (a string), width, height and
      *                                media_id. Templates must only render the
      *                                section when 'state' === STATE_ACTIVE;
      *                                the content fields are still present
@@ -132,7 +132,7 @@ class TextImageSplitContent
      */
     public static function forSection(string $pageSlug, string $sectionKey): array
     {
-        $cacheKey = $pageSlug . ':' . $sectionKey;
+        $cacheKey = RequestLanguage::current() . '|' . $pageSlug . ':' . $sectionKey;
 
         if (isset(self::$cache[$cacheKey])) {
             return self::$cache[$cacheKey];
@@ -177,7 +177,7 @@ class TextImageSplitContent
         if (BlockLocalization::raw(self::TABLE, $sectionId, 'button_label', BlockLocalization::defaultLanguage()) === ''
             || $content['button_url'] === ''
         ) {
-            $content['button_label'] = LocalizedValue::of([]);
+            $content['button_label'] = '';
             $content['button_url'] = '';
         }
 
@@ -211,7 +211,7 @@ class TextImageSplitContent
         $content['images'] = array_map(
             static fn (array $image): array => BlockImage::fromOwner(
                 $image,
-                BlockLocalization::bilingual(self::IMAGES, (int) $image['id'], 'alt')
+                BlockLocalization::text(self::IMAGES, (int) $image['id'], 'alt')
             ),
             $images
         );

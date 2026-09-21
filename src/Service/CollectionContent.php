@@ -51,12 +51,12 @@ class CollectionContent
      * the collection before filling it without that half-finished state
      * showing up on the shop.
      *
-     * @return array<int, array{id:int, slug:string, name:\App\Service\Language\LocalizedValue, description:\App\Service\Language\LocalizedValue, image_path:?string, product_count:int, url:string}>
+     * @return array<int, array{id:int, slug:string, name:string, description:string, image_path:?string, product_count:int, url:string}>
      */
     public static function activeForShop(): array
     {
-        if (array_key_exists('shop', self::$cache)) {
-            return self::$cache['shop'];
+        if (array_key_exists('shop|' . RequestLanguage::current(), self::$cache)) {
+            return self::$cache['shop|' . RequestLanguage::current()];
         }
 
         try {
@@ -64,7 +64,7 @@ class CollectionContent
         } catch (\Throwable $e) {
             error_log('[CollectionContent] activeForShop lookup failed: ' . $e->getMessage());
 
-            return self::$cache['shop'] = [];
+            return self::$cache['shop|' . RequestLanguage::current()] = [];
         }
 
         // One query for the words of every tile on /shop.
@@ -73,8 +73,10 @@ class CollectionContent
             $rows
         ));
 
-        return self::$cache['shop'] = array_map(
-            static fn (array $row): array => self::mapRow($row, (int) $row['product_count']),
+        $language = RequestLanguage::current();
+
+        return self::$cache['shop|' . $language] = array_map(
+            static fn (array $row): array => self::mapRow($row, (int) $row['product_count'], $language),
             $rows
         );
     }
@@ -85,7 +87,7 @@ class CollectionContent
      * slug produces, so an inactive collection is indistinguishable from a
      * non-existent one — unpublished content cannot leak through this route.
      *
-     * @return array{id:int, slug:string, name:\App\Service\Language\LocalizedValue, description:\App\Service\Language\LocalizedValue, image_path:?string, product_count:int, url:string}|null
+     * @return array{id:int, slug:string, name:string, description:string, image_path:?string, product_count:int, url:string}|null
      */
     public static function forPublicPage(string $slug, ?string $language = null): ?array
     {
@@ -128,7 +130,7 @@ class CollectionContent
             return null;
         }
 
-        return self::mapRow($collection, null);
+        return self::mapRow($collection, null, $language);
     }
 
     /**
@@ -236,8 +238,9 @@ class CollectionContent
      *
      * @param array<string, mixed> $collection a mapped row from forPublicPage()/activeForShop()
      */
-    public static function seoTitle(array $collection, string $lang = 'nl'): string
+    public static function seoTitle(array $collection, ?string $lang = null): string
     {
+        $lang ??= RequestLanguage::current();
         $id = (int) ($collection['id'] ?? 0);
         $custom = ShopLocalization::collection($id, ShopLocalization::META_TITLE, $lang);
 
@@ -262,8 +265,9 @@ class CollectionContent
      *
      * @param array<string, mixed> $collection a mapped row from forPublicPage()/activeForShop()
      */
-    public static function metaDescription(array $collection, string $lang = 'nl'): string
+    public static function metaDescription(array $collection, ?string $lang = null): string
     {
+        $lang ??= RequestLanguage::current();
         $id = (int) ($collection['id'] ?? 0);
         $custom = ShopLocalization::collection($id, ShopLocalization::META_DESCRIPTION, $lang);
 
@@ -343,9 +347,9 @@ class CollectionContent
     }
 
     /**
-     * The row's own, language-neutral fields plus its WORDS as one
-     * LocalizedValue each — since Multilingual 2.0 phase 5 wave C the words
-     * are rows in collection_translations, read through
+     * The row's own, language-neutral fields plus its WORDS in one language,
+     * one string each — since Multilingual 2.0 phase 5 wave C the words are
+     * rows in collection_translations, read through
      * App\Service\ShopLocalization with the fallback already applied.
      *
      * The SEO copy is deliberately NOT in this shape: seoTitle() and
@@ -355,9 +359,9 @@ class CollectionContent
      * the "sanitize again on read" half of the pattern.
      *
      * @param array<string, mixed> $row
-     * @return array{id:int, slug:string, name:\App\Service\Language\LocalizedValue, description:\App\Service\Language\LocalizedValue, image_path:?string, product_count:int, url:string}
+     * @return array{id:int, slug:string, name:string, description:string, image_path:?string, product_count:int, url:string}
      */
-    private static function mapRow(array $row, ?int $productCount): array
+    private static function mapRow(array $row, ?int $productCount, string $language): array
     {
         $id = (int) $row['id'];
         $imagePath = (string) ($row['image_path'] ?? '');
@@ -366,8 +370,8 @@ class CollectionContent
         return [
             'id' => $id,
             'slug' => (string) $row['slug'],
-            'name' => ShopLocalization::collectionValue($id, ShopLocalization::NAME),
-            'description' => ShopLocalization::collectionDescriptionValue($id),
+            'name' => ShopLocalization::collection($id, ShopLocalization::NAME, $language),
+            'description' => ShopLocalization::collectionDescription($id, $language),
             'image_path' => $imagePath === '' ? null : $imagePath,
             'og_image_path' => $ogImagePath === '' ? null : $ogImagePath,
             'product_count' => $productCount ?? 0,

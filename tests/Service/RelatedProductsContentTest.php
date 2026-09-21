@@ -8,9 +8,9 @@ use App\Database;
 use App\Repository\CollectionRepository;
 use App\Repository\ProductRepository;
 use App\Repository\SiteSettingRepository;
-use App\Service\Language\SiteText;
 use App\Service\LocalizedSiteSettings;
 use App\Service\RelatedProductsContent;
+use App\Service\Routing\RequestLanguage;
 use App\Service\ShopLocalization;
 use App\Service\SiteSettings;
 use PHPUnit\Framework\TestCase;
@@ -108,6 +108,35 @@ final class RelatedProductsContentTest extends TestCase
     {
         (new SiteSettingRepository())->upsertMany($values);
         $this->clearCaches();
+    }
+
+    /** The heading of $productId's related products, read in $language. */
+    private function headingIn(string $language, int $productId): string
+    {
+        return $this->in($language, static function () use ($productId): string {
+            $result = RelatedProductsContent::forProduct($productId);
+            self::assertNotNull($result);
+
+            return $result['heading'];
+        });
+    }
+
+    /**
+     * Run $work while the request is answered in $language.
+     *
+     * @template T
+     * @param \Closure(): T $work
+     * @return T
+     */
+    private function in(string $language, \Closure $work): mixed
+    {
+        RequestLanguage::set($language, true);
+
+        try {
+            return $work();
+        } finally {
+            RequestLanguage::reset();
+        }
     }
 
     /**
@@ -568,10 +597,10 @@ final class RelatedProductsContentTest extends TestCase
         $result = RelatedProductsContent::forProduct($a);
 
         $this->assertNotNull($result);
-        $this->assertSame('Gerelateerde producten', $result['heading']->in('nl'));
+        $this->assertSame('Gerelateerde producten', $this->headingIn('nl', $a));
         $this->assertSame(
             'Gerelateerde producten',
-            $result['heading']->in('en'),
+            $this->headingIn('en', $a),
             'an untranslated heading falls back to the default language'
         );
     }
@@ -587,8 +616,8 @@ final class RelatedProductsContentTest extends TestCase
         $result = RelatedProductsContent::forProduct($a);
 
         $this->assertNotNull($result);
-        $this->assertSame('Meer onderzetters bekijken', $result['heading']->in('nl'));
-        $this->assertSame('More coasters', $result['heading']->in('en'));
+        $this->assertSame('Meer onderzetters bekijken', $this->headingIn('nl', $a));
+        $this->assertSame('More coasters', $this->headingIn('en', $a));
     }
 
     public function testACollectionOverrideWithoutAnEnglishValueFallsBackToItsOwnDutchOverride(): void
@@ -605,7 +634,7 @@ final class RelatedProductsContentTest extends TestCase
         $this->assertNotNull($result);
         $this->assertSame(
             'Meer onderzetters bekijken',
-            $result['heading']->in('en'),
+            $this->headingIn('en', $a),
             "a collection's own override must win over the global EN heading, not mix with it"
         );
     }
@@ -634,8 +663,8 @@ final class RelatedProductsContentTest extends TestCase
 
         $result = RelatedProductsContent::forProduct($a);
         $this->assertNotNull($result);
-        $this->assertSame('Eigen kop', $result['heading']->in('nl'), '1: the collection in this language');
-        $this->assertSame('Eigen kop', $result['heading']->in('en'), '2: the collection in the default language');
+        $this->assertSame('Eigen kop', $this->headingIn('nl', $a), '1: the collection in this language');
+        $this->assertSame('Eigen kop', $this->headingIn('en', $a), '2: the collection in the default language');
 
         // 3 + 4: no heading of its own, so the global setting, with the same
         // fallback inside it.
@@ -646,19 +675,19 @@ final class RelatedProductsContentTest extends TestCase
 
         $result = RelatedProductsContent::forProduct($a);
         $this->assertNotNull($result);
-        $this->assertSame('Globale kop', $result['heading']->in('nl'), '3: the setting in this language');
+        $this->assertSame('Globale kop', $this->headingIn('nl', $a), '3: the setting in this language');
 
         $this->setHeadings(['nl' => 'Globale kop']);
         $result = RelatedProductsContent::forProduct($a);
         $this->assertNotNull($result);
-        $this->assertSame('Globale kop', $result['heading']->in('en'), '4: the setting in the default language');
+        $this->assertSame('Globale kop', $this->headingIn('en', $a), '4: the setting in the default language');
 
         // 5: nothing anywhere is nothing, and then the block renders no
         // heading rather than an empty one.
         $this->setHeadings([]);
         $result = RelatedProductsContent::forProduct($a);
         $this->assertNotNull($result);
-        $this->assertSame('', SiteText::visibleOf($result['heading']), '5: no heading at all');
+        $this->assertSame('', $result['heading'], '5: no heading at all');
     }
 
     /* ------------------------------------------------------------------ */

@@ -106,7 +106,8 @@ final class HeaderFooterContractTest extends TestCase
         $source = $this->source('partials/footer.php');
 
         $this->assertStringContainsString('aria-label="<?= $h($socialLabel) ?>"', $source);
-        $this->assertStringContainsString('data-en-aria=', $source, 'the accessible name follows the language switch');
+        $this->assertStringContainsString("SiteText::pick(['nl' => 'op', 'en' => 'on'])", $source, 'the accessible name is in the language being read');
+        $this->assertStringNotContainsString('data-en-aria=', $source, 'no V1 pair');
         $this->assertStringContainsString('aria-hidden="true"', $source);
     }
 

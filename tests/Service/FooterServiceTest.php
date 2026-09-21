@@ -44,10 +44,10 @@ class FooterServiceTest extends TestCase
         return $id;
     }
 
-    /** @return list<string> the Dutch titles of the public footer's columns */
+    /** @return list<string> the titles of the public footer's columns, in the (Dutch) request language */
     private static function publicTitles(): array
     {
-        return array_map(static fn (array $c): string => $c['title']->in('nl'), FooterService::columns());
+        return array_column(FooterService::columns(), 'title');
     }
 
     public function testHiddenColumnsAreExcludedFromPublicOutput(): void
@@ -100,7 +100,7 @@ class FooterServiceTest extends TestCase
         ]);
 
         $columns = FooterService::columns();
-        $legal = array_values(array_filter($columns, static fn (array $c): bool => $c['title']->in('nl') === 'Legal'));
+        $legal = array_values(array_filter($columns, static fn (array $c): bool => $c['title'] === 'Legal'));
 
         $this->assertCount(1, $legal);
         $this->assertTrue($legal[0]['links'][0]['is_action']);

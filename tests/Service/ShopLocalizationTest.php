@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Tests\Service;
 
-use App\Service\Language\SiteText;
 use App\Service\ShopLocalization;
 use PHPUnit\Framework\TestCase;
 use Tests\Support\SiteLanguageFixture;
@@ -194,10 +193,7 @@ final class ShopLocalizationTest extends TestCase
             ShopLocalization::collection(self::COLLECTION, ShopLocalization::RELATED_HEADING, 'en'),
             'an untranslated heading falls back'
         );
-        self::assertSame(
-            ' data-nl="Onderzetters" data-en="Coasters"',
-            SiteText::attrsOf(ShopLocalization::collectionValue(self::COLLECTION, ShopLocalization::NAME))
-        );
+        self::assertSame('Onderzetters', ShopLocalization::collection(self::COLLECTION, ShopLocalization::NAME, 'nl'));
     }
 
     /* ------------------------------------------------------------------ */
@@ -233,12 +229,10 @@ final class ShopLocalizationTest extends TestCase
             'en' => [ShopLocalization::DESCRIPTION => '<script>alert(1)</script>'],
         ]);
 
-        $pair = ShopLocalization::productDescriptionValue(self::PRODUCT);
-
-        self::assertStringContainsString('Van berkenhout.', $pair->in('nl'));
+        self::assertStringContainsString('Van berkenhout.', ShopLocalization::productDescription(self::PRODUCT, 'nl'));
         self::assertStringContainsString(
             'Van berkenhout.',
-            $pair->in('en'),
+            ShopLocalization::productDescription(self::PRODUCT, 'en'),
             'markup that sanitizes away is no translation'
         );
     }

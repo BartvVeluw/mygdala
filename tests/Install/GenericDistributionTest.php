@@ -6,6 +6,7 @@ namespace Tests\Install;
 
 use App\Mail\EmailIdentity;
 use App\Service\HttpUserAgent;
+use App\Service\Routing\RequestLanguage;
 use App\Service\Shipping\PickupLocation;
 use App\Service\SiteSettings;
 use PHPUnit\Framework\TestCase;
@@ -115,31 +116,43 @@ final class GenericDistributionTest extends TestCase
     {
         SiteSettings::overrideForTests(['company_city' => '']);
 
-        $this->assertSame('Afhalen', PickupLocation::labelNl());
-        $this->assertSame('Pickup', PickupLocation::labelEn());
+        $this->assertSame('Afhalen', $this->pickupIn('nl'));
+        $this->assertSame('Pickup', $this->pickupIn('en'));
     }
 
-    public function testAConfiguredCityIsNamedInBothLanguages(): void
+    public function testAConfiguredCityIsNamedInEveryLanguage(): void
     {
         SiteSettings::overrideForTests(['company_city' => 'Nijmegen']);
 
-        $this->assertSame('Afhalen in Nijmegen', PickupLocation::labelNl());
-        $this->assertSame('Pick up in Nijmegen', PickupLocation::labelEn());
+        $this->assertSame('Afhalen in Nijmegen', $this->pickupIn('nl'));
+        $this->assertSame('Pick up in Nijmegen', $this->pickupIn('en'));
     }
 
     public function testASecondSitesCityIsUsedJustAsReadily(): void
     {
         SiteSettings::overrideForTests(['company_city' => 'Gent']);
 
-        $this->assertSame('Afhalen in Gent', PickupLocation::labelNl());
-        $this->assertSame('Pick up in Gent', PickupLocation::labelEn());
+        $this->assertSame('Afhalen in Gent', $this->pickupIn('nl'));
+        $this->assertSame('Pick up in Gent', $this->pickupIn('en'));
+    }
+
+    /** The pickup label while the request is answered in $language. */
+    private function pickupIn(string $language): string
+    {
+        RequestLanguage::set($language, true);
+
+        try {
+            return PickupLocation::label();
+        } finally {
+            RequestLanguage::reset();
+        }
     }
 
     public function testTheCheckoutAsksForTheLabelRatherThanWritingOneOut(): void
     {
         $checkout = (string) file_get_contents($this->root() . '/checkout.php');
 
-        $this->assertStringContainsString('PickupLocation::labelNl()', $checkout);
+        $this->assertStringContainsString('PickupLocation::label()', $checkout);
         $this->assertStringNotContainsString('Afhalen in Nijmegen', $checkout);
     }
 
@@ -301,7 +314,7 @@ final class GenericDistributionTest extends TestCase
         // The same sentence assets/js/shop/cart.js renders for an empty cart,
         // so the hand-over from server to script is invisible.
         $this->assertStringContainsString('Je winkelwagen is leeg.', $markup);
-        $this->assertStringContainsString('data-en="Your cart is empty."', $markup);
+        $this->assertStringNotContainsString('data-en=', $markup, 'one language per document');
         $this->assertStringContainsString('data-cart-count>0<', $markup);
         $this->assertStringContainsString('cart-dropdown__subtotal" hidden', $markup);
 

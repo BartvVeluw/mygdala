@@ -481,7 +481,7 @@ final class PageTemplateCreationTest extends TestCase
 
         $metadata = PageSeo::forPage($page);
 
-        self::assertStringContainsString(\App\Service\PageLocalization::name($pageId), $metadata->titleNl);
+        self::assertStringContainsString(\App\Service\PageLocalization::name($pageId), $metadata->title());
         self::assertStringEndsWith('/' . self::PREFIX . 'seo', (string) $metadata->canonical);
         self::assertSame(PageContent::canonicalUrl($page), $metadata->canonical);
         self::assertSame(0, (int) $page['noindex'], 'A template must not set a page to noindex.');

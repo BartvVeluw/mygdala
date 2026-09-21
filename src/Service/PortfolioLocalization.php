@@ -6,7 +6,6 @@ namespace App\Service;
 
 use App\Service\Language\EntityTranslations;
 use App\Service\Language\LanguageFallback;
-use App\Service\Language\LocalizedValue;
 use App\Service\Language\TranslationTable;
 
 /**
@@ -109,10 +108,10 @@ final class PortfolioLocalization
     /* Categories                                                          */
     /* ------------------------------------------------------------------ */
 
-    /** The name pair a public partial prints (the temporary V1 adapter). */
-    public static function categoryName(int $categoryId): LocalizedValue
+    /** The name a visitor reads in one language: its own, else the default language's. */
+    public static function categoryName(int $categoryId, string $languageCode): string
     {
-        return self::categories()->bilingual($categoryId, self::NAME);
+        return self::categories()->value($categoryId, self::NAME, $languageCode);
     }
 
     /** The stored name in one language, no fallback: what the editor shows. */
@@ -152,12 +151,12 @@ final class PortfolioLocalization
     /* Items                                                               */
     /* ------------------------------------------------------------------ */
 
-    /** The pair of one plain item field (title, subtitle, alt). */
-    public static function itemValue(int $itemId, string $field): LocalizedValue
+    /** One plain item field (title, subtitle, alt) as a visitor reads it in one language. */
+    public static function item(int $itemId, string $field, string $languageCode): string
     {
         self::assertPlainItemField($field);
 
-        return self::items()->bilingual($itemId, $field);
+        return self::items()->value($itemId, $field, $languageCode);
     }
 
     /** The stored words of one item field in one language, no fallback: for the editor. */
@@ -173,10 +172,10 @@ final class PortfolioLocalization
     }
 
     /**
-     * The pair of one RICH item field (intro, description), each half
-     * sanitized on the way out — the old project page's text.
+     * One RICH item field (intro, description) as a visitor reads it in one
+     * language, sanitized on the way out — the old project page's text.
      */
-    public static function itemRichValue(int $itemId, string $field): LocalizedValue
+    public static function itemRich(int $itemId, string $field, string $languageCode): string
     {
         if (!in_array($field, self::RICH_FIELDS, true)) {
             throw new \InvalidArgumentException('Not a rich Portfolio item field: ' . $field);
@@ -194,7 +193,7 @@ final class PortfolioLocalization
             }
         }
 
-        return LanguageFallback::bilingual($html);
+        return LanguageFallback::resolve($html, $languageCode);
     }
 
     /** @param list<int> $itemIds */
@@ -219,10 +218,10 @@ final class PortfolioLocalization
     /* Photos of the old project page                                      */
     /* ------------------------------------------------------------------ */
 
-    /** The alt-text pair of one extra photo. */
-    public static function imageAlt(int $imageId): LocalizedValue
+    /** The alt text of one extra photo as a visitor reads it in one language. */
+    public static function imageAlt(int $imageId, string $languageCode): string
     {
-        return self::images()->bilingual($imageId, self::ALT);
+        return self::images()->value($imageId, self::ALT, $languageCode);
     }
 
     /** @param list<int> $imageIds */

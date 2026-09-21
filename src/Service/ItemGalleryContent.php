@@ -4,6 +4,7 @@ namespace App\Service;
 
 use App\Repository\ItemGalleryRepository;
 use App\Service\Blocks\BlockLocalization;
+use App\Service\Routing\RequestLanguage;
 
 /**
  * Content for the "Portfolio-/collectiegalerij" block
@@ -28,7 +29,7 @@ use App\Service\Blocks\BlockLocalization;
  * has a single rendering path and knows nothing about portfolios or
  * products:
  *
- *   image_path, alt, title, subtitle (one LocalizedValue each),
+ *   image_path, alt, title, subtitle (one string each, in the language of the request),
  *   categories (space-separated filter slugs),
  *   url ('' = not a link), is_detail_link (its own page, so it gets the
  *   "opens its own page" arrow), and optionally follows_fallback_link
@@ -49,13 +50,14 @@ use App\Service\Blocks\BlockLocalization;
  * no bar — a source property, not a per-page exception.
  *
  * WORDS PER LANGUAGE (Multilingual 2.0 phase 3B). The block's own eyebrow,
- * title, lead, footer note and button label are stored per website language
- * in block_translations and come out of App\Service\Blocks\BlockLocalization
- * as one LocalizedValue each, the fallback already applied; the source and
- * every display setting stay in item_galleries. The items' own words belong
- * to their source (Portfolio, Shop), and since phase 5 wave A they arrive in
- * the same shape — one LocalizedValue per field, whichever source built it.
- * This class decides no language itself.
+ * title, lead, footer note and button label are stored per website language in
+ * block_translations and come out of App\Service\Blocks\BlockLocalization as
+ * one string each, in the language of the request, the fallback already
+ * applied; the source and every display setting stay in item_galleries. The
+ * items' own words belong to their source (Portfolio, Shop), and since phase 5
+ * wave A they arrive in the same shape — one string per field, in the language
+ * of the request, whichever source built it. This class decides no language
+ * itself.
  *
  * `is_active = false` on an existing row is a deliberate hide, and a
  * different case from a missing row — the same three-state contract
@@ -134,7 +136,7 @@ class ItemGalleryContent
      */
     public static function forSection(string $pageSlug, string $sectionKey): array
     {
-        $cacheKey = $pageSlug . ':' . $sectionKey;
+        $cacheKey = RequestLanguage::current() . '|' . $pageSlug . ':' . $sectionKey;
         if (isset(self::$cache[$cacheKey])) {
             return self::$cache[$cacheKey];
         }
@@ -204,7 +206,16 @@ class ItemGalleryContent
 
         $showFilterBar = (bool) $row['show_filter_bar'];
 
-        return BlockLocalization::words(self::TABLE, (int) ($row['id'] ?? 0)) + [
+        $galleryId = (int) ($row['id'] ?? 0);
+        $words = BlockLocalization::words(self::TABLE, $galleryId);
+
+        // A button needs a label in the DEFAULT language (a translation alone
+        // never makes one appear), like every other block's button.
+        if (!BlockLocalization::hasDefaultWords(self::TABLE, $galleryId, 'button_label')) {
+            $words['button_label'] = '';
+        }
+
+        return $words + [
             'id' => (int) ($row['id'] ?? 0),
             'source_type' => $source,
             'portfolio_scope' => $scope,

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Service\Forms;
 
 use App\Repository\FormRepository;
+use App\Service\Routing\RequestLanguage;
 
 /**
  * How anything gets hold of a FormDefinition: by id, with a per-request
@@ -19,7 +20,12 @@ use App\Repository\FormRepository;
  */
 final class FormCatalog
 {
-    /** @var array<int, FormDefinition|null> */
+    /**
+     * Per language and form: a definition carries its words in the request's
+     * language.
+     *
+     * @var array<string, FormDefinition|null>
+     */
     private static array $cache = [];
 
     /**
@@ -30,12 +36,13 @@ final class FormCatalog
      */
     public static function find(int $id): ?FormDefinition
     {
-        if (array_key_exists($id, self::$cache)) {
-            return self::$cache[$id];
+        $cacheKey = RequestLanguage::current() . '|' . $id;
+        if (array_key_exists($cacheKey, self::$cache)) {
+            return self::$cache[$cacheKey];
         }
 
         if ($id < 1) {
-            return self::$cache[$id] = null;
+            return self::$cache[$cacheKey] = null;
         }
 
         try {
@@ -43,18 +50,18 @@ final class FormCatalog
             $row = $repository->find($id);
 
             if ($row === null) {
-                return self::$cache[$id] = null;
+                return self::$cache[$cacheKey] = null;
             }
 
             // The words per website language and the option rows come along
             // (FormLocalization), so the definition itself reads no storage.
             [$row, $fields] = FormLocalization::attachWords($row, $repository->fieldsFor($id));
 
-            return self::$cache[$id] = FormDefinition::fromRows($row, $fields);
+            return self::$cache[$cacheKey] = FormDefinition::fromRows($row, $fields);
         } catch (\Throwable $e) {
             error_log('[FormCatalog] lookup failed for form #' . $id . ': ' . $e->getMessage());
 
-            return self::$cache[$id] = null;
+            return self::$cache[$cacheKey] = null;
         }
     }
 

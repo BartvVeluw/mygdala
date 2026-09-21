@@ -1359,47 +1359,40 @@ final class MultilingualBoundaryTest extends TestCase
         }
     }
 
-    public function testTheConvertedPartialsPrintThroughSiteTextAndOnlyRichTextAsHtml(): void
+    /**
+     * ONE LANGUAGE PER RESPONSE (phase 7). A block partial prints the words of
+     * the request's language, already resolved by its content class, and
+     * nothing else: no pair for a browser to swap and no marker that promotes
+     * a value to markup. Plain text is escaped; the Tekstblok's and the
+     * Detailsectie's bodies are RichTextSanitizer output, and the homepage
+     * headline is escaped words around one hardcoded <em>.
+     */
+    public function testTheConvertedPartialsPrintOneLanguageAndOnlyRichTextAsHtml(): void
     {
-        $rich = self::withoutComments(self::read('partials/section-rich-text.php'));
-        self::assertStringContainsString('SiteText::htmlAttrsOf($section[\'body\'])', $rich, 'the body is marked data-lang-html through the one helper');
-        self::assertStringContainsString('SiteText::visibleOf(', $rich);
+        $partials = array_unique([
+            ...array_map(static fn (array $files): string => $files[3], self::CONVERTED_BLOCK_FILES),
+            'partials/section-quicknav.php',
+            'partials/text-image-split-media.php',
+        ]);
 
-        // The Detailsectie's body is the second rich field, and the only
-        // thing in its partial marked as HTML.
-        $detail = self::withoutComments(self::read('partials/section-detail-section.php'));
-        self::assertSame(1, substr_count($detail, 'htmlAttrsOf'), 'only the body of the detail section is rich');
-        self::assertStringContainsString('SiteText::htmlAttrsOf($content[\'body\'])', $detail);
-        self::assertStringNotContainsString('data-lang-html', $detail, 'the marker comes from the one helper');
-        self::assertStringContainsString('SiteText::attrsOf(', $detail);
+        foreach ($partials as $partial) {
+            $code = self::withoutComments(self::read($partial));
 
-        // The homepage hero's headline is the one exception, checked below:
-        // its title and highlight become markup built from escaped words.
-        $plainPartials = array_unique(array_filter(
-            [...array_map(static fn (array $files): string => $files[3], self::CONVERTED_BLOCK_FILES), 'partials/section-quicknav.php'],
-            static fn (string $partial): bool => !in_array($partial, ['partials/section-rich-text.php', 'partials/section-homepage-hero.php', 'partials/section-detail-section.php'], true)
-        ));
+            foreach (['data-nl', 'data-en', 'data-lang-html', 'SiteText::attrs', 'SiteText::visible', 'LocalizedValue'] as $v1) {
+                self::assertStringNotContainsString($v1, $code, $partial . ' still prints V1 output (' . $v1 . ')');
+            }
+        }
+
+        self::assertStringContainsString("\$visible = \$section['body'];", self::withoutComments(self::read('partials/section-rich-text.php')), 'the rich body is printed as the sanitized markup it arrives as');
+        self::assertStringContainsString("\$body = \$content['body'];", self::withoutComments(self::read('partials/section-detail-section.php')));
 
         $hero = self::withoutComments(self::read('partials/section-homepage-hero.php'));
-        self::assertSame(1, substr_count($hero, 'data-lang-html'), 'only the headline of the homepage hero is marked as HTML');
-        self::assertStringContainsString('data-lang-html<?= \App\Service\Language\SiteText::attrsOf($heroTitle) ?>', $hero, 'the marker sits on the <h1> that prints the composed headline');
-        self::assertStringContainsString('HomepageHeroContent::titleHtml($hero[\'title\'], $hero[\'title_highlight\'])', $hero);
+        self::assertStringContainsString('HomepageHeroContent::renderTitleFragment($hero[\'title\'], $hero[\'title_highlight\'])', $hero);
         self::assertMatchesRegularExpression(
             '/function renderTitleFragment\(.*?htmlspecialchars\(\$before.*?\x27<em>\x27 \. htmlspecialchars\(\$match.*?htmlspecialchars\(\$after/s',
             self::withoutComments(self::read('src/Service/HomepageHeroContent.php')),
             'every word of the headline is escaped; only the <em> is markup'
         );
-
-        foreach ($plainPartials as $plain) {
-            $code = self::withoutComments(self::read($plain));
-            self::assertStringContainsString('SiteText::attrsOf(', $code, $plain);
-            self::assertStringNotContainsString('htmlAttrsOf', $code, $plain . ' prints only plain text');
-            self::assertStringNotContainsString('data-lang-html', $code, $plain);
-        }
-
-        $siteText = self::withoutComments(self::read('src/Service/Language/SiteText.php'));
-        self::assertMatchesRegularExpression('/function htmlAttrsOf\(.*?\' data-lang-html\' \. self::attrsOf\(/s', $siteText);
-        self::assertMatchesRegularExpression('/function attrsOf\(.*?self::escape\(\$value\)/s', $siteText, 'every half is escaped');
     }
 
     public function testTheConvertedEditorsShowOneLanguageAndTheirEndpointsWriteOnlyThatLanguage(): void
@@ -1533,151 +1526,70 @@ final class MultilingualBoundaryTest extends TestCase
     // ---------------------------------- the language switch renders text as text
 
     /**
-     * The whole point of the data-nl/data-en swap: a value is EDITOR-supplied
-     * plain text unless an element opts out with data-lang-html. assets/js/core.js
-     * writes the default with textContent — never innerHTML — so a label an
-     * editor typed as "<img src=x onerror=…>" can never execute when a visitor
-     * toggles the language. This is the fix for the stored-XSS route the
-     * pages.manage permission opened through a navigation label; before it,
-     * applyLang() assigned el.innerHTML unconditionally.
+     * THE CLIENT-SIDE LANGUAGE SWAP IS GONE (phase 7). The server renders every
+     * page in the language of its URL and the switch is a row of links, so no
+     * public script rebuilds the document in another language: none reads a
+     * data-nl/data-en pair, none knows a stored language, none writes an
+     * element's words from a dataset.
      */
-    public function testTheLanguageSwitchWritesPlainTextWithTextContent(): void
+    public function testNoPublicScriptSwapsTheWebsiteLanguage(): void
     {
-        $core = self::read('assets/js/core.js');
+        $scripts = ['assets/js/core.js', 'assets/js/portfolio-detail.js'];
+        foreach (self::glob('assets/js/blocks/*.js') as $file) {
+            $scripts[] = 'assets/js/blocks/' . basename($file);
+        }
 
-        // The default path for a bilingual element is textContent.
-        self::assertStringContainsString('el.textContent = val;', $core);
+        foreach ($scripts as $script) {
+            $code = self::withoutScriptComments(self::read($script));
 
-        // innerHTML is reachable ONLY inside the data-lang-html branch.
-        self::assertMatchesRegularExpression(
-            '/hasAttribute\("data-lang-html"\)\)\s*\{\s*el\.innerHTML = val;/',
-            $core,
-            'core.js may write a language value with innerHTML only for a data-lang-html element',
-        );
+            foreach (['data-nl', 'data-en', 'dataset.nl', 'dataset.en', 'dataset.altNl', 'dataset.altEn', 'data-lang-html', 'applyLang', 'vvl-lang', 'data-primary-lang', 'isEnglish', "lang === \"en\""] as $swap) {
+                self::assertStringNotContainsString($swap, $code, $script . ' still swaps the language in the browser (' . $swap . ')');
+            }
+        }
 
-        // And that is the ONLY innerHTML assignment in the file: no second,
-        // unguarded sink may creep back in next to it.
-        self::assertSame(
-            1,
-            substr_count($core, '.innerHTML ='),
-            'core.js must assign innerHTML exactly once, in the data-lang-html branch',
-        );
+        $core = self::withoutScriptComments(self::read('assets/js/core.js'));
+        self::assertStringNotContainsString('.innerHTML', $core, 'core.js writes no markup at all');
+    }
 
-        // The exact old vulnerable line must be gone.
-        self::assertStringNotContainsString('if (val != null) el.innerHTML = val;', $core);
+    /** A script without its block and line comments. */
+    private static function withoutScriptComments(string $script): string
+    {
+        return (string) preg_replace(['~/\*.*?\*/~s', '~^\s*//.*$~m'], '', $script);
     }
 
     /**
-     * The block scripts that build bilingual DOM themselves follow the same
-     * rule. The marquee re-renders plain-text material/category labels, so it
-     * writes them with textContent; only the shop's product-detail description
-     * — server-sanitized HTML (DescriptionSanitizer) — is marked data-lang-html
-     * so applyLang() keeps rendering it as markup on a switch.
+     * The marquee copies its server-rendered labels to fill the band. Those
+     * are plain-text material/category names, so the copy is textContent,
+     * never markup.
      */
-    public function testBlockScriptsThatSwapLanguagesDoNotFeedDatasetToInnerHtml(): void
+    public function testTheMarqueeCopiesItsLabelsAsText(): void
     {
         $marquee = self::read('assets/js/blocks/marquee.js');
         self::assertStringContainsString('span.textContent =', $marquee);
-        self::assertStringNotContainsString('span.innerHTML', $marquee);
-
-        $shop = self::read('assets/js/shop/shop.js');
-        self::assertStringContainsString('descEl.setAttribute("data-lang-html", "");', $shop);
-        self::assertSame(
-            1,
-            substr_count($shop, 'setAttribute("data-lang-html"'),
-            'only the product description — sanitized HTML — is marked as HTML in shop.js',
-        );
+        self::assertStringNotContainsString('.innerHTML', $marquee);
     }
 
     /**
-     * Every element that genuinely carries HTML — rich text (RichTextSanitizer),
-     * the hero title fragment (a hardcoded <em> around escaped text), the
-     * developer-authored cookie/checkout link sentences — marks itself with
-     * data-lang-html, or the language switch would print its markup as text.
+     * No public template or partial publishes website text as a V1 pair any
+     * more: one language per document, whatever the element — text, rich
+     * text, alt, placeholder, aria-label or a meta tag (phase 7).
      */
-    public function testEveryGenuinelyHtmlBilingualElementIsMarked(): void
+    public function testNoPublicTemplatePrintsALanguagePair(): void
     {
-        $mustMark = [
-            'partials/section-rich-text.php',
-            'partials/section-detail-section.php',
-            'partials/section-homepage-hero.php',
-            'partials/cookie-consent.php',
-            'blog-post.php',
-            'collectie.php',
-            'portfolio-detail.php',
-            'checkout.php',
-            'bestelling-status.php',
-        ];
+        $templates = array_merge(self::glob('*.php'), self::glob('partials/*.php'));
+        self::assertNotEmpty($templates);
 
-        foreach ($mustMark as $file) {
-            self::assertStringContainsString(
-                'data-lang-html',
-                self::read($file),
-                $file . ' renders real HTML through data-nl/data-en and must mark it as HTML',
-            );
+        $offenders = [];
+        foreach ($templates as $file) {
+            $relative = substr(str_replace(DIRECTORY_SEPARATOR, '/', $file), strlen(str_replace(DIRECTORY_SEPARATOR, '/', self::root())) + 1);
+            $code = self::withoutComments((string) file_get_contents($file));
+
+            if (preg_match_all('/data-(?:nl|en)(?:-[a-z]+)?=|data-lang-html|data-primary-lang|SiteText::(?:attrs|attrsFor|attrsOf|attrsForOf|htmlAttrsOf|visible|visibleOf)\(/', $code, $matches) > 0) {
+                $offenders[] = $relative . ' (' . implode(', ', array_unique($matches[0])) . ')';
+            }
         }
-    }
 
-    /**
-     * And the opposite guard, which is the one that keeps false positives out:
-     * a template that only ever prints plain-text labels — navigation, the
-     * footer, the breadcrumb, form labels — must NOT carry the marker, so a
-     * future editor field is never quietly promoted to HTML.
-     */
-    public function testPlainTextTemplatesAreNeverMarkedAsHtml(): void
-    {
-        $mustNotMark = [
-            'partials/header.php',
-            'partials/footer.php',
-            'partials/breadcrumb.php',
-            'partials/form.php',
-            'partials/section-card-carousel.php',
-        ];
-
-        foreach ($mustNotMark as $file) {
-            self::assertStringNotContainsString(
-                'data-lang-html',
-                self::read($file),
-                $file . ' carries only plain-text labels and must not mark them as HTML',
-            );
-        }
-    }
-
-    /**
-     * The behaviour behind the source guards, proven with PHP's own DOM as the
-     * browser's: the exact value the server escapes into data-en and the
-     * browser decodes back on read is inert when written with textContent (the
-     * default) and only becomes live markup when written with innerHTML (the
-     * data-lang-html path). Malicious-looking plain text stays text; allowed
-     * sanitized rich text stays HTML.
-     */
-    public function testTextContentKeepsAPayloadInertWhileInnerHtmlKeepsRichText(): void
-    {
-        $payload = '<img src=x onerror="document.body.dataset.xss=\'1\'">';
-
-        // Server → attribute → browser dataset read is a lossless round-trip.
-        $decoded = html_entity_decode(
-            htmlspecialchars($payload, ENT_QUOTES, 'UTF-8'),
-            ENT_QUOTES,
-            'UTF-8'
-        );
-        self::assertSame($payload, $decoded, 'the attribute round-trip returns the editor value verbatim');
-
-        // applyLang()'s default: textContent. The value never becomes an element.
-        $doc = new \DOMDocument();
-        $span = $doc->appendChild($doc->createElement('span'));
-        $span->textContent = $decoded;
-        self::assertSame(0, $span->getElementsByTagName('img')->length, 'a plain-text label must stay text, never an <img>');
-        self::assertSame($payload, $span->textContent, 'and the literal payload is what a visitor sees, as text');
-
-        // applyLang()'s data-lang-html path: innerHTML keeps sanitized markup.
-        $rich = '<p>Bold <strong>text</strong> and a <a href="/x">link</a></p>';
-        $htmlDoc = new \DOMDocument();
-        libxml_use_internal_errors(true);
-        $htmlDoc->loadHTML('<?xml encoding="utf-8"?><div>' . $rich . '</div>');
-        libxml_clear_errors();
-        self::assertSame(1, $htmlDoc->getElementsByTagName('strong')->length, 'allowed rich text keeps its markup as HTML');
-        self::assertSame(1, $htmlDoc->getElementsByTagName('a')->length);
+        self::assertSame([], $offenders, 'V1 language pairs are still printed');
     }
 
     // ---------- Navigation, footer, settings and forms on per-language storage (phase 4)
@@ -1946,9 +1858,9 @@ final class MultilingualBoundaryTest extends TestCase
 
     public function testTheSettingsConsumersTakeTheirWordsFromTheLocalizedStore(): void
     {
-        self::assertStringContainsString('LocalizedSiteSettings::bilingual(LocalizedSiteSettings::CITY)', self::withoutComments(self::read('src/Service/Blocks/ContactFormBlock.php')));
-        self::assertStringContainsString('LocalizedSiteSettings::bilingual(LocalizedSiteSettings::FOOTER_SLOGAN)', self::withoutComments(self::read('src/Service/FooterService.php')));
-        self::assertStringContainsString('LocalizedSiteSettings::bilingual(LocalizedSiteSettings::FOOTER_DESCRIPTION)', self::withoutComments(self::read('src/Service/FooterService.php')));
+        self::assertStringContainsString('LocalizedSiteSettings::value(LocalizedSiteSettings::CITY, RequestLanguage::current())', self::withoutComments(self::read('src/Service/Blocks/ContactFormBlock.php')));
+        self::assertStringContainsString('LocalizedSiteSettings::value(LocalizedSiteSettings::FOOTER_SLOGAN, RequestLanguage::current())', self::withoutComments(self::read('src/Service/FooterService.php')));
+        self::assertStringContainsString('LocalizedSiteSettings::value(LocalizedSiteSettings::FOOTER_DESCRIPTION, RequestLanguage::current())', self::withoutComments(self::read('src/Service/FooterService.php')));
 
         foreach (['admin/settings.php', 'admin/footer.php'] as $screen) {
             $code = self::read($screen);
@@ -2041,7 +1953,8 @@ final class MultilingualBoundaryTest extends TestCase
 
             self::assertStringContainsString('$control->escape($option->value)', $code, $file . ' posts the value');
             self::assertStringNotContainsString('value="\' . $control->escape($option->label', $code, $file . ' never posts a label');
-            self::assertMatchesRegularExpression('/data-nl="[^"]*\' \. \$control->escape\(\$option->label->nl\)/', $code, $file . ' shows the label as text in both languages');
+            self::assertStringContainsString('$control->escape($option->label)', $code, $file . ' shows the label as text, in the language being read');
+            self::assertStringNotContainsString('data-nl', $code, $file . ' prints no V1 pair');
         }
 
         // What a choice field accepts is the value, never a label of the day.
@@ -2164,17 +2077,15 @@ final class MultilingualBoundaryTest extends TestCase
             self::withoutComments(self::read('src/Service/PortfolioGalleryContent.php'))
         );
 
-        // Two places name a language on purpose, both marked: the SEO head's
-        // V1 pair (the same shape App\Service\PageSeo builds) and the lightbox
-        // attribute pair that portfolio-detail.js reads.
+        // The old project page names no language at all since the frontend
+        // flip: its head and its lightbox carry the request's language.
+        // Its system copy is a closed code catalogue keyed by language code;
+        // outside those catalogues no language code is written down.
         $detail = self::withoutComments(self::read('portfolio-detail.php'));
-        self::assertSame(
-            2,
-            preg_match_all('/LanguageRegistry::(?:DUTCH|ENGLISH)/', $detail) > 0 ? 2 : 0,
-            'portfolio-detail.php names a language only through the closed V1 registry'
-        );
-        self::assertStringNotContainsString("'nl'", $detail, 'never a hardcoded language code');
-        self::assertStringNotContainsString("'en'", $detail);
+        self::assertSame(0, preg_match_all('/LanguageRegistry::/', $detail), 'portfolio-detail.php names no language');
+        $outsideCatalogues = (string) preg_replace('/SiteText::(?:escaped|pick)\(\[[^\]]*\]/', '', $detail);
+        self::assertStringNotContainsString("'nl'", $outsideCatalogues, 'never a hardcoded language code');
+        self::assertStringNotContainsString("'en'", $outsideCatalogues);
     }
 
     /**
@@ -2191,14 +2102,14 @@ final class MultilingualBoundaryTest extends TestCase
             );
         }
 
-        // A card's words leave the read model as one LocalizedValue per field,
-        // and the partial prints them through SiteText — so it knows no
+        // A card's words leave the read model as one string per field, in the
+        // request's language, and the partial escapes them — so it knows no
         // language, no default and no fallback.
         $partial = self::withoutComments(self::read('partials/section-item-gallery.php'));
-        self::assertStringContainsString("SiteText::attrsForOf('alt', \$item['alt'])", $partial);
-        self::assertStringContainsString("SiteText::attrsOf(\$item['title'])", $partial);
-        self::assertStringNotContainsString('SiteText::attrs(', $partial, 'no V1 pair is built in the partial any more');
-        self::assertStringNotContainsString('SiteText::visible(', $partial);
+        self::assertStringContainsString("\$h(\$item['alt'])", $partial);
+        self::assertStringContainsString("\$itemTitle = \$item['title'];", $partial);
+        self::assertStringNotContainsString('SiteText::attrs', $partial, 'no V1 pair is built in the partial any more');
+        self::assertStringNotContainsString('SiteText::visible', $partial);
     }
 
     /**

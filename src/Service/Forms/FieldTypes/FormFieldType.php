@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Service\Forms\FieldTypes;
 
 use App\Service\Forms\FormField;
-use App\Service\Forms\FormText;
+use App\Service\Language\SiteText;
 
 /**
  * ONE kind of form field, in ONE file: what it accepts, how it validates,
@@ -66,11 +66,12 @@ abstract class FormFieldType
     /**
      * The type's own rule, applied AFTER the shared "required" and
      * "too long" rules that FormValidator applies to every field. Returns
-     * the bilingual message to show beside the field, or null when the value
+     * the message to show beside the field, in the language of the request
+     * (App\Service\Language\SiteText::pick()), or null when the value
      * is acceptable. An empty value has already been handled by then: an
      * optional field that was left blank never reaches this method.
      */
-    public function validate(string $value, FormField $field): ?FormText
+    public function validate(string $value, FormField $field): ?string
     {
         return null;
     }
@@ -81,12 +82,12 @@ abstract class FormFieldType
      * wording is the type's, because "Naam is verplicht" and "Zet een vinkje
      * bij Voorwaarden" are the same rule said properly.
      */
-    public function requiredMessage(FormField $field): FormText
+    public function requiredMessage(FormField $field): string
     {
-        return FormText::of(
-            $field->label->nl . ' is verplicht.',
-            $field->label->en . ' is required.'
-        );
+        return SiteText::pick([
+            'nl' => $field->label . ' is verplicht.',
+            'en' => $field->label . ' is required.',
+        ]);
     }
 
     /** Whether this type is configured with a list of choices. */
@@ -218,23 +219,18 @@ abstract class FormFieldType
     }
 
     /**
-     * The `placeholder` attribute plus the `data-nl-placeholder` /
-     * `data-en-placeholder` pair assets/js/core.js swaps when the visitor
-     * picks a language — the same convention every other bilingual attribute
-     * on this site uses. Returns '' when the field has no placeholder, or
-     * when the type has no use for one.
+     * The `placeholder` attribute, in the language of the request. Returns ''
+     * when the field has no placeholder, or when the type has no use for one.
      */
     protected function placeholderAttributes(FormFieldControl $control): string
     {
         $placeholder = $control->field->placeholder;
 
-        if (!$this->usesPlaceholder() || $placeholder->isEmpty()) {
+        if (!$this->usesPlaceholder() || $placeholder === '') {
             return '';
         }
 
-        return ' placeholder="' . $control->escape($placeholder->nl) . '"'
-            . ' data-nl-placeholder="' . $control->escape($placeholder->nl) . '"'
-            . ' data-en-placeholder="' . $control->escape($placeholder->en) . '"';
+        return ' placeholder="' . $control->escape($placeholder) . '"';
     }
 
     protected function esc(string $value): string

@@ -3,7 +3,6 @@
 namespace App\Service\Blocks;
 
 use App\Repository\RichTextRepository;
-use App\Service\Language\LocalizedValue;
 use App\Service\RichTextContent;
 
 require_once dirname(__DIR__, 3) . '/partials/section-rich-text.php';
@@ -104,7 +103,7 @@ final class RichTextBlock extends BlockDefinition
 
     public function sampleContent(BlockSamples $samples): ?array
     {
-        return [RichTextContent::BODY => LocalizedValue::of($samples->richText())];
+        return [RichTextContent::BODY => $samples->localizedRichText()];
     }
 
     public function renderSample(array $content, string $revealGroup): void

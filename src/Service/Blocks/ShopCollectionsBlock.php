@@ -84,8 +84,8 @@ final class ShopCollectionsBlock extends FixedBlockDefinition
             $collections[] = [
                 'id' => 0,
                 'slug' => 'voorbeeld-' . ($index + 1),
-                // One LocalizedValue per field, the shape CollectionContent
-                // hands the partial since Multilingual 2.0 phase 5 wave C.
+                // One string per field, the shape CollectionContent hands
+                // the partial.
                 'name' => $samples->localizedItem('collection', $index),
                 'description' => $samples->localizedItem('item_body', $index),
                 'image_path' => ltrim(BlockSamples::IMAGE_PATH, '/'),

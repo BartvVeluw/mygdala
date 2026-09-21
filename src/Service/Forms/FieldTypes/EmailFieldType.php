@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Service\Forms\FieldTypes;
 
 use App\Service\Forms\FormField;
-use App\Service\Forms\FormText;
+use App\Service\Language\SiteText;
 
 /**
  * An e-mail address. The only type whose value may become the notification
@@ -42,16 +42,16 @@ final class EmailFieldType extends FormFieldType
         return $this->clean($raw, $this->maxLength());
     }
 
-    public function validate(string $value, FormField $field): ?FormText
+    public function validate(string $value, FormField $field): ?string
     {
         if (filter_var($value, FILTER_VALIDATE_EMAIL) !== false) {
             return null;
         }
 
-        return FormText::of(
-            'Vul een geldig e-mailadres in.',
-            'Please enter a valid email address.'
-        );
+        return SiteText::pick([
+            'nl' => 'Vul een geldig e-mailadres in.',
+            'en' => 'Please enter a valid email address.',
+        ]);
     }
 
     public function renderControl(FormFieldControl $control): void

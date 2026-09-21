@@ -44,14 +44,12 @@ $catalog = \App\Service\Personalization\PersonalizationCatalog::forPublicPage();
 $siteName = \App\Service\SiteSettings::get('site_name');
 $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
 
-$titleNl = 'Personaliseren — ' . $siteName;
-$titleEn = 'Personalise — ' . $siteName;
-
 $seo = [
-    'title_nl' => $titleNl,
-    'title_en' => $titleEn,
-    'description_nl' => 'Ontdek welke producten je zelf kunt personaliseren met je eigen naam, tekst of afbeelding. Bekijk het live voorbeeld voordat je bestelt.',
-    'description_en' => 'Discover which products you can personalise with your own name, text or image. See a live preview before you order.',
+    'title' => \App\Service\Language\SiteText::pick(['nl' => 'Personaliseren', 'en' => 'Personalise']) . ' — ' . $siteName,
+    'description' => \App\Service\Language\SiteText::pick([
+        'nl' => 'Ontdek welke producten je zelf kunt personaliseren met je eigen naam, tekst of afbeelding. Bekijk het live voorbeeld voordat je bestelt.',
+        'en' => 'Discover which products you can personalise with your own name, text or image. See a live preview before you order.',
+    ]),
     // This route in the request's own language: /en/personaliseren.php is its
     // own version, not a copy of the default language's (ROUTING.md, §10).
     'canonical_url' => \App\Service\Routing\LocalizedUrl::absolute(
@@ -62,7 +60,7 @@ $seo = [
 ];
 ?>
 <!doctype html>
-<html lang="<?= htmlspecialchars(\App\Service\Language\SiteText::documentLanguage(), ENT_QUOTES, 'UTF-8') ?>" data-primary-lang="<?= htmlspecialchars(\App\Service\Language\SiteText::documentLanguage(), ENT_QUOTES, 'UTF-8') ?>" data-url-prefix="<?= htmlspecialchars(\App\Service\Routing\LocalizedUrl::prefix(), ENT_QUOTES, 'UTF-8') ?>">
+<html lang="<?= htmlspecialchars(\App\Service\Language\SiteText::documentLanguage(), ENT_QUOTES, 'UTF-8') ?>" data-url-prefix="<?= htmlspecialchars(\App\Service\Routing\LocalizedUrl::prefix(), ENT_QUOTES, 'UTF-8') ?>">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -86,15 +84,15 @@ require __DIR__ . '/partials/header.php';
 
   <?php render_breadcrumb(
       \App\Service\Breadcrumbs\BreadcrumbTrail::home()
-          ->to(\App\Service\Breadcrumbs\BreadcrumbItem::current('Personaliseren', 'Personalise'))
+          ->to(\App\Service\Breadcrumbs\BreadcrumbItem::current(\App\Service\Language\SiteText::pick(['nl' => 'Personaliseren', 'en' => 'Personalise'])))
   ); ?>
 
   <section class="page-hero">
     <div class="container">
       <div class="section-head" data-reveal>
-        <p class="eyebrow" data-nl="Op maat" data-en="Made to order">Op maat</p>
-        <h1 data-nl="Personaliseer je product" data-en="Personalise your product">Personaliseer je product</h1>
-        <p class="lead" data-nl="Deze producten maak je zelf af: kies je tekst of je eigen afbeelding, kies een lettertype en zie meteen hoe de gravure eruit komt te zien." data-en="You finish these products yourself: choose your text or your own image, pick a font, and see straight away how the engraving will look.">Deze producten maak je zelf af: kies je tekst of je eigen afbeelding, kies een lettertype en zie meteen hoe de gravure eruit komt te zien.</p>
+        <p class="eyebrow"><?= \App\Service\Language\SiteText::escaped(['nl' => 'Op maat', 'en' => 'Made to order']) ?></p>
+        <h1><?= \App\Service\Language\SiteText::escaped(['nl' => 'Personaliseer je product', 'en' => 'Personalise your product']) ?></h1>
+        <p class="lead"><?= \App\Service\Language\SiteText::escaped(['nl' => 'Deze producten maak je zelf af: kies je tekst of je eigen afbeelding, kies een lettertype en zie meteen hoe de gravure eruit komt te zien.', 'en' => 'You finish these products yourself: choose your text or your own image, pick a font, and see straight away how the engraving will look.']) ?></p>
       </div>
     </div>
   </section>
@@ -105,17 +103,17 @@ require __DIR__ . '/partials/header.php';
         <?php /* No empty grid and no error: there is simply nothing to
                  personalize yet, and the page says so in the customer's own
                  words. */ ?>
-        <p class="lead" data-nl="Er zijn op dit moment geen producten om te personaliseren. Kijk gerust rond in de shop — of vraag een offerte aan voor volledig maatwerk." data-en="There are no products to personalise right now. Feel free to browse the shop — or request a quote for fully custom work.">Er zijn op dit moment geen producten om te personaliseren. Kijk gerust rond in de shop — of vraag een offerte aan voor volledig maatwerk.</p>
+        <p class="lead"><?= \App\Service\Language\SiteText::escaped(['nl' => 'Er zijn op dit moment geen producten om te personaliseren. Kijk gerust rond in de shop — of vraag een offerte aan voor volledig maatwerk.', 'en' => 'There are no products to personalise right now. Feel free to browse the shop — or request a quote for fully custom work.']) ?></p>
         <p style="margin-top:var(--sp-4);">
-          <a href="<?= $h(\App\Service\Routing\LocalizedUrl::path('/shop.php')) ?>" class="btn btn--ghost" data-nl="Naar de shop" data-en="To the shop">Naar de shop</a>
+          <a href="<?= $h(\App\Service\Routing\LocalizedUrl::path('/shop.php')) ?>" class="btn btn--ghost"><?= \App\Service\Language\SiteText::escaped(['nl' => 'Naar de shop', 'en' => 'To the shop']) ?></a>
         </p>
       <?php else: ?>
         <div class="shop-grid" data-products-grid data-product-ids="<?= $h(implode(',', $catalog['product_ids'])) ?>">
-          <p class="lead" data-products-loading data-nl="Producten laden&hellip;" data-en="Loading products&hellip;">Producten laden&hellip;</p>
+          <p class="lead" data-products-loading><?= \App\Service\Language\SiteText::escaped(['nl' => 'Producten laden…', 'en' => 'Loading products…']) ?></p>
         </div>
-        <p class="lead" data-products-error hidden data-nl="Producten kunnen op dit moment niet worden geladen. Probeer het later opnieuw." data-en="Products can't be loaded right now. Please try again later.">Producten kunnen op dit moment niet worden geladen. Probeer het later opnieuw.</p>
+        <p class="lead" data-products-error hidden><?= \App\Service\Language\SiteText::escaped(['nl' => 'Producten kunnen op dit moment niet worden geladen. Probeer het later opnieuw.', 'en' => 'Products can\'t be loaded right now. Please try again later.']) ?></p>
 
-        <p class="lead" style="margin-top:var(--sp-6); max-width: 60ch;" data-reveal data-nl="Staat jouw idee er niet tussen? Voor volledig maatwerk kun je een offerte aanvragen." data-en="Don't see your idea here? For fully custom work you can request a quote.">Staat jouw idee er niet tussen? Voor volledig maatwerk kun je een offerte aanvragen.</p>
+        <p class="lead" style="margin-top:var(--sp-6); max-width: 60ch;" data-reveal><?= \App\Service\Language\SiteText::escaped(['nl' => 'Staat jouw idee er niet tussen? Voor volledig maatwerk kun je een offerte aanvragen.', 'en' => 'Don\'t see your idea here? For fully custom work you can request a quote.']) ?></p>
       <?php endif; ?>
     </div>
   </section>

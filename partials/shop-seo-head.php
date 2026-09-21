@@ -11,10 +11,11 @@ declare(strict_types=1);
  * Include inside <head>, having first set:
  *
  *   $seo (array) with:
- *     title_nl, title_en             (string) already-resolved <title> text
- *     description_nl, description_en (string) already-resolved meta
- *                                    description; '' means "this page has
- *                                    none of its own"
+ *     title                          (string) the already-resolved <title>
+ *                                    text, in the request's language
+ *     description                    (string) the already-resolved meta
+ *                                    description in that language; '' means
+ *                                    "this page has none of its own"
  *     canonical_url                  (string) absolute, built by the content
  *                                    type's own canonicalUrl() helper
  *     og_image_path                  (?string) this page's social image, or
@@ -42,13 +43,9 @@ require_once __DIR__ . '/../vendor/autoload.php';
 
 use App\Service\SeoMetadata;
 
-$seoTitleNl = (string) ($seo['title_nl'] ?? '');
-
 $seoMetadata = SeoMetadata::create(
-    titleNl: $seoTitleNl,
-    titleEn: (string) ($seo['title_en'] ?? $seoTitleNl),
-    descriptionNl: (string) ($seo['description_nl'] ?? ''),
-    descriptionEn: (string) ($seo['description_en'] ?? ''),
+    title: (string) ($seo['title'] ?? ''),
+    description: (string) ($seo['description'] ?? ''),
     canonical: (string) ($seo['canonical_url'] ?? ''),
     indexable: $seoIndexable ?? true,
     ogType: $seoOgType ?? 'website',

@@ -8,6 +8,7 @@ use App\Service\AppUrl;
 use App\Service\PageLocalization;
 use App\Service\PageSeo;
 use App\Service\PageTranslation;
+use App\Service\Routing\RequestLanguage;
 use App\Service\SiteSettings;
 use App\Service\SocialProfiles;
 use PHPUnit\Framework\TestCase;
@@ -39,6 +40,7 @@ final class PageSeoTest extends TestCase
         SocialProfiles::overrideForTests(null);
         PageLocalization::clearCache();
         SiteLanguageFixture::reset();
+        RequestLanguage::reset();
     }
 
     /**
@@ -73,49 +75,77 @@ final class PageSeoTest extends TestCase
 
     public function testWithoutAnSeoTitleThePageTitleGetsTheSiteNameAppended(): void
     {
-        $this->assertSame('Een pagina — Testbedrijf', PageSeo::forPage($this->page())->titleNl);
+        $this->assertSame('Een pagina — Testbedrijf', PageSeo::forPage($this->page())->title());
     }
 
     public function testAnSeoTitleIsUsedExactlyAsTyped(): void
     {
         $metadata = PageSeo::forPage($this->page([], ['Een pagina', 'Iets heel anders', null]));
 
-        $this->assertSame('Iets heel anders', $metadata->titleNl);
+        $this->assertSame('Iets heel anders', $metadata->title());
     }
 
     public function testAPageTitledAfterTheSiteDoesNotRepeatIt(): void
     {
         // The homepage case: a page called "Testbedrijf" must not become
         // "Testbedrijf — Testbedrijf".
-        $this->assertSame('Testbedrijf', PageSeo::forPage($this->page([], ['Testbedrijf', null, null]))->titleNl);
+        $this->assertSame('Testbedrijf', PageSeo::forPage($this->page([], ['Testbedrijf', null, null]))->title());
     }
 
-    public function testTheEnglishTitleFallsBackToTheDutchOne(): void
+    public function testAnUntranslatedTitleFallsBackToTheDefaultLanguage(): void
     {
+        RequestLanguage::set('en', true);
+
         $metadata = PageSeo::forPage($this->page([], ['Een pagina', 'Alleen Nederlands', null]));
 
-        $this->assertSame('Alleen Nederlands', $metadata->titleEn);
+        $this->assertSame('Alleen Nederlands', $metadata->title());
     }
 
-    public function testEachHalfOfTheHeadReadsItsOwnLanguage(): void
+    public function testTheHeadReadsTheLanguageOfTheRequest(): void
     {
-        $metadata = PageSeo::forPage($this->page(
+        $page = $this->page(
             [],
             ['Over ons', null, 'Wie wij zijn.'],
             ['About us', 'About us | Testbedrijf', null]
-        ));
+        );
 
-        $this->assertSame('Over ons — Testbedrijf', $metadata->titleNl);
-        $this->assertSame('About us | Testbedrijf', $metadata->titleEn);
-        $this->assertSame('Wie wij zijn.', $metadata->descriptionNl);
-        $this->assertSame('Wie wij zijn.', $metadata->descriptionEn, 'an English page without its own description gets the default language\'s');
+        $dutch = PageSeo::forPage($page);
+        $this->assertSame('Over ons — Testbedrijf', $dutch->title());
+        $this->assertSame('Wie wij zijn.', $dutch->description());
+
+        RequestLanguage::set('en', true);
+        $english = PageSeo::forPage($page);
+        $this->assertSame('About us | Testbedrijf', $english->title());
+        $this->assertSame('Wie wij zijn.', $english->description(), 'an English page without its own description gets the default language\'s');
+    }
+
+    public function testAThirdLanguageNeedsNoCodeAndFallsBackToTheDefault(): void
+    {
+        SiteLanguageFixture::useLanguages([
+            SiteLanguageFixture::language('nl', isDefault: true, sortOrder: 0),
+            SiteLanguageFixture::language('en', sortOrder: 1),
+            SiteLanguageFixture::language('de', sortOrder: 2),
+        ]);
+        PageLocalization::overrideForTests(42, [
+            new PageTranslation(42, 'nl', 'Over ons', null, 'Wie wij zijn.'),
+            new PageTranslation(42, 'de', 'Über uns', null, null),
+        ]);
+        RequestLanguage::set('de', true);
+
+        $metadata = PageSeo::forPage([
+            'id' => 42, 'content_key' => 'zz-test', 'slug' => 'zz-test', 'status' => 'published',
+            'og_image_path' => null, 'noindex' => 0, 'is_system' => 0, 'route_path' => null,
+        ]);
+
+        $this->assertSame('Über uns — Testbedrijf', $metadata->title());
+        $this->assertSame('Wie wij zijn.', $metadata->description());
     }
 
     public function testAMissingPageRowStillProducesAValidHead(): void
     {
         $metadata = PageSeo::forPage(null);
 
-        $this->assertSame('Testbedrijf', $metadata->titleNl);
+        $this->assertSame('Testbedrijf', $metadata->title());
         $this->assertNull($metadata->canonical);
     }
 
@@ -130,7 +160,7 @@ final class PageSeoTest extends TestCase
 
         $metadata = PageSeo::forPage($this->page([], ['Een pagina', null, 'De eigen zin.']));
 
-        $this->assertSame('De eigen zin.', $metadata->descriptionNl);
+        $this->assertSame('De eigen zin.', $metadata->description());
     }
 
     public function testAPageWithoutOneFallsBackToTheGlobalDefault(): void
@@ -140,7 +170,7 @@ final class PageSeoTest extends TestCase
             'seo_default_description' => 'De standaardzin.',
         ]);
 
-        $this->assertSame('De standaardzin.', PageSeo::forPage($this->page())->descriptionNl);
+        $this->assertSame('De standaardzin.', PageSeo::forPage($this->page())->description());
     }
 
     public function testWithoutEitherThereIsNoDescription(): void

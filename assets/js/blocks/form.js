@@ -15,22 +15,20 @@
    inside each one, because the same form may be placed on a page twice and
    two different forms may sit on one page. Nothing is looked up with a bare
    document.querySelector.
+
+   NO LANGUAGE CODE. Every sentence arrives from the server already in the
+   language of the page: the answers of /api/form-submit.php are single
+   strings, and the few sentences of its own this script shows (sending,
+   failure, the summary heading, the success message) sit on the status
+   element as data-form-* attributes. It writes them with textContent, or
+   escaped where it builds markup.
    ========================================================================= */
 (function () {
   "use strict";
 
-  var docEl = document.documentElement;
-
-  function isEnglish() {
-    return docEl.lang === "en";
-  }
-
-  /* Text that the server sent along in a data-* pair, in the current
-     language — the same convention assets/js/core.js uses everywhere. */
-  function localised(el, nlAttr, enAttr, fallback) {
-    if (!el) return fallback;
-    var value = isEnglish() ? el.getAttribute(enAttr) : el.getAttribute(nlAttr);
-    return value || el.getAttribute(nlAttr) || fallback;
+  /* One sentence the server put on the status element. */
+  function said(status, name) {
+    return (status && status.getAttribute("data-form-" + name)) || "";
   }
 
   function initForm(form) {
@@ -90,19 +88,14 @@
       if (value) {
         status.classList.remove("form-status--ok", "form-status--error");
         status.classList.add("is-visible");
-        status.textContent = isEnglish() ? "Sending…" : "Bezig met versturen…";
+        status.textContent = said(status, "sending");
       }
     }
 
     /* A successful submission replaces the form with the success message the
        server configured, exactly as the no-JS redirect would have done. */
     function showSuccess() {
-      var message = localised(
-        status,
-        "data-form-success-nl",
-        "data-form-success-en",
-        isEnglish() ? "Thanks — your message has been sent." : "Bedankt — je bericht is verstuurd."
-      );
+      var message = said(status, "success");
 
       clearFieldErrors();
       summary.classList.remove("is-visible");
@@ -116,17 +109,7 @@
     }
 
     function showMessage(message, ok) {
-      var text = null;
-
-      if (message) {
-        text = isEnglish() ? message.en || message.nl : message.nl;
-      }
-
-      if (!text) {
-        text = isEnglish()
-          ? "Something went wrong. Please try again later."
-          : "Er ging iets mis. Probeer het later opnieuw.";
-      }
+      var text = typeof message === "string" && message !== "" ? message : said(status, "failure");
 
       status.classList.remove("form-status--ok", "form-status--error");
       status.classList.add("is-visible", ok ? "form-status--ok" : "form-status--error");
@@ -148,8 +131,8 @@
       summary.classList.remove("is-visible");
     }
 
-    /* errors is { fieldKey: { nl, en } } — the same messages the server
-       renders into the page on the no-JS path. */
+    /* errors is { fieldKey: "message" } — the same messages the server
+       renders into the page on the no-JS path, in the same language. */
     function showFieldErrors(errors) {
       clearFieldErrors();
 
@@ -162,7 +145,7 @@
         var id = token + "-" + key;
         var errorEl = document.getElementById(id + "-error");
         var control = document.getElementById(id);
-        var message = isEnglish() ? errors[key].en || errors[key].nl : errors[key].nl;
+        var message = String(errors[key]);
 
         if (errorEl) {
           errorEl.textContent = message;
@@ -180,7 +163,7 @@
 
       summary.innerHTML =
         "<p>" +
-        (isEnglish() ? "Please check the following:" : "Controleer het volgende:") +
+        escapeHtml(said(status, "summary")) +
         "</p><ul>" +
         items.join("") +
         "</ul>";

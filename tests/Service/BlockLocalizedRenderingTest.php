@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Tests\Service;
 
 use App\Service\Blocks\BlockLocalization;
-use App\Service\Language\LocalizedValue;
+use App\Service\Routing\RequestLanguage;
 use PHPUnit\Framework\TestCase;
 use Tests\Support\SiteLanguageFixture;
 
@@ -18,14 +18,13 @@ require_once dirname(__DIR__, 2) . '/partials/section-contact-card.php';
  * (Multilingual 2.0 phase 3A): Tekstblok, Oproep met knop and Contactkaart,
  * rendered through their real partials from words pinned in
  * App\Service\Blocks\BlockLocalization, for every default language the
- * registry can have.
+ * registry can have and every language a request can be answered in.
  *
- * The first render shows the website's default language, with the fallback
- * applied (the bug this phase fixes: an English-default site used to get the
- * Dutch rich-text body). The V1 switch keeps working from the same words:
- * plain text as a data-nl/data-en pair for core.js's textContent path, rich
- * text marked data-lang-html and only when the languages really differ.
- * No database: the registry comes from SiteLanguageFixture.
+ * ONE LANGUAGE PER RESPONSE (phase 7): the element carries the words of the
+ * request's language, with the fallback applied, and nothing else — no
+ * data-nl/data-en pair and no data-lang-html. Plain text is escaped; rich
+ * text is RichTextSanitizer output. No database: the registry comes from
+ * SiteLanguageFixture and the request's language from RequestLanguage.
  */
 final class BlockLocalizedRenderingTest extends TestCase
 {
@@ -35,55 +34,49 @@ final class BlockLocalizedRenderingTest extends TestCase
     {
         BlockLocalization::clearCache();
         SiteLanguageFixture::reset();
+        RequestLanguage::reset();
     }
 
     // ------------------------------------------------------------ Rich text
 
-    public function testRichTextShowsTheDutchBodyFirstOnADutchSite(): void
+    public function testRichTextShowsTheBodyOfTheLanguageBeingRead(): void
     {
         SiteLanguageFixture::useBilingual('nl');
         $this->words('rich_text_sections', ['nl' => ['body' => '<p>Nederlandse <strong>tekst</strong></p>'], 'en' => ['body' => '<p>English <strong>text</strong></p>']]);
 
-        $html = $this->richText();
-
         self::assertSame(
-            '<div class="rich-content" data-lang-html data-nl="&lt;p&gt;Nederlandse &lt;strong&gt;tekst&lt;/strong&gt;&lt;/p&gt;" data-en="&lt;p&gt;English &lt;strong&gt;text&lt;/strong&gt;&lt;/p&gt;"><p>Nederlandse <strong>tekst</strong></p></div>',
-            $this->element($html, 'rich-content')
+            '<div class="rich-content"><p>Nederlandse <strong>tekst</strong></p></div>',
+            $this->element($this->richText('nl'), 'rich-content')
+        );
+        self::assertSame(
+            '<div class="rich-content"><p>English <strong>text</strong></p></div>',
+            $this->element($this->richText('en'), 'rich-content')
         );
     }
 
-    public function testRichTextShowsTheEnglishBodyFirstOnAnEnglishSite(): void
+    public function testAnUnprefixedRequestOnAnEnglishSiteGetsTheEnglishBody(): void
     {
         SiteLanguageFixture::useBilingual('en');
         $this->words('rich_text_sections', ['nl' => ['body' => '<p>Nederlandse tekst</p>'], 'en' => ['body' => '<p>English text</p>']]);
 
-        $html = $this->richText();
+        $html = $this->richText(null);
 
-        self::assertStringContainsString('"><p>English text</p></div>', $html, 'the first render is the default language, not the Dutch column');
-        self::assertStringContainsString('data-nl="&lt;p&gt;Nederlandse tekst&lt;/p&gt;"', $html, 'the switch still has the Dutch body');
+        self::assertStringContainsString('<p>English text</p>', $html, 'no prefix means the default language, not the Dutch column');
+        self::assertStringNotContainsString('Nederlandse', $html, 'the other language is not in the document at all');
     }
 
-    public function testAMissingEnglishBodyFallsBackToTheDefaultAndPrintsNoSwitchAttributes(): void
+    public function testAMissingTranslationFallsBackToTheDefaultLanguage(): void
     {
         SiteLanguageFixture::useBilingual('nl');
         $this->words('rich_text_sections', ['nl' => ['body' => '<p>Alleen Nederlands</p>']]);
 
         self::assertSame(
             '<div class="rich-content"><p>Alleen Nederlands</p></div>',
-            $this->element($this->richText(), 'rich-content'),
-            'the same body in every language: the element a body without a translation always printed'
+            $this->element($this->richText('en'), 'rich-content')
         );
     }
 
-    public function testAMissingDutchBodyFallsBackToTheEnglishDefault(): void
-    {
-        SiteLanguageFixture::useBilingual('en');
-        $this->words('rich_text_sections', ['en' => ['body' => '<p>Only English</p>']]);
-
-        self::assertSame('<div class="rich-content"><p>Only English</p></div>', $this->element($this->richText(), 'rich-content'));
-    }
-
-    public function testAThirdLanguageAsTheDefaultIsWhatBothV1HalvesFallBackTo(): void
+    public function testAThirdLanguageNeedsNoCode(): void
     {
         SiteLanguageFixture::useLanguages([
             SiteLanguageFixture::language('de', isDefault: true, sortOrder: 0),
@@ -92,10 +85,18 @@ final class BlockLocalizedRenderingTest extends TestCase
         ]);
         $this->words('rich_text_sections', ['de' => ['body' => '<p>Deutscher Text</p>'], 'en' => ['body' => '<p>English text</p>']]);
 
-        $html = $this->richText();
+        self::assertStringContainsString('<p>Deutscher Text</p>', $this->richText('de'));
+        self::assertStringContainsString('<p>Deutscher Text</p>', $this->richText('nl'), 'untranslated Dutch falls back to German, the default');
+        self::assertStringContainsString('<p>English text</p>', $this->richText('en'));
+    }
 
-        self::assertStringContainsString('data-nl="&lt;p&gt;Deutscher Text&lt;/p&gt;"', $html, 'untranslated Dutch falls back to German, the default');
-        self::assertStringContainsString('data-en="&lt;p&gt;English text&lt;/p&gt;"', $html);
+    public function testABodyThatExistsOnlyAsATranslationShowsNothingAnywhere(): void
+    {
+        SiteLanguageFixture::useBilingual('nl');
+        $this->words('rich_text_sections', ['en' => ['body' => '<p>Only English</p>']]);
+
+        self::assertSame('', trim($this->richText('nl')));
+        self::assertSame('', trim($this->richText('en')), 'the default language decides whether the block is there');
     }
 
     public function testRichTextStaysMarkupAndMaliciousMarkupIsSanitizedInEveryLanguage(): void
@@ -106,12 +107,15 @@ final class BlockLocalizedRenderingTest extends TestCase
             'en' => ['body' => '<p>Safe</p><iframe src="https://evil.test"></iframe><p style="x" onmouseover="alert(1)">hover</p>'],
         ]);
 
-        $html = $this->richText();
+        foreach (['nl', 'en'] as $language) {
+            $html = $this->richText($language);
 
-        self::assertStringContainsString('<a href="https://example.test"', $html, 'links stay real markup');
-        foreach (['<script', 'onclick', 'onerror', '<img', '<iframe', 'onmouseover', 'alert(1)'] as $hostile) {
-            self::assertStringNotContainsString($hostile, html_entity_decode($html, ENT_QUOTES), $hostile . ' survived, visible or in the switch attributes');
+            foreach (['<script', 'onclick', 'onerror', '<img', '<iframe', 'onmouseover', 'alert(1)'] as $hostile) {
+                self::assertStringNotContainsString($hostile, html_entity_decode($html, ENT_QUOTES), $hostile . ' survived in ' . $language);
+            }
         }
+
+        self::assertStringContainsString('<a href="https://example.test"', $this->richText('nl'), 'links stay real markup');
     }
 
     public function testAnEmptyBodyRendersNothingInAnyLanguage(): void
@@ -119,12 +123,13 @@ final class BlockLocalizedRenderingTest extends TestCase
         SiteLanguageFixture::useBilingual('nl');
         $this->words('rich_text_sections', ['nl' => ['body' => "  \n "], 'en' => ['body' => '']]);
 
-        self::assertSame('', trim($this->richText()));
+        self::assertSame('', trim($this->richText('nl')));
+        self::assertSame('', trim($this->richText('en')));
     }
 
     // ------------------------------------------------------------ CTA band
 
-    public function testACtaBandPrintsItsPlainWordsAsTextWithTheV1Pair(): void
+    public function testACtaBandPrintsItsPlainWordsEscapedAndNothingElse(): void
     {
         SiteLanguageFixture::useBilingual('nl');
         $this->words('cta_bands', [
@@ -132,16 +137,18 @@ final class BlockLocalizedRenderingTest extends TestCase
             'en' => ['title' => 'Get in <b>touch</b>'],
         ]);
 
-        $html = $this->ctaBand(['primary_url' => '/contact', 'secondary_url' => '']);
+        $html = $this->ctaBand('en', ['primary_url' => '/contact', 'secondary_url' => '']);
 
-        self::assertStringContainsString('<h2  data-nl="Neem &lt;b&gt;contact&lt;/b&gt; op" data-en="Get in &lt;b&gt;touch&lt;/b&gt;">Neem &lt;b&gt;contact&lt;/b&gt; op</h2>', $html);
-        self::assertStringContainsString('<p class="eyebrow"  data-nl="Nieuw" data-en="Nieuw">Nieuw</p>', $html, 'an untranslated field falls back to the default language in both halves');
-        self::assertStringNotContainsString('data-lang-html', $html, 'plain text is never marked as HTML');
+        self::assertStringContainsString('<h2>Get in &lt;b&gt;touch&lt;/b&gt;</h2>', $html);
+        self::assertStringContainsString('<p class="eyebrow">Nieuw</p>', $html, 'an untranslated field falls back to the default language');
+        self::assertStringNotContainsString('data-nl', $html);
+        self::assertStringNotContainsString('data-en', $html);
+        self::assertStringNotContainsString('data-lang-html', $html);
         self::assertStringNotContainsString('class="lead"', $html, 'an empty lead renders nothing');
         self::assertStringNotContainsString('btn--ghost', $html, 'no secondary button without its words and URL');
     }
 
-    public function testACtaBandOnAnEnglishSiteShowsEnglishFirst(): void
+    public function testTheDefaultLanguageDecidesTheSecondaryButton(): void
     {
         SiteLanguageFixture::useBilingual('en');
         $this->words('cta_bands', [
@@ -149,19 +156,22 @@ final class BlockLocalizedRenderingTest extends TestCase
             'en' => ['eyebrow' => 'New', 'title' => 'Title', 'primary_label' => 'Button'],
         ]);
 
-        $html = $this->ctaBand(['primary_url' => '/', 'secondary_url' => '/tweede']);
+        $english = $this->ctaBand(null, ['primary_url' => '/', 'secondary_url' => '/tweede']);
+        self::assertStringContainsString('<h2>Title</h2>', $english);
+        self::assertStringContainsString('<p class="eyebrow">New</p>', $english);
+        self::assertStringNotContainsString('btn--ghost', $english, 'the English default has no secondary label, so there is no second button');
 
-        self::assertStringContainsString('>Title</h2>', $html);
-        self::assertStringContainsString('>New</p>', $html);
-        self::assertStringNotContainsString('btn--ghost', $html, 'the English default has no secondary label, so there is no second button');
+        $dutch = $this->ctaBand('nl', ['primary_url' => '/', 'secondary_url' => '/tweede']);
+        self::assertStringNotContainsString('btn--ghost', $dutch, 'not in Dutch either: a translation alone never makes a button appear');
     }
 
-    public function testAnEmptyCtaBandRendersNothing(): void
+    public function testACtaBandWithoutDefaultWordsRendersNothingInAnyLanguage(): void
     {
         SiteLanguageFixture::useBilingual('nl');
         $this->words('cta_bands', ['en' => ['title' => 'Only English on a Dutch site']]);
 
-        self::assertSame('', trim($this->ctaBand(['primary_url' => '/', 'secondary_url' => ''])), 'the default language has no title and no button label');
+        self::assertSame('', trim($this->ctaBand('nl', ['primary_url' => '/', 'secondary_url' => ''])));
+        self::assertSame('', trim($this->ctaBand('en', ['primary_url' => '/', 'secondary_url' => ''])), 'the default language has no title and no button label');
     }
 
     // ------------------------------------------------------------ Contact card
@@ -174,11 +184,12 @@ final class BlockLocalizedRenderingTest extends TestCase
             'en' => ['title' => 'Rather email?'],
         ]);
 
-        $html = $this->contactCard('mailto:info@example.test');
+        $html = $this->contactCard('en', 'mailto:info@example.test');
 
-        self::assertStringContainsString('data-nl="Liever mailen?" data-en="Rather email?">Liever mailen?</h3>', $html);
-        self::assertStringContainsString('data-nl="Mail ons" data-en="Mail ons">Mail ons</a>', $html);
+        self::assertStringContainsString('>Rather email?</h3>', $html);
+        self::assertStringContainsString('>Mail ons</a>', $html, 'the untranslated button label falls back to the default language');
         self::assertStringContainsString('Wij &lt;script&gt;antwoorden&lt;/script&gt; snel.', $html, 'plain text is escaped, never markup');
+        self::assertStringNotContainsString('data-nl', $html);
         self::assertStringNotContainsString('data-lang-html', $html);
     }
 
@@ -191,8 +202,9 @@ final class BlockLocalizedRenderingTest extends TestCase
         ]);
         $this->words('contact_cards', ['nl' => ['title' => 'Titel'], 'de' => ['title' => 'Überschrift']]);
 
-        self::assertSame('Überschrift', BlockLocalization::value('contact_cards', self::ID, 'title', 'de'));
-        self::assertStringContainsString('>Titel</h3>', $this->contactCard(''), 'the V1 page keeps its Dutch first render');
+        self::assertStringContainsString('>Überschrift</h3>', $this->contactCard('de', ''));
+        self::assertStringContainsString('>Titel</h3>', $this->contactCard('nl', ''));
+        self::assertStringContainsString('>Titel</h3>', $this->contactCard('en', ''), 'English falls back to the Dutch default');
     }
 
     // ------------------------------------------------------------ helpers
@@ -203,34 +215,60 @@ final class BlockLocalizedRenderingTest extends TestCase
         BlockLocalization::overrideForTests($table, self::ID, $translations);
     }
 
-    private function richText(): string
+    /** Answer the request in $language (null: an unprefixed URL, the default language). */
+    private function answerIn(?string $language): void
     {
-        return $this->capture(static fn () => render_section_rich_text([
-            'state' => 'active',
-            'body' => BlockLocalization::bilingual('rich_text_sections', self::ID, 'body'),
-        ]));
+        RequestLanguage::reset();
+        if ($language !== null) {
+            RequestLanguage::set($language, true);
+        }
     }
 
-    /** @param array{primary_url: string, secondary_url: string} $urls */
-    private function ctaBand(array $urls): string
+    /** The rich-text partial, with the presence rule of App\Service\RichTextContent. */
+    private function richText(?string $language): string
     {
+        $this->answerIn($language);
+
+        $body = BlockLocalization::hasDefaultWords('rich_text_sections', self::ID, 'body')
+            ? BlockLocalization::text('rich_text_sections', self::ID, 'body')
+            : '';
+
+        return $this->capture(static fn () => render_section_rich_text(['state' => 'active', 'body' => $body]));
+    }
+
+    /**
+     * The CTA partial, with the two rules of App\Service\CtaBandContent: the
+     * default language decides whether the band has words, and whether the
+     * secondary button is there.
+     *
+     * @param array{primary_url: string, secondary_url: string} $urls
+     */
+    private function ctaBand(?string $language, array $urls): string
+    {
+        $this->answerIn($language);
+
+        $hasWords = BlockLocalization::hasDefaultWords('cta_bands', self::ID, 'title')
+            || BlockLocalization::hasDefaultWords('cta_bands', self::ID, 'primary_label');
+
         $content = ['state' => 'active'] + $urls;
         foreach (['eyebrow', 'title', 'lead', 'primary_label', 'secondary_label'] as $field) {
-            $content[$field] = BlockLocalization::bilingual('cta_bands', self::ID, $field);
+            $content[$field] = $hasWords ? BlockLocalization::text('cta_bands', self::ID, $field) : '';
         }
 
-        if ($content['secondary_url'] === '' || $content['secondary_label']->primaryValue() === '') {
-            $content['secondary_label'] = LocalizedValue::of([]);
+        if ($content['secondary_url'] === '' || !BlockLocalization::hasDefaultWords('cta_bands', self::ID, 'secondary_label')) {
+            $content['secondary_label'] = '';
         }
 
         return $this->capture(static fn () => render_section_cta_band($content));
     }
 
-    private function contactCard(string $buttonUrl): string
+    private function contactCard(?string $language, string $buttonUrl): string
     {
+        $this->answerIn($language);
+
         $content = ['state' => 'active', 'button_url' => $buttonUrl];
         foreach (['title', 'body', 'button_label'] as $field) {
-            $content[$field] = BlockLocalization::bilingual('contact_cards', self::ID, $field);
+            $content[$field] = BlockLocalization::text('contact_cards', self::ID, $field);
         }
 
         return $this->capture(static fn () => render_section_contact_card($content));

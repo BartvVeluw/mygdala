@@ -16,11 +16,10 @@
  * from the accessibility tree. The separator sits INSIDE the following item
  * because an `<ol>` may hold nothing but `<li>` elements.
  *
- * THE LANGUAGE ATTRIBUTES sit on the leaf element — the `<a>` or the `<span>`
- * — and never on the `<li>`: assets/js/core.js swaps `data-nl`/`data-en` by
- * assigning innerHTML, so a pair on the `<li>` would wipe out the link inside
- * it on the first toggle. The accessible name uses the `aria` family, which
- * that same script swaps (App\Service\Language\SiteText::attrsFor()).
+ * ONE LANGUAGE. Every label arrives already in the language of the request
+ * (App\Service\Breadcrumbs\BreadcrumbItem), and the landmark's accessible
+ * name is code-owned text picked for that language
+ * (App\Service\Language\SiteText::escaped()).
  *
  * NOTHING IS RENDERED for a null trail or one that has no second level: see
  * BreadcrumbTrail::isRenderable(). An empty level is already gone by then, so
@@ -50,18 +49,18 @@ function render_breadcrumb(?BreadcrumbTrail $trail, bool $narrow = false): void
     $items = $trail->items();
     $last = count($items) - 1;
     ?>
-    <nav class="breadcrumb-bar" aria-label="Kruimelpad"<?= SiteText::attrsFor('aria', 'Kruimelpad', 'Breadcrumb') ?>>
+    <nav class="breadcrumb-bar" aria-label="<?= SiteText::escaped(['nl' => 'Kruimelpad', 'en' => 'Breadcrumb']) ?>">
       <div class="container<?= $narrow ? ' container--narrow' : '' ?>">
         <ol class="breadcrumb">
           <?php foreach ($items as $index => $item): ?>
             <li class="breadcrumb__item">
               <?php if ($index > 0): ?><span class="breadcrumb__separator" aria-hidden="true">/</span><?php endif; ?>
               <?php if ($index < $last && $item->href !== null): ?>
-                <a href="<?= $h($item->href) ?>"<?= SiteText::attrs($item->labelNl, $item->labelEn) ?>><?= $h(SiteText::visible($item->labelNl, $item->labelEn)) ?></a>
+                <a href="<?= $h($item->href) ?>"><?= $h($item->label) ?></a>
               <?php else: ?>
                 <?php /* The page itself, and also a parent whose own address does
                          not answer right now — named, never linked. */ ?>
-                <span<?= $index === $last ? ' class="breadcrumb__current" aria-current="page"' : '' ?><?= SiteText::attrs($item->labelNl, $item->labelEn) ?>><?= $h(SiteText::visible($item->labelNl, $item->labelEn)) ?></span>
+                <span<?= $index === $last ? ' class="breadcrumb__current" aria-current="page"' : '' ?>><?= $h($item->label) ?></span>
               <?php endif; ?>
             </li>
           <?php endforeach; ?>

@@ -27,16 +27,12 @@ declare(strict_types=1);
  * personaliseren.php. Four title conventions, a canonical URL hardcoded to
  * one domain, and two indexable checkout pages came out of that.
  *
- * ONE LANGUAGE PER DOCUMENT since Multilingual 2.0 phase 6. Every tag here
- * carries the REQUEST's language, because that language now has a URL of its
- * own (docs/multilingual/ROUTING.md): the title, the description, the Open
- * Graph copy and the canonical all describe the version a crawler actually
- * fetched, and the other versions are named as hreflang alternates instead of
- * being smuggled into the same document.
- *
- * The data-nl/data-en attribute pairs are still printed. They are V1
- * compatibility output that phase 7 removes; nothing acts on them any more,
- * because the language switch became ordinary links to those other URLs.
+ * ONE LANGUAGE PER DOCUMENT. Every tag here carries the REQUEST's language,
+ * because that language has a URL of its own (docs/multilingual/ROUTING.md):
+ * the title, the description, the Open Graph copy and the canonical all
+ * describe the version a crawler actually fetched, and the other versions
+ * are named as hreflang alternates instead of being smuggled into the same
+ * document.
  *
  * ONLY NON-EMPTY TAGS ARE RENDERED. No description tag when there is no
  * description, no canonical when the page has no canonical URL, no og:image
@@ -61,14 +57,13 @@ use App\Service\SeoMetadata;
 /** @var SeoMetadata $seoMetadata */
 $seoHeadH = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
 $seoHeadTwitterCard = $seoMetadata->twitterCard();
-// The words this document actually carries: the request language's. The
-// data-nl/data-en pair beside them is V1 compatibility output (phase 7).
+// The words this document actually carries: the request language's.
 $seoHeadTitle = $seoMetadata->title();
 $seoHeadDescription = $seoMetadata->description();
 ?>
-<title data-nl="<?= $seoHeadH($seoMetadata->titleNl) ?>" data-en="<?= $seoHeadH($seoMetadata->titleEn) ?>"><?= $seoHeadH($seoHeadTitle) ?></title>
+<title><?= $seoHeadH($seoHeadTitle) ?></title>
 <?php if ($seoMetadata->hasDescription()): ?>
-<meta name="description" content="<?= $seoHeadH($seoHeadDescription) ?>" data-nl-content="<?= $seoHeadH($seoMetadata->descriptionNl) ?>" data-en-content="<?= $seoHeadH($seoMetadata->descriptionEn) ?>">
+<meta name="description" content="<?= $seoHeadH($seoHeadDescription) ?>">
 <?php endif; ?>
 <meta name="robots" content="<?= $seoHeadH($seoMetadata->robots) ?>">
 <?php if ($seoMetadata->canonical !== null): ?>

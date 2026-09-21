@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Tests\Blog;
 
 use App\Service\Blog\BlogLocalization;
-use App\Service\Language\SiteText;
 use PHPUnit\Framework\TestCase;
 use Tests\Support\SiteLanguageFixture;
 
@@ -158,7 +157,7 @@ final class BlogLocalizationTest extends TestCase
             'an untranslated description falls back'
         );
         self::assertSame('lasersnijden', BlogLocalization::tagName(self::TAG, 'en'));
-        self::assertSame(' data-nl="Materialen" data-en="Materials"', SiteText::attrsOf(BlogLocalization::categoryNameValue(self::CATEGORY)));
+        self::assertSame('Materialen', BlogLocalization::categoryName(self::CATEGORY, 'nl'));
     }
 
     /* ------------------------------------------------------------------ */
@@ -179,19 +178,8 @@ final class BlogLocalizationTest extends TestCase
         ]);
 
         self::assertSame('<p>Van eiken</p>', BlogLocalization::body(self::POST, 'nl'));
-
-        $pair = BlogLocalization::bodyValue(self::POST);
-        self::assertSame('<p>Van eiken</p>', SiteText::visibleOf($pair));
-        self::assertStringNotContainsString('script', $pair->in('en'));
-        self::assertSame('<p>Van eiken</p>', $pair->in('en'), 'markup that sanitizes away to nothing is no translation');
-    }
-
-    /** A body with no translation carries no data-lang-html at all. */
-    public function testABodyWithoutATranslationIsNotMarkedAsHtml(): void
-    {
-        $this->postWords(['nl' => ['body' => '<p>Eén taal</p>']]);
-
-        self::assertSame('', SiteText::htmlAttrsOf(BlogLocalization::bodyValue(self::POST)));
+        self::assertStringNotContainsString('script', BlogLocalization::body(self::POST, 'en'));
+        self::assertSame('<p>Van eiken</p>', BlogLocalization::body(self::POST, 'en'), 'markup that sanitizes away to nothing is no translation');
     }
 
     /* ------------------------------------------------------------------ */

@@ -4,6 +4,7 @@ namespace App\Service;
 
 use App\Repository\ContactFormRepository;
 use App\Service\Blocks\BlockLocalization;
+use App\Service\Routing\RequestLanguage;
 
 /**
  * Content for the "Offerte-/contactformulier" block
@@ -72,7 +73,7 @@ class ContactFormContent
 
     /**
      * @return array<string, mixed> 'state' (one of STATE_*), title (a
-     *                              LocalizedValue, stored per website
+     *                              string, stored per website
      *                              language in block_translations), form_id
      *                              (int|null) and allow_attachment (bool).
      *                              Templates must check 'state' !==
@@ -80,7 +81,7 @@ class ContactFormContent
      */
     public static function forSection(string $pageSlug, string $sectionKey): array
     {
-        $cacheKey = $pageSlug . ':' . $sectionKey;
+        $cacheKey = RequestLanguage::current() . '|' . $pageSlug . ':' . $sectionKey;
         if (isset(self::$cache[$cacheKey])) {
             return self::$cache[$cacheKey];
         }

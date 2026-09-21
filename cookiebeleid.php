@@ -19,17 +19,18 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
 // request's own language, as on cart.php.
 $siteName = \App\Service\SiteSettings::get('site_name');
 $seoMetadata = \App\Service\SeoMetadata::create(
-    titleNl: \App\Service\Seo::routeTitle('Cookiebeleid'),
-    titleEn: \App\Service\Seo::routeTitle('Cookie policy'),
-    descriptionNl: 'Welke cookies en lokale opslag ' . $siteName . ' gebruikt, waarvoor, en hoe je je voorkeuren kunt beheren.',
-    descriptionEn: 'Which cookies and local storage ' . $siteName . ' uses, what for, and how to manage your preferences.',
+    title: \App\Service\Seo::routeTitle(\App\Service\Language\SiteText::pick(['nl' => 'Cookiebeleid', 'en' => 'Cookie policy'])),
+    description: sprintf(\App\Service\Language\SiteText::pick([
+        'nl' => 'Welke cookies en lokale opslag %s gebruikt, waarvoor, en hoe je je voorkeuren kunt beheren.',
+        'en' => 'Which cookies and local storage %s uses, what for, and how to manage your preferences.',
+    ]), $siteName),
     canonical: \App\Service\Routing\LocalizedUrl::absolute('/cookiebeleid.php'),
     indexable: false,
 );
 
 ?>
 <!doctype html>
-<html lang="<?= htmlspecialchars(\App\Service\Language\SiteText::documentLanguage(), ENT_QUOTES, 'UTF-8') ?>" data-primary-lang="<?= htmlspecialchars(\App\Service\Language\SiteText::documentLanguage(), ENT_QUOTES, 'UTF-8') ?>" data-url-prefix="<?= htmlspecialchars(\App\Service\Routing\LocalizedUrl::prefix(), ENT_QUOTES, 'UTF-8') ?>">
+<html lang="<?= htmlspecialchars(\App\Service\Language\SiteText::documentLanguage(), ENT_QUOTES, 'UTF-8') ?>" data-url-prefix="<?= htmlspecialchars(\App\Service\Routing\LocalizedUrl::prefix(), ENT_QUOTES, 'UTF-8') ?>">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -49,27 +50,27 @@ require __DIR__ . '/partials/header.php';
 <main id="main">
 
   <?php /* A Core route with no `pages` row: App\Service\RouteRegistry is
-           where it is named, in both languages, and where its address lives. */ ?>
+           where it is named and where its address lives. */ ?>
   <?php render_breadcrumb(\App\Service\Breadcrumbs\BreadcrumbTrail::home()->toRoute('cookiebeleid')); ?>
 
   <section class="page-hero">
     <div class="container">
-      <p class="eyebrow" data-nl="Juridisch" data-en="Legal">Juridisch</p>
-      <h1 data-nl="Cookiebeleid" data-en="Cookie policy">Cookiebeleid</h1>
-      <p class="lead" style="margin-top:1rem;" data-nl="Een overzicht van welke cookies en lokale opslag deze site gebruikt, waarvoor, en hoe lang." data-en="An overview of which cookies and local storage this site uses, what for, and for how long.">Een overzicht van welke cookies en lokale opslag deze site gebruikt, waarvoor, en hoe lang.</p>
+      <p class="eyebrow"><?= \App\Service\Language\SiteText::escaped(['nl' => 'Juridisch', 'en' => 'Legal']) ?></p>
+      <h1><?= \App\Service\Language\SiteText::escaped(['nl' => 'Cookiebeleid', 'en' => 'Cookie policy']) ?></h1>
+      <p class="lead" style="margin-top:1rem;"><?= \App\Service\Language\SiteText::escaped(['nl' => 'Een overzicht van welke cookies en lokale opslag deze site gebruikt, waarvoor, en hoe lang.', 'en' => 'An overview of which cookies and local storage this site uses, what for, and for how long.']) ?></p>
     </div>
   </section>
 
   <section style="padding-top:0;">
     <div class="container" style="max-width: var(--container-narrow);">
 
-      <h2 data-nl="Wat we gebruiken" data-en="What we use">Wat we gebruiken</h2>
-      <p data-nl="Deze site zet, naast wat noodzakelijk is om te functioneren, op dit moment geen cookies of trackingtechnieken in voor analyse of marketing." data-en="Besides what is necessary for the site to function, this site does not currently set any cookies or tracking technology for analytics or marketing.">
-        Deze site zet, naast wat noodzakelijk is om te functioneren, op dit moment geen cookies of trackingtechnieken in voor analyse of marketing.
+      <h2><?= \App\Service\Language\SiteText::escaped(['nl' => 'Wat we gebruiken', 'en' => 'What we use']) ?></h2>
+      <p>
+        <?= \App\Service\Language\SiteText::escaped(['nl' => 'Deze site zet, naast wat noodzakelijk is om te functioneren, op dit moment geen cookies of trackingtechnieken in voor analyse of marketing.', 'en' => 'Besides what is necessary for the site to function, this site does not currently set any cookies or tracking technology for analytics or marketing.']) ?>
       </p>
 <?php if (!$hasOptionalEntriesInUse): ?>
-      <p data-nl="Er zijn op dit moment dus geen optionele cookies (voorkeuren, analyse of marketing) actief. Als dat verandert — bijvoorbeeld omdat er een bezoekstatistieken-tool wordt toegevoegd — verschijnt die hier met naam, doel, aanbieder en bewaartermijn, en vraagt de cookiemelding opnieuw om toestemming voordat die wordt geladen." data-en="So no optional cookies (preferences, analytics or marketing) are currently active. If that changes — for example because a visitor-statistics tool is added — it will be listed here with its name, purpose, provider and retention period, and the cookie banner will ask for consent again before it is loaded.">
-        Er zijn op dit moment dus geen optionele cookies (voorkeuren, analyse of marketing) actief. Als dat verandert — bijvoorbeeld omdat er een bezoekstatistieken-tool wordt toegevoegd — verschijnt die hier met naam, doel, aanbieder en bewaartermijn, en vraagt de cookiemelding opnieuw om toestemming voordat die wordt geladen.
+      <p>
+        <?= \App\Service\Language\SiteText::escaped(['nl' => 'Er zijn op dit moment dus geen optionele cookies (voorkeuren, analyse of marketing) actief. Als dat verandert — bijvoorbeeld omdat er een bezoekstatistieken-tool wordt toegevoegd — verschijnt die hier met naam, doel, aanbieder en bewaartermijn, en vraagt de cookiemelding opnieuw om toestemming voordat die wordt geladen.', 'en' => 'So no optional cookies (preferences, analytics or marketing) are currently active. If that changes — for example because a visitor-statistics tool is added — it will be listed here with its name, purpose, provider and retention period, and the cookie banner will ask for consent again before it is loaded.']) ?>
       </p>
 <?php endif; ?>
 
@@ -77,12 +78,12 @@ require __DIR__ . '/partials/header.php';
         <table class="cookie-policy-table">
           <thead>
             <tr>
-              <th data-nl="Naam" data-en="Name">Naam</th>
-              <th data-nl="Type" data-en="Type">Type</th>
-              <th data-nl="Categorie" data-en="Category">Categorie</th>
-              <th data-nl="Doel" data-en="Purpose">Doel</th>
-              <th data-nl="Aanbieder" data-en="Provider">Aanbieder</th>
-              <th data-nl="Bewaartermijn" data-en="Retention">Bewaartermijn</th>
+              <th><?= \App\Service\Language\SiteText::escaped(['nl' => 'Naam', 'en' => 'Name']) ?></th>
+              <th><?= \App\Service\Language\SiteText::escaped(['nl' => 'Type', 'en' => 'Type']) ?></th>
+              <th><?= \App\Service\Language\SiteText::escaped(['nl' => 'Categorie', 'en' => 'Category']) ?></th>
+              <th><?= \App\Service\Language\SiteText::escaped(['nl' => 'Doel', 'en' => 'Purpose']) ?></th>
+              <th><?= \App\Service\Language\SiteText::escaped(['nl' => 'Aanbieder', 'en' => 'Provider']) ?></th>
+              <th><?= \App\Service\Language\SiteText::escaped(['nl' => 'Bewaartermijn', 'en' => 'Retention']) ?></th>
             </tr>
           </thead>
           <tbody>
@@ -90,33 +91,33 @@ require __DIR__ . '/partials/header.php';
 <?php $cat = $categories[$entry['category']]; ?>
             <tr>
               <td><code><?= $h($entry['name']) ?></code></td>
-              <td data-nl="<?= $h($entry['type_nl']) ?>" data-en="<?= $h($entry['type_en']) ?>"><?= $h($entry['type_nl']) ?></td>
-              <td data-nl="<?= $h($cat['label_nl']) ?>" data-en="<?= $h($cat['label_en']) ?>"><?= $h($cat['label_nl']) ?></td>
-              <td data-nl="<?= $h($entry['purpose_nl']) ?>" data-en="<?= $h($entry['purpose_en']) ?>"><?= $h($entry['purpose_nl']) ?></td>
+              <td><?= $h($entry['type']) ?></td>
+              <td><?= $h($cat['label']) ?></td>
+              <td><?= $h($entry['purpose']) ?></td>
               <td><?= $h($entry['provider']) ?></td>
-              <td data-nl="<?= $h($entry['retention_nl']) ?>" data-en="<?= $h($entry['retention_en']) ?>"><?= $h($entry['retention_nl']) ?></td>
+              <td><?= $h($entry['retention']) ?></td>
             </tr>
 <?php endforeach; ?>
           </tbody>
         </table>
       </div>
 
-      <h2 style="margin-top: var(--sp-6);" data-nl="Categorieën" data-en="Categories">Categorieën</h2>
-      <p data-nl="We werken met vier cookiecategorieën. Noodzakelijke cookies staan altijd aan; de rest zet je zelf aan via de cookiemelding of onderstaande knop." data-en="We work with four cookie categories. Necessary cookies are always on; the rest you switch on yourself via the cookie banner or the button below.">
-        We werken met vier cookiecategorieën. Noodzakelijke cookies staan altijd aan; de rest zet je zelf aan via de cookiemelding of onderstaande knop.
+      <h2 style="margin-top: var(--sp-6);"><?= \App\Service\Language\SiteText::escaped(['nl' => 'Categorieën', 'en' => 'Categories']) ?></h2>
+      <p>
+        <?= \App\Service\Language\SiteText::escaped(['nl' => 'We werken met vier cookiecategorieën. Noodzakelijke cookies staan altijd aan; de rest zet je zelf aan via de cookiemelding of onderstaande knop.', 'en' => 'We work with four cookie categories. Necessary cookies are always on; the rest you switch on yourself via the cookie banner or the button below.']) ?>
       </p>
       <ul style="margin: var(--sp-3) 0; padding-left: 1.2rem; display: flex; flex-direction: column; gap: 0.5rem;">
 <?php foreach ($categories as $cat): ?>
-        <li><strong data-nl="<?= $h($cat['label_nl']) ?>" data-en="<?= $h($cat['label_en']) ?>"><?= $h($cat['label_nl']) ?></strong> — <span data-nl="<?= $h($cat['description_nl']) ?>" data-en="<?= $h($cat['description_en']) ?>"><?= $h($cat['description_nl']) ?></span></li>
+        <li><strong><?= $h($cat['label']) ?></strong> — <span><?= $h($cat['description']) ?></span></li>
 <?php endforeach; ?>
       </ul>
 
-      <h2 style="margin-top: var(--sp-6);" data-nl="Je voorkeuren wijzigen" data-en="Change your preferences">Je voorkeuren wijzigen</h2>
-      <p data-nl="Je kunt je cookievoorkeuren op elk moment bekijken of wijzigen, ook nadat je al een keuze hebt gemaakt." data-en="You can review or change your cookie preferences at any time, even after you've already made a choice.">
-        Je kunt je cookievoorkeuren op elk moment bekijken of wijzigen, ook nadat je al een keuze hebt gemaakt.
+      <h2 style="margin-top: var(--sp-6);"><?= \App\Service\Language\SiteText::escaped(['nl' => 'Je voorkeuren wijzigen', 'en' => 'Change your preferences']) ?></h2>
+      <p>
+        <?= \App\Service\Language\SiteText::escaped(['nl' => 'Je kunt je cookievoorkeuren op elk moment bekijken of wijzigen, ook nadat je al een keuze hebt gemaakt.', 'en' => 'You can review or change your cookie preferences at any time, even after you\'ve already made a choice.']) ?>
       </p>
       <p style="margin-top: var(--sp-3);">
-        <button type="button" class="btn" data-cookie-settings-open data-nl="Cookievoorkeuren beheren" data-en="Manage cookie preferences">Cookievoorkeuren beheren</button>
+        <button type="button" class="btn" data-cookie-settings-open><?= \App\Service\Language\SiteText::escaped(['nl' => 'Cookievoorkeuren beheren', 'en' => 'Manage cookie preferences']) ?></button>
       </p>
 
     </div>

@@ -5,8 +5,8 @@ namespace App\Service;
 use App\Repository\CollectionRepository;
 use App\Repository\ProductRepository;
 use App\Service\Language\LanguageFallback;
-use App\Service\Language\LanguageRegistry;
-use App\Service\Language\LocalizedValue;
+use App\Service\Routing\RequestLanguage;
+
 
 /**
  * "Gerelateerde producten" on a product detail page: which other products to
@@ -61,7 +61,7 @@ class RelatedProductsContent
     public const MIN_MAX_ITEMS = 1;
     public const MAX_MAX_ITEMS = 24;
 
-    /** @var array<int, array<string, mixed>|null> */
+    /** @var array<string, array<string, mixed>|null> per request language and product */
     private static array $cache = [];
 
     /**
@@ -72,16 +72,18 @@ class RelatedProductsContent
      * product page keeps working, it just has no related products — the same
      * fallback philosophy every Content class in this project follows.
      *
-     * @return array{heading: LocalizedValue, product_ids: list<int>, collection: array<string, mixed>}|null
+     * @return array{heading: string, product_ids: list<int>, collection: array<string, mixed>}|null
      */
     public static function forProduct(int $productId): ?array
     {
-        if (array_key_exists($productId, self::$cache)) {
-            return self::$cache[$productId];
+        $language = RequestLanguage::current();
+        $cacheKey = $language . '|' . $productId;
+        if (array_key_exists($cacheKey, self::$cache)) {
+            return self::$cache[$cacheKey];
         }
 
         if ($productId < 1 || !self::isEnabled()) {
-            return self::$cache[$productId] = null;
+            return self::$cache[$cacheKey] = null;
         }
 
         try {
@@ -91,12 +93,12 @@ class RelatedProductsContent
             // is the shop's own "is this product public" query — deleted and
             // deactivated products both come back as null.
             if ($productRepository->findActiveById($productId) === null) {
-                return self::$cache[$productId] = null;
+                return self::$cache[$cacheKey] = null;
             }
 
             $collection = self::sourceCollection($productId);
             if ($collection === null) {
-                return self::$cache[$productId] = null;
+                return self::$cache[$cacheKey] = null;
             }
 
             // Active products of that collection, in the collection's own
@@ -112,18 +114,18 @@ class RelatedProductsContent
             }
 
             if ($productIds === []) {
-                return self::$cache[$productId] = null;
+                return self::$cache[$cacheKey] = null;
             }
 
             $productIds = array_slice($productIds, 0, self::maxItems());
         } catch (\Throwable $e) {
             error_log('[RelatedProductsContent] falling back to no related products for product ' . $productId . ': ' . $e->getMessage());
 
-            return self::$cache[$productId] = null;
+            return self::$cache[$cacheKey] = null;
         }
 
-        return self::$cache[$productId] = [
-            'heading' => self::heading((int) $collection['id']),
+        return self::$cache[$cacheKey] = [
+            'heading' => self::heading((int) $collection['id'], $language),
             'product_ids' => $productIds,
             'collection' => $collection,
         ];
@@ -176,7 +178,7 @@ class RelatedProductsContent
      * default language is NOT Dutch they differ deliberately: the old English
      * chain ended on the Dutch heading, and one fallback rule cannot.
      */
-    public static function heading(int $collectionId): LocalizedValue
+    public static function heading(int $collectionId, string $languageCode): string
     {
         $ownWords = [];
         foreach (ShopLocalization::collections()->words($collectionId) as $code => $fields) {
@@ -187,13 +189,9 @@ class RelatedProductsContent
 
         $globalWords = LocalizedSiteSettings::words(LocalizedSiteSettings::RELATED_PRODUCTS_HEADING);
 
-        $headings = [];
-        foreach (LanguageRegistry::codes() as $code) {
-            $own = LanguageFallback::resolve($ownWords, $code);
-            $headings[$code] = $own !== '' ? $own : LanguageFallback::resolve($globalWords, $code);
-        }
+        $own = LanguageFallback::resolve($ownWords, $languageCode);
 
-        return LocalizedValue::of($headings);
+        return $own !== '' ? $own : LanguageFallback::resolve($globalWords, $languageCode);
     }
 
     public static function isEnabled(): bool

@@ -232,8 +232,14 @@ final class FrontendAssetOwnershipTest extends TestCase
         }
 
         // ...and it does still own the site shell.
-        foreach (['function initLang(', 'function initHeader(', 'function initNavDropdowns(', 'function initReveal('] as $needle) {
+        foreach (['function initHeader(', 'function initNavDropdowns(', 'function initReveal('] as $needle) {
             $this->assertStringContainsString($needle, $core);
+        }
+
+        // ...but no language of its own: the server renders every page in
+        // the language of its URL (Multilingual 2.0 phase 7).
+        foreach (['function initLang(', 'function applyLang(', 'vvl-lang', 'data-primary-lang'] as $needle) {
+            $this->assertStringNotContainsString($needle, $core, 'the client-side language swap is gone');
         }
     }
 

@@ -40,6 +40,21 @@
     return URL_PREFIX + path;
   }
 
+  /**
+   * An /api/ address that says which language this page is being read in.
+   *
+   * The endpoints have no language prefix of their own, so the page's
+   * <html lang> travels as ?lang= and the server decides whether to believe
+   * it (App\Service\Routing\ApiLanguage: an active website language, or
+   * the default). It picks words only — never a price or an identity.
+   */
+  function apiUrl(path) {
+    var lang = document.documentElement.getAttribute("lang") || "";
+    if (!/^[a-z]{2}$/.test(lang)) return path;
+
+    return path + (path.indexOf("?") === -1 ? "?" : "&") + "lang=" + lang;
+  }
+
   var docEl = document.documentElement;
 
   /* ---------------------------------------------------------------------
@@ -884,6 +899,7 @@
       escapeAttr: escapeAttr,
       rootPath: rootPath,
       localeUrl: localeUrl,
+      apiUrl: apiUrl,
       formatPrice: formatPrice,
       bilingualAttrs: bilingualAttrs,
       currentLangText: currentLangText,

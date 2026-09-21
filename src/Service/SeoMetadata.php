@@ -25,18 +25,13 @@ namespace App\Service;
  * so the <head>, the Open Graph tags, the structured data and the sitemap
  * cannot disagree about a page's URL, title or indexability.
  *
- * ONE LANGUAGE PER DOCUMENT since Multilingual 2.0 phase 6. Every language
- * now has its own URL (docs/multilingual/ROUTING.md), so the tag a crawler
- * reads is the REQUEST's language: ::title() and ::description() answer in
- * it, and that is what partials/seo-head.php prints, what Open Graph carries
- * and what the structured data quotes.
- *
- * The `titleNl` / `titleEn` pair is still here, and still rides along in
- * data-nl/data-en. It is V1 compatibility output that phase 7 removes;
- * nothing acts on it any more, because the language switch became links to
- * those other URLs. A resolver that has a page's text in EVERY language hands
- * it over with ::createLocalized(), and a third language then gets its own
- * words rather than the pair's.
+ * ONE LANGUAGE PER DOCUMENT. Every language has its own URL
+ * (docs/multilingual/ROUTING.md), so the tag a crawler reads is the
+ * REQUEST's language: a resolver hands over the title and description it
+ * resolved for that language — through its own domain's fallback — and
+ * partials/seo-head.php prints them, Open Graph carries them and the
+ * structured data quotes them. There is no second language in here and no
+ * pair for a browser to swap (Multilingual 2.0 phase 7).
  *
  * THE FALLBACK HIERARCHY lives in create(): what a caller leaves empty is
  * filled in from App\Service\SeoDefaults. What a caller passes is used
@@ -54,127 +49,37 @@ final class SeoMetadata
      * @param ?array<string, mixed> $jsonLd structured data for this page, or null
      */
     private function __construct(
-        public readonly string $titleNl,
-        public readonly string $titleEn,
-        public readonly string $descriptionNl,
-        public readonly string $descriptionEn,
+        public readonly string $title,
+        public readonly string $description,
         public readonly ?string $canonical,
         public readonly string $robots,
         public readonly string $ogType,
         public readonly ?string $ogImageUrl,
         public readonly ?array $jsonLd,
-        /**
-         * The title per language, ALREADY RESOLVED by the resolver that owns
-         * the content (App\Service\PageSeo). No fallback is applied to it
-         * here: the fallback of a page's text is PageLocalization's, stated
-         * once, and a second one in the head could drift from it.
-         *
-         * @var array<string, string>
-         */
-        private readonly array $titles = [],
-        /** @var array<string, string> the description per language, already resolved */
-        private readonly array $descriptions = [],
     ) {
     }
 
-    /**
-     * The title this document actually carries: the request language's.
-     *
-     * Falls back exactly as every other text does — the asked-for language,
-     * then the default language — because a page that is routable in German
-     * but whose SEO title nobody translated still needs a title, and the
-     * words a visitor can read beat an empty tag. That is FIELD fallback, and
-     * it never invents a route: the German URL only exists because a German
-     * slug does (docs/multilingual/ROUTING.md).
-     */
+    /** The title this document carries, in the request's language. */
     public function title(): string
     {
-        return $this->localized($this->titles, $this->titleNl, $this->titleEn);
+        return $this->title;
     }
 
-    /** The description this document carries, in the request's language. */
+    /** The description this document carries, in the request's language; '' when it has none. */
     public function description(): string
     {
-        return $this->localized($this->descriptions, $this->descriptionNl, $this->descriptionEn);
-    }
-
-    /**
-     * One value in the request's language.
-     *
-     * From the resolver's per-language map when there is one — those values
-     * have already been through their own domain's fallback and are taken as
-     * they are. Otherwise from the V1 pair, which is all a route that still
-     * writes its head by hand has to offer; a language outside that pair then
-     * reads the pair's own resolution, exactly as it did before phase 6.
-     *
-     * @param array<string, string> $values
-     */
-    private function localized(array $values, string $nl, string $en): string
-    {
-        $language = \App\Service\Routing\RequestLanguage::current();
-
-        if (array_key_exists($language, $values)) {
-            return $values[$language];
-        }
-
-        return \App\Service\Language\LocalizedValue::ofDutchEnglish($nl, $en)->in($language);
-    }
-
-    /**
-     * The effective metadata for a page whose text is known in EVERY website
-     * language, rather than only in the V1 pair.
-     *
-     * $title and $description are ALREADY RESOLVED per language by the caller
-     * — the owning domain's fallback has run, and nothing here applies a
-     * second one. The V1 pair is read out of the same maps, so the
-     * compatibility attributes cannot say something else than the tag.
-     *
-     * @param array<string, string> $title       language code => the title in it
-     * @param array<string, string> $description language code => the description in it
-     * @param ?array<string, mixed> $jsonLd
-     */
-    public static function createLocalized(
-        array $title,
-        array $description,
-        ?string $canonical = null,
-        bool $indexable = true,
-        string $ogType = 'website',
-        ?string $socialImage = null,
-        ?array $jsonLd = null,
-    ): self {
-        $base = self::create(
-            titleNl: $title[\App\Service\Language\LanguageRegistry::DUTCH] ?? '',
-            titleEn: $title[\App\Service\Language\LanguageRegistry::ENGLISH] ?? '',
-            descriptionNl: $description[\App\Service\Language\LanguageRegistry::DUTCH] ?? '',
-            descriptionEn: $description[\App\Service\Language\LanguageRegistry::ENGLISH] ?? '',
-            canonical: $canonical,
-            indexable: $indexable,
-            ogType: $ogType,
-            socialImage: $socialImage,
-            jsonLd: $jsonLd,
-        );
-
-        return new self(
-            $base->titleNl,
-            $base->titleEn,
-            $base->descriptionNl,
-            $base->descriptionEn,
-            $base->canonical,
-            $base->robots,
-            $base->ogType,
-            $base->ogImageUrl,
-            $base->jsonLd,
-            $title,
-            $description,
-        );
+        return $this->description;
     }
 
     /**
      * The effective metadata for one public page.
      *
+     * $title and $description are the words for the language this response
+     * is rendered in, already resolved by the resolver that owns them.
      * Everything but the title is optional, and every omitted value falls
      * back the way SEO.md describes:
      *
+     *   title         given -> the site name
      *   description   given -> global default -> omitted entirely
      *   social image  given -> global default -> omitted entirely
      *   robots        indexable unless $indexable is false, and never
@@ -189,47 +94,32 @@ final class SeoMetadata
      * @param ?array<string, mixed> $jsonLd
      */
     public static function create(
-        string $titleNl,
-        string $titleEn = '',
-        string $descriptionNl = '',
-        string $descriptionEn = '',
+        string $title,
+        string $description = '',
         ?string $canonical = null,
         bool $indexable = true,
         string $ogType = 'website',
         ?string $socialImage = null,
         ?array $jsonLd = null,
     ): self {
-        $titleNl = trim($titleNl);
-        $titleEn = trim($titleEn);
-        $descriptionNl = trim($descriptionNl);
-        $descriptionEn = trim($descriptionEn);
+        $title = trim($title);
+        $description = trim($description);
 
-        if ($titleNl === '') {
-            $titleNl = SeoDefaults::siteName();
-        }
-        if ($titleEn === '') {
-            $titleEn = $titleNl;
+        if ($title === '') {
+            $title = SeoDefaults::siteName();
         }
 
-        if ($descriptionNl === '') {
-            // The global default stands in for BOTH languages: a site that
-            // wrote one sentence about itself has one sentence, and inventing
-            // an English translation of it here would be worse than showing
-            // the one that exists.
-            $descriptionNl = SeoDefaults::description();
-            $descriptionEn = $descriptionEn === '' ? $descriptionNl : $descriptionEn;
-        }
-        if ($descriptionEn === '') {
-            $descriptionEn = $descriptionNl;
+        if ($description === '') {
+            // The global default: a site that wrote one sentence about
+            // itself has one sentence, in whatever language it wrote it.
+            $description = SeoDefaults::description();
         }
 
         $ogImageUrl = Seo::absoluteImageUrl($socialImage) ?? SeoDefaults::socialImageUrl();
 
         return new self(
-            titleNl: $titleNl,
-            titleEn: $titleEn,
-            descriptionNl: $descriptionNl,
-            descriptionEn: $descriptionEn,
+            title: $title,
+            description: $description,
             canonical: self::normalizeCanonical($canonical),
             robots: $indexable ? SeoDefaults::robots() : SeoDefaults::ROBOTS_NOINDEX,
             ogType: trim($ogType) === '' ? 'website' : trim($ogType),
@@ -247,16 +137,11 @@ final class SeoMetadata
      * not a page whose share preview anybody wants. `follow` rather than
      * `none` so a crawler still walks the links back into the working site.
      */
-    public static function notFound(string $titleNl, string $titleEn = ''): self
+    public static function notFound(string $title): self
     {
-        $titleNl = trim($titleNl) === '' ? SeoDefaults::siteName() : trim($titleNl);
-        $titleEn = trim($titleEn) === '' ? $titleNl : trim($titleEn);
-
         return new self(
-            titleNl: $titleNl,
-            titleEn: $titleEn,
-            descriptionNl: '',
-            descriptionEn: '',
+            title: trim($title) === '' ? SeoDefaults::siteName() : trim($title),
+            description: '',
             canonical: null,
             robots: SeoDefaults::ROBOTS_NOINDEX,
             ogType: 'website',
@@ -272,7 +157,7 @@ final class SeoMetadata
 
     public function hasDescription(): bool
     {
-        return $this->descriptionNl !== '';
+        return $this->description !== '';
     }
 
     /**

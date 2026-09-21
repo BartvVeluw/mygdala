@@ -76,7 +76,7 @@ PageAssets::requireScript('assets/js/block-preview.js');
 $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
 ?>
 <!doctype html>
-<html lang="<?= $h(SiteText::documentLanguage()) ?>" data-primary-lang="<?= $h(SiteText::documentLanguage()) ?>">
+<html lang="<?= $h(SiteText::documentLanguage()) ?>">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">

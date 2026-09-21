@@ -13,27 +13,23 @@
  * both the fresh-install bootstrap and HomepageHeroContent::startingWords()
  * write one, so only data written outside them gets here.
  *
- * Every word arrives as one LocalizedValue per field, the stats' too
- * (App\Service\Blocks\BlockLocalization): SiteText prints the words a visitor
- * sees first and the escaped data-nl/data-en pair for the V1 switch, so this
- * file knows no language, no default and no fallback. All of it is plain
- * text except the headline, whose title and highlight are composed into one
- * safe fragment per language (HomepageHeroContent::titleHtml()).
+ * Every word arrives as one string per field, the stats' too, already in the
+ * language of the request (App\Service\Blocks\BlockLocalization), so this file
+ * knows no language, no default and no fallback. All of it is plain text
+ * except the headline, whose title and highlight are composed into one safe
+ * fragment (HomepageHeroContent::renderTitleFragment()).
  *
  * @param array<string, mixed> $hero see HomepageHeroContent::current()
  */
 function render_section_homepage_hero(array $hero): void
 {
-    $text = static fn (string $field): string => \App\Service\Language\SiteText::visibleOf($hero[$field]);
-
-    if ($text('title') === '') {
+    if ($hero['title'] === '') {
         return;
     }
 
     $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
-    $pair = static fn (string $field): string => \App\Service\Language\SiteText::attrsOf($hero[$field]);
 
-    $heroTitle = \App\Service\HomepageHeroContent::titleHtml($hero['title'], $hero['title_highlight']);
+    $heroTitle = \App\Service\HomepageHeroContent::renderTitleFragment($hero['title'], $hero['title_highlight']);
     $heroLayoutClasses = [
         \App\Service\HomepageHeroContent::LAYOUT_MEDIA_LEFT => 'hero--media-left',
         \App\Service\HomepageHeroContent::LAYOUT_BACKGROUND => 'hero--background',
@@ -54,7 +50,7 @@ function render_section_homepage_hero(array $hero): void
     // itself and draw the browser's broken-image icon, which is exactly what
     // a fresh installation would have shown.
     $heroHasMedia = \App\Service\HomepageHeroContent::hasMedia($hero);
-    $heroHasBadge = $text('badge_title') !== '';
+    $heroHasBadge = $hero['badge_title'] !== '';
     $heroClasses = array_filter(['hero', $heroLayoutClass, $heroHasMedia ? '' : 'hero--no-media']);
     ?>
     <section class="<?= $h(implode(' ', $heroClasses)) ?>">
@@ -63,28 +59,26 @@ function render_section_homepage_hero(array $hero): void
       <div class="laser-line" style="bottom: 14%; right: 0; width: 26%" aria-hidden="true"></div>
       <div class="container hero__grid">
         <div class="hero__content">
-          <p class="eyebrow hero__eyebrow" <?= $pair('eyebrow') ?>><?= $h($text('eyebrow')) ?></p>
-          <?php /* data-lang-html: the title fragment is real HTML — the title
-                   text is escaped and only the highlight is wrapped in a
-                   hardcoded <em> (HomepageHeroContent::titleHtml()), so
-                   assets/js/core.js's applyLang() re-renders it with innerHTML,
-                   and it is printed unescaped for the same reason. Every
-                   plain-text field around it stays textContent, the XSS-safe
-                   default; the marker is what carves out this one. */ ?>
-          <h1 style="--hero-highlight-size: <?= $heroHighlightSize ?>%" data-lang-html<?= \App\Service\Language\SiteText::attrsOf($heroTitle) ?>><?= \App\Service\Language\SiteText::visibleOf($heroTitle) ?></h1>
-          <p class="lead hero__lead" <?= $pair('lead') ?>><?= $h($text('lead')) ?></p>
+          <p class="eyebrow hero__eyebrow"><?= $h($hero['eyebrow']) ?></p>
+          <?php /* The title fragment is real HTML — the title text is escaped
+                   and only the highlight is wrapped in a hardcoded <em>
+                   (HomepageHeroContent::renderTitleFragment()) — so it is
+                   printed unescaped. Every plain-text field around it is
+                   escaped here. */ ?>
+          <h1 style="--hero-highlight-size: <?= $heroHighlightSize ?>%"><?= $heroTitle ?></h1>
+          <p class="lead hero__lead"><?= $h($hero['lead']) ?></p>
           <div class="hero__actions">
-            <a href="<?= $h((string) $hero['primary_url']) ?>" class="btn" <?= $pair('primary_label') ?>><?= $h($text('primary_label')) ?>
+            <a href="<?= $h((string) $hero['primary_url']) ?>" class="btn"><?= $h($hero['primary_label']) ?>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" /></svg>
             </a>
-            <?php if ($text('secondary_label') !== ''): ?>
-            <a href="<?= $h((string) $hero['secondary_url']) ?>" class="btn btn--ghost" <?= $pair('secondary_label') ?>><?= $h($text('secondary_label')) ?></a>
+            <?php if ($hero['secondary_label'] !== ''): ?>
+            <a href="<?= $h((string) $hero['secondary_url']) ?>" class="btn btn--ghost"><?= $h($hero['secondary_label']) ?></a>
             <?php endif; ?>
           </div>
           <div class="hero__meta">
             <?php foreach ($hero['stats'] as $stat): ?>
             <div>
-              <strong <?= \App\Service\Language\SiteText::attrsOf($stat['primary_text']) ?>><?= $h(\App\Service\Language\SiteText::visibleOf($stat['primary_text'])) ?></strong><span <?= \App\Service\Language\SiteText::attrsOf($stat['secondary_text']) ?>><?= $h(\App\Service\Language\SiteText::visibleOf($stat['secondary_text'])) ?></span>
+              <strong><?= $h($stat['primary_text']) ?></strong><span><?= $h($stat['secondary_text']) ?></span>
             </div>
             <?php endforeach; ?>
           </div>
@@ -96,14 +90,14 @@ function render_section_homepage_hero(array $hero): void
             <?php if ($hero['media_type'] === \App\Service\HomepageHeroContent::MEDIA_TYPE_VIDEO): ?>
             <video class="hero__media-video" src="<?= $h($hero['video_path']) ?>"<?= $hero['image_path'] !== '' ? ' poster="' . $h($hero['image_path']) . '"' : '' ?> autoplay muted loop playsinline preload="metadata" aria-hidden="true"></video>
             <?php else: ?>
-            <img src="<?= $h($hero['image_path']) ?>" alt="<?= $h($text('image_alt')) ?>"<?= \App\Service\Language\SiteText::attrsForOf('alt', $hero['image_alt']) ?> width="800" height="1000" loading="eager" />
+            <img src="<?= $h($hero['image_path']) ?>" alt="<?= $h($hero['image_alt']) ?>" width="800" height="1000" loading="eager" />
             <?php endif; ?>
           </div>
           <?php endif; ?>
           <?php if ($heroHasBadge): ?>
           <div class="hero__badge">
-            <strong <?= $pair('badge_title') ?>><?= $h($text('badge_title')) ?></strong>
-            <span <?= $pair('badge_text') ?>><?= $h($text('badge_text')) ?></span>
+            <strong><?= $h($hero['badge_title']) ?></strong>
+            <span><?= $h($hero['badge_text']) ?></span>
           </div>
           <?php endif; ?>
         </div>

@@ -4,6 +4,7 @@ namespace App\Service;
 
 use App\Repository\FormBlockRepository;
 use App\Service\Blocks\BlockLocalization;
+use App\Service\Routing\RequestLanguage;
 
 /**
  * Content for the reusable "Formulier" block (partials/section-form.php):
@@ -16,11 +17,12 @@ use App\Service\Blocks\BlockLocalization;
  * is the whole reason Core Forms exists (FORMS.md).
  *
  * WORDS PER LANGUAGE (Multilingual 2.0 phase 3B). The heading and the
- * introduction are stored per website language in block_translations and
- * come out of App\Service\Blocks\BlockLocalization as one LocalizedValue each,
- * the fallback already applied; which form, and is_active, stay in
- * form_blocks. The form's own words (labels, button, confirmation) belong to
- * the form, not to this block. This class decides no language itself.
+ * introduction are stored per website language in block_translations and come
+ * out of App\Service\Blocks\BlockLocalization as one string each, in the
+ * language of the request, the fallback already applied; which form, and
+ * is_active, stay in form_blocks. The form's own words (labels, button,
+ * confirmation) belong to the form, not to this block. This class decides no
+ * language itself.
  *
  * `is_active = false` on an existing row is a deliberate hide, and a
  * different case from a missing row — the same three-state contract every
@@ -45,13 +47,13 @@ class FormBlockContent
 
     /**
      * @return array<string, mixed> 'state' (one of STATE_*), form_id (int|null),
-     *                              and title and intro (a LocalizedValue each,
+     *                              and title and intro (a string each,
      *                              either may be empty). Templates must check
      *                              'state' !== STATE_HIDDEN before rendering.
      */
     public static function forSection(string $pageSlug, string $sectionKey): array
     {
-        $cacheKey = $pageSlug . ':' . $sectionKey;
+        $cacheKey = RequestLanguage::current() . '|' . $pageSlug . ':' . $sectionKey;
         if (isset(self::$cache[$cacheKey])) {
             return self::$cache[$cacheKey];
         }

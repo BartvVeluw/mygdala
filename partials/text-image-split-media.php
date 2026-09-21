@@ -18,17 +18,17 @@
  * No markup/layout data is ever stored in the database — only the media
  * reference and sort_order per image, and its alt text per website language.
  *
- * `alt` arrives as one LocalizedValue (App\Service\Media\BlockImage::fromOwner()),
- * already layered over the media item's own alt text: SiteText prints the
- * words a visitor sees first and the escaped data-nl-alt/data-en-alt pair, so
- * this file knows no language, no default and no fallback.
+ * `alt` arrives as one string in the language of the request
+ * (App\Service\Media\BlockImage::fromOwner()), already layered over the
+ * media item's own alt text, so this file knows no language, no default and
+ * no fallback.
  *
  * width/height are printed whenever the Media Library knows them, so the
  * browser can reserve the space before the image arrives. Unknown means the
  * attributes are simply left off — never guessed, never zero. Lazy loading is
  * unchanged.
  *
- * @param array<int, array{image_path:string, alt:\App\Service\Language\LocalizedValue, width:int|null, height:int|null}> $images
+ * @param array<int, array{image_path:string, alt:string, width:int|null, height:int|null}> $images
  * @param string|null $revealGroup optional `data-reveal-group` value for the gallery variant
  */
 function render_text_image_split_media(array $images, ?string $revealGroup = null): void
@@ -40,7 +40,7 @@ function render_text_image_split_media(array $images, ?string $revealGroup = nul
         $image = $images[0];
         ?>
         <div class="hero__media-frame" style="aspect-ratio:4/5;" data-reveal>
-          <img src="<?= $h($image['image_path']) ?>" alt="<?= $h(\App\Service\Language\SiteText::visibleOf($image['alt'])) ?>"<?= \App\Service\Language\SiteText::attrsForOf('alt', $image['alt']) ?><?= \App\Service\Media\BlockImage::dimensionAttributes($image) ?> loading="lazy" style="object-fit:cover; width:100%; height:100%;">
+          <img src="<?= $h($image['image_path']) ?>" alt="<?= $h($image['alt']) ?>"<?= \App\Service\Media\BlockImage::dimensionAttributes($image) ?> loading="lazy" style="object-fit:cover; width:100%; height:100%;">
         </div>
         <?php
         return;
@@ -51,7 +51,7 @@ function render_text_image_split_media(array $images, ?string $revealGroup = nul
     ?>
     <div class="service-detail__gallery"<?= $galleryStyle ?> data-reveal<?= $revealGroupAttr ?>>
       <?php foreach ($images as $image): ?>
-        <img src="<?= $h($image['image_path']) ?>" alt="<?= $h(\App\Service\Language\SiteText::visibleOf($image['alt'])) ?>"<?= \App\Service\Language\SiteText::attrsForOf('alt', $image['alt']) ?><?= \App\Service\Media\BlockImage::dimensionAttributes($image) ?> loading="lazy">
+        <img src="<?= $h($image['image_path']) ?>" alt="<?= $h($image['alt']) ?>"<?= \App\Service\Media\BlockImage::dimensionAttributes($image) ?> loading="lazy">
       <?php endforeach; ?>
     </div>
     <?php

@@ -7,7 +7,6 @@ namespace App\Service;
 use App\Repository\PageTranslationRepository;
 use App\Service\Language\ContentLanguages;
 use App\Service\Language\LanguageCode;
-use App\Service\Language\LanguageRegistry;
 use App\Service\Language\LocalizedValue;
 use App\Service\Language\SiteLanguages;
 

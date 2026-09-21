@@ -88,8 +88,7 @@ final class BlogMediaAndSettingsTest extends TestCase
 
         $this->assertTrue($decorated['has_image']);
         $this->assertSame('/' . $item->path, $decorated['image']['image_path']);
-        $this->assertSame('Een gegraveerd paneel', $decorated['image']['alt_nl']);
-        $this->assertSame('Een gegraveerd paneel', $decorated['image']['alt_en'], 'no EN override means the same text');
+        $this->assertSame('Een gegraveerd paneel', $decorated['image']['alt'], 'a post has no alt text of its own: the library\'s, in every language');
         $this->assertSame($item->width, $decorated['image']['width']);
         $this->assertSame($item->height, $decorated['image']['height']);
     }

@@ -6,7 +6,7 @@ namespace Tests\Service;
 
 use App\Service\Blocks\BlockLocalization;
 use App\Service\Blocks\TranslatableField;
-use App\Service\Language\LanguageRegistry;
+use App\Service\Routing\RequestLanguage;
 use PHPUnit\Framework\TestCase;
 use Tests\Support\SiteLanguageFixture;
 
@@ -54,15 +54,14 @@ final class BlockLocalizationTest extends TestCase
         ]);
         $this->store(['nl' => ['label' => 'Kort', 'title' => 'Een lange titel'], 'en' => ['title' => 'A long title']]);
 
-        $value = BlockLocalization::bilingualFirst(self::TABLE, self::ID, ['label', 'title']);
-        self::assertSame('Kort', $value->in('nl'));
-        self::assertSame('A long title', $value->in('en'), 'the English title before the Dutch short label');
+        self::assertSame('Kort', $this->in('nl', fn (): string => BlockLocalization::first(self::TABLE, self::ID, ['label', 'title'])));
+        self::assertSame('A long title', $this->in('en', fn (): string => BlockLocalization::first(self::TABLE, self::ID, ['label', 'title'])), 'the English title before the Dutch short label');
 
         $this->store(['nl' => ['title' => 'Alleen titel']]);
-        self::assertSame('Alleen titel', BlockLocalization::bilingualFirst(self::TABLE, self::ID, ['label', 'title'])->in('en'), 'nothing in English: the default language, the same order');
+        self::assertSame('Alleen titel', $this->in('en', fn (): string => BlockLocalization::first(self::TABLE, self::ID, ['label', 'title'])), 'nothing in English: the default language, the same order');
 
         $this->expectException(\InvalidArgumentException::class);
-        BlockLocalization::bilingualFirst(self::TABLE, self::ID, ['label', 'body']);
+        BlockLocalization::first(self::TABLE, self::ID, ['label', 'body']);
     }
 
     public function testTheAskedLanguageThenTheDefaultThenNothing(): void
@@ -152,28 +151,19 @@ final class BlockLocalizationTest extends TestCase
         self::assertSame('Nederlands', BlockLocalization::name(self::TABLE, self::ID, 'title'));
     }
 
-    // ------------------------------------------------------------ the V1 adapter
+    // ------------------------------------------------------------ the request's language
 
-    public function testTheV1PairIsBuiltFromTheResolvedHalves(): void
+    public function testTextAndWordsAreTheLanguageOfTheRequestWithTheFallback(): void
     {
         $this->store(['nl' => ['title' => 'Titel', 'lead' => 'Inleiding'], 'en' => ['title' => 'Title']]);
 
-        $title = BlockLocalization::bilingual(self::TABLE, self::ID, 'title');
-        self::assertSame('Titel', $title->primaryValue());
-        self::assertSame(['nl' => 'Titel', 'en' => 'Title'], $title->attributeValues());
-
-        $lead = BlockLocalization::bilingual(self::TABLE, self::ID, 'lead');
-        self::assertSame(['nl' => 'Inleiding', 'en' => 'Inleiding'], $lead->attributeValues());
-    }
-
-    public function testWithEnglishAsTheDefaultTheEnglishHalfIsShownFirst(): void
-    {
-        SiteLanguageFixture::useBilingual('en');
-        $this->store(['nl' => ['body' => '<p>Nederlands</p>'], 'en' => ['body' => '<p>English</p>']]);
-
-        $body = BlockLocalization::bilingual(self::TABLE, self::ID, 'body');
-        self::assertSame(LanguageRegistry::ENGLISH, $body->primaryLanguage());
-        self::assertSame('<p>English</p>', $body->primaryValue());
+        self::assertSame('Titel', $this->in('nl', fn (): string => BlockLocalization::text(self::TABLE, self::ID, 'title')));
+        self::assertSame('Title', $this->in('en', fn (): string => BlockLocalization::text(self::TABLE, self::ID, 'title')));
+        self::assertSame(
+            ['title' => 'Title', 'lead' => 'Inleiding', 'body' => ''],
+            $this->in('en', fn (): array => BlockLocalization::words(self::TABLE, self::ID)),
+            'one string per declared field, an untranslated one in the default language'
+        );
     }
 
     public function testAnEnglishDefaultWithoutEnglishWordsShowsNothingRatherThanTheDutchWords(): void
@@ -181,12 +171,11 @@ final class BlockLocalizationTest extends TestCase
         SiteLanguageFixture::useBilingual('en');
         $this->store(['nl' => ['body' => '<p>Alleen Nederlands</p>']]);
 
-        $body = BlockLocalization::bilingual(self::TABLE, self::ID, 'body');
-        self::assertSame('', $body->primaryValue(), 'the default language decides what a visitor sees first');
-        self::assertSame('<p>Alleen Nederlands</p>', $body->in(LanguageRegistry::DUTCH));
+        self::assertSame('', $this->in('en', fn (): string => BlockLocalization::text(self::TABLE, self::ID, 'body')), 'the default language decides what a visitor sees');
+        self::assertFalse(BlockLocalization::hasDefaultWords(self::TABLE, self::ID, 'body'));
     }
 
-    public function testAGermanDefaultStillFillsBothV1Halves(): void
+    public function testAGermanDefaultIsWhatEveryUntranslatedLanguageReads(): void
     {
         SiteLanguageFixture::useLanguages([
             SiteLanguageFixture::language('de', isDefault: true, sortOrder: 0),
@@ -195,7 +184,28 @@ final class BlockLocalizationTest extends TestCase
         ]);
         $this->store(['de' => ['title' => 'Deutsch']]);
 
-        self::assertSame(['nl' => 'Deutsch', 'en' => 'Deutsch'], BlockLocalization::bilingual(self::TABLE, self::ID, 'title')->attributeValues());
+        foreach (['de', 'nl', 'en'] as $language) {
+            self::assertSame('Deutsch', $this->in($language, fn (): string => BlockLocalization::text(self::TABLE, self::ID, 'title')), $language);
+        }
+        self::assertTrue(BlockLocalization::hasDefaultWords(self::TABLE, self::ID, 'title'));
+    }
+
+    /**
+     * Run $work while the request is answered in $language.
+     *
+     * @template T
+     * @param \Closure(): T $work
+     * @return T
+     */
+    private function in(string $language, \Closure $work): mixed
+    {
+        RequestLanguage::set($language, true);
+
+        try {
+            return $work();
+        } finally {
+            RequestLanguage::reset();
+        }
     }
 
     // ------------------------------------------------------------ the validator

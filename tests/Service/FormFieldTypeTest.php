@@ -14,7 +14,7 @@ use App\Service\Forms\FormFieldTypes;
 use App\Service\Forms\FormRecipient;
 use App\Service\Forms\FormSourcePath;
 use App\Service\Forms\FormSpamGuard;
-use App\Service\Forms\FormText;
+use App\Service\Routing\RequestLanguage;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
@@ -196,7 +196,7 @@ class FormFieldTypeTest extends TestCase
         }
 
         foreach (['geen-adres', 'a@', '@b.nl', 'a b@c.nl'] as $invalid) {
-            $this->assertInstanceOf(FormText::class, $type->validate($invalid, $field), $invalid . ' should be refused');
+            $this->assertIsString($type->validate($invalid, $field), $invalid . ' should be refused');
         }
     }
 
@@ -214,7 +214,7 @@ class FormFieldTypeTest extends TestCase
         }
 
         foreach (['bel me maar', 'nul-zes', '+', '12'] as $invalid) {
-            $this->assertInstanceOf(FormText::class, $type->validate($invalid, $field), $invalid . ' should be refused');
+            $this->assertIsString($type->validate($invalid, $field), $invalid . ' should be refused');
         }
     }
 
@@ -228,8 +228,7 @@ class FormFieldTypeTest extends TestCase
             $this->assertNull($type->validate('Zakelijk', $field), $key . ' should accept a configured option');
 
             foreach (['Personal', 'particulier', 'Iets anders', '<script>'] as $invalid) {
-                $this->assertInstanceOf(
-                    FormText::class,
+                $this->assertIsString(
                     $type->validate($invalid, $field),
                     $key . ' must refuse "' . $invalid . '"'
                 );
@@ -291,35 +290,39 @@ class FormFieldTypeTest extends TestCase
 
     // ---------------------------------------------------------------- options
 
-    public function testAnOptionKeepsItsValueAndShowsItsLabelPerLanguage(): void
+    public function testAnOptionKeepsItsValueAndShowsItsLabelInTheLanguageOfTheRequest(): void
     {
-        $options = FormFieldOptions::fromRows([
+        $rows = [
             ['id' => 1, 'value' => 'Particulier', 'labels' => ['nl' => 'Particulier', 'en' => 'Personal']],
             ['id' => 2, 'value' => 'Zakelijk', 'labels' => ['nl' => 'Zakelijk']],
             ['id' => 3, 'value' => 'overig-2', 'labels' => []],
-        ]);
+        ];
 
-        $this->assertSame(3, $options->count());
-        $this->assertSame(['Particulier', 'Zakelijk', 'overig-2'], array_map(static fn ($o) => $o->value, $options->all()));
-        $this->assertSame(['Particulier', 'Zakelijk', 'overig-2'], array_map(static fn ($o) => $o->label->nl, $options->all()));
+        $dutch = $this->in('nl', static fn () => FormFieldOptions::fromRows($rows));
+        $this->assertSame(3, $dutch->count());
+        $this->assertSame(['Particulier', 'Zakelijk', 'overig-2'], array_map(static fn ($o) => $o->value, $dutch->all()));
+        $this->assertSame(['Particulier', 'Zakelijk', 'overig-2'], array_map(static fn ($o) => $o->label, $dutch->all()));
+
+        $english = $this->in('en', static fn () => FormFieldOptions::fromRows($rows));
+        $this->assertSame(['Particulier', 'Zakelijk', 'overig-2'], array_map(static fn ($o) => $o->value, $english->all()), 'the value never changes with the language');
         $this->assertSame(
             ['Personal', 'Zakelijk', 'overig-2'],
-            array_map(static fn ($o) => $o->label->en, $options->all()),
+            array_map(static fn ($o) => $o->label, $english->all()),
             'an untranslated label falls back to the default language, and a label with no words at all shows the value'
         );
     }
 
     public function testARowWithoutAValueAndADuplicateValueAreDropped(): void
     {
-        $options = FormFieldOptions::fromRows([
+        $options = $this->in('en', static fn () => FormFieldOptions::fromRows([
             ['id' => 1, 'value' => 'Ja', 'labels' => ['nl' => 'Ja', 'en' => 'Yes']],
             ['id' => 2, 'value' => '  ', 'labels' => ['nl' => 'Leeg']],
             ['id' => 3, 'value' => 'Ja', 'labels' => ['nl' => 'Ja', 'en' => 'Anders']],
             ['id' => 4, 'value' => 'Nee', 'labels' => ['nl' => 'Nee', 'en' => 'No']],
-        ]);
+        ]));
 
         $this->assertSame(2, $options->count());
-        $this->assertSame('Yes', $options->find('Ja')?->label->en, 'the first row with a value wins');
+        $this->assertSame('Yes', $options->find('Ja')?->label, 'the first row with a value wins');
         $this->assertNull($options->find('Leeg'));
     }
 
@@ -350,6 +353,7 @@ graag 	"));
     {
         foreach (['select', 'radio'] as $key) {
             $type = FormFieldTypes::get($key);
+            RequestLanguage::set('en', true);
             $field = FormField::fromRow([
                 'id' => 1,
                 'field_key' => 'veld',
@@ -364,15 +368,17 @@ graag 	"));
             ]);
 
             $this->assertNull($type->validate('support', $field), $key . ' accepts the stable value');
-            $this->assertInstanceOf(FormText::class, $type->validate('Ondersteuning', $field), $key . ' refuses a label');
-            $this->assertInstanceOf(FormText::class, $type->validate('Support', $field), $key . ' refuses a translated label');
+            $this->assertIsString($type->validate('Ondersteuning', $field), $key . ' refuses a label');
+            $this->assertIsString($type->validate('Support', $field), $key . ' refuses a translated label');
 
             ob_start();
             $type->renderControl(new FormFieldControl($field, 'form-abc-veld', 'veld', 'support', '', false));
             $html = (string) ob_get_clean();
             $this->assertStringContainsString('value="support"', $html, $key . ' posts the value');
-            $this->assertStringContainsString('data-nl="Ondersteuning"', $html);
-            $this->assertStringContainsString('data-en="Support"', $html);
+            $this->assertStringContainsString('Support', $html, 'the label in the language being read');
+            $this->assertStringNotContainsString('Ondersteuning', $html, 'and in no other');
+            $this->assertStringNotContainsString('data-nl', $html);
+            RequestLanguage::reset();
         }
     }
 
@@ -419,22 +425,22 @@ graag 	"));
         }
     }
 
-    // ------------------------------------------------------- bilingual text
-
-    public function testAnEmptyEnglishValueFallsBackToTheDutchOne(): void
+    /**
+     * Run $work while the request is answered in $language.
+     *
+     * @template T
+     * @param \Closure(): T $work
+     * @return T
+     */
+    private function in(string $language, \Closure $work): mixed
     {
-        $this->assertSame('Naam', FormText::of('Naam', '')->en);
-        $this->assertSame('Naam', FormText::of('Naam', null)->en);
-        $this->assertSame('Naam', FormText::of('Naam', '   ')->en);
-        $this->assertSame('Name', FormText::of('Naam', 'Name')->en);
-    }
+        RequestLanguage::set($language, true);
 
-    public function testTextIsTrimmedAndKnowsWhenItIsEmpty(): void
-    {
-        $this->assertTrue(FormText::of('  ', '  ')->isEmpty());
-        $this->assertSame('Naam', FormText::of('  Naam  ')->nl);
-        $this->assertSame('Name', FormText::of('Naam', 'Name')->in('en'));
-        $this->assertSame('Naam', FormText::of('Naam', 'Name')->in('de'), 'anything that is not English is Dutch');
+        try {
+            return $work();
+        } finally {
+            RequestLanguage::reset();
+        }
     }
 
     // ------------------------------------------------------------ source path

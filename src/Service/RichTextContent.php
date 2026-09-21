@@ -4,7 +4,7 @@ namespace App\Service;
 
 use App\Repository\RichTextRepository;
 use App\Service\Blocks\BlockLocalization;
-use App\Service\Language\LocalizedValue;
+use App\Service\Routing\RequestLanguage;
 
 /**
  * Content for the "Rich text" page-builder section — an ordinary long-form
@@ -31,9 +31,8 @@ use App\Service\Language\LocalizedValue;
  * asked-for language, then the default language) and sanitizes the HTML on
  * the way out — the same "sanitize on write, sanitize again on read" pattern
  * this block always followed. What this class hands the partial is one
- * LocalizedValue: the body as a visitor sees it first, plus the V1
- * data-nl/data-en pair. It decides no language itself, so an English-default
- * site now gets its English body on the first render.
+ * string: the sanitized body in the language of the request. It decides no
+ * language itself.
  */
 class RichTextContent
 {
@@ -62,14 +61,20 @@ class RichTextContent
     private static array $cache = [];
 
     /**
-     * @return array{state: string, body: LocalizedValue}
+     * @param string|null $language the language of the body; the request's when
+     *        null. Named explicitly only by a caller that needs one fixed
+     *        language whatever is being read — the terms-and-conditions hash
+     *        (App\Service\LegalPages::termsContent()).
+     *
+     * @return array{state: string, body: string}
      *         templates must check 'state' !== STATE_HIDDEN before rendering
-     *         the section. 'body' is sanitized HTML in every language, empty
+     *         the section. 'body' is sanitized HTML in that language, empty
      *         when there is none.
      */
-    public static function forSection(string $pageSlug, string $sectionKey): array
+    public static function forSection(string $pageSlug, string $sectionKey, ?string $language = null): array
     {
-        $cacheKey = $pageSlug . ':' . $sectionKey;
+        $language ??= RequestLanguage::current();
+        $cacheKey = $language . '|' . $pageSlug . ':' . $sectionKey;
         if (isset(self::$cache[$cacheKey])) {
             return self::$cache[$cacheKey];
         }
@@ -90,9 +95,16 @@ class RichTextContent
             return self::$cache[$cacheKey] = self::emptyContent(self::STATE_HIDDEN);
         }
 
+        // THE DEFAULT LANGUAGE DECIDES WHETHER THERE IS A BODY
+        // (docs/multilingual/ARCHITECTURE.md): a block whose body exists only
+        // as a translation shows nothing in any language.
+        $bodyId = (int) $row['id'];
+
         return self::$cache[$cacheKey] = [
             'state' => self::STATE_ACTIVE,
-            self::BODY => BlockLocalization::bilingual(self::TABLE, (int) $row['id'], self::BODY),
+            self::BODY => BlockLocalization::hasDefaultWords(self::TABLE, $bodyId, self::BODY)
+                ? BlockLocalization::value(self::TABLE, $bodyId, self::BODY, $language)
+                : '',
         ];
     }
 
@@ -103,9 +115,9 @@ class RichTextContent
         BlockLocalization::clearCache();
     }
 
-    /** @return array{state: string, body: LocalizedValue} */
+    /** @return array{state: string, body: string} */
     private static function emptyContent(string $state): array
     {
-        return ['state' => $state, self::BODY => LocalizedValue::of([])];
+        return ['state' => $state, self::BODY => ''];
     }
 }
