@@ -570,7 +570,8 @@ De suite `updater` (`tests/Update/`, `TESTING.md`):
 | `UpdatePlannerTest` | het plan en lokale wijzigingen (scenario H op unitniveau) |
 | `DatabaseBackupTest` | dump en restore tot op de byte, met lastige data, en wat een mislukte migratie achterlaat |
 | `ApplyAndMaintenanceTest` | apply in batches met cursor en journaal, de codewissel als laatste request, hervatten na 30%, een request dat echt wordt afgeschoten (SIGKILL) midden in een batch en tussen een write en zijn journaalregel, rollback na meerdere batches, de onderhoudsguard |
-| `ReleaseBuilderTest` | wat er in een release zit, deterministisch, en dat de installatie het accepteert |
+| `LineEndingsTest` | het regeleindecontract: `.gitattributes` en `LineEndings` kennen dezelfde bestandstypes, en elk release-bestand van deze repository heeft een regel (ook in `contract` en `fast`) |
+| `ReleaseBuilderTest` | wat er in een release zit, deterministisch, en dat de installatie het accepteert; een LF- en een CRLF-kopie van deze repository geven byte voor byte hetzelfde pakket, binaire bestanden en `vendor/` ongewijzigd; een onbekend bestandstype of een losse CR wordt geweigerd |
 | `UpgradeEndToEndTest` | A (0.1.0 → 0.2.0, een apply van meerdere requests, stappen strikt op volgorde), B (0.1.0 → 0.3.0 over twee migratiegeneraties), H, I (onderbroken binnen de download en binnen de apply: gesloten tab, tweede tab met 423, een afgeschoten request, 409 op een oude stap), de guards, en een verse installatie (lege database, migraties vanaf nul: versie, Updates-scherm, feed, update), op wegwerpinstallaties van echte releases via HTTP |
 | `UpgradeFailureTest` | C, D, E, F, G, een apply die na meerdere batches faalt (teruggedraaid, geen migratie), een mislukte rollback met `recovery_required` en afhandelen, afbreken |
 | `ExistingInstallAcceptanceTest` | een kopie van een bestaande installatie: inhoud, media, privé-opslag, `.env`, modules, routing en beide talen ongewijzigd |

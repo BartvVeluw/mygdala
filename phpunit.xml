@@ -159,6 +159,7 @@
             <file>tests/Service/ThemeRenderingTest.php</file>
             <file>tests/Service/ThemeSettingsTest.php</file>
             <file>tests/Update/OwnershipTest.php</file>
+            <file>tests/Update/LineEndingsTest.php</file>
         </testsuite>
 
         <!-- unit + contract: everything that needs nothing but PHP. The one
@@ -287,6 +288,7 @@
             <file>tests/Update/VersionAndPathTest.php</file>
             <file>tests/Update/ReleaseManifestTest.php</file>
             <file>tests/Update/OwnershipTest.php</file>
+            <file>tests/Update/LineEndingsTest.php</file>
         </testsuite>
 
         <!-- Needs a web server wired to the test database: the php_test

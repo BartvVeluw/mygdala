@@ -201,9 +201,11 @@ docker compose exec php php scripts/release.php build --version=0.2.0 --source-z
 de installatie kan dat.) Waar Git naast PHP draait, doet `--ref=v0.2.0` de
 eerste twee stappen zelf.
 
-- `git archive` levert de bestanden zoals ze in de repository staan, met de
-  regeleinden van de repository in plaats van die van een Windows-werkkopie,
-  en zet de commit in het zip-commentaar; daar komt de build-id vandaan.
+- `git archive` levert precies de bestanden van die revisie, zonder wat er
+  verder in een werkmap staat, en zet de commit in het zip-commentaar; daar
+  komt de build-id vandaan. De regeleinden bewaken `.gitattributes` en de
+  bouwer samen ("Regeleinden", hieronder), niet de instellingen van de
+  machine waarop je bouwt.
 - `vendor/` komt uit `composer install --no-dev --optimize-autoloader` op de
   `composer.lock` van die revisie. `--vendor-dir=<map>` gebruikt een
   bestaande map (alleen voor tests of offline).
@@ -234,6 +236,44 @@ dist/release.json
 
 Zonder `--key-file` is de build **ongetekend**, en accepteert geen enkele
 installatie hem. Dat is bedoeld voor een proefbuild.
+
+### Regeleinden
+
+Elk tekstbestand van de repository staat in een release met LF, elk binair
+bestand byte voor byte. Dezelfde commit, dezelfde sleutel en dezelfde bouwer
+geven zo op Windows en op Linux hetzelfde pakket, met dezelfde SHA-256.
+
+- **Git bewaakt het in de repository.** `.gitattributes` noemt elk teksttype
+  `text eol=lf` en elk binair type `binary`. Wat er niet in staat, krijgt
+  `text=auto eol=lf`. Een uitchecking en een `git archive` geven daardoor LF,
+  ook onder `core.autocrlf=true`. De blobs waren al LF, op één na:
+  `admin/index.php` had CRLF (en één losse CR), en is bij de invoering
+  omgezet.
+- **De bouwer bewaakt het in het pakket.** `App\Update\Build\LineEndings`
+  heeft dezelfde lijsten; `LineEndingsTest` houdt ze gelijk aan
+  `.gitattributes`. In een tekstbestand wordt elke CRLF een LF, een binair
+  bestand gaat ongewijzigd mee. Ook een build uit een Windows-werkkopie
+  (`--source-dir`) of uit een archief van een Git die deze attributen niet
+  las, levert dus de bytes van de repository.
+- **De bouwer weigert wat hij niet kent:** een release-bestand waarvan het
+  type in geen van beide lijsten staat, en een tekstbestand met een CR die
+  geen regel afsluit. Een nieuw bestandstype is één regel in `.gitattributes`
+  en één in `LineEndings`; `LineEndingsTest` (in `contract` en `fast`) meldt
+  een release-bestand zonder regel al vóór de build.
+- **`vendor/` blijft zoals Composer hem neerzet.** Upstreampakketten hebben
+  hun eigen bytes, soms met CRLF (de lettertypemetrieken van dompdf) of
+  binair (de lettertypes zelf). Daar komt de bouwer niet aan.
+- **Niets wordt tijdens runtime genormaliseerd.** De updater vergelijkt hashes
+  van bytes. Dat die bytes overal gelijk zijn, regelt de bouwer.
+
+**v0.1.0 is met CRLF gepubliceerd.** De bron van die build was een
+`git archive` op Windows onder `core.autocrlf=true`, van vóór dit contract.
+Alle 1.029 bestanden buiten `vendor/` staan er met CRLF in: 1.028 omdat
+`git archive` ze omzette, en `admin/index.php` omdat zijn blob CRLF had. Dat
+is functioneel geldig (PHP, Apache en `AppVersion` lezen het net zo), en
+0.1.0 wordt niet opnieuw gebouwd, getagd of vervangen. Vanaf de eerstvolgende
+release is LF het formaat. De eerste update vanaf 0.1.0 vervangt daardoor ook
+elk tekstbestand, op zijn hash; dat is verwacht en geen lokale wijziging.
 
 ## Controleren en publiceren
 

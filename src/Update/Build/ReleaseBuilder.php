@@ -36,6 +36,10 @@ use App\Update\UpdateState;
  *   - release.json lists every file with its SHA-256 and the migrations the
  *     release brings, and the manifest repeats what the updater checks
  *     before downloading;
+ *   - every repository file under the line-ending contract (LineEndings):
+ *     text with LF only, binaries and vendor/ byte for byte, and a file type
+ *     the contract does not know refused. The same commit built from a
+ *     Windows working copy or from a Linux archive is the same release;
  *   - DETERMINISTIC: entries sorted, one fixed timestamp and one fixed mode
  *     for every entry, so the same source and options give the same bytes
  *     and therefore the same SHA-256.
@@ -89,7 +93,30 @@ final class ReleaseBuilder
         }
         ksort($files, SORT_STRING);
 
-        $sourceVersion = isset($files[AppVersion::VERSION_FILE]) ? trim((string) file_get_contents($files[AppVersion::VERSION_FILE])) : '';
+        // What the release ships for each repository file: a text file as
+        // its LF bytes, held here; a binary or a vendor/ file as it is on
+        // disk, so it has no entry.
+        $texts = [];
+        foreach ($files as $path => $absolute) {
+            $class = LineEndings::classify($path);
+            if ($class === null) {
+                throw self::refuse('no line-ending rule for ' . RelativePath::printable($path) . '; give its file type a line in .gitattributes and in App\Update\Build\LineEndings');
+            }
+            if ($class !== LineEndings::TEXT) {
+                continue;
+            }
+            $bytes = @file_get_contents($absolute);
+            if ($bytes === false) {
+                throw self::refuse('cannot read ' . RelativePath::printable($path));
+            }
+            $text = LineEndings::canonicalText($bytes);
+            if ($text === null) {
+                throw self::refuse('a carriage return that ends no line in ' . RelativePath::printable($path));
+            }
+            $texts[$path] = $text;
+        }
+
+        $sourceVersion = isset($texts[AppVersion::VERSION_FILE]) ? trim($texts[AppVersion::VERSION_FILE]) : '';
         if ($sourceVersion !== $version) {
             throw self::refuse(sprintf('VERSION in the source says "%s", asked to build %s', $sourceVersion, $version));
         }
@@ -114,7 +141,10 @@ final class ReleaseBuilder
             $folded[$key] = $path;
         }
 
-        $hashes = array_map(static fn (string $absolute): string => (string) hash_file('sha256', $absolute), $files);
+        $hashes = [];
+        foreach ($files as $path => $absolute) {
+            $hashes[$path] = isset($texts[$path]) ? hash('sha256', $texts[$path]) : (string) hash_file('sha256', $absolute);
+        }
 
         $migrations = array_values(array_filter(
             array_keys($files),
@@ -147,7 +177,7 @@ final class ReleaseBuilder
 
         $packageName = 'mygdala-' . $version . '.zip';
         $packagePath = $outDirectory . '/' . $packageName;
-        $this->writePackage($packagePath, $files, $descriptorJson, $releasedAt);
+        $this->writePackage($packagePath, $files, $texts, $descriptorJson, $releasedAt);
 
         $sha256 = (string) hash_file('sha256', $packagePath);
         $size = (int) filesize($packagePath);
@@ -196,8 +226,9 @@ final class ReleaseBuilder
 
     /**
      * @param array<string, string> $files relative => absolute, sorted
+     * @param array<string, string> $texts relative => LF bytes, for the text files among them
      */
-    private function writePackage(string $path, array $files, string $descriptorJson, string $releasedAt): void
+    private function writePackage(string $path, array $files, array $texts, string $descriptorJson, string $releasedAt): void
     {
         @unlink($path);
         $timestamp = strtotime($releasedAt) ?: 315532800;
@@ -211,9 +242,11 @@ final class ReleaseBuilder
         ksort($entries, SORT_STRING);
 
         foreach ($entries as $relative => $absolute) {
-            $added = $absolute === null
-                ? $zip->addFromString($relative, $descriptorJson)
-                : $zip->addFile($absolute, $relative);
+            $added = match (true) {
+                $absolute === null => $zip->addFromString($relative, $descriptorJson),
+                isset($texts[$relative]) => $zip->addFromString($relative, $texts[$relative]),
+                default => $zip->addFile($absolute, $relative),
+            };
 
             if (!$added) {
                 $zip->close();

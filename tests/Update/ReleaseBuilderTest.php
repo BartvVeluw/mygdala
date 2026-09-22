@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Update;
 
+use App\Update\Build\LineEndings;
 use App\Update\Build\ReleaseBuilder;
 use App\Update\Build\ReleaseSource;
 use App\Update\PackageExtractor;
@@ -163,5 +164,95 @@ final class ReleaseBuilderTest extends TestCase
 
         $this->assertNull($result['signature']);
         $this->assertFileDoesNotExist($this->base . '/dist/manifest.json.sig');
+    }
+
+    /**
+     * The line-ending contract end to end, on this repository itself: the
+     * same commit as an LF tree (a Linux archive) and as a CRLF tree (a
+     * Windows working copy under core.autocrlf, which is how v0.1.0 was
+     * built) is ONE release, byte for byte, signature included. Binaries and
+     * vendor/ hold CR and LF bytes of their own, and keep every one of them.
+     */
+    public function testThisRepositoryBuildsTheSameReleaseFromAnLfAndACrlfCopy(): void
+    {
+        $empty = $this->base . '/no-vendor';
+        mkdir($empty);
+        $repository = ReleaseSource::fromDirectory(dirname(__DIR__, 2), $empty)->files();
+        $this->assertGreaterThan(500, count($repository), 'the walk saw the repository');
+
+        // A PNG starts with "\x89PNG\r\n\x1a\n" on purpose: a transfer that
+        // converts line endings breaks the signature.
+        $binaries = [
+            'assets/images/block-preview/line-endings.png' => "\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\r\n\n\r",
+            'assets/fonts/line-endings.woff2' => "wOF2\x00\x01\r\n\r\r\n\x00",
+        ];
+        $vendor = [
+            'autoload.php' => "<?php\r\nrequire __DIR__ . '/composer/autoload_real.php';\r\n",
+            'composer/autoload_files.php' => "<?php return ['x' => \$baseDir . '/src/Update/maintenance-guard.php'];\r\n",
+            'dompdf/dompdf/lib/fonts/Courier.afm' => "StartFontMetrics 4.1\r\nFontName Courier\r\n",
+            'dompdf/dompdf/lib/fonts/DejaVuSans.ttf' => "\x00\x01\x00\x00\r\n\r\x00",
+        ];
+        $this->tree($this->base . '/vendor-line-endings', $vendor);
+
+        $lf = $binaries;
+        $crlf = $binaries;
+        foreach ($repository as $path => $absolute) {
+            $bytes = (string) file_get_contents($absolute);
+            if (LineEndings::classify($path) === LineEndings::TEXT) {
+                $bytes = str_replace("\r\n", "\n", $bytes);
+                $crlf[$path] = str_replace("\n", "\r\n", $bytes);
+            } else {
+                $crlf[$path] = $bytes;
+            }
+            $lf[$path] = $bytes;
+        }
+        $this->tree($this->base . '/lf', $lf);
+        $this->tree($this->base . '/crlf', $crlf);
+        $this->assertStringContainsString("\r\n", $crlf['index.php'], 'the CRLF tree really is CRLF');
+
+        $pair = ReleaseSignature::generateKeyPair();
+        $options = ['version' => trim($lf['VERSION']), 'secret_key' => $pair['secret']];
+        $fromLf = $this->build(ReleaseSource::fromDirectory($this->base . '/lf', $this->base . '/vendor-line-endings'), 'dist-lf', $options);
+        $fromCrlf = $this->build(ReleaseSource::fromDirectory($this->base . '/crlf', $this->base . '/vendor-line-endings'), 'dist-crlf', $options);
+
+        $this->assertSame($fromLf['sha256'], $fromCrlf['sha256'], 'one commit, one package');
+        foreach (['manifest.json', 'manifest.json.sig', 'release.json'] as $document) {
+            $this->assertSame((string) file_get_contents($this->base . '/dist-lf/' . $document), (string) file_get_contents($this->base . '/dist-crlf/' . $document), $document);
+        }
+
+        $zip = new \ZipArchive();
+        $this->assertTrue($zip->open($fromCrlf['package'], \ZipArchive::RDONLY));
+        $withCr = [];
+        foreach ($lf as $path => $bytes) {
+            $entry = (string) $zip->getFromName($path);
+            $this->assertSame($bytes, $entry, $path . ': the LF bytes, or for a binary its own');
+            if (LineEndings::classify($path) === LineEndings::TEXT && str_contains($entry, "\r")) {
+                $withCr[] = $path;
+            }
+        }
+        foreach ($vendor as $path => $bytes) {
+            $this->assertSame($bytes, (string) $zip->getFromName('vendor/' . $path), 'vendor/' . $path . ' as Composer left it');
+        }
+        $zip->close();
+        $this->assertSame([], $withCr, 'no text file ships a carriage return');
+        $this->assertSame(hash('sha256', $binaries['assets/images/block-preview/line-endings.png']), $fromCrlf['descriptor']->files['assets/images/block-preview/line-endings.png']);
+    }
+
+    public function testATextFileWithACarriageReturnThatEndsNoLineIsRefused(): void
+    {
+        $stray = $this->tree($this->base . '/stray', ['index.php' => "<?php echo 'a';\r\r\n"]) . '/index.php';
+
+        $this->expectException(UpdateException::class);
+        $this->expectExceptionMessageMatches('/carriage return that ends no line in index\.php/');
+        $this->build($this->source()->with('index.php', $stray), 'dist');
+    }
+
+    public function testAFileTypeWithoutALineEndingRuleIsRefused(): void
+    {
+        $data = $this->tree($this->base . '/unknown', ['assets/data/table.dat' => "1,2\n"]) . '/assets/data/table.dat';
+
+        $this->expectException(UpdateException::class);
+        $this->expectExceptionMessageMatches('#no line-ending rule for assets/data/table\.dat#');
+        $this->build($this->source()->with('assets/data/table.dat', $data), 'dist');
     }
 }

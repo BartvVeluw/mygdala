@@ -17,8 +17,10 @@ use App\Update\UpdateException;
  * Two sources are joined, because they come from two places on purpose:
  *
  *   the application   a directory holding one exact revision — normally a
- *                     `git archive` of a tag, so line endings and file set are
- *                     the repository's and not a working copy's
+ *                     `git archive` of a tag, so the file set is the
+ *                     repository's and not a working copy's. Its line
+ *                     endings do not matter: the builder ships every text
+ *                     file with LF whatever the source has (LineEndings)
  *   vendor/           a `composer install --no-dev` made for this release,
  *                     since a shared host cannot run Composer itself
  *

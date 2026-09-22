@@ -1,1 +1,47 @@
-*.sh text eol=lf
+# Line endings. The repository stores text with LF, and every checkout and
+# every `git archive` gets LF as well, whatever core.autocrlf says on the
+# machine. A release ships exactly these bytes: App\Update\Build\LineEndings
+# holds the same lists for the release builder, and Tests\Update\LineEndingsTest
+# keeps the two equal. A new file type gets a line here and one there
+# (docs/updates/RELEASES.md, "Regeleinden").
+
+# Not listed below: Git decides text or binary, and text gets LF. A release
+# refuses such a file until its type is listed.
+* text=auto eol=lf
+
+*.php           text eol=lf
+*.js            text eol=lf
+*.css           text eol=lf
+*.json          text eol=lf
+*.lock          text eol=lf
+*.md            text eol=lf
+*.txt           text eol=lf
+*.xml           text eol=lf
+*.yml           text eol=lf
+*.yaml          text eol=lf
+*.svg           text eol=lf
+*.ini           text eol=lf
+*.conf          text eol=lf
+*.sh            text eol=lf
+*.py            text eol=lf
+*.example       text eol=lf
+.htaccess       text eol=lf
+.gitignore      text eol=lf
+.gitattributes  text eol=lf
+.gitkeep        text eol=lf
+VERSION         text eol=lf
+Dockerfile      text eol=lf
+
+# Never converted, whatever bytes they hold.
+*.png           binary
+*.jpg           binary
+*.jpeg          binary
+*.gif           binary
+*.webp          binary
+*.avif          binary
+*.ico           binary
+*.woff          binary
+*.woff2         binary
+*.ttf           binary
+*.otf           binary
+*.pdf           binary

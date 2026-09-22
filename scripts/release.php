@@ -23,7 +23,9 @@
  *       and release.json. The source is ONE revision of the repository:
  *       `git archive --format=zip -o src.zip v0.2.0` made anywhere git runs,
  *       or --ref when git runs here too. vendor/ is a fresh
- *       `composer install --no-dev` unless --vendor-dir names one.
+ *       `composer install --no-dev` unless --vendor-dir names one. The
+ *       source's line endings do not matter: the builder ships text with LF
+ *       (App\Update\Build\LineEndings), on Windows as on Linux.
  *
  *   php scripts/release.php verify --dir=dist --public-key=<base64>
  *
@@ -126,7 +128,10 @@ try {
                 } elseif (isset($options['source-zip']) || isset($options['ref'])) {
                     $zipPath = (string) ($options['source-zip'] ?? $work . '/source.zip');
                     if (isset($options['ref'])) {
-                        [$status, $output] = run(['git', 'archive', '--format=zip', '-o', $zipPath, (string) $options['ref']], $root);
+                        // The repository's bytes, not this machine's checkout
+                        // settings: .gitattributes pins LF, and autocrlf off
+                        // covers a file type it does not list.
+                        [$status, $output] = run(['git', '-c', 'core.autocrlf=false', 'archive', '--format=zip', '-o', $zipPath, (string) $options['ref']], $root);
                         if ($status !== 0) {
                             fail("git archive failed:\n" . $output);
                         }
