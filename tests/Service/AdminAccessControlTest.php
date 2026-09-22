@@ -86,6 +86,11 @@ final class AdminAccessControlTest extends TestCase
         // endpoints behind it (media-list.php, media-upload.php) each check
         // media.view themselves.
         '_media_picker.php',
+        // The rows of a block editor's list (a FAQ's questions, a
+        // Detailsectie's images): output functions the calling editor uses
+        // behind its own pages.manage check. No URL and no data of its own;
+        // the rows are saved by the editor's own endpoint.
+        '_editor_rows.php',
         // The block picker: the button under a page's block list plus the
         // panel it opens, included by admin/page.php behind that page's own
         // pages.manage check. It renders no data of its own — the caller

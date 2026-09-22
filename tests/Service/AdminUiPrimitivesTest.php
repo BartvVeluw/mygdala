@@ -311,6 +311,17 @@ final class AdminUiPrimitivesTest extends TestCase
         }
 
         foreach ($users as $file) {
+            // A shared include (admin/_editor_rows.php) is no screen: every
+            // screen that includes it must render the shell instead.
+            if (str_starts_with($file, '_')) {
+                $includers = array_filter($screens, static fn (string $source): bool => str_contains($source, "/{$file}'"));
+                $this->assertNotSame([], $includers, 'admin/' . $file . ' uses a help component but no screen includes it');
+                foreach ($includers as $screen => $source) {
+                    $this->assertStringContainsString("/_header.php'", $source, 'admin/' . $screen . ' includes admin/' . $file . ' without the shell that drives its help');
+                }
+                continue;
+            }
+
             $this->assertArrayHasKey($file, $screens, 'admin/' . $file . ' uses a help component but is no screen of its own');
             $this->assertStringContainsString("/_header.php'", $screens[$file], 'admin/' . $file . ' uses a help component without the shell that defines and drives it');
         }
