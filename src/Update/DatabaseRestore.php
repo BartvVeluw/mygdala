@@ -74,7 +74,26 @@ final class DatabaseRestore
             }
         }
 
-        return ['offset' => 0, 'statements' => 0, 'done' => false];
+        return ['offset' => 0, 'table_offset' => 0, 'statements' => 0, 'done' => false];
+    }
+
+    /**
+     * The cursor to continue from when the previous step died halfway.
+     *
+     * The saved cursor points at the last statement boundary that was SAVED,
+     * but the dead request may have executed a few INSERTs beyond it; running
+     * those again would duplicate rows. Starting over at the current table's
+     * DROP TABLE is always safe: the dump recreates the table from nothing.
+     *
+     * @param array<string, mixed> $cursor
+     *
+     * @return array<string, mixed>
+     */
+    public static function resumeAfterInterruption(array $cursor): array
+    {
+        $cursor['offset'] = (int) ($cursor['table_offset'] ?? 0);
+
+        return $cursor;
     }
 
     /**
@@ -93,7 +112,18 @@ final class DatabaseRestore
         $this->schema->execute('SET FOREIGN_KEY_CHECKS = 0');
         $this->schema->execute("SET SQL_MODE = 'NO_AUTO_VALUE_ON_ZERO'");
 
-        while (($statement = $reader->next()) !== null) {
+        while (true) {
+            $startsAt = $reader->offset();
+            $statement = $reader->next();
+
+            if ($statement === null) {
+                break;
+            }
+
+            if (str_starts_with($statement, 'DROP TABLE IF EXISTS')) {
+                $cursor['table_offset'] = $startsAt;
+            }
+
             try {
                 $this->schema->execute($statement);
             } catch (\PDOException $e) {
