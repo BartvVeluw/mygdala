@@ -176,8 +176,8 @@ Dezelfde stack, dus dit sluit direct aan: upload de map via SSH of FTP, maak
 een MySQL-database in het Vimexx-paneel, zet echte gegevens in een `.env` op
 de server, en draai `composer install --no-dev` en `vendor/bin/phinx migrate`
 over SSH. De root-`.htaccess` blokkeert webtoegang tot `.env`, `vendor/`,
-`db/`, `src/`, `docker/`, `VERSION`, `release.json` en `.maintenance`, dus die
-mogen blijven staan.
+`db/`, `src/`, `docker/`, `scripts/`, `VERSION`, `release.json` en
+`.maintenance`, dus die mogen blijven staan.
 
 Een **release-installatie** — uitgepakt uit een releasepakket, met
 `release.json` in de root — werkt zichzelf daarna bij vanuit het CMS:

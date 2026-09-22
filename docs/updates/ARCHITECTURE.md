@@ -10,7 +10,7 @@ Drie documenten:
 | Document | Waarover |
 |---|---|
 | dit document | hoe de updater werkt en waarom zo |
-| [`RELEASES.md`](RELEASES.md) | versiebeleid, de releasesleutel, een release maken en publiceren |
+| [`RELEASES.md`](RELEASES.md) | versiebeleid, de releasesleutel, een release maken en publiceren, een Git-installatie overzetten |
 | [`RECOVERY.md`](RECOVERY.md) | wat er gebeurt als een update misgaat, en hoe je herstelt |
 
 De code staat in `src/Update/` (`CLAUDE.md` daar is de korte versie). Wijkt de
@@ -55,7 +55,7 @@ uitzondering per bestand.
 | `vendor/` (no-dev, meegeleverd: een gedeelde host heeft geen Composer) | ja | ja | nee | idem |
 | `scripts/` (productietools; niet `test-db.php`, `create_fresh_site_copy.php`, `release.php`) | ja | ja | nee | idem |
 | `release.json` | ja, als allerlaatste | ja | nee | ja |
-| `*.md`, `docs/`, `tests/`, `docker/`, `docker-compose.yml`, `phpunit.xml`, `.claude/`, editor- en tijdelijke bestanden | nee, zit niet in een release | nooit | ja, blijft staan als het er is | nee |
+| `*.md`, `docs/`, `tests/`, `docker/`, `docker-compose.yml`, `phpunit.xml`, `.claude/`, editor- en tijdelijke bestanden, een verdwaalde `mygdala-release.key` | nee, zit niet in een release | nooit | ja, blijft staan als het er is | nee |
 | `.env`, `.env.*` | nee, installatie | **nooit** | ja | nee |
 | `assets/media/`, `assets/images/` (behalve `block-preview/`), `assets/videos/`, `assets/fonts/personalization/*` | nee, uploads | **nooit** | ja | nee |
 | `storage/` en de privé-opslag naast de site (bijlagen, facturen, personalisatie) | nee | **nooit** | ja | nee |

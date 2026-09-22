@@ -89,6 +89,13 @@ docker/volumes/
 /.maintenance
 /dist/
 
+# The SECRET release signing key that `scripts/release.php keygen` writes. It
+# belongs offline, never in git and never on a server (docs/updates/RELEASES.md).
+# keygen already refuses a directory inside this repository; this line catches
+# a copy that ends up here anyway, at any depth. keygen writes no other file:
+# the public key is only printed, and is meant to be committed.
+mygdala-release.key
+
 # Temp files
 *.tmp
 *.bak

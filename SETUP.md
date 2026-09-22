@@ -436,9 +436,17 @@ docker compose exec php php vendor/bin/phinx migrate
 
 Een **release-installatie** (uitgepakt uit een releasepakket, met
 `release.json` in de root) werk je bij vanuit het CMS: **Instellingen →
-Updates**. Zie [`docs/updates/ARCHITECTURE.md`](docs/updates/ARCHITECTURE.md);
-hoe je een bestaande installatie één keer naar het releasemodel overzet, staat
-in [`docs/updates/RELEASES.md`](docs/updates/RELEASES.md).
+Updates**. Zie [`docs/updates/ARCHITECTURE.md`](docs/updates/ARCHITECTURE.md).
+
+Een installatie uit Git wordt geen release-installatie door er alleen een
+`release.json` bij te zetten: zolang er een `.git` staat, weigert de updater
+haar, en wat afwijkt van de release blokkeert de eerste update. Ook het pakket
+over de site heen uitpakken is geen overstap, want alles wat de release niet
+heeft blijft dan staan. De overstap gebeurt één keer en gecontroleerd, naar
+precies de versie die de installatie al draait: zie
+[`docs/updates/RELEASES.md`](docs/updates/RELEASES.md), "Een bestaande
+installatie overzetten naar het releasemodel". Daarna doe je op die
+installatie geen `git pull` meer.
 
 ### Welke modules aan
 

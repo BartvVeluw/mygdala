@@ -179,7 +179,9 @@ laatste update onder *Eerdere updates*.
 - **"Er is geen updatebron ingesteld".** `MYGDALA_UPDATE_MANIFEST_URL` of de
   releasesleutel ontbreekt (`ARCHITECTURE.md`, "Configuratie").
 - **"Deze installatie is een ontwikkelversie (Git)".** Werk hem bij met
-  `git pull`, `composer install` en `phinx migrate` (`SETUP.md`).
+  `git pull`, `composer install` en `phinx migrate` (`SETUP.md`), of zet hem
+  één keer over naar het releasemodel (`RELEASES.md`). Alleen `.git`
+  weghalen is die overstap niet.
 - **De site toont de onderhoudspagina, maar er loopt geen update.** Kijk
   eerst op het Updates-scherm; staat daar niets, verwijder dan `.maintenance`
   uit de siteroot.

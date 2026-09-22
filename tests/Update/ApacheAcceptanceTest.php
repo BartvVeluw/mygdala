@@ -47,6 +47,10 @@ final class ApacheAcceptanceTest extends TestCase
         '/composer.json', '/composer.lock', '/phinx.php',
         '/vendor/autoload.php', '/vendor/composer/installed.json', '/src/Update/Updater.php', '/src/Update/UpdateState.php',
         '/db/migrations/', '/docker/Dockerfile', '/storage/probe.txt',
+        // No release has this file, so only .htaccess's rule for the whole
+        // folder can answer 403 rather than 404; the scripts a release does
+        // ship also refuse a web request themselves.
+        '/scripts/release.php',
         // What a crashed update could leave in the web root.
         '/index.php.mygdala-0123abcd.tmp', '/.maintenance.1a2b3c4d.tmp',
     ];

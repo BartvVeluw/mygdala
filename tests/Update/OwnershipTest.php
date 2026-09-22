@@ -96,6 +96,8 @@ final class OwnershipTest extends TestCase
         yield 'the test database script' => ['scripts/test-db.php'];
         yield 'the release command' => ['scripts/release.php'];
         yield 'build output' => ['dist/manifest.json'];
+        yield 'the release signing key' => ['mygdala-release.key'];
+        yield 'a stray copy of the signing key' => ['admin/mygdala-release.key'];
     }
 
     /** @dataProvider developmentPaths */
@@ -154,6 +156,33 @@ final class OwnershipTest extends TestCase
     {
         foreach (FreshSiteCopyPolicy::WRITABLE_DIRECTORIES as $directory) {
             $this->assertTrue(Ownership::isInstallationOwned($directory . '/x.jpg'), $directory);
+        }
+    }
+
+    /**
+     * The secret key `release.php keygen` writes is never tracked and never
+     * shipped, however it got into the tree. The file names are read from the
+     * command itself, so a renamed key file cannot leave .gitignore and the
+     * contract guarding the old name — and a second secret file would show up
+     * here as a list that no longer matches.
+     */
+    public function testTheReleaseSigningKeyIsNeitherTrackedNorShipped(): void
+    {
+        $command = (string) file_get_contents(self::root() . '/scripts/release.php');
+        preg_match_all("#'/([A-Za-z0-9._-]+\\.key)'#", $command, $matches);
+        $keyFiles = array_values(array_unique($matches[1]));
+
+        $this->assertSame(['mygdala-release.key'], $keyFiles, 'the secret files keygen writes');
+
+        $ignored = array_map('trim', file(self::root() . '/.gitignore', FILE_IGNORE_NEW_LINES) ?: []);
+
+        foreach ($keyFiles as $keyFile) {
+            // A bare name, no slash: git ignores it in every directory.
+            $this->assertContains($keyFile, $ignored, ".gitignore does not ignore {$keyFile} everywhere");
+
+            foreach ([$keyFile, 'src/' . $keyFile, 'storage/' . $keyFile] as $path) {
+                $this->assertFalse(Ownership::isShipped($path), $path);
+            }
         }
     }
 

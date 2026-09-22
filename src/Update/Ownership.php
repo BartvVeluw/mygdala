@@ -106,7 +106,14 @@ final class Ownership
      */
     private const DEVELOPMENT_EXTENSIONS = ['tmp', 'bak', 'orig', 'swp', 'swo', 'log'];
 
-    private const DEVELOPMENT_BASENAMES = ['.DS_Store', 'Thumbs.db', 'desktop.ini'];
+    /**
+     * File names that never ship, in any directory: OS leftovers, and the
+     * SECRET release signing key `scripts/release.php keygen` writes. keygen
+     * refuses a directory inside the repository and .gitignore keeps a copy
+     * out of git; this keeps a build from a working directory (--source-dir)
+     * from putting one in a public package all the same.
+     */
+    private const DEVELOPMENT_BASENAMES = ['.DS_Store', 'Thumbs.db', 'desktop.ini', 'mygdala-release.key'];
 
     private const DEVELOPMENT_FILES = [
         '.gitignore',
