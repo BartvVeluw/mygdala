@@ -202,8 +202,7 @@ final class UpgradeEndToEndTest extends TestCase
         $answers = $site->runSteps();
 
         $this->assertSame('completed', end($answers)['status'], json_encode($answers, JSON_PRETTY_PRINT) . $site->serverLog());
-        $this->assertSame("0.2.0
-", file_get_contents($site->root() . '/VERSION'));
+        $this->assertSame("0.2.0\n", file_get_contents($site->root() . '/VERSION'));
         $this->assertTrue($site->hasTable('updater_e2e_marker'));
     }
 
