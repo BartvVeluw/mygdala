@@ -86,6 +86,13 @@ final class FeedFixture
         file_put_contents($this->directory . '/manifest.json.sig', ReleaseSignature::sign($bytes, $this->keys['secret']));
     }
 
+    /** Writes manifest bytes and their signature into another directory (a sandbox's feed). */
+    public function signInto(string $directory, string $bytes): void
+    {
+        file_put_contents($directory . '/manifest.json', $bytes);
+        file_put_contents($directory . '/manifest.json.sig', ReleaseSignature::sign($bytes, $this->keys['secret']));
+    }
+
     public function remove(): void
     {
         self::removeDirectory($this->directory);

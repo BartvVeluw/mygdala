@@ -40,8 +40,9 @@ final class SandboxServer
     /**
      * @param array<string, string> $environment
      * @param bool                   $inherit     add this process's environment underneath
+     * @param list<string>           $prefix      runs the server through this (setpriv to www-data)
      */
-    public static function start(string $docroot, array $environment = [], ?string $router = null, bool $inherit = true, ?int $port = null): ?self
+    public static function start(string $docroot, array $environment = [], ?string $router = null, bool $inherit = true, ?int $port = null, array $prefix = []): ?self
     {
         $port ??= self::freePort();
         if ($port === null) {
@@ -51,7 +52,7 @@ final class SandboxServer
         $base = $inherit ? array_map('strval', getenv()) : ['PATH' => (string) getenv('PATH')];
         $environment += ['PHP_CLI_SERVER_WORKERS' => '4'];
 
-        $command = [PHP_BINARY, '-S', '127.0.0.1:' . $port, '-t', $docroot];
+        $command = [...$prefix, PHP_BINARY, '-S', '127.0.0.1:' . $port, '-t', $docroot];
         if ($router !== null) {
             $command[] = $router;
         }
@@ -118,6 +119,7 @@ final class SandboxServer
         }
 
         @unlink($this->cookieJar);
+        @unlink(sys_get_temp_dir() . '/sandbox-server-' . $this->port . '.log');
     }
 
     /**
@@ -128,7 +130,7 @@ final class SandboxServer
      *
      * @return array{status: int, location: string, body: string, headers: string}
      */
-    public function request(string $method, string $path, array $fields = [], array $headers = [], int $timeout = 120): array
+    public function request(string $method, string $path, array $fields = [], array $headers = [], int $timeout = 120, bool $cookies = true): array
     {
         $handle = curl_init($this->url($path));
 
@@ -137,10 +139,13 @@ final class SandboxServer
             CURLOPT_HEADER => true,
             CURLOPT_FOLLOWLOCATION => false,
             CURLOPT_TIMEOUT => $timeout,
-            CURLOPT_COOKIEJAR => $this->cookieJar,
-            CURLOPT_COOKIEFILE => $this->cookieJar,
             CURLOPT_HTTPHEADER => $headers,
         ];
+
+        if ($cookies) {
+            $options[CURLOPT_COOKIEJAR] = $this->cookieJar;
+            $options[CURLOPT_COOKIEFILE] = $this->cookieJar;
+        }
 
         if ($method === 'POST') {
             $options[CURLOPT_POST] = true;

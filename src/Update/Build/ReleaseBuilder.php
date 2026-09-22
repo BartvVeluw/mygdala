@@ -220,7 +220,7 @@ final class ReleaseBuilder
                 throw self::refuse('cannot add ' . $relative);
             }
 
-            $zip->setCompressionName($relative, \ZipArchive::CM_DEFLATE, 9);
+            $zip->setCompressionName($relative, \ZipArchive::CM_DEFLATE);
             $zip->setMtimeName($relative, $timestamp);
             $zip->setExternalAttributesName($relative, \ZipArchive::OPSYS_UNIX, 0100644 << 16);
         }

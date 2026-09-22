@@ -9,6 +9,9 @@
  * have been touched this refuses; from there the only ways are forward or
  * back through the rollback.
  *
+ * Reachable during maintenance (App\Update\MaintenanceGuard::EXEMPT): an
+ * update can still be aborted while its backup runs, with the flag up.
+ *
  * Same PRG/session-flash pattern as api/admin/updates-check.php.
  */
 

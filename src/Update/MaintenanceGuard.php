@@ -39,6 +39,10 @@ final class MaintenanceGuard
         'admin/logout.php',
         'admin/updates.php',
         'api/admin/updates-step.php',
+        // Aborting is possible while the flag is up (during the backup), so
+        // it has to be reachable then; the endpoint itself refuses once files
+        // or the database have been touched.
+        'api/admin/updates-abort.php',
         'api/admin/updates-resolve.php',
     ];
 
