@@ -82,6 +82,12 @@ final class FreshSiteCopyPolicy
         'docker/mysql-data',
         'docker/volumes',
         '.phpunit.result.cache',
+        // The self-updater's per-installation files (docs/updates/): the
+        // record of which release is installed here, the flag of an update in
+        // progress, and the packages scripts/release.php builds.
+        'release.json',
+        '.maintenance',
+        'dist',
 
         // Group 3: this site's own pictures, in every form. Broad on
         // purpose — `assets/images` holds the site's photography AND the

@@ -97,6 +97,8 @@
             <file>tests/Service/Shipping/ShippingCalculationServiceTest.php</file>
             <file>tests/Service/Shipping/ShippingProfileTest.php</file>
             <file>tests/Service/TurnstileVerifierTest.php</file>
+            <file>tests/Update/VersionAndPathTest.php</file>
+            <file>tests/Update/ReleaseManifestTest.php</file>
         </testsuite>
 
         <!-- Architecture and source contracts: these read the project's own
@@ -156,6 +158,7 @@
             <file>tests/Service/SiteIdentityTest.php</file>
             <file>tests/Service/ThemeRenderingTest.php</file>
             <file>tests/Service/ThemeSettingsTest.php</file>
+            <file>tests/Update/OwnershipTest.php</file>
         </testsuite>
 
         <!-- unit + contract: everything that needs nothing but PHP. The one
@@ -281,6 +284,9 @@
             <file>tests/Service/SiteSettingsValidatorTest.php</file>
             <file>tests/Service/ShopSettingsTest.php</file>
             <file>tests/Service/TurnstileVerifierTest.php</file>
+            <file>tests/Update/VersionAndPathTest.php</file>
+            <file>tests/Update/ReleaseManifestTest.php</file>
+            <file>tests/Update/OwnershipTest.php</file>
         </testsuite>
 
         <!-- Needs a web server wired to the test database: the php_test
@@ -654,6 +660,16 @@
             <file>tests/Service/DashboardAttentionTest.php</file>
             <file>tests/Service/DashboardMetricsTest.php</file>
             <file>tests/Service/DashboardPageTest.php</file>
+        </testsuite>
+
+        <!-- The self-updater (docs/updates/): versions, the ownership
+             contract, the signed feed, package handling, backup and
+             recovery, and the upgrade paths it is proven on. The upgrade
+             tests build throwaway installations with their own database
+             and web server, and skip where the MySQL root account is not
+             available, like the migration tier. -->
+        <testsuite name="updater">
+            <directory>tests/Update</directory>
         </testsuite>
 
         <!-- Everything, exactly once. The default, and the checkpoint. -->

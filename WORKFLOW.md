@@ -144,7 +144,7 @@ De Shop heeft twaalf globs nodig omdat zijn bestanden plat verspreid staan
 tussen die van Core. Dat is de beste aanwijzing die we hebben dat de Shop ooit een
 eigen map verdient. Zie "Wat er open staat".
 
-## De vijftien mapregels
+## De zestien mapregels
 
 Elke map die al een domein ís, heeft een eigen `CLAUDE.md` van acht tot vijftien
 regels. Die laadt zodra je een bestand in die map opent, en staat naast de code
@@ -166,6 +166,7 @@ src/Service/Redirects/         één opzoekpunt, uitgeschakelde modules
 src/Service/Shipping/          deelgebied binnen de Shop
 src/Service/Theme/             publieke site versus AdminTheme
 src/Service/Translation/       het providercontract, niet DeepL
+src/Update/                    het eigendomscontract, één versie, release.json als commitpunt
 ```
 
 ## Alle documenten

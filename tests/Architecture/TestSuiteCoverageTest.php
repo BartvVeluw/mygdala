@@ -22,7 +22,7 @@ use SimpleXMLElement;
 final class TestSuiteCoverageTest extends TestCase
 {
     /** Suites that answer "which part of the system", between them covering everything. */
-    private const DOMAIN_SUITES = ['modules', 'blog', 'blocks', 'cms', 'shop', 'personalization', 'analytics'];
+    private const DOMAIN_SUITES = ['modules', 'blog', 'blocks', 'cms', 'shop', 'personalization', 'analytics', 'updater'];
 
     /** Suites that answer "what does it need to run"; these deliberately cover only part. */
     private const TIER_SUITES = ['unit', 'contract', 'fast', 'http', 'migration'];

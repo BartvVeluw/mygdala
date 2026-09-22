@@ -80,6 +80,15 @@ docker/volumes/
 !/assets/fonts/personalization/.gitkeep
 !/assets/fonts/personalization/.htaccess
 
+# The self-updater (docs/updates/). release.json is generated INTO a release
+# package by the builder and describes that package; a development checkout
+# has none, which is how the Updates screen knows it is not a release
+# installation. .maintenance is the flag an update in progress sets. dist/ is
+# where scripts/release.php writes packages; they are published, not committed.
+/release.json
+/.maintenance
+/dist/
+
 # Temp files
 *.tmp
 *.bak
