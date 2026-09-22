@@ -310,8 +310,9 @@ zetten is niet genoeg:**
 - **Wat afwijkt van `release.json`, blokkeert de eerste update.** Preflight
   vergelijkt elk Core-bestand met zijn hash (`LocalChanges`). Een uitchecking
   wijkt altijd af: haar `vendor/` komt van `composer install` mét
-  dev-pakketten, en een Windows-werkkopie heeft andere regeleinden
-  (`core.autocrlf`), ook als Git zegt dat er niets gewijzigd is.
+  dev-pakketten, en de regeleinden van een werkkopie hoeven niet die van het
+  pakket te zijn (Windows, `core.autocrlf`, "Regeleinden"), ook als Git zegt
+  dat er niets gewijzigd is.
 - **Wat geen release noemt, ruimt de updater nooit op** (`ARCHITECTURE.md`,
   "Het eigendomscontract"). `tests/`, `docs/`, `.claude/`, de dev-pakketten in
   `vendor/` of een oud template blijven dan voorgoed staan, en Apache serveert
@@ -321,16 +322,37 @@ Daarom ook **niet het zip-bestand over de site heen uitpakken.** Dat
 vervangt de releasebestanden, maar laat alles staan wat de release niet heeft,
 `.git` incluis. De overstap gebeurt één keer, met de hand, naar precies de
 versie die de installatie al draait. Voor de bestaande installaties is dat
-**0.1.0**.
+**0.1.0**. `mygdala-test` is zo op 22 september 2026 overgezet, vanaf
+Git-commit `d45e67e`; wat daarbij bleek, staat hieronder verwerkt.
+
+### Vóór en na de releasecode
+
+De controles van deze procedure gebruiken de tooling van de updater zelf:
+`release.php verify`, het eigendomscontract (`App\Update\Ownership`),
+`LocalChanges` en de onderhoudsguard. **Een installatie van vóór 0.1.0 heeft
+die nog niet**, en geen pakket brengt `scripts/release.php` mee: dat is
+gereedschap van de releasemaker. Welke code een stap draait, hangt er dus
+van af of de releasecode al in de site staat:
+
+| Moment | Welke code | Waarvoor |
+|---|---|---|
+| vóór de kopie (stap 1) | een vertrouwde uitchecking van `v0.1.0` of later: de installatie zelf als ze met Git op `v0.1.0` staat, anders een uitchecking buiten de installatie (die van de releasemaker) | `release.php verify` op de vier bestanden |
+| vóór de kopie (stap 4) | het uitgepakte pakket naast de site (`../mygdala-0.1.0/vendor/autoload.php`), pas na `verify` | het eigendomscontract voor de verschil- en de opruimlijst |
+| na de kopie (stap 4–9) | de site zelf (`vendor/autoload.php`, `release.json`) | de onderhoudsguard, `LocalChanges`, het Updates-scherm |
+
+Controleer een pakket nooit met code uit datzelfde pakket: dan controleert
+het zichzelf.
+
+### De stappen
 
 Nodig: de vier bestanden van die release (`dist/` of de feed), een shell met
 PHP-CLI in de map van de installatie (in Docker: `docker compose exec php`
 ervoor), en een rustig moment. Zo:
 
-1. **Bewijs dat de installatie 0.1.0 is**, nog met Git:
+1. **Bewijs welke revisie de installatie draait**, nog met Git:
 
    ```bash
-   php scripts/release.php verify --dir=/pad/naar/de/vier/bestanden --public-key=<base64 publieke sleutel>
+   php <uitchecking>/scripts/release.php verify --dir=/pad/naar/de/vier/bestanden --public-key=<base64 publieke sleutel>
    git fetch --tags
    git describe --exact-match --tags HEAD
    git rev-parse HEAD
@@ -339,16 +361,33 @@ ervoor), en een rustig moment. Zo:
    php vendor/bin/phinx status
    ```
 
-   `verify` zegt OK (het script verdwijnt in stap 4). `describe` zegt
-   `v0.1.0`, en de build-id in de `release.json` van het pakket
-   (`0.1.0+<commit>`) begint met dezelfde twaalf tekens als
-   `git rev-parse HEAD`. `git status --porcelain` is leeg: een lokale wijziging
+   `verify` zegt OK. `git status --porcelain` is leeg: een lokale wijziging
    aan Core neem je eerst in Mygdala op of draai je terug. `--ignored` toont
    wat er staat zonder dat Git het bijhoudt (`.env`, uploads, `vendor/`, logs,
    misschien een `dist/`); je komt het in stap 4 weer tegen. Phinx meldt niets
    openstaands, en de nieuwste migratie is `migrations.latest` uit
-   `release.json`. Staat de installatie op een andere revisie, breng haar dan
-   eerst met Git en Phinx naar `v0.1.0` en begin hier opnieuw.
+   `release.json`. Dan:
+
+   - **`describe` zegt `v0.1.0`**, en de build-id in de `release.json` van
+     het pakket (`0.1.0+<commit>`) begint met dezelfde twaalf tekens als
+     `git rev-parse HEAD`. Dit is de gewone weg.
+   - **De installatie staat op een eerdere commit.** Breng haar bij voorkeur
+     eerst met Git en Phinx naar `v0.1.0` en begin hier opnieuw. Blijven op
+     die commit mag alleen als ze een voorouder is van de releasecommit en er
+     tussen die twee niets in `db/` verandert, zodat de database al precies
+     op het niveau van de release zit:
+
+     ```bash
+     git merge-base --is-ancestor HEAD v0.1.0 && echo voorouder
+     git diff --name-only HEAD v0.1.0 -- db/
+     git diff --name-status HEAD v0.1.0 > ../git-bereik.txt
+     ```
+
+     De tweede regel geeft niets. Bewaar `git-bereik.txt`: in stap 4 moet de
+     verschillijst precies de `M`- en `A`-bestanden daaruit tonen die de
+     release bevat, en niets anders. Zo is `mygdala-test` vanaf `d45e67e`
+     overgezet: 10 gewijzigde en 49 ontbrekende release-bestanden, precies
+     Git's lijst.
 2. **Maak een volledige back-up:** een dump van de database, de hele map van
    de site met `.git` en `.env` erin, en de privé-opslag naast de site
    (bijlagen, facturen, personalisatie-uploads). Controleer dat de dump te
@@ -356,9 +395,9 @@ ervoor), en een rustig moment. Zo:
 3. **Haal `.git` uit de installatie.** Verplaats de map (of het bestand) naar
    buiten de webroot, naast de back-up, of verwijder hem als de back-up hem
    bevat. Vanaf hier is dit geen Git-uitchecking meer.
-4. **Maak de release-eigen bestanden gelijk aan 0.1.0.** Zet de site eerst in
-   onderhoud met een leeg bestand `.maintenance` in de root: bezoekers krijgen
-   een 503 zolang de bestanden niet bij elkaar passen.
+4. **Maak de release-eigen bestanden gelijk aan 0.1.0**, in twee delen.
+
+   **Voorbereiden, buiten de webroot.** De site draait gewoon door.
 
    - Pak het pakket uit in een **lege map naast de site**, niet erin en niet
      eroverheen, en zet `release.json` daar meteen apart (die komt pas in
@@ -370,9 +409,21 @@ ervoor), en een rustig moment. Zo:
      mv ../mygdala-0.1.0/release.json ../release-0.1.0.json
      ```
 
-   - Maak de lijst van wat weg moet: elk bestand in de site dat de release
-     niet heeft en dat geen installatiedata is. Wat installatiedata is,
-     beslist het eigendomscontract van de release zelf:
+   - Maak de **verschillijst**: elk release-bestand dat in de site ontbreekt
+     of andere bytes heeft, en of het verschil alleen in de regeleinden zit:
+
+     ```bash
+     php -r '$release = json_decode(file_get_contents("../release-0.1.0.json"), true)["files"];
+         $lf = fn ($file) => str_replace("\r\n", "\n", (string) file_get_contents($file));
+         foreach ($release as $path => $hash) {
+             if (!is_file($path)) echo "ontbreekt\t$path\n";
+             elseif (hash_file("sha256", $path) !== $hash) echo ($lf($path) === $lf("../mygdala-0.1.0/$path") ? "regeleinden" : "anders"), "\t$path\n";
+         }' > ../verschil.txt
+     ```
+
+   - Maak de **opruimlijst**: elk bestand in de site dat de release niet
+     heeft en dat geen installatiedata is. Wat installatiedata is, beslist
+     het eigendomscontract van de release zelf:
 
      ```bash
      php -r 'require "../mygdala-0.1.0/vendor/autoload.php";
@@ -384,33 +435,83 @@ ervoor), en een rustig moment. Zo:
          }' > ../overbodig.txt
      ```
 
-   - **Lees die lijst.** Verwacht zijn `.gitignore`, `.gitattributes`,
-     `tests/`, `docs/`, `docker/`, `.claude/`, de `*.md`-bestanden,
-     `phpunit.xml`, `docker-compose.yml`, `scripts/test-db.php`,
+   - **Lees beide lijsten.** In de verschillijst hoort `anders` en
+     `ontbreekt` alleen bij bestanden die tussen de revisie van de
+     installatie en de release veranderd zijn (bij `v0.1.0` zelf: geen), plus
+     `vendor/`; `regeleinden` is verwacht op een Windows-werkkopie. Op de
+     opruimlijst zijn verwacht: `.gitignore`, `.gitattributes`, `tests/`,
+     `docs/`, `docker/`, `.claude/`, de `*.md`-bestanden, `phpunit.xml`,
+     `docker-compose.yml`, `scripts/test-db.php`,
      `scripts/create_fresh_site_copy.php`, `scripts/release.php`, een
      eventuele `dist/`, logs, en de dev-pakketten in `vendor/` (PHPUnit en wat
      het meebrengt). Een bestand dat je niet verwacht, zoals een oud template
      of iets wat ooit met de hand is neergezet, is precies wat deze stap moet
      vinden: het gaat weg, tenzij het installatiedata is die het contract niet
      kent. Stop dan en laat het contract aanvullen (`Ownership`), in plaats van
-     iemands upload weg te gooien. Wat je bewust laat staan, noteer je: een
-     Docker-installatie waarvan de projectmap de webroot is, heeft
-     `docker-compose.yml` en `docker/` nodig om te draaien. De updater raakt
-     zulke ontwikkelbestanden nooit aan.
-   - Kopieer de release over de site, zodat elk release-bestand precies de
-     bytes van het pakket heeft: `cp -R ../mygdala-0.1.0/. .` Doe dat als de
-     gebruiker waaronder PHP draait (in Docker:
-     `docker compose exec -u www-data php …`), anders zijn de bestanden straks
-     niet schrijfbaar voor de updater.
-   - Verwijder daarna wat op de lijst staat, behalve wat je bewust laat staan,
-     en de mappen die daardoor leeg raken. Lege installatiemappen
-     (`storage/`, `assets/media/`) laat je staan. De lijst en de kopie raken
-     elkaar niet: op de lijst staat alleen wat de release niet heeft.
+     iemands upload weg te gooien.
+   - **Hostinginfrastructuur mag blijven.** Wat nodig is om déze installatie
+     te laten draaien en geen release-bestand is, hoort bij de installatie,
+     ook als het contract het een ontwikkelbestand noemt. Een
+     Docker-installatie waarvan de projectmap de webroot is, zoals
+     `mygdala-test`, heeft `docker-compose.yml` en `docker/` nodig: die blijven
+     staan en je noteert ze als bewust behouden. Geen release bevat ze, de
+     updater vervangt of verwijdert ze nooit, en `.htaccess` weigert ze aan
+     bezoekers (`docker/` als map, `docker-compose.yml` vanaf de eerstvolgende
+     release na 0.1.0; onder 0.1.0 serveert Apache dat bestand nog).
+   - **Controleer de rechten.** De kopie hieronder en elke latere update
+     schrijven als **de gebruiker waaronder de webserver PHP uitvoert**: niet
+     als jij en niet als root. Welke gebruiker dat is, verschilt per host: op
+     gedeelde hosting meestal je eigen account, op een eigen server wat de
+     configuratie van de webserver of de PHP-FPM-pool zegt, in het Docker-image
+     van deze repository `www-data`. De eigenaar van een bestand dat de site
+     zelf schreef (een upload onder `assets/media/`) vertelt het ook. Als die
+     gebruiker (`sudo -u <php-gebruiker>`, in Docker
+     `docker compose exec -u <php-gebruiker> php`):
+
+     ```bash
+     find . ! -writable
+     ```
+
+     Dit moet niets geven, of alleen installatiebestanden die je bewust zo
+     laat. Bij `mygdala-test` stond `vendor/` op `root:root`, omdat het
+     Docker-image bij het starten `composer install` als root draait: de
+     PHP-gebruiker kon `vendor/` niet overschrijven. Herstel het als root, en
+     alleen wat `find` noemde: `chown -R <php-gebruiker>:<groep> vendor`.
+     Nooit `chmod -R 777`.
+
+   **Het onderhoudsvenster.** `.maintenance` werkt alleen als de code de
+   onderhoudsguard laadt, en die zit in `vendor/autoload.php` vanaf 0.1.0.
+   **Een installatie van vóór 0.1.0 is vóór de kopie niet betrouwbaar in
+   onderhoud te zetten:** de vlag doet niets tot de kopie `vendor/` en
+   `src/Update/` van de release heeft neergezet, en tijdens de kopie antwoordt
+   de site met een mengsel van oude en nieuwe bestanden. De volgorde die bij
+   `mygdala-test` gebruikt is:
+
+   1. vlag neerzetten, direct voor de kopie: `touch .maintenance`. Een
+      installatie die al 0.1.0-code draait, geeft vanaf nu een 503; een oudere
+      nog niet;
+   2. de release over de site kopiëren, als de PHP-gebruiker, zodat elk
+      release-bestand precies de bytes van het pakket heeft:
+      `cp -R ../mygdala-0.1.0/. .` Uiterlijk als de kopie klaar is, krijgen
+      bezoekers de 503 (bij `mygdala-test` duurde de kopie 16 seconden);
+   3. verwijderen wat op de opruimlijst staat, behalve wat je bewust laat
+      staan, en de mappen die daardoor leeg raken. Lege installatiemappen
+      (`storage/`, `assets/media/`) laat je staan. De lijst en de kopie raken
+      elkaar niet: op de lijst staat alleen wat de release niet heeft;
+   4. `release.json` als laatste (stap 6);
+   5. de vlag weg en controleren (stap 9).
+
+   Mag een drukke productiesite die paar seconden van de kopie niet
+   onbeschermd zijn, sluit haar dan bij de host af (de webserver stoppen, of
+   de onderhoudsfunctie van het hostingpanel) en open haar na stap 6.
+   `.maintenance` is dan het tweede slot.
 5. **Installatiedata blijft staan:** `.env`, de uploads onder `assets/`,
    `storage/`, de privé-opslag naast de site, `.user.ini` of `php.ini` van de
-   host. De lijst slaat ze over omdat `Ownership` ze installatie-eigendom noemt,
-   en het pakket bevat ze niet, dus de kopie raakt ze niet. De database blijft
-   zoals hij is: de migraties van 0.1.0 draaiden al (stap 1).
+   host, en de hostinginfrastructuur uit stap 4. De opruimlijst slaat ze
+   over omdat `Ownership` ze installatie-eigendom noemt (de
+   hostinginfrastructuur noteer je zelf als bewust behouden), en het pakket
+   bevat geen van alle, dus de kopie raakt ze niet. De database blijft zoals
+   hij is: de migraties van 0.1.0 draaiden al (stap 1).
 6. **Zet `release.json` als laatste neer:** `cp ../release-0.1.0.json
    release.json`. Ook de updater schrijft hem als laatste; het is het
    commitpunt. Vanaf nu zegt de installatie dat ze precies 0.1.0 is.
@@ -420,6 +521,8 @@ ervoor), en een rustig moment. Zo:
    de lijst, de rest is overschreven. Draai op een release-installatie nooit
    `composer install`, ook later niet: `release.json` kent de hash van elk
    bestand in `vendor/`, dus elke wijziging daar blokkeert de volgende update.
+   Let op een Docker-image dat bij het starten `composer install` draait als
+   `vendor/autoload.php` ontbreekt: laat die map dus nooit leeg.
 8. **Stel de updater in**, in `.env` (`ARCHITECTURE.md`, "Configuratie"):
    voor de projectfeed hoeft er niets; `MYGDALA_UPDATE_MANIFEST_URL` en
    `MYGDALA_UPDATE_PUBLIC_KEY` alleen voor een distributie met een eigen feed
@@ -428,11 +531,10 @@ ervoor), en een rustig moment. Zo:
    tweede site gedeeld zou worden: buiten de webroot, één per site.
 9. **Controleer.** Haal `.maintenance` weg: zolang hij staat, krijgen
    bezoekers een 503, en Preflight weigert een vlag waarvoor geen update
-   loopt. Daarna:
+   loopt. Daarna, nu met de code van de site zelf:
 
-   - de lijst uit stap 4 opnieuw, nu met `vendor/autoload.php` en
-     `release.json` van de site zelf: die is leeg, op wat je bewust liet staan
-     na;
+   - de opruimlijst uit stap 4 opnieuw, met `vendor/autoload.php` en
+     `release.json` van de site: die is leeg, op wat je bewust liet staan na;
    - de bestanden tegen `release.json`, zoals Preflight dat bij de eerste
      update doet. Dit moet `OK` zeggen:
 
@@ -440,18 +542,20 @@ ervoor), en een rustig moment. Zo:
      php -r 'require "vendor/autoload.php"; $changes = App\Update\LocalChanges::detect(getcwd(), App\Update\ReleaseDescriptor::installed(getcwd())); echo $changes->isClean() ? "OK\n" : implode("\n", [...$changes->modified, ...$changes->missing]) . "\n";'
      ```
 
+   - `find . ! -writable` als de PHP-gebruiker: leeg, op bewust behouden
+     installatiebestanden na;
    - `php vendor/bin/phinx status`: niets openstaands, de nieuwste is
      `migrations.latest`;
    - **Instellingen → Updates**: "Geïnstalleerd vanuit een release", versie
-     0.1.0 met zijn build-id. Zodra feed en sleutel bestaan, geeft
-     **Controleren op updates** de eerste preflightronde zonder fouten;
+     0.1.0 met zijn build-id. **Controleren op updates** geeft de eerste
+     preflightronde zonder fouten;
    - de site en het CMS openen, inloggen, een pagina bekijken.
 
    De tweede preflightronde (lokale wijzigingen, migratieniveau,
    schrijfbaarheid) draait pas bij de eerste echte update. De controles
-   hierboven doen de eerste twee nu al, zodat die update geen verrassing
-   vindt. Ruim daarna `../mygdala-0.1.0/` op; bewaar de back-up tot de eerste
-   update gelukt is.
+   hierboven doen die nu al, zodat die update geen verrassing vindt. Ruim
+   daarna `../mygdala-0.1.0/` op; bewaar de back-up tot de eerste update
+   gelukt is.
 10. **Geen `git pull` meer.** Deze installatie werkt zichzelf voortaan bij via
     **Instellingen → Updates**. `git pull`, `composer install`, een handmatige
     upload of een met de hand aangepast Core-bestand laat de bestanden afwijken

@@ -15,6 +15,15 @@ DirectoryIndex index.php index.html
     Require all denied
 </FilesMatch>
 
+# The Docker Compose file of an installation that runs in Docker with its
+# project folder as the web root (docs/updates/RELEASES.md, "Een bestaande
+# installatie overzetten"). No release ships one, but such an installation
+# keeps it to run: it describes its services, ports and volumes, and which
+# variables it reads from .env. Only the names Compose itself looks for.
+<FilesMatch "^(docker-)?compose\.ya?ml$">
+    Require all denied
+</FilesMatch>
+
 # The release metadata the self-updater reads (docs/updates/ARCHITECTURE.md):
 # the exact version and the hash of every Core file are nobody's business but
 # this installation's, and the maintenance flag names the running update.

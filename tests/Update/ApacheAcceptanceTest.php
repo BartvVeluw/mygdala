@@ -46,11 +46,14 @@ final class ApacheAcceptanceTest extends TestCase
         '/VERSION', '/release.json', '/.maintenance', '/.env', '/.htaccess',
         '/composer.json', '/composer.lock', '/phinx.php',
         '/vendor/autoload.php', '/vendor/composer/installed.json', '/src/Update/Updater.php', '/src/Update/UpdateState.php',
-        '/db/migrations/', '/docker/Dockerfile', '/storage/probe.txt',
+        '/db/migrations/', '/docker/', '/docker/Dockerfile', '/storage/probe.txt',
         // No release has this file, so only .htaccess's rule for the whole
         // folder can answer 403 rather than 404; the scripts a release does
         // ship also refuse a web request themselves.
         '/scripts/release.php',
+        // An installation that runs in Docker keeps its Compose file next to
+        // the release (mygdala-test); the test puts one there.
+        '/docker-compose.yml', '/compose.yaml',
         // What a crashed update could leave in the web root.
         '/index.php.mygdala-0123abcd.tmp', '/.maintenance.1a2b3c4d.tmp',
     ];
@@ -80,7 +83,11 @@ final class ApacheAcceptanceTest extends TestCase
     private function assertDenied(UpdaterSandbox $site, string $moment): void
     {
         foreach (self::DENIED as $path) {
-            $this->assertSame(403, $site->visit($path)['status'], $path . ' ' . $moment);
+            $answer = $site->visit($path);
+            $this->assertSame(403, $answer['status'], $path . ' ' . $moment);
+            // Apache's own refusal: no path on the server, no PHP error.
+            $this->assertStringNotContainsString($site->root(), $answer['body'], $path . ' ' . $moment);
+            $this->assertDoesNotMatchRegularExpression('/Stack trace|Fatal error|Warning:|\/var\/www/', $answer['body'], $path . ' ' . $moment);
         }
     }
 
@@ -123,6 +130,10 @@ final class ApacheAcceptanceTest extends TestCase
         file_put_contents($root . '/.maintenance.1a2b3c4d.tmp', '{"update_id":"half-written"}');
         mkdir($root . '/storage');
         file_put_contents($root . '/storage/probe.txt', 'private');
+        file_put_contents($root . '/docker-compose.yml', "services:\n  php:\n    env_file: .env\n");
+        file_put_contents($root . '/compose.yaml', "services: {}\n");
+        // Not a Compose file: an ordinary YAML file stays public.
+        file_put_contents($root . '/openapi.yaml', "openapi: 3.1.0\n");
         $site->handToWebUser();
         $site->login();
 
@@ -132,6 +143,7 @@ final class ApacheAcceptanceTest extends TestCase
         $this->assertSame(200, $site->visit('/admin/login.php')['status']);
         $this->assertSame(200, $site->get('/admin/updates.php')['status']);
         $this->assertStringContainsString('ETag', $site->visit('/assets/css/core.css')['headers'], 'and Apache serves the static files itself');
+        $this->assertSame(200, $site->visit('/openapi.yaml')['status'], 'the Compose rule names Compose files, not YAML');
         $this->assertDenied($site, 'before the update');
 
         $site->publish('B');
@@ -197,6 +209,7 @@ final class ApacheAcceptanceTest extends TestCase
         $this->assertStringContainsString('# Changed in the 0.2.0 test release.', (string) file_get_contents($root . '/.htaccess'), '.htaccess was replaced by the update');
         $this->assertSame("0.2.0\n", file_get_contents($root . '/VERSION'));
         $this->assertFileDoesNotExist($root . '/.maintenance');
+        $this->assertFileExists($root . '/docker-compose.yml', "the update leaves the installation's Compose file alone");
         $this->assertDenied($site, 'after the update');
         $this->probeStorage($site, 'after the update');
         $this->assertSame(200, $site->visit('/')['status']);
