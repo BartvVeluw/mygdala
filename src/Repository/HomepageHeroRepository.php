@@ -112,18 +112,6 @@ class HomepageHeroRepository extends Repository
     }
 
     /**
-     * @return array<string, mixed>|null
-     */
-    public function findStatById(int $id): ?array
-    {
-        $stmt = $this->db->prepare('SELECT * FROM homepage_hero_stats WHERE id = :id LIMIT 1');
-        $stmt->execute(['id' => $id]);
-        $row = $stmt->fetch();
-
-        return $row === false ? null : $row;
-    }
-
-    /**
      * Appends a new, visible stat to the end of the Hero's stats and returns
      * its id. Its two texts are words, stored per website language against
      * that id (App\Service\Blocks\BlockLocalization), in the same transaction

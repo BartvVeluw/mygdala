@@ -97,18 +97,6 @@ class TextImageSplitRepository extends Repository
     }
 
     /**
-     * @return array<string, mixed>|null
-     */
-    public function findParagraphById(int $id): ?array
-    {
-        $stmt = $this->db->prepare('SELECT * FROM text_image_split_paragraphs WHERE id = :id LIMIT 1');
-        $stmt->execute(['id' => $id]);
-        $row = $stmt->fetch();
-
-        return $row === false ? null : $row;
-    }
-
-    /**
      * Appends a new paragraph to the end of a section and returns its id. Its
      * text is words, stored per website language against that id
      * (App\Service\Blocks\BlockLocalization), in the same transaction as this
@@ -196,18 +184,6 @@ class TextImageSplitRepository extends Repository
         $stmt->execute(['text_image_split_id' => $sectionId]);
 
         return $stmt->fetchAll();
-    }
-
-    /**
-     * @return array<string, mixed>|null
-     */
-    public function findImageById(int $id): ?array
-    {
-        $stmt = $this->db->prepare('SELECT * FROM text_image_split_images WHERE id = :id LIMIT 1');
-        $stmt->execute(['id' => $id]);
-        $row = $stmt->fetch();
-
-        return $row === false ? null : $row;
     }
 
     /**

@@ -18,7 +18,7 @@ require_once __DIR__ . '/_localized_fields.php';
  *     <input type="hidden" name="items_present" value="1">
  *     <div class="admin-row-cards" data-row-list="faq-items">
  *       foreach row: editor_row_open(), its own fields, editor_row_close()
- *       <noscript> one empty row, key "new0" </noscript>
+ *       <noscript> one empty row, key editor_rows_free_key($rows) </noscript>
  *     </div>
  *     editor_rows_status('faq-items');
  *     editor_rows_add('faq-items', 'Vraag toevoegen');

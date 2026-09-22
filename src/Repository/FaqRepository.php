@@ -85,18 +85,6 @@ class FaqRepository extends Repository
     }
 
     /**
-     * @return array<string, mixed>|null
-     */
-    public function findItemById(int $id): ?array
-    {
-        $stmt = $this->db->prepare('SELECT * FROM faq_items WHERE id = :id LIMIT 1');
-        $stmt->execute(['id' => $id]);
-        $row = $stmt->fetch();
-
-        return $row === false ? null : $row;
-    }
-
-    /**
      * Appends a new, visible question to the end of a section and returns its
      * id. Its question and answer are words, stored per website language
      * against that id (App\Service\Blocks\BlockLocalization), in the same
