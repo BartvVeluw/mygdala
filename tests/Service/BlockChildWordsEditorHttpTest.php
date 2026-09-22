@@ -38,7 +38,8 @@ use Tests\Support\PageFixture;
  *
  * The rows of a one-form editor are not here: the Kaarten-carrousel's cards
  * and tags are Tests\Service\CardCarouselEditorHttpTest's, and the FAQ's,
- * the Cijferbalk's, the Stappenplan's and the Woordenband's are
+ * the Cijferbalk's, the Stappenplan's, the Woordenband's and the
+ * Kaartenraster's are
  * Tests\Service\BlockRowEditorsHttpTest's, with the same rules.
  *
  * Table-driven: CHILDREN names, per child table, the block that owns it, the
@@ -62,16 +63,6 @@ final class BlockChildWordsEditorHttpTest extends TestCase
      *   words     Dutch words for every field the item's form has, valid
      */
     private const CHILDREN = [
-        'feature_grid_items' => [
-            'block' => 'feature_grid',
-            'create' => '/api/admin/create-feature-grid-item.php',
-            'update' => '/api/admin/update-feature-grid-item.php',
-            'delete' => '/api/admin/delete-feature-grid-item.php',
-            'parent' => 'grid_id',
-            'item' => 'item_id',
-            'settings' => ['icon_key' => 'heart', 'is_active' => '1'],
-            'words' => ['title' => 'Snel geleverd', 'body' => 'Binnen een week in huis.'],
-        ],
         // The homepage hero is one per page and cannot be added or deleted by
         // hand, so this test gives it a row of its own (block()).
         'homepage_hero_stats' => [

@@ -967,6 +967,7 @@ Uit het eerste label maakt het CMS ook de vaste naam waaronder antwoorden worden
     'block_features.icoon' => 'Icoon',
     'block_features.kaarten_sectie' => 'Nog geen kaarten in deze sectie.',
     'block_features.kaarten' => 'Kaarten',
+    'block_features.kaart' => 'Kaart',
     'block_features.actief_uitgevinkt_sectie_alle' => 'Actief (uitgevinkt = deze sectie — alle kaarten — wordt niet getoond op de pagina)',
     'block_features.sectie_heeft_eigen_titel' => 'Deze sectie heeft geen eigen titel/introtekst — alleen de kaarten hieronder zijn zichtbaar.',
     'block_features.zichtbaarheid' => 'Zichtbaarheid',

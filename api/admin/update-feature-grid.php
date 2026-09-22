@@ -3,22 +3,36 @@
 /**
  * POST /api/admin/update-feature-grid.php
  *
- * Saves the section-level fields (heading + visibility) for one Feature
- * grid (admin/feature-grid.php?section=...). Same guard order and
- * PRG/session-flash pattern as api/admin/update-page-hero.php /
- * update-cta-band.php. Card content is saved separately by
- * create/update/delete/move-feature-grid-item.php.
+ * Saves the WHOLE editor of one Feature grid
+ * (admin/feature-grid.php?section=...) in one request: its heading, when it
+ * has one, whether it is shown, and its cards — their icon, words, whether
+ * each is shown, their order, new ones and the ones marked for removal. One
+ * form, one save (PAGE-EDITOR.md, "Eén formulier per blok-editor"); there is
+ * no endpoint per card any more.
  *
- * ONE WEBSITE LANGUAGE (Multilingual 2.0): the eyebrow, title and lead are the
- * words of the language named in `language_code`, which must be an active
- * language of the website registry; which fields exist, how long they may be
- * and that the eyebrow and title are required in the default language comes
+ * `editor_action` = items:up|down:<key> is the no-JavaScript path of a
+ * card's ↑ and ↓ (App\Service\Blocks\EditorRows), performed on the posted
+ * cards after validation and stored with everything else.
+ *
+ * ALL OR NOTHING. Everything is checked before anything is written, and the
+ * writes are one transaction: a refused or failed save stores nothing and
+ * hands every typed value back, with each message next to its field.
+ *
+ * ONE WEBSITE LANGUAGE (Multilingual 2.0): the eyebrow, title and lead and
+ * every stored card's words are the language named in `language_code`,
+ * which must be an active language of the website registry; which fields
+ * exist, how long they may be and what the default language requires comes
  * from FeatureGridBlock::translatableFields(), through
- * App\Service\Blocks\BlockLocalization, and only that language is written, in
- * one transaction with is_active. A grid without a heading of its own
- * (FeatureGridContent::SECTIONS, has_heading) saves is_active only: its form
- * sends no words and no language, and whatever a request sends anyway is
- * never read, so the frontend never gains a heading it has no markup for.
+ * App\Service\Blocks\BlockLocalization, and only that language is written. A
+ * NEW card is written in the default language, and a removed card takes its
+ * words in every language along, both through
+ * App\Service\Blocks\EditorChildList. A grid without a heading of its own
+ * (FeatureGridContent::SECTIONS, has_heading) has no heading words: whatever
+ * a request sends for them is never read, so the frontend never gains a
+ * heading it has no markup for.
+ *
+ * A card's icon is one of FeatureGridContent::ICON_KEYS; anything else
+ * becomes the first icon, as it always did.
  */
 
 declare(strict_types=1);
@@ -29,6 +43,8 @@ use App\Database;
 use App\Service\Language\AdminTranslator;
 use App\Service\AdminAuth;
 use App\Service\Blocks\BlockLocalization;
+use App\Service\Blocks\EditorChildList;
+use App\Service\Blocks\EditorRows;
 use App\Service\Csrf;
 use App\Service\Language\LanguageCode;
 use App\Service\Language\SiteLanguages;
@@ -70,57 +86,98 @@ if ($section === null) {
 }
 
 $hasHeading = $section['has_heading'];
+$repository = new FeatureGridRepository();
+$redirect = '/admin/feature-grid.php?section=' . urlencode($sectionKey);
+
+$languageCode = LanguageCode::normalise((string) ($_POST['language_code'] ?? '')) ?? '';
+$languageIsWritable = $languageCode !== '' && SiteLanguages::isActive($languageCode);
 
 $settings = ['is_active' => isset($_POST['is_active'])];
 
-$languageCode = '';
+// Exactly the fields the block declares, never a name taken from the
+// request — and none at all for a grid without a heading.
 $words = [];
-$errors = [];
-
-// Sections without a heading in the current design (see SECTIONS) never
-// expose the heading inputs in the admin form, so their words are not read
-// at all: nothing submitted can give the frontend a heading it has no markup
-// for.
 if ($hasHeading) {
-    $languageCode = LanguageCode::normalise((string) ($_POST['language_code'] ?? '')) ?? '';
-    $languageIsWritable = $languageCode !== '' && SiteLanguages::isActive($languageCode);
-
-    // Exactly the fields the block declares, never a name taken from the request.
     foreach (array_keys(BlockLocalization::fields('feature_grids')) as $field) {
         $words[$field] = trim((string) ($_POST[$field] ?? ''));
     }
-
-    if (!$languageIsWritable) {
-        $errors[] = AdminTranslator::trans('validation.language_unknown');
-    } else {
-        foreach (BlockLocalization::messageKeys(BlockLocalization::problems('feature_grids', $languageCode, $words)) as $key) {
-            $errors[] = AdminTranslator::trans($key);
-        }
-    }
 }
 
-$old = ['language_code' => $languageCode] + $words + $settings;
+// The cards of THIS grid; a key naming any other row is dropped. An icon is
+// always sent, so it does not make an empty new card a card.
+$stored = $repository->findBySlugAndKey($section['page_slug'], $section['section_key']);
+$storedIds = $stored === null ? [] : array_map(
+    static fn (array $item): int => (int) $item['id'],
+    $repository->findItemsByGridId((int) $stored['id'])
+);
+$items = EditorChildList::fromRequest($_POST, 'items', 'feature_grid_items', $storedIds, EditorRows::parseAction($_POST['editor_action'] ?? null), ['icon_key']);
+
+/** @return array{icon_key: string, is_active: bool} what a card has that is the same in every language */
+$cardSettings = static function (array $row): array {
+    $iconKey = $row['fields']['icon_key'] ?? '';
+
+    return [
+        'icon_key' => array_key_exists($iconKey, FeatureGridContent::ICON_KEYS) ? $iconKey : (string) array_key_first(FeatureGridContent::ICON_KEYS),
+        'is_active' => EditorChildList::flag($row, 'active'),
+    ];
+};
+
+$errors = [];
+$fieldErrors = [];
+
+if (!$languageIsWritable) {
+    $errors[] = AdminTranslator::trans('validation.language_unknown');
+} else {
+    // BlockLocalization::problems(), as a message per field.
+    $fieldErrors = $hasHeading ? EditorChildList::wordErrors('feature_grids', $languageCode, $words) : [];
+    $itemErrors = $items->problems($languageCode);
+
+    // One line per problem at the top, the same line next to its field.
+    foreach ($fieldErrors as $message) {
+        if (!in_array($message, $errors, true)) {
+            $errors[] = $message;
+        }
+    }
+    array_push($errors, ...$items->summary($itemErrors, AdminTranslator::trans('block_features.kaart')));
+    $fieldErrors += $itemErrors;
+}
+
+$old = ['language_code' => $languageCode] + $words + $settings + ['items' => $items->old()];
 
 if ($errors !== []) {
     $_SESSION['admin_feature_grid_errors'] = $errors;
+    $_SESSION['admin_feature_grid_field_errors'] = $fieldErrors;
     $_SESSION['admin_feature_grid_old'] = $old;
-    header('Location: /admin/feature-grid.php?section=' . urlencode($sectionKey));
+    header('Location: ' . $redirect);
     exit;
 }
 
 $db = Database::connection();
 
 try {
-    // The grid's visibility and its heading in this language are one save.
+    // The grid, its heading in this language and every card are one save.
     $db->beginTransaction();
 
-    $repository = new FeatureGridRepository();
     $repository->upsertGrid($section['page_slug'], $section['section_key'], $settings);
+    $gridId = (int) $repository->findBySlugAndKey($section['page_slug'], $section['section_key'])['id'];
 
     if ($hasHeading) {
-        $gridId = (int) $repository->findBySlugAndKey($section['page_slug'], $section['section_key'])['id'];
         BlockLocalization::save('feature_grids', $gridId, $languageCode, $words);
     }
+
+    $items->save(
+        $languageCode,
+        static function (array $row) use ($repository, $gridId, $cardSettings): int {
+            $values = $cardSettings($row);
+            $id = $repository->createItem($gridId, ['icon_key' => $values['icon_key']]);
+            $repository->updateItem($id, $values);
+
+            return $id;
+        },
+        static fn (int $id, array $row) => $repository->updateItem($id, $cardSettings($row)),
+        static fn (int $id) => $repository->deleteItem($id),
+        static fn (array $order) => $repository->reorderItems($gridId, $order)
+    );
 
     $db->commit();
     FeatureGridContent::clearCache();
@@ -131,11 +188,11 @@ try {
 
     error_log('[api/admin/update-feature-grid.php] ' . $e->getMessage());
 
-    $_SESSION['admin_feature_grid_errors'] = ['Kon niet worden opgeslagen. Probeer het opnieuw.'];
+    $_SESSION['admin_feature_grid_errors'] = [AdminTranslator::trans('editor_rows.error_save_failed')];
     $_SESSION['admin_feature_grid_old'] = $old;
-    header('Location: /admin/feature-grid.php?section=' . urlencode($sectionKey));
+    header('Location: ' . $redirect);
     exit;
 }
 
-header('Location: /admin/feature-grid.php?section=' . urlencode($sectionKey) . '&saved=1');
+header('Location: ' . $redirect . '&saved=1');
 exit;

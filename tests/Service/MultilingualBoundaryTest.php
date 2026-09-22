@@ -1167,7 +1167,6 @@ final class MultilingualBoundaryTest extends TestCase
      * what keeps a deleted item's words from staying behind.
      */
     private const CHILD_DELETE_ENDPOINTS = [
-        'api/admin/delete-feature-grid-item.php' => 'feature_grid_items',
         'api/admin/delete-homepage-hero-stat.php' => 'homepage_hero_stats',
         'api/admin/delete-text-image-split-paragraph.php' => 'text_image_split_paragraphs',
         'api/admin/delete-text-image-split-image.php' => 'text_image_split_images',
@@ -1197,11 +1196,11 @@ final class MultilingualBoundaryTest extends TestCase
         'stat_strip_items' => ['api/admin/update-stat-strip.php', 'items'],
         'step_list_items' => ['api/admin/update-step-list-section.php', 'items'],
         'marquee_items' => ['api/admin/update-marquee-section.php', 'items'],
+        'feature_grid_items' => ['api/admin/update-feature-grid.php', 'items'],
     ];
 
     /** Every endpoint that adds ONE child row of a converted block: it writes the new row's words in the default language. */
     private const CHILD_CREATE_ENDPOINTS = [
-        'api/admin/create-feature-grid-item.php' => 'feature_grid_items',
         'api/admin/create-homepage-hero-stat.php' => 'homepage_hero_stats',
         'api/admin/create-text-image-split-paragraph.php' => 'text_image_split_paragraphs',
         'api/admin/create-text-image-split-image.php' => 'text_image_split_images',

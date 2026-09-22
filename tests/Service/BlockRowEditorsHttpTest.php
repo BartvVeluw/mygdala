@@ -107,6 +107,17 @@ final class BlockRowEditorsHttpTest extends TestCase
             'table' => 'marquee_items',
             'row' => ['label' => 'Duurzaam', 'active' => '1'],
         ],
+        'feature_grid' => [
+            'block' => 'feature_grid',
+            'screen' => '/admin/feature-grid.php?section={section}',
+            'endpoint' => '/api/admin/update-feature-grid.php',
+            'parent' => 'feature_grids',
+            'base' => ['is_active' => '1', 'eyebrow' => 'Waarom wij', 'title' => 'Wat je van ons krijgt', 'lead' => 'Kort gezegd.'],
+            'word' => 'title',
+            'list' => 'items',
+            'table' => 'feature_grid_items',
+            'row' => ['icon_key' => 'heart', 'title' => 'Snel geleverd', 'body' => 'Binnen een week in huis.', 'active' => '1'],
+        ],
     ];
 
     private static ?BuiltInServer $server = null;
@@ -359,6 +370,30 @@ final class BlockRowEditorsHttpTest extends TestCase
         [, $new] = $this->rowIds($case);
         self::assertSame('Typed on the English screen', $this->stored($table, $new, 'nl')[$field], 'a new row is written in the default language');
         self::assertSame([], $this->stored($table, $new, 'en'));
+    }
+
+    // ------------------------------------------------------------ rules of one list
+
+    public function testACardsIconAndSwitchAreStoredWithItsWordsAndAnUnknownIconBecomesTheFirst(): void
+    {
+        $this->place('feature_grid');
+        $session = $this->signIn(null);
+        [$a, $b] = $this->seed($session, 'feature_grid', 2);
+
+        $this->assertSaved($this->save($session, 'feature_grid', 'nl', ['title' => 'Blok gewijzigd'], [
+            (string) $a => ['icon_key' => 'diamond', 'title' => 'Andere titel', 'body' => 'Tekst'],
+            (string) $b => ['icon_key' => '<svg onload=x>'] + $this->row('feature_grid'),
+        ]));
+
+        $icons = [];
+        $stmt = Database::connection()->prepare('SELECT id, icon_key, is_active FROM feature_grid_items WHERE feature_grid_id = ? ORDER BY sort_order');
+        $stmt->execute([$this->parentId]);
+        foreach ($stmt->fetchAll(\PDO::FETCH_ASSOC) as $row) {
+            $icons[(int) $row['id']] = [$row['icon_key'], (int) $row['is_active']];
+        }
+
+        self::assertSame([$a => ['diamond', 0], $b => [(string) array_key_first(\App\Service\FeatureGridContent::ICON_KEYS), 1]], $icons);
+        self::assertSame('Andere titel', $this->stored('feature_grid_items', $a, 'nl')['title']);
     }
 
     // ------------------------------------------------------------ helpers

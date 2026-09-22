@@ -959,6 +959,7 @@ From the first label the CMS also makes the fixed name answers are stored under.
     'block_features.icoon' => 'Icon',
     'block_features.kaarten_sectie' => 'No cards in this section yet.',
     'block_features.kaarten' => 'Cards',
+    'block_features.kaart' => 'Card',
     'block_features.actief_uitgevinkt_sectie_alle' => 'Active (unticked = this section — all cards — is not shown on the page)',
     'block_features.sectie_heeft_eigen_titel' => 'This section has no title or intro of its own — only the cards below are visible.',
     'block_features.zichtbaarheid' => 'Visibility',
