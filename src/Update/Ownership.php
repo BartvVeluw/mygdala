@@ -90,12 +90,23 @@ final class Ownership
         '.git/',
         '.github/',
         '.claude/',
+        '.idea/',
+        '.vscode/',
         'tests/',
         'docker/',
         'docs/',
         'dist/',
         'node_modules/',
     ];
+
+    /**
+     * Editor, OS and scratch leftovers, anywhere — the same list .gitignore
+     * keeps out of git, so a release built from a working directory rather
+     * than from `git archive` cannot pick one up either.
+     */
+    private const DEVELOPMENT_EXTENSIONS = ['tmp', 'bak', 'orig', 'swp', 'swo', 'log'];
+
+    private const DEVELOPMENT_BASENAMES = ['.DS_Store', 'Thumbs.db', 'desktop.ini'];
 
     private const DEVELOPMENT_FILES = [
         '.gitignore',
@@ -196,6 +207,15 @@ final class Ownership
 
         if (in_array($path, self::DEVELOPMENT_FILES, true)) {
             return true;
+        }
+
+        if (!str_starts_with($path, 'vendor/')) {
+            $basename = basename($path);
+            $extension = strtolower(pathinfo($basename, PATHINFO_EXTENSION));
+
+            if (in_array($basename, self::DEVELOPMENT_BASENAMES, true) || in_array($extension, self::DEVELOPMENT_EXTENSIONS, true)) {
+                return true;
+            }
         }
 
         // Prose documentation, the agent notes in src/*/CLAUDE.md included.
