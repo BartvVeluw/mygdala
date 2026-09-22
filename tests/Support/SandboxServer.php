@@ -113,7 +113,14 @@ final class SandboxServer
     public function stop(): void
     {
         if (is_resource($this->process)) {
-            // proc_terminate() ends the parent; its workers exit with it.
+            // With PHP_CLI_SERVER_WORKERS the server is a parent with forked
+            // workers, and the workers do NOT exit with their parent: stop
+            // them first, or every test leaves four servers running.
+            $parent = (int) (proc_get_status($this->process)['pid'] ?? 0);
+            foreach (self::childrenOf($parent) as $child) {
+                @posix_kill($child, 15);
+            }
+
             proc_terminate($this->process);
             proc_close($this->process);
         }
@@ -167,6 +174,25 @@ final class SandboxServer
             'body' => substr($raw, $headerSize),
             'headers' => $rawHeaders,
         ];
+    }
+
+    /** @return list<int> the processes whose parent is $parent (Linux /proc) */
+    private static function childrenOf(int $parent): array
+    {
+        if ($parent <= 0 || !is_dir('/proc')) {
+            return [];
+        }
+
+        $children = [];
+        foreach (glob('/proc/[0-9]*/stat') ?: [] as $stat) {
+            $fields = explode(' ', (string) @file_get_contents($stat));
+            // pid (comm) state ppid …; comm cannot contain a space for php.
+            if ((int) ($fields[3] ?? 0) === $parent) {
+                $children[] = (int) $fields[0];
+            }
+        }
+
+        return $children;
     }
 
     /** The server's own output, for a failure message. */

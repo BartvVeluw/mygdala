@@ -136,6 +136,10 @@ final class UpgradeEndToEndTest extends TestCase
         $this->assertContains('assets/updater-e2e/obsolete.txt', $manifest['files_deleted']);
         $this->assertFileExists($backup . '/files/src/Service/HttpUserAgent.php');
         $this->assertFileDoesNotExist($backup . '/files/assets/media/e2e-upload.jpg', 'uploads are not duplicated');
+        $note = (string) file_get_contents($backup . '/HERSTEL.txt');
+        $this->assertStringContainsString('Van versie 0.1.0 naar 0.2.0', $note);
+        $this->assertStringContainsString('assets/updater-e2e/new.txt', $note, 'the files to remove again are named');
+        $this->assertStringContainsString($site->root(), $note);
 
         // The screen says so, and keeps the log.
         $page = $site->updatesPage();
@@ -151,6 +155,41 @@ final class UpgradeEndToEndTest extends TestCase
         // The health check really requested the site through the maintenance gate.
         $health = array_column((array) $state['health'], 'status', 'name');
         $this->assertSame(['version' => 'ok', 'files' => 'ok', 'database' => 'ok', 'bootstrap' => 'ok', 'http' => 'ok'], $health);
+    }
+
+    /**
+     * Point 25 of the brief: a brand-new installation, its database built from
+     * zero by the release's own migrations, knows its version, opens the
+     * Updates screen, checks the feed and updates itself — with nothing of
+     * git or of this development checkout anywhere near it.
+     */
+    public function testAFreshInstallationKnowsItsVersionAndUpdatesItself(): void
+    {
+        $site = $this->sandbox = UpdaterSandbox::install('fresh', 'A', null, true);
+        $site->login();
+
+        // A brand-new installation opens the setup wizard first: that is the
+        // wizard's rule (SETUP.md), and the Updates screen follows it.
+        $this->assertStringEndsWith('/admin/setup.php', $site->get('/admin/updates.php')['location']);
+        \App\Install\SetupState::markComplete($site->pdo());
+
+        $this->assertFileDoesNotExist($site->root() . '/.git');
+        $page = $site->updatesPage();
+        $this->assertStringContainsString('data-current-version>0.1.0<', $page);
+        $this->assertStringContainsString('0.1.0+e2e-a', $page, 'the build id comes from release.json');
+        $this->assertStringContainsString('Geïnstalleerd vanuit een release', $page);
+
+        $site->publish('B');
+        $site->check();
+        $this->assertStringContainsString('data-latest-version>0.2.0<', $site->updatesPage());
+
+        $site->startUpdate();
+        $answers = $site->runSteps();
+
+        $this->assertSame('completed', end($answers)['status'], json_encode($answers, JSON_PRETTY_PRINT) . $site->serverLog());
+        $this->assertSame("0.2.0
+", file_get_contents($site->root() . '/VERSION'));
+        $this->assertTrue($site->hasTable('updater_e2e_marker'));
     }
 
     public function testScenarioBSkipsAVersionAndRunsBothMigrationGenerationsInOneUpdate(): void

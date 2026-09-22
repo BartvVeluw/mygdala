@@ -2583,7 +2583,7 @@ From the first label the CMS also makes the fixed name answers are stored under.
     'update.recovery.maintenance' => 'Maintenance mode',
     'update.recovery.maintenance_on' => 'On: visitors see a maintenance page.',
     'update.recovery.maintenance_off' => 'Off.',
-    'update.recovery.what_now' => 'Give the update number, the backup and the log to whoever looks after this website technically. How the site is restored from the backup is in the documentation (docs/updates/RECOVERY.md). Only once that is done, switch maintenance mode off below.',
+    'update.recovery.what_now' => 'Give the update number, the backup folder and the log to whoever looks after this website technically. The backup folder holds HERSTEL.txt with the steps for exactly this update. Only once those are done, switch maintenance mode off below.',
     'update.resolve.button' => 'Recovery is done: switch maintenance mode off',
     'update.resolve.title' => 'Switch maintenance mode off?',
     'update.resolve.message' => 'Only do this when the website has been restored from the backup or put right in another way. Visitors will see the website again afterwards.',

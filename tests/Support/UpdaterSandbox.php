@@ -176,9 +176,12 @@ final class UpdaterSandbox
     // ------------------------------------------------------------ install
 
     /**
-     * @param callable(PDO): void|null $seed extra rows for the installation's database
+     * @param callable(PDO): void|null $seed          extra rows for the installation's database
+     * @param bool                     $freshDatabase an empty database migrated from zero by the
+     *                                                release's own Phinx, as on a brand-new
+     *                                                installation, instead of a copy of existing content
      */
-    public static function install(string $name, string $release = 'A', ?callable $seed = null): self
+    public static function install(string $name, string $release = 'A', ?callable $seed = null, bool $freshDatabase = false): self
     {
         $directory = self::BASE . '/' . $name . '-' . bin2hex(random_bytes(3));
         $database = 'mygdala_upd_' . preg_replace('/[^a-z0-9]/', '', strtolower($name)) . '_' . bin2hex(random_bytes(2));
@@ -192,7 +195,14 @@ final class UpdaterSandbox
         $zip->extractTo($sandbox->root());
         $zip->close();
 
-        $sandbox->copyDatabase();
+        if ($freshDatabase) {
+            $sandbox->createEmptyDatabase();
+            $sandbox->writeEnv(0, 0);
+            $sandbox->migrateFromZero();
+            $sandbox->addOwner();
+        } else {
+            $sandbox->copyDatabase();
+        }
         $seed !== null && $seed($sandbox->pdo());
 
         file_put_contents($directory . '/router.php', <<<'PHP'
@@ -318,9 +328,13 @@ final class UpdaterSandbox
         return $page['body'];
     }
 
+    /** Takes the CSRF token from the Updates screen when it opens (a fresh installation shows the wizard first). */
     public function refreshCsrf(): void
     {
-        $this->updatesPage();
+        $page = $this->get('/admin/updates.php');
+        if ($page['status'] === 200) {
+            $this->csrf = self::csrfFrom($page['body']);
+        }
     }
 
     /** @return array{status: int, location: string, body: string, headers: string} */
@@ -462,14 +476,49 @@ final class UpdaterSandbox
 
     // ------------------------------------------------------------ internals
 
+    private function createEmptyDatabase(): void
+    {
+        $root = self::rootConnection();
+        $root->exec('DROP DATABASE IF EXISTS `' . $this->database . '`');
+        $root->exec('CREATE DATABASE `' . $this->database . '` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci');
+        $root->exec('GRANT ALL ON `' . $this->database . '`.* TO ' . $root->quote((string) $_ENV['DB_USERNAME']) . "@'%'");
+    }
+
+    /** The release's own `vendor/bin/phinx migrate`, reading the sandbox's own .env. */
+    private function migrateFromZero(): void
+    {
+        $process = proc_open(
+            [PHP_BINARY, $this->root() . '/vendor/bin/phinx', 'migrate', '-c', $this->root() . '/phinx.php'],
+            [1 => ['pipe', 'w'], 2 => ['pipe', 'w']],
+            $pipes,
+            $this->root(),
+            ['PATH' => (string) getenv('PATH')]
+        );
+        $output = stream_get_contents($pipes[1]) . stream_get_contents($pipes[2]);
+        fclose($pipes[1]);
+        fclose($pipes[2]);
+
+        if (proc_close($process) !== 0) {
+            throw new \RuntimeException("Migrating the fresh sandbox database failed:\n" . $output);
+        }
+    }
+
+    private function addOwner(): void
+    {
+        $pdo = $this->pdo();
+        $pdo->prepare('DELETE FROM admin_users WHERE username = ?')->execute([self::USERNAME]);
+        $pdo->prepare(
+            'INSERT INTO admin_users (name, username, email, password_hash, is_super_admin, is_active, created_at, updated_at)
+             VALUES (?, ?, ?, ?, 1, 1, NOW(), NOW())'
+        )->execute(['E2E Owner', self::USERNAME, 'e2e-owner@example.test', password_hash(self::PASSWORD, PASSWORD_DEFAULT)]);
+    }
+
     private function copyDatabase(): void
     {
         $root = self::rootConnection();
         $source = (string) $_ENV['DB_DATABASE'];
 
-        $root->exec('DROP DATABASE IF EXISTS `' . $this->database . '`');
-        $root->exec('CREATE DATABASE `' . $this->database . '` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci');
-        $root->exec('GRANT ALL ON `' . $this->database . '`.* TO ' . $root->quote((string) $_ENV['DB_USERNAME']) . "@'%'");
+        $this->createEmptyDatabase();
         $root->exec('SET FOREIGN_KEY_CHECKS = 0');
 
         $tables = $root->prepare("SELECT TABLE_NAME FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? AND TABLE_TYPE = 'BASE TABLE'");
@@ -482,12 +531,7 @@ final class UpdaterSandbox
             $root->exec('INSERT INTO `' . $this->database . '`.`' . $table . '` SELECT * FROM `' . $source . '`.`' . $table . '`');
         }
 
-        $pdo = $this->pdo();
-        $pdo->prepare('DELETE FROM admin_users WHERE username = ?')->execute([self::USERNAME]);
-        $pdo->prepare(
-            'INSERT INTO admin_users (name, username, email, password_hash, is_super_admin, is_active, created_at, updated_at)
-             VALUES (?, ?, ?, ?, 1, 1, NOW(), NOW())'
-        )->execute(['E2E Owner', self::USERNAME, 'e2e-owner@example.test', password_hash(self::PASSWORD, PASSWORD_DEFAULT)]);
+        $this->addOwner();
     }
 
     private function writeEnv(int $sitePort, int $feedPort): void

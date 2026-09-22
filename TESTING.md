@@ -196,6 +196,7 @@ Zie je precies deze mislukkingen, dan is dit de oorzaak en niet je wijziging:
 | `shop` | producten, collecties, bestellingen, facturen, verzending, mail | testdatabase |
 | `personalization` | personalisatie: regels, uploads, previews, ordersnapshots | testdatabase |
 | `analytics` | pageviews, botdetectie, dashboardcijfers | testdatabase |
+| `updater` | de ingebouwde updater: versies, eigendom, de ondertekende feed, pakketten, back-up en herstel, en de upgradepaden end-to-end op wegwerpinstallaties (`docs/updates/ARCHITECTURE.md`) | testdatabase + MySQL-root |
 | `http` | alles wat een echte request doet | testdatabase + `php_test` |
 | `migration` | de backfill-migraties uit het verleden, plus de twee installatietests | testdatabase + MySQL-root |
 | `full` | alles, precies één keer (de standaard) | testdatabase + `php_test` |
@@ -211,6 +212,37 @@ docker compose exec php      php vendor/bin/phpunit --testsuite unit
 Een testbestand mag in meerdere suites zitten — `blocks` en `http` overlappen
 met opzet. `full` is de standaardsuite, dus een kaal `phpunit` draait elk
 bestand precies één keer.
+
+### De suite `updater`
+
+`tests/Update/`. Het grootste deel is snel en heeft niets nodig; drie klassen
+(`UpgradeEndToEndTest`, `UpgradeFailureTest`, `ExistingInstallAcceptanceTest`)
+bouwen met de echte releasebouwer releases uit deze checkout en werken
+wegwerpinstallaties daarvan bij via de endpoints van het Updates-scherm
+(`Tests\Support\UpdaterSandbox`). Wat die nodig hebben:
+
+- **het MySQL-rootaccount** (`DB_ROOT_PASSWORD`): elke wegwerpinstallatie
+  krijgt een eigen database `mygdala_upd_*`, gekopieerd uit de testdatabase,
+  en ruimt hem zelf op. Zonder root slaan ze zichzelf over, net als de
+  migratietests;
+- **`setpriv`** in de container, als de suite als root draait: de webserver
+  van een wegwerpinstallatie draait dan als `www-data`, zodat
+  bestandsrechten betekenen wat ze op een host betekenen (scenario F);
+- **ext-zip en ext-sodium**.
+
+Alles staat in `/tmp/mygdala-upd-e2e/` van de container, dus buiten de
+bind-mount: daar is lezen en schrijven snel. De releases worden één keer per
+proces gebouwd (release 0.1.0 leest deze checkout één keer, ongeveer 40
+seconden over de Windows-bind-mount; de rest is afgeleid) en verdwijnen als
+het proces stopt. Een hele `updater`-run duurt zo'n drie minuten. De
+ScratchInstall-databases van de migratietests hebben andere namen, dus
+`updater` en `migration` bijten elkaar niet.
+
+Na het binnenhalen van de updater heeft een bestaande checkout één keer
+`composer dump-autoload` nodig: de onderhoudsguard hangt aan de
+autoload-`files` van `composer.json`, en
+`ApplyAndMaintenanceTest::testTheInstalledAutoloaderRunsTheGuard` faalt met
+precies die instructie zolang `vendor/` hem niet kent.
 
 ### Het geheugen van de testrunner
 

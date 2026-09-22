@@ -222,6 +222,14 @@ Open deze via `MULTILINGUAL.md`, en dan alleen het document dat je taak raakt.
 | `INSTALL-BOOTSTRAP.md` | 244 | Wat een verse installatie aanmaakt en wat een bestaande behoudt |
 | `SETUP.md` | 555 | De installatiewizard, de basis-URL, een nieuwe site (clone) beginnen |
 
+### Updates en releases
+
+| Document | Regels | Lees dit wanneer |
+|---|---|---|
+| `docs/updates/ARCHITECTURE.md` | 462 | De ingebouwde updater: eigendomsgrens, versies, beveiliging, stappen, onderhoud, migraties, back-up |
+| `docs/updates/RELEASES.md` | 236 | Een release maken en publiceren, de releasesleutel, een installatie overzetten naar het releasemodel |
+| `docs/updates/RECOVERY.md` | 168 | Een update is mislukt of onderbroken, of een site moet met de hand hersteld worden |
+
 ### Achtergrond
 
 Lees deze **niet** standaard. Ze beantwoorden "waarom", niet "hoe".

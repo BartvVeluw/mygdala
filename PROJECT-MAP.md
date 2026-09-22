@@ -59,6 +59,7 @@ adminpaneel is.
 | `partials/section-*.php` | Eén frontend-partial per bloktype |
 | `partials/` (overig) | Header, footer, seo-head (dé SEO-`<head>`), page-head en shop-seo-head (adapters ernaartoe), branding-head (theme-color + favicon), 404, cookiebanner |
 | `src/Install/` | `InstallState` kent het verschil tussen een database die vanaf nul wordt opgebouwd en een die al inhoud draagt (`INSTALL-BOOTSTRAP.md`); `SetupState` en `SetupWizard` zijn de installatiewizard die daarop bouwt; `FreshSiteCopyPolicy` is de grens tussen applicatie en site waar `scripts/create_fresh_site_copy.php` op loopt (`SETUP.md`) |
+| `src/Update/` | De ingebouwde updater: het eigendomscontract (`Ownership`), de ene versie (`AppVersion`, bestand `VERSION`), de ondertekende feed, pakketverwerking, preflight, back-up en restore, de hervatbare state machine (`Updater`) en de onderhoudsguard; `Build/` is de releasebouwer achter `scripts/release.php` (`docs/updates/`) |
 | `src/Module/` | Het moduleregister en de first-party modules (`ShopModule`, `PersonalizationModule`, `BlogModule`) |
 | `src/Service/` | Applicatielogica; `*Content`-klassen lezen blokinhoud |
 | `src/Service/Blocks/` | Eén blokdefinitie per bloktype, plus `BlockDefinitions` — dé registratielijst. `BlockCategories` en `BlockPreview` zijn de gesloten lijstjes waarmee een blok zichzelf in de blokkenkiezer presenteert |
@@ -129,6 +130,7 @@ welke Core, staat in `MODULES.md`; dat document gaat over de grenzen zelf.
 | **Formulieren** | Formulierdefinities, velden, publieke verwerking, meldingen, bewaarde inzendingen | `Service\Forms\*`, `FormRepository`, `FormSubmissionRepository`, `partials/form.php`, `api/form-submit.php`, `admin/forms.php`, `admin/form-submissions.php` — zie `FORMS.md` |
 | **Contact/aanvragen** | Historische offerteaanvragen met bijlagen, herroepingsverzoeken, rate limiting | `ContactRequestRepository`, `ContactAttachmentStorage`, `ContactRateLimiter`, `TurnstileVerifier`, `admin/contact-requests.php` — nieuwe inzendingen lopen sinds Core Forms via `FORMS.md` |
 | **Analytics** | Pageviews, botfilter, dashboardcijfers | `Service\Analytics\*`, `PageViewRepository`, `DashboardMetrics`, `DashboardAttention`, `admin/index.php` |
+| **Updates** | Een release-installatie vanuit het CMS bijwerken naar een ondertekende release: controleren, downloaden, back-up, bestanden, migraties, herstel. Core, geen module | `src/Update/*`, `DatabaseSchemaRepository`, `admin/updates.php`, `api/admin/updates-*.php`, `scripts/release.php` — zie `docs/updates/ARCHITECTURE.md` |
 
 ## Levenscyclus
 
@@ -251,6 +253,7 @@ Bekend, ingepland, **niet** in deze stap op te lossen:
 | Headerknoppen, het Footer-scherm, footer-slotregel, social profielen | `HEADER-FOOTER.md` |
 | Titels, meta description, canonical, sitemap, robots | `SEO.md` |
 | Een oude URL die moet blijven werken, een pagina hernoemen | `REDIRECTS.md` |
+| De ingebouwde updater, een release maken, een mislukte update herstellen | `docs/updates/ARCHITECTURE.md`, `RELEASES.md`, `RECOVERY.md` |
 | Tests draaien of toevoegen | `TESTING.md` |
 | De schrijfstijl van code, commentaar en CMS-teksten | `CODE-STYLE.md` |
 | Hoe je aan dit project werkt: de skills, de regels, waar nieuwe kennis heen gaat | `WORKFLOW.md` |

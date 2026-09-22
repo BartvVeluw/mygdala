@@ -37,6 +37,10 @@
 }
 .admin-updates__facts dt{ color: var(--admin-text-faint); }
 .admin-updates__facts dd{ margin: 0; overflow-wrap: anywhere; }
+@media (max-width: 40rem){
+  .admin-updates__facts{ grid-template-columns: 1fr; gap: 0; }
+  .admin-updates__facts dd{ margin-bottom: var(--admin-sp-3); }
+}
 
 .admin-updates__notes{
   padding: var(--admin-sp-3) var(--admin-sp-4);

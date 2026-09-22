@@ -480,6 +480,16 @@ final class Updater
             'files_deleted' => $plan->delete,
             'files_added' => array_keys($plan->add),
         ]);
+
+        $databaseMetadata = json_decode((string) @file_get_contents($directory . '/' . DatabaseBackup::METADATA), true);
+        $backup->writeRecoveryNote(
+            $state->updateId(),
+            $state->fromVersion(),
+            $state->toVersion(),
+            (string) ($databaseMetadata['database'] ?? ''),
+            array_keys((array) ($databaseMetadata['tables'] ?? [])),
+            array_keys($plan->add)
+        );
         $log->write('backup_files', 'done', 'update.log.files_backed_up', ['count' => count($paths)]);
 
         return $state->advanceTo('apply');

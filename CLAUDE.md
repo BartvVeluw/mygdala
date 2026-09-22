@@ -54,6 +54,7 @@ de checklist al klaarzet. Roep die eerst aan.
 | Header-knop, footer-slotregel, social profielen, het kruimelpad | — | `HEADER-FOOTER.md` |
 | Titels, meta description, canonical, sitemap, robots | — | `SEO.md` |
 | Een oude URL die moet blijven werken, een pagina hernoemen | — | `REDIRECTS.md` |
+| De ingebouwde updater, releases maken, een mislukte update herstellen | — | `docs/updates/ARCHITECTURE.md` |
 | Een publieke route, de dispatcher, URL's en slugs per taal, canonical en hreflang per taal | — | `docs/multilingual/ROUTING.md` |
 | Tests draaien of toevoegen | — | `TESTING.md` |
 | Docker, database, lokaal draaien, meerdere installaties naast elkaar | — | `README.md` |
@@ -110,10 +111,11 @@ uitstaan, en `fast` faalt daar op zestien tests die niets met je wijziging te
 maken hebben. `TESTING.md` legt uit welke dat zijn.
 
 Draai na een wijziging **de suite van je domein**, niet de volle suite. De
-dertien suites zijn `unit`, `contract`, `fast`, `blocks`, `cms`, `shop`,
-`blog`, `modules`, `personalization`, `analytics`, `http`, `migration` en
-`full`. Formulieren hebben geen eigen suite en zitten in `cms`. `fast` is
-`unit` + `contract`, heeft niets nodig en mag altijd. Zie `TESTING.md`.
+veertien suites zijn `unit`, `contract`, `fast`, `blocks`, `cms`, `shop`,
+`blog`, `modules`, `personalization`, `analytics`, `updater`, `http`,
+`migration` en `full`. Formulieren hebben geen eigen suite en zitten in
+`cms`. `fast` is `unit` + `contract`, heeft niets nodig en mag altijd. Zie
+`TESTING.md`.
 
 ## Vaste regels van dit project
 

@@ -2593,7 +2593,7 @@ Uit het eerste label maakt het CMS ook de vaste naam waaronder antwoorden worden
     'update.recovery.maintenance' => 'Onderhoudsmodus',
     'update.recovery.maintenance_on' => 'Aan: bezoekers zien een onderhoudspagina.',
     'update.recovery.maintenance_off' => 'Uit.',
-    'update.recovery.what_now' => 'Geef het update-nummer, de back-up en het logboek door aan wie deze website technisch beheert. Hoe de site met de back-up wordt hersteld, staat in de documentatie (docs/updates/RECOVERY.md). Pas als dat gedaan is, zet je hieronder de onderhoudsmodus uit.',
+    'update.recovery.what_now' => 'Geef het update-nummer, de back-upmap en het logboek door aan wie deze website technisch beheert. In de back-upmap staat HERSTEL.txt met de stappen voor precies deze update. Pas als die gedaan zijn, zet je hieronder de onderhoudsmodus uit.',
     'update.resolve.button' => 'Herstel is afgerond: onderhoudsmodus uitzetten',
     'update.resolve.title' => 'Onderhoudsmodus uitzetten?',
     'update.resolve.message' => 'Doe dit alleen als de website met de back-up is hersteld of op een andere manier weer in orde is gebracht. Bezoekers zien de website daarna weer.',

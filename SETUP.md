@@ -426,13 +426,19 @@ cp .env.example .env
 8. **De site inrichten** in het CMS: zie "Daarna: waar je wat aanpast".
 
 Bijwerken naar een nieuwere Mygdala doe je per installatie, en het raakt geen
-andere:
+andere. Een installatie die uit Git komt (zoals deze lokale opzet):
 
 ```bash
 git pull
 docker compose exec php composer install
 docker compose exec php php vendor/bin/phinx migrate
 ```
+
+Een **release-installatie** (uitgepakt uit een releasepakket, met
+`release.json` in de root) werk je bij vanuit het CMS: **Instellingen →
+Updates**. Zie [`docs/updates/ARCHITECTURE.md`](docs/updates/ARCHITECTURE.md);
+hoe je een bestaande installatie één keer naar het releasemodel overzet, staat
+in [`docs/updates/RELEASES.md`](docs/updates/RELEASES.md).
 
 ### Welke modules aan
 
