@@ -118,6 +118,7 @@ final class ShopDisabledTest extends TestCase
                 'settings',
                 'theme',
                 'redirects',
+                'updates',
                 'users',
             ],
             array_column(AdminNavigation::items(), 'key')

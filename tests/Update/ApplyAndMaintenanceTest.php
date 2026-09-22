@@ -193,7 +193,7 @@ final class ApplyAndMaintenanceTest extends TestCase
     {
         self::write($this->root, [
             'index.php' => '', 'admin/updates.php' => '', 'admin/login.php' => '', 'admin/pages.php' => '',
-            'api/admin/update-step.php' => '', 'api/admin/update-page.php' => '', 'api/checkout.php' => '',
+            'api/admin/updates-step.php' => '', 'api/admin/update-page.php' => '', 'api/checkout.php' => '',
         ]);
         (new MaintenanceMode($this->root))->enable('20261001-120000-abcdef', 'the-token');
         $flag = (new MaintenanceMode($this->root))->read();
@@ -208,11 +208,11 @@ final class ApplyAndMaintenanceTest extends TestCase
 
         $this->assertSame(MaintenanceGuard::PASS, $decide('admin/updates.php', '/admin/updates.php'));
         $this->assertSame(MaintenanceGuard::PASS, $decide('admin/login.php', '/admin/login.php'));
-        $this->assertSame(MaintenanceGuard::PASS, $decide('api/admin/update-step.php', '/api/admin/update-step.php'));
+        $this->assertSame(MaintenanceGuard::PASS, $decide('api/admin/updates-step.php', '/api/admin/updates-step.php'));
 
         // The URL cannot talk the guard into an exemption: only the script that runs counts.
         $this->assertNotSame(MaintenanceGuard::PASS, $decide('index.php', '/admin/updates.php'));
-        $this->assertNotSame(MaintenanceGuard::PASS, $decide('index.php', '/api/admin/update-step.php/../../index.php'));
+        $this->assertNotSame(MaintenanceGuard::PASS, $decide('index.php', '/api/admin/updates-step.php/../../index.php'));
 
         $this->assertSame(MaintenanceGuard::PASS, $decide('index.php', '/', 'the-token'), 'the health check passes with the token');
         $this->assertSame(MaintenanceGuard::PAGE_UNAVAILABLE, $decide('index.php', '/', 'a-guess'));

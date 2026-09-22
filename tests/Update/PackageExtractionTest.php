@@ -273,7 +273,7 @@ final class PackageExtractionTest extends TestCase
     public function testAReleaseWithoutTheUpdaterThatMustFinishTheUpdateIsRefused(): void
     {
         $files = self::releaseFiles('0.2.0');
-        unset($files['api/admin/update-step.php']);
+        unset($files['api/admin/updates-step.php']);
         $this->stage($files);
 
         $this->assertInvalid(fn () => (new PackageValidator($this->base . '/staging'))->validate($this->manifest()));

@@ -1,0 +1,145 @@
+/*
+ * Updates screen (admin/updates.php): the step list of a running update, the
+ * requirement list, the fact lists and the log — what exists on that one
+ * screen and nowhere else.
+ *
+ * OWNER. admin/updates.php, the only screen that links it, after admin.css.
+ * Cards, badges, alerts, buttons and the table are admin.css's own
+ * components and are used as they are.
+ *
+ * WHAT IS NOT HERE. No colour and no token of its own: every value reads the
+ * --admin-* tokens admin.css declares, so every dashboard theme styles this
+ * screen too (THEMING.md). And nothing for the normal shell: during the
+ * maintenance window the screen renders a plain header instead
+ * (.admin-update-bare), because the shell reads settings from a database
+ * that may be halfway through a migration.
+ */
+
+.admin-updates [hidden]{ display: none !important; }
+
+.admin-updates__eyebrow{
+  margin: 0;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  font-size: .75rem;
+}
+
+.admin-updates__version{
+  font-size: 1.15rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.admin-updates__facts{
+  display: grid;
+  grid-template-columns: minmax(8rem, max-content) 1fr;
+  gap: var(--admin-sp-2) var(--admin-sp-4);
+  margin: 0 0 var(--admin-sp-4);
+}
+.admin-updates__facts dt{ color: var(--admin-text-faint); }
+.admin-updates__facts dd{ margin: 0; overflow-wrap: anywhere; }
+
+.admin-updates__notes{
+  padding: var(--admin-sp-3) var(--admin-sp-4);
+  border: 1px solid var(--admin-border);
+  border-radius: var(--admin-radius-sm);
+  background: var(--admin-surface-sunken);
+  margin-bottom: var(--admin-sp-4);
+  max-height: 20rem;
+  overflow: auto;
+}
+
+.admin-updates__detail{
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: .8rem;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  opacity: .85;
+  margin: var(--admin-sp-1) 0 0;
+}
+
+/* --- Steps of a running update -------------------------------------------- */
+
+.admin-update-steps{
+  list-style: none;
+  counter-reset: update-step;
+  margin: var(--admin-sp-4) 0;
+  padding: 0;
+  display: grid;
+  gap: var(--admin-sp-2);
+}
+.admin-update-steps__item{
+  counter-increment: update-step;
+  display: flex;
+  align-items: center;
+  gap: var(--admin-sp-3);
+  color: var(--admin-text-faint);
+}
+.admin-update-steps__item::before{
+  content: counter(update-step);
+  flex: 0 0 1.75rem;
+  height: 1.75rem;
+  display: grid;
+  place-items: center;
+  border-radius: var(--admin-radius-pill);
+  border: 1px solid var(--admin-border-strong);
+  font-size: .8rem;
+  font-variant-numeric: tabular-nums;
+}
+.admin-update-steps__item.is-done{ color: var(--admin-text); }
+.admin-update-steps__item.is-done::before{
+  content: "✓";
+  border-color: var(--admin-success);
+  color: var(--admin-success);
+}
+.admin-update-steps__item.is-current{ color: var(--admin-text); font-weight: 600; }
+.admin-update-steps__item.is-current::before{
+  border-color: var(--admin-accent);
+  color: var(--admin-accent);
+}
+[aria-busy="true"] .admin-update-steps__item.is-current::before{
+  animation: admin-update-pulse 1.2s ease-in-out infinite;
+}
+@keyframes admin-update-pulse{ 50%{ opacity: .35; } }
+@media (prefers-reduced-motion: reduce){
+  [aria-busy="true"] .admin-update-steps__item.is-current::before{ animation: none; }
+}
+
+/* --- Requirements and check results --------------------------------------- */
+
+.admin-update-checks{
+  list-style: none;
+  margin: 0 0 var(--admin-sp-4);
+  padding: 0;
+  display: grid;
+  gap: var(--admin-sp-1);
+}
+.admin-update-checks__item{ padding-left: 1.5rem; position: relative; overflow-wrap: anywhere; }
+.admin-update-checks__item::before{ position: absolute; left: 0; font-weight: 700; }
+.admin-update-checks__item.is-ok::before{ content: "✓"; color: var(--admin-success); }
+.admin-update-checks__item.is-warning::before{ content: "!"; color: var(--admin-accent); }
+.admin-update-checks__item.is-error::before{ content: "✕"; color: var(--admin-error); }
+.admin-update-checks__item.is-error{ color: var(--admin-error); }
+
+/* --- The log of the last update ------------------------------------------- */
+
+.admin-updates__log summary{ cursor: pointer; margin-top: var(--admin-sp-4); }
+.admin-updates__log ol{ list-style: none; padding: 0; margin: var(--admin-sp-3) 0 0; display: grid; gap: var(--admin-sp-2); font-size: .875rem; }
+.admin-updates__log li{ display: flex; flex-wrap: wrap; gap: 0 var(--admin-sp-3); }
+.admin-updates__log time{ font-variant-numeric: tabular-nums; color: var(--admin-text-faint); }
+.admin-updates__log-step{ font-weight: 600; }
+.admin-updates__log li.is-failed,
+.admin-updates__log li.is-error{ color: var(--admin-error); }
+.admin-updates__log pre{ flex-basis: 100%; }
+
+/* --- The plain header of the maintenance window --------------------------- */
+
+.admin-update-bare{
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--admin-sp-4);
+  padding: var(--admin-sp-3) var(--admin-sp-5);
+  border-bottom: 1px solid var(--admin-border);
+  background: var(--admin-surface);
+}
+.admin-update-bare form{ margin: 0; }

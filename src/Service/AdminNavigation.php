@@ -293,6 +293,19 @@ class AdminNavigation
                 'scripts' => ['redirects.php', 'redirect.php'],
             ],
             [
+                // The built-in updater (docs/updates/): with the other
+                // site-wide settings, because installing a release is a
+                // decision about the whole installation. Its own permission,
+                // held by Super Admins, because it replaces the application.
+                'key' => 'updates',
+                'label' => 'Updates',
+                'url' => '/admin/updates.php',
+                'icon' => 'updates',
+                'permission' => AdminPermissions::UPDATES_MANAGE,
+                'order' => 830,
+                'scripts' => ['updates.php'],
+            ],
+            [
                 'key' => 'users',
                 'label' => 'Gebruikers',
                 'url' => '/admin/users.php',

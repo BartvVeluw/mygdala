@@ -66,6 +66,15 @@ class AdminPermissions
     public const USERS_MANAGE = 'users.manage';
 
     /**
+     * Installing a Mygdala release through the built-in updater
+     * (admin/updates.php, docs/updates/). It replaces the application's own
+     * code and runs its migrations, so it is the owner's decision in the
+     * same way widening the circle of user managers is: only a Super Admin
+     * holds it by default, and only a Super Admin can hand it out.
+     */
+    public const UPDATES_MANAGE = 'updates.manage';
+
+    /**
      * The Media Library, and the one place this project splits a permission
      * for a reason other than "the sidebar has a read-only screen".
      *
@@ -92,6 +101,7 @@ class AdminPermissions
      */
     public const SUPER_ADMIN_GRANTABLE_ONLY = [
         self::USERS_MANAGE,
+        self::UPDATES_MANAGE,
     ];
 
     /**
@@ -157,6 +167,10 @@ class AdminPermissions
                 self::USERS_MANAGE => [
                     'label' => 'Gebruikers beheren',
                     'description' => 'CMS-gebruikers aanmaken en wijzigen. Alleen een Super Admin kan dit recht toekennen.',
+                ],
+                self::UPDATES_MANAGE => [
+                    'label' => 'Updates installeren',
+                    'description' => 'Nieuwe versies van Mygdala controleren en installeren. Een update zet de website even in onderhoud. Alleen een Super Admin kan dit recht toekennen.',
                 ],
             ],
         ],

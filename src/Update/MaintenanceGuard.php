@@ -38,8 +38,8 @@ final class MaintenanceGuard
         'admin/login.php',
         'admin/logout.php',
         'admin/updates.php',
-        'api/admin/update-step.php',
-        'api/admin/update-resolve.php',
+        'api/admin/updates-step.php',
+        'api/admin/updates-resolve.php',
     ];
 
     public const HEALTH_HEADER = 'X-Mygdala-Health';

@@ -17,7 +17,7 @@ use App\Service\AppUrl;
  *
  * WHY ONE STEP PER REQUEST. A shared host ends a request after 30 to 60
  * seconds and nobody can promise an update fits in that. So the admin page
- * asks for the next step (api/admin/update-step.php), the server runs exactly
+ * asks for the next step (api/admin/updates-step.php), the server runs exactly
  * the step UpdateState says is next — bounded by a time budget, resumable
  * where it is long — saves the state and answers. A closed tab loses nothing:
  * the state file says where the update is, and "Doorgaan" runs that step

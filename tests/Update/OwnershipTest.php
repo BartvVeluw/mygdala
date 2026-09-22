@@ -64,7 +64,7 @@ final class OwnershipTest extends TestCase
         yield 'the version' => ['VERSION'];
         yield 'the documented example' => ['.env.example'];
         yield 'an admin screen' => ['admin/settings.php'];
-        yield 'an endpoint' => ['api/admin/update-step.php'];
+        yield 'an endpoint' => ['api/admin/updates-step.php'];
         yield 'a class' => ['src/Update/Ownership.php'];
         yield 'a migration' => ['db/migrations/20260903120000_create_install_state_table.php'];
         yield 'a stylesheet' => ['assets/css/core.css'];

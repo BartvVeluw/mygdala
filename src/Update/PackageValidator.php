@@ -35,7 +35,7 @@ final class PackageValidator
         'src/Update/Updater.php',
         'src/Update/MaintenanceGuard.php',
         'admin/updates.php',
-        'api/admin/update-step.php',
+        'api/admin/updates-step.php',
     ];
 
     public function __construct(
