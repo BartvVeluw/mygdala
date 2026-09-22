@@ -585,7 +585,10 @@ tegenhouden; de server controleert).
 *Opslaan*, blok en rij in één opslag, volgorde, verwijderen, toevoegen, een
 geweigerde opslag die niets schrijft, en de taal) bewaken het contract.
 
-### Welke editors het al volgen
+### Welke editors het volgen
+
+Alle blok-editors met rijen volgen dit contract; geen enkele heeft nog een
+*Opslaan* per rij, per sectie of per afbeelding.
 
 | Blok | Editor | Endpoint |
 |---|---|---|
@@ -597,6 +600,7 @@ geweigerde opslag die niets schrijft, en de taal) bewaken het contract.
 | Woordenband | `admin/marquee.php` (*Actief*, items) | `api/admin/update-marquee-section.php` |
 | Kaartenraster | `admin/feature-grid.php` (kop, *Actief*, kaarten met icoon) | `api/admin/update-feature-grid.php` |
 | Tekst met afbeelding | `admin/text-image-split.php` (sectie, knop, *Actief*, alinea's, afbeeldingen uit de mediabibliotheek) | `api/admin/update-text-image-split-section.php` |
+| Detailsectie | `admin/detail-section.php` (woorden en rich text, anker, CTA, *Actief*, hoofdafbeelding, kenmerken, galerij) | `api/admin/update-detail-section.php` |
 | Homepage-hero | `admin/homepage-hero.php` (teksten, knoppen, badge, media en lay-out, afbeelding en video als bestand, statistieken, max. 3) | `api/admin/update-homepage-hero.php` |
 
 Een kaart heeft een eigen scherm omdat hij zelf een lijst (tags) draagt;
@@ -610,11 +614,21 @@ weg na de commit. Een browser vult een bestandsveld nooit opnieuw in: na een
 geweigerde opslag komt alle tekst terug en vraagt het scherm het bestand
 opnieuw te kiezen.
 
-### Wat nog niet
+### Afbeeldingen in een rij en de hoofdafbeelding
 
-Deze editors hebben nog een formulier per rij, met elk een eigen *Opslaan*
-en eigen endpoints voor toevoegen, verplaatsen en verwijderen: Detailsectie (punten, afbeeldingen, hoofdafbeelding). Ze gaan over op hetzelfde contract, één blok
-per keer, met de helper en het script hierboven.
+Een afbeelding in een rij (Tekst met afbeelding, de galerij van de
+Detailsectie) is een item uit de mediabibliotheek, gekozen met de kiezer van
+`admin/_media_picker.php` (`editor_row_media()`). Kiezen vult alleen het veld;
+er wordt pas bij *Opslaan* iets geschreven. Een nieuwe rij heeft een item
+nodig. Een opgeslagen rij waarvan het veld leeg terugkomt, houdt wat hij had:
+een afbeelding van vóór de bibliotheek (een pad zonder item) mag nooit de
+rest van de opslag tegenhouden.
+
+De hoofdafbeelding van de Detailsectie hoort bij het blok zelf en staat in
+hetzelfde formulier. *Wissen* in de kiezer haalt hem bij *Opslaan* weg, met
+zijn alt-tekst in elke taal; een oude afbeelding zonder item heeft daarvoor
+een eigen vinkje. Alleen een formulier dat de kiezer of het alt-veld
+meestuurt, kan ze veranderen.
 
 ## Dezelfde tabbladen op een ander scherm
 

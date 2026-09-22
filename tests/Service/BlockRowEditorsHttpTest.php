@@ -10,6 +10,7 @@ use App\Repository\BlockTranslationRepository;
 use App\Repository\MediaRepository;
 use App\Repository\PageRepository;
 use App\Repository\PageSectionRepository;
+use App\Repository\SiteLanguageRepository;
 use App\Service\AdminPermissions;
 use App\Service\Blocks\BlockDefinitions;
 use App\Service\Blocks\BlockLocalization;
@@ -37,7 +38,9 @@ use Tests\Support\PageFixture;
  *    next to its field;
  *  - a save in one language leaves the other languages alone, and a new row
  *    is written in the default language whatever the screen shows;
- *  - a removed row takes its words in every language along.
+ *  - a removed row takes its words in every language along, and leaves no
+ *    orphan behind; a third language is a row in site_languages and nothing
+ *    else.
  *
  * Table-driven: CASES names, per list, its block, its screen and endpoint, a
  * valid save of the block, a word of the block to change (or none, then its
@@ -147,6 +150,36 @@ final class BlockRowEditorsHttpTest extends TestCase
             'table' => 'text_image_split_paragraphs',
             'row' => ['content' => 'Wij maken alles op maat.'],
         ],
+        'detail_section_points' => [
+            'block' => 'detail_section',
+            'screen' => '/admin/detail-section.php?section={section}',
+            'endpoint' => '/api/admin/update-detail-section.php',
+            'parent' => 'detail_sections',
+            'base' => [
+                'anchor' => 'hout', 'image_position' => 'image_right', 'cta_url' => '/contact', 'is_active' => '1',
+                'nav_label' => 'Hout', 'title' => 'Hout graveren', 'lead' => 'Warm en tijdloos.', 'body' => '<p>Elk stuk is uniek.</p>',
+                'main_image_alt' => '', 'closing_note' => 'Op aanvraag.', 'cta_label' => 'Vraag een offerte',
+            ],
+            'word' => 'title',
+            'list' => 'points',
+            'table' => 'detail_section_points',
+            'row' => ['title' => 'Massief eiken', 'body' => 'Uit Europese bossen.', 'active' => '1'],
+        ],
+        'detail_section_images' => [
+            'block' => 'detail_section',
+            'screen' => '/admin/detail-section.php?section={section}',
+            'endpoint' => '/api/admin/update-detail-section.php',
+            'parent' => 'detail_sections',
+            'base' => [
+                'anchor' => 'hout', 'image_position' => 'image_right', 'cta_url' => '/contact', 'is_active' => '1',
+                'nav_label' => 'Hout', 'title' => 'Hout graveren', 'lead' => 'Warm en tijdloos.', 'body' => '<p>Elk stuk is uniek.</p>',
+                'main_image_alt' => '', 'closing_note' => 'Op aanvraag.', 'cta_label' => 'Vraag een offerte',
+            ],
+            'word' => 'title',
+            'list' => 'images',
+            'table' => 'detail_section_images',
+            'row' => ['media_id' => '{media}', 'alt' => 'Een eiken tafelblad'],
+        ],
         'text_image_split_images' => [
             'block' => 'text_image_split',
             'screen' => '/admin/text-image-split.php?section={section}',
@@ -175,6 +208,8 @@ final class BlockRowEditorsHttpTest extends TestCase
 
     /** @var array{hero: array<string, mixed>, stats: list<array<string, mixed>>, words: list<array<string, mixed>>}|null the borrowed homepage hero as it was */
     private ?array $heroBefore = null;
+
+    private bool $addedGerman = false;
 
     /** @var list<string> files this test wrote: temporary uploads and stored ones */
     private array $files = [];
@@ -228,9 +263,16 @@ final class BlockRowEditorsHttpTest extends TestCase
         $this->mediaIds = [];
         MediaService::clearCache();
 
+        if ($this->addedGerman) {
+            Database::connection()->prepare("DELETE FROM block_translations WHERE language_code = 'de'")->execute();
+            (new SiteLanguageRepository())->delete('de');
+            $this->addedGerman = false;
+        }
+
         $this->accounts->forget();
         BlockLocalization::clearCache();
         PageContent::clearCache();
+        SiteLanguages::clearCache();
     }
 
     /** @return array<string, array{string}> */
@@ -426,6 +468,41 @@ final class BlockRowEditorsHttpTest extends TestCase
         self::assertSame([], $this->stored($table, $new, 'en'));
     }
 
+    /**
+     * @dataProvider cases
+     */
+    public function testAThirdLanguageNeedsOnlyARowInTheRegistryAndARemovedRowLeavesNoOrphan(string $case): void
+    {
+        $this->place($case);
+        (new SiteLanguageRepository())->create('de', 'German', 'Deutsch');
+        $this->addedGerman = true;
+        SiteLanguages::clearCache();
+
+        [$a, $b] = $this->seed($this->signIn(null), $case, 2);
+        $table = self::CASES[$case]['table'];
+        $field = $this->firstWord($case);
+        $session = $this->signIn('de');
+
+        $this->assertSaved($this->save($session, $case, 'de', [], [
+            (string) $a => [$field => 'Deutsch'] + $this->neutral($case),
+            (string) $b => $this->neutral($case),
+        ]));
+        self::assertSame([$field => 'Deutsch'], $this->stored($table, $a, 'de'));
+        self::assertSame('Rij 1', $this->stored($table, $a, 'nl')[$field]);
+
+        // Removed from the German screen: its words go in every language.
+        $this->assertSaved($this->save($session, $case, 'de', [], [
+            (string) $a => ['remove' => '1'] + $this->neutral($case),
+            (string) $b => $this->neutral($case),
+        ]));
+        self::assertSame([$b], $this->rowIds($case));
+        BlockLocalization::clearCache();
+        self::assertSame([], array_values(array_filter(
+            BlockLocalization::orphans()['missing_owner'],
+            static fn (array $row): bool => $row['owner_table'] === $table && $row['owner_id'] === $a
+        )), 'nothing is left for the orphan check to purge');
+    }
+
     // ------------------------------------------------------------ rules of one list
 
     public function testACardsIconAndSwitchAreStoredWithItsWordsAndAnUnknownIconBecomesTheFirst(): void
@@ -502,6 +579,33 @@ final class BlockRowEditorsHttpTest extends TestCase
             (string) $a => ['media_id' => '999999999'] + $this->row($case),
         ]));
         self::assertSame($before, $this->snapshot($case));
+    }
+
+    public function testTheDetailSectionsMainImageIsPartOfTheOneSaveAndClearingItKeepsTheOtherChanges(): void
+    {
+        $this->place('detail_section_points');
+        $session = $this->signIn(null);
+        [$a] = $this->seed($session, 'detail_section_points', 1);
+        $media = $this->mediaItem();
+        $main = static fn (int $id): ?int => ($row = (new \App\Repository\DetailSectionRepository())->findById($id)) === null || $row['main_media_id'] === null ? null : (int) $row['main_media_id'];
+
+        // Choosing the main image, typing its alt text, a title and a kenmerk: one save.
+        $this->assertSaved($this->save($session, 'detail_section_points', 'nl', ['title' => 'Blok gewijzigd', 'main_media_id' => (string) $media, 'main_image_alt' => 'Een plank'], [
+            (string) $a => ['title' => 'Kenmerk gewijzigd'] + $this->row('detail_section_points'),
+        ]));
+        self::assertSame($media, $main($this->parentId));
+        self::assertSame('Een plank', $this->stored('detail_sections', $this->parentId, 'nl')['main_image_alt']);
+        self::assertSame('Kenmerk gewijzigd', $this->stored('detail_section_points', $a, 'nl')['title']);
+        $this->assertBlockChanged('detail_section_points');
+
+        // Clearing it with other changes in the same save.
+        $this->assertSaved($this->save($session, 'detail_section_points', 'nl', ['title' => 'Nog eens', 'main_media_id' => '', 'main_image_alt' => 'Een plank'], [
+            (string) $a => ['title' => 'Ook dit'] + $this->row('detail_section_points'),
+        ]));
+        self::assertNull($main($this->parentId));
+        self::assertArrayNotHasKey('main_image_alt', $this->stored('detail_sections', $this->parentId, 'nl'), 'no image, no alt text');
+        self::assertSame('Nog eens', $this->stored('detail_sections', $this->parentId, 'nl')['title']);
+        self::assertSame('Ook dit', $this->stored('detail_section_points', $a, 'nl')['title']);
     }
 
     public function testTheHeroKeepsAtMostThreeStats(): void

@@ -171,9 +171,7 @@ final class MediaBoundaryTest extends TestCase
 
         foreach ([
             'update-text-image-split-section.php',
-            'create-detail-section-image.php',
-            'update-detail-section-image.php',
-            'update-detail-section-main-image.php',
+            'update-detail-section.php',
             'update-carousel-card.php',
             'update-page-hero.php',
         ] as $endpoint) {
@@ -201,9 +199,7 @@ final class MediaBoundaryTest extends TestCase
     {
         foreach ([
             'update-text-image-split-section.php',
-            'create-detail-section-image.php',
-            'update-detail-section-image.php',
-            'update-detail-section-main-image.php',
+            'update-detail-section.php',
             'update-carousel-card.php',
             'update-site-settings.php',
             'update-page.php',

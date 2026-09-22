@@ -1161,17 +1161,6 @@ final class MultilingualBoundaryTest extends TestCase
     ];
 
     /**
-     * Every endpoint that deletes ONE child row of a converted block, with
-     * the child table it deletes from. There is no foreign key from
-     * block_translations to a child row, so this line in each of them is
-     * what keeps a deleted item's words from staying behind.
-     */
-    private const CHILD_DELETE_ENDPOINTS = [
-        'api/admin/delete-detail-section-point.php' => 'detail_section_points',
-        'api/admin/delete-detail-section-image.php' => 'detail_section_images',
-    ];
-
-    /**
      * The one-form editors (PAGE-EDITOR.md, "Eén formulier per blok-editor"):
      * one endpoint saves a block or an item with all of its child rows, so it
      * both adds and removes them — per child table, the endpoint that does.
@@ -1197,12 +1186,8 @@ final class MultilingualBoundaryTest extends TestCase
         'homepage_hero_stats' => ['api/admin/update-homepage-hero.php', 'stats'],
         'text_image_split_paragraphs' => ['api/admin/update-text-image-split-section.php', 'paragraphs'],
         'text_image_split_images' => ['api/admin/update-text-image-split-section.php', 'images'],
-    ];
-
-    /** Every endpoint that adds ONE child row of a converted block: it writes the new row's words in the default language. */
-    private const CHILD_CREATE_ENDPOINTS = [
-        'api/admin/create-detail-section-point.php' => 'detail_section_points',
-        'api/admin/create-detail-section-image.php' => 'detail_section_images',
+        'detail_section_points' => ['api/admin/update-detail-section.php', 'points'],
+        'detail_section_images' => ['api/admin/update-detail-section.php', 'images'],
     ];
 
     /** Child tables whose rows are only ever deleted with their parent, or by an endpoint listed with the next wave. */
@@ -1335,22 +1320,16 @@ final class MultilingualBoundaryTest extends TestCase
         }
     }
 
-    public function testDeletingOneChildRowTakesItsWordsFirstInTheSameTransaction(): void
+    public function testEveryChildTableHasAKnownDeletePath(): void
     {
-        foreach (self::CHILD_DELETE_ENDPOINTS as $endpoint => $table) {
-            self::assertMatchesRegularExpression(
-                '/beginTransaction\(\);\s*BlockLocalization::deleteOwner\(\x27' . $table . '\x27, (\$\w+Id)\);\s*\$repository->delete\w*\(\1\);\s*\$db->commit\(\);/',
-                self::withoutComments(self::read($endpoint)),
-                $endpoint . ': the words go before the row, in its transaction'
-            );
-        }
-
-        // Every converted child table is on the list: a new one needs its line.
+        // Every child row is saved by a one-form editor, which removes a
+        // row's words before the row, in its transaction (the two tests
+        // below). A new child table needs its line in one of the lists.
         $declared = [];
         foreach (\App\Service\Blocks\BlockDefinitions::all() as $definition) {
             $declared = array_merge($declared, array_keys($definition->childTables()));
         }
-        self::assertSame([], array_values(array_diff(array_unique($declared), array_values(self::CHILD_DELETE_ENDPOINTS), array_keys(self::ONE_FORM_CHILD_ENDPOINTS), array_keys(self::ROW_LIST_ENDPOINTS), self::CHILD_TABLES_DELETED_ELSEWHERE)), 'a child table without a known delete path');
+        self::assertSame([], array_values(array_diff(array_unique($declared), array_keys(self::ONE_FORM_CHILD_ENDPOINTS), array_keys(self::ROW_LIST_ENDPOINTS), self::CHILD_TABLES_DELETED_ELSEWHERE)), 'a child table without a known delete path');
     }
 
     public function testAOneFormEditorRemovesAndAddsChildRowsTheSameWay(): void
@@ -1397,21 +1376,6 @@ final class MultilingualBoundaryTest extends TestCase
                 '/beginTransaction\(\);.*?->save\(\s*\$languageCode,.*?commit\(\);/s',
                 $code,
                 $endpoint . ': the rows are saved in the same transaction as the block'
-            );
-        }
-    }
-
-    public function testANewChildRowIsWrittenInTheDefaultLanguageInOneTransaction(): void
-    {
-        foreach (self::CHILD_CREATE_ENDPOINTS as $endpoint => $table) {
-            $code = self::withoutComments(self::read($endpoint));
-
-            self::assertStringContainsString('$defaultLanguage = BlockLocalization::defaultLanguage();', $code, $endpoint);
-            self::assertStringNotContainsString("\$_POST['language_code']", $code, $endpoint . ': a new item is never written in a language the request names');
-            self::assertMatchesRegularExpression(
-                '/beginTransaction\(\);.*?->create\w*\(.*?BlockLocalization::save\(\x27' . $table . '\x27, [^,]+, \$defaultLanguage,.*?commit\(\);/s',
-                $code,
-                $endpoint . ': the row and its words are one save'
             );
         }
     }

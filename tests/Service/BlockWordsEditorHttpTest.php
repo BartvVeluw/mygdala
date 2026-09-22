@@ -455,36 +455,31 @@ final class BlockWordsEditorHttpTest extends TestCase
         self::assertStringNotContainsString('onerror', $body);
     }
 
-    public function testTheDetailSectionImageFormWritesOnlyItsAltTextAndARemovedImageTakesIt(): void
+    public function testTheDetailSectionMainImageIsSavedWithTheWordsAndClearingItTakesItsAltText(): void
     {
         $type = 'detail_section';
         $this->place($type);
         $session = $this->signIn(null);
         $words = self::BLOCKS[$type]['words'];
         $media = (string) $this->mediaItem();
-        $image = fn (string $language, array $fields): array => $this->post($session, '/api/admin/update-detail-section-main-image.php', [
-            'section' => $this->blocks[$type]['section'],
-            'language_code' => $language,
-        ] + $fields);
 
-        $this->assertSaved($this->save($session, $type, 'nl', $words));
-        $this->assertSaved($this->save($session, $type, 'en', ['title' => 'Wood engraving']));
+        // The image, its alt text and the section's words: one save per language.
+        $this->assertSaved($this->save($session, $type, 'nl', $words + ['main_image_alt' => 'Een gegraveerde plank'], ['main_media_id' => $media]));
+        $this->assertSaved($this->save($session, $type, 'en', ['title' => 'Wood engraving', 'main_image_alt' => 'An "engraved" board'], ['main_media_id' => $media]));
 
-        $this->assertSaved($image('nl', ['media_id' => $media, 'main_image_alt' => 'Een gegraveerde plank']));
-        $this->assertSaved($image('en', ['media_id' => $media, 'main_image_alt' => 'An "engraved" board']));
-
-        self::assertSame('Een gegraveerde plank', $this->stored($type, 'nl')['main_image_alt']);
-        self::assertSame($words, array_diff_key($this->stored($type, 'nl'), ['main_image_alt' => true]), 'the image form writes nothing but its alt text');
+        self::assertEquals($words + ['main_image_alt' => 'Een gegraveerde plank'], $this->stored($type, 'nl'), 'the same words, in declaration order');
         self::assertSame(['title' => 'Wood engraving', 'main_image_alt' => 'An "engraved" board'], $this->stored($type, 'en'));
+        self::assertSame((int) $media, (int) (new \App\Repository\DetailSectionRepository())->findById($this->blocks[$type]['id'])['main_media_id']);
 
-        // The section form keeps the alt text it does not show.
+        // A request without the alt field keeps the alt text it did not carry.
         $this->assertSaved($this->save($session, $type, 'en', ['title' => 'Engraving wood']));
         self::assertSame(['title' => 'Engraving wood', 'main_image_alt' => 'An "engraved" board'], $this->stored($type, 'en'));
 
-        // Removing the image takes its alt text in every language, and nothing else.
-        $this->assertSaved($image('nl', ['remove_image' => '1']));
+        // Clearing the picker takes the image and its alt text in every language, and nothing else.
+        $this->assertSaved($this->save($session, $type, 'nl', $words + ['main_image_alt' => 'Een gegraveerde plank'], ['main_media_id' => '']));
         self::assertSame($words, $this->stored($type, 'nl'));
         self::assertSame(['title' => 'Engraving wood'], $this->stored($type, 'en'));
+        self::assertNull((new \App\Repository\DetailSectionRepository())->findById($this->blocks[$type]['id'])['main_media_id']);
     }
 
     // ------------------------------------------------------------ helpers

@@ -199,18 +199,6 @@ class DetailSectionRepository extends Repository
     }
 
     /**
-     * @return array<string, mixed>|null
-     */
-    public function findPointById(int $id): ?array
-    {
-        $stmt = $this->db->prepare('SELECT * FROM detail_section_points WHERE id = :id LIMIT 1');
-        $stmt->execute(['id' => $id]);
-        $row = $stmt->fetch();
-
-        return $row === false ? null : $row;
-    }
-
-    /**
      * Appends a new, visible point to the end of a section and returns its
      * id. Its title and body are words, stored per website language against
      * that id (App\Service\Blocks\BlockLocalization), in the same transaction
@@ -266,14 +254,23 @@ class DetailSectionRepository extends Repository
         return $stmt->rowCount() > 0;
     }
 
-    public function movePoint(int $sectionId, int $pointId, string $direction): void
+    /**
+     * Stores the order of the points of one Detailsectie as the one-form
+     * editor posted it (App\Service\Blocks\EditorChildList::save()): the
+     * first id gets sort_order 0. An id that is not a row of $sectionId is
+     * left alone.
+     *
+     * @param list<int> $orderedIds
+     */
+    public function reorderPoints(int $sectionId, array $orderedIds): void
     {
-        $this->moveWithinList(
-            $this->findPointsBySectionId($sectionId),
-            $pointId,
-            $direction,
-            'detail_section_points'
+        $stmt = $this->db->prepare(
+            'UPDATE detail_section_points SET sort_order = :sort_order, updated_at = NOW() WHERE id = :id AND section_id = :parent_id'
         );
+
+        foreach (array_values($orderedIds) as $position => $id) {
+            $stmt->execute(['sort_order' => $position, 'id' => (int) $id, 'parent_id' => $sectionId]);
+        }
     }
 
     // -- Gallery images ----------------------------------------------------
@@ -289,18 +286,6 @@ class DetailSectionRepository extends Repository
         $stmt->execute(['section_id' => $sectionId]);
 
         return $stmt->fetchAll();
-    }
-
-    /**
-     * @return array<string, mixed>|null
-     */
-    public function findImageById(int $id): ?array
-    {
-        $stmt = $this->db->prepare('SELECT * FROM detail_section_images WHERE id = :id LIMIT 1');
-        $stmt->execute(['id' => $id]);
-        $row = $stmt->fetch();
-
-        return $row === false ? null : $row;
     }
 
     /**
@@ -362,53 +347,26 @@ class DetailSectionRepository extends Repository
         return $stmt->rowCount() > 0;
     }
 
-    public function moveImage(int $sectionId, int $imageId, string $direction): void
+    /**
+     * Stores the order of the images of one Detailsectie as the one-form
+     * editor posted it (App\Service\Blocks\EditorChildList::save()): the
+     * first id gets sort_order 0. An id that is not a row of $sectionId is
+     * left alone.
+     *
+     * @param list<int> $orderedIds
+     */
+    public function reorderImages(int $sectionId, array $orderedIds): void
     {
-        $this->moveWithinList(
-            $this->findImagesBySectionId($sectionId),
-            $imageId,
-            $direction,
-            'detail_section_images'
+        $stmt = $this->db->prepare(
+            'UPDATE detail_section_images SET sort_order = :sort_order, updated_at = NOW() WHERE id = :id AND section_id = :parent_id'
         );
+
+        foreach (array_values($orderedIds) as $position => $id) {
+            $stmt->execute(['sort_order' => $position, 'id' => (int) $id, 'parent_id' => $sectionId]);
+        }
     }
 
     // -- Shared helpers -----------------------------------------------------
-
-    /**
-     * @param array<int, array<string, mixed>> $items already ordered by sort_order ASC, id ASC
-     */
-    private function moveWithinList(array $items, int $itemId, string $direction, string $table): void
-    {
-        $index = null;
-        foreach ($items as $i => $item) {
-            if ((int) $item['id'] === $itemId) {
-                $index = $i;
-                break;
-            }
-        }
-
-        if ($index === null) {
-            return;
-        }
-
-        $swapWith = $direction === 'up' ? $index - 1 : $index + 1;
-
-        if ($swapWith < 0 || $swapWith >= count($items)) {
-            return;
-        }
-
-        $a = $items[$index];
-        $b = $items[$swapWith];
-
-        $this->updateSortOrder($table, (int) $a['id'], (int) $b['sort_order']);
-        $this->updateSortOrder($table, (int) $b['id'], (int) $a['sort_order']);
-    }
-
-    private function updateSortOrder(string $table, int $id, int $sortOrder): void
-    {
-        $stmt = $this->db->prepare("UPDATE {$table} SET sort_order = :sort_order, updated_at = NOW() WHERE id = :id");
-        $stmt->execute(['sort_order' => $sortOrder, 'id' => $id]);
-    }
 
     private function nextSortOrder(string $table, string $fkColumn, int $sectionId): int
     {

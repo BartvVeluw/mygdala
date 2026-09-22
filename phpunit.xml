@@ -403,7 +403,6 @@
             <file>tests/Install/RemainingBlockWordsMigrationTest.php</file>
             <file>tests/Service/BlockLocalizationEditorHttpTest.php</file>
             <file>tests/Service/BlockWordsEditorHttpTest.php</file>
-            <file>tests/Service/BlockChildWordsEditorHttpTest.php</file>
             <file>tests/Service/CardCarouselEditorHttpTest.php</file>
             <file>tests/Service/BlockRowEditorsHttpTest.php</file>
             <file>tests/Service/CardCarouselFrontendContractTest.php</file>
