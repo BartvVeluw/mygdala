@@ -114,7 +114,11 @@ final class DatabaseSchemaRepository extends Repository
      * The columns a row can be written back into, in table order. Generated
      * columns are left out: MySQL computes them and refuses a value.
      *
-     * @return list<array{name: string, binary: bool}>
+     * `kind` says how a value must be written back: `binary` as hex bytes,
+     * `bit` as the number the server hands out for a BIT column, `text`
+     * quoted.
+     *
+     * @return list<array{name: string, kind: string}>
      */
     public function columns(string $table): array
     {
@@ -133,7 +137,11 @@ final class DatabaseSchemaRepository extends Repository
             $type = strtolower((string) $row['DATA_TYPE']);
             $columns[] = [
                 'name' => (string) $row['COLUMN_NAME'],
-                'binary' => in_array($type, ['binary', 'varbinary', 'tinyblob', 'blob', 'mediumblob', 'longblob', 'bit', 'geometry', 'point', 'linestring', 'polygon'], true),
+                'kind' => match (true) {
+                    $type === 'bit' => 'bit',
+                    in_array($type, ['binary', 'varbinary', 'tinyblob', 'blob', 'mediumblob', 'longblob', 'geometry', 'point', 'linestring', 'polygon', 'multipoint', 'multilinestring', 'multipolygon', 'geometrycollection'], true) => 'binary',
+                    default => 'text',
+                },
             ];
         }
 
