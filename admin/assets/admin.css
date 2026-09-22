@@ -2283,6 +2283,58 @@ input[data-color-picker]{ width: 2.4rem; height: 2.4rem; padding: 0.15rem; borde
 .admin-portfolio-card__badges{ display: flex; flex-wrap: wrap; gap: 0.3rem; margin-top: 0.4rem; }
 .admin-portfolio-card__badges .admin-badge{ font-size: 0.65rem; padding: 0.1rem 0.4rem; }
 
+/* Kaarten-carrousel (admin/card-carousel.php): the cards as the Portfolio
+   overview's tiles (.admin-portfolio-grid / .admin-portfolio-card), each with
+   its own "Actief" switch and a row of controls under it: Bewerken, ← and →
+   (square ghost buttons, the size of a form option's arrows) and Verwijderen
+   at the far end. Verwijderen is a checkbox of the one form, so a card marked
+   for removal only fades and says so until the form is saved — and can be
+   unmarked. Layout only; every colour is an existing token (ADMIN-UI.md). */
+.admin-carousel-card{ display: flex; flex-direction: column; }
+.admin-carousel-card .admin-portfolio-card__media{ aspect-ratio: 4 / 3; display: flex; align-items: center; justify-content: center; }
+.admin-carousel-card__no-image{ font-size: 0.75rem; color: var(--admin-text-muted); }
+.admin-carousel-card .admin-portfolio-card__body{ flex: 1; display: flex; flex-direction: column; gap: 0.45rem; }
+.admin-carousel-card__switch{ margin: 0; }
+.admin-carousel-card__removing{ display: none; margin: 0; font-size: 0.75rem; color: var(--admin-error); }
+.admin-carousel-card__actions{
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.4rem 0.3rem;
+  padding: 0.5rem 0.7rem 0.6rem;
+  border-top: 1px solid var(--admin-border);
+}
+.admin-carousel-card__move-group{ display: inline-flex; gap: 0.15rem; }
+.admin-carousel-card__edit{ justify-self: start; padding: 0.3rem 0.7rem; font-size: 0.8rem; }
+.admin-carousel-card__move{ justify-content: center; min-width: 2rem; min-height: 2rem; padding: 0.2rem 0.3rem; font-size: 1rem; line-height: 1; }
+.admin-carousel-card__move:disabled{ background: transparent; }
+.admin-carousel-card__remove{ grid-column: 1 / -1; justify-self: end; cursor: pointer; font-size: 0.8rem; }
+.admin-carousel-card__remove:has(input:focus-visible){ outline: 2px solid var(--admin-accent); outline-offset: 2px; }
+.admin-carousel-card__remove-off{ display: none; }
+.admin-carousel-card:has(.admin-carousel-card__remove-input:checked){ border-style: dashed; }
+.admin-carousel-card:has(.admin-carousel-card__remove-input:checked) .admin-portfolio-card__media,
+.admin-carousel-card:has(.admin-carousel-card__remove-input:checked) .admin-portfolio-card__name,
+.admin-carousel-card:has(.admin-carousel-card__remove-input:checked) .admin-carousel-card__switch{ opacity: 0.45; }
+.admin-carousel-card:has(.admin-carousel-card__remove-input:checked) .admin-carousel-card__removing,
+.admin-carousel-card:has(.admin-carousel-card__remove-input:checked) .admin-carousel-card__remove-off{ display: block; }
+.admin-carousel-card:has(.admin-carousel-card__remove-input:checked) .admin-carousel-card__remove-on{ display: none; }
+
+.admin-carousel-add{ margin-top: var(--admin-sp-5); padding-top: var(--admin-sp-4); border-top: 1px solid var(--admin-border); }
+.admin-carousel-add__row{ display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--admin-sp-3); }
+.admin-carousel-add__field{ flex: 1 1 16rem; min-width: 0; }
+.admin-carousel-layout{ margin: 0 0 var(--admin-sp-4); padding: 0; border: 0; min-width: 0; }
+.admin-carousel-layout legend{ padding: 0; font-weight: 600; }
+.admin-carousel-layout .admin-template-grid{ margin-top: var(--admin-sp-2); }
+
+/* A row of a list without numbers (a carousel card's tags): the text box and
+   its ↑ ↓ × — the option row of a form field (.admin-option-row) without its
+   number column. */
+.admin-option-row.admin-option-row--plain{ grid-template-columns: minmax(0, 1fr) auto; }
+.admin-option-row--plain .admin-field-error{ grid-column: 1 / -1; }
+
+/* A message that belongs to one field, right under it. */
+.admin-field-error{ margin: 0.3rem 0 0; font-size: 0.8rem; color: var(--admin-error); }
+
 /* The product variant photo grid (admin/product-form.php). */
 .admin-variant-image-grid{
   display: grid;
@@ -3470,6 +3522,12 @@ body.admin-media-modal-open{ overflow: hidden; }
 @media (max-width: 600px){
   .admin-option-row{ grid-template-columns: 1.5rem minmax(0, 1fr); }
   .admin-option-row__actions{ grid-column: 2; flex-wrap: wrap; justify-content: space-between; gap: var(--admin-sp-2); }
+}
+/* A row without a number keeps its buttons beside the text box on a phone:
+   three small buttons fit, and the box stays wide enough to type in. */
+@media (max-width: 600px){
+  .admin-option-row.admin-option-row.admin-option-row--plain{ grid-template-columns: minmax(0, 1fr) auto; }
+  .admin-option-row--plain .admin-option-row__actions{ grid-column: auto; }
 }
 
 .admin-type-change{ border-color: var(--admin-warning-line); background: var(--admin-warning-soft); }

@@ -535,6 +535,54 @@ gewijzigd na een geweigerde opslag en na een nieuw webadres dat op bevestiging
 wacht, in welke websitetaal er ook getypt was, en *Annuleren* van die
 bevestiging draagt `data-save-bar-discard`.
 
+## Eén formulier per blok-editor
+
+Het doel voor elke blok-editor: **één scherm, één formulier, één Opslaan**. Wat
+op het scherm staat — de velden van het blok, de woorden in de taal op het
+scherm, de rijen eronder (kaarten, tags), de instellingen — gaat in één
+verzoek naar één endpoint, en wordt in één transactie opgeslagen of helemaal
+niet. Geen *Opslaan* per rij, per sectie of per tag.
+
+Waarom: met een formulier per rij sloeg de knop naast een rij alleen die rij
+op. De rest van wat er getypt was, ging bij de redirect verloren (de
+opslagbalk waarschuwde, maar een bevestigde waarschuwing gooide het alsnog
+weg).
+
+### De vorm
+
+| Wat | Hoe |
+|---|---|
+| Rijen van een lijst | `<lijst>[<sleutel>][<veld>]`: de sleutel is het id van een opgeslagen rij, of `new<n>` voor een rij die net op het scherm is toegevoegd. De volgorde waarin de browser ze stuurt, is de volgorde die wordt opgeslagen |
+| Verwijderde rijen | Een opgeslagen rij die niet meer meekomt, is verwijderd — maar alleen als het formulier `<lijst>_present` meestuurt. Een formulier zonder de lijst kan hem dus nooit leegmaken |
+| ↑, ↓, × | Submitknoppen van hetzelfde formulier, `editor_action=<lijst>:<up\|down\|remove>:<sleutel>`. Met JavaScript (`admin/assets/row-list.js`) verschuiven of verdwijnen ze op het scherm en wordt er niets verstuurd; zonder JavaScript sturen ze het hele formulier, en de server voert de actie uit op de rijen die meekwamen. Getypte waarden gaan dus nooit verloren |
+| Andere acties | Een scherm mag eigen werkwoorden hebben: `cards:add` (kaart toevoegen) en `cards:edit:<id>` (naar de kaart) slaan eerst alles op en gaan dan verder |
+| Enter in een tekstveld | Drukt de eerste submitknop van het formulier in. Daarom begint zo'n formulier met een visueel verborgen gewone *Opslaan*, zodat Enter nooit een rij verplaatst |
+| Een geweigerde opslag | Er wordt niets opgeslagen. Alle getypte waarden komen terug (rijen, volgorde en nieuwe rijen inbegrepen), het formulier krijgt `data-save-bar-unsaved`, en elke melding staat bij zijn eigen veld (`aria-invalid` + `aria-describedby`) en bovenaan in de lijst |
+
+`App\Service\Blocks\EditorRows` is de pure helper aan de serverkant
+(`fromPost()`, `parseAction()`, `apply()`); het endpoint bepaalt zelf welke
+ids echt rijen van zijn blok zijn. `Tests\Service\Blocks\EditorRowsTest` en
+`Tests\Service\CardCarouselEditorHttpTest` bewaken het contract.
+
+### Welke editors het al volgen
+
+| Blok | Editor | Endpoint |
+|---|---|---|
+| Kaarten-carrousel | `admin/card-carousel.php` (kop, weergave, kaarten: volgorde, *Actief*, verwijderen) | `api/admin/update-card-carousel.php` |
+| — een kaart daarvan | `admin/carousel-card.php` (woorden, nummer, afbeelding, knop, tags) | `api/admin/update-carousel-card.php` |
+
+Een kaart heeft een eigen scherm omdat hij zelf een lijst (tags) draagt;
+*Bewerken* en *Kaart toevoegen* slaan de carrousel eerst op.
+
+### Wat nog niet
+
+Deze editors hebben nog een formulier per rij, met elk een eigen *Opslaan*
+en eigen endpoints voor toevoegen, verplaatsen en verwijderen: Homepage-hero
+(cijfers, media), Kaartenraster, FAQ, Cijferbalk, Stappenplan, Tekst met
+afbeelding (alinea's, afbeeldingen), Woordenband en Detailsectie (punten,
+afbeeldingen, hoofdafbeelding). Ze gaan over op hetzelfde contract, één blok
+per keer, met de helper en het script hierboven.
+
 ## Dezelfde tabbladen op een ander scherm
 
 `admin/_admin_tabs.php` weet niets van pagina's of blokken. Een scherm zegt

@@ -31,6 +31,7 @@
         <!-- No database, no web server. -->
         <testsuite name="unit">
             <file>tests/Service/LanguageRegistryTest.php</file>
+            <file>tests/Service/Blocks/EditorRowsTest.php</file>
             <file>tests/Service/AdminLocaleTest.php</file>
             <file>tests/Service/ThreeLanguageStatesTest.php</file>
             <file>tests/Service/TranslationProviderTest.php</file>
@@ -167,6 +168,7 @@
              to run constantly while writing code. -->
         <testsuite name="fast">
             <file>tests/Service/LanguageRegistryTest.php</file>
+            <file>tests/Service/Blocks/EditorRowsTest.php</file>
             <file>tests/Service/CardCarouselFrontendContractTest.php</file>
             <file>tests/Service/Routing/AcceptLanguageTest.php</file>
             <file>tests/Service/Routing/RequestPathTest.php</file>
@@ -400,7 +402,9 @@
             <file>tests/Service/BlockLocalizationEditorHttpTest.php</file>
             <file>tests/Service/BlockWordsEditorHttpTest.php</file>
             <file>tests/Service/BlockChildWordsEditorHttpTest.php</file>
+            <file>tests/Service/CardCarouselEditorHttpTest.php</file>
             <file>tests/Service/CardCarouselFrontendContractTest.php</file>
+            <file>tests/Service/Blocks/EditorRowsTest.php</file>
             <file>tests/Service/BlockLocalizedRenderingTest.php</file>
             <file>tests/Service/RemainingBlocksRenderingTest.php</file>
             <file>tests/Service/BlockWordsPreloadTest.php</file>

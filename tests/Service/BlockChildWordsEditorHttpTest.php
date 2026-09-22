@@ -36,6 +36,10 @@ use Tests\Support\PageFixture;
  *  - deleting an item takes its words in every language in the same
  *    transaction, and nothing of its siblings; no orphan is left to purge.
  *
+ * The Kaarten-carrousel's cards and tags are not here: they are saved by
+ * their one-form editors, which Tests\Service\CardCarouselEditorHttpTest
+ * covers with the same rules.
+ *
  * Table-driven: CHILDREN names, per child table, the block that owns it, the
  * three endpoints and the request fields that address an item or its parent.
  * Over real HTTP against PHP's built-in server; the page, its blocks, their
@@ -161,26 +165,6 @@ final class BlockChildWordsEditorHttpTest extends TestCase
             'item' => 'image_id',
             'settings' => ['media_id' => '{media}'],
             'words' => ['alt' => 'Een eiken tafelblad'],
-        ],
-        'carousel_cards' => [
-            'block' => 'card_carousel',
-            'create' => '/api/admin/create-carousel-card.php',
-            'update' => '/api/admin/update-carousel-card.php',
-            'delete' => '/api/admin/delete-carousel-card.php',
-            'parent' => 'carousel_id',
-            'item' => 'card_id',
-            'settings' => ['link_url' => '/materialen', 'is_active' => '1'],
-            'words' => ['title' => 'Hout', 'body' => 'Warm en tijdloos.', 'link_label' => 'Lees meer'],
-        ],
-        'carousel_card_tags' => [
-            'block' => 'card_carousel',
-            'create' => '/api/admin/create-carousel-card-tag.php',
-            'update' => '/api/admin/update-carousel-card-tag.php',
-            'delete' => '/api/admin/delete-carousel-card-tag.php',
-            'parent' => 'card_id',
-            'item' => 'tag_id',
-            'settings' => [],
-            'words' => ['label' => 'Duurzaam'],
         ],
     ];
 
@@ -376,42 +360,6 @@ final class BlockChildWordsEditorHttpTest extends TestCase
         )), 'nothing is left for the orphan check to purge');
     }
 
-    // ------------------------------------------------------------ rules of one child table
-
-    public function testACardsImageFormWritesOnlyItsAltTextAndARemovedImageTakesItInEveryLanguage(): void
-    {
-        $table = 'carousel_cards';
-        $parentId = $this->block($table);
-        $session = $this->signIn(null);
-        $words = self::CHILDREN[$table]['words'];
-        $media = (string) $this->mediaItem();
-
-        $this->assertSaved($this->create($session, $table, $parentId, $words));
-        [$cardId] = $this->itemIds($table, $parentId);
-        $this->assertSaved($this->update($session, $table, $cardId, 'en', ['title' => 'Wood']));
-
-        $image = fn (string $language, array $fields): array => $this->post($session, '/api/admin/update-carousel-card-image.php', [
-            'card_id' => (string) $cardId,
-            'language_code' => $language,
-        ] + $fields);
-
-        $this->assertSaved($image('nl', ['media_id' => $media, 'image_alt' => 'Een eiken plank']));
-        $this->assertSaved($image('en', ['media_id' => $media, 'image_alt' => 'An <oak> board']));
-
-        self::assertSame('Een eiken plank', $this->stored($table, $cardId, 'nl')['image_alt']);
-        self::assertSame($words, array_diff_key($this->stored($table, $cardId, 'nl'), ['image_alt' => true]), 'the image form writes nothing but its alt text');
-        self::assertSame(['title' => 'Wood', 'image_alt' => 'An <oak> board'], $this->stored($table, $cardId, 'en'));
-
-        // The card's text form keeps the alt text it does not show.
-        $this->assertSaved($this->update($session, $table, $cardId, 'en', ['title' => 'Oak']));
-        self::assertSame(['title' => 'Oak', 'image_alt' => 'An <oak> board'], $this->stored($table, $cardId, 'en'));
-
-        // Removing the image takes its alt text in every language, and nothing else.
-        $this->assertSaved($image('nl', ['remove_image' => '1']));
-        self::assertSame($words, $this->stored($table, $cardId, 'nl'));
-        self::assertSame(['title' => 'Oak'], $this->stored($table, $cardId, 'en'));
-    }
-
     // ------------------------------------------------------------ helpers
 
     /** Places the owning block on the test page and returns the id of the row its children hang under. */
@@ -428,14 +376,6 @@ final class BlockChildWordsEditorHttpTest extends TestCase
 
         [$id, $key] = SectionRegistry::create($type, self::KEY);
         (new PageSectionRepository())->create($this->pageId, self::KEY, $type, $key, $id);
-
-        // A tag hangs under a card of the carousel, not under the carousel.
-        if ($table === 'carousel_card_tags') {
-            $cardId = (new \App\Repository\CardCarouselRepository())->createCard((int) $id);
-            BlockLocalization::save('carousel_cards', $cardId, 'nl', ['title' => 'Kaart met labels']);
-
-            return $cardId;
-        }
 
         return (int) $id;
     }

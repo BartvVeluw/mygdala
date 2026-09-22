@@ -164,7 +164,7 @@ final class BlockWordsEditorHttpTest extends TestCase
             'screen' => '/admin/card-carousel.php?section={section}',
             'endpoint' => '/api/admin/update-card-carousel.php',
             'address' => 'section',
-            'settings' => ['is_active' => '1'],
+            'settings' => ['is_active' => '1', 'desktop_layout' => 'orbit'],
             'words' => ['eyebrow' => 'Materialen', 'title' => 'Waar wij mee werken', 'lead' => 'Een keuze.'],
             'required' => [],
         ],

@@ -6,37 +6,55 @@ require_once __DIR__ . '/../vendor/autoload.php';
 require_once __DIR__ . '/_translate.php';
 require_once __DIR__ . '/_save_bar.php';
 require_once __DIR__ . '/_localized_fields.php';
+require_once __DIR__ . '/_admin_ui.php';
 
 use App\Service\AdminAuth;
 use App\Service\Blocks\BlockLocalization;
+use App\Service\CardCarouselContent;
 use App\Service\Csrf;
 use App\Service\Media\MediaService;
+use App\Service\Routing\LinkTargets;
 use App\Repository\CardCarouselRepository;
 use App\Repository\PageRepository;
 
 require_once __DIR__ . '/_media_picker.php';
 
 /**
- * Editor for ONE card of a "Kaarten-carrousel" (?card_id=...): its text, its
- * optional image, its optional link button and its tags.
+ * Editor for ONE card of a "Kaarten-carrousel" (?card_id=...): whether it is
+ * shown, its number, its text, its optional image, its optional button and
+ * its tags.
+ *
+ * ONE FORM, ONE SAVE (PAGE-EDITOR.md, "Eén formulier per blok-editor"). All of
+ * it posts to api/admin/update-carousel-card.php and is stored by the one
+ * "Opslaan" (or the save bar), tags included: a tag has no save button of its
+ * own, and ↑, ↓ and × on a tag change the list on screen
+ * (admin/assets/row-list.js) and are stored with everything else. Without
+ * JavaScript those buttons submit the whole form, which stores what was typed
+ * and then moves or removes the tag (App\Service\Blocks\EditorRows).
  *
  * A card lives on its own screen rather than inline in
  * admin/card-carousel.php because it carries a repeater of its own (tags),
  * the same reason admin/portfolio-item.php exists next to admin/portfolio.php.
  *
+ * THE BUTTON points at nothing, at an address typed here, or at a page, a
+ * blog post or a product of this website, chosen by name
+ * (App\Service\Routing\LinkTargets) and stored by id, so it follows a new
+ * slug and a new language by itself. Only the types whose module is on are
+ * offered; a card that points at a type whose module is off keeps that link,
+ * and the editor says so. The field that belongs to the chosen kind is the
+ * one on screen (admin/assets/navigation-item.js, the header and footer
+ * editors' own script).
+ *
  * ONE WEBSITE LANGUAGE AT A TIME (Multilingual 2.0, admin/_localized_fields.php):
  * the card's words, the image's alt text and every tag show the language
  * chosen in the CMS shell, as stored and without the default language's words
  * in an empty translation; the title and a tag's label are required only in
- * the default language. Each save writes that language only, for the card or
- * for that one tag. The link URL, the visibility and the image are the same
- * in every language and stay on screen in each; the alt text stays next to
- * the image it describes, in the image form. A tag keeps its id however often
- * it is saved or moved, so the words of the other languages stay with it; a
- * NEW tag is written in the default language, like a new page, and translated
- * afterwards on its own row. Input a refused card save hands back comes back
- * in the language it was typed in, and that form then starts out unsaved in
- * the save bar.
+ * the default language. A save writes that language only. The switch, the
+ * image and the button's target are the same in every language. A tag keeps
+ * its id however often it is saved or moved, so its other languages stay with
+ * it; a NEW tag is written in the default language, like a new page, and the
+ * screen says so while another language is on screen. The language bar is
+ * printed once, above the words, and not per tag.
  */
 
 AdminAuth::requireLogin();
@@ -62,19 +80,15 @@ if ($carousel === null) {
 
 $sectionParam = (string) $carousel['page_slug'] . ':' . (string) $carousel['section_key'];
 $page = (new PageRepository())->findByContentKey((string) $carousel['page_slug']);
-$tags = $repository->findTagsByCardId($cardId);
+$storedTags = $repository->findTagsByCardId($cardId);
 
 $errors = $_SESSION['admin_carousel_card_errors'] ?? [];
+$fieldErrors = $_SESSION['admin_carousel_card_field_errors'] ?? [];
 $old = $_SESSION['admin_carousel_card_old'] ?? null;
-unset($_SESSION['admin_carousel_card_errors'], $_SESSION['admin_carousel_card_old']);
-
-$imageErrors = $_SESSION['admin_carousel_card_image_errors'] ?? [];
-unset($_SESSION['admin_carousel_card_image_errors']);
-
-$tagErrors = $_SESSION['admin_carousel_card_tag_errors'] ?? [];
-unset($_SESSION['admin_carousel_card_tag_errors']);
+unset($_SESSION['admin_carousel_card_errors'], $_SESSION['admin_carousel_card_field_errors'], $_SESSION['admin_carousel_card_old']);
 
 $saved = isset($_GET['saved']);
+$created = isset($_GET['created']);
 
 $editLanguage = admin_localized_language();
 $defaultLanguage = admin_localized_default();
@@ -93,14 +107,50 @@ $cardWord = static function (string $field) use ($old, $oldInThisLanguage, $card
     return BlockLocalization::raw('carousel_cards', $cardId, $field, $editLanguage);
 };
 
-$linkUrl = is_array($old) ? (string) ($old['link_url'] ?? '') : (string) ($card['link_url'] ?? '');
 $isActive = is_array($old) ? !empty($old['is_active']) : (bool) $card['is_active'];
+
+// The button: its kind, its target and its typed address. A row written
+// before the kind existed has an address and no kind, and is an address.
+$storedLinkType = (string) ($card['link_type'] ?? '');
+if ($storedLinkType === '' && trim((string) ($card['link_url'] ?? '')) !== '') {
+    $storedLinkType = 'url';
+}
+$linkType = is_array($old) ? (string) ($old['link_type'] ?? '') : $storedLinkType;
+$linkType = $linkType === '' ? 'none' : $linkType;
+$linkUrl = is_array($old) ? (string) ($old['link_url'] ?? '') : (string) ($card['link_url'] ?? '');
+$linkTargets = is_array($old) ? (array) ($old['link_target'] ?? []) : [];
+if (!is_array($old) && LinkTargets::isAvailable($storedLinkType)) {
+    $linkTargets[$storedLinkType] = (int) ($card['link_target_id'] ?? 0);
+}
+$targetTypes = LinkTargets::types();
+// A card that points at a kind whose module is switched off keeps it.
+$keepsUnavailableLink = !in_array($storedLinkType, ['', 'url'], true) && !isset($targetTypes[$storedLinkType]);
+
+// The tags on screen: as a refused save handed them back (in their order,
+// new rows included), else as stored.
+$tagRows = [];
+$storedTagIds = array_map(static fn (array $tag): int => (int) $tag['id'], $storedTags);
+if (is_array($old)) {
+    foreach ((array) ($old['tags'] ?? []) as $key => $label) {
+        $key = (string) $key;
+        if (ctype_digit($key) && !in_array((int) $key, $storedTagIds, true)) {
+            continue;
+        }
+        $tagRows[] = ['key' => $key, 'label' => $oldInThisLanguage || !ctype_digit($key)
+            ? (string) $label
+            : BlockLocalization::raw('carousel_card_tags', (int) $key, 'label', $editLanguage)];
+    }
+} else {
+    foreach ($storedTagIds as $tagId) {
+        $tagRows[] = ['key' => (string) $tagId, 'label' => BlockLocalization::raw('carousel_card_tags', $tagId, 'label', $editLanguage)];
+    }
+}
 
 $imagePath = (string) ($card['image_path'] ?? '');
 // "Does this card have a photo at all" — a Media Library reference, or a
 // legacy path that predates it. Without one the card renders the fixed icon.
 $cardMedia = MediaService::find((int) ($card['media_id'] ?? 0));
-$hasCardImage = $cardMedia !== null || $imagePath !== '';
+$hasLegacyImageOnly = $cardMedia === null && $imagePath !== '';
 
 $csrfToken = Csrf::token();
 $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
@@ -111,6 +161,44 @@ $placeholder = admin_localized_placeholder_attr($editLanguage);
 // placeholder says what a visitor sees while it is empty.
 $optional = $placeholder !== '' ? $placeholder : ' placeholder="Optioneel"';
 $altPlaceholder = $placeholder !== '' ? $placeholder : ' placeholder="Leeg = alt-tekst uit de mediabibliotheek"';
+// What the card prints while its number is empty: its place among the cards
+// that show (CardCarouselContent), or a general hint for a card that does not.
+$positionLabel = null;
+foreach (CardCarouselContent::forSection((string) $carousel['page_slug'], (string) $carousel['section_key'])['cards'] as $index => $shown) {
+    if ((int) $shown['id'] === $cardId) {
+        $positionLabel = CardCarouselContent::positionLabel($index);
+    }
+}
+$numberPlaceholder = $placeholder !== '' ? $placeholder : ' placeholder="' . ($positionLabel !== null
+    ? admin_te('block_carousel.nummer_placeholder_positie', ['number' => $positionLabel])
+    : admin_te('block_carousel.nummer_placeholder')) . '"';
+
+/** aria-invalid + aria-describedby for a field with an error of its own, and the message under it. */
+$invalid = static function (string $field) use ($fieldErrors, $h): string {
+    return isset($fieldErrors[$field]) ? ' aria-invalid="true" aria-describedby="' . $h('error-' . str_replace('.', '-', $field)) . '"' : '';
+};
+$fieldError = static function (string $field) use ($fieldErrors, $h): void {
+    if (isset($fieldErrors[$field])) {
+        echo '<p class="admin-field-error" id="' . $h('error-' . str_replace('.', '-', $field)) . '">' . $h((string) $fieldErrors[$field]) . '</p>';
+    }
+};
+
+/** One tag row; the template for a new row is the same markup with the key __KEY__. */
+$tagRow = static function (string $key, string $label, string $fallback) use ($h, $invalid, $fieldError): void {
+    ?>
+    <div class="admin-option-row admin-option-row--plain" data-row-list-row>
+      <input type="text" name="tags[<?= $h($key) ?>][label]" maxlength="60" value="<?= $h($label) ?>" aria-label="<?= admin_te('block_carousel.tag_label') ?>"<?= $fallback === '' ? '' : ' placeholder="' . $h($fallback) . '"' ?><?= $invalid('tags.' . $key) ?>>
+      <span class="admin-option-row__actions">
+        <span class="admin-option-row__move">
+          <button type="submit" class="admin-btn-ghost admin-option-row__move-button" name="editor_action" value="tags:up:<?= $h($key) ?>" data-row-list-move="up" aria-label="<?= admin_te('block_carousel.tag_omhoog') ?>"><span aria-hidden="true">&uarr;</span></button>
+          <button type="submit" class="admin-btn-ghost admin-option-row__move-button" name="editor_action" value="tags:down:<?= $h($key) ?>" data-row-list-move="down" aria-label="<?= admin_te('block_carousel.tag_omlaag') ?>"><span aria-hidden="true">&darr;</span></button>
+        </span>
+        <button type="submit" class="admin-btn-ghost admin-option-row__move-button admin-btn-text--danger" name="editor_action" value="tags:remove:<?= $h($key) ?>" data-row-list-remove aria-label="<?= admin_te('block_carousel.tag_verwijderen') ?>"><span aria-hidden="true">&times;</span></button>
+      </span>
+      <?php $fieldError('tags.' . $key); ?>
+    </div>
+    <?php
+};
 ?>
 <!doctype html>
 <html lang="<?= htmlspecialchars(\App\Service\Language\AdminLocale::current(), ENT_QUOTES, 'UTF-8') ?>">
@@ -131,167 +219,174 @@ $altPlaceholder = $placeholder !== '' ? $placeholder : ' placeholder="Leeg = alt
 
   <?php if ($saved): ?>
     <p class="admin-alert admin-alert--success"><?= admin_te('common.saved') ?></p>
+  <?php elseif ($created): ?>
+    <p class="admin-alert admin-alert--success"><?= admin_te('block_carousel.kaart_aangemaakt') ?></p>
   <?php endif; ?>
 
-  <?php foreach ([$errors, $imageErrors, $tagErrors] as $errorList): ?>
-    <?php if ($errorList !== []): ?>
-      <div class="admin-alert admin-alert--error">
-        <ul class="admin-error-list">
-          <?php foreach ($errorList as $error): ?>
-            <li><?= $h((string) $error) ?></li>
-          <?php endforeach; ?>
-        </ul>
+  <?php if ($errors !== []): ?>
+    <div class="admin-alert admin-alert--error" role="alert">
+      <ul class="admin-error-list">
+        <?php foreach ($errors as $error): ?>
+          <li><?= $h((string) $error) ?></li>
+        <?php endforeach; ?>
+      </ul>
+    </div>
+  <?php endif; ?>
+
+  <form method="post" action="/api/admin/update-carousel-card.php" class="admin-product-form" data-nav-item-form<?= is_array($old) ? ' data-save-bar-unsaved' : '' ?>>
+    <?php /* Enter in a text field presses the FIRST submit button of a form.
+             This one is a plain save, so Enter never moves or removes a tag. */ ?>
+    <button type="submit" class="admin-visually-hidden" tabindex="-1" aria-hidden="true"><?= admin_te('common.save') ?></button>
+    <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
+    <input type="hidden" name="card_id" value="<?= $cardId ?>">
+    <?= admin_localized_input($editLanguage) ?>
+
+    <section class="admin-card">
+      <div class="admin-field admin-field--inline">
+        <label class="admin-checkbox-label">
+          <input type="checkbox" class="admin-switch" role="switch" name="is_active" value="1"<?= $isActive ? ' checked' : '' ?>>
+          <?= admin_te('block_carousel.kaart_actief') ?>
+        </label>
+        <?= admin_help(admin_t('block_carousel.kaart_actief'), admin_t('help.block_carousel.kaart_actief')) ?>
       </div>
-    <?php endif; ?>
-  <?php endforeach; ?>
+      <?php if (!$isActive): ?>
+        <p class="admin-text-muted"><?= admin_te('block_carousel.kaart_concept') ?></p>
+      <?php endif; ?>
+    </section>
 
-  <section class="admin-card">
-    <h2><?= admin_te('block_carousel.inhoud') ?></h2>
-    <form method="post" action="/api/admin/update-carousel-card.php" class="admin-product-form"<?= is_array($old) ? ' data-save-bar-unsaved' : '' ?>>
-      <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
-      <input type="hidden" name="card_id" value="<?= $cardId ?>">
-      <?= admin_localized_input($editLanguage) ?>
-
+    <section class="admin-card">
+      <h2><?= admin_te('block_carousel.inhoud') ?></h2>
       <?php admin_localized_bar($editLanguage); ?>
-      <div class="admin-form-row">
-        <label><?= admin_te('common.title') ?><?= $marker ?>
-          <input type="text" name="title" maxlength="255"<?= $required ?> value="<?= $h($cardWord('title')) ?>"<?= $placeholder ?>>
-        </label>
+
+      <div class="admin-field">
+        <?= admin_field_label('card-number', admin_t('block_carousel.nummer'), admin_t('help.block_carousel.nummer')) ?>
+        <input type="text" id="card-number" name="number_label" maxlength="40" value="<?= $h($cardWord('number_label')) ?>"<?= $numberPlaceholder ?><?= $invalid('number_label') ?>>
+        <?php $fieldError('number_label'); ?>
       </div>
 
-      <div class="admin-form-row">
-        <label><?= admin_te('block_carousel.tekst') ?>
-          <textarea name="body" maxlength="500" rows="3"<?= $optional ?>><?= $h($cardWord('body')) ?></textarea>
-        </label>
+      <div class="admin-field">
+        <?= admin_field_label('card-title', admin_t('common.title') . $marker) ?>
+        <input type="text" id="card-title" name="title" maxlength="255"<?= $required ?> value="<?= $h($cardWord('title')) ?>"<?= $placeholder ?><?= $invalid('title') ?>>
+        <?php $fieldError('title'); ?>
       </div>
 
-      <div class="admin-form-row">
-        <label><?= admin_te('block_carousel.knoptekst') ?>
-          <input type="text" name="link_label" maxlength="150" value="<?= $h($cardWord('link_label')) ?>"<?= $optional ?>>
-        </label>
+      <div class="admin-field">
+        <?= admin_field_label('card-body', admin_t('block_carousel.tekst')) ?>
+        <textarea id="card-body" name="body" maxlength="500" rows="3"<?= $optional ?><?= $invalid('body') ?>><?= $h($cardWord('body')) ?></textarea>
+        <?php $fieldError('body'); ?>
       </div>
-      <div class="admin-form-row">
-        <label><?= admin_te('block_carousel.knop_url') ?>
-          <input type="text" name="link_url" maxlength="255" value="<?= $h($linkUrl) ?>" placeholder="Bijv. diensten.php#hout — leeg = geen knop">
-        </label>
-      </div>
-      <p class="admin-text-muted"><?= admin_te('block_carousel.knoptekst_url_horen_elkaar') ?></p>
+    </section>
 
-      <label class="admin-checkbox-label">
-        <input type="checkbox" name="is_active" value="1" <?= $isActive ? 'checked' : '' ?>>
-        <?= admin_te('block_carousel.actief_uitgevinkt_kaart_getoond') ?>
-      </label>
-
-      <button type="submit"><?= admin_te('common.save') ?></button>
-    </form>
-  </section>
-
-  <section class="admin-card">
-    <h2><?= admin_te('common.image') ?></h2>
-
-    <?php if (!$hasCardImage): ?>
-      <p class="admin-text-muted"><?= admin_t('block_carousel.afbeelding_ingesteld_kaart_toont') ?></p>
-    <?php endif; ?>
-
-    <form method="post" action="/api/admin/update-carousel-card-image.php" class="admin-product-form" style="margin-top:0.75rem;">
-      <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
-      <input type="hidden" name="card_id" value="<?= $cardId ?>">
-      <?= admin_localized_input($editLanguage) ?>
-
+    <section class="admin-card">
+      <h2><?= admin_te('common.image') ?></h2>
       <div class="admin-form-row">
         <?php media_picker_field('media_id', $cardMedia, 'Afbeelding', 'Optioneel. Zonder afbeelding toont de kaart het vaste icoon.', false); ?>
       </div>
-
-      <?php admin_localized_bar($editLanguage); ?>
-      <div class="admin-form-row">
-        <label><?= admin_te('common.alt_text') ?>
-          <input type="text" name="image_alt" maxlength="255" value="<?= $h(BlockLocalization::raw('carousel_cards', $cardId, 'image_alt', $editLanguage)) ?>"<?= $altPlaceholder ?>>
-        </label>
-      </div>
-
-      <button type="submit"><?= admin_te('common.save') ?></button>
-    </form>
-
-    <?php if ($hasCardImage): ?>
-      <form method="post" action="/api/admin/update-carousel-card-image.php" class="admin-inline-form" style="margin-top:0.75rem;" onsubmit="return confirm('Afbeelding verwijderen? De kaart toont dan het vaste icoon.');">
-        <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
-        <input type="hidden" name="card_id" value="<?= $cardId ?>">
-        <input type="hidden" name="remove_image" value="1">
-        <button type="submit" class="admin-btn-text admin-btn-text--danger"><?= admin_te('block_carousel.afbeelding_verwijderen_gebruik_icoon') ?></button>
-      </form>
-    <?php endif; ?>
-  </section>
-
-  <section class="admin-card">
-    <h2><?= admin_te('block_carousel.tags') ?></h2>
-
-    <?php if ($tags === []): ?>
-      <p class="admin-text-muted"><?= admin_te('block_carousel.tags_kaart') ?></p>
-    <?php endif; ?>
-
-    <?php foreach ($tags as $index => $tag): ?>
-      <?php
-        $tagId = (int) $tag['id'];
-        $isFirst = $index === 0;
-        $isLast = $index === count($tags) - 1;
-      ?>
-      <article class="admin-card" style="margin-top:1rem;">
-        <form method="post" action="/api/admin/update-carousel-card-tag.php" class="admin-product-form">
-          <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
-          <input type="hidden" name="tag_id" value="<?= $tagId ?>">
-          <?= admin_localized_input($editLanguage) ?>
-
-          <?php admin_localized_bar($editLanguage); ?>
-          <div class="admin-form-row">
-            <label><?= admin_te('block_carousel.label') ?><?= $marker ?>
-              <input type="text" name="label" maxlength="60"<?= $required ?> value="<?= $h(BlockLocalization::raw('carousel_card_tags', $tagId, 'label', $editLanguage)) ?>"<?= $placeholder ?>>
-            </label>
-          </div>
-
-          <button type="submit"><?= admin_te('common.save') ?></button>
-        </form>
-
-        <div class="admin-image-card__actions" style="margin-top:0.75rem;">
-          <form method="post" action="/api/admin/move-carousel-card-tag.php" class="admin-inline-form">
-            <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
-            <input type="hidden" name="tag_id" value="<?= $tagId ?>">
-            <input type="hidden" name="direction" value="up">
-            <button type="submit" class="admin-btn-text" <?= $isFirst ? 'disabled' : '' ?>><?= admin_t('common.move_up') ?></button>
-          </form>
-          <form method="post" action="/api/admin/move-carousel-card-tag.php" class="admin-inline-form">
-            <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
-            <input type="hidden" name="tag_id" value="<?= $tagId ?>">
-            <input type="hidden" name="direction" value="down">
-            <button type="submit" class="admin-btn-text" <?= $isLast ? 'disabled' : '' ?>><?= admin_t('common.move_down') ?></button>
-          </form>
-          <form method="post" action="/api/admin/delete-carousel-card-tag.php" class="admin-inline-form" onsubmit="return confirm('Deze tag definitief verwijderen?');">
-            <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
-            <input type="hidden" name="tag_id" value="<?= $tagId ?>">
-            <button type="submit" class="admin-btn-text admin-btn-text--danger"><?= admin_te('common.delete') ?></button>
-          </form>
+      <?php if ($hasLegacyImageOnly): ?>
+        <div class="admin-field admin-field--inline">
+          <label class="admin-checkbox-label">
+            <input type="checkbox" name="remove_legacy_image" value="1">
+            <?= admin_te('block_carousel.afbeelding_verwijderen_gebruik_icoon') ?>
+          </label>
         </div>
-      </article>
-    <?php endforeach; ?>
+      <?php endif; ?>
 
-    <form method="post" action="/api/admin/create-carousel-card-tag.php" class="admin-product-form" style="margin-top:1rem;">
-      <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
-      <input type="hidden" name="card_id" value="<?= $cardId ?>">
+      <div class="admin-field">
+        <?= admin_field_label('card-alt', admin_t('common.alt_text')) ?>
+        <input type="text" id="card-alt" name="image_alt" maxlength="255" value="<?= $h($cardWord('image_alt')) ?>"<?= $altPlaceholder ?><?= $invalid('image_alt') ?>>
+        <?php $fieldError('image_alt'); ?>
+      </div>
+    </section>
 
-      <?php admin_localized_bar($defaultLanguage); ?>
-      <?php admin_localized_new_item_note($editLanguage); ?>
-      <div class="admin-form-row">
-        <label><?= admin_te('block_carousel.label_3') ?>*
-          <input type="text" name="label" maxlength="60" required>
-        </label>
+    <section class="admin-card">
+      <h2><?= admin_te('block_carousel.knop') ?></h2>
+
+      <div class="admin-field">
+        <?= admin_field_label('card-link-type', admin_t('block_carousel.link_type'), admin_t('help.block_carousel.link_type')) ?>
+        <select class="admin-select" id="card-link-type" name="link_type" data-nav-link-type<?= $invalid('link') ?>>
+          <option value="none"<?= $linkType === 'none' ? ' selected' : '' ?>><?= admin_te('block_carousel.link_none') ?></option>
+          <?php foreach ($targetTypes as $type => $definition): ?>
+            <option value="<?= $h($type) ?>"<?= $linkType === $type ? ' selected' : '' ?>><?= $h((string) $definition['label']) ?></option>
+          <?php endforeach; ?>
+          <option value="url"<?= $linkType === 'url' ? ' selected' : '' ?>><?= admin_te('block_carousel.link_url') ?></option>
+          <?php if ($keepsUnavailableLink): ?>
+            <option value="<?= $h($storedLinkType) ?>"<?= $linkType === $storedLinkType ? ' selected' : '' ?>><?= admin_te('block_carousel.link_unavailable') ?></option>
+          <?php endif; ?>
+        </select>
+        <?php $fieldError('link'); ?>
       </div>
 
-      <button type="submit"><?= admin_te('block_carousel.tag_toevoegen') ?></button>
-    </form>
-  </section>
+      <?php foreach ($targetTypes as $type => $definition): ?>
+        <?php $selected = (int) ($linkTargets[$type] ?? 0); ?>
+        <div class="admin-field" data-nav-link-field="<?= $h($type) ?>">
+          <?= admin_field_label('card-link-' . $type, (string) $definition['label']) ?>
+          <select class="admin-select" id="card-link-<?= $h($type) ?>" name="link_target[<?= $h($type) ?>]">
+            <option value=""><?= admin_te('block_carousel.link_choose') ?></option>
+            <?php foreach (LinkTargets::choices($type) as $choice): ?>
+              <option value="<?= (int) $choice['id'] ?>"<?= $selected === (int) $choice['id'] ? ' selected' : '' ?>><?= $h($choice['label']) ?><?= isset($choice['note']) ? ' ' . admin_te('block_carousel.link_note_' . $choice['note']) : '' ?></option>
+            <?php endforeach; ?>
+          </select>
+        </div>
+      <?php endforeach; ?>
+
+      <div class="admin-field" data-nav-link-field="url">
+        <?= admin_field_label('card-link-url', admin_t('block_carousel.knop_url'), admin_t('help.block_carousel.knop_url')) ?>
+        <input type="text" id="card-link-url" name="link_url" maxlength="255" value="<?= $h($linkUrl) ?>" placeholder="/contact of https://…">
+      </div>
+
+      <?php if ($keepsUnavailableLink): ?>
+        <p class="admin-text-muted" data-nav-link-field="<?= $h($storedLinkType) ?>"><?= admin_te('block_carousel.link_unavailable_uitleg') ?></p>
+      <?php endif; ?>
+
+      <div class="admin-field" data-nav-link-field="<?= $h(implode(' ', array_merge(array_keys($targetTypes), ['url'], $keepsUnavailableLink ? [$storedLinkType] : []))) ?>">
+        <?= admin_field_label('card-link-label', admin_t('block_carousel.knoptekst'), admin_t('help.block_carousel.knoptekst')) ?>
+        <input type="text" id="card-link-label" name="link_label" maxlength="150" value="<?= $h($cardWord('link_label')) ?>"<?= $optional ?><?= $invalid('link_label') ?>>
+        <?php $fieldError('link_label'); ?>
+      </div>
+    </section>
+
+    <section class="admin-card" aria-labelledby="card-tags-title">
+      <h2 id="card-tags-title"><?= admin_te('block_carousel.tags') ?></h2>
+      <input type="hidden" name="tags_present" value="1">
+
+      <div class="admin-option-rows">
+        <div class="admin-option-rows__list" data-row-list="card-tags">
+          <?php foreach ($tagRows as $row): ?>
+            <?php
+              // A translation's row shows the tag in the default language,
+              // so an untranslated tag can be told from an empty one.
+              $fallback = $editLanguage === $defaultLanguage || !ctype_digit($row['key'])
+                  ? ''
+                  : BlockLocalization::raw('carousel_card_tags', (int) $row['key'], 'label', $defaultLanguage);
+              $tagRow($row['key'], $row['label'], $fallback);
+            ?>
+          <?php endforeach; ?>
+          <noscript>
+            <?php $tagRow('new0', '', ''); ?>
+          </noscript>
+        </div>
+        <?php if ($tagRows === []): ?>
+          <p class="admin-text-muted"><?= admin_te('block_carousel.tags_kaart') ?></p>
+        <?php endif; ?>
+        <p class="admin-visually-hidden" role="status" aria-live="polite" data-row-list-status="card-tags" data-row-list-moved="<?= admin_te('block_carousel.tag_verplaatst') ?>"></p>
+        <div class="admin-option-rows__tools">
+          <button type="button" class="admin-btn-secondary" data-row-list-add="card-tags" hidden>+ <?= admin_te('block_carousel.tag_toevoegen') ?></button>
+        </div>
+        <?php admin_localized_new_item_note($editLanguage); ?>
+      </div>
+      <template data-row-list-template="card-tags"><?php $tagRow('__KEY__', '', ''); ?></template>
+    </section>
+
+    <div class="admin-form-actions">
+      <button type="submit"><?= admin_te('common.save') ?></button>
+    </div>
+  </form>
 </main>
 <?php save_bar(); ?>
 <?php media_picker_modal(); ?>
 <?php media_picker_script(); ?>
+<script src="<?= \App\Service\AssetVersion::url('/admin/assets/navigation-item.js') ?>" defer></script>
+<script src="<?= \App\Service\AssetVersion::url('/admin/assets/row-list.js') ?>" defer></script>
 <?php save_bar_script(); ?>
 </body>
 </html>

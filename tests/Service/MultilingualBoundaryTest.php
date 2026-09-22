@@ -1180,8 +1180,16 @@ final class MultilingualBoundaryTest extends TestCase
         'api/admin/delete-text-image-split-image.php' => 'text_image_split_images',
         'api/admin/delete-detail-section-point.php' => 'detail_section_points',
         'api/admin/delete-detail-section-image.php' => 'detail_section_images',
-        'api/admin/delete-carousel-card.php' => 'carousel_cards',
-        'api/admin/delete-carousel-card-tag.php' => 'carousel_card_tags',
+    ];
+
+    /**
+     * The one-form editors (PAGE-EDITOR.md, "Eén formulier per blok-editor"):
+     * one endpoint saves a block or an item with all of its child rows, so it
+     * both adds and removes them — per child table, the endpoint that does.
+     */
+    private const ONE_FORM_CHILD_ENDPOINTS = [
+        'carousel_cards' => 'api/admin/update-card-carousel.php',
+        'carousel_card_tags' => 'api/admin/update-carousel-card.php',
     ];
 
     /** Every endpoint that adds ONE child row of a converted block: it writes the new row's words in the default language. */
@@ -1196,8 +1204,6 @@ final class MultilingualBoundaryTest extends TestCase
         'api/admin/create-text-image-split-image.php' => 'text_image_split_images',
         'api/admin/create-detail-section-point.php' => 'detail_section_points',
         'api/admin/create-detail-section-image.php' => 'detail_section_images',
-        'api/admin/create-carousel-card.php' => 'carousel_cards',
-        'api/admin/create-carousel-card-tag.php' => 'carousel_card_tags',
     ];
 
     /** Child tables whose rows are only ever deleted with their parent, or by an endpoint listed with the next wave. */
@@ -1344,7 +1350,26 @@ final class MultilingualBoundaryTest extends TestCase
         foreach (\App\Service\Blocks\BlockDefinitions::all() as $definition) {
             $declared = array_merge($declared, array_keys($definition->childTables()));
         }
-        self::assertSame([], array_values(array_diff(array_unique($declared), array_values(self::CHILD_DELETE_ENDPOINTS), self::CHILD_TABLES_DELETED_ELSEWHERE)), 'a child table without a known delete path');
+        self::assertSame([], array_values(array_diff(array_unique($declared), array_values(self::CHILD_DELETE_ENDPOINTS), array_keys(self::ONE_FORM_CHILD_ENDPOINTS), self::CHILD_TABLES_DELETED_ELSEWHERE)), 'a child table without a known delete path');
+    }
+
+    public function testAOneFormEditorRemovesAndAddsChildRowsTheSameWay(): void
+    {
+        foreach (self::ONE_FORM_CHILD_ENDPOINTS as $table => $endpoint) {
+            $code = self::withoutComments(self::read($endpoint));
+
+            self::assertMatchesRegularExpression(
+                '/BlockLocalization::deleteOwner\(\x27' . $table . '\x27, (\$[\w\[\]\x27]+)\);\s*\$repository->delete\w*\(\1\);/',
+                $code,
+                $endpoint . ': a removed row\'s words go before the row'
+            );
+            self::assertStringContainsString('$defaultLanguage = BlockLocalization::defaultLanguage();', $code, $endpoint);
+            self::assertMatchesRegularExpression(
+                '/beginTransaction\(\);.*?->create\w*\(.*?BlockLocalization::save\(\x27' . $table . '\x27, [^,]+, \$defaultLanguage,.*?commit\(\);/s',
+                $code,
+                $endpoint . ': a new row is written in the default language, in the same transaction'
+            );
+        }
     }
 
     public function testANewChildRowIsWrittenInTheDefaultLanguageInOneTransaction(): void

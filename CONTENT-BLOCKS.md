@@ -31,10 +31,11 @@ herhaalbaar blok:
 | Eventuele JS/CSS | `assets/js/blocks/<type>.js`, `assets/css/blocks/<type>.css` — alleen als het blok ze nodig heeft |
 | Tests | `tests/Service/`, suite `blocks` |
 
-Een blok met een repeater erin (kaarten, items, punten) heeft extra endpoints
-volgens hetzelfde patroon: `create-`, `update-`, `delete-` en soms `reorder-`
-per onderdeel — zie `card_carousel` (`api/admin/*-carousel-card*.php`) of
-`detail_section`. Elke rij van zo'n onderdeel bezit zijn eigen woorden in
+Een blok met een repeater erin (kaarten, items, punten) slaat die rijen op
+met het blok zelf, in één formulier en één endpoint: zie `card_carousel` en
+[`PAGE-EDITOR.md`](PAGE-EDITOR.md), "Eén formulier per blok-editor". De oudere
+editors (onder meer `detail_section`) hebben nog `create-`, `update-`,
+`delete-` en `move-`endpoints per onderdeel. Elke rij van zo'n onderdeel bezit zijn eigen woorden in
 `block_translations`, onder zijn eigen tabel en id: zie *Taal* hieronder.
 
 ## Het inhoudscontract: drie toestanden

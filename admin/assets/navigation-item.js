@@ -8,6 +8,10 @@
  * picker plus one kind of its own ("action"). It has no presentation choice,
  * so only the destination part applies there.
  *
+ * A carousel card's button (admin/carousel-card.php) is a destination picker
+ * too — nothing, a page, a blog post, a product or a typed address — and uses
+ * the destination part through the same attributes.
+ *
  * Nothing here is needed to use the screen. Without this file every field is
  * on screen and api/admin/_nav_item_input.php stores only the one that
  * belongs to the chosen kind. The file holds no text of its own and never
