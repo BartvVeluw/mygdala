@@ -155,10 +155,37 @@ docker compose exec php php scripts/release.php keygen --out=/pad/buiten/de/repo
   ondertekenen; vanaf de volgende release met de nieuwe tekenen, en de oude
   later uit `BUILT_IN` halen.
 
-**Stand op het moment van schrijven:** er is nog geen releasesleutel en geen
-releasehosting gekozen. `ReleaseKeys::BUILT_IN` en
-`UpdateConfig::DEFAULT_MANIFEST_URL` zijn leeg; het Updates-scherm zegt dan dat
-er geen updatebron is ingesteld.
+## De projectfeed
+
+Sinds 0.1.0 heeft Mygdala een eigen feed en een eigen sleutel, allebei
+ingebouwd. Een installatie hoeft voor updates dus niets in te stellen.
+
+| Wat | Waarde |
+|---|---|
+| Feed (`UpdateConfig::DEFAULT_MANIFEST_URL`) | `https://github.com/BartvVeluw/mygdala/releases/latest/download/manifest.json` |
+| Handtekening | dezelfde URL met `.sig` erachter |
+| Pakket (`package_url`, absoluut) | `https://github.com/BartvVeluw/mygdala/releases/download/v<versie>/mygdala-<versie>.zip` |
+| Sleutel (`ReleaseKeys::BUILT_IN`) | `kDLitDRCZ/HUz7n3VC8UX6BoPFPkaPlnoiX+09G/RDY=`, key-id `da6306e43b2bc085` |
+
+- **De host is GitHub Releases** van deze (publieke) repository. Elke release
+  is een GitHub-release op zijn eigen tag `v<versie>`, met drie assets:
+  `mygdala-<versie>.zip`, `manifest.json.sig` en `manifest.json`.
+- **`/releases/latest/download/` wijst altijd naar de nieuwste gepubliceerde
+  release** (geen draft, geen pre-release). Daarom staat er in de feed-URL
+  nooit een versie, en blijft hij voor elke volgende release gelijk.
+- **Het pakket staat met een absolute URL onder zijn eigen tag in het
+  manifest**, niet relatief. Relatief zou "naast het manifest" betekenen,
+  en dat is hier `latest/download/`. Een download die over meerdere requests
+  loopt, zou dan halverwege op een nieuwere release uitkomen zodra die
+  verschijnt.
+- GitHub stuurt `latest/download/…` in twee redirects door naar zijn
+  CDN (`release-assets.githubusercontent.com`), allebei HTTPS. Dat CDN geeft
+  206 op een Range, een sterke ETag en `Last-Modified`, zonder compressie.
+  Het negeert `If-Range`, maar dat is veilig: de updater vergelijkt de ETag
+  van elk antwoord zelf, controleert aan het eind de SHA-256 en een asset
+  wordt nooit vervangen.
+- De geheime sleutel staat bij de releasemaker, buiten elke repository, met
+  een tweede kopie op een andere schijf en een offline kopie.
 
 ## Een release bouwen
 
@@ -192,6 +219,10 @@ Opties: `--minimum-source=0.1.0`, `--package-url=<url>` (absolute pakket-URL
 in plaats van "naast het manifest"), `--released-at=<ISO 8601>`,
 `--build-id=<id>`, `--out=<map>` (standaard `dist/`).
 
+Voor de projectfeed is `--package-url` verplicht, met de tag van deze release
+("De projectfeed"):
+`--package-url=https://github.com/BartvVeluw/mygdala/releases/download/v0.2.0/mygdala-0.2.0.zip`.
+
 Uitvoer in `dist/` (gitignored):
 
 ```text
@@ -213,11 +244,19 @@ docker compose exec php php scripts/release.php verify --dir=dist --public-key=<
 Controleert de build zoals een installatie dat zal doen: de handtekening over
 `manifest.json`, en het pakket tegen zijn SHA-256 en grootte.
 
-Publiceren is: de vier bestanden uit `dist/` uploaden naar de feedmap op de
+Publiceren is: de bestanden uit `dist/` uploaden naar de feedmap op de
 releasehost, **het pakket eerst en het manifest met zijn handtekening als
 laatste**, zodat een installatie nooit een manifest ziet waarvan het pakket
 er nog niet is. De vorige pakketten mogen blijven staan. Er is in V1 geen
 publicatiescherm en niets publiceert automatisch.
+
+Op de projectfeed gaat dat met een draft: maak de GitHub-release op de tag
+als **draft**, upload `mygdala-<versie>.zip`, dan `manifest.json.sig`, dan
+`manifest.json`, en publiceer de draft pas daarna. Een draft is niet
+openbaar en telt niet als `latest`, dus alle drie de bestanden worden in één
+keer zichtbaar. `release.json` zit al in het pakket en hoeft er niet als
+los asset bij. Download na het publiceren de drie openbare bestanden terug en
+draai `verify` op precies die bytes.
 
 ## Een bestaande installatie overzetten naar het releasemodel
 
@@ -342,9 +381,9 @@ ervoor), en een rustig moment. Zo:
    `composer install`, ook later niet: `release.json` kent de hash van elk
    bestand in `vendor/`, dus elke wijziging daar blokkeert de volgende update.
 8. **Stel de updater in**, in `.env` (`ARCHITECTURE.md`, "Configuratie"):
-   `MYGDALA_UPDATE_MANIFEST_URL` zolang het project geen standaardfeed heeft;
-   `MYGDALA_UPDATE_PUBLIC_KEY` alleen voor een distributie met een eigen
-   sleutel; `MYGDALA_UPDATE_STORAGE_PATH` als de standaard
+   voor de projectfeed hoeft er niets; `MYGDALA_UPDATE_MANIFEST_URL` en
+   `MYGDALA_UPDATE_PUBLIC_KEY` alleen voor een distributie met een eigen feed
+   en sleutel; `MYGDALA_UPDATE_STORAGE_PATH` als de standaard
    (`<map boven de site>/storage/updates`) niet schrijfbaar is of door een
    tweede site gedeeld zou worden: buiten de webroot, één per site.
 9. **Controleer.** Haal `.maintenance` weg: zolang hij staat, krijgen
@@ -386,5 +425,6 @@ ervoor), en een rustig moment. Zo:
 - [ ] suites groen op die commit (`TESTING.md`)
 - [ ] `git archive` van de tag, build met sleutel en notities
 - [ ] `release.php verify` zegt OK
-- [ ] pakket geüpload, daarna manifest en handtekening
+- [ ] draft-release op de tag: pakket, handtekening, manifest; dan publiceren
+- [ ] de openbare bestanden teruggedownload, `verify` op die bytes zegt OK
 - [ ] op een testinstallatie via **Controleren op updates** gezien dat hij verschijnt

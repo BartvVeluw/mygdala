@@ -178,14 +178,16 @@ Op distributieniveau, in de omgeving, nooit als veld in het CMS:
 
 | Variabele | Betekenis | Standaard |
 |---|---|---|
-| `MYGDALA_UPDATE_MANIFEST_URL` | de feed | leeg tot de releasehosting gekozen is (`UpdateConfig::DEFAULT_MANIFEST_URL`) |
-| `MYGDALA_UPDATE_PUBLIC_KEY` | de Ed25519-publieke sleutel, base64; **vervangt** de ingebouwde sleutel | leeg; ingebouwd: `ReleaseKeys::BUILT_IN`, leeg tot de releasesleutel bestaat |
+| `MYGDALA_UPDATE_MANIFEST_URL` | de feed | de projectfeed op GitHub Releases (`UpdateConfig::DEFAULT_MANIFEST_URL`, `RELEASES.md` "De projectfeed") |
+| `MYGDALA_UPDATE_PUBLIC_KEY` | de Ed25519-publieke sleutel, base64; **vervangt** de ingebouwde sleutel | leeg; ingebouwd: `ReleaseKeys::BUILT_IN`, de projectsleutel `da6306e43b2bc085` |
 | `MYGDALA_UPDATE_STORAGE_PATH` | de werkmap van de updater | `<map boven de site>/storage/updates` |
 | `MYGDALA_UPDATE_STEP_SECONDS` | het tijdsbudget van één updaterequest (1 tot 15 seconden) | een derde van `max_execution_time`, hoogstens 15 seconden |
 
-Zolang feed en sleutel leeg zijn, zegt het Updates-scherm dat er geen
-updatebron is ingesteld; er wordt dan niets gecontroleerd en niets
-geïnstalleerd.
+Zonder variabelen gebruikt een installatie de projectfeed en de
+projectsleutel. Een distributie die feed en sleutel zelf leegmaakt, of een
+`MYGDALA_UPDATE_PUBLIC_KEY` die geen bruikbare sleutel is, krijgt op het
+Updates-scherm te zien dat er geen updatebron of geen sleutel is ingesteld;
+er wordt dan niets gecontroleerd en niets geïnstalleerd.
 
 ## De werkmap
 

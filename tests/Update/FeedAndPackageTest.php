@@ -119,11 +119,14 @@ final class FeedAndPackageTest extends TestCase
         $this->assertRefused('update.error.signature_unknown_key', fn () => HttpUpdateSource::fromConfig()->latest());
     }
 
-    public function testNoFeedMeansNoUpdateCheckRatherThanAGuess(): void
+    public function testWithoutConfigurationTheProjectFeedIsUsed(): void
     {
         UpdateConfig::overrideForTests([]);
 
-        $this->assertRefused('update.error.feed_not_configured', fn () => HttpUpdateSource::fromConfig());
+        $this->assertSame(
+            'https://github.com/BartvVeluw/mygdala/releases/latest/download/manifest.json',
+            HttpUpdateSource::fromConfig()->describe()
+        );
     }
 
     public function testProductionNeverFetchesOverPlainHttp(): void
@@ -215,12 +218,12 @@ final class FeedAndPackageTest extends TestCase
         $this->assertRefused('update.error.package_size_mismatch', fn () => (new ReleasePackage($target, $manifest))->verify());
     }
 
-    public function testTheBuiltInTrustRootIsEmptyUntilAReleaseKeyExists(): void
+    public function testTheBuiltInTrustRootRefusesAFeedSignedWithAnotherKey(): void
     {
         UpdateConfig::overrideForTests([UpdateConfig::MANIFEST_URL_VARIABLE => self::$server->url('/manifest.json')]);
 
-        $this->assertSame([], ReleaseKeys::trusted());
-        $this->assertRefused('update.error.no_trusted_key', fn () => HttpUpdateSource::fromConfig()->latest());
+        $this->assertSame(['da6306e43b2bc085'], array_keys(ReleaseKeys::trusted()));
+        $this->assertRefused('update.error.signature_unknown_key', fn () => HttpUpdateSource::fromConfig()->latest());
     }
 
     private function assertRefused(string $messageKey, callable $action): void

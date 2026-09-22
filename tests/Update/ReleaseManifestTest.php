@@ -191,12 +191,18 @@ final class ReleaseManifestTest extends TestCase
         );
     }
 
-    public function testNoFeedIsConfiguredUntilReleaseHostingIsChosen(): void
+    public function testTheProjectFeedAndReleaseKeyAreTheDefault(): void
     {
         UpdateConfig::overrideForTests([]);
 
-        $this->assertSame('', UpdateConfig::manifestUrl());
-        $this->assertSame([], ReleaseKeys::trusted());
+        $this->assertSame('https://github.com/BartvVeluw/mygdala/releases/latest/download/manifest.json', UpdateConfig::manifestUrl());
+        $this->assertSame(
+            ['da6306e43b2bc085' => base64_decode('kDLitDRCZ/HUz7n3VC8UX6BoPFPkaPlnoiX+09G/RDY=', true)],
+            ReleaseKeys::trusted()
+        );
+
+        UpdateConfig::overrideForTests([UpdateConfig::MANIFEST_URL_VARIABLE => self::MANIFEST_URL]);
+        $this->assertSame(self::MANIFEST_URL, UpdateConfig::manifestUrl(), 'the environment wins over the project feed');
     }
 
     public function testTheUpdaterWorksOutsideTheWebRootByDefault(): void

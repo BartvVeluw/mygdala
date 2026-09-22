@@ -25,10 +25,12 @@ use Dotenv\Dotenv;
  *   MYGDALA_UPDATE_STEP_SECONDS   how long one update request may work
  *                                 before it hands back (stepSeconds())
  *
- * The project default for the first two is empty until the project's own
- * release hosting is chosen (docs/updates/RELEASES.md): an unconfigured feed
- * is visibly unconfigured on the Updates screen, not quietly pointed at a
- * host nobody decided on.
+ * The project's own feed is the default: the GitHub Releases of the
+ * repository, where /releases/latest/download/ always answers with the
+ * newest published release and manifest.json.sig sits next to it
+ * (docs/updates/RELEASES.md, "De projectfeed"). The key it is signed with is
+ * built in (ReleaseKeys). A distribution with its own feed sets both
+ * variables; the variable always wins over the default.
  *
  * Transport: HTTPS only, except on an installation that says explicitly it
  * is not production (APP_ENV, App\Service\AppEnvironment). Production is the
@@ -49,8 +51,12 @@ final class UpdateConfig
     /** No update request works longer than this, whatever the host allows. */
     public const MAX_STEP_SECONDS = 15.0;
 
-    /** The project's own feed, filled in once release hosting is chosen. */
-    public const DEFAULT_MANIFEST_URL = '';
+    /**
+     * The project's own feed. It never names a version: each manifest names
+     * its package by an absolute URL under its own tag, so a download that
+     * spans several requests never jumps to a release published meanwhile.
+     */
+    public const DEFAULT_MANIFEST_URL = 'https://github.com/BartvVeluw/mygdala/releases/latest/download/manifest.json';
 
     private static bool $envLoaded = false;
 
