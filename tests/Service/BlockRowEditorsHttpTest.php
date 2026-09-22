@@ -118,6 +118,23 @@ final class BlockRowEditorsHttpTest extends TestCase
             'table' => 'feature_grid_items',
             'row' => ['icon_key' => 'heart', 'title' => 'Snel geleverd', 'body' => 'Binnen een week in huis.', 'active' => '1'],
         ],
+        // One per website, on the homepage: this test borrows it and puts it
+        // back as it was (place(), tearDown()).
+        'homepage_hero' => [
+            'block' => 'homepage_hero',
+            'screen' => '/admin/homepage-hero.php',
+            'endpoint' => '/api/admin/update-homepage-hero.php',
+            'parent' => 'homepage_hero',
+            'base' => [
+                'eyebrow' => 'Welkom', 'title' => 'Wij maken het', 'title_highlight' => '', 'lead' => '', 'primary_label' => 'Bekijk',
+                'secondary_label' => '', 'image_alt' => 'Een werkplaats', 'badge_title' => '', 'badge_text' => '',
+                'title_highlight_size' => '100', 'primary_url' => '/contact', 'secondary_url' => '', 'media_type' => 'image', 'layout' => 'media_right',
+            ],
+            'word' => 'title',
+            'list' => 'stats',
+            'table' => 'homepage_hero_stats',
+            'row' => ['primary_text' => '300+', 'secondary_text' => 'projecten', 'active' => '1'],
+        ],
     ];
 
     private static ?BuiltInServer $server = null;
@@ -132,6 +149,12 @@ final class BlockRowEditorsHttpTest extends TestCase
 
     /** @var list<int> */
     private array $mediaIds = [];
+
+    /** @var array{hero: array<string, mixed>, stats: list<array<string, mixed>>, words: list<array<string, mixed>>}|null the borrowed homepage hero as it was */
+    private ?array $heroBefore = null;
+
+    /** @var list<string> files this test wrote: temporary uploads and stored ones */
+    private array $files = [];
 
     public static function setUpBeforeClass(): void
     {
@@ -166,6 +189,14 @@ final class BlockRowEditorsHttpTest extends TestCase
     protected function tearDown(): void
     {
         $this->removePage();
+        $this->restoreHero();
+
+        foreach ($this->files as $file) {
+            if (is_file($file)) {
+                unlink($file);
+            }
+        }
+        $this->files = [];
 
         // After the page: a row that shows a library item keeps it from going.
         foreach ($this->mediaIds as $id) {
@@ -396,11 +427,171 @@ final class BlockRowEditorsHttpTest extends TestCase
         self::assertSame('Andere titel', $this->stored('feature_grid_items', $a, 'nl')['title']);
     }
 
+    public function testTheHeroKeepsAtMostThreeStats(): void
+    {
+        $this->place('homepage_hero');
+        $session = $this->signIn(null);
+        $ids = $this->seed($session, 'homepage_hero', 3);
+        $before = $this->snapshot('homepage_hero');
+
+        $rows = [];
+        foreach ($ids as $id) {
+            $rows[(string) $id] = $this->row('homepage_hero');
+        }
+        $this->assertRefused($this->save($session, 'homepage_hero', 'nl', ['title' => 'Blok gewijzigd'], $rows + ['new0' => $this->row('homepage_hero')]));
+        self::assertSame($before, $this->snapshot('homepage_hero'), 'a fourth stat stores nothing at all');
+
+        // Marking one for removal makes room in the same save.
+        $rows[(string) $ids[0]]['remove'] = '1';
+        $this->assertSaved($this->save($session, 'homepage_hero', 'nl', [], $rows + ['new0' => $this->row('homepage_hero')]));
+        self::assertCount(3, $this->rowIds('homepage_hero'));
+        self::assertNotContains($ids[0], $this->rowIds('homepage_hero'));
+    }
+
+    public function testANewImageIsStoredWithTheWordsAndARefusedSaveLeavesNoFileBehind(): void
+    {
+        $this->place('homepage_hero');
+        $session = $this->signIn(null);
+        [$a] = $this->seed($session, 'homepage_hero', 1);
+        $before = $this->snapshot('homepage_hero');
+        $uploads = $this->heroUploads();
+
+        // Refused (the stat's words are too long): no row, no word and no file.
+        $this->assertRefused($this->save($session, 'homepage_hero', 'nl', ['title' => 'Blok gewijzigd', 'image_alt' => 'Nieuwe alt'], [
+            (string) $a => ['primary_text' => str_repeat('x', 101)] + $this->row('homepage_hero'),
+        ], null, ['image' => $this->uploadableImage()]));
+        self::assertSame($before, $this->snapshot('homepage_hero'));
+        self::assertSame($uploads, $this->heroUploads(), 'a refused save writes no file');
+        self::assertStringContainsString('Kies het opnieuw', $this->screen($session, 'homepage_hero'), 'the screen asks for the file again');
+
+        // Accepted: the image, its alt text, a title and a stat in one save.
+        $this->assertSaved($this->save($session, 'homepage_hero', 'nl', ['title' => 'Blok gewijzigd', 'image_alt' => 'Nieuwe alt', 'media_type' => 'video', 'layout' => 'background'], [
+            (string) $a => ['primary_text' => '12+'] + $this->row('homepage_hero'),
+        ], null, ['image' => $this->uploadableImage()]));
+
+        $hero = $this->parentRow('homepage_hero');
+        $stored = dirname(__DIR__, 2) . '/' . $hero['image_path'];
+        $this->files[] = $stored;
+        self::assertStringStartsWith('assets/images/sections/', (string) $hero['image_path']);
+        self::assertFileExists($stored);
+        self::assertSame(['video', 'background', ''], [$hero['media_type'], $hero['layout'], (string) $hero['video_path']], 'choosing video without a file keeps the choice; the video stays as it was');
+        self::assertSame('Nieuwe alt', $this->stored('homepage_hero', $this->parentId, 'nl')['image_alt']);
+        self::assertSame('Blok gewijzigd', $this->stored('homepage_hero', $this->parentId, 'nl')['title']);
+        self::assertSame('12+', $this->stored('homepage_hero_stats', $a, 'nl')['primary_text']);
+    }
+
+    public function testAWrongFileIsRefusedWithItsMessageAndNothingIsStored(): void
+    {
+        $this->place('homepage_hero');
+        $session = $this->signIn(null);
+        $before = $this->snapshot('homepage_hero');
+        $text = (string) tempnam(sys_get_temp_dir(), 'zzhero');
+        file_put_contents($text, 'geen afbeelding');
+        $this->files[] = $text;
+
+        $this->assertRefused($this->save($session, 'homepage_hero', 'nl', ['title' => 'Blok gewijzigd'], [], null, ['image' => new \CURLFile($text, 'image/png', 'nep.png')]));
+        self::assertSame($before, $this->snapshot('homepage_hero'));
+
+        $screen = $this->xpath($this->screen($session, 'homepage_hero'));
+        self::assertSame('true', $this->control($screen, 'image')->getAttribute('aria-invalid'), 'the message is at the file field');
+        self::assertSame('Blok gewijzigd', $this->valueOf($screen, 'title'), 'the typed title comes back');
+    }
+
     // ------------------------------------------------------------ helpers
+
+    /** Snapshot the homepage hero, its stats and all their words, and start from a known one without stats or image. */
+    private function borrowHero(): void
+    {
+        $db = Database::connection();
+        $heroes = new \App\Repository\HomepageHeroRepository();
+        $hero = $heroes->findBySlug(\App\Service\HomepageHeroContent::PAGE_SLUG);
+        if ($hero === null) {
+            BlockDefinitions::get('homepage_hero')->create(\App\Service\HomepageHeroContent::PAGE_SLUG);
+            $hero = $heroes->findBySlug(\App\Service\HomepageHeroContent::PAGE_SLUG);
+        }
+        $id = (int) $hero['id'];
+
+        $stats = $db->prepare('SELECT * FROM homepage_hero_stats WHERE homepage_hero_id = ?');
+        $stats->execute([$id]);
+        $stats = $stats->fetchAll(\PDO::FETCH_ASSOC);
+        $words = $db->prepare("SELECT * FROM block_translations WHERE (owner_table = 'homepage_hero' AND owner_id = ?) OR (owner_table = 'homepage_hero_stats' AND owner_id IN (SELECT id FROM homepage_hero_stats WHERE homepage_hero_id = ?))");
+        $words->execute([$id, $id]);
+        $this->heroBefore = ['hero' => $hero, 'stats' => $stats, 'words' => $words->fetchAll(\PDO::FETCH_ASSOC)];
+
+        $this->clearHero($id);
+        $db->prepare("UPDATE homepage_hero SET image_path = '', video_path = NULL WHERE id = ?")->execute([$id]);
+        BlockLocalization::save('homepage_hero', $id, 'nl', array_intersect_key(self::CASES['homepage_hero']['base'], BlockLocalization::fields('homepage_hero')));
+        BlockLocalization::clearCache();
+        \App\Service\HomepageHeroContent::clearCache();
+
+        $this->parentId = $id;
+        $this->section = '';
+    }
+
+    /** Put the borrowed hero back exactly as it was: its row, its stats and every word, with their ids. */
+    private function restoreHero(): void
+    {
+        if ($this->heroBefore === null) {
+            return;
+        }
+
+        $db = Database::connection();
+        $hero = $this->heroBefore['hero'];
+        $this->clearHero((int) $hero['id']);
+
+        $columns = array_keys($hero);
+        $db->prepare('UPDATE homepage_hero SET ' . implode(', ', array_map(static fn (string $c): string => "`{$c}` = ?", $columns)) . ' WHERE id = ?')
+            ->execute([...array_values($hero), $hero['id']]);
+        foreach (['stats' => 'homepage_hero_stats', 'words' => 'block_translations'] as $key => $table) {
+            foreach ($this->heroBefore[$key] as $row) {
+                $db->prepare("INSERT INTO `{$table}` (`" . implode('`, `', array_keys($row)) . '`) VALUES (' . implode(', ', array_fill(0, count($row), '?')) . ')')
+                    ->execute(array_values($row));
+            }
+        }
+
+        $this->heroBefore = null;
+        BlockLocalization::clearCache();
+        \App\Service\HomepageHeroContent::clearCache();
+    }
+
+    private function clearHero(int $id): void
+    {
+        $db = Database::connection();
+        $db->prepare("DELETE FROM block_translations WHERE (owner_table = 'homepage_hero' AND owner_id = ?) OR (owner_table = 'homepage_hero_stats' AND owner_id IN (SELECT id FROM homepage_hero_stats WHERE homepage_hero_id = ?))")->execute([$id, $id]);
+        $db->prepare('DELETE FROM homepage_hero_stats WHERE homepage_hero_id = ?')->execute([$id]);
+    }
+
+    /** @return list<string> the files in the Hero's upload folders */
+    private function heroUploads(): array
+    {
+        $root = dirname(__DIR__, 2);
+
+        return array_values(array_merge(glob($root . '/assets/images/sections/*') ?: [], glob($root . '/assets/videos/sections/*') ?: []));
+    }
+
+    /** A small, real PNG, sent the way a browser sends a chosen file. */
+    private function uploadableImage(): \CURLFile
+    {
+        $path = (string) tempnam(sys_get_temp_dir(), 'zzhero');
+        $this->files[] = $path;
+
+        $image = imagecreatetruecolor(64, 48);
+        imagefill($image, 0, 0, (int) imagecolorallocate($image, 200, 120, 40));
+        imagepng($image, $path);
+        imagedestroy($image);
+
+        return new \CURLFile($path, 'image/png', 'hero.png');
+    }
 
     private function place(string $case): void
     {
         $type = self::CASES[$case]['block'];
+
+        if ($type === 'homepage_hero') {
+            $this->borrowHero();
+
+            return;
+        }
         [$id, $key] = SectionRegistry::create($type, self::KEY);
         (new PageSectionRepository())->create($this->pageId, self::KEY, $type, $key, $id);
         $this->parentId = (int) $id;
@@ -430,9 +621,10 @@ final class BlockRowEditorsHttpTest extends TestCase
     /**
      * @param array<string, string> $block over the case's valid block fields
      * @param array<string, array<string, string>> $rows key => fields
+     * @param array<string, \CURLFile> $files
      * @return array{status: int, location: string, body: string, headers: string}
      */
-    private function save(string $session, string $case, string $language, array $block, array $rows, ?string $action = null): array
+    private function save(string $session, string $case, string $language, array $block, array $rows, ?string $action = null, array $files = []): array
     {
         $spec = self::CASES[$case];
         $base = $language === 'nl' ? $spec['base'] : array_diff_key($spec['base'], BlockLocalization::fields($spec['parent']));
@@ -450,7 +642,24 @@ final class BlockRowEditorsHttpTest extends TestCase
         // An unticked checkbox is not sent.
         $fields = array_filter($fields, static fn ($value): bool => $value !== null);
 
-        $response = self::$server->request('POST', $spec['endpoint'], $session, $fields);
+        // A multipart request carries flat names, like a browser's.
+        if ($files !== []) {
+            $flat = [];
+            foreach ($fields as $name => $value) {
+                if (!is_array($value)) {
+                    $flat[$name] = $value;
+                    continue;
+                }
+                foreach ($value as $key => $row) {
+                    foreach ($row as $field => $v) {
+                        $flat[$name . '[' . $key . '][' . $field . ']'] = $v;
+                    }
+                }
+            }
+            $fields = $flat;
+        }
+
+        $response = self::$server->request('POST', $spec['endpoint'], $session, $fields, $files);
         BlockLocalization::clearCache();
 
         return $response;

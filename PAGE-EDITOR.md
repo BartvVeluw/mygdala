@@ -596,15 +596,23 @@ geweigerde opslag die niets schrijft, en de taal) bewaken het contract.
 | Stappenplan | `admin/step-list.php` (kop, *Actief*, stappen) | `api/admin/update-step-list-section.php` |
 | Woordenband | `admin/marquee.php` (*Actief*, items) | `api/admin/update-marquee-section.php` |
 | Kaartenraster | `admin/feature-grid.php` (kop, *Actief*, kaarten met icoon) | `api/admin/update-feature-grid.php` |
+| Homepage-hero | `admin/homepage-hero.php` (teksten, knoppen, badge, media en lay-out, afbeelding en video als bestand, statistieken, max. 3) | `api/admin/update-homepage-hero.php` |
 
 Een kaart heeft een eigen scherm omdat hij zelf een lijst (tags) draagt;
 *Bewerken* en *Kaart toevoegen* slaan de carrousel eerst op.
 
+De Homepage-hero uploadt zijn afbeelding en video als bestand, in hetzelfde
+formulier (multipart). Eerst wordt alles gecontroleerd wat zonder de
+bestanden kan; pas daarna worden ze opgeslagen, en mislukt de transactie
+daarna toch, dan worden ze weer verwijderd. Een vervangen bestand gaat pas
+weg na de commit. Een browser vult een bestandsveld nooit opnieuw in: na een
+geweigerde opslag komt alle tekst terug en vraagt het scherm het bestand
+opnieuw te kiezen.
+
 ### Wat nog niet
 
 Deze editors hebben nog een formulier per rij, met elk een eigen *Opslaan*
-en eigen endpoints voor toevoegen, verplaatsen en verwijderen: Homepage-hero
-(cijfers, media), Tekst met afbeelding (alinea's,
+en eigen endpoints voor toevoegen, verplaatsen en verwijderen: Tekst met afbeelding (alinea's,
 afbeeldingen) en Detailsectie (punten, afbeeldingen, hoofdafbeelding). Ze gaan over op hetzelfde contract, één blok
 per keer, met de helper en het script hierboven.
 

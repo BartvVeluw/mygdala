@@ -186,9 +186,9 @@ final class HomepageHeroHighlightSizeTest extends TestCase
         $carried = $repository->findBySlug(HomepageHeroContent::PAGE_SLUG);
         $this->assertNotNull($carried);
 
-        // Exactly what update-homepage-hero-media.php does: re-read the row,
-        // carry its settings forward (the size clamped out of it), change
-        // only media_type/layout.
+        // What update-homepage-hero.php does for the columns its form did
+        // not change (a file that was not replaced): re-read the row and
+        // carry its settings forward, the size clamped out of it.
         $repository->upsert(
             HomepageHeroContent::PAGE_SLUG,
             ['media_type' => HomepageHeroContent::MEDIA_TYPE_IMAGE]
@@ -201,17 +201,15 @@ final class HomepageHeroHighlightSizeTest extends TestCase
     }
 
     /**
-     * The three carry-forward endpoints each rebuild the complete row before
-     * calling upsert(), through HomepageHeroContent::settingsOf(); if that
-     * forgets the column, saving an image would quietly reset a Hero's
+     * The one save endpoint rebuilds the complete row before calling
+     * upsert(), through HomepageHeroContent::settingsOf(); if that forgets
+     * the column, a save that changes no size would quietly reset a Hero's
      * highlight size to the default.
      */
     public function testEveryCarryForwardEndpointPreservesTheSize(): void
     {
         $endpoints = [
-            'update-homepage-hero-image.php',
-            'update-homepage-hero-video.php',
-            'update-homepage-hero-media.php',
+            'update-homepage-hero.php',
         ];
 
         foreach ($endpoints as $endpoint) {

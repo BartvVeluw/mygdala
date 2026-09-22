@@ -518,13 +518,12 @@
   }
 
   /**
-   * Homepage Hero admin (admin/homepage-hero.php): shows only the Image or
-   * only the Video card, matching the currently-selected "Media" radio —
-   * hiding the irrelevant upload controls instead of showing both at once.
-   * Purely a display convenience: the server still renders both cards (with
-   * `hidden` on whichever doesn't match the saved media_type, so this works
-   * the same on first load without JS), and each card's own form still
-   * submits/validates independently of this toggle.
+   * Homepage Hero admin (admin/homepage-hero.php): shows the Video part only
+   * while "Video" is the selected "Media" radio (the image stays, as the
+   * video's poster). Purely a display convenience: the server renders the
+   * part with `hidden` when the saved media_type is not video, so this works
+   * the same on first load without JS, and the one form still sends and
+   * validates everything whatever this toggle shows.
    */
   function initHomepageHeroMediaToggle() {
     var group = document.querySelector("[data-media-type-group]");

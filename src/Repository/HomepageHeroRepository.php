@@ -46,11 +46,8 @@ class HomepageHeroRepository extends Repository
      * in every language. Callers must always pass the complete field set
      * (title_highlight_size, both URLs, image_path, media_type/video_path/
      * layout and is_active) even when only a subset actually changed — see
-     * api/admin/update-homepage-hero.php,
-     * api/admin/update-homepage-hero-image.php,
-     * api/admin/update-homepage-hero-video.php and
-     * api/admin/update-homepage-hero-media.php, which each merge their own
-     * changed subset onto the current row's values
+     * api/admin/update-homepage-hero.php, which merges what its one form
+     * changed onto the current row's values
      * (HomepageHeroContent::settingsOf()) before calling this.
      *
      * @param array<string, string|int|bool> $values
@@ -115,19 +112,6 @@ class HomepageHeroRepository extends Repository
     }
 
     /**
-     * Total stat rows (active and inactive) for one Hero — used to enforce
-     * the max-3 cap before creating a new one; a deleted row frees a slot, an
-     * individually hidden one does not.
-     */
-    public function countStatsByHeroId(int $heroId): int
-    {
-        $stmt = $this->db->prepare('SELECT COUNT(*) FROM homepage_hero_stats WHERE homepage_hero_id = :homepage_hero_id');
-        $stmt->execute(['homepage_hero_id' => $heroId]);
-
-        return (int) $stmt->fetchColumn();
-    }
-
-    /**
      * @return array<string, mixed>|null
      */
     public function findStatById(int $id): ?array
@@ -143,9 +127,8 @@ class HomepageHeroRepository extends Repository
      * Appends a new, visible stat to the end of the Hero's stats and returns
      * its id. Its two texts are words, stored per website language against
      * that id (App\Service\Blocks\BlockLocalization), in the same transaction
-     * as this insert. Callers must check countStatsByHeroId() against the
-     * max-3 cap first — this method does not enforce it (see
-     * api/admin/create-homepage-hero-stat.php).
+     * as this insert. Callers must check the max-3 cap first — this method
+     * does not enforce it (see api/admin/update-homepage-hero.php).
      */
     public function createStat(int $heroId): int
     {
@@ -202,43 +185,22 @@ class HomepageHeroRepository extends Repository
     }
 
     /**
-     * Swaps sort_order with the previous/next stat (in current display
-     * order) within the same Hero — same approach as
-     * StatStripRepository::moveItem().
+     * Stores the order of the stats of the Homepage Hero as the one-form
+     * editor posted it (App\Service\Blocks\EditorChildList::save()): the
+     * first id gets sort_order 0. An id that is not a row of $heroId is left
+     * alone.
+     *
+     * @param list<int> $orderedIds
      */
-    public function moveStat(int $heroId, int $itemId, string $direction): void
+    public function reorderStats(int $heroId, array $orderedIds): void
     {
-        $items = $this->findStatsByHeroId($heroId);
+        $stmt = $this->db->prepare(
+            'UPDATE homepage_hero_stats SET sort_order = :sort_order, updated_at = NOW() WHERE id = :id AND homepage_hero_id = :parent_id'
+        );
 
-        $index = null;
-        foreach ($items as $i => $item) {
-            if ((int) $item['id'] === $itemId) {
-                $index = $i;
-                break;
-            }
+        foreach (array_values($orderedIds) as $position => $id) {
+            $stmt->execute(['sort_order' => $position, 'id' => (int) $id, 'parent_id' => $heroId]);
         }
-
-        if ($index === null) {
-            return;
-        }
-
-        $swapWith = $direction === 'up' ? $index - 1 : $index + 1;
-
-        if ($swapWith < 0 || $swapWith >= count($items)) {
-            return;
-        }
-
-        $a = $items[$index];
-        $b = $items[$swapWith];
-
-        $this->updateSortOrder((int) $a['id'], (int) $b['sort_order']);
-        $this->updateSortOrder((int) $b['id'], (int) $a['sort_order']);
-    }
-
-    private function updateSortOrder(int $id, int $sortOrder): void
-    {
-        $stmt = $this->db->prepare('UPDATE homepage_hero_stats SET sort_order = :sort_order, updated_at = NOW() WHERE id = :id');
-        $stmt->execute(['sort_order' => $sortOrder, 'id' => $id]);
     }
 
     private function nextSortOrder(int $heroId): int

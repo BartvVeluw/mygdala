@@ -279,10 +279,9 @@ class HomepageHeroContent
         // Defensive fallbacks against stale/invalid data reaching the
         // renderer — never let a half-configured video (media_type=video
         // saved before any file was ever uploaded) or an unrecognised layout
-        // value break the Hero. isHighlightValid()-style save-time
-        // validation (see api/admin/update-homepage-hero-media.php and
-        // api/admin/update-homepage-hero-video.php) is the primary guard;
-        // this is the belt-and-braces second layer.
+        // value break the Hero. The save-time validation of
+        // api/admin/update-homepage-hero.php is the primary guard; this is
+        // the belt-and-braces second layer.
         if (!in_array($content['media_type'], self::MEDIA_TYPES, true)
             || ($content['media_type'] === self::MEDIA_TYPE_VIDEO && $content['video_path'] === '')
         ) {
