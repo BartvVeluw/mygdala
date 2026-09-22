@@ -1092,7 +1092,6 @@ From the first label the CMS also makes the fixed name answers are stored under.
     'block_carousel.kaart_concept' => 'This card is switched off and not on the website.',
     'block_carousel.nummer' => 'Number or label',
     'help.block_carousel.nummer' => 'Shown above the title. Left empty, the card gets its position as its number (01, 02, …). Text is fine too.',
-    'block_carousel.nummer_placeholder' => 'Empty = the card’s position, e.g. 01',
     'block_carousel.nummer_placeholder_positie' => 'Empty = :number, this card’s position',
     'block_carousel.knop' => 'Button',
     'block_carousel.link_type' => 'Where does the button go?',

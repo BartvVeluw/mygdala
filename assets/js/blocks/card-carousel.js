@@ -19,13 +19,15 @@
      Reusable: wire up any container via data-orbit / data-orbit-track /
      data-orbit-card / data-orbit-prev / data-orbit-next / data-orbit-dots.
 
-     THE ACTIVE CARD IS ALWAYS CENTERED. Every move — a button, a dot, the
-     keyboard, autoplay — goes to a card's own resting angle, never "one
-     step from wherever the ring happens to be". The ring used to drift
-     continuously and a click stepped from that drifted angle, so the card
-     it stopped on could sit far off-center (with two cards: all the way
-     to the side). Autoplay now rests on each card and then turns to the
-     next one.
+     A CLICKED CARD ENDS EXACTLY CENTERED. Autoplay turns the ring
+     continuously, so while it drifts no card sits exactly in the middle —
+     that is the carousel's character. A button, a dot or an arrow key goes
+     to a card's own resting angle (ringGoTo on commandedIndex() ± 1),
+     never "one step from wherever the drifting ring happens to be": that
+     step used to leave the card off-center, with two cards all the way to
+     the side. A manual move also stops the drift (speedFactor = 0), so the
+     card stays centered and autoplay glides back up from there once the
+     pointer and the focus have left the carousel.
      --------------------------------------------------------------------- */
   function initOrbitCarousels() {
     document.querySelectorAll("[data-orbit]").forEach(setupOrbitCarousel);
@@ -43,9 +45,8 @@
 
     var isRowLayout = root.getAttribute("data-orbit-layout") === "row";
     var angleStep = 360 / n;
+    var speedDegPerSec = parseFloat(root.dataset.orbitSpeed || "9");
     var manualDuration = prefersReducedMotion ? 1 : 550;
-    var autoplayDuration = 1400;
-    var autoplayRestMs = 5000;
 
     var angle = 0;
     var tweenFrom = null, tweenTo = null, tweenStart = null;
@@ -56,7 +57,7 @@
     var activeIndex = -1;
     var rafId = null;
     var lastFrame = null;
-    var restedMs = 0;
+    var speedFactor = 1; // eases toward 0 while paused so autoplay glides to a stop instead of freezing
     var hoveredIndex = -1;
     var hoverScale = []; // per-card, eases toward 1 (hovered) / 0 (not) each frame
 
@@ -92,10 +93,7 @@
     function easeInOutCubic(t) {
       return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
     }
-    function updatePaused() {
-      isPaused = hoverPaused || focusPaused;
-      if (isPaused) restedMs = 0;
-    }
+    function updatePaused() { isPaused = hoverPaused || focusPaused; }
 
     function setActive(i) {
       if (i === activeIndex) return;
@@ -176,8 +174,10 @@
       tweenFrom = angle;
       tweenTo = targetAngle;
       tweenStart = null;
-      tweenDuration = opts && opts.ms && !prefersReducedMotion ? opts.ms : manualDuration;
-      restedMs = 0;
+      tweenDuration = manualDuration;
+      // Where the editor sent it, the ring stays: the drift starts again
+      // from this centered card, easing up from zero.
+      speedFactor = 0;
     }
 
     /* Flat strip (phone, or the "row" layout): a card's resting place is
@@ -272,11 +272,15 @@
         var t = tweenDuration > 1 ? Math.min(1, (ts - tweenStart) / tweenDuration) : 1;
         angle = tweenFrom + (tweenTo - tweenFrom) * easeInOutCubic(t);
         if (t >= 1) { angle = tweenTo; tweenFrom = null; tweenTo = null; tweenStart = null; }
-      } else if (!prefersReducedMotion && n > 1 && !isPaused) {
-        // Autoplay: rest on the centered card, then turn to the next one.
-        restedMs += dt;
-        if (restedMs >= autoplayRestMs) {
-          ringGoTo(mod(commandedIndex() + 1), { direction: 1, ms: autoplayDuration });
+      } else if (!prefersReducedMotion && n > 1) {
+        // speedFactor eases toward 0 (paused) or 1 (running) instead of the
+        // autoplay increment switching on/off instantly — the ring glides to
+        // a stop on hover/focus rather than freezing mid-turn.
+        var speedTarget = isPaused ? 0 : 1;
+        var speedEase = dt > 0 ? Math.min(1, dt / 260) : 1;
+        speedFactor += (speedTarget - speedFactor) * speedEase;
+        if (Math.abs(speedFactor) > 0.0008) {
+          angle -= speedDegPerSec * speedFactor * (dt / 1000);
         }
       }
 

@@ -67,6 +67,7 @@ function render_section_card_carousel(array $content): void
           <div
             class="orbit-carousel<?= $isRow ? ' orbit-carousel--row' : '' ?>"
             data-orbit
+            data-orbit-speed="9"
             data-orbit-layout="<?= $isRow ? 'row' : 'orbit' ?>"
             data-reveal
             role="region"

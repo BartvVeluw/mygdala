@@ -41,7 +41,8 @@ use Tests\Support\PageFixture;
  *  - ↑, ↓ and × without JavaScript store what was typed with the move;
  *  - a save writes only the language on screen, and a new tag is written in
  *    the default language;
- *  - a new card is a draft with the next number; "Actief" is per card;
+ *  - a new card is a draft without a stored number; an empty number follows
+ *    the card's place, an own label stays; "Actief" is per card;
  *  - a button points at a page, a blog post or a product by id.
  *
  * The page, its block, the accounts, the post and the product are this test's
@@ -187,7 +188,7 @@ final class CardCarouselEditorHttpTest extends TestCase
         self::assertSame([], $this->stored('carousel_card_tags', $tag, 'nl'));
     }
 
-    public function testANewCardIsADraftWithTheNextNumberAndTheScreenGoesToIt(): void
+    public function testANewCardIsADraftWithoutAStoredNumberAndTheScreenGoesToIt(): void
     {
         $a = $this->card('Hout', true);
         $session = $this->signIn(null);
@@ -204,11 +205,46 @@ final class CardCarouselEditorHttpTest extends TestCase
         self::assertCount(2, $cards);
         [$newId, $active] = $cards[1];
         self::assertSame(0, $active, 'a new card starts switched off');
-        self::assertSame(['title' => 'Metaal', 'number_label' => '02'], $this->stored('carousel_cards', $newId, 'nl'));
+        self::assertSame(['title' => 'Metaal'], $this->stored('carousel_cards', $newId, 'nl'), 'no number is stored: an empty one follows the card\'s place');
         self::assertSame(['title' => 'Eerst opgeslagen'], $this->stored('card_carousels', $this->carouselId, 'nl'), 'what was typed is saved first');
 
         $content = CardCarouselContent::forSection(self::KEY, explode(':', $this->section)[1]);
         self::assertSame(['Hout'], array_column($content['cards'], 'title'), 'a draft card is not on the website');
+
+        // Its screen proposes the number it will have once it is switched on.
+        $screen = self::$server->request('GET', '/admin/carousel-card.php?card_id=' . $newId, $session)['body'];
+        self::assertMatchesRegularExpression('/id="card-number"[^>]*value=""[^>]*placeholder="Leeg = 02, de plaats van deze kaart"/', $screen);
+    }
+
+    public function testAnEmptyNumberFollowsTheCardsPlaceAndAnOwnLabelStays(): void
+    {
+        $a = $this->card('Hout', true);
+        $b = $this->card('Acryl', true);
+        $c = $this->card('Glas', true);
+        $sectionKey = explode(':', $this->section)[1];
+        $labels = static fn (): array => array_column(CardCarouselContent::forSection(self::KEY, $sectionKey)['cards'], 'index_label', 'title');
+
+        self::assertSame(['Hout' => '01', 'Acryl' => '02', 'Glas' => '03'], $labels(), 'three empty numbers: their places');
+
+        // Reordered in the one form: the numbers follow the new order.
+        $session = $this->signIn(null);
+        $this->assertSaved($this->saveCarousel($session, [
+            'cards' => [$c => ['present' => '1', 'active' => '1'], $a => ['present' => '1', 'active' => '1'], $b => ['present' => '1', 'active' => '1']],
+        ]));
+        self::assertSame(['Glas' => '01', 'Hout' => '02', 'Acryl' => '03'], $labels());
+
+        // A label an editor typed stays, wherever the card goes; the others still count.
+        BlockLocalization::save('carousel_cards', $a, 'nl', ['title' => 'Hout', 'number_label' => 'A']);
+        CardCarouselContent::clearCache();
+        self::assertSame(['Glas' => '01', 'Hout' => 'A', 'Acryl' => '03'], $labels());
+        $this->assertSaved($this->saveCarousel($session, [
+            'cards' => [$a => ['present' => '1', 'active' => '1'], $b => ['present' => '1', 'active' => '1'], $c => ['present' => '1', 'active' => '1']],
+        ]));
+        self::assertSame(['Hout' => 'A', 'Acryl' => '02', 'Glas' => '03'], $labels());
+
+        // Saving a card with its number left empty stores none.
+        $this->assertSaved($this->saveCard($session, $b, 'nl', ['is_active' => '1', 'title' => 'Acryl', 'number_label' => '']));
+        self::assertSame(['title' => 'Acryl'], $this->stored('carousel_cards', $b, 'nl'));
     }
 
     public function testARefusedCarouselSaveStoresNothingAndShowsWhatWasTyped(): void

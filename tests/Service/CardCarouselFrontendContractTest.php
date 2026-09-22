@@ -12,10 +12,11 @@ use PHPUnit\Framework\TestCase;
  * there is no JavaScript runner in this project, so the three regressions
  * that were found in the browser are pinned on the source:
  *
- *  - THE ACTIVE CARD IS CENTERED. Next and previous go to a card's own
- *    resting angle (ringGoTo on commandedIndex() ± 1). Stepping one angle
- *    from wherever the drifting ring happened to be left the card off-center
- *    — with two cards, all the way to the side.
+ *  - A CLICKED CARD ENDS CENTERED. Next and previous go to a card's own
+ *    resting angle (ringGoTo on commandedIndex() ± 1) and stop the drift
+ *    there. Stepping one angle from wherever the drifting ring happened to be
+ *    left the card off-center — with two cards, all the way to the side.
+ *    Autoplay itself keeps drifting continuously.
  *  - THE GLOW FOLLOWS THE POINTER. The highlight is a :hover rule (under
  *    `hover: hover`, so touch never needs one) and keyboard focus, never the
  *    card that is in front.
@@ -41,7 +42,9 @@ final class CardCarouselFrontendContractTest extends TestCase
         self::assertStringContainsString('ringGoTo(mod(commandedIndex() - 1)', $js);
         self::assertStringNotContainsString('targetAngle -= angleStep', $js, 'a step from a drifted angle is what left the card off-center');
         self::assertStringNotContainsString('targetAngle += angleStep', $js);
-        self::assertStringNotContainsString('angle -= speedDegPerSec', $js, 'autoplay rests on a card instead of drifting');
+        // Autoplay keeps drifting; a manual move stops the drift where it landed.
+        self::assertStringContainsString('angle -= speedDegPerSec * speedFactor', $js);
+        self::assertMatchesRegularExpression('/function ringGoTo\(index, opts\) \{.*?speedFactor = 0;/s', $js);
     }
 
     public function testTheGlowBelongsToTheHoveredCardNotToTheFrontCard(): void

@@ -162,16 +162,23 @@ $placeholder = admin_localized_placeholder_attr($editLanguage);
 $optional = $placeholder !== '' ? $placeholder : ' placeholder="Optioneel"';
 $altPlaceholder = $placeholder !== '' ? $placeholder : ' placeholder="Leeg = alt-tekst uit de mediabibliotheek"';
 // What the card prints while its number is empty: its place among the cards
-// that show (CardCarouselContent), or a general hint for a card that does not.
-$positionLabel = null;
-foreach (CardCarouselContent::forSection((string) $carousel['page_slug'], (string) $carousel['section_key'])['cards'] as $index => $shown) {
-    if ((int) $shown['id'] === $cardId) {
-        $positionLabel = CardCarouselContent::positionLabel($index);
+// that show (CardCarouselContent). A card that is off — a new one — gets the
+// place it would have once switched on: after the shown cards before it.
+$shownIds = array_map(
+    static fn (array $shown): int => (int) $shown['id'],
+    CardCarouselContent::forSection((string) $carousel['page_slug'], (string) $carousel['section_key'])['cards']
+);
+$shownBefore = 0;
+foreach ($repository->findCardsByCarouselId((int) $carousel['id']) as $sibling) {
+    if ((int) $sibling['id'] === $cardId) {
+        break;
+    }
+    if (in_array((int) $sibling['id'], $shownIds, true)) {
+        $shownBefore++;
     }
 }
-$numberPlaceholder = $placeholder !== '' ? $placeholder : ' placeholder="' . ($positionLabel !== null
-    ? admin_te('block_carousel.nummer_placeholder_positie', ['number' => $positionLabel])
-    : admin_te('block_carousel.nummer_placeholder')) . '"';
+$numberPlaceholder = $placeholder !== '' ? $placeholder : ' placeholder="'
+    . admin_te('block_carousel.nummer_placeholder_positie', ['number' => CardCarouselContent::positionLabel($shownBefore)]) . '"';
 
 /** aria-invalid + aria-describedby for a field with an error of its own, and the message under it. */
 $invalid = static function (string $field) use ($fieldErrors, $h): string {

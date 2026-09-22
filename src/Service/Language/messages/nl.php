@@ -1100,7 +1100,6 @@ Uit het eerste label maakt het CMS ook de vaste naam waaronder antwoorden worden
     'block_carousel.kaart_concept' => 'Deze kaart staat uit en is niet te zien op de website.',
     'block_carousel.nummer' => 'Nummer of label',
     'help.block_carousel.nummer' => 'Staat boven de titel. Laat je het leeg, dan krijgt de kaart zijn plaats als nummer (01, 02, …). Je mag ook tekst gebruiken.',
-    'block_carousel.nummer_placeholder' => 'Leeg = de plaats van de kaart, bijv. 01',
     'block_carousel.nummer_placeholder_positie' => 'Leeg = :number, de plaats van deze kaart',
     'block_carousel.knop' => 'Knop',
     'block_carousel.link_type' => 'Waar gaat de knop heen?',
