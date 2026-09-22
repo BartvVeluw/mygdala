@@ -39,7 +39,7 @@ use Tests\Support\PageFixture;
  * The rows of a one-form editor are not here: the Kaarten-carrousel's cards
  * and tags are Tests\Service\CardCarouselEditorHttpTest's, and the FAQ's,
  * the Cijferbalk's, the Stappenplan's, the Woordenband's, the
- * Kaartenraster's and the Homepage-hero's are
+ * Kaartenraster's, the Homepage-hero's and the Tekst-met-afbeelding's are
  * Tests\Service\BlockRowEditorsHttpTest's, with the same rules.
  *
  * Table-driven: CHILDREN names, per child table, the block that owns it, the
@@ -66,26 +66,6 @@ final class BlockChildWordsEditorHttpTest extends TestCase
         // Phase 3B, wave C: two child tables under one block, and a tag
         // under a card (block()). A card's alt text is on its image form, a
         // rule of its own below.
-        'text_image_split_paragraphs' => [
-            'block' => 'text_image_split',
-            'create' => '/api/admin/create-text-image-split-paragraph.php',
-            'update' => '/api/admin/update-text-image-split-paragraph.php',
-            'delete' => '/api/admin/delete-text-image-split-paragraph.php',
-            'parent' => 'section_id',
-            'item' => 'paragraph_id',
-            'settings' => [],
-            'words' => ['content' => 'Wij maken alles op maat.'],
-        ],
-        'text_image_split_images' => [
-            'block' => 'text_image_split',
-            'create' => '/api/admin/create-text-image-split-image.php',
-            'update' => '/api/admin/update-text-image-split-image.php',
-            'delete' => '/api/admin/delete-text-image-split-image.php',
-            'parent' => 'section_id',
-            'item' => 'image_id',
-            'settings' => ['media_id' => '{media}'],
-            'words' => ['alt' => 'De werkplaats van binnen'],
-        ],
         'detail_section_points' => [
             'block' => 'detail_section',
             'create' => '/api/admin/create-detail-section-point.php',

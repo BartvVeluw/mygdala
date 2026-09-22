@@ -391,9 +391,8 @@ class SectionRegistry
 
         // Filesystem cleanup happens outside the DB transaction (it isn't
         // transactional itself) and BEFORE the DB rows disappear, so a failed
-        // unlink never leaves an orphaned file with no DB row pointing at it —
-        // same order as api/admin/delete-text-image-split-image.php. The
-        // definition is handed this page_sections row, so its cleanup can only
+        // unlink never leaves an orphaned file with no DB row pointing at it.
+        // The definition is handed this page_sections row, so its cleanup can only
         // ever reach the files of THIS instance.
         $definition->deleteFiles($pageSection);
 

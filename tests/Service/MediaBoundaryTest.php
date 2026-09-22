@@ -170,8 +170,7 @@ final class MediaBoundaryTest extends TestCase
         $this->assertStringNotContainsString('type="file" name="media', $picker);
 
         foreach ([
-            'create-text-image-split-image.php',
-            'update-text-image-split-image.php',
+            'update-text-image-split-section.php',
             'create-detail-section-image.php',
             'update-detail-section-image.php',
             'update-detail-section-main-image.php',
@@ -201,8 +200,7 @@ final class MediaBoundaryTest extends TestCase
     public function testTheIntegratedBlockEndpointsNoLongerUploadFilesThemselves(): void
     {
         foreach ([
-            'create-text-image-split-image.php',
-            'update-text-image-split-image.php',
+            'update-text-image-split-section.php',
             'create-detail-section-image.php',
             'update-detail-section-image.php',
             'update-detail-section-main-image.php',

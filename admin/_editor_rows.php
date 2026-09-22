@@ -198,6 +198,28 @@ function editor_row_text(string $list, string $key, string $field, string $label
     echo '</div>';
 }
 
+/**
+ * A row's image: the Media picker (admin/_media_picker.php) under the row's
+ * own `media_id`, with its message. The picker hands back an id and nothing
+ * else; the endpoint resolves it. The screen prints media_picker_modal() and
+ * media_picker_script() once.
+ *
+ * @param array<string, string> $fields the row's values
+ * @param array<string, string> $errors field errors keyed `<list>.<key>.<field>`
+ */
+function editor_row_media(string $list, string $key, array $fields, array $errors, string $label, string $help = ''): void
+{
+    require_once __DIR__ . '/_media_picker.php';
+
+    $errorKey = $list . '.' . $key . '.media_id';
+    $mediaId = (int) ($fields['media_id'] ?? 0);
+
+    echo '<div class="admin-field">';
+    media_picker_field(editor_row_name($list, $key, 'media_id'), $mediaId > 0 ? \App\Service\Media\MediaService::find($mediaId) : null, $label, $help, false);
+    editor_field_error($errors, $errorKey);
+    echo '</div>';
+}
+
 /** A row's own switch (`active`): whether it is shown on the website. */
 function editor_row_switch(string $list, string $key, array $fields, string $label): void
 {

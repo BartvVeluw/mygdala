@@ -596,6 +596,7 @@ geweigerde opslag die niets schrijft, en de taal) bewaken het contract.
 | Stappenplan | `admin/step-list.php` (kop, *Actief*, stappen) | `api/admin/update-step-list-section.php` |
 | Woordenband | `admin/marquee.php` (*Actief*, items) | `api/admin/update-marquee-section.php` |
 | Kaartenraster | `admin/feature-grid.php` (kop, *Actief*, kaarten met icoon) | `api/admin/update-feature-grid.php` |
+| Tekst met afbeelding | `admin/text-image-split.php` (sectie, knop, *Actief*, alinea's, afbeeldingen uit de mediabibliotheek) | `api/admin/update-text-image-split-section.php` |
 | Homepage-hero | `admin/homepage-hero.php` (teksten, knoppen, badge, media en lay-out, afbeelding en video als bestand, statistieken, max. 3) | `api/admin/update-homepage-hero.php` |
 
 Een kaart heeft een eigen scherm omdat hij zelf een lijst (tags) draagt;
@@ -612,8 +613,7 @@ opnieuw te kiezen.
 ### Wat nog niet
 
 Deze editors hebben nog een formulier per rij, met elk een eigen *Opslaan*
-en eigen endpoints voor toevoegen, verplaatsen en verwijderen: Tekst met afbeelding (alinea's,
-afbeeldingen) en Detailsectie (punten, afbeeldingen, hoofdafbeelding). Ze gaan over op hetzelfde contract, één blok
+en eigen endpoints voor toevoegen, verplaatsen en verwijderen: Detailsectie (punten, afbeeldingen, hoofdafbeelding). Ze gaan over op hetzelfde contract, één blok
 per keer, met de helper en het script hierboven.
 
 ## Dezelfde tabbladen op een ander scherm

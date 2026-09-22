@@ -163,18 +163,22 @@ class TextImageSplitRepository extends Repository
     }
 
     /**
-     * Swaps sort_order with the previous/next paragraph (in current display
-     * order) within the same section — same approach as
-     * FaqRepository::moveItem().
+     * Stores the order of the paragraphs of one Tekst met afbeelding as the
+     * one-form editor posted it
+     * (App\Service\Blocks\EditorChildList::save()): the first id gets
+     * sort_order 0. An id that is not a row of $sectionId is left alone.
+     *
+     * @param list<int> $orderedIds
      */
-    public function moveParagraph(int $sectionId, int $paragraphId, string $direction): void
+    public function reorderParagraphs(int $sectionId, array $orderedIds): void
     {
-        $this->moveWithinList(
-            $this->findParagraphsBySectionId($sectionId),
-            $paragraphId,
-            $direction,
-            'text_image_split_paragraphs'
+        $stmt = $this->db->prepare(
+            'UPDATE text_image_split_paragraphs SET sort_order = :sort_order, updated_at = NOW() WHERE id = :id AND text_image_split_id = :parent_id'
         );
+
+        foreach (array_values($orderedIds) as $position => $id) {
+            $stmt->execute(['sort_order' => $position, 'id' => (int) $id, 'parent_id' => $sectionId]);
+        }
     }
 
     // -- Images -----------------------------------------------------------
@@ -284,17 +288,22 @@ class TextImageSplitRepository extends Repository
     }
 
     /**
-     * Swaps sort_order with the previous/next image (in current display
-     * order) within the same section.
+     * Stores the order of the images of one Tekst met afbeelding as the
+     * one-form editor posted it
+     * (App\Service\Blocks\EditorChildList::save()): the first id gets
+     * sort_order 0. An id that is not a row of $sectionId is left alone.
+     *
+     * @param list<int> $orderedIds
      */
-    public function moveImage(int $sectionId, int $imageId, string $direction): void
+    public function reorderImages(int $sectionId, array $orderedIds): void
     {
-        $this->moveWithinList(
-            $this->findImagesBySectionId($sectionId),
-            $imageId,
-            $direction,
-            'text_image_split_images'
+        $stmt = $this->db->prepare(
+            'UPDATE text_image_split_images SET sort_order = :sort_order, updated_at = NOW() WHERE id = :id AND text_image_split_id = :parent_id'
         );
+
+        foreach (array_values($orderedIds) as $position => $id) {
+            $stmt->execute(['sort_order' => $position, 'id' => (int) $id, 'parent_id' => $sectionId]);
+        }
     }
 
     /**
@@ -306,8 +315,7 @@ class TextImageSplitRepository extends Repository
      * (text_image_split_images.image_path); the CASCADE only removes the
      * database rows, so the caller must delete each image's file via
      * SectionImageUploader::delete() (using findImagesBySectionId() to get
-     * the paths) BEFORE calling this — same convention as
-     * api/admin/delete-text-image-split-image.php.
+     * the paths) BEFORE calling this.
      */
     public function deleteSection(int $id): bool
     {
@@ -318,42 +326,6 @@ class TextImageSplitRepository extends Repository
     }
 
     // -- Shared helpers -----------------------------------------------------
-
-    /**
-     * @param array<int, array<string, mixed>> $items already ordered by sort_order ASC, id ASC
-     */
-    private function moveWithinList(array $items, int $itemId, string $direction, string $table): void
-    {
-        $index = null;
-        foreach ($items as $i => $item) {
-            if ((int) $item['id'] === $itemId) {
-                $index = $i;
-                break;
-            }
-        }
-
-        if ($index === null) {
-            return;
-        }
-
-        $swapWith = $direction === 'up' ? $index - 1 : $index + 1;
-
-        if ($swapWith < 0 || $swapWith >= count($items)) {
-            return;
-        }
-
-        $a = $items[$index];
-        $b = $items[$swapWith];
-
-        $this->updateSortOrder($table, (int) $a['id'], (int) $b['sort_order']);
-        $this->updateSortOrder($table, (int) $b['id'], (int) $a['sort_order']);
-    }
-
-    private function updateSortOrder(string $table, int $id, int $sortOrder): void
-    {
-        $stmt = $this->db->prepare("UPDATE {$table} SET sort_order = :sort_order, updated_at = NOW() WHERE id = :id");
-        $stmt->execute(['sort_order' => $sortOrder, 'id' => $id]);
-    }
 
     private function nextSortOrder(string $table, string $fkColumn, int $sectionId): int
     {

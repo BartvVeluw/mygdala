@@ -135,6 +135,29 @@ final class BlockRowEditorsHttpTest extends TestCase
             'table' => 'homepage_hero_stats',
             'row' => ['primary_text' => '300+', 'secondary_text' => 'projecten', 'active' => '1'],
         ],
+        // Two lists under one block: a form that sends one leaves the other alone.
+        'text_image_split_paragraphs' => [
+            'block' => 'text_image_split',
+            'screen' => '/admin/text-image-split.php?section={section}',
+            'endpoint' => '/api/admin/update-text-image-split-section.php',
+            'parent' => 'text_image_splits',
+            'base' => ['layout' => 'image_right', 'button_url' => '/contact', 'is_active' => '1', 'eyebrow' => 'Over mij', 'title' => 'Het verhaal', 'button_label' => 'Neem contact op'],
+            'word' => 'title',
+            'list' => 'paragraphs',
+            'table' => 'text_image_split_paragraphs',
+            'row' => ['content' => 'Wij maken alles op maat.'],
+        ],
+        'text_image_split_images' => [
+            'block' => 'text_image_split',
+            'screen' => '/admin/text-image-split.php?section={section}',
+            'endpoint' => '/api/admin/update-text-image-split-section.php',
+            'parent' => 'text_image_splits',
+            'base' => ['layout' => 'image_right', 'button_url' => '/contact', 'is_active' => '1', 'eyebrow' => 'Over mij', 'title' => 'Het verhaal', 'button_label' => 'Neem contact op'],
+            'word' => 'title',
+            'list' => 'images',
+            'table' => 'text_image_split_images',
+            'row' => ['media_id' => '{media}', 'alt' => 'De werkplaats van binnen'],
+        ],
     ];
 
     private static ?BuiltInServer $server = null;
@@ -425,6 +448,60 @@ final class BlockRowEditorsHttpTest extends TestCase
 
         self::assertSame([$a => ['diamond', 0], $b => [(string) array_key_first(\App\Service\FeatureGridContent::ICON_KEYS), 1]], $icons);
         self::assertSame('Andere titel', $this->stored('feature_grid_items', $a, 'nl')['title']);
+    }
+
+    /**
+     * @return array<string, array{string}> the lists whose rows show a Media Library item
+     */
+    public static function imageLists(): array
+    {
+        $cases = [];
+        foreach (self::CASES as $case => $spec) {
+            if (($spec['row']['media_id'] ?? null) === '{media}') {
+                $cases[$case] = [$case];
+            }
+        }
+
+        return $cases;
+    }
+
+    /**
+     * @dataProvider imageLists
+     */
+    public function testChoosingAnotherImageIsStoredWithTheOtherChangesAndAnEmptyChoiceKeepsTheImage(string $case): void
+    {
+        $this->place($case);
+        $session = $this->signIn(null);
+        [$a, $b] = $this->seed($session, $case, 2);
+        $table = self::CASES[$case]['table'];
+        $other = $this->mediaItem(1);
+
+        // Another image for one row, an alt text for the other, a block word: one save.
+        $this->assertSaved($this->save($session, $case, 'nl', $this->blockChange($case), [
+            (string) $a => ['media_id' => (string) $other] + $this->row($case),
+            (string) $b => ['alt' => 'Ander alt'] + $this->row($case),
+        ]));
+        self::assertSame([$a => $other, $b => $this->mediaItem()], $this->mediaOf($case));
+        self::assertSame('Ander alt', $this->stored($table, $b, 'nl')['alt']);
+        $this->assertBlockChanged($case);
+
+        // A stored image whose field comes back empty keeps what it shows.
+        $this->assertSaved($this->save($session, $case, 'nl', [], [
+            (string) $a => ['media_id' => ''] + $this->row($case),
+            (string) $b => $this->row($case),
+        ]));
+        self::assertSame([$a => $other, $b => $this->mediaItem()], $this->mediaOf($case));
+
+        // A new row needs an image; an id the library does not have is refused.
+        $before = $this->snapshot($case);
+        $this->assertRefused($this->save($session, $case, 'nl', [], [
+            (string) $a => $this->row($case),
+            'new0' => ['media_id' => '', 'alt' => 'Zonder afbeelding'],
+        ]));
+        $this->assertRefused($this->save($session, $case, 'nl', [], [
+            (string) $a => ['media_id' => '999999999'] + $this->row($case),
+        ]));
+        self::assertSame($before, $this->snapshot($case));
     }
 
     public function testTheHeroKeepsAtMostThreeStats(): void
@@ -748,10 +825,26 @@ final class BlockRowEditorsHttpTest extends TestCase
         ];
     }
 
-    /** A media row for a file that does not exist: neither the form nor the save reads the disk. */
-    private function mediaItem(): int
+    /** @return array<int, int> row id => the library item it shows, in stored order */
+    private function mediaOf(string $case): array
     {
-        if ($this->mediaIds === []) {
+        $table = self::CASES[$case]['table'];
+        $column = BlockDefinitions::get(self::CASES[$case]['block'])->childTables()[$table]['column'];
+        $stmt = Database::connection()->prepare("SELECT id, media_id FROM `{$table}` WHERE `{$column}` = ? ORDER BY sort_order, id");
+        $stmt->execute([$this->parentId]);
+
+        $media = [];
+        foreach ($stmt->fetchAll(\PDO::FETCH_ASSOC) as $row) {
+            $media[(int) $row['id']] = (int) $row['media_id'];
+        }
+
+        return $media;
+    }
+
+    /** A media row for a file that does not exist: neither the form nor the save reads the disk. */
+    private function mediaItem(int $index = 0): int
+    {
+        while (!isset($this->mediaIds[$index])) {
             $this->mediaIds[] = (new MediaRepository())->create([
                 'path' => 'assets/media/__block_row_editors_' . bin2hex(random_bytes(4)) . '__.webp',
                 'original_filename' => 'plank.webp',
@@ -765,7 +858,7 @@ final class BlockRowEditorsHttpTest extends TestCase
             MediaService::clearCache();
         }
 
-        return $this->mediaIds[0];
+        return $this->mediaIds[$index];
     }
 
     private function signIn(?string $editingLanguage): string

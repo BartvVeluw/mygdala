@@ -1167,8 +1167,6 @@ final class MultilingualBoundaryTest extends TestCase
      * what keeps a deleted item's words from staying behind.
      */
     private const CHILD_DELETE_ENDPOINTS = [
-        'api/admin/delete-text-image-split-paragraph.php' => 'text_image_split_paragraphs',
-        'api/admin/delete-text-image-split-image.php' => 'text_image_split_images',
         'api/admin/delete-detail-section-point.php' => 'detail_section_points',
         'api/admin/delete-detail-section-image.php' => 'detail_section_images',
     ];
@@ -1197,12 +1195,12 @@ final class MultilingualBoundaryTest extends TestCase
         'marquee_items' => ['api/admin/update-marquee-section.php', 'items'],
         'feature_grid_items' => ['api/admin/update-feature-grid.php', 'items'],
         'homepage_hero_stats' => ['api/admin/update-homepage-hero.php', 'stats'],
+        'text_image_split_paragraphs' => ['api/admin/update-text-image-split-section.php', 'paragraphs'],
+        'text_image_split_images' => ['api/admin/update-text-image-split-section.php', 'images'],
     ];
 
     /** Every endpoint that adds ONE child row of a converted block: it writes the new row's words in the default language. */
     private const CHILD_CREATE_ENDPOINTS = [
-        'api/admin/create-text-image-split-paragraph.php' => 'text_image_split_paragraphs',
-        'api/admin/create-text-image-split-image.php' => 'text_image_split_images',
         'api/admin/create-detail-section-point.php' => 'detail_section_points',
         'api/admin/create-detail-section-image.php' => 'detail_section_images',
     ];
