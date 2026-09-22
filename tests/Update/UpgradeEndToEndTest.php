@@ -160,6 +160,19 @@ final class UpgradeEndToEndTest extends TestCase
         $page = $site->updatesPage();
         $this->assertStringContainsString('Mygdala is bijgewerkt van 0.1.0 naar 0.2.0.', $page);
         $this->assertStringContainsString('data-current-version>0.2.0<', $page);
+        // … at once, still from the check made BEFORE the update: the release
+        // it just installed is not offered again, and asking anyway starts
+        // nothing.
+        $stored = json_decode((string) file_get_contents($site->storage() . '/last-check.json'), true);
+        $this->assertTrue($stored['available'], 'the stored check itself still says 0.2.0 was newer');
+        $this->assertStringContainsString('Up-to-date', $page);
+        $this->assertStringNotContainsString('Update beschikbaar', $page);
+        $this->assertStringNotContainsString('action="/api/admin/updates-start.php"', $page, 'no Update installeren');
+        $again = $site->startUpdate();
+        $this->assertSame(303, $again['status']);
+        $this->assertStringContainsString('Er is geen nieuwere versie gevonden bij de laatste controle.', $again['page']);
+        $this->assertSame($state['update_id'], $site->state()['update_id'], 'no new update was started');
+        $this->assertSame('completed', $site->state()['status']);
         $site->check();
         $this->assertStringContainsString('Up-to-date', $site->updatesPage());
         $log = (string) file_get_contents($site->storage() . '/logs/' . $state['update_id'] . '.log');

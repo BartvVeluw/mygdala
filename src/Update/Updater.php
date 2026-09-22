@@ -97,13 +97,37 @@ final class Updater
         return $this->store;
     }
 
-    /** @return array<string, mixed>|null */
+    /**
+     * The last check as recorded, except that `available` is judged again
+     * against the installed VERSION. The record says what was newer THEN: a
+     * completed update, a restore or a copy by hand may have installed that
+     * release since, and a stored check must never offer it again. This only
+     * narrows — whatever the check did not offer stays unoffered until the
+     * next check — and reads no network.
+     *
+     * @return array<string, mixed>|null
+     */
     public function lastCheck(): ?array
     {
         $path = $this->store->storagePath() . '/' . self::CHECK_FILE;
         $data = is_file($path) ? json_decode((string) file_get_contents($path), true) : null;
 
-        return is_array($data) ? $data : null;
+        if (!is_array($data)) {
+            return null;
+        }
+
+        if (($data['available'] ?? false) === true) {
+            $version = is_array($data['manifest'] ?? null) ? ($data['manifest']['version'] ?? null) : null;
+            $offered = is_string($version) ? SemVer::tryParse($version) : null;
+            try {
+                $data['available'] = $offered !== null && $offered->isNewerThan(AppVersion::semver($this->root));
+            } catch (\RuntimeException) {
+                // No readable VERSION: check() could not have offered anything either.
+                $data['available'] = false;
+            }
+        }
+
+        return $data;
     }
 
     public function log(string $updateId): UpdateLog

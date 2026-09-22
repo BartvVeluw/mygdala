@@ -543,7 +543,11 @@ dat is precies `recovery_required`, en dan blijft de vlag staan.
 - **Laatste release**: versie, datum, grootte, vereisten, release notes,
   status *Up-to-date* of *Update beschikbaar*, de uitkomst van de vereisten,
   en de knoppen **Controleren op updates** en **Update installeren** (met
-  bevestiging). Geen feed of sleutel ingesteld: dat staat er.
+  bevestiging). Geen feed of sleutel ingesteld: dat staat er. *Update
+  beschikbaar* geldt alleen zolang de gevonden versie nieuwer is dan
+  `VERSION`: `Updater::lastCheck()` beoordeelt dat bij elke keer lezen
+  opnieuw, zonder netwerk. Direct na een update staat er dus *Up-to-date*,
+  en ook `start()` biedt een oude controle niet opnieuw aan.
 - **Tijdens een update**: de stappen met hun stand, de laatste melding,
   Doorgaan en (zolang er nog niets veranderd is) Afbreken.
 - **Na een update**: hoe hij afliep, met de reden, en bij `recovery_required`
@@ -563,6 +567,7 @@ De suite `updater` (`tests/Update/`, `TESTING.md`):
 | Test | Wat hij bewijst |
 |---|---|
 | `VersionAndPathTest`, `OwnershipTest`, `ReleaseManifestTest` | versie, paden, eigendom, manifest, handtekening, configuratie |
+| `LastCheckTest` | een opgeslagen controle biedt een geïnstalleerde of oudere versie nooit (opnieuw) aan, ook niet via `start()`; een echt nieuwere blijft zichtbaar |
 | `FeedAndPackageTest` | feed over echte HTTP: handtekening, redirects, bytelimieten, hash en grootte |
 | `ResumableDownloadTest` | de download over meerdere requests tegen een echte server: hervatten met Range vanaf de opgeslagen offset, een bron die ranges negeert of fout beantwoordt (opnieuw vanaf 0, na drie keer stop), een veranderd bestand, een beschadigd of te kort deelbestand, een afgeschoten request dat zijn checkpoint houdt, het budget |
 | `PreflightEnvironmentTest` | vereisten tegen de echte databaseserver (scenario E op unitniveau) |
