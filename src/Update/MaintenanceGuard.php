@@ -16,7 +16,9 @@ namespace App\Update;
  * loaded at all.
  *
  * WHAT PASSES:
- *   - the command line (phinx, scripts, the test suite);
+ *   - the command line (Phinx, Composer, the test suite) — but not the
+ *     project's own cron scripts under scripts/, which would write between
+ *     the backup and a restore (cliMayRun());
  *   - the updater itself and what it needs to be reached: the Updates
  *     screen, its step and resolve endpoints, login and logout (EXEMPT);
  *   - a request carrying the current update's health token (HealthCheck).
@@ -55,13 +57,34 @@ final class MaintenanceGuard
     public const API_UNAVAILABLE = 'api';
     public const PAGE_UNAVAILABLE = 'page';
 
+    /**
+     * Command-line scripts under scripts/ that may run during maintenance:
+     * the break-glass password hash and the release tools write nothing to
+     * the site. Every other script there is a cron job (analytics pruning,
+     * the PostNL rate sync, …) that would write between the backup and a
+     * restore, or run against half-replaced code.
+     */
+    public const CLI_ALLOWED = [
+        'scripts/generate_admin_hash.php',
+        'scripts/release.php',
+        'scripts/test-db.php',
+    ];
+
     public static function enforce(): void
     {
+        $root = dirname(__DIR__, 2);
+
         if (PHP_SAPI === 'cli' || PHP_SAPI === 'phpdbg') {
+            $script = (string) ($_SERVER['SCRIPT_FILENAME'] ?? ($_SERVER['argv'][0] ?? ''));
+            if (!self::cliMayRun((new MaintenanceMode($root))->read(), $root, $script)) {
+                $stderr = fopen('php://stderr', 'wb');
+                fwrite($stderr, "Mygdala is being updated (.maintenance exists); this script does not run during an update.\n");
+                exit(75);
+            }
+
             return;
         }
 
-        $root = dirname(__DIR__, 2);
         $flag = (new MaintenanceMode($root))->read();
 
         $decision = self::decide(
@@ -129,6 +152,24 @@ final class MaintenanceGuard
         }
 
         return self::PAGE_UNAVAILABLE;
+    }
+
+    /**
+     * The command line during maintenance: the project's own scripts under
+     * scripts/ wait (unless CLI_ALLOWED); Phinx, Composer, the test suite and
+     * anything outside scripts/ are not this guard's business.
+     *
+     * @param array<string, mixed>|null $flag
+     */
+    public static function cliMayRun(?array $flag, string $root, string $scriptFilename): bool
+    {
+        if ($flag === null) {
+            return true;
+        }
+
+        $script = self::relativeScript($root, $scriptFilename);
+
+        return $script === null || !str_starts_with($script, 'scripts/') || in_array($script, self::CLI_ALLOWED, true);
     }
 
     /**

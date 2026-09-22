@@ -69,7 +69,9 @@ final class UpgradeEndToEndTest extends TestCase
 
         $start = $site->startUpdate();
         $this->assertSame(303, $start['status'], $start['body']);
-        $this->assertStringEndsWith('/admin/updates.php?run=1', $start['location']);
+        $this->assertStringEndsWith('/admin/updates.php', $start['location']);
+        $this->assertStringContainsString('data-autorun="1"', $start['page'], 'the screen right after starting runs the steps');
+        $this->assertStringContainsString('data-autorun="0"', $site->updatesPage(), '… once: a refresh waits for Doorgaan');
 
         $seenMaintenance = false;
         $answers = $site->runSteps(function (array $answer) use ($site, &$seenMaintenance): ?bool {
@@ -250,6 +252,7 @@ final class UpgradeEndToEndTest extends TestCase
         $page = $site->updatesPage();
         $this->assertStringContainsString('De update is onderbroken bij de stap &quot;Bestanden bijwerken&quot;.', $page);
         $this->assertStringContainsString('data-autorun="0"', $page);
+        $this->assertStringContainsString('data-autorun="0"', $site->updatesPage('?run=1'), 'a link cannot make the screen continue');
         $this->assertSame(503, $site->get('/')['status'], 'still in maintenance while it waits');
 
         // A second tab asking for a step that is already past gets the server's truth.

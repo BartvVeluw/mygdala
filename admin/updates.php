@@ -100,7 +100,11 @@ $keyConfigured = ReleaseKeys::trusted() !== [];
 
 $running = $state->isRunning();
 $stepRunning = $running && $updater->store()->isLocked();
-$autorun = $running && isset($_GET['run']);
+// Set once by api/admin/updates-start.php for the update it just started;
+// anything else — a refresh, a bookmark, a link — shows where the update is
+// and waits for Doorgaan.
+$autorun = $running && ($_SESSION['admin_update_autorun'] ?? null) === $state->updateId();
+unset($_SESSION['admin_update_autorun']);
 $inLiveWindow = $maintenance->isActive() || ($running && in_array($state->step(), UpdateState::LIVE_STEPS, true));
 
 $manifest = is_array($check['manifest'] ?? null) ? $check['manifest'] : null;

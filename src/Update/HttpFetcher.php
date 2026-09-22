@@ -269,6 +269,16 @@ final class HttpFetcher
 
     private function failure(string $key, string $url, string $detail): UpdateException
     {
-        return new UpdateException($key, ['url' => UpdateConfig::describeUrl($url)], UpdateConfig::describeUrl($url) . ': ' . $detail);
+        return new UpdateException($key, ['url' => UpdateConfig::describeUrl($url)], UpdateConfig::describeUrl($url) . ': ' . self::withoutQueries($detail));
+    }
+
+    /**
+     * PHP's own warning text quotes the full URL it failed on, query string
+     * and all — which is where a download token would be. Nothing with a
+     * query string reaches a log, the state or the screen.
+     */
+    public static function withoutQueries(string $text): string
+    {
+        return preg_replace('#(https?://[^\s?"\')]+)\?[^\s"\')]*#i', '$1?…', $text) ?? $text;
     }
 }

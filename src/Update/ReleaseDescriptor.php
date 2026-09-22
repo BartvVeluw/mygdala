@@ -64,9 +64,13 @@ final class ReleaseDescriptor
     }
 
     /**
+     * @param bool $checkOwnership false only for an OLD release.json read by
+     *                             newer code (a rollback): which paths that
+     *                             release owned was decided when it was built
+     *
      * @throws UpdateException when the document is not a valid release.json
      */
-    public static function fromJson(string $json): self
+    public static function fromJson(string $json, bool $checkOwnership = true): self
     {
         try {
             $data = json_decode($json, true, 16, JSON_THROW_ON_ERROR);
@@ -108,7 +112,7 @@ final class ReleaseDescriptor
                 throw self::invalid('unsafe path ' . RelativePath::printable($path));
             }
 
-            if (!Ownership::isShipped($path) || $path === Ownership::RELEASE_MANIFEST) {
+            if ($checkOwnership && !Ownership::isShipped($path) || $path === Ownership::RELEASE_MANIFEST) {
                 throw self::invalid('lists a path a release may not own: ' . $path);
             }
 

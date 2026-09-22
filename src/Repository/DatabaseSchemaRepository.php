@@ -130,7 +130,11 @@ final class DatabaseSchemaRepository extends Repository
 
         $columns = [];
         foreach ($statement->fetchAll(PDO::FETCH_ASSOC) as $row) {
-            if (stripos((string) $row['EXTRA'], 'GENERATED') !== false) {
+            // Only real generated columns (VIRTUAL/STORED, MariaDB's
+            // PERSISTENT). MySQL 8 also says DEFAULT_GENERATED for a column
+            // with an expression default such as CURRENT_TIMESTAMP — that one
+            // holds data and must be dumped like any other.
+            if (preg_match('/\b(VIRTUAL|STORED|PERSISTENT)\s+GENERATED\b/i', (string) $row['EXTRA']) === 1) {
                 continue;
             }
 

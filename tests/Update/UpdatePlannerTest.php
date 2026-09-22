@@ -138,6 +138,18 @@ final class UpdatePlannerTest extends TestCase
         UpdatePlan::fromJson($plan->toJson());
     }
 
+    public function testARollbackReadsAnOldPlanWithoutTodaysOwnershipRules(): void
+    {
+        // What an older release shipped and the new code's contract no longer
+        // calls release-owned: the rollback must still be able to restore it.
+        $plan = new UpdatePlan([], [], ['scripts/release.php'], [], [], 0, []);
+
+        $this->assertSame(['scripts/release.php'], UpdatePlan::fromJson($plan->toJson(), false)->delete);
+
+        $this->expectException(UpdateException::class);
+        UpdatePlan::fromJson((new UpdatePlan([], [], ['../escape.php'], [], [], 0, []))->toJson(), false);
+    }
+
     public function testAPlanSurvivesTheRoundTripThroughItsFile(): void
     {
         $plan = new UpdatePlan(['src/A.php' => str_repeat('a', 64)], ['index.php' => str_repeat('b', 64)], ['src/Old.php'], [], ['.env' => 1], 3, ['src/Old']);

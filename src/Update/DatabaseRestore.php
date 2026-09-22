@@ -41,7 +41,9 @@ final class DatabaseRestore
         $metadataPath = $directory . '/' . DatabaseBackup::METADATA;
         $metadata = is_file($metadataPath) ? json_decode((string) file_get_contents($metadataPath), true) : null;
 
-        if (!is_array($metadata) || !is_array($metadata['tables'] ?? null)) {
+        if (!is_array($metadata) || !is_array($metadata['tables'] ?? null)
+            || !in_array($metadata['file'] ?? null, [DatabaseBackup::FILE, DatabaseBackup::PLAIN_FILE], true)
+        ) {
             throw new UpdateException('update.error.backup_unreadable', [], 'No usable ' . DatabaseBackup::METADATA);
         }
 
@@ -56,10 +58,10 @@ final class DatabaseRestore
      */
     public function start(): array
     {
-        $path = $this->directory . '/' . DatabaseBackup::FILE;
+        $path = $this->dump();
 
         if (!is_file($path) || !hash_equals((string) ($this->metadata['sha256'] ?? ''), (string) hash_file('sha256', $path))) {
-            throw new UpdateException('update.error.backup_damaged', [], DatabaseBackup::FILE . ' does not match its recorded SHA-256');
+            throw new UpdateException('update.error.backup_damaged', [], basename($path) . ' does not match its recorded SHA-256');
         }
 
         $this->schema->execute('SET FOREIGN_KEY_CHECKS = 0');
@@ -104,7 +106,7 @@ final class DatabaseRestore
     public function step(array $cursor, float $budgetSeconds): array
     {
         $started = microtime(true);
-        $reader = new SqlStatementReader($this->directory . '/' . DatabaseBackup::FILE, (int) $cursor['offset']);
+        $reader = new SqlStatementReader($this->dump(), (int) $cursor['offset']);
 
         // Session settings are per connection, and every request has its own.
         $this->schema->execute('SET NAMES utf8mb4');
@@ -146,6 +148,12 @@ final class DatabaseRestore
         $cursor['done'] = true;
 
         return $cursor;
+    }
+
+    /** The dump file the metadata names: gzip, or plain SQL for a very large database. */
+    private function dump(): string
+    {
+        return $this->directory . '/' . (string) $this->metadata['file'];
     }
 
     /**

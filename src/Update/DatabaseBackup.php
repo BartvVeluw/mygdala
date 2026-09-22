@@ -29,11 +29,15 @@ use App\Repository\DatabaseSchemaRepository;
  * dump that is not the database is a failed backup, never a trusted one.
  *
  * RESUMABLE. step() writes until its time budget is spent and returns a
- * cursor, appending plain SQL to database.sql.part; finish() compresses that
- * into ONE gzip stream. One stream on purpose: appending gzip members per
- * step would be valid gzip, but some importers (PHP's own gzdecode() among
- * them) stop after the first member, and a support engineer's phpMyAdmin
- * must see the whole dump. Large tables are paged by primary key, so the
+ * cursor, appending plain SQL to database.sql.part and recording its length;
+ * a step that died halfway is resumed by cutting the file back to that
+ * length (resume()), or started over when the file is not what the cursor
+ * says. finish() compresses the part into ONE gzip stream. One stream on
+ * purpose: appending gzip members per step would be valid gzip, but some
+ * importers (PHP's own gzdecode() among them) stop after the first member,
+ * and a support engineer's phpMyAdmin must see the whole dump. Above
+ * COMPRESS_LIMIT the dump stays plain SQL instead, so compressing can never
+ * outgrow one request. Large tables are paged by primary key, so the
  * thousandth page costs what the first did.
  *
  * All SQL goes through DatabaseSchemaRepository, on a dedicated connection
@@ -42,9 +46,13 @@ use App\Repository\DatabaseSchemaRepository;
 final class DatabaseBackup
 {
     public const FILE = 'database.sql.gz';
+    public const PLAIN_FILE = 'database.sql';
     public const METADATA = 'database.json';
 
     private const PART = 'database.sql.part';
+
+    /** A dump larger than this is kept uncompressed (see the class docblock). */
+    private const COMPRESS_LIMIT = 104857600;
 
     private const ROWS_PER_SELECT = 500;
 
@@ -64,6 +72,11 @@ final class DatabaseBackup
     {
         $connection = DatabaseSchemaRepository::dedicatedConnection();
         $connection->exec("SET time_zone = '+00:00'");
+        // The server's own sql_mode could hold NO_BACKSLASH_ESCAPES (then
+        // PDO::quote() leaves backslashes alone, and the dump header, which
+        // switches it off, would read them as escapes) or ANSI_QUOTES (then
+        // SHOW CREATE TABLE quotes names with ". Neither may reach the dump.
+        $connection->exec("SET SESSION sql_mode = 'NO_AUTO_VALUE_ON_ZERO'");
 
         return new DatabaseSchemaRepository($connection);
     }
@@ -96,6 +109,7 @@ final class DatabaseBackup
         }
 
         @unlink($this->path());
+        @unlink($this->directory . '/' . self::PLAIN_FILE);
         @unlink($this->directory . '/' . self::PART);
 
         $this->append(implode("\n", [
@@ -110,7 +124,7 @@ final class DatabaseBackup
             '',
         ]) . "\n");
 
-        return [
+        return $this->measured([
             'tables' => $this->schema->tables(),
             'views' => $this->schema->views(),
             'table' => 0,
@@ -119,7 +133,41 @@ final class DatabaseBackup
             'started_table' => false,
             'rows' => [],
             'done' => false,
-        ];
+        ]);
+    }
+
+    /**
+     * The cursor to continue from after a step died halfway, or null when
+     * the dump has to start over.
+     *
+     * Whatever the dead attempt appended after the last saved cursor is cut
+     * off, so the dump continues exactly where the cursor says. A part file
+     * that is missing or SHORTER than the cursor says cannot be continued:
+     * starting over is the only way to a complete dump.
+     *
+     * @param array<string, mixed> $cursor
+     *
+     * @return array<string, mixed>|null
+     */
+    public function resume(array $cursor): ?array
+    {
+        $part = $this->directory . '/' . self::PART;
+        clearstatcache(true, $part);
+        $expected = (int) ($cursor['bytes'] ?? -1);
+
+        if (!is_file($part) || $expected < 0 || (int) filesize($part) < $expected) {
+            return null;
+        }
+
+        $handle = @fopen($part, 'r+');
+        if ($handle === false || !ftruncate($handle, $expected)) {
+            $handle !== false && fclose($handle);
+
+            return null;
+        }
+        fclose($handle);
+
+        return $cursor;
     }
 
     /**
@@ -147,7 +195,7 @@ final class DatabaseBackup
             $finished = $this->dumpRows($table, $cursor, $started, $budgetSeconds);
 
             if (!$finished) {
-                return $cursor;
+                return $this->measured($cursor);
             }
 
             $cursor['table'] = (int) $cursor['table'] + 1;
@@ -156,7 +204,7 @@ final class DatabaseBackup
             $cursor['started_table'] = false;
 
             if ((microtime(true) - $started) >= $budgetSeconds) {
-                return $cursor;
+                return $this->measured($cursor);
             }
         }
 
@@ -168,7 +216,7 @@ final class DatabaseBackup
         $this->append("\nSET FOREIGN_KEY_CHECKS = 1;\n");
         $cursor['done'] = true;
 
-        return $cursor;
+        return $this->measured($cursor);
     }
 
     /**
@@ -184,6 +232,12 @@ final class DatabaseBackup
     public function finish(array $cursor): array
     {
         $rows = (array) $cursor['rows'];
+        $part = $this->directory . '/' . self::PART;
+        clearstatcache(true, $part);
+
+        if (!is_file($part) || (int) filesize($part) !== (int) ($cursor['bytes'] ?? -1)) {
+            throw new UpdateException('update.error.backup_inconsistent', ['table' => self::PART], 'The dump file is not the length its cursor recorded');
+        }
 
         foreach ($rows as $table => $written) {
             $now = $this->schema->rowCount((string) $table);
@@ -196,11 +250,21 @@ final class DatabaseBackup
             }
         }
 
+        if ((int) filesize($part) <= self::COMPRESS_LIMIT) {
+            $file = self::FILE;
+            $this->compress($part, $this->path());
+        } else {
+            $file = self::PLAIN_FILE;
+            if (!@copy($part, $this->directory . '/' . self::PLAIN_FILE)) {
+                throw new UpdateException('update.error.storage_not_writable', ['path' => $this->directory], 'Cannot write ' . self::PLAIN_FILE);
+            }
+        }
+
         $metadata = [
             'format' => 1,
-            'file' => self::FILE,
-            'sha256' => $this->compress(),
-            'bytes' => (int) filesize($this->path()),
+            'file' => $file,
+            'sha256' => (string) hash_file('sha256', $this->directory . '/' . $file),
+            'bytes' => (int) filesize($this->directory . '/' . $file),
             'database' => $this->schema->databaseName(),
             'server' => $this->schema->serverVersion(),
             'created_at' => UpdateState::now(),
@@ -210,10 +274,27 @@ final class DatabaseBackup
 
         UpdateStateStore::writeAtomically(
             $this->directory . '/' . self::METADATA,
-            json_encode($metadata, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR) . "\n"
+            json_encode($metadata, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_INVALID_UTF8_SUBSTITUTE | JSON_THROW_ON_ERROR) . "\n"
         );
 
+        // Only now: until the metadata exists, a resumed step needs the part.
+        @unlink($part);
+
         return $metadata;
+    }
+
+    /**
+     * @param array<string, mixed> $cursor
+     *
+     * @return array<string, mixed> the cursor with the part file's current length
+     */
+    private function measured(array $cursor): array
+    {
+        $part = $this->directory . '/' . self::PART;
+        clearstatcache(true, $part);
+        $cursor['bytes'] = is_file($part) ? (int) filesize($part) : 0;
+
+        return $cursor;
     }
 
     /**
@@ -329,15 +410,11 @@ final class DatabaseBackup
         }
     }
 
-    /**
-     * database.sql.part → database.sql.gz, one gzip stream; returns the
-     * SHA-256 of the compressed file a restore will check.
-     */
-    private function compress(): string
+    /** $part → $target as one gzip stream. The part itself stays until finish() is done. */
+    private function compress(string $part, string $target): void
     {
-        $part = $this->directory . '/' . self::PART;
         $input = @fopen($part, 'rb');
-        $output = @gzopen($this->path(), 'wb6');
+        $output = @gzopen($target, 'wb6');
 
         if ($input === false || $output === false) {
             throw new UpdateException('update.error.storage_not_writable', ['path' => $this->directory], 'Cannot compress the dump');
@@ -354,8 +431,5 @@ final class DatabaseBackup
 
         fclose($input);
         gzclose($output);
-        @unlink($part);
-
-        return (string) hash_file('sha256', $this->path());
     }
 }

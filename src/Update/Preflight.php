@@ -79,8 +79,59 @@ final class Preflight
         $checks[] = $this->extensions($manifest->requiredExtensions);
         $checks[] = $this->storage();
         $checks[] = $this->freeSpace('disk_download', $this->storagePath, $manifest->size * 4);
+        $settings = self::opcacheSettings();
+        $checks[] = self::opcacheCheck($settings['enabled'], $settings['validates_timestamps'], $settings['revalidate_freq'], $settings['can_invalidate']);
 
         return $checks;
+    }
+
+    /**
+     * Will the next request run the NEW files? With OPcache on, a replaced
+     * file is only recompiled when the updater may invalidate it
+     * (opcache_invalidate(), not blocked by opcache.restrict_api) or when
+     * OPcache checks timestamps and the updater waits out revalidate_freq.
+     * A host that does neither would run old bytecode next to new files and
+     * the health check would not notice, so the update is refused there.
+     */
+    public static function opcacheCheck(bool $enabled, bool $validatesTimestamps, int $revalidateFrequency, bool $canInvalidate): PreflightCheck
+    {
+        if (!$enabled || $canInvalidate || ($validatesTimestamps && $revalidateFrequency <= 60)) {
+            return PreflightCheck::ok('opcache', 'update.preflight.opcache_ok');
+        }
+
+        return PreflightCheck::error('opcache', 'update.preflight.opcache_stale');
+    }
+
+    /** How long the screen waits after `apply` before the first request on the new code. */
+    public static function opcacheDelayMilliseconds(): int
+    {
+        $settings = self::opcacheSettings();
+
+        if (!$settings['enabled'] || $settings['can_invalidate']) {
+            return 500;
+        }
+
+        return min(61000, ($settings['revalidate_freq'] + 1) * 1000);
+    }
+
+    /**
+     * @return array{enabled: bool, validates_timestamps: bool, revalidate_freq: int, can_invalidate: bool}
+     */
+    public static function opcacheSettings(): array
+    {
+        $flag = static fn (string $name): bool => filter_var(ini_get($name), FILTER_VALIDATE_BOOLEAN);
+        $enabled = extension_loaded('Zend OPcache') && $flag(PHP_SAPI === 'cli' ? 'opcache.enable_cli' : 'opcache.enable');
+
+        $restriction = (string) ini_get('opcache.restrict_api');
+        $script = str_replace('\\', '/', (string) (realpath((string) ($_SERVER['SCRIPT_FILENAME'] ?? '')) ?: ''));
+
+        return [
+            'enabled' => $enabled,
+            'validates_timestamps' => ini_get('opcache.validate_timestamps') === false || $flag('opcache.validate_timestamps'),
+            'revalidate_freq' => max(0, (int) ini_get('opcache.revalidate_freq')),
+            'can_invalidate' => function_exists('opcache_invalidate')
+                && ($restriction === '' || ($script !== '' && str_starts_with($script, str_replace('\\', '/', $restriction)))),
+        ];
     }
 
     /**

@@ -39,12 +39,17 @@ if (!Csrf::validate($_POST['csrf_token'] ?? null)) {
 }
 
 try {
-    Updater::fromConfig()->start(AdminAuth::userName() . ' (#' . (AdminAuth::userId() ?? 0) . ')');
+    $state = Updater::fromConfig()->start(AdminAuth::userName() . ' (#' . (AdminAuth::userId() ?? 0) . ')');
 } catch (UpdateException $e) {
     $_SESSION['admin_update_flash'] = ['type' => 'error', 'key' => $e->messageKey, 'params' => $e->params];
     header('Location: /admin/updates.php', true, 303);
     exit;
 }
 
-header('Location: /admin/updates.php?run=1', true, 303);
+// The next render of the Updates screen, and only that one, runs the steps
+// by itself. A session flag, not a URL parameter: a link cannot make the
+// screen continue an update nobody asked it to continue.
+$_SESSION['admin_update_autorun'] = $state->updateId();
+
+header('Location: /admin/updates.php', true, 303);
 exit;

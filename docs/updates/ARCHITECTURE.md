@@ -191,8 +191,12 @@ databasedump in, met elk klantadres.
 <storage>/history.json          de laatste twintig afgeronde updates
 <storage>/logs/<id>.log         JSON-regels per update
 <storage>/work/<id>/            package.zip, staging/, plan.json, apply.journal
-<storage>/backups/<id>/         database.sql.gz, database.json, files/, release.json, backup.json
+<storage>/backups/<id>/         database.sql.gz, database.json, files/, release.json, backup.json, HERSTEL.txt
 ```
+
+De werkmap van een update verdwijnt zodra hij klaar is: bij `completed`,
+`failed` en `rolled_back`, en uiterlijk bij de start van de volgende. Bij
+`recovery_required` blijft hij staan, voor wie met de hand herstelt.
 
 De updater schrijft er een `.htaccess` met `Require all denied` in, voor het
 geval iemand de map toch in de webroot zet. De state onthoudt bij welke
@@ -213,12 +217,15 @@ Een gedeelde host breekt een request na 30 tot 60 seconden af. Daarom:
   over meerdere requests.
 - **Elke stap is herhaalbaar.** Een stap die zijn eigen naam al in `in_step`
   vindt, weet dat de vorige poging halverwege stierf, en herstelt zijn cursor:
-  de back-up kapt zijn deelbestand af tot de laatst opgeslagen lengte, de
-  restore begint de tabel opnieuw bij zijn `DROP TABLE`, apply slaat over wat
-  het journaal al noemt.
-- **De server beslist.** Het scherm draait nooit een stap bij het laden. Kom
-  je terug na een gesloten tab, dan zegt het "De update is onderbroken bij de
-  stap X" met een knop Doorgaan.
+  de back-up kapt zijn deelbestand af tot de laatst opgeslagen lengte (en
+  begint opnieuw als dat bestand korter is of ontbreekt), de restore begint
+  de tabel opnieuw bij zijn `DROP TABLE`, apply slaat over wat het journaal al
+  noemt.
+- **De server beslist.** Het scherm draait alleen vanzelf stappen direct na
+  **Update installeren** — een eenmalige vlag in de sessie, geen
+  URL-parameter, zodat een link het niet kan. Kom je terug na een gesloten
+  tab, dan zegt het "De update is onderbroken bij de stap X" met een knop
+  Doorgaan.
 - **`status` en `step` zijn twee velden.** `status` is de levensloop (`idle`,
   `running`, `completed`, `failed`, `rolled_back`, `recovery_required`), `step`
   is waar hij is of eindigde. De woorden uit de opdracht vallen daarop terug:
@@ -241,6 +248,12 @@ hernoemen of weghalen is een nieuw formaat. Een release moet bovendien de
 bestanden bevatten waarmee hij zijn eigen update afmaakt
 (`PackageValidator::REQUIRED_PATHS`).
 
+Om dezelfde reden leest een rollback het plan en de oude `release.json`
+**zonder** het eigendomscontract van de nieuwe code: welke paden de oude
+release bezat, besliste de code die ze schreef. Een pad dat de nieuwe release
+tot installatie- of ontwikkeldomein rekent, moet toch terug kunnen. De paden
+worden wel op veiligheid gecontroleerd.
+
 ## Preflight
 
 Twee rondes (`Preflight`). Een **fout** stopt de update met de redenen; een
@@ -250,7 +263,7 @@ host niet kan meten.
 
 | Ronde | Controle |
 |---|---|
-| vóór de download (ook bij "Controleren") | release-installatie (geen Git, geldige `release.json`), `VERSION` gelijk aan `release.json`, doelversie nieuwer, minimale bronversie, updaterprotocol, PHP-versie, MySQL- of MariaDB-versie, extensies (van de release én van de updater zelf: zip, sodium, json, zlib, mbstring, pdo_mysql), de werkmap, schijfruimte voor de download |
+| vóór de download (ook bij "Controleren") | release-installatie (geen Git, geldige `release.json`), `VERSION` gelijk aan `release.json`, doelversie nieuwer, minimale bronversie, updaterprotocol, PHP-versie, MySQL- of MariaDB-versie, extensies (van de release én van de updater zelf: zip, sodium, json, zlib, mbstring, pdo_mysql), de werkmap, schijfruimte voor de download, OPcache (een host die vervangen PHP-bestanden nooit opnieuw compileert — geen tijdstempelcontrole én geen `opcache_invalidate` — wordt geweigerd) |
 | na het uitpakken | geen met de hand gewijzigde of ontbrekende Core-bestanden (`LocalChanges`), geen nieuw bestand dat op een vreemd bestand zou landen, elk te vervangen of te verwijderen bestand én zijn map schrijfbaar, migratielog precies op het niveau van de geïnstalleerde release (niets open, niets onbekends), geen triggers/routines/events (die kan de back-up niet meenemen), geen onverwachte `.maintenance`, schijfruimte voor back-up en apply |
 
 Een lokaal gewijzigd Core-bestand **blokkeert** in V1: het scherm noemt de
@@ -289,8 +302,12 @@ dat één `is_file()`. Met vlag:
 - een adminscherm wordt naar het Updates-scherm gestuurd;
 - een admin-API krijgt een kale 503;
 - door mogen alleen: het Updates-scherm, `updates-step`, `updates-abort`,
-  `updates-resolve`, login, logout, de command line, en een request met het
-  health-token van de lopende update.
+  `updates-resolve`, login, logout, en een request met het health-token van
+  de lopende update;
+- op de command line mogen Phinx, Composer en de tests door, maar de eigen
+  cronscripts onder `scripts/` niet (analytics opruimen, PostNL-tarieven,
+  vertaalwezen): die zouden schrijven tussen de back-up en een restore, of
+  draaien op half vervangen code. Ze stoppen met exitcode 75.
 
 Of een script vrijgesteld is, bepaalt het **uitgevoerde bestand**
 (`SCRIPT_FILENAME`, realpath), niet de URL.
@@ -353,13 +370,17 @@ Phinx' `Manager`. Geen tweede migratiesysteem en geen `exec()`.
 
 **Database** (`DatabaseBackup`): een volledige SQL-dump, geschreven door PHP
 zelf, want `mysqldump` via `exec()` bestaat op gedeelde hosting meestal niet.
-Standaard-SQL, één INSERT per regel, utf8mb4, UTC, gzip als één stream: een
-supportmedewerker importeert hem met phpMyAdmin. `DROP` + `CREATE TABLE` uit
+Standaard-SQL, één INSERT per regel, utf8mb4, UTC, gzip als één stream (boven
+100 MB blijft hij platte SQL, zodat comprimeren nooit groter wordt dan één
+request): een supportmedewerker importeert hem met phpMyAdmin. De dump draait
+op een eigen verbinding met een vaste `sql_mode`, zodat `NO_BACKSLASH_ESCAPES`
+of `ANSI_QUOTES` van de server hem niet kan verbuigen. `DROP` + `CREATE TABLE` uit
 `SHOW CREATE TABLE` (sleutels, foreign keys en `AUTO_INCREMENT` komen exact
-terug), elke rij (binair als hex, BIT als getal, gegenereerde kolommen
-overgeslagen), en views. Hervatbaar, per primaire sleutel gepagineerd. Aan
-het eind wordt elke tabel geteld tegen de dump; klopt het niet, dan is de
-back-up mislukt. Triggers, routines en events worden niet gedumpt; een
+terug), elke rij (binair als hex, BIT als getal, echte gegenereerde kolommen
+overgeslagen — een kolom met een expressie-default zoals `CURRENT_TIMESTAMP`
+niet), en views. Hervatbaar, per primaire sleutel gepagineerd. Aan het eind
+moet het dumpbestand precies de lengte hebben die de cursor bijhield, en wordt
+elke tabel geteld tegen de dump; klopt het niet, dan is de back-up mislukt. Triggers, routines en events worden niet gedumpt; een
 database die ze heeft, wordt door preflight geweigerd.
 
 **Bestanden** (`FileBackup`): alleen de Core-bestanden die vervangen of

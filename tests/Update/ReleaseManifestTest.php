@@ -221,6 +221,38 @@ final class ReleaseManifestTest extends TestCase
         }
     }
 
+    public function testNoQueryStringSurvivesIntoAnErrorDetail(): void
+    {
+        $detail = \App\Update\HttpFetcher::withoutQueries('fopen(https://releases.example.test/m.json?token=s3cret&x=1): Failed to open stream');
+
+        $this->assertStringNotContainsString('s3cret', $detail);
+        $this->assertStringContainsString('https://releases.example.test/m.json?…', $detail);
+    }
+
+    public function testAnOldReleaseJsonIsReadWithoutTodaysOwnershipRulesOnlyWhenAsked(): void
+    {
+        $json = (new ReleaseDescriptor('0.1.0', '0.1.0', '2026-10-01T00:00:00Z', '8.2', '5.7', '10.3', [], 0, '', 1, [
+            'index.php' => str_repeat('a', 64),
+        ]))->toJson();
+        // A path an older release shipped that today's contract calls development.
+        $json = str_replace('"index.php"', '"scripts/release.php"', $json);
+
+        $this->assertRefused('update.error.release_descriptor_invalid', fn () => ReleaseDescriptor::fromJson($json));
+        $this->assertArrayHasKey('scripts/release.php', ReleaseDescriptor::fromJson($json, false)->files);
+
+        $unsafe = str_replace('"scripts/release.php"', '"../escape.php"', $json);
+        $this->assertRefused('update.error.release_descriptor_invalid', fn () => ReleaseDescriptor::fromJson($unsafe, false));
+    }
+
+    public function testOpcacheThatNeverSeesAChangedFileRefusesTheUpdate(): void
+    {
+        $this->assertTrue(\App\Update\Preflight::opcacheCheck(true, false, 2, false)->isError(), 'no timestamp checks and no invalidation');
+        $this->assertFalse(\App\Update\Preflight::opcacheCheck(false, false, 2, false)->isError(), 'OPcache off');
+        $this->assertFalse(\App\Update\Preflight::opcacheCheck(true, false, 2, true)->isError(), 'the updater may invalidate');
+        $this->assertFalse(\App\Update\Preflight::opcacheCheck(true, true, 2, false)->isError(), 'timestamps are checked');
+        $this->assertTrue(\App\Update\Preflight::opcacheCheck(true, true, 600, false)->isError(), 'a ten-minute revalidation is too long to wait');
+    }
+
     private function assertRefused(string $messageKey, callable $action): void
     {
         try {

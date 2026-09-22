@@ -15,7 +15,7 @@ er `recovery_required`.
 Geen feed bereikbaar, een ongeldige handtekening, een pakket met de verkeerde
 grootte of SHA-256.
 
-- **Wat er veranderd is:** niets. De download blijft in de werkmap, meer niet.
+- **Wat er veranderd is:** niets. Wat al gedownload was, wordt weggegooid.
 - **Eindstatus:** `failed` (of, bij controleren, alleen een foutmelding).
 - **Wat te doen:** de melding lezen. Een ongeldige handtekening of een
   verkeerde hash is een reden om de releasehost te wantrouwen, niet om het
@@ -25,7 +25,8 @@ grootte of SHA-256.
 
 Een corrupt of onveilig pakket, een met de hand gewijzigd Core-bestand, een
 bestand dat PHP niet mag vervangen, een onverwachte migratiestand, te weinig
-schijfruimte.
+schijfruimte, of een OPcache-instelling waarbij gewijzigde PHP-bestanden
+nooit opnieuw worden ingelezen.
 
 - **Wat er veranderd is:** niets aan de site.
 - **Eindstatus:** `failed`; het scherm noemt elke reden, met de bestanden.
@@ -111,7 +112,7 @@ De back-upmap is `<updatemap>/backups/<update-nummer>/`, standaard
 `<map boven de site>/storage/updates/backups/…`:
 
 ```text
-database.sql.gz     de volledige database van vlak voor de migraties
+database.sql.gz     de volledige database van vlak voor de migraties (database.sql bij meer dan 100 MB)
 database.json       tabellen, rijtellingen en de SHA-256 van de dump
 files/              de oude versie van elk bestand dat vervangen of verwijderd werd
 release.json        de release.json van de oude versie

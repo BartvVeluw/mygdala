@@ -2662,6 +2662,8 @@ Uit het eerste label maakt het CMS ook de vaste naam waaronder antwoorden worden
     'update.preflight.backup_ok' => 'De database kan volledig worden geback-upt.',
     'update.preflight.backup_unsupported' => 'De database bevat triggers (:triggers), routines (:routines) of events (:events). Die kan de back-up niet meenemen, dus de update wordt niet gestart.',
     'update.preflight.maintenance_off' => 'De website staat niet in onderhoud.',
+    'update.preflight.opcache_ok' => 'Gewijzigde bestanden worden na de update meteen gebruikt.',
+    'update.preflight.opcache_stale' => 'OPcache op deze server ververst gewijzigde PHP-bestanden niet (geen tijdstempelcontrole, en de updater mag de cache niet legen). Na een update zou oude en nieuwe code door elkaar draaien. Vraag de hostingpartij om opcache.validate_timestamps aan te zetten.',
     'update.preflight.maintenance_active' => 'De website staat al in onderhoud (het bestand .maintenance bestaat). Zoek eerst uit waarom.',
     'update.health.version_ok' => 'Mygdala draait op :version.',
     'update.health.version_wrong' => 'Na de update draait versie :version in plaats van :target.',

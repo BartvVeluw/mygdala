@@ -2652,6 +2652,8 @@ From the first label the CMS also makes the fixed name answers are stored under.
     'update.preflight.backup_ok' => 'The database can be backed up completely.',
     'update.preflight.backup_unsupported' => 'The database holds triggers (:triggers), routines (:routines) or events (:events). The backup cannot carry those, so the update is not started.',
     'update.preflight.maintenance_off' => 'The website is not in maintenance.',
+    'update.preflight.opcache_ok' => 'Changed files are used straight after the update.',
+    'update.preflight.opcache_stale' => 'OPcache on this server does not refresh changed PHP files (no timestamp checks, and the updater may not clear the cache). After an update old and new code would run side by side. Ask the hosting provider to switch opcache.validate_timestamps on.',
     'update.preflight.maintenance_active' => 'The website is already in maintenance (the .maintenance file exists). Find out why first.',
     'update.health.version_ok' => 'Mygdala runs :version.',
     'update.health.version_wrong' => 'After the update, version :version runs instead of :target.',

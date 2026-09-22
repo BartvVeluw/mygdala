@@ -91,6 +91,7 @@ final class DatabaseBackupTest extends TestCase
             ratio DOUBLE NULL,
             flags BIT(3) NULL,
             created_at TIMESTAMP NULL,
+            stamped TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
             happened DATETIME NULL,
             name_upper VARCHAR(255) GENERATED ALWAYS AS (UPPER(body)) VIRTUAL,
             CONSTRAINT fk_child_parent FOREIGN KEY (parent_id) REFERENCES parents (id) ON DELETE RESTRICT
@@ -101,7 +102,7 @@ final class DatabaseBackupTest extends TestCase
 
         $db->exec("INSERT INTO parents (id, name) VALUES (0, 'zero'), (1, 'one'), (2, 'O''Brien \\\\ backslash')");
 
-        $insert = $db->prepare('INSERT INTO children (parent_id, body, payload, price, ratio, flags, created_at, happened) VALUES (?, ?, ?, ?, ?, b\'101\', ?, ?)');
+        $insert = $db->prepare('INSERT INTO children (parent_id, body, payload, price, ratio, flags, created_at, stamped, happened) VALUES (?, ?, ?, ?, ?, b\'101\', ?, ?, ?)');
         for ($i = 0; $i < 1234; $i++) {
             $insert->execute([
                 $i % 3,
@@ -110,6 +111,9 @@ final class DatabaseBackupTest extends TestCase
                 '12.34',
                 $i === 1 ? '0.1000000000000000055511151231257827' : (string) ($i / 3),
                 '2026-03-29 01:30:00',
+                // A column with an expression default (MySQL 8 reports it as
+                // DEFAULT_GENERATED): its own value must survive the round trip.
+                sprintf('2020-01-%02d 10:00:00', 1 + $i % 28),
                 '2026-10-27 02:15:00',
             ]);
         }
@@ -213,6 +217,48 @@ final class DatabaseBackupTest extends TestCase
         $this->restore();
 
         $this->assertSame($before, $this->snapshot());
+    }
+
+    public function testAColumnWithAnExpressionDefaultKeepsItsOwnValues(): void
+    {
+        $this->backUp();
+        $this->connection()->exec("UPDATE children SET stamped = '2031-01-01 00:00:00'");
+
+        $this->restore();
+
+        $this->assertSame('2020-01-02 10:00:00', $this->connection()->query('SELECT stamped FROM children WHERE id = 2')->fetchColumn());
+    }
+
+    public function testADumpInterruptedHalfwayContinuesWhereItsCursorSaysOrStartsOver(): void
+    {
+        $backup = new DatabaseBackup($this->directory, $this->schema());
+        $cursor = $backup->step($backup->start(), 0.0);
+        $part = $this->directory . '/database.sql.part';
+
+        // The dead attempt wrote more than the saved cursor knows about: cut back.
+        file_put_contents($part, "INSERT INTO `parents` VALUES ('9','half written", FILE_APPEND);
+        $resumed = $backup->resume($cursor);
+        $this->assertSame($cursor, $resumed);
+        clearstatcache();
+        $this->assertSame($cursor['bytes'], filesize($part));
+
+        // A part that is shorter than the cursor, or gone, cannot be continued.
+        file_put_contents($part, 'short');
+        $this->assertNull($backup->resume($cursor));
+        unlink($part);
+        $this->assertNull($backup->resume($cursor));
+    }
+
+    public function testFinishingRefusesADumpThatIsNotTheLengthItsCursorRecorded(): void
+    {
+        $backup = new DatabaseBackup($this->directory, $this->schema());
+        $cursor = $backup->start();
+        while (!$cursor['done']) {
+            $cursor = $backup->step($cursor, 60);
+        }
+        file_put_contents($this->directory . '/database.sql.part', 'stray', FILE_APPEND);
+
+        $this->assertRefused('update.error.backup_inconsistent', fn () => $backup->finish($cursor));
     }
 
     public function testADamagedDumpIsNeverReplayed(): void

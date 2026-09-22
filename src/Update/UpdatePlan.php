@@ -82,7 +82,7 @@ final class UpdatePlan
      * file lives in private storage, but a path that could reach outside the
      * site root or into installation data is refused wherever it comes from.
      */
-    public static function fromJson(string $json): self
+    public static function fromJson(string $json, bool $checkOwnership = true): self
     {
         $data = json_decode($json, true);
 
@@ -90,13 +90,13 @@ final class UpdatePlan
             throw new UpdateException('update.error.plan_unreadable', [], 'plan.json is not valid JSON');
         }
 
-        $paths = static function (mixed $list, bool $keyed): array {
+        $paths = static function (mixed $list, bool $keyed) use ($checkOwnership): array {
             $clean = [];
             foreach ((array) $list as $key => $value) {
                 $path = (string) ($keyed ? $key : $value);
                 RelativePath::assertSafe($path);
 
-                if (!Ownership::isShipped($path)) {
+                if ($checkOwnership && !Ownership::isShipped($path)) {
                     throw new UpdateException('update.error.plan_unreadable', [], 'Plan names a path no release owns: ' . $path);
                 }
 

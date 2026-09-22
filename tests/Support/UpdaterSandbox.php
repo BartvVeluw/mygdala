@@ -343,10 +343,19 @@ final class UpdaterSandbox
         return $this->post('/api/admin/updates-check.php', []);
     }
 
-    /** @return array{status: int, location: string, body: string, headers: string} */
+    /**
+     * "Update installeren", and then what a browser does next: follow the
+     * redirect to the Updates screen (its HTML is in `page`), which is the
+     * one render that runs the steps by itself.
+     *
+     * @return array{status: int, location: string, body: string, headers: string, page: string}
+     */
     public function startUpdate(): array
     {
-        return $this->post('/api/admin/updates-start.php', []);
+        $answer = $this->post('/api/admin/updates-start.php', []);
+        $answer['page'] = $answer['status'] === 303 ? $this->get('/admin/updates.php')['body'] : '';
+
+        return $answer;
     }
 
     /**

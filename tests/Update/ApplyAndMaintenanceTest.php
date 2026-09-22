@@ -219,6 +219,23 @@ final class ApplyAndMaintenanceTest extends TestCase
         $this->assertSame(MaintenanceGuard::PAGE_UNAVAILABLE, $decide('index.php', '/', 'a-guess'));
     }
 
+    public function testDuringMaintenanceTheCronScriptsWaitButTheToolsRun(): void
+    {
+        self::write($this->root, [
+            'scripts/prune-analytics.php' => '', 'scripts/sync-postnl-rates.php' => '', 'scripts/generate_admin_hash.php' => '',
+            'vendor/bin/phinx' => '', 'vendor/bin/phpunit' => '',
+        ]);
+
+        $this->assertTrue(MaintenanceGuard::cliMayRun(null, $this->root, $this->root . '/scripts/prune-analytics.php'));
+
+        $flag = ['update_id' => 'x'];
+        $this->assertFalse(MaintenanceGuard::cliMayRun($flag, $this->root, $this->root . '/scripts/prune-analytics.php'));
+        $this->assertFalse(MaintenanceGuard::cliMayRun($flag, $this->root, $this->root . '/scripts/sync-postnl-rates.php'));
+        $this->assertTrue(MaintenanceGuard::cliMayRun($flag, $this->root, $this->root . '/scripts/generate_admin_hash.php'));
+        $this->assertTrue(MaintenanceGuard::cliMayRun($flag, $this->root, $this->root . '/vendor/bin/phinx'));
+        $this->assertTrue(MaintenanceGuard::cliMayRun($flag, $this->root, $this->root . '/vendor/bin/phpunit'));
+    }
+
     public function testAnUnreadableFlagStillClosesTheSite(): void
     {
         file_put_contents($this->root . '/.maintenance', 'not json');

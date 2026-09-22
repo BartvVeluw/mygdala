@@ -78,7 +78,7 @@ final class FileBackup
     {
         UpdateStateStore::writeAtomically(
             $this->directory . '/' . self::MANIFEST,
-            json_encode($details, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR) . "\n"
+            json_encode($details, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_INVALID_UTF8_SUBSTITUTE | JSON_THROW_ON_ERROR) . "\n"
         );
     }
 
@@ -91,7 +91,7 @@ final class FileBackup
      * @param list<string> $tables  what the database backup holds
      * @param list<string> $added   files the update adds, to be removed again
      */
-    public function writeRecoveryNote(string $updateId, string $from, string $to, string $database, array $tables, array $added): void
+    public function writeRecoveryNote(string $updateId, string $from, string $to, string $database, string $dumpFile, array $tables, array $added): void
     {
         $lines = [
             'Mygdala — handmatig herstel van update ' . $updateId,
@@ -105,9 +105,9 @@ final class FileBackup
             'staan tot alle stappen klaar zijn: bezoekers zien zolang een onderhoudspagina.',
             '',
             '1. DATABASE',
-            '   Importeer database.sql.gz uit deze map in de database "' . $database . '":',
-            '   phpMyAdmin > database kiezen > Importeren (het .gz-bestand mag direct),',
-            '   of: gunzip -c database.sql.gz | mysql <database>',
+            '   Importeer ' . $dumpFile . ' uit deze map in de database "' . $database . '":',
+            '   phpMyAdmin > database kiezen > Importeren (een .gz-bestand mag direct),',
+            str_ends_with($dumpFile, '.gz') ? '   of: gunzip -c ' . $dumpFile . ' | mysql <database>' : '   of: mysql <database> < ' . $dumpFile,
             '   De dump zet elke tabel hieronder terug. Een tabel die NIET in deze lijst',
             '   staat, heeft de mislukte update aangemaakt: verwijder die met de hand.',
             '   Tabellen in de back-up: ' . implode(', ', $tables),

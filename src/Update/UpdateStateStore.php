@@ -90,7 +90,10 @@ final class UpdateStateStore
         $this->ensureDirectory($this->storagePath);
         self::writeAtomically(
             $this->storagePath . '/state.json',
-            json_encode($state->toArray(), JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR) . "\n"
+            // Substitute rather than throw: a failure detail with a raw byte in
+            // it (a MySQL message quoting binary data) must not keep the state
+            // that failure led to from being saved.
+            json_encode($state->toArray(), JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_INVALID_UTF8_SUBSTITUTE | JSON_THROW_ON_ERROR) . "\n"
         );
     }
 

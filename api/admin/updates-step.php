@@ -59,13 +59,23 @@ if (preg_match('/^\d{8}-\d{6}-[0-9a-f]{6}$/', $updateId) !== 1
 
 session_write_close();
 
+// Load the catalog BEFORE the step: after `apply` the files on disk are the
+// new release's, and this answer should not mix in a class or catalog
+// autoloaded from them halfway through the request.
+AdminTranslator::trans('update.step.' . $step);
+
 $updater = Updater::fromConfig();
 $httpStatus = 200;
 $error = null;
 
 try {
     $state = $updater->step($updateId, $step);
-} catch (UpdateException $e) {
+} catch (\Throwable $e) {
+    if (!$e instanceof UpdateException) {
+        error_log('[updates-step] ' . get_class($e) . ': ' . $e->getMessage());
+        $e = new UpdateException('update.error.unexpected', [], $e->getMessage());
+    }
+
     $httpStatus = match ($e->messageKey) {
         'update.error.busy' => 423,
         'update.error.wrong_step', 'update.error.wrong_update', 'update.error.not_running' => 409,

@@ -151,7 +151,7 @@ final class Updater
         $this->store->ensureDirectory($this->store->storagePath());
         UpdateStateStore::writeAtomically(
             $this->store->storagePath() . '/' . self::CHECK_FILE,
-            json_encode($record, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR) . "\n"
+            json_encode($record, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_INVALID_UTF8_SUBSTITUTE | JSON_THROW_ON_ERROR) . "\n"
         );
 
         return $record;
@@ -192,7 +192,9 @@ final class Updater
             $manifest = ReleaseManifest::fromStoredArray($check['manifest']);
             $state = UpdateState::start($manifest, AppVersion::current($this->root), $this->root, $startedBy);
 
-            Filesystem::remove($this->store->workDirectory($state->updateId()));
+            // Nothing settled needs its work folder any more; a failed or
+            // rolled-back update's download and staging go here at the latest.
+            Filesystem::remove($this->store->storagePath() . '/work');
             $this->store->save($state);
             $this->log($state->updateId())->write('start', 'started', 'update.log.started', [
                 'from' => $state->fromVersion(),
@@ -422,23 +424,17 @@ final class Updater
         $backup = new DatabaseBackup($directory);
         $cursor = $state->cursor();
 
+        // A dead attempt is continued where its saved cursor says, or the
+        // dump starts over when its file cannot be trusted (DatabaseBackup::resume()).
+        if ($cursor !== [] && $interrupted) {
+            $cursor = $backup->resume($cursor) ?? [];
+        }
+
         if ($cursor === []) {
             $cursor = $backup->start();
-            $cursor['bytes'] = (int) @filesize($directory . '/database.sql.part');
-        } elseif ($interrupted) {
-            // Whatever the dead attempt appended after the last saved cursor
-            // is cut off, so the dump continues exactly where it was.
-            $part = $directory . '/database.sql.part';
-            $handle = @fopen($part, 'r+');
-            if ($handle !== false) {
-                ftruncate($handle, (int) $cursor['bytes']);
-                fclose($handle);
-            }
         }
 
         $cursor = $backup->step($cursor, $this->budget());
-        clearstatcache();
-        $cursor['bytes'] = (int) @filesize($directory . '/database.sql.part');
 
         if (($cursor['done'] ?? false) !== true) {
             return $state->withCursor($cursor);
@@ -450,7 +446,7 @@ final class Updater
             'bytes' => (int) $metadata['bytes'],
         ], 'sha256 ' . $metadata['sha256']);
 
-        return $state->with('database_backup', DatabaseBackup::FILE)->advanceTo('backup_files');
+        return $state->with('database_backup', (string) $metadata['file'])->advanceTo('backup_files');
     }
 
     private function backupFiles(UpdateState $state, UpdateLog $log): UpdateState
@@ -475,7 +471,7 @@ final class Updater
             'to_version' => $state->toVersion(),
             'created_at' => UpdateState::now(),
             'package_sha256' => $state->manifest()->sha256,
-            'database_backup' => DatabaseBackup::FILE,
+            'database_backup' => (string) $state->get('database_backup', DatabaseBackup::FILE),
             'files_replaced' => array_keys($plan->replace),
             'files_deleted' => $plan->delete,
             'files_added' => array_keys($plan->add),
@@ -487,6 +483,7 @@ final class Updater
             $state->fromVersion(),
             $state->toVersion(),
             (string) ($databaseMetadata['database'] ?? ''),
+            (string) ($databaseMetadata['file'] ?? DatabaseBackup::FILE),
             array_keys((array) ($databaseMetadata['tables'] ?? [])),
             array_keys($plan->add)
         );
@@ -528,9 +525,10 @@ final class Updater
         AppVersion::clearCache();
         $log->write('apply', 'done', 'update.log.applied', $plan->summary());
 
-        // Give OPcache's timestamp check a moment before the next request
-        // compiles the new files, where opcache_invalidate() was not allowed.
-        return $state->with('delay_ms', 2500)->advanceTo('migrate');
+        // Where opcache_invalidate() is not allowed, give OPcache's
+        // timestamp check time to see the new files before the next request
+        // (Preflight refuses a host where it never would).
+        return $state->with('delay_ms', Preflight::opcacheDelayMilliseconds())->advanceTo('migrate');
     }
 
     private function migrate(UpdateState $state, UpdateLog $log): UpdateState
@@ -635,14 +633,19 @@ final class Updater
      */
     private function rollBackFilesNow(UpdateState $state, UpdateLog $log): UpdateState
     {
-        $plan = $this->plan($state);
+        // Read without the ownership filter: after `apply` this is the NEW
+        // release's code, whose Ownership may call a path of the OLD release
+        // an installation or development path. The code that wrote the plan
+        // and the old release.json already decided; the paths are still
+        // checked for safety.
+        $plan = $this->plan($state, false);
         $applier = $this->applier($state);
         $backup = new FileBackup($this->root, $this->store->backupDirectory($state->updateId()));
 
         $applier->rollback($plan);
         AppVersion::clearCache();
 
-        $previous = ReleaseDescriptor::fromJson((string) file_get_contents($backup->releaseManifestPath()));
+        $previous = ReleaseDescriptor::fromJson((string) file_get_contents($backup->releaseManifestPath()), false);
         $changes = LocalChanges::detect($this->root, $previous);
         if (!$changes->isClean()) {
             throw new UpdateException('update.error.rollback_failed', ['path' => implode(', ', array_slice([...$changes->modified, ...$changes->missing], 0, 5))], 'Files differ from the previous release after the rollback');
@@ -655,6 +658,7 @@ final class Updater
         }
 
         (new MaintenanceMode($this->root))->disable();
+        Filesystem::remove($this->work($state));
         $log->write('rollback_files', 'done', 'update.log.rolled_back', ['version' => $previous->version]);
 
         return $state->with('files_changed', false)->with('maintenance', false)->settle(UpdateState::ROLLED_BACK);
@@ -675,7 +679,7 @@ final class Updater
         $state = $state->withMessage($key, $params, $detail)->with('failed_step', $step);
 
         if (in_array($step, self::PREPARATION, true)) {
-            Filesystem::remove($this->work($state) . '/staging');
+            Filesystem::remove($this->work($state));
 
             return $state->settle(UpdateState::FAILED);
         }
@@ -684,6 +688,7 @@ final class Updater
             try {
                 (new MaintenanceMode($this->root))->disable();
                 Filesystem::remove($this->store->backupDirectory($state->updateId()));
+                Filesystem::remove($this->work($state));
             } catch (\Throwable $inner) {
                 $log->write($step, 'failed', 'update.error.maintenance_stuck', [], $inner->getMessage());
 
@@ -730,7 +735,7 @@ final class Updater
         return $this->store->workDirectory($state->updateId());
     }
 
-    private function plan(UpdateState $state): UpdatePlan
+    private function plan(UpdateState $state, bool $checkOwnership = true): UpdatePlan
     {
         $path = $this->work($state) . '/plan.json';
 
@@ -738,7 +743,7 @@ final class Updater
             throw new UpdateException('update.error.plan_unreadable', [], 'plan.json is missing');
         }
 
-        return UpdatePlan::fromJson((string) file_get_contents($path));
+        return UpdatePlan::fromJson((string) file_get_contents($path), $checkOwnership);
     }
 
     private function applier(UpdateState $state): FileApplier
@@ -790,8 +795,10 @@ final class Updater
     {
         ignore_user_abort(true);
 
-        if (function_exists('set_time_limit')) {
-            @set_time_limit(max(120, (int) ini_get('max_execution_time')));
+        // Raise a limit, never impose one where there was none (0).
+        $limit = (int) ini_get('max_execution_time');
+        if ($limit > 0 && function_exists('set_time_limit')) {
+            @set_time_limit(max(120, $limit));
         }
     }
 
@@ -840,7 +847,7 @@ final class Updater
 
         UpdateStateStore::writeAtomically(
             $this->store->storagePath() . '/' . self::HISTORY_FILE,
-            json_encode(array_slice(array_values($history), 0, 20), JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR) . "\n"
+            json_encode(array_slice(array_values($history), 0, 20), JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_INVALID_UTF8_SUBSTITUTE | JSON_THROW_ON_ERROR) . "\n"
         );
     }
 }
