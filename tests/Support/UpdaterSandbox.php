@@ -180,8 +180,10 @@ final class UpdaterSandbox
      * @param bool                     $freshDatabase an empty database migrated from zero by the
      *                                                release's own Phinx, as on a brand-new
      *                                                installation, instead of a copy of existing content
+     * @param string|null              $sourceDatabase the database to copy, only ever read;
+     *                                                 the suite's test database by default
      */
-    public static function install(string $name, string $release = 'A', ?callable $seed = null, bool $freshDatabase = false): self
+    public static function install(string $name, string $release = 'A', ?callable $seed = null, bool $freshDatabase = false, ?string $sourceDatabase = null): self
     {
         $directory = self::BASE . '/' . $name . '-' . bin2hex(random_bytes(3));
         $database = 'mygdala_upd_' . preg_replace('/[^a-z0-9]/', '', strtolower($name)) . '_' . bin2hex(random_bytes(2));
@@ -201,7 +203,7 @@ final class UpdaterSandbox
             $sandbox->migrateFromZero();
             $sandbox->addOwner();
         } else {
-            $sandbox->copyDatabase();
+            $sandbox->copyDatabase($sourceDatabase ?? (string) $_ENV['DB_DATABASE']);
         }
         $seed !== null && $seed($sandbox->pdo());
 
@@ -522,10 +524,10 @@ final class UpdaterSandbox
         )->execute(['E2E Owner', self::USERNAME, 'e2e-owner@example.test', password_hash(self::PASSWORD, PASSWORD_DEFAULT)]);
     }
 
-    private function copyDatabase(): void
+    /** Copies $source into this sandbox's own database; $source is only read. */
+    private function copyDatabase(string $source): void
     {
         $root = self::rootConnection();
-        $source = (string) $_ENV['DB_DATABASE'];
 
         $this->createEmptyDatabase();
         $root->exec('SET FOREIGN_KEY_CHECKS = 0');

@@ -20,6 +20,11 @@ use Tests\Support\UpdaterSandbox;
  * every one of those must be exactly what it was, and every public URL the
  * sitemap names — in every published language — must still answer the way
  * it did.
+ *
+ * Against a copy of a REAL installation (TESTING.md, "De suite updater"):
+ *
+ *     UPDATER_ACCEPTANCE_DATABASE=<database to copy, only read>
+ *     UPDATER_ACCEPTANCE_UPLOADS=<site root whose upload folders are copied>
  */
 final class ExistingInstallAcceptanceTest extends TestCase
 {
@@ -100,8 +105,18 @@ final class ExistingInstallAcceptanceTest extends TestCase
 
     public function testACopyOfAnExistingInstallationKeepsEverythingThroughAnUpdate(): void
     {
-        $site = $this->sandbox = UpdaterSandbox::install('existing');
+        $sourceDatabase = getenv('UPDATER_ACCEPTANCE_DATABASE') ?: null;
+        $site = $this->sandbox = UpdaterSandbox::install('existing', 'A', null, false, $sourceDatabase);
         $site->login();
+
+        $realUploads = getenv('UPDATER_ACCEPTANCE_UPLOADS') ?: '';
+        if ($realUploads !== '') {
+            foreach (\App\Update\Ownership::installationDirectories() as $directory) {
+                if ($directory !== 'storage' && is_dir($realUploads . '/' . $directory)) {
+                    exec('mkdir -p ' . escapeshellarg(dirname($site->root() . '/' . $directory)) . ' && cp -a ' . escapeshellarg($realUploads . '/' . $directory) . ' ' . escapeshellarg($site->root() . '/' . $directory));
+                }
+            }
+        }
 
         // What an installation keeps beside the code.
         $uploads = [

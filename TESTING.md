@@ -238,6 +238,14 @@ het proces stopt. Een hele `updater`-run duurt zo'n drie minuten. De
 ScratchInstall-databases van de migratietests hebben andere namen, dus
 `updater` en `migration` bijten elkaar niet.
 
+`ExistingInstallAcceptanceTest` kan ook op een kopie van een échte
+installatie draaien: de database wordt dan alleen gelezen, de uploads worden
+gekopieerd, en alles gebeurt in de wegwerpinstallatie.
+
+```bash
+docker compose -f ../../../docker-compose.yml exec -w /var/www/html/.claude/worktrees/<naam> -e UPDATER_ACCEPTANCE_DATABASE=mygdala -e UPDATER_ACCEPTANCE_UPLOADS=/var/www/html php_test php vendor/bin/phpunit tests/Update/ExistingInstallAcceptanceTest.php
+```
+
 Na het binnenhalen van de updater heeft een bestaande checkout één keer
 `composer dump-autoload` nodig: de onderhoudsguard hangt aan de
 autoload-`files` van `composer.json`, en
