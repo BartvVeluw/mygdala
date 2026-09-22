@@ -3,9 +3,8 @@
 /**
  * POST /api/admin/move-form-field.php
  *
- * Moves one field up or down in its form. The same one-step-at-a-time
- * pattern as api/admin/move-faq-item.php: two buttons, no JavaScript, no
- * drag-and-drop library, and it works on a phone.
+ * Moves one field up or down in its form: one step at a time, two buttons,
+ * no JavaScript, no drag-and-drop library, and it works on a phone.
  *
  * The repository renumbers the whole list before swapping, so a list that
  * grew gaps through deletions still moves exactly one place.

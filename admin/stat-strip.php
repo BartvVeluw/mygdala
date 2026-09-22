@@ -6,6 +6,8 @@ require_once __DIR__ . '/../vendor/autoload.php';
 require_once __DIR__ . '/_translate.php';
 require_once __DIR__ . '/_save_bar.php';
 require_once __DIR__ . '/_localized_fields.php';
+require_once __DIR__ . '/_admin_ui.php';
+require_once __DIR__ . '/_editor_rows.php';
 
 use App\Service\AdminAuth;
 use App\Service\Blocks\BlockLocalization;
@@ -14,18 +16,27 @@ use App\Service\StatStripContent;
 use App\Repository\StatStripRepository;
 
 /**
- * Editor for one Stat strip (?section=<page content_key>:<section_key>): its
- * visibility, and its stats one card each.
+ * Editor for one Stat strip (?section=<page content_key>:<section_key>):
+ * whether it is shown, and its stats.
+ *
+ * ONE FORM, ONE SAVE (PAGE-EDITOR.md, "Eén formulier per blok-editor"). The
+ * switch and every stat — its words, whether it is shown, its place, a
+ * removal mark, new stats — post to api/admin/update-stat-strip.php
+ * together, and its one "Opslaan" (or the save bar) stores all of it. ↑, ↓
+ * and "Stat toevoegen" work on screen (admin/assets/row-list.js); without
+ * JavaScript ↑ and ↓ submit the whole form and one empty stat waits at the
+ * end of the list (App\Service\Blocks\EditorChildList, admin/_editor_rows.php).
  *
  * ONE WEBSITE LANGUAGE AT A TIME (Multilingual 2.0, admin/_localized_fields.php):
  * every stat shows the language chosen in the CMS shell, as stored and
  * without the default language's words in an empty translation, and is
- * required only in the default language; each save writes that language
- * only, for that one stat. A stat keeps its id however often it is saved or
- * moved, so the words of the other languages stay with it. A NEW stat is
- * written in the default language, like a new page, and translated
- * afterwards on its own card. The strip's visibility is the same in every
- * language and has no words.
+ * required only in the default language; a save writes that language only.
+ * A stat keeps its id however often it is saved or moved, so the words of
+ * the other languages stay with it. A NEW stat is written in the default
+ * language, like a new page. The strip's visibility is the same in every
+ * language and has no words. Input a refused save hands back comes back as
+ * it was typed, with each message next to its field, and the form then
+ * starts out unsaved in the save bar.
  */
 
 AdminAuth::requireLogin();
@@ -73,24 +84,47 @@ $stripId = (int) $strip['id'];
 $items = $repository->findItemsByStripId($stripId);
 
 $errors = $_SESSION['admin_stat_strip_errors'] ?? [];
-unset($_SESSION['admin_stat_strip_errors']);
-
-$itemErrors = $_SESSION['admin_stat_strip_item_errors'] ?? [];
-unset($_SESSION['admin_stat_strip_item_errors']);
+$fieldErrors = $_SESSION['admin_stat_strip_field_errors'] ?? [];
+$old = $_SESSION['admin_stat_strip_old'] ?? null;
+unset($_SESSION['admin_stat_strip_errors'], $_SESSION['admin_stat_strip_field_errors'], $_SESSION['admin_stat_strip_old']);
 
 $saved = isset($_GET['saved']);
 
 $editLanguage = admin_localized_language();
-$defaultLanguage = admin_localized_default();
 
 // The words of every stat in the strip, in one query.
 BlockLocalization::preloadBlocks(['stat_strips' => [$stripId]]);
 
+$oldInThisLanguage = is_array($old) && ($old['language_code'] ?? null) === $editLanguage;
+$isActive = is_array($old) ? !empty($old['is_active']) : (bool) $strip['is_active'];
+
+// The stats on screen: as a refused save handed them back, else as stored.
+$rows = editor_rows_on_screen(
+    $items,
+    $oldInThisLanguage ? (array) ($old['items'] ?? []) : null,
+    static fn (array $item): array => [
+        'primary_text' => BlockLocalization::raw('stat_strip_items', (int) $item['id'], 'primary_text', $editLanguage),
+        'secondary_text' => BlockLocalization::raw('stat_strip_items', (int) $item['id'], 'secondary_text', $editLanguage),
+        'active' => (int) $item['is_active'] === 1 ? '1' : '',
+    ]
+);
+
 $csrfToken = Csrf::token();
 $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
-$required = admin_localized_required($editLanguage);
-$marker = $required !== '' ? '*' : '';
+$marker = admin_localized_required($editLanguage) !== '' ? '*' : '';
 $placeholder = admin_localized_placeholder_attr($editLanguage);
+
+/** One stat; the template for a new one is the same markup with the key __KEY__. */
+$statRow = static function (string $key, array $fields, int $position, int $count) use ($marker, $placeholder, $fieldErrors): void {
+    [$star, $hint] = editor_row_word_hints($key, $marker, $placeholder);
+    editor_row_open('items', $key, admin_t('block_stats.stat'), $position, $count, ($fields['remove'] ?? '') !== '');
+    echo '<div class="admin-row-card__pair">';
+    editor_row_text('items', $key, 'primary_text', admin_t('block_stats.primaire_tekst') . $star, 100, $fields, $fieldErrors, $hint);
+    editor_row_text('items', $key, 'secondary_text', admin_t('block_stats.secundaire_tekst') . $star, 150, $fields, $fieldErrors, $hint);
+    echo '</div>';
+    editor_row_switch('items', $key, $fields, admin_t('common.visible'));
+    editor_row_close();
+};
 ?>
 <!doctype html>
 <html lang="<?= htmlspecialchars(\App\Service\Language\AdminLocale::current(), ENT_QUOTES, 'UTF-8') ?>">
@@ -112,130 +146,61 @@ $placeholder = admin_localized_placeholder_attr($editLanguage);
   <?php endif; ?>
 
   <?php if ($errors !== []): ?>
-    <div class="admin-alert admin-alert--error">
+    <div class="admin-alert admin-alert--error" role="alert">
       <ul class="admin-error-list">
         <?php foreach ($errors as $error): ?>
-          <li><?= htmlspecialchars((string) $error, ENT_QUOTES, 'UTF-8') ?></li>
+          <li><?= $h((string) $error) ?></li>
         <?php endforeach; ?>
       </ul>
     </div>
   <?php endif; ?>
 
-  <?php if ($itemErrors !== []): ?>
-    <div class="admin-alert admin-alert--error">
-      <ul class="admin-error-list">
-        <?php foreach ($itemErrors as $error): ?>
-          <li><?= htmlspecialchars((string) $error, ENT_QUOTES, 'UTF-8') ?></li>
-        <?php endforeach; ?>
-      </ul>
-    </div>
-  <?php endif; ?>
+  <form method="post" action="/api/admin/update-stat-strip.php" class="admin-product-form" data-save-name="<?= $h($section['section_label']) ?>"<?= is_array($old) ? ' data-save-bar-unsaved' : '' ?>>
+    <?php /* Enter in a text field presses the FIRST submit button of a form.
+             This one is a plain save, so Enter never moves a stat. */ ?>
+    <button type="submit" class="admin-visually-hidden" tabindex="-1" aria-hidden="true"><?= admin_te('common.save') ?></button>
+    <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
+    <input type="hidden" name="section" value="<?= $h($sectionKey) ?>">
+    <?= admin_localized_input($editLanguage) ?>
 
-  <section class="admin-card">
-    <h2><?= admin_te('block_stats.zichtbaarheid') ?></h2>
-    <p class="admin-text-muted"><?= admin_te('block_stats.sectie_heeft_eigen_titel') ?></p>
-    <form method="post" action="/api/admin/update-stat-strip.php" class="admin-product-form">
-      <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
-      <input type="hidden" name="section" value="<?= $h($sectionKey) ?>">
-
+    <section class="admin-card">
+      <h2><?= admin_te('block_stats.zichtbaarheid') ?></h2>
+      <p class="admin-text-muted"><?= admin_te('block_stats.sectie_heeft_eigen_titel') ?></p>
       <label class="admin-checkbox-label">
-        <input type="checkbox" name="is_active" value="1" <?= (bool) $strip['is_active'] ? 'checked' : '' ?>>
+        <input type="checkbox" name="is_active" value="1" <?= $isActive ? 'checked' : '' ?>>
         <?= admin_te('block_stats.actief_uitgevinkt_sectie_alle') ?>
       </label>
+    </section>
 
+    <section class="admin-card" aria-labelledby="stat-strip-items-title">
+      <h2 id="stat-strip-items-title"><?= admin_te('block_stats.stats') ?></h2>
+      <?php admin_localized_bar($editLanguage); ?>
+
+      <?php if ($rows === []): ?>
+        <p class="admin-text-muted"><?= admin_te('block_stats.stats_sectie') ?></p>
+      <?php endif; ?>
+
+      <input type="hidden" name="items_present" value="1">
+      <div class="admin-row-cards" data-row-list="stat-strip-items">
+        <?php foreach ($rows as $position => $row): ?>
+          <?php $statRow($row['key'], $row['fields'], $position, count($rows)); ?>
+        <?php endforeach; ?>
+        <noscript>
+          <?php $statRow(editor_rows_free_key($rows), ['active' => '1'], count($rows), count($rows) + 1); ?>
+        </noscript>
+      </div>
+      <?php editor_rows_status('stat-strip-items'); ?>
+      <?php editor_rows_add('stat-strip-items', admin_t('block_stats.stat_toevoegen'), $editLanguage); ?>
+      <template data-row-list-template="stat-strip-items"><?php $statRow('__KEY__', ['active' => '1'], 0, 1); ?></template>
+    </section>
+
+    <div class="admin-form-actions">
       <button type="submit"><?= admin_te('common.save') ?></button>
-    </form>
-  </section>
-
-  <section class="admin-card">
-    <h2><?= admin_te('block_stats.stats') ?></h2>
-
-    <?php if ($items === []): ?>
-      <p class="admin-text-muted"><?= admin_te('block_stats.stats_sectie') ?></p>
-    <?php endif; ?>
-
-    <?php foreach ($items as $index => $item): ?>
-      <?php
-        $itemId = (int) $item['id'];
-        $isFirst = $index === 0;
-        $isLast = $index === count($items) - 1;
-        $itemWord = static fn (string $field): string => BlockLocalization::raw('stat_strip_items', $itemId, $field, $editLanguage);
-      ?>
-      <article class="admin-card" style="margin-top:1rem;">
-        <form method="post" action="/api/admin/update-stat-strip-item.php" class="admin-product-form">
-          <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
-          <input type="hidden" name="item_id" value="<?= $itemId ?>">
-          <?= admin_localized_input($editLanguage) ?>
-
-          <?php admin_localized_bar($editLanguage); ?>
-          <div class="admin-form-row">
-            <label><?= admin_te('block_stats.primaire_tekst') ?><?= $marker ?>
-              <input type="text" name="primary_text" maxlength="100"<?= $required ?> value="<?= $h($itemWord('primary_text')) ?>"<?= $placeholder ?>>
-            </label>
-          </div>
-
-          <div class="admin-form-row">
-            <label><?= admin_te('block_stats.secundaire_tekst') ?><?= $marker ?>
-              <input type="text" name="secondary_text" maxlength="150"<?= $required ?> value="<?= $h($itemWord('secondary_text')) ?>"<?= $placeholder ?>>
-            </label>
-          </div>
-
-          <label class="admin-checkbox-label">
-            <input type="checkbox" name="is_active" value="1" <?= (int) $item['is_active'] === 1 ? 'checked' : '' ?>>
-            <?= admin_te('common.visible') ?>
-          </label>
-
-          <button type="submit"><?= admin_te('common.save') ?></button>
-        </form>
-
-        <div class="admin-image-card__actions" style="margin-top:0.75rem;">
-          <form method="post" action="/api/admin/move-stat-strip-item.php" class="admin-inline-form">
-            <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
-            <input type="hidden" name="item_id" value="<?= $itemId ?>">
-            <input type="hidden" name="direction" value="up">
-            <button type="submit" class="admin-btn-text" <?= $isFirst ? 'disabled' : '' ?>><?= admin_t('common.move_up') ?></button>
-          </form>
-          <form method="post" action="/api/admin/move-stat-strip-item.php" class="admin-inline-form">
-            <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
-            <input type="hidden" name="item_id" value="<?= $itemId ?>">
-            <input type="hidden" name="direction" value="down">
-            <button type="submit" class="admin-btn-text" <?= $isLast ? 'disabled' : '' ?>><?= admin_t('common.move_down') ?></button>
-          </form>
-          <form method="post" action="/api/admin/delete-stat-strip-item.php" class="admin-inline-form" onsubmit="return confirm('Deze stat definitief verwijderen?');">
-            <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
-            <input type="hidden" name="item_id" value="<?= $itemId ?>">
-            <button type="submit" class="admin-btn-text admin-btn-text--danger"><?= admin_te('common.delete') ?></button>
-          </form>
-        </div>
-      </article>
-    <?php endforeach; ?>
-  </section>
-
-  <section class="admin-card">
-    <h2><?= admin_te('block_stats.nieuwe_stat_toevoegen') ?></h2>
-    <form method="post" action="/api/admin/create-stat-strip-item.php" class="admin-product-form">
-      <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
-      <input type="hidden" name="strip_id" value="<?= $stripId ?>">
-
-      <?php admin_localized_bar($defaultLanguage); ?>
-      <?php admin_localized_new_item_note($editLanguage); ?>
-      <div class="admin-form-row">
-        <label><?= admin_te('block_stats.primaire_tekst') ?>*
-          <input type="text" name="primary_text" maxlength="100" required>
-        </label>
-      </div>
-
-      <div class="admin-form-row">
-        <label><?= admin_te('block_stats.secundaire_tekst') ?>*
-          <input type="text" name="secondary_text" maxlength="150" required>
-        </label>
-      </div>
-
-      <button type="submit"><?= admin_te('block_stats.stat_toevoegen') ?></button>
-    </form>
-  </section>
+    </div>
+  </form>
 </main>
 <?php save_bar(); ?>
+<script src="<?= \App\Service\AssetVersion::url('/admin/assets/row-list.js') ?>" defer></script>
 <?php save_bar_script(); ?>
 </body>
 </html>

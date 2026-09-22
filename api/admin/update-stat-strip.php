@@ -3,20 +3,42 @@
 /**
  * POST /api/admin/update-stat-strip.php
  *
- * Saves the section-level visibility for one Stat strip
- * (admin/stat-strip.php?section=...). This section type has no
- * section-level content fields (see App\Service\StatStripContent), only
- * the "Actief" checkbox. Same guard order and PRG/session-flash pattern as
- * api/admin/update-feature-grid.php. Stat content is saved separately by
- * create/update/delete/move-stat-strip-item.php.
+ * Saves the WHOLE editor of one Stat strip (admin/stat-strip.php?section=...)
+ * in one request: whether it is shown, and its stats — their words, whether
+ * each is shown, their order, new ones and the ones marked for removal. One
+ * form, one save (PAGE-EDITOR.md, "Eén formulier per blok-editor"); there is
+ * no endpoint per stat any more. This section type has no words of its own
+ * (see App\Service\StatStripContent).
+ *
+ * `editor_action` = items:up|down:<key> is the no-JavaScript path of a
+ * stat's ↑ and ↓ (App\Service\Blocks\EditorRows), performed on the posted
+ * stats after validation and stored with everything else.
+ *
+ * ALL OR NOTHING. Everything is checked before anything is written, and the
+ * writes are one transaction: a refused or failed save stores nothing and
+ * hands every typed value back, with each message next to its field.
+ *
+ * ONE WEBSITE LANGUAGE (Multilingual 2.0): a stored stat's words are the
+ * language named in `language_code`, which must be an active language of the
+ * website registry, and are required only in the default language
+ * (StatStripBlock::translatableFields(), through
+ * App\Service\Blocks\BlockLocalization); only that language is written. A NEW
+ * stat is written in the default language, and a removed stat takes its
+ * words in every language along, both through App\Service\Blocks\EditorChildList.
  */
 
 declare(strict_types=1);
 
 require_once __DIR__ . '/../../vendor/autoload.php';
 
+use App\Database;
+use App\Service\Language\AdminTranslator;
 use App\Service\AdminAuth;
+use App\Service\Blocks\EditorChildList;
+use App\Service\Blocks\EditorRows;
 use App\Service\Csrf;
+use App\Service\Language\LanguageCode;
+use App\Service\Language\SiteLanguages;
 use App\Service\StatStripContent;
 use App\Repository\StatStripRepository;
 
@@ -54,20 +76,79 @@ if ($section === null) {
     $section = ['page_slug' => $dynPageSlug, 'section_key' => $dynSectionKey];
 }
 
-$fields = [
-    'is_active' => isset($_POST['is_active']),
-];
+$repository = new StatStripRepository();
+$redirect = '/admin/stat-strip.php?section=' . urlencode($sectionKey);
 
-try {
-    (new StatStripRepository())->upsertStrip($section['page_slug'], $section['section_key'], $fields);
-    StatStripContent::clearCache();
-} catch (\Throwable $e) {
-    error_log('[api/admin/update-stat-strip.php] ' . $e->getMessage());
+$languageCode = LanguageCode::normalise((string) ($_POST['language_code'] ?? '')) ?? '';
+$languageIsWritable = $languageCode !== '' && SiteLanguages::isActive($languageCode);
 
-    $_SESSION['admin_stat_strip_errors'] = ['Kon niet worden opgeslagen. Probeer het opnieuw.'];
-    header('Location: /admin/stat-strip.php?section=' . urlencode($sectionKey));
+$settings = ['is_active' => isset($_POST['is_active'])];
+
+// The stats of THIS strip; a key naming any other row is dropped.
+$stored = $repository->findBySlugAndKey($section['page_slug'], $section['section_key']);
+$storedIds = $stored === null ? [] : array_map(
+    static fn (array $item): int => (int) $item['id'],
+    $repository->findItemsByStripId((int) $stored['id'])
+);
+$items = EditorChildList::fromRequest($_POST, 'items', 'stat_strip_items', $storedIds, EditorRows::parseAction($_POST['editor_action'] ?? null));
+
+$errors = [];
+$fieldErrors = [];
+
+if (!$languageIsWritable) {
+    $errors[] = AdminTranslator::trans('validation.language_unknown');
+} else {
+    // BlockLocalization::problems() per stat, as a message at its field.
+    $fieldErrors = $items->problems($languageCode);
+    $errors = $items->summary($fieldErrors, AdminTranslator::trans('block_stats.stat'));
+}
+
+$old = ['language_code' => $languageCode] + $settings + ['items' => $items->old()];
+
+if ($errors !== []) {
+    $_SESSION['admin_stat_strip_errors'] = $errors;
+    $_SESSION['admin_stat_strip_field_errors'] = $fieldErrors;
+    $_SESSION['admin_stat_strip_old'] = $old;
+    header('Location: ' . $redirect);
     exit;
 }
 
-header('Location: /admin/stat-strip.php?section=' . urlencode($sectionKey) . '&saved=1');
+$db = Database::connection();
+
+try {
+    // The strip's switch and every stat are one save.
+    $db->beginTransaction();
+
+    $repository->upsertStrip($section['page_slug'], $section['section_key'], $settings);
+    $stripId = (int) $repository->findBySlugAndKey($section['page_slug'], $section['section_key'])['id'];
+
+    $items->save(
+        $languageCode,
+        static function (array $row) use ($repository, $stripId): int {
+            $id = $repository->createItem($stripId);
+            $repository->updateItem($id, ['is_active' => EditorChildList::flag($row, 'active')]);
+
+            return $id;
+        },
+        static fn (int $id, array $row) => $repository->updateItem($id, ['is_active' => EditorChildList::flag($row, 'active')]),
+        static fn (int $id) => $repository->deleteItem($id),
+        static fn (array $order) => $repository->reorderItems($stripId, $order)
+    );
+
+    $db->commit();
+    StatStripContent::clearCache();
+} catch (\Throwable $e) {
+    if ($db->inTransaction()) {
+        $db->rollBack();
+    }
+
+    error_log('[api/admin/update-stat-strip.php] ' . $e->getMessage());
+
+    $_SESSION['admin_stat_strip_errors'] = [AdminTranslator::trans('editor_rows.error_save_failed')];
+    $_SESSION['admin_stat_strip_old'] = $old;
+    header('Location: ' . $redirect);
+    exit;
+}
+
+header('Location: ' . $redirect . '&saved=1');
 exit;

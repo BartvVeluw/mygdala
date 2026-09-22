@@ -156,37 +156,22 @@ class StepListRepository extends Repository
     }
 
     /**
-     * Swaps sort_order with the previous/next item (in current display
-     * order) within the same section — same approach as
-     * FaqRepository::moveItem().
+     * Stores the order of the steps of one Stappenplan as the one-form
+     * editor posted it (App\Service\Blocks\EditorChildList::save()): the
+     * first id gets sort_order 0. An id that is not a row of $sectionId is
+     * left alone.
+     *
+     * @param list<int> $orderedIds
      */
-    public function moveItem(int $sectionId, int $itemId, string $direction): void
+    public function reorderItems(int $sectionId, array $orderedIds): void
     {
-        $items = $this->findItemsBySectionId($sectionId);
+        $stmt = $this->db->prepare(
+            'UPDATE step_list_items SET sort_order = :sort_order, updated_at = NOW() WHERE id = :id AND step_list_section_id = :parent_id'
+        );
 
-        $index = null;
-        foreach ($items as $i => $item) {
-            if ((int) $item['id'] === $itemId) {
-                $index = $i;
-                break;
-            }
+        foreach (array_values($orderedIds) as $position => $id) {
+            $stmt->execute(['sort_order' => $position, 'id' => (int) $id, 'parent_id' => $sectionId]);
         }
-
-        if ($index === null) {
-            return;
-        }
-
-        $swapWith = $direction === 'up' ? $index - 1 : $index + 1;
-
-        if ($swapWith < 0 || $swapWith >= count($items)) {
-            return;
-        }
-
-        $a = $items[$index];
-        $b = $items[$swapWith];
-
-        $this->updateSortOrder((int) $a['id'], (int) $b['sort_order']);
-        $this->updateSortOrder((int) $b['id'], (int) $a['sort_order']);
     }
 
     /**
@@ -202,12 +187,6 @@ class StepListRepository extends Repository
         $stmt->execute(['id' => $id]);
 
         return $stmt->rowCount() > 0;
-    }
-
-    private function updateSortOrder(int $id, int $sortOrder): void
-    {
-        $stmt = $this->db->prepare('UPDATE step_list_items SET sort_order = :sort_order, updated_at = NOW() WHERE id = :id');
-        $stmt->execute(['sort_order' => $sortOrder, 'id' => $id]);
     }
 
     private function nextSortOrder(int $sectionId): int

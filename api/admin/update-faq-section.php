@@ -3,17 +3,30 @@
 /**
  * POST /api/admin/update-faq-section.php
  *
- * Saves the section-level fields (heading + visibility) for one FAQ list
- * (admin/faq.php?section=...). Same guard order and PRG/session-flash
- * pattern as api/admin/update-feature-grid.php. Item content is saved
- * separately by create/update/delete/move-faq-item.php.
+ * Saves the WHOLE editor of one FAQ list (admin/faq.php?section=...) in one
+ * request: its heading, whether it is shown, and its questions — their
+ * words, whether each is shown, their order, new ones and the ones marked
+ * for removal. One form, one save (PAGE-EDITOR.md, "Eén formulier per
+ * blok-editor"); there is no endpoint per question any more.
  *
- * ONE WEBSITE LANGUAGE (Multilingual 2.0): the eyebrow and title are the
- * words of the language named in `language_code`, which must be an active
- * language of the website registry; which fields exist, how long they may be
- * and that both are required in the default language comes from
- * FaqBlock::translatableFields(), through App\Service\Blocks\BlockLocalization,
- * and only that language is written, in one transaction with is_active.
+ * `editor_action` = items:up|down:<key> is the no-JavaScript path of a
+ * question's ↑ and ↓ (App\Service\Blocks\EditorRows): it is performed on the
+ * posted questions after validation and stored with everything else.
+ *
+ * ALL OR NOTHING. Everything is checked before anything is written, and the
+ * writes are one transaction: a refused or failed save stores nothing, hands
+ * every typed value back (questions, order and marks included) with each
+ * message next to its field, and the screen shows it again as unsaved.
+ *
+ * ONE WEBSITE LANGUAGE (Multilingual 2.0): the eyebrow, the title and every
+ * stored question's words are the language named in `language_code`, which
+ * must be an active language of the website registry; which fields exist,
+ * how long they may be and that they are required in the default language
+ * comes from FaqBlock::translatableFields(), through
+ * App\Service\Blocks\BlockLocalization, and only that language is written. A
+ * NEW question is written in the default language whatever the screen shows,
+ * and a removed question takes its words in every language along, both
+ * through App\Service\Blocks\EditorChildList.
  */
 
 declare(strict_types=1);
@@ -24,6 +37,8 @@ use App\Database;
 use App\Service\Language\AdminTranslator;
 use App\Service\AdminAuth;
 use App\Service\Blocks\BlockLocalization;
+use App\Service\Blocks\EditorChildList;
+use App\Service\Blocks\EditorRows;
 use App\Service\Csrf;
 use App\Service\Language\LanguageCode;
 use App\Service\Language\SiteLanguages;
@@ -64,6 +79,9 @@ if ($section === null) {
     $section = ['page_slug' => $dynPageSlug, 'section_key' => $dynSectionKey];
 }
 
+$repository = new FaqRepository();
+$redirect = '/admin/faq.php?section=' . urlencode($sectionKey);
+
 $languageCode = LanguageCode::normalise((string) ($_POST['language_code'] ?? '')) ?? '';
 $languageIsWritable = $languageCode !== '' && SiteLanguages::isActive($languageCode);
 
@@ -75,35 +93,67 @@ foreach (array_keys(BlockLocalization::fields('faq_sections')) as $field) {
 
 $settings = ['is_active' => isset($_POST['is_active'])];
 
+// The questions of THIS section; a key naming any other row is dropped. A
+// fixed section opened for the first time has no row, and so no questions.
+$stored = $repository->findBySlugAndKey($section['page_slug'], $section['section_key']);
+$storedIds = $stored === null ? [] : array_map(
+    static fn (array $item): int => (int) $item['id'],
+    $repository->findItemsBySectionId((int) $stored['id'])
+);
+$items = EditorChildList::fromRequest($_POST, 'items', 'faq_items', $storedIds, EditorRows::parseAction($_POST['editor_action'] ?? null));
+
 $errors = [];
+$fieldErrors = [];
 
 if (!$languageIsWritable) {
     $errors[] = AdminTranslator::trans('validation.language_unknown');
 } else {
-    foreach (BlockLocalization::messageKeys(BlockLocalization::problems('faq_sections', $languageCode, $words)) as $key) {
-        $errors[] = AdminTranslator::trans($key);
+    // BlockLocalization::problems(), as a message per field.
+    $fieldErrors = EditorChildList::wordErrors('faq_sections', $languageCode, $words);
+    $itemErrors = $items->problems($languageCode);
+
+    // One line per problem at the top, the same line next to its field.
+    foreach ($fieldErrors as $message) {
+        if (!in_array($message, $errors, true)) {
+            $errors[] = $message;
+        }
     }
+    array_push($errors, ...$items->summary($itemErrors, AdminTranslator::trans('block_faq.vraag')));
+    $fieldErrors += $itemErrors;
 }
 
-$old = ['language_code' => $languageCode] + $words + $settings;
+$old = ['language_code' => $languageCode] + $words + $settings + ['items' => $items->old()];
 
 if ($errors !== []) {
     $_SESSION['admin_faq_errors'] = $errors;
+    $_SESSION['admin_faq_field_errors'] = $fieldErrors;
     $_SESSION['admin_faq_old'] = $old;
-    header('Location: /admin/faq.php?section=' . urlencode($sectionKey));
+    header('Location: ' . $redirect);
     exit;
 }
 
 $db = Database::connection();
 
 try {
-    // The section's visibility and its heading in this language are one save.
+    // The section, its heading in this language and every question are one save.
     $db->beginTransaction();
 
-    $repository = new FaqRepository();
     $repository->upsertSection($section['page_slug'], $section['section_key'], $settings);
     $sectionId = (int) $repository->findBySlugAndKey($section['page_slug'], $section['section_key'])['id'];
     BlockLocalization::save('faq_sections', $sectionId, $languageCode, $words);
+
+    $items->save(
+        $languageCode,
+        static function (array $row) use ($repository, $sectionId): int {
+            $id = $repository->createItem($sectionId);
+            $repository->updateItem($id, ['is_active' => EditorChildList::flag($row, 'active')]);
+
+            return $id;
+        },
+        static fn (int $id, array $row) => $repository->updateItem($id, ['is_active' => EditorChildList::flag($row, 'active')]),
+        static fn (int $id) => $repository->deleteItem($id),
+        static fn (array $order) => $repository->reorderItems($sectionId, $order)
+    );
 
     $db->commit();
     FaqContent::clearCache();
@@ -114,11 +164,11 @@ try {
 
     error_log('[api/admin/update-faq-section.php] ' . $e->getMessage());
 
-    $_SESSION['admin_faq_errors'] = ['Kon niet worden opgeslagen. Probeer het opnieuw.'];
+    $_SESSION['admin_faq_errors'] = [AdminTranslator::trans('editor_rows.error_save_failed')];
     $_SESSION['admin_faq_old'] = $old;
-    header('Location: /admin/faq.php?section=' . urlencode($sectionKey));
+    header('Location: ' . $redirect);
     exit;
 }
 
-header('Location: /admin/faq.php?section=' . urlencode($sectionKey) . '&saved=1');
+header('Location: ' . $redirect . '&saved=1');
 exit;

@@ -253,33 +253,36 @@
       });
   }
 
-  document.querySelectorAll("[data-media-picker]").forEach(function (field) {
-    var openButton = field.querySelector("[data-media-picker-open]");
-    var clearButton = field.querySelector("[data-media-picker-clear]");
+  // Delegated, so a field that arrives later works too: a row a block
+  // editor adds on screen (admin/assets/row-list.js) carries its own picker.
+  document.addEventListener("click", function (event) {
+    var target = event.target && event.target.closest ? event.target : null;
+    var openButton = target ? target.closest("[data-media-picker-open]") : null;
+    var clearButton = target ? target.closest("[data-media-picker-clear]") : null;
+    var field = (openButton || clearButton) ? (openButton || clearButton).closest("[data-media-picker]") : null;
+
+    if (!field) {
+      return;
+    }
 
     if (openButton) {
-      openButton.addEventListener("click", function () {
-        openModal(field);
-      });
+      openModal(field);
+      return;
     }
 
-    if (clearButton) {
-      clearButton.addEventListener("click", function () {
-        var input = field.querySelector("[data-media-picker-input]");
-        var preview = field.querySelector("[data-media-picker-preview]");
+    var input = field.querySelector("[data-media-picker-input]");
+    var preview = field.querySelector("[data-media-picker-preview]");
 
-        input.value = "";
-        preview.innerHTML = "";
+    input.value = "";
+    preview.innerHTML = "";
 
-        var empty = document.createElement("span");
-        empty.className = "admin-media-picker__empty";
-        empty.textContent = "Nog geen afbeelding gekozen.";
-        preview.appendChild(empty);
+    var empty = document.createElement("span");
+    empty.className = "admin-media-picker__empty";
+    empty.textContent = "Nog geen afbeelding gekozen.";
+    preview.appendChild(empty);
 
-        clearButton.hidden = true;
-        input.dispatchEvent(new Event("change", { bubbles: true }));
-      });
-    }
+    clearButton.hidden = true;
+    input.dispatchEvent(new Event("change", { bubbles: true }));
   });
 
   modal.querySelectorAll("[data-media-modal-close]").forEach(function (button) {

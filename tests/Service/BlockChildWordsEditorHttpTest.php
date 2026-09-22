@@ -36,9 +36,10 @@ use Tests\Support\PageFixture;
  *  - deleting an item takes its words in every language in the same
  *    transaction, and nothing of its siblings; no orphan is left to purge.
  *
- * The Kaarten-carrousel's cards and tags are not here: they are saved by
- * their one-form editors, which Tests\Service\CardCarouselEditorHttpTest
- * covers with the same rules.
+ * The rows of a one-form editor are not here: the Kaarten-carrousel's cards
+ * and tags are Tests\Service\CardCarouselEditorHttpTest's, and the FAQ's,
+ * the Cijferbalk's, the Stappenplan's and the Woordenband's are
+ * Tests\Service\BlockRowEditorsHttpTest's, with the same rules.
  *
  * Table-driven: CHILDREN names, per child table, the block that owns it, the
  * three endpoints and the request fields that address an item or its parent.
@@ -61,16 +62,6 @@ final class BlockChildWordsEditorHttpTest extends TestCase
      *   words     Dutch words for every field the item's form has, valid
      */
     private const CHILDREN = [
-        'faq_items' => [
-            'block' => 'faq',
-            'create' => '/api/admin/create-faq-item.php',
-            'update' => '/api/admin/update-faq-item.php',
-            'delete' => '/api/admin/delete-faq-item.php',
-            'parent' => 'section_id',
-            'item' => 'item_id',
-            'settings' => ['is_active' => '1'],
-            'words' => ['question' => 'Hoe lang duurt het?', 'answer' => 'Een week.'],
-        ],
         'feature_grid_items' => [
             'block' => 'feature_grid',
             'create' => '/api/admin/create-feature-grid-item.php',
@@ -80,36 +71,6 @@ final class BlockChildWordsEditorHttpTest extends TestCase
             'item' => 'item_id',
             'settings' => ['icon_key' => 'heart', 'is_active' => '1'],
             'words' => ['title' => 'Snel geleverd', 'body' => 'Binnen een week in huis.'],
-        ],
-        'step_list_items' => [
-            'block' => 'step_list',
-            'create' => '/api/admin/create-step-list-item.php',
-            'update' => '/api/admin/update-step-list-item.php',
-            'delete' => '/api/admin/delete-step-list-item.php',
-            'parent' => 'section_id',
-            'item' => 'item_id',
-            'settings' => ['is_active' => '1'],
-            'words' => ['title' => 'Kennismaken', 'body' => 'We bespreken wat je nodig hebt.'],
-        ],
-        'stat_strip_items' => [
-            'block' => 'stat_strip',
-            'create' => '/api/admin/create-stat-strip-item.php',
-            'update' => '/api/admin/update-stat-strip-item.php',
-            'delete' => '/api/admin/delete-stat-strip-item.php',
-            'parent' => 'strip_id',
-            'item' => 'item_id',
-            'settings' => ['is_active' => '1'],
-            'words' => ['primary_text' => '12+', 'secondary_text' => 'jaar ervaring'],
-        ],
-        'marquee_items' => [
-            'block' => 'marquee',
-            'create' => '/api/admin/create-marquee-item.php',
-            'update' => '/api/admin/update-marquee-item.php',
-            'delete' => '/api/admin/delete-marquee-item.php',
-            'parent' => 'section_id',
-            'item' => 'item_id',
-            'settings' => ['is_active' => '1'],
-            'words' => ['label' => 'Duurzaam'],
         ],
         // The homepage hero is one per page and cannot be added or deleted by
         // hand, so this test gives it a row of its own (block()).

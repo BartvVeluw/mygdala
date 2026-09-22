@@ -553,7 +553,7 @@ weg).
 | Wat | Hoe |
 |---|---|
 | Rijen van een lijst | `<lijst>[<sleutel>][<veld>]`: de sleutel is het id van een opgeslagen rij, of `new<n>` voor een rij die net op het scherm is toegevoegd. De volgorde waarin de browser ze stuurt, is de volgorde die wordt opgeslagen |
-| Verwijderde rijen | Een opgeslagen rij die niet meer meekomt, is verwijderd — maar alleen als het formulier `<lijst>_present` meestuurt. Een formulier zonder de lijst kan hem dus nooit leegmaken |
+| Verwijderde rijen | Twee vormen. Een **markering** `<lijst>[<sleutel>][remove]` (de kaarten van de carrousel en elke lijst van `admin/_editor_rows.php`): de rij blijft grijs op het scherm staan tot de opslag, en is terug te zetten. Of een rij die **niet meer meekomt** (de tags van een carrouselkaart, waar × de rij van het scherm haalt). Allebei alleen als het formulier `<lijst>_present` meestuurt: een formulier zonder de lijst kan hem nooit leegmaken. Bij een lijst met markeringen blijft een opgeslagen rij die niet meekwam (intussen in een ander tabblad toegevoegd) gewoon staan, achter de rest |
 | ↑, ↓, × | Submitknoppen van hetzelfde formulier, `editor_action=<lijst>:<up\|down\|remove>:<sleutel>`. Met JavaScript (`admin/assets/row-list.js`) verschuiven of verdwijnen ze op het scherm en wordt er niets verstuurd; zonder JavaScript sturen ze het hele formulier, en de server voert de actie uit op de rijen die meekwamen. Getypte waarden gaan dus nooit verloren |
 | Andere acties | Een scherm mag eigen werkwoorden hebben: `cards:add` (kaart toevoegen) en `cards:edit:<id>` (naar de kaart) slaan eerst alles op en gaan dan verder |
 | Enter in een tekstveld | Drukt de eerste submitknop van het formulier in. Daarom begint zo'n formulier met een visueel verborgen gewone *Opslaan*, zodat Enter nooit een rij verplaatst |
@@ -561,8 +561,29 @@ weg).
 
 `App\Service\Blocks\EditorRows` is de pure helper aan de serverkant
 (`fromPost()`, `parseAction()`, `apply()`); het endpoint bepaalt zelf welke
-ids echt rijen van zijn blok zijn. `Tests\Service\Blocks\EditorRowsTest` en
-`Tests\Service\CardCarouselEditorHttpTest` bewaken het contract.
+ids echt rijen van zijn blok zijn.
+
+Een lijst van **vertaalde kindrijen** (vragen, stats, stappen, punten,
+afbeeldingen) gaat door `App\Service\Blocks\EditorChildList`, bovenop
+`EditorRows`. Die doet voor elke lijst hetzelfde: rijen van een ander blok
+weglaten, een lege nieuwe rij overslaan, de woorden van een opgeslagen rij
+controleren in de taal op het scherm en die van een nieuwe rij in de
+standaardtaal, bij een geweigerde opslag alles teruggeven (`old()`, met een
+regel per rij bovenaan: "Vraag 2: …"), en binnen de transactie van het
+endpoint opslaan: een verwijderde rij met zijn woorden in elke taal, een
+nieuwe rij in de standaardtaal, de rest in de taal op het scherm, en dan de
+volgorde. Wat een rij behalve woorden heeft (een schakelaar, een icoon, een
+media-item) schrijft het endpoint zelf, in de `create`/`update` die het
+meegeeft. De schermkant is `admin/_editor_rows.php`: een rij is een
+`fieldset` met de naam "<ding> <plaats>", ↑, ↓ en *Verwijderen* bovenaan, en
+velden zonder `required` (een gemarkeerde of lege rij mag het formulier nooit
+tegenhouden; de server controleert).
+
+`Tests\Service\Blocks\EditorRowsTest`, `Tests\Service\Blocks\EditorChildListTest`,
+`Tests\Service\CardCarouselEditorHttpTest` en het tabelgestuurde
+`Tests\Service\BlockRowEditorsHttpTest` (per lijst: één formulier en één
+*Opslaan*, blok en rij in één opslag, volgorde, verwijderen, toevoegen, een
+geweigerde opslag die niets schrijft, en de taal) bewaken het contract.
 
 ### Welke editors het al volgen
 
@@ -570,6 +591,10 @@ ids echt rijen van zijn blok zijn. `Tests\Service\Blocks\EditorRowsTest` en
 |---|---|---|
 | Kaarten-carrousel | `admin/card-carousel.php` (kop, weergave, kaarten: volgorde, *Actief*, verwijderen) | `api/admin/update-card-carousel.php` |
 | — een kaart daarvan | `admin/carousel-card.php` (woorden, nummer, afbeelding, knop, tags) | `api/admin/update-carousel-card.php` |
+| FAQ | `admin/faq.php` (kop, *Actief*, vragen) | `api/admin/update-faq-section.php` |
+| Cijferbalk | `admin/stat-strip.php` (*Actief*, stats) | `api/admin/update-stat-strip.php` |
+| Stappenplan | `admin/step-list.php` (kop, *Actief*, stappen) | `api/admin/update-step-list-section.php` |
+| Woordenband | `admin/marquee.php` (*Actief*, items) | `api/admin/update-marquee-section.php` |
 
 Een kaart heeft een eigen scherm omdat hij zelf een lijst (tags) draagt;
 *Bewerken* en *Kaart toevoegen* slaan de carrousel eerst op.
@@ -578,9 +603,8 @@ Een kaart heeft een eigen scherm omdat hij zelf een lijst (tags) draagt;
 
 Deze editors hebben nog een formulier per rij, met elk een eigen *Opslaan*
 en eigen endpoints voor toevoegen, verplaatsen en verwijderen: Homepage-hero
-(cijfers, media), Kaartenraster, FAQ, Cijferbalk, Stappenplan, Tekst met
-afbeelding (alinea's, afbeeldingen), Woordenband en Detailsectie (punten,
-afbeeldingen, hoofdafbeelding). Ze gaan over op hetzelfde contract, één blok
+(cijfers, media), Kaartenraster, Tekst met afbeelding (alinea's,
+afbeeldingen) en Detailsectie (punten, afbeeldingen, hoofdafbeelding). Ze gaan over op hetzelfde contract, één blok
 per keer, met de helper en het script hierboven.
 
 ## Dezelfde tabbladen op een ander scherm

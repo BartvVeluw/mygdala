@@ -2326,6 +2326,45 @@ input[data-color-picker]{ width: 2.4rem; height: 2.4rem; padding: 0.15rem; borde
 .admin-carousel-layout legend{ padding: 0; font-weight: 600; }
 .admin-carousel-layout .admin-template-grid{ margin-top: var(--admin-sp-2); }
 
+/* A row of a block editor's list (admin/_editor_rows.php: a question, a
+   figure, a step, a point, an image): a bordered box inside the one form,
+   named "<noun> <place>" by its legend, with ↑ ↓ and Verwijderen at the top
+   right. Verwijderen is a checkbox of the form, so a marked row only fades
+   and says so until the form is saved, and can be unmarked. The legend
+   floats so the tools can sit on its line; the fields start under both.
+   Layout only; every colour is an existing token (ADMIN-UI.md). */
+.admin-row-cards{ display: flex; flex-direction: column; gap: var(--admin-sp-3); margin: 0 0 var(--admin-sp-3); }
+.admin-row-card{
+  min-width: 0;
+  margin: 0;
+  padding: var(--admin-sp-3) var(--admin-sp-4) var(--admin-sp-4);
+  border: 1px solid var(--admin-border);
+  border-radius: var(--admin-radius-md);
+  background: var(--admin-surface);
+}
+.admin-row-card__legend{ float: left; padding: 0; margin: 0; font-weight: 600; line-height: 2rem; }
+.admin-row-card__legend .admin-badge{ margin-left: 0.3rem; font-weight: 500; }
+.admin-row-card__head{ display: flex; justify-content: flex-end; min-height: 2rem; }
+.admin-row-card__tools{ display: inline-flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: var(--admin-sp-2); }
+.admin-row-card__remove{ cursor: pointer; font-size: 0.85rem; }
+.admin-row-card__remove:has(input:focus-visible){ outline: 2px solid var(--admin-accent); outline-offset: 2px; }
+.admin-row-card__remove-off{ display: none; }
+.admin-row-card__removing{ display: none; clear: both; margin: 0.2rem 0 0; font-size: 0.8rem; color: var(--admin-error); }
+.admin-row-card__body{ clear: both; padding-top: var(--admin-sp-2); display: flex; flex-direction: column; gap: var(--admin-sp-3); }
+.admin-row-card__body > .admin-form-row,
+.admin-row-card__body > .admin-field{ margin: 0; }
+.admin-row-card:has(.admin-row-card__remove-input:checked){ border-style: dashed; background: var(--admin-surface-sunken); }
+.admin-row-card:has(.admin-row-card__remove-input:checked) .admin-row-card__body,
+.admin-row-card:has(.admin-row-card__remove-input:checked) .admin-row-card__legend{ opacity: 0.45; }
+.admin-row-card:has(.admin-row-card__remove-input:checked) .admin-row-card__removing,
+.admin-row-card:has(.admin-row-card__remove-input:checked) .admin-row-card__remove-off{ display: block; }
+.admin-row-card:has(.admin-row-card__remove-input:checked) .admin-row-card__remove-on{ display: none; }
+/* Two words side by side where there is room (a figure and its caption). */
+.admin-row-card__pair{ display: grid; grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr)); gap: var(--admin-sp-3); }
+@media (max-width: 600px){
+  .admin-row-card{ padding: var(--admin-sp-3); }
+}
+
 /* A row of a list without numbers (a carousel card's tags): the text box and
    its ↑ ↓ × — the option row of a form field (.admin-option-row) without its
    number column. */

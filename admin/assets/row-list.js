@@ -1,6 +1,8 @@
 /**
  * Lists of child rows inside ONE block-editor form (the Kaarten-carrousel's
- * cards and a card's tags): ↑, ↓ and × work on screen, and "toevoegen" adds
+ * cards and a card's tags, and every list admin/_editor_rows.php prints: a
+ * FAQ's questions, a Detailsectie's points and images, ...): ↑, ↓ and × work
+ * on screen, and "toevoegen" adds
  * an empty row, without a request. The one "Opslaan" of the form then stores
  * the rows in the order they are in. See App\Service\Blocks\EditorRows for
  * what the server does with them.
@@ -17,9 +19,14 @@
  *     [data-row-list-row]            one row
  *       [data-row-list-move="up"]    ↑ / ↓ — disabled at the ends, redone here
  *       [data-row-list-remove]       takes the row off the screen
+ *       [data-row-list-number]       its place, 1-based; rewritten after every change
+ *       [data-row-list-removing]     a removal MARK (a checkbox): the row stays
+ *                                    on screen and is removed by the save
  *   [data-row-list-add="<list id>"]  appends a copy of the list's
  *   <template data-row-list-template="<list id>">, with __KEY__ replaced by
  *                                    "new<n>" (a key no row has yet)
+ *   [data-row-list-max="<n>"]        on the list: the add button is disabled
+ *                                    while n rows are not marked for removal
  *
  * Every change ends with a bubbling "change" event, which is how the save
  * bar (admin/assets/save-bar.js) hears that something is unsaved. A status
@@ -41,15 +48,34 @@
       });
     }
 
+    var max = parseInt(list.getAttribute("data-row-list-max") || "", 10);
+
     function refresh() {
       var all = rows();
       all.forEach(function (row, position) {
         var up = row.querySelector('[data-row-list-move="up"]');
         var down = row.querySelector('[data-row-list-move="down"]');
+        var number = row.querySelector("[data-row-list-number]");
         if (up) up.disabled = position === 0;
         if (down) down.disabled = position === all.length - 1;
+        if (number) number.textContent = String(position + 1);
       });
+
+      if (add && max > 0) {
+        var kept = all.filter(function (row) {
+          var mark = row.querySelector("[data-row-list-removing]");
+          return !(mark && mark.checked);
+        });
+        add.disabled = kept.length >= max;
+      }
     }
+
+    // A removal mark changes how many rows are kept.
+    list.addEventListener("change", function (event) {
+      if (event.target && event.target.hasAttribute && event.target.hasAttribute("data-row-list-removing")) {
+        refresh();
+      }
+    });
 
     function changed() {
       list.dispatchEvent(new Event("change", { bubbles: true }));

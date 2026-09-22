@@ -153,37 +153,22 @@ class StatStripRepository extends Repository
     }
 
     /**
-     * Swaps sort_order with the previous/next stat (in current display
-     * order) within the same strip — same approach as
-     * FeatureGridRepository::moveItem().
+     * Stores the order of the figures of one Cijferbalk as the one-form
+     * editor posted it (App\Service\Blocks\EditorChildList::save()): the
+     * first id gets sort_order 0. An id that is not a row of $stripId is
+     * left alone.
+     *
+     * @param list<int> $orderedIds
      */
-    public function moveItem(int $stripId, int $itemId, string $direction): void
+    public function reorderItems(int $stripId, array $orderedIds): void
     {
-        $items = $this->findItemsByStripId($stripId);
+        $stmt = $this->db->prepare(
+            'UPDATE stat_strip_items SET sort_order = :sort_order, updated_at = NOW() WHERE id = :id AND stat_strip_id = :parent_id'
+        );
 
-        $index = null;
-        foreach ($items as $i => $item) {
-            if ((int) $item['id'] === $itemId) {
-                $index = $i;
-                break;
-            }
+        foreach (array_values($orderedIds) as $position => $id) {
+            $stmt->execute(['sort_order' => $position, 'id' => (int) $id, 'parent_id' => $stripId]);
         }
-
-        if ($index === null) {
-            return;
-        }
-
-        $swapWith = $direction === 'up' ? $index - 1 : $index + 1;
-
-        if ($swapWith < 0 || $swapWith >= count($items)) {
-            return;
-        }
-
-        $a = $items[$index];
-        $b = $items[$swapWith];
-
-        $this->updateSortOrder((int) $a['id'], (int) $b['sort_order']);
-        $this->updateSortOrder((int) $b['id'], (int) $a['sort_order']);
     }
 
     /**
@@ -199,12 +184,6 @@ class StatStripRepository extends Repository
         $stmt->execute(['id' => $id]);
 
         return $stmt->rowCount() > 0;
-    }
-
-    private function updateSortOrder(int $id, int $sortOrder): void
-    {
-        $stmt = $this->db->prepare('UPDATE stat_strip_items SET sort_order = :sort_order, updated_at = NOW() WHERE id = :id');
-        $stmt->execute(['sort_order' => $sortOrder, 'id' => $id]);
     }
 
     private function nextSortOrder(int $stripId): int
