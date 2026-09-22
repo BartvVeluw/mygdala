@@ -4,6 +4,10 @@ declare(strict_types=1);
 
 namespace Tests\Update;
 
+use App\Update\FileApplier;
+use App\Update\LocalChanges;
+use App\Update\ReleaseDescriptor;
+use App\Update\UpdatePlan;
 use PHPUnit\Framework\TestCase;
 use Tests\Support\UpdaterSandbox;
 
@@ -15,10 +19,13 @@ use Tests\Support\UpdaterSandbox;
  * docs/updates/ARCHITECTURE.md ("Bewijs") for the whole list.
  *
  *   A   0.1.0 → 0.2.0: a changed PHP file, a new file, a removed file, a
- *       changed stylesheet, a migration and the version bump
+ *       changed stylesheet and .htaccess, hundreds of new files (an apply of
+ *       several requests), a migration and the version bump
  *   B   0.1.0 → 0.3.0 in one update, across two migration generations
  *   H   a Core file changed by hand blocks the update
- *   I   an update left halfway (a closed tab) is continued from its state
+ *   I   an update interrupted inside its download and inside its apply — a
+ *       closed tab, a second tab, a request the host kills — is continued
+ *       from the state the server kept
  *
  * The failure paths (C–G) are UpgradeFailureTest; the proof on a copy of an
  * existing installation is ExistingInstallAcceptanceTest.
@@ -39,9 +46,10 @@ final class UpgradeEndToEndTest extends TestCase
         $this->sandbox?->destroy();
     }
 
-    private function install(string $name): UpdaterSandbox
+    /** @param array<string, string> $env extra lines for the installation's .env */
+    private function install(string $name, array $env = []): UpdaterSandbox
     {
-        $this->sandbox = UpdaterSandbox::install($name);
+        $this->sandbox = UpdaterSandbox::install($name, 'A', null, false, null, ['env' => $env]);
         $this->sandbox->login();
 
         return $this->sandbox;
@@ -100,9 +108,12 @@ final class UpgradeEndToEndTest extends TestCase
         $this->assertSame('completed', $final['status'], json_encode($answers, JSON_PRETTY_PRINT) . $site->serverLog());
 
         $ran = array_column($answers, 'ran');
-        foreach (['download', 'verify', 'extract', 'preflight', 'maintenance', 'backup_database', 'backup_files', 'apply', 'migrate', 'health', 'finish'] as $step) {
-            $this->assertContains($step, $ran);
-        }
+        $this->assertSame(
+            ['download', 'verify', 'extract', 'preflight', 'maintenance', 'backup_database', 'backup_files', 'apply', 'migrate', 'health', 'finish'],
+            array_values(array_unique($ran)),
+            'every step, in order, and none after another has begun'
+        );
+        $this->assertGreaterThanOrEqual(4, count(array_keys($ran, 'apply', true)), 'the apply took several requests');
 
         // The release is the new one, file by file.
         $this->assertSame("0.2.0\n", file_get_contents($site->root() . '/VERSION'));
@@ -111,6 +122,8 @@ final class UpgradeEndToEndTest extends TestCase
         $this->assertStringContainsString('0.2.0 test release', (string) file_get_contents($site->root() . '/assets/css/core.css'));
         $this->assertFileExists($site->root() . '/assets/updater-e2e/new.txt');
         $this->assertFileDoesNotExist($site->root() . '/assets/updater-e2e/obsolete.txt');
+        $this->assertCount(UpdaterSandbox::BULK, glob($site->root() . '/assets/updater-e2e/bulk/*.txt') ?: []);
+        $this->assertStringContainsString('# Changed in the 0.2.0 test release.', (string) file_get_contents($site->root() . '/.htaccess'), '.htaccess is Core and is replaced');
 
         // The migration ran through Phinx, and nothing else in the database moved.
         $this->assertTrue($site->hasTable('updater_e2e_marker'));
@@ -235,38 +248,169 @@ final class UpgradeEndToEndTest extends TestCase
         $this->assertStringContainsString('met de hand gewijzigd: index.php', $site->updatesPage());
     }
 
-    public function testScenarioIAnUpdateLeftHalfwayIsContinuedFromItsState(): void
+    /**
+     * Scenario I: the update is interrupted INSIDE its two long steps, in
+     * every way that can happen to a request on a host — the browser gives
+     * up while a step runs, a second tab asks at the same time, the host kills
+     * the request halfway — and every time it goes on from the state the
+     * server kept, never from anything the browser says.
+     */
+    public function testScenarioIAnUpdateInterruptedInsideTheDownloadAndInsideTheApplyGoesOnFromItsState(): void
     {
-        $site = $this->install('interrupted');
+        if (!function_exists('posix_kill') || !is_dir('/proc')) {
+            $this->markTestSkipped('needs ext-posix and /proc to kill a request for real');
+        }
+
+        $site = $this->install('interrupted', ['MYGDALA_UPDATE_STEP_SECONDS' => '3']);
         $site->publish('B');
         $site->check();
         $site->startUpdate();
+        $updateId = (string) $site->state()['update_id'];
+        $size = (int) $site->state()['manifest']['size'];
+        $work = $site->storage() . '/work/' . $updateId;
+        $part = $work . '/package.zip.part';
 
-        // The owner closes the tab once the backup of the files is done.
-        $site->runSteps(static fn (array $answer): ?bool => $answer['ran'] === 'backup_files' ? false : null);
+        // --- Inside the download -------------------------------------------
+
+        // The source is slow: ten seconds for the package, three per request.
+        // The owner closes the tab while the first request runs; a second tab
+        // asking for the same step meanwhile is turned away, and the request
+        // finishes its budget on its own and saves how far it got.
+        $site->feedMode(['rate' => intdiv($size, 10)]);
+        $closed = $site->step($updateId, 'download', 0.5);
+        $this->assertSame(0, $closed['status'], 'the browser gave up on the answer');
+        $this->assertTrue($site->stepRunning(), 'the step goes on without the browser');
+        $this->assertSame(423, $site->step($updateId, 'download')['status'], 'a second tab cannot run the same step alongside');
+        $site->waitForIdle();
+
         $state = $site->state();
-        $this->assertSame('running', $state['status']);
-        $this->assertSame('apply', $state['step']);
+        $this->assertSame('download', $state['step']);
+        $this->assertNull($state['in_step'] ?? null, 'that request ended normally, at its budget');
+        $saved = (int) $state['cursor']['bytes'];
+        $this->assertGreaterThan(0, $saved);
+        $this->assertLessThan($size, $saved);
+        clearstatcache();
+        $this->assertSame($saved, filesize($part), 'the cursor is exactly the partial file');
 
-        // Coming back: the screen says where it stopped instead of carrying on by itself.
+        $page = $site->updatesPage();
+        $this->assertStringContainsString('De update is onderbroken bij de stap &quot;Downloaden&quot;.', $page);
+        $this->assertStringContainsString('data-update-progress', $page, 'with how far the download got');
+
+        // Now the host kills a download request halfway: the source sends
+        // another 30% and then stalls, and the request is killed while it waits.
+        $site->feedMode(['stall_after' => (int) ($size * 0.3)]);
+        $site->step($updateId, 'download', 0.5);
+        $deadline = microtime(true) + 20;
+        do {
+            usleep(10000);
+            clearstatcache();
+        } while ((int) @filesize($part) < $saved + (int) ($size * 0.3) && microtime(true) < $deadline);
+        $this->assertTrue($site->killWorkerHolding($part), 'a worker was downloading; ' . $site->serverProcesses());
+
+        $state = $site->state();
+        $this->assertSame('download', $state['in_step'] ?? null, 'the killed request never got to finish its step');
+        $checkpoint = (int) $state['cursor']['bytes'];
+        $this->assertGreaterThan($saved, $checkpoint, 'its checkpoints were saved while it downloaded');
+        clearstatcache();
+        $this->assertGreaterThanOrEqual($checkpoint, filesize($part));
+
+        // Continuing asks the source for the rest, from exactly that checkpoint.
+        $site->feedMode([]);
+        $site->runSteps(static fn (array $answer): ?bool => $answer['ran'] === 'download' && $answer['step'] !== 'download' ? false : null);
+        $asked = $site->feedRequests();
+        $this->assertSame('bytes=' . $checkpoint . '-', end($asked)['range']);
+        $this->assertNotNull(end($asked)['if_range']);
+        $this->assertSame('verify', $site->state()['step']);
+
+        // --- Inside the apply ----------------------------------------------
+
+        // The first batch — about a third of the operations — and the tab closes.
+        $site->runSteps(static fn (array $answer): ?bool => $answer['ran'] === 'apply' ? false : null);
+        $state = $site->state();
+        $this->assertSame('apply', $state['step']);
+        $next = (int) $state['cursor']['next'];
+        $total = (int) $state['cursor']['total'];
+        $this->assertSame(FileApplier::BATCH, $next);
+        $this->assertGreaterThanOrEqual(25, intdiv(100 * $next, $total));
+        $this->assertLessThan(50, intdiv(100 * $next, $total));
+
+        $bulk = count(glob($site->root() . '/assets/updater-e2e/bulk/*.txt') ?: []);
+        $this->assertGreaterThan(0, $bulk);
+        $this->assertLessThan(UpdaterSandbox::BULK, $bulk, 'part of the new files are there, part not yet');
+        $this->assertSame('0.1.0', json_decode((string) file_get_contents($site->root() . '/release.json'), true)['version'], 'release.json is still the old release');
+        $this->assertStringNotContainsString('0.2.0 test release', (string) file_get_contents($site->root() . '/.htaccess'), '.htaccess changes in the code switch, with the screens it serves');
+        $this->assertFalse($site->hasTable('updater_e2e_marker'), 'no migration runs during the apply');
+        $this->assertSame(503, $site->visit('/')['status'], 'still in maintenance while it waits');
+
+        // What stays open in that half-updated tree runs one release: the
+        // Updates screen and the login are old code until the code switch.
         $page = $site->updatesPage();
         $this->assertStringContainsString('De update is onderbroken bij de stap &quot;Bestanden bijwerken&quot;.', $page);
+        $this->assertStringContainsString('De stap was voor ' . intdiv(100 * $next, $total) . '% klaar', $page);
         $this->assertStringContainsString('data-autorun="0"', $page);
         $this->assertStringContainsString('data-autorun="0"', $site->updatesPage('?run=1'), 'a link cannot make the screen continue');
-        $this->assertSame(503, $site->get('/')['status'], 'still in maintenance while it waits');
+        $this->assertSame(200, $site->visit('/admin/login.php')['status']);
 
         // A second tab asking for a step that is already past gets the server's truth.
-        $stale = $site->step((string) $state['update_id'], 'backup_files');
+        $stale = $site->step($updateId, 'backup_files');
         $this->assertSame(409, $stale['status']);
         $this->assertSame('apply', $stale['data']['step']);
 
         // Neither a made-up update id nor a made-up step gets anywhere.
         $this->assertSame(409, $site->step('20000101-000000-abcdef', 'apply')['status']);
-        $this->assertSame(400, $site->step((string) $state['update_id'], '../../etc')['status']);
+        $this->assertSame(400, $site->step($updateId, '../../etc')['status']);
 
-        $answers = $site->runSteps();
-        $this->assertSame('completed', end($answers)['status']);
+        // The next request is killed right after it wrote a file, before the
+        // journal could record it: the journal is held, the write is not.
+        $plan = UpdatePlan::fromJson((string) file_get_contents($work . '/plan.json'));
+        [$action, $path] = FileApplier::operations($plan, (array) $state['cursor']['critical'])[$next];
+        $this->assertSame('write', $action);
+        $expected = $plan->add[$path] ?? $plan->replace[$path];
+
+        $journal = fopen($work . '/' . FileApplier::JOURNAL, 'c');
+        flock($journal, LOCK_EX);
+        $site->step($updateId, 'apply', 0.5);
+        $deadline = microtime(true) + 20;
+        while (@hash_file('sha256', $site->root() . '/' . $path) !== $expected && microtime(true) < $deadline) {
+            usleep(10000);
+        }
+        $this->assertSame($expected, @hash_file('sha256', $site->root() . '/' . $path), 'the request wrote its first file');
+        $this->assertTrue($site->killWorkerHolding($site->storage() . '/update.lock'), 'a worker was applying; ' . $site->serverProcesses());
+        flock($journal, LOCK_UN);
+        fclose($journal);
+
+        $this->assertCount($next, file($work . '/' . FileApplier::JOURNAL, FILE_IGNORE_NEW_LINES), 'that write never reached the journal');
+        $this->assertSame('apply', $site->state()['in_step'] ?? null);
+
+        // Continuing finishes the apply from its journal — and only then
+        // migrates, checks and finishes.
+        $order = [];
+        $answers = $site->runSteps(function (array $answer) use ($site, &$order): ?bool {
+            $order[] = $answer['ran'];
+            $version = json_decode((string) file_get_contents($site->root() . '/release.json'), true)['version'];
+
+            if ($answer['ran'] === 'apply') {
+                $this->assertFalse($site->hasTable('updater_e2e_marker'), 'no migration before every file is in place');
+                $this->assertSame($answer['step'] === 'apply' ? '0.1.0' : '0.2.0', $version, 'release.json changes with the last operation, not before');
+            }
+
+            return null;
+        });
+
+        $this->assertSame('completed', end($answers)['status'], json_encode($answers, JSON_PRETTY_PRINT) . $site->serverLog());
+        $this->assertSame(['apply', 'migrate', 'health', 'finish'], array_values(array_unique($order)), 'apply, then the migrations, then the check, then finish');
+        $this->assertGreaterThanOrEqual(3, count(array_keys($order, 'apply', true)), 'the rest of the apply took several requests');
+
         $this->assertSame("0.2.0\n", file_get_contents($site->root() . '/VERSION'));
+        $this->assertCount(UpdaterSandbox::BULK, glob($site->root() . '/assets/updater-e2e/bulk/*.txt') ?: []);
+        $this->assertTrue(LocalChanges::detect($site->root(), ReleaseDescriptor::installed($site->root()))->isClean(), 'every file is the new release');
+        $this->assertSame('', trim((string) shell_exec('find ' . escapeshellarg($site->root()) . ' -name "*.mygdala-*.tmp"')), 'no temporary copy is left');
+        $this->assertTrue($site->hasTable('updater_e2e_marker'));
+
+        $log = (string) file_get_contents($site->storage() . '/logs/' . $updateId . '.log');
+        $this->assertStringContainsString('"update.log.download_resumed"', $log);
+        $this->assertStringContainsString('"update.log.apply_progress"', $log);
+        $this->assertStringContainsString('"resumed"', $log, 'the log says which requests picked up a dead one');
     }
 
     public function testAnUpdateStepNeedsTheRightPermissionAndAToken(): void

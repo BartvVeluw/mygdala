@@ -16,9 +16,11 @@ use PDO;
  *
  *   releases    built once per test process from this checkout by the real
  *               ReleaseBuilder: A = 0.1.0, B = 0.2.0 (a changed class, a
- *               changed stylesheet, a new file, a removed file and a
- *               migration), C = 0.3.0 (B plus a second migration), BAD =
- *               B whose migration creates a table and then fails
+ *               changed stylesheet, a changed .htaccess, a new file, a
+ *               removed file, BULK new files — enough for the apply to take
+ *               several requests — and a migration), C = 0.3.0 (B plus a
+ *               second migration), BAD = B whose migration creates a table
+ *               and then fails
  *   install     A's package unpacked into /tmp/mygdala-upd-e2e/<name>/site,
  *               its own database copied from the suite's test database (an
  *               existing installation's content), its own .env, a super
@@ -26,7 +28,13 @@ use PDO;
  *               several workers — as www-data where the suite runs as root,
  *               so file permissions mean what they mean on a host
  *   feed        a second built-in server with a signed manifest for
- *               whichever release a test publishes
+ *               whichever release a test publishes, behind
+ *               range-feed-router.php: it answers ranges like a release host,
+ *               and feedMode() makes it drop, stall or ignore them
+ *   Apache      with `root` and `url`, the installation is unpacked into a
+ *               document root an Apache server already serves (the image's
+ *               own, in a throwaway container: ApacheAcceptanceTest) instead
+ *               of getting a built-in server of its own
  *
  * Needs the MySQL root account (like ScratchInstall) and `setpriv` for the
  * www-data server; available() says whether this machine has them.
@@ -37,6 +45,9 @@ final class UpdaterSandbox
     public const PASSWORD = 'correct horse battery staple';
     public const USERNAME = 'e2e-owner';
 
+    /** New files in release B, so its apply takes several requests (FileApplier::BATCH). */
+    public const BULK = 600;
+
     /** @var array<string, string>|null name => build directory */
     private static ?array $releases = null;
 
@@ -46,10 +57,15 @@ final class UpdaterSandbox
     private ?SandboxServer $feed = null;
     private string $csrf = '';
 
+    /** @var array<string, string> extra lines for the installation's .env */
+    private array $env = [];
+
     private function __construct(
         public readonly string $name,
         public readonly string $directory,
-        public readonly string $database
+        public readonly string $database,
+        private readonly string $root,
+        private readonly ?string $externalUrl = null
     ) {
     }
 
@@ -60,12 +76,12 @@ final class UpdaterSandbox
 
     public function root(): string
     {
-        return $this->directory . '/site';
+        return $this->root;
     }
 
     public function storage(): string
     {
-        return $this->directory . '/storage/updates';
+        return $this->env['MYGDALA_UPDATE_STORAGE_PATH'] ?? $this->directory . '/storage/updates';
     }
 
     // ------------------------------------------------------------ releases
@@ -130,10 +146,16 @@ final class UpdaterSandbox
 
         $b = $base
             ->with('VERSION', $write('B', 'VERSION', "0.2.0\n"))
+            ->with('.htaccess', $write('B', '.htaccess', $changed('.htaccess', "\n# Changed in the 0.2.0 test release.\n")))
             ->with('src/Service/HttpUserAgent.php', $write('B', 'src/Service/HttpUserAgent.php', $changed('src/Service/HttpUserAgent.php', "\n// Changed in the 0.2.0 test release.\n")))
             ->with('assets/css/core.css', $write('B', 'assets/css/core.css', $changed('assets/css/core.css', "\n/* 0.2.0 test release */\n")))
             ->with('assets/updater-e2e/new.txt', $write('B', 'assets/updater-e2e/new.txt', "new in 0.2.0\n"))
             ->with('db/migrations/20990101000000_updater_e2e_marker.php', $write('B', 'db/migrations/20990101000000_updater_e2e_marker.php', $marker('UpdaterE2eMarker', 'updater_e2e_marker')));
+
+        for ($i = 0; $i < self::BULK; $i++) {
+            $path = sprintf('assets/updater-e2e/bulk/%03d.txt', $i);
+            $b = $b->with($path, $write('B', $path, 'bulk file ' . $i . " of the 0.2.0 test release\n"));
+        }
 
         $c = $b
             ->with('VERSION', $write('C', 'VERSION', "0.3.0\n"))
@@ -182,14 +204,24 @@ final class UpdaterSandbox
      *                                                installation, instead of a copy of existing content
      * @param string|null              $sourceDatabase the database to copy, only ever read;
      *                                                 the suite's test database by default
+     * @param array{env?: array<string, string>, root?: string, url?: string} $options
+     *        env   extra lines for the installation's .env (a step budget, a storage path)
+     *        root  unpack into this document root, which `url` already serves (Apache),
+     *              instead of starting a built-in server; it must be empty
      */
-    public static function install(string $name, string $release = 'A', ?callable $seed = null, bool $freshDatabase = false, ?string $sourceDatabase = null): self
+    public static function install(string $name, string $release = 'A', ?callable $seed = null, bool $freshDatabase = false, ?string $sourceDatabase = null, array $options = []): self
     {
         $directory = self::BASE . '/' . $name . '-' . bin2hex(random_bytes(3));
         $database = 'mygdala_upd_' . preg_replace('/[^a-z0-9]/', '', strtolower($name)) . '_' . bin2hex(random_bytes(2));
-        $sandbox = new self($name, $directory, $database);
+        $root = rtrim((string) ($options['root'] ?? $directory . '/site'), '/');
+        $sandbox = new self($name, $directory, $database, $root, isset($options['url']) ? rtrim($options['url'], '/') : null);
+        $sandbox->env = $options['env'] ?? [];
 
-        mkdir($sandbox->root(), 0777, true);
+        if (is_dir($root) && (scandir($root) ?: []) !== ['.', '..']) {
+            throw new \RuntimeException('The document root ' . $root . ' is not empty; refusing to install into it');
+        }
+
+        @mkdir($sandbox->root(), 0777, true);
         mkdir($directory . '/feed', 0777, true);
 
         $zip = new \ZipArchive();
@@ -224,12 +256,14 @@ final class UpdaterSandbox
             PHP);
 
         $feedPort = SandboxServer::freePort();
-        $sitePort = SandboxServer::freePort();
+        $sitePort = $sandbox->externalUrl !== null ? (int) (parse_url($sandbox->externalUrl, PHP_URL_PORT) ?? 80) : SandboxServer::freePort();
         $sandbox->writeEnv((int) $sitePort, (int) $feedPort);
         $sandbox->handToWebUser();
 
-        $sandbox->feed = SandboxServer::start($directory . '/feed', [], null, false, $feedPort);
-        $sandbox->site = SandboxServer::start($sandbox->root(), [], $directory . '/router.php', false, $sitePort, self::asWebUser());
+        $sandbox->feed = SandboxServer::start($directory . '/feed', [], __DIR__ . '/range-feed-router.php', false, $feedPort);
+        $sandbox->site = $sandbox->externalUrl !== null
+            ? SandboxServer::attach($sitePort, $sandbox->root())
+            : SandboxServer::start($sandbox->root(), [], $directory . '/router.php', false, $sitePort, self::asWebUser());
 
         if ($sandbox->feed === null || $sandbox->site === null) {
             $sandbox->destroy();
@@ -276,6 +310,31 @@ final class UpdaterSandbox
         $this->feed?->stop();
         self::rootConnection()->exec('DROP DATABASE IF EXISTS `' . $this->database . '`');
         FeedFixture::removeDirectory($this->directory);
+
+        if ($this->externalUrl !== null) {
+            // The document root of a server this sandbox did not start: empty it, keep it.
+            FeedFixture::removeDirectory($this->root);
+            @mkdir($this->root, 0755, true);
+        }
+    }
+
+    /**
+     * How the feed answers package requests from now on (range-feed-router.php).
+     *
+     * @param array<string, mixed> $mode
+     */
+    public function feedMode(array $mode): void
+    {
+        file_put_contents($this->directory . '/feed/mode.json', json_encode($mode));
+        @unlink($this->directory . '/feed/package-requests.count');
+    }
+
+    /** @return list<array{range: ?string, if_range: ?string}> every package request the feed got */
+    public function feedRequests(): array
+    {
+        $lines = @file($this->directory . '/feed/requests.log', FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) ?: [];
+
+        return array_map(static fn (string $line): array => (array) json_decode($line, true), $lines);
     }
 
     // ------------------------------------------------------------ HTTP
@@ -292,9 +351,35 @@ final class UpdaterSandbox
      *
      * @return array{status: int, location: string, body: string, headers: string}
      */
-    public function visit(string $path): array
+    public function visit(string $path, array $headers = []): array
     {
-        return $this->site->request('GET', $path, [], [], 120, false);
+        return $this->site->request('GET', $path, [], $headers, 120, false);
+    }
+
+    /**
+     * A stranger's POST: no session, no CSRF token of this site.
+     *
+     * @param array<string, string> $fields
+     *
+     * @return array{status: int, location: string, body: string, headers: string}
+     */
+    public function strangerPost(string $path, array $fields): array
+    {
+        return $this->site->request('POST', $path, $fields, ['Accept: application/json'], 120, false);
+    }
+
+    /**
+     * The same installation in a second browser: its own cookies, not logged
+     * in. Only for requests — destroy() stays with the original.
+     */
+    public function inAnotherBrowser(): self
+    {
+        $other = clone $this;
+        $other->site = SandboxServer::attach($this->site->port, $this->root);
+        $other->feed = null;
+        $other->csrf = '';
+
+        return $other;
     }
 
     /** @return array{status: int, location: string, body: string, headers: string} */
@@ -363,13 +448,70 @@ final class UpdaterSandbox
     /**
      * One step, the way admin/assets/updates.js asks for it.
      *
+     * @param float $clientTimeout seconds until the browser gives up on the
+     *                             answer: a tab that is closed while the step runs
+     *
      * @return array{status: int, data: array<string, mixed>|null, body: string}
      */
-    public function step(string $updateId, string $step): array
+    public function step(string $updateId, string $step, float $clientTimeout = 120): array
     {
-        $answer = $this->post('/api/admin/updates-step.php', ['update_id' => $updateId, 'step' => $step], ['Accept: application/json']);
+        $answer = $this->site->request('POST', '/api/admin/updates-step.php', ['update_id' => $updateId, 'step' => $step, 'csrf_token' => $this->csrf], ['Accept: application/json'], $clientTimeout);
 
         return ['status' => $answer['status'], 'data' => json_decode($answer['body'], true), 'body' => $answer['body']];
+    }
+
+    /** Is a step running right now? (Its request holds update.lock.) */
+    public function stepRunning(): bool
+    {
+        $handle = @fopen($this->storage() . '/update.lock', 'c');
+        if ($handle === false) {
+            return false;
+        }
+
+        $free = flock($handle, LOCK_EX | LOCK_NB);
+        if ($free) {
+            flock($handle, LOCK_UN);
+        }
+        fclose($handle);
+
+        return !$free;
+    }
+
+    /** Waits until no step runs any more (a step whose browser went away finishes on its own). */
+    public function waitForIdle(float $seconds = 60): void
+    {
+        $deadline = microtime(true) + $seconds;
+        while ($this->stepRunning()) {
+            if (microtime(true) > $deadline) {
+                throw new \RuntimeException('A step was still running after ' . $seconds . ' seconds');
+            }
+            usleep(20000);
+        }
+    }
+
+    /** The web server's processes, for a failure message. */
+    public function serverProcesses(): string
+    {
+        return $this->site?->processTree() ?? '';
+    }
+
+    /**
+     * Kills — SIGKILL, the way a host ends a request that ran too long — the
+     * web server worker that has $path open, and says whether there was one.
+     */
+    public function killWorkerHolding(string $path): bool
+    {
+        $pid = $this->site?->workerHolding($path);
+        if ($pid === null) {
+            return false;
+        }
+
+        posix_kill($pid, 9);
+        for ($i = 0; $i < 100 && is_dir('/proc/' . $pid); $i++) {
+            usleep(10000);
+        }
+
+        return true;
     }
 
     /**
@@ -550,7 +692,7 @@ final class UpdaterSandbox
         $quote = static fn (string $value): string => '"' . addcslashes($value, "\"\\\$") . '"';
         $lines = [
             'APP_ENV' => 'testing',
-            'APP_URL' => 'http://127.0.0.1:' . $sitePort,
+            'APP_URL' => $this->externalUrl ?? 'http://127.0.0.1:' . $sitePort,
             'DB_HOST' => self::host(),
             'DB_PORT' => self::port(),
             'DB_DATABASE' => $this->database,
@@ -562,7 +704,7 @@ final class UpdaterSandbox
             'MODULE_PORTFOLIO_ENABLED' => 'true',
             'MYGDALA_UPDATE_MANIFEST_URL' => 'http://127.0.0.1:' . $feedPort . '/manifest.json',
             'MYGDALA_UPDATE_PUBLIC_KEY' => self::keys()->publicKey(),
-        ];
+        ] + $this->env;
 
         $env = '';
         foreach ($lines as $key => $value) {
@@ -583,7 +725,7 @@ final class UpdaterSandbox
             return;
         }
 
-        exec('chown -R 33:33 ' . escapeshellarg($this->directory));
+        exec('chown -R 33:33 ' . escapeshellarg($this->directory) . ($this->root !== $this->directory . '/site' ? ' ' . escapeshellarg($this->root) : ''));
     }
 
     /** @return list<string> */

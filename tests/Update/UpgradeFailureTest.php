@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Tests\Update;
 
+use App\Update\FileApplier;
+use App\Update\UpdatePlan;
 use PHPUnit\Framework\TestCase;
 use Tests\Support\UpdaterSandbox;
 
@@ -17,6 +19,8 @@ use Tests\Support\UpdaterSandbox;
  *   E   PHP or MySQL too old           the update cannot even start
  *   F   a file PHP may not replace     the pre-check refuses, nothing changes
  *   G   a migration that fails         database and files restored, site open
+ *       an apply that fails after      files restored in that request, no
+ *       several batches                migration ran, site open
  *       … and the rollback fails too   recovery_required, site stays closed,
  *                                      until the owner resolves it
  *       … aborted before any change    flag off, work and backup thrown away
@@ -184,6 +188,48 @@ final class UpgradeFailureTest extends TestCase
         $this->assertStringContainsString('is mislukt en volledig teruggedraaid', $page);
         $this->assertStringContainsString('De databasewijziging 20990101000000 (UpdaterE2eMarker) is mislukt.', $page);
         $this->assertStringContainsString('data-current-version>0.1.0<', $page);
+    }
+
+    public function testAnApplyThatFailsAfterSeveralBatchesIsRolledBackAndNeverMigrates(): void
+    {
+        $site = $this->install('apply-fails');
+        $treeBefore = $site->tree();
+        $contentBefore = $site->databaseSnapshot(self::VOLATILE);
+        $site->publish('B');
+
+        // After the first batch, the staged copy of a file the third batch
+        // has to write stops matching the release.
+        $damaged = null;
+        $answers = $this->attempt($site, function (array $answer) use ($site, &$damaged): ?bool {
+            $state = $site->state();
+            if ($damaged === null && $answer['ran'] === 'apply' && (int) ($state['cursor']['next'] ?? 0) === FileApplier::BATCH) {
+                $work = $site->storage() . '/work/' . $state['update_id'];
+                $plan = UpdatePlan::fromJson((string) file_get_contents($work . '/plan.json'));
+                [, $damaged] = FileApplier::operations($plan, (array) $state['cursor']['critical'])[2 * FileApplier::BATCH + 10];
+                file_put_contents($work . '/staging/' . $damaged, 'damaged after the check');
+            }
+
+            return null;
+        });
+        $ran = array_column($answers, 'ran');
+
+        $this->assertNotNull($damaged);
+        $this->assertSame('rolled_back', end($answers)['status'], json_encode($answers, JSON_PRETTY_PRINT) . $site->serverLog());
+        $this->assertSame(3, count(array_keys($ran, 'apply', true)), 'two batches went through, the third failed');
+        $this->assertNotContains('migrate', $ran, 'no migration runs after a failed apply');
+        $this->assertSame('update.error.apply_failed', $site->state()['message']['key']);
+        $this->assertSame($damaged, $site->state()['message']['params']['path']);
+        $this->assertSame(['rollback_files', 'apply'], [$site->state()['step'], $site->state()['failed_step']], 'the way back was saved as its own step before it was taken');
+
+        // Every file is the old release again, byte for byte, and nothing is left over.
+        $this->assertSame($treeBefore, $site->tree());
+        $this->assertSame("0.1.0\n", file_get_contents($site->root() . '/VERSION'));
+        $this->assertFalse($site->hasTable('updater_e2e_marker'));
+        $this->assertSame($contentBefore, $site->databaseSnapshot(self::VOLATILE));
+
+        $this->assertFileDoesNotExist($site->root() . '/.maintenance');
+        $this->assertSame(200, $site->get('/')['status']);
+        $this->assertStringContainsString('is mislukt en volledig teruggedraaid', $site->updatesPage());
     }
 
     public function testAFailedRollbackKeepsTheSiteClosedUntilTheOwnerResolvesIt(): void

@@ -7,7 +7,9 @@ namespace Tests\Update;
 use App\Service\AppEnvironment;
 use App\Update\HttpFetcher;
 use App\Update\HttpUpdateSource;
+use App\Update\PackageDownload;
 use App\Update\ReleaseKeys;
+use App\Update\ReleaseManifest;
 use App\Update\ReleasePackage;
 use App\Update\UpdateConfig;
 use App\Update\UpdateException;
@@ -146,10 +148,26 @@ final class FeedAndPackageTest extends TestCase
         $target = $this->downloads . '/huge.zip';
 
         $this->assertRefused('update.error.download_too_large', fn () => $http->get(self::$server->url('/huge'), 1000));
-        $this->assertRefused('update.error.download_too_large', fn () => $http->download(self::$server->url('/huge'), $target, 1000));
+        $this->assertRefused('update.error.download_too_large', fn () => $http->resume(self::$server->url('/huge'), PackageDownload::open($target, 1000, []), microtime(true) + 5));
 
         $this->assertFileDoesNotExist($target);
-        $this->assertFileDoesNotExist($target . '.part');
+        $this->assertLessThanOrEqual(1000, (int) @filesize($target . PackageDownload::SUFFIX), 'never a byte past the limit');
+    }
+
+    /** The download step, as many requests as it takes. */
+    private static function fetch(HttpUpdateSource $source, ReleaseManifest $manifest, string $target): void
+    {
+        $cursor = [];
+        do {
+            $download = PackageDownload::open($target, $manifest->size, $cursor);
+            try {
+                $source->download($manifest, $download, microtime(true) + 5);
+            } finally {
+                $cursor = $download->close();
+            }
+        } while (!$download->isComplete());
+
+        $download->finish();
     }
 
     public function testADownloadedPackageMatchingItsManifestPassesVerification(): void
@@ -158,7 +176,7 @@ final class FeedAndPackageTest extends TestCase
         $manifest = $source->latest();
         $target = $this->downloads . '/package.zip';
 
-        $source->download($manifest, $target);
+        self::fetch($source, $manifest, $target);
         (new ReleasePackage($target, $manifest))->verify();
 
         $this->assertFileEquals(self::$feed->directory . '/mygdala-0.2.0.zip', $target);
@@ -171,7 +189,7 @@ final class FeedAndPackageTest extends TestCase
         $manifest = $source->latest();
         $target = $this->downloads . '/package.zip';
 
-        $source->download($manifest, $target);
+        self::fetch($source, $manifest, $target);
 
         $this->assertRefused('update.error.package_hash_mismatch', fn () => (new ReleasePackage($target, $manifest))->verify());
     }
@@ -183,7 +201,7 @@ final class FeedAndPackageTest extends TestCase
         $source = HttpUpdateSource::fromConfig();
         $target = $this->downloads . '/package.zip';
 
-        $this->assertRefused('update.error.download_too_large', fn () => $source->download($source->latest(), $target));
+        $this->assertRefused('update.error.download_too_large', fn () => self::fetch($source, $source->latest(), $target));
         $this->assertFileDoesNotExist($target);
     }
 

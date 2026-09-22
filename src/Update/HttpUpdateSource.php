@@ -61,9 +61,9 @@ final class HttpUpdateSource implements UpdateSource
         return ReleaseManifest::fromJson($bytes, $this->manifestUrl);
     }
 
-    public function download(ReleaseManifest $manifest, string $destination): void
+    public function download(ReleaseManifest $manifest, PackageDownload $download, float $deadline): void
     {
-        $this->http->download($manifest->packageUrl, $destination, $manifest->size);
+        $this->http->resume($manifest->packageUrl, $download, $deadline);
     }
 
     public function describe(): string

@@ -20,10 +20,14 @@ namespace App\Update;
  *   - latest() returns a manifest ONLY after its authenticity has been
  *     verified (ReleaseSignature). An unverifiable manifest is an exception,
  *     never a manifest with a flag on it.
- *   - download() fetches exactly $manifest->packageUrl, into $destination,
- *     and never more than $manifest->size bytes. It does not have to check
- *     the hash; ReleasePackage::verify() does that, always, before anything
- *     is extracted.
+ *   - download() continues fetching exactly $manifest->packageUrl into the
+ *     partial file of $download until the package is complete or $deadline
+ *     (a microtime()) has passed, and never lets it grow past
+ *     $manifest->size bytes. It resumes only where it can prove the bytes
+ *     continue the ones on disk, and otherwise starts over at byte 0
+ *     (PackageDownload). It does not have to check the hash;
+ *     ReleasePackage::verify() does that, always, before anything is
+ *     extracted.
  */
 interface UpdateSource
 {
@@ -35,7 +39,7 @@ interface UpdateSource
     /**
      * @throws UpdateException
      */
-    public function download(ReleaseManifest $manifest, string $destination): void;
+    public function download(ReleaseManifest $manifest, PackageDownload $download, float $deadline): void;
 
     /** Where this source reads from, safe to show and log (no secrets). */
     public function describe(): string;

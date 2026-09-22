@@ -215,7 +215,12 @@ bestand precies één keer.
 
 ### De suite `updater`
 
-`tests/Update/`. Het grootste deel is snel en heeft niets nodig; drie klassen
+`tests/Update/`. Het grootste deel is snel en heeft niets nodig;
+`ResumableDownloadTest` start zelf een ingebouwde server met
+`tests/Support/range-feed-router.php` (een releasehost die ranges beantwoordt,
+negeert, fout beantwoordt, de verbinding verbreekt of blijft hangen), en
+`ApplyAndMaintenanceTest` schiet een apply in een eigen proces echt af
+(SIGKILL, `tests/Support/apply-in-child.php`). Drie klassen
 (`UpgradeEndToEndTest`, `UpgradeFailureTest`, `ExistingInstallAcceptanceTest`)
 bouwen met de echte releasebouwer releases uit deze checkout en werken
 wegwerpinstallaties daarvan bij via de endpoints van het Updates-scherm
@@ -238,6 +243,11 @@ het proces stopt. Een hele `updater`-run duurt zo'n drie minuten. De
 ScratchInstall-databases van de migratietests hebben andere namen, dus
 `updater` en `migration` bijten elkaar niet.
 
+Scenario I van `UpgradeEndToEndTest` beëindigt een webserverworker met
+SIGKILL, midden in een download en midden in een apply. Welke worker dat is,
+zoekt hij in `/proc` op als `www-data` zelf: de root van een Docker-container
+mag zonder `CAP_SYS_PTRACE` de open bestanden van een ander proces niet zien.
+
 `ExistingInstallAcceptanceTest` kan ook op een kopie van een échte
 installatie draaien: de database wordt dan alleen gelezen, de uploads worden
 gekopieerd, en alles gebeurt in de wegwerpinstallatie.
@@ -245,6 +255,26 @@ gekopieerd, en alles gebeurt in de wegwerpinstallatie.
 ```bash
 docker compose -f ../../../docker-compose.yml exec -w /var/www/html/.claude/worktrees/<naam> -e UPDATER_ACCEPTANCE_DATABASE=mygdala -e UPDATER_ACCEPTANCE_UPLOADS=/var/www/html php_test php vendor/bin/phpunit tests/Update/ExistingInstallAcceptanceTest.php
 ```
+
+#### De Apache-acceptatie
+
+`ApacheAcceptanceTest` bewijst de beveiliging van de updater op de echte
+Apache van het image, met `.htaccess` actief: de ingebouwde server van PHP
+leest geen `.htaccess`. Hij slaat zichzelf over, behalve in een
+wegwerpcontainer van hetzelfde image met een lege documentroot. De
+databasegegevens gaan alleen naar het testproces (`docker exec --env-file`),
+nooit naar Apache zelf: Dotenv overschrijft geen variabele die het proces al
+heeft, en de wegwerpinstallatie moet haar eigen `.env` lezen.
+
+```bash
+docker run -d --name mygdala-upd-apache --network <project>_default -v "<pad naar de checkout>:/src" --entrypoint apache2-foreground <project>-php
+docker exec -w /src --env-file <bestand met DB_HOST, DB_PORT, DB_USERNAME, DB_PASSWORD, DB_ROOT_PASSWORD, DB_DATABASE en TEST_DB_DATABASE> -e UPDATER_APACHE_ROOT=/var/www/html -e UPDATER_APACHE_URL=http://127.0.0.1 mygdala-upd-apache php vendor/bin/phpunit tests/Update/ApacheAcceptanceTest.php
+docker rm -f mygdala-upd-apache
+```
+
+Ongeveer twee minuten: release 0.1.0 wordt één keer over de bind-mount
+gelezen. De container raakt de ontwikkeldatabase en `mygdala-test` niet; de
+installatie krijgt een eigen database `mygdala_upd_*` en ruimt die op.
 
 Na het binnenhalen van de updater heeft een bestaande checkout één keer
 `composer dump-autoload` nodig: de onderhoudsguard hangt aan de

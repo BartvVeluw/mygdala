@@ -217,6 +217,27 @@ final class UpdateState
         return is_array($this->data['cursor'] ?? null) ? $this->data['cursor'] : [];
     }
 
+    /**
+     * How far the current step is, in percent, for the two steps that take
+     * many requests: the bytes of the download, the operations of the apply.
+     * null for every other step, and before the step has a cursor.
+     */
+    public function progress(): ?int
+    {
+        $cursor = $this->cursor();
+        [$done, $total] = match ($this->step()) {
+            'download' => [$cursor['bytes'] ?? null, $this->data['manifest']['size'] ?? null],
+            'apply' => [$cursor['next'] ?? null, $cursor['total'] ?? null],
+            default => [null, null],
+        };
+
+        if (!is_int($done) || !is_int($total) || $total <= 0) {
+            return null;
+        }
+
+        return max(0, min(100, intdiv(100 * $done, $total)));
+    }
+
     /** @param array<string, mixed> $cursor */
     public function withCursor(array $cursor): self
     {

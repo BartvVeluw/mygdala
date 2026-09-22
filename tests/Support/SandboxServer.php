@@ -21,13 +21,22 @@ namespace Tests\Support;
  *     check requests the site from inside a request to the same site, and a
  *     single-threaded server would wait for itself forever;
  *   - a cookie jar per server, so a test can log in once and stay logged in.
+ *
+ * attach() gives the same client for a server this class did not start (the
+ * Apache of a throwaway container, ApacheAcceptanceTest).
  */
 final class SandboxServer
 {
     private string $cookieJar;
 
+    /** @var list<string> the command prefix the server runs under (setpriv to www-data) */
+    private array $prefix = [];
+
+    /** @var list<int>|null the server's processes, fixed the first time they are needed */
+    private ?array $processes = null;
+
     /**
-     * @param resource $process
+     * @param resource|null $process null for a server started elsewhere
      */
     private function __construct(
         private $process,
@@ -71,12 +80,19 @@ final class SandboxServer
         }
 
         $server = new self($process, $port, $docroot);
+        $server->prefix = $prefix;
 
         for ($attempt = 0; $attempt < 50 && !$server->answers(); $attempt++) {
             usleep(100000);
         }
 
         return $server->answers() ? $server : null;
+    }
+
+    /** A client for a web server that is already running on $port. */
+    public static function attach(int $port, string $docroot): self
+    {
+        return new self(null, $port, $docroot);
     }
 
     public static function freePort(): ?int
@@ -116,8 +132,7 @@ final class SandboxServer
             // With PHP_CLI_SERVER_WORKERS the server is a parent with forked
             // workers, and the workers do NOT exit with their parent: stop
             // them first, or every test leaves four servers running.
-            $parent = (int) (proc_get_status($this->process)['pid'] ?? 0);
-            foreach (self::childrenOf($parent) as $child) {
+            foreach (array_slice($this->processes(), 1) as $child) {
                 @posix_kill($child, 15);
             }
 
@@ -137,7 +152,7 @@ final class SandboxServer
      *
      * @return array{status: int, location: string, body: string, headers: string}
      */
-    public function request(string $method, string $path, array $fields = [], array $headers = [], int $timeout = 120, bool $cookies = true): array
+    public function request(string $method, string $path, array $fields = [], array $headers = [], float $timeout = 120, bool $cookies = true): array
     {
         $handle = curl_init($this->url($path));
 
@@ -145,7 +160,7 @@ final class SandboxServer
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_HEADER => true,
             CURLOPT_FOLLOWLOCATION => false,
-            CURLOPT_TIMEOUT => $timeout,
+            CURLOPT_TIMEOUT_MS => (int) ($timeout * 1000),
             CURLOPT_HTTPHEADER => $headers,
         ];
 
@@ -174,6 +189,77 @@ final class SandboxServer
             'body' => substr($raw, $headerSize),
             'headers' => $rawHeaders,
         ];
+    }
+
+    /**
+     * The worker process that has $path open right now — the one serving the
+     * request that works on it — or null.
+     *
+     * Another user's open files in /proc need CAP_SYS_PTRACE, which a Docker
+     * container's root does not have; so the lookup runs as the server's own
+     * user (the same prefix it was started with).
+     */
+    public function workerHolding(string $path): ?int
+    {
+        if (!is_resource($this->process)) {
+            return null;
+        }
+
+        $lookup = <<<'PHP'
+            [, $path, $pids] = $argv;
+            foreach (explode(',', $pids) as $pid) {
+                foreach (glob('/proc/' . $pid . '/fd/*') ?: [] as $descriptor) {
+                    if (@readlink($descriptor) === $path) {
+                        echo $pid;
+                        exit;
+                    }
+                }
+            }
+            PHP;
+
+        $process = proc_open([...$this->prefix, PHP_BINARY, '-r', $lookup, '--', $path, implode(',', $this->processes())], [1 => ['pipe', 'w']], $pipes);
+        if (!is_resource($process)) {
+            return null;
+        }
+        $pid = trim((string) stream_get_contents($pipes[1]));
+        fclose($pipes[1]);
+        proc_close($process);
+
+        return ctype_digit($pid) ? (int) $pid : null;
+    }
+
+    /** The server's processes (pid, parent, state), for a failure message. */
+    public function processTree(): string
+    {
+        $lines = [];
+        foreach ($this->processes() as $pid) {
+            $fields = explode(' ', (string) @file_get_contents('/proc/' . $pid . '/stat'));
+            $lines[] = $pid . ' ppid ' . ($fields[3] ?? '-') . ' ' . ($fields[2] ?? 'gone');
+        }
+
+        return implode(', ', $lines);
+    }
+
+    /**
+     * The server process and its workers. Fixed the first time it is asked
+     * for: the built-in server's parent serves requests too, and once a test
+     * has killed it, its workers belong to init and no longer look like its
+     * children.
+     *
+     * @return list<int>
+     */
+    private function processes(): array
+    {
+        if (!is_resource($this->process)) {
+            return [];
+        }
+
+        if ($this->processes === null) {
+            $parent = (int) (proc_get_status($this->process)['pid'] ?? 0);
+            $this->processes = [$parent, ...self::childrenOf($parent)];
+        }
+
+        return $this->processes;
     }
 
     /** @return list<int> the processes whose parent is $parent (Linux /proc) */

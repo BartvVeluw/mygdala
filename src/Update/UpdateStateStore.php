@@ -172,19 +172,25 @@ final class UpdateStateStore
 
     public function ensureDirectory(string $directory): void
     {
-        if (is_dir($directory)) {
-            return;
-        }
-
-        if (!@mkdir($directory, 0775, true) && !is_dir($directory)) {
+        if (!is_dir($directory) && !@mkdir($directory, 0775, true) && !is_dir($directory)) {
             throw new UpdateException('update.error.storage_not_writable', ['path' => $directory], 'Cannot create ' . $directory);
         }
 
         // Defence in depth for a storage path that someone put inside the
-        // web root after all: Apache then refuses to serve any of it.
-        if ($directory === $this->storagePath && !is_file($directory . '/.htaccess')) {
+        // web root after all: Apache then refuses to serve any of it — also
+        // when the folder was made by hand, before the updater first ran.
+        // Never in a folder the site itself lives in: there it would close
+        // the whole site.
+        if ($directory === $this->storagePath && !is_file($directory . '/.htaccess') && !$this->holdsTheSite($directory)) {
             @file_put_contents($directory . '/.htaccess', "Require all denied\n");
         }
+    }
+
+    private function holdsTheSite(string $directory): bool
+    {
+        $normalize = static fn (string $path): string => rtrim(str_replace('\\', '/', (string) (realpath($path) ?: $path)), '/') . '/';
+
+        return str_starts_with($normalize($this->root), $normalize($directory));
     }
 
     /** Writes $contents to $path through a temporary file and a rename. */

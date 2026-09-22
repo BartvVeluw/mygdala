@@ -101,6 +101,10 @@ if (!$wantsJson) {
 }
 
 $message = $state->message();
+$label = AdminTranslator::trans('update.step.' . ($state->step() !== '' ? $state->step() : 'start'));
+// The download and the apply take several requests; the server says how far
+// they are, the script only shows it.
+$progress = $state->isRunning() ? $state->progress() : null;
 
 http_response_code($httpStatus);
 header('Content-Type: application/json; charset=utf-8');
@@ -109,7 +113,8 @@ echo json_encode([
     'update_id' => $state->updateId(),
     'status' => $state->status(),
     'step' => $state->step(),
-    'step_label' => AdminTranslator::trans('update.step.' . ($state->step() !== '' ? $state->step() : 'start')),
+    'step_label' => $progress !== null ? AdminTranslator::trans('update.step.progress', ['step' => $label, 'percent' => $progress]) : $label,
+    'progress' => $progress,
     'running' => $state->isRunning(),
     'delay_ms' => (int) $state->get('delay_ms', 0),
     'message' => $message !== null ? AdminTranslator::trans($message['key'], $message['params']) : '',

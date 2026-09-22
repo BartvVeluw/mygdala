@@ -18,7 +18,11 @@ DirectoryIndex index.php index.html
 # The release metadata the self-updater reads (docs/updates/ARCHITECTURE.md):
 # the exact version and the hash of every Core file are nobody's business but
 # this installation's, and the maintenance flag names the running update.
-<FilesMatch "^(VERSION|release\.json|\.maintenance)$">
+# Also denied: the flag while it is being written (.maintenance.<x>.tmp), and
+# the copy of a release file the updater puts next to its target just before
+# renaming it into place (<name>.mygdala-<id>.tmp): PHP source, as text, if
+# a request that wrote one died before the rename.
+<FilesMatch "^(VERSION|release\.json)$|^\.maintenance|\.mygdala-[0-9a-f]{8}\.tmp$">
     Require all denied
 </FilesMatch>
 

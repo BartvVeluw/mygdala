@@ -16,6 +16,10 @@ Geen feed bereikbaar, een ongeldige handtekening, een pakket met de verkeerde
 grootte of SHA-256.
 
 - **Wat er veranderd is:** niets. Wat al gedownload was, wordt weggegooid.
+  Een verbinding die wegvalt of een request dat de host afbreekt, is nog geen
+  fout: de volgende stap downloadt verder vanaf het laatste checkpoint. Een
+  bron die niet veilig kan hervatten, begint opnieuw vanaf byte 0; na drie
+  keer stopt de update met "De download is 3 keer opnieuw begonnen".
 - **Eindstatus:** `failed` (of, bij controleren, alleen een foutmelding).
 - **Wat te doen:** de melding lezen. Een ongeldige handtekening of een
   verkeerde hash is een reden om de releasehost te wantrouwen, niet om het
@@ -43,9 +47,16 @@ nooit opnieuw worden ingelezen.
 
 Een bestand kan niet worden geschreven of hernoemd.
 
-- **Wat de updater doet:** in hetzelfde request elk bestand terugzetten uit de
-  back-up, toegevoegde bestanden weghalen, `release.json` als laatste terug,
-  en controleren dat elk bestand weer de oude release is.
+- **Wat de updater doet:** eerst de weg terug opslaan (de stap wordt
+  `rollback_files`, het journaal gaat weg), dan in hetzelfde request elk
+  bestand terugzetten uit de back-up, toegevoegde bestanden en achtergebleven
+  tijdelijke kopieën weghalen,
+  `release.json` als laatste terug, en controleren dat elk bestand weer de
+  oude release is. Dat geldt ook als de apply al een aantal batches verder
+  was: het plan zegt welke bestanden er terug moeten, niet het journaal. Er
+  is dan nog geen migratie gedraaid; die begint pas na de laatste bewerking.
+  Sterft dat request halverwege het terugzetten, dan zet Doorgaan het
+  terugzetten voort.
 - **Eindstatus:** `rolled_back`; de site draait de oude versie, onderhoud uit.
 - Lukt dat terugzetten niet: `recovery_required` (zie onder).
 
@@ -89,9 +100,14 @@ afgebroken.
 - De update staat nog op `running`, bij de stap die aan de beurt was. Het
   scherm zegt "De update is onderbroken bij de stap X" en biedt **Doorgaan**.
 - Doorgaan voert die stap opnieuw uit. Elke stap is daarop gebouwd: een
-  onderbroken back-up gaat verder vanaf de laatst opgeslagen positie, een
-  onderbroken restore begint de tabel opnieuw, een onderbroken apply maakt af
-  wat zijn journaal nog niet noemt.
+  onderbroken download of back-up gaat verder vanaf de laatst opgeslagen
+  positie, een onderbroken restore begint de tabel opnieuw, een onderbroken
+  apply gaat verder vanaf zijn cursor en maakt af wat zijn journaal nog niet
+  noemt. Het scherm zegt hoe ver de stap was ("De stap was voor 32% klaar").
+- Een apply die halverwege stilstaat, laat de site in onderhoud met een deel
+  van de nieuwe bestanden. Het Updates-scherm en de login draaien dan nog
+  helemaal op de oude code (de codewissel komt als laatste), dus Doorgaan
+  werkt ook uren later.
 - Zolang er nog niets aan de site veranderd is (tot en met de back-up), kan
   de update ook worden **afgebroken**: de vlag gaat uit, werk en halve
   back-up verdwijnen.

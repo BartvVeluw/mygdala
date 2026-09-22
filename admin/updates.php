@@ -218,6 +218,9 @@ if (!$inLiveWindow) {
             <p><?= admin_te('update.run.step_active', ['step' => admin_t('update.step.' . $state->step())]) ?></p>
           <?php else: ?>
             <p><?= admin_te('update.run.interrupted', ['step' => admin_t('update.step.' . $state->step())]) ?></p>
+            <?php if ($state->progress() !== null): ?>
+              <p data-update-progress><?= admin_te('update.run.progress', ['percent' => $state->progress()]) ?></p>
+            <?php endif; ?>
             <p class="admin-text-muted"><?= admin_te('update.run.interrupted_help') ?></p>
           <?php endif; ?>
         </div>

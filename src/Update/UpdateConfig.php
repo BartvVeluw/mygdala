@@ -22,6 +22,8 @@ use Dotenv\Dotenv;
  *                                 with; replaces the built-in key
  *                                 (ReleaseKeys) when set
  *   MYGDALA_UPDATE_STORAGE_PATH   downloads, staging, backups, state, logs
+ *   MYGDALA_UPDATE_STEP_SECONDS   how long one update request may work
+ *                                 before it hands back (stepSeconds())
  *
  * The project default for the first two is empty until the project's own
  * release hosting is chosen (docs/updates/RELEASES.md): an unconfigured feed
@@ -42,6 +44,10 @@ final class UpdateConfig
     public const MANIFEST_URL_VARIABLE = 'MYGDALA_UPDATE_MANIFEST_URL';
     public const PUBLIC_KEY_VARIABLE = 'MYGDALA_UPDATE_PUBLIC_KEY';
     public const STORAGE_PATH_VARIABLE = 'MYGDALA_UPDATE_STORAGE_PATH';
+    public const STEP_SECONDS_VARIABLE = 'MYGDALA_UPDATE_STEP_SECONDS';
+
+    /** No update request works longer than this, whatever the host allows. */
+    public const MAX_STEP_SECONDS = 15.0;
 
     /** The project's own feed, filled in once release hosting is chosen. */
     public const DEFAULT_MANIFEST_URL = '';
@@ -84,6 +90,27 @@ final class UpdateConfig
         }
 
         return dirname(self::projectRoot()) . '/storage/updates';
+    }
+
+    /**
+     * The time budget of one update request: how long a step may download,
+     * copy files, dump rows or run migrations before it saves where it is and
+     * hands back to the next request (Updater). A third of the host's
+     * max_execution_time, never more than MAX_STEP_SECONDS; a host whose
+     * requests are cut off sooner than PHP's limit says sets
+     * MYGDALA_UPDATE_STEP_SECONDS lower (1 to 15 seconds).
+     */
+    public static function stepSeconds(): float
+    {
+        $configured = self::value(self::STEP_SECONDS_VARIABLE);
+
+        if ($configured !== '' && is_numeric($configured)) {
+            return max(1.0, min(self::MAX_STEP_SECONDS, (float) $configured));
+        }
+
+        $limit = (int) ini_get('max_execution_time');
+
+        return $limit <= 0 ? self::MAX_STEP_SECONDS : max(2.0, min(self::MAX_STEP_SECONDS, $limit / 3));
     }
 
     public static function allowsInsecureTransport(): bool

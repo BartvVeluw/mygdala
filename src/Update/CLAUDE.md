@@ -14,6 +14,10 @@ geen handmatige upload.
   request levert nooit een URL, een pad of een versie aan.
 - **`release.json` is het commitpunt.** Het wordt als laatste vervangen; welk
   `release.json` in de root staat, is de release die geïnstalleerd is.
+- **Elk request is begrensd.** Download en apply lopen over meerdere requests
+  met een cursor in de state (`PackageDownload`, `FileApplier`); wat een
+  request tijdens het onderhoud kan laden, wisselt pas in het laatste request
+  van de apply (`FileApplier::isRuntime()`).
 - Codebestanden van de updater zelf moeten een update overleven terwijl ze
   vervangen worden: de stappen na "apply" draaien op de nieuwe code, dus het
   formaat van de state (`UpdateState::FORMAT`) verandert alleen bewust.

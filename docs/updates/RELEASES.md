@@ -100,6 +100,13 @@ verwijderd) en voor de healthcheck.
 - Een relatieve `package_url` betekent "naast het manifest": de hele feed is
   één map die van host kan verhuizen zonder opnieuw te ondertekenen. Een
   absolute URL mag ook (een CDN), mits HTTPS.
+- De releasehost serveert het pakket als gewoon statisch bestand, met HTTP
+  Range en een ETag of `Last-Modified` — elke gewone webserver of CDN doet
+  dat. Dan hervat een installatie een download die niet in één request past.
+  Zonder Range begint elke poging opnieuw bij byte 0 en moet het pakket
+  binnen één updaterequest binnenkomen (ARCHITECTURE.md, "Downloaden in
+  delen"). Vervang een gepubliceerd pakket nooit door andere bytes onder
+  dezelfde naam.
 - `minimum_source_version`: de oudste versie die rechtstreeks naar deze
   release mag. Een installatie die ouder is, krijgt het advies eerst een
   tussenliggende release te installeren.

@@ -21,21 +21,22 @@ code af van dit document, dan heeft de code gelijk.
 ```text
 Controleren op updates     manifest.json + .sig ophalen, handtekening checken, vereisten tonen
 Update installeren         start een update naar precies die release
-  download                 pakket naar work/<id>/package.zip, nooit meer bytes dan het manifest noemt
+  download                 pakket naar work/<id>/package.zip, over zoveel requests als nodig, hervat met HTTP Range
   verify                   grootte en SHA-256 tegen het ondertekende manifest
   extract                  entry voor entry naar staging, ZIP-slip en symlinks geweigerd
   preflight                lokale wijzigingen, conflicten, schrijfrechten, migratiestatus, schijfruimte
   maintenance              .maintenance aan: bezoekers zien een onderhoudspagina
   backup_database          volledige SQL-dump vanuit PHP, rijtellingen geverifieerd
   backup_files             alleen de bestanden die vervangen of verwijderd worden
-  apply                    bestand voor bestand: tijdelijk bestand + rename, release.json als laatste
+  apply                    in batches: tijdelijk bestand + rename, de codewissel en release.json als laatste
   migrate                  de eigen Phinx-migraties, via de library, één voor één
   health                   versie, elk bestand, migratieniveau, kernservices, HTTP
   finish                   onderhoud uit, werkmap weg, oude back-ups opgeruimd
 bij een fout na apply      rollback_database → rollback_files
 ```
 
-Elke stap is één kort request. De server bewaart waar de update is; het
+Elk request doet één begrensd stuk werk: een stap, of een deel van een lange
+stap. De server bewaart waar de update is, tot op de byte en het bestand; het
 scherm vraagt alleen om "de volgende stap".
 
 ## Het eigendomscontract
@@ -157,6 +158,13 @@ gespeld worden. Symlinks en andere niet-gewone entries worden geweigerd, net
 als twee entries die op een hoofdletterongevoelig bestandssysteem één bestand
 zijn. Aantal entries en uitgepakte grootte zijn begrensd (zip-bom).
 
+**Wat er tijdens een update in de webroot staat.** `.htaccess` weigert,
+naast `VERSION`, `release.json` en `.maintenance`, ook de vlag terwijl die
+geschreven wordt (`.maintenance.<x>.tmp`) en de kopie die de updater vlak vóór
+een rename naast zijn doel zet (`<naam>.mygdala-<id>.tmp`): PHP-broncode als
+tekst, als een request stierf tussen kopie en rename. Een rollback ruimt zo'n
+kopie op. `ApacheAcceptanceTest` bewijst dit op de echte Apache.
+
 **Logs** bevatten geen geheimen: de manifest-URL wordt teruggebracht tot host
 en pad (`UpdateConfig::describeUrl`), het health-token staat alleen in de
 state.
@@ -173,6 +181,7 @@ Op distributieniveau, in de omgeving, nooit als veld in het CMS:
 | `MYGDALA_UPDATE_MANIFEST_URL` | de feed | leeg tot de releasehosting gekozen is (`UpdateConfig::DEFAULT_MANIFEST_URL`) |
 | `MYGDALA_UPDATE_PUBLIC_KEY` | de Ed25519-publieke sleutel, base64; **vervangt** de ingebouwde sleutel | leeg; ingebouwd: `ReleaseKeys::BUILT_IN`, leeg tot de releasesleutel bestaat |
 | `MYGDALA_UPDATE_STORAGE_PATH` | de werkmap van de updater | `<map boven de site>/storage/updates` |
+| `MYGDALA_UPDATE_STEP_SECONDS` | het tijdsbudget van één updaterequest (1 tot 15 seconden) | een derde van `max_execution_time`, hoogstens 15 seconden |
 
 Zolang feed en sleutel leeg zijn, zegt het Updates-scherm dat er geen
 updatebron is ingesteld; er wordt dan niets gecontroleerd en niets
@@ -190,7 +199,7 @@ databasedump in, met elk klantadres.
 <storage>/last-check.json       het laatst gecontroleerde, geverifieerde manifest + vereisten
 <storage>/history.json          de laatste twintig afgeronde updates
 <storage>/logs/<id>.log         JSON-regels per update
-<storage>/work/<id>/            package.zip, staging/, plan.json, apply.journal
+<storage>/work/<id>/            package.zip(.part), staging/, plan.json, apply.journal
 <storage>/backups/<id>/         database.sql.gz, database.json, files/, release.json, backup.json, HERSTEL.txt
 ```
 
@@ -199,7 +208,9 @@ De werkmap van een update verdwijnt zodra hij klaar is: bij `completed`,
 `recovery_required` blijft hij staan, voor wie met de hand herstelt.
 
 De updater schrijft er een `.htaccess` met `Require all denied` in, voor het
-geval iemand de map toch in de webroot zet. De state onthoudt bij welke
+geval iemand de map toch in de webroot zet — ook als de map met de hand is
+aangemaakt voordat de updater er voor het eerst in kwam, maar nooit in een map
+waar de site zelf in staat (daar zou hij de hele site dichtzetten). De state onthoudt bij welke
 installatie hij hoort; een map die per ongeluk door twee installaties gedeeld
 wordt, wordt geweigerd.
 
@@ -211,17 +222,22 @@ Een gedeelde host breekt een request na 30 tot 60 seconden af. Daarom:
   op. `admin/assets/updates.js` vraagt de volgende, tot de update niet meer
   loopt. Zonder JavaScript doet de knop Doorgaan hetzelfde met één klik per
   stap.
-- **Lange stappen hebben een tijdsbudget** (een derde van
-  `max_execution_time`, hoogstens 15 seconden) en een cursor: uitpakken,
-  database-back-up, bestandsback-up, migraties en de database-restore gaan
-  over meerdere requests.
+- **Elk request heeft een tijdsbudget** (`UpdateConfig::stepSeconds()`: een
+  derde van `max_execution_time`, hoogstens 15 seconden, of
+  `MYGDALA_UPDATE_STEP_SECONDS`) en elke lange stap een cursor in de state:
+  **downloaden**, uitpakken, database-back-up, bestandsback-up, **apply**,
+  migraties en de database-restore gaan over zoveel requests als nodig. Geen
+  request hangt af van een browser die tientallen seconden wacht.
 - **Elke stap is herhaalbaar.** Een stap die zijn eigen naam al in `in_step`
   vindt, weet dat de vorige poging halverwege stierf, en herstelt zijn cursor:
-  de back-up kapt zijn deelbestand af tot de laatst opgeslagen lengte (en
-  begint opnieuw als dat bestand korter is of ontbreekt), de restore begint
-  de tabel opnieuw bij zijn `DROP TABLE`, apply slaat over wat het journaal al
-  noemt.
-- **De server beslist.** Het scherm draait alleen vanzelf stappen direct na
+  de download en de back-up kappen hun deelbestand af tot de laatst
+  opgeslagen lengte (en beginnen opnieuw als dat bestand korter is, ontbreekt
+  of niet meer de opgeslagen hash heeft), de restore begint de tabel opnieuw
+  bij zijn `DROP TABLE`, apply slaat over wat het journaal al noemt.
+- **De server beslist.** Cursor, offset en voortgang staan in de state; een
+  request noemt alleen het update-id en de stap. Het antwoord zegt hoe ver
+  een lange stap is ("Downloaden (45%)"), het script toont dat alleen.
+  Het scherm draait alleen vanzelf stappen direct na
   **Update installeren** — een eenmalige vlag in de sessie, geen
   URL-parameter, zodat een link het niet kan. Kom je terug na een gesloten
   tab, dan zegt het "De update is onderbroken bij de stap X" met een knop
@@ -237,6 +253,80 @@ Een gedeelde host breekt een request na 30 tot 60 seconden af. Daarom:
   sterft); wat wél kan blijven hangen is een `running`-state met een oude
   heartbeat, en die toont het scherm als onderbroken.
 
+### Downloaden in delen
+
+`PackageDownload` en `HttpFetcher::resume()`. Het pakket groeit in
+`work/<id>/package.zip.part`; pas als het compleet is, wordt het
+`package.zip`.
+
+- **Checkpoints.** Na elke MiB wordt de `.part` geflusht en slaat de state op
+  hoeveel bytes er vertrouwd zijn en wat hun SHA-256 is. Een request dat de
+  host halverwege afschiet, verliest alleen wat na het laatste checkpoint
+  kwam.
+- **Hervatten.** Het volgende request vraagt `Range: bytes=N-`, met
+  `If-Range` op de sterke ETag (of `Last-Modified`) van het eerste antwoord.
+  Alleen een 206 met `Content-Range: bytes N-M/T`, waarin N precies de offset
+  is en T precies de grootte uit het ondertekende manifest, wordt aan het
+  bestand vastgeplakt.
+- **Geen veilige hervatting, dan opnieuw vanaf byte 0.** Een 200 op een
+  range-verzoek (de bron negeert ranges, of het bestand is veranderd), een 206
+  op de verkeerde plek of zonder `Content-Range`, een 416: het deelbestand
+  gaat weg en de download begint opnieuw. Een bron die een range één keer
+  fout beantwoordde, krijgt er geen meer. Na drie keer opnieuw beginnen stopt
+  de update (`failed`); er is dan nog niets aan de site veranderd.
+- **Een beschadigd deelbestand** — korter dan het checkpoint, of met een
+  andere hash — begint opnieuw; langer wordt afgekapt tot het checkpoint.
+- **Grenzen blijven exact.** Nooit meer bytes dan het manifest noemt (ook
+  niet in een 206), een `Content-Length` of totaal dat niet klopt wordt
+  geweigerd, en de SHA-256 wordt daarna in `verify` over het hele bestand
+  gecontroleerd, welke weg de bytes ook namen. Offset en URL komen nooit uit
+  het request: de offset uit de state en het bestand, de URL uit het
+  manifest.
+- **Begrensd.** Verbinden, elke redirect, de headers en elke read wachten
+  hoogstens tot het einde van het budget, met minimaal één seconde per
+  wachtmoment. Een request dat helemaal niets ontving is een fout, geen
+  voortgang.
+
+### Bestanden toepassen in batches
+
+`FileApplier` rekent het plan om tot een vaste lijst bewerkingen (een pure
+functie van het plan en van de bestanden van het request zelf) en de state
+bewaart de cursor: welke bewerking de volgende is, van hoeveel.
+
+- **Per request** hoogstens `FileApplier::BATCH` (200) bewerkingen of het
+  tijdsbudget, wat het eerst komt.
+- **Het journaal eerst.** Elke bewerking komt in `apply.journal` (nummer,
+  soort, pad) zodra hij gelukt is, en pas daarna kan de cursor erlangs. Het
+  journaal loopt dus nooit achter op de cursor; een journaal dat andere
+  bewerkingen nummert of achterloopt, wordt geweigerd (en de update
+  teruggedraaid). Een half weggeschreven regel van een afgeschoten request
+  wordt weggelaten.
+- **Hervatten** gaat precies vanaf de cursor, en slaat over wat het journaal
+  al noemt. Een bewerking die wel gebeurde maar het journaal niet haalde,
+  gebeurt nog een keer, en dat is onschadelijk: een write zet dezelfde
+  release-bytes neer (hash gecontroleerd), een delete vindt niets meer.
+- **De codewissel.** Wat een request tijdens het onderhoud kan laden of
+  krijgen, en de regels waaronder het geserveerd wordt — `src/`, `admin/`,
+  de update-endpoints, Composers autoloader, elk bestand waaruit het
+  updatende request zelf bestaat en elke `.htaccess`
+  (`FileApplier::isRuntime()`) — verandert pas in het laatste request, samen
+  met de verwijderingen daarvan, `VERSION` en als allerlaatste
+  `release.json`. Een nieuwe `.htaccess` met een regel die de host weigert,
+  kan het Updates-scherm dus niet halverwege de apply onbereikbaar maken. Dat request wordt nooit op zijn budget afgebroken en begint
+  altijd vers. Zo draaien het Updates-scherm, de login en de volgende stap
+  tussen twee batches op één consistente (oude) release, ook als de beheerder
+  pas uren later terugkomt.
+- **Pas daarna migreren.** `migrate` begint pas als de laatste bewerking,
+  `release.json`, gedaan is; `health` en `finish` daarna.
+- **Rollback** werkt vanaf elk punt: na een willekeurig aantal batches, of na
+  een request dat halverwege een batch stierf. Alle bestanden uit het plan
+  gaan terug uit de back-up, toegevoegde bestanden en achtergebleven
+  tijdelijke kopieën weg, `release.json` als laatste. De weg terug wordt
+  eerst als eigen stap opgeslagen (`rollback_files`) en het journaal gaat als
+  eerste weg: een request dat halverwege het terugzetten sterft, wordt bij
+  Doorgaan gevolgd door verder terugzetten, nooit door een apply die vooruit
+  gaat over half teruggezette bestanden.
+
 ### Het formaat overleeft de code
 
 Elke stap na `apply` draait op de code van de **nieuwe** release, die een
@@ -247,6 +337,14 @@ deze installatie zou starten niet kan afronden. Velden toevoegen mag;
 hernoemen of weghalen is een nieuw formaat. Een release moet bovendien de
 bestanden bevatten waarmee hij zijn eigen update afmaakt
 (`PackageValidator::REQUIRED_PATHS`).
+
+Hetzelfde geldt voor de volgorde van de bewerkingen (`FileApplier::
+operations()`, `isRuntime()`) en de regels van `apply.journal` (`nummer soort
+pad`): wordt een codewissel halverwege afgebroken, dan maakt de deels nieuwe
+code het journaal van de oude af. Een release die daar iets aan verandert,
+laat zo'n journaal weigeren — de apply wordt dan teruggedraaid, wat veilig is
+maar een voltooide update kan kosten — en hoort dat dus samen met een nieuw
+`updater_protocol` te doen.
 
 Om dezelfde reden leest een rollback het plan en de oude `release.json`
 **zonder** het eigendomscontract van de nieuwe code: welke paden de oude
@@ -336,15 +434,21 @@ bestandssysteem staan (in Docker is dat zo), daarom gebeurt de kopie naast
 het doel.
 
 **Een hele release in één keer wisselen kan op gedeelde hosting niet**: er is
-geen symlink-`current` om om te zetten, de siteroot is de documentroot. Een
-paar seconden lang zijn sommige bestanden dus nieuw en andere oud. Drie dingen
+geen symlink-`current` om om te zetten, de siteroot is de documentroot.
+Zolang de apply loopt — over meerdere requests, en na een gesloten tab
+misschien uren — zijn sommige bestanden dus nieuw en andere oud. Drie dingen
 maken dat onschadelijk:
 
-1. de site staat in onderhoud, dus geen bezoekersrequest draait code in dat
-   venster;
-2. de hele apply is één request, met elke klasse die dat request nodig heeft
-   vooraf geladen, en de bestanden waar dit request zelf uit bestaat
-   (`get_included_files()`, de updater, `vendor/composer/`) als laatste;
+1. de site staat in onderhoud: een bezoekersrequest stopt in de guard, in
+   `vendor/autoload.php`, vóór er code van de pagina draait;
+2. de batches veranderen alleen wat tijdens het onderhoud niemand laadt:
+   templates, publieke assets, migraties, scripts, bibliotheken die de
+   updater niet gebruikt. Alles wat de updater en de schermen die open
+   blijven wél laden, en de `.htaccess`-regels waaronder ze geserveerd
+   worden, wisselt in één laatste request, de codewissel
+   ("Bestanden toepassen in batches"), met elke klasse die dat request nodig
+   heeft vooraf geladen en de bestanden waar het zelf uit bestaat
+   (`get_included_files()`) als laatste;
 3. elke operatie wordt gejournaliseerd, de oude inhoud staat in de back-up,
    en `release.json` gaat als allerlaatste. Een onderbroken apply wordt bij
    Doorgaan afgemaakt; een mislukte wordt in hetzelfde request teruggedraaid.
@@ -458,15 +562,17 @@ De suite `updater` (`tests/Update/`, `TESTING.md`):
 |---|---|
 | `VersionAndPathTest`, `OwnershipTest`, `ReleaseManifestTest` | versie, paden, eigendom, manifest, handtekening, configuratie |
 | `FeedAndPackageTest` | feed over echte HTTP: handtekening, redirects, bytelimieten, hash en grootte |
+| `ResumableDownloadTest` | de download over meerdere requests tegen een echte server: hervatten met Range vanaf de opgeslagen offset, een bron die ranges negeert of fout beantwoordt (opnieuw vanaf 0, na drie keer stop), een veranderd bestand, een beschadigd of te kort deelbestand, een afgeschoten request dat zijn checkpoint houdt, het budget |
 | `PreflightEnvironmentTest` | vereisten tegen de echte databaseserver (scenario E op unitniveau) |
 | `PackageExtractionTest` | ZIP-slip, symlinks, dubbele namen, corrupte archieven, pakketvalidatie |
 | `UpdatePlannerTest` | het plan en lokale wijzigingen (scenario H op unitniveau) |
 | `DatabaseBackupTest` | dump en restore tot op de byte, met lastige data, en wat een mislukte migratie achterlaat |
-| `ApplyAndMaintenanceTest` | apply, hervatting, rollback, de onderhoudsguard |
+| `ApplyAndMaintenanceTest` | apply in batches met cursor en journaal, de codewissel als laatste request, hervatten na 30%, een request dat echt wordt afgeschoten (SIGKILL) midden in een batch en tussen een write en zijn journaalregel, rollback na meerdere batches, de onderhoudsguard |
 | `ReleaseBuilderTest` | wat er in een release zit, deterministisch, en dat de installatie het accepteert |
-| `UpgradeEndToEndTest` | A (0.1.0 → 0.2.0), B (0.1.0 → 0.3.0 over twee migratiegeneraties), H, I, de guards, en een verse installatie (lege database, migraties vanaf nul: versie, Updates-scherm, feed, update), op wegwerpinstallaties van echte releases via HTTP |
-| `UpgradeFailureTest` | C, D, E, F, G, een mislukte rollback met `recovery_required` en afhandelen, afbreken |
+| `UpgradeEndToEndTest` | A (0.1.0 → 0.2.0, een apply van meerdere requests, stappen strikt op volgorde), B (0.1.0 → 0.3.0 over twee migratiegeneraties), H, I (onderbroken binnen de download en binnen de apply: gesloten tab, tweede tab met 423, een afgeschoten request, 409 op een oude stap), de guards, en een verse installatie (lege database, migraties vanaf nul: versie, Updates-scherm, feed, update), op wegwerpinstallaties van echte releases via HTTP |
+| `UpgradeFailureTest` | C, D, E, F, G, een apply die na meerdere batches faalt (teruggedraaid, geen migratie), een mislukte rollback met `recovery_required` en afhandelen, afbreken |
 | `ExistingInstallAcceptanceTest` | een kopie van een bestaande installatie: inhoud, media, privé-opslag, `.env`, modules, routing en beide talen ongewijzigd |
+| `ApacheAcceptanceTest` | op de echte Apache van het image, met `.htaccess` actief (opt-in, `TESTING.md`): metadata en werkmap nooit leesbaar, ook met de werkmap ín de webroot, bij elke stap; het onderhoudsvenster (503, doorsturen, login/logout, health-token, een vreemde komt nergens); een update die `.htaccess` vervangt; hervatten tegen Apache's eigen Range-ondersteuning |
 
 De end-to-end-tests bouwen de releases met de echte `ReleaseBuilder` uit deze
 checkout, pakken 0.1.0 uit in `/tmp`, geven hem een eigen database (een kopie

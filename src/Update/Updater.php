@@ -322,14 +322,42 @@ final class Updater
         };
     }
 
+    /**
+     * Downloads for one budget and saves how far it got; the next request
+     * goes on from there (PackageDownload, HttpFetcher::resume()). The offset
+     * is the server's — the cursor and the partial file — never the browser's.
+     */
     private function download(UpdateState $state, UpdateLog $log): UpdateState
     {
         $manifest = $state->manifest();
         $work = $this->work($state);
         $this->store->ensureDirectory($work);
+        $deadline = microtime(true) + $this->budget();
 
-        $this->source()->download($manifest, $work . '/package.zip');
-        $log->write('download', 'done', 'update.log.downloaded', ['bytes' => (int) filesize($work . '/package.zip')]);
+        $download = PackageDownload::open($work . '/package.zip', $manifest->size, $state->cursor());
+        // A request that dies halfway keeps everything up to its last
+        // checkpoint — the first one being what open() just found, so a
+        // restart it decided on counts even if this request dies next.
+        $download->onCheckpoint(fn (array $cursor) => $this->store->save($state->withCursor($cursor)));
+        $download->checkpoint();
+
+        try {
+            $this->source()->download($manifest, $download, $deadline);
+        } finally {
+            $cursor = $download->close();
+            foreach ($download->events() as [$key, $params]) {
+                $log->write('download', 'progress', $key, $params);
+            }
+        }
+
+        if (!$download->isComplete()) {
+            $log->write('download', 'progress', 'update.log.download_progress', ['bytes' => $download->offset(), 'size' => $manifest->size]);
+
+            return $state->withCursor($cursor);
+        }
+
+        $download->finish();
+        $log->write('download', 'done', 'update.log.downloaded', ['bytes' => $manifest->size]);
 
         return $state->advanceTo('verify');
     }
@@ -492,18 +520,25 @@ final class Updater
         return $state->advanceTo('apply');
     }
 
+    /**
+     * One batch of the plan (FileApplier), from the operation the cursor
+     * names. The journal records each operation before the cursor can pass
+     * it; the code switch runs as one request of its own at the end; only
+     * then does the update go on to the migrations.
+     */
     private function apply(UpdateState $state, UpdateLog $log): UpdateState
     {
         $plan = $this->plan($state);
         self::preloadForApply();
 
         // The files this request is made of go last, and the list is fixed
-        // at the first attempt so a resumed apply numbers its operations the
-        // same way.
-        $critical = $state->cursor()['critical'] ?? null;
-        if (!is_array($critical)) {
+        // at the first attempt so every later request numbers the operations
+        // the same way.
+        $cursor = $state->cursor();
+        if (!is_array($cursor['critical'] ?? null)) {
             $critical = $this->includedReleaseFiles();
-            $state = $state->withCursor(['critical' => $critical])->with('files_changed', true);
+            $cursor = ['critical' => $critical, 'next' => 0, 'total' => count(FileApplier::operations($plan, $critical))];
+            $state = $state->withCursor($cursor)->with('files_changed', true);
             $this->store->save($state);
         }
 
@@ -511,15 +546,27 @@ final class Updater
         $applier->onEachOperation($this->applyHook);
 
         try {
-            $applier->apply($plan, $critical);
+            $next = $applier->apply($plan, array_values(array_map('strval', $cursor['critical'])), (int) ($cursor['next'] ?? 0), $this->budget());
         } catch (\Throwable $e) {
             $log->write('apply', 'failed', $e instanceof UpdateException ? $e->messageKey : 'update.error.unexpected', $e instanceof UpdateException ? $e->params : [], $e->getMessage());
 
-            return $this->rollBackFilesNow($state->withMessage(
+            // The way back is saved before it is taken: a request killed while
+            // it puts the files back is followed by rollback_files, never by
+            // an apply that goes on forward over half-restored files.
+            $state = $state->withMessage(
                 $e instanceof UpdateException ? $e->messageKey : 'update.error.unexpected',
                 $e instanceof UpdateException ? $e->params : [],
                 $e->getMessage()
-            ), $log);
+            )->with('failed_step', 'apply')->advanceTo('rollback_files');
+            $this->store->save($state);
+
+            return $this->rollBackFilesNow($state, $log);
+        }
+
+        if ($next !== null) {
+            $log->write('apply', 'progress', 'update.log.apply_progress', ['done' => $next, 'total' => (int) ($cursor['total'] ?? 0)]);
+
+            return $state->withCursor(['next' => $next] + $cursor);
         }
 
         AppVersion::clearCache();
@@ -803,18 +850,13 @@ final class Updater
     }
 
     /**
-     * How long one step may keep going before it hands back: a third of the
-     * host's execution limit, never more than 15 seconds.
+     * How long one step may keep going before it saves where it is and hands
+     * back (UpdateConfig::stepSeconds(): a third of the host's execution
+     * limit, never more than 15 seconds).
      */
     private function budget(): float
     {
-        if ($this->budgetSeconds !== null) {
-            return $this->budgetSeconds;
-        }
-
-        $limit = (int) ini_get('max_execution_time');
-
-        return $limit <= 0 ? 15.0 : max(2.0, min(15.0, $limit / 3));
+        return $this->budgetSeconds ?? UpdateConfig::stepSeconds();
     }
 
     private function pruneBackups(): void
