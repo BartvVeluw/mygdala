@@ -148,6 +148,7 @@ hij gebruikt.
 | Sitemap | `sitemapCollectors()` | `App\Service\Sitemap` |
 | Content-blokken | `blockDefinitions()` | `App\Service\Blocks\BlockDefinitions` |
 | Galerijbronnen | `itemGallerySources()` | `App\Service\ItemGallerySources` |
+| Linkdoelen voor een blokknop (blogbericht, product) | `linkTargets()` | `App\Service\Routing\LinkTargets` |
 | Site-shell-assets | `shellStyles()`, `shellScripts()` | `App\Service\PageAssets` |
 | Header | `headerPartials()` | `partials/header.php` |
 | Dashboard | `dashboardPanels()`, `dashboardCards()` | `admin/index.php` |

@@ -111,6 +111,16 @@ final class RemainingBlockWordsMigrationTest extends TestCase
         'carousel_card_tags' => 'id, card_id, sort_order, created_at, updated_at',
     ];
 
+    /**
+     * Columns a LATER migration adds to these tables. catchUp() runs every
+     * migration there is, so they are there afterwards; they are nobody's
+     * words and not what this test is about.
+     */
+    private const LATER_COLUMNS = [
+        'card_carousels' => ['desktop_layout'],
+        'carousel_cards' => ['link_type', 'link_target_id'],
+    ];
+
     private static ?ScratchInstall $fresh = null;
     private static ?ScratchInstall $upgraded = null;
 
@@ -211,7 +221,7 @@ final class RemainingBlockWordsMigrationTest extends TestCase
     public function testTheOldWordColumnsAreGoneAndEveryLanguageNeutralColumnStays(): void
     {
         foreach (self::LEGACY_COLUMNS as $table => $legacy) {
-            $columns = self::columns(self::$upgraded, $table);
+            $columns = array_values(array_diff(self::columns(self::$upgraded, $table), self::LATER_COLUMNS[$table] ?? []));
 
             self::assertSame([], array_values(array_intersect($legacy, $columns)), $table);
             self::assertSame(

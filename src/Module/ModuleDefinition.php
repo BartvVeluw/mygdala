@@ -231,6 +231,20 @@ abstract class ModuleDefinition
     }
 
     /**
+     * The items of this module a block's button can point at by id, in
+     * App\Service\Routing\LinkTargets' shape: a label for the editor, an
+     * `order` among Core's 'page' (10) and the other modules' types, the
+     * editor's choices, and the href of one item in the language being read
+     * (null when a visitor cannot open it).
+     *
+     * @return array<string, array{label: string, order: int, choices: callable(): list<array{id: int, label: string, note?: string}>, href: callable(int): ?string}>
+     */
+    public function linkTargets(): array
+    {
+        return [];
+    }
+
+    /**
      * Frontend files EVERY public page needs because of this module — the
      * site shell (App\Service\PageAssets). Keep this empty unless the module
      * really renders something on every page; per-route and per-block assets

@@ -82,6 +82,24 @@ class CardCarouselRepository extends Repository
         ]);
     }
 
+    /**
+     * The carousel's own settings, the same in every language: whether it is
+     * shown and how it is laid out on larger screens
+     * (CardCarouselContent::LAYOUTS, checked by the caller).
+     */
+    public function updateSettings(int $id, bool $isActive, string $desktopLayout): void
+    {
+        $stmt = $this->db->prepare(
+            'UPDATE card_carousels SET is_active = :is_active, desktop_layout = :desktop_layout, updated_at = NOW()
+             WHERE id = :id'
+        );
+        $stmt->execute([
+            'is_active' => $isActive ? 1 : 0,
+            'desktop_layout' => $desktopLayout,
+            'id' => $id,
+        ]);
+    }
+
     public function deleteCarousel(int $id): bool
     {
         $stmt = $this->db->prepare('DELETE FROM card_carousels WHERE id = :id');
@@ -122,12 +140,15 @@ class CardCarouselRepository extends Repository
     }
 
     /**
-     * Appends a new, visible card without an image or a link to the end of a
-     * carousel and returns its id. Its words are stored per website language
-     * against that id (App\Service\Blocks\BlockLocalization), in the same
-     * transaction as this insert.
+     * Appends a new card without an image or a link to the end of a carousel
+     * and returns its id. A new card is a DRAFT unless $isActive says
+     * otherwise: it shows on the website only once an editor switches it on,
+     * so a half-filled card never appears on a live page. Its words are
+     * stored per website language against that id
+     * (App\Service\Blocks\BlockLocalization), in the same transaction as
+     * this insert.
      */
-    public function createCard(int $carouselId): int
+    public function createCard(int $carouselId, bool $isActive = false): int
     {
         $nextSortOrder = $this->nextSortOrder('carousel_cards', 'carousel_id', $carouselId);
 
@@ -135,39 +156,66 @@ class CardCarouselRepository extends Repository
             'INSERT INTO carousel_cards
                 (carousel_id, sort_order, is_active, created_at, updated_at)
              VALUES
-                (:carousel_id, :sort_order, 1, NOW(), NOW())'
+                (:carousel_id, :sort_order, :is_active, NOW(), NOW())'
         );
         $stmt->execute([
             'carousel_id' => $carouselId,
             'sort_order' => $nextSortOrder,
+            'is_active' => $isActive ? 1 : 0,
         ]);
 
         return (int) $this->db->lastInsertId();
     }
 
     /**
-     * What a card has that is the same in every language: its link URL and
-     * whether it is shown. Its words are saved through BlockLocalization, and
-     * the image separately (updateCardImage()/clearCardImage()), so a text
-     * save can never drop a photo the editor did not touch. The id never
-     * changes, so the words of every language stay attached to it.
+     * What a card has that is the same in every language: where its button
+     * points and whether it is shown. `link_type` is NULL (no button), 'url'
+     * (link_url as typed) or an App\Service\Routing\LinkTargets type with
+     * `link_target_id`; the caller has checked it. link_url is kept whatever
+     * the type, so switching back to "Eigen adres" shows what was typed.
+     * Its words are saved through BlockLocalization and the image through
+     * updateCardImage()/clearCardImage(). The id never changes, so the words
+     * of every language stay attached to it.
      *
-     * @param array<string, string|bool|null> $values link_url, is_active
+     * @param array<string, mixed> $values link_type, link_target_id, link_url, is_active
      */
     public function updateCard(int $id, array $values): void
     {
         $stmt = $this->db->prepare(
             'UPDATE carousel_cards SET
+                link_type = :link_type,
+                link_target_id = :link_target_id,
                 link_url = :link_url,
                 is_active = :is_active,
                 updated_at = NOW()
              WHERE id = :id'
         );
         $stmt->execute([
+            'link_type' => self::nullIfEmpty($values['link_type'] ?? null),
+            'link_target_id' => self::positiveOrNull($values['link_target_id'] ?? null),
             'link_url' => self::nullIfEmpty($values['link_url'] ?? null),
-            'is_active' => ($values['is_active'] ?? true) ? 1 : 0,
+            'is_active' => ($values['is_active'] ?? false) ? 1 : 0,
             'id' => $id,
         ]);
+    }
+
+    /** Only whether one card is shown: the switch on the carousel's card overview. */
+    public function setCardActive(int $id, bool $isActive): void
+    {
+        $stmt = $this->db->prepare('UPDATE carousel_cards SET is_active = :is_active, updated_at = NOW() WHERE id = :id');
+        $stmt->execute(['is_active' => $isActive ? 1 : 0, 'id' => $id]);
+    }
+
+    /**
+     * Stores the cards of one carousel in the given order. Ids that are not
+     * cards of this carousel are ignored, so a request can never reorder
+     * another block's rows.
+     *
+     * @param list<int> $orderedIds
+     */
+    public function reorderCards(int $carouselId, array $orderedIds): void
+    {
+        $this->reorder('carousel_cards', 'carousel_id', $carouselId, $orderedIds);
     }
 
     /**
@@ -330,6 +378,16 @@ class CardCarouselRepository extends Repository
         return $stmt->rowCount() > 0;
     }
 
+    /**
+     * Stores the tags of one card in the given order; see reorderCards().
+     *
+     * @param list<int> $orderedIds
+     */
+    public function reorderTags(int $cardId, array $orderedIds): void
+    {
+        $this->reorder('carousel_card_tags', 'card_id', $cardId, $orderedIds);
+    }
+
     public function moveTag(int $cardId, int $tagId, string $direction): void
     {
         $this->moveWithinList(
@@ -370,6 +428,23 @@ class CardCarouselRepository extends Repository
 
         $this->updateSortOrder($table, (int) $a['id'], (int) $b['sort_order']);
         $this->updateSortOrder($table, (int) $b['id'], (int) $a['sort_order']);
+    }
+
+    /**
+     * sort_order 0, 1, 2 … in the order given, for the rows of one parent
+     * only. $table and $fkColumn are this class's own literals, never input.
+     *
+     * @param list<int> $orderedIds
+     */
+    private function reorder(string $table, string $fkColumn, int $parentId, array $orderedIds): void
+    {
+        $stmt = $this->db->prepare(
+            "UPDATE {$table} SET sort_order = :sort_order, updated_at = NOW() WHERE id = :id AND {$fkColumn} = :parent_id"
+        );
+
+        foreach (array_values($orderedIds) as $position => $id) {
+            $stmt->execute(['sort_order' => $position, 'id' => (int) $id, 'parent_id' => $parentId]);
+        }
     }
 
     private function updateSortOrder(string $table, int $id, int $sortOrder): void

@@ -153,7 +153,7 @@ final class BlockWordsPreloadTest extends TestCase
                         break;
                     case 'card_carousel':
                         $cards = new CardCarouselRepository();
-                        $cardId = $cards->createCard($id);
+                        $cardId = $cards->createCard($id, true); // switched on: a new card is a draft
                         BlockLocalization::save('carousel_cards', $cardId, 'nl', ['title' => 'Kaart ' . $i . ' NL']);
                         for ($j = 0; $j < $items; $j++) {
                             BlockLocalization::save('carousel_card_tags', $cards->createTag($cardId), 'nl', ['label' => 'Label ' . $i . '.' . $j . ' NL']);

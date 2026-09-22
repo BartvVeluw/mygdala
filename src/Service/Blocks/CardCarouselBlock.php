@@ -85,6 +85,8 @@ final class CardCarouselBlock extends BlockDefinition
                 TranslatableField::plain('body', 500),
                 TranslatableField::plain('image_alt', 255),
                 TranslatableField::plain('link_label', 150),
+                // Printed above the title; empty = the card's position ("01").
+                TranslatableField::plain('number_label', 40),
             ],
             'carousel_card_tags' => [
                 TranslatableField::plain('label', 60)->required(),
@@ -177,6 +179,7 @@ final class CardCarouselBlock extends BlockDefinition
 
         return [
             'id' => 0,
+            'desktop_layout' => CardCarouselContent::LAYOUT_ORBIT,
             'eyebrow' => $samples->localized('eyebrow'),
             'title' => $samples->localized('title'),
             'lead' => $samples->localized('lead'),

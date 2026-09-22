@@ -5,6 +5,7 @@ namespace App\Service;
 use App\Repository\CardCarouselRepository;
 use App\Service\Blocks\BlockLocalization;
 use App\Service\Media\BlockImage;
+use App\Service\Routing\LinkTargets;
 use App\Service\Routing\RequestLanguage;
 use App\Service\Routing\TypedLink;
 
@@ -29,9 +30,21 @@ use App\Service\Routing\TypedLink;
  * has to check whether the path is empty, so there is no separate
  * presentation-mode field.
  *
- * `index_label` ("01", "02", ...) is derived from a card's position among
- * the visible cards, never stored — the same "derived, not stored" treatment
- * it had when the carousel was generated from a fixed list of four.
+ * `index_label` is what the card prints above its title: the card's own
+ * `number_label` word when an editor wrote one ("01", "Nieuw", ...), and
+ * otherwise "01", "02", ... derived from the card's position among the
+ * visible cards — exactly what every card printed before the label could be
+ * set, so a carousel nobody touched looks the same.
+ *
+ * THE BUTTON points at what `link_type` says: 'url' is the address typed in
+ * link_url, translated per render by TypedLink; 'page', 'blog_post' and
+ * 'product' are an item of this website by id (link_target_id), resolved by
+ * App\Service\Routing\LinkTargets in the language being read — and left out
+ * when that item cannot be opened or its module is off. A NULL link_type with
+ * an address is a row written before the type existed and reads as 'url'.
+ *
+ * `desktop_layout` is how the cards sit on a screen wider than a phone: the
+ * rotating 'orbit' every carousel had, or 'row', side by side as on a phone.
  *
  * WORDS PER LANGUAGE (Multilingual 2.0 phase 3B). The heading, every card's
  * title, body, alt text and link label and every tag's label are stored per
@@ -65,6 +78,15 @@ class CardCarouselContent
     /** A row exists and is_active = false — an intentional hide; render nothing. */
     public const STATE_HIDDEN = 'hidden';
 
+    /** The rotating carousel: what every carousel was before the choice existed. */
+    public const LAYOUT_ORBIT = 'orbit';
+
+    /** The cards side by side, as a phone shows them, on every screen. */
+    public const LAYOUT_ROW = 'row';
+
+    /** @var list<string> */
+    public const LAYOUTS = [self::LAYOUT_ORBIT, self::LAYOUT_ROW];
+
     /** The owner tables of this block's words (CardCarouselBlock::translatableFields()). */
     private const TABLE = 'card_carousels';
     private const CARDS = 'carousel_cards';
@@ -77,6 +99,7 @@ class CardCarouselContent
      * @return array<string, mixed> 'state' (one of STATE_*), plus eyebrow,
      *                                title and lead (a string each)
      *                                and 'cards': a list (possibly empty) of
+     *                                desktop_layout (one of LAYOUTS),
      *                                index_label, image_path (+ image_alt, a
      *                                string, and image_width /
      *                                image_height), title, body and
@@ -120,7 +143,10 @@ class CardCarouselContent
         // (SectionRegistry::renderPage()).
         BlockLocalization::preloadBlocks([self::TABLE => [$carouselId]]);
 
-        $content = ['id' => $carouselId] + BlockLocalization::words(self::TABLE, $carouselId);
+        $content = [
+            'id' => $carouselId,
+            'desktop_layout' => self::layout((string) ($row['desktop_layout'] ?? '')),
+        ] + BlockLocalization::words(self::TABLE, $carouselId);
 
         try {
             $cards = $repository->findCardsByCarouselId($carouselId, true);
@@ -178,14 +204,15 @@ class CardCarouselContent
 
         $result = [
             'id' => $cardId,
-            'index_label' => sprintf('%02d', $index + 1),
             'image_path' => $image['image_path'],
             'image_width' => $image['width'],
             'image_height' => $image['height'],
         ] + BlockLocalization::words(self::CARDS, $cardId);
 
+        $result['index_label'] = ($result['number_label'] ?? '') !== '' ? (string) $result['number_label'] : self::positionLabel($index);
+        unset($result['number_label']);
         $result['image_alt'] = $image['alt'];
-        $result['link_url'] = TypedLink::href((string) ($card['link_url'] ?? ''));
+        $result['link_url'] = self::href($card);
 
         // A link only renders when it has both a label and a URL — the same
         // all-or-nothing rule every other optional button in this project
@@ -211,12 +238,49 @@ class CardCarouselContent
     }
 
     /**
+     * The label a card without its own number prints: its place among the
+     * visible cards, two digits. Also what the editor proposes for a new card.
+     */
+    public static function positionLabel(int $index): string
+    {
+        return sprintf('%02d', $index + 1);
+    }
+
+    /** A stored layout, or the orbit for anything this class does not know. */
+    public static function layout(string $stored): string
+    {
+        return in_array($stored, self::LAYOUTS, true) ? $stored : self::LAYOUT_ORBIT;
+    }
+
+    /**
+     * Where a card's button goes, in the language being read, or '' for no
+     * button.
+     *
+     * @param array<string, mixed> $card a carousel_cards row
+     */
+    public static function href(array $card): string
+    {
+        $type = (string) ($card['link_type'] ?? '');
+        $typed = trim((string) ($card['link_url'] ?? ''));
+
+        if ($type === 'url' || ($type === '' && $typed !== '')) {
+            return TypedLink::href($typed);
+        }
+
+        if ($type === '') {
+            return '';
+        }
+
+        return LinkTargets::href($type, (int) ($card['link_target_id'] ?? 0)) ?? '';
+    }
+
+    /**
      * The shape of a carousel with nothing to show.
      *
      * @return array<string, mixed>
      */
     private static function emptyContent(): array
     {
-        return ['id' => 0] + BlockLocalization::words(self::TABLE, 0) + ['cards' => []];
+        return ['id' => 0, 'desktop_layout' => self::LAYOUT_ORBIT] + BlockLocalization::words(self::TABLE, 0) + ['cards' => []];
     }
 }

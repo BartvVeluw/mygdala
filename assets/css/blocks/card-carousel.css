@@ -13,19 +13,31 @@
    Depth (translateX/Z, scale, opacity, brightness) is computed and applied
    per-frame in JS; this file only lays out the static structure.
    ========================================================================== */
+/* The ring's geometry as plain numbers (pixels), so the stage height below
+   can be worked out from it: the JS reads --orbit-rx/--orbit-rz the same way.
+
+   THE STAGE IS AS TALL AS THE FRONT CARD REALLY LOOKS. The front card sits
+   --orbit-rz px towards the viewer, so the perspective alone draws it
+   P / (P - rz) times its size (1.18 on desktop), and the JS scales it up to
+   --orbit-front-scale on top of that (1.08, times 1.06 while hovered). A
+   fixed stage height left that card sticking out above the stage and over
+   the arrows and dots below it; this height contains it on every
+   breakpoint, whatever the variables are set to. */
 .orbit-carousel{
   --orbit-card-w: 300px;
   --orbit-card-h: 460px;
   --orbit-media-h: 148px;
-  --orbit-stage-h: 500px;
-  --orbit-rx: 340px;
-  --orbit-rz: 260px;
+  --orbit-rx: 340;
+  --orbit-rz: 260;
+  --orbit-perspective: 1700;
+  --orbit-front-scale: 1.145;
+  --orbit-stage-h: calc(var(--orbit-card-h) * var(--orbit-front-scale) * var(--orbit-perspective) / (var(--orbit-perspective) - var(--orbit-rz)));
   position: relative;
 }
 .orbit-carousel__stage{
   position: relative;
   height: var(--orbit-stage-h);
-  perspective: 1700px;
+  perspective: calc(var(--orbit-perspective) * 1px);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -55,12 +67,21 @@
   overflow: hidden;
   transition: transform var(--dur-fast) var(--ease-out), border-color var(--dur-premium) var(--ease-premium), box-shadow var(--dur-premium) var(--ease-premium);
 }
-.orbit-card[data-orbit-active="true"] .orbit-card__inner:hover{ transform: scale(1.02); border-color: var(--color-line-strong); }
-/* Warm glow / highlighted border on the centered card — the JS-driven
-   translate3d/scale/opacity/brightness per frame handles the physical
-   depth motion; this layers a static highlight on top of whichever
-   card currently reports itself as active. */
-.orbit-card[data-orbit-active="true"] .orbit-card__inner{
+/* The warm glow belongs to the card under the pointer, not to whichever card
+   happens to be in front: hovering a card is what highlights it. A touch
+   screen has no hover, so there the glow comes only with keyboard focus
+   inside a card (its button). The size bump on hover is the JS's, eased per
+   frame, in the 3D ring. */
+@media (hover: hover){
+  .orbit-card:hover .orbit-card__inner{
+    border-color: var(--color-primary);
+    box-shadow:
+      var(--shadow-lift),
+      0 0 0 1px rgba(var(--color-primary-rgb), 0.5),
+      0 0 60px -12px rgba(var(--color-primary-rgb), 0.6);
+  }
+}
+.orbit-card:focus-within .orbit-card__inner{
   border-color: var(--color-primary);
   box-shadow:
     var(--shadow-lift),
@@ -139,10 +160,13 @@
 .orbit-carousel__dots button[aria-current="true"]{ background: var(--color-primary); transform: scale(1.3); }
 
 @media (max-width: 900px){
-  .orbit-carousel{ --orbit-card-w: 240px; --orbit-card-h: 430px; --orbit-media-h: 120px; --orbit-stage-h: 460px; --orbit-rx: 220px; --orbit-rz: 170px; }
+  .orbit-carousel{ --orbit-card-w: 240px; --orbit-card-h: 430px; --orbit-media-h: 120px; --orbit-rx: 220; --orbit-rz: 170; }
 }
 
-/* Mobile: flat, native horizontal snap-scroll — no 3D, real swipe support */
+/* Mobile: flat, native horizontal snap-scroll — no 3D, real swipe support.
+   The side padding is half of what is left beside one card (plus the
+   stage's own bleed into the container's gutter), so the FIRST and the LAST
+   card can be centered too, not only the ones in between. */
 @media (max-width: 699px){
   .orbit-carousel{ --orbit-card-w: 82vw; --orbit-card-h: auto; }
   .orbit-carousel__stage{
@@ -152,9 +176,8 @@
     overflow-x: auto;
     overflow-y: visible;
     scroll-snap-type: x mandatory;
-    scroll-padding-inline: var(--sp-3);
     gap: var(--sp-3);
-    padding: 0.5rem var(--sp-3) 1.25rem;
+    padding: 0.5rem calc(50% - var(--orbit-card-w) / 2 + var(--sp-3)) 1.25rem;
     margin: 0 calc(-1 * var(--sp-3));
     -webkit-overflow-scrolling: touch;
   }
@@ -176,4 +199,43 @@
     transform: none !important;
   }
   .orbit-card__body p{ -webkit-line-clamp: 5; }
+}
+
+/* "Kaarten naast elkaar" (card_carousels.desktop_layout = row): the phone's
+   flat strip on every screen, with no ring, no depth and no centered card.
+   The strip starts at the container's edge; while every card fits it sits
+   centered and the arrows and dots are left out — the JS says whether the
+   cards overflow (data-orbit-overflow), and until it has said so they stay
+   hidden rather than appear and vanish again. */
+@media (min-width: 700px){
+  .orbit-carousel--row{ --orbit-card-h: auto; }
+  .orbit-carousel--row .orbit-carousel__stage{
+    height: auto;
+    perspective: none;
+    display: block;
+    overflow-x: auto;
+    overflow-y: visible;
+    scroll-snap-type: x mandatory;
+    scroll-padding-inline: var(--sp-3);
+    padding: 0.5rem var(--sp-3) 1.25rem;
+    margin: 0 calc(-1 * var(--sp-3));
+  }
+  .orbit-carousel--row .orbit-carousel__track{
+    display: flex;
+    gap: var(--sp-4);
+    width: max-content;
+    height: auto;
+    margin-inline: auto;
+    transform: none !important;
+  }
+  .orbit-carousel--row .orbit-card{
+    position: relative;
+    inset: auto;
+    height: auto;
+    scroll-snap-align: start;
+    opacity: 1 !important;
+    filter: none !important;
+    transform: none !important;
+  }
+  .orbit-carousel--row:not([data-orbit-overflow="true"]) .orbit-carousel__controls{ display: none; }
 }

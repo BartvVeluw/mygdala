@@ -373,6 +373,41 @@ final class ShopModule extends ModuleDefinition
     }
 
     /**
+     * A product as the target of a block's button (App\Service\Routing\LinkTargets):
+     * stored by id and linked at /product.php?id=… in the language being
+     * read, only while the product is active.
+     */
+    public function linkTargets(): array
+    {
+        return [
+            'product' => [
+                'label' => 'Product',
+                'order' => 30,
+                'choices' => static function (): array {
+                    $products = (new ProductRepository())->findAllForAdmin();
+                    \App\Service\ShopLocalization::preloadProducts(array_map(static fn (array $product): int => (int) $product['id'], $products));
+
+                    $choices = [];
+                    foreach ($products as $product) {
+                        $choice = ['id' => (int) $product['id'], 'label' => \App\Service\ShopLocalization::productName((int) $product['id'])];
+                        if (!(bool) $product['active']) {
+                            $choice['note'] = 'inactive';
+                        }
+                        $choices[] = $choice;
+                    }
+
+                    usort($choices, static fn (array $a, array $b): int => strnatcasecmp($a['label'], $b['label']));
+
+                    return $choices;
+                },
+                'href' => static fn (int $id): ?string => (new ProductRepository())->findActiveById($id) === null
+                    ? null
+                    : ProductSeo::publicPath($id),
+            ],
+        ];
+    }
+
+    /**
      * The mini-cart in the shared public header is on every page, so its
      * stylesheet has to be in every page's <head> — which is written before
      * the header partial runs. This is the one asset request that genuinely

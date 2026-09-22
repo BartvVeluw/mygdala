@@ -355,6 +355,42 @@ final class BlogModule extends ModuleDefinition
     }
 
     /**
+     * A post as the target of a block's button (App\Service\Routing\LinkTargets):
+     * stored by id, linked at its address in the language being read, and
+     * only while a visitor can read it — a draft or a scheduled post renders
+     * no button until it is published.
+     */
+    public function linkTargets(): array
+    {
+        return [
+            'blog_post' => [
+                'label' => 'Blogbericht',
+                'order' => 20,
+                'choices' => static function (): array {
+                    $posts = (new BlogPostRepository())->findForAdmin([], 500);
+                    BlogLocalization::preloadPosts(array_map(static fn (array $post): int => (int) $post['id'], $posts));
+
+                    $choices = [];
+                    foreach ($posts as $post) {
+                        $choice = ['id' => (int) $post['id'], 'label' => BlogLocalization::postName((int) $post['id'])];
+                        if ((string) $post['status'] !== \App\Service\Blog\BlogPostStatus::PUBLISHED) {
+                            $choice['note'] = 'draft';
+                        }
+                        $choices[] = $choice;
+                    }
+
+                    return $choices;
+                },
+                'href' => static function (int $id): ?string {
+                    $post = (new BlogPostRepository())->findPublicById($id, BlogClock::nowForSql());
+
+                    return $post === null ? null : BlogContent::postUrl($post);
+                },
+            ],
+        ];
+    }
+
+    /**
      * How the Media Library learns that a post is using an image, without
      * Core ever naming a blog post (MEDIA.md).
      */

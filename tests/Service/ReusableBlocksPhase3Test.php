@@ -353,7 +353,8 @@ final class ReusableBlocksPhase3Test extends TestCase
     /** A new, visible card with its title in the default language, the way the CMS adds one. */
     private function card(CardCarouselRepository $repository, int $carouselId, string $title): int
     {
-        $cardId = $repository->createCard($carouselId);
+        // Switched on: a new card is a draft until an editor turns it on.
+        $cardId = $repository->createCard($carouselId, true);
         BlockLocalization::save('carousel_cards', $cardId, BlockLocalization::defaultLanguage(), ['title' => $title]);
 
         return $cardId;

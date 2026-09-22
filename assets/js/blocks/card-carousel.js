@@ -13,9 +13,19 @@
      Cards never spin on their own axis: they sit at a fixed point on an
      invisible circle (translateX/Z + scale/opacity/brightness by depth)
      and the whole ring turns together. Falls back to a native horizontal
-     snap-scroll strip below 700px, where swipe/drag comes for free.
+     snap-scroll strip below 700px, where swipe/drag comes for free, and
+     on every width when the block's layout is "row"
+     (data-orbit-layout="row").
      Reusable: wire up any container via data-orbit / data-orbit-track /
      data-orbit-card / data-orbit-prev / data-orbit-next / data-orbit-dots.
+
+     THE ACTIVE CARD IS ALWAYS CENTERED. Every move — a button, a dot, the
+     keyboard, autoplay — goes to a card's own resting angle, never "one
+     step from wherever the ring happens to be". The ring used to drift
+     continuously and a click stepped from that drifted angle, so the card
+     it stopped on could sit far off-center (with two cards: all the way
+     to the side). Autoplay now rests on each card and then turns to the
+     next one.
      --------------------------------------------------------------------- */
   function initOrbitCarousels() {
     document.querySelectorAll("[data-orbit]").forEach(setupOrbitCarousel);
@@ -31,20 +41,29 @@
     var n = cards.length;
     if (!stage || !track || n < 1) return;
 
+    var isRowLayout = root.getAttribute("data-orbit-layout") === "row";
     var angleStep = 360 / n;
-    var speedDegPerSec = parseFloat(root.dataset.orbitSpeed || "9");
     var manualDuration = prefersReducedMotion ? 1 : 550;
+    var autoplayDuration = 1400;
+    var autoplayRestMs = 5000;
 
     var angle = 0;
     var tweenFrom = null, tweenTo = null, tweenStart = null;
+    var tweenDuration = manualDuration;
     var hoverPaused = false, focusPaused = false, isPaused = false;
-    var isFlat = window.matchMedia("(max-width: 699px)").matches;
+    var mq = window.matchMedia("(max-width: 699px)");
+    var isFlat = isRowLayout || mq.matches;
     var activeIndex = -1;
     var rafId = null;
     var lastFrame = null;
+    var restedMs = 0;
     var hoveredIndex = -1;
     var hoverScale = []; // per-card, eases toward 1 (hovered) / 0 (not) each frame
-    var speedFactor = 1; // eases toward 0 while paused so autoplay glides to a stop instead of freezing
+
+    // The resting angle the ring is commanded toward, kept separate from the
+    // live, animating `angle`, so a second click during a turn still goes
+    // one card further than the first.
+    var targetAngle = 0;
 
     var dotButtons = [];
     if (dotsWrap && n > 1) {
@@ -69,10 +88,14 @@
       if (a < 0) a += 360;
       return a;
     }
+    function mod(i) { return ((i % n) + n) % n; }
     function easeInOutCubic(t) {
       return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
     }
-    function updatePaused() { isPaused = hoverPaused || focusPaused; }
+    function updatePaused() {
+      isPaused = hoverPaused || focusPaused;
+      if (isPaused) restedMs = 0;
+    }
 
     function setActive(i) {
       if (i === activeIndex) return;
@@ -104,16 +127,15 @@
         var depth = (Math.cos(rad) + 1) / 2; // 0 = back, 1 = front
         var x = Math.sin(rad) * rx;
         var z = Math.cos(rad) * rz;
-        // Wider range than a neutral 0–1 scale so the centered card visibly
-        // grows past its resting size (pulls toward the viewer) while back
-        // cards shrink and dim further away — a physical stack, not a flat swap.
+        // The centered card grows past its resting size while back cards
+        // shrink and dim — a physical stack, not a flat swap. The largest
+        // value here (front, hovered) is --orbit-front-scale in the CSS,
+        // which sizes the stage so the card never covers the controls.
         var scale = 0.5 + depth * 0.58;
         var opacity = 0.28 + depth * 0.72;
         var brightness = 0.5 + depth * 0.55;
 
-        // Small in-place hover bump — eased toward its target each frame
-        // (never snapped) so it grows/settles smoothly, and never moves the
-        // card itself: only the existing depth-based transform does that.
+        // Small in-place hover bump, eased toward its target each frame.
         var hoverTarget = i === hoveredIndex ? 1 : 0;
         var hoverCur = hoverScale[i] || 0;
         hoverCur += (hoverTarget - hoverCur) * hoverEase;
@@ -134,52 +156,61 @@
       setActive(nearestIndex);
     }
 
-    function startTween(from, to, duration) {
-      tweenFrom = from;
-      tweenTo = to;
-      tweenStart = null;
-      tweenDuration = duration;
+    /** The card the ring is resting on, or turning to. */
+    function commandedIndex() {
+      var a = tweenTo !== null ? targetAngle : angle;
+      return mod(Math.round(-a / angleStep));
     }
-    var tweenDuration = manualDuration;
-    // The resting angle we're commanding the ring toward — kept separate
-    // from the live, currently-animating `angle` so that a next()/prev()/
-    // goTo() fired before a prior tween finishes still advances by exactly
-    // one full step (chained from the last command), instead of re-deriving
-    // its step from a live angle that's still mid-flight.
-    var targetAngle = 0;
 
-    function syncTargetToLive() {
-      if (tweenTo === null) targetAngle = angle; // idle or autoplay-drifted: resync first
-    }
-    function ringNext() {
-      syncTargetToLive();
-      targetAngle -= angleStep;
-      startTween(angle, targetAngle, manualDuration);
-    }
-    function ringPrev() {
-      syncTargetToLive();
-      targetAngle += angleStep;
-      startTween(angle, targetAngle, manualDuration);
-    }
-    function ringGoTo(index) {
-      syncTargetToLive();
-      var raw = -index * angleStep;
-      var delta = raw - targetAngle;
+    function ringGoTo(index, opts) {
+      if (tweenTo === null) targetAngle = angle;
+      // The shortest way round to the card's own resting angle.
+      var delta = -index * angleStep - targetAngle;
       delta = ((delta % 360) + 540) % 360 - 180;
+      // Two cards are half a turn apart either way: keep the direction the
+      // caller asked for rather than whatever the rounding picks.
+      if (n === 2 && Math.abs(Math.abs(delta) - 180) < 0.001 && opts && opts.direction) {
+        delta = opts.direction > 0 ? -180 : 180;
+      }
       targetAngle += delta;
-      startTween(angle, targetAngle, manualDuration);
+      tweenFrom = angle;
+      tweenTo = targetAngle;
+      tweenStart = null;
+      tweenDuration = opts && opts.ms && !prefersReducedMotion ? opts.ms : manualDuration;
+      restedMs = 0;
     }
 
-    function cardStep() {
-      if (!cards[0]) return 0;
-      var gap = parseFloat(getComputedStyle(track).gap) || 0;
-      return cards[0].getBoundingClientRect().width + gap;
+    /* Flat strip (phone, or the "row" layout): a card's resting place is
+       the scroll position its own scroll-snap-align puts it at. */
+    function flatScrollFor(card) {
+      var align = getComputedStyle(card).scrollSnapAlign || "";
+      if (align.indexOf("center") !== -1) {
+        return card.offsetLeft - (stage.clientWidth - card.offsetWidth) / 2;
+      }
+      var padding = parseFloat(getComputedStyle(stage).scrollPaddingLeft) || 0;
+      return card.offsetLeft - padding;
     }
-    function scrollFlatBy(dir) { stage.scrollBy({ left: dir * cardStep(), behavior: prefersReducedMotion ? "auto" : "smooth" }); }
-    function scrollFlatTo(index) { stage.scrollTo({ left: index * cardStep(), behavior: prefersReducedMotion ? "auto" : "smooth" }); }
+    function flatNearestIndex() {
+      var best = 0, bestDistance = Infinity;
+      cards.forEach(function (card, i) {
+        var d = Math.abs(flatScrollFor(card) - stage.scrollLeft);
+        if (d < bestDistance) { bestDistance = d; best = i; }
+      });
+      return best;
+    }
+    function scrollFlatTo(index) {
+      var card = cards[Math.max(0, Math.min(n - 1, index))];
+      stage.scrollTo({ left: flatScrollFor(card), behavior: prefersReducedMotion ? "auto" : "smooth" });
+    }
 
-    function next() { isFlat ? scrollFlatBy(1) : ringNext(); }
-    function prev() { isFlat ? scrollFlatBy(-1) : ringPrev(); }
+    function next() {
+      if (isFlat) { scrollFlatTo(Math.min(n - 1, flatNearestIndex() + 1)); return; }
+      ringGoTo(mod(commandedIndex() + 1), { direction: 1 });
+    }
+    function prev() {
+      if (isFlat) { scrollFlatTo(Math.max(0, flatNearestIndex() - 1)); return; }
+      ringGoTo(mod(commandedIndex() - 1), { direction: -1 });
+    }
     function goTo(index) { isFlat ? scrollFlatTo(index) : ringGoTo(index); }
 
     var scrollTicking = false;
@@ -187,20 +218,25 @@
       if (!isFlat || scrollTicking) return;
       scrollTicking = true;
       requestAnimationFrame(function () {
-        var w = cardStep();
-        var idx = w ? Math.round(stage.scrollLeft / w) : 0;
-        idx = Math.max(0, Math.min(n - 1, idx));
         activeIndex = -1; // force dot refresh via setActive
-        setActive(idx);
+        setActive(flatNearestIndex());
         scrollTicking = false;
       });
     }, { passive: true });
+
+    /* The "row" layout shows its arrows and dots only when the cards do
+       not all fit next to each other. */
+    function updateOverflow() {
+      if (!isRowLayout) return;
+      root.setAttribute("data-orbit-overflow", track.scrollWidth > stage.clientWidth + 1 ? "true" : "false");
+    }
 
     function resetCardStyles() {
       cards.forEach(function (card) {
         card.style.transform = "";
         card.style.zIndex = "";
         card.removeAttribute("aria-hidden");
+        card.removeAttribute("data-orbit-active");
         var link = card.querySelector("a, button");
         if (link) link.tabIndex = 0;
         var inner = card.querySelector(".orbit-card__inner");
@@ -211,14 +247,17 @@
     function enterFlatMode() {
       isFlat = true;
       if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
+      tweenFrom = tweenTo = tweenStart = null;
       resetCardStyles();
       activeIndex = -1;
-      setActive(0);
+      setActive(flatNearestIndex());
     }
     function enterOrbitMode() {
       isFlat = false;
       activeIndex = -1;
       lastFrame = null;
+      // Back on a card's resting angle, never on a half-turned ring.
+      angle = targetAngle = -commandedIndex() * angleStep;
       if (!rafId) rafId = requestAnimationFrame(frame);
     }
 
@@ -233,15 +272,11 @@
         var t = tweenDuration > 1 ? Math.min(1, (ts - tweenStart) / tweenDuration) : 1;
         angle = tweenFrom + (tweenTo - tweenFrom) * easeInOutCubic(t);
         if (t >= 1) { angle = tweenTo; tweenFrom = null; tweenTo = null; tweenStart = null; }
-      } else if (!prefersReducedMotion && n > 1) {
-        // speedFactor eases toward 0 (paused) or 1 (running) instead of the
-        // autoplay increment switching on/off instantly — the ring glides to
-        // a stop on hover/focus rather than freezing mid-turn.
-        var speedTarget = isPaused ? 0 : 1;
-        var speedEase = dt > 0 ? Math.min(1, dt / 260) : 1;
-        speedFactor += (speedTarget - speedFactor) * speedEase;
-        if (Math.abs(speedFactor) > 0.0008) {
-          angle -= speedDegPerSec * speedFactor * (dt / 1000);
+      } else if (!prefersReducedMotion && n > 1 && !isPaused) {
+        // Autoplay: rest on the centered card, then turn to the next one.
+        restedMs += dt;
+        if (restedMs >= autoplayRestMs) {
+          ringGoTo(mod(commandedIndex() + 1), { direction: 1, ms: autoplayDuration });
         }
       }
 
@@ -251,10 +286,6 @@
 
     if (prevBtn) prevBtn.addEventListener("click", prev);
     if (nextBtn) nextBtn.addEventListener("click", next);
-    // Hovering any card (not just the active one) gives it a small in-place
-    // scale bump — no rotation, the ring itself doesn't move. hoverScale
-    // eases toward its target each frame in applyOrbitFrame() rather than
-    // snapping, so the bump grows/settles smoothly.
     cards.forEach(function (card, i) {
       card.addEventListener("mouseenter", function () { hoveredIndex = i; });
       card.addEventListener("mouseleave", function () { if (hoveredIndex === i) hoveredIndex = -1; });
@@ -262,10 +293,9 @@
     root.addEventListener("mouseenter", function () { hoverPaused = true; updatePaused(); });
     root.addEventListener("mouseleave", function () {
       hoverPaused = false;
-      // A prior click leaves its button focused; once the pointer has
-      // actually left the component that stale focus shouldn't keep
-      // autoplay paused forever — only a still-focused keyboard user
-      // (who never fires mouseleave) should keep it paused.
+      // A prior click leaves its button focused; once the pointer has left
+      // the component that stale focus should not keep autoplay paused —
+      // only a still-focused keyboard user (no mouseleave) should.
       focusPaused = false;
       updatePaused();
     });
@@ -276,19 +306,27 @@
       else if (e.key === "ArrowRight") { e.preventDefault(); next(); }
     });
 
-    var mq = window.matchMedia("(max-width: 699px)");
     function handleModeChange(e) {
+      if (isRowLayout) return;
       if (e.matches && !isFlat) enterFlatMode();
       else if (!e.matches && isFlat) enterOrbitMode();
     }
     if (mq.addEventListener) mq.addEventListener("change", handleModeChange);
     else if (mq.addListener) mq.addListener(handleModeChange);
 
+    var resizeTicking = false;
+    window.addEventListener("resize", function () {
+      if (resizeTicking) return;
+      resizeTicking = true;
+      requestAnimationFrame(function () { updateOverflow(); resizeTicking = false; });
+    });
+
+    updateOverflow();
     if (isFlat) {
       resetCardStyles();
       setActive(0);
     } else {
-      applyOrbitFrame();
+      applyOrbitFrame(0);
       rafId = requestAnimationFrame(frame);
     }
   }

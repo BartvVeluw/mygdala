@@ -333,6 +333,7 @@ final class ModuleRegistry
         \App\Service\ReservedRoutes::reset();
         \App\Service\RouteRegistry::reset();
         \App\Service\Routing\RouteSegments::reset();
+        \App\Service\Routing\LinkTargets::reset();
         \App\Service\Routing\RouteTable::reset();
         \App\Service\SectionRegistry::reset();
     }

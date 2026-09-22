@@ -350,7 +350,7 @@ Fase 3B, in drie golven (één migratie per golf):
 | B | Woordenband (`marquee`) | `marquee_items`: label (de band zelf heeft geen woorden) |
 | C | Tekst met afbeelding (`text_image_split`) | `text_image_splits`: eyebrow, title, button_label; `text_image_split_paragraphs`: content; `text_image_split_images`: alt |
 | C | Detailsectie (`detail_section`) | `detail_sections`: nav_label, title, lead, **body (rich)**, main_image_alt, closing_note, cta_label; `detail_section_points`: title, body; `detail_section_images`: alt |
-| C | Kaarten-carrousel (`card_carousel`) | `card_carousels`: eyebrow, title, lead; `carousel_cards`: title, body, image_alt, link_label; `carousel_card_tags`: label (kleinkind) |
+| C | Kaarten-carrousel (`card_carousel`) | `card_carousels`: eyebrow, title, lead; `carousel_cards`: title, body, image_alt, link_label, number_label; `carousel_card_tags`: label (kleinkind) |
 
 De vaste blokken (`quicknav`, `product_grid`, `shop_collections`) hebben geen
 eigen rijen en dus geen eigen woorden: de quicknav toont de labels van de

@@ -17,6 +17,9 @@
  * the presentation the Acryl & glas card has always had, decided purely on
  * whether image_path is empty.
  *
+ * The number above a card's title is the card's own label, or its position
+ * ("01") when it has none — CardCarouselContent decides, this file prints.
+ *
  * The carousel's aria labels are generic ("kaart", not "materiaal") because
  * the block is: the region announces itself with the block's own title.
  *
@@ -41,6 +44,9 @@ function render_section_card_carousel(array $content): void
     $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
 
     $hasHead = $content['eyebrow'] !== '' || $content['title'] !== '' || $content['lead'] !== '';
+    // "Kaarten naast elkaar": the flat strip on every screen
+    // (CardCarouselContent::LAYOUT_ROW); anything else is the rotating ring.
+    $isRow = ($content['desktop_layout'] ?? '') === \App\Service\CardCarouselContent::LAYOUT_ROW;
     ?>
       <section class="bg-soft">
         <div class="container">
@@ -59,9 +65,9 @@ function render_section_card_carousel(array $content): void
           <?php endif; ?>
 
           <div
-            class="orbit-carousel"
+            class="orbit-carousel<?= $isRow ? ' orbit-carousel--row' : '' ?>"
             data-orbit
-            data-orbit-speed="9"
+            data-orbit-layout="<?= $isRow ? 'row' : 'orbit' ?>"
             data-reveal
             role="region"
             aria-roledescription="carousel"

@@ -106,6 +106,7 @@
              server, so CMS content cannot affect them at all. -->
         <testsuite name="contract">
             <file>tests/Service/MultilingualBoundaryTest.php</file>
+            <file>tests/Service/CardCarouselFrontendContractTest.php</file>
             <file>tests/Service/ShopScriptTextContractTest.php</file>
             <file>tests/Blog/BlogModuleTest.php</file>
             <file>tests/Blog/BlogLocalizationTest.php</file>
@@ -166,6 +167,7 @@
              to run constantly while writing code. -->
         <testsuite name="fast">
             <file>tests/Service/LanguageRegistryTest.php</file>
+            <file>tests/Service/CardCarouselFrontendContractTest.php</file>
             <file>tests/Service/Routing/AcceptLanguageTest.php</file>
             <file>tests/Service/Routing/RequestPathTest.php</file>
             <file>tests/Service/Routing/LocalizedUrlTest.php</file>
@@ -398,6 +400,7 @@
             <file>tests/Service/BlockLocalizationEditorHttpTest.php</file>
             <file>tests/Service/BlockWordsEditorHttpTest.php</file>
             <file>tests/Service/BlockChildWordsEditorHttpTest.php</file>
+            <file>tests/Service/CardCarouselFrontendContractTest.php</file>
             <file>tests/Service/BlockLocalizedRenderingTest.php</file>
             <file>tests/Service/RemainingBlocksRenderingTest.php</file>
             <file>tests/Service/BlockWordsPreloadTest.php</file>
