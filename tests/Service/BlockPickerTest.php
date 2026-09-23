@@ -186,25 +186,29 @@ final class BlockPickerTest extends TestCase
     }
 
     /**
-     * The Shop's product grid is an ordinary block since the product
-     * overview became a page the owner chooses (App\Service\ShopOverview):
-     * offered on an ordinary page while the Shop runs, at most once per page.
+     * The Shop's product grid and collection tiles are ordinary blocks since
+     * the product overview became a page the owner chooses
+     * (App\Service\ShopOverview): offered on an ordinary page while the Shop
+     * runs, at most once per page. (Not with the Shop off:
+     * testTheShopsBlocksFollowTheirModuleInAndOutOfTheCatalogue().)
      */
-    public function testTheProductGridIsOfferedOnAnOrdinaryPageOncePerPage(): void
+    public function testTheShopBlocksAreOfferedOnAnOrdinaryPageOncePerPage(): void
     {
         ModuleRegistry::overrideForTests(['shop' => true, 'multilingual' => true]);
         SectionRegistry::reset();
 
-        $available = SectionRegistry::availableDefinitionsForPage(self::PAGE, new FakePageSectionRepository());
-        $this->assertArrayHasKey('product_grid', $available);
-        $this->assertStringContainsString('value="product_grid"', $this->renderPicker());
+        foreach (['product_grid', 'shop_collections'] as $type) {
+            $available = SectionRegistry::availableDefinitionsForPage(self::PAGE, new FakePageSectionRepository());
+            $this->assertArrayHasKey($type, $available);
+            $this->assertStringContainsString('value="' . $type . '"', $this->renderPicker());
 
-        $this->assertArrayNotHasKey(
-            'product_grid',
-            SectionRegistry::availableDefinitionsForPage(self::PAGE, new FakePageSectionRepository(['product_grid'])),
-            'one product grid per page'
-        );
-        $this->assertStringNotContainsString('value="product_grid"', $this->renderPicker(['product_grid']));
+            $this->assertArrayNotHasKey(
+                $type,
+                SectionRegistry::availableDefinitionsForPage(self::PAGE, new FakePageSectionRepository([$type])),
+                'one per page'
+            );
+            $this->assertStringNotContainsString('value="' . $type . '"', $this->renderPicker([$type]));
+        }
     }
 
     public function testACappedBlockDisappearsFromThePickerOnceThePageHasIt(): void

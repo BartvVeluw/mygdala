@@ -352,10 +352,10 @@ Fase 3B, in drie golven (één migratie per golf):
 | C | Detailsectie (`detail_section`) | `detail_sections`: nav_label, title, lead, **body (rich)**, main_image_alt, closing_note, cta_label; `detail_section_points`: title, body; `detail_section_images`: alt |
 | C | Kaarten-carrousel (`card_carousel`) | `card_carousels`: eyebrow, title, lead; `carousel_cards`: title, body, image_alt, link_label, number_label; `carousel_card_tags`: label (kleinkind) |
 
-De vaste blokken (`quicknav`, `shop_collections`) en het Shop-blok
-`product_grid` hebben geen eigen rijen en dus geen eigen woorden: de quicknav
-toont de labels van de Detailsecties, het productgrid de namen van de
-producten.
+Het vaste blok `quicknav` en de Shop-blokken `product_grid` en
+`shop_collections` hebben geen eigen rijen en dus geen eigen woorden: de
+quicknav toont de labels van de Detailsecties, het productgrid de namen van de
+producten, de collectie-tegels die van de collecties.
 
 ### De tabel `block_translations`
 

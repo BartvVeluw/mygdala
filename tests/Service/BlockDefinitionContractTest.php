@@ -37,10 +37,11 @@ final class BlockDefinitionContractTest extends TestCase
     /**
      * Blocks an editor places by hand that still own no content row: they
      * show something the site already has (the Shop's product grid shows the
-     * catalogue, App\Service\Blocks\ProductGridBlock). A closed list, so a new
+     * catalogue, its collection tiles the collections;
+     * App\Service\Blocks\ProductGridBlock, ShopCollectionsBlock). A closed list, so a new
      * block cannot drift into it by forgetting its table.
      */
-    private const ADDABLE_WITHOUT_CONTENT = ['product_grid'];
+    private const ADDABLE_WITHOUT_CONTENT = ['product_grid', 'shop_collections'];
 
     /**
      * Everything a block must answer for itself. These are abstract on

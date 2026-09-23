@@ -182,13 +182,14 @@ final class ShopPicturesAndOverviewMigrationTest extends TestCase
      * migration: the storefront's existing row stays exactly as it was, and
      * nothing adds a second one anywhere, whatever runs again.
      */
-    public function testTheStorefrontKeepsItsOneProductGridAndNoneIsAdded(): void
+    public function testTheStorefrontKeepsItsOneProductGridAndCollectionTilesAndNoneIsAdded(): void
     {
         $this->assertNotSame([], self::$gridsBefore, 'the historical storefront carries a grid here');
         $this->assertSame(self::$gridsBefore, self::$gridsAfter);
 
-        $perPage = array_count_values(array_map(static fn (array $row): int => (int) $row['page_id'], self::$gridsAfter));
-        $this->assertSame([], array_filter($perPage, static fn (int $count): bool => $count > 1), 'at most one grid per page');
+        $perPage = array_count_values(array_map(static fn (array $row): string => $row['section_type'] . '@' . $row['page_id'], self::$gridsAfter));
+        $this->assertSame([], array_filter($perPage, static fn (int $count): bool => $count > 1), 'at most one of each per page');
+        $this->assertSame(['product_grid', 'shop_collections'], array_values(array_unique(array_column(self::$gridsAfter, 'section_type'))));
     }
 
     public function testNoVariantGetsACopyOfTheProductsText(): void
@@ -237,6 +238,12 @@ final class ShopPicturesAndOverviewMigrationTest extends TestCase
              SELECT p.id, 'shop', 'product_grid', NULL, 0, 0, 1, NOW(), NOW() FROM pages p
              WHERE p.content_key = 'shop'
                AND NOT EXISTS (SELECT 1 FROM page_sections ps WHERE ps.section_type = 'product_grid')"
+        );
+        $pdo->exec(
+            "INSERT INTO page_sections (page_id, page_slug, section_type, section_key, section_id, sort_order, is_active, created_at, updated_at)
+             SELECT p.id, 'shop', 'shop_collections', NULL, 0, 1, 1, NOW(), NOW() FROM pages p
+             WHERE p.content_key = 'shop'
+               AND NOT EXISTS (SELECT 1 FROM page_sections ps WHERE ps.section_type = 'shop_collections')"
         );
 
         $product = self::product($pdo, 'zz-ux-product', 'assets/images/products/own.webp');
@@ -294,7 +301,7 @@ final class ShopPicturesAndOverviewMigrationTest extends TestCase
     private static function grids(ScratchInstall $install): array
     {
         return $install->rows(
-            "SELECT id, page_id, section_key, section_id, sort_order, is_active FROM page_sections WHERE section_type = 'product_grid' ORDER BY id"
+            "SELECT id, page_id, section_type, section_key, section_id, sort_order, is_active FROM page_sections WHERE section_type IN ('product_grid', 'shop_collections') ORDER BY id"
         );
     }
 

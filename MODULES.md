@@ -366,8 +366,10 @@ Alles wat er ook zou zijn zonder webshop.
   die de eigenaar kiest, hooguit één per pagina, verwijderbaar, en niet meer
   applicatiekritisch. Het scherm toont bij elke pagina of er een Productgrid
   op staat en laat alleen zo'n pagina kiezen (plus de huidige keuze); een
-  pagina kiezen voegt nooit zelf een blok toe. De historische winkelpagina
-  houdt haar eigen grid en is een gewone pagina geworden. Elke Shop-link
+  pagina kiezen voegt nooit zelf een blok toe. Het blok **Collectie-tegels**
+  (`shop_collections`) volgt hetzelfde contract: handmatig, op elke gewone
+  pagina, hooguit één per pagina, verwijderbaar. De historische winkelpagina
+  houdt haar eigen blokken en is een gewone pagina geworden. Elke Shop-link
   naar "de shop" — productpagina, winkelwagen, afrekenen, collectie,
   bestelstatus, personaliseren en hun kruimelpaden — vraagt het adres aan
   `ShopOverview` en schrijft `/shop.php` niet zelf. `shop.php` volgt de keuze:

@@ -395,54 +395,90 @@ final class ContentBlockArchitectureTest extends TestCase
         $this->assertTrue(SectionRegistry::isAllowedOnPage('page_hero', $contentPage));
 
         $this->assertFalse(
-            SectionRegistry::isAllowedOnPage('shop_collections', $contentPage),
+            SectionRegistry::isAllowedOnPage('quicknav', $contentPage),
             'a fixed block belongs to the one page whose template owns it'
         );
-        $this->assertTrue(
-            SectionRegistry::isAllowedOnPage('product_grid', $contentPage),
-            'the product grid is an ordinary Shop block, placed on any page'
-        );
+        foreach (['product_grid', 'shop_collections'] as $shopBlock) {
+            $this->assertTrue(
+                SectionRegistry::isAllowedOnPage($shopBlock, $contentPage),
+                "{$shopBlock} is an ordinary Shop block, placed on any page"
+            );
+        }
+    }
+
+    /** @return array<string, array{0: string}> */
+    public static function shopBlocksWithoutContent(): array
+    {
+        return ['product grid' => ['product_grid'], 'collection tiles' => ['shop_collections']];
     }
 
     /**
-     * The Shop's product grid on an ordinary page: added by hand, one per
-     * page, removable again, and never a reason to protect the page. Its
-     * page_sections row uses the page id as section_id (no content row of its
-     * own), so two pages each holding one never collide on
-     * UNIQUE(section_type, section_id), and the storefront's own row is left
-     * as it was.
+     * The Shop's product grid and collection tiles on an ordinary page: added
+     * by hand, one per page, removable again, and never a reason to protect
+     * the page. Their page_sections row uses the page id as section_id (no
+     * content row of their own), so two pages each holding one never collide
+     * on UNIQUE(section_type, section_id), and the historical storefront's own
+     * row (section_id 0, the way the old install bootstrap attached it) is left
+     * exactly as it was.
+     *
+     * @dataProvider shopBlocksWithoutContent
      */
-    public function testTheProductGridIsAnOrdinaryBlockOncePerPage(): void
+    public function testAShopBlockIsAnOrdinaryBlockOncePerPage(string $type): void
     {
-        $page = $this->testPage();
-        $this->assertArrayHasKey('product_grid', SectionRegistry::availableForPage($page, $this->sections));
-
-        $id = $this->addBlock('product_grid');
-        $row = $this->sections->findById($id);
-        $this->assertSame($this->pageId, (int) $row['section_id']);
-        $this->assertNull($row['section_key']);
-
-        $this->assertArrayNotHasKey(
-            'product_grid',
-            SectionRegistry::availableForPage($this->testPage(), $this->sections),
-            'at most one product grid per page'
-        );
-        $this->assertFalse(PageContent::isProtected($this->testPage()), 'a product grid never protects a page');
-
         $storefront = $this->pages->findByContentKey('shop');
-        $storefrontGrids = array_values(array_filter(
-            $this->sections->findForPage((int) $storefront['id']),
-            static fn (array $r): bool => $r['section_type'] === 'product_grid'
-        ));
-        $this->assertCount(1, $storefrontGrids, 'the storefront keeps its own grid');
+        $historicalId = $this->historicalStorefrontRow($type, (int) $storefront['id']);
 
-        SectionRegistry::delete($row, $this->sections);
-        $this->assertNull($this->sections->findById($id));
-        $this->assertArrayHasKey('product_grid', SectionRegistry::availableForPage($this->testPage(), $this->sections), 'and it can be placed again');
-        $this->assertCount(1, array_filter(
-            $this->sections->findForPage((int) $storefront['id']),
-            static fn (array $r): bool => $r['section_type'] === 'product_grid'
-        ), 'removing one page\'s grid never touches another page\'s');
+        try {
+            $page = $this->testPage();
+            $this->assertArrayHasKey($type, SectionRegistry::availableForPage($page, $this->sections));
+
+            $id = $this->addBlock($type);
+            $row = $this->sections->findById($id);
+            $this->assertSame($this->pageId, (int) $row['section_id']);
+            $this->assertNull($row['section_key']);
+
+            $this->assertArrayNotHasKey(
+                $type,
+                SectionRegistry::availableForPage($this->testPage(), $this->sections),
+                'at most one per page'
+            );
+            $this->assertFalse(PageContent::isProtected($this->testPage()), 'a Shop block never protects a page');
+
+            SectionRegistry::delete($row, $this->sections);
+            $this->assertNull($this->sections->findById($id));
+            $this->assertArrayHasKey($type, SectionRegistry::availableForPage($this->testPage(), $this->sections), 'and it can be placed again');
+
+            $again = $this->sections->findById($this->addBlock($type));
+            $this->assertSame($this->pageId, (int) $again['section_id']);
+
+            $onStorefront = array_values(array_filter(
+                $this->sections->findForPage((int) $storefront['id']),
+                static fn (array $r): bool => $r['section_type'] === $type
+            ));
+            $this->assertCount(1, $onStorefront, 'the storefront keeps its own block, and only that one');
+            $this->assertSame(0, (int) $onStorefront[0]['section_id']);
+        } finally {
+            if ($historicalId !== null) {
+                $this->sections->delete($historicalId);
+            }
+        }
+    }
+
+    /**
+     * The storefront's own row of $type, attached the way the old install
+     * bootstrap did (no content row, section_id 0) when this database has
+     * none yet; returns the id to remove afterwards, or null when it was
+     * already there.
+     */
+    private function historicalStorefrontRow(string $type, int $storefrontId): ?int
+    {
+        foreach ($this->sections->findForPage($storefrontId) as $row) {
+            if ($row['section_type'] === $type) {
+                return null;
+            }
+        }
+
+        return $this->sections->create($storefrontId, 'shop', $type, null, 0);
     }
 
     public function testFixedBlocksCanBeNeitherAddedNorCreatedNorDeleted(): void
@@ -453,10 +489,10 @@ final class ContentBlockArchitectureTest extends TestCase
         // phase 4 for the two Portfolio blocks, which became one `item_gallery`
         // (ReusableBlocksPhase4Test). The quicknav stayed fixed, but it is now
         // derived rather than hardcoded.
-        // `product_grid` left this list when the product overview became a
-        // page the owner chooses: it is placed by hand now (see
-        // testTheProductGridIsAnOrdinaryBlockOncePerPage()).
-        $fixed = ['shop_collections', 'quicknav'];
+        // `product_grid` and then `shop_collections` left this list when the
+        // product overview became a page the owner chooses: they are placed by
+        // hand now (see testAShopBlockIsAnOrdinaryBlockOncePerPage()).
+        $fixed = ['quicknav'];
 
         foreach ($fixed as $type) {
             $this->assertTrue(SectionRegistry::isFixed($type), "{$type} must be a fixed block");
@@ -465,15 +501,15 @@ final class ContentBlockArchitectureTest extends TestCase
             $this->assertSame(1, SectionRegistry::maxInstances($type));
         }
 
-        $shop = $this->pages->findByContentKey('shop');
+        $diensten = $this->pages->findByContentKey('diensten') ?? ['id' => 0, 'content_key' => 'diensten'];
         $this->assertArrayNotHasKey(
-            'shop_collections',
-            SectionRegistry::availableForPage($shop, $this->sections),
+            'quicknav',
+            SectionRegistry::availableForPage($diensten, $this->sections),
             'a fixed block must never appear in "+ Sectie toevoegen", not even on its own page'
         );
 
         $this->expectException(\RuntimeException::class);
-        SectionRegistry::create('shop_collections', 'shop');
+        SectionRegistry::create('quicknav', 'diensten');
     }
 
     public function testRepeatableBlocksStayAvailableAfterSeveralInstances(): void

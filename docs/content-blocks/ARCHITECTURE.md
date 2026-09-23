@@ -26,12 +26,13 @@ bestaande `UNIQUE(section_type, section_id)` dwingt dat "maximaal één in de he
 site" op databaseniveau af). Vaste inhoud buiten de lijst houden zou de lijst
 weer opsplitsen; dát sluit deze architectuur uit.
 
-Er zijn nog twee vaste blokken: `shop_collections` en `quicknav`. Al het
-andere is een gewoon, toevoegbaar blok. `product_grid` was de derde; sinds het
-productoverzicht een pagina is die de eigenaar kiest (`MODULES.md`, "Shop") is
-het een gewoon Shop-blok, hooguit één per pagina, zonder eigen inhoudsrij: zijn
-`page_sections.section_id` is het id van de pagina, zodat
-`UNIQUE(section_type, section_id)` per pagina geldt en niet per site.
+Er is nog één vast blok: `quicknav`. Al het andere is een gewoon, toevoegbaar
+blok. `product_grid` en `shop_collections` waren vaste blokken van de
+winkelpagina; sinds het productoverzicht een pagina is die de eigenaar kiest
+(`MODULES.md`, "Shop") zijn het gewone Shop-blokken, elk hooguit één per
+pagina, zonder eigen inhoudsrij: hun `page_sections.section_id` is het id van
+de pagina, zodat `UNIQUE(section_type, section_id)` per pagina geldt en niet
+per site. Een historische rij houdt het id dat hij had (0).
 
 ## Blok-instanties
 
