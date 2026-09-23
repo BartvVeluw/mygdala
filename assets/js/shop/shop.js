@@ -218,19 +218,26 @@
       if (priceEl) priceEl.innerHTML = S.formatPrice(product.price);
 
       var descEl = document.querySelector("[data-product-description]");
-      if (descEl) {
-        if (product.description) {
-          // Full formatted description here (unlike the shop card): the
-          // value is server-sanitized HTML (sanitized on write AND again by
-          // App\Service\ShopLocalization on the way out), so it is the one
-          // value this page renders with innerHTML. Every plain-text field —
-          // the product name above included — stays textContent.
-          descEl.innerHTML = product.description;
+
+      /* The description on show: the product's, or a variant's own when the
+         selected variant has one (api/product.php already resolved "own text
+         in this language, else the product's"). Full formatted HTML here
+         (unlike the shop card): the value is server-sanitized (on write AND
+         again by App\Service\ShopLocalization on the way out), so it is the
+         one value this page renders with innerHTML. Every plain-text field —
+         the product name above included — stays textContent. */
+      function showDescription(html) {
+        if (!descEl) return;
+        if (html) {
+          if (descEl.innerHTML !== html) descEl.innerHTML = html;
           descEl.hidden = false;
         } else {
           descEl.hidden = true;
+          descEl.innerHTML = "";
         }
       }
+
+      showDescription(product.description);
 
       var mediaEl = document.querySelector("[data-product-media]");
       var thumbsEl = document.querySelector("[data-product-thumbs]");
@@ -248,78 +255,166 @@
         return (image && image.alt_text) ? image.alt_text : fallbackText;
       }
 
-      /* Renders a full gallery (main image + thumbnails) from a list of
-         {image_path, alt_text} images — used for both a plain product's own
-         photos and a variant's photos. Always replaces whatever gallery was
-         showing before; falls back to the generic icon when there are none. */
-      function renderGallery(images, fallbackAltText) {
-        images = Array.isArray(images) ? images : [];
+      /* ---------------------------------------------------------------
+         The gallery: one big picture and a row of thumbnails.
 
-        function showMain(image) {
-          if (!mediaEl) return;
-          mediaEl.innerHTML = image ?
-            '<img src="' + S.escapeAttr(S.rootPath(image.image_path)) + '" alt="' + S.escapeAttr(imageAlt(image, fallbackAltText)) + '">' :
-            S.genericProductIcon;
-        }
+         THE POSITION IS AN INDEX, 0-based, into whatever list of pictures
+         is showing (`galleryIndex`). Switching variants keeps the index,
+         not the picture: variant A at its 3rd photo (index 2) goes to
+         variant B's 3rd photo, or to B's first photo (index 0) when B has
+         fewer than three — nextGalleryIndex(). Coming back to A applies
+         the same rule to A. Only visible numbers ("3 of 4") are 1-based.
 
-        if (images.length === 0) {
-          showMain(null);
-          if (thumbsEl) { thumbsEl.hidden = true; thumbsEl.innerHTML = ""; }
+         A product's pictures are ONE pool. A variant shows the subset it
+         chose, in its own order, or the whole pool when it chose none, so
+         adding variants never hides the product's own pictures.
+         --------------------------------------------------------------- */
+      var galleryImages = [];
+      var galleryIndex = 0;
+      var galleryAlt = titleText;
+      var swapToken = 0;
+      var reduceMotion = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)");
+
+      function prefersReducedMotion() {
+        return !!(reduceMotion && reduceMotion.matches);
+      }
+
+      /* The index to show in a list of `length` pictures when the gallery
+         was at `index`: the same position when the list has it, the first
+         picture otherwise. Both 0-based. */
+      function nextGalleryIndex(index, length) {
+        return index >= 0 && index < length ? index : 0;
+      }
+
+      function mainImageMarkup(image) {
+        if (!image) return S.genericProductIcon;
+        var size = image.width && image.height ?
+          ' width="' + parseInt(image.width, 10) + '" height="' + parseInt(image.height, 10) + '"' : "";
+        return '<img class="product-detail__main-img" src="' + S.escapeAttr(S.rootPath(image.image_path)) + '" alt="' +
+          S.escapeAttr(imageAlt(image, galleryAlt)) + '"' + size + '>';
+      }
+
+      /* Shows the big picture. With `animate`, the old one fades out and the
+         new one fades in once it has loaded — a short opacity/scale step,
+         never a layout change (the frame keeps its square). Without motion
+         (prefers-reduced-motion) it is simply swapped. */
+      function showMain(image, animate) {
+        if (!mediaEl) return;
+
+        var current = mediaEl.querySelector(".product-detail__main-img");
+        var sameSource = current && image && current.getAttribute("src") === S.rootPath(image.image_path);
+        if (sameSource) {
+          current.alt = imageAlt(image, galleryAlt);
           return;
         }
 
-        showMain(images[0]);
-
-        if (!thumbsEl) return;
-
-        if (images.length > 1) {
-          thumbsEl.innerHTML = images
-            .map(function (img, index) {
-              var isActive = index === 0;
-              var altText = imageAlt(img, fallbackAltText);
-              return (
-                '<button type="button" class="product-detail__thumb' + (isActive ? " is-active" : "") + '" data-image-index="' + index +
-                '" aria-pressed="' + (isActive ? "true" : "false") + '" aria-label="' + S.escapeAttr(altText) + '">' +
-                '<img src="' + S.escapeAttr(S.rootPath(img.image_path)) + '" alt="" loading="lazy"></button>'
-              );
-            })
-            .join("");
-          thumbsEl.hidden = false;
-
-          thumbsEl.querySelectorAll("[data-image-index]").forEach(function (btn) {
-            btn.addEventListener("click", function () {
-              var index = parseInt(btn.getAttribute("data-image-index"), 10);
-              showMain(images[index]);
-              thumbsEl.querySelectorAll(".product-detail__thumb").forEach(function (other) {
-                other.classList.remove("is-active");
-                other.setAttribute("aria-pressed", "false");
-              });
-              btn.classList.add("is-active");
-              btn.setAttribute("aria-pressed", "true");
-            });
-          });
-        } else {
-          thumbsEl.hidden = true;
-          thumbsEl.innerHTML = "";
+        if (!animate || !current || !image || prefersReducedMotion()) {
+          mediaEl.innerHTML = mainImageMarkup(image);
+          return;
         }
+
+        var token = ++swapToken;
+        current.classList.add("is-leaving");
+
+        var next = new Image();
+        var done = false;
+        function swap() {
+          if (done || token !== swapToken) return;
+          done = true;
+          mediaEl.innerHTML = mainImageMarkup(image);
+          var fresh = mediaEl.querySelector(".product-detail__main-img");
+          if (!fresh) return;
+          fresh.classList.add("is-entering");
+          // Two frames: the class must be painted before it is removed, or
+          // the browser skips the transition.
+          window.requestAnimationFrame(function () {
+            window.requestAnimationFrame(function () { fresh.classList.remove("is-entering"); });
+          });
+        }
+        next.onload = swap;
+        next.onerror = swap;
+        next.src = S.rootPath(image.image_path);
+        // Never wait long for a slow picture: the fade-out is short.
+        window.setTimeout(swap, 180);
       }
 
-      /* A product with variants never shows its own product-level photos —
-         only the selected variant's gallery. A product without variants
-         keeps using product_images exactly as before. See MAIN.MD. */
-      var nonVariantImages = [];
-      var nonVariantDefaultImage = null;
+      /* Marks the thumbnail of the picture on show: a lasting selected state
+         (aria-current), separate from hover and focus. */
+      function markThumb(index) {
+        if (!thumbsEl) return;
+        thumbsEl.querySelectorAll("[data-image-index]").forEach(function (btn) {
+          var active = parseInt(btn.getAttribute("data-image-index"), 10) === index;
+          btn.classList.toggle("is-active", active);
+          if (active) {
+            btn.setAttribute("aria-current", "true");
+          } else {
+            btn.removeAttribute("aria-current");
+          }
+        });
+      }
+
+      function selectImage(index, animate) {
+        galleryIndex = nextGalleryIndex(index, galleryImages.length);
+        showMain(galleryImages[galleryIndex] || null, animate);
+        markThumb(galleryIndex);
+      }
+
+      /* Renders a gallery for a list of pictures, keeping the current index
+         when the new list has it (nextGalleryIndex()). */
+      function renderGallery(images, fallbackAltText, animate) {
+        galleryImages = Array.isArray(images) ? images : [];
+        galleryAlt = fallbackAltText;
+        var index = nextGalleryIndex(galleryIndex, galleryImages.length);
+
+        if (thumbsEl) {
+          if (galleryImages.length > 1) {
+            thumbsEl.innerHTML = galleryImages
+              .map(function (img, i) {
+                var altText = imageAlt(img, fallbackAltText);
+                return (
+                  '<button type="button" class="product-detail__thumb" data-image-index="' + i +
+                  '" aria-label="' + S.escapeAttr(altText) + '">' +
+                  '<img src="' + S.escapeAttr(S.rootPath(img.image_path)) + '" alt="" loading="lazy"></button>'
+                );
+              })
+              .join("");
+            thumbsEl.hidden = false;
+          } else {
+            thumbsEl.hidden = true;
+            thumbsEl.innerHTML = "";
+          }
+        }
+
+        selectImage(index, animate);
+      }
+
+      if (thumbsEl) {
+        thumbsEl.addEventListener("click", function (event) {
+          var btn = event.target.closest ? event.target.closest("[data-image-index]") : null;
+          if (!btn || !thumbsEl.contains(btn)) return;
+          selectImage(parseInt(btn.getAttribute("data-image-index"), 10), true);
+        });
+      }
+
+      /* The product's own pool, primary picture first. A product without a
+         pool falls back to its single image_path, as before. */
+      var productImages = Array.isArray(product.images) ? product.images.slice() : [];
+      var primaryIndex = productImages.findIndex(function (img) { return !!img.is_primary; });
+      if (primaryIndex > 0) {
+        productImages.unshift(productImages.splice(primaryIndex, 1)[0]);
+      }
+      if (productImages.length === 0 && product.image_path) {
+        productImages = [{ image_path: product.image_path, alt_text: null }];
+      }
+      var productDefaultImage = productImages[0] || null;
+
+      /* What a variant shows: its own choice, or the product's whole pool. */
+      function variantImages(variant) {
+        return variant && Array.isArray(variant.images) && variant.images.length > 0 ? variant.images : productImages;
+      }
+
       if (!hasVariants) {
-        nonVariantImages = Array.isArray(product.images) ? product.images.slice() : [];
-        var primaryIndex = nonVariantImages.findIndex(function (img) { return !!img.is_primary; });
-        if (primaryIndex > 0) {
-          nonVariantImages.unshift(nonVariantImages.splice(primaryIndex, 1)[0]);
-        }
-        nonVariantDefaultImage = nonVariantImages[0] || (product.image_path ? { image_path: product.image_path, alt_text: null } : null);
-        if (nonVariantImages.length === 0 && nonVariantDefaultImage) {
-          nonVariantImages = [nonVariantDefaultImage];
-        }
-        renderGallery(nonVariantImages, titleText);
+        renderGallery(productImages, titleText, false);
       }
 
       /* ---------------------------------------------------------------
@@ -349,6 +444,10 @@
         return null;
       }
 
+      // The first render of a variant's gallery is the page loading, not a
+      // change, so it is not animated.
+      var galleryReady = false;
+
       function applySelection() {
         selectedVariant = hasVariants ? findMatchingVariant() : null;
 
@@ -366,9 +465,12 @@
 
         if (hasVariants) {
           renderGallery(
-            selectedVariant ? selectedVariant.images : [],
-            selectedVariant ? variantAltFallback(selectedVariant) : titleText
+            variantImages(selectedVariant),
+            selectedVariant ? variantAltFallback(selectedVariant) : titleText,
+            galleryReady
           );
+          galleryReady = true;
+          showDescription(selectedVariant && selectedVariant.description ? selectedVariant.description : product.description);
         }
 
         if (addBtn) addBtn.disabled = hasVariants && !selectedVariant;
@@ -480,8 +582,8 @@
           var qty = qtyInput ? (parseInt(qtyInput.value, 10) || 1) : 1;
           var effectivePrice = selectedVariant && selectedVariant.price != null ? selectedVariant.price : product.price;
           var effectiveImage = selectedVariant ?
-            (selectedVariant.images[0] ? selectedVariant.images[0].image_path : null) :
-            (nonVariantDefaultImage ? nonVariantDefaultImage.image_path : null);
+            (variantImages(selectedVariant)[0] ? variantImages(selectedVariant)[0].image_path : null) :
+            (productDefaultImage ? productDefaultImage.image_path : null);
           var variantLabel = selectedVariant ?
             selectedVariant.values.map(function (v) { return v.option_name + ': ' + v.value; }).join(", ") :
             null;

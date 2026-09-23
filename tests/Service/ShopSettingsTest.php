@@ -178,9 +178,13 @@ final class ShopSettingsTest extends TestCase
         $onTabs = array_merge(...array_values(ShopSettings::TABS));
 
         $this->assertSame(count($onTabs), count(array_unique($onTabs)), 'no field on two tabs');
-        $this->assertEqualsCanonicalizing(array_keys(ShopSettings::FIELDS), $onTabs, 'every field on a tab, and nothing else');
+        $this->assertEqualsCanonicalizing(
+            [...array_keys(ShopSettings::FIELDS), ...ShopSettings::CHOICES],
+            $onTabs,
+            'every field and every choice on a tab, and nothing else'
+        );
 
-        foreach (array_keys(ShopSettings::FIELDS) as $key) {
+        foreach ([...array_keys(ShopSettings::FIELDS), ...ShopSettings::CHOICES] as $key) {
             $this->assertArrayHasKey($key, SiteSettings::defaults(), $key);
         }
     }

@@ -2459,6 +2459,9 @@ input[data-color-picker]{ width: 2.4rem; height: 2.4rem; padding: 0.15rem; borde
 /* Only a selected row can be reordered (see collections-admin.js) — the
    handle on an unselected row would promise something it can't do. */
 .admin-collection-product-row:not(.is-selected) .admin-drag-handle{ visibility: hidden; }
+/* "Bewerken" opens the product's own editor; the row's tick box stays the
+   one thing the row itself does. */
+.admin-collection-product-row__edit{ flex: none; white-space: nowrap; display: inline-flex; align-items: center; min-height: 2.25rem; padding: 0 0.6rem; }
 
 /* admin/related-products.php — one row per collection: the on/off checkbox
    with the collection's name and product count takes the space it needs, and
@@ -5033,6 +5036,122 @@ body.admin-block-picker-open{ overflow: hidden; }
   border-radius: var(--admin-radius-sm);
   font-size: 0.82rem;
 }
+
+/* ==========================================================================
+   Product pictures (admin/_product_gallery.php, admin/assets/product-gallery.js):
+   the product's pool as a grid of cards with ← → × and drag, and per variant
+   its own strip plus the pool as tiles to tick. Nothing here posts: the
+   hidden inputs inside each card are what the product form sends.
+   ========================================================================== */
+.admin-gallery{ display: grid; gap: var(--admin-sp-3, 0.75rem); }
+.admin-gallery__grid{
+  list-style: none; margin: 0; padding: 0;
+  display: grid; gap: 0.75rem;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+}
+.admin-gallery__grid--small{ grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); }
+.admin-gallery__grid:empty{ display: none; }
+.admin-gallery__item{
+  position: relative;
+  display: grid; gap: 0.35rem;
+  padding: 0.4rem;
+  border: 1px solid var(--admin-border);
+  border-radius: var(--admin-radius-md);
+  background: var(--admin-surface);
+  cursor: grab;
+  transition: border-color var(--admin-transition), box-shadow var(--admin-transition), opacity var(--admin-transition);
+}
+.admin-gallery__item:hover{ border-color: var(--admin-border-strong); }
+.admin-gallery__item.is-dragging{ opacity: 0.45; border-style: dashed; border-color: var(--admin-accent); cursor: grabbing; }
+.admin-gallery__media{
+  display: block; aspect-ratio: 1; overflow: hidden;
+  border-radius: var(--admin-radius-sm);
+  background: var(--admin-surface-sunken);
+}
+.admin-gallery__media img{ width: 100%; height: 100%; object-fit: cover; display: block; pointer-events: none; }
+.admin-gallery__position{
+  position: absolute; top: 0.7rem; left: 0.7rem;
+  min-width: 1.6rem; height: 1.6rem; padding: 0 0.35rem;
+  display: inline-flex; align-items: center; justify-content: center;
+  border-radius: var(--admin-radius-pill);
+  background: rgba(0, 0, 0, 0.62); color: #fff;
+  font-size: 0.78rem; font-weight: 700;
+}
+.admin-gallery__badge{
+  position: absolute; top: 0.7rem; right: 0.7rem;
+  padding: 0.15rem 0.5rem;
+  border-radius: var(--admin-radius-pill);
+  background: var(--admin-accent); color: var(--admin-on-accent);
+  font-size: 0.72rem; font-weight: 700;
+}
+.admin-gallery__name{
+  font-size: 0.8rem; color: var(--admin-text-muted);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.admin-gallery__actions{ display: flex; gap: 0.3rem; }
+.admin-gallery .admin-gallery__btn,
+.admin-variant-gallery .admin-gallery__btn{
+  flex: 1 1 0;
+  min-height: 2.25rem; padding: 0.2rem 0.4rem;
+  border: 1px solid var(--admin-border-strong);
+  border-radius: var(--admin-radius-sm);
+  background: var(--admin-surface); color: var(--admin-text);
+  font-size: 1rem; font-weight: 700; line-height: 1;
+  cursor: pointer;
+  transition: border-color var(--admin-transition), color var(--admin-transition), background var(--admin-transition);
+}
+.admin-gallery .admin-gallery__btn:hover:not(:disabled),
+.admin-variant-gallery .admin-gallery__btn:hover:not(:disabled){ border-color: var(--admin-accent); color: var(--admin-accent); background: var(--admin-accent-soft); }
+.admin-gallery .admin-gallery__btn:focus-visible,
+.admin-variant-gallery .admin-gallery__btn:focus-visible{ outline: 2px solid var(--admin-accent); outline-offset: 2px; }
+.admin-gallery .admin-gallery__btn:disabled,
+.admin-variant-gallery .admin-gallery__btn:disabled{ opacity: 0.4; cursor: not-allowed; }
+.admin-gallery .admin-gallery__btn--remove:hover:not(:disabled),
+.admin-variant-gallery .admin-gallery__btn--remove:hover:not(:disabled){ border-color: var(--admin-error); color: var(--admin-error); background: transparent; }
+.admin-gallery__add{ display: flex; }
+
+.admin-variant-gallery{
+  margin: 0 0 1rem; padding: 0.9rem 1rem 1rem;
+  border: 1px solid var(--admin-border);
+  border-radius: var(--admin-radius-md);
+  display: grid; gap: 0.6rem;
+  min-width: 0;
+}
+.admin-variant-gallery > legend{ padding: 0 0.35rem; font-weight: 700; }
+.admin-variant-gallery__label{ margin: 0; font-weight: 600; font-size: 0.9rem; }
+.admin-gallery-tiles{ display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.admin-variant-gallery .admin-gallery-tile{
+  position: relative;
+  width: 64px; height: 64px; padding: 0;
+  border: 2px solid var(--admin-border);
+  border-radius: var(--admin-radius-sm);
+  background: var(--admin-surface-sunken);
+  overflow: hidden; cursor: pointer;
+  transition: border-color var(--admin-transition), box-shadow var(--admin-transition);
+}
+.admin-gallery-tile img{ width: 100%; height: 100%; object-fit: cover; display: block; opacity: 0.55; transition: opacity var(--admin-transition); }
+.admin-variant-gallery .admin-gallery-tile:hover{ border-color: var(--admin-accent); }
+.admin-variant-gallery .admin-gallery-tile:focus-visible{ outline: 2px solid var(--admin-accent); outline-offset: 2px; }
+.admin-variant-gallery .admin-gallery-tile.is-chosen{ border-color: var(--admin-accent); box-shadow: 0 0 0 2px var(--admin-accent-soft-strong); }
+.admin-gallery-tile.is-chosen img{ opacity: 1; }
+.admin-gallery-tile__mark{
+  position: absolute; right: 3px; bottom: 3px;
+  width: 1.2rem; height: 1.2rem;
+  display: inline-flex; align-items: center; justify-content: center;
+  border-radius: 50%;
+  background: var(--admin-accent); color: var(--admin-on-accent);
+  font-size: 0.75rem; font-weight: 700;
+}
+.admin-gallery-tile__mark:empty{ display: none; }
+.admin-variant-description{ display: grid; gap: 0.4rem; margin-top: 0.3rem; }
+.admin-variant-description [hidden]{ display: none; }
+
+@media (max-width: 600px){
+  .admin-gallery__grid{ grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .admin-gallery__grid--small{ grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .admin-gallery__item{ cursor: default; }
+}
+
 
 /* ==========================================================================
    ADMIN UI PRIMITIVES (admin/_admin_ui.php, admin/assets/admin-ui.js)

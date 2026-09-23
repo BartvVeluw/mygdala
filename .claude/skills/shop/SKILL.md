@@ -21,7 +21,7 @@ je aan de modulegrens zelf werkt.
 | Laag | Paden |
 |---|---|
 | Module | `src/Module/ShopModule.php` |
-| Catalogus | `src/Repository/Product*.php`, `VariantImageRepository.php`, `src/Service/ProductSeo.php`, `ProductDeletionService.php`, `ProductImageUploader.php` |
+| Catalogus | `src/Repository/Product*.php`, `ProductVariantImageRepository.php`, `src/Service/ProductGallery.php`, `ShopOverview.php`, `ShopMediaUsage.php`, `src/Service/ProductSeo.php`, `ProductDeletionService.php`, `ProductImageUploader.php` |
 | Collecties | `src/Service/Collection*.php`, `src/Repository/CollectionRepository.php` |
 | Bestellingen | `src/Repository/{Order,Customer,Invoice}*.php`, `src/Service/Order*.php`, `InvoiceService.php`, `InvoiceStorage.php`, `PdfInvoiceRenderer.php`, `MollieClientFactory.php`, `MolliePaymentData.php` |
 | Verzending | `src/Service/Shipping/`, `src/Service/Address/`, `src/Repository/{Shipping,Carrier}*.php` |

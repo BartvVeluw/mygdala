@@ -243,10 +243,11 @@ final class FreshInstallTest extends TestCase
     // ------------------------------------------------------------- modules
 
     /**
-     * A webshop is a module, not a page an editor has to keep. /shop.php is
-     * the Shop's own route and renders its product overview without a CMS
-     * page (Tests\Install\FreshInstallRenderTest), so nothing is seeded for
-     * it: no page, no product grid, no menu item. An installation that ran
+     * A webshop is a module, not a page an editor has to keep, and not a
+     * public listing of every product either: a fresh install has no product
+     * overview until the owner chooses a page (App\Service\ShopOverview,
+     * Tests\Install\FreshInstallRenderTest), so nothing is seeded for it:
+     * no page, no product grid, no menu item, no stored choice. An installation that ran
      * the bootstrap before this changed keeps its Shop page, because Phinx
      * never runs a migration twice (INSTALL-BOOTSTRAP.md).
      */
@@ -257,6 +258,11 @@ final class FreshInstallTest extends TestCase
             [],
             $this->install()->rows('SELECT id FROM pages WHERE route_path = ?', ['/shop.php']),
             'No page may claim the storefront route on a fresh install.'
+        );
+        $this->assertSame(
+            [],
+            $this->install()->rows("SELECT setting_value FROM site_settings WHERE setting_key = 'shop_overview'"),
+            'A fresh install starts without a product overview.'
         );
     }
 

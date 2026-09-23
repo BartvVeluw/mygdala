@@ -133,15 +133,13 @@ class DashboardRepository extends Repository
      * Inactive products are left out entirely: a draft without a photo is
      * work in progress, not a problem, and nothing a visitor can run into.
      *
-     * `has_image` answers the question the shop card actually asks. A product
-     * with variants shows its DEFAULT variant's first image instead of its
-     * own `image_path` (see api/products.php and admin/products.php), so for
-     * such a product the product-level photo is irrelevant and the default
-     * variant's images decide. The default variant is the first ACTIVE one by
-     * sort_order — resolved in the join, exactly like
-     * ProductVariantRepository::findDefaultForProduct() resolves it — so a
-     * product whose only photos sit on a deactivated variant is correctly
-     * reported as having none.
+     * `has_image` answers the question the shop card actually asks. A
+     * picture always belongs to the product (product_images); the DEFAULT
+     * variant — the first ACTIVE one by sort_order, resolved in the join
+     * exactly like ProductVariantRepository::findDefaultForProduct() — may
+     * show a selection of them (product_variant_images), and one that chose
+     * none shows the product's own. So a product has an image when its
+     * default variant links to one, or when the product itself has one.
      *
      * NO NAME, and a language-neutral order. A product's name lives per
      * website language in `product_translations` since Multilingual 2.0 phase
@@ -155,9 +153,10 @@ class DashboardRepository extends Repository
         $stmt = $this->db->query(
             "SELECT p.id, p.price, p.in_shop, p.in_personalization_catalog,
                     CASE
-                        WHEN dv.id IS NOT NULL
-                            THEN EXISTS (SELECT 1 FROM variant_images vi WHERE vi.variant_id = dv.id)
+                        WHEN dv.id IS NOT NULL AND EXISTS (SELECT 1 FROM product_variant_images pvi WHERE pvi.variant_id = dv.id)
+                            THEN 1
                         ELSE (p.image_path IS NOT NULL AND p.image_path <> '')
+                             OR EXISTS (SELECT 1 FROM product_images pi WHERE pi.product_id = p.id)
                     END AS has_image
              FROM products p
              LEFT JOIN product_variants dv ON dv.id = (

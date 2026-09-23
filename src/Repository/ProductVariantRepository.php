@@ -6,8 +6,9 @@ namespace App\Repository;
  * All product_variants / product_variant_values SQL lives here. A variant is
  * a purchasable combination of exactly one product_option_value per option
  * group belonging to the product, with an optional price override. Photos
- * live in variant_images (see VariantImageRepository) — a variant's `images`
- * are always attached here, sorted, so the first one is its default photo.
+ * are pictures of the product that the variant links to
+ * (ProductVariantImageRepository) — a variant's `images` are always attached
+ * here, sorted, so the first one is its default photo.
  */
 class ProductVariantRepository extends Repository
 {
@@ -59,9 +60,11 @@ class ProductVariantRepository extends Repository
     }
 
     /**
-     * Adds `values` (selected option values) and `images` (variant_images,
-     * sorted — the first one is the variant's default/primary image) to each
-     * variant row. One batched images query for the whole set instead of
+     * Adds `values` (selected option values) and `images` (the product
+     * pictures this variant shows, in its own order — the first one is its
+     * default picture; ProductVariantImageRepository) to each variant row. An
+     * empty `images` means the variant chose none and shows every picture of
+     * its product. One batched images query for the whole set instead of
      * N+1.
      *
      * @param array<int, array<string, mixed>> $variants
@@ -73,7 +76,7 @@ class ProductVariantRepository extends Repository
             return $variants;
         }
 
-        $imagesByVariant = (new VariantImageRepository())->findByVariantIds(
+        $imagesByVariant = (new ProductVariantImageRepository($this->db))->findByVariantIds(
             array_map(static fn (array $v): int => (int) $v['id'], $variants)
         );
 
@@ -117,7 +120,7 @@ class ProductVariantRepository extends Repository
             return null;
         }
 
-        $row['images'] = (new VariantImageRepository())->findByVariantId($id);
+        $row['images'] = (new ProductVariantImageRepository($this->db))->findByVariantIds([$id])[$id] ?? [];
 
         return $row;
     }

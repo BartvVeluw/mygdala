@@ -88,8 +88,8 @@ final class ProductSeeder extends AbstractSeed
              VALUES (:product_id, :language_code, :name, :description, :created_at, :updated_at)'
         );
         // Mirrors the primary image into product_images too, as
-        // api/admin/_product_image_helpers.php does for a product made in the
-        // admin: the multi-image system is what the shop pages read.
+        // App\Service\ProductGallery does for a product made in the admin:
+        // the product's pool of pictures is what the shop pages read.
         $insertImage = $pdo->prepare(
             'INSERT INTO product_images (product_id, image_path, sort_order, is_primary) VALUES (:product_id, :image_path, 0, 1)'
         );

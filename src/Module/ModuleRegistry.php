@@ -294,6 +294,29 @@ final class ModuleRegistry
         return null;
     }
 
+    /**
+     * Whether a fixed public path belongs to a module that is switched ON but
+     * does not answer at that path right now
+     * (ModuleDefinition::pausedPublicPaths()). A page there is not advertised,
+     * exactly as a page of a switched-off module is not.
+     */
+    public static function isPausedRoutePath(string $path): bool
+    {
+        $path = '/' . ltrim(trim($path), '/');
+
+        if ($path === '/') {
+            return false;
+        }
+
+        foreach (self::all() as $key => $module) {
+            if (self::isEnabled($key) && in_array($path, $module->pausedPublicPaths(), true)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     /** The admin-facing name of a module, for a message about it. */
     public static function label(string $key): string
     {

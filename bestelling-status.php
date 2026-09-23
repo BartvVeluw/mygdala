@@ -103,8 +103,7 @@ require __DIR__ . '/partials/header.php';
 <main id="main" data-order-status>
 
   <?php render_breadcrumb(
-      \App\Service\Breadcrumbs\BreadcrumbTrail::home()
-          ->toPage('shop', 'shop')
+      \App\Service\ShopOverview::extendTrail(\App\Service\Breadcrumbs\BreadcrumbTrail::home())
           ->to(\App\Service\Breadcrumbs\BreadcrumbItem::current(\App\Service\Language\SiteText::pick(['nl' => 'Bestelstatus', 'en' => 'Order status'])))
   ); ?>
 
@@ -160,7 +159,9 @@ require __DIR__ . '/partials/header.php';
         </div>
 
         <div style="margin-top:var(--sp-4);">
-          <a href="<?= $h(\App\Service\Routing\LocalizedUrl::path('/shop.php')) ?>" class="btn btn--ghost"><?= \App\Service\Language\SiteText::escaped(['nl' => 'Terug naar de shop', 'en' => 'Back to shop']) ?></a>
+          <?php if (\App\Service\ShopOverview::url() !== null): ?>
+          <a href="<?= $h(\App\Service\ShopOverview::url()) ?>" class="btn btn--ghost"><?= \App\Service\Language\SiteText::escaped(['nl' => 'Terug naar de shop', 'en' => 'Back to shop']) ?></a>
+          <?php endif; ?>
         </div>
 
         <?php

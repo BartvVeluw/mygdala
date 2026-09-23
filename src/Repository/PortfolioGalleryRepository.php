@@ -460,7 +460,7 @@ class PortfolioGalleryRepository extends Repository
      * admin overview, so never part of the dragged subset) keep their
      * relative order and are placed after the given ones — same
      * "never drop an item out of the list" guarantee as
-     * VariantImageRepository::reorder(). This is what lets drag-and-drop work
+     * the old VariantImageRepository::reorder(). This is what lets drag-and-drop work
      * safely even while the overview is filtered.
      *
      * @param array<int, int> $orderedIds

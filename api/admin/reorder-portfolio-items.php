@@ -5,7 +5,7 @@
  *
  * Persists a new display order for Portfolio items (drag-and-drop in
  * admin/portfolio.php). Called via fetch(), so — like
- * reorder-variant-images.php — this responds with JSON instead of a
+ * the old variant-photo reorder endpoint — this responds with JSON instead of a
  * redirect. Only ids belonging to the one Portfolio gallery are honored;
  * see PortfolioGalleryRepository::reorderItems() for how ids missing from
  * the submitted list (e.g. hidden by an active search/category filter in

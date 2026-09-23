@@ -12,6 +12,7 @@ use App\Mail\OrderConfirmationBuilder;
 use App\Module\ModuleGuard;
 use App\Service\AdminAuth;
 use App\Service\Csrf;
+use App\Service\ShopOverview;
 use App\Service\ShopSettings;
 use App\Service\SiteSettings;
 
@@ -118,6 +119,7 @@ $v = static fn (string $key): string => htmlspecialchars((string) ($values[$key]
       'facturen' => admin_t('shop_settings.tab_invoices'),
       'bestellingen' => admin_t('shop_settings.tab_orders'),
       'emails' => admin_t('shop_settings.tab_emails'),
+      'overzicht' => admin_t('shop.overview.tab'),
   ], [
       'label' => admin_t('shop_settings.tabs_label'),
       'force' => $failedSection !== null ? ShopSettings::section($failedSection) : $savedSection,
@@ -320,6 +322,69 @@ $v = static fn (string $key): string => htmlspecialchars((string) ($values[$key]
         <?= admin_help(admin_t('shop_settings.restore_defaults'), admin_t('help.shop_settings.restore_defaults')) ?>
       </div>
       <p class="admin-text-muted" data-restore-defaults-status role="status" aria-live="polite"></p>
+    </form>
+  </section>
+  <?php admin_tab_panel_end(); ?>
+
+  <?php admin_tab_panel('overzicht'); ?>
+  <?php
+    // The storefront is a page the owner chooses, or none
+    // (App\Service\ShopOverview). The automatic listing of an older
+    // installation is offered only while it is the stored value.
+    $overviewValue = (string) ($values[ShopOverview::SETTING_KEY] ?? '');
+    $storedOverview = (string) ($stored[ShopOverview::SETTING_KEY] ?? '');
+    $overviewChoices = ShopOverview::choices();
+    \App\Service\PageLocalization::preload(array_map(static fn (array $p): int => (int) $p['id'], $overviewChoices));
+    $chosenOverviewPage = null;
+    foreach ($overviewChoices as $candidate) {
+        if ((string) (int) $candidate['id'] === $storedOverview) {
+            $chosenOverviewPage = $candidate;
+        }
+    }
+  ?>
+  <section class="admin-card">
+    <h2><?= admin_te('shop.overview.heading') ?></h2>
+    <?= admin_info_panel(admin_t('shop.overview.intro')) ?>
+    <form method="post" action="/api/admin/update-shop-settings.php" class="admin-product-form">
+      <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
+      <input type="hidden" name="section" value="overzicht">
+
+      <div class="admin-form-row">
+        <div class="admin-field">
+          <?= admin_field_label('shop-overview', admin_t('shop.overview.label'), admin_t('shop.overview.help')) ?>
+          <select class="admin-select" id="shop-overview" name="shop_overview">
+            <option value=""><?= admin_te('shop.overview.none') ?></option>
+            <?php if ($storedOverview === ShopOverview::BUILTIN_VALUE): ?>
+              <option value="<?= $h(ShopOverview::BUILTIN_VALUE) ?>"<?= $overviewValue === ShopOverview::BUILTIN_VALUE ? ' selected' : '' ?>><?= admin_te('shop.overview.builtin') ?></option>
+            <?php endif; ?>
+            <?php foreach ($overviewChoices as $overviewPage): ?>
+              <?php
+                $overviewTitle = \App\Service\PageLocalization::name((int) $overviewPage['id']);
+                $overviewLabel = \App\Service\PageContent::isPublished($overviewPage)
+                    ? admin_t('shop.overview.page_option', ['title' => $overviewTitle])
+                    : admin_t('shop.overview.page_option_draft', ['title' => $overviewTitle]);
+              ?>
+              <option value="<?= (int) $overviewPage['id'] ?>"<?= $overviewValue === (string) (int) $overviewPage['id'] ? ' selected' : '' ?>><?= $h($overviewLabel) ?></option>
+            <?php endforeach; ?>
+          </select>
+        </div>
+      </div>
+
+      <?php if ($storedOverview === ShopOverview::BUILTIN_VALUE): ?>
+        <p class="admin-alert admin-alert--info"><?= admin_te('shop.overview.builtin_note') ?></p>
+      <?php elseif ($chosenOverviewPage !== null): ?>
+        <?php if (!\App\Service\PageContent::isPublished($chosenOverviewPage)): ?>
+          <p class="admin-alert admin-alert--info"><?= admin_te('shop.overview.draft_note') ?></p>
+        <?php endif; ?>
+        <?php if (!ShopOverview::hasProductGrid($chosenOverviewPage)): ?>
+          <p class="admin-alert admin-alert--info"><?= admin_te('shop.overview.no_grid_note') ?></p>
+        <?php endif; ?>
+        <?php if (AdminAuth::can('pages.manage')): ?>
+          <p><a class="admin-btn-secondary" href="/admin/page.php?id=<?= (int) $chosenOverviewPage['id'] ?>"><?= admin_te('shop.overview.edit_page') ?></a></p>
+        <?php endif; ?>
+      <?php endif; ?>
+
+      <button type="submit"><?= admin_te('common.save') ?></button>
     </form>
   </section>
   <?php admin_tab_panel_end(); ?>

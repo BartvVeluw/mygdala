@@ -6,6 +6,8 @@ require_once __DIR__ . '/../vendor/autoload.php';
 require_once __DIR__ . '/_translate.php';
 
 require_once __DIR__ . '/_localized_fields.php';
+require_once __DIR__ . '/_media_picker.php';
+require_once __DIR__ . '/_save_bar.php';
 
 use App\Repository\CollectionRepository;
 use App\Repository\ProductRepository;
@@ -61,14 +63,14 @@ if ($isEdit) {
 try {
     $products = (new ProductRepository())->findAllForAdmin();
 
-    // Same thumbnail rule as admin/products.php: a product with variants
-    // shows its default variant's first image rather than its own
-    // product-level photo, so the picker shows what the shop shows.
+    // Same thumbnail rule as admin/products.php and the shop card: the
+    // default variant's first chosen picture, else the product's own primary
+    // picture, so the picker shows what the shop shows.
     $variantRepository = new ProductVariantRepository();
     foreach ($products as &$productRow) {
         $defaultVariant = $variantRepository->findDefaultForProduct((int) $productRow['id']);
         if ($defaultVariant !== null) {
-            $productRow['image_path'] = $defaultVariant['images'][0]['image_path'] ?? null;
+            $productRow['image_path'] = $defaultVariant['images'][0]['image_path'] ?? $productRow['image_path'];
         }
     }
     unset($productRow);
@@ -198,6 +200,24 @@ $pageTitle = $isEdit
     : admin_t('shop.new_collection');
 $currentImagePath = $collection !== null ? (string) ($collection['image_path'] ?? '') : '';
 
+/*
+ * The collection's picture comes from the Media Library (MEDIA.md). A refused
+ * save shows what was chosen; otherwise the stored item. A collection that
+ * still has a picture uploaded before the library ("legacy") keeps showing
+ * it, with a way to replace it from the library or to remove it — the
+ * endpoint leaves it alone otherwise (api/admin/update-collection.php).
+ */
+$storedMediaId = $collection !== null && !empty($collection['media_id']) ? (int) $collection['media_id'] : null;
+$chosenMediaId = $old !== null && array_key_exists('media_id', $old) ? ($old['media_id'] !== null ? (int) $old['media_id'] : null) : $storedMediaId;
+$chosenImage = \App\Service\Media\MediaService::findImage($chosenMediaId);
+$hasLegacyImage = $storedMediaId === null && $currentImagePath !== '';
+$removeImageChecked = $old !== null && !empty($old['remove_image']);
+
+// "Bewerken" next to each product opens that product's own editor, for an
+// administrator who may open it. The collection form is not a second product
+// editor, and a product editor this user cannot open is not offered.
+$canEditProducts = AdminAuth::can('products.manage');
+
 // The SEO card's social image, and the "remove it on save" tick — which
 // survives a failed save like every other field on this form.
 $currentOgImagePath = $collection !== null ? (string) ($collection['og_image_path'] ?? '') : '';
@@ -223,6 +243,7 @@ require __DIR__ . '/_richtext_field.php';
 <script src="<?= \App\Service\AssetVersion::url('/admin/assets/vendor/quill/quill.min.js') ?>" defer></script>
 <script src="<?= \App\Service\AssetVersion::url('/admin/assets/admin.js') ?>" defer></script>
 <script src="<?= \App\Service\AssetVersion::url('/admin/assets/collections-admin.js') ?>" defer></script>
+<?php media_picker_script(); ?>
 </head>
 <body<?= \App\Service\AdminTheme::bodyAttribute() ?>>
 <?php require __DIR__ . '/_header.php'; ?>
@@ -246,7 +267,7 @@ require __DIR__ . '/_richtext_field.php';
     </div>
   <?php endif; ?>
 
-  <form method="post" action="/api/admin/<?= $isEdit ? 'update-collection.php' : 'create-collection.php' ?>" enctype="multipart/form-data">
+  <form method="post" action="/api/admin/<?= $isEdit ? 'update-collection.php' : 'create-collection.php' ?>" enctype="multipart/form-data"<?= $errors !== [] ? ' data-save-bar-unsaved' : '' ?>>
     <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
     <?php if ($isEdit): ?>
       <input type="hidden" name="id" value="<?= (int) $collection['id'] ?>">
@@ -295,24 +316,23 @@ require __DIR__ . '/_richtext_field.php';
 
     <section class="admin-card">
       <h2><?= admin_te('common.image') ?></h2>
-      <?php if ($currentImagePath !== ''): ?>
+      <p class="admin-text-muted"><?= admin_te('shop.afbeelding_gebruikt_collectiekaart_shop') ?></p>
+      <?php if ($hasLegacyImage): ?>
+        <input type="hidden" name="image_field" value="legacy">
         <div class="admin-image-card" style="max-width:220px;">
           <div class="admin-image-card__media">
             <img src="/<?= $h(ltrim($currentImagePath, '/')) ?>" alt="" loading="lazy">
           </div>
         </div>
-        <div class="admin-form-row" style="margin-top:0.75rem;">
-          <label><?= admin_te('shop.vervangen_door_nieuw_bestand') ?>
-            <input type="file" name="image" accept=".jpg,.jpeg,.png,.webp,.gif,image/jpeg,image/png,image/webp,image/gif">
-          </label>
-        </div>
+        <p class="admin-text-muted"><?= admin_te('shop.collection_image.legacy_note') ?></p>
+        <label class="admin-checkbox-label">
+          <input type="checkbox" class="admin-checkbox" name="remove_image" value="1"<?= $removeImageChecked ? ' checked' : '' ?>>
+          <?= admin_te('shop.collection_image.remove_legacy') ?>
+        </label>
+        <?php media_picker_field('media_id', $chosenImage, admin_t('shop.collection_image.replace_label')); ?>
       <?php else: ?>
-        <p class="admin-text-muted"><?= admin_te('shop.afbeelding_gebruikt_collectiekaart_shop') ?></p>
-        <div class="admin-form-row">
-          <label><?= admin_te('shop.afbeelding_optioneel') ?>
-            <input type="file" name="image" accept=".jpg,.jpeg,.png,.webp,.gif,image/jpeg,image/png,image/webp,image/gif">
-          </label>
-        </div>
+        <input type="hidden" name="image_field" value="media">
+        <?php media_picker_field('media_id', $chosenImage, admin_t('common.image_label')); ?>
       <?php endif; ?>
     </section>
 
@@ -349,9 +369,10 @@ require __DIR__ . '/_richtext_field.php';
           </div>
         <?php endif; ?>
         <div class="admin-seo-image__fields">
-          <label><?= admin_te('shop.deel_afbeelding_social_media') ?>
-            <input type="file" name="og_image" accept=".jpg,.jpeg,.png,.webp,.gif,image/jpeg,image/png,image/webp,image/gif">
-          </label>
+          <div class="admin-field">
+            <?= admin_field_label('collection-og-image', admin_t('shop.deel_afbeelding_social_media')) ?>
+            <?= admin_file_input(['id' => 'collection-og-image', 'name' => 'og_image', 'accept' => '.jpg,.jpeg,.png,.webp,.gif,image/jpeg,image/png,image/webp,image/gif']) ?>
+          </div>
           <p class="admin-text-muted"><?= admin_te('shop.optioneel_alleen_zichtbaar_voorbeeld') ?></p>
           <?php if ($currentOgImagePath !== ''): ?>
             <label class="admin-checkbox-label">
@@ -412,6 +433,9 @@ require __DIR__ . '/_richtext_field.php';
                   <span class="admin-text-muted"><?= admin_t('shop.amount_with', ['v1' => $h(number_format((float) $productRow['price'], 2, ',', '.'))]) ?></span>
                 </span>
               </label>
+              <?php if ($canEditProducts): ?>
+                <a class="admin-btn-text admin-collection-product-row__edit" href="/admin/product-form.php?id=<?= $productId ?>" aria-label="<?= admin_te('shop.collection_product.edit_label', ['name' => $productName]) ?>"><?= admin_te('common.edit') ?></a>
+              <?php endif; ?>
               <?php if (!$productActive): ?>
                 <span class="admin-badge admin-badge--muted" title="Dit product staat op inactief en is niet zichtbaar in de shop of op een collectiepagina.">Inactief</span>
               <?php endif; ?>
@@ -439,5 +463,8 @@ require __DIR__ . '/_richtext_field.php';
     </section>
   <?php endif; ?>
 </main>
+<?php save_bar(); ?>
+<?php save_bar_script(); ?>
+<?php media_picker_modal(); ?>
 </body>
 </html>

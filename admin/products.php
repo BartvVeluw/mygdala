@@ -20,15 +20,16 @@ try {
     $products = $productRepository->findAllForAdmin();
     $referencedIds = $productRepository->referencedProductIds();
 
-    // A product with variants no longer shows its own product-level photo —
-    // the overview thumbnail mirrors the public shop card here too (default
-    // variant = first active by sort_order, its first image). See MAIN.MD.
+    // The overview thumbnail mirrors the public shop card: the default
+    // variant's (first active by sort_order) first chosen picture, else the
+    // product's own primary picture — a variant that chose none shows the
+    // product's pictures (MODULES.md, "Shop").
     if ($products !== null) {
         $variantRepository = new ProductVariantRepository();
         foreach ($products as &$product) {
             $defaultVariant = $variantRepository->findDefaultForProduct((int) $product['id']);
             if ($defaultVariant !== null) {
-                $product['image_path'] = $defaultVariant['images'][0]['image_path'] ?? null;
+                $product['image_path'] = $defaultVariant['images'][0]['image_path'] ?? $product['image_path'];
             }
         }
         unset($product);

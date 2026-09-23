@@ -7,8 +7,9 @@
  * existing option group of the product, with an optional price override.
  * `value_ids[<option_id>]` must be present and valid for every option the
  * product currently has — a variant always covers all of a product's option
- * groups, never a subset. Photos are added afterwards via the variant's own
- * photo section (add-variant-images.php), same as a product's own photos.
+ * groups, never a subset. A new variant shows every picture of its product
+ * until the product editor gives it a selection of its own
+ * (App\Service\ProductGallery).
  */
 
 declare(strict_types=1);

@@ -57,6 +57,16 @@ final class ShopSettings
     ];
 
     /**
+     * The settings that are a choice from a list rather than text: stored in
+     * the same site_settings table, validated one by one in validate().
+     *
+     * @var list<string>
+     */
+    public const CHOICES = [
+        ShopOverview::SETTING_KEY,
+    ];
+
+    /**
      * The screen's tabs and the fields on each: one <form> per tab, and the
      * `section` a save returns to. A closed list, so a request can only ever
      * name one of these.
@@ -68,6 +78,7 @@ final class ShopSettings
         'facturen' => ['invoice_number_prefix', 'invoice_tax_note', 'invoice_payment_note', 'invoice_footer_text'],
         'bestellingen' => ['order_number_prefix'],
         'emails' => OrderConfirmationBuilder::CUSTOMER_COPY_KEYS,
+        'overzicht' => [ShopOverview::SETTING_KEY],
     ];
 
     /**
@@ -112,6 +123,23 @@ final class ShopSettings
             && preg_match('/^[A-Za-z0-9]{1,10}$/', $values['order_number_prefix']) !== 1
         ) {
             $errors[] = AdminTranslator::trans('validation.bestelnummerprefix_ongeldig');
+        }
+
+        /*
+         * Which page is the product overview (App\Service\ShopOverview): no
+         * page, one of the pages it offers, or the automatic listing while it
+         * is already the stored value. A choice from a list, not text, so it
+         * is not one of FIELDS; anything but those choices is refused, so a
+         * request can never point the storefront at a page it was not offered.
+         */
+        if (array_key_exists(ShopOverview::SETTING_KEY, $post)) {
+            $overview = ShopOverview::normalise($post[ShopOverview::SETTING_KEY], (string) ($current[ShopOverview::SETTING_KEY] ?? ''));
+
+            if ($overview === null) {
+                $errors[] = AdminTranslator::trans('validation.shop_overview_invalid');
+            } else {
+                $values[ShopOverview::SETTING_KEY] = $overview;
+            }
         }
 
         return ['values' => $values, 'errors' => $errors];

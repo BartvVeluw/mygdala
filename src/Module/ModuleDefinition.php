@@ -196,6 +196,25 @@ abstract class ModuleDefinition
     }
 
     /**
+     * Fixed public paths this module owns but does not answer RIGHT NOW,
+     * while it is switched on: a CMS page served from one of its templates
+     * whose URL the module currently sends elsewhere or answers with a 404,
+     * because of a choice made in the module's own settings.
+     *
+     * Read by App\Module\ModuleRegistry::isPausedRoutePath(), so Core treats
+     * such a page like one of a switched-off module — no sitemap entry, no
+     * link, no breadcrumb level — without knowing why. Empty for almost every
+     * module; see the Shop's product overview (MODULES.md) for the one that
+     * uses it.
+     *
+     * @return list<string> root-relative paths
+     */
+    public function pausedPublicPaths(): array
+    {
+        return [];
+    }
+
+    /**
      * Sitemap collectors, keyed by the label App\Service\Sitemap logs when one
      * fails. Each returns entries in Sitemap's own shape.
      *

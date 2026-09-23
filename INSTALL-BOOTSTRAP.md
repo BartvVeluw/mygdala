@@ -119,21 +119,31 @@ verwijderen, voor een webshop die hij misschien niet heeft. Niet elke site
 verkoopt iets, en de Shop-module en een CMS-pagina zijn twee verschillende
 dingen.
 
-`/shop.php` blijft de route van de Shop-module. Winkelwagen, afrekenen en elke
-productpagina linken ernaar terug, dus hij rendert altijd een volledige
-pagina:
+**Een verse installatie heeft ook geen productoverzicht.** De Shop betekent
+winkelwagen, afrekenen en productpagina's, niet vanzelf een publieke pagina
+met álle producten. Welke pagina het productoverzicht is, kiest de eigenaar
+onder Shop-instellingen → Productoverzicht (site-instelling `shop_overview`,
+`App\Service\ShopOverview`). Het blok *Productgrid* staat alleen op de
+winkelpagina (`content_key = shop`); zie `MODULES.md`.
 
-| Situatie | Wat `/shop.php` rendert |
-|---|---|
-| Er is een CMS-pagina met `content_key = shop` (elke installatie die de bootstrap vóór deze wijziging draaide) | Die pagina, met haar titel, SEO-velden en blokken, precies zoals altijd |
-| Er is geen zo'n pagina (een verse installatie) | Het eigen productoverzicht van de module: een kop en het blok `product_grid`, met de assets die dat blok zelf declareert |
-| De Shop staat uit | 404, via `ModuleGuard`, in beide gevallen |
+| Instelling | Wat `/shop.php` doet | Waar Shop-links heen gaan |
+|---|---|---|
+| leeg: *Geen overzichtspagina* (elke verse installatie) | 404, de eigen niet-gevonden-pagina van de site | nergens: geen terug-link, geen kruimelpadniveau, geen route `shop` in de linkkiezer |
+| een gewone CMS-pagina | 302 naar het adres van die pagina in de gelezen taal | naar die pagina, in de gelezen taal |
+| de pagina met `content_key = shop` (elke installatie die de bootstrap vóór de module-omslag draaide) | rendert die pagina, precies zoals altijd | naar `/shop.php` |
+| `builtin`: het automatische overzicht | een kop en het blok `product_grid`, zoals vóór deze instelling | naar `/shop.php` |
+| De Shop staat uit | 404, via `ModuleGuard` | — |
 
-De sitemap volgt dezelfde splitsing. Bestaat de pagina, dan komt `/shop.php`
-er via de pagina's in en beslist `PageSeo::isIndexable()`; anders zet
-`ShopModule::sitemapCollectors()` (`storefront`) hem erin. Wie de winkel in
-het menu wil, voegt bij Header & navigatie het onderdeel *Shop* toe. De installatiewizard
-verzint er geen.
+`builtin` krijgt alleen een bestaande installatie: de pin-migratie
+`20260923140000` legt vast wat die installatie al toonde (de shoppagina als
+die er is, anders `builtin`), zodat geen live winkeloverzicht verdwijnt bij het
+updaten. Een verse installatie waarvan de wizard nog niet klaar is, krijgt
+niets. Het scherm biedt `builtin` alleen aan zolang het de huidige waarde is.
+
+De sitemap volgt dezelfde keuze: een gekozen pagina staat er via de pagina's
+in, `ShopModule::sitemapCollectors()` (`storefront`) levert alleen nog
+`/shop.php` voor `builtin`. Wie de winkel in het menu wil, voegt bij Header &
+navigatie de gekozen pagina toe. De installatiewizard verzint er geen.
 
 **Portfolio** brengt ook alleen tabellen mee, en die bestaan op elke
 installatie: de historische migraties maakten ze, leeg op een verse. De module
@@ -289,7 +299,7 @@ docker compose exec php_test php vendor/bin/phpunit --testsuite migration
 | Bestand | Wat het bewaakt |
 |---|---|
 | `tests/Install/FreshInstallTest.php` | Wat een lege database oplevert: alle migraties draaien, Homepage bestaat, is beschermd en is de enige systeempagina, géén Shop-pagina en geen `product_grid`, géén Diensten/Portfolio/Over mij/Contact/juridische pagina's, geen blokinhoud, geen formulier, géén bedrijfsgegeven in `site_settings`, een lege Mediabibliotheek, en een redacteur kan de weggelaten pagina's daarna alsnog uit een sjabloon maken |
-| `tests/Install/FreshInstallRenderTest.php` | Wat een lege database *toont*: `/`, `/shop.php` (het productoverzicht zonder CMS-pagina), `robots.txt` en `sitemap.xml` (met `/shop.php` precies één keer) gerenderd tegen diezelfde wegwerpdatabase, zonder de naam of het domein van deze site, zonder de oude hero-afbeelding, zonder leeg `<img>`-element, met een lege winkelwagen — en zonder ergens de hostname van het verzoek over te nemen |
+| `tests/Install/FreshInstallRenderTest.php` | Wat een lege database *toont*: `/`, `/shop.php` (geen automatisch productoverzicht: de niet-gevonden-pagina), `robots.txt` en `sitemap.xml` (zonder `/shop.php`) gerenderd tegen diezelfde wegwerpdatabase, zonder de naam of het domein van deze site, zonder de oude hero-afbeelding, zonder leeg `<img>`-element, met een lege winkelwagen — en zonder ergens de hostname van het verzoek over te nemen |
 | `tests/Install/ExampleEnvironmentTest.php` | Dat `.env.example` geen levende waarde van deze site meer draagt: `APP_URL`, `MAIL_FROM_ADDRESS`, `MAIL_FROM_NAME` en `SHOP_NOTIFICATION_EMAIL`, plus elke andere waarde die de buitenwereld bereikt. Leest het bestand per sleutel, niet als momentopname, zodat de toelichtingen erin vrij blijven veranderen |
 | `tests/Install/GenericDistributionTest.php` | De identiteit die dit programma hardop uitspreekt: de User-Agent naar buiten, het afhaallabel, de afzender van transactionele mail, de lege winkelwagen, en dat de twee verwijderde publieke bestanden weg blijven |
 | `tests/Install/FreshSiteCopyTest.php` | De grens tussen applicatie en site: `App\Install\FreshSiteCopyPolicy` rechtstreeks bevraagd, het exportscript echt gedraaid, en beide vergeleken met `.gitignore` |

@@ -84,7 +84,11 @@ final class AdminPermissionsTest extends TestCase
     public function testGrantsNeverLeakIntoOtherSections(): void
     {
         $user = $this->user([ShopModule::PRODUCTS_MANAGE]);
-        $allowed = [ShopModule::PRODUCTS_MANAGE, ShopModule::PRODUCTS_VIEW];
+        // media.view is the one deliberate exception, the same one pages.manage
+        // and blog.manage have: a product's pictures are chosen from (and
+        // uploaded into) the Media Library (MEDIA.md, "Rechten"). It opens the
+        // library, not another section's screens.
+        $allowed = [ShopModule::PRODUCTS_MANAGE, ShopModule::PRODUCTS_VIEW, \App\Service\AdminPermissions::MEDIA_VIEW];
 
         foreach (AdminPermissions::all() as $permission) {
             if (in_array($permission, $allowed, true)) {

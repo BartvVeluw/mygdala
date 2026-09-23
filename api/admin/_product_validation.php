@@ -154,3 +154,66 @@ function generateUniqueSlug(ProductRepository $repository, string $name): string
 
     return $slug;
 }
+
+/**
+ * The variants' own descriptions from the product editor, in the one language
+ * the request is written in: variant id => sanitized HTML for a variant that
+ * has "Eigen beschrijving" ticked, or null for one that follows the product's
+ * description again. Only the variants the screen says it showed
+ * (`variants_submitted[]`) are in the result, so a variant the screen did
+ * not render is never touched.
+ *
+ * Ticked with nothing in it is refused rather than stored as "no override":
+ * the editor asked for text of this variant's own and should see that none
+ * was given. Unticked never stores a copy of the product's text — the variant
+ * keeps following it (App\Service\ShopLocalization::variantDescription()).
+ *
+ * @param array<int, string> $errors appended to
+ * @return array{0: array<int, ?string>, 1: array<int, array{own: bool, html: string}>}
+ *         [what to store, what a refused save shows again]
+ */
+function validateVariantDescriptions(array $input, array &$errors): array
+{
+    $submitted = is_array($input['variants_submitted'] ?? null) ? $input['variants_submitted'] : [];
+    $own = is_array($input['variant_description_own'] ?? null) ? $input['variant_description_own'] : [];
+    $texts = is_array($input['variant_description'] ?? null) ? $input['variant_description'] : [];
+
+    $store = [];
+    $old = [];
+    $emptyReported = false;
+
+    foreach ($submitted as $raw) {
+        $variantId = filter_var($raw, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
+        if ($variantId === false) {
+            continue;
+        }
+
+        $isOwn = ($own[$variantId] ?? null) === '1';
+        $html = is_string($texts[$variantId] ?? null) ? $texts[$variantId] : '';
+        $old[$variantId] = ['own' => $isOwn, 'html' => $html];
+
+        if (!$isOwn) {
+            $store[$variantId] = null;
+            continue;
+        }
+
+        $sanitized = DescriptionSanitizer::sanitize($html);
+
+        if ($sanitized === null || trim(strip_tags($sanitized)) === '') {
+            if (!$emptyReported) {
+                $errors[] = AdminTranslator::trans('validation.variant_description_empty');
+                $emptyReported = true;
+            }
+            continue;
+        }
+
+        if (strlen($sanitized) > 20000) {
+            $errors[] = 'Beschrijving is te lang.';
+            continue;
+        }
+
+        $store[$variantId] = $sanitized;
+    }
+
+    return [$store, $old];
+}

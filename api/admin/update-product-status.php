@@ -52,5 +52,7 @@ try {
     exit('Status kon niet worden bijgewerkt.');
 }
 
-header('Location: /admin/products.php');
+// The success marker every write endpoint appends (admin/assets/save-bar.js
+// tells a saved redirect from a refused one by it); a failure never gets here.
+header('Location: /admin/products.php?updated=1');
 exit;

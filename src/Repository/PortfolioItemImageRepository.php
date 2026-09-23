@@ -15,7 +15,7 @@ namespace App\Repository;
  * removes an item's files before the foreign key's ON DELETE CASCADE removes
  * these rows.
  *
- * Same shape/conventions as VariantImageRepository: no is_primary flag, the
+ * Same shape/conventions as the old VariantImageRepository: no is_primary flag, the
  * first row in sort_order order is simply the first image in the gallery.
  *
  * Its ALT TEXT is not here: since Multilingual 2.0 phase 5 it lives per

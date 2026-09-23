@@ -273,9 +273,20 @@ final class LocalizedSlugMigrationTest extends TestCase
     public function testNotOneNeutralRowChanged(): void
     {
         foreach (self::NEUTRAL_TABLES as $table) {
+            // Compared on the columns the rows had before: catchUp() runs every
+            // later migration too, and one that ADDS a column to a neutral table
+            // (collections.media_id, 20260923120000) changes no value that was
+            // there.
+            $before = self::$neutralBefore[$table];
+            $columns = $before === [] ? null : array_flip(array_keys($before[0]));
+            $after = array_map(
+                static fn (array $row): array => $columns === null ? $row : array_intersect_key($row, $columns),
+                self::$upgraded->rows('SELECT * FROM `' . $table . '` ORDER BY id')
+            );
+
             self::assertSame(
-                self::$neutralBefore[$table],
-                self::$upgraded->rows('SELECT * FROM `' . $table . '` ORDER BY id'),
+                $before,
+                $after,
                 $table . ': same ids, same slugs, same everything — the upgrade only ADDS addresses'
             );
         }

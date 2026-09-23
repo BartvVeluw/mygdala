@@ -267,7 +267,10 @@ class CollectionService
             return false;
         }
 
-        $imagePath = $collection['image_path'] ?? null;
+        // Only a picture uploaded before the Media Library is the collection's
+        // own file. A library picture stays: it belongs to the library, and
+        // may be on a product or a page too (MEDIA.md, "Verwijderen").
+        $imagePath = empty($collection['media_id']) ? ($collection['image_path'] ?? null) : null;
 
         $deleted = $repository->delete($collectionId);
 

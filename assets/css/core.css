@@ -1053,8 +1053,18 @@ fieldset legend{ font-weight: 700; margin-bottom: 0.6rem; padding: 0; font-size:
 .rich-content li{ margin-bottom: 0.4em; }
 .rich-content li:last-child{ margin-bottom: 0; }
 .rich-content li::marker{ color: var(--color-primary); }
-.rich-content a{ color: var(--color-primary-bright); text-decoration: underline; text-underline-offset: 2px; }
-.rich-content a:hover{ color: var(--color-primary); }
+/* A link in rich text must read as a link without relying on colour alone:
+   always underlined, in the accent colour, a thicker line on hover, and a
+   visible focus ring. A button-styled link (.btn) keeps its own look. */
+.rich-content a:not(.btn){
+  color: var(--color-primary-bright);
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+  transition: color var(--dur-fast) var(--ease-out), text-decoration-thickness var(--dur-fast) var(--ease-out);
+}
+.rich-content a:not(.btn):hover{ color: var(--color-primary); text-decoration-thickness: 2px; }
+.rich-content a:not(.btn):focus-visible{ outline: 2px solid var(--color-primary-bright); outline-offset: 2px; border-radius: 2px; text-decoration-thickness: 2px; }
 .rich-content strong, .rich-content b{ color: var(--color-text); font-weight: 700; }
 .rich-content--intro{ font-size: var(--fs-lead); max-width: 46ch; }
 /* A Detailsectie's body reuses .rich-content's structure (headings, lists,

@@ -74,8 +74,8 @@ final class PublicRouteLanguageTest extends TestCase
     /** @var array<string, int|string>|null placeholder => value, once created */
     private static ?array $fixtures = null;
 
-    /** @var array{pages: list<int>, products: list<int>, orders: list<int>, items: list<int>, customer: int|null, german: bool} */
-    private static array $created = ['pages' => [], 'products' => [], 'orders' => [], 'items' => [], 'customer' => null, 'german' => false];
+    /** @var array{pages: list<int>, products: list<int>, orders: list<int>, items: list<int>, customer: int|null, german: bool, overview: ?string} */
+    private static array $created = ['pages' => [], 'products' => [], 'orders' => [], 'items' => [], 'customer' => null, 'german' => false, 'overview' => null];
 
     public static function setUpBeforeClass(): void
     {
@@ -122,9 +122,14 @@ final class PublicRouteLanguageTest extends TestCase
         if (self::$created['german']) {
             $db->prepare("DELETE FROM site_languages WHERE code = 'de'")->execute();
         }
+        if (self::$created['overview'] === 'none') {
+            $db->prepare("DELETE FROM site_settings WHERE setting_key = 'shop_overview'")->execute();
+        } elseif (self::$created['overview'] === 'empty') {
+            $db->prepare("UPDATE site_settings SET setting_value = '' WHERE setting_key = 'shop_overview'")->execute();
+        }
 
         self::$fixtures = null;
-        self::$created = ['pages' => [], 'products' => [], 'orders' => [], 'items' => [], 'customer' => null, 'german' => false];
+        self::$created = ['pages' => [], 'products' => [], 'orders' => [], 'items' => [], 'customer' => null, 'german' => false, 'overview' => null];
 
         SiteLanguages::clearCache();
         ShopLocalization::clearCache();
@@ -185,14 +190,23 @@ final class PublicRouteLanguageTest extends TestCase
     }
 
     /**
-     * The storefront renders the Shop's own overview when no CMS page carries
-     * it, and builds that head itself. It is a canonical of its own in every
-     * language, exactly like the page it stands in for.
-     */
+     * The storefront renders the Shop's own automatic overview when no CMS
+     * page carries it and the installation still has that overview
+     * (shop_overview = 'builtin', App\Service\ShopOverview), and builds that
+     * head itself. It is a canonical of its own in every language, exactly
+     * like the page it stands in for.
     public function testTheStorefrontWithoutAPageCanonicalizesInItsOwnLanguageToo(): void
     {
         $shop = (new PageRepository())->findByContentKey('shop');
         $db = Database::connection();
+
+        $overview = $db->prepare("SELECT setting_value FROM site_settings WHERE setting_key = 'shop_overview'");
+        $overview->execute();
+        $overviewBefore = $overview->fetchColumn();
+        $db->prepare(
+            "INSERT INTO site_settings (setting_key, setting_value, created_at, updated_at) VALUES ('shop_overview', 'builtin', NOW(), NOW())
+             ON DUPLICATE KEY UPDATE setting_value = 'builtin'"
+        )->execute();
 
         if ($shop !== null) {
             $db->prepare('UPDATE pages SET content_key = :away WHERE id = :id')
@@ -212,6 +226,11 @@ final class PublicRouteLanguageTest extends TestCase
         } finally {
             if ($shop !== null) {
                 $db->prepare('UPDATE pages SET content_key = :key WHERE id = :id')->execute(['key' => 'shop', 'id' => $shop['id']]);
+            }
+            if ($overviewBefore === false) {
+                $db->prepare("DELETE FROM site_settings WHERE setting_key = 'shop_overview'")->execute();
+            } else {
+                $db->prepare("UPDATE site_settings SET setting_value = ? WHERE setting_key = 'shop_overview'")->execute([$overviewBefore]);
             }
             PageContent::clearCache();
         }
@@ -466,6 +485,19 @@ final class PublicRouteLanguageTest extends TestCase
                 ->execute(['route' => $routePath, 'id' => $id]);
         }
         PageContent::clearCache();
+
+        // /shop.php answers only while the storefront page is the chosen
+        // product overview (App\Service\ShopOverview). A test database that
+        // never made a choice (a fresh one) gets it for this sweep, and gets
+        // its own answer back in tearDownAfterClass().
+        $overview = $db->query("SELECT setting_value FROM site_settings WHERE setting_key = 'shop_overview'")->fetchColumn();
+        if ($overview === false || $overview === '') {
+            self::$created['overview'] = $overview === false ? 'none' : 'empty';
+            $db->prepare(
+                "INSERT INTO site_settings (setting_key, setting_value, created_at, updated_at) VALUES ('shop_overview', ?, NOW(), NOW())
+                 ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)"
+            )->execute([(string) (int) $pages->findByContentKey('shop')['id']]);
+        }
 
         $product = (new ProductRepository())->create([
             'slug' => 'zz-route-language-' . bin2hex(random_bytes(6)),

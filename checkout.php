@@ -50,7 +50,7 @@ require __DIR__ . '/partials/header.php';
 <main id="main">
 
   <?php render_breadcrumb(
-      \App\Service\Breadcrumbs\BreadcrumbTrail::home()
+      \App\Service\ShopOverview::extendTrail(\App\Service\Breadcrumbs\BreadcrumbTrail::home())
           ->toRoute('cart')
           ->toRoute('checkout')
   ); ?>
@@ -66,7 +66,9 @@ require __DIR__ . '/partials/header.php';
     <div class="container">
       <p class="lead" data-checkout-empty hidden>
         <span><?= \App\Service\Language\SiteText::escaped(['nl' => 'Je winkelwagen is leeg — er is niets om af te rekenen.', 'en' => 'Your cart is empty — there\'s nothing to check out.']) ?></span>
-        <a href="<?= htmlspecialchars(\App\Service\Routing\LocalizedUrl::path('/shop.php'), ENT_QUOTES, 'UTF-8') ?>"><?= \App\Service\Language\SiteText::escaped(['nl' => 'Naar de shop', 'en' => 'Go to shop']) ?></a>
+        <?php if (\App\Service\ShopOverview::url() !== null): ?>
+        <a href="<?= htmlspecialchars(\App\Service\ShopOverview::url(), ENT_QUOTES, 'UTF-8') ?>"><?= \App\Service\Language\SiteText::escaped(['nl' => 'Naar de shop', 'en' => 'Go to shop']) ?></a>
+        <?php endif; ?>
       </p>
 
       <form class="checkout-layout" data-checkout-form>

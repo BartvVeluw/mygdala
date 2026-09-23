@@ -3,12 +3,14 @@
 /**
  * POST /api/admin/update-product.php
  *
- * Updates an existing product's text fields, SEO fields and active flag from
- * the admin edit form. Product photos are managed separately, on the same
- * edit page, via add-product-images.php / delete-product-image.php /
- * set-primary-product-image.php / move-product-image.php — this endpoint
- * never touches them, so a text-only save can never remove/replace a photo.
- * Same PRG/session-flash pattern as create-product.php.
+ * Updates an existing product from the admin edit form: its fields, its
+ * words in the one language being edited, its SEO fields, and — since the
+ * pictures became part of this same form — its pool of pictures, each shown
+ * variant's selection from that pool and each variant's own description
+ * (App\Service\ProductGallery, validateVariantDescriptions()). Everything is
+ * ONE transaction, and the pictures are only touched when the form carried
+ * that section (`gallery_submitted`). Same PRG/session-flash pattern as
+ * create-product.php.
  *
  * The SEO social image is the one image this endpoint does own, because it
  * lives in the SEO card of this same form — there is deliberately no
@@ -27,6 +29,7 @@ use App\Service\AdminAuth;
 use App\Service\CollectionContent;
 use App\Service\CollectionService;
 use App\Service\Csrf;
+use App\Service\ProductGallery;
 use App\Service\ProductImageUploader;
 use App\Service\ProductSeo;
 use App\Service\ShopLocalization;
@@ -66,6 +69,21 @@ if ($existing === null) {
 // `false`: an existing product, so the words written are those of the one
 // language the form's hidden field names (Multilingual 2.0 phase 5 wave C).
 [$errors, $fields] = validateProductInput($_POST, false);
+
+// The pictures section (admin/_product_gallery.php): the product's own pool in
+// its new order, and each shown variant's selection from it. Only when the
+// form carried the section at all, so a request without it changes no
+// picture. Checked again, token by token, in App\Service\ProductGallery.
+$gallerySubmitted = ($_POST['gallery_submitted'] ?? null) === '1';
+$galleryTokens = ProductGallery::tokens($_POST['gallery'] ?? []);
+$variantTokens = ProductGallery::variantTokens($_POST['variants_submitted'] ?? [], $_POST['variant_images'] ?? []);
+[$variantDescriptions, $fields['variant_descriptions']] = validateVariantDescriptions($_POST, $errors);
+
+// A refused save shows the same pictures and selections again.
+if ($gallerySubmitted) {
+    $fields['gallery'] = $galleryTokens;
+    $fields['variant_images'] = $variantTokens;
+}
 
 $uploader = new ProductImageUploader();
 $newOgImagePath = null;
@@ -137,6 +155,23 @@ try {
         // product's own photo again, and to the site-wide image after that.
         $productRepository->updateOgImagePath($id, null);
         $unreferencedOgImagePath = $oldOgImagePath;
+    }
+
+    if ($gallerySubmitted) {
+        (new ProductGallery($db))->save($id, $galleryTokens, $variantTokens);
+    }
+
+    // A variant's own description, in this request's one language. Only
+    // variants of THIS product: an id of another product's variant is
+    // skipped, whatever the request says.
+    $ownVariantIds = array_map(
+        static fn (array $variant): int => (int) $variant['id'],
+        (new \App\Repository\ProductVariantRepository($db))->findByProductId($id)
+    );
+    foreach ($variantDescriptions as $variantId => $html) {
+        if (in_array((int) $variantId, $ownVariantIds, true)) {
+            ShopLocalization::saveVariantDescription((int) $variantId, $fields['language_code'], $html);
+        }
     }
 
     // Synchronise this product's collection memberships: ticked collections

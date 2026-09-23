@@ -16,22 +16,48 @@ require_once __DIR__ . '/partials/public-request.php';
 \App\Module\ModuleGuard::requirePublicRoute('shop');
 require_once __DIR__ . '/partials/breadcrumb.php';
 
-// The storefront has two sources, and this is the one place that chooses.
+// /shop.php is not the Shop's page by definition any more. Which page is the
+// product overview, if any, is the owner's choice under Shop-instellingen
+// (App\Service\ShopOverview, MODULES.md "Shop"), and this route follows it:
 //
-// An installation whose CMS has a page with content_key `shop` — every one
-// that ran the install bootstrap before it stopped seeding that page —
-// renders that page: its title, its SEO fields and its blocks, the product
-// grid among them, exactly as before.
-//
-// A newer installation has no such page, because a webshop is a module and
-// not a page an editor has to keep (INSTALL-BOOTSTRAP.md). This URL is still
-// the Shop's — the cart, the checkout and every product page link back to
-// it — so it renders the module's own overview instead: a heading and the
-// product grid, whose assets are asked for through the grid's own block
-// definition so they keep their one owner
-// (Tests\Service\FrontendAssetOwnershipTest).
-$page = \App\Service\PageContent::forContentKey('shop');
-$storefrontGrid = $page === null ? \App\Service\Blocks\BlockDefinitions::get('product_grid') : null;
+//   - no overview: 404, like any URL that has nothing behind it. It never
+//     lists every product on its own;
+//   - the storefront page (content_key `shop`, what older installations were
+//     seeded with): rendered here, at its own address, exactly as before;
+//   - any other page: a 302 to that page's address in the language being
+//     read, so an old link or bookmark still lands on the overview. 302 and
+//     not 301, because the owner can choose another page tomorrow;
+//   - 'builtin', an older installation's automatic listing, kept by
+//     db/migrations/20260923140000 until its owner chooses: a heading and the
+//     product grid, whose assets are asked for through the grid's own block
+//     definition so they keep their one owner
+//     (Tests\Service\FrontendAssetOwnershipTest).
+$overviewMode = \App\Service\ShopOverview::mode();
+$overviewPage = \App\Service\ShopOverview::page();
+$page = null;
+
+if ($overviewMode === \App\Service\ShopOverview::PAGE && \App\Service\ShopOverview::isStorefrontPage($overviewPage)) {
+    $page = \App\Service\PageContent::forContentKey('shop');
+} elseif ($overviewMode === \App\Service\ShopOverview::PAGE) {
+    $overviewUrl = \App\Service\ShopOverview::url();
+    if ($overviewUrl !== null) {
+        header('Location: ' . $overviewUrl, true, 302);
+        exit;
+    }
+} elseif ($overviewMode === \App\Service\ShopOverview::BUILTIN) {
+    $page = \App\Service\PageContent::forContentKey('shop');
+}
+
+// Nothing to show: no overview, a chosen page that is not published, or a
+// storefront page that is not (or no longer) there.
+$builtin = $overviewMode === \App\Service\ShopOverview::BUILTIN && $page === null;
+if ($page === null && !$builtin) {
+    http_response_code(404);
+    require __DIR__ . '/partials/route-not-found-page.php';
+    exit;
+}
+
+$storefrontGrid = $builtin ? \App\Service\Blocks\BlockDefinitions::get('product_grid') : null;
 
 if ($page === null) {
     // The same shape as cart.php's head: a route without a CMS page builds its

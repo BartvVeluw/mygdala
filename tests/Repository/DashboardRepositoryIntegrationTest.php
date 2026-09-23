@@ -11,7 +11,8 @@ use App\Repository\OrderRepository;
 use App\Repository\ProductRepository;
 use App\Service\ShopLocalization;
 use App\Repository\ProductVariantRepository;
-use App\Repository\VariantImageRepository;
+use App\Repository\ProductImageRepository;
+use App\Repository\ProductVariantImageRepository;
 use App\Service\DashboardMetrics;
 use PHPUnit\Framework\TestCase;
 
@@ -350,48 +351,40 @@ final class DashboardRepositoryIntegrationTest extends TestCase
     }
 
     /**
-     * A product with variants shows its DEFAULT variant's first photo in the
-     * shop, not its own — so the variant's photo is what makes it "has an
-     * image", even with no product-level photo at all.
+     * A picture belongs to the product; its DEFAULT variant may show a
+     * selection of them (product_variant_images). A picture the default
+     * variant links to is what the card shows, so it counts.
      */
-    public function testAVariantPhotoCountsAsTheProductsImage(): void
+    public function testAPictureTheDefaultVariantShowsCountsAsTheProductsImage(): void
     {
         $productId = $this->createProduct('variantphoto');
         $variantId = (new ProductVariantRepository())->create($productId, [], 12.50, true);
-        (new VariantImageRepository())->create($variantId, 'assets/images/products/variant.webp', null, null);
+        $imageId = (new ProductImageRepository())->create($productId, 'assets/images/products/variant.webp');
+        (new ProductVariantImageRepository())->replaceForVariant($variantId, [$imageId]);
 
         $this->assertSame(1, (int) $this->attentionRowsForFixtures()[$productId]['has_image']);
     }
 
     /**
-     * The mirror image, and the reason this is resolved through the default
-     * variant rather than with a plain "does it have any image anywhere":
-     * such a product renders a blank card in the shop even though its own
-     * `image_path` is filled in.
+     * Adding a variant no longer hides the product's own pictures: a default
+     * variant that chose none shows them, so the card is not blank.
      */
-    public function testAProductWhoseDefaultVariantHasNoPhotoHasNoImage(): void
+    public function testAProductWhoseDefaultVariantChoseNoPictureKeepsItsOwn(): void
     {
         $productId = $this->createProduct('variantnophoto', ['image_path' => 'assets/images/products/example.webp']);
         (new ProductVariantRepository())->create($productId, [], 12.50, true);
 
-        $this->assertSame(0, (int) $this->attentionRowsForFixtures()[$productId]['has_image']);
+        $this->assertSame(1, (int) $this->attentionRowsForFixtures()[$productId]['has_image']);
     }
 
-    public function testAPhotoOnADeactivatedVariantDoesNotCount(): void
+    public function testAProductWithVariantsAndNoPictureAnywhereHasNoImage(): void
     {
-        $productId = $this->createProduct('inactivevariant');
+        $productId = $this->createProduct('variantsnothing');
         $variantRepository = new ProductVariantRepository();
-
-        $inactive = $variantRepository->create($productId, [], 12.50, false);
-        (new VariantImageRepository())->create($inactive, 'assets/images/products/hidden.webp', null, null);
+        $variantRepository->create($productId, [], 12.50, false);
+        $variantRepository->create($productId, [], 12.50, true);
 
         $this->assertSame(0, (int) $this->attentionRowsForFixtures()[$productId]['has_image']);
-
-        // Only once an ACTIVE variant carries a photo does the card fill up.
-        $active = $variantRepository->create($productId, [], 12.50, true);
-        (new VariantImageRepository())->create($active, 'assets/images/products/shown.webp', null, null);
-
-        $this->assertSame(1, (int) $this->attentionRowsForFixtures()[$productId]['has_image']);
     }
 
     public function testTheAttentionRowCarriesPriceAndBothSalesChannels(): void

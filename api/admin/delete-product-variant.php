@@ -12,9 +12,7 @@ require_once __DIR__ . '/../../vendor/autoload.php';
 
 use App\Service\AdminAuth;
 use App\Service\Csrf;
-use App\Service\ProductImageUploader;
 use App\Repository\ProductVariantRepository;
-use App\Repository\VariantImageRepository;
 
 AdminAuth::requireLoginForApi();
 AdminAuth::requirePermissionForApi('products.manage');
@@ -53,13 +51,10 @@ if ($repository->isReferencedByOrders($variantId)) {
     exit;
 }
 
-$uploader = new ProductImageUploader();
-foreach ($variant['images'] as $image) {
-    $uploader->delete($image['image_path']);
-}
-
-// variant_images rows cascade-delete at the DB level (FK ON DELETE CASCADE)
-// once the variant itself is gone — only the files on disk needed cleanup.
+// Only the variant goes. Its pictures are the PRODUCT's (product_images),
+// so they stay in the product's pool and in the Media Library; the variant's
+// links to them (product_variant_images) and its own descriptions
+// (product_variant_translations) cascade away with the row.
 $repository->delete($variantId);
 
 header('Location: /admin/product-form.php?id=' . $productId . '&updated=1');

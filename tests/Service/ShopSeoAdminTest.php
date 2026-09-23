@@ -52,7 +52,13 @@ final class ShopSeoAdminTest extends TestCase
                 );
             }
 
-            $this->assertStringContainsString('name="og_image"', $source, $editor . ' must offer a social image upload');
+            // Written out, or through the shared styled file input
+            // (admin_file_input(), ADMIN-UI.md) that both editors use now.
+            $this->assertMatchesRegularExpression(
+                '/name="og_image"|\'name\' => \'og_image\'/',
+                $source,
+                $editor . ' must offer a social image upload'
+            );
             $this->assertStringContainsString('name="remove_og_image"', $source, $editor . ' must offer removing it again');
         }
     }

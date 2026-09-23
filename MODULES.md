@@ -334,15 +334,46 @@ Alles wat er ook zou zijn zonder webshop.
 
 - Producten, varianten, opties, productafbeeldingen —
   `ProductRepository`, `ProductVariantRepository`, `ProductOptionRepository`,
-  `ProductImageRepository`, `VariantImageRepository`, `admin/products.php`,
-  `admin/product-form.php`.
+  `ProductImageRepository`, `ProductVariantImageRepository`, `ProductGallery`,
+  `admin/products.php`, `admin/product-form.php`, `admin/_product_gallery.php`.
+  **Eén afbeeldingenpool per product.** Een afbeelding is van het product
+  (`product_images`, met `media_id` naar de Mediabibliotheek); een variant
+  kiest daaruit een deelverzameling in een eigen volgorde
+  (`product_variant_images`, een koppeling, geen kopie). Een variant die niets
+  kiest toont alle afbeeldingen van het product, dus een variant toevoegen
+  verbergt nooit een productfoto. Een variant verwijderen haalt alleen zijn
+  koppelingen weg; een bibliotheekbestand verwijdert de Shop nooit
+  (`ShopMediaUsage`, `MEDIA.md`). Alles staat in het ene productformulier:
+  ← →, slepen, weghalen en aanvinken veranderen alleen het scherm, en
+  *Opslaan* (of de opslagbalk) bewaart het. De oude `variant_images`, met eigen
+  bestanden per variant, is door `20260923120000` omgezet naar dit model en
+  wordt niet meer gelezen.
+- Variantbeschrijving — optioneel, per websitetaal, in
+  `product_variant_translations` via `ShopLocalization`. Wat een bezoeker
+  leest is `eigen tekst van de variant in deze taal ?? productbeschrijving in
+  deze taal` (`ShopLocalization::variantDescription()`). Uit betekent: geen rij,
+  dus nooit een kopie van de producttekst; een latere wijziging aan het product
+  werkt door. De tekst van een variant valt niet terug op een andere taal:
+  zonder eigen tekst in die taal toont hij de productbeschrijving van die taal.
 - Collecties — `CollectionService`, `CollectionContent`,
   `CollectionRepository`, `collectie.php`, `CollectionGalleryItems`.
-- Winkelpagina — `shop.php`. Heeft de installatie een CMS-pagina met
-  `content_key = shop`, dan rendert hij die; anders zijn eigen
-  productoverzicht, een kop plus het blok `product_grid`. Een verse
-  installatie krijgt die pagina niet (`INSTALL-BOOTSTRAP.md`), en dan komt de
-  sitemapregel van `ShopModule::sitemapCollectors()` (`storefront`).
+- Productoverzicht — **geen vanzelfsprekende pagina.** De Shop betekent niet
+  dat er een publieke pagina met alle producten is. Onder Shop-instellingen →
+  Productoverzicht kiest de eigenaar *Geen overzichtspagina* of een bestaande
+  CMS-pagina (`App\Service\ShopOverview`, site-instelling `shop_overview`).
+  Het blok `product_grid` is nog een vast blok van de winkelpagina
+  (`content_key = shop`): een andere gekozen pagina is het overzicht voor links
+  en kruimelpad, maar toont pas producten als dat blok ook daar mag staan. Het
+  scherm zegt dat erbij. Elke Shop-link
+  naar "de shop" — productpagina, winkelwagen, afrekenen, collectie,
+  bestelstatus, personaliseren en hun kruimelpaden — vraagt het adres aan
+  `ShopOverview` en schrijft `/shop.php` niet zelf. `shop.php` volgt de keuze:
+  404 zonder overzicht, 302 naar de gekozen pagina, de pagina met
+  `content_key = shop` op haar eigen adres, of — alleen voor een bestaande
+  installatie die dat al toonde (`builtin`, gepind door `20260923140000`) — het
+  oude automatische overzicht. De route `shop` in de linkkiezer en de
+  sitemapregel `storefront` bestaan alleen zolang er een overzicht is. Zie
+  `INSTALL-BOOTSTRAP.md` voor de tabel per situatie.
 - Gerelateerde producten — `RelatedProductsContent`,
   `admin/related-products.php`, `partials/related-products.php`.
 - Winkelwagen — volledig client-side (`vvl-cart` in `localStorage`,

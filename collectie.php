@@ -120,23 +120,23 @@ require __DIR__ . '/partials/header.php';
            stays a link the visitor can take. It used to end at "Shop", which
            made the one useful link in the trail unclickable. */ ?>
   <?php render_breadcrumb(
-      \App\Service\Breadcrumbs\BreadcrumbTrail::home()
-          ->toPage('shop', 'shop')
+      \App\Service\ShopOverview::extendTrail(\App\Service\Breadcrumbs\BreadcrumbTrail::home())
           ->to(\App\Service\Breadcrumbs\BreadcrumbItem::current(\App\Service\Language\SiteText::pick(['nl' => 'Collectie niet gevonden', 'en' => 'Collection not found'])))
   ); ?>
   <section class="page-hero">
     <div class="container">
       <h1><?= \App\Service\Language\SiteText::escaped(['nl' => 'Collectie niet gevonden', 'en' => 'Collection not found']) ?></h1>
       <p class="lead" style="margin-top:1rem;"><?= \App\Service\Language\SiteText::escaped(['nl' => 'Deze collectie bestaat niet (meer) of is niet zichtbaar. Bekijk hieronder de rest van de shop.', 'en' => 'This collection doesn\'t exist (anymore) or isn\'t visible. Browse the rest of the shop below.']) ?></p>
-      <a href="<?= $h(\App\Service\Routing\LocalizedUrl::path('/shop.php')) ?>" class="btn" style="margin-top:1.5rem;"><?= \App\Service\Language\SiteText::escaped(['nl' => 'Naar de shop', 'en' => 'To the shop']) ?>
+      <?php if (\App\Service\ShopOverview::url() !== null): ?>
+      <a href="<?= $h(\App\Service\ShopOverview::url()) ?>" class="btn" style="margin-top:1.5rem;"><?= \App\Service\Language\SiteText::escaped(['nl' => 'Naar de shop', 'en' => 'To the shop']) ?>
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
       </a>
+      <?php endif; ?>
     </div>
   </section>
 <?php else: ?>
   <?php render_breadcrumb(
-      \App\Service\Breadcrumbs\BreadcrumbTrail::home()
-          ->toPage('shop', 'shop')
+      \App\Service\ShopOverview::extendTrail(\App\Service\Breadcrumbs\BreadcrumbTrail::home())
           ->to(\App\Service\Breadcrumbs\BreadcrumbItem::current($collection['name']))
   ); ?>
   <section class="page-hero">
@@ -178,7 +178,9 @@ require __DIR__ . '/partials/header.php';
       <p class="lead" data-products-error hidden><?= \App\Service\Language\SiteText::escaped(['nl' => 'Producten kunnen op dit moment niet worden geladen. Probeer het later opnieuw of neem contact op via het offerteformulier.', 'en' => 'Products can\'t be loaded right now. Please try again later or get in touch via the quote form.']) ?></p>
 
       <div style="margin-top:var(--sp-5);">
-        <a href="<?= $h(\App\Service\Routing\LocalizedUrl::path('/shop.php')) ?>" class="btn btn--ghost"><?= \App\Service\Language\SiteText::escaped(['nl' => 'Alle producten bekijken', 'en' => 'Browse all products']) ?></a>
+        <?php if (\App\Service\ShopOverview::url() !== null): ?>
+        <a href="<?= $h(\App\Service\ShopOverview::url()) ?>" class="btn btn--ghost"><?= \App\Service\Language\SiteText::escaped(['nl' => 'Alle producten bekijken', 'en' => 'Browse all products']) ?></a>
+        <?php endif; ?>
       </div>
     </div>
   </section>

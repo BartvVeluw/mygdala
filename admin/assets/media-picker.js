@@ -15,6 +15,14 @@
  * server applies the same kind again (api/admin/media-list.php ?type=,
  * api/admin/media-upload.php kind=).
  *
+ * A COLLECTING field (data-media-picker-collect) has no hidden input of its
+ * own: it is the "Afbeelding toevoegen" of a list, such as a product's
+ * pictures (admin/assets/product-gallery.js). Every image chosen or uploaded
+ * for it is handed over as a bubbling `media-picker:choose` event whose detail
+ * is the library item, and its upload takes several files at once. What the
+ * list does with an item is the list's business; the picker still only ever
+ * hands over library items.
+ *
  * An alt-text input linked to the field (data-media-alt-for="<its name>",
  * media_alt_field() in admin/_media_picker.php) is filled with the chosen
  * image's library alt text, or emptied with a placeholder when that image
@@ -65,10 +73,16 @@
     return Object.prototype.hasOwnProperty.call(kinds, kind) ? kind : "image";
   }
 
+  /** Whether the field collects items for a list rather than holding one. */
+  function collects(field) {
+    return !!field && field.hasAttribute("data-media-picker-collect");
+  }
+
   function openModal(field) {
     activeField = field;
     lastFocused = document.activeElement;
     currentKind = kindOf(field);
+    uploadInput.multiple = collects(field);
 
     var words = kinds[currentKind] || {};
     if (words.accept) {
@@ -279,6 +293,12 @@
       return;
     }
 
+    if (collects(activeField)) {
+      activeField.dispatchEvent(new CustomEvent("media-picker:choose", { bubbles: true, detail: item }));
+      closeModal();
+      return;
+    }
+
     var input = activeField.querySelector("[data-media-picker-input]");
     var preview = activeField.querySelector("[data-media-picker-preview]");
     var clear = activeField.querySelector("[data-media-picker-clear]");
@@ -307,6 +327,58 @@
     }
 
     closeModal();
+  }
+
+  /**
+   * A collecting field's upload: every file in turn, each one handed over as
+   * soon as the library has it. One refused file is said out loud and the
+   * rest still go; the modal closes once all of them are in.
+   */
+  function uploadAll(files) {
+    var field = activeField;
+    var queue = Array.prototype.slice.call(files || []);
+    var failed = false;
+
+    function next() {
+      if (queue.length === 0) {
+        uploadInput.value = "";
+        if (!failed && activeField === field) {
+          closeModal();
+        }
+        return;
+      }
+
+      var file = queue.shift();
+      setStatus("Uploaden… (" + file.name + ")", false);
+      send(file)
+        .then(function (data) {
+          field.dispatchEvent(new CustomEvent("media-picker:choose", { bubbles: true, detail: data.item }));
+        })
+        .catch(function (error) {
+          failed = true;
+          setStatus(file.name + ": " + (error.message || "Uploaden is mislukt."), true);
+        })
+        .then(next);
+    }
+
+    next();
+  }
+
+  /** One file to the library; resolves with the endpoint's answer. */
+  function send(file) {
+    var body = new FormData();
+    body.append("file", file);
+    body.append("csrf_token", config.csrfToken);
+    body.append("kind", currentKind);
+
+    return fetch(config.uploadUrl, { method: "POST", credentials: "same-origin", body: body }).then(function (response) {
+      return response.json().then(function (data) {
+        if (!response.ok) {
+          throw new Error(data.error || "Uploaden is mislukt.");
+        }
+        return data;
+      });
+    });
   }
 
   function upload(file) {
@@ -396,6 +468,10 @@
   });
 
   uploadInput.addEventListener("change", function () {
+    if (collects(activeField)) {
+      uploadAll(uploadInput.files);
+      return;
+    }
     upload(uploadInput.files && uploadInput.files[0]);
   });
 

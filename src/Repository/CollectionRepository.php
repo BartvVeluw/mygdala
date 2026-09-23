@@ -248,8 +248,20 @@ class CollectionRepository extends Repository
 
     public function updateImagePath(int $id, ?string $imagePath): void
     {
-        $stmt = $this->db->prepare('UPDATE collections SET image_path = :image_path, updated_at = NOW() WHERE id = :id');
-        $stmt->execute(['image_path' => $imagePath, 'id' => $id]);
+        $this->updateImage($id, $imagePath, null);
+    }
+
+    /**
+     * The collection's picture: a Media Library item and its path, written
+     * together (MEDIA.md, "Hoe een feature naar media verwijst"), or both
+     * NULL for no picture. The path stays the one every reader already uses.
+     */
+    public function updateImage(int $id, ?string $imagePath, ?int $mediaId): void
+    {
+        $stmt = $this->db->prepare(
+            'UPDATE collections SET image_path = :image_path, media_id = :media_id, updated_at = NOW() WHERE id = :id'
+        );
+        $stmt->execute(['image_path' => $imagePath, 'media_id' => $mediaId, 'id' => $id]);
     }
 
     /**

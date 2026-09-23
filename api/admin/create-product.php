@@ -9,26 +9,28 @@
  * back to the form with a session-flashed error list + the submitted values
  * (PRG pattern) so nothing is lost and nothing is ever double-submitted.
  *
- * Photos: `images[]` (multiple) are stored as product_images rows, first
- * one becomes primary. See src/Repository/ProductImageRepository.php.
+ * Pictures: `gallery[]`, Media Library pictures chosen on the form
+ * (`media:<id>` tokens), stored as the product's pool in that order, the
+ * first one primary — App\Service\ProductGallery, the same code the edit
+ * form saves through. There is no file upload of its own any more: a new
+ * picture is uploaded into the library from the picker.
  */
 
 declare(strict_types=1);
 
 require_once __DIR__ . '/../../vendor/autoload.php';
 require_once __DIR__ . '/_product_validation.php';
-require_once __DIR__ . '/_product_image_helpers.php';
 
 use App\Database;
 use App\Service\AdminAuth;
 use App\Service\CollectionContent;
 use App\Service\CollectionService;
 use App\Service\Csrf;
+use App\Service\ProductGallery;
 use App\Service\ProductImageUploader;
 use App\Service\ShopLocalization;
 use App\Repository\CollectionRepository;
 use App\Repository\ProductRepository;
-use App\Repository\ProductImageRepository;
 
 AdminAuth::requireLoginForApi();
 AdminAuth::requirePermissionForApi('products.manage');
@@ -50,21 +52,13 @@ if (!Csrf::validate($_POST['csrf_token'] ?? null)) {
 [$errors, $fields] = validateProductInput($_POST, true);
 
 $uploader = new ProductImageUploader();
-$uploadedPaths = [];
-
-foreach (normalizeMultiFileInput($_FILES['images'] ?? null) as $fileEntry) {
-    try {
-        $uploadedPaths[] = $uploader->store($fileEntry);
-    } catch (\RuntimeException $e) {
-        $errors[] = $e->getMessage();
-    }
-}
+$galleryTokens = ProductGallery::tokens($_POST['gallery'] ?? []);
+// A refused save shows the same pictures again, in the same order.
+$fields['gallery'] = $galleryTokens;
 
 /**
- * The optional SEO/social image from the SEO card. Deliberately NOT added to
- * $uploadedPaths: that list becomes the product's photo gallery below, and a
- * social image is a separate, single column — it must not turn into an extra
- * product photo. It is cleaned up alongside them on failure.
+ * The optional SEO/social image from the SEO card: a separate, single
+ * column, never one of the product's pictures. Cleaned up on failure.
  */
 $ogImagePath = null;
 if (isset($_FILES['og_image']) && ($_FILES['og_image']['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_NO_FILE) {
@@ -76,10 +70,7 @@ if (isset($_FILES['og_image']) && ($_FILES['og_image']['error'] ?? UPLOAD_ERR_NO
 }
 
 if ($errors !== []) {
-    // Don't leave orphaned uploads behind if the rest of the form was invalid.
-    foreach ($uploadedPaths as $path) {
-        $uploader->delete($path);
-    }
+    // Don't leave an orphaned upload behind if the rest of the form was invalid.
     $uploader->delete($ogImagePath);
 
     $_SESSION['admin_product_errors'] = $errors;
@@ -90,7 +81,6 @@ if ($errors !== []) {
 
 $db = Database::connection();
 $productRepository = new ProductRepository($db);
-$imageRepository = new ProductImageRepository($db);
 
 try {
     // Row and words are ONE transaction: a product is never in the catalogue
@@ -119,11 +109,7 @@ try {
         ShopLocalization::META_DESCRIPTION => $fields['meta_description'],
     ]);
 
-    foreach ($uploadedPaths as $path) {
-        $imageRepository->create($productId, $path);
-    }
-
-    syncPrimaryImagePath($productRepository, $imageRepository, $productId);
+    (new ProductGallery($db))->save($productId, $galleryTokens);
 
     if ($ogImagePath !== null) {
         $productRepository->updateOgImagePath($productId, $ogImagePath);
@@ -144,9 +130,6 @@ try {
     }
 
     error_log('[api/admin/create-product.php] ' . $e->getMessage());
-    foreach ($uploadedPaths as $path) {
-        $uploader->delete($path);
-    }
     $uploader->delete($ogImagePath);
 
     $_SESSION['admin_product_errors'] = ['Product kon niet worden opgeslagen. Probeer het opnieuw.'];

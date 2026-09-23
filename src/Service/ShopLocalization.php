@@ -101,6 +101,17 @@ final class ShopLocalization
 
     private static ?EntityTranslations $products = null;
     private static ?EntityTranslations $collections = null;
+    private static ?EntityTranslations $variants = null;
+
+    /**
+     * A variant's own words: only its description, and only where an editor
+     * gave it one. No row in a language means "the product's description"
+     * (variantDescription()), so nothing here is ever a copy of the product's
+     * text.
+     */
+    public const VARIANT_FIELDS = [
+        self::DESCRIPTION => self::DESCRIPTION_MAX_LENGTH,
+    ];
 
     public static function products(): EntityTranslations
     {
@@ -120,6 +131,13 @@ final class ShopLocalization
                 // a slug is neither (docs/multilingual/ROUTING.md).
                 [self::SLUG => self::SLUG_MAX_LENGTH] + self::COLLECTION_FIELDS
             )
+        );
+    }
+
+    public static function variants(): EntityTranslations
+    {
+        return self::$variants ??= new EntityTranslations(
+            new TranslationTable('product_variant_translations', 'variant_id', self::VARIANT_FIELDS)
         );
     }
 
@@ -204,6 +222,56 @@ final class ShopLocalization
     }
 
     /* ------------------------------------------------------------------ */
+    /* Variants                                                            */
+    /* ------------------------------------------------------------------ */
+
+    /**
+     * A variant's OWN description in exactly this language, sanitized, or ''
+     * when it has none there — no fallback to another language. What the
+     * editor shows, and the first half of variantDescription().
+     */
+    public static function variantOwnDescription(int $variantId, string $languageCode): string
+    {
+        $words = self::variants()->words($variantId);
+
+        return DescriptionSanitizer::sanitize($words[$languageCode][self::DESCRIPTION] ?? null) ?? '';
+    }
+
+    /**
+     * The description a visitor reads for a variant:
+     *
+     *     the variant's own text in this language ?? the product's description in this language
+     *
+     * The second half is productDescription(), with the product's own
+     * language fallback. The variant's text never falls back to another
+     * language first: a variant that was only given Dutch text shows the
+     * product's English text on the English page rather than Dutch words, and
+     * an override in one language leaves every other language as it was.
+     */
+    public static function variantDescription(int $variantId, int $productId, string $languageCode): string
+    {
+        $own = self::variantOwnDescription($variantId, $languageCode);
+
+        return $own !== '' ? $own : self::productDescription($productId, $languageCode);
+    }
+
+    /**
+     * Stores or clears one variant's own description in one language. null
+     * (or empty) removes the override, and the variant follows the product's
+     * description again. Every other language is left as it is.
+     */
+    public static function saveVariantDescription(int $variantId, string $languageCode, ?string $html): void
+    {
+        self::variants()->save($variantId, $languageCode, [self::DESCRIPTION => $html]);
+    }
+
+    /** @param list<int> $variantIds */
+    public static function preloadVariants(array $variantIds): void
+    {
+        self::variants()->preload($variantIds);
+    }
+
+    /* ------------------------------------------------------------------ */
     /* Collections                                                         */
     /* ------------------------------------------------------------------ */
 
@@ -251,6 +319,7 @@ final class ShopLocalization
     {
         self::products()->clearCache();
         self::collections()->clearCache();
+        self::variants()->clearCache();
     }
 
     /**

@@ -214,9 +214,42 @@ a.product-card:hover .product-card__cta svg{ transform: translateX(3px); }
   transition: border-color 0.15s ease;
 }
 .product-detail__thumb img{ width: 100%; height: 100%; object-fit: cover; display: block; }
-.product-detail__thumb:hover{ border-color: var(--color-primary-bright); }
-.product-detail__thumb.is-active{ border-color: var(--color-primary); }
-.product-detail__thumb:focus-visible{ outline: 2px solid var(--color-primary-bright); outline-offset: 2px; }
+/* Hover and focus: a small lift and a soft glow. The picture on show gets a
+   LASTING state of its own (.is-active, aria-current) — a solid accent ring —
+   so "this one is shown" never depends on where the pointer happens to be. */
+.product-detail__thumb{
+  transition: border-color var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out), transform var(--dur-fast) var(--ease-out);
+}
+.product-detail__thumb:hover,
+.product-detail__thumb:focus-visible{
+  border-color: var(--color-primary-bright);
+  box-shadow: 0 0 0 3px var(--color-primary-wash), 0 6px 16px -8px var(--color-primary);
+  transform: translateY(-2px);
+}
+.product-detail__thumb.is-active{
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 2px var(--color-primary), 0 0 14px -2px var(--color-primary);
+}
+.product-detail__thumb:focus-visible{ outline: 2px solid var(--color-primary-bright); outline-offset: 3px; }
+
+/* The big picture fits its square frame, so a tall photo never changes the
+   height of the page. Changing it is a short fade with a hint of scale
+   (assets/js/shop/shop.js), never a slide or a resize. */
+.product-detail__main-img{
+  position: absolute; inset: 0;
+  width: 100%; height: 100%;
+  object-fit: contain;
+  border-radius: inherit;
+  transition: opacity 160ms var(--ease-out), transform 220ms var(--ease-out);
+}
+.product-detail__main-img.is-leaving{ opacity: 0; transform: scale(0.985); }
+.product-detail__main-img.is-entering{ opacity: 0; transform: scale(1.015); }
+@media (prefers-reduced-motion: reduce){
+  .product-detail__thumb,
+  .product-detail__main-img{ transition: none; }
+  .product-detail__thumb:hover,
+  .product-detail__thumb:focus-visible{ transform: none; }
+}
 
 .product-detail__title{ margin: 0 0 0.3rem; font-size: clamp(1.5rem, 1.2vw + 1.1rem, 1.9rem); font-weight: 500; line-height: 1.2; }
 .product-detail__price{ font-family: var(--font-display); font-size: 1.5rem; color: var(--color-primary-bright); margin: 0 0 var(--sp-3); }

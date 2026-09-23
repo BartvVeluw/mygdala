@@ -141,8 +141,13 @@ try {
         }
 
         $product['has_variants'] = true;
-        $product['image_path'] = $defaultVariant['images'][0]['image_path'] ?? null;
-        $product['image_alt'] = $defaultVariant['images'][0]['alt_text'] ?? null;
+
+        // The default variant's first picture; a variant that chose none
+        // shows the product's own pictures, so the card keeps the product's.
+        if (isset($defaultVariant['images'][0])) {
+            $product['image_path'] = $defaultVariant['images'][0]['image_path'];
+            $product['image_alt'] = $defaultVariant['images'][0]['alt_text'] ?? null;
+        }
     }
     unset($product);
 

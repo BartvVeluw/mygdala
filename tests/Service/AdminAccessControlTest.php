@@ -86,6 +86,11 @@ final class AdminAccessControlTest extends TestCase
         // endpoints behind it (media-list.php, media-upload.php) each check
         // media.view themselves.
         '_media_picker.php',
+        // The product editor's pictures and per-variant choices: output
+        // functions admin/product-form.php calls behind its own
+        // products.manage check. It stores nothing; the product form's own
+        // endpoint saves what it shows.
+        '_product_gallery.php',
         // The rows of a block editor's list (a FAQ's questions, a
         // Detailsectie's images): output functions the calling editor uses
         // behind its own pages.manage check. No URL and no data of its own;

@@ -218,8 +218,7 @@ require __DIR__ . '/partials/header.php';
      * last level: there is no name to print, and the page below says so.
      */
     render_breadcrumb(
-        \App\Service\Breadcrumbs\BreadcrumbTrail::home()
-            ->toPage('shop', 'shop')
+        \App\Service\ShopOverview::extendTrail(\App\Service\Breadcrumbs\BreadcrumbTrail::home())
             ->to($seo === null
                 ? \App\Service\Breadcrumbs\BreadcrumbItem::current(\App\Service\Language\SiteText::pick(['nl' => 'Product', 'en' => 'Product']))
                 : \App\Service\Breadcrumbs\BreadcrumbItem::current((string) $seo['name']))
@@ -246,7 +245,10 @@ require __DIR__ . '/partials/header.php';
 
           <div class="product-detail__variants" data-product-variants hidden></div>
 
-          <p class="product-detail__desc" data-product-description hidden></p>
+          <?php /* A <div>, not a <p>: the description is rich text with paragraphs
+                   and lists of its own, and .rich-content gives its links,
+                   lists and headings the site's one rich-text styling. */ ?>
+          <div class="product-detail__desc rich-content" data-product-description hidden></div>
 
           <?php /* THE purchase action lives at the BOTTOM of the
                    personalization section whenever this product has one, so
@@ -285,7 +287,9 @@ require __DIR__ . '/partials/header.php';
       </div>
 
       <div style="margin-top:var(--sp-5);">
-        <a href="<?= htmlspecialchars(\App\Service\Routing\LocalizedUrl::path('/shop.php'), ENT_QUOTES, 'UTF-8') ?>" class="btn btn--ghost"><?= \App\Service\Language\SiteText::escaped(['nl' => 'Terug naar producten', 'en' => 'Back to products']) ?></a>
+        <?php if (\App\Service\ShopOverview::url() !== null): ?>
+        <a href="<?= htmlspecialchars(\App\Service\ShopOverview::url(), ENT_QUOTES, 'UTF-8') ?>" class="btn btn--ghost"><?= \App\Service\Language\SiteText::escaped(['nl' => 'Terug naar producten', 'en' => 'Back to products']) ?></a>
+        <?php endif; ?>
       </div>
 
     </div>

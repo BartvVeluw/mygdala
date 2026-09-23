@@ -197,7 +197,11 @@ class PageContent
             return true;
         }
 
-        return ModuleRegistry::disabledModuleForRoutePath((string) $page['route_path']) === null;
+        // Switched off, or switched on but not answering at this path right
+        // now (ModuleDefinition::pausedPublicPaths()): either way the URL does
+        // not show this page, so nothing may advertise it.
+        return ModuleRegistry::disabledModuleForRoutePath((string) $page['route_path']) === null
+            && !ModuleRegistry::isPausedRoutePath((string) $page['route_path']);
     }
 
     /** Is this the site root — the one URL that must always render? */

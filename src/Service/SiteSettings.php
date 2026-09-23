@@ -169,6 +169,13 @@ class SiteSettings
         // default existed, so those orders were stored with their VLD- numbers.
         'order_number_prefix' => 'ORD',
 
+        // Which page is the webshop's product overview, if any: '' none, a
+        // page id, or 'builtin' for the automatic listing an older
+        // installation was pinned to (db/migrations/20260923140000). Stored
+        // here like the other shop keys above; the Shop module reads it.
+        // Empty by default: a webshop is no reason for a public listing.
+        'shop_overview' => '',
+
         // CMS-editable order-confirmation email copy (customer email only —
         // see App\Mail\OrderConfirmationBuilder / App\Mail\EmailPlaceholders
         // for the small, safe {{placeholder}} substitution supported here).

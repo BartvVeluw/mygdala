@@ -30,6 +30,7 @@ use App\Service\CollectionService;
 use App\Service\Csrf;
 use App\Service\Language\SiteLanguages;
 use App\Service\Routing\LocalizedSlugInput;
+use App\Service\Media\MediaService;
 use App\Service\SectionImageUploader;
 use App\Service\ShopLocalization;
 
@@ -119,15 +120,34 @@ if ($isWritableLanguage && $slug !== '') {
 }
 
 $uploader = new SectionImageUploader();
-$newImagePath = null;
-$hasUpload = isset($_FILES['image']) && ($_FILES['image']['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_NO_FILE;
 
-if ($hasUpload) {
-    try {
-        $newImagePath = $uploader->store($_FILES['image']);
-    } catch (\RuntimeException $e) {
-        $errors[] = $e->getMessage();
-    }
+/*
+ * The collection's picture, from the shared Media Library picker
+ * (admin/collection.php). `image_field` says which of two shapes the screen
+ * rendered:
+ *
+ *   media   the picker holds the picture (or none): its value is the answer,
+ *           so an emptied picker ("Wissen") removes the picture;
+ *   legacy  the collection still has a picture uploaded before the library.
+ *           It stays unless a library image is chosen to replace it or
+ *           "Huidige afbeelding verwijderen" is ticked.
+ *
+ * A request without the marker changes no picture. An id counts only when it
+ * names an image in the library.
+ */
+$imageField = $_POST['image_field'] ?? null;
+$chosenImage = MediaService::findImage(filter_var($_POST['media_id'] ?? null, FILTER_VALIDATE_INT) ?: null);
+$removeLegacyImage = ($_POST['remove_image'] ?? null) === '1';
+$fields['media_id'] = $chosenImage?->id;
+$fields['remove_image'] = $removeLegacyImage;
+
+$imageChange = null; // null = leave it; ['path' => ?string, 'media' => ?int] = write it
+if ($imageField === 'media') {
+    $imageChange = ['path' => $chosenImage?->path, 'media' => $chosenImage?->id];
+} elseif ($imageField === 'legacy' && $chosenImage !== null) {
+    $imageChange = ['path' => $chosenImage->path, 'media' => $chosenImage->id];
+} elseif ($imageField === 'legacy' && $removeLegacyImage) {
+    $imageChange = ['path' => null, 'media' => null];
 }
 
 // The optional SEO/social image from the SEO card — same upload/replace/
@@ -146,9 +166,6 @@ if ($hasOgUpload) {
 }
 
 if ($errors !== []) {
-    if ($newImagePath !== null) {
-        $uploader->delete($newImagePath);
-    }
     if ($newOgImagePath !== null) {
         $uploader->delete($newOgImagePath);
     }
@@ -188,12 +205,15 @@ try {
     // replacing a collection image.
     $unreferenced = [];
 
-    if ($newImagePath !== null) {
-        $collectionRepository->updateImagePath($id, $newImagePath);
+    if ($imageChange !== null) {
+        $collectionRepository->updateImage($id, $imageChange['path'], $imageChange['media']);
 
-        $oldImagePath = $existing['image_path'] ?? null;
-        if ($oldImagePath !== null && $oldImagePath !== '' && $oldImagePath !== $newImagePath) {
-            $unreferenced[] = (string) $oldImagePath;
+        // Only a picture uploaded before the library was this collection's
+        // own file. A library picture belongs to the library and may be used
+        // elsewhere, so it is never deleted here (MEDIA.md, "Verwijderen").
+        $oldImagePath = (string) ($existing['image_path'] ?? '');
+        if (empty($existing['media_id']) && $oldImagePath !== '' && $oldImagePath !== $imageChange['path']) {
+            $unreferenced[] = $oldImagePath;
         }
     }
 
@@ -236,9 +256,6 @@ try {
 
     error_log('[api/admin/update-collection.php] ' . $e->getMessage());
 
-    if ($newImagePath !== null) {
-        $uploader->delete($newImagePath);
-    }
     if ($newOgImagePath !== null) {
         $uploader->delete($newOgImagePath);
     }

@@ -6,6 +6,8 @@ require_once __DIR__ . '/../vendor/autoload.php';
 require_once __DIR__ . '/_translate.php';
 
 require_once __DIR__ . '/_localized_fields.php';
+require_once __DIR__ . '/_media_picker.php';
+require_once __DIR__ . '/_save_bar.php';
 
 use App\Service\AdminAuth;
 use App\Service\ShopLocalization;
@@ -87,9 +89,16 @@ unset($_SESSION['admin_variant_errors']);
 
 $updated = isset($_GET['updated']);
 
-// A product with variants manages its photos inside each variant instead —
-// its own product-level photo section is hidden entirely. See MAIN.MD.
-$hasVariants = $variants !== [];
+// The pictures section (admin/_product_gallery.php): the product's own pool
+// in its order, and per variant the pictures it shows plus its own
+// description in the language being edited. A refused save shows what was
+// sent (App\Service\ProductGallery tokens), everything else what is stored.
+// Adding a variant never hides a picture: it belongs to the product.
+require_once __DIR__ . '/_product_gallery.php';
+$galleryPictures = product_gallery_pictures(
+    $images,
+    $old !== null && isset($old['gallery']) && is_array($old['gallery']) ? $old['gallery'] : null
+);
 
 /**
  * Value precedence: freshly re-submitted (invalid) input, then the stored
@@ -189,6 +198,30 @@ $productId = $isEdit ? (int) $product['id'] : null;
 // 'simple' toolbar default (bold/italic/link/unlink/clear only) keeps this
 // call site's behaviour identical to before.
 require __DIR__ . '/_richtext_field.php';
+
+$variantGallery = [];
+if ($isEdit) {
+    \App\Service\ShopLocalization::preloadVariants(array_map(static fn (array $v): int => (int) $v['id'], $variants));
+    foreach ($variants as $variant) {
+        $variantId = (int) $variant['id'];
+        $oldTokens = $old['variant_images'][$variantId] ?? null;
+        $oldDescription = $old['variant_descriptions'][$variantId] ?? null;
+        $ownDescription = \App\Service\ShopLocalization::variantOwnDescription($variantId, $editingLanguage);
+
+        $variantGallery[] = [
+            'id' => $variantId,
+            'label' => implode(', ', array_map(
+                static fn (array $v): string => $v['option_name'] . ': ' . $v['value'],
+                $variant['values']
+            )),
+            'tokens' => is_array($oldTokens)
+                ? $oldTokens
+                : array_map(static fn (array $image): string => 'image:' . (int) $image['id'], $variant['images']),
+            'own' => is_array($oldDescription) ? (bool) $oldDescription['own'] : $ownDescription !== '',
+            'html' => is_array($oldDescription) ? (string) $oldDescription['html'] : $ownDescription,
+        ];
+    }
+}
 ?>
 <!doctype html>
 <html lang="<?= htmlspecialchars(\App\Service\Language\AdminLocale::current(), ENT_QUOTES, 'UTF-8') ?>">
@@ -200,6 +233,8 @@ require __DIR__ . '/_richtext_field.php';
 <link rel="stylesheet" href="<?= \App\Service\AssetVersion::url('/admin/assets/admin.css') ?>">
 <script src="<?= \App\Service\AssetVersion::url('/admin/assets/vendor/quill/quill.min.js') ?>" defer></script>
 <script src="<?= \App\Service\AssetVersion::url('/admin/assets/admin.js') ?>" defer></script>
+<?php media_picker_script(); ?>
+<script src="<?= \App\Service\AssetVersion::url('/admin/assets/product-gallery.js') ?>" defer></script>
 </head>
 <body<?= \App\Service\AdminTheme::bodyAttribute() ?>>
 <?php require __DIR__ . '/_header.php'; ?>
@@ -222,7 +257,7 @@ require __DIR__ . '/_richtext_field.php';
   <?php endif; ?>
 
   <section class="admin-card">
-    <form method="post" action="/api/admin/<?= $isEdit ? 'update-product.php' : 'create-product.php' ?>" enctype="multipart/form-data" class="admin-product-form">
+    <form method="post" action="/api/admin/<?= $isEdit ? 'update-product.php' : 'create-product.php' ?>" enctype="multipart/form-data" class="admin-product-form" id="product-form"<?= $errors !== [] ? ' data-save-bar-unsaved' : '' ?>>
       <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
       <?php if ($isEdit): ?>
         <input type="hidden" name="id" value="<?= (int) $product['id'] ?>">
@@ -315,13 +350,9 @@ require __DIR__ . '/_richtext_field.php';
         </label>
       </div>
 
-      <?php if (!$isEdit): ?>
-        <div class="admin-form-row">
-          <label><?= admin_te('shop.foto_s_eerste_foto') ?>
-            <input type="file" name="images[]" multiple accept=".jpg,.jpeg,.png,.webp,.gif,image/jpeg,image/png,image/webp,image/gif">
-          </label>
-        </div>
-      <?php endif; ?>
+      <h3><?= admin_te('shop.gallery.heading') ?></h3>
+      <?php product_gallery_pool($galleryPictures); ?>
+      <?php product_gallery_variants($galleryPictures, $variantGallery); ?>
 
       <h3><?= admin_te('shop.seo') ?></h3>
       <?php /* Secondary to the product's own content and therefore last in
@@ -356,9 +387,10 @@ require __DIR__ . '/_richtext_field.php';
           </div>
         <?php endif; ?>
         <div class="admin-seo-image__fields">
-          <label><?= admin_te('shop.deel_afbeelding_social_media') ?>
-            <input type="file" name="og_image" accept=".jpg,.jpeg,.png,.webp,.gif,image/jpeg,image/png,image/webp,image/gif">
-          </label>
+          <div class="admin-field">
+            <?= admin_field_label('product-og-image', admin_t('shop.deel_afbeelding_social_media')) ?>
+            <?= admin_file_input(['id' => 'product-og-image', 'name' => 'og_image', 'accept' => '.jpg,.jpeg,.png,.webp,.gif,image/jpeg,image/png,image/webp,image/gif']) ?>
+          </div>
           <p class="admin-text-muted"><?= admin_te('shop.optioneel_alleen_zichtbaar_voorbeeld') ?></p>
           <?php if ($ogImageValue !== ''): ?>
             <label class="admin-checkbox-label">
@@ -372,77 +404,6 @@ require __DIR__ . '/_richtext_field.php';
       <button type="submit"><?= $isEdit ? 'Opslaan' : admin_t('shop.create_product') ?></button>
     </form>
   </section>
-
-  <?php if ($isEdit && $hasVariants): ?>
-    <section class="admin-card">
-      <h2><?= admin_te('shop.foto_s') ?></h2>
-      <p class="admin-text-muted"><?= admin_te('shop.product_heeft_varianten_foto') ?></p>
-    </section>
-  <?php elseif ($isEdit): ?>
-    <section class="admin-card">
-      <h2><?= admin_te('shop.foto_s_2') ?></h2>
-
-      <?php if ($images === []): ?>
-        <p class="admin-text-muted"><?= admin_te('shop.foto_s_product') ?></p>
-      <?php else: ?>
-        <div class="admin-image-manage-grid">
-          <?php foreach ($images as $index => $image): ?>
-            <?php
-              $imageId = (int) $image['id'];
-              $isPrimary = (int) $image['is_primary'] === 1;
-              $isFirst = $index === 0;
-              $isLast = $index === count($images) - 1;
-            ?>
-            <article class="admin-image-card">
-              <div class="admin-image-card__media">
-                <img src="/<?= htmlspecialchars(ltrim((string) $image['image_path'], '/'), ENT_QUOTES, 'UTF-8') ?>" alt="" loading="lazy">
-                <?php if ($isPrimary): ?>
-                  <span class="admin-image-card__primary-badge">Hoofdfoto</span>
-                <?php endif; ?>
-              </div>
-              <div class="admin-image-card__actions">
-                <?php if (!$isPrimary): ?>
-                  <form method="post" action="/api/admin/set-primary-product-image.php" class="admin-inline-form">
-                    <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
-                    <input type="hidden" name="image_id" value="<?= $imageId ?>">
-                    <button type="submit" class="admin-btn-text"><?= admin_te('shop.maak_hoofdfoto') ?></button>
-                  </form>
-                <?php endif; ?>
-
-                <form method="post" action="/api/admin/move-product-image.php" class="admin-inline-form">
-                  <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
-                  <input type="hidden" name="image_id" value="<?= $imageId ?>">
-                  <input type="hidden" name="direction" value="up">
-                  <button type="submit" class="admin-btn-text" <?= $isFirst ? 'disabled' : '' ?>>&uarr;</button>
-                </form>
-                <form method="post" action="/api/admin/move-product-image.php" class="admin-inline-form">
-                  <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
-                  <input type="hidden" name="image_id" value="<?= $imageId ?>">
-                  <input type="hidden" name="direction" value="down">
-                  <button type="submit" class="admin-btn-text" <?= $isLast ? 'disabled' : '' ?>>&darr;</button>
-                </form>
-
-                <form method="post" action="/api/admin/delete-product-image.php" class="admin-inline-form" onsubmit="return confirm('Deze foto verwijderen?');">
-                  <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
-                  <input type="hidden" name="image_id" value="<?= $imageId ?>">
-                  <button type="submit" class="admin-btn-text admin-btn-text--danger"><?= admin_te('common.delete') ?></button>
-                </form>
-              </div>
-            </article>
-          <?php endforeach; ?>
-        </div>
-      <?php endif; ?>
-
-      <form method="post" action="/api/admin/add-product-images.php" enctype="multipart/form-data" class="admin-form-row">
-        <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
-        <input type="hidden" name="product_id" value="<?= (int) $product['id'] ?>">
-        <label><?= admin_te('shop.foto_s_toevoegen') ?>
-          <input type="file" name="images[]" multiple accept=".jpg,.jpeg,.png,.webp,.gif,image/jpeg,image/png,image/webp,image/gif">
-        </label>
-        <button type="submit"><?= admin_te('common.add') ?></button>
-      </form>
-    </section>
-  <?php endif; ?>
 
   <?php if ($isEdit): ?>
     <?php /* Personalisatie has its own CMS section (admin/personalization.php)
@@ -601,7 +562,6 @@ require __DIR__ . '/_richtext_field.php';
                     static fn (array $v): string => $v['option_name'] . ': ' . $v['value'],
                     $variant['values']
                 ));
-                $variantImages = $variant['images'];
               ?>
               <article class="admin-variant-panel">
                 <div class="admin-variant-panel__head">
@@ -645,54 +605,13 @@ require __DIR__ . '/_richtext_field.php';
                   </form>
                 </div>
 
-                <h4><?= admin_t('shop.photos_suffix', ['v1' => $varIndex === 0 ? ' <span class="admin-text-muted">(eerste variant = standaardweergave in de shop)</span>' : '']) ?></h4>
-
-                <?php if ($variantImages === []): ?>
-                  <p class="admin-text-muted"><?= admin_te('shop.foto_s_variant') ?></p>
-                <?php else: ?>
-                  <div class="admin-variant-image-grid" data-variant-image-grid data-variant-id="<?= $variantId ?>" data-reorder-url="/api/admin/reorder-variant-images.php" data-csrf-token="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
-                    <?php foreach ($variantImages as $imgIndex => $vImage): ?>
-                      <?php $vImageId = (int) $vImage['id']; ?>
-                      <div class="admin-variant-image-card" draggable="true" data-image-id="<?= $vImageId ?>">
-                        <div class="admin-variant-image-card__media">
-                          <img src="/<?= htmlspecialchars(ltrim((string) $vImage['image_path'], '/'), ENT_QUOTES, 'UTF-8') ?>" alt="" loading="lazy">
-                          <?php if ($imgIndex === 0): ?>
-                            <span class="admin-image-card__primary-badge">Standaard</span>
-                          <?php endif; ?>
-                        </div>
-                        <form method="post" action="/api/admin/update-variant-image.php" class="admin-variant-image-card__meta">
-                          <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
-                          <input type="hidden" name="image_id" value="<?= $vImageId ?>">
-                          <input type="hidden" name="product_id" value="<?= (int) $product['id'] ?>">
-                          <input type="text" name="image_name" maxlength="255" placeholder="Naam" value="<?= htmlspecialchars((string) ($vImage['image_name'] ?? ''), ENT_QUOTES, 'UTF-8') ?>">
-                          <input type="text" name="alt_text" maxlength="255" placeholder="Alt-tekst" value="<?= htmlspecialchars((string) ($vImage['alt_text'] ?? ''), ENT_QUOTES, 'UTF-8') ?>">
-                          <button type="submit" class="admin-btn-text"><?= admin_te('common.save') ?></button>
-                        </form>
-                        <form method="post" action="/api/admin/delete-variant-image.php" class="admin-inline-form" onsubmit="return confirm('Deze foto verwijderen?');">
-                          <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
-                          <input type="hidden" name="image_id" value="<?= $vImageId ?>">
-                          <button type="submit" class="admin-btn-text admin-btn-text--danger"><?= admin_te('common.delete') ?></button>
-                        </form>
-                      </div>
-                    <?php endforeach; ?>
-                  </div>
-                <?php endif; ?>
-
-                <form method="post" action="/api/admin/add-variant-images.php" enctype="multipart/form-data" class="admin-form-row">
-                  <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
-                  <input type="hidden" name="variant_id" value="<?= $variantId ?>">
-                  <label><?= admin_te('shop.foto_s_toevoegen_kies') ?>
-                    <input type="file" name="images[]" multiple accept=".jpg,.jpeg,.png,.webp,.gif,image/jpeg,image/png,image/webp,image/gif">
-                  </label>
-                  <button type="submit"><?= admin_te('common.add') ?></button>
-                </form>
               </article>
             <?php endforeach; ?>
           </div>
         <?php endif; ?>
 
         <h4><?= admin_te('shop.nieuwe_variant') ?></h4>
-        <p class="admin-text-muted"><?= admin_te('shop.foto_s_voeg_na') ?></p>
+        <p class="admin-text-muted"><?= admin_te('shop.gallery.new_variant_note') ?></p>
         <form method="post" action="/api/admin/create-product-variant.php" class="admin-form-row">
           <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
           <input type="hidden" name="product_id" value="<?= (int) $product['id'] ?>">
@@ -722,5 +641,8 @@ require __DIR__ . '/_richtext_field.php';
     </section>
   <?php endif; ?>
 </main>
+<?php save_bar(); ?>
+<?php save_bar_script(); ?>
+<?php media_picker_modal(); ?>
 </body>
 </html>

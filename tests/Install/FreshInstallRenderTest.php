@@ -20,7 +20,7 @@ use Tests\Support\ScratchInstall;
  * clean database is not a clean page.
  *
  * So this test renders the public documents a fresh installation serves
- * before anybody has edited anything — the homepage, the storefront,
+ * before anybody has edited anything — the homepage, the storefront address,
  * robots.txt and sitemap.xml — and reads them the way a stranger would.
  *
  * WHAT IT ASSERTS, and only this: the output is sensible, and this site's
@@ -131,56 +131,34 @@ final class FreshInstallRenderTest extends TestCase
     }
 
     /**
-     * A fresh install has no CMS page for the Shop (INSTALL-BOOTSTRAP.md), and
-     * /shop.php is still where the cart, the checkout and every product page
-     * send a visitor back to. So it must be a whole page with the product
-     * overview on it — not a header and a footer around nothing, and not a 404.
+     * A fresh install has no product overview (INSTALL-BOOTSTRAP.md,
+     * App\Service\ShopOverview): the Shop module is a webshop, not a page that
+     * lists every product. Until the owner chooses a page under
+     * Shop-instellingen, /shop.php answers with the site's own "not found"
+     * page — a whole page, not a header and a footer around a product grid
+     * nobody asked for.
      */
-    public function testTheStorefrontRendersTheProductOverviewWithoutACmsPage(): void
+    public function testTheStorefrontIsNotAnAutomaticListingOnAFreshInstall(): void
     {
         $html = $this->render('shop.php');
 
-        $this->assertStringContainsString('</html>', $html, 'The storefront rendering stopped part-way.');
+        $this->assertStringContainsString('</html>', $html, 'The not-found page rendering stopped part-way.');
         $this->assertStringNotContainsStringIgnoringCase('fatal error', $html);
-        $this->assertStringNotContainsString('Pagina niet gevonden', $html);
-        $this->assertStringContainsString('data-products-grid', $html, 'The storefront rendered no product overview.');
-        $this->assertMatchesRegularExpression('#<h1[^>]*>Shop</h1>#', $html);
-        $this->assertStringContainsString(
-            'assets/js/shop/shop.js',
-            $html,
-            'The product grid must still bring its own script, through its own block definition.'
-        );
-        $this->assertMatchesRegularExpression('#<link rel="canonical" href="https?://[^"]+/shop\.php">#', $html);
-        $this->assertMatchesRegularExpression('#<meta name="robots" content="index,follow">#', $html);
-        $this->assertNoIdentityIn($html, 'the storefront');
+        $this->assertStringNotContainsString('data-products-grid', $html, 'A fresh install may not list every product on its own.');
+        $this->assertNoIdentityIn($html, 'the storefront address');
     }
 
     /**
-     * ONCE PER LANGUAGE since Multilingual 2.0 phase 6: the storefront is a
-     * listing at a fixed path, so it exists in every active language
-     * (docs/multilingual/ROUTING.md). What must still never happen is the
-     * same URL being contributed TWICE — by Core's pages collector and by
-     * the Shop's own — which is what this test has always been about.
+     * No overview, so nothing for the sitemap: the Shop contributes the
+     * automatic listing only for an older installation that still has it
+     * ('builtin', db/migrations/20260923140000), and a chosen page is listed
+     * by Core's pages collector as the page it is.
      */
-    public function testTheSitemapListsTheStorefrontOncePerLanguage(): void
+    public function testTheSitemapListsNoStorefrontOnAFreshInstall(): void
     {
         $sitemap = $this->render('sitemap.php');
 
-        // How many languages the fresh installation publishes is its own
-        // business (Meertaligheid starts off on a new site); the default
-        // language's storefront is there exactly once either way.
-        $this->assertSame(
-            1,
-            preg_match_all('#<loc>https?://[^/<]+/shop\.php</loc>#', $sitemap),
-            'Without a Shop page the Shop module lists its storefront itself, once per language.'
-        );
-
-        preg_match_all('#<loc>([^<]*/shop\\.php)</loc>#', $sitemap, $matches);
-        $this->assertSame(
-            $matches[1],
-            array_values(array_unique($matches[1])),
-            'and never the same URL twice'
-        );
+        $this->assertSame(0, preg_match_all('#<loc>[^<]*/shop\.php</loc>#', $sitemap));
     }
 
     public function testRobotsTxtIsGenericAndNamesNoDomainOfThisSite(): void

@@ -57,17 +57,46 @@ try {
     $product['name'] = ShopLocalization::product($id, ShopLocalization::NAME, $language);
     $product['description'] = ShopLocalization::productDescription($id, $language);
 
-    $product['images'] = (new ProductImageRepository())->findByProductId($id);
+    // The product's ONE pool of pictures. A variant shows the subset it
+    // links to, in its own order, or - when it links to none - this whole
+    // pool (assets/js/shop/shop.js). Adding a variant never hides a picture.
+    $product['images'] = array_map('shopPicture', (new ProductImageRepository())->findByProductId($id));
     $product['options'] = (new ProductOptionRepository())->findByProductId($id);
     $product['variants'] = (new ProductVariantRepository())->findActiveByProductId($id);
-    // A product with variants no longer shows its own product-level photos —
-    // the frontend selects the default variant (first active by sort_order)
-    // and renders that variant's gallery instead. See MAIN.MD.
     $product['has_variants'] = $product['variants'] !== [];
+
+    // A variant's description is its own text in this language, or else the
+    // product's (App\Service\ShopLocalization::variantDescription()), so the
+    // page can swap it with the selection and never shows an empty one.
+    ShopLocalization::preloadVariants(array_map(static fn (array $v): int => (int) $v['id'], $product['variants']));
+    foreach ($product['variants'] as &$variant) {
+        $variant['images'] = array_map('shopPicture', $variant['images']);
+        $variant['description'] = ShopLocalization::variantDescription((int) $variant['id'], $id, $language);
+    }
+    unset($variant);
 
     echo json_encode(['data' => $product]);
 } catch (\Throwable $e) {
     error_log('[api/product.php] ' . $e->getMessage());
     http_response_code(500);
     echo json_encode(['error' => 'Could not load this product right now.']);
+}
+
+/**
+ * One picture as the product page needs it: its id in the product's pool,
+ * the path, and the library's alt text and dimensions when it has them.
+ *
+ * @param array<string, mixed> $row a ProductImageRepository / ProductVariantImageRepository row
+ * @return array<string, mixed>
+ */
+function shopPicture(array $row): array
+{
+    return [
+        'id' => (int) $row['id'],
+        'image_path' => (string) $row['image_path'],
+        'alt_text' => $row['alt_text'] ?? null,
+        'width' => isset($row['width']) ? (int) $row['width'] : null,
+        'height' => isset($row['height']) ? (int) $row['height'] : null,
+        'is_primary' => (int) ($row['is_primary'] ?? 0) === 1,
+    ];
 }

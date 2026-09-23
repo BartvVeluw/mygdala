@@ -13,7 +13,7 @@ aan.
 | Soort | Voorbeeld | Waar |
 |---|---|---|
 | **Herbruikbaar publiek sitebeeld** | logo, favicon, deel-afbeelding, foto in een contentblok | **Mediabibliotheek** |
-| **Domeineigen beeld** | productfoto's, variantfoto's, collectiebeeld, portfolio-afbeeldingen | bij het domein zelf (nog) |
+| **Domeineigen beeld** | portfolio-afbeeldingen | bij het domein zelf (nog) |
 | **Privé klantbestand** | personalisatie-uploads, contactbijlagen, ordersnapshots, factuur-PDF's | buiten de webroot, **nooit** hier |
 
 De derde rij is een grens, geen achterstand. De bibliotheek bestaat om beeld
@@ -398,7 +398,12 @@ wat een product is. De **Blog** is de eerste module die dat doet
 (`App\Service\Blog\BlogPostMediaUsage`, `BLOG.md`): hij meldt de uitgelichte
 afbeelding van een bericht als *"Blogbericht: &lt;titel&gt;"* en een eigen
 deel-afbeelding apart, allebei met een link naar de editor, in één query voor
-een hele reeks id's. De Shop gebruikt de bibliotheek nog niet.
+een hele reeks id's. De **Shop** doet hetzelfde
+(`App\Service\ShopMediaUsage`, `MODULES.md`): *"Product: &lt;naam&gt;"* per
+productafbeelding, met erbij bij hoeveel varianten hij ook staat, en
+*"Collectie: &lt;naam&gt;"*. Een variant heeft geen eigen afbeelding: hij
+koppelt aan een afbeelding van zijn product (`product_variant_images`), dus zijn
+gebruik is dat van het product.
 
 **Staat een module uit, dan telt zijn gebruik niet mee.** Dat is dezelfde
 regel als overal (`MODULES.md`): een uitgeschakelde module draagt niets bij.
@@ -418,6 +423,7 @@ wordt, dezelfde die dat scherm zelf al vraagt:
 | `PageSocialImageMediaUsage` | `pages.manage` |
 | `ContentBlockMediaUsage` | `pages.manage` |
 | `BlogPostMediaUsage` (Blog) | `blog.manage`: het berichtenoverzicht (`blog.view`) opent geen bericht |
+| `ShopMediaUsage` (Shop) | `products.manage` voor een product, `collections.manage` voor een collectie |
 
 Een plek staat er **bij naam en met link** alleen voor wie die permissie
 heeft. Voor ieder ander wordt die plek **geteld, niet genoemd**: *"2 plekken
@@ -518,7 +524,8 @@ de alt-tekst wijzigen van een item dat op vier pagina's staat, of een item
 verwijderen, reikt verder dan het scherm waar iemand naar kijkt.
 
 `pages.manage`, `portfolio.manage` en `settings.manage` bevatten automatisch
-`media.view` — beeld kiezen hoort bij het bewerken van een pagina. Niets
+`media.view` — beeld kiezen hoort bij het bewerken van een pagina. Via hun
+module ook `blog.manage`, `products.manage` en `collections.manage`. Niets
 bevat automatisch `media.manage`.
 
 `media.manage` geeft **geen** inzage in andere domeinen. Waar een bestand
@@ -580,6 +587,15 @@ Een nieuw blok hoeft dus **geen eigen uploadveld en geen eigen
 upload-endpoint** meer te bouwen om een publieke afbeelding te kiezen. Dat is
 de belangrijkste opbrengst van deze stap.
 
+**Verzamelmodus.** Een lijst afbeeldingen (de afbeeldingen van een product,
+`admin/_product_gallery.php`) heeft geen verborgen veld per keuze. Haar knop
+*Afbeelding toevoegen* staat in een element met `data-media-picker-collect`:
+de kiezer geeft elk gekozen of geüpload item dan door als een bubbelend
+`media-picker:choose`-event met het item als `detail`, en de upload in de modal
+neemt meerdere bestanden tegelijk. Wat de lijst ermee doet is haar zaak; de
+kiezer geeft nog steeds alleen bibliotheekitems door, en het endpoint achter
+de lijst controleert elk id opnieuw.
+
 ## Wat er in V1 is aangesloten
 
 | Feature | Hoe |
@@ -601,13 +617,18 @@ de belangrijkste opbrengst van deze stap.
   (`portfolio_item_images`) worden niet meer bewerkt en ook niet gemigreerd:
   een projectpagina is nu een gewone pagina, en die haalt haar beeld uit deze
   bibliotheek (`MODULES.md`);
-- Item-galerij;
-- Shop: producten, varianten, collecties. Productbeeld heeft volgorde,
-  varianten en catalogus-semantiek; dat is een eigen stap.
+- Item-galerij.
 
-Hoe de Shop later aansluit: een `media_id` naast het bestaande `image_path`,
-plus één `MediaUsageProvider` in `ShopModule`. Core hoeft daar niets voor te
-weten — precies zoals de Blog het al doet.
+**De Shop** is aangesloten zoals hierboven beschreven stond: `product_images.media_id`
+en `collections.media_id` naast het bestaande `image_path` (dat wordt
+meegeschreven), plus `ShopMediaUsage` via `ShopModule::mediaUsageProviders()`.
+Een product kiest zijn afbeeldingen met de kiezer in verzamelmodus
+(`data-media-picker-collect`, zie *De mediakiezer*); een collectie met een
+gewoon veld. Productafbeeldingen van vóór de bibliotheek houden hun eigen pad
+en blijven werken; ze worden niet overgenomen en niet verplaatst. De Shop
+verwijdert nooit een bibliotheekbestand: een product, collectie of variant
+weghalen haalt alleen de verwijzing weg. De deel-afbeelding van een product en
+een collectie staat nog op het eigen uploadpad van de Shop.
 
 **Een tabel die na de bibliotheek is gemaakt heeft geen `image_path`-tweeling.**
 `blog_posts` heeft alleen een `media_id`: de oude padkolommen zijn een

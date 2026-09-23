@@ -15,6 +15,8 @@ use App\Service\CollectionContent;
 use App\Service\CollectionGalleryItems;
 use App\Service\PageContent;
 use App\Service\ProductSeo;
+use App\Service\ShopMediaUsage;
+use App\Service\ShopOverview;
 use App\Service\Sitemap;
 
 /**
@@ -198,15 +200,29 @@ final class ShopModule extends ModuleDefinition
     public function permissionImplications(): array
     {
         return [
-            self::PRODUCTS_MANAGE => [self::PRODUCTS_VIEW],
+            // Choosing a product's or a collection's pictures means picking
+            // from (and uploading into) the Media Library, exactly as editing
+            // a page or a blog post does (MEDIA.md, "Rechten").
+            self::PRODUCTS_MANAGE => [self::PRODUCTS_VIEW, AdminPermissions::MEDIA_VIEW],
+            self::COLLECTIONS_MANAGE => [AdminPermissions::MEDIA_VIEW],
             self::ORDERS_MANAGE => [self::ORDERS_VIEW],
         ];
     }
 
+    /**
+     * The storefront route is only there while the site HAS an overview
+     * (App\Service\ShopOverview): with "Geen overzichtspagina" /shop.php
+     * answers 404, so a menu item or breadcrumb that names this route drops
+     * out instead of linking to it. With a chosen page, /shop.php sends a
+     * visitor to that page, so an existing link keeps working.
+     */
     public function routes(): array
     {
-        return [
-            'shop' => ['url' => '/shop.php', 'label' => ['nl' => 'Shop', 'en' => 'Shop'], 'order' => 20],
+        $storefront = ShopOverview::mode() === ShopOverview::NONE
+            ? []
+            : ['shop' => ['url' => '/shop.php', 'label' => ['nl' => 'Shop', 'en' => 'Shop'], 'order' => 20]];
+
+        return $storefront + [
             'cart' => ['url' => '/cart.php', 'label' => ['nl' => 'Winkelwagen', 'en' => 'Cart'], 'order' => 30],
             'checkout' => ['url' => '/checkout.php', 'label' => ['nl' => 'Afrekenen', 'en' => 'Checkout'], 'order' => 40],
         ];
@@ -287,7 +303,11 @@ final class ShopModule extends ModuleDefinition
             // twice. No lastmod: there is no row whose updated_at could vouch
             // for a date, and App\Service\Sitemap never invents one.
             'storefront' => static function (): array {
-                if (PageContent::forContentKey('shop') !== null) {
+                // Only the automatic listing of an older installation is the
+                // Shop's own URL to list. A chosen overview is an ordinary
+                // page, which Core's pages collector lists at its own address
+                // (and /shop.php then only redirects); no overview, no entry.
+                if (ShopOverview::mode() !== ShopOverview::BUILTIN || PageContent::forContentKey('shop') !== null) {
                     return [];
                 }
 
@@ -432,6 +452,33 @@ final class ShopModule extends ModuleDefinition
     public function dashboardPanels(): array
     {
         return [dirname(__DIR__, 2) . '/admin/_dashboard_shop.php'];
+    }
+
+    /**
+     * /shop.php while the storefront page (content_key `shop`) is not the
+     * chosen product overview (App\Service\ShopOverview): with no overview it
+     * answers 404, with another page it redirects there. Core then stops
+     * listing and linking that page, as it would for a switched-off module.
+     */
+    public function pausedPublicPaths(): array
+    {
+        $mode = ShopOverview::mode();
+
+        if ($mode === ShopOverview::BUILTIN
+            || ($mode === ShopOverview::PAGE && ShopOverview::isStorefrontPage(ShopOverview::page()))) {
+            return [];
+        }
+
+        return ['/shop.php'];
+    }
+
+    /**
+     * How the Media Library learns that a product or a collection shows one
+     * of its images, without Core ever naming either (MEDIA.md).
+     */
+    public function mediaUsageProviders(): array
+    {
+        return [new ShopMediaUsage()];
     }
 
     public function dashboardCards(): array

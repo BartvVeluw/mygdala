@@ -55,8 +55,7 @@ require __DIR__ . '/partials/header.php';
 <main id="main">
 
   <?php render_breadcrumb(
-      \App\Service\Breadcrumbs\BreadcrumbTrail::home()
-          ->toPage('shop', 'shop')
+      \App\Service\ShopOverview::extendTrail(\App\Service\Breadcrumbs\BreadcrumbTrail::home())
           ->toRoute('cart')
   ); ?>
 
@@ -79,11 +78,15 @@ require __DIR__ . '/partials/header.php';
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 4h2l2.4 12.2a2 2 0 0 0 2 1.6h7.6a2 2 0 0 0 2-1.6L21 8H6"/><circle cx="10" cy="20" r="1.4"/><circle cx="17" cy="20" r="1.4"/></svg>
             <h3><?= \App\Service\Language\SiteText::escaped(['nl' => 'Je winkelwagen is leeg', 'en' => 'Your cart is empty']) ?></h3>
             <p><?= \App\Service\Language\SiteText::escaped(['nl' => 'Nog niets toegevoegd? Bekijk de shop voor beschikbare producten.', 'en' => 'Nothing added yet? Browse the shop for available products.']) ?></p>
-            <a href="<?= htmlspecialchars(\App\Service\Routing\LocalizedUrl::path('/shop.php'), ENT_QUOTES, 'UTF-8') ?>" class="btn"><?= \App\Service\Language\SiteText::escaped(['nl' => 'Naar de shop', 'en' => 'Go to shop']) ?></a>
+            <?php if (\App\Service\ShopOverview::url() !== null): ?>
+            <a href="<?= htmlspecialchars(\App\Service\ShopOverview::url(), ENT_QUOTES, 'UTF-8') ?>" class="btn"><?= \App\Service\Language\SiteText::escaped(['nl' => 'Naar de shop', 'en' => 'Go to shop']) ?></a>
+            <?php endif; ?>
           </div>
 
           <div style="margin-top:var(--sp-4);">
-            <a href="<?= htmlspecialchars(\App\Service\Routing\LocalizedUrl::path('/shop.php'), ENT_QUOTES, 'UTF-8') ?>" class="btn btn--ghost btn--sm">&larr; <?= \App\Service\Language\SiteText::escaped(['nl' => 'Verder winkelen', 'en' => 'Continue shopping']) ?></a>
+            <?php if (\App\Service\ShopOverview::url() !== null): ?>
+            <a href="<?= htmlspecialchars(\App\Service\ShopOverview::url(), ENT_QUOTES, 'UTF-8') ?>" class="btn btn--ghost btn--sm">&larr; <?= \App\Service\Language\SiteText::escaped(['nl' => 'Verder winkelen', 'en' => 'Continue shopping']) ?></a>
+            <?php endif; ?>
           </div>
         </div>
 

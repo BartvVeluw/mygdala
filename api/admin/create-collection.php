@@ -28,6 +28,7 @@ use App\Service\AdminAuth;
 use App\Service\CollectionContent;
 use App\Service\CollectionService;
 use App\Service\Csrf;
+use App\Service\Media\MediaService;
 use App\Service\SectionImageUploader;
 use App\Service\ShopLocalization;
 
@@ -74,19 +75,12 @@ if ($slug === '') {
 }
 
 $uploader = new SectionImageUploader();
-$imagePath = null;
 
-// UPLOAD_ERR_NO_FILE is the normal "left the file field empty" case — the
-// image is optional, so only a real upload attempt is validated/stored.
-$hasUpload = isset($_FILES['image']) && ($_FILES['image']['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_NO_FILE;
-
-if ($hasUpload) {
-    try {
-        $imagePath = $uploader->store($_FILES['image']);
-    } catch (\RuntimeException $e) {
-        $errors[] = $e->getMessage();
-    }
-}
+// The collection's picture is a Media Library image, chosen (or uploaded into
+// the library) with the shared picker. Only an id comes in, and it counts
+// only when it names an image in the library; anything else is "no picture".
+$image = MediaService::findImage(filter_var($_POST['media_id'] ?? null, FILTER_VALIDATE_INT) ?: null);
+$fields['media_id'] = $image?->id;
 
 // The optional SEO/social image from the SEO card. Same optional-upload
 // contract as the collection image above, stored on its own column so it
@@ -105,9 +99,6 @@ if ($hasOgUpload) {
 
 if ($errors !== []) {
     // Don't leave an orphaned upload behind if the rest of the form was invalid.
-    if ($imagePath !== null) {
-        $uploader->delete($imagePath);
-    }
     if ($ogImagePath !== null) {
         $uploader->delete($ogImagePath);
     }
@@ -125,9 +116,13 @@ try {
 
     $collectionId = $collectionRepository->create([
         'slug' => $slug,
-        'image_path' => $imagePath,
+        'image_path' => null,
         'is_active' => $fields['is_active'],
     ]);
+
+    if ($image !== null) {
+        $collectionRepository->updateImage($collectionId, $image->path, $image->id);
+    }
 
     ShopLocalization::saveCollection($collectionId, $language, [
         // The default language's address. Every other language stays without
@@ -155,9 +150,7 @@ try {
 
     error_log('[api/admin/create-collection.php] ' . $e->getMessage());
 
-    if ($imagePath !== null) {
-        $uploader->delete($imagePath);
-    }
+
     if ($ogImagePath !== null) {
         $uploader->delete($ogImagePath);
     }

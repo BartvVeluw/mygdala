@@ -98,7 +98,7 @@ require __DIR__ . '/partials/header.php';
 <main id="main">
 
   <?php render_breadcrumb(
-      \App\Service\Breadcrumbs\BreadcrumbTrail::home()
+      \App\Service\ShopOverview::extendTrail(\App\Service\Breadcrumbs\BreadcrumbTrail::home())
           ->to(\App\Service\Breadcrumbs\BreadcrumbItem::current(\App\Service\Language\SiteText::pick(['nl' => 'Personaliseren', 'en' => 'Personalise'])))
   ); ?>
 
@@ -120,7 +120,9 @@ require __DIR__ . '/partials/header.php';
                  words. */ ?>
         <p class="lead"><?= \App\Service\Language\SiteText::escaped(['nl' => 'Er zijn op dit moment geen producten om te personaliseren. Kijk gerust rond in de shop — of vraag een offerte aan voor volledig maatwerk.', 'en' => 'There are no products to personalise right now. Feel free to browse the shop — or request a quote for fully custom work.']) ?></p>
         <p style="margin-top:var(--sp-4);">
-          <a href="<?= $h(\App\Service\Routing\LocalizedUrl::path('/shop.php')) ?>" class="btn btn--ghost"><?= \App\Service\Language\SiteText::escaped(['nl' => 'Naar de shop', 'en' => 'To the shop']) ?></a>
+          <?php if (\App\Service\ShopOverview::url() !== null): ?>
+          <a href="<?= $h(\App\Service\ShopOverview::url()) ?>" class="btn btn--ghost"><?= \App\Service\Language\SiteText::escaped(['nl' => 'Naar de shop', 'en' => 'To the shop']) ?></a>
+          <?php endif; ?>
         </p>
       <?php else: ?>
         <div class="shop-grid" data-products-grid data-product-ids="<?= $h(implode(',', $catalog['product_ids'])) ?>">
