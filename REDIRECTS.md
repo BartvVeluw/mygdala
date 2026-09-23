@@ -323,7 +323,7 @@ uitgeschakelde module wijzen (`HEADER-FOOTER.md`, `MODULES.md`).
 
 ## Beheerscherm
 
-**Beheer → Redirects** (`admin/redirects.php`), naast Site-instellingen en
+**Beheer → Redirects** (`admin/redirects.php`), naast Instellingen en
 Vormgeving, achter `settings.manage`. Toevoegen, bewerken, aan/uitzetten,
 verwijderen, en zoeken op vanaf-pad of bestemming. Elke rij toont het pad, de
 bestemming, de statuscode, of hij aan staat en waar hij vandaan komt, plus een

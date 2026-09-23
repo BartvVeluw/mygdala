@@ -36,7 +36,7 @@ use App\Service\SiteSettings;
  *
  * WHAT AN INVOICE ALSO PRINTS — the address, the KVK number, the e-mail
  * address and the phone number — is shown here read-only and edited on
- * Site-instellingen, the one place those live: the site footer and the
+ * Instellingen, the one place those live: the site footer and the
  * e-mail footer line read them too.
  */
 

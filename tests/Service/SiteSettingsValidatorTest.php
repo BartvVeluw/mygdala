@@ -11,7 +11,7 @@ use App\Service\SiteSettingsValidator;
 use PHPUnit\Framework\TestCase;
 
 /**
- * The contract of Site-instellingen (App\Service\SiteSettingsValidator): what
+ * The contract of Instellingen (App\Service\SiteSettingsValidator): what
  * is required, what an empty value means, when the contact address may be
  * emptied, and that admin/settings.php asks exactly what the endpoint checks.
  *

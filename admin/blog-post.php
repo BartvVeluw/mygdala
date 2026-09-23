@@ -223,6 +223,10 @@ $forcedTab = $errors !== [] ? 'inhoud' : null;
     </div>
   <?php endif; ?>
 
+  <?php /* The screen's one language line, above the tabs so every tab has it
+           (admin/_localized_fields.php); the calls in the panels are no-ops. */ ?>
+  <?php admin_localized_bar($editingLanguage); ?>
+
   <?php admin_tabs_start('blog-post-editor', [
       'inhoud' => admin_t('tabs.content'),
       'publicatie' => admin_t('tabs.publication'),
@@ -244,7 +248,6 @@ $forcedTab = $errors !== [] ? 'inhoud' : null;
     <section class="admin-card">
       <h2><?= admin_te('blog.tekst') ?></h2>
 
-      <?php admin_localized_bar($editingLanguage); ?>
       <div class="admin-form-row">
         <label><?= admin_te('common.title') ?><?= admin_localized_required($editingLanguage) === '' ? '' : '*' ?>
           <input type="text" name="title" maxlength="<?= BlogPostService::MAX_TITLE_LENGTH ?>"<?= admin_localized_required($editingLanguage) ?> value="<?= $h($word(BlogLocalization::TITLE)) ?>"<?= admin_localized_placeholder_attr($editingLanguage) ?>>
@@ -261,7 +264,6 @@ $forcedTab = $errors !== [] ? 'inhoud' : null;
 
     <section class="admin-card">
       <h2><?= admin_te('blog.bericht') ?></h2>
-      <?php admin_localized_bar($editingLanguage); ?>
       <?php renderRichTextField('body', 'Tekst', $word(BlogLocalization::BODY), 'full', 'admin-richtext-editor--lg'); ?>
     </section>
 
@@ -371,7 +373,6 @@ $forcedTab = $errors !== [] ? 'inhoud' : null;
       <p class="admin-text-muted"><?= admin_t('blog.seo_title_fallback', ['blog' => $h(BlogLocalizedSettings::title(BlogLocalization::defaultLanguage())), 'site' => $h(\App\Service\SiteSettings::get('site_name'))]) ?></p>
 
       <div class="admin-product-form admin-product-form--wide">
-        <?php admin_localized_bar($editingLanguage); ?>
         <div class="admin-form-row">
           <label><?= admin_te('page.meta_title') ?>
             <input type="text" name="meta_title" maxlength="<?= BlogPostService::MAX_META_TITLE_LENGTH ?>" value="<?= $h($word(BlogLocalization::META_TITLE)) ?>"<?= admin_localized_placeholder_attr($editingLanguage) ?>>

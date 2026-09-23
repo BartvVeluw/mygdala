@@ -35,7 +35,7 @@ AdminAuth::requirePermission('pages.manage');
  *   Slotregel & copyright  the copyright text and the closing line
  *
  * WHAT THIS SCREEN DOES NOT OWN. The site name, e-mail address, phone number,
- * KVK number and logo belong to Site-instellingen: the company block shows
+ * KVK number and logo belong to Instellingen: the company block shows
  * each value next to its switch, read-only, with a link there for whoever may
  * change them. There is no second editor for any of them, and switching one
  * off never changes or removes the value. The colours are Vormgeving's, the
@@ -130,7 +130,7 @@ $localizedSetting = static function (string $section, string $key) use ($setting
 };
 
 /**
- * The company details the switches decide about, read from Site-instellingen
+ * The company details the switches decide about, read from Instellingen
  * and shown as they are. `value` is what the footer would print; empty means
  * it prints nothing for that line, whatever the switch says.
  */
@@ -565,7 +565,6 @@ function footer_social_fields(int $id, array $values, array $errors): void
         <?= admin_help(admin_t('footer.slogan_enabled'), admin_t('help.footer.slogan')) ?>
       </div>
 
-      <?php admin_localized_bar($editLanguage); ?>
       <?= admin_localized_input($editLanguage) ?>
       <div class="admin-field">
         <?= admin_field_label('footer-slogan', admin_t('footer.slogan_label')) ?>

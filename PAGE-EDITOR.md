@@ -664,7 +664,7 @@ dan één hebben. Pijltjestoetsen, Home/End, `aria-selected`, een roving
 verplicht veld zitten in het script. Zonder JavaScript verschijnt de tabstrip
 niet en staat alles gewoon onder elkaar, zoals daarvoor.
 
-**Site-instellingen** (`admin/settings.php`) gebruikt hetzelfde:
+**Instellingen** (`admin/settings.php`) gebruikt hetzelfde:
 *Algemeen* (naam, logo's, favicon, deel-afbeelding, e-mail, telefoon, plaats,
 footertekst, adresgegevens en een ingeklapte groep met het KVK-nummer),
 *Talen*, *SEO* en *Dashboard*. Elk tabblad is één formulier met zijn eigen
@@ -674,7 +674,7 @@ naam van de website is verplicht.
 
 **Shop-instellingen** (`admin/shop-settings.php`, alleen met de Shop aan)
 gebruikt het ook: *Bedrijfsgegevens*, *Facturen*, *Bestellingen* en *E-mails*.
-Dat waren de tabbladen Facturen en E-mails van Site-instellingen. De velden en
+Dat waren de tabbladen Facturen en E-mails van Instellingen. De velden en
 tabbladen staan in `App\Service\ShopSettings`.
 
 ## Een nieuw blok doet automatisch mee

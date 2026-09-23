@@ -16,7 +16,7 @@
  * The button renders only when it has both a label and a URL — a half-filled
  * button would be dead. An empty stored URL is resolved to the site's
  * `mailto:` address by ContactCardContent, so a card with no configured link
- * still mails the address from Site-instellingen, exactly as before.
+ * still mails the address from Instellingen, exactly as before.
  *
  * Every word arrives as one string per field, already in the language of
  * the request (App\Service\Blocks\BlockLocalization): this file knows no

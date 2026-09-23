@@ -328,7 +328,6 @@ require __DIR__ . '/_richtext_field.php';
         <?= admin_t('shop.allemaal_optioneel_laat_veld', ['v1' => $h($siteName)]) ?>
       </p>
       <div class="admin-product-form admin-product-form--wide">
-        <?php admin_localized_bar($editingLanguage); ?>
         <div class="admin-form-row">
           <label><?= admin_te('page.meta_title') ?>
             <input type="text" name="meta_title" maxlength="<?= Seo::MAX_META_TITLE_LENGTH ?>" data-char-count value="<?= $h(collectionWord($oldWords, $collectionId, ShopLocalization::META_TITLE, $editingLanguage)) ?>" placeholder="Leeg = automatische titel">

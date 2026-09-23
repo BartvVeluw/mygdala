@@ -22,7 +22,7 @@ AdminAuth::requirePermission('pages.manage');
  * of the website, on one screen — the menu (links, with at most one level of
  * submenu items) and the header buttons. Both are nav_items rows; the
  * presentation column tells them apart (App\Service\NavigationPresentation,
- * HEADER-FOOTER.md). The logo is Site-instellingen's, the colours are
+ * HEADER-FOOTER.md). The logo is Instellingen's, the colours are
  * Vormgeving's, and the header's structure is Core's.
  *
  * TWO LISTS, EACH WITH ITS OWN ORDER. The menu and the buttons appear in

@@ -50,7 +50,7 @@ final class ContactFormBlock extends BlockDefinition
             'max_instances' => 1,
             'allowed_pages' => null,
             'deletable' => true,
-            'note' => 'Een formulier uit Beheer → Formulieren, met daarnaast de kaart "Direct contact" (e-mailadres en plaats uit Site-instellingen). Wil je alleen een formulier zonder die kaart, gebruik dan het blok "Formulier".',
+            'note' => 'Een formulier uit Beheer → Formulieren, met daarnaast de kaart "Direct contact" (e-mailadres en plaats uit Instellingen). Wil je alleen een formulier zonder die kaart, gebruik dan het blok "Formulier".',
         ];
     }
 
@@ -135,7 +135,7 @@ final class ContactFormBlock extends BlockDefinition
             return;
         }
 
-        // Both details are optional in Site-instellingen; the partial leaves
+        // Both details are optional in Instellingen; the partial leaves
         // out a line whose value is missing. The place is website text per
         // language (App\Service\LocalizedSiteSettings), handed over in the
         // language of the request with the fallback applied; without words in
@@ -156,7 +156,7 @@ final class ContactFormBlock extends BlockDefinition
 
     /**
      * The details card shows sample details, never this site's own address:
-     * a preview must not depend on Site-instellingen or put a real address
+     * a preview must not depend on Instellingen or put a real address
      * on a page that is only an example.
      */
     public function sampleContent(BlockSamples $samples): ?array

@@ -44,7 +44,7 @@ websitetaal wordt daar nooit uit gekozen en hoeft er niet in te staan.
 
 ## Talen beheren
 
-*Site-instellingen → Talen* (`admin/settings.php`, permissie
+*Instellingen → Talen* (`admin/settings.php`, permissie
 `settings.manage`). Alles hier gaat via `SiteLanguages`, en elke weigering is
 een melding, nooit een halve wijziging.
 

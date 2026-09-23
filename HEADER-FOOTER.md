@@ -12,7 +12,7 @@ lettertypes zie `THEMING.md`; voor moduleslots `MODULES.md`.
 
 | Van Core, niet instelbaar | Van de beheerder |
 |---|---|
-| Skip-link, merkblok, plaats van de navigatie, mobiele menumechaniek, sticky gedrag, de taalwissel, moduleslots | Menu-items en headerknoppen (Header & navigatie); bedrijfsblok, footerkolommen en -links, social profielen, slotregel en copyright (Footer); bedrijfsgegevens en logo's (Site-instellingen); kleuren (Vormgeving) |
+| Skip-link, merkblok, plaats van de navigatie, mobiele menumechaniek, sticky gedrag, de taalwissel, moduleslots | Menu-items en headerknoppen (Header & navigatie); bedrijfsblok, footerkolommen en -links, social profielen, slotregel en copyright (Footer); bedrijfsgegevens en logo's (Instellingen); kleuren (Vormgeving) |
 | Waar de knoppen staan, hoe ze eruitzien, waar de slotregel staat, hoe een social-icoon eruitziet, welke netwerken er zijn | Óf er knoppen zijn, hoeveel, in welke volgorde, wat erop staat, waar ze heen gaan en welke van twee stijlen; welke bedrijfsgegevens de footer toont; óf de slotregel er is en wat er staat; welke social profielen er zijn, in welke volgorde, en of ze zichtbaar zijn |
 
 Er zijn geen headerregio's, geen vrije knopvormgeving, geen megamenu, geen
@@ -197,24 +197,24 @@ zelf staan.
 
 ### Wie is eigenaar van wat
 
-**Bedrijfsgegevens zijn van Site-instellingen. De footer beslist alleen of
+**Bedrijfsgegevens zijn van Instellingen. De footer beslist alleen of
 hij ze toont.**
 
-| Van Site-instellingen | Van Footer |
+| Van Instellingen | Van Footer |
 |---|---|
 | naam van de website (`site_name`), e-mailadres (`email`), telefoonnummer (`company_phone`), KVK-nummer (`kvk_number`), adres, logo en tweede logo (`Branding`) | óf elk van die gegevens in de footer staat (`footer_show_*`), de footer-omschrijving, de kolommen en links, de social profielen, de copyright-tekst en de slotregel |
 
 Het Bedrijfsblok toont de huidige waarde naast elke schakelaar, alleen-lezen,
-met een link naar Site-instellingen voor wie `settings.manage` heeft. Er is
+met een link naar Instellingen voor wie `settings.manage` heeft. Er is
 geen tweede editor en geen tweede opslag: een gegeven uitzetten verandert of
 verwijdert de waarde nooit, en een gegeven dat nog niet is ingevuld staat ook
 met de schakelaar aan niet in de footer.
 
 **De footer-omschrijving heeft één plek.** Tot fase B stond hij ook op
-Site-instellingen → Algemeen. Die editor is weg, en
+Instellingen → Algemeen. Die editor is weg, en
 `App\Service\SiteSettingsValidator::FIELDS` noemt de sleutel niet meer,
 zodat `update-site-settings.php` hem ook niet kan schrijven als een oud
-formulier hem nog meestuurt. Site-instellingen zegt op die plek waar hij nu
+formulier hem nog meestuurt. Instellingen zegt op die plek waar hij nu
 staat. Sinds Multilingual 2.0 fase 4 staat de tekst per taal in
 `site_setting_translations` onder de sleutel `footer_description`; de migratie
 heeft de bestaande Nederlandse en Engelse tekst meegenomen. De installatiewizard vraagt de omschrijving nog één keer bij het
@@ -469,7 +469,7 @@ niet-lege codestandaard, anders kan een beheerder hem niet leegmaken.
 
 Tot fase B stond de footer verspreid over drie schermen: *Footer* (kolommen,
 links, het bedrijfsblok en de copyrighttekst), *Slotregel & social media* en
-*Site-instellingen* (de footer-omschrijving, die daar én op *Footer* te
+*Instellingen* (de footer-omschrijving, die daar én op *Footer* te
 bewerken was). Social profielen waren zeven vaste instellingen zonder eigen
 volgorde of zichtbaarheid, en kolommen en links waren alleen met een muis te
 ordenen. Wat fase B veranderde:

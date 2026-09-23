@@ -173,7 +173,7 @@ final class FooterAdminHttpTest extends TestCase
 
         // The company's details are shown, never edited here.
         foreach (['site_name', 'email', 'company_phone', 'kvk_number'] as $companyField) {
-            $this->assertSame(0, $xpath->query('//*[@name="' . $companyField . '"]')->length, $companyField . ' belongs to Site-instellingen');
+            $this->assertSame(0, $xpath->query('//*[@name="' . $companyField . '"]')->length, $companyField . ' belongs to Instellingen');
         }
         $this->assertSame(1, $xpath->query('//section[@id="footer-brand"]//a[@href="/admin/settings.php"]')->length, 'a way to where they are edited');
 
@@ -186,7 +186,7 @@ final class FooterAdminHttpTest extends TestCase
 
         $settings = self::$server->request('GET', '/admin/settings.php', $session);
         $this->assertSame(200, $settings['status']);
-        $this->assertStringNotContainsString('name="footer_description', $settings['body'], 'Site-instellingen no longer edits it');
+        $this->assertStringNotContainsString('name="footer_description', $settings['body'], 'Instellingen no longer edits it');
         $this->assertSame(1, $this->xpath($settings['body'])->query('//*[@data-footer-description-moved]//a[starts-with(@href, "/admin/footer.php")]')->length, 'and says where it went');
 
         // The sidebar has one footer entry.

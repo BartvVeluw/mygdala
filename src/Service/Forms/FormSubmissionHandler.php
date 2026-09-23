@@ -137,7 +137,7 @@ final class FormSubmissionHandler
         if ($recipient === null) {
             error_log(
                 '[FormSubmissionHandler] form #' . $form->id . ' has no valid notification address and'
-                . ' Site-instellingen has no usable contact address either; no notification was sent.'
+                . ' Instellingen has no usable contact address either; no notification was sent.'
             );
 
             return false;

@@ -357,6 +357,10 @@ $urlFieldOpen = !$hasFixedUrl
            here for — and has nothing to do with the order the panels are
            written in below, where the settings form comes first simply
            because it always did. */ ?>
+  <?php /* The screen's one language line, above the tabs so every tab has it
+           (admin/_localized_fields.php); the calls in the panels are no-ops. */ ?>
+  <?php admin_localized_bar($editLanguage); ?>
+
   <?php admin_tabs_start('page-editor', [
       'inhoud' => admin_t('tabs.content'),
       'pagina' => admin_t('tabs.page'),
@@ -424,7 +428,6 @@ $urlFieldOpen = !$hasFixedUrl
                breadcrumb prints and what the automatic <title> is built from
                (HEADER-FOOTER.md). So it is localized like the SEO fields: the
                language on screen only, required in the default language. */ ?>
-      <?php admin_localized_bar($editLanguage); ?>
       <?php /* The shared field styling (label above a full-width control, one
                rhythm between fields) — the same wrapper the SEO tab uses. */ ?>
       <div class="admin-product-form admin-product-form--wide">
@@ -560,7 +563,6 @@ $urlFieldOpen = !$hasFixedUrl
       <?php /* The language on screen only, as on the Pagina tab: the same
                form, the same hidden language_code. Another language's SEO
                text stays in storage, untouched by this save. */ ?>
-      <?php admin_localized_bar($editLanguage); ?>
       <div class="admin-product-form admin-product-form--wide">
         <div class="admin-field">
           <?= admin_field_label('page-meta-title', admin_t('page.meta_title'), $seoTitleHelp) ?>

@@ -7,12 +7,15 @@ require_once __DIR__ . '/../vendor/autoload.php';
 use App\Mail\EmailIdentity;
 use App\Repository\FormRepository;
 use App\Service\AdminAuth;
+use App\Service\AdminPermissions;
 use App\Service\AdminTheme;
 use App\Service\Csrf;
 use App\Service\Forms\FormRecipient;
 use App\Service\LocalizedSiteSettings;
 use App\Service\Media\MediaService;
 use App\Service\SiteSettings;
+use App\Update\AppVersion;
+use App\Update\Updater;
 
 require_once __DIR__ . '/_media_picker.php';
 require_once __DIR__ . '/_localized_fields.php';
@@ -40,6 +43,27 @@ $adminThemeSaved = isset($_GET['saved']) && $savedSection === 'dashboard-uiterli
 $adminThemeError = $_SESSION['admin_theme_choice_error'] ?? null;
 unset($_SESSION['admin_theme_choice_error']);
 $currentAdminTheme = AdminTheme::current();
+
+// Updates live under Instellingen (AdminNavigation, `within`): a tab here
+// that says where the installation stands and leads to admin/updates.php,
+// where everything about an update happens. Only for who may install one.
+// Read-only and never fatal: this screen must open whatever the updater's
+// storage says.
+$canUpdate = AdminAuth::can(AdminPermissions::UPDATES_MANAGE);
+$updateSummary = null;
+if ($canUpdate) {
+    try {
+        $lastCheck = Updater::fromConfig()->lastCheck();
+        $offered = is_array($lastCheck['manifest'] ?? null) ? (string) ($lastCheck['manifest']['version'] ?? '') : '';
+        $updateSummary = [
+            'version' => AppVersion::current(),
+            'checked_at' => is_array($lastCheck) ? (string) ($lastCheck['checked_at'] ?? '') : '',
+            'available' => is_array($lastCheck) && ($lastCheck['available'] ?? false) === true ? $offered : '',
+        ];
+    } catch (\Throwable $e) {
+        error_log('[admin/settings.php] update summary: ' . $e->getMessage());
+    }
+}
 $customColors = AdminTheme::customColors();
 
 $values = $old ?? SiteSettings::all();
@@ -171,11 +195,13 @@ function brandingImageField(
       'talen' => admin_t('language.settings_title'),
       'seo' => admin_t('settings.tab_seo'),
       'dashboard' => admin_t('settings.tab_dashboard'),
-  ], [
+  ] + ($canUpdate ? ['updates' => admin_t('update.title')] : []), [
       'label' => admin_t('settings.tabs_label'),
       'force' => match (true) {
           $adminThemeSaved || $adminThemeError !== null => 'dashboard',
           $languageSaved || $languageErrors !== [] => 'talen',
+          // The way back from admin/updates.php.
+          $canUpdate && $savedSection === 'updates' => 'updates',
           default => null,
       },
   ]); ?>
@@ -670,6 +696,28 @@ function brandingImageField(
     </form>
   </section>
   <?php admin_tab_panel_end(); ?>
+
+  <?php if ($canUpdate): ?>
+  <?php admin_tab_panel('updates'); ?>
+  <section class="admin-card" aria-labelledby="settings-updates-title">
+    <h2 id="settings-updates-title"><?= admin_te('update.title') ?></h2>
+    <p class="admin-text-muted"><?= admin_te('settings.updates_intro') ?></p>
+    <?php if ($updateSummary !== null): ?>
+      <p><?= admin_te('settings.updates_version') ?> <strong><?= htmlspecialchars($updateSummary['version'], ENT_QUOTES, 'UTF-8') ?></strong></p>
+      <p>
+          <?php if ($updateSummary['available'] !== ''): ?>
+            <span class="admin-badge admin-badge--info"><?= admin_te('settings.updates_available', ['version' => $updateSummary['available']]) ?></span>
+          <?php elseif ($updateSummary['checked_at'] !== ''): ?>
+            <?= admin_te('settings.updates_checked', ['date' => date('d-m-Y H:i', (int) strtotime($updateSummary['checked_at']))]) ?>
+          <?php else: ?>
+            <?= admin_te('settings.updates_not_checked') ?>
+          <?php endif; ?>
+      </p>
+    <?php endif; ?>
+    <p><a class="admin-btn-primary" href="/admin/updates.php"><?= admin_te('settings.updates_open') ?></a></p>
+  </section>
+  <?php admin_tab_panel_end(); ?>
+  <?php endif; ?>
 
   <?php admin_tabs_end(); ?>
 </main>

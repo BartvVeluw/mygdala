@@ -10,7 +10,7 @@ samen met `PROJECT-MAP.md` (waar iets staat). Voor het modulesysteem zie
 |---|---|---|
 | Klasse | `App\Service\SiteSettings` | `App\Service\Theme\ThemeSettings` |
 | Tabel | `site_settings` | `theme_settings` |
-| Scherm | Instellingen → Site-instellingen | Instellingen → Vormgeving |
+| Scherm | Instellingen | Instellingen → Vormgeving |
 | Inhoud | naam, logo, tweede logo, favicon, deel-afbeelding, adres, KVK, e-mail-, factuurteksten, de footer-slotregel (de headerknoppen staan als navigatie-items in `nav_items`, de social profielen in `footer_social_links`) | vijf kleuren, lettertypecombinatie, knopvorm |
 | Terugzetten | nooit automatisch | één knop, en die raakt de linkerkolom niet aan |
 
@@ -22,7 +22,7 @@ de linkerkolom, met een eigen scherm — zie `HEADER-FOOTER.md`. Een knop kiest
 alleen tussen twee bestaande stijlen; hoe die eruitzien blijft van Vormgeving.
 
 Er wordt niets gedupliceerd. Het themascherm toont de sitenaam omdat een
-eigenaar hem daar zoekt, maar linkt door naar Site-instellingen; opslaan doet
+eigenaar hem daar zoekt, maar linkt door naar Instellingen; opslaan doet
 het niet.
 
 ## Er is een derde: hoe het CMS zélf eruitziet
@@ -30,7 +30,7 @@ het niet.
 Alles hierboven gaat over de **website**. Hoe het **adminpaneel** eruitziet is
 een eigen keuze, met een eigen klasse (`App\Service\AdminTheme`), een eigen
 tabel (`admin_settings`) en een eigen kaart *Dashboard uiterlijk* op het
-tabblad **Dashboard** van Instellingen → Site-instellingen. Een bezoeker ziet er niets van, en
+tabblad **Dashboard** van Instellingen. Een bezoeker ziet er niets van, en
 "standaardvormgeving herstellen" op het themascherm raakt het niet aan.
 
 Vier eerste-partij-skins en één thema met eigen kleuren, meer niet:

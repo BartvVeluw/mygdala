@@ -91,7 +91,7 @@ anders — die kiest elke beheerder voor zichzelf bij Mijn account
 (`MULTILINGUAL.md`).
 
 De naam van de site is het **enige** verplichte antwoord in de hele wizard, en
-Site-instellingen houdt zich aan hetzelfde contract
+Instellingen houdt zich aan hetzelfde contract
 (`App\Service\SiteSettingsValidator`).
 Alles wat leeg blijft, blijft leeg: de footer laat de regel weg,
 `App\Mail\EmailIdentity` laat het onderdeel weg in plaats van een losse
@@ -129,7 +129,7 @@ Portfolio en Meertaligheid. Een vinkje staat zoals de installatie het nu wil
 (`ModuleConfig::wants()`), dus op een verse installatie staan de Blog,
 Portfolio en Meertaligheid uit. Zonder Meertaligheid publiceert de site alleen
 zijn standaardtaal; talen toevoegen en aanzetten gaat daarna onder
-*Site-instellingen → Talen* (`docs/multilingual/WEBSITE-LANGUAGES.md`). Zie [Modules](#modules-vanuit-het-cms) hieronder voor wat er
+*Instellingen → Talen* (`docs/multilingual/WEBSITE-LANGUAGES.md`). Zie [Modules](#modules-vanuit-het-cms) hieronder voor wat er
 opgeslagen wordt en waarom `.env` er nog steeds bovenop gaat.
 
 Personalisatie hangt van de Shop af, en dat wordt hier **gemeld in plaats van
@@ -304,7 +304,7 @@ dingen dubbel doet.
 
 | Wat | Waar |
 |---|---|
-| Naam, e-mailadres, adres, KVK, logo, favicon, deel-afbeelding | Instellingen → Site-instellingen |
+| Naam, e-mailadres, adres, KVK, logo, favicon, deel-afbeelding | Instellingen |
 | Talen van de website | Instellingen → Talen (`MULTILINGUAL.md`) |
 | Taal van het CMS, per persoon | Mijn account (`MULTILINGUAL.md`) |
 | Kleuren, lettertype, knopvorm | Instellingen → Vormgeving (`THEMING.md`) |

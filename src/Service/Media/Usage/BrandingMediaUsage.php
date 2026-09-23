@@ -39,7 +39,7 @@ final class BrandingMediaUsage extends MediaUsageProvider
 
     public function label(): string
     {
-        return 'Site-instellingen';
+        return 'Instellingen';
     }
 
     public function usagesFor(array $mediaIds): array

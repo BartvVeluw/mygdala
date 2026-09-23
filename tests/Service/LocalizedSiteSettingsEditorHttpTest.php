@@ -16,7 +16,7 @@ use Tests\Support\AdminTestSession;
 use Tests\Support\BuiltInServer;
 
 /**
- * The place on Site-instellingen and the footer's description and closing
+ * The place on Instellingen and the footer's description and closing
  * line on the Footer screen, one website language at a time (Multilingual
  * 2.0 phase 4 wave B), over real HTTP against PHP's built-in server.
  *

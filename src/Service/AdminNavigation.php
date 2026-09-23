@@ -41,7 +41,7 @@ class AdminNavigation
      * Every sidebar entry that exists right now: Core's own, plus one per
      * entry each ENABLED module contributes, sorted by 'order'.
      *
-     * @return list<array{key: string, label: string, url: string, icon: string, permission: string, order: int, group: int, scripts: list<string>}>
+     * @return list<array{key: string, label: string, url: string, icon: string, permission: string, order: int, group: int, scripts: list<string>, within?: string}>
      */
     public static function items(): array
     {
@@ -245,7 +245,7 @@ class AdminNavigation
                 // Footer phase B: the company block, the columns and their
                 // links, the social profiles, and the bottom line with the
                 // copyright and the closing line (HEADER-FOOTER.md). The
-                // company's own details stay under Site-instellingen.
+                // company's own details stay under Instellingen.
                 // header-footer.php is the old "Slotregel & social media"
                 // screen, now only a redirect to this one; listed here so it
                 // still belongs to exactly one entry.
@@ -259,7 +259,7 @@ class AdminNavigation
             ],
             [
                 'key' => 'settings',
-                'label' => 'Site-instellingen',
+                'label' => 'Instellingen',
                 'url' => '/admin/settings.php',
                 'icon' => 'settings',
                 'permission' => AdminPermissions::SETTINGS_MANAGE,
@@ -276,7 +276,7 @@ class AdminNavigation
                 'scripts' => ['theme.php'],
             ],
             [
-                // Next to Site-instellingen and Vormgeving, because a redirect
+                // Next to Instellingen and Vormgeving, because a redirect
                 // is site-wide plumbing rather than the content of one page,
                 // and because the SEO settings it belongs with (Instellingen →
                 // SEO, see SEO.md) already live in this group. It shares
@@ -293,10 +293,15 @@ class AdminNavigation
                 'scripts' => ['redirects.php', 'redirect.php'],
             ],
             [
-                // The built-in updater (docs/updates/): with the other
-                // site-wide settings, because installing a release is a
-                // decision about the whole installation. Its own permission,
-                // held by Super Admins, because it replaces the application.
+                // The built-in updater (docs/updates/): part of Instellingen,
+                // because installing a release is a decision about the whole
+                // installation. It is reached from the Updates tab there
+                // (admin/settings.php) and has no line of its own in the
+                // sidebar while its user can open Instellingen; `within`
+                // says so, and highlights Instellingen on its screen. Its own
+                // permission, held by Super Admins, because it replaces the
+                // application: somebody who holds it WITHOUT settings.manage
+                // keeps a line of their own, or could not reach it at all.
                 'key' => 'updates',
                 'label' => 'Updates',
                 'url' => '/admin/updates.php',
@@ -304,6 +309,7 @@ class AdminNavigation
                 'permission' => AdminPermissions::UPDATES_MANAGE,
                 'order' => 830,
                 'scripts' => ['updates.php'],
+                'within' => 'settings',
             ],
             [
                 'key' => 'users',
@@ -324,10 +330,38 @@ class AdminNavigation
      */
     public static function visibleItems(): array
     {
+        $items = self::items();
+
         return array_values(array_filter(
-            self::items(),
-            static fn (array $item): bool => AdminAuth::can($item['permission'])
+            $items,
+            static fn (array $item): bool => AdminAuth::can($item['permission']) && self::parentOf($item, $items) === null
         ));
+    }
+
+    /**
+     * The entry an item is shown within (`within`), when the signed-in user
+     * can open that entry; null when the item stands on its own line.
+     *
+     * @param array<string, mixed>       $item
+     * @param list<array<string, mixed>> $items
+     *
+     * @return array<string, mixed>|null
+     */
+    private static function parentOf(array $item, array $items): ?array
+    {
+        $within = $item['within'] ?? null;
+
+        if (!is_string($within)) {
+            return null;
+        }
+
+        foreach ($items as $candidate) {
+            if ($candidate['key'] === $within) {
+                return AdminAuth::can($candidate['permission']) ? $candidate : null;
+            }
+        }
+
+        return null;
     }
 
     /**
@@ -336,9 +370,12 @@ class AdminNavigation
      */
     public static function activeKeyForScript(string $script): ?string
     {
-        foreach (self::items() as $item) {
+        $items = self::items();
+
+        foreach ($items as $item) {
             if (in_array($script, $item['scripts'], true)) {
-                return $item['key'];
+                // A screen within another entry lights up that entry.
+                return (string) (self::parentOf($item, $items)['key'] ?? $item['key']);
             }
         }
 

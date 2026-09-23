@@ -610,12 +610,13 @@ final class AdminEditorNavigationTest extends TestCase
         $this->assertSame(2, substr_count($source, "admin_te('page.save_settings') ?></button>"));
     }
 
-    // --- Site-instellingen -------------------------------------------------
+    // --- Instellingen -------------------------------------------------
 
     public function testSiteSettingsIsGroupedAndKeepsEveryFieldItHad(): void
     {
         $panels = $this->panelSources('admin/settings.php');
-        $this->assertSame(['algemeen', 'talen', 'seo', 'dashboard'], array_keys($panels));
+        // Updates is the fifth tab, only for who may install one ($canUpdate).
+        $this->assertSame(['algemeen', 'talen', 'seo', 'dashboard', 'updates'], array_keys($panels));
 
         foreach (self::SETTINGS_FIELDS as $field => $tab) {
             $found = [];
@@ -672,7 +673,7 @@ final class AdminEditorNavigationTest extends TestCase
 
     /**
      * Neither screen's tab structure may depend on which modules are on: a
-     * CMS-only deployment gets the same Site-instellingen and the same three
+     * CMS-only deployment gets the same Instellingen and the same three
      * page-editor tabs, with the Shop's own cards and blocks doing what they
      * always did inside them.
      */
@@ -690,7 +691,7 @@ final class AdminEditorNavigationTest extends TestCase
             ModuleRegistry::overrideForTests(['shop' => $shopEnabled, 'multilingual' => true]);
 
             $this->assertSame(
-                ['algemeen', 'talen', 'seo', 'dashboard'],
+                ['algemeen', 'talen', 'seo', 'dashboard', 'updates'],
                 array_keys($this->panelSources('admin/settings.php'))
             );
             $this->assertSame(

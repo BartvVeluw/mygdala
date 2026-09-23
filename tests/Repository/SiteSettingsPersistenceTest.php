@@ -12,7 +12,7 @@ use App\Service\SiteSettingsValidator;
 use PHPUnit\Framework\TestCase;
 
 /**
- * Site-instellingen and Shop-instellingen against the test database: what
+ * Instellingen and Shop-instellingen against the test database: what
  * the validators let through is stored the way their endpoints store it, and
  * App\Service\SiteSettings reads it back the way every page does.
  *
@@ -135,7 +135,7 @@ final class SiteSettingsPersistenceTest extends TestCase
 
     /**
      * Switching the Shop off is not uninstalling it (MODULES.md): its settings
-     * stay stored, a Site-instellingen save cannot reach them, and every one
+     * stay stored, a Instellingen save cannot reach them, and every one
      * of them is there when the Shop comes back.
      */
     public function testShopSettingsSurviveTheShopBeingSwitchedOffAndOn(): void

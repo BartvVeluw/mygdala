@@ -30,7 +30,7 @@ AdminAuth::requirePermission('settings.manage');
  *
  * It is ONBOARDING, not a settings screen. Five steps, everything but the
  * site name optional, and each answer written through the screen that
- * permanently owns it — Site-instellingen, Vormgeving, Pagina's, Navigatie.
+ * permanently owns it — Instellingen, Vormgeving, Pagina's, Navigatie.
  * Nothing here is a second copy of those screens, and after completion this
  * page becomes a short list of links to them (SETUP.md).
  *
@@ -271,7 +271,7 @@ $setupPrimaryLanguage = $previous('primary_content_language') !== ''
               Dit verzoek kwam binnen op <code><?= $h($detectedOrigin) ?></code>; neem dat alleen over
               als dat ook het publieke adres is.
             <?php endif; ?>
-            Laat je het leeg, dan vul je het later in bij Site-instellingen.
+            Laat je het leeg, dan vul je het later in bij Instellingen.
           </p>
           <p class="admin-text-muted">
             <?= admin_t('setup.staat_er_later_env', ['v1' => $h(AppUrl::environmentVariableName())]) ?>

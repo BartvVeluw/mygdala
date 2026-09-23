@@ -11,10 +11,10 @@
  * this block points at, rendered by partials/form.php like every other form
  * on the site. What stayed is the pairing this block exists for: the details
  * card in the second column, whose e-mail address and town or region come
- * from Site-instellingen rather than from page content.
+ * from Instellingen rather than from page content.
  *
  * THE CARD SAYS NOTHING ABOUT THE BUSINESS ITSELF. It prints exactly what
- * Site-instellingen holds, under labels that fit any site ("E-mail",
+ * Instellingen holds, under labels that fit any site ("E-mail",
  * "Plaats"), and leaves a line out when its value is empty. A promise such as
  * a response time, opening hours or "pickup by appointment" is content, not a
  * label: there is no field for it, so it is not printed at all. This card
@@ -37,7 +37,7 @@
  *
  * The block's own heading arrives as one string, already in the language of
  * the request (App\Service\Blocks\BlockLocalization), plain text. So does the
- * place from Site-instellingen, which is website text per language
+ * place from Instellingen, which is website text per language
  * (App\Service\LocalizedSiteSettings). The card's own fixed labels
  * ("Plaats", "E-mail") are code catalogues read through
  * App\Service\Language\SiteText::escaped().
@@ -51,7 +51,7 @@
  * @param array<string, mixed>                             $content see ContactFormContent::forSection()
  * @param FormDefinition|null                              $form    null when no usable form is chosen
  * @param FormRenderState                                  $state   this instance's state
- * @param array{email: string, city: string}               $contact from Site-instellingen
+ * @param array{email: string, city: string}               $contact from Instellingen
  */
 
 require_once __DIR__ . '/form.php';
@@ -62,7 +62,7 @@ use App\Service\Language\SiteText;
 
 function render_section_contact_form(array $content, ?FormDefinition $form, FormRenderState $state, array $contact): void
 {
-    // Both are optional in Site-instellingen. A line whose value is missing is
+    // Both are optional in Instellingen. A line whose value is missing is
     // left out rather than printed as a bare label.
     $contactEmail = trim($contact['email']);
     $contactCity = $contact['city'];

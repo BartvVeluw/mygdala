@@ -130,7 +130,7 @@ class AdminPermissions
                 ],
                 self::MEDIA_VIEW => [
                     'label' => 'Mediabibliotheek gebruiken',
-                    'description' => 'De mediabibliotheek openen, doorzoeken en er nieuwe afbeeldingen aan toevoegen. Zit automatisch bij "Pagina\'s beheren", "Portfolio beheren" en "Site-instellingen beheren".',
+                    'description' => 'De mediabibliotheek openen, doorzoeken en er nieuwe afbeeldingen aan toevoegen. Zit automatisch bij "Pagina\'s beheren", "Portfolio beheren" en "Instellingen beheren".',
                 ],
                 self::MEDIA_MANAGE => [
                     'label' => 'Mediabibliotheek beheren',
@@ -141,7 +141,7 @@ class AdminPermissions
                     'description' => 'Formulieren en hun velden maken en wijzigen. Geeft GEEN toegang tot de bewaarde inzendingen — dat is een apart recht.',
                 ],
                 self::SETTINGS_MANAGE => [
-                    'label' => 'Site-instellingen beheren',
+                    'label' => 'Instellingen beheren',
                     'description' => 'Algemene website-, facturatie- en e-mailinstellingen.',
                 ],
             ],

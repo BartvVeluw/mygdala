@@ -36,7 +36,7 @@ Er zijn nog drie vaste blokken: `shop_collections`, `product_grid` en
   verkapte "maximaal één per pagina, voor altijd": herhaalbaarheid is een
   schemafeit, niet alleen een registryvlag.
 - Een blok-instantie heeft **eigen** inhoud/configuratie, tenzij het blok
-  expliciet als gedeelde/globale inhoud is ontworpen (bv. Site-instellingen).
+  expliciet als gedeelde/globale inhoud is ontworpen (bv. Instellingen).
 - Elk bloktype heeft één inhoudstabel, één partial (`partials/section-*.php`),
   één editor (`admin/<type>.php`) en zijn eigen `api/admin/*`-endpoints.
 - **Geen hardcoded fallback-copy.** Geen inhoudsrij (of een bron zonder items)

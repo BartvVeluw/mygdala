@@ -537,6 +537,7 @@
             <file>tests/Service/MediaAdoptionTest.php</file>
             <file>tests/Service/MediaBoundaryTest.php</file>
             <file>tests/Service/MediaLibraryTest.php</file>
+            <file>tests/Service/SettingsNavigationHttpTest.php</file>
             <file>tests/Service/Media/SvgSanitizerTest.php</file>
             <file>tests/Service/MediaUsageAccessTest.php</file>
             <file>tests/Service/MediaUsageTest.php</file>

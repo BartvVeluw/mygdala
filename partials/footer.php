@@ -61,7 +61,7 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
         <?php if ($brand['show_company_name']): ?>
         <p class="footer-brand__name"><?= $h($siteName) ?></p>
         <?php endif; ?>
-        <?php // Optional since Site-instellingen stopped requiring it: no text, no empty paragraph. ?>
+        <?php // Optional since Instellingen stopped requiring it: no text, no empty paragraph. ?>
         <?php if ($footerDescription !== null): ?>
         <p><?= $h($footerDescription) ?></p>
         <?php endif; ?>

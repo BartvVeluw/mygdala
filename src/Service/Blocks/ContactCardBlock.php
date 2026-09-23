@@ -9,7 +9,7 @@ require_once dirname(__DIR__, 3) . '/partials/section-contact-card.php';
 
 /**
  * A small "neem contact op" card: title, body and one button. An empty button
- * URL means "mail the address from Site-instellingen", so the card keeps
+ * URL means "mail the address from Instellingen", so the card keeps
  * working when that address changes. Its words are stored per website
  * language in block_translations (BlockLocalization).
  */
@@ -82,7 +82,7 @@ final class ContactCardBlock extends BlockDefinition
 
         $repository = new ContactCardRepository();
         $repository->upsertSection($pageSlug, $key, [
-            // Empty = mailto: the address from Site-instellingen.
+            // Empty = mailto: the address from Instellingen.
             'button_url' => '',
             'is_active' => true,
         ]);

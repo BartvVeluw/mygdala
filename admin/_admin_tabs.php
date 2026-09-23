@@ -9,7 +9,7 @@ use App\Service\AssetVersion;
  *
  * THE PROBLEM IT SOLVES. Some admin screens are one vertical stack of
  * unrelated cards — the page editor is page settings, then SEO, then the
- * whole content of the page; Site-instellingen is five independent forms.
+ * whole content of the page; Instellingen is five independent forms.
  * An editor who wants the third thing scrolls past the first two every time.
  *
  * WHAT IT IS NOT. It is not a framework and it moves no data. A tab is a

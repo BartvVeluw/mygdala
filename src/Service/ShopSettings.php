@@ -16,7 +16,7 @@ use App\Service\Language\AdminTranslator;
  *
  * WHY A SCREEN OF ITS OWN. Invoices, order numbers and the order confirmation
  * e-mail only exist while the Shop runs. They used to be two tabs of
- * Site-instellingen, a Core screen that looks the same on a site without a
+ * Instellingen, a Core screen that looks the same on a site without a
  * shop, so a CMS-only site offered settings for invoices it can never issue.
  * The values did not move: they are the same keys in the same site_settings
  * table (App\Service\SiteSettings), which is why switching the Shop off and
@@ -33,7 +33,7 @@ use App\Service\Language\AdminTranslator;
  * Deliberately NOT here: the address, the KVK number, the e-mail address and
  * the phone number an invoice also prints. Those are the site's, the footer
  * and the e-mail footer line read them too, and they are edited once, on
- * Site-instellingen.
+ * Instellingen.
  */
 final class ShopSettings
 {

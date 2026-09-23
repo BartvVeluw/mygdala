@@ -90,7 +90,7 @@ installatie publiceerde Nederlands en Engels, dus
 voorkeur *aan* op voor elke installatie van vóór de installatiemarker en voor
 een verse installatie waarvan de wizard al klaar was. Anders dan bij de andere
 modules is er een scherm dat hem na de installatie aan- en uitzet:
-*Site-instellingen → Talen* (`MULTILINGUAL.md`).
+*Instellingen → Talen* (`MULTILINGUAL.md`).
 
 Waarom de omgeving vóóraan staat: dit is deploy-configuratie, net als `DB_*`.
 Het is één regel in het bestand dat de hosting toch al heeft, het werkt op
@@ -359,10 +359,10 @@ Alles wat er ook zou zijn zonder webshop.
   `api/admin/update-shop-settings.php`: de bedrijfsgegevens en vaste teksten
   op facturen, het bestelnummerprefix en de tekst van de bestelbevestiging,
   met "Herstel standaardtekst" en uitleg bij de invulvelden. Dit waren de
-  tabbladen Facturen en E-mails van Site-instellingen; het zijn dezelfde
+  tabbladen Facturen en E-mails van Instellingen; het zijn dezelfde
   sleutels in `site_settings`, dus uit- en aanzetten raakt ze niet. Adres,
   KVK-nummer, e-mailadres en telefoon staan niet hier maar op
-  Site-instellingen, omdat de footer en de mailvoetregel ze ook lezen. Het
+  Instellingen, omdat de footer en de mailvoetregel ze ook lezen. Het
   scherm vraagt `settings.manage`, dezelfde permissie als die tabbladen. Dat
   is een Core-permissie die met de Shop uit gewoon houdbaar blijft, dus
   scherm en endpoint hebben als enige Shop-adminbestanden wél een
@@ -684,7 +684,7 @@ Bewust, en niet gepland tenzij er een concrete aanleiding komt:
   beheren"-scherm. De installatiewizard vraagt het één keer bij het inrichten
   van een nieuwe site (`SETUP.md`); daarna is aan en uit een regel in `.env`,
   of een rij in `module_settings` die iemand met de hand zet. De enige
-  uitzondering is Meertaligheid, die *Site-instellingen → Talen* aan- en
+  uitzondering is Meertaligheid, die *Instellingen → Talen* aan- en
   uitzet, omdat dat scherm toch al over de talen van de site gaat.
 - **Geen plug-ins van derden**, geen marktplaats, geen runtime downloaden of
   laden van code.

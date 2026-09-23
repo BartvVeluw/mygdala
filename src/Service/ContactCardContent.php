@@ -15,7 +15,7 @@ use App\Service\Routing\TypedLink;
  * docs/content-blocks/ROADMAP.md.
  *
  * The button URL is optional, and empty means "mail me": the block then
- * links to `mailto:` + the e-mail address from Site-instellingen. That is
+ * links to `mailto:` + the e-mail address from Instellingen. That is
  * not a special case for one page — it is this block type's documented
  * default, and it is what keeps the migrated card following the site's
  * e-mail address the way the hardcoded markup did.
@@ -122,7 +122,7 @@ class ContactCardContent
 
     /**
      * An empty stored URL means "mail me at the address in
-     * Site-instellingen" — the documented default of this block type. An
+     * Instellingen" — the documented default of this block type. An
      * address that is missing there leaves the URL empty, and the partial
      * then renders the card without a button rather than a dead `mailto:`.
      */

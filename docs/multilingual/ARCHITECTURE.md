@@ -262,7 +262,7 @@ websitetaal worden opgeslagen. Hij is bewezen op `admin/page.php` en
 |---|---|
 | `admin_localized_languages()` | de actieve talen uit het register, standaardtaal eerst |
 | `admin_localized_language()` | de taal van dit scherm: de keuze in de schil, als de site die taal heeft, anders de standaardtaal |
-| `admin_localized_bar($code)` | *Je bewerkt: English*, de badge *standaardtaal* of wat een leeg veld betekent; niets bij één taal |
+| `admin_localized_bar($code)` | *Taal: English*, de badge *standaardtaal* (uitleg achter `?`) of wat een leeg veld betekent; één keer per scherm en taal; niets bij één taal |
 | `admin_localized_input($code)` | het verborgen veld `language_code`, één keer per formulier |
 | `admin_localized_required($code)` | `required` alleen in de standaardtaal |
 | `admin_localized_placeholder_attr($code)` | de terugvaltekst op een vertaalveld |
@@ -1306,7 +1306,7 @@ was. Die keuze volgt uit de regel van elke `pin_*`-migratie — een nieuwe
 standaard geldt voor een nieuwe site, nooit met terugwerkende kracht — en uit
 het principe van heel 2.0 dat een bestaande site niets ziet veranderen.
 
-Talenbeheer staat onder *Site-instellingen → Talen*
+Talenbeheer staat onder *Instellingen → Talen*
 ([`WEBSITE-LANGUAGES.md`](WEBSITE-LANGUAGES.md)): toevoegen (start uit),
 namen, aan/uit, standaard, volgorde, verwijderen. `SiteLanguages` kreeg
 `add()`, `rename()`, `activate()`, `deactivate()`, `move()` en `remove()`;

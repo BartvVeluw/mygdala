@@ -12,7 +12,7 @@ use App\Service\SiteSettings;
  * Two steps and no company written into the code:
  *
  *   1. the address the editor filled in on the form itself;
- *   2. otherwise the site's own contact address (Site-instellingen).
+ *   2. otherwise the site's own contact address (Instellingen).
  *
  * A form therefore works the moment it is created, an owner who changes
  * their contact address changes it in one place, and a form that needs to
@@ -76,7 +76,7 @@ final class FormRecipient
      *
      * @param array<string, mixed> $form        see reliesOnSiteAddress()
      * @param string|null          $siteAddress siteFallback(), or the address
-     *                                          Site-instellingen is about to store
+     *                                          Instellingen is about to store
      */
     public static function losesSubmissions(array $form, ?string $siteAddress): bool
     {

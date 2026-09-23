@@ -47,7 +47,7 @@ use App\Service\Language\AdminTranslator;
  * db/migrations/20260908250000_flatten_page_sections_into_one_list.php.
  *
  * A fixed block's CONTENT is still owned by whatever already owned it (the
- * product catalogue, Site-instellingen); the registry only says where it
+ * product catalogue, Instellingen); the registry only says where it
  * renders and what the CMS shows about it.
  *
  * Deliberately still OUTSIDE this registry: the portfolio catalogue

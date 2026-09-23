@@ -5,6 +5,14 @@ gepubliceerde, ondertekende Mygdala-release. Geen Git, geen SSH, geen
 handmatige upload, geen cron. De beheerder start de update zelf, onder
 **Instellingen → Updates** (`admin/updates.php`).
 
+In de zijbalk heeft Updates geen eigen regel meer: het is het tabblad
+*Updates* in Instellingen (`admin/settings.php`, alleen met
+`updates.manage`), dat de geïnstalleerde versie en de laatste controle toont
+en naar `admin/updates.php` leidt. Dat adres, zijn guard (`updates.manage`)
+en de uitzondering in de onderhoudsmodus zijn ongewijzigd. Wie
+`updates.manage` heeft maar Instellingen niet kan openen, houdt de eigen
+regel (`AdminNavigation`, `within`).
+
 Drie documenten:
 
 | Document | Waarover |

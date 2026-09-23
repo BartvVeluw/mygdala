@@ -5011,7 +5011,7 @@ body.admin-block-picker-open{ overflow: hidden; }
 
 /* --- Shop-instellingen (admin/shop-settings.php) --------------------------- */
 
-/* What an invoice also prints from Site-instellingen: read-only, a label
+/* What an invoice also prints from Instellingen: read-only, a label
    beside each value. */
 .admin-shop-summary{
   display: grid;

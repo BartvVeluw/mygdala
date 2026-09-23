@@ -8,7 +8,7 @@ use App\Service\Forms\FormRecipient;
 use App\Service\Language\AdminTranslator;
 
 /**
- * What Site-instellingen may submit, and what a submission needs before
+ * What Instellingen may submit, and what a submission needs before
  * api/admin/update-site-settings.php stores it.
  *
  * ONE CONTRACT FOR THE SCREEN AND THE ENDPOINT. FIELDS is the closed list of

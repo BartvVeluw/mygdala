@@ -19,7 +19,7 @@ namespace App\Service\PageTemplates;
  * empty slot with an obvious next step.
  *
  * The contact card's button falls back to the e-mail address from
- * Site-instellingen when its URL is left empty, so it is useful without
+ * Instellingen when its URL is left empty, so it is useful without
  * being filled in and without this template knowing the address.
  */
 final class ContactTemplate extends PageTemplateDefinition

@@ -308,7 +308,6 @@ function renderPersonalizationBuilder(array $product, array $personalization, st
           <input type="hidden" name="view_id" value="<?= $viewId ?>">
 
           <?= admin_localized_input($editingLanguage) ?>
-          <?php admin_localized_bar($editingLanguage); ?>
           <div class="admin-pz-grid">
               <label><?= admin_te('personalization.naam_klant') ?>
                 <input type="text" name="label" maxlength="<?= PersonalizationLocalization::LABEL_MAX_LENGTH ?>" value="<?= $esc($viewLabel) ?>" placeholder="Bijv. Voorkant"<?= admin_localized_placeholder_attr($editingLanguage) ?>>
@@ -541,7 +540,6 @@ function renderPersonalizationZoneForm(
       <input type="hidden" name="zone_id" value="<?= $zoneId ?>">
 
       <?= admin_localized_input($editingLanguage) ?>
-      <?php admin_localized_bar($editingLanguage); ?>
       <div class="admin-pz-grid">
           <label><?= admin_te('personalization.naam_klant_3') ?>
             <input type="text" name="label" maxlength="<?= PersonalizationLocalization::LABEL_MAX_LENGTH ?>" value="<?= $esc($word(PersonalizationLocalization::LABEL)) ?>" placeholder="Bijv. Naam"<?= admin_localized_placeholder_attr($editingLanguage) ?>>

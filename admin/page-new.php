@@ -156,7 +156,6 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
         </summary>
         <div class="admin-collapse__body">
           <?= admin_info_panel(admin_t('help.page.seo')) ?>
-          <?php admin_localized_bar($newPageLanguage); ?>
           <div class="admin-product-form admin-product-form--wide">
             <div class="admin-field">
               <?= admin_field_label('page-new-meta-title', admin_t('page.meta_title'), $seoTitleHelp) ?>

@@ -120,7 +120,7 @@ final class ShopModule extends ModuleDefinition
             ],
             [
                 // Invoices, order numbers and the order confirmation e-mail:
-                // two tabs of Site-instellingen once, and meaningless without
+                // two tabs of Instellingen once, and meaningless without
                 // a shop. settings.manage, the permission those tabs asked, so
                 // the move changed nobody's access; that is also why
                 // admin/shop-settings.php carries a ModuleGuard of its own.

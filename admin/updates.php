@@ -181,7 +181,15 @@ if (!$inLiveWindow) {
 <main class="admin-main admin-updates">
   <header class="admin-page-head">
     <div>
-      <p class="admin-text-muted admin-updates__eyebrow"><?= admin_te('update.eyebrow') ?></p>
+      <?php /* Updates is part of Instellingen (AdminNavigation, `within`); the
+               eyebrow is the way back to its tab there, for who may open it. */ ?>
+      <p class="admin-text-muted admin-updates__eyebrow">
+        <?php if (AdminAuth::can(\App\Service\AdminPermissions::SETTINGS_MANAGE)): ?>
+          <a href="/admin/settings.php?section=updates"><?= admin_te('update.eyebrow') ?></a>
+        <?php else: ?>
+          <?= admin_te('update.eyebrow') ?>
+        <?php endif; ?>
+      </p>
       <h1 class="admin-page-head__title"><?= admin_te('update.title') ?></h1>
       <p class="admin-page-head__desc"><?= admin_te('update.intro') ?></p>
     </div>

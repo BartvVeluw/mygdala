@@ -167,7 +167,7 @@ final class ShopSettingsTest extends TestCase
         $this->assertSame(
             [],
             array_values(array_intersect(array_keys(SiteSettingsValidator::FIELDS), array_keys(ShopSettings::FIELDS))),
-            'one setting, one screen: Site-instellingen can no longer write a Shop setting'
+            'one setting, one screen: Instellingen can no longer write a Shop setting'
         );
     }
 

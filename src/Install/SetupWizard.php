@@ -33,7 +33,7 @@ use App\Service\Theme\ThemeSettings;
  * finishing it actually does.
  *
  * It is ONBOARDING, not a settings screen. Everything it writes has a
- * permanent home elsewhere in the CMS — Site-instellingen owns identity,
+ * permanent home elsewhere in the CMS — Instellingen owns identity,
  * Vormgeving owns appearance, Pagina's owns pages, Navigatie owns the menu —
  * and this class writes through those same owners rather than beside them:
  *
@@ -127,7 +127,7 @@ final class SetupWizard
     /**
      * The settings step 1 may write, with the maximum length each accepts.
      * Everything else keeps its default and is edited later under
-     * Instellingen → Site-instellingen.
+     * Instellingen.
      *
      * footer_description and city are website text
      * (App\Service\LocalizedSiteSettings) and are written in the website

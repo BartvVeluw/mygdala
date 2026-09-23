@@ -11,13 +11,16 @@ declare(strict_types=1);
  * rendered a hidden Dutch and a hidden English copy of every field and could
  * not hold a third language (removed in Multilingual 2.0 phase 7).
  *
- * WHAT AN EDITOR SEES. The fields of ONE language, under a bar that says
- * which one and whether it is the default:
+ * WHAT AN EDITOR SEES. The fields of ONE language, and ONCE per screen,
+ * near its title, one line that says which language that is:
  *
- *     You are editing: English
+ *     Language: English
  *     Empty means not translated yet. Visitors then see the text in Dutch.
  *
  *     Title   [ ................ ]
+ *
+ * In the default language the second line is behind a "?" instead: there is
+ * nothing to warn about, and a line on every screen is noise.
  *
  * Language-neutral fields (address, status, switches, images) are not this
  * file's business; they stay on screen in every language.
@@ -50,6 +53,7 @@ use App\Service\Language\SiteLanguage;
 use App\Service\Language\SiteLanguages;
 
 require_once __DIR__ . '/_translate.php';
+require_once __DIR__ . '/_admin_ui.php';
 
 /**
  * The website languages an editor can write in, the default first and the
@@ -98,37 +102,51 @@ function admin_localized_language(): string
 }
 
 /**
- * The bar above a group of localized fields: which language they are in,
- * that it is the default language when it is, and what an empty field means
- * when it is not. Prints nothing on a website with a single language, where
- * there is nothing to say.
+ * The one language line of a screen: which language its localized fields are
+ * in, that it is the default language when it is, and what an empty field
+ * means when it is not. Prints nothing on a website with a single language,
+ * where there is nothing to say.
  *
- * May be printed more than once on a screen (one per card or tab); it holds
- * no state.
+ * ONCE PER SCREEN. A screen may call this wherever its localized fields
+ * start — above its tabs, in the first card — and may call it again further
+ * down (a second tab or card of the same form); only the first call prints.
+ * Before, the line was repeated per card, tab and row, which said the same
+ * thing five times. The shell's switch (admin/_header.php) stays the one
+ * place to change the language.
  */
 function admin_localized_bar(string $language): void
 {
-    if (count(admin_localized_languages()) < 2) {
+    // Per language: a screen with a second form in another language (a new
+    // item, always written in the default language, beside an existing one)
+    // still says so for each.
+    static $printed = [];
+
+    if (isset($printed[$language]) || count(admin_localized_languages()) < 2) {
         return;
     }
+
+    $printed[$language] = true;
 
     $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
     $default = admin_localized_default();
     $isDefault = $language === $default;
 
+    $label = AdminTranslator::trans('language.editing_indicator');
+
     echo '<div class="admin-lang-bar admin-localized-bar" data-localized-language="' . $h($language) . '">';
     echo '<p class="admin-lang-bar__state">'
-        . '<span class="admin-lang-bar__label">' . $h(AdminTranslator::trans('language.editing_indicator')) . '</span> '
+        . '<span class="admin-lang-bar__label">' . $h($label) . '</span> '
         . '<strong class="admin-lang-bar__value">' . $h(admin_website_language_label($language)) . '</strong>'
         . ($isDefault
             ? ' <span class="admin-badge admin-badge--info">' . $h(AdminTranslator::trans('language.default_marker')) . '</span>'
+              . ' ' . admin_help(rtrim($label, ': '), AdminTranslator::trans('language.editing_default_hint'))
             : '')
         . '</p>';
-    echo '<p class="admin-lang-bar__hint">'
-        . $h($isDefault
-            ? AdminTranslator::trans('language.editing_default_hint')
-            : AdminTranslator::trans('language.editing_fallback_hint', ['language' => admin_website_language_label($default)]))
-        . '</p>';
+    if (!$isDefault) {
+        echo '<p class="admin-lang-bar__hint">'
+            . $h(AdminTranslator::trans('language.editing_fallback_hint', ['language' => admin_website_language_label($default)]))
+            . '</p>';
+    }
     echo '</div>';
 }
 

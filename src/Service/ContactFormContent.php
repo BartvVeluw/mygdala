@@ -20,7 +20,7 @@ use App\Service\Routing\RequestLanguage;
  *
  *   - the "Direct contact" card beside it, which shares the block's
  *     two-column grid and renders the e-mail address and workshop city from
- *     Site-instellingen rather than page content;
+ *     Instellingen rather than page content;
  *   - the optional file attachment (`allow_attachment`) this site's quote
  *     form has accepted since long before Core Forms existed. Forms V1 has
  *     no upload field and the form builder cannot create one; taking a

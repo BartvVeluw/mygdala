@@ -123,15 +123,19 @@ final class ShopSeoAdminTest extends TestCase
     public function testBothEditorsExplainTheAutomaticFallback(): void
     {
         foreach (self::EDITORS as $editor) {
-            $seo = $this->seoSection($this->fileSource($editor));
+            $source = $this->fileSource($editor);
+            $seo = $this->seoSection($source);
 
             $this->assertStringContainsString('optioneel', mb_strtolower($seo), $editor . ' must say the fields are optional');
             $this->assertStringContainsString('automatisch', $seo, $editor . ' must say what happens when a field is left empty');
-            $this->assertStringContainsString(
-                'admin_localized_bar($editingLanguage)',
-                $seo,
-                $editor . ' must say which language the SEO card is in, and what an empty translation falls back to'
-            );
+
+            // Which language the fields are in, and what an empty translation
+            // falls back to, is said once per screen, above the SEO card
+            // (admin/_localized_fields.php), not again in every card.
+            $bar = strpos($source, 'admin_localized_bar($editingLanguage)');
+            self::assertNotFalse($bar, $editor . ' must say which language its fields are in');
+            self::assertSame(1, substr_count($source, 'admin_localized_bar('), $editor . ' says it once');
+            self::assertLessThan(strpos($source, $seo), $bar, $editor . ': before the SEO card');
         }
     }
 

@@ -32,7 +32,7 @@
  * screen that edits them (HEADER-FOOTER.md).
  *
  * WHAT IS NOT HERE. The company's name, e-mail address, phone number, KVK
- * number and logo belong to Site-instellingen; the footer only decides
+ * number and logo belong to Instellingen; the footer only decides
  * whether to show them, and hiding one never changes or removes the value.
  *
  * Same PRG/session-flash pattern as api/admin/update-site-settings.php: a

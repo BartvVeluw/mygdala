@@ -269,7 +269,6 @@ $cmsImageSrc = static fn (array $row): string => '/' . ltrim((string) ($row['thu
 
       <section class="admin-card">
         <h2><?= admin_te('portfolio.basisgegevens') ?></h2>
-        <?php admin_localized_bar($editingLanguage); ?>
         <div class="admin-form-row">
           <div class="admin-field">
             <?= admin_field_label('portfolio-title', admin_t('common.title'), admin_t('help.portfolio.title')) ?>

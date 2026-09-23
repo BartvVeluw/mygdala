@@ -254,7 +254,7 @@ seedmigraties van elke verse installatie schrijven zelf Engelse woorden.
 **Er verandert niets aan de talen zelf**: hun rijen, hun eigen aan/uit en elke
 vertaling blijven zoals ze zijn. De omgeving (`MODULE_MULTILINGUAL_ENABLED`)
 wint nog steeds, en de eigenaar kan de voorkeur wijzigen onder
-*Site-instellingen → Talen*. `down()` doet niets: de rij weghalen zou elke
+*Instellingen → Talen*. `down()` doet niets: de rij weghalen zou elke
 andere taal weer offline halen. `Tests\Install\MultilingualModulePinTest`
 bewijst de drie paden (vanaf nul, vers en draaiend, legacy).
 

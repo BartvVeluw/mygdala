@@ -87,7 +87,7 @@ if (!$languageIsWritable) {
     }
 
     // A URL without a label would be an invisible link; a label alone is
-    // fine — an empty URL means "mail the address from Site-instellingen",
+    // fine — an empty URL means "mail the address from Instellingen",
     // which App\Service\ContactCardContent resolves at render time. The
     // label that counts is the default language's, which every other
     // language falls back to.

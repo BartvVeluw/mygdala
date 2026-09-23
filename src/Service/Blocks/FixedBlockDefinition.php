@@ -7,7 +7,7 @@ namespace App\Service\Blocks;
  * page-builder sections (the storefront's collection tiles and product grid,
  * the Diensten quicknav). It is positioned and reordered like any other
  * block, but it has no content row of its own — whatever already owned the
- * content still owns it (the product catalogue, Site-instellingen, the
+ * content still owns it (the product catalogue, Instellingen, the
  * theme).
  *
  * That is the whole difference, so this class answers the content-row half of

@@ -354,7 +354,7 @@ vroeg.
 Twee stappen, en geen bedrijf in de code:
 
 1. het adres dat de beheerder op het formulier heeft ingevuld;
-2. anders het contactadres van de site (Site-instellingen).
+2. anders het contactadres van de site (Instellingen).
 
 Beide worden gevalideerd; een typefout valt door naar de volgende stap in
 plaats van PHPMailer een adres te geven dat het weigert. Staat er in geen van
@@ -368,7 +368,7 @@ terwijl de site ook geen adres heeft
 (`FormRecipient::losesSubmissions()`). `api/admin/update-form.php` weigert zo'n
 formulier op te slaan, en `api/admin/update-site-settings.php` weigert het
 contactadres leeg te maken zolang een formulier daarvan afhangt. Allebei
-noemen ze wat de beheerder kan doen. Het formulierscherm en Site-instellingen
+noemen ze wat de beheerder kan doen. Het formulierscherm en Instellingen
 waarschuwen ook als de toestand al bestaat, want dan is er niets meer om te
 weigeren.
 
@@ -528,7 +528,7 @@ Wat het blok zelf houdt zijn de twee dingen die een generiek formulierblok
 niet hoort te hebben:
 
 - **de kaart "Direct contact"** ernaast, die het e-mailadres en de plaats
-  (of regio) uit Site-instellingen toont en de tweede kolom van het raster
+  (of regio) uit Instellingen toont en de tweede kolom van het raster
   vult. Beide zijn daar optioneel; een regel zonder waarde wordt weggelaten.
   De kaart zegt verder niets over het bedrijf: een belofte als een
   reactietijd of "ophalen op afspraak" is inhoud zonder veld, en staat er

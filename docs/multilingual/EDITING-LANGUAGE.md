@@ -34,12 +34,20 @@ formulier toont wordt op de **server** beslist, dus de pagina wordt opnieuw
 gerenderd. Staan er onopgeslagen wijzigingen in een formulier, dan vraagt de
 opslagbalk eerst of je die wilt laten staan (`admin/assets/save-bar.js`).
 
-**Geen tweede taalkiezer.** Bewerkschermen tónen alleen in welke taal je zit:
+**Geen tweede taalkiezer.** Bewerkschermen tónen alleen in welke taal je zit,
+en dat **één keer per scherm**, bovenaan bij de velden (boven de tabbladen
+als het scherm die heeft):
 
 ```text
-Je bewerkt: English
+Taal: English
 Leeg betekent nog niet vertaald. Bezoekers zien dan de tekst in het Nederlands.
 ```
+
+In de standaardtaal is dat één regel, *Taal: Nederlands* met de badge
+*standaardtaal*; wat dat betekent staat achter het `?`. Vroeger stond de
+regel per kaart, tabblad of rij herhaald. `admin_localized_bar()` print nu
+alleen bij de eerste aanroep per taal; een scherm roept hem één keer aan,
+waar zijn gelokaliseerde velden beginnen.
 
 Er stond vroeger een tabbladenrij per formulier, en dat was precies de fout:
 de taalkeuze zat per scherm en was vanuit de rest van het CMS onzichtbaar.
@@ -53,7 +61,7 @@ schil, als de website die taal publiceert, anders de standaardtaal
 `(NL)`-achtervoegsel.
 
 ```text
-Je bewerkt: English
+Taal: English
 Leeg betekent nog niet vertaald. Bezoekers zien dan de tekst in het Nederlands.
 
 Titel        [ ............... ]

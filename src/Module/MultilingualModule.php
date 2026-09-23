@@ -20,7 +20,7 @@ namespace App\Module;
  * row stays where it is, and switching the module on again brings back the
  * same languages at the same addresses. The language registry itself — which
  * languages exist, which one is the default — is Core and is managed with the
- * module on or off (Site-instellingen > Talen), because a website always has
+ * module on or off (Instellingen > Talen), because a website always has
  * a default language.
  *
  * OFF ON A NEW INSTALLATION (docs/multilingual/ARCHITECTURE.md): a new site

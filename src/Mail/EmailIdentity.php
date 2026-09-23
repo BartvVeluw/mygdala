@@ -68,7 +68,7 @@ final class EmailIdentity
     {
         return 'No sender address is configured for this installation: '
             . 'set MAIL_FROM_ADDRESS in .env, or fill in the contact e-mail address '
-            . 'under Instellingen -> Site-instellingen.';
+            . 'under Instellingen.';
     }
 
     /**

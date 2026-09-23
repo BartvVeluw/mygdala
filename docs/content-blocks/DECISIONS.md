@@ -78,11 +78,11 @@ Reden: het maximum van één is een technisch feit, geen smaak — de veld-id's
 (`f-naam`, `f-email`, …) staan vast in de markup, dus een tweede formulier
 levert dubbele DOM-id's en kapotte `<label for>`. "Direct contact" is de tweede
 kolom van diezelfde grid en draagt geen eigen pagina-inhoud (adres en plaats
-komen uit Site-instellingen); er een los blok van maken zou de tweekolomsindeling
+komen uit Instellingen); er een los blok van maken zou de tweekolomsindeling
 breken zonder iets bewerkbaar te maken.
 
 Gevolg: een lege knop-URL op een Contactkaart betekent `mailto:` het adres uit
-Site-instellingen. Dat is de gedocumenteerde standaard van het bloktype, geen
+Instellingen. Dat is de gedocumenteerde standaard van het bloktype, geen
 uitzondering voor één pagina.
 
 ## Een vaste set structurele sleutels is geen bloktype

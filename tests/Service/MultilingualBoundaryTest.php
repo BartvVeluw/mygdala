@@ -1422,6 +1422,25 @@ final class MultilingualBoundaryTest extends TestCase
         self::assertStringNotContainsString(' hidden', $code, 'nothing of another language is rendered hidden');
     }
 
+    /**
+     * The language line is said once per screen (and per language, for the
+     * one screen with a new-item form in the default language beside an
+     * existing item): the component prints only its first call, and no
+     * editor calls it again for the same language.
+     */
+    public function testEveryEditorSaysItsLanguageOncePerScreen(): void
+    {
+        $component = self::withoutComments(self::read('admin/_localized_fields.php'));
+        self::assertMatchesRegularExpression('/static \$printed = \[\];\s*if \(isset\(\$printed\[\$language\]\)/', $component, 'only the first call per language prints');
+
+        $root = dirname(__DIR__, 2);
+        foreach (glob($root . '/admin/*.php') ?: [] as $file) {
+            preg_match_all('/admin_localized_bar\(([^)]*\)?)\)/', self::withoutComments((string) file_get_contents($file)), $calls);
+            $perArgument = array_count_values($calls[1]);
+            self::assertLessThanOrEqual(1, $perArgument === [] ? 0 : max($perArgument), basename($file) . ' says its language once');
+        }
+    }
+
     public function testThePageEndpointsWriteTextOnlyThroughTheLocalizationApi(): void
     {
         $update = self::read('api/admin/update-page.php');
