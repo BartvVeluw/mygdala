@@ -12,16 +12,17 @@ use App\Service\Media\MediaUsageProvider;
 /**
  * The content blocks that pick their images from the Media Library: Text +
  * image split, Detailsectie (its main image and its extra images), the cards
- * of a Kaarten-carrousel and the image behind a Paginakop.
+ * of a Kaarten-carrousel, the image behind a Paginakop, and the Homepage
+ * Hero's image and video.
  *
- * ONE QUERY FOR ALL FIVE TABLES. A UNION rather than five round trips,
+ * ONE QUERY FOR ALL OF THEM. A UNION rather than five round trips,
  * because this provider is called once per page of the library listing and
  * the listing must not grow a query per item. Each branch selects the same
  * columns — media id, a Dutch label, the editor, the page slug, the section
  * key and a card id — so the loop below does not care which block a row came
  * from.
  *
- * Blocks that are NOT here (Homepage hero, Item-galerij, Portfolio, the Shop
+ * Blocks that are NOT here (Item-galerij, Portfolio, the Shop
  * blocks) still own their own image paths and are deliberately untouched in
  * V1; they are simply absent from this list rather than reported as unused.
  * MEDIA.md keeps that list, and a block joining the library later adds one
@@ -85,12 +86,25 @@ final class ContentBlockMediaUsage extends MediaUsageProvider
             SELECT h.media_id, \'Paginakop\', \'page-hero\', h.page_slug, NULL, NULL
               FROM page_heroes h
              WHERE h.media_id IN (' . $placeholders . ')
+
+            UNION ALL
+
+            SELECT hh.media_id, \'Homepage Hero (afbeelding)\', \'homepage-hero\', hh.page_slug, NULL, NULL
+              FROM homepage_hero hh
+             WHERE hh.media_id IN (' . $placeholders . ')
+
+            UNION ALL
+
+            SELECT hh.video_media_id, \'Homepage Hero (video)\', \'homepage-hero\', hh.page_slug, NULL, NULL
+              FROM homepage_hero hh
+             WHERE hh.video_media_id IN (' . $placeholders . ')
         ';
 
         $stmt = Database::connection()->prepare($sql);
-        // The same id list five times: a named placeholder cannot be reused
-        // across a statement here, so each branch gets its own positional set.
-        $stmt->execute(array_merge($ids, $ids, $ids, $ids, $ids));
+        // The same id list once per branch: a named placeholder cannot be
+        // reused across a statement here, so each branch gets its own
+        // positional set.
+        $stmt->execute(array_merge(...array_fill(0, 7, $ids)));
 
         $usages = [];
 
@@ -127,6 +141,11 @@ final class ContentBlockMediaUsage extends MediaUsageProvider
 
         if ($cardId !== null) {
             return '/admin/carousel-card.php?card_id=' . (int) $cardId;
+        }
+
+        // The Homepage Hero has one editor of its own, for the one Hero.
+        if ((string) $row['editor'] === 'homepage-hero') {
+            return '/admin/homepage-hero.php';
         }
 
         // One Paginakop per page and no section_key, so its editor takes the

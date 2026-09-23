@@ -5,7 +5,9 @@ namespace App\Service;
 use App\Repository\HomepageHeroRepository;
 use App\Service\Blocks\BlockLocalization;
 use App\Service\Routing\RequestLanguage;
-use App\Service\Routing\TypedLink;
+use App\Service\Media\BlockImage;
+use App\Service\Media\MediaService;
+use App\Service\Routing\LinkChoice;
 
 /**
  * Content for the dedicated "Homepage Hero" section (`.hero` on index.php) —
@@ -163,10 +165,16 @@ class HomepageHeroContent
     private const STARTING_VALUES = [
         'title_highlight_size' => self::HIGHLIGHT_SIZE_DEFAULT,
         'primary_url' => '/',
+        'primary_link_type' => 'url',
+        'primary_link_target_id' => null,
         'secondary_url' => '',
+        'secondary_link_type' => null,
+        'secondary_link_target_id' => null,
         'image_path' => '',
+        'media_id' => null,
         'media_type' => self::MEDIA_TYPE_IMAGE,
         'video_path' => '',
+        'video_media_id' => null,
         'layout' => self::LAYOUT_MEDIA_RIGHT,
     ];
 
@@ -244,19 +252,27 @@ class HomepageHeroContent
         // the page already loaded them (SectionRegistry::renderPage()).
         BlockLocalization::preloadBlocks([self::TABLE => [$heroId]]);
 
-        $content = BlockLocalization::words(self::TABLE, $heroId) + [
+        $words = BlockLocalization::words(self::TABLE, $heroId);
+
+        // The image from the Media Library, or the path the Hero had before
+        // it, with the alt text layered over the library's (BlockImage).
+        $image = BlockImage::fromOwner($row, $words['image_alt'] ?? '');
+
+        $content = [
+            'image_alt' => $image['alt'],
+        ] + $words + [
             'title_highlight_size' => self::clampHighlightSize($row['title_highlight_size'] ?? null),
-            // Typed by an editor, printed in the language being read
-            // (App\Service\Routing\TypedLink).
-            'primary_url' => TypedLink::href((string) ($row['primary_url'] ?? '')),
-            'secondary_url' => TypedLink::href((string) ($row['secondary_url'] ?? '')),
+            // An item of the website by id, or a typed address, printed in
+            // the language being read (App\Service\Routing\LinkChoice).
+            'primary_url' => self::buttonHref($row, 'primary'),
+            'secondary_url' => self::buttonHref($row, 'secondary'),
             // Once a row exists, its media is authoritative: an empty
             // image_path means "this Hero has no image" — see hasMedia().
-            'image_path' => (string) ($row['image_path'] ?? ''),
+            'image_path' => $image['image_path'],
             // An empty or unknown media_type/layout is coerced onto a valid
             // one below: a structural value, never copy.
             'media_type' => (string) ($row['media_type'] ?? ''),
-            'video_path' => (string) ($row['video_path'] ?? ''),
+            'video_path' => self::videoPath($row),
             'layout' => (string) ($row['layout'] ?? ''),
         ];
 
@@ -307,6 +323,40 @@ class HomepageHeroContent
         $content['state'] = self::STATE_ACTIVE;
 
         return $content;
+    }
+
+    /**
+     * Where one of the two buttons goes: an item of the website by id, or
+     * the typed address. A row from before link types existed has an address
+     * and no type, and is an address (LinkChoice::storedType()).
+     *
+     * @param array<string, mixed> $row a homepage_hero row
+     */
+    public static function buttonHref(array $row, string $button): string
+    {
+        return LinkChoice::href(
+            $row[$button . '_link_type'] ?? null,
+            $row[$button . '_link_target_id'] ?? 0,
+            (string) ($row[$button . '_url'] ?? '')
+        );
+    }
+
+    /**
+     * The video's root-relative address: the Media Library item when one is
+     * chosen and still exists, else the path the Hero had before it (the
+     * rule BlockImage applies to images), else ''.
+     *
+     * @param array<string, mixed> $row a homepage_hero row
+     */
+    public static function videoPath(array $row): string
+    {
+        $video = MediaService::findVideo(isset($row['video_media_id']) ? (int) $row['video_media_id'] : null);
+
+        if ($video !== null) {
+            return $video->publicPath();
+        }
+
+        return BlockImage::normalisePath((string) ($row['video_path'] ?? ''));
     }
 
     /**
@@ -368,17 +418,26 @@ class HomepageHeroContent
      * Hero starts with.
      *
      * @param array<string, mixed> $row a homepage_hero row
-     * @return array{title_highlight_size: int, primary_url: string, secondary_url: string, image_path: string, media_type: string, video_path: string, layout: string}
+     * @return array<string, int|string|null> the keys of STARTING_VALUES
      */
     public static function settingsOf(array $row): array
     {
+        $id = static fn (string $key): ?int => isset($row[$key]) && (int) $row[$key] > 0 ? (int) $row[$key] : null;
+        $text = static fn (string $key): ?string => isset($row[$key]) && (string) $row[$key] !== '' ? (string) $row[$key] : null;
+
         return [
             'title_highlight_size' => self::clampHighlightSize($row['title_highlight_size'] ?? null),
             'primary_url' => (string) ($row['primary_url'] ?? ''),
+            'primary_link_type' => $text('primary_link_type'),
+            'primary_link_target_id' => $id('primary_link_target_id'),
             'secondary_url' => (string) ($row['secondary_url'] ?? ''),
+            'secondary_link_type' => $text('secondary_link_type'),
+            'secondary_link_target_id' => $id('secondary_link_target_id'),
             'image_path' => (string) ($row['image_path'] ?? ''),
+            'media_id' => $id('media_id'),
             'media_type' => (string) ($row['media_type'] ?? self::STARTING_VALUES['media_type']),
             'video_path' => (string) ($row['video_path'] ?? ''),
+            'video_media_id' => $id('video_media_id'),
             'layout' => (string) ($row['layout'] ?? self::STARTING_VALUES['layout']),
         ];
     }

@@ -131,7 +131,8 @@ final class BlockRowEditorsHttpTest extends TestCase
             'base' => [
                 'eyebrow' => 'Welkom', 'title' => 'Wij maken het', 'title_highlight' => '', 'lead' => '', 'primary_label' => 'Bekijk',
                 'secondary_label' => '', 'image_alt' => 'Een werkplaats', 'badge_title' => '', 'badge_text' => '',
-                'title_highlight_size' => '100', 'primary_url' => '/contact', 'secondary_url' => '', 'media_type' => 'image', 'layout' => 'media_right',
+                'title_highlight_size' => '100', 'primary_link_type' => 'url', 'primary_url' => '/contact',
+                'secondary_link_type' => 'none', 'secondary_url' => '', 'media_type' => 'image', 'layout' => 'media_right',
             ],
             'word' => 'title',
             'list' => 'stats',
@@ -646,82 +647,219 @@ final class BlockRowEditorsHttpTest extends TestCase
         self::assertFalse($this->control($screen, 'image_alt')->hasAttribute('required'), 'the browser does not block the save on it either');
     }
 
+    /**
+     * The alt text is required as it always was — with a newly chosen image,
+     * or when the editor changes it — but what must not be empty is the text
+     * that will be USED: the Hero's own, else the library's. A text that only
+     * repeats the library's is stored empty, so it keeps following it.
+     */
     public function testANewImageOrAnEditedAltTextKeepsTheOldAltTextRules(): void
     {
         $this->place('homepage_hero');
         $session = $this->signIn(null);
-        $uploads = $this->heroUploads();
+        $bare = $this->libraryItem('image/webp', '');
+        $described = $this->libraryItem('image/webp', 'Werkplaats met laser');
 
-        // A new image without an alt text in the default language: refused, nothing stored, no file.
+        // A new image without an alt text anywhere: refused, nothing stored.
         $this->heroWithAnImageAndNoAlt();
         $before = $this->snapshot('homepage_hero');
-        $this->assertRefused($this->save($session, 'homepage_hero', 'nl', ['title' => 'Blok gewijzigd', 'image_alt' => ''], [], null, ['image' => $this->uploadableImage()]));
+        $this->assertRefused($this->save($session, 'homepage_hero', 'nl', ['title' => 'Blok gewijzigd', 'image_alt' => '', 'media_id' => (string) $bare], []));
         self::assertSame($before, $this->snapshot('homepage_hero'));
-        self::assertSame($uploads, $this->heroUploads());
-        self::assertSame('true', $this->control($this->xpath($this->screen($session, 'homepage_hero')), 'image_alt')->getAttribute('aria-invalid'));
+        $screen = $this->xpath($this->screen($session, 'homepage_hero'));
+        self::assertSame('true', $this->control($screen, 'image_alt')->getAttribute('aria-invalid'));
+        self::assertSame('Deze afbeelding heeft nog geen alt-tekst', $this->control($screen, 'image_alt')->getAttribute('placeholder'), 'the chosen image comes back, and says it has no alt text');
 
-        // An alt text the editor empties: refused, as the image form refused it.
-        BlockLocalization::save('homepage_hero', $this->parentId, 'nl', array_intersect_key(self::CASES['homepage_hero']['base'], BlockLocalization::fields('homepage_hero')));
+        // A new image whose library alt text is shown and sent back as it was:
+        // saved, and stored as "the library's" — no copy.
+        $this->assertSaved($this->save($session, 'homepage_hero', 'nl', ['title' => 'Blok gewijzigd', 'image_alt' => 'Werkplaats met laser', 'media_id' => (string) $described], []));
+        self::assertSame($described, (int) $this->parentRow('homepage_hero')['media_id']);
+        self::assertArrayNotHasKey('image_alt', $this->stored('homepage_hero', $this->parentId, 'nl'));
+        $screen = $this->xpath($this->screen($session, 'homepage_hero'));
+        self::assertSame('Werkplaats met laser', $this->valueOf($screen, 'image_alt'), 'the field shows the alt text that is used');
+        self::assertSame('media_id', $this->control($screen, 'image_alt')->getAttribute('data-media-alt-for'));
+        \App\Service\HomepageHeroContent::clearCache();
+        self::assertSame('Werkplaats met laser', \App\Service\HomepageHeroContent::current()['image_alt']);
+
+        // An own alt text is the Hero's own.
+        $this->assertSaved($this->save($session, 'homepage_hero', 'nl', ['image_alt' => 'Laser aan het werk', 'media_id' => (string) $described], []));
+        self::assertSame('Laser aan het werk', $this->stored('homepage_hero', $this->parentId, 'nl')['image_alt']);
+
+        // Emptied, it falls back on the library's again: allowed, since that is not empty.
+        $this->assertSaved($this->save($session, 'homepage_hero', 'nl', ['image_alt' => '', 'media_id' => (string) $described], []));
+        self::assertArrayNotHasKey('image_alt', $this->stored('homepage_hero', $this->parentId, 'nl'));
+
+        // An own alt text emptied on an image the library has none for: refused.
+        $this->assertSaved($this->save($session, 'homepage_hero', 'nl', ['image_alt' => 'Eigen tekst', 'media_id' => (string) $bare], []));
         $before = $this->snapshot('homepage_hero');
-        $this->assertRefused($this->save($session, 'homepage_hero', 'nl', ['title' => 'Blok gewijzigd', 'image_alt' => ''], []));
+        $this->assertRefused($this->save($session, 'homepage_hero', 'nl', ['image_alt' => '', 'media_id' => (string) $bare], []));
         self::assertSame($before, $this->snapshot('homepage_hero'));
 
         // Too long is too long, whatever else happens.
-        $this->assertRefused($this->save($session, 'homepage_hero', 'nl', ['image_alt' => str_repeat('a', 256)], []));
+        $this->assertRefused($this->save($session, 'homepage_hero', 'nl', ['image_alt' => str_repeat('a', 256), 'media_id' => (string) $bare], []));
         self::assertSame($before, $this->snapshot('homepage_hero'));
 
-        // A translation never requires it.
-        $this->assertSaved($this->save($this->signIn('en'), 'homepage_hero', 'en', ['title' => 'Changed'], [], null, ['image' => $this->uploadableImage()]));
-        $this->files[] = dirname(__DIR__, 2) . '/' . $this->parentRow('homepage_hero')['image_path'];
+        // A translation never requires it, and keeps what it was given.
+        $this->assertSaved($this->save($this->signIn('en'), 'homepage_hero', 'en', ['title' => 'Changed', 'media_id' => (string) $described, 'image_alt' => 'Werkplaats met laser'], []));
+        self::assertSame('Werkplaats met laser', $this->stored('homepage_hero', $this->parentId, 'en')['image_alt']);
     }
 
-    public function testANewImageIsStoredWithTheWordsAndARefusedSaveLeavesNoFileBehind(): void
+    /**
+     * The image and the video are library items, saved with the words and the
+     * stats in one save; a refused save stores none of it and hands the
+     * choices back. Choosing video without a video keeps the choice.
+     */
+    public function testTheImageAndTheVideoComeFromTheLibraryInTheOneSave(): void
     {
         $this->place('homepage_hero');
         $session = $this->signIn(null);
         [$a] = $this->seed($session, 'homepage_hero', 1);
+        $image = $this->libraryItem('image/webp', 'Werkplaats');
+        $video = $this->libraryItem('video/mp4', '');
         $before = $this->snapshot('homepage_hero');
-        $uploads = $this->heroUploads();
 
-        // Refused (the stat's words are too long): no row, no word and no file.
-        $this->assertRefused($this->save($session, 'homepage_hero', 'nl', ['title' => 'Blok gewijzigd', 'image_alt' => 'Nieuwe alt'], [
+        // Refused (the stat's words are too long): nothing stored, the choices come back.
+        $this->assertRefused($this->save($session, 'homepage_hero', 'nl', ['title' => 'Blok gewijzigd', 'media_id' => (string) $image, 'video_media_id' => (string) $video], [
             (string) $a => ['primary_text' => str_repeat('x', 101)] + $this->row('homepage_hero'),
-        ], null, ['image' => $this->uploadableImage()]));
+        ]));
         self::assertSame($before, $this->snapshot('homepage_hero'));
-        self::assertSame($uploads, $this->heroUploads(), 'a refused save writes no file');
-        self::assertStringContainsString('Kies het opnieuw', $this->screen($session, 'homepage_hero'), 'the screen asks for the file again');
+        $screen = $this->xpath($this->screen($session, 'homepage_hero'));
+        self::assertSame((string) $image, $this->valueOf($screen, 'media_id'));
+        self::assertSame((string) $video, $this->valueOf($screen, 'video_media_id'));
 
-        // Accepted: the image, its alt text, a title and a stat in one save.
-        $this->assertSaved($this->save($session, 'homepage_hero', 'nl', ['title' => 'Blok gewijzigd', 'image_alt' => 'Nieuwe alt', 'media_type' => 'video', 'layout' => 'background'], [
+        // Accepted: both items, a title and a stat in one save.
+        $this->assertSaved($this->save($session, 'homepage_hero', 'nl', ['title' => 'Blok gewijzigd', 'media_id' => (string) $image, 'video_media_id' => (string) $video, 'media_type' => 'video', 'layout' => 'background'], [
             (string) $a => ['primary_text' => '12+'] + $this->row('homepage_hero'),
-        ], null, ['image' => $this->uploadableImage()]));
+        ]));
 
         $hero = $this->parentRow('homepage_hero');
-        $stored = dirname(__DIR__, 2) . '/' . $hero['image_path'];
-        $this->files[] = $stored;
-        self::assertStringStartsWith('assets/images/sections/', (string) $hero['image_path']);
-        self::assertFileExists($stored);
-        self::assertSame(['video', 'background', ''], [$hero['media_type'], $hero['layout'], (string) $hero['video_path']], 'choosing video without a file keeps the choice; the video stays as it was');
-        self::assertSame('Nieuwe alt', $this->stored('homepage_hero', $this->parentId, 'nl')['image_alt']);
+        self::assertSame([$image, $video], [(int) $hero['media_id'], (int) $hero['video_media_id']]);
+        self::assertSame(MediaService::find($image)?->path, $hero['image_path'], 'the old column follows the chosen item');
+        self::assertSame(['video', 'background'], [$hero['media_type'], $hero['layout']]);
         self::assertSame('Blok gewijzigd', $this->stored('homepage_hero', $this->parentId, 'nl')['title']);
         self::assertSame('12+', $this->stored('homepage_hero_stats', $a, 'nl')['primary_text']);
+
+        \App\Service\HomepageHeroContent::clearCache();
+        $content = \App\Service\HomepageHeroContent::current();
+        self::assertSame(MediaService::find($video)?->publicPath(), $content['video_path']);
+        self::assertSame(MediaService::find($image)?->publicPath(), $content['image_path']);
+        self::assertSame('video', $content['media_type']);
+
+        // The item that is used cannot be deleted from the library.
+        $usages = (new \App\Service\Media\Usage\ContentBlockMediaUsage())->usagesFor([$image, $video]);
+        self::assertSame('/admin/homepage-hero.php', $usages[$image][0]->editUrl);
+        self::assertSame('/admin/homepage-hero.php', $usages[$video][0]->editUrl);
     }
 
-    public function testAWrongFileIsRefusedWithItsMessageAndNothingIsStored(): void
+    /** A video sent as the image, an image sent as the video, or an id that names nothing: refused at its field. */
+    public function testAWrongOrUnknownMediaItemIsRefusedAtItsField(): void
     {
         $this->place('homepage_hero');
         $session = $this->signIn(null);
+        $image = $this->libraryItem('image/webp', 'Werkplaats');
+        $video = $this->libraryItem('video/webm', '');
         $before = $this->snapshot('homepage_hero');
-        $text = (string) tempnam(sys_get_temp_dir(), 'zzhero');
-        file_put_contents($text, 'geen afbeelding');
-        $this->files[] = $text;
 
-        $this->assertRefused($this->save($session, 'homepage_hero', 'nl', ['title' => 'Blok gewijzigd'], [], null, ['image' => new \CURLFile($text, 'image/png', 'nep.png')]));
-        self::assertSame($before, $this->snapshot('homepage_hero'));
+        foreach ([['media_id' => (string) $video], ['video_media_id' => (string) $image], ['media_id' => '999999999']] as $wrong) {
+            $this->assertRefused($this->save($session, 'homepage_hero', 'nl', ['title' => 'Blok gewijzigd', 'image_alt' => 'x'] + $wrong, []), (string) json_encode($wrong));
+            self::assertSame($before, $this->snapshot('homepage_hero'));
+            $screen = $this->xpath($this->screen($session, 'homepage_hero'));
+            self::assertSame('Blok gewijzigd', $this->valueOf($screen, 'title'), 'the typed title comes back');
+        }
+    }
 
-        $screen = $this->xpath($this->screen($session, 'homepage_hero'));
-        self::assertSame('true', $this->control($screen, 'image')->getAttribute('aria-invalid'), 'the message is at the file field');
-        self::assertSame('Blok gewijzigd', $this->valueOf($screen, 'title'), 'the typed title comes back');
+    /**
+     * A Hero from before the library keeps its own files until another is
+     * chosen or they are ticked away; then an admin upload is deleted after
+     * the commit.
+     */
+    public function testAPreLibraryImageAndVideoStayUntilReplacedOrRemoved(): void
+    {
+        $this->place('homepage_hero');
+        $session = $this->signIn(null);
+        $root = dirname(__DIR__, 2);
+        foreach (['images', 'videos'] as $folder) {
+            if (!is_dir($root . '/assets/' . $folder . '/sections')) {
+                mkdir($root . '/assets/' . $folder . '/sections', 0755, true);
+            }
+        }
+        $oldImage = 'assets/images/sections/__mhux_oud_' . bin2hex(random_bytes(3)) . '.jpg';
+        $oldVideo = 'assets/videos/sections/__mhux_oud_' . bin2hex(random_bytes(3)) . '.mp4';
+        file_put_contents($root . '/' . $oldImage, 'x');
+        file_put_contents($root . '/' . $oldVideo, 'x');
+        $this->files[] = $root . '/' . $oldImage;
+        $this->files[] = $root . '/' . $oldVideo;
+        Database::connection()->prepare('UPDATE homepage_hero SET image_path = ?, video_path = ? WHERE id = ?')->execute([$oldImage, $oldVideo, $this->parentId]);
+
+        // A save of the words keeps both.
+        $this->assertSaved($this->save($session, 'homepage_hero', 'nl', ['title' => 'Blok gewijzigd'], []));
+        $hero = $this->parentRow('homepage_hero');
+        self::assertSame([$oldImage, $oldVideo], [$hero['image_path'], $hero['video_path']]);
+        self::assertFileExists($root . '/' . $oldImage);
+        \App\Service\HomepageHeroContent::clearCache();
+        self::assertSame('/' . $oldImage, \App\Service\HomepageHeroContent::current()['image_path'], 'still shown on the website');
+
+        // Another image chosen, the old video ticked away: both old files go.
+        $image = $this->libraryItem('image/webp', 'Werkplaats');
+        $this->assertSaved($this->save($session, 'homepage_hero', 'nl', ['media_id' => (string) $image, 'remove_legacy_video' => '1'], []));
+        $hero = $this->parentRow('homepage_hero');
+        self::assertSame($image, (int) $hero['media_id']);
+        self::assertSame('', (string) $hero['video_path']);
+        self::assertFileDoesNotExist($root . '/' . $oldImage);
+        self::assertFileDoesNotExist($root . '/' . $oldVideo);
+    }
+
+    /**
+     * Each button points at a page by id (following its address) or at an
+     * own address; a Hero from before link types renders its address as it
+     * always did. The secondary button may be "Geen knop", and needs a label
+     * when it is one.
+     */
+    public function testTheButtonsPointAtAPageByIdOrAtAnOwnAddress(): void
+    {
+        $this->place('homepage_hero');
+        $session = $this->signIn(null);
+
+        $this->assertSaved($this->save($session, 'homepage_hero', 'nl', [
+            'primary_link_type' => 'page',
+            'primary_link_target' => ['page' => (string) $this->pageId],
+            'secondary_link_type' => 'url',
+            'secondary_url' => 'https://example.com/folder',
+            'secondary_label' => 'Folder',
+        ], []));
+        $hero = $this->parentRow('homepage_hero');
+        self::assertSame(['page', $this->pageId, 'url'], [$hero['primary_link_type'], (int) $hero['primary_link_target_id'], $hero['secondary_link_type']]);
+
+        \App\Service\HomepageHeroContent::clearCache();
+        $content = \App\Service\HomepageHeroContent::current();
+        $page = (new PageRepository())->findById($this->pageId);
+        self::assertSame(PageContent::publicUrl($page), $content['primary_url'], 'the page, at its own address');
+        self::assertSame('https://example.com/folder', $content['secondary_url']);
+
+        // The page moves: the button follows without a save of the Hero.
+        Database::connection()->prepare('UPDATE pages SET slug = ? WHERE id = ?')->execute([self::KEY . '-verhuisd', $this->pageId]);
+        PageContent::clearCache();
+        \App\Service\Routing\LinkTargets::reset();
+        \App\Service\HomepageHeroContent::clearCache();
+        self::assertStringContainsString(self::KEY . '-verhuisd', \App\Service\HomepageHeroContent::current()['primary_url']);
+
+        // A secondary button without a label is refused; "Geen knop" with none is fine.
+        $this->assertRefused($this->save($session, 'homepage_hero', 'nl', ['secondary_link_type' => 'url', 'secondary_url' => '/contact', 'secondary_label' => ''], []));
+        $this->assertSaved($this->save($session, 'homepage_hero', 'nl', ['secondary_link_type' => 'none', 'secondary_url' => '', 'secondary_label' => ''], []));
+        self::assertNull($this->parentRow('homepage_hero')['secondary_link_type']);
+
+        // The primary button has no "Geen knop", and an own address must be one.
+        $this->assertRefused($this->save($session, 'homepage_hero', 'nl', ['primary_link_type' => 'none'], []));
+        $this->assertRefused($this->save($session, 'homepage_hero', 'nl', ['primary_link_type' => 'url', 'primary_url' => 'javascript:alert(1)'], []));
+
+        // Written before link types existed: an address and no type, rendered as the address.
+        Database::connection()->prepare("UPDATE homepage_hero SET primary_link_type = NULL, primary_link_target_id = NULL, primary_url = '/contact' WHERE id = ?")->execute([$this->parentId]);
+        \App\Service\HomepageHeroContent::clearCache();
+        self::assertSame('/contact', \App\Service\HomepageHeroContent::current()['primary_url']);
+        // A fresh session: the refused saves above left what was typed in this one.
+        $screen = $this->xpath($this->screen($this->signIn(null), 'homepage_hero'));
+        self::assertSame('/contact', $this->valueOf($screen, 'primary_url'));
+        self::assertSame('url', $screen->query('//select[@name="primary_link_type"]/option[@selected]')->item(0)?->getAttribute('value'), 'read as an own address');
+        self::assertSame(0, $screen->query('//select[@name="primary_link_type"]/option[@value="none"]')->length, 'the primary button has no "Geen knop"');
     }
 
     // ------------------------------------------------------------ helpers
@@ -746,7 +884,7 @@ final class BlockRowEditorsHttpTest extends TestCase
         $this->heroBefore = ['hero' => $hero, 'stats' => $stats, 'words' => $words->fetchAll(\PDO::FETCH_ASSOC)];
 
         $this->clearHero($id);
-        $db->prepare("UPDATE homepage_hero SET image_path = '', video_path = NULL WHERE id = ?")->execute([$id]);
+        $db->prepare("UPDATE homepage_hero SET image_path = '', media_id = NULL, video_path = NULL, video_media_id = NULL, primary_link_type = 'url', primary_link_target_id = NULL, secondary_link_type = NULL, secondary_link_target_id = NULL WHERE id = ?")->execute([$id]);
         BlockLocalization::save('homepage_hero', $id, 'nl', array_intersect_key(self::CASES['homepage_hero']['base'], BlockLocalization::fields('homepage_hero')));
         BlockLocalization::clearCache();
         \App\Service\HomepageHeroContent::clearCache();
@@ -795,28 +933,6 @@ final class BlockRowEditorsHttpTest extends TestCase
         $db = Database::connection();
         $db->prepare("DELETE FROM block_translations WHERE (owner_table = 'homepage_hero' AND owner_id = ?) OR (owner_table = 'homepage_hero_stats' AND owner_id IN (SELECT id FROM homepage_hero_stats WHERE homepage_hero_id = ?))")->execute([$id, $id]);
         $db->prepare('DELETE FROM homepage_hero_stats WHERE homepage_hero_id = ?')->execute([$id]);
-    }
-
-    /** @return list<string> the files in the Hero's upload folders */
-    private function heroUploads(): array
-    {
-        $root = dirname(__DIR__, 2);
-
-        return array_values(array_merge(glob($root . '/assets/images/sections/*') ?: [], glob($root . '/assets/videos/sections/*') ?: []));
-    }
-
-    /** A small, real PNG, sent the way a browser sends a chosen file. */
-    private function uploadableImage(): \CURLFile
-    {
-        $path = (string) tempnam(sys_get_temp_dir(), 'zzhero');
-        $this->files[] = $path;
-
-        $image = imagecreatetruecolor(64, 48);
-        imagefill($image, 0, 0, (int) imagecolorallocate($image, 200, 120, 40));
-        imagepng($image, $path);
-        imagedestroy($image);
-
-        return new \CURLFile($path, 'image/png', 'hero.png');
     }
 
     private function place(string $case): void
@@ -998,6 +1114,22 @@ final class BlockRowEditorsHttpTest extends TestCase
         }
 
         return $media;
+    }
+
+    /** A library item of a given type and alt text, for a file that does not exist; removed in tearDown(). */
+    private function libraryItem(string $mimeType, string $alt): int
+    {
+        $extension = $mimeType === 'video/mp4' ? 'mp4' : ($mimeType === 'video/webm' ? 'webm' : 'webp');
+        $id = (new MediaRepository())->create([
+            'path' => 'assets/media/__block_row_editors_' . bin2hex(random_bytes(4)) . '__.' . $extension,
+            'original_filename' => 'bestand.' . $extension,
+            'mime_type' => $mimeType,
+            'alt_text' => $alt,
+        ]);
+        $this->mediaIds[] = $id;
+        MediaService::clearCache();
+
+        return $id;
     }
 
     /** A media row for a file that does not exist: neither the form nor the save reads the disk. */

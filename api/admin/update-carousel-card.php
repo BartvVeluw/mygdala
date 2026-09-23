@@ -60,7 +60,7 @@ use App\Service\Language\LanguageCode;
 use App\Service\Language\SiteLanguages;
 use App\Service\CardCarouselContent;
 use App\Service\Media\BlockImage;
-use App\Service\Routing\LinkTargets;
+use App\Service\Routing\LinkChoice;
 use App\Repository\CardCarouselRepository;
 
 AdminAuth::requireLoginForApi();
@@ -109,35 +109,24 @@ $action = EditorRows::parseAction($_POST['editor_action'] ?? null);
 
 // ---------------------------------------------------------------- the button
 
-$storedLinkType = (string) ($card['link_type'] ?? '');
-$linkType = (string) ($_POST['link_type'] ?? 'none');
 $linkUrl = trim((string) ($_POST['link_url'] ?? ''));
 $postedTargets = is_array($_POST['link_target'] ?? null) ? $_POST['link_target'] : [];
-$linkTarget = (int) ($postedTargets[$linkType] ?? 0);
+$linkType = (string) ($_POST['link_type'] ?? LinkChoice::NONE);
 
 $fieldErrors = [];
 
-if ($linkType === 'none') {
-    $settings = ['link_type' => null, 'link_target_id' => null];
-} elseif ($linkType === 'url') {
-    $settings = ['link_type' => 'url', 'link_target_id' => null];
-    if ($linkUrl === '') {
-        $fieldErrors['link'] = AdminTranslator::trans('block_carousel.error_link_url_empty');
-    } elseif (preg_match('/^([a-z][a-z0-9+.-]*):/i', $linkUrl, $scheme) && !in_array(strtolower($scheme[1]), ['http', 'https', 'mailto', 'tel'], true)) {
-        $fieldErrors['link'] = AdminTranslator::trans('block_carousel.error_link_url_scheme');
-    }
-} elseif (LinkTargets::isAvailable($linkType)) {
-    $settings = ['link_type' => $linkType, 'link_target_id' => $linkTarget];
-    if ($linkTarget < 1 || !LinkTargets::exists($linkType, $linkTarget)) {
-        $fieldErrors['link'] = AdminTranslator::trans('block_carousel.error_link_target');
-    }
-} elseif ($linkType === $storedLinkType && $storedLinkType !== '') {
-    // A kind whose module is off, left alone: kept exactly as stored.
-    $settings = ['link_type' => $storedLinkType, 'link_target_id' => (int) ($card['link_target_id'] ?? 0)];
-} else {
-    $settings = ['link_type' => null, 'link_target_id' => null];
-    $fieldErrors['link'] = AdminTranslator::trans('block_carousel.error_link_target');
+// The same rule every block button follows (App\Service\Routing\LinkChoice).
+$link = LinkChoice::fromRequest(
+    $linkType,
+    $postedTargets[$linkType] ?? null,
+    $linkUrl,
+    (string) ($card['link_type'] ?? ''),
+    (int) ($card['link_target_id'] ?? 0)
+);
+if ($link['error'] !== null) {
+    $fieldErrors['link'] = $link['error'];
 }
+$settings = ['link_type' => $link['link_type'], 'link_target_id' => $link['link_target_id']];
 
 $settings += ['link_url' => $linkUrl, 'is_active' => $isActive];
 

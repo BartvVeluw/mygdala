@@ -240,6 +240,11 @@ Reden, per keuze:
   tweede uploadsysteem geworden, of een uitbreiding van de bibliotheek met een
   tweede soort bestand. Dat is een eigen stap. Neemt de bibliotheek ooit video aan,
   dan kan dezelfde `media_id` er een aanwijzen.
+
+  *Later:* de bibliotheek neemt sinds de fase "Media, Homepage Hero & Admin UX"
+  MP4 en WebM aan, en de homepage-hero kiest zijn video daar
+  (`homepage_hero.video_media_id`). De Paginakop heeft nog steeds geen video;
+  dat is nu alleen nog een ontwerpkeuze, geen technische grens.
 - **Drie stappen per grootte.** Voor de titel zijn dat `--fs-h2`, `--fs-h1` en één
   nieuwe schaalstap `--fs-display` in `core.css`, voor de inleiding `--fs-body`,
   `--fs-lead` en `--fs-h3`. Een vierde stap had nog een verzonnen maat gevraagd die

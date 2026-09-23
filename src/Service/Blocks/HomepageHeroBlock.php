@@ -67,7 +67,11 @@ final class HomepageHeroBlock extends BlockDefinition
      * in every language and stay in homepage_hero / homepage_hero_stats. The
      * lengths are the ones the editor always allowed, and what is required
      * is what it always required: eyebrow, title and the primary button in
-     * the text form, the alt text in the image form, both texts of a stat.
+     * the text form, both texts of a stat. The image's alt text is not
+     * required HERE since the image comes from the Media Library: empty
+     * means the library's (BlockImage), and api/admin/update-homepage-hero.php
+     * checks that the alt text actually used is not empty when a new image is
+     * chosen or the alt text is changed, as it always did.
      */
     public function translatableFields(): array
     {
@@ -79,7 +83,7 @@ final class HomepageHeroBlock extends BlockDefinition
                 TranslatableField::plain('lead', 500),
                 TranslatableField::plain('primary_label', 150)->required(),
                 TranslatableField::plain('secondary_label', 150),
-                TranslatableField::plain('image_alt', 255)->required(),
+                TranslatableField::plain('image_alt', 255),
                 TranslatableField::plain('badge_title', 150),
                 TranslatableField::plain('badge_text', 500),
             ],

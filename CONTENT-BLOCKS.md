@@ -84,6 +84,17 @@ Twee onafhankelijke schakelaars verbergen een blok, en beide tellen:
   text zoals hij is. Hij kent geen taal. Een URL die de redacteur typte gaat
   in de `*Content`-klasse door `App\Service\Routing\TypedLink::href()`, zodat
   een knop op `/en/` naar de Engelse versie van de pagina wijst.
+- **Een blokknop met een linkdoel** (een carrouselkaart, de twee knoppen van
+  de Homepage-hero) bewaart `link_type` + `link_target_id` naast de getypte
+  URL: *Geen knop*, een pagina, blogbericht of product van de site
+  (`App\Service\Routing\LinkTargets`), of een eigen adres.
+  `App\Service\Routing\LinkChoice` controleert wat er gepost is en maakt er
+  per render een adres van in de taal van het verzoek; een intern doel is een
+  id, dus een nieuwe slug of taal volgt vanzelf. De editor gebruikt
+  `admin/_link_target_field.php`; met meer dan één knop op een formulier zit
+  elke knop in een eigen `[data-nav-link-group]`. Een rij van vóór het type
+  heeft een adres en geen type, en is een adres (`LinkChoice::storedType()`).
+  Bouw er geen kopie van per blok.
 - De editor staat op `admin/_localized_fields.php`: één taal op het scherm,
   verplicht alleen in de standaardtaal. Het endpoint controleert
   `language_code` tegen `SiteLanguages::isActive()`, valideert met

@@ -601,18 +601,25 @@ Alle blok-editors met rijen volgen dit contract; geen enkele heeft nog een
 | Kaartenraster | `admin/feature-grid.php` (kop, *Actief*, kaarten met icoon) | `api/admin/update-feature-grid.php` |
 | Tekst met afbeelding | `admin/text-image-split.php` (sectie, knop, *Actief*, alinea's, afbeeldingen uit de mediabibliotheek) | `api/admin/update-text-image-split-section.php` |
 | Detailsectie | `admin/detail-section.php` (woorden en rich text, anker, CTA, *Actief*, hoofdafbeelding, kenmerken, galerij) | `api/admin/update-detail-section.php` |
-| Homepage-hero | `admin/homepage-hero.php` (teksten, knoppen, badge, media en lay-out, afbeelding en video als bestand, statistieken, max. 3) | `api/admin/update-homepage-hero.php` |
+| Homepage-hero | `admin/homepage-hero.php` (teksten, knoppen met linkdoel, badge, media en lay-out, afbeelding en video uit de mediabibliotheek, statistieken, max. 3) | `api/admin/update-homepage-hero.php` |
 
 Een kaart heeft een eigen scherm omdat hij zelf een lijst (tags) draagt;
 *Bewerken* en *Kaart toevoegen* slaan de carrousel eerst op.
 
-De Homepage-hero uploadt zijn afbeelding en video als bestand, in hetzelfde
-formulier (multipart). Eerst wordt alles gecontroleerd wat zonder de
-bestanden kan; pas daarna worden ze opgeslagen, en mislukt de transactie
-daarna toch, dan worden ze weer verwijderd. Een vervangen bestand gaat pas
-weg na de commit. Een browser vult een bestandsveld nooit opnieuw in: na een
-geweigerde opslag komt alle tekst terug en vraagt het scherm het bestand
-opnieuw te kiezen.
+De Homepage-hero kiest zijn afbeelding en zijn video uit de mediabibliotheek
+(`MEDIA.md`, "De mediakiezer"; het videoveld toont alleen video). Kiezen is
+dus deel van dezelfde opslag, en na een geweigerde opslag komen de gekozen
+items terug zoals alle tekst. Een Hero van vóór de bibliotheek houdt zijn
+eigen bestand (`image_path`, `video_path`) tot er een item gekozen wordt of
+*Deze afbeelding weghalen* aangevinkt is; pas na de commit gaat dat oude
+bestand weg, en alleen als het een eigen upload was. Waar elke knop heen
+gaat, is dezelfde keuze als bij een carrouselkaart
+(`admin/_link_target_field.php`, `CONTENT-BLOCKS.md`); de primaire knop heeft
+geen *Geen knop*. Langere uitleg staat achter het `?` naast een label.
+
+De statistieken zijn een gewone rijenlijst: *Statistiek toevoegen*, ↑/↓ en
+*Verwijderen* werken op het scherm zonder herladen, en pas *Opslaan* bewaart
+alles in één transactie (`row-list.js`, `EditorChildList`).
 
 ### Afbeeldingen in een rij en de hoofdafbeelding
 

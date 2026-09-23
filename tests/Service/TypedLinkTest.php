@@ -128,13 +128,16 @@ final class TypedLinkTest extends TestCase
         $root = dirname(__DIR__, 2);
 
         foreach ([
-            'src/Service/HomepageHeroContent.php' => ["TypedLink::href((string) (\$row['primary_url']", "TypedLink::href((string) (\$row['secondary_url']"],
+            // A block button with a destination goes through LinkChoice, whose
+            // own address is a TypedLink (LinkChoiceTest pins that part).
+            'src/Service/HomepageHeroContent.php' => ["LinkChoice::href(", "self::buttonHref(\$row, 'primary')", "self::buttonHref(\$row, 'secondary')"],
             'src/Service/CtaBandContent.php' => ["TypedLink::href((string) (\$row['primary_url']", "TypedLink::href((string) (\$row['secondary_url']"],
             'src/Service/ContactCardContent.php' => ['return TypedLink::href($stored);'],
             'src/Service/DetailSectionContent.php' => ["TypedLink::href((string) (\$row['cta_url']"],
             'src/Service/ItemGalleryContent.php' => ["TypedLink::href((string) (\$row['fallback_link_url']", "TypedLink::href((string) (\$row['button_url']"],
             'src/Service/TextImageSplitContent.php' => ["TypedLink::href((string) (\$row['button_url']"],
-            'src/Service/CardCarouselContent.php' => ['return TypedLink::href($typed);'],
+            'src/Service/CardCarouselContent.php' => ['return LinkChoice::href('],
+            'src/Service/Routing/LinkChoice.php' => ['return TypedLink::href(trim($url));'],
         ] as $file => $calls) {
             $source = (string) file_get_contents($root . '/' . $file);
             foreach ($calls as $call) {

@@ -56,20 +56,30 @@ class HomepageHeroRepository extends Repository
     {
         $stmt = $this->db->prepare(
             'INSERT INTO homepage_hero
-                (page_slug, title_highlight_size, primary_url, secondary_url,
-                 image_path, media_type, video_path, layout,
+                (page_slug, title_highlight_size,
+                 primary_url, primary_link_type, primary_link_target_id,
+                 secondary_url, secondary_link_type, secondary_link_target_id,
+                 image_path, media_id, media_type, video_path, video_media_id, layout,
                  is_active, created_at, updated_at)
              VALUES
-                (:page_slug, :title_highlight_size, :primary_url, :secondary_url,
-                 :image_path, :media_type, :video_path, :layout,
+                (:page_slug, :title_highlight_size,
+                 :primary_url, :primary_link_type, :primary_link_target_id,
+                 :secondary_url, :secondary_link_type, :secondary_link_target_id,
+                 :image_path, :media_id, :media_type, :video_path, :video_media_id, :layout,
                  :is_active, NOW(), NOW())
              ON DUPLICATE KEY UPDATE
                 title_highlight_size = VALUES(title_highlight_size),
                 primary_url = VALUES(primary_url),
+                primary_link_type = VALUES(primary_link_type),
+                primary_link_target_id = VALUES(primary_link_target_id),
                 secondary_url = VALUES(secondary_url),
+                secondary_link_type = VALUES(secondary_link_type),
+                secondary_link_target_id = VALUES(secondary_link_target_id),
                 image_path = VALUES(image_path),
+                media_id = VALUES(media_id),
                 media_type = VALUES(media_type),
                 video_path = VALUES(video_path),
+                video_media_id = VALUES(video_media_id),
                 layout = VALUES(layout),
                 is_active = VALUES(is_active),
                 updated_at = NOW()'
@@ -85,10 +95,16 @@ class HomepageHeroRepository extends Repository
             // only writes it.
             'title_highlight_size' => (int) $values['title_highlight_size'],
             'primary_url' => $values['primary_url'],
+            'primary_link_type' => self::nullIfEmpty($values['primary_link_type'] ?? null),
+            'primary_link_target_id' => self::positiveOrNull($values['primary_link_target_id'] ?? null),
             'secondary_url' => self::nullIfEmpty($values['secondary_url'] ?? null),
+            'secondary_link_type' => self::nullIfEmpty($values['secondary_link_type'] ?? null),
+            'secondary_link_target_id' => self::positiveOrNull($values['secondary_link_target_id'] ?? null),
             'image_path' => $values['image_path'],
+            'media_id' => self::positiveOrNull($values['media_id'] ?? null),
             'media_type' => $values['media_type'],
             'video_path' => self::nullIfEmpty($values['video_path'] ?? null),
+            'video_media_id' => self::positiveOrNull($values['video_media_id'] ?? null),
             'layout' => $values['layout'],
             'is_active' => $values['is_active'] ? 1 : 0,
         ]);
@@ -200,6 +216,12 @@ class HomepageHeroRepository extends Repository
         $stmt->execute(['homepage_hero_id' => $heroId]);
 
         return (int) $stmt->fetch()['next_sort_order'];
+    }
+
+    /** An id, or NULL for "none" (0, '' or null). */
+    private static function positiveOrNull(mixed $value): ?int
+    {
+        return is_numeric($value) && (int) $value > 0 ? (int) $value : null;
     }
 
     private static function nullIfEmpty(?string $value): ?string

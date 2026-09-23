@@ -91,6 +91,11 @@ final class AdminAccessControlTest extends TestCase
         // behind its own pages.manage check. No URL and no data of its own;
         // the rows are saved by the editor's own endpoint.
         '_editor_rows.php',
+        // A block button's destination field (a carousel card, the Homepage
+        // Hero): output functions the calling editor uses behind its own
+        // pages.manage check. It lists pages, posts and products the editor
+        // may link to, and the editor's own endpoint stores the choice.
+        '_link_target_field.php',
         // The block picker: the button under a page's block list plus the
         // panel it opens, included by admin/page.php behind that page's own
         // pages.manage check. It renders no data of its own — the caller

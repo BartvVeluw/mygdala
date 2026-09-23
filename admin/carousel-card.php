@@ -13,11 +13,13 @@ use App\Service\Blocks\BlockLocalization;
 use App\Service\CardCarouselContent;
 use App\Service\Csrf;
 use App\Service\Media\MediaService;
+use App\Service\Routing\LinkChoice;
 use App\Service\Routing\LinkTargets;
 use App\Repository\CardCarouselRepository;
 use App\Repository\PageRepository;
 
 require_once __DIR__ . '/_media_picker.php';
+require_once __DIR__ . '/_link_target_field.php';
 
 /**
  * Editor for ONE card of a "Kaarten-carrousel" (?card_id=...): whether it is
@@ -111,20 +113,14 @@ $isActive = is_array($old) ? !empty($old['is_active']) : (bool) $card['is_active
 
 // The button: its kind, its target and its typed address. A row written
 // before the kind existed has an address and no kind, and is an address.
-$storedLinkType = (string) ($card['link_type'] ?? '');
-if ($storedLinkType === '' && trim((string) ($card['link_url'] ?? '')) !== '') {
-    $storedLinkType = 'url';
-}
+$storedLinkType = LinkChoice::storedType($card['link_type'] ?? null, (string) ($card['link_url'] ?? ''));
 $linkType = is_array($old) ? (string) ($old['link_type'] ?? '') : $storedLinkType;
-$linkType = $linkType === '' ? 'none' : $linkType;
+$linkType = $linkType === '' ? LinkChoice::NONE : $linkType;
 $linkUrl = is_array($old) ? (string) ($old['link_url'] ?? '') : (string) ($card['link_url'] ?? '');
 $linkTargets = is_array($old) ? (array) ($old['link_target'] ?? []) : [];
 if (!is_array($old) && LinkTargets::isAvailable($storedLinkType)) {
     $linkTargets[$storedLinkType] = (int) ($card['link_target_id'] ?? 0);
 }
-$targetTypes = LinkTargets::types();
-// A card that points at a kind whose module is switched off keeps it.
-$keepsUnavailableLink = !in_array($storedLinkType, ['', 'url'], true) && !isset($targetTypes[$storedLinkType]);
 
 // The tags on screen: as a refused save handed them back (in their order,
 // new rows included), else as stored.
@@ -308,44 +304,20 @@ $tagRow = static function (string $key, string $label, string $fallback) use ($h
     <section class="admin-card">
       <h2><?= admin_te('block_carousel.knop') ?></h2>
 
-      <div class="admin-field">
-        <?= admin_field_label('card-link-type', admin_t('block_carousel.link_type'), admin_t('help.block_carousel.link_type')) ?>
-        <select class="admin-select" id="card-link-type" name="link_type" data-nav-link-type<?= $invalid('link') ?>>
-          <option value="none"<?= $linkType === 'none' ? ' selected' : '' ?>><?= admin_te('block_carousel.link_none') ?></option>
-          <?php foreach ($targetTypes as $type => $definition): ?>
-            <option value="<?= $h($type) ?>"<?= $linkType === $type ? ' selected' : '' ?>><?= $h((string) $definition['label']) ?></option>
-          <?php endforeach; ?>
-          <option value="url"<?= $linkType === 'url' ? ' selected' : '' ?>><?= admin_te('block_carousel.link_url') ?></option>
-          <?php if ($keepsUnavailableLink): ?>
-            <option value="<?= $h($storedLinkType) ?>"<?= $linkType === $storedLinkType ? ' selected' : '' ?>><?= admin_te('block_carousel.link_unavailable') ?></option>
-          <?php endif; ?>
-        </select>
-        <?php $fieldError('link'); ?>
-      </div>
+      <?php link_target_field([
+          'id' => 'card-link',
+          'type_name' => 'link_type',
+          'target_name' => 'link_target',
+          'url_name' => 'link_url',
+          'type' => $linkType,
+          'targets' => $linkTargets,
+          'url' => $linkUrl,
+          'stored_type' => $storedLinkType,
+          'invalid' => $invalid('link'),
+          'error' => static fn () => $fieldError('link'),
+      ]); ?>
 
-      <?php foreach ($targetTypes as $type => $definition): ?>
-        <?php $selected = (int) ($linkTargets[$type] ?? 0); ?>
-        <div class="admin-field" data-nav-link-field="<?= $h($type) ?>">
-          <?= admin_field_label('card-link-' . $type, (string) $definition['label']) ?>
-          <select class="admin-select" id="card-link-<?= $h($type) ?>" name="link_target[<?= $h($type) ?>]">
-            <option value=""><?= admin_te('block_carousel.link_choose') ?></option>
-            <?php foreach (LinkTargets::choices($type) as $choice): ?>
-              <option value="<?= (int) $choice['id'] ?>"<?= $selected === (int) $choice['id'] ? ' selected' : '' ?>><?= $h($choice['label']) ?><?= isset($choice['note']) ? ' ' . admin_te('block_carousel.link_note_' . $choice['note']) : '' ?></option>
-            <?php endforeach; ?>
-          </select>
-        </div>
-      <?php endforeach; ?>
-
-      <div class="admin-field" data-nav-link-field="url">
-        <?= admin_field_label('card-link-url', admin_t('block_carousel.knop_url'), admin_t('help.block_carousel.knop_url')) ?>
-        <input type="text" id="card-link-url" name="link_url" maxlength="255" value="<?= $h($linkUrl) ?>" placeholder="/contact of https://…">
-      </div>
-
-      <?php if ($keepsUnavailableLink): ?>
-        <p class="admin-text-muted" data-nav-link-field="<?= $h($storedLinkType) ?>"><?= admin_te('block_carousel.link_unavailable_uitleg') ?></p>
-      <?php endif; ?>
-
-      <div class="admin-field" data-nav-link-field="<?= $h(implode(' ', array_merge(array_keys($targetTypes), ['url'], $keepsUnavailableLink ? [$storedLinkType] : []))) ?>">
+      <div class="admin-field" data-nav-link-field="<?= $h(link_target_shown_kinds($storedLinkType)) ?>">
         <?= admin_field_label('card-link-label', admin_t('block_carousel.knoptekst'), admin_t('help.block_carousel.knoptekst')) ?>
         <input type="text" id="card-link-label" name="link_label" maxlength="150" value="<?= $h($cardWord('link_label')) ?>"<?= $optional ?><?= $invalid('link_label') ?>>
         <?php $fieldError('link_label'); ?>

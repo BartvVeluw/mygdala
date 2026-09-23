@@ -559,6 +559,7 @@ de belangrijkste opbrengst van deze stap.
 | Kaarten-carrousel (`card_carousel`) | `carousel_cards.media_id` |
 | Paginakop (`page_hero`) | `page_heroes.media_id`, zonder oud pad en zonder eigen alt-tekst: een paginakop had nooit een afbeelding |
 | Uitgelichte afbeelding en deel-afbeelding van een blogbericht | `blog_posts.featured_media_id`, `blog_posts.og_media_id` — een module, dus via `BlogModule::mediaUsageProviders()` |
+| Homepage-hero: afbeelding en video | `homepage_hero.media_id` (met eigen alt-tekst per taal) en `homepage_hero.video_media_id`, oude `image_path` / `video_path` als terugval. Het videoveld is de eerste videokiezer (`media_picker_field(…, MediaType::VIDEO)`) |
 
 **Bewust nog op hun eigen paden**, ongewijzigd en werkend:
 
@@ -568,7 +569,7 @@ de belangrijkste opbrengst van deze stap.
   (`portfolio_item_images`) worden niet meer bewerkt en ook niet gemigreerd:
   een projectpagina is nu een gewone pagina, en die haalt haar beeld uit deze
   bibliotheek (`MODULES.md`);
-- Homepage-hero (afbeelding én video) en Item-galerij;
+- Item-galerij;
 - Shop: producten, varianten, collecties. Productbeeld heeft volgorde,
   varianten en catalogus-semantiek; dat is een eigen stap.
 

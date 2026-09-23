@@ -400,6 +400,7 @@
             <file>tests/Service/BlockDefinitionContractTest.php</file>
             <file>tests/Service/BlockLocalizationTest.php</file>
             <file>tests/Service/TypedLinkTest.php</file>
+            <file>tests/Service/Routing/LinkChoiceTest.php</file>
             <file>tests/Install/BlockTranslationSchemaTest.php</file>
             <file>tests/Install/BlockTranslationMigrationTest.php</file>
             <file>tests/Install/RemainingBlockWordsMigrationTest.php</file>
@@ -473,6 +474,7 @@
             <file>tests/Service/DispatcherRoutingTest.php</file>
             <file>tests/Service/PublicRouteLanguageTest.php</file>
             <file>tests/Service/TypedLinkTest.php</file>
+            <file>tests/Service/Routing/LinkChoiceTest.php</file>
             <file>tests/Service/EntityTranslationsTest.php</file>
             <file>tests/Service/PortfolioLocalizationTest.php</file>
             <file>tests/Service/ShopLocalizationTest.php</file>

@@ -5,7 +5,7 @@ namespace App\Service;
 use App\Repository\CardCarouselRepository;
 use App\Service\Blocks\BlockLocalization;
 use App\Service\Media\BlockImage;
-use App\Service\Routing\LinkTargets;
+use App\Service\Routing\LinkChoice;
 use App\Service\Routing\RequestLanguage;
 use App\Service\Routing\TypedLink;
 
@@ -260,18 +260,7 @@ class CardCarouselContent
      */
     public static function href(array $card): string
     {
-        $type = (string) ($card['link_type'] ?? '');
-        $typed = trim((string) ($card['link_url'] ?? ''));
-
-        if ($type === 'url' || ($type === '' && $typed !== '')) {
-            return TypedLink::href($typed);
-        }
-
-        if ($type === '') {
-            return '';
-        }
-
-        return LinkTargets::href($type, (int) ($card['link_target_id'] ?? 0)) ?? '';
+        return LinkChoice::href($card['link_type'] ?? null, $card['link_target_id'] ?? 0, (string) ($card['link_url'] ?? ''));
     }
 
     /**

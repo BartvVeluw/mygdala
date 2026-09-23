@@ -8,9 +8,13 @@
  * picker plus one kind of its own ("action"). It has no presentation choice,
  * so only the destination part applies there.
  *
- * A carousel card's button (admin/carousel-card.php) is a destination picker
- * too — nothing, a page, a blog post, a product or a typed address — and uses
- * the destination part through the same attributes.
+ * A content block's button (admin/_link_target_field.php: a carousel card,
+ * the Homepage Hero's two buttons) is a destination picker too — nothing, a
+ * page, a blog post, a product or a typed address — and uses the destination
+ * part through the same attributes. A form with more than one button wraps
+ * each in its own [data-nav-link-group]: the fields inside a group follow
+ * that group's kind, and a field outside every group follows the form's
+ * first kind, which is all a form with one button needs.
  *
  * Nothing here is needed to use the screen. Without this file every field is
  * on screen and api/admin/_nav_item_input.php stores only the one that
@@ -32,12 +36,19 @@
   var kind = form.querySelector("[data-nav-link-type]");
   var presentation = form.querySelector("[data-nav-presentation]");
 
+  /** The kind select a field follows: its group's, else the form's first. */
+  function kindFor(field) {
+    var group = field.closest("[data-nav-link-group]");
+    return (group && group.querySelector("[data-nav-link-type]")) || kind;
+  }
+
   function syncDestination() {
     if (!kind) return;
 
     form.querySelectorAll("[data-nav-link-field]").forEach(function (field) {
       var kinds = (field.getAttribute("data-nav-link-field") || "").split(" ");
-      field.hidden = kinds.indexOf(kind.value) === -1;
+      var select = kindFor(field);
+      field.hidden = kinds.indexOf(select.value) === -1;
     });
   }
 
@@ -63,7 +74,9 @@
     });
   }
 
-  if (kind) kind.addEventListener("change", syncDestination);
+  form.querySelectorAll("[data-nav-link-type]").forEach(function (select) {
+    select.addEventListener("change", syncDestination);
+  });
   if (presentation) presentation.addEventListener("change", syncPresentation);
 
   syncPresentation();

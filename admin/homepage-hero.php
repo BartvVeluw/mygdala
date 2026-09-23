@@ -8,12 +8,17 @@ require_once __DIR__ . '/_save_bar.php';
 require_once __DIR__ . '/_localized_fields.php';
 require_once __DIR__ . '/_admin_ui.php';
 require_once __DIR__ . '/_editor_rows.php';
+require_once __DIR__ . '/_media_picker.php';
+require_once __DIR__ . '/_link_target_field.php';
 
 use App\Service\AdminAuth;
 use App\Service\Blocks\BlockDefinitions;
 use App\Service\Blocks\BlockLocalization;
 use App\Service\Csrf;
 use App\Service\HomepageHeroContent;
+use App\Service\Media\MediaService;
+use App\Service\Media\MediaType;
+use App\Service\Routing\LinkChoice;
 use App\Repository\HomepageHeroRepository;
 
 /**
@@ -22,10 +27,15 @@ use App\Repository\HomepageHeroRepository;
  *
  * ONE FORM, ONE SAVE (PAGE-EDITOR.md, "Eén formulier per blok-editor").
  * Everything on this screen posts to api/admin/update-homepage-hero.php
- * together, files included (multipart), and its one "Opslaan" (or the save
- * bar) stores all of it in one transaction. Choosing a new image or video
- * is part of that save, not a save of its own: nothing typed elsewhere on
- * the screen is lost by it. The stats are a list of rows, at most
+ * together, and its one "Opslaan" (or the save bar) stores all of it in one
+ * transaction. The image and the video are chosen from the Media Library
+ * (admin/_media_picker.php; the video field lists only video), so choosing
+ * one is part of that save and nothing typed elsewhere is lost by it. A Hero
+ * from before the library keeps showing the file it had until another is
+ * chosen. Each button points at a page, a blog post, a product or an own
+ * address (admin/_link_target_field.php, the Kaarten-carrousel's field).
+ * Longer explanations sit behind the "?" beside a label (ADMIN-UI.md).
+ * The stats are a list of rows, at most
  * HomepageHeroContent::MAX_STATS: ↑, ↓ and "Statistiek toevoegen" work on
  * screen (admin/assets/row-list.js), Verwijderen marks a stat until the save
  * (App\Service\Blocks\EditorChildList, admin/_editor_rows.php).
@@ -45,8 +55,7 @@ use App\Repository\HomepageHeroRepository;
  * in the default language, like a new page. Input a refused save hands back
  * comes back as it was typed (stats, order and marks included), with each
  * message next to its field, and the form then starts out unsaved in the
- * save bar. A chosen file cannot come back: a browser never pre-fills a file
- * field, so the screen says to choose it again.
+ * save bar.
  */
 
 AdminAuth::requireLogin();
@@ -123,17 +132,44 @@ $mediaType = $setting('media_type');
 $mediaType = in_array($mediaType, HomepageHeroContent::MEDIA_TYPES, true) ? $mediaType : HomepageHeroContent::MEDIA_TYPE_IMAGE;
 $layout = $setting('layout');
 $layout = in_array($layout, HomepageHeroContent::LAYOUTS, true) ? $layout : HomepageHeroContent::LAYOUT_MEDIA_RIGHT;
-$currentVideoPath = (string) ($hero['video_path'] ?? '');
+// The image and the video: a library item as handed back or stored, and the
+// file a Hero from before the library still shows while none is chosen.
+$heroMedia = MediaService::findImage((int) (is_array($old) ? ($old['media_id'] ?? 0) : ($hero['media_id'] ?? 0)));
+$heroVideo = MediaService::findVideo((int) (is_array($old) ? ($old['video_media_id'] ?? 0) : ($hero['video_media_id'] ?? 0)));
+$legacyImage = (int) ($hero['media_id'] ?? 0) === 0 ? trim((string) ($hero['image_path'] ?? '')) : '';
+$legacyVideo = (int) ($hero['video_media_id'] ?? 0) === 0 ? trim((string) ($hero['video_path'] ?? '')) : '';
 
-/** One text field of the Hero, with its own message. */
-$field = static function (string $name, string $label, int $maxLength, string $attributes, int $lines = 0) use ($h, $word, $fieldErrors): void {
+/** One button's destination on screen: as handed back, else as stored. */
+$button = static function (string $button) use ($old, $hero): array {
+    $storedType = LinkChoice::storedType($hero[$button . '_link_type'] ?? null, (string) ($hero[$button . '_url'] ?? ''));
+    $targets = is_array($old) ? (array) ($old[$button . '_link_target'] ?? []) : [];
+    if (!is_array($old) && !in_array($storedType, [LinkChoice::NONE, LinkChoice::URL], true)) {
+        $targets[$storedType] = (int) ($hero[$button . '_link_target_id'] ?? 0);
+    }
+
+    return [
+        'stored_type' => $storedType,
+        'type' => is_array($old) ? (string) ($old[$button . '_link_type'] ?? '') : $storedType,
+        'targets' => $targets,
+        'url' => is_array($old) ? (string) ($old[$button . '_url'] ?? '') : (string) ($hero[$button . '_url'] ?? ''),
+    ];
+};
+$primary = $button('primary');
+$secondary = $button('secondary');
+
+/**
+ * One text field of the Hero, with its own message and, when it needs more
+ * than its label, the "?" with the longer explanation.
+ */
+$field = static function (string $name, string $label, int $maxLength, string $attributes, int $lines = 0, string $help = '', ?string $value = null) use ($h, $word, $fieldErrors): void {
     $id = 'hero-' . str_replace('_', '-', $name);
-    echo '<div class="admin-field">' . admin_field_label($id, $label);
+    $value ??= $word($name);
+    echo '<div class="admin-field">' . admin_field_label($id, $label, $help);
     if ($lines > 0) {
         echo '<textarea id="' . $h($id) . '" name="' . $h($name) . '" maxlength="' . $maxLength . '" rows="' . $lines . '"' . $attributes
-            . editor_field_invalid($fieldErrors, $name) . '>' . $h($word($name)) . '</textarea>';
+            . editor_field_invalid($fieldErrors, $name) . '>' . $h($value) . '</textarea>';
     } else {
-        echo '<input type="text" id="' . $h($id) . '" name="' . $h($name) . '" maxlength="' . $maxLength . '" value="' . $h($word($name)) . '"' . $attributes
+        echo '<input type="text" id="' . $h($id) . '" name="' . $h($name) . '" maxlength="' . $maxLength . '" value="' . $h($value) . '"' . $attributes
             . editor_field_invalid($fieldErrors, $name) . '>';
     }
     editor_field_error($fieldErrors, $name);
@@ -166,7 +202,6 @@ $statRow = static function (string $key, array $fields, int $position, int $coun
 <main class="admin-main">
   <p class="admin-text-muted"><a href="<?= htmlspecialchars(\App\Service\PageContent::builderUrl('index'), ENT_QUOTES, 'UTF-8') ?>"><?= admin_t('block_hero.homepage') ?></a></p>
   <h1><?= admin_te('block_hero.homepage_hero') ?></h1>
-  <p class="admin-text-muted"><?= admin_te('block_hero.bovenste_sectie_homepage_eyebrow') ?></p>
 
   <?php if ($saved): ?>
     <p class="admin-alert admin-alert--success"><?= admin_te('common.saved') ?></p>
@@ -182,7 +217,7 @@ $statRow = static function (string $key, array $fields, int $position, int $coun
     </div>
   <?php endif; ?>
 
-  <form method="post" action="/api/admin/update-homepage-hero.php" enctype="multipart/form-data" class="admin-product-form" data-save-name="<?= admin_te('block_hero.homepage_hero') ?>"<?= is_array($old) ? ' data-save-bar-unsaved' : '' ?>>
+  <form method="post" action="/api/admin/update-homepage-hero.php" class="admin-product-form" data-nav-item-form data-save-name="<?= admin_te('block_hero.homepage_hero') ?>"<?= is_array($old) ? ' data-save-bar-unsaved' : '' ?>>
     <?php /* Enter in a text field presses the FIRST submit button of a form.
              This one is a plain save, so Enter never moves a stat. */ ?>
     <button type="submit" class="admin-visually-hidden" tabindex="-1" aria-hidden="true"><?= admin_te('common.save') ?></button>
@@ -192,13 +227,12 @@ $statRow = static function (string $key, array $fields, int $position, int $coun
 
     <section class="admin-card">
       <h2><?= admin_te('block_hero.algemene_inhoud') ?></h2>
-      <?php $field('eyebrow', admin_t('block_hero.eyebrow') . $marker, 150, $required . $placeholder); ?>
+      <?php $field('eyebrow', admin_t('block_hero.eyebrow') . $marker, 150, $required . $placeholder, 0, admin_t('help.block_hero.eyebrow')); ?>
       <?php $field('title', admin_t('block_hero.titel_h1') . $marker, 255, $required . $placeholder); ?>
-      <?php $field('title_highlight', admin_t('block_hero.highlight_titel'), 255, $optional); ?>
-      <p class="admin-text-muted"><?= admin_t('block_hero.highlight_woord_highlight_zin') ?></p>
+      <?php $field('title_highlight', admin_t('block_hero.highlight_titel'), 255, $optional, 0, admin_t('help.block_hero.title_highlight')); ?>
 
       <div class="admin-form-row">
-        <label for="title_highlight_size"><?= admin_te('block_hero.highlight_grootte') ?></label>
+        <?= admin_field_label('title_highlight_size', admin_t('block_hero.highlight_grootte'), admin_t('help.block_hero.highlight_size', ['v1' => HomepageHeroContent::HIGHLIGHT_SIZE_DEFAULT])) ?>
         <div class="admin-range" data-range-field>
           <input
             type="range"
@@ -208,12 +242,10 @@ $statRow = static function (string $key, array $fields, int $position, int $coun
             max="<?= HomepageHeroContent::HIGHLIGHT_SIZE_MAX ?>"
             step="<?= HomepageHeroContent::HIGHLIGHT_SIZE_STEP ?>"
             value="<?= $highlightSize ?>"
-            data-range-input
-            aria-describedby="title_highlight_size_help">
+            data-range-input>
           <output class="admin-range__value" for="title_highlight_size" data-range-output><?= $highlightSize ?>%</output>
         </div>
       </div>
-      <p class="admin-text-muted" id="title_highlight_size_help"><?= admin_t('block_hero.hoe_groot_highlight_ten', ['v1' => HomepageHeroContent::HIGHLIGHT_SIZE_DEFAULT]) ?></p>
 
       <?php $field('lead', admin_t('block_hero.introtekst_lead'), 500, $placeholder, 3); ?>
     </section>
@@ -221,37 +253,57 @@ $statRow = static function (string $key, array $fields, int $position, int $coun
     <section class="admin-card">
       <h2><?= admin_te('block_hero.knoppen') ?></h2>
 
-      <h3><?= admin_te('block_hero.primaire_knop') ?>*</h3>
+      <h3><?= admin_te('block_hero.primaire_knop') ?></h3>
       <?php $field('primary_label', admin_t('block_hero.label') . $marker, 150, $required . $placeholder); ?>
-      <div class="admin-field">
-        <?= admin_field_label('hero-primary-url', admin_t('common.url') . '*') ?>
-        <input type="text" id="hero-primary-url" name="primary_url" maxlength="255" required value="<?= $h($setting('primary_url')) ?>"<?= editor_field_invalid($fieldErrors, 'primary_url') ?>>
-        <?php editor_field_error($fieldErrors, 'primary_url'); ?>
-      </div>
+      <?php link_target_field([
+          'id' => 'hero-primary-link',
+          'type_name' => 'primary_link_type',
+          'target_name' => 'primary_link_target',
+          'url_name' => 'primary_url',
+          'type' => $primary['type'],
+          'targets' => $primary['targets'],
+          'url' => $primary['url'],
+          'stored_type' => $primary['stored_type'],
+          // The primary button is always there: no "Geen knop".
+          'allow_none' => false,
+          'invalid' => editor_field_invalid($fieldErrors, 'primary_url'),
+          'error' => static fn () => editor_field_error($fieldErrors, 'primary_url'),
+      ]); ?>
 
-      <h3><?= admin_te('block_hero.secundaire_knop_optioneel') ?></h3>
-      <?php $field('secondary_label', admin_t('block_hero.label_3'), 150, $placeholder); ?>
-      <div class="admin-field">
-        <?= admin_field_label('hero-secondary-url', admin_t('common.url')) ?>
-        <input type="text" id="hero-secondary-url" name="secondary_url" maxlength="255" value="<?= $h($setting('secondary_url')) ?>"<?= editor_field_invalid($fieldErrors, 'secondary_url') ?>>
-        <?php editor_field_error($fieldErrors, 'secondary_url'); ?>
+      <?php /* The secondary button's label only matters while it is a button,
+               so it sits in the button's own group and hides with "Geen knop"
+               (admin/assets/navigation-item.js). */ ?>
+      <div data-nav-link-group>
+        <h3><?= admin_te('block_hero.secundaire_knop_optioneel') ?></h3>
+        <?php link_target_field([
+            'id' => 'hero-secondary-link',
+            'type_name' => 'secondary_link_type',
+            'target_name' => 'secondary_link_target',
+            'url_name' => 'secondary_url',
+            'type' => $secondary['type'],
+            'targets' => $secondary['targets'],
+            'url' => $secondary['url'],
+            'stored_type' => $secondary['stored_type'],
+            'invalid' => editor_field_invalid($fieldErrors, 'secondary_url'),
+            'error' => static fn () => editor_field_error($fieldErrors, 'secondary_url'),
+        ]); ?>
+        <div data-nav-link-field="<?= $h(link_target_shown_kinds($secondary['stored_type'])) ?>">
+          <?php $field('secondary_label', admin_t('block_hero.label_3'), 150, $placeholder); ?>
+        </div>
       </div>
-      <p class="admin-text-muted"><?= admin_te('block_hero.laat_label_url_leeg') ?></p>
     </section>
 
     <section class="admin-card">
       <h2><?= admin_te('block_hero.badge') ?></h2>
-      <?php $field('badge_title', admin_t('common.title'), 150, $optional); ?>
+      <?php $field('badge_title', admin_t('common.title'), 150, $optional, 0, admin_t('help.block_hero.badge')); ?>
       <?php $field('badge_text', admin_t('block_hero.tekst'), 500, $optional, 2); ?>
-      <p class="admin-text-muted"><?= admin_te('block_hero.laat_titel_tekst_leeg') ?></p>
     </section>
 
     <section class="admin-card">
       <h2><?= admin_t('block_hero.media_lay_out') ?></h2>
-      <p class="admin-text-muted"><?= admin_te('block_hero.kies_hero_afbeelding_video') ?></p>
 
       <div class="admin-form-row">
-        <span class="admin-form-row__label"><?= admin_te('block_hero.media') ?></span>
+        <span class="admin-form-row__label"><?= admin_te('block_hero.media') ?> <?= admin_help(admin_t('block_hero.media'), admin_t('help.block_hero.media')) ?></span>
         <div class="admin-segmented" data-media-type-group>
           <label class="admin-segmented__option">
             <input type="radio" name="media_type" value="image"<?= $mediaType === 'image' ? ' checked' : '' ?>>
@@ -265,7 +317,7 @@ $statRow = static function (string $key, array $fields, int $position, int $coun
       </div>
 
       <div class="admin-form-row">
-        <span class="admin-form-row__label"><?= admin_te('block_hero.lay_out') ?></span>
+        <span class="admin-form-row__label"><?= admin_te('block_hero.lay_out') ?> <?= admin_help(admin_t('block_hero.lay_out'), admin_t('help.block_hero.layout')) ?></span>
         <div class="admin-segmented">
           <?php foreach (['media_left' => 'block_hero.media_links', 'media_right' => 'block_hero.media_rechts', 'background' => 'block_hero.volledige_achtergrond'] as $value => $label): ?>
             <label class="admin-segmented__option">
@@ -275,46 +327,56 @@ $statRow = static function (string $key, array $fields, int $position, int $coun
           <?php endforeach; ?>
         </div>
       </div>
-      <p class="admin-text-muted"><?= admin_te('block_hero.media_rechts_oorspronkelijke_hero') ?></p>
 
-      <h3><?= admin_te('common.image') ?></h3>
-      <p class="admin-text-muted"><?= admin_te('block_hero.afbeelding_ook_gebruikt_poster') ?></p>
-      <?php if ((string) $hero['image_path'] !== ''): ?>
-        <div class="admin-image-card__media" style="max-width:260px;">
-          <img src="/<?= $h((string) $hero['image_path']) ?>" alt="">
+      <h3><?= admin_te('common.image') ?> <?= admin_help(admin_t('common.image'), admin_t('help.block_hero.image')) ?></h3>
+      <div class="admin-field">
+        <?php media_picker_field('media_id', $heroMedia, admin_t('common.image'), '', true); ?>
+        <?php editor_field_error($fieldErrors, 'media_id'); ?>
+      </div>
+      <?php if ($legacyImage !== '' && $heroMedia === null): ?>
+        <div class="admin-field">
+          <p class="admin-text-muted"><?= admin_te('block_hero.legacy_image') ?></p>
+          <div class="admin-image-card__media" style="max-width:260px;">
+            <img src="/<?= $h(ltrim($legacyImage, '/')) ?>" alt="">
+          </div>
+          <label class="admin-checkbox-label">
+            <input type="checkbox" name="remove_legacy_image" value="1"<?= is_array($old) && !empty($old['remove_legacy_image']) ? ' checked' : '' ?>>
+            <?= admin_te('block_hero.remove_legacy_image') ?>
+          </label>
         </div>
       <?php endif; ?>
-      <div class="admin-field">
-        <?= admin_field_label('hero-image', admin_t('block_hero.vervangen_door_nieuw_bestand')) ?>
-        <input type="file" id="hero-image" name="image" accept="image/jpeg,image/png,image/webp,image/gif"<?= editor_field_invalid($fieldErrors, 'image') ?>>
-        <?php editor_field_error($fieldErrors, 'image'); ?>
-      </div>
-      <?php /* No `required` here: a save of the other fields may keep an
-               alt text that was already empty (update-homepage-hero.php);
-               a new image or a changed alt text is checked by the server. */ ?>
-      <?php $field('image_alt', admin_t('common.alt_text') . $marker, 255, $placeholder); ?>
+      <?php
+      // The alt text this image really gets: its own, else the library's,
+      // filled in and linked to the picker (media_alt_field()). A Hero image
+      // from before the library has no library alt text to show.
+      $heroAlt = media_alt_field('media_id', $word('image_alt'), $heroMedia, $placeholder);
+      $field('image_alt', admin_t('common.alt_text') . $marker, 255, $heroAlt['attributes'], 0, '', $heroAlt['value']);
+      ?>
 
       <div data-media-panel="video"<?= $mediaType !== 'video' ? ' hidden' : '' ?>>
-        <h3><?= admin_te('block_hero.video_2') ?></h3>
-        <p class="admin-text-muted"><?= admin_te('block_hero.mp4_webm_max_30') ?></p>
-        <?php if ($currentVideoPath !== ''): ?>
-          <div class="admin-image-card__media" style="max-width:260px;">
-            <video src="/<?= $h($currentVideoPath) ?>" muted loop playsinline controls style="width:100%; height:auto; display:block;"></video>
-          </div>
-        <?php else: ?>
-          <p class="admin-text-muted"><?= admin_te('block_hero.video_ge_pload') ?></p>
-        <?php endif; ?>
+        <h3><?= admin_te('block_hero.video_2') ?> <?= admin_help(admin_t('block_hero.video_2'), admin_t('help.block_hero.video')) ?></h3>
         <div class="admin-field">
-          <?= admin_field_label('hero-video', $currentVideoPath === '' ? admin_t('block_hero.video_nieuw_bestand') : admin_t('block_hero.vervangen_door_nieuw_bestand')) ?>
-          <input type="file" id="hero-video" name="video" accept="video/mp4,video/webm"<?= editor_field_invalid($fieldErrors, 'video') ?>>
-          <?php editor_field_error($fieldErrors, 'video'); ?>
+          <?php media_picker_field('video_media_id', $heroVideo, admin_t('block_hero.video_2'), '', true, MediaType::VIDEO); ?>
+          <?php editor_field_error($fieldErrors, 'video_media_id'); ?>
         </div>
+        <?php if ($legacyVideo !== '' && $heroVideo === null): ?>
+          <div class="admin-field">
+            <p class="admin-text-muted"><?= admin_te('block_hero.legacy_video') ?></p>
+            <div class="admin-image-card__media" style="max-width:260px;">
+              <video src="/<?= $h(ltrim($legacyVideo, '/')) ?>" muted loop playsinline controls preload="metadata" style="width:100%; height:auto; display:block;"></video>
+            </div>
+            <label class="admin-checkbox-label">
+              <input type="checkbox" name="remove_legacy_video" value="1"<?= is_array($old) && !empty($old['remove_legacy_video']) ? ' checked' : '' ?>>
+              <?= admin_te('block_hero.remove_legacy_video') ?>
+            </label>
+          </div>
+        <?php endif; ?>
       </div>
     </section>
 
     <section class="admin-card" aria-labelledby="homepage-hero-stats-title">
       <h2 id="homepage-hero-stats-title"><?= admin_te('block_hero.statistieken') ?></h2>
-      <p class="admin-text-muted"><?= admin_t('block_hero.maximaal_statistieken_hero_ontwerp', ['v1' => HomepageHeroContent::MAX_STATS]) ?></p>
+      <p class="admin-text-muted"><?= admin_te('block_hero.maximaal_statistieken_hero_ontwerp', ['v1' => HomepageHeroContent::MAX_STATS]) ?></p>
 
       <?php if ($rows === []): ?>
         <p class="admin-text-muted"><?= admin_te('block_hero.statistieken_2') ?></p>
@@ -341,8 +403,11 @@ $statRow = static function (string $key, array $fields, int $position, int $coun
     </div>
   </form>
 </main>
+<?php media_picker_modal(); ?>
 <?php save_bar(); ?>
 <script src="<?= \App\Service\AssetVersion::url('/admin/assets/row-list.js') ?>" defer></script>
+<script src="<?= \App\Service\AssetVersion::url('/admin/assets/navigation-item.js') ?>" defer></script>
+<?php media_picker_script(); ?>
 <?php save_bar_script(); ?>
 </body>
 </html>

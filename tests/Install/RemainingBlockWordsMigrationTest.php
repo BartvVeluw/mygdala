@@ -119,6 +119,7 @@ final class RemainingBlockWordsMigrationTest extends TestCase
     private const LATER_COLUMNS = [
         'card_carousels' => ['desktop_layout'],
         'carousel_cards' => ['link_type', 'link_target_id'],
+        'homepage_hero' => ['primary_link_type', 'primary_link_target_id', 'secondary_link_type', 'secondary_link_target_id', 'media_id', 'video_media_id'],
     ];
 
     private static ?ScratchInstall $fresh = null;
