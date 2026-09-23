@@ -629,6 +629,52 @@ final class BlockRowEditorsHttpTest extends TestCase
         self::assertNotContains($ids[0], $this->rowIds('homepage_hero'));
     }
 
+    public function testAnExistingImageWithoutAltTextDoesNotStopASaveOfTheOtherFields(): void
+    {
+        $this->place('homepage_hero');
+        $session = $this->signIn(null);
+        $this->heroWithAnImageAndNoAlt();
+
+        // Only the title changed; the alt text comes back as empty as it was.
+        $this->assertSaved($this->save($session, 'homepage_hero', 'nl', ['title' => 'Blok gewijzigd', 'image_alt' => ''], []));
+
+        self::assertSame('Blok gewijzigd', $this->stored('homepage_hero', $this->parentId, 'nl')['title']);
+        self::assertArrayNotHasKey('image_alt', $this->stored('homepage_hero', $this->parentId, 'nl'));
+        self::assertSame('assets/images/sections/__cbux2_bestaand.jpg', (string) $this->parentRow('homepage_hero')['image_path'], 'the existing image stays');
+
+        $screen = $this->xpath($this->screen($session, 'homepage_hero'));
+        self::assertFalse($this->control($screen, 'image_alt')->hasAttribute('required'), 'the browser does not block the save on it either');
+    }
+
+    public function testANewImageOrAnEditedAltTextKeepsTheOldAltTextRules(): void
+    {
+        $this->place('homepage_hero');
+        $session = $this->signIn(null);
+        $uploads = $this->heroUploads();
+
+        // A new image without an alt text in the default language: refused, nothing stored, no file.
+        $this->heroWithAnImageAndNoAlt();
+        $before = $this->snapshot('homepage_hero');
+        $this->assertRefused($this->save($session, 'homepage_hero', 'nl', ['title' => 'Blok gewijzigd', 'image_alt' => ''], [], null, ['image' => $this->uploadableImage()]));
+        self::assertSame($before, $this->snapshot('homepage_hero'));
+        self::assertSame($uploads, $this->heroUploads());
+        self::assertSame('true', $this->control($this->xpath($this->screen($session, 'homepage_hero')), 'image_alt')->getAttribute('aria-invalid'));
+
+        // An alt text the editor empties: refused, as the image form refused it.
+        BlockLocalization::save('homepage_hero', $this->parentId, 'nl', array_intersect_key(self::CASES['homepage_hero']['base'], BlockLocalization::fields('homepage_hero')));
+        $before = $this->snapshot('homepage_hero');
+        $this->assertRefused($this->save($session, 'homepage_hero', 'nl', ['title' => 'Blok gewijzigd', 'image_alt' => ''], []));
+        self::assertSame($before, $this->snapshot('homepage_hero'));
+
+        // Too long is too long, whatever else happens.
+        $this->assertRefused($this->save($session, 'homepage_hero', 'nl', ['image_alt' => str_repeat('a', 256)], []));
+        self::assertSame($before, $this->snapshot('homepage_hero'));
+
+        // A translation never requires it.
+        $this->assertSaved($this->save($this->signIn('en'), 'homepage_hero', 'en', ['title' => 'Changed'], [], null, ['image' => $this->uploadableImage()]));
+        $this->files[] = dirname(__DIR__, 2) . '/' . $this->parentRow('homepage_hero')['image_path'];
+    }
+
     public function testANewImageIsStoredWithTheWordsAndARefusedSaveLeavesNoFileBehind(): void
     {
         $this->place('homepage_hero');
@@ -707,6 +753,15 @@ final class BlockRowEditorsHttpTest extends TestCase
 
         $this->parentId = $id;
         $this->section = '';
+    }
+
+    /** The Hero as development has it: an image, and no alt text in the default language. */
+    private function heroWithAnImageAndNoAlt(): void
+    {
+        Database::connection()->prepare("UPDATE homepage_hero SET image_path = 'assets/images/sections/__cbux2_bestaand.jpg' WHERE id = ?")->execute([$this->parentId]);
+        BlockLocalization::save('homepage_hero', $this->parentId, 'nl', ['image_alt' => ''] + array_intersect_key(self::CASES['homepage_hero']['base'], BlockLocalization::fields('homepage_hero')));
+        BlockLocalization::clearCache();
+        \App\Service\HomepageHeroContent::clearCache();
     }
 
     /** Put the borrowed hero back exactly as it was: its row, its stats and every word, with their ids. */

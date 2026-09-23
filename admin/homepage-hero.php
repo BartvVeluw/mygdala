@@ -289,7 +289,10 @@ $statRow = static function (string $key, array $fields, int $position, int $coun
         <input type="file" id="hero-image" name="image" accept="image/jpeg,image/png,image/webp,image/gif"<?= editor_field_invalid($fieldErrors, 'image') ?>>
         <?php editor_field_error($fieldErrors, 'image'); ?>
       </div>
-      <?php $field('image_alt', admin_t('common.alt_text') . $marker, 255, $required . $placeholder); ?>
+      <?php /* No `required` here: a save of the other fields may keep an
+               alt text that was already empty (update-homepage-hero.php);
+               a new image or a changed alt text is checked by the server. */ ?>
+      <?php $field('image_alt', admin_t('common.alt_text') . $marker, 255, $placeholder); ?>
 
       <div data-media-panel="video"<?= $mediaType !== 'video' ? ' hidden' : '' ?>>
         <h3><?= admin_te('block_hero.video_2') ?></h3>

@@ -132,6 +132,16 @@ if ($languageIsWritable) {
     // BlockLocalization::problems(), as a message per field.
     $fieldErrors = EditorChildList::wordErrors('homepage_hero', $languageCode, $words);
 
+    // THE ALT TEXT is required the way the separate image form required it
+    // before this editor became one form: with a new image, or when the
+    // editor changes the alt text itself. A save of the other fields leaves
+    // an alt text that was already empty alone, as the old text form did, so
+    // no existing Hero becomes unsaveable because of it.
+    $altUntouched = $words['image_alt'] === BlockLocalization::raw('homepage_hero', $heroId, 'image_alt', $languageCode);
+    if ($words['image_alt'] === '' && $altUntouched && !$hasImage) {
+        unset($fieldErrors['image_alt']);
+    }
+
     // A secondary button needs both a label and a URL, or neither — a
     // half-filled optional button would be broken/dead on the frontend.
     $defaultSecondaryLabel = $isDefaultLanguage ? $words['secondary_label'] : $storedDefault('secondary_label');
