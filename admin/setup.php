@@ -432,7 +432,7 @@ $setupPrimaryLanguage = $previous('primary_content_language') !== ''
         <div class="admin-form-row admin-setup__module">
           <label class="admin-checkbox-label">
             <input
-              type="checkbox"
+              type="checkbox" class="admin-checkbox"
               name="modules[<?= $h($moduleKey) ?>]"
               value="1"
               <?= $checked ? 'checked' : '' ?>
@@ -470,7 +470,7 @@ $setupPrimaryLanguage = $previous('primary_content_language') !== ''
         <div class="admin-form-row">
           <label class="admin-checkbox-label">
             <input
-              type="checkbox"
+              type="checkbox" class="admin-checkbox"
               name="pages[<?= $h($key) ?>]"
               value="1"
               <?= $plannedSlug === null ? 'disabled' : '' ?>

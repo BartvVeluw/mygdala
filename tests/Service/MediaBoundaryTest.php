@@ -449,8 +449,8 @@ final class MediaBoundaryTest extends TestCase
         );
         $this->assertStringContainsString('<input type="search" name="q"', $screen);
         $this->assertStringContainsString('<select name="type" class="admin-select"', $screen);
-        $this->assertStringContainsString('MediaType::all()', $screen, 'the options come from the closed list');
-        $this->assertStringContainsString('MediaType::isKnown(', $screen, 'a type from the URL is checked against it');
+        $this->assertStringContainsString('MediaType::libraryFilters()', $screen, 'the options come from the closed list: the kinds and the icons');
+        $this->assertStringContainsString('MediaType::isLibraryFilter(', $screen, 'a type from the URL is checked against it');
         $this->assertStringContainsString('data-media-results', $screen);
 
         $script = $this->source('admin/assets/media-library.js');
@@ -498,7 +498,7 @@ final class MediaBoundaryTest extends TestCase
     {
         $source = $this->source('api/admin/delete-media-items.php');
 
-        $this->assertStringContainsString('MediaType::isKnown(', $source);
+        $this->assertStringContainsString('MediaType::isLibraryFilter(', $source);
         $this->assertStringContainsString("header('Location: ' . \$returnTo)", $source);
         $this->assertStringNotContainsString("\$_POST['return_to']", $source);
         $this->assertStringNotContainsString('HTTP_REFERER', $source);

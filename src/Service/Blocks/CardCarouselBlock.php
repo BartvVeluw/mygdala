@@ -85,7 +85,7 @@ final class CardCarouselBlock extends BlockDefinition
                 TranslatableField::plain('body', 500),
                 TranslatableField::plain('image_alt', 255),
                 TranslatableField::plain('link_label', 150),
-                // Printed above the title; empty = the card's position ("01").
+                // Printed above the title; empty = no label (db/migrations/20260923170000).
                 TranslatableField::plain('number_label', 40),
             ],
             'carousel_card_tags' => [

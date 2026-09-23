@@ -92,6 +92,7 @@
             <file>tests/Service/RichTextSanitizerTest.php</file>
             <file>tests/Service/Media/SvgSanitizerTest.php</file>
             <file>tests/Service/Media/SvgUploadRoutesTest.php</file>
+            <file>tests/Service/Media/ImageFocusTest.php</file>
             <file>tests/Service/RobotsTest.php</file>
             <file>tests/Service/RouteRegistryTest.php</file>
             <file>tests/Service/SeoMetadataTest.php</file>
@@ -138,6 +139,7 @@
             <file>tests/Service/BlockPreviewContractTest.php</file>
             <file>tests/Service/BlockSampleContractTest.php</file>
             <file>tests/Service/BlockPresentationTest.php</file>
+            <file>tests/Service/OptionalEyebrowTest.php</file>
             <file>tests/Service/CollectionAdminSecurityTest.php</file>
             <file>tests/Service/DashboardPageTest.php</file>
             <file>tests/Service/FormBoundaryTest.php</file>
@@ -238,6 +240,7 @@
             <file>tests/Service/BlockPreviewContractTest.php</file>
             <file>tests/Service/BlockSampleContractTest.php</file>
             <file>tests/Service/BlockPresentationTest.php</file>
+            <file>tests/Service/OptionalEyebrowTest.php</file>
             <file>tests/Service/BrandingTest.php</file>
             <file>tests/Service/CollectionAdminSecurityTest.php</file>
             <file>tests/Service/DashboardAttentionTest.php</file>
@@ -281,6 +284,7 @@
             <file>tests/Service/RichTextSanitizerTest.php</file>
             <file>tests/Service/Media/SvgSanitizerTest.php</file>
             <file>tests/Service/Media/SvgUploadRoutesTest.php</file>
+            <file>tests/Service/Media/ImageFocusTest.php</file>
             <file>tests/Service/RobotsTest.php</file>
             <file>tests/Service/RouteRegistryTest.php</file>
             <file>tests/Service/SeoFieldsAdminLayoutTest.php</file>
@@ -362,6 +366,7 @@
             <file>tests/Install/BlogSettingsTextMigrationTest.php</file>
             <file>tests/Install/ShopWordsMigrationTest.php</file>
             <file>tests/Install/ShopPicturesAndOverviewMigrationTest.php</file>
+            <file>tests/Install/ContentBlocksPolishMigrationTest.php</file>
             <file>tests/Install/PersonalizationWordsMigrationTest.php</file>
             <file>tests/Install/OrderItemNameSnapshotMigrationTest.php</file>
             <file>tests/Install/BlockTranslationSchemaTest.php</file>
@@ -409,10 +414,13 @@
             <file>tests/Install/BlockTranslationSchemaTest.php</file>
             <file>tests/Install/BlockTranslationMigrationTest.php</file>
             <file>tests/Install/RemainingBlockWordsMigrationTest.php</file>
+            <file>tests/Install/ContentBlocksPolishMigrationTest.php</file>
             <file>tests/Service/BlockLocalizationEditorHttpTest.php</file>
             <file>tests/Service/BlockWordsEditorHttpTest.php</file>
             <file>tests/Service/CardCarouselEditorHttpTest.php</file>
             <file>tests/Service/BlockRowEditorsHttpTest.php</file>
+            <file>tests/Service/ContentBlocksPolishHttpTest.php</file>
+            <file>tests/Service/Media/ImageFocusTest.php</file>
             <file>tests/Service/CardCarouselFrontendContractTest.php</file>
             <file>tests/Service/Blocks/EditorRowsTest.php</file>
             <file>tests/Service/Blocks/EditorChildListTest.php</file>
@@ -425,6 +433,7 @@
             <file>tests/Service/BlockPreviewContractTest.php</file>
             <file>tests/Service/BlockSampleContractTest.php</file>
             <file>tests/Service/BlockPresentationTest.php</file>
+            <file>tests/Service/OptionalEyebrowTest.php</file>
             <file>tests/Service/BreadcrumbTest.php</file>
             <file>tests/Repository/BlockTranslationRepositoryTest.php</file>
             <file>tests/Repository/BlockTranslationTreeTest.php</file>

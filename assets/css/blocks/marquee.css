@@ -3,11 +3,22 @@
    Asked for by App\Service\Blocks\MarqueeBlock::styles().
    ========================================================================== */
 
-/* Materials strip / marquee */
+/* Materials strip / marquee
+
+   Every word carries its separator after it, with the same space on both
+   sides of the separator: --marquee-space between word and star, and the
+   same again as the word's own end padding before the next word. The track
+   itself has no gap, so word + star + space is exactly one period and the
+   -50% loop lines up to the pixel.
+
+   The star is drawn, not typed: a typed glyph sits wherever its font puts
+   it in the line box, so a margin that centred it at one font size was off
+   at the next. Sized in em and centred by flex on a line box of exactly one
+   em, it stays on the middle of the word at any font size. */
 .marquee{ overflow: hidden; border-block: 1px solid var(--color-line); }
 .marquee__track{
+  --marquee-space: 2em;
   display: flex;
-  gap: var(--sp-6);
   width: max-content;
   animation: marquee var(--marquee-duration, 32s) linear infinite;
   padding-block: var(--sp-3);
@@ -15,13 +26,26 @@
 .marquee__track span{
   font-family: var(--font-display);
   font-size: 1.4rem;
+  line-height: 1;
   color: var(--color-text-faint);
   white-space: nowrap;
   display: flex;
   align-items: center;
-  gap: var(--sp-3);
+  gap: var(--marquee-space);
+  padding-inline-end: var(--marquee-space);
 }
-.marquee__track span::after{ content: "\2726"; color: var(--color-primary); font-size: 1rem; }
+.marquee__track span::after{
+  content: "";
+  flex: none;
+  width: 0.5em;
+  height: 0.5em;
+  background: var(--color-primary);
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 0C13 8 16 11 24 12C16 13 13 16 12 24C11 16 8 13 0 12C8 11 11 8 12 0Z'/%3E%3C/svg%3E") center / contain no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 0C13 8 16 11 24 12C16 13 13 16 12 24C11 16 8 13 0 12C8 11 11 8 12 0Z'/%3E%3C/svg%3E") center / contain no-repeat;
+}
+@media (forced-colors: active){
+  .marquee__track span::after{ background: CanvasText; }
+}
 @keyframes marquee{
   from{ transform: translateX(0); }
   to{ transform: translateX(-50%); }

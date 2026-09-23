@@ -520,10 +520,10 @@ final class FrontendAssetOwnershipTest extends TestCase
 
         // And a block with no behaviour of its own declares nothing, rather
         // than owning an empty file.
-        $richText = BlockDefinitions::get('rich_text');
-        $this->assertNotNull($richText);
-        $this->assertSame([], $richText->styles());
-        $this->assertSame([], $richText->scripts());
-        $this->assertSame([], $richText->vendorScripts());
+        $faq = BlockDefinitions::get('faq');
+        $this->assertNotNull($faq);
+        $this->assertSame([], $faq->styles());
+        $this->assertSame([], $faq->scripts());
+        $this->assertSame([], $faq->vendorScripts());
     }
 }

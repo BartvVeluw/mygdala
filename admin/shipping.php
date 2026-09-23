@@ -123,7 +123,7 @@ $csrfToken = Csrf::token();
                     <input type="text" inputmode="numeric" name="sort_order" value="<?= (int) $rate['sort_order'] ?>">
                   </label>
                   <label class="admin-checkbox-label">
-                    <input type="checkbox" name="enabled" value="1" <?= $rate['enabled'] ? 'checked' : '' ?>>
+                    <input type="checkbox" class="admin-checkbox" name="enabled" value="1" <?= $rate['enabled'] ? 'checked' : '' ?>>
                     <?= admin_te('common.active') ?>
                   </label>
                   <button type="submit" class="admin-btn-text"><?= admin_te('common.save') ?></button>
@@ -173,7 +173,7 @@ $csrfToken = Csrf::token();
             <input type="text" inputmode="numeric" name="sort_order" value="0">
           </label>
           <label class="admin-checkbox-label">
-            <input type="checkbox" name="enabled" value="1" checked>
+            <input type="checkbox" class="admin-checkbox" name="enabled" value="1" checked>
             <?= admin_te('common.active') ?>
           </label>
           <button type="submit"><?= admin_te('shop.tarief_toevoegen') ?></button>

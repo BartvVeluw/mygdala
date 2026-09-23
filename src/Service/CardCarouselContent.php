@@ -5,6 +5,7 @@ namespace App\Service;
 use App\Repository\CardCarouselRepository;
 use App\Service\Blocks\BlockLocalization;
 use App\Service\Media\BlockImage;
+use App\Service\Media\ImageFocus;
 use App\Service\Routing\LinkChoice;
 use App\Service\Routing\RequestLanguage;
 use App\Service\Routing\TypedLink;
@@ -31,10 +32,15 @@ use App\Service\Routing\TypedLink;
  * presentation-mode field.
  *
  * `index_label` is what the card prints above its title: the card's own
- * `number_label` word when an editor wrote one ("01", "Nieuw", ...), and
- * otherwise "01", "02", ... derived from the card's position among the
- * visible cards — exactly what every card printed before the label could be
- * set, so a carousel nobody touched looks the same.
+ * `number_label` word ("01", "Nieuw", ...), and nothing at all when it is
+ * empty. Until 2026-09 an empty label printed the card's place among the
+ * visible cards; db/migrations/20260923170000 wrote that number into every
+ * card that showed one, so no site changed, and an owner can now leave a
+ * label empty on purpose.
+ *
+ * `image_position` is the CSS object-position of the card's focus point
+ * (App\Service\Media\ImageFocus): which part of the cropped picture stays
+ * in view. The editor's preview uses the same value.
  *
  * THE BUTTON points at what `link_type` says: 'url' is the address typed in
  * link_url, translated per render by TypedLink; 'page', 'blog_post' and
@@ -100,9 +106,9 @@ class CardCarouselContent
      *                                title and lead (a string each)
      *                                and 'cards': a list (possibly empty) of
      *                                desktop_layout (one of LAYOUTS),
-     *                                index_label, image_path (+ image_alt, a
-     *                                string, and image_width /
-     *                                image_height), title, body and
+     *                                index_label ('' for none), image_path
+     *                                (+ image_alt, a string, image_width /
+     *                                image_height and image_position), title, body and
      *                                link_label (a string each),
      *                                link_url (with link_label empty and
      *                                link_url '' together when there is no
@@ -166,8 +172,7 @@ class CardCarouselContent
                 continue;
             }
 
-            // Numbered among the cards that actually show.
-            $content['cards'][] = self::card($card, count($content['cards']), $tagsByCard[(int) $card['id']] ?? []);
+            $content['cards'][] = self::card($card, $tagsByCard[(int) $card['id']] ?? []);
         }
 
         $content['state'] = self::STATE_ACTIVE;
@@ -192,7 +197,7 @@ class CardCarouselContent
      *
      * @return array<string, mixed>
      */
-    private static function card(array $card, int $index, array $tags): array
+    private static function card(array $card, array $tags): array
     {
         $cardId = (int) $card['id'];
 
@@ -207,9 +212,10 @@ class CardCarouselContent
             'image_path' => $image['image_path'],
             'image_width' => $image['width'],
             'image_height' => $image['height'],
+            'image_position' => ImageFocus::objectPosition($card['image_focus'] ?? null),
         ] + BlockLocalization::words(self::CARDS, $cardId);
 
-        $result['index_label'] = ($result['number_label'] ?? '') !== '' ? (string) $result['number_label'] : self::positionLabel($index);
+        $result['index_label'] = (string) ($result['number_label'] ?? '');
         unset($result['number_label']);
         $result['image_alt'] = $image['alt'];
         $result['link_url'] = self::href($card);
@@ -235,15 +241,6 @@ class CardCarouselContent
         }
 
         return $result;
-    }
-
-    /**
-     * The label a card without its own number prints: its place among the
-     * visible cards, two digits. Also what the editor proposes for a new card.
-     */
-    public static function positionLabel(int $index): string
-    {
-        return sprintf('%02d', $index + 1);
     }
 
     /** A stored layout, or the orbit for anything this class does not know. */

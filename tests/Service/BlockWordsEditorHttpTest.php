@@ -116,7 +116,7 @@ final class BlockWordsEditorHttpTest extends TestCase
             'address' => 'section',
             'settings' => ['is_active' => '1'],
             'words' => ['eyebrow' => 'Waarom wij', 'title' => 'Wat je van ons krijgt', 'lead' => 'Kort gezegd.'],
-            'required' => ['eyebrow', 'title'],
+            'required' => ['title'],
         ],
         'faq' => [
             'table' => 'faq_sections',
@@ -125,7 +125,7 @@ final class BlockWordsEditorHttpTest extends TestCase
             'address' => 'section',
             'settings' => ['is_active' => '1'],
             'words' => ['eyebrow' => 'Vragen', 'title' => 'Veelgestelde vragen'],
-            'required' => ['eyebrow', 'title'],
+            'required' => ['title'],
         ],
         'step_list' => [
             'table' => 'step_list_sections',
@@ -134,7 +134,7 @@ final class BlockWordsEditorHttpTest extends TestCase
             'address' => 'section',
             'settings' => ['is_active' => '1'],
             'words' => ['eyebrow' => 'Werkwijze', 'title' => 'In drie stappen'],
-            'required' => ['eyebrow', 'title'],
+            'required' => ['title'],
         ],
         // Phase 3B, wave C. The Detailsectie's body is rich text; its main
         // image's alt text is on the image form, a rule of its own below.
@@ -358,6 +358,28 @@ final class BlockWordsEditorHttpTest extends TestCase
 
         $this->assertSaved($this->save($session, $type, 'nl', $words), $type . ': the default language with its words');
         $this->assertSaved($this->save($session, $type, 'en', []), $type . ': a translation without words is fine');
+    }
+
+    /**
+     * The eyebrow is optional on every block: an empty one is saved in the
+     * default language as well, and the editor never marks it required.
+     *
+     * @dataProvider blocks
+     */
+    public function testAnEmptyEyebrowIsSavedInTheDefaultLanguage(string $type): void
+    {
+        $words = self::BLOCKS[$type]['words'];
+        if (!array_key_exists('eyebrow', $words)) {
+            $this->addToAssertionCount(1);
+
+            return;
+        }
+
+        $this->place($type);
+        $session = $this->signIn(null);
+
+        $this->assertSaved($this->save($session, $type, 'nl', ['eyebrow' => ''] + $words), $type . ': an empty eyebrow');
+        self::assertNotContains('eyebrow', self::BLOCKS[$type]['required']);
     }
 
     /**

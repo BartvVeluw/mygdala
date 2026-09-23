@@ -578,6 +578,67 @@ final class AdminUiPrimitivesTest extends TestCase
 
     // --- admin.css -------------------------------------------------------------
 
+    /**
+     * One checkbox style for the whole CMS: every checkbox a screen shows is
+     * drawn by .admin-checkbox or .admin-switch. Only a checkbox nobody sees
+     * (the mobile menu's hidden state box, a row's visually hidden remove
+     * mark with its own drawn label) may do without. The input stays a
+     * native checkbox, so name, value and what is posted do not change.
+     */
+    public function testEveryVisibleAdminCheckboxUsesTheSharedStyle(): void
+    {
+        $found = 0;
+        foreach (glob(self::root() . '/admin/*.php') ?: [] as $file) {
+            $source = (string) file_get_contents($file);
+            preg_match_all('/<input\b(?:[^>]|\?>)*?type="checkbox"(?:[^>]|\?>)*?(?<!\?)>/s', $source, $matches);
+            foreach ($matches[0] as $tag) {
+                $found++;
+                if (preg_match('/\bhidden\b|admin-visually-hidden/', $tag) === 1) {
+                    continue;
+                }
+                $this->assertMatchesRegularExpression(
+                    '/class="[^"]*\badmin-(?:checkbox|switch)\b/',
+                    $tag,
+                    basename($file) . ': a checkbox without the shared admin style: ' . preg_replace('/\s+/', ' ', $tag)
+                );
+            }
+        }
+
+        $this->assertGreaterThan(80, $found, 'the scan must actually see the admin checkboxes');
+    }
+
+    public function testTheSharedCheckboxHasEveryState(): void
+    {
+        [, $rules] = self::primitivesCss();
+
+        foreach ([
+            '.admin-checkbox:hover:not(:disabled)',
+            'label:hover > .admin-checkbox:not(:disabled)',
+            '.admin-checkbox:checked',
+            '.admin-checkbox:checked:hover:not(:disabled)',
+            '.admin-checkbox:indeterminate',
+            '.admin-checkbox:focus-visible{',
+            '.admin-checkbox:disabled{',
+            'label:has(> .admin-checkbox:disabled){',
+        ] as $selector) {
+            $this->assertStringContainsString($selector, $rules, $selector);
+        }
+        $this->assertStringContainsString('appearance: none', $rules, 'drawn in the theme, still a native checkbox underneath');
+    }
+
+    public function testANumberFieldIsTheSharedTextField(): void
+    {
+        $css = self::source('admin/assets/admin.css');
+
+        $this->assertStringContainsString('.admin-product-form input[type="number"],', $css);
+        $this->assertStringContainsString('input[type="search"]:focus, input[type="number"]:focus{', $css);
+        $this->assertStringContainsString(
+            '<input type="number" name="max_items" min="1" max="200"',
+            self::source('admin/item-gallery.php'),
+            'the gallery\'s "Maximum aantal items" keeps its behaviour: only the look changed'
+        );
+    }
+
     public function testThePrimitivesLiveInOneSectionAndOnlyReadTheThemeTokens(): void
     {
         $css = self::source('admin/assets/admin.css');
@@ -604,7 +665,7 @@ final class AdminUiPrimitivesTest extends TestCase
         $this->assertStringContainsString('forced-colors', $rules);
 
         $this->assertStringContainsString(
-            'select, input[type="text"], input[type="password"], input[type="email"], input[type="search"]{',
+            'select, input[type="text"], input[type="password"], input[type="email"], input[type="search"], input[type="number"]{',
             $css,
             'no search box in the admin is the browser\'s own white bar'
         );

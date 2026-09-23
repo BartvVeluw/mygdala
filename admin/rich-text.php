@@ -7,11 +7,15 @@ require_once __DIR__ . '/_translate.php';
 require_once __DIR__ . '/_save_bar.php';
 require __DIR__ . '/_richtext_field.php';
 require_once __DIR__ . '/_localized_fields.php';
+require_once __DIR__ . '/_admin_ui.php';
+require_once __DIR__ . '/_editor_rows.php';
+require_once __DIR__ . '/_link_target_field.php';
 
 use App\Service\AdminAuth;
 use App\Service\Blocks\BlockLocalization;
 use App\Service\Csrf;
 use App\Service\RichTextContent;
+use App\Service\Routing\LinkChoice;
 use App\Service\SectionRegistry;
 use App\Repository\PageRepository;
 use App\Repository\RichTextRepository;
@@ -38,6 +42,12 @@ use App\Repository\RichTextRepository;
  * writes that language only. "Actief" is the same in every language.
  * Input a refused save hands back is shown again only in the language it was
  * typed in, and the form then starts out unsaved in the save bar.
+ *
+ * ALIGNMENT AND BUTTON. The alignment (RichTextContent::ALIGNMENTS) and where
+ * the optional button goes are the same in every language; the button's label
+ * is a word of the language on screen. The destination is the shared field
+ * every block button uses (admin/_link_target_field.php, LinkChoice), and its
+ * label hides with "Geen knop" (admin/assets/navigation-item.js).
  */
 
 AdminAuth::requireLogin();
@@ -63,8 +73,9 @@ $sectionId = (int) $section['id'];
 $editLanguage = admin_localized_language();
 
 $errors = $_SESSION['admin_rich_text_errors'] ?? [];
+$fieldErrors = $_SESSION['admin_rich_text_field_errors'] ?? [];
 $old = $_SESSION['admin_rich_text_old'] ?? null;
-unset($_SESSION['admin_rich_text_errors'], $_SESSION['admin_rich_text_old']);
+unset($_SESSION['admin_rich_text_errors'], $_SESSION['admin_rich_text_field_errors'], $_SESSION['admin_rich_text_old']);
 
 $saved = isset($_GET['saved']);
 
@@ -72,6 +83,21 @@ $body = is_array($old) && ($old['language_code'] ?? null) === $editLanguage
     ? (string) ($old[RichTextContent::BODY] ?? '')
     : BlockLocalization::raw('rich_text_sections', $sectionId, RichTextContent::BODY, $editLanguage);
 $isActive = is_array($old) ? !empty($old['is_active']) : (bool) $section['is_active'];
+$oldInThisLanguage = is_array($old) && ($old['language_code'] ?? null) === $editLanguage;
+$buttonLabel = $oldInThisLanguage
+    ? (string) ($old[RichTextContent::BUTTON_LABEL] ?? '')
+    : BlockLocalization::raw('rich_text_sections', $sectionId, RichTextContent::BUTTON_LABEL, $editLanguage);
+$align = is_array($old) ? (string) ($old['text_align'] ?? '') : (string) ($section['text_align'] ?? '');
+$align = array_key_exists($align, RichTextContent::ALIGNMENTS) ? $align : (string) array_key_first(RichTextContent::ALIGNMENTS);
+
+// The button's destination on screen: as handed back, else as stored.
+$buttonStoredType = LinkChoice::storedType($section['button_link_type'] ?? null, (string) ($section['button_url'] ?? ''));
+$buttonTargets = is_array($old) ? (array) ($old['button_link_target'] ?? []) : [];
+if (!is_array($old) && !in_array($buttonStoredType, [LinkChoice::NONE, LinkChoice::URL], true)) {
+    $buttonTargets[$buttonStoredType] = (int) ($section['button_link_target_id'] ?? 0);
+}
+$buttonType = is_array($old) ? (string) ($old['button_link_type'] ?? '') : $buttonStoredType;
+$buttonUrl = is_array($old) ? (string) ($old['button_url'] ?? '') : (string) ($section['button_url'] ?? '');
 
 $csrfToken = Csrf::token();
 $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
@@ -117,9 +143,45 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
       <?php admin_localized_bar($editLanguage); ?>
       <?php renderRichTextField(RichTextContent::BODY, 'Tekst', $body, 'full', 'admin-richtext-editor--lg'); ?>
       <label class="admin-checkbox-label">
-        <input type="checkbox" name="is_active" value="1" <?= $isActive ? 'checked' : '' ?>>
+        <input type="checkbox" class="admin-checkbox" name="is_active" value="1" <?= $isActive ? 'checked' : '' ?>>
         <?= admin_te('block_richtext.actief_zichtbaar_pagina') ?>
       </label>
+    </section>
+
+    <section class="admin-card">
+      <h2><?= admin_te('block_richtext.weergave') ?></h2>
+      <div class="admin-form-row">
+        <span class="admin-form-row__label" id="rich-text-align-label"><?= admin_te('block_richtext.uitlijning') ?> <?= admin_help(admin_t('block_richtext.uitlijning'), admin_t('help.block_richtext.uitlijning')) ?></span>
+        <div class="admin-segmented" role="radiogroup" aria-labelledby="rich-text-align-label">
+          <?php foreach (array_keys(RichTextContent::ALIGNMENTS) as $value): ?>
+            <label class="admin-segmented__option">
+              <input type="radio" name="text_align" value="<?= $h($value) ?>"<?= $align === $value ? ' checked' : '' ?>>
+              <span><?= admin_te('block_richtext.uitlijning_' . $value) ?></span>
+            </label>
+          <?php endforeach; ?>
+        </div>
+      </div>
+
+      <div data-nav-link-group>
+        <h3><?= admin_te('block_richtext.knop_optioneel') ?></h3>
+        <?php link_target_field([
+            'id' => 'rich-text-button-link',
+            'type_name' => 'button_link_type',
+            'target_name' => 'button_link_target',
+            'url_name' => 'button_url',
+            'type' => $buttonType,
+            'targets' => $buttonTargets,
+            'url' => $buttonUrl,
+            'stored_type' => $buttonStoredType,
+            'invalid' => editor_field_invalid($fieldErrors, 'button_url'),
+            'error' => static fn () => editor_field_error($fieldErrors, 'button_url'),
+        ]); ?>
+        <div class="admin-field" data-nav-link-field="<?= $h(link_target_shown_kinds($buttonStoredType)) ?>">
+          <?= admin_field_label('rich-text-button-label', admin_t('block_richtext.knoptekst')) ?>
+          <input type="text" id="rich-text-button-label" name="<?= $h(RichTextContent::BUTTON_LABEL) ?>" maxlength="150" value="<?= $h($buttonLabel) ?>"<?= admin_localized_placeholder_attr($editLanguage) ?><?= editor_field_invalid($fieldErrors, RichTextContent::BUTTON_LABEL) ?>>
+          <?php editor_field_error($fieldErrors, RichTextContent::BUTTON_LABEL); ?>
+        </div>
+      </div>
     </section>
 
     <section class="admin-card">
@@ -128,6 +190,7 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
   </form>
 </main>
 <?php save_bar(); ?>
+<script src="<?= \App\Service\AssetVersion::url('/admin/assets/navigation-item.js') ?>" defer></script>
 <?php save_bar_script(); ?>
 </body>
 </html>

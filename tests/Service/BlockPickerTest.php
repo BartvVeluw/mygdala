@@ -8,6 +8,7 @@ use App\Module\ModuleRegistry;
 use App\Repository\PageSectionRepository;
 use App\Service\Blocks\BlockCategories;
 use App\Service\Blocks\BlockDefinitions;
+use App\Service\Blocks\BlockSamples;
 use App\Service\Language\AdminLocale;
 use App\Service\SectionRegistry;
 use PHPUnit\Framework\TestCase;
@@ -580,6 +581,114 @@ final class BlockPickerTest extends TestCase
 
         // Core is unaffected.
         $this->assertStringContainsString('value="rich_text"', $html);
+    }
+
+    // --- Voorbeeld: the library's preview, from the picker ---------------
+
+    /**
+     * Every card has a Voorbeeld button beside it (not in it: the card is the
+     * submit button), made by the one helper the Contentblokken library uses,
+     * so the address, the frame title and the words are the library's own.
+     * It is a plain button: it previews and adds nothing.
+     */
+    public function testEveryCardHasTheLibrarysPreviewButtonBesideIt(): void
+    {
+        $available = SectionRegistry::availableDefinitionsForPage(self::PAGE, new FakePageSectionRepository());
+        $xpath = $this->xpath($this->renderPicker());
+
+        foreach ($available as $type => $definition) {
+            $slot = $this->one($xpath, '//*[@data-block-slot][button[@type="submit" and @value="' . $type . '"]]');
+            $preview = $this->one($xpath, './button[@data-block-preview-open]', $slot);
+
+            $this->assertSame('button', $preview->getAttribute('type'), "{$type}: previewing never submits");
+            $this->assertSame('dialog', $preview->getAttribute('aria-haspopup'));
+            $this->assertStringContainsString('Voorbeeld', $preview->textContent);
+            $this->assertStringContainsString($definition->label(), $preview->textContent, "{$type}: the button names its block");
+            $this->assertSame(
+                $definition->sampleContent(new BlockSamples()) !== null ? '/admin/block-preview.php?type=' . $type : '',
+                $preview->getAttribute('data-block-preview-src'),
+                "{$type}: the library's own preview address, and no other"
+            );
+            $this->assertSame('Voorbeeld van ' . $definition->label(), $preview->getAttribute('data-block-preview-frame-title'));
+
+            // The words the dialog copies, marked on the card.
+            $this->one($xpath, './/*[@data-block-slot-name]', $slot);
+            $this->one($xpath, './/*[@data-block-slot-description]', $slot);
+            $this->one($xpath, './/*[@data-block-slot-category]', $slot);
+        }
+
+        $this->assertStringContainsString('function block_library_preview_button(', $this->sourceOf('admin/_block_library.php'));
+        $this->assertStringContainsString('block_library_preview_button(', $this->sourceOf('admin/_block_picker.php'));
+        $this->assertStringNotContainsString('block-preview.php', $this->sourceOf('admin/_block_picker.php'), 'no second preview address');
+    }
+
+    public function testThePickerPrintsTheLibrarysOneSandboxedPreviewDialog(): void
+    {
+        $xpath = $this->xpath($this->renderPicker());
+
+        $dialog = $this->one($xpath, '//dialog[@data-block-preview]');
+        $frame = $this->one($xpath, './/iframe[@data-block-preview-frame]', $dialog);
+        $this->assertSame('allow-scripts', $frame->getAttribute('sandbox'));
+        $this->assertSame('about:blank', $frame->getAttribute('src'));
+
+        // Nothing to add, nothing to preview: no dialog either.
+        ob_start();
+        block_picker_modal([], (int) self::PAGE['id'], 'test-csrf-token');
+        $this->assertStringNotContainsString('data-block-preview', (string) ob_get_clean());
+
+        $page = $this->sourceOf('admin/page.php');
+        $this->assertStringContainsString("AssetVersion::url('/admin/assets/block-library.js')", $page, 'the dialog\'s own script, reused');
+    }
+
+    /**
+     * Keyboard: the preview is a native modal dialog over the picker. While
+     * it is open the picker leaves Escape and Tab alone, so Escape closes the
+     * preview and not the picker, and the dialog returns the focus to the
+     * Voorbeeld button that opened it (block-library.js, lastFocused).
+     */
+    public function testThePreviewOwnsTheKeyboardWhileItIsOpenAndGivesTheFocusBack(): void
+    {
+        $picker = $this->sourceOf('admin/assets/block-picker.js');
+        $this->assertMatchesRegularExpression(
+            '/if \(panel\.hidden\) return;\s*\n\s*\/\/[^\n]*\n\s*if \(document\.querySelector\("dialog\[open\]"\)\) return;\s*\n\s*if \(event\.key === "Escape"\)/',
+            $picker
+        );
+        $this->assertStringContainsString('card.closest("[data-block-slot]")', $picker, 'a filtered-out card takes its preview button along');
+
+        $library = $this->sourceOf('admin/assets/block-library.js');
+        $this->assertStringContainsString('button.closest("[data-block-library-card], [data-block-slot]")', $library);
+        $this->assertStringContainsString('lastFocused = button;', $library);
+        $this->assertStringContainsString('lastFocused.focus()', $library);
+        $this->assertStringContainsString('dialog.addEventListener("cancel", finish);', $library, 'Escape closes it and returns the focus');
+
+        $css = $this->sourceOf('admin/assets/admin.css');
+        $this->assertStringContainsString('.admin-block-card-slot[hidden]{ display: none; }', $css);
+        $this->assertStringContainsString('.admin-block-card__preview:focus-visible{', $css);
+    }
+
+    /** A module's blocks come with their preview, and go with it. */
+    public function testAModulesBlocksHaveTheirPreviewWhileTheModuleIsOn(): void
+    {
+        $shopPage = ['id' => 9, 'content_key' => 'shop', 'slug' => 'shop', 'title' => 'Shop', 'status' => 'published'];
+        $render = function () use ($shopPage): \DOMXPath {
+            SectionRegistry::reset();
+            ob_start();
+            block_picker_modal(SectionRegistry::availableDefinitionsForPage($shopPage, new FakePageSectionRepository()), 9, 'test-csrf-token');
+
+            return $this->xpath((string) ob_get_clean());
+        };
+
+        ModuleRegistry::overrideForTests(['shop' => true, 'multilingual' => true]);
+        $on = $render();
+        $collections = $this->one($on, '//*[@data-block-slot][button[@value="shop_collections"]]/button[@data-block-preview-open]');
+        $this->assertSame('/admin/block-preview.php?type=shop_collections', $collections->getAttribute('data-block-preview-src'));
+        $grid = $this->one($on, '//*[@data-block-slot][button[@value="product_grid"]]/button[@data-block-preview-open]');
+        $this->assertFalse($grid->hasAttribute('data-block-preview-src'), 'the one block without a sample opens the dialog on its drawing');
+
+        ModuleRegistry::overrideForTests(['shop' => false, 'multilingual' => true]);
+        $off = $render();
+        $this->assertSame(0, $off->query('//button[contains(@data-block-preview-src, "shop_collections") or contains(@data-block-preview-src, "product_grid")]')->length);
+        SectionRegistry::reset();
     }
 
     // --- Accessibility and touch ---------------------------------------

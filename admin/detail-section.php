@@ -139,7 +139,7 @@ $marker = $required !== '' ? '*' : '';
 $placeholder = admin_localized_placeholder_attr($editLanguage);
 // An optional field says so in the default language; in a translation its
 // placeholder says what a visitor sees while it is empty.
-$optional = $placeholder !== '' ? $placeholder : ' placeholder="Optioneel"';
+$optional = admin_localized_optional_attr($editLanguage);
 
 /** One text field of the section, with its own message. */
 $field = static function (string $name, string $label, int $maxLength, string $attributes, int $lines = 0, ?string $value = null) use ($h, $word, $fieldErrors): void {
@@ -251,7 +251,7 @@ $imageRow = static function (string $key, array $fields, int $position, int $cou
       <p class="admin-text-muted"><?= admin_te('block_detail.knoptekst_url_horen_elkaar') ?></p>
 
       <label class="admin-checkbox-label">
-        <input type="checkbox" name="is_active" value="1" <?= $isActive ? 'checked' : '' ?>>
+        <input type="checkbox" class="admin-checkbox" name="is_active" value="1" <?= $isActive ? 'checked' : '' ?>>
         <?= admin_te('block_detail.actief_uitgevinkt_hele_sectie') ?>
       </label>
     </section>
@@ -267,7 +267,7 @@ $imageRow = static function (string $key, array $fields, int $position, int $cou
       </div>
       <?php if ($hasLegacyMainImageOnly): ?>
         <label class="admin-checkbox-label">
-          <input type="checkbox" name="remove_legacy_main_image" value="1"<?= is_array($old) && !empty($old['remove_legacy_main_image']) ? ' checked' : '' ?>>
+          <input type="checkbox" class="admin-checkbox" name="remove_legacy_main_image" value="1"<?= is_array($old) && !empty($old['remove_legacy_main_image']) ? ' checked' : '' ?>>
           <?= admin_te('block_detail.hoofdafbeelding_oud_verwijderen') ?>
         </label>
       <?php endif; ?>

@@ -1,6 +1,9 @@
 /**
  * The Contentblokken library's preview dialog (admin/_block_library.php):
  * open it from a card, show that block, switch the width, close it again.
+ * The block picker of a page (admin/_block_picker.php) opens the same dialog
+ * from the Voorbeeld button beside each of its cards; the words come from
+ * whichever card the button belongs to.
  *
  * IT SHOWS AND NOTHING MORE. The block itself is admin/block-preview.php,
  * loaded into a sandboxed iframe that may run the block's scripts and cannot
@@ -55,12 +58,12 @@
   }
 
   function open(button) {
-    var card = button.closest("[data-block-library-card]");
+    var card = button.closest("[data-block-library-card], [data-block-slot]");
     var src = button.getAttribute("data-block-preview-src");
 
-    titleEl.textContent = textOf(card, "[data-block-library-name]");
-    descriptionEl.textContent = textOf(card, "[data-block-library-description]");
-    categoryEl.textContent = textOf(card, "[data-block-library-category]");
+    titleEl.textContent = textOf(card, "[data-block-library-name], [data-block-slot-name]");
+    descriptionEl.textContent = textOf(card, "[data-block-library-description], [data-block-slot-description]");
+    categoryEl.textContent = textOf(card, "[data-block-library-category], [data-block-slot-category]");
 
     // With a sample: the real block in the frame. Without one: the card's
     // own drawing, larger, with the sentence that says why.

@@ -64,7 +64,7 @@ $respondJson = static function (int $status, array $body): never {
 
 $returnQuery = array_filter([
     'q' => mb_substr(trim((string) ($_POST['return_q'] ?? '')), 0, 200),
-    'type' => MediaType::isKnown((string) ($_POST['return_type'] ?? '')) ? (string) $_POST['return_type'] : '',
+    'type' => MediaType::isLibraryFilter((string) ($_POST['return_type'] ?? '')) ? (string) $_POST['return_type'] : '',
     'page' => max(1, (int) ($_POST['return_page'] ?? 1)),
 ], static fn (string|int $value): bool => $value !== '' && $value !== 1);
 

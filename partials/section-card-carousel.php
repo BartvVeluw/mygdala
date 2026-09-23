@@ -1,5 +1,7 @@
 <?php
 
+require_once __DIR__ . '/eyebrow.php';
+
 /**
  * Renders ONE "Kaarten-carrousel" block instance
  * (App\Service\CardCarouselContent) in the theme's existing orbit carousel.
@@ -52,9 +54,7 @@ function render_section_card_carousel(array $content): void
         <div class="container">
           <?php if ($hasHead): ?>
           <div class="section-head" data-reveal>
-            <?php if ($content['eyebrow'] !== ''): ?>
-            <p class="eyebrow"><?= $h($content['eyebrow']) ?></p>
-            <?php endif; ?>
+            <?php render_eyebrow($content['eyebrow']); ?>
             <?php if ($content['title'] !== ''): ?>
             <h2><?= $h($content['title']) ?></h2>
             <?php endif; ?>
@@ -89,6 +89,7 @@ function render_section_card_carousel(array $content): void
                         src="<?= $h($card['image_path']) ?>"
                         alt="<?= $h($card['image_alt']) ?>"
                         <?= \App\Service\Media\BlockImage::dimensionAttributes(['width' => $card['image_width'] ?? null, 'height' => $card['image_height'] ?? null]) ?>
+                        <?php if (($card['image_position'] ?? '50% 50%') !== '50% 50%'): ?>style="object-position: <?= $h((string) $card['image_position']) ?>"<?php endif; ?>
                         loading="lazy"
                       />
                     </div>
@@ -110,7 +111,9 @@ function render_section_card_carousel(array $content): void
                     </div>
                     <?php endif; ?>
                     <div class="orbit-card__body">
+                      <?php if ($card['index_label'] !== ''): ?>
                       <span class="service-row__index"><?= $h($card['index_label']) ?></span>
+                      <?php endif; ?>
                       <h3>
                         <?= $h($card['title']) ?>
                       </h3>

@@ -181,7 +181,7 @@ function renderPersonalizationBuilder(array $product, array $personalization, st
 
     <div class="admin-pz-grid admin-pz-grid--settings">
       <label class="admin-checkbox-label">
-        <input type="checkbox" name="personalization_enabled" value="1" <?= $isEnabled ? 'checked' : '' ?>>
+        <input type="checkbox" class="admin-checkbox" name="personalization_enabled" value="1" <?= $isEnabled ? 'checked' : '' ?>>
         <span><strong><?= admin_t('personalization.personalisatie_inschakelen_uit_gewone') ?></span></span>
       </label>
 
@@ -329,7 +329,7 @@ function renderPersonalizationBuilder(array $product, array $personalization, st
               </p>
               <?php if ($viewImage !== ''): ?>
                 <label class="admin-checkbox-label">
-                  <input type="checkbox" name="remove_preview_image" value="1">
+                  <input type="checkbox" class="admin-checkbox" name="remove_preview_image" value="1">
                   <?= admin_te('personalization.afbeelding_verwijderen_opslaan') ?>
                 </label>
               <?php endif; ?>
@@ -549,19 +549,19 @@ function renderPersonalizationZoneForm(
       <fieldset class="admin-pz-checks">
         <legend><?= admin_te('personalization.wat_mag_hier') ?></legend>
         <label class="admin-checkbox-label">
-          <input type="checkbox" name="allow_text" value="1" <?= $allowsText ? 'checked' : '' ?>> <?= admin_te('personalization.tekst') ?>
+          <input type="checkbox" class="admin-checkbox" name="allow_text" value="1" <?= $allowsText ? 'checked' : '' ?>> <?= admin_te('personalization.tekst') ?>
         </label>
         <label class="admin-checkbox-label">
-          <input type="checkbox" name="allow_image" value="1" <?= $allowsImage ? 'checked' : '' ?>> <?= admin_te('common.image') ?>
+          <input type="checkbox" class="admin-checkbox" name="allow_image" value="1" <?= $allowsImage ? 'checked' : '' ?>> <?= admin_te('common.image') ?>
         </label>
         <label class="admin-checkbox-label">
-          <input type="checkbox" name="is_required" value="1" <?= $checked('is_required', false) ? 'checked' : '' ?>> <?= admin_te('common.required') ?>
+          <input type="checkbox" class="admin-checkbox" name="is_required" value="1" <?= $checked('is_required', false) ? 'checked' : '' ?>> <?= admin_te('common.required') ?>
         </label>
         <label class="admin-checkbox-label">
-          <input type="checkbox" name="is_enabled" value="1" <?= $checked('is_enabled', true) ? 'checked' : '' ?>> <?= admin_te('common.active') ?>
+          <input type="checkbox" class="admin-checkbox" name="is_enabled" value="1" <?= $checked('is_enabled', true) ? 'checked' : '' ?>> <?= admin_te('common.active') ?>
         </label>
         <label class="admin-checkbox-label">
-          <input type="checkbox" name="allow_rotation" value="1" <?= $checked('allow_rotation', true) ? 'checked' : '' ?>> <?= admin_te('personalization.draaien') ?>
+          <input type="checkbox" class="admin-checkbox" name="allow_rotation" value="1" <?= $checked('allow_rotation', true) ? 'checked' : '' ?>> <?= admin_te('personalization.draaien') ?>
         </label>
       </fieldset>
 

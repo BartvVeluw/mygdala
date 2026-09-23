@@ -1,5 +1,7 @@
 <?php
 
+require_once __DIR__ . '/eyebrow.php';
+
 /**
  * Renders one "Portfolio-/collectiegalerij" block
  * (App\Service\ItemGalleryContent) — the `.gallery-grid` > `.gallery-item`
@@ -76,9 +78,7 @@ function render_section_item_gallery(array $content, string $revealGroup = 'gall
     <div class="container">
       <?php if ($hasHead): ?>
       <div class="section-head" data-reveal>
-        <?php if ($text('eyebrow') !== ''): ?>
-        <p class="eyebrow"><?= $h($text('eyebrow')) ?></p>
-        <?php endif; ?>
+        <?php render_eyebrow($text('eyebrow')); ?>
         <?php if ($text('title') !== ''): ?>
         <h2><?= $h($text('title')) ?></h2>
         <?php endif; ?>

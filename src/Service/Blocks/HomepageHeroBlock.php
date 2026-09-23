@@ -66,8 +66,9 @@ final class HomepageHeroBlock extends BlockDefinition
      * the media, the layout, the highlight size and visibility are the same
      * in every language and stay in homepage_hero / homepage_hero_stats. The
      * lengths are the ones the editor always allowed, and what is required
-     * is what it always required: eyebrow, title and the primary button in
-     * the text form, both texts of a stat. The image's alt text is not
+     * is what it always required: title and the primary button in the text
+     * form, both texts of a stat. The eyebrow is optional, as on every block
+     * (partials/eyebrow.php). The image's alt text is not
      * required HERE since the image comes from the Media Library: empty
      * means the library's (BlockImage), and api/admin/update-homepage-hero.php
      * checks that the alt text actually used is not empty when a new image is
@@ -77,7 +78,7 @@ final class HomepageHeroBlock extends BlockDefinition
     {
         return [
             'homepage_hero' => [
-                TranslatableField::plain('eyebrow', 150)->required(),
+                TranslatableField::plain('eyebrow', 150),
                 TranslatableField::plain('title', 255)->required(),
                 TranslatableField::plain('title_highlight', 255),
                 TranslatableField::plain('lead', 500),

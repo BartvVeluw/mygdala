@@ -163,7 +163,7 @@ $pageTitle = $isNew ? admin_t('redirects.new') : (string) $redirect['source_path
       </label>
       <p class="admin-text-muted"><?= admin_te('redirects.kies_301_wanneer_inhoud') ?></p>
       <label class="admin-checkbox-label">
-        <input type="checkbox" name="is_active" value="1" <?= $isActive ? 'checked' : '' ?>>
+        <input type="checkbox" class="admin-checkbox" name="is_active" value="1" <?= $isActive ? 'checked' : '' ?>>
         <?= admin_te('common.active') ?>
       </label>
     </section>

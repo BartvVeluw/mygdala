@@ -63,8 +63,9 @@ use App\Service\Media\MediaUploader;
  * @param string         $label     Dutch field label
  * @param string         $help      one line under the field, or ''
  * @param bool           $clearable whether "geen afbeelding" is a valid answer
- * @param string         $kind      MediaType::IMAGE, ::VIDEO, or the filter ::SOCIAL_IMAGE (a share
- *                                  image: raster formats only, no SVG): what the field takes
+ * @param string         $kind      MediaType::IMAGE, ::VIDEO, or a filter: ::SOCIAL_IMAGE (a share
+ *                                  image: raster formats only, no SVG) or ::ICON (an SVG from
+ *                                  the library's Iconen): what the field takes
  */
 function media_picker_field(
     string $name,
@@ -74,11 +75,19 @@ function media_picker_field(
     bool $clearable = true,
     string $kind = MediaType::IMAGE
 ): void {
-    $kind = in_array($kind, [MediaType::VIDEO, MediaType::SOCIAL_IMAGE], true) ? $kind : MediaType::IMAGE;
+    $kind = in_array($kind, [MediaType::VIDEO, MediaType::SOCIAL_IMAGE, MediaType::ICON], true) ? $kind : MediaType::IMAGE;
     // Resolved here rather than in the signature: a PHP default value
     // cannot call a function, and this one has to be read per request.
-    $label = $label !== '' ? $label : admin_t($kind === MediaType::VIDEO ? 'media.picker.video_label' : 'common.image_label');
-    $empty = admin_t($kind === MediaType::VIDEO ? 'media.picker.no_video' : 'media.no_image_chosen');
+    $label = $label !== '' ? $label : admin_t(match ($kind) {
+        MediaType::VIDEO => 'media.picker.video_label',
+        MediaType::ICON => 'media.picker.icon_label',
+        default => 'common.image_label',
+    });
+    $empty = admin_t(match ($kind) {
+        MediaType::VIDEO => 'media.picker.no_video',
+        MediaType::ICON => 'media.picker.no_icon',
+        default => 'media.no_image_chosen',
+    });
     $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
     $fieldId = 'media-picker-' . preg_replace('/[^a-z0-9_-]/i', '-', $name) . '-' . bin2hex(random_bytes(4));
     ?>
@@ -233,6 +242,11 @@ function media_picker_modal(): void
                   'accept' => MediaUploader::acceptAttribute(MediaType::SOCIAL_IMAGE),
                   'upload' => admin_t('media.nieuwe_afbeelding'),
                   'empty' => admin_t('media.picker.empty_social'),
+              ],
+              MediaType::ICON => [
+                  'accept' => MediaUploader::acceptAttribute(MediaType::ICON),
+                  'upload' => admin_t('media.picker.new_icon'),
+                  'empty' => admin_t('media.picker.empty_icon'),
               ],
           ],
           'messages' => [

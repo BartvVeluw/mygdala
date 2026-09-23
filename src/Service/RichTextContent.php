@@ -4,6 +4,7 @@ namespace App\Service;
 
 use App\Repository\RichTextRepository;
 use App\Service\Blocks\BlockLocalization;
+use App\Service\Routing\LinkChoice;
 use App\Service\Routing\RequestLanguage;
 
 /**
@@ -52,8 +53,22 @@ class RichTextContent
      */
     public const MIGRATED_SECTION_KEY = 'content';
 
-    /** The one translatable field of this block (RichTextBlock::translatableFields()). */
+    /** The body, a translatable field of this block (RichTextBlock::translatableFields()). */
     public const BODY = 'body';
+
+    /** The optional button's label, the other translatable field. */
+    public const BUTTON_LABEL = 'button_label';
+
+    /**
+     * How the text and the button are aligned: a closed list, stored in
+     * rich_text_sections.text_align. The first is the default and adds no
+     * class, so a left-aligned block is the markup it always was.
+     */
+    public const ALIGNMENTS = [
+        'left' => 'Links',
+        'center' => 'Midden',
+        'right' => 'Rechts',
+    ];
 
     private const TABLE = 'rich_text_sections';
 
@@ -66,10 +81,11 @@ class RichTextContent
      *        language whatever is being read — the terms-and-conditions hash
      *        (App\Service\LegalPages::termsContent()).
      *
-     * @return array{state: string, body: string}
+     * @return array{state: string, body: string, align: string, button_label: string, button_href: string}
      *         templates must check 'state' !== STATE_HIDDEN before rendering
      *         the section. 'body' is sanitized HTML in that language, empty
-     *         when there is none.
+     *         when there is none; 'align' a key of ALIGNMENTS; the button
+     *         is there only when both its label and its href are.
      */
     public static function forSection(string $pageSlug, string $sectionKey, ?string $language = null): array
     {
@@ -98,13 +114,25 @@ class RichTextContent
         // THE DEFAULT LANGUAGE DECIDES WHETHER THERE IS A BODY
         // (docs/multilingual/ARCHITECTURE.md): a block whose body exists only
         // as a translation shows nothing in any language.
+        // The same rule for the button's label: a label that exists only as a
+        // translation is no button.
         $bodyId = (int) $row['id'];
+        $align = (string) ($row['text_align'] ?? '');
+        $label = BlockLocalization::hasDefaultWords(self::TABLE, $bodyId, self::BUTTON_LABEL)
+            ? BlockLocalization::value(self::TABLE, $bodyId, self::BUTTON_LABEL, $language)
+            : '';
+        $href = $label !== ''
+            ? LinkChoice::href($row['button_link_type'] ?? null, $row['button_link_target_id'] ?? 0, (string) ($row['button_url'] ?? ''))
+            : '';
 
         return self::$cache[$cacheKey] = [
             'state' => self::STATE_ACTIVE,
             self::BODY => BlockLocalization::hasDefaultWords(self::TABLE, $bodyId, self::BODY)
                 ? BlockLocalization::value(self::TABLE, $bodyId, self::BODY, $language)
                 : '',
+            'align' => array_key_exists($align, self::ALIGNMENTS) ? $align : (string) array_key_first(self::ALIGNMENTS),
+            self::BUTTON_LABEL => $href !== '' ? $label : '',
+            'button_href' => $label !== '' ? $href : '',
         ];
     }
 
@@ -115,9 +143,9 @@ class RichTextContent
         BlockLocalization::clearCache();
     }
 
-    /** @return array{state: string, body: string} */
+    /** @return array{state: string, body: string, align: string, button_label: string, button_href: string} */
     private static function emptyContent(string $state): array
     {
-        return ['state' => $state, self::BODY => ''];
+        return ['state' => $state, self::BODY => '', 'align' => 'left', self::BUTTON_LABEL => '', 'button_href' => ''];
     }
 }

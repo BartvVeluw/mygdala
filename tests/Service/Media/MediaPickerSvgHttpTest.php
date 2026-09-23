@@ -140,6 +140,76 @@ final class MediaPickerSvgHttpTest extends TestCase
     }
 
     /**
+     * Iconen (MediaType::ICON): a section of the ONE library, not a second
+     * one. An icon is an ordinary media item that is an SVG; the icon picker
+     * lists and uploads nothing else, the library's type filter offers it,
+     * and every other image field goes on listing every image.
+     */
+    public function testTheIconPickerListsAndUploadsOnlySvgAndTheLibraryFiltersOnIt(): void
+    {
+        [$session, $csrf] = $this->accounts->signIn([AdminPermissions::MEDIA_VIEW, AdminPermissions::MEDIA_MANAGE, AdminPermissions::PAGES_MANAGE]);
+        $marker = 'zziconfilter' . bin2hex(random_bytes(3));
+        foreach (['png' => 'image/png', 'svg' => 'image/svg+xml', 'webp' => 'image/webp'] as $extension => $mime) {
+            $this->mediaIds[] = (new MediaRepository())->create([
+                'path' => 'assets/media/' . $marker . '-' . $extension . '.' . $extension,
+                'display_name' => $marker . '-' . $extension . '.' . $extension,
+                'mime_type' => $mime,
+            ]);
+        }
+
+        $listed = function (string $type) use ($session, $marker): array {
+            $response = self::$server->request('GET', '/api/admin/media-list.php?q=' . $marker . '&type=' . $type, $session);
+            self::assertSame(200, $response['status']);
+
+            return array_map(static fn (array $item): string => substr((string) $item['name'], strlen($marker) + 1), json_decode($response['body'], true)['items']);
+        };
+
+        self::assertSame(['svg.svg'], $listed(MediaType::ICON), 'the icon picker shows icons only');
+        self::assertEqualsCanonicalizing(['png.png', 'svg.svg', 'webp.webp'], $listed(MediaType::IMAGE), 'an image picker does not suddenly show icons only');
+
+        // The library's own filter offers the icons, as a section of the same screen.
+        $library = self::$server->request('GET', '/admin/media.php?type=icon&q=' . $marker, $session)['body'];
+        self::assertMatchesRegularExpression('/<option value="icon" selected>Iconen<\/option>/', $library);
+        self::assertStringContainsString($marker . '-svg.svg', $library);
+        self::assertStringNotContainsString($marker . '-png.png', $library);
+
+        // Uploading from the icon picker: an SVG, sanitized, or nothing.
+        $png = $this->upload($session, $csrf, base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=='), 'zz-icoon.png', 'image/png', MediaType::ICON);
+        self::assertSame(422, $png['status']);
+        self::assertStringContainsString('SVG', (string) json_decode($png['body'], true)['error']);
+
+        $evil = $this->upload($session, $csrf, '<svg xmlns="http://www.w3.org/2000/svg" onload="alert(1)"><path d="M0 0h24v24H0z"/></svg>', 'zz-icoon-kwaad.svg', 'image/svg+xml', MediaType::ICON);
+        self::assertSame(422, $evil['status'], 'the one SvgSanitizer decides, as for every SVG');
+
+        $safe = $this->upload($session, $csrf, '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/></svg>', 'zz-icoon.svg', 'image/svg+xml', MediaType::ICON);
+        self::assertSame(200, $safe['status'], $safe['body']);
+        $item = MediaService::find((int) json_decode($safe['body'], true)['item']['id']);
+        $this->mediaIds[] = (int) $item?->id;
+        self::assertSame('image/svg+xml', $item?->mimeType, 'afterwards an ordinary media item');
+        self::assertSame((int) $item?->id, MediaService::findIcon((int) $item?->id)?->id);
+        self::assertSame((int) $item?->id, MediaService::findImage((int) $item?->id)?->id, 'and still an image anywhere else');
+    }
+
+    public function testTheIconFilterIsAnSvgImageAndNothingElse(): void
+    {
+        self::assertTrue(MediaType::isPickerFilter(MediaType::ICON));
+        self::assertSame(MediaType::IMAGE, MediaType::kindOfFilter(MediaType::ICON));
+        self::assertSame([MediaUploader::SVG_MIME], MediaType::mimesOfFilter(MediaType::ICON));
+        self::assertTrue(MediaType::filterAccepts(MediaType::ICON, 'image/svg+xml'));
+        self::assertFalse(MediaType::filterAccepts(MediaType::ICON, 'image/png'));
+        self::assertFalse(MediaType::filterAccepts(MediaType::ICON, 'video/mp4'));
+        self::assertTrue(MediaType::filterAccepts(MediaType::IMAGE, 'image/svg+xml'), 'an image field keeps taking SVG');
+
+        self::assertSame(['image', 'video', 'icon'], MediaType::libraryFilters());
+        self::assertSame(['image', 'video'], MediaType::all(), 'an icon is no third kind');
+        self::assertFalse(MediaType::isLibraryFilter(MediaType::SOCIAL_IMAGE), 'the share-image filter stays a picker filter only');
+
+        self::assertTrue(MediaUploader::nameFitsFilter('logo.svg', MediaType::ICON));
+        self::assertFalse(MediaUploader::nameFitsFilter('logo.png', MediaType::ICON));
+        self::assertSame('.svg,image/svg+xml', MediaUploader::acceptAttribute(MediaType::ICON));
+    }
+
+    /**
      * @return array{status: int, body: string}
      */
     private function upload(string $session, string $csrf, string $bytes, string $name, string $type, string $kind): array

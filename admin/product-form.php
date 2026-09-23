@@ -280,7 +280,7 @@ if ($isEdit) {
           <input type="text" inputmode="decimal" name="price" required value="<?= htmlspecialchars($priceValue, ENT_QUOTES, 'UTF-8') ?>" placeholder="0.00">
         </label>
         <label class="admin-checkbox-label">
-          <input type="checkbox" name="active" value="1" <?= $activeChecked ? 'checked' : '' ?>>
+          <input type="checkbox" class="admin-checkbox" name="active" value="1" <?= $activeChecked ? 'checked' : '' ?>>
           <?= admin_te('shop.actief_publiek_zichtbaar') ?>
         </label>
       </div>
@@ -291,11 +291,11 @@ if ($isEdit) {
           <?= admin_te('shop.actief_hierboven_hoofdschakelaar_staat') ?>
         </p>
         <label class="admin-checkbox-label">
-          <input type="checkbox" name="in_shop" value="1" <?= $inShopChecked ? 'checked' : '' ?>>
+          <input type="checkbox" class="admin-checkbox" name="in_shop" value="1" <?= $inShopChecked ? 'checked' : '' ?>>
           <span><strong><?= admin_t('shop.shop_zichtbaar_shopoverzicht_collectiepagina') ?></span>
         </label>
         <label class="admin-checkbox-label">
-          <input type="checkbox" name="in_personalization_catalog" value="1" <?= $inPersonalizationChecked ? 'checked' : '' ?>>
+          <input type="checkbox" class="admin-checkbox" name="in_personalization_catalog" value="1" <?= $inPersonalizationChecked ? 'checked' : '' ?>>
           <span><strong><?= admin_t('shop.personalisatiecatalogus_zichtbaar_personalis') ?></span>
         </label>
         <?php if (!$inShopChecked && $isEdit): ?>
@@ -317,7 +317,7 @@ if ($isEdit) {
               $collectionCheckboxId = 'collection_' . $collectionOptionId;
             ?>
             <label class="admin-checkbox-label" for="<?= htmlspecialchars($collectionCheckboxId, ENT_QUOTES, 'UTF-8') ?>" style="margin-right:1rem;display:inline-flex;">
-              <input type="checkbox"
+              <input type="checkbox" class="admin-checkbox"
                      id="<?= htmlspecialchars($collectionCheckboxId, ENT_QUOTES, 'UTF-8') ?>"
                      name="collection_ids[]"
                      value="<?= $collectionOptionId ?>"
@@ -345,7 +345,7 @@ if ($isEdit) {
       </div>
       <div class="admin-form-row">
         <label class="admin-checkbox-label">
-          <input type="checkbox" name="requires_parcel" value="1" <?= $requiresParcelChecked ? 'checked' : '' ?>>
+          <input type="checkbox" class="admin-checkbox" name="requires_parcel" value="1" <?= $requiresParcelChecked ? 'checked' : '' ?>>
           <?= admin_te('shop.altijd_pakket_verzenden_negeert') ?>
         </label>
       </div>
@@ -394,7 +394,7 @@ if ($isEdit) {
           <p class="admin-text-muted"><?= admin_te('shop.optioneel_alleen_zichtbaar_voorbeeld') ?></p>
           <?php if ($ogImageValue !== ''): ?>
             <label class="admin-checkbox-label">
-              <input type="checkbox" name="remove_og_image" value="1" <?= $removeOgImageChecked ? 'checked' : '' ?>>
+              <input type="checkbox" class="admin-checkbox" name="remove_og_image" value="1" <?= $removeOgImageChecked ? 'checked' : '' ?>>
               <?= admin_te('shop.deel_afbeelding_verwijderen_opslaan') ?>
             </label>
           <?php endif; ?>
@@ -578,7 +578,7 @@ if ($isEdit) {
                     <input type="text" inputmode="decimal" name="price" value="<?= $variant['price'] !== null ? htmlspecialchars(number_format((float) $variant['price'], 2, '.', ''), ENT_QUOTES, 'UTF-8') : '' ?>" placeholder="0.00">
                   </label>
                   <label class="admin-checkbox-label">
-                    <input type="checkbox" name="active" value="1" <?= $variantActive ? 'checked' : '' ?>>
+                    <input type="checkbox" class="admin-checkbox" name="active" value="1" <?= $variantActive ? 'checked' : '' ?>>
                     <?= admin_te('common.active') ?>
                   </label>
                   <button type="submit" class="admin-btn-text"><?= admin_te('common.save') ?></button>
@@ -632,7 +632,7 @@ if ($isEdit) {
             <input type="text" inputmode="decimal" name="price" placeholder="0.00">
           </label>
           <label class="admin-checkbox-label">
-            <input type="checkbox" name="active" value="1" checked>
+            <input type="checkbox" class="admin-checkbox" name="active" value="1" checked>
             <?= admin_te('common.active') ?>
           </label>
           <button type="submit"><?= admin_te('shop.variant_aanmaken') ?></button>

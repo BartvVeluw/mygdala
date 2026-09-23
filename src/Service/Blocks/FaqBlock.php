@@ -71,7 +71,7 @@ final class FaqBlock extends BlockDefinition
     {
         return [
             'faq_sections' => [
-                TranslatableField::plain('eyebrow', 150)->required(),
+                TranslatableField::plain('eyebrow', 150),
                 TranslatableField::plain('title', 255)->required(),
             ],
             'faq_items' => [

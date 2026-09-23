@@ -8,11 +8,14 @@ require_once __DIR__ . '/_save_bar.php';
 require_once __DIR__ . '/_localized_fields.php';
 require_once __DIR__ . '/_admin_ui.php';
 require_once __DIR__ . '/_editor_rows.php';
+require_once __DIR__ . '/_media_picker.php';
 
 use App\Service\AdminAuth;
 use App\Service\Blocks\BlockLocalization;
 use App\Service\Csrf;
 use App\Service\FeatureGridContent;
+use App\Service\Media\MediaService;
+use App\Service\Media\MediaType;
 use App\Repository\FeatureGridRepository;
 
 /**
@@ -117,6 +120,7 @@ $rows = editor_rows_on_screen(
     $oldInThisLanguage ? (array) ($old['items'] ?? []) : null,
     static fn (array $item): array => [
         'icon_key' => (string) $item['icon_key'],
+        'icon_media_id' => $item['icon_media_id'] !== null ? (string) $item['icon_media_id'] : '',
         'title' => BlockLocalization::raw('feature_grid_items', (int) $item['id'], 'title', $editLanguage),
         'body' => BlockLocalization::raw('feature_grid_items', (int) $item['id'], 'body', $editLanguage),
         'active' => (int) $item['is_active'] === 1 ? '1' : '',
@@ -133,18 +137,36 @@ $placeholder = admin_localized_placeholder_attr($editLanguage);
 $cardRow = static function (string $key, array $fields, int $position, int $count) use ($h, $marker, $placeholder, $fieldErrors): void {
     [$star, $hint] = editor_row_word_hints($key, $marker, $placeholder);
     $iconId = editor_row_id('items', $key, 'icon_key');
+    // A new card starts on the first standard icon, as it always did.
+    $chosenIcon = (string) ($fields['icon_key'] ?? (string) array_key_first(FeatureGridContent::ICON_KEYS));
+    $iconMediaId = (int) ($fields['icon_media_id'] ?? 0);
     editor_row_open('items', $key, admin_t('block_features.kaart'), $position, $count, ($fields['remove'] ?? '') !== '');
     ?>
-        <div class="admin-field">
+        <div class="admin-field" data-feature-icon>
           <?= admin_field_label($iconId, admin_t('block_features.icoon')) ?>
-          <select class="admin-select" id="<?= $h($iconId) ?>" name="<?= $h(editor_row_name('items', $key, 'icon_key')) ?>">
-            <?php foreach (FeatureGridContent::ICON_KEYS as $iconKey => $label): ?>
-              <option value="<?= $h($iconKey) ?>"<?= ($fields['icon_key'] ?? '') === $iconKey ? ' selected' : '' ?>><?= $h($label) ?></option>
-            <?php endforeach; ?>
+          <select class="admin-select" id="<?= $h($iconId) ?>" name="<?= $h(editor_row_name('items', $key, 'icon_key')) ?>" data-feature-icon-select>
+            <option value="<?= $h(FeatureGridContent::ICON_NONE) ?>"<?= $chosenIcon === FeatureGridContent::ICON_NONE ? ' selected' : '' ?>><?= admin_te('block_features.icoon_geen') ?></option>
+            <optgroup label="<?= admin_te('block_features.icoon_standaard') ?>">
+              <?php foreach (FeatureGridContent::ICON_KEYS as $iconKey => $label): ?>
+                <option value="<?= $h($iconKey) ?>"<?= $chosenIcon === $iconKey ? ' selected' : '' ?>><?= $h($label) ?></option>
+              <?php endforeach; ?>
+            </optgroup>
+            <option value="<?= $h(FeatureGridContent::ICON_CUSTOM) ?>"<?= $chosenIcon === FeatureGridContent::ICON_CUSTOM ? ' selected' : '' ?>><?= admin_te('block_features.icoon_eigen') ?></option>
           </select>
+          <div class="admin-feature-icon-custom" data-feature-icon-custom>
+            <?php media_picker_field(
+                editor_row_name('items', $key, 'icon_media_id'),
+                $iconMediaId > 0 ? MediaService::findIcon($iconMediaId) : null,
+                admin_t('media.picker.icon_label'),
+                admin_t('block_features.icoon_eigen_help'),
+                true,
+                MediaType::ICON
+            ); ?>
+            <?php editor_field_error($fieldErrors, 'items.' . $key . '.icon_media_id'); ?>
+          </div>
         </div>
     <?php
-    editor_row_text('items', $key, 'title', admin_t('common.title') . $star, 255, $fields, $fieldErrors, $hint);
+    editor_row_text('items', $key, 'title', admin_t('common.title'), 255, $fields, $fieldErrors, $hint !== '' ? $hint : ' placeholder="Optioneel"');
     editor_row_text('items', $key, 'body', admin_t('block_features.tekst') . $star, 500, $fields, $fieldErrors, $hint, 3);
     editor_row_switch('items', $key, $fields, admin_t('common.visible'));
     editor_row_close();
@@ -192,8 +214,8 @@ $cardRow = static function (string $key, array $fields, int $position, int $coun
     <section class="admin-card">
       <h2><?= admin_te('block_features.sectiekop') ?></h2>
       <div class="admin-field">
-        <?= admin_field_label('feature-grid-eyebrow', admin_t('block_features.eyebrow') . $marker) ?>
-        <input type="text" id="feature-grid-eyebrow" name="eyebrow" maxlength="150"<?= $required ?> value="<?= $h($sectionWord('eyebrow')) ?>"<?= $placeholder ?><?= editor_field_invalid($fieldErrors, 'eyebrow') ?>>
+        <?= admin_field_label('feature-grid-eyebrow', admin_t('block_features.eyebrow')) ?>
+        <input type="text" id="feature-grid-eyebrow" name="eyebrow" maxlength="150" value="<?= $h($sectionWord('eyebrow')) ?>"<?= admin_localized_optional_attr($editLanguage) ?><?= editor_field_invalid($fieldErrors, 'eyebrow') ?>>
         <?php editor_field_error($fieldErrors, 'eyebrow'); ?>
       </div>
 
@@ -210,7 +232,7 @@ $cardRow = static function (string $key, array $fields, int $position, int $coun
       </div>
 
       <label class="admin-checkbox-label">
-        <input type="checkbox" name="is_active" value="1" <?= $isActive ? 'checked' : '' ?>>
+        <input type="checkbox" class="admin-checkbox" name="is_active" value="1" <?= $isActive ? 'checked' : '' ?>>
         <?= admin_te('block_features.actief_uitgevinkt_hele_sectie') ?>
       </label>
     </section>
@@ -219,7 +241,7 @@ $cardRow = static function (string $key, array $fields, int $position, int $coun
       <h2><?= admin_te('block_features.zichtbaarheid') ?></h2>
       <p class="admin-text-muted"><?= admin_te('block_features.sectie_heeft_eigen_titel') ?></p>
       <label class="admin-checkbox-label">
-        <input type="checkbox" name="is_active" value="1" <?= $isActive ? 'checked' : '' ?>>
+        <input type="checkbox" class="admin-checkbox" name="is_active" value="1" <?= $isActive ? 'checked' : '' ?>>
         <?= admin_te('block_features.actief_uitgevinkt_sectie_alle') ?>
       </label>
     </section>
@@ -251,8 +273,11 @@ $cardRow = static function (string $key, array $fields, int $position, int $coun
     </div>
   </form>
 </main>
+<?php media_picker_modal(); ?>
 <?php save_bar(); ?>
 <script src="<?= \App\Service\AssetVersion::url('/admin/assets/row-list.js') ?>" defer></script>
+<?php media_picker_script(); ?>
+<script src="<?= \App\Service\AssetVersion::url('/admin/assets/feature-grid.js') ?>" defer></script>
 <?php save_bar_script(); ?>
 </body>
 </html>

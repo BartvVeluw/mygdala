@@ -1,5 +1,7 @@
 <?php
 
+require_once __DIR__ . '/eyebrow.php';
+
 /**
  * Renders the Homepage Hero section (App\Service\HomepageHeroContent) —
  * extracted verbatim from index.php so the page builder's dynamic render
@@ -59,7 +61,7 @@ function render_section_homepage_hero(array $hero): void
       <div class="laser-line" style="bottom: 14%; right: 0; width: 26%" aria-hidden="true"></div>
       <div class="container hero__grid">
         <div class="hero__content">
-          <p class="eyebrow hero__eyebrow"><?= $h($hero['eyebrow']) ?></p>
+          <?php render_eyebrow($hero['eyebrow'], 'hero__eyebrow'); ?>
           <?php /* The title fragment is real HTML — the title text is escaped
                    and only the highlight is wrapped in a hardcoded <em>
                    (HomepageHeroContent::renderTitleFragment()) — so it is

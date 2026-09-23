@@ -68,7 +68,7 @@ final class CtaBandBlock extends BlockDefinition
     {
         return [
             'cta_bands' => [
-                TranslatableField::plain('eyebrow', 150)->required(),
+                TranslatableField::plain('eyebrow', 150),
                 TranslatableField::plain('title', 255)->required(),
                 TranslatableField::plain('lead', 500),
                 TranslatableField::plain('primary_label', 150)->required(),

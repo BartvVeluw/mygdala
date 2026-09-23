@@ -277,3 +277,27 @@ Multilingual 2.0 fase 3B heeft ze gedropt (`20260917180000`).
 
 Wat bewust níet meebewoog: er komt geen `BreadcrumbList`-JSON-LD bij
 (`SEO.md`), en de Paginakop is verder ongemoeid gebleven.
+
+## Leeg is leeg: bovenlabel, kaarttitel en carrouselnummer (UX-polijstfase)
+
+Drie velden rendeerden iets als ze leeg waren. Het bovenlabel (eyebrow) was in
+vijf blokken verplicht en tekende in twee blokken ook leeg een `<p>` met het
+lijntje van `.eyebrow::before`; de titel van een kaart in *Kenmerken in
+kaartjes* was verplicht; en een leeg nummer van een carrouselkaart werd "01",
+"02", ... naar de plaats van de kaart.
+
+Besluit: **leeg betekent overal niets renderen.** Het bovenlabel is in geen
+enkel blok meer verplicht en gaat door één helper (`partials/eyebrow.php`,
+`render_eyebrow()`), die bij een lege waarde niets print; de ruimte die bij
+een bovenlabel hoort hangt aan het bovenlabel (`.section-head .eyebrow + h2`),
+zodat er ook geen marge overblijft. Een kaart zonder titel toont geen kop.
+
+Het carrouselnummer is een bewuste contractwijziging, en een bestaande site
+mocht er niet ineens anders door uitzien. Daarom schreef migratie
+`20260923170000` bij elke kaart die nu een automatisch nummer toonde dat
+nummer als gewone inhoud weg, in de standaardtaal (vertalingen vallen erop
+terug, zoals altijd). Daarna is leeg echt leeg en begint een nieuwe kaart
+zonder nummer. Een kaart die verborgen was of geen titel had, toonde niets en
+kreeg ook niets. Het alternatief, een schakelaar "automatisch nummeren" per
+carrousel, is bewust niet gekozen: het had het oude gedrag als tweede
+toestand bewaard, terwijl de eigenaar nu gewoon het nummer typt dat hij wil.

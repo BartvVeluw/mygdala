@@ -136,7 +136,7 @@ $placeholder = admin_localized_placeholder_attr($editLanguage);
       <p class="admin-text-muted"><?= admin_t('block_contactcard.laat_url_leeg_mailen', ['v1' => $h($siteEmail)]) ?></p>
 
       <label class="admin-checkbox-label">
-        <input type="checkbox" name="is_active" value="1" <?= $isActive ? 'checked' : '' ?>>
+        <input type="checkbox" class="admin-checkbox" name="is_active" value="1" <?= $isActive ? 'checked' : '' ?>>
         <?= admin_te('block_contactcard.actief_uitgevinkt_sectie_getoond') ?>
       </label>
 

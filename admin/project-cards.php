@@ -169,7 +169,7 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
 
       <h2 style="margin-top:2rem;"><?= admin_te('block_projects.display') ?></h2>
       <label class="admin-checkbox-label">
-        <input type="checkbox" name="show_filter_bar" value="1" <?= ($values['show_filter_bar'] ?? false) ? 'checked' : '' ?>>
+        <input type="checkbox" class="admin-checkbox" name="show_filter_bar" value="1" <?= ($values['show_filter_bar'] ?? false) ? 'checked' : '' ?>>
         <?= admin_te('block_projects.filter_bar') ?>
       </label>
       <div class="admin-form-row admin-form-row--split">
@@ -197,7 +197,7 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
       </div>
 
       <label class="admin-checkbox-label">
-        <input type="checkbox" name="is_active" value="1" <?= ($values['is_active'] ?? true) ? 'checked' : '' ?>>
+        <input type="checkbox" class="admin-checkbox" name="is_active" value="1" <?= ($values['is_active'] ?? true) ? 'checked' : '' ?>>
         <?= admin_te('block_projects.active') ?>
       </label>
 

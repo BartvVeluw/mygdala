@@ -32,6 +32,7 @@ use App\Service\Csrf;
 use App\Service\Language\LanguageCode;
 use App\Service\Language\SiteLanguages;
 use App\Service\RichTextContent;
+use App\Service\Routing\LinkChoice;
 use App\Repository\PageRepository;
 use App\Repository\RichTextRepository;
 
@@ -66,23 +67,65 @@ $languageCode = LanguageCode::normalise((string) ($_POST['language_code'] ?? '')
 $languageIsWritable = $languageCode !== '' && SiteLanguages::isActive($languageCode);
 
 $body = trim((string) ($_POST[RichTextContent::BODY] ?? ''));
+$buttonLabel = trim((string) ($_POST[RichTextContent::BUTTON_LABEL] ?? ''));
 $isActive = isset($_POST['is_active']);
 
-$old = ['language_code' => $languageCode, RichTextContent::BODY => $body, 'is_active' => $isActive];
+// The alignment is a closed list; anything else is the default.
+$align = (string) ($_POST['text_align'] ?? '');
+$align = array_key_exists($align, RichTextContent::ALIGNMENTS) ? $align : (string) array_key_first(RichTextContent::ALIGNMENTS);
+
+// The optional button: the shared destination rule (LinkChoice), and a label
+// only while there IS a button. "Geen knop" checks nothing.
+$buttonType = (string) ($_POST['button_link_type'] ?? LinkChoice::NONE);
+$buttonTargets = is_array($_POST['button_link_target'] ?? null) ? $_POST['button_link_target'] : [];
+$buttonUrl = trim((string) ($_POST['button_url'] ?? ''));
+$link = LinkChoice::fromRequest(
+    $buttonType,
+    $buttonTargets[$buttonType] ?? null,
+    $buttonUrl,
+    (string) ($section['button_link_type'] ?? ''),
+    (int) ($section['button_link_target_id'] ?? 0)
+);
+$hasButton = $link['link_type'] !== null;
+
+$old = [
+    'language_code' => $languageCode,
+    RichTextContent::BODY => $body,
+    RichTextContent::BUTTON_LABEL => $buttonLabel,
+    'is_active' => $isActive,
+    'text_align' => $align,
+    'button_link_type' => $buttonType,
+    'button_link_target' => $buttonTargets,
+    'button_url' => $buttonUrl,
+];
 
 $errors = [];
+$fieldErrors = [];
 if (!$languageIsWritable) {
     $errors[] = AdminTranslator::trans('validation.language_unknown');
 } else {
-    foreach (BlockLocalization::messageKeys(BlockLocalization::problems('rich_text_sections', $languageCode, [RichTextContent::BODY => $body])) as $key) {
+    foreach (BlockLocalization::messageKeys(BlockLocalization::problems('rich_text_sections', $languageCode, [RichTextContent::BODY => $body, RichTextContent::BUTTON_LABEL => $buttonLabel])) as $key) {
         $errors[] = AdminTranslator::trans($key);
     }
+
+    if ($link['error'] !== null) {
+        $fieldErrors['button_url'] = $link['error'];
+    }
+
+    // A button needs words in the default language; a translation may stay
+    // empty and falls back to them (RichTextContent::forSection()).
+    if ($hasButton && $buttonLabel === '' && $languageCode === BlockLocalization::defaultLanguage()) {
+        $fieldErrors[RichTextContent::BUTTON_LABEL] = AdminTranslator::trans('block_richtext.knoptekst_verplicht');
+    }
+
+    array_push($errors, ...array_values($fieldErrors));
 }
 
 $redirect = '/admin/rich-text.php?section=' . urlencode($sectionParam);
 
 if ($errors !== []) {
     $_SESSION['admin_rich_text_errors'] = $errors;
+    $_SESSION['admin_rich_text_field_errors'] = $fieldErrors;
     $_SESSION['admin_rich_text_old'] = $old;
     header('Location: ' . $redirect);
     exit;
@@ -95,7 +138,16 @@ try {
     $db->beginTransaction();
 
     $repository->upsertSection($pageSlug, $sectionKey, ['is_active' => $isActive]);
-    BlockLocalization::save('rich_text_sections', (int) $section['id'], $languageCode, [RichTextContent::BODY => $body]);
+    $repository->updateSettings((int) $section['id'], [
+        'text_align' => $align,
+        'button_link_type' => $link['link_type'],
+        'button_link_target_id' => $link['link_target_id'],
+        'button_url' => $buttonUrl,
+    ]);
+    BlockLocalization::save('rich_text_sections', (int) $section['id'], $languageCode, [
+        RichTextContent::BODY => $body,
+        RichTextContent::BUTTON_LABEL => $buttonLabel,
+    ]);
 
     $db->commit();
     RichTextContent::clearCache();

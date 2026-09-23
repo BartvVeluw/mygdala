@@ -28,6 +28,15 @@ namespace App\Service\Media;
  * Shop's own share images). Every other image field keeps offering SVG.
  * A filter is not a kind: the library's own type filter does not list it.
  *
+ * The second filter is ICON: a small drawing a block shows next to its
+ * words (a card of "Kenmerken in kaartjes"). An icon is an ordinary media
+ * item in the one library; what makes it an icon is only that it is an SVG,
+ * which scales without blurring and is always cleaned on the way in
+ * (SvgSanitizer). Unlike the share image it IS a section of the library:
+ * libraryFilters() lists it next to the kinds, so "Iconen" is a choice above
+ * the grid, and a picker for an icon lists and uploads nothing else. An
+ * ordinary image field keeps listing every image, SVG included.
+ *
  * Derived from `mime_type`, which the library already stores from the file's
  * own header, so a kind needs no column and no backfill. A row whose type is
  * unknown (an adopted file with an extension the adoption did not recognise)
@@ -41,6 +50,9 @@ final class MediaType
     /** A picker filter (see above): an image, raster formats only. */
     public const SOCIAL_IMAGE = 'social_image';
 
+    /** A picker filter that is also a section of the library: an SVG image. */
+    public const ICON = 'icon';
+
     /** Each kind, and how every MIME type that belongs to it begins. */
     private const MIME_PREFIXES = [
         self::IMAGE => 'image/',
@@ -51,6 +63,21 @@ final class MediaType
     public static function all(): array
     {
         return array_keys(self::MIME_PREFIXES);
+    }
+
+    /**
+     * What the library's own type filter offers: every kind, and the icons.
+     *
+     * @return list<string>
+     */
+    public static function libraryFilters(): array
+    {
+        return [...self::all(), self::ICON];
+    }
+
+    public static function isLibraryFilter(string $filter): bool
+    {
+        return in_array($filter, self::libraryFilters(), true);
     }
 
     public static function isKnown(string $type): bool
@@ -71,7 +98,7 @@ final class MediaType
     /** Whether a picker may ask for this: a kind, or a filter on one. */
     public static function isPickerFilter(string $filter): bool
     {
-        return self::isKnown($filter) || $filter === self::SOCIAL_IMAGE;
+        return self::isKnown($filter) || $filter === self::SOCIAL_IMAGE || $filter === self::ICON;
     }
 
     /** The kind a picker filter narrows, or null for an unknown one. */
@@ -79,7 +106,7 @@ final class MediaType
     {
         return match (true) {
             self::isKnown($filter) => $filter,
-            $filter === self::SOCIAL_IMAGE => self::IMAGE,
+            $filter === self::SOCIAL_IMAGE, $filter === self::ICON => self::IMAGE,
             default => null,
         };
     }
@@ -92,7 +119,11 @@ final class MediaType
      */
     public static function mimesOfFilter(string $filter): ?array
     {
-        return $filter === self::SOCIAL_IMAGE ? array_values(MediaUploader::MIME_FOR_TYPE) : null;
+        return match ($filter) {
+            self::SOCIAL_IMAGE => array_values(MediaUploader::MIME_FOR_TYPE),
+            self::ICON => [MediaUploader::SVG_MIME],
+            default => null,
+        };
     }
 
     /** Whether a stored item with this MIME type is an answer to a picker filter. */

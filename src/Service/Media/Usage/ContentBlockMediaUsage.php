@@ -98,13 +98,20 @@ final class ContentBlockMediaUsage extends MediaUsageProvider
             SELECT hh.video_media_id, \'Homepage Hero (video)\', \'homepage-hero\', hh.page_slug, NULL, NULL
               FROM homepage_hero hh
              WHERE hh.video_media_id IN (' . $placeholders . ')
+
+            UNION ALL
+
+            SELECT fi.icon_media_id, \'Kenmerken in kaartjes (icoon)\', \'feature-grid\', fg.page_slug, fg.section_key, NULL
+              FROM feature_grid_items fi
+              JOIN feature_grids fg ON fg.id = fi.feature_grid_id
+             WHERE fi.icon_media_id IN (' . $placeholders . ')
         ';
 
         $stmt = Database::connection()->prepare($sql);
         // The same id list once per branch: a named placeholder cannot be
         // reused across a statement here, so each branch gets its own
         // positional set.
-        $stmt->execute(array_merge(...array_fill(0, 7, $ids)));
+        $stmt->execute(array_merge(...array_fill(0, 8, $ids)));
 
         $usages = [];
 

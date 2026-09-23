@@ -1,0 +1,21 @@
+/* ==========================================================================
+   Content block: rich_text, the Tekstblok (partials/section-rich-text.php)
+   Asked for by App\Service\Blocks\RichTextBlock::styles().
+
+   Only what the Tekstblok adds to .rich-content: its alignment and its
+   optional button. .rich-content itself stays in core.css, because the blog,
+   the collections and the detail section use it too; nothing here may
+   change how those look.
+   ========================================================================== */
+
+/* Centre or right: the text and everything inline in it (links, bold,
+   headings) follow text-align. A list keeps its markers next to its items
+   instead of at the far left edge of the column. */
+.rich-text--center{ text-align: center; }
+.rich-text--right{ text-align: right; }
+.rich-text--center .rich-content :is(ul, ol),
+.rich-text--right .rich-content :is(ul, ol){ list-style-position: inside; padding-left: 0; }
+
+/* The button sits under the text, aligned with it by the same text-align. */
+.rich-text__actions{ margin: 0; }
+.rich-content + .rich-text__actions{ margin-top: var(--sp-4); }

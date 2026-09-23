@@ -308,7 +308,7 @@ require __DIR__ . '/_richtext_field.php';
 
       <div class="admin-form-row">
         <label class="admin-checkbox-label">
-          <input type="checkbox" name="is_active" value="1" <?= $isActiveChecked ? 'checked' : '' ?>>
+          <input type="checkbox" class="admin-checkbox" name="is_active" value="1" <?= $isActiveChecked ? 'checked' : '' ?>>
           <?= admin_te('shop.actief_zichtbaar_shop_pagina') ?>
         </label>
       </div>
@@ -376,7 +376,7 @@ require __DIR__ . '/_richtext_field.php';
           <p class="admin-text-muted"><?= admin_te('shop.optioneel_alleen_zichtbaar_voorbeeld') ?></p>
           <?php if ($currentOgImagePath !== ''): ?>
             <label class="admin-checkbox-label">
-              <input type="checkbox" name="remove_og_image" value="1" <?= $removeOgImageChecked ? 'checked' : '' ?>>
+              <input type="checkbox" class="admin-checkbox" name="remove_og_image" value="1" <?= $removeOgImageChecked ? 'checked' : '' ?>>
               <?= admin_te('shop.deel_afbeelding_verwijderen_opslaan') ?>
             </label>
           <?php endif; ?>
@@ -422,7 +422,7 @@ require __DIR__ . '/_richtext_field.php';
                  data-name="<?= $h(mb_strtolower($productName)) ?>">
               <span class="admin-drag-handle" data-collection-product-handle title="Sleep om te herordenen" aria-hidden="true">&#10021;</span>
               <label class="admin-checkbox-label admin-collection-product-row__pick">
-                <input type="checkbox" name="product_ids[]" value="<?= $productId ?>" <?= $isSelected ? 'checked' : '' ?> data-collection-product-checkbox>
+                <input type="checkbox" class="admin-checkbox" name="product_ids[]" value="<?= $productId ?>" <?= $isSelected ? 'checked' : '' ?> data-collection-product-checkbox>
                 <span class="admin-collection-product-row__thumb">
                   <?php if ($productImage !== ''): ?>
                     <img src="/<?= $h(ltrim($productImage, '/')) ?>" alt="" loading="lazy">

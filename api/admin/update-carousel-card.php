@@ -60,6 +60,7 @@ use App\Service\Language\LanguageCode;
 use App\Service\Language\SiteLanguages;
 use App\Service\CardCarouselContent;
 use App\Service\Media\BlockImage;
+use App\Service\Media\ImageFocus;
 use App\Service\Routing\LinkChoice;
 use App\Repository\CardCarouselRepository;
 
@@ -129,6 +130,10 @@ if ($link['error'] !== null) {
 $settings = ['link_type' => $link['link_type'], 'link_target_id' => $link['link_target_id']];
 
 $settings += ['link_url' => $linkUrl, 'is_active' => $isActive];
+
+// Which part of the cropped picture stays in view: one of nine points, the
+// default for anything else. A form without the field keeps what is stored.
+$settings['image_focus'] = ImageFocus::normalise(array_key_exists('image_focus', $_POST) ? $_POST['image_focus'] : ($card['image_focus'] ?? null));
 
 // ---------------------------------------------------------------- the image
 

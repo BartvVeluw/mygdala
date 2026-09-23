@@ -10,8 +10,9 @@ require_once __DIR__ . '/_admin_ui.php';
 
 use App\Service\AdminAuth;
 use App\Service\Blocks\BlockLocalization;
-use App\Service\CardCarouselContent;
 use App\Service\Csrf;
+use App\Service\Media\BlockImage;
+use App\Service\Media\ImageFocus;
 use App\Service\Media\MediaService;
 use App\Service\Routing\LinkChoice;
 use App\Service\Routing\LinkTargets;
@@ -155,25 +156,13 @@ $marker = $required !== '' ? '*' : '';
 $placeholder = admin_localized_placeholder_attr($editLanguage);
 // An optional field says so in the default language; in a translation its
 // placeholder says what a visitor sees while it is empty.
-$optional = $placeholder !== '' ? $placeholder : ' placeholder="Optioneel"';
-// What the card prints while its number is empty: its place among the cards
-// that show (CardCarouselContent). A card that is off — a new one — gets the
-// place it would have once switched on: after the shown cards before it.
-$shownIds = array_map(
-    static fn (array $shown): int => (int) $shown['id'],
-    CardCarouselContent::forSection((string) $carousel['page_slug'], (string) $carousel['section_key'])['cards']
-);
-$shownBefore = 0;
-foreach ($repository->findCardsByCarouselId((int) $carousel['id']) as $sibling) {
-    if ((int) $sibling['id'] === $cardId) {
-        break;
-    }
-    if (in_array((int) $sibling['id'], $shownIds, true)) {
-        $shownBefore++;
-    }
-}
-$numberPlaceholder = $placeholder !== '' ? $placeholder : ' placeholder="'
-    . admin_te('block_carousel.nummer_placeholder_positie', ['number' => CardCarouselContent::positionLabel($shownBefore)]) . '"';
+$optional = admin_localized_optional_attr($editLanguage);
+// An empty number is no number (CardCarouselContent): the field says so in
+// the default language; in a translation, what the fallback is.
+$numberPlaceholder = $placeholder !== '' ? $placeholder : ' placeholder="' . admin_te('block_carousel.nummer_placeholder') . '"';
+
+// The picture's focus point (ImageFocus): as handed back, else as stored.
+$imageFocus = ImageFocus::normalise(is_array($old) ? ($old['image_focus'] ?? null) : ($card['image_focus'] ?? null));
 
 /** aria-invalid + aria-describedby for a field with an error of its own, and the message under it. */
 $invalid = static function (string $field) use ($fieldErrors, $h): string {
@@ -287,11 +276,35 @@ $tagRow = static function (string $key, string $label, string $fallback) use ($h
       <?php if ($hasLegacyImageOnly): ?>
         <div class="admin-field admin-field--inline">
           <label class="admin-checkbox-label">
-            <input type="checkbox" name="remove_legacy_image" value="1">
+            <input type="checkbox" class="admin-checkbox" name="remove_legacy_image" value="1">
             <?= admin_te('block_carousel.afbeelding_verwijderen_gebruik_icoon') ?>
           </label>
         </div>
       <?php endif; ?>
+
+      <?php /* The focus point, and a preview in the card's own frame: the same
+               object-fit: cover and the same object-position as the website
+               (ImageFocus), kept in step by admin/assets/image-focus.js. */ ?>
+      <fieldset class="admin-image-focus" data-image-focus>
+        <legend><?= admin_te('block_carousel.focus') ?> <?= admin_help(admin_t('block_carousel.focus'), admin_t('help.block_carousel.focus')) ?></legend>
+        <div class="admin-image-focus__body">
+          <div class="admin-image-focus__grid">
+            <?php foreach (ImageFocus::keys() as $focusKey): ?>
+              <label class="admin-image-focus__point" title="<?= admin_te('media.focus.' . $focusKey) ?>">
+                <input type="radio" name="image_focus" value="<?= $h($focusKey) ?>" data-object-position="<?= $h(ImageFocus::objectPosition($focusKey)) ?>"<?= $imageFocus === $focusKey ? ' checked' : '' ?>>
+                <span class="admin-visually-hidden"><?= admin_te('media.focus.' . $focusKey) ?></span>
+              </label>
+            <?php endforeach; ?>
+          </div>
+          <figure class="admin-image-focus__preview">
+            <?php $focusSrc = BlockImage::fromOwner($card, null)['image_path']; ?>
+            <div class="admin-image-focus__frame" data-image-focus-frame<?= $focusSrc === '' ? ' hidden' : '' ?>>
+              <img src="<?= $h($focusSrc) ?>" alt="" style="object-position: <?= $h(ImageFocus::objectPosition($imageFocus)) ?>" data-image-focus-preview>
+            </div>
+            <figcaption class="admin-text-muted"><?= admin_te('block_carousel.focus_voorbeeld') ?></figcaption>
+          </figure>
+        </div>
+      </fieldset>
 
       <div class="admin-field">
         <?= admin_field_label('card-alt', admin_t('common.alt_text')) ?>
@@ -366,6 +379,7 @@ $tagRow = static function (string $key, string $label, string $fallback) use ($h
 <?php media_picker_script(); ?>
 <script src="<?= \App\Service\AssetVersion::url('/admin/assets/navigation-item.js') ?>" defer></script>
 <script src="<?= \App\Service\AssetVersion::url('/admin/assets/row-list.js') ?>" defer></script>
+<script src="<?= \App\Service\AssetVersion::url('/admin/assets/image-focus.js') ?>" defer></script>
 <?php save_bar_script(); ?>
 </body>
 </html>

@@ -1,5 +1,6 @@
 <?php
 
+require_once __DIR__ . '/eyebrow.php';
 require_once __DIR__ . '/feature-icons.php';
 
 /**
@@ -43,7 +44,7 @@ function render_section_feature_grid(array $grid, string $revealGroup = 'feature
       <div class="container">
         <?php if ($hasHeading): ?>
         <div class="section-head center" data-reveal>
-          <?php if ($grid['eyebrow'] !== ''): ?><p class="eyebrow"><?= $h($grid['eyebrow']) ?></p><?php endif; ?>
+          <?php render_eyebrow($grid['eyebrow']); ?>
           <?php if ($grid['title'] !== ''): ?><h2><?= $h($grid['title']) ?></h2><?php endif; ?>
           <?php if ($grid['lead'] !== ''): ?><p class="lead" style="margin-inline:auto;"><?= $h($grid['lead']) ?></p><?php endif; ?>
         </div>
@@ -51,8 +52,14 @@ function render_section_feature_grid(array $grid, string $revealGroup = 'feature
         <div class="feature-grid">
           <?php foreach ($grid['items'] as $item): ?>
           <div class="feature-card" data-reveal data-reveal-group="<?= $h($revealGroup) ?>">
-            <div class="feature-card__icon"><?= feature_grid_icon_svg($item['icon_key']) ?></div>
+            <?php if (($item['icon_url'] ?? '') !== ''): ?>
+            <div class="feature-card__icon feature-card__icon--custom" aria-hidden="true"><img src="<?= $h($item['icon_url']) ?>" alt="" width="24" height="24" loading="lazy" decoding="async"></div>
+            <?php elseif ($item['icon_key'] !== \App\Service\FeatureGridContent::ICON_NONE && $item['icon_key'] !== \App\Service\FeatureGridContent::ICON_CUSTOM): ?>
+            <div class="feature-card__icon" aria-hidden="true"><?= feature_grid_icon_svg($item['icon_key']) ?></div>
+            <?php endif; ?>
+            <?php if ($item['title'] !== ''): ?>
             <h3><?= $h($item['title']) ?></h3>
+            <?php endif; ?>
             <p><?= $h($item['body']) ?></p>
           </div>
           <?php endforeach; ?>

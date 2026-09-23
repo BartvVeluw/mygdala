@@ -163,7 +163,7 @@ $csrfToken = Csrf::token();
                 <input type="text" inputmode="decimal" name="price" value="<?= htmlspecialchars(number_format((float) $rate['price'], 2, '.', ''), ENT_QUOTES, 'UTF-8') ?>">
               </label>
               <label class="admin-checkbox-label">
-                <input type="checkbox" name="is_active" value="1" <?= $rate['is_active'] ? 'checked' : '' ?>>
+                <input type="checkbox" class="admin-checkbox" name="is_active" value="1" <?= $rate['is_active'] ? 'checked' : '' ?>>
                 <?= admin_te('common.active') ?>
               </label>
               <button type="submit" class="admin-btn-text"><?= admin_te('common.save') ?></button>

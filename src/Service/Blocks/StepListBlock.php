@@ -71,7 +71,7 @@ final class StepListBlock extends BlockDefinition
     {
         return [
             'step_list_sections' => [
-                TranslatableField::plain('eyebrow', 150)->required(),
+                TranslatableField::plain('eyebrow', 150),
                 TranslatableField::plain('title', 255)->required(),
             ],
             'step_list_items' => [

@@ -31,8 +31,13 @@
  * a request sends for them is never read, so the frontend never gains a
  * heading it has no markup for.
  *
- * A card's icon is one of FeatureGridContent::ICON_KEYS; anything else
- * becomes the first icon, as it always did.
+ * A card's icon is one of FeatureGridContent::ICON_KEYS, ICON_NONE (no icon)
+ * or ICON_CUSTOM: an SVG from the library's Iconen, whose id must name an
+ * SVG media item (MediaService::findIcon()) or the save is refused with a
+ * message next to the picker. Any other key becomes the first icon, as it
+ * always did. Only a custom icon keeps a media id, so a card that switches
+ * back to a standard icon no longer counts as a use of the SVG
+ * (App\Service\Media\Usage\ContentBlockMediaUsage).
  */
 
 declare(strict_types=1);
@@ -49,6 +54,7 @@ use App\Service\Csrf;
 use App\Service\Language\LanguageCode;
 use App\Service\Language\SiteLanguages;
 use App\Service\FeatureGridContent;
+use App\Service\Media\MediaService;
 use App\Repository\FeatureGridRepository;
 
 AdminAuth::requireLoginForApi();
@@ -104,22 +110,40 @@ if ($hasHeading) {
 }
 
 // The cards of THIS grid; a key naming any other row is dropped. An icon is
-// always sent, so it does not make an empty new card a card.
+// always sent, so it does not make an empty new card a card; neither does
+// the custom icon's (empty) picker field.
 $stored = $repository->findBySlugAndKey($section['page_slug'], $section['section_key']);
 $storedIds = $stored === null ? [] : array_map(
     static fn (array $item): int => (int) $item['id'],
     $repository->findItemsByGridId((int) $stored['id'])
 );
-$items = EditorChildList::fromRequest($_POST, 'items', 'feature_grid_items', $storedIds, EditorRows::parseAction($_POST['editor_action'] ?? null), ['icon_key']);
+$items = EditorChildList::fromRequest($_POST, 'items', 'feature_grid_items', $storedIds, EditorRows::parseAction($_POST['editor_action'] ?? null), ['icon_key', 'icon_media_id']);
 
-/** @return array{icon_key: string, is_active: bool} what a card has that is the same in every language */
+/** @return array{icon_key: string, icon_media_id: int|null, is_active: bool} what a card has that is the same in every language */
 $cardSettings = static function (array $row): array {
     $iconKey = $row['fields']['icon_key'] ?? '';
+    $iconMediaId = null;
+
+    if ($iconKey === FeatureGridContent::ICON_CUSTOM) {
+        $iconMediaId = MediaService::findIcon((int) ($row['fields']['icon_media_id'] ?? 0))?->id;
+    } elseif ($iconKey !== FeatureGridContent::ICON_NONE && !array_key_exists($iconKey, FeatureGridContent::ICON_KEYS)) {
+        $iconKey = (string) array_key_first(FeatureGridContent::ICON_KEYS);
+    }
 
     return [
-        'icon_key' => array_key_exists($iconKey, FeatureGridContent::ICON_KEYS) ? $iconKey : (string) array_key_first(FeatureGridContent::ICON_KEYS),
+        'icon_key' => $iconKey,
+        'icon_media_id' => $iconMediaId,
         'is_active' => EditorChildList::flag($row, 'active'),
     ];
+};
+
+/** A custom icon needs an SVG from the library: the field => message the list prints next to it. */
+$iconProblems = static function (array $row) use ($cardSettings): array {
+    $settings = $cardSettings($row);
+
+    return $settings['icon_key'] === FeatureGridContent::ICON_CUSTOM && $settings['icon_media_id'] === null
+        ? ['icon_media_id' => AdminTranslator::trans('block_features.icoon_eigen_ontbreekt')]
+        : [];
 };
 
 $errors = [];
@@ -130,7 +154,7 @@ if (!$languageIsWritable) {
 } else {
     // BlockLocalization::problems(), as a message per field.
     $fieldErrors = $hasHeading ? EditorChildList::wordErrors('feature_grids', $languageCode, $words) : [];
-    $itemErrors = $items->problems($languageCode);
+    $itemErrors = $items->problems($languageCode, $iconProblems);
 
     // One line per problem at the top, the same line next to its field.
     foreach ($fieldErrors as $message) {
@@ -169,7 +193,7 @@ try {
         $languageCode,
         static function (array $row) use ($repository, $gridId, $cardSettings): int {
             $values = $cardSettings($row);
-            $id = $repository->createItem($gridId, ['icon_key' => $values['icon_key']]);
+            $id = $repository->createItem($gridId, ['icon_key' => $values['icon_key'], 'icon_media_id' => $values['icon_media_id']]);
             $repository->updateItem($id, $values);
 
             return $id;

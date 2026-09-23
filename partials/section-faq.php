@@ -1,5 +1,7 @@
 <?php
 
+require_once __DIR__ . '/eyebrow.php';
+
 /**
  * Renders the FAQ section (App\Service\FaqContent) — extracted verbatim
  * from diensten.php. Caller must already have checked $faq['state'] ===
@@ -32,7 +34,7 @@ function render_section_faq(array $faq): void
       <div class="container">
         <?php if ($hasHeading): ?>
         <div class="section-head center" data-reveal>
-          <?php if ($faq['eyebrow'] !== ''): ?><p class="eyebrow"><?= $h($faq['eyebrow']) ?></p><?php endif; ?>
+          <?php render_eyebrow($faq['eyebrow']); ?>
           <?php if ($faq['title'] !== ''): ?><h2><?= $h($faq['title']) ?></h2><?php endif; ?>
         </div>
         <?php endif; ?>

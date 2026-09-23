@@ -148,7 +148,7 @@ $marker = admin_localized_required($editLanguage) !== '' ? '*' : '';
 $placeholder = admin_localized_placeholder_attr($editLanguage);
 // An optional field says so in the default language; in a translation its
 // placeholder says what a visitor sees while it is empty.
-$optional = $placeholder !== '' ? $placeholder : ' placeholder="Optioneel"';
+$optional = admin_localized_optional_attr($editLanguage);
 
 /** One paragraph; the template for a new one is the same markup with the key __KEY__. */
 $paragraphRow = static function (string $key, array $fields, int $position, int $count) use ($marker, $placeholder, $fieldErrors): void {
@@ -239,7 +239,7 @@ $imageRow = static function (string $key, array $fields, int $position, int $cou
       <p class="admin-text-muted"><?= admin_te('block_textimage.knoptekst_url_horen_elkaar') ?></p>
 
       <label class="admin-checkbox-label">
-        <input type="checkbox" name="is_active" value="1" <?= $sectionValues['is_active'] ? 'checked' : '' ?>>
+        <input type="checkbox" class="admin-checkbox" name="is_active" value="1" <?= $sectionValues['is_active'] ? 'checked' : '' ?>>
         <?= admin_te('block_textimage.actief_uitgevinkt_hele_sectie') ?>
       </label>
     </section>

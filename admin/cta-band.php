@@ -125,8 +125,8 @@ $placeholder = admin_localized_placeholder_attr($editLanguage);
 
       <?php admin_localized_bar($editLanguage); ?>
       <div class="admin-form-row">
-        <label><?= admin_te('block_cta.eyebrow') ?><?= $marker ?>
-          <input type="text" name="eyebrow" maxlength="150"<?= $required ?> value="<?= $h($word('eyebrow')) ?>"<?= $placeholder ?>>
+        <label><?= admin_te('block_cta.eyebrow') ?>
+          <input type="text" name="eyebrow" maxlength="150" value="<?= $h($word('eyebrow')) ?>"<?= admin_localized_optional_attr($editLanguage) ?>>
         </label>
       </div>
 
@@ -169,7 +169,7 @@ $placeholder = admin_localized_placeholder_attr($editLanguage);
       <p class="admin-text-muted"><?= admin_te('block_cta.laat_label_url_leeg') ?></p>
 
       <label class="admin-checkbox-label">
-        <input type="checkbox" name="is_active" value="1" <?= $isActive ? 'checked' : '' ?>>
+        <input type="checkbox" class="admin-checkbox" name="is_active" value="1" <?= $isActive ? 'checked' : '' ?>>
         <?= admin_te('block_cta.actief_uitgevinkt_sectie_getoond') ?>
       </label>
 

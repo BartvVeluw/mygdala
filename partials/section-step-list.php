@@ -1,5 +1,7 @@
 <?php
 
+require_once __DIR__ . '/eyebrow.php';
+
 /**
  * Renders the Step List / Werkwijze section (App\Service\StepListContent) —
  * extracted verbatim from index.php. Step numbers are rendered purely by a
@@ -35,7 +37,7 @@ function render_section_step_list(array $stepList, string $revealGroup = 'proces
       <div class="container">
         <?php if ($hasHeading): ?>
         <div class="section-head center" data-reveal>
-          <?php if ($stepList['eyebrow'] !== ''): ?><p class="eyebrow"><?= $h($stepList['eyebrow']) ?></p><?php endif; ?>
+          <?php render_eyebrow($stepList['eyebrow']); ?>
           <?php if ($stepList['title'] !== ''): ?><h2><?= $h($stepList['title']) ?></h2><?php endif; ?>
         </div>
         <?php endif; ?>

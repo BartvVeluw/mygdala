@@ -209,3 +209,14 @@ function admin_localized_placeholder_attr(string $language): string
         'UTF-8'
     ) . '"';
 }
+
+/**
+ * The placeholder of an optional field: "Optioneel" in the default
+ * language, and in a translation what a visitor gets while it is empty.
+ */
+function admin_localized_optional_attr(string $language): string
+{
+    $placeholder = admin_localized_placeholder_attr($language);
+
+    return $placeholder !== '' ? $placeholder : ' placeholder="Optioneel"';
+}

@@ -626,7 +626,9 @@ p{ margin: 0; }
 section{ position: relative; padding-block: var(--sp-7); }
 .section-head{ max-width: 640px; margin-bottom: var(--sp-5); }
 .section-head.center{ margin-inline: auto; text-align: center; }
-.section-head h2{ margin-top: var(--sp-2); }
+/* Only under an eyebrow: an empty eyebrow is not printed (partials/eyebrow.php)
+   and must leave no gap above the heading. */
+.section-head .eyebrow + h2{ margin-top: var(--sp-2); }
 
 .bg-soft{
   position: relative;
@@ -722,6 +724,9 @@ section{ position: relative; padding-block: var(--sp-7); }
   box-shadow: 0 0 24px -4px rgba(var(--color-primary-rgb), 0.6);
 }
 .feature-card__icon svg{ width: 24px; height: 24px; }
+/* A custom icon is an SVG from the Media Library: any aspect ratio fits the
+   same 24px box without being stretched. */
+.feature-card__icon img{ display: block; width: 24px; height: 24px; object-fit: contain; }
 .feature-card h3{
   position: relative;
   z-index: 1;
@@ -787,28 +792,45 @@ section{ position: relative; padding-block: var(--sp-7); }
 .process{ display: grid; grid-template-columns: repeat(4,1fr); gap: var(--sp-4); counter-reset: step; }
 @media (max-width: 900px){ .process{ grid-template-columns: repeat(2,1fr); } }
 @media (max-width: 560px){ .process{ grid-template-columns: 1fr; } }
-.process-step{ position: relative; padding-top: var(--sp-4); }
+/* A step is a small grid: the number and its connector share the first
+   row, the title and text span both columns below. The connector is a grid
+   item centred on the number's own line box (align-self), so it sits on
+   the middle of the digits at any font size, and it starts right after
+   the number, so every step - the first one included - carries the same
+   mark. It reaches into the column gap and stops a little before the next
+   number (--process-connector-gap). Desktop only, and never on the last
+   step of a row of four, since there is nothing beside it to connect to. */
+.process-step{
+  --process-connector-gap: 0.6rem;
+  position: relative;
+  padding-top: var(--sp-4);
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-content: start;
+}
 .process-step::before{
   counter-increment: step;
   content: counter(step, decimal-leading-zero);
   font-family: var(--font-display);
   font-size: 2.2rem;
   color: var(--color-primary);
-  display: block;
+  grid-column: 1;
+  grid-row: 1;
   margin-bottom: var(--sp-2);
   position: relative;
   z-index: 1;
 }
-/* Connective line between numbered steps — desktop only; content is a
-   genuine ordered sequence, so the numbering + connector earns its keep. */
+.process-step > *{ grid-column: 1 / -1; }
 @media (min-width: 901px){
-  .process-step:not(:last-child)::after{
+  .process-step:not(:last-child):not(:nth-child(4n))::after{
     content: "";
-    position: absolute;
-    top: calc(var(--sp-4) + 1.3rem);
-    left: calc(100% - var(--sp-2));
-    width: calc(var(--sp-4) * 2);
+    grid-column: 2;
+    grid-row: 1;
+    align-self: center;
     height: 1px;
+    margin-bottom: var(--sp-2);
+    margin-left: var(--process-connector-gap);
+    margin-right: calc(var(--process-connector-gap) - var(--sp-4));
     background: linear-gradient(90deg, var(--color-line-strong), var(--color-line));
   }
 }

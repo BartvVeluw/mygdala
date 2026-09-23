@@ -4,6 +4,9 @@ namespace App\Service;
 
 use App\Repository\FeatureGridRepository;
 use App\Service\Blocks\BlockLocalization;
+use App\Service\Media\MediaItem;
+use App\Service\Media\MediaService;
+use App\Service\Media\MediaType;
 use App\Service\Routing\RequestLanguage;
 
 /**
@@ -19,9 +22,14 @@ use App\Service\Routing\RequestLanguage;
  * change (this is exactly why section_key exists alongside page_slug: a page
  * can have more than one grid without a schema rewrite).
  *
- * ICON_KEYS is the complete, closed set of icons a card may use. The CMS
- * only ever stores one of these keys, never markup — partials/feature-icons.php
+ * ICON_KEYS is the complete, closed set of standard icons a card may use. The
+ * CMS only ever stores one of these keys, never markup — partials/feature-icons.php
  * is the only place that maps a key to its (theme-owned, hand-authored) SVG.
+ * Two more keys are choices rather than icons: ICON_NONE (the card shows no
+ * icon at all) and ICON_CUSTOM (an SVG from the Iconen section of the Media
+ * Library, feature_grid_items.icon_media_id, MediaType::ICON). A custom icon
+ * whose item is gone, or is not an SVG, shows no icon rather than a broken
+ * image: the card still has its words.
  *
  * There is no hardcoded fallback copy. A missing row, or a lookup that fails,
  * is STATE_FALLBACK: there is nothing to render, and a failure is logged. See
@@ -44,9 +52,10 @@ use App\Service\Routing\RequestLanguage;
  *
  * Once a grid's row exists and is active, its *items* come strictly from the
  * database (only is_active = 1 cards), even if that list is empty — an
- * individually hidden/deleted card stays hidden. A card without its title
- * and text in the default language is not there either: the default language
- * decides whether a card shows, as it does for the block.
+ * individually hidden/deleted card stays hidden. A card without its text in
+ * the default language is not there either: the default language decides
+ * whether a card shows, as it does for the block. The title is optional: a
+ * card without one renders no heading.
  */
 class FeatureGridContent
 {
@@ -95,6 +104,12 @@ class FeatureGridContent
         'location' => 'Locatie (pin)',
     ];
 
+    /** The card shows no icon. */
+    public const ICON_NONE = 'none';
+
+    /** The card shows its own SVG from the library (icon_media_id). */
+    public const ICON_CUSTOM = 'custom';
+
     /** The owner tables of this block's words (FeatureGridBlock::translatableFields()). */
     private const TABLE = 'feature_grids';
     private const ITEMS = 'feature_grid_items';
@@ -106,8 +121,11 @@ class FeatureGridContent
      * @return array<string, mixed> 'state' (one of STATE_*), plus eyebrow,
      *                                title and lead (a string each,
      *                                empty when the section has no heading),
-     *                                and 'items': a list of icon_key plus
-     *                                title and body (a string each).
+     *                                and 'items': a list of icon_key (a
+     *                                standard key, ICON_NONE or ICON_CUSTOM),
+     *                                icon_url (the custom icon's public path,
+     *                                '' otherwise) plus title and body (a
+     *                                string each).
      *                                Templates must only render the section
      *                                when 'state' === STATE_ACTIVE; the
      *                                content fields are still present
@@ -164,6 +182,12 @@ class FeatureGridContent
         // exists and is active means the admin has deliberately curated its
         // cards, so an empty result is "all cards hidden/deleted", not
         // "missing data".
+        // Every custom icon of the grid in one query.
+        $icons = MediaService::findMany(array_map(
+            static fn (array $item): ?int => isset($item['icon_media_id']) ? (int) $item['icon_media_id'] : null,
+            $items
+        ));
+
         $content['items'] = [];
         foreach ($items as $item) {
             $itemId = (int) $item['id'];
@@ -172,16 +196,43 @@ class FeatureGridContent
                 continue;
             }
 
-            $iconKey = (string) $item['icon_key'];
-
-            $content['items'][] = [
-                'icon_key' => array_key_exists($iconKey, self::ICON_KEYS) ? $iconKey : array_key_first(self::ICON_KEYS),
-            ] + BlockLocalization::words(self::ITEMS, $itemId);
+            $content['items'][] = self::icon($item, $icons) + BlockLocalization::words(self::ITEMS, $itemId);
         }
 
         $content['state'] = self::STATE_ACTIVE;
 
         return self::$cache[$cacheKey] = $content;
+    }
+
+    /**
+     * The icon of one stored card: a standard key (an unknown one becomes the
+     * first, as it always did), no icon, or a custom SVG that still exists.
+     *
+     * @param array<string, mixed>   $item  a feature_grid_items row
+     * @param array<int, MediaItem>  $icons the grid's custom icons by id
+     *
+     * @return array{icon_key: string, icon_url: string}
+     */
+    public static function icon(array $item, array $icons): array
+    {
+        $iconKey = (string) ($item['icon_key'] ?? '');
+
+        if ($iconKey === self::ICON_NONE) {
+            return ['icon_key' => self::ICON_NONE, 'icon_url' => ''];
+        }
+
+        if ($iconKey === self::ICON_CUSTOM) {
+            $media = $icons[(int) ($item['icon_media_id'] ?? 0)] ?? null;
+
+            return $media !== null && MediaType::filterAccepts(MediaType::ICON, $media->mimeType)
+                ? ['icon_key' => self::ICON_CUSTOM, 'icon_url' => $media->publicPath()]
+                : ['icon_key' => self::ICON_NONE, 'icon_url' => ''];
+        }
+
+        return [
+            'icon_key' => array_key_exists($iconKey, self::ICON_KEYS) ? $iconKey : (string) array_key_first(self::ICON_KEYS),
+            'icon_url' => '',
+        ];
     }
 
     /**

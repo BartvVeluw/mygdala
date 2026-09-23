@@ -165,7 +165,7 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
       </div>
 
       <label class="admin-checkbox-label">
-        <input type="checkbox" name="is_active" value="1" <?= ($values['is_active'] ?? true) ? 'checked' : '' ?>>
+        <input type="checkbox" class="admin-checkbox" name="is_active" value="1" <?= ($values['is_active'] ?? true) ? 'checked' : '' ?>>
         <?= admin_te('forms.actief_uitgevinkt_sectie_getoond') ?>
       </label>
 

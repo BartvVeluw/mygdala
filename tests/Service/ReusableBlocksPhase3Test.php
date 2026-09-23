@@ -218,23 +218,29 @@ final class ReusableBlocksPhase3Test extends TestCase
 
         $html = $this->renderBlock($blockId);
         $this->assertSame(5, substr_count($html, 'data-orbit-card'));
-        $this->assertStringContainsString('<span class="service-row__index">05</span>', $html);
+        $this->assertStringNotContainsString('service-row__index', $html, 'a card without its own number shows none (CardCarouselContent)');
         $this->assertStringContainsString('Vijf', $html);
 
         $content = CardCarouselContent::forSection(self::TEST_KEY, $sectionKey);
         $this->assertCount(5, $content['cards']);
     }
 
-    public function testAHiddenCardDropsOutAndTheRestStayNumberedContiguously(): void
+    public function testAHiddenCardDropsOutAndTheOthersKeepTheirOwnNumbers(): void
     {
         [$blockId, $sectionKey] = $this->addBlock('card_carousel');
 
         $repository = new CardCarouselRepository();
         $carouselId = (int) $repository->findBySlugAndKey(self::TEST_KEY, $sectionKey)['id'];
 
-        $this->card($repository, $carouselId, 'Zichtbaar een');
+        $one = $this->card($repository, $carouselId, 'Zichtbaar een');
         $hiddenId = $this->card($repository, $carouselId, 'Verborgen');
-        $this->card($repository, $carouselId, 'Zichtbaar twee');
+        $two = $this->card($repository, $carouselId, 'Zichtbaar twee');
+        // Numbers are the cards' own words now: a hidden card between them
+        // takes nothing away from the others.
+        BlockLocalization::save('carousel_cards', $one, 'nl', ['title' => 'Zichtbaar een', 'number_label' => '01']);
+        BlockLocalization::save('carousel_cards', $hiddenId, 'nl', ['title' => 'Verborgen', 'number_label' => '02']);
+        BlockLocalization::save('carousel_cards', $two, 'nl', ['title' => 'Zichtbaar twee', 'number_label' => '03']);
+        CardCarouselContent::clearCache();
 
         $repository->updateCard($hiddenId, ['is_active' => false]);
 
@@ -243,8 +249,8 @@ final class ReusableBlocksPhase3Test extends TestCase
         $this->assertSame(2, substr_count($html, 'data-orbit-card'));
         $this->assertStringNotContainsString('Verborgen', $html);
         $this->assertStringContainsString('<span class="service-row__index">01</span>', $html);
-        $this->assertStringContainsString('<span class="service-row__index">02</span>', $html);
-        $this->assertStringNotContainsString('<span class="service-row__index">03</span>', $html);
+        $this->assertStringNotContainsString('<span class="service-row__index">02</span>', $html);
+        $this->assertStringContainsString('<span class="service-row__index">03</span>', $html);
     }
 
     // ------------------------------------------------- independent instances

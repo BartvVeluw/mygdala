@@ -166,7 +166,8 @@ in de schil en heeft geen eigen knop. Dezelfde tekstregels als de uitleg.
 |---|---|---|
 | Zoekveld | `<label class="admin-search"><span class="admin-visually-hidden">…</span><input type="search" …></label>` | Elk `input[type="search"]` heeft de invoerstijl van het CMS; `.admin-search` voegt het vergrootglas toe |
 | Select | `<select class="admin-select">` | Voor één keuze. Niet voor `multiple` of `size`. Foutstaat met `aria-invalid="true"` |
-| Checkbox | `<input type="checkbox" class="admin-checkbox">` | In een `.admin-checkbox-label` |
+| Checkbox | `<input type="checkbox" class="admin-checkbox">` | In een `.admin-checkbox-label`. Élke zichtbare checkbox van het CMS heeft deze klasse of `.admin-switch` |
+| Getal | `<input type="number">` | Heeft de invoerstijl van het CMS, net als tekst en zoeken; geen eigen klasse |
 | Switch | `<input type="checkbox" class="admin-switch" role="switch">` | Voor één aan/uit-instelling |
 | Bestand | `admin_file_input(['name' => 'image', 'accept' => '…', 'required' => true])` | Binnen het `<label>` van het veld, of met een `id` naast `admin_field_label()` |
 | Voorbeeld van een afbeelding | `admin_file_preview('id-van-het-veld', $huidigeAfbeelding)` | Hoort bij één `admin_file_input()` met dat `id`; zie hieronder |
@@ -175,6 +176,20 @@ in de schil en heeft geen eigen knop. Dezelfde tekstregels als de uitleg.
 Elk element heeft een hover-, focus- en disabled-toestand. In Windows' hoog
 contrast (`forced-colors`) krijgen checkbox en switch het eigen element van de
 browser terug, en `prefers-reduced-motion` zet de overgangen uit.
+
+**Eén checkbox voor het hele CMS.** `.admin-checkbox` tekent de native
+checkbox in de thema-tokens (`appearance: none`, dus Spatie, `checked`, de
+naam en de waarde blijven van de browser). Aangevinkt is hij gevuld in
+`--admin-accent` met een vinkje in `--admin-on-accent`; hover over de box
+óf over zijn label kleurt de rand (en aangevinkt de vulling in
+`--admin-accent-hover`); `:focus-visible` geeft de focusring van het CMS;
+uitgeschakeld is hij half doorzichtig en krijgt zijn label de gedempte
+tekstkleur en `cursor: not-allowed`. Het label blijft klikbaar omdat de
+checkbox erin staat. Alleen een checkbox die niemand ziet (de verborgen
+menuschakelaar, het visueel verborgen verwijdervinkje van een rij met een
+eigen getekend label) heeft geen klasse. `AdminUiPrimitivesTest` scant elk
+scherm onder `admin/` en faalt op een zichtbare checkbox zonder
+`.admin-checkbox` of `.admin-switch`.
 
 **Een switch verandert niets aan wat er verstuurd wordt.** Hij is een
 checkbox: aangevinkt stuurt hij zijn `value`, uit stuurt hij niets. Leest een

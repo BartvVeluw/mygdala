@@ -1,5 +1,7 @@
 <?php
 
+require_once __DIR__ . '/eyebrow.php';
+
 /**
  * Renders the CTA Band section (App\Service\CtaBandContent) — identical
  * markup on index.php, shop.php, diensten.php and portfolio.php, extracted
@@ -28,7 +30,7 @@ function render_section_cta_band(array $cta): void
     <section>
       <div class="container">
         <div class="cta-band cta-band--card" data-reveal>
-          <p class="eyebrow"><?= $h($text('eyebrow')) ?></p>
+          <?php render_eyebrow($text('eyebrow')); ?>
           <h2><?= $h($text('title')) ?></h2>
           <?php if ($text('lead') !== ''): ?>
           <p class="lead"><?= $h($text('lead')) ?></p>

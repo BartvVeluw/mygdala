@@ -1,5 +1,6 @@
 <?php
 
+require_once __DIR__ . '/eyebrow.php';
 require_once __DIR__ . '/text-image-split-media.php';
 
 /**
@@ -54,11 +55,9 @@ function render_section_text_image_split(array $section, bool $tightTop = false,
           <?php render_text_image_split_media($section['images'], $revealGroup); ?>
           <?php endif; ?>
           <div data-reveal>
-            <?php if ($section['eyebrow'] !== ''): ?>
-              <p class="eyebrow"><?= $h($section['eyebrow']) ?></p>
-            <?php endif; ?>
+            <?php render_eyebrow($section['eyebrow']); ?>
             <?php if ($section['title'] !== ''): ?>
-              <h2 style="margin-top:0.75rem;"><?= $h($section['title']) ?></h2>
+              <h2<?= $section['eyebrow'] !== '' ? ' style="margin-top:0.75rem;"' : '' ?>><?= $h($section['title']) ?></h2>
             <?php endif; ?>
             <?php foreach ($section['paragraphs'] as $pIndex => $paragraph): ?>
               <?php if ($pIndex === 0 && $section['title'] === ''): ?>

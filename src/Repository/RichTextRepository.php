@@ -72,6 +72,35 @@ class RichTextRepository extends Repository
     }
 
     /**
+     * What the editor sets besides the body and "Actief", the same in every
+     * language: the alignment and the optional button's destination
+     * (App\Service\Routing\LinkChoice). The button's label is a word, saved
+     * through BlockLocalization.
+     *
+     * @param array{text_align: string, button_link_type: string|null, button_link_target_id: int|null, button_url: string} $values
+     */
+    public function updateSettings(int $id, array $values): void
+    {
+        $stmt = $this->db->prepare(
+            'UPDATE rich_text_sections SET
+                text_align = :text_align,
+                button_link_type = :button_link_type,
+                button_link_target_id = :button_link_target_id,
+                button_url = :button_url,
+                updated_at = NOW()
+             WHERE id = :id'
+        );
+
+        $stmt->execute([
+            'text_align' => $values['text_align'],
+            'button_link_type' => $values['button_link_type'],
+            'button_link_target_id' => $values['button_link_target_id'],
+            'button_url' => $values['button_url'] === '' ? null : $values['button_url'],
+            'id' => $id,
+        ]);
+    }
+
+    /**
      * Permanently removes one rich-text section — used by the page builder's
      * "Delete section" action via App\Service\SectionRegistry::delete().
      */

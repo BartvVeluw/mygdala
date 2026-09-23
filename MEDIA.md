@@ -280,6 +280,12 @@ overleeft.
   bestaan is een belofte die het scherm niet waarmaakt. Een rij zonder
   bekende soort (een overgenomen bestand met een onbekende extensie) staat
   onder *Alles* en nergens anders.
+- **Iconen** (`?type=icon`, `MediaType::ICON`) is het derde onderdeel van het
+  filter: de SVG's van de bibliotheek. Het is geen soort en geen tweede
+  bibliotheek: een icoon is een gewoon media-item dat een SVG is, met dezelfde
+  naam, alt-tekst, gebruikslijst en verwijderregels. `MediaType::libraryFilters()`
+  is wat het filter aanbiedt (de soorten plus Iconen), `isLibraryFilter()` wat
+  het adres mag vragen.
 - Een onbekende `type` in het adres filtert niets, en een pagina voorbij de
   laatste toont de laatste.
 
@@ -580,6 +586,16 @@ het, en de endpoints lezen het id via `MediaService::findSocialImage()`. De
 deel-afbeelding die een pagina al had, blijft geldig, zodat geen bestaande
 pagina onopslaanbaar wordt.
 
+**Icoon: alleen SVG.** Het tweede kiezerfilter is `MediaType::ICON`: een
+afbeelding die een SVG is. De eerste gebruiker is het eigen icoon van een
+kaart in *Kenmerken in kaartjes* (`feature_grid_items.icon_media_id`). De
+kiezer toont dan alleen SVG's en de upload in de modal neemt alleen een SVG
+aan (`MediaUploader::nameFitsFilter()`, `acceptAttribute(ICON)`); zo'n upload
+gaat door dezelfde `SvgSanitizer` als elke andere SVG en is daarna een gewoon
+item, ook in elke afbeeldingskiezer. Het endpoint leest het id met
+`MediaService::findIcon()`, dat alleen een SVG als antwoord geeft. Andere
+afbeeldingskiezers veranderen niet: die tonen raster én SVG.
+
 Zet je JavaScript uit, dan blijft het formulier gewoon opslaan wat er al
 gekozen was.
 
@@ -607,6 +623,7 @@ de lijst controleert elk id opnieuw.
 | Kaarten-carrousel (`card_carousel`) | `carousel_cards.media_id` |
 | Paginakop (`page_hero`) | `page_heroes.media_id`, zonder oud pad en zonder eigen alt-tekst: een paginakop had nooit een afbeelding |
 | Uitgelichte afbeelding en deel-afbeelding van een blogbericht | `blog_posts.featured_media_id`, `blog_posts.og_media_id` — een module, dus via `BlogModule::mediaUsageProviders()` |
+| Eigen icoon van een kaart in *Kenmerken in kaartjes* (`feature_grid`) | `feature_grid_items.icon_media_id`, alleen als `icon_key = custom`; geen oud pad en geen alt-tekst, want het icoon is versiering (`aria-hidden`, `alt=""`): de titel en tekst van de kaart dragen de betekenis. Kiest de kaart weer een standaardicoon of *Geen*, dan wordt de verwijzing leeggemaakt en telt het item niet meer als gebruikt |
 | Homepage-hero: afbeelding en video | `homepage_hero.media_id` (met eigen alt-tekst per taal) en `homepage_hero.video_media_id`, oude `image_path` / `video_path` als terugval. Het videoveld is de eerste videokiezer (`media_picker_field(…, MediaType::VIDEO)`) |
 
 **Bewust nog op hun eigen paden**, ongewijzigd en werkend:

@@ -12,9 +12,10 @@ require_once dirname(__DIR__, 3) . '/partials/section-rich-text.php';
  * no title of its own, so the page builder tells two of them apart by the
  * first words of their text.
  *
- * Its body is stored per website language in block_translations
- * (BlockLocalization); the row in rich_text_sections holds only what is the
- * same in every language.
+ * Its body and the label of its optional button are stored per website
+ * language in block_translations (BlockLocalization); the row in
+ * rich_text_sections holds only what is the same in every language: whether
+ * it is shown, its alignment and where the button goes (LinkChoice).
  */
 final class RichTextBlock extends BlockDefinition
 {
@@ -64,14 +65,25 @@ final class RichTextBlock extends BlockDefinition
         ];
     }
 
-    /** The body, sanitized rich text; the length is the one the editor always allowed. */
+    /**
+     * The body, sanitized rich text (the length is the one the editor always
+     * allowed), and the optional button's label. Neither is required here:
+     * the label is required only while there is a button, which the endpoint
+     * checks (api/admin/update-rich-text-section.php).
+     */
     public function translatableFields(): array
     {
         return [
             'rich_text_sections' => [
                 TranslatableField::rich(RichTextContent::BODY, 50000),
+                TranslatableField::plain(RichTextContent::BUTTON_LABEL, 150),
             ],
         ];
+    }
+
+    public function styles(): array
+    {
+        return ['assets/css/blocks/rich-text.css'];
     }
 
     public function create(string $pageSlug): array
@@ -103,7 +115,12 @@ final class RichTextBlock extends BlockDefinition
 
     public function sampleContent(BlockSamples $samples): ?array
     {
-        return [RichTextContent::BODY => $samples->localizedRichText()];
+        return [
+            RichTextContent::BODY => $samples->localizedRichText(),
+            'align' => 'left',
+            RichTextContent::BUTTON_LABEL => $samples->localized('button'),
+            'button_href' => BlockSamples::LINK,
+        ];
     }
 
     public function renderSample(array $content, string $revealGroup): void

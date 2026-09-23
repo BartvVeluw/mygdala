@@ -115,6 +115,14 @@ final class MediaService
             : null;
     }
 
+    /** find(), for an icon (MediaType::ICON): only an SVG is an answer. */
+    public static function findIcon(?int $id): ?MediaItem
+    {
+        $item = self::find($id);
+
+        return $item !== null && MediaType::filterAccepts(MediaType::ICON, $item->mimeType) ? $item : null;
+    }
+
     /** find(), for a field that takes a video: only a video is an answer. */
     public static function findVideo(?int $id): ?MediaItem
     {

@@ -181,8 +181,8 @@ $stepRow = static function (string $key, array $fields, int $position, int $coun
     <section class="admin-card">
       <h2><?= admin_te('block_steps.sectiekop') ?></h2>
       <div class="admin-field">
-        <?= admin_field_label('step-list-eyebrow', admin_t('block_steps.eyebrow') . $marker) ?>
-        <input type="text" id="step-list-eyebrow" name="eyebrow" maxlength="150"<?= $required ?> value="<?= $h($sectionWord('eyebrow')) ?>"<?= $placeholder ?><?= editor_field_invalid($fieldErrors, 'eyebrow') ?>>
+        <?= admin_field_label('step-list-eyebrow', admin_t('block_steps.eyebrow')) ?>
+        <input type="text" id="step-list-eyebrow" name="eyebrow" maxlength="150" value="<?= $h($sectionWord('eyebrow')) ?>"<?= admin_localized_optional_attr($editLanguage) ?><?= editor_field_invalid($fieldErrors, 'eyebrow') ?>>
         <?php editor_field_error($fieldErrors, 'eyebrow'); ?>
       </div>
 
@@ -193,7 +193,7 @@ $stepRow = static function (string $key, array $fields, int $position, int $coun
       </div>
 
       <label class="admin-checkbox-label">
-        <input type="checkbox" name="is_active" value="1" <?= $isActive ? 'checked' : '' ?>>
+        <input type="checkbox" class="admin-checkbox" name="is_active" value="1" <?= $isActive ? 'checked' : '' ?>>
         <?= admin_te('block_steps.actief_uitgevinkt_hele_sectie') ?>
       </label>
     </section>

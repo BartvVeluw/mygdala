@@ -111,6 +111,13 @@ Twee onafhankelijke schakelaars verbergen een blok, en beide tellen:
 
 Er wordt niets server-side vertaald.
 
+**Een bovenlabel (eyebrow) is altijd optioneel.** Geen blok declareert het als
+`->required()`, geen editor zet er `required` op (de placeholder is
+`admin_localized_optional_attr()`), en een partial print het nooit zelf maar
+via `render_eyebrow()` uit `partials/eyebrow.php`: leeg is geen element en dus
+ook geen lijntje of marge. `Tests\Service\OptionalEyebrowTest` controleert dat
+voor elk geregistreerd blok met een bovenlabel.
+
 ## Instantie-identiteit
 
 Een instantie wordt **altijd** geadresseerd op `(page_slug, section_key)` — ook

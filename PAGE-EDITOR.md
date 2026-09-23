@@ -318,6 +318,24 @@ geen enkel gegeven dat alleen bij hover verschijnt. Onder 640 px wordt het
 paneel schermvullend, staan de kaarten in één kolom en krijgt een lijstrij twee
 regels: naam met categorie, dan de beschrijving.
 
+**Voorbeeld zonder toe te voegen.** Naast elke kaart staat een knop
+*Voorbeeld*. Hij opent precies het voorbeeld van de Contentblokken-bibliotheek
+(hieronder): dezelfde dialoog (`block_library_preview_dialog()`, door
+`block_picker_modal()` meegeprint), hetzelfde script (`block-library.js`),
+hetzelfde adres (`/admin/block-preview.php?type=…`) en dezelfde knop
+(`block_library_preview_button()` in `admin/_block_library.php`). Er is dus
+geen tweede previewregister en geen tweede manier om een voorbeeld te maken;
+een blok zonder `sampleContent()` (vandaag alleen het productraster) toont ook
+hier zijn schets. Omdat de kaart zelf de submitknop is, staat *Voorbeeld*
+ernaast in een `[data-block-slot]`: in de kaartweergave in de hoek van de
+schets, in de lijst achter de rij. Filteren verbergt kaart en knop samen. De
+dialoog ligt als native modale `<dialog>` boven het paneel en heeft zolang hij
+open is het toetsenbord: Escape sluit het voorbeeld en niet het paneel
+(`block-picker.js` laat toetsen met rust zolang er een `dialog[open]` is), Tab
+blijft in de dialoog, en na sluiten staat de focus weer op die
+*Voorbeeld*-knop. Een blok van een uitgeschakelde module heeft geen kaart en
+dus ook geen voorbeeld.
+
 **Zonder JavaScript gaat het paneel niet open.** Dat is dezelfde afspraak als
 bij de mediakiezer en het slepen van blokken: het adminpaneel gaat uit van
 JavaScript. Er is bewust geen `<noscript>`-dropdown teruggezet, want dat zou

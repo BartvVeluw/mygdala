@@ -15,6 +15,12 @@
  * opener on close, and Tab stays inside the panel while it is open. Nothing
  * is revealed by hovering — a touch device sees exactly what a desktop does.
  *
+ * A PREVIEW ON TOP. The Voorbeeld button beside a card opens the block's
+ * preview in the Contentblokken library's own modal <dialog>
+ * (admin/assets/block-library.js). While that dialog is open it owns the
+ * keyboard: Escape closes the preview and not this panel, and Tab stays in
+ * the dialog. When it closes, the focus is back on that Voorbeeld button.
+ *
  * THE VIEW IS A DISPLAY PREFERENCE. Cards or list is remembered per browser,
  * in localStorage under one Mygdala key, and applied before the panel is ever
  * opened. Storage that is blocked or empty simply means cards. Nothing about
@@ -139,6 +145,9 @@
       var show = matchesTerm && matchesCategory;
 
       card.hidden = !show;
+      // The slot holds the card and its preview button: both go together.
+      var slot = card.closest("[data-block-slot]");
+      if (slot) slot.hidden = !show;
       if (show) visible++;
 
       showMatchingUses(card, show ? term : "");
@@ -250,6 +259,8 @@
 
   document.addEventListener("keydown", function (event) {
     if (panel.hidden) return;
+    // A modal dialog over the panel (the block preview) handles its own keys.
+    if (document.querySelector("dialog[open]")) return;
 
     if (event.key === "Escape") {
       event.preventDefault();

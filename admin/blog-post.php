@@ -289,7 +289,7 @@ $forcedTab = $errors !== [] ? 'inhoud' : null;
           <legend><?= admin_te('blog.categorie_n') ?></legend>
           <?php foreach ($categories as $category): ?>
             <label class="admin-checkbox-label admin-permission-option">
-              <input type="checkbox" name="categories[]" value="<?= (int) $category['id'] ?>" <?= in_array((int) $category['id'], $checkedCategoryIds, true) ? 'checked' : '' ?>>
+              <input type="checkbox" class="admin-checkbox" name="categories[]" value="<?= (int) $category['id'] ?>" <?= in_array((int) $category['id'], $checkedCategoryIds, true) ? 'checked' : '' ?>>
               <span>
                 <strong><?= $h(BlogLocalization::categoryLabel((int) $category['id'])) ?></strong>
                 <?php if ((int) $category['is_active'] !== 1): ?>
@@ -405,7 +405,7 @@ $forcedTab = $errors !== [] ? 'inhoud' : null;
                PHP keeps the last value for a repeated name, so ticking wins. */ ?>
       <input type="hidden" name="noindex" value="0">
       <label class="admin-checkbox-label">
-        <input type="checkbox" name="noindex" value="1" <?= $noindexChecked ? 'checked' : '' ?>>
+        <input type="checkbox" class="admin-checkbox" name="noindex" value="1" <?= $noindexChecked ? 'checked' : '' ?>>
         <?= admin_te('blog.bericht_laten_indexeren_door') ?>
       </label>
       <p class="admin-text-muted"><?= admin_te('blog.bericht_blijft_gewoon_bereikbaar') ?></p>

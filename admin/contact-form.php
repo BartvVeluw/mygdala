@@ -139,13 +139,13 @@ $required = admin_localized_required($editLanguage);
       </div>
 
       <label class="admin-checkbox-label">
-        <input type="checkbox" name="allow_attachment" value="1" <?= ($values['allow_attachment'] ?? false) ? 'checked' : '' ?>>
+        <input type="checkbox" class="admin-checkbox" name="allow_attachment" value="1" <?= ($values['allow_attachment'] ?? false) ? 'checked' : '' ?>>
         <?= admin_te('block_contactform.bezoekers_mogen_bestand_meesturen') ?>
       </label>
       <p class="admin-text-muted"><?= admin_te('block_contactform.e_n_bestand_maximaal') ?></p>
 
       <label class="admin-checkbox-label">
-        <input type="checkbox" name="is_active" value="1" <?= ($values['is_active'] ?? true) ? 'checked' : '' ?>>
+        <input type="checkbox" class="admin-checkbox" name="is_active" value="1" <?= ($values['is_active'] ?? true) ? 'checked' : '' ?>>
         <?= admin_te('block_contactform.actief_uitgevinkt_sectie_getoond') ?>
       </label>
 

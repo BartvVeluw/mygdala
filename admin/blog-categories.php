@@ -203,7 +203,7 @@ $archivePath = static function (array $category) use ($editingLanguage): ?string
                  has one: an unticked checkbox sends nothing at all. */ ?>
         <input type="hidden" name="is_active" value="0">
         <label class="admin-checkbox-label">
-          <input type="checkbox" name="is_active" value="1" <?= ($input !== null ? !empty($input['is_active']) : (int) $category['is_active'] === 1) ? 'checked' : '' ?>>
+          <input type="checkbox" class="admin-checkbox" name="is_active" value="1" <?= ($input !== null ? !empty($input['is_active']) : (int) $category['is_active'] === 1) ? 'checked' : '' ?>>
           <?= admin_te('common.active') ?>
         </label>
         <p class="admin-text-muted"><?= admin_te('blog.uit_betekent_archief_categorie') ?></p>

@@ -154,7 +154,7 @@ $itemRow = static function (string $key, array $fields, int $position, int $coun
       <h2><?= admin_te('block_marquee.zichtbaarheid') ?></h2>
       <p class="admin-text-muted"><?= admin_te('block_marquee.sectie_heeft_eigen_titel') ?></p>
       <label class="admin-checkbox-label">
-        <input type="checkbox" name="is_active" value="1" <?= $isActive ? 'checked' : '' ?>>
+        <input type="checkbox" class="admin-checkbox" name="is_active" value="1" <?= $isActive ? 'checked' : '' ?>>
         <?= admin_te('block_marquee.actief_uitgevinkt_sectie_alle') ?>
       </label>
     </section>

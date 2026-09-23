@@ -154,11 +154,11 @@ final class CardCarouselEditorHttpTest extends TestCase
         self::assertSame([[$c, 1], [$a, 1], [$b, 0]], $this->cards());
 
         // "Actief" is per card: the block itself is on, and only the two
-        // switched-on cards render, numbered by their place.
+        // switched-on cards render; without a number of their own, with none.
         $content = CardCarouselContent::forSection(self::KEY, explode(':', $this->section)[1]);
         self::assertSame(CardCarouselContent::STATE_ACTIVE, $content['state']);
         self::assertSame(['Glas', 'Hout'], array_column($content['cards'], 'title'));
-        self::assertSame(['01', '02'], array_column($content['cards'], 'index_label'));
+        self::assertSame(['', ''], array_column($content['cards'], 'index_label'));
         self::assertSame('row', $content['desktop_layout']);
     }
 
@@ -207,18 +207,18 @@ final class CardCarouselEditorHttpTest extends TestCase
         self::assertCount(2, $cards);
         [$newId, $active] = $cards[1];
         self::assertSame(0, $active, 'a new card starts switched off');
-        self::assertSame(['title' => 'Metaal'], $this->stored('carousel_cards', $newId, 'nl'), 'no number is stored: an empty one follows the card\'s place');
+        self::assertSame(['title' => 'Metaal'], $this->stored('carousel_cards', $newId, 'nl'), 'a new card starts without a number');
         self::assertSame(['title' => 'Eerst opgeslagen'], $this->stored('card_carousels', $this->carouselId, 'nl'), 'what was typed is saved first');
 
         $content = CardCarouselContent::forSection(self::KEY, explode(':', $this->section)[1]);
         self::assertSame(['Hout'], array_column($content['cards'], 'title'), 'a draft card is not on the website');
 
-        // Its screen proposes the number it will have once it is switched on.
+        // Its screen says what an empty number means.
         $screen = self::$server->request('GET', '/admin/carousel-card.php?card_id=' . $newId, $session)['body'];
-        self::assertMatchesRegularExpression('/id="card-number"[^>]*value=""[^>]*placeholder="Leeg = 02, de plaats van deze kaart"/', $screen);
+        self::assertMatchesRegularExpression('/id="card-number"[^>]*value=""[^>]*placeholder="Leeg = geen nummer"/', $screen);
     }
 
-    public function testAnEmptyNumberFollowsTheCardsPlaceAndAnOwnLabelStays(): void
+    public function testAnEmptyNumberShowsNothingAndAnOwnLabelStaysWhereverTheCardGoes(): void
     {
         $a = $this->card('Hout', true);
         $b = $this->card('Acryl', true);
@@ -226,23 +226,23 @@ final class CardCarouselEditorHttpTest extends TestCase
         $sectionKey = explode(':', $this->section)[1];
         $labels = static fn (): array => array_column(CardCarouselContent::forSection(self::KEY, $sectionKey)['cards'], 'index_label', 'title');
 
-        self::assertSame(['Hout' => '01', 'Acryl' => '02', 'Glas' => '03'], $labels(), 'three empty numbers: their places');
+        self::assertSame(['Hout' => '', 'Acryl' => '', 'Glas' => ''], $labels(), 'three empty numbers: no labels, not their places');
 
-        // Reordered in the one form: the numbers follow the new order.
+        // Reordered in the one form: still nothing.
         $session = $this->signIn(null);
         $this->assertSaved($this->saveCarousel($session, [
             'cards' => [$c => ['present' => '1', 'active' => '1'], $a => ['present' => '1', 'active' => '1'], $b => ['present' => '1', 'active' => '1']],
         ]));
-        self::assertSame(['Glas' => '01', 'Hout' => '02', 'Acryl' => '03'], $labels());
+        self::assertSame(['Glas' => '', 'Hout' => '', 'Acryl' => ''], $labels());
 
         // A label an editor typed stays, wherever the card goes; the others still count.
         BlockLocalization::save('carousel_cards', $a, 'nl', ['title' => 'Hout', 'number_label' => 'A']);
         CardCarouselContent::clearCache();
-        self::assertSame(['Glas' => '01', 'Hout' => 'A', 'Acryl' => '03'], $labels());
+        self::assertSame(['Glas' => '', 'Hout' => 'A', 'Acryl' => ''], $labels());
         $this->assertSaved($this->saveCarousel($session, [
             'cards' => [$a => ['present' => '1', 'active' => '1'], $b => ['present' => '1', 'active' => '1'], $c => ['present' => '1', 'active' => '1']],
         ]));
-        self::assertSame(['Hout' => 'A', 'Acryl' => '02', 'Glas' => '03'], $labels());
+        self::assertSame(['Hout' => 'A', 'Acryl' => '', 'Glas' => ''], $labels());
 
         // Saving a card with its number left empty stores none.
         $this->assertSaved($this->saveCard($session, $b, 'nl', ['is_active' => '1', 'title' => 'Acryl', 'number_label' => '']));
@@ -508,7 +508,7 @@ final class CardCarouselEditorHttpTest extends TestCase
         self::assertSame('url', $this->repository->findCardById($card)['link_type']);
     }
 
-    public function testACardWrittenBeforeTheLinkKindExistedKeepsItsNumberAndItsTypedButton(): void
+    public function testACardWrittenBeforeTheLinkKindExistedKeepsItsTypedButton(): void
     {
         // Exactly what an existing installation has: an address, no kind, no label.
         $first = $this->card('Hout', true);
@@ -518,7 +518,7 @@ final class CardCarouselEditorHttpTest extends TestCase
         CardCarouselContent::clearCache();
 
         $cards = CardCarouselContent::forSection(self::KEY, explode(':', $this->section)[1])['cards'];
-        self::assertSame(['01', '02'], array_column($cards, 'index_label'), 'the position, as before');
+        self::assertSame(['', ''], array_column($cards, 'index_label'), 'no own number: none (the numbers a site showed were stored by db/migrations/20260923170000)');
         self::assertSame('/materialen', $cards[1]['link_url']);
         self::assertSame('', $cards[0]['link_url']);
         self::assertGreaterThan(0, $first);

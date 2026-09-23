@@ -114,7 +114,7 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
 $placeholder = admin_localized_placeholder_attr($editLanguage);
 // An optional field says so in the default language; in a translation its
 // placeholder says what a visitor sees while it is empty.
-$optional = $placeholder !== '' ? $placeholder : ' placeholder="Optioneel"';
+$optional = admin_localized_optional_attr($editLanguage);
 $pageName = \App\Service\PageLocalization::name((int) $page['id']);
 $activeCount = count(array_filter($cards, static fn (array $state): bool => $state['active']));
 ?>

@@ -190,7 +190,7 @@ if (trim($sampleText) === '') {
                     <input type="hidden" name="id" value="<?= $fontId ?>">
                     <input type="text" name="label" maxlength="100" value="<?= $h((string) $font['label']) ?>" required>
                     <label class="admin-checkbox-label">
-                      <input type="checkbox" name="is_active" value="1" <?= $isActive ? 'checked' : '' ?>>
+                      <input type="checkbox" class="admin-checkbox" name="is_active" value="1" <?= $isActive ? 'checked' : '' ?>>
                       <?= admin_te('common.active') ?>
                     </label>
                     <button type="submit" class="admin-btn-text"><?= admin_te('common.save') ?></button>

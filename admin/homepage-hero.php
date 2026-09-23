@@ -121,7 +121,7 @@ $marker = $required !== '' ? '*' : '';
 $placeholder = admin_localized_placeholder_attr($editLanguage);
 // An optional field says so in the default language; in a translation its
 // placeholder says what a visitor sees while it is empty.
-$optional = $placeholder !== '' ? $placeholder : ' placeholder="Optioneel"';
+$optional = admin_localized_optional_attr($editLanguage);
 
 // Re-clamped rather than echoed raw, because it may come from
 // $_SESSION['admin_homepage_hero_old'] — i.e. from a REJECTED save, whose
@@ -227,7 +227,7 @@ $statRow = static function (string $key, array $fields, int $position, int $coun
 
     <section class="admin-card">
       <h2><?= admin_te('block_hero.algemene_inhoud') ?></h2>
-      <?php $field('eyebrow', admin_t('block_hero.eyebrow') . $marker, 150, $required . $placeholder, 0, admin_t('help.block_hero.eyebrow')); ?>
+      <?php $field('eyebrow', admin_t('block_hero.eyebrow'), 150, $optional, 0, admin_t('help.block_hero.eyebrow')); ?>
       <?php $field('title', admin_t('block_hero.titel_h1') . $marker, 255, $required . $placeholder); ?>
       <?php $field('title_highlight', admin_t('block_hero.highlight_titel'), 255, $optional, 0, admin_t('help.block_hero.title_highlight')); ?>
 
@@ -340,7 +340,7 @@ $statRow = static function (string $key, array $fields, int $position, int $coun
             <img src="/<?= $h(ltrim($legacyImage, '/')) ?>" alt="">
           </div>
           <label class="admin-checkbox-label">
-            <input type="checkbox" name="remove_legacy_image" value="1"<?= is_array($old) && !empty($old['remove_legacy_image']) ? ' checked' : '' ?>>
+            <input type="checkbox" class="admin-checkbox" name="remove_legacy_image" value="1"<?= is_array($old) && !empty($old['remove_legacy_image']) ? ' checked' : '' ?>>
             <?= admin_te('block_hero.remove_legacy_image') ?>
           </label>
         </div>
@@ -366,7 +366,7 @@ $statRow = static function (string $key, array $fields, int $position, int $coun
               <video src="/<?= $h(ltrim($legacyVideo, '/')) ?>" muted loop playsinline controls preload="metadata" style="width:100%; height:auto; display:block;"></video>
             </div>
             <label class="admin-checkbox-label">
-              <input type="checkbox" name="remove_legacy_video" value="1"<?= is_array($old) && !empty($old['remove_legacy_video']) ? ' checked' : '' ?>>
+              <input type="checkbox" class="admin-checkbox" name="remove_legacy_video" value="1"<?= is_array($old) && !empty($old['remove_legacy_video']) ? ' checked' : '' ?>>
               <?= admin_te('block_hero.remove_legacy_video') ?>
             </label>
           </div>

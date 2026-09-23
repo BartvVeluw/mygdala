@@ -1692,6 +1692,7 @@ a{ color: var(--admin-accent); }
 
 .admin-product-form input[type="text"],
 .admin-product-form input[type="email"],
+.admin-product-form input[type="number"],
 .admin-product-form textarea,
 .admin-product-form input[type="file"]{
   width: 100%;
@@ -1707,6 +1708,7 @@ a{ color: var(--admin-accent); }
 
 .admin-product-form input[type="text"]:focus,
 .admin-product-form input[type="email"]:focus,
+.admin-product-form input[type="number"]:focus,
 .admin-product-form textarea:focus{
   border-color: var(--admin-accent);
   outline: none;
@@ -2006,13 +2008,15 @@ a{ color: var(--admin-accent); }
 
 /* A search field is a text field: without it in these three rules every
    search box in the admin (media, portfolio, blog) was the browser's own
-   white bar. The magnifier is .admin-search, in ADMIN UI PRIMITIVES below. */
-select, button, input[type="text"], input[type="password"], input[type="email"], input[type="search"]{
+   white bar. The magnifier is .admin-search, in ADMIN UI PRIMITIVES below.
+   A number field is the same text field with a spin button, so it belongs
+   here too ("Maximum aantal items" was the browser's own box). */
+select, button, input[type="text"], input[type="password"], input[type="email"], input[type="search"], input[type="number"]{
   font-family: inherit;
   font-size: 0.92rem;
 }
 
-select, input[type="text"], input[type="password"], input[type="email"], input[type="search"]{
+select, input[type="text"], input[type="password"], input[type="email"], input[type="search"], input[type="number"]{
   background: var(--admin-surface-sunken);
   border: 1px solid var(--admin-border);
   color: var(--admin-text);
@@ -2021,7 +2025,7 @@ select, input[type="text"], input[type="password"], input[type="email"], input[t
   transition: border-color var(--admin-transition);
 }
 
-select:focus, input[type="text"]:focus, input[type="password"]:focus, input[type="email"]:focus, input[type="search"]:focus{
+select:focus, input[type="text"]:focus, input[type="password"]:focus, input[type="email"]:focus, input[type="search"]:focus, input[type="number"]:focus{
   outline: none;
   border-color: var(--admin-accent);
 }
@@ -2325,6 +2329,65 @@ input[data-color-picker]{ width: 2.4rem; height: 2.4rem; padding: 0.15rem; borde
 .admin-carousel-layout{ margin: 0 0 var(--admin-sp-4); padding: 0; border: 0; min-width: 0; }
 .admin-carousel-layout legend{ padding: 0; font-weight: 600; }
 .admin-carousel-layout .admin-template-grid{ margin-top: var(--admin-sp-2); }
+
+/* A card picture's focus point (admin/carousel-card.php, ImageFocus): nine
+   points on a 3x3 grid, and the card's own frame beside them. The frame has
+   the website's shape (300 x 148, card-carousel.css) and the same
+   object-fit: cover, so the preview crops exactly as the card does. */
+.admin-image-focus{ margin: var(--admin-sp-3) 0; padding: 0; border: 0; min-width: 0; }
+.admin-image-focus legend{ padding: 0; font-weight: 600; margin-bottom: var(--admin-sp-2); }
+.admin-image-focus__body{ display: flex; flex-wrap: wrap; align-items: flex-start; gap: var(--admin-sp-4); }
+.admin-image-focus__grid{
+  display: grid;
+  grid-template-columns: repeat(3, 2.75rem);
+  grid-auto-rows: 2.75rem;
+  gap: 3px;
+  padding: 3px;
+  border: 1px solid var(--admin-border);
+  border-radius: var(--admin-radius-sm);
+  background: var(--admin-surface-sunken);
+}
+.admin-image-focus__point{
+  position: relative;
+  display: grid;
+  place-items: center;
+  border-radius: max(0px, calc(var(--admin-radius-sm) - 3px));
+  cursor: pointer;
+}
+.admin-image-focus__point input{
+  -webkit-appearance: none;
+  appearance: none;
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  border-radius: inherit;
+  cursor: pointer;
+}
+.admin-image-focus__point::after{
+  content: "";
+  width: 0.6rem;
+  height: 0.6rem;
+  border-radius: 50%;
+  border: 2px solid var(--admin-border-strong);
+  pointer-events: none;
+}
+.admin-image-focus__point:hover::after{ border-color: var(--admin-accent); }
+.admin-image-focus__point:has(input:checked){ background: var(--admin-accent-soft); }
+.admin-image-focus__point:has(input:checked)::after{ background: var(--admin-accent); border-color: var(--admin-accent); }
+.admin-image-focus__point input:focus-visible{ outline: 2px solid var(--admin-accent); outline-offset: 1px; }
+.admin-image-focus__preview{ margin: 0; display: grid; gap: var(--admin-sp-1); width: min(100%, 15rem); }
+.admin-image-focus__frame{
+  aspect-ratio: 300 / 148;
+  overflow: hidden;
+  border-radius: var(--admin-radius-sm);
+  border: 1px solid var(--admin-border);
+  background: var(--admin-surface-sunken);
+}
+.admin-image-focus__frame img{ display: block; width: 100%; height: 100%; object-fit: cover; }
+@media (forced-colors: active){
+  .admin-image-focus__point input{ appearance: auto; position: static; }
+  .admin-image-focus__point::after{ display: none; }
+}
 
 /* A row of a block editor's list (admin/_editor_rows.php: a question, a
    figure, a step, a point, an image): a bordered box inside the one form,
@@ -3227,6 +3290,9 @@ input[data-color-picker]{ width: 2.4rem; height: 2.4rem; padding: 0.15rem; borde
 
 /* --- The picker field ------------------------------------------------ */
 
+/* The custom icon's picker under a card's icon choice (admin/feature-grid.php). */
+.admin-feature-icon-custom{ margin-top: var(--admin-sp-2); }
+
 .admin-media-picker{
   display: flex;
   flex-direction: column;
@@ -3931,6 +3997,38 @@ body.admin-block-picker-open{ overflow: hidden; }
   transition: border-color var(--admin-transition), background var(--admin-transition), transform var(--admin-transition);
 }
 .admin-block-card[hidden]{ display: none; }
+
+/* A card and its Voorbeeld button (admin/_block_picker.php): the button is
+   the card's neighbour, not part of it, because the card is itself a
+   button. In the card view it sits in the drawing's top corner; the card
+   keeps its full size and its whole surface still adds the block. */
+.admin-block-card-slot{ position: relative; display: flex; flex-direction: column; min-width: 0; }
+.admin-block-card-slot[hidden]{ display: none; }
+.admin-block-card-slot > .admin-block-card{ flex: 1 1 auto; }
+
+.admin-block-card__preview{
+  position: absolute;
+  top: calc(var(--admin-sp-3) + 0.4rem);
+  right: calc(var(--admin-sp-3) + 0.4rem);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  min-height: 2rem;
+  padding: 0.25rem 0.65rem;
+  font: inherit;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--admin-text);
+  background: var(--admin-surface);
+  border: 1px solid var(--admin-border-strong);
+  border-radius: var(--admin-radius-pill);
+  box-shadow: var(--admin-shadow-sm);
+  cursor: pointer;
+  transition: border-color var(--admin-transition), color var(--admin-transition), background var(--admin-transition);
+}
+.admin-block-card__preview:hover{ color: var(--admin-accent); border-color: var(--admin-accent); background: var(--admin-surface); }
+.admin-block-card__preview:focus-visible{ outline: 2px solid var(--admin-accent); outline-offset: 2px; }
+.admin-block-card__preview .admin-catalogue-card__preview-icon{ width: 15px; height: 15px; }
 .admin-block-card:hover{
   background: var(--admin-surface-hover);
   border-color: var(--admin-accent);
@@ -4078,6 +4176,17 @@ body.admin-block-picker-open{ overflow: hidden; }
 
 .admin-block-picker[data-block-picker-layout="list"] .admin-block-card__meta{ flex: none; margin-top: 0; gap: var(--admin-sp-3); }
 
+/* In a row the Voorbeeld button follows the card instead of covering it,
+   and the row's dividing line moves from the card to the slot. */
+.admin-block-picker[data-block-picker-layout="list"] .admin-block-card-slot{
+  flex-direction: row;
+  align-items: center;
+  border-bottom: 1px solid var(--admin-border);
+}
+.admin-block-picker[data-block-picker-layout="list"] .admin-block-card-slot > .admin-block-card,
+.admin-block-picker[data-block-picker-layout="list"] .admin-block-card-slot > .admin-block-card:hover{ border-color: transparent; }
+.admin-block-picker[data-block-picker-layout="list"] .admin-block-card__preview{ position: static; flex: none; margin-inline: var(--admin-sp-2) 0.75rem; box-shadow: none; }
+
 @media (max-width: 640px){
   .admin-block-picker{ padding: 0; }
   .admin-block-picker__panel{
@@ -4094,6 +4203,8 @@ body.admin-block-picker-open{ overflow: hidden; }
   .admin-block-picker[data-block-picker-layout="list"] .admin-block-card__body{ grid-template-columns: minmax(0, 1fr); }
   .admin-block-picker[data-block-picker-layout="list"] .admin-block-card__uses{ grid-column: 1; }
   .admin-block-picker[data-block-picker-layout="list"] .admin-block-card__add{ display: none; }
+  .admin-block-picker[data-block-picker-layout="list"] .admin-block-card-slot{ align-items: flex-start; }
+  .admin-block-picker[data-block-picker-layout="list"] .admin-block-card__preview{ margin-top: 0.45rem; }
 }
 
 /* --- The schematic previews (admin/_block_visual.php) ----------------- */
@@ -5613,10 +5724,15 @@ html:not([data-admin-help]) .admin-help-toggle{ display: none; }
   transition: transform var(--admin-transition);
 }
 
-.admin-checkbox:hover:not(:disabled){ border-color: var(--admin-accent); }
+/* Hovering the label counts too: the whole label toggles the box. */
+.admin-checkbox:hover:not(:disabled),
+label:hover > .admin-checkbox:not(:disabled){ border-color: var(--admin-accent); }
 
 .admin-checkbox:checked,
 .admin-checkbox:indeterminate{ background: var(--admin-accent); border-color: var(--admin-accent); }
+
+.admin-checkbox:checked:hover:not(:disabled),
+label:hover > .admin-checkbox:checked:not(:disabled){ background: var(--admin-accent-hover); border-color: var(--admin-accent-hover); }
 
 .admin-checkbox:checked::before{ transform: rotate(45deg) scale(1); }
 
@@ -5631,6 +5747,9 @@ html:not([data-admin-help]) .admin-help-toggle{ display: none; }
 .admin-checkbox:focus-visible{ outline: 2px solid var(--admin-accent); outline-offset: 2px; }
 
 .admin-checkbox:disabled{ opacity: 0.5; cursor: not-allowed; }
+
+/* A label whose box cannot be changed says so as well. */
+label:has(> .admin-checkbox:disabled){ color: var(--admin-text-muted) !important; cursor: not-allowed; }
 
 /* --- Switch ---------------------------------------------------------------- */
 

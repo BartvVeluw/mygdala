@@ -114,10 +114,29 @@ function block_library_card(string $type, BlockDefinition $definition, bool $has
             <?php endforeach; ?>
 
             <div class="admin-catalogue-card__actions">
-              <?php /* The type goes into the preview's address and nowhere on
-                       screen; admin/block-preview.php only lets it hit or miss
-                       a registry key. */ ?>
-              <button type="button" class="admin-btn-secondary admin-catalogue-card__preview"
+              <?php block_library_preview_button($type, $definition, 'admin-btn-secondary admin-catalogue-card__preview', $hasSample); ?>
+            </div>
+          </article>
+    <?php
+}
+
+/**
+ * The button that opens a block's preview in the one dialog below: on a
+ * library card, and next to a card of the block picker (admin/_block_picker.php).
+ * The same address, the same frame title and the same words in both places,
+ * so there is one way to preview a block, not two.
+ *
+ * The type goes into the preview's address and nowhere on screen;
+ * admin/block-preview.php only lets it hit or miss a registry key. Without a
+ * sample the button still opens the dialog, which then shows the drawing.
+ */
+function block_library_preview_button(string $type, BlockDefinition $definition, string $class, ?bool $hasSample = null): void
+{
+    $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
+    $hasSample ??= $definition->sampleContent(new BlockSamples()) !== null;
+    $label = $definition->label();
+    ?>
+              <button type="button" class="<?= $h($class) ?>"
                       data-block-preview-open
                       <?php if ($hasSample): ?>data-block-preview-src="/admin/block-preview.php?type=<?= $h(rawurlencode($type)) ?>"<?php endif; ?>
                       data-block-preview-frame-title="<?= admin_te('blocks.preview_frame_title', ['block' => $label]) ?>"
@@ -125,8 +144,6 @@ function block_library_card(string $type, BlockDefinition $definition, bool $has
                 <svg class="admin-catalogue-card__preview-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>
                 <span><?= admin_te('blocks.preview_open') ?><span class="admin-visually-hidden">: <?= $h($label) ?></span></span>
               </button>
-            </div>
-          </article>
     <?php
 }
 

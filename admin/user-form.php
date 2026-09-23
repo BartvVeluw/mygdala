@@ -180,7 +180,7 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
       <?php else: ?>
         <div class="admin-form-row">
           <label class="admin-checkbox-label">
-            <input type="checkbox" name="is_active" value="1" <?= $isActiveChecked ? 'checked' : '' ?>>
+            <input type="checkbox" class="admin-checkbox" name="is_active" value="1" <?= $isActiveChecked ? 'checked' : '' ?>>
             <?= admin_te('users.actief_account_inloggen') ?>
           </label>
         </div>
@@ -188,7 +188,7 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
         <?php if ($actorIsSuperAdmin): ?>
           <div class="admin-form-row">
             <label class="admin-checkbox-label">
-              <input type="checkbox" name="is_super_admin" value="1" <?= $isSuperAdminChecked ? 'checked' : '' ?>>
+              <input type="checkbox" class="admin-checkbox" name="is_super_admin" value="1" <?= $isSuperAdminChecked ? 'checked' : '' ?>>
               <?= admin_te('users.super_admin_alle_rechten') ?>
             </label>
             <p class="admin-text-muted"><?= admin_te('users.super_admin_heeft_automatisch') ?></p>
@@ -215,7 +215,7 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
             <legend><?= $h((string) $group['label']) ?></legend>
             <?php foreach ($groupPermissions as $permission => $meta): ?>
               <label class="admin-checkbox-label admin-permission-option">
-                <input type="checkbox" name="permissions[]" value="<?= $h($permission) ?>" <?= in_array($permission, $selectedPermissions, true) ? 'checked' : '' ?>>
+                <input type="checkbox" class="admin-checkbox" name="permissions[]" value="<?= $h($permission) ?>" <?= in_array($permission, $selectedPermissions, true) ? 'checked' : '' ?>>
                 <span>
                   <strong><?= $h((string) $meta['label']) ?></strong>
                   <span class="admin-text-muted"><?= $h((string) $meta['description']) ?></span>

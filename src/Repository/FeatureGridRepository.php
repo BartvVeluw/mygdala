@@ -90,7 +90,7 @@ class FeatureGridRepository extends Repository
      * id (App\Service\Blocks\BlockLocalization), in the same transaction as
      * this insert.
      *
-     * @param array{icon_key: string} $values
+     * @param array{icon_key: string, icon_media_id?: int|null} $values
      */
     public function createItem(int $gridId, array $values): int
     {
@@ -98,13 +98,14 @@ class FeatureGridRepository extends Repository
 
         $stmt = $this->db->prepare(
             'INSERT INTO feature_grid_items
-                (feature_grid_id, icon_key, sort_order, is_active, created_at, updated_at)
+                (feature_grid_id, icon_key, icon_media_id, sort_order, is_active, created_at, updated_at)
              VALUES
-                (:feature_grid_id, :icon_key, :sort_order, 1, NOW(), NOW())'
+                (:feature_grid_id, :icon_key, :icon_media_id, :sort_order, 1, NOW(), NOW())'
         );
         $stmt->execute([
             'feature_grid_id' => $gridId,
             'icon_key' => $values['icon_key'],
+            'icon_media_id' => $values['icon_media_id'] ?? null,
             'sort_order' => $nextSortOrder,
         ]);
 
@@ -112,23 +113,26 @@ class FeatureGridRepository extends Repository
     }
 
     /**
-     * What a card has that is the same in every language: its icon and
-     * whether it is shown. Its words are saved through BlockLocalization. The
-     * id never changes, so the words of every language stay attached to it.
+     * What a card has that is the same in every language: its icon (a key,
+     * and the media item of a custom one) and whether it is shown. Its words
+     * are saved through BlockLocalization. The id never changes, so the words
+     * of every language stay attached to it.
      *
-     * @param array{icon_key: string, is_active: bool} $values
+     * @param array{icon_key: string, icon_media_id?: int|null, is_active: bool} $values
      */
     public function updateItem(int $id, array $values): void
     {
         $stmt = $this->db->prepare(
             'UPDATE feature_grid_items SET
                 icon_key = :icon_key,
+                icon_media_id = :icon_media_id,
                 is_active = :is_active,
                 updated_at = NOW()
              WHERE id = :id'
         );
         $stmt->execute([
             'icon_key' => $values['icon_key'],
+            'icon_media_id' => $values['icon_media_id'] ?? null,
             'is_active' => $values['is_active'] ? 1 : 0,
             'id' => $id,
         ]);

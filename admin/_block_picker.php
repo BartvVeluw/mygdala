@@ -5,6 +5,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/_translate.php';
 require_once __DIR__ . '/_block_visual.php';
+require_once __DIR__ . '/_block_library.php';
 
 use App\Service\Blocks\BlockCategories;
 use App\Service\Blocks\BlockDefinition;
@@ -186,6 +187,13 @@ function block_picker_modal(array $available, int $pageId, string $csrfToken): v
                           . ' ' . implode(' ', $useCases)
                       );
                     ?>
+                    <?php /* The card is the submit button that adds the block, and a
+                             button cannot hold another one: the preview is its
+                             neighbour in the same slot. It opens the one preview
+                             dialog of admin/_block_library.php with the same
+                             sample and the same frame as the Contentblokken
+                             library, and adds nothing. */ ?>
+                    <div class="admin-block-card-slot" data-block-slot>
                     <button type="submit" name="section_type" value="<?= $h($type) ?>"
                             class="admin-block-card" data-block-card
                             data-block-category="<?= $h($definition->category()) ?>"
@@ -194,9 +202,9 @@ function block_picker_modal(array $available, int $pageId, string $csrfToken): v
                       <span class="admin-block-card__body">
                         <span class="admin-block-card__name">
                           <?php block_icon_svg($definition, 'admin-block-card__icon'); ?>
-                          <span><?= $h($definition->label()) ?></span>
+                          <span data-block-slot-name><?= $h($definition->label()) ?></span>
                         </span>
-                        <span class="admin-block-card__desc"><?= $h($definition->describedFor()) ?></span>
+                        <span class="admin-block-card__desc" data-block-slot-description><?= $h($definition->describedFor()) ?></span>
                         <?php if ($useCases !== []): ?>
                           <?php /* Hidden until a search matches one of them, and
                                    then only the ones it matched. Hidden text is
@@ -211,10 +219,12 @@ function block_picker_modal(array $available, int $pageId, string $csrfToken): v
                         <?php endif; ?>
                       </span>
                       <span class="admin-block-card__meta">
-                        <span class="admin-block-card__category"><?= $h($categoryLabel) ?></span>
+                        <span class="admin-block-card__category" data-block-slot-category><?= $h($categoryLabel) ?></span>
                         <span class="admin-block-card__add" aria-hidden="true"><?= admin_te('common.add') ?></span>
                       </span>
                     </button>
+                    <?php block_library_preview_button($type, $definition, 'admin-block-card__preview'); ?>
+                    </div>
                   <?php endforeach; ?>
                 </div>
               </section>
@@ -228,4 +238,9 @@ function block_picker_modal(array $available, int $pageId, string $csrfToken): v
       </div>
     </div>
     <?php
+    if ($available !== []) {
+        // The preview the Voorbeeld buttons open: the library's own dialog,
+        // driven by admin/assets/block-library.js, which the screen loads.
+        block_library_preview_dialog();
+    }
 }

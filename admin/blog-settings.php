@@ -143,26 +143,26 @@ $titlePlaceholder = $editingLanguage === admin_localized_default()
                could be switched on but never off. */ ?>
       <input type="hidden" name="<?= BlogSettings::SHOW_DATE ?>" value="0">
       <label class="admin-checkbox-label">
-        <input type="checkbox" name="<?= BlogSettings::SHOW_DATE ?>" value="1" <?= BlogSettings::showDate() ? 'checked' : '' ?>>
+        <input type="checkbox" class="admin-checkbox" name="<?= BlogSettings::SHOW_DATE ?>" value="1" <?= BlogSettings::showDate() ? 'checked' : '' ?>>
         <?= admin_te('blog.publicatiedatum_tonen') ?>
       </label>
 
       <input type="hidden" name="<?= BlogSettings::SHOW_AUTHOR ?>" value="0">
       <label class="admin-checkbox-label">
-        <input type="checkbox" name="<?= BlogSettings::SHOW_AUTHOR ?>" value="1" <?= BlogSettings::showAuthor() ? 'checked' : '' ?>>
+        <input type="checkbox" class="admin-checkbox" name="<?= BlogSettings::SHOW_AUTHOR ?>" value="1" <?= BlogSettings::showAuthor() ? 'checked' : '' ?>>
         <?= admin_te('blog.auteur_tonen_er_ingevuld') ?>
       </label>
 
       <input type="hidden" name="<?= BlogSettings::RELATED_POSTS ?>" value="0">
       <label class="admin-checkbox-label">
-        <input type="checkbox" name="<?= BlogSettings::RELATED_POSTS ?>" value="1" <?= BlogSettings::relatedPostsEnabled() ? 'checked' : '' ?>>
+        <input type="checkbox" class="admin-checkbox" name="<?= BlogSettings::RELATED_POSTS ?>" value="1" <?= BlogSettings::relatedPostsEnabled() ? 'checked' : '' ?>>
         <?= admin_te('blog.gerelateerde_berichten_tonen') ?>
       </label>
       <p class="admin-text-muted"><?= admin_t('blog.maximaal_berichten_dezelfde_categorie', ['v1' => BlogSettings::RELATED_POSTS_LIMIT]) ?></p>
 
       <input type="hidden" name="<?= BlogSettings::RSS_ENABLED ?>" value="0">
       <label class="admin-checkbox-label">
-        <input type="checkbox" name="<?= BlogSettings::RSS_ENABLED ?>" value="1" <?= BlogSettings::rssEnabled() ? 'checked' : '' ?>>
+        <input type="checkbox" class="admin-checkbox" name="<?= BlogSettings::RSS_ENABLED ?>" value="1" <?= BlogSettings::rssEnabled() ? 'checked' : '' ?>>
         <?= admin_te('blog.rss_feed_aanbieden') ?>
       </label>
       <p class="admin-text-muted"><?= admin_te('blog.feed_staat') ?> <a href="<?= $h(BlogUrls::feedPath()) ?>" target="_blank" rel="noopener"><?= $h(BlogUrls::feedPath()) ?></a> <?= admin_t('blog.bevat_alleen_gepubliceerde_berichten') ?></p>

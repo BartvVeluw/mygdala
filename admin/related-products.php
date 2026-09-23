@@ -120,7 +120,7 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
 
       <div class="admin-product-form admin-product-form--wide">
         <label class="admin-checkbox-label">
-          <input type="checkbox" name="enabled" value="1" <?= $globals['enabled'] ? 'checked' : '' ?>>
+          <input type="checkbox" class="admin-checkbox" name="enabled" value="1" <?= $globals['enabled'] ? 'checked' : '' ?>>
           <?= admin_te('shop.gerelateerde_producten_tonen_uitgevinkt') ?>
         </label>
 
@@ -174,7 +174,7 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
             ?>
             <div class="admin-section-row admin-related-collection-row">
               <label class="admin-checkbox-label admin-related-collection-row__pick">
-                <input type="checkbox" name="collections[<?= $collectionId ?>][enabled]" value="1" <?= $isEnabled ? 'checked' : '' ?>>
+                <input type="checkbox" class="admin-checkbox" name="collections[<?= $collectionId ?>][enabled]" value="1" <?= $isEnabled ? 'checked' : '' ?>>
                 <span class="admin-section-row__body">
                   <span class="admin-section-row__name"><?= $h(ShopLocalization::collectionName($collectionId)) ?></span>
                   <span class="admin-text-muted"><?= $productCount === 1 ? '1 product' : $productCount . ' producten' ?></span>

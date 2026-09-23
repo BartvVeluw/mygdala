@@ -1,5 +1,7 @@
 <?php
 
+require_once __DIR__ . '/eyebrow.php';
+
 /**
  * Renders the Page Hero section (App\Service\PageHeroContent) — the header at
  * the top of an ordinary page, once identical across shop.php, diensten.php,
@@ -58,7 +60,6 @@ function render_section_page_hero(array $pageHero, ?string $titleMaxWidthCh = nu
     $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
     $titleStyle = $titleMaxWidthCh !== null ? ' style="max-width:' . $h($titleMaxWidthCh) . ';"' : '';
 
-    $hasEyebrow = $text('eyebrow') !== '';
     $hasLead = $text('lead') !== '';
     $hasImage = (string) ($pageHero['image_path'] ?? '') !== '';
 
@@ -100,9 +101,7 @@ function render_section_page_hero(array $pageHero, ?string $titleMaxWidthCh = nu
       </div>
       <?php endif; ?>
       <div class="container">
-        <?php if ($hasEyebrow): ?>
-        <p class="eyebrow"><?= $h($text('eyebrow')) ?></p>
-        <?php endif; ?>
+        <?php render_eyebrow($text('eyebrow')); ?>
         <h1<?= $titleStyle ?>><?= $h($text('title')) ?></h1>
         <?php if ($hasLead): ?>
           <p class="lead" style="margin-top:1rem;"><?= $h($text('lead')) ?></p>

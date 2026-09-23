@@ -84,7 +84,8 @@ $item = ($requestedId === false || $requestedId === null) ? null : MediaService:
 
 $term = trim((string) ($_GET['q'] ?? ''));
 $requestedType = (string) ($_GET['type'] ?? '');
-$type = MediaType::isKnown($requestedType) ? $requestedType : '';
+// A kind, or the icons (MediaType::libraryFilters()).
+$type = MediaType::isLibraryFilter($requestedType) ? $requestedType : '';
 $page = max(1, (int) ($_GET['page'] ?? 1));
 
 $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
@@ -336,7 +337,7 @@ if ($item === null) {
         <span class="admin-visually-hidden"><?= admin_te('media.filter.label') ?></span>
         <select name="type" class="admin-select" data-media-type>
           <option value=""><?= admin_te('media.type.all') ?></option>
-          <?php foreach (MediaType::all() as $mediaType): ?>
+          <?php foreach (MediaType::libraryFilters() as $mediaType): ?>
             <option value="<?= $h($mediaType) ?>"<?= $mediaType === $type ? ' selected' : '' ?>><?= admin_te('media.type.' . $mediaType) ?></option>
           <?php endforeach; ?>
         </select>

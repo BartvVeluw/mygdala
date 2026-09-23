@@ -180,8 +180,8 @@ $questionRow = static function (string $key, array $fields, int $position, int $
     <section class="admin-card">
       <h2><?= admin_te('block_faq.sectiekop') ?></h2>
       <div class="admin-field">
-        <?= admin_field_label('faq-eyebrow', admin_t('block_faq.eyebrow') . $marker) ?>
-        <input type="text" id="faq-eyebrow" name="eyebrow" maxlength="150"<?= $required ?> value="<?= $h($sectionWord('eyebrow')) ?>"<?= $placeholder ?><?= editor_field_invalid($fieldErrors, 'eyebrow') ?>>
+        <?= admin_field_label('faq-eyebrow', admin_t('block_faq.eyebrow')) ?>
+        <input type="text" id="faq-eyebrow" name="eyebrow" maxlength="150" value="<?= $h($sectionWord('eyebrow')) ?>"<?= admin_localized_optional_attr($editLanguage) ?><?= editor_field_invalid($fieldErrors, 'eyebrow') ?>>
         <?php editor_field_error($fieldErrors, 'eyebrow'); ?>
       </div>
 
@@ -192,7 +192,7 @@ $questionRow = static function (string $key, array $fields, int $position, int $
       </div>
 
       <label class="admin-checkbox-label">
-        <input type="checkbox" name="is_active" value="1" <?= $isActive ? 'checked' : '' ?>>
+        <input type="checkbox" class="admin-checkbox" name="is_active" value="1" <?= $isActive ? 'checked' : '' ?>>
         <?= admin_te('block_faq.actief_uitgevinkt_hele_sectie') ?>
       </label>
     </section>

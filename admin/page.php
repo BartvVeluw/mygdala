@@ -595,7 +595,7 @@ $urlFieldOpen = !$hasFixedUrl
                last value for a repeated name, so ticking the box wins. */ ?>
       <input type="hidden" name="noindex" value="0">
       <label class="admin-checkbox-label">
-        <input type="checkbox" name="noindex" value="1" <?= $noindexChecked ? 'checked' : '' ?>>
+        <input type="checkbox" class="admin-checkbox" name="noindex" value="1" <?= $noindexChecked ? 'checked' : '' ?>>
         <?= admin_te('page.noindex') ?>
       </label>
       <p class="admin-text-muted"><?= admin_t('page.pagina_blijft_gewoon_bereikbaar') ?></p>
@@ -797,6 +797,7 @@ $urlFieldOpen = !$hasFixedUrl
 <?= admin_confirm_dialog() ?>
 <script src="<?= \App\Service\AssetVersion::url('/admin/assets/admin.js') ?>"></script>
 <script src="<?= \App\Service\AssetVersion::url('/admin/assets/block-picker.js') ?>" defer></script>
+<script src="<?= \App\Service\AssetVersion::url('/admin/assets/block-library.js') ?>" defer></script>
 <?php admin_tabs_script(); ?>
 <?php /* After the tabs: bringing a block back into view means opening its
          tab first, and that is window.AdminTabs. */ ?>

@@ -237,11 +237,11 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
 
       <h2 style="margin-top:2rem;"><?= admin_te('block_gallery.weergave') ?></h2>
       <label class="admin-checkbox-label">
-        <input type="checkbox" name="show_filter_bar" value="1" <?= ($values['show_filter_bar'] ?? false) ? 'checked' : '' ?>>
+        <input type="checkbox" class="admin-checkbox" name="show_filter_bar" value="1" <?= ($values['show_filter_bar'] ?? false) ? 'checked' : '' ?>>
         <?= admin_te('block_gallery.filterbalk_tonen_alleen_portfolio') ?>
       </label>
       <label class="admin-checkbox-label">
-        <input type="checkbox" name="enable_lightbox" value="1" <?= ($values['enable_lightbox'] ?? false) ? 'checked' : '' ?>>
+        <input type="checkbox" class="admin-checkbox" name="enable_lightbox" value="1" <?= ($values['enable_lightbox'] ?? false) ? 'checked' : '' ?>>
         <?= admin_te('block_gallery.lightbox_klik_kaart_zonder') ?>
       </label>
 
@@ -260,7 +260,7 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
       <p class="admin-text-muted"><?= admin_te('block_gallery.laat_link_leeg_kaarten') ?></p>
 
       <label class="admin-checkbox-label">
-        <input type="checkbox" name="tight_top" value="1" <?= ($values['tight_top'] ?? false) ? 'checked' : '' ?>>
+        <input type="checkbox" class="admin-checkbox" name="tight_top" value="1" <?= ($values['tight_top'] ?? false) ? 'checked' : '' ?>>
         <?= admin_te('block_gallery.sluit_sectie_erboven_ruimte') ?>
       </label>
 
@@ -300,7 +300,7 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
       </div>
 
       <label class="admin-checkbox-label">
-        <input type="checkbox" name="is_active" value="1" <?= ($values['is_active'] ?? true) ? 'checked' : '' ?>>
+        <input type="checkbox" class="admin-checkbox" name="is_active" value="1" <?= ($values['is_active'] ?? true) ? 'checked' : '' ?>>
         <?= admin_te('block_gallery.actief_uitgevinkt_sectie_getoond') ?>
       </label>
 

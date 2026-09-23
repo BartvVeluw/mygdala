@@ -65,22 +65,25 @@ final class FeatureGridBlock extends BlockDefinition
      * The heading on the grid's row and the title and text on each card's
      * row, per website language; a card's icon is the same in every language
      * and stays in feature_grid_items. What the editor always required in
-     * Dutch is required in the default language (the lead never was); the
-     * lengths are the ones the editor always allowed. A grid without a
+     * Dutch is required in the default language, except the eyebrow, which
+     * is optional on every block (partials/eyebrow.php), and a card's title:
+     * a card without one shows its icon and text and no heading. The lead
+     * never was required.
+     * The lengths are the ones the editor always allowed. A grid without a
      * heading of its own (FeatureGridContent::SECTIONS, has_heading) never
-     * has its heading validated or saved, so the required eyebrow and title
-     * do not apply to it.
+     * has its heading validated or saved, so the required title does not
+     * apply to it.
      */
     public function translatableFields(): array
     {
         return [
             'feature_grids' => [
-                TranslatableField::plain('eyebrow', 150)->required(),
+                TranslatableField::plain('eyebrow', 150),
                 TranslatableField::plain('title', 255)->required(),
                 TranslatableField::plain('lead', 500),
             ],
             'feature_grid_items' => [
-                TranslatableField::plain('title', 255)->required(),
+                TranslatableField::plain('title', 255),
                 TranslatableField::plain('body', 500)->required(),
             ],
         ];
@@ -122,6 +125,7 @@ final class FeatureGridBlock extends BlockDefinition
         foreach (array_slice(array_keys(FeatureGridContent::ICON_KEYS), 0, 3) as $index => $iconKey) {
             $items[] = [
                 'icon_key' => $iconKey,
+                'icon_url' => '',
                 'title' => $samples->localizedItem('item', $index),
                 'body' => $samples->localizedItem('item_body', $index),
             ];
