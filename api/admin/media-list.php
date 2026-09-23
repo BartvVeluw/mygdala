@@ -39,9 +39,10 @@ header('Cache-Control: no-store');
 
 $term = trim((string) ($_GET['q'] ?? ''));
 $page = max(1, (int) ($_GET['page'] ?? 1));
-// The kind the field behind the picker takes (MediaType): an image field
-// never lists a video. browse() treats a kind it does not know as no filter,
-// which is what the library itself shows.
+// The kind the field behind the picker takes, or a filter on one
+// (MediaType): an image field never lists a video, a share image never an
+// SVG. browse() treats one it does not know as no filter, which is what the
+// library itself shows.
 $type = (string) ($_GET['type'] ?? '');
 
 try {

@@ -135,8 +135,11 @@ $errors = [];
  * written, so an id naming nothing can never be stored; and no file is ever
  * deleted here, because the same image may be in use on four other pages.
  */
-$socialMedia = MediaService::findImage(
-    isset($_POST['og_media_id']) && is_numeric($_POST['og_media_id']) ? (int) $_POST['og_media_id'] : null
+// A share image is a raster image (MediaType::SOCIAL_IMAGE); the one the page
+// already has stays acceptable.
+$socialMedia = MediaService::findSocialImage(
+    isset($_POST['og_media_id']) && is_numeric($_POST['og_media_id']) ? (int) $_POST['og_media_id'] : null,
+    (int) ($page['og_media_id'] ?? 0)
 );
 $socialImageSubmitted = array_key_exists('og_media_id', $_POST);
 

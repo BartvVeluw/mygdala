@@ -154,8 +154,11 @@ if ($featuredMedia === null && trim((string) ($_POST['featured_media_id'] ?? '')
     $errors[] = AdminTranslator::trans('validation.gekozen_uitgelichte_afbeelding_bestaat_meer');
 }
 
-$socialMedia = MediaService::findImage(
-    isset($_POST['og_media_id']) && is_numeric($_POST['og_media_id']) ? (int) $_POST['og_media_id'] : null
+// A share image is a raster image (MediaType::SOCIAL_IMAGE); the one the post
+// already has stays acceptable.
+$socialMedia = MediaService::findSocialImage(
+    isset($_POST['og_media_id']) && is_numeric($_POST['og_media_id']) ? (int) $_POST['og_media_id'] : null,
+    (int) ($post['og_media_id'] ?? 0)
 );
 if ($socialMedia === null && trim((string) ($_POST['og_media_id'] ?? '')) !== '') {
     $errors[] = AdminTranslator::trans('validation.gekozen_deel_afbeelding_bestaat_meer');

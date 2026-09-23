@@ -91,6 +91,7 @@
             <file>tests/Service/ReservedRoutesTest.php</file>
             <file>tests/Service/RichTextSanitizerTest.php</file>
             <file>tests/Service/Media/SvgSanitizerTest.php</file>
+            <file>tests/Service/Media/SvgUploadRoutesTest.php</file>
             <file>tests/Service/RobotsTest.php</file>
             <file>tests/Service/RouteRegistryTest.php</file>
             <file>tests/Service/SeoMetadataTest.php</file>
@@ -277,6 +278,7 @@
             <file>tests/Service/ReservedRoutesTest.php</file>
             <file>tests/Service/RichTextSanitizerTest.php</file>
             <file>tests/Service/Media/SvgSanitizerTest.php</file>
+            <file>tests/Service/Media/SvgUploadRoutesTest.php</file>
             <file>tests/Service/RobotsTest.php</file>
             <file>tests/Service/RouteRegistryTest.php</file>
             <file>tests/Service/SeoFieldsAdminLayoutTest.php</file>
@@ -539,6 +541,9 @@
             <file>tests/Service/MediaLibraryTest.php</file>
             <file>tests/Service/SettingsNavigationHttpTest.php</file>
             <file>tests/Service/Media/SvgSanitizerTest.php</file>
+            <file>tests/Service/Media/SvgUploadRoutesTest.php</file>
+            <file>tests/Service/Media/SvgAuditTest.php</file>
+            <file>tests/Service/Media/MediaPickerSvgHttpTest.php</file>
             <file>tests/Service/MediaUsageAccessTest.php</file>
             <file>tests/Service/MediaUsageTest.php</file>
             <file>tests/Service/NavigationFooterSecurityTest.php</file>

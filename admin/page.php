@@ -606,7 +606,8 @@ $urlFieldOpen = !$hasFixedUrl
           $pageSocialMedia,
           admin_t('page.og_image'),
           admin_t('page.og_image_help'),
-          true
+          true,
+          \App\Service\Media\MediaType::SOCIAL_IMAGE
       ); ?>
       <?php if ($pageSocialMedia === null && $pageSocialImage !== ''): ?>
         <p class="admin-text-muted"><?= admin_t('page.huidige_waarde_mediabibliotheek', ['v1' => $h($pageSocialImage)]) ?></code></p>

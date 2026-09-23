@@ -66,11 +66,11 @@ if (!is_array($file)) {
 }
 
 // The kind of field the upload is for (the picker behind an image field
-// sends "image"): anything else is refused, not stored. An unknown or missing
-// kind means any kind the library takes, which is what the library screen's
-// own queue sends.
+// sends "image", a share image "social_image"): anything else is refused,
+// not stored. An unknown or missing kind means any kind the library takes,
+// which is what the library screen's own queue sends.
 $kind = (string) ($_POST['kind'] ?? '');
-$kind = MediaType::isKnown($kind) ? $kind : null;
+$kind = MediaType::isPickerFilter($kind) ? $kind : null;
 
 try {
     $result = (new MediaService())->upload(

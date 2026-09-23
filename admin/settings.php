@@ -145,7 +145,8 @@ function brandingImageField(
     $h = static fn (string $v): string => htmlspecialchars($v, ENT_QUOTES, 'UTF-8');
     ?>
     <div class="admin-branding-field">
-      <?php media_picker_field($inputName . '_media_id', $selected, $label, $help, $removable); ?>
+      <?php /* The share image is for social networks: no SVG there (MediaType::SOCIAL_IMAGE). */ ?>
+      <?php media_picker_field($inputName . '_media_id', $selected, $label, $help, $removable, $key === 'og_image_path' ? \App\Service\Media\MediaType::SOCIAL_IMAGE : \App\Service\Media\MediaType::IMAGE); ?>
       <?php if ($selected === null && $legacyPath !== ''): ?>
         <?php /* A path this install had before the Media Library and that no
                  media item was created for — an absolute URL, for instance.

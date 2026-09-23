@@ -134,8 +134,28 @@ Tweede verdedigingslinie: de root-`.htaccess` geeft elk `.svg` een
 `Content-Security-Policy` zonder script, zonder externe bronnen en met
 `sandbox`, als `mod_headers` er is.
 
-Een SVG die al vóór deze stap was *overgenomen* (het logo van deze site) is
-niet opnieuw door de sanitizer gegaan: overnemen raakt een bestand niet aan.
+**Eén weg naar binnen.** Elk nieuw SVG-bestand dat Mygdala opslaat, gaat door
+`SvgSanitizer`; er is geen tweede sanitizer en geen route die op extensie of
+MIME-type vertrouwt. Logo, tweede logo, favicon en deel-afbeeldingen zijn
+geen eigen upload: het zijn items uit deze bibliotheek, gekozen met de kiezer.
+Alle andere uploaders (sectie-, product-, personalisatie- en portfoliobeelden,
+contactbijlagen, lettertypes, de Hero-video) bepalen het type met
+`getimagesize()` tegen een rasterlijst, of met een PDF- of font-handtekening;
+`getimagesize()` herkent geen SVG, dus daar wordt een SVG op inhoud
+geweigerd. `Tests\Service\Media\SvgUploadRoutesTest` houdt de lijst van
+klassen die een upload opslaan gesloten: een nieuwe faalt tot iemand hem op
+SVG heeft nagekeken. De parser kan niets buiten het bestand bereiken:
+`LIBXML_NONET`, geen `LIBXML_NOENT`/`LIBXML_DTDLOAD`, geen XInclude, en een
+DOCTYPE wordt al op de ruwe bytes geweigerd.
+
+**Bestaande SVG's.** Een SVG die vóór deze stap is opgeslagen (een overgenomen
+logo, een bestand van de oude brandingupload) is nooit door de sanitizer
+gegaan. `php scripts/audit-svg.php` (`App\Service\Media\SvgAudit`) zoekt ze
+op — media-rijen, de brandingpaden in `site_settings` en de publieke
+uploadmappen — en beoordeelt elk bestand met dezelfde sanitizer, **zonder iets
+te wijzigen**: *ok*, *refused* met de reden, *missing* of *unreadable*; exit 1
+zodra er één niet deugt. Een geweigerd bestand vervangt een redacteur via de
+bibliotheek; het script herschrijft niets.
 
 ### Video
 
@@ -539,7 +559,19 @@ afbeeldingsveld biedt dus nooit een MP4 aan. Het endpoint achter het veld
 controleert het nog eens: `BlockImage::fromRequest()` en
 `MediaService::findImage()` behandelen een video-id als "geen afbeelding",
 `MediaService::findVideo()` omgekeerd. Een SVG is een afbeelding en staat in
-elke afbeeldingskiezer.
+elke afbeeldingskiezer, **behalve die van een deel-afbeelding**.
+
+**Deel-afbeelding: geen SVG.** Sociale netwerken tonen geen SVG als preview.
+Daarom heeft `MediaType` naast de soorten één *kiezerfilter*:
+`MediaType::SOCIAL_IMAGE`, een afbeelding in een van de rasterformaten
+(JPG, PNG, WEBP, GIF; hetzelfde contract als de deel-afbeeldingen van de Shop
+altijd hadden). Het is geen soort: het filter boven de bibliotheek biedt het
+niet aan, en een gewone afbeeldingskiezer blijft SVG tonen. De vier
+deel-afbeeldingsvelden (pagina, blogbericht, standaard in Instellingen en in
+de installatiewizard) vragen erom; de lijst en de upload in de modal volgen
+het, en de endpoints lezen het id via `MediaService::findSocialImage()`. De
+deel-afbeelding die een pagina al had, blijft geldig, zodat geen bestaande
+pagina onopslaanbaar wordt.
 
 Zet je JavaScript uit, dan blijft het formulier gewoon opslaan wat er al
 gekozen was.

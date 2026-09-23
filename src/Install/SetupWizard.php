@@ -393,7 +393,9 @@ final class SetupWizard
                 continue;
             }
 
-            $media = MediaService::findImage((int) $submitted);
+            $media = $pathKey === 'og_image_path'
+                ? MediaService::findSocialImage((int) $submitted)
+                : MediaService::findImage((int) $submitted);
 
             if ($media === null) {
                 $errors['branding'] = 'Een gekozen afbeelding bestaat niet (meer) in de mediabibliotheek.';

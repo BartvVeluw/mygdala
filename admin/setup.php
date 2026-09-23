@@ -334,7 +334,8 @@ $setupPrimaryLanguage = $previous('primary_content_language') !== ''
       foreach ($brandingFields as $pathKey => [$label, $help]):
           $mediaKey = Branding::MEDIA_KEYS[$pathKey];
           $selectedId = (int) $previous($mediaKey, '0');
-          media_picker_field($mediaKey, MediaService::find($selectedId > 0 ? $selectedId : null), $label, $help);
+          // The share image is one for social networks: no SVG (MediaType::SOCIAL_IMAGE).
+          media_picker_field($mediaKey, MediaService::find($selectedId > 0 ? $selectedId : null), $label, $help, true, $pathKey === 'og_image_path' ? \App\Service\Media\MediaType::SOCIAL_IMAGE : \App\Service\Media\MediaType::IMAGE);
       endforeach;
       ?>
     </section>

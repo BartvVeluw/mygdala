@@ -63,7 +63,8 @@ use App\Service\Media\MediaUploader;
  * @param string         $label     Dutch field label
  * @param string         $help      one line under the field, or ''
  * @param bool           $clearable whether "geen afbeelding" is a valid answer
- * @param string         $kind      MediaType::IMAGE or MediaType::VIDEO: what the field takes
+ * @param string         $kind      MediaType::IMAGE, ::VIDEO, or the filter ::SOCIAL_IMAGE (a share
+ *                                  image: raster formats only, no SVG): what the field takes
  */
 function media_picker_field(
     string $name,
@@ -73,7 +74,7 @@ function media_picker_field(
     bool $clearable = true,
     string $kind = MediaType::IMAGE
 ): void {
-    $kind = $kind === MediaType::VIDEO ? MediaType::VIDEO : MediaType::IMAGE;
+    $kind = in_array($kind, [MediaType::VIDEO, MediaType::SOCIAL_IMAGE], true) ? $kind : MediaType::IMAGE;
     // Resolved here rather than in the signature: a PHP default value
     // cannot call a function, and this one has to be read per request.
     $label = $label !== '' ? $label : admin_t($kind === MediaType::VIDEO ? 'media.picker.video_label' : 'common.image_label');
@@ -227,6 +228,11 @@ function media_picker_modal(): void
                   'accept' => MediaUploader::acceptAttribute(MediaType::VIDEO),
                   'upload' => admin_t('media.picker.new_video'),
                   'empty' => admin_t('media.picker.empty_video'),
+              ],
+              MediaType::SOCIAL_IMAGE => [
+                  'accept' => MediaUploader::acceptAttribute(MediaType::SOCIAL_IMAGE),
+                  'upload' => admin_t('media.nieuwe_afbeelding'),
+                  'empty' => admin_t('media.picker.empty_social'),
               ],
           ],
           'messages' => [

@@ -97,6 +97,24 @@ final class MediaService
         return $item !== null && !$item->isVideo() ? $item : null;
     }
 
+    /**
+     * find(), for a share image (og:image): a raster image only
+     * (MediaType::SOCIAL_IMAGE). The id a page already had stays an answer,
+     * so a page saved before this rule is never refused over it.
+     */
+    public static function findSocialImage(?int $id, ?int $alreadyStored = null): ?MediaItem
+    {
+        $item = self::find($id);
+
+        if ($item === null) {
+            return null;
+        }
+
+        return MediaType::filterAccepts(MediaType::SOCIAL_IMAGE, $item->mimeType) || ($alreadyStored !== null && $item->id === $alreadyStored && !$item->isVideo())
+            ? $item
+            : null;
+    }
+
     /** find(), for a field that takes a video: only a video is an answer. */
     public static function findVideo(?int $id): ?MediaItem
     {
@@ -198,13 +216,15 @@ final class MediaService
     {
         $page = max(1, $page);
         $perPage = max(1, min(100, $perPage));
-        $mimePrefix = MediaType::mimePrefix($type);
+        // A kind, or a picker filter on one (MediaType::SOCIAL_IMAGE).
+        $mimePrefix = MediaType::mimePrefix((string) MediaType::kindOfFilter($type));
+        $mimes = MediaType::mimesOfFilter($type);
 
-        $rows = $this->repository->search($term, $perPage, ($page - 1) * $perPage, $mimePrefix);
+        $rows = $this->repository->search($term, $perPage, ($page - 1) * $perPage, $mimePrefix, $mimes);
 
         return [
             'items' => array_map(static fn (array $row): MediaItem => MediaItem::fromRow($row), $rows),
-            'total' => $this->repository->countSearch($term, $mimePrefix),
+            'total' => $this->repository->countSearch($term, $mimePrefix, $mimes),
         ];
     }
 
@@ -253,15 +273,17 @@ final class MediaService
         $uploader = $this->uploader;
         $name = trim($name);
 
-        if ($kind !== null && !MediaType::isKnown($kind)) {
-            $kind = null;
-        }
+        // A kind, or a picker filter on one: the filter narrows what may come
+        // back, the kind is what the uploader checks.
+        $filter = $kind !== null && MediaType::isPickerFilter($kind) ? $kind : null;
+        $kind = $filter !== null ? MediaType::kindOfFilter($filter) : null;
 
-        if ($kind !== null) {
-            $claimed = MediaUploader::kindOfName((string) ($file['name'] ?? ''));
+        if ($filter !== null) {
+            $name = (string) ($file['name'] ?? '');
+            $claimed = MediaUploader::kindOfName($name);
 
-            if ($claimed !== null && $claimed !== $kind) {
-                throw new \RuntimeException(AdminTranslator::trans('media.upload.wrong_kind.' . $kind));
+            if ($claimed !== null && ($claimed !== $kind || !MediaUploader::nameFitsFilter($name, $filter))) {
+                throw new \RuntimeException(AdminTranslator::trans('media.upload.wrong_kind.' . $filter));
             }
         }
 
@@ -278,7 +300,7 @@ final class MediaService
         if ($checksum !== null) {
             $existing = $this->repository->findByChecksum($checksum);
 
-            if ($existing !== null && ($kind === null || MediaType::ofMime((string) ($existing['mime_type'] ?? '')) === $kind)) {
+            if ($existing !== null && ($filter === null || MediaType::filterAccepts($filter, (string) ($existing['mime_type'] ?? '')))) {
                 $item = MediaItem::fromRow($existing);
 
                 // An alt text typed with the duplicate upload fills a gap,

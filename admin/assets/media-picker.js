@@ -59,8 +59,10 @@
     statusEl.classList.toggle("is-error", !!isError);
   }
 
+  /** image, video, or a filter on one (social_image: no SVG), as the field says. */
   function kindOf(field) {
-    return field.getAttribute("data-media-picker-kind") === "video" ? "video" : "image";
+    var kind = field.getAttribute("data-media-picker-kind") || "";
+    return Object.prototype.hasOwnProperty.call(kinds, kind) ? kind : "image";
   }
 
   function openModal(field) {

@@ -218,9 +218,30 @@ class MediaUploader
         };
     }
 
-    /** The `accept` of a file input that offers these kinds: extensions and MIME types. */
+    /**
+     * Whether a file's NAME fits a picker filter beyond its kind: a share
+     * image (MediaType::SOCIAL_IMAGE) must be a raster image, so an .svg is
+     * refused for it before anything is stored.
+     */
+    public static function nameFitsFilter(string $name, string $filter): bool
+    {
+        if ($filter !== MediaType::SOCIAL_IMAGE) {
+            return true;
+        }
+
+        return isset(self::ALLOWED_EXTENSIONS[MediaFilename::extension(basename(str_replace('\\', '/', $name)))]);
+    }
+
+    /** The `accept` of a file input that offers these kinds (or this picker filter): extensions and MIME types. */
     public static function acceptAttribute(?string $kind = null): string
     {
+        if ($kind === MediaType::SOCIAL_IMAGE) {
+            return implode(',', [
+                ...array_map(static fn (string $extension): string => '.' . $extension, array_keys(self::ALLOWED_EXTENSIONS)),
+                ...array_values(self::MIME_FOR_TYPE),
+            ]);
+        }
+
         $mimes = [];
 
         if ($kind !== MediaType::VIDEO) {

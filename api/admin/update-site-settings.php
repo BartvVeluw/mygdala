@@ -118,7 +118,11 @@ foreach (Branding::MEDIA_KEYS as $pathKey => $mediaKey) {
         continue;
     }
 
-    $media = MediaService::findImage((int) $submitted);
+    // The share image is a raster image (MediaType::SOCIAL_IMAGE); the one the
+    // site already has stays acceptable.
+    $media = $pathKey === 'og_image_path'
+        ? MediaService::findSocialImage((int) $submitted, (int) SiteSettings::get($mediaKey))
+        : MediaService::findImage((int) $submitted);
 
     if ($media === null) {
         // An id naming nothing must never be stored. Reported once, however

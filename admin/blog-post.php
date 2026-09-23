@@ -416,7 +416,8 @@ $forcedTab = $errors !== [] ? 'inhoud' : null;
           $socialMedia,
           'Eigen deel-afbeelding (optioneel)',
           'De preview wanneer iemand dit bericht deelt. Laat leeg om de uitgelichte afbeelding te gebruiken, en anders de standaard uit Instellingen. Liggend, bij voorkeur 1200 x 630 pixels.',
-          true
+          true,
+          \App\Service\Media\MediaType::SOCIAL_IMAGE
       ); ?>
       <?php if ($socialMedia === null && $featuredMedia !== null): ?>
         <p class="admin-text-muted"><?= admin_t('blog.nu_gebruik_uitgelichte_afbeelding', ['v1' => $h($featuredMedia->displayName())]) ?></p>

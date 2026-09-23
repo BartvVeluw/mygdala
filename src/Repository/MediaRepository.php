@@ -116,9 +116,9 @@ class MediaRepository extends Repository
      *
      * @return list<array<string, mixed>>
      */
-    public function search(string $term = '', int $limit = self::PAGE_SIZE, int $offset = 0, ?string $mimePrefix = null): array
+    public function search(string $term = '', int $limit = self::PAGE_SIZE, int $offset = 0, ?string $mimePrefix = null, ?array $mimes = null): array
     {
-        [$where, $params] = $this->searchClause($term, $mimePrefix);
+        [$where, $params] = $this->searchClause($term, $mimePrefix, $mimes);
 
         $sql = 'SELECT ' . self::COLUMNS . ' FROM media' . $where
             . ' ORDER BY created_at DESC, id DESC LIMIT ' . max(1, $limit) . ' OFFSET ' . max(0, $offset);
@@ -130,9 +130,9 @@ class MediaRepository extends Repository
     }
 
     /** How many items the same search matches, for the pager. */
-    public function countSearch(string $term = '', ?string $mimePrefix = null): int
+    public function countSearch(string $term = '', ?string $mimePrefix = null, ?array $mimes = null): int
     {
-        [$where, $params] = $this->searchClause($term, $mimePrefix);
+        [$where, $params] = $this->searchClause($term, $mimePrefix, $mimes);
 
         $stmt = $this->db->prepare('SELECT COUNT(*) FROM media' . $where);
         $stmt->execute($params);
@@ -149,7 +149,7 @@ class MediaRepository extends Repository
      *
      * @return array{0: string, 1: array<string, string>}
      */
-    private function searchClause(string $term, ?string $mimePrefix): array
+    private function searchClause(string $term, ?string $mimePrefix, ?array $mimes = null): array
     {
         $conditions = [];
         $params = [];
@@ -168,6 +168,17 @@ class MediaRepository extends Repository
         if ($mimePrefix !== null && $mimePrefix !== '') {
             $conditions[] = "mime_type LIKE :mime ESCAPE '\\\\'";
             $params['mime'] = self::escapeLike($mimePrefix) . '%';
+        }
+
+        // Exact MIME types on top of the kind: a picker filter such as the
+        // share image's raster-only list (App\Service\Media\MediaType).
+        if ($mimes !== null) {
+            $names = [];
+            foreach (array_values($mimes) as $index => $mime) {
+                $names[] = ':exact_mime_' . $index;
+                $params['exact_mime_' . $index] = (string) $mime;
+            }
+            $conditions[] = $names === [] ? '1 = 0' : 'mime_type IN (' . implode(', ', $names) . ')';
         }
 
         return [$conditions === [] ? '' : ' WHERE ' . implode(' AND ', $conditions), $params];

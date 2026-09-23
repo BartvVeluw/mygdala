@@ -20,6 +20,14 @@ namespace App\Service\Media;
  * The same list decides what a picker offers: a field that takes an image
  * never lists a video, and the other way round (admin/_media_picker.php).
  *
+ * PICKER FILTERS narrow a kind further for one kind of field, without making
+ * the kind itself narrower. There is one today: SOCIAL_IMAGE, the share image
+ * (og:image) of a page, a post or the site. Social networks do not render an
+ * SVG preview, so that field offers the raster formats only — the formats a
+ * share image has always had in this project (SectionImageUploader for the
+ * Shop's own share images). Every other image field keeps offering SVG.
+ * A filter is not a kind: the library's own type filter does not list it.
+ *
  * Derived from `mime_type`, which the library already stores from the file's
  * own header, so a kind needs no column and no backfill. A row whose type is
  * unknown (an adopted file with an extension the adoption did not recognise)
@@ -29,6 +37,9 @@ final class MediaType
 {
     public const IMAGE = 'image';
     public const VIDEO = 'video';
+
+    /** A picker filter (see above): an image, raster formats only. */
+    public const SOCIAL_IMAGE = 'social_image';
 
     /** Each kind, and how every MIME type that belongs to it begins. */
     private const MIME_PREFIXES = [
@@ -55,6 +66,47 @@ final class MediaType
     public static function mimePrefix(string $type): ?string
     {
         return self::MIME_PREFIXES[$type] ?? null;
+    }
+
+    /** Whether a picker may ask for this: a kind, or a filter on one. */
+    public static function isPickerFilter(string $filter): bool
+    {
+        return self::isKnown($filter) || $filter === self::SOCIAL_IMAGE;
+    }
+
+    /** The kind a picker filter narrows, or null for an unknown one. */
+    public static function kindOfFilter(string $filter): ?string
+    {
+        return match (true) {
+            self::isKnown($filter) => $filter,
+            $filter === self::SOCIAL_IMAGE => self::IMAGE,
+            default => null,
+        };
+    }
+
+    /**
+     * The exact MIME types a filter allows, or null when every MIME type of
+     * its kind is allowed.
+     *
+     * @return list<string>|null
+     */
+    public static function mimesOfFilter(string $filter): ?array
+    {
+        return $filter === self::SOCIAL_IMAGE ? array_values(MediaUploader::MIME_FOR_TYPE) : null;
+    }
+
+    /** Whether a stored item with this MIME type is an answer to a picker filter. */
+    public static function filterAccepts(string $filter, string $mimeType): bool
+    {
+        $kind = self::kindOfFilter($filter);
+
+        if ($kind === null || self::ofMime($mimeType) !== $kind) {
+            return false;
+        }
+
+        $mimes = self::mimesOfFilter($filter);
+
+        return $mimes === null || in_array(strtolower($mimeType), $mimes, true);
     }
 
     /** The kind a stored MIME type belongs to, or null for one no kind claims. */

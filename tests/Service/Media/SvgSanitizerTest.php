@@ -152,6 +152,62 @@ final class SvgSanitizerTest extends TestCase
         $this->assertStringStartsWith('<?xml', $svg);
     }
 
+    /** The spellings of a DOCTYPE and of text that is not UTF-8 are refused like the plain ones. */
+    public function testEveryWayToSmuggleADoctypeOrAnotherEncodingIsRefused(): void
+    {
+        $ns = self::NS;
+        $cases = [
+            "<!doctype svg [<!entity x SYSTEM 'file:///etc/passwd'>]><svg $ns><text>&x;</text></svg>" => SvgSanitizer::REASON_DOCTYPE,
+            "<!-- a comment first --><!DOCTYPE svg [<!ENTITY % p SYSTEM 'http://127.0.0.1:1/evil.dtd'> %p;]><svg $ns/>" => SvgSanitizer::REASON_DOCTYPE,
+            "\xEF\xBB\xBF  <!DOCTYPE svg><svg $ns/>" => SvgSanitizer::REASON_DOCTYPE,
+            mb_convert_encoding("<?xml version=\"1.0\" encoding=\"UTF-16\"?><svg $ns/>", 'UTF-16') => SvgSanitizer::REASON_UNREADABLE,
+        ];
+
+        foreach ($cases as $source => $reason) {
+            try {
+                SvgSanitizer::sanitize($source);
+                $this->fail('must be refused: ' . substr(bin2hex($source), 0, 40));
+            } catch (SvgRefused $e) {
+                self::assertSame($reason, $e->reason);
+            }
+        }
+    }
+
+    /**
+     * An XInclude is never processed: it is an element in a foreign namespace
+     * and is removed, so nothing it names is ever read.
+     */
+    public function testAnXIncludeIsRemovedAndNeverRead(): void
+    {
+        $svg = SvgSanitizer::sanitize('<svg ' . self::NS . ' xmlns:xi="http://www.w3.org/2001/XInclude"><xi:include href="file:///etc/passwd" parse="text"/><rect width="1" height="1"/></svg>')['svg'];
+
+        self::assertStringNotContainsString('include', $svg);
+        self::assertStringNotContainsString('root:', $svg);
+    }
+
+    /**
+     * The parser itself can reach nothing: no network (LIBXML_NONET), no
+     * entity substitution and no DTD loading, whatever the input. Read from
+     * the source, because the refusal above makes the flags unobservable.
+     */
+    public function testTheParserCanLoadNoExternalEntityOrNetworkResource(): void
+    {
+        // The code only: the docblock names the flags it deliberately leaves out.
+        $source = '';
+        foreach (token_get_all((string) file_get_contents(dirname(__DIR__, 3) . '/src/Service/Media/SvgSanitizer.php')) as $token) {
+            $source .= is_array($token) ? (in_array($token[0], [T_COMMENT, T_DOC_COMMENT], true) ? '' : $token[1]) : $token;
+        }
+
+        preg_match_all('/->loadXML\((.*?)\);/s', $source, $calls);
+        self::assertCount(1, $calls[1], 'one parse');
+        self::assertStringContainsString('LIBXML_NONET', $calls[1][0]);
+        foreach (['LIBXML_NOENT', 'LIBXML_DTDLOAD', 'LIBXML_DTDATTR', 'LIBXML_DTDVALID', 'LIBXML_XINCLUDE'] as $flag) {
+            self::assertStringNotContainsString($flag, $source, $flag . ' would let the document reach outside itself');
+        }
+        self::assertStringNotContainsString('->xinclude(', $source);
+        self::assertStringNotContainsString('simplexml_', $source);
+    }
+
     /** @return array<string, array{0: string, 1: string|null}> */
     public static function videoHeaders(): array
     {
