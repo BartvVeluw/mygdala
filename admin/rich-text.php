@@ -133,7 +133,7 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
     </div>
   <?php endif; ?>
 
-  <form method="post" action="/api/admin/update-rich-text-section.php"<?= is_array($old) ? ' data-save-bar-unsaved' : '' ?>>
+  <form method="post" action="/api/admin/update-rich-text-section.php" class="admin-product-form" data-nav-item-form<?= is_array($old) ? ' data-save-bar-unsaved' : '' ?>>
     <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
     <input type="hidden" name="section" value="<?= $h($sectionParam) ?>">
     <?= admin_localized_input($editLanguage) ?>

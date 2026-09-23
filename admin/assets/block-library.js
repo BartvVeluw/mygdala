@@ -82,6 +82,9 @@
     }
 
     lastFocused = button;
+    // Focused before it opens, so the browser's own focus restore on close
+    // lands on this button too (a click does not focus a button in Safari).
+    button.focus();
     dialog.showModal();
     closeButton.focus();
   }

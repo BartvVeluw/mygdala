@@ -118,7 +118,8 @@ final class RemainingBlockWordsMigrationTest extends TestCase
      */
     private const LATER_COLUMNS = [
         'card_carousels' => ['desktop_layout'],
-        'carousel_cards' => ['link_type', 'link_target_id'],
+        'carousel_cards' => ['link_type', 'link_target_id', 'image_focus'],
+        'feature_grid_items' => ['icon_media_id'],
         'homepage_hero' => ['primary_link_type', 'primary_link_target_id', 'secondary_link_type', 'secondary_link_target_id', 'media_id', 'video_media_id'],
     ];
 
@@ -388,10 +389,13 @@ final class RemainingBlockWordsMigrationTest extends TestCase
     public function testACarouselMovesThreeLevelsEachRowOwningItsOwnWords(): void
     {
         self::assertSame(['en' => ['title' => 'Projects', 'lead' => 'A lead.'], 'nl' => ['eyebrow' => 'Werk', 'title' => 'Projecten']], self::words('card_carousels', 'zz-carousel'));
+        // catchUp() also runs 20260923170000, which writes down the number
+        // each visible card showed (01, 02) now that an empty one shows none:
+        // a later migration's words, not this one's.
         self::assertSame(
             [
-                ['en' => ['title' => 'Card one', 'image_alt' => 'Photo', 'link_label' => 'View'], 'nl' => ['title' => 'Kaart een', 'body' => 'Tekst', 'image_alt' => 'Foto', 'link_label' => 'Bekijk']],
-                ['nl' => ['title' => 'Kaart twee']],
+                ['en' => ['title' => 'Card one', 'image_alt' => 'Photo', 'link_label' => 'View'], 'nl' => ['title' => 'Kaart een', 'body' => 'Tekst', 'image_alt' => 'Foto', 'link_label' => 'Bekijk', 'number_label' => '01']],
+                ['nl' => ['title' => 'Kaart twee', 'number_label' => '02']],
             ],
             self::childWords('carousel_cards', 'carousel_id', 'card_carousels', 'zz-carousel')
         );

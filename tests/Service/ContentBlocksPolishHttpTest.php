@@ -289,6 +289,7 @@ final class ContentBlocksPolishHttpTest extends TestCase
         }
         self::assertSame(['left*', 'center', 'right'], $aligns);
         self::assertSame(1, $screen->query('//select[@name="button_link_type" and @data-nav-link-type]')->length, 'admin/_link_target_field.php');
+        self::assertSame(1, $screen->query('//form[@data-nav-item-form]//*[@data-nav-link-group]//*[@data-nav-link-field]//input[@name="button_label"]')->length, 'navigation-item.js hides the text with "Geen knop"');
         self::assertSame(1, $screen->query('//input[@name="button_url"]')->length);
         self::assertSame(0, $screen->query('//input[@name="button_label" and @required]')->length, 'never required on its own');
     }

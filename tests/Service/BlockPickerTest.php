@@ -658,6 +658,7 @@ final class BlockPickerTest extends TestCase
         $library = $this->sourceOf('admin/assets/block-library.js');
         $this->assertStringContainsString('button.closest("[data-block-library-card], [data-block-slot]")', $library);
         $this->assertStringContainsString('lastFocused = button;', $library);
+        $this->assertMatchesRegularExpression('/button\.focus\(\);\s*dialog\.showModal\(\);/', $library, 'focused before it opens: the browser restores the focus there too');
         $this->assertStringContainsString('lastFocused.focus()', $library);
         $this->assertStringContainsString('dialog.addEventListener("cancel", finish);', $library, 'Escape closes it and returns the focus');
 

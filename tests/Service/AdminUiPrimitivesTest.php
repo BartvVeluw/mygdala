@@ -624,6 +624,11 @@ final class AdminUiPrimitivesTest extends TestCase
             $this->assertStringContainsString($selector, $rules, $selector);
         }
         $this->assertStringContainsString('appearance: none', $rules, 'drawn in the theme, still a native checkbox underneath');
+        $this->assertStringContainsString(
+            'border: 1.5px solid color-mix(in srgb, var(--admin-text-muted) 70%, var(--admin-surface));',
+            $rules,
+            'an empty box stands out from its card at 3:1 in every theme, not the 1.6:1 of --admin-border-strong'
+        );
     }
 
     public function testANumberFieldIsTheSharedTextField(): void

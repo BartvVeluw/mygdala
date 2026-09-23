@@ -2368,7 +2368,7 @@ input[data-color-picker]{ width: 2.4rem; height: 2.4rem; padding: 0.15rem; borde
   width: 0.6rem;
   height: 0.6rem;
   border-radius: 50%;
-  border: 2px solid var(--admin-border-strong);
+  border: 2px solid color-mix(in srgb, var(--admin-text-muted) 70%, var(--admin-surface));
   pointer-events: none;
 }
 .admin-image-focus__point:hover::after{ border-color: var(--admin-accent); }
@@ -5707,7 +5707,11 @@ html:not([data-admin-help]) .admin-help-toggle{ display: none; }
   height: 1.1rem;
   margin: 0;
   background: var(--admin-surface-sunken);
-  border: 1px solid var(--admin-border-strong);
+  /* Not --admin-border-strong: an empty box has to stand out from the card
+     at 3:1 (WCAG 1.4.11), and that border reached about 1.6:1 on the dark
+     themes. Muted text, softened towards the surface, stays above 3:1 in
+     every theme without a token of its own. */
+  border: 1.5px solid color-mix(in srgb, var(--admin-text-muted) 70%, var(--admin-surface));
   border-radius: min(var(--admin-radius-sm), 4px);
   cursor: pointer;
   transition: background var(--admin-transition), border-color var(--admin-transition);
