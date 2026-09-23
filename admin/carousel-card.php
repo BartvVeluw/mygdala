@@ -160,7 +160,6 @@ $placeholder = admin_localized_placeholder_attr($editLanguage);
 // An optional field says so in the default language; in a translation its
 // placeholder says what a visitor sees while it is empty.
 $optional = $placeholder !== '' ? $placeholder : ' placeholder="Optioneel"';
-$altPlaceholder = $placeholder !== '' ? $placeholder : ' placeholder="Leeg = alt-tekst uit de mediabibliotheek"';
 // What the card prints while its number is empty: its place among the cards
 // that show (CardCarouselContent). A card that is off — a new one — gets the
 // place it would have once switched on: after the shown cards before it.
@@ -300,7 +299,8 @@ $tagRow = static function (string $key, string $label, string $fallback) use ($h
 
       <div class="admin-field">
         <?= admin_field_label('card-alt', admin_t('common.alt_text')) ?>
-        <input type="text" id="card-alt" name="image_alt" maxlength="255" value="<?= $h($cardWord('image_alt')) ?>"<?= $altPlaceholder ?><?= $invalid('image_alt') ?>>
+        <?php $cardAlt = media_alt_field('media_id', $cardWord('image_alt'), $cardMedia, $placeholder); ?>
+        <input type="text" id="card-alt" name="image_alt" maxlength="255" value="<?= $h($cardAlt['value']) ?>"<?= $cardAlt['attributes'] ?><?= $invalid('image_alt') ?>>
         <?php $fieldError('image_alt'); ?>
       </div>
     </section>

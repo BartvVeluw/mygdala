@@ -36,6 +36,7 @@ use App\Service\Language\AdminTranslator;
 use App\Service\AdminAuth;
 use App\Service\Csrf;
 use App\Service\Media\MediaService;
+use App\Service\Media\MediaType;
 
 AdminAuth::requireLoginForApi();
 AdminAuth::requirePermissionForApi('media.view');
@@ -64,11 +65,19 @@ if (!is_array($file)) {
     exit;
 }
 
+// The kind of field the upload is for (the picker behind an image field
+// sends "image"): anything else is refused, not stored. An unknown or missing
+// kind means any kind the library takes, which is what the library screen's
+// own queue sends.
+$kind = (string) ($_POST['kind'] ?? '');
+$kind = MediaType::isKnown($kind) ? $kind : null;
+
 try {
     $result = (new MediaService())->upload(
         $file,
         (string) ($_POST['alt_text'] ?? ''),
-        (string) ($_POST['name'] ?? '')
+        (string) ($_POST['name'] ?? ''),
+        $kind
     );
 } catch (\RuntimeException $e) {
     // The uploader's own messages are Dutch and meant for an editor.
@@ -92,6 +101,8 @@ echo json_encode([
         'alt' => $item->altText,
         'url' => $item->publicPath(),
         'thumbnail' => $item->displayPath(),
+        'kind' => $item->kind(),
+        'type' => $item->typeLabel(),
         'width' => $item->width,
         'height' => $item->height,
         'missing' => !$item->fileExists(),

@@ -39,10 +39,14 @@ header('Cache-Control: no-store');
 
 $term = trim((string) ($_GET['q'] ?? ''));
 $page = max(1, (int) ($_GET['page'] ?? 1));
+// The kind the field behind the picker takes (MediaType): an image field
+// never lists a video. browse() treats a kind it does not know as no filter,
+// which is what the library itself shows.
+$type = (string) ($_GET['type'] ?? '');
 
 try {
     $service = new MediaService();
-    $result = $service->browse($term, $page);
+    $result = $service->browse($term, $page, MediaRepository::PAGE_SIZE, $type);
 } catch (\Throwable $e) {
     error_log('[api/admin/media-list.php] ' . $e->getMessage());
 
@@ -61,6 +65,8 @@ echo json_encode([
             'alt' => $item->altText,
             'url' => $item->publicPath(),
             'thumbnail' => $item->displayPath(),
+            'kind' => $item->kind(),
+            'type' => $item->typeLabel(),
             'width' => $item->width,
             'height' => $item->height,
             // The picker greys out an item whose file is gone rather than

@@ -32,6 +32,13 @@ namespace App\Service\Media;
  * one who has not now gets the central one for free instead of an empty
  * alt="". See MEDIA.md.
  *
+ * INHERITED VERSUS OWN, as stored. An empty local field means "the library's
+ * alt text, whatever it is at the time", so a later change in the library
+ * reaches every place that did not write its own. The editor SHOWS the
+ * library's text in that field (admin/_media_picker.php, media_alt_attrs()),
+ * which is why ownAlt() turns a submitted text that is exactly the library's
+ * back into empty before it is stored: seeing an alt text is not choosing it.
+ *
  * DIMENSIONS come along when the library knows them, so a block can render
  * width/height and the browser can reserve the space before the image
  * arrives. Unknown is a perfectly good answer — an adopted SVG has no pixel
@@ -106,11 +113,65 @@ final class BlockImage
     {
         $media = MediaService::find(is_numeric($submitted) ? (int) $submitted : null);
 
-        if ($media === null) {
+        // An image field takes a picture. A video id sent to it (a crafted
+        // request; the picker never lists one) is no image, like a number
+        // that matches nothing.
+        if ($media === null || $media->isVideo()) {
             return ['media_id' => null, 'image_path' => ''];
         }
 
         return ['media_id' => $media->id, 'image_path' => $media->path];
+    }
+
+    /**
+     * The block's own alt text as it is stored: the submitted text, or '' when
+     * it is exactly the alt text the library has for this media item — that
+     * is the text the editor was shown, not one they wrote, and storing it
+     * would cut this place off from a later change in the library.
+     *
+     * Only in the default language: a translation's empty field falls back to
+     * the default language's alt text, not to the library's, so there the
+     * same text can be a real choice.
+     */
+    public static function ownAlt(string $submitted, mixed $mediaId, bool $inDefaultLanguage = true): string
+    {
+        $submitted = trim($submitted);
+
+        if (!$inDefaultLanguage || $submitted === '') {
+            return $submitted;
+        }
+
+        $media = MediaService::find(is_numeric($mediaId) ? (int) $mediaId : null);
+
+        return $media !== null && $submitted === trim($media->altText) ? '' : $submitted;
+    }
+
+    /**
+     * ownAlt() for every row of a posted row list (`<list>[<key>][<field>]`,
+     * App\Service\Blocks\EditorRows), before the list is read. A new row is
+     * always written in the default language (EditorChildList); a stored row
+     * in the language on screen.
+     *
+     * @param mixed $rows the posted list, $_POST[<list>]
+     *
+     * @return mixed the same list, alt texts that only repeat the library's emptied
+     */
+    public static function ownAltInRows(mixed $rows, bool $inDefaultLanguage, string $mediaField = 'media_id', string $altField = 'alt'): mixed
+    {
+        if (!is_array($rows)) {
+            return $rows;
+        }
+
+        foreach ($rows as $key => $fields) {
+            if (!is_array($fields) || !isset($fields[$altField]) || !is_string($fields[$altField])) {
+                continue;
+            }
+
+            $isNew = !ctype_digit((string) $key);
+            $rows[$key][$altField] = self::ownAlt($fields[$altField], $fields[$mediaField] ?? null, $isNew || $inDefaultLanguage);
+        }
+
+        return $rows;
     }
 
     /**

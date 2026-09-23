@@ -140,19 +140,17 @@ $placeholder = admin_localized_placeholder_attr($editLanguage);
 // An optional field says so in the default language; in a translation its
 // placeholder says what a visitor sees while it is empty.
 $optional = $placeholder !== '' ? $placeholder : ' placeholder="Optioneel"';
-// An empty alt text falls back to the Media Library's in the default
-// language, and to the default language's in a translation.
-$altPlaceholder = $placeholder !== '' ? $placeholder : ' placeholder="Leeg = alt-tekst uit de mediabibliotheek"';
 
 /** One text field of the section, with its own message. */
-$field = static function (string $name, string $label, int $maxLength, string $attributes, int $lines = 0) use ($h, $word, $fieldErrors): void {
+$field = static function (string $name, string $label, int $maxLength, string $attributes, int $lines = 0, ?string $value = null) use ($h, $word, $fieldErrors): void {
     $id = 'detail-' . str_replace('_', '-', $name);
+    $value ??= $word($name);
     echo '<div class="admin-field">' . admin_field_label($id, $label);
     if ($lines > 0) {
         echo '<textarea id="' . $h($id) . '" name="' . $h($name) . '" maxlength="' . $maxLength . '" rows="' . $lines . '"' . $attributes
-            . editor_field_invalid($fieldErrors, $name) . '>' . $h($word($name)) . '</textarea>';
+            . editor_field_invalid($fieldErrors, $name) . '>' . $h($value) . '</textarea>';
     } else {
-        echo '<input type="text" id="' . $h($id) . '" name="' . $h($name) . '" maxlength="' . $maxLength . '" value="' . $h($word($name)) . '"' . $attributes
+        echo '<input type="text" id="' . $h($id) . '" name="' . $h($name) . '" maxlength="' . $maxLength . '" value="' . $h($value) . '"' . $attributes
             . editor_field_invalid($fieldErrors, $name) . '>';
     }
     editor_field_error($fieldErrors, $name);
@@ -171,10 +169,9 @@ $pointRow = static function (string $key, array $fields, int $position, int $cou
 
 /** One gallery image; the template for a new one is the same markup with the key __KEY__. */
 $imageRow = static function (string $key, array $fields, int $position, int $count) use ($placeholder, $fieldErrors): void {
-    $altHint = ctype_digit($key) && $placeholder !== '' ? $placeholder : ' placeholder="Leeg = alt-tekst uit de mediabibliotheek"';
     editor_row_open('images', $key, admin_t('block_detail.afbeelding'), $position, $count, ($fields['remove'] ?? '') !== '');
     editor_row_media('images', $key, $fields, $fieldErrors, ctype_digit($key) ? 'Afbeelding' : 'Afbeelding*');
-    editor_row_text('images', $key, 'alt', admin_t('common.alt_text'), 255, $fields, $fieldErrors, $altHint);
+    editor_row_media_alt('images', $key, $fields, $fieldErrors, $placeholder);
     editor_row_close();
 };
 ?>
@@ -264,7 +261,8 @@ $imageRow = static function (string $key, array $fields, int $position, int $cou
       <p class="admin-text-muted"><?= admin_te('block_detail.optioneel_staat_naast_tekst') ?></p>
 
       <div class="admin-field">
-        <?php media_picker_field('main_media_id', $mainMediaId > 0 ? MediaService::find($mainMediaId) : null, 'Hoofdafbeelding', 'Kies er een uit de mediabibliotheek, of upload een nieuwe in het venster dat opent. "Wissen" haalt de afbeelding bij Opslaan weg.', true); ?>
+        <?php $mainMedia = $mainMediaId > 0 ? MediaService::find($mainMediaId) : null; ?>
+        <?php media_picker_field('main_media_id', $mainMedia, 'Hoofdafbeelding', 'Kies er een uit de mediabibliotheek, of upload een nieuwe in het venster dat opent. "Wissen" haalt de afbeelding bij Opslaan weg.', true); ?>
         <?php editor_field_error($fieldErrors, 'main_media_id'); ?>
       </div>
       <?php if ($hasLegacyMainImageOnly): ?>
@@ -273,7 +271,11 @@ $imageRow = static function (string $key, array $fields, int $position, int $cou
           <?= admin_te('block_detail.hoofdafbeelding_oud_verwijderen') ?>
         </label>
       <?php endif; ?>
-      <?php $field('main_image_alt', admin_t('common.alt_text'), 255, $altPlaceholder); ?>
+      <?php
+      // The alt text this image really gets, visible and linked to the picker.
+      $mainAlt = media_alt_field('main_media_id', $word('main_image_alt'), $mainMedia, $placeholder);
+      $field('main_image_alt', admin_t('common.alt_text'), 255, $mainAlt['attributes'], 0, $mainAlt['value']);
+      ?>
     </section>
 
     <section class="admin-card" aria-labelledby="detail-points-title">

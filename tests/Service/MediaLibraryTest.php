@@ -10,6 +10,8 @@ use App\Service\Media\MediaItem;
 use App\Service\Media\MediaService;
 use App\Service\Media\MediaType;
 use App\Service\Media\MediaUploader;
+use App\Service\Media\BlockImage;
+use App\Service\Media\VideoFormat;
 use PHPUnit\Framework\TestCase;
 use Tests\Support\TestMediaUploader;
 
@@ -132,7 +134,7 @@ final class MediaLibraryTest extends TestCase
         $file = $this->tempFile("<?php echo 'pwned';", 'shell.png');
 
         $this->expectException(\RuntimeException::class);
-        $this->expectExceptionMessage('Alleen JPG, PNG, WEBP of GIF');
+        $this->expectExceptionMessage('geen afbeelding');
 
         (new TestMediaUploader())->store([
             'name' => 'shell.png',
@@ -144,12 +146,10 @@ final class MediaLibraryTest extends TestCase
     }
 
     /**
-     * SVG can carry script and this project has no sanitizer for it, so the
-     * library refuses one however it is labelled. An SVG already deployed and
-     * adopted in place keeps working — that is a different thing, and
-     * Tests\Service\BrandingTest covers it.
+     * An SVG under a raster name is judged as a raster image, and an SVG is
+     * not one: it never gets past the header check to be stored unsanitized.
      */
-    public function testAnSvgIsRefusedWhateverItIsNamed(): void
+    public function testAnSvgUnderARasterNameIsRefused(): void
     {
         $svg = '<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>';
         $file = $this->tempFile($svg, 'logo.png');
@@ -202,20 +202,254 @@ final class MediaLibraryTest extends TestCase
                 (new TestMediaUploader())->store($this->uploadedFile($this->pngFixture(), $name));
                 $this->fail($name . ' must be refused');
             } catch (\RuntimeException $e) {
-                $this->assertStringContainsString('JPG, PNG, WEBP of GIF', $e->getMessage(), $name);
+                $this->assertStringContainsString('Dit type bestand kan niet', $e->getMessage(), $name);
             }
         }
 
         $this->assertSame($filesBefore, $this->libraryFiles(), 'nothing may be stored for a refused file');
     }
 
-    /** An SVG is refused by its name as well, with the reason an editor can act on. */
-    public function testAnSvgIsRefusedByItsNameWithTheReason(): void
+    /**
+     * A safe SVG is stored as the sanitizer wrote it back: no resizing, no
+     * thumbnail, its size from its own attributes.
+     */
+    public function testASafeSvgIsStoredSanitizedWithItsSize(): void
+    {
+        $item = $this->upload(
+            '<?xml version="1.0"?><!-- Inkscape --><svg xmlns="http://www.w3.org/2000/svg" width="80" height="20"><metadata>x</metadata><rect width="80" height="20" fill="#123"/></svg>',
+            'logo.svg',
+            'Logo van de site'
+        );
+
+        $this->assertSame('image/svg+xml', $item->mimeType);
+        $this->assertSame(MediaType::IMAGE, $item->kind());
+        $this->assertMatchesRegularExpression('#^assets/media/[0-9a-f]{32}\.svg$#', $item->path);
+        $this->assertNull($item->thumbnailPath);
+        $this->assertSame(80, $item->width);
+        $this->assertSame(20, $item->height);
+        $this->assertSame('SVG', $item->typeLabel());
+
+        $stored = (string) file_get_contents($item->absolutePath());
+        $this->assertStringContainsString('<rect', $stored);
+        $this->assertStringNotContainsString('Inkscape', $stored, 'the stored file is the sanitized one');
+        $this->assertStringNotContainsString('metadata', $stored);
+    }
+
+    /**
+     * An SVG with anything active in it is refused with the reason, and
+     * nothing is left behind: not the file, not a row.
+     */
+    public function testADangerousSvgIsRefusedAndLeavesNothingBehind(): void
+    {
+        $filesBefore = $this->libraryFiles();
+        $cases = [
+            'script.svg' => '<svg xmlns="http://www.w3.org/2000/svg"><script>alert(document.cookie)</script></svg>',
+            'onload.svg' => '<svg xmlns="http://www.w3.org/2000/svg" onload="alert(1)"/>',
+            'extern.svg' => '<svg xmlns="http://www.w3.org/2000/svg"><image href="https://evil.example/x.png"/></svg>',
+            'xxe.svg' => '<?xml version="1.0"?><!DOCTYPE svg [<!ENTITY x SYSTEM "file:///etc/passwd">]><svg xmlns="http://www.w3.org/2000/svg"><text>&x;</text></svg>',
+        ];
+
+        foreach ($cases as $name => $svg) {
+            try {
+                $this->service->upload($this->uploadedFile($svg, $name));
+                $this->fail($name . ' must be refused');
+            } catch (\RuntimeException $e) {
+                $this->assertStringContainsString('Deze SVG is niet toegevoegd', $e->getMessage(), $name);
+            }
+        }
+
+        $this->assertSame($filesBefore, $this->libraryFiles(), 'nothing may be stored for a refused SVG');
+    }
+
+    /** A file called .svg that is not one is refused as such. */
+    public function testAFileThatOnlyClaimsToBeAnSvgIsRefused(): void
     {
         $this->expectException(\RuntimeException::class);
-        $this->expectExceptionMessage('SVG');
+        $this->expectExceptionMessage('geen SVG');
 
-        (new TestMediaUploader())->store($this->uploadedFile('<svg xmlns="http://www.w3.org/2000/svg"></svg>', 'logo.svg'));
+        (new TestMediaUploader())->store($this->uploadedFile($this->pngFixture(), 'logo.svg'));
+    }
+
+    /** MP4 and WebM are stored as sent, and are a video to every reader. */
+    public function testAnMp4AndAWebmAreStoredAsVideo(): void
+    {
+        $mp4 = $this->upload($this->mp4Fixture(), 'clip.mp4', '');
+        $webm = $this->upload($this->webmFixture(), 'clip.webm', '');
+
+        $this->assertSame('video/mp4', $mp4->mimeType);
+        $this->assertSame('video/webm', $webm->mimeType);
+        $this->assertTrue($mp4->isVideo());
+        $this->assertFalse($mp4->isPicture());
+        $this->assertMatchesRegularExpression('#^assets/media/[0-9a-f]{32}\.mp4$#', $mp4->path);
+        $this->assertMatchesRegularExpression('#^assets/media/[0-9a-f]{32}\.webm$#', $webm->path);
+        $this->assertNull($mp4->thumbnailPath);
+        $this->assertNull($mp4->width, 'a video has no dimensions the library can read');
+        $this->assertSame($this->mp4Fixture(), file_get_contents($mp4->absolutePath()), 'a video is stored byte for byte');
+        $this->assertSame('MP4', $mp4->typeLabel());
+        $this->assertSame('clip.mp4', $mp4->displayName());
+    }
+
+    /**
+     * The extension alone is never enough: a text file, a QuickTime movie and
+     * a HEIC photo called .mp4 are all refused, and nothing is stored.
+     */
+    public function testAFileThatOnlyClaimsToBeAVideoIsRefused(): void
+    {
+        $filesBefore = $this->libraryFiles();
+        $cases = [
+            'nep.mp4' => "<?php system(\$_GET['c']);",
+            'film.mp4' => "\x00\x00\x00\x14ftypqt  \x00\x00\x00\x00" . str_repeat("\x00", 64),
+            'foto.webm' => "\x00\x00\x00\x18ftypheic\x00\x00\x00\x00" . str_repeat("\x00", 64),
+        ];
+
+        foreach ($cases as $name => $bytes) {
+            try {
+                (new TestMediaUploader())->store($this->uploadedFile($bytes, $name));
+                $this->fail($name . ' must be refused');
+            } catch (\RuntimeException $e) {
+                $this->assertStringContainsString('geen MP4- of WEBM-video', $e->getMessage(), $name);
+            }
+        }
+
+        $this->assertSame($filesBefore, $this->libraryFiles());
+    }
+
+    /** A video renamed to .jpg is judged as an image, and it is not one. */
+    public function testAVideoUnderAnImageNameIsRefused(): void
+    {
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('geen afbeelding');
+
+        (new TestMediaUploader())->store($this->uploadedFile($this->mp4Fixture(), 'clip.jpg'));
+    }
+
+    /** A video has its own cap: the Hero's 30 MB, or less where PHP takes less. */
+    public function testAVideoHasItsOwnSizeCap(): void
+    {
+        $this->assertLessThanOrEqual(MediaUploader::VIDEO_MAX_BYTES, MediaUploader::maxBytes(MediaType::VIDEO));
+        $this->assertGreaterThanOrEqual(MediaUploader::maxBytes(MediaType::IMAGE), MediaUploader::maxBytes(MediaType::VIDEO));
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('te groot');
+
+        (new TestMediaUploader())->store([
+            'name' => 'lang.mp4',
+            'tmp_name' => $this->tempFile($this->mp4Fixture(), 'lang.mp4'),
+            'error' => UPLOAD_ERR_OK,
+            'size' => MediaUploader::maxBytes(MediaType::VIDEO) + 1,
+        ]);
+    }
+
+    /**
+     * An upload for an image field refuses a video, and one for a video field
+     * refuses an image — also when that exact file is already in the library
+     * and would otherwise simply be handed back.
+     */
+    public function testAnUploadForOneKindRefusesTheOther(): void
+    {
+        $video = $this->upload($this->mp4Fixture(), 'bestaand.mp4', '');
+
+        foreach ([[$this->mp4Fixture(), 'bestaand.mp4', MediaType::IMAGE], [$this->pngFixture(), 'foto.png', MediaType::VIDEO]] as [$bytes, $name, $kind]) {
+            try {
+                $this->service->upload($this->uploadedFile($bytes, $name), '', '', $kind);
+                $this->fail($name . ' must be refused for a ' . $kind . ' field');
+            } catch (\RuntimeException $e) {
+                $this->assertStringContainsString('Hier kan alleen', $e->getMessage());
+            }
+        }
+
+        $again = $this->service->upload($this->uploadedFile($this->mp4Fixture(), 'bestaand.mp4'), '', '', MediaType::VIDEO);
+        $this->assertTrue($again['reused']);
+        $this->assertSame($video->id, $again['item']->id);
+    }
+
+    /** What an image picker lists holds no video, and a video picker no image. */
+    public function testBrowsingOneKindListsOnlyThatKind(): void
+    {
+        $image = $this->upload($this->pngFixture(12, 12), 'zzz-soortfilter.png', '');
+        $svg = $this->upload('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 4 4"><rect width="4" height="4"/></svg>', 'zzz-soortfilter.svg', '');
+        $video = $this->upload($this->webmFixture(), 'zzz-soortfilter.webm', '');
+
+        $ids = fn (string $type): array => array_map(static fn (MediaItem $item): int => $item->id, $this->service->browse('zzz-soortfilter', type: $type)['items']);
+
+        $this->assertEqualsCanonicalizing([$image->id, $svg->id], $ids(MediaType::IMAGE));
+        $this->assertSame([$video->id], $ids(MediaType::VIDEO));
+        $this->assertCount(3, $ids(''));
+    }
+
+    /** An endpoint behind an image field never takes a video id, whatever the request says. */
+    public function testAnImageFieldNeverStoresAVideo(): void
+    {
+        $video = $this->upload($this->mp4Fixture(), 'geen-logo.mp4', '');
+        $image = $this->upload($this->pngFixture(), 'wel-logo.png', '');
+
+        $this->assertNull(MediaService::findImage($video->id));
+        $this->assertSame($image->id, MediaService::findImage($image->id)?->id);
+        $this->assertNull(MediaService::findVideo($image->id));
+        $this->assertSame($video->id, MediaService::findVideo($video->id)?->id);
+        $this->assertSame(['media_id' => null, 'image_path' => ''], BlockImage::fromRequest((string) $video->id));
+        $this->assertSame($image->id, BlockImage::fromRequest((string) $image->id)['media_id']);
+    }
+
+    /* ------------------------------------------------------------------ */
+    /* Alt text: inherited from the library, or this place's own           */
+    /* ------------------------------------------------------------------ */
+
+    /**
+     * The editor SHOWS the library's alt text in the field. Sent back as it
+     * was, it stays inherited (stored empty); anything else is this place's
+     * own. In a translation the same text can be a real choice.
+     */
+    public function testAnAltTextThatOnlyRepeatsTheLibraryStaysInherited(): void
+    {
+        $item = $this->upload($this->pngFixture(), 'alt-erfenis.png', 'Een blauw vlak');
+
+        $this->assertSame('', BlockImage::ownAlt('Een blauw vlak', $item->id));
+        $this->assertSame('', BlockImage::ownAlt('  Een blauw vlak ', (string) $item->id));
+        $this->assertSame('Blauw vlak op de homepage', BlockImage::ownAlt('Blauw vlak op de homepage', $item->id));
+        $this->assertSame('', BlockImage::ownAlt('', $item->id));
+        $this->assertSame('Een blauw vlak', BlockImage::ownAlt('Een blauw vlak', $item->id, false), 'a translation keeps what it was given');
+        $this->assertSame('Een blauw vlak', BlockImage::ownAlt('Een blauw vlak', null), 'without an image there is nothing to inherit from');
+    }
+
+    /** The same rule over a posted row list: new rows always, stored rows in the default language. */
+    public function testRowAltTextsFollowTheSameRule(): void
+    {
+        $item = $this->upload($this->pngFixture(), 'alt-rijen.png', 'Bibliotheektekst');
+
+        $rows = [
+            '12' => ['media_id' => (string) $item->id, 'alt' => 'Bibliotheektekst'],
+            'new1' => ['media_id' => (string) $item->id, 'alt' => 'Bibliotheektekst'],
+            '13' => ['media_id' => (string) $item->id, 'alt' => 'Eigen tekst'],
+        ];
+
+        $inDefault = BlockImage::ownAltInRows($rows, true);
+        $this->assertSame('', $inDefault['12']['alt']);
+        $this->assertSame('', $inDefault['new1']['alt']);
+        $this->assertSame('Eigen tekst', $inDefault['13']['alt']);
+
+        $inTranslation = BlockImage::ownAltInRows($rows, false);
+        $this->assertSame('Bibliotheektekst', $inTranslation['12']['alt'], 'a stored row in a translation keeps its text');
+        $this->assertSame('', $inTranslation['new1']['alt'], 'a new row is always written in the default language');
+
+        $this->assertNull(BlockImage::ownAltInRows(null, true));
+    }
+
+    /**
+     * What a visitor gets: the library's alt text follows a change in the
+     * library where the block has none of its own, and a block that wrote its
+     * own keeps it.
+     */
+    public function testALaterLibraryChangeReachesOnlyInheritedUses(): void
+    {
+        $item = $this->upload($this->pngFixture(), 'alt-later.png', 'Oude tekst');
+        $row = ['media_id' => $item->id, 'image_path' => $item->path];
+
+        $this->service->updateAltText($item->id, 'Nieuwe tekst');
+        MediaService::clearCache();
+
+        $this->assertSame('Nieuwe tekst', BlockImage::fromOwner($row, '')['alt'], 'inherited: follows the library');
+        $this->assertSame('Eigen tekst', BlockImage::fromOwner($row, 'Eigen tekst')['alt'], 'own: stays');
     }
 
     /**
@@ -235,7 +469,7 @@ final class MediaLibraryTest extends TestCase
                 (new TestMediaUploader())->store($this->uploadedFile($bytes, $name));
                 $this->fail($name . ' must be refused');
             } catch (\RuntimeException $e) {
-                $this->assertStringContainsString('Alleen JPG, PNG, WEBP of GIF', $e->getMessage(), $name);
+                $this->assertStringContainsString('geen afbeelding', $e->getMessage(), $name);
             }
         }
     }
@@ -300,7 +534,7 @@ final class MediaLibraryTest extends TestCase
 
         $this->assertNotNull($results[0]['item']);
         $this->assertNull($results[1]['item']);
-        $this->assertStringContainsString('JPG, PNG, WEBP of GIF', (string) $results[1]['error']);
+        $this->assertStringContainsString('Dit type bestand kan niet', (string) $results[1]['error']);
         $this->assertNull($results[2]['item']);
         $this->assertNotSame('', (string) $results[2]['error']);
         $this->assertNotNull($results[3]['item']);
@@ -668,13 +902,26 @@ final class MediaLibraryTest extends TestCase
      */
     public function testTheKindsOnOfferAreTheOnesTheUploaderAccepts(): void
     {
-        $this->assertSame([MediaType::IMAGE], MediaType::all());
+        $this->assertSame([MediaType::IMAGE, MediaType::VIDEO], MediaType::all());
 
-        foreach (MediaUploader::MIME_FOR_TYPE as $mimeType) {
-            $this->assertStringStartsWith((string) MediaType::mimePrefix(MediaType::IMAGE), $mimeType);
+        foreach ([...MediaUploader::MIME_FOR_TYPE, MediaUploader::SVG_MIME] as $mimeType) {
+            $this->assertSame(MediaType::IMAGE, MediaType::ofMime($mimeType), $mimeType);
         }
 
-        foreach (['video', 'audio', 'document'] as $fictitious) {
+        foreach (VideoFormat::MIME as $mimeType) {
+            $this->assertSame(MediaType::VIDEO, MediaType::ofMime($mimeType), $mimeType);
+        }
+
+        foreach (MediaUploader::extensions() as $extension) {
+            $this->assertNotNull(MediaUploader::kindOfName('x.' . $extension), $extension);
+            $this->assertStringContainsString('.' . $extension, MediaUploader::acceptAttribute(), $extension);
+        }
+
+        $this->assertStringNotContainsString('.mp4', MediaUploader::acceptAttribute(MediaType::IMAGE));
+        $this->assertStringNotContainsString('.png', MediaUploader::acceptAttribute(MediaType::VIDEO));
+        $this->assertNull(MediaUploader::kindOfName('setup.exe'));
+
+        foreach (['audio', 'document'] as $fictitious) {
             $this->assertFalse(MediaType::isKnown($fictitious), $fictitious . ' must not be offered before it can be uploaded');
         }
     }
@@ -1009,6 +1256,18 @@ final class MediaLibraryTest extends TestCase
         imagedestroy($image);
 
         return $bytes;
+    }
+
+    /** The first bytes of an MP4 (an ISO-BMFF ftyp box, brand isom) and a little more. */
+    private function mp4Fixture(): string
+    {
+        return "\x00\x00\x00\x20ftypisom\x00\x00\x02\x00isomiso2avc1mp41" . str_repeat("\x00", 128);
+    }
+
+    /** The EBML magic of a WebM, and a little more. */
+    private function webmFixture(): string
+    {
+        return "\x1A\x45\xDF\xA3\x9F\x42\x86\x81\x01\x42\xF7\x81\x01webm" . str_repeat("\x01", 128);
     }
 
     private function gifFixture(): string

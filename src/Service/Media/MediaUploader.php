@@ -19,11 +19,12 @@ use App\Service\Language\AdminTranslator;
  *   - the file must really be an image, decided by its HEADER
  *     (getimagesize()), never by its name, its extension or the Content-Type
  *     the browser sent. A .php renamed to .jpg fails here;
- *   - its NAME must carry an image extension as well (ALLOWED_EXTENSIONS).
- *     That check lets nothing in the header check keeps out, and it is not
- *     what makes a stored file safe — but it refuses an .exe or an .svg for
- *     what it says it is, in words an editor can act on, before anything
- *     opens it, and it is the list the upload queue checks in the browser;
+ *   - its NAME must carry an extension of a kind the library takes as well
+ *     (extensions()). That check lets nothing in the header check keeps
+ *     out, and it is not what makes a stored file safe — but it refuses an
+ *     .exe for what it says it is, in words an editor can act on, before
+ *     anything opens it, and it is the list the upload queue checks in the
+ *     browser;
  *   - the stored filename is 32 random hex characters plus the extension
  *     that belongs to the type actually found. A client-supplied name never
  *     becomes a filesystem name, so there is no traversal, no overwrite of
@@ -36,14 +37,27 @@ use App\Service\Language\AdminTranslator;
  *   - the file is written to ONE folder this class is the only writer of,
  *     and chmod 0644 so it is readable and never executable.
  *
- * NO SVG. Same reasoning as App\Service\BrandingAssetUploader, and it
- * matters more here: an SVG is a document that can carry script, and one
+ * SVG, SANITIZED. An SVG is a document that can carry script, and one
  * served from this site's own origin is stored XSS the moment somebody opens
- * its URL. This project has no SVG sanitizer, so the library will not accept
- * one. An SVG that is already deployed and already referenced keeps working
- * and can even be ADOPTED as a media item — the library then owns its
- * identity and its alt text, not its creation. That is exactly the case of
- * this site's own logo.
+ * its URL. So the file stored is never the file that was sent: it is what
+ * App\Service\Media\SvgSanitizer writes back out of a parsed tree, and a
+ * file with anything active in it is refused with the reason. It is not
+ * resized or re-encoded; a drawing has no pixels to optimize. MEDIA.md, "SVG".
+ *
+ * VIDEO, AS SENT. MP4 and WebM, decided by the first bytes
+ * (App\Service\Media\VideoFormat, the same judgement the Homepage Hero's own
+ * video field makes) and stored exactly as they arrived: no transcoding, no
+ * poster frame, no dimensions, because this project has no tool on a shared
+ * host that could read or make them. Its own size cap, VIDEO_MAX_BYTES, is
+ * the one the Hero's video field has always had.
+ *
+ * WHICH KIND A FILE IS decides its checks, and the NAME decides which kind
+ * is claimed: a file called .svg must parse as an SVG, a file called .mp4
+ * must start like a video, and a file called .jpg must have an image header.
+ * A video renamed to .jpg is therefore refused as "not an image", never
+ * stored as whatever it really is. A caller that only wants one kind (the
+ * picker behind an image field) says so, and anything else is refused
+ * before it is opened.
  *
  * OPTIMIZATION. JPEG, PNG and WebP go through App\Service\ImageOptimizer,
  * which is where this project's "safe to re-encode" rules already live: EXIF
@@ -102,6 +116,23 @@ class MediaUploader
         IMAGETYPE_GIF => 'image/gif',
     ];
 
+    /** A drawing: an image, but never through getimagesize() or the optimizer. */
+    public const SVG_EXTENSION = 'svg';
+    public const SVG_MIME = 'image/svg+xml';
+
+    /**
+     * The extensions a video's name may carry, and the format each promises.
+     * What the file IS still comes from its bytes (VideoFormat).
+     */
+    public const VIDEO_EXTENSIONS = [
+        'mp4' => VideoFormat::MP4,
+        'm4v' => VideoFormat::MP4,
+        'webm' => VideoFormat::WEBM,
+    ];
+
+    /** The Homepage Hero's video cap (App\Service\SectionVideoUploader), kept for the library. */
+    public const VIDEO_MAX_BYTES = 30 * 1024 * 1024;
+
     /**
      * The library's own folder. NEW uploads live here and nowhere else;
      * legacy files adopted in place keep their original path. MEDIA.md
@@ -124,9 +155,9 @@ class MediaUploader
      * a screen that promised 25 MB on a host that takes 8 would let an editor
      * wait for an upload that can only fail.
      */
-    public static function maxBytes(): int
+    public static function maxBytes(string $kind = MediaType::IMAGE): int
     {
-        $limits = [self::MAX_BYTES];
+        $limits = [$kind === MediaType::VIDEO ? self::VIDEO_MAX_BYTES : self::MAX_BYTES];
 
         $perFile = self::iniBytes((string) ini_get('upload_max_filesize'));
         if ($perFile > 0) {
@@ -142,9 +173,9 @@ class MediaUploader
     }
 
     /** maxBytes() the way the screen and a refusal say it: "25 MB". */
-    public static function maxSizeLabel(): string
+    public static function maxSizeLabel(string $kind = MediaType::IMAGE): string
     {
-        $megabytes = self::maxBytes() / (1024 * 1024);
+        $megabytes = self::maxBytes($kind) / (1024 * 1024);
 
         // Whole megabytes are said without a decimal: "25 MB", not "25,0 MB".
         // The division yields an int when it comes out even and a float when
@@ -152,6 +183,58 @@ class MediaUploader
         $decimals = abs($megabytes - round($megabytes)) < 0.05 ? 0 : 1;
 
         return number_format((float) $megabytes, $decimals, ',', '.') . ' MB';
+    }
+
+    /**
+     * The kind of file a name claims to be (MediaType::IMAGE or ::VIDEO), or
+     * null for a name the library does not take at all.
+     */
+    public static function kindOfName(string $name): ?string
+    {
+        $extension = MediaFilename::extension(basename(str_replace('\\', '/',$name)));
+
+        if (isset(self::ALLOWED_EXTENSIONS[$extension]) || $extension === self::SVG_EXTENSION) {
+            return MediaType::IMAGE;
+        }
+
+        return isset(self::VIDEO_EXTENSIONS[$extension]) ? MediaType::VIDEO : null;
+    }
+
+    /**
+     * Every extension the library takes, for one kind or for all: what a file
+     * input offers and what the upload queue checks before sending.
+     *
+     * @return list<string>
+     */
+    public static function extensions(?string $kind = null): array
+    {
+        $image = [...array_keys(self::ALLOWED_EXTENSIONS), self::SVG_EXTENSION];
+        $video = array_keys(self::VIDEO_EXTENSIONS);
+
+        return match ($kind) {
+            MediaType::IMAGE => $image,
+            MediaType::VIDEO => $video,
+            default => [...$image, ...$video],
+        };
+    }
+
+    /** The `accept` of a file input that offers these kinds: extensions and MIME types. */
+    public static function acceptAttribute(?string $kind = null): string
+    {
+        $mimes = [];
+
+        if ($kind !== MediaType::VIDEO) {
+            $mimes = [...array_values(self::MIME_FOR_TYPE), self::SVG_MIME];
+        }
+
+        if ($kind !== MediaType::IMAGE) {
+            $mimes = [...$mimes, ...array_values(VideoFormat::MIME)];
+        }
+
+        return implode(',', [
+            ...array_map(static fn (string $extension): string => '.' . $extension, self::extensions($kind)),
+            ...array_unique($mimes),
+        ]);
     }
 
     /**
@@ -205,19 +288,30 @@ class MediaUploader
 
     /**
      * @param array{name?:string,type?:string,tmp_name?:string,error?:int,size?:int} $file one entry of $_FILES
+     * @param string|null $kind MediaType::IMAGE or ::VIDEO to refuse every other kind; null for any
      *
-     * @return array{path:string, thumbnail_path:string|null, original_filename:string, name_extension:string, mime_type:string, width:int, height:int, file_size:int, checksum:string}
+     * @return array{path:string, thumbnail_path:string|null, original_filename:string, name_extension:string, mime_type:string, width:int|null, height:int|null, file_size:int, checksum:string}
      *
      * @throws \RuntimeException with a Dutch, user-facing message
      */
-    public function store(array $file): array
+    public function store(array $file, ?string $kind = null): array
     {
-        $tmpName = $this->validate($file);
+        $claimed = $this->validate($file, $kind);
+        $tmpName = (string) $file['tmp_name'];
+        $extension = MediaFilename::extension(basename(str_replace('\\', '/',(string) ($file['name'] ?? ''))));
+
+        if ($claimed === MediaType::VIDEO) {
+            return $this->storeVideo($file, $tmpName);
+        }
+
+        if ($extension === self::SVG_EXTENSION) {
+            return $this->storeSvg($file, $tmpName);
+        }
 
         $info = @getimagesize($tmpName);
 
         if ($info === false || !isset(self::ALLOWED_TYPES[$info[2]])) {
-            throw new \RuntimeException('Alleen JPG, PNG, WEBP of GIF afbeeldingen zijn toegestaan.');
+            throw new \RuntimeException(AdminTranslator::trans('media.upload.not_image'));
         }
 
         $imageType = (int) $info[2];
@@ -373,38 +467,38 @@ class MediaUploader
     }
 
     /**
-     * @return string the tmp_name, once every reason to refuse is ruled out
+     * @return string the kind the file's name claims (MediaType::IMAGE or ::VIDEO), once every reason to refuse is ruled out
      *
      * @throws \RuntimeException
      */
-    private function validate(array $file): string
+    private function validate(array $file, ?string $kind): string
     {
         $error = $file['error'] ?? UPLOAD_ERR_NO_FILE;
+        $claimed = self::kindOfName((string) ($file['name'] ?? ''));
 
         if ($error === UPLOAD_ERR_NO_FILE) {
             throw new \RuntimeException('Geen bestand geselecteerd.');
         }
 
         if ($error === UPLOAD_ERR_INI_SIZE || $error === UPLOAD_ERR_FORM_SIZE) {
-            throw new \RuntimeException(self::tooLargeMessage());
+            throw new \RuntimeException(self::tooLargeMessage($claimed ?? MediaType::IMAGE));
         }
 
         if ($error !== UPLOAD_ERR_OK) {
-            throw new \RuntimeException('Uploaden van de afbeelding is mislukt. Probeer het opnieuw.');
+            throw new \RuntimeException('Uploaden van het bestand is mislukt. Probeer het opnieuw.');
         }
 
-        // The name before the contents: an .exe or an .svg is refused for
-        // what it says it is before anything opens it. Not the security
-        // boundary — the header check in store() is — but the answer an
-        // editor can act on.
-        $extension = MediaFilename::extension(basename(str_replace('\\', '/', (string) ($file['name'] ?? ''))));
-
-        if ($extension === 'svg') {
-            throw new \RuntimeException(AdminTranslator::trans('media.upload.svg'));
-        }
-
-        if (!isset(self::ALLOWED_EXTENSIONS[$extension])) {
+        // The name before the contents: an .exe is refused for what it says
+        // it is before anything opens it. Not the security boundary — the
+        // content checks in store() are — but the answer an editor can act on.
+        if ($claimed === null) {
             throw new \RuntimeException(AdminTranslator::trans('media.upload.bad_type'));
+        }
+
+        // A field that takes one kind refuses the other by name already, so
+        // an image field never even opens a video (and the other way round).
+        if ($kind !== null && $claimed !== $kind) {
+            throw new \RuntimeException(AdminTranslator::trans('media.upload.wrong_kind.' . $kind));
         }
 
         $tmpName = (string) ($file['tmp_name'] ?? '');
@@ -413,16 +507,111 @@ class MediaUploader
             throw new \RuntimeException('Ongeldige upload.');
         }
 
-        if ((int) ($file['size'] ?? 0) > self::maxBytes()) {
-            throw new \RuntimeException(self::tooLargeMessage());
+        if ((int) ($file['size'] ?? 0) > self::maxBytes($claimed)) {
+            throw new \RuntimeException(self::tooLargeMessage($claimed));
         }
 
-        return $tmpName;
+        return $claimed;
     }
 
-    private static function tooLargeMessage(): string
+    /**
+     * An SVG, stored as SvgSanitizer writes it back. The upload is moved in
+     * first like any other (so is_uploaded_file() is the gate it always was)
+     * and then overwritten; a refusal removes it again.
+     *
+     * @return array{path:string, thumbnail_path:null, original_filename:string, name_extension:string, mime_type:string, width:int|null, height:int|null, file_size:int, checksum:string}
+     */
+    private function storeSvg(array $file, string $tmpName): array
     {
-        return AdminTranslator::trans('media.upload.too_large', ['max' => self::maxSizeLabel()]);
+        $source = @file_get_contents($tmpName);
+
+        if (!is_string($source) || !SvgSanitizer::looksLikeSvg($source)) {
+            throw new \RuntimeException(AdminTranslator::trans('media.upload.not_svg'));
+        }
+
+        $clean = SvgSanitizer::sanitize($source);
+
+        $path = $this->moveIntoLibrary($tmpName, self::SVG_EXTENSION);
+        $destination = $this->root . $path;
+
+        if (@file_put_contents($destination, $clean['svg']) === false) {
+            $this->deleteFile($path);
+
+            throw new \RuntimeException(AdminTranslator::trans('media.upload.failed'));
+        }
+
+        @chmod($destination, 0644);
+
+        return [
+            'path' => $path,
+            'thumbnail_path' => null,
+            'original_filename' => $this->safeOriginalName($file['name'] ?? ''),
+            'name_extension' => self::SVG_EXTENSION,
+            'mime_type' => self::SVG_MIME,
+            'width' => $clean['width'],
+            'height' => $clean['height'],
+            'file_size' => (int) (filesize($destination) ?: 0),
+            'checksum' => (string) hash_file('sha256', $destination),
+        ];
+    }
+
+    /**
+     * A video, stored byte for byte under the extension of the format its
+     * first bytes prove.
+     *
+     * @return array{path:string, thumbnail_path:null, original_filename:string, name_extension:string, mime_type:string, width:null, height:null, file_size:int, checksum:string}
+     */
+    private function storeVideo(array $file, string $tmpName): array
+    {
+        $format = VideoFormat::ofFile($tmpName);
+
+        if ($format === null) {
+            throw new \RuntimeException(AdminTranslator::trans('media.upload.not_video'));
+        }
+
+        $path = $this->moveIntoLibrary($tmpName, $format);
+        $destination = $this->root . $path;
+
+        $claimed = MediaFilename::extension(basename(str_replace('\\', '/',(string) ($file['name'] ?? ''))));
+
+        return [
+            'path' => $path,
+            'thumbnail_path' => null,
+            'original_filename' => $this->safeOriginalName($file['name'] ?? ''),
+            'name_extension' => (self::VIDEO_EXTENSIONS[$claimed] ?? null) === $format ? $claimed : $format,
+            'mime_type' => VideoFormat::MIME[$format],
+            'width' => null,
+            'height' => null,
+            'file_size' => (int) (filesize($destination) ?: 0),
+            'checksum' => (string) hash_file('sha256', $destination),
+        ];
+    }
+
+    /**
+     * Moves an upload into the library's folder under a random name with the
+     * extension of what it really is.
+     *
+     * @return string the stored path
+     */
+    private function moveIntoLibrary(string $tmpName, string $extension): string
+    {
+        $this->ensureDirectory($this->root . self::PUBLIC_PREFIX);
+
+        $path = self::PUBLIC_PREFIX . bin2hex(random_bytes(16)) . '.' . $extension;
+        $destination = $this->root . $path;
+
+        if (!$this->moveUploadedFile($tmpName, $destination)) {
+            throw new \RuntimeException('Bestand kon niet worden opgeslagen. Controleer of de map ' . self::PUBLIC_PREFIX . ' schrijfbaar is.');
+        }
+
+        @chmod($destination, 0644);
+
+        return $path;
+    }
+
+    private static function tooLargeMessage(string $kind = MediaType::IMAGE): string
+    {
+        return AdminTranslator::trans('media.upload.too_large', ['max' => self::maxSizeLabel($kind)]);
     }
 
     /**

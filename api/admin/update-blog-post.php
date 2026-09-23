@@ -147,14 +147,14 @@ if ($slug !== '' || $isDefaultLanguage) {
     }
 }
 
-$featuredMedia = MediaService::find(
+$featuredMedia = MediaService::findImage(
     isset($_POST['featured_media_id']) && is_numeric($_POST['featured_media_id']) ? (int) $_POST['featured_media_id'] : null
 );
 if ($featuredMedia === null && trim((string) ($_POST['featured_media_id'] ?? '')) !== '') {
     $errors[] = AdminTranslator::trans('validation.gekozen_uitgelichte_afbeelding_bestaat_meer');
 }
 
-$socialMedia = MediaService::find(
+$socialMedia = MediaService::findImage(
     isset($_POST['og_media_id']) && is_numeric($_POST['og_media_id']) ? (int) $_POST['og_media_id'] : null
 );
 if ($socialMedia === null && trim((string) ($_POST['og_media_id'] ?? '')) !== '') {

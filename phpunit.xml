@@ -90,6 +90,7 @@
             <file>tests/Service/RedirectPathTest.php</file>
             <file>tests/Service/ReservedRoutesTest.php</file>
             <file>tests/Service/RichTextSanitizerTest.php</file>
+            <file>tests/Service/Media/SvgSanitizerTest.php</file>
             <file>tests/Service/RobotsTest.php</file>
             <file>tests/Service/RouteRegistryTest.php</file>
             <file>tests/Service/SeoMetadataTest.php</file>
@@ -275,6 +276,7 @@
             <file>tests/Service/RedirectPathTest.php</file>
             <file>tests/Service/ReservedRoutesTest.php</file>
             <file>tests/Service/RichTextSanitizerTest.php</file>
+            <file>tests/Service/Media/SvgSanitizerTest.php</file>
             <file>tests/Service/RobotsTest.php</file>
             <file>tests/Service/RouteRegistryTest.php</file>
             <file>tests/Service/SeoFieldsAdminLayoutTest.php</file>
@@ -533,6 +535,7 @@
             <file>tests/Service/MediaAdoptionTest.php</file>
             <file>tests/Service/MediaBoundaryTest.php</file>
             <file>tests/Service/MediaLibraryTest.php</file>
+            <file>tests/Service/Media/SvgSanitizerTest.php</file>
             <file>tests/Service/MediaUsageAccessTest.php</file>
             <file>tests/Service/MediaUsageTest.php</file>
             <file>tests/Service/NavigationFooterSecurityTest.php</file>

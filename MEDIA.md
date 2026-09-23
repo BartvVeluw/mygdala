@@ -70,21 +70,24 @@ deze site kan er nog met een pad naar wijzen.
 `SectionImageUploader` altijd al had, want dat zijn de regels die beoordeeld
 zijn, plus één die een redacteur eerder een bruikbaar antwoord geeft:
 
-1. het moet echt een afbeelding zijn, bepaald door de **bestandsheader**
-   (`getimagesize()`), nooit door naam, extensie of Content-Type;
-2. de **naam** moet ook een afbeeldingsextensie hebben: `.jpg`, `.jpeg`,
-   `.jfif`, `.png`, `.webp` of `.gif` (`MediaUploader::ALLOWED_EXTENSIONS`).
-   Een `.exe`, `.php` of `.svg` wordt geweigerd om wat hij zegt te zijn, nog
-   voordat iemand hem opent. Dat maakt een opgeslagen bestand niet veiliger
-   (regel 1 en 3 doen dat), maar het is een antwoord waar een redacteur iets
-   mee kan;
+1. het moet echt zijn wat het zegt te zijn, bepaald door de **inhoud**, nooit
+   door naam, extensie of Content-Type: een rasterbeeld door zijn header
+   (`getimagesize()`), een SVG door de sanitizer, een video door zijn eerste
+   bytes (`App\Service\Media\VideoFormat`);
+2. de **naam** moet een extensie hebben die de bibliotheek kent
+   (`MediaUploader::extensions()`): `.jpg`, `.jpeg`, `.jfif`, `.png`, `.webp`,
+   `.gif`, `.svg`, `.mp4`, `.m4v` of `.webm`. De naam bepaalt welke soort er
+   *beweerd* wordt, de inhoud of dat klopt: een video die `.jpg` heet wordt
+   geweigerd als "geen afbeelding", nooit opgeslagen als wat hij werkelijk is.
+   Een `.exe` of `.php` wordt geweigerd nog voordat iemand hem opent;
 3. de opgeslagen naam is 32 willekeurige hex-tekens plus de extensie die bij
    het gevonden type hoort — een naam van de gebruiker wordt nooit een
    bestandsnaam;
 4. `is_uploaded_file()` moet het eens zijn;
-5. maximaal 25 MB, of minder als PHP minder toelaat (`upload_max_filesize`,
-   `post_max_size`). Het scherm noemt de grens die echt geldt
-   (`MediaUploader::maxBytes()`);
+5. maximaal 25 MB voor een afbeelding en 30 MB voor een video (de grens die
+   de video van de Homepage Hero altijd had), of minder als PHP minder
+   toelaat (`upload_max_filesize`, `post_max_size`). Het scherm noemt de
+   grenzen die echt gelden (`MediaUploader::maxBytes($soort)`);
 6. één map waarin deze klasse als enige schrijft, `chmod 0644`.
 
 **JPG, PNG, WEBP en GIF.** JPG/PNG/WEBP gaan door `App\Service\ImageOptimizer`
@@ -93,12 +96,60 @@ decompressiebom-grenzen) en krijgen meteen een thumbnail uit dezelfde decode.
 GIF wordt ongewijzigd bewaard en krijgt géén thumbnail: GD zou een animatie
 platslaan tot één frame.
 
-**Geen SVG.** Een SVG is een document dat script kan bevatten; vanaf de eigen
-origin geserveerd is dat opgeslagen XSS. Dit project heeft geen sanitizer,
-dus de bibliotheek accepteert er geen. Een SVG die al gedeployd is werkt
-gewoon door en is zelfs *overgenomen* als media-item — het logo van deze site
-is er een. De bibliotheek bezit dan zijn identiteit en zijn alt-tekst, niet
-zijn totstandkoming.
+### SVG
+
+Een SVG is een XML-document, geen plaatje: het kan `<script>`,
+event-handlers, `javascript:`-links, ingesloten HTML (`<foreignObject>`) en
+verwijzingen naar andere bestanden bevatten. In een `<img>` draait daar niets
+van, maar wie de URL van het bestand rechtstreeks opent, draait het als
+pagina van deze site: opgeslagen XSS. Daarom is het opgeslagen bestand nooit
+het verstuurde bestand, maar wat `App\Service\Media\SvgSanitizer` uit een
+geparste boom terugschrijft.
+
+Het contract: **weigeren wat actief is, weghalen wat alleen vreemd is.**
+
+| Geweigerd, met de reden erbij | Stil weggehaald |
+|---|---|
+| een DOCTYPE of entiteit (XXE, *billion laughs*) | commentaar, processing instructions |
+| `<script>`, in welke namespace ook | `<metadata>` |
+| elk `on…`-attribuut | onbekende elementen, met hun inhoud |
+| `<foreignObject>`, `<iframe>`, `<object>`, `<embed>`, audio, video | attributen in een vreemde namespace (Inkscape, Sodipodi, Illustrator) |
+| animaties (`<animate>`, `<set>` …): die kunnen een href achteraf in `javascript:` veranderen | `xml:base` |
+| een href, `url()` of `@import` die niet naar `#id` in het bestand zelf wijst | een `<a>` wordt uitgepakt: de inhoud blijft, de link gaat |
+
+Een ingesloten rasterbeeld (`data:image/png;base64,…`) mag blijven; een
+ingesloten SVG niet. Elementen staan op een **allowlist**; attributen worden
+op regel beoordeeld, omdat SVG honderden onschuldige presentatie-attributen
+heeft en maar twee manieren om buiten het bestand te komen (een href en een
+`url()`), die allebei op elke waarde gecontroleerd worden. Geparst wordt met
+`LIBXML_NONET` en zonder entiteit-expansie; een DOCTYPE wordt al op de ruwe
+bytes geweigerd. Weigeren in plaats van stil strippen is bewust: een logo
+waar ongemerkt iets uit verdwijnt, kan er anders uitzien dan de maker
+exporteerde, en de redacteur zou nooit weten waarom.
+
+Een SVG wordt niet verkleind of heringepakt en krijgt geen thumbnail. Zijn
+afmetingen komen uit `width`/`height` in pixels, anders uit de `viewBox`.
+
+Tweede verdedigingslinie: de root-`.htaccess` geeft elk `.svg` een
+`Content-Security-Policy` zonder script, zonder externe bronnen en met
+`sandbox`, als `mod_headers` er is.
+
+Een SVG die al vóór deze stap was *overgenomen* (het logo van deze site) is
+niet opnieuw door de sanitizer gegaan: overnemen raakt een bestand niet aan.
+
+### Video
+
+MP4 en WebM, herkend aan hun eerste bytes (een `ftyp`-box op offset 4, of de
+EBML-magic), en **ongewijzigd** opgeslagen: geen transcodering, geen
+posterframe en geen afmetingen, omdat er op gedeelde hosting niets is dat ze
+kan lezen of maken. Een QuickTime-`.mov` en een HEIC/AVIF-foto delen de
+`ftyp`-box en worden aan hun *brand* herkend en geweigerd. Dezelfde klasse
+beoordeelt ook de eigen video-upload van de Homepage Hero
+(`SectionVideoUploader`), zodat die twee het nooit oneens zijn.
+
+In de bibliotheek krijgt een video een video-icoon in plaats van een
+voorbeeld; het itemscherm toont een `<video>` die pas iets laadt als iemand
+op afspelen drukt.
 
 **Dubbele uploads.** Twee keer hetzelfde bestand levert één item op. Er wordt
 op checksum gekeken vóór het opslaan (vangt een GIF) en nog eens ná het
@@ -203,9 +254,9 @@ overleeft.
   alt-tekst. Geen fulltext-index en geen ranking; `_` en `%` betekenen
   zichzelf.
 - **Soort** komt uit `App\Service\Media\MediaType`, een gesloten lijst die uit
-  `mime_type` afleidt wat een rij is. Er staat **alleen `image`** in, omdat de
-  bibliotheek alleen afbeeldingen aanneemt. Video, audio of documenten komen
-  er pas bij als de upload ze aanneemt: een filter op iets wat niet kan
+  `mime_type` afleidt wat een rij is: **`image`** (raster en SVG) en
+  **`video`**, omdat de bibliotheek precies die aanneemt. Audio of documenten
+  komen er pas bij als de upload ze aanneemt: een filter op iets wat niet kan
   bestaan is een belofte die het scherm niet waarmaakt. Een rij zonder
   bekende soort (een overgenomen bestand met een onbekende extensie) staat
   onder *Alles* en nergens anders.
@@ -258,13 +309,39 @@ de eigen alt-tekst van het blok, per taal  ->  de alt_text van het media-item
 Sinds Multilingual 2.0 fase 3B is de eigen alt-tekst van een blok een woord in
 `block_translations` (`alt`, `image_alt` of `main_image_alt` op de rij die het
 beeld houdt), en legt `BlockImage::fromOwner()` de laag van het media-item
-eronder. `BlockImage::fromRow()` met de `alt_nl`/`alt_en`-kolommen blijft
-alleen voor Blog, tot die module omgaat.
+eronder.
 
 Het lokale veld wint als het iets zegt: dezelfde foto kan op twee plekken
 iets anders betekenen. Er is niets weggemigreerd — een redacteur die een
 onderschrift had, houdt het; wie er geen had, krijgt nu de centrale in plaats
 van een lege `alt=""`.
+
+**Geërfd of eigen.** Opgeslagen blijft het onderscheid zoals het was: een
+leeg eigen veld betekent "de alt-tekst van de bibliotheek, wat die op dat
+moment ook is", zodat een latere wijziging in de bibliotheek doorwerkt op elke
+plek die geen eigen tekst heeft. Maar de redacteur *ziet* die tekst nu:
+
+- het alt-veld naast een afbeeldingskiezer staat **ingevuld** met de
+  alt-tekst die echt gebruikt wordt — de eigen, anders die van de bibliotheek
+  (`media_alt_field()` in `admin/_media_picker.php`, en
+  `editor_row_media_alt()` voor rijen);
+- kies je een andere afbeelding, dan vult de kiezer meteen díe alt-tekst in
+  (`data-media-alt-for` koppelt het veld aan zijn kiezer);
+- heeft de afbeelding in de bibliotheek nog geen alt-tekst, dan blijft het veld
+  leeg met de placeholder *Deze afbeelding heeft nog geen alt-tekst*;
+- het endpoint slaat een tekst die **precies** die van de bibliotheek is weer
+  als leeg op (`BlockImage::ownAlt()`, `ownAltInRows()`): zien is niet kiezen,
+  dus tonen en onveranderd opslaan maakt geen kopie. Wat je aanpast, is een
+  eigen tekst van die plek.
+
+In een **vertaling** geldt de oude regel: leeg valt terug op de standaardtaal,
+dus daar wordt niets ingevuld, niets gekoppeld en niets teruggezet — dezelfde
+tekst kan daar een echte keuze zijn. Een nieuwe rij wordt altijd in de
+standaardtaal geschreven en volgt dus de regel van de standaardtaal.
+
+Gevolg dat je moet kennen: typ je als eigen tekst letterlijk dezelfde tekst
+als de bibliotheek, dan wordt dat "geërfd". Voor de bezoeker is dat hetzelfde,
+tot iemand de bibliotheektekst verandert.
 
 ### Afmetingen
 
@@ -453,6 +530,17 @@ endpoint controleert dat id alsnog tegen de bibliotheek
 (`BlockImage::fromRequest()`): een getal dat niets aanwijst is "geen
 afbeelding", nooit een opgeslagen verwijzing.
 
+**Eén soort per veld.** `media_picker_field(…, $kind)` neemt
+`MediaType::IMAGE` (de standaard) of `MediaType::VIDEO`. De modal toont dan
+alleen die soort (`media-list.php?type=`) en de upload in de modal neemt alleen
+die soort aan (`media-upload.php`, `kind=`; ook een al bestaand bestand van de
+andere soort wordt dan geweigerd in plaats van hergebruikt). Een
+afbeeldingsveld biedt dus nooit een MP4 aan. Het endpoint achter het veld
+controleert het nog eens: `BlockImage::fromRequest()` en
+`MediaService::findImage()` behandelen een video-id als "geen afbeelding",
+`MediaService::findVideo()` omgekeerd. Een SVG is een afbeelding en staat in
+elke afbeeldingskiezer.
+
 Zet je JavaScript uit, dan blijft het formulier gewoon opslaan wat er al
 gekozen was.
 
@@ -562,14 +650,17 @@ endpoints, niet wat er op een klik gebeurt. Loop na een wijziging aan
    naam, type en grootte.
 2. Meerdere afbeeldingen tegelijk kiezen.
 3. Een bestand uit de lijst halen: de focus gaat naar het volgende bestand.
-4. Eén bestand naar het vak slepen: het vak zegt dat je kunt loslaten.
+4. Eén bestand naar het vak slepen: het vak zegt dat je kunt loslaten. Een
+   klik naast de knop opent geen bestandsdialoog.
 5. Meerdere bestanden slepen.
-6. Een ongeldig bestand proberen (`.exe`, `.svg`, een tekstbestand dat `.png`
-   heet): een reden bij dat bestand, en het gaat niet mee.
+6. Een ongeldig bestand proberen (`.exe`, een tekstbestand dat `.png` of
+   `.mp4` heet, een SVG met een `<script>`): een reden bij dat bestand, en het
+   gaat niet mee. Een gewone SVG, een MP4 en een WEBM gaan wel mee; de video
+   krijgt een video-icoon.
 7. Een bestand groter dan de grens proberen.
 8. *Toevoegen aan bibliotheek*: wat lukt, verdwijnt uit de lijst.
 9. De nieuwe items staan meteen bovenaan het raster, zonder herladen.
-10. Filteren op *Alles* en *Afbeeldingen*.
+10. Filteren op *Alles*, *Afbeeldingen* en *Video*.
 11. Zoeken: het raster ververst terwijl je typt, en de cursor blijft staan.
 12. Zoeken en filteren samen, en daarna *Vorige* in de browser.
 13. Een naam aanpassen in *Nieuwe bestanden* vóór het toevoegen.
@@ -594,7 +685,7 @@ endpoints, niet wat er op een klik gebeurt. Loop na een wijziging aan
 ## Bewust niet gebouwd
 
 Mappen, tags/categorieën, andere bulkbewerkingen dan een selectie verwijderen, uitsnede-editor, transformaties-UI,
-focuspunten, een `srcset`-framework, video, audio, PDF's/documenten,
+focuspunten, een `srcset`-framework, videotranscodering, posterframes, audio, PDF's/documenten,
 objectopslag, CDN, EXIF-browser, AI-alt-tekst, OCR, stockfoto's, mapbomen met
 slepen, en detectie van *gelijkende* afbeeldingen.
 

@@ -63,13 +63,9 @@ class SectionVideoUploader
             throw new \RuntimeException('Video is te groot (max. 30 MB) — comprimeer de video of gebruik een kortere clip.');
         }
 
-        $handle = fopen($tmpName, 'rb');
-        $header = $handle !== false ? fread($handle, 12) : false;
-        if ($handle !== false) {
-            fclose($handle);
-        }
-
-        $extension = is_string($header) ? self::detectExtension($header) : null;
+        // The same judgement the Media Library makes (VideoFormat), so a clip
+        // one of them accepts is never refused by the other.
+        $extension = \App\Service\Media\VideoFormat::ofFile($tmpName);
 
         if ($extension === null) {
             throw new \RuntimeException('Alleen MP4 of WEBM video\'s zijn toegestaan.');
@@ -106,27 +102,5 @@ class SectionVideoUploader
         if (is_file($path)) {
             @unlink($path);
         }
-    }
-
-    /**
-     * Reads the first bytes of a file (already known to be at least
-     * non-empty) and returns 'mp4'/'webm' when they match that format's
-     * magic bytes, or null when neither matches.
-     */
-    private static function detectExtension(string $header): ?string
-    {
-        // WEBM/Matroska: fixed 4-byte EBML magic number.
-        if (strncmp($header, "\x1A\x45\xDF\xA3", 4) === 0) {
-            return 'webm';
-        }
-
-        // MP4/ISO-BMFF: a box of some size, then the 4-byte ASCII type
-        // 'ftyp', at a fixed offset — the size bytes themselves vary and are
-        // deliberately not checked here.
-        if (strlen($header) >= 8 && substr($header, 4, 4) === 'ftyp') {
-            return 'mp4';
-        }
-
-        return null;
     }
 }

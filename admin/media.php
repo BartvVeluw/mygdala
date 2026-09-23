@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../vendor/autoload.php';
 require_once __DIR__ . '/_translate.php';
+require_once __DIR__ . '/_media_picker.php';
 
 use App\Repository\MediaRepository;
 use App\Service\AdminAuth;
@@ -151,27 +152,33 @@ if ($item === null) {
     // App\Service\Media\MediaUploader enforces, handed over rather than
     // written a second time, and the catalog's words for every answer.
     $imageTypeKey = static fn (int $type): string => (string) image_type_to_extension($type, false);
-    $maxSize = MediaUploader::maxSizeLabel();
+    $maxSize = MediaUploader::maxSizeLabel(MediaType::IMAGE);
+    $maxVideoSize = MediaUploader::maxSizeLabel(MediaType::VIDEO);
 
-    $uploadAccept = implode(',', array_merge(
-        array_map(static fn (string $extension): string => '.' . $extension, array_keys(MediaUploader::ALLOWED_EXTENSIONS)),
-        array_values(MediaUploader::MIME_FOR_TYPE)
-    ));
+    $uploadAccept = MediaUploader::acceptAttribute();
 
+    // Extension -> what its first bytes must prove. Raster images name their
+    // image type; an SVG and a video name their own word, which the queue
+    // checks with its own test (media-upload.js, typeOfBytes()).
     $uploadConfig = [
         'uploadUrl' => '/api/admin/media-upload.php',
-        'maxBytes' => MediaUploader::maxBytes(),
+        'maxBytes' => MediaUploader::maxBytes(MediaType::IMAGE),
+        'maxVideoBytes' => MediaUploader::maxBytes(MediaType::VIDEO),
         'maxBaseLength' => MediaFilename::MAX_BASE_LENGTH,
-        'extensions' => array_map($imageTypeKey, MediaUploader::ALLOWED_EXTENSIONS),
+        'extensions' => array_map($imageTypeKey, MediaUploader::ALLOWED_EXTENSIONS)
+            + [MediaUploader::SVG_EXTENSION => 'svg']
+            + array_map(static fn (): string => 'video', MediaUploader::VIDEO_EXTENSIONS),
         'storedAs' => array_combine(
             array_map($imageTypeKey, array_keys(MediaUploader::ALLOWED_TYPES)),
             array_values(MediaUploader::ALLOWED_TYPES)
         ),
         'messages' => [
             'too_large' => admin_t('media.upload.too_large', ['max' => $maxSize]),
+            'too_large_video' => admin_t('media.upload.too_large', ['max' => $maxVideoSize]),
             'bad_type' => admin_t('media.upload.bad_type'),
-            'svg' => admin_t('media.upload.svg'),
             'not_image' => admin_t('media.upload.not_image'),
+            'not_svg' => admin_t('media.upload.not_svg'),
+            'not_video' => admin_t('media.upload.not_video'),
             'failed' => admin_t('media.upload.failed'),
             'session' => admin_t('media.upload.session'),
             'name_empty' => admin_t('media.name.empty'),
@@ -261,7 +268,7 @@ if ($item === null) {
           ]) ?>
         </label>
 
-        <p class="admin-media-dropzone__rules" id="media-upload-rules"><?= admin_te('media.upload.rules', ['max' => $maxSize]) ?></p>
+        <p class="admin-media-dropzone__rules" id="media-upload-rules"><?= admin_te('media.upload.rules', ['max_video' => $maxVideoSize, 'max' => $maxSize]) ?></p>
       </div>
 
       <div class="admin-media-queue" data-media-queue hidden>
@@ -408,7 +415,9 @@ if ($item === null) {
               <?php /* The picture opens the item too, but a keyboard and a screen
                        reader get that link once, on the name. */ ?>
               <a class="admin-media-library__thumb" href="<?= $h($detailUrl) ?>" tabindex="-1" aria-hidden="true">
-                <?php if ($gridItem->fileExists()): ?>
+                <?php if ($gridItem->fileExists() && $gridItem->isVideo()): ?>
+                  <?= media_video_icon() ?>
+                <?php elseif ($gridItem->fileExists()): ?>
                   <img src="<?= $h($gridItem->displayPath()) ?>" alt="" loading="lazy" decoding="async">
                 <?php else: ?>
                   <span class="admin-media-card__warning"><?= admin_te('common.file_missing') ?></span>
@@ -553,7 +562,10 @@ if ($item === null) {
   <section class="admin-card">
     <div class="admin-media-detail">
       <div class="admin-media-detail__preview">
-        <?php if ($item->fileExists()): ?>
+        <?php if ($item->fileExists() && $item->isVideo()): ?>
+          <?php /* Only the first frame is fetched until somebody presses play. */ ?>
+          <video src="<?= $h($item->publicPath()) ?>" controls muted playsinline preload="metadata"></video>
+        <?php elseif ($item->fileExists()): ?>
           <img src="<?= $h($item->publicPath()) ?>" alt="" loading="lazy">
         <?php else: ?>
           <p class="admin-media-card__warning"><?= admin_te('media.bestand_ontbreekt') ?></p>

@@ -35,6 +35,20 @@ DirectoryIndex index.php index.html
     Require all denied
 </FilesMatch>
 
+# SVG AS A PICTURE, NEVER AS A PAGE. The Media Library stores an SVG only
+# after App\Service\Media\SvgSanitizer has rebuilt it without anything active
+# (MEDIA.md, "SVG"); this is the second line behind that one. Somebody who
+# opens an SVG's URL directly gets a document that may not run script, load
+# anything or be framed, whatever it contains. An <img> is not affected: it
+# never runs an SVG's script in the first place. Only where mod_headers is
+# there, so a host without it serves the file as before.
+<IfModule mod_headers.c>
+    <FilesMatch "\.svg$">
+        Header set Content-Security-Policy "default-src 'none'; style-src 'unsafe-inline'; img-src data:; sandbox"
+        Header set X-Content-Type-Options "nosniff"
+    </FilesMatch>
+</IfModule>
+
 RewriteEngine On
 # "storage" here is defense-in-depth, not the actual protection: contact
 # request attachments are stored one directory ABOVE the project root by

@@ -134,6 +134,14 @@ $settings = [
 
 $mainPosted = trim((string) ($_POST['main_media_id'] ?? ''));
 $mainChosen = BlockImage::fromRequest($mainPosted === '' ? null : $mainPosted);
+$inDefaultLanguage = $languageCode === BlockLocalization::defaultLanguage();
+
+// The editor shows the library's alt text in the alt fields; sent back
+// unchanged it stays "the library's" (BlockImage::ownAlt(), MEDIA.md).
+if (array_key_exists('main_image_alt', $_POST)) {
+    $words['main_image_alt'] = BlockImage::ownAlt($words['main_image_alt'], $mainChosen['media_id'], $inDefaultLanguage);
+}
+$post = ['images' => BlockImage::ownAltInRows($_POST['images'] ?? null, $inDefaultLanguage)] + $_POST;
 $hadMainMedia = (int) ($section['main_media_id'] ?? 0) > 0;
 $legacyMainOnly = !$hadMainMedia && trim((string) ($section['main_image_path'] ?? '')) !== '';
 $clearMainImage = $mainChosen['media_id'] === null
@@ -145,7 +153,7 @@ $clearMainImage = $mainChosen['media_id'] === null
 $idsOf = static fn (array $rows): array => array_map(static fn (array $row): int => (int) $row['id'], $rows);
 $action = EditorRows::parseAction($_POST['editor_action'] ?? null);
 $points = EditorChildList::fromRequest($_POST, 'points', 'detail_section_points', $idsOf($repository->findPointsBySectionId($sectionId)), $action);
-$images = EditorChildList::fromRequest($_POST, 'images', 'detail_section_images', $idsOf($repository->findImagesBySectionId($sectionId)), $action);
+$images = EditorChildList::fromRequest($post, 'images', 'detail_section_images', $idsOf($repository->findImagesBySectionId($sectionId)), $action);
 
 /** A gallery row's media item: a new row needs one, a posted id must be the library's. */
 $imageProblems = static function (array $row): array {

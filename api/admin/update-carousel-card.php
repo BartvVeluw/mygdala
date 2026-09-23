@@ -145,6 +145,10 @@ $settings += ['link_url' => $linkUrl, 'is_active' => $isActive];
 
 $mediaPosted = trim((string) ($_POST['media_id'] ?? ''));
 $chosen = BlockImage::fromRequest($mediaPosted === '' ? null : $mediaPosted);
+
+// The editor shows the library's alt text in the field; sent back unchanged
+// it stays "the library's" (BlockImage::ownAlt(), MEDIA.md).
+$words['image_alt'] = BlockImage::ownAlt($words['image_alt'], $chosen['media_id'], $inDefaultLanguage);
 $hadMedia = (int) ($card['media_id'] ?? 0) > 0;
 $legacyOnly = !$hadMedia && trim((string) ($card['image_path'] ?? '')) !== '';
 

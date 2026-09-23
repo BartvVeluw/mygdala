@@ -7,6 +7,8 @@ require_once __DIR__ . '/_translate.php';
 use App\Service\AssetVersion;
 use App\Service\Csrf;
 use App\Service\Media\MediaItem;
+use App\Service\Media\MediaType;
+use App\Service\Media\MediaUploader;
 
 /**
  * The reusable Media picker: the field a CMS screen renders when it wants an
@@ -34,6 +36,19 @@ use App\Service\Media\MediaItem;
  * never the validation. A crafted POST can put any integer in that field;
  * it can only ever hit an existing row or miss.
  *
+ * ONE KIND PER FIELD. A field takes images (the default) or video
+ * (MediaType), and the modal then lists and uploads only that kind: an image
+ * field never offers an MP4, and a video field is not buried in photos. The
+ * endpoint behind the field checks the kind again (MediaService::findImage(),
+ * findVideo(), BlockImage::fromRequest()).
+ *
+ * THE ALT TEXT OF THIS USE. A field that has its own alt text next to it links
+ * that input to the picker (media_alt_field()). The input then shows the alt
+ * text that is really used — the block's own, or else the library's — and
+ * choosing another image fills in that image's library alt text on the spot.
+ * What is stored stays "inherited" as long as the text is the library's
+ * (BlockImage::ownAlt()), so a later change in the library still reaches it.
+ *
  * WHAT IT IS NOT. Not a digital-asset manager. No folders, no tags, no bulk
  * actions, no cropping. It shows thumbnails, a name, an alt text and a search
  * box; it selects one item or uploads a new one. Everything else belongs on
@@ -41,42 +56,48 @@ use App\Service\Media\MediaItem;
  */
 
 /**
- * One image field.
+ * One image (or video) field.
  *
  * @param string         $name      the form field name that carries the media id
  * @param MediaItem|null $selected  what is chosen now
  * @param string         $label     Dutch field label
  * @param string         $help      one line under the field, or ''
  * @param bool           $clearable whether "geen afbeelding" is a valid answer
+ * @param string         $kind      MediaType::IMAGE or MediaType::VIDEO: what the field takes
  */
 function media_picker_field(
     string $name,
     ?MediaItem $selected = null,
     string $label = '',
     string $help = '',
-    bool $clearable = true
+    bool $clearable = true,
+    string $kind = MediaType::IMAGE
 ): void {
+    $kind = $kind === MediaType::VIDEO ? MediaType::VIDEO : MediaType::IMAGE;
     // Resolved here rather than in the signature: a PHP default value
     // cannot call a function, and this one has to be read per request.
-    $label = $label !== '' ? $label : admin_t('common.image_label');
+    $label = $label !== '' ? $label : admin_t($kind === MediaType::VIDEO ? 'media.picker.video_label' : 'common.image_label');
+    $empty = admin_t($kind === MediaType::VIDEO ? 'media.picker.no_video' : 'media.no_image_chosen');
     $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
     $fieldId = 'media-picker-' . preg_replace('/[^a-z0-9_-]/i', '-', $name) . '-' . bin2hex(random_bytes(4));
     ?>
-    <div class="admin-media-picker" data-media-picker>
+    <div class="admin-media-picker" data-media-picker data-media-picker-kind="<?= $h($kind) ?>" data-media-picker-empty="<?= $h($empty) ?>">
       <span class="admin-media-picker__label" id="<?= $h($fieldId) ?>-label"><?= $h($label) ?></span>
 
       <input type="hidden" name="<?= $h($name) ?>" value="<?= $selected !== null ? (int) $selected->id : '' ?>" data-media-picker-input>
 
       <div class="admin-media-picker__preview" data-media-picker-preview>
         <?php if ($selected !== null): ?>
-          <?php if ($selected->fileExists()): ?>
-            <img src="<?= $h($selected->displayPath()) ?>" alt="" loading="lazy">
+          <?php if (!$selected->fileExists()): ?>
+            <span class="admin-media-picker__missing" title="<?= admin_te('media.picker.missing_title') ?>"><?= admin_te('common.file_missing') ?></span>
+          <?php elseif ($selected->isVideo()): ?>
+            <?= media_video_icon() ?>
           <?php else: ?>
-            <span class="admin-media-picker__missing" title="Het bestand ontbreekt op de server"><?= admin_te('common.file_missing') ?></span>
+            <img src="<?= $h($selected->displayPath()) ?>" alt="" loading="lazy">
           <?php endif; ?>
           <span class="admin-media-picker__name"><?= $h($selected->displayName()) ?></span>
         <?php else: ?>
-          <span class="admin-media-picker__empty"><?= admin_te('media.no_image_chosen') ?></span>
+          <span class="admin-media-picker__empty"><?= $h($empty) ?></span>
         <?php endif; ?>
       </div>
 
@@ -92,6 +113,57 @@ function media_picker_field(
       <?php endif; ?>
     </div>
     <?php
+}
+
+/**
+ * The value and attributes of the alt-text input that belongs to one image
+ * field: the alt text this use really gets, visible in the field.
+ *
+ *   - its own alt text when it has one;
+ *   - else the library's alt text of the chosen image, filled in, so an
+ *     editor reads exactly what a visitor's screen reader will hear;
+ *   - else empty, with a placeholder that says the image has no alt text yet.
+ *
+ * The input is linked to its picker (data-media-alt-for), and media-picker.js
+ * refills it when another image is chosen. The endpoint stores a text that is
+ * only the library's as empty again (BlockImage::ownAlt()), so filling it in
+ * here never turns into a copy that stops following the library.
+ *
+ * In a translation the field keeps its own rule: empty falls back to the
+ * default language, and $translationPlaceholder (admin_localized_placeholder_attr())
+ * says so. Nothing is filled in and nothing is linked there.
+ *
+ * @return array{value: string, attributes: string} the value, and the attributes to print after it
+ */
+function media_alt_field(string $pickerName, string $own, ?MediaItem $media, string $translationPlaceholder = ''): array
+{
+    $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
+
+    if ($translationPlaceholder !== '') {
+        return ['value' => $own, 'attributes' => $translationPlaceholder];
+    }
+
+    $library = $media !== null ? trim($media->altText) : '';
+    $value = trim($own) !== '' ? $own : $library;
+    $placeholder = $media !== null && $library === '' ? admin_t('media.alt.none_yet') : '';
+
+    return [
+        'value' => $value,
+        'attributes' => ($placeholder !== '' ? ' placeholder="' . $h($placeholder) . '"' : '')
+            . ' data-media-alt-for="' . $h($pickerName) . '"',
+    ];
+}
+
+/**
+ * The picture a video gets wherever the admin shows media: a video has no
+ * thumbnail, because nothing on a shared host can cut a frame out of it.
+ * Decorative; the name and the type next to it say what it is.
+ */
+function media_video_icon(): string
+{
+    return '<span class="admin-media-video-icon" aria-hidden="true">'
+        . '<svg viewBox="0 0 24 24" width="32" height="32" focusable="false"><rect x="2.5" y="5" width="19" height="14" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M10 9.2v5.6l4.8-2.8z" fill="currentColor"/></svg>'
+        . '</span>';
 }
 
 /**
@@ -118,12 +190,14 @@ function media_picker_modal(): void
         <div class="admin-media-modal__tools">
           <label class="admin-media-modal__search">
             <span class="admin-visually-hidden"><?= admin_te('media.zoeken_bestandsnaam_alt_tekst') ?></span>
-            <input type="search" placeholder="Zoek op bestandsnaam of alt-tekst" data-media-modal-search autocomplete="off">
+            <input type="search" placeholder="<?= admin_te('media.zoeken_bestandsnaam_alt_tekst') ?>" data-media-modal-search autocomplete="off">
           </label>
 
+          <?php /* The accept list is the image one; media-picker.js swaps it
+                   for the video one when a video field opens the modal. */ ?>
           <label class="admin-media-modal__upload">
-            <span><?= admin_te('media.nieuwe_afbeelding') ?></span>
-            <input type="file" accept="image/jpeg,image/png,image/webp,image/gif" data-media-modal-upload>
+            <span data-media-modal-upload-label><?= admin_te('media.nieuwe_afbeelding') ?></span>
+            <input type="file" accept="<?= $h(MediaUploader::acceptAttribute(MediaType::IMAGE)) ?>" data-media-modal-upload>
           </label>
         </div>
 
@@ -142,7 +216,25 @@ function media_picker_modal(): void
           'listUrl' => '/api/admin/media-list.php',
           'uploadUrl' => '/api/admin/media-upload.php',
           'csrfToken' => Csrf::token(),
-      ], JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>
+          // Per kind: what the upload offers, and the words that change with it.
+          'kinds' => [
+              MediaType::IMAGE => [
+                  'accept' => MediaUploader::acceptAttribute(MediaType::IMAGE),
+                  'upload' => admin_t('media.nieuwe_afbeelding'),
+                  'empty' => admin_t('media.picker.empty_image'),
+              ],
+              MediaType::VIDEO => [
+                  'accept' => MediaUploader::acceptAttribute(MediaType::VIDEO),
+                  'upload' => admin_t('media.picker.new_video'),
+                  'empty' => admin_t('media.picker.empty_video'),
+              ],
+          ],
+          'messages' => [
+              'noAlt' => admin_t('media.alt.none_yet'),
+              'missing' => admin_t('common.file_missing'),
+              'reused' => admin_t('media.picker.reused'),
+          ],
+      ], JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>
     </script>
     <?php
 }

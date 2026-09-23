@@ -9,6 +9,7 @@ use App\Repository\AdminUserRepository;
 use App\Repository\BlockTranslationRepository;
 use App\Repository\BlogPostRepository;
 use App\Repository\CardCarouselRepository;
+use App\Repository\MediaRepository;
 use App\Repository\PageRepository;
 use App\Repository\PageSectionRepository;
 use App\Repository\ProductRepository;
@@ -19,6 +20,7 @@ use App\Service\Blog\BlogLocalization;
 use App\Service\Blog\BlogPostStatus;
 use App\Service\CardCarouselContent;
 use App\Service\Language\SiteLanguages;
+use App\Service\Media\MediaService;
 use App\Service\PageContent;
 use App\Service\PageService;
 use App\Service\Routing\LinkTargets;
@@ -311,6 +313,74 @@ final class CardCarouselEditorHttpTest extends TestCase
         self::assertSame('Nieuw', $content['cards'][0]['index_label'], 'the card\'s own label');
         self::assertSame(['Duurzaam', 'Eikenhout'], array_column($content['cards'][0]['tags'], 'label'));
         self::assertSame(PageContent::publicUrl((new PageRepository())->findById($pageId)), $content['cards'][0]['link_url'], 'the page, at its own address');
+    }
+
+    /**
+     * The alt-text field shows the alt text the image really gets (MEDIA.md,
+     * "Alt-tekst"): the library's, filled in. Saved unchanged it stays the
+     * library's, so no copy is stored; an own text is stored as the card's
+     * own. An image without a library alt text leaves the field empty with a
+     * placeholder that says so.
+     */
+    public function testTheAltFieldShowsTheLibrarysAltTextAndStoresOnlyAnOwnOne(): void
+    {
+        $media = new MediaRepository();
+        $described = $media->create(['path' => 'assets/media/zz-alt-test-a.png', 'mime_type' => 'image/png', 'alt_text' => 'Werkplaats met laser']);
+        $bare = $media->create(['path' => 'assets/media/zz-alt-test-b.png', 'mime_type' => 'image/png', 'alt_text' => '']);
+        MediaService::clearCache();
+
+        try {
+            $card = $this->card('Hout', true);
+            $session = $this->signIn(null);
+
+            $this->assertSaved($this->saveCard($session, $card, 'nl', ['is_active' => '1', 'title' => 'Hout', 'media_id' => (string) $described, 'image_alt' => 'Werkplaats met laser']));
+            self::assertSame(['title' => 'Hout'], $this->stored('carousel_cards', $card, 'nl'), 'the library\'s own text is not stored as a copy');
+
+            $screen = self::$server->request('GET', '/admin/carousel-card.php?card_id=' . $card, $session)['body'];
+            self::assertMatchesRegularExpression('/<input type="text" id="card-alt" name="image_alt"[^>]*value="Werkplaats met laser"[^>]*data-media-alt-for="media_id"/', $screen);
+
+            $this->assertSaved($this->saveCard($session, $card, 'nl', ['is_active' => '1', 'title' => 'Hout', 'media_id' => (string) $described, 'image_alt' => 'Laser in de werkplaats van dichtbij']));
+            self::assertSame('Laser in de werkplaats van dichtbij', $this->stored('carousel_cards', $card, 'nl')['image_alt'] ?? null);
+
+            // Another image, whose library has no alt text yet: the screen says so.
+            $this->assertSaved($this->saveCard($session, $card, 'nl', ['is_active' => '1', 'title' => 'Hout', 'media_id' => (string) $bare, 'image_alt' => '']));
+            $screen = self::$server->request('GET', '/admin/carousel-card.php?card_id=' . $card, $session)['body'];
+            self::assertMatchesRegularExpression('/id="card-alt"[^>]*value=""[^>]*placeholder="Deze afbeelding heeft nog geen alt-tekst"/', $screen);
+            self::assertStringNotContainsString('Leeg = alt-tekst uit de mediabibliotheek', $screen);
+        } finally {
+            // The card holds the media row (ON DELETE RESTRICT): page first.
+            $this->removePage();
+            $media->delete($described);
+            $media->delete($bare);
+            MediaService::clearCache();
+        }
+    }
+
+    /** In a translation the field keeps its own rule: empty falls back to the default language, nothing is filled in. */
+    public function testATranslationsAltFieldIsNotFilledFromTheLibrary(): void
+    {
+        $media = new MediaRepository();
+        $described = $media->create(['path' => 'assets/media/zz-alt-test-c.png', 'mime_type' => 'image/png', 'alt_text' => 'Werkplaats met laser']);
+        MediaService::clearCache();
+
+        try {
+            $card = $this->card('Hout', true);
+            $this->repository->updateCard($card, ['media_id' => $described, 'image_path' => 'assets/media/zz-alt-test-c.png']);
+            $session = $this->signIn('en');
+
+            $screen = self::$server->request('GET', '/admin/carousel-card.php?card_id=' . $card, $session)['body'];
+            self::assertMatchesRegularExpression('/id="card-alt"[^>]*value=""/', $screen);
+            self::assertDoesNotMatchRegularExpression('/id="card-alt"[^>]*data-media-alt-for/', $screen);
+
+            // The library's text typed in a translation is a choice there, and stored.
+            $this->assertSaved($this->saveCard($session, $card, 'en', ['is_active' => '1', 'title' => 'Wood', 'media_id' => (string) $described, 'image_alt' => 'Werkplaats met laser']));
+            self::assertSame('Werkplaats met laser', $this->stored('carousel_cards', $card, 'en')['image_alt'] ?? null);
+        } finally {
+            // The card holds the media row (ON DELETE RESTRICT): page first.
+            $this->removePage();
+            $media->delete($described);
+            MediaService::clearCache();
+        }
     }
 
     public function testARefusedCardSaveStoresNothingAndHandsEveryValueBackNextToItsField(): void

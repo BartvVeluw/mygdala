@@ -85,6 +85,27 @@ final class MediaService
     }
 
     /**
+     * find(), for a field that takes a picture: a video is no answer there.
+     * Every endpoint behind an image picker reads its id through this (or
+     * BlockImage::fromRequest(), which applies the same rule), so a crafted
+     * request can never store a video as a logo or a social image.
+     */
+    public static function findImage(?int $id): ?MediaItem
+    {
+        $item = self::find($id);
+
+        return $item !== null && !$item->isVideo() ? $item : null;
+    }
+
+    /** find(), for a field that takes a video: only a video is an answer. */
+    public static function findVideo(?int $id): ?MediaItem
+    {
+        $item = self::find($id);
+
+        return $item !== null && $item->isVideo() ? $item : null;
+    }
+
+    /**
      * One media item, or null when the id is 0/absent/unknown. The
      * `?int` signature is the point: a caller can hand over a nullable
      * `media_id` column straight from a row without an `if` of its own.
@@ -217,15 +238,32 @@ final class MediaService
      *
      * @param array{name?:string,type?:string,tmp_name?:string,error?:int,size?:int} $file one entry of $_FILES
      * @param string $name the name to give the item, without its extension; '' for the file's own
+     * @param string|null $kind MediaType::IMAGE or ::VIDEO when only that kind may come back; null for any
+     *
+     * A KIND is checked before the checksum as well: an image field that is
+     * handed a video must refuse it, also when that video is already in the
+     * library and would otherwise simply be reused.
      *
      * @return array{item: MediaItem, reused: bool}
      *
      * @throws \RuntimeException with a Dutch, user-facing message
      */
-    public function upload(array $file, string $altText = '', string $name = ''): array
+    public function upload(array $file, string $altText = '', string $name = '', ?string $kind = null): array
     {
         $uploader = $this->uploader;
         $name = trim($name);
+
+        if ($kind !== null && !MediaType::isKnown($kind)) {
+            $kind = null;
+        }
+
+        if ($kind !== null) {
+            $claimed = MediaUploader::kindOfName((string) ($file['name'] ?? ''));
+
+            if ($claimed !== null && $claimed !== $kind) {
+                throw new \RuntimeException(AdminTranslator::trans('media.upload.wrong_kind.' . $kind));
+            }
+        }
 
         if ($name !== '') {
             $problem = MediaFilename::problemWith($name);
@@ -240,7 +278,7 @@ final class MediaService
         if ($checksum !== null) {
             $existing = $this->repository->findByChecksum($checksum);
 
-            if ($existing !== null) {
+            if ($existing !== null && ($kind === null || MediaType::ofMime((string) ($existing['mime_type'] ?? '')) === $kind)) {
                 $item = MediaItem::fromRow($existing);
 
                 // An alt text typed with the duplicate upload fills a gap,
@@ -256,7 +294,7 @@ final class MediaService
             }
         }
 
-        $stored = $uploader->store($file);
+        $stored = $uploader->store($file, $kind);
 
         // Pass 2: the same photo, now that it has been through the optimizer.
         $existing = $this->repository->findByChecksum($stored['checksum']);

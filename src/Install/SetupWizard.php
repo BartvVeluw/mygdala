@@ -393,7 +393,7 @@ final class SetupWizard
                 continue;
             }
 
-            $media = MediaService::find((int) $submitted);
+            $media = MediaService::findImage((int) $submitted);
 
             if ($media === null) {
                 $errors['branding'] = 'Een gekozen afbeelding bestaat niet (meer) in de mediabibliotheek.';

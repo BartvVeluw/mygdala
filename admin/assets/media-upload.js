@@ -5,7 +5,8 @@
  * (admin/_media_picker.php) keeps its own one-file upload in media-picker.js.
  *
  * WHAT IT DOES. Files chosen with the file input (admin_file_input(), the
- * shared primitive) or dropped on the zone around it go into the queue of
+ * shared primitive; only its button opens the dialog) or dropped on the zone
+ * around it go into the queue of
  * new files first: a preview, the name, the type and the size. Nothing has
  * left the browser yet, so an editor can still change a name, add an alt
  * text or take a file out again. Submitting the form then sends the files
@@ -69,11 +70,12 @@
   }
 
   var messages = config.messages || {};
-  /** Extension -> the image type it promises: { jpg: "jpeg", png: "png", ... } */
+  /** Extension -> what its first bytes must prove: { jpg: "jpeg", png: "png", svg: "svg", mp4: "video", ... } */
   var extensions = config.extensions || {};
   /** Image type -> the extension the server stores it under: { jpeg: "jpg", ... } */
   var storedAs = config.storedAs || {};
   var maxBytes = Number(config.maxBytes) || 0;
+  var maxVideoBytes = Number(config.maxVideoBytes) || maxBytes;
   var maxBaseLength = Number(config.maxBaseLength) || 200;
   var locale = document.documentElement.lang || "nl";
 
@@ -162,21 +164,34 @@
   // --- What a file is --------------------------------------------------------
 
   /** A problem with the file itself, which no change of name can fix. */
-  function fileProblemOf(file, extension) {
-    if (extension === "svg") {
-      return say("svg");
+  function isVideo(extension) {
+    return extensions[extension] === "video";
+  }
+
+  /** The refusal for a file whose first bytes do not prove what its name promises. */
+  function notWhatItSays(extension) {
+    if (extensions[extension] === "svg") {
+      return say("not_svg");
     }
 
+    return isVideo(extension) ? say("not_video") : say("not_image");
+  }
+
+  function fileProblemOf(file, extension) {
     if (!Object.prototype.hasOwnProperty.call(extensions, extension)) {
       return say("bad_type");
     }
 
-    if (maxBytes > 0 && file.size > maxBytes) {
+    if (isVideo(extension)) {
+      if (maxVideoBytes > 0 && file.size > maxVideoBytes) {
+        return say("too_large_video");
+      }
+    } else if (maxBytes > 0 && file.size > maxBytes) {
       return say("too_large");
     }
 
     if (file.size === 0) {
-      return say("not_image");
+      return notWhatItSays(extension);
     }
 
     return "";
@@ -209,6 +224,21 @@
       return "webp";
     }
 
+    // WebM, or an MP4 (an ftyp box at offset 4): App\Service\Media\VideoFormat.
+    if (starts([0x1a, 0x45, 0xdf, 0xa3]) || starts([0x66, 0x74, 0x79, 0x70], 4)) {
+      return "video";
+    }
+
+    // An SVG is text: it begins with "<" (after a byte-order mark or
+    // whitespace). Whether it is a safe one is the server's call alone.
+    var index = starts([0xef, 0xbb, 0xbf]) ? 3 : 0;
+    while (index < bytes.length && (bytes[index] === 0x20 || bytes[index] === 0x09 || bytes[index] === 0x0a || bytes[index] === 0x0d)) {
+      index += 1;
+    }
+    if (bytes[index] === 0x3c) {
+      return "svg";
+    }
+
     return "";
   }
 
@@ -231,11 +261,13 @@
       }
 
       var type = typeOfBytes(new Uint8Array(buffer));
+      var promised = extensions[entry.extension];
+      var raster = !!storedAs[promised];
 
-      if (type === "") {
-        entry.fileProblem = say("not_image");
+      if (type === "" || (raster ? !storedAs[type] : promised !== type)) {
+        entry.fileProblem = notWhatItSays(entry.extension);
         dropPreview(entry);
-      } else if (extensions[entry.extension] !== type && storedAs[type]) {
+      } else if (raster && promised !== type) {
         entry.extension = storedAs[type];
         entry.ext.textContent = "." + entry.extension;
         entry.meta.textContent = typeLabel(entry.extension) + " · " + formatBytes(entry.file.size);
@@ -315,9 +347,15 @@
   function showPreview(entry) {
     entry.url = window.URL.createObjectURL(entry.file);
 
-    var image = document.createElement("img");
-    image.alt = "";
-    image.decoding = "async";
+    // A video shows its first frame: muted, without controls, never playing.
+    var image = document.createElement(isVideo(entry.extension) ? "video" : "img");
+    if (image.tagName === "VIDEO") {
+      image.muted = true;
+      image.preload = "metadata";
+    } else {
+      image.alt = "";
+      image.decoding = "async";
+    }
     // A file the browser cannot draw gets no broken picture; whether it is a
     // real image is still the server's call.
     image.addEventListener("error", function () {
@@ -335,7 +373,7 @@
       entry.url = "";
     }
 
-    var image = entry.preview.querySelector("img");
+    var image = entry.preview.querySelector("img, video");
     if (image) {
       image.remove();
     }
@@ -647,15 +685,8 @@
     });
   });
 
-  // A click anywhere in the zone does what a click on its button does. The
-  // button itself is the file input, so the keyboard needs nothing extra.
-  dropzone.addEventListener("click", function (event) {
-    if (busy || event.target.closest("label, input, button, a")) {
-      return;
-    }
-
-    input.click();
-  });
+  // No click handler on the zone itself: only the button opens the file
+  // dialog. Dropping files on the zone still works.
 
   if (clear) {
     clear.addEventListener("click", function () {

@@ -33,21 +33,22 @@
 .admin-media-dropzone{
   display: flex;
   flex-direction: column;
-  align-items: center;
+  align-items: flex-start;
   gap: var(--admin-sp-3);
-  padding: var(--admin-sp-5) var(--admin-sp-4);
-  text-align: center;
-  background: var(--admin-surface-sunken);
-  border: 2px dashed var(--admin-border-strong);
+  padding: var(--admin-sp-3);
+  margin: calc(-1 * var(--admin-sp-3));
+  border: 2px solid transparent;
   border-radius: var(--admin-radius-md);
   transition: border-color var(--admin-transition), background var(--admin-transition);
 }
 
-/* Dragging files over the zone. Said three ways, so it never rests on colour
-   alone: the border turns solid, the zone takes the accent, and the sentence
-   above the button changes (media-upload.js). */
+/* Dragging files over the zone. At rest the zone is just the card's own
+   content: no dashed frame, and only the button opens the file dialog
+   (media-upload.js has no click handler on the zone). While files are
+   dragged over it, it says so three ways, so it never rests on colour alone:
+   a solid accent border appears, the zone takes the accent, and the sentence
+   above the button changes. */
 .admin-media-dropzone.is-dragover{
-  border-style: solid;
   border-color: var(--admin-accent);
   background: var(--admin-accent-soft);
 }
@@ -61,7 +62,6 @@
 
 .admin-media-dropzone__control{
   display: flex;
-  justify-content: center;
   max-width: 100%;
 }
 
@@ -75,8 +75,16 @@
 /* The file control names what was chosen; once the queue holds the files it
    says that better, and the input is emptied after every choice. Hidden only
    when both scripts ran: admin-ui.js draws the name, media-upload.js marks
-   the form. */
+   the form. What is left is the button alone ("Bestanden kiezen"), so the
+   field-shaped frame around it goes too, and the invisible input stretched
+   over the control covers exactly the button. */
 .admin-ui-enhanced .admin-media-upload__form.is-enhanced .admin-file__name{ display: none; }
+
+.admin-ui-enhanced .admin-media-upload__form.is-enhanced .admin-file{
+  padding: 0;
+  background: none;
+  border: 0;
+}
 
 .admin-media-upload__status{
   margin: 0;
@@ -289,6 +297,8 @@
   overflow: hidden;
   background: var(--admin-bg);
 }
+
+.admin-media-library__thumb .admin-media-video-icon svg{ width: 44px; height: 44px; }
 
 .admin-media-library__thumb img{
   display: block;
@@ -520,8 +530,6 @@
 }
 
 @media (max-width: 560px){
-  .admin-media-dropzone{ padding: var(--admin-sp-4) var(--admin-sp-3); }
-
   .admin-media-bulkbar__actions{ margin-left: 0; }
 
   /* Two cards abreast on a phone: big enough to recognise a picture, small

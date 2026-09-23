@@ -131,6 +131,26 @@ final class MediaItem
         return $this->originalFilename !== '' ? $this->originalFilename : basename($this->path);
     }
 
+    /** MediaType::IMAGE, MediaType::VIDEO, or null for a file no kind claims. */
+    public function kind(): ?string
+    {
+        return MediaType::ofMime($this->mimeType);
+    }
+
+    public function isVideo(): bool
+    {
+        return $this->kind() === MediaType::VIDEO;
+    }
+
+    /**
+     * Whether the admin can show this file as a picture: every image, and no
+     * video (a video gets an icon; see admin/media.php).
+     */
+    public function isPicture(): bool
+    {
+        return $this->kind() === MediaType::IMAGE;
+    }
+
     /**
      * The kind of file as an editor calls it — "JPG", "PNG", "SVG" — taken from
      * the stored MIME type, which the library read from the file itself, and

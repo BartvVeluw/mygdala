@@ -118,7 +118,7 @@ foreach (Branding::MEDIA_KEYS as $pathKey => $mediaKey) {
         continue;
     }
 
-    $media = MediaService::find((int) $submitted);
+    $media = MediaService::findImage((int) $submitted);
 
     if ($media === null) {
         // An id naming nothing must never be stored. Reported once, however

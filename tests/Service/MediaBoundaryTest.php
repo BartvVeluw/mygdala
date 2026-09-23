@@ -345,8 +345,29 @@ final class MediaBoundaryTest extends TestCase
 
         // What the file dialog offers and what the queue checks come from
         // the uploader, which checks the same again.
+        $this->assertStringContainsString('MediaUploader::acceptAttribute()', $screen);
         $this->assertStringContainsString('MediaUploader::ALLOWED_EXTENSIONS', $screen);
-        $this->assertStringContainsString('MediaUploader::maxBytes()', $screen);
+        $this->assertStringContainsString('MediaUploader::VIDEO_EXTENSIONS', $screen);
+        $this->assertStringContainsString('MediaUploader::maxBytes(MediaType::IMAGE)', $screen);
+        $this->assertStringContainsString('MediaUploader::maxBytes(MediaType::VIDEO)', $screen);
+    }
+
+    /**
+     * Only the button opens the file dialog: the zone around it takes a drop,
+     * and nothing else. No click handler on the zone, no dashed frame.
+     */
+    public function testOnlyTheButtonOpensTheFileDialog(): void
+    {
+        $script = $this->source('admin/assets/media-upload.js');
+        $styles = $this->source('admin/assets/media-library.css');
+
+        $this->assertDoesNotMatchRegularExpression('/dropzone\.addEventListener\(\s*"click"/', $script);
+        $this->assertStringNotContainsString('input.click()', $script);
+        $this->assertStringContainsString('dropzone.addEventListener("drop"', $script, 'dropping files stays');
+
+        preg_match('/\.admin-media-dropzone\{[^}]*\}/', $styles, $zone);
+        $this->assertNotEmpty($zone);
+        $this->assertStringNotContainsString('dashed', $zone[0]);
     }
 
     /**

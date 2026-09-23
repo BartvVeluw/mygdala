@@ -1371,7 +1371,12 @@ final class MultilingualBoundaryTest extends TestCase
         foreach (self::ROW_LIST_ENDPOINTS as $table => [$endpoint, $list]) {
             $code = self::withoutComments(self::read($endpoint));
 
-            self::assertStringContainsString("EditorChildList::fromRequest(\$_POST, '{$list}', '{$table}',", $code, $endpoint);
+            // $post: the request with one list prepared first (the image rows'
+            // alt texts, BlockImage::ownAltInRows()); never another source.
+            self::assertMatchesRegularExpression('/EditorChildList::fromRequest\(\$(_POST|post), \x27' . preg_quote($list, '/') . '\x27, \x27' . preg_quote($table, '/') . '\x27,/', $code, $endpoint);
+            if (str_contains($code, "fromRequest(\$post, '{$list}'")) {
+                self::assertMatchesRegularExpression('/\$post = \[[^;]*\] \+ \$_POST;/', $code, $endpoint . ': $post is the request itself');
+            }
             self::assertMatchesRegularExpression(
                 '/beginTransaction\(\);.*?->save\(\s*\$languageCode,.*?commit\(\);/s',
                 $code,

@@ -3137,6 +3137,19 @@ input[data-color-picker]{ width: 2.4rem; height: 2.4rem; padding: 0.15rem; borde
   object-fit: contain;
 }
 
+/* A video has no thumbnail (nothing on a shared host can cut a frame out of
+   it), so the grid, the picker and its preview show this icon instead:
+   media_video_icon() in admin/_media_picker.php, videoIcon() in
+   media-picker.js. */
+.admin-media-video-icon{
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  color: var(--admin-text-muted);
+}
+
 .admin-media-card__warning{
   padding: var(--admin-sp-2);
   font-size: 0.72rem;
@@ -3192,7 +3205,8 @@ input[data-color-picker]{ width: 2.4rem; height: 2.4rem; padding: 0.15rem; borde
   border: 1px solid var(--admin-border);
   border-radius: var(--admin-radius-md);
 }
-.admin-media-detail__preview img{ display: block; width: 100%; height: auto; }
+.admin-media-detail__preview img,
+.admin-media-detail__preview video{ display: block; width: 100%; height: auto; }
 
 .admin-media-detail__facts{ margin: 0; font-size: 0.85rem; }
 .admin-media-detail__facts dt{
@@ -3231,6 +3245,12 @@ input[data-color-picker]{ width: 2.4rem; height: 2.4rem; padding: 0.15rem; borde
   width: 84px;
   height: 84px;
   object-fit: contain;
+  background: var(--admin-bg);
+  border-radius: var(--admin-radius-sm);
+}
+.admin-media-picker__preview .admin-media-video-icon{
+  width: 84px;
+  height: 84px;
   background: var(--admin-bg);
   border-radius: var(--admin-radius-sm);
 }

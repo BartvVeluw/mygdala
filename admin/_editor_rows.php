@@ -220,6 +220,28 @@ function editor_row_media(string $list, string $key, array $fields, array $error
     echo '</div>';
 }
 
+/**
+ * A row's own alt text, linked to the row's image (media_alt_field() in
+ * admin/_media_picker.php): it shows the alt text the image really gets, and
+ * choosing another image fills in that one's. $translationPlaceholder is the
+ * screen's admin_localized_placeholder_attr(); it applies to a stored row
+ * only, because a new row is written in the default language.
+ */
+function editor_row_media_alt(string $list, string $key, array $fields, array $errors, string $translationPlaceholder = ''): void
+{
+    require_once __DIR__ . '/_media_picker.php';
+
+    $mediaId = (int) ($fields['media_id'] ?? 0);
+    $alt = media_alt_field(
+        editor_row_name($list, $key, 'media_id'),
+        (string) ($fields['alt'] ?? ''),
+        $mediaId > 0 ? \App\Service\Media\MediaService::find($mediaId) : null,
+        ctype_digit($key) ? $translationPlaceholder : ''
+    );
+
+    editor_row_text($list, $key, 'alt', admin_t('common.alt_text'), 255, ['alt' => $alt['value']] + $fields, $errors, $alt['attributes']);
+}
+
 /** A row's own switch (`active`): whether it is shown on the website. */
 function editor_row_switch(string $list, string $key, array $fields, string $label): void
 {

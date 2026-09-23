@@ -9,12 +9,16 @@ namespace App\Service\Media;
  * filter above the grid offers, and the one place that decides which
  * `mime_type` belongs to which kind. MEDIA.md, "Zoeken en filteren".
  *
- * ONE KIND TODAY, ON PURPOSE. The library accepts images and nothing else
- * (App\Service\Media\MediaUploader; MEDIA.md, "Bewust niet gebouwd"), so this
- * list says exactly that. A filter for video, audio or documents would be a
- * promise the upload cannot keep. The day the uploader learns a second kind,
- * that kind gets a line here, and the screen offers it without a change of
- * its own — which is the reason this is a list at all.
+ * TWO KINDS, AND ONLY THE ONES THE UPLOADER TAKES. Images (raster and SVG)
+ * and web video (MP4, WebM), because those are what
+ * App\Service\Media\MediaUploader accepts (MEDIA.md, "Wat de bibliotheek
+ * aanneemt"). A filter for audio or documents would be a promise the upload
+ * cannot keep. The day the uploader learns a third kind, that kind gets a
+ * line here, and the screen and the picker offer it without a change of
+ * their own — which is the reason this is a list at all.
+ *
+ * The same list decides what a picker offers: a field that takes an image
+ * never lists a video, and the other way round (admin/_media_picker.php).
  *
  * Derived from `mime_type`, which the library already stores from the file's
  * own header, so a kind needs no column and no backfill. A row whose type is
@@ -24,10 +28,12 @@ namespace App\Service\Media;
 final class MediaType
 {
     public const IMAGE = 'image';
+    public const VIDEO = 'video';
 
     /** Each kind, and how every MIME type that belongs to it begins. */
     private const MIME_PREFIXES = [
         self::IMAGE => 'image/',
+        self::VIDEO => 'video/',
     ];
 
     /** @return list<string> */
@@ -49,5 +55,17 @@ final class MediaType
     public static function mimePrefix(string $type): ?string
     {
         return self::MIME_PREFIXES[$type] ?? null;
+    }
+
+    /** The kind a stored MIME type belongs to, or null for one no kind claims. */
+    public static function ofMime(string $mimeType): ?string
+    {
+        foreach (self::MIME_PREFIXES as $type => $prefix) {
+            if (str_starts_with(strtolower($mimeType), $prefix)) {
+                return $type;
+            }
+        }
+
+        return null;
     }
 }

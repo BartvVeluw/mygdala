@@ -122,7 +122,10 @@ $storedId = $stored === null ? 0 : (int) $stored['id'];
 $idsOf = static fn (array $rows): array => array_map(static fn (array $row): int => (int) $row['id'], $rows);
 $action = EditorRows::parseAction($_POST['editor_action'] ?? null);
 $paragraphs = EditorChildList::fromRequest($_POST, 'paragraphs', 'text_image_split_paragraphs', $storedId > 0 ? $idsOf($repository->findParagraphsBySectionId($storedId)) : [], $action);
-$images = EditorChildList::fromRequest($_POST, 'images', 'text_image_split_images', $storedId > 0 ? $idsOf($repository->findImagesBySectionId($storedId)) : [], $action);
+// The editor shows the library's alt text in each image's alt field; sent
+// back unchanged it stays "the library's" (BlockImage::ownAlt(), MEDIA.md).
+$post = ['images' => BlockImage::ownAltInRows($_POST['images'] ?? null, $languageCode === BlockLocalization::defaultLanguage())] + $_POST;
+$images = EditorChildList::fromRequest($post, 'images', 'text_image_split_images', $storedId > 0 ? $idsOf($repository->findImagesBySectionId($storedId)) : [], $action);
 
 /** An image row's media item: a new row needs one, a posted id must be the library's. */
 $imageProblems = static function (array $row): array {

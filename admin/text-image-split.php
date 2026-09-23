@@ -160,12 +160,9 @@ $paragraphRow = static function (string $key, array $fields, int $position, int 
 
 /** One image; the template for a new one is the same markup with the key __KEY__. */
 $imageRow = static function (string $key, array $fields, int $position, int $count) use ($placeholder, $fieldErrors): void {
-    // A new image's alt text is written in the default language, and falls
-    // back to the library's; a stored one's to the default language's.
-    $altHint = ctype_digit($key) && $placeholder !== '' ? $placeholder : ' placeholder="Leeg = alt-tekst uit de mediabibliotheek"';
     editor_row_open('images', $key, admin_t('block_textimage.afbeelding'), $position, $count, ($fields['remove'] ?? '') !== '');
     editor_row_media('images', $key, $fields, $fieldErrors, ctype_digit($key) ? 'Afbeelding' : 'Afbeelding*', 'Kies dezelfde afbeelding gerust op meerdere plekken — hij wordt maar één keer opgeslagen.');
-    editor_row_text('images', $key, 'alt', admin_t('common.alt_text'), 255, $fields, $fieldErrors, $altHint);
+    editor_row_media_alt('images', $key, $fields, $fieldErrors, $placeholder);
     editor_row_close();
 };
 ?>
