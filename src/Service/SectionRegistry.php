@@ -97,8 +97,9 @@ class SectionRegistry
      *                  own richer Homepage Hero instead.
      *   deletable      may the block (and its content) be deleted?
      *   app_critical   does the application itself depend on this block
-     *                  being publicly reachable? Only the storefront's
-     *                  product grid does. A page carrying such a block
+     *                  being publicly reachable? No block does today (the
+     *                  product grid did until the product overview became a
+     *                  page the owner chooses). A page carrying such a block
      *                  cannot be unpublished or deleted from the CMS (see
      *                  App\Service\PageContent::isProtected()) — that is the
      *                  ONLY thing besides being the site root that protects

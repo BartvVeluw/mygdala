@@ -183,7 +183,28 @@ final class BlockPickerTest extends TestCase
         }
 
         $this->assertArrayNotHasKey('quicknav', $available);
-        $this->assertArrayNotHasKey('product_grid', $available);
+    }
+
+    /**
+     * The Shop's product grid is an ordinary block since the product
+     * overview became a page the owner chooses (App\Service\ShopOverview):
+     * offered on an ordinary page while the Shop runs, at most once per page.
+     */
+    public function testTheProductGridIsOfferedOnAnOrdinaryPageOncePerPage(): void
+    {
+        ModuleRegistry::overrideForTests(['shop' => true, 'multilingual' => true]);
+        SectionRegistry::reset();
+
+        $available = SectionRegistry::availableDefinitionsForPage(self::PAGE, new FakePageSectionRepository());
+        $this->assertArrayHasKey('product_grid', $available);
+        $this->assertStringContainsString('value="product_grid"', $this->renderPicker());
+
+        $this->assertArrayNotHasKey(
+            'product_grid',
+            SectionRegistry::availableDefinitionsForPage(self::PAGE, new FakePageSectionRepository(['product_grid'])),
+            'one product grid per page'
+        );
+        $this->assertStringNotContainsString('value="product_grid"', $this->renderPicker(['product_grid']));
     }
 
     public function testACappedBlockDisappearsFromThePickerOnceThePageHasIt(): void

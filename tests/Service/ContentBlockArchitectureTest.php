@@ -228,16 +228,19 @@ final class ContentBlockArchitectureTest extends TestCase
         }
     }
 
-    public function testOnlyTheHomepageAndTheStorefrontAreProtected(): void
+    public function testOnlyTheHomepageIsProtected(): void
     {
         // The phase 1 protection rule in one assertion: having a dedicated
         // template/route is NOT a reason to protect a page. Only being the
-        // site root, or carrying application-critical functionality, is.
+        // site root, or carrying application-critical functionality, is —
+        // and since the product overview became a page the owner chooses
+        // (App\Service\ShopOverview), no block is application-critical: the
+        // historical storefront page is an ordinary page with a product grid.
         $this->routeBoundTestPage();
 
         $expected = [
             'index' => true,                  // the site root
-            'shop' => true,                   // carries the storefront's product grid
+            'shop' => false,                  // its product grid is ordinary page content now
             self::TEMPLATE_TEST_KEY => false, // its own template and fixed URL, nothing more
         ];
 
@@ -257,24 +260,25 @@ final class ContentBlockArchitectureTest extends TestCase
         }
     }
 
-    public function testTheStorefrontIsProtectedByTheBlockItCarriesNotByItsName(): void
+    /**
+     * The storefront used to be protected because it carried the one
+     * application-critical block. The product grid is an ordinary Shop block
+     * now: the storefront keeps the grid it has, and nothing makes a page
+     * undeletable any more except being the site root. The mechanism stays,
+     * following the block and never a page name, for a block that ever needs
+     * it again.
+     */
+    public function testNoBlockIsApplicationCriticalAnyMoreAndTheStorefrontKeepsItsGrid(): void
     {
-        $this->assertSame(['product_grid'], SectionRegistry::applicationCriticalTypes());
-        $this->assertTrue(SectionRegistry::isApplicationCritical('product_grid'));
-
-        foreach (['item_gallery', 'contact_form', 'detail_section', 'card_carousel'] as $type) {
-            $this->assertFalse(
-                SectionRegistry::isApplicationCritical($type),
-                "\"{$type}\" is page content, not functionality the webshop depends on"
-            );
-        }
+        $this->assertSame([], SectionRegistry::applicationCriticalTypes());
+        $this->assertFalse(SectionRegistry::isApplicationCritical('product_grid'));
 
         $shop = $this->pages->findByContentKey('shop');
         $attached = array_map(
             static fn (array $row): string => (string) $row['section_type'],
             $this->sections->findForPage((int) $shop['id'])
         );
-        $this->assertContains('product_grid', $attached, 'the Shop is protected precisely because it carries this block');
+        $this->assertSame(1, count(array_keys($attached, 'product_grid', true)), 'the storefront keeps exactly the one grid it had');
     }
 
     public function testAContentPageWithADedicatedTemplateBehavesLikeAnyOtherPage(): void
@@ -391,9 +395,54 @@ final class ContentBlockArchitectureTest extends TestCase
         $this->assertTrue(SectionRegistry::isAllowedOnPage('page_hero', $contentPage));
 
         $this->assertFalse(
-            SectionRegistry::isAllowedOnPage('product_grid', $contentPage),
+            SectionRegistry::isAllowedOnPage('shop_collections', $contentPage),
             'a fixed block belongs to the one page whose template owns it'
         );
+        $this->assertTrue(
+            SectionRegistry::isAllowedOnPage('product_grid', $contentPage),
+            'the product grid is an ordinary Shop block, placed on any page'
+        );
+    }
+
+    /**
+     * The Shop's product grid on an ordinary page: added by hand, one per
+     * page, removable again, and never a reason to protect the page. Its
+     * page_sections row uses the page id as section_id (no content row of its
+     * own), so two pages each holding one never collide on
+     * UNIQUE(section_type, section_id), and the storefront's own row is left
+     * as it was.
+     */
+    public function testTheProductGridIsAnOrdinaryBlockOncePerPage(): void
+    {
+        $page = $this->testPage();
+        $this->assertArrayHasKey('product_grid', SectionRegistry::availableForPage($page, $this->sections));
+
+        $id = $this->addBlock('product_grid');
+        $row = $this->sections->findById($id);
+        $this->assertSame($this->pageId, (int) $row['section_id']);
+        $this->assertNull($row['section_key']);
+
+        $this->assertArrayNotHasKey(
+            'product_grid',
+            SectionRegistry::availableForPage($this->testPage(), $this->sections),
+            'at most one product grid per page'
+        );
+        $this->assertFalse(PageContent::isProtected($this->testPage()), 'a product grid never protects a page');
+
+        $storefront = $this->pages->findByContentKey('shop');
+        $storefrontGrids = array_values(array_filter(
+            $this->sections->findForPage((int) $storefront['id']),
+            static fn (array $r): bool => $r['section_type'] === 'product_grid'
+        ));
+        $this->assertCount(1, $storefrontGrids, 'the storefront keeps its own grid');
+
+        SectionRegistry::delete($row, $this->sections);
+        $this->assertNull($this->sections->findById($id));
+        $this->assertArrayHasKey('product_grid', SectionRegistry::availableForPage($this->testPage(), $this->sections), 'and it can be placed again');
+        $this->assertCount(1, array_filter(
+            $this->sections->findForPage((int) $storefront['id']),
+            static fn (array $r): bool => $r['section_type'] === 'product_grid'
+        ), 'removing one page\'s grid never touches another page\'s');
     }
 
     public function testFixedBlocksCanBeNeitherAddedNorCreatedNorDeleted(): void
@@ -404,7 +453,10 @@ final class ContentBlockArchitectureTest extends TestCase
         // phase 4 for the two Portfolio blocks, which became one `item_gallery`
         // (ReusableBlocksPhase4Test). The quicknav stayed fixed, but it is now
         // derived rather than hardcoded.
-        $fixed = ['shop_collections', 'product_grid', 'quicknav'];
+        // `product_grid` left this list when the product overview became a
+        // page the owner chooses: it is placed by hand now (see
+        // testTheProductGridIsAnOrdinaryBlockOncePerPage()).
+        $fixed = ['shop_collections', 'quicknav'];
 
         foreach ($fixed as $type) {
             $this->assertTrue(SectionRegistry::isFixed($type), "{$type} must be a fixed block");
@@ -415,13 +467,13 @@ final class ContentBlockArchitectureTest extends TestCase
 
         $shop = $this->pages->findByContentKey('shop');
         $this->assertArrayNotHasKey(
-            'product_grid',
+            'shop_collections',
             SectionRegistry::availableForPage($shop, $this->sections),
             'a fixed block must never appear in "+ Sectie toevoegen", not even on its own page'
         );
 
         $this->expectException(\RuntimeException::class);
-        SectionRegistry::create('product_grid', 'shop');
+        SectionRegistry::create('shop_collections', 'shop');
     }
 
     public function testRepeatableBlocksStayAvailableAfterSeveralInstances(): void

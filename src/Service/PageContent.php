@@ -219,12 +219,13 @@ class PageContent
      *
      *   1. it is the site root — "/" must always render something;
      *   2. it carries an application-critical block, i.e. functionality the
-     *      webshop itself depends on rather than page copy. Today that is
-     *      only the storefront's product grid
-     *      (App\Service\SectionRegistry::applicationCriticalTypes()), which
-     *      is why the Shop stays protected while Diensten, Portfolio, Over
-     *      mij and Contact — content pages that merely happen to be served
-     *      from their own file — do not.
+     *      application itself depends on rather than page copy
+     *      (App\Service\SectionRegistry::applicationCriticalTypes()). No
+     *      block is today: the storefront's product grid was, until the
+     *      product overview became a page the owner chooses
+     *      (App\Service\ShopOverview). So the Shop, Diensten, Portfolio, Over
+     *      mij and Contact — pages that merely happen to be served from their
+     *      own file — are ordinary pages.
      *
      * Real application routes (checkout, cart, order status, product and
      * collection detail, the APIs) are not `pages` rows at all, so they are

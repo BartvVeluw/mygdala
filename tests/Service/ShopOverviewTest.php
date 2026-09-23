@@ -7,16 +7,20 @@ namespace Tests\Service;
 use App\Database;
 use App\Module\ShopModule;
 use App\Repository\PageRepository;
+use App\Repository\PageSectionRepository;
 use App\Repository\ProductRepository;
 use App\Service\Language\SiteLanguages;
 use App\Service\PageContent;
 use App\Service\PageLocalization;
 use App\Service\PageTranslation;
+use App\Service\SectionRegistry;
 use App\Service\ShopLocalization;
 use App\Service\ShopOverview;
 use App\Service\ShopSettings;
 use App\Service\SiteSettings;
 use PHPUnit\Framework\TestCase;
+use Tests\Support\BlockTextFixture;
+use Tests\Support\BuiltInServer;
 
 /**
  * The Shop no longer implies a public page listing every product
@@ -31,9 +35,7 @@ use PHPUnit\Framework\TestCase;
  */
 final class ShopOverviewTest extends TestCase
 {
-    /** @var resource|null */
-    private static $server = null;
-    private static int $port = 0;
+    private static ?BuiltInServer $server = null;
 
     private ?string $storedBefore = null;
     private bool $hadRow = false;
@@ -47,42 +49,19 @@ final class ShopOverviewTest extends TestCase
 
     public static function setUpBeforeClass(): void
     {
-        $probe = @stream_socket_server('tcp://127.0.0.1:0');
-        if ($probe === false) {
-            return;
-        }
-
-        $address = (string) stream_socket_get_name($probe, false);
-        fclose($probe);
-        self::$port = (int) substr($address, (int) strrpos($address, ':') + 1);
-
-        $root = dirname(__DIR__, 2);
-        $discard = DIRECTORY_SEPARATOR === '\\' ? 'NUL' : '/dev/null';
-
-        // The server inherits this process's environment, which
-        // tests/bootstrap.php has already pointed at the test database.
-        $process = proc_open(
-            [PHP_BINARY, '-S', '127.0.0.1:' . self::$port, '-t', $root],
-            [0 => ['pipe', 'r'], 1 => ['file', $discard, 'w'], 2 => ['file', $discard, 'w']],
-            $pipes,
-            $root,
-            array_map('strval', getenv())
-        );
-
-        if (is_resource($process)) {
-            self::$server = $process;
-            for ($attempt = 0; $attempt < 50 && !self::answers(); $attempt++) {
-                usleep(100000);
-            }
-        }
+        // The dispatcher router, so an ordinary page (/<slug>) and a language
+        // prefix (/en/...) render the way Apache's rewrite makes them.
+        self::$server = BuiltInServer::start([
+            'MODULE_SHOP_ENABLED' => 'true',
+            'MODULE_BLOG_ENABLED' => 'true',
+            'MODULE_PERSONALIZATION_ENABLED' => 'true',
+            'MODULE_PORTFOLIO_ENABLED' => 'true',
+        ], 'tests/Support/dispatcher-router.php');
     }
 
     public static function tearDownAfterClass(): void
     {
-        if (is_resource(self::$server)) {
-            proc_terminate(self::$server);
-            proc_close(self::$server);
-        }
+        self::$server?->stop();
         self::$server = null;
     }
 
@@ -114,7 +93,11 @@ final class ShopOverviewTest extends TestCase
         foreach ($this->productIds as $id) {
             $db->prepare('DELETE FROM products WHERE id = ?')->execute([$id]);
         }
+        $sections = new PageSectionRepository();
         foreach ($this->pageIds as $id) {
+            foreach ($sections->findForPage($id) as $section) {
+                SectionRegistry::delete($section, $sections);
+            }
             (new PageRepository())->delete($id);
         }
 
@@ -193,10 +176,13 @@ final class ShopOverviewTest extends TestCase
 
     public function testTheSettingsScreenOnlyAcceptsWhatItOffers(): void
     {
-        $page = $this->page('published');
+        $page = $this->pageWithGrid();
+        $empty = $this->page('published');
 
         $this->assertSame('', ShopOverview::normalise('', ''));
         $this->assertSame((string) $page['id'], ShopOverview::normalise((string) $page['id'], ''));
+        $this->assertNull(ShopOverview::normalise((string) $empty['id'], ''), 'a page without a product grid would list nothing');
+        $this->assertSame((string) $empty['id'], ShopOverview::normalise((string) $empty['id'], (string) $empty['id']), 'the stored choice stays valid');
         $this->assertNull(ShopOverview::normalise('999999999', ''), 'not an offered page');
         $this->assertNull(ShopOverview::normalise('../etc', ''));
         $this->assertNull(ShopOverview::normalise(ShopOverview::BUILTIN_VALUE, ''), 'the automatic listing cannot be chosen anew');
@@ -247,7 +233,7 @@ final class ShopOverviewTest extends TestCase
 
         $redirect = $this->get('/shop.php');
         $this->assertSame(302, $redirect['status']);
-        $this->assertStringEndsWith('/' . $page['slug'], $this->header($redirect['headers'], 'Location'));
+        $this->assertStringEndsWith('/' . $page['slug'], $redirect['location']);
 
         $body = $this->get('/product.php?id=' . $productId)['body'];
         $this->assertStringContainsString('href="/' . $page['slug'] . '"', $body, 'trail and back link go to the chosen page');
@@ -273,6 +259,48 @@ final class ShopOverviewTest extends TestCase
         // of the service every Shop link goes through.
         $this->assertSame('/en/zz-products-' . $page['id'], ShopOverview::url('en'));
         $this->assertSame('/' . $page['slug'], ShopOverview::url(ShopLocalization::defaultLanguage()));
+    }
+
+    public function testAnOrdinaryPageWithAProductGridListsTheProductsWhereTheBlockIs(): void
+    {
+        $this->needServer();
+        $page = $this->pageWithGrid();
+
+        $body = $this->get('/' . $page['slug'])['body'];
+
+        $above = strpos($body, 'ZZ tekst boven');
+        $grid = strpos($body, 'data-products-grid');
+        $below = strpos($body, 'ZZ tekst onder');
+        $this->assertNotFalse($grid, 'the page carries the grid');
+        $this->assertTrue($above !== false && $below !== false && $above < $grid && $grid < $below, 'the grid sits between the blocks around it');
+        $this->assertStringContainsString('assets/js/shop/shop.js', $body, 'and brings the script that fills it');
+
+        $productId = $this->product();
+        $api = json_decode($this->get('/api/products.php')['body'], true);
+        $this->assertContains($productId, array_map(static fn (array $p): int => (int) $p['id'], $api['data'] ?? []), 'the catalogue it is filled from lists the product');
+    }
+
+    public function testAChosenOverviewWithALocalizedAddressWorksInEachLanguage(): void
+    {
+        $this->needServer();
+        if (!in_array('en', SiteLanguages::activeCodes(), true)) {
+            $this->markTestSkipped('English is not an active website language here.');
+        }
+
+        $page = $this->pageWithGrid();
+        $english = 'zz-products-' . $page['id'];
+        PageLocalization::save((int) $page['id'], 'en', [PageTranslation::TITLE => 'ZZ Products EN'], $english);
+        PageContent::clearCache();
+        $this->choose((string) $page['id']);
+        $productId = $this->product();
+
+        $this->assertSame('/en/' . $english, parse_url($this->get('/en/shop.php')['location'], PHP_URL_PATH));
+        $this->assertSame('/' . $page['slug'], parse_url($this->get('/shop.php')['location'], PHP_URL_PATH));
+
+        $body = $this->get('/en/product.php?id=' . $productId)['body'];
+        $this->assertStringContainsString('href="/en/' . $english . '"', $body);
+        $this->assertStringContainsString('ZZ Products EN', $body);
+        $this->assertStringContainsString('data-products-grid', $this->get('/en/' . $english)['body']);
     }
 
     public function testTheAutomaticListingStillAnswersForAnOlderInstallation(): void
@@ -359,42 +387,32 @@ final class ShopOverviewTest extends TestCase
 
     private function needServer(): void
     {
-        if (self::$server === null || !self::answers()) {
+        if (self::$server === null || !self::$server->answers()) {
             $this->markTestSkipped("could not start PHP's built-in web server for this test");
         }
     }
 
-    private static function answers(): bool
-    {
-        $socket = @fsockopen('127.0.0.1', self::$port, $errorCode, $errorMessage, 0.2);
-        if ($socket === false) {
-            return false;
-        }
-        fclose($socket);
-
-        return true;
-    }
-
-    /** @return array{status: int, headers: list<string>, body: string} */
+    /** @return array{status: int, location: string, body: string, headers: string} */
     private function get(string $path): array
     {
-        $context = stream_context_create(['http' => ['ignore_errors' => true, 'follow_location' => 0, 'timeout' => 15]]);
-        $body = @file_get_contents('http://127.0.0.1:' . self::$port . $path, false, $context);
-        $headers = $http_response_header ?? [];
-        preg_match('#^HTTP/\S+\s+(\d{3})#', (string) ($headers[0] ?? ''), $status);
-
-        return ['status' => (int) ($status[1] ?? 0), 'headers' => $headers, 'body' => (string) $body];
+        return self::$server->request('GET', $path);
     }
 
-    /** @param list<string> $headers */
-    private function header(array $headers, string $name): string
+    /** A published page with an ordinary block before and after a product grid, in that order. */
+    private function pageWithGrid(): array
     {
-        foreach ($headers as $line) {
-            if (stripos($line, $name . ':') === 0) {
-                return trim(substr($line, strlen($name) + 1));
+        $page = $this->page('published');
+        $sections = new PageSectionRepository();
+
+        foreach (['rich_text', 'product_grid', 'rich_text'] as $index => $type) {
+            [$sectionId, $sectionKey] = SectionRegistry::create($type, (string) $page['content_key']);
+            $sections->create((int) $page['id'], (string) $page['content_key'], $type, $sectionKey, $sectionId);
+            if ($type === 'rich_text') {
+                BlockTextFixture::richText($sectionId, '<p>ZZ tekst ' . ($index === 0 ? 'boven' : 'onder') . '</p>');
             }
         }
+        PageContent::clearCache();
 
-        return '';
+        return $page;
     }
 }

@@ -123,8 +123,8 @@ dingen.
 winkelwagen, afrekenen en productpagina's, niet vanzelf een publieke pagina
 met álle producten. Welke pagina het productoverzicht is, kiest de eigenaar
 onder Shop-instellingen → Productoverzicht (site-instelling `shop_overview`,
-`App\Service\ShopOverview`). Het blok *Productgrid* staat alleen op de
-winkelpagina (`content_key = shop`); zie `MODULES.md`.
+`App\Service\ShopOverview`), nadat hij daar zelf het blok *Productgrid* op
+heeft gezet; zie `MODULES.md`.
 
 | Instelling | Wat `/shop.php` doet | Waar Shop-links heen gaan |
 |---|---|---|

@@ -26,8 +26,12 @@ bestaande `UNIQUE(section_type, section_id)` dwingt dat "maximaal één in de he
 site" op databaseniveau af). Vaste inhoud buiten de lijst houden zou de lijst
 weer opsplitsen; dát sluit deze architectuur uit.
 
-Er zijn nog drie vaste blokken: `shop_collections`, `product_grid` en
-`quicknav`. Al het andere is een gewoon, toevoegbaar blok.
+Er zijn nog twee vaste blokken: `shop_collections` en `quicknav`. Al het
+andere is een gewoon, toevoegbaar blok. `product_grid` was de derde; sinds het
+productoverzicht een pagina is die de eigenaar kiest (`MODULES.md`, "Shop") is
+het een gewoon Shop-blok, hooguit één per pagina, zonder eigen inhoudsrij: zijn
+`page_sections.section_id` is het id van de pagina, zodat
+`UNIQUE(section_type, section_id)` per pagina geldt en niet per site.
 
 ## Blok-instanties
 
@@ -66,12 +70,15 @@ Precies twee redenen tellen:
 1. de pagina is de **site-root** (`route_path = '/'`) — "/" moet altijd iets
    renderen;
 2. de pagina draagt een **applicatie-kritisch blok** (`app_critical => true` in
-   de registry; vandaag alleen `product_grid`).
+   de registry). Vandaag heeft geen enkel blok dat: `product_grid` had het tot
+   het productoverzicht een keuze werd, en de webshop hangt sindsdien niet meer
+   af van één vaste pagina.
 
-Daarmee zijn alleen de **Homepage** en de **Shop** beschermd. Diensten,
-Portfolio, Over mij en Contact zijn gewone inhoudspagina's: te depubliceren en
-te verwijderen, ook al ligt hun URL vast omdat een eigen bestand ze serveert.
-Verhuist het productraster ooit, dan verhuist de bescherming mee.
+Daarmee is alleen de **Homepage** beschermd. De Shop, Diensten, Portfolio, Over
+mij en Contact zijn gewone inhoudspagina's: te depubliceren en te verwijderen,
+ook al ligt hun URL vast omdat een eigen bestand ze serveert. Verwijder je de
+pagina die als productoverzicht gekozen is, dan heeft de site daarna geen
+overzicht meer (`App\Service\ShopOverview`).
 
 Een niet-beschermde pagina moet ook echt weg kunnen: haar URL geeft dan een
 **404** (`partials/page-not-found.php`; de paginalookup staat bovenaan het

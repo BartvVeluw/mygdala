@@ -35,6 +35,14 @@ use PHPUnit\Framework\TestCase;
 final class BlockDefinitionContractTest extends TestCase
 {
     /**
+     * Blocks an editor places by hand that still own no content row: they
+     * show something the site already has (the Shop's product grid shows the
+     * catalogue, App\Service\Blocks\ProductGridBlock). A closed list, so a new
+     * block cannot drift into it by forgetting its table.
+     */
+    private const ADDABLE_WITHOUT_CONTENT = ['product_grid'];
+
+    /**
      * Everything a block must answer for itself. These are abstract on
      * BlockDefinition on purpose — see testTheContractIsAbstract().
      */
@@ -150,6 +158,16 @@ final class BlockDefinitionContractTest extends TestCase
         $definition = BlockDefinitions::get($type);
         $table = $definition->contentTable();
 
+        if (in_array($type, self::ADDABLE_WITHOUT_CONTENT, true)) {
+            $this->assertNotInstanceOf(FixedBlockDefinition::class, $definition);
+            $this->assertNull($table, "{$type} has no settings, so it has no content row");
+            $this->assertTrue(SectionRegistry::isDeletable($type), "{$type} is placed by hand, so it can be removed by hand");
+            $this->assertSame(1, SectionRegistry::maxInstances($type), 'its page_sections.section_id is the page id, so one per page');
+            $this->assertNotNull(SectionRegistry::kind($type), 'it must say what backs what it shows');
+
+            return;
+        }
+
         if (SectionRegistry::isFixed($type)) {
             $this->assertInstanceOf(
                 FixedBlockDefinition::class,
@@ -185,7 +203,7 @@ final class BlockDefinitionContractTest extends TestCase
             $this->assertFileExists($file, "\"{$type}\" links to an editor that does not exist");
         }
 
-        if (SectionRegistry::isFixed($type)) {
+        if (SectionRegistry::isFixed($type) || in_array($type, self::ADDABLE_WITHOUT_CONTENT, true)) {
             $this->assertNull(
                 BlockDefinitions::get($type)->editUrl($pageSection),
                 "\"{$type}\" is a fixed block: its content is edited in the admin domain that owns it, "

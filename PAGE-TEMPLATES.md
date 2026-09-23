@@ -221,7 +221,7 @@ tegenover `isProtected()`).
 | Pagina | Echt technisch bijzonder? |
 |---|---|
 | **Homepage** (`/`) | **Ja.** De site-root moet altijd renderen, en `homepage_hero` is exclusief voor deze pagina en niet verwijderbaar. |
-| **Shop** (`/shop.php`) | **Ja, waar hij bestaat.** Draagt `product_grid`, een applicatiekritiek blok, en `shop_collections`; beide zijn van de Shop-module. Beschermd. Een verse installatie heeft deze pagina niet. |
+| **Shop** (`/shop.php`) | **Nauwelijks, waar hij bestaat.** Alleen `shop_collections` is er een vast blok; zijn `product_grid` is een gewoon Shop-blok dat hij houdt. Niet meer beschermd. Een verse installatie heeft deze pagina niet; het productoverzicht is een keuze (`MODULES.md`). |
 | **Diensten** (`/diensten.php`) | **Bijna niet.** Alleen `quicknav` bindt hem: een functioneel blok dat op `allowed_pages: ['diensten']` staat. Alle overige blokken zijn gewone, handmatig toevoegbare blokken. |
 | **Portfolio** (`/portfolio.php`) | **Nee.** Uitsluitend gewone blokken (Page Hero, Feature Grid, Portfolio-/collectiegalerij, CTA Band, Marquee). Een legacy vaste route met volledig CMS-beheerde inhoud. |
 | **Over mij** (`/over-mij.php`) | **Nee.** Uitsluitend gewone blokken. Legacy vaste route. |

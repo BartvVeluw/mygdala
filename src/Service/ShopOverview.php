@@ -138,7 +138,10 @@ final class ShopOverview
     /**
      * The value to store for what a request sent, or null when it is not a
      * valid choice. '' is always valid; 'builtin' only while it is already
-     * the stored value; anything else must be the id of one of choices().
+     * the stored value; a page id must be one of choices() AND carry a
+     * visible product grid — an overview that lists nothing is not offered —
+     * unless it is the page already stored, so saving never silently changes
+     * a choice the owner made before.
      */
     public static function normalise(mixed $requested, string $current): ?string
     {
@@ -162,7 +165,7 @@ final class ShopOverview
 
         foreach (self::choices() as $page) {
             if ((int) $page['id'] === (int) $value) {
-                return $value;
+                return self::hasProductGrid($page) || $value === $current ? $value : null;
             }
         }
 
@@ -170,8 +173,9 @@ final class ShopOverview
     }
 
     /**
-     * Whether a page shows the product grid block, so the settings screen can
-     * say so when a chosen overview would list nothing.
+     * Whether a page shows the product grid block (attached and not hidden):
+     * what makes it a page that can be the overview at all. The owner places
+     * the block; choosing a page never adds one.
      *
      * @param array<string, mixed> $page
      */

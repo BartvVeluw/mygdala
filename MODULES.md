@@ -361,10 +361,13 @@ Alles wat er ook zou zijn zonder webshop.
   dat er een publieke pagina met alle producten is. Onder Shop-instellingen →
   Productoverzicht kiest de eigenaar *Geen overzichtspagina* of een bestaande
   CMS-pagina (`App\Service\ShopOverview`, site-instelling `shop_overview`).
-  Het blok `product_grid` is nog een vast blok van de winkelpagina
-  (`content_key = shop`): een andere gekozen pagina is het overzicht voor links
-  en kruimelpad, maar toont pas producten als dat blok ook daar mag staan. Het
-  scherm zegt dat erbij. Elke Shop-link
+  Die pagina toont producten met het gewone Shop-blok **Productgrid**
+  (`product_grid`): handmatig toevoegbaar op elke gewone pagina, op de plek
+  die de eigenaar kiest, hooguit één per pagina, verwijderbaar, en niet meer
+  applicatiekritisch. Het scherm toont bij elke pagina of er een Productgrid
+  op staat en laat alleen zo'n pagina kiezen (plus de huidige keuze); een
+  pagina kiezen voegt nooit zelf een blok toe. De historische winkelpagina
+  houdt haar eigen grid en is een gewone pagina geworden. Elke Shop-link
   naar "de shop" — productpagina, winkelwagen, afrekenen, collectie,
   bestelstatus, personaliseren en hun kruimelpaden — vraagt het adres aan
   `ShopOverview` en schrijft `/shop.php` niet zelf. `shop.php` volgt de keuze:
@@ -705,7 +708,8 @@ In de praktijk:
   weten van een module, voeg dan een bijdrage toe aan `ModuleDefinition` in
   plaats van een tweede `if` op een domeinnaam.
 - Een `app_critical`-blok is het enige mechanisme waarmee een module afdwingt
-  dat een pagina blijft bestaan — verzin daar geen tweede vorm voor.
+  dat een pagina blijft bestaan — verzin daar geen tweede vorm voor. Vandaag
+  gebruikt geen blok het: de Shop hangt niet meer van één pagina af.
 
 ## Nog niet geïmplementeerd
 

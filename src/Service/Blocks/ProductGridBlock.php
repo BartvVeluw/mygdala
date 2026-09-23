@@ -5,12 +5,30 @@ namespace App\Service\Blocks;
 require_once dirname(__DIR__, 3) . '/partials/section-product-grid.php';
 
 /**
- * The storefront's product grid. The one APPLICATION-CRITICAL block: a page
- * carrying it cannot be unpublished or deleted, because that would take the
- * webshop offline (App\Service\PageContent::isProtected()). The protection
- * follows this block, never a page name.
+ * The Shop's product grid: every product in the shop, as cards filled by
+ * assets/js/shop/shop.js from GET /api/products.php.
+ *
+ * AN ORDINARY SHOP BLOCK. It used to be a fixed, application-critical block
+ * of the one storefront page (content_key `shop`): not addable, not
+ * deletable, and it made that page impossible to unpublish or delete. Since
+ * the product overview is a page the owner chooses
+ * (App\Service\ShopOverview, MODULES.md "Shop"), the grid is placed like any
+ * other block: by hand, on any ordinary page, where the owner wants it
+ * between the rest of the content, at most once per page, and removable
+ * again. The storefront page keeps the grid it has; nothing is copied or
+ * moved.
+ *
+ * NO CONTENT ROW. The grid has no settings of its own, so there is nothing to
+ * create or delete behind it. Its page_sections row still needs a
+ * `section_id` that is unique per type (UNIQUE(section_type, section_id)); with
+ * at most one grid per page the page's own id is exactly that, and the
+ * historical storefront row keeps the 0 it always had.
+ *
+ * Belongs to the Shop module: with the Shop off the type is not registered, so
+ * it is neither offered nor rendered (MODULES.md, "Blokken van een
+ * uitgeschakelde module").
  */
-final class ProductGridBlock extends FixedBlockDefinition
+final class ProductGridBlock extends BlockDefinition
 {
     public function type(): string
     {
@@ -20,17 +38,15 @@ final class ProductGridBlock extends FixedBlockDefinition
     public function meta(): array
     {
         return [
-            'label' => 'Productoverzicht',
-            'manual_add' => false,
+            'label' => 'Productgrid',
+            'manual_add' => true,
             'allow_multiple' => false,
             'max_instances' => 1,
-            'allowed_pages' => ['shop'],
-            'deletable' => false,
-            'app_critical' => true,
+            'allowed_pages' => null,
+            'deletable' => true,
             'kind' => self::KIND_DYNAMIC,
             'badge_label' => 'Beheerd via Producten',
-            'note' => 'Producten, foto\'s en voorraad worden beheerd via Producten, niet als paginatekst.',
-            'edit_links' => [['label' => 'Producten', 'url' => '/admin/products.php']],
+            'note' => 'Toont alle producten van de shop. Producten, foto\'s en prijzen beheer je bij Producten, niet als paginatekst.',
         ];
     }
 
@@ -50,7 +66,7 @@ final class ProductGridBlock extends FixedBlockDefinition
 
     public function description(): string
     {
-        return 'Het overzicht van alle producten in de webshop, met foto, naam en prijs. De producten zelf beheer je bij Producten.';
+        return 'Alle producten van de webshop als kaarten met foto, naam en prijs, op de plek in de pagina waar je het blok zet. De producten zelf beheer je bij Producten.';
     }
 
     public function category(): string
@@ -71,8 +87,54 @@ final class ProductGridBlock extends FixedBlockDefinition
     public function useCases(): array
     {
         return [
-            'de winkelpagina van de webshop',
+            'de pagina die je bij Shop-instellingen als productoverzicht kiest',
+            'alle producten tussen je eigen tekst en beelden',
         ];
+    }
+
+    /**
+     * Nothing to create: the grid has no settings. The row's section_id is the
+     * page's own id (see the class docblock), which the one-per-page rule
+     * keeps unique.
+     */
+    public function create(string $pageSlug): array
+    {
+        $page = (new \App\Repository\PageRepository())->findByContentKey($pageSlug);
+
+        if ($page === null) {
+            throw new \RuntimeException('A product grid can only be added to an existing page.');
+        }
+
+        return [(int) $page['id'], null];
+    }
+
+    /** Nothing of its own to delete: removing the block removes only its page_sections row. */
+    public function deleteContent(array $pageSection): void
+    {
+    }
+
+    /**
+     * No editor of its own: products are edited under Producten. Adding the
+     * block therefore lands back on the page, on the new row, rather than in
+     * the product list.
+     */
+    public function editUrl(array $pageSection): ?string
+    {
+        return null;
+    }
+
+    public function clearCache(): void
+    {
+    }
+
+    public function contentTable(): ?string
+    {
+        return null;
+    }
+
+    public function translatableFields(): array
+    {
+        return [];
     }
 
     public function render(array $pageSection, bool $tightTop, string $revealGroup): void

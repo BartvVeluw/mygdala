@@ -31,7 +31,9 @@ begrippen (`hasOwnTemplate()`, `isRouteBound()`, `isProtected()`), en
 
 Reden: een template is een renderdetail. De echte vraag is of de webshop
 stukloopt als een pagina verdwijnt, en dat antwoord hoort bij het blok dat de
-functionaliteit draagt — niet bij een paginanaam. Zo verhuist de bescherming
+functionaliteit draagt — niet bij een paginanaam. (Sinds het productoverzicht
+een keuze is, draagt geen blok meer `app_critical`; het mechanisme blijft.) Zo
+verhuist de bescherming
 vanzelf mee als het blok ergens anders komt te staan.
 
 Gevolg: bij een mislukte lookup valt `isProtected()` terug op de striktere,

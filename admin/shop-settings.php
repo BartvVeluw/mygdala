@@ -359,12 +359,20 @@ $v = static fn (string $key): string => htmlspecialchars((string) ($values[$key]
             <?php endif; ?>
             <?php foreach ($overviewChoices as $overviewPage): ?>
               <?php
+                // Every page is listed with what it holds, so the owner sees
+                // which page is missing the block; only a page WITH a product
+                // grid can be chosen (App\Service\ShopOverview::normalise()),
+                // except the one already stored.
+                $overviewId = (string) (int) $overviewPage['id'];
+                $overviewHasGrid = ShopOverview::hasProductGrid($overviewPage);
                 $overviewTitle = \App\Service\PageLocalization::name((int) $overviewPage['id']);
-                $overviewLabel = \App\Service\PageContent::isPublished($overviewPage)
-                    ? admin_t('shop.overview.page_option', ['title' => $overviewTitle])
-                    : admin_t('shop.overview.page_option_draft', ['title' => $overviewTitle]);
+                $overviewLabel = admin_t(
+                    \App\Service\PageContent::isPublished($overviewPage) ? 'shop.overview.page_option' : 'shop.overview.page_option_draft',
+                    ['title' => $overviewTitle]
+                ) . ' — ' . admin_t($overviewHasGrid ? 'shop.overview.has_grid' : 'shop.overview.no_grid');
+                $overviewSelectable = $overviewHasGrid || $overviewId === $storedOverview;
               ?>
-              <option value="<?= (int) $overviewPage['id'] ?>"<?= $overviewValue === (string) (int) $overviewPage['id'] ? ' selected' : '' ?>><?= $h($overviewLabel) ?></option>
+              <option value="<?= $h($overviewId) ?>"<?= $overviewValue === $overviewId ? ' selected' : '' ?><?= $overviewSelectable ? '' : ' disabled' ?>><?= $h($overviewLabel) ?></option>
             <?php endforeach; ?>
           </select>
         </div>

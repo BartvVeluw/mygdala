@@ -49,6 +49,10 @@ final class ShopPicturesAndOverviewMigrationTest extends TestCase
     /** @var array<string, int> */
     private static array $countsAfterReplay = [];
 
+    /** @var list<array<string, mixed>> the product grid rows before and after the catch-up */
+    private static array $gridsBefore = [];
+    private static array $gridsAfter = [];
+
     public static function setUpBeforeClass(): void
     {
         if (!ScratchInstall::available()) {
@@ -60,12 +64,14 @@ final class ShopPicturesAndOverviewMigrationTest extends TestCase
         self::$existing = ScratchInstall::upTo(self::EXISTING, self::BEFORE);
         self::markLegacy(self::$existing);
         self::$ids = self::seed(self::$existing);
+        self::$gridsBefore = self::grids(self::$existing);
         self::$existing->catchUp(self::PIN);
         self::$countsAfterFirstRun = self::counts(self::$existing);
         self::$existing->replay(self::PICTURES, self::PIN);
         self::$existing->replay(self::WORDS, self::PIN);
         self::$existing->replay(self::PIN, self::PIN);
         self::$countsAfterReplay = self::counts(self::$existing);
+        self::$gridsAfter = self::grids(self::$existing);
 
         // An existing installation WITHOUT a storefront page: it showed the
         // automatic listing, and keeps it.
@@ -171,6 +177,20 @@ final class ShopPicturesAndOverviewMigrationTest extends TestCase
         $this->assertSame(self::$countsAfterFirstRun, self::$countsAfterReplay);
     }
 
+    /**
+     * The product grid became an ordinary block in the same phase, without a
+     * migration: the storefront's existing row stays exactly as it was, and
+     * nothing adds a second one anywhere, whatever runs again.
+     */
+    public function testTheStorefrontKeepsItsOneProductGridAndNoneIsAdded(): void
+    {
+        $this->assertNotSame([], self::$gridsBefore, 'the historical storefront carries a grid here');
+        $this->assertSame(self::$gridsBefore, self::$gridsAfter);
+
+        $perPage = array_count_values(array_map(static fn (array $row): int => (int) $row['page_id'], self::$gridsAfter));
+        $this->assertSame([], array_filter($perPage, static fn (int $count): bool => $count > 1), 'at most one grid per page');
+    }
+
     public function testNoVariantGetsACopyOfTheProductsText(): void
     {
         $this->assertSame(0, self::$existing->count('product_variant_translations'));
@@ -210,6 +230,14 @@ final class ShopPicturesAndOverviewMigrationTest extends TestCase
     {
         $pdo = $install->pdo();
         $pdo->exec("INSERT IGNORE INTO pages (content_key, slug, status, created_at, updated_at) VALUES ('shop', 'shop', 'published', NOW(), NOW())");
+        // The storefront's grid the way the old install bootstrap attached it:
+        // no content row, section_id 0.
+        $pdo->exec(
+            "INSERT INTO page_sections (page_id, page_slug, section_type, section_key, section_id, sort_order, is_active, created_at, updated_at)
+             SELECT p.id, 'shop', 'product_grid', NULL, 0, 0, 1, NOW(), NOW() FROM pages p
+             WHERE p.content_key = 'shop'
+               AND NOT EXISTS (SELECT 1 FROM page_sections ps WHERE ps.section_type = 'product_grid')"
+        );
 
         $product = self::product($pdo, 'zz-ux-product', 'assets/images/products/own.webp');
         $pdo->prepare('INSERT INTO product_images (product_id, image_path, sort_order, is_primary) VALUES (?, ?, 0, 1)')
@@ -260,6 +288,14 @@ final class ShopPicturesAndOverviewMigrationTest extends TestCase
              WHERE pvi.variant_id = ? ORDER BY pvi.sort_order',
             [$variantId]
         ), 'image_path');
+    }
+
+    /** @return list<array<string, mixed>> */
+    private static function grids(ScratchInstall $install): array
+    {
+        return $install->rows(
+            "SELECT id, page_id, section_key, section_id, sort_order, is_active FROM page_sections WHERE section_type = 'product_grid' ORDER BY id"
+        );
     }
 
     /** @return array<string, int> */
