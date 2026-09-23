@@ -85,20 +85,49 @@ final class ContentBlocksPolishMigrationTest extends TestCase
         self::$upgraded = null;
     }
 
+    /**
+     * What CardCarouselContent rendered up to f715193, card by card, against
+     * what the backfill stored. The old rules: the carousel's active cards in
+     * sort_order, then id; a card counts only with a default-language title
+     * after trim() (BlockLocalization::raw() inside hasRequiredWords()); it
+     * printed its own label when that, trimmed, was not empty (the request's
+     * language first, then the default language), else its place among the
+     * counted cards.
+     */
     public function testEveryCardKeepsTheNumberItShowed(): void
     {
         $labels = self::labelsByCard(self::$upgraded);
 
-        // First carousel: first (01), hidden (skipped), own label (counts as
-        // 02 but keeps "Nieuw"), untitled (skipped), third shown (03, and its
-        // English label stays), and the second carousel counts on its own.
-        self::assertSame('01', $labels['first']['nl'] ?? null);
-        self::assertArrayNotHasKey('hidden', $labels, 'a hidden card showed nothing and gets nothing');
-        self::assertSame('Nieuw', $labels['own']['nl'] ?? null, 'an own label is left as it was');
+        // Carousel A: first (01), hidden (not counted), own label (counted as
+        // 02, keeps "Nieuw"), untitled and blank-titled (not counted), third
+        // (03, its English label stays), blank label (04: "\t" printed the
+        // place), English words only in the title (05).
+        self::assertSame(['nl' => '01'], $labels['first'] ?? null);
+        self::assertArrayNotHasKey('hidden', $labels, 'an inactive card showed nothing and gets nothing');
+        self::assertSame(['nl' => 'Nieuw'], $labels['own'] ?? null, 'an own label is left as it was');
         self::assertArrayNotHasKey('untitled', $labels, 'a card without a title showed nothing and gets nothing');
-        self::assertSame('03', $labels['third']['nl'] ?? null, 'counted among the cards that showed, as the website counted');
-        self::assertSame('Third', $labels['third']['en'] ?? null, 'a translation keeps its own label');
-        self::assertSame('01', $labels['other']['nl'] ?? null, 'each carousel counts from one');
+        self::assertArrayNotHasKey('blankTitle', $labels, 'a title of only whitespace is no title, as raw() trims');
+        self::assertSame(['en' => 'Third', 'nl' => '03'], $labels['third'] ?? null, 'a translation keeps its own label; the default language gets the place');
+        self::assertSame(['nl' => '04'], $labels['blankLabel'] ?? null, 'a label of only whitespace printed the place; its one row now holds it');
+        self::assertSame(['nl' => '05'], $labels['englishTitle'] ?? null, 'English falls back to the stored Dutch number, as it fell back to the place');
+
+        // Each carousel counts from one.
+        self::assertSame(['nl' => '01'], $labels['other'] ?? null);
+
+        // Reordered before the migration: the order on the website was
+        // sort_order, then id, not the order the cards were made in.
+        self::assertSame(['nl' => '03'], $labels['madeFirstSortedLast'] ?? null);
+        self::assertSame(['nl' => '01'], $labels['sortTieLowerId'] ?? null);
+        self::assertSame(['nl' => '02'], $labels['sortTieHigherId'] ?? null);
+
+        // A hidden carousel rendered nothing, but these same numbers before
+        // it was hidden and again once it is switched back on.
+        self::assertSame(['nl' => '01'], $labels['inHiddenCarousel'] ?? null);
+
+        // Exactly one row per card and language: nothing duplicated.
+        $rows = self::labels(self::$upgraded);
+        $keys = array_map(static fn (array $row): string => $row['owner_id'] . '/' . $row['language_code'], $rows);
+        self::assertSame(count($keys), count(array_unique($keys)));
     }
 
     public function testASecondRunChangesNothing(): void
@@ -154,13 +183,26 @@ final class ContentBlocksPolishMigrationTest extends TestCase
 
         $carousel = self::carousel($pdo, 'zz-polish-a');
         $other = self::carousel($pdo, 'zz-polish-b');
+        $reordered = self::carousel($pdo, 'zz-polish-c');
+        $hiddenCarousel = self::carousel($pdo, 'zz-polish-d', false);
 
         self::$cards['first'] = self::card($pdo, $carousel, 0, true, ['nl' => ['title' => 'Eerste']]);
         self::$cards['hidden'] = self::card($pdo, $carousel, 1, false, ['nl' => ['title' => 'Verborgen']]);
         self::$cards['own'] = self::card($pdo, $carousel, 2, true, ['nl' => ['title' => 'Eigen', 'number_label' => 'Nieuw']]);
         self::$cards['untitled'] = self::card($pdo, $carousel, 3, true, ['nl' => ['body' => 'Geen titel']]);
-        self::$cards['third'] = self::card($pdo, $carousel, 4, true, ['nl' => ['title' => 'Derde'], 'en' => ['title' => 'Third one', 'number_label' => 'Third']]);
+        self::$cards['blankTitle'] = self::card($pdo, $carousel, 4, true, ['nl' => ['title' => " \t\n "]]);
+        self::$cards['third'] = self::card($pdo, $carousel, 5, true, ['nl' => ['title' => 'Derde'], 'en' => ['title' => 'Third one', 'number_label' => 'Third']]);
+        self::$cards['blankLabel'] = self::card($pdo, $carousel, 6, true, ['nl' => ['title' => 'Leeg label', 'number_label' => "\t"]]);
+        self::$cards['englishTitle'] = self::card($pdo, $carousel, 7, true, ['nl' => ['title' => 'Vierde'], 'en' => ['title' => 'Fourth']]);
         self::$cards['other'] = self::card($pdo, $other, 0, true, ['nl' => ['title' => 'Ander']]);
+
+        // Made first, moved to the end; and two cards on the same place,
+        // which the website ordered by id.
+        self::$cards['madeFirstSortedLast'] = self::card($pdo, $reordered, 5, true, ['nl' => ['title' => 'Eerst gemaakt']]);
+        self::$cards['sortTieLowerId'] = self::card($pdo, $reordered, 1, true, ['nl' => ['title' => 'Gelijk een']]);
+        self::$cards['sortTieHigherId'] = self::card($pdo, $reordered, 1, true, ['nl' => ['title' => 'Gelijk twee']]);
+
+        self::$cards['inHiddenCarousel'] = self::card($pdo, $hiddenCarousel, 0, true, ['nl' => ['title' => 'In een verborgen carrousel']]);
 
         $pdo->exec("INSERT INTO rich_text_sections (page_slug, section_key, is_active, created_at, updated_at) VALUES ('zz', 'zz-polish', 1, NOW(), NOW())");
         $pdo->exec("INSERT INTO feature_grids (page_slug, section_key, is_active, created_at, updated_at) VALUES ('zz', 'zz-polish', 1, NOW(), NOW())");
@@ -168,10 +210,10 @@ final class ContentBlocksPolishMigrationTest extends TestCase
             ->execute([(int) $pdo->lastInsertId()]);
     }
 
-    private static function carousel(\PDO $pdo, string $key): int
+    private static function carousel(\PDO $pdo, string $key, bool $active = true): int
     {
-        $pdo->prepare("INSERT INTO card_carousels (page_slug, section_key, is_active, created_at, updated_at) VALUES ('zz', ?, 1, NOW(), NOW())")
-            ->execute([$key]);
+        $pdo->prepare("INSERT INTO card_carousels (page_slug, section_key, is_active, created_at, updated_at) VALUES ('zz', ?, ?, NOW(), NOW())")
+            ->execute([$key, $active ? 1 : 0]);
 
         return (int) $pdo->lastInsertId();
     }
