@@ -128,7 +128,7 @@ From the first label the CMS also makes the fixed name answers are stored under.
     'language.editing_switch' => 'Editing content',
     'language.editing_indicator' => 'Language:',
     'language.editing_fallback_hint' => 'Empty means not translated yet. Visitors then see the text in :language.',
-    'language.editing_default_hint' => 'You are editing the default language. Another language that leaves a field empty shows visitors this text. Switch with the language buttons in the sidebar.',
+    'language.editing_default_hint' => 'This is the default language. Another language that leaves a field empty shows visitors this text. Switch with the language buttons in the sidebar.',
     'language.editing_not_on_this_screen' => 'You chose :chosen, but this screen cannot store :chosen yet. Here you are editing :language.',
     'language.default_marker' => 'default language',
     'language.fallback_placeholder' => 'Not translated - visitors see the text in :language',

@@ -83,6 +83,18 @@
       tab.classList.toggle("is-active", isActive);
 
       if (isActive && settings.focus) tab.focus();
+
+      // On a phone the strip scrolls sideways; the open tab (a forced one,
+      // or one restored from a previous visit) must not sit out of sight.
+      if (isActive && tab.parentElement) {
+        var strip = tab.parentElement;
+        var box = tab.getBoundingClientRect();
+        var frame = strip.getBoundingClientRect();
+        if (box.left < frame.left || box.right > frame.right) {
+          // Where the tab starts inside the strip's scrolled content, centred.
+          strip.scrollLeft += box.left - frame.left - (frame.width - box.width) / 2;
+        }
+      }
     });
 
     if (!found) return false;

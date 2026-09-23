@@ -129,7 +129,7 @@ Uit het eerste label maakt het CMS ook de vaste naam waaronder antwoorden worden
     'language.editing_switch' => 'Content bewerken',
     'language.editing_indicator' => 'Taal:',
     'language.editing_fallback_hint' => 'Leeg betekent nog niet vertaald. Bezoekers zien dan de tekst in het :language.',
-    'language.editing_default_hint' => 'Je bewerkt de standaardtaal. Een andere taal die een veld leeg laat, toont bezoekers deze tekst. Wisselen doe je met de taalknoppen in de zijbalk.',
+    'language.editing_default_hint' => 'Dit is de standaardtaal. Een andere taal die een veld leeg laat, toont bezoekers deze tekst. Wisselen doe je met de taalknoppen in de zijbalk.',
     'language.editing_not_on_this_screen' => 'Je koos :chosen, maar dit scherm kan nog geen :chosen bewaren. Je bewerkt hier het :language.',
     'language.default_marker' => 'standaardtaal',
     'language.fallback_placeholder' => 'Niet vertaald - bezoekers zien de tekst in het :language',
