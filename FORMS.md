@@ -44,11 +44,15 @@ werkt identiek met de Shop aan en uit (`MODULES.md`).
 
 | Onderdeel | Pad |
 |---|---|
-| Migraties + tabellen | `db/migrations/20260909300000_create_the_core_forms_tables.php`, `…310000_migrate_the_contact_form_into_a_form.php`, `…320000_add_a_default_choice_to_form_fields.php`; de woorden en opties per taal in `20260918140000_create_the_form_translation_and_option_tables.php` en `…150000_move_form_words_and_options_into_translation_tables.php`; de breedte van een veld in `20260924160000_give_form_fields_a_layout_width.php` |
+| Migraties + tabellen | `db/migrations/20260909300000_create_the_core_forms_tables.php`, `…310000_migrate_the_contact_form_into_a_form.php`, `…320000_add_a_default_choice_to_form_fields.php`; de woorden en opties per taal in `20260918140000_create_the_form_translation_and_option_tables.php` en `…150000_move_form_words_and_options_into_translation_tables.php`; de breedte van een veld in `20260924160000_give_form_fields_a_layout_width.php`; het uploadveld in `20260925100000_make_file_upload_an_ordinary_form_field.php` |
 | Veldtypes (gesloten register) | `src/Service/Forms/FieldTypes/`, plus `FormFieldTypes` — dé registratielijst |
 | Namen van veldtypes | `formfieldtype.<key>.label` en `.description` in `src/Service/Language/messages/` |
 | Wat een typewissel kost | `FormFieldTypeChange` |
 | Breedte van een veld (gesloten lijst) | `FormFieldWidth` |
+| Bestandssoorten en -groottes van een uploadveld (gesloten lijsten) | `FormFileTypes` |
+| Een geüpload bestand keuren | `FormUploadInspector`, `FormUpload` |
+| Bestanden opslaan (buiten de webroot) | `src/Service/ContactAttachmentStorage.php` |
+| Een bestand downloaden | `api/admin/form-submission-attachment.php` |
 | Leesmodel | `FormDefinition`, `FormField`, `FormFieldOptions`, `FormOption` |
 | Woorden per taal | `FormLocalization` (de drie vertaaltabellen), `src/Repository/FormFieldOptionRepository.php` |
 | Opzoeken + cache | `FormCatalog` |
@@ -65,7 +69,7 @@ werkt identiek met de Shop aan en uit (`MODULES.md`).
 | Blok "Offerte-/contactformulier" | `src/Service/Blocks/ContactFormBlock.php`, `ContactFormContent`, `partials/section-contact-form.php`, `admin/contact-form.php` |
 | Adminschermen | `admin/forms.php`, `admin/form.php`, `admin/form-field.php`, `admin/form-submissions.php`, `admin/form-submission.php`; het voorbeeld in de formuliereditor `admin/form-preview.php`; gedeeld: `admin/_form_fields.php` (typenamen, typekaarten, wat een wissel kost) en `admin/assets/forms-admin.js` |
 | Frontend | `assets/css/blocks/form.css`, `assets/js/blocks/form.js` |
-| Tests | `tests/Service/Form*.php`, `tests/Repository/ContactFormMigrationTest.php`, `tests/Install/FormWordsAndOptionMigrationTest.php`, `tests/Install/FormFieldLayoutWidthMigrationTest.php`; helper `tests/Support/FormFixture.php` |
+| Tests | `tests/Service/Form*.php` (het uploadveld: `FormUploadTest`, `FormUploadHttpTest`), `tests/Repository/ContactFormMigrationTest.php`, `tests/Install/FormWordsAndOptionMigrationTest.php`, `tests/Install/FormFieldLayoutWidthMigrationTest.php`, `tests/Install/FormFileUploadMigrationTest.php`; helper `tests/Support/FormFixture.php` |
 
 ## Het model
 
@@ -89,15 +93,18 @@ Een formulier wordt geadresseerd door het blok dat het toont.
 ### `form_fields`
 
 Eén rij per veld: `field_key`, `field_type`, verplicht ja/nee, de breedte
-(`layout_width`, zie *Breedte van een veld*), volgorde, en bij een keuzeveld
-eventueel een standaardwaarde. Allemaal taalneutraal.
+(`layout_width`, zie *Breedte van een veld*), volgorde, bij een keuzeveld
+eventueel een standaardwaarde, en bij een uploadveld de toegestane soorten
+(`file_types`) en de maximale grootte (`file_max_bytes`, zie *Bestand
+uploaden*). Allemaal taalneutraal.
 
 Wat de bezoeker leest staat in `form_field_translations`, één rij per
 websitetaal: `label`, `placeholder` en `help_text`.
 
-**Geen EAV.** Een veld is een rij met echte kolommen. De enige
-type-specifieke instelling die bestaat is de optielijst van een keuzeveld, en
-die is sinds Multilingual 2.0 fase 4 een echte kindtabel:
+**Geen EAV.** Een veld is een rij met echte kolommen. De type-specifieke
+instellingen zijn de twee kolommen van een uploadveld en de optielijst van een
+keuzeveld, en die laatste is sinds Multilingual 2.0 fase 4 een echte
+kindtabel:
 
 ```text
 form_field_options              id, form_field_id, value, sort_order
@@ -166,8 +173,12 @@ Daarom blijft een aanvraag van vorig voorjaar leesbaar nadat de redactie een
 veld hernoemt, verplaatst of weghaalt — en blijft het antwoord op een
 verwijderd veld gewoon staan.
 
-`form_submission_attachments` hoort bij het contactblok, niet bij de motor —
-zie "Het contactformulier" hieronder.
+`form_submission_attachments` houdt de bestanden van een inzending: één rij
+per bestand, met het veld waar het bij hoort (`field_key`), de naam die de
+bezoeker het gaf, de willekeurige naam waaronder het is opgeslagen, soort,
+grootte en SHA-256. Een bijlage van het contactblok van vóór Forms 2.0 fase 2
+heeft geen veld (`field_key` NULL) en blijft gewoon te downloaden. Zie
+*Bestand uploaden*.
 
 ## Veldtypes
 
@@ -186,6 +197,7 @@ wordt nooit een klassenaam.
 | `radio` | Keuzerondjes | Dezelfde gesloten lijst als keuzerondjes |
 | `checkbox` | Selectievakje | Eén vinkje (bewaard als "Ja") |
 | `consent` | Toestemming | Akkoordvinkje; **altijd verplicht** |
+| `file` | Bestand uploaden | Eén bestand, uit een gesloten lijst soorten en groottes (zie *Bestand uploaden*) |
 
 Elk type is één klasse die zegt hoe het rendert, hoe het een waarde
 schoonmaakt, welke eigen regel het heeft en welke instellingen het gebruikt.
@@ -213,13 +225,14 @@ geen naam of uitleg heeft, of als twee types dezelfde naam dragen.
 Deze verklaringen op de typeklasse sturen zowel de veldeditor als het
 typewisselbeleid. Het admin heeft geen eigen lijst:
 
-| Verklaring | `text`, `textarea`, `tel` | `email` | `select`, `radio` | `checkbox` | `consent` |
-|---|---|---|---|---|---|
-| `usesPlaceholder()` | ja | ja | nee | nee | nee |
-| `usesOptions()` | nee | nee | ja | nee | nee |
-| `usesDefaultValue()` | nee | nee | ja | nee | nee |
-| `requiredIsFixed()` | nee | nee | nee | nee | ja |
-| `holdsEmailAddress()` | nee | ja | nee | nee | nee |
+| Verklaring | `text`, `textarea`, `tel` | `email` | `select`, `radio` | `checkbox` | `consent` | `file` |
+|---|---|---|---|---|---|---|
+| `usesPlaceholder()` | ja | ja | nee | nee | nee | nee |
+| `usesOptions()` | nee | nee | ja | nee | nee | nee |
+| `usesDefaultValue()` | nee | nee | ja | nee | nee | nee |
+| `requiredIsFixed()` | nee | nee | nee | nee | ja | nee |
+| `holdsEmailAddress()` | nee | ja | nee | nee | nee | nee |
+| `acceptsFile()` | nee | nee | nee | nee | nee | ja |
 
 Label en uitleg gebruikt elk type, in elke websitetaal.
 
@@ -314,6 +327,238 @@ voor geen enkel type een breedte af. Wat semantisch meestal de hele rij
 wil, zoals een lang tekstveld of toestemming, begint daar gewoon, omdat een
 nieuw veld `full` is.
 
+## Bestand uploaden
+
+Sinds Forms 2.0 fase 2 is een bestand een gewoon veld: `file`, in het CMS
+*Bestand uploaden*. Een redacteur voegt het toe met *Veld toevoegen*, geeft
+het een label, uitleg, verplicht ja/nee en een breedte, zet het op zijn plek
+en haalt het weer weg, precies zoals elk ander veld. Het wordt **nooit
+vanzelf** toegevoegd, ook niet door het offerte-/contactblok.
+
+Het werkt overal waar een veld werkt: in het blok *Formulier*, in het
+offerte-/contactblok, in het voorbeeld van de editor, met en zonder
+JavaScript, in bewaarde inzendingen en in de melding.
+
+### Instellingen
+
+Twee instellingen van zichzelf, allebei een **gesloten lijst**
+(`App\Service\Forms\FormFileTypes`), op de kaart *Bestanden* van de
+veldeditor:
+
+| Instelling | Kolom | Keuze | Nieuw veld |
+|---|---|---|---|
+| Toegestane bestanden | `file_types`, sleutels met komma's | een vinkje per soort: JPG (`.jpg`, `.jpeg`), PNG, WEBP, GIF, PDF | JPG, PNG, PDF |
+| Maximale grootte | `file_max_bytes` | 1, 2, 5, 8 of 10 MB, voor zover de installatie dat aankan | 5 MB |
+
+**Geen vrij MIME-veld.** Een soort is een sleutel uit de lijst; de lijst
+bepaalt welke extensies de naam mag hebben, wat de inhoud moet zijn en onder
+welk MIME-type het bestand bewaard, gemaild en gedownload wordt.
+`api/admin/update-form-field.php` weigert geen enkele soort, een onbekende
+soort (`svg`, `image/png`, `exe`) en elke grootte die niet in de lijst staat,
+net als een onbekende breedte: er wordt niets geschreven en de editor komt
+terug met wat er ingevuld was. Een verborgen `file_settings` zorgt dat "niets
+aangevinkt" ook echt aankomt.
+
+**Eén bestand per veld (V1).** Wie om twee bestanden vraagt, maakt twee
+velden. Meerdere bestanden in één veld zouden een extra instelling, arrays in
+`$_FILES`, een maximum aantal en een groter totaal binnen `post_max_size`
+betekenen; dat is een vervolgstap, geen onderdeel van V1. Een ingang die PHP
+als lijst opbouwt (`naam[]`), wordt geweigerd.
+
+Een typewissel naar of van een uploadveld volgt *Een ander soort veld*: naar
+`file` toont de editor eerst de kaart *Bestanden* (zoals de opties van een
+nieuwe keuzelijst); van `file` weg verdwijnen de toegestane bestanden en de
+maximale grootte, en dat moet eerst bevestigd worden.
+
+### Welke soorten, en waarom niet meer
+
+| Soort | Herkend aan | Opmerking |
+|---|---|---|
+| JPG, PNG, WEBP, GIF | `getimagesize()` moet precies dat beeldtype teruggeven | WEBP en GIF accepteerde het contactblok al |
+| PDF | de eerste vijf bytes zijn `%PDF-` | |
+| **SVG** | — | **Niet in V1.** Een SVG is een document dat script kan bevatten. Als download in het CMS is het onschuldig, maar de melding geeft het bestand aan het mailprogramma van de eigenaar, en een SVG van een onbekende bezoeker zo zuiveren dat dat veilig is, is een project op zich. Geen schijnveiligheid |
+| **ZIP** | — | **Niet in V1.** Een archief is niet te keuren zonder het uit te pakken — precies wat een decompressiebom wil — en de inhoud is wat de afzender wil |
+| HTML, PHP, scripts, Office | — | Nooit |
+
+### Hoe een bestand gekeurd wordt
+
+`App\Service\Forms\FormUploadInspector` beoordeelt één ingang van `$_FILES`
+en schrijft niets. Het antwoord is *geen bestand*, *geaccepteerd*
+(`FormUpload`) of een zin voor naast het veld, in de taal van het verzoek:
+
+1. De ingang moet één bestand zijn; lijsten en rare vormen worden geweigerd.
+2. PHP's eigen foutcode: `UPLOAD_ERR_NO_FILE` is "geen bestand",
+   `INI_SIZE`/`FORM_SIZE` wordt "te groot, maximaal …", `PARTIAL` "kwam niet
+   helemaal aan", de rest "kon niet worden ontvangen" (en een regel in het
+   serverlog). **Nooit een stil ontbrekend bestand.**
+3. `is_uploaded_file()` moet waar zijn.
+4. De grootte komt van het bestand op schijf, niet uit het verzoek. Leeg en
+   groter dan de limiet worden geweigerd.
+5. De extensie van de naam moet bij een aangevinkte soort horen.
+6. De inhoud moet precies die soort zijn (zie de tabel). Een PNG die
+   `scan.pdf` heet en een script dat `foto.jpg` heet, worden allebei
+   geweigerd. Het MIME-type dat de browser meestuurt, wordt niet eens gelezen.
+7. Dan pas: SHA-256 van de inhoud.
+
+Verplicht en "niet ingevuld" is de gedeelde regel van `FormValidator`, met de
+eigen zin van het type (*Kies een bestand bij …*).
+
+### Maximale grootte
+
+Vier grenzen, de kleinste wint:
+
+| Grens | Waar |
+|---|---|
+| Wat het veld zegt | `file_max_bytes` |
+| Het plafond van de applicatie: 10 MB | `FormFileTypes::MAX_BYTES` |
+| `upload_max_filesize` | php.ini / `.user.ini` (Docker: 35M) |
+| `post_max_size`, min 64 kB voor de rest van het verzoek | php.ini / `.user.ini` (Docker: 40M) |
+
+`FormFileTypes::systemMaxBytes()` rekent dat uit. De editor biedt alleen de
+groottes aan die daaronder blijven en zegt wat het plafond is; het endpoint
+weigert elke andere; de repository schrijft nooit meer dan 10 MB; en het
+leesmodel kapt een opgeslagen waarde af op wat de installatie vandaag
+aankan. De bezoeker ziet de limiet die echt geldt, onder het veld.
+
+**Een verzoek groter dan `post_max_size`** komt bij PHP binnen met een lege
+`$_POST` én `$_FILES`: de formuliersleutel is dan ook weg.
+`api/form-submit.php` herkent dat en antwoordt *Wat je verstuurde is te groot
+om te ontvangen* — `413` voor de `fetch()`, en zonder JavaScript een 303 naar
+de pagina uit de `Referer` (alleen een pad op deze site, anders `/`), met de
+melding boven het formulier. Welk formulier dat is, staat daarom ook in het
+actie-adres (`/api/form-submit.php?instance=…`): een querystring overleeft
+wat PHP weggooit. Dit vraagt `display_errors` uit, zoals op een live site:
+PHP drukt zijn waarschuwing over zo'n verzoek af vóór het script begint, en
+daarna kan het endpoint zijn status niet meer zetten.
+
+### Opslag
+
+- **Pas na de volledige validatie.** Faalt er één veld, dan wordt niets
+  verplaatst; PHP gooit zijn tijdelijke bestanden na het verzoek zelf weg.
+- **Buiten de webroot**, in dezelfde map als altijd:
+  `App\Service\ContactAttachmentStorage` (standaard `../storage/contact-attachments/`,
+  of `CONTACT_ATTACHMENTS_PATH`). Er bestaat geen publiek adres voor een
+  bestand.
+- **Onder een willekeurige naam**: 32 hex-tekens plus de extensie van de
+  soort die de inhoud bleek te zijn (`.pdf`), nooit de naam van de bezoeker.
+  Die naam wordt alleen als label bewaard, ontdaan van mappen (beide
+  schuine strepen), stuurtekens (ook NUL), richtingstekens (die `gpj.exe`
+  als `exe.jpg` laten lezen), aanhalingstekens en voorloopspunten.
+- **Gekoppeld aan inzending én veld**, in dezelfde transactie als de
+  inzending: `form_submission_attachments` met `submission_id`, `field_key`,
+  `stored_filename` (een naam, geen machinepad), `original_filename`,
+  `mime_type`, `file_size`, `sha256`, `created_at`. Een unieke index op
+  `(submission_id, field_key)`: één bestand per veld per inzending.
+- **Geen wees.** Lukt een bestand verplaatsen niet, dan gaan de al
+  verplaatste weer weg en krijgt de bezoeker de algemene fout. Kan de
+  inzending niet geschreven worden, of bewaart het formulier niets, dan
+  wordt elk opgeslagen bestand verwijderd voordat het antwoord vertrekt.
+
+Het antwoord van het veld in de inzending (`form_submission_values.value`) is
+de naam en de grootte: *offerte.pdf (240 kB)*. Zo leest een oude inzending
+nog goed als het veld later weg is.
+
+### Een bestand downloaden
+
+Alleen via `GET /api/admin/form-submission-attachment.php?submission=<id>&file=<id>`:
+
+- ingelogd en `forms.submissions` (zonder login naar het inlogscherm,
+  zonder recht `403`); formulieren bouwen geeft geen toegang;
+- **beide id's moeten bij elkaar horen** (`FormSubmissionRepository::attachment()`).
+  Het id van een bestand van een andere inzending, een onbekend id, een pad
+  of een opgeslagen naam in het verzoek: allemaal `404`, hetzelfde antwoord
+  als een bestand dat niet bestaat. Er wordt nooit een pad uit het verzoek
+  geopend;
+- altijd `Content-Disposition: attachment`, met een ASCII-naam en de volledige
+  naam als `filename*`; het MIME-type alleen als het een soort uit de lijst
+  is (anders `application/octet-stream`); `X-Content-Type-Options: nosniff`,
+  `Content-Security-Policy: default-src 'none'; sandbox`, `Cache-Control:
+  private, no-store`.
+
+Het is een GET die niets wijzigt en heeft daarom geen CSRF-token, zoals elke
+download in het admin. De inzending noemt elk bestand bij zijn veld met een
+downloadlink; een bestand dat van schijf verdwenen is, heet daar
+*Bestand ontbreekt* in plaats van een link.
+
+### Verwijderen en bewaren
+
+- **Inzending verwijderen** (`api/admin/delete-form-submission.php`, met
+  login, recht, POST en CSRF) leest eerst alle bestanden van díe inzending,
+  verwijdert de rijen, en daarna de bestanden. Een bestand dat al weg is, is
+  geen fout. Een ander bestand dan die van deze inzending is niet te
+  bereiken.
+- **Veld verwijderen** laat bewaarde inzendingen en hun bestanden staan, net
+  als hun antwoorden.
+- **Formulier verwijderen** kan niet zolang er inzendingen zijn (zie
+  *Gebruik en veilig verwijderen*), dus ook geen bestanden als bijvangst.
+- **Geen automatische bewaartermijn**, zoals voor de rest van een inzending
+  (zie *Privacy*).
+
+### E-mail
+
+Elk bestand gaat als **echte bijlage** mee met de melding, in de volgorde van
+de velden, onder een generieke naam (`<veldsleutel>.<extensie>`), zolang de
+bijlagen samen binnen 15 MB blijven
+(`FormSubmissionHandler::MAIL_ATTACHMENT_BUDGET`; base64 maakt daar ongeveer
+20 MB van, en veel mailservers weigeren 25). Een bestand dat niet meer past,
+wordt bij zijn antwoord genoemd: *niet bijgevoegd, te groot voor deze e-mail;
+te downloaden bij de inzending in het CMS*, of — als het formulier niets
+bewaart — dat het bestand niet bewaard is. Met één uploadveld (maximaal 10 MB)
+past het altijd. Er gaat geen link naar het CMS mee in de melding.
+
+Dat is het gedrag van het oude contactformulier: de bijlage ging mee, als
+`bijlage.<extensie>`. Het omgezette veld heet `bijlage`, dus ook de naam in
+de mail is dezelfde gebleven.
+
+### Na een geweigerde inzending
+
+Een browser kan een bestandskiezer niet opnieuw vullen, en dit CMS houdt geen
+bestand vast tussen twee verzoeken (geen tijdelijke uploadcache). **Bewuste
+V1-beperking.**
+
+- **Met JavaScript** verlaat de bezoeker de pagina niet: het gekozen bestand
+  staat er nog, alleen de meldingen verschijnen.
+- **Zonder JavaScript** komt het formulier terug met de ingevulde tekst, en
+  naast een bestand dat wél goed was: *Kies het bestand bij … opnieuw: een
+  bestand wordt niet bewaard als het formulier terugkomt*
+  (`FormValidationResult::errorsAfterRedirect()`). Een bestand dat zelf fout
+  was, krijgt zijn eigen melding.
+
+### Voorbeeld en breedte
+
+Het voorbeeld in de formuliereditor is `render_form()`, dus het uploadveld
+staat er precies zoals op de site, met zijn regel *JPG, PNG of PDF, max.
+5 MB.* Een bestand kiezen kan daar, maar versturen niet: het frame heeft geen
+`allow-forms`, en de browser weigert het verzoek (in de browser nagegaan).
+
+Een uploadveld neemt elke breedte van *Breedte van een veld*, en staat op
+een telefoon over de hele rij. De bestandskiezer krimpt mee met zijn cel en
+de regel eronder breekt overal af, dus ook een zeer lange bestandsnaam geeft
+geen horizontale scrollbalk (gemeten op 1280 en 375 pixels, in een cel van
+een derde).
+
+### Dreigingen en antwoorden
+
+| Dreiging | Antwoord |
+|---|---|
+| MIME-spoofing | Het meegestuurde MIME-type wordt niet gelezen; de inhoud beslist |
+| Extensie-spoofing | Extensie én inhoud moeten dezelfde soort zijn |
+| Dubbele extensie (`x.php.jpg`) | Alleen de laatste telt, de inhoud moet dan een JPEG zijn, en opgeslagen wordt `<willekeurig>.jpg` |
+| Path traversal, NUL, rare Unicode | De naam is alleen een label en wordt schoongemaakt; de opslagnaam is willekeurig; `path()` en `delete()` nemen alleen een kale naam |
+| Willekeurig bestand schrijven | Alleen `move_uploaded_file()` van een echte upload, naar de eigen map |
+| Uitvoerbare upload, PHP, HTML | Niet in de lijst; en de map ligt buiten de webroot |
+| SVG/XSS | Geen SVG; download altijd als bijlage met `nosniff` en sandbox-CSP |
+| ZIP en decompressiebommen | Geen ZIP; beelden worden niet gedecodeerd, `getimagesize()` leest alleen de kop |
+| Te groot verzoek | Vier grenzen; `post_max_size`-overschrijding krijgt een eigen antwoord |
+| Header-injectie via de naam | Aanhalingstekens, backslashes en stuurtekens eruit; ASCII-naam plus `filename*`; in de mail een generieke naam |
+| IDOR bij downloaden | Inzending én bestand moeten bij elkaar horen; anders `404` |
+| Rechtstreeks via het web | Geen publiek adres; de map ligt buiten de webroot |
+| CSRF | Downloaden is een GET zonder effect; verwijderen heeft de vier guards |
+| Weesbestanden | Opslaan pas na validatie; opruimen bij elk pad zonder inzendingsrij |
+| Verwijderen terwijl er gedownload wordt | Rijen eerst, bestanden daarna: een download vindt daarna geen rij meer en geeft `404` |
+| Dubbel versturen | Twee inzendingen met elk hun eigen bestanden; de rate limit begrenst |
+| Kapotte of lijst-vormige `$_FILES` | Geweigerd met *Kies één bestand* |
+
 ## Talen
 
 Een formulier heeft zoveel talen als de site actief heeft (`site_languages`).
@@ -403,6 +648,13 @@ het veldtype het schoonmaken, past de twee gedeelde regels toe (verplicht, en
 niet langer dan het type toestaat) en vraagt daarna het type om zijn eigen
 regel.
 
+Een uploadveld (`acceptsFile()`) leest op dezelfde manier zijn **eigen**
+ingang van `$_FILES`, onder dezelfde sleutel uit dezelfde definitie, en nooit
+`$_POST`. Een bestand onder een naam waar het formulier geen uploadveld voor
+heeft, wordt niet eens bekeken. Dat is de enige plek waar de validator een
+declaratie van een type leest in plaats van alleen `normalize()`: er is geen
+`if ($type === 'file')`.
+
 Die richting is het hele punt: **een veld dat het formulier niet heeft wordt
 nooit gelezen, nooit gevalideerd en nooit opgeslagen**, wat een POST ook
 meestuurt. `required`, `maxlength` en een `<select>` in de browser zijn
@@ -423,6 +675,12 @@ behandeld.**
 Er is geen e-mailsjabloon per formulier en geen template-editor: een
 melding wordt één keer gelezen door één persoon die wil weten wat iemand
 vroeg.
+
+**Bestanden gaan als echte bijlage mee**, onder een generieke naam (de
+sleutel van het veld plus de extensie van wat het bestand is, bijvoorbeeld
+`bijlage.pdf`), nooit onder de naam die de bezoeker het gaf. Het antwoord van
+het veld noemt die naam en de grootte. Zie *Bestand uploaden*, "E-mail", voor
+wat er gebeurt als de bestanden samen te groot zijn.
 
 ### Ontvanger
 
@@ -599,24 +857,47 @@ veld, gezet door
 woord staat nergens in een renderer of een controller, en
 `Tests\Service\FormBoundaryTest` laat de build falen als het er terugkomt.
 
-Wat het blok zelf houdt zijn de twee dingen die een generiek formulierblok
-niet hoort te hebben:
+Wat het blok zelf houdt, is het ene ding dat een generiek formulierblok
+niet hoort te hebben: **de kaart "Direct contact"** ernaast, die het
+e-mailadres en de plaats (of regio) uit Instellingen toont en de tweede kolom
+van het raster vult. Beide zijn daar optioneel; een regel zonder waarde wordt
+weggelaten. De kaart zegt verder niets over het bedrijf: een belofte als een
+reactietijd of "ophalen op afspraak" is inhoud zonder veld, en staat er dus
+niet.
 
-- **de kaart "Direct contact"** ernaast, die het e-mailadres en de plaats
-  (of regio) uit Instellingen toont en de tweede kolom van het raster
-  vult. Beide zijn daar optioneel; een regel zonder waarde wordt weggelaten.
-  De kaart zegt verder niets over het bedrijf: een belofte als een
-  reactietijd of "ophalen op afspraak" is inhoud zonder veld, en staat er
-  dus niet;
-- **de optionele bijlage**. Forms V1 heeft geen uploadveld en de
-  formulierbouwer kan er geen maken — maar deze site accepteert al jaren een
-  foto of pdf bij een offerteaanvraag, en dat weghalen zou een regressie zijn,
-  geen vereenvoudiging. Het bestand wordt gevalideerd op zijn magic bytes,
-  opgeslagen buiten de webroot, meegestuurd met de melding en is alleen via
-  het CMS te downloaden. Een bestand dat wordt gepost naar een formulier
-  waarvoor geen enkel contactblok bijlagen aan heeft staan, wordt genegeerd
-  (`FormAttachmentPolicy`) — dat is een configuratievraag met een
-  server-side antwoord, niet iets wat het request mag zeggen.
+**Een bijlage is een veld, geen blokinstelling.** Tot Forms 2.0 fase 2 had
+dit blok een schakelaar `allow_attachment` en drukte het na de velden een
+vaste bestandskiezer `bestand` af, met een eigen validator
+(`ContactAttachmentValidator`) en een eigen beleid (`FormAttachmentPolicy`).
+Dat is allemaal weg. Wil een offerteformulier een foto of pdf, dan voegt de
+redacteur het veld *Bestand uploaden* toe, zoals op elk ander formulier (zie
+*Bestand uploaden*). Het blok voegt niets meer toe en dwingt niets af; de
+blokeditor zegt alleen waar je zo'n veld maakt.
+
+**Geen site verloor zijn bijlage.** De migratie `20260925100000` gaf elk
+formulier waarvoor een contactblok de schakelaar aan had staan precies één
+gewoon, optioneel uploadveld met wat de oude bestandskiezer accepteerde:
+
+| | |
+|---|---|
+| Label | *Bijlage*, en *Attachment* als Engels een websitetaal is |
+| Soort | `file`, niet verplicht, volle breedte, onderaan het formulier |
+| Toegestaan | JPG, PNG, WEBP, GIF en PDF, maximaal 8 MB |
+| Sleutel | `bijlage`, of `bijlage-2` … als het formulier die al had |
+
+Een formulier met al een uploadveld kreeg er geen tweede bij. Daarna ging elke
+schakelaar naar 0, en de standaard van de kolom ook. De kolom blijft bestaan
+(niets leest hem nog; weghalen zou alleen een terugrol van de code lastiger
+maken). Een verse installatie heeft geen contactblok (`20260909310000`) en
+krijgt dus nergens een uploadveld. Bestaande inzendingen zijn niet aangeraakt:
+hun bijlage heeft geen veld en blijft bij de inzending te downloaden.
+
+Hetzelfde formulier op meerdere plekken toont nu overal het uploadveld, ook
+in een gewoon blok *Formulier*: het veld hoort bij de definitie, niet bij
+een plaatsing. Een pagina die nog openstond van vóór de update verstuurt zijn
+bestand onder de oude naam `bestand`; die bestaat voor geen enkel formulier,
+dus dat ene bestand wordt genegeerd (`bestand` blijft een gereserveerde
+sleutel in `FormFieldKey`).
 
 `api/contact.php` is nog slechts een **compatibiliteitsschil** voor een
 pagina die iemand nog open heeft staan van vóór de wijziging: het hernoemt drie
@@ -791,6 +1072,7 @@ type gebruikt"):
 | Wat de bezoeker leest | label en uitleg in de taal die je bewerkt; de voorbeeldtekst (placeholder) alleen bij een type dat die gebruikt |
 | Opties | alleen bij een keuzeveld: een rij per optie met *Standaard*, ↑ en ↓ |
 | Invullen | de schakelaar *Verplicht invullen*; bij Toestemming alleen de zin dat het altijd verplicht is |
+| Bestanden | alleen bij *Bestand uploaden*: een vinkje per toegestane soort en de maximale grootte (zie *Bestand uploaden*) |
 | Breedte | *Breedte in het formulier*: de zes breedtes uit *Breedte van een veld*, bij elk type |
 | Technische gegevens | ingeklapt, buiten het formulier: de interne naam |
 
@@ -913,6 +1195,7 @@ iets bevat, telt:
 | de opties | keuzeveld → elk ander soort, met opties |
 | de standaardkeuze | keuzeveld → elk ander soort, met een bruikbare standaard |
 | het antwoordadres | e-mailadres → ander soort, als dít veld het antwoordadres van het formulier is |
+| de toegestane bestanden en de maximale grootte | bestand uploaden → elk ander soort |
 
 Verliesvrij zijn dus onder meer keuzelijst ↔ keuzerondjes, tussen de vier
 tekst-achtige types (behalve het antwoordadres), en alles vanaf selectievakje
@@ -1021,9 +1304,11 @@ van bezoekers achter. Een Super Admin houdt automatisch alles.
   dat er dan nog inzendingen zijn.
 - Een inzending is nergens publiek op te vragen, staat niet in de zoekfunctie
   en niet in de sitemap.
-- Verwijderen is definitief — inclusief de antwoorden en een eventuele
-  bijlage. Er is geen prullenbak, want een prullenbak is persoonsgegevens die
-  je op een minder zichtbare plek bewaart.
+- Verwijderen is definitief — inclusief de antwoorden en **elk bestand**
+  van de inzending. Er is geen prullenbak, want een prullenbak is
+  persoonsgegevens die je op een minder zichtbare plek bewaart.
+- Een formulier dat niets bewaart, bewaart ook geen bestand: dat wordt na het
+  mailen direct weer verwijderd.
 - **Er komt nooit een ingevuld antwoord in het serverlog.** Een mislukking
   logt het formulier, het inzendingsnummer en de technische reden.
 - Het IP van een bezoeker wordt alleen als gezouten hash gebruikt, voor de
@@ -1143,6 +1428,22 @@ dat een optie op haar waarde gepost wordt en alleen haar label vertaald is, en
 dat de twee editors één taal tegelijk schrijven.
 `FormWordsAndOptionMigrationTest` (`migration`) draait de verhuizing op een
 verse, een bijgewerkte en een kapotte wegwerpdatabase.
+`FormUploadTest` (`fast`) bewaakt *Bestand uploaden* zonder database: de
+gesloten lijsten en het plafond, de keuring van een `$_FILES`-ingang met echte
+bestanden (elke soort, PHP's foutcodes, leeg, te groot, vervalst, verboden,
+lijst-vormig, de schoongemaakte naam), dat de validator `$_FILES` op de
+sleutel van de definitie leest, het besturingselement en het mailbudget.
+`FormUploadHttpTest` (`cms`) doet het over echt HTTP met echte
+multipart-uploads en een eigen opslagmap: opslag buiten de webroot met
+inzending, veld en hash; elke weigering zonder iets te schrijven; geen wees
+bij een formulier dat niets bewaart; PHP's eigen limieten en een verzoek
+boven `post_max_size` (op een tweede server met 1 MB); downloaden met de
+headers, en elke weigering (niet ingelogd, geen recht, IDOR, pad); de oude
+bijlage; verwijderen met en zonder ontbrekend bestand; de tekst van de mail.
+`FormFieldEditorHttpTest` bewijst de kaart *Bestanden*, de weigering van alles
+buiten de lijsten, en beide typewissels. `FormFileUploadMigrationTest`
+(`migration` en `cms`) draait `20260925100000` op een verse, een bijgewerkte
+en een halverwege gestopte wegwerpdatabase.
 `FormFieldWidthTest` (`fast`) bewaakt *Breedte van een veld* zonder database:
 de lijst en de classes, dat elke andere waarde als `full` leest, elk type op
 elke breedte met precies één class en zonder `style`, dat de volgorde van de
@@ -1163,7 +1464,8 @@ Niet vergeten, maar met opzet buiten V1 gelaten. Elk hiervan is een feature
 met eigen randgevallen, en een formulierbouwer die alles kan is een product op
 zichzelf:
 
-**Velden** — uploads in de bouwer, datum- en tijdkiezers, adres-composieten,
+**Velden** — meerdere bestanden in één uploadveld, SVG- en ZIP-uploads, een
+tijdelijke uploadcache na een geweigerde inzending, datum- en tijdkiezers, adres-composieten,
 repeaters, handtekeningen, rich text, verborgen waarden, betaalvelden,
 productvelden, berekende velden, vooringevulde tekstvelden.
 
@@ -1186,14 +1488,9 @@ V1 lost gewone contact- en aanvraagformulieren goed op. Dat is de hele opzet.
 
 ### Forms 2.0: fase 1 en fase 2
 
-| | Fase 1 (deze) | Fase 2 (gepland) |
+| | Fase 1 | Fase 2 |
 |---|---|---|
-| Wat | De formulierbouwer: compacte veldrijen, één *Opslaan*, terug naar het formulier na een veld, een breedte per veld, het voorbeeld | Een generiek uploadveld in de bouwer |
-| Uploads | **Niets veranderd.** Er is geen uploadtype, geen opslag voor uploads en geen multipart-ombouw. De bijlage van het offerte-/contactformulier werkt zoals in *Het contactformulier* staat: een extra besturingselement van dat blok, buiten de veldlijst, altijd een hele rij | Een veldtype volgens het recept *Een veldtype toevoegen*, met de bijlage van het contactblok als het bestaande voorbeeld van validatie en opslag |
-| Breedte | Voor elk veld in de lijst | Een uploadveld krijgt dezelfde zes breedtes; het raster hoeft niet te veranderen |
-
-Wat fase 1 voor fase 2 openlaat: `render_form()` stuurt al
-`enctype="multipart/form-data"`, `.vvl-form input[type="file"]` past al in
-een smalle cel (`form.css`), en een kind van het raster zonder breedteklasse
-neemt de hele rij.
+| Wat | De formulierbouwer: compacte veldrijen, één *Opslaan*, terug naar het formulier na een veld, een breedte per veld, het voorbeeld | Het uploadveld `file` in de bouwer (*Bestand uploaden*) |
+| Uploads | Niets veranderd | Een gewoon veldtype; de eigen bijlage van het contactblok is omgezet naar zo'n veld en verdwenen |
+| Breedte | Voor elk veld in de lijst | Ook voor een uploadveld; het raster hoefde niet te veranderen |
 
