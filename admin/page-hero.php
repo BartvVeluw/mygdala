@@ -154,7 +154,7 @@ $heightLabels = [
 
 // The picture and its choices, each read back as one of its closed list, so
 // a hand-edited row cannot select nothing.
-$heroMedia = MediaService::find(isset($values['media_id']) && $values['media_id'] !== null ? (int) $values['media_id'] : null);
+$heroMedia = MediaService::find(isset($values['media_id']) ? (int) $values['media_id'] : null);
 $imageMode = in_array($values['image_mode'] ?? null, PageHeroContent::IMAGE_MODES, true) ? (string) $values['image_mode'] : PageHeroContent::IMAGE_NONE;
 $heroHeight = in_array($values['hero_height'] ?? null, PageHeroContent::HEIGHTS, true) ? (string) $values['hero_height'] : PageHeroContent::HEIGHT_MEDIUM;
 $imageFocus = ImageFocus::normalise($values['image_focus'] ?? null);
