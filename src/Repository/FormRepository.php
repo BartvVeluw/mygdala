@@ -2,6 +2,8 @@
 
 namespace App\Repository;
 
+use App\Service\Forms\FormFieldWidth;
+
 /**
  * All `forms` and `form_fields` SQL — the definitions half of Core Forms
  * (db/migrations/20260909300000_create_the_core_forms_tables.php,
@@ -199,14 +201,15 @@ class FormRepository extends Repository
     {
         $stmt = $this->db->prepare(
             'INSERT INTO form_fields
-                (form_id, field_key, field_type, is_required, sort_order, default_value,
+                (form_id, field_key, field_type, is_required, layout_width, sort_order, default_value,
                  created_at, updated_at)
              VALUES
-                (:form_id, :field_key, :field_type, :is_required, :sort_order, :default_value,
+                (:form_id, :field_key, :field_type, :is_required, :layout_width, :sort_order, :default_value,
                  NOW(), NOW())'
         );
 
         $stmt->execute($this->fieldParameters($values) + [
+            'layout_width' => FormFieldWidth::fromStored($values['layout_width'] ?? null),
             'form_id' => $formId,
             'field_key' => (string) $values['field_key'],
             'field_type' => (string) $values['field_type'],
@@ -221,6 +224,11 @@ class FormRepository extends Repository
      * key is immutable once answers have been filed under it, and the
      * position is moved with moveField().
      *
+     * `layout_width` is a key of App\Service\Forms\FormFieldWidth and
+     * nothing else: the editor refuses any other value before it gets here,
+     * and whatever still slips through is written as `full` rather than as a
+     * class or a style nobody chose. Left out, the stored width stays.
+     *
      * @param array<string, mixed> $values
      */
     public function updateField(int $fieldId, array $values): void
@@ -229,12 +237,17 @@ class FormRepository extends Repository
             'UPDATE form_fields SET
                 field_type = :field_type,
                 is_required = :is_required,
+                layout_width = COALESCE(:layout_width, layout_width),
                 default_value = :default_value,
                 updated_at = NOW()
               WHERE id = :id'
         );
 
         $stmt->execute($this->fieldParameters($values) + [
+            // Left as stored when the caller says nothing about it.
+            'layout_width' => array_key_exists('layout_width', $values)
+                ? FormFieldWidth::fromStored($values['layout_width'])
+                : null,
             'id' => $fieldId,
             'field_type' => (string) $values['field_type'],
         ]);

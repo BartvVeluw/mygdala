@@ -47,6 +47,12 @@ final class FormField
          * whatever language the visitor had on screen.
          */
         public readonly string $recordedLabel,
+        /**
+         * How wide the field sits in its form: a FormFieldWidth key, `full`
+         * for a row that holds none it knows. Structure, the same in every
+         * language.
+         */
+        public readonly string $width,
     ) {
     }
 
@@ -91,6 +97,7 @@ final class FormField
             // rather than a pre-selection nothing matches.
             self::usableDefault($type, $options, $row['default_value'] ?? null),
             self::recordedLabel($translations),
+            FormFieldWidth::fromStored($row['layout_width'] ?? null),
         );
     }
 

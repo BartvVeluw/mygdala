@@ -37,6 +37,7 @@
 
 use App\Service\Forms\FieldTypes\FormFieldControl;
 use App\Service\Forms\FormDefinition;
+use App\Service\Forms\FormFieldWidth;
 use App\Service\Forms\FormRenderState;
 use App\Service\Forms\FormSourcePath;
 use App\Service\Forms\FormSpamGuard;
@@ -174,11 +175,13 @@ function render_form_field(\App\Service\Forms\FormField $field, FormRenderState 
     );
 
     $position = $type->labelPosition();
-    // A textarea and a group of radios want the full width of the grid; a
-    // name and an e-mail address sit comfortably side by side.
-    $fullWidth = $position !== 'before' || in_array($type->key(), ['textarea', 'select'], true);
 
-    $classes = 'form-field' . ($fullWidth ? ' form-field--full' : '') . ($error !== null ? ' has-error' : '');
+    // The width the editor chose, as one of six fixed classes
+    // (App\Service\Forms\FormFieldWidth) — never a style, never a number from
+    // a row. assets/css/blocks/form.css turns it into columns, and on a
+    // narrow screen into a full row. The fields stay in their own order, so
+    // the tab order is the order the editor gave them.
+    $classes = 'form-field ' . FormFieldWidth::cssClass($field->width) . ($error !== null ? ' has-error' : '');
     ?>
   <div class="<?= $h($classes) ?>">
     <?php if ($position === 'legend'): ?>

@@ -9,6 +9,50 @@
    assets/css/core.css, which this file loads after and never repeats.
    ========================================================================= */
 
+/* The width of a field (Forms 2.0 phase 1, FORMS.md "Breedte van een
+   veld"). The shared .form-grid is two equal columns (core.css, also the
+   checkout's); inside a Forms form it becomes twelve, and each field spans
+   the share the editor chose. partials/form.php prints exactly one of the
+   six classes below per field, from the closed list in
+   App\Service\Forms\FormFieldWidth — never a style and never a number from a
+   request.
+
+   Six columns of twelve are exactly as wide as one column of two (the gap is
+   the same), so the halves every form had before this file knew about widths
+   land on the same pixels. A child without a width class (the contact
+   block's attachment) takes the whole row, as .form-field--full always did.
+
+   Fields keep their order in the markup, so the tab order is the editor's
+   order whatever the widths. A row that is not full leaves room on its right
+   rather than pulling a later field back into it. */
+.vvl-form .form-grid {
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+}
+
+.vvl-form .form-grid > * {
+  grid-column: 1 / -1;
+}
+
+.vvl-form .form-grid > .form-field--three-quarters { grid-column: span 9; }
+.vvl-form .form-grid > .form-field--two-thirds { grid-column: span 8; }
+.vvl-form .form-grid > .form-field--half { grid-column: span 6; }
+.vvl-form .form-grid > .form-field--third { grid-column: span 4; }
+.vvl-form .form-grid > .form-field--quarter { grid-column: span 3; }
+
+/* On a phone every field is a full row: the same 640px at which the shared
+   .form-grid has always put its two columns under each other (core.css), so
+   a form stacks where it always stacked. */
+@media (max-width: 640px) {
+  .vvl-form .form-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  /* As specific as the width rules above and later, so it wins. */
+  .vvl-form .form-grid > .form-field {
+    grid-column: 1 / -1;
+  }
+}
+
 /* A radio group is a <fieldset> so it has one accessible name. Browsers give
    fieldsets a border and padding of their own, which would draw a box round
    one field in a form that has none anywhere else. */

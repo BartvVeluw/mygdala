@@ -278,11 +278,12 @@ final class BlockSamples
      */
     public function form(): FormDefinition
     {
-        $field = fn (int $order, string $key, string $type, string $role, bool $required): array => [
+        $field = fn (int $order, string $key, string $type, string $role, bool $required, string $width): array => [
             'id' => 0,
             'field_key' => $key,
             'field_type' => $type,
             'is_required' => $required,
+            'layout_width' => $width,
             'sort_order' => $order,
             'translations' => $this->words(['label' => $role]),
             'choices' => [],
@@ -298,9 +299,9 @@ final class BlockSamples
                 'translations' => $this->words(['submit_label' => 'submit', 'success_message' => 'form_success']),
             ],
             [
-                $field(1, 'naam', 'text', 'field_name', true),
-                $field(2, 'email', 'email', 'field_email', true),
-                $field(3, 'bericht', 'textarea', 'field_message', false),
+                $field(1, 'naam', 'text', 'field_name', true, 'half'),
+                $field(2, 'email', 'email', 'field_email', true, 'half'),
+                $field(3, 'bericht', 'textarea', 'field_message', false, 'full'),
             ]
         );
     }
