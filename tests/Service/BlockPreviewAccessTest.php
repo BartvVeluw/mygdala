@@ -156,7 +156,7 @@ final class BlockPreviewAccessTest extends TestCase
         $body = $response['body'];
 
         $this->assertSame(200, $response['status']);
-        $this->assertStringContainsString('<section class="page-hero page-hero--media">', $body, 'the partial\'s own markup');
+        $this->assertStringContainsString('<section class="page-hero page-hero--background">', $body, 'the partial\'s own markup');
         $this->assertStringContainsString(BlockSamples::IMAGE_PATH, $body, 'with the sample picture');
         $this->assertMatchesRegularExpression('#<link rel="stylesheet" href="/assets/css/core\.css#', $body, 'after the site shell');
         $this->assertMatchesRegularExpression('#<link rel="stylesheet" href="/assets/css/blocks/page-hero\.css#', $body, 'and its own stylesheet');
