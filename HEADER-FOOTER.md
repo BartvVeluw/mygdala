@@ -609,7 +609,9 @@ dat rendert of het het pad draagt (`App\Service\Blocks\CarriesBreadcrumb`):
 Het pad staat dus altijd precies één keer op de pagina, en of het er staat
 blijft de keuze van de pagina (`pages.show_breadcrumb`). Alleen het eerste
 blok wordt gevraagd: een Paginakop verderop op de pagina neemt het pad niet
-naar beneden mee.
+naar beneden mee. Het pad komt ongewijzigd mee, hoe lang het ook is: een
+geneste pagina met haar bovenliggende pagina's staat in de band met elk
+niveau, precies zoals in de losse balk.
 
 ### Legacy
 
