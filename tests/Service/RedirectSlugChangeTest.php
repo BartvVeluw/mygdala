@@ -288,19 +288,24 @@ class RedirectSlugChangeTest extends TestCase
     {
         $source = (string) file_get_contents(dirname(__DIR__, 2) . '/api/admin/update-page.php');
 
-        // The language is part of the call since Multilingual 2.0 phase 6:
-        // a rename is recorded in the URL space of the language it happened
-        // in (docs/multilingual/ROUTING.md).
+        // Since pages nest (docs/pages/NESTING.md) a rename is a change of
+        // whole paths: the page's own and every page's below it, in every
+        // language, compared before and after the save. Only a path that
+        // really changed becomes a move (PageService::pathMoves(), proven in
+        // Tests\Service\PagePathTest), each in the URL space of its own
+        // language, and all of them are written together.
+        $this->assertStringContainsString('$pathsBefore = PagePath::snapshot($movingIds);', $source);
         $this->assertStringContainsString(
-            '(new SlugChangeRedirects())->record($oldSlug, $slug, $languageCode)',
-            $source
+            '$moves = PageService::pathMoves($pathsBefore, PagePath::snapshot($movingIds), $redirectable);',
+            $source,
+            'only a path that really changed may write one'
         );
-        $this->assertStringContainsString('$oldSlug !== $slug', $source, 'only a real slug change may write one');
+        $this->assertStringContainsString('(new SlugChangeRedirects())->recordMoves($moves)', $source);
         // The other three conditions — no fixed URL, was published, stays
         // published — live in one rule the confirmation screen asks as well;
         // Tests\Service\PageUrlChangeTest proves each of them on that rule.
         $this->assertStringContainsString(
-            'PageService::oldAddressWillRedirect($page, $status)',
+            '$redirectable = [$id => PageService::oldAddressWillRedirect($page, $status)];',
             $source,
             'a fixed URL, a draft and a rename that unpublishes must not write one'
         );
