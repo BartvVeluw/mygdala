@@ -58,7 +58,20 @@ final class RouteResolver
     {
         $pattern = $route['pattern'] === '' ? [] : explode('/', $route['pattern']);
 
-        if (count($pattern) !== count($segments)) {
+        // A trailing `{name+}` takes the rest of the path: one to
+        // RouteTable::MAX_PAGE_SEGMENTS segments, each a capture of its own
+        // charset, handed on joined by '/'.
+        $rest = null;
+        $last = end($pattern);
+        if (is_string($last) && str_starts_with($last, '{') && str_ends_with($last, '+}')) {
+            $rest = substr($last, 1, -2);
+            array_pop($pattern);
+
+            $restCount = count($segments) - count($pattern);
+            if ($restCount < 1 || $restCount > RouteTable::MAX_PAGE_SEGMENTS) {
+                return null;
+            }
+        } elseif (count($pattern) !== count($segments)) {
             return null;
         }
 
@@ -102,6 +115,19 @@ final class RouteResolver
 
             $captures[$name] = $segment;
             $canonical[] = $segment;
+        }
+
+        if ($rest !== null) {
+            $tail = array_slice($segments, count($pattern));
+
+            foreach ($tail as $segment) {
+                if (preg_match(RouteTable::CAPTURE_PATTERN, $segment) !== 1) {
+                    return null;
+                }
+            }
+
+            $captures[$rest] = implode('/', $tail);
+            array_push($canonical, ...$tail);
         }
 
         $query = [];

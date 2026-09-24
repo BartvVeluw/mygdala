@@ -194,15 +194,40 @@ final class RouteResolverTest extends TestCase
         self::assertNull($this->resolve(['café']));
     }
 
-    public function testAnUnknownTwoSegmentPathResolvesToNothing(): void
+    /**
+     * Since pages nest (docs/pages/NESTING.md) every path of one to
+     * RouteTable::MAX_PAGE_SEGMENTS clean segments has the SHAPE of a page
+     * path, and is handed to pagina.php. Whether a page lives there is that
+     * template's lookup (PageContent::forPath()), which answers the same 404
+     * and asks the Redirect Manager exactly as the dispatcher's own 404 did.
+     */
+    public function testAnUnknownTwoSegmentPathIsAPagePathThatPaginaPhpJudges(): void
     {
-        self::assertNull($this->resolve(['oude', 'pagina']));
+        self::assertSame(
+            ['key' => 'core.page', 'template' => 'pagina.php', 'query' => ['slug' => 'oude/pagina'], 'canonical' => null],
+            $this->resolve(['oude', 'pagina'])
+        );
     }
 
-    public function testAnUnknownNamespaceResolvesToNothing(): void
+    public function testAnUnknownNamespaceIsAPagePathTooAndNeverAnotherRoute(): void
     {
-        self::assertNull($this->resolve(['kollektie', 'hout']));
-        self::assertNull($this->resolve(['blog', 'categorie', 'hout', 'te-diep']));
+        self::assertSame('core.page', $this->resolve(['kollektie', 'hout'])['key'] ?? null);
+        self::assertSame('core.page', $this->resolve(['blog', 'categorie', 'hout', 'te-diep'])['key'] ?? null);
+    }
+
+    public function testAPagePathLongerThanTheDeepestPageResolvesToNothing(): void
+    {
+        $deepest = array_fill(0, RouteTable::MAX_PAGE_SEGMENTS, 'a');
+
+        self::assertSame('core.page', $this->resolve($deepest)['key'] ?? null);
+        self::assertNull($this->resolve([...$deepest, 'a']));
+    }
+
+    public function testEverySegmentOfAPagePathKeepsTheSlugCharset(): void
+    {
+        self::assertNull($this->resolve(['metaal-graveren', 'RVS']));
+        self::assertNull($this->resolve(['metaal-graveren', 'oud_pad']));
+        self::assertNull($this->resolve(['metaal-graveren', 'rvs', 'x.html']));
     }
 
     public function testAnArchiveNamespaceWithoutASlugIsAPostSlugLikeItAlwaysWas(): void

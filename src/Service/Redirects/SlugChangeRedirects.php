@@ -8,10 +8,12 @@ use App\Repository\RedirectRepository;
 use App\Service\Routing\LocalizedUrl;
 
 /**
- * Keeps a renamed CMS page's OLD URL working, automatically.
+ * Keeps a renamed or moved CMS page's OLD URL working, automatically.
  *
  * Called from api/admin/update-page.php once a page has actually been saved
- * with a different slug. Nothing else calls it, and it deliberately has no
+ * with a different path — its own slug, its parent, or an ancestor's slug
+ * (recordMoves(), docs/pages/NESTING.md) — and by the Blog for its renames
+ * (record()). Nothing else calls it, and it deliberately has no
  * hook for deleting or unpublishing a page: inventing a destination for
  * content that is simply gone — "everything that was here now goes to the
  * homepage" — is a well-known way to turn a clean 404 into a soft 404, and
@@ -97,6 +99,85 @@ final class SlugChangeRedirects
             error_log('[SlugChangeRedirects] could not record ' . $oldPath . ' -> ' . $newPath . ': ' . $e->getMessage());
 
             return false;
+        }
+    }
+
+    /**
+     * Records that one or more pages MOVED, as whole paths rather than slugs —
+     * what a page gets when it is nested, moved to another parent, or when a
+     * page above it is renamed (Pagina's 2.0, docs/pages/NESTING.md).
+     *
+     * One move of a page with a subtree is many moves at once:
+     *
+     *     /materiaal/metaal/aluminium   ->   /materialen/metaal/aluminium
+     *     /materiaal/metaal             ->   /materialen/metaal
+     *     /materiaal                    ->   /materialen
+     *
+     * and every one of them is recorded exactly like a rename: the same three
+     * steps, the same respect for a redirect an editor wrote by hand, the same
+     * guard against a row that would redirect to itself. The caller computes
+     * the paths — every page's path in every language before the save and
+     * after it (App\Service\PagePath::snapshot()) — and hands over only the
+     * pairs that really changed and whose page was and stays published.
+     *
+     * ALL OR NOTHING, and still failing safe. The moves are written in one
+     * transaction, so a subtree never ends up half redirected; a failure rolls
+     * them all back, is logged, and returns 0 — the save that caused it has
+     * already happened and stays done, like a rename's.
+     *
+     * @param list<array{from: string, to: string}> $moves site-relative paths,
+     *        with their language prefix already on (App\Service\Routing\LocalizedUrl)
+     * @return int how many old paths now redirect
+     */
+    public function recordMoves(array $moves): int
+    {
+        $pairs = [];
+
+        foreach ($moves as $move) {
+            $oldPath = RedirectPath::normalize((string) ($move['from'] ?? ''));
+            $newPath = RedirectPath::normalize((string) ($move['to'] ?? ''));
+
+            if ($oldPath === null || $newPath === null || $oldPath === $newPath || $oldPath === '/' || $newPath === '/') {
+                continue;
+            }
+
+            $pairs[$oldPath] = $newPath;
+        }
+
+        if ($pairs === []) {
+            return 0;
+        }
+
+        $db = \App\Database::connection();
+        $ownTransaction = !$db->inTransaction();
+        $recorded = 0;
+
+        try {
+            if ($ownTransaction) {
+                $db->beginTransaction();
+            }
+
+            foreach ($pairs as $oldPath => $newPath) {
+                $this->removeRedirectsOn($newPath);
+                if ($this->pointOldAtNew($oldPath, $newPath) !== null) {
+                    $recorded++;
+                }
+                $this->collapseChainsInto($oldPath, $newPath);
+            }
+
+            if ($ownTransaction) {
+                $db->commit();
+            }
+
+            return $recorded;
+        } catch (\Throwable $e) {
+            if ($ownTransaction && $db->inTransaction()) {
+                $db->rollBack();
+            }
+
+            error_log('[SlugChangeRedirects] could not record ' . count($pairs) . ' moved page path(s): ' . $e->getMessage());
+
+            return 0;
         }
     }
 

@@ -37,6 +37,33 @@ class PageRepository extends Repository
     }
 
     /**
+     * The shape of the page tree and nothing else: one light row per page,
+     * in sibling order. What App\Service\PagePath builds every page's
+     * ancestor chain from, in one query for the whole site, so a list of a
+     * hundred pages never asks for its parents one at a time.
+     *
+     * @return list<array<string, mixed>>
+     */
+    public function findStructure(): array
+    {
+        $stmt = $this->db->query(
+            'SELECT id, parent_id, admin_group, slug, route_path, is_system, status, sort_order
+             FROM pages ORDER BY sort_order ASC, id ASC'
+        );
+
+        return $stmt->fetchAll();
+    }
+
+    /** How many pages sit directly under this one. */
+    public function countChildren(int $id): int
+    {
+        $stmt = $this->db->prepare('SELECT COUNT(*) FROM pages WHERE parent_id = :id');
+        $stmt->execute(['id' => $id]);
+
+        return (int) $stmt->fetchColumn();
+    }
+
+    /**
      * @return array<int, array<string, mixed>>
      */
     public function findAllPublished(): array
@@ -174,19 +201,28 @@ class PageRepository extends Repository
      * App\Service\PageLocalization::save(), in the same transaction as this
      * row (App\Service\PageTemplates\PageTemplateInstaller).
      *
-     * @param array{content_key:string,slug:string,status:string} $data
+     * Where it sits is decided by the caller too: `parent_id` (absent or null:
+     * a root page) and `admin_group` (absent: the column's own default),
+     * already validated by App\Service\PageService::validateParent(). A new
+     * page gets the next sort_order of the whole table, which puts it after
+     * every page that exists, so also last among its own siblings.
+     *
+     * @param array{content_key:string,slug:string,status:string,parent_id?:int|null,admin_group?:string} $data
      */
     public function create(array $data): int
     {
         $stmt = $this->db->prepare(
             'INSERT INTO pages
-                (content_key, slug, status, is_system, route_path,
+                (parent_id, admin_group, content_key, slug, status, is_system, route_path,
                  sort_order, created_at, updated_at)
              VALUES
-                (:content_key, :slug, :status, 0, NULL,
+                (:parent_id, :admin_group, :content_key, :slug, :status, 0, NULL,
                  :sort_order, NOW(), NOW())'
         );
+        $parentId = (int) ($data['parent_id'] ?? 0);
         $stmt->execute([
+            'parent_id' => $parentId > 0 ? $parentId : null,
+            'admin_group' => (string) ($data['admin_group'] ?? 'website'),
             'content_key' => $data['content_key'],
             'slug' => $data['slug'],
             'status' => $data['status'],
@@ -225,6 +261,55 @@ class PageRepository extends Repository
             'show_breadcrumb' => (!array_key_exists('show_breadcrumb', $data) || !empty($data['show_breadcrumb'])) ? 1 : 0,
             'id' => $id,
         ]);
+    }
+
+    /**
+     * Where a page sits: under which page, and in which admin group.
+     *
+     * Separate from update() because only App\Service\PageService decides
+     * whether a move is allowed (no cycle, no page under itself, no fixed-URL
+     * page in a tree). $moveToEnd gives the page the next sort_order of the
+     * table, which is what puts a page that changed parent after its new
+     * siblings; a page that stays under the same parent keeps its place.
+     */
+    public function updatePlacement(int $id, ?int $parentId, string $adminGroup, bool $moveToEnd): void
+    {
+        $sql = 'UPDATE pages SET parent_id = :parent_id, admin_group = :admin_group, updated_at = NOW()';
+        $params = [
+            'parent_id' => ($parentId !== null && $parentId > 0) ? $parentId : null,
+            'admin_group' => $adminGroup,
+            'id' => $id,
+        ];
+
+        if ($moveToEnd) {
+            $sql .= ', sort_order = :sort_order';
+            $params['sort_order'] = $this->nextSortOrder();
+        }
+
+        $stmt = $this->db->prepare($sql . ' WHERE id = :id');
+        $stmt->execute($params);
+    }
+
+    /**
+     * Files these pages under one admin group — a whole subtree at once,
+     * because a tree is never split over two lists
+     * (App\Service\PageAdminGroup).
+     *
+     * @param list<int> $ids
+     */
+    public function updateAdminGroup(array $ids, string $adminGroup): void
+    {
+        $ids = array_values(array_filter(array_map('intval', $ids), static fn (int $id): bool => $id > 0));
+
+        if ($ids === []) {
+            return;
+        }
+
+        $placeholders = implode(',', array_fill(0, count($ids), '?'));
+        $stmt = $this->db->prepare(
+            "UPDATE pages SET admin_group = ?, updated_at = NOW() WHERE id IN ({$placeholders})"
+        );
+        $stmt->execute([$adminGroup, ...$ids]);
     }
 
     /**

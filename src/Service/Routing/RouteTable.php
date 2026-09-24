@@ -36,6 +36,7 @@ use App\Module\ModuleRegistry;
  *     ''                         the site root
  *     'shop.php'                 a literal segment (a real template's name)
  *     '{blog.root}/{slug}'       a catalogue segment, then a capture
+ *     '{slug+}'                  one to MAX_PAGE_SEGMENTS captures, joined by '/'
  *
  *   - `{a.b}` (with a dot) is a key of App\Service\Routing\RouteSegments and
  *     is matched in the request's language, with the other languages' words
@@ -43,6 +44,12 @@ use App\Module\ModuleRegistry;
  *   - `{name}` (no dot) captures one segment, and only ever matches
  *     CAPTURE_PATTERN — the same `[a-z0-9-]` charset `.htaccess` matched, so
  *     no URL that used to 404 silently starts resolving;
+ *   - `{name+}` is the one variable-length capture, and only as a pattern's
+ *     LAST part: the rest of the path, one to MAX_PAGE_SEGMENTS segments,
+ *     each held to CAPTURE_PATTERN. It exists for a nested CMS page
+ *     (/metaal-graveren/rvs-graveren, docs/pages/NESTING.md). The route says
+ *     nothing about whether those segments form a real page path: pagina.php
+ *     checks the whole chain (App\Service\PageContent::forPath());
  *   - anything else is a literal segment, compared byte for byte.
  *
  * ORDER IS THE ONLY PRECEDENCE RULE. Core's fixed routes come first, then
@@ -59,6 +66,12 @@ final class RouteTable
 
     /** The site root's key. */
     public const HOME_ROUTE = 'core.home';
+
+    /**
+     * The most segments a CMS page path may have: the deepest a page can sit
+     * (App\Service\PagePath::MAX_DEPTH). A longer path is no page route.
+     */
+    public const MAX_PAGE_SEGMENTS = 8;
 
     /**
      * Core's own routes, in matching order and WITHOUT the generic page route
@@ -128,11 +141,14 @@ final class RouteTable
             }
         }
 
-        // Last on purpose: one bare segment matches almost anything, so every
-        // route that owns a word must have had its chance first.
+        // Last on purpose: a page path matches almost anything, so every route
+        // that owns a word must have had its chance first. One segment is a
+        // root page, more are a nested one (docs/pages/NESTING.md); the first
+        // segment of every page path is a root page's slug, which can never be
+        // a word a route above owns (App\Service\Routing\ReservedPaths).
         $routes[] = self::normalise([
             'key' => self::PAGE_ROUTE,
-            'pattern' => '{slug}',
+            'pattern' => '{slug+}',
             'template' => 'pagina.php',
             'query' => ['slug' => 'slug'],
         ]);

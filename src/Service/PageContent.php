@@ -127,6 +127,46 @@ class PageContent
     }
 
     /**
+     * One published page by its WHOLE public path, or null — what pagina.php
+     * asks since pages can nest (docs/pages/NESTING.md).
+     *
+     * The last segment names the page: a slug is unique within one language
+     * (UNIQUE(language_code, slug)), so forSlug() finds the only candidate.
+     * It is then the page for this URL only when its own path in this
+     * language (App\Service\PagePath, the same builder every link uses) is
+     * exactly these segments. Every segment is therefore checked in its
+     * parent's context, not just the last one:
+     *
+     *     /metaal-graveren/aluminium-visitekaartjes   the page
+     *     /hout-graveren/aluminium-visitekaartjes     null — wrong parent
+     *     /aluminium-visitekaartjes                   null — it is not a root page
+     *
+     * A null here is a 404 the Redirect Manager may still rescue: the old
+     * address of a page that moved under another one is exactly such a path.
+     *
+     * @param list<string> $segments the decoded path segments, no language prefix
+     * @return array<string, mixed>|null
+     */
+    public static function forPath(array $segments, ?string $language = null): ?array
+    {
+        $segments = array_values(array_map('strval', $segments));
+
+        if ($segments === [] || count($segments) > PagePath::MAX_DEPTH || in_array('', $segments, true)) {
+            return null;
+        }
+
+        $language ??= RequestLanguage::current();
+
+        $page = self::forSlug($segments[count($segments) - 1], $language);
+
+        if ($page === null || PagePath::segments($page, $language) !== $segments) {
+            return null;
+        }
+
+        return $page;
+    }
+
+    /**
      * One page by its immutable content_key, regardless of status — how the
      * six system page templates load their own <head> data (they are always
      * published, and their PHP file is reachable whatever the row says).
@@ -280,8 +320,9 @@ class PageContent
 
     /**
      * The page's public URL. A route-bound page keeps its fixed route_path
-     * ('/', '/shop.php', ...); every other page lives at /<slug> via
-     * .htaccess -> pagina.php.
+     * ('/', '/shop.php', ...); every other page lives at its path —
+     * /<slug>, or /<parent slug>/<slug> for a nested page
+     * (App\Service\PagePath) — through the dispatcher and pagina.php.
      */
     public static function publicUrl(array $page, ?string $language = null): string
     {
@@ -333,11 +374,13 @@ class PageContent
                 : null;
         }
 
-        $slug = self::localizedSlug($page, $language);
+        // The slugs of the page and of every page above it, in this language
+        // (App\Service\PagePath): the one place a page's path is put together.
+        $path = PagePath::path($page, $language);
 
-        return $slug === null
+        return $path === null
             ? null
-            : \App\Service\Routing\LocalizedUrl::path('/' . $slug, $language);
+            : \App\Service\Routing\LocalizedUrl::path($path, $language);
     }
 
     /**
@@ -535,5 +578,6 @@ class PageContent
         self::$cache = [];
         self::$applicationCriticalPageIds = null;
         PageLocalization::clearCache();
+        PagePath::clearCache();
     }
 }

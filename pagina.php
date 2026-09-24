@@ -20,12 +20,13 @@ require_once __DIR__ . '/partials/breadcrumb.php';
  * renders ANY published, non-system page from the `pages` table, composed
  * entirely out of page-builder sections.
  *
- * Routing: .htaccess rewrites a bare single-segment path /<slug> here (see
- * that file's docblock for the two filesystem checks that keep it from ever
- * swallowing a real application route, and App\Service\ReservedRoutes for
- * the save-time half of the same rule). Creating and publishing a page in
- * the admin therefore makes its URL work immediately — no new PHP file, no
- * new RewriteRule, no migration.
+ * Routing: the dispatcher hands every page path here as `slug` — one segment
+ * for a root page, `parent/child/...` for a nested one (App\Service\Routing\RouteTable,
+ * docs/pages/NESTING.md) — after every route that owns a word has had its
+ * chance, and App\Service\ReservedRoutes keeps those words out of a page's
+ * slug at save time. Creating and publishing a page in the admin therefore
+ * makes its URL work immediately — no new PHP file, no new route, no
+ * migration.
  *
  * This replaces informatiepagina.php, which did the same job for the old
  * information_pages table but could only ever render one fixed layout (hero
@@ -41,7 +42,9 @@ require_once __DIR__ . '/partials/breadcrumb.php';
  */
 
 $slug = (string) ($_GET['slug'] ?? '');
-$page = \App\Service\PageContent::forSlug($slug);
+// The WHOLE path must be this page's path, every ancestor included: a page is
+// never found by its last segment alone (App\Service\PageContent::forPath()).
+$page = \App\Service\PageContent::forPath(explode('/', $slug));
 
 // A system page's own PHP template is its only public entry point; its
 // content_key must never also resolve here (that would serve e.g. the shop

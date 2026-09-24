@@ -23,7 +23,8 @@ use App\Service\RouteRegistry;
  *   - '#anchor' or '?query' on the same page                      as typed
  *   - a path that already names a website language ('/en/...')   as typed
  *   - '/' — the site root                                         that language's home
- *   - '/<slug>' of a published default-language page             that page in this
+ *   - the path of a published default-language page              that page in this
+ *     ('/<slug>', or '/<parent>/<slug>' when it is nested)
  *                                                                 language, or its
  *                                                                 default address when
  *                                                                 it has no version here
@@ -68,11 +69,12 @@ final class TypedLink
 
         $segments = array_values(array_filter(explode('/', $bare), static fn (string $segment): bool => $segment !== ''));
 
-        if (count($segments) === 1) {
-            $page = PageContent::forSlug(rawurldecode($segments[0]), LanguageResolver::defaultLanguage());
-            if ($page !== null) {
-                return PageContent::publicUrl($page, $language) . $suffix;
-            }
+        // A page's whole default-language path, a nested one included
+        // (/metaal-graveren/rvs-graveren): the same check pagina.php makes, so
+        // only an address that really is that page is translated.
+        $page = PageContent::forPath(array_map('rawurldecode', $segments), LanguageResolver::defaultLanguage());
+        if ($page !== null) {
+            return PageContent::publicUrl($page, $language) . $suffix;
         }
 
         foreach (RouteRegistry::all() as $route) {

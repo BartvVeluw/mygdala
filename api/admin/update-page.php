@@ -50,7 +50,9 @@ use App\Service\Language\SiteLanguages;
 use App\Service\AdminAuth;
 use App\Service\Csrf;
 use App\Service\PageContent;
+use App\Service\PageAdminGroup;
 use App\Service\PageLocalization;
+use App\Service\PagePath;
 use App\Service\PageService;
 use App\Service\PageTranslation;
 use App\Service\Redirects\SlugChangeRedirects;
@@ -124,7 +126,38 @@ $noindex = ($_POST['noindex'] ?? '0') === '1';
  */
 $showBreadcrumb = ($_POST['show_breadcrumb'] ?? '1') === '1';
 
+/**
+ * WHERE THE PAGE SITS (Pagina's 2.0, docs/pages/NESTING.md): the page it is
+ * under, and — for a root page only — the admin group its tree is filed under.
+ *
+ * Both are read only when the form carried them. A request without the
+ * "Bovenliggende pagina" field keeps the stored parent, so nothing can move a
+ * page by leaving a field out; '0' or '' is an explicit "no parent".
+ */
+$currentParentId = (int) ($page['parent_id'] ?? 0) > 0 ? (int) $page['parent_id'] : null;
+$parentSubmitted = array_key_exists('parent_id', $_POST) && !$hasFixedUrl;
+$parentId = $currentParentId;
+
+if ($parentSubmitted) {
+    $parentInput = filter_var($_POST['parent_id'], FILTER_VALIDATE_INT);
+    $parentId = ($parentInput === false || $parentInput < 1) ? null : $parentInput;
+}
+
+$adminGroupInput = is_string($_POST['admin_group'] ?? null) ? trim($_POST['admin_group']) : '';
+$confirmedParent = is_string($_POST['confirmed_parent'] ?? null) ? trim($_POST['confirmed_parent']) : '';
+
 $errors = [];
+
+if ($parentId !== $currentParentId) {
+    $parentError = PageService::validateParent($page, $parentId);
+    if ($parentError !== null) {
+        $errors[] = $parentError;
+    }
+}
+
+// Only a root page chooses its group; a page under another follows its tree
+// (App\Service\PageAdminGroup), whatever the form said.
+$adminGroup = PageService::resolveAdminGroup($parentId, $adminGroupInput, (string) ($page['admin_group'] ?? ''));
 
 /**
  * The page's own social image: a Media Library reference chosen with the
@@ -257,6 +290,8 @@ $submitted = [
     'meta_description' => $metaDescription,
     'noindex' => $noindex,
     'show_breadcrumb' => $showBreadcrumb,
+    'parent_id' => (string) ($parentId ?? 0),
+    'admin_group' => $adminGroupInput !== '' ? $adminGroupInput : $adminGroup,
 ];
 
 if ($socialImageSubmitted) {
@@ -295,17 +330,44 @@ $oldSlug = (string) (PageService::currentSlug($page, $languageCode) ?? '');
  * App\Service\PageUsage explains why links by id need no rewriting and typed
  * links must not get one.
  */
-if (PageService::urlChangeNeedsConfirmation($page, $slug, $confirmedSlug, $languageCode)) {
+$slugNeedsConfirmation = PageService::urlChangeNeedsConfirmation($page, $slug, $confirmedSlug, $languageCode);
+$parentNeedsConfirmation = PageService::parentChangeNeedsConfirmation($page, $parentId, $confirmedParent);
+
+if ($slugNeedsConfirmation || $parentNeedsConfirmation) {
+    // The whole path, in the language on screen and with its prefix: a new
+    // parent moves more than the last segment, and the editor must see the
+    // address they are really changing (App\Service\PagePath).
+    $currentPath = PageContent::localizedPath($page, $languageCode);
+    $newBarePath = PagePath::prospective($parentId, $slug !== '' ? $slug : $oldSlug, $languageCode, $id);
+
     $_SESSION['admin_page_old'] = ['slug' => $slug] + $submitted;
     $_SESSION['admin_page_url_change'] = [
         'page_id' => $id,
+        'language_code' => $languageCode,
         'old_slug' => $oldSlug,
         'new_slug' => $slug,
+        'new_parent' => (string) ($parentId ?? 0),
+        'old_path' => (string) ($currentPath ?? ''),
+        'new_path' => $newBarePath === null ? '' : \App\Service\Routing\LocalizedUrl::path($newBarePath, $languageCode),
+        'moving_below' => count(PagePath::descendantIds($id)),
         'status' => $status,
     ];
     header('Location: /admin/page.php?id=' . $id);
     exit;
 }
+
+/**
+ * Every path this save can move, taken BEFORE it: the page's own and that of
+ * every page below it, in every language. A new slug or a new parent changes
+ * them all at once, and each one that changes gets its redirect below.
+ */
+$movingIds = [$id, ...PagePath::descendantIds($id)];
+$pathsBefore = PagePath::snapshot($movingIds);
+$redirectable = [$id => PageService::oldAddressWillRedirect($page, $status)];
+foreach (array_slice($movingIds, 1) as $descendantId) {
+    $redirectable[$descendantId] = PageContent::isPublished(PagePath::node($descendantId) ?? []);
+}
+$groupBefore = PagePath::effectiveGroup($id);
 
 $db = Database::connection();
 
@@ -350,6 +412,17 @@ try {
         }
     }
 
+    // Where it sits. A new parent puts the page after its new siblings; the
+    // whole subtree follows the group of the tree it is now in, so a tree is
+    // never split over the two lists of the overview.
+    if ($parentId !== $currentParentId || $adminGroup !== PageAdminGroup::normalise($page['admin_group'] ?? null)) {
+        $repository->updatePlacement($id, $parentId, $adminGroup, $parentId !== $currentParentId);
+    }
+
+    if ($adminGroup !== $groupBefore || $parentId !== $currentParentId) {
+        $repository->updateAdminGroup(array_slice($movingIds, 1), $adminGroup);
+    }
+
     $db->commit();
 
     PageContent::clearCache();
@@ -368,12 +441,16 @@ try {
 /**
  * The page moved, so its old URL must keep working: a permanent (301)
  * redirect from the old path to the new one, visible and editable in
- * Beheer → Redirects like any other. See REDIRECTS.md.
+ * Beheer → Redirects like any other. See REDIRECTS.md. Since pages nest
+ * (docs/pages/NESTING.md) "moved" is a whole path: a new slug, a new parent,
+ * and for every page below this one the same move one level down — one
+ * redirect per page and language whose path changed (PageService::pathMoves()),
+ * written together (SlugChangeRedirects::recordMoves()).
  *
  * Five conditions, all of them about not inventing a redirect nobody needs:
  *
- *   - the slug really changed. An ordinary save — new title, new meta
- *     description, a section added — leaves the slug alone and writes nothing;
+ *   - the path really changed. An ordinary save — new title, new meta
+ *     description, a section added — leaves every path alone and writes nothing;
  *   - it changed INTO an address. A translation whose slug was cleared has no
  *     public URL in that language any more (docs/multilingual/ROUTING.md);
  *     that is the language version going away, not moving, so its old URL
@@ -394,15 +471,13 @@ try {
  * the homepage is how a clean 404 becomes a soft 404; an editor who wants a
  * destination can add one by hand.
  */
-if (
-    $oldSlug !== ''
-    && $oldSlug !== $slug
-    && $slug !== ''
-    && PageService::oldAddressWillRedirect($page, $status)
-) {
-    // In this language's URL space: renaming the English version records
-    // /en/old -> /en/new, and leaves the Dutch addresses alone.
-    (new SlugChangeRedirects())->record($oldSlug, $slug, $languageCode);
+$moves = PageService::pathMoves($pathsBefore, PagePath::snapshot($movingIds), $redirectable);
+
+if ($moves !== []) {
+    // In each language's own URL space: renaming the English version records
+    // /en/old -> /en/new and leaves the Dutch addresses alone, while a new
+    // parent moves the page in every language, and every page below it too.
+    (new SlugChangeRedirects())->recordMoves($moves);
 }
 
 header('Location: /admin/page.php?id=' . $id . '&updated=1');

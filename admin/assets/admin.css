@@ -5288,6 +5288,106 @@ body.admin-block-picker-open{ overflow: hidden; }
 
 
 /* ==========================================================================
+   The page tree (admin/pages.php, admin/assets/page-tree.js) and where a page
+   sits (admin/_page_placement.php) — docs/pages/NESTING.md.
+   A group heading is a real button with aria-expanded, one step bigger than a
+   row's; a page with pages under it has a small caret button before its
+   name, and every level is indented one step. The caret turns like the
+   collapsible rows' (.admin-collapse__caret), and hidden rows use the
+   `hidden` attribute, so nothing here is needed to hide anything.
+   ========================================================================== */
+.admin-page-tree{ display: flex; flex-direction: column; gap: 1.25rem; }
+
+/* The scrolling table is the containing block of the visually hidden labels
+   in it (a column heading, a toggle's name): without it they are positioned
+   against the page, outside the scroll box, and widen a phone's page. */
+.admin-page-tree .admin-table-wrap{ position: relative; }
+
+.admin-page-group__head{ margin: 0 0 0.5rem; font-size: 1.05rem; }
+
+.admin-page-group__toggle,
+.admin-page-tree__toggle{
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.3rem 0.45rem;
+  margin: 0;
+  border: 0;
+  border-radius: var(--admin-radius-sm);
+  background: transparent;
+  color: var(--admin-text);
+  font: inherit;
+  cursor: pointer;
+}
+
+.admin-page-group__toggle:hover,
+.admin-page-tree__toggle:hover{ background: var(--admin-surface-hover); }
+
+.admin-page-group__toggle:focus-visible,
+.admin-page-tree__toggle:focus-visible{ outline: 2px solid var(--admin-accent); outline-offset: 2px; }
+
+.admin-page-group__count{ color: var(--admin-text-muted); font-weight: 400; }
+
+.admin-page-group__empty{ margin: 0; }
+
+.admin-tree-caret{
+  flex: 0 0 auto;
+  width: 0;
+  height: 0;
+  border-left: 5px solid currentColor;
+  border-top: 4px solid transparent;
+  border-bottom: 4px solid transparent;
+  opacity: 0.75;
+  transition: transform 0.15s ease;
+}
+
+[aria-expanded="true"] > .admin-tree-caret{ transform: rotate(90deg); }
+
+/* A 24px target (WCAG 2.5.8) around the small caret. */
+.admin-page-tree__toggle{ min-width: 24px; min-height: 24px; justify-content: center; padding: 0.2rem; }
+
+.admin-page-tree__title{ display: flex; align-items: center; gap: 0.35rem; min-width: 0; }
+
+.admin-page-tree__title > a{ min-width: 0; overflow-wrap: anywhere; }
+
+/* Leaves line up with the names of pages that do have a caret. */
+.admin-page-tree__spacer{ flex: 0 0 auto; width: 24px; }
+
+[data-page-depth="1"] .admin-page-tree__title{ padding-left: 1.25rem; }
+[data-page-depth="2"] .admin-page-tree__title{ padding-left: 2.5rem; }
+[data-page-depth="3"] .admin-page-tree__title{ padding-left: 3.75rem; }
+[data-page-depth="4"] .admin-page-tree__title{ padding-left: 5rem; }
+[data-page-depth="5"] .admin-page-tree__title{ padding-left: 6.25rem; }
+[data-page-depth="6"] .admin-page-tree__title{ padding-left: 7.5rem; }
+[data-page-depth="7"] .admin-page-tree__title{ padding-left: 8.75rem; }
+
+/* On a phone a level is a smaller step, so a deep page keeps room for its name. */
+@media (max-width: 600px){
+  [data-page-depth="1"] .admin-page-tree__title{ padding-left: 0.75rem; }
+  [data-page-depth="2"] .admin-page-tree__title{ padding-left: 1.5rem; }
+  [data-page-depth="3"] .admin-page-tree__title{ padding-left: 2.25rem; }
+  [data-page-depth="4"] .admin-page-tree__title{ padding-left: 3rem; }
+  [data-page-depth="5"] .admin-page-tree__title{ padding-left: 3.75rem; }
+  [data-page-depth="6"] .admin-page-tree__title{ padding-left: 4.5rem; }
+  [data-page-depth="7"] .admin-page-tree__title{ padding-left: 5.25rem; }
+}
+
+/* A page listed only because something below it matched the search. */
+.admin-page-tree__context > td{ color: var(--admin-text-muted); }
+
+.admin-page-tree__actions{ display: flex; flex-wrap: wrap; gap: 0.35rem 0.9rem; }
+
+@media (prefers-reduced-motion: reduce){
+  .admin-tree-caret{ transition: none; }
+}
+
+.admin-page-placement{ display: flex; flex-direction: column; gap: 0.75rem; }
+
+.admin-page-placement__preview{ margin: 0; display: flex; flex-wrap: wrap; gap: 0.25rem 0.5rem; align-items: baseline; }
+
+.admin-page-placement__preview code{ overflow-wrap: anywhere; }
+
+/* ==========================================================================
    ADMIN UI PRIMITIVES (admin/_admin_ui.php, admin/assets/admin-ui.js)
 
    The shared building blocks of every admin form: field help and the global

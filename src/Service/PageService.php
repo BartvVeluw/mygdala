@@ -144,6 +144,184 @@ class PageService
     }
 
     /**
+     * May this page sit under $parentId? Returns the message to show, or null
+     * when the move is allowed (Pagina's 2.0, docs/pages/NESTING.md).
+     *
+     * The editor's parent list already leaves out every choice refused here —
+     * the page itself, everything below it, every page with a fixed URL — so
+     * this is the same rule again for a request that did not come from that
+     * list: a forged or scripted POST can no more make a loop than a click
+     * can.
+     *
+     *     A -> B -> C      C can never become A's parent, nor can B or A
+     *
+     * $page is the stored row, or null for a page that is being created (it
+     * has no descendants yet and cannot be its own parent). A null $parentId
+     * is a root page and always allowed.
+     *
+     * @param array<string, mixed>|null $page
+     */
+    public static function validateParent(?array $page, ?int $parentId): ?string
+    {
+        if ($parentId === null) {
+            return null;
+        }
+
+        $pageId = $page === null ? 0 : (int) ($page['id'] ?? 0);
+
+        if ($page !== null && PageContent::isRouteBound($page)) {
+            return 'Deze pagina heeft een vast webadres en staat daarom altijd op het hoogste niveau.';
+        }
+
+        if ($pageId > 0 && $parentId === $pageId) {
+            return 'Een pagina kan niet onder zichzelf staan.';
+        }
+
+        $parent = PagePath::node($parentId);
+
+        if ($parent === null) {
+            return 'De gekozen bovenliggende pagina bestaat niet (meer).';
+        }
+
+        if (PageContent::isRouteBound($parent)) {
+            return "Onder een pagina met een vast webadres kunnen geen andere pagina's staan.";
+        }
+
+        if ($pageId > 0 && in_array($parentId, PagePath::descendantIds($pageId), true)) {
+            return "Een pagina kan niet onder een van haar eigen onderliggende pagina's staan.";
+        }
+
+        $chain = PagePath::ancestorIds($parentId);
+
+        if ($chain === null) {
+            return 'De gekozen bovenliggende pagina heeft geen geldig pad.';
+        }
+
+        // The parent's own depth, the page itself, and everything that moves
+        // along with it.
+        $depth = count($chain) + 1 + 1 + ($pageId > 0 ? PagePath::subtreeHeight($pageId) : 0);
+
+        if ($depth > PagePath::MAX_DEPTH) {
+            return "Zo diep kunnen pagina's niet genest worden (hoogstens " . PagePath::MAX_DEPTH . ' niveaus).';
+        }
+
+        return null;
+    }
+
+    /**
+     * Every page that may be offered as the parent of $page (null: a page
+     * being created), for the editor's list: not the page itself, nothing
+     * below it, and no page with a fixed URL. validateParent() refuses exactly
+     * the same set, and a little more — a choice that would nest too deep.
+     *
+     * @param array<string, mixed>|null $page
+     * @return list<int> page ids
+     */
+    public static function parentCandidates(?array $page): array
+    {
+        if ($page !== null && PageContent::isRouteBound($page)) {
+            return [];
+        }
+
+        $pageId = $page === null ? 0 : (int) ($page['id'] ?? 0);
+        $excluded = $pageId > 0 ? array_flip([$pageId, ...PagePath::descendantIds($pageId)]) : [];
+
+        $candidates = [];
+        foreach (PagePath::nodes() as $id => $node) {
+            if (isset($excluded[$id]) || PageContent::isRouteBound($node)) {
+                continue;
+            }
+
+            if (self::validateParent($page, (int) $id) === null) {
+                $candidates[] = (int) $id;
+            }
+        }
+
+        return $candidates;
+    }
+
+    /**
+     * The admin group a page gets when it is saved under $parentId: its new
+     * tree's (App\Service\PageAdminGroup). Only a root page chooses, and
+     * then $requested counts — an unknown value keeps what it had.
+     */
+    public static function resolveAdminGroup(?int $parentId, string $requested, string $current): string
+    {
+        if ($parentId !== null) {
+            return PagePath::effectiveGroup($parentId);
+        }
+
+        return PageAdminGroup::isValid($requested) ? $requested : PageAdminGroup::normalise($current);
+    }
+
+    /**
+     * The redirects a save owes, from the paths before it and after it
+     * (App\Service\PagePath::snapshot()): one per page and language whose
+     * path really changed INTO another path, for a page that answered at its
+     * old path and still answers at its new one.
+     *
+     * $redirectable says per page whether that last condition holds — for the
+     * page being saved oldAddressWillRedirect(), for a page below it simply
+     * whether it is published, because its own status does not change. A
+     * language whose path went away (a slug cleared, an ancestor without an
+     * address there) is no move: the old URL 404s like any gone page's.
+     *
+     * @param array<int, array<string, string|null>> $before
+     * @param array<int, array<string, string|null>> $after
+     * @param array<int, bool>                       $redirectable
+     * @return list<array{from: string, to: string}> prefixed site-relative paths
+     */
+    public static function pathMoves(array $before, array $after, array $redirectable): array
+    {
+        $moves = [];
+
+        foreach ($before as $pageId => $paths) {
+            if (empty($redirectable[$pageId])) {
+                continue;
+            }
+
+            foreach ($paths as $language => $old) {
+                $new = $after[$pageId][$language] ?? null;
+
+                if ($old === null || $new === null || $old === $new) {
+                    continue;
+                }
+
+                $moves[] = [
+                    'from' => \App\Service\Routing\LocalizedUrl::path($old, (string) $language),
+                    'to' => \App\Service\Routing\LocalizedUrl::path($new, (string) $language),
+                ];
+            }
+        }
+
+        return $moves;
+    }
+
+    /**
+     * Must the editor confirm moving this page under another parent?
+     *
+     * The parent's counterpart of urlChangeNeedsConfirmation(): a new parent
+     * moves the page's address in every language, and the address of every
+     * page below it. Asked when the parent really changes, for a page that is
+     * not on a fixed URL, and only until the editor has confirmed exactly this
+     * parent ($confirmedParent: the id they were shown, '0' for "no parent",
+     * '' when nothing was confirmed).
+     *
+     * @param array<string, mixed> $page the stored `pages` row
+     */
+    public static function parentChangeNeedsConfirmation(array $page, ?int $newParentId, string $confirmedParent): bool
+    {
+        if (PageContent::isRouteBound($page)) {
+            return false;
+        }
+
+        $current = (int) ($page['parent_id'] ?? 0);
+        $new = $newParentId ?? 0;
+
+        return $new !== $current && $confirmedParent !== (string) $new;
+    }
+
+    /**
      * A fresh, unique content_key for a brand-new page. It starts out equal
      * to the initial slug (readable in the database and in every section
      * table's page_slug column), but never changes afterwards, so it stays
@@ -295,7 +473,9 @@ class PageService
      *
      * Refuses — with a message meant to be shown to the admin — when the
      * page is protected (App\Service\PageContent::isProtected(): the site
-     * root, or a page carrying application-critical functionality), or when
+     * root, or a page carrying application-critical functionality), when
+     * other pages sit under it (docs/pages/NESTING.md: never a cascade of a
+     * whole subtree, never children that silently become root pages), or when
      * navigation/footer links still point at it. Blocking rather than
      * cascading is deliberate: silently
      * removing someone's menu items as a side effect of deleting a page is
@@ -325,6 +505,16 @@ class PageService
         }
 
         $pageId = (int) $page['id'];
+
+        // A page with pages under it is never deleted from under them: they
+        // would lose their parent and their address with it. The database
+        // refuses it too (pages.parent_id, ON DELETE RESTRICT); this is the
+        // sentence the editor gets instead of an error.
+        if ((new PageRepository())->countChildren($pageId) > 0) {
+            throw new \RuntimeException(
+                "Deze pagina heeft onderliggende pagina's. Verplaats of verwijder eerst de onderliggende pagina's en probeer het daarna opnieuw."
+            );
+        }
 
         $references = self::references($pageId);
         if ($references['total'] > 0) {

@@ -6,10 +6,23 @@ namespace App\Service\Breadcrumbs;
 
 use App\Service\PageContent;
 use App\Service\PageLocalization;
+use App\Service\PagePath;
 use App\Service\Routing\RequestLanguage;
 
 /**
- * The breadcrumb of an ordinary CMS page: Home, then the page itself.
+ * The breadcrumb of an ordinary CMS page: Home, every page above it, then the
+ * page itself.
+ *
+ *     Home / Diensten / Metaal graveren / Aluminium visitekaartjes
+ *
+ * THE LEVELS ARE THE PAGE'S ANCESTORS (Pagina's 2.0, docs/pages/NESTING.md):
+ * the same `parent_id` chain App\Service\PagePath builds the page's URL
+ * from, so the trail and the address can never disagree. Nothing is parsed
+ * out of the URL. An ancestor is a link to its own address, in the language
+ * being read — or, when it has no version there, to its default-language
+ * one, like every other internal link (docs/multilingual/ROUTING.md §9). An
+ * ancestor that is not published keeps its name and loses its link, the rule
+ * BreadcrumbTrail::toPage() already follows.
  *
  * WHY IT IS NOT PART OF THE PAGE HEADER ANY MORE. The trail used to be printed
  * inside partials/section-page-hero.php, which meant a page whose Paginakop
@@ -57,13 +70,28 @@ final class PageBreadcrumb
             return null;
         }
 
+        $language = RequestLanguage::current();
+        $trail = BreadcrumbTrail::home();
+
+        // A broken chain (a parent that is gone, a loop) has no path either,
+        // and then the page is not reachable to ask; [] keeps the old trail.
+        foreach (PagePath::ancestorIds((int) $page['id']) ?? [] as $ancestorId) {
+            $ancestor = PagePath::node($ancestorId);
+            if ($ancestor === null) {
+                continue;
+            }
+
+            $trail = $trail->to(BreadcrumbItem::link(
+                PageLocalization::title($ancestorId, $language),
+                PageContent::isPublished($ancestor) ? PageContent::publicUrl($ancestor, $language) : null
+            ));
+        }
+
         // The page's name in the language being read, already resolved by
         // the page's own fallback, the same way every other piece of editor
         // text on a public page works. The page a visitor is standing on is
         // never a link to itself.
-        return BreadcrumbTrail::home()->to(BreadcrumbItem::current(
-            PageLocalization::title((int) $page['id'], RequestLanguage::current())
-        ));
+        return $trail->to(BreadcrumbItem::current(PageLocalization::title((int) $page['id'], $language)));
     }
 
     /**

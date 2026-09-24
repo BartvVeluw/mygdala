@@ -107,7 +107,14 @@ final class PagePreviewContractTest extends TestCase
 
     public function testADraftStillAnswersWithA404OnItsPublicAddress(): void
     {
-        $this->assertStringContainsString('PageContent::forSlug($slug)', self::source('pagina.php'));
+        // The whole path is looked up (a nested page, docs/pages/NESTING.md),
+        // and the page at its end through forSlug(), which only ever returns a
+        // published page.
+        $this->assertStringContainsString('PageContent::forPath(explode(\'/\', $slug))', self::source('pagina.php'));
+        $this->assertMatchesRegularExpression(
+            '/function forPath\(.*?self::forSlug\(/s',
+            self::source('src/Service/PageContent.php')
+        );
 
         foreach (['diensten.php', 'portfolio.php', 'over-mij.php', 'contact.php'] as $template) {
             $this->assertStringContainsString(

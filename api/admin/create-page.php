@@ -78,7 +78,24 @@ $metaTitle = trim((string) ($_POST['meta_title'] ?? ''));
 $metaDescription = trim((string) ($_POST['meta_description'] ?? ''));
 $template = PageTemplates::resolve(isset($_POST['template']) ? trim((string) $_POST['template']) : null);
 
+/**
+ * WHERE THE NEW PAGE SITS (docs/pages/NESTING.md): under the page chosen in
+ * "Bovenliggende pagina", or at the top when none is. A new page under
+ * another follows that tree's admin group; a new root page takes the group
+ * chosen here, and the website group when none is.
+ */
+$parentInput = filter_var($_POST['parent_id'] ?? '', FILTER_VALIDATE_INT);
+$parentId = ($parentInput === false || $parentInput < 1) ? null : $parentInput;
+$adminGroupInput = is_string($_POST['admin_group'] ?? null) ? trim($_POST['admin_group']) : '';
+
 $errors = [];
+
+$parentError = PageService::validateParent(null, $parentId);
+if ($parentError !== null) {
+    $errors[] = $parentError;
+}
+
+$adminGroup = PageService::resolveAdminGroup($parentId, $adminGroupInput, \App\Service\PageAdminGroup::WEBSITE);
 
 if ($title === '') {
     $errors[] = AdminTranslator::trans('validation.titel_verplicht');
@@ -130,6 +147,8 @@ $old = [
     'meta_description' => $metaDescription,
     'template' => $template->key(),
     'slug_auto' => $slugIsAutomatic ? '1' : '0',
+    'parent_id' => (string) ($parentId ?? 0),
+    'admin_group' => $adminGroup,
 ];
 
 if ($errors !== []) {
@@ -144,6 +163,8 @@ try {
         'content_key' => PageService::generateContentKey($repository, $slug),
         'slug' => $slug,
         'status' => $status,
+        'parent_id' => $parentId,
+        'admin_group' => $adminGroup,
     ], [
         $pageLanguage => [
             PageTranslation::TITLE => $title,

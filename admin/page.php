@@ -10,6 +10,7 @@ require_once __DIR__ . '/_admin_tabs.php';
 require_once __DIR__ . '/_admin_collapse.php';
 require_once __DIR__ . '/_localized_fields.php';
 require_once __DIR__ . '/_translate.php';
+require_once __DIR__ . '/_page_placement.php';
 
 use App\Service\AdminAuth;
 use App\Service\AppUrl;
@@ -166,7 +167,11 @@ $urlChangeManualTarget = '';
 
 if ($urlChange !== null) {
     if (PageService::oldAddressWillRedirect($page, (string) ($urlChange['status'] ?? ''))) {
-        $existingRedirect = (new RedirectRepository())->findBySourcePath('/' . (string) $urlChange['old_slug']);
+        // The whole old path with its language prefix: that is the row
+        // SlugChangeRedirects would write, and a hand-made one would sit on.
+        $existingRedirect = (string) ($urlChange['old_path'] ?? '') === ''
+            ? null
+            : (new RedirectRepository())->findBySourcePath((string) $urlChange['old_path']);
 
         if ($existingRedirect !== null && (string) $existingRedirect['origin'] !== Redirect::ORIGIN_SLUG_CHANGE) {
             $urlChangeOutcome = 'manual';
@@ -236,6 +241,18 @@ $textValue = static function (string $field) use ($old, $pageId, $editLanguage):
 };
 
 $status = $old !== null ? (string) ($old['status'] ?? '') : (string) $page['status'];
+
+/**
+ * Where the page sits (docs/pages/NESTING.md): the parent and root group a
+ * refused or unconfirmed save handed back, else what is stored.
+ */
+$placementParent = $old !== null && array_key_exists('parent_id', $old)
+    ? (int) $old['parent_id']
+    : (int) ($page['parent_id'] ?? 0);
+$placementParent = $placementParent > 0 ? $placementParent : null;
+$placementGroup = $old !== null && array_key_exists('admin_group', $old)
+    ? (string) $old['admin_group']
+    : \App\Service\PageAdminGroup::normalise($page['admin_group'] ?? null);
 
 // The two SEO fields that are not plain text. Both follow the same
 // precedence rule as everything else on this form: a failed save's own input
@@ -395,11 +412,18 @@ $urlFieldOpen = !$hasFixedUrl
       <h2 id="page-url-confirm-title"><?= admin_te('page.url_confirm_title') ?></h2>
       <p><?= admin_te('page.url_confirm_intro') ?></p>
       <dl class="admin-url-confirm__addresses">
+        <?php /* Whole paths in the language being saved, prefix included: a
+                 new parent moves more than the last segment
+                 (App\Service\PagePath). */ ?>
         <dt><?= admin_te('page.url_confirm_old') ?></dt>
-        <dd><code>/<?= $h((string) $urlChange['old_slug']) ?></code></dd>
+        <dd><code><?= $h((string) ($urlChange['old_path'] ?? '')) ?></code></dd>
         <dt><?= admin_te('page.url_confirm_new') ?></dt>
-        <dd><code>/<?= $h((string) $urlChange['new_slug']) ?></code></dd>
+        <dd><code><?= $h((string) ($urlChange['new_path'] ?? '')) ?></code></dd>
       </dl>
+      <?php $movingBelow = (int) ($urlChange['moving_below'] ?? 0); ?>
+      <?php if ($movingBelow > 0): ?>
+        <p><?= $h($movingBelow === 1 ? admin_t('page.url_confirm_below_one') : admin_t('page.url_confirm_below_many', ['count' => (string) $movingBelow])) ?></p>
+      <?php endif; ?>
       <p>
         <?php if ($usage === []): ?>
           <?= admin_te('page.url_usage_none') ?>
@@ -416,6 +440,7 @@ $urlFieldOpen = !$hasFixedUrl
         <?php endif; ?>
       </p>
       <input type="hidden" name="confirmed_slug" value="<?= $h((string) $urlChange['new_slug']) ?>">
+      <input type="hidden" name="confirmed_parent" value="<?= $h((string) ($urlChange['new_parent'] ?? '')) ?>">
       <div class="admin-url-confirm__actions">
         <button type="submit"><?= admin_te('page.url_confirm_submit') ?></button>
         <a href="/admin/page.php?id=<?= $pageId ?>" class="admin-btn-secondary" data-save-bar-discard><?= admin_te('page.url_confirm_cancel') ?></a>
@@ -437,6 +462,19 @@ $urlFieldOpen = !$hasFixedUrl
           <input type="text" id="page-title" name="title" maxlength="<?= PageService::MAX_TITLE_LENGTH ?>"<?= admin_localized_required($editLanguage) ?> value="<?= $h($textValue(PageTranslation::TITLE)) ?>"<?= admin_localized_placeholder_attr($editLanguage) ?>>
         </div>
       </div>
+
+      <?php /* Where the page sits: under another page, or at the top in one
+               of the two admin groups (admin/_page_placement.php). Its
+               address line shows the path a save would give, in the language
+               on screen. A page on a fixed URL is always at the top. */ ?>
+      <?php if ($hasFixedUrl): ?>
+        <div class="admin-field">
+          <span class="admin-field__label"><?= admin_te('page.parent_label') ?></span>
+          <p class="admin-text-muted"><?= admin_te('page.parent_fixed') ?></p>
+        </div>
+      <?php else: ?>
+        <?php page_placement_fields($page, $editLanguage, $placementParent, $placementGroup, $slugValue()); ?>
+      <?php endif; ?>
 
       <?php /* The web address, shown as the link it is and changed only on
                purpose: the field sits behind "Webadres wijzigen", a native
@@ -773,7 +811,12 @@ $urlFieldOpen = !$hasFixedUrl
     <?php admin_tab_panel('pagina'); ?>
     <section class="admin-card">
       <h2><?= admin_te('common.delete') ?></h2>
-      <?php if ($references['total'] > 0): ?>
+      <?php $childCount = count(\App\Service\PagePath::childIds($pageId)); ?>
+      <?php if ($childCount > 0): ?>
+        <?php /* Never a cascade, never children that silently become top-level
+                 pages: they are moved or deleted first (PageService::delete()). */ ?>
+        <p class="admin-alert admin-alert--error"><?= admin_te('page.delete_has_children', ['count' => (string) $childCount]) ?></p>
+      <?php elseif ($references['total'] > 0): ?>
         <p class="admin-alert admin-alert--error">
           <?= admin_t('page.in_use_by', ['references' => $h(PageService::describeReferences($references))]) ?>
         </p>
@@ -804,5 +847,6 @@ $urlFieldOpen = !$hasFixedUrl
 <?php admin_collapse_script(); ?>
 <?php save_bar_script(); ?>
 <?php media_picker_script(); ?>
+<?php page_placement_script(); ?>
 </body>
 </html>

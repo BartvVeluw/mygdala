@@ -189,16 +189,14 @@ final class RedirectValidator
             return 'Er staat al een bestand of map op deze site met de naam "' . $first . '".';
         }
 
-        if (count($segments) === 1) {
-            // Through PageContent, so this asks the same question a visitor's
-            // URL does — including the default language's neutral-column
-            // address (App\Service\PageContent::forSlug()). Asking the
-            // translation store alone would let a redirect be written on top
-            // of a page that is perfectly reachable.
-            $page = \App\Service\PageContent::forSlug($first, $language);
-            if ($page !== null) {
-                return 'Er bestaat al een gepubliceerde pagina op dit pad ("' . $first . '").';
-            }
+        // Through PageContent, so this asks the same question a visitor's URL
+        // does — including the default language's neutral-column address
+        // (App\Service\PageContent::forSlug()) and, for a nested page, its
+        // whole path (forPath()). Asking the translation store alone would let
+        // a redirect be written on top of a page that is perfectly reachable.
+        $page = \App\Service\PageContent::forPath($segments, $language);
+        if ($page !== null) {
+            return 'Er bestaat al een gepubliceerde pagina op dit pad ("' . implode('/', $segments) . '").';
         }
 
         return null;

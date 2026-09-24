@@ -5,10 +5,11 @@ declare(strict_types=1);
 namespace App\Service\Routing;
 
 use App\Module\ModuleRegistry;
-use App\Repository\PageRepository;
 use App\Service\LinkResolver;
 use App\Service\PageContent;
 use App\Service\PageLocalization;
+use App\Service\PagePath;
+use App\Service\PageTree;
 
 /**
  * The items of this website a block's button can point at by id instead of
@@ -126,17 +127,25 @@ final class LinkTargets
             'label' => 'Bestaande pagina',
             'order' => 10,
             'choices' => static function (): array {
-                $pages = (new PageRepository())->findAllForAdmin();
-                PageLocalization::preload(array_map(static fn (array $page): int => (int) $page['id'], $pages));
+                // In the Pages overview's order, a page under its parent and
+                // indented one step per level (App\Service\PageTree), so two
+                // pages with the same name in different trees can be told apart.
+                $rows = PageTree::ordered();
+                PageLocalization::preload(array_column($rows, 'id'));
 
                 $choices = [];
-                foreach ($pages as $page) {
+                foreach ($rows as $row) {
+                    $page = PagePath::node($row['id']) ?? [];
+
                     // A page served by a module that is off answers 404.
-                    if (!PageContent::isServedByAnEnabledModule($page)) {
+                    if ($page === [] || !PageContent::isServedByAnEnabledModule($page)) {
                         continue;
                     }
 
-                    $choice = ['id' => (int) $page['id'], 'label' => PageLocalization::name((int) $page['id'])];
+                    $choice = [
+                        'id' => (int) $page['id'],
+                        'label' => str_repeat("\u{00A0}\u{00A0}\u{00A0}", $row['depth']) . PageLocalization::name((int) $page['id']),
+                    ];
                     if (!PageContent::isPublished($page)) {
                         $choice['note'] = 'draft';
                     }

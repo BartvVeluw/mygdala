@@ -5,6 +5,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/../vendor/autoload.php';
 require_once __DIR__ . '/_localized_fields.php';
 require_once __DIR__ . '/_translate.php';
+require_once __DIR__ . '/_page_placement.php';
 
 use App\Service\AdminAuth;
 use App\Service\AppUrl;
@@ -59,6 +60,17 @@ $selectedTemplate = (string) ($old['template'] ?? PageTemplates::DEFAULT_KEY);
 // real one.
 $slugPreview = PageService::sanitizeSlug($value('slug') !== '' ? $value('slug') : $value('title'));
 
+// Where the new page will sit: the choice handed back after a refused save, or
+// the page this screen was opened for (?parent=, "Subpagina toevoegen" in the
+// overview), else the top level. Only a page the list really offers counts.
+$parentRequest = $old !== null ? (int) ($old['parent_id'] ?? 0) : (int) (filter_input(INPUT_GET, 'parent', FILTER_VALIDATE_INT) ?: 0);
+$parentId = ($parentRequest > 0 && in_array($parentRequest, PageService::parentCandidates(null), true)) ? $parentRequest : null;
+$adminGroup = (string) ($old['admin_group'] ?? \App\Service\PageAdminGroup::WEBSITE);
+
+// The address line's base: the site root, plus the chosen parent's path.
+$previewParentPath = $parentId === null ? null : \App\Service\PagePath::for($parentId, $newPageLanguage);
+$previewBase = AppUrl::canonical($previewParentPath === null ? '/' : $previewParentPath . '/');
+
 // The SEO card folds shut — every field on it is optional — unless a refused
 // save handed back something typed into it, which must not be hidden.
 $seoOpen = $value('meta_title') !== '' || $value('meta_description') !== '';
@@ -78,6 +90,7 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
 <title><?= admin_te('page.nieuwe_pagina_admin') ?></title>
 <link rel="stylesheet" href="<?= \App\Service\AssetVersion::url('/admin/assets/admin.css') ?>">
 <script src="<?= \App\Service\AssetVersion::url('/admin/assets/admin.js') ?>" defer></script>
+<?php page_placement_script(); ?>
 </head>
 <body<?= \App\Service\AdminTheme::bodyAttribute() ?>>
 <?php require __DIR__ . '/_header.php'; ?>
@@ -127,10 +140,14 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
           <input type="hidden" name="slug_auto" value="<?= $value('slug_auto') === '1' ? '1' : '0' ?>" data-slug-auto>
           <p class="admin-url-preview">
             <?= admin_te('page.url_preview') ?>
-            <span class="admin-url-preview__address"><?= $h(AppUrl::canonical('/')) ?><strong data-slug-preview-value data-slug-preview-empty="<?= admin_te('page.url_preview_empty') ?>"><?= $h($slugPreview !== '' ? $slugPreview : admin_t('page.url_preview_empty')) ?></strong></span>
+            <span class="admin-url-preview__address"><span data-page-path-base><?= $h($previewBase) ?></span><strong data-slug-preview-value data-slug-preview-empty="<?= admin_te('page.url_preview_empty') ?>"><?= $h($slugPreview !== '' ? $slugPreview : admin_t('page.url_preview_empty')) ?></strong></span>
           </p>
         </div>
       </div>
+      <?php /* Where the new page sits: under another page, or at the top in
+               one of the two admin groups (admin/_page_placement.php). The
+               address line above follows the parent chosen here. */ ?>
+      <?php page_placement_fields(null, $newPageLanguage, $parentId, $adminGroup, $slugPreview, false); ?>
       <label><?= admin_te('common.status') ?>
         <select name="status">
           <?php foreach (array_keys(PageContent::STATUS_LABELS) as $statusKey): ?>

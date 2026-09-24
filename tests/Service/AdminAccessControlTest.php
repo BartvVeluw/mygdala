@@ -105,6 +105,11 @@ final class AdminAccessControlTest extends TestCase
         // afbeelding item): an output function the calling editor uses
         // behind its own pages.manage check. No URL and no data of its own.
         '_image_focus.php',
+        // Where a page sits (docs/pages/NESTING.md): the parent list, the
+        // admin group and the address line, printed by admin/page.php and
+        // admin/page-new.php behind their own pages.manage check. The
+        // endpoints behind those forms validate and store the choice.
+        '_page_placement.php',
         // The block picker: the button under a page's block list plus the
         // panel it opens, included by admin/page.php behind that page's own
         // pages.manage check. It renders no data of its own — the caller
