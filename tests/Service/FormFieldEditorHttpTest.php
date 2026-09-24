@@ -13,6 +13,7 @@ use App\Service\AdminPermissions;
 use App\Service\Forms\FormCatalog;
 use App\Service\Forms\FormFieldKey;
 use App\Service\Forms\FormFieldTypes;
+use App\Service\Forms\FormFieldWidth;
 use App\Service\Forms\FormLocalization;
 use App\Service\SectionRegistry;
 use PHPUnit\Framework\TestCase;
@@ -347,7 +348,7 @@ final class FormFieldEditorHttpTest extends TestCase
         $fields['label'] = 'Je volledige naam';
         $response = self::$server->request('POST', self::UPDATE_ENDPOINT, $session, $fields);
 
-        $this->assertSame('/admin/form-field.php?id=' . $fieldId . '&saved=1', $response['location']);
+        $this->assertSame($this->savedAt($fieldId), $response['location']);
         $this->assertSame('uw-naam', $this->forms->findField($fieldId)['field_key'], 'a new label, the same key');
         $this->assertSame('Je volledige naam', $this->fieldWords($fieldId, 'nl')['label']);
     }
@@ -383,7 +384,7 @@ final class FormFieldEditorHttpTest extends TestCase
             [$fields] = $this->editorSubmission($session, $fieldId);
             $response = self::$server->request('POST', self::UPDATE_ENDPOINT, $session, $fields);
 
-            $this->assertSame('/admin/form-field.php?id=' . $fieldId . '&saved=1', $response['location'], $name . ' was saved');
+            $this->assertSame($this->savedAt($fieldId), $response['location'], $name . ' was saved');
             $this->assertSame($before, $this->withoutTimestamp($this->forms->findField($fieldId)), $name . ': nothing changed');
             $this->assertSame($beforeWords, [$this->fieldWords($fieldId, 'nl'), $this->fieldWords($fieldId, 'en')], $name . ': and no word of any language');
             $this->assertSame($beforeOptions, [$this->optionValues($fieldId), $this->optionLabels($fieldId, 'nl'), $this->optionLabels($fieldId, 'en')], $name . ': nor an option');
@@ -416,7 +417,7 @@ final class FormFieldEditorHttpTest extends TestCase
         $fields['default_option'] = '1';
 
         $response = self::$server->request('POST', self::UPDATE_ENDPOINT, $session, $fields);
-        $this->assertSame('/admin/form-field.php?id=' . $fieldId . '&saved=1', $response['location']);
+        $this->assertSame($this->savedAt($fieldId), $response['location']);
 
         $this->assertSame(['Ochtend', 'Middag', 'Avond'], $this->optionValues($fieldId), 'a new option takes its label as its value');
         $this->assertSame(['Ochtend', 'Middag', 'Avond'], $this->optionLabels($fieldId, 'nl'));
@@ -482,7 +483,7 @@ final class FormFieldEditorHttpTest extends TestCase
 
         $response = self::$server->request('POST', self::UPDATE_ENDPOINT, $session, $fields);
 
-        $this->assertSame('/admin/form-field.php?id=' . $fieldId . '&saved=1', $response['location']);
+        $this->assertSame($this->savedAt($fieldId), $response['location']);
         $this->assertSame(['Bellen', 'Mailen', 'Visit'], $this->optionValues($fieldId), 'a new option is its own value; the others keep theirs');
         $this->assertSame(['Bellen', 'Mailen', 'Visit'], $this->optionLabels($fieldId, 'nl'), 'the default language is untouched, and the new option is written there');
         $this->assertSame(['Call', 'Email', ''], $this->optionLabels($fieldId, 'en'));
@@ -507,7 +508,7 @@ final class FormFieldEditorHttpTest extends TestCase
         $fields['option_label[1]'] = '';
 
         $response = self::$server->request('POST', self::UPDATE_ENDPOINT, $session, $fields);
-        $this->assertSame('/admin/form-field.php?id=' . $fieldId . '&saved=1', $response['location']);
+        $this->assertSame($this->savedAt($fieldId), $response['location']);
 
         $this->assertSame(['Bellen', 'Langskomen'], $this->optionValues($fieldId));
         $this->assertNull($this->forms->findField($fieldId)['default_value']);
@@ -557,7 +558,7 @@ final class FormFieldEditorHttpTest extends TestCase
         $fields['option_label[0]'] = 'Bellen|Call';
         $response = self::$server->request('POST', self::UPDATE_ENDPOINT, $session, $fields);
 
-        $this->assertSame('/admin/form-field.php?id=' . $fieldId . '&saved=1', $response['location']);
+        $this->assertSame($this->savedAt($fieldId), $response['location']);
         $this->assertSame($before, $this->optionValues($fieldId), 'the value it was created with stays');
         $this->assertSame(['Bellen|Call', 'Mailen'], $this->optionLabels($fieldId, 'nl'), 'and the pipe is part of the label');
     }
@@ -586,7 +587,7 @@ final class FormFieldEditorHttpTest extends TestCase
             $fields['field_type'] = $to;
             $response = self::$server->request('POST', self::UPDATE_ENDPOINT, $session, $fields);
 
-            $this->assertSame('/admin/form-field.php?id=' . $fieldId . '&saved=1', $response['location'], '-> ' . $to . ' is saved at once');
+            $this->assertSame($this->savedAt($fieldId), $response['location'], '-> ' . $to . ' is saved at once');
             $this->assertSame(array_replace($before, ['field_type' => $to]), $this->withoutTimestamp($this->forms->findField($fieldId)), '-> ' . $to . ': only the type changed');
             $this->assertSame($beforeOptions, [$this->optionValues($fieldId), $this->optionLabels($fieldId, 'nl')], '-> ' . $to . ': its options too');
         }
@@ -631,7 +632,7 @@ final class FormFieldEditorHttpTest extends TestCase
         $this->assertStringContainsString($catalog['forms.type_change.submit_losing'], $card->textContent);
 
         $response = self::$server->request('POST', self::UPDATE_ENDPOINT, $session, $confirming);
-        $this->assertSame('/admin/form-field.php?id=' . $fieldId . '&saved=1', $response['location']);
+        $this->assertSame($this->savedAt($fieldId), $response['location']);
 
         $after = $this->forms->findField($fieldId);
         $this->assertSame('text', $after['field_type']);
@@ -691,7 +692,7 @@ final class FormFieldEditorHttpTest extends TestCase
         [$fields] = $this->editorSubmission($session, $other);
         $fields['field_type'] = 'tel';
         $response = self::$server->request('POST', self::UPDATE_ENDPOINT, $session, $fields);
-        $this->assertSame('/admin/form-field.php?id=' . $other . '&saved=1', $response['location']);
+        $this->assertSame($this->savedAt($other), $response['location']);
         $this->assertSame('tel', $this->forms->findField($other)['field_type']);
     }
 
@@ -725,7 +726,7 @@ final class FormFieldEditorHttpTest extends TestCase
         $confirming['default_option'] = '0';
         $response = self::$server->request('POST', self::UPDATE_ENDPOINT, $session, $confirming);
 
-        $this->assertSame('/admin/form-field.php?id=' . $fieldId . '&saved=1', $response['location']);
+        $this->assertSame($this->savedAt($fieldId), $response['location']);
         $after = $this->forms->findField($fieldId);
         $this->assertSame(['select', 'Ochtend'], [$after['field_type'], $after['default_value']]);
         $this->assertSame(['Ochtend', 'Middag'], $this->optionValues($fieldId));
@@ -901,8 +902,11 @@ final class FormFieldEditorHttpTest extends TestCase
         $fields['label'] = 'Hoe wil je contact?';
         $response = self::$server->request('POST', self::UPDATE_ENDPOINT, $session, $fields);
 
-        $this->assertMatchesRegularExpression('/[?&](saved|updated|created)=1(&|$)/', $response['location'], 'the success marker the save bar reads');
-        $this->assertFalse($this->xpath($this->get($session, $response['location']))->query('//form[@action="' . self::UPDATE_ENDPOINT . '"]')->item(0)->hasAttribute('data-save-bar-unsaved'), 'saved is saved');
+        // The save bar reads Response.url, which never carries the fragment
+        // that points at the field's row (admin/assets/save-bar.js).
+        $this->assertSame($this->savedAt($fieldId), $response['location'], 'back to the form, at the field');
+        $this->assertMatchesRegularExpression('/[?&](saved|updated|created)=1(&|$)/', strtok($response['location'], '#'), 'the success marker the save bar reads');
+        $this->assertFalse($this->xpath($this->get($session, '/admin/form-field.php?id=' . $fieldId))->query('//form[@action="' . self::UPDATE_ENDPOINT . '"]')->item(0)->hasAttribute('data-save-bar-unsaved'), 'saved is saved');
     }
 
     /**
@@ -938,6 +942,160 @@ final class FormFieldEditorHttpTest extends TestCase
         $this->assertSame('/admin/form-field.php?id=' . $fieldId, $cancel->item(0)->getAttribute('href'));
 
         $this->assertStringNotContainsString('data-save-bar-unsaved', $this->get($session, '/admin/form-field.php?id=' . $fieldId), 'and once that is followed, the stored field is saved');
+    }
+
+    /* ------------------------------------------------------------------ */
+    /* Breedte, en terug naar het formulier                                */
+    /* ------------------------------------------------------------------ */
+
+    /**
+     * Every kind of field offers the same six widths, by their catalogue
+     * names and in the order of App\Service\Forms\FormFieldWidth, with the
+     * stored one chosen and a real label. A new field is full width.
+     */
+    public function testEveryEditorOffersTheSixWidthsWithTheStoredOneChosen(): void
+    {
+        [$session] = $this->accounts->signIn([AdminPermissions::FORMS_MANAGE]);
+        $formId = $this->createForm();
+        $catalog = $this->catalog('nl');
+
+        foreach (array_keys(FormFieldTypes::all()) as $index => $type) {
+            $width = FormFieldWidth::keys()[$index % 6];
+            $options = FormFieldTypes::get($type)->usesOptions() ? "Ja\nNee" : null;
+            $fieldId = $this->addField($formId, 'Breedte ' . $type, $type, $options, ['layout_width' => $width]);
+
+            $xpath = $this->xpath($this->get($session, '/admin/form-field.php?id=' . $fieldId));
+            $select = $xpath->query('//form[@action="' . self::UPDATE_ENDPOINT . '"]//select[@name="layout_width"]');
+            $this->assertSame(1, $select->length, $type . ' has the width');
+
+            $values = [];
+            $labels = [];
+            foreach ($xpath->query('.//option', $select->item(0)) as $option) {
+                $values[] = $option->getAttribute('value');
+                $labels[] = trim($option->textContent);
+            }
+
+            $this->assertSame(FormFieldWidth::keys(), $values, $type);
+            $this->assertSame(array_map(static fn (string $key): string => $catalog['forms.width.option.' . $key], FormFieldWidth::keys()), $labels, $type);
+
+            $chosen = [];
+            foreach ($xpath->query('.//option[@selected]', $select->item(0)) as $option) {
+                $chosen[] = $option->getAttribute('value');
+            }
+            $this->assertSame([$width], $chosen, $type . ' shows its stored width');
+
+            $label = $xpath->query('//label[@for="' . $select->item(0)->getAttribute('id') . '"]');
+            $this->assertSame(1, $label->length, 'the select has a real label');
+        }
+
+        $this->assertSame('full', $this->forms->findField($this->addField($formId, 'Nieuw', 'text'))['layout_width'], 'a new field is full width');
+    }
+
+    /**
+     * A width is saved like any other setting, from any website language,
+     * and it is the same in all of them; a request that leaves it out keeps
+     * the stored one.
+     */
+    public function testTheWidthIsSavedOnceForEveryLanguage(): void
+    {
+        [$session] = $this->accounts->signIn([AdminPermissions::FORMS_MANAGE]);
+        $formId = $this->createForm();
+        $fieldId = $this->addField($formId, 'Voornaam', 'text', null, ['label_en' => 'First name']);
+
+        [$fields] = $this->editorSubmission($session, $fieldId);
+        $fields['layout_width'] = 'third';
+        $this->assertSame($this->savedAt($fieldId), self::$server->request('POST', self::UPDATE_ENDPOINT, $session, $fields)['location']);
+        $this->assertSame('third', $this->forms->findField($fieldId)['layout_width']);
+
+        $fields['language_code'] = 'en';
+        $fields['label'] = 'Given name';
+        $fields['layout_width'] = 'quarter';
+        $this->assertSame($this->savedAt($fieldId), self::$server->request('POST', self::UPDATE_ENDPOINT, $session, $fields)['location']);
+        $this->assertSame('quarter', $this->forms->findField($fieldId)['layout_width'], 'one width, whichever language saved it');
+        $this->assertSame('Voornaam', $this->fieldWords($fieldId, 'nl')['label'], 'and the other language kept its words');
+        $this->assertSame('Given name', $this->fieldWords($fieldId, 'en')['label']);
+
+        unset($fields['layout_width']);
+        $fields['language_code'] = 'nl';
+        $fields['label'] = 'Voornaam';
+        $this->assertSame($this->savedAt($fieldId), self::$server->request('POST', self::UPDATE_ENDPOINT, $session, $fields)['location']);
+        $this->assertSame('quarter', $this->forms->findField($fieldId)['layout_width'], 'a width that was not sent stays as it is');
+    }
+
+    /**
+     * Anything that is not one of the six keys is refused: nothing is
+     * written, the editor comes back with the error and with what was
+     * typed, and no value from the request ever becomes a class or a style.
+     */
+    public function testAWidthOutsideTheListIsRefusedAndNothingIsWritten(): void
+    {
+        [$session] = $this->accounts->signIn([AdminPermissions::FORMS_MANAGE]);
+        $formId = $this->createForm();
+        $fieldId = $this->addField($formId, 'Postcode', 'text', null, ['layout_width' => 'two_thirds']);
+        $before = $this->withoutTimestamp($this->forms->findField($fieldId));
+        $message = htmlspecialchars($this->catalog('nl')['validation.field_width_unknown'], ENT_QUOTES, 'UTF-8');
+
+        $refused = ['', '50%', '6', 'HALF', 'form-field--half', 'half" onclick="alert(1)', 'half; grid-column: 1 / 13', 'half' . chr(0)];
+
+        foreach ($refused as $value) {
+            [$fields] = $this->editorSubmission($session, $fieldId);
+            $fields['label'] = 'Postcode (nieuw)';
+            $fields['layout_width'] = $value;
+
+            $response = self::$server->request('POST', self::UPDATE_ENDPOINT, $session, $fields);
+            $this->assertSame('/admin/form-field.php?id=' . $fieldId, $response['location'], json_encode($value) . ' goes back to the editor');
+            $this->assertSame($before, $this->withoutTimestamp($this->forms->findField($fieldId)), json_encode($value) . ' writes nothing');
+            $this->assertSame('Postcode', $this->fieldWords($fieldId, 'nl')['label'], 'not even the label');
+
+            $html = $this->get($session, $response['location']);
+            $this->assertStringContainsString($message, $html);
+            $typed = $this->xpath($html)->query('//form[@action="' . self::UPDATE_ENDPOINT . '"]//input[@name="label"]')->item(0);
+            $this->assertSame('Postcode (nieuw)', $typed->getAttribute('value'), 'what was typed is still there');
+            $this->assertStringNotContainsString('onclick="alert', $html);
+        }
+
+        // An array instead of a string is no width either.
+        [$fields] = $this->editorSubmission($session, $fieldId);
+        unset($fields['layout_width']);
+        $fields['layout_width[]'] = 'half';
+        $response = self::$server->request('POST', self::UPDATE_ENDPOINT, $session, $fields);
+        $this->assertSame('/admin/form-field.php?id=' . $fieldId, $response['location']);
+        $this->assertSame('two_thirds', $this->forms->findField($fieldId)['layout_width']);
+    }
+
+    /**
+     * A save that went through goes back to the form the field belongs to,
+     * at the field's row, and names the field once. The address is the
+     * field's own form whatever the request says, and another form never
+     * names a field that is not its own.
+     */
+    public function testASavedFieldGoesBackToItsFormAtItsRow(): void
+    {
+        [$session] = $this->accounts->signIn([AdminPermissions::FORMS_MANAGE]);
+        $formId = $this->createForm();
+        $otherForm = $this->createForm(['name' => 'Ander formulier', 'internal_key' => FormCatalog::internalKeyFor('zz test ander', $this->forms)]);
+        $this->addField($formId, 'Naam', 'text');
+        $fieldId = $this->addField($formId, 'Achternaam', 'text');
+        $message = htmlspecialchars(str_replace(':field', 'Achternaam', $this->catalog('nl')['forms.field_saved']), ENT_QUOTES, 'UTF-8');
+
+        [$fields] = $this->editorSubmission($session, $fieldId);
+        $fields['form_id'] = (string) $otherForm;
+        $fields['return'] = 'https://example.com/elders';
+        $fields['redirect'] = '//example.com';
+        $fields['layout_width'] = 'half';
+        $response = self::$server->request('POST', self::UPDATE_ENDPOINT, $session, $fields);
+
+        $this->assertSame('/admin/form.php?id=' . $formId . '&saved=1#form-field-' . $fieldId, $response['location'], 'its own form, whatever the request says');
+
+        $html = $this->get($session, $response['location']);
+        $this->assertStringContainsString($message, $html, 'the field is named');
+        $this->assertSame(1, $this->xpath($html)->query('//*[@id="form-field-' . $fieldId . '"]')->length, 'and its row is the anchor');
+
+        $this->assertStringNotContainsString($message, $this->get($session, $response['location']), 'once');
+
+        [$fields] = $this->editorSubmission($session, $fieldId);
+        self::$server->request('POST', self::UPDATE_ENDPOINT, $session, $fields);
+        $this->assertStringNotContainsString($message, $this->get($session, '/admin/form.php?id=' . $otherForm . '&saved=1'), 'another form does not name it');
     }
 
     /* ------------------------------------------------------------------ */
@@ -987,7 +1145,7 @@ final class FormFieldEditorHttpTest extends TestCase
         // Langskomen moved to the top, Mailen to the bottom.
         $fields = $this->withRowsInOrder($fields, [2, 0, 1, 3, 4, 5]);
         $this->assertSame('1', $fields['default_option'], 'the mark stays on Mailen\'s row');
-        $this->assertSame('/admin/form-field.php?id=' . $radio . '&saved=1', self::$server->request('POST', self::UPDATE_ENDPOINT, $session, $fields)['location']);
+        $this->assertSame($this->savedAt($radio), self::$server->request('POST', self::UPDATE_ENDPOINT, $session, $fields)['location']);
 
         [$fields] = $this->editorSubmission($session, $select);
         $fields = $this->withRowsInOrder($fields, [2, 1, 0, 3, 4, 5]);
@@ -1275,6 +1433,17 @@ final class FormFieldEditorHttpTest extends TestCase
         FormCatalog::clearCache();
 
         return $id;
+    }
+
+    /**
+     * Where a save that went through lands: the field's own form, at its row
+     * (api/admin/update-form-field.php).
+     */
+    private function savedAt(int $fieldId): string
+    {
+        $formId = (int) $this->forms->findField($fieldId)['form_id'];
+
+        return '/admin/form.php?id=' . $formId . '&saved=1#form-field-' . $fieldId;
     }
 
     private function get(string $session, string $path): string

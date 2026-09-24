@@ -15,6 +15,7 @@ use App\Service\Csrf;
 use App\Service\Forms\FormFieldOptions;
 use App\Service\Forms\FormFieldTypeChange;
 use App\Service\Forms\FormFieldTypes;
+use App\Service\Forms\FormFieldWidth;
 use App\Service\Forms\FormLocalization;
 
 /**
@@ -54,6 +55,15 @@ use App\Service\Forms\FormLocalization;
  * or down, its index travelling with it, so both languages and the
  * "Standaard" mark stay with the option. Without JavaScript the order is
  * changed by retyping the rows.
+ *
+ * THE WIDTH is one of six shares of a row (App\Service\Forms\FormFieldWidth),
+ * a select that the endpoint accepts nothing else from. Every type has it,
+ * and it is the same in every language (FORMS.md, "Breedte van een veld").
+ *
+ * A SAVE THAT GOES THROUGH LEAVES THIS SCREEN: api/admin/update-form-field.php
+ * sends the editor back to the form, at this field's row, with the preview
+ * already showing the change. A refused save and a type change waiting for
+ * confirmation come back here with what was sent.
  *
  * UNSAVED CHANGES are the save bar's (admin/_save_bar.php), which watches
  * the settings form like any other. Adding, removing or moving an option row
@@ -105,8 +115,7 @@ $formId = (int) $form['id'];
 
 $errors = $_SESSION['admin_form_field_errors'] ?? [];
 $old = $_SESSION['admin_form_field_old'] ?? null;
-$notice = $_SESSION['admin_form_field_notice'] ?? null;
-unset($_SESSION['admin_form_field_errors'], $_SESSION['admin_form_field_old'], $_SESSION['admin_form_field_notice']);
+unset($_SESSION['admin_form_field_errors'], $_SESSION['admin_form_field_old']);
 $saved = isset($_GET['saved']);
 
 $storedKey = (string) $field['field_type'];
@@ -147,6 +156,7 @@ $values = [
     'placeholder' => $word(FormLocalization::PLACEHOLDER),
     'help_text' => $word(FormLocalization::HELP_TEXT),
     'is_required' => (bool) $field['is_required'],
+    'layout_width' => FormFieldWidth::fromStored($field['layout_width'] ?? null),
     'option_rows' => $storedRows,
     'default_option' => $storedDefault,
 ];
@@ -206,10 +216,6 @@ $v = static fn (array $values, string $key): string => htmlspecialchars((string)
 
   <?php if ($saved): ?>
     <p class="admin-alert admin-alert--success"><?= admin_te('common.saved') ?></p>
-  <?php endif; ?>
-
-  <?php if ($notice === 'default_dropped'): ?>
-    <p class="admin-alert admin-alert--warning" role="status"><?= admin_te('forms.default_dropped') ?></p>
   <?php endif; ?>
 
   <?php if ($errors !== []): ?>
@@ -390,6 +396,23 @@ $v = static fn (array $values, string $key): string => htmlspecialchars((string)
       <?php if ($type !== null && $type->holdsEmailAddress()): ?>
         <p class="admin-text-muted"><?= admin_t('forms.field_email_reply_to', ['url' => '/admin/form.php?id=' . $formId]) ?></p>
       <?php endif; ?>
+    </section>
+
+    <section class="admin-card">
+      <h2><?= admin_te('forms.width.title') ?></h2>
+      <?php /* One of the six shares of App\Service\Forms\FormFieldWidth, the
+               same for every type and in every language. A select rather
+               than a number or a slider: the endpoint accepts these keys and
+               nothing else. */ ?>
+      <div class="admin-field">
+        <?= admin_field_label('form-field-width', admin_t('forms.width.label')) ?>
+        <select id="form-field-width" name="layout_width" class="admin-select" aria-describedby="form-field-width-intro">
+          <?php foreach (FormFieldWidth::keys() as $widthKey): ?>
+            <option value="<?= $h($widthKey) ?>"<?= $values['layout_width'] === $widthKey ? ' selected' : '' ?>><?= admin_te('forms.width.option.' . $widthKey) ?></option>
+          <?php endforeach; ?>
+        </select>
+      </div>
+      <p class="admin-text-muted" id="form-field-width-intro"><?= admin_te('forms.width.intro') ?></p>
     </section>
 
     <button type="submit"><?= admin_te($changingType ? ($losses === [] ? 'forms.type_change.submit' : 'forms.type_change.submit_losing') : 'common.save') ?></button>

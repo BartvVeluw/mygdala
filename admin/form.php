@@ -110,13 +110,22 @@ $errors = $_SESSION['admin_form_errors'] ?? [];
 $old = $_SESSION['admin_form_old'] ?? null;
 $addErrors = $_SESSION['admin_form_field_add_errors'] ?? [];
 $addOld = $_SESSION['admin_form_field_add_old'] ?? [];
+$fieldSaved = $_SESSION['admin_form_field_saved'] ?? null;
 unset(
     $_SESSION['admin_form_errors'],
     $_SESSION['admin_form_old'],
     $_SESSION['admin_form_field_add_errors'],
-    $_SESSION['admin_form_field_add_old']
+    $_SESSION['admin_form_field_add_old'],
+    $_SESSION['admin_form_field_saved']
 );
 $saved = isset($_GET['saved']);
+
+// A field saved on its own screen comes back here
+// (api/admin/update-form-field.php): named in the message, and only when it
+// is a field of THIS form — the session says which, the address only where.
+$savedFieldId = is_array($fieldSaved) ? (int) ($fieldSaved['field_id'] ?? 0) : 0;
+$savedFieldIsHere = $savedFieldId > 0 && in_array($savedFieldId, array_map('intval', array_column($fieldRows, 'id')), true);
+$savedDefaultDropped = $savedFieldIsHere && !empty($fieldSaved['default_dropped']);
 
 // Open as the page renders: the no-JavaScript route to "Veld toevoegen", or
 // an add the endpoint sent back.
@@ -193,7 +202,12 @@ $advancedOpen = $errors !== [] || $losesSubmissions;
     </p>
   <?php endif; ?>
 
-  <?php if ($saved): ?>
+  <?php if ($savedFieldIsHere): ?>
+    <p class="admin-alert admin-alert--success" role="status"><?= admin_te('forms.field_saved', ['field' => FormLocalization::fieldName($savedFieldId)]) ?></p>
+    <?php if ($savedDefaultDropped): ?>
+      <p class="admin-alert admin-alert--warning" role="status"><?= admin_te('forms.default_dropped') ?></p>
+    <?php endif; ?>
+  <?php elseif ($saved): ?>
     <p class="admin-alert admin-alert--success"><?= admin_te('common.saved') ?></p>
   <?php endif; ?>
 
@@ -333,7 +347,7 @@ $advancedOpen = $errors !== [] || $losesSubmissions;
         $isLast = $index === count($fieldRows) - 1;
         $optionCount = $type !== null && $type->usesOptions() ? count($field['choices'] ?? []) : 0;
       ?>
-      <article class="admin-card" style="margin-top:1rem;">
+      <article class="admin-card" style="margin-top:1rem;" id="form-field-<?= $fieldId ?>">
         <div class="admin-main__heading">
           <h3 style="margin:0;"><?= $h(FormLocalization::fieldName($fieldId)) ?></h3>
           <?php if ((int) $field['is_required'] === 1): ?>

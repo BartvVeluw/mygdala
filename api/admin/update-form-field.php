@@ -5,6 +5,19 @@
  *
  * Saves one field (admin/form-field.php?id=<id>).
  *
+ * POST/REDIRECT/GET, AND BACK TO THE FORM. A save that went through sends
+ * the editor to the form the field belongs to (admin/form.php), at that
+ * field's row, where the preview already shows it; the address is built from
+ * the stored form id and field id, so no request can point it anywhere else.
+ * Which field was saved, and whether its default had to go, travels in the
+ * session for that one screen. A save that wrote nothing — refused, or a type
+ * change waiting for confirmation — goes back to this field's own editor
+ * with what was sent, as it always did.
+ *
+ * THE WIDTH (FORMS.md, "Breedte van een veld") is one key of
+ * App\Service\Forms\FormFieldWidth. Any other value is refused with the
+ * other errors; it is never stored, and never becomes a class or a style.
+ *
  * IT DOES NOT TOUCH `field_key`, and there is no way to make it: the key is
  * what stored answers are filed under, and changing it would orphan every
  * one of them. Renaming a label is free and is what an editor means by
@@ -80,6 +93,7 @@ use App\Service\Forms\FormField;
 use App\Service\Forms\FormFieldOptions;
 use App\Service\Forms\FormFieldTypeChange;
 use App\Service\Forms\FormFieldTypes;
+use App\Service\Forms\FormFieldWidth;
 use App\Service\Forms\FormLocalization;
 use App\Service\Language\AdminTranslator;
 use App\Service\Language\LanguageCode;
@@ -151,6 +165,13 @@ if (array_key_exists('is_required', $_POST)) {
     $submitted['is_required'] = ($_POST['is_required'] ?? '') === '1';
 }
 
+// A key of the closed list and nothing else (App\Service\Forms\FormFieldWidth):
+// anything that is not one is refused below, never stored as a style or
+// turned into a class.
+if (array_key_exists('layout_width', $_POST)) {
+    $submitted['layout_width'] = is_string($_POST['layout_width']) ? mb_substr($_POST['layout_width'], 0, 20) : '';
+}
+
 if (array_key_exists('option_label', $_POST)) {
     $labels = is_array($_POST['option_label']) ? $_POST['option_label'] : [];
     $ids = is_array($_POST['option_id'] ?? null) ? $_POST['option_id'] : [];
@@ -179,6 +200,10 @@ if (!$languageIsWritable) {
 
 if ($type === null) {
     $errors[] = AdminTranslator::trans('validation.kies_geldig_veldtype');
+}
+
+if (array_key_exists('layout_width', $submitted) && !FormFieldWidth::isValid($submitted['layout_width'])) {
+    $errors[] = AdminTranslator::trans('validation.field_width_unknown');
 }
 
 $sendBack = static function (array $submitted, array $errors) use ($editorUrl): never {
@@ -212,8 +237,13 @@ if ($type->key() !== (string) $existing['field_type']) {
 $values = [
     'field_type' => $type->key(),
     'is_required' => (bool) $existing['is_required'],
+    'layout_width' => FormFieldWidth::fromStored($existing['layout_width'] ?? null),
     'default_value' => $existing['default_value'],
 ];
+
+if (array_key_exists('layout_width', $submitted) && FormFieldWidth::isValid($submitted['layout_width'])) {
+    $values['layout_width'] = $submitted['layout_width'];
+}
 
 $words = [
     FormLocalization::LABEL => $submitted['label'],
@@ -394,9 +424,13 @@ try {
     $sendBack($submitted, [AdminTranslator::trans('validation.field_not_saved')]);
 }
 
-if ($defaultDropped) {
-    $_SESSION['admin_form_field_notice'] = 'default_dropped';
-}
+// Saved: back to the form the field belongs to, at this field's row. The
+// address is built from the stored form id and the field id alone, never
+// from anything the request says about where to go.
+$_SESSION['admin_form_field_saved'] = [
+    'field_id' => $fieldId,
+    'default_dropped' => $defaultDropped,
+];
 
-header('Location: ' . $editorUrl . '&saved=1');
+header('Location: /admin/form.php?id=' . $formId . '&saved=1#form-field-' . $fieldId);
 exit;
