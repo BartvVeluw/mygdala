@@ -16,6 +16,7 @@ use App\Service\Csrf;
 use App\Service\Forms\FormCatalog;
 use App\Service\Forms\FormLocalization;
 use App\Service\Forms\FormFieldTypes;
+use App\Service\Forms\FormFieldWidth;
 use App\Service\Forms\FormRecipient;
 use App\Service\Forms\FormUsage;
 
@@ -33,17 +34,30 @@ use App\Service\Forms\FormUsage;
  * needs changing may be inside it. A closed <details> still submits its
  * controls, so the endpoint receives exactly the same fields either way.
  *
- * Then the fields, with no drag-and-drop page builder anywhere. Reordering
- * is the same pair of up/down buttons every repeater in this CMS uses
- * (admin/faq.php, admin/card-carousel.php), which works without JavaScript
- * and needs no library.
+ * Then the fields, one compact row each (Forms 2.0 phase 1), with no
+ * drag-and-drop page builder anywhere. Reordering is the square ↑/↓ pair of
+ * the navigation and footer rows (.admin-section-row), which works without
+ * JavaScript and needs no library.
  *
  * Editing ONE field happens on its own screen (admin/form-field.php), like a
  * carousel card: a field has nine settings, and nine of them per row inline
- * would make a five-field form unreadable. The list says what each field is
- * in words (its label, its kind, how many options) and not the name it is
- * posted under: nobody editing a form needs that name, and the field's own
- * screen keeps it under "Technische gegevens" for whoever does.
+ * would make a five-field form unreadable. A row says what each field is in
+ * one line of words (its kind, required or not, its width, how many options)
+ * and not the name it is posted under: nobody editing a form needs that
+ * name, and the field's own screen keeps it under "Technische gegevens" for
+ * whoever does. Each row is the anchor a saved field comes back to
+ * (#form-field-<id>, api/admin/update-form-field.php), and that one save is
+ * named above the cards.
+ *
+ * THE PREVIEW beside the fields is the stored form drawn by the public
+ * renderer, in a sandboxed frame of its own (admin/form-preview.php), so it
+ * cannot drift from what a visitor sees. It shows what is saved: every save
+ * on this screen or a field's screen reloads it.
+ *
+ * ONE OPSLAAN. The save bar's button is the screen's save; the settings
+ * form's own button is only there for a browser without the bar's script
+ * (`data-save-bar-fallback`), hidden once the bar shows, and still the
+ * form's default button, so Enter in a field still saves.
  *
  * ADDING A FIELD STARTS WITH WHAT KIND OF FIELD. "Veld toevoegen" opens a
  * dialog with a described card per type (admin/_form_fields.php) and the
@@ -221,6 +235,12 @@ $advancedOpen = $errors !== [] || $losesSubmissions;
     </div>
   <?php endif; ?>
 
+  <?php /* Two columns where the screen is wide enough for both: the
+           settings and the fields on the left, the preview beside them.
+           Where it is not, the preview follows the fields. A flex row that
+           wraps, so this needs no breakpoint of its own. */ ?>
+  <div class="admin-form-builder">
+    <div class="admin-form-builder__editor">
   <form method="post" action="/api/admin/update-form.php" class="admin-product-form"<?= is_array($old) ? ' data-save-bar-unsaved' : '' ?>>
     <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
     <input type="hidden" name="id" value="<?= $id ?>">
@@ -329,74 +349,126 @@ $advancedOpen = $errors !== [] || $losesSubmissions;
       </details>
     </section>
 
-    <button type="submit"><?= admin_te('common.save') ?></button>
+    <?php /* The form's own Opslaan, for a browser without the save bar's
+             script. With it, the bar's Opslaan is the one button and this
+             one is hidden (data-save-bar-fallback, admin/assets/save-bar.js);
+             it stays in the form, so Enter in a field still saves. */ ?>
+    <button type="submit" data-save-bar-fallback><?= admin_te('common.save') ?></button>
   </form>
 
-  <section class="admin-card">
-    <h2><?= admin_te('forms.velden') ?></h2>
+  <section class="admin-card" aria-labelledby="form-fields-title" id="form-fields">
+    <h2 id="form-fields-title"><?= admin_te('forms.velden') ?></h2>
 
     <?php if ($fieldRows === []): ?>
       <p class="admin-text-muted"><?= admin_te('forms.formulier_heeft_velden_zolang') ?></p>
+    <?php else: ?>
+      <?php /* One compact row per field, in form order: ↑/↓ where a drag
+               handle would be, the label, one line saying what it is (its
+               kind, whether it is required, its width, how many options),
+               and Bewerken and Verwijderen on the right. Every other setting
+               is on the field's own screen. The rows are the navigation and
+               footer rows of this CMS (.admin-section-row), with the same
+               square arrows. */ ?>
+      <ol class="admin-form-field-list">
+        <?php foreach ($fieldRows as $index => $field): ?>
+          <?php
+            $fieldId = (int) $field['id'];
+            $fieldName = FormLocalization::fieldName($fieldId);
+            $type = FormFieldTypes::get((string) $field['field_type']);
+            $optionCount = $type !== null && $type->usesOptions() ? count($field['choices'] ?? []) : 0;
+            $isRequired = $type !== null && $type->requiredIsFixed() ? true : (int) $field['is_required'] === 1;
+            $width = FormFieldWidth::fromStored($field['layout_width'] ?? null);
+
+            $facts = [form_field_type_label((string) $field['field_type'])];
+            $facts[] = admin_t($isRequired ? 'forms.field_row.required' : 'forms.field_row.optional');
+            $facts[] = admin_t('forms.width.short.' . $width);
+            if ($type !== null && $type->usesOptions()) {
+                $facts[] = admin_t($optionCount === 1 ? 'forms.option_count_one' : 'forms.option_count', ['count' => $optionCount]);
+            }
+          ?>
+          <li class="admin-section-row admin-form-field-row" id="form-field-<?= $fieldId ?>">
+            <div class="admin-form-field-row__move">
+              <?php foreach (['up' => ['forms.field_row.move_up_label', '&uarr;', $index === 0], 'down' => ['forms.field_row.move_down_label', '&darr;', $index === count($fieldRows) - 1]] as $direction => [$labelKey, $arrow, $disabled]): ?>
+                <form method="post" action="/api/admin/move-form-field.php" class="admin-inline-form">
+                  <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
+                  <input type="hidden" name="field_id" value="<?= $fieldId ?>">
+                  <input type="hidden" name="direction" value="<?= $direction ?>">
+                  <button type="submit" class="admin-btn-ghost admin-row-move" aria-label="<?= admin_te($labelKey, ['field' => $fieldName]) ?>"<?= $disabled ? ' disabled' : '' ?>><span aria-hidden="true"><?= $arrow ?></span></button>
+                </form>
+              <?php endforeach; ?>
+            </div>
+            <div class="admin-section-row__body">
+              <p class="admin-section-row__name"><?= $h($fieldName) ?></p>
+              <p class="admin-section-row__note"><?= $h(implode(' · ', $facts)) ?></p>
+              <?php if ($type === null): ?>
+                <p class="admin-section-row__note admin-form-field-row__problem"><?= admin_te('forms.veldtype_bestaat_meer_veld') ?></p>
+              <?php elseif ($type->usesOptions() && $optionCount === 0): ?>
+                <p class="admin-section-row__note admin-form-field-row__problem"><?= admin_te('forms.keuzeveld_heeft_opties_dus') ?></p>
+              <?php endif; ?>
+            </div>
+            <div class="admin-section-row__actions">
+              <a href="/admin/form-field.php?id=<?= $fieldId ?>" class="admin-section-row__edit" aria-label="<?= admin_te('forms.field_row.edit_label', ['field' => $fieldName]) ?>"><?= admin_te('common.edit') ?></a>
+              <form method="post" action="/api/admin/delete-form-field.php" class="admin-inline-form"<?= admin_confirm_attributes(
+                  admin_t('forms.delete_field.title'),
+                  admin_t('forms.delete_field.message', ['field' => $fieldName, 'form' => (string) $row['name']]),
+                  admin_t('common.delete')
+              ) ?>>
+                <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
+                <input type="hidden" name="field_id" value="<?= $fieldId ?>">
+                <button type="submit" class="admin-btn-danger admin-section-row__button" aria-label="<?= admin_te('forms.field_row.delete_label', ['field' => $fieldName]) ?>"><?= admin_te('common.delete') ?></button>
+              </form>
+            </div>
+          </li>
+        <?php endforeach; ?>
+      </ol>
     <?php endif; ?>
-
-    <?php foreach ($fieldRows as $index => $field): ?>
-      <?php
-        $fieldId = (int) $field['id'];
-        $type = FormFieldTypes::get((string) $field['field_type']);
-        $isFirst = $index === 0;
-        $isLast = $index === count($fieldRows) - 1;
-        $optionCount = $type !== null && $type->usesOptions() ? count($field['choices'] ?? []) : 0;
-      ?>
-      <article class="admin-card" style="margin-top:1rem;" id="form-field-<?= $fieldId ?>">
-        <div class="admin-main__heading">
-          <h3 style="margin:0;"><?= $h(FormLocalization::fieldName($fieldId)) ?></h3>
-          <?php if ((int) $field['is_required'] === 1): ?>
-            <span class="admin-badge admin-badge--info"><?= admin_te('common.required_badge') ?></span>
-          <?php endif; ?>
-        </div>
-        <p class="admin-text-muted">
-          <?= $h(form_field_type_label((string) $field['field_type'])) ?>
-          <?php if ($type !== null && $type->usesOptions()): ?>
-            &middot; <?= admin_te($optionCount === 1 ? 'forms.option_count_one' : 'forms.option_count', ['count' => $optionCount]) ?>
-          <?php endif; ?>
-        </p>
-        <?php if ($type === null): ?>
-          <p class="admin-alert admin-alert--error"><?= admin_te('forms.veldtype_bestaat_meer_veld') ?></p>
-        <?php elseif ($type->usesOptions() && $optionCount === 0): ?>
-          <p class="admin-alert admin-alert--error"><?= admin_te('forms.keuzeveld_heeft_opties_dus') ?></p>
-        <?php endif; ?>
-
-        <div class="admin-image-card__actions" style="margin-top:0.75rem;">
-          <a class="admin-btn-text" href="/admin/form-field.php?id=<?= $fieldId ?>"><?= admin_te('common.edit') ?></a>
-          <form method="post" action="/api/admin/move-form-field.php" class="admin-inline-form">
-            <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
-            <input type="hidden" name="field_id" value="<?= $fieldId ?>">
-            <input type="hidden" name="direction" value="up">
-            <button type="submit" class="admin-btn-text" <?= $isFirst ? 'disabled' : '' ?>><?= admin_t('common.move_up') ?></button>
-          </form>
-          <form method="post" action="/api/admin/move-form-field.php" class="admin-inline-form">
-            <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
-            <input type="hidden" name="field_id" value="<?= $fieldId ?>">
-            <input type="hidden" name="direction" value="down">
-            <button type="submit" class="admin-btn-text" <?= $isLast ? 'disabled' : '' ?>><?= admin_t('common.move_down') ?></button>
-          </form>
-          <form method="post" action="/api/admin/delete-form-field.php" class="admin-inline-form"<?= admin_confirm_attributes(
-              admin_t('forms.delete_field.title'),
-              admin_t('forms.delete_field.message', ['field' => FormLocalization::fieldName($fieldId), 'form' => (string) $row['name']]),
-              admin_t('common.delete')
-          ) ?>>
-            <input type="hidden" name="csrf_token" value="<?= $h($csrfToken) ?>">
-            <input type="hidden" name="field_id" value="<?= $fieldId ?>">
-            <button type="submit" class="admin-btn-text admin-btn-text--danger"><?= admin_te('common.delete') ?></button>
-          </form>
-        </div>
-      </article>
-    <?php endforeach; ?>
 
     <p class="admin-field-add">
       <a class="admin-btn-primary" href="/admin/form.php?id=<?= $id ?>&amp;add_field=1#form-field-add" data-form-field-add-open aria-haspopup="dialog"><?= admin_te('forms.veld_toevoegen') ?></a>
     </p>
   </section>
+    </div>
+
+    <?php /* The preview: the stored form, rendered by the public renderer in
+             a document of its own (admin/form-preview.php). The frame is
+             sandboxed with nothing but allow-same-origin: no script runs in
+             it and nothing in it can be sent, and it lets forms-admin.js
+             read how tall the form is, to size the frame. Without that
+             script the frame simply has a fixed height and its own scroll
+             bar, at the width of this column. With it, Desktop draws the
+             form at a desktop width scaled into the column, and Mobiel at a
+             phone's, because the site's media query answers to the width of
+             the frame. */ ?>
+    <aside class="admin-card admin-form-builder__preview" aria-labelledby="form-preview-title" data-form-preview>
+      <div class="admin-form-preview__head">
+        <h2 id="form-preview-title"><?= admin_te('forms.preview.title') ?></h2>
+        <div class="admin-block-preview__viewports" role="group" aria-label="<?= admin_te('forms.preview.viewports') ?>" data-form-preview-viewports hidden>
+          <button type="button" class="admin-block-preview__viewport" data-form-preview-viewport="desktop" aria-pressed="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="3" y="4" width="18" height="12" rx="1.5"/><path d="M8 20h8M12 16v4"/></svg>
+            <span><?= admin_te('forms.preview.desktop') ?></span>
+          </button>
+          <button type="button" class="admin-block-preview__viewport" data-form-preview-viewport="mobile" aria-pressed="false">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="7" y="2.5" width="10" height="19" rx="2"/><path d="M11 18.5h2"/></svg>
+            <span><?= admin_te('forms.preview.mobile') ?></span>
+          </button>
+        </div>
+      </div>
+      <p class="admin-text-muted"><?= admin_te('forms.preview.intro') ?></p>
+      <?php if (!$isActive): ?>
+        <p class="admin-alert admin-alert--warning"><?= admin_te('forms.preview.inactive') ?></p>
+      <?php endif; ?>
+      <?php if ($definition === null || !$definition->hasFields()): ?>
+        <p class="admin-text-muted"><?= admin_te('forms.preview.empty') ?></p>
+      <?php else: ?>
+        <div class="admin-form-preview__stage" data-form-preview-stage data-viewport="desktop">
+          <iframe class="admin-form-preview__frame" data-form-preview-frame
+                  src="/admin/form-preview.php?id=<?= $id ?>"
+                  title="<?= admin_te('forms.preview.frame_title', ['form' => (string) $row['name']]) ?>"
+                  sandbox="allow-same-origin" referrerpolicy="same-origin"></iframe>
+        </div>
+      <?php endif; ?>
+    </aside>
+  </div>
 
   <?php /* "Veld toevoegen": a native <dialog>, modal once forms-admin.js
            opens it (the page behind it inert, Escape closes it, focus goes

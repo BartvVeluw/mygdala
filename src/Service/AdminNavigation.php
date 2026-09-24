@@ -183,7 +183,14 @@ class AdminNavigation
                 'icon' => 'forms',
                 'permission' => AdminPermissions::FORMS_MANAGE,
                 'order' => 220,
-                'scripts' => ['forms.php', 'form.php', 'form-field.php'],
+                'scripts' => [
+                    'forms.php',
+                    'form.php',
+                    'form-field.php',
+                    // The stored form drawn by the public renderer, the frame
+                    // inside the form editor's Voorbeeld card.
+                    'form-preview.php',
+                ],
             ],
             [
                 // The catalogue of content blocks: what exists, what each one

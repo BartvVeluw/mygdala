@@ -289,3 +289,105 @@
     renumber();
   });
 })();
+
+/**
+ * THE PREVIEW (admin/form.php). The frame holds admin/form-preview.php: the
+ * stored form, drawn by the public renderer. The server gives it a fixed
+ * height and the width of its column, which works as it is. This makes it
+ * fit and lets the editor pick a width:
+ *
+ *   - Desktop draws the frame at least 768 pixels wide, wider than the 640
+ *     at which the site puts every field on its own row, and scales it down
+ *     into the column when the column is narrower. What is shown is the
+ *     desktop grid, only smaller.
+ *   - Mobiel draws it 375 pixels wide, a phone's width, where every field is
+ *     a full row.
+ *
+ * The site's media query does the rest, because the frame is a viewport of
+ * its own. The frame's height is the height of the form inside it, read
+ * through the frame's document: its sandbox allows the same origin and
+ * nothing else, so no script runs in it while this one may measure it. The
+ * frame is never navigated, posted to or written into. The choice of width
+ * holds while the screen is open and is not remembered.
+ */
+(function () {
+  "use strict";
+
+  var preview = document.querySelector("[data-form-preview]");
+  if (!preview) return;
+
+  var stage = preview.querySelector("[data-form-preview-stage]");
+  var frame = preview.querySelector("[data-form-preview-frame]");
+  var group = preview.querySelector("[data-form-preview-viewports]");
+  if (!stage || !frame) return;
+
+  var WIDTHS = { desktop: 768, mobile: 375 };
+
+  function contentHeight() {
+    try {
+      var doc = frame.contentDocument;
+      var main = doc && doc.getElementById("main");
+      if (!main) return 0;
+
+      return Math.ceil(main.getBoundingClientRect().bottom);
+    } catch (e) {
+      return 0;
+    }
+  }
+
+  function fit() {
+    var available = stage.clientWidth;
+    if (available <= 0) return;
+
+    var viewport = stage.getAttribute("data-viewport") === "mobile" ? "mobile" : "desktop";
+    var width = viewport === "mobile" ? WIDTHS.mobile : Math.max(available, WIDTHS.desktop);
+    var scale = Math.min(1, available / width);
+
+    frame.style.width = width + "px";
+
+    var height = contentHeight();
+    if (height <= 0) return;
+
+    frame.style.height = height + "px";
+    frame.style.transform = scale < 1 ? "scale(" + scale + ")" : "";
+    frame.style.marginLeft = Math.max(0, Math.floor((available - width * scale) / 2)) + "px";
+    stage.style.height = Math.ceil(height * scale) + "px";
+    stage.classList.add("is-fitted");
+  }
+
+  function show(viewport) {
+    stage.setAttribute("data-viewport", viewport);
+    Array.prototype.forEach.call(group ? group.querySelectorAll("[data-form-preview-viewport]") : [], function (button) {
+      button.setAttribute("aria-pressed", button.getAttribute("data-form-preview-viewport") === viewport ? "true" : "false");
+    });
+    fit();
+  }
+
+  if (group) {
+    Array.prototype.forEach.call(group.querySelectorAll("[data-form-preview-viewport]"), function (button) {
+      button.addEventListener("click", function () {
+        show(button.getAttribute("data-form-preview-viewport"));
+      });
+    });
+    group.hidden = false;
+  }
+
+  frame.addEventListener("load", function () {
+    fit();
+
+    // A web font that arrives after the load event changes the height.
+    try {
+      var fonts = frame.contentDocument && frame.contentDocument.fonts;
+      if (fonts && fonts.ready) fonts.ready.then(fit);
+    } catch (e) {}
+  });
+
+  if (typeof ResizeObserver === "function") {
+    new ResizeObserver(fit).observe(stage);
+  } else {
+    window.addEventListener("resize", fit);
+  }
+
+  // The frame may have finished loading before this file ran.
+  fit();
+})();

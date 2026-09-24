@@ -41,6 +41,12 @@
  *   - data-save-bar-discard on a link: following it throws that input away
  *     on purpose ("Annuleren" on such a screen), so the browser does not ask
  *     a second time.
+ *
+ * AND ONE A SCREEN MAY CHOOSE: data-save-bar-fallback on a form's own submit
+ * button says that button only exists for a browser without this script.
+ * Once the bar is showing it is the one Opslaan, and the button is hidden.
+ * Hidden, not removed: it is still the form's default button, so Enter in a
+ * field still submits the form, through the same request as ever.
  */
 (function () {
   "use strict";
@@ -86,6 +92,12 @@
   var leavingOnPurpose = false;
 
   bar.hidden = false;
+
+  forms.forEach(function (form) {
+    Array.prototype.forEach.call(form.querySelectorAll("[data-save-bar-fallback]"), function (button) {
+      button.hidden = true;
+    });
+  });
 
   /**
    * What the bar calls a form when it has to name one — "Opslaan mislukt bij

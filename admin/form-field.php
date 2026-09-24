@@ -415,7 +415,12 @@ $v = static fn (array $values, string $key): string => htmlspecialchars((string)
       <p class="admin-text-muted" id="form-field-width-intro"><?= admin_te('forms.width.intro') ?></p>
     </section>
 
-    <button type="submit"><?= admin_te($changingType ? ($losses === [] ? 'forms.type_change.submit' : 'forms.type_change.submit_losing') : 'common.save') ?></button>
+    <?php /* A plain Opslaan only exists for a browser without the save bar's
+             script (data-save-bar-fallback, admin/assets/save-bar.js); with
+             it, the bar's Opslaan is the one button. While a type change
+             waits for confirmation, the button says what it will do, so it
+             stays. */ ?>
+    <button type="submit"<?= $changingType ? '' : ' data-save-bar-fallback' ?>><?= admin_te($changingType ? ($losses === [] ? 'forms.type_change.submit' : 'forms.type_change.submit_losing') : 'common.save') ?></button>
   </form>
 
   <section class="admin-card">

@@ -16,6 +16,7 @@ use App\Service\Forms\FormCatalog;
 use App\Service\Forms\FormFieldKey;
 use App\Service\Forms\FormRenderState;
 use App\Service\Forms\FormSpamGuard;
+use App\Service\Routing\RequestLanguage;
 use App\Service\SectionRegistry;
 use PHPUnit\Framework\TestCase;
 use Tests\Support\AdminTestSession;
@@ -697,8 +698,260 @@ final class FormAdminHttpTest extends TestCase
     }
 
     /* ------------------------------------------------------------------ */
+    /* Forms 2.0 phase 1: compact rows, one Opslaan, the preview           */
+    /* ------------------------------------------------------------------ */
+
+    /**
+     * The field list is one compact row per field, in form order: ↑/↓ named
+     * after the field, the label, one line with its kind, whether it is
+     * required, its width and (for a choice field) how many options, and
+     * Bewerken and Verwijderen named after the field too. Nothing technical,
+     * nothing styled inline.
+     */
+    public function testTheFieldListIsOneCompactRowPerField(): void
+    {
+        [$session] = $this->accounts->signIn([AdminPermissions::FORMS_MANAGE]);
+        $formId = $this->createForm();
+        $this->setWidths($formId, ['naam' => 'half', 'e-mail' => 'half', 'voorkeur' => 'third', 'bericht' => 'full']);
+        $catalog = require dirname(__DIR__, 2) . '/src/Service/Language/messages/nl.php';
+
+        $xpath = $this->editorXpath($session, $formId);
+        $rows = $xpath->query('//section[@id="form-fields"]//ol[contains(@class, "admin-form-field-list")]/li');
+        $this->assertSame(4, $rows->length, 'one row per field');
+
+        $expected = [
+            ['Naam', [$catalog['formfieldtype.text.label'], 'verplicht', '1/2']],
+            ['E-mail', [$catalog['formfieldtype.email.label'], 'verplicht', '1/2']],
+            ['Voorkeur', [$catalog['formfieldtype.radio.label'], 'niet verplicht', '1/3', '2 opties']],
+            ['Bericht', [$catalog['formfieldtype.textarea.label'], 'niet verplicht', 'volle breedte']],
+        ];
+        $fieldIds = array_map(static fn (array $row): int => (int) $row['id'], $this->forms->fieldsFor($formId));
+
+        foreach ($expected as $index => [$label, $facts]) {
+            $row = $rows->item($index);
+            $id = $fieldIds[$index];
+
+            $this->assertSame('form-field-' . $id, $row->getAttribute('id'), 'the row is the anchor a save comes back to');
+            $this->assertSame($label, trim($xpath->query('.//*[contains(@class, "admin-section-row__name")]', $row)->item(0)->textContent));
+            $this->assertSame(implode(' · ', $facts), trim($xpath->query('.//*[contains(@class, "admin-section-row__note")]', $row)->item(0)->textContent));
+
+            $moves = $xpath->query('.//form[@action="/api/admin/move-form-field.php"]//button', $row);
+            $this->assertSame(2, $moves->length);
+            $this->assertSame(str_replace(':field', $label, $catalog['forms.field_row.move_up_label']), $moves->item(0)->getAttribute('aria-label'));
+            $this->assertSame(str_replace(':field', $label, $catalog['forms.field_row.move_down_label']), $moves->item(1)->getAttribute('aria-label'));
+            $this->assertSame($index === 0, $moves->item(0)->hasAttribute('disabled'), 'the first cannot go up');
+            $this->assertSame($index === 3, $moves->item(1)->hasAttribute('disabled'), 'the last cannot go down');
+
+            $edit = $xpath->query('.//a[@href="/admin/form-field.php?id=' . $id . '"]', $row);
+            $this->assertSame(1, $edit->length);
+            $this->assertSame($catalog['common.edit'], trim($edit->item(0)->textContent));
+            $this->assertStringContainsString($catalog['common.edit'], $edit->item(0)->getAttribute('aria-label'), 'the visible word is in the name');
+            $this->assertStringContainsString($label, $edit->item(0)->getAttribute('aria-label'));
+
+            $delete = $xpath->query('.//form[@action="/api/admin/delete-form-field.php"]', $row);
+            $this->assertSame(1, $delete->length);
+            $this->assertSame($catalog['forms.delete_field.title'], $delete->item(0)->getAttribute('data-admin-confirm-title'), 'asks first');
+            $this->assertStringContainsString($label, $xpath->query('.//button', $delete->item(0))->item(0)->getAttribute('aria-label'));
+        }
+
+        $list = $rows->item(0)->parentNode;
+        $this->assertSame(0, $xpath->query('.//*[@style]', $list)->length, 'no inline styling');
+        $this->assertStringNotContainsString('field_key', $list->ownerDocument->saveHTML($list));
+    }
+
+    /**
+     * The settings form has one Opslaan of its own, marked as the fallback
+     * the save bar hides once it shows; so does a field's editor, except
+     * while a type change waits, when its button says what it will do.
+     */
+    public function testTheSaveBarReplacesTheFormsOwnOpslaan(): void
+    {
+        [$session] = $this->accounts->signIn([AdminPermissions::FORMS_MANAGE]);
+        $formId = $this->createForm();
+        $settings = '//form[@action="' . self::UPDATE_ENDPOINT . '"]';
+
+        $buttons = $this->editorXpath($session, $formId)->query($settings . '//button[@type="submit" or not(@type)]');
+        $this->assertSame(1, $buttons->length, 'one submit button in the settings form');
+        $this->assertTrue($buttons->item(0)->hasAttribute('data-save-bar-fallback'), 'and the bar replaces it');
+
+        $fieldId = (int) $this->forms->fieldsFor($formId)[0]['id'];
+        $response = self::$server->request('GET', '/admin/form-field.php?id=' . $fieldId, $session);
+        $fieldButtons = $this->xpath($response['body'])->query('//form[@action="/api/admin/update-form-field.php"]//button[@type="submit"]');
+        $this->assertSame(1, $fieldButtons->length);
+        $this->assertTrue($fieldButtons->item(0)->hasAttribute('data-save-bar-fallback'));
+
+        $script = (string) file_get_contents(dirname(__DIR__, 2) . '/admin/assets/save-bar.js');
+        $this->assertMatchesRegularExpression(
+            '/bar\.hidden = false;\s+forms\.forEach\(function \(form\) \{\s+Array\.prototype\.forEach\.call\(form\.querySelectorAll\("\[data-save-bar-fallback\]"\), function \(button\) \{\s+button\.hidden = true;/',
+            $script,
+            'hidden once the bar shows, and only inside a watched form'
+        );
+        $this->assertStringNotContainsString('.remove()', $script, 'hidden, never removed: Enter still submits');
+    }
+
+    /**
+     * The editor frames the preview: the stored form's own address, a title,
+     * and a sandbox that allows the same origin and nothing else — no
+     * script, no form, no popup. A switched-off form says so; a form without
+     * a field that can be filled in has no frame.
+     */
+    public function testTheEditorFramesThePreviewInASandbox(): void
+    {
+        [$session] = $this->accounts->signIn([AdminPermissions::FORMS_MANAGE]);
+        $formId = $this->createForm();
+        $catalog = require dirname(__DIR__, 2) . '/src/Service/Language/messages/nl.php';
+
+        $xpath = $this->editorXpath($session, $formId);
+        $frames = $xpath->query('//aside[@data-form-preview]//iframe');
+        $this->assertSame(1, $frames->length);
+        $frame = $frames->item(0);
+
+        $this->assertSame('/admin/form-preview.php?id=' . $formId, $frame->getAttribute('src'));
+        $this->assertSame('allow-same-origin', $frame->getAttribute('sandbox'), 'no allow-scripts, no allow-forms');
+        $this->assertNotSame('', trim($frame->getAttribute('title')));
+        $this->assertSame(0, $xpath->query('//aside[@data-form-preview]//*[contains(@class, "admin-alert--warning")]')->length, 'an active form needs no warning');
+        $this->assertSame(1, $xpath->query('//div[contains(@class, "admin-form-builder__editor")]//section[@id="form-fields"]')->length, 'the fields sit beside the preview');
+
+        $this->setActive($formId, false);
+        $this->assertStringContainsString(htmlspecialchars($catalog['forms.preview.inactive'], ENT_QUOTES, 'UTF-8'), self::$server->request('GET', '/admin/form.php?id=' . $formId, $session)['body']);
+
+        $empty = $this->forms->create([
+            'name' => 'Leeg',
+            'internal_key' => FormCatalog::internalKeyFor('zz test leeg voorbeeld', $this->forms),
+            'is_active' => true,
+            'notification_email' => 'leeg@example.com',
+            'reply_to_field_key' => null,
+            'store_submissions' => true,
+        ]);
+        $this->createdFormIds[] = $empty;
+        $xpath = $this->editorXpath($session, $empty);
+        $this->assertSame(0, $xpath->query('//aside[@data-form-preview]//iframe')->length, 'nothing to frame');
+        $this->assertStringContainsString($catalog['forms.preview.empty'], $xpath->query('//aside[@data-form-preview]')->item(0)->textContent);
+    }
+
+    /**
+     * The preview IS the public renderer: its fields are byte for byte what
+     * render_form() prints for the stored form in the language being edited
+     * (labels, types, required marks, widths), no script can run in it and
+     * nothing in it can be sent, and its ids share nothing with the editor
+     * around it.
+     */
+    public function testThePreviewIsThePublicRendererInTheLanguageBeingEdited(): void
+    {
+        [$session] = $this->accounts->signIn([AdminPermissions::FORMS_MANAGE]);
+        $formId = $this->createForm();
+        $this->setWidths($formId, ['naam' => 'third', 'e-mail' => 'two_thirds', 'voorkeur' => 'half', 'bericht' => 'full']);
+        FormFixture::fieldWords((int) $this->forms->fieldsFor($formId)[0]['id'], ['en' => ['label' => 'Name']]);
+
+        foreach (['nl' => 'Naam', 'en' => 'Name'] as $language => $firstLabel) {
+            $this->editIn($session, $language);
+
+            $response = self::$server->request('GET', '/admin/form-preview.php?id=' . $formId, $session);
+            $this->assertSame(200, $response['status'], $language);
+
+            $csp = BuiltInServer::header($response, 'Content-Security-Policy');
+            foreach (["script-src 'none'", "form-action 'none'", "frame-ancestors 'self'"] as $rule) {
+                $this->assertStringContainsString($rule, $csp);
+            }
+            $this->assertStringContainsString('no-store', BuiltInServer::header($response, 'Cache-Control'));
+            $this->assertStringNotContainsStringIgnoringCase('<script', $response['body'], 'no script at all');
+            $this->assertStringNotContainsString('/assets/js/blocks/form.js', $response['body']);
+            $this->assertStringContainsString('/assets/css/blocks/form.css', $response['body'], 'the block\'s own stylesheet');
+
+            $preview = $this->xpath($response['body']);
+            $this->assertSame($language, $preview->query('//html')->item(0)->getAttribute('lang'));
+            $this->assertSame($firstLabel, trim($preview->query('//form[contains(@class, "vvl-form")]//label/span')->item(0)->textContent), $language);
+
+            $expected = $this->renderedGrid($formId, $language);
+            $this->assertSame($expected, $this->gridOf($preview), $language . ': the same fields, byte for byte');
+            $this->assertSame(1, $preview->query('//div[contains(@class, "form-field--third")]')->length);
+            $this->assertSame(1, $preview->query('//div[contains(@class, "form-field--two-thirds")]')->length);
+
+            $previewIds = array_map(static fn (\DOMAttr $id): string => $id->value, iterator_to_array($preview->query('//@id')));
+            $this->assertSame(count($previewIds), count(array_unique($previewIds)), 'no id twice');
+            $editorIds = array_map(static fn (\DOMAttr $id): string => $id->value, iterator_to_array($this->editorXpath($session, $formId)->query('//@id')));
+            $this->assertSame([], array_values(array_intersect($previewIds, $editorIds)), 'nothing in common with the editor');
+        }
+    }
+
+    /**
+     * The preview is an admin screen like the editor: a signed-in forms
+     * manager only, and a form that does not exist is a 404.
+     */
+    public function testThePreviewHasTheEditorsGuard(): void
+    {
+        $formId = $this->createForm();
+
+        $anonymous = self::$server->request('GET', '/admin/form-preview.php?id=' . $formId);
+        $this->assertContains($anonymous['status'], [301, 302, 303]);
+        $this->assertStringContainsString('login', $anonymous['location']);
+        $this->assertStringNotContainsString('vvl-form', $anonymous['body']);
+
+        [$pagesOnly] = $this->accounts->signIn([AdminPermissions::PAGES_MANAGE]);
+        $refused = self::$server->request('GET', '/admin/form-preview.php?id=' . $formId, $pagesOnly);
+        $this->assertNotSame(200, $refused['status']);
+        $this->assertStringNotContainsString('vvl-form', $refused['body']);
+
+        [$session] = $this->accounts->signIn([AdminPermissions::FORMS_MANAGE]);
+        $this->assertSame(404, self::$server->request('GET', '/admin/form-preview.php?id=999999999', $session)['status']);
+        $this->assertSame(404, self::$server->request('GET', '/admin/form-preview.php?id=abc', $session)['status']);
+    }
+
+    /* ------------------------------------------------------------------ */
     /* Helpers                                                             */
     /* ------------------------------------------------------------------ */
+
+    /**
+     * Stored widths per field key.
+     *
+     * @param array<string, string> $widths
+     */
+    private function setWidths(int $formId, array $widths): void
+    {
+        $statement = Database::connection()->prepare('UPDATE form_fields SET layout_width = ? WHERE form_id = ? AND field_key = ?');
+        foreach ($widths as $key => $width) {
+            $statement->execute([$width, $formId, $key]);
+        }
+
+        $stored = array_column($this->forms->fieldsFor($formId), 'layout_width', 'field_key');
+        $this->assertSame($widths, array_intersect_key($stored, $widths), 'every key is a field of this form');
+        FormCatalog::clearCache();
+    }
+
+    /** The website language the signed-in account edits in (the shell's switch). */
+    private function editIn(string $session, string $language): void
+    {
+        Database::connection()
+            ->prepare('UPDATE admin_users SET content_editing_language = ? WHERE id = ?')
+            ->execute([$language, (int) $this->accounts->read($session, 'admin_user_id')]);
+    }
+
+    /** The fields of the stored form as render_form() prints them, in $language. */
+    private function renderedGrid(int $formId, string $language): string
+    {
+        require_once dirname(__DIR__, 2) . '/partials/form.php';
+
+        RequestLanguage::set($language, true);
+        FormCatalog::clearCache();
+
+        try {
+            ob_start();
+            render_form(FormCatalog::find($formId), FormRenderState::fresh('form-preview-' . $formId));
+
+            return $this->gridOf($this->xpath((string) ob_get_clean()));
+        } finally {
+            RequestLanguage::reset();
+            FormCatalog::clearCache();
+        }
+    }
+
+    private function gridOf(\DOMXPath $xpath): string
+    {
+        $grid = $xpath->query('//div[contains(concat(" ", @class, " "), " form-grid ")]')->item(0);
+        $this->assertNotNull($grid, 'a form grid');
+
+        return (string) $grid->ownerDocument->saveHTML($grid);
+    }
 
     /** One shared confirmation dialog, whose own form sends nothing. */
     private function assertCmsConfirmDialog(\DOMXPath $xpath, string $screen): void

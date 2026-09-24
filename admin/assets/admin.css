@@ -3696,6 +3696,40 @@ body.admin-media-modal-open{ overflow: hidden; }
 .admin-type-change__losses{ margin: 0 0 var(--admin-sp-3); padding-left: 1.2rem; display: flex; flex-direction: column; gap: 0.3rem; overflow-wrap: anywhere; }
 .admin-type-change__actions{ display: flex; flex-wrap: wrap; align-items: center; gap: var(--admin-sp-3); margin-top: var(--admin-sp-4); }
 
+/* The form editor (admin/form.php), since Forms 2.0 phase 1. The settings
+   and the fields on the left and the preview beside them where both fit, the
+   preview under the fields where they do not: a wrapping flex row, so no
+   breakpoint of its own. The preview stays in view while the fields scroll
+   past it. Layout only: every colour, card and button is the CMS's own. */
+.admin-form-builder{ display: flex; flex-wrap: wrap; align-items: flex-start; gap: 0 var(--admin-sp-5); }
+.admin-form-builder__editor{ flex: 1 1 34rem; min-width: 0; max-width: 720px; }
+.admin-form-builder__editor > .admin-product-form{ margin-bottom: var(--admin-sp-5); }
+.admin-form-builder__preview{ flex: 1 1 22rem; min-width: 0; position: sticky; top: var(--admin-sp-4); }
+
+/* One compact row per field: the rows of Header & navigatie and the footer
+   (.admin-section-row), with the same square ↑/↓ where a drag handle would
+   be. The actions wrap under the label on a narrow screen instead of
+   squeezing it. */
+.admin-form-field-list{ list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.5rem; }
+.admin-form-field-row{ flex-wrap: wrap; gap: 0.5rem 0.75rem; padding: 0.55rem 0.8rem; }
+.admin-form-field-row__move{ flex: none; display: flex; gap: 2px; }
+.admin-form-field-row .admin-section-row__body{ flex: 1 1 11rem; }
+.admin-form-field-row .admin-section-row__name{ margin: 0; overflow-wrap: anywhere; }
+.admin-form-field-row .admin-section-row__note{ margin: 0.1rem 0 0; }
+.admin-form-field-row .admin-section-row__actions{ flex-wrap: wrap; gap: 0.5rem; }
+.admin-form-field-row .admin-section-row__button{ padding: 0.35rem 0.8rem; font-size: 0.84rem; line-height: 1.5; white-space: nowrap; }
+.admin-form-field-row__problem{ color: var(--admin-error); }
+
+/* The preview: the width buttons are the block library's, the frame a
+   document of its own (admin/form-preview.php). Without script the frame
+   has a fixed height and scrolls; forms-admin.js sizes and scales it. */
+.admin-form-preview__head{ display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--admin-sp-2) var(--admin-sp-3); margin-bottom: var(--admin-sp-2); }
+.admin-form-preview__head h2{ margin: 0; }
+.admin-form-preview__head [hidden]{ display: none; }
+.admin-form-preview__stage{ overflow: hidden; margin-top: var(--admin-sp-3); background: var(--admin-surface-sunken); border: 1px solid var(--admin-border); border-radius: var(--admin-radius-md); }
+.admin-form-preview__frame{ display: block; width: 100%; height: 34rem; border: 0; }
+.admin-form-preview__stage.is-fitted .admin-form-preview__frame{ max-width: none; transform-origin: 0 0; }
+
 /* ============================================================
    Setup Wizard (admin/setup.php + admin/assets/setup-wizard.js)
 

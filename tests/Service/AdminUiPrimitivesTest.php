@@ -298,8 +298,9 @@ final class AdminUiPrimitivesTest extends TestCase
             // the public website, so its shell is the site's own
             // (admin/page-preview.php), and the preview of one block shows
             // that block alone inside the library's frame
-            // (admin/block-preview.php).
-            if (in_array($file, ['login.php', 'setup.php', 'page-preview.php', 'block-preview.php'], true)) {
+            // (admin/block-preview.php), as the preview of one form does in
+            // the form editor's frame (admin/form-preview.php).
+            if (in_array($file, ['login.php', 'setup.php', 'page-preview.php', 'block-preview.php', 'form-preview.php'], true)) {
                 continue;
             }
 
