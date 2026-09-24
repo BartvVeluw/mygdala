@@ -450,9 +450,13 @@ De enige inline waarde is `object-position`, en die komt uit `ImageFocus`.
   kant gelden dan niet, en de hoogtes worden vaste, lagere waarden. Een
   gemigreerd blok met de afbeelding links toonde op een telefoon eerst de
   afbeelding; nu komt eerst de tekst.
-- **Een item zonder afbeelding** houdt zijn tekst in zijn eigen kolom, op
-  zijn eigen breedte. Een item zonder tekst houdt zijn afbeelding aan zijn
-  eigen kant.
+- **Een item met maar één helft gaat over de volle breedte.** Alleen tekst:
+  de tekst is 100% breed. Alleen een afbeelding: de afbeelding vult het hele
+  item, met zijn eigen hoogte en focuspunt. De breedte (`image_column`) en de
+  kant blijven opgeslagen en gelden weer zodra de andere helft erbij komt; de
+  weergave negeert ze zolang er geen tweede kolom is. Zo geven de losse
+  afbeeldingen uit een oude galerij (zie de migratie hieronder) geen lege
+  tekstkolom.
 - **Een item zonder titel** begint met de grotere lead-alinea, zoals de
   eerste alinea van een blok zonder titel altijd deed.
 - **De migratie** maakt van elk bestaand blok zijn eerste item. De alinea's

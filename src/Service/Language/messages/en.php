@@ -1366,7 +1366,7 @@ With "Full background" the media fills the whole Hero and the text sits on top o
     'block_textimage.hoogte_small' => 'Small',
     'block_textimage.hoogte_medium' => 'Medium',
     'block_textimage.hoogte_large' => 'Large',
-    'block_textimage.layout_uitleg' => 'Width and side apply on a wide screen. On a phone the text sits above the image, both at full width, and the image is lower.',
+    'block_textimage.layout_uitleg' => 'Width and side apply on a wide screen, to an item with both text and an image. An item with only text or only an image takes the full width. On a phone the text sits above the image, both at full width, and the image is lower.',
     'block_textimage.focus' => 'Image focus point',
     'help.block_textimage.focus' => 'The image is cropped to the shape of its box. Choose which part stays in view. The website and the preview beside it use the same choice.',
     'block_textimage.focus_voorbeeld' => 'How the image fits the item on a wide screen',

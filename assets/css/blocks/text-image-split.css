@@ -44,11 +44,15 @@
 .text-image__item--image-left.text-image__item--column-75{ --text-image-columns: minmax(0, 3fr) minmax(0, 1fr); }
 
 /* The text comes first in the document; on a wide screen a left picture
-   takes the first column. An item with only one half keeps that half in its
-   own column, at its own width. */
+   takes the first column. */
 .text-image__item--image-left .text-image__media{ order: -1; }
-.text-image__item--image-only.text-image__item--image-right .text-image__media{ grid-column: 2; }
-.text-image__item--text-only.text-image__item--image-left .text-image__text{ grid-column: 2; }
+
+/* An item with only one half has no second column: its text, or its
+   picture, takes the whole row. The share stays stored and counts again
+   once the other half is added; image_height and the focus point still
+   apply to a picture on its own. */
+.text-image__item--text-only,
+.text-image__item--image-only{ grid-template-columns: minmax(0, 1fr); }
 
 .text-image__item--height-small{ --text-image-height: var(--text-image-height-small); }
 .text-image__item--height-large{ --text-image-height: var(--text-image-height-large); }
@@ -80,6 +84,5 @@
     --text-image-item-gap: var(--sp-5);
   }
   .text-image .text-image__item{ grid-template-columns: minmax(0, 1fr); gap: var(--sp-3); }
-  .text-image .text-image__item .text-image__media,
-  .text-image .text-image__item .text-image__text{ grid-column: auto; order: 0; }
+  .text-image .text-image__item .text-image__media{ order: 0; }
 }

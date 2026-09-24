@@ -124,6 +124,47 @@ final class TextImageSplitItemsTest extends TestCase
         self::assertStringContainsString('text-image__body--lead', $withoutTitle, 'a title-less item opens with the lead paragraph');
     }
 
+    /**
+     * The layout contract, held against the stylesheet itself: the columns
+     * an item gets on a wide screen, worked out the way the browser's cascade
+     * would from the classes the partial prints (a small resolver for the
+     * class-only selectors this file uses; see resolvedColumns()).
+     *
+     *   text + image   the picture's share: 25/75, 50/50 or 75/25, read from
+     *                  the picture's side
+     *   text only      one column, the whole row, whatever share is stored
+     *   image only     one column, the whole row, whatever share is stored
+     *
+     * The browser check of the same (desktop and 375px) is in the phase's
+     * acceptance; this pins it for every later change to the file.
+     */
+    public function testATextAndImageItemSplitsByItsShareAndASingleHalfTakesTheWholeRow(): void
+    {
+        $shares = ['25' => ['1fr', '3fr'], '50' => ['1fr', '1fr'], '75' => ['3fr', '1fr']];
+
+        foreach (TextImageSplitContent::SIDES as $side) {
+            foreach ($shares as $column => [$image, $text]) {
+                $classes = self::classesOf(self::render([self::item(['image_side' => $side, 'image_column' => $column])]));
+                $expected = $side === 'left'
+                    ? "minmax(0, {$image}) minmax(0, {$text})"
+                    : "minmax(0, {$text}) minmax(0, {$image})";
+                self::assertSame($expected, self::resolvedColumns($classes), "text + image, {$side}, {$column}");
+
+                foreach ([
+                    'text only' => ['image' => null],
+                    'image only' => ['eyebrow' => '', 'title' => '', 'body' => '', 'button_label' => ''],
+                ] as $what => $overrides) {
+                    $classes = self::classesOf(self::render([self::item(['image_side' => $side, 'image_column' => $column] + $overrides)]));
+                    self::assertSame('minmax(0, 1fr)', self::resolvedColumns($classes), "{$what}, {$side}, {$column}: the whole row");
+                }
+            }
+        }
+
+        $css = self::stylesheet();
+        self::assertStringNotContainsString('grid-column', $css, 'no half is ever pinned to a column of its own');
+        self::assertMatchesRegularExpression('/@media \(max-width: 860px\)\{.*\.text-image \.text-image__item\{ grid-template-columns: minmax\(0, 1fr\);/s', $css, 'one column on a narrow screen');
+    }
+
     // ------------------------------------------------------------ read model
 
     public function testTheItemsComeInOrderAndOnlyTheOnesWithSomethingToShow(): void
@@ -248,6 +289,66 @@ final class TextImageSplitItemsTest extends TestCase
             'button_url' => '/contact',
             'image' => ['image_path' => '/assets/media/z.webp', 'alt' => 'Een werkplaats', 'width' => 1600, 'height' => 1000, 'media_id' => null],
         ];
+    }
+
+    private static function stylesheet(): string
+    {
+        return (string) file_get_contents(dirname(__DIR__, 2) . '/assets/css/blocks/text-image-split.css');
+    }
+
+    /** @return list<string> the classes of the one item in $html */
+    private static function classesOf(string $html): array
+    {
+        self::assertSame(1, preg_match('/class="(text-image__item [^"]*)"/', $html, $match));
+
+        return explode(' ', $match[1]);
+    }
+
+    /**
+     * The grid-template-columns an item with these classes gets on a wide
+     * screen: every top-level rule whose selector is a compound of these
+     * classes applies, the more specific (more classes) after the less, and
+     * a later rule after an earlier one; custom properties are then
+     * substituted. Only the class-only selectors this stylesheet uses count.
+     *
+     * @param list<string> $classes
+     */
+    private static function resolvedColumns(array $classes): string
+    {
+        $css = (string) preg_replace('~/\*.*?\*/~s', '', self::stylesheet());
+        $css = (string) preg_replace('/@media[^{]*\{(?:[^{}]*\{[^{}]*\})*[^{}]*\}/', '', $css);
+
+        $matching = [];
+        preg_match_all('/([^{}]+)\{([^{}]*)\}/', $css, $rules, PREG_SET_ORDER);
+        foreach ($rules as $order => [, $selectors, $body]) {
+            foreach (explode(',', $selectors) as $selector) {
+                $selector = trim($selector);
+                if (preg_match('/^(\.[a-z0-9_-]+)+$/i', $selector) !== 1) {
+                    continue;
+                }
+                $needed = explode('.', ltrim($selector, '.'));
+                if (array_diff($needed, $classes) === []) {
+                    $matching[] = [count($needed), $order, $body];
+                }
+            }
+        }
+        usort($matching, static fn (array $a, array $b): int => [$a[0], $a[1]] <=> [$b[0], $b[1]]);
+
+        $declared = [];
+        foreach ($matching as [, , $body]) {
+            foreach (explode(';', $body) as $declaration) {
+                if (str_contains($declaration, ':')) {
+                    [$property, $value] = array_map('trim', explode(':', $declaration, 2));
+                    $declared[$property] = $value;
+                }
+            }
+        }
+
+        return (string) preg_replace_callback(
+            '/var\((--[a-z0-9-]+)\)/',
+            static fn (array $m): string => $declared[$m[1]] ?? $m[0],
+            $declared['grid-template-columns'] ?? ''
+        );
     }
 
     /** @param list<array<string, mixed>> $items */

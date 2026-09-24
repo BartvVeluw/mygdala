@@ -1374,7 +1374,7 @@ Bij "Volledige achtergrond" vult de media de hele Hero en staat de tekst eroverh
     'block_textimage.hoogte_small' => 'Klein',
     'block_textimage.hoogte_medium' => 'Middel',
     'block_textimage.hoogte_large' => 'Groot',
-    'block_textimage.layout_uitleg' => 'Breedte en kant gelden op een breed scherm. Op een telefoon staat de tekst boven de afbeelding, allebei over de volle breedte, en is de afbeelding lager.',
+    'block_textimage.layout_uitleg' => 'Breedte en kant gelden op een breed scherm, voor een item met tekst én afbeelding. Een item met alleen tekst of alleen een afbeelding gaat over de volle breedte. Op een telefoon staat de tekst boven de afbeelding, allebei over de volle breedte, en is de afbeelding lager.',
     'block_textimage.focus' => 'Focuspunt van de afbeelding',
     'help.block_textimage.focus' => 'De afbeelding wordt bijgesneden tot de vorm van zijn vak. Kies welk deel in beeld blijft. De website en het voorbeeld hiernaast gebruiken dezelfde keuze.',
     'block_textimage.focus_voorbeeld' => 'Zo valt de afbeelding in het item op een breed scherm',
