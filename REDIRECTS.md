@@ -189,6 +189,29 @@ Twee hernoemingen achter elkaar geven daarmee:
 Elke historische URL komt in één stap uit bij de huidige, en de keten groeit
 niet mee met het aantal hernoemingen.
 
+### Een pagina verplaatsen
+
+Sinds pagina's kunnen nesten (`docs/pages/NESTING.md`) is het adres van een
+pagina een heel pad, en verandert het ook bij een **nieuwe bovenliggende
+pagina** of een **nieuwe slug van een pagina erboven**. Dan verhuist niet één
+adres maar de hele subboom, in elke taal:
+
+```text
+/materiaal                  →  /materialen
+/materiaal/metaal           →  /materialen/metaal
+/materiaal/metaal/aluminium →  /materialen/metaal/aluminium
+```
+
+Een nieuwe ouder wordt eerst bevestigd, net als een nieuwe slug
+(`confirmed_parent`, `PageService::parentChangeNeedsConfirmation()`); de kaart
+toont de volledige paden en hoeveel pagina's meeverhuizen. Na de opslag
+vergelijkt `api/admin/update-page.php` de paden van vóór en na
+(`PagePath::snapshot()`, `PageService::pathMoves()`) en geeft
+`SlugChangeRedirects::recordMoves()` elk veranderd pad zijn eigen 301, alle in
+één transactie. Per pad gelden dezelfde drie stappen als hierboven, dezelfde
+voorwaarden (de pagina zelf: `oldAddressWillRedirect()`; een pagina eronder:
+gepubliceerd) en dezelfde eerbied voor een handmatige redirect.
+
 **Verwijderen of depubliceren schrijft niets.** Verzinnen dat alles wat op een
 verwijderde URL stond nu op de homepage hoort, is precies hoe een eerlijke 404
 een soft 404 wordt. Wie daar een bestemming wil, maakt er zelf een.

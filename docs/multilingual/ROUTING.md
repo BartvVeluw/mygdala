@@ -307,6 +307,17 @@ het contract houdt er rekening mee. Na een wissel van NL naar EN:
 Terugwisselen herstelt exact de oude toestand; op de speelinstallatie was de
 URL-tabel na NL → EN → NL identiek aan die ervoor.
 
+### Geneste pagina's
+
+Een pagina onder een andere pagina heeft als adres het **hele pad**: de slug
+van elke voorouder in die taal, dan de eigen slug (`App\Service\PagePath`,
+[`docs/pages/NESTING.md`](../pages/NESTING.md)). De regel hierboven geldt per
+segment, dus een pad bestaat in een taal alleen als elke pagina erop daar een
+adres heeft: onder een pagina zonder Engels adres heeft een kind ook geen
+Engelse URL. De paginaroute is `{slug+}` (één tot acht segmenten), en
+`pagina.php` controleert het hele pad (`PageContent::forPath()`), nooit alleen
+de laatste slug.
+
 Geen adres per taal krijgen:
 
 - **producten** — die hebben helemaal geen slug-URL: één pagina op

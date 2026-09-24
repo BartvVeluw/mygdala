@@ -575,7 +575,7 @@ render_breadcrumb(
 | Groep | Kruimelpad | Schakelaar |
 |---|---|---|
 | Siteroot (`/`) | Nooit — je begint er | — |
-| Gewone CMS-pagina, en de sjablonen Diensten, Portfolio, Over mij, Contact, Shop | `Home / paginatitel` | `pages.show_breadcrumb` |
+| Gewone CMS-pagina, en de sjablonen Diensten, Portfolio, Over mij, Contact, Shop | `Home / paginatitel`; een geneste pagina `Home / elke bovenliggende pagina / paginatitel`, uit dezelfde `parent_id`-keten als haar URL (`docs/pages/NESTING.md`) | `pages.show_breadcrumb` |
 | Shop-routes: product, collectie, winkelwagen, afrekenen, bestelstatus, personaliseren | Vast, met hun eigen niveaus; het Shop-niveau is de Shop-pagina zelf | Geen — geen `pages`-rij |
 | Blog: overzicht, archief, bericht | Vast, met de blogtitel uit `BlogSettings` | Geen |
 | Cookiebeleid, Herroepingsrecht | Vast, uit `RouteRegistry` | Geen |

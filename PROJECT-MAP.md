@@ -104,7 +104,7 @@ welke Core, staat in `MODULES.md`; dat document gaat over de grenzen zelf.
 
 | Domein | Verantwoordelijk voor | Belangrijkste paden |
 |---|---|---|
-| **CMS/pagina's** | `pages`-rijen, slug/status/SEO, publicatie, bescherming, 404 | `PageContent`, `PageService`, `PageRepository`, `admin/pages.php`, `admin/page.php`, `pagina.php` |
+| **CMS/pagina's** | `pages`-rijen, slug/status/SEO, publicatie, bescherming, 404; geneste pagina's en hun pad, de paginaboom, de beheergroep (`docs/pages/NESTING.md`) | `PageContent`, `PagePath`, `PageTree`, `PageService`, `PageRepository`, `admin/pages.php`, `admin/page.php`, `pagina.php` |
 | **Installatie-bootstrap** | Het verschil tussen een verse en een bestaande database, en wat Core en de modules op een verse aanmaken | `Install\InstallState`, `db/migrations/20260909400000_bootstrap_a_generic_fresh_install.php` — zie `INSTALL-BOOTSTRAP.md` |
 | **Installatiewizard** | Of een verse installatie nog ingericht moet worden, wat er dan gevraagd wordt, en het één keer atomair wegschrijven daarvan | `Install\SetupState`, `Install\SetupWizard`, `admin/setup.php`, `api/admin/complete-setup.php` — zie `SETUP.md` |
 | **Paginasjablonen** | Het startpunt dat een redacteur kiest bij *Nieuwe pagina*: welke blokken een verse pagina meekrijgt. Alleen op het moment van aanmaken — daarna is het een gewone pagina | `Service\PageTemplates\*`, `admin/page-new.php`, `api/admin/create-page.php` — zie `PAGE-TEMPLATES.md` |

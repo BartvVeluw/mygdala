@@ -54,6 +54,7 @@ de checklist al klaarzet. Roep die eerst aan.
 | Header-knop, footer-slotregel, social profielen, het kruimelpad | — | `HEADER-FOOTER.md` |
 | Titels, meta description, canonical, sitemap, robots | — | `SEO.md` |
 | Een oude URL die moet blijven werken, een pagina hernoemen | — | `REDIRECTS.md` |
+| Pagina's onder elkaar zetten (geneste URL's), de paginaboom in het CMS, de beheergroep Service & juridisch | — | `docs/pages/NESTING.md` |
 | De ingebouwde updater, releases maken, een mislukte update herstellen | — | `docs/updates/ARCHITECTURE.md` |
 | Een publieke route, de dispatcher, URL's en slugs per taal, canonical en hreflang per taal | — | `docs/multilingual/ROUTING.md` |
 | Tests draaien of toevoegen | — | `TESTING.md` |
