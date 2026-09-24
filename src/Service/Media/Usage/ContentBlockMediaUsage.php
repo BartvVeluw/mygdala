@@ -10,10 +10,10 @@ use App\Service\Media\MediaUsage;
 use App\Service\Media\MediaUsageProvider;
 
 /**
- * The content blocks that pick their images from the Media Library: Text +
- * image split, Detailsectie (its main image and its extra images), the cards
- * of a Kaarten-carrousel, the image behind a Paginakop, and the Homepage
- * Hero's image and video.
+ * The content blocks that pick their images from the Media Library: every
+ * item of a Tekst met afbeelding, Detailsectie (its main image and its extra
+ * images), the cards of a Kaarten-carrousel, the image behind a Paginakop,
+ * and the Homepage Hero's image and video.
  *
  * ONE QUERY FOR ALL OF THEM. A UNION rather than five round trips,
  * because this provider is called once per page of the library listing and
@@ -57,7 +57,7 @@ final class ContentBlockMediaUsage extends MediaUsageProvider
                    s.page_slug          AS page_slug,
                    s.section_key        AS section_key,
                    NULL                 AS card_id
-              FROM text_image_split_images i
+              FROM text_image_split_items i
               JOIN text_image_splits s ON s.id = i.text_image_split_id
              WHERE i.media_id IN (' . $placeholders . ')
 

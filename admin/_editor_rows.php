@@ -136,14 +136,15 @@ function editor_error_id(string $errorKey): string
 /**
  * The start of one row: a fieldset named "<noun> <place>" (row-list.js keeps
  * the place right after a move), the marker that says the row was on the
- * form, and the row's tools: ↑, ↓ and the removal mark.
+ * form, and the row's tools: ↑, ↓ and the removal mark. $class is an extra
+ * class for a screen's own styling of its rows.
  */
-function editor_row_open(string $list, string $key, string $noun, int $position, int $count, bool $removed): void
+function editor_row_open(string $list, string $key, string $noun, int $position, int $count, bool $removed, string $class = ''): void
 {
     $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
     $isNew = !ctype_digit($key);
     ?>
-    <fieldset class="admin-row-card" data-row-list-row>
+    <fieldset class="admin-row-card<?= $class !== '' ? ' ' . $h($class) : '' ?>" data-row-list-row>
       <legend class="admin-row-card__legend"><?= $h($noun) ?> <span data-row-list-number><?= $key === '__KEY__' ? '' : $position + 1 ?></span><?php if ($isNew): ?> <span class="admin-badge admin-badge--info"><?= admin_te('editor_rows.nieuw') ?></span><?php endif; ?></legend>
       <input type="hidden" name="<?= $h(editor_row_name($list, $key, 'present')) ?>" value="1">
       <div class="admin-row-card__head">
@@ -199,6 +200,51 @@ function editor_row_text(string $list, string $key, string $field, string $label
 }
 
 /**
+ * One rich-text field of a row: the shared editor of admin/_richtext_field.php
+ * (a textarea that admin/assets/admin.js turns into the Quill editor, also in
+ * a row row-list.js adds later), with the row's own message. The server
+ * sanitizes what it gets (TranslatableField::rich()); the editor is not the
+ * boundary.
+ *
+ * @param array<string, string> $fields the row's values
+ * @param array<string, string> $errors field errors keyed `<list>.<key>.<field>`
+ */
+function editor_row_rich(string $list, string $key, string $field, string $label, array $fields, array $errors, string $toolbar = 'full'): void
+{
+    $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
+    $id = editor_row_id($list, $key, $field);
+    $errorKey = $list . '.' . $key . '.' . $field;
+
+    echo '<div class="admin-field admin-richtext-field" data-richtext-field data-richtext-toolbar="' . $h($toolbar) . '" data-richtext-size="">';
+    echo '<label for="' . $h($id) . '">' . $h($label) . '</label>';
+    echo '<textarea id="' . $h($id) . '" name="' . $h(editor_row_name($list, $key, $field)) . '" class="admin-richtext-fallback" data-richtext-source rows="6"'
+        . editor_field_invalid($errors, $errorKey) . '>' . $h((string) ($fields[$field] ?? '')) . '</textarea>';
+    editor_field_error($errors, $errorKey);
+    echo '</div>';
+}
+
+/**
+ * A choice between a few named options of a row, as a segmented control
+ * (.admin-segmented) in a fieldset named $legend. $options is value => Dutch
+ * label; $data names a data attribute each radio carries with its value, for
+ * a screen's CSS to read (admin.css, `.admin-tis-item`).
+ *
+ * @param array<string, string> $options
+ */
+function editor_row_choice(string $list, string $key, string $field, string $legend, array $options, string $chosen, string $data = ''): void
+{
+    $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
+
+    echo '<fieldset class="admin-segmented-field"><legend>' . $h($legend) . '</legend><div class="admin-segmented">';
+    foreach ($options as $value => $label) {
+        echo '<label class="admin-segmented__option"><input type="radio" name="' . $h(editor_row_name($list, $key, $field)) . '" value="' . $h((string) $value) . '"'
+            . ($data !== '' ? ' data-' . $h($data) . '="' . $h((string) $value) . '"' : '')
+            . ((string) $value === $chosen ? ' checked' : '') . '> <span>' . $h($label) . '</span></label>';
+    }
+    echo '</div></fieldset>';
+}
+
+/**
  * A row's image: the Media picker (admin/_media_picker.php) under the row's
  * own `media_id`, with its message. The picker hands back an id and nothing
  * else; the endpoint resolves it. The screen prints media_picker_modal() and
@@ -207,7 +253,7 @@ function editor_row_text(string $list, string $key, string $field, string $label
  * @param array<string, string> $fields the row's values
  * @param array<string, string> $errors field errors keyed `<list>.<key>.<field>`
  */
-function editor_row_media(string $list, string $key, array $fields, array $errors, string $label, string $help = ''): void
+function editor_row_media(string $list, string $key, array $fields, array $errors, string $label, string $help = '', bool $clearable = false): void
 {
     require_once __DIR__ . '/_media_picker.php';
 
@@ -215,7 +261,7 @@ function editor_row_media(string $list, string $key, array $fields, array $error
     $mediaId = (int) ($fields['media_id'] ?? 0);
 
     echo '<div class="admin-field">';
-    media_picker_field(editor_row_name($list, $key, 'media_id'), $mediaId > 0 ? \App\Service\Media\MediaService::find($mediaId) : null, $label, $help, false);
+    media_picker_field(editor_row_name($list, $key, 'media_id'), $mediaId > 0 ? \App\Service\Media\MediaService::find($mediaId) : null, $label, $help, $clearable);
     editor_field_error($errors, $errorKey);
     echo '</div>';
 }

@@ -138,15 +138,8 @@ final class BlockWordsEditorHttpTest extends TestCase
         ],
         // Phase 3B, wave C. The Detailsectie's body is rich text; its main
         // image's alt text is on the image form, a rule of its own below.
-        'text_image_split' => [
-            'table' => 'text_image_splits',
-            'screen' => '/admin/text-image-split.php?section={section}',
-            'endpoint' => '/api/admin/update-text-image-split-section.php',
-            'address' => 'section',
-            'settings' => ['layout' => 'image_right', 'button_url' => '/contact', 'is_active' => '1'],
-            'words' => ['eyebrow' => 'Over mij', 'title' => 'Het verhaal', 'button_label' => 'Neem contact op'],
-            'required' => [],
-        ],
+        // (Tekst met afbeelding has no words of its own since 2.0: every word
+        // is an item's, Tests\Service\BlockRowEditorsHttpTest.)
         'detail_section' => [
             'table' => 'detail_sections',
             'screen' => '/admin/detail-section.php?section={section}',

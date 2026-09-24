@@ -9,41 +9,45 @@ require_once __DIR__ . '/_localized_fields.php';
 require_once __DIR__ . '/_admin_ui.php';
 require_once __DIR__ . '/_editor_rows.php';
 require_once __DIR__ . '/_media_picker.php';
+require_once __DIR__ . '/_image_focus.php';
 
 use App\Service\AdminAuth;
 use App\Service\Blocks\BlockLocalization;
 use App\Service\Csrf;
+use App\Service\Media\BlockImage;
+use App\Service\Media\MediaService;
 use App\Service\TextImageSplitContent;
 use App\Repository\TextImageSplitRepository;
 
 /**
- * Editor for one Text + image split block (?section=<page content_key>:<section_key>):
- * its section fields, its paragraphs and its images.
+ * Editor for one Tekst met afbeelding block (?section=<page content_key>:<section_key>):
+ * whether it shows, and its items (Tekst met afbeelding 2.0,
+ * App\Service\TextImageSplitContent). An item is an eyebrow, a title, a
+ * rich-text body and an optional button beside at most one picture, with the
+ * picture's side, share of the row, height and focus point.
  *
- * ONE FORM, ONE SAVE (PAGE-EDITOR.md, "Eén formulier per blok-editor"). The
- * section fields and both lists — every paragraph, every image with its
- * media item and alt text, their order, removal marks, new ones — post to
+ * ONE FORM, ONE SAVE (PAGE-EDITOR.md, "Eén formulier per blok-editor").
+ * Everything — "Actief" and every item with its words, picture, layout,
+ * order, removal mark, and the new ones — posts to
  * api/admin/update-text-image-split-section.php together, and its one
- * "Opslaan" (or the save bar) stores all of it. Choosing an image in the
- * picker only fills the row's field; nothing is saved until "Opslaan". ↑, ↓
- * and "toevoegen" work on screen (admin/assets/row-list.js); without
- * JavaScript ↑ and ↓ submit the whole form and one empty paragraph waits at
- * the end of its list (App\Service\Blocks\EditorChildList,
- * admin/_editor_rows.php). An image needs the picker, which needs
- * JavaScript anyway.
+ * "Opslaan" (or the save bar) stores all of it. Choosing a picture only fills
+ * the item's field. ↑, ↓, Verwijderen and "Item toevoegen" work on screen
+ * (admin/assets/row-list.js); a new item gets the rich-text editor
+ * (admin/assets/admin.js) and the focus preview (admin/assets/image-focus.js)
+ * like the ones the server printed. Without JavaScript ↑ and ↓ submit the
+ * whole form, one empty item waits at the end of the list, and the body is a
+ * plain textarea of HTML.
  *
  * ONE WEBSITE LANGUAGE AT A TIME (Multilingual 2.0, admin/_localized_fields.php):
- * the eyebrow, title and button label, every paragraph and every image's alt
- * text show the language chosen in the CMS shell, as stored and without the
- * default language's words in an empty translation; a paragraph's text is
- * required only in the default language. A save writes that language only.
- * The layout, the button URL, "Actief" and the chosen media are the same in
- * every language and stay on screen in each. A paragraph or an image keeps
- * its id however often it is saved or moved, so the words of the other
- * languages stay with it. A NEW paragraph or image is written in the
- * default language, like a new page. Input a refused save hands back comes
- * back as it was typed (both lists, order and marks included), with each
- * message next to its field, and the form then starts out unsaved in the
+ * an item's eyebrow, title, body, button label and alt text show the language
+ * chosen in the CMS shell, as stored and without the default language's
+ * words in an empty translation. A save writes that language only. The
+ * picture, the layout, the button URL and "Actief" are the same in every
+ * language and stay on screen in each. An item keeps its id however often it
+ * is saved or moved, so the words of the other languages stay with it. A NEW
+ * item is written in the default language, like a new page. Input a refused
+ * save hands back comes back as it was typed (order and marks included), with
+ * each message next to its field, and the form then starts out unsaved in the
  * save bar.
  */
 
@@ -84,8 +88,8 @@ $split = $repository->findBySlugAndKey($pageSlug, $sectionKeyPart);
 if ($split === null) {
     // First time this section is opened in the admin: create the row now,
     // empty and active exactly as TextImageSplitBlock::create() does, so
-    // paragraphs/images can be attached.
-    $repository->upsertSection($pageSlug, $sectionKeyPart, ['is_active' => true, 'layout' => 'image_right']);
+    // items can be attached.
+    $repository->upsertSection($pageSlug, $sectionKeyPart, ['is_active' => true]);
     $split = $repository->findBySlugAndKey($pageSlug, $sectionKeyPart);
 }
 
@@ -100,69 +104,94 @@ $saved = isset($_GET['saved']);
 
 $editLanguage = admin_localized_language();
 
-// The words of the section, of every paragraph and of every image, in one query.
+// The words of every item, in one query.
 BlockLocalization::preloadBlocks(['text_image_splits' => [$splitId]]);
 
-// What is the same in every language: handed back, else stored.
-$sectionValues = is_array($old) ? [
-    'layout' => (string) ($old['layout'] ?? 'image_right'),
-    'button_url' => (string) ($old['button_url'] ?? ''),
-    'is_active' => !empty($old['is_active']),
-] : [
-    'layout' => (string) ($split['layout'] ?? 'image_right'),
-    'button_url' => (string) ($split['button_url'] ?? ''),
-    'is_active' => (bool) $split['is_active'],
-];
+$isActive = is_array($old) ? !empty($old['is_active']) : (bool) $split['is_active'];
 
 $oldInThisLanguage = is_array($old) && ($old['language_code'] ?? null) === $editLanguage;
 
-/** The section's words on screen: typed and handed back in this language, else stored in it. */
-$sectionWord = static function (string $field) use ($old, $oldInThisLanguage, $splitId, $editLanguage): string {
-    if ($oldInThisLanguage) {
-        return (string) ($old[$field] ?? '');
+// The items on screen: as a refused save handed them back, else as stored.
+$itemRows = editor_rows_on_screen(
+    $repository->findItemsBySectionId($splitId),
+    $oldInThisLanguage ? (array) ($old['items'] ?? []) : null,
+    static function (array $item) use ($editLanguage): array {
+        $fields = [
+            'media_id' => (string) (int) ($item['media_id'] ?? 0),
+            'button_url' => (string) ($item['button_url'] ?? ''),
+        ] + TextImageSplitContent::layout($item);
+
+        foreach (array_keys(BlockLocalization::fields('text_image_split_items')) as $field) {
+            $fields[$field] = BlockLocalization::raw('text_image_split_items', (int) $item['id'], $field, $editLanguage);
+        }
+
+        return $fields;
     }
-
-    return BlockLocalization::raw('text_image_splits', $splitId, $field, $editLanguage);
-};
-
-// Both lists on screen: as a refused save handed them back, else as stored.
-$paragraphRows = editor_rows_on_screen(
-    $repository->findParagraphsBySectionId($splitId),
-    $oldInThisLanguage ? (array) ($old['paragraphs'] ?? []) : null,
-    static fn (array $paragraph): array => [
-        'content' => BlockLocalization::raw('text_image_split_paragraphs', (int) $paragraph['id'], 'content', $editLanguage),
-    ]
-);
-$imageRows = editor_rows_on_screen(
-    $repository->findImagesBySectionId($splitId),
-    $oldInThisLanguage ? (array) ($old['images'] ?? []) : null,
-    static fn (array $image): array => [
-        'media_id' => (string) (int) ($image['media_id'] ?? 0),
-        'alt' => BlockLocalization::raw('text_image_split_images', (int) $image['id'], 'alt', $editLanguage),
-    ]
 );
 
 $csrfToken = Csrf::token();
 $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
-$marker = admin_localized_required($editLanguage) !== '' ? '*' : '';
 $placeholder = admin_localized_placeholder_attr($editLanguage);
-// An optional field says so in the default language; in a translation its
-// placeholder says what a visitor sees while it is empty.
-$optional = admin_localized_optional_attr($editLanguage);
 
-/** One paragraph; the template for a new one is the same markup with the key __KEY__. */
-$paragraphRow = static function (string $key, array $fields, int $position, int $count) use ($marker, $placeholder, $fieldErrors): void {
-    [$star, $hint] = editor_row_word_hints($key, $marker, $placeholder);
-    editor_row_open('paragraphs', $key, admin_t('block_textimage.alinea'), $position, $count, ($fields['remove'] ?? '') !== '');
-    editor_row_text('paragraphs', $key, 'content', admin_t('block_textimage.tekst') . $star, 1000, $fields, $fieldErrors, $hint, 3);
-    editor_row_close();
-};
+$sides = ['left' => admin_t('block_textimage.links'), 'right' => admin_t('block_textimage.rechts')];
+$columns = [
+    '25' => admin_t('block_textimage.breedte_25'),
+    '50' => admin_t('block_textimage.breedte_50'),
+    '75' => admin_t('block_textimage.breedte_75'),
+];
+$heights = [
+    'small' => admin_t('block_textimage.hoogte_small'),
+    'medium' => admin_t('block_textimage.hoogte_medium'),
+    'large' => admin_t('block_textimage.hoogte_large'),
+];
 
-/** One image; the template for a new one is the same markup with the key __KEY__. */
-$imageRow = static function (string $key, array $fields, int $position, int $count) use ($placeholder, $fieldErrors): void {
-    editor_row_open('images', $key, admin_t('block_textimage.afbeelding'), $position, $count, ($fields['remove'] ?? '') !== '');
-    editor_row_media('images', $key, $fields, $fieldErrors, ctype_digit($key) ? 'Afbeelding' : 'Afbeelding*', 'Kies dezelfde afbeelding gerust op meerdere plekken — hij wordt maar één keer opgeslagen.');
-    editor_row_media_alt('images', $key, $fields, $fieldErrors, $placeholder);
+/**
+ * One item; the template for a new one is the same markup with the key __KEY__.
+ *
+ * @param array<string, mixed>|null $stored the stored row, null for a new item
+ */
+$itemRow = static function (string $key, array $fields, int $position, int $count, ?array $stored) use ($placeholder, $fieldErrors, $h, $sides, $columns, $heights): void {
+    [, $hint] = editor_row_word_hints($key, '', $placeholder);
+    $layout = TextImageSplitContent::layout($fields);
+
+    // What the focus preview shows: the chosen library item, else a picture
+    // from before the library that only the stored row knows.
+    $mediaId = (int) ($fields['media_id'] ?? 0);
+    $media = $mediaId > 0 ? MediaService::find($mediaId) : null;
+    $legacyPath = $stored !== null && (int) ($stored['media_id'] ?? 0) === 0 ? BlockImage::fromOwner($stored, null)['image_path'] : '';
+    $previewSrc = $media !== null ? $media->displayPath() : $legacyPath;
+
+    editor_row_open('items', $key, admin_t('block_textimage.item'), $position, $count, ($fields['remove'] ?? '') !== '', 'admin-tis-item');
+    editor_row_text('items', $key, 'eyebrow', admin_t('block_textimage.eyebrow'), 150, $fields, $fieldErrors, $hint !== '' ? $hint : ' placeholder="Optioneel"');
+    editor_row_text('items', $key, 'title', admin_t('block_textimage.titel_h2'), 255, $fields, $fieldErrors, $hint);
+    editor_row_rich('items', $key, 'body', admin_t('block_textimage.tekst'), $fields, $fieldErrors);
+    echo '<p class="admin-text-muted">' . admin_te('block_textimage.er_titel_ingevuld_krijgt') . '</p>';
+
+    editor_row_media('items', $key, $fields, $fieldErrors, admin_t('block_textimage.afbeelding'), admin_t('block_textimage.afbeelding_uitleg'), true);
+    if ($legacyPath !== '' && $mediaId === 0) {
+        echo '<p class="admin-text-muted">' . $h(admin_t('block_textimage.afbeelding_zonder_bibliotheek', ['path' => $legacyPath])) . '</p>';
+    }
+    editor_row_media_alt('items', $key, $fields, $fieldErrors, $placeholder);
+
+    echo '<div class="admin-tis-layout">';
+    editor_row_choice('items', $key, 'image_side', admin_t('block_textimage.afbeelding_positie'), $sides, $layout['image_side']);
+    editor_row_choice('items', $key, 'image_column', admin_t('block_textimage.breedte'), $columns, $layout['image_column'], 'tis-column');
+    editor_row_choice('items', $key, 'image_height', admin_t('block_textimage.hoogte'), $heights, $layout['image_height'], 'tis-height');
+    echo '</div>';
+    echo '<p class="admin-text-muted">' . admin_te('block_textimage.layout_uitleg') . '</p>';
+
+    media_focus_field(
+        editor_row_name('items', $key, 'image_focus'),
+        $layout['image_focus'],
+        $previewSrc,
+        admin_t('block_textimage.focus'),
+        admin_t('help.block_textimage.focus'),
+        admin_t('block_textimage.focus_voorbeeld')
+    );
+
+    editor_row_text('items', $key, 'button_label', admin_t('block_textimage.knoptekst'), 150, $fields, $fieldErrors, $hint !== '' ? $hint : ' placeholder="Optioneel"');
+    editor_row_text('items', $key, 'button_url', admin_t('block_textimage.knop_url'), 255, $fields, $fieldErrors, ' placeholder="Bijv. /contact — leeg = geen knop"');
+    echo '<p class="admin-text-muted">' . admin_te('block_textimage.knoptekst_url_horen_elkaar') . '</p>';
     editor_row_close();
 };
 ?>
@@ -172,7 +201,10 @@ $imageRow = static function (string $key, array $fields, int $position, int $cou
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title><?= htmlspecialchars($section['section_label'], ENT_QUOTES, 'UTF-8') ?> <?= admin_te('block_textimage.admin') ?></title>
+<link rel="stylesheet" href="<?= \App\Service\AssetVersion::url('/admin/assets/vendor/quill/quill.snow.css') ?>">
 <link rel="stylesheet" href="<?= \App\Service\AssetVersion::url('/admin/assets/admin.css') ?>">
+<script src="<?= \App\Service\AssetVersion::url('/admin/assets/vendor/quill/quill.min.js') ?>" defer></script>
+<script src="<?= \App\Service\AssetVersion::url('/admin/assets/admin.js') ?>" defer></script>
 </head>
 <body<?= \App\Service\AdminTheme::bodyAttribute() ?>>
 <?php require __DIR__ . '/_header.php'; ?>
@@ -206,82 +238,32 @@ $imageRow = static function (string $key, array $fields, int $position, int $cou
 
     <section class="admin-card">
       <h2><?= admin_te('block_textimage.sectie') ?></h2>
-      <div class="admin-field">
-        <?= admin_field_label('tis-layout', admin_t('block_textimage.afbeelding_positie')) ?>
-        <select class="admin-select" id="tis-layout" name="layout">
-          <option value="image_right"<?= $sectionValues['layout'] === 'image_right' ? ' selected' : '' ?>><?= admin_te('block_textimage.afbeelding_rechts_tekst_links') ?></option>
-          <option value="image_left"<?= $sectionValues['layout'] === 'image_left' ? ' selected' : '' ?>><?= admin_te('block_textimage.afbeelding_links_tekst_rechts') ?></option>
-        </select>
-      </div>
-
-      <div class="admin-field">
-        <?= admin_field_label('tis-eyebrow', admin_t('block_textimage.eyebrow')) ?>
-        <input type="text" id="tis-eyebrow" name="eyebrow" maxlength="150" value="<?= $h($sectionWord('eyebrow')) ?>"<?= $optional ?><?= editor_field_invalid($fieldErrors, 'eyebrow') ?>>
-        <?php editor_field_error($fieldErrors, 'eyebrow'); ?>
-      </div>
-
-      <div class="admin-field">
-        <?= admin_field_label('tis-title', admin_t('block_textimage.titel_h2')) ?>
-        <input type="text" id="tis-title" name="title" maxlength="255" value="<?= $h($sectionWord('title')) ?>"<?= $optional ?><?= editor_field_invalid($fieldErrors, 'title') ?>>
-        <?php editor_field_error($fieldErrors, 'title'); ?>
-      </div>
-      <p class="admin-text-muted"><?= admin_te('block_textimage.er_titel_ingevuld_krijgt') ?></p>
-
-      <div class="admin-field">
-        <?= admin_field_label('tis-button-label', admin_t('block_textimage.knoptekst')) ?>
-        <input type="text" id="tis-button-label" name="button_label" maxlength="150" value="<?= $h($sectionWord('button_label')) ?>"<?= $optional ?><?= editor_field_invalid($fieldErrors, 'button_label') ?>>
-        <?php editor_field_error($fieldErrors, 'button_label'); ?>
-      </div>
-      <div class="admin-field">
-        <?= admin_field_label('tis-button-url', admin_t('block_textimage.knop_url')) ?>
-        <input type="text" id="tis-button-url" name="button_url" maxlength="255" value="<?= $h($sectionValues['button_url']) ?>" placeholder="Bijv. contact.php — leeg = geen knop">
-      </div>
-      <p class="admin-text-muted"><?= admin_te('block_textimage.knoptekst_url_horen_elkaar') ?></p>
-
       <label class="admin-checkbox-label">
-        <input type="checkbox" class="admin-checkbox" name="is_active" value="1" <?= $sectionValues['is_active'] ? 'checked' : '' ?>>
+        <input type="checkbox" class="admin-checkbox" name="is_active" value="1" <?= $isActive ? 'checked' : '' ?>>
         <?= admin_te('block_textimage.actief_uitgevinkt_hele_sectie') ?>
       </label>
     </section>
 
-    <section class="admin-card" aria-labelledby="tis-paragraphs-title">
-      <h2 id="tis-paragraphs-title"><?= admin_te('block_textimage.alinea_s') ?></h2>
+    <section class="admin-card" aria-labelledby="tis-items-title">
+      <h2 id="tis-items-title"><?= admin_te('block_textimage.items') ?></h2>
+      <p class="admin-text-muted"><?= admin_te('block_textimage.items_uitleg') ?></p>
 
-      <?php if ($paragraphRows === []): ?>
-        <p class="admin-text-muted"><?= admin_te('block_textimage.alinea_s_sectie') ?></p>
+      <?php if ($itemRows === []): ?>
+        <p class="admin-text-muted"><?= admin_te('block_textimage.items_leeg') ?></p>
       <?php endif; ?>
 
-      <input type="hidden" name="paragraphs_present" value="1">
-      <div class="admin-row-cards" data-row-list="text-image-split-paragraphs">
-        <?php foreach ($paragraphRows as $position => $row): ?>
-          <?php $paragraphRow($row['key'], $row['fields'], $position, count($paragraphRows)); ?>
+      <input type="hidden" name="items_present" value="1">
+      <div class="admin-row-cards" data-row-list="text-image-split-items">
+        <?php foreach ($itemRows as $position => $row): ?>
+          <?php $itemRow($row['key'], $row['fields'], $position, count($itemRows), $row['stored']); ?>
         <?php endforeach; ?>
         <noscript>
-          <?php $paragraphRow(editor_rows_free_key($paragraphRows), [], count($paragraphRows), count($paragraphRows) + 1); ?>
+          <?php $itemRow(editor_rows_free_key($itemRows), [], count($itemRows), count($itemRows) + 1, null); ?>
         </noscript>
       </div>
-      <?php editor_rows_status('text-image-split-paragraphs'); ?>
-      <?php editor_rows_add('text-image-split-paragraphs', admin_t('block_textimage.alinea_toevoegen'), $editLanguage); ?>
-      <template data-row-list-template="text-image-split-paragraphs"><?php $paragraphRow('__KEY__', [], 0, 1); ?></template>
-    </section>
-
-    <section class="admin-card" aria-labelledby="tis-images-title">
-      <h2 id="tis-images-title"><?= admin_te('block_textimage.afbeeldingen') ?></h2>
-      <p class="admin-text-muted"><?= admin_te('block_textimage.1_afbeelding_toont_enkele') ?></p>
-
-      <?php if ($imageRows === []): ?>
-        <p class="admin-text-muted"><?= admin_te('block_textimage.afbeeldingen_sectie') ?></p>
-      <?php endif; ?>
-
-      <input type="hidden" name="images_present" value="1">
-      <div class="admin-row-cards" data-row-list="text-image-split-images">
-        <?php foreach ($imageRows as $position => $row): ?>
-          <?php $imageRow($row['key'], $row['fields'], $position, count($imageRows)); ?>
-        <?php endforeach; ?>
-      </div>
-      <?php editor_rows_status('text-image-split-images'); ?>
-      <?php editor_rows_add('text-image-split-images', admin_t('block_textimage.afbeelding_toevoegen'), $editLanguage); ?>
-      <template data-row-list-template="text-image-split-images"><?php $imageRow('__KEY__', [], 0, 1); ?></template>
+      <?php editor_rows_status('text-image-split-items'); ?>
+      <?php editor_rows_add('text-image-split-items', admin_t('block_textimage.item_toevoegen'), $editLanguage); ?>
+      <template data-row-list-template="text-image-split-items"><?php $itemRow('__KEY__', [], 0, 1, null); ?></template>
     </section>
 
     <div class="admin-form-actions">
@@ -293,6 +275,7 @@ $imageRow = static function (string $key, array $fields, int $position, int $cou
 <?php media_picker_modal(); ?>
 <?php media_picker_script(); ?>
 <script src="<?= \App\Service\AssetVersion::url('/admin/assets/row-list.js') ?>" defer></script>
+<script src="<?= \App\Service\AssetVersion::url('/admin/assets/image-focus.js') ?>" defer></script>
 <?php save_bar_script(); ?>
 </body>
 </html>

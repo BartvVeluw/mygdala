@@ -93,22 +93,40 @@ final class OptionalEyebrowTest extends TestCase
         $definition = BlockDefinitions::get($type);
         self::assertNotNull($definition);
         $sample = $definition->sampleContent(new BlockSamples());
-        if ($sample === null || !array_key_exists('eyebrow', $sample)) {
+        if ($sample === null || (!array_key_exists('eyebrow', $sample) && !array_key_exists('items', $sample))) {
             // project_cards has no eyebrow input; its sample carries none.
             self::assertSame('project_cards', $type);
 
             return;
         }
 
-        $with = $this->render($type, ['eyebrow' => 'Bovenlabel'] + $sample);
+        $with = $this->render($type, self::withEyebrow($sample, 'Bovenlabel'));
         self::assertStringContainsString('>Bovenlabel</p>', $with, $type);
         self::assertMatchesRegularExpression('/<p class="eyebrow[" ]/', $with, $type);
 
         foreach (['', '   '] as $empty) {
-            $without = $this->render($type, ['eyebrow' => $empty] + $sample);
+            $without = $this->render($type, self::withEyebrow($sample, $empty));
             self::assertStringNotContainsString('class="eyebrow', $without, $type);
             self::assertStringNotContainsString('eyebrow"', $without, $type);
         }
+    }
+
+    /**
+     * The sample with this eyebrow: on the block, or on every item of a block
+     * whose eyebrow is an item's (Tekst met afbeelding).
+     *
+     * @param array<string, mixed> $sample
+     * @return array<string, mixed>
+     */
+    private static function withEyebrow(array $sample, string $eyebrow): array
+    {
+        if (array_key_exists('eyebrow', $sample)) {
+            return ['eyebrow' => $eyebrow] + $sample;
+        }
+
+        $sample['items'] = array_map(static fn (array $item): array => ['eyebrow' => $eyebrow] + $item, $sample['items']);
+
+        return $sample;
     }
 
     public function testTheHelperEscapesAndPrintsNothingWhenEmpty(): void

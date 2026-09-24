@@ -132,6 +132,16 @@ final class RemainingBlockWordsMigrationTest extends TestCase
     /** @var list<array<string, mixed>> the words phase 3A had already moved */
     private static array $earlierWordsBefore = [];
 
+    /**
+     * The Tekst met afbeelding block as wave C left it. A later migration
+     * (20260924100000, Tekst met afbeelding 2.0) moves its words and rows on
+     * to items, and catchUp() runs that one too; its own test is
+     * Tests\Install\TextImageItemsMigrationTest.
+     *
+     * @var array<string, mixed>
+     */
+    private static array $textImageAfterWaveC = [];
+
     /** @var array<string, string|null> wave => the message its broken database stopped with */
     private static array $brokenFailure = [];
 
@@ -154,6 +164,15 @@ final class RemainingBlockWordsMigrationTest extends TestCase
             self::$neutralBefore[$table] = self::$upgraded->rows("SELECT {$columns} FROM {$table} ORDER BY id");
         }
         self::$earlierWordsBefore = self::$upgraded->rows('SELECT * FROM block_translations ORDER BY id');
+        self::$upgraded->catchUp(self::WAVE_C);
+        self::$textImageAfterWaveC = [
+            'words' => self::words('text_image_splits', 'zz-split'),
+            'paragraphs' => self::childWords('text_image_split_paragraphs', 'text_image_split_id', 'text_image_splits', 'zz-split'),
+            'images' => self::childWords('text_image_split_images', 'text_image_split_id', 'text_image_splits', 'zz-split'),
+        ];
+        foreach (['text_image_split_paragraphs', 'text_image_split_images'] as $table) {
+            self::$textImageAfterWaveC['neutral'][$table] = self::$upgraded->rows('SELECT ' . self::NEUTRAL_COLUMNS[$table] . " FROM {$table} ORDER BY id");
+        }
         self::$upgraded->catchUp();
 
         $broken = ScratchInstall::upTo(self::BROKEN_A, self::BEFORE);
@@ -349,20 +368,20 @@ final class RemainingBlockWordsMigrationTest extends TestCase
 
     public function testATextWithImagesMovesItsHeadingItsParagraphsAndItsAltTexts(): void
     {
-        self::assertSame(['en' => ['eyebrow' => 'About', 'button_label' => 'Read more'], 'nl' => ['eyebrow' => 'Over ons', 'title' => 'Het idee', 'button_label' => 'Lees meer']], self::words('text_image_splits', 'zz-split'));
+        self::assertSame(['en' => ['eyebrow' => 'About', 'button_label' => 'Read more'], 'nl' => ['eyebrow' => 'Over ons', 'title' => 'Het idee', 'button_label' => 'Lees meer']], self::$textImageAfterWaveC['words']);
         self::assertSame(
             [
                 ['en' => ['content' => 'First paragraph'], 'nl' => ['content' => 'Eerste alinea']],
                 ['nl' => ['content' => "Tweede\nalinea"]],
             ],
-            self::childWords('text_image_split_paragraphs', 'text_image_split_id', 'text_image_splits', 'zz-split')
+            self::$textImageAfterWaveC['paragraphs']
         );
         self::assertSame(
             [
                 ['en' => ['alt' => "A 'bench' & tools"], 'nl' => ['alt' => 'Een "werkbank" <met> gereedschap']],
                 [],
             ],
-            self::childWords('text_image_split_images', 'text_image_split_id', 'text_image_splits', 'zz-split'),
+            self::$textImageAfterWaveC['images'],
             'alt text with quotes and markup is copied byte for byte; an image without alt text keeps its row'
         );
     }
@@ -422,7 +441,10 @@ final class RemainingBlockWordsMigrationTest extends TestCase
     {
         foreach (self::NEUTRAL_COLUMNS as $table => $columns) {
             self::assertNotSame([], self::$neutralBefore[$table], $table);
-            self::assertSame(self::$neutralBefore[$table], self::$upgraded->rows("SELECT {$columns} FROM {$table} ORDER BY id"), $table);
+            // The paragraph and image rows as wave C left them: 20260924100000
+            // moves them on to items afterwards.
+            $after = self::$textImageAfterWaveC['neutral'][$table] ?? self::$upgraded->rows("SELECT {$columns} FROM {$table} ORDER BY id");
+            self::assertSame(self::$neutralBefore[$table], $after, $table);
         }
     }
 

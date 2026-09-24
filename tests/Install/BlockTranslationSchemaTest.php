@@ -15,10 +15,18 @@ use PHPUnit\Framework\TestCase;
  * translatable fields keeps no `_nl`/`_en` column of its own any more, so
  * there is never a block whose words live in two places.
  *
- * Reads information_schema only.
+ * Reads information_schema only, and counts the rows of the retired tables.
  */
 final class BlockTranslationSchemaTest extends TestCase
 {
+    /**
+     * Child tables that still cascade from a block row but that nothing writes
+     * any more, so they own no words: the Tekst met afbeelding paragraphs and
+     * pictures before 2.0, emptied by db/migrations/20260924100000 (their
+     * rows are items now). Kept, forward-only; they must stay empty.
+     */
+    private const RETIRED_CHILD_TABLES = ['text_image_split_paragraphs', 'text_image_split_images'];
+
     public function testTheTableHasTheAgreedShape(): void
     {
         $columns = [];
@@ -126,6 +134,12 @@ final class BlockTranslationSchemaTest extends TestCase
      */
     public function testABlockOnPerLanguageStorageDeclaresEveryTableThatCascadesFromItsRows(): void
     {
+        // Retired child tables still cascade but hold nothing: nothing writes
+        // them, so there are no words to leave behind. They must stay empty.
+        foreach (self::RETIRED_CHILD_TABLES as $table) {
+            self::assertSame([['n' => 0]], array_map(static fn (array $row): array => ['n' => (int) $row['n']], $this->query("SELECT COUNT(*) AS n FROM `{$table}`")), "{$table} is retired and must stay empty");
+        }
+
         foreach (BlockDefinitions::all() as $type => $definition) {
             if ($definition->translatableFields() === [] || $definition->contentTable() === null) {
                 continue;
@@ -142,6 +156,9 @@ final class BlockTranslationSchemaTest extends TestCase
                       WHERE k.table_schema = DATABASE() AND k.referenced_table_name = ? AND r.delete_rule = 'CASCADE'",
                     [$table]
                 ) as $row) {
+                    if (in_array($row['child'], self::RETIRED_CHILD_TABLES, true)) {
+                        continue;
+                    }
                     self::assertSame(
                         ['parent' => $table, 'column' => $row['column_name']],
                         $definition->childTables()[$row['child']] ?? null,

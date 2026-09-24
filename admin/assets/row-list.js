@@ -29,7 +29,10 @@
  *                                    while n rows are not marked for removal
  *
  * Every change ends with a bubbling "change" event, which is how the save
- * bar (admin/assets/save-bar.js) hears that something is unsaved. A status
+ * bar (admin/assets/save-bar.js) hears that something is unsaved. An added
+ * row first gets a bubbling "row-list:added" event of its own, so a script
+ * that enhances fields (the rich-text editor in admin/assets/admin.js) can
+ * do that for the new row too. A status
  * line [data-row-list-status] next to the list says where a moved row went,
  * in words the server wrote into data-row-list-moved (":n" = its position).
  */
@@ -149,6 +152,7 @@
         if (!row) return;
 
         list.appendChild(row);
+        row.dispatchEvent(new CustomEvent("row-list:added", { bubbles: true }));
         refresh();
         changed();
 

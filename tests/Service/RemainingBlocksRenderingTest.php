@@ -392,35 +392,40 @@ final class RemainingBlocksRenderingTest extends TestCase
 
     // ------------------------------------------------------------ Tekst met afbeelding and Kaarten-carrousel (wave C)
 
-    public function testATextWithImagesPrintsItsParagraphsAndAltTextsFromTheirOwnRowsAsText(): void
+    public function testATextWithImagesPrintsEachItemsWordsFromItsOwnRowRichTextSanitizedAndTheRestAsText(): void
     {
         SiteLanguageFixture::useBilingual('nl');
         $payload = '<img src=x onerror=alert(1)> & "quoted"';
-        $this->words('text_image_splits', ['nl' => ['eyebrow' => 'Over mij', 'title' => 'Het verhaal', 'button_label' => 'Contact'], 'en' => ['title' => 'The story']]);
-        $this->childWords('text_image_split_paragraphs', 10, ['nl' => ['content' => $payload], 'en' => ['content' => 'English paragraph']]);
-        $this->childWords('text_image_split_images', 11, ['nl' => ['alt' => 'Een "werkplaats"'], 'en' => ['alt' => "A 'workshop'"]]);
+        $this->childWords('text_image_split_items', 10, [
+            'nl' => ['eyebrow' => 'Over <mij>', 'title' => 'Het verhaal', 'body' => '<p>' . $payload . '</p><p><strong>Vet</strong></p>', 'button_label' => 'Contact', 'alt' => 'Een "werkplaats"'],
+            'en' => ['title' => 'The story', 'body' => '<p>English paragraph</p>', 'alt' => "A 'workshop'"],
+        ]);
 
         $render = function (string $language): string {
             $this->answerIn($language);
-            $section = BlockLocalization::words('text_image_splits', self::ID) + [
-                'layout' => 'image_right',
-                'button_url' => '/contact',
-                'paragraphs' => [BlockLocalization::words('text_image_split_paragraphs', 10)],
-                'images' => [['image_path' => '/assets/media/z.webp', 'width' => null, 'height' => null, 'alt' => BlockLocalization::text('text_image_split_images', 11, 'alt')]],
-            ];
+            $section = ['items' => [
+                BlockLocalization::words('text_image_split_items', 10) + [
+                    'image_side' => 'left', 'image_column' => '25', 'image_height' => 'small', 'image_focus' => 'bottom',
+                    'button_url' => '/contact',
+                    'image' => ['image_path' => '/assets/media/z.webp', 'width' => null, 'height' => null, 'alt' => BlockLocalization::text('text_image_split_items', 10, 'alt'), 'media_id' => null],
+                ],
+            ]];
 
             return $this->capture(fn () => render_section_text_image_split($section, false, 'split-test'));
         };
 
         $dutch = $render('nl');
         self::assertStringContainsString('>Het verhaal</h2>', $dutch);
-        self::assertStringContainsString('>&lt;img src=x onerror=alert(1)&gt; &amp; &quot;quoted&quot;</p>', $dutch, 'a paragraph is escaped text');
+        self::assertStringContainsString('>Over &lt;mij&gt;</p>', $dutch, 'the eyebrow is escaped text');
+        self::assertStringContainsString('<strong>Vet</strong>', $dutch, 'the body is markup');
+        self::assertStringNotContainsString('onerror', $dutch, 'sanitized on read');
         self::assertStringContainsString('alt="Een &quot;werkplaats&quot;"', $dutch);
-        self::assertStringNotContainsString('<img src=x', $dutch);
+        self::assertStringContainsString('text-image__item--image-left text-image__item--column-25 text-image__item--height-small', $dutch);
+        self::assertStringContainsString('object-position: 50% 100%;', $dutch, 'the focus point as ImageFocus says');
 
         $english = $render('en');
         self::assertStringContainsString('>The story</h2>', $english);
-        self::assertStringContainsString('>English paragraph</p>', $english);
+        self::assertStringContainsString('<p>English paragraph</p>', $english);
         self::assertStringContainsString('alt="A &#039;workshop&#039;"', $english);
         $this->assertNoLanguagePairs($english);
     }

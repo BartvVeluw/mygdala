@@ -281,7 +281,7 @@ final class MediaUsageAccessTest extends TestCase
         [$sectionId, $sectionKey] = SectionRegistry::create('text_image_split', $this->pageKey);
         (new PageSectionRepository())->create($pageId, $this->pageKey, 'text_image_split', $sectionKey, $sectionId);
 
-        (new TextImageSplitRepository())->createImage($sectionId, [
+        (new TextImageSplitRepository())->createItem($sectionId, \App\Service\TextImageSplitContent::DEFAULTS + [
             'media_id' => $mediaId,
             'image_path' => $path,
         ]);

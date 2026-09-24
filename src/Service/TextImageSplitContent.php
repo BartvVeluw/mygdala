@@ -5,76 +5,44 @@ namespace App\Service;
 use App\Repository\TextImageSplitRepository;
 use App\Service\Blocks\BlockLocalization;
 use App\Service\Media\BlockImage;
+use App\Service\Media\ImageFocus;
 use App\Service\Routing\RequestLanguage;
 use App\Service\Routing\TypedLink;
 
 /**
- * Content for the "Text + image split" section (`.service-detail__head`,
- * text column + image(s) column) — see docs/CMS_CONTENT_AUDIT.md, proposed
- * type #7. Same repeater architecture as App\Service\FaqContent (read that
- * class's docblock first — this mirrors it item for item), but with TWO
- * repeaters on one section instead of one: paragraphs and images.
+ * Content for the "Tekst met afbeelding" block: an ordered list of ITEMS,
+ * each a text beside at most one picture (Tekst met afbeelding 2.0,
+ * db/migrations/20260924100000). Same repeater architecture as
+ * App\Service\FaqContent: a block row, and child rows that each own their
+ * words.
  *
- * Not a generic page builder: SECTIONS below is the fixed, known list of
- * (page_slug, section_key) Text + image split blocks that predate the page
- * builder, kept for their admin-facing labels (over-mij.php had exactly two;
- * diensten.php's `.service-detail__head` usages are the larger, unrelated
- * "Material/service detail" type with points-lists, not plain text+image, and
- * are out of scope). Adding a block to a page never needs a schema change
- * (section_key is what lets a page have more than one of these blocks without
- * a schema rewrite).
+ * AN ITEM has, the same in every language: its picture (a Media Library
+ * item), which side the picture is on, the picture's share of the row, how
+ * high the picture is, which part of a cropped picture stays in view, and a
+ * button address. Per website language (BlockLocalization): an eyebrow, a
+ * title, a rich-text body, a button label and the picture's own alt text.
+ * The layout is four closed lists of keys (SIDES, COLUMNS, HEIGHTS and
+ * App\Service\Media\ImageFocus); what they look like is
+ * assets/css/blocks/text-image-split.css's, never stored CSS.
  *
- * `layout` ('image_left' | 'image_right') picks between two fixed markup
- * branches the template already has — it is the only "variant" field this
- * type has, and it is deliberately not a free layout/CSS configuration.
+ * AN ITEM SHOWS when it has a picture, or text in the default language: an
+ * eyebrow, a title, a body or a whole button (the four things the block
+ * itself used to show without a picture). The default language decides
+ * presence, as it does for every block. An item with none of it is not saved
+ * (the editor refuses it). The button is all-or-nothing per item, as it
+ * always was for the block: a label in the default language and a URL, or no
+ * button.
  *
- * Paragraphs are plain text (never raw HTML) rendered one per `<p>` by the
- * template. Whether the FIRST paragraph gets the `.lead` CSS class is a
- * presentation decision the TEMPLATE makes purely from whether the section
- * has a title — not a stored "is_lead" flag — because that is exactly how
- * the two current instances already differ (the title-less "intro" section's
- * first paragraph is `.lead`, the titled "idee-naar-product" section's
- * paragraph is plain).
- *
- * Images render via one of three fixed template branches purely based on
- * `count($images)`: exactly 1 -> `.hero__media-frame` (single framed
- * photo), exactly 2 -> `.service-detail__gallery` with the
- * `grid-template-columns:1fr 1fr` override, 3+ -> the gallery's own
- * default 3-col grid. No layout/markup info is ever stored per image.
- *
- * The button (button_label + button_url) is fully optional and
- * all-or-nothing, same convention as CtaBandContent's secondary button: a
- * half-filled button (label without URL, or vice versa) is treated as "no
- * button", never rendered as a broken link. The label that counts is the
- * default language's, the one every other language falls back to.
- *
- * WORDS PER LANGUAGE (Multilingual 2.0 phase 3B). The eyebrow, title and
- * button label, the text of every paragraph and the alt text of every image
- * are stored per website language in block_translations: the section's words
- * on its own row, each paragraph's and each image's on that row
- * (TextImageSplitBlock::childTables()). They come out of
- * App\Service\Blocks\BlockLocalization as one string per field, in the
- * language of the request, the fallback already applied; the layout, the
- * button URL, the media and the order stay in the tables. An image's alt text
- * is layered over the media item's own by BlockImage::fromOwner(). This class
- * decides no language itself.
+ * The body is sanitized HTML (RichTextSanitizer, on save and again on read
+ * in BlockLocalization); everything else is plain text. An image's alt text
+ * is layered over the media item's own by BlockImage::fromOwner(). This
+ * class decides no language itself.
  *
  * There is no hardcoded fallback copy. A missing row, or a lookup that fails,
  * is STATE_FALLBACK: there is nothing to render, and a failure is logged. See
- * CONTENT-BLOCKS.md, "Het inhoudscontract".
- *
- * `is_active = false` on an *existing* section row is a deliberate hide, and a
- * different case from a missing row. forSection()'s returned `state` field is
- * how a template tells the three cases apart: STATE_FALLBACK (no row / DB
- * unreachable — nothing to render), STATE_ACTIVE (row is active — render its
- * own content) and STATE_HIDDEN (row exists and is_active = false — render
- * nothing for this section).
- *
- * Once a section's row exists and is active, its paragraphs/images come
- * strictly from the database, even if that list is empty — an emptied-out
- * section stays empty. A paragraph without its text in the default language
- * is not there either: the default language decides whether a paragraph
- * shows, as it does for the block.
+ * CONTENT-BLOCKS.md, "Het inhoudscontract". `is_active = false` on an existing
+ * row is STATE_HIDDEN. Once the row exists and is active, its items come
+ * strictly from the database, even if that list is empty.
  */
 class TextImageSplitContent
 {
@@ -86,6 +54,23 @@ class TextImageSplitContent
 
     /** A row exists and is_active = false — an intentional hide; render nothing. */
     public const STATE_HIDDEN = 'hidden';
+
+    /** Which side of the text the picture is on. */
+    public const SIDES = ['left', 'right'];
+
+    /** The picture's share of the row on a wide screen, in percent; the text has the rest. */
+    public const COLUMNS = ['25', '50', '75'];
+
+    /** How high the picture is (CSS tokens in text-image-split.css). */
+    public const HEIGHTS = ['small', 'medium', 'large'];
+
+    /** What a new item starts with: picture on the right, as a new block always had it. */
+    public const DEFAULTS = [
+        'image_side' => 'right',
+        'image_column' => '50',
+        'image_height' => 'medium',
+        'image_focus' => ImageFocus::DEFAULT,
+    ];
 
     /**
      * Known (page_slug, section_key) sections and their admin-facing
@@ -107,29 +92,25 @@ class TextImageSplitContent
         ],
     ];
 
-    /** The owner tables of this block's words (TextImageSplitBlock::translatableFields()). */
+    /** The owner table of the items' words (TextImageSplitBlock::translatableFields()). */
     private const TABLE = 'text_image_splits';
-    private const PARAGRAPHS = 'text_image_split_paragraphs';
-    private const IMAGES = 'text_image_split_images';
+    private const ITEMS = 'text_image_split_items';
 
     /** @var array<string, array<string, mixed>> */
     private static array $cache = [];
 
     /**
-     * @return array<string, mixed> 'state' (one of STATE_*), plus layout,
-     *                                eyebrow, title and button_label (a
-     *                                string each), button_url (the
-     *                                label empty and the URL '' together
-     *                                when there is no button), 'paragraphs':
-     *                                a list of content (a string),
-     *                                and 'images': a list of image_path, alt
-     *                                (a string), width, height and
-     *                                media_id. Templates must only render the
-     *                                section when 'state' === STATE_ACTIVE;
-     *                                the content fields are still present
-     *                                (empty) otherwise, purely so a template
-     *                                that forgets the check fails safe
-     *                                instead of erroring on a missing key.
+     * @return array<string, mixed> 'state' (one of STATE_*) and 'items': a
+     *                                list of image_side, image_column,
+     *                                image_height, image_focus (keys),
+     *                                eyebrow, title,
+     *                                body (sanitized HTML), button_label,
+     *                                button_url (both '' when there is no
+     *                                button) and image: null, or image_path,
+     *                                alt, width, height and media_id.
+     *                                Templates must only render the section
+     *                                when 'state' === STATE_ACTIVE; 'items'
+     *                                is still present (empty) otherwise.
      */
     public static function forSection(string $pageSlug, string $sectionKey): array
     {
@@ -153,69 +134,30 @@ class TextImageSplitContent
         }
 
         if (!(bool) $row['is_active']) {
-            // Intentionally hidden: the content fields are still filled in
-            // (empty) purely so a template that forgets to check 'state'
-            // fails safe instead of erroring on a missing key.
             return self::$cache[$cacheKey] = self::emptyContent() + ['state' => self::STATE_HIDDEN];
         }
 
         $sectionId = (int) $row['id'];
 
-        // The words of the section, its paragraphs and its images at once;
-        // nothing when the page already loaded them
-        // (SectionRegistry::renderPage()).
+        // The words of every item at once; nothing when the page already
+        // loaded them (SectionRegistry::renderPage()).
         BlockLocalization::preloadBlocks([self::TABLE => [$sectionId]]);
 
-        $content = [
-            'layout' => in_array($row['layout'] ?? null, ['image_left', 'image_right'], true) ? $row['layout'] : 'image_right',
-        ] + BlockLocalization::words(self::TABLE, $sectionId) + [
-            'button_url' => TypedLink::href((string) ($row['button_url'] ?? '')),
-        ];
-
-        // A button only renders when it has both a label in the default
-        // language and a URL — a half-filled optional button would be
-        // broken/dead.
-        if (BlockLocalization::raw(self::TABLE, $sectionId, 'button_label', BlockLocalization::defaultLanguage()) === ''
-            || $content['button_url'] === ''
-        ) {
-            $content['button_label'] = '';
-            $content['button_url'] = '';
-        }
-
         try {
-            $paragraphs = $repository->findParagraphsBySectionId($sectionId);
-            $images = $repository->findImagesBySectionId($sectionId);
+            $items = $repository->findItemsBySectionId($sectionId);
         } catch (\Throwable $e) {
-            error_log('[TextImageSplitContent] paragraphs/images lookup failed for "' . $cacheKey . '": ' . $e->getMessage());
+            error_log('[TextImageSplitContent] items lookup failed for "' . $cacheKey . '": ' . $e->getMessage());
 
             return self::$cache[$cacheKey] = self::emptyContent() + ['state' => self::STATE_FALLBACK];
         }
 
-        // Whatever comes back — including an empty list — is authoritative
-        // once the section row exists and is active: the admin has
-        // deliberately curated this content, so an empty result means "all
-        // paragraphs/images removed", not "missing data".
-        $content['paragraphs'] = [];
-        foreach ($paragraphs as $paragraph) {
-            $paragraphId = (int) $paragraph['id'];
-
-            if (BlockLocalization::hasRequiredWords(self::PARAGRAPHS, $paragraphId)) {
-                $content['paragraphs'][] = BlockLocalization::words(self::PARAGRAPHS, $paragraphId);
+        $content = ['items' => []];
+        foreach ($items as $item) {
+            $shown = self::item($item);
+            if ($shown !== null) {
+                $content['items'][] = $shown;
             }
         }
-
-        // Media Library first, the row's own image_path second, and the
-        // image's own alt text (per language) over the media item's default
-        // — all of that lives in App\Service\Media\BlockImage so the
-        // integrated blocks share one answer. It also returns width/height,
-        // null whenever the library does not know them.
-        $content['images'] = array_map(
-            static fn (array $image): array => BlockImage::fromOwner(
-                $image,
-                BlockLocalization::text(self::IMAGES, (int) $image['id'], 'alt')
-            ),
-            $images
-        );
 
         $content['state'] = self::STATE_ACTIVE;
 
@@ -223,9 +165,30 @@ class TextImageSplitContent
     }
 
     /**
+     * An item's layout as keys this block knows: each value itself when it is
+     * one, else the default. Stored rows and posted rows both pass through
+     * here, so nothing else ever reaches the database or the markup.
+     *
+     * @param array<string, mixed> $values
+     * @return array{image_side: string, image_column: string, image_height: string, image_focus: string}
+     */
+    public static function layout(array $values): array
+    {
+        $pick = static fn (mixed $value, array $allowed, string $default): string
+            => is_string($value) && in_array($value, $allowed, true) ? $value : $default;
+
+        return [
+            'image_side' => $pick($values['image_side'] ?? null, self::SIDES, self::DEFAULTS['image_side']),
+            'image_column' => $pick($values['image_column'] ?? null, self::COLUMNS, self::DEFAULTS['image_column']),
+            'image_height' => $pick($values['image_height'] ?? null, self::HEIGHTS, self::DEFAULTS['image_height']),
+            'image_focus' => ImageFocus::normalise($values['image_focus'] ?? null),
+        ];
+    }
+
+    /**
      * Clears the in-process cache, and the block words BlockLocalization
-     * holds — used by the admin save handlers right after writing a new
-     * value, and by tests.
+     * holds — used by the admin save handler right after writing, and by
+     * tests.
      */
     public static function clearCache(): void
     {
@@ -234,15 +197,62 @@ class TextImageSplitContent
     }
 
     /**
-     * Every field forSection() returns, empty. `layout` keeps its structural
-     * value so a template reading it still gets one of the two branches.
+     * One stored item as the partial gets it, or null when it has nothing to
+     * show.
+     *
+     * @param array<string, mixed> $item
+     * @return array<string, mixed>|null
+     */
+    private static function item(array $item): ?array
+    {
+        $itemId = (int) $item['id'];
+
+        // Media Library first, the row's own image_path second, and the
+        // item's own alt text (per language) over the media item's default.
+        $image = BlockImage::fromOwner($item, BlockLocalization::text(self::ITEMS, $itemId, 'alt'));
+        $image = $image['image_path'] !== '' ? $image : null;
+
+        $words = BlockLocalization::words(self::ITEMS, $itemId);
+        $buttonUrl = TypedLink::href((string) ($item['button_url'] ?? ''));
+
+        // A button only renders with a label in the default language and a
+        // URL — a half-filled optional button would be broken or dead.
+        if (!BlockLocalization::hasDefaultWords(self::ITEMS, $itemId, 'button_label') || $buttonUrl === '') {
+            $words['button_label'] = '';
+            $buttonUrl = '';
+        }
+
+        // As a paragraph always did, the body shows only when the default
+        // language has one; a translation of it falls back to that.
+        $hasBody = BlockLocalization::hasDefaultWords(self::ITEMS, $itemId, 'body');
+        $hasText = $hasBody
+            || BlockLocalization::hasDefaultWords(self::ITEMS, $itemId, 'eyebrow')
+            || BlockLocalization::hasDefaultWords(self::ITEMS, $itemId, 'title')
+            || $words['button_label'] !== '';
+
+        if ($image === null && !$hasText) {
+            return null;
+        }
+
+        $layout = self::layout($item);
+
+        return $layout + [
+            'eyebrow' => $words['eyebrow'],
+            'title' => $words['title'],
+            'body' => $hasBody ? $words['body'] : '',
+            'button_label' => $words['button_label'],
+            'button_url' => $buttonUrl,
+            'image' => $image,
+        ];
+    }
+
+    /**
+     * Every field forSection() returns, empty.
      *
      * @return array<string, mixed>
      */
     private static function emptyContent(): array
     {
-        return ['layout' => 'image_right']
-            + BlockLocalization::words(self::TABLE, 0)
-            + ['button_url' => '', 'paragraphs' => [], 'images' => []];
+        return ['items' => []];
     }
 }

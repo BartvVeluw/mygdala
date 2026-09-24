@@ -329,7 +329,7 @@ final class MediaUsageTest extends TestCase
             'the page still shows the same file'
         );
 
-        $twin = Database::connection()->prepare('SELECT image_path FROM text_image_split_images WHERE media_id = ?');
+        $twin = Database::connection()->prepare('SELECT image_path FROM text_image_split_items WHERE media_id = ?');
         $twin->execute([$mediaId]);
 
         $this->assertSame($before->path, (string) $twin->fetchColumn(), 'the stored path twin is untouched');
@@ -583,7 +583,7 @@ final class MediaUsageTest extends TestCase
         $this->createdSections[] = $pageSectionId;
 
         $repository = new TextImageSplitRepository();
-        $repository->createImage($sectionId, [
+        $repository->createItem($sectionId, \App\Service\TextImageSplitContent::DEFAULTS + [
             'media_id' => $mediaId,
             'image_path' => (string) MediaService::find($mediaId)?->path,
         ]);

@@ -2330,10 +2330,11 @@ input[data-color-picker]{ width: 2.4rem; height: 2.4rem; padding: 0.15rem; borde
 .admin-carousel-layout legend{ padding: 0; font-weight: 600; }
 .admin-carousel-layout .admin-template-grid{ margin-top: var(--admin-sp-2); }
 
-/* A card picture's focus point (admin/carousel-card.php, ImageFocus): nine
-   points on a 3x3 grid, and the card's own frame beside them. The frame has
-   the website's shape (300 x 148, card-carousel.css) and the same
-   object-fit: cover, so the preview crops exactly as the card does. */
+/* A picture's focus point (media_focus_field(), ImageFocus): nine points on
+   a 3x3 grid, and the place's own frame beside them, with the same
+   object-fit: cover, so the preview crops as the website does. The frame's
+   shape is --admin-focus-frame-ratio: a carousel card's by default (300 x 148,
+   card-carousel.css); a Tekst met afbeelding item sets its own below. */
 .admin-image-focus{ margin: var(--admin-sp-3) 0; padding: 0; border: 0; min-width: 0; }
 .admin-image-focus legend{ padding: 0; font-weight: 600; margin-bottom: var(--admin-sp-2); }
 .admin-image-focus__body{ display: flex; flex-wrap: wrap; align-items: flex-start; gap: var(--admin-sp-4); }
@@ -2377,7 +2378,7 @@ input[data-color-picker]{ width: 2.4rem; height: 2.4rem; padding: 0.15rem; borde
 .admin-image-focus__point input:focus-visible{ outline: 2px solid var(--admin-accent); outline-offset: 1px; }
 .admin-image-focus__preview{ margin: 0; display: grid; gap: var(--admin-sp-1); width: min(100%, 15rem); }
 .admin-image-focus__frame{
-  aspect-ratio: 300 / 148;
+  aspect-ratio: var(--admin-focus-frame-ratio, 300 / 148);
   overflow: hidden;
   border-radius: var(--admin-radius-sm);
   border: 1px solid var(--admin-border);
@@ -2388,6 +2389,28 @@ input[data-color-picker]{ width: 2.4rem; height: 2.4rem; padding: 0.15rem; borde
   .admin-image-focus__point input{ appearance: auto; position: static; }
   .admin-image-focus__point::after{ display: none; }
 }
+
+/* A Tekst met afbeelding item (admin/text-image-split.php): the focus
+   preview takes the shape the picture has on a wide screen, from the item's
+   own share of the row and height (assets/css/blocks/text-image-split.css at
+   a 1280px window: 268, 536 or 804 wide; 307, 461 or 640 high). */
+.admin-tis-item{ --admin-focus-frame-ratio: 536 / 461; --admin-tis-frame-shape: 1.16; }
+.admin-tis-item:has([data-tis-column="25"]:checked):has([data-tis-height="small"]:checked){ --admin-focus-frame-ratio: 268 / 307; --admin-tis-frame-shape: 0.87; }
+.admin-tis-item:has([data-tis-column="25"]:checked):has([data-tis-height="medium"]:checked){ --admin-focus-frame-ratio: 268 / 461; --admin-tis-frame-shape: 0.58; }
+.admin-tis-item:has([data-tis-column="25"]:checked):has([data-tis-height="large"]:checked){ --admin-focus-frame-ratio: 268 / 640; --admin-tis-frame-shape: 0.42; }
+.admin-tis-item:has([data-tis-column="50"]:checked):has([data-tis-height="small"]:checked){ --admin-focus-frame-ratio: 536 / 307; --admin-tis-frame-shape: 1.75; }
+.admin-tis-item:has([data-tis-column="50"]:checked):has([data-tis-height="large"]:checked){ --admin-focus-frame-ratio: 536 / 640; --admin-tis-frame-shape: 0.84; }
+.admin-tis-item:has([data-tis-column="75"]:checked):has([data-tis-height="small"]:checked){ --admin-focus-frame-ratio: 804 / 307; --admin-tis-frame-shape: 2.62; }
+.admin-tis-item:has([data-tis-column="75"]:checked):has([data-tis-height="medium"]:checked){ --admin-focus-frame-ratio: 804 / 461; --admin-tis-frame-shape: 1.74; }
+.admin-tis-item:has([data-tis-column="75"]:checked):has([data-tis-height="large"]:checked){ --admin-focus-frame-ratio: 804 / 640; --admin-tis-frame-shape: 1.26; }
+/* The frame is 10rem high where it fits, so a tall shape stays small. */
+.admin-tis-item .admin-image-focus__preview{ width: min(100%, calc(10rem * var(--admin-tis-frame-shape))); min-width: 6rem; }
+.admin-tis-layout{ display: flex; flex-wrap: wrap; gap: var(--admin-sp-3) var(--admin-sp-5); margin: var(--admin-sp-3) 0; }
+
+/* A choice between a few named options inside a form: a fieldset whose
+   legend names the group, around a segmented control (.admin-segmented). */
+.admin-segmented-field{ margin: 0; padding: 0; border: 0; min-width: 0; }
+.admin-segmented-field > legend{ padding: 0; font-weight: 600; margin-bottom: var(--admin-sp-2); }
 
 /* A row of a block editor's list (admin/_editor_rows.php: a question, a
    figure, a step, a point, an image): a bordered box inside the one form,

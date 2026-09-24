@@ -1153,7 +1153,6 @@ final class MultilingualBoundaryTest extends TestCase
 
     /** The files of a converted block that are not one of its six above: a second partial, a second editor, the quicknav that reads its labels. */
     private const MORE_CONVERTED_BLOCK_FILES = [
-        'partials/text-image-split-media.php',
         'admin/carousel-card.php',
         'api/admin/update-carousel-card.php',
         'partials/section-quicknav.php',
@@ -1184,8 +1183,7 @@ final class MultilingualBoundaryTest extends TestCase
         'marquee_items' => ['api/admin/update-marquee-section.php', 'items'],
         'feature_grid_items' => ['api/admin/update-feature-grid.php', 'items'],
         'homepage_hero_stats' => ['api/admin/update-homepage-hero.php', 'stats'],
-        'text_image_split_paragraphs' => ['api/admin/update-text-image-split-section.php', 'paragraphs'],
-        'text_image_split_images' => ['api/admin/update-text-image-split-section.php', 'images'],
+        'text_image_split_items' => ['api/admin/update-text-image-split-section.php', 'items'],
         'detail_section_points' => ['api/admin/update-detail-section.php', 'points'],
         'detail_section_images' => ['api/admin/update-detail-section.php', 'images'],
     ];
@@ -1273,7 +1271,6 @@ final class MultilingualBoundaryTest extends TestCase
         $partials = array_unique([
             ...array_map(static fn (array $files): string => $files[3], self::CONVERTED_BLOCK_FILES),
             'partials/section-quicknav.php',
-            'partials/text-image-split-media.php',
         ]);
 
         foreach ($partials as $partial) {

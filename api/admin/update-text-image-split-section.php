@@ -3,43 +3,50 @@
 /**
  * POST /api/admin/update-text-image-split-section.php
  *
- * Saves the WHOLE editor of one Text + image split block
- * (admin/text-image-split.php?section=...) in one request: its layout,
- * optional eyebrow/title, optional button and visibility, and both of its
- * lists — the paragraphs, and the images with their media item and alt
- * text — their order, new ones and the ones marked for removal. One form,
+ * Saves the WHOLE editor of one Tekst met afbeelding block
+ * (admin/text-image-split.php?section=...) in one request: whether it shows,
+ * and its items — each with its words, its picture, its layout and its button
+ * address — their order, new ones and the ones marked for removal. One form,
  * one save (PAGE-EDITOR.md, "Eén formulier per blok-editor"); there is no
- * endpoint per paragraph or image any more.
+ * endpoint per item.
  *
- * `editor_action` = paragraphs|images:up|down:<key> is the no-JavaScript
- * path of a row's ↑ and ↓ (App\Service\Blocks\EditorRows), performed on the
- * posted rows after validation and stored with everything else.
+ * `editor_action` = items:up|down:<key> is the no-JavaScript path of an
+ * item's ↑ and ↓ (App\Service\Blocks\EditorRows), performed on the posted
+ * rows after validation and stored with everything else.
  *
  * ALL OR NOTHING. Everything is checked before anything is written, and the
  * writes are one transaction: a refused or failed save stores nothing and
  * hands every typed value back, with each message next to its field.
  *
- * ONE WEBSITE LANGUAGE (Multilingual 2.0): the eyebrow, title and button
- * label and every stored row's words are the language named in
- * `language_code`, which must be an active language of the website
- * registry; which fields exist and how long they may be comes from
+ * ONE WEBSITE LANGUAGE (Multilingual 2.0): every stored item's words are the
+ * language named in `language_code`, which must be an active language of the
+ * website registry; which fields exist and how long they may be comes from
  * TextImageSplitBlock::translatableFields(), through
  * App\Service\Blocks\BlockLocalization, and only that language is written. A
- * NEW paragraph or image is written in the default language, and a removed
- * one takes its words in every language along, both through
+ * NEW item is written in the default language, and a removed one takes its
+ * words in every language along, both through
  * App\Service\Blocks\EditorChildList.
  *
- * AN IMAGE is a Media Library item, resolved here from the posted id
- * (App\Service\Media\BlockImage). A new image needs one. A stored image
- * whose field comes back empty keeps what it has — an image that predates
- * the library has a path and no item, and must not stop every other save of
- * the block. Removing an image removes the row that shows it, never the
- * library's file (MEDIA.md).
+ * AN ITEM NEEDS text or a picture — an eyebrow, a title, a body or a whole
+ * button (label and URL), exactly what makes TextImageSplitContent show it:
+ * a completely empty item is refused with a message on the item, not silently
+ * dropped (a new item with nothing typed or chosen is no item at all, as in
+ * every list). What counts is the default language, which decides whether an
+ * item is there: while a translation is on screen, the stored
+ * default-language words are what an item has.
  *
- * A half-filled button is not refused, as it never was: the editor says that
- * a label without a URL, or a URL without a label, shows no button, and
- * TextImageSplitContent drops it. The label that counts there is the default
- * language's.
+ * THE PICTURE is a Media Library item, resolved here from the posted id
+ * (App\Service\Media\BlockImage); it is optional, and "Wissen" in the picker
+ * removes it. A stored item whose picture predates the library has a path
+ * and no item, which the picker cannot show: an empty field keeps that
+ * picture. Removing an item removes the row, never the library's file
+ * (MEDIA.md). The alt text follows the library's until it is changed
+ * (BlockImage::ownAltInRows()).
+ *
+ * THE LAYOUT is four closed lists of keys (TextImageSplitContent::layout());
+ * anything else becomes the default. A half-filled button is not refused, as
+ * it never was: the editor says a label without a URL, or a URL without a
+ * label, shows no button, and TextImageSplitContent drops it.
  */
 
 declare(strict_types=1);
@@ -52,6 +59,7 @@ use App\Service\AdminAuth;
 use App\Service\Blocks\BlockLocalization;
 use App\Service\Blocks\EditorChildList;
 use App\Service\Blocks\EditorRows;
+use App\Service\Blocks\TranslatableField;
 use App\Service\Csrf;
 use App\Service\Language\LanguageCode;
 use App\Service\Language\SiteLanguages;
@@ -96,49 +104,81 @@ if ($section === null) {
 $repository = new TextImageSplitRepository();
 $redirect = '/admin/text-image-split.php?section=' . urlencode($sectionKey);
 
-$layout = (string) ($_POST['layout'] ?? 'image_right');
-if (!in_array($layout, ['image_left', 'image_right'], true)) {
-    $layout = 'image_right';
-}
-
-$settings = [
-    'layout' => $layout,
-    'button_url' => trim((string) ($_POST['button_url'] ?? '')),
-    'is_active' => isset($_POST['is_active']),
-];
+$isActive = isset($_POST['is_active']);
 
 $languageCode = LanguageCode::normalise((string) ($_POST['language_code'] ?? '')) ?? '';
 $languageIsWritable = $languageCode !== '' && SiteLanguages::isActive($languageCode);
+$defaultLanguage = BlockLocalization::defaultLanguage();
 
-// Exactly the fields the block declares, never a name taken from the request.
-$words = [];
-foreach (array_keys(BlockLocalization::fields('text_image_splits')) as $field) {
-    $words[$field] = trim((string) ($_POST[$field] ?? ''));
-}
-
-// The rows of THIS section; a key naming any other row is dropped.
+// The items of THIS section; a key naming any other row is dropped.
 $stored = $repository->findBySlugAndKey($section['page_slug'], $section['section_key']);
 $storedId = $stored === null ? 0 : (int) $stored['id'];
-$idsOf = static fn (array $rows): array => array_map(static fn (array $row): int => (int) $row['id'], $rows);
-$action = EditorRows::parseAction($_POST['editor_action'] ?? null);
-$paragraphs = EditorChildList::fromRequest($_POST, 'paragraphs', 'text_image_split_paragraphs', $storedId > 0 ? $idsOf($repository->findParagraphsBySectionId($storedId)) : [], $action);
-// The editor shows the library's alt text in each image's alt field; sent
-// back unchanged it stays "the library's" (BlockImage::ownAlt(), MEDIA.md).
-$post = ['images' => BlockImage::ownAltInRows($_POST['images'] ?? null, $languageCode === BlockLocalization::defaultLanguage())] + $_POST;
-$images = EditorChildList::fromRequest($post, 'images', 'text_image_split_images', $storedId > 0 ? $idsOf($repository->findImagesBySectionId($storedId)) : [], $action);
+$storedItems = [];
+foreach ($storedId > 0 ? $repository->findItemsBySectionId($storedId) : [] as $item) {
+    $storedItems[(int) $item['id']] = $item;
+}
 
-/** An image row's media item: a new row needs one, a posted id must be the library's. */
-$imageProblems = static function (array $row): array {
+// The editor shows the library's alt text in each item's alt field; sent
+// back unchanged it stays "the library's" (BlockImage::ownAlt(), MEDIA.md).
+$post = ['items' => BlockImage::ownAltInRows($_POST['items'] ?? null, $languageCode === $defaultLanguage)] + $_POST;
+// The layout radios arrive already chosen on a new item: they alone do not
+// make it an item.
+$action = EditorRows::parseAction($_POST['editor_action'] ?? null);
+$preset = ['image_side', 'image_column', 'image_height', 'image_focus'];
+$items = EditorChildList::fromRequest($post, 'items', 'text_image_split_items', array_keys($storedItems), $action, $preset);
+
+/**
+ * The picture an item ends up with: the chosen library item, the stored
+ * pre-library path when the field comes back empty, or none.
+ *
+ * @return array{media_id: int|null, image_path: string}
+ */
+$pictureOf = static function (array $row) use ($storedItems): array {
+    $chosen = BlockImage::fromRequest($row['fields']['media_id'] ?? '');
+    if ($chosen['media_id'] !== null) {
+        return $chosen;
+    }
+
+    $storedItem = $storedItems[$row['id']] ?? null;
+    if ($storedItem !== null && (int) ($storedItem['media_id'] ?? 0) === 0 && (string) ($storedItem['image_path'] ?? '') !== '') {
+        return ['media_id' => null, 'image_path' => (string) $storedItem['image_path']];
+    }
+
+    return ['media_id' => null, 'image_path' => ''];
+};
+
+/** An item's own checks besides its words: a known picture, and something to show. */
+$itemProblems = static function (array $row) use ($pictureOf, $languageCode, $defaultLanguage): array {
     $posted = $row['fields']['media_id'] ?? '';
     if ($posted !== '' && $posted !== '0' && BlockImage::fromRequest($posted)['media_id'] === null) {
         return ['media_id' => AdminTranslator::trans('editor_rows.error_media_unknown')];
     }
-    if ($row['id'] === 0 && BlockImage::fromRequest($posted)['media_id'] === null) {
-        return ['media_id' => AdminTranslator::trans('editor_rows.error_media_required')];
+
+    if ($pictureOf($row)['image_path'] !== '') {
+        return [];
     }
 
-    return [];
+    // The default language decides whether the item has words: typed when
+    // that language is on screen or the item is new, else as stored.
+    $fields = BlockLocalization::fields('text_image_split_items');
+    $typed = $row['id'] === 0 || $languageCode === $defaultLanguage;
+    $words = static fn (string $field): string => $typed
+        ? $fields[$field]->normalise($row['fields'][$field] ?? '')
+        : BlockLocalization::raw('text_image_split_items', $row['id'], $field, $defaultLanguage);
+
+    if ($words('eyebrow') !== '' || $words('title') !== '' || $words('body') !== ''
+        || ($words('button_label') !== '' && trim((string) ($row['fields']['button_url'] ?? '')) !== '')
+    ) {
+        return [];
+    }
+
+    return ['title' => AdminTranslator::trans('block_textimage.error_item_leeg')];
 };
+
+/** What is the same in every language of an item, as the repository stores it. */
+$valuesOf = static fn (array $row): array => $pictureOf($row)
+    + TextImageSplitContent::layout($row['fields'])
+    + ['button_url' => trim((string) ($row['fields']['button_url'] ?? ''))];
 
 $errors = [];
 $fieldErrors = [];
@@ -146,26 +186,11 @@ $fieldErrors = [];
 if (!$languageIsWritable) {
     $errors[] = AdminTranslator::trans('validation.language_unknown');
 } else {
-    // BlockLocalization::problems(), as a message per field.
-    $fieldErrors = EditorChildList::wordErrors('text_image_splits', $languageCode, $words);
-    $paragraphErrors = $paragraphs->problems($languageCode);
-    $imageErrors = $images->problems($languageCode, $imageProblems);
-
-    // One line per problem at the top, the same line next to its field.
-    foreach ($fieldErrors as $message) {
-        if (!in_array($message, $errors, true)) {
-            $errors[] = $message;
-        }
-    }
-    array_push(
-        $errors,
-        ...$paragraphs->summary($paragraphErrors, AdminTranslator::trans('block_textimage.alinea')),
-        ...$images->summary($imageErrors, AdminTranslator::trans('block_textimage.afbeelding'))
-    );
-    $fieldErrors += $paragraphErrors + $imageErrors;
+    $fieldErrors = $items->problems($languageCode, $itemProblems);
+    $errors = $items->summary($fieldErrors, AdminTranslator::trans('block_textimage.item'));
 }
 
-$old = ['language_code' => $languageCode] + $words + $settings + ['paragraphs' => $paragraphs->old(), 'images' => $images->old()];
+$old = ['language_code' => $languageCode, 'is_active' => $isActive, 'items' => $items->old()];
 
 if ($errors !== []) {
     $_SESSION['admin_tis_errors'] = $errors;
@@ -178,33 +203,18 @@ if ($errors !== []) {
 $db = Database::connection();
 
 try {
-    // The section, its words in this language and both lists are one save.
+    // The block row and its items are one save.
     $db->beginTransaction();
 
-    $repository->upsertSection($section['page_slug'], $section['section_key'], $settings);
+    $repository->upsertSection($section['page_slug'], $section['section_key'], ['is_active' => $isActive]);
     $sectionId = (int) $repository->findBySlugAndKey($section['page_slug'], $section['section_key'])['id'];
-    BlockLocalization::save('text_image_splits', $sectionId, $languageCode, $words);
 
-    $paragraphs->save(
+    $items->save(
         $languageCode,
-        static fn (array $row): int => $repository->createParagraph($sectionId),
-        static fn (int $id, array $row) => $repository->updateParagraph($id),
-        static fn (int $id) => $repository->deleteParagraph($id),
-        static fn (array $order) => $repository->reorderParagraphs($sectionId, $order)
-    );
-
-    $images->save(
-        $languageCode,
-        static fn (array $row): int => $repository->createImage($sectionId, BlockImage::fromRequest($row['fields']['media_id'] ?? '')),
-        static function (int $id, array $row) use ($repository): void {
-            // An empty field keeps the stored image (see above).
-            $chosen = BlockImage::fromRequest($row['fields']['media_id'] ?? '');
-            if ($chosen['media_id'] !== null) {
-                $repository->updateImage($id, $chosen);
-            }
-        },
-        static fn (int $id) => $repository->deleteImage($id),
-        static fn (array $order) => $repository->reorderImages($sectionId, $order)
+        static fn (array $row): int => $repository->createItem($sectionId, $valuesOf($row)),
+        static fn (int $id, array $row) => $repository->updateItem($id, $valuesOf($row)),
+        static fn (int $id) => $repository->deleteItem($id),
+        static fn (array $order) => $repository->reorderItems($sectionId, $order)
     );
 
     $db->commit();

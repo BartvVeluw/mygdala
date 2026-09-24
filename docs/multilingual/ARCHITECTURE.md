@@ -348,7 +348,7 @@ Fase 3B, in drie golven (één migratie per golf):
 | B | Cijferbalk (`stat_strip`) | `stat_strip_items`: primary_text, secondary_text (de balk zelf heeft geen woorden) |
 | B | Stappenplan (`step_list`) | `step_list_sections`: eyebrow, title; `step_list_items`: title, body |
 | B | Woordenband (`marquee`) | `marquee_items`: label (de band zelf heeft geen woorden) |
-| C | Tekst met afbeelding (`text_image_split`) | `text_image_splits`: eyebrow, title, button_label; `text_image_split_paragraphs`: content; `text_image_split_images`: alt |
+| C | Tekst met afbeelding (`text_image_split`) | `text_image_splits`: eyebrow, title, button_label; `text_image_split_paragraphs`: content; `text_image_split_images`: alt. Sinds Tekst met afbeelding 2.0 (`20260924100000`) zijn al die woorden verhuisd naar `text_image_split_items`: eyebrow, title, **body (rich)**, button_label, alt (`CONTENT-BLOCKS.md`) |
 | C | Detailsectie (`detail_section`) | `detail_sections`: nav_label, title, lead, **body (rich)**, main_image_alt, closing_note, cta_label; `detail_section_points`: title, body; `detail_section_images`: alt |
 | C | Kaarten-carrousel (`card_carousel`) | `card_carousels`: eyebrow, title, lead; `carousel_cards`: title, body, image_alt, link_label, number_label; `carousel_card_tags`: label (kleinkind) |
 

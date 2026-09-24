@@ -149,7 +149,7 @@ final class BlockWordsPreloadTest extends TestCase
                         BlockLocalization::save('detail_section_points', (new DetailSectionRepository())->createPoint($id), 'nl', ['title' => 'Punt ' . $i . ' NL', 'body' => 'Uitleg']);
                         break;
                     case 'text_image_split':
-                        BlockLocalization::save('text_image_split_paragraphs', (new TextImageSplitRepository())->createParagraph($id), 'nl', ['content' => 'Alinea ' . $i . ' NL']);
+                        BlockLocalization::save('text_image_split_items', (new TextImageSplitRepository())->createItem($id, \App\Service\TextImageSplitContent::DEFAULTS), 'nl', ['title' => 'Alinea ' . $i . ' NL']);
                         break;
                     case 'card_carousel':
                         $cards = new CardCarouselRepository();

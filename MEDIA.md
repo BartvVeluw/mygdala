@@ -43,7 +43,9 @@ created_at, updated_at
 `foto.jpg` zijn twee bestanden, net als op de schijf.
 
 Er zijn **geen** mappen, tags, EXIF, focuspunt of transformaties. Zie
-"Bewust niet gebouwd" onderaan.
+"Bewust niet gebouwd" onderaan. Een focuspunt bestaat alleen op de plek die
+een beeld toont (een carrouselkaart, een item van Tekst met afbeelding:
+`App\Service\Media\ImageFocus`), nooit op het item in de bibliotheek.
 
 ## Waar de bestanden staan
 
@@ -618,7 +620,7 @@ de lijst controleert elk id opnieuw.
 |---|---|
 | Logo, tweede logo, favicon, standaard deel-afbeelding | `site_settings.*_media_id`, oude `*_path` als terugval |
 | Deel-afbeelding per CMS-pagina | `pages.og_media_id` |
-| Tekst + afbeelding (`text_image_split`) | `text_image_split_images.media_id` |
+| Tekst met afbeelding (`text_image_split`) | `text_image_split_items.media_id`, één per item en optioneel; elk item telt als gebruik, ook twee items van één blok met hetzelfde beeld |
 | Detailsectie (`detail_section`) | `detail_sections.main_media_id` + `detail_section_images.media_id` |
 | Kaarten-carrousel (`card_carousel`) | `carousel_cards.media_id` |
 | Paginakop (`page_hero`) | `page_heroes.media_id`, zonder oud pad en zonder eigen alt-tekst: een paginakop had nooit een afbeelding |

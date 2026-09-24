@@ -39,8 +39,8 @@ use PHPUnit\Framework\TestCase;
  *   faq, step_list      eyebrow or title, or at least one active item
  *   feature_grid        eyebrow, title or lead, or at least one active card
  *   stat_strip          at least one active stat
- *   text_image_split    eyebrow, title, a paragraph, an image or a button —
- *                       `layout` is not content
+ *   text_image_split    an item with an eyebrow, a title, a body, an image
+ *                       or a whole button — an item's layout is not content
  *   page_hero,
  *   homepage_hero       a title
  *
@@ -113,7 +113,7 @@ final class NoEmptyActiveBlockTest extends TestCase
             ['step_list', 'eyebrow'], ['step_list', 'title'], ['step_list', 'item'],
             ['stat_strip', 'item'],
             ['feature_grid', 'eyebrow'], ['feature_grid', 'title'], ['feature_grid', 'lead'], ['feature_grid', 'item'],
-            ['text_image_split', 'eyebrow'], ['text_image_split', 'title'], ['text_image_split', 'paragraph'],
+            ['text_image_split', 'eyebrow'], ['text_image_split', 'title'], ['text_image_split', 'body'],
             ['text_image_split', 'image'], ['text_image_split', 'button'],
             ['page_hero', 'title'],
             ['homepage_hero', 'title'],
@@ -366,11 +366,10 @@ final class NoEmptyActiveBlockTest extends TestCase
         [$pageSection] = $this->addThroughThePicker($type);
 
         if ($type === 'text_image_split') {
-            // The one structural value this type has, set to the
-            // non-default branch so it cannot pass for the create() row.
-            (new TextImageSplitRepository())->upsertSection(self::TEST_SLUG, (string) $pageSection['section_key'], [
-                'layout' => 'image_left',
-                'is_active' => true,
+            // An item with a layout and nothing else, every value off the
+            // default, so a layout cannot pass for content.
+            (new TextImageSplitRepository())->createItem((int) $pageSection['section_id'], [
+                'image_side' => 'left', 'image_column' => '75', 'image_height' => 'large', 'image_focus' => 'top',
             ]);
         }
 
@@ -418,23 +417,28 @@ final class NoEmptyActiveBlockTest extends TestCase
             'feature_grid:title' => BlockLocalization::save('feature_grids', $sectionId, 'nl', ['title' => $words]),
             'feature_grid:lead' => BlockLocalization::save('feature_grids', $sectionId, 'nl', ['lead' => $words]),
             'feature_grid:item' => BlockLocalization::save('feature_grid_items', (new FeatureGridRepository())->createItem($sectionId, ['icon_key' => 'heart']), 'nl', ['title' => $words, 'body' => 'Een kaart']),
-            'text_image_split:eyebrow' => BlockLocalization::save('text_image_splits', $sectionId, 'nl', ['eyebrow' => $words]),
-            'text_image_split:title' => BlockLocalization::save('text_image_splits', $sectionId, 'nl', ['title' => $words]),
-            'text_image_split:paragraph' => BlockLocalization::save('text_image_split_paragraphs', (new TextImageSplitRepository())->createParagraph($sectionId), 'nl', ['content' => $words]),
-            'text_image_split:image' => BlockLocalization::save('text_image_split_images', (new TextImageSplitRepository())->createImage($sectionId, [
+            'text_image_split:eyebrow' => BlockLocalization::save('text_image_split_items', $this->textImageItem($sectionId), 'nl', ['eyebrow' => $words]),
+            'text_image_split:title' => BlockLocalization::save('text_image_split_items', $this->textImageItem($sectionId), 'nl', ['title' => $words]),
+            'text_image_split:body' => BlockLocalization::save('text_image_split_items', $this->textImageItem($sectionId), 'nl', ['body' => '<p>' . $words . '</p>']),
+            'text_image_split:image' => BlockLocalization::save('text_image_split_items', $this->textImageItem($sectionId, [
                 'image_path' => 'assets/images/test-no-empty-active.webp',
             ]), 'nl', ['alt' => $words]),
-            'text_image_split:button' => $this->textImageButton($sectionId, $sectionKey, $words),
+            'text_image_split:button' => BlockLocalization::save('text_image_split_items', $this->textImageItem($sectionId, ['button_url' => '/']), 'nl', ['button_label' => $words]),
         };
 
         return [$pageSection, $words];
     }
 
-    /** A button is a label in the default language and a URL: the URL on the row, the label in block_translations. */
-    private function textImageButton(int $sectionId, string $sectionKey, string $words): void
+    /**
+     * One Tekst met afbeelding item with the default layout and $values; its
+     * words go in block_translations. A button is a label in the default
+     * language and a URL: the URL on the row, the label a word.
+     *
+     * @param array<string, mixed> $values
+     */
+    private function textImageItem(int $sectionId, array $values = []): int
     {
-        (new TextImageSplitRepository())->upsertSection(self::TEST_SLUG, $sectionKey, ['button_url' => '/', 'is_active' => true]);
-        BlockLocalization::save('text_image_splits', $sectionId, 'nl', ['button_label' => $words]);
+        return (new TextImageSplitRepository())->createItem($sectionId, $values + \App\Service\TextImageSplitContent::DEFAULTS);
     }
 
     /** @param array<string, mixed> $pageSection */
@@ -461,7 +465,7 @@ final class NoEmptyActiveBlockTest extends TestCase
     private static function primaryContentOf(string $type): string
     {
         return match ($type) {
-            'text_image_split' => 'paragraph',
+            'text_image_split' => 'body',
             'page_hero', 'homepage_hero' => 'title',
             default => 'item',
         };

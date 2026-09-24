@@ -373,8 +373,13 @@
     return toolbar;
   }
 
-  function initRichTextEditors() {
-    var fields = document.querySelectorAll("[data-richtext-field]");
+  /*
+   * `root` is the document, or a row admin/assets/row-list.js has just added
+   * (the "row-list:added" event below): a field is mounted once, so running
+   * this again over the whole page never mounts a second editor.
+   */
+  function initRichTextEditors(root) {
+    var fields = (root || document).querySelectorAll("[data-richtext-field]:not([data-richtext-ready])");
     if (!fields.length) return;
 
     if (typeof Quill === "undefined") {
@@ -387,6 +392,7 @@
     fields.forEach(function (field) {
       var textarea = field.querySelector("[data-richtext-source]");
       if (!textarea) return;
+      field.setAttribute("data-richtext-ready", "");
 
       var preset = field.getAttribute("data-richtext-toolbar") || "simple";
       var sizeClass = field.getAttribute("data-richtext-size") || "";
@@ -649,6 +655,9 @@
       initNavItemZones();
       initFooterZones();
       initRichTextEditors();
+      document.addEventListener("row-list:added", function (event) {
+        initRichTextEditors(event.target);
+      });
       initColorSync();
       initRangeOutputs();
       initHomepageHeroMediaToggle();
@@ -661,6 +670,9 @@
     initNavItemZones();
     initFooterZones();
     initRichTextEditors();
+    document.addEventListener("row-list:added", function (event) {
+      initRichTextEditors(event.target);
+    });
     initColorSync();
     initRangeOutputs();
     initHomepageHeroMediaToggle();

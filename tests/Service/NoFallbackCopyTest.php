@@ -297,11 +297,7 @@ final class NoFallbackCopyTest extends TestCase
             'feature_grid' => (new FeatureGridRepository())->upsertGrid($pageSlug, $sectionKey, ['is_active' => $active]),
             'step_list' => (new StepListRepository())->upsertSection($pageSlug, $sectionKey, ['is_active' => $active]),
             'stat_strip' => (new StatStripRepository())->upsertStrip($pageSlug, $sectionKey, ['is_active' => $active]),
-            'text_image_split' => (new TextImageSplitRepository())->upsertSection($pageSlug, $sectionKey, [
-                'layout' => 'image_right',
-                'button_url' => '',
-                'is_active' => $active,
-            ]),
+            'text_image_split' => (new TextImageSplitRepository())->upsertSection($pageSlug, $sectionKey, ['is_active' => $active]),
             'page_hero' => (new PageHeroRepository())->upsert($pageSlug, [
                 'media_id' => null,
                 'content_position' => PageHeroContent::POSITION_LEFT,
@@ -374,8 +370,8 @@ final class NoFallbackCopyTest extends TestCase
                 return [$pageSection, 'Eigen cijfer'];
 
             case 'text_image_split':
-                BlockLocalization::save('text_image_split_paragraphs', (new TextImageSplitRepository())->createParagraph($sectionId), 'nl', [
-                    'content' => 'Eigen alinea',
+                BlockLocalization::save('text_image_split_items', (new TextImageSplitRepository())->createItem($sectionId, TextImageSplitContent::DEFAULTS), 'nl', [
+                    'body' => '<p>Eigen alinea</p>',
                 ]);
 
                 return [$pageSection, 'Eigen alinea'];

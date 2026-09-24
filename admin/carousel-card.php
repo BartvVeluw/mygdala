@@ -20,6 +20,7 @@ use App\Repository\CardCarouselRepository;
 use App\Repository\PageRepository;
 
 require_once __DIR__ . '/_media_picker.php';
+require_once __DIR__ . '/_image_focus.php';
 require_once __DIR__ . '/_link_target_field.php';
 
 /**
@@ -284,27 +285,8 @@ $tagRow = static function (string $key, string $label, string $fallback) use ($h
 
       <?php /* The focus point, and a preview in the card's own frame: the same
                object-fit: cover and the same object-position as the website
-               (ImageFocus), kept in step by admin/assets/image-focus.js. */ ?>
-      <fieldset class="admin-image-focus" data-image-focus>
-        <legend><?= admin_te('block_carousel.focus') ?> <?= admin_help(admin_t('block_carousel.focus'), admin_t('help.block_carousel.focus')) ?></legend>
-        <div class="admin-image-focus__body">
-          <div class="admin-image-focus__grid">
-            <?php foreach (ImageFocus::keys() as $focusKey): ?>
-              <label class="admin-image-focus__point" title="<?= admin_te('media.focus.' . $focusKey) ?>">
-                <input type="radio" name="image_focus" value="<?= $h($focusKey) ?>" data-object-position="<?= $h(ImageFocus::objectPosition($focusKey)) ?>"<?= $imageFocus === $focusKey ? ' checked' : '' ?>>
-                <span class="admin-visually-hidden"><?= admin_te('media.focus.' . $focusKey) ?></span>
-              </label>
-            <?php endforeach; ?>
-          </div>
-          <figure class="admin-image-focus__preview">
-            <?php $focusSrc = BlockImage::fromOwner($card, null)['image_path']; ?>
-            <div class="admin-image-focus__frame" data-image-focus-frame<?= $focusSrc === '' ? ' hidden' : '' ?>>
-              <img src="<?= $h($focusSrc) ?>" alt="" style="object-position: <?= $h(ImageFocus::objectPosition($imageFocus)) ?>" data-image-focus-preview>
-            </div>
-            <figcaption class="admin-text-muted"><?= admin_te('block_carousel.focus_voorbeeld') ?></figcaption>
-          </figure>
-        </div>
-      </fieldset>
+               (ImageFocus, media_focus_field()). */ ?>
+      <?php media_focus_field('image_focus', $imageFocus, BlockImage::fromOwner($card, null)['image_path'], admin_t('block_carousel.focus'), admin_t('help.block_carousel.focus'), admin_t('block_carousel.focus_voorbeeld')); ?>
 
       <div class="admin-field">
         <?= admin_field_label('card-alt', admin_t('common.alt_text')) ?>

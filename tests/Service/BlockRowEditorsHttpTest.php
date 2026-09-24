@@ -64,6 +64,7 @@ final class BlockRowEditorsHttpTest extends TestCase
      *   list        the list's name on the wire
      *   table       the child table
      *   row         a valid new row; `{media}` is a library item of this test's own
+     *   image       'optional' when a row may have no picture (the others need one)
      */
     private const CASES = [
         'faq' => [
@@ -139,18 +140,6 @@ final class BlockRowEditorsHttpTest extends TestCase
             'table' => 'homepage_hero_stats',
             'row' => ['primary_text' => '300+', 'secondary_text' => 'projecten', 'active' => '1'],
         ],
-        // Two lists under one block: a form that sends one leaves the other alone.
-        'text_image_split_paragraphs' => [
-            'block' => 'text_image_split',
-            'screen' => '/admin/text-image-split.php?section={section}',
-            'endpoint' => '/api/admin/update-text-image-split-section.php',
-            'parent' => 'text_image_splits',
-            'base' => ['layout' => 'image_right', 'button_url' => '/contact', 'is_active' => '1', 'eyebrow' => 'Over mij', 'title' => 'Het verhaal', 'button_label' => 'Neem contact op'],
-            'word' => 'title',
-            'list' => 'paragraphs',
-            'table' => 'text_image_split_paragraphs',
-            'row' => ['content' => 'Wij maken alles op maat.'],
-        ],
         'detail_section_points' => [
             'block' => 'detail_section',
             'screen' => '/admin/detail-section.php?section={section}',
@@ -181,16 +170,23 @@ final class BlockRowEditorsHttpTest extends TestCase
             'table' => 'detail_section_images',
             'row' => ['media_id' => '{media}', 'alt' => 'Een eiken tafelblad'],
         ],
-        'text_image_split_images' => [
+        // A picture is optional on an item (`image` => optional): an empty
+        // choice removes it, which testAnItemsPictureIsOptionalAndAnEmptyItemIsRefused proves.
+        'text_image_split_items' => [
             'block' => 'text_image_split',
             'screen' => '/admin/text-image-split.php?section={section}',
             'endpoint' => '/api/admin/update-text-image-split-section.php',
             'parent' => 'text_image_splits',
-            'base' => ['layout' => 'image_right', 'button_url' => '/contact', 'is_active' => '1', 'eyebrow' => 'Over mij', 'title' => 'Het verhaal', 'button_label' => 'Neem contact op'],
-            'word' => 'title',
-            'list' => 'images',
-            'table' => 'text_image_split_images',
-            'row' => ['media_id' => '{media}', 'alt' => 'De werkplaats van binnen'],
+            'base' => ['is_active' => '1'],
+            'word' => null,
+            'list' => 'items',
+            'table' => 'text_image_split_items',
+            'row' => [
+                'title' => 'Het verhaal', 'body' => '<p>Wij maken alles op maat.</p>', 'button_label' => 'Neem contact op',
+                'media_id' => '{media}', 'alt' => 'De werkplaats van binnen', 'button_url' => '/contact',
+                'image_side' => 'left', 'image_column' => '25', 'image_height' => 'small', 'image_focus' => 'bottom',
+            ],
+            'image' => 'optional',
         ],
     ];
 
@@ -535,7 +531,7 @@ final class BlockRowEditorsHttpTest extends TestCase
     {
         $cases = [];
         foreach (self::CASES as $case => $spec) {
-            if (($spec['row']['media_id'] ?? null) === '{media}') {
+            if (($spec['row']['media_id'] ?? null) === '{media}' && ($spec['image'] ?? 'required') === 'required') {
                 $cases[$case] = [$case];
             }
         }
@@ -580,6 +576,142 @@ final class BlockRowEditorsHttpTest extends TestCase
             (string) $a => ['media_id' => '999999999'] + $this->row($case),
         ]));
         self::assertSame($before, $this->snapshot($case));
+    }
+
+    /**
+     * Tekst met afbeelding 2.0: an item's layout is four closed lists, stored
+     * with its words in the one save; a key the lists do not have becomes the
+     * default. The body is rich text, sanitized on the way in.
+     */
+    public function testAnItemsLayoutAndRichBodyAreStoredAndAnUnknownKeyBecomesTheDefault(): void
+    {
+        $this->place('text_image_split_items');
+        $session = $this->signIn(null);
+        [$a, $b] = $this->seed($session, 'text_image_split_items', 2);
+        $row = $this->row('text_image_split_items');
+
+        $this->assertSaved($this->save($session, 'text_image_split_items', 'nl', [], [
+            (string) $a => ['image_side' => 'right', 'image_column' => '75', 'image_height' => 'large', 'image_focus' => 'top-right',
+                'body' => '<p>Veilig <strong>vet</strong></p><script>alert(1)</script>'] + $row,
+            (string) $b => ['image_side' => 'middle', 'image_column' => '33', 'image_height' => 'huge', 'image_focus' => 'nowhere'] + $row,
+        ]));
+
+        self::assertSame(
+            [
+                $a => ['image_side' => 'right', 'image_column' => '75', 'image_height' => 'large', 'image_focus' => 'top-right'],
+                $b => ['image_side' => 'right', 'image_column' => '50', 'image_height' => 'medium', 'image_focus' => 'center'],
+            ],
+            $this->itemLayouts()
+        );
+        self::assertSame('<p>Veilig <strong>vet</strong></p>', $this->stored('text_image_split_items', $a, 'nl')['body']);
+    }
+
+    /**
+     * An item's layout is the same in every language: changed on the English
+     * screen it changes for Dutch too, and the Dutch words stay as they were.
+     * An alt text sent back exactly as the library has it is the library's,
+     * not a copy (BlockImage::ownAltInRows(), MEDIA.md); a changed one is the
+     * item's own.
+     */
+    public function testAnItemsLayoutIsSharedByEveryLanguageAndTheLibrarysAltIsNoCopy(): void
+    {
+        $this->place('text_image_split_items');
+        [$a] = $this->seed($this->signIn(null), 'text_image_split_items', 1);
+        $dutch = $this->stored('text_image_split_items', $a, 'nl');
+        $neutral = $this->neutral('text_image_split_items');
+
+        $this->assertSaved($this->save($this->signIn('en'), 'text_image_split_items', 'en', [], [
+            (string) $a => ['title' => 'The story', 'image_side' => 'right', 'image_column' => '75', 'image_height' => 'large', 'image_focus' => 'top-left'] + $neutral,
+        ]));
+        self::assertSame([$a => ['image_side' => 'right', 'image_column' => '75', 'image_height' => 'large', 'image_focus' => 'top-left']], $this->itemLayouts());
+        self::assertSame($dutch, $this->stored('text_image_split_items', $a, 'nl'), 'the Dutch words are untouched');
+        self::assertSame(['title' => 'The story'], $this->stored('text_image_split_items', $a, 'en'));
+
+        $session = $this->signIn(null);
+        $this->assertSaved($this->save($session, 'text_image_split_items', 'nl', [], [
+            (string) $a => ['alt' => 'Plank'] + $this->row('text_image_split_items'),
+        ]));
+        self::assertArrayNotHasKey('alt', $this->stored('text_image_split_items', $a, 'nl'), 'the library\'s alt text is not copied');
+        $this->assertSaved($this->save($session, 'text_image_split_items', 'nl', [], [
+            (string) $a => ['alt' => 'Een plank van eiken'] + $this->row('text_image_split_items'),
+        ]));
+        self::assertSame('Een plank van eiken', $this->stored('text_image_split_items', $a, 'nl')['alt']);
+    }
+
+    /**
+     * A picture is optional on an item, and "Wissen" removes it; a picture
+     * from before the library, which the picker cannot show, stays while its
+     * field comes back empty. An item needs text or a picture: an empty one
+     * is refused at the item, and nothing of that save is stored.
+     */
+    public function testAnItemsPictureIsOptionalAndAnEmptyItemIsRefused(): void
+    {
+        $this->place('text_image_split_items');
+        $session = $this->signIn(null);
+        [$a, $b] = $this->seed($session, 'text_image_split_items', 2);
+        $row = $this->row('text_image_split_items');
+        $legacy = '/assets/images/__block_row_editors_legacy__.jpg';
+        Database::connection()->prepare('UPDATE text_image_split_items SET media_id = NULL, image_path = ? WHERE id = ?')->execute([$legacy, $b]);
+
+        // Cleared on the first item; the pre-library picture of the second
+        // stays; a new item with only a picture is an item.
+        $this->assertSaved($this->save($session, 'text_image_split_items', 'nl', [], [
+            (string) $a => ['media_id' => ''] + $row,
+            (string) $b => ['media_id' => ''] + $row,
+            'new0' => ['title' => '', 'body' => '', 'button_label' => '', 'alt' => ''] + $row,
+        ]));
+        [$first, $second, $imageOnly] = $this->rowIds('text_image_split_items');
+        self::assertSame([$a, $b], [$first, $second]);
+        self::assertSame([$a => 0, $b => 0, $imageOnly => $this->mediaItem()], $this->mediaOf('text_image_split_items'));
+        $stmt = Database::connection()->prepare('SELECT image_path FROM text_image_split_items WHERE id = ?');
+        $stmt->execute([$b]);
+        self::assertSame($legacy, $stmt->fetchColumn());
+        $stmt->execute([$a]);
+        self::assertNull($stmt->fetchColumn(), 'a cleared picture leaves no path behind');
+
+        // Neither text nor a picture: refused, at the item, and nothing stored.
+        $before = $this->snapshot('text_image_split_items');
+        $empty = ['eyebrow' => '', 'title' => '', 'body' => '', 'button_label' => '', 'alt' => '', 'media_id' => ''];
+        $this->assertRefused($this->save($session, 'text_image_split_items', 'nl', [], [
+            (string) $a => $empty + $row,
+            (string) $b => $row,
+        ]));
+        self::assertSame($before, $this->snapshot('text_image_split_items'));
+        $screen = $this->xpath($this->screen($session, 'text_image_split_items'));
+        self::assertSame('true', $this->control($screen, 'items[' . $a . '][title]')->getAttribute('aria-invalid'), 'the message is at the item');
+
+        // A button label without an address is no button, so it is no content either.
+        $this->assertRefused($this->save($session, 'text_image_split_items', 'nl', [], [
+            (string) $a => ['button_label' => 'Alleen een knop', 'button_url' => ''] + $empty + $row,
+        ]));
+        $this->assertSaved($this->save($session, 'text_image_split_items', 'nl', [], [
+            (string) $a => ['button_label' => 'Alleen een knop', 'button_url' => '/contact'] + $empty + $row,
+        ]));
+    }
+
+    /**
+     * The empty item a new row starts from carries everything a row needs on
+     * the screen: the rich-text field, the Media picker, the alt text, the
+     * three layout choices and the focus point. A row added without a
+     * request works like one the server printed (row-list.js, admin.js and
+     * image-focus.js are delegated or re-run for it).
+     */
+    public function testTheTemplateOfANewItemHasEveryPartOfAnItem(): void
+    {
+        $this->place('text_image_split_items');
+        $html = $this->screen($this->signIn(null), 'text_image_split_items');
+        self::assertSame(1, preg_match('~<template data-row-list-template="text-image-split-items">(.*?)</template>~s', $html, $match));
+
+        foreach ([
+            'data-richtext-field', 'name="items[__KEY__][body]"', 'data-media-picker', 'name="items[__KEY__][media_id]"',
+            'name="items[__KEY__][alt]"', 'data-image-focus', 'name="items[__KEY__][image_focus]" value="center" data-object-position="50% 50%" checked',
+            'name="items[__KEY__][image_side]" value="right" checked', 'name="items[__KEY__][image_column]" value="50" data-tis-column="50" checked',
+            'name="items[__KEY__][image_height]" value="medium" data-tis-height="medium" checked',
+        ] as $part) {
+            self::assertStringContainsString($part, $match[1]);
+        }
+        self::assertStringContainsString('/admin/assets/image-focus.js', $html);
+        self::assertStringContainsString('/admin/assets/vendor/quill/quill.min.js', $html);
     }
 
     public function testTheDetailSectionsMainImageIsPartOfTheOneSaveAndClearingItKeepsTheOtherChanges(): void
@@ -1098,6 +1230,22 @@ final class BlockRowEditorsHttpTest extends TestCase
             'rows' => $rows,
             'row_words' => (new BlockTranslationRepository())->findForOwners([$table => array_map(static fn (array $row): int => (int) $row['id'], $rows)]),
         ];
+    }
+
+    /** @return array<int, array<string, string>> the layout of every item of the block, by id */
+    private function itemLayouts(): array
+    {
+        $stmt = Database::connection()->prepare('SELECT id, image_side, image_column, image_height, image_focus FROM text_image_split_items WHERE text_image_split_id = ? ORDER BY sort_order, id');
+        $stmt->execute([$this->parentId]);
+
+        $layouts = [];
+        foreach ($stmt->fetchAll(\PDO::FETCH_ASSOC) as $row) {
+            $id = (int) $row['id'];
+            unset($row['id']);
+            $layouts[$id] = $row;
+        }
+
+        return $layouts;
     }
 
     /** @return array<int, int> row id => the library item it shows, in stored order */

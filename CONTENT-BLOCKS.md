@@ -417,6 +417,54 @@ Alleen `render()`/`renderPage()` degraderen zo. De schrijfkant
   (positie van de tekst, titel- en tekstgrootte).
 - **Bestaande inhoud blijft behouden** bij migraties en refactors.
 
+## Tekst met afbeelding: een lijst items
+
+Sinds Tekst met afbeelding 2.0 (`db/migrations/20260924100000`) is één
+instantie van `text_image_split` een lijst **items** in
+`text_image_split_items`, geen losse blokken. Een item is een tekst naast
+hoogstens één afbeelding. Items van één blok staan dichter op elkaar
+(`var(--sp-6)`, smal `var(--sp-5)`) dan twee blokken (`var(--sp-7)` boven en
+onder elke sectie). Dat is de reden om meerdere items in één blok te zetten.
+
+| Per item | Waar | Waarden |
+|---|---|---|
+| bovenschrift, titel, tekst (rich), knoptekst, alt-tekst | `block_translations`, eigenaar het item | per websitetaal |
+| afbeelding | `media_id` (+ oud `image_path`) | een item uit de mediabibliotheek, optioneel |
+| kant van de afbeelding | `image_side` | `left`, `right` |
+| breedte van de afbeelding | `image_column` | `25`, `50`, `75`: het deel van de rij in procenten, de tekst krijgt de rest |
+| hoogte van de afbeelding | `image_height` | `small`, `medium`, `large`: tokens in `assets/css/blocks/text-image-split.css` |
+| focuspunt | `image_focus` | de negen punten van `App\Service\Media\ImageFocus`, dezelfde als bij de carrouselkaart |
+| knopadres | `button_url` | een getypt adres (`TypedLink`), zoals het blok het had |
+
+De vier keuzes zijn gesloten lijsten in `TextImageSplitContent::layout()`: een
+onbekende waarde wordt de standaard. De partial zet er alleen klassen van neer.
+De enige inline waarde is `object-position`, en die komt uit `ImageFocus`.
+
+- **Een item heeft tekst of een afbeelding nodig.** Tekst is een
+  bovenschrift, een titel, een tekst of een hele knop (label en adres). De
+  standaardtaal beslist, zoals overal. Een helemaal leeg item weigert de
+  editor, met de melding bij het item. Een item met alleen een lay-out toont
+  niets.
+- **Mobiel (≤ 860px) staat de tekst altijd boven de afbeelding**, allebei
+  over de volle breedte. Dat is de regel van de Detailsectie. De breedte en de
+  kant gelden dan niet, en de hoogtes worden vaste, lagere waarden. Een
+  gemigreerd blok met de afbeelding links toonde op een telefoon eerst de
+  afbeelding; nu komt eerst de tekst.
+- **Een item zonder afbeelding** houdt zijn tekst in zijn eigen kolom, op
+  zijn eigen breedte. Een item zonder tekst houdt zijn afbeelding aan zijn
+  eigen kant.
+- **Een item zonder titel** begint met de grotere lead-alinea, zoals de
+  eerste alinea van een blok zonder titel altijd deed.
+- **De migratie** maakt van elk bestaand blok zijn eerste item. De alinea's
+  worden `<p>`'s in de rich text; de eerste afbeelding, 50/50, focus midden
+  en hoogte `large` (het dichtst bij het oude 4:5-kader). Elke volgende
+  afbeelding (de oude mini-galerij) wordt een eigen item met alleen die
+  afbeelding. De woorden en rijen verhuizen, er blijft geen kopie achter. De
+  oude tabellen `text_image_split_paragraphs` en `text_image_split_images` en
+  de kolommen `layout` en `button_url` van het blok blijven leeg of ongelezen
+  staan (forward-only). Ze staan nog in `childTables()` omdat ze van het blok
+  cascaden.
+
 ## Tests
 
 Commando's en tiers staan in `TESTING.md`. Draai de suite in de service `php_test`.

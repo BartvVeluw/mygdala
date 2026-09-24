@@ -617,7 +617,7 @@ Alle blok-editors met rijen volgen dit contract; geen enkele heeft nog een
 | Stappenplan | `admin/step-list.php` (kop, *Actief*, stappen) | `api/admin/update-step-list-section.php` |
 | Woordenband | `admin/marquee.php` (*Actief*, items) | `api/admin/update-marquee-section.php` |
 | Kaartenraster | `admin/feature-grid.php` (kop, *Actief*, kaarten met icoon) | `api/admin/update-feature-grid.php` |
-| Tekst met afbeelding | `admin/text-image-split.php` (sectie, knop, *Actief*, alinea's, afbeeldingen uit de mediabibliotheek) | `api/admin/update-text-image-split-section.php` |
+| Tekst met afbeelding | `admin/text-image-split.php` (*Actief*, items: bovenschrift, titel, rich tekst, afbeelding uit de mediabibliotheek met alt-tekst, kant, breedte, hoogte, focuspunt, knop) | `api/admin/update-text-image-split-section.php` |
 | Detailsectie | `admin/detail-section.php` (woorden en rich text, anker, CTA, *Actief*, hoofdafbeelding, kenmerken, galerij) | `api/admin/update-detail-section.php` |
 | Homepage-hero | `admin/homepage-hero.php` (teksten, knoppen met linkdoel, badge, media en lay-out, afbeelding en video uit de mediabibliotheek, statistieken, max. 3) | `api/admin/update-homepage-hero.php` |
 
@@ -641,13 +641,24 @@ alles in één transactie (`row-list.js`, `EditorChildList`).
 
 ### Afbeeldingen in een rij en de hoofdafbeelding
 
-Een afbeelding in een rij (Tekst met afbeelding, de galerij van de
-Detailsectie) is een item uit de mediabibliotheek, gekozen met de kiezer van
+Een afbeelding in een rij (een item van Tekst met afbeelding, de galerij van
+de Detailsectie) is een item uit de mediabibliotheek, gekozen met de kiezer van
 `admin/_media_picker.php` (`editor_row_media()`). Kiezen vult alleen het veld;
-er wordt pas bij *Opslaan* iets geschreven. Een nieuwe rij heeft een item
-nodig. Een opgeslagen rij waarvan het veld leeg terugkomt, houdt wat hij had:
-een afbeelding van vóór de bibliotheek (een pad zonder item) mag nooit de
-rest van de opslag tegenhouden.
+er wordt pas bij *Opslaan* iets geschreven. In de galerij heeft een nieuwe rij
+een item nodig, en houdt een opgeslagen rij waarvan het veld leeg terugkomt
+wat hij had. Een afbeelding van vóór de bibliotheek (een pad zonder item) mag
+nooit de rest van de opslag tegenhouden.
+
+Bij Tekst met afbeelding is de afbeelding optioneel: *Wissen* in de kiezer
+haalt hem bij *Opslaan* weg. Alleen een afbeelding van vóór de bibliotheek, die
+de kiezer niet kan tonen, blijft staan zolang het veld leeg terugkomt. Een
+item heeft wel tekst of een afbeelding nodig. Een rij die met *Item toevoegen*
+op het scherm komt, krijgt dezelfde rich-texteditor (`admin/assets/admin.js`
+luistert naar `row-list:added` van `row-list.js`), dezelfde mediakiezer
+(gedelegeerd) en hetzelfde focuspunt (`admin/assets/image-focus.js`, gedelegeerd,
+`media_focus_field()`) als een rij die de server printte. Het voorbeeld naast
+het focuspunt heeft de vorm die de afbeelding op een breed scherm krijgt, uit
+de gekozen breedte en hoogte (`.admin-tis-item` in `admin.css`).
 
 De hoofdafbeelding van de Detailsectie hoort bij het blok zelf en staat in
 hetzelfde formulier. *Wissen* in de kiezer haalt hem bij *Opslaan* weg, met

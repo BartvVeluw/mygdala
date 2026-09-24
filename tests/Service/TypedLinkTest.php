@@ -135,7 +135,7 @@ final class TypedLinkTest extends TestCase
             'src/Service/ContactCardContent.php' => ['return TypedLink::href($stored);'],
             'src/Service/DetailSectionContent.php' => ["TypedLink::href((string) (\$row['cta_url']"],
             'src/Service/ItemGalleryContent.php' => ["TypedLink::href((string) (\$row['fallback_link_url']", "TypedLink::href((string) (\$row['button_url']"],
-            'src/Service/TextImageSplitContent.php' => ["TypedLink::href((string) (\$row['button_url']"],
+            'src/Service/TextImageSplitContent.php' => ["TypedLink::href((string) (\$item['button_url']"],
             'src/Service/CardCarouselContent.php' => ['return LinkChoice::href('],
             'src/Service/Routing/LinkChoice.php' => ['return TypedLink::href(trim($url));'],
         ] as $file => $calls) {

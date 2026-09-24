@@ -1,0 +1,85 @@
+/* ==========================================================================
+   Tekst met afbeelding (TextImageSplitBlock, partials/section-text-image-split.php)
+
+   A block is a list of items, each a text beside at most one picture. What an
+   editor chooses per item arrives as classes naming keys, never as sizes:
+
+     --image-left / --image-right        which side the picture is on
+     --column-25 / --column-50 / -75     the picture's share of the row
+     --height-small / -medium / -large   how high the picture is
+
+   The picture fills its frame with object-fit: cover; which part stays in
+   view is the one inline value, its object-position (ImageFocus).
+
+   Items of one block sit closer together than two blocks do (a section has
+   var(--sp-7) of padding on both sides): that is the point of having several
+   items in one block.
+   ========================================================================== */
+
+.text-image{
+  /* The picture heights. Wide screens scale with the viewport up to a cap;
+     the large one, at half the row, is about the tall 4:5 frame one picture
+     used to have. Narrow screens get fixed, modest heights (below). */
+  --text-image-height-small: clamp(14rem, 24vw, 20rem);
+  --text-image-height-medium: clamp(18rem, 36vw, 30rem);
+  --text-image-height-large: clamp(22rem, 50vw, 42rem);
+  --text-image-item-gap: var(--sp-6);
+}
+
+.text-image__items{ display: grid; gap: var(--text-image-item-gap); }
+
+.text-image__item{
+  --text-image-columns: minmax(0, 1fr) minmax(0, 1fr);
+  --text-image-height: var(--text-image-height-medium);
+  display: grid;
+  grid-template-columns: var(--text-image-columns);
+  gap: var(--sp-6);
+  align-items: center;
+}
+
+/* The picture's share, read from the picture's side of the row. */
+.text-image__item--column-25{ --text-image-columns: minmax(0, 3fr) minmax(0, 1fr); }
+.text-image__item--column-75{ --text-image-columns: minmax(0, 1fr) minmax(0, 3fr); }
+.text-image__item--image-left.text-image__item--column-25{ --text-image-columns: minmax(0, 1fr) minmax(0, 3fr); }
+.text-image__item--image-left.text-image__item--column-75{ --text-image-columns: minmax(0, 3fr) minmax(0, 1fr); }
+
+/* The text comes first in the document; on a wide screen a left picture
+   takes the first column. An item with only one half keeps that half in its
+   own column, at its own width. */
+.text-image__item--image-left .text-image__media{ order: -1; }
+.text-image__item--image-only.text-image__item--image-right .text-image__media{ grid-column: 2; }
+.text-image__item--text-only.text-image__item--image-left .text-image__text{ grid-column: 2; }
+
+.text-image__item--height-small{ --text-image-height: var(--text-image-height-small); }
+.text-image__item--height-large{ --text-image-height: var(--text-image-height-large); }
+
+.text-image__media{
+  height: var(--text-image-height);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  box-shadow: var(--shadow-lift);
+  border: 1px solid var(--color-line);
+}
+.text-image__media img{ display: block; width: 100%; height: 100%; object-fit: cover; }
+
+.text-image__text{ min-width: 0; }
+.text-image__text .eyebrow + h2{ margin-top: 0.75rem; }
+.text-image__text > * + .text-image__body{ margin-top: 1.25rem; }
+/* A title-less item opens with the lead paragraph, as a title-less block's
+   first paragraph always did. */
+.text-image__body--lead > p:first-child{ font-size: var(--fs-lead); max-width: 46ch; }
+.text-image__button{ margin-top: 1.5rem; }
+
+/* One column: the text leads, the picture follows at full width and a modest
+   fixed height, whatever was chosen for wide screens. */
+@media (max-width: 860px){
+  .text-image{
+    --text-image-height-small: 12rem;
+    --text-image-height-medium: 16rem;
+    --text-image-height-large: 20rem;
+    --text-image-item-gap: var(--sp-5);
+  }
+  .text-image .text-image__item{ grid-template-columns: minmax(0, 1fr); gap: var(--sp-3); }
+  .text-image .text-image__item .text-image__media,
+  .text-image .text-image__item .text-image__text{ grid-column: auto; order: 0; }
+}

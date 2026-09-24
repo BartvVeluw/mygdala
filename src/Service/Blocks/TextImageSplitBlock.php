@@ -8,16 +8,17 @@ use App\Service\TextImageSplitContent;
 require_once dirname(__DIR__, 3) . '/partials/section-text-image-split.php';
 
 /**
- * Text beside an image (or a small gallery), image left or right. One of the
- * three block types with uploaded files of its own, so it cleans those up
- * before its rows disappear.
+ * A list of items, each a rich text beside at most one picture, with its own
+ * side, share of the row, picture height and focus point (Tekst met
+ * afbeelding 2.0, App\Service\TextImageSplitContent). Items of one block sit
+ * closer together than two blocks do; that is the reason to have several.
  *
  * It is also the only block that cares about `$tightTop`: directly under a
  * hero it drops its own top spacing so the two do not stack twice.
  *
- * The words of the section, of every paragraph and of every image's alt text
- * are stored per website language in block_translations (BlockLocalization),
- * each paragraph's and each image's on its own row.
+ * Every word belongs to an item and is stored per website language in
+ * block_translations (BlockLocalization), each item's on its own row; the
+ * block row itself only says whether the block shows.
  */
 final class TextImageSplitBlock extends BlockDefinition
 {
@@ -40,7 +41,7 @@ final class TextImageSplitBlock extends BlockDefinition
 
     public function description(): string
     {
-        return 'Tekst en een afbeelding naast elkaar. Je kiest zelf aan welke kant het beeld staat.';
+        return 'Tekst en een afbeelding naast elkaar, één of meer keer onder elkaar. Per item kies je de kant, de breedte, de hoogte en het focuspunt van het beeld.';
     }
 
     public function category(): string
@@ -68,37 +69,44 @@ final class TextImageSplitBlock extends BlockDefinition
     }
 
     /**
-     * The eyebrow, title and button label on the section's row, the text on
-     * each paragraph's row and the alt text on each image's row, per website
-     * language; the layout, the button URL, the media and the order are the
-     * same in every language and stay in their tables. What the editor always
-     * required in Dutch is required in the default language (only a
-     * paragraph's text; the heading, the button and an alt text never were);
-     * the lengths are the ones the editor always allowed.
+     * Every word is an item's: the eyebrow, title, rich body, button label
+     * and the picture's own alt text, per website language. The picture, the
+     * layout, the button URL and the order are the same in every language and
+     * stay in the items table. Nothing is required on its own: an item needs
+     * text (an eyebrow, a title, a body or a whole button) or a picture,
+     * which the editor's endpoint checks as a whole. The body is as long as
+     * the Tekstblok's may be.
      */
     public function translatableFields(): array
     {
         return [
-            'text_image_splits' => [
+            'text_image_split_items' => [
                 TranslatableField::plain('eyebrow', 150),
                 TranslatableField::plain('title', 255),
+                TranslatableField::rich('body', 50000),
                 TranslatableField::plain('button_label', 150),
-            ],
-            'text_image_split_paragraphs' => [
-                TranslatableField::plain('content', 1000)->required(),
-            ],
-            'text_image_split_images' => [
                 TranslatableField::plain('alt', 255),
             ],
         ];
     }
 
+    /**
+     * The items. The two child tables of the block before 2.0,
+     * text_image_split_paragraphs and text_image_split_images, still cascade
+     * from the block row but own no words any more: db/migrations/20260924100000
+     * moved their rows and words onto items, and nothing writes them
+     * (Tests\Install\BlockTranslationSchemaTest keeps them empty).
+     */
     public function childTables(): array
     {
         return [
-            'text_image_split_paragraphs' => ['parent' => 'text_image_splits', 'column' => 'text_image_split_id'],
-            'text_image_split_images' => ['parent' => 'text_image_splits', 'column' => 'text_image_split_id'],
+            'text_image_split_items' => ['parent' => 'text_image_splits', 'column' => 'text_image_split_id'],
         ];
+    }
+
+    public function styles(): array
+    {
+        return ['assets/css/blocks/text-image-split.css'];
     }
 
     public function create(string $pageSlug): array
@@ -106,7 +114,7 @@ final class TextImageSplitBlock extends BlockDefinition
         $key = self::newSectionKey();
 
         $repository = new TextImageSplitRepository();
-        $repository->upsertSection($pageSlug, $key, ['is_active' => true, 'layout' => 'image_right']);
+        $repository->upsertSection($pageSlug, $key, ['is_active' => true]);
 
         return [(int) $repository->findBySlugAndKey($pageSlug, $key)['id'], $key];
     }
@@ -114,7 +122,7 @@ final class TextImageSplitBlock extends BlockDefinition
     /**
      * Deliberately nothing.
      *
-     * This block's images are Media Library items now, and a media item is
+     * This block's pictures are Media Library items, and a media item is
      * SHARED: the same photo may be on three other pages and in the site's
      * branding. Removing an instance of this block removes its references
      * (deleteContent() below), never the files behind them. Deleting a file
@@ -146,25 +154,33 @@ final class TextImageSplitBlock extends BlockDefinition
 
     public function sampleContent(BlockSamples $samples): ?array
     {
-        $image = $samples->image();
+        $image = $samples->image() + ['media_id' => null];
+        $item = static fn (string $side, string $column, string $height, string $focus): array => [
+            'image_side' => $side,
+            'image_column' => $column,
+            'image_height' => $height,
+            'image_focus' => $focus,
+        ];
 
         return [
-            'layout' => 'image_right',
-            'eyebrow' => $samples->localized('eyebrow'),
-            'title' => $samples->localized('title'),
-            'button_label' => $samples->localized('button'),
-            'button_url' => BlockSamples::LINK,
-            'paragraphs' => [
-                ['content' => $samples->localized('lead')],
-                ['content' => $samples->localized('body')],
+            'items' => [
+                $item('right', '50', 'medium', 'center') + [
+                    'eyebrow' => $samples->localized('eyebrow'),
+                    'title' => $samples->localized('title'),
+                    'body' => $samples->localizedRichText(),
+                    'button_label' => $samples->localized('button'),
+                    'button_url' => BlockSamples::LINK,
+                    'image' => $image,
+                ],
+                $item('left', '25', 'small', 'center') + [
+                    'eyebrow' => '',
+                    'title' => '',
+                    'body' => '<p>' . htmlspecialchars($samples->localized('body'), ENT_NOQUOTES, 'UTF-8') . '</p>',
+                    'button_label' => '',
+                    'button_url' => '',
+                    'image' => $image,
+                ],
             ],
-            'images' => [[
-                'image_path' => $image['image_path'],
-                'alt' => $image['alt'],
-                'width' => $image['width'],
-                'height' => $image['height'],
-                'media_id' => null,
-            ]],
         ];
     }
 
@@ -173,9 +189,17 @@ final class TextImageSplitBlock extends BlockDefinition
         render_section_text_image_split($content, false, $revealGroup);
     }
 
+    /** The first item's title, the name the page builder shows for this block. */
     public function instanceTitle(array $pageSection): string
     {
-        return BlockLocalization::name('text_image_splits', $this->sectionId($pageSection), 'title');
+        foreach ((new TextImageSplitRepository())->findItemsBySectionId($this->sectionId($pageSection)) as $item) {
+            $title = BlockLocalization::name('text_image_split_items', (int) $item['id'], 'title');
+            if ($title !== '') {
+                return $title;
+            }
+        }
+
+        return '';
     }
 
     public function editUrl(array $pageSection): ?string
