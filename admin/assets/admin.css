@@ -3702,23 +3702,42 @@ body.admin-media-modal-open{ overflow: hidden; }
    breakpoint of its own. The preview stays in view while the fields scroll
    past it. Layout only: every colour, card and button is the CMS's own. */
 .admin-form-builder{ display: flex; flex-wrap: wrap; align-items: flex-start; gap: 0 var(--admin-sp-5); }
-.admin-form-builder__editor{ flex: 1 1 34rem; min-width: 0; max-width: 720px; }
+.admin-form-builder__editor{ flex: 1 1 30rem; min-width: 0; max-width: 720px; }
 .admin-form-builder__editor > .admin-product-form{ margin-bottom: var(--admin-sp-5); }
-.admin-form-builder__preview{ flex: 1 1 22rem; min-width: 0; position: sticky; top: var(--admin-sp-4); }
+.admin-form-builder__preview{ flex: 1 1 24rem; min-width: 0; position: sticky; top: var(--admin-sp-4); }
 
 /* One compact row per field: the rows of Header & navigatie and the footer
    (.admin-section-row), with the same square ↑/↓ where a drag handle would
-   be. The actions wrap under the label on a narrow screen instead of
-   squeezing it. */
+   be. Two lines: the label with the actions beside it, and under it the line
+   that says what the field is, which may run on under the actions. On a
+   phone the actions get a line of their own instead of squeezing the label
+   (640px, the breakpoint this file already uses for a stacked row). */
 .admin-form-field-list{ list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.5rem; }
-.admin-form-field-row{ flex-wrap: wrap; gap: 0.5rem 0.75rem; padding: 0.55rem 0.8rem; }
-.admin-form-field-row__move{ flex: none; display: flex; gap: 2px; }
-.admin-form-field-row .admin-section-row__body{ flex: 1 1 11rem; }
-.admin-form-field-row .admin-section-row__name{ margin: 0; overflow-wrap: anywhere; }
-.admin-form-field-row .admin-section-row__note{ margin: 0.1rem 0 0; }
-.admin-form-field-row .admin-section-row__actions{ flex-wrap: wrap; gap: 0.5rem; }
+.admin-form-field-row{
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.15rem 0.75rem;
+  padding: 0.55rem 0.8rem;
+}
+.admin-form-field-row__move{ grid-column: 1; grid-row: 1 / span 2; display: flex; gap: 2px; }
+/* .admin-btn-ghost sets its padding later in this file; the row's own
+   selector keeps the arrows square, as .admin-nav-item-row does. */
+.admin-form-field-row .admin-row-move{ padding: 0.2rem 0.3rem; }
+.admin-form-field-row .admin-section-row__body{ display: contents; }
+.admin-form-field-row .admin-section-row__name{ grid-column: 2; grid-row: 1; margin: 0; overflow-wrap: anywhere; }
+.admin-form-field-row .admin-section-row__note{ grid-column: 2 / -1; margin: 0; }
+.admin-form-field-row .admin-section-row__actions{ grid-column: 3; grid-row: 1; flex-wrap: wrap; gap: 0.5rem; }
+@media (max-width: 640px){
+  .admin-form-field-row{ grid-template-columns: auto minmax(0, 1fr); }
+  .admin-form-field-row__move{ grid-row: 1 / span 2; }
+  .admin-form-field-row .admin-section-row__actions{ grid-column: 1 / -1; grid-row: auto; margin-top: 0.35rem; }
+}
 .admin-form-field-row .admin-section-row__button{ padding: 0.35rem 0.8rem; font-size: 0.84rem; line-height: 1.5; white-space: nowrap; }
 .admin-form-field-row__problem{ color: var(--admin-error); }
+/* The row a saved field came back to (#form-field-<id>): the message that
+   names it is above the cards, the anchor scrolls here. */
+.admin-form-field-row:target{ border-color: var(--admin-accent); box-shadow: 0 0 0 1px var(--admin-accent); }
 
 /* The preview: the width buttons are the block library's, the frame a
    document of its own (admin/form-preview.php). Without script the frame

@@ -296,10 +296,11 @@
  * height and the width of its column, which works as it is. This makes it
  * fit and lets the editor pick a width:
  *
- *   - Desktop draws the frame at least 768 pixels wide, wider than the 640
- *     at which the site puts every field on its own row, and scales it down
+ *   - Desktop draws the frame at least 680 pixels wide, just past the 640 at
+ *     which the site puts every field on its own row, and scales it down
  *     into the column when the column is narrower. What is shown is the
- *     desktop grid, only smaller.
+ *     grid every wider screen shows, with the shares the editor chose, only
+ *     smaller; wider than that changes no share, only the pixels.
  *   - Mobiel draws it 375 pixels wide, a phone's width, where every field is
  *     a full row.
  *
@@ -307,8 +308,9 @@
  * its own. The frame's height is the height of the form inside it, read
  * through the frame's document: its sandbox allows the same origin and
  * nothing else, so no script runs in it while this one may measure it. The
- * frame is never navigated, posted to or written into. The choice of width
- * holds while the screen is open and is not remembered.
+ * frame is never navigated, posted to or written into. On a phone-sized
+ * screen the preview starts on Mobiel. The choice of width holds while the
+ * screen is open and is not remembered.
  */
 (function () {
   "use strict";
@@ -321,7 +323,7 @@
   var group = preview.querySelector("[data-form-preview-viewports]");
   if (!stage || !frame) return;
 
-  var WIDTHS = { desktop: 768, mobile: 375 };
+  var WIDTHS = { desktop: 680, mobile: 375 };
 
   function contentHeight() {
     try {
@@ -386,6 +388,12 @@
     new ResizeObserver(fit).observe(stage);
   } else {
     window.addEventListener("resize", fit);
+  }
+
+  // On a screen as narrow as a phone the editor is looking at a phone, so
+  // the preview starts there too (the admin's own 640px).
+  if (group && window.matchMedia && window.matchMedia("(max-width: 640px)").matches) {
+    show("mobile");
   }
 
   // The frame may have finished loading before this file ran.
