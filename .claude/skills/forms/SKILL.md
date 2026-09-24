@@ -19,7 +19,7 @@ producten, personalisatie of Mollie, en werkt identiek met de Shop aan en uit.
 | Logica | `src/Service/Forms/` |
 | Opslag | `src/Repository/Form{,Block,Submission}Repository.php` |
 | Publieke kant | `partials/form.php`, `api/form-submit.php` |
-| Adminschermen | `admin/forms.php`, `form.php`, `form-field.php`, `form-block.php`, `form-submissions.php`, `form-submission.php`; gedeeld `admin/_form_fields.php` en `admin/assets/forms-admin.js` |
+| Adminschermen | `admin/forms.php`, `form.php`, `form-field.php`, `form-preview.php` (het voorbeeld), `form-block.php`, `form-submissions.php`, `form-submission.php`; gedeeld `admin/_form_fields.php` en `admin/assets/forms-admin.js` |
 | Admin-endpoints | `api/admin/*form*.php` |
 | Blokken | `form_block` en `contact_form` |
 | Archief | `ContactRequestRepository`, `admin/contact-requests.php`, `api/contact.php` — historisch, nieuwe inzendingen lopen via Forms |
@@ -33,7 +33,10 @@ producten, personalisatie of Mollie, en werkt identiek met de Shop aan en uit.
 - **Server-side, altijd.** Client-side validatie is een gemak, geen grens.
 - **Het formulier werkt zonder JavaScript.** Houd dat zo.
 - **Veldtypes zijn een gesloten lijst.** Een type toevoegen heeft een eigen
-  recept in `FORMS.md`.
+  recept in `FORMS.md`. Breedtes ook (`FormFieldWidth`): nooit pixels, een
+  percentage of een class uit een request.
+- **Het voorbeeld in de editor is de publieke renderer.** Geen tweede
+  veldmarkup, in PHP noch in JavaScript (`admin/form-preview.php`).
 - **Noem hier nooit een Shop-klasse of Shop-tabel.**
   `Tests\Service\FormBoundaryTest` faalt daarop.
 - **Inzendingen zijn persoonsgegevens.** Verwijderen moet echt verwijderen,

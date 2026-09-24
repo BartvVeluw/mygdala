@@ -535,7 +535,7 @@ leest. Een opslag van de balk zelf waarschuwt niet. Het versturen van één
 formulier terwijl een ánder nog gewijzigd is waarschuwt wél — dat is nu net
 het geval dat de losse knoppen vroeger stil lieten verdwijnen.
 
-### Twee dingen die alleen de server weet
+### Twee dingen die alleen de server weet, en een keuze van het scherm
 
 De balk vergelijkt geen waarden, dus twee toestanden kan hij niet zelf zien.
 Een scherm zegt ze in de markup:
@@ -544,6 +544,7 @@ Een scherm zegt ze in de markup:
 |---|---|---|
 | `data-save-bar-unsaved` | op een formulier dat invoer toont die verstuurd maar niet geschreven is: een geweigerde opslag, of een wijziging die op bevestiging wacht | het formulier begint als gewijzigd, ook na de melding *Opgeslagen* van een vorige opslag, en weggaan waarschuwt |
 | `data-save-bar-discard` | op de link die zulke invoer bewust weggooit (*Annuleren*) | een gewone klik laat de pagina gaan zonder dat de browser nog eens vraagt; een klik met Ctrl, Cmd, Shift of Alt (nieuw tabblad of venster) telt niet |
+| `data-save-bar-fallback` | op de eigen *Opslaan*-knop van een bewaakt formulier, als die er alleen is voor een browser zonder het script | zodra de balk verschijnt, krijgt de knop `hidden`: de balk is dan het ene *Opslaan*. Hij blijft in het formulier, dus hij blijft de standaardknop en Enter in een veld verstuurt het formulier nog steeds via hetzelfde verzoek. Zonder script staat hij er gewoon |
 
 Zonder die attributen verandert er niets. De eerste gebruiker is de veldeditor
 van Formulieren, waar een typewissel eerst terugkomt met wat hij kost

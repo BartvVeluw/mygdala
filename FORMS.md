@@ -44,10 +44,11 @@ werkt identiek met de Shop aan en uit (`MODULES.md`).
 
 | Onderdeel | Pad |
 |---|---|
-| Migraties + tabellen | `db/migrations/20260909300000_create_the_core_forms_tables.php`, `…310000_migrate_the_contact_form_into_a_form.php`, `…320000_add_a_default_choice_to_form_fields.php`; de woorden en opties per taal in `20260918140000_create_the_form_translation_and_option_tables.php` en `…150000_move_form_words_and_options_into_translation_tables.php` |
+| Migraties + tabellen | `db/migrations/20260909300000_create_the_core_forms_tables.php`, `…310000_migrate_the_contact_form_into_a_form.php`, `…320000_add_a_default_choice_to_form_fields.php`; de woorden en opties per taal in `20260918140000_create_the_form_translation_and_option_tables.php` en `…150000_move_form_words_and_options_into_translation_tables.php`; de breedte van een veld in `20260924160000_give_form_fields_a_layout_width.php` |
 | Veldtypes (gesloten register) | `src/Service/Forms/FieldTypes/`, plus `FormFieldTypes` — dé registratielijst |
 | Namen van veldtypes | `formfieldtype.<key>.label` en `.description` in `src/Service/Language/messages/` |
 | Wat een typewissel kost | `FormFieldTypeChange` |
+| Breedte van een veld (gesloten lijst) | `FormFieldWidth` |
 | Leesmodel | `FormDefinition`, `FormField`, `FormFieldOptions`, `FormOption` |
 | Woorden per taal | `FormLocalization` (de drie vertaaltabellen), `src/Repository/FormFieldOptionRepository.php` |
 | Opzoeken + cache | `FormCatalog` |
@@ -62,9 +63,9 @@ werkt identiek met de Shop aan en uit (`MODULES.md`).
 | E-mail | `src/Mail/FormSubmissionBuilder.php` |
 | Blok "Formulier" | `src/Service/Blocks/FormBlock.php`, `FormBlockContent`, `partials/section-form.php`, `admin/form-block.php` |
 | Blok "Offerte-/contactformulier" | `src/Service/Blocks/ContactFormBlock.php`, `ContactFormContent`, `partials/section-contact-form.php`, `admin/contact-form.php` |
-| Adminschermen | `admin/forms.php`, `admin/form.php`, `admin/form-field.php`, `admin/form-submissions.php`, `admin/form-submission.php`; gedeeld: `admin/_form_fields.php` (typenamen, typekaarten, wat een wissel kost) en `admin/assets/forms-admin.js` |
+| Adminschermen | `admin/forms.php`, `admin/form.php`, `admin/form-field.php`, `admin/form-submissions.php`, `admin/form-submission.php`; het voorbeeld in de formuliereditor `admin/form-preview.php`; gedeeld: `admin/_form_fields.php` (typenamen, typekaarten, wat een wissel kost) en `admin/assets/forms-admin.js` |
 | Frontend | `assets/css/blocks/form.css`, `assets/js/blocks/form.js` |
-| Tests | `tests/Service/Form*.php`, `tests/Repository/ContactFormMigrationTest.php`, `tests/Install/FormWordsAndOptionMigrationTest.php`; helper `tests/Support/FormFixture.php` |
+| Tests | `tests/Service/Form*.php`, `tests/Repository/ContactFormMigrationTest.php`, `tests/Install/FormWordsAndOptionMigrationTest.php`, `tests/Install/FormFieldLayoutWidthMigrationTest.php`; helper `tests/Support/FormFixture.php` |
 
 ## Het model
 
@@ -87,8 +88,9 @@ Een formulier wordt geadresseerd door het blok dat het toont.
 
 ### `form_fields`
 
-Eén rij per veld: `field_key`, `field_type`, verplicht ja/nee, volgorde, en
-bij een keuzeveld eventueel een standaardwaarde. Allemaal taalneutraal.
+Eén rij per veld: `field_key`, `field_type`, verplicht ja/nee, de breedte
+(`layout_width`, zie *Breedte van een veld*), volgorde, en bij een keuzeveld
+eventueel een standaardwaarde. Allemaal taalneutraal.
 
 Wat de bezoeker leest staat in `form_field_translations`, één rij per
 websitetaal: `label`, `placeholder` en `help_text`.
@@ -238,6 +240,79 @@ Label en uitleg gebruikt elk type, in elke websitetaal.
 
 Meer is er niet. De renderer, de validator, de veldeditor, de typekiezer en
 de e-mail hebben er geen regel voor nodig.
+
+## Breedte van een veld
+
+Sinds Forms 2.0 fase 1 kiest een veld hoe breed het in zijn formulier staat.
+Geen pixels, geen percentage en geen CSS: een van zes vaste delen van een rij,
+op een raster van twaalf kolommen.
+
+| Sleutel (`layout_width`) | In het CMS | Kolommen van 12 | Class |
+|---|---|---|---|
+| `full` | Volledige breedte | 12 | `.form-field--full` |
+| `three_quarters` | Drie kwart (3/4) | 9 | `.form-field--three-quarters` |
+| `two_thirds` | Twee derde (2/3) | 8 | `.form-field--two-thirds` |
+| `half` | Half (1/2) | 6 | `.form-field--half` |
+| `third` | Een derde (1/3) | 4 | `.form-field--third` |
+| `quarter` | Een kwart (1/4) | 3 | `.form-field--quarter` |
+
+**Een gesloten lijst**, om dezelfde reden als de veldtypes:
+`App\Service\Forms\FormFieldWidth`. De sleutel noemt een *deel* van een rij,
+geen aantal kolommen, zodat het raster eronder kan veranderen zonder dat één
+opgeslagen rij mee hoeft.
+
+- **Opslaan.** De veldeditor biedt de zes in een keuzelijst.
+  `api/admin/update-form-field.php` accepteert alleen een sleutel uit de
+  lijst. Elke andere waarde (leeg, `50%`, `6`, een class, een stijl, een
+  array) wordt geweigerd zoals elke andere fout: er wordt niets geschreven en
+  de editor komt terug met wat er getypt was. Stuurt een verzoek geen
+  breedte mee, dan blijft de opgeslagen breedte staan. `FormRepository`
+  schrijft bovendien nooit iets anders dan een sleutel.
+- **Lezen.** `FormField::$width` is altijd een sleutel. Een rij met iets
+  onbekends leest als `full`. De renderer drukt per veld precies één van de
+  zes classes af, en nooit een `style`.
+- **Standaard.** Een nieuw veld is `full`: de kolom is `NOT NULL DEFAULT
+  'full'`.
+- **Bestaande formulieren veranderen niet.** Tot deze fase koos
+  `partials/form.php` de breedte zelf, uit het type: een tekstveld, een
+  e-mailadres en een telefoonnummer stonden op een halve rij, al het andere
+  over de hele rij, op een raster van twee kolommen. De migratie
+  `20260924160000` schreef precies dat per bestaand veld op (`text`, `email`,
+  `tel` → `half`, de rest → `full`). Zes kolommen van twaalf zijn even breed
+  als één van twee, want de tussenruimte is dezelfde. Een bestaand formulier
+  staat dus op dezelfde pixels; in de browser gemeten op 1280 en 375 pixels
+  breed. `FormFieldWidth::formerDefaultFor()` legt die oude regel vast voor
+  de test die de migratie ermee vergelijkt. Geen renderer gebruikt hem.
+- **Structuur, geen woorden.** De breedte staat op `form_fields` zelf, niet in
+  een vertaaltabel. Hij is in elke taal dezelfde, en elke taal kan hem
+  wijzigen.
+- **Geen gevolgen voor een inzending.** Wat verstuurd, gevalideerd, bewaard
+  en gemaild wordt, verandert niet met de breedte.
+
+**Hoe de rij zich vult.** De velden staan in hun eigen volgorde in de markup.
+Past het volgende veld nog op de rij, dan komt het ernaast; anders begint een
+nieuwe rij. Een later veld schuift nooit terug in een gat eerder in het
+formulier. De tabvolgorde is daarom altijd de volgorde van de veldenlijst.
+
+```text
+Voornaam  Tussenvoegsel  Achternaam      third  third  third
+Naam            E-mail                   half   half
+Postcode             Huisnummer          two_thirds  third
+```
+
+**Op een telefoon staat elk veld over de volle breedte**, in dezelfde
+volgorde. Het breekpunt is 640 pixels: dat is waar het gedeelde
+`.form-grid` in `assets/css/core.css` zijn twee kolommen altijd al onder
+elkaar zette, dus een formulier stapelt waar het altijd stapelde. Het raster
+van twaalf staat in `assets/css/blocks/form.css`, onder `.vvl-form`. Het
+afrekenen gebruikt dezelfde `.form-grid` en merkt er niets van.
+
+**Elk type mag elke breedte.** Een lang tekstveld op driekwart, een
+keuzelijst op een halve rij, keuzerondjes in een derde: de rondjes en de
+tekst van een selectievakje lopen door binnen hun eigen cel. Het CMS dwingt
+voor geen enkel type een breedte af. Wat semantisch meestal de hele rij
+wil, zoals een lang tekstveld of toestemming, begint daar gewoon, omdat een
+nieuw veld `full` is.
 
 ## Talen
 
@@ -564,8 +639,9 @@ naar die inzendingen. Velden en inzendingen worden voor alle formulieren
 samen geteld (`fieldsForMany()`, `countsForForms()`); alleen de plaatsingen
 worden per rij opgevraagd.
 
-**De editor** (`admin/form.php`) is één formulier in drie kaarten, in de
-volgorde waarin een redacteur erover nadenkt:
+**De editor** (`admin/form.php`) is links één formulier in drie kaarten, in
+de volgorde waarin een redacteur erover nadenkt, met daaronder de velden, en
+rechts het voorbeeld (zie *Voorbeeld in de formuliereditor*):
 
 | Kaart | Wat erin staat |
 |---|---|
@@ -589,16 +665,89 @@ instellingen; opslaan blijft dat ene formulier naar `update-form.php`.
 | *Geavanceerd* of een `?` open- of dichtklappen | niets: geen formulierveld |
 | *Veld toevoegen* | niets: die dialoog heeft `data-no-dirty-track`, zoals de blokkenkiezer, dus *Opslaan* in de balk maakt nooit een veld aan |
 | Een veld verplaatsen of verwijderen, *Formulier verwijderen* | niets: formulieren met één knop of alleen verborgen velden. Verwijderen vraagt zoals altijd in de dialoog van het CMS |
-| Opslaan, met de balk of met de eigen knop | schoon na `?saved=1`; een geweigerde opslag komt terug met `data-save-bar-unsaved` |
+| Opslaan, met de balk of met Enter in een veld | schoon na `?saved=1`; een geweigerde opslag komt terug met `data-save-bar-unsaved` |
 
 Is er iets niet opgeslagen, dan waarschuwt de browser bij elke handeling die
 de pagina verlaat, ook bij een veld toevoegen, verplaatsen of verwijderen.
 `data-save-bar-discard` is hier niet nodig: niets op dit scherm gooit invoer
 met opzet weg.
 
-Onder de kaarten staan de velden, met per veld het label, de naam van het
-type en bij een keuzeveld het aantal opties. De technische naam van een veld
-staat daar niet (zie "De interne naam" hieronder).
+**Eén Opslaan.** Het formulier had naast de balk een eigen knop *Opslaan*,
+onderaan de kaarten. Die is er alleen nog voor een browser zonder het script
+van de balk: hij draagt `data-save-bar-fallback`, en `save-bar.js` verbergt
+hem zodra de balk verschijnt ([`PAGE-EDITOR.md`](PAGE-EDITOR.md), "De
+opslagbalk"). Verborgen, niet weggehaald: hij blijft de standaardknop van
+het formulier, dus Enter in een veld slaat nog steeds op, via hetzelfde
+verzoek. De veldeditor doet hetzelfde, behalve als een typewissel op
+bevestiging wacht: dan zegt zijn knop wat hij gaat doen.
+
+**De velden** staan onder de kaarten, één compacte rij per veld, in de
+volgorde van het formulier. Dit zijn de rijen van *Header & navigatie* en de
+footer (`.admin-section-row`):
+
+```text
+↑ ↓  Voornaam                                   Bewerken  Verwijderen
+     Kort tekstveld · verplicht · 1/2
+```
+
+↑ en ↓ staan waar een sleepgreep zou staan. Sleep-en-neerzetten is er niet:
+de pijlen werken met toetsenbord, muis en touch. De tweede regel zegt wat het
+veld is: het type, *verplicht* of *niet verplicht*, de breedte, en bij een
+keuzeveld het aantal opties. Elke knop is naar het veld genoemd voor een
+schermlezer (*Voornaam een plek omhoog*, *Bewerken: Voornaam*). Op een
+telefoon krijgen de knoppen een eigen regel. Alle andere instellingen staan op
+het scherm van het veld zelf. De technische naam van een veld staat hier ook
+niet (zie "De interne naam" hieronder). Elke rij is het anker `#form-field-<id>`
+waar een opgeslagen veld naar terugkeert.
+
+### Voorbeeld in de formuliereditor
+
+Naast de instellingen en de velden staat een kaart *Voorbeeld*: het formulier
+zoals een bezoeker het ziet. Waar het scherm breed genoeg is voor allebei
+staan ze naast elkaar, en blijft het voorbeeld in beeld terwijl de velden
+voorbij scrollen. Is het scherm smaller, dan volgt het voorbeeld onder de
+velden. Het is een flexrij die omslaat, dus zonder eigen breekpunt.
+
+**Het contract: het voorbeeld is de publieke renderer.** Het frame laadt
+`admin/form-preview.php`, en dat document haalt het formulier op met
+`FormCatalog::find()` en drukt het af met `render_form()` uit
+`partials/form.php`, precies zoals het blok *Formulier* dat doet. Het zit in
+de kaart van dat blok, met de stylesheets en het thema van de site en
+`assets/css/blocks/form.css`. Er staat geen veldmarkup in het voorbeeld en er
+is geen tweede renderer in JavaScript. Labels, types, verplichte velden,
+breedtes en het raster kunnen dus niet uit elkaar lopen met de website:
+`Tests\Service\FormAdminHttpTest` vergelijkt de velden van het voorbeeld byte
+voor byte met wat `render_form()` voor hetzelfde formulier afdrukt.
+
+| Vraag | Antwoord |
+|---|---|
+| Wat laat het zien? | Het **opgeslagen** formulier, niet wat er op dat moment getypt wordt. Elke opslag laadt het scherm, en dus het voorbeeld, opnieuw. Er is geen live-update |
+| In welke taal? | De websitetaal die je bewerkt (de schakelaar in de zijbalk, `ContentEditingLanguage`), met de terugval die een bezoeker ook krijgt |
+| Een formulier dat uit staat? | Wordt getoond, met erboven dat bezoekers het nu nergens zien |
+| Zonder bruikbaar veld? | Geen frame, wel de zin dat het voorbeeld verschijnt zodra er een veld is |
+| Kan het verstuurd worden? | Nee. Het frame heeft `sandbox="allow-same-origin"` en verder niets, dus geen scripts en geen formulieren. Het document stuurt `Content-Security-Policy: script-src 'none'; form-action 'none'`, en `assets/js/blocks/form.js` wordt niet geladen |
+| Dubbele id's? | Kan niet: het voorbeeld is een eigen document, met het token `form-preview-<id>`. De publieke id's veranderen niet |
+| Wie mag het zien? | Dezelfde bewaking als de editor: ingelogd en `forms.manage`. Er is geen publiek adres |
+
+**Desktop en Mobiel.** De site stapelt velden op de breedte van *zijn*
+venster, en het frame is een venster van zichzelf. `admin/assets/forms-admin.js`
+tekent het frame daarom op een vaste breedte en schaalt het in de kolom:
+
+- **Desktop** op minstens 680 pixels, net voorbij de 640 waar de site
+  stapelt. Dat is het raster dat elk breder scherm ook toont, met dezelfde
+  verdeling, alleen kleiner.
+- **Mobiel** op 375 pixels, waar elk veld een hele rij is.
+
+Op een scherm zo smal als een telefoon begint het voorbeeld op *Mobiel*. Het
+script leest de hoogte van het formulier in het frame, wat
+`allow-same-origin` toestaat terwijl er in het frame zelf niets draait.
+Zonder script heeft het frame een vaste hoogte met een eigen schuifbalk, op
+de breedte van de kolom.
+
+Het voorbeeld toont de kaart van het blok *Formulier*. Het
+offerte-/contactformulier zet hetzelfde formulier in een smallere kolom naast
+*Direct contact*: dezelfde velden, dezelfde verdeling, op minder pixels.
+
 
 ## Velden toevoegen en bewerken
 
@@ -642,6 +791,7 @@ type gebruikt"):
 | Wat de bezoeker leest | label en uitleg in de taal die je bewerkt; de voorbeeldtekst (placeholder) alleen bij een type dat die gebruikt |
 | Opties | alleen bij een keuzeveld: een rij per optie met *Standaard*, ↑ en ↓ |
 | Invullen | de schakelaar *Verplicht invullen*; bij Toestemming alleen de zin dat het altijd verplicht is |
+| Breedte | *Breedte in het formulier*: de zes breedtes uit *Breedte van een veld*, bij elk type |
 | Technische gegevens | ingeklapt, buiten het formulier: de interne naam |
 
 Een instelling die het type niet gebruikt, staat niet op het scherm met een
@@ -655,6 +805,35 @@ ooit een tekstveld was, houdt dus zijn oude placeholder, ongebruikt en
 onaangeroerd. Een veld dat ongewijzigd wordt opgeslagen, komt byte voor byte
 hetzelfde terug. `is_required` heeft daarom een verborgen `0` vóór zijn
 schakelaar: anders zou "uit" niet eens aankomen.
+
+### Na opslaan terug naar het formulier
+
+Een veld opslaan is post/redirect/get, en een opslag die doorgaat eindigt
+**op het formulier waar het veld bij hoort**, niet op de veldeditor:
+
+```text
+POST /api/admin/update-form-field.php
+  → 302 /admin/form.php?id=<formulier>&saved=1#form-field-<veld>
+```
+
+Het adres komt uit het opgeslagen formulier-id en veld-id, en uit niets wat
+het verzoek meestuurt. Een verborgen `form_id`, `return` of `redirect` in een
+POST verandert er niets aan, dus er is geen open redirect. Welk veld er
+opgeslagen is, en of zijn standaardkeuze moest vervallen, gaat via de sessie
+mee naar dat ene scherm. Het formulier noemt het veld dan één keer
+(*Veld ‘Voornaam’ opgeslagen.*) en de rij van het veld is het anker, met een
+accentrand. Het voorbeeld ernaast toont de wijziging al. `saved=1` blijft de
+markering die de opslagbalk als geslaagd leest; het anker telt daarvoor niet
+mee, want `Response.url` draagt nooit een fragment.
+
+**Een opslag die niets schreef, blijft op de veldeditor**, zoals altijd: een
+fout (een leeg label, een onbekende breedte, een keuzeveld zonder opties)
+komt terug met de melding en met alles wat er getypt was, en een typewissel
+die op bevestiging wacht ook. Er wordt dan niet naar het formulier geleid.
+
+Een nieuw veld (*Veld toevoegen*) opent na het aanmaken nog steeds zijn
+eigen editor: daar staan de instellingen die het label in de dialoog niet
+vraagt. Pas de opslag daar brengt je terug.
 
 ### Opties en standaardkeuze in één keer
 
@@ -676,8 +855,8 @@ hernoemt in dezelfde opslag de standaard zijn.
   de standaardtaal als voorbeeldtekst in het vak: laat je het leeg, dan leest
   de bezoeker dat label.
 - **Een geleegde rij is geen optie meer.** Was die rij de standaard, dan
-  heeft het veld na opslaan geen standaard, en de editor meldt dat. Nooit een
-  standaard die naar niets wijst.
+  heeft het veld na opslaan geen standaard, en het formulier waar je daarna
+  op terugkomt meldt dat. Nooit een standaard die naar niets wijst.
 - **Lege en dubbele rijen** vallen weg volgens de regels die er al waren. Een
   `|` is sinds de opties echte rijen zijn gewoon een teken in een label.
 - **Zonder JavaScript** staan er drie lege rijen onder de ingevulde; na
@@ -778,7 +957,7 @@ gewone formulier naar `api/admin/update-form-field.php`.
 | *Technische gegevens* of *Ander soort veld kiezen* open- of dichtklappen | niets: geen formulierveld |
 | De bewerktaal wisselen | niets: dat formulier staat in de zijbalk, buiten `<main>`. Is er iets niet opgeslagen, dan waarschuwt de browser zoals op elk scherm |
 | *Veld verwijderen* | niets: dat formulier heeft alleen verborgen velden |
-| Opslaan, met de balk of met de eigen knop | schoon na `?saved=1`; een geweigerde opslag komt terug zonder die markering |
+| Opslaan, met de balk of met Enter in een veld | terug op het formulier met `?saved=1` (zie *Na opslaan terug naar het formulier*); een geweigerde opslag komt terug op de veldeditor, zonder die markering |
 
 **Wat terugkomt zonder geschreven te zijn, is niet opgeslagen.** Na een
 geweigerde opslag, en terwijl een typewissel op bevestiging wacht, staat er
@@ -910,7 +1089,11 @@ keer. Er staat geen formulierinitialisatie in `assets/js/core.js`.
 De besturingselementen zelf (`.form-grid`, `.form-field`, `.form-error`,
 `.form-status`, `.check-pill`) worden gedeeld met het afrekenen en staan in
 `assets/css/core.css`; het blokbestand herhaalt ze niet en voegt alleen toe
-wat echt van dit blok is.
+wat echt van dit blok is. Het raster van twaalf kolommen en de zes breedtes
+zijn zo'n toevoeging: ze gelden onder `.vvl-form`, dus alleen voor een
+formulier van Forms, en niet voor het afrekenen (zie *Breedte van een veld*).
+Het voorbeeld in de formuliereditor vraagt `form.css` op dezelfde manier op,
+via `FormBlock::styles()`, en `form.js` niet.
 
 ## Testen
 
@@ -960,6 +1143,19 @@ dat een optie op haar waarde gepost wordt en alleen haar label vertaald is, en
 dat de twee editors één taal tegelijk schrijven.
 `FormWordsAndOptionMigrationTest` (`migration`) draait de verhuizing op een
 verse, een bijgewerkte en een kapotte wegwerpdatabase.
+`FormFieldWidthTest` (`fast`) bewaakt *Breedte van een veld* zonder database:
+de lijst en de classes, dat elke andere waarde als `full` leest, elk type op
+elke breedte met precies één class en zonder `style`, dat de volgorde van de
+velden nooit verandert, dat `form.css` elke breedte over zijn kolommen legt en
+op 640 pixels stapelt, en dat de migratie de oude regel van de renderer
+opschrijft. `FormFieldLayoutWidthMigrationTest` (`migration`) draait
+`20260924160000` op een verse, een bijgewerkte en een halverwege gestopte
+wegwerpdatabase. `FormFieldEditorHttpTest` bewijst de breedte in de
+veldeditor (elk type, weigeren, per taal, niet meegestuurd blijft staan) en
+de terugweg naar het formulier. `FormAdminHttpTest` bewijst de compacte
+rijen, de ene knop *Opslaan*, het frame en het voorbeeld zelf: dezelfde
+velden als `render_form()`, in de bewerktaal, zonder script, zonder
+verzenden, zonder gedeelde id's en achter de bewaking van de editor.
 
 ## Bewust niet ondersteund
 
@@ -987,3 +1183,17 @@ JavaScript.
 **Beveiliging** — CAPTCHA-diensten van derden op publieke formulieren.
 
 V1 lost gewone contact- en aanvraagformulieren goed op. Dat is de hele opzet.
+
+### Forms 2.0: fase 1 en fase 2
+
+| | Fase 1 (deze) | Fase 2 (gepland) |
+|---|---|---|
+| Wat | De formulierbouwer: compacte veldrijen, één *Opslaan*, terug naar het formulier na een veld, een breedte per veld, het voorbeeld | Een generiek uploadveld in de bouwer |
+| Uploads | **Niets veranderd.** Er is geen uploadtype, geen opslag voor uploads en geen multipart-ombouw. De bijlage van het offerte-/contactformulier werkt zoals in *Het contactformulier* staat: een extra besturingselement van dat blok, buiten de veldlijst, altijd een hele rij | Een veldtype volgens het recept *Een veldtype toevoegen*, met de bijlage van het contactblok als het bestaande voorbeeld van validatie en opslag |
+| Breedte | Voor elk veld in de lijst | Een uploadveld krijgt dezelfde zes breedtes; het raster hoeft niet te veranderen |
+
+Wat fase 1 voor fase 2 openlaat: `render_form()` stuurt al
+`enctype="multipart/form-data"`, `.vvl-form input[type="file"]` past al in
+een smalle cel (`form.css`), en een kind van het raster zonder breedteklasse
+neemt de hele rij.
+

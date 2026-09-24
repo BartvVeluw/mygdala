@@ -766,7 +766,7 @@ conceptpreview, het blokvoorbeeld, de paginabouwer, de mediabibliotheek, het
 Portfolio-beheer, de paginakop of de formulieren in Apache zit:
 `admin/page-preview.php`, `admin/block-preview.php`, `admin/page.php`,
 `admin/media.php`, `admin/portfolio-item.php`, `admin/page-hero.php`,
-`admin/form.php`, `admin/form-field.php`, `api/form-submit.php` en de endpoints onder `api/admin/`
+`admin/form.php`, `admin/form-field.php`, `admin/form-preview.php`, `api/form-submit.php` en de endpoints onder `api/admin/`
 zijn gewone bestanden, en `pagina.php`, `portfolio-detail.php` en
 `sitemap.php` worden rechtstreeks aangesproken. De rewrite zelf blijft de zaak
 van `PageRoutingTest`. Kan de server niet starten, dan slaan deze tests
