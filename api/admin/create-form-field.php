@@ -37,6 +37,7 @@ use App\Service\Forms\FormCatalog;
 use App\Service\Forms\FormFieldKey;
 use App\Service\Forms\FormLocalization;
 use App\Service\Forms\FormFieldTypes;
+use App\Service\Forms\FormFileTypes;
 
 AdminAuth::requireLoginForApi();
 AdminAuth::requirePermissionForApi('forms.manage');
@@ -111,6 +112,10 @@ try {
         // default either; the field's own screen offers one once the
         // choices exist.
         'default_value' => null,
+        // An upload field starts with the plain, safe kinds and a modest
+        // size (App\Service\Forms\FormFileTypes); its own screen changes them.
+        'file_types' => $type->acceptsFile() ? FormFileTypes::DEFAULT_TYPES : null,
+        'file_max_bytes' => $type->acceptsFile() ? min(FormFileTypes::DEFAULT_MAX_BYTES, FormFileTypes::systemMaxBytes()) : null,
     ]);
 
     // The label is written in the website's DEFAULT language, whatever

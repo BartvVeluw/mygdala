@@ -95,7 +95,9 @@ final class FormFieldWidthTest extends TestCase
     public function testTheFormerDefaultIsWhatTheRendererUsedToDecide(): void
     {
         foreach (FormFieldTypes::all() as $key => $type) {
-            $wasFull = $type->labelPosition() !== 'before' || in_array($key, ['textarea', 'select'], true);
+            // `file` did not exist before widths; its former default is the
+            // one for every type the old renderer did not know: full.
+            $wasFull = $type->labelPosition() !== 'before' || in_array($key, ['textarea', 'select', 'file'], true);
 
             $this->assertSame($wasFull ? 'full' : 'half', FormFieldWidth::formerDefaultFor($key), $key);
         }

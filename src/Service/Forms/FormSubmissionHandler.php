@@ -7,6 +7,7 @@ namespace App\Service\Forms;
 use App\Mail\EmailIdentity;
 use App\Mail\FormSubmissionBuilder;
 use App\Repository\FormSubmissionRepository;
+use App\Service\ContactAttachmentStorage;
 use App\Service\Mailer;
 use PHPMailer\PHPMailer\Exception as PHPMailerException;
 
@@ -16,7 +17,15 @@ use PHPMailer\PHPMailer\Exception as PHPMailerException;
  * goes through this one method, so there is exactly one place where a form
  * is validated, stored and mailed.
  *
- *     spam guard  ->  validate  ->  persist  ->  notify  ->  record outcome
+ *     spam guard  ->  validate  ->  store files  ->  persist  ->  notify  ->  record outcome
+ *
+ * FILES are answers of upload fields (FieldTypes\FileFieldType). They are
+ * validated with every other answer and moved out of PHP's temporary
+ * directory only once ALL of them passed; the submission row and its file
+ * rows are one transaction; and a stored file that ends up with no row
+ * pointing at it — a form that keeps nothing, a row that could not be
+ * written — is deleted before the answer goes out. So no file outlives the
+ * record of it, and none is kept that nobody can find.
  *
  * THE ORDER IS DELIBERATE, and it is the answer to "what happens when SMTP
  * is down". A form that stores its submissions writes the row BEFORE it
@@ -42,16 +51,33 @@ use PHPMailer\PHPMailer\Exception as PHPMailerException;
  */
 final class FormSubmissionHandler
 {
+    /**
+     * The most file data one notification carries, before base64. Past it,
+     * a file is named in the e-mail but not attached (FORMS.md, "E-mail"):
+     * common mail servers refuse a message of 25 MB, and base64 makes 15 MB
+     * about 20.
+     */
+    public const MAIL_ATTACHMENT_BUDGET = 15 * 1024 * 1024;
+
+    /** @var (\Closure(): ContactAttachmentStorage) */
+    private readonly \Closure $storage;
+
+    /**
+     * @param (\Closure(): ContactAttachmentStorage)|null $storage where accepted files go; a test hands in its own
+     */
     public function __construct(
         private readonly FormValidator $validator = new FormValidator(),
         private readonly FormSpamGuard $spamGuard = new FormSpamGuard(),
+        ?\Closure $storage = null,
     ) {
+        $this->storage = $storage ?? static fn (): ContactAttachmentStorage => new ContactAttachmentStorage();
     }
 
     /**
      * @param array<string, mixed> $request usually $_POST
+     * @param array<string, mixed> $files   usually $_FILES
      */
-    public function handle(FormDefinition $form, array $request, FormSubmissionContext $context): FormSubmissionOutcome
+    public function handle(FormDefinition $form, array $request, FormSubmissionContext $context, array $files = []): FormSubmissionOutcome
     {
         if (!$form->isRenderable()) {
             // Somebody posted to a form that is switched off or has no
@@ -68,23 +94,46 @@ final class FormSubmissionHandler
             return FormSubmissionOutcome::rejected(false);
         }
 
-        $validation = $this->validator->validate($form, $request);
+        $validation = $this->validator->validate($form, $request, $files);
         if (!$validation->isValid()) {
+            // Nothing was written: an accepted file is still in PHP's
+            // temporary directory, which PHP empties after the request.
             return FormSubmissionOutcome::invalid($validation);
         }
 
         $snapshot = $this->validator->snapshot($form, $validation->values);
 
-        $submissionId = null;
-        if ($form->storesSubmissions) {
-            $submissionId = $this->persist($form, $snapshot, $context);
-
-            if ($submissionId === null) {
-                return FormSubmissionOutcome::failed('storage');
-            }
+        // Only now, with every field passed, does a file leave PHP's
+        // temporary directory.
+        $storage = $validation->uploads === [] ? null : ($this->storage)();
+        $stored = $storage === null ? [] : $this->storeUploads($form, $storage, $validation->uploads);
+        if ($stored === null) {
+            return FormSubmissionOutcome::failed('storage');
         }
 
-        $sent = $this->notify($form, $snapshot, $context, $submissionId);
+        $submissionId = null;
+
+        try {
+            if ($form->storesSubmissions) {
+                $submissionId = $this->persist($form, $snapshot, $context, $stored);
+
+                if ($submissionId === null) {
+                    return FormSubmissionOutcome::failed('storage');
+                }
+            }
+
+            $sent = $this->notify($form, $snapshot, $context, $submissionId, $stored);
+        } finally {
+            // A stored file that no submission row points at would be an
+            // orphan nothing can find or delete: a form that does not keep
+            // its submissions (the e-mail was the delivery), or a submission
+            // that could not be written. Removed before the answer goes out.
+            if ($submissionId === null && $storage !== null) {
+                foreach ($stored as $file) {
+                    $storage->delete($file['stored_filename']);
+                }
+            }
+        }
 
         if (!$sent && $submissionId === null) {
             // Nothing was stored and nothing was sent: the enquiry does not
@@ -96,26 +145,63 @@ final class FormSubmissionHandler
     }
 
     /**
-     * @param list<array{field_key: string, field_label: string, field_type: string, value: string}> $snapshot
-     * @return int|null the submission id, or null when it could not be stored
+     * Moves every accepted file into the storage outside the webroot, under
+     * a random name with the extension of what its bytes are. All or
+     * nothing: when one cannot be moved, the ones already moved are removed
+     * again and null is returned.
+     *
+     * @param array<string, FormUpload> $uploads by field key
+     * @return list<array{field_key: string, stored_filename: string, original_filename: string, mime: string, size: int, sha256: string, path: string, mail_name: string}>|null
      */
-    private function persist(FormDefinition $form, array $snapshot, FormSubmissionContext $context): ?int
+    private function storeUploads(FormDefinition $form, ContactAttachmentStorage $storage, array $uploads): ?array
     {
-        try {
-            $repository = new FormSubmissionRepository();
-            $submissionId = $repository->create($form->id, $form->name, $context->sourcePath, $snapshot);
+        $stored = [];
 
-            if ($context->attachment !== null) {
-                $repository->attachFile(
-                    $submissionId,
-                    $context->attachment['stored_filename'],
-                    $context->attachment['original_filename'],
-                    $context->attachment['mime'],
-                    $context->attachment['size']
-                );
+        try {
+            // In the form's own field order, so the e-mail and the admin list
+            // the files the way the form asked for them.
+            foreach ($form->fields as $field) {
+                $upload = $uploads[$field->key] ?? null;
+                if ($upload === null) {
+                    continue;
+                }
+
+                $filename = $storage->store($upload->tmpPath, $upload->storedExtension());
+                $stored[] = [
+                    'field_key' => $field->key,
+                    'stored_filename' => $filename,
+                    'original_filename' => $upload->originalName,
+                    'mime' => $upload->mime(),
+                    'size' => $upload->size,
+                    'sha256' => $upload->sha256,
+                    'path' => $storage->path($filename),
+                    // A fixed, generic name for the mail: the field's own key,
+                    // never what the visitor called the file.
+                    'mail_name' => $field->key . '.' . $upload->storedExtension(),
+                ];
+            }
+        } catch (\Throwable $e) {
+            error_log('[FormSubmissionHandler] could not store a file for form #' . $form->id . ': ' . $e->getMessage());
+
+            foreach ($stored as $file) {
+                $storage->delete($file['stored_filename']);
             }
 
-            return $submissionId;
+            return null;
+        }
+
+        return $stored;
+    }
+
+    /**
+     * @param list<array{field_key: string, field_label: string, field_type: string, value: string}> $snapshot
+     * @param list<array{field_key: string, stored_filename: string, original_filename: string, mime: string, size: int, sha256: string}> $stored
+     * @return int|null the submission id, or null when it could not be stored
+     */
+    private function persist(FormDefinition $form, array $snapshot, FormSubmissionContext $context, array $stored): ?int
+    {
+        try {
+            return (new FormSubmissionRepository())->create($form->id, $form->name, $context->sourcePath, $snapshot, $stored);
         } catch (\Throwable $e) {
             error_log('[FormSubmissionHandler] could not store a submission for form #' . $form->id . ': ' . $e->getMessage());
 
@@ -124,13 +210,42 @@ final class FormSubmissionHandler
     }
 
     /**
+     * Which stored files go into the notification as real attachments: in
+     * field order, as long as the total stays within
+     * MAIL_ATTACHMENT_BUDGET. The rest are named in the e-mail instead.
+     *
+     * @param list<array{field_key: string, size: int, path: string, mail_name: string, mime: string}> $stored
+     * @return array{0: list<array{path: string, name: string, mime: string}>, 1: list<string>} the attachments, and the field keys left out
+     */
+    public static function mailAttachments(array $stored): array
+    {
+        $attachments = [];
+        $leftOut = [];
+        $total = 0;
+
+        foreach ($stored as $file) {
+            if ($total + $file['size'] > self::MAIL_ATTACHMENT_BUDGET) {
+                $leftOut[] = $file['field_key'];
+                continue;
+            }
+
+            $total += $file['size'];
+            $attachments[] = ['path' => $file['path'], 'name' => $file['mail_name'], 'mime' => $file['mime']];
+        }
+
+        return [$attachments, $leftOut];
+    }
+
+    /**
      * @param list<array{field_key: string, field_label: string, field_type: string, value: string}> $snapshot
+     * @param list<array{field_key: string, size: int, path: string, mail_name: string, mime: string}> $stored
      */
     private function notify(
         FormDefinition $form,
         array $snapshot,
         FormSubmissionContext $context,
-        ?int $submissionId
+        ?int $submissionId,
+        array $stored
     ): bool {
         $recipient = FormRecipient::forForm($form);
 
@@ -143,10 +258,14 @@ final class FormSubmissionHandler
             return false;
         }
 
+        [$attachments, $leftOut] = self::mailAttachments($stored);
+
         $content = FormSubmissionBuilder::build($form, $snapshot, [
             'source_path' => $context->sourcePath,
             'submitted_at' => date('d-m-Y H:i'),
-            'attachment_name' => $context->attachmentName(),
+            'attachment_names' => array_map(static fn (array $file): string => $file['name'], $attachments),
+            'not_attached' => $leftOut,
+            'kept_in_cms' => $submissionId !== null,
         ]);
 
         [$replyToEmail, $replyToName] = $this->replyTo($form, $snapshot);
@@ -160,7 +279,7 @@ final class FormSubmissionHandler
                 $content['text'],
                 $replyToEmail,
                 $replyToName,
-                $context->mailAttachments()
+                $attachments
             );
         } catch (PHPMailerException $e) {
             error_log(

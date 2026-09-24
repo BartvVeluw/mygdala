@@ -160,6 +160,20 @@ final class FormRenderState
         return $this->errors[$fieldKey] ?? null;
     }
 
+    /**
+     * The key of an error that belongs to the whole form rather than to one
+     * field: a request PHP refused before any field could be read (larger
+     * than post_max_size, api/form-submit.php). It starts with a hyphen, so
+     * it can never be a field key (FormFieldKey::isValid()).
+     */
+    public const FORM_ERROR = '-form';
+
+    /** The error that belongs to the whole form, if there is one. */
+    public function formError(): ?string
+    {
+        return $this->errors[self::FORM_ERROR] ?? null;
+    }
+
     public function hasErrors(): bool
     {
         return $this->errors !== [];

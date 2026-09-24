@@ -27,7 +27,14 @@ class FormSubmissionBuilder
 {
     /**
      * @param list<array{field_key: string, field_label: string, field_type: string, value: string}> $values
-     * @param array{source_path?: ?string, submitted_at?: ?string, attachment_name?: ?string} $context
+     * FILES. An upload field's answer is the file's name and size, and the
+     * file itself is attached to the message under a generic name (the
+     * field's key, never the visitor's file name). A file that did not fit
+     * the message (FormSubmissionHandler::MAIL_ATTACHMENT_BUDGET) is named in
+     * its answer with where it is instead: in the CMS when the form keeps its
+     * submissions, and nowhere when it does not — the owner is told plainly.
+     *
+     * @param array{source_path?: ?string, submitted_at?: ?string, attachment_names?: list<string>, not_attached?: list<string>, kept_in_cms?: bool} $context
      * @return array{subject: string, html: string, text: string}
      */
     public static function build(FormDefinition $form, array $values, array $context = []): array
@@ -37,14 +44,24 @@ class FormSubmissionBuilder
 
         $submittedAt = $context['submitted_at'] ?? date('d-m-Y H:i');
         $sourcePath = $context['source_path'] ?? null;
-        $attachmentName = $context['attachment_name'] ?? null;
+        $attachmentNames = $context['attachment_names'] ?? [];
+        $notAttached = $context['not_attached'] ?? [];
+        $keptInCms = (bool) ($context['kept_in_cms'] ?? false);
 
         $meta = [['Formulier', $formName], ['Ontvangen', $submittedAt]];
         if (is_string($sourcePath) && $sourcePath !== '') {
             $meta[] = ['Pagina', $sourcePath];
         }
-        if (is_string($attachmentName) && $attachmentName !== '') {
-            $meta[] = ['Bijlage', $attachmentName];
+        if ($attachmentNames !== []) {
+            $meta[] = [count($attachmentNames) === 1 ? 'Bijlage' : 'Bijlagen', implode(', ', $attachmentNames)];
+        }
+
+        foreach ($values as $index => $value) {
+            if (in_array($value['field_key'], $notAttached, true) && $value['value'] !== '') {
+                $values[$index]['value'] .= $keptInCms
+                    ? ' — niet bijgevoegd, te groot voor deze e-mail; te downloaden bij de inzending in het CMS'
+                    : ' — niet bijgevoegd, te groot voor deze e-mail; dit formulier bewaart geen inzendingen, dus het bestand is niet bewaard';
+            }
         }
 
         return [

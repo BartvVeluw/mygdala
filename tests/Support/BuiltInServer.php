@@ -40,8 +40,12 @@ final class BuiltInServer
      * @param string|null            $router      a project-relative router script, for a
      *                                            test that needs the ROUTING rather than the
      *                                            files — see tests/Support/dispatcher-router.php
+     * @param array<string, string>  $ini         php.ini settings for the server only, such as
+     *                                            the small post_max_size with which
+     *                                            Tests\Service\FormUploadHttpTest proves what a
+     *                                            request PHP throws away looks like
      */
-    public static function start(array $environment = [], ?string $router = null): ?self
+    public static function start(array $environment = [], ?string $router = null, array $ini = []): ?self
     {
         $probe = @stream_socket_server('tcp://127.0.0.1:0');
         if ($probe === false) {
@@ -55,10 +59,16 @@ final class BuiltInServer
         $root = dirname(__DIR__, 2);
         $discard = DIRECTORY_SEPARATOR === '\\' ? 'NUL' : '/dev/null';
 
+        $settings = [];
+        foreach ($ini as $name => $value) {
+            $settings[] = '-d';
+            $settings[] = $name . '=' . $value;
+        }
+
         $process = proc_open(
             $router === null
-                ? [PHP_BINARY, '-S', '127.0.0.1:' . $port, '-t', $root]
-                : [PHP_BINARY, '-S', '127.0.0.1:' . $port, '-t', $root, $root . '/' . ltrim($router, '/')],
+                ? [PHP_BINARY, ...$settings, '-S', '127.0.0.1:' . $port, '-t', $root]
+                : [PHP_BINARY, ...$settings, '-S', '127.0.0.1:' . $port, '-t', $root, $root . '/' . ltrim($router, '/')],
             [0 => ['pipe', 'r'], 1 => ['file', $discard, 'w'], 2 => ['file', $discard, 'w']],
             $pipes,
             $root,

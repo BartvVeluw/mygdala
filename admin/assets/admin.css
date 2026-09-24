@@ -3691,6 +3691,21 @@ body.admin-media-modal-open{ overflow: hidden; }
   .admin-option-row--plain .admin-option-row__actions{ grid-column: auto; }
 }
 
+/* An upload field's accepted kinds (admin/form-field.php, "Bestanden"): one
+   .admin-checkbox per kind of App\Service\Forms\FormFileTypes, side by side
+   and wrapping. Layout only; the checkbox is the shared one. */
+.admin-form-file-types{
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--admin-sp-2) var(--admin-sp-4);
+  margin: var(--admin-sp-2) 0;
+}
+.admin-product-form .admin-form-file-types > .admin-checkbox-label{ display: inline-flex; margin: 0; }
+
+/* A visitor's file name in a submission (admin/form-submission.php) can be
+   one long word; it wraps instead of widening the table past the screen. */
+.admin-submission-file{ overflow-wrap: anywhere; }
+
 .admin-type-change{ border-color: var(--admin-warning-line); background: var(--admin-warning-soft); }
 .admin-type-change h2{ margin-top: 0; }
 .admin-type-change__losses{ margin: 0 0 var(--admin-sp-3); padding-left: 1.2rem; display: flex; flex-direction: column; gap: 0.3rem; overflow-wrap: anywhere; }

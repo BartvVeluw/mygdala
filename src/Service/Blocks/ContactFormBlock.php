@@ -20,9 +20,10 @@ require_once dirname(__DIR__, 3) . '/partials/section-contact-form.php';
  * form of its own (FORMS.md, "Het contactformulier"). It keeps its type key
  * and every `page_sections` row it has — retiring a block type is a data
  * migration and there is no reason to run one here — and what it adds to the
- * generic engine is exactly two things a generic form block should not have:
- * the contact details card beside it, and the optional file attachment this
- * site's quote form has accepted since long before Forms existed.
+ * generic engine is the one thing a generic form block should not have: the
+ * contact details card beside it. A file upload is not the block's any more
+ * but an ordinary field of its form (Forms 2.0 phase 2, FORMS.md "Bestand
+ * uploaden").
  *
  * For a plain form on any page, the block to add is "Formulier"
  * (App\Service\Blocks\FormBlock). This one is offered as well, because the
@@ -83,8 +84,8 @@ final class ContactFormBlock extends BlockDefinition
     }
 
     /**
-     * The block's own heading, per website language; the form, the
-     * attachment switch and is_active are the same in every language and stay
+     * The block's own heading, per website language; the form and
+     * is_active are the same in every language and stay
      * in contact_form_sections. The form's own words are the form's.
      */
     public function translatableFields(): array
@@ -105,7 +106,6 @@ final class ContactFormBlock extends BlockDefinition
             // No form guessed at: the editor picks one, and the block shows
             // its heading and the contact card until they have.
             'form_id' => null,
-            'allow_attachment' => false,
             'is_active' => true,
         ]);
 
@@ -165,9 +165,6 @@ final class ContactFormBlock extends BlockDefinition
             'form_id' => null,
             'form' => $samples->form(),
             'title' => $samples->localized('form_title'),
-            // On, so the preview shows the one control this block adds to a
-            // form (and the neutrality test reads its label).
-            'allow_attachment' => true,
             'contact' => ['email' => BlockSamples::EMAIL, 'city' => $samples->localized('city')],
         ];
     }

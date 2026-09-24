@@ -38,26 +38,27 @@ class FormFieldTypeTest extends TestCase
     public function testRegistryHoldsExactlyTheTypesVersionOneSupports(): void
     {
         $this->assertSame(
-            ['text', 'textarea', 'email', 'tel', 'select', 'radio', 'checkbox', 'consent'],
+            ['text', 'textarea', 'email', 'tel', 'select', 'radio', 'checkbox', 'consent', 'file'],
             FormFieldTypes::keys()
         );
     }
 
     public function testAnUnregisteredKeyIsAMissAndNeverAClassName(): void
     {
-        foreach (['', 'file', 'date', 'FormFieldType', 'App\\Service\\Forms\\FieldTypes\\TextFieldType', '../text'] as $key) {
+        foreach (['', 'upload', 'date', 'FormFieldType', 'App\\Service\\Forms\\FieldTypes\\TextFieldType', '../text'] as $key) {
             $this->assertFalse(FormFieldTypes::has($key), $key . ' must not be a registered field type');
             $this->assertNull(FormFieldTypes::get($key), $key . ' must not resolve to a type');
         }
     }
 
     /**
-     * Forms V1 deliberately has no upload field, no date/time picker, no
-     * repeater and no rich text. FORMS.md says so; this makes it true.
+     * Forms deliberately has no date/time picker, no repeater and no rich
+     * text. FORMS.md says so; this makes it true. (A file upload is the one
+     * type Forms 2.0 phase 2 added, as `file`; no second name for it exists.)
      */
     public function testTheDeferredFieldTypesAreGenuinelyAbsent(): void
     {
-        foreach (['file', 'upload', 'attachment', 'date', 'time', 'address', 'repeater', 'signature', 'richtext', 'html', 'hidden', 'payment', 'calculated'] as $deferred) {
+        foreach (['upload', 'attachment', 'date', 'time', 'address', 'repeater', 'signature', 'richtext', 'html', 'hidden', 'payment', 'calculated'] as $deferred) {
             $this->assertFalse(FormFieldTypes::has($deferred), 'Forms V1 must not support "' . $deferred . '"');
         }
     }

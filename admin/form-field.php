@@ -16,6 +16,7 @@ use App\Service\Forms\FormFieldOptions;
 use App\Service\Forms\FormFieldTypeChange;
 use App\Service\Forms\FormFieldTypes;
 use App\Service\Forms\FormFieldWidth;
+use App\Service\Forms\FormFileTypes;
 use App\Service\Forms\FormLocalization;
 
 /**
@@ -55,6 +56,13 @@ use App\Service\Forms\FormLocalization;
  * or down, its index travelling with it, so both languages and the
  * "Standaard" mark stay with the option. Without JavaScript the order is
  * changed by retyping the rows.
+ *
+ * FILES. A type that accepts a file (FormFieldType::acceptsFile()) has a card
+ * "Bestanden": which kinds, as a checkbox per key of the closed list
+ * App\Service\Forms\FormFileTypes, and the largest size, as a select of the
+ * sizes this installation can really take. Never a free MIME string. A hidden
+ * `file_settings` marker makes "no kind ticked" arrive, so the endpoint can
+ * refuse it instead of leaving the stored kinds as they were.
  *
  * THE WIDTH is one of six shares of a row (App\Service\Forms\FormFieldWidth),
  * a select that the endpoint accepts nothing else from. Every type has it,
@@ -157,6 +165,8 @@ $values = [
     'help_text' => $word(FormLocalization::HELP_TEXT),
     'is_required' => (bool) $field['is_required'],
     'layout_width' => FormFieldWidth::fromStored($field['layout_width'] ?? null),
+    'file_types' => FormFileTypes::fromStored($field['file_types'] ?? null),
+    'file_max_bytes' => FormFileTypes::effectiveMaxBytes($field['file_max_bytes'] ?? null),
     'option_rows' => $storedRows,
     'default_option' => $storedDefault,
 ];
@@ -373,6 +383,44 @@ $v = static fn (array $values, string $key): string => htmlspecialchars((string)
           </div>
           <?php admin_localized_new_item_note($editLanguage); ?>
         </fieldset>
+      </section>
+    <?php endif; ?>
+
+    <?php if ($type !== null && $type->acceptsFile()): ?>
+      <?php
+        $chosenTypes = is_array($values['file_types']) ? $values['file_types'] : FormFileTypes::DEFAULT_TYPES;
+        $chosenMax = (int) $values['file_max_bytes'];
+      ?>
+      <section class="admin-card">
+        <h2><?= admin_te('forms.files.title') ?></h2>
+        <input type="hidden" name="file_settings" value="1">
+        <div class="admin-field" role="group" aria-labelledby="form-field-file-types-label" aria-describedby="form-field-file-types-intro">
+          <div class="admin-field__label">
+            <span id="form-field-file-types-label"><?= admin_te('forms.files.types_legend') ?></span>
+          </div>
+          <p class="admin-text-muted" id="form-field-file-types-intro"><?= admin_te('forms.files.types_intro') ?></p>
+          <div class="admin-form-file-types">
+            <?php foreach (FormFileTypes::keys() as $fileType): ?>
+              <label class="admin-checkbox-label">
+                <input type="checkbox" class="admin-checkbox" name="file_types[]" value="<?= $h($fileType) ?>"<?= in_array($fileType, $chosenTypes, true) ? ' checked' : '' ?>>
+                <?= $h(FormFileTypes::label($fileType)) ?>
+              </label>
+            <?php endforeach; ?>
+          </div>
+          <p class="admin-text-muted"><?= admin_te('forms.files.not_offered') ?></p>
+        </div>
+
+        <div class="admin-field">
+          <?= admin_field_label('form-field-file-max', admin_t('forms.files.max_label')) ?>
+          <select id="form-field-file-max" name="file_max_bytes" class="admin-select" aria-describedby="form-field-file-max-intro">
+            <?php foreach (FormFileTypes::sizeChoices() as $bytes): ?>
+              <option value="<?= $bytes ?>"<?= $bytes === $chosenMax ? ' selected' : '' ?>><?= $h(FormFileTypes::sizeLabel($bytes)) ?></option>
+            <?php endforeach; ?>
+          </select>
+          <p class="admin-text-muted" id="form-field-file-max-intro"><?= admin_te('forms.files.max_intro', ['max' => FormFileTypes::sizeLabel(FormFileTypes::systemMaxBytes())]) ?></p>
+        </div>
+
+        <p class="admin-text-muted"><?= admin_te('forms.files.one_file') ?> <?= admin_te('forms.files.where') ?></p>
       </section>
     <?php endif; ?>
 

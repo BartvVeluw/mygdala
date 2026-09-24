@@ -24,11 +24,12 @@ final class FormFieldTypeChangeTest extends TestCase
     private const O = FormFieldTypeChange::OPTIONS;
     private const D = FormFieldTypeChange::DEFAULT_VALUE;
     private const R = FormFieldTypeChange::REPLY_TO;
+    private const F = FormFieldTypeChange::FILE_SETTINGS;
 
     /**
      * A row holding every setting there is — a placeholder, options, a
-     * usable default, and the key the form's Reply-To names — stored as each
-     * type in turn. What a change loses depends only on what the OLD type
+     * usable default, the key the form's Reply-To names, and an upload
+     * field's accepted kinds and size — stored as each type in turn. What a change loses depends only on what the OLD type
      * used and the new one does not; a setting the old type never used was
      * invisible and is no loss.
      *
@@ -40,25 +41,29 @@ final class FormFieldTypeChangeTest extends TestCase
         $textLike = ['text' => [], 'textarea' => [], 'email' => [], 'tel' => []];
 
         $expected = [
-            'text' => $textLike + ['select' => [self::P], 'radio' => [self::P], 'checkbox' => [self::P], 'consent' => [self::P]],
-            'textarea' => $textLike + ['select' => [self::P], 'radio' => [self::P], 'checkbox' => [self::P], 'consent' => [self::P]],
+            'text' => $textLike + ['select' => [self::P], 'radio' => [self::P], 'checkbox' => [self::P], 'consent' => [self::P], 'file' => [self::P]],
+            'textarea' => $textLike + ['select' => [self::P], 'radio' => [self::P], 'checkbox' => [self::P], 'consent' => [self::P], 'file' => [self::P]],
             'email' => [
                 'text' => [self::R], 'textarea' => [self::R], 'email' => [], 'tel' => [self::R],
                 'select' => [self::P, self::R], 'radio' => [self::P, self::R],
-                'checkbox' => [self::P, self::R], 'consent' => [self::P, self::R],
+                'checkbox' => [self::P, self::R], 'consent' => [self::P, self::R], 'file' => [self::P, self::R],
             ],
-            'tel' => $textLike + ['select' => [self::P], 'radio' => [self::P], 'checkbox' => [self::P], 'consent' => [self::P]],
+            'tel' => $textLike + ['select' => [self::P], 'radio' => [self::P], 'checkbox' => [self::P], 'consent' => [self::P], 'file' => [self::P]],
             'select' => [
                 'text' => [self::O, self::D], 'textarea' => [self::O, self::D], 'email' => [self::O, self::D], 'tel' => [self::O, self::D],
-                'select' => [], 'radio' => [], 'checkbox' => [self::O, self::D], 'consent' => [self::O, self::D],
+                'select' => [], 'radio' => [], 'checkbox' => [self::O, self::D], 'consent' => [self::O, self::D], 'file' => [self::O, self::D],
             ],
             'radio' => [
                 'text' => [self::O, self::D], 'textarea' => [self::O, self::D], 'email' => [self::O, self::D], 'tel' => [self::O, self::D],
-                'select' => [], 'radio' => [], 'checkbox' => [self::O, self::D], 'consent' => [self::O, self::D],
+                'select' => [], 'radio' => [], 'checkbox' => [self::O, self::D], 'consent' => [self::O, self::D], 'file' => [self::O, self::D],
             ],
             'checkbox' => array_fill_keys(FormFieldTypes::keys(), []),
             'consent' => array_fill_keys(FormFieldTypes::keys(), []),
+            // An upload field used none of the text or choice settings, so it
+            // only ever loses its own: the accepted kinds and the size.
+            'file' => array_fill_keys(FormFieldTypes::keys(), [self::F]),
         ];
+        $expected['file']['file'] = [];
 
         $this->assertSame(FormFieldTypes::keys(), array_keys($expected), 'every registered type is classified here');
 
@@ -113,8 +118,21 @@ final class FormFieldTypeChangeTest extends TestCase
     public function testAnUnregisteredStoredTypeLosesNothing(): void
     {
         foreach (FormFieldTypes::all() as $key => $type) {
-            $this->assertSame([], FormFieldTypeChange::losses($this->row('file'), $type, 'contact'), 'file -> ' . $key);
+            $this->assertSame([], FormFieldTypeChange::losses($this->row('upload'), $type, 'contact'), 'upload -> ' . $key);
         }
+    }
+
+    /**
+     * An upload field's settings count as soon as either is stored; a field
+     * that never had them (a row from before they existed) loses nothing.
+     */
+    public function testAnUploadFieldLosesItsSettingsOnlyWhenItHasThem(): void
+    {
+        $text = FormFieldTypes::get('text');
+
+        $this->assertSame([self::F], FormFieldTypeChange::losses($this->row('file', ['file_max_bytes' => null]), $text, null));
+        $this->assertSame([self::F], FormFieldTypeChange::losses($this->row('file', ['file_types' => null]), $text, null));
+        $this->assertSame([], FormFieldTypeChange::losses($this->row('file', ['file_types' => null, 'file_max_bytes' => null]), $text, null));
     }
 
     /**
@@ -161,6 +179,8 @@ final class FormFieldTypeChangeTest extends TestCase
             'is_required' => 1,
             'sort_order' => 0,
             'default_value' => 'Ja',
+            'file_types' => 'jpg,pdf',
+            'file_max_bytes' => 5 * 1024 * 1024,
             'translations' => $translations,
             'choices' => $choices,
         ];

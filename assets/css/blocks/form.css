@@ -19,8 +19,8 @@
 
    Six columns of twelve are exactly as wide as one column of two (the gap is
    the same), so the halves every form had before this file knew about widths
-   land on the same pixels. A child without a width class (the contact
-   block's attachment) takes the whole row, as .form-field--full always did.
+   land on the same pixels. A child without a width class takes the whole
+   row, as .form-field--full always did.
 
    Fields keep their order in the markup, so the tab order is the editor's
    order whatever the widths. A row that is not full leaves room on its right
@@ -138,13 +138,25 @@
    <input type="file"> has a large one: the browser's own "Bestand kiezen /
    Geen bestand gekozen" control cannot wrap. Left alone it widens the whole
    `1fr` column past the viewport, and the page scrolls sideways on a phone —
-   which it did before this stylesheet existed too, on the contact form's
-   attachment field. Letting the fields shrink is the fix; the file control
-   then sizes to the column like every other one. */
+   which it did before this stylesheet existed too, on the contact form's old
+   attachment control. Letting the fields shrink is the fix; the file control
+   then sizes to the column like every other one, at every width an upload
+   field can have (Forms 2.0 phase 2). */
 .vvl-form .form-field {
   min-width: 0;
 }
 
 .vvl-form input[type="file"] {
   max-width: 100%;
+}
+
+/* What an upload field accepts, printed under its control
+   (App\Service\Forms\FieldTypes\FileFieldType). A chosen file with a very
+   long name must not widen a narrow cell either: the browser shows the name
+   inside the control, which the rule above already keeps in its column, and
+   this line wraps anywhere. */
+.vvl-form .form-file-rules {
+  display: block;
+  margin-top: 0.35rem;
+  overflow-wrap: anywhere;
 }

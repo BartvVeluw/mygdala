@@ -21,7 +21,7 @@
  * website registry. It is required in the default language only
  * (ContactFormBlock::translatableFields(), through
  * App\Service\Blocks\BlockLocalization), and only that language is written.
- * The form, the attachment switch and is_active are the same in every
+ * The form and is_active are the same in every
  * language and are saved in the same transaction.
  */
 
@@ -38,7 +38,6 @@ use App\Service\AdminAuth;
 use App\Service\Blocks\BlockLocalization;
 use App\Service\ContactFormContent;
 use App\Service\Csrf;
-use App\Service\Forms\FormAttachmentPolicy;
 use App\Service\Language\LanguageCode;
 use App\Service\Language\SiteLanguages;
 
@@ -83,7 +82,6 @@ foreach (array_keys(BlockLocalization::fields('contact_form_sections')) as $fiel
 
 $settings = [
     'form_id' => $formId,
-    'allow_attachment' => isset($_POST['allow_attachment']),
     'is_active' => isset($_POST['is_active']),
 ];
 
@@ -121,9 +119,6 @@ try {
 
     $db->commit();
     ContactFormContent::clearCache();
-    // Whether a form may receive a file is derived from these rows, so the
-    // answer this request may just have changed must not stay cached.
-    FormAttachmentPolicy::clearCache();
 } catch (\Throwable $e) {
     if ($db->inTransaction()) {
         $db->rollBack();

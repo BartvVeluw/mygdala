@@ -15,16 +15,12 @@ use App\Service\Routing\RequestLanguage;
  * Form definition (`form_id`), rendered by the same partials/form.php and
  * validated by the same pipeline as every other form on the site — there is
  * no second set of fields, no second validator and no second mail builder
- * (FORMS.md, "Het contactformulier"). What the block still owns is the two
- * things that are not part of a generic form:
- *
- *   - the "Direct contact" card beside it, which shares the block's
- *     two-column grid and renders the e-mail address and workshop city from
- *     Instellingen rather than page content;
- *   - the optional file attachment (`allow_attachment`) this site's quote
- *     form has accepted since long before Core Forms existed. Forms V1 has
- *     no upload field and the form builder cannot create one; taking a
- *     working feature away from a live site is not what "generic" means.
+ * (FORMS.md, "Het contactformulier"). What the block still owns is the one
+ * thing that is not part of a generic form: the "Direct contact" card beside
+ * it, which shares the block's two-column grid and renders the e-mail
+ * address and workshop city from Instellingen rather than page content.
+ * (Until Forms 2.0 phase 2 it also owned a file attachment switch,
+ * `allow_attachment`; a file is a field of the form now.)
  *
  * A new page normally uses the plain "Formulier" block
  * (App\Service\Blocks\FormBlock) instead. This one exists for the pairing
@@ -75,7 +71,7 @@ class ContactFormContent
      * @return array<string, mixed> 'state' (one of STATE_*), title (a
      *                              string, stored per website
      *                              language in block_translations), form_id
-     *                              (int|null) and allow_attachment (bool).
+     *                              (int|null).
      *                              Templates must check 'state' !==
      *                              STATE_HIDDEN before rendering.
      */
@@ -105,7 +101,6 @@ class ContactFormContent
             'state' => self::STATE_ACTIVE,
             'title' => BlockLocalization::words(self::TABLE, (int) $row['id'])['title'],
             'form_id' => ($row['form_id'] ?? null) === null ? null : (int) $row['form_id'],
-            'allow_attachment' => (bool) ($row['allow_attachment'] ?? true),
         ];
     }
 
@@ -118,7 +113,6 @@ class ContactFormContent
             'state' => $state,
             'title' => BlockLocalization::words(self::TABLE, 0)['title'],
             'form_id' => null,
-            'allow_attachment' => false,
         ];
     }
 

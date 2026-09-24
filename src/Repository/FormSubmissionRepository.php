@@ -24,10 +24,16 @@ class FormSubmissionRepository extends Repository
      * half-written enquiry is worse than none, because the owner would reply
      * to it missing whatever did not land.
      *
+     * The files that came with it are written in that same transaction, one
+     * row each, tied to the field they were sent for (`field_key`). A row
+     * holds where the file sits in the storage directory by NAME only, never
+     * a machine path.
+     *
      * @param list<array{field_key: string, field_label: string, field_type: string, value: string}> $values
+     * @param list<array{field_key: string, stored_filename: string, original_filename: string, mime: string, size: int, sha256: string}> $attachments
      * @return int the new submission's id
      */
-    public function create(int $formId, string $formName, ?string $sourcePath, array $values): int
+    public function create(int $formId, string $formName, ?string $sourcePath, array $values, array $attachments = []): int
     {
         $ownsTransaction = !$this->db->inTransaction();
 
@@ -65,6 +71,24 @@ class FormSubmissionRepository extends Repository
                 ]);
             }
 
+            $fileStmt = $this->db->prepare(
+                'INSERT INTO form_submission_attachments
+                    (submission_id, field_key, stored_filename, original_filename, mime_type, file_size, sha256, created_at)
+                 VALUES (:submission_id, :field_key, :stored_filename, :original_filename, :mime_type, :file_size, :sha256, NOW())'
+            );
+
+            foreach ($attachments as $file) {
+                $fileStmt->execute([
+                    'submission_id' => $submissionId,
+                    'field_key' => mb_substr($file['field_key'], 0, 64),
+                    'stored_filename' => basename($file['stored_filename']),
+                    'original_filename' => mb_substr($file['original_filename'], 0, 255),
+                    'mime_type' => mb_substr($file['mime'], 0, 100),
+                    'file_size' => $file['size'],
+                    'sha256' => $file['sha256'] !== '' ? $file['sha256'] : null,
+                ]);
+            }
+
             if ($ownsTransaction) {
                 $this->db->commit();
             }
@@ -77,27 +101,6 @@ class FormSubmissionRepository extends Repository
 
             throw $e;
         }
-    }
-
-    public function attachFile(
-        int $submissionId,
-        string $storedFilename,
-        string $originalFilename,
-        string $mimeType,
-        int $fileSize
-    ): void {
-        $stmt = $this->db->prepare(
-            'INSERT INTO form_submission_attachments
-                (submission_id, stored_filename, original_filename, mime_type, file_size, created_at)
-             VALUES (:submission_id, :stored_filename, :original_filename, :mime_type, :file_size, NOW())'
-        );
-        $stmt->execute([
-            'submission_id' => $submissionId,
-            'stored_filename' => mb_substr($storedFilename, 0, 100),
-            'original_filename' => mb_substr($originalFilename, 0, 255),
-            'mime_type' => mb_substr($mimeType, 0, 100),
-            'file_size' => $fileSize,
-        ]);
     }
 
     public function setNotificationSentAt(int $submissionId): void
@@ -218,12 +221,34 @@ class FormSubmissionRepository extends Repository
     }
 
     /**
+     * Every file of one submission, oldest first: one per upload field, plus
+     * — on a submission from before Forms 2.0 phase 2 — the contact block's
+     * single attachment, whose `field_key` is NULL.
+     *
+     * @return list<array<string, mixed>>
+     */
+    public function attachmentsFor(int $submissionId): array
+    {
+        $stmt = $this->db->prepare('SELECT * FROM form_submission_attachments WHERE submission_id = :id ORDER BY id ASC');
+        $stmt->execute(['id' => $submissionId]);
+
+        return $stmt->fetchAll();
+    }
+
+    /**
+     * One file, found by its own id AND the submission it belongs to. Both
+     * must match: a download asks for a file of a submission, and an id that
+     * belongs to another submission is simply not found (FORMS.md, "Een
+     * bestand downloaden").
+     *
      * @return array<string, mixed>|null
      */
-    public function attachmentFor(int $submissionId): ?array
+    public function attachment(int $submissionId, int $attachmentId): ?array
     {
-        $stmt = $this->db->prepare('SELECT * FROM form_submission_attachments WHERE submission_id = :id LIMIT 1');
-        $stmt->execute(['id' => $submissionId]);
+        $stmt = $this->db->prepare(
+            'SELECT * FROM form_submission_attachments WHERE id = :id AND submission_id = :submission_id LIMIT 1'
+        );
+        $stmt->execute(['id' => $attachmentId, 'submission_id' => $submissionId]);
         $row = $stmt->fetch();
 
         return $row === false ? null : $row;
@@ -238,9 +263,10 @@ class FormSubmissionRepository extends Repository
     }
 
     /**
-     * Permanent, and it takes the values with it (ON DELETE CASCADE). The
-     * attachment FILE is removed by the caller — a database cascade cannot
-     * touch the filesystem.
+     * Permanent, and it takes the values and the attachment rows with it
+     * (ON DELETE CASCADE). The FILES are removed by the caller, after this
+     * succeeded — a database cascade cannot touch the filesystem
+     * (api/admin/delete-form-submission.php).
      */
     public function delete(int $id): bool
     {

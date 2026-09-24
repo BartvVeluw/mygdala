@@ -8,6 +8,7 @@ require_once __DIR__ . '/_admin_ui.php';
 use App\Service\Forms\FormFieldOptions;
 use App\Service\Forms\FormFieldTypeChange;
 use App\Service\Forms\FormFieldTypes;
+use App\Service\Forms\FormFileTypes;
 
 /**
  * What the CMS calls a form field type, the cards an editor picks one from,
@@ -117,6 +118,15 @@ function form_field_loss_sentences(array $losses, array $row): array
             ]),
             FormFieldTypeChange::DEFAULT_VALUE => admin_t('forms.loses.default_value', ['option' => trim((string) ($row['default_value'] ?? ''))]),
             FormFieldTypeChange::REPLY_TO => admin_t('forms.loses.reply_to'),
+            FormFieldTypeChange::FILE_SETTINGS => admin_t('forms.loses.file_settings', [
+                'types' => implode(', ', array_map(
+                    [FormFileTypes::class, 'label'],
+                    FormFileTypes::fromStored($row['file_types'] ?? null)
+                )),
+                'size' => FormFileTypes::sizeLabel(
+                    FormFileTypes::effectiveMaxBytes($row['file_max_bytes'] ?? null)
+                ),
+            ]),
             default => $loss,
         };
     }

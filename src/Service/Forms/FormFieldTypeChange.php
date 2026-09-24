@@ -38,6 +38,7 @@ final class FormFieldTypeChange
     public const OPTIONS = 'options';
     public const DEFAULT_VALUE = 'default_value';
     public const REPLY_TO = 'reply_to';
+    public const FILE_SETTINGS = 'file_settings';
 
     /**
      * @param array<string, mixed> $row        the field's stored `form_fields` row, with its
@@ -78,6 +79,14 @@ final class FormFieldTypeChange
             && FormField::isUsableDefault($from, $options, (string) ($row['default_value'] ?? ''))
         ) {
             $losses[] = self::DEFAULT_VALUE;
+        }
+
+        // An upload field's accepted kinds and size limit: an editor chose
+        // them, so they count as soon as either is stored.
+        if ($from->acceptsFile() && !$to->acceptsFile()
+            && (self::holds($row['file_types'] ?? null) || (int) ($row['file_max_bytes'] ?? 0) > 0)
+        ) {
+            $losses[] = self::FILE_SETTINGS;
         }
 
         if ($from->holdsEmailAddress() && !$to->holdsEmailAddress()

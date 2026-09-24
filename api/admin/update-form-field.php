@@ -14,6 +14,15 @@
  * change waiting for confirmation — goes back to this field's own editor
  * with what was sent, as it always did.
  *
+ * AN UPLOAD FIELD'S SETTINGS (FORMS.md, "Bestand uploaden") arrive only from
+ * the "Bestanden" card, marked by `file_settings`: the accepted kinds as keys
+ * of the closed list App\Service\Forms\FormFileTypes, and the largest size as
+ * one of the sizes this installation takes (FormFileTypes::sizeChoices()).
+ * No kind at all, a kind that is not on the list, or any other size is
+ * refused like every other error — so no stored limit can ever exceed what
+ * the application and PHP accept. Changing a field INTO an upload field
+ * shows this card first, like the options of a new dropdown.
+ *
  * THE WIDTH (FORMS.md, "Breedte van een veld") is one key of
  * App\Service\Forms\FormFieldWidth. Any other value is refused with the
  * other errors; it is never stored, and never becomes a class or a style.
@@ -94,6 +103,7 @@ use App\Service\Forms\FormFieldOptions;
 use App\Service\Forms\FormFieldTypeChange;
 use App\Service\Forms\FormFieldTypes;
 use App\Service\Forms\FormFieldWidth;
+use App\Service\Forms\FormFileTypes;
 use App\Service\Forms\FormLocalization;
 use App\Service\Language\AdminTranslator;
 use App\Service\Language\LanguageCode;
@@ -172,6 +182,29 @@ if (array_key_exists('layout_width', $_POST)) {
     $submitted['layout_width'] = is_string($_POST['layout_width']) ? mb_substr($_POST['layout_width'], 0, 20) : '';
 }
 
+// An upload field's card: the marker makes "no kind ticked" arrive at all.
+if (array_key_exists('file_settings', $_POST)) {
+    $sentTypes = is_array($_POST['file_types'] ?? null) ? $_POST['file_types'] : [];
+    $submitted['file_types'] = [];
+    $submitted['file_types_unknown'] = false;
+
+    foreach ($sentTypes as $sentType) {
+        if (is_string($sentType) && FormFileTypes::has($sentType)) {
+            $submitted['file_types'][] = $sentType;
+        } else {
+            $submitted['file_types_unknown'] = true;
+        }
+    }
+
+    $submitted['file_types'] = array_values(array_filter(
+        FormFileTypes::keys(),
+        static fn (string $key): bool => in_array($key, $submitted['file_types'], true)
+    ));
+
+    $sentMax = $_POST['file_max_bytes'] ?? null;
+    $submitted['file_max_bytes'] = is_string($sentMax) && ctype_digit($sentMax) && strlen($sentMax) <= 10 ? (int) $sentMax : 0;
+}
+
 if (array_key_exists('option_label', $_POST)) {
     $labels = is_array($_POST['option_label']) ? $_POST['option_label'] : [];
     $ids = is_array($_POST['option_id'] ?? null) ? $_POST['option_id'] : [];
@@ -206,6 +239,16 @@ if (array_key_exists('layout_width', $submitted) && !FormFieldWidth::isValid($su
     $errors[] = AdminTranslator::trans('validation.field_width_unknown');
 }
 
+if ($type !== null && $type->acceptsFile() && array_key_exists('file_types', $submitted)) {
+    if ($submitted['file_types'] === [] || $submitted['file_types_unknown']) {
+        $errors[] = AdminTranslator::trans('validation.file_types_required');
+    }
+
+    if (!FormFileTypes::isSizeChoice($submitted['file_max_bytes'])) {
+        $errors[] = AdminTranslator::trans('validation.file_size_unknown');
+    }
+}
+
 $sendBack = static function (array $submitted, array $errors) use ($editorUrl): never {
     $_SESSION['admin_form_field_errors'] = $errors;
     $_SESSION['admin_form_field_old'] = $submitted;
@@ -226,7 +269,8 @@ if ($type->key() !== (string) $existing['field_type']) {
     // the editor has not seen them yet, so it must before anything is saved.
     $unseen = ($type->usesOptions() && !array_key_exists('option_rows', $submitted))
         || ($type->usesPlaceholder() && !array_key_exists('placeholder', $submitted))
-        || (!$type->requiredIsFixed() && !array_key_exists('is_required', $submitted));
+        || (!$type->requiredIsFixed() && !array_key_exists('is_required', $submitted))
+        || ($type->acceptsFile() && !array_key_exists('file_types', $submitted));
 
     if (!$confirmed && ($losses !== [] || $unseen)) {
         $sendBack($submitted, $errors);
@@ -252,6 +296,11 @@ $words = [
 
 if ($type->usesPlaceholder() && array_key_exists('placeholder', $submitted)) {
     $words[FormLocalization::PLACEHOLDER] = $submitted['placeholder'];
+}
+
+if ($type->acceptsFile() && array_key_exists('file_types', $submitted)) {
+    $values['file_types'] = $submitted['file_types'];
+    $values['file_max_bytes'] = $submitted['file_max_bytes'];
 }
 
 if ($type->requiredIsFixed()) {
@@ -370,6 +419,11 @@ if ($clearPlaceholder) {
 
 if (in_array(FormFieldTypeChange::DEFAULT_VALUE, $losses, true)) {
     $values['default_value'] = null;
+}
+
+if (in_array(FormFieldTypeChange::FILE_SETTINGS, $losses, true)) {
+    $values['file_types'] = null;
+    $values['file_max_bytes'] = null;
 }
 
 try {

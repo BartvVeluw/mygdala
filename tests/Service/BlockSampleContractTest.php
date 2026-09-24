@@ -431,13 +431,17 @@ final class BlockSampleContractTest extends TestCase
         $this->assertStringContainsString(BlockSamples::EMAIL, $words);
         $this->assertStringContainsString('voorbeeldstad', $words);
         $this->assertStringContainsString('plaats', $words, 'the city sits under a generic label');
-        $this->assertStringContainsString('bijlage', $words, 'the attachment control is part of the sample');
+
+        // Since Forms 2.0 phase 2 the block adds no file input of its own: an
+        // upload is a field of the form, and the sample form has none.
+        $this->assertStringNotContainsString('type="file"', self::render($definition, $sample));
     }
 
     /**
      * A link in a preview goes nowhere: every href a sample renders is a
      * fragment, and the only form action is the one partials/form.php always
-     * prints, carrying a form key no stored form can have.
+     * prints (the endpoint, with the instance token in its query string),
+     * carrying a form key no stored form can have.
      */
     public function testEveryLinkPointsInsideThePreviewAndNoFormCanReachAStoredForm(): void
     {
@@ -462,7 +466,7 @@ final class BlockSampleContractTest extends TestCase
 
             preg_match_all('/<form\b[^>]*\saction="([^"]*)"/', $html, $actions);
             foreach ($actions[1] as $action) {
-                $this->assertSame('/api/form-submit.php', $action, "{$type}'s sample form posts somewhere unexpected");
+                $this->assertMatchesRegularExpression('#^/api/form-submit\.php\?instance=form-[a-f0-9]{10}$#', $action, "{$type}'s sample form posts somewhere unexpected");
                 $this->assertStringContainsString('name="form-key" value="' . BlockSamples::FORM_KEY . '"', $html);
             }
         }

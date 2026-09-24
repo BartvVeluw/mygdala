@@ -14,6 +14,7 @@ use App\Service\Forms\FormCatalog;
 use App\Service\Forms\FormFieldKey;
 use App\Service\Forms\FormFieldTypes;
 use App\Service\Forms\FormFieldWidth;
+use App\Service\Forms\FormFileTypes;
 use App\Service\Forms\FormLocalization;
 use App\Service\SectionRegistry;
 use PHPUnit\Framework\TestCase;
@@ -216,7 +217,7 @@ final class FormFieldEditorHttpTest extends TestCase
         [$session, $token] = $this->accounts->signIn([AdminPermissions::FORMS_MANAGE]);
         $formId = $this->createForm();
 
-        foreach (['file', 'hidden', 'TextFieldType', 'App\\Service\\Forms\\FieldTypes\\TextFieldType', 'Text', ' text', ''] as $attempt) {
+        foreach (['upload', 'hidden', 'TextFieldType', 'App\\Service\\Forms\\FieldTypes\\TextFieldType', 'Text', ' text', 'FILE', ''] as $attempt) {
             $response = self::$server->request('POST', self::CREATE_ENDPOINT, $session, [
                 'csrf_token' => $token,
                 'form_id' => (string) $formId,
@@ -776,7 +777,7 @@ final class FormFieldEditorHttpTest extends TestCase
         $fieldId = $this->addField($formId, 'Naam', 'text');
         $before = $this->forms->findField($fieldId);
 
-        foreach (['file', 'TextFieldType', ''] as $attempt) {
+        foreach (['upload', 'TextFieldType', ''] as $attempt) {
             [$fields] = $this->editorSubmission($session, $fieldId);
             $fields['field_type'] = $attempt;
             $fields['confirmed_type'] = $attempt;
@@ -953,6 +954,180 @@ final class FormFieldEditorHttpTest extends TestCase
      * names and in the order of App\Service\Forms\FormFieldWidth, with the
      * stored one chosen and a real label. A new field is full width.
      */
+    /* ------------------------------------------------------------------ */
+    /* Bestand uploaden (Forms 2.0 phase 2)                                */
+    /* ------------------------------------------------------------------ */
+
+    /**
+     * Added like any field, through "Veld toevoegen". It starts optional,
+     * with the plain kinds and a modest size, and its editor shows the
+     * "Bestanden" card: a checkbox per kind of the closed list, a select of
+     * the sizes this installation takes, no free MIME text and no file input.
+     */
+    public function testAnUploadFieldIsAddedWithSafeSettingsAndItsOwnCard(): void
+    {
+        [$session, $token] = $this->accounts->signIn([AdminPermissions::FORMS_MANAGE]);
+        $formId = $this->createForm();
+
+        $response = self::$server->request('POST', self::CREATE_ENDPOINT, $session, [
+            'csrf_token' => $token,
+            'form_id' => (string) $formId,
+            'field_type' => 'file',
+            'label' => 'Bijlage',
+        ]);
+
+        [$field] = $this->forms->fieldsFor($formId);
+        $this->assertSame('file', $field['field_type']);
+        $this->assertSame('bijlage', $field['field_key']);
+        $this->assertSame(0, (int) $field['is_required']);
+        $this->assertSame('jpg,png,pdf', $field['file_types']);
+        $this->assertSame(FormFileTypes::DEFAULT_MAX_BYTES, (int) $field['file_max_bytes']);
+        $this->assertSame('/admin/form-field.php?id=' . $field['id'], $response['location']);
+
+        $body = $this->get($session, $response['location']);
+        $xpath = $this->xpath($body);
+        $form = '//form[@action="' . self::UPDATE_ENDPOINT . '"]';
+
+        $kinds = [];
+        $checked = [];
+        foreach ($xpath->query($form . '//input[@type="checkbox"][@name="file_types[]"]') as $box) {
+            $kinds[] = $box->getAttribute('value');
+            $this->assertStringContainsString('admin-checkbox', $box->getAttribute('class'));
+            if ($box->hasAttribute('checked')) {
+                $checked[] = $box->getAttribute('value');
+            }
+        }
+        $this->assertSame(FormFileTypes::keys(), $kinds);
+        $this->assertSame(['jpg', 'png', 'pdf'], $checked);
+
+        $sizes = [];
+        foreach ($xpath->query($form . '//select[@name="file_max_bytes"]/option') as $option) {
+            $sizes[] = (int) $option->getAttribute('value');
+        }
+        $this->assertSame(FormFileTypes::sizeChoices(), $sizes);
+        $this->assertSame((string) FormFileTypes::DEFAULT_MAX_BYTES, $xpath->query($form . '//select[@name="file_max_bytes"]/option[@selected]')->item(0)?->getAttribute('value'));
+
+        $this->assertSame(0, $xpath->query($form . '//input[@name="placeholder"]')->length, 'no placeholder for a file');
+        $this->assertSame(0, $xpath->query('//input[@type="file"]')->length, 'the editor uploads nothing');
+        $this->assertSame(0, $xpath->query($form . '//input[@type="text"][contains(@name, "mime") or contains(@name, "file_types")]')->length, 'no free MIME text');
+        $this->assertSame(1, $xpath->query($form . '//input[@type="checkbox"][@name="is_required"]')->length, 'required is a choice');
+
+        $list = $this->get($session, '/admin/form.php?id=' . $formId);
+        $this->assertStringContainsString('JPG, PNG, PDF · max. 5 MB', $list, 'the field row says what it accepts');
+    }
+
+    /** The kinds and the size come from the closed lists, and only from them. */
+    public function testUploadSettingsAreSavedFromTheClosedListsOnly(): void
+    {
+        [$session] = $this->accounts->signIn([AdminPermissions::FORMS_MANAGE]);
+        $formId = $this->createForm();
+        $fieldId = $this->addField($formId, 'Tekening', 'file');
+
+        [$fields] = $this->editorSubmission($session, $fieldId);
+        $fields['file_types'] = ['pdf', 'png'];
+        $fields['file_max_bytes'] = (string) (2 * 1024 * 1024);
+        $fields['layout_width'] = 'third';
+
+        $response = self::$server->request('POST', self::UPDATE_ENDPOINT, $session, $fields);
+        $this->assertSame($this->savedAt($fieldId), $response['location']);
+
+        $saved = $this->forms->findField($fieldId);
+        $this->assertSame('png,pdf', $saved['file_types'], 'in the list\'s own order');
+        $this->assertSame(2 * 1024 * 1024, (int) $saved['file_max_bytes']);
+        $this->assertSame('third', $saved['layout_width']);
+
+        $before = $this->withoutTimestamp($this->forms->findField($fieldId));
+        $typesMessage = $this->catalog('nl')['validation.file_types_required'];
+        $sizeMessage = $this->catalog('nl')['validation.file_size_unknown'];
+
+        $refused = [
+            'no kind' => [[], null, $typesMessage],
+            'svg' => [['svg'], null, $typesMessage],
+            'a kind and something else' => [['jpg', 'exe'], null, $typesMessage],
+            'a MIME string' => [['image/png'], null, $typesMessage],
+            'a size not on the list' => [['pdf'], (string) (3 * 1024 * 1024), $sizeMessage],
+            'above the ceiling' => [['pdf'], (string) (FormFileTypes::MAX_BYTES * 2), $sizeMessage],
+            'no number' => [['pdf'], '5MB', $sizeMessage],
+            'negative' => [['pdf'], '-1', $sizeMessage],
+        ];
+
+        foreach ($refused as $label => [$types, $size, $message]) {
+            [$fields] = $this->editorSubmission($session, $fieldId);
+            $fields['file_types'] = $types;
+            if ($types === []) {
+                unset($fields['file_types']);
+            }
+            if ($size !== null) {
+                $fields['file_max_bytes'] = $size;
+            }
+
+            $response = self::$server->request('POST', self::UPDATE_ENDPOINT, $session, $fields);
+            $this->assertSame('/admin/form-field.php?id=' . $fieldId, $response['location'], $label);
+            $this->assertSame($before, $this->withoutTimestamp($this->forms->findField($fieldId)), $label . ' writes nothing');
+            $this->assertStringContainsString(htmlspecialchars($message, ENT_QUOTES, 'UTF-8'), $this->get($session, $response['location']), $label);
+        }
+    }
+
+    /**
+     * Into an upload field: the Bestanden card is shown first, with what
+     * will be lost, and only the confirmed save writes — kinds and size
+     * included, the placeholder cleared.
+     */
+    public function testATextFieldBecomesAnUploadFieldOnlyAfterSeeingItsCard(): void
+    {
+        [$session] = $this->accounts->signIn([AdminPermissions::FORMS_MANAGE]);
+        $formId = $this->createForm();
+        $fieldId = $this->addField($formId, 'Tekening', 'text', null, ['placeholder_nl' => 'Link naar je ontwerp']);
+        $before = $this->withoutTimestamp($this->forms->findField($fieldId));
+
+        [$fields] = $this->editorSubmission($session, $fieldId);
+        $fields['field_type'] = 'file';
+        $response = self::$server->request('POST', self::UPDATE_ENDPOINT, $session, $fields);
+
+        $this->assertSame('/admin/form-field.php?id=' . $fieldId, $response['location']);
+        $this->assertSame($before, $this->withoutTimestamp($this->forms->findField($fieldId)), 'nothing yet');
+
+        [$confirm, $xpath] = $this->editorSubmission($session, $fieldId);
+        $this->assertSame('file', $confirm['confirmed_type']);
+        $this->assertSame(['jpg', 'png', 'pdf'], $confirm['file_types'], 'the card, with the safe kinds ticked');
+        $this->assertStringContainsString('Link naar je ontwerp', $xpath->query('//*[contains(@class, "admin-type-change__losses")]')->item(0)?->textContent ?? '');
+
+        $confirm['file_types'] = ['pdf'];
+        $response = self::$server->request('POST', self::UPDATE_ENDPOINT, $session, $confirm);
+
+        $this->assertSame($this->savedAt($fieldId), $response['location']);
+        $saved = $this->forms->findField($fieldId);
+        $this->assertSame('file', $saved['field_type']);
+        $this->assertSame('pdf', $saved['file_types']);
+        $this->assertSame(FormFileTypes::DEFAULT_MAX_BYTES, (int) $saved['file_max_bytes']);
+        $this->assertSame('', (string) ($this->fieldWords($fieldId, 'nl')['placeholder'] ?? ''), 'the confirmed loss');
+    }
+
+    /** Out of an upload field: its kinds and size go, and only when confirmed. */
+    public function testAnUploadFieldGivesUpItsSettingsOnlyWhenConfirmed(): void
+    {
+        [$session] = $this->accounts->signIn([AdminPermissions::FORMS_MANAGE]);
+        $formId = $this->createForm();
+        $fieldId = $this->addField($formId, 'Bijlage', 'file');
+        $before = $this->withoutTimestamp($this->forms->findField($fieldId));
+
+        [$fields] = $this->editorSubmission($session, $fieldId);
+        $fields['field_type'] = 'text';
+        self::$server->request('POST', self::UPDATE_ENDPOINT, $session, $fields);
+        $this->assertSame($before, $this->withoutTimestamp($this->forms->findField($fieldId)));
+
+        [$confirm, $xpath] = $this->editorSubmission($session, $fieldId);
+        $losses = $xpath->query('//*[contains(@class, "admin-type-change__losses")]')->item(0)?->textContent ?? '';
+        $this->assertStringContainsString('de toegestane bestanden (JPG, PNG, PDF) en de maximale grootte (5 MB)', $losses);
+        $this->assertArrayNotHasKey('file_types', $confirm, 'a text field has no Bestanden card');
+
+        self::$server->request('POST', self::UPDATE_ENDPOINT, $session, $confirm);
+        $saved = $this->forms->findField($fieldId);
+        $this->assertSame('text', $saved['field_type']);
+        $this->assertNull($saved['file_types']);
+        $this->assertNull($saved['file_max_bytes']);
+    }
+
     public function testEveryEditorOffersTheSixWidthsWithTheStoredOneChosen(): void
     {
         [$session] = $this->accounts->signIn([AdminPermissions::FORMS_MANAGE]);
@@ -1337,7 +1512,16 @@ final class FormFieldEditorHttpTest extends TestCase
                 continue;
             }
 
-            $sent[$name] = $control->hasAttribute('value') ? $control->getAttribute('value') : 'on';
+            $value = $control->hasAttribute('value') ? $control->getAttribute('value') : 'on';
+
+            // A group of checkboxes named `name[]` (an upload field's kinds)
+            // is sent as the list a browser sends.
+            if (str_ends_with($name, '[]')) {
+                $sent[substr($name, 0, -2)][] = $value;
+                continue;
+            }
+
+            $sent[$name] = $value;
         }
 
         return [$sent, $xpath];
@@ -1428,6 +1612,9 @@ final class FormFieldEditorHttpTest extends TestCase
             'field_type' => $type,
             'is_required' => $type === 'consent',
             'default_value' => null,
+            // What api/admin/create-form-field.php gives a new upload field.
+            'file_types' => FormFieldTypes::get($type)?->acceptsFile() ? FormFileTypes::DEFAULT_TYPES : null,
+            'file_max_bytes' => FormFieldTypes::get($type)?->acceptsFile() ? FormFileTypes::DEFAULT_MAX_BYTES : null,
         ], array_filter($words), $options);
 
         FormCatalog::clearCache();

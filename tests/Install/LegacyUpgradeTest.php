@@ -227,7 +227,19 @@ final class LegacyUpgradeTest extends TestCase
 
         $this->assertCount(1, $forms);
         $this->assertSame('Contactformulier', (string) $forms[0]['name']);
-        $this->assertSame(5, $this->install()->count('form_fields'));
+
+        // The five questions of the old quote form, and — since Forms 2.0
+        // phase 2 (20260925100000) — the attachment its block offered, as an
+        // ordinary optional upload field at the end.
+        $this->assertSame(6, $this->install()->count('form_fields'));
+        $this->assertSame(
+            [['field_key' => 'bijlage', 'is_required' => 0, 'file_types' => 'jpg,png,webp,gif,pdf']],
+            array_map(
+                static fn (array $row): array => ['field_key' => $row['field_key'], 'is_required' => (int) $row['is_required'], 'file_types' => $row['file_types']],
+                $this->install()->rows("SELECT field_key, is_required, file_types FROM form_fields WHERE field_type = 'file'")
+            )
+        );
+        $this->assertSame(0, (int) $this->install()->rows('SELECT COUNT(*) AS n FROM contact_form_sections WHERE allow_attachment <> 0')[0]['n']);
     }
 
     public function testStoredCtaBandsKeepTheirOwnDestinations(): void

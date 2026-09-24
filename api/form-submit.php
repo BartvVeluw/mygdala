@@ -50,10 +50,9 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../vendor/autoload.php';
 
-use App\Service\ContactAttachmentStorage;
-use App\Service\ContactAttachmentValidator;
-use App\Service\Forms\FormAttachmentPolicy;
 use App\Service\Forms\FormCatalog;
+use App\Service\Forms\FormFileTypes;
+use App\Service\Forms\FormRenderState;
 use App\Service\Forms\FormSourcePath;
 use App\Service\Forms\FormSubmissionContext;
 use App\Service\Forms\FormSubmissionHandler;
@@ -138,6 +137,45 @@ $genericFailure = SiteText::pick([
     'en' => 'Something went wrong. Please try again later.',
 ]);
 
+/**
+ * A REQUEST LARGER THAN post_max_size arrives with $_POST and $_FILES both
+ * empty: PHP threw the whole body away, the form key included. Answered as
+ * what it almost always is — a file far too large — instead of the generic
+ * failure below, which would leave the visitor guessing. Without JavaScript
+ * the answer goes back to the page the form was on (the Referer, held to the
+ * same rules as `form-source`) and to the instance the form's own action URL
+ * names, so the message appears above that form.
+ */
+if ($_POST === [] && $_FILES === []
+    && (int) ($_SERVER['CONTENT_LENGTH'] ?? 0) > FormFileTypes::iniBytes((string) ini_get('post_max_size'))
+    && FormFileTypes::iniBytes((string) ini_get('post_max_size')) > 0
+) {
+    $refererPath = parse_url((string) ($_SERVER['HTTP_REFERER'] ?? ''), PHP_URL_PATH);
+    $refererHost = parse_url((string) ($_SERVER['HTTP_REFERER'] ?? ''), PHP_URL_HOST);
+    $overflowSource = is_string($refererPath) && $refererHost === parse_url('http://' . ($_SERVER['HTTP_HOST'] ?? ''), PHP_URL_HOST)
+        ? FormSourcePath::clean($refererPath)
+        : null;
+    $overflowToken = (string) ($_GET['instance'] ?? '');
+    $overflowToken = preg_match('/^form-[a-f0-9]{10}$/', $overflowToken) === 1 ? $overflowToken : '';
+
+    // The language of the page it came from, by the same rule as above.
+    [, $overflowLanguage] = LocalizedUrl::strip($overflowSource ?? FormSourcePath::FALLBACK);
+    if ($overflowLanguage !== null) {
+        RequestLanguage::set($overflowLanguage, true);
+    }
+
+    $message = SiteText::pick([
+        'nl' => 'Wat je verstuurde is te groot om te ontvangen. Kies een kleiner bestand en probeer het opnieuw.',
+        'en' => 'What you sent is too large to receive. Choose a smaller file and try again.',
+    ]);
+
+    if (!$wantsJson && $overflowToken !== '') {
+        PublicFormSession::rememberFailure($overflowToken, [], [FormRenderState::FORM_ERROR => $message]);
+    }
+
+    respond($wantsJson, 413, 'error', $message, [], $overflowSource, $overflowToken);
+}
+
 $form = FormCatalog::findByInternalKey((string) ($_POST['form-key'] ?? ''));
 
 if ($form === null || !$form->isRenderable()) {
@@ -147,62 +185,15 @@ if ($form === null || !$form->isRenderable()) {
 }
 
 /**
- * The optional file the `contact_form` block still allows. Validated with
- * the machinery that has always validated it (magic bytes, not the
- * client-supplied name or MIME) and only when a block on this site actually
- * offers it for this form — see App\Service\Forms\FormAttachmentPolicy.
+ * FILES ARE ANSWERS. An upload field reads its own entry of $_FILES, by the
+ * key its definition gives it (App\Service\Forms\FormValidator); a file under
+ * any other name — the old contact block's `bestand` included — is never
+ * looked at. Storing, linking, mailing and cleaning up are the handler's.
  */
-$attachment = null;
-$attachmentStorage = null;
-
-if (($_FILES['bestand']['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_NO_FILE
-    && FormAttachmentPolicy::allowsAttachment($form)
-) {
-    try {
-        $validated = (new ContactAttachmentValidator())->validate($_FILES['bestand']);
-    } catch (\RuntimeException $e) {
-        respond(
-            $wantsJson,
-            422,
-            'error',
-            $e->getMessage(),
-            [],
-            $sourcePath,
-            $instanceToken
-        );
-    }
-
-    if ($validated !== null) {
-        try {
-            $attachmentStorage = new ContactAttachmentStorage();
-            $storedFilename = $attachmentStorage->store($validated['tmp_path'], $validated['extension']);
-
-            $attachment = [
-                'stored_filename' => $storedFilename,
-                'original_filename' => $validated['original_filename'],
-                'mail_name' => $validated['mail_name'],
-                'mime' => $validated['mime'],
-                'size' => $validated['size'],
-                'path' => $attachmentStorage->path($storedFilename),
-            ];
-        } catch (\Throwable $e) {
-            error_log('[api/form-submit.php] could not store an attachment: ' . $e->getMessage());
-            respond($wantsJson, 500, 'error', $genericFailure, [], $sourcePath, $instanceToken);
-        }
-    }
-}
-
 $outcome = (new FormSubmissionHandler())->handle($form, $_POST, new FormSubmissionContext(
     $sourcePath,
     (string) ($_SERVER['REMOTE_ADDR'] ?? ''),
-    $attachment
-));
-
-// A file that was moved into permanent storage for a submission that was
-// then rejected or lost would be an orphan nothing can find. Remove it.
-if ($attachment !== null && $attachmentStorage !== null && $outcome->submissionId === null) {
-    $attachmentStorage->delete($attachment['stored_filename']);
-}
+), $_FILES);
 
 if ($outcome->looksSuccessfulToTheVisitor()) {
     respond(
@@ -220,12 +211,14 @@ if ($outcome->status === FormSubmissionOutcome::INVALID && $outcome->validation 
     $errors = $outcome->validation->errors;
 
     // Only the no-JS answer needs the values carried across a redirect; the
-    // fetch flow still has them in the page it never left.
+    // fetch flow still has them in the page it never left — its chosen files
+    // included. A file cannot be carried back, so a redirect also says so
+    // beside every file that was accepted (errorsAfterRedirect()).
     if (!$wantsJson && $instanceToken !== '') {
         PublicFormSession::rememberFailure(
             $instanceToken,
             $outcome->validation->retainableValues(),
-            $errors
+            $outcome->validation->errorsAfterRedirect($form)
         );
     }
 

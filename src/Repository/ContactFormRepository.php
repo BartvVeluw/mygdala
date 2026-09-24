@@ -9,9 +9,8 @@ namespace App\Repository;
  * App\Service\ContactFormContent).
  *
  * Since Core Forms this block no longer carries a form of its own: it points
- * at a row in `forms` (`form_id`) and adds two things around it — the "Direct
- * contact" card beside it, and the optional file attachment this site's
- * quote form has always accepted (`allow_attachment`). See FORMS.md.
+ * at a row in `forms` (`form_id`) and adds the "Direct contact" card beside
+ * it. See FORMS.md.
  *
  * Same shape and method names as the other repeatable block types
  * (RichTextRepository::upsertSection()/findBySlugAndKey()/deleteSection()),
@@ -53,7 +52,11 @@ class ContactFormRepository extends Repository
      * website language through App\Service\Blocks\BlockLocalization
      * (db/migrations/20260917180000).
      *
-     * @param array<string, mixed> $values form_id, allow_attachment, is_active
+     * `allow_attachment` is retired (Forms 2.0 phase 2: a file is a field of
+     * the form now, and migration 20260925100000 turned every switch that was
+     * on into one). It is written 0 and read nowhere.
+     *
+     * @param array<string, mixed> $values form_id, is_active
      */
     public function upsertSection(string $pageSlug, string $sectionKey, array $values): void
     {
@@ -73,7 +76,7 @@ class ContactFormRepository extends Repository
             'page_slug' => $pageSlug,
             'section_key' => $sectionKey,
             'form_id' => self::positiveIntOrNull($values['form_id'] ?? null),
-            'allow_attachment' => ($values['allow_attachment'] ?? true) ? 1 : 0,
+            'allow_attachment' => 0,
             'is_active' => ($values['is_active'] ?? true) ? 1 : 0,
         ]);
     }

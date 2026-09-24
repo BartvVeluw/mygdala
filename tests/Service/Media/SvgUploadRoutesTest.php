@@ -79,17 +79,26 @@ final class SvgUploadRoutesTest extends TestCase
         }
     }
 
-    /** The validators behind the two storage classes that do not look at images themselves. */
+    /**
+     * The validators behind the two storage classes that do not look at
+     * images themselves. A form upload (Forms 2.0 phase 2) is judged by
+     * App\Service\Forms\FormUploadInspector against the closed list
+     * App\Service\Forms\FormFileTypes, which has no SVG (FORMS.md says why).
+     */
     public function testTheOtherStoringRoutesDecideByContentAndTakeNoSvg(): void
     {
         $root = dirname(__DIR__, 3);
 
-        foreach (['src/Service/ContactAttachmentValidator.php', 'src/Service/Personalization/PersonalizationUploadValidator.php'] as $file) {
+        foreach (['src/Service/Forms/FormUploadInspector.php', 'src/Service/Personalization/PersonalizationUploadValidator.php'] as $file) {
             $source = (string) file_get_contents($root . '/' . $file);
             self::assertStringContainsString('getimagesize(', $source, $file);
         }
 
-        self::assertStringContainsString("=== '%PDF-'", (string) file_get_contents($root . '/src/Service/ContactAttachmentValidator.php'));
+        self::assertStringContainsString("=== '%PDF-'", (string) file_get_contents($root . '/src/Service/Forms/FormUploadInspector.php'));
+        foreach (\App\Service\Forms\FormFileTypes::keys() as $key) {
+            self::assertNotContains('svg', \App\Service\Forms\FormFileTypes::extensions($key), $key);
+            self::assertStringNotContainsString('svg', \App\Service\Forms\FormFileTypes::mime($key), $key);
+        }
         self::assertSame(
             [IMAGETYPE_JPEG, IMAGETYPE_PNG],
             array_keys(\App\Service\Personalization\PersonalizationRules::ALLOWED_UPLOAD_TYPES),

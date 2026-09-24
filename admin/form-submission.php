@@ -7,7 +7,10 @@ require_once __DIR__ . '/_translate.php';
 
 use App\Repository\FormSubmissionRepository;
 use App\Service\AdminAuth;
+use App\Service\ContactAttachmentStorage;
 use App\Service\Csrf;
+use App\Service\Forms\FormFileTypes;
+use App\Service\Forms\FormUpload;
 
 /**
  * One submission, exactly as it was sent.
@@ -18,6 +21,12 @@ use App\Service\Csrf;
  * of a field still reads correctly months later — and a field that no longer
  * exists still shows its answer instead of disappearing (FORMS.md, "Wat een
  * inzending bewaart"). Nothing on this screen joins back to `form_fields`.
+ *
+ * FILES. An upload field's answer is the file's name and size, and it is a
+ * download link here, to api/admin/form-submission-attachment.php with this
+ * submission's id and the file's own id. A file sent with the contact block
+ * before Forms 2.0 phase 2 belongs to no field, and keeps its own card. A
+ * file whose row exists but whose bytes are gone says so instead of linking.
  *
  * Opening it marks it read; that is the only state a submission has.
  *
@@ -39,7 +48,7 @@ try {
     $repository = new FormSubmissionRepository();
     $submission = $repository->findForAdmin($id);
     $values = $submission === null ? [] : $repository->valuesFor($id);
-    $attachment = $submission === null ? null : $repository->attachmentFor($id);
+    $attachments = $submission === null ? [] : $repository->attachmentsFor($id);
 
     if ($submission !== null && (int) $submission['is_read'] === 0) {
         $repository->setReadState($id, true);
@@ -55,6 +64,23 @@ if ($submission === null) {
     http_response_code(404);
     exit(admin_t('screen.inzending_gevonden'));
 }
+
+// The files by the field they answer; the one without a field is the older
+// contact-block attachment.
+$storage = new ContactAttachmentStorage();
+$filesByField = [];
+$legacyFiles = [];
+foreach ($attachments as $attachment) {
+    $attachment['present'] = is_file($storage->path((string) $attachment['stored_filename']));
+    if ($attachment['field_key'] === null || (string) $attachment['field_key'] === '') {
+        $legacyFiles[] = $attachment;
+    } else {
+        $filesByField[(string) $attachment['field_key']] = $attachment;
+    }
+}
+
+$downloadUrl = static fn (array $attachment): string => '/api/admin/form-submission-attachment.php?submission='
+    . (int) $attachment['submission_id'] . '&file=' . (int) $attachment['id'];
 
 $csrfToken = Csrf::token();
 $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
@@ -116,7 +142,22 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
           <?php foreach ($values as $value): ?>
             <tr>
               <th scope="row"><?= $h((string) $value['field_label']) ?></th>
-              <td style="white-space:pre-line;"><?= ((string) $value['value']) === '' ? '<span class="admin-text-muted">—</span>' : $h((string) $value['value']) ?></td>
+              <?php $file = $filesByField[(string) $value['field_key']] ?? null; ?>
+              <?php if ($file !== null): ?>
+                <td class="admin-submission-file">
+                  <?php if ($file['present']): ?>
+                    <a href="<?= $h($downloadUrl($file)) ?>" download><?= $h((string) $file['original_filename']) ?></a>
+                  <?php else: ?>
+                    <?= $h((string) $file['original_filename']) ?>
+                  <?php endif; ?>
+                  <span class="admin-text-muted">(<?= $h(FormFileTypes::label(FormFileTypes::forMime((string) $file['mime_type']) ?? '?')) ?>, <?= $h(FormUpload::sizeLabel((int) $file['file_size'])) ?>)</span>
+                  <?php if (!$file['present']): ?>
+                    <span class="admin-badge admin-badge--info"><?= admin_te('forms.file_missing') ?></span>
+                  <?php endif; ?>
+                </td>
+              <?php else: ?>
+                <td style="white-space:pre-line;"><?= ((string) $value['value']) === '' ? '<span class="admin-text-muted">—</span>' : $h((string) $value['value']) ?></td>
+              <?php endif; ?>
             </tr>
           <?php endforeach; ?>
         </tbody>
@@ -125,18 +166,24 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
     <?php endif; ?>
   </section>
 
-  <?php if ($attachment !== null): ?>
+  <?php if ($attachments !== []): ?>
+    <p class="admin-text-muted"><?= admin_te('forms.bijlagen_staan_buiten_webroot') ?></p>
+  <?php endif; ?>
+
+  <?php foreach ($legacyFiles as $attachment): ?>
     <section class="admin-card">
       <h2><?= admin_te('forms.bijlage') ?></h2>
-      <p class="admin-text-muted"><?= admin_te('forms.bijlagen_staan_buiten_webroot') ?></p>
-      <p>
-        <a href="/api/admin/form-submission-attachment.php?id=<?= (int) $submission['id'] ?>">
+      <p class="admin-submission-file">
+        <?php if ($attachment['present']): ?>
+          <a href="<?= $h($downloadUrl($attachment)) ?>" download><?= $h((string) $attachment['original_filename']) ?></a>
+        <?php else: ?>
           <?= $h((string) $attachment['original_filename']) ?>
-        </a>
-        <span class="admin-text-muted">(<?= $h((string) $attachment['mime_type']) ?>, <?= number_format(((int) $attachment['file_size']) / 1024, 0, ',', '.') ?> kB)</span>
+          <span class="admin-badge admin-badge--info"><?= admin_te('forms.file_missing') ?></span>
+        <?php endif; ?>
+        <span class="admin-text-muted">(<?= $h((string) $attachment['mime_type']) ?>, <?= $h(FormUpload::sizeLabel((int) $attachment['file_size'])) ?>)</span>
       </p>
     </section>
-  <?php endif; ?>
+  <?php endforeach; ?>
 
   <section class="admin-card">
     <h2><?= admin_te('common.delete') ?></h2>

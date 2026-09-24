@@ -17,6 +17,12 @@ use App\Service\Language\SiteText;
  * have is never read, never validated and never stored — it simply does not
  * exist as far as this class is concerned.
  *
+ * A FILE is an answer like any other: a field whose type accepts one
+ * (FormFieldType::acceptsFile()) reads its own entry of $_FILES, by the same
+ * key from the same definition, and App\Service\Forms\FormUploadInspector
+ * decides whether it is acceptable. A file under a key the form has no upload
+ * field for is never looked at.
+ *
  * That direction is the whole point. The browser's `required`, `maxlength`
  * and `<select>` are conveniences; a POST can carry anything at all, and
  * assets/js/blocks/form.js may not run. Nothing outside this class decides
@@ -24,16 +30,44 @@ use App\Service\Language\SiteText;
  */
 final class FormValidator
 {
+    public function __construct(
+        private readonly FormUploadInspector $uploads = new FormUploadInspector(),
+    ) {
+    }
+
     /**
      * @param array<string, mixed> $request usually $_POST
+     * @param array<string, mixed> $files   usually $_FILES
      */
-    public function validate(FormDefinition $form, array $request): FormValidationResult
+    public function validate(FormDefinition $form, array $request, array $files = []): FormValidationResult
     {
         $values = [];
         $errors = [];
+        $uploads = [];
 
         foreach ($form->fields as $field) {
             $type = $field->type;
+
+            // A field answered with a file reads ITS entry of $_FILES, under
+            // the same key from the same definition — never another entry,
+            // and never $_POST. The inspector decides on the bytes; nothing
+            // is written here (FormSubmissionHandler stores it once every
+            // field has passed).
+            if ($type->acceptsFile()) {
+                $inspected = $this->uploads->inspect($files[$field->key] ?? null, $field);
+                $values[$field->key] = '';
+
+                if (is_string($inspected)) {
+                    $errors[$field->key] = $inspected;
+                } elseif ($inspected instanceof FormUpload) {
+                    $uploads[$field->key] = $inspected;
+                    $values[$field->key] = $inspected->answer();
+                } elseif ($field->isRequired) {
+                    $errors[$field->key] = $type->requiredMessage($field);
+                }
+
+                continue;
+            }
 
             // Note the direction: the KEY comes from the definition. An
             // absent value is null, which every normalize() turns into ''.
@@ -67,7 +101,7 @@ final class FormValidator
             }
         }
 
-        return new FormValidationResult($values, $errors);
+        return new FormValidationResult($values, $errors, $uploads);
     }
 
     /**

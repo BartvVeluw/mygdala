@@ -25,8 +25,9 @@ use App\Service\SectionRegistry;
  * Since Core Forms this block CHOOSES a form rather than carrying one: the
  * fields, the recipient and the confirmation are managed once under Beheer →
  * Formulieren, and the link below goes there. What stays here is the block's
- * own heading, the "Direct contact" card beside it, and the optional file
- * attachment this site's quote form has always accepted.
+ * own heading and the "Direct contact" card beside it. A file upload is a
+ * field of the form like any other (FORMS.md, "Bestand uploaden"); this
+ * screen only says where to add one.
  */
 
 AdminAuth::requireLogin();
@@ -66,7 +67,6 @@ $editLanguage = admin_localized_language();
 // What is the same in every language: handed back, else stored.
 $values = $old ?? [
     'form_id' => $currentFormId === null ? '' : (string) $currentFormId,
-    'allow_attachment' => (bool) $section['allow_attachment'],
     'is_active' => (bool) $section['is_active'],
 ];
 
@@ -138,11 +138,7 @@ $required = admin_localized_required($editLanguage);
         </label>
       </div>
 
-      <label class="admin-checkbox-label">
-        <input type="checkbox" class="admin-checkbox" name="allow_attachment" value="1" <?= ($values['allow_attachment'] ?? false) ? 'checked' : '' ?>>
-        <?= admin_te('block_contactform.bezoekers_mogen_bestand_meesturen') ?>
-      </label>
-      <p class="admin-text-muted"><?= admin_te('block_contactform.e_n_bestand_maximaal') ?></p>
+      <p class="admin-text-muted"><?= admin_te('block_contactform.upload_is_a_field') ?></p>
 
       <label class="admin-checkbox-label">
         <input type="checkbox" class="admin-checkbox" name="is_active" value="1" <?= ($values['is_active'] ?? true) ? 'checked' : '' ?>>

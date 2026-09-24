@@ -35,11 +35,14 @@ final class FormFieldControl
 
     /**
      * The shared attributes every control carries. Built here so a type
-     * cannot forget the accessibility ones.
+     * cannot forget the accessibility ones. A type that prints a description
+     * of its own next to the control (the accepted files of an upload field)
+     * passes its id, so the control points at it too.
      */
-    public function commonAttributes(): string
+    public function commonAttributes(string ...$alsoDescribedBy): string
     {
         $attributes = ' id="' . $this->escape($this->id) . '" name="' . $this->escape($this->name) . '"';
+        $describedBy = trim($this->describedBy . ' ' . implode(' ', $alsoDescribedBy));
 
         if ($this->field->isRequired) {
             $attributes .= ' required aria-required="true"';
@@ -49,8 +52,8 @@ final class FormFieldControl
             $attributes .= ' aria-invalid="true"';
         }
 
-        if ($this->describedBy !== '') {
-            $attributes .= ' aria-describedby="' . $this->escape($this->describedBy) . '"';
+        if ($describedBy !== '') {
+            $attributes .= ' aria-describedby="' . $this->escape($describedBy) . '"';
         }
 
         $autocomplete = $this->field->type->autocomplete();

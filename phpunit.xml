@@ -74,6 +74,7 @@
             <file>tests/Service/FormFieldTypeChangeTest.php</file>
             <file>tests/Service/FormFieldTypeTest.php</file>
             <file>tests/Service/FormFieldWidthTest.php</file>
+            <file>tests/Service/FormUploadTest.php</file>
             <file>tests/Service/FormValidationTest.php</file>
             <file>tests/Service/HeaderFooterSettingsTest.php</file>
             <file>tests/Service/LegalPagesTest.php</file>
@@ -252,6 +253,7 @@
             <file>tests/Service/FormFieldTypeChangeTest.php</file>
             <file>tests/Service/FormFieldTypeTest.php</file>
             <file>tests/Service/FormFieldWidthTest.php</file>
+            <file>tests/Service/FormUploadTest.php</file>
             <file>tests/Service/FormValidationTest.php</file>
             <file>tests/Service/FrontendAssetOwnershipTest.php</file>
             <file>tests/Service/HeaderFooterContractTest.php</file>
@@ -367,6 +369,7 @@
             <file>tests/Install/LocalizedSiteSettingMigrationTest.php</file>
             <file>tests/Install/FormWordsAndOptionMigrationTest.php</file>
             <file>tests/Install/FormFieldLayoutWidthMigrationTest.php</file>
+            <file>tests/Install/FormFileUploadMigrationTest.php</file>
             <file>tests/Install/PortfolioWordsMigrationTest.php</file>
             <file>tests/Install/BlogWordsMigrationTest.php</file>
             <file>tests/Install/BlogSettingsTextMigrationTest.php</file>
@@ -549,11 +552,13 @@
             <file>tests/Service/FooterServiceTest.php</file>
             <file>tests/Service/FormAdminTest.php</file>
             <file>tests/Service/FormAdminHttpTest.php</file>
+            <file>tests/Service/FormUploadHttpTest.php</file>
             <file>tests/Service/FormFieldEditorHttpTest.php</file>
             <file>tests/Service/FormBoundaryTest.php</file>
             <file>tests/Service/FormFieldTypeChangeTest.php</file>
             <file>tests/Service/FormFieldTypeTest.php</file>
             <file>tests/Service/FormFieldWidthTest.php</file>
+            <file>tests/Service/FormUploadTest.php</file>
             <file>tests/Service/FormRenderingTest.php</file>
             <file>tests/Service/FormValidationTest.php</file>
             <file>tests/Service/HeaderFooterContractTest.php</file>
@@ -591,6 +596,7 @@
             <file>tests/Install/LocalizedSiteSettingMigrationTest.php</file>
             <file>tests/Install/FormWordsAndOptionMigrationTest.php</file>
             <file>tests/Install/FormFieldLayoutWidthMigrationTest.php</file>
+            <file>tests/Install/FormFileUploadMigrationTest.php</file>
             <file>tests/Install/PortfolioWordsMigrationTest.php</file>
             <file>tests/Service/BlockPreviewAccessTest.php</file>
             <file>tests/Service/PagePreviewAccessTest.php</file>

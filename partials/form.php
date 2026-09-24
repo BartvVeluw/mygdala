@@ -60,11 +60,12 @@ function render_form_success(FormDefinition $form, FormRenderState $state): void
 /**
  * The form itself, or the success message when the visitor has just sent it.
  *
- * @param array<int, array{html: string}> $extraControls markup appended after the
- *        fields, used by the `contact_form` block for the attachment control it
- *        has always had. Never editor input — see partials/section-contact-form.php.
+ * Every control it prints is a field of the definition. Until Forms 2.0
+ * phase 2 the `contact_form` block appended a file input of its own here; a
+ * file is an ordinary field now (the `file` type), so there is nothing left
+ * to append.
  */
-function render_form(FormDefinition $form, FormRenderState $state, array $extraControls = []): void
+function render_form(FormDefinition $form, FormRenderState $state): void
 {
     if ($state->showSuccess) {
         render_form_success($form, $state);
@@ -75,7 +76,13 @@ function render_form(FormDefinition $form, FormRenderState $state, array $extraC
     $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
     $summaryId = $state->id('summary');
     ?>
-  <form class="vvl-form" method="post" action="/api/form-submit.php" novalidate
+  <?php
+  // The instance is in the action URL as well as in the hidden field below:
+  // when PHP throws away a request larger than post_max_size, the hidden
+  // fields go with it and only the query string survives, which is how the
+  // endpoint still knows which form to put "too large" above.
+  ?>
+  <form class="vvl-form" method="post" action="/api/form-submit.php?instance=<?= $h($state->token) ?>" novalidate
         enctype="multipart/form-data"
         id="<?= $h($state->token) ?>"
         data-form-block
@@ -107,6 +114,9 @@ function render_form(FormDefinition $form, FormRenderState $state, array $extraC
       <?php if ($state->hasErrors()): ?>
         <p><?= SiteText::escaped(form_summary_heading()) ?></p>
         <ul>
+          <?php if ($state->formError() !== null): ?>
+            <li><?= $h($state->formError()) ?></li>
+          <?php endif; ?>
           <?php foreach ($form->fields as $field): ?>
             <?php $error = $state->errorFor($field->key); ?>
             <?php if ($error !== null): ?>
@@ -120,10 +130,6 @@ function render_form(FormDefinition $form, FormRenderState $state, array $extraC
     <div class="form-grid">
       <?php foreach ($form->fields as $field): ?>
         <?php render_form_field($field, $state); ?>
-      <?php endforeach; ?>
-
-      <?php foreach ($extraControls as $extra): ?>
-        <?= $extra['html'] ?>
       <?php endforeach; ?>
     </div>
 

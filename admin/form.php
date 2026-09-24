@@ -17,6 +17,7 @@ use App\Service\Forms\FormCatalog;
 use App\Service\Forms\FormLocalization;
 use App\Service\Forms\FormFieldTypes;
 use App\Service\Forms\FormFieldWidth;
+use App\Service\Forms\FormFileTypes;
 use App\Service\Forms\FormRecipient;
 use App\Service\Forms\FormUsage;
 
@@ -364,7 +365,8 @@ $advancedOpen = $errors !== [] || $losesSubmissions;
     <?php else: ?>
       <?php /* One compact row per field, in form order: ↑/↓ where a drag
                handle would be, the label, one line saying what it is (its
-               kind, whether it is required, its width, how many options),
+               kind, whether it is required, its width, how many options or
+               which files),
                and Bewerken and Verwijderen on the right. Every other setting
                is on the field's own screen. The rows are the navigation and
                footer rows of this CMS (.admin-section-row), with the same
@@ -384,6 +386,12 @@ $advancedOpen = $errors !== [] || $losesSubmissions;
             $facts[] = admin_t('forms.width.short.' . $width);
             if ($type !== null && $type->usesOptions()) {
                 $facts[] = admin_t($optionCount === 1 ? 'forms.option_count_one' : 'forms.option_count', ['count' => $optionCount]);
+            }
+            if ($type !== null && $type->acceptsFile()) {
+                $facts[] = admin_t('forms.field_row.file_rules', [
+                    'types' => implode(', ', array_map([FormFileTypes::class, 'label'], FormFileTypes::fromStored($field['file_types'] ?? null))),
+                    'size' => FormFileTypes::sizeLabel(FormFileTypes::effectiveMaxBytes($field['file_max_bytes'] ?? null)),
+                ]);
             }
           ?>
           <li class="admin-section-row admin-form-field-row" id="form-field-<?= $fieldId ?>">

@@ -3,6 +3,7 @@
 namespace App\Repository;
 
 use App\Service\Forms\FormFieldWidth;
+use App\Service\Forms\FormFileTypes;
 
 /**
  * All `forms` and `form_fields` SQL — the definitions half of Core Forms
@@ -202,13 +203,15 @@ class FormRepository extends Repository
         $stmt = $this->db->prepare(
             'INSERT INTO form_fields
                 (form_id, field_key, field_type, is_required, layout_width, sort_order, default_value,
-                 created_at, updated_at)
+                 file_types, file_max_bytes, created_at, updated_at)
              VALUES
                 (:form_id, :field_key, :field_type, :is_required, :layout_width, :sort_order, :default_value,
-                 NOW(), NOW())'
+                 :file_types, :file_max_bytes, NOW(), NOW())'
         );
 
         $stmt->execute($this->fieldParameters($values) + [
+            'file_types' => self::fileTypes($values['file_types'] ?? null),
+            'file_max_bytes' => self::fileMaxBytes($values['file_max_bytes'] ?? null),
             'layout_width' => FormFieldWidth::fromStored($values['layout_width'] ?? null),
             'form_id' => $formId,
             'field_key' => (string) $values['field_key'],
@@ -229,6 +232,12 @@ class FormRepository extends Repository
      * and whatever still slips through is written as `full` rather than as a
      * class or a style nobody chose. Left out, the stored width stays.
      *
+     * `file_types` and `file_max_bytes` (an upload field's settings) are
+     * written only when the caller names them, and NULL clears them — which
+     * is what a confirmed change to a type that takes no file does. What is
+     * written is keys of App\Service\Forms\FormFileTypes and a size no larger
+     * than its ceiling, never anything else.
+     *
      * @param array<string, mixed> $values
      */
     public function updateField(int $fieldId, array $values): void
@@ -239,11 +248,17 @@ class FormRepository extends Repository
                 is_required = :is_required,
                 layout_width = COALESCE(:layout_width, layout_width),
                 default_value = :default_value,
+                file_types = IF(:set_file_types = 1, :file_types, file_types),
+                file_max_bytes = IF(:set_file_max_bytes = 1, :file_max_bytes, file_max_bytes),
                 updated_at = NOW()
               WHERE id = :id'
         );
 
         $stmt->execute($this->fieldParameters($values) + [
+            'set_file_types' => array_key_exists('file_types', $values) ? 1 : 0,
+            'file_types' => self::fileTypes($values['file_types'] ?? null),
+            'set_file_max_bytes' => array_key_exists('file_max_bytes', $values) ? 1 : 0,
+            'file_max_bytes' => self::fileMaxBytes($values['file_max_bytes'] ?? null),
             // Left as stored when the caller says nothing about it.
             'layout_width' => array_key_exists('layout_width', $values)
                 ? FormFieldWidth::fromStored($values['layout_width'])
@@ -355,6 +370,32 @@ class FormRepository extends Repository
             // api/admin/update-form-field.php and App\Service\Forms\FormField.
             'default_value' => self::nullIfEmpty($values['default_value'] ?? null),
         ];
+    }
+
+    /**
+     * An upload field's accepted kinds as stored: known keys only, or NULL.
+     *
+     * @param list<string>|string|null $value
+     */
+    private static function fileTypes(mixed $value): ?string
+    {
+        if (is_string($value)) {
+            $value = explode(',', $value);
+        }
+
+        return is_array($value) ? FormFileTypes::toStored($value) : null;
+    }
+
+    /** An upload field's size limit as stored: 1 byte up to the ceiling, or NULL. */
+    private static function fileMaxBytes(mixed $value): ?int
+    {
+        if (!is_int($value) && !(is_string($value) && ctype_digit($value))) {
+            return null;
+        }
+
+        $bytes = (int) $value;
+
+        return $bytes < 1 ? null : min($bytes, FormFileTypes::MAX_BYTES);
     }
 
     private static function nullIfEmpty(mixed $value): ?string

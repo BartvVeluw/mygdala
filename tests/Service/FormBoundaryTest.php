@@ -477,12 +477,26 @@ final class FormBoundaryTest extends TestCase
         }
     }
 
-    public function testTheFormBuilderOffersNoUploadField(): void
+    /**
+     * Forms 2.0 phase 2: a file upload is an ordinary field type, and the
+     * ONLY way a form receives a file. No block prints a file input of its
+     * own next to the fields any more, the endpoint reads no fixed `$_FILES`
+     * name, and the policy that let the contact block's switch decide is gone.
+     */
+    public function testAFileArrivesOnlyThroughAnUploadField(): void
     {
-        $this->assertFalse(FormFieldTypes::has('file'));
+        $this->assertTrue(FormFieldTypes::has('file'));
+        $this->assertTrue(FormFieldTypes::get('file')->acceptsFile());
 
-        $editor = $this->read('admin/form-field.php');
-        $this->assertStringNotContainsString('type="file"', $editor, 'the field editor must not be able to create an upload field');
+        foreach (['partials/section-contact-form.php', 'partials/section-form.php', 'partials/form.php'] as $file) {
+            $this->assertStringNotContainsString('type="file"', $this->read($file), $file . ' must not print a file input of its own');
+        }
+
+        $endpoint = $this->withoutComments($this->read('api/form-submit.php'));
+        $this->assertStringNotContainsString("\$_FILES['", $endpoint, 'the endpoint must not read a fixed upload name');
+        $this->assertStringNotContainsString('FormAttachmentPolicy', $endpoint);
+        $this->assertFileDoesNotExist(dirname(__DIR__, 2) . '/src/Service/Forms/FormAttachmentPolicy.php');
+        $this->assertFileDoesNotExist(dirname(__DIR__, 2) . '/src/Service/ContactAttachmentValidator.php');
     }
 
     /* ------------------------------------------------------------------ */

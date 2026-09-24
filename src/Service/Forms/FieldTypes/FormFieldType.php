@@ -29,7 +29,7 @@ use App\Service\Language\SiteText;
  * plain text-like type is a very small class.
  *
  * THE SETTINGS DECLARATIONS DRIVE THE FIELD EDITOR. usesPlaceholder(),
- * usesOptions(), usesDefaultValue() and requiredIsFixed() decide which
+ * usesOptions(), usesDefaultValue(), requiredIsFixed() and acceptsFile() decide which
  * settings admin/form-field.php shows, and App\Service\Forms\
  * FormFieldTypeChange reads the same declarations to say what a type change
  * would lose. Neither keeps a list of types of its own.
@@ -90,6 +90,18 @@ abstract class FormFieldType
         ]);
     }
 
+    /**
+     * What the visitor is told beside this field when the form comes back
+     * after a refused submission WITHOUT JavaScript and the field's answer
+     * could not come back with it — which is only ever a file (a browser
+     * cannot refill a file input, FileFieldType). Null: the answer is put
+     * back, nothing to say.
+     */
+    public function reselectMessage(FormField $field): ?string
+    {
+        return null;
+    }
+
     /** Whether this type is configured with a list of choices. */
     public function usesOptions(): bool
     {
@@ -130,6 +142,22 @@ abstract class FormFieldType
     public function maxLength(): int
     {
         return 255;
+    }
+
+    /**
+     * Whether this type is answered with a FILE rather than with text.
+     *
+     * One declaration, three readers. App\Service\Forms\FormValidator reads
+     * the field's entry in $_FILES instead of $_POST for it and has it
+     * inspected (App\Service\Forms\FormUploadInspector); the field editor
+     * shows the "Bestanden" settings (the accepted types and the largest
+     * size, App\Service\Forms\FormFileTypes); and
+     * App\Service\Forms\FormFieldTypeChange counts those settings as lost
+     * when the field becomes another type. None of them names a type.
+     */
+    public function acceptsFile(): bool
+    {
+        return false;
     }
 
     /**

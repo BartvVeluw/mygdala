@@ -22,14 +22,12 @@
  * back as a hardcoded sentence (Tests\Service\BlockSampleContractTest scans
  * the rendered card).
  *
- * THE ATTACHMENT IS THIS BLOCK'S, not the form engine's. Forms V1 has no
- * upload field and the builder cannot create one (FORMS.md); this block's
- * form accepted an image or a PDF long before Core Forms existed, and
- * removing it would be a regression rather than a simplification. So the
- * control is printed here, the endpoint only accepts a file for a form a
- * block like this actually offers it on
- * (App\Service\Forms\FormAttachmentPolicy), and everything else about the
- * submission is ordinary Forms data.
+ * NO FILE INPUT OF ITS OWN any more. Until Forms 2.0 phase 2 this block
+ * appended a fixed "Bijlage" control to its form, switched on per block. A
+ * file is an ordinary field now (the `file` type, FORMS.md "Bestand
+ * uploaden"): an editor adds one to the form, or leaves it out, like any
+ * other field. Migration 20260925100000 gave every form such a block had the
+ * attachment switched on for an explicit field, so no site lost it.
  *
  * Two cards, not three: the "Liever direct mailen?" card that used to sit
  * under the details card is its own repeatable block now
@@ -83,7 +81,7 @@ function render_section_contact_form(array $content, ?FormDefinition $form, Form
             // builder is where the editor is told about it.
             ?>
           <?php else: ?>
-            <?php render_form($form, $state, render_contact_form_attachment_control($content, $state)); ?>
+            <?php render_form($form, $state); ?>
           <?php endif; ?>
         </div>
 
@@ -109,40 +107,4 @@ function render_section_contact_form(array $content, ?FormDefinition $form, Form
     </div>
   </section>
   <?php
-}
-
-/**
- * The optional attachment control, in the shape partials/form.php appends
- * after the form's own fields. Fixed markup with fixed, generic labels — it
- * is not a field an editor can configure, and it is not editor input, so it
- * is safe to hand over as HTML. The label says what the control is, never
- * what a particular business expects to receive.
- *
- * The accepted types and the 8 MB ceiling match what
- * App\Service\ContactAttachmentValidator has always enforced server-side;
- * the `accept` attribute is a convenience for the file picker and decides
- * nothing.
- *
- * @param array<string, mixed> $content
- * @return array<int, array{html: string}> empty when this block has attachments off
- */
-function render_contact_form_attachment_control(array $content, FormRenderState $state): array
-{
-    if (empty($content['allow_attachment'])) {
-        return [];
-    }
-
-    $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
-    $id = $state->id('bestand');
-
-    ob_start();
-    ?>
-    <div class="form-field form-field--full">
-      <label for="<?= $h($id) ?>"><span><?= SiteText::escaped(['nl' => 'Bijlage (optioneel)', 'en' => 'Attachment (optional)']) ?></span></label>
-      <span class="hint" id="<?= $h($id) ?>-hint"><?= SiteText::escaped(['nl' => 'JPG, PNG, WEBP, GIF of PDF, max. 8 MB.', 'en' => 'JPG, PNG, WEBP, GIF or PDF, max. 8 MB.']) ?></span>
-      <input type="file" id="<?= $h($id) ?>" name="bestand" accept="image/jpeg,image/png,image/webp,image/gif,application/pdf,.pdf" aria-describedby="<?= $h($id) ?>-hint">
-    </div>
-    <?php
-
-    return [['html' => (string) ob_get_clean()]];
 }

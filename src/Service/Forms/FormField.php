@@ -53,6 +53,17 @@ final class FormField
          * language.
          */
         public readonly string $width,
+        /**
+         * For a type that accepts a file (FormFieldType::acceptsFile()): the
+         * FormFileTypes keys it takes, never empty. [] for every other type.
+         */
+        public readonly array $fileTypes = [],
+        /**
+         * For a type that accepts a file: the largest file it takes, in
+         * bytes, already capped at what the installation accepts
+         * (FormFileTypes::effectiveMaxBytes()). 0 for every other type.
+         */
+        public readonly int $fileMaxBytes = 0,
     ) {
     }
 
@@ -98,6 +109,8 @@ final class FormField
             self::usableDefault($type, $options, $row['default_value'] ?? null),
             self::recordedLabel($translations),
             FormFieldWidth::fromStored($row['layout_width'] ?? null),
+            $type->acceptsFile() ? FormFileTypes::fromStored($row['file_types'] ?? null) : [],
+            $type->acceptsFile() ? FormFileTypes::effectiveMaxBytes($row['file_max_bytes'] ?? null) : 0,
         );
     }
 

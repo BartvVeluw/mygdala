@@ -7,6 +7,7 @@ namespace App\Service\Forms;
 use App\Service\Forms\FieldTypes\CheckboxFieldType;
 use App\Service\Forms\FieldTypes\ConsentFieldType;
 use App\Service\Forms\FieldTypes\EmailFieldType;
+use App\Service\Forms\FieldTypes\FileFieldType;
 use App\Service\Forms\FieldTypes\FormFieldType;
 use App\Service\Forms\FieldTypes\RadioFieldType;
 use App\Service\Forms\FieldTypes\SelectFieldType;
@@ -27,7 +28,7 @@ use App\Service\Forms\FieldTypes\TextFieldType;
  *
  * The order is the order the CMS offers them in, as cards in "Veld
  * toevoegen": the ordinary text-like ones first, then the choices, then the
- * two boxes.
+ * two boxes, then the one answered with a file (Forms 2.0 phase 2).
  *
  * WHAT A TYPE IS CALLED lives in the admin catalogue and nowhere else:
  * `formfieldtype.<key>.label` and `.description` in
@@ -39,7 +40,7 @@ use App\Service\Forms\FieldTypes\TextFieldType;
  * Tests\Service\FormFieldTypeTest fails when a registered type has no name
  * or description in a catalogue.
  *
- * V1 STOPS HERE ON PURPOSE. No file upload, no date or time picker, no
+ * V1 STOPS HERE ON PURPOSE. No date or time picker, no
  * address composite, no repeater, no rich text, no hidden value, no
  * calculated or payment field — FORMS.md lists them as deferred and says
  * why. Adding one later is one class next to the others plus one line here;
@@ -58,6 +59,7 @@ final class FormFieldTypes
         'radio' => RadioFieldType::class,
         'checkbox' => CheckboxFieldType::class,
         'consent' => ConsentFieldType::class,
+        'file' => FileFieldType::class,
     ];
 
     /**
