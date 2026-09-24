@@ -7,6 +7,8 @@ use App\Service\Blocks\BlockCategories;
 use App\Service\Blocks\BlockDefinition;
 use App\Service\Blocks\BlockDefinitions;
 use App\Service\Blocks\BlockLocalization;
+use App\Service\Blocks\CarriesBreadcrumb;
+use App\Service\Breadcrumbs\BreadcrumbTrail;
 use App\Service\Language\AdminTranslator;
 
 /**
@@ -455,8 +457,15 @@ class SectionRegistry
      * say whether the next block should tighten its top spacing (the heroes
      * do — see BlockDefinition::tightensFollowingBlock()), and gives each
      * rendered block a stable, unique data-reveal-group value.
+     *
+     * THE PAGE'S BREADCRUMB comes along as $trail (PageBreadcrumb::forPage(),
+     * null for a page without one) and is printed exactly once: inside the
+     * first block that renders when that block takes it in
+     * (App\Service\Blocks\CarriesBreadcrumb — a Paginakop with a picture),
+     * else just before that block, and on a page without blocks on its own.
+     * Only the first block is asked, because a trail belongs at the top.
      */
-    public static function renderPage(string $pageContentKey): void
+    public static function renderPage(string $pageContentKey, ?BreadcrumbTrail $trail = null): void
     {
         $previous = null;
         $sections = self::visibleSections($pageContentKey);
@@ -479,10 +488,29 @@ class SectionRegistry
             $tightTop = $previous !== null && $previous->tightensFollowingBlock();
             $revealGroup = $pageSection['section_type'] . '-' . $pageSection['id'];
 
-            $definition->render($pageSection, $tightTop, $revealGroup);
+            if ($trail !== null && $definition instanceof CarriesBreadcrumb && $definition->carriesBreadcrumb($pageSection)) {
+                $definition->renderWithBreadcrumb($pageSection, $tightTop, $revealGroup, $trail);
+            } else {
+                self::renderBreadcrumb($trail);
+                $definition->render($pageSection, $tightTop, $revealGroup);
+            }
 
+            $trail = null;
             $previous = $definition;
         }
+
+        self::renderBreadcrumb($trail);
+    }
+
+    /** The page's trail on its own (partials/breadcrumb.php); nothing for null. */
+    private static function renderBreadcrumb(?BreadcrumbTrail $trail): void
+    {
+        if ($trail === null) {
+            return;
+        }
+
+        require_once dirname(__DIR__, 2) . '/partials/breadcrumb.php';
+        render_breadcrumb($trail);
     }
 
     /**

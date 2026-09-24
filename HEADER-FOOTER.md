@@ -593,11 +593,23 @@ heeft — dezelfde `clamp()` die `.page-hero` had — en een Paginakop die er
 direct op volgt laat zijn eigen bovenruimte weg. Op een gewone pagina staat
 de titel daardoor op dezelfde hoogte als voorheen.
 
-Heeft de Paginakop een **achtergrondfoto**, dan staat het kruimelpad bóven de
-fotoband in plaats van erover. Dat is het zichtbare gevolg van de
-ontkoppeling: de foto begint nu onder de balk. De regel in `page-hero.css`
-die het kruimelpad boven een foto lichter kleurde is daarmee overbodig en
-verwijderd.
+Heeft de **eerste** Paginakop van de pagina een **afbeelding**, dan neemt die
+het kruimelpad in zich op (Paginakop 2.0). De route geeft het pad daarvoor
+mee aan `SectionRegistry::renderPage($contentKey, PageBreadcrumb::forPage($page))`
+in plaats van het zelf te printen, en `renderPage()` vraagt het eerste blok
+dat rendert of het het pad draagt (`App\Service\Blocks\CarriesBreadcrumb`):
+
+| Eerste blok | Kruimelpad |
+|---|---|
+| Paginakop met een foto **achter** de tekst | Bovenin de fotoband, óver de foto, direct onder de vaste siteheader. De band begint bovenaan de pagina; de lege balk erboven is weg. Over de foto krijgen de links de tekstkleur in plaats van de gedempte kleur, want de waas is lichter dan de grond waarvoor die gedempte kleur gemeten is (gemeten op een witte foto: 7,5:1 of meer) |
+| Paginakop met een foto **naast** de tekst | Bovenaan de tekstkolom, zonder eigen container, want de kolom lijnt het al uit |
+| Paginakop zonder foto, een verborgen Paginakop, of een ander blok | Ongewijzigd: een eigen `.breadcrumb-bar` vóór het blok, zoals hierboven |
+| Geen enkel blok | De balk op zichzelf |
+
+Het pad staat dus altijd precies één keer op de pagina, en of het er staat
+blijft de keuze van de pagina (`pages.show_breadcrumb`). Alleen het eerste
+blok wordt gevraagd: een Paginakop verderop op de pagina neemt het pad niet
+naar beneden mee.
 
 ### Legacy
 

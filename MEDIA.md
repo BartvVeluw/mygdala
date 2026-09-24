@@ -623,7 +623,7 @@ de lijst controleert elk id opnieuw.
 | Tekst met afbeelding (`text_image_split`) | `text_image_split_items.media_id`, één per item en optioneel; elk item telt als gebruik, ook twee items van één blok met hetzelfde beeld |
 | Detailsectie (`detail_section`) | `detail_sections.main_media_id` + `detail_section_images.media_id` |
 | Kaarten-carrousel (`card_carousel`) | `carousel_cards.media_id` |
-| Paginakop (`page_hero`) | `page_heroes.media_id`, zonder oud pad en zonder eigen alt-tekst: een paginakop had nooit een afbeelding |
+| Paginakop (`page_hero`) | `page_heroes.media_id`, zonder oud pad: een paginakop had nooit een afbeelding. Eigen alt-tekst per taal (`image_alt` in `block_translations`) alleen voor een beeld náást de tekst; een beeld áchter de tekst is versiering (`alt=""`). *Geen afbeelding* maakt de verwijzing leeg, zodat het item niet meer als gebruikt telt |
 | Uitgelichte afbeelding en deel-afbeelding van een blogbericht | `blog_posts.featured_media_id`, `blog_posts.og_media_id` — een module, dus via `BlogModule::mediaUsageProviders()` |
 | Eigen icoon van een kaart in *Kenmerken in kaartjes* (`feature_grid`) | `feature_grid_items.icon_media_id`, alleen als `icon_key = custom`; geen oud pad en geen alt-tekst, want het icoon is versiering (`aria-hidden`, `alt=""`): de titel en tekst van de kaart dragen de betekenis. Kiest de kaart weer een standaardicoon of *Geen*, dan wordt de verwijzing leeggemaakt en telt het item niet meer als gebruikt |
 | Homepage-hero: afbeelding en video | `homepage_hero.media_id` (met eigen alt-tekst per taal) en `homepage_hero.video_media_id`, oude `image_path` / `video_path` als terugval. Het videoveld is de eerste videokiezer (`media_picker_field(…, MediaType::VIDEO)`) |
@@ -656,7 +656,10 @@ heeft die historie niet. Zo'n tabel heeft ook geen eigen alt-veld, want de
 gelaagde alt-tekst bestaat om bestaande onderschriften te bewaren — nieuwe
 inhoud gebruikt gewoon die van het item. Hetzelfde geldt voor een bestaande
 tabel die pas ná de bibliotheek een afbeelding kreeg: `page_heroes` had er nooit
-een, en heeft dus ook alleen een `media_id`.
+een, en heeft dus ook alleen een `media_id`. Sinds Paginakop 2.0 kan dat beeld
+ook náást de tekst staan, en daar is het inhoud: dan geldt de gewone gelaagde
+alt-tekst (`image_alt` als woord van het blok, leeg is die van het item), met
+`media_alt_field()` in de editor en `BlockImage::ownAlt()` in het endpoint.
 
 ## Een nieuw blok aansluiten
 

@@ -97,8 +97,7 @@ require dirname(__DIR__) . '/partials/page-assets.php';
   <?php /* The preview shows what a visitor gets, the trail included — so the
            switch on the Pagina tab can be checked here rather than only on
            the live page. A draft previews as the page it will be. */ ?>
-  <?php render_breadcrumb(PageBreadcrumb::forPage($page)); ?>
-  <?php SectionRegistry::renderPage($contentKey); ?>
+  <?php SectionRegistry::renderPage($contentKey, PageBreadcrumb::forPage($page)); ?>
 </main>
 
 <?php require dirname(__DIR__) . '/partials/footer.php'; ?>

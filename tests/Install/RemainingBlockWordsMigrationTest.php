@@ -121,6 +121,7 @@ final class RemainingBlockWordsMigrationTest extends TestCase
         'carousel_cards' => ['link_type', 'link_target_id', 'image_focus'],
         'feature_grid_items' => ['icon_media_id'],
         'homepage_hero' => ['primary_link_type', 'primary_link_target_id', 'secondary_link_type', 'secondary_link_target_id', 'media_id', 'video_media_id'],
+        'page_heroes' => ['image_mode', 'hero_height', 'image_focus'],
     ];
 
     private static ?ScratchInstall $fresh = null;

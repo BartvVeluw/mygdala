@@ -1,6 +1,12 @@
 <?php
 
 require_once __DIR__ . '/eyebrow.php';
+require_once __DIR__ . '/breadcrumb.php';
+
+use App\Service\Breadcrumbs\BreadcrumbTrail;
+use App\Service\Media\BlockImage;
+use App\Service\Media\ImageFocus;
+use App\Service\PageHeroContent;
 
 /**
  * Renders the Page Hero section (App\Service\PageHeroContent) — the header at
@@ -17,10 +23,11 @@ require_once __DIR__ . '/eyebrow.php';
  * here.
  *
  * Everything optional leaves no trace when it is empty: no eyebrow element
- * without an eyebrow, no lead paragraph without a lead, no media wrapper
- * without an image. "Empty" is judged on what a visitor sees first, the
- * default language's words (): a translation on its own
- * would be an empty decoration for everyone reading the default language.
+ * without an eyebrow (partials/eyebrow.php), no lead paragraph without a
+ * lead, no media wrapper and no picture class without a picture. "Empty" is
+ * judged on what a visitor sees first, the default language's words: a
+ * translation on its own would be an empty decoration for everyone reading
+ * the default language.
  *
  * Every word arrives as one string per field, already in the language of
  * the request (App\Service\Blocks\BlockLocalization), so this file knows no
@@ -31,27 +38,48 @@ require_once __DIR__ . '/eyebrow.php';
  * given a choice prints the markup it always printed, which
  * assets/css/blocks/page-hero.css leaves alone.
  *
- * THE IMAGE sits behind the text, under a veil in the site's own ground
- * colour, and is loaded eagerly because it is the first thing on the page.
- * Its alt text is the library item's; an item without one renders `alt=""`,
- * which is what a photograph that only sets the mood should have
- * (App\Service\Media\BlockImage).
+ * THE PICTURE goes where PageHeroContent::effectiveImageMode() says, in one
+ * of two shapes, and without a picture none of its markup is printed:
+ *
+ *   background   one band, the picture a layer behind everything: an
+ *                absolutely placed wrapper, so it takes no room in the flow
+ *                and cannot push the text anywhere, under a veil in the
+ *                site's own ground colour. The band's height step
+ *                (hero_height) is a modifier class. The picture only sets
+ *                the mood, so it is `alt=""`: the header's words say what the
+ *                page is, and a screen reader should not read out a
+ *                description of the wallpaper first.
+ *   left/right   one band with two columns: the text, and the picture in a
+ *                frame of a fixed shape beside it. That picture is content,
+ *                so it carries the layered alt text (the header's own, else
+ *                the library's, App\Service\Media\BlockImage). The text comes
+ *                first in the markup whichever side the picture is on, so the
+ *                reading order never depends on a layout choice; the
+ *                stylesheet places the picture.
+ *
+ * Both load the picture eagerly, because it is the first thing on the page,
+ * and print its size so the browser reserves the space. The focus point
+ * (App\Service\Media\ImageFocus) becomes object-position, and only when it is
+ * not the middle, which is what the browser does by itself.
  *
  * $titleMaxWidthCh reproduces each page's own hand-tuned `<h1>` line-wrap
  * width (a purely cosmetic, per-page value that was never CMS content —
  * see App\Service\Blocks\PageHeroBlock); null omits
  * the inline style entirely.
  *
- * THE BREADCRUMB IS NOT HERE and must not come back. It is the page's own
- * navigation, printed by the route before its content
- * (partials/breadcrumb.php), so a page whose header is hidden, deleted or
- * never added still tells a visitor where they are. See HEADER-FOOTER.md.
+ * THE BREADCRUMB is the page's own navigation (partials/breadcrumb.php), and
+ * this file does not decide whether a page has one. When the page hands its
+ * trail to a header with a picture ($trail, App\Service\Blocks\CarriesBreadcrumb),
+ * the trail is printed inside the band: over the picture at the top of a
+ * background header, above the text beside a picture. A header without a
+ * picture is never handed one, so its trail stays where it always was, just
+ * before it. See HEADER-FOOTER.md.
  *
  * @param array<string, mixed> $pageHero see PageHeroContent::forSlug()
  */
-function render_section_page_hero(array $pageHero, ?string $titleMaxWidthCh = null): void
+function render_section_page_hero(array $pageHero, ?string $titleMaxWidthCh = null, ?BreadcrumbTrail $trail = null): void
 {
-    $text = static fn (string $field): string => $pageHero[$field];
+    $text = static fn (string $field): string => (string) ($pageHero[$field] ?? '');
 
     if ($text('title') === '') {
         return;
@@ -61,29 +89,40 @@ function render_section_page_hero(array $pageHero, ?string $titleMaxWidthCh = nu
     $titleStyle = $titleMaxWidthCh !== null ? ' style="max-width:' . $h($titleMaxWidthCh) . ';"' : '';
 
     $hasLead = $text('lead') !== '';
-    $hasImage = (string) ($pageHero['image_path'] ?? '') !== '';
+    $mode = PageHeroContent::effectiveImageMode($pageHero);
+    $isBackground = $mode === PageHeroContent::IMAGE_BACKGROUND;
+    $isBeside = $mode === PageHeroContent::IMAGE_LEFT || $mode === PageHeroContent::IMAGE_RIGHT;
 
     // choice => [value => class]. The default of each choice is deliberately
     // absent, so it adds nothing; a value that is not here adds nothing either.
     $modifiers = [
         'content_position' => [
-            \App\Service\PageHeroContent::POSITION_CENTER => 'page-hero--content-center',
-            \App\Service\PageHeroContent::POSITION_RIGHT => 'page-hero--content-right',
+            PageHeroContent::POSITION_CENTER => 'page-hero--content-center',
+            PageHeroContent::POSITION_RIGHT => 'page-hero--content-right',
         ],
         'title_size' => [
-            \App\Service\PageHeroContent::SIZE_SMALL => 'page-hero--title-small',
-            \App\Service\PageHeroContent::SIZE_LARGE => 'page-hero--title-large',
+            PageHeroContent::SIZE_SMALL => 'page-hero--title-small',
+            PageHeroContent::SIZE_LARGE => 'page-hero--title-large',
         ],
         'text_size' => [
-            \App\Service\PageHeroContent::SIZE_SMALL => 'page-hero--text-small',
-            \App\Service\PageHeroContent::SIZE_LARGE => 'page-hero--text-large',
+            PageHeroContent::SIZE_SMALL => 'page-hero--text-small',
+            PageHeroContent::SIZE_LARGE => 'page-hero--text-large',
         ],
     ];
 
     $classes = ['page-hero'];
 
-    if ($hasImage) {
-        $classes[] = 'page-hero--media';
+    if ($isBackground) {
+        $classes[] = 'page-hero--background';
+
+        // Only a picture behind the text gives the band a height of its own.
+        $modifiers['hero_height'] = [
+            PageHeroContent::HEIGHT_SMALL => 'page-hero--height-small',
+            PageHeroContent::HEIGHT_LARGE => 'page-hero--height-large',
+        ];
+    } elseif ($isBeside) {
+        $classes[] = 'page-hero--split';
+        $classes[] = $mode === PageHeroContent::IMAGE_LEFT ? 'page-hero--image-left' : 'page-hero--image-right';
     }
 
     foreach ($modifiers as $choice => $classForValue) {
@@ -93,13 +132,41 @@ function render_section_page_hero(array $pageHero, ?string $titleMaxWidthCh = nu
             $classes[] = $class;
         }
     }
+
+    $focus = ImageFocus::normalise($pageHero['image_focus'] ?? null);
+    $picture = static fn (string $alt): string => '<img src="' . $h((string) ($pageHero['image_path'] ?? '')) . '" alt="' . $h($alt) . '"'
+        . BlockImage::dimensionAttributes(['width' => $pageHero['image_width'] ?? null, 'height' => $pageHero['image_height'] ?? null])
+        . ($focus !== ImageFocus::DEFAULT ? ' style="object-position: ' . $h(ImageFocus::objectPosition($focus)) . ';"' : '')
+        . ' loading="eager" decoding="async" fetchpriority="high">';
     ?>
     <section class="<?= $h(implode(' ', $classes)) ?>">
-      <?php if ($hasImage): ?>
+      <?php if ($isBackground): ?>
       <div class="page-hero__media">
-        <img src="<?= $h((string) $pageHero['image_path']) ?>" alt="<?= $h($text('image_alt')) ?>"<?= \App\Service\Media\BlockImage::dimensionAttributes(['width' => $pageHero['image_width'] ?? null, 'height' => $pageHero['image_height'] ?? null]) ?> loading="eager" decoding="async" fetchpriority="high">
+        <?= $picture('') ?>
       </div>
-      <?php endif; ?>
+      <?php render_breadcrumb($trail); ?>
+      <div class="container page-hero__body">
+        <?php render_eyebrow($text('eyebrow')); ?>
+        <h1<?= $titleStyle ?>><?= $h($text('title')) ?></h1>
+        <?php if ($hasLead): ?>
+          <p class="lead" style="margin-top:1rem;"><?= $h($text('lead')) ?></p>
+        <?php endif; ?>
+      </div>
+      <?php elseif ($isBeside): ?>
+      <div class="container page-hero__split">
+        <div class="page-hero__text">
+          <?php render_breadcrumb($trail, false, true); ?>
+          <?php render_eyebrow($text('eyebrow')); ?>
+          <h1<?= $titleStyle ?>><?= $h($text('title')) ?></h1>
+          <?php if ($hasLead): ?>
+            <p class="lead" style="margin-top:1rem;"><?= $h($text('lead')) ?></p>
+          <?php endif; ?>
+        </div>
+        <figure class="page-hero__figure">
+          <?= $picture($text('image_alt')) ?>
+        </figure>
+      </div>
+      <?php else: ?>
       <div class="container">
         <?php render_eyebrow($text('eyebrow')); ?>
         <h1<?= $titleStyle ?>><?= $h($text('title')) ?></h1>
@@ -107,6 +174,7 @@ function render_section_page_hero(array $pageHero, ?string $titleMaxWidthCh = nu
           <p class="lead" style="margin-top:1rem;"><?= $h($text('lead')) ?></p>
         <?php endif; ?>
       </div>
+      <?php endif; ?>
     </section>
     <?php
 }

@@ -219,6 +219,11 @@ geen gedeeld bestand meer waarin je op zeven plekken per type moet uitsplitsen:
    `instanceTitle()` (waaraan de beheerder twee instanties uit elkaar houdt) en
    `tightensFollowingBlock()` (alleen de hero's).
 
+   Eén optionele interface staat daarnaast: `CarriesBreadcrumb`, voor een
+   blok dat als eerste op de pagina het kruimelpad van die pagina in zich
+   opneemt. Alleen de Paginakop met een beeld doet dat (`HEADER-FOOTER.md`,
+   *De plek op de pagina*); een nieuw blok heeft hem niet nodig.
+
    Zet de `require_once` van je partial bovenaan het definitiebestand, zodat
    een pagina alleen de partials laadt van de blokken die er echt op staan.
 
@@ -414,7 +419,8 @@ Alleen `render()`/`renderPage()` degraderen zo. De schrijfkant
   modifier-class van. De standaard krijgt géén class, zodat een bestaande
   instantie na de migratie precies blijft zoals hij was, en een maat is een
   stap op de typeschaal in `core.css` (`--fs-*`). `page_hero` is het voorbeeld
-  (positie van de tekst, titel- en tekstgrootte).
+  (positie van de tekst, titel- en tekstgrootte, plaats van het beeld, hoogte
+  van de band en het focuspunt).
 - **Bestaande inhoud blijft behouden** bij migraties en refactors.
 
 ## Tekst met afbeelding: een lijst items

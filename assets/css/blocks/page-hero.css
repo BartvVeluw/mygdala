@@ -2,34 +2,39 @@
    Content block: page hero (partials/section-page-hero.php)
    Asked for by App\Service\Blocks\PageHeroBlock::styles().
 
-   Only what an editor CHOOSES lives here: an image behind the header, where
-   its text sits, and how large its title and its intro text are. The partial
-   adds a modifier class for a choice that differs from its default and none
-   for the default, so a header nobody changed matches no rule in this file
-   and looks exactly as it did before these choices existed.
+   Only what an editor CHOOSES lives here: a picture behind or beside the
+   header, how tall a header with a picture behind it is, where its text
+   sits, and how large its title and its intro text are. The partial adds a
+   modifier class for a choice that differs from its default and none for the
+   default, so a header nobody changed matches no rule in this file and looks
+   exactly as it did before these choices existed.
 
    What stays in core.css, on purpose: .page-hero itself, .eyebrow and .lead.
    The shop, cart, checkout, blog and legal templates print the same header by
    hand, without this block, so those rules are shared and not this block's to
-   own. The breadcrumb is not here at all any more: it is the page's own
-   navigation, printed before the header (partials/breadcrumb.php), and it is
-   styled in core.css beside .page-hero.
+   own. The breadcrumb is styled in core.css too, as the page's own
+   navigation; only where it sits INSIDE a header with a picture is decided
+   here, because only this block puts it there (App\Service\Blocks\CarriesBreadcrumb).
 
-   A size here is a step on the type scale in core.css (--fs-*), never a
-   value from the database.
+   A size here is a step on the type scale or the spacing scale in core.css
+   (--fs-*, --sp-*), or one of the three height steps below, never a value
+   from the database.
    ========================================================================== */
 
 /* --- Where the text sits -------------------------------------------------- */
 /* The narrower boxes inside keep their own widths — the per-page line-wrap
    width on the h1 and the lead's max-width — and auto margins move them to
-   the chosen side rather than stretching them. */
+   the chosen side rather than stretching them. A trail inside the header
+   follows the text. */
 .page-hero--content-center .container{ text-align: center; }
 .page-hero--content-center h1,
 .page-hero--content-center .lead{ margin-inline: auto; }
+.page-hero--content-center .breadcrumb{ justify-content: center; }
 
 .page-hero--content-right .container{ text-align: right; }
 .page-hero--content-right h1,
 .page-hero--content-right .lead{ margin-inline-start: auto; }
+.page-hero--content-right .breadcrumb{ justify-content: flex-end; }
 
 /* --- How large the title is ------------------------------------------------ */
 .page-hero--title-small h1{ font-size: var(--fs-h2); }
@@ -39,36 +44,66 @@
 .page-hero--text-small .lead{ font-size: var(--fs-body); }
 .page-hero--text-large .lead{ font-size: var(--fs-h3); }
 
-/* --- An image behind the header -------------------------------------------- */
-/* The photograph fills the whole band, running up under the fixed site header
-   the way the homepage hero's background layout does, and a veil in the
-   site's own ground colour (--color-media-scrim-rgb, the token for exactly
-   this) keeps the text readable whatever the photograph looks like. The veil
-   dissolves into the page at the bottom, so the block underneath starts on
-   the ground rather than against a hard edge.
+/* --- The trail inside a header --------------------------------------------- */
+/* Only a header with a picture carries its page's trail. The header already
+   keeps the fixed site header clear (.page-hero in core.css), so the trail
+   drops the clearance it has on its own and keeps only its distance to the
+   text underneath. */
+.page-hero .breadcrumb-bar{ padding-top: 0; padding-bottom: var(--sp-3); }
+
+/* --- A picture behind the header ------------------------------------------- */
+/* ONE BAND, TWO LAYERS. The picture is an absolutely placed layer that fills
+   the band, so it takes no room in the flow and nothing in the band is placed
+   by it: the band's height is its height step or its text, whichever is more.
+   Above the layer the band is a column: the trail at the top, right under the
+   fixed site header, then the text, which the auto margins centre in the room
+   that is left. There used to be `justify-content: flex-end` here, which
+   pinned the text to the bottom of a band made tall for the picture: the
+   further the band grew, the further the text sank. That is what moved the
+   content down, and it is gone rather than compensated for.
+
+   The photograph runs up under the fixed site header, the way the homepage
+   hero's background layout does, and a veil in the site's own ground colour
+   (--color-media-scrim-rgb, the token for exactly this) keeps the text
+   readable whatever the photograph looks like. The veil dissolves into the
+   page at the bottom, so the block underneath starts on the ground rather
+   than against a hard edge.
 
    Over a photograph the title keeps to a column, so the veil can follow the
    text: dense behind the intro text, still dense enough behind the large
-   title, and light on the far side, where the picture shows. Measured on a
-   completely white photograph, the small text stays at around 4.5:1 and the
-   title above the 3:1 large text needs. Nobody has to judge contrast, and a
-   per-page line-wrap width on the h1 is narrower still.
+   title, and light on the far side, where the picture shows. The trail sits
+   in the same column as the text. Measured on a completely white photograph
+   with the text centred in the band (Paginakop 2.0): the trail at 7.5:1 or
+   more, the eyebrow and the intro text at 4.5:1 or more, and the title above
+   the 3:1 large text needs. Centring the text moved it out of the dense
+   bottom of the veil, so the middle of the centred veil and of the narrow
+   screen's veil are a little denser than before; the edges are unchanged.
+   Nobody has to judge contrast, and a per-page line-wrap width on the h1 is
+   narrower still.
 
-   The breadcrumb is no longer one of the things the veil has to carry: it
-   sits above the band, on the page's own ground, which is what its colour was
-   made for.
+   THE TOP of the band only has to keep the fixed site header clear, because
+   the trail is inside it now: the header's height and a little air, rather
+   than the larger clearance .page-hero keeps for a title on the bare ground.
+   That is the empty space that used to sit above the picture.
 
-   The band grows with its text; min-height only gives a short header room to
-   show its picture. */
-.page-hero--media{
+   THE HEIGHT is a minimum in three steps. Medium is the height a header with
+   a picture always had; small and large sit one step either side, and small
+   also keeps less room under the text. A long title simply makes the band
+   taller. */
+.page-hero--background{
+  --page-hero-height: clamp(26rem, 55vh, 38rem);
   isolation: isolate;
   display: flex;
   flex-direction: column;
-  justify-content: flex-end;
-  min-height: clamp(26rem, 55vh, 38rem);
+  min-height: var(--page-hero-height);
+  padding-top: clamp(6.5rem, 2vw + 5rem, 7rem);
   padding-bottom: var(--sp-6);
 }
-.page-hero--media h1{ max-width: min(100%, 52rem); }
+.page-hero--background.page-hero--height-small{ --page-hero-height: clamp(20rem, 40vh, 28rem); padding-bottom: var(--sp-5); }
+.page-hero--background.page-hero--height-large{ --page-hero-height: clamp(32rem, 75vh, 48rem); }
+
+.page-hero--background .page-hero__body{ margin-block: auto; }
+.page-hero--background h1{ max-width: min(100%, 52rem); }
 
 .page-hero__media{
   position: absolute;
@@ -118,30 +153,84 @@
       rgba(var(--color-media-scrim-rgb), 0) 26%,
       rgba(var(--color-media-scrim-rgb), 0) 64%,
       rgba(var(--color-media-scrim-rgb), 0.92) 100%),
-    radial-gradient(ellipse 70% 85% at 50% 55%,
-      rgba(var(--color-media-scrim-rgb), 0.76) 0%,
-      rgba(var(--color-media-scrim-rgb), 0.72) 45%,
-      rgba(var(--color-media-scrim-rgb), 0.45) 80%,
-      rgba(var(--color-media-scrim-rgb), 0.25) 100%);
+    radial-gradient(ellipse 70% 85% at 50% 50%,
+      rgba(var(--color-media-scrim-rgb), 0.82) 0%,
+      rgba(var(--color-media-scrim-rgb), 0.8) 45%,
+      rgba(var(--color-media-scrim-rgb), 0.5) 80%,
+      rgba(var(--color-media-scrim-rgb), 0.28) 100%);
+}
+
+/* Over a picture the trail takes the text colour rather than the muted one:
+   the veil behind it is lighter than the page ground it was tuned for. The
+   page you are on keeps the full colour, the links hover in the primary
+   colour as everywhere, and a keyboard focus ring stays the site's own. */
+.page-hero--background .breadcrumb,
+.page-hero--background .breadcrumb a{ color: var(--color-text); }
+.page-hero--background .breadcrumb a:hover{ color: var(--color-primary-bright); }
+.page-hero--background .breadcrumb__separator{ color: var(--color-text-muted); }
+
+/* --- A picture beside the header ------------------------------------------- */
+/* One band with two columns: the text in the wider one (about 58%), the
+   picture in the narrower one (about 42%), both centred on each other. The
+   picture keeps one fixed shape, cropped with object-fit: cover around its
+   focus point, so a short text never gets a giant picture and nothing is
+   ever stretched. The text comes first in the markup either way; left or
+   right only decides which column the picture takes. */
+.page-hero__split{
+  display: grid;
+  grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
+  align-items: center;
+  gap: var(--sp-6);
+}
+.page-hero--image-left .page-hero__split{ grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); }
+.page-hero--image-left .page-hero__figure{ grid-column: 1; grid-row: 1; }
+.page-hero--image-left .page-hero__text{ grid-column: 2; grid-row: 1; }
+
+.page-hero__text{ min-width: 0; }
+.page-hero__figure{
+  margin: 0;
+  aspect-ratio: 4 / 3;
+  max-height: 32rem;
+  overflow: hidden;
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+}
+.page-hero__figure img{
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 /* On a narrow screen the text covers the photograph from edge to edge,
    whichever side it was given, so the veil stops following it: evenly dense
-   behind the text, and deepest at the bottom, where the band meets the page. */
+   behind the text, and deepest at the bottom, where the band meets the page.
+   The three heights shrink with the screen, so even a large header leaves the
+   page below it in view. A picture beside the text goes above it, on both
+   sides alike: one order on a phone, whatever was chosen for a wide screen. */
 @media (max-width: 900px){
-  .page-hero--media{ min-height: clamp(24rem, 70vh, 32rem); padding-bottom: var(--sp-5); }
-  .page-hero--media .page-hero__media::after{
+  .page-hero--background{ --page-hero-height: clamp(24rem, 70vh, 32rem); padding-bottom: var(--sp-5); }
+  .page-hero--background.page-hero--height-small{ --page-hero-height: clamp(18rem, 50vh, 22rem); }
+  .page-hero--background.page-hero--height-large{ --page-hero-height: clamp(26rem, 75vh, 36rem); }
+  .page-hero--background .page-hero__media::after{
     background: linear-gradient(180deg,
-      rgba(var(--color-media-scrim-rgb), 0.62) 0%,
-      rgba(var(--color-media-scrim-rgb), 0.72) 16%,
-      rgba(var(--color-media-scrim-rgb), 0.74) 70%,
+      rgba(var(--color-media-scrim-rgb), 0.66) 0%,
+      rgba(var(--color-media-scrim-rgb), 0.8) 16%,
+      rgba(var(--color-media-scrim-rgb), 0.8) 70%,
       rgba(var(--color-media-scrim-rgb), 0.88) 85%,
       rgba(var(--color-media-scrim-rgb), 0.95) 100%);
   }
+
+  .page-hero__split,
+  .page-hero--image-left .page-hero__split{ grid-template-columns: minmax(0, 1fr); gap: var(--sp-4); }
+  .page-hero__figure,
+  .page-hero--image-left .page-hero__figure{ grid-column: auto; grid-row: auto; order: -1; aspect-ratio: 16 / 10; }
+  .page-hero--image-left .page-hero__text{ grid-column: auto; grid-row: auto; }
 }
 
 /* High-contrast mode replaces the veil but not the photograph, which would
-   leave system-coloured text on an arbitrary picture. The text wins. */
+   leave system-coloured text on an arbitrary picture. The text wins. A
+   picture beside the text has no veil and stays. */
 @media (forced-colors: active){
   .page-hero__media{ display: none; }
 }

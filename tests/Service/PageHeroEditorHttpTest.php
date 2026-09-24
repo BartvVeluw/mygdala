@@ -120,7 +120,7 @@ final class PageHeroEditorHttpTest extends TestCase
         $this->assertSame(PageHeroContent::SIZES, $form['options']['text_size'] ?? null);
 
         $this->assertSame(
-            ['content_position' => 'right', 'title_size' => 'large', 'text_size' => 'small'],
+            ['image_mode' => 'none', 'content_position' => 'right', 'title_size' => 'large', 'text_size' => 'small'],
             $form['selected']
         );
         $this->assertSame((string) $mediaId, $form['values']['media_id'] ?? null, 'the picker carries the chosen item');
@@ -162,12 +162,157 @@ final class PageHeroEditorHttpTest extends TestCase
         $form = $this->editorForm($session);
 
         $this->assertSame(
-            ['content_position' => 'center', 'title_size' => 'large', 'text_size' => 'small'],
-            $form['selected']
+            ['image_mode' => 'none', 'content_position' => 'center', 'title_size' => 'large', 'text_size' => 'small'],
+            $form['selected'],
+            'a request without a place leaves the stored one alone'
         );
         $this->assertSame((string) $mediaId, $form['values']['media_id'] ?? null);
         $this->assertSame('', $form['values']['eyebrow'] ?? null);
         $this->assertSame('nl', $form['values']['language_code'] ?? null, 'the form says which language its words are in');
+    }
+
+    /* ------------------------------------------------------------------ */
+    /* Where the picture goes, its height and its focus                    */
+    /* ------------------------------------------------------------------ */
+
+    public function testTheFormOffersEveryPlaceHeightAndFocusPointWithTheStoredOnesChosen(): void
+    {
+        [$session] = $this->accounts->signIn([AdminPermissions::PAGES_MANAGE]);
+        $this->storeHeader([
+            'media_id' => $this->mediaItem(),
+            'image_mode' => PageHeroContent::IMAGE_BACKGROUND,
+            'hero_height' => PageHeroContent::HEIGHT_LARGE,
+            'image_focus' => 'bottom-right',
+        ]);
+
+        $screen = $this->screen($session);
+
+        $this->assertSame(PageHeroContent::IMAGE_MODES, $this->values($screen, '//select[@name="image_mode"]/option/@value'));
+        $this->assertSame(['background'], $this->values($screen, '//select[@name="image_mode"]/option[@selected]/@value'));
+        $this->assertSame(PageHeroContent::HEIGHTS, $this->values($screen, '//input[@name="hero_height"]/@value'));
+        $this->assertSame(['large'], $this->values($screen, '//input[@name="hero_height"][@checked]/@value'));
+        $this->assertSame(\App\Service\Media\ImageFocus::keys(), $this->values($screen, '//input[@name="image_focus"]/@value'));
+        $this->assertSame(['bottom-right'], $this->values($screen, '//input[@name="image_focus"][@checked]/@value'));
+        $this->assertSame(
+            ['object-position: 100% 100%'],
+            $this->values($screen, '//img[@data-image-focus-preview]/@style'),
+            'the preview crops the way the website does'
+        );
+
+        // Behind the text: the height and the focus show, the alt text and the
+        // note for a picture beside the text do not.
+        $this->assertFalse($this->hidden($screen, self::partOf('input[@name="hero_height"]')));
+        $this->assertFalse($this->hidden($screen, '//fieldset[@data-image-focus]'));
+        $this->assertTrue($this->hidden($screen, self::partOf('input[@name="image_alt"]')));
+        $this->assertFalse($this->hidden($screen, self::partOf('*[@data-media-picker]')));
+    }
+
+    public function testBesideTheTextTheFormShowsTheAltTextFilledWithTheLibrarysAndNoHeight(): void
+    {
+        [$session] = $this->accounts->signIn([AdminPermissions::PAGES_MANAGE]);
+        $this->storeHeader(['media_id' => $this->mediaItem(), 'image_mode' => PageHeroContent::IMAGE_LEFT]);
+
+        $screen = $this->screen($session);
+
+        $this->assertTrue($this->hidden($screen, self::partOf('input[@name="hero_height"]')));
+        $this->assertFalse($this->hidden($screen, self::partOf('input[@name="image_alt"]')));
+        $this->assertSame(['Werkplaats'], $this->values($screen, '//input[@name="image_alt"]/@value'), 'the alt text this picture really gets');
+        $this->assertSame(['media_id'], $this->values($screen, '//input[@name="image_alt"]/@data-media-alt-for'));
+    }
+
+    public function testWithoutAPlaceOnlyThePlaceIsShown(): void
+    {
+        [$session] = $this->accounts->signIn([AdminPermissions::PAGES_MANAGE]);
+        $this->storeHeader(['image_mode' => PageHeroContent::IMAGE_NONE]);
+
+        $screen = $this->screen($session);
+
+        $this->assertTrue($this->hidden($screen, self::partOf('*[@data-media-picker]')), 'no picker for a header without a picture');
+        $this->assertSame(1, $screen->query('//script[contains(@src, "/admin/assets/page-hero.js")]')->length);
+        $this->assertSame(1, $screen->query('//script[contains(@src, "/admin/assets/image-focus.js")]')->length);
+    }
+
+    public function testASaveStoresThePlaceTheHeightAndTheFocusPoint(): void
+    {
+        [$session, $csrf] = $this->accounts->signIn([AdminPermissions::PAGES_MANAGE]);
+        $mediaId = $this->mediaItem();
+
+        $response = $this->post($session, $csrf, [
+            'media_id' => (string) $mediaId,
+            'image_mode' => PageHeroContent::IMAGE_RIGHT,
+            'hero_height' => PageHeroContent::HEIGHT_SMALL,
+            'image_focus' => 'top-left',
+        ]);
+
+        $this->assertStringEndsWith('&saved=1', $response['location']);
+        $row = $this->storedHeader();
+        $this->assertSame([$mediaId, 'right', 'small', 'top-left'], [(int) $row['media_id'], $row['image_mode'], $row['hero_height'], $row['image_focus']]);
+    }
+
+    public function testChoosingNoPictureLetsTheChosenOneGo(): void
+    {
+        [$session, $csrf] = $this->accounts->signIn([AdminPermissions::PAGES_MANAGE]);
+        $mediaId = $this->mediaItem();
+        $this->storeHeader(['media_id' => $mediaId, 'image_mode' => PageHeroContent::IMAGE_RIGHT]);
+        $this->post($session, $csrf, ['media_id' => (string) $mediaId, 'image_mode' => PageHeroContent::IMAGE_RIGHT, 'image_alt' => 'Een eigen tekst']);
+        $this->assertSame('Een eigen tekst', $this->storedHeader()['words']['nl']['image_alt'] ?? null);
+
+        // The hidden picker still posts its id, and the hidden alt field the
+        // library's text.
+        $response = $this->post($session, $csrf, ['media_id' => (string) $mediaId, 'image_mode' => PageHeroContent::IMAGE_NONE, 'image_alt' => 'Werkplaats']);
+
+        $this->assertStringEndsWith('&saved=1', $response['location']);
+        $row = $this->storedHeader();
+        $this->assertSame('none', $row['image_mode']);
+        $this->assertNull($row['media_id'], 'no invisible reference that keeps the item "in use"');
+        $this->assertArrayNotHasKey('image_alt', $row['words']['nl'], 'no alt text of a picture that is gone, to stick to the next one');
+
+        MediaService::clearCache();
+        $this->assertNotNull(MediaService::find($mediaId), 'the library item stays');
+    }
+
+    public function testAnUnknownFocusPointIsTheMiddle(): void
+    {
+        [$session, $csrf] = $this->accounts->signIn([AdminPermissions::PAGES_MANAGE]);
+
+        $response = $this->post($session, $csrf, ['image_mode' => PageHeroContent::IMAGE_BACKGROUND, 'image_focus' => '10% 20%']);
+
+        $this->assertStringEndsWith('&saved=1', $response['location']);
+        $this->assertSame('center', $this->storedHeader()['image_focus']);
+    }
+
+    public function testAFormWithoutTheNewChoicesLeavesThemAlone(): void
+    {
+        [$session, $csrf] = $this->accounts->signIn([AdminPermissions::PAGES_MANAGE]);
+        $mediaId = $this->mediaItem();
+        $this->storeHeader([
+            'media_id' => $mediaId,
+            'image_mode' => PageHeroContent::IMAGE_LEFT,
+            'hero_height' => PageHeroContent::HEIGHT_LARGE,
+            'image_focus' => 'top',
+        ]);
+
+        // post() sends what the form sent before these choices existed.
+        $response = $this->post($session, $csrf, ['media_id' => (string) $mediaId]);
+
+        $this->assertStringEndsWith('&saved=1', $response['location']);
+        $row = $this->storedHeader();
+        $this->assertSame(['left', 'large', 'top'], [$row['image_mode'], $row['hero_height'], $row['image_focus']]);
+    }
+
+    public function testAnAltTextThatIsOnlyTheLibrarysIsStoredAsInheritedAndAnOwnOneAsItsOwn(): void
+    {
+        [$session, $csrf] = $this->accounts->signIn([AdminPermissions::PAGES_MANAGE]);
+        $mediaId = $this->mediaItem();
+
+        $this->post($session, $csrf, ['media_id' => (string) $mediaId, 'image_mode' => PageHeroContent::IMAGE_RIGHT, 'image_alt' => 'Werkplaats']);
+        $this->assertArrayNotHasKey('image_alt', $this->storedHeader()['words']['nl'], 'seeing the library\'s text is not choosing it');
+
+        $this->post($session, $csrf, ['media_id' => (string) $mediaId, 'image_mode' => PageHeroContent::IMAGE_RIGHT, 'image_alt' => 'Plankjes op de werkbank']);
+        $this->assertSame('Plankjes op de werkbank', $this->storedHeader()['words']['nl']['image_alt'] ?? null);
+
+        PageHeroContent::clearCache();
+        $this->assertSame('Plankjes op de werkbank', PageHeroContent::forSlug(self::TEST_PAGE)['image_alt'], 'and it is what the website prints beside the text');
     }
 
     public function testRemovingTheImageClearsOnlyTheReference(): void
@@ -225,6 +370,10 @@ final class PageHeroEditorHttpTest extends TestCase
     {
         return [
             'an unknown position' => ['content_position', 'diagonal'],
+            'an unknown place for the picture' => ['image_mode', 'diagonal'],
+            'no place at all' => ['image_mode', ''],
+            'a length as a height' => ['hero_height', '900px'],
+            'the old default word as a height' => ['hero_height', 'normal'],
             'no position at all' => ['content_position', ''],
             'a length as a title size' => ['title_size', '96px'],
             'CSS as a text size' => ['text_size', 'normal; color: red'],
@@ -336,6 +485,49 @@ final class PageHeroEditorHttpTest extends TestCase
         }
 
         return $form;
+    }
+
+    /** The editor as a document, read from the real screen. */
+    private function screen(string $session): \DOMXPath
+    {
+        $response = self::$server->request('GET', '/admin/page-hero.php?slug=' . rawurlencode(self::TEST_PAGE), $session);
+        $this->assertSame(200, $response['status'], 'the editor opens');
+
+        $document = new \DOMDocument();
+        $previous = libxml_use_internal_errors(true);
+        $document->loadHTML('<?xml encoding="UTF-8">' . $response['body']);
+        libxml_clear_errors();
+        libxml_use_internal_errors($previous);
+
+        return new \DOMXPath($document);
+    }
+
+    /** @return list<string> */
+    private function values(\DOMXPath $screen, string $query): array
+    {
+        $values = [];
+        foreach ($screen->query($query) as $node) {
+            $values[] = (string) $node->nodeValue;
+        }
+
+        return $values;
+    }
+
+    /** The nearest conditional part (data-page-hero-part) around an element. */
+    private static function partOf(string $element): string
+    {
+        return '//' . $element . '/ancestor::*[@data-page-hero-part][1]';
+    }
+
+    /** Whether the one element the query names is printed hidden. */
+    private function hidden(\DOMXPath $screen, string $query): bool
+    {
+        $nodes = $screen->query($query);
+        $this->assertSame(1, $nodes->length, $query);
+        $node = $nodes->item(0);
+        $this->assertInstanceOf(\DOMElement::class, $node);
+
+        return $node->hasAttribute('hidden');
     }
 
     /** @param array<string, mixed> $overrides */

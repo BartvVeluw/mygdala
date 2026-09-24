@@ -119,11 +119,13 @@ final class RemainingBlocksRenderingTest extends TestCase
             'en' => ['title' => '"><svg onload=alert(1)>'],
         ]);
 
-        $dutch = $this->pageHero('nl', ['image_path' => '/assets/media/x.webp', 'image_alt' => 'Foto "met" <b>markup</b>']);
+        // Beside the text, where the picture is content and carries its alt
+        // text; behind the text it is decoration and has none.
+        $dutch = $this->pageHero('nl', ['image_path' => '/assets/media/x.webp', 'image_alt' => 'Foto "met" <b>markup</b>', 'image_mode' => 'right']);
         self::assertStringContainsString('&lt;script&gt;alert(1)&lt;/script&gt; &amp; &quot;kop&quot;</h1>', $dutch);
         self::assertStringContainsString('alt="Foto &quot;met&quot; &lt;b&gt;markup&lt;/b&gt;"', $dutch, 'alt text stays in its attribute, escaped');
 
-        $english = $this->pageHero('en', ['image_path' => '/assets/media/x.webp', 'image_alt' => "Photo ' quote"]);
+        $english = $this->pageHero('en', ['image_path' => '/assets/media/x.webp', 'image_alt' => "Photo ' quote", 'image_mode' => 'right']);
         self::assertStringContainsString('&quot;&gt;&lt;svg onload=alert(1)&gt;</h1>', $english);
         self::assertStringContainsString('alt="Photo &#039; quote"', $english);
 
@@ -604,7 +606,9 @@ final class RemainingBlocksRenderingTest extends TestCase
             ? BlockLocalization::words('page_heroes', self::ID)
             : BlockLocalization::words('page_heroes', 0);
 
-        $content = $words + $image + [
+        // The image's own keys first: its alt text replaces the header's
+        // own `image_alt` word, as PageHeroContent::forSlug() layers them.
+        $content = $image + $words + [
             'state' => 'active',
             'media_id' => null,
             'image_path' => '',

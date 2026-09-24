@@ -22,8 +22,10 @@ use PHPUnit\Framework\TestCase;
  * - A header nobody gave a choice prints the markup it always printed, so an
  *   existing installation looks the same after the migration.
  * - An empty eyebrow or intro text leaves no element behind.
- * - The image comes from the Media Library with its alt text and its size,
- *   and an item without alt text is marked decorative.
+ * - The image comes from the Media Library with its size. Behind the text it
+ *   is decoration (`alt=""`); beside the text an item without alt text is
+ *   marked decorative. Where the picture goes, its height and its focus are
+ *   Tests\Service\PageHeroImageModeTest's.
  * - Each text position and each size is exactly one modifier class and a
  *   default is none; every class the partial can print is styled by the
  *   block's own stylesheet, in steps of the type scale.
@@ -170,20 +172,21 @@ final class PageHeroHeaderTest extends TestCase
     /* The image comes from the library                                    */
     /* ------------------------------------------------------------------ */
 
-    public function testALibraryImageSitsBehindTheTextWithItsAltTextAndSize(): void
+    public function testALibraryImageSitsBehindTheTextAsDecorationWithItsSize(): void
     {
         $mediaId = $this->mediaItem('assets/media/__page_hero_header__.webp', 'Werkbank met houten plankjes', 1600, 900);
-        $this->store(['media_id' => $mediaId]);
+        $this->store(['media_id' => $mediaId, 'image_mode' => PageHeroContent::IMAGE_BACKGROUND]);
 
         $html = $this->render();
 
-        $this->assertContains('page-hero--media', $this->sectionClasses($html));
+        $this->assertContains('page-hero--background', $this->sectionClasses($html));
         $this->assertMatchesRegularExpression(
-            '#<div class="page-hero__media">\s*<img src="/assets/media/__page_hero_header__\.webp" alt="Werkbank met houten plankjes"[^>]* width="1600" height="900" loading="eager"#',
-            $html
+            '#<div class="page-hero__media">\s*<img src="/assets/media/__page_hero_header__\.webp" alt="" width="1600" height="900" loading="eager"#',
+            $html,
+            'behind the text the picture sets the mood: the header\'s words say what the page is'
         );
         $this->assertLessThan(
-            strpos($html, '<div class="container">'),
+            strpos($html, '<div class="container page-hero__body">'),
             strpos($html, 'page-hero__media'),
             'the image comes before the text, so the text is drawn over it'
         );
@@ -192,18 +195,19 @@ final class PageHeroHeaderTest extends TestCase
     public function testAnImageWithoutAltTextIsMarkedDecorative(): void
     {
         $mediaId = $this->mediaItem('assets/media/__page_hero_mood__.webp', '', 1600, 900);
-        $this->store(['media_id' => $mediaId]);
+        $this->store(['media_id' => $mediaId, 'image_mode' => PageHeroContent::IMAGE_LEFT]);
 
         $this->assertMatchesRegularExpression(
             '#<img src="/assets/media/__page_hero_mood__\.webp" alt=""#',
-            $this->render()
+            $this->render(),
+            'beside the text, where a picture with alt text would carry it'
         );
     }
 
     public function testAnImageOfUnknownSizePrintsNoSizeAttributes(): void
     {
         $mediaId = $this->mediaItem('assets/media/__page_hero_unknown_size__.webp', 'Foto', null, null);
-        $this->store(['media_id' => $mediaId]);
+        $this->store(['media_id' => $mediaId, 'image_mode' => PageHeroContent::IMAGE_BACKGROUND]);
 
         $html = $this->render();
 
@@ -221,7 +225,7 @@ final class PageHeroHeaderTest extends TestCase
 
         $html = $this->render();
 
-        $this->assertNotContains('page-hero--media', $this->sectionClasses($html));
+        $this->assertNotContains('page-hero--background', $this->sectionClasses($html));
         $this->assertStringNotContainsString('<img', $html);
     }
 
@@ -300,7 +304,7 @@ final class PageHeroHeaderTest extends TestCase
         $this->assertNotNull($definition);
         $this->assertSame(['assets/css/blocks/page-hero.css'], $definition->styles());
 
-        $printed = ['page-hero--media', 'page-hero__media'];
+        $printed = ['page-hero--background', 'page-hero__media'];
         foreach (self::choices() as [, , $modifiers]) {
             array_push($printed, ...$modifiers);
         }

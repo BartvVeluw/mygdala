@@ -67,8 +67,7 @@ require __DIR__ . '/partials/header.php';
   <?php if ($page === null): ?>
     <?php render_page_not_found(); ?>
   <?php else: ?>
-    <?php render_breadcrumb(\App\Service\Breadcrumbs\PageBreadcrumb::forPage($page)); ?>
-    <?php \App\Service\SectionRegistry::renderPage('portfolio'); ?>
+    <?php \App\Service\SectionRegistry::renderPage('portfolio', \App\Service\Breadcrumbs\PageBreadcrumb::forPage($page)); ?>
   <?php endif; ?>
 
 </main>

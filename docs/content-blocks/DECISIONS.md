@@ -235,6 +235,8 @@ Reden, per keuze:
   gebruikt). Zo betekent de positie van de tekst met en zonder beeld hetzelfde. Een
   beeld náást de tekst had bij *Midden* een tweede lay-out nodig gehad, en de
   redacteur een extra keuze.
+
+  *Later:* Paginakop 2.0 maakte die extra keuze toch, zie hieronder.
 - **Geen video.** De bibliotheek neemt alleen afbeeldingen aan
   (`App\Service\Media\MediaType`). De enige video in dit project is die van de
   homepage-hero: een eigen upload naar `assets/videos/sections/`, naast een apart
@@ -277,6 +279,65 @@ Multilingual 2.0 fase 3B heeft ze gedropt (`20260917180000`).
 
 Wat bewust níet meebewoog: er komt geen `BreadcrumbList`-JSON-LD bij
 (`SEO.md`), en de Paginakop is verder ongemoeid gebleven.
+
+## Paginakop 2.0: waar het beeld staat, hoe hoog de band is, en het pad erin
+
+Drie klachten over de kop met een foto: de tekst zakte naar beneden, de
+hoogte lag vast, en boven de foto stond een lege balk met alleen het
+kruimelpad. Daarbij de wens om het beeld ook naast de tekst te kunnen zetten.
+
+**De oorzaak van het zakken.** `.page-hero--media` was een flexkolom met
+`justify-content: flex-end` en een `min-height` van ongeveer 55vh: de tekst
+werd dus naar de onderkant van een band geduwd die hoog gemaakt was voor de
+foto. Hoe hoger de band, hoe lager de tekst. Dat is weggehaald in plaats van
+gecompenseerd. De foto was al een absoluut geplaatste laag (`inset: 0`,
+`z-index: -1`) en duwde zelf niets; nu centreren automatische marges
+(`margin-block: auto`) de tekst in de ruimte die de band overlaat. Geen
+negatieve marges.
+
+**De lege ruimte erboven** kwam uit 5B: het kruimelpad stond sindsdien in een
+eigen balk vóór de kop, en die balk droeg de hele vrije ruimte voor de vaste
+siteheader, op de kale grond. Nu neemt de eerste Paginakop met een beeld het
+pad op (`App\Service\Blocks\CarriesBreadcrumb`, gevraagd door
+`SectionRegistry::renderPage()`), en de band begint bovenaan de pagina met
+alleen de hoogte van de siteheader plus wat lucht erboven. Dat verandert de
+afspraak van 5B niet: het pad blijft van de pagina, met de schakelaar van de
+pagina, en elke pagina zonder zo'n kop houdt het op zijn oude plek. Een
+optionele interface in plaats van een nieuwe methode op `BlockDefinition`,
+omdat maar één blok dit ooit doet en die klasse alleen abstracte methodes
+heeft.
+
+**De keuzes**, gesloten lijsten zoals die van 5A (`PageHeroContent`):
+
+- `image_mode`: `none`, `background`, `left`, `right`. Een bestaande kop met een
+  foto werd `background` (migratie `20260924120000`), nooit stil `left`/`right`.
+  *Geen afbeelding* maakt ook de verwijzing leeg, zodat de bibliotheek het item
+  niet als gebruikt meldt voor een beeld dat nergens staat.
+- `hero_height`: `small`, `medium`, `large`, alleen bij een achtergrond, als
+  minimale hoogte (een lange titel maakt de band hoger). `medium` is precies
+  de oude hoogte; op een smal scherm zijn alle drie lager, zodat groot geen
+  heel scherm vult. De maten staan als `clamp()` in `page-hero.css`, nooit in
+  de database.
+- `image_focus`: de bestaande negen punten van `App\Service\Media\ImageFocus`
+  (de Kaarten-carrousel), als `object-position`. Geen tweede helper.
+
+**Naast de tekst** is één vaste verhouding (tekst ongeveer 58%, beeld 42%, in
+een kader van 4:3 met `object-fit: cover`) zonder breedtekeuze. De tekst
+staat in de markup altijd eerst, zodat de leesvolgorde niet van een
+lay-outkeuze afhangt; op een smal scherm staat het beeld links én rechts
+boven de tekst, één volgorde op een telefoon.
+
+**Alt-tekst.** Een beeld achter de tekst is versiering (`alt=""`); de woorden
+van de kop zeggen al waar de pagina over gaat. Een beeld naast de tekst is
+inhoud en krijgt de gewone gelaagde alt-tekst (`MEDIA.md`), dus kreeg de
+Paginakop alsnog een eigen `image_alt` als woord in `block_translations`.
+
+**De waas.** Gecentreerde tekst staat hoger dan onderaan vastgezette tekst,
+dus buiten het donkerste deel van de waas. Gemeten op een volledig witte foto
+zakte het bovenschrift op een telefoon naar 3,7:1; het midden van de waas op
+een smal scherm en van de gecentreerde waas is daarom iets dichter gemaakt
+(randen ongewijzigd). Gemeten na de wijziging: kruimelpad 7,5:1 of meer,
+bovenschrift en inleiding 4,5:1 of meer, titel ruim boven 3:1.
 
 ## Leeg is leeg: bovenlabel, kaarttitel en carrouselnummer (UX-polijstfase)
 

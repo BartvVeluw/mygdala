@@ -117,8 +117,7 @@ require __DIR__ . '/partials/header.php';
 <main id="main">
 
 <?php if ($page !== null): ?>
-  <?php render_breadcrumb(\App\Service\Breadcrumbs\PageBreadcrumb::forPage($page)); ?>
-  <?php \App\Service\SectionRegistry::renderPage('shop'); ?>
+  <?php \App\Service\SectionRegistry::renderPage('shop', \App\Service\Breadcrumbs\PageBreadcrumb::forPage($page)); ?>
 <?php else: ?>
   <?php /* No `pages` row, so there is no page title to name and no switch to
            read: the storefront is named by its own route, which is also what

@@ -98,14 +98,16 @@ require __DIR__ . '/partials/page-assets.php';
   <?php render_page_not_found(); ?>
 <?php else: ?>
   <?php
-    // Where the visitor is, before the page's own content and independent of
-    // it: a page whose header is hidden or missing still says where it sits
-    // (App\Service\Breadcrumbs\PageBreadcrumb).
-    render_breadcrumb(\App\Service\Breadcrumbs\PageBreadcrumb::forPage($page));
-
     // The page's whole body is its one ordered list of content blocks,
-    // exactly like every other CMS page.
-    \App\Service\SectionRegistry::renderPage((string) $page['content_key']);
+    // exactly like every other CMS page, and its trail comes along: where the
+    // visitor is, independent of the content, so a page whose header is
+    // hidden or missing still says where it sits
+    // (App\Service\Breadcrumbs\PageBreadcrumb). renderPage() prints it once:
+    // inside a first header with a picture, else before the first block.
+    \App\Service\SectionRegistry::renderPage(
+        (string) $page['content_key'],
+        \App\Service\Breadcrumbs\PageBreadcrumb::forPage($page)
+    );
   ?>
 <?php endif; ?>
 

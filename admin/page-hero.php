@@ -3,16 +3,23 @@
 declare(strict_types=1);
 
 /**
- * The Paginakop editor for one page: its texts, the image behind them and
- * three presentation choices, in one form to api/admin/update-page-hero.php.
+ * The Paginakop editor for one page: its texts, its picture and its
+ * presentation choices, in one form to api/admin/update-page-hero.php.
  *
  * Three groups — Inhoud, Afbeelding, Vormgeving — inside that one form, the
  * way admin/project-cards.php groups its settings, so the save bar watches one
  * form and one save stores everything. The image comes from the shared media
- * picker (MEDIA.md), and each choice is a select whose options are
- * PageHeroContent's closed list, so the form cannot send a value the endpoint
- * refuses. Nothing is shown conditionally: every choice applies with and
- * without an image.
+ * picker (MEDIA.md), and each choice offers exactly PageHeroContent's closed
+ * list, so the form cannot send a value the endpoint refuses.
+ *
+ * THE AFBEELDING GROUP IS CONDITIONAL, and only it. "Afbeeldingsweergave"
+ * decides which of its parts matter: the picker for any place of the picture,
+ * the height for a picture behind the text, the alt text and a short note for
+ * a picture beside it, the focus point for both. admin/assets/page-hero.js
+ * shows exactly those at once, and the server prints the same `hidden`, so
+ * the form looks the same after a reload and without the script. A hidden
+ * part still posts its value; the endpoint decides what it means. The
+ * choices in Vormgeving apply with and without a picture and are always shown.
  *
  * ONE WEBSITE LANGUAGE AT A TIME (Multilingual 2.0, admin/_localized_fields.php):
  * the eyebrow, title and lead show the language chosen in the CMS shell, as
@@ -33,6 +40,7 @@ require_once __DIR__ . '/_media_picker.php';
 use App\Service\AdminAuth;
 use App\Service\Blocks\BlockLocalization;
 use App\Service\Csrf;
+use App\Service\Media\ImageFocus;
 use App\Service\Media\MediaService;
 use App\Service\PageHeroContent;
 use App\Repository\PageHeroRepository;
@@ -82,6 +90,9 @@ if ($old !== null) {
         'content_position' => (string) ($row['content_position'] ?? PageHeroContent::POSITION_LEFT),
         'title_size' => (string) ($row['title_size'] ?? PageHeroContent::SIZE_NORMAL),
         'text_size' => (string) ($row['text_size'] ?? PageHeroContent::SIZE_NORMAL),
+        'image_mode' => (string) ($row['image_mode'] ?? PageHeroContent::IMAGE_NONE),
+        'hero_height' => (string) ($row['hero_height'] ?? PageHeroContent::HEIGHT_MEDIUM),
+        'image_focus' => (string) ($row['image_focus'] ?? ImageFocus::DEFAULT),
         'is_active' => (bool) $row['is_active'],
     ];
 } else {
@@ -127,6 +138,47 @@ $sizeLabels = [
     PageHeroContent::SIZE_NORMAL => admin_t('block_pagehero.size_normal'),
     PageHeroContent::SIZE_LARGE => admin_t('block_pagehero.size_large'),
 ];
+
+$imageModeLabels = [
+    PageHeroContent::IMAGE_NONE => admin_t('block_pagehero.image_mode_none'),
+    PageHeroContent::IMAGE_BACKGROUND => admin_t('block_pagehero.image_mode_background'),
+    PageHeroContent::IMAGE_LEFT => admin_t('block_pagehero.image_mode_left'),
+    PageHeroContent::IMAGE_RIGHT => admin_t('block_pagehero.image_mode_right'),
+];
+
+$heightLabels = [
+    PageHeroContent::HEIGHT_SMALL => admin_t('block_pagehero.height_small'),
+    PageHeroContent::HEIGHT_MEDIUM => admin_t('block_pagehero.height_medium'),
+    PageHeroContent::HEIGHT_LARGE => admin_t('block_pagehero.height_large'),
+];
+
+// The picture and its choices, each read back as one of its closed list, so
+// a hand-edited row cannot select nothing.
+$heroMedia = MediaService::find(isset($values['media_id']) && $values['media_id'] !== null ? (int) $values['media_id'] : null);
+$imageMode = in_array($values['image_mode'] ?? null, PageHeroContent::IMAGE_MODES, true) ? (string) $values['image_mode'] : PageHeroContent::IMAGE_NONE;
+$heroHeight = in_array($values['hero_height'] ?? null, PageHeroContent::HEIGHTS, true) ? (string) $values['hero_height'] : PageHeroContent::HEIGHT_MEDIUM;
+$imageFocus = ImageFocus::normalise($values['image_focus'] ?? null);
+$isBeside = in_array($imageMode, [PageHeroContent::IMAGE_LEFT, PageHeroContent::IMAGE_RIGHT], true);
+
+// The alt text this picture really gets beside the text: its own, else the
+// library's, filled in and linked to the picker (media_alt_field()).
+$heroAlt = media_alt_field('media_id', $word('image_alt'), $heroMedia, $placeholder);
+
+// The shape of the focus preview for each place, so it crops the way the
+// website does. A band behind the text is wide, and wider the lower it is
+// (page-hero.css in a 1280 x 900 window: about 1280 x 360, 495 and 675); a
+// picture beside the text has its own fixed 4:3 frame. page-hero.js switches
+// between them with the place and the height.
+$frameShapes = [
+    PageHeroContent::HEIGHT_SMALL => '32 / 9',
+    PageHeroContent::HEIGHT_MEDIUM => '23 / 9',
+    PageHeroContent::HEIGHT_LARGE => '17 / 9',
+    'beside' => '4 / 3',
+];
+$frameShapeAttributes = ' style="aspect-ratio: ' . $h($frameShapes[$isBeside ? 'beside' : $heroHeight]) . ';"';
+foreach ($frameShapes as $shapeKey => $shape) {
+    $frameShapeAttributes .= ' data-shape-' . $h($shapeKey) . '="' . $h($shape) . '"';
+}
 
 /**
  * The <option>s of one choice, with the current value selected.
@@ -207,12 +259,73 @@ function pageHeroOptions(array $labels, string $current): string
 
       <h2 style="margin-top:2rem;"><?= admin_te('block_pagehero.group_image') ?></h2>
 
-      <?php media_picker_field(
-          'media_id',
-          MediaService::find(isset($values['media_id']) ? (int) $values['media_id'] : null),
-          admin_t('block_pagehero.image'),
-          admin_t('block_pagehero.image_help')
-      ); ?>
+      <div class="admin-field">
+        <?= admin_field_label('page-hero-image-mode', admin_t('block_pagehero.image_mode'), admin_t('help.page_hero.image_mode')) ?>
+        <select class="admin-select" id="page-hero-image-mode" name="image_mode" data-page-hero-image-mode>
+          <?= pageHeroOptions($imageModeLabels, $imageMode) ?>
+        </select>
+      </div>
+
+      <?php /* Everything below belongs to one place of the picture or more,
+               named in data-page-hero-part; admin/assets/page-hero.js shows
+               exactly the parts of the chosen place, and the parts that need
+               a chosen picture (data-page-hero-needs-image) only once there
+               is one. The server prints the same `hidden`, so a reload shows
+               the same form, and the one form always posts everything: the
+               endpoint decides what a value means for the chosen place. */ ?>
+      <div data-page-hero-part="background left right"<?= $imageMode === PageHeroContent::IMAGE_NONE ? ' hidden' : '' ?>>
+        <?php media_picker_field(
+            'media_id',
+            $heroMedia,
+            admin_t('block_pagehero.image'),
+            admin_t('block_pagehero.image_help')
+        ); ?>
+
+        <p class="admin-text-muted" data-page-hero-part="left right"<?= $isBeside ? '' : ' hidden' ?>><?= admin_te('block_pagehero.side_note') ?></p>
+
+        <div class="admin-field" data-page-hero-part="left right" data-page-hero-needs-image<?= $isBeside && $heroMedia !== null ? '' : ' hidden' ?>>
+          <?= admin_field_label('page-hero-image-alt', admin_t('common.alt_text'), admin_t('help.page_hero.image_alt')) ?>
+          <input type="text" id="page-hero-image-alt" name="image_alt" maxlength="255" value="<?= $h($heroAlt['value']) ?>"<?= $heroAlt['attributes'] ?>>
+        </div>
+
+        <div class="admin-form-row" data-page-hero-part="background" data-page-hero-needs-image<?= $imageMode === PageHeroContent::IMAGE_BACKGROUND && $heroMedia !== null ? '' : ' hidden' ?>>
+          <span class="admin-form-row__label" id="page-hero-height-label"><?= admin_te('block_pagehero.hero_height') ?> <?= admin_help(admin_t('block_pagehero.hero_height'), admin_t('help.page_hero.hero_height')) ?></span>
+          <div class="admin-segmented" role="radiogroup" aria-labelledby="page-hero-height-label">
+            <?php foreach ($heightLabels as $height => $heightLabel): ?>
+              <label class="admin-segmented__option">
+                <input type="radio" name="hero_height" value="<?= $h($height) ?>"<?= $heroHeight === $height ? ' checked' : '' ?>>
+                <span><?= $h($heightLabel) ?></span>
+              </label>
+            <?php endforeach; ?>
+          </div>
+        </div>
+
+        <?php /* The focus point, and a preview in the header's own shape: the
+                 same object-fit: cover and the same object-position as the
+                 website (ImageFocus), kept in step by admin/assets/image-focus.js,
+                 the carousel card's script. page-hero.js gives the frame the
+                 shape of the chosen place. */ ?>
+        <fieldset class="admin-image-focus" data-image-focus data-page-hero-needs-image<?= $heroMedia !== null ? '' : ' hidden' ?>>
+          <legend><?= admin_te('block_pagehero.focus') ?> <?= admin_help(admin_t('block_pagehero.focus'), admin_t('help.page_hero.focus')) ?></legend>
+          <div class="admin-image-focus__body">
+            <div class="admin-image-focus__grid">
+              <?php foreach (ImageFocus::keys() as $focusKey): ?>
+                <label class="admin-image-focus__point" title="<?= admin_te('media.focus.' . $focusKey) ?>">
+                  <input type="radio" name="image_focus" value="<?= $h($focusKey) ?>" data-object-position="<?= $h(ImageFocus::objectPosition($focusKey)) ?>"<?= $imageFocus === $focusKey ? ' checked' : '' ?>>
+                  <span class="admin-visually-hidden"><?= admin_te('media.focus.' . $focusKey) ?></span>
+                </label>
+              <?php endforeach; ?>
+            </div>
+            <figure class="admin-image-focus__preview">
+              <?php $focusSrc = $heroMedia !== null ? $heroMedia->displayPath() : ''; ?>
+              <div class="admin-image-focus__frame" data-image-focus-frame data-page-hero-focus-frame<?= $focusSrc === '' ? ' hidden' : '' ?><?= $frameShapeAttributes ?>>
+                <img src="<?= $h($focusSrc) ?>" alt="" style="object-position: <?= $h(ImageFocus::objectPosition($imageFocus)) ?>" data-image-focus-preview>
+              </div>
+              <figcaption class="admin-text-muted"><?= admin_te('block_pagehero.focus_voorbeeld') ?></figcaption>
+            </figure>
+          </div>
+        </fieldset>
+      </div>
 
       <h2 style="margin-top:2rem;"><?= admin_te('block_pagehero.group_layout') ?></h2>
 
@@ -254,5 +367,7 @@ function pageHeroOptions(array $labels, string $current): string
 <?php save_bar(); ?>
 <?php save_bar_script(); ?>
 <?php media_picker_script(); ?>
+<script src="<?= \App\Service\AssetVersion::url('/admin/assets/image-focus.js') ?>" defer></script>
+<script src="<?= \App\Service\AssetVersion::url('/admin/assets/page-hero.js') ?>" defer></script>
 </body>
 </html>
