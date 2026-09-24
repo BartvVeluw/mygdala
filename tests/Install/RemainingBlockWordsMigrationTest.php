@@ -171,7 +171,11 @@ final class RemainingBlockWordsMigrationTest extends TestCase
             'paragraphs' => self::childWords('text_image_split_paragraphs', 'text_image_split_id', 'text_image_splits', 'zz-split'),
             'images' => self::childWords('text_image_split_images', 'text_image_split_id', 'text_image_splits', 'zz-split'),
         ];
-        foreach (['text_image_split_paragraphs', 'text_image_split_images'] as $table) {
+        // The contact block's rows as wave C left them, too: a later
+        // migration (20260925100000, Forms 2.0 phase 2) turns its
+        // allow_attachment switch into an upload field and the switch off;
+        // its own test is Tests\Install\FormFileUploadMigrationTest.
+        foreach (['text_image_split_paragraphs', 'text_image_split_images', 'contact_form_sections'] as $table) {
             self::$textImageAfterWaveC['neutral'][$table] = self::$upgraded->rows('SELECT ' . self::NEUTRAL_COLUMNS[$table] . " FROM {$table} ORDER BY id");
         }
         self::$upgraded->catchUp();
