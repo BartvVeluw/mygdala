@@ -44,8 +44,12 @@ created_at, updated_at
 
 Er zijn **geen** mappen, tags, EXIF, focuspunt of transformaties. Zie
 "Bewust niet gebouwd" onderaan. Een focuspunt bestaat alleen op de plek die
-een beeld toont (een carrouselkaart, een item van Tekst met afbeelding:
-`App\Service\Media\ImageFocus`), nooit op het item in de bibliotheek.
+een beeld toont (een carrouselkaart, een item van Tekst met afbeelding, de
+Paginakop), nooit op het item in de bibliotheek. Alle drie gebruiken dezelfde
+negen punten (`App\Service\Media\ImageFocus`) en hetzelfde veld in de editor
+(`media_focus_field()` in `admin/_image_focus.php`, met
+`admin/assets/image-focus.js`); elk scherm geeft het voorbeeld alleen de vorm
+van zijn eigen plek (`--admin-focus-frame-ratio`).
 
 ## Waar de bestanden staan
 

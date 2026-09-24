@@ -319,7 +319,8 @@ heeft.
   heel scherm vult. De maten staan als `clamp()` in `page-hero.css`, nooit in
   de database.
 - `image_focus`: de bestaande negen punten van `App\Service\Media\ImageFocus`
-  (de Kaarten-carrousel), als `object-position`. Geen tweede helper.
+  (de Kaarten-carrousel en Tekst met afbeelding), als `object-position`, met
+  in de editor hetzelfde veld (`media_focus_field()`). Geen tweede helper.
 
 **Naast de tekst** is één vaste verhouding (tekst ongeveer 58%, beeld 42%, in
 een kader van 4:3 met `object-fit: cover`) zonder breedtekeuze. De tekst

@@ -2407,6 +2407,16 @@ input[data-color-picker]{ width: 2.4rem; height: 2.4rem; padding: 0.15rem; borde
 .admin-tis-item .admin-image-focus__preview{ width: min(100%, calc(10rem * var(--admin-tis-frame-shape))); min-width: 6rem; }
 .admin-tis-layout{ display: flex; flex-wrap: wrap; gap: var(--admin-sp-3) var(--admin-sp-5); margin: var(--admin-sp-3) 0; }
 
+/* The Paginakop (admin/page-hero.php): the focus preview takes the shape of
+   the chosen place. A band behind the text is wide, and wider the lower it is
+   (assets/css/blocks/page-hero.css in a 1280 x 900 window: about 1280 x 360,
+   495 and 675 high); a picture beside the text has its own 4:3 frame. The
+   last rule is the most specific, so beside the text wins over any height. */
+[data-page-hero-form]{ --admin-focus-frame-ratio: 23 / 9; }
+[data-page-hero-form]:has([name="hero_height"][value="small"]:checked){ --admin-focus-frame-ratio: 32 / 9; }
+[data-page-hero-form]:has([name="hero_height"][value="large"]:checked){ --admin-focus-frame-ratio: 17 / 9; }
+[data-page-hero-form]:has(select[name="image_mode"] option:is([value="left"], [value="right"]):checked){ --admin-focus-frame-ratio: 4 / 3; }
+
 /* A choice between a few named options inside a form: a fieldset whose
    legend names the group, around a segmented control (.admin-segmented). */
 .admin-segmented-field{ margin: 0; padding: 0; border: 0; min-width: 0; }

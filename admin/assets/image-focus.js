@@ -1,7 +1,8 @@
 /*
  * The focus point of a cropped picture (App\Service\Media\ImageFocus), for
- * every field media_focus_field() prints (admin/_media_picker.php): the
- * Kaarten-carrousel card and each item of a Tekst met afbeelding.
+ * every field media_focus_field() prints (admin/_image_focus.php): the
+ * Kaarten-carrousel card, each item of a Tekst met afbeelding and the
+ * Paginakop.
  *
  * The preview beside the nine points is the place's own frame: the same
  * object-fit: cover, and the object-position the chosen point stands for

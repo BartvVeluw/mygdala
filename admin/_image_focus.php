@@ -16,9 +16,10 @@ require_once __DIR__ . '/_admin_ui.php';
  * The frame's shape is the place's own: a screen or a row sets
  * --admin-focus-frame-ratio (admin.css), so the preview crops the way the
  * website does. One helper for every place with a focus point: the carousel
- * card and the Tekst met afbeelding items. Its own file rather than a part of
- * admin/_media_picker.php, because it prints a help button, and the picker is
- * also used by screens without the shell that drives one (admin/setup.php).
+ * card, the Tekst met afbeelding items and the Paginakop. Its own file rather
+ * than a part of admin/_media_picker.php, because it prints a help button, and
+ * the picker is also used by screens without the shell that drives one
+ * (admin/setup.php).
  *
  * @param string $name       the radio buttons' form name
  * @param string $value      the chosen key (normalised by the caller)

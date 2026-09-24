@@ -360,6 +360,35 @@ final class PageHeroImageModeTest extends TestCase
         $this->assertStringContainsString('page-hero--background', $html);
     }
 
+    /**
+     * The contract assumes nothing about the depth of a trail: a page with
+     * parents (Pages 2.0) hands over a longer one, and every place prints
+     * every level in order — the parents as links, the page itself as text.
+     */
+    public function testATrailOfAnyLengthIsPrintedWholeInEveryPlace(): void
+    {
+        $trail = BreadcrumbTrail::home()
+            ->to(BreadcrumbItem::link('Diensten', '/diensten'))
+            ->to(BreadcrumbItem::link('Metaal graveren', '/diensten/metaal-graveren'))
+            ->to(BreadcrumbItem::current('Aluminium visitekaartjes'));
+
+        foreach ([PageHeroContent::IMAGE_NONE, PageHeroContent::IMAGE_BACKGROUND, PageHeroContent::IMAGE_LEFT] as $mode) {
+            $this->removeHeader();
+            $this->storeHeader(['media_id' => $mode === PageHeroContent::IMAGE_NONE ? null : $this->mediaItem('Foto'), 'image_mode' => $mode]);
+
+            $html = $this->renderPage($trail);
+
+            $this->assertSame(1, substr_count($html, '<nav class="breadcrumb-bar"'), $mode);
+            $this->assertSame(4, substr_count($html, '<li class="breadcrumb__item">'), $mode . ': four levels');
+            $this->assertMatchesRegularExpression(
+                '#<a href="/">Home</a>.*<a href="/diensten">Diensten</a>.*<a href="/diensten/metaal-graveren">Metaal graveren</a>.*<span class="breadcrumb__current" aria-current="page">Aluminium visitekaartjes</span>#s',
+                $html,
+                $mode . ': in order, every parent a link, the page itself not'
+            );
+            $this->assertSame(3, substr_count($html, 'class="breadcrumb__separator" aria-hidden="true"'), $mode . ': a separator before every level but the first');
+        }
+    }
+
     public function testTheTrailInsideTheHeaderIsTheSameTrail(): void
     {
         $this->storeHeader(['media_id' => $this->mediaItem('Foto'), 'image_mode' => PageHeroContent::IMAGE_BACKGROUND]);

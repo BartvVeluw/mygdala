@@ -36,6 +36,7 @@ require_once __DIR__ . '/_translate.php';
 require_once __DIR__ . '/_save_bar.php';
 require_once __DIR__ . '/_localized_fields.php';
 require_once __DIR__ . '/_media_picker.php';
+require_once __DIR__ . '/_image_focus.php';
 
 use App\Service\AdminAuth;
 use App\Service\Blocks\BlockLocalization;
@@ -164,22 +165,6 @@ $isBeside = in_array($imageMode, [PageHeroContent::IMAGE_LEFT, PageHeroContent::
 // library's, filled in and linked to the picker (media_alt_field()).
 $heroAlt = media_alt_field('media_id', $word('image_alt'), $heroMedia, $placeholder);
 
-// The shape of the focus preview for each place, so it crops the way the
-// website does. A band behind the text is wide, and wider the lower it is
-// (page-hero.css in a 1280 x 900 window: about 1280 x 360, 495 and 675); a
-// picture beside the text has its own fixed 4:3 frame. page-hero.js switches
-// between them with the place and the height.
-$frameShapes = [
-    PageHeroContent::HEIGHT_SMALL => '32 / 9',
-    PageHeroContent::HEIGHT_MEDIUM => '23 / 9',
-    PageHeroContent::HEIGHT_LARGE => '17 / 9',
-    'beside' => '4 / 3',
-];
-$frameShapeAttributes = ' style="aspect-ratio: ' . $h($frameShapes[$isBeside ? 'beside' : $heroHeight]) . ';"';
-foreach ($frameShapes as $shapeKey => $shape) {
-    $frameShapeAttributes .= ' data-shape-' . $h($shapeKey) . '="' . $h($shape) . '"';
-}
-
 /**
  * The <option>s of one choice, with the current value selected.
  *
@@ -229,7 +214,7 @@ function pageHeroOptions(array $labels, string $current): string
   <?php endif; ?>
 
   <section class="admin-card">
-    <form method="post" action="/api/admin/update-page-hero.php" class="admin-product-form"<?= is_array($old) ? ' data-save-bar-unsaved' : '' ?>>
+    <form method="post" action="/api/admin/update-page-hero.php" class="admin-product-form" data-page-hero-form<?= is_array($old) ? ' data-save-bar-unsaved' : '' ?>>
       <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
       <input type="hidden" name="slug" value="<?= htmlspecialchars($slug, ENT_QUOTES, 'UTF-8') ?>">
       <?= admin_localized_input($editLanguage) ?>
@@ -300,31 +285,21 @@ function pageHeroOptions(array $labels, string $current): string
           </div>
         </div>
 
-        <?php /* The focus point, and a preview in the header's own shape: the
-                 same object-fit: cover and the same object-position as the
-                 website (ImageFocus), kept in step by admin/assets/image-focus.js,
-                 the carousel card's script. page-hero.js gives the frame the
-                 shape of the chosen place. */ ?>
-        <fieldset class="admin-image-focus" data-image-focus data-page-hero-needs-image<?= $heroMedia !== null ? '' : ' hidden' ?>>
-          <legend><?= admin_te('block_pagehero.focus') ?> <?= admin_help(admin_t('block_pagehero.focus'), admin_t('help.page_hero.focus')) ?></legend>
-          <div class="admin-image-focus__body">
-            <div class="admin-image-focus__grid">
-              <?php foreach (ImageFocus::keys() as $focusKey): ?>
-                <label class="admin-image-focus__point" title="<?= admin_te('media.focus.' . $focusKey) ?>">
-                  <input type="radio" name="image_focus" value="<?= $h($focusKey) ?>" data-object-position="<?= $h(ImageFocus::objectPosition($focusKey)) ?>"<?= $imageFocus === $focusKey ? ' checked' : '' ?>>
-                  <span class="admin-visually-hidden"><?= admin_te('media.focus.' . $focusKey) ?></span>
-                </label>
-              <?php endforeach; ?>
-            </div>
-            <figure class="admin-image-focus__preview">
-              <?php $focusSrc = $heroMedia !== null ? $heroMedia->displayPath() : ''; ?>
-              <div class="admin-image-focus__frame" data-image-focus-frame data-page-hero-focus-frame<?= $focusSrc === '' ? ' hidden' : '' ?><?= $frameShapeAttributes ?>>
-                <img src="<?= $h($focusSrc) ?>" alt="" style="object-position: <?= $h(ImageFocus::objectPosition($imageFocus)) ?>" data-image-focus-preview>
-              </div>
-              <figcaption class="admin-text-muted"><?= admin_te('block_pagehero.focus_voorbeeld') ?></figcaption>
-            </figure>
-          </div>
-        </fieldset>
+        <?php /* The focus point: the shared field of every place with one
+                 (media_focus_field(), ImageFocus), with its preview kept in
+                 step by admin/assets/image-focus.js. Its frame takes the
+                 shape of the chosen place from admin.css
+                 ([data-page-hero-form]). */ ?>
+        <div data-page-hero-needs-image<?= $heroMedia !== null ? '' : ' hidden' ?>>
+          <?php media_focus_field(
+              'image_focus',
+              $imageFocus,
+              $heroMedia !== null ? $heroMedia->displayPath() : '',
+              admin_t('block_pagehero.focus'),
+              admin_t('help.page_hero.focus'),
+              admin_t('block_pagehero.focus_voorbeeld')
+          ); ?>
+        </div>
       </div>
 
       <h2 style="margin-top:2rem;"><?= admin_te('block_pagehero.group_layout') ?></h2>
