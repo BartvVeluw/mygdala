@@ -591,18 +591,26 @@ tegen ontwikkeling: een migratie die in git staat is nog niet toegepast.
 
 **Wijziging aan de mediabibliotheek**
 
-Uploaden, de mediakiezer, alt-teksten, gebruiksbepaling of verwijderen
-(`MEDIA.md`):
+Uploaden, de mediakiezer, naam en alt-tekst, mappen, raster en lijst,
+gebruiksbepaling of verwijderen (`MEDIA.md`):
 
 ```
 --testsuite fast        (MediaBoundaryTest: rechten, guards, CSRF, de
-                         modulegrens — database noch webserver nodig)
---testsuite cms         voegt MediaLibraryTest, MediaUsageTest,
-                        MediaUsageAccessTest en MediaAdoptionTest toe:
-                        echte uploads, echte blokinstanties, echte
-                        bestanden, en wie waar een bestand gebruikt wordt
-                        te lezen krijgt, ook over HTTP
+                         modulegrens; MediaPickerContractTest: één
+                         handeling, één flow, en de gesloten lijst van
+                         schermen met een eigen bestandskiezer — database
+                         noch webserver nodig)
+--testsuite cms         voegt MediaLibraryTest, MediaFolderTest,
+                        MediaUsageTest, MediaUsageAccessTest,
+                        MediaLibraryTwoHttpTest, ShopShareImageChoiceTest,
+                        MediaLibraryTwoMigrationTest en MediaAdoptionTest
+                        toe: echte uploads (ook multipart over HTTP, in een
+                        map), echte blokinstanties, echte bestanden, en wie
+                        waar een bestand gebruikt wordt te lezen krijgt
 --testsuite blocks      als je een blok aansloot op de kiezer
+--testsuite shop        als het een product of collectie raakt
+--testsuite modules     als het Portfolio raakt
+--testsuite migration   na een migratie van de bibliotheek
 ```
 
 Draai deze in **`php_test`**: `MediaLibraryTest` schrijft echte

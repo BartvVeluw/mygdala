@@ -313,7 +313,8 @@ Alles wat er ook zou zijn zonder webshop.
   `MEDIA.md`.
 - **Media/uploads die nog bij hun feature horen** — `SectionImageUploader`,
   `SectionVideoUploader`, `ImageOptimizer`. (`PortfolioImageProcessor` hoort
-  bij Portfolio.)
+  bij Portfolio en ruimt alleen nog de eigen bestanden van items van vóór de
+  Mediabibliotheek op: een nieuw Portfolio-beeld komt uit de bibliotheek.)
 - **Instellingen/navigatie** — `NavigationService`, `FooterService`,
   `LinkResolver`, `RouteRegistry`.
 - **Vormgeving** — `Service\Theme\*` (kleuren, lettertypecombinatie,
@@ -413,6 +414,12 @@ Alles wat er ook zou zijn zonder webshop.
   `ShippingRateRepository`, `admin/shipping.php`, `admin/carrier-rates.php`.
 - Dashboardpaneel — `admin/_dashboard_shop.php`, met `DashboardMetrics`,
   `DashboardAttention` en `DashboardRepository`.
+
+  **De deel-afbeelding van een product en een collectie** komt sinds Media
+  Library 2.0 ook uit de bibliotheek (`og_media_id`, met `og_image_path`
+  meegeschreven; `shop_share_image_choice()` in
+  `api/admin/_shop_share_image.php`, `MEDIA.md`). Een oude eigen upload blijft
+  tot er een andere wordt gekozen of hij bewust wordt verwijderd.
 
 Facturen, retourverzoeken en verzending zijn deelgebieden *binnen* de Shop.
 Ze zijn niet zelfstandig bruikbaar (een factuur hoort bij een order, een
@@ -533,6 +540,15 @@ lezer en schrijver; de rest van de module bewaart rijen, geen woorden.
 | `portfolio_category_translations` | `portfolio_category_id` | `name` |
 | `portfolio_item_translations` | `portfolio_item_id` | `title`, `subtitle`, `alt`, `intro` (rich), `description` (rich) |
 | `portfolio_item_image_translations` | `portfolio_item_image_id` | `alt` |
+
+**De afbeelding van een item komt uit de Mediabibliotheek** (Media Library
+2.0, `MEDIA.md`): `portfolio_gallery_items.media_id`, gekozen of geüpload met
+de gedeelde kiezer, met `image_path`/`thumbnail_path` meegeschreven zodat elke
+lezer hetzelfde leest als voorheen. Een item van vóór de bibliotheek houdt zijn
+eigen bestand tot er een andere afbeelding wordt gekozen. De module meldt het
+gebruik via `PortfolioMediaUsage`, en een item verwijderen haalt nooit een
+bibliotheekbestand weg. De eigen alt-tekst van een item wint; leeg valt terug
+op die van het bibliotheekitem.
 
 Wat taalneutraal blijft: de slug van een categorie en van een item, de
 afbeelding en haar thumbnail, de gekoppelde pagina, de categorieën van een

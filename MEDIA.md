@@ -12,8 +12,8 @@ aan.
 
 | Soort | Voorbeeld | Waar |
 |---|---|---|
-| **Herbruikbaar publiek sitebeeld** | logo, favicon, deel-afbeelding, foto in een contentblok | **Mediabibliotheek** |
-| **Domeineigen beeld** | portfolio-afbeeldingen | bij het domein zelf (nog) |
+| **Herbruikbaar publiek sitebeeld** | logo, favicon, deel-afbeelding, foto in een contentblok, productfoto, portfolio-afbeelding | **Mediabibliotheek** |
+| **Domeineigen beeld** | het voorbeeldcanvas van een personalisatieweergave | bij het domein zelf (zie *Nog op een eigen pad*) |
 | **Privé klantbestand** | personalisatie-uploads, contactbijlagen, ordersnapshots, factuur-PDF's | buiten de webroot, **nooit** hier |
 
 De derde rij is een grens, geen achterstand. De bibliotheek bestaat om beeld
@@ -31,6 +31,7 @@ path              assets/media/<32 hex>.webp  — root-relatief, zonder / ervoor
 thumbnail_path    assets/media/thumbs/<zelfde naam>  — NULL als er geen is
 original_filename hoe het bestand heette bij de gebruiker (herkomst, verandert nooit)
 display_name      de naam die de bibliotheek toont en die een redacteur mag wijzigen
+folder_id         de virtuele map; NULL = "Geen map" (zie *Mappen*)
 mime_type         uit de bestandsheader, niet uit de naam
 width, height     NULL als ze niet te bepalen zijn (een SVG bijvoorbeeld)
 file_size
@@ -42,8 +43,9 @@ created_at, updated_at
 `path` is uniek en `utf8mb4_bin`: één bestand is één rij, en `Foto.jpg` en
 `foto.jpg` zijn twee bestanden, net als op de schijf.
 
-Er zijn **geen** mappen, tags, EXIF, focuspunt of transformaties. Zie
-"Bewust niet gebouwd" onderaan. Een focuspunt bestaat alleen op de plek die
+Mappen staan in een eigen tabel, `media_folders` (`id`, `name`, tijden), en
+zijn **virtueel**: zie *Mappen*. Er zijn **geen** tags, EXIF, focuspunt of
+transformaties. Zie "Bewust niet gebouwd" onderaan. Een focuspunt bestaat alleen op de plek die
 een beeld toont (een carrouselkaart, een item van Tekst met afbeelding, de
 Paginakop), nooit op het item in de bibliotheek. Alle drie gebruiken dezelfde
 negen punten (`App\Service\Media\ImageFocus`) en hetzelfde veld in de editor
@@ -217,18 +219,23 @@ De controles in de browser — extensie, grootte, de eerste bytes van het
 bestand, de naam — besparen alleen een rondje. De server doet ze allemaal
 opnieuw.
 
-## Bestandsnaam
+## Naam, bestand en adres
 
-Een media-item heeft een **naam**: wat een redacteur op de kaart leest, waarop
-hij zoekt en waaraan hij een beeld herkent. Die naam is een **label**, geen
-pad. Het bestand op de schijf houdt zijn willekeurige naam en elke feature
-verwijst naar het `id` (zie hieronder), dus een naam kan geen pagina breken.
-Daarom bestaat er ook geen hernoemen op de schijf.
+Vijf dingen aan een media-item lijken op elkaar en zijn het niet. Elk heeft
+één betekenis, en geen veld doet dienst als twee ervan:
 
-| Kolom | Wat |
-|---|---|
-| `display_name` | De naam in de bibliotheek |
-| `original_filename` | Hoe het bestand heette bij wie het uploadde. Verandert nooit, en je kunt erop zoeken |
+| | Kolom | Wat het is | Wie het verandert |
+|---|---|---|---|
+| **Opgeslagen bestand** | `path` (+ `thumbnail_path`) | `assets/media/<32 hex>.<ext>`: technisch, willekeurig, nooit afgeleid van een naam die iemand typte | niemand — een item wordt nooit verplaatst of hernoemd op de schijf |
+| **Oorspronkelijke naam** | `original_filename` | hoe het bestand heette op de computer van wie het uploadde: herkomst, doorzoekbaar | niemand, ooit |
+| **Naam** (beheernaam) | `display_name` | het **label** waaronder een redacteur het item in de bibliotheek vindt en herkent; heeft de vorm van een bestandsnaam met de extensie van het item | een redacteur met `media.manage` |
+| **Alt-tekst** | `alt_text` | de standaardbeschrijving van wat er op het beeld staat, voor wie het niet ziet (zie *Alt-tekst is gelaagd*) | een redacteur met `media.manage` |
+| **Publiek adres** | afgeleid: `/` + `path` | wat de browser van een bezoeker laadt (`MediaItem::publicPath()`) | volgt `path`, dus verandert niet |
+
+Elke feature verwijst naar het `id` (zie hieronder), dus een naam kan geen
+pagina breken. Daarom bestaat er ook geen hernoemen op de schijf, en verandert
+het publieke adres niet als de naam verandert. Of het adres een leesbare naam
+moet dragen staat onder *Publieke adressen*.
 
 Bij het uploaden (`App\Service\Media\MediaFilename`):
 
@@ -245,17 +252,28 @@ Bestaande items kregen bij migratie `20260914100000` de naam die de bibliotheek
 al toonde. De kolom is in het schema niet uniek, want overgenomen oude beelden
 kunnen een naam delen; de bibliotheek houdt **nieuwe** namen zelf uniek.
 
-### Naam wijzigen
+### Naam en alt-tekst: één opslag
 
-Wie `media.manage` heeft, kan een naam wijzigen: in een dialoog vanaf de
-kaart, of zonder JavaScript met het formulier op de pagina van het item
-(`api/admin/rename-media.php` → `MediaService::rename()`).
+Naam en alt-tekst zijn samen wat een redacteur over een item bezit, en ze
+worden **samen** opgeslagen: één formulier, één endpoint, één set regels
+(`api/admin/update-media.php` → `MediaService::updateDetails()`). Er zijn geen
+losse knoppen *Naam opslaan* en *Alt-tekst opslaan* meer, en er is geen
+`rename-media.php` meer.
 
-- Alleen `display_name` verandert. Het bestand op de schijf, `path`, de
-  thumbnail, `original_filename` en elke verwijzing (`media_id` én de
-  meegeschreven oude padkolom) blijven precies wat ze waren, dus geen pagina
-  merkt er iets van. Een bestand op de schijf hernoemen bestaat hier bewust
-  niet.
+Twee plekken sturen naar dat ene endpoint:
+
+| | Waar | Hoe |
+|---|---|---|
+| **Itemscherm** | `admin/media.php?id=` | het kaartje *Naam en alt-tekst*: één formulier onder de opslagbalk (`PAGE-EDITOR.md`); de eigen knop *Opslaan* draagt `data-save-bar-fallback`. Post/Redirect/Get met *Opgeslagen* |
+| **Snel bewerken** | *Bewerken* op een kaart of rij in het overzicht | de dialoog *Media bewerken* (naam, alt-tekst, *Annuleren*, *Opslaan*), met `ajax=1`; het antwoord is JSON en de kaart wordt daarna opnieuw getekend |
+
+De regels, op één plek:
+
+- **Beide of geen van beide.** Een geweigerde naam laat ook de alt-tekst die
+  meekwam ongeschreven, en het antwoord noemt elk probleem tegelijk, per veld
+  (`errors.name`, `errors.alt_text`). Op het itemscherm komen de getypte
+  waarden terug in hun veld, met `aria-invalid` en de melding eronder, en het
+  formulier draagt `data-save-bar-unsaved`.
 - **De extensie hoort bij het item.** Je typt het deel ervoor; de extensie
   staat ernaast en gaat niet mee in het verzoek. Typ je hem toch, dan wordt
   hij niet verdubbeld: `zomer.jpg` blijft `zomer.jpg`, en `foto.exe` wordt
@@ -267,14 +285,61 @@ kaart, of zonder JavaScript met het formulier op de pagina van het item
 - **Een naam die al bestaat, wordt geweigerd** in plaats van genummerd, zoals
   bij een upload wel gebeurt: hier typte de redacteur de naam zelf. Alleen de
   hoofdletters van de eigen naam veranderen mag.
+- **De alt-tekst** is platte tekst van hooguit 255 tekens
+  (`MediaService::ALT_MAX_LENGTH`): langer wordt geweigerd in plaats van
+  afgekapt, onzichtbare tekens ook. Leeg mag: een decoratief beeld heeft er
+  geen. Opmaak wordt opgeslagen zoals getypt en overal ge-escaped geprint.
+- Alleen `display_name` en `alt_text` veranderen. Het bestand, `path`, de
+  thumbnail, `original_filename`, de map en elke verwijzing blijven wat ze
+  waren. Een veld dat het formulier niet heeft (`path`, `folder_id`) wordt
+  genegeerd, wat een verzoek ook meestuurt.
+
+## Mappen
+
+Mappen zijn **virtueel**: een map is een rij in `media_folders` met een naam,
+en de map van een item is `media.folder_id`. Een item verplaatsen verandert
+die ene kolom — niet het bestand, niet `path`, niet het publieke adres, niet
+de naam en geen enkele verwijzing. Conceptueel `folder_id 4 → 5`, nooit
+`/uploads/halloween/x.jpg → /uploads/kerst/x.jpg`. Een mapnaam wordt nergens
+een pad, een directory of een deel van een URL, dus er valt niets aan te
+"saneren": het is tekst, ge-escaped waar hij geprint wordt.
+
+`App\Service\Media\MediaFolderService` (en `MediaFolderRepository`):
+
+| | Hoe |
+|---|---|
+| **Alle media** | geen filter (`?folder=` leeg) |
+| **Geen map** | `?folder=none`: de items zonder map. Elk item van vóór deze stap staat hier |
+| **Een map** | `?folder=<id>`; een id dat niet (meer) bestaat filtert niets, zoals een onbekende soort |
+| **Map maken** | een naam van 1–100 tekens, zonder onzichtbare tekens, uniek ongeacht hoofdletters (de unieke index op `name` in `utf8mb4_unicode_ci` is het vangnet); de nieuwe map gaat meteen open |
+| **Map hernoemen** | dezelfde regels; alleen `media_folders.name` verandert |
+| **Map verwijderen** | vraagt eerst in de gedeelde dialoog, met de naam van de map en de zin dat de bestanden blijven. De items gaan terug naar **Geen map** (in één transactie, en `ON DELETE SET NULL` op de sleutel is de garantie daaronder). Er wordt nooit een item of bestand verwijderd |
+| **Verplaatsen** | een selectie op het raster (dezelfde selectievakjes als verwijderen), met *Verplaatsen naar map* en *Verplaatsen* in de selectiebalk (`api/admin/move-media-items.php`, hooguit 100 tegelijk). Naar *Geen map* kan ook. Een map-id dat niet bestaat wordt geweigerd, nooit aangemaakt en nooit gelezen als "Geen map" |
+| **Aantallen** | naast elke map, en naast *Alle media* en *Geen map*: twee queries voor de hele lijst |
+| **Uploaden** | een nieuw bestand komt in de map die open staat, op het bibliotheekscherm én in de kiezer (`folder_id` bij de upload). Een map die inmiddels weg is, levert *Geen map* op in plaats van een geweigerd bestand. Een bestand dat de bibliotheek al had, blijft in zijn eigen map; had het geen map, dan komt het in deze |
+
+Mappen beheren en items verplaatsen vraagt `media.manage`. In een map
+uploaden hoort bij iets toevoegen en vraagt dus alleen `media.view`.
+
+### Waarom geen submappen
+
+Eén niveau. Een boom brengt een maximale diepte, cyclusbewaking, mappen
+verplaatsen en het verwijderen van een hele tak mee, en een bibliotheek van
+honderden beelden is met één niveau plus zoeken al overzichtelijk. De
+verkenner met slepen die dat zou vragen, staat onder *Bewust niet gebouwd*.
+Het model staat een latere `parent_id` toe zonder iets te breken: een
+nullable kolom die naar `media_folders.id` wijst, met de diepte en de cycli
+in de service begrensd.
 
 ## Zoeken en filteren
 
-Boven het raster staan een zoekveld en een keuze voor de **soort bestand**,
-allebei de gedeelde bouwstenen (`.admin-search` en `.admin-select`,
-`ADMIN-UI.md`). Het blijft een gewone GET (`?q=…&type=…&page=…`) zonder token,
-dus een gefilterde weergave heeft een eigen adres dat een herlaadbeurt
-overleeft.
+Links van het raster staan de mappen (op een smal scherm erboven, als een
+rij die doorloopt), boven het raster een zoekveld en een keuze voor de
+**soort bestand**, allebei de gedeelde bouwstenen (`.admin-search` en
+`.admin-select`, `ADMIN-UI.md`). Het blijft een gewone GET
+(`?folder=…&q=…&type=…&page=…`) zonder token, dus een gefilterde weergave
+heeft een eigen adres dat een herlaadbeurt overleeft. **Een zoekopdracht blijft
+binnen de map die open staat**; *Alle media* zoekt overal.
 
 - **Zoeken** is een `LIKE` op de naam, de oorspronkelijke bestandsnaam en de
   alt-tekst. Geen fulltext-index en geen ranking; `_` en `%` betekenen
@@ -304,8 +369,43 @@ adresbalk loopt mee, dus Vorige en Volgende van de browser werken.
 
 Een **kaart** toont het voorbeeld (de thumbnail, nooit het origineel als er
 een thumbnail is), de naam, de soort (`JPG`, `PNG`, `SVG` — uit het type,
-nooit uit de naam), de afmetingen en de grootte als die bekend zijn, en op
-hoeveel plekken het bestand gebruikt wordt.
+nooit uit de naam), de afmetingen en de grootte als die bekend zijn, de map,
+of er een alt-tekst is (*Alt-tekst aanwezig* / *Geen alt-tekst*, in woorden en
+met een stip in de waarschuwingskleur), op hoeveel plekken het bestand
+gebruikt wordt, en *Bewerken*.
+
+### Raster of lijst
+
+Boven het raster staat *Raster* | *Lijst* (twee knoppen met `aria-pressed`).
+Het is **één kaartmarkup**, twee keer anders getekend door CSS
+(`data-media-view` op de bibliotheek): de lijst toont dezelfde kaarten als
+compacte rijen met een thumbnail van 48px, naam en soort, map en alt-tekst,
+gebruik en *Bewerken*. Dezelfde zoekresultaten, dezelfde selectie, geen
+tweede verzoek. Op een telefoon vallen de kolommen van een rij onder elkaar.
+
+**De keuze wordt onthouden in deze browser** (`localStorage`,
+`mygdala.media-library.view`), zoals de blokkenkiezer zijn weergave onthoudt:
+het is een voorkeur van de kijker, geen gegeven van de site, en er is geen
+gebruikersvoorkeur in de database om hem in te bewaren. De kiezer leest
+dezelfde sleutel. Zonder script, of zonder `localStorage`, is het het raster.
+
+## Publieke adressen
+
+Het adres dat een bezoeker laadt is `/assets/media/<32 hex>.<ext>`: het pad
+van het opgeslagen bestand, statisch geserveerd door Apache, zonder PHP.
+**Media Library 2.0 verandert dat niet.** Een leesbaar adres op basis van de
+naam (conceptueel `/media/842/gegraveerde-houten-snijplank.jpg`) is
+onderzocht en bewust niet half gebouwd: het raakt elke lezer van een
+beeldpad, niet de bibliotheek alleen. De afweging, de opties en een voorstel
+staan in `docs/media/PUBLIC-URLS.md`.
+
+Wat vastligt, ook zonder leesbaar adres:
+
+- het adres hangt aan het **opgeslagen bestand**, niet aan de naam: een naam
+  wijzigen of een item naar een andere map verplaatsen verandert geen enkel
+  adres, en breekt dus ook geen gedeelde link, cache of zoekresultaat;
+- de naam die een redacteur typt wordt nooit een pad (zie *Naam, bestand en
+  adres*), en een mapnaam evenmin.
 
 ## Hoe een feature naar media verwijst
 
@@ -528,7 +628,7 @@ later doen.
 | Permissie | Wat het geeft |
 |---|---|
 | `media.view` | De bibliotheek openen, doorzoeken, kiezen — **en er iets aan toevoegen** |
-| `media.manage` | Alt-tekst en naam van bestaand materiaal wijzigen, en ongebruikte media verwijderen, ook een selectie tegelijk. Bevat `media.view` |
+| `media.manage` | Naam en alt-tekst van bestaand materiaal wijzigen, mappen maken, hernoemen en verwijderen, items naar een map verplaatsen, en ongebruikte media verwijderen, ook een selectie tegelijk. Bevat `media.view` |
 
 De knip zit daar omdat de bibliotheek **gedeeld** is. Iets toevoegen kon elke
 redacteur al via het uploadveld van elk blok en neemt niemand iets af;
@@ -545,8 +645,9 @@ gebruikt wordt, staat er bij naam alleen voor wie ook het scherm van die plek
 mag openen; voor ieder ander wordt die plek geteld (zie *Wie mag lezen
 wáár*).
 
-Alle schrijfacties vragen CSRF; de lijst-endpoint is een GET en doet dat
-bewust niet.
+Alle schrijfacties vragen CSRF en volgen de vaste volgorde login,
+permissie, POST, CSRF (`Tests\Service\MediaBoundaryTest`); de lijst-endpoint
+is een GET en doet dat bewust niet.
 
 ## De mediakiezer
 
@@ -564,6 +665,69 @@ media_picker_script();
 
 Het veld is een gewone `<input type="hidden">` die het omliggende formulier
 meestuurt als elke andere waarde; één modal bedient alle velden op de pagina.
+
+### Eén handeling, één flow
+
+**Kies uit mediabibliotheek** opent de bibliotheek, en niets anders. Het
+bestandsvenster van Windows of macOS gaat alleen open als de redacteur
+**binnen** de bibliotheek kiest voor **Nieuw bestand uploaden**:
+
+```text
+Kies uit mediabibliotheek
+  → de Mediabibliotheek opent (map, zoeken, raster of lijst)
+  → een bestaand item aanklikken      OF   Nieuw bestand uploaden
+                                             → bestandsvenster, één keer
+                                             → gewoon media-item (media-upload.php),
+                                               in de map die open staat, geselecteerd
+  → Selecteren
+  → terug in het oorspronkelijke scherm, met precies de gekozen items
+```
+
+Hoe dat vastligt, en wat `Tests\Service\MediaPickerContractTest` bewaakt:
+
+- de open-handler roept `preventDefault()` aan (geen label-activatie, geen
+  formulierverzending op dezelfde klik) en opent alleen een gesloten modal;
+- het script bindt zich één keer per pagina (`data-media-picker-ready`), zodat
+  twee keer laden geen tweede handler voor dezelfde klik oplevert;
+- het bestandsveld van de modal is `hidden` en staat in **geen** `<label>`: de
+  knop *Nieuw bestand uploaden* is de enige deur, en `openFileDialog()` de
+  enige code die `click()` op dat veld doet;
+- een upload maakt het bestand een gewoon media-item en **selecteert** het;
+  het gaat pas naar het veld bij *Selecteren*, net als een bestaand item.
+
+**De oorzaak van de dubbele flow.** In de oude kiezer was de upload een
+zichtbaar, native bestandsveld in een `<label>` bovenin de modal, direct naast
+het zoekveld: een klik op het label of de knop ernaast opende het
+bestandsvenster, en de keuze daaruit werd meteen gekozen en de modal gesloten.
+Daarnaast hadden drie schermen een eigen bestandskiezer naast de bibliotheek:
+Portfolio (*Afbeelding*) en de deel-afbeelding van een product en een
+collectie waren een `admin_file_input()` — een klik daarop opende het
+bestandsvenster zonder bibliotheek, en de upload ging buiten de bibliotheek om;
+op het productscherm stond die kiezer in hetzelfde formulier, vlak onder de
+afbeeldingen en hun *Afbeelding toevoegen*.
+Die twee wegen zijn nu weg: elk regulier afbeeldingsveld is de kiezer, en de
+kiezer heeft één deur naar het bestandsvenster. In de testomgeving is een
+synthetische klik op *Afbeelding toevoegen* van een product nooit bij het
+bestandsveld uitgekomen; wat een echte muisklik in de browser van de
+eigenaar deed, is dus niet in een test te reproduceren geweest, en de
+oplossing sluit alle paden uit in plaats van één.
+
+### Kiezen, dan bevestigen
+
+- Een kaart is een knop met `aria-pressed`: klikken selecteert, nog eens
+  klikken haalt de selectie weg. Onderaan staat hoeveel er geselecteerd is.
+- Een gewoon veld neemt **één** item: een tweede klik vervangt de eerste. Een
+  verzamelveld (`data-media-picker-collect`) neemt er meerdere.
+- **De selectie blijft staan** bij een andere map, een zoekopdracht en *Meer
+  laden*: ze wordt per id buiten het raster bijgehouden, en een kaart die
+  terugkomt wordt weer als geselecteerd getekend.
+- **Selecteren** geeft precies de selectie door, in de volgorde van kiezen.
+  **Annuleren**, Escape, × en de achtergrond sluiten de modal en veranderen
+  **niets** in het oorspronkelijke scherm.
+- De modal heeft dezelfde mappen (een `.admin-select` met *Alle media*, *Geen
+  map* en de mappen, uit het eerste antwoord van `media-list.php?folder=`) en
+  hetzelfde *Raster* | *Lijst* als de bibliotheek, met dezelfde onthouden
+  voorkeur.
 Er komt **een id uit en verder niets** — geen pad, geen naam, geen URL. Het
 endpoint controleert dat id alsnog tegen de bibliotheek
 (`BlockImage::fromRequest()`): een getal dat niets aanwijst is "geen
@@ -612,9 +776,9 @@ de belangrijkste opbrengst van deze stap.
 **Verzamelmodus.** Een lijst afbeeldingen (de afbeeldingen van een product,
 `admin/_product_gallery.php`) heeft geen verborgen veld per keuze. Haar knop
 *Afbeelding toevoegen* staat in een element met `data-media-picker-collect`:
-de kiezer geeft elk gekozen of geüpload item dan door als een bubbelend
-`media-picker:choose`-event met het item als `detail`, en de upload in de modal
-neemt meerdere bestanden tegelijk. Wat de lijst ermee doet is haar zaak; de
+de kiezer geeft bij *Selecteren* elk geselecteerd item (ook de net geüploade)
+door als een bubbelend `media-picker:choose`-event met het item als `detail`,
+en de upload in de modal neemt meerdere bestanden tegelijk. Wat de lijst ermee doet is haar zaak; de
 kiezer geeft nog steeds alleen bibliotheekitems door, en het endpoint achter
 de lijst controleert elk id opnieuw.
 
@@ -630,17 +794,32 @@ de lijst controleert elk id opnieuw.
 | Paginakop (`page_hero`) | `page_heroes.media_id`, zonder oud pad: een paginakop had nooit een afbeelding. Eigen alt-tekst per taal (`image_alt` in `block_translations`) alleen voor een beeld náást de tekst; een beeld áchter de tekst is versiering (`alt=""`). *Geen afbeelding* maakt de verwijzing leeg, zodat het item niet meer als gebruikt telt |
 | Uitgelichte afbeelding en deel-afbeelding van een blogbericht | `blog_posts.featured_media_id`, `blog_posts.og_media_id` — een module, dus via `BlogModule::mediaUsageProviders()` |
 | Eigen icoon van een kaart in *Kenmerken in kaartjes* (`feature_grid`) | `feature_grid_items.icon_media_id`, alleen als `icon_key = custom`; geen oud pad en geen alt-tekst, want het icoon is versiering (`aria-hidden`, `alt=""`): de titel en tekst van de kaart dragen de betekenis. Kiest de kaart weer een standaardicoon of *Geen*, dan wordt de verwijzing leeggemaakt en telt het item niet meer als gebruikt |
+| Portfolio-item (module) | `portfolio_gallery_items.media_id`, oude `image_path`/`thumbnail_path` meegeschreven; eigen alt-tekst per taal, anders die van het item |
+| Deel-afbeelding van product en collectie (Shop) | `products.og_media_id`, `collections.og_media_id`, oude `og_image_path` meegeschreven |
 | Homepage-hero: afbeelding en video | `homepage_hero.media_id` (met eigen alt-tekst per taal) en `homepage_hero.video_media_id`, oude `image_path` / `video_path` als terugval. Het videoveld is de eerste videokiezer (`media_picker_field(…, MediaType::VIDEO)`) |
 
-**Bewust nog op hun eigen paden**, ongewijzigd en werkend:
+**Nog op een eigen pad**, ongewijzigd en werkend:
 
-- Portfolio (`portfolio_gallery_items`) — dat heeft een eigen
-  thumbnail-pijplijn (`PortfolioImageProcessor`) die eerst een plek in dit
-  model moet krijgen. De foto's van de oude projectpagina
-  (`portfolio_item_images`) worden niet meer bewerkt en ook niet gemigreerd:
-  een projectpagina is nu een gewone pagina, en die haalt haar beeld uit deze
-  bibliotheek (`MODULES.md`);
-- Item-galerij.
+- de afbeelding van een **Portfolio-item van vóór de bibliotheek**
+  (`portfolio_gallery_items.media_id` NULL, bestand van
+  `PortfolioImageProcessor`): het blijft staan en wordt getoond tot een
+  redacteur een andere afbeelding kiest; dan gaat het oude eigen bestand weg.
+  De foto's van de oude projectpagina (`portfolio_item_images`) worden niet
+  meer bewerkt en ook niet gemigreerd: een projectpagina is nu een gewone
+  pagina, en die haalt haar beeld uit deze bibliotheek (`MODULES.md`);
+- de **deel-afbeelding van een product of collectie van vóór de bibliotheek**
+  (`og_media_id` NULL, `og_image_path` gevuld): blijft tot er een andere wordt
+  gekozen of hij met *Deel-afbeelding verwijderen* bewust weg gaat;
+- het **voorbeeldcanvas van een personalisatieweergave**
+  (`admin/_personalization_builder.php`, `preview_image`): de coördinaten van
+  de gebieden op die weergave horen bij precies dat ene beeld, en het is een
+  werkvlak van de configurator, geen herbruikbaar sitebeeld. Een eigen upload,
+  bewust; een kandidaat voor later;
+- lettertypes van de personalisatie en bestanden van formulierinzendingen:
+  geen media-items (zie de tabel bovenaan).
+
+`Tests\Service\MediaPickerContractTest` houdt de lijst van CMS-schermen met
+een eigen bestandskiezer gesloten.
 
 **De Shop** is aangesloten zoals hierboven beschreven stond: `product_images.media_id`
 en `collections.media_id` naast het bestaande `image_path` (dat wordt
@@ -650,8 +829,33 @@ Een product kiest zijn afbeeldingen met de kiezer in verzamelmodus
 gewoon veld. Productafbeeldingen van vóór de bibliotheek houden hun eigen pad
 en blijven werken; ze worden niet overgenomen en niet verplaatst. De Shop
 verwijdert nooit een bibliotheekbestand: een product, collectie of variant
-weghalen haalt alleen de verwijzing weg. De deel-afbeelding van een product en
-een collectie staat nog op het eigen uploadpad van de Shop.
+weghalen haalt alleen de verwijzing weg.
+
+Sinds Media Library 2.0 komt ook de **deel-afbeelding van een product en een
+collectie** uit de bibliotheek: `products.og_media_id` en
+`collections.og_media_id` (migratie `20260925140000`, `RESTRICT`), met
+`og_image_path` meegeschreven zodat `ProductSeo` en `CollectionContent`
+lezen wat ze altijd lazen. De kiezer staat in deel-afbeeldingsmodus
+(`MediaType::SOCIAL_IMAGE`, geen SVG). Wat een formulier bedoelt, staat op één
+plek (`shop_share_image_choice()`, `api/admin/_shop_share_image.php`): een
+bibliotheek-id is die afbeelding; *Wissen* haalt een bibliotheekafbeelding
+weg; een oude eigen upload blijft staan tot er een andere wordt gekozen of
+*Deel-afbeelding verwijderen* is aangevinkt, en alleen zo'n eigen bestand wordt
+daarna van de schijf gehaald. `ShopMediaUsage` meldt het gebruik als
+*"Deel-afbeelding van product: &lt;naam&gt;"* en *"… van collectie"*.
+
+**Portfolio** kiest de afbeelding van een item sinds Media Library 2.0 uit de
+bibliotheek (`portfolio_gallery_items.media_id`, migratie `20260925130000`,
+`RESTRICT`): `image_path` en `thumbnail_path` worden meegeschreven met het pad
+en de thumbnail van het item (of het pad zelf voor een bestand zonder
+thumbnail), dus de galerij, het blok *Projecten* en elke andere lezer tonen
+hetzelfde als voorheen. Het editorscherm heeft geen bestandskiezer meer; een
+nieuw bestand gaat via *Nieuw bestand uploaden* in de kiezer de bibliotheek in.
+Een item verwijderen haalt alleen de verwijzing weg. De alt-tekst is gelaagd:
+de eigen alt-tekst van het item in de taal van de bezoeker, anders die van het
+bibliotheekitem (`PortfolioGalleryContent::itemAlt()`). `PortfolioMediaUsage`
+(via `PortfolioModule::mediaUsageProviders()`) meldt *"Portfolio: &lt;titel&gt;"*
+aan wie `portfolio.manage` heeft.
 
 **Een tabel die na de bibliotheek is gemaakt heeft geen `image_path`-tweeling.**
 `blog_posts` heeft alleen een `media_id`: de oude padkolommen zijn een
@@ -705,8 +909,13 @@ docker compose exec php_test php vendor/bin/phpunit --group migration-backfill
 
 | Bestand | Wat het bewaakt |
 |---|---|
-| `MediaBoundaryTest` | Rechten, guards (ook de volgorde in de endpoints voor hernoemen en voor een selectie verwijderen), CSRF, "de kiezer stuurt alleen een id", modulegrens, en het scherm: de gedeelde bestandskiezer, zoekveld, select en checkboxes, werken met en zonder JavaScript, geen inline handlers, scripts zonder markup uit strings en zonder zinnen, en nergens een bestand hernoemen op de schijf; en dat het itemscherm en het verwijderen van een selectie plekken alleen via `VisibleMediaUsages` noemen. Geen database |
-| `MediaLibraryTest` | Upload, wat er geweigerd wordt (op naam én op inhoud), meerdere bestanden en een gemengde batch, namen, hernoemen, zoeken en filteren, alt-tekst, ontdubbelen, verwijderen (ook een selectie), ontbrekend bestand |
+| `MediaBoundaryTest` | Rechten, guards (ook de volgorde in elk schrijvend endpoint van het scherm: details, verplaatsen, mappen, een selectie verwijderen), CSRF, "de kiezer stuurt alleen een id", modulegrens, en het scherm: de gedeelde bestandskiezer, zoekveld, select en checkboxes, werken met en zonder JavaScript, geen inline handlers, scripts zonder markup uit strings en zonder zinnen, en nergens een bestand hernoemen op de schijf; en dat het itemscherm en het verwijderen van een selectie plekken alleen via `VisibleMediaUsages` noemen. Geen database |
+| `MediaLibraryTest` | Upload, wat er geweigerd wordt (op naam én op inhoud), meerdere bestanden en een gemengde batch, namen, naam en alt-tekst samen (`updateDetails()`: beide of geen van beide), zoeken en filteren, alt-tekst, ontdubbelen, verwijderen (ook een selectie), ontbrekend bestand |
+| `MediaPickerContractTest` | De kiezer: één handeling, één flow (preventDefault, één binding, het bestandsveld verborgen en in geen label, `openFileDialog()` de enige `click()`), alleen *Selecteren* schrijft, de selectie overleeft map en zoeken, en de gesloten lijst van CMS-schermen met een eigen bestandskiezer. Geen database |
+| `MediaFolderTest` | Mappen maken, hernoemen (ook een naam die geen pad is), verwijderen zonder items te verliezen, verplaatsen, een map die niet bestaat, de limiet, bladeren per map samen met zoeken |
+| `MediaLibraryTwoHttpTest` | Over echte HTTP: de ene opslag van naam en alt-tekst (PRG, geweigerd met getypte waarden terug, JSON voor snel bewerken), escaping van naam, alt en mapnaam, mappen en verplaatsen, een echte multipart-upload in de open map, de lijst van de kiezer per map, Portfolio uit de bibliotheek, en de guards van elk nieuw schrijvend endpoint |
+| `ShopShareImageChoiceTest` | Wat een product- of collectieformulier met zijn deel-afbeelding bedoelt (`shop_share_image_choice()`) |
+| `Tests\Install\MediaLibraryTwoMigrationTest` | De drie migraties van Media Library 2.0 op een verse en een bijgewerkte database: alles in *Geen map*, niets oud naar de bibliotheek gewezen, een map weg zonder zijn items, en een tweede run verandert niets |
 | `MediaUsageTest` | Gebruik afgeleid uit echte blokinstanties, de verwijderregel — ook voor een selectie — en dat een hernoemd item overal blijft werken. En wie mag lezen wáár: een pagina alleen met `pages.manage`, het logo alleen met `settings.manage`, een selectie volgens dezelfde regel, en alles voor een volledig bevoegde beheerder |
 | `MediaUsageAccessTest` | Hetzelfde over echte HTTP, met een eigen `php -S`: de JSON van een selectie, een geweigerde losse verwijdering en het itemscherm noemen geen pagina voor wie die niet mag openen, en wel voor wie dat mag. Slaat zichzelf over als de server niet start |
 | `MediaAdoptionTest` | Wat de overnamemigratie beloofde, op een wegwerpdatabase met eigen oude afbeeldingsrijen (`migration-backfill`), en de namen die een upgrade meekrijgt |
@@ -744,8 +953,9 @@ endpoints, niet wat er op een klik gebeurt. Loop na een wijziging aan
 11. Zoeken: het raster ververst terwijl je typt, en de cursor blijft staan.
 12. Zoeken en filteren samen, en daarna *Vorige* in de browser.
 13. Een naam aanpassen in *Nieuwe bestanden* vóór het toevoegen.
-14. *Naam wijzigen* op een kaart: een bestaande naam wordt geweigerd, de
-    extensie blijft staan.
+14. *Bewerken* op een kaart: naam en alt-tekst in één dialoog; een bestaande
+    naam wordt geweigerd bij het veld, de extensie blijft staan, en na
+    *Opslaan* toont de kaart de nieuwe waarden.
 15. Meerdere kaarten selecteren: de teller en *Verwijderen* verschijnen, en
     *Alles op deze pagina selecteren* werkt.
 16. *Verwijderen* en dan *Annuleren* (of Escape): er gebeurt niets, en de
@@ -761,13 +971,29 @@ endpoints, niet wat er op een klik gebeurt. Loop na een wijziging aan
     selectiebalk blijft in beeld, en niets steekt buiten het scherm.
 20. In een licht (*classic*) en een donker thema, en alles ook met alleen het
     toetsenbord.
+21. Een map maken, hernoemen, items erheen verplaatsen, zoeken binnen de map,
+    en de map verwijderen: de items staan daarna in *Geen map*.
+22. *Raster* en *Lijst*: dezelfde resultaten, de keuze blijft na herladen, en
+    op 375px steekt niets buiten beeld.
+23. Het itemscherm: naam en alt-tekst in één formulier, bewaard via de
+    opslagbalk; een geweigerde naam houdt beide getypte waarden vast.
+24. De kiezer op een product, een collectie en een portfolio-item: *Kies uit
+    mediabibliotheek* of *Afbeelding toevoegen* opent alleen de bibliotheek;
+    *Nieuw bestand uploaden* opent het bestandsvenster één keer; het nieuwe
+    bestand staat daarna in de bibliotheek en is geselecteerd; *Annuleren*
+    verandert niets, *Selecteren* zet precies de keuze in het veld.
 
 ## Bewust niet gebouwd
 
-Mappen, tags/categorieën, andere bulkbewerkingen dan een selectie verwijderen, uitsnede-editor, transformaties-UI,
-focuspunten, een `srcset`-framework, videotranscodering, posterframes, audio, PDF's/documenten,
-objectopslag, CDN, EXIF-browser, AI-alt-tekst, OCR, stockfoto's, mapbomen met
-slepen, en detectie van *gelijkende* afbeeldingen.
+Submappen (zie *Waarom geen submappen*), tags/categorieën, andere
+bulkbewerkingen dan een selectie verplaatsen of verwijderen, uitsnede-editor,
+transformaties-UI, focuspunten, een `srcset`-framework, videotranscodering,
+posterframes, audio, PDF's/documenten, objectopslag, CDN, EXIF-browser,
+AI-alt-tekst, OCR, stockfoto's, mapbomen met slepen, facetzoeken, een leesbaar
+publiek adres per item (zie *Publieke adressen*), en detectie van *gelijkende*
+afbeeldingen.
 
 De waarde van V1 is: centrale identiteit, hergebruik, metadata, veilig
-verwijderen. Meer is er niet, en dat is het punt.
+verwijderen. 2.0 voegt daar één consistente kies- en uploadflow, virtuele
+mappen, één opslag voor naam en alt-tekst en een lijstweergave aan toe. Meer
+is er niet, en dat is het punt.

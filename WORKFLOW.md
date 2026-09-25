@@ -239,6 +239,7 @@ Lees deze **niet** standaard. Ze beantwoorden "waarom", niet "hoe".
 | `docs/content-blocks/DECISIONS.md` | 186 | Je raakt een architecturale keuze rond blokken |
 | `docs/content-blocks/ARCHITECTURE.md` | 158 | Je wilt weten waarom het blokkenmodel zo is |
 | `docs/content-blocks/README.md` | 31 | De leesroute voor die map |
+| `docs/media/PUBLIC-URLS.md` | 108 | Je overweegt een leesbaar publiek adres voor media: de audit, de opties en het voorstel |
 
 ### Vier verwijzingen die nergens heen gaan
 
