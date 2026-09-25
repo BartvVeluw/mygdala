@@ -182,7 +182,7 @@ final class RemainingBlocksRenderingTest extends TestCase
         self::assertStringNotContainsString('En meer.', $html, 'a closing text only in Dutch is no closing text on an English-default site');
         self::assertStringContainsString('>&lt;b&gt;All&lt;/b&gt; work</a>', $html);
         self::assertStringNotContainsString('class="eyebrow"', $html, 'no eyebrow in the default language: no element');
-        self::assertStringContainsString('<p>Card EN</p>', $html, 'an item arrives in the language being read from its own source');
+        self::assertStringContainsString('<p class="gallery-item__title">Card EN</p>', $html, 'an item arrives in the language being read from its own source');
         $this->assertNoLanguagePairs($html);
     }
 

@@ -13,9 +13,9 @@ use App\Service\Sitemap;
 
 /**
  * The Portfolio as an optional first-party module: the catalogue of work items
- * with their categories, each item's optional link to an ordinary CMS page,
- * the Projecten block that shows the items on any page, the addresses of the
- * old project pages, the Portfolio page and the CMS section that manages them.
+ * with their categories, each item's own project page at /portfolio/<slug>,
+ * the Projecten block that shows the items on any page, the Portfolio page
+ * and the CMS section that manages them.
  *
  * WHY IT IS A MODULE. It used to be Core, on the argument that nobody would
  * ever switch it off. A new installation of this CMS is not a portfolio site
@@ -25,14 +25,16 @@ use App\Service\Sitemap;
  * class, exactly like App\Module\BlogModule, and Core no longer names a
  * portfolio item, a category or a project page (Tests\Module\PortfolioModuleTest).
  *
- * A PROJECT PAGE IS NOT THE MODULE'S. An item links to an ordinary CMS page by
- * id (MODULES.md, "Portfolio"), and that page — its words, SEO, canonical and
- * sitemap entry — belongs to Pages. The module owns the link, and the old
- * /portfolio/<slug> addresses, which either redirect to the linked page or
- * still show the old project page (App\Service\PortfolioGalleryContent).
+ * A PROJECT PAGE IS THE ITEM'S OWN (Portfolio 2.0, MODULES.md "Portfolio"):
+ * /portfolio/<slug> is rendered dynamically from the item by
+ * portfolio-detail.php, with its own SEO, canonical and sitemap entry, and no
+ * `pages` row behind it. An item that still carries a legacy link to an
+ * ordinary CMS page (phase 4B) keeps redirecting there until an editor
+ * unlinks it; that page itself belongs to Pages
+ * (App\Service\PortfolioGalleryContent).
  *
  * WHAT SWITCHING IT OFF DOES. Nothing to the data (MODULES.md): the five
- * tables keep every row, every item keeps its link to a page, and every
+ * tables keep every row, every legacy link to a page stays stored, and every
  * uploaded image stays on disk. The module simply stops contributing: no
  * sidebar entry; no holdable permission, so both admin screens and every
  * Portfolio write endpoint refuse on the permission check they already make;
@@ -41,8 +43,8 @@ use App\Service\Sitemap;
  * portfolio items keeps its settings and shows nothing; and, through
  * App\Module\ModuleGuard at the top of portfolio.php and portfolio-detail.php,
  * a 404 at /portfolio.php and at every /portfolio/<slug>, redirect or not. A
- * page an item links to is an ordinary page and keeps answering at its own
- * address.
+ * legacy page an item links to is an ordinary page and keeps answering at its
+ * own address.
  *
  * WHAT IT KEEPS WHILE OFF: its reserved slugs, for the Blog's reason — both
  * templates are still on disk.
@@ -144,9 +146,9 @@ final class PortfolioModule extends ModuleDefinition
 
     /**
      * Both root-level templates, reserved whether or not the module runs.
-     * `portfolio` is also the first segment of every old project address
-     * (/portfolio/<slug>, see .htaccess); `portfolio-detail` is the template
-     * that rewrite points at.
+     * `portfolio` is also the first segment of every project address
+     * (/portfolio/<slug>, see publicRoutes()); `portfolio-detail` is the template
+     * that route renders.
      */
     public function reservedSlugs(): array
     {
@@ -154,7 +156,7 @@ final class PortfolioModule extends ModuleDefinition
     }
 
     /**
-     * The Portfolio page's own template, and the old project addresses.
+     * The Portfolio page's own template, and the project pages.
      * "portfolio" is the same word in Dutch and in English, so the namespace
      * has no per-language entry (App\Service\Routing\RouteSegments).
      */
@@ -163,7 +165,7 @@ final class PortfolioModule extends ModuleDefinition
         return [
             ['key' => 'portfolio.index', 'pattern' => 'portfolio.php', 'template' => 'portfolio.php'],
             [
-                'key' => 'portfolio.legacy-project',
+                'key' => 'portfolio.project',
                 'pattern' => '{portfolio.root}/{slug}',
                 'template' => 'portfolio-detail.php',
                 'query' => ['slug' => 'slug'],
@@ -192,16 +194,16 @@ final class PortfolioModule extends ModuleDefinition
     }
 
     /**
-     * Every old project page that still shows itself. The Portfolio page
+     * Every project page that shows itself. The Portfolio page
      * itself is a CMS page and comes from Core's pages collector, where
      * App\Service\PageSeo::isIndexable() leaves it out while this module is
-     * off (publicPaths() above) — and so does every page an item links to,
-     * which is how a linked project is listed once, under that page's own
+     * off (publicPaths() above) — and so does every legacy page an item links
+     * to, which is how such a project is listed once, under that page's own
      * canonical.
      *
-     * The rule is PortfolioGalleryContent::legacyProjectPagesForSitemap()'s: an
-     * old address that redirects is not listed, and neither is one that
-     * answers 404, so the sitemap never names an address that shows no page.
+     * The rule is PortfolioGalleryContent::projectPagesForSitemap()'s: an
+     * address that redirects is not listed, and neither is one that answers
+     * 404, so the sitemap never names an address that shows no page.
      */
     public function sitemapCollectors(): array
     {
@@ -209,7 +211,7 @@ final class PortfolioModule extends ModuleDefinition
             'portfolio' => static function (): array {
                 $entries = [];
 
-                foreach (PortfolioGalleryContent::legacyProjectPagesForSitemap() as $project) {
+                foreach (PortfolioGalleryContent::projectPagesForSitemap() as $project) {
                     // Every published language's version of the page, each
                     // naming the others, exactly as portfolio-detail.php
                     // declares them.

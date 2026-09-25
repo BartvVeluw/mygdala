@@ -28,16 +28,17 @@ use PHPUnit\Framework\TestCase;
  *
  *   - a new block is every visible project as plain cards, stored as the
  *     Portfolio's source plus what its editor offers;
- *   - a card follows the phase 4B contract without a line of its own: the
- *     published page it links to, at that page's current address; otherwise
- *     its old project address; otherwise no link, no arrow and no zoom. A
- *     draft never reaches the page;
+ *   - a card follows the Portfolio 2.0 contract without a line of its own:
+ *     never a link, a picture that always zooms, and "Bekijk project" to the
+ *     published legacy page it links to, at that page's current address;
+ *     otherwise to its own project page; otherwise no button. A draft never
+ *     reaches the page;
  *   - which projects and how many; title and introduction optional; no
  *     projects, no section;
  *   - the Portfolio switched off and on again: nothing public, nothing
  *     changed, and the same block back.
  *
- * The card-link rules themselves are Tests\Service\PortfolioProjectPageTest's;
+ * The card rules themselves are Tests\Service\PortfolioProjectPageTest's;
  * this file proves the block reaches them. That the block has no query, card
  * or link of its own, and that its editor guards like every block editor, is
  * Tests\Module\PortfolioModuleTest. Everything made here is marked zz- and
@@ -150,8 +151,12 @@ final class ProjectCardsBlockTest extends TestCase
     /* The cards                                                           */
     /* ------------------------------------------------------------------ */
 
-    /** Rule 1, through the block: the page's current address, and a rename is followed. */
-    public function testACardOpensItsPublishedPageAndFollowsARename(): void
+    /**
+     * A legacy linked page, through the block: the card itself is not a link,
+     * its "Bekijk project" goes to the page's current address, and a rename
+     * is followed.
+     */
+    public function testALegacyPageIsTheButtonsDestinationAndARenameIsFollowed(): void
     {
         $marker = bin2hex(random_bytes(4));
         $itemId = $this->item('ZZ Gekoppeld ' . $marker);
@@ -161,17 +166,17 @@ final class ProjectCardsBlockTest extends TestCase
         [$blockId] = $this->projectsBlock();
 
         $card = $this->cardElement($this->xpath($this->renderBlock($blockId)), 'ZZ Gekoppeld ' . $marker);
-        $this->assertSame('a', $card->nodeName);
-        $this->assertSame('/' . $this->slugOf($projectPageId), $card->getAttribute('href'));
-        $this->assertTrue($this->hasArrow($card), 'a card that opens its own page carries the arrow');
+        $this->assertSame('div', $card->nodeName, 'the card is never a link');
+        $this->assertSame(['/' . $this->slugOf($projectPageId)], $this->buttonTargets($card));
+        $this->assertFalse($this->hasArrow($card));
 
         $renamed = $this->rename($projectPageId);
 
         $card = $this->cardElement($this->xpath($this->renderBlock($blockId)), 'ZZ Gekoppeld ' . $marker);
-        $this->assertSame('/' . $renamed, $card->getAttribute('href'), 'the block follows the page, never a stored address');
+        $this->assertSame(['/' . $renamed], $this->buttonTargets($card), 'the block follows the page, never a stored address');
     }
 
-    /** A draft is not public, and neither is its address: not as a link, and not behind an old one. */
+    /** A draft is not public, and neither is its address: not as a button, and not behind the item's own page. */
     public function testADraftPageNeverReachesThePublicPage(): void
     {
         $marker = bin2hex(random_bytes(4));
@@ -183,36 +188,39 @@ final class ProjectCardsBlockTest extends TestCase
         [$blockId] = $this->projectsBlock();
 
         $html = $this->renderBlock($blockId);
-        $this->assertSame('div', $this->cardElement($this->xpath($html), 'ZZ Concept ' . $marker)->nodeName, 'linked to a draft only: no link');
+        $this->assertSame([], $this->buttonTargets($this->cardElement($this->xpath($html), 'ZZ Concept ' . $marker)), 'linked to a draft only: no button');
         $this->assertStringNotContainsString($draftSlug, $html);
 
-        $oldSlug = $this->giveItAnOldProjectPage($itemId);
+        $ownSlug = $this->giveItAProjectPage($itemId);
 
         $html = $this->renderBlock($blockId);
         $this->assertSame(
-            '/portfolio/' . $oldSlug,
-            $this->cardElement($this->xpath($html), 'ZZ Concept ' . $marker)->getAttribute('href'),
-            'the old address, and still not the draft'
+            ['/portfolio/' . $ownSlug],
+            $this->buttonTargets($this->cardElement($this->xpath($html), 'ZZ Concept ' . $marker)),
+            'the item\'s own page, and still not the draft'
         );
         $this->assertStringNotContainsString($draftSlug, $html);
     }
 
-    /** Rule 2, through the block: an item that still has its old project page links there. */
-    public function testAnOldProjectKeepsItsOldAddress(): void
+    /** The item's own project page, through the block. */
+    public function testAProjectPageIsTheButtonsDestination(): void
     {
         $marker = bin2hex(random_bytes(4));
-        $oldSlug = $this->giveItAnOldProjectPage($this->item('ZZ Oud ' . $marker));
+        $ownSlug = $this->giveItAProjectPage($this->item('ZZ Eigen ' . $marker));
 
         [$blockId] = $this->projectsBlock();
 
-        $card = $this->cardElement($this->xpath($this->renderBlock($blockId)), 'ZZ Oud ' . $marker);
-        $this->assertSame('a', $card->nodeName);
-        $this->assertSame(PortfolioGalleryContent::publicPath($oldSlug), $card->getAttribute('href'));
-        $this->assertTrue($this->hasArrow($card));
+        $card = $this->cardElement($this->xpath($this->renderBlock($blockId)), 'ZZ Eigen ' . $marker);
+        $this->assertSame('div', $card->nodeName);
+        $this->assertSame([PortfolioGalleryContent::publicPath($ownSlug)], $this->buttonTargets($card));
     }
 
-    /** Rule 3, through the block: no page and no old project page is a card that does nothing. */
-    public function testAProjectWithoutADestinationIsNotClickable(): void
+    /**
+     * No destination: no button, and still a picture that zooms. The
+     * Projecten block has no lightbox setting of its own; a portfolio card
+     * zooms whatever the block says (Portfolio 2.0).
+     */
+    public function testAProjectWithoutADestinationHasNoButtonButStillZooms(): void
     {
         $marker = bin2hex(random_bytes(4));
         $this->item('ZZ Kaal ' . $marker);
@@ -220,13 +228,15 @@ final class ProjectCardsBlockTest extends TestCase
         [$blockId] = $this->projectsBlock();
 
         $html = $this->renderBlock($blockId);
-        $card = $this->cardElement($this->xpath($html), 'ZZ Kaal ' . $marker);
+        $xpath = $this->xpath($html);
+        $card = $this->cardElement($xpath, 'ZZ Kaal ' . $marker);
 
         $this->assertSame('div', $card->nodeName);
         $this->assertFalse($card->hasAttribute('href'));
-        $this->assertFalse($card->hasAttribute('data-lightbox-item'), 'and no zoom either: this block has none');
+        $this->assertSame([], $this->buttonTargets($card));
+        $this->assertSame(1, $xpath->query('.//button[@data-lightbox-trigger]', $card)->length, 'the picture zooms');
         $this->assertFalse($this->hasArrow($card));
-        $this->assertStringNotContainsString('data-item-lightbox', $html);
+        $this->assertStringContainsString('data-lightbox ', $html, 'and the page has the lightbox to open');
     }
 
     /* ------------------------------------------------------------------ */
@@ -423,12 +433,12 @@ final class ProjectCardsBlockTest extends TestCase
     }
 
     /**
-     * The old project page's columns, as its editor left them. Nothing in the
-     * application writes them any more, so the fixture does it directly.
+     * The item's own project page switched on, with a slug — the two columns
+     * its editor saves, written directly by the fixture.
      *
-     * @return string the old slug
+     * @return string the slug
      */
-    private function giveItAnOldProjectPage(int $itemId): string
+    private function giveItAProjectPage(int $itemId): string
     {
         $slug = 'zz-oud-project-' . bin2hex(random_bytes(4));
 
@@ -520,6 +530,24 @@ final class ProjectCardsBlockTest extends TestCase
         $this->assertInstanceOf(\DOMElement::class, $card);
 
         return $card;
+    }
+
+    /**
+     * Where a card's "Bekijk project" links, in order: empty for a card
+     * without one.
+     *
+     * @return list<string>
+     */
+    private function buttonTargets(\DOMElement $card): array
+    {
+        $targets = [];
+        foreach ($card->getElementsByTagName('a') as $link) {
+            if (str_contains(' ' . $link->getAttribute('class') . ' ', ' gallery-item__cta ')) {
+                $targets[] = (string) $link->getAttribute('href');
+            }
+        }
+
+        return $targets;
     }
 
     private function hasArrow(\DOMElement $card): bool

@@ -552,25 +552,54 @@ final class ReusableBlocksPhase4Test extends TestCase
         $this->assertStringNotContainsString('filter-bar', $this->renderBlock($blockId));
     }
 
+    /**
+     * The block's lightbox setting decides for the cards of a source that
+     * leaves it to the block (every source but the Portfolio's, whose cards
+     * always zoom — Tests\Service\PortfolioProjectPageTest). On, a plain card's
+     * picture is a lightbox button and the page gets the one overlay; off, the
+     * card stays plain and the page gets none.
+     *
+     * Rendered straight through the partial with such a card, so it does not
+     * depend on what this database holds.
+     */
     public function testTheLightboxFollowsTheBlockSetting(): void
     {
-        if (PortfolioGalleryContent::catalogueItems(false) === []) {
-            $this->markTestSkipped('no visible portfolio items in this database');
-        }
+        $render = function (bool $lightbox): string {
+            ItemGalleryContent::clearCache();
 
-        [$blockId, $sectionKey] = $this->addBlock('item_gallery');
+            ob_start();
+            render_section_item_gallery([
+                'items' => [[
+                    'image_path' => 'assets/images/sections/zz-phase4-lightbox.jpg',
+                    'alt' => 'ZZ alt',
+                    'title' => 'ZZ Kaart',
+                    'subtitle' => '',
+                    'categories' => '',
+                    'url' => '',
+                    'is_detail_link' => false,
+                ]],
+                'enable_lightbox' => $lightbox,
+                'filter_categories' => [],
+                'fallback_link_url' => '',
+                ...\App\Service\Blocks\BlockLocalization::words('item_galleries', 0),
+                'button_url' => '',
+                'background' => 'default',
+                'tight_top' => false,
+            ], 'zz-phase4');
 
-        $this->configure($sectionKey, ['enable_lightbox' => true]);
-        $on = $this->renderBlock($blockId);
+            return (string) ob_get_clean();
+        };
+
+        $on = $render(true);
         $this->assertStringContainsString('data-gallery-lightbox', $on);
-        $this->assertStringContainsString('data-item-lightbox', $on, 'the shared overlay comes with the block that enables it');
-        $this->assertStringContainsString('data-lightbox-item', $on);
+        $this->assertStringContainsString('data-lightbox-trigger', $on, 'the picture opens the lightbox');
+        $this->assertStringContainsString('data-lightbox ', $on, 'the shared overlay comes with the block that has a zoomable card');
+        $this->assertStringNotContainsString('gallery-item__cta', $on, 'a card of another source has no call to action');
 
-        $this->configure($sectionKey, ['enable_lightbox' => false]);
-        $off = $this->renderBlock($blockId);
+        $off = $render(false);
         $this->assertStringNotContainsString('data-gallery-lightbox', $off);
-        $this->assertStringNotContainsString('data-item-lightbox', $off);
-        $this->assertStringNotContainsString('data-lightbox-item', $off);
+        $this->assertStringNotContainsString('data-lightbox-trigger', $off);
+        $this->assertStringNotContainsString('data-lightbox ', $off);
     }
 
     /**
@@ -615,7 +644,7 @@ final class ReusableBlocksPhase4Test extends TestCase
         $this->assertStringContainsString('<a class="gallery-item" href="/zz-overzicht"', $html);
         $this->assertStringNotContainsString('gallery-item__arrow', $html, "a fallback link is not the card's own page");
         $this->assertStringNotContainsString(
-            'data-lightbox-item',
+            'data-lightbox-trigger',
             $html,
             'a card that is a real link must navigate, never zoom'
         );

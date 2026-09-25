@@ -1487,12 +1487,12 @@ final class MultilingualBoundaryTest extends TestCase
         // Every public script outside the Shop's; those three (cart, shop,
         // personalization) are held to the same rule, plus their catalogue
         // and cart-format contract, in Tests\Service\ShopScriptTextContractTest.
-        $scripts = ['assets/js/core.js', 'assets/js/portfolio-detail.js', 'assets/js/cookie-consent.js', 'assets/js/block-preview.js'];
+        $scripts = ['assets/js/core.js', 'assets/js/lightbox.js', 'assets/js/cookie-consent.js', 'assets/js/block-preview.js'];
         foreach (self::glob('assets/js/blocks/*.js') as $file) {
             $scripts[] = 'assets/js/blocks/' . basename($file);
         }
         self::assertSame(
-            ['assets/js/block-preview.js', 'assets/js/cookie-consent.js', 'assets/js/core.js', 'assets/js/personalization.js', 'assets/js/portfolio-detail.js'],
+            ['assets/js/block-preview.js', 'assets/js/cookie-consent.js', 'assets/js/core.js', 'assets/js/lightbox.js', 'assets/js/personalization.js'],
             array_map(static fn (string $file): string => 'assets/js/' . basename($file), self::glob('assets/js/*.js')),
             'a new top-level public script is added to this list or to the Shop contract'
         );

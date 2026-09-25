@@ -1,6 +1,7 @@
 <?php
 
 require_once __DIR__ . '/eyebrow.php';
+require_once __DIR__ . '/lightbox.php';
 
 /**
  * Renders one "Portfolio-/collectiegalerij" block
@@ -22,18 +23,32 @@ require_once __DIR__ . '/eyebrow.php';
  * (`follows_fallback_link` false); with neither it stays a plain, non-linked
  * card, which is what makes it lightbox-able.
  *
+ * A ZOOMABLE CARD's picture is a real <button> that opens the lightbox
+ * (assets/js/lightbox.js): every plain card while the block's lightbox
+ * setting is on, and every card whose source asks for it (`opens_lightbox`,
+ * which every Portfolio item does since Portfolio 2.0, whatever the block
+ * says). Such a card may also carry a separate call to action (`cta`: a url
+ * and a label, "Bekijk project" for a Portfolio item) — a real <a> in the
+ * overlay, so the picture always zooms and only the button navigates. On a
+ * screen without hover that overlay stays visible, so the button is always
+ * reachable (assets/css/blocks/item-gallery.css).
+ *
+ * The overlay reads top to bottom: title, then the short text, then the call
+ * to action.
+ *
  * A card draws only the words it has. A portfolio item's title and caption are
  * optional, so a card with neither gets no overlay at all — not an empty,
  * darkened strip over its photo — and one with only a title gets no empty
  * caption line. An empty alt text stays alt="": that marks a decorative image,
  * and nothing here invents a description from the file name.
  *
- * The lightbox OVERLAY is emitted once per page, by the first block that
- * enables it, as a sibling of the sections rather than inside one — a
- * `position: fixed` overlay inside a GSAP-transformed section would be
- * positioned against that section instead of the viewport. It carries
- * `data-item-lightbox` so assets/js/blocks/item-gallery.js can tell it apart from
- * portfolio-detail.php's own project lightbox.
+ * The lightbox OVERLAY (partials/lightbox.php) is emitted once per page, by
+ * the first block with a zoomable card, as a sibling of the sections rather
+ * than inside one — a `position: fixed` overlay inside a GSAP-transformed
+ * section would be positioned against that section instead of the viewport.
+ * Each block is its own lightbox group (data-lightbox-group), so previous and
+ * next step through the cards of this block that are shown right now, and a
+ * category filter changes that sequence with it.
  *
  * Image and item URLs are root-relative on purpose: this block may sit on
  * any CMS page, including one served from a nested path, where a relative
@@ -71,8 +86,9 @@ function render_section_item_gallery(array $content, string $revealGroup = 'gall
 
     $sectionAttrs = $content['background'] === 'soft' ? ' class="bg-soft"' : '';
     $sectionAttrs .= $content['tight_top'] ? ' style="padding-top:0;"' : '';
-    $sectionAttrs .= ' data-gallery-block';
+    $sectionAttrs .= ' data-gallery-block data-lightbox-group';
     $sectionAttrs .= $lightbox ? ' data-gallery-lightbox' : '';
+    $printsOverlay = false;
     ?>
   <section<?= $sectionAttrs ?>>
     <div class="container">
@@ -121,11 +137,31 @@ function render_section_item_gallery(array $content, string $revealGroup = 'gall
           $itemSubtitle = $item['subtitle'];
           $overlay = '';
           if ($itemTitle !== '') {
-              $overlay .= '<p>' . $h($itemTitle) . '</p>';
+              $overlay .= '<p class="gallery-item__title">' . $h($itemTitle) . '</p>';
           }
           if ($itemSubtitle !== '') {
-              $overlay .= '<span>' . $h($itemSubtitle) . '</span>';
+              $overlay .= '<span class="gallery-item__text">' . $h($itemSubtitle) . '</span>';
           }
+          // A zoomable card: a photo the lightbox enlarges, and at most one
+          // separate call to action. Never both a link card and a zoom.
+          $zooms = $itemUrl === '' && (string) $item['image_path'] !== ''
+              && ($lightbox || !empty($item['opens_lightbox']));
+          $cta = $zooms && is_array($item['cta'] ?? null) && (string) ($item['cta']['url'] ?? '') !== ''
+              ? $item['cta']
+              : null;
+          if ($cta !== null) {
+              $overlay .= '<a class="gallery-item__cta" href="' . $h((string) $cta['url']) . '">'
+                  . $h((string) $cta['label'])
+                  . '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>'
+                  . '</a>';
+          }
+          $printsOverlay = $printsOverlay || $zooms;
+          // What a screen reader hears on the zoom button: the picture it
+          // enlarges, by its title, else its alt text.
+          $zoomName = $itemTitle !== '' ? $itemTitle : (string) $item['alt'];
+          $zoomLabel = $zoomName !== ''
+              ? \App\Service\Language\SiteText::pick(['nl' => 'Vergroot afbeelding: ', 'en' => 'Enlarge image: ']) . $zoomName
+              : \App\Service\Language\SiteText::pick(['nl' => 'Vergroot afbeelding', 'en' => 'Enlarge image']);
         ?>
         <?php if ($itemUrl !== ''): ?>
         <a class="gallery-item<?= $isDetailLink ? ' gallery-item--linked' : '' ?>" href="<?= $h($itemUrl) ?>"<?= $categoryAttr ?> data-reveal data-reveal-group="<?= $h($revealGroup) ?>">
@@ -135,8 +171,17 @@ function render_section_item_gallery(array $content, string $revealGroup = 'gall
           <span class="gallery-item__arrow" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17 17 7M9 7h8v8"/></svg></span>
           <?php endif; ?>
         </a>
+        <?php elseif ($zooms): ?>
+        <div class="gallery-item gallery-item--zoom<?= $cta !== null ? ' gallery-item--has-cta' : '' ?>"<?= $categoryAttr ?> data-reveal data-reveal-group="<?= $h($revealGroup) ?>">
+          <button type="button" class="gallery-item__zoom" data-lightbox-trigger
+            data-src="<?= $h($rootPath((string) $item['image_path'])) ?>"
+            data-alt="<?= $h((string) $item['alt']) ?>"
+            data-caption="<?= $h($itemTitle) ?>"
+            aria-label="<?= $h($zoomLabel) ?>"><?= $imageTag ?></button>
+          <?php if ($overlay !== ''): ?><span class="gallery-item__overlay"><?= $overlay ?></span><?php endif; ?>
+        </div>
         <?php else: ?>
-        <div class="gallery-item"<?= $categoryAttr ?><?= $lightbox ? ' data-lightbox-item' : '' ?> data-reveal data-reveal-group="<?= $h($revealGroup) ?>">
+        <div class="gallery-item"<?= $categoryAttr ?> data-reveal data-reveal-group="<?= $h($revealGroup) ?>">
           <?= $imageTag ?>
           <?php if ($overlay !== ''): ?><span class="gallery-item__overlay"><?= $overlay ?></span><?php endif; ?>
         </div>
@@ -156,28 +201,9 @@ function render_section_item_gallery(array $content, string $revealGroup = 'gall
     </div>
   </section>
     <?php
-    if ($lightbox && \App\Service\ItemGalleryContent::claimLightboxOverlay()) {
-        render_item_lightbox_overlay();
+    // The overlay every zoomable card on a page shares, printed outside any
+    // section and at most once per page.
+    if ($printsOverlay && \App\Service\ItemGalleryContent::claimLightboxOverlay()) {
+        render_lightbox_overlay();
     }
-}
-
-/**
- * The zoom overlay every lightbox-enabled gallery block on a page shares.
- * Printed outside any section — see the partial's docblock for why it cannot
- * live inside one — and at most once per page, which
- * App\Service\ItemGalleryContent::claimLightboxOverlay() decides.
- */
-function render_item_lightbox_overlay(): void
-{
-    ?>
-<div class="lightbox" data-item-lightbox>
-  <button class="lightbox__close" aria-label="<?= \App\Service\Language\SiteText::escaped(['nl' => 'Sluiten', 'en' => 'Close']) ?>">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
-  </button>
-  <div class="lightbox__inner">
-    <img src="" alt="">
-    <p class="lightbox__caption"></p>
-  </div>
-</div>
-    <?php
 }

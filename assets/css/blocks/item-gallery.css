@@ -2,9 +2,9 @@
    Content block: item gallery (partials/section-item-gallery.php)
    Asked for by App\Service\Blocks\ItemGalleryBlock::styles().
 
-   The .lightbox rules stay in core.css: portfolio-detail.php renders the
-   same overlay markup for its own project lightbox, so they are shared by a
-   block and a route and belong to neither.
+   The .lightbox rules stay in core.css: portfolio-detail.php opens the
+   same overlay (partials/lightbox.php, assets/js/lightbox.js), so they are
+   shared by a block and a route and belong to neither.
    ========================================================================== */
 
 /* Portfolio grid */
@@ -39,9 +39,8 @@
   border: 1px solid var(--color-line);
 }
 /* Only a card that does something looks like it: a link, or a photo the
-   lightbox enlarges. A plain card, such as a project without a page of its
-   own, keeps the ordinary cursor. */
-a.gallery-item, .gallery-item[data-lightbox-item]{ cursor: pointer; }
+   lightbox enlarges. A plain card keeps the ordinary cursor. */
+a.gallery-item{ cursor: pointer; }
 .gallery-item--wide{ aspect-ratio: 4/5; }
 .gallery-item img{ width: 100%; height: 100%; object-fit: cover; transition: transform 700ms var(--ease-out); }
 .gallery-item:hover img{ transform: scale(1.06); }
@@ -49,17 +48,61 @@ a.gallery-item, .gallery-item[data-lightbox-item]{ cursor: pointer; }
 .gallery-item__overlay{
   position: absolute; inset: 0;
   background: linear-gradient(0deg,
-    rgba(var(--color-media-scrim-rgb), 0.9) 0%,
-    rgba(var(--color-media-scrim-rgb), 0.15) 55%,
+    rgba(var(--color-media-scrim-rgb), 0.92) 0%,
+    rgba(var(--color-media-scrim-rgb), 0.35) 50%,
     transparent 100%);
-  display: flex; align-items: flex-end;
+  /* Top to bottom, at the foot of the card: title, short text, and the
+     card's call to action (partials/section-item-gallery.php). */
+  display: flex; flex-direction: column; justify-content: flex-end; align-items: flex-start;
+  gap: 0.4rem;
   padding: var(--sp-3);
   opacity: 0;
   transition: opacity var(--dur-base) var(--ease-out);
 }
 .gallery-item:hover .gallery-item__overlay, .gallery-item:focus-within .gallery-item__overlay{ opacity: 1; }
-.gallery-item__overlay p{ color: var(--color-text); font-weight: 700; font-size: 0.95rem; line-height: 1.3; margin: 0; }
-.gallery-item__overlay span{ display: block; color: var(--color-primary-bright); font-size: 0.8rem; margin-top: 0.45rem; }
+.gallery-item__overlay p{ color: var(--color-text); font-weight: 700; font-size: 0.95rem; line-height: 1.3; margin: 0; max-width: 100%; overflow-wrap: anywhere; }
+.gallery-item__overlay span{ display: block; color: var(--color-primary-bright); font-size: 0.8rem; line-height: 1.4; max-width: 100%; overflow-wrap: anywhere; }
+
+/* A zoomable card (Portfolio 2.0): the picture is a real button that opens
+   the lightbox (assets/js/lightbox.js). The overlay above it lets every
+   click through to that button, except on its own call to action, so the
+   picture always zooms and only "Bekijk project" navigates. */
+.gallery-item__zoom{
+  display: block;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: zoom-in;
+}
+.gallery-item__zoom:focus-visible{ outline: 2px solid var(--color-primary-bright); outline-offset: -4px; }
+.gallery-item--zoom .gallery-item__overlay{ pointer-events: none; }
+.gallery-item__cta{
+  pointer-events: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-top: 0.35rem;
+  padding: 0.5rem 0.95rem;
+  border-radius: 999px;
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+  font-weight: 700;
+  font-size: 0.85rem;
+  line-height: 1.2;
+  text-decoration: none;
+  transition: background var(--dur-fast) var(--ease-out);
+}
+.gallery-item__cta svg{ width: 1rem; height: 1rem; flex-shrink: 0; }
+.gallery-item__cta:hover{ background: var(--color-primary-bright); color: var(--color-on-primary); }
+.gallery-item__cta:focus-visible{ outline: 2px solid var(--color-text); outline-offset: 2px; }
+
+/* No hover on a touch screen: a card with a call to action keeps its overlay
+   in view, so "Bekijk project" is always one tap away. */
+@media (hover: none){
+  .gallery-item--has-cta .gallery-item__overlay{ opacity: 1; }
+}
 
 /* Clickable cards (own project detail page) get a tasteful "more content"
    indicator; plain cards (no detail page — the lightbox-zoom behaviour

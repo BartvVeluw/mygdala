@@ -231,7 +231,7 @@ final class ProjectCardsBlock extends BlockDefinition
 
     public function scripts(): array
     {
-        return ['assets/js/blocks/item-gallery.js'];
+        return ['assets/js/lightbox.js', 'assets/js/blocks/item-gallery.js'];
     }
 
     public function clearCache(): void

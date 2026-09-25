@@ -516,7 +516,7 @@ final class FrontendAssetOwnershipTest extends TestCase
         $gallery = BlockDefinitions::get('item_gallery');
         $this->assertNotNull($gallery);
         $this->assertSame(['assets/css/blocks/item-gallery.css'], $gallery->styles());
-        $this->assertSame(['assets/js/blocks/item-gallery.js'], $gallery->scripts());
+        $this->assertSame(['assets/js/lightbox.js', 'assets/js/blocks/item-gallery.js'], $gallery->scripts());
 
         // And a block with no behaviour of its own declares nothing, rather
         // than owning an empty file.

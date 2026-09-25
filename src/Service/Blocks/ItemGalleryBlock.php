@@ -208,9 +208,10 @@ final class ItemGalleryBlock extends BlockDefinition
     }
 
     /**
-     * The filter bar and the lightbox. The .lightbox rules themselves stay in
-     * assets/css/core.css: portfolio-detail.php renders the same overlay for
-     * its own project lightbox, so they belong to neither owner alone.
+     * The filter bar, and the site's one lightbox for a zoomable card. The
+     * lightbox's script (assets/js/lightbox.js) and its .lightbox rules in
+     * assets/css/core.css are shared with portfolio-detail.php, so they
+     * belong to neither owner alone.
      */
     public function styles(): array
     {
@@ -219,7 +220,7 @@ final class ItemGalleryBlock extends BlockDefinition
 
     public function scripts(): array
     {
-        return ['assets/js/blocks/item-gallery.js'];
+        return ['assets/js/lightbox.js', 'assets/js/blocks/item-gallery.js'];
     }
 
     public function clearCache(): void

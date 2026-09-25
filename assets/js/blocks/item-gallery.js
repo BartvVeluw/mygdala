@@ -1,12 +1,13 @@
 /* =========================================================================
    Content block: item gallery (partials/section-item-gallery.php)
-   Filter bar + lightbox, both scoped per rendered block instance.
+   The filter bar, scoped per rendered block instance.
    Asked for by App\Service\Blocks\ItemGalleryBlock::scripts().
 
-   The .lightbox markup and CSS are shared with portfolio-detail.php, which
-   drives its own copy with prev/next (assets/js/portfolio-detail.js); the
-   two never touch each other's overlay — this one only ever looks for
-   .lightbox[data-item-lightbox].
+   The lightbox is not here: a zoomable card's picture is a
+   [data-lightbox-trigger] button that the site's one lightbox,
+   assets/js/lightbox.js, opens (Portfolio 2.0). It reads which cards are
+   shown when it opens, so a filter chosen here is followed there without
+   the two scripts talking to each other.
    ========================================================================= */
 (function () {
   "use strict";
@@ -43,61 +44,9 @@
   }
 
   /* ---------------------------------------------------------------------
-     Lightbox
-     --------------------------------------------------------------------- */
-  function initLightbox() {
-    // The shared overlay a gallery block prints when its lightbox setting is
-    // on — never portfolio-detail.php's own [data-project-lightbox], which
-    // assets/js/portfolio-detail.js drives with its own navigation.
-    var lightbox = document.querySelector(".lightbox[data-item-lightbox]");
-    if (!lightbox) return;
-    var imgEl = lightbox.querySelector("img");
-    var captionEl = lightbox.querySelector(".lightbox__caption");
-    var closeBtn = lightbox.querySelector(".lightbox__close");
-    var lastFocused = null;
-
-    function open(src, alt, caption) {
-      lastFocused = document.activeElement;
-      imgEl.src = src;
-      imgEl.alt = alt || "";
-      captionEl.textContent = caption || "";
-      lightbox.classList.add("is-open");
-      closeBtn.focus();
-      document.body.style.overflow = "hidden";
-    }
-    function close() {
-      lightbox.classList.remove("is-open");
-      document.body.style.overflow = "";
-      if (lastFocused) lastFocused.focus();
-    }
-
-    // Only plain, non-linked cards zoom: a card that is a real <a href>
-    // (its own project page, a product page, or the block's fallback link)
-    // navigates instead — see MAIN.MD ("clickable Portfolio cards"). The
-    // partial marks the zoomable ones, and only inside a block whose
-    // lightbox setting is on, so two blocks on one page can differ.
-    document.querySelectorAll("[data-gallery-lightbox] [data-lightbox-item]").forEach(function (item) {
-      item.addEventListener("click", function () {
-        var img = item.querySelector("img");
-        var label = item.querySelector(".gallery-item__overlay p");
-        open(img.src, img.alt, label ? label.textContent : "");
-      });
-      item.setAttribute("tabindex", "0");
-      item.setAttribute("role", "button");
-      item.addEventListener("keydown", function (e) {
-        if (e.key === "Enter" || e.key === " ") { e.preventDefault(); item.click(); }
-      });
-    });
-    closeBtn.addEventListener("click", close);
-    lightbox.addEventListener("click", function (e) { if (e.target === lightbox) close(); });
-    document.addEventListener("keydown", function (e) { if (e.key === "Escape") close(); });
-  }
-
-  /* ---------------------------------------------------------------------
      Boot
      --------------------------------------------------------------------- */
   document.addEventListener("DOMContentLoaded", function () {
     initFilters();
-    initLightbox();
   });
 })();

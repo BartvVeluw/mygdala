@@ -1181,6 +1181,7 @@ fieldset legend{ font-weight: 700; margin-bottom: 0.6rem; padding: 0; font-size:
   transition: color var(--dur-fast) var(--ease-out), transform var(--dur-fast) var(--ease-out);
 }
 .project-hero__back:hover{ color: var(--color-primary-bright); transform: translateX(-3px); }
+.project-hero__panel .project-hero__back{ margin-top: var(--sp-5); margin-bottom: 0; }
 
 .project-hero__grid{ display: grid; grid-template-columns: 1.1fr 1fr; gap: var(--sp-6); align-items: center; }
 @media (max-width: 960px){ .project-hero__grid{ grid-template-columns: 1fr; gap: var(--sp-4); } }
@@ -1235,7 +1236,7 @@ fieldset legend{ font-weight: 700; margin-bottom: 0.6rem; padding: 0; font-size:
 /* Project gallery — CSS multi-column "masonry" so every image keeps its own
    natural aspect ratio (no forced square/4:5 crop per cell); reads as an
    editorial grid instead of a uniform product grid. */
-.project-gallery-section{ padding-top: 0; }
+.project-gallery-section{ padding-top: 0; margin-top: var(--sp-6); }
 .project-gallery{ columns: 3 280px; column-gap: var(--sp-3); }
 @media (max-width: 900px){ .project-gallery{ columns: 2 220px; } }
 @media (max-width: 560px){ .project-gallery{ columns: 1; } }
@@ -1266,10 +1267,10 @@ fieldset legend{ font-weight: 700; margin-bottom: 0.6rem; padding: 0; font-size:
   .project-gallery__item:hover img{ transform: none; filter: none; }
 }
 
-/* Project lightbox — extends the base .lightbox (Portfolio grid, above) with
-   prev/next navigation + an image counter for a multi-image sequence (main
-   image + gallery); see assets/js/portfolio-detail.js. The subtle
-   scale-in also applies to the existing single-image lightbox, harmlessly. */
+/* Lightbox navigation — extends the base .lightbox (above) with prev/next
+   and an image counter for a sequence of pictures: a gallery block's shown
+   cards, or a project page's main image plus its gallery; see
+   assets/js/lightbox.js. */
 .lightbox__inner{ transform: scale(0.97); transition: transform var(--dur-base) var(--ease-premium); }
 .lightbox.is-open .lightbox__inner{ transform: scale(1); }
 .lightbox__counter{ color: var(--color-text-faint); font-size: var(--fs-small); margin-top: 0.4rem; }
@@ -1293,6 +1294,11 @@ fieldset legend{ font-weight: 700; margin-bottom: 0.6rem; padding: 0; font-size:
 .lightbox__nav svg{ width: 22px; height: 22px; }
 .lightbox__nav--prev{ left: var(--sp-3); }
 .lightbox__nav--next{ right: var(--sp-3); }
+/* A lightbox of one picture has no previous/next and no counter
+   (assets/js/lightbox.js hides them); `display: flex` above must not win
+   over the hidden attribute. */
+.lightbox__nav[hidden], .lightbox__counter[hidden], .lightbox__caption[hidden]{ display: none; }
+.lightbox__close:focus-visible, .lightbox__nav:focus-visible{ outline: 2px solid var(--color-primary-bright); outline-offset: 2px; }
 @media (max-width: 640px){
   .lightbox__nav{ width: 40px; height: 40px; }
   .lightbox__nav--prev{ left: var(--sp-1); }
@@ -1355,6 +1361,9 @@ fieldset legend{ font-weight: 700; margin-bottom: 0.6rem; padding: 0; font-size:
    ========================================================================== */
 .breadcrumb-bar{ padding-top: clamp(7rem, 6vw + 4rem, 9.5rem); padding-bottom: var(--sp-3); }
 .breadcrumb-bar + .page-hero{ padding-top: 0; }
+/* A Portfolio project page (portfolio-detail.php) starts with its trail
+   too, so its hero drops the header clearance the trail already gives. */
+.breadcrumb-bar + .project-hero{ padding-top: var(--sp-2); }
 
 .breadcrumb{
   display: flex;

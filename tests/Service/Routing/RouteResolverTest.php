@@ -127,7 +127,7 @@ final class RouteResolverTest extends TestCase
     public function testTheLegacyPortfolioProjectRoute(): void
     {
         self::assertSame(
-            ['key' => 'portfolio.legacy-project', 'template' => 'portfolio-detail.php', 'query' => ['slug' => 'kist'], 'canonical' => null],
+            ['key' => 'portfolio.project', 'template' => 'portfolio-detail.php', 'query' => ['slug' => 'kist'], 'canonical' => null],
             $this->resolve(['portfolio', 'kist'])
         );
     }

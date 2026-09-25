@@ -111,7 +111,7 @@ final class PublicRouteContractTest extends TestCase
         ],
         'personalization.catalog' => ['witness' => '/personaliseren.php', 'canonical' => '/personaliseren.php', 'post' => self::POST_NONE],
         'portfolio.index' => ['witness' => '/portfolio.php', 'canonical' => '/portfolio.php', 'post' => self::POST_FORM_SOURCE],
-        'portfolio.legacy-project' => ['witness' => '/portfolio/{project}', 'canonical' => '/portfolio/{project}', 'post' => self::POST_NONE],
+        'portfolio.project' => ['witness' => '/portfolio/{project}', 'canonical' => '/portfolio/{project}', 'post' => self::POST_NONE],
         'shop.index' => ['witness' => '/shop.php', 'canonical' => '/shop.php', 'post' => self::POST_FORM_SOURCE],
         'shop.product' => ['witness' => '/product.php?id={product}', 'canonical' => '/product.php?id={product}', 'post' => self::POST_NONE],
         'shop.cart' => ['witness' => '/cart.php', 'canonical' => '/cart.php', 'post' => self::POST_NONE],

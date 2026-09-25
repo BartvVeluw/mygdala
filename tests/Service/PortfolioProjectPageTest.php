@@ -22,21 +22,25 @@ use PHPUnit\Framework\TestCase;
 require_once dirname(__DIR__, 2) . '/partials/section-item-gallery.php';
 
 /**
- * What a portfolio item's link does in public, read through the model and the
- * block the site renders from (App\Service\PortfolioGalleryContent):
+ * What a portfolio item's card and project address do in public (Portfolio
+ * 2.0), read through the model and the block the site renders from
+ * (App\Service\PortfolioGalleryContent):
  *
- *   - the gallery card, in the contract's order: the published page the item
- *     links to, at its current address; otherwise, while the item still has
- *     its old project page, that page's /portfolio/<slug>; otherwise no link
- *     and no arrow. A draft or a deleted page is no link, so no unpublished
+ *   - the gallery card: never a link, its picture always a lightbox button,
+ *     and a separate "Bekijk project" link, in the contract's order: the
+ *     published LEGACY page the item links to, at its current address;
+ *     otherwise the item's own project page /portfolio/<slug>; otherwise no
+ *     button. A draft or a deleted page is no destination, so no unpublished
  *     address ever reaches the page;
- *   - the block's fallback link, which never makes a portfolio card clickable;
- *   - an old /portfolio/<slug> address: a redirect target only while a
- *     published page is linked, always that page's own canonical, following a
- *     rename and a relink, never an old address itself;
+ *   - the overlay: title, short text and button, top to bottom;
+ *   - the block's fallback link and lightbox setting, which never make a
+ *     portfolio card a link or stop it zooming;
+ *   - a /portfolio/<slug> address: a redirect target only while a published
+ *     legacy page is linked, always that page's own canonical, following a
+ *     rename and a relink, never another project address itself;
  *   - the sitemap: a linked project once, from Core's pages collector under the
- *     page's own address, and its old address not at all — while an old project
- *     page without a published link is still listed.
+ *     page's own address, and its project address not at all — while a
+ *     project page without a published link is listed in every language.
  *
  * Against the test database, through the repositories, the read model and the
  * block the site itself uses. The redirect's status code and the module
@@ -90,101 +94,135 @@ final class PortfolioProjectPageTest extends TestCase
     /* ------------------------------------------------------------------ */
 
     /**
-     * Rule 3. No page and no old project page — which takes both the switch
-     * and a slug to reach it by — gives no link and no arrow.
+     * No project page — which takes both the switch and a slug to reach it
+     * by — and no legacy page: no "Bekijk project", and the picture still
+     * zooms. The card is never a link.
      */
-    public function testACardWithNeitherAPageNorAnOldProjectPageIsNoLinkAndHasNoArrow(): void
+    public function testACardWithoutAProjectPageHasNoButtonAndStillZooms(): void
     {
         $itemId = $this->item();
 
         $card = $this->card($itemId);
-        $this->assertSame('', $card['url']);
+        $this->assertSame('', $card['url'], 'the card itself is never a link');
         $this->assertFalse($card['is_detail_link']);
+        $this->assertTrue($card['opens_lightbox'], 'a portfolio picture always zooms');
+        $this->assertNull($card['cta']);
 
         $html = $this->render($card);
         $this->assertStringNotContainsString('<a class="gallery-item', $html);
-        $this->assertStringNotContainsString('gallery-item__arrow', $html);
+        $this->assertStringNotContainsString('gallery-item__cta', $html);
+        $this->assertStringContainsString('data-lightbox-trigger', $html, 'even with the block lightbox setting off');
 
         $this->setOldProjectColumns($itemId, false, 'zz-alleen-een-slug-' . bin2hex(random_bytes(4)));
-        $this->assertSame('', $this->card($itemId)['url'], 'a slug without the old page switched on is no old project page');
+        $this->assertNull($this->card($itemId)['cta'], 'a slug without the page switched on is no project page');
 
         $this->setOldProjectColumns($itemId, true, null);
-        $this->assertSame('', $this->card($itemId)['url'], 'and neither is the switch without a slug to reach it by');
+        $this->assertNull($this->card($itemId)['cta'], 'and neither is the switch without a slug to reach it by');
     }
 
     /**
-     * Rule 2. An item that still has its old project page links its card to
-     * that page's address, arrow and all, until a published page is linked —
-     * so a site keeps working after the upgrade.
+     * The item's own project page: "Bekijk project" goes to /portfolio/<slug>,
+     * a real link inside the overlay, while the picture is a button that opens
+     * the lightbox — never both a link card and a zoom.
      */
-    public function testAnOldProjectPageLinksTheCardToItsOldAddress(): void
+    public function testAProjectPageGivesTheCardASeparateButtonToItsAddress(): void
     {
         $itemId = $this->item();
-        $oldSlug = $this->giveItAnOldProjectPage($itemId);
+        $slug = $this->giveItAProjectPage($itemId);
 
         $card = $this->card($itemId);
-        $this->assertSame('/portfolio/' . $oldSlug, $card['url']);
-        $this->assertSame(PortfolioGalleryContent::publicPath($oldSlug), $card['url'], 'through the one place that knows the prefix');
-        $this->assertTrue($card['is_detail_link']);
+        $this->assertSame('', $card['url']);
+        $this->assertSame('/portfolio/' . $slug, $card['cta']['url']);
+        $this->assertSame(PortfolioGalleryContent::publicPath($slug), $card['cta']['url'], 'through the one place that knows the prefix');
+        $this->assertSame('Bekijk project', $card['cta']['label']);
 
-        $html = $this->render($card);
-        $this->assertStringContainsString('<a class="gallery-item gallery-item--linked" href="/portfolio/' . $oldSlug . '"', $html);
-        $this->assertStringContainsString('gallery-item__arrow', $html);
+        $xpath = $this->xpath($this->render($card));
+        $this->assertSame(0, $xpath->query('//a[contains(@class, "gallery-item")][not(contains(@class, "gallery-item__cta"))]')->length, 'the card is no link');
+        $zoom = $xpath->query('//button[@data-lightbox-trigger]');
+        $this->assertSame(1, $zoom->length, 'the picture is one button');
+        $this->assertSame('button', $zoom->item(0)->nodeName);
+        $this->assertStringStartsWith('Vergroot afbeelding: ', (string) $zoom->item(0)->getAttribute('aria-label'), 'the button says what it does');
+
+        $cta = $xpath->query('//a[contains(@class, "gallery-item__cta")]');
+        $this->assertSame(1, $cta->length, 'the call to action is a real link');
+        $this->assertSame('/portfolio/' . $slug, $cta->item(0)->getAttribute('href'));
+        $this->assertSame(0, $xpath->query('//button//a | //a//button')->length, 'no link inside the button, and no button inside the link');
     }
 
     /**
-     * The old address answers under every language's prefix, so a card read
-     * in another language links there, as a card linked to a page already did
-     * (docs/multilingual/ROUTING.md, §9). It used to send every language to
-     * the default language's copy.
+     * The overlay reads top to bottom: the title, then the short text, then
+     * the call to action — no title and text side by side any more.
      */
-    public function testAnOldProjectCardLinksInTheLanguageBeingRead(): void
+    public function testTheOverlayReadsTitleThenShortTextThenTheButton(): void
+    {
+        $itemId = $this->item('ZZ Een projecttitel die best lang is ' . bin2hex(random_bytes(4)));
+        $this->giveItAProjectPage($itemId);
+
+        $xpath = $this->xpath($this->render($this->card($itemId)));
+        $children = $xpath->query('//*[contains(@class, "gallery-item__overlay")]/*');
+        $this->assertSame(
+            ['gallery-item__title', 'gallery-item__text', 'gallery-item__cta'],
+            array_map(static fn (\DOMElement $node): string => (string) $node->getAttribute('class'), iterator_to_array($children))
+        );
+
+        $css = (string) file_get_contents(dirname(__DIR__, 2) . '/assets/css/blocks/item-gallery.css');
+        $this->assertMatchesRegularExpression('/\.gallery-item__overlay\{[^}]*flex-direction: column;/', $css, 'stacked, not in a row');
+        $this->assertMatchesRegularExpression('/@media \(hover: none\)\{\s*\.gallery-item--has-cta \.gallery-item__overlay\{ opacity: 1; \}/', $css, 'on a touch screen the button is in view without hover');
+    }
+
+    /**
+     * The address answers under every language's prefix, so a card read in
+     * another language links there (docs/multilingual/ROUTING.md, §9).
+     */
+    public function testTheButtonLinksInTheLanguageBeingRead(): void
     {
         if (!\App\Service\Language\SiteLanguages::isActive('en') || \App\Service\Language\SiteLanguages::defaultCode() !== 'nl') {
             $this->markTestSkipped('this test expects the test database to publish nl (default) and en');
         }
 
         $itemId = $this->item();
-        $oldSlug = $this->giveItAnOldProjectPage($itemId);
+        $slug = $this->giveItAProjectPage($itemId);
 
         \App\Service\Routing\RequestLanguage::set('en', true);
         try {
-            $this->assertSame('/en/portfolio/' . $oldSlug, $this->card($itemId)['url']);
+            $card = $this->card($itemId);
+            $this->assertSame('/en/portfolio/' . $slug, $card['cta']['url']);
+            $this->assertSame('View project', $card['cta']['label']);
         } finally {
             \App\Service\Routing\RequestLanguage::reset();
         }
 
-        $this->assertSame('/portfolio/' . $oldSlug, $this->card($itemId)['url'], 'the default language keeps the unprefixed address');
+        $this->assertSame('/portfolio/' . $slug, $this->card($itemId)['cta']['url'], 'the default language keeps the unprefixed address');
     }
 
     /**
-     * Rule 1 before rule 2, and only for a published page. Linked to a draft,
-     * the card keeps the old address and names the draft nowhere; once the
-     * page is published the card links to it; unlinked again, the old address
-     * is back.
+     * A LEGACY linked page (phase 4B) before the item's own page, and only a
+     * published one. Linked to a draft, the button keeps the item's own
+     * address and names the draft nowhere; once the page is published the
+     * button goes there; unlinked again, the item's own page is back.
      */
-    public function testAPublishedPageTakesOverFromTheOldProjectPageAndADraftDoesNot(): void
+    public function testALegacyPublishedPageTakesOverTheButtonAndADraftDoesNot(): void
     {
         $itemId = $this->item();
-        $oldSlug = $this->giveItAnOldProjectPage($itemId);
+        $slug = $this->giveItAProjectPage($itemId);
         $pageId = $this->page(PageContent::STATUS_DRAFT);
         $repository = new PortfolioGalleryRepository();
         $repository->setItemPage($itemId, $pageId);
         $pageSlug = (string) (new PageRepository())->findById($pageId)['slug'];
 
         $card = $this->card($itemId);
-        $this->assertSame('/portfolio/' . $oldSlug, $card['url'], 'a draft does not take over');
+        $this->assertSame('/portfolio/' . $slug, $card['cta']['url'], 'a draft does not take over');
         $this->assertStringNotContainsString($pageSlug, $this->render($card));
 
         $this->publish($pageId);
-        $this->assertSame('/' . $pageSlug, $this->card($itemId)['url'], 'a published page does');
+        $this->assertSame('/' . $pageSlug, $this->card($itemId)['cta']['url'], 'a published page does');
 
         $repository->setItemPage($itemId, null);
-        $this->assertSame('/portfolio/' . $oldSlug, $this->card($itemId)['url'], 'unlinked, the old address is back');
+        $this->assertSame('/portfolio/' . $slug, $this->card($itemId)['cta']['url'], 'unlinked, the own page is back');
     }
 
-    /** Rule 1: the page's current address, never a stored one. */
-    public function testACardLinksToItsPublishedPageAndFollowsARename(): void
+    /** A legacy link: the page's current address, never a stored one. */
+    public function testALegacyButtonFollowsARenameOfItsPage(): void
     {
         $itemId = $this->item();
         $pageId = $this->page(PageContent::STATUS_PUBLISHED);
@@ -192,19 +230,15 @@ final class PortfolioProjectPageTest extends TestCase
         $slug = (string) (new PageRepository())->findById($pageId)['slug'];
 
         $card = $this->card($itemId);
-        $this->assertSame('/' . $slug, $card['url']);
-        $this->assertTrue($card['is_detail_link']);
-
-        $html = $this->render($card);
-        $this->assertStringContainsString('<a class="gallery-item gallery-item--linked" href="/' . $slug . '"', $html);
-        $this->assertStringContainsString('gallery-item__arrow', $html);
+        $this->assertSame('', $card['url'], 'still no link card');
+        $this->assertSame('/' . $slug, $card['cta']['url']);
 
         $renamed = $this->rename($pageId);
-        $this->assertSame('/' . $renamed, $this->card($itemId)['url'], 'the card follows the page, never a stored address');
+        $this->assertSame('/' . $renamed, $this->card($itemId)['cta']['url'], 'the button follows the page, never a stored address');
     }
 
-    /** Rule 3 for an item without an old project page: a draft or a deleted page is no link. */
-    public function testACardNeverLinksToADraftOrADeletedPage(): void
+    /** A legacy link to a draft or a deleted page is no button. */
+    public function testALegacyButtonNeverGoesToADraftOrADeletedPage(): void
     {
         $itemId = $this->item();
         $pageId = $this->page(PageContent::STATUS_DRAFT);
@@ -212,59 +246,64 @@ final class PortfolioProjectPageTest extends TestCase
         $slug = (string) (new PageRepository())->findById($pageId)['slug'];
 
         $card = $this->card($itemId);
-        $this->assertSame('', $card['url'], 'a draft is not public, so neither is its address');
-        $this->assertFalse($card['is_detail_link']);
+        $this->assertNull($card['cta'], 'a draft is not public, so neither is its address');
         $this->assertStringNotContainsString($slug, $this->render($card));
 
         $this->publish($pageId);
-        $this->assertSame('/' . $slug, $this->card($itemId)['url'], 'published, the card links');
+        $this->assertSame('/' . $slug, $this->card($itemId)['cta']['url'], 'published, the button is there');
 
         PageService::delete((array) (new PageRepository())->findById($pageId));
-        $this->assertSame('', $this->card($itemId)['url'], 'deleted, it is a plain card again');
+        $this->assertNull($this->card($itemId)['cta'], 'deleted, no button again');
     }
 
     /* ------------------------------------------------------------------ */
-    /* The block's fallback link                                           */
+    /* The block's fallback link and its lightbox setting                  */
     /* ------------------------------------------------------------------ */
 
     /**
      * A gallery block set to portfolio items, with a fallback link and the
-     * lightbox on. The card without a page and without an old project page
-     * stays plain — no link to the fallback, no arrow, and so enlargeable like
-     * any plain card — while the other two link exactly where the contract
-     * says, and the fallback address appears nowhere. Rendered through the
-     * real block, from its stored settings. That the fallback link still
-     * serves the cards of other sources is
-     * Tests\Service\ReusableBlocksPhase4Test.
+     * lightbox OFF. Every portfolio card still zooms, none is a link, the one
+     * with a project page and the one with a legacy page carry their button,
+     * and the fallback address appears nowhere. Rendered through the real
+     * block, from its stored settings. That the fallback link still serves the
+     * cards of other sources is Tests\Service\ReusableBlocksPhase4Test.
      */
-    public function testTheBlocksFallbackLinkNeverMakesAPortfolioCardClickable(): void
+    public function testEveryPortfolioCardZoomsAndNoneFollowsTheFallbackLink(): void
     {
         $marker = bin2hex(random_bytes(4));
         $fallback = '/zz-fallback-' . $marker;
 
         $this->item('ZZ Kaal ' . $marker);
 
-        $oldId = $this->item('ZZ Oud ' . $marker);
-        $oldSlug = $this->giveItAnOldProjectPage($oldId);
+        $ownId = $this->item('ZZ Eigen ' . $marker);
+        $ownSlug = $this->giveItAProjectPage($ownId);
 
         $linkedId = $this->item('ZZ Gekoppeld ' . $marker);
         $pageId = $this->page(PageContent::STATUS_PUBLISHED);
         (new PortfolioGalleryRepository())->setItemPage($linkedId, $pageId);
         $pageSlug = (string) (new PageRepository())->findById($pageId)['slug'];
 
-        $html = $this->renderBlock($this->galleryBlock(['fallback_link_url' => $fallback, 'enable_lightbox' => true]));
+        $html = $this->renderBlock($this->galleryBlock(['fallback_link_url' => $fallback, 'enable_lightbox' => false]));
         $xpath = $this->xpath($html);
 
-        $plain = $this->cardElement($xpath, 'ZZ Kaal ' . $marker);
-        $this->assertSame('div', $plain->nodeName, 'no page and no old project page: not a link');
-        $this->assertFalse($plain->hasAttribute('href'));
-        $this->assertTrue($plain->hasAttribute('data-lightbox-item'), 'a plain card, so the lightbox may enlarge it');
-        $this->assertSame(0, $xpath->query('.//*[contains(@class, "gallery-item__arrow")]', $plain)->length);
+        foreach (['ZZ Kaal ', 'ZZ Eigen ', 'ZZ Gekoppeld '] as $name) {
+            $card = $this->cardElement($xpath, $name . $marker);
+            $this->assertSame('div', $card->nodeName, $name . 'is not a link');
+            $this->assertSame(1, $xpath->query('.//button[@data-lightbox-trigger]', $card)->length, $name . 'zooms');
+            $this->assertSame(0, $xpath->query('.//*[contains(@class, "gallery-item__arrow")]', $card)->length);
+        }
 
-        $this->assertSame('/portfolio/' . $oldSlug, $this->cardElement($xpath, 'ZZ Oud ' . $marker)->getAttribute('href'));
-        $this->assertSame('/' . $pageSlug, $this->cardElement($xpath, 'ZZ Gekoppeld ' . $marker)->getAttribute('href'));
+        $cta = static fn (\DOMElement $card): array => array_map(
+            static fn (\DOMElement $a): string => (string) $a->getAttribute('href'),
+            iterator_to_array($xpath->query('.//a[contains(@class, "gallery-item__cta")]', $card))
+        );
+        $this->assertSame([], $cta($this->cardElement($xpath, 'ZZ Kaal ' . $marker)));
+        $this->assertSame(['/portfolio/' . $ownSlug], $cta($this->cardElement($xpath, 'ZZ Eigen ' . $marker)));
+        $this->assertSame(['/' . $pageSlug], $cta($this->cardElement($xpath, 'ZZ Gekoppeld ' . $marker)));
 
         $this->assertStringNotContainsString($fallback, $html, 'no portfolio card follows the fallback link');
+        $this->assertSame(1, substr_count($html, 'data-lightbox '), 'the page gets the one lightbox overlay');
+        $this->assertStringContainsString('data-lightbox-group', $html, 'the block is its own lightbox sequence');
     }
 
     /* ------------------------------------------------------------------ */
@@ -274,7 +313,7 @@ final class PortfolioProjectPageTest extends TestCase
     public function testAnOldProjectAddressRedirectsOnlyToAPublishedLinkedPage(): void
     {
         $itemId = $this->item();
-        $oldSlug = $this->giveItAnOldProjectPage($itemId);
+        $oldSlug = $this->giveItAProjectPage($itemId);
         $repository = new PortfolioGalleryRepository();
 
         $this->assertNull(PortfolioGalleryContent::legacyProjectRedirectUrl($oldSlug), 'no link: the old page answers itself');
@@ -320,14 +359,14 @@ final class PortfolioProjectPageTest extends TestCase
         $repository = new PortfolioGalleryRepository();
 
         $linkedId = $this->item();
-        $linkedSlug = $this->giveItAnOldProjectPage($linkedId);
+        $linkedSlug = $this->giveItAProjectPage($linkedId);
         $pageId = $this->page(PageContent::STATUS_PUBLISHED);
         $repository->setItemPage($linkedId, $pageId);
         $page = (array) (new PageRepository())->findById($pageId);
 
-        $unlinkedSlug = $this->giveItAnOldProjectPage($this->item());
+        $unlinkedSlug = $this->giveItAProjectPage($this->item());
 
-        $oldAddresses = array_column(PortfolioGalleryContent::legacyProjectPagesForSitemap(), 'slug');
+        $oldAddresses = array_column(PortfolioGalleryContent::projectPagesForSitemap(), 'slug');
         $this->assertNotContains($linkedSlug, $oldAddresses, 'an address that redirects is no sitemap entry');
         $this->assertContains($unlinkedSlug, $oldAddresses, 'an old page that still answers stays listed');
 
@@ -348,7 +387,7 @@ final class PortfolioProjectPageTest extends TestCase
      */
     public function testTheSitemapListsAnOldProjectPageInEveryPublishedLanguage(): void
     {
-        $slug = $this->giveItAnOldProjectPage($this->item());
+        $slug = $this->giveItAProjectPage($this->item());
 
         $expected = [];
         foreach (\App\Service\Language\SiteLanguages::activeCodes() as $code) {
@@ -392,18 +431,17 @@ final class PortfolioProjectPageTest extends TestCase
     }
 
     /**
-     * The old project page's columns, as its editor left them. Nothing in the
-     * application writes them any more, so the fixture does it directly.
+     * The item's own project page switched on, with a slug and its words —
+     * what its editor saves (api/admin/update-portfolio-item.php), written
+     * through the repository the endpoint uses.
      *
-     * @return string the old slug
+     * @return string the slug
      */
-    private function giveItAnOldProjectPage(int $itemId): string
+    private function giveItAProjectPage(int $itemId): string
     {
         $slug = 'zz-oud-project-' . bin2hex(random_bytes(4));
 
-        Database::connection()
-            ->prepare('UPDATE portfolio_gallery_items SET has_detail_page = 1, slug = :slug WHERE id = :id')
-            ->execute(['slug' => $slug, 'id' => $itemId]);
+        (new PortfolioGalleryRepository())->setItemProjectPage($itemId, true, $slug);
 
         // Its rich text goes through the words API like any other word since
         // Multilingual 2.0 phase 5 wave A.
@@ -415,7 +453,7 @@ final class PortfolioProjectPageTest extends TestCase
         return $slug;
     }
 
-    /** Half of an old project page, to prove that half is not enough. */
+    /** Half of a project page, to prove that half is not enough. */
     private function setOldProjectColumns(int $itemId, bool $hasDetailPage, ?string $slug): void
     {
         Database::connection()

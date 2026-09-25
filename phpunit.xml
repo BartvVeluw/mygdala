@@ -162,6 +162,7 @@
             <file>tests/Service/PersonalizationEditorContractTest.php</file>
             <file>tests/Service/PersonalizationFrontendContractTest.php</file>
             <file>tests/Service/PortfolioAdminScreenTest.php</file>
+            <file>tests/Service/PortfolioTwoContractTest.php</file>
             <file>tests/Service/ProductDeletionAdminSecurityTest.php</file>
             <file>tests/Service/RedirectAdminSecurityTest.php</file>
             <file>tests/Service/SeoFieldsAdminLayoutTest.php</file>
@@ -286,6 +287,7 @@
             <file>tests/Service/PersonalizationEditorContractTest.php</file>
             <file>tests/Service/PersonalizationFrontendContractTest.php</file>
             <file>tests/Service/PortfolioAdminScreenTest.php</file>
+            <file>tests/Service/PortfolioTwoContractTest.php</file>
             <file>tests/Service/ProductDeletionAdminSecurityTest.php</file>
             <file>tests/Service/ProductSeoTest.php</file>
             <file>tests/Service/RedirectAdminSecurityTest.php</file>
@@ -365,9 +367,9 @@
             <file>tests/Install/PageEnglishTitleMigrationTest.php</file>
             <file>tests/Install/PageHeaderImageModeMigrationTest.php</file>
             <file>tests/Install/MediaLibraryTwoMigrationTest.php</file>
+            <file>tests/Install/PortfolioTwoMigrationTest.php</file>
             <file>tests/Install/HeaderButtonMigrationTest.php</file>
             <file>tests/Install/FooterSocialLinkMigrationTest.php</file>
-            <file>tests/Install/PortfolioTwoMigrationTest.php</file>
             <file>tests/Install/SiteLanguageRegistryMigrationTest.php</file>
             <file>tests/Install/PageTranslationMigrationTest.php</file>
             <file>tests/Install/LocalizedSlugMigrationTest.php</file>
@@ -580,9 +582,9 @@
             <file>tests/Service/MediaLibraryTwoHttpTest.php</file>
             <file>tests/Service/ShopShareImageChoiceTest.php</file>
             <file>tests/Install/MediaLibraryTwoMigrationTest.php</file>
+            <file>tests/Install/PortfolioTwoMigrationTest.php</file>
             <file>tests/Service/MediaLibraryTest.php</file>
             <file>tests/Service/SettingsNavigationHttpTest.php</file>
-            <file>tests/Install/PortfolioTwoMigrationTest.php</file>
             <file>tests/Service/Media/SvgSanitizerTest.php</file>
             <file>tests/Service/Media/SvgUploadRoutesTest.php</file>
             <file>tests/Service/Media/SvgAuditTest.php</file>
@@ -626,10 +628,12 @@
             <file>tests/Service/PageUrlChangeTest.php</file>
             <file>tests/Service/PageUsageTest.php</file>
             <file>tests/Service/PortfolioAdminScreenTest.php</file>
+            <file>tests/Service/PortfolioTwoContractTest.php</file>
             <file>tests/Service/PortfolioItemContentTest.php</file>
             <file>tests/Service/PortfolioItemEditingHttpTest.php</file>
             <file>tests/Service/PortfolioPageLinkTest.php</file>
             <file>tests/Service/PortfolioProjectPageTest.php</file>
+            <file>tests/Service/PortfolioProjectGalleryTest.php</file>
             <file>tests/Service/RedirectAdminSecurityTest.php</file>
             <file>tests/Service/RedirectPathTest.php</file>
             <file>tests/Service/RedirectRoutingTest.php</file>

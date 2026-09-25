@@ -34,27 +34,31 @@ use App\Service\Routing\RequestLanguage;
  * `assets/js/blocks/item-gallery.js`'s `initFilters()` keeps matching on the same
  * space-separated-token scheme it always has.
  *
- * A PROJECT PAGE IS AN ORDINARY CMS PAGE. An item stores at most one `page_id`
- * (db/migrations/20260914200000_link_a_portfolio_item_to_a_page.php), and this
- * class turns it into an address per request, only ever through a page the
- * public may see: published, and not served by a switched-off module — the
- * rule App\Service\LinkResolver applies to a menu link. A renamed page is
- * followed, a draft or deleted page is no link, and no address is stored
- * anywhere. That page's words, SEO, canonical and sitemap entry are its own.
+ * A PROJECT PAGE IS THE ITEM'S OWN (Portfolio 2.0, MODULES.md "Portfolio").
+ * An item is the content source of its page at /portfolio/<slug>: switched on
+ * with has_detail_page, reached by its slug, written in its intro and
+ * description words, and illustrated by its main picture plus the extra
+ * photos in portfolio_item_images. portfolio-detail.php renders it
+ * dynamically (itemForDetailPage()); no `pages` row is ever made for it.
  *
- * THE OLD PROJECT PAGE, kept for its address during the transition. Before the
- * link the Portfolio owned its project pages at /portfolio/<slug>
- * (has_detail_page, slug, intro, description, portfolio_item_images). Nothing
- * edits them any more; the columns and the photos stay (MODULES.md,
- * "Portfolio"). /portfolio/<slug> is a compatibility route now: it redirects,
- * temporarily, to the published page its item links to
- * (legacyProjectRedirectUrl()), or, while there is none, still shows the old
- * page (itemForDetailPage()) — never a silent 404. Meanwhile the item's card
- * links to that old page (mapItemRow()), and legacyProjectPagesForSitemap()
- * lists exactly the addresses that still show one.
+ * A LEGACY LINKED PAGE still wins while it exists. Between phase 4B and
+ * Portfolio 2.0 an item could link to an ordinary CMS page as its project page
+ * (`page_id`, db/migrations/20260914200000_link_a_portfolio_item_to_a_page.php).
+ * No new link can be made any more, but an existing one keeps working exactly
+ * as it did: this class turns it into an address per request, only ever
+ * through a page the public may see (published, and not served by a
+ * switched-off module — the rule App\Service\LinkResolver applies to a menu
+ * link), /portfolio/<slug> redirects there temporarily
+ * (legacyProjectRedirectUrl()), and that page's words, SEO and sitemap entry
+ * are its own. Unlinking it in the item's editor hands the address back to
+ * the item's own project page.
+ *
+ * THE CARD NEVER NAVIGATES. Its picture always opens the lightbox, and "Bekijk
+ * project" is a separate link to wherever the project lives (mapItemRow()),
+ * so a click on a picture does the same thing on every card.
  *
  * WORDS PER LANGUAGE (Multilingual 2.0 phase 5 wave A). An item's alt text,
- * title and subtitle, a category's name, and the old project page's intro,
+ * title and subtitle, a category's name, and the project page's intro,
  * description and photo alt texts are stored per website language in the
  * typed tables of App\Service\PortfolioLocalization and come out of it as one
  * string each, in the language of the request, the fallback already applied.
@@ -74,6 +78,9 @@ use App\Service\Routing\RequestLanguage;
  */
 class PortfolioGalleryContent
 {
+    /** The words of the card's link to its project. */
+    public const CTA_LABEL = ['nl' => 'Bekijk project', 'en' => 'View project'];
+
     /** @var array<string, list<array<string, mixed>>> */
     private static array $cache = [];
 
@@ -323,6 +330,27 @@ class PortfolioGalleryContent
     }
 
     /**
+     * The alt text of one extra photo, layered like the item's own picture
+     * (itemAlt()): the photo's own alt text in the visitor's language, which a
+     * photo from before the library has, else the alt text of its library
+     * item.
+     *
+     * @param array<string, mixed> $image a portfolio_item_images row
+     */
+    private static function photoAlt(array $image, string $language): string
+    {
+        $own = PortfolioLocalization::imageAlt((int) $image['id'], $language);
+
+        if (trim($own) !== '') {
+            return $own;
+        }
+
+        $media = MediaService::find((int) ($image['media_id'] ?? 0));
+
+        return $media !== null ? $media->altText : $own;
+    }
+
+    /**
      * One catalogue row as the normalised gallery item every source of
      * App\Service\ItemGalleryContent returns — so the rendering partial has
      * one code path and knows nothing about portfolios.
@@ -331,22 +359,15 @@ class PortfolioGalleryContent
      * admin/homepage-selection concerns, not something a template needs to
      * render a card.
      *
-     * THE LINK, in this order (MODULES.md, "Portfolio"):
+     * THE CARD CONTRACT (Portfolio 2.0, MODULES.md "Portfolio"):
      *
-     *   1. the current address of the published page the item links to;
-     *   2. otherwise, while the item still has its old project page
-     *      (has_detail_page and a slug to reach it by), that page's
-     *      /portfolio/<slug>: a compatibility link, so a site keeps working
-     *      after the upgrade until every old project has an ordinary page;
-     *   3. otherwise none: a plain card without the "opens its own page" arrow.
-     *
-     * A link to a draft or a deleted page is no link, so rule 2 or 3 applies
-     * and no unpublished address ever reaches the page.
-     *
-     * `follows_fallback_link` is false for every portfolio item: the block's
-     * `fallback_link_url` never stands in for rule 3. A portfolio card without
-     * a page of its own stays unclickable, whatever the block sets for the
-     * cards of other sources.
+     *   - the picture ALWAYS opens the lightbox (`opens_lightbox`), whatever
+     *     the block's own lightbox setting says and whether or not the item
+     *     has a project page, so a click on a picture never surprises;
+     *   - the card itself is never a link (`url` ''), and the block's
+     *     `fallback_link_url` never makes it one (`follows_fallback_link`);
+     *   - "Bekijk project" (`cta`) is a separate, real link, present only when
+     *     the project has somewhere to go — projectUrl() decides where.
      *
      * @param array<string, mixed> $item
      * @param array<int, list<string>> $categoriesByItemId from categorySlugsByItemIds()
@@ -357,19 +378,7 @@ class PortfolioGalleryContent
     {
         $itemId = (int) $item['id'];
         $language = RequestLanguage::current();
-
-        $page = $pagesById[(int) ($item['page_id'] ?? 0)] ?? null;
-        $oldSlug = (string) ($item['slug'] ?? '');
-
-        if ($page !== null) {
-            $url = PageContent::publicUrl($page);
-        } elseif (!empty($item['has_detail_page']) && $oldSlug !== '') {
-            // In the language the visitor is reading, like the page link above:
-            // the old address answers under every prefix.
-            $url = \App\Service\Routing\LocalizedUrl::path(self::publicPath($oldSlug));
-        } else {
-            $url = '';
-        }
+        $projectUrl = self::projectUrl($item, $pagesById);
 
         return [
             'image_path' => (string) $item['image_path'],
@@ -377,25 +386,65 @@ class PortfolioGalleryContent
             'title' => PortfolioLocalization::item($itemId, PortfolioLocalization::TITLE, $language),
             'subtitle' => PortfolioLocalization::item($itemId, PortfolioLocalization::SUBTITLE, $language),
             'categories' => implode(' ', $categoriesByItemId[$itemId] ?? []),
-            'url' => $url,
-            'is_detail_link' => $url !== '',
+            'url' => '',
+            'is_detail_link' => false,
             'follows_fallback_link' => false,
+            'opens_lightbox' => true,
+            'cta' => $projectUrl === '' ? null : [
+                'url' => $projectUrl,
+                'label' => \App\Service\Language\SiteText::pick(self::CTA_LABEL),
+            ],
         ];
     }
 
     /**
-     * Where an old project address sends its visitor now: the canonical URL of
-     * the published page its item links to, or null when there is none — no
-     * item with that slug, no link, or a link to a draft, a deleted page or a
-     * page whose module is off. portfolio-detail.php answers a URL with a
-     * TEMPORARY redirect to it (App\Service\Redirects\Redirect::STATUS_TEMPORARY,
-     * the CMS's own "borrowed for now") before it reads anything of the old page.
+     * Where "Bekijk project" goes, in this order, or '' for nowhere:
      *
-     * Temporary, not permanent: during the transition /portfolio/<slug> is a
-     * compatibility route, and the link behind it is still an editor's to
-     * change. Take the link off and the old page answers again; link another
-     * page and the address follows it. A 301 would be cached by browsers and
-     * keep sending earlier visitors to a target the item no longer has.
+     *   1. the current address of the published page a LEGACY link names
+     *      (phase 4B), so an existing site keeps sending visitors exactly
+     *      where it did until an editor unlinks it;
+     *   2. otherwise the item's own project page /portfolio/<slug>, when it
+     *      is switched on and has a slug to reach it by, in the language the
+     *      visitor is reading (the address answers under every prefix);
+     *   3. otherwise nowhere: an item without a project page has no button.
+     *
+     * A link to a draft or a deleted page is no link, so rule 2 or 3 applies
+     * and no unpublished address ever reaches the page. The rule is the
+     * editor's switch "Projectpagina tonen" and nothing else — no guess from
+     * how much text or how many photos an item has — so a project that has a
+     * page always shows the button, and one without never does.
+     *
+     * @param array<string, mixed> $item a portfolio_gallery_items row
+     * @param array<int, array<string, mixed>> $pagesById from publishedPagesById()
+     */
+    private static function projectUrl(array $item, array $pagesById): string
+    {
+        $page = $pagesById[(int) ($item['page_id'] ?? 0)] ?? null;
+
+        if ($page !== null) {
+            return PageContent::publicUrl($page);
+        }
+
+        $slug = (string) ($item['slug'] ?? '');
+
+        return !empty($item['has_detail_page']) && $slug !== ''
+            ? \App\Service\Routing\LocalizedUrl::path(self::publicPath($slug))
+            : '';
+    }
+
+    /**
+     * Where a project address sends its visitor while the item still has a
+     * LEGACY linked page (phase 4B): the canonical URL of that published page,
+     * or null when there is none — no item with that slug, no link, or a link
+     * to a draft, a deleted page or a page whose module is off.
+     * portfolio-detail.php answers a URL with a TEMPORARY redirect to it
+     * (App\Service\Redirects\Redirect::STATUS_TEMPORARY, the CMS's own "borrowed
+     * for now") before it reads anything of the item's own project page.
+     *
+     * Temporary, not permanent: the link is still an editor's to remove, and
+     * once it is gone the item's own project page answers at this address. A
+     * 301 would be cached by browsers and keep sending earlier visitors to a
+     * target the item no longer has.
      *
      * Resolved per request on the page's id, like the card, so a renamed page
      * is followed without a stored redirect to keep up to date. The target is
@@ -438,21 +487,20 @@ class PortfolioGalleryContent
     }
 
     /**
-     * The old project addresses that still show a page, for
-     * App\Module\PortfolioModule's sitemap collector: slug plus last-modified
-     * timestamp.
+     * The project addresses that show a page, for App\Module\PortfolioModule's
+     * sitemap collector: slug plus last-modified timestamp.
      *
      * Exactly what portfolio-detail.php answers with a page: a visible item
-     * with its old project page switched on and a slug to reach it by (the
-     * repository's query), and no published page linked — such an address
-     * redirects (legacyProjectRedirectUrl()), and an address that redirects
-     * does not belong in a sitemap. The linked page is listed by Core's own
-     * pages collector under its own canonical, so a project is never listed
-     * twice.
+     * with its project page switched on and a slug to reach it by (the
+     * repository's query), and no legacy published page linked — such an
+     * address redirects (legacyProjectRedirectUrl()), and an address that
+     * redirects does not belong in a sitemap. The linked page is listed by
+     * Core's own pages collector under its own canonical, so a project is
+     * never listed twice.
      *
      * @return list<array{slug: string, updated_at: ?string}>
      */
-    public static function legacyProjectPagesForSitemap(): array
+    public static function projectPagesForSitemap(): array
     {
         $items = (new PortfolioGalleryRepository())->findDetailPageItemsForSitemap();
         $pagesById = self::publishedPagesById($items);
@@ -470,18 +518,19 @@ class PortfolioGalleryContent
     }
 
     /**
-     * The address of an old project page. The single place that knows the
-     * /portfolio/ prefix: portfolio-detail.php's canonical tag, its og:url and
-     * the sitemap collector all resolve it through here, so the sitemap can
-     * never list an old project page under a URL different from the one the
-     * page declares canonical.
+     * The address of a project page. The single place that knows the
+     * /portfolio/ prefix: portfolio-detail.php's canonical tag, its og:url,
+     * the card's "Bekijk project", the redirect a slug change records and the
+     * sitemap collector all resolve it through here, so the sitemap can never
+     * list a project page under a URL different from the one the page
+     * declares canonical.
      *
      * The counterpart of App\Service\CollectionContent::publicPath() and
      * App\Service\ProductSeo::publicPath().
      *
      * UNPREFIXED: the address is the same in every language, so a language is
      * only ever its prefix, which App\Service\Routing\LocalizedUrl puts on in
-     * canonicalUrlForSlug() and on the card link in mapItemRow().
+     * canonicalUrlForSlug() and on the card's link in projectUrl().
      */
     public static function publicPath(string $slug): string
     {
@@ -489,7 +538,7 @@ class PortfolioGalleryContent
     }
 
     /**
-     * The old project page's canonical in $language, the request's when null:
+     * A project page's canonical in $language, the request's when null:
      * /en/portfolio/<slug> is that page's English version and says so, rather
      * than naming the default language's (docs/multilingual/ROUTING.md, §10).
      */
@@ -499,12 +548,16 @@ class PortfolioGalleryContent
     }
 
     /**
-     * The old project page (portfolio-detail.php?slug=...) for an address that
-     * has no published page to redirect to: the full item row (including
-     * intro/description NL+EN) plus its additional gallery images, or null
-     * when no active item with that page switched on matches this slug — the
-     * template then renders a 404. That page either exists as the content it
-     * always had or it doesn't; there is nothing to fall back to.
+     * The item's own project page (portfolio-detail.php?slug=...) for an
+     * address that has no legacy page to redirect to: the item's words in the
+     * language of the request, its categories, its main picture and its extra
+     * photos, or null when no visible item with its project page switched on
+     * matches this slug — the template then renders a 404.
+     *
+     * The main picture is not repeated among `images`: it is the item's own
+     * (portfolio_gallery_items.media_id) and shown first, the photos are the
+     * additional ones, and the editor refuses the main picture as a photo
+     * (App\Service\PortfolioProjectGallery).
      *
      * @return array<string, mixed>|null
      */
@@ -554,8 +607,17 @@ class PortfolioGalleryContent
 
         $language = RequestLanguage::current();
 
+        // The library pictures behind the photos in one query, for the alt
+        // text a photo without its own falls back to.
+        MediaService::findMany(array_values(array_filter(array_map(
+            static fn (array $image): int => (int) ($image['media_id'] ?? 0),
+            $images
+        ))));
+
         return [
+            'id' => $itemId,
             'slug' => (string) $item['slug'],
+            'updated_at' => $item['updated_at'] !== null ? (string) $item['updated_at'] : null,
             'image_path' => (string) $item['image_path'],
             'alt' => self::itemAlt($item, $language),
             'title' => PortfolioLocalization::item($itemId, PortfolioLocalization::TITLE, $language),
@@ -564,9 +626,8 @@ class PortfolioGalleryContent
                 'slug' => (string) $category['slug'],
                 'name' => PortfolioLocalization::categoryName((int) $category['id'], $language),
             ], $categories),
-            // Sanitized per language on read, defensively: the editor that
-            // wrote this HTML is gone, but nothing renders it without going
-            // through PortfolioLocalization::itemRich() first — the
+            // Sanitized per language on save AND again on read: nothing renders
+            // it without going through PortfolioLocalization::itemRich() — the
             // "sanitize again on read" half of the pattern
             // DescriptionSanitizer/api/product.php follow.
             'intro' => PortfolioLocalization::itemRich($itemId, PortfolioLocalization::INTRO, $language),
@@ -581,7 +642,7 @@ class PortfolioGalleryContent
                     // migration's docblock): the gallery grid always has an
                     // image to show, just not always the smaller one.
                     'thumbnail_path' => self::valueOrDefault($image['thumbnail_path'] ?? null, $imagePath),
-                    'alt' => PortfolioLocalization::imageAlt((int) $image['id'], $language),
+                    'alt' => self::photoAlt($image, $language),
                 ];
             }, $images),
         ];
