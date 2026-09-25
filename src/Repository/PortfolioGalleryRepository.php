@@ -297,8 +297,10 @@ class PortfolioGalleryRepository extends Repository
     }
 
     /**
-     * Appends a new item to the end of a gallery. image_path is the
-     * already-stored path returned by SectionImageUploader::store() — this
+     * Appends a new item to the end of a gallery. Its picture is a Media
+     * Library item (media_id), with that item's path and thumbnail written
+     * along into image_path and thumbnail_path, which every public reader
+     * reads (MEDIA.md, "Hoe een feature naar media verwijst") — this
      * repository never touches the filesystem itself. Categories are set
      * separately via setItemCategories() once the item (and therefore its
      * id) exists — see api/admin/create-portfolio-item.php. The legacy
@@ -311,7 +313,7 @@ class PortfolioGalleryRepository extends Repository
      * portfolio_item_translations and are written through
      * App\Service\PortfolioLocalization, in the same transaction as this row.
      *
-     * @param array<string, string|null> $values image_path, thumbnail_path
+     * @param array<string, string|int|null> $values media_id, image_path, thumbnail_path
      */
     public function createItem(int $galleryId, array $values): int
     {
@@ -319,12 +321,13 @@ class PortfolioGalleryRepository extends Repository
 
         $stmt = $this->db->prepare(
             'INSERT INTO portfolio_gallery_items
-                (portfolio_gallery_id, image_path, thumbnail_path, sort_order, is_active, created_at, updated_at)
+                (portfolio_gallery_id, media_id, image_path, thumbnail_path, sort_order, is_active, created_at, updated_at)
              VALUES
-                (:portfolio_gallery_id, :image_path, :thumbnail_path, :sort_order, 1, NOW(), NOW())'
+                (:portfolio_gallery_id, :media_id, :image_path, :thumbnail_path, :sort_order, 1, NOW(), NOW())'
         );
         $stmt->execute([
             'portfolio_gallery_id' => $galleryId,
+            'media_id' => isset($values['media_id']) && (int) $values['media_id'] > 0 ? (int) $values['media_id'] : null,
             'image_path' => $values['image_path'],
             'thumbnail_path' => $values['thumbnail_path'] ?? null,
             'sort_order' => $nextSortOrder,
@@ -348,12 +351,16 @@ class PortfolioGalleryRepository extends Repository
      * (portfolio-detail.php). It keeps exactly what it has, which is also why
      * the editor sends only the three fields it shows.
      *
-     * @param array<string, string|bool|int|null> $values image_path, thumbnail_path, is_active, is_featured, featured_sort_order
+     * media_id is the library item, or null for a picture that still lives
+     * on Portfolio's own path from before the library.
+     *
+     * @param array<string, string|bool|int|null> $values media_id, image_path, thumbnail_path, is_active, is_featured, featured_sort_order
      */
     public function updateItem(int $id, array $values): void
     {
         $stmt = $this->db->prepare(
             'UPDATE portfolio_gallery_items SET
+                media_id = :media_id,
                 image_path = :image_path,
                 thumbnail_path = :thumbnail_path,
                 is_active = :is_active,
@@ -363,6 +370,7 @@ class PortfolioGalleryRepository extends Repository
              WHERE id = :id'
         );
         $stmt->execute([
+            'media_id' => isset($values['media_id']) && (int) $values['media_id'] > 0 ? (int) $values['media_id'] : null,
             'image_path' => $values['image_path'],
             'thumbnail_path' => $values['thumbnail_path'] ?? null,
             'is_active' => $values['is_active'] ? 1 : 0,

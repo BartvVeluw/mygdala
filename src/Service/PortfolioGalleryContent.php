@@ -6,6 +6,7 @@ use App\Repository\PageRepository;
 use App\Repository\PortfolioCategoryRepository;
 use App\Repository\PortfolioGalleryRepository;
 use App\Repository\PortfolioItemImageRepository;
+use App\Service\Media\MediaService;
 use App\Service\Routing\RequestLanguage;
 
 /**
@@ -119,6 +120,13 @@ class PortfolioGalleryContent
 
         $categoriesByItemId = self::categorySlugsByItemIds($items);
         $pagesById = self::publishedPagesById($items);
+
+        // The library pictures of the whole list in one query, for the alt
+        // text an item without its own falls back to (itemAlt()).
+        MediaService::findMany(array_values(array_filter(array_map(
+            static fn (array $item): int => (int) ($item['media_id'] ?? 0),
+            $items
+        ))));
 
         // One query for the words of every card on the page, the way
         // App\Service\Blocks\BlockLocalization::preloadSections() does it for
@@ -293,6 +301,28 @@ class PortfolioGalleryContent
     }
 
     /**
+     * The alt text an item's picture gets, layered like every other library
+     * picture (MEDIA.md, "Alt-tekst is gelaagd"): the item's own alt text in
+     * the visitor's language (with the usual fallback to the default
+     * language), else the alt text of its Media Library item. An item from
+     * before the library has no library item and keeps exactly its own.
+     *
+     * @param array<string, mixed> $item
+     */
+    private static function itemAlt(array $item, string $language): string
+    {
+        $own = PortfolioLocalization::item((int) $item['id'], PortfolioLocalization::ALT, $language);
+
+        if (trim($own) !== '') {
+            return $own;
+        }
+
+        $media = MediaService::find((int) ($item['media_id'] ?? 0));
+
+        return $media !== null ? $media->altText : $own;
+    }
+
+    /**
      * One catalogue row as the normalised gallery item every source of
      * App\Service\ItemGalleryContent returns — so the rendering partial has
      * one code path and knows nothing about portfolios.
@@ -343,7 +373,7 @@ class PortfolioGalleryContent
 
         return [
             'image_path' => (string) $item['image_path'],
-            'alt' => PortfolioLocalization::item($itemId, PortfolioLocalization::ALT, $language),
+            'alt' => self::itemAlt($item, $language),
             'title' => PortfolioLocalization::item($itemId, PortfolioLocalization::TITLE, $language),
             'subtitle' => PortfolioLocalization::item($itemId, PortfolioLocalization::SUBTITLE, $language),
             'categories' => implode(' ', $categoriesByItemId[$itemId] ?? []),
@@ -527,7 +557,7 @@ class PortfolioGalleryContent
         return [
             'slug' => (string) $item['slug'],
             'image_path' => (string) $item['image_path'],
-            'alt' => PortfolioLocalization::item($itemId, PortfolioLocalization::ALT, $language),
+            'alt' => self::itemAlt($item, $language),
             'title' => PortfolioLocalization::item($itemId, PortfolioLocalization::TITLE, $language),
             'subtitle' => PortfolioLocalization::item($itemId, PortfolioLocalization::SUBTITLE, $language),
             'categories' => array_map(static fn (array $category): array => [

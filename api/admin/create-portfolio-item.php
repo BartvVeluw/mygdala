@@ -17,6 +17,12 @@
  * child row, whatever language the screen was showing; translating it happens
  * on the item afterwards. Row, words and categories are one transaction.
  *
+ * THE PICTURE IS A MEDIA LIBRARY ITEM (Media Library 2.0): the editor chooses
+ * or uploads it in the shared picker, and this endpoint receives its id
+ * (portfolioLibraryImage()) — never a file. image_path and thumbnail_path are
+ * written along with it, so every public reader keeps reading what it always
+ * read.
+ *
  * Detail-page fields (slug, intro, description, additional images) are edited
  * afterwards on the item's own edit page, same as how a new product's
  * variants/extra photos are only added after the product itself exists.
@@ -35,7 +41,7 @@ require_once __DIR__ . '/_portfolio_validation.php';
 use App\Database;
 use App\Service\AdminAuth;
 use App\Service\Csrf;
-use App\Service\PortfolioImageProcessor;
+use App\Service\Language\AdminTranslator;
 use App\Service\PortfolioGalleryContent;
 use App\Service\PortfolioLocalization;
 use App\Repository\PortfolioCategoryRepository;
@@ -67,6 +73,8 @@ $categoryIds = validatePortfolioCategoryIds($_POST['categories'] ?? null, new Po
 
 $old = $words + [
     'categories' => is_array($_POST['categories'] ?? null) ? $_POST['categories'] : [],
+    // The picture chosen in the picker, so a refused save shows it again.
+    'media_id' => (int) filter_var($_POST['media_id'] ?? 0, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1, 'default' => 0]]),
 ];
 
 if ($errors !== []) {
@@ -76,30 +84,21 @@ if ($errors !== []) {
     exit;
 }
 
-$imageProcessor = new PortfolioImageProcessor();
+// The one thing an item cannot do without: a picture from the library.
+$media = portfolioLibraryImage($_POST['media_id'] ?? null);
 
-// The one thing an item cannot do without: no file, and the processor says so
-// in the editor's own words ("Geen bestand geselecteerd.").
-try {
-    $uploadResult = $imageProcessor->store($_FILES['image'] ?? []);
-} catch (\RuntimeException $e) {
-    $_SESSION['admin_portfolio_item_errors'] = [$e->getMessage()];
+if ($media === null) {
+    $_SESSION['admin_portfolio_item_errors'] = [AdminTranslator::trans('portfolio.image_required')];
     $_SESSION['admin_portfolio_item_old'] = $old;
     header('Location: /admin/portfolio-item.php');
     exit;
 }
 
-$imagePath = $uploadResult['path'];
-$thumbnailPath = $uploadResult['thumbnail_path'];
-
 try {
     // Row, words and categories are ONE transaction: an item is never in the
     // catalogue without the words that were typed for it.
     $db->beginTransaction();
-    $itemId = $repository->createItem($galleryId, [
-        'image_path' => $imagePath,
-        'thumbnail_path' => $thumbnailPath,
-    ]);
+    $itemId = $repository->createItem($galleryId, portfolioImageColumns($media));
     PortfolioLocalization::saveItem($itemId, $language, $words);
     $repository->setItemCategories($itemId, $categoryIds);
     $db->commit();
@@ -109,7 +108,7 @@ try {
         $db->rollBack();
     }
     error_log('[api/admin/create-portfolio-item.php] ' . $e->getMessage());
-    $imageProcessor->delete($imagePath, $thumbnailPath);
+    // The library item stays: it is the library's, not this item's.
     $_SESSION['admin_portfolio_item_errors'] = ['Portfolio-item kon niet worden opgeslagen. Probeer het opnieuw.'];
     $_SESSION['admin_portfolio_item_old'] = $old;
     header('Location: /admin/portfolio-item.php');

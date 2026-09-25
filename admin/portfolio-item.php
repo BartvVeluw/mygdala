@@ -6,10 +6,12 @@ require_once __DIR__ . '/../vendor/autoload.php';
 require_once __DIR__ . '/_translate.php';
 
 require_once __DIR__ . '/_localized_fields.php';
+require_once __DIR__ . '/_media_picker.php';
 
 use App\Service\AdminAuth;
 use App\Service\AdminPermissions;
 use App\Service\Csrf;
+use App\Service\Media\MediaService;
 use App\Service\PageContent;
 use App\Service\PortfolioGalleryContent;
 use App\Service\PortfolioLocalization;
@@ -22,10 +24,15 @@ use App\Repository\PortfolioGalleryRepository;
  *
  * AN IMAGE IS ENOUGH. Title, alt text, caption and categories are optional
  * (api/admin/create-portfolio-item.php), so only the image is marked required;
- * the info panel and each field's help say what the others are for. The chosen
- * image is shown the moment it is picked, before anything is uploaded
- * (admin_file_preview()); on the editor the same box shows the stored image
- * until another is chosen.
+ * the info panel and each field's help say what the others are for.
+ *
+ * THE IMAGE COMES FROM THE MEDIA LIBRARY (Media Library 2.0): the shared
+ * picker (admin/_media_picker.php) opens the library, where an editor
+ * chooses a picture or uploads a new one into it; the form posts the item's
+ * id. There is no file input here any more, so choosing a picture never
+ * opens the operating system's dialog first. An item from before the library
+ * keeps its own picture, shown above the picker, until another one is
+ * chosen.
  *
  * THE PROJECT PAGE IS AN ORDINARY PAGE. The editor offers one choice: no page,
  * or one of the site's ordinary pages
@@ -159,6 +166,13 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
  * helper docblock for why some rows have no thumbnail_path yet.
  */
 $cmsImageSrc = static fn (array $row): string => '/' . ltrim((string) ($row['thumbnail_path'] ?: $row['image_path']), '/');
+
+// The library picture the picker shows: what a refused save chose, else what
+// the item has. Null for a new item, and for an item whose picture is still an
+// old one on Portfolio's own path (shown beside the picker instead).
+$chosenMediaId = (int) ($old['media_id'] ?? 0);
+$chosenMedia = MediaService::findImage($chosenMediaId > 0 ? $chosenMediaId : (int) ($item['media_id'] ?? 0));
+$hasLegacyImage = $item !== null && (int) ($item['media_id'] ?? 0) === 0 && trim((string) ($item['image_path'] ?? '')) !== '';
 ?>
 <!doctype html>
 <html lang="<?= htmlspecialchars(\App\Service\Language\AdminLocale::current(), ENT_QUOTES, 'UTF-8') ?>">
@@ -168,6 +182,7 @@ $cmsImageSrc = static fn (array $row): string => '/' . ltrim((string) ($row['thu
 <title><?= $h($pageTitle) ?> <?= admin_te('portfolio.admin') ?></title>
 <link rel="stylesheet" href="<?= \App\Service\AssetVersion::url('/admin/assets/admin.css') ?>">
 <script src="<?= \App\Service\AssetVersion::url('/admin/assets/admin.js') ?>" defer></script>
+<?php media_picker_script(); ?>
 </head>
 <body<?= \App\Service\AdminTheme::bodyAttribute() ?>>
 <?php require __DIR__ . '/_header.php'; ?>
@@ -200,9 +215,7 @@ $cmsImageSrc = static fn (array $row): string => '/' . ltrim((string) ($row['thu
 
         <div class="admin-form-row">
           <div class="admin-field">
-            <?= admin_field_label('portfolio-image', admin_t('common.image'), admin_t('help.portfolio.image'), true) ?>
-            <?= admin_file_input(['name' => 'image', 'id' => 'portfolio-image', 'accept' => 'image/jpeg,image/png,image/webp', 'required' => true]) ?>
-            <?= admin_file_preview('portfolio-image') ?>
+            <?php media_picker_field('media_id', $chosenMedia, admin_t('common.image') . ' *', admin_t('help.portfolio.image'), false); ?>
           </div>
         </div>
 
@@ -251,10 +264,18 @@ $cmsImageSrc = static fn (array $row): string => '/' . ltrim((string) ($row['thu
       <section class="admin-card">
         <h2><?= admin_te('portfolio.hoofdafbeelding') ?></h2>
         <div class="admin-form-row">
+          <?php if ($hasLegacyImage && $chosenMedia === null): ?>
+            <?php /* A picture from before the library: it stays exactly where it
+                     is until another one is chosen below. */ ?>
+            <div class="admin-image-card admin-seo-image__preview">
+              <div class="admin-image-card__media">
+                <img src="<?= $h($cmsImageSrc($item)) ?>" alt="" loading="lazy">
+              </div>
+            </div>
+            <p class="admin-text-muted"><?= admin_te('portfolio.image_legacy') ?></p>
+          <?php endif; ?>
           <div class="admin-field">
-            <?= admin_field_label('portfolio-image', admin_t('portfolio.vervangen_door_nieuw_bestand'), admin_t('help.portfolio.replace_image')) ?>
-            <?= admin_file_input(['name' => 'image', 'id' => 'portfolio-image', 'accept' => 'image/jpeg,image/png,image/webp']) ?>
-            <?= admin_file_preview('portfolio-image', $cmsImageSrc($item)) ?>
+            <?php media_picker_field('media_id', $chosenMedia, admin_t($hasLegacyImage && $chosenMedia === null ? 'portfolio.image_replace' : 'common.image'), admin_t('help.portfolio.replace_image'), false); ?>
           </div>
         </div>
 
@@ -383,5 +404,6 @@ $cmsImageSrc = static fn (array $row): string => '/' . ltrim((string) ($row['thu
     <?= admin_confirm_dialog() ?>
   <?php endif; ?>
 </main>
+<?php media_picker_modal(); ?>
 </body>
 </html>

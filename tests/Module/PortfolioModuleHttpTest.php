@@ -13,6 +13,7 @@ use App\Repository\PortfolioGalleryRepository;
 use App\Service\AdminPermissions;
 use App\Service\PageContent;
 use App\Service\PortfolioGalleryContent;
+use App\Service\Media\MediaService;
 use App\Service\PortfolioImageProcessor;
 use App\Service\PortfolioLocalization;
 use App\Service\SectionRegistry;
@@ -52,6 +53,9 @@ final class PortfolioModuleHttpTest extends TestCase
 
     /** @var list<int> */
     private array $itemIds = [];
+
+    /** @var list<int> library items this test uploaded */
+    private array $mediaIds = [];
 
     /** @var list<string> */
     private array $categoryNames = [];
@@ -102,6 +106,14 @@ final class PortfolioModuleHttpTest extends TestCase
             $gallery->deleteItem($id);
             $processor->delete((string) $item['image_path'], $item['thumbnail_path'] ?? null);
         }
+
+        // After the items that used them: a library item in use cannot go.
+        $media = new MediaService();
+        foreach ($this->mediaIds as $id) {
+            MediaService::clearCache();
+            $media->delete($id);
+        }
+        $this->mediaIds = [];
 
         $categories = new PortfolioCategoryRepository();
         foreach ($categories->findAll() as $category) {
@@ -431,7 +443,8 @@ final class PortfolioModuleHttpTest extends TestCase
             'alt' => 'Een testafbeelding',
             'subtitle' => 'Een bewaard onderschrift',
             'categories[0]' => (string) $category['id'],
-        ], ['image' => $this->uploadableImage()]);
+            'media_id' => $this->libraryImage(self::$on, $session, $csrf),
+        ]);
 
         $this->assertSame(302, $created['status']);
         $this->assertMatchesRegularExpression('#^/admin/portfolio-item\.php\?id=\d+&created=1$#', $created['location']);
@@ -625,6 +638,27 @@ final class PortfolioModuleHttpTest extends TestCase
         }
 
         return null;
+    }
+
+    /**
+     * A picture as an editor gets one since Media Library 2.0: uploaded into
+     * the library through the picker's own endpoint, then chosen by its id.
+     *
+     * @return string the media id, as the picker posts it
+     */
+    private function libraryImage(\Tests\Support\BuiltInServer $server, string $session, string $csrf): string
+    {
+        $response = $server->request('POST', '/api/admin/media-upload.php', $session, [
+            'csrf_token' => $csrf,
+            'kind' => 'image',
+        ], ['file' => $this->uploadableImage()]);
+
+        $this->assertSame(200, $response['status'], $response['body']);
+        $id = (int) (json_decode($response['body'], true)['item']['id'] ?? 0);
+        $this->assertGreaterThan(0, $id);
+        $this->mediaIds[] = $id;
+
+        return (string) $id;
     }
 
     /** A small, real PNG, sent the way a browser sends a chosen file. */

@@ -34,6 +34,13 @@
  * language, for the old address that page still answers at (MODULES.md,
  * "Portfolio").
  *
+ * THE PICTURE is a Media Library item, chosen in the shared picker and posted
+ * as `media_id` (portfolioLibraryImage()). The same id, or none, keeps the
+ * picture the item has — also an old one on Portfolio's own path. Another
+ * library image replaces it; an old own file is then removed, because it was
+ * Portfolio's alone, while a library file is never removed here (it may be
+ * used elsewhere).
+ *
  * Categories are CMS-managed (App\Repository\PortfolioCategoryRepository) —
  * `categories[]` posts category ids, validated against what actually exists
  * (validatePortfolioCategoryIds()) and persisted via
@@ -101,6 +108,8 @@ if ($pageId === false) {
 // in — nothing is written, and nothing is lost either.
 $old = $words + [
     'categories' => is_array($_POST['categories'] ?? null) ? $_POST['categories'] : [],
+    // The picture chosen in the picker, so a refused save shows it again.
+    'media_id' => (int) filter_var($_POST['media_id'] ?? 0, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1, 'default' => 0]]),
 ];
 
 if ($errors !== []) {
@@ -110,24 +119,11 @@ if ($errors !== []) {
     exit;
 }
 
-$imageProcessor = new PortfolioImageProcessor();
-$newImagePath = null;
-$newThumbnailPath = null;
-
-$hasNewFile = isset($_FILES['image']) && ($_FILES['image']['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_NO_FILE;
-
-if ($hasNewFile) {
-    try {
-        $uploadResult = $imageProcessor->store($_FILES['image']);
-        $newImagePath = $uploadResult['path'];
-        $newThumbnailPath = $uploadResult['thumbnail_path'];
-    } catch (\RuntimeException $e) {
-        $_SESSION['admin_portfolio_item_errors'] = [$e->getMessage()];
-        $_SESSION['admin_portfolio_item_old'] = $old;
-        header('Location: /admin/portfolio-item.php?id=' . $itemId);
-        exit;
-    }
-}
+// The picture: another library image replaces it; the same one, or none
+// posted, keeps what the item has.
+$currentMediaId = (int) ($item['media_id'] ?? 0);
+$media = portfolioLibraryImage($_POST['media_id'] ?? null);
+$replacesImage = $media !== null && $media->id !== $currentMediaId;
 
 $wasFeatured = (int) $item['is_featured'] === 1;
 $isFeatured = isset($_POST['is_featured']);
@@ -140,9 +136,11 @@ if ($isFeatured && !$wasFeatured) {
     $featuredSortOrder = $item['featured_sort_order'];
 }
 
-$fields = [
-    'image_path' => $newImagePath ?? (string) $item['image_path'],
-    'thumbnail_path' => $newImagePath !== null ? $newThumbnailPath : ($item['thumbnail_path'] ?? null),
+$fields = ($replacesImage ? portfolioImageColumns($media) : [
+    'media_id' => $currentMediaId > 0 ? $currentMediaId : null,
+    'image_path' => (string) $item['image_path'],
+    'thumbnail_path' => $item['thumbnail_path'] ?? null,
+]) + [
     'is_active' => isset($_POST['is_active']),
     'is_featured' => $isFeatured,
     'featured_sort_order' => $featuredSortOrder,
@@ -161,17 +159,16 @@ try {
     $db->commit();
     PortfolioGalleryContent::clearCache();
 
-    if ($newImagePath !== null) {
-        $imageProcessor->delete((string) $item['image_path'], $item['thumbnail_path'] ?? null);
+    // An old picture on Portfolio's own path belonged to this item alone:
+    // replaced, it goes. A library file never does (it may be used elsewhere).
+    if ($replacesImage && $currentMediaId === 0) {
+        (new PortfolioImageProcessor())->delete((string) $item['image_path'], $item['thumbnail_path'] ?? null);
     }
 } catch (\Throwable $e) {
     if ($db->inTransaction()) {
         $db->rollBack();
     }
     error_log('[api/admin/update-portfolio-item.php] ' . $e->getMessage());
-    if ($newImagePath !== null) {
-        $imageProcessor->delete($newImagePath, $newThumbnailPath);
-    }
     $_SESSION['admin_portfolio_item_errors'] = ['Portfolio-item kon niet worden opgeslagen. Probeer het opnieuw.'];
     $_SESSION['admin_portfolio_item_old'] = $old;
     header('Location: /admin/portfolio-item.php?id=' . $itemId);

@@ -159,6 +159,16 @@ final class PortfolioLocalization
         return self::items()->value($itemId, $field, $languageCode);
     }
 
+    /**
+     * What the CMS calls an item: its title in the default language, else in
+     * the first language that has one. For a line such as the Media Library's
+     * "Portfolio: <titel>" (App\Service\PortfolioMediaUsage).
+     */
+    public static function itemName(int $itemId): string
+    {
+        return self::items()->name($itemId, self::TITLE);
+    }
+
     /** The stored words of one item field in one language, no fallback: for the editor. */
     public static function rawItemValue(int $itemId, string $field, string $languageCode): string
     {

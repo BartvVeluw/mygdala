@@ -38,10 +38,11 @@ final class PortfolioAdminScreenTest extends TestCase
     {
         $form = self::form('create-portfolio-item.php');
 
-        $this->assertStringContainsString(
-            "admin_file_input(['name' => 'image', 'id' => 'portfolio-image', 'accept' => 'image/jpeg,image/png,image/webp', 'required' => true])",
-            $form
-        );
+        // Media Library 2.0: the image is chosen (or uploaded into the
+        // library) with the shared picker; the endpoint refuses an item
+        // without one (portfolio.image_required).
+        $this->assertStringContainsString("media_picker_field('media_id', \$chosenMedia, admin_t('common.image') . ' *'", $form);
+        $this->assertStringNotContainsString('admin_file_input(', $form);
 
         foreach (self::WORDS as $name) {
             $this->assertStringContainsString('name="' . $name . '"', $form, $name . ' is still on the form');
@@ -53,21 +54,35 @@ final class PortfolioAdminScreenTest extends TestCase
     }
 
     /**
-     * The chosen image is shown the moment it is picked, and on the editor the
-     * same box shows the stored one until another is chosen — the preview is
-     * paired with the input by its id.
+     * Media Library 2.0: both forms choose the image from the library with the
+     * shared picker, so "Afbeelding kiezen" never opens the operating
+     * system's file dialog first. The picker shows the chosen image before
+     * anything is saved; an item from before the library shows its own
+     * picture beside the picker until another one is chosen.
      */
-    public function testBothFormsShowTheImageBeforeItIsSaved(): void
+    public function testBothFormsChooseTheImageFromTheLibrary(): void
     {
-        $this->assertStringContainsString("admin_file_preview('portfolio-image')", self::form('create-portfolio-item.php'));
+        foreach (['create-portfolio-item.php', 'update-portfolio-item.php'] as $endpoint) {
+            $form = self::form($endpoint);
+
+            $this->assertStringContainsString("media_picker_field('media_id', \$chosenMedia,", $form, $endpoint);
+            $this->assertStringNotContainsString('admin_file_input(', $form, $endpoint . ' has no file input of its own');
+            $this->assertStringNotContainsString('type="file"', $form, $endpoint);
+        }
 
         $edit = self::form('update-portfolio-item.php');
-        $this->assertStringContainsString("admin_file_preview('portfolio-image', \$cmsImageSrc(\$item))", $edit);
-        $this->assertStringContainsString(
-            "admin_file_input(['name' => 'image', 'id' => 'portfolio-image', 'accept' => 'image/jpeg,image/png,image/webp'])",
-            $edit,
-            'replacing the image stays optional'
-        );
+        $this->assertStringContainsString('<?php if ($hasLegacyImage && $chosenMedia === null): ?>', $edit);
+        $this->assertStringContainsString('$cmsImageSrc($item)', $edit);
+
+        $screen = self::source(self::ITEM_SCREEN);
+        $this->assertStringContainsString('<?php media_picker_modal(); ?>', $screen);
+        $this->assertStringContainsString('<?php media_picker_script(); ?>', $screen);
+
+        foreach (['create-portfolio-item.php', 'update-portfolio-item.php'] as $endpoint) {
+            $reads = self::source('api/admin/' . $endpoint);
+            $this->assertStringContainsString("portfolioLibraryImage(\$_POST['media_id'] ?? null)", $reads, $endpoint);
+            $this->assertStringNotContainsString('$_FILES', $reads, $endpoint . ' stores no upload of its own');
+        }
     }
 
     /** The alt text is not required, and its help says when it may stay empty. */
@@ -244,7 +259,7 @@ final class PortfolioAdminScreenTest extends TestCase
                 }
 
                 $this->assertMatchesRegularExpression(
-                    '/name="' . preg_quote($name, '/') . '"|renderRichTextField\(\'' . preg_quote($name, '/') . '\'/',
+                    '/name="' . preg_quote($name, '/') . '"|renderRichTextField\(\'' . preg_quote($name, '/') . '\'|media_picker_field\(\'' . preg_quote($name, '/') . '\'/',
                     $form,
                     $endpoint . ' reads ' . $name . ', so the form must still send it'
                 );

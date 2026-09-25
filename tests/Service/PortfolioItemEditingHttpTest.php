@@ -13,6 +13,7 @@ use App\Service\AdminPermissions;
 use App\Service\Language\AdminTranslator;
 use App\Service\PageContent;
 use App\Service\PortfolioGalleryContent;
+use App\Service\Media\MediaService;
 use App\Service\PortfolioImageProcessor;
 use App\Service\PortfolioLocalization;
 use PHPUnit\Framework\TestCase;
@@ -40,6 +41,9 @@ final class PortfolioItemEditingHttpTest extends TestCase
 
     /** @var list<int> */
     private array $itemIds = [];
+
+    /** @var list<int> library items this test uploaded */
+    private array $mediaIds = [];
 
     /** @var list<int> */
     private array $categoryIds = [];
@@ -85,6 +89,14 @@ final class PortfolioItemEditingHttpTest extends TestCase
             $processor->delete((string) $item['image_path'], $item['thumbnail_path'] ?? null);
         }
 
+        // After the items that used them: a library item in use cannot go.
+        $media = new MediaService();
+        foreach ($this->mediaIds as $id) {
+            MediaService::clearCache();
+            $media->delete($id);
+        }
+        $this->mediaIds = [];
+
         $categories = new PortfolioCategoryRepository();
         foreach ($this->categoryIds as $id) {
             $categories->delete($id);
@@ -126,8 +138,7 @@ final class PortfolioItemEditingHttpTest extends TestCase
             'POST',
             '/api/admin/create-portfolio-item.php',
             $session,
-            ['csrf_token' => $csrf],
-            ['image' => $this->uploadableImage()]
+            ['csrf_token' => $csrf, 'media_id' => $this->libraryImage($session, $csrf)]
         );
 
         $itemId = $this->createdItemId($response);
@@ -166,8 +177,7 @@ final class PortfolioItemEditingHttpTest extends TestCase
             'POST',
             '/api/admin/create-portfolio-item.php',
             $session,
-            ['csrf_token' => $csrf, 'categories[0]' => (string) $category['id']] + $words,
-            ['image' => $this->uploadableImage()]
+            ['csrf_token' => $csrf, 'categories[0]' => (string) $category['id'], 'media_id' => $this->libraryImage($session, $csrf)] + $words
         );
 
         $itemId = $this->createdItemId($response);
@@ -298,10 +308,12 @@ final class PortfolioItemEditingHttpTest extends TestCase
     }
 
     /**
-     * The editor's preview starts on the stored image, in the HTML itself — so
-     * also without the script — and a new item's form has nothing to show yet.
+     * Media Library 2.0: the editor chooses its picture from the library,
+     * never with a file input of its own. An item from before the library
+     * shows its own picture, in the HTML itself, beside the picker until
+     * another one is chosen; a new item's form offers the picker alone.
      */
-    public function testTheEditorPreviewStartsOnTheStoredImage(): void
+    public function testTheEditorShowsAnOldPictureBesideTheLibraryPicker(): void
     {
         $itemId = $this->storedItem('ZZ Werk', []);
         $imageSrc = '/' . (string) (new PortfolioGalleryRepository())->findItemById($itemId)['image_path'];
@@ -309,15 +321,15 @@ final class PortfolioItemEditingHttpTest extends TestCase
 
         $editor = self::$server->request('GET', '/admin/portfolio-item.php?id=' . $itemId, $session);
         $this->assertSame(200, $editor['status']);
-        $this->assertStringContainsString(
-            'data-admin-file-preview="portfolio-image" data-admin-file-preview-current="' . $imageSrc . '"',
-            $editor['body']
-        );
-        $this->assertStringContainsString('src="' . $imageSrc . '" data-admin-file-preview-image', $editor['body']);
+        $this->assertStringContainsString('<img src="' . $imageSrc . '" alt="" loading="lazy">', $editor['body']);
+        $this->assertStringContainsString('data-media-picker-open', $editor['body']);
+        $this->assertStringContainsString('data-media-modal', $editor['body']);
+        $this->assertStringNotContainsString('type="file" class="admin-file__input"', $editor['body']);
 
         $new = self::$server->request('GET', '/admin/portfolio-item.php', $session);
         $this->assertSame(200, $new['status']);
-        $this->assertStringContainsString('data-admin-file-preview="portfolio-image" hidden', $new['body']);
+        $this->assertStringContainsString('data-media-picker-open', $new['body']);
+        $this->assertStringNotContainsString('admin-file__input', $new['body']);
     }
 
     /* ------------------------------------------------------------------ */
@@ -601,6 +613,27 @@ final class PortfolioItemEditingHttpTest extends TestCase
     private function itemCount(): int
     {
         return (int) Database::connection()->query('SELECT COUNT(*) FROM portfolio_gallery_items')->fetchColumn();
+    }
+
+    /**
+     * A picture as an editor gets one since Media Library 2.0: uploaded into
+     * the library through the picker's own endpoint, then chosen by its id.
+     *
+     * @return string the media id, as the picker posts it
+     */
+    private function libraryImage(string $session, string $csrf): string
+    {
+        $response = self::$server->request('POST', '/api/admin/media-upload.php', $session, [
+            'csrf_token' => $csrf,
+            'kind' => 'image',
+        ], ['file' => $this->uploadableImage()]);
+
+        $this->assertSame(200, $response['status'], $response['body']);
+        $id = (int) (json_decode($response['body'], true)['item']['id'] ?? 0);
+        $this->assertGreaterThan(0, $id);
+        $this->mediaIds[] = $id;
+
+        return (string) $id;
     }
 
     /** A small, real PNG, sent the way a browser sends a chosen file. */

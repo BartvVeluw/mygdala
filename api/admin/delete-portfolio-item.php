@@ -3,8 +3,10 @@
 /**
  * POST /api/admin/delete-portfolio-item.php
  *
- * Permanently deletes one Portfolio item: its own row (DB + main image/
- * thumbnail files via PortfolioImageProcessor::delete()), plus every
+ * Permanently deletes one Portfolio item: its own row (DB, plus its main
+ * image/thumbnail files via PortfolioImageProcessor::delete() only when that
+ * picture is an old one on Portfolio's own path — a Media Library picture
+ * stays in the library, only the reference goes), plus every
  * portfolio_item_images row — the FK's ON DELETE CASCADE removes those rows
  * automatically, but the files they reference on disk are only removed by
  * this loop first (the database cascade doesn't touch the filesystem).
@@ -65,7 +67,13 @@ try {
     $extraImages = $imageRepository->findByPortfolioItemId($itemId);
 
     $repository->deleteItem($itemId);
-    $imageProcessor->delete((string) $item['image_path'], $item['thumbnail_path'] ?? null);
+
+    // A picture from the Media Library is the library's: deleting the item
+    // only removes its reference. Only an old picture on Portfolio's own path
+    // (media_id NULL) was this item's alone and goes with it.
+    if ((int) ($item['media_id'] ?? 0) === 0) {
+        $imageProcessor->delete((string) $item['image_path'], $item['thumbnail_path'] ?? null);
+    }
 
     foreach ($extraImages as $extraImage) {
         $imageProcessor->delete((string) $extraImage['image_path'], $extraImage['thumbnail_path'] ?? null);

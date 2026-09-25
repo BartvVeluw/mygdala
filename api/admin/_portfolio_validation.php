@@ -16,6 +16,8 @@ use App\Service\Language\AdminTranslator;
 use App\Service\Language\LanguageCode;
 use App\Service\Language\LanguageFallback;
 use App\Service\Language\SiteLanguages;
+use App\Service\Media\MediaItem;
+use App\Service\Media\MediaService;
 use App\Service\PortfolioGalleryContent;
 use App\Service\PortfolioLocalization;
 
@@ -156,4 +158,36 @@ function generatePortfolioCategorySlug(PortfolioCategoryRepository $repository, 
     }
 
     return $slug;
+}
+
+/**
+ * The library picture an item's form chose (the `media_id` of the shared
+ * picker, admin/_media_picker.php), or null when the form sent none or an id
+ * that names no image in the library: the picker is a convenience, this is
+ * the check (MEDIA.md, "De mediakiezer"). An item's picture is always a
+ * library item since Media Library 2.0; nothing here reads $_FILES.
+ */
+function portfolioLibraryImage(mixed $posted): ?MediaItem
+{
+    $id = filter_var($posted, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
+
+    return $id === false ? null : MediaService::findImage($id);
+}
+
+/**
+ * The two columns every public reader of an item reads, written along with
+ * the library item (MEDIA.md, "Hoe een feature naar media verwijst"): its
+ * path, and its thumbnail — or its path again for a file the library keeps no
+ * thumbnail of (a GIF, an SVG), the same fallback the gallery applies to old
+ * rows.
+ *
+ * @return array{media_id: int, image_path: string, thumbnail_path: string}
+ */
+function portfolioImageColumns(MediaItem $media): array
+{
+    return [
+        'media_id' => $media->id,
+        'image_path' => $media->path,
+        'thumbnail_path' => $media->thumbnailPath ?? $media->path,
+    ];
 }

@@ -8,6 +8,7 @@ use App\Service\AdminPermissions;
 use App\Service\Blocks\ProjectCardsBlock;
 use App\Service\ItemGalleryContent;
 use App\Service\PortfolioGalleryContent;
+use App\Service\PortfolioMediaUsage;
 use App\Service\Sitemap;
 
 /**
@@ -265,5 +266,14 @@ final class PortfolioModule extends ModuleDefinition
                 'filter_categories' => static fn (): array => PortfolioGalleryContent::filterCategories(),
             ],
         ];
+    }
+
+    /**
+     * An item's picture is a Media Library item since Media Library 2.0:
+     * the library asks this module where it is used (MEDIA.md).
+     */
+    public function mediaUsageProviders(): array
+    {
+        return [new PortfolioMediaUsage()];
     }
 }
