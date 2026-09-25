@@ -20,6 +20,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../../vendor/autoload.php';
 require_once __DIR__ . '/_collection_validation.php';
+require_once __DIR__ . '/_shop_share_image.php';
 
 use App\Database;
 use App\Repository\CollectionRepository;
@@ -150,26 +151,18 @@ if ($imageField === 'media') {
     $imageChange = ['path' => null, 'media' => null];
 }
 
-// The optional SEO/social image from the SEO card — same upload/replace/
-// remove contract as the collection image above, and the same uploader, so
-// it lands in the one folder SectionImageUploader is allowed to delete from.
-$newOgImagePath = null;
-$hasOgUpload = isset($_FILES['og_image'])
-    && ($_FILES['og_image']['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_NO_FILE;
+// The optional SEO/social image from the SEO card — a library image chosen in
+// the shared picker, with the same legacy contract as the collection image
+// above: an old own file stays until another image is chosen or it is removed
+// on purpose (shop_share_image_choice()).
+$share = shop_share_image_choice($_POST, $existing);
+$fields['og_media_id'] = array_key_exists('og_media_id', $_POST) ? (int) filter_var($_POST['og_media_id'], FILTER_VALIDATE_INT, ['options' => ['default' => 0]]) : null;
 
-if ($hasOgUpload) {
-    try {
-        $newOgImagePath = $uploader->store($_FILES['og_image']);
-    } catch (\RuntimeException $e) {
-        $errors[] = $e->getMessage();
-    }
+if ($share['error'] !== null) {
+    $errors[] = $share['error'];
 }
 
 if ($errors !== []) {
-    if ($newOgImagePath !== null) {
-        $uploader->delete($newOgImagePath);
-    }
-
     $_SESSION['admin_collection_errors'] = $errors;
     $_SESSION['admin_collection_old'] = $fields;
     header('Location: /admin/collection.php?id=' . $id);
@@ -217,19 +210,16 @@ try {
         }
     }
 
-    $oldOgImagePath = (string) ($existing['og_image_path'] ?? '');
+    if ($share['change']) {
+        // NULL falls back to the collection image, a product photo, and the
+        // site image (CollectionContent::socialImagePath()).
+        $collectionRepository->updateOgImagePath($id, $share['media']?->path, $share['media']?->id);
 
-    if ($newOgImagePath !== null) {
-        $collectionRepository->updateOgImagePath($id, $newOgImagePath);
-
-        if ($oldOgImagePath !== '' && $oldOgImagePath !== $newOgImagePath) {
-            $unreferenced[] = $oldOgImagePath;
+        // Only an old own file was this collection's alone; a library file
+        // is never deleted here.
+        if ($share['old_path'] !== null) {
+            $unreferenced[] = $share['old_path'];
         }
-    } elseif ($fields['remove_og_image'] && $oldOgImagePath !== '') {
-        // Back to NULL: CollectionContent::socialImagePath() then falls back
-        // to the collection image, a product photo, and the site image.
-        $collectionRepository->updateOgImagePath($id, null);
-        $unreferenced[] = $oldOgImagePath;
     }
 
     // Only synchronise membership when the form actually carried the product
@@ -255,10 +245,6 @@ try {
     }
 
     error_log('[api/admin/update-collection.php] ' . $e->getMessage());
-
-    if ($newOgImagePath !== null) {
-        $uploader->delete($newOgImagePath);
-    }
 
     $_SESSION['admin_collection_errors'] = ['Collectie kon niet worden opgeslagen. Probeer het opnieuw.'];
     $_SESSION['admin_collection_old'] = $fields;

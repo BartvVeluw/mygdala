@@ -27,7 +27,7 @@ je aan de modulegrens zelf werkt.
 | Verzending | `src/Service/Shipping/`, `src/Service/Address/`, `src/Repository/{Shipping,Carrier}*.php` |
 | Dashboard | `src/Service/Dashboard*.php`, `src/Repository/DashboardRepository.php`, `admin/_dashboard_shop.php` |
 | Adminschermen | `admin/{products,product-form,collections,collection,orders,order,orders-export,shipping,carrier-rates,related-products}.php`, `admin/withdrawal-request*.php` |
-| Admin-endpoints | `api/admin/*{product,variant,collection,shipping,carrier,invoice,fulfilment,withdrawal}*.php`, `api/admin/{order,resend-order,sync-postnl-rates}*.php` |
+| Admin-endpoints | `api/admin/*{product,variant,collection,shipping,carrier,invoice,fulfilment,withdrawal}*.php`, `api/admin/{order,resend-order,sync-postnl-rates}*.php`, `api/admin/_shop_share_image.php` (de deel-afbeelding uit de Mediabibliotheek) |
 | Publieke endpoints | `api/{checkout,shipping-quote,shipping-zones,mollie-webhook,order-status,product,products,address-lookup-nl,withdrawal-request}.php` |
 | Publieke routes | `shop.php`, `product.php`, `collectie.php`, `cart.php`, `checkout.php`, `bestelling-status.php`, `herroeping.php` |
 | Frontend | `assets/css/shop/`, `assets/js/shop/` |

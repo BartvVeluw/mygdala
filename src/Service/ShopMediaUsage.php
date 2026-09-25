@@ -75,8 +75,24 @@ final class ShopMediaUsage extends MediaUsageProvider
         $collections->execute($ids);
         $collectionRows = $collections->fetchAll();
 
-        ShopLocalization::preloadProducts(array_map(static fn (array $row): int => (int) $row['product_id'], $productRows));
-        ShopLocalization::preloadCollections(array_map(static fn (array $row): int => (int) $row['id'], $collectionRows));
+        // The share images (Media Library 2.0): a separate use of possibly a
+        // separate item, reported apart, like a blog post's.
+        $productShares = $db->prepare('SELECT id, og_media_id FROM products WHERE og_media_id IN (' . $placeholders . ') ORDER BY id ASC');
+        $productShares->execute($ids);
+        $productShareRows = $productShares->fetchAll();
+
+        $collectionShares = $db->prepare('SELECT id, og_media_id FROM collections WHERE og_media_id IN (' . $placeholders . ') ORDER BY id ASC');
+        $collectionShares->execute($ids);
+        $collectionShareRows = $collectionShares->fetchAll();
+
+        ShopLocalization::preloadProducts(array_merge(
+            array_map(static fn (array $row): int => (int) $row['product_id'], $productRows),
+            array_map(static fn (array $row): int => (int) $row['id'], $productShareRows)
+        ));
+        ShopLocalization::preloadCollections(array_merge(
+            array_map(static fn (array $row): int => (int) $row['id'], $collectionRows),
+            array_map(static fn (array $row): int => (int) $row['id'], $collectionShareRows)
+        ));
 
         $usages = [];
 
@@ -102,6 +118,28 @@ final class ShopMediaUsage extends MediaUsageProvider
             $usages[(int) $row['media_id']][] = new MediaUsage(
                 source: $this->key(),
                 label: 'Collectie: ' . ShopLocalization::collectionName($collectionId),
+                permission: ShopModule::COLLECTIONS_MANAGE,
+                editUrl: '/admin/collection.php?id=' . $collectionId,
+            );
+        }
+
+        foreach ($productShareRows as $row) {
+            $productId = (int) $row['id'];
+
+            $usages[(int) $row['og_media_id']][] = new MediaUsage(
+                source: $this->key(),
+                label: 'Deel-afbeelding van product: ' . ShopLocalization::productName($productId),
+                permission: ShopModule::PRODUCTS_MANAGE,
+                editUrl: '/admin/product-form.php?id=' . $productId,
+            );
+        }
+
+        foreach ($collectionShareRows as $row) {
+            $collectionId = (int) $row['id'];
+
+            $usages[(int) $row['og_media_id']][] = new MediaUsage(
+                source: $this->key(),
+                label: 'Deel-afbeelding van collectie: ' . ShopLocalization::collectionName($collectionId),
                 permission: ShopModule::COLLECTIONS_MANAGE,
                 editUrl: '/admin/collection.php?id=' . $collectionId,
             );

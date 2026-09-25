@@ -234,7 +234,7 @@ class ProductRepository extends Repository
         $stmt = $this->db->prepare(
             'SELECT id, slug, price, image_path, active, in_shop, in_personalization_catalog,
                     shipping_profile, shipping_weight_grams, requires_parcel,
-                    og_image_path
+                    og_image_path, og_media_id
              FROM products
              WHERE id = :id
              LIMIT 1'
@@ -359,15 +359,18 @@ class ProductRepository extends Repository
 
     /**
      * The optional dedicated social-sharing image. Separate from update()
-     * for the same reason updateImagePath() is: it is written only when a
-     * file was actually uploaded or the admin explicitly asked to remove it,
-     * so an ordinary text save can never drop it. NULL restores the automatic
-     * fallback to the product's own photo (App\Service\ProductSeo).
+     * for the same reason updateImagePath() is: it is written only when the
+     * editor chose another image or explicitly removed it, so an ordinary
+     * text save can never drop it. NULL restores the automatic fallback to
+     * the product's own photo (App\Service\ProductSeo).
+     *
+     * $mediaId is the Media Library item (Media Library 2.0), written with
+     * its path in og_image_path, the column every reader reads; null for none.
      */
-    public function updateOgImagePath(int $id, ?string $imagePath): void
+    public function updateOgImagePath(int $id, ?string $imagePath, ?int $mediaId = null): void
     {
-        $stmt = $this->db->prepare('UPDATE products SET og_image_path = :og_image_path, updated_at = NOW() WHERE id = :id');
-        $stmt->execute(['og_image_path' => $imagePath, 'id' => $id]);
+        $stmt = $this->db->prepare('UPDATE products SET og_image_path = :og_image_path, og_media_id = :og_media_id, updated_at = NOW() WHERE id = :id');
+        $stmt->execute(['og_image_path' => $imagePath, 'og_media_id' => $mediaId, 'id' => $id]);
     }
 
     public function setActive(int $id, bool $active): bool

@@ -20,6 +20,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../../vendor/autoload.php';
 require_once __DIR__ . '/_product_validation.php';
+require_once __DIR__ . '/_shop_share_image.php';
 
 use App\Database;
 use App\Service\AdminAuth;
@@ -27,7 +28,6 @@ use App\Service\CollectionContent;
 use App\Service\CollectionService;
 use App\Service\Csrf;
 use App\Service\ProductGallery;
-use App\Service\ProductImageUploader;
 use App\Service\ShopLocalization;
 use App\Repository\CollectionRepository;
 use App\Repository\ProductRepository;
@@ -51,28 +51,23 @@ if (!Csrf::validate($_POST['csrf_token'] ?? null)) {
 // wave C). Translating it happens on the product itself afterwards.
 [$errors, $fields] = validateProductInput($_POST, true);
 
-$uploader = new ProductImageUploader();
 $galleryTokens = ProductGallery::tokens($_POST['gallery'] ?? []);
 // A refused save shows the same pictures again, in the same order.
 $fields['gallery'] = $galleryTokens;
 
 /**
  * The optional SEO/social image from the SEO card: a separate, single
- * column, never one of the product's pictures. Cleaned up on failure.
+ * column, never one of the product's pictures — a library image chosen in the
+ * shared picker (shop_share_image_choice()). Nothing is uploaded here.
  */
-$ogImagePath = null;
-if (isset($_FILES['og_image']) && ($_FILES['og_image']['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_NO_FILE) {
-    try {
-        $ogImagePath = $uploader->store($_FILES['og_image']);
-    } catch (\RuntimeException $e) {
-        $errors[] = $e->getMessage();
-    }
+$share = shop_share_image_choice($_POST, []);
+$fields['og_media_id'] = $share['media']?->id;
+
+if ($share['error'] !== null) {
+    $errors[] = $share['error'];
 }
 
 if ($errors !== []) {
-    // Don't leave an orphaned upload behind if the rest of the form was invalid.
-    $uploader->delete($ogImagePath);
-
     $_SESSION['admin_product_errors'] = $errors;
     $_SESSION['admin_product_old'] = $fields;
     header('Location: /admin/product-form.php');
@@ -111,8 +106,8 @@ try {
 
     (new ProductGallery($db))->save($productId, $galleryTokens);
 
-    if ($ogImagePath !== null) {
-        $productRepository->updateOgImagePath($productId, $ogImagePath);
+    if ($share['media'] !== null) {
+        $productRepository->updateOgImagePath($productId, $share['media']->path, $share['media']->id);
     }
 
     // File the new product into the collections that were ticked on the
@@ -130,7 +125,6 @@ try {
     }
 
     error_log('[api/admin/create-product.php] ' . $e->getMessage());
-    $uploader->delete($ogImagePath);
 
     $_SESSION['admin_product_errors'] = ['Product kon niet worden opgeslagen. Probeer het opnieuw.'];
     $_SESSION['admin_product_old'] = $fields;

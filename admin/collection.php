@@ -222,6 +222,11 @@ $canEditProducts = AdminAuth::can('products.manage');
 // survives a failed save like every other field on this form.
 $currentOgImagePath = $collection !== null ? (string) ($collection['og_image_path'] ?? '') : '';
 $removeOgImageChecked = $old !== null && !empty($old['remove_og_image']);
+// The share image from the library: what a refused save chose, else the
+// stored one (null for none, and for an old own file shown beside the picker).
+$shareMedia = \App\Service\Media\MediaService::find(
+    $old !== null && array_key_exists('og_media_id', $old) ? (int) $old['og_media_id'] : (int) ($collection['og_media_id'] ?? 0)
+);
 
 // Only used in the SEO card's help text, to spell the automatic title
 // fallback out for the administrator — the fallback itself lives in
@@ -361,20 +366,21 @@ require __DIR__ . '/_richtext_field.php';
       </div>
 
       <div class="admin-form-row admin-seo-image">
-        <?php if ($currentOgImagePath !== ''): ?>
+        <?php /* The share image is a Media Library image (MediaType::SOCIAL_IMAGE:
+                 raster only). One from before the library stays, shown here,
+                 until another is chosen or it is removed on purpose
+                 (api/admin/_shop_share_image.php). */ ?>
+        <?php if ($currentOgImagePath !== '' && $shareMedia === null): ?>
           <div class="admin-image-card admin-seo-image__preview">
             <div class="admin-image-card__media">
-              <img src="/<?= $h(ltrim($currentOgImagePath, '/')) ?>" alt="" loading="lazy">
+              <img src="/<?= htmlspecialchars(ltrim($currentOgImagePath, '/'), ENT_QUOTES, 'UTF-8') ?>" alt="" loading="lazy">
             </div>
           </div>
         <?php endif; ?>
         <div class="admin-seo-image__fields">
-          <div class="admin-field">
-            <?= admin_field_label('collection-og-image', admin_t('shop.deel_afbeelding_social_media')) ?>
-            <?= admin_file_input(['id' => 'collection-og-image', 'name' => 'og_image', 'accept' => '.jpg,.jpeg,.png,.webp,.gif,image/jpeg,image/png,image/webp,image/gif']) ?>
-          </div>
-          <p class="admin-text-muted"><?= admin_te('shop.optioneel_alleen_zichtbaar_voorbeeld') ?></p>
-          <?php if ($currentOgImagePath !== ''): ?>
+          <?php media_picker_field('og_media_id', $shareMedia, admin_t('shop.deel_afbeelding_social_media'), admin_t('shop.optioneel_alleen_zichtbaar_voorbeeld'), true, \App\Service\Media\MediaType::SOCIAL_IMAGE); ?>
+          <?php if ($currentOgImagePath !== '' && $shareMedia === null): ?>
+            <p class="admin-text-muted"><?= admin_te('shop.share_image_legacy') ?></p>
             <label class="admin-checkbox-label">
               <input type="checkbox" class="admin-checkbox" name="remove_og_image" value="1" <?= $removeOgImageChecked ? 'checked' : '' ?>>
               <?= admin_te('shop.deel_afbeelding_verwijderen_opslaan') ?>

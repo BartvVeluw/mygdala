@@ -23,6 +23,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../../vendor/autoload.php';
 require_once __DIR__ . '/_product_validation.php';
+require_once __DIR__ . '/_shop_share_image.php';
 
 use App\Database;
 use App\Service\AdminAuth;
@@ -85,25 +86,17 @@ if ($gallerySubmitted) {
     $fields['variant_images'] = $variantTokens;
 }
 
-$uploader = new ProductImageUploader();
-$newOgImagePath = null;
-$hasOgUpload = isset($_FILES['og_image'])
-    && ($_FILES['og_image']['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_NO_FILE;
+// The share image: a library image chosen in the shared picker; an old own
+// file stays until another image is chosen or it is removed on purpose
+// (shop_share_image_choice()). Nothing is uploaded here.
+$share = shop_share_image_choice($_POST, $existing);
+$fields['og_media_id'] = array_key_exists('og_media_id', $_POST) ? (int) filter_var($_POST['og_media_id'], FILTER_VALIDATE_INT, ['options' => ['default' => 0]]) : null;
 
-if ($hasOgUpload) {
-    try {
-        $newOgImagePath = $uploader->store($_FILES['og_image']);
-    } catch (\RuntimeException $e) {
-        $errors[] = $e->getMessage();
-    }
+if ($share['error'] !== null) {
+    $errors[] = $share['error'];
 }
 
 if ($errors !== []) {
-    // Don't leave an orphaned upload behind when the rest of the form was invalid.
-    if ($newOgImagePath !== null) {
-        $uploader->delete($newOgImagePath);
-    }
-
     $_SESSION['admin_product_errors'] = $errors;
     $_SESSION['admin_product_old'] = $fields;
     header('Location: /admin/product-form.php?id=' . $id);
@@ -134,27 +127,18 @@ try {
         ShopLocalization::META_DESCRIPTION => $fields['meta_description'],
     ]);
 
-    $oldOgImagePath = (string) ($existing['og_image_path'] ?? '');
-
-    // The file that is no longer referenced once this save goes through. It
-    // is deleted AFTER the commit, never inside the transaction: an unlink
-    // cannot be rolled back, so a later failure would leave the database
-    // pointing at a file that no longer exists. delete() is a no-op for
-    // anything outside assets/images/products/, so a shared site asset can
-    // never be removed by replacing a social image.
+    // An old own file this save stops using. It is deleted AFTER the commit,
+    // never inside the transaction: an unlink cannot be rolled back, so a
+    // later failure would leave the database pointing at a file that no
+    // longer exists. delete() is a no-op for anything outside
+    // assets/images/products/, and a library file is never named here.
     $unreferencedOgImagePath = null;
 
-    if ($newOgImagePath !== null) {
-        $productRepository->updateOgImagePath($id, $newOgImagePath);
-
-        if ($oldOgImagePath !== '' && $oldOgImagePath !== $newOgImagePath) {
-            $unreferencedOgImagePath = $oldOgImagePath;
-        }
-    } elseif ($fields['remove_og_image'] && $oldOgImagePath !== '') {
-        // Back to NULL: App\Service\ProductSeo then falls back to the
-        // product's own photo again, and to the site-wide image after that.
-        $productRepository->updateOgImagePath($id, null);
-        $unreferencedOgImagePath = $oldOgImagePath;
+    if ($share['change']) {
+        // NULL: App\Service\ProductSeo falls back to the product's own photo
+        // again, and to the site-wide image after that.
+        $productRepository->updateOgImagePath($id, $share['media']?->path, $share['media']?->id);
+        $unreferencedOgImagePath = $share['old_path'];
     }
 
     if ($gallerySubmitted) {
@@ -185,7 +169,7 @@ try {
     $collectionRepository->setProductCollections($id, $collectionIds);
 
     $db->commit();
-    $uploader->delete($unreferencedOgImagePath);
+    (new ProductImageUploader())->delete($unreferencedOgImagePath);
 
     CollectionContent::clearCache();
     ProductSeo::clearCache();
@@ -196,10 +180,6 @@ try {
     }
 
     error_log('[api/admin/update-product.php] ' . $e->getMessage());
-
-    if ($newOgImagePath !== null) {
-        $uploader->delete($newOgImagePath);
-    }
 
     $_SESSION['admin_product_errors'] = ['Product kon niet worden opgeslagen. Probeer het opnieuw.'];
     $_SESSION['admin_product_old'] = $fields;

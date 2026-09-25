@@ -267,13 +267,14 @@ class CollectionRepository extends Repository
     /**
      * The optional dedicated social-sharing image — same contract as
      * ProductRepository::updateOgImagePath(): written only on an explicit
-     * upload or removal, NULL restores the automatic fallback chain in
-     * App\Service\CollectionContent::socialImagePath().
+     * choice or removal, NULL restores the automatic fallback chain in
+     * App\Service\CollectionContent::socialImagePath(). $mediaId is the
+     * Media Library item, written along with its path.
      */
-    public function updateOgImagePath(int $id, ?string $imagePath): void
+    public function updateOgImagePath(int $id, ?string $imagePath, ?int $mediaId = null): void
     {
-        $stmt = $this->db->prepare('UPDATE collections SET og_image_path = :og_image_path, updated_at = NOW() WHERE id = :id');
-        $stmt->execute(['og_image_path' => $imagePath, 'id' => $id]);
+        $stmt = $this->db->prepare('UPDATE collections SET og_image_path = :og_image_path, og_media_id = :og_media_id, updated_at = NOW() WHERE id = :id');
+        $stmt->execute(['og_image_path' => $imagePath, 'og_media_id' => $mediaId, 'id' => $id]);
     }
 
     /**

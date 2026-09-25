@@ -9,17 +9,17 @@
  * the form with a session-flashed error list plus the submitted values (PRG),
  * so nothing is lost and nothing is ever double-submitted.
  *
- * The image is optional here (a collection can be published without one);
- * it is stored through the project's existing App\Service\SectionImageUploader
- * — the same generic CMS image uploader Text + image split and the Portfolio
- * use, writing to assets/images/sections/ with its magic-byte type check,
- * random filename and size cap. No second upload implementation.
+ * The image and the share image are optional here (a collection can be
+ * published without either). Both are Media Library items chosen in the
+ * shared picker; this endpoint receives their ids and stores no file of its
+ * own (MEDIA.md, "De mediakiezer").
  */
 
 declare(strict_types=1);
 
 require_once __DIR__ . '/../../vendor/autoload.php';
 require_once __DIR__ . '/_collection_validation.php';
+require_once __DIR__ . '/_shop_share_image.php';
 
 use App\Database;
 use App\Repository\CollectionRepository;
@@ -29,7 +29,6 @@ use App\Service\CollectionContent;
 use App\Service\CollectionService;
 use App\Service\Csrf;
 use App\Service\Media\MediaService;
-use App\Service\SectionImageUploader;
 use App\Service\ShopLocalization;
 
 AdminAuth::requireLoginForApi();
@@ -74,35 +73,23 @@ if ($slug === '') {
     }
 }
 
-$uploader = new SectionImageUploader();
-
 // The collection's picture is a Media Library image, chosen (or uploaded into
 // the library) with the shared picker. Only an id comes in, and it counts
 // only when it names an image in the library; anything else is "no picture".
 $image = MediaService::findImage(filter_var($_POST['media_id'] ?? null, FILTER_VALIDATE_INT) ?: null);
 $fields['media_id'] = $image?->id;
 
-// The optional SEO/social image from the SEO card. Same optional-upload
-// contract as the collection image above, stored on its own column so it
-// never becomes the collection's normal image.
-$ogImagePath = null;
-$hasOgUpload = isset($_FILES['og_image'])
-    && ($_FILES['og_image']['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_NO_FILE;
+// The optional SEO/social image from the SEO card: a library image chosen in
+// the shared picker (shop_share_image_choice()), stored on its own column so
+// it never becomes the collection's normal image.
+$share = shop_share_image_choice($_POST, []);
+$fields['og_media_id'] = $share['media']?->id;
 
-if ($hasOgUpload) {
-    try {
-        $ogImagePath = $uploader->store($_FILES['og_image']);
-    } catch (\RuntimeException $e) {
-        $errors[] = $e->getMessage();
-    }
+if ($share['error'] !== null) {
+    $errors[] = $share['error'];
 }
 
 if ($errors !== []) {
-    // Don't leave an orphaned upload behind if the rest of the form was invalid.
-    if ($ogImagePath !== null) {
-        $uploader->delete($ogImagePath);
-    }
-
     $_SESSION['admin_collection_errors'] = $errors;
     $_SESSION['admin_collection_old'] = $fields;
     header('Location: /admin/collection.php');
@@ -134,8 +121,8 @@ try {
         ShopLocalization::META_DESCRIPTION => $fields['meta_description'],
     ]);
 
-    if ($ogImagePath !== null) {
-        $collectionRepository->updateOgImagePath($collectionId, $ogImagePath);
+    if ($share['media'] !== null) {
+        $collectionRepository->updateOgImagePath($collectionId, $share['media']->path, $share['media']->id);
     }
 
     $collectionRepository->setCollectionProducts($collectionId, $productIds);
@@ -149,11 +136,6 @@ try {
     }
 
     error_log('[api/admin/create-collection.php] ' . $e->getMessage());
-
-
-    if ($ogImagePath !== null) {
-        $uploader->delete($ogImagePath);
-    }
 
     $_SESSION['admin_collection_errors'] = ['Collectie kon niet worden opgeslagen. Probeer het opnieuw.'];
     $_SESSION['admin_collection_old'] = $fields;

@@ -52,14 +52,13 @@ final class ShopSeoAdminTest extends TestCase
                 );
             }
 
-            // Written out, or through the shared styled file input
-            // (admin_file_input(), ADMIN-UI.md) that both editors use now.
-            $this->assertMatchesRegularExpression(
-                '/name="og_image"|\'name\' => \'og_image\'/',
-                $source,
-                $editor . ' must offer a social image upload'
-            );
-            $this->assertStringContainsString('name="remove_og_image"', $source, $editor . ' must offer removing it again');
+            // Media Library 2.0: the share image is chosen (or uploaded into
+            // the library) with the shared picker in social-image mode, never
+            // with a file input of the editor's own.
+            $this->assertStringContainsString("media_picker_field('og_media_id', \$shareMedia,", $source, $editor . ' must offer the share image through the library');
+            $this->assertStringContainsString('MediaType::SOCIAL_IMAGE', $source, $editor . ' must ask for a raster share image');
+            $this->assertStringNotContainsString("'name' => 'og_image'", $source, $editor . ' must not upload a share image itself');
+            $this->assertStringContainsString('name="remove_og_image"', $source, $editor . ' must offer removing an old one again');
         }
     }
 
@@ -271,16 +270,19 @@ final class ShopSeoAdminTest extends TestCase
         }
     }
 
-    public function testTheSocialImageIsAlwaysStoredThroughAnUploader(): void
+    /**
+     * Media Library 2.0: the share image is a library item. The endpoint
+     * resolves the posted id against the library (shop_share_image_choice(),
+     * MediaService::findSocialImage()) and never stores a file or trusts a
+     * path from the form.
+     */
+    public function testTheSocialImageIsAlwaysALibraryItem(): void
     {
         foreach (self::SAVE_ENDPOINTS as $endpoint) {
             $source = $this->fileSource($endpoint);
 
-            $this->assertMatchesRegularExpression(
-                '/\$uploader->store\(\$_FILES\[.og_image.\]\)/',
-                $source,
-                $endpoint . ' must validate/rename the upload instead of trusting a client path'
-            );
+            $this->assertStringContainsString('shop_share_image_choice($_POST,', $source, $endpoint . ' must resolve the share image against the library');
+            $this->assertStringNotContainsString("\$_FILES['og_image']", $source, $endpoint . ' must not store an upload of its own');
             $this->assertStringNotContainsString(
                 "\$_POST['og_image_path']",
                 $source,
