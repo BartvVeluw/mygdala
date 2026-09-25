@@ -7,11 +7,15 @@ use App\Service\Routing\RequestLanguage;
 
 /**
  * Public read side of the CMS-managed header navigation — replaces
- * partials/nav-config.php. Builds the 2-level menu tree (top-level items with
- * their direct children only; see the nav_items migration for why depth is
- * capped at 2) and the list of header buttons, and resolves every item's link
- * via App\Service\LinkResolver, so partials/header.php only ever deals in
- * ready-to-render hrefs.
+ * partials/nav-config.php. Builds the menu tree (three levels at most,
+ * NavigationRepository::MAX_DEPTH) and the list of header buttons, and
+ * resolves every item's link via App\Service\LinkResolver, so
+ * partials/header.php only ever deals in ready-to-render hrefs.
+ *
+ * The menu tree is its own tree. It is never derived from the pages' own
+ * nesting (pages.parent_id, docs/pages/NESTING.md): a deeply nested page can
+ * be a top-level menu link, and a top-level link to a root page can have a
+ * submenu of anything.
  *
  * Menu links and header buttons are the same kind of row with a different
  * presentation (App\Service\NavigationPresentation): header() reads the table
@@ -79,36 +83,32 @@ class NavigationService
             $byParent[$parentId ?? 0][] = $row;
         }
 
-        $topLevel = $byParent[0] ?? [];
-        usort($topLevel, static fn (array $a, array $b): int => ((int) $a['sort_order']) <=> ((int) $b['sort_order']));
+        return self::buildLevel($byParent, 0, 1);
+    }
 
-        $tree = [];
-        foreach ($topLevel as $row) {
+    /**
+     * One level of the menu, each item with its own submenu below it. An
+     * item that does not resolve is left out together with everything under
+     * it: a hidden or unreachable parent takes its submenu along, as it
+     * always did. Nothing below NavigationRepository::MAX_DEPTH is read, so a
+     * deeper row written into the database by hand never reaches the page.
+     *
+     * @param array<int, list<array<string, mixed>>> $byParent rows by parent id, 0 for the top level
+     * @return list<array<string, mixed>>
+     */
+    private static function buildLevel(array $byParent, int $parentKey, int $level): array
+    {
+        $rows = $byParent[$parentKey] ?? [];
+        usort($rows, static fn (array $a, array $b): int => ((int) $a['sort_order']) <=> ((int) $b['sort_order']));
+
+        $items = [];
+        foreach ($rows as $row) {
             $resolved = LinkResolver::resolve($row);
             if ($resolved === null) {
                 continue;
             }
 
-            $children = $byParent[(int) $row['id']] ?? [];
-            usort($children, static fn (array $a, array $b): int => ((int) $a['sort_order']) <=> ((int) $b['sort_order']));
-
-            $childItems = [];
-            foreach ($children as $child) {
-                $resolvedChild = LinkResolver::resolve($child);
-                if ($resolvedChild === null) {
-                    continue;
-                }
-                $childItems[] = [
-                    'id' => (int) $child['id'],
-                    'label' => NavigationLocalization::label((int) $child['id'], RequestLanguage::current()),
-                    'href' => $resolvedChild['href'],
-                    'open_in_new_tab' => $resolvedChild['open_in_new_tab'],
-                    'rel' => $resolvedChild['rel'],
-                    'children' => [],
-                ];
-            }
-
-            $tree[] = [
+            $items[] = [
                 'id' => (int) $row['id'],
                 'label' => NavigationLocalization::label((int) $row['id'], RequestLanguage::current()),
                 'href' => $resolved['href'],
@@ -119,11 +119,13 @@ class NavigationService
                 // route key every public page already sets $activeNav to
                 // (see README.md), without leaking any other row internals.
                 'route_key' => $row['link_type'] === 'route' ? $row['target_route'] : null,
-                'children' => $childItems,
+                'children' => $level < NavigationRepository::MAX_DEPTH
+                    ? self::buildLevel($byParent, (int) $row['id'], $level + 1)
+                    : [],
             ];
         }
 
-        return $tree;
+        return $items;
     }
 
     /**

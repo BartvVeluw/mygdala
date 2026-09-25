@@ -890,6 +890,11 @@ a{ color: var(--admin-accent); }
   border-left: 2px solid var(--admin-border);
 }
 .admin-nav-item-row--child{ padding: 0.7rem 0.9rem; }
+/* Three menu levels means two nested zones: on a phone the full indent would
+   leave a level-3 row half the screen wide, so each step is smaller there. */
+@media (max-width: 640px){
+  .admin-nav-children{ margin-left: var(--admin-sp-2); padding-left: var(--admin-sp-2); }
+}
 .admin-nav-children__empty{ font-size: 0.82rem; margin: 0; }
 
 /* Header & navigatie (admin/navigation.php): a row's own controls. ↑/↓ are

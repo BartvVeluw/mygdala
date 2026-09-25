@@ -72,9 +72,9 @@ if (!$isNew) {
 }
 
 // A new child item may be pre-selected via ?parent_id=, a new button via
-// ?presentation=button. A new top-level item has no parent field to choose
-// from at all (2-level cap — see the nav_items migration): it can only ever
-// be created as top-level, then have children added to it afterwards.
+// ?presentation=button. There is no parent field to choose from at all: an
+// item is created where its "+ Submenu-item" was clicked, on level 3 at most
+// (NavigationRepository::canBeParent()), and never moves afterwards.
 $presetParentId = null;
 $presetPresentation = NavigationPresentation::LINK;
 if ($isNew) {

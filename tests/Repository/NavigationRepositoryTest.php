@@ -33,11 +33,12 @@ class NavigationRepositoryTest extends TestCase
         if ($this->createdIds === []) {
             return;
         }
-        // Children first (parent_id is ON DELETE RESTRICT).
-        $placeholders = implode(',', array_fill(0, count($this->createdIds), '?'));
+        // Newest first: every submenu item was made after its parent, so each
+        // level goes before the one above it (parent_id is ON DELETE RESTRICT).
         $db = Database::connection();
-        $db->prepare("DELETE FROM nav_items WHERE id IN ($placeholders) AND parent_id IS NOT NULL")->execute($this->createdIds);
-        $db->prepare("DELETE FROM nav_items WHERE id IN ($placeholders)")->execute($this->createdIds);
+        foreach (array_reverse($this->createdIds) as $id) {
+            $db->prepare('DELETE FROM nav_items WHERE id = ?')->execute([$id]);
+        }
     }
 
     private function makeItem(?int $parentId = null, string $label = 'Test item'): int
@@ -150,13 +151,77 @@ class NavigationRepositoryTest extends TestCase
         $this->assertNull($this->repository->findById($remove));
     }
 
-    public function testCanBeParentRejectsItemThatAlreadyHasAParent(): void
+    public function testCanBeParentAllowsThreeLevelsAndNoFourth(): void
     {
         $topLevel = $this->makeItem();
         $child = $this->makeItem($topLevel);
+        $grandchild = $this->makeItem($child);
 
-        $this->assertTrue($this->repository->canBeParent($topLevel));
-        $this->assertFalse($this->repository->canBeParent($child));
+        $this->assertTrue($this->repository->canBeParent($topLevel), 'level 1 may have a submenu');
+        $this->assertTrue($this->repository->canBeParent($child), 'level 2 may have a submenu');
+        $this->assertFalse($this->repository->canBeParent($grandchild), 'level 3 may not: there is no level 4');
+        $this->assertSame([1, 2, 3], [
+            $this->repository->depthOf($topLevel),
+            $this->repository->depthOf($child),
+            $this->repository->depthOf($grandchild),
+        ]);
+    }
+
+    /**
+     * No endpoint can make a loop (parent_id is set once, at creation), but a
+     * chain written into the database by hand must not make depthOf() walk
+     * forever or treat an over-deep chain as a valid parent.
+     */
+    public function testAChainThatNeverReachesTheTopIsNoParent(): void
+    {
+        $a = $this->makeItem();
+        $b = $this->makeItem($a);
+        $db = Database::connection();
+        $db->prepare('UPDATE nav_items SET parent_id = ? WHERE id = ?')->execute([$b, $a]);
+
+        try {
+            $this->assertNull($this->repository->depthOf($a));
+            $this->assertNull($this->repository->depthOf($b));
+            $this->assertFalse($this->repository->canBeParent($a));
+            $this->assertFalse($this->repository->canBeParent($b));
+        } finally {
+            $db->prepare('UPDATE nav_items SET parent_id = NULL WHERE id = ?')->execute([$a]);
+        }
+    }
+
+    public function testAHandWrittenFourthLevelIsNoParentEither(): void
+    {
+        $one = $this->makeItem();
+        $two = $this->makeItem($one);
+        $three = $this->makeItem($two);
+        // Bypasses canBeParent(), the way only a hand-written row could.
+        $four = $this->makeItem($three);
+
+        $this->assertNull($this->repository->depthOf($four));
+        $this->assertFalse($this->repository->canBeParent($four));
+    }
+
+    public function testReorderAndMoveWorkInsideAThirdLevelSubmenu(): void
+    {
+        $top = $this->makeItem(null, 'Top');
+        $parent = $this->makeItem($top, 'Parent');
+        $a = $this->makeItem($parent, 'A');
+        $b = $this->makeItem($parent, 'B');
+        $c = $this->makeItem($parent, 'C');
+        $other = $this->makeItem($top, 'Sibling of the parent');
+
+        $this->repository->reorder($parent, [$c, $other, $a, $b]);
+        $this->repository->move($b, 'up');
+
+        $order = array_map(
+            static fn (array $r): int => (int) $r['id'],
+            array_values(array_filter(
+                $this->repository->findAllForAdmin(),
+                static fn (array $r): bool => $r['parent_id'] !== null && (int) $r['parent_id'] === $parent
+            ))
+        );
+        $this->assertSame([$c, $b, $a], $order, 'the level-2 sibling never joins the level-3 group');
+        $this->assertSame($top, (int) $this->repository->findById($other)['parent_id']);
     }
 
     public function testCanBeParentRejectsUnknownId(): void

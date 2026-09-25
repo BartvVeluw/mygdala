@@ -7,7 +7,8 @@ use App\Service\NavigationPresentation;
 /**
  * All nav_items SQL. See db/migrations/20260907210000_create_nav_items_table.php
  * for the schema rationale. This repository only ever deals in flat rows —
- * App\Service\NavigationService builds the 2-level tree and resolves links.
+ * App\Service\NavigationService builds the tree (MAX_DEPTH levels) and
+ * resolves links.
  *
  * NO WORDS HERE. An item's label is stored per website language in
  * nav_item_translations and read and written only through
@@ -23,8 +24,17 @@ use App\Service\NavigationPresentation;
 class NavigationRepository extends Repository
 {
     /**
+     * The menu has three levels at most: a top-level link, its submenu, and
+     * one submenu below a submenu item (HEADER-FOOTER.md, "Drie niveaus").
+     * The schema has no limit of its own (parent_id is a plain
+     * self-reference): canBeParent() keeps a fourth level from being stored,
+     * and App\Service\NavigationService never renders one either.
+     */
+    public const MAX_DEPTH = 3;
+
+    /**
      * Every item (visible or not) as a flat list — App\Service\NavigationService
-     * groups these into a 2-level tree by parent_id itself, sorting each
+     * groups these into a tree by parent_id itself, sorting each
      * parent's own children by sort_order, so the exact row order returned
      * here only needs to be sort_order-within-parent, not already nested.
      *
@@ -106,23 +116,52 @@ class NavigationRepository extends Repository
     }
 
     /**
-     * Enforces the 2-level cap (see the nav_items migration): $parentId is
-     * only a valid parent when it exists and is itself a top-level MENU
-     * LINK — an item that already has a parent can never become a parent
-     * itself, which also makes a circular chain (A's parent is B, B's parent
-     * is A) impossible to create in the first place, since the second half of
-     * any such cycle would require a non-top-level item to be chosen as a
-     * parent. A header button has no dropdown, so it is never a parent
-     * either. Used by create-nav-item.php before writing a submenu item's
-     * parent_id.
+     * Enforces the MAX_DEPTH cap: $parentId is only a valid parent when it
+     * exists, is a MENU LINK (a header button has no dropdown) and sits above
+     * the deepest level, so the new child lands on level MAX_DEPTH at most.
+     * Used by create-nav-item.php before writing a submenu item's parent_id,
+     * and by the editor and the overview before they offer a parent at all.
+     *
+     * No cycle can come from this: parent_id is written once, when a row is
+     * created, and never changed afterwards (update-nav-item.php does not
+     * move items). A new row cannot be anybody's ancestor yet, so pointing
+     * it at an existing row can never close a loop. depthOf() still refuses
+     * a chain it cannot walk to the top, which covers a loop or an over-deep
+     * chain written into the database by hand.
      */
     public function canBeParent(int $parentId): bool
     {
         $parent = $this->findById($parentId);
+        if ($parent === null || NavigationPresentation::isButton($parent)) {
+            return false;
+        }
 
-        return $parent !== null
-            && $parent['parent_id'] === null
-            && !NavigationPresentation::isButton($parent);
+        $depth = $this->depthOf($parentId);
+
+        return $depth !== null && $depth < self::MAX_DEPTH;
+    }
+
+    /**
+     * An item's level: 1 on the top level, 2 in a submenu, 3 in a submenu of
+     * a submenu item. Null for an unknown id, and for a chain that does not
+     * reach the top within MAX_DEPTH steps: a loop, a missing parent, or a
+     * level deeper than the navigation has.
+     */
+    public function depthOf(int $id): ?int
+    {
+        $currentId = $id;
+        for ($depth = 1; $depth <= self::MAX_DEPTH; $depth++) {
+            $row = $this->findById($currentId);
+            if ($row === null) {
+                return null;
+            }
+            if ($row['parent_id'] === null) {
+                return $depth;
+            }
+            $currentId = (int) $row['parent_id'];
+        }
+
+        return null;
     }
 
     /**

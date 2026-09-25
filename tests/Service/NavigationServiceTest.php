@@ -129,6 +129,64 @@ class NavigationServiceTest extends TestCase
         $this->assertSame([], $tree[0]['children']);
     }
 
+    public function testAThirdLevelIsNestedUnderItsSubmenuItemAndSorted(): void
+    {
+        $rows = [
+            $this->row(1, null, 'route', 'home', 0),
+            $this->row(2, 1, 'route', 'shop', 0),
+            $this->row(4, 2, 'route', 'checkout', 1),
+            $this->row(3, 2, 'route', 'cart', 0),
+        ];
+
+        $tree = NavigationService::buildTree($rows);
+
+        $this->assertSame([2], $this->ids($tree[0]['children']));
+        $this->assertSame([3, 4], $this->ids($tree[0]['children'][0]['children']));
+        $this->assertSame([], $tree[0]['children'][0]['children'][0]['children']);
+        $this->assertNotNull($tree[0]['href'], 'a parent keeps its own link');
+        $this->assertNotNull($tree[0]['children'][0]['href'], 'so does a level-2 parent');
+    }
+
+    /** A row deeper than MAX_DEPTH, only possible by hand, never renders. */
+    public function testNothingBelowTheThirdLevelIsBuilt(): void
+    {
+        $rows = [
+            $this->row(1, null, 'route', 'home', 0),
+            $this->row(2, 1, 'route', 'shop', 0),
+            $this->row(3, 2, 'route', 'cart', 0),
+            $this->row(4, 3, 'route', 'checkout', 0),
+        ];
+
+        $tree = NavigationService::buildTree($rows);
+
+        $this->assertSame([], $tree[0]['children'][0]['children'][0]['children']);
+    }
+
+    public function testAnUnreachableSubmenuItemTakesItsOwnSubmenuAlong(): void
+    {
+        $rows = [
+            $this->row(1, null, 'route', 'home', 0),
+            $this->row(2, 1, 'route', 'nonexistent-route', 0),
+            $this->row(3, 2, 'route', 'cart', 0),
+            $this->row(4, 1, 'route', 'shop', 1),
+        ];
+
+        $tree = NavigationService::buildTree($rows);
+
+        $this->assertSame([4], $this->ids($tree[0]['children']));
+    }
+
+    /** Hidden rows never reach buildTree(); their submenu goes with them. */
+    public function testAHiddenSubmenuItemTakesItsOwnSubmenuAlong(): void
+    {
+        $rows = [
+            $this->row(1, null, 'route', 'home', 0),
+            $this->row(3, 2, 'route', 'cart', 0),
+        ];
+
+        $this->assertSame([], NavigationService::buildTree($rows)[0]['children']);
+    }
+
     public function testUnresolvableTopLevelItemIsDropped(): void
     {
         $rows = [$this->row(1, null, 'route', 'nonexistent-route', 0)];

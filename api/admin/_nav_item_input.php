@@ -20,8 +20,10 @@ declare(strict_types=1);
  *     every link in the header and footer goes through;
  *   - the presentation and button variant: App\Service\NavigationPresentation,
  *     a closed list, never a class name from the request;
- *   - the parent: only on create, and only a top-level menu link
- *     (NavigationRepository::canBeParent()). An update never moves an item.
+ *   - the parent: only on create, and only a menu link on level 1 or 2, so
+ *     the new item lands on level 3 at most
+ *     (NavigationRepository::canBeParent(), MAX_DEPTH). An update never
+ *     moves an item, which is also why no cycle can be made.
  *
  * KEEPING A DESTINATION THAT IS UNAVAILABLE RIGHT NOW. A route of a
  * switched-off module is not in App\Service\RouteRegistry, so validate()
@@ -107,8 +109,9 @@ function validateNavItemInput(
 
     if ($parentId !== null) {
         // A submenu item's own link may never be 'none' (a dropdown heading
-        // only makes sense as a top-level item) and depth is capped at 2 —
-        // the parent itself must be a top-level menu link.
+        // only makes sense as a top-level item), and the depth is capped at
+        // NavigationRepository::MAX_DEPTH — the parent must be a menu link
+        // on a level above the deepest one.
         if ($linkType === 'none') {
             $errors[] = AdminTranslator::trans('validation.submenu_item_eigen_link_hebben');
         }
