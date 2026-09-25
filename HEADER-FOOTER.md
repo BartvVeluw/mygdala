@@ -16,7 +16,8 @@ lettertypes zie `THEMING.md`; voor moduleslots `MODULES.md`.
 | Waar de knoppen staan, hoe ze eruitzien, waar de slotregel staat, hoe een social-icoon eruitziet, welke netwerken er zijn | Óf er knoppen zijn, hoeveel, in welke volgorde, wat erop staat, waar ze heen gaan en welke van twee stijlen; welke bedrijfsgegevens de footer toont; óf de slotregel er is en wat er staat; welke social profielen er zijn, in welke volgorde, en of ze zichtbaar zijn |
 
 Er zijn geen headerregio's, geen vrije knopvormgeving, geen megamenu, geen
-widgetzones en geen derde menuniveau. Dit is een CMS, geen layoutbouwer.
+widgetzones en geen vierde menuniveau: het menu heeft er ten hoogste drie. Dit
+is een CMS, geen layoutbouwer.
 
 ## Waar het staat
 
@@ -36,8 +37,9 @@ widgetzones en geen derde menuniveau. Dit is een CMS, geen layoutbouwer.
 | Schermen | **Header & navigatie** (`admin/navigation.php`, `admin/navigation-item.php`); **Footer** (`admin/footer.php`, `admin/footer-column.php`, `admin/footer-link.php`). `admin/header-footer.php` is alleen nog een doorverwijzing naar Footer |
 | Opslaan, header | `api/admin/create-nav-item.php`, `update-nav-item.php` (regels in `_nav_item_input.php`), `move-nav-item.php`, `reorder-nav-items.php`, `toggle-nav-item.php`, `delete-nav-item.php` |
 | Opslaan, footer | `update-footer-settings.php` (secties `brand` en `bottom`); de kolommen en links met `create-`, `update-`, `toggle-`, `move-`, `reorder-` en `delete-footer-column.php` en `-footer-link.php` (regels in `_footer_link_input.php`); de social profielen met `create-`, `update-`, `move-` en `delete-footer-social-link.php` (regels in `_footer_social_link_input.php`) |
-| Rendering | `partials/header.php`, `partials/footer.php` |
-| Styling | `.header-buttons` en `.social-row` in `assets/css/core.css` |
+| Rendering | `partials/header.php` (de menulijst zelf in `partials/main-nav-list.php`), `partials/footer.php` |
+| Submenu's openen en sluiten, links of rechts | `initNavDropdowns()` in `assets/js/core.js` |
+| Styling | `.main-nav__*`, `.header-buttons` en `.social-row` in `assets/css/core.css` |
 
 `site_settings` en niet `theme_settings`: dit is wie de site *is*, niet hoe hij
 er *uitziet*. "Standaardvormgeving herstellen" mag nooit een knoptekst of een
@@ -148,6 +150,120 @@ knop schuift nooit tussen twee menulinks door.
 Geen tekst in geen enkele taal = geen knop. Geen werkende bestemming = geen
 knop.
 
+### Drie niveaus
+
+Het menu heeft **ten hoogste drie niveaus**: een link op het hoogste niveau,
+zijn submenu, en één submenu onder een submenu-item.
+
+```text
+Diensten                 niveau 1   link (of een kop zonder bestemming)
+└── Graveren             niveau 2   link, eventueel met een eigen submenu
+    ├── Hout             niveau 3   link, nooit een submenu
+    ├── Metaal
+    └── Glas
+```
+
+- **Opslag.** Er is niets aan het schema veranderd: `nav_items.parent_id` was
+  al een gewone verwijzing naar een andere rij, zonder eigen grens. Een
+  item op niveau 3 is een rij waarvan de ouder zelf een ouder heeft. Geen
+  migratie, geen gewijzigde id's.
+- **De grens zit in de code, op één plek.**
+  `NavigationRepository::MAX_DEPTH = 3`. `canBeParent()` accepteert alleen
+  een menulink op niveau 1 of 2 als ouder, dus `create-nav-item.php` weigert
+  een vierde niveau (en een submenu onder een knop) met *Hier kan geen
+  submenu-item onder …*. Het overzicht toont *+ Submenu-item* alleen waar dat
+  kan, en de editor neemt een ongeldige `?parent_id=` niet over. Dat is een
+  weigering op de server, niet alleen een verborgen knop.
+- **Geen cycli.** `parent_id` wordt één keer gezet, bij het aanmaken, naar een
+  rij die al bestaat, en daarna nooit meer veranderd (`update-nav-item.php`
+  verplaatst niets). Een nieuwe rij is nog niemands voorouder, dus er kan geen
+  lus ontstaan. `depthOf()` loopt toch hoogstens drie stappen omhoog, zodat
+  een met de hand geschreven lus of een te diepe keten geen geldige ouder is.
+- **Volgorde** blijft per groep (ouder + presentatie), dus ook per submenu op
+  niveau 3: ↑/↓ en slepen werken daar zonder extra code, en een item schuift
+  nooit naar een ander niveau.
+- **Wat de publieke header leest.** `NavigationService::buildTree()` bouwt de
+  boom recursief en stopt na niveau 3; de partial rendert ook nooit dieper.
+  Een verborgen of onbereikbaar item neemt zijn hele submenu mee.
+- **Een kop zonder bestemming** (*Nergens heen*) kan alleen op niveau 1, zoals
+  voorheen: een submenu-item heeft altijd een eigen link.
+- **Los van de paginaboom.** Het menu wordt nooit afgeleid uit `pages.parent_id`
+  (`docs/pages/NESTING.md`, §10). Een diep geneste pagina kan een link op
+  niveau 1 zijn, en een link naar een hoofdpagina kan een submenu van alles
+  hebben. Een paginalink krijgt via `LinkResolver` vanzelf het geneste pad.
+
+### Submenu's: link en pijltje
+
+Een item met een submenu bestaat uit **twee aparte bedieningselementen**
+(`partials/main-nav-list.php`):
+
+```html
+<li class="main-nav__item main-nav__item--has-children">
+  <div class="main-nav__row">
+    <a class="main-nav__link" href="/diensten">Diensten</a>
+    <button type="button" class="main-nav__toggle" aria-expanded="false"
+            aria-controls="main-nav-submenu-12" aria-label="Submenu Diensten">⌄</button>
+  </div>
+  <ul class="main-nav__submenu main-nav__submenu--level-2" id="main-nav-submenu-12">…</ul>
+</li>
+```
+
+- **De tekst is een gewone link.** Klikken of tikken navigeert, altijd: het
+  script vangt geen klik af en roept nergens `preventDefault()` aan. Geen
+  `href="#"`.
+- **Alleen het pijltje opent en sluit.** Een echte `<button type="button">`
+  met `aria-expanded`, `aria-controls` naar het paneel en een naam die het item
+  noemt (*Submenu Diensten*, Engels *Diensten submenu*). De naam zegt niet
+  *openen*: of het open is, zegt `aria-expanded`, en een schermlezer leest die
+  twee samen.
+- **Een kop zonder bestemming** heeft geen link om te scheiden. Hij wordt geen
+  nep-link: zijn woorden staan in de toggle zelf, die dan het enige
+  bedieningselement is, zoals het altijd was.
+- Niveau 2 met een eigen submenu is hetzelfde paar; niveau 3 is altijd een
+  losse link.
+- Het oude `aria-haspopup="true"` is weg: dit is een uitklapmenu (disclosure),
+  geen `role="menu"`-widget.
+
+**Eén bron voor open of dicht.** Een submenu is open precies wanneer zijn
+`li` de klasse `.is-open` heeft, en `aria-expanded` op de toggle zegt steeds
+hetzelfde: `setOpen()` in `assets/js/core.js` zet ze samen, wat het openen of
+sluiten ook veroorzaakt. Het paneel en het pijltje in `core.css` lezen niets
+anders, dus het pijltje kan het nooit oneens zijn met het submenu. Het script
+zet `.is-enhanced` op `.main-nav`; alleen zonder JavaScript opent een
+desktopsubmenu op `:hover` en `:focus-within` (terugval, en alle links werken
+dan gewoon). `Tests\Service\MainNavMarkupTest` faalt als een `:hover`-regel
+buiten die terugval een submenu of pijltje raakt.
+
+| Wat | Desktop | Mobiel (≤ 900px) |
+|---|---|---|
+| Muis over het item | Opent; de hele tak (item, rij, paneel, flyout) houdt hem open; na verlaten dicht na 180 ms | — |
+| Klik op het pijltje | Opent of sluit. Was hij al open door hover, dan zet de klik hem vast; de volgende klik sluit | Opent of sluit, in de lijst eronder |
+| Aanraken of pen | Nooit hover: een eerste tik op een link navigeert meteen | Idem |
+| Tab | Link, dan pijltje; een dicht submenu is geen focusstop | Idem (een dicht submenu is `display: none`) |
+| Focus in de tak | Houdt hem open, ook als de muis weggaat | Idem |
+| Focus verlaat de tak, of klik ernaast | Dicht | Dicht |
+| Escape | Sluit het binnenste open submenu met de focus erin, focus terug op zijn pijltje; zonder focus erin gaan alle submenu's dicht | Idem; pas de volgende Escape sluit het mobiele menu |
+| Openen | Sluit de open broers en zussen op hetzelfde niveau, zoals voorheen | Idem |
+| Pijltje niveau 1 | Omlaag, open omhoog | Idem |
+| Pijltje niveau 2 | Wijst naar de kant waar de flyout opent; open draait het terug | Omlaag, open omhoog |
+
+**Niveau 3 op desktop** vliegt uit naast het paneel van niveau 2: standaard
+naar rechts, en naar links als hij daar niet past en links meer ruimte is
+(`.opens-left`). Het script meet de echte kaders: bij het laden, bij elk
+openen en 100 ms nadat een resize is uitgewoed. Het leest eerst alle kaders
+van een niveau en schrijft daarna de klassen, niveau 1 eerst omdat niveau 3
+aan niveau 2 hangt. Er is geen vaste regel zoals "het laatste item opent
+links". Een paneel op niveau 1 dat over de rechterrand zou lopen, lijnt op de
+rechterkant van zijn item uit. Een smalle onzichtbare strook tussen item en
+paneel hoort bij de tak, zodat de muis onderweg niets sluit.
+
+**Mobiel** kent geen flyouts: niveau 2 en 3 klappen verticaal uit onder hun
+eigen rij, elk met een eigen pijltje van minstens 44×44 px. Niveau 3 staat een
+stap kleiner op een lichte eigen band, zodat de niveaus in de gecentreerde
+kolom uit elkaar te houden zijn. Een lang label breekt af; er is geen
+horizontale overflow op 320 of 375 px. Het hoofdmenu sluiten zet alle
+submenu's dicht, zoals voorheen.
+
 ### De actieve link
 
 Een menulink krijgt `aria-current="page"` als hij de pagina is waar de
@@ -161,7 +277,9 @@ bezoeker op staat (`NavigationService::isCurrent()`):
   die kregen daarna nooit meer een markering.
 
 Een extern adres en een submenukop zijn nooit actief. Een submenu-item krijgt
-geen markering; dat is ongewijzigd gebleven.
+geen markering; dat is ongewijzigd gebleven. Een link op het hoogste niveau
+die zelf een submenu heeft, is sinds Navigation 2.0 een gewone link en krijgt
+de markering dus net als elke andere link op dat niveau.
 
 ### De oude ene headerknop
 
@@ -638,8 +756,11 @@ onafhankelijkheid van de Paginakop vast, `Tests\Service\ProductBreadcrumbTest`
 (suite `shop`) dat het productpad server-side staat en `shop.js` het niet meer
 schrijft.
 
-`fast` bevat `NavigationServiceTest` (menu, knoppen en de actieve link, zonder
-database), `NavigationPresentationTest` (de twee gesloten lijsten en wat een
+`fast` bevat `NavigationServiceTest` (menu tot drie niveaus, knoppen en de
+actieve link, zonder database), `MainNavMarkupTest` (de menulijst uit een
+verzonnen boom: link en pijltje apart, de ARIA, geen vierde niveau, en de
+regels in `core.js` en `core.css` die de ene open-toestand bewaken),
+`NavigationPresentationTest` (de twee gesloten lijsten en wat een
 knop niet mag), `HeaderFooterSettingsTest` (slotregel, het register van
 netwerken, de adrescontrole met de regressies van fase B, en wat
 `SocialProfiles::forFooter()` van rijen maakt, zonder database) en
@@ -648,9 +769,12 @@ gedeelde schil, de knoppen uit de navigatie, het oude scherm alleen nog een
 doorverwijzing, en niets dat de oude social-instellingen leest of schrijft).
 `cms` voegt toe:
 
-- `NavigationRepositoryTest` — opslaan, de volgorde per groep, ↑ en ↓;
+- `NavigationRepositoryTest` — opslaan, de volgorde per groep (ook op niveau
+  3), ↑ en ↓, de diepte en geen ouder op niveau 3 of in een lus;
 - `NavigationAdminHttpTest` — het scherm en zijn endpoints over echt HTTP, en
-  wat de publieke header daarvan maakt, ook met de Shop uit;
+  wat de publieke header daarvan maakt, ook met de Shop uit; niveau 3 opslaan,
+  niveau 4 geweigerd, en link plus pijltje op elk niveau met een geneste
+  pagina als bestemming;
 - `FooterRepositoryTest` — kolommen en links, ↑ en ↓ binnen de eigen kolom;
 - `FooterSocialLinkRepositoryTest` — social rijen: opslaan, één volgorde, ↑ en
   ↓, en wat de footer van echte rijen maakt;

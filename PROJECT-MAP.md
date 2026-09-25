@@ -57,7 +57,7 @@ adminpaneel is.
 | `product.php`, `collectie.php`, `portfolio-detail.php`, `cart.php`, `checkout.php`, `bestelling-status.php`, `personaliseren.php` | Functionele routes (geen CMS-pagina's) |
 | `blog.php`, `blog-post.php`, `blog-feed.php` | De publieke Blog: het overzicht met zijn twee archieven, één bericht, en de RSS-feed (`BLOG.md`) |
 | `partials/section-*.php` | Eén frontend-partial per bloktype |
-| `partials/` (overig) | Header, footer, seo-head (dé SEO-`<head>`), page-head en shop-seo-head (adapters ernaartoe), branding-head (theme-color + favicon), 404, cookiebanner |
+| `partials/` (overig) | Header (met de menulijst in `main-nav-list.php`), footer, seo-head (dé SEO-`<head>`), page-head en shop-seo-head (adapters ernaartoe), branding-head (theme-color + favicon), 404, cookiebanner |
 | `src/Install/` | `InstallState` kent het verschil tussen een database die vanaf nul wordt opgebouwd en een die al inhoud draagt (`INSTALL-BOOTSTRAP.md`); `SetupState` en `SetupWizard` zijn de installatiewizard die daarop bouwt; `FreshSiteCopyPolicy` is de grens tussen applicatie en site waar `scripts/create_fresh_site_copy.php` op loopt (`SETUP.md`) |
 | `src/Update/` | De ingebouwde updater: het eigendomscontract (`Ownership`), de ene versie (`AppVersion`, bestand `VERSION`), de ondertekende feed, pakketverwerking, preflight, back-up en restore, de hervatbare state machine (`Updater`) en de onderhoudsguard; `Build/` is de releasebouwer achter `scripts/release.php` (`docs/updates/`) |
 | `src/Module/` | Het moduleregister en de first-party modules (`ShopModule`, `PersonalizationModule`, `BlogModule`) |

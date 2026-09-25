@@ -376,7 +376,8 @@ Het menu, de knoppen in de header, de slotregel, de social profielen, of de
 partials zelf (`HEADER-FOOTER.md`):
 
 ```
---testsuite fast        (NavigationServiceTest, NavigationPresentationTest,
+--testsuite fast        (NavigationServiceTest, MainNavMarkupTest,
+                         NavigationPresentationTest,
                          HeaderFooterSettingsTest en HeaderFooterContractTest;
                          database noch webserver nodig; de adrescontrole van
                          de social profielen zit in HeaderFooterSettingsTest)

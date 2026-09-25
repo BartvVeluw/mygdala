@@ -263,7 +263,8 @@ juiste groep.
 Nesten in Pagina's is **niet** automatisch nesten in het menu. Het menu blijft
 wat Header & navigatie zegt (`HEADER-FOOTER.md`); een kind kan er wel of niet
 in, als eigen item of als submenu-item, zoals elke pagina. Een menu-item naar
-een pagina-id krijgt vanzelf het geneste pad.
+een pagina-id krijgt vanzelf het geneste pad. Het menu heeft zelf drie niveaus
+(`HEADER-FOOTER.md`, "Drie niveaus"), los van hoe diep een pagina staat.
 
 ## 11. Querygedrag
 
