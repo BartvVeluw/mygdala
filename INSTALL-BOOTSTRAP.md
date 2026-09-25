@@ -153,6 +153,14 @@ krijgt via `20260914170000_pin_the_portfolio_module_where_it_is_in_use` een
 opgeslagen *aan* (`Tests\Install\PortfolioModulePinTest`), zodat een deploy
 niemands portfolio uit de lucht haalt.
 
+Een verse installatie krijgt **geen Portfolio-pagina**. Zet iemand Portfolio
+aan, dan werkt `/portfolio` toch meteen: zonder pagina met content key
+`portfolio` toont de module haar eigen overzicht, net als de Blog op `/blog`
+(`MODULES.md`, "Portfolio"). Er wordt daarvoor niets aangemaakt, dus aan- en
+uitzetten laat de database zoals hij is. Een bestaande installatie houdt haar
+Portfolio-pagina, sinds `20260925170000` op `/portfolio`
+(`Tests\Install\PortfolioRootInstallTest`).
+
 **Meertaligheid** brengt geen tabellen en geen inhoud mee: het talenregister
 (`site_languages`, met `nl` als standaard en `en`) en de vertaaltabellen
 bestaan op elke installatie. De module beslist alleen of de andere talen dan

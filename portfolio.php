@@ -35,19 +35,37 @@ require_once __DIR__ . '/partials/breadcrumb.php';
 // honoured while no output has been sent yet (same reason pagina.php looks
 // its page up at the very top).
 //
-// Title, meta description, canonical and Open Graph tags all come from this
-// page's own row in the CMS `pages` table (see App\Service\PageContent and
-// partials/page-head.php).
+// TWO WAYS TO BE THE OVERVIEW, decided by whether a CMS page with content key
+// "portfolio" exists (App\Service\PortfolioUrls::overviewPage()):
 //
-// This is an ordinary content page that merely happens to be served from its
-// own file, so the administrator may set it to Concept or delete it
-// altogether (App\Service\PageContent::isProtected()). When that happens this
-// URL must really stop resolving instead of answering 200 with an empty page
-// — a draft, a deleted and a never-existing page look the same to a visitor.
-$page = \App\Service\PageContent::forContentKey('portfolio');
-if ($page === null || !\App\Service\PageContent::isPublished($page)) {
+//   - a page exists (an installation that has had the Portfolio page for
+//     years): that page is the overview, with its own blocks, title, SEO and
+//     publication. Set to Concept it answers 404, as it always did: the
+//     editor chose that.
+//   - no page at all (a new installation, or Portfolio switched on later):
+//     the module's own overview — every visible project in the gallery, the
+//     filter bar, the lightbox — the way /blog is the Blog's own and /shop.php
+//     showed the Shop's. Nothing is created for it, so nothing can be created
+//     twice.
+$page = \App\Service\PortfolioUrls::overviewPage();
+$builtin = $page === null;
+if ($page !== null && !\App\Service\PageContent::isPublished($page)) {
     $page = null;
     http_response_code(404);
+}
+
+if ($builtin) {
+    // A route without a CMS page builds its metadata here, through the one
+    // App\Service\SeoMetadata, like shop.php's own overview: indexable, listed
+    // in the sitemap by App\Module\PortfolioModule, and its own canonical in
+    // the request's language, with a version in every active one.
+    $seoMetadata = \App\Service\SeoMetadata::create(
+        title: \App\Service\Seo::routeTitle(\App\Service\Language\SiteText::pick(\App\Service\PortfolioUrls::OVERVIEW_LABEL)),
+        canonical: \App\Service\Routing\LocalizedUrl::absolute(\App\Service\PortfolioUrls::OVERVIEW_PATH),
+    );
+    \App\Service\Routing\LanguageAlternates::declareVersions(\App\Service\PortfolioUrls::overviewVersions());
+    $overviewGallery = \App\Service\PortfolioGalleryContent::builtinOverviewGallery();
+    require_once __DIR__ . '/partials/section-item-gallery.php';
 }
 
 ?>
@@ -56,7 +74,9 @@ if ($page === null || !\App\Service\PageContent::isPublished($page)) {
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<?php if ($page === null): ?>
+<?php if ($builtin): ?>
+<?php require __DIR__ . '/partials/seo-head.php'; ?>
+<?php elseif ($page === null): ?>
 <?php render_page_not_found_head(); ?>
 <?php else: ?>
 <?php require __DIR__ . '/partials/page-head.php'; ?>
@@ -64,7 +84,19 @@ if ($page === null || !\App\Service\PageContent::isPublished($page)) {
 <?php
 // Frontend assets for this page: App\Service\PageAssets always puts Core
 // and the site shell first, and this page adds whatever it needs on top.
-\App\Service\SectionRegistry::collectPageAssets('portfolio');
+// The module's own overview asks for the gallery block's files, which it
+// draws through the same partial.
+if ($builtin) {
+    $galleryBlock = \App\Service\Blocks\BlockDefinitions::get('item_gallery');
+    foreach ($galleryBlock?->styles() ?? [] as $style) {
+        \App\Service\PageAssets::requireStyle($style);
+    }
+    foreach ($galleryBlock?->scripts() ?? [] as $script) {
+        \App\Service\PageAssets::requireScript($script);
+    }
+} else {
+    \App\Service\SectionRegistry::collectPageAssets('portfolio');
+}
 require __DIR__ . '/partials/page-assets.php';
 ?>
 </head>
@@ -77,7 +109,23 @@ require __DIR__ . '/partials/header.php';
 
 <main id="main">
 
-  <?php if ($page === null): ?>
+  <?php if ($builtin): ?>
+    <?php render_breadcrumb(\App\Service\Breadcrumbs\BreadcrumbTrail::home()->to(\App\Service\Breadcrumbs\BreadcrumbItem::current(\App\Service\Language\SiteText::pick(\App\Service\PortfolioUrls::OVERVIEW_LABEL)))); ?>
+    <section class="page-hero">
+      <div class="container">
+        <h1><?= \App\Service\Language\SiteText::escaped(\App\Service\PortfolioUrls::OVERVIEW_LABEL) ?></h1>
+      </div>
+    </section>
+    <?php if ($overviewGallery['items'] === []): ?>
+      <section>
+        <div class="container">
+          <p class="lead"><?= \App\Service\Language\SiteText::escaped(['nl' => 'Er staan nog geen projecten in het portfolio.', 'en' => 'There are no projects in the portfolio yet.']) ?></p>
+        </div>
+      </section>
+    <?php else: ?>
+      <?php render_section_item_gallery($overviewGallery, 'portfolio-overview'); ?>
+    <?php endif; ?>
+  <?php elseif ($page === null): ?>
     <?php render_page_not_found(); ?>
   <?php else: ?>
     <?php \App\Service\SectionRegistry::renderPage('portfolio', \App\Service\Breadcrumbs\PageBreadcrumb::forPage($page)); ?>

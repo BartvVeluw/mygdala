@@ -10,10 +10,12 @@ use App\Service\Routing\LocalizedUrl;
  * The Portfolio's fixed public addresses (Portfolio 2.0, MODULES.md
  * "Portfolio"), the counterpart of App\Service\Blog\BlogUrls:
  *
- *   /portfolio          the overview: the module root, and the `route_path`
- *                       of the CMS page with content key "portfolio", so every
- *                       link, canonical, sitemap entry and breadcrumb that
- *                       resolves that page says /portfolio
+ *   /portfolio          the overview: the module root. Where the CMS page
+ *                       with content key "portfolio" exists it is that page
+ *                       (its `route_path`, so every link, canonical, sitemap
+ *                       entry and breadcrumb that resolves the page says
+ *                       /portfolio); where it does not, the module's own
+ *                       overview
  *   /portfolio.php      the overview's address before Portfolio 2.0, answered
  *                       with a permanent redirect to /portfolio
  *   /portfolio/<slug>   a project page (PortfolioGalleryContent::publicPath())
@@ -25,6 +27,43 @@ final class PortfolioUrls
     public const OVERVIEW_PATH = '/portfolio';
 
     public const LEGACY_OVERVIEW_PATH = '/portfolio.php';
+
+    /** The content key of the CMS page that, when it exists, is the overview. */
+    public const OVERVIEW_CONTENT_KEY = 'portfolio';
+
+    /** The overview's name where it has no page to take one from. */
+    public const OVERVIEW_LABEL = ['nl' => 'Portfolio', 'en' => 'Portfolio'];
+
+    /**
+     * The CMS page that is the overview, published or not, or null when there
+     * is none — a new installation, or one that switched Portfolio on later.
+     *
+     * Found by its content key and nothing else: a page is never adopted as
+     * the overview for its title or its slug. Without one, portfolio.php
+     * shows the module's own overview (MODULES.md, "Portfolio").
+     *
+     * @return array<string, mixed>|null
+     */
+    public static function overviewPage(): ?array
+    {
+        return PageContent::forContentKey(self::OVERVIEW_CONTENT_KEY);
+    }
+
+    /**
+     * The overview's address in every active language, for hreflang and the
+     * language switch when it has no page to declare them.
+     *
+     * @return array<string, string> language code => site-relative path
+     */
+    public static function overviewVersions(): array
+    {
+        $versions = [];
+        foreach (\App\Service\Language\SiteLanguages::activeCodes() as $language) {
+            $versions[$language] = LocalizedUrl::path(self::OVERVIEW_PATH, $language);
+        }
+
+        return $versions;
+    }
 
     /**
      * Where a request for the overview's OLD address goes: /portfolio in the

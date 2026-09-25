@@ -368,6 +368,7 @@
             <file>tests/Install/PageHeaderImageModeMigrationTest.php</file>
             <file>tests/Install/MediaLibraryTwoMigrationTest.php</file>
             <file>tests/Install/PortfolioTwoMigrationTest.php</file>
+            <file>tests/Install/PortfolioRootInstallTest.php</file>
             <file>tests/Install/HeaderButtonMigrationTest.php</file>
             <file>tests/Install/FooterSocialLinkMigrationTest.php</file>
             <file>tests/Install/SiteLanguageRegistryMigrationTest.php</file>
@@ -583,6 +584,7 @@
             <file>tests/Service/ShopShareImageChoiceTest.php</file>
             <file>tests/Install/MediaLibraryTwoMigrationTest.php</file>
             <file>tests/Install/PortfolioTwoMigrationTest.php</file>
+            <file>tests/Install/PortfolioRootInstallTest.php</file>
             <file>tests/Service/MediaLibraryTest.php</file>
             <file>tests/Service/SettingsNavigationHttpTest.php</file>
             <file>tests/Service/Media/SvgSanitizerTest.php</file>

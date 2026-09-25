@@ -90,28 +90,32 @@ $seoMetadata = $portfolioItem === null
     : \App\Service\PortfolioSeo::forProject($portfolioItem);
 
 // Home / Portfolio / <project>. The Portfolio level is the CMS page behind
-// /portfolio.php, by its own title and its own address, so a rename follows
-// through; a site without that page simply has no such level
-// (BreadcrumbTrail::toPage()). No pages.parent_id is involved: a project is
-// not a page.
+// /portfolio, by its own title and its own address, so a rename follows
+// through; a site without that page names the module's own overview through
+// its route (BreadcrumbTrail::toPage()'s fallback, PortfolioModule::routes()).
+// No pages.parent_id is involved: a project is not a page.
 $projectName = $portfolioItem !== null && trim((string) $portfolioItem['title']) !== ''
     ? (string) $portfolioItem['title']
     : \App\Service\Language\SiteText::pick(['nl' => 'Project', 'en' => 'Project']);
 $breadcrumb = \App\Service\Breadcrumbs\BreadcrumbTrail::home()
-    ->toPage('portfolio')
+    ->toPage('portfolio', 'portfolio')
     ->to(\App\Service\Breadcrumbs\BreadcrumbItem::current(
         $portfolioItem === null
             ? \App\Service\Language\SiteText::pick(['nl' => 'Project niet gevonden', 'en' => 'Project not found'])
             : $projectName
     ));
 
-// The way back, only to an overview a visitor may open.
-$portfolioPage = \App\Service\PageContent::forContentKey('portfolio');
-$portfolioUrl = $portfolioPage !== null
-    && \App\Service\PageContent::isPublished($portfolioPage)
-    && \App\Service\PageContent::isServedByAnEnabledModule($portfolioPage)
-    ? \App\Service\PageContent::publicUrl($portfolioPage)
-    : null;
+// The way back, only to an overview a visitor may open: the overview page
+// while it is published, the module's own overview while there is no page.
+$portfolioPage = \App\Service\PortfolioUrls::overviewPage();
+if ($portfolioPage === null) {
+    $portfolioUrl = \App\Service\Routing\LocalizedUrl::path(\App\Service\PortfolioUrls::OVERVIEW_PATH);
+} else {
+    $portfolioUrl = \App\Service\PageContent::isPublished($portfolioPage)
+        && \App\Service\PageContent::isServedByAnEnabledModule($portfolioPage)
+        ? \App\Service\PageContent::publicUrl($portfolioPage)
+        : null;
+}
 
 ?>
 <!doctype html>

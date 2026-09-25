@@ -876,6 +876,7 @@ Voor Portfolio 2.0 verder, per suite:
 | `PortfolioProjectGalleryTest` | `cms` | galerijtokens (volgorde, geen hoofdafbeelding, geen dubbel, geen foto van een ander item), vervangen en teruggeven, mediagebruik als hoofdafbeelding en galerij, gelaagde alt, slug uniek en genormaliseerd, redirect alleen bij een publieke hernoeming, metadata |
 | `PortfolioProjectPageTest` | `cms` | het kaartcontract: nooit een link, altijd zoom, *Bekijk project* naar legacy-pagina of eigen pagina, overlay titel/tekst/knop, fallbacklink genegeerd, sitemap |
 | `PortfolioItemEditingHttpTest` | `cms` | over HTTP: projectpagina aan met slug uit de titel en geen `pages`-rij, slug genormaliseerd/geweigerd/uniek gemaakt, 301 bij hernoemen, sanitizer, sectiemarker, galerij via de bibliotheek, legacy-koppeling alleen houden of ontkoppelen, geen paginaflow, guards |
+| `PortfolioRootInstallTest` | `migration`, `cms` | `/portfolio` over HTTP op een verse installatie (geen Portfolio-pagina, eigen overzicht 200, projectpagina, 301 van `/portfolio.php`, sitemap één keer, uit = 404 op alle drie, weer aan zonder nieuwe pagina, bootstrap twee keer idempotent, een gewone pagina *Portfolio* niet overgenomen) en op een legacy-installatie (haar eigen pagina op `/portfolio`, zelfde id, één keer in de sitemap) |
 | `PortfolioTwoMigrationTest` | `migration`, `cms` | `portfolio_item_images.media_id`: vers en na een upgrade, oude foto onaangeroerd, `RESTRICT`, cascade met het item, tweede run verandert niets |
 
 Een module die de Mediabibliotheek gaat gebruiken levert daarnaast een

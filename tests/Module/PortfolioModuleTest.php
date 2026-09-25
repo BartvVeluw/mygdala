@@ -281,26 +281,37 @@ final class PortfolioModuleTest extends TestCase
     }
 
     /**
-     * /portfolio.php serves a CMS page, and while the module is off that URL
-     * answers 404. The sitemap (PageSeo::isIndexable()), a menu link
-     * (LinkResolver) and a redirect (RedirectTarget) all ask this one
-     * question. It still does not become a link-picker route: a content page
-     * is linked as a page (App\Service\RouteRegistry).
+     * /portfolio serves the CMS page with content key "portfolio" where one
+     * exists, and while the module is off that URL, the old /portfolio.php
+     * and every project address answer 404. The sitemap
+     * (PageSeo::isIndexable()), a menu link (LinkResolver) and a redirect
+     * (RedirectTarget) all ask this one question.
+     *
+     * A link-picker route it becomes only while NO page is the overview: then
+     * the module's own overview is what the module guarantees, like /blog.
+     * Where the page exists it is linked as a page, never as a route
+     * (App\Service\RouteRegistry), so the picker never offers /portfolio twice.
      */
-    public function testThePortfolioPageBelongsToTheModuleWithoutBecomingARoute(): void
+    public function testThePortfolioPageBelongsToTheModuleAndTheRootIsARouteOnlyWithoutOne(): void
     {
-        $page = ['id' => 0, 'content_key' => 'portfolio', 'route_path' => '/portfolio.php'];
+        $page = ['id' => 0, 'content_key' => 'portfolio', 'route_path' => '/portfolio'];
+        $hasPage = \App\Service\PortfolioUrls::overviewPage() !== null;
 
         $this->withPortfolio(false);
-        $this->assertSame('portfolio', ModuleRegistry::disabledModuleForRoutePath('/portfolio.php'));
-        $this->assertSame('portfolio', ModuleRegistry::disabledModuleForRoutePath('/portfolio-detail.php'));
+        foreach (['/portfolio', '/portfolio.php', '/portfolio-detail.php'] as $path) {
+            $this->assertSame('portfolio', ModuleRegistry::disabledModuleForRoutePath($path), $path);
+        }
         $this->assertFalse(PageContent::isServedByAnEnabledModule($page));
-        $this->assertFalse(RouteRegistry::exists('portfolio'));
+        $this->assertFalse(RouteRegistry::exists('portfolio'), 'a switched-off module offers no route');
 
         $this->withPortfolio(true);
+        $this->assertNull(ModuleRegistry::disabledModuleForRoutePath('/portfolio'));
         $this->assertNull(ModuleRegistry::disabledModuleForRoutePath('/portfolio.php'));
         $this->assertTrue(PageContent::isServedByAnEnabledModule($page));
-        $this->assertFalse(RouteRegistry::exists('portfolio'), 'a content page is linked as a page, never as a route');
+        $this->assertSame(!$hasPage, RouteRegistry::exists('portfolio'), 'a route exactly while no page is the overview');
+        if (!$hasPage) {
+            $this->assertSame('/portfolio', RouteRegistry::url('portfolio'));
+        }
     }
 
     public function testThePortfolioSitemapCollectorFollowsTheModule(): void

@@ -150,6 +150,34 @@ class PortfolioGalleryContent
     }
 
     /**
+     * The gallery of the module's own overview (portfolio.php when no CMS
+     * page is the overview, App\Service\PortfolioUrls::overviewPage()): every
+     * visible project in its CMS order, the filter bar, and the lightbox that
+     * every portfolio card opens anyway — the content shape
+     * partials/section-item-gallery.php draws for a gallery block, with no
+     * block row behind it and no words of its own.
+     *
+     * @return array<string, mixed>
+     */
+    public static function builtinOverviewGallery(): array
+    {
+        return [
+            'items' => self::catalogueItems(false),
+            'filter_categories' => self::filterCategories(),
+            'enable_lightbox' => true,
+            'fallback_link_url' => '',
+            'eyebrow' => '',
+            'title' => '',
+            'lead' => '',
+            'footer_note' => '',
+            'button_label' => '',
+            'button_url' => '',
+            'background' => 'default',
+            'tight_top' => true,
+        ];
+    }
+
+    /**
      * Categories to show in a gallery block's filter bar: only those used by
      * at least one currently visible item, in their own admin-managed order
      * — see App\Repository\PortfolioCategoryRepository::findUsedByActiveItems().

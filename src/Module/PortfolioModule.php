@@ -114,6 +114,19 @@ final class PortfolioModule extends ModuleDefinition
     }
 
     /**
+     * The overview as a menu and footer destination, like the Blog's /blog —
+     * but only while no CMS page is the overview: an installation that has
+     * that page links it as a page, so the picker never offers the same
+     * address twice (App\Service\PortfolioUrls::overviewPage()).
+     */
+    public function routes(): array
+    {
+        return PortfolioUrls::overviewPage() === null
+            ? ['portfolio' => ['url' => PortfolioUrls::OVERVIEW_PATH, 'label' => PortfolioUrls::OVERVIEW_LABEL, 'order' => 60]]
+            : [];
+    }
+
+    /**
      * The one permission Portfolio had as Core, with the same name and the
      * same words, in a group of its own now that it is not always there. It
      * follows Core's "Website" group, where it used to be listed.
@@ -226,6 +239,12 @@ final class PortfolioModule extends ModuleDefinition
         return [
             'portfolio' => static function (): array {
                 $entries = [];
+
+                // The module's own overview, when no CMS page is the overview:
+                // a page is listed by Core's pages collector instead, once.
+                if (PortfolioUrls::overviewPage() === null) {
+                    $entries = Sitemap::entriesForVersions(PortfolioUrls::overviewVersions(), null);
+                }
 
                 foreach (PortfolioGalleryContent::projectPagesForSitemap() as $project) {
                     // Every published language's version of the page, each

@@ -26,12 +26,20 @@ class RouteRegistryTest extends TestCase
         // a menu link that survives unpublishing or deleting the page — and
         // that PageService::references() cannot see. They are linked by
         // pages.id instead (link_type = 'page').
-        foreach (['diensten', 'portfolio', 'over-mij', 'contact'] as $contentPage) {
+        foreach (['diensten', 'over-mij', 'contact'] as $contentPage) {
             $this->assertFalse(
                 RouteRegistry::exists($contentPage),
                 "\"{$contentPage}\" is a content page, not an application route"
             );
         }
+
+        // The Portfolio overview is one of those content pages where it
+        // exists; without one, the module's own overview at /portfolio is a
+        // route like /blog (App\Module\PortfolioModule::routes()).
+        $this->assertSame(
+            \App\Service\PortfolioUrls::overviewPage() === null && \App\Module\ModuleRegistry::isEnabled('portfolio'),
+            RouteRegistry::exists('portfolio')
+        );
 
         // What stays is what the application itself guarantees.
         foreach (['home', 'shop', 'cart', 'checkout'] as $applicationRoute) {

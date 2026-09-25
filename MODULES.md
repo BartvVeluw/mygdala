@@ -703,10 +703,40 @@ uit staat.
 Een pagina met de titel *Portfolio* kreeg daarom stil `/portfolio-2`. Sinds
 Portfolio 2.0 noemt de weigering de eigenaar (`ReservedRoutes::moduleReserving()`),
 en een nieuwe pagina waarvan het automatische adres moest uitwijken, zegt op
-haar eigen scherm waarom. Het overzicht `/portfolio` is de CMS-pagina met
-content key `portfolio`; een nieuwe installatie heeft die niet,
-en een keuze "welke pagina is het Portfolio-overzicht" (zoals
-`ShopOverview` voor de Shop) is een aparte uitbreiding.
+haar eigen scherm waarom.
+
+**Het overzicht op een installatie zonder Portfolio-pagina.** Het overzicht
+`/portfolio` is de CMS-pagina met content key `portfolio` als die bestaat. Een
+verse installatie heeft die niet, en krijgt hem ook niet: de pagina was een
+historische seed van de site waaruit dit CMS voortkwam, die `InstallState` op
+een verse database overslaat, en `Tests\Install\FreshInstallTest` houdt een
+verse installatie vrij van zulke pagina's. Portfolio volgt daarom het
+modulepatroon van `/blog` en van het ingebouwde overzicht van `shop.php`: **zonder
+pagina rendert `portfolio.php` het eigen overzicht van de module** — kruimelpad
+*Home / Portfolio*, de kop *Portfolio*, elk zichtbaar project in de galerij met
+filterbalk en lightbox (`PortfolioGalleryContent::builtinOverviewGallery()`),
+of een regel dat er nog geen projecten zijn. De metadata komen uit
+`SeoMetadata` (titel *Portfolio — site*, canonical `/portfolio` in de gelezen
+taal, een versie per actieve taal), de sitemap krijgt het overzicht van
+Portfolio's eigen collector, en `PortfolioModule::routes()` biedt `/portfolio`
+aan als bestemming voor menu, footer en kruimelpad.
+
+| Situatie | `/portfolio` | Menu/footer | Sitemap |
+|---|---|---|---|
+| Geen pagina met content key `portfolio` | het eigen overzicht van de module | route *Portfolio* | Portfolio's collector |
+| Die pagina bestaat en is gepubliceerd | die pagina, met haar eigen blokken, titel en SEO | de pagina, als pagina | Core's paginacollector |
+| Die pagina bestaat en is een concept | 404, de keuze van de redacteur | — | — |
+| Portfolio uit | 404, ook `/portfolio.php` en `/portfolio/<slug>` | — | — |
+
+**Er wordt nooit iets aangemaakt**: niet bij de installatie, niet bij het
+aanzetten van de module (die heeft geen lifecycle, zie "Nog niet
+geïmplementeerd") en niet bij een request. Daardoor kan er geen tweede
+overzicht ontstaan, is een bootstrap die twee keer draait vanzelf idempotent,
+en wordt geen pagina op haar titel of slug als overzicht aangenomen: alleen de
+content key `portfolio` telt (`PortfolioUrls::overviewPage()`), en die kan een
+redacteur niet kiezen. Een keuze "welke pagina is het Portfolio-overzicht"
+(zoals `ShopOverview`) en een eigen titel of inleiding voor het ingebouwde
+overzicht zijn aparte uitbreidingen.
 
 **Projecten op een gewone pagina.** Portfolio brengt één eigen blok mee:
 **Projecten** (`project_cards`, `src/Service/Blocks/ProjectCardsBlock.php`),
