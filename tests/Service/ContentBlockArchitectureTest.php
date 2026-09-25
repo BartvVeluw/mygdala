@@ -318,12 +318,21 @@ final class ContentBlockArchitectureTest extends TestCase
 
     public function testContentPagesAreNotOfferedAsApplicationRoutes(): void
     {
-        foreach (['diensten', 'portfolio', 'over-mij', 'contact'] as $contentKey) {
+        foreach (['diensten', 'over-mij', 'contact'] as $contentKey) {
             $this->assertFalse(
                 RouteRegistry::exists($contentKey),
                 "\"{$contentKey}\" is a CMS page; linking to it as a hardcoded route would survive deleting the page"
             );
         }
+
+        // The Portfolio overview is such a page where it exists, and linked as
+        // one; without it /portfolio is the module's own overview, a route
+        // like /blog (App\Module\PortfolioModule::routes()).
+        $this->assertSame(
+            \App\Service\PortfolioUrls::overviewPage() === null && \App\Module\ModuleRegistry::isEnabled('portfolio'),
+            RouteRegistry::exists('portfolio'),
+            'portfolio is a route exactly while no CMS page is the overview'
+        );
     }
 
     public function testAnUnpublishedContentPageStopsResolvingAtItsOwnUrl(): void
