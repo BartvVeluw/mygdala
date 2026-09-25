@@ -137,7 +137,14 @@ final class ShopGalleryContractTest extends TestCase
 
         $this->assertStringContainsString('field.hasAttribute("data-media-picker-collect")', $picker);
         $this->assertStringContainsString('uploadInput.multiple = collects(field);', $picker);
-        $this->assertSame(2, substr_count($picker, 'new CustomEvent("media-picker:choose"'));
+        // Media Library 2.0: chosen and uploaded items are handed over in ONE
+        // place, "Selecteren" (confirmSelection()), each as its own event and
+        // in the order they were chosen — never on a click or an upload alone.
+        $this->assertSame(1, substr_count($picker, 'new CustomEvent("media-picker:choose"'));
+        $this->assertMatchesRegularExpression(
+            '/function confirmSelection\(\)[\s\S]*items\.forEach\(function \(item\) \{\s*field\.dispatchEvent\(new CustomEvent\("media-picker:choose"/',
+            $picker
+        );
     }
 
     public function testTheEditorHasNoShopUploadAndNoPerPictureEndpointLeft(): void

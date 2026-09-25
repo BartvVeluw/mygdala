@@ -49,10 +49,14 @@ use App\Service\Media\MediaUploader;
  * What is stored stays "inherited" as long as the text is the library's
  * (BlockImage::ownAlt()), so a later change in the library still reaches it.
  *
- * WHAT IT IS NOT. Not a digital-asset manager. No folders, no tags, no bulk
- * actions, no cropping. It shows thumbnails, a name, an alt text and a search
- * box; it selects one item or uploads a new one. Everything else belongs on
- * admin/media.php, and most of it belongs nowhere yet (MEDIA.md).
+ * ONE ACTION, ONE FLOW. The field's button opens this library, never the
+ * operating system's file dialog; uploading is a choice made INSIDE the
+ * library (media_picker_modal()). Every new file becomes an ordinary library
+ * item first and is then chosen like any other.
+ *
+ * WHAT IT IS NOT. Not a digital-asset manager. It browses (folder, search,
+ * grid or list), selects and uploads; renaming, moving, deleting and folders
+ * themselves belong on admin/media.php (MEDIA.md).
  */
 
 /**
@@ -184,17 +188,30 @@ function media_video_icon(): string
  * carry a dozen fields) and for a less obvious one: the browse request and
  * its results are then never duplicated, so opening a second picker on the
  * same screen costs nothing.
+ *
+ * ONE ACTION, ONE FLOW (MEDIA.md, "De mediakiezer"). Opening a picker opens
+ * this library and nothing else. The native file dialog belongs to exactly
+ * one control: the "Nieuw bestand uploaden" button in the toolbar, whose
+ * click is the only thing that ever calls click() on the file input. That
+ * input is hidden and wrapped in no <label>, so no click anywhere else — on
+ * the field, on the modal, on a word next to it — can reach it.
+ *
+ * CHOOSE, THEN CONFIRM. A card toggles its selection (aria-pressed); the
+ * selection survives another folder, a search and "Meer laden", and only
+ * "Selecteren" hands it to the field. "Annuleren", Escape and the backdrop
+ * change nothing. A field takes one item; a collecting field
+ * (data-media-picker-collect) takes several.
  */
 function media_picker_modal(): void
 {
     $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
     ?>
-    <div class="admin-media-modal" data-media-modal hidden aria-hidden="true" role="dialog" aria-modal="true" aria-label="Mediabibliotheek">
+    <div class="admin-media-modal" data-media-modal data-media-view="grid" hidden aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="media-modal-title">
       <div class="admin-media-modal__backdrop" data-media-modal-close></div>
       <div class="admin-media-modal__panel">
         <header class="admin-media-modal__head">
-          <h2><?= admin_te('media.mediabibliotheek') ?></h2>
-          <button type="button" class="admin-media-modal__close" data-media-modal-close aria-label="Sluiten">&times;</button>
+          <h2 id="media-modal-title"><?= admin_te('media.mediabibliotheek') ?></h2>
+          <button type="button" class="admin-media-modal__close" data-media-modal-close aria-label="<?= admin_te('media.picker.close') ?>">&times;</button>
         </header>
 
         <div class="admin-media-modal__tools">
@@ -203,20 +220,37 @@ function media_picker_modal(): void
             <input type="search" placeholder="<?= admin_te('media.zoeken_bestandsnaam_alt_tekst') ?>" data-media-modal-search autocomplete="off">
           </label>
 
-          <?php /* The accept list is the image one; media-picker.js swaps it
-                   for the video one when a video field opens the modal. */ ?>
-          <label class="admin-media-modal__upload">
-            <span data-media-modal-upload-label><?= admin_te('media.nieuwe_afbeelding') ?></span>
-            <input type="file" accept="<?= $h(MediaUploader::acceptAttribute(MediaType::IMAGE)) ?>" data-media-modal-upload>
+          <label class="admin-media-modal__folder">
+            <span class="admin-visually-hidden"><?= admin_te('media.folder.nav_label') ?></span>
+            <select class="admin-select" data-media-modal-folder>
+              <option value=""><?= admin_te('media.folder.all') ?></option>
+              <option value="none"><?= admin_te('media.folder.none') ?></option>
+            </select>
           </label>
+
+          <div class="admin-media-view" role="group" aria-label="<?= admin_te('media.view.label') ?>">
+            <button type="button" class="admin-media-view__option" data-media-modal-view="grid" aria-pressed="true"><?= admin_te('media.view.grid') ?></button>
+            <button type="button" class="admin-media-view__option" data-media-modal-view="list" aria-pressed="false"><?= admin_te('media.view.list') ?></button>
+          </div>
+
+          <?php /* The ONLY way to the native file dialog. The input is hidden and
+                   in no <label>: this button's click is the one thing that
+                   opens it. media-picker.js swaps accept for the field's kind. */ ?>
+          <button type="button" class="admin-btn-secondary admin-media-modal__upload" data-media-modal-upload-button><?= admin_te('media.picker.upload') ?></button>
+          <input type="file" hidden accept="<?= $h(MediaUploader::acceptAttribute(MediaType::IMAGE)) ?>" data-media-modal-upload tabindex="-1" aria-hidden="true">
         </div>
 
         <p class="admin-media-modal__status" data-media-modal-status role="status" aria-live="polite"></p>
 
-        <div class="admin-media-modal__grid" data-media-modal-grid></div>
+        <div class="admin-media-modal__grid" data-media-modal-grid role="group" aria-label="<?= admin_te('media.picker.results_label') ?>"></div>
 
         <footer class="admin-media-modal__foot">
           <button type="button" class="admin-btn-text" data-media-modal-more hidden><?= admin_te('media.meer_laden') ?></button>
+          <p class="admin-media-modal__count" data-media-modal-count aria-live="polite"></p>
+          <div class="admin-media-modal__actions">
+            <button type="button" class="admin-btn-ghost" data-media-modal-close><?= admin_te('media.dialog.cancel') ?></button>
+            <button type="button" class="admin-btn-primary" data-media-modal-confirm disabled><?= admin_te('media.picker.confirm') ?></button>
+          </div>
         </footer>
       </div>
     </div>
@@ -230,22 +264,22 @@ function media_picker_modal(): void
           'kinds' => [
               MediaType::IMAGE => [
                   'accept' => MediaUploader::acceptAttribute(MediaType::IMAGE),
-                  'upload' => admin_t('media.nieuwe_afbeelding'),
+                  'upload' => admin_t('media.picker.upload'),
                   'empty' => admin_t('media.picker.empty_image'),
               ],
               MediaType::VIDEO => [
                   'accept' => MediaUploader::acceptAttribute(MediaType::VIDEO),
-                  'upload' => admin_t('media.picker.new_video'),
+                  'upload' => admin_t('media.picker.upload_video'),
                   'empty' => admin_t('media.picker.empty_video'),
               ],
               MediaType::SOCIAL_IMAGE => [
                   'accept' => MediaUploader::acceptAttribute(MediaType::SOCIAL_IMAGE),
-                  'upload' => admin_t('media.nieuwe_afbeelding'),
+                  'upload' => admin_t('media.picker.upload'),
                   'empty' => admin_t('media.picker.empty_social'),
               ],
               MediaType::ICON => [
                   'accept' => MediaUploader::acceptAttribute(MediaType::ICON),
-                  'upload' => admin_t('media.picker.new_icon'),
+                  'upload' => admin_t('media.picker.upload_icon'),
                   'empty' => admin_t('media.picker.empty_icon'),
               ],
           ],
@@ -253,6 +287,16 @@ function media_picker_modal(): void
               'noAlt' => admin_t('media.alt.none_yet'),
               'missing' => admin_t('common.file_missing'),
               'reused' => admin_t('media.picker.reused'),
+              'loading' => admin_t('media.picker.loading'),
+              'loadFailed' => admin_t('media.picker.load_failed'),
+              'noResults' => admin_t('media.picker.no_results'),
+              'uploading' => admin_t('media.picker.uploading'),
+              'uploaded' => admin_t('media.picker.uploaded'),
+              'uploadFailed' => admin_t('media.picker.upload_failed'),
+              'selectedOne' => admin_t('media.picker.selected_one'),
+              'selectedMany' => admin_t('media.picker.selected_many'),
+              'selectedNone' => admin_t('media.picker.selected_none'),
+              'folderEmpty' => admin_t('media.folder.empty'),
           ],
       ], JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>
     </script>
