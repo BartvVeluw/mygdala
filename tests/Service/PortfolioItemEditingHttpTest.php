@@ -23,8 +23,9 @@ use Tests\Support\BuiltInServer;
 /**
  * Creating and editing a portfolio item through the real endpoints: an image
  * is enough, every word and every category is optional, what an editor does
- * fill in comes back exactly as typed, and the project page is one choice of
- * an ordinary page that leaves the old project page alone.
+ * fill in comes back exactly as typed, and the item's own project page
+ * (Portfolio 2.0) — its switch, address, texts and gallery — is saved right
+ * there, without an ordinary page ever being made, chosen or linked.
  *
  * Over real HTTP against PHP's built-in server with the Portfolio switched on
  * (Tests\Support\BuiltInServer), because an endpoint's answer is its redirect
@@ -53,6 +54,9 @@ final class PortfolioItemEditingHttpTest extends TestCase
 
     /** @var list<string> */
     private array $temporaryFiles = [];
+
+    /** @var list<string> redirect source paths a rename in this test wrote */
+    private array $redirectSources = [];
 
     public static function setUpBeforeClass(): void
     {
@@ -108,6 +112,15 @@ final class PortfolioItemEditingHttpTest extends TestCase
                 $pages->delete($id);
             }
         }
+
+        $redirects = new \App\Repository\RedirectRepository();
+        foreach ($this->redirectSources as $sourcePath) {
+            $row = $redirects->findBySourcePath($sourcePath);
+            if ($row !== null) {
+                $redirects->delete((int) $row['id']);
+            }
+        }
+        $this->redirectSources = [];
 
         $this->accounts->forget();
 
@@ -333,165 +346,318 @@ final class PortfolioItemEditingHttpTest extends TestCase
     }
 
     /* ------------------------------------------------------------------ */
-    /* The project page                                                    */
+    /* The project page (Portfolio 2.0)                                    */
     /* ------------------------------------------------------------------ */
 
     /**
-     * Choosing a page stores its id, and only its id: the old project page
-     * keeps its switch, its slug and every word it held, because nothing on
-     * this form reaches them.
+     * Switching the project page on is enough: its address is made from the
+     * default-language title, its words are stored for this language, and no
+     * ordinary page is created for it — the item is the page's content.
      */
-    public function testChoosingAPageStoresItsIdAndLeavesTheOldProjectPageAlone(): void
+    public function testSwitchingTheProjectPageOnGivesItAnAddressAndMakesNoPage(): void
     {
-        $itemId = $this->storedItem('ZZ Project', []);
-        $this->giveItAnOldProjectPage($itemId);
-        $pageId = $this->page(PageContent::STATUS_PUBLISHED);
-        $repository = new PortfolioGalleryRepository();
-        $before = (array) $repository->findItemById($itemId);
+        $marker = bin2hex(random_bytes(3));
+        $itemId = $this->storedItem('ZZ Gegraveerde snijplank ' . $marker, []);
         [$session, $csrf] = $this->accounts->signIn([PortfolioModule::PORTFOLIO_MANAGE]);
+        $pagesBefore = $this->pageCount();
 
-        $response = self::$server->request('POST', '/api/admin/update-portfolio-item.php', $session, [
-            'csrf_token' => $csrf,
-            'item_id' => (string) $itemId,
-            'language_code' => PortfolioLocalization::defaultLanguage(),
-            'title' => 'ZZ Project',
-            'alt' => '',
-            'subtitle' => '',
-            'is_active' => '1',
-            'page_id' => (string) $pageId,
+        $response = $this->saveProjectPage($session, $csrf, $itemId, [
+            'title' => 'ZZ Gegraveerde snijplank ' . $marker,
+            'has_detail_page' => '1',
+            'slug' => '',
+            'intro' => '<p>ZZ inleiding</p>',
+            'description' => '<h2>ZZ Het verhaal</h2><p>Lang <strong>verhaal</strong>.</p>',
         ]);
 
-        $this->assertSame(302, $response['status']);
         $this->assertSame('/admin/portfolio-item.php?id=' . $itemId . '&updated=1', $response['location']);
+        $item = (array) (new PortfolioGalleryRepository())->findItemById($itemId);
+        $this->assertSame(1, (int) $item['has_detail_page']);
+        $this->assertSame('zz-gegraveerde-snijplank-' . $marker, $item['slug'], 'made from the title');
+        $this->assertNull($item['page_id']);
+        $this->assertSame($pagesBefore, $this->pageCount(), 'no pages row is ever made for a project');
 
-        $after = (array) $repository->findItemById($itemId);
-        $this->assertSame($pageId, (int) $after['page_id']);
-
-        foreach (['has_detail_page', 'slug'] as $column) {
-            $this->assertSame($before[$column], $after[$column], $column . ' belongs to the old project page and is left alone');
-        }
-
-        // And its rich text, which since phase 5 wave A is two rows the form
-        // never mentions: saveItem() writes only the fields it is given, so
-        // the words of the page this item is moving away from stay readable at
-        // its old address.
         PortfolioLocalization::clearCache();
-        $this->assertSame(
-            '<p>ZZ oude intro</p>',
-            PortfolioLocalization::rawItemValue($itemId, PortfolioLocalization::INTRO, PortfolioLocalization::defaultLanguage())
-        );
-        $this->assertSame(
-            '<p>ZZ oude beschrijving</p>',
-            PortfolioLocalization::rawItemValue($itemId, PortfolioLocalization::DESCRIPTION, PortfolioLocalization::defaultLanguage())
-        );
+        $this->assertSame('<p>ZZ inleiding</p>', PortfolioLocalization::rawItemValue($itemId, PortfolioLocalization::INTRO, PortfolioLocalization::defaultLanguage()));
+        $this->assertStringContainsString('<strong>verhaal</strong>', PortfolioLocalization::rawItemValue($itemId, PortfolioLocalization::DESCRIPTION, PortfolioLocalization::defaultLanguage()));
+
+        $public = self::$server->request('GET', '/portfolio-detail.php?slug=' . $item['slug']);
+        $this->assertSame(200, $public['status'], 'the project page answers');
+        $this->assertStringContainsString('ZZ Het verhaal', $public['body']);
     }
 
-    /** "Geen gekoppelde pagina" is a valid answer: the link goes, the page stays. */
-    public function testNoPageIsAValidChoiceAndOnlyTakesTheLinkOff(): void
+    /**
+     * A typed address is normalised, another item's is refused and nothing is
+     * written, and an address the screen filled in from the title by itself is
+     * made unique instead of refused.
+     */
+    public function testATypedSlugIsNormalisedAndATakenOneIsRefused(): void
     {
+        $marker = bin2hex(random_bytes(3));
+        $otherId = $this->storedItem('ZZ Ander', []);
+        (new PortfolioGalleryRepository())->setItemProjectPage($otherId, true, 'zz-bezet-' . $marker);
         $itemId = $this->storedItem('ZZ Project', []);
-        $pageId = $this->page(PageContent::STATUS_PUBLISHED);
+        [$session, $csrf] = $this->accounts->signIn([PortfolioModule::PORTFOLIO_MANAGE]);
         $repository = new PortfolioGalleryRepository();
-        $repository->setItemPage($itemId, $pageId);
+
+        $this->saveProjectPage($session, $csrf, $itemId, ['has_detail_page' => '1', 'slug' => '  ZZ Één Mooi Werk! ' . $marker]);
+        $this->assertSame('zz-een-mooi-werk-' . $marker, $repository->findItemById($itemId)['slug']);
+
+        $refused = $this->saveProjectPage($session, $csrf, $itemId, ['has_detail_page' => '1', 'slug' => 'zz-bezet-' . $marker, 'title' => 'ZZ Niet opgeslagen']);
+        $this->assertSame('/admin/portfolio-item.php?id=' . $itemId, $refused['location']);
+        $this->assertSame(
+            [AdminTranslator::trans('validation.portfolio_slug_taken', ['slug' => 'zz-bezet-' . $marker])],
+            $this->accounts->read($session, 'admin_portfolio_item_errors')
+        );
+        $this->assertSame('zz-een-mooi-werk-' . $marker, $repository->findItemById($itemId)['slug'], 'nothing written');
+        $this->assertSame('ZZ Project', $this->storedWords($itemId)['title']);
+
+        $this->saveProjectPage($session, $csrf, $itemId, ['has_detail_page' => '1', 'slug' => '!!!']);
+        $this->assertSame([AdminTranslator::trans('validation.portfolio_slug_empty')], $this->accounts->read($session, 'admin_portfolio_item_errors'));
+
+        // The screen's own suggestion that happens to be taken: made unique.
+        $this->saveProjectPage($session, $csrf, $otherId, ['title' => 'ZZ Ander', 'has_detail_page' => '1', 'slug' => 'zz-bezet-' . $marker]);
+        $newId = $this->storedItem('ZZ Bezet ' . $marker, []);
+        $this->saveProjectPage($session, $csrf, $newId, ['title' => 'ZZ Bezet ' . $marker, 'has_detail_page' => '1', 'slug' => 'zz-bezet-' . $marker, 'slug_auto' => '1']);
+        $this->assertSame('zz-bezet-' . $marker . '-2', $repository->findItemById($newId)['slug']);
+    }
+
+    /**
+     * Renaming a public project page leaves no dead address: the old one
+     * redirects permanently to the new one in every active language, through
+     * the Redirect Manager's own slug_change rows.
+     */
+    public function testRenamingAPublicProjectPageRecordsARedirect(): void
+    {
+        $marker = bin2hex(random_bytes(3));
+        $itemId = $this->storedItem('ZZ Hernoemd', []);
+        (new PortfolioGalleryRepository())->setItemProjectPage($itemId, true, 'zz-oud-' . $marker);
         [$session, $csrf] = $this->accounts->signIn([PortfolioModule::PORTFOLIO_MANAGE]);
 
-        $response = self::$server->request('POST', '/api/admin/update-portfolio-item.php', $session, [
+        $this->saveProjectPage($session, $csrf, $itemId, ['has_detail_page' => '1', 'slug' => 'zz-nieuw-' . $marker]);
+
+        $redirects = new \App\Repository\RedirectRepository();
+        foreach (\App\Service\Language\SiteLanguages::activeCodes() as $language) {
+            $from = \App\Service\Routing\LocalizedUrl::path('/portfolio/zz-oud-' . $marker, $language);
+            $this->redirectSources[] = $from;
+            $row = $redirects->findBySourcePath($from);
+            $this->assertNotNull($row, $from . ' redirects');
+            $this->assertSame(\App\Service\Routing\LocalizedUrl::path('/portfolio/zz-nieuw-' . $marker, $language), $row['target_value']);
+            $this->assertSame('slug_change', $row['origin']);
+            $this->assertSame(301, (int) $row['status_code']);
+        }
+    }
+
+    /** A hidden item's page was never public, so renaming it leaves nothing behind. */
+    public function testRenamingAHiddenProjectPageRecordsNoRedirect(): void
+    {
+        $marker = bin2hex(random_bytes(3));
+        $itemId = $this->storedItem('ZZ Verborgen', []);
+        (new PortfolioGalleryRepository())->setItemProjectPage($itemId, true, 'zz-verborgen-oud-' . $marker);
+        Database::connection()->prepare('UPDATE portfolio_gallery_items SET is_active = 0 WHERE id = ?')->execute([$itemId]);
+        [$session, $csrf] = $this->accounts->signIn([PortfolioModule::PORTFOLIO_MANAGE]);
+
+        $this->saveProjectPage($session, $csrf, $itemId, ['has_detail_page' => '1', 'slug' => 'zz-verborgen-nieuw-' . $marker]);
+
+        $this->assertNull((new \App\Repository\RedirectRepository())->findBySourcePath('/portfolio/zz-verborgen-oud-' . $marker));
+    }
+
+    /**
+     * The rich texts go through the sanitizer on the way in: a script never
+     * reaches the table, and the markup an editor may use stays.
+     */
+    public function testTheProjectTextsAreSanitizedOnTheWayIn(): void
+    {
+        $itemId = $this->storedItem('ZZ Veilig', []);
+        [$session, $csrf] = $this->accounts->signIn([PortfolioModule::PORTFOLIO_MANAGE]);
+
+        $this->saveProjectPage($session, $csrf, $itemId, [
+            'has_detail_page' => '1',
+            'slug' => 'zz-veilig-' . bin2hex(random_bytes(3)),
+            'description' => '<p onclick="alert(1)">ZZ tekst<script>alert(2)</script></p><img src=x onerror=alert(3)>',
+        ]);
+
+        PortfolioLocalization::clearCache();
+        $stored = PortfolioLocalization::rawItemValue($itemId, PortfolioLocalization::DESCRIPTION, PortfolioLocalization::defaultLanguage());
+        $this->assertStringContainsString('ZZ tekst', $stored);
+        foreach (['<script', 'onclick', 'onerror', 'alert('] as $needle) {
+            $this->assertStringNotContainsStringIgnoringCase($needle, $stored);
+        }
+    }
+
+    /**
+     * A request that never showed the project-page section — no marker — does
+     * not switch the page off and does not empty its texts.
+     */
+    public function testARequestWithoutTheSectionLeavesTheProjectPageAlone(): void
+    {
+        $itemId = $this->storedItem('ZZ Ongemoeid', []);
+        $slug = 'zz-ongemoeid-' . bin2hex(random_bytes(3));
+        (new PortfolioGalleryRepository())->setItemProjectPage($itemId, true, $slug);
+        PortfolioLocalization::saveItem($itemId, PortfolioLocalization::defaultLanguage(), [PortfolioLocalization::INTRO => '<p>ZZ blijft</p>']);
+        [$session, $csrf] = $this->accounts->signIn([PortfolioModule::PORTFOLIO_MANAGE]);
+
+        self::$server->request('POST', '/api/admin/update-portfolio-item.php', $session, [
             'csrf_token' => $csrf,
             'item_id' => (string) $itemId,
             'language_code' => PortfolioLocalization::defaultLanguage(),
-            'title' => 'ZZ Project',
+            'title' => 'ZZ Ongemoeid',
             'alt' => '',
             'subtitle' => '',
             'is_active' => '1',
-            'page_id' => '',
         ]);
 
-        $this->assertSame('/admin/portfolio-item.php?id=' . $itemId . '&updated=1', $response['location']);
-        $this->assertNull($repository->findItemById($itemId)['page_id']);
-        $this->assertNotNull((new PageRepository())->findById($pageId), 'taking the link off never touches the page');
-        $this->assertNull($this->accounts->read($session, 'admin_portfolio_item_errors'));
+        $item = (array) (new PortfolioGalleryRepository())->findItemById($itemId);
+        $this->assertSame(1, (int) $item['has_detail_page']);
+        $this->assertSame($slug, $item['slug']);
+        PortfolioLocalization::clearCache();
+        $this->assertSame('<p>ZZ blijft</p>', PortfolioLocalization::rawItemValue($itemId, PortfolioLocalization::INTRO, PortfolioLocalization::defaultLanguage()));
     }
 
+    /* ------------------------------------------------------------------ */
+    /* The gallery                                                         */
+    /* ------------------------------------------------------------------ */
+
     /**
-     * A page the item may not link to — one that does not exist (any more), one
-     * with a template of its own, or no id at all — is refused, and the refused
-     * save writes nothing: not the link, not a word.
+     * Library photos in the posted order; the main picture is never taken as
+     * a photo too; a photo token of another item is ignored; removing a photo
+     * takes only the relation off, and the library keeps the item — which it
+     * then refuses to delete while the project still shows it.
      */
-    public function testAPageThatCannotBeTheProjectPageIsRefusedAndNothingIsSaved(): void
+    public function testTheGalleryStoresLibraryPhotosInOrderAndRemovingOneKeepsTheLibraryItem(): void
     {
-        $itemId = $this->storedItem('ZZ Onveranderd', []);
+        [$session, $csrf] = $this->accounts->signIn([PortfolioModule::PORTFOLIO_MANAGE]);
+        $main = (int) $this->libraryImage($session, $csrf);
+        $first = (int) $this->libraryImage($session, $csrf);
+        $second = (int) $this->libraryImage($session, $csrf);
+
+        $itemId = $this->createdItemId(self::$server->request('POST', '/api/admin/create-portfolio-item.php', $session, [
+            'csrf_token' => $csrf,
+            'media_id' => (string) $main,
+        ]));
+
+        $otherId = $this->storedItem('ZZ Ander', []);
+        $images = new \App\Repository\PortfolioItemImageRepository();
+        $images->replaceForItem($otherId, [['media_id' => $first, 'image_path' => 'assets/media/zz-ander.webp', 'thumbnail_path' => null]]);
+        $foreignPhotoId = (int) $images->findByPortfolioItemId($otherId)[0]['id'];
+
+        $this->saveProjectPage($session, $csrf, $itemId, [
+            'gallery_submitted' => '1',
+            'gallery[0]' => 'media:' . $second,
+            'gallery[1]' => 'media:' . $main,
+            'gallery[2]' => 'media:' . $first,
+            'gallery[3]' => 'photo:' . $foreignPhotoId,
+            'gallery[4]' => 'media:' . $second,
+            'media_id' => (string) $main,
+        ]);
+
+        $rows = $images->findByPortfolioItemId($itemId);
+        $this->assertSame([$second, $first], array_map(static fn (array $r): int => (int) $r['media_id'], $rows), 'in order, no main picture, no double, no stolen photo');
+        $this->assertCount(1, $images->findByPortfolioItemId($otherId), 'the other item keeps its photo');
+
+        MediaService::clearCache();
+        $usages = \App\Service\Media\MediaUsageRegistry::usagesFor([$second])[$second] ?? [];
+        $this->assertNotEmpty($usages, 'the library knows the project uses the photo');
+        $this->assertStringContainsString('(galerij)', $usages[0]->label);
+        $this->assertSame('in_use', (new MediaService())->delete($second)['reason'], 'and refuses to delete it');
+
+        // Reorder and remove one: the relation goes, the library item stays.
+        $keptRowId = (int) $rows[1]['id'];
+        $this->saveProjectPage($session, $csrf, $itemId, [
+            'gallery_submitted' => '1',
+            'gallery[0]' => 'photo:' . $keptRowId,
+        ]);
+
+        $rows = $images->findByPortfolioItemId($itemId);
+        $this->assertSame([$first], array_map(static fn (array $r): int => (int) $r['media_id'], $rows));
+        MediaService::clearCache();
+        $this->assertNotNull(MediaService::find($second), 'the removed photo is still in the library');
+        $this->assertFileExists(dirname(__DIR__, 2) . '/' . MediaService::find($second)->path);
+
+        // A save without the section never empties the gallery.
+        $this->saveProjectPage($session, $csrf, $itemId, []);
+        $this->assertCount(1, $images->findByPortfolioItemId($itemId));
+
+        $images->replaceForItem($otherId, []);
+    }
+
+    /* ------------------------------------------------------------------ */
+    /* The legacy linked page                                              */
+    /* ------------------------------------------------------------------ */
+
+    /**
+     * No page can be linked any more: a posted page id is ignored, for an item
+     * without a link and for one with. The one thing left is unlinking, which
+     * never touches the page itself.
+     */
+    public function testALegacyPageCanOnlyBeKeptOrUnlinked(): void
+    {
+        $itemId = $this->storedItem('ZZ Zonder koppeling', []);
+        $linkedId = $this->storedItem('ZZ Met koppeling', []);
         $pageId = $this->page(PageContent::STATUS_PUBLISHED);
+        $otherPageId = $this->page(PageContent::STATUS_PUBLISHED);
         $repository = new PortfolioGalleryRepository();
-        $repository->setItemPage($itemId, $pageId);
+        $repository->setItemPage($linkedId, $pageId);
         [$session, $csrf] = $this->accounts->signIn([PortfolioModule::PORTFOLIO_MANAGE]);
 
-        $missing = (int) Database::connection()->query('SELECT COALESCE(MAX(id), 0) + 1000 FROM pages')->fetchColumn();
+        $this->saveProjectPage($session, $csrf, $itemId, ['page_id' => (string) $pageId]);
+        $this->assertNull($repository->findItemById($itemId)['page_id'], 'no new link can be made');
 
-        foreach ([(string) $missing, (string) $this->templatePage(), 'geen-id'] as $choice) {
-            $response = self::$server->request('POST', '/api/admin/update-portfolio-item.php', $session, [
-                'csrf_token' => $csrf,
-                'item_id' => (string) $itemId,
-                'language_code' => PortfolioLocalization::defaultLanguage(),
-                'title' => 'ZZ Gewijzigd',
-                'alt' => '',
-                'subtitle' => '',
-                'is_active' => '1',
-                'page_id' => $choice,
-            ]);
+        $this->saveProjectPage($session, $csrf, $linkedId, ['page_id' => (string) $otherPageId]);
+        $this->assertSame($pageId, (int) $repository->findItemById($linkedId)['page_id'], 'nor an existing one moved');
 
-            $this->assertSame('/admin/portfolio-item.php?id=' . $itemId, $response['location'], $choice . ' must be refused');
-            $this->assertSame(
-                [AdminTranslator::trans('validation.portfolio_page_unknown')],
-                $this->accounts->read($session, 'admin_portfolio_item_errors')
-            );
-
-            $item = (array) $repository->findItemById($itemId);
-            $this->assertSame($pageId, (int) $item['page_id'], 'the link the item had is kept');
-            $this->assertSame('ZZ Onveranderd', $this->storedWords($itemId)['title'], 'a refused save writes nothing');
-        }
+        $this->saveProjectPage($session, $csrf, $linkedId, ['unlink_page' => '1']);
+        $this->assertNull($repository->findItemById($linkedId)['page_id'], 'unlinked');
+        $this->assertNotNull((new PageRepository())->findById($pageId), 'and the page itself stays, with its content');
     }
 
     /**
-     * The editor offers the site's ordinary pages — a draft marked as one —
-     * with the linked page selected, and not a page with a template of its own.
-     * "Nieuwe pagina maken" is only there for an editor who may make one.
+     * The editor has no page flow at all: no page select and no "Nieuwe pagina
+     * maken", not even for an editor who may make pages. The legacy card shows
+     * only on an item that has a link, with the page's name.
      */
-    public function testTheEditorOffersOrdinaryPagesWithTheLinkedOneSelected(): void
+    public function testTheEditorHasNoPageFlowAndShowsALegacyLinkOnlyWhereThereIsOne(): void
     {
-        $itemId = $this->storedItem('ZZ Project', []);
-        $draftId = $this->page(PageContent::STATUS_DRAFT);
-        $templatePageId = $this->templatePage();
-        (new PortfolioGalleryRepository())->setItemPage($itemId, $draftId);
-        $draft = (array) (new PageRepository())->findById($draftId);
-
-        [$portfolioOnly] = $this->accounts->signIn([PortfolioModule::PORTFOLIO_MANAGE]);
-        $editor = self::$server->request('GET', '/admin/portfolio-item.php?id=' . $itemId, $portfolioOnly);
-
-        $this->assertSame(200, $editor['status']);
-        $this->assertStringContainsString('<select class="admin-select" id="portfolio-page" name="page_id">', $editor['body']);
-        $this->assertStringContainsString(
-            '<option value="">' . htmlspecialchars(AdminTranslator::trans('portfolio.no_linked_page'), ENT_QUOTES, 'UTF-8') . '</option>',
-            $editor['body']
-        );
-        $this->assertStringContainsString(
-            '<option value="' . $draftId . '" selected>'
-                . htmlspecialchars(AdminTranslator::trans('portfolio.page_option_draft', ['title' => \App\Service\PageLocalization::name($draftId)]), ENT_QUOTES, 'UTF-8')
-                . '</option>',
-            $editor['body']
-        );
-        $this->assertStringNotContainsString('<option value="' . $templatePageId . '"', $editor['body'], 'a page with a template of its own is no project page');
-
-        foreach (['has_detail_page', 'slug', 'intro', 'description'] as $name) {
-            $this->assertStringNotContainsString('name="' . $name . '"', $editor['body'], $name . ' belonged to the old project page');
-        }
-
-        $this->assertStringNotContainsString('href="/admin/page-new.php"', $editor['body'], 'no page to make without pages.manage');
+        $itemId = $this->storedItem('ZZ Eigen', []);
+        $linkedId = $this->storedItem('ZZ Gekoppeld', []);
+        $pageId = $this->page(PageContent::STATUS_PUBLISHED);
+        (new PortfolioGalleryRepository())->setItemPage($linkedId, $pageId);
 
         [$pageEditor] = $this->accounts->signIn([PortfolioModule::PORTFOLIO_MANAGE, AdminPermissions::PAGES_MANAGE]);
-        $withPages = self::$server->request('GET', '/admin/portfolio-item.php?id=' . $itemId, $pageEditor);
 
-        $this->assertSame(200, $withPages['status']);
-        $this->assertStringContainsString('href="/admin/page-new.php"', $withPages['body']);
+        $own = self::$server->request('GET', '/admin/portfolio-item.php?id=' . $itemId, $pageEditor);
+        $this->assertSame(200, $own['status']);
+        $this->assertStringNotContainsString('page-new.php', $own['body']);
+        $this->assertStringNotContainsString('name="page_id"', $own['body']);
+        $this->assertStringNotContainsString('name="unlink_page"', $own['body']);
+        foreach (['name="has_detail_page"', 'name="slug"', 'name="intro"', 'name="description"', 'data-picture-gallery', 'class="admin-card-pair"'] as $needle) {
+            $this->assertStringContainsString($needle, $own['body']);
+        }
+
+        $linked = self::$server->request('GET', '/admin/portfolio-item.php?id=' . $linkedId, $pageEditor);
+        $this->assertStringContainsString('name="unlink_page"', $linked['body']);
+        $this->assertStringContainsString(htmlspecialchars(\App\Service\PageLocalization::name($pageId), ENT_QUOTES, 'UTF-8'), $linked['body']);
+        $this->assertStringNotContainsString('page-new.php', $linked['body']);
+    }
+
+    /* ------------------------------------------------------------------ */
+    /* Guards                                                              */
+    /* ------------------------------------------------------------------ */
+
+    /** No portfolio.manage, or no valid CSRF token: refused, nothing written. */
+    public function testTheSaveRefusesAnEditorWithoutThePermissionAndAMissingToken(): void
+    {
+        $itemId = $this->storedItem('ZZ Beschermd', []);
+        $repository = new PortfolioGalleryRepository();
+
+        [$pagesOnly, $csrf] = $this->accounts->signIn([AdminPermissions::PAGES_MANAGE]);
+        $denied = $this->saveProjectPage($pagesOnly, $csrf, $itemId, ['has_detail_page' => '1', 'slug' => 'zz-niet-' . bin2hex(random_bytes(3))]);
+        $this->assertSame(403, $denied['status']);
+
+        [$session] = $this->accounts->signIn([PortfolioModule::PORTFOLIO_MANAGE]);
+        $forged = $this->saveProjectPage($session, 'geen-geldig-token', $itemId, ['has_detail_page' => '1', 'slug' => 'zz-niet-' . bin2hex(random_bytes(3))]);
+        $this->assertSame(403, $forged['status']);
+
+        $this->assertNull($repository->findItemById($itemId)['slug'], 'nothing was written');
     }
 
     /* ------------------------------------------------------------------ */
@@ -531,23 +697,6 @@ final class PortfolioItemEditingHttpTest extends TestCase
         return $id;
     }
 
-    /**
-     * The old project page, filled the way its editor filled it. Nothing in
-     * the application writes its switch or its slug any more, so the fixture
-     * does those directly; its rich text goes through the words API like any
-     * other word.
-     */
-    private function giveItAnOldProjectPage(int $itemId): void
-    {
-        Database::connection()
-            ->prepare('UPDATE portfolio_gallery_items SET has_detail_page = 1, slug = :slug WHERE id = :id')
-            ->execute(['slug' => 'zz-oud-project-' . bin2hex(random_bytes(4)), 'id' => $itemId]);
-
-        PortfolioLocalization::saveItem($itemId, PortfolioLocalization::defaultLanguage(), [
-            PortfolioLocalization::INTRO => '<p>ZZ oude intro</p>',
-            PortfolioLocalization::DESCRIPTION => '<p>ZZ oude beschrijving</p>',
-        ]);
-    }
 
     /**
      * What is stored for one item in one language, with no fallback — the
@@ -581,21 +730,6 @@ final class PortfolioItemEditingHttpTest extends TestCase
         return $id;
     }
 
-    /**
-     * A page with a template of its own at a fixed address. Only migrations
-     * make one, so the fixture sets it the way Tests\Module\PortfolioModuleHttpTest
-     * sets the Portfolio page's route.
-     */
-    private function templatePage(): int
-    {
-        $id = $this->page(PageContent::STATUS_PUBLISHED);
-
-        Database::connection()
-            ->prepare('UPDATE pages SET is_system = 1, route_path = :route WHERE id = :id')
-            ->execute(['route' => '/zz-vaste-route-' . $id . '.php', 'id' => $id]);
-
-        return $id;
-    }
 
     /** @param array{status: int, location: string, body: string} $response */
     private function createdItemId(array $response): int
@@ -608,6 +742,33 @@ final class PortfolioItemEditingHttpTest extends TestCase
         $this->itemIds[] = $id;
 
         return $id;
+    }
+
+    /**
+     * One save of the item's editor with the project-page section on it, the
+     * way admin/portfolio-item.php posts: the item's words and switches, the
+     * section's marker, and whatever this call changes.
+     *
+     * @param array<string, string> $fields
+     * @return array{status: int, location: string, body: string}
+     */
+    private function saveProjectPage(string $session, string $csrf, int $itemId, array $fields): array
+    {
+        return self::$server->request('POST', '/api/admin/update-portfolio-item.php', $session, $fields + [
+            'csrf_token' => $csrf,
+            'item_id' => (string) $itemId,
+            'language_code' => PortfolioLocalization::defaultLanguage(),
+            'title' => PortfolioLocalization::rawItemValue($itemId, PortfolioLocalization::TITLE, PortfolioLocalization::defaultLanguage()),
+            'alt' => '',
+            'subtitle' => '',
+            'is_active' => '1',
+            'project_page_submitted' => '1',
+        ]);
+    }
+
+    private function pageCount(): int
+    {
+        return (int) Database::connection()->query('SELECT COUNT(*) FROM pages')->fetchColumn();
     }
 
     private function itemCount(): int
@@ -643,7 +804,10 @@ final class PortfolioItemEditingHttpTest extends TestCase
         $this->temporaryFiles[] = $path;
 
         $image = imagecreatetruecolor(64, 48);
-        imagefill($image, 0, 0, (int) imagecolorallocate($image, 200, 120, 40));
+        // A colour of its own per upload: the library hands back the item it
+        // already has for identical bytes (MEDIA.md), and a test that uploads
+        // several pictures needs several items.
+        imagefill($image, 0, 0, (int) imagecolorallocate($image, random_int(0, 255), random_int(0, 255), random_int(0, 255)));
         imagepng($image, $path);
         imagedestroy($image);
 

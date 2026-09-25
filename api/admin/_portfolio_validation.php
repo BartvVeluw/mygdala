@@ -4,22 +4,24 @@ declare(strict_types=1);
 
 /**
  * Shared validation for the admin Portfolio endpoints: the words an item's
- * forms send in one website language, the categories they send, the page an
- * item's editor chooses as its project page, and a new category's slug (same
- * algorithm as api/admin/_product_validation.php's generateUniqueSlug(),
- * reused against PortfolioCategoryRepository).
+ * forms send in one website language, the categories they send, the item's
+ * own project page (switch and slug), what may happen to a legacy linked
+ * page, and a new category's slug (same algorithm as
+ * api/admin/_product_validation.php's generateUniqueSlug(), reused against
+ * PortfolioCategoryRepository).
  */
 
-use App\Repository\PageRepository;
 use App\Repository\PortfolioCategoryRepository;
+use App\Repository\PortfolioGalleryRepository;
 use App\Service\Language\AdminTranslator;
 use App\Service\Language\LanguageCode;
 use App\Service\Language\LanguageFallback;
 use App\Service\Language\SiteLanguages;
 use App\Service\Media\MediaItem;
 use App\Service\Media\MediaService;
-use App\Service\PortfolioGalleryContent;
 use App\Service\PortfolioLocalization;
+use App\Service\PortfolioSlug;
+use App\Service\RichTextSanitizer;
 
 /**
  * The words an item's form submits, in the ONE website language it names, and
@@ -27,16 +29,23 @@ use App\Service\PortfolioLocalization;
  *
  * A new item is born in the default language, like a new page, so $isNew
  * decides the language rather than the form: `language_code` is only read for
- * an existing item. Nothing about these three fields is required, in any
- * language — the picture is the item (see create-portfolio-item.php) — so
- * only their declared length is checked, through
+ * an existing item. Nothing about these fields is required, in any language —
+ * the picture is the item (see create-portfolio-item.php) — so only their
+ * declared length is checked, through
  * App\Service\Language\EntityTranslations::problems(), which is where those
  * lengths live.
+ *
+ * $withProjectText adds the project page's two rich fields, intro and
+ * description, which only the item's editor shows. They are sanitized here,
+ * on the way in (RichTextSanitizer is the security boundary; the editor's
+ * Quill is a convenience), and again on the way out
+ * (PortfolioLocalization::itemRich()). A form that does not send them never
+ * empties them: the create form leaves them out altogether.
  *
  * @param array<string, mixed> $input raw $_POST
  * @return array{0: list<string>, 1: string, 2: array<string, string>} [errors, the language, the words by field]
  */
-function validatePortfolioItemWords(array $input, bool $isNew): array
+function validatePortfolioItemWords(array $input, bool $isNew, bool $withProjectText = false): array
 {
     $text = static fn (string $name): string => is_string($input[$name] ?? null) ? trim($input[$name]) : '';
 
@@ -50,7 +59,17 @@ function validatePortfolioItemWords(array $input, bool $isNew): array
         PortfolioLocalization::SUBTITLE => $text(PortfolioLocalization::SUBTITLE),
     ];
 
-    if ($language === '' || !SiteLanguages::isActive($language)) {
+    if ($withProjectText) {
+        foreach (PortfolioLocalization::RICH_FIELDS as $field) {
+            // Only a field the request sends is written: saveItem() keeps
+            // what is stored for a field it is not given.
+            if (array_key_exists($field, $input)) {
+                $words[$field] = (string) (RichTextSanitizer::sanitize($text($field)) ?? '');
+            }
+        }
+    }
+
+    if ($language === ''|| !SiteLanguages::isActive($language)) {
         return [[AdminTranslator::trans('validation.language_unknown')], $language, $words];
     }
 
@@ -58,6 +77,8 @@ function validatePortfolioItemWords(array $input, bool $isNew): array
         PortfolioLocalization::ALT => 'validation.alt_tekst_mag_maximaal_255',
         PortfolioLocalization::TITLE => 'validation.titel_mag_maximaal_150_tekens',
         PortfolioLocalization::SUBTITLE => 'validation.onderschrift_mag_maximaal_150_tekens',
+        PortfolioLocalization::INTRO => 'validation.portfolio_intro_too_long',
+        PortfolioLocalization::DESCRIPTION => 'validation.portfolio_description_too_long',
     ];
 
     $errors = [];
@@ -97,37 +118,79 @@ function validatePortfolioCategoryIds(mixed $submitted, PortfolioCategoryReposit
 }
 
 /**
- * The project page an editor chose on admin/portfolio-item.php: null for "Geen
- * gekoppelde pagina" (an empty or absent value), the page's id for a page an
- * item may link to (App\Service\PortfolioGalleryContent::isLinkablePage()),
- * and false for anything else — an id no page has any more (deleted in another
- * tab since the screen loaded), a page with a template of its own, or no id at
- * all.
+ * What happens to an item's LEGACY linked page (phase 4B,
+ * portfolio_gallery_items.page_id) on this save: it is kept, or it is
+ * unlinked. Nothing else is possible since Portfolio 2.0: an item's project
+ * page is its own, so no new link to an ordinary page can be made, and an
+ * item without one never gets one (MODULES.md, "Portfolio").
  *
- * Unlike an unknown category, an unusable page is not silently dropped: the
- * caller refuses false, because turning it into "no page" would quietly take
- * away a link the editor meant to keep.
+ * The editor sends `unlink_page` to unlink; without it the stored link is
+ * kept exactly as it is. `page_id` is no longer read at all, so an old form
+ * or a tampered request cannot link a page. Unlinking never touches the page
+ * itself: it stays, with its content, where it was.
  *
- * @param mixed $submitted raw $_POST['page_id'] value
+ * @param array<string, mixed> $input raw $_POST
+ * @param array<string, mixed> $item  the stored item row
  */
-function validatePortfolioPageChoice(mixed $submitted, PageRepository $pages): int|false|null
+function portfolioLegacyPageAfterSave(array $input, array $item): ?int
 {
-    if ($submitted === null || (is_string($submitted) && trim($submitted) === '')) {
+    $current = (int) ($item['page_id'] ?? 0);
+
+    if ($current < 1 || ($input['unlink_page'] ?? '') === '1') {
         return null;
     }
 
-    if (!is_string($submitted)) {
-        return false;
+    return $current;
+}
+
+/**
+ * The item's own project page as its editor submitted it: whether it is shown
+ * ("Projectpagina tonen", `has_detail_page`) and its slug, and what is wrong
+ * with them.
+ *
+ * The slug is normalised (PortfolioSlug::normalise()). A switched-on page
+ * without a slug typed (or with one the screen filled in from the title by
+ * itself) gets one made from the title in the default language, unique, so
+ * switching the page on is enough; a typed slug is checked as typed and
+ * refused, never silently changed, when another item has it. A switched-off
+ * page with its slug field emptied keeps the slug it had, so switching it back
+ * on returns the same address.
+ *
+ * Only a request that carries the section (`project_page_submitted`, the way
+ * the gallery says `gallery_submitted`) changes either: an unticked switch
+ * sends nothing at all, so without that marker a request that never showed
+ * the section would switch the page off. Without it, both stay as stored.
+ *
+ * @param array<string, mixed> $input raw $_POST
+ * @return array{0: list<string>, 1: bool, 2: ?string} [errors, shown, slug]
+ */
+function validatePortfolioProjectPage(array $input, PortfolioGalleryRepository $repository, int $itemId, bool $currentlyShown, ?string $currentSlug, string $defaultTitle): array
+{
+    if (($input['project_page_submitted'] ?? '') !== '1') {
+        return [[], $currentlyShown, $currentSlug !== null && $currentSlug !== '' ? $currentSlug : null];
     }
 
-    $pageId = filter_var(trim($submitted), FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
-    if ($pageId === false) {
-        return false;
+    $shown = isset($input['has_detail_page']);
+    // An address the screen filled in from the title by itself
+    // (`slug_auto`, admin/assets/admin.js) is made here instead, unique.
+    $typed = is_string($input['slug'] ?? null) && ($input['slug_auto'] ?? '') !== '1' ? trim($input['slug']) : '';
+    $slug = PortfolioSlug::normalise($typed);
+
+    if ($typed !== '' && $slug === '') {
+        return [[AdminTranslator::trans('validation.portfolio_slug_empty')], $shown, null];
     }
 
-    $page = $pages->findById($pageId);
+    if ($slug === '') {
+        if (!$shown) {
+            return [[], false, $currentSlug !== null && $currentSlug !== '' ? $currentSlug : null];
+        }
 
-    return $page !== null && PortfolioGalleryContent::isLinkablePage($page) ? (int) $page['id'] : false;
+        return [[], true, PortfolioSlug::suggest($repository, $defaultTitle, $itemId)];
+    }
+
+    $problem = PortfolioSlug::problem($repository, $slug, $itemId);
+
+    return [$problem === null ? [] : [$problem], $shown, $slug];
 }
 
 /**

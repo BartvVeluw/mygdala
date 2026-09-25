@@ -9,8 +9,9 @@ use PHPUnit\Framework\TestCase;
 /**
  * The Portfolio screens are built from the shared admin controls
  * (ADMIN-UI.md), ask for nothing but an image, show that image before it is
- * saved, offer the project page as one choice of an ordinary page, and still
- * send exactly what their endpoints read.
+ * saved, edit the item's own project page and gallery right on the item
+ * (Portfolio 2.0) without making, choosing or linking an ordinary page, and
+ * still send exactly what their endpoints read.
  *
  * Read from the source, like Tests\Service\AdminUiPrimitivesTest reads the
  * other screens that use the controls: no database and no web server. What a
@@ -30,9 +31,6 @@ final class PortfolioAdminScreenTest extends TestCase
      *      language at a time, so there is no `_nl`/`_en` pair on the form.
      */
     private const WORDS = ['title', 'alt', 'subtitle'];
-
-    /** @var list<string> what the project page the Portfolio used to own was made of */
-    private const OLD_PROJECT_PAGE_FIELDS = ['has_detail_page', 'slug', 'intro', 'description'];
 
     public function testTheNewItemFormAsksForAnImageAndNothingElse(): void
     {
@@ -179,65 +177,95 @@ final class PortfolioAdminScreenTest extends TestCase
     }
 
     /**
-     * The project page is one choice in the shared select, explained, with
-     * "no page" as its first and valid answer. What the old project page was
-     * made of — its switch, slug, rich texts and extra photos — is not on the
-     * screen any more.
+     * The project page is the item's own (Portfolio 2.0): a switch, an
+     * address and two rich texts, edited right on the item — the fields the
+     * page the Portfolio used to own was made of, back on the screen.
      */
-    public function testTheProjectPageIsOneChoiceOfAnOrdinaryPage(): void
+    public function testTheProjectPageIsEditedOnTheItemItself(): void
     {
         $edit = self::form('update-portfolio-item.php');
         $item = self::source(self::ITEM_SCREEN);
 
-        $this->assertMatchesRegularExpression(
-            '#admin_field_label\(\'portfolio-page\', admin_t\(\'portfolio\.project_page\'\), admin_t\(\'help\.portfolio\.project_page\'\)\)\s*\?>\s*<select class="admin-select" id="portfolio-page" name="page_id">\s*<option value=""><\?= admin_te\(\'portfolio\.no_linked_page\'\) \?></option>#',
-            $edit
-        );
-        $this->assertStringContainsString('$linkablePages = PortfolioGalleryContent::linkablePages();', $item, 'the pages come from the one rule an item may link to');
-
-        foreach (self::OLD_PROJECT_PAGE_FIELDS as $name) {
-            $this->assertStringNotContainsString('name="' . $name . '"', $edit, $name . ' belonged to the old project page');
-            $this->assertStringNotContainsString("renderRichTextField('" . $name . "'", $edit);
-        }
-
-        foreach (['add-portfolio-item-images.php', 'update-portfolio-item-image.php', 'delete-portfolio-item-image.php', 'reorder-portfolio-item-images.php'] as $endpoint) {
-            $this->assertStringNotContainsString($endpoint, $item, 'the old extra photos are not edited here any more');
-        }
-
-        $this->assertStringNotContainsString('portfolio.geavanceerd_projectpagina', $item);
-        $this->assertStringNotContainsString('_richtext_field.php', $item, 'no rich text is left on this screen');
-        $this->assertStringNotContainsStringIgnoringCase('quill', $item, 'so neither is its editor');
+        $this->assertStringContainsString('class="admin-switch" role="switch" name="has_detail_page" value="1"', $edit);
+        $this->assertStringContainsString("admin_help(admin_t('portfolio.show_project_page'), admin_t('help.portfolio.show_project_page'))", $edit);
+        $this->assertStringContainsString('<input type="text" id="portfolio-slug" name="slug"', $edit);
+        $this->assertStringContainsString('autocomplete="off" spellcheck="false" data-slug-target>', $edit);
+        $this->assertStringContainsString('<input type="hidden" name="slug_auto" value="0" data-slug-auto>', $edit);
+        $this->assertStringContainsString("renderRichTextField(PortfolioLocalization::INTRO, admin_t('portfolio.intro')", $edit);
+        $this->assertStringContainsString("renderRichTextField(PortfolioLocalization::DESCRIPTION, admin_t('portfolio.description')", $edit);
+        $this->assertStringContainsString("require_once __DIR__ . '/_richtext_field.php';", $item);
+        $this->assertStringContainsString('/admin/assets/vendor/quill/quill.min.js', $item, 'its editor comes along');
 
         $nl = require dirname(__DIR__, 2) . '/src/Service/Language/messages/nl.php';
         $en = require dirname(__DIR__, 2) . '/src/Service/Language/messages/en.php';
 
         $this->assertSame('Projectpagina', $nl['portfolio.project_page']);
-        $this->assertSame('Geen gekoppelde pagina', $nl['portfolio.no_linked_page']);
-        $this->assertSame(
-            'Koppel eventueel een gewone pagina aan dit portfolio-item. Op die pagina kun je de normale paginabouwer gebruiken voor tekst, afbeeldingen en andere contentblokken.',
-            $nl['help.portfolio.project_page']
-        );
-
-        foreach (['portfolio.project_page', 'portfolio.no_linked_page', 'help.portfolio.project_page', 'portfolio.page_option_draft', 'portfolio.new_page', 'portfolio.new_page_note', 'validation.portfolio_page_unknown'] as $key) {
+        $this->assertSame('Projectpagina tonen', $nl['portfolio.show_project_page']);
+        foreach (['portfolio.show_project_page', 'help.portfolio.show_project_page', 'portfolio.slug', 'help.portfolio.slug', 'portfolio.intro', 'portfolio.description', 'portfolio.gallery.heading', 'portfolio.gallery.add', 'portfolio.legacy_page', 'portfolio.unlink_page', 'validation.portfolio_slug_taken', 'validation.portfolio_slug_empty'] as $key) {
             $this->assertArrayHasKey($key, $nl, $key);
             $this->assertArrayHasKey($key, $en, $key);
         }
     }
 
     /**
-     * "Nieuwe pagina maken" is the Pages screen itself, shown only to an editor
-     * who may use it — the Portfolio has no page creator of its own.
+     * No ordinary page is made, chosen or linked from the Portfolio any more:
+     * no "Nieuwe pagina maken", no page select, and no endpoint of Pages. A
+     * LEGACY link is shown only on an item that has one, with unlinking as
+     * the one thing left to do with it.
      */
-    public function testANewPageIsMadeOnThePagesOwnScreen(): void
+    public function testNoPageIsMadeOrLinkedFromThePortfolio(): void
     {
         $item = self::source(self::ITEM_SCREEN);
+        $edit = self::form('update-portfolio-item.php');
 
-        $this->assertStringContainsString('$canManagePages = AdminAuth::can(AdminPermissions::PAGES_MANAGE);', $item);
-        $this->assertMatchesRegularExpression(
-            '#<\?php if \(\$canManagePages\): \?>\s*<p>\s*<a href="/admin/page-new\.php" class="admin-btn-secondary" target="_blank" rel="noopener">#',
-            $item
-        );
+        $this->assertStringNotContainsString('page-new.php', $item, 'no "Nieuwe pagina maken"');
         $this->assertStringNotContainsString('create-page.php', $item, 'the Portfolio posts no page of its own');
+        $this->assertStringNotContainsString('name="page_id"', $item, 'no page can be chosen');
+        $this->assertStringNotContainsString('linkablePages', $item);
+
+        $this->assertMatchesRegularExpression('#<\?php if \(\$legacyPage !== null\): \?>[\s\S]*name="unlink_page" value="1"[\s\S]*<\?php endif; \?>#', $edit);
+
+        $reads = self::source('api/admin/update-portfolio-item.php') . self::source('api/admin/_portfolio_validation.php');
+        $this->assertStringNotContainsString("\$_POST['page_id']", $reads, 'a posted page id is never read');
+        $this->assertStringNotContainsString("\$input['page_id']", $reads);
+    }
+
+    /**
+     * Categorieën and Zichtbaarheid are two cards side by side, one column on
+     * a narrow screen — not a category list pressed against the switches.
+     */
+    public function testCategoriesAndVisibilityAreTwoCards(): void
+    {
+        $edit = self::form('update-portfolio-item.php');
+
+        $this->assertMatchesRegularExpression(
+            '#<div class="admin-card-pair">\s*<section class="admin-card">\s*<h2><\?= admin_te\(\'portfolio\.categories_field\'\) \?></h2>\s*<\?= portfolioCategoryField\([\s\S]*?</section>\s*<section class="admin-card">\s*<h2><\?= admin_te\(\'portfolio\.visibility\'\) \?></h2>[\s\S]*?name="is_active"[\s\S]*?name="is_featured"[\s\S]*?</section>\s*</div>#',
+            $edit
+        );
+
+        $css = self::source('admin/assets/admin.css');
+        $this->assertMatchesRegularExpression('/\.admin-card-pair\{[^}]*grid-template-columns: repeat\(2, minmax\(0, 1fr\)\);/', $css);
+        $this->assertMatchesRegularExpression('/@media \(max-width: 900px\)\{[\s\S]*?\.admin-card-pair\{ grid-template-columns: 1fr; \}/', $css);
+    }
+
+    /**
+     * The gallery is chosen with the shared picker in collect mode and ordered
+     * by the product editor's own script — no file input, no second strip.
+     */
+    public function testTheGalleryUsesThePickerAndTheSharedStrip(): void
+    {
+        $edit = self::form('update-portfolio-item.php');
+        $item = self::source(self::ITEM_SCREEN);
+
+        $this->assertStringContainsString('data-picture-gallery data-gallery-input="gallery[]" data-gallery-first-badge="" data-gallery-exclude-input="media_id"', $edit);
+        $this->assertStringContainsString('<input type="hidden" name="gallery_submitted" value="1" data-gallery-marker>', $edit);
+        $this->assertStringContainsString('data-media-picker data-media-picker-kind="image" data-media-picker-collect', $edit);
+        $this->assertStringContainsString('<input type="hidden" name="gallery[]" value="', $item);
+        $this->assertStringContainsString('/admin/assets/product-gallery.js', $item);
+        $this->assertStringNotContainsString('type="file"', $item);
+
+        $script = self::source('admin/assets/product-gallery.js');
+        $this->assertStringContainsString('document.querySelector("[data-product-gallery], [data-picture-gallery]")', $script);
     }
 
     /**
@@ -255,6 +283,13 @@ final class PortfolioAdminScreenTest extends TestCase
             foreach (array_unique($posted[1]) as $name) {
                 if ($name === 'categories') {
                     $this->assertStringContainsString('portfolioCategoryField(', $form, $endpoint . ' reads categories[]');
+                    continue;
+                }
+
+                // Each photo's hidden input is drawn by portfolioGalleryCard()
+                // and by the strip's script; the form names the list.
+                if ($name === 'gallery') {
+                    $this->assertStringContainsString('data-gallery-input="gallery[]"', $form, $endpoint . ' reads gallery[]');
                     continue;
                 }
 

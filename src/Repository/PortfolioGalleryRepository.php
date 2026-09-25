@@ -238,19 +238,50 @@ class PortfolioGalleryRepository extends Repository
     }
 
     /**
-     * Every item whose OLD project page can be public, as the Portfolio's
+     * The item's own project page: whether it is shown ("Projectpagina
+     * tonen", has_detail_page) and the slug of its address /portfolio/<slug>.
+     * Separate from updateItem() for the reason setItemPage() is: the caller
+     * validates the slug first (App\Service\PortfolioSlug), and only then is
+     * it written. NULL clears the slug; the unique index allows any number of
+     * items without one.
+     */
+    public function setItemProjectPage(int $itemId, bool $hasDetailPage, ?string $slug): void
+    {
+        $stmt = $this->db->prepare(
+            'UPDATE portfolio_gallery_items SET has_detail_page = :has_detail_page, slug = :slug, updated_at = NOW() WHERE id = :id'
+        );
+        $stmt->execute([
+            'has_detail_page' => $hasDetailPage ? 1 : 0,
+            'slug' => $slug !== null && $slug !== '' ? $slug : null,
+            'id' => $itemId,
+        ]);
+    }
+
+    /** Whether another item than $excludeId already has this slug. */
+    public function slugTakenByAnotherItem(string $slug, ?int $excludeId = null): bool
+    {
+        $stmt = $this->db->prepare(
+            'SELECT 1 FROM portfolio_gallery_items WHERE slug = :slug AND id <> :exclude_id LIMIT 1'
+        );
+        $stmt->execute(['slug' => $slug, 'exclude_id' => $excludeId ?? 0]);
+
+        return $stmt->fetchColumn() !== false;
+    }
+
+    /**
+     * Every item whose project page can be public, as the Portfolio's
      * sitemap collector needs it: slug, last-modified timestamp, and the page
      * the item links to now.
      *
      * The three conditions are the ones
      * App\Service\PortfolioGalleryContent::itemForDetailPage() checks before
-     * it renders the old page at all (visible, old project page switched on,
-     * and a slug to reach it by), so an address that 404s is never listed.
-     * Whether the address redirects instead, because a published page is
-     * linked, is PortfolioGalleryContent::legacyProjectPagesForSitemap()'s to
+     * it renders the page at all (visible, project page switched on, and a
+     * slug to reach it by), so an address that 404s is never listed. Whether
+     * the address redirects instead, because a legacy published page is
+     * linked, is PortfolioGalleryContent::projectPagesForSitemap()'s to
      * decide — which is why page_id comes along.
      *
-     * Not scoped to one gallery: the sitemap wants every old project page on
+     * Not scoped to one gallery: the sitemap wants every project page on
      * the site, whichever gallery an item happens to belong to.
      *
      * @return array<int, array{slug:string, updated_at:?string, page_id:?int}>
@@ -275,15 +306,15 @@ class PortfolioGalleryRepository extends Repository
     }
 
     /**
-     * Looks up the item behind an old project address
+     * Looks up the item behind a project address
      * (portfolio-detail.php?slug=...). What that address does is the caller's
-     * question — redirect to the linked page, or show the old page, which
-     * needs is_active/has_detail_page checked: see
+     * question — redirect to a legacy linked page, or show the item's own
+     * project page, which needs is_active/has_detail_page checked: see
      * App\Service\PortfolioGalleryContent::legacyProjectRedirectUrl() and
      * itemForDetailPage().
      *
-     * Nothing writes a slug any more: the editor that set one is gone, and a
-     * slug now only names an address that already existed.
+     * The slug is written by setItemProjectPage(), unique across the whole
+     * table (its unique index, and App\Service\PortfolioSlug before it).
      *
      * @return array<string, mixed>|null
      */
@@ -340,16 +371,11 @@ class PortfolioGalleryRepository extends Repository
      * Saves what an item's own editor edits about the ROW: its image, and
      * whether and where it is shown. Its words are saved separately and per
      * language, through App\Service\PortfolioLocalization, in the same
-     * transaction; categories and the linked page through
-     * setItemCategories() and setItemPage() — see
-     * api/admin/update-portfolio-item.php. The legacy `categories` string
-     * column is never written by this method (see createItem()'s docblock).
-     *
-     * Neither is the old project page (has_detail_page, slug, and its `intro`
-     * and `description` words): nothing edits that page any more, and a save
-     * must never blank what it still shows at its old address
-     * (portfolio-detail.php). It keeps exactly what it has, which is also why
-     * the editor sends only the three fields it shows.
+     * transaction; categories, the legacy linked page and the item's own
+     * project page through setItemCategories(), setItemPage() and
+     * setItemProjectPage() — see api/admin/update-portfolio-item.php. The
+     * legacy `categories` string column is never written by this method (see
+     * createItem()'s docblock).
      *
      * media_id is the library item, or null for a picture that still lives
      * on Portfolio's own path from before the library.

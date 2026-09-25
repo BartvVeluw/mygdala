@@ -2220,6 +2220,21 @@ input[data-color-picker]{ width: 2.4rem; height: 2.4rem; padding: 0.15rem; borde
   gap: var(--admin-sp-2) var(--admin-sp-4);
 }
 .admin-portfolio-categories > .admin-checkbox-label{ display: inline-flex; margin: 0; }
+/* In its own card (admin/portfolio-item.php) the list reads top to bottom,
+   one category per line, like the switches in the card beside it. */
+.admin-card-pair .admin-portfolio-categories{ flex-direction: column; flex-wrap: nowrap; }
+
+/* Two ordinary admin cards side by side (admin/portfolio-item.php:
+   Categorieën | Zichtbaarheid), each keeping its own padding and border.
+   One column at the shared 900px breakpoint (responsive block below). */
+.admin-card-pair{
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--admin-sp-5);
+  margin-bottom: var(--admin-sp-5);
+  align-items: start;
+}
+.admin-card-pair > .admin-card{ margin-bottom: 0; min-width: 0; }
 
 .admin-portfolio-grid{
   display: grid;
@@ -3060,6 +3075,8 @@ input[data-color-picker]{ width: 2.4rem; height: 2.4rem; padding: 0.15rem; borde
   .admin-card__heading{ flex-direction: column; align-items: flex-start; gap: var(--admin-sp-2); }
 
   .admin-seo-grid{ grid-template-columns: 1fr; }
+
+  .admin-card-pair{ grid-template-columns: 1fr; }
 
   .admin-portfolio-toolbar [data-portfolio-count]{ margin-left: 0; flex-basis: 100%; }
   .admin-portfolio-grid{ grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }

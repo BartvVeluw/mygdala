@@ -21,11 +21,21 @@
  * drag only adds to), drag and drop is for a mouse, and on a touch screen
  * the arrows are the way. A move keeps focus on the moved picture's button
  * and says the new position in a live region.
+ *
+ * ALSO THE PORTFOLIO'S PROJECT GALLERY (admin/portfolio-item.php, Portfolio
+ * 2.0): a pool with no variants, marked [data-picture-gallery] instead of
+ * [data-product-gallery], so one script keeps one behaviour for every list of
+ * library pictures an editor orders. Two settings on the root tell the two
+ * apart: `data-gallery-first-badge` names the first card (or, empty, names
+ * none: a project's main picture stands apart), and
+ * `data-gallery-exclude-input` names the form field of a picture that may not
+ * also be in the list (the item's main picture), which is then refused like a
+ * double. The server applies both rules again (App\Service\PortfolioProjectGallery).
  */
 (function () {
   "use strict";
 
-  var root = document.querySelector("[data-product-gallery]");
+  var root = document.querySelector("[data-product-gallery], [data-picture-gallery]");
   if (!root) return;
 
   var list = root.querySelector("[data-gallery-list]");
@@ -288,8 +298,24 @@
   /* The pool                                                           */
   /* ------------------------------------------------------------------ */
 
+  // The label of the first card: the root's own when it names one (an empty
+  // one means none), else the product's "Hoofdfoto".
+  var firstBadge = root.hasAttribute("data-gallery-first-badge")
+    ? root.getAttribute("data-gallery-first-badge")
+    : word("primary", "Hoofdfoto");
+
+  // A picture that may not also be in this list: the form field that holds
+  // it, when the root names one.
+  var excludeName = root.getAttribute("data-gallery-exclude-input");
+  function excludedMediaId() {
+    if (!excludeName) return "";
+    var form = root.closest("form");
+    var field = form ? form.querySelector('input[name="' + excludeName + '"]') : null;
+    return field ? String(field.value || "") : "";
+  }
+
   function renderPool() {
-    renderStrip(list, pool.map(function (p) { return p.token; }), inputName, word("primary", "Hoofdfoto"));
+    renderStrip(list, pool.map(function (p) { return p.token; }), inputName, firstBadge);
     if (emptyNote) emptyNote.hidden = pool.length > 0;
     variants.forEach(renderVariant);
   }
@@ -323,7 +349,7 @@
     var token = "media:" + item.id;
     var known = pool.some(function (p) {
       return p.token === token || (p.mediaId && String(p.mediaId) === String(item.id));
-    });
+    }) || excludedMediaId() === String(item.id);
     if (known) {
       announce(word("duplicate", ":name staat al bij dit product", { name: item.name || "" }));
       return;

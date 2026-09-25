@@ -308,11 +308,12 @@ PortfolioLocalization::preloadItems(array_map(
           $itemId = (int) $item['id'];
           $isActive = (int) $item['is_active'] === 1;
           $isFeatured = (int) $item['is_featured'] === 1;
-          // "Projectpagina" is the ordinary page the item links to. An item
-          // that only still has its old project page gets a badge of its own,
-          // so an editor can find the ones that still need a page (MODULES.md).
-          $hasDetail = $item['page_id'] !== null;
-          $hasOldProjectPage = !$hasDetail && !empty($item['has_detail_page']) && (string) ($item['slug'] ?? '') !== '';
+          // "Projectpagina" is the item's own page at /portfolio/<slug>,
+          // switched on with a slug to reach it by (Portfolio 2.0). An item
+          // that still links to an ordinary page (phase 4B) gets a badge of
+          // its own, so an editor can find the ones to unlink (MODULES.md).
+          $hasLegacyPage = $item['page_id'] !== null;
+          $hasDetail = $hasLegacyPage || (!empty($item['has_detail_page']) && (string) ($item['slug'] ?? '') !== '');
           // The searchable title is what the CMS calls the item, so searching
           // finds an untitled item by the word the card actually shows.
           $name = $itemName($item);
@@ -345,8 +346,8 @@ PortfolioLocalization::preloadItems(array_map(
               <?php endif; ?>
               <div class="admin-portfolio-card__badges">
                 <?php if ($isFeatured): ?><span class="admin-badge admin-badge--info">Homepage</span><?php endif; ?>
-                <?php if ($hasDetail): ?><span class="admin-badge admin-badge--editable">Projectpagina</span><?php endif; ?>
-                <?php if ($hasOldProjectPage): ?><span class="admin-badge admin-badge--draft"><?= admin_te('portfolio.badge_old_project_page') ?></span><?php endif; ?>
+                <?php if ($hasDetail && !$hasLegacyPage): ?><span class="admin-badge admin-badge--editable">Projectpagina</span><?php endif; ?>
+                <?php if ($hasLegacyPage): ?><span class="admin-badge admin-badge--draft"><?= admin_te('portfolio.badge_old_project_page') ?></span><?php endif; ?>
               </div>
             </div>
           </a>
