@@ -41,7 +41,7 @@ final class MediaAdoptionTest extends TestCase
 
     private const ADOPTION_MIGRATION = '20260909270000';
 
-    /** The migration that gave every item a name of its own (MEDIA.md, "Bestandsnaam"). */
+    /** The migration that gave every item a name of its own (MEDIA.md, "Naam, bestand en adres"). */
     private const DISPLAY_NAME_MIGRATION = '20260914100000';
 
     /**

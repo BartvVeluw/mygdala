@@ -36,6 +36,8 @@ final class MediaItem
         public readonly ?string $checksum,
         public readonly ?string $createdAt,
         public readonly ?string $updatedAt,
+        /** The virtual folder it is filed under; null = "Geen map". Never part of a path. */
+        public readonly ?int $folderId = null,
     ) {
     }
 
@@ -58,6 +60,7 @@ final class MediaItem
             checksum: self::nullableString($row['checksum'] ?? null),
             createdAt: self::nullableString($row['created_at'] ?? null),
             updatedAt: self::nullableString($row['updated_at'] ?? null),
+            folderId: self::nullableInt($row['folder_id'] ?? null),
         );
     }
 
@@ -118,7 +121,7 @@ final class MediaItem
 
     /**
      * The name to show a human: the one the item has in the library (MEDIA.md,
-     * "Bestandsnaam"). A row without one — seeded by a test, or written by a
+     * "Naam, bestand en adres"). A row without one — seeded by a test, or written by a
      * path that did not choose one — falls back on the original filename, and
      * then on the stored file's own name.
      */

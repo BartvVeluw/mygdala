@@ -35,6 +35,7 @@ require_once __DIR__ . '/../../vendor/autoload.php';
 use App\Service\Language\AdminTranslator;
 use App\Service\AdminAuth;
 use App\Service\Csrf;
+use App\Service\Media\MediaFolderService;
 use App\Service\Media\MediaService;
 use App\Service\Media\MediaType;
 
@@ -72,12 +73,18 @@ if (!is_array($file)) {
 $kind = (string) ($_POST['kind'] ?? '');
 $kind = MediaType::isPickerFilter($kind) ? $kind : null;
 
+// The folder the library screen or the picker is showing: a new item is filed
+// under it (MEDIA.md, "Mappen"). An id that names no folder files it under
+// "Geen map"; it never refuses the file and never creates a folder.
+$folderId = (new MediaFolderService())->existing($_POST['folder_id'] ?? null);
+
 try {
     $result = (new MediaService())->upload(
         $file,
         (string) ($_POST['alt_text'] ?? ''),
         (string) ($_POST['name'] ?? ''),
-        $kind
+        $kind,
+        $folderId
     );
 } catch (\RuntimeException $e) {
     // The uploader's own messages are Dutch and meant for an editor.
@@ -106,6 +113,7 @@ echo json_encode([
         'width' => $item->width,
         'height' => $item->height,
         'missing' => !$item->fileExists(),
+        'folder' => $item->folderId,
     ],
     // True when this exact file was already in the library and the existing
     // item was handed back instead of a second copy being written. The picker

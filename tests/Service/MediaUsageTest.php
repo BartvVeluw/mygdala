@@ -316,8 +316,8 @@ final class MediaUsageTest extends TestCase
         $before = MediaService::find($mediaId);
         $this->assertNotNull($before);
 
-        $result = $this->service->rename($mediaId, 'Nieuwe naam voor een gebruikt beeld');
-        $this->assertTrue($result['renamed']);
+        $result = $this->service->updateDetails($mediaId, 'Nieuwe naam voor een gebruikt beeld', '');
+        $this->assertTrue($result['saved']);
 
         MediaService::clearCache();
 

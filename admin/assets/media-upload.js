@@ -64,6 +64,8 @@
   var submit = form.querySelector("[data-media-upload-submit]");
   var clear = form.querySelector("[data-media-queue-clear]");
   var token = form.querySelector('input[name="csrf_token"]');
+  // The folder that is open; media-library.js keeps it in step without a reload.
+  var folder = form.querySelector("[data-media-upload-folder]");
 
   if (!input || !dropzone || !queue || !list || !submit || !token) {
     return;
@@ -483,6 +485,7 @@
     body.append("file", entry.file, entry.file.name);
     body.append("name", entry.name.value.trim());
     body.append("alt_text", entry.alt.value.trim());
+    body.append("folder_id", folder ? folder.value : "");
 
     return window
       .fetch(config.uploadUrl, {

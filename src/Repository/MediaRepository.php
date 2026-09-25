@@ -19,7 +19,7 @@ class MediaRepository extends Repository
     /** How many items one page of the library shows. */
     public const PAGE_SIZE = 24;
 
-    private const COLUMNS = 'id, path, thumbnail_path, original_filename, display_name, mime_type, width, height, file_size, alt_text, checksum, created_at, updated_at';
+    private const COLUMNS = 'id, path, thumbnail_path, original_filename, display_name, folder_id, mime_type, width, height, file_size, alt_text, checksum, created_at, updated_at';
 
     /** @return array<string, mixed>|null */
     public function findById(int $id): ?array
@@ -109,16 +109,16 @@ class MediaRepository extends Repository
      * human can actually remember about an image: the name it has in the
      * library, the name of the file they uploaded, and the alt text they
      * wrote. The kind is how the MIME type begins
-     * (App\Service\Media\MediaType). No tags, no folders, no ranking — see
-     * MEDIA.md.
+     * (App\Service\Media\MediaType), and a folder narrows it to one virtual
+     * folder or to the items without one. No tags, no ranking — see MEDIA.md.
      *
      * @param string|null $mimePrefix "image/", or null for every kind
      *
      * @return list<array<string, mixed>>
      */
-    public function search(string $term = '', int $limit = self::PAGE_SIZE, int $offset = 0, ?string $mimePrefix = null, ?array $mimes = null): array
+    public function search(string $term = '', int $limit = self::PAGE_SIZE, int $offset = 0, ?string $mimePrefix = null, ?array $mimes = null, string $folder = ''): array
     {
-        [$where, $params] = $this->searchClause($term, $mimePrefix, $mimes);
+        [$where, $params] = $this->searchClause($term, $mimePrefix, $mimes, $folder);
 
         $sql = 'SELECT ' . self::COLUMNS . ' FROM media' . $where
             . ' ORDER BY created_at DESC, id DESC LIMIT ' . max(1, $limit) . ' OFFSET ' . max(0, $offset);
@@ -130,9 +130,9 @@ class MediaRepository extends Repository
     }
 
     /** How many items the same search matches, for the pager. */
-    public function countSearch(string $term = '', ?string $mimePrefix = null, ?array $mimes = null): int
+    public function countSearch(string $term = '', ?string $mimePrefix = null, ?array $mimes = null, string $folder = ''): int
     {
-        [$where, $params] = $this->searchClause($term, $mimePrefix, $mimes);
+        [$where, $params] = $this->searchClause($term, $mimePrefix, $mimes, $folder);
 
         $stmt = $this->db->prepare('SELECT COUNT(*) FROM media' . $where);
         $stmt->execute($params);
@@ -147,9 +147,13 @@ class MediaRepository extends Repository
      * parameter list means the same clause works whether or not the driver
      * is emulating prepares.
      *
+     * $folder is a folder filter as App\Service\Media\MediaFolderService::filter()
+     * returns it: '' for every folder, 'none' for the items without one, or
+     * a folder id in digits. Bound, never interpolated.
+     *
      * @return array{0: string, 1: array<string, string>}
      */
-    private function searchClause(string $term, ?string $mimePrefix, ?array $mimes = null): array
+    private function searchClause(string $term, ?string $mimePrefix, ?array $mimes = null, string $folder = ''): array
     {
         $conditions = [];
         $params = [];
@@ -181,6 +185,13 @@ class MediaRepository extends Repository
             $conditions[] = $names === [] ? '1 = 0' : 'mime_type IN (' . implode(', ', $names) . ')';
         }
 
+        if ($folder === 'none') {
+            $conditions[] = 'folder_id IS NULL';
+        } elseif (ctype_digit($folder) && (int) $folder > 0) {
+            $conditions[] = 'folder_id = :folder';
+            $params['folder'] = (string) (int) $folder;
+        }
+
         return [$conditions === [] ? '' : ' WHERE ' . implode(' AND ', $conditions), $params];
     }
 
@@ -206,8 +217,8 @@ class MediaRepository extends Repository
         }
 
         $stmt = $this->db->prepare(
-            'INSERT INTO media (path, thumbnail_path, original_filename, display_name, mime_type, width, height, file_size, alt_text, checksum, created_at, updated_at)
-             VALUES (:path, :thumbnail_path, :original_filename, :display_name, :mime_type, :width, :height, :file_size, :alt_text, :checksum, NOW(), NOW())'
+            'INSERT INTO media (path, thumbnail_path, original_filename, display_name, folder_id, mime_type, width, height, file_size, alt_text, checksum, created_at, updated_at)
+             VALUES (:path, :thumbnail_path, :original_filename, :display_name, :folder_id, :mime_type, :width, :height, :file_size, :alt_text, :checksum, NOW(), NOW())'
         );
 
         $stmt->execute([
@@ -215,6 +226,9 @@ class MediaRepository extends Repository
             'thumbnail_path' => $values['thumbnail_path'] ?? null,
             'original_filename' => $originalFilename,
             'display_name' => mb_substr($displayName, 0, 255),
+            // A folder the caller has already checked (MediaFolderService);
+            // NULL is "Geen map".
+            'folder_id' => isset($values['folder_id']) && (int) $values['folder_id'] > 0 ? (int) $values['folder_id'] : null,
             'mime_type' => mb_substr((string) ($values['mime_type'] ?? ''), 0, 100),
             'width' => $values['width'] ?? null,
             'height' => $values['height'] ?? null,
@@ -227,10 +241,9 @@ class MediaRepository extends Repository
     }
 
     /**
-     * The alt text, one of the two things about an item an editor may
-     * change. The path, the checksum and the dimensions describe the FILE
-     * and are not editable text: changing them would make the row lie about
-     * what is on disk.
+     * The alt text alone, for the one caller that fills a gap without an
+     * editor's form: a duplicate upload that brings an alt text for an item
+     * that had none (App\Service\Media\MediaService::upload()).
      */
     public function updateMetadata(int $id, string $altText): void
     {
@@ -239,15 +252,39 @@ class MediaRepository extends Repository
     }
 
     /**
-     * The other thing an editor may change: the name. It is a label, so
-     * nothing on disk and nothing in a feature's row follows it (MEDIA.md,
-     * "Bestandsnaam"). App\Service\Media\MediaService checks the name before
-     * it gets here.
+     * The name and the alt text together: what an editor owns about an item,
+     * saved as one (App\Service\Media\MediaService::updateDetails(), the one
+     * write behind the item screen and the quick edit). The path, the
+     * checksum and the dimensions describe the FILE and are not editable
+     * text: changing them would make the row lie about what is on disk.
      */
-    public function updateDisplayName(int $id, string $name): void
+    public function updateDetails(int $id, string $name, string $altText): void
     {
-        $stmt = $this->db->prepare('UPDATE media SET display_name = :name, updated_at = NOW() WHERE id = :id');
-        $stmt->execute(['name' => mb_substr($name, 0, 255), 'id' => $id]);
+        $stmt = $this->db->prepare('UPDATE media SET display_name = :name, alt_text = :alt_text, updated_at = NOW() WHERE id = :id');
+        $stmt->execute(['name' => mb_substr($name, 0, 255), 'alt_text' => mb_substr($altText, 0, 255), 'id' => $id]);
+    }
+
+    /**
+     * Files items under a folder, or under none: one UPDATE for a whole
+     * selection. Only media.folder_id changes. The caller has checked that
+     * the folder exists; the foreign key refuses one that does not.
+     *
+     * @param list<int> $ids
+     * @return int how many rows changed folder
+     */
+    public function moveToFolder(array $ids, ?int $folderId): int
+    {
+        $ids = array_values(array_unique(array_filter(array_map('intval', $ids), static fn (int $id): bool => $id > 0)));
+
+        if ($ids === []) {
+            return 0;
+        }
+
+        $placeholders = implode(',', array_fill(0, count($ids), '?'));
+        $stmt = $this->db->prepare('UPDATE media SET folder_id = ?, updated_at = NOW() WHERE id IN (' . $placeholders . ')');
+        $stmt->execute(array_merge([$folderId], $ids));
+
+        return $stmt->rowCount();
     }
 
     /**

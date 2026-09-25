@@ -1,7 +1,7 @@
 <?php
 
 /**
- * POST /api/admin/delete-media-items.php   (media_ids[], return_q, return_type, return_page[, ajax])
+ * POST /api/admin/delete-media-items.php   (media_ids[], return_q, return_type, return_folder, return_page[, ajax])
  *
  * Deletes a selection of media items at once, each one only when nothing uses
  * it. The rule is delete-media.php's, asked for a whole selection:
@@ -20,22 +20,22 @@
  * screen of that place; the others are counted. What to keep was decided on
  * every usage regardless (App\Service\Media\VisibleMediaUsages).
  *
- * TWO ANSWERS, like rename-media.php: a redirect back to the grid page the
+ * TWO ANSWERS, like update-media.php: a redirect back to the grid page the
  * selection came from, with a session flash, for the plain form; JSON for the
  * confirmation dialog in admin/assets/media-library.js. The way back is
- * rebuilt from three validated values, never taken from the request as a
- * URL.
+ * rebuilt from validated values (media_return_url()), never taken from the
+ * request as a URL.
  */
 
 declare(strict_types=1);
 
 require_once __DIR__ . '/../../vendor/autoload.php';
+require_once __DIR__ . '/_media_return.php';
 
 use App\Service\AdminAuth;
 use App\Service\Csrf;
 use App\Service\Language\AdminTranslator;
 use App\Service\Media\MediaService;
-use App\Service\Media\MediaType;
 use App\Service\Media\VisibleMediaUsages;
 
 AdminAuth::requireLoginForApi();
@@ -62,13 +62,7 @@ $respondJson = static function (int $status, array $body): never {
     exit;
 };
 
-$returnQuery = array_filter([
-    'q' => mb_substr(trim((string) ($_POST['return_q'] ?? '')), 0, 200),
-    'type' => MediaType::isLibraryFilter((string) ($_POST['return_type'] ?? '')) ? (string) $_POST['return_type'] : '',
-    'page' => max(1, (int) ($_POST['return_page'] ?? 1)),
-], static fn (string|int $value): bool => $value !== '' && $value !== 1);
-
-$returnTo = '/admin/media.php' . ($returnQuery === [] ? '' : '?' . http_build_query($returnQuery));
+$returnTo = media_return_url();
 
 $fail = static function (int $status, string $message) use ($isAjax, $respondJson, $returnTo): never {
     if ($isAjax) {

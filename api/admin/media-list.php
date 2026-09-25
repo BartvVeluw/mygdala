@@ -21,6 +21,7 @@ use App\Service\Language\AdminTranslator;
 use App\Repository\MediaRepository;
 use App\Service\AdminAuth;
 use App\Service\Media\MediaItem;
+use App\Service\Media\MediaFolderService;
 use App\Service\Media\MediaService;
 
 AdminAuth::requireLoginForApi();
@@ -46,8 +47,14 @@ $page = max(1, (int) ($_GET['page'] ?? 1));
 $type = (string) ($_GET['type'] ?? '');
 
 try {
+    // The picker's folder: '' every folder, 'none' the items without one, or
+    // an existing folder's id (MediaFolderService::filter()). The folder list
+    // comes along on the first page only, so the picker can offer it.
+    $folders = new MediaFolderService();
+    $folder = $folders->filter((string) ($_GET['folder'] ?? ''));
     $service = new MediaService();
-    $result = $service->browse($term, $page, MediaRepository::PAGE_SIZE, $type);
+    $result = $service->browse($term, $page, MediaRepository::PAGE_SIZE, $type, $folder);
+    $overview = $page === 1 ? $folders->overview() : null;
 } catch (\Throwable $e) {
     error_log('[api/admin/media-list.php] ' . $e->getMessage());
 
@@ -73,8 +80,12 @@ echo json_encode([
             // The picker greys out an item whose file is gone rather than
             // rendering a broken thumbnail and pretending all is well.
             'missing' => !$item->fileExists(),
+            'folder' => $item->folderId,
+            'size' => $item->fileSize,
         ];
     }, $result['items']),
+    'folder' => $folder,
+    'folders' => $overview,
     'total' => $result['total'],
     'page' => $page,
     'per_page' => $perPage,

@@ -31,8 +31,11 @@ final class MediaBoundaryTest extends TestCase
         'create-media.php' => 'media.view',
         'update-media.php' => 'media.manage',
         'delete-media.php' => 'media.manage',
-        'rename-media.php' => 'media.manage',
         'delete-media-items.php' => 'media.manage',
+        'move-media-items.php' => 'media.manage',
+        'create-media-folder.php' => 'media.manage',
+        'rename-media-folder.php' => 'media.manage',
+        'delete-media-folder.php' => 'media.manage',
     ];
 
     /* ------------------------------------------------------------------ */
@@ -463,13 +466,20 @@ final class MediaBoundaryTest extends TestCase
     /* ------------------------------------------------------------------ */
 
     /**
-     * The two write endpoints this screen added guard before they read
-     * anything the request sent: login, permission, POST, the token — and
-     * only then an id or a name.
+     * The write endpoints of this screen guard before they read anything the
+     * request sent: login, permission, POST, the token — and only then an id,
+     * a name or a selection.
      */
-    public function testRenamingAndDeletingASelectionGuardBeforeReadingTheRequest(): void
+    public function testEveryLibraryWriteGuardsBeforeReadingTheRequest(): void
     {
-        foreach (['rename-media.php' => "\$_POST['name']", 'delete-media-items.php' => "\$_POST['media_ids']"] as $endpoint => $read) {
+        foreach ([
+            'update-media.php' => "\$_POST['name']",
+            'delete-media-items.php' => "\$_POST['media_ids']",
+            'move-media-items.php' => "\$_POST['media_ids']",
+            'create-media-folder.php' => "\$_POST['name']",
+            'rename-media-folder.php' => "\$_POST['name']",
+            'delete-media-folder.php' => "INPUT_POST, 'folder_id'",
+        ] as $endpoint => $read) {
             $source = $this->source('api/admin/' . $endpoint);
 
             $login = strpos($source, 'AdminAuth::requireLoginForApi()');
@@ -497,8 +507,14 @@ final class MediaBoundaryTest extends TestCase
     public function testDeletingASelectionTrustsNoAddressAndNoCount(): void
     {
         $source = $this->source('api/admin/delete-media-items.php');
+        $return = $this->source('api/admin/_media_return.php');
 
-        $this->assertStringContainsString('MediaType::isLibraryFilter(', $source);
+        // The way back is rebuilt from checked values (media_return_url()),
+        // shared with moving a selection and the folder actions.
+        $this->assertStringContainsString('$returnTo = media_return_url();', $source);
+        $this->assertStringContainsString('MediaType::isLibraryFilter(', $return);
+        $this->assertStringContainsString('(new MediaFolderService())->filter(', $return);
+        $this->assertStringNotContainsString('HTTP_REFERER', $return);
         $this->assertStringContainsString("header('Location: ' . \$returnTo)", $source);
         $this->assertStringNotContainsString("\$_POST['return_to']", $source);
         $this->assertStringNotContainsString('HTTP_REFERER', $source);
@@ -528,13 +544,13 @@ final class MediaBoundaryTest extends TestCase
             'the selection bar is drawn for a manager only'
         );
 
-        foreach (['data-media-select-all', 'data-media-selected-count', 'data-media-bulk-actions', 'data-media-delete-dialog', 'data-media-rename-dialog'] as $hook) {
+        foreach (['data-media-select-all', 'data-media-selected-count', 'data-media-bulk-actions', 'data-media-delete-dialog', 'data-media-edit-dialog', 'data-media-bulk-move'] as $hook) {
             $this->assertStringContainsString($hook, $screen);
         }
 
         $this->assertStringContainsString('autofocus data-media-dialog-close', $screen, 'the dialog opens on Annuleren');
         $this->assertStringContainsString(
-            '<form method="post" action="/api/admin/delete-media.php"<?= admin_confirm_attributes(',
+            '<form method="post" action="/api/admin/delete-media.php" class="admin-inline-form"<?= admin_confirm_attributes(',
             $screen,
             'the single delete asks in the shared confirmation dialog'
         );
@@ -543,8 +559,9 @@ final class MediaBoundaryTest extends TestCase
 
     /**
      * One way to ask before something is gone (ADMIN-UI.md). A single delete
-     * on the item view asks in the CMS's shared dialog, printed once by the
-     * screen, and the library keeps no confirmation hook of its own. Only
+     * on the item view and deleting a folder ask in the CMS's shared dialog,
+     * printed once by the screen, and the library keeps no confirmation hook
+     * of its own. Only
      * deleting a selection has a dialog of its own, because it shows what
      * will really go; without <dialog> its fallback question is the one place
      * the library's script still asks the browser.
@@ -555,7 +572,8 @@ final class MediaBoundaryTest extends TestCase
         $script = $this->source('admin/assets/media-library.js');
 
         $this->assertStringContainsString("admin_t('media.delete.confirm', ['name' => \$item->displayName()])", $screen, 'the question names the file');
-        $this->assertSame(1, substr_count($screen, '<?= admin_confirm_attributes('), 'only the single delete uses the shared question');
+        $this->assertSame(2, substr_count($screen, 'admin_confirm_attributes('), 'the single delete and deleting a folder use the shared question');
+        $this->assertStringContainsString("admin_t('media.folder.delete_confirm', ['name' => \$activeFolder['name']])", $screen, 'the folder question names the folder');
         $this->assertSame(1, substr_count($screen, '<?= admin_confirm_dialog() ?>'), 'the shared dialog is printed once');
 
         foreach (['admin/media.php' => $screen, 'admin/assets/media-library.js' => $script] as $file => $source) {
@@ -584,13 +602,19 @@ final class MediaBoundaryTest extends TestCase
     {
         $screen = $this->source('admin/media.php');
 
-        $this->assertStringContainsString('action="/api/admin/rename-media.php"', $screen);
+        // One save for a name and an alt text: the item view's details form
+        // and the grid's quick edit both post to update-media.php.
+        $this->assertSame(2, substr_count($screen, 'action="/api/admin/update-media.php"'));
+        $this->assertFileDoesNotExist(dirname(__DIR__, 2) . '/api/admin/rename-media.php', 'no second save for a name');
         $this->assertStringContainsString('MediaFilename::withoutExtension(', $screen);
-        $this->assertStringContainsString('data-media-rename-extension', $screen);
+        $this->assertStringContainsString('data-media-edit-extension', $screen);
         $this->assertStringNotContainsString('name="extension"', $screen);
         $this->assertStringNotContainsString('name="path"', $screen);
 
-        $files = array_merge($this->mediaSourceFiles(), [dirname(__DIR__, 2) . '/api/admin/rename-media.php']);
+        $files = array_merge($this->mediaSourceFiles(), array_map(
+            static fn (string $endpoint): string => dirname(__DIR__, 2) . '/api/admin/' . $endpoint,
+            ['update-media.php', 'move-media-items.php', 'create-media-folder.php', 'rename-media-folder.php', 'delete-media-folder.php']
+        ));
 
         foreach ($files as $file) {
             $this->assertDoesNotMatchRegularExpression(

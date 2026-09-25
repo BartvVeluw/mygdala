@@ -31,6 +31,9 @@ final class MediaService
      */
     public const MAX_DELETE_AT_ONCE = 100;
 
+    /** The longest alt text an item keeps: the column's own length. */
+    public const ALT_MAX_LENGTH = 255;
+
     /** @var array<int, MediaItem|null> per-request cache, keyed by id */
     private static array $cache = [];
 
@@ -213,14 +216,15 @@ final class MediaService
     }
 
     /**
-     * One page of the library, narrowed by a search term and by a kind of
-     * file (App\Service\Media\MediaType) when they are given. A kind the list
+     * One page of the library, narrowed by a search term, by a kind of file
+     * (App\Service\Media\MediaType) and by a folder ('' every folder, 'none'
+     * the items without one, or a folder id) when they are given. A kind the list
      * does not know filters nothing: an old or mistyped URL shows the library
      * rather than an empty screen.
      *
      * @return array{items: list<MediaItem>, total: int}
      */
-    public function browse(string $term = '', int $page = 1, int $perPage = MediaRepository::PAGE_SIZE, string $type = ''): array
+    public function browse(string $term = '', int $page = 1, int $perPage = MediaRepository::PAGE_SIZE, string $type = '', string $folder = ''): array
     {
         $page = max(1, $page);
         $perPage = max(1, min(100, $perPage));
@@ -228,11 +232,15 @@ final class MediaService
         $mimePrefix = MediaType::mimePrefix((string) MediaType::kindOfFilter($type));
         $mimes = MediaType::mimesOfFilter($type);
 
-        $rows = $this->repository->search($term, $perPage, ($page - 1) * $perPage, $mimePrefix, $mimes);
+        // A folder filter as MediaFolderService::filter() gives it; anything
+        // else filters nothing, like an unknown kind.
+        $folder = $folder === 'none' || (ctype_digit($folder) && (int) $folder > 0) ? $folder : '';
+
+        $rows = $this->repository->search($term, $perPage, ($page - 1) * $perPage, $mimePrefix, $mimes, $folder);
 
         return [
             'items' => array_map(static fn (array $row): MediaItem => MediaItem::fromRow($row), $rows),
-            'total' => $this->repository->countSearch($term, $mimePrefix, $mimes),
+            'total' => $this->repository->countSearch($term, $mimePrefix, $mimes, $folder),
         ];
     }
 
@@ -272,11 +280,17 @@ final class MediaService
      * handed a video must refuse it, also when that video is already in the
      * library and would otherwise simply be reused.
      *
+     * A FOLDER ($folderId, already checked by the caller through
+     * MediaFolderService::existing()) files a new item under it: the folder
+     * the editor was looking at when they uploaded. An exact duplicate stays
+     * in the folder it is in; one without a folder is filed under this one,
+     * the way a missing alt text is filled in.
+     *
      * @return array{item: MediaItem, reused: bool}
      *
      * @throws \RuntimeException with a Dutch, user-facing message
      */
-    public function upload(array $file, string $altText = '', string $name = '', ?string $kind = null): array
+    public function upload(array $file, string $altText = '', string $name = '', ?string $kind = null, ?int $folderId = null): array
     {
         $uploader = $this->uploader;
         $name = trim($name);
@@ -314,13 +328,7 @@ final class MediaService
                 // An alt text typed with the duplicate upload fills a gap,
                 // but never overwrites one an editor already wrote for the
                 // item that other places are already using.
-                if ($item->altText === '' && trim($altText) !== '') {
-                    $this->repository->updateMetadata($item->id, trim($altText));
-                    self::clearCache();
-                    $item = self::find($item->id) ?? $item;
-                }
-
-                return ['item' => $item, 'reused' => true];
+                return ['item' => $this->fillGaps($item, $altText, $folderId), 'reused' => true];
             }
         }
 
@@ -333,15 +341,7 @@ final class MediaService
             $uploader->deleteFile($stored['path']);
             $uploader->deleteFile($stored['thumbnail_path']);
 
-            $item = MediaItem::fromRow($existing);
-
-            if ($item->altText === '' && trim($altText) !== '') {
-                $this->repository->updateMetadata($item->id, trim($altText));
-                self::clearCache();
-                $item = self::find($item->id) ?? $item;
-            }
-
-            return ['item' => $item, 'reused' => true];
+            return ['item' => $this->fillGaps(MediaItem::fromRow($existing), $altText, $folderId), 'reused' => true];
         }
 
         $displayName = $this->uniqueDisplayName(
@@ -352,7 +352,7 @@ final class MediaService
         );
 
         try {
-            $id = $this->repository->create($stored + ['alt_text' => trim($altText), 'display_name' => $displayName]);
+            $id = $this->repository->create($stored + ['alt_text' => trim($altText), 'display_name' => $displayName, 'folder_id' => $folderId]);
         } catch (\Throwable $e) {
             error_log('[MediaService] upload: ' . $e->getMessage());
 
@@ -376,6 +376,34 @@ final class MediaService
     }
 
     /**
+     * What a duplicate upload may add to the item it turned out to be: an alt
+     * text where there was none, a folder where there was none. It never
+     * overwrites what an editor already chose for an item other places use.
+     */
+    private function fillGaps(MediaItem $item, string $altText, ?int $folderId): MediaItem
+    {
+        $changed = false;
+
+        if ($item->altText === '' && trim($altText) !== '') {
+            $this->repository->updateMetadata($item->id, trim($altText));
+            $changed = true;
+        }
+
+        if ($folderId !== null && $item->folderId === null) {
+            $this->repository->moveToFolder([$item->id], $folderId);
+            $changed = true;
+        }
+
+        if (!$changed) {
+            return $item;
+        }
+
+        self::clearCache();
+
+        return self::find($item->id) ?? $item;
+    }
+
+    /**
      * Several files at once, each on its own: a refused file is reported and
      * the others are added all the same.
      *
@@ -391,7 +419,7 @@ final class MediaService
      *
      * @return list<array{name: string, item: MediaItem|null, reused: bool, error: string|null}> in the order of $files
      */
-    public function uploadMany(array $files): array
+    public function uploadMany(array $files, ?int $folderId = null): array
     {
         $results = [];
 
@@ -401,7 +429,7 @@ final class MediaService
             $name = basename(str_replace('\\', '/', (string) ($file['name'] ?? '')));
 
             try {
-                $upload = $this->upload($file);
+                $upload = $this->upload($file, folderId: $folderId);
                 $results[] = ['name' => $name, 'item' => $upload['item'], 'reused' => $upload['reused'], 'error' => null];
             } catch (\RuntimeException $e) {
                 $results[] = ['name' => $name, 'item' => null, 'reused' => false, 'error' => $e->getMessage()];
@@ -443,76 +471,74 @@ final class MediaService
     }
 
     /**
-     * Changes the alt text, one of the two things about an item an editor
-     * owns; the name is the other one (see rename below). The path, the size
-     * and the dimensions describe the file on disk and are not editable:
-     * letting somebody type them would make the row lie.
-     */
-    public function updateAltText(int $id, string $altText): bool
-    {
-        if (self::find($id) === null) {
-            return false;
-        }
-
-        $this->repository->updateMetadata($id, trim($altText));
-        self::clearCache();
-
-        return true;
-    }
-
-    /**
-     * Gives an item a new name: the label, never the file (MEDIA.md,
-     * "Bestandsnaam"). Nothing references a name, so no page, no stored path
-     * twin and no file follows it.
+     * Saves what an editor owns about an item — its name and its alt text —
+     * as one: the one write behind the item screen and the quick edit in the
+     * grid (api/admin/update-media.php). Both values are checked together
+     * and either both are stored or neither, so a refused name never leaves
+     * a changed alt text behind, and the answer names every problem at once.
      *
-     * THE EXTENSION STAYS THE ITEM'S OWN (MediaItem::nameExtension()). What an
-     * editor types is the part before it, and the extension typed anyway is
-     * not doubled. A name that could not be a filename is refused with its
-     * reason (MediaFilename::problemWith()).
+     * THE NAME IS A LABEL, never the file (MEDIA.md, "Naam, bestand en
+     * adres"): no page, no stored path twin and no file follows it, and
+     * nothing on disk is renamed. The extension stays the item's own
+     * (MediaItem::nameExtension()); what an editor types is the part before
+     * it, and the extension typed anyway is not doubled. A name that could
+     * not be a filename is refused with its reason
+     * (MediaFilename::problemWith()).
      *
      * A TAKEN NAME IS REFUSED, not numbered. An upload numbers a taken name
      * because nobody chose it; here the editor typed it, and quietly changing
      * what they typed would be the surprise. The item's own name in another
      * case ("Logo.png" for "logo.png") is not taken.
      *
-     * @return array{renamed: bool, reason: string, message: string|null, item: MediaItem|null}
-     *         reason is one of ok, unchanged, not_found, invalid, taken
+     * THE ALT TEXT is the library's default description of the picture
+     * (MEDIA.md, "Alt-tekst is gelaagd"): at most ALT_MAX_LENGTH characters,
+     * refused rather than cut, so what is stored is what was typed. Empty is
+     * allowed — a decorative picture has none.
+     *
+     * @return array{saved: bool, reason: string, errors: array<string, string>, item: MediaItem|null}
+     *         reason is one of ok, unchanged, not_found, invalid; errors is
+     *         keyed by field (name, alt_text)
      */
-    public function rename(int $id, string $name): array
+    public function updateDetails(int $id, string $name, string $altText): array
     {
         $item = self::find($id);
 
         if ($item === null) {
-            return ['renamed' => false, 'reason' => 'not_found', 'message' => null, 'item' => null];
+            return ['saved' => false, 'reason' => 'not_found', 'errors' => [], 'item' => null];
         }
 
+        $errors = [];
         $extension = $item->nameExtension();
         $base = MediaFilename::withoutExtension($name, $extension);
         $problem = MediaFilename::problemWith($base);
+        $newName = $problem === null ? MediaFilename::compose(trim($base), $extension) : '';
 
         if ($problem !== null) {
-            return ['renamed' => false, 'reason' => 'invalid', 'message' => $problem, 'item' => $item];
+            $errors['name'] = $problem;
+        } elseif ($newName !== $item->displayName() && $this->repository->displayNameTaken($newName, $item->id)) {
+            $errors['name'] = AdminTranslator::trans('media.rename.taken', ['name' => $newName]);
         }
 
-        $newName = MediaFilename::compose(trim($base), $extension);
+        $altText = trim($altText);
 
-        if ($newName === $item->displayName()) {
-            return ['renamed' => true, 'reason' => 'unchanged', 'message' => null, 'item' => $item];
+        if (!mb_check_encoding($altText, 'UTF-8') || preg_match('/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/u', $altText) === 1) {
+            $errors['alt_text'] = AdminTranslator::trans('media.details.alt_characters');
+        } elseif (mb_strlen($altText) > self::ALT_MAX_LENGTH) {
+            $errors['alt_text'] = AdminTranslator::trans('media.details.alt_long', ['max' => self::ALT_MAX_LENGTH]);
         }
 
-        if ($this->repository->displayNameTaken($newName, $item->id)) {
-            return [
-                'renamed' => false,
-                'reason' => 'taken',
-                'message' => AdminTranslator::trans('media.rename.taken', ['name' => $newName]),
-                'item' => $item,
-            ];
+        if ($errors !== []) {
+            return ['saved' => false, 'reason' => 'invalid', 'errors' => $errors, 'item' => $item];
         }
 
-        $this->repository->updateDisplayName($item->id, $newName);
+        if ($newName === $item->displayName() && $altText === $item->altText) {
+            return ['saved' => true, 'reason' => 'unchanged', 'errors' => [], 'item' => $item];
+        }
+
+        $this->repository->updateDetails($item->id, $newName, $altText);
         self::clearCache();
 
-        return ['renamed' => true, 'reason' => 'ok', 'message' => null, 'item' => self::find($item->id) ?? $item];
+        return ['saved' => true, 'reason' => 'ok', 'errors' => [], 'item' => self::find($item->id) ?? $item];
     }
 
     /**

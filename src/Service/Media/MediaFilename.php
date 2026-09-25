@@ -8,7 +8,7 @@ use App\Service\Language\AdminTranslator;
 
 /**
  * The name a media item shows: what an editor reads on a card, searches for
- * and may change. MEDIA.md, "Bestandsnaam".
+ * and may change. MEDIA.md, "Naam, bestand en adres".
  *
  * A LABEL, NEVER A PATH. The file on disk keeps the random name
  * App\Service\Media\MediaUploader gave it, and every feature points at the

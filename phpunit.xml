@@ -151,6 +151,7 @@
             <file>tests/Service/HeaderFooterContractTest.php</file>
             <file>tests/Service/InvoiceAdminSecurityTest.php</file>
             <file>tests/Service/MediaBoundaryTest.php</file>
+            <file>tests/Service/MediaPickerContractTest.php</file>
             <file>tests/Service/NavigationFooterSecurityTest.php</file>
             <file>tests/Service/OrderHandlingAdminSecurityTest.php</file>
             <file>tests/Service/PageBuilderSecurityTest.php</file>
@@ -262,6 +263,7 @@
             <file>tests/Service/InvoiceAdminSecurityTest.php</file>
             <file>tests/Service/LegalPagesTest.php</file>
             <file>tests/Service/MediaBoundaryTest.php</file>
+            <file>tests/Service/MediaPickerContractTest.php</file>
             <file>tests/Service/MolliePaymentDataTest.php</file>
             <file>tests/Service/NavigationFooterSecurityTest.php</file>
             <file>tests/Service/NavigationServiceTest.php</file>
@@ -362,6 +364,7 @@
             <file>tests/Install/OrderNumberSnapshotMigrationTest.php</file>
             <file>tests/Install/PageEnglishTitleMigrationTest.php</file>
             <file>tests/Install/PageHeaderImageModeMigrationTest.php</file>
+            <file>tests/Install/MediaLibraryTwoMigrationTest.php</file>
             <file>tests/Install/HeaderButtonMigrationTest.php</file>
             <file>tests/Install/FooterSocialLinkMigrationTest.php</file>
             <file>tests/Install/SiteLanguageRegistryMigrationTest.php</file>
@@ -571,6 +574,11 @@
             <file>tests/Service/LinkResolverTest.php</file>
             <file>tests/Service/MediaAdoptionTest.php</file>
             <file>tests/Service/MediaBoundaryTest.php</file>
+            <file>tests/Service/MediaPickerContractTest.php</file>
+            <file>tests/Service/MediaFolderTest.php</file>
+            <file>tests/Service/MediaLibraryTwoHttpTest.php</file>
+            <file>tests/Service/ShopShareImageChoiceTest.php</file>
+            <file>tests/Install/MediaLibraryTwoMigrationTest.php</file>
             <file>tests/Service/MediaLibraryTest.php</file>
             <file>tests/Service/SettingsNavigationHttpTest.php</file>
             <file>tests/Service/Media/SvgSanitizerTest.php</file>
@@ -690,6 +698,7 @@
             <file>tests/Service/QueryIdentityLanguageSwitchTest.php</file>
             <directory>tests/Service/Shipping</directory>
             <file>tests/Service/ShopSeoAdminTest.php</file>
+            <file>tests/Service/ShopShareImageChoiceTest.php</file>
             <file>tests/Service/ShopEditingHttpTest.php</file>
             <file>tests/Service/ShopSeoRoutingTest.php</file>
             <file>tests/Service/ShopSettingsTest.php</file>

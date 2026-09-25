@@ -445,7 +445,7 @@ final class MediaLibraryTest extends TestCase
         $item = $this->upload($this->pngFixture(), 'alt-later.png', 'Oude tekst');
         $row = ['media_id' => $item->id, 'image_path' => $item->path];
 
-        $this->service->updateAltText($item->id, 'Nieuwe tekst');
+        $this->service->updateDetails($item->id, 'alt-later', 'Nieuwe tekst');
         MediaService::clearCache();
 
         $this->assertSame('Nieuwe tekst', BlockImage::fromOwner($row, '')['alt'], 'inherited: follows the library');
@@ -607,11 +607,11 @@ final class MediaLibraryTest extends TestCase
     /* Metadata                                                            */
     /* ------------------------------------------------------------------ */
 
-    public function testAltTextPersistsAndIsTheOnlyThingAnEditorMayChange(): void
+    public function testAltTextPersistsAndIsTheOnlyThingAboutTheFileAnEditorMayChange(): void
     {
         $item = $this->upload($this->pngFixture(), 'foto.png', 'Eerste omschrijving');
 
-        $this->assertTrue($this->service->updateAltText($item->id, '  Tweede omschrijving  '));
+        $this->assertTrue($this->service->updateDetails($item->id, MediaFilename::withoutExtension($item->displayName(), 'png'), '  Tweede omschrijving  ')['saved']);
 
         MediaService::clearCache();
         $reloaded = MediaService::find($item->id);
@@ -626,8 +626,62 @@ final class MediaLibraryTest extends TestCase
     {
         $before = $this->repository->countAll();
 
-        $this->assertFalse($this->service->updateAltText(9_999_999, 'nope'));
+        $result = $this->service->updateDetails(9_999_999, 'nope', 'nope');
+        $this->assertFalse($result['saved']);
+        $this->assertSame('not_found', $result['reason']);
         $this->assertSame($before, $this->repository->countAll());
+    }
+
+    /**
+     * The name and the alt text are ONE save: checked together, stored
+     * together. A refused name leaves the alt text that came with it
+     * unstored, and every problem is named at once, per field.
+     */
+    public function testNameAndAltTextAreSavedTogetherOrNotAtAll(): void
+    {
+        $item = $this->upload($this->pngFixture(61, 61), 'zzz-samen.png', 'Oude omschrijving');
+
+        $saved = $this->service->updateDetails($item->id, 'zzz Samen nieuw', 'Nieuwe omschrijving');
+        $this->assertTrue($saved['saved']);
+        $this->assertSame('ok', $saved['reason']);
+
+        MediaService::clearCache();
+        $reloaded = MediaService::find($item->id);
+        $this->assertSame('zzz Samen nieuw.png', $reloaded?->displayName);
+        $this->assertSame('Nieuwe omschrijving', $reloaded?->altText);
+
+        $refused = $this->service->updateDetails($item->id, 'map/bestand', str_repeat('a', MediaService::ALT_MAX_LENGTH + 1));
+        $this->assertFalse($refused['saved']);
+        $this->assertSame('invalid', $refused['reason']);
+        $this->assertArrayHasKey('name', $refused['errors']);
+        $this->assertArrayHasKey('alt_text', $refused['errors'], 'both problems are named at once');
+
+        $nameOnly = $this->service->updateDetails($item->id, '../ontsnapt', 'Een geldige tekst die toch niet opgeslagen wordt');
+        $this->assertFalse($nameOnly['saved']);
+
+        MediaService::clearCache();
+        $unchanged = MediaService::find($item->id);
+        $this->assertSame('zzz Samen nieuw.png', $unchanged?->displayName);
+        $this->assertSame('Nieuwe omschrijving', $unchanged?->altText, 'a refused name keeps the alt text that came with it out too');
+        $this->assertSame($item->path, $unchanged?->path);
+
+        $same = $this->service->updateDetails($item->id, 'zzz Samen nieuw', 'Nieuwe omschrijving');
+        $this->assertTrue($same['saved']);
+        $this->assertSame('unchanged', $same['reason']);
+    }
+
+    /** An alt text is plain text: markup is stored as typed and never interpreted here. */
+    public function testAnAltTextWithMarkupIsStoredAsTypedAndInvisibleCharactersAreRefused(): void
+    {
+        $item = $this->upload($this->pngFixture(62, 62), 'zzz-markup.png', '');
+
+        $this->assertTrue($this->service->updateDetails($item->id, 'zzz-markup', '<img src=x onerror=alert(1)> "quote"')['saved']);
+        MediaService::clearCache();
+        $this->assertSame('<img src=x onerror=alert(1)> "quote"', MediaService::find($item->id)?->altText, 'escaping is the printer\'s job');
+
+        $refused = $this->service->updateDetails($item->id, 'zzz-markup', "regel\x00einde");
+        $this->assertFalse($refused['saved']);
+        $this->assertArrayHasKey('alt_text', $refused['errors']);
     }
 
     /* ------------------------------------------------------------------ */
@@ -945,7 +999,7 @@ final class MediaLibraryTest extends TestCase
     }
 
     /* ------------------------------------------------------------------ */
-    /* Renaming                                                            */
+    /* The name (updateDetails())                                          */
     /* ------------------------------------------------------------------ */
 
     /**
@@ -956,9 +1010,9 @@ final class MediaLibraryTest extends TestCase
     {
         $item = $this->upload($this->pngFixture(51, 51), 'zzz-voor-de-naam.png', '');
 
-        $result = $this->service->rename($item->id, 'zzz Na de naam');
+        $result = $this->service->updateDetails($item->id, 'zzz Na de naam', '');
 
-        $this->assertTrue($result['renamed']);
+        $this->assertTrue($result['saved']);
         $this->assertSame('ok', $result['reason']);
 
         MediaService::clearCache();
@@ -982,11 +1036,11 @@ final class MediaLibraryTest extends TestCase
     {
         $item = $this->upload($this->pngFixture(52, 52), 'zzz-extensie.png', '');
 
-        $this->service->rename($item->id, 'zzz-poging.exe');
+        $this->service->updateDetails($item->id, 'zzz-poging.exe', '');
         MediaService::clearCache();
         $this->assertSame('zzz-poging.exe.png', MediaService::find($item->id)?->displayName, 'a typed extension stays part of the name');
 
-        $this->service->rename($item->id, 'zzz-netjes.PNG');
+        $this->service->updateDetails($item->id, 'zzz-netjes.PNG', '');
         MediaService::clearCache();
         $this->assertSame('zzz-netjes.png', MediaService::find($item->id)?->displayName, 'its own extension typed anyway is not doubled');
     }
@@ -1000,17 +1054,17 @@ final class MediaLibraryTest extends TestCase
         $first = $this->upload($this->pngFixture(53, 53), 'zzz-bezet.png', '');
         $second = $this->upload($this->pngFixture(54, 54), 'zzz-vrij.png', '');
 
-        $result = $this->service->rename($second->id, 'ZZZ-BEZET');
+        $result = $this->service->updateDetails($second->id, 'ZZZ-BEZET', '');
 
-        $this->assertFalse($result['renamed']);
-        $this->assertSame('taken', $result['reason']);
-        $this->assertStringContainsString('ZZZ-BEZET.png', (string) $result['message']);
+        $this->assertFalse($result['saved']);
+        $this->assertSame('invalid', $result['reason']);
+        $this->assertStringContainsString('ZZZ-BEZET.png', (string) ($result['errors']['name'] ?? ''));
 
         MediaService::clearCache();
         $this->assertSame('zzz-vrij.png', MediaService::find($second->id)?->displayName, 'nothing was stored');
 
-        $own = $this->service->rename($first->id, 'ZZZ-Bezet');
-        $this->assertTrue($own['renamed'], 'a change of case to its own name is allowed');
+        $own = $this->service->updateDetails($first->id, 'ZZZ-Bezet', '');
+        $this->assertTrue($own['saved'], 'a change of case to its own name is allowed');
     }
 
     /**
@@ -1022,11 +1076,11 @@ final class MediaLibraryTest extends TestCase
         $item = $this->upload($this->pngFixture(55, 55), 'zzz-blijft.png', '');
 
         foreach (['../../etc/passwd', 'map/bestand', 'map\\bestand', '', '   ', '.htaccess', "regel\neinde"] as $name) {
-            $result = $this->service->rename($item->id, $name);
+            $result = $this->service->updateDetails($item->id, $name, '');
 
-            $this->assertFalse($result['renamed'], var_export($name, true));
+            $this->assertFalse($result['saved'], var_export($name, true));
             $this->assertSame('invalid', $result['reason'], var_export($name, true));
-            $this->assertNotSame('', (string) $result['message']);
+            $this->assertNotSame('', (string) ($result['errors']['name'] ?? ''));
         }
 
         MediaService::clearCache();
@@ -1038,9 +1092,9 @@ final class MediaLibraryTest extends TestCase
 
     public function testRenamingSomethingThatIsNotThereIsReported(): void
     {
-        $result = $this->service->rename(9_999_999, 'wat dan ook');
+        $result = $this->service->updateDetails(9_999_999, 'wat dan ook', '');
 
-        $this->assertFalse($result['renamed']);
+        $this->assertFalse($result['saved']);
         $this->assertSame('not_found', $result['reason']);
     }
 

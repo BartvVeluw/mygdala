@@ -242,11 +242,151 @@
 
 .admin-media-library > h2{ margin-top: 0; }
 
+.admin-media-library__head{
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--admin-sp-2) var(--admin-sp-4);
+}
+
+.admin-media-library__head h2{ margin: 0; }
+
+/* The grid-or-list switch itself (.admin-media-view) lives in admin.css: the
+   picker's modal uses it on every screen. */
+
 /* The search field takes the room the row has; the kind and the button keep
    their own width. */
 .admin-media-toolbar .admin-search{ flex: 1 1 16rem; }
 
-.admin-media-results{ transition: opacity var(--admin-transition); }
+.admin-media-results{
+  display: grid;
+  grid-template-columns: minmax(11rem, 14rem) minmax(0, 1fr);
+  align-items: start;
+  gap: var(--admin-sp-4);
+  margin-top: var(--admin-sp-4);
+  transition: opacity var(--admin-transition);
+}
+
+.admin-media-results__main{ min-width: 0; }
+
+/* --- Folders ----------------------------------------------------------------- */
+
+/* A list of links: every folder is an address (?folder=), so it works
+   without the script, opens in a new tab and survives a reload. The open
+   one says so to a screen reader (aria-current) and with colour and weight. */
+.admin-media-folders{
+  display: flex;
+  flex-direction: column;
+  gap: var(--admin-sp-3);
+  min-width: 0;
+}
+
+.admin-media-folders__title{
+  margin: 0;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--admin-text-muted);
+}
+
+.admin-media-folders__list{
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.admin-media-folders__link{
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--admin-sp-2);
+  padding: 0.4rem 0.6rem;
+  font-size: 0.88rem;
+  color: var(--admin-text);
+  text-decoration: none;
+  border-radius: var(--admin-radius-sm);
+}
+
+.admin-media-folders__link:hover{ background: var(--admin-surface-sunken); }
+
+.admin-media-folders__link:focus-visible{ outline: 2px solid var(--admin-accent); outline-offset: 1px; }
+
+.admin-media-folders__link[aria-current="page"]{
+  font-weight: 600;
+  color: var(--admin-accent);
+  background: var(--admin-accent-soft);
+}
+
+.admin-media-folders__name{
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.admin-media-folders__count{
+  flex: none;
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--admin-text-muted);
+}
+
+.admin-media-folders__new{
+  display: flex;
+  flex-direction: column;
+  gap: var(--admin-sp-1);
+  margin: 0;
+}
+
+.admin-media-folders__label{
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--admin-text-muted);
+}
+
+.admin-media-folders__row{
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--admin-sp-2);
+}
+
+.admin-media-folders__row input{
+  flex: 1 1 8rem;
+  min-width: 0;
+}
+
+.admin-media-folder-head{
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--admin-sp-2) var(--admin-sp-4);
+  margin: 0 0 var(--admin-sp-3);
+}
+
+.admin-media-folder-head__title{
+  margin: 0;
+  font-size: 1rem;
+  overflow-wrap: anywhere;
+}
+
+.admin-media-folder-head__rename summary{
+  cursor: pointer;
+  list-style: none;
+}
+
+.admin-media-folder-head__rename summary::-webkit-details-marker{ display: none; }
+
+.admin-media-folder-head__rename[open]{ flex-basis: 100%; }
+
+.admin-media-folder-head__rename[open] .admin-media-folders__new{
+  max-width: 28rem;
+  margin-top: var(--admin-sp-2);
+}
+
+.admin-media-folder-head__delete{ margin: 0; }
 
 /* While media-library.js fetches the next view: the old one stays readable,
    one step back, instead of flashing empty. */
@@ -351,6 +491,35 @@
   color: var(--admin-text);
 }
 
+.admin-media-library__facts{
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 var(--admin-sp-2);
+  margin: 0;
+  font-size: 0.72rem;
+  color: var(--admin-text-muted);
+}
+
+.admin-media-library__folder{ overflow-wrap: anywhere; }
+
+/* A missing alt text is said in words, in the text colour so it stays
+   readable on every theme, with a dot in the warning colour beside it. */
+.admin-media-library__alt.is-missing{
+  font-weight: 600;
+  color: var(--admin-text);
+}
+
+.admin-media-library__alt.is-missing::before{
+  content: "";
+  display: inline-block;
+  width: 0.5em;
+  height: 0.5em;
+  margin-right: 0.3em;
+  vertical-align: 0.05em;
+  background: var(--admin-warning);
+  border-radius: 50%;
+}
+
 /* --- Selecting, renaming, deleting a selection ------------------------------------ */
 
 /* The trap from the top of this file once more: a class that gives an
@@ -387,10 +556,64 @@
   box-shadow: 0 0 0 1px var(--admin-accent);
 }
 
-.admin-media-library__rename{
+.admin-media-library__edit{
   margin-top: var(--admin-sp-1);
   font-size: 0.78rem;
 }
+
+/* --- The list view ------------------------------------------------------------ */
+
+/* The same cards as rows: a small thumbnail, then name and type, folder and
+   alt text, use, and the edit button, so many more files fit on one
+   screen. Nothing here is wider than the column, so a normal desktop never
+   scrolls sideways. */
+.admin-media-library[data-media-view="list"] .admin-media-library__grid{
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--admin-sp-1);
+}
+
+.admin-media-library[data-media-view="list"] .admin-media-library__card{
+  flex-direction: row;
+  align-items: center;
+  gap: var(--admin-sp-3);
+  padding: var(--admin-sp-1) var(--admin-sp-3);
+}
+
+.admin-media-library[data-media-view="list"] .admin-media-library__select{
+  position: static;
+  flex: none;
+  box-shadow: none;
+}
+
+.admin-media-library[data-media-view="list"] .admin-media-library__thumb{
+  flex: none;
+  width: 48px;
+  height: 48px;
+  aspect-ratio: auto;
+  border-radius: var(--admin-radius-sm);
+}
+
+.admin-media-library[data-media-view="list"] .admin-media-library__thumb img{ object-fit: cover; }
+
+.admin-media-library[data-media-view="list"] .admin-media-library__thumb .admin-media-video-icon svg{ width: 24px; height: 24px; }
+
+.admin-media-library[data-media-view="list"] .admin-media-card__warning{ font-size: 0.6rem; text-align: center; }
+
+.admin-media-library[data-media-view="list"] .admin-media-library__body{
+  display: grid;
+  grid-template-columns: minmax(0, 2.2fr) minmax(0, 1.4fr) minmax(0, 0.9fr) auto;
+  grid-template-areas: "name facts usage edit" "meta facts usage edit";
+  align-items: center;
+  gap: 0 var(--admin-sp-4);
+  flex: 1 1 auto;
+  padding: var(--admin-sp-1) 0;
+}
+
+.admin-media-library[data-media-view="list"] .admin-media-library__name{ grid-area: name; }
+.admin-media-library[data-media-view="list"] .admin-media-library__meta{ grid-area: meta; }
+.admin-media-library[data-media-view="list"] .admin-media-library__facts{ grid-area: facts; flex-direction: column; font-size: 0.78rem; }
+.admin-media-library[data-media-view="list"] .admin-media-card__usage{ grid-area: usage; justify-self: start; }
+.admin-media-library[data-media-view="list"] .admin-media-library__edit{ grid-area: edit; margin: 0; }
 
 .admin-media-bulkbar{
   display: flex;
@@ -478,7 +701,7 @@
 }
 
 /* A name and its extension on one line, the extension beside the field and
-   never in it: on the rename dialog and on the item view alike. */
+   never in it: in the quick edit dialog and on the item view alike. */
 .admin-media-dialog__name,
 .admin-media-rename{
   display: flex;
@@ -499,7 +722,16 @@
   color: var(--admin-text-muted);
 }
 
-.admin-media-dialog__name input[aria-invalid="true"]{ border-color: var(--admin-error); }
+.admin-media-dialog__name input[aria-invalid="true"],
+.admin-media-dialog__field input[aria-invalid="true"]{ border-color: var(--admin-error); }
+
+.admin-media-dialog__field{
+  display: flex;
+  flex-direction: column;
+  gap: var(--admin-sp-1);
+}
+
+.admin-media-dialog__field input{ width: 100%; }
 
 .admin-media-dialog__hint{
   margin: 0;
@@ -529,8 +761,38 @@
   margin-top: var(--admin-sp-2);
 }
 
+/* Narrower than a desktop: the folders go above the grid, as a row of
+   links that wraps, so a phone keeps the whole width for the files. */
+@media (max-width: 900px){
+  .admin-media-results{ grid-template-columns: minmax(0, 1fr); }
+
+  .admin-media-folders__list{
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: var(--admin-sp-1);
+  }
+
+  .admin-media-folders__link{
+    border: 1px solid var(--admin-border);
+    border-radius: 999px;
+    padding: 0.3rem 0.75rem;
+  }
+}
+
 @media (max-width: 560px){
   .admin-media-bulkbar__actions{ margin-left: 0; }
+
+  /* A row on a phone: the picture, the name with its type, and the rest
+     below it, never beside it. */
+  .admin-media-library[data-media-view="list"] .admin-media-library__body{
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: "name" "meta" "facts" "usage" "edit";
+    gap: 2px;
+  }
+
+  .admin-media-library[data-media-view="list"] .admin-media-library__facts{ flex-direction: row; }
+
+  .admin-media-library[data-media-view="list"] .admin-media-library__edit{ justify-self: start; }
 
   /* Two cards abreast on a phone: big enough to recognise a picture, small
      enough to see more than one. */

@@ -32,6 +32,7 @@ require_once __DIR__ . '/../../vendor/autoload.php';
 use App\Service\AdminAuth;
 use App\Service\Csrf;
 use App\Service\Language\AdminTranslator;
+use App\Service\Media\MediaFolderService;
 use App\Service\Media\MediaService;
 use App\Service\Media\MediaUploader;
 
@@ -53,13 +54,19 @@ if (!Csrf::validate($_POST['csrf_token'] ?? null)) {
 // file this endpoint used to receive.
 $files = MediaUploader::filesFrom($_FILES['files'] ?? $_FILES['image'] ?? null);
 
+// The folder the editor was looking at: new items are filed under it. An id
+// that names no folder (deleted meanwhile, or made up) files them under "Geen
+// map" rather than refusing the files, and never creates a folder.
+$folderId = (new MediaFolderService())->existing($_POST['folder_id'] ?? null);
+$back = '/admin/media.php' . ($folderId !== null ? '?folder=' . $folderId : '');
+
 if ($files === []) {
     $_SESSION['admin_media_errors'] = [AdminTranslator::trans('media.upload.nothing_chosen')];
-    header('Location: /admin/media.php');
+    header('Location: ' . $back);
     exit;
 }
 
-$results = (new MediaService())->uploadMany($files);
+$results = (new MediaService())->uploadMany($files, $folderId);
 
 $added = array_values(array_filter($results, static fn (array $result): bool => $result['item'] !== null));
 $refused = array_values(array_filter($results, static fn (array $result): bool => $result['item'] === null));
@@ -89,5 +96,5 @@ if ($refused !== []) {
     );
 }
 
-header('Location: /admin/media.php');
+header('Location: ' . $back);
 exit;

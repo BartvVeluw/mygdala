@@ -3427,9 +3427,45 @@ body.admin-media-modal-open{ overflow: hidden; }
   align-items: end;
   margin-top: var(--admin-sp-4);
 }
-.admin-media-modal__search{ flex: 1 1 240px; }
+.admin-media-modal__search{ flex: 1 1 220px; }
 .admin-media-modal__search input{ width: 100%; }
-.admin-media-modal__upload{ display: flex; flex-direction: column; gap: var(--admin-sp-1); font-size: 0.78rem; }
+.admin-media-modal__folder{ flex: 0 1 14rem; min-width: 0; }
+.admin-media-modal__folder select{ width: 100%; }
+
+/* The one control that opens the file dialog: a plain button, at the end of
+   the row, with the words that say what it does. */
+.admin-media-modal__upload{ margin-left: auto; }
+
+/* Grid or list, on the library screen and in the picker's modal: two
+   buttons that say which one is on (aria-pressed), in the shape of the block
+   picker's view switch. */
+.admin-media-view{
+  display: inline-flex;
+  padding: 2px;
+  background: var(--admin-surface-sunken);
+  border: 1px solid var(--admin-border);
+  border-radius: var(--admin-radius-sm);
+}
+
+.admin-media-view__option{
+  padding: 0.3rem 0.8rem;
+  font: inherit;
+  font-size: 0.82rem;
+  color: var(--admin-text-muted);
+  background: transparent;
+  border: 0;
+  border-radius: calc(var(--admin-radius-sm) - 2px);
+  cursor: pointer;
+}
+
+.admin-media-view__option[aria-pressed="true"]{
+  color: var(--admin-text);
+  font-weight: 600;
+  background: var(--admin-surface);
+  box-shadow: var(--admin-shadow-sm);
+}
+
+.admin-media-view__option:focus-visible{ outline: 2px solid var(--admin-accent); outline-offset: 1px; }
 
 .admin-media-modal__status{
   margin: var(--admin-sp-3) 0 0;
@@ -3446,10 +3482,68 @@ body.admin-media-modal-open{ overflow: hidden; }
   overflow-y: auto;
 }
 
-.admin-media-modal__foot{ margin-top: var(--admin-sp-4); }
+.admin-media-modal__grid .admin-media-card.is-selected{
+  border-color: var(--admin-accent);
+  box-shadow: 0 0 0 2px var(--admin-accent);
+  background: var(--admin-accent-soft);
+}
+
+.admin-media-modal__grid .admin-media-card:focus-visible{ outline: 2px solid var(--admin-accent); outline-offset: 2px; }
+
+/* The picker's list view: the same cards as compact rows with a small
+   thumbnail, so many more files fit between the tools and the footer. */
+.admin-media-modal[data-media-view="list"] .admin-media-modal__grid{
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--admin-sp-1);
+}
+
+.admin-media-modal[data-media-view="list"] .admin-media-card{
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--admin-sp-3);
+  padding: var(--admin-sp-1) var(--admin-sp-3);
+}
+
+.admin-media-modal[data-media-view="list"] .admin-media-card__media{
+  width: 48px;
+  height: 48px;
+}
+
+.admin-media-modal[data-media-view="list"] .admin-media-card__media img{ object-fit: cover; }
+.admin-media-modal[data-media-view="list"] .admin-media-card__media svg{ width: 24px; height: 24px; }
+.admin-media-modal[data-media-view="list"] .admin-media-card__name{ margin: 0; }
+.admin-media-modal[data-media-view="list"] .admin-media-card__warning{ padding: 0; font-size: 0.6rem; }
+
+.admin-media-modal__foot{
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--admin-sp-2) var(--admin-sp-4);
+  margin-top: var(--admin-sp-4);
+  padding-top: var(--admin-sp-3);
+  border-top: 1px solid var(--admin-border);
+}
+
+.admin-media-modal__foot [hidden]{ display: none; }
+
+.admin-media-modal__count{
+  margin: 0 0 0 auto;
+  font-size: 0.85rem;
+  color: var(--admin-text-muted);
+}
+
+.admin-media-modal__actions{
+  display: flex;
+  gap: var(--admin-sp-3);
+}
 
 @media (max-width: 640px){
   .admin-media-modal{ padding: 0; }
+  .admin-media-modal__upload{ margin-left: 0; }
+  .admin-media-modal__folder{ flex: 1 1 100%; }
+  .admin-media-modal__count{ margin-left: 0; flex-basis: 100%; }
+  .admin-media-modal__actions{ width: 100%; justify-content: flex-end; }
   .admin-media-modal__panel{
     width: 100%;
     max-height: 100vh;

@@ -1,8 +1,9 @@
 /*
- * Media Library on admin/media.php: search, filter and page through the
- * library without reloading; select items and delete the selection after a
- * confirmation; rename an item; and keep the grid current when the upload
- * queue adds files. The grid only: a single delete on the item view asks in
+ * Media Library on admin/media.php: open a folder, search, filter and page
+ * through the library without reloading; show it as a grid or a list; select
+ * items and move the selection to a folder or delete it after a
+ * confirmation; edit an item's name and alt text in a quick dialog; and keep
+ * the grid current when the upload queue adds files. The grid only: a single delete on the item view asks in
  * the CMS's shared dialog (admin_confirm_dialog(), ADMIN-UI.md), so that view
  * does not load this script.
  *
@@ -10,13 +11,19 @@
  *
  * WHAT IT DOES. The server renders the library — the summary line, the grid,
  * the selection bar and the paging — once, in PHP, for the screen with and
- * without this script, and every view of it has an address of its own (?q=,
- * ?type=, ?page=). This script only changes how such an address is reached:
+ * without this script, and every view of it has an address of its own
+ * (?folder=, ?q=, ?type=, ?page=). This script only changes how such an address is reached:
  * it fetches the screen for it, swaps in the fresh [data-media-results]
  * block, keeps the address bar in step so Back and Forward work, and leaves
- * the rest of the page alone. Deleting and renaming are posted to their own
- * endpoints and followed by the same redraw, so what the grid shows is always
- * what the server says.
+ * the rest of the page alone. Moving, deleting and the quick edit are posted
+ * to their own endpoints and followed by the same redraw, so what the grid
+ * shows is always what the server says. The quick edit posts to
+ * api/admin/update-media.php, the same endpoint as the details form on the
+ * item view: one save and one set of rules for a name and an alt text.
+ *
+ * GRID OR LIST is a view preference, not data: one card markup, drawn two
+ * ways by CSS (data-media-view), remembered in this browser's localStorage the
+ * way the block picker remembers its view. No request, no server setting.
  *
  * WHAT IS NOT HERE. No card markup and no copy of a rule the server follows:
  * the fresh block is the server's own markup, parsed with DOMParser and moved
@@ -47,12 +54,19 @@
   var type = library.querySelector("[data-media-type]");
   var status = library.querySelector("[data-media-results-status]");
   var notice = library.querySelector("[data-media-notice]");
+  var folderInput = library.querySelector("[data-media-folder-input]");
+  var uploadFolder = document.querySelector("[data-media-upload-folder]");
+  var uploadFolderNote = document.querySelector("[data-media-upload-folder-note]");
+  var viewToggle = library.querySelector("[data-media-view-toggle]");
   var deleteDialog = document.querySelector("[data-media-delete-dialog]");
-  var renameDialog = document.querySelector("[data-media-rename-dialog]");
+  var editDialog = document.querySelector("[data-media-edit-dialog]");
+
+  /** Where the grid-or-list choice is kept, next to the block picker's. */
+  var VIEW_STORAGE_KEY = "mygdala.media-library.view";
 
   /**
    * A browser without <dialog> keeps the plain forms: deleting a selection
-   * asks the browser's own question, and renaming happens on the item view.
+   * asks the browser's own question, and editing happens on the item view.
    */
   var dialogs = typeof window.HTMLDialogElement === "function";
 
@@ -79,6 +93,10 @@
     var params = new URLSearchParams();
     var term = search ? search.value.trim() : "";
 
+    if (folderInput && folderInput.value !== "") {
+      params.set("folder", folderInput.value);
+    }
+
     if (term !== "") {
       params.set("q", term);
     }
@@ -95,6 +113,10 @@
   /** Puts the toolbar in step with an address reached another way: Back, or showing everything. */
   function syncForm(address) {
     var params = new URL(address, window.location.href).searchParams;
+
+    if (folderInput) {
+      folderInput.value = params.get("folder") || "";
+    }
 
     if (search) {
       search.value = params.get("q") || "";
@@ -356,7 +378,7 @@
     return dialog.getAttribute("data-failed") || "";
   }
 
-  [deleteDialog, renameDialog].forEach(function (dialog) {
+  [deleteDialog, editDialog].forEach(function (dialog) {
     if (!dialog || !dialogs) {
       return;
     }
@@ -459,6 +481,16 @@
       return;
     }
 
+    // "Verplaatsen" posts the same selection elsewhere: nothing is deleted,
+    // so there is nothing to confirm.
+    var submitter = event.submitter || null;
+
+    if (submitter && submitter.hasAttribute("data-media-bulk-move")) {
+      event.preventDefault();
+      moveSelection(target, submitter);
+      return;
+    }
+
     if (!deleteDialog || !dialogs) {
       // No dialog: the plain question, and the server's rule behind it.
       fillDeleteDialogText(chosen, event);
@@ -533,27 +565,99 @@
     });
   }
 
-  // --- Renaming --------------------------------------------------------------
+  // --- Moving a selection ---------------------------------------------------
 
-  function revealRenameButtons() {
-    if (!renameDialog || !dialogs) {
+  /** Sends the selection to the folder chosen in the bar, then redraws. */
+  function moveSelection(bar, button) {
+    button.disabled = true;
+
+    var body = new FormData(bar);
+    body.append("ajax", "1");
+
+    return window
+      .fetch(button.getAttribute("formaction"), {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { Accept: "application/json" },
+        body: body
+      })
+      .then(function (response) {
+        return response.json().then(
+          function (data) {
+            return { status: response.status, data: data || {} };
+          },
+          function () {
+            return { status: response.status, data: {} };
+          }
+        );
+      }, function () {
+        return { status: 0, data: {} };
+      })
+      .then(function (answer) {
+        button.disabled = false;
+
+        var message = String(answer.data.message || "");
+        var failed = answer.data.ok !== true;
+
+        if (failed && message === "") {
+          // No answer to show: go the ordinary way, which says it in a flash.
+          bar.setAttribute("action", button.getAttribute("formaction"));
+          bar.submit();
+          return;
+        }
+
+        showNotice(message, [], failed);
+
+        if (!failed) {
+          show(window.location.href).then(function () {
+            if (notice && !notice.hidden) {
+              notice.setAttribute("tabindex", "-1");
+              notice.focus();
+            }
+          });
+        }
+      });
+  }
+
+  // --- The quick edit: name and alt text --------------------------------------
+
+  function revealEditButtons() {
+    if (!editDialog || !dialogs) {
       return;
     }
 
-    Array.prototype.forEach.call(library.querySelectorAll("[data-media-rename]"), function (button) {
+    Array.prototype.forEach.call(library.querySelectorAll("[data-media-edit]"), function (button) {
       button.hidden = false;
     });
   }
 
-  if (renameDialog && dialogs) {
-    var renameForm = renameDialog.querySelector("[data-media-rename-form]");
-    var renameName = renameDialog.querySelector("[data-media-rename-name]");
-    var renameId = renameDialog.querySelector("[data-media-rename-id]");
-    var renameExtension = renameDialog.querySelector("[data-media-rename-extension]");
-    var renameSubmit = renameDialog.querySelector("[data-media-rename-submit]");
+  if (editDialog && dialogs) {
+    var editForm = editDialog.querySelector("[data-media-edit-form]");
+    var editName = editDialog.querySelector("[data-media-edit-name]");
+    var editAlt = editDialog.querySelector("[data-media-edit-alt]");
+    var editAltField = editDialog.querySelector("[data-media-edit-alt-field]");
+    var editId = editDialog.querySelector("[data-media-edit-id]");
+    var editExtension = editDialog.querySelector("[data-media-edit-extension]");
+    var editSubmit = editDialog.querySelector("[data-media-edit-submit]");
+
+    /** One field's own message, or none; the field says it is invalid. */
+    function fieldError(field, input, message) {
+      var error = editDialog.querySelector('[data-media-edit-error="' + field + '"]');
+
+      if (error) {
+        error.textContent = message;
+        error.hidden = message === "";
+      }
+
+      if (message === "") {
+        input.removeAttribute("aria-invalid");
+      } else {
+        input.setAttribute("aria-invalid", "true");
+      }
+    }
 
     library.addEventListener("click", function (event) {
-      var button = event.target.closest("[data-media-rename]");
+      var button = event.target.closest("[data-media-edit]");
 
       if (!button) {
         return;
@@ -561,45 +665,57 @@
 
       var extension = button.getAttribute("data-media-name-extension") || "";
 
-      renameId.value = button.getAttribute("data-media-id") || "";
-      renameName.value = button.getAttribute("data-media-name-base") || "";
-      renameName.removeAttribute("aria-invalid");
-      renameExtension.textContent = extension === "" ? "" : "." + extension;
+      editId.value = button.getAttribute("data-media-id") || "";
+      editName.value = button.getAttribute("data-media-name-base") || "";
+      editAlt.value = button.getAttribute("data-media-alt") || "";
+      editExtension.textContent = extension === "" ? "" : "." + extension;
+      // A video has no alt text: the field is not offered, and its value
+      // travels unchanged so the save stays one save.
+      editAltField.hidden = button.getAttribute("data-media-video") === "1";
+      fieldError("name", editName, "");
+      fieldError("alt_text", editAlt, "");
 
-      openDialog(renameDialog, button);
-      renameName.focus();
-      renameName.select();
+      openDialog(editDialog, button);
+      editName.focus();
+      editName.select();
     });
 
-    renameForm.addEventListener("submit", function (event) {
+    editForm.addEventListener("submit", function (event) {
       event.preventDefault();
 
-      var id = renameId.value.replace(/[^0-9]/g, "");
+      var id = editId.value.replace(/[^0-9]/g, "");
 
-      renameSubmit.disabled = true;
-      dialogError(renameDialog, "");
+      editSubmit.disabled = true;
+      dialogError(editDialog, "");
 
-      post(renameForm, { ajax: "1" }).then(function (answer) {
-        renameSubmit.disabled = false;
+      post(editForm, { ajax: "1" }).then(function (answer) {
+        editSubmit.disabled = false;
+
+        var errors = answer.data.errors || {};
 
         if (!answer.ok || !answer.data.ok) {
-          renameName.setAttribute("aria-invalid", "true");
-          dialogError(renameDialog, problemOf(answer, renameDialog));
-          renameName.focus();
+          fieldError("name", editName, typeof errors.name === "string" ? errors.name : "");
+          fieldError("alt_text", editAlt, typeof errors.alt_text === "string" ? errors.alt_text : "");
+
+          if (typeof errors.name !== "string" && typeof errors.alt_text !== "string") {
+            dialogError(editDialog, answer.status === 401 ? editDialog.getAttribute("data-session") || "" : typeof errors.form === "string" ? errors.form : editDialog.getAttribute("data-failed") || "");
+          }
+
+          (typeof errors.name === "string" || typeof errors.alt_text !== "string" ? editName : editAlt).focus();
           return;
         }
 
         dialogTrigger = null;
-        renameDialog.close();
+        editDialog.close();
 
         var name = answer.data.item && answer.data.item.name ? String(answer.data.item.name) : "";
 
         show(window.location.href).then(function () {
           if (status) {
-            status.textContent = (renameDialog.getAttribute("data-done") || "").split(":name").join(name);
+            status.textContent = (editDialog.getAttribute("data-done") || "").split(":name").join(name);
           }
 
-          var again = library.querySelector('[data-media-rename][data-media-id="' + id + '"]');
+          var again = library.querySelector('[data-media-edit][data-media-id="' + id + '"]');
 
           if (again) {
             again.focus();
@@ -607,6 +723,80 @@
         });
       });
     });
+  }
+
+  // --- Grid or list ------------------------------------------------------------
+
+  function storedView() {
+    try {
+      return window.localStorage.getItem(VIEW_STORAGE_KEY) === "list" ? "list" : "grid";
+    } catch (e) {
+      return "grid";
+    }
+  }
+
+  function applyView(view) {
+    library.setAttribute("data-media-view", view);
+
+    Array.prototype.forEach.call(library.querySelectorAll("[data-media-view-option]"), function (option) {
+      option.setAttribute("aria-pressed", option.getAttribute("data-media-view-option") === view ? "true" : "false");
+    });
+  }
+
+  if (viewToggle) {
+    viewToggle.hidden = false;
+    applyView(storedView());
+
+    viewToggle.addEventListener("click", function (event) {
+      var option = event.target.closest("[data-media-view-option]");
+
+      if (!option) {
+        return;
+      }
+
+      var view = option.getAttribute("data-media-view-option") === "list" ? "list" : "grid";
+
+      applyView(view);
+
+      try {
+        window.localStorage.setItem(VIEW_STORAGE_KEY, view);
+      } catch (e) {
+        // Not remembered for next time, but still shown now.
+      }
+    });
+  }
+
+  // --- The folder that is open -------------------------------------------------
+
+  /**
+   * After every redraw: the folder the server says is open goes into the
+   * search form (a search stays inside it) and into the upload form (new
+   * files are filed under it), with the sentence that says so.
+   */
+  function syncFolder() {
+    var results = library.querySelector("[data-media-results]");
+
+    if (!results) {
+      return;
+    }
+
+    var folder = results.getAttribute("data-media-active-folder") || "";
+    var name = results.getAttribute("data-media-active-folder-name") || "";
+    var id = /^[0-9]+$/.test(folder) ? folder : "";
+
+    if (folderInput) {
+      folderInput.value = folder;
+    }
+
+    if (uploadFolder) {
+      uploadFolder.value = id;
+    }
+
+    if (uploadFolderNote) {
+      uploadFolderNote.textContent = id === ""
+        ? uploadFolderNote.getAttribute("data-text-none") || ""
+        : (uploadFolderNote.getAttribute("data-text-folder") || "").split(":name").join(name);
+    }
   }
 
   // --- What an editor does in the toolbar ------------------------------------
@@ -639,7 +829,7 @@
   }
 
   library.addEventListener("click", function (event) {
-    var link = event.target.closest("a[data-media-page], a[data-media-reset]");
+    var link = event.target.closest("a[data-media-page], a[data-media-reset], a[data-media-folder-link]");
 
     // A link opened in a new tab or window stays an ordinary link.
     if (!link || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
@@ -649,7 +839,7 @@
     event.preventDefault();
     window.clearTimeout(searchTimer);
 
-    if (link.hasAttribute("data-media-reset")) {
+    if (link.hasAttribute("data-media-reset") || link.hasAttribute("data-media-folder-link")) {
       syncForm(link.href);
     }
 
@@ -663,9 +853,11 @@
   });
 
   document.addEventListener("media-library:changed", function () {
-    // New items are the newest, so the unfiltered first page is where an
-    // editor sees them straight away.
-    var address = form ? form.getAttribute("action") : window.location.pathname;
+    // New items are the newest and were filed under the folder that is
+    // open, so that folder's unfiltered first page is where an editor sees
+    // them straight away.
+    var folder = folderInput ? folderInput.value : "";
+    var address = (form ? form.getAttribute("action") : window.location.pathname) + (folder === "" ? "" : "?folder=" + encodeURIComponent(folder));
 
     window.clearTimeout(searchTimer);
     syncForm(address);
@@ -674,10 +866,11 @@
 
   // --- Start -----------------------------------------------------------------
 
-  /** What a freshly drawn results block needs: its selection state and its rename buttons. */
+  /** What a freshly drawn results block needs: its selection state, its edit buttons and its folder. */
   function enhanceResults() {
     updateSelection();
-    revealRenameButtons();
+    revealEditButtons();
+    syncFolder();
   }
 
   enhanceResults();
