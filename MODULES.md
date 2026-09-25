@@ -515,8 +515,8 @@ houdt.
 
 Eigen tabellen, eigen admin (`admin/portfolio.php`, `admin/portfolio-item.php`,
 `api/admin/*portfolio*.php` en `move-featured-gallery-item.php`), eigen
-categorietaxonomie, eigen publieke routes (`/portfolio.php` en de oude
-projectadressen `/portfolio/<slug>` via `portfolio-detail.php`), de
+categorietaxonomie, eigen publieke routes (`/portfolio.php` en de
+projectpagina's `/portfolio/<slug>` via `portfolio-detail.php`), de
 galerijbron `portfolio` en het blok Projecten. Alles loopt via
 `src/Module/PortfolioModule.php`; Core
 noemt geen portfolio-item meer (`Tests\Module\PortfolioModuleTest`).
@@ -551,8 +551,9 @@ bibliotheekbestand weg. De eigen alt-tekst van een item wint; leeg valt terug
 op die van het bibliotheekitem.
 
 Wat taalneutraal blijft: de slug van een categorie en van een item, de
-afbeelding en haar thumbnail, de gekoppelde pagina, de categorieën van een
-item, `is_active`, `is_featured` en elke sorteervolgorde. De slug van een
+afbeelding en haar thumbnail, de galerijfoto's en hun volgorde, de schakelaar
+van de projectpagina, de legacy-koppeling naar een pagina, de categorieën van
+een item, `is_active`, `is_featured` en elke sorteervolgorde. De slug van een
 nieuwe categorie wordt eenmalig uit de naam in de **standaardtaal** gemaakt en
 daarna nooit hernoemd, dus een vertaling verplaatst nooit een adres.
 
@@ -563,61 +564,128 @@ woord**, en opnieuw aanzetten toont precies dezelfde tekst: de
 vertaaltabellen bestaan los van de module, en de migraties vragen nooit of hij
 aan staat. Zie `docs/multilingual/ARCHITECTURE.md`.
 
-**Een projectpagina is een gewone CMS-pagina.** Een portfolio-item heeft
-hoogstens één koppeling naar een pagina: `portfolio_gallery_items.page_id`,
-nullable, met een foreign key naar `pages.id` die `NULL` wordt als de pagina
-verdwijnt (`ON DELETE SET NULL`, migratie `20260914200000`). De pagina beheert
-zelf haar titel, slug, SEO, canonical, blokken, CTA en publicatiestatus;
-Portfolio slaat alleen het id op, nooit een adres.
+**Een projectpagina is van het item zelf** (Portfolio 2.0). Een
+portfolio-item is de inhoudsbron van zijn eigen pagina op
+`/portfolio/<slug>`, en die pagina is **geen `pages`-rij**: `portfolio-detail.php`
+rendert haar dynamisch uit het item. Portfolio-hiërarchie en paginahiërarchie
+staan los van elkaar; er komt geen verborgen pagina, geen `parent_id` en geen
+"Nieuwe pagina maken" meer aan te pas.
 
-- In de editor is de projectpagina één keuze: *Geen gekoppelde pagina* of een
-  gewone pagina, dus een pagina zonder eigen template en zonder vaste route.
-  Een concept mag gekozen worden. *Nieuwe pagina maken* opent het gewone
-  scherm *Nieuwe pagina* in een nieuw tabblad; er is geen koppeling terug, de
-  redacteur kiest de nieuwe pagina daarna zelf.
-- De galerijkaart linkt, in deze volgorde:
-  1. naar het huidige adres van de gekoppelde, gepubliceerde pagina, per
-     verzoek opgelost, dus een hernoemde pagina gaat vanzelf mee;
-  2. anders, zolang het item nog een oude projectpagina heeft
-     (`has_detail_page` met een slug), tijdelijk naar `/portfolio/<slug>`,
-     zodat een bestaande site na de upgrade blijft werken tot elk oud project
-     een gewone pagina heeft;
-  3. anders nergens heen: geen link en geen pijl.
+| Onderdeel | Waar het staat |
+|---|---|
+| Aan/uit ("Projectpagina tonen") | `portfolio_gallery_items.has_detail_page` |
+| Adres | `portfolio_gallery_items.slug`, uniek, taalneutraal |
+| Titel, korte tekst, alt | `portfolio_item_translations` (`title`, `subtitle`, `alt`) |
+| Inleiding en beschrijving (rich text) | `portfolio_item_translations` (`intro`, `description`) |
+| Hoofdafbeelding | `portfolio_gallery_items.media_id` |
+| Galerij | `portfolio_item_images` (`media_id`, `sort_order`), alt per taal in `portfolio_item_image_translations` |
 
-  Een concept of een verwijderde pagina telt niet als koppeling. De
-  `fallback_link_url` van het galerijblok geldt nooit voor een portfolio-item
-  (`follows_fallback_link` is `false`); voor de kaarten van andere bronnen
-  werkt hij zoals altijd.
-- Een pagina verwijderen laat het item staan, zonder koppeling. Een item
-  verwijderen of Portfolio uitzetten raakt de pagina nooit.
+Alles hergebruikt wat er al was: de kolommen en tabellen van de projectpagina
+die Portfolio vóór fase 4B had. De enige migratie is
+`20260925160000_let_a_portfolio_photo_use_a_library_image`
+(`portfolio_item_images.media_id`, `RESTRICT`, niets overgezet).
 
-**De oude projectpagina blijft, voor haar adres.** Vóór de koppeling had
-Portfolio een eigen projectpagina: `has_detail_page`, de slug, introtekst,
-beschrijving en `portfolio_item_images`. Niets bewerkt die nog, en niets
-ervan is verwijderd. Haar wóórden zijn wel verhuisd — sinds fase 5 van
-Multilingual 2.0 staan `intro`, `description` en de alt-teksten van haar foto's
-per websitetaal in `portfolio_item_translations` en
-`portfolio_item_image_translations`, read-only zoals ze waren. Tijdens de
-overgang is `/portfolio/<slug>` een compatibiliteitsroute, en
-`portfolio-detail.php` beantwoordt zo'n adres zo:
+- **De slug** (`App\Service\PortfolioSlug`) wordt genormaliseerd zoals een
+  paginaslug, is uniek binnen Portfolio, en wordt gemaakt uit de titel in de
+  **standaardtaal** als het veld leeg blijft (of door het scherm zelf uit de
+  titel is ingevuld): `gegraveerde-snijplank`, en `-2`, `-3` … bij een botsing.
+  Een getypte slug die al van een ander item is, wordt **geweigerd**, nooit
+  stil veranderd. De gereserveerde woorden van de site gelden hier niet: onder
+  `/portfolio/` staat niets anders, dus `/portfolio/contact` is gewoon een
+  project. Eén slug voor alle talen: `/en/portfolio/<slug>` is de Engelse
+  versie. Een slug per taal is een aparte uitbreiding (eigen tabel, eigen
+  routing) en bewust niet gebouwd.
+- **Een gepubliceerd adres gaat nooit stil dood.** Wie de slug van een
+  zichtbare projectpagina wijzigt, krijgt in elke actieve taal een 301 van het
+  oude naar het nieuwe adres, via dezelfde `SlugChangeRedirects` als pagina's
+  en blogberichten (`origin` `slug_change`, `REDIRECTS.md`).
+  `portfolio-detail.php` vraagt de Redirect Manager pas als geen item het
+  adres beantwoordt.
+- **Zichtbaar** is de projectpagina als het item zichtbaar is
+  (`is_active`), de schakelaar aan staat en er een slug is. Anders 404.
+- **V1 is gestructureerde inhoud, geen paginabouwer.** Geen contentblokken,
+  geen hero, geen kolommen of formulieren op een projectpagina. Blokken zijn
+  een mogelijke latere uitbreiding.
+
+**De galerij en de hoofdafbeelding.** De hoofdafbeelding staat apart en komt
+bovenaan; de galerij bevat de aanvullende foto's. Dezelfde
+bibliotheekafbeelding kan niet ook in de galerij (`App\Service\PortfolioProjectGallery`
+laat haar vallen, het scherm meldt het). Foto's kies je met de gedeelde
+kiezer in verzamelmodus, uploaden kan in de kiezer zelf, en de volgorde zet je
+met ← →, slepen of ×; het script is dat van de producteditor
+(`admin/assets/product-gallery.js`, root `[data-picture-gallery]`). × haalt
+alleen de koppeling weg: het bibliotheekitem blijft. Alleen een oude foto op
+Portfolio's eigen pad (`media_id` NULL) was van het item alleen, en haar
+bestand verdwijnt met de koppeling. Alt-tekst is gelaagd: een eigen alt van
+een oude foto wint, anders die van het bibliotheekitem. Een eigen alt per foto
+bewerken kan in V1 niet.
+
+**De kaart in een galerij** (`PortfolioGalleryContent::mapItemRow()`):
+
+- de **afbeelding opent altijd de lightbox**, ongeacht de lightbox-instelling
+  van het blok en ongeacht of er een projectpagina is. De kaart zelf is nooit
+  een link, en de `fallback_link_url` van het blok geldt er niet voor;
+- **"Bekijk project"** is een aparte, echte link in de overlay, in deze
+  volgorde: (1) de gepubliceerde legacy-pagina van het item, (2) anders
+  `/portfolio/<slug>` als de projectpagina aan staat, (3) anders geen knop.
+  De regel is de schakelaar, geen heuristiek op hoeveel tekst of foto's er zijn;
+- de overlay leest van boven naar beneden: titel, korte tekst, knop. Op een
+  scherm zonder hover blijft de overlay van een kaart met knop zichtbaar.
+
+**Eén lightbox** (`assets/js/lightbox.js`, `partials/lightbox.php`) voor het
+overzicht én de projectpagina. De volgorde is de groep van de opener
+(`[data-lightbox-group]`: een galerijblok, of de beelden van één project),
+beperkt tot wat op dat moment getoond wordt. Filteren op een categorie beperkt
+dus ook vorige/volgende; een projectpagina stapt nooit in de beelden van een
+ander blok. Hij loopt rond aan beide kanten, is een dialoog met benoemde
+knoppen, houdt de focus vast, reageert op Escape, ← →, Tab en een veeg, en
+geeft de focus terug aan de opener.
+
+**De projectpagina** toont: kruimelpad *Home / Portfolio / project* (de
+Portfolio-pagina via content key `portfolio`; zonder die pagina valt dat niveau
+weg), categorieën, titel, korte tekst, hoofdafbeelding, inleiding,
+beschrijving, galerij en *Terug naar portfolio*. SEO gaat via
+`App\Service\PortfolioSeo`: titel `<project> | Portfolio — <site>`, als
+description de korte tekst, anders het begin van de inleiding of beschrijving,
+canonical in de gelezen taal, hreflang voor elke actieve taal, en de
+hoofdafbeelding als deelafbeelding. De sitemap noemt elke projectpagina die
+antwoordt, in elke taal (`projectPagesForSitemap()`), en nooit een adres dat
+doorstuurt.
+
+**De legacy-koppeling naar een gewone pagina blijft werken.** Tussen fase 4B
+en Portfolio 2.0 kon een item naar een gewone CMS-pagina linken
+(`portfolio_gallery_items.page_id`, `ON DELETE SET NULL`). Zo'n koppeling
+wordt **niet** verwijderd, omgezet of stil ontkoppeld:
 
 | Situatie | Antwoord |
 |---|---|
-| Het item linkt naar een gepubliceerde pagina | tijdelijke redirect (302) naar de canonical van die pagina, per verzoek bepaald op `page_id` |
-| Geen koppeling, of een concept | de oude projectpagina zoals altijd, of de 404 die er al was |
+| Het item linkt naar een gepubliceerde pagina | "Bekijk project" gaat naar die pagina, en `/portfolio/<slug>` stuurt tijdelijk (302) door naar haar canonical |
+| De gekoppelde pagina is een concept of weg | de eigen projectpagina van het item geldt |
 | Portfolio uit | 404 via `ModuleGuard`, ook met een koppeling |
 
-Tijdelijk en niet permanent: de koppeling achter het adres kan nog veranderen
-of verdwijnen, en een 301 zou een browser het vorige doel laten onthouden.
+Een **nieuwe** koppeling kan niet meer ontstaan: de editor heeft geen
+paginakeuze, `page_id` wordt niet meer gelezen, en een item zonder koppeling
+krijgt er nooit een. Een item met een koppeling toont de kaart *Gekoppelde
+pagina* met de naam en status van die pagina en één handeling:
+*Koppeling met deze pagina verwijderen*. Dat raakt de pagina zelf nooit. In het
+overzicht heet zo'n item *Gekoppelde pagina*.
 
-Dat is bewust geen rij in de Redirect Manager (`REDIRECTS.md`): `/portfolio/`
-is daar een gereserveerde naamruimte, Apache stuurt zo'n adres naar
-`portfolio-detail.php` zodat `404.php` het nooit ziet, en een opgeslagen
-bestemming zou bij elke hernoeming, ontkoppeling of depublicatie moeten
-meebewegen. De sitemap van Portfolio noemt alleen oude adressen die nog zelf
-een pagina tonen; een gekoppelde pagina staat er één keer in, via de
-paginacollector van Core. In het overzicht staat bij een item met alleen nog
-een oude projectpagina de badge *Oude projectpagina*.
+Automatisch omzetten gebeurt niet: de inhoud van een gewone pagina (blokken)
+past niet verliesvrij in één beschrijvingsveld. De handmatige route: schrijf de
+inleiding, beschrijving en galerij op het item, zet *Projectpagina tonen* aan,
+ontkoppel de pagina, en zet eventueel zelf een redirect van het oude
+paginaadres naar `/portfolio/<slug>` in de Redirect Manager.
+
+**Het `portfolio`-woord en `portfolio-2`.** `portfolio` is geen paginarij maar
+een woord dat deze module reserveert (`reservedSlugs()`: het template
+`/portfolio.php` en de naamruimte `/portfolio/…`), ook als de module uit staat.
+Een pagina met de titel *Portfolio* kreeg daarom stil `/portfolio-2`. Sinds
+Portfolio 2.0 noemt de weigering de eigenaar (`ReservedRoutes::moduleReserving()`),
+en een nieuwe pagina waarvan het automatische adres moest uitwijken, zegt op
+haar eigen scherm waarom. Het overzicht `/portfolio.php` is nog steeds de
+CMS-pagina met content key `portfolio`; een nieuwe installatie heeft die niet,
+en een keuze "welke pagina is het Portfolio-overzicht" (zoals
+`ShopOverview` voor de Shop) is een aparte uitbreiding.
 
 **Projecten op een gewone pagina.** Portfolio brengt één eigen blok mee:
 **Projecten** (`project_cards`, `src/Service/Blocks/ProjectCardsBlock.php`),
@@ -625,7 +693,8 @@ in de blokkenkiezer onder *Beeld & media*. Het is geen tweede galerij: het
 bewaart zijn instellingen in dezelfde `item_galleries`-rij als het galerijblok,
 leest en tekent via `ItemGalleryContent` en `partials/section-item-gallery.php`,
 en krijgt zijn projecten en de link van elke kaart van de galerijbron
-`portfolio`. Een kaart linkt dus precies volgens de drie regels hierboven.
+`portfolio`. Een kaart gedraagt zich dus precies volgens de regels
+hierboven: de afbeelding zoomt, en "Bekijk project" volgt de drie regels.
 Waarom het toch een eigen bloktype is, staat in
 `docs/content-blocks/DECISIONS.md`.
 
@@ -636,8 +705,8 @@ Waarom het toch een eigen bloktype is, staat in
   van Portfolio.
 - De bron, een collectie, de lightbox, een link voor kaarten zonder pagina en
   een slottekst of knop legt `api/admin/update-project-cards.php` vast via
-  `ProjectCardsBlock::rowValues()`. Een project zonder bestemming blijft een
-  kaart die nergens heen gaat.
+  `ProjectCardsBlock::rowValues()`. Een project zonder bestemming is een kaart
+  zonder knop, waarvan de afbeelding wel zoomt.
 - Een `item_galleries`-rij wordt alleen bewerkt door de editor van het blok dat
   hem plaatste (`page_sections.section_type`): de galerij-editor weigert een
   Projecten-rij, en de Projecten-editor een galerij.
@@ -647,15 +716,16 @@ Waarom het toch een eigen bloktype is, staat in
 Uit betekent: geen zijbalk-item; geen houdbare `portfolio.manage`, dus beide
 schermen en elk schrijfendpoint weigeren op hun bestaande permissiecheck; een
 404 op `/portfolio.php` en `/portfolio/<slug>` via `ModuleGuard`; geen
-sitemapregels; geen blok Projecten in de kiezer, en een geplaatst blok
+sitemapregels; geen gebruik in de Mediabibliotheek (de rijen blijven, en de
+`RESTRICT`-sleutels houden een gebruikte afbeelding toch vast); geen blok Projecten in de kiezer, en een geplaatst blok
 Projecten dat niets toont, zijn instellingen houdt en in de page builder *Blok
 van een uitgeschakeld onderdeel* heet (zijn editor en endpoint antwoorden 404);
 en een galerijblok met portfolio-items dat zijn instellingen houdt en niets
 toont. De CMS-pagina achter `/portfolio.php` blijft bestaan en
 bewerkbaar, maar geldt als geserveerd door een uitgeschakelde module
 (`publicPaths()`), dus de sitemap, een menulink en een redirect laten hem los.
-Een pagina waar een item naar linkt, hoort bij Core: die blijft bereikbaar, en
-de koppeling blijft opgeslagen. De vijf tabellen, de categorieën en de
+Een legacy-pagina waar een item naar linkt, hoort bij Core: die blijft
+bereikbaar, en de koppeling blijft opgeslagen. De vijf tabellen, de categorieën en de
 geüploade afbeeldingen blijven staan.
 
 De bestanden staan nog waar ze stonden (`src/Service/Portfolio*.php`,

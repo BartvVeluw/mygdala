@@ -322,9 +322,12 @@ Geen adres per taal krijgen:
 
 - **producten** — die hebben helemaal geen slug-URL: één pagina op
   `/product.php?id=…`, hoeveel collecties hij ook in zit;
-- **portfolio-items** — `/portfolio/<slug>` is sinds fase 4B een
-  compatibiliteitsroute die doorstuurt naar de CMS-pagina van het item, en die
-  pagina heeft zijn adres per taal al;
+- **portfolio-items** — een projectpagina (Portfolio 2.0) heeft één neutrale
+  slug, beantwoord onder elk taalprefix: `/portfolio/<slug>` en
+  `/en/portfolio/<slug>`. Een slug per taal is een aparte uitbreiding. De route
+  heet `portfolio.project` en rendert `portfolio-detail.php` uit het item zelf,
+  zonder `pages`-rij; een item met een legacy-koppeling naar een gewone pagina
+  stuurt tijdelijk (302) door naar die pagina (`MODULES.md`, "Portfolio");
 - **portfoliocategorieën** — een filterwaarde in een blok, nooit een URL.
 
 ---
@@ -526,8 +529,9 @@ met. Nooit taaloverschrijdend, ook niet wanneer een veld is teruggevallen.
 
 Dat geldt ook voor de **systeempagina's** zonder CMS-pagina erachter: de
 winkelwagen, het afrekenen, het cookiebeleid, het herroepingsformulier,
-`personaliseren.php`, de eigen storefront van de Shop-module en een oud
-projectadres (`/portfolio/<slug>`). Ze bouwen hun canonical met
+`personaliseren.php`, de eigen storefront van de Shop-module en een
+projectpagina van Portfolio (`/portfolio/<slug>`, via
+`App\Service\PortfolioSeo`). Ze bouwen hun canonical met
 `LocalizedUrl::absolute()`, nooit met `AppUrl::canonical()` alleen, want dat
 kent geen taal. `noindex` verandert daar niets aan: een pagina die niet in de
 index hoort maar wel een canonical heeft, noemt haar eigen taalversie. De
@@ -622,7 +626,7 @@ van alternates, zodat de sitemap van een eentalige site byte-voor-byte is wat
 hij vóór fase 6 was.
 
 Een **storefront, een blogindex, een product, de personalisatiecatalogus of
-een oude projectpagina** bestaat in elke actieve taal: dat zijn vaste paden,
+een Portfolio-projectpagina** bestaat in elke actieve taal: dat zijn vaste paden,
 id-routes of één neutrale slug, er is geen adres dat kan ontbreken. Sinds
 fase 7 verklaren ook de catalogus, de projectpagina en de blogindex hun
 versies, zodat hun `<head>` dezelfde alternates noemt als de sitemap. Een

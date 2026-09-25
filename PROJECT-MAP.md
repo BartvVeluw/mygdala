@@ -84,7 +84,8 @@ adminpaneel is.
 | `assets/css/blocks/`, `assets/js/blocks/` | Per bloktype, alleen geladen op een pagina waar dat blok staat |
 | `assets/css/blog/` | De Blog-frontend, alleen geladen op een Blog-route |
 | `assets/css/shop/`, `assets/js/shop/` | Shop-frontend: `cart.*` (de mini-winkelwagen in de gedeelde header, dus overal), `shop.*` (catalogus, product, afrekenen, bestelstatus) en `personalization.css` |
-| `assets/js/portfolio-detail.js`, `assets/js/personalization.js`, `assets/js/cookie-consent.js` | Frontend van één route/onderdeel |
+| `assets/js/lightbox.js` | De ene lightbox van de site, gevraagd door het galerijblok, het blok Projecten en een Portfolio-projectpagina |
+| `assets/js/personalization.js`, `assets/js/cookie-consent.js` | Frontend van één route/onderdeel |
 | `assets/images/`, `assets/fonts/`, `assets/videos/` | Publieke media (uploads incl.) |
 | `assets/media/` | Wat de Mediabibliotheek zelf uploadt, plus de thumbnails die zij genereert. Oudere beelden zijn *op hun plek* overgenomen en staan dus nog in `assets/images/` (`MEDIA.md`) |
 | `../storage/` | Niet-publieke uploads (bestanden van formulierinzendingen en oude contactbijlagen, personalisatiebestanden) — standaard één map **boven** de projectroot, want de projectroot is de siteroot |
@@ -194,7 +195,8 @@ zelf om zijn bestanden. Er is geen globale `style.css`/`main.js` meer.
 | **Shop** | `assets/{css,js}/shop/shop.*` | Shop-routes en de Shop-blokken (`product_grid`, `shop_collections`) |
 | **Shop (mini-winkelwagen)** | `assets/{css,js}/shop/cart.*` | Overal zolang de Shop aan staat, want de gedeelde header rendert de mini-winkelwagen. Gevraagd door `ShopModule::shellStyles()`, niet door Core |
 | **Blog** | `assets/css/blog/blog.css` | Alleen `/blog` en de berichten/archieven eronder; gevraagd door die routes, nooit door de schil |
-| **Route** | `assets/js/portfolio-detail.js`, `assets/js/personalization.js` | Alleen die route |
+| **Gedeeld** | `assets/js/lightbox.js` | Een pagina met een zoombare kaart of een Portfolio-projectpagina; gevraagd door de blokken en `portfolio-detail.php`, nooit door de schil |
+| **Route** | `assets/js/personalization.js` | Alleen die route |
 | **Thema** | `<style id="site-theme">`, server-gerenderd | Ná alle stylesheets, en alléén als de vormgeving van de standaard afwijkt (`THEMING.md`) |
 
 `App\Service\PageAssets` is het enige mechanisme: een blokdefinitie, een route,

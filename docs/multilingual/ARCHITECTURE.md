@@ -867,8 +867,9 @@ van die drie tabellen. De repositories bewaren rijen en kennen geen woord meer;
 zelf geen taal. `MultilingualBoundaryTest` bewaakt dat.
 
 **Rich text wordt per taal gesaneerd, vóór de terugval.** `intro` en
-`description` zijn de rich text van de oude projectpagina. De editor die ze
-schreef is er niet meer, dus `itemRichValue()` haalt elke taal apart door
+`description` zijn de rich text van de projectpagina (sinds Portfolio 2.0
+weer bewerkbaar op het item, en bij het opslaan al gesaneerd). Bij het lezen
+haalt `itemRich()` elke taal nog eens apart door
 `RichTextSanitizer` en geeft het resultaat daarna aan de terugval
 (`LanguageFallback`). Een taal waarvan de markup wegsaneert heeft
 dus geen woorden, en de terugval neemt het over. Eén sanitizer, geen tweede.
@@ -907,10 +908,12 @@ in de standaardtaal geschreven. Rij, woorden, categorieën en de paginakeuze
 zijn één transactie, en een geweigerde opslag schrijft niets en houdt de POST
 vast.
 
-**Het item-formulier kan de oude projectpagina niet leegmaken.** Het toont
-`title`, `subtitle` en `alt`, en stuurt precies die drie; `EntityTranslations::save()`
-laat een gedeclareerd veld dat niet meegestuurd is staan. `intro` en
-`description` houden dus hun woorden, in elke taal.
+**Een formulier kan geen veld leegmaken dat het niet stuurt.** Het
+aanmaakformulier stuurt alleen `title`, `subtitle` en `alt`; de editor stuurt
+daarnaast `intro` en `description` van de bewerkte taal.
+`EntityTranslations::save()` laat een gedeclareerd veld dat niet meegestuurd is
+staan, dus elke andere taal, en elk veld dat een verzoek niet noemt, houdt zijn
+woorden.
 
 **Module uit verandert niets.** De drie tabellen worden gemaakt en gevuld of
 Portfolio aan staat of niet, en uitzetten verwijdert geen rij en geen woord.
@@ -1325,7 +1328,7 @@ heeft: de 21 vertaaltabellen verwijzen er met `ON DELETE RESTRICT` naar.
   adres van een geregistreerde route wordt die route in deze taal, zoals een
   menulink; al het andere blijft letterlijk. Geen opslag, geen migratie, geen
   naïeve `/en`-prefix. Zie [`ROUTING.md`](ROUTING.md).
-- **Sitemap**: de personalisatiecatalogus en de oude projectpagina's bestaan
+- **Sitemap**: de personalisatiecatalogus en de Portfolio-projectpagina's bestaan
   in elke gepubliceerde taal, declareren die versies (hreflang) en staan met
   alle versies in de sitemap.
 - `/verzenden-retourneren` en `/privacyverklaring` waren al sinds golf A op

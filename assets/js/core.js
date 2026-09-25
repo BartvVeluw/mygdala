@@ -10,10 +10,10 @@
    in the browser: no data-nl/data-en, no data-lang-html, no stored language
    (docs/multilingual/ARCHITECTURE.md, "Eén taal per antwoord").
 
-   What does NOT belong here: anything a single content block, the portfolio
-   detail page or the Shop owns. Those live next to their own markup —
-   assets/js/blocks/*.js, assets/js/portfolio-detail.js, assets/js/shop/*.js
-   — and are asked for by the block definition or route that needs them.
+   What does NOT belong here: anything a single content block, the shared
+   lightbox or the Shop owns. Those live next to their own markup —
+   assets/js/blocks/*.js, assets/js/lightbox.js, assets/js/shop/*.js — and
+   are asked for by the block definition or route that needs them.
    Adding a block-specific initialiser back into this file is exactly the
    regression Tests\Service\FrontendAssetOwnershipTest fails on.
 

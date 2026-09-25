@@ -219,8 +219,9 @@ robots-tag op de pagina zelf: Core's paginacollector vraagt
 
 Core levert alleen `pages`; alles daarbuiten komt van een
 **ingeschakelde** module via `ModuleDefinition::sitemapCollectors()` — Portfolio
-levert de oude projectpagina's die nog zelf een pagina tonen (een projectpagina
-die een gewone pagina is, komt uit Core's paginacollector), de Shop producten
+levert zijn projectpagina's die zelf een pagina tonen, in elke taal (een item
+met een legacy-koppeling naar een gewone pagina stuurt door en staat er niet
+in; die pagina komt uit Core's paginacollector), de Shop producten
 en collecties, Personalisatie de
 catalogus, de Blog het
 overzicht, de gepubliceerde berichten en de categorie-archieven die minstens

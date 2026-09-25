@@ -164,12 +164,15 @@ zónder eigen projectpagina heen linkt; leeg = die kaart is geen link, en juist
 dán kan de lightbox 'm vergroten). Eén regel die beide oude gedragingen dekt, in
 plaats van een `if` per pagina.
 
-Sinds Portfolio-fase 4B bepaalt de Portfolio-bron de link van elke kaart zelf:
-de gekoppelde pagina, anders tijdelijk de oude projectpagina, anders niets
-(`MODULES.md`). Een portfolio-item volgt `fallback_link_url` daarom nooit meer
-(`follows_fallback_link` is `false` op het item). Reden: een kaart zonder eigen
-pagina mag niet via een instelling van het blok alsnog klikbaar worden. Voor de
-kaarten van andere bronnen doet het veld wat het deed.
+Sinds Portfolio-fase 4B bepaalt de Portfolio-bron het gedrag van elke kaart
+zelf, en sinds Portfolio 2.0 is dat: de kaart is nooit een link, de afbeelding
+opent altijd de lightbox (`opens_lightbox`, ook als de lightbox-instelling van
+het blok uit staat), en *Bekijk project* (`cta`) is een aparte link naar een
+gepubliceerde legacy-pagina of de eigen projectpagina (`MODULES.md`). Een
+portfolio-item volgt `fallback_link_url` daarom nooit (`follows_fallback_link`
+is `false` op het item). Reden: een klik op een afbeelding moet op elke kaart
+hetzelfde doen, en navigeren is de taak van de knop. Voor de kaarten van andere
+bronnen doen het veld en de lightbox-instelling wat ze deden.
 
 ## Projecten is de galerij met een vaste bron, geen tweede galerij
 

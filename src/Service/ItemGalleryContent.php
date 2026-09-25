@@ -240,10 +240,10 @@ class ItemGalleryContent
     }
 
     /**
-     * True for the FIRST lightbox-enabled block on a page and false for
-     * every one after it: they all share one overlay element (the JS looks
-     * up a single `.lightbox[data-item-lightbox]`), so exactly one block
-     * prints it. Kept here rather than in a static inside the partial so
+     * True for the FIRST block with a zoomable card on a page and false for
+     * every one after it: they all share one overlay element
+     * (partials/lightbox.php; assets/js/lightbox.js looks up a single
+     * `[data-lightbox]`), so exactly one block prints it. Kept here rather than in a static inside the partial so
      * clearCache() can reset it — a test that renders several blocks in one
      * process is otherwise stuck with whichever one ran first.
      */

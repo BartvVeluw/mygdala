@@ -843,7 +843,8 @@ De suite `modules` (`tests/Module/`) test het modulesysteem zelf:
   galerijbron, het blok Projecten (alleen met de module aan, zonder eigen
   query, kaart of link, met de guards van zijn editor), sitemapcollector,
   gereserveerde slugs en `publicPaths()`, de guards op elk scherm en endpoint,
-  dat een oud projectadres doorstuurt voordat het iets van de oude pagina leest,
+  dat een projectadres met een legacy-koppeling doorstuurt voordat het iets van
+  de projectpagina leest,
   en dat Core geen Portfolio-klasse noemt. Geen database, geen webserver. Wat
   het blok Projecten over de database doet (kaartlinks, lege toestand, uit en
   weer aan) is `Tests\Service\ProjectCardsBlockTest`, in de suite `blocks`.
@@ -856,6 +857,23 @@ De suite `modules` (`tests/Module/`) test het modulesysteem zelf:
   project één keer. Start zelf twee ingebouwde PHP-servers, één met
   `MODULE_PORTFOLIO_ENABLED=true` en één met `false`
   (`Tests\Support\BuiltInServer`), dus hij draait ook zonder `php_test`.
+- `PortfolioProjectRoutingHttpTest` (suite `modules`) — Portfolio 2.0 via de
+  dispatcher (`tests/Support/dispatcher-router.php`): `/portfolio/<slug>` 200
+  met eigen titel, canonical, description, og:image, kruimelpad en één
+  lightbox; een onbekende, verborgen of uitgeschakelde projectpagina 404; een
+  hernoemd project 301 naar zijn nieuwe adres; een legacy-koppeling 302; een
+  gewone pagina ernaast antwoordt; geen `pages`-rij; `portfolio` als
+  paginaslug geweigerd met de module genoemd.
+
+Voor Portfolio 2.0 verder, per suite:
+
+| Test | Suite | Wat |
+|---|---|---|
+| `PortfolioTwoContractTest` | `contract`, `fast`, `cms` | één lightbox (dialoog, benoemde knoppen, groep van de opener en alleen wat getoond wordt, toetsenbord, focus), zoomknop en CTA-link, geen paginaflow |
+| `PortfolioProjectGalleryTest` | `cms` | galerijtokens (volgorde, geen hoofdafbeelding, geen dubbel, geen foto van een ander item), vervangen en teruggeven, mediagebruik als hoofdafbeelding en galerij, gelaagde alt, slug uniek en genormaliseerd, redirect alleen bij een publieke hernoeming, metadata |
+| `PortfolioProjectPageTest` | `cms` | het kaartcontract: nooit een link, altijd zoom, *Bekijk project* naar legacy-pagina of eigen pagina, overlay titel/tekst/knop, fallbacklink genegeerd, sitemap |
+| `PortfolioItemEditingHttpTest` | `cms` | over HTTP: projectpagina aan met slug uit de titel en geen `pages`-rij, slug genormaliseerd/geweigerd/uniek gemaakt, 301 bij hernoemen, sanitizer, sectiemarker, galerij via de bibliotheek, legacy-koppeling alleen houden of ontkoppelen, geen paginaflow, guards |
+| `PortfolioTwoMigrationTest` | `migration`, `cms` | `portfolio_item_images.media_id`: vers en na een upgrade, oude foto onaangeroerd, `RESTRICT`, cascade met het item, tweede run verandert niets |
 
 Een module die de Mediabibliotheek gaat gebruiken levert daarnaast een
 `MediaUsageProvider` (`MEDIA.md`); `Tests\Service\MediaBoundaryTest`

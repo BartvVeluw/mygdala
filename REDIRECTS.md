@@ -130,7 +130,7 @@ redirect die niemand kan begrijpen.
 | origin | Ontstaat door | Mag een hernoeming hem wijzigen? |
 |---|---|---|
 | `manual` | een redacteur die hem intypt | nee, nooit |
-| `slug_change` | het hernoemen van een gepubliceerde CMS-pagina, een publiek blogbericht of een bereikbaar blogarchief | ja |
+| `slug_change` | het hernoemen van een gepubliceerde CMS-pagina, een publiek blogbericht, een bereikbaar blogarchief of een zichtbare Portfolio-projectpagina | ja |
 
 `origin` is niet uit een formulier te zetten: het bepaalt of een latere
 hernoeming een rij mag overschrijven, dus die vlag is van de applicatie.
@@ -376,22 +376,26 @@ onveranderd.
   geregenereerd (`PageService`). Een automatische redirect zou daar afgaan op
   opslagacties die niemand als hernoeming bedoelde. Uitgesteld tot die
   levenscyclus gelijkgetrokken is, niet om de symmetrie.
-- **Oude portfolio-projectadressen.** Een projectpagina is een gewone
-  CMS-pagina geworden, waar een portfolio-item met `page_id` naar linkt
-  (`MODULES.md`). Een oud adres `/portfolio/<slug>` stuurt daarom door, maar
-  niet via deze tabel: `/portfolio/` blijft een gereserveerde naamruimte,
-  Apache routeert zo'n adres naar `portfolio-detail.php` zodat `404.php` het
-  nooit ziet, en een opgeslagen bestemming zou bij elke hernoeming,
-  ontkoppeling of depublicatie mee moeten veranderen. `portfolio-detail.php`
+- **Een legacy-koppeling van een portfolio-item naar een gewone pagina.**
+  Een item dat sinds fase 4B met `page_id` naar een gewone CMS-pagina linkt
+  (`MODULES.md`), stuurt `/portfolio/<slug>` door, maar niet via deze tabel:
+  een opgeslagen bestemming zou bij elke hernoeming, ontkoppeling of
+  depublicatie van die pagina mee moeten veranderen. `portfolio-detail.php`
   bepaalt de bestemming daarom per verzoek
   (`PortfolioGalleryContent::legacyProjectRedirectUrl()`): een tijdelijke
   redirect (302) naar de canonical van de gekoppelde, gepubliceerde pagina, en
-  anders de oude projectpagina. Tijdelijk, want het adres is tijdens de
-  overgang een compatibiliteitsroute en de koppeling erachter kan nog
-  veranderen of verdwijnen: een 301 zou een browser het vorige doel laten
-  onthouden. Eén opzoeking voor één soort adres, geen tweede
-  redirectsysteem. Het doel is altijd het huidige adres van de pagina, dus
-  na een hernoeming ontstaat er geen keten via het vorige adres.
+  anders de eigen projectpagina van het item. Tijdelijk, want de koppeling kan
+  nog verdwijnen. Het doel is altijd het huidige adres van de pagina, dus na
+  een hernoeming ontstaat er geen keten.
+
+  **Een hernoemde projectpagina doet wél mee.** Wijzigt een redacteur de slug
+  van een zichtbare projectpagina, dan schrijft
+  `PortfolioSlug::recordRename()` via `SlugChangeRedirects` in elke actieve
+  taal een 301 van het oude naar het nieuwe adres, net als bij een pagina of
+  een bericht. `/portfolio/` blijft een gereserveerde naamruimte voor wat een
+  redacteur zelf intypt; de applicatie schrijft er wel `slug_change`-rijen in.
+  `portfolio-detail.php` vraagt `RedirectGate` pas als geen item het adres
+  beantwoordt, dus zo'n redirect kan nooit een levend project overschaduwen.
 - Regex- en wildcardredirects, hostnaamredirects, CSV-import/-export,
   404-suggesties, hitteltellers, vervaldatums, prioriteitsregels, geo- of
   apparaatafhankelijke redirects, A/B-redirects.

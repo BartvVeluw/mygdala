@@ -795,6 +795,7 @@ de lijst controleert elk id opnieuw.
 | Uitgelichte afbeelding en deel-afbeelding van een blogbericht | `blog_posts.featured_media_id`, `blog_posts.og_media_id` — een module, dus via `BlogModule::mediaUsageProviders()` |
 | Eigen icoon van een kaart in *Kenmerken in kaartjes* (`feature_grid`) | `feature_grid_items.icon_media_id`, alleen als `icon_key = custom`; geen oud pad en geen alt-tekst, want het icoon is versiering (`aria-hidden`, `alt=""`): de titel en tekst van de kaart dragen de betekenis. Kiest de kaart weer een standaardicoon of *Geen*, dan wordt de verwijzing leeggemaakt en telt het item niet meer als gebruikt |
 | Portfolio-item (module) | `portfolio_gallery_items.media_id`, oude `image_path`/`thumbnail_path` meegeschreven; eigen alt-tekst per taal, anders die van het item |
+| Galerij van een Portfolio-projectpagina (module) | `portfolio_item_images.media_id`, `image_path`/`thumbnail_path` meegeschreven; eigen alt van een oude foto, anders die van het item |
 | Deel-afbeelding van product en collectie (Shop) | `products.og_media_id`, `collections.og_media_id`, oude `og_image_path` meegeschreven |
 | Homepage-hero: afbeelding en video | `homepage_hero.media_id` (met eigen alt-tekst per taal) en `homepage_hero.video_media_id`, oude `image_path` / `video_path` als terugval. Het videoveld is de eerste videokiezer (`media_picker_field(…, MediaType::VIDEO)`) |
 
@@ -804,9 +805,10 @@ de lijst controleert elk id opnieuw.
   (`portfolio_gallery_items.media_id` NULL, bestand van
   `PortfolioImageProcessor`): het blijft staan en wordt getoond tot een
   redacteur een andere afbeelding kiest; dan gaat het oude eigen bestand weg.
-  De foto's van de oude projectpagina (`portfolio_item_images`) worden niet
-  meer bewerkt en ook niet gemigreerd: een projectpagina is nu een gewone
-  pagina, en die haalt haar beeld uit deze bibliotheek (`MODULES.md`);
+  Zo ook een galerijfoto van een projectpagina van vóór Portfolio 2.0
+  (`portfolio_item_images.media_id` NULL): hij blijft staan tot een redacteur
+  hem uit de galerij haalt, en dan gaat zijn eigen bestand mee. Een nieuwe
+  galerijfoto is altijd een bibliotheekitem (`MODULES.md`, "Portfolio");
 - de **deel-afbeelding van een product of collectie van vóór de bibliotheek**
   (`og_media_id` NULL, `og_image_path` gevuld): blijft tot er een andere wordt
   gekozen of hij met *Deel-afbeelding verwijderen* bewust weg gaat;
@@ -856,6 +858,16 @@ de eigen alt-tekst van het item in de taal van de bezoeker, anders die van het
 bibliotheekitem (`PortfolioGalleryContent::itemAlt()`). `PortfolioMediaUsage`
 (via `PortfolioModule::mediaUsageProviders()`) meldt *"Portfolio: &lt;titel&gt;"*
 aan wie `portfolio.manage` heeft.
+
+Sinds **Portfolio 2.0** komt ook de **galerij van een projectpagina** uit de
+bibliotheek: `portfolio_item_images.media_id` (migratie `20260925160000`,
+`RESTRICT`, pad en thumbnail meegeschreven), gekozen met de kiezer in
+verzamelmodus (`data-media-picker-collect`) op het item zelf. Een foto uit de
+galerij halen haalt alleen de koppeling weg. `PortfolioMediaUsage` meldt een
+galerijfoto als *"Portfolio: &lt;titel&gt; (galerij)"*, naast het gebruik als
+hoofdafbeelding, zodat de bibliotheek beide weigert te verwijderen. De alt-tekst
+is gelaagd zoals bij de hoofdafbeelding: een eigen alt van een oude foto
+(`portfolio_item_image_translations`), anders die van het bibliotheekitem.
 
 **Een tabel die na de bibliotheek is gemaakt heeft geen `image_path`-tweeling.**
 `blog_posts` heeft alleen een `media_id`: de oude padkolommen zijn een

@@ -32,11 +32,11 @@ use App\Service\Language\TranslationTable;
  * App\Service\NavigationLocalization, which this class follows.
  *
  * PLAIN AND RICH. `name`, `title`, `subtitle` and `alt` are plain text;
- * `alt` is written into an attribute. `intro` and `description` are the OLD
- * project page's rich text: this class hands them out sanitized
- * (App\Service\RichTextSanitizer), exactly as PortfolioGalleryContent did
- * when they were columns — "sanitize again on read", because the editor that
- * wrote that HTML is gone. There is no second sanitizer.
+ * `alt` is written into an attribute. `intro` and `description` are the
+ * project page's rich text (Portfolio 2.0): its editor sanitizes them on the
+ * way in, and this class hands them out sanitized again
+ * (App\Service\RichTextSanitizer) — "sanitize again on read", the pattern
+ * DescriptionSanitizer/api/product.php follow. There is no second sanitizer.
  *
  * MODULE OFF CHANGES NOTHING. Switching the Portfolio off removes no row and
  * no word, and switching it back on shows the same words: this class never
@@ -57,9 +57,10 @@ final class PortfolioLocalization
     public const ALT_MAX_LENGTH = 255;
 
     /**
-     * The rich fields of the old project page. No screen writes them any
-     * more, so this length only guards a value on its way in; it is the one
-     * the rich blocks use (App\Service\Blocks\RichTextBlock).
+     * The rich fields of the item's project page (Portfolio 2.0), written by
+     * its editor after RichTextSanitizer; this length guards a value on its
+     * way in and is the one the rich blocks use
+     * (App\Service\Blocks\RichTextBlock).
      */
     public const RICH_MAX_LENGTH = 50000;
 
@@ -80,7 +81,7 @@ final class PortfolioLocalization
         );
     }
 
-    /** The item-words store: the card's own words and the old project page's text. */
+    /** The item-words store: the card's own words and the project page's text. */
     public static function items(): EntityTranslations
     {
         return self::$items ??= new EntityTranslations(
@@ -94,7 +95,7 @@ final class PortfolioLocalization
         );
     }
 
-    /** The alt texts of the old project page's extra photos. */
+    /** The alt texts of the project page's extra photos. */
     public static function images(): EntityTranslations
     {
         return self::$images ??= new EntityTranslations(
@@ -183,7 +184,7 @@ final class PortfolioLocalization
 
     /**
      * One RICH item field (intro, description) as a visitor reads it in one
-     * language, sanitized on the way out — the old project page's text.
+     * language, sanitized on the way out — the project page's text.
      */
     public static function itemRich(int $itemId, string $field, string $languageCode): string
     {
@@ -214,8 +215,8 @@ final class PortfolioLocalization
 
     /**
      * Store one language's words for an item. Only the fields given are
-     * written, so the item's own editor cannot empty the old project page's
-     * text it does not show.
+     * written, so a form that does not send the project page's text (the
+     * create form) cannot empty it.
      *
      * @param array<string, string|null> $values
      */
@@ -225,7 +226,7 @@ final class PortfolioLocalization
     }
 
     /* ------------------------------------------------------------------ */
-    /* Photos of the old project page                                      */
+    /* Photos of the project page                                          */
     /* ------------------------------------------------------------------ */
 
     /** The alt text of one extra photo as a visitor reads it in one language. */

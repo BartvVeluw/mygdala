@@ -23,9 +23,10 @@ require_once dirname(__DIR__, 3) . '/partials/section-item-gallery.php';
  * App\Service\ItemGalleryContent and drawn by the same
  * partials/section-item-gallery.php with the same stylesheet and script. The
  * projects, their order, their categories and every card's link come from the
- * Portfolio's gallery source, so a card links exactly as it does in any
- * gallery: to its published page, otherwise to its old project address,
- * otherwise nowhere (MODULES.md, "Portfolio"). Nothing in this file queries a
+ * Portfolio's gallery source, so a card behaves exactly as it does in any
+ * gallery: its picture always zooms, and "Bekijk project" goes to a legacy
+ * published page, otherwise to the item's own /portfolio/<slug>, otherwise
+ * there is no button (MODULES.md, "Portfolio"). Nothing in this file queries a
  * project, builds a card or resolves a link, and none of that belongs here.
  * Why it is a block type of its own at all: docs/content-blocks/DECISIONS.md.
  *
@@ -33,7 +34,7 @@ require_once dirname(__DIR__, 3) . '/partials/section-item-gallery.php';
  * and offers settings a project does nothing with: a collection, zoom, a link
  * for cards without a page of their own, a closing text and a button.
  * rowValues() stores those fixed, so a project without a page of its own is a
- * plain card that goes nowhere.
+ * card without a button, whose picture still zooms.
  *
  * ONE ROW, ONE EDITOR. Both blocks keep their rows in `item_galleries`, so the
  * editors tell them apart by the page section that placed a row
