@@ -326,6 +326,8 @@ Geen adres per taal krijgen:
   slug, beantwoord onder elk taalprefix: `/portfolio/<slug>` en
   `/en/portfolio/<slug>`. Een slug per taal is een aparte uitbreiding. De route
   heet `portfolio.project` en rendert `portfolio-detail.php` uit het item zelf,
+  naast het overzicht op de module-root `/portfolio` (`portfolio.index`; het oude
+  `/portfolio.php` geeft een 301 naar `/portfolio` in dezelfde taal),
   zonder `pages`-rij; een item met een legacy-koppeling naar een gewone pagina
   stuurt tijdelijk (302) door naar die pagina (`MODULES.md`, "Portfolio");
 - **portfoliocategorieën** — een filterwaarde in een blok, nooit een URL.

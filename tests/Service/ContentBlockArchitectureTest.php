@@ -590,7 +590,7 @@ final class ContentBlockArchitectureTest extends TestCase
             '/' => ['orbit-carousel', 'gallery-item'],
             '/shop.php' => ['data-products-grid'],
             '/diensten.php' => ['quicknav', 'service-detail'],
-            '/portfolio.php' => ['filter-bar', 'gallery-grid'],
+            '/portfolio' => ['filter-bar', 'gallery-grid'],
             // Since Core Forms the quote form is rendered by the shared
             // form renderer, so the marker is `data-form-block` rather
             // than the old `data-quote-form`. The guarantee is unchanged:

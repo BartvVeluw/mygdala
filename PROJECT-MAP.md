@@ -52,7 +52,7 @@ adminpaneel is.
 
 | Pad | Wat er staat |
 |---|---|
-| `index.php`, `shop.php`, `diensten.php`, `portfolio.php`, `over-mij.php`, `contact.php` | De zes pagina's met een eigen template en vaste URL |
+| `index.php`, `shop.php`, `diensten.php`, `portfolio.php`, `over-mij.php`, `contact.php` | De zes pagina's met een eigen template en vaste URL; `portfolio.php` beantwoordt `/portfolio` en stuurt `/portfolio.php` daarheen door |
 | `pagina.php` | Generiek template voor élke andere CMS-pagina (`/<slug>`) |
 | `product.php`, `collectie.php`, `portfolio-detail.php`, `cart.php`, `checkout.php`, `bestelling-status.php`, `personaliseren.php` | Functionele routes (geen CMS-pagina's) |
 | `blog.php`, `blog-post.php`, `blog-feed.php` | De publieke Blog: het overzicht met zijn twee archieven, één bericht, en de RSS-feed (`BLOG.md`) |

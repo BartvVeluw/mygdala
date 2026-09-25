@@ -219,7 +219,7 @@ final class CmsOnlyHttpTest extends TestCase
      */
     public function testThePortfolioRoutesAre404WhileThePortfolioIsOff(): void
     {
-        foreach (['/portfolio.php', '/portfolio/whatever'] as $path) {
+        foreach (['/portfolio', '/portfolio.php', '/portfolio/whatever'] as $path) {
             $response = $this->get($path);
 
             $this->assertSame(404, $response['status'], $path . ' must not answer');

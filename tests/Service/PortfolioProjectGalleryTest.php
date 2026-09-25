@@ -197,6 +197,20 @@ final class PortfolioProjectGalleryTest extends TestCase
         $this->assertFalse(PortfolioSlug::isPublic(false, true, 'x'));
     }
 
+    public function testTheOldOverviewAddressMovesToTheModuleRoot(): void
+    {
+        $this->assertSame('/portfolio', \App\Service\PortfolioUrls::legacyOverviewRedirectUrl('/portfolio.php', 'GET'));
+        $this->assertSame('/portfolio?categorie=hout&x=1', \App\Service\PortfolioUrls::legacyOverviewRedirectUrl('/portfolio.php?categorie=hout&x=1', 'HEAD'));
+
+        if (\App\Service\Language\SiteLanguages::isActive('en')) {
+            $this->assertSame('/en/portfolio', \App\Service\PortfolioUrls::legacyOverviewRedirectUrl('/en/portfolio.php', 'GET'), 'in the language the address named');
+        }
+
+        $this->assertNull(\App\Service\PortfolioUrls::legacyOverviewRedirectUrl('/portfolio.php', 'POST'), 'a POST is answered where it was sent');
+        $this->assertNull(\App\Service\PortfolioUrls::legacyOverviewRedirectUrl('/portfolio', 'GET'), 'the root itself is not moved');
+        $this->assertNull(\App\Service\PortfolioUrls::legacyOverviewRedirectUrl('/portfolio/zz-project', 'GET'));
+    }
+
     public function testAProjectPagesMetadata(): void
     {
         $project = [

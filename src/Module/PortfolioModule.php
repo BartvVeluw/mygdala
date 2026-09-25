@@ -9,6 +9,7 @@ use App\Service\Blocks\ProjectCardsBlock;
 use App\Service\ItemGalleryContent;
 use App\Service\PortfolioGalleryContent;
 use App\Service\PortfolioMediaUsage;
+use App\Service\PortfolioUrls;
 use App\Service\Sitemap;
 
 /**
@@ -42,7 +43,7 @@ use App\Service\Sitemap;
  * nothing and keeps its settings; no gallery source, so a gallery block set to
  * portfolio items keeps its settings and shows nothing; and, through
  * App\Module\ModuleGuard at the top of portfolio.php and portfolio-detail.php,
- * a 404 at /portfolio.php and at every /portfolio/<slug>, redirect or not. A
+ * a 404 at /portfolio, /portfolio.php and every /portfolio/<slug>, redirect or not. A
  * legacy page an item links to is an ordinary page and keeps answering at its
  * own address.
  *
@@ -156,14 +157,27 @@ final class PortfolioModule extends ModuleDefinition
     }
 
     /**
-     * The Portfolio page's own template, and the project pages.
-     * "portfolio" is the same word in Dutch and in English, so the namespace
-     * has no per-language entry (App\Service\Routing\RouteSegments).
+     * The module root and what lies below it (Portfolio 2.0):
+     *
+     *   /portfolio          the Portfolio overview, the CMS page with content
+     *                       key "portfolio" rendered by portfolio.php
+     *   /portfolio/<slug>   one project page, portfolio-detail.php
+     *   /portfolio.php      the overview's old address, kept so every link to
+     *                       it keeps working: portfolio.php answers it with a
+     *                       permanent redirect to /portfolio
+     *                       (PortfolioUrls::legacyOverviewRedirectUrl())
+     *
+     * All three sit before the page catch-all ({slug+}, App\Service\Routing\RouteTable),
+     * and `portfolio` is reserved against page slugs (reservedSlugs()), so the
+     * bare /portfolio can never be read as a page. "portfolio" is the same
+     * word in Dutch and in English, so the namespace has no per-language
+     * entry (App\Service\Routing\RouteSegments).
      */
     public function publicRoutes(): array
     {
         return [
-            ['key' => 'portfolio.index', 'pattern' => 'portfolio.php', 'template' => 'portfolio.php'],
+            ['key' => 'portfolio.index', 'pattern' => '{portfolio.root}', 'template' => 'portfolio.php'],
+            ['key' => 'portfolio.index.file', 'pattern' => 'portfolio.php', 'template' => 'portfolio.php'],
             [
                 'key' => 'portfolio.project',
                 'pattern' => '{portfolio.root}/{slug}',
@@ -181,16 +195,18 @@ final class PortfolioModule extends ModuleDefinition
     }
 
     /**
-     * /portfolio.php serves the CMS page with content_key "portfolio": an
-     * ordinary content page that is linked as a page, and therefore NOT one of
-     * routes() (App\Service\RouteRegistry). Naming the path here is what makes
-     * that page, a menu link to it and a redirect aimed at it stop resolving
-     * while the module is off, instead of pointing at the 404 ModuleGuard
-     * answers there.
+     * /portfolio serves the CMS page with content_key "portfolio" (its
+     * `route_path` since 20260925170000; /portfolio.php before): an ordinary
+     * content page that is linked as a page, and therefore NOT one of routes()
+     * (App\Service\RouteRegistry). Naming the paths here is what makes that
+     * page, a menu link to it and a redirect aimed at it stop resolving while
+     * the module is off, instead of pointing at the 404 ModuleGuard answers
+     * there. The old /portfolio.php stays named, for a page an upgrade has not
+     * reached yet and for a redirect an editor aimed at it.
      */
     public function publicPaths(): array
     {
-        return ['/portfolio.php', '/portfolio-detail.php'];
+        return [PortfolioUrls::OVERVIEW_PATH, PortfolioUrls::LEGACY_OVERVIEW_PATH, '/portfolio-detail.php'];
     }
 
     /**

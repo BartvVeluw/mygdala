@@ -9,9 +9,10 @@ use PHPUnit\Framework\TestCase;
 use Tests\Support\ScratchInstall;
 
 /**
- * Portfolio 2.0's one migration, on the kinds of database it meets:
+ * Portfolio 2.0's two migrations, on the kinds of database they meet:
  *
  *   20260925160000  portfolio_item_images.media_id (RESTRICT)
+ *   20260925170000  the Portfolio overview's route_path /portfolio.php -> /portfolio
  *
  *   fresh      every migration from zero
  *   upgraded   an installation that stood just before it, with an item that
@@ -21,7 +22,8 @@ use Tests\Support\ScratchInstall;
  * What must hold: the old photo is not pointed at the library and keeps every
  * column byte for byte; a library item a photo uses cannot be deleted;
  * deleting the portfolio item takes its photo rows along but never the
- * library item; and a second run changes nothing.
+ * library item; the overview page of an existing site moves to the module
+ * root and no other page's route moves; and a second run changes nothing.
  */
 #[Group('migration-backfill')]
 final class PortfolioTwoMigrationTest extends TestCase
@@ -33,6 +35,8 @@ final class PortfolioTwoMigrationTest extends TestCase
     private const BEFORE = '20260925140000';
 
     private const PHOTOS = '20260925160000';
+
+    private const ROOT = '20260925170000';
 
     private static ?ScratchInstall $fresh = null;
     private static ?ScratchInstall $upgraded = null;
@@ -55,16 +59,17 @@ final class PortfolioTwoMigrationTest extends TestCase
             return;
         }
 
-        self::$fresh = ScratchInstall::upTo(self::FRESH, self::PHOTOS);
+        self::$fresh = ScratchInstall::upTo(self::FRESH, self::ROOT);
 
         self::$upgraded = ScratchInstall::upTo(self::UPGRADED, self::BEFORE);
         self::seed(self::$upgraded);
         self::$before = self::snapshot(self::$upgraded);
 
-        self::$upgraded->catchUp(self::PHOTOS);
+        self::$upgraded->catchUp(self::ROOT);
         self::$afterFirstRun = self::snapshot(self::$upgraded);
 
-        self::$upgraded->replay(self::PHOTOS, self::PHOTOS);
+        self::$upgraded->replay(self::PHOTOS, self::ROOT);
+        self::$upgraded->replay(self::ROOT, self::ROOT);
         self::$afterReplay = self::snapshot(self::$upgraded);
     }
 
@@ -116,6 +121,17 @@ final class PortfolioTwoMigrationTest extends TestCase
         $this->assertCount(1, self::$fresh->rows('SELECT id FROM media WHERE id = ?', [$mediaId]), 'the library item stays');
     }
 
+    public function testTheOverviewMovesToTheModuleRootAndNothingElseMoves(): void
+    {
+        $this->assertSame('/portfolio.php', self::$before['overview']['route_path'], 'the fixture starts where an existing site stands');
+        $this->assertSame('/portfolio', self::$afterFirstRun['overview']['route_path']);
+        $this->assertSame(self::$before['other']['route_path'], self::$afterFirstRun['other']['route_path'], 'a page with another route keeps it');
+
+        foreach (['content_key', 'status', 'is_system', 'slug'] as $column) {
+            $this->assertSame(self::$before['overview'][$column], self::$afterFirstRun['overview'][$column], 'pages.' . $column);
+        }
+    }
+
     public function testASecondRunChangesNothing(): void
     {
         $this->assertSame(self::$afterFirstRun, self::$afterReplay);
@@ -146,6 +162,15 @@ final class PortfolioTwoMigrationTest extends TestCase
              VALUES (?, 'assets/images/portfolio/zz-pf2-extra.webp', 'assets/images/portfolio/thumbs/zz-pf2-extra.webp', 0, NOW(), NOW())"
         )->execute([self::$ids['item']]);
         self::$ids['photo'] = (int) $pdo->lastInsertId();
+
+        // The overview page an existing site has, bound to the old template,
+        // and a page on another fixed route that must not move.
+        $pdo->exec("INSERT INTO pages (content_key, slug, status, is_system, route_path, created_at, updated_at)
+                    VALUES ('portfolio', NULL, 'published', 1, '/portfolio.php', NOW(), NOW())");
+        self::$ids['overview'] = (int) $pdo->lastInsertId();
+        $pdo->exec("INSERT INTO pages (content_key, slug, status, is_system, route_path, created_at, updated_at)
+                    VALUES ('zz-pf2-andere-route', NULL, 'published', 1, '/zz-pf2-andere.php', NOW(), NOW())");
+        self::$ids['other'] = (int) $pdo->lastInsertId();
     }
 
     /** @return array{0: int, 1: int} [item id, media id] */
@@ -182,6 +207,8 @@ final class PortfolioTwoMigrationTest extends TestCase
             'item' => $one('SELECT * FROM portfolio_gallery_items WHERE id = ?', self::$ids['item']),
             'words' => $one('SELECT title, intro, description FROM portfolio_item_translations WHERE portfolio_item_id = ?', self::$ids['item']),
             'photo' => $one('SELECT * FROM portfolio_item_images WHERE id = ?', self::$ids['photo']),
+            'overview' => $one('SELECT content_key, slug, status, is_system, route_path FROM pages WHERE id = ?', self::$ids['overview']),
+            'other' => $one('SELECT content_key, route_path FROM pages WHERE id = ?', self::$ids['other']),
         ];
     }
 

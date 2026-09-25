@@ -201,8 +201,10 @@ bestaande kan er niet door veranderen.
 Shop-pagina aan, noemen geen blok van een module, en gedragen zich identiek
 met de Shop uit.
 
-**Vaste legacy-URL's.** `/diensten.php`, `/portfolio.php`, `/over-mij.php` en
-`/contact.php` blijven zoals ze zijn op de installatie die ze heeft.
+**Vaste legacy-URL's.** `/diensten.php`, `/over-mij.php` en `/contact.php`
+blijven zoals ze zijn op de installatie die ze heeft; het Portfolio-overzicht
+staat sinds Portfolio 2.0 op `/portfolio`, en `/portfolio.php` stuurt daarheen
+door (`MODULES.md`).
 Sjablonen maken zulke pagina's niet en raken ze niet aan — zie hieronder. Op
 een verse installatie bestaan ze niet meer: daar levert het sjabloon *Diensten*
 een gewone pagina op `/diensten`.
@@ -223,7 +225,7 @@ tegenover `isProtected()`).
 | **Homepage** (`/`) | **Ja.** De site-root moet altijd renderen, en `homepage_hero` is exclusief voor deze pagina en niet verwijderbaar. |
 | **Shop** (`/shop.php`) | **Nee, waar hij bestaat.** Zijn `product_grid` en `shop_collections` zijn gewone Shop-blokken die hij houdt. Niet meer beschermd. Een verse installatie heeft deze pagina niet; het productoverzicht is een keuze (`MODULES.md`). |
 | **Diensten** (`/diensten.php`) | **Bijna niet.** Alleen `quicknav` bindt hem: een functioneel blok dat op `allowed_pages: ['diensten']` staat. Alle overige blokken zijn gewone, handmatig toevoegbare blokken. |
-| **Portfolio** (`/portfolio.php`) | **Nee.** Uitsluitend gewone blokken (Page Hero, Feature Grid, Portfolio-/collectiegalerij, CTA Band, Marquee). Een legacy vaste route met volledig CMS-beheerde inhoud. |
+| **Portfolio** (`/portfolio`, vroeger `/portfolio.php`) | **Nee.** Uitsluitend gewone blokken (Page Hero, Feature Grid, Portfolio-/collectiegalerij, CTA Band, Marquee). Een legacy vaste route met volledig CMS-beheerde inhoud. |
 | **Over mij** (`/over-mij.php`) | **Nee.** Uitsluitend gewone blokken. Legacy vaste route. |
 | **Contact** (`/contact.php`) | **Nee.** Uitsluitend gewone blokken (Page Hero, Offerte-/contactformulier, Contactkaart). Legacy vaste route. |
 

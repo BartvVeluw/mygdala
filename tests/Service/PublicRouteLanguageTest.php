@@ -65,7 +65,7 @@ final class PublicRouteLanguageTest extends TestCase
         'contact' => '/contact.php',
         'diensten' => '/diensten.php',
         'over-mij' => '/over-mij.php',
-        'portfolio' => '/portfolio.php',
+        'portfolio' => '/portfolio',
         'shop' => '/shop.php',
     ];
 

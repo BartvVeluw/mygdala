@@ -219,7 +219,10 @@ robots-tag op de pagina zelf: Core's paginacollector vraagt
 
 Core levert alleen `pages`; alles daarbuiten komt van een
 **ingeschakelde** module via `ModuleDefinition::sitemapCollectors()` — Portfolio
-levert zijn projectpagina's die zelf een pagina tonen, in elke taal (een item
+levert zijn projectpagina's die zelf een pagina tonen, in elke taal (het
+overzicht zelf is een CMS-pagina op `/portfolio`, met die canonical, en komt uit
+Core's paginacollector; `/portfolio.php` stuurt permanent door en is dus nooit
+een concurrerende canonical) (een item
 met een legacy-koppeling naar een gewone pagina stuurt door en staat er niet
 in; die pagina komt uit Core's paginacollector), de Shop producten
 en collecties, Personalisatie de

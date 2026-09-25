@@ -8,6 +8,19 @@ require_once __DIR__ . '/partials/public-request.php';
 // unknown slug does. Nothing below runs.
 \App\Module\ModuleGuard::requirePublicRoute('portfolio');
 
+// The overview's old address (/portfolio.php, and /<lang>/portfolio.php)
+// moved to the module root for good: a permanent redirect to /portfolio, the
+// query string kept, before anything is read or printed. A POST is answered
+// here as it always was. See App\Service\PortfolioUrls.
+$movedTo = \App\Service\PortfolioUrls::legacyOverviewRedirectUrl(
+    (string) ($_SERVER['REQUEST_URI'] ?? ''),
+    (string) ($_SERVER['REQUEST_METHOD'] ?? 'GET')
+);
+if ($movedTo !== null) {
+    header('Location: ' . $movedTo, true, \App\Service\Redirects\Redirect::STATUS_PERMANENT);
+    exit;
+}
+
 // A failed form submission is redirected back to this page, and the
 // answers the visitor typed are waiting in the public session. Reading
 // them needs session_start(), which refuses once output has begun — so

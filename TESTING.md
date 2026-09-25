@@ -858,7 +858,10 @@ De suite `modules` (`tests/Module/`) test het modulesysteem zelf:
   `MODULE_PORTFOLIO_ENABLED=true` en één met `false`
   (`Tests\Support\BuiltInServer`), dus hij draait ook zonder `php_test`.
 - `PortfolioProjectRoutingHttpTest` (suite `modules`) — Portfolio 2.0 via de
-  dispatcher (`tests/Support/dispatcher-router.php`): `/portfolio/<slug>` 200
+  dispatcher (`tests/Support/dispatcher-router.php`): `/portfolio` 200 met
+  canonical `/portfolio`, `/portfolio.php` en `/en/portfolio.php` 301 naar de
+  root in dezelfde taal met querystring, een POST niet doorgestuurd, de
+  sitemap en het kruimelpad met de root; `/portfolio/<slug>` 200
   met eigen titel, canonical, description, og:image, kruimelpad en één
   lightbox; een onbekende, verborgen of uitgeschakelde projectpagina 404; een
   hernoemd project 301 naar zijn nieuwe adres; een legacy-koppeling 302; een

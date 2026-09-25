@@ -22,6 +22,10 @@ use Tests\Support\BuiltInServer;
  * docs/multilingual/ROUTING.md), with PHP's built-in server standing in for
  * Apache via tests/Support/dispatcher-router.php.
  *
+ *   - the module root /portfolio: the overview, 200, canonical /portfolio;
+ *     the old /portfolio.php (and /en/portfolio.php): a 301 to the root in
+ *     the same language, query kept, and a POST answered where it was sent;
+ *     the sitemap and a project's breadcrumb name the root;
  *   - a visible item with its project page switched on: 200, its own words,
  *     its canonical, its breadcrumb and one lightbox group of its pictures;
  *   - an unknown slug, a hidden item, a page switched off: 404;
@@ -94,6 +98,41 @@ final class PortfolioProjectRoutingHttpTest extends TestCase
         $this->redirectSources = [];
         PortfolioGalleryContent::clearCache();
         PageContent::clearCache();
+    }
+
+    public function testTheOverviewAnswersAtTheModuleRoot(): void
+    {
+        $this->overviewPage();
+
+        $root = self::$server->request('GET', '/portfolio');
+        $this->assertSame(200, $root['status'], '/portfolio is the overview, no 404');
+        $this->assertStringContainsString('<link rel="canonical" href="' . \App\Service\AppUrl::canonical('/portfolio') . '">', $root['body'], 'its canonical is the module root');
+        $this->assertStringNotContainsString('portfolio.php', $root['body'], 'the page names its old address nowhere');
+
+
+        foreach (SiteLanguages::activeCodes() as $language) {
+            $old = \App\Service\Routing\LocalizedUrl::path('/portfolio.php', $language);
+            $response = self::$server->request('GET', $old . '?categorie=hout');
+            $this->assertSame(301, $response['status'], $old . ' moved for good');
+            $this->assertStringEndsWith(\App\Service\Routing\LocalizedUrl::path('/portfolio', $language) . '?categorie=hout', $response['location'], 'to the root in the same language, query kept');
+        }
+
+        $post = self::$server->request('POST', '/portfolio.php', null, ['anything' => '1']);
+        $this->assertNotSame(301, $post['status'], 'a POST is answered where it was sent');
+
+        $sitemap = (string) self::$server->request('GET', '/sitemap.xml')['body'];
+        $this->assertStringContainsString('<loc>' . \App\Service\AppUrl::canonical('/portfolio') . '</loc>', $sitemap);
+        $this->assertStringNotContainsString('/portfolio.php</loc>', $sitemap);
+    }
+
+    public function testAProjectsBreadcrumbAndBackLinkNameTheModuleRoot(): void
+    {
+        $this->overviewPage();
+        [, $slug] = $this->project('ZZ Kruimelpad');
+
+        $body = (string) self::$server->request('GET', '/portfolio/' . $slug)['body'];
+        $this->assertMatchesRegularExpression('#<nav[^>]*breadcrumb[\s\S]*?href="/portfolio"#', $body, 'the Portfolio level links to the root');
+        $this->assertStringContainsString('class="project-hero__back" href="/portfolio"', $body);
     }
 
     public function testAProjectPageAnswersAtItsOwnAddress(): void
@@ -213,6 +252,31 @@ final class PortfolioProjectRoutingHttpTest extends TestCase
         $this->pageIds[] = $id;
 
         return $id;
+    }
+
+    /**
+     * The overview page: the database's own when it has one (a copy of a real
+     * site, migrated to /portfolio), else one of this test's, bound to the
+     * module root the way 20260925170000 leaves an existing one.
+     */
+    private function overviewPage(): void
+    {
+        if ((new PageRepository())->findByContentKey('portfolio') !== null) {
+            return;
+        }
+
+        $id = \Tests\Support\PageFixture::create([
+            'content_key' => 'portfolio',
+            'slug' => 'zz-portfolio-' . bin2hex(random_bytes(3)),
+            'status' => PageContent::STATUS_PUBLISHED,
+        ], 'Portfolio');
+        $this->pageIds[] = $id;
+
+        Database::connection()
+            ->prepare("UPDATE pages SET is_system = 1, slug = NULL, route_path = '/portfolio' WHERE id = ?")
+            ->execute([$id]);
+        Database::connection()->prepare('UPDATE page_translations SET slug = NULL WHERE page_id = ?')->execute([$id]);
+        PageContent::clearCache();
     }
 
     private function pageCount(): int

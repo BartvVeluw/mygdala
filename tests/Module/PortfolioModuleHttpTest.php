@@ -68,8 +68,11 @@ final class PortfolioModuleHttpTest extends TestCase
 
     public static function setUpBeforeClass(): void
     {
-        self::$on = BuiltInServer::start(['MODULE_PORTFOLIO_ENABLED' => 'true']);
-        self::$off = BuiltInServer::start(['MODULE_PORTFOLIO_ENABLED' => 'false']);
+        // Through the dispatcher, so /portfolio is answered the way a visitor
+        // reaches it; every file this test asks for directly is still served
+        // as a file (tests/Support/dispatcher-router.php).
+        self::$on = BuiltInServer::start(['MODULE_PORTFOLIO_ENABLED' => 'true'], 'tests/Support/dispatcher-router.php');
+        self::$off = BuiltInServer::start(['MODULE_PORTFOLIO_ENABLED' => 'false'], 'tests/Support/dispatcher-router.php');
     }
 
     public static function tearDownAfterClass(): void
@@ -316,12 +319,17 @@ final class PortfolioModuleHttpTest extends TestCase
     {
         $page = $this->portfolioPage();
 
-        $this->assertSame(404, self::$off->request('GET', '/portfolio.php')['status']);
+        $this->assertSame(404, self::$off->request('GET', '/portfolio')['status']);
+        $this->assertSame(404, self::$off->request('GET', '/portfolio.php')['status'], 'the old address closes too, before it would redirect');
         $this->assertSame(
             PageContent::isPublished($page) ? 200 : 404,
-            self::$on->request('GET', '/portfolio.php')['status'],
-            'with the module on, the page answers as its own status says'
+            self::$on->request('GET', '/portfolio')['status'],
+            'with the module on, the page answers at the module root as its own status says'
         );
+
+        $old = self::$on->request('GET', '/portfolio.php?filter=hout');
+        $this->assertSame(301, $old['status'], 'the old address moved for good');
+        $this->assertStringEndsWith('/portfolio?filter=hout', $old['location'], 'to the module root, query kept');
     }
 
     /**
@@ -382,12 +390,14 @@ final class PortfolioModuleHttpTest extends TestCase
         $on = self::$on->request('GET', '/sitemap.php')['body'];
         $this->assertStringContainsString($projectLoc, $on);
         if (PageContent::isPublished($page)) {
-            $this->assertStringContainsString('/portfolio.php</loc>', $on);
+            $this->assertStringContainsString('/portfolio</loc>', $on, 'the overview under its module root');
         }
+        $this->assertStringNotContainsString('/portfolio.php</loc>', $on, 'never under its old address');
 
         $off = self::$off->request('GET', '/sitemap.php')['body'];
         $this->assertStringContainsString('<urlset', $off, 'the sitemap itself still answers');
         $this->assertStringNotContainsString($projectLoc, $off);
+        $this->assertStringNotContainsString('/portfolio</loc>', $off);
         $this->assertStringNotContainsString('/portfolio.php</loc>', $off);
     }
 
@@ -559,7 +569,7 @@ final class PortfolioModuleHttpTest extends TestCase
     }
 
     /**
-     * The page /portfolio.php serves. A test database copied from a real site
+     * The page /portfolio serves. A test database copied from a real site
      * has one, and it is left exactly as it is; otherwise this test makes one
      * of its own, bound to that template like the historical row.
      *
@@ -585,7 +595,7 @@ final class PortfolioModuleHttpTest extends TestCase
         // PageRepository::create() never writes a fixed route — only the
         // migrations do. This fixture needs one, so it sets it the same way.
         Database::connection()
-            ->prepare("UPDATE pages SET is_system = 1, route_path = '/portfolio.php' WHERE id = :id")
+            ->prepare("UPDATE pages SET is_system = 1, route_path = '/portfolio' WHERE id = :id")
             ->execute(['id' => $id]);
 
         PageContent::clearCache();

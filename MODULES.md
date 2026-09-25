@@ -515,7 +515,8 @@ houdt.
 
 Eigen tabellen, eigen admin (`admin/portfolio.php`, `admin/portfolio-item.php`,
 `api/admin/*portfolio*.php` en `move-featured-gallery-item.php`), eigen
-categorietaxonomie, eigen publieke routes (`/portfolio.php` en de
+categorietaxonomie, eigen publieke routes (het overzicht `/portfolio`, het oude
+`/portfolio.php` dat daarheen doorstuurt, en de
 projectpagina's `/portfolio/<slug>` via `portfolio-detail.php`), de
 galerijbron `portfolio` en het blok Projecten. Alles loopt via
 `src/Module/PortfolioModule.php`; Core
@@ -676,14 +677,34 @@ inleiding, beschrijving en galerij op het item, zet *Projectpagina tonen* aan,
 ontkoppel de pagina, en zet eventueel zelf een redirect van het oude
 paginaadres naar `/portfolio/<slug>` in de Redirect Manager.
 
+**De module-root.** Het publieke routecontract van Portfolio is:
+
+| Adres | Antwoord |
+|---|---|
+| `/portfolio` | het Portfolio-overzicht (route `portfolio.index`), canonical `/portfolio` |
+| `/portfolio/<slug>` | een projectpagina (route `portfolio.project`) |
+| `/portfolio.php` | een permanente redirect (301) naar `/portfolio`, in dezelfde taal, querystring behouden; een POST wordt beantwoord waar hij heen ging (route `portfolio.index.file`, `App\Service\PortfolioUrls`) |
+
+Het overzicht is de CMS-pagina met content key `portfolio`, en haar
+`route_path` is sinds migratie `20260925170000` `/portfolio` in plaats van
+`/portfolio.php`. Omdat alles wat die pagina adresseert haar `route_path` leest
+— canonical, hreflang, sitemap, een menu- of footerlink, het Portfolio-niveau
+in het kruimelpad van een projectpagina, *Terug naar portfolio* — verhuizen
+die in één keer mee, zonder dat er ergens een link wordt herschreven. Een
+getypt `/portfolio.php` in inhoud, een bladwijzer of een zoekresultaat komt via
+de 301 in één stap aan. Alle drie de routes staan vóór de catch-all van
+Pagina's 2.0, en `portfolio` is gereserveerd, dus `/portfolio` kan nooit als
+pagina of als `{slug}` gelezen worden.
+
 **Het `portfolio`-woord en `portfolio-2`.** `portfolio` is geen paginarij maar
-een woord dat deze module reserveert (`reservedSlugs()`: het template
-`/portfolio.php` en de naamruimte `/portfolio/…`), ook als de module uit staat.
+een woord dat deze module reserveert (`reservedSlugs()`: de module-root, het
+template `/portfolio.php` en de naamruimte `/portfolio/…`), ook als de module
+uit staat.
 Een pagina met de titel *Portfolio* kreeg daarom stil `/portfolio-2`. Sinds
 Portfolio 2.0 noemt de weigering de eigenaar (`ReservedRoutes::moduleReserving()`),
 en een nieuwe pagina waarvan het automatische adres moest uitwijken, zegt op
-haar eigen scherm waarom. Het overzicht `/portfolio.php` is nog steeds de
-CMS-pagina met content key `portfolio`; een nieuwe installatie heeft die niet,
+haar eigen scherm waarom. Het overzicht `/portfolio` is de CMS-pagina met
+content key `portfolio`; een nieuwe installatie heeft die niet,
 en een keuze "welke pagina is het Portfolio-overzicht" (zoals
 `ShopOverview` voor de Shop) is een aparte uitbreiding.
 
@@ -715,13 +736,13 @@ Waarom het toch een eigen bloktype is, staat in
 
 Uit betekent: geen zijbalk-item; geen houdbare `portfolio.manage`, dus beide
 schermen en elk schrijfendpoint weigeren op hun bestaande permissiecheck; een
-404 op `/portfolio.php` en `/portfolio/<slug>` via `ModuleGuard`; geen
+404 op `/portfolio`, `/portfolio.php` en `/portfolio/<slug>` via `ModuleGuard`; geen
 sitemapregels; geen gebruik in de Mediabibliotheek (de rijen blijven, en de
 `RESTRICT`-sleutels houden een gebruikte afbeelding toch vast); geen blok Projecten in de kiezer, en een geplaatst blok
 Projecten dat niets toont, zijn instellingen houdt en in de page builder *Blok
 van een uitgeschakeld onderdeel* heet (zijn editor en endpoint antwoorden 404);
 en een galerijblok met portfolio-items dat zijn instellingen houdt en niets
-toont. De CMS-pagina achter `/portfolio.php` blijft bestaan en
+toont. De CMS-pagina achter `/portfolio` blijft bestaan en
 bewerkbaar, maar geldt als geserveerd door een uitgeschakelde module
 (`publicPaths()`), dus de sitemap, een menulink en een redirect laten hem los.
 Een legacy-pagina waar een item naar linkt, hoort bij Core: die blijft

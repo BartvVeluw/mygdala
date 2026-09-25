@@ -94,7 +94,10 @@ final class LegacyUpgradeTest extends TestCase
         $this->assertSame('/', $routes['index']);
         $this->assertSame('/shop.php', $routes['shop']);
         $this->assertSame('/diensten.php', $routes['diensten']);
-        $this->assertSame('/portfolio.php', $routes['portfolio']);
+        // The one route that moved on purpose: the Portfolio overview answers
+        // at its module root since Portfolio 2.0 (20260925170000), and
+        // /portfolio.php redirects there.
+        $this->assertSame('/portfolio', $routes['portfolio']);
         $this->assertSame('/over-mij.php', $routes['over-mij']);
         $this->assertSame('/contact.php', $routes['contact']);
         $this->assertNull($routes['privacyverklaring'], 'The legal pages are ordinary CMS pages, not fixed routes.');
