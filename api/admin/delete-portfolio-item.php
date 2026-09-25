@@ -8,8 +8,10 @@
  * picture is an old one on Portfolio's own path — a Media Library picture
  * stays in the library, only the reference goes), plus every
  * portfolio_item_images row — the FK's ON DELETE CASCADE removes those rows
- * automatically, but the files they reference on disk are only removed by
- * this loop first (the database cascade doesn't touch the filesystem).
+ * automatically. Of the files they reference, only an old photo on
+ * Portfolio's own path (media_id NULL) is removed by the loop below (the
+ * database cascade doesn't touch the filesystem); a photo from the Media
+ * Library stays in the library, like the main picture.
  *
  * ITS WORDS GO WITH IT, in every language, and so do its photos' alt texts:
  * portfolio_item_translations and portfolio_item_image_translations both hang
@@ -76,7 +78,9 @@ try {
     }
 
     foreach ($extraImages as $extraImage) {
-        $imageProcessor->delete((string) $extraImage['image_path'], $extraImage['thumbnail_path'] ?? null);
+        if ((int) ($extraImage['media_id'] ?? 0) === 0) {
+            $imageProcessor->delete((string) $extraImage['image_path'], $extraImage['thumbnail_path'] ?? null);
+        }
     }
 
     PortfolioGalleryContent::clearCache();

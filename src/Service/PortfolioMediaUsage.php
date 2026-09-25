@@ -16,13 +16,18 @@ use App\Service\Media\MediaUsageProvider;
  * App\Service\Blog\BlogPostMediaUsage.
  *
  * Since Media Library 2.0 an item's picture is a library item
- * (portfolio_gallery_items.media_id). This is what keeps that picture from
- * being deleted while an item still shows it: the library refuses to delete
- * an item any provider reports, and the RESTRICT foreign key is the database's
- * backstop underneath. An item from before the library (media_id NULL) uses
- * no library item and is not reported.
+ * (portfolio_gallery_items.media_id), and since Portfolio 2.0 so is every
+ * extra photo of its project page (portfolio_item_images.media_id). Both are
+ * reported, each as its own use, so the library's dependency list says which
+ * item shows the picture and whether as its main image or in its gallery.
+ * This is what keeps that picture from being deleted while an item still
+ * shows it: the library refuses to delete an item any provider reports, and
+ * the RESTRICT foreign keys are the database's backstop underneath. A picture
+ * from before the library (media_id NULL) uses no library item and is not
+ * reported.
  *
- * ONE QUERY FOR THE WHOLE BATCH, the contract every provider follows.
+ * ONE QUERY FOR THE WHOLE BATCH, the contract every provider follows: the
+ * two tables are read in one UNION.
  *
  * WHO READS THE TITLE: only an administrator who may open the item
  * (portfolio.manage, the permission admin/portfolio-item.php demands);
@@ -52,23 +57,40 @@ final class PortfolioMediaUsage extends MediaUsageProvider
             return [];
         }
 
+        $placeholders = $this->placeholders(count($ids));
         $stmt = Database::connection()->prepare(
-            'SELECT id, media_id FROM portfolio_gallery_items WHERE media_id IN (' . $this->placeholders(count($ids)) . ')'
+            "SELECT id AS item_id, media_id, 'main' AS role FROM portfolio_gallery_items WHERE media_id IN ({$placeholders})
+             UNION ALL
+             SELECT portfolio_item_id AS item_id, media_id, 'gallery' AS role FROM portfolio_item_images WHERE media_id IN ({$placeholders})
+             ORDER BY item_id, role DESC"
         );
-        $stmt->execute($ids);
+        $stmt->execute([...$ids, ...$ids]);
         $rows = $stmt->fetchAll();
 
-        PortfolioLocalization::preloadItems(array_map(static fn (array $row): int => (int) $row['id'], $rows));
+        PortfolioLocalization::preloadItems(array_values(array_unique(array_map(static fn (array $row): int => (int) $row['item_id'], $rows))));
 
         $usages = [];
+        $seen = [];
 
         foreach ($rows as $row) {
-            $itemId = (int) $row['id'];
-            $title = PortfolioLocalization::itemName($itemId);
+            $itemId = (int) $row['item_id'];
+            $mediaId = (int) $row['media_id'];
+            $role = (string) $row['role'];
 
-            $usages[(int) $row['media_id']][] = new MediaUsage(
+            // One use per item and role: a picture that is twice in the same
+            // gallery is still one place to go and change it.
+            $key = $mediaId . ':' . $itemId . ':' . $role;
+            if (isset($seen[$key])) {
+                continue;
+            }
+            $seen[$key] = true;
+
+            $title = PortfolioLocalization::itemName($itemId);
+            $name = 'Portfolio: ' . ($title !== '' ? $title : '#' . $itemId);
+
+            $usages[$mediaId][] = new MediaUsage(
                 source: $this->key(),
-                label: 'Portfolio: ' . ($title !== '' ? $title : '#' . $itemId),
+                label: $role === 'gallery' ? $name . ' (galerij)' : $name,
                 permission: PortfolioModule::PORTFOLIO_MANAGE,
                 editUrl: '/admin/portfolio-item.php?id=' . $itemId,
             );

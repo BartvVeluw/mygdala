@@ -367,6 +367,7 @@
             <file>tests/Install/MediaLibraryTwoMigrationTest.php</file>
             <file>tests/Install/HeaderButtonMigrationTest.php</file>
             <file>tests/Install/FooterSocialLinkMigrationTest.php</file>
+            <file>tests/Install/PortfolioTwoMigrationTest.php</file>
             <file>tests/Install/SiteLanguageRegistryMigrationTest.php</file>
             <file>tests/Install/PageTranslationMigrationTest.php</file>
             <file>tests/Install/LocalizedSlugMigrationTest.php</file>
@@ -581,6 +582,7 @@
             <file>tests/Install/MediaLibraryTwoMigrationTest.php</file>
             <file>tests/Service/MediaLibraryTest.php</file>
             <file>tests/Service/SettingsNavigationHttpTest.php</file>
+            <file>tests/Install/PortfolioTwoMigrationTest.php</file>
             <file>tests/Service/Media/SvgSanitizerTest.php</file>
             <file>tests/Service/Media/SvgUploadRoutesTest.php</file>
             <file>tests/Service/Media/SvgAuditTest.php</file>
