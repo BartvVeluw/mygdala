@@ -153,6 +153,35 @@ class PageServiceTest extends TestCase
     }
 
     /**
+     * A reserved word is refused with a reason an editor can act on: the
+     * module that owns it, also while that module is off ("portfolio" is the
+     * Portfolio's), else the website's own route. And a page titled
+     * "Portfolio" whose address therefore became /portfolio-2 is told why,
+     * instead of discovering a mysterious -2.
+     */
+    public function testAReservedWordIsExplainedByWhoOwnsIt(): void
+    {
+        $portfolio = (string) PageService::validateSlug($this->repository, 'portfolio', null, $this->defaultLanguage());
+        $this->assertStringContainsString('Portfolio', $portfolio, 'the owning module is named');
+        $this->assertStringContainsString('/portfolio', $portfolio);
+        $this->assertSame(\App\Service\ReservedRoutes::moduleReserving('portfolio')?->key(), 'portfolio');
+
+        $core = (string) PageService::validateSlug($this->repository, 'admin', null, $this->defaultLanguage());
+        $this->assertNull(\App\Service\ReservedRoutes::moduleReserving('admin'));
+        $this->assertStringContainsString('/admin', $core);
+
+        $generated = PageService::generateSlug($this->repository, 'Portfolio', $this->defaultLanguage());
+        $this->assertNotSame('portfolio', $generated);
+        $notice = PageService::generatedSlugNotice('Portfolio', $generated);
+        $this->assertNotNull($notice);
+        $this->assertStringContainsString($portfolio, (string) $notice, 'the same reason');
+        $this->assertStringContainsString('/' . $generated, (string) $notice, 'and the address it got instead');
+
+        $this->assertNull(PageService::generatedSlugNotice('ZZ Gewone titel', 'zz-gewone-titel'));
+        $this->assertNull(PageService::generatedSlugNotice('', 'pagina'));
+    }
+
+    /**
      * A LANGUAGE CODE can never be a page slug: /en would be
      * indistinguishable from the English prefix, and the dispatcher peels the
      * prefix first — so the page would simply be unreachable

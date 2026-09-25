@@ -8,6 +8,7 @@ use App\Repository\FooterRepository;
 use App\Repository\NavigationRepository;
 use App\Repository\PageRepository;
 use App\Repository\PageSectionRepository;
+use App\Service\Language\AdminTranslator;
 use App\Service\Routing\ReservedPaths;
 
 /**
@@ -90,7 +91,7 @@ class PageService
         string $languageCode
     ): ?string {
         if (ReservedPaths::isReserved($slug)) {
-            return 'Deze slug is gereserveerd voor een bestaande pagina/route van de website en kan niet worden gebruikt.';
+            return self::reservedSlugMessage($slug);
         }
 
         if (self::slugIsTaken($repository, $slug, $languageCode, $excludeId)) {
@@ -98,6 +99,43 @@ class PageService
         }
 
         return null;
+    }
+
+    /**
+     * Why a reserved word cannot be a page's address, in words an editor can
+     * act on: which module owns it, when a module does (the Portfolio owns
+     * `portfolio`, also while it is off), else that the website itself uses
+     * it. Before this an editor was only told "gereserveerd", or, for an
+     * address made from the title, silently handed "portfolio-2".
+     */
+    public static function reservedSlugMessage(string $slug): string
+    {
+        $module = ReservedRoutes::moduleReserving($slug);
+
+        return $module !== null
+            ? AdminTranslator::trans('validation.slug_reserved_by_module', ['slug' => $slug, 'module' => $module->label()])
+            : AdminTranslator::trans('validation.slug_reserved_by_site', ['slug' => $slug]);
+    }
+
+    /**
+     * What an editor is told after generateSlug() had to move away from the
+     * title's own address because that word is reserved — "Portfolio" became
+     * /portfolio-2 — or null when the address is simply the title's. Said on
+     * the new page's screen (api/admin/create-page.php), so the -2 is never
+     * a mystery.
+     */
+    public static function generatedSlugNotice(string $title, string $generated): ?string
+    {
+        $base = substr(self::sanitizeSlug($title), 0, self::MAX_SLUG_LENGTH - 10);
+
+        if ($base === '' || $base === $generated || !ReservedPaths::isReserved($base)) {
+            return null;
+        }
+
+        return AdminTranslator::trans('page.slug_reserved_notice', [
+            'reason' => self::reservedSlugMessage($base),
+            'slug' => $generated,
+        ]);
     }
 
     /**

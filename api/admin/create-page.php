@@ -116,8 +116,11 @@ if (!PageContent::isValidStatus($status)) {
 }
 
 $slug = '';
+$slugNotice = null;
 if ($slugInput === '' || $slugIsAutomatic) {
     $slug = $title !== '' ? PageService::generateSlug($repository, $title, $pageLanguage) : '';
+    // "Portfolio" cannot be /portfolio: say why it became /portfolio-2.
+    $slugNotice = $slug !== '' ? PageService::generatedSlugNotice($title, $slug) : null;
 } else {
     $slug = PageService::sanitizeSlug($slugInput);
     if ($slug === '') {
@@ -184,6 +187,10 @@ try {
     $_SESSION['admin_page_old'] = $old;
     header('Location: /admin/page-new.php');
     exit;
+}
+
+if ($slugNotice !== null) {
+    $_SESSION['admin_page_notice'] = $slugNotice;
 }
 
 header('Location: /admin/page.php?id=' . $id . '&created=1');

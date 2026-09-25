@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Service;
 
+use App\Module\ModuleDefinition;
 use App\Module\ModuleRegistry;
 
 /**
@@ -115,5 +116,22 @@ class ReservedRoutes
     public static function isReserved(string $slug): bool
     {
         return in_array($slug, self::all(), true);
+    }
+
+    /**
+     * The module that reserves this word, enabled or not, or null when it is
+     * Core's own or not reserved at all. Only for explaining a refusal to an
+     * editor: "portfolio" is the Portfolio module's, so a page cannot have it
+     * even while that module is off (App\Service\PageService).
+     */
+    public static function moduleReserving(string $slug): ?ModuleDefinition
+    {
+        foreach (ModuleRegistry::all() as $module) {
+            if (in_array($slug, $module->reservedSlugs(), true)) {
+                return $module;
+            }
+        }
+
+        return null;
     }
 }

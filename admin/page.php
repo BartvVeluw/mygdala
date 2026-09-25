@@ -188,6 +188,10 @@ $pagesError = $_SESSION['admin_pages_error'] ?? null;
 unset($_SESSION['admin_pages_error']);
 
 $created = isset($_GET['created']);
+// A word said once after the save that created this page, such as why its
+// address is not the title's (App\Service\PageService::generatedSlugNotice()).
+$pageNotice = $_SESSION['admin_page_notice'] ?? null;
+unset($_SESSION['admin_page_notice']);
 $updated = isset($_GET['updated']);
 $deletedSection = isset($_GET['deleted']);
 
@@ -349,6 +353,9 @@ $urlFieldOpen = !$hasFixedUrl
 
   <?php if ($created): ?>
     <p class="admin-alert admin-alert--success"><?= admin_te('page.pagina_aangemaakt_voeg_hieronder') ?></p>
+  <?php endif; ?>
+  <?php if (is_string($pageNotice) && $pageNotice !== ''): ?>
+    <p class="admin-alert admin-alert--warning"><?= $h($pageNotice) ?></p>
   <?php endif; ?>
   <?php if ($updated): ?>
     <p class="admin-alert admin-alert--success"><?= admin_te('page.pagina_instellingen_opgeslagen') ?></p>
