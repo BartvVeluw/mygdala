@@ -101,6 +101,29 @@ final class FormValidator
             }
         }
 
+        // A form that keeps nothing delivers its files by e-mail and nowhere
+        // else: a file that does not fit the message would be lost the moment
+        // the visitor is thanked. So for such a form the accepted files
+        // together may not exceed what one notification carries — the same
+        // budget the notification itself uses
+        // (FormSubmissionHandler::MAIL_ATTACHMENT_BUDGET). A form that keeps
+        // its submissions has no such limit: what does not fit the e-mail
+        // stays downloadable in the CMS.
+        if (!$form->storesSubmissions && $uploads !== []) {
+            $total = array_sum(array_map(static fn (FormUpload $upload): int => $upload->size, $uploads));
+
+            if ($total > FormSubmissionHandler::MAIL_ATTACHMENT_BUDGET) {
+                $budget = FormFileTypes::sizeLabel(FormSubmissionHandler::MAIL_ATTACHMENT_BUDGET);
+
+                foreach (array_keys($uploads) as $key) {
+                    $errors[$key] = SiteText::pick([
+                        'nl' => 'De bestanden zijn samen te groot om te versturen: samen mogen ze maximaal ' . $budget . ' zijn. Kies kleinere bestanden of laat er een weg.',
+                        'en' => 'The files are too large to send together: together they may be at most ' . $budget . '. Choose smaller files or leave one out.',
+                    ]);
+                }
+            }
+        }
+
         return new FormValidationResult($values, $errors, $uploads);
     }
 

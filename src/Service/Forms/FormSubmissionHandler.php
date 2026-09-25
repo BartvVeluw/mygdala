@@ -56,6 +56,11 @@ final class FormSubmissionHandler
      * a file is named in the e-mail but not attached (FORMS.md, "E-mail"):
      * common mail servers refuse a message of 25 MB, and base64 makes 15 MB
      * about 20.
+     *
+     * THE one definition of this limit. FormValidator applies it too, to a
+     * form that keeps no submissions: there the e-mail is the only delivery,
+     * so files that together exceed it are refused before anything is
+     * stored or sent, rather than lost.
      */
     public const MAIL_ATTACHMENT_BUDGET = 15 * 1024 * 1024;
 

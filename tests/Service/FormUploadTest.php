@@ -299,6 +299,43 @@ final class FormUploadTest extends TestCase
         $this->assertSame($result->errorFor('naam'), $redirect['naam']);
     }
 
+    /**
+     * A form that keeps nothing delivers its files only by e-mail, so the
+     * accepted files together may not exceed the notification's budget:
+     * under it and exactly on it pass, one byte over is refused beside every
+     * file. A form that keeps its submissions has no such limit.
+     */
+    public function testAFormThatKeepsNothingLimitsItsFilesTogetherToTheMailBudget(): void
+    {
+        $budget = FormSubmissionHandler::MAIL_ATTACHMENT_BUDGET;
+        $half = intdiv($budget, 2);
+        if (FormFileTypes::systemMaxBytes() < $half + 1) {
+            $this->markTestSkipped('PHP here takes no single file of half the mail budget');
+        }
+
+        $fields = [$this->fieldRow('a', false, ['pdf'], FormFileTypes::MAX_BYTES), $this->fieldRow('b', false, ['pdf'], FormFileTypes::MAX_BYTES)];
+        $mailOnly = $this->form($fields);
+        $stores = $this->form($fields, true);
+        $files = fn (int $a, int $b): array => ['a' => $this->entry('a.pdf', $this->pdfOf($a)), 'b' => $this->entry('b.pdf', $this->pdfOf($b))];
+
+        $under = $this->validator()->validate($mailOnly, [], $files(5 * 1024 * 1024, 5 * 1024 * 1024));
+        $this->assertTrue($under->isValid(), 'under the budget');
+
+        $exact = $this->validator()->validate($mailOnly, [], $files($half, $budget - $half));
+        $this->assertTrue($exact->isValid(), 'exactly on the budget');
+        $this->assertSame($budget, $exact->uploads['a']->size + $exact->uploads['b']->size);
+
+        $over = $this->validator()->validate($mailOnly, [], $files($half, $budget - $half + 1));
+        $this->assertFalse($over->isValid(), 'one byte over');
+        foreach (['a', 'b'] as $key) {
+            $this->assertStringContainsString('samen te groot', (string) $over->errorFor($key));
+            $this->assertStringContainsString(FormFileTypes::sizeLabel($budget), (string) $over->errorFor($key));
+        }
+        $this->assertSame($over->errors, $over->errorsAfterRedirect($mailOnly), 'no reselect note hides the reason');
+
+        $this->assertTrue($this->validator()->validate($stores, [], $files($half, $budget - $half + 1))->isValid(), 'a form that keeps its submissions keeps the rest in the CMS');
+    }
+
     // ------------------------------------------------------------ the control
 
     public function testTheControlIsAFileInputWithItsRules(): void
@@ -392,6 +429,12 @@ final class FormUploadTest extends TestCase
         return $path;
     }
 
+    /** A PDF of exactly $bytes bytes. */
+    private function pdfOf(int $bytes): string
+    {
+        return str_pad("%PDF-1.4\n", $bytes, 'x');
+    }
+
     /** A real, tiny file of one kind. */
     private function bytes(string $kind): string
     {
@@ -420,7 +463,7 @@ final class FormUploadTest extends TestCase
     /**
      * @param list<array<string, mixed>> $fields
      */
-    private function form(array $fields): FormDefinition
+    private function form(array $fields, bool $storesSubmissions = false): FormDefinition
     {
         $words = static fn (string $nl): array => ['nl' => ['submit_label' => $nl, 'success_message' => 'Bedankt.']];
 
@@ -431,7 +474,7 @@ final class FormUploadTest extends TestCase
             'is_active' => 1,
             'notification_email' => null,
             'reply_to_field_key' => null,
-            'store_submissions' => 0,
+            'store_submissions' => $storesSubmissions ? 1 : 0,
             'translations' => $words('Versturen'),
         ], $fields);
     }

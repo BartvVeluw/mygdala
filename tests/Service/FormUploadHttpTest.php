@@ -9,6 +9,7 @@ use App\Mail\FormSubmissionBuilder;
 use App\Repository\FormRepository;
 use App\Repository\FormSubmissionRepository;
 use App\Service\Forms\FormCatalog;
+use App\Service\Forms\FormFileTypes;
 use App\Service\Forms\FormRenderState;
 use App\Service\Forms\FormSpamGuard;
 use App\Service\Routing\RequestLanguage;
@@ -47,6 +48,9 @@ final class FormUploadHttpTest extends TestCase
 
     private static ?BuiltInServer $small = null;
 
+    /** The same, with this environment's own mail server: where a form that keeps nothing can succeed. */
+    private static ?BuiltInServer $mailing = null;
+
     private static string $storage = '';
 
     private AdminTestSession $accounts;
@@ -68,14 +72,17 @@ final class FormUploadHttpTest extends TestCase
 
         self::$server = BuiltInServer::start($environment);
         self::$small = BuiltInServer::start($environment, null, ['post_max_size' => '1M', 'upload_max_filesize' => '512K', 'display_errors' => '0']);
+        self::$mailing = BuiltInServer::start(['CONTACT_ATTACHMENTS_PATH' => self::$storage]);
     }
 
     public static function tearDownAfterClass(): void
     {
         self::$server?->stop();
         self::$small?->stop();
+        self::$mailing?->stop();
         self::$server = null;
         self::$small = null;
+        self::$mailing = null;
 
         foreach (glob(self::$storage . '/contact-attachments/*') ?: [] as $file) {
             unlink($file);
@@ -279,6 +286,98 @@ final class FormUploadHttpTest extends TestCase
         $this->assertSame([], $this->submissions($formId));
     }
 
+    // ------------------------------------- a form that keeps nothing: the mail budget
+
+    /**
+     * A form that keeps nothing delivers its files only by e-mail. Files that
+     * together exceed what one notification carries
+     * (FormSubmissionHandler::MAIL_ATTACHMENT_BUDGET) are refused before
+     * anything happens — no thanks, no submission, no file, no row — to
+     * fetch() and to a browser without JavaScript alike.
+     */
+    public function testAFormThatKeepsNothingRefusesFilesTogetherOverTheMailBudget(): void
+    {
+        [$budget, $half] = $this->budget();
+        $formId = $this->createForm(store: false, maxBytes: FormFileTypes::MAX_BYTES, secondUpload: true);
+        $storedBefore = $this->storedFiles();
+        $rowsBefore = $this->attachmentRows();
+        $files = fn (): array => ['bijlage' => $this->file('a.pdf', $this->pdfOf($half)), 'tekening' => $this->file('b.pdf', $this->pdfOf($budget - $half + 1))];
+
+        $json = $this->submit($formId, $files());
+        $body = json_decode($json['body'], true);
+        $this->assertSame(422, $json['status'], $json['body']);
+        $this->assertFalse($body['ok']);
+        foreach (['bijlage', 'tekening'] as $key) {
+            $this->assertStringContainsString('samen te groot', (string) ($body['errors'][$key] ?? ''), $key);
+        }
+
+        $this->clearRateLimit();
+        $plain = $this->submit($formId, $files(), [], false);
+        $this->assertSame(303, $plain['status']);
+        $this->assertStringContainsString('form-status=error', $plain['location'], 'no success status');
+
+        $this->assertSame([], $this->submissions($formId));
+        $this->assertSame($storedBefore, $this->storedFiles(), 'no file left behind');
+        $this->assertSame($rowsBefore, $this->attachmentRows(), 'no attachment row left behind');
+    }
+
+    /** Under the budget and exactly on it, a form that keeps nothing mails its files and keeps none. */
+    public function testAFormThatKeepsNothingAcceptsFilesUpToTheMailBudget(): void
+    {
+        [$budget, $half] = $this->budget();
+        $this->requireMailingServer();
+        $formId = $this->createForm(store: false, maxBytes: FormFileTypes::MAX_BYTES, secondUpload: true);
+        $storedBefore = $this->storedFiles();
+        $rowsBefore = $this->attachmentRows();
+
+        foreach (['under' => [1024 * 1024, 1024 * 1024], 'exactly on' => [$half, $budget - $half]] as $label => [$a, $b]) {
+            $this->clearRateLimit();
+            $response = $this->submit($formId, ['bijlage' => $this->file('a.pdf', $this->pdfOf($a)), 'tekening' => $this->file('b.pdf', $this->pdfOf($b))], [], true, self::$mailing);
+
+            $this->assertSame(200, $response['status'], $label . ': ' . $response['body']);
+            $this->assertTrue(json_decode($response['body'], true)['ok'] ?? null, $label);
+        }
+
+        $this->assertSame([], $this->submissions($formId), 'it keeps nothing');
+        $this->assertSame($storedBefore, $this->storedFiles(), 'the mailed files are not kept either');
+        $this->assertSame($rowsBefore, $this->attachmentRows());
+    }
+
+    /**
+     * A form that keeps its submissions may take more than the mail carries:
+     * every file stays downloadable with the submission, and only the e-mail
+     * leaves the rest out (FormSubmissionHandler::mailAttachments(), proven
+     * in FormUploadTest).
+     */
+    public function testAFormThatKeepsItsSubmissionsTakesMoreThanTheMailBudget(): void
+    {
+        [$budget, $half] = $this->budget();
+        $formId = $this->createForm(maxBytes: FormFileTypes::MAX_BYTES, secondUpload: true);
+        $a = $this->pdfOf($half);
+        $b = $this->pdfOf($budget - $half + 1024);
+
+        $response = $this->submit($formId, ['bijlage' => $this->file('a.pdf', $a), 'tekening' => $this->file('b.pdf', $b)]);
+        $this->assertSame(200, $response['status'], $response['body']);
+
+        [$submission] = $this->submissions($formId);
+        $files = (new FormSubmissionRepository())->attachmentsFor((int) $submission['id']);
+        $this->assertSame(['bijlage', 'tekening'], array_column($files, 'field_key'));
+        $this->assertGreaterThan($budget, array_sum(array_map('intval', array_column($files, 'file_size'))));
+
+        [$session] = $this->accounts->signIn(['forms.submissions']);
+        foreach ($files as $index => $file) {
+            $download = self::$server->request('GET', $this->downloadUrl((int) $submission['id'], (int) $file['id']), $session);
+            $this->assertSame(200, $download['status']);
+            $this->assertSame([$a, $b][$index], $download['body'], (string) $file['field_key'] . ' is downloadable');
+        }
+
+        [, $leftOut] = \App\Service\Forms\FormSubmissionHandler::mailAttachments(array_map(
+            static fn (array $file): array => ['field_key' => (string) $file['field_key'], 'size' => (int) $file['file_size'], 'path' => '', 'mail_name' => '', 'mime' => ''],
+            $files
+        ));
+        $this->assertSame(['tekening'], $leftOut, 'the e-mail leaves out what does not fit, as before');
+    }
+
     // ------------------------------------------------------------- downloading
 
     public function testAnAdministratorDownloadsTheFileAsAnAttachment(): void
@@ -443,7 +542,7 @@ final class FormUploadHttpTest extends TestCase
 
     // ---------------------------------------------------------------- helpers
 
-    private function createForm(bool $required = false, int $maxBytes = 5 * 1024 * 1024, bool $store = true): int
+    private function createForm(bool $required = false, int $maxBytes = 5 * 1024 * 1024, bool $store = true, bool $secondUpload = false): int
     {
         $id = $this->forms->create([
             'name' => 'Uploadtest',
@@ -457,6 +556,9 @@ final class FormUploadHttpTest extends TestCase
 
         FormFixture::formWords($id, ['nl' => ['submit_label' => 'Verstuur', 'success_message' => 'Bedankt.']]);
         FormFixture::field($id, ['field_key' => 'bijlage', 'field_type' => 'file', 'is_required' => $required, 'layout_width' => 'half', 'file_types' => ['jpg', 'png', 'pdf'], 'file_max_bytes' => $maxBytes], ['nl' => ['label' => 'Bijlage']]);
+        if ($secondUpload) {
+            FormFixture::field($id, ['field_key' => 'tekening', 'field_type' => 'file', 'is_required' => false, 'layout_width' => 'half', 'file_types' => ['pdf'], 'file_max_bytes' => $maxBytes], ['nl' => ['label' => 'Tekening']]);
+        }
         FormFixture::field($id, ['field_key' => 'naam', 'field_type' => 'text', 'is_required' => true], ['nl' => ['label' => 'Naam']]);
 
         return $id;
@@ -529,6 +631,50 @@ final class FormUploadHttpTest extends TestCase
         $this->uploads[] = $path;
 
         return new \CURLFile($path, 'application/octet-stream', $name);
+    }
+
+    /** A PDF of exactly $bytes bytes. */
+    private function pdfOf(int $bytes): string
+    {
+        return str_pad("%PDF-1.4\n", $bytes, 'x');
+    }
+
+    /**
+     * The mail budget and half of it, rounded down; skips where PHP takes no
+     * single file that large (each file must pass its field on its own).
+     *
+     * @return array{0: int, 1: int}
+     */
+    private function budget(): array
+    {
+        $budget = \App\Service\Forms\FormSubmissionHandler::MAIL_ATTACHMENT_BUDGET;
+        $half = intdiv($budget, 2);
+
+        if (FormFileTypes::systemMaxBytes() < $budget - $half + 1024) {
+            $this->markTestSkipped('PHP here takes no single file of half the mail budget');
+        }
+
+        return [$budget, $half];
+    }
+
+    /** Every attachment row there is, by id: nothing may be left behind. */
+    private function attachmentRows(): int
+    {
+        return (int) Database::connection()->query('SELECT COUNT(*) FROM form_submission_attachments')->fetchColumn();
+    }
+
+    /** A server with this environment's own mail settings, whose mail server answers. */
+    private function requireMailingServer(): void
+    {
+        $host = (string) ($_ENV['MAIL_HOST'] ?? getenv('MAIL_HOST') ?: '');
+        $port = (int) ($_ENV['MAIL_PORT'] ?? getenv('MAIL_PORT') ?: 0);
+        $socket = $host === '' || $port < 1 ? false : @fsockopen($host, $port, $errorCode, $errorMessage, 1.0);
+
+        if (self::$mailing === null || !self::$mailing->answers() || $socket === false) {
+            $this->markTestSkipped('no reachable mail server here, and a form that keeps nothing can only succeed by sending');
+        }
+
+        fclose($socket);
     }
 
     private function pdf(): string

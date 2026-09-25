@@ -500,11 +500,19 @@ Elk bestand gaat als **echte bijlage** mee met de melding, in de volgorde van
 de velden, onder een generieke naam (`<veldsleutel>.<extensie>`), zolang de
 bijlagen samen binnen 15 MB blijven
 (`FormSubmissionHandler::MAIL_ATTACHMENT_BUDGET`; base64 maakt daar ongeveer
-20 MB van, en veel mailservers weigeren 25). Een bestand dat niet meer past,
-wordt bij zijn antwoord genoemd: *niet bijgevoegd, te groot voor deze e-mail;
-te downloaden bij de inzending in het CMS*, of — als het formulier niets
-bewaart — dat het bestand niet bewaard is. Met één uploadveld (maximaal 10 MB)
-past het altijd. Er gaat geen link naar het CMS mee in de melding.
+20 MB van, en veel mailservers weigeren 25). Er gaat geen link naar het CMS
+mee in de melding.
+
+Wat er gebeurt met bestanden die samen meer zijn, hangt af van of het
+formulier zijn inzendingen bewaart:
+
+| Formulier | Bestanden samen boven de 15 MB |
+|---|---|
+| **Bewaart inzendingen** | Toegestaan, zolang elk bestand binnen zijn veld- en systeemlimiet blijft. De melding neemt bijlagen mee tot de 15 MB; een bestand dat niet meer past, wordt bij zijn antwoord genoemd: *niet bijgevoegd, te groot voor deze e-mail; te downloaden bij de inzending in het CMS*. Alle bestanden blijven bij de bewaarde inzending |
+| **Bewaart niets** | **Geweigerd**, vóór er iets gebeurt. Daar ís de melding de enige bezorging, dus een bestand dat niet mee kan, zou na het bedankje nergens meer zijn. `FormValidator` telt de geaccepteerde bestanden op en zet naast elk bestand *De bestanden zijn samen te groot om te versturen: samen mogen ze maximaal 15 MB zijn*. Geen succesmelding, geen inzending, geen bestand en geen rij blijven achter; de bezoeker kiest kleinere bestanden (opnieuw, zie *Na een geweigerde inzending*). Precies 15 MB mag |
+
+Beide lezen dezelfde ene grens, `FormSubmissionHandler::MAIL_ATTACHMENT_BUDGET`;
+het getal staat nergens anders.
 
 Dat is het gedrag van het oude contactformulier: de bijlage ging mee, als
 `bijlage.<extensie>`. Het omgezette veld heet `bijlage`, dus ook de naam in
@@ -555,6 +563,7 @@ een derde).
 | Rechtstreeks via het web | Geen publiek adres; de map ligt buiten de webroot |
 | CSRF | Downloaden is een GET zonder effect; verwijderen heeft de vier guards |
 | Weesbestanden | Opslaan pas na validatie; opruimen bij elk pad zonder inzendingsrij |
+| Stil verlies bij een formulier dat niets bewaart | Bestanden samen boven het mailbudget worden geweigerd voordat er iets wordt verstuurd |
 | Verwijderen terwijl er gedownload wordt | Rijen eerst, bestanden daarna: een download vindt daarna geen rij meer en geeft `404` |
 | Dubbel versturen | Twee inzendingen met elk hun eigen bestanden; de rate limit begrenst |
 | Kapotte of lijst-vormige `$_FILES` | Geweigerd met *Kies één bestand* |
@@ -1307,6 +1316,9 @@ van bezoekers achter. Een Super Admin houdt automatisch alles.
 - Verwijderen is definitief — inclusief de antwoorden en **elk bestand**
   van de inzending. Er is geen prullenbak, want een prullenbak is
   persoonsgegevens die je op een minder zichtbare plek bewaart.
+- Een formulier dat niets bewaart, neemt nooit meer bestanden aan dan de
+  melding kan meenemen (zie *Bestand uploaden*, "E-mail"), zodat er niets
+  verloren gaat.
 - Een formulier dat niets bewaart, bewaart ook geen bestand: dat wordt na het
   mailen direct weer verwijderd.
 - **Er komt nooit een ingevuld antwoord in het serverlog.** Een mislukking
