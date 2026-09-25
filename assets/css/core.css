@@ -365,30 +365,43 @@ p{ margin: 0; }
 .main-nav__list a[aria-current="page"]::after{ right: 0; }
 .main-nav__list a[aria-current="page"]{ color: var(--color-primary); }
 
-/* CMS-managed dropdown submenu (App\Service\NavigationService) — a
-   top-level item with children renders a toggle button + this panel
-   instead of a plain link. Desktop: hover OR click/keyboard (.is-open,
-   toggled by assets/js/core.js) reveals it; mobile styles below replace
-   the floating panel with an inline expand/collapse list. */
+/* CMS-managed submenus (App\Service\NavigationService, markup in
+   partials/main-nav-list.php): an item with a submenu is its own link plus a
+   separate toggle button, side by side in .main-nav__row. Level 2 drops down
+   below the top-level item; level 3 flies out beside its level-2 item, to the
+   right, or to the left when assets/js/core.js measured too little room
+   (.opens-left). Mobile styles below replace both with in-place
+   expand/collapse lists.
+
+   ONE STATE. A submenu is open exactly when its item has .is-open, and the
+   toggle's aria-expanded says the same — core.js sets both together, for
+   hover, click and keyboard alike. The panel and the chevron read nothing
+   else, so the arrow can never disagree with the submenu. Only without
+   JavaScript (no .is-enhanced on .main-nav) do :hover and :focus-within
+   open a desktop submenu instead. */
 .main-nav__item{ position: relative; }
+.main-nav__row{ display: flex; align-items: center; gap: 0.1rem; }
 .main-nav__toggle{
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 0.3rem;
   font: inherit;
   font-weight: 700;
   font-size: 0.92rem;
   background: none;
   border: none;
+  border-radius: 6px;
   cursor: pointer;
   color: var(--color-text-muted);
-  padding: 0.4rem 0.1rem;
-  transition: color var(--dur-fast) var(--ease-out);
+  padding: 0.4rem 0.2rem;
+  transition: color var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out);
 }
 .main-nav__toggle:hover,
-.main-nav__item--has-children.is-open .main-nav__toggle{ color: var(--color-text); }
-.main-nav__chevron{ width: 14px; height: 14px; transition: transform var(--dur-fast) var(--ease-out); }
-.main-nav__item--has-children.is-open .main-nav__chevron{ transform: rotate(180deg); }
+.main-nav__item--has-children.is-open > .main-nav__row > .main-nav__toggle{ color: var(--color-text); }
+.main-nav__toggle:focus-visible{ outline: 2px solid var(--color-primary); outline-offset: 2px; }
+.main-nav__chevron{ width: 14px; height: 14px; flex-shrink: 0; transition: transform var(--dur-fast) var(--ease-out); }
+.main-nav__item--has-children.is-open > .main-nav__row .main-nav__chevron{ transform: rotate(180deg); }
 
 .main-nav__submenu{
   position: absolute;
@@ -410,12 +423,21 @@ p{ margin: 0; }
   transition: opacity var(--dur-fast) var(--ease-out), transform var(--dur-fast) var(--ease-out), visibility var(--dur-fast) var(--ease-out);
   z-index: 20;
 }
-.main-nav__item--has-children:hover .main-nav__submenu,
-.main-nav__item--has-children.is-open .main-nav__submenu{
+/* The strip between an item and its panel still counts as the item, so a
+   pointer on its way down (or across, for level 3) never leaves the branch. */
+.main-nav__submenu::before{ content: ""; position: absolute; left: 0; right: 0; bottom: 100%; height: 0.7rem; }
+/* A top-level panel that would run past the right edge of the screen lines
+   up with the item's right edge instead (core.js, .opens-left). */
+.main-nav__list > .main-nav__item.opens-left > .main-nav__submenu{ left: auto; right: 0; }
+.main-nav__item--has-children.is-open > .main-nav__submenu,
+.main-nav:not(.is-enhanced) .main-nav__item--has-children:hover > .main-nav__submenu,
+.main-nav:not(.is-enhanced) .main-nav__item--has-children:focus-within > .main-nav__submenu{
   opacity: 1;
   visibility: visible;
   transform: translateY(0);
 }
+.main-nav:not(.is-enhanced) .main-nav__list > .main-nav__item--has-children:hover > .main-nav__row .main-nav__chevron,
+.main-nav:not(.is-enhanced) .main-nav__list > .main-nav__item--has-children:focus-within > .main-nav__row .main-nav__chevron{ transform: rotate(180deg); }
 .main-nav__submenu a{
   display: block;
   padding: 0.5rem 0.75rem;
@@ -426,6 +448,27 @@ p{ margin: 0; }
 }
 .main-nav__submenu a:hover{ background: rgba(255,255,255,0.06); color: var(--color-text); }
 .main-nav__submenu a::after{ display: none; }
+
+/* Level 2 with a submenu of its own: the link fills the row, the toggle sits
+   at its end, and level 3 flies out beside the panel. Closed, the chevron
+   points to the side the flyout opens on; open, it turns back. */
+.main-nav__submenu .main-nav__row{ gap: 0.2rem; }
+.main-nav__submenu .main-nav__row > .main-nav__link{ flex: 1 1 auto; }
+.main-nav__submenu .main-nav__toggle{ align-self: stretch; padding: 0.3rem 0.5rem; }
+.main-nav__submenu .main-nav__toggle:hover{ background: rgba(255,255,255,0.06); }
+.main-nav__submenu .main-nav__chevron{ transform: rotate(-90deg); }
+.main-nav__submenu .main-nav__item--has-children.is-open > .main-nav__row .main-nav__chevron{ transform: rotate(90deg); }
+.main-nav__submenu .main-nav__item.opens-left > .main-nav__row .main-nav__chevron{ transform: rotate(90deg); }
+.main-nav__submenu .main-nav__item--has-children.opens-left.is-open > .main-nav__row .main-nav__chevron{ transform: rotate(-90deg); }
+.main-nav__submenu--level-3{
+  top: calc(-0.4rem - 1px);
+  left: calc(100% + 0.4rem + 1px);
+  margin-top: 0;
+  z-index: 21;
+}
+.main-nav__submenu--level-3::before{ left: auto; right: 100%; top: 0; bottom: 0; width: calc(0.4rem + 2px); height: auto; }
+.main-nav__item.opens-left > .main-nav__submenu--level-3{ left: auto; right: calc(100% + 0.4rem + 1px); }
+.main-nav__item.opens-left > .main-nav__submenu--level-3::before{ right: auto; left: 100%; }
 
 .header-actions{ display: flex; align-items: center; gap: var(--sp-2); }
 /* The header buttons (App\Service\NavigationService::buildButtons()): none,
@@ -581,29 +624,48 @@ p{ margin: 0; }
 
   .nav-toggle{ display: inline-flex; }
 
-  /* Mobile dropdown: no floating panel (no hover on touch) — the toggle
-     button expands an inline list in place, driven by aria-expanded /
-     .is-open exactly like desktop, just styled differently here. */
+  /* Mobile submenus: no floating panel and no flyout (no hover on touch).
+     Each toggle expands its own list in place, below its row, driven by the
+     same .is-open / aria-expanded as desktop. Level 3 opens vertically under
+     its level-2 row too, a step smaller and on a faint band of its own, so
+     the levels stay apart in a centred column. A closed list is
+     display:none, so its links are not a focus stop either. */
   .main-nav__item--has-children{ display: flex; flex-direction: column; align-items: center; }
-  .main-nav__toggle{ font-size: 1.6rem; font-family: var(--font-display); color: var(--color-text); padding: 0.4rem 0.1rem; }
+  .main-nav__row{ justify-content: center; gap: 0.25rem; max-width: 100%; }
+  .main-nav__row > .main-nav__link{ min-width: 0; overflow-wrap: anywhere; }
+  .main-nav__toggle{ font-size: 1.6rem; font-family: var(--font-display); color: var(--color-text); padding: 0.4rem 0.1rem; min-width: 44px; min-height: 44px; }
+  .main-nav__toggle--heading{ min-width: 0; }
   .main-nav__chevron{ width: 20px; height: 20px; }
-  .main-nav__submenu{
+  .main-nav__submenu,
+  .main-nav__submenu--level-3{
     position: static;
-    margin-top: var(--sp-2);
+    display: none;
+    margin-top: var(--sp-1);
     padding: 0;
     background: none;
     border: none;
     box-shadow: none;
     align-items: center;
-    max-height: 0;
-    overflow: hidden;
+    min-width: 0;
+    max-width: 100%;
     opacity: 1;
     visibility: visible;
     transform: none;
-    transition: max-height var(--dur-base) var(--ease-out);
+    transition: none;
   }
-  .main-nav__item--has-children.is-open .main-nav__submenu{ max-height: 40vh; }
+  .main-nav__submenu::before{ display: none; }
+  .main-nav__item--has-children.is-open > .main-nav__submenu{ display: flex; }
   .main-nav__submenu a{ font-size: 1.15rem; padding: 0.5rem; color: var(--color-text-muted); }
+  .main-nav__submenu .main-nav__toggle{ align-self: center; padding: 0.3rem; }
+  .main-nav__submenu .main-nav__toggle:hover{ background: none; }
+  .main-nav__submenu .main-nav__item--has-children > .main-nav__row .main-nav__chevron{ width: 18px; height: 18px; transform: none; }
+  .main-nav__submenu .main-nav__item--has-children.is-open > .main-nav__row .main-nav__chevron{ transform: rotate(180deg); }
+  .main-nav__submenu--level-3{
+    padding: 0.25rem 1rem;
+    border-radius: 10px;
+    background: rgba(255,255,255,0.04);
+  }
+  .main-nav__submenu--level-3 a{ font-size: 1rem; padding: 0.4rem; }
 }
 @media (max-width: 900px) and (prefers-reduced-motion: reduce){
   .main-nav__list li,

@@ -80,6 +80,7 @@
             <file>tests/Service/LegalPagesTest.php</file>
             <file>tests/Service/MolliePaymentDataTest.php</file>
             <file>tests/Service/NavigationServiceTest.php</file>
+            <file>tests/Service/MainNavMarkupTest.php</file>
             <file>tests/Service/NavigationPresentationTest.php</file>
             <file>tests/Service/OrderCsvExportTest.php</file>
             <file>tests/Service/PageSeoTest.php</file>
@@ -264,6 +265,7 @@
             <file>tests/Service/MolliePaymentDataTest.php</file>
             <file>tests/Service/NavigationFooterSecurityTest.php</file>
             <file>tests/Service/NavigationServiceTest.php</file>
+            <file>tests/Service/MainNavMarkupTest.php</file>
             <file>tests/Service/NavigationPresentationTest.php</file>
             <file>tests/Service/OrderCsvExportTest.php</file>
             <file>tests/Service/OrderHandlingAdminSecurityTest.php</file>
@@ -579,6 +581,7 @@
             <file>tests/Service/MediaUsageTest.php</file>
             <file>tests/Service/NavigationFooterSecurityTest.php</file>
             <file>tests/Service/NavigationServiceTest.php</file>
+            <file>tests/Service/MainNavMarkupTest.php</file>
             <file>tests/Service/NavigationPresentationTest.php</file>
             <file>tests/Service/NavigationAdminHttpTest.php</file>
             <file>tests/Service/FooterAdminHttpTest.php</file>

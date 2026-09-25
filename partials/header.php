@@ -7,7 +7,9 @@ declare(strict_types=1);
  *
  * Navigation is fully CMS-managed (App\Service\NavigationService, backed by
  * nav_items — admin/navigation.php); this partial only resolves and renders
- * the current tree, it never hardcodes a menu item.
+ * the current tree, it never hardcodes a menu item. The menu list itself,
+ * with its submenus on up to three levels and the link/toggle pair of an
+ * item that has one, is partials/main-nav-list.php.
  *
  * Include after <body> has been opened. The including page may set these
  * variables before requiring this file:
@@ -93,30 +95,7 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
     </a>
     <nav class="main-nav" id="main-nav" aria-label="<?= SiteText::escaped(['nl' => 'Hoofdnavigatie', 'en' => 'Main navigation']) ?>">
       <div class="main-nav__panel">
-      <ul class="main-nav__list">
-<?php foreach ($navItems as $item): ?>
-<?php
-  $isActive = NavigationService::isCurrent($item, $activeNav, $requestPath);
-  $hasChildren = $item['children'] !== [];
-?>
-<?php if ($hasChildren): ?>
-        <li class="main-nav__item main-nav__item--has-children">
-          <button type="button" class="main-nav__toggle" aria-haspopup="true" aria-expanded="false">
-            <span><?= $h($item['label']) ?></span>
-            <svg class="main-nav__chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
-          </button>
-          <ul class="main-nav__submenu">
-<?php foreach ($item['children'] as $child): ?>
-<?php if ($child['href'] === null) continue; ?>
-            <li><a href="<?= $h($child['href']) ?>"<?= $child['open_in_new_tab'] ? ' target="_blank" rel="' . $h((string) $child['rel']) . '"' : '' ?>><?= $h($child['label']) ?></a></li>
-<?php endforeach; ?>
-          </ul>
-        </li>
-<?php elseif ($item['href'] !== null): ?>
-        <li><a href="<?= $h($item['href']) ?>"<?= $isActive ? ' aria-current="page"' : '' ?><?= $item['open_in_new_tab'] ? ' target="_blank" rel="' . $h((string) $item['rel']) . '"' : '' ?>><?= $h($item['label']) ?></a></li>
-<?php endif; ?>
-<?php endforeach; ?>
-      </ul>
+<?php require __DIR__ . '/main-nav-list.php'; ?>
       <div class="header-actions">
 <?php /* The switch exists only on a site that actually publishes more than
          one language. On a single-language site every option would show the

@@ -88,15 +88,14 @@ final class NavigationAdminHttpTest extends TestCase
     {
         $db = Database::connection();
 
-        // Children first (parent_id is RESTRICT), then the rest, then the
-        // pages they pointed at (target_page_id is RESTRICT too).
-        foreach ([true, false] as $childrenOnly) {
-            foreach ($this->navIds as $id) {
-                $db->prepare('DELETE FROM nav_items WHERE id = :id' . ($childrenOnly ? ' AND parent_id IS NOT NULL' : ''))
-                    ->execute(['id' => $id]);
-            }
+        // Newest first: a submenu item is always made after its parent, so
+        // this deletes every level before the one above it (parent_id is
+        // RESTRICT), then the pages they pointed at (target_page_id is
+        // RESTRICT too), a subpage before its parent page.
+        foreach (array_reverse(array_unique($this->navIds)) as $id) {
+            $db->prepare('DELETE FROM nav_items WHERE id = :id')->execute(['id' => $id]);
         }
-        foreach ($this->pageIds as $id) {
+        foreach (array_reverse($this->pageIds) as $id) {
             $this->pages->delete($id);
         }
 
@@ -252,6 +251,123 @@ final class NavigationAdminHttpTest extends TestCase
         $this->assertSame('link', $this->navigation->findById($parent)['presentation']);
     }
 
+    // ------------------------------------------------------- three levels
+
+    /**
+     * Level 3 can be made through the real endpoint; level 4 cannot, and
+     * neither can a submenu under a button. The screen offers
+     * "+ Submenu-item" exactly where the endpoint would accept one, and the
+     * editor does not take an unacceptable parent from the address bar.
+     */
+    public function testAThirdLevelIsStoredAndAFourthIsRefused(): void
+    {
+        [$session, $token] = $this->accounts->signIn([AdminPermissions::PAGES_MANAGE]);
+        $top = $this->item(['label_nl' => 'Diensten', 'link_type' => 'external', 'external_url' => '/diensten']);
+
+        $second = $this->create($session, $token, [
+            'label' => 'Graveren', 'parent_id' => (string) $top, 'link_type' => 'external', 'external_url' => '/graveren', 'is_visible' => '1',
+        ]);
+        $third = $this->create($session, $token, [
+            'label' => 'Hout', 'parent_id' => (string) $second['id'], 'link_type' => 'external', 'external_url' => '/graveren/hout', 'is_visible' => '1',
+        ]);
+        $this->assertSame((int) $second['id'], (int) $third['parent_id']);
+        $this->assertSame(3, $this->navigation->depthOf((int) $third['id']));
+
+        $refusals = [
+            'a fourth level' => (int) $third['id'],
+            'a submenu under a button' => $this->item(['label_nl' => 'Offerte', 'link_type' => 'external', 'external_url' => '/offerte', 'presentation' => 'button']),
+            'a parent that does not exist' => 999999999,
+        ];
+        foreach ($refusals as $what => $parentId) {
+            $label = '__nav_http_' . bin2hex(random_bytes(4));
+            $response = self::$server->request('POST', '/api/admin/create-nav-item.php', $session, [
+                'csrf_token' => $token, 'label' => $label, 'parent_id' => (string) $parentId,
+                'link_type' => 'external', 'external_url' => '/te-diep', 'is_visible' => '1',
+            ]);
+
+            $this->assertSame(302, $response['status'], $what);
+            $this->assertStringNotContainsString('saved=1', $response['location'], $what);
+            $this->assertContains(
+                'Hier kan geen submenu-item onder: het menu heeft maximaal 3 niveaus, en alleen een menulink kan submenu-items hebben.',
+                (array) $this->accounts->read($session, 'admin_nav_item_errors'),
+                $what
+            );
+            $this->assertNull($this->findByLabel($label), $what . ' is not stored');
+        }
+
+        $screen = $this->xpath(self::$server->request('GET', '/admin/navigation.php', $session)['body']);
+        $addChild = static fn (int $id): int => $screen->query('//*[@id="nav-item-' . $id . '"]//a[@href="/admin/navigation-item.php?parent_id=' . $id . '"]')->length;
+        $this->assertSame(1, $addChild($top), 'level 1 offers a submenu item');
+        $this->assertSame(1, $addChild((int) $second['id']), 'level 2 offers a submenu item');
+        $this->assertSame(0, $addChild((int) $third['id']), 'level 3 offers none');
+        $this->assertSame(
+            1,
+            $screen->query('//*[@data-nav-zone][@data-parent-id="' . $second['id'] . '"]/*[@id="nav-item-' . $third['id'] . '"]')->length,
+            'level 3 is its own ordering zone under its parent'
+        );
+        $this->assertSame(0, $screen->query('//form[@action="/api/admin/delete-nav-item.php"][.//input[@name="id"][@value="' . $second['id'] . '"]]')->length, 'level 2 with a submenu cannot be deleted yet');
+
+        $editor = $this->xpath(self::$server->request('GET', '/admin/navigation-item.php?parent_id=' . $third['id'], $session)['body']);
+        $this->assertSame(0, $editor->query('//input[@name="parent_id"]')->length, 'no level-4 form from the address bar');
+        $editor = $this->xpath(self::$server->request('GET', '/admin/navigation-item.php?parent_id=' . $second['id'], $session)['body']);
+        $this->assertSame((string) $second['id'], $editor->query('//input[@name="parent_id"]')->item(0)?->getAttribute('value'));
+        $this->assertSame(0, $editor->query('//select[@name="link_type"]/option[@value="none"]')->length, 'a submenu item always has a destination');
+    }
+
+    /**
+     * The public header over real HTTP, three levels deep: a parent's words
+     * are its own link (a nested page, Pages 2.0), its toggle is a separate
+     * button that names and controls its panel, a level-2 item with a
+     * submenu is the same pair, and a heading without a destination is one
+     * toggle that is not a fake link.
+     */
+    public function testThePublicHeaderRendersALinkAndASeparateToggleOnEveryLevel(): void
+    {
+        $parentPage = $this->page('Diensten ouder');
+        $nestedPage = $this->page('Diensten', $parentPage);
+        $nestedHref = '/' . $this->pages->findById($parentPage)['slug'] . '/' . $this->pages->findById($nestedPage)['slug'];
+
+        $prefix = '__nav3_' . bin2hex(random_bytes(3)) . ' ';
+        $top = $this->item(['label_nl' => $prefix . 'Diensten', 'link_type' => 'page', 'target_page_id' => $nestedPage]);
+        $second = $this->item(['label_nl' => $prefix . 'Graveren', 'parent_id' => $top, 'link_type' => 'external', 'external_url' => '/graveren']);
+        $third = $this->item(['label_nl' => $prefix . 'Hout', 'parent_id' => $second, 'link_type' => 'external', 'external_url' => 'https://example.com/hout', 'open_in_new_tab' => true]);
+        $this->item(['label_nl' => $prefix . 'Snijden', 'parent_id' => $top, 'link_type' => 'external', 'external_url' => '/snijden']);
+        $heading = $this->item(['label_nl' => $prefix . 'Werk', 'link_type' => 'none']);
+        $this->item(['label_nl' => $prefix . 'Galerij', 'parent_id' => $heading, 'link_type' => 'external', 'external_url' => '/galerij']);
+
+        $xpath = $this->xpath(self::$server->request('GET', '/index.php')['body']);
+        $item = static fn (string $label): ?\DOMElement => $xpath->query('//nav[@id="main-nav"]//li[contains(@class, "main-nav__item--has-children")][./div[@class="main-nav__row"][contains(., "' . $label . '")]]')->item(0);
+
+        $topItem = $item($prefix . 'Diensten');
+        $this->assertInstanceOf(\DOMElement::class, $topItem);
+        $link = $xpath->query('./div[@class="main-nav__row"]/a', $topItem)->item(0);
+        $this->assertSame($nestedHref, $link?->getAttribute('href'), 'the parent is a real link to its nested page');
+        $toggle = $xpath->query('./div[@class="main-nav__row"]/button', $topItem)->item(0);
+        $this->assertSame(['button', 'false', 'main-nav-submenu-' . $top, 'Submenu ' . $prefix . 'Diensten'], [
+            $toggle?->getAttribute('type'), $toggle?->getAttribute('aria-expanded'), $toggle?->getAttribute('aria-controls'), $toggle?->getAttribute('aria-label'),
+        ]);
+        $this->assertSame(0, $xpath->query('.//a', $toggle)->length, 'the toggle holds no link');
+        $this->assertSame('main-nav__submenu main-nav__submenu--level-2', $xpath->query('./ul[@id="main-nav-submenu-' . $top . '"]', $topItem)->item(0)?->getAttribute('class'));
+
+        $secondItem = $item($prefix . 'Graveren');
+        $this->assertSame('/graveren', $xpath->query('./div[@class="main-nav__row"]/a', $secondItem)->item(0)?->getAttribute('href'));
+        $this->assertSame('main-nav-submenu-' . $second, $xpath->query('./div[@class="main-nav__row"]/button', $secondItem)->item(0)?->getAttribute('aria-controls'));
+        $flyout = $xpath->query('./ul[@id="main-nav-submenu-' . $second . '"]', $secondItem)->item(0);
+        $this->assertSame('main-nav__submenu main-nav__submenu--level-3', $flyout?->getAttribute('class'));
+        $hout = $xpath->query('./li/a', $flyout)->item(0);
+        $this->assertSame(['https://example.com/hout', '_blank', 'noopener noreferrer'], [$hout?->getAttribute('href'), $hout?->getAttribute('target'), $hout?->getAttribute('rel')]);
+        $this->assertSame(0, $xpath->query('.//button', $flyout)->length, 'level 3 has no toggle: there is no level 4');
+
+        $this->assertSame('/snijden', $xpath->query('.//li[not(contains(@class, "has-children"))]/a[contains(., "' . $prefix . 'Snijden")]', $topItem)->item(0)?->getAttribute('href'), 'a level-2 item without a submenu is a plain link');
+
+        $headingItem = $item($prefix . 'Werk');
+        $this->assertSame(0, $xpath->query('./div[@class="main-nav__row"]/a', $headingItem)->length, 'a heading is not a fake link');
+        $headingToggle = $xpath->query('./div[@class="main-nav__row"]/button', $headingItem)->item(0);
+        $this->assertSame([$prefix . 'Werk', ''], [trim((string) $headingToggle?->textContent), (string) $headingToggle?->getAttribute('aria-label')], 'the heading\'s words name its toggle');
+        $this->assertSame(0, $xpath->query('//nav[@id="main-nav"]//ul[@class="main-nav__list"]//a[@href="#" or @href=""]')->length, 'no placeholder link anywhere');
+        $this->assertSame(0, $xpath->query('//nav[@id="main-nav"]//ul[@class="main-nav__list"]//*[@aria-haspopup]')->length, 'a disclosure, not a menu widget');
+    }
+
     // ---------------------------------------------------- the public header
 
     /**
@@ -381,13 +497,14 @@ final class NavigationAdminHttpTest extends TestCase
         return NavigationLocalization::raw((int) $row['id'], $language);
     }
 
-    private function page(string $title): int
+    private function page(string $title, ?int $parentId = null): int
     {
         $key = 'zz-nav-http-' . bin2hex(random_bytes(4));
         $id = \Tests\Support\PageFixture::create([
             'content_key' => $key,
             'slug' => $key,
             'status' => PageContent::STATUS_PUBLISHED,
+            'parent_id' => $parentId,
         ], $title);
         $this->pageIds[] = $id;
 
