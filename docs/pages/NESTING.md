@@ -50,7 +50,7 @@ een pagina-URL afdrukt gaat daardoorheen:
 | Waar | Via |
 |---|---|
 | Menu, footer, knop in de header | `LinkResolver` → `PageContent::publicUrl()` |
-| Een Page-link in een blok (Oproep, Kaarten-carrousel, Openingssectie, …) | `LinkChoice` / `LinkTargets` → `LinkResolver` |
+| Een Page-link in een blok (Kaarten-carrousel, Openingssectie, Tekstblok, Tekst met afbeelding, …) | `LinkChoice` / `LinkTargets` → `LinkResolver` |
 | Een getypte link (`/metaal-graveren/rvs-graveren`) | `TypedLink::href()` → `PageContent::forPath()` |
 | Kruimelpad | `PageBreadcrumb::forPage()` |
 | Canonical, hreflang, x-default, taalwisselaar | `partials/page-head.php` → `PageContent::localizedPaths()` |

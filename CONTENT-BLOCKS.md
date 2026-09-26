@@ -85,7 +85,8 @@ Twee onafhankelijke schakelaars verbergen een blok, en beide tellen:
   in de `*Content`-klasse door `App\Service\Routing\TypedLink::href()`, zodat
   een knop op `/en/` naar de Engelse versie van de pagina wijst.
 - **Een blokknop met een linkdoel** (een carrouselkaart, de twee knoppen van
-  de Homepage-hero) bewaart `link_type` + `link_target_id` naast de getypte
+  de Homepage-hero, de knop van het Tekstblok, de knop van een item van Tekst
+  met afbeelding) bewaart `link_type` + `link_target_id` naast de getypte
   URL: *Geen knop*, een pagina, blogbericht of product van de site
   (`App\Service\Routing\LinkTargets`), of een eigen adres.
   `App\Service\Routing\LinkChoice` controleert wat er gepost is en maakt er
@@ -94,7 +95,14 @@ Twee onafhankelijke schakelaars verbergen een blok, en beide tellen:
   `admin/_link_target_field.php`; met meer dan één knop op een formulier zit
   elke knop in een eigen `[data-nav-link-group]`. Een rij van vóór het type
   heeft een adres en geen type, en is een adres (`LinkChoice::storedType()`).
-  Bouw er geen kopie van per blok.
+  Daarom schrijft *Geen knop* ook geen adres weg: een achtergebleven adres
+  zonder type zou weer een knop worden. Het endpoint van Tekst met afbeelding
+  doet dat. Het Tekstblok, de carrouselkaart en de Homepage-hero bewaren het
+  getypte adres nog wel naast *Geen knop*, en krijgen de knop dan terug (bekend
+  punt, nog niet opgelost). Een lijst van rijen met elk een knop (de items van
+  Tekst met afbeelding) is hetzelfde veld, met één `[data-nav-link-group]` per
+  rij. `admin/assets/navigation-item.js` luistert op het formulier, dus een rij
+  die later op het scherm komt doet ook mee. Bouw er geen kopie van per blok.
 - De editor staat op `admin/_localized_fields.php`: één taal op het scherm,
   verplicht alleen in de standaardtaal. Het endpoint controleert
   `language_code` tegen `SiteLanguages::isActive()`, valideert met
@@ -440,7 +448,7 @@ onder elke sectie). Dat is de reden om meerdere items in één blok te zetten.
 | breedte van de afbeelding | `image_column` | `25`, `50`, `75`: het deel van de rij in procenten, de tekst krijgt de rest |
 | hoogte van de afbeelding | `image_height` | `small`, `medium`, `large`: tokens in `assets/css/blocks/text-image-split.css` |
 | focuspunt | `image_focus` | de negen punten van `App\Service\Media\ImageFocus`, dezelfde als bij de carrouselkaart |
-| knopadres | `button_url` | een getypt adres (`TypedLink`), zoals het blok het had |
+| knopdoel | `button_link_type`, `button_link_target_id`, `button_url` | *Geen knop*, een pagina, blogbericht of product op id, of een getypt adres (`LinkChoice`, zie *Taal* hierboven) |
 
 De vier keuzes zijn gesloten lijsten in `TextImageSplitContent::layout()`: een
 onbekende waarde wordt de standaard. De partial zet er alleen klassen van neer.
@@ -465,6 +473,18 @@ De enige inline waarde is `object-position`, en die komt uit `ImageFocus`.
   tekstkolom.
 - **Een item zonder titel** begint met de grotere lead-alinea, zoals de
   eerste alinea van een blok zonder titel altijd deed.
+- **De knop** is het gedeelde linkveld (`admin/_link_target_field.php`). Een
+  item van vóór het type heeft alleen `button_url`, en die blijft een adres
+  zonder migratie. Kies je een doel, dan moet de knop een tekst hebben in de
+  standaardtaal. *Geen knop* wist ook het adres. Een verzoek zonder type (een
+  ouder scherm) betekent wat het altijd betekende: een knop als tekst én adres
+  er staan, anders geen knop en geen melding.
+- **In de editor klapt elk item apart in** (`editor_row_open()` met
+  `$collapse`, `PAGE-EDITOR.md`). De kopregel is "Item 2 — Over ons": het
+  nummer en de titel in de taal op het scherm. Een los item, een nieuw item en
+  een item met een melding staan open. De rest van een langere lijst begint
+  dicht en onthoudt per browsertabblad hoe de redacteur hem liet. Inklappen
+  verandert niets aan wat er opgeslagen wordt.
 - **De migratie** maakt van elk bestaand blok zijn eerste item. De alinea's
   worden `<p>`'s in de rich text; de eerste afbeelding, 50/50, focus midden
   en hoogte `large` (het dichtst bij het oude 4:5-kader). Elke volgende
@@ -474,6 +494,49 @@ De enige inline waarde is `object-position`, en die komt uit `ImageFocus`.
   de kolommen `layout` en `button_url` van het blok blijven leeg of ongelezen
   staan (forward-only). Ze staan nog in `childTables()` omdat ze van het blok
   cascaden.
+
+## Weergavekeuzes van de eenvoudige blokken
+
+Content Blocks Polish 1 (`db/migrations/20260926100000` en `20260926110000`).
+Elke keuze is een woord uit een gesloten lijst in de inhoudsklasse, met als
+standaard hoe het blok er al uitzag. Die standaard krijgt geen class. Een
+onbekende opgeslagen waarde leest als de standaard. Het endpoint weigert een
+onbekende waarde, en een verzoek zonder het veld houdt wat er staat. Geen
+van de keuzes hangt aan een taal.
+
+| Blok | Kolom | Waarden (standaard eerst) | Wat het doet |
+|---|---|---|---|
+| Tekstblok | `rich_text_sections.content_width` | `medium`, `large` (`RichTextContent::WIDTHS`) | `medium` is de smalle leeskolom (`.container--narrow`, `--container-narrow`). `large` is de gewone contentbreedte van de site (`.container`, `--container`), dezelfde als de andere brede blokken |
+| Formulier | `form_blocks.header_align` | `left`, `center`, `right` (`FormBlockContent::HEADER_ALIGNMENTS`) | Alleen de kop en de inleiding boven het formulier. Labels en velden blijven zoals ze zijn |
+| Kaarten-carrousel | `card_carousels.header_align` | `left`, `center`, `right` (`CardCarouselContent::HEADER_ALIGNMENTS`) | Bovenlabel, titel en lead boven de carrousel. De kaarten niet |
+| Kaarten-carrousel | `card_carousels.image_height` | `medium`, `small`, `large` (`CardCarouselContent::IMAGE_HEIGHTS`) | Eén beeldhoogte voor alle kaarten van de carrousel. De kaart groeit of krimpt precies zoveel als het beeld, dus de tekst houdt zijn ruimte. Het beeld wordt bijgesneden (`object-fit: cover`), nooit uitgerekt. Op een telefoon en bij *naast elkaar* is de kaarthoogte `auto` |
+| Witruimte | `spacers.size` | `medium`, `small`, `large`, `xlarge` (`SpacerContent::SIZES`) | Zie hieronder |
+
+**Ruimte boven en onder een Tekstblok.** Het Tekstblok heeft nu de ruimte van
+elke sectie (`section`, `--sp-7` boven en onder, `core.css`). Vroeger gooide
+het zijn bovenruimte altijd weg: een overblijfsel van de informatiepagina,
+waar het direct onder de paginakop stond. Dat geval is nu `$tightTop`
+(`BlockDefinition::tightensFollowingBlock()`), net als bij Tekst met
+afbeelding. Twee Tekstblokken direct na elkaar lezen als één kolom: het
+tweede laat zijn bovenruimte weg (`.rich-text-section + .rich-text-section`
+in `assets/css/blocks/rich-text.css`).
+
+**Witruimte** (`spacer`, `SpacerBlock`) is een gewoon, herhaalbaar blok met
+één instelling: de hoogte, een stap van de spacing-schaal
+(`assets/css/blocks/spacer.css`: `--sp-4`, `--sp-6`, `--sp-7`, `--sp-8`, op
+een telefoon elk één stap lager). Die ruimte komt bovenop de ruimte die de
+blokken eromheen al hebben. Het blok print één leeg element met
+`aria-hidden="true"`: geen kop, geen tekst, niets focusbaars. Het heeft geen
+woorden, dus geen `block_translations`. Het is het enige blok met rijen en
+zonder woorden, en staat daarom met naam in
+`BlockDefinitionContractTest::WORDLESS_WITH_ROWS` en
+`BlockSampleContractTest::WORDLESS`. De editor (`admin/spacer.php`) toont
+alleen *Hoogte*. Tonen of verbergen doe je met het oog in de paginabouwer.
+
+**Productgrid en Collectie-tegels** printen geen eigen kop meer. Ze toonden
+een vaste "Alle producten" en "Collecties" die niemand had getypt. Die woorden
+waren nooit opgeslagen en hadden geen veld. Wil een redacteur een kop, dan
+zet hij een Tekstblok erboven.
 
 ## Tests
 
