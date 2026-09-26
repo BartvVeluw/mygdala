@@ -124,14 +124,14 @@ final class SimpleBlocksPolishMigrationTest extends TestCase
     public function testTheSpacerTableIsABlockTable(): void
     {
         $unique = self::$fresh->rows(
-            "SELECT GROUP_CONCAT(column_name ORDER BY seq_in_index) AS columns FROM information_schema.statistics
+            "SELECT GROUP_CONCAT(column_name ORDER BY seq_in_index) AS `columns` FROM information_schema.statistics
               WHERE table_schema = DATABASE() AND table_name = 'spacers' AND non_unique = 0 AND index_name <> 'PRIMARY'
               GROUP BY index_name"
         );
         self::assertSame([['columns' => 'page_slug,section_key']], $unique);
 
         $default = self::$fresh->rows(
-            "SELECT column_default FROM information_schema.columns
+            "SELECT column_default AS column_default FROM information_schema.columns
               WHERE table_schema = DATABASE() AND table_name = 'spacers' AND column_name = 'size'"
         );
         self::assertStringContainsString('medium', (string) $default[0]['column_default'], 'a new spacer starts at medium');
@@ -170,7 +170,7 @@ final class SimpleBlocksPolishMigrationTest extends TestCase
     private static function shape(ScratchInstall $install, string $table): array
     {
         return $install->rows(
-            'SELECT column_name, column_type, is_nullable, column_default FROM information_schema.columns
+            'SELECT column_name AS name, column_type AS type, is_nullable AS nullable, column_default AS `default` FROM information_schema.columns
               WHERE table_schema = DATABASE() AND table_name = ? ORDER BY ordinal_position',
             [$table]
         );
