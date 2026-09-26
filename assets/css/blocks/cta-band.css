@@ -20,12 +20,17 @@
    so a full-width band simply paints its layers on the <section> and keeps
    its words in the ordinary .container. No 100vw, no negative margins, and
    nothing that could make the page scroll sideways.
+
+   NOT HERE: the card's own base look (core.css), the buttons' shape and
+   colours (.btn, Theme & Branding), any height of the band (it grows with
+   its words; a band of a chosen height is a different block), and any value
+   an editor types.
    ========================================================================== */
 
 .cta-section{
   --cta-overlay-light: 0.35;
-  --cta-overlay-medium: 0.55;
-  --cta-overlay-dark: 0.78;
+  --cta-overlay-medium: 0.62;               /* the default: 5:1 for the theme text even over white */
+  --cta-overlay-dark: 0.8;
   --cta-panel-subtle: 0.55;
   --cta-panel-medium: 0.72;
   --cta-panel-strong: 0.88;
@@ -93,6 +98,12 @@
   border-radius: var(--radius-lg);
   background: rgba(var(--color-surface-veil-rgb), var(--cta-panel-strong));
 }
+/* The panel wraps the text column, not the band. With a lead, the title
+   takes no part in the panel's own width (width 0, then the full width it
+   gets), so the panel is as wide as the lead at its chosen width, in the
+   lead's own font, and the title wraps inside it. Without a lead the title
+   decides, as any fit-content box would. */
+.cta-band__content--panel:has(> .lead) > h2{ width: 0; min-width: 100%; }
 .cta-band__content--panel-subtle{ background: rgba(var(--color-surface-veil-rgb), var(--cta-panel-subtle)); }
 .cta-band__content--panel-medium{ background: rgba(var(--color-surface-veil-rgb), var(--cta-panel-medium)); }
 .cta-band__content--panel-solid{ background: var(--color-surface); }
@@ -117,6 +128,10 @@
    panel has its own padding, and two paddings on a 320px screen would leave
    a column too narrow to read. A band without either keeps its padding. */
 @media (max-width: 640px){
+  /* A button never runs out of the band: a label longer than the screen
+     wraps inside its button instead of pushing it past the edge (.btn keeps
+     one line everywhere else). */
+  .cta-band__actions .btn{ max-width: 100%; white-space: normal; text-align: center; }
   .cta-band--card.cta-band--has-media,
   .cta-band--card.cta-band--has-panel{ padding: var(--sp-5) var(--sp-3); }
   .cta-band__content--panel{ padding: var(--sp-4) var(--sp-3); }

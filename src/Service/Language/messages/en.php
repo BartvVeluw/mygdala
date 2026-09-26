@@ -1133,7 +1133,7 @@ From the first label the CMS also makes the fixed name answers are stored under.
     'help.block_cta.content_align' => 'Applies to the eyebrow, the title, the intro text and the buttons.',
     'help.block_cta.lead_width' => 'Narrow is the short line every intro text has. Medium is the reading column of the site. Wide and Full let the text run further, so the call to action is less tall.',
     'help.block_cta.background_focus' => 'Which part of the image stays in view when the band has a different shape than the image.',
-    'help.block_cta.background_overlay' => 'A layer in the colour of the site over the image, so the text stays readable. The busier the photo, the stronger the overlay.',
+    'help.block_cta.background_overlay' => 'A layer in the colour of the site over the image, so the text stays readable. Medium keeps the text readable on any photo. None and Light only with a calm photo or a text panel.',
     'help.block_cta.text_panel_opacity' => 'How much of the background shows through the text panel. Solid lets nothing through.',
     'help.block_cta.knoptekst' => 'The text on the button. Left empty in a translation, the text of the default language shows.',
     'block_cta.leeg_laten_beide_talen' => 'Left empty in the default language, no intro text shows under the title.',

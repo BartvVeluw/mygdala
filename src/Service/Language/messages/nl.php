@@ -1141,7 +1141,7 @@ Uit het eerste label maakt het CMS ook de vaste naam waaronder antwoorden worden
     'help.block_cta.content_align' => 'Geldt voor de eyebrow, de titel, de introtekst en de knoppen.',
     'help.block_cta.lead_width' => 'Smal is de korte regel die elke introtekst heeft. Normaal is de leeskolom van de site. Breed en Volledig laten de tekst verder doorlopen, zodat de oproep minder hoog wordt.',
     'help.block_cta.background_focus' => 'Welk deel van de afbeelding in beeld blijft wanneer de band een andere vorm heeft dan de afbeelding.',
-    'help.block_cta.background_overlay' => 'Een laag in de kleur van de site over de afbeelding, zodat de tekst leesbaar blijft. Hoe drukker de foto, hoe sterker de overlay.',
+    'help.block_cta.background_overlay' => 'Een laag in de kleur van de site over de afbeelding, zodat de tekst leesbaar blijft. Middel houdt de tekst op elke foto leesbaar. Geen en Licht alleen bij een rustige foto of met een tekstvlak.',
     'help.block_cta.text_panel_opacity' => 'Hoeveel van de achtergrond door het tekstvlak heen schijnt. Vol laat niets door.',
     'help.block_cta.knoptekst' => 'De tekst op de knop. Leeg in een vertaling toont de tekst van de standaardtaal.',
     'block_cta.leeg_laten_beide_talen' => 'Leeg laten in de standaardtaal toont geen introtekst onder de titel.',
