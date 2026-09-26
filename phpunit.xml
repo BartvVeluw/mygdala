@@ -386,6 +386,7 @@
             <file>tests/Install/ShopPicturesAndOverviewMigrationTest.php</file>
             <file>tests/Install/ContentBlocksPolishMigrationTest.php</file>
             <file>tests/Install/SimpleBlocksPolishMigrationTest.php</file>
+            <file>tests/Install/CtaBandMigrationTest.php</file>
             <file>tests/Install/TextImageItemsMigrationTest.php</file>
             <file>tests/Install/PersonalizationWordsMigrationTest.php</file>
             <file>tests/Install/OrderItemNameSnapshotMigrationTest.php</file>
@@ -437,6 +438,7 @@
             <file>tests/Install/RemainingBlockWordsMigrationTest.php</file>
             <file>tests/Install/ContentBlocksPolishMigrationTest.php</file>
             <file>tests/Install/SimpleBlocksPolishMigrationTest.php</file>
+            <file>tests/Install/CtaBandMigrationTest.php</file>
             <file>tests/Install/TextImageItemsMigrationTest.php</file>
             <file>tests/Service/BlockLocalizationEditorHttpTest.php</file>
             <file>tests/Service/BlockWordsEditorHttpTest.php</file>
@@ -446,6 +448,8 @@
             <file>tests/Service/ContentBlocksPolishHttpTest.php</file>
             <file>tests/Service/SimpleBlocksPolishRenderTest.php</file>
             <file>tests/Service/SimpleBlocksPolishHttpTest.php</file>
+            <file>tests/Service/CtaBandRenderTest.php</file>
+            <file>tests/Service/CtaBandHttpTest.php</file>
             <file>tests/Service/Media/ImageFocusTest.php</file>
             <file>tests/Service/CardCarouselFrontendContractTest.php</file>
             <file>tests/Service/Blocks/EditorRowsTest.php</file>

@@ -232,11 +232,16 @@ final class BlockLocalizationEditorHttpTest extends TestCase
         $this->assertRefused($this->save($nl, 'cta_band', 'nl', ['eyebrow' => 'Nieuw', 'title' => '', 'lead' => '', 'primary_label' => 'Contact']), 'no title in the default language');
         $this->assertSaved($this->save($en, 'cta_band', 'en', ['eyebrow' => '', 'title' => '', 'lead' => '', 'primary_label' => '']), 'a translation may be empty');
 
-        $this->assertRefused($this->save($nl, 'cta_band', 'nl', ['eyebrow' => 'Nieuw', 'title' => 'Titel', 'lead' => '', 'primary_label' => 'Contact', 'secondary_label' => 'Werk'], ['secondary_url' => '']), 'a secondary label without a URL');
-        $this->assertRefused($this->save($en, 'cta_band', 'en', ['title' => 'Title', 'secondary_label' => 'Work'], ['secondary_url' => '']), 'a translated secondary label without a URL');
-        $this->assertRefused($this->save($en, 'cta_band', 'en', ['title' => 'Title'], ['secondary_url' => '/werk']), 'a secondary URL while the default language has no label for it');
-        $this->assertSaved($this->save($nl, 'cta_band', 'nl', ['eyebrow' => 'Nieuw', 'title' => 'Titel', 'lead' => '', 'primary_label' => 'Contact', 'secondary_label' => 'Werk'], ['secondary_url' => '/werk']));
-        $this->assertSaved($this->save($en, 'cta_band', 'en', ['title' => 'Title'], ['secondary_url' => '/werk']), 'now the default language has the label');
+        // CTA 2.0: each button is a LinkChoice destination; "Geen knop"
+        // checks nothing, a destination needs its label in the default language.
+        $this->assertRefused($this->save($nl, 'cta_band', 'nl', ['eyebrow' => 'Nieuw', 'title' => 'Titel', 'lead' => '', 'primary_label' => 'Contact', 'secondary_label' => 'Werk'], ['secondary_link_type' => 'url', 'secondary_url' => '']), 'a second button with an empty address');
+        $this->assertRefused($this->save($en, 'cta_band', 'en', ['title' => 'Title', 'secondary_label' => 'Work'], ['secondary_link_type' => 'url', 'secondary_url' => '']), 'a translated second button with an empty address');
+        $this->assertRefused($this->save($en, 'cta_band', 'en', ['title' => 'Title'], ['secondary_link_type' => 'url', 'secondary_url' => '/werk']), 'a second button while the default language has no label for it');
+        $this->assertSaved($this->save($en, 'cta_band', 'en', ['title' => 'Title', 'secondary_label' => 'Work'], ['secondary_link_type' => 'none', 'secondary_url' => '/stale']), '"Geen knop" ignores the hidden label and address');
+        $this->assertRefused($this->save($nl, 'cta_band', 'nl', ['eyebrow' => 'Nieuw', 'title' => 'Titel', 'lead' => '', 'primary_label' => '']), 'a first button without its text');
+        $this->assertSaved($this->save($nl, 'cta_band', 'nl', ['eyebrow' => 'Nieuw', 'title' => 'Titel', 'lead' => '', 'primary_label' => ''], ['primary_link_type' => 'none']), 'a band without a button');
+        $this->assertSaved($this->save($nl, 'cta_band', 'nl', ['eyebrow' => 'Nieuw', 'title' => 'Titel', 'lead' => '', 'primary_label' => 'Contact', 'secondary_label' => 'Werk'], ['secondary_link_type' => 'url', 'secondary_url' => '/werk']));
+        $this->assertSaved($this->save($en, 'cta_band', 'en', ['title' => 'Title'], ['secondary_link_type' => 'url', 'secondary_url' => '/werk']), 'now the default language has the label');
 
         $this->assertSaved($this->save($en, 'contact_card', 'en', ['title' => 'Card', 'button_label' => 'Mail'], ['button_url' => 'https://example.test']), 'the Dutch card has a button label');
         $this->assertSaved($this->save($nl, 'contact_card', 'nl', ['title' => 'Kaart', 'body' => '', 'button_label' => ''], ['button_url' => '']));
@@ -381,7 +386,7 @@ final class BlockLocalizationEditorHttpTest extends TestCase
         $endpoint = ['rich_text' => 'update-rich-text-section', 'cta_band' => 'update-cta-band', 'contact_card' => 'update-contact-card'][$type];
         $defaults = [
             'rich_text' => ['is_active' => '1'],
-            'cta_band' => ['primary_url' => '/contact', 'secondary_url' => '', 'is_active' => '1'],
+            'cta_band' => ['primary_link_type' => 'url', 'primary_url' => '/contact', 'secondary_link_type' => 'none', 'secondary_url' => '', 'is_active' => '1'],
             'contact_card' => ['button_url' => '', 'is_active' => '1'],
         ][$type];
 

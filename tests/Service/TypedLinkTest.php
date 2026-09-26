@@ -131,7 +131,7 @@ final class TypedLinkTest extends TestCase
             // A block button with a destination goes through LinkChoice, whose
             // own address is a TypedLink (LinkChoiceTest pins that part).
             'src/Service/HomepageHeroContent.php' => ["LinkChoice::href(", "self::buttonHref(\$row, 'primary')", "self::buttonHref(\$row, 'secondary')"],
-            'src/Service/CtaBandContent.php' => ["TypedLink::href((string) (\$row['primary_url']", "TypedLink::href((string) (\$row['secondary_url']"],
+            'src/Service/CtaBandContent.php' => ["LinkChoice::href(\$row['primary_link_type']", "LinkChoice::href(\$row['secondary_link_type']"],
             'src/Service/ContactCardContent.php' => ['return TypedLink::href($stored);'],
             'src/Service/DetailSectionContent.php' => ["TypedLink::href((string) (\$row['cta_url']"],
             'src/Service/ItemGalleryContent.php' => ["TypedLink::href((string) (\$row['fallback_link_url']", "TypedLink::href((string) (\$row['button_url']"],
