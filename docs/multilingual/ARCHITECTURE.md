@@ -327,7 +327,7 @@ kleinkindrijen. Sinds 3B heeft geen enkel blok nog een `_nl`/`_en`-kolom.
 | Bloktype | Tabel | Velden per taal | Taalneutraal gebleven |
 |---|---|---|---|
 | Tekstblok (`rich_text`) | `rich_text_sections` | `body` (rich text) | `is_active` |
-| Oproep met knop (`cta_band`) | `cta_bands` | `eyebrow`, `title`, `lead`, `primary_label`, `secondary_label` | `primary_url`, `secondary_url`, `is_active` |
+| Oproep met knop (`cta_band`) | `cta_bands` | `eyebrow`, `title`, `lead`, `primary_label`, `secondary_label` | `primary_url`, `secondary_url`, de linktypes en -doelen, de weergave en achtergrond van CTA 2.0 (`CONTENT-BLOCKS.md`), `is_active` |
 | Contactkaart (`contact_card`) | `contact_cards` | `title`, `body`, `button_label` | `button_url`, `is_active` |
 
 Samen bewijzen ze rich en platte tekst, verplicht en optioneel, taalneutrale

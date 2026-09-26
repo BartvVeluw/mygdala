@@ -653,6 +653,15 @@ gaat, is dezelfde keuze als bij een carrouselkaart
 (`admin/_link_target_field.php`, `CONTENT-BLOCKS.md`); de primaire knop heeft
 geen *Geen knop*. Langere uitleg staat achter het `?` naast een label.
 
+De Oproep met knop (`admin/cta-band.php`, `api/admin/update-cta-band.php`)
+heeft geen rijen, maar volgt hetzelfde: één formulier met vijf kaarten
+(inhoud, weergave, achtergrond uit de mediabibliotheek, tekstvlak, twee
+knoppen met linkdoel), één opslag, en na een geweigerde opslag komt alles
+terug met de melding bij het veld. De tweede knop staat in de groep van de
+eerste en verdwijnt met *Geen knop* (`CONTENT-BLOCKS.md`, "Oproep met knop").
+In de Contentblokken-bibliotheek toont hij zijn standaardweergave
+(`CtaBandContent::presentation([])`): kaart, midden, twee knoppen.
+
 De statistieken zijn een gewone rijenlijst: *Statistiek toevoegen*, ↑/↓ en
 *Verwijderen* werken op het scherm zonder herladen, en pas *Opslaan* bewaart
 alles in één transactie (`row-list.js`, `EditorChildList`).

@@ -86,7 +86,7 @@ Twee onafhankelijke schakelaars verbergen een blok, en beide tellen:
   een knop op `/en/` naar de Engelse versie van de pagina wijst.
 - **Een blokknop met een linkdoel** (een carrouselkaart, de twee knoppen van
   de Homepage-hero, de knop van het Tekstblok, de knop van een item van Tekst
-  met afbeelding) bewaart `link_type` + `link_target_id` naast de getypte
+  met afbeelding, de twee knoppen van de Oproep met knop) bewaart `link_type` + `link_target_id` naast de getypte
   URL: *Geen knop*, een pagina, blogbericht of product van de site
   (`App\Service\Routing\LinkTargets`), of een eigen adres.
   `App\Service\Routing\LinkChoice` controleert wat er gepost is en maakt er
@@ -97,7 +97,8 @@ Twee onafhankelijke schakelaars verbergen een blok, en beide tellen:
   heeft een adres en geen type, en is een adres (`LinkChoice::storedType()`).
   Daarom schrijft *Geen knop* ook geen adres weg: een achtergebleven adres
   zonder type zou weer een knop worden. Elk endpoint met zo'n knop doet dat
-  (Tekstblok, carrouselkaart, Homepage-hero, Tekst met afbeelding), en bij
+  (Tekstblok, carrouselkaart, Homepage-hero, Tekst met afbeelding, Oproep met
+  knop), en bij
   *Geen knop* controleert het verder niets: het label en het adres zijn dan
   verborgen maar worden nog meegestuurd, en een oude waarde daarin houdt de
   opslag niet tegen. Rijen die vóór die regel met *Geen knop* en een adres
@@ -540,6 +541,75 @@ alleen *Hoogte*. Tonen of verbergen doe je met het oog in de paginabouwer.
 een vaste "Alle producten" en "Collecties" die niemand had getypt. Die woorden
 waren nooit opgeslagen en hadden geen veld. Wil een redacteur een kop, dan
 zet hij een Tekstblok erboven.
+
+## Oproep met knop (CTA 2.0)
+
+`db/migrations/20260926120000`. De Oproep met knop is van een vaste kaart een
+configureerbaar blok geworden: een eenvoudige tekst-CTA of een beeldvullende
+sectie, zonder dat het een vrije paginabouwer wordt. Elke keuze is een woord
+uit een gesloten lijst in `CtaBandContent`, de standaard eerst, en de
+standaard is hoe elke oproep er al uitzag. Een onbekende opgeslagen waarde
+leest als de standaard. Het endpoint weigert een onbekende waarde bij het veld
+zelf, en een formulier zonder het veld houdt wat er staat. Geen keuze hangt aan
+een taal: alleen de woorden (bovenlabel, titel, lead, twee knopteksten) zijn
+per taal.
+
+| Kolom | Waarden (standaard eerst) | Wat het doet |
+|---|---|---|
+| `content_align` | `center`, `left`, `right` (`ALIGNMENTS`) | Bovenlabel, titel, lead én knoppen. Met een tekstvlak staat het vlak zelf ook links, midden of rechts |
+| `lead_width` | `narrow`, `medium`, `wide`, `full` (`LEAD_WIDTHS`) | De maximale breedte van de lead: `narrow` is de `46ch` die elke `.lead` heeft (daarom was de lead smaller dan de titel), `medium` de leeskolom van de site (`--container-narrow`), `wide` `60rem`, `full` de hele tekstbreedte van de oproep. Op een smal scherm is elke keuze gewoon 100% |
+| `full_width` | `0`, `1` | *Achtergrond over de volledige paginabreedte*, met en zonder afbeelding. Zie hieronder |
+| `background_media_id` | een id uit de Mediabibliotheek of `NULL` | Decoratief: `alt=""` en `aria-hidden`, want de woorden zeggen alles. `ON DELETE RESTRICT`, en een tak in `ContentBlockMediaUsage` |
+| `background_focus` | de negen punten van `ImageFocus`, `center` eerst | Welk deel van de afbeelding in beeld blijft (`object-position`), met hetzelfde focusveld als de carrouselkaart en de Paginakop |
+| `background_overlay` | `medium`, `none`, `light`, `dark` (`OVERLAYS`) | Alleen over een afbeelding. De scrimkleur van het thema (`--color-media-scrim-rgb`) op `0.35`, `0.62` en `0.8`. `medium` haalt voor de thematekst minstens 5:1, zelfs op wit |
+| `text_panel` + `text_panel_opacity` | `0`/`1`; `strong`, `subtle`, `medium`, `solid` (`PANEL_OPACITIES`) | Een vlak achter de woorden in het oppervlak van het thema (`--color-surface-veil-rgb` op `0.55`, `0.72`, `0.88`; `solid` is `--color-surface`). Het vlak is zo breed als de lead op zijn gekozen breedte; de titel breekt erbinnen af. De dekking blijft bewaard als het vlak uit staat |
+
+**De lagen**, van achter naar voor: de themakleur van de oproep (de kaart of
+de sectie), de afbeelding, de overlay, het tekstvlak, de woorden. Laadt de
+afbeelding niet, dan blijft de themakleur staan en is de tekst leesbaar. Er
+is geen kleurkiezer: kleuren komen uit Thema & huisstijl.
+
+**Volledige breedte zonder truc.** De `<section>` van elk blok loopt al over
+de hele pagina, met de inhoud in een `.container`. Een oproep over de volle
+breedte schildert zijn lagen daarom op de `<section>` (`.cta-section--full`)
+in plaats van op de kaart, en de woorden blijven in de gewone container. Geen
+`100vw`, geen negatieve marges, geen horizontale scroll. Een ander blok dat
+een achtergrond over de volle breedte wil (straks de Mediabanner) doet
+hetzelfde: lagen op de sectie, inhoud in de container. De oproep houdt de
+gewone sectieruimte en groeit met zijn woorden mee; er is geen hoogte-instelling.
+
+**Knoppen: geen, één of twee.** Beide knoppen gebruiken het gedeelde linkveld
+(`LinkChoice`, hierboven). *Geen knop* bij de eerste knop is een oproep zonder
+knop; dat is de aan/uit van de knop, er is geen aparte schakelaar. De tweede
+knop zit in het editorformulier binnen de groep van de eerste en verdwijnt
+met *Geen knop*. Het endpoint slaat dan ook voor de tweede knop *Geen knop*
+op, en `CtaBandContent` rendert een tweede knop nooit zonder de eerste, wat er
+ook opgeslagen staat. Een knop rendert alleen met een doel **en** zijn
+knoptekst in de standaardtaal: een adres alleen zet nooit een knop aan, dus
+een achtergebleven adres uit een oude rij brengt geen knop terug. Knop 1 is
+de gewone `.btn`, knop 2 `.btn--ghost`, zoals altijd; de vorm komt uit het
+thema.
+
+**Bestaande oproepen.** De migratie geeft elke knop met een adres het type
+`url`, zodat hij blijft gaan waar hij heen ging; adressen worden niet
+herschreven. Een tweede adres zonder tweede knoptekst was geen knop en blijft
+dat. Een eerste knop zonder knoptekst rendert nu geen lege link meer. Elke
+oproep houdt kaart, midden, `narrow` en geen afbeelding: dezelfde markup en
+maten (`CtaBandHttpTest`, `CtaBandRenderTest`, en in de browser gemeten tegen
+`main`). Het CSS van de nieuwe keuzes staat in `assets/css/blocks/cta-band.css`
+(eigenaar `CtaBandBlock::styles()`; `portfolio-detail.php`, dat een oproep
+leent, vraagt het ook); de basiskaart bleef in `core.css`.
+
+**De editor** heeft vijf kaarten: Inhoud, Weergave, Achtergrond, Tekstvlak en
+Knoppen. Focuspunt en overlay staan er alleen met een afbeelding, de dekking
+alleen met het tekstvlak aan (`admin/assets/cta-band.js`; de server print
+dezelfde `hidden`). Er is geen eigen uploadveld: de afbeelding komt uit de
+mediakiezer.
+
+**Niet in CTA 2.0**: een video- of diavoorstellingachtergrond, een vrije
+hoogte, vrije CSS of dekking, eigen kleuren, blokken binnen de oproep,
+animatie-instellingen, paginathema's en de Mediabanner. Wie beeld of video met
+een bewust gekozen hoogte wil, krijgt straks de Mediabanner.
 
 ## Tests
 
