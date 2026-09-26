@@ -152,7 +152,9 @@ try {
         'content_width' => $width,
         'button_link_type' => $link['link_type'],
         'button_link_target_id' => $link['link_target_id'],
-        'button_url' => $buttonUrl,
+        // "Geen knop" stores no address either: a row without a type but
+        // with an address reads as an address (LinkChoice::storedType()).
+        'button_url' => $hasButton ? $buttonUrl : '',
     ]);
     BlockLocalization::save('rich_text_sections', (int) $section['id'], $languageCode, [
         RichTextContent::BODY => $body,

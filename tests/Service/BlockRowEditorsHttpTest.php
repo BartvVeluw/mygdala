@@ -762,6 +762,45 @@ final class BlockRowEditorsHttpTest extends TestCase
         self::assertNotContains($ids[0], $this->rowIds('homepage_hero'));
     }
 
+    /**
+     * "Geen knop" on the secondary button stores no address either. A row
+     * without a link type but with an address reads as an address
+     * (LinkChoice::storedType(): the Heroes from before link types existed),
+     * so a leftover address reopened the editor on "Eigen adres" with an
+     * empty label, and the next save of anything was refused.
+     */
+    public function testGeenKnopOnTheHerosSecondButtonStoresNoAddress(): void
+    {
+        $this->place('homepage_hero');
+        $session = $this->signIn(null);
+        $hero = \App\Service\HomepageHeroContent::class;
+
+        $this->assertSaved($this->save($session, 'homepage_hero', 'nl', ['secondary_link_type' => 'url', 'secondary_url' => '/x', 'secondary_label' => 'Meer'], []));
+        self::assertSame(['url', '/x'], [$this->parentRow('homepage_hero')['secondary_link_type'], $this->parentRow('homepage_hero')['secondary_url']]);
+        $hero::clearCache();
+        self::assertSame(['/x', 'Meer'], [$hero::current()['secondary_url'], $hero::current()['secondary_label']]);
+
+        // The address is hidden with "Geen knop", not emptied: the browser still sends it.
+        $this->assertSaved($this->save($session, 'homepage_hero', 'nl', ['secondary_link_type' => 'none', 'secondary_url' => '/x', 'secondary_label' => ''], []));
+        $row = $this->parentRow('homepage_hero');
+        self::assertNull($row['secondary_link_type']);
+        self::assertSame('', (string) $row['secondary_url'], 'no address left to read as one');
+        self::assertSame('/contact', (string) $row['primary_url'], 'the primary button keeps its address');
+        $hero::clearCache();
+        self::assertSame(['', ''], [$hero::current()['secondary_url'], $hero::current()['secondary_label']]);
+        $screen = $this->xpath($this->screen($session, 'homepage_hero'));
+        self::assertSame('none', $screen->query('//select[@name="secondary_link_type"]/option[@selected]')->item(0)?->getAttribute('value'));
+
+        // A Hero from before the link types: an address and no type is a button.
+        Database::connection()->prepare("UPDATE homepage_hero SET secondary_link_type = NULL, secondary_link_target_id = NULL, secondary_url = '/oud' WHERE id = ?")->execute([$this->parentId]);
+        BlockLocalization::save('homepage_hero', $this->parentId, 'nl', ['secondary_label' => 'Meer'] + array_intersect_key(self::CASES['homepage_hero']['base'], BlockLocalization::fields('homepage_hero')));
+        BlockLocalization::clearCache();
+        $hero::clearCache();
+        self::assertSame(['/oud', 'Meer'], [$hero::current()['secondary_url'], $hero::current()['secondary_label']]);
+        $screen = $this->xpath($this->screen($session, 'homepage_hero'));
+        self::assertSame('url', $screen->query('//select[@name="secondary_link_type"]/option[@selected]')->item(0)?->getAttribute('value'));
+    }
+
     public function testAnExistingImageWithoutAltTextDoesNotStopASaveOfTheOtherFields(): void
     {
         $this->place('homepage_hero');

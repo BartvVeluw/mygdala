@@ -344,10 +344,13 @@ try {
         HomepageHeroContent::PAGE_SLUG,
         [
             'title_highlight_size' => (int) $settings['title_highlight_size'],
-            'primary_url' => $settings['primary_url'],
+            // "Geen knop" stores no address either: a row without a type
+            // but with an address reads as an address
+            // (LinkChoice::storedType()). $old keeps it as typed.
+            'primary_url' => $settings['primary_link_type'] === null ? '' : $settings['primary_url'],
             'primary_link_type' => $settings['primary_link_type'],
             'primary_link_target_id' => $settings['primary_link_target_id'],
-            'secondary_url' => $settings['secondary_url'],
+            'secondary_url' => $settings['secondary_link_type'] === null ? '' : $settings['secondary_url'],
             'secondary_link_type' => $settings['secondary_link_type'],
             'secondary_link_target_id' => $settings['secondary_link_target_id'],
             'media_type' => $settings['media_type'],

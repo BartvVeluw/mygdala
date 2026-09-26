@@ -96,10 +96,13 @@ Twee onafhankelijke schakelaars verbergen een blok, en beide tellen:
   elke knop in een eigen `[data-nav-link-group]`. Een rij van vóór het type
   heeft een adres en geen type, en is een adres (`LinkChoice::storedType()`).
   Daarom schrijft *Geen knop* ook geen adres weg: een achtergebleven adres
-  zonder type zou weer een knop worden. Het endpoint van Tekst met afbeelding
-  doet dat. Het Tekstblok, de carrouselkaart en de Homepage-hero bewaren het
-  getypte adres nog wel naast *Geen knop*, en krijgen de knop dan terug (bekend
-  punt, nog niet opgelost). Een lijst van rijen met elk een knop (de items van
+  zonder type zou weer een knop worden. Elk endpoint met zo'n knop doet dat
+  (Tekstblok, carrouselkaart, Homepage-hero, Tekst met afbeelding), en bij
+  *Geen knop* controleert het verder niets: het label en het adres zijn dan
+  verborgen maar worden nog meegestuurd, en een oude waarde daarin houdt de
+  opslag niet tegen. Rijen die vóór die regel met *Geen knop* en een adres
+  zijn opgeslagen, zijn niet van een oude rij te onderscheiden en blijven
+  staan; er is geen datamigratie. Een lijst van rijen met elk een knop (de items van
   Tekst met afbeelding) is hetzelfde veld, met één `[data-nav-link-group]` per
   rij. `admin/assets/navigation-item.js` luistert op het formulier, dus een rij
   die later op het scherm komt doet ook mee. Bouw er geen kopie van per blok.

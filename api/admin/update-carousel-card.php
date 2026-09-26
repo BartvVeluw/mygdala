@@ -37,7 +37,9 @@
  * App\Service\Routing\LinkTargets with `link_target[<type>]`, which must be
  * one of that type's choices. A card that points at a type whose module is
  * off keeps its stored type and target when the editor leaves it alone.
- * link_url is kept whatever the type, so switching back shows it again.
+ * link_url is kept for every kind but 'none', so switching back to 'url'
+ * shows it again; 'none' stores no address, because a card without a kind
+ * but with an address reads as an address (LinkChoice::storedType()).
  *
  * THE IMAGE is the Media Library item in `media_id`, or none: emptying the
  * picker removes the card's image and its alt text in every language, so the
@@ -129,7 +131,7 @@ if ($link['error'] !== null) {
 }
 $settings = ['link_type' => $link['link_type'], 'link_target_id' => $link['link_target_id']];
 
-$settings += ['link_url' => $linkUrl, 'is_active' => $isActive];
+$settings += ['link_url' => $link['link_type'] === null ? '' : $linkUrl, 'is_active' => $isActive];
 
 // Which part of the cropped picture stays in view: one of nine points, the
 // default for anything else. A form without the field keeps what is stored.
@@ -193,7 +195,7 @@ foreach ($fieldErrors as $message) {
 }
 
 // As typed: the kind as chosen, not as it would be stored.
-$old = ['language_code' => $languageCode, 'link_type' => $linkType] + $words + $settings + [
+$old = ['language_code' => $languageCode, 'link_type' => $linkType, 'link_url' => $linkUrl] + $words + $settings + [
     'link_target' => array_map('intval', array_filter($postedTargets, 'is_scalar')),
     'tags' => [],
 ];

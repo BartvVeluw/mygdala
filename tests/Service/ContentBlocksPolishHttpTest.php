@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Service;
 
+use App\Database;
 use App\Repository\CardCarouselRepository;
 use App\Repository\FeatureGridRepository;
 use App\Repository\MediaRepository;
@@ -352,6 +353,80 @@ final class ContentBlocksPolishHttpTest extends TestCase
         self::assertStringContainsString('<span class="service-row__index">07</span>', $this->render(static fn () => render_section_card_carousel($content)));
     }
 
+    // ------------------------------------------------------------- "Geen knop"
+
+    /**
+     * A row without a link type but with an address reads as an address
+     * (LinkChoice::storedType(): the rows from before link types existed).
+     * So "Geen knop" must empty the address too, or the button the editor
+     * just removed comes back, and the screen reopens on "Eigen adres".
+     */
+    public function testGeenKnopInTheTextBlockStoresNoAddressAndShowsNoButton(): void
+    {
+        [$section, $id] = $this->place('rich_text');
+        $session = $this->signIn();
+        $base = ['section' => $section, 'is_active' => '1', 'body' => '<p>Tekst</p>', 'text_align' => 'left', 'button_url' => '/x', 'button_label' => 'Lees verder'];
+        $key = explode(':', $section)[1];
+
+        $this->assertSaved($this->post($session, '/api/admin/update-rich-text-section.php', $base + ['button_link_type' => 'url']));
+        self::assertSame(['url', '/x'], [(new RichTextRepository())->findById($id)['button_link_type'], (new RichTextRepository())->findById($id)['button_url']]);
+
+        // The address and the label are hidden, not emptied: the browser still sends them.
+        $this->assertSaved($this->post($session, '/api/admin/update-rich-text-section.php', $base + ['button_link_type' => 'none']));
+        $row = (new RichTextRepository())->findById($id);
+        self::assertNull($row['button_link_type']);
+        self::assertSame('', (string) $row['button_url'], 'no address left to read as one');
+
+        $content = RichTextContent::forSection(self::KEY, $key);
+        self::assertSame('', $content['button_href']);
+        self::assertStringNotContainsString('rich-text__actions', $this->render(static fn () => render_section_rich_text($content)));
+        self::assertSame('none', $this->chosenKind($session, '/admin/rich-text.php?section=' . urlencode($section), 'button_link_type'));
+
+        // A row from before the link types: an address and no type is a button.
+        Database::connection()->prepare("UPDATE rich_text_sections SET button_link_type = NULL, button_link_target_id = NULL, button_url = '/oud' WHERE id = ?")->execute([$id]);
+        RichTextContent::clearCache();
+        $content = RichTextContent::forSection(self::KEY, $key);
+        self::assertSame('/oud', $content['button_href']);
+        self::assertStringContainsString('<a href="/oud" class="btn">Lees verder</a>', $this->render(static fn () => render_section_rich_text($content)));
+        self::assertSame('url', $this->chosenKind($session, '/admin/rich-text.php?section=' . urlencode($section), 'button_link_type'));
+    }
+
+    public function testGeenKnopOnACarouselCardStoresNoAddressAndShowsNoButton(): void
+    {
+        [$section, $carouselId] = $this->place('card_carousel');
+        $session = $this->signIn();
+        $repository = new CardCarouselRepository();
+        $card = $repository->createCard($carouselId, true);
+        $base = ['card_id' => (string) $card, 'is_active' => '1', 'title' => 'Hout', 'link_label' => 'Bekijk', 'link_url' => '/x'];
+        $key = explode(':', $section)[1];
+
+        $this->assertSaved($this->post($session, '/api/admin/update-carousel-card.php', $base + ['link_type' => 'url']));
+        self::assertSame(['url', '/x'], [$repository->findCardById($card)['link_type'], $repository->findCardById($card)['link_url']]);
+        self::assertSame('/x', CardCarouselContent::forSection(self::KEY, $key)['cards'][0]['link_url']);
+
+        $this->assertSaved($this->post($session, '/api/admin/update-carousel-card.php', $base + ['link_type' => 'none']));
+        $row = $repository->findCardById($card);
+        self::assertNull($row['link_type']);
+        self::assertSame('', (string) $row['link_url'], 'no address left to read as one');
+
+        $content = CardCarouselContent::forSection(self::KEY, $key);
+        self::assertSame(['', ''], [$content['cards'][0]['link_url'], $content['cards'][0]['link_label']]);
+        self::assertStringNotContainsString('href="/x"', $this->render(static fn () => render_section_card_carousel($content)));
+        self::assertSame('none', $this->chosenKind($session, '/admin/carousel-card.php?card_id=' . $card, 'link_type'));
+
+        // A refused save still shows the address as typed.
+        $this->assertRefused($this->post($session, '/api/admin/update-carousel-card.php', ['title' => ''] + $base + ['link_type' => 'none']));
+        self::assertStringContainsString('value="/x"', self::$server->request('GET', '/admin/carousel-card.php?card_id=' . $card, $session)['body']);
+
+        // A card from before the link types: an address and no type is a button.
+        Database::connection()->prepare("UPDATE carousel_cards SET link_type = NULL, link_target_id = NULL, link_url = '/oud' WHERE id = ?")->execute([$card]);
+        CardCarouselContent::clearCache();
+        $content = CardCarouselContent::forSection(self::KEY, $key);
+        self::assertSame(['/oud', 'Bekijk'], [$content['cards'][0]['link_url'], $content['cards'][0]['link_label']]);
+        self::assertStringContainsString('href="/oud"', $this->render(static fn () => render_section_card_carousel($content)));
+        self::assertSame('url', $this->chosenKind($session, '/admin/carousel-card.php?card_id=' . $card, 'link_type'));
+    }
+
     // ------------------------------------------------------------------ helpers
 
     /** @return array{string, int} the block's address and its content row id */
@@ -401,6 +476,14 @@ final class ContentBlocksPolishHttpTest extends TestCase
         MediaService::clearCache();
 
         return $id;
+    }
+
+    /** The link kind the editor's select opens on. */
+    private function chosenKind(string $session, string $screen, string $name): string
+    {
+        $xpath = $this->xpath(self::$server->request('GET', $screen, $session)['body']);
+
+        return (string) $xpath->query('//select[@name="' . $name . '"]/option[@selected]')->item(0)?->getAttribute('value');
     }
 
     private function render(callable $render): string

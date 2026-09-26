@@ -13,7 +13,8 @@ use App\Service\Language\AdminTranslator;
  *
  *     <prefix>link_type        NULL (no button), 'url', or a LinkTargets type
  *     <prefix>link_target_id   the item's id for an internal type, else NULL
- *     <prefix>url              the typed address, kept whatever the type
+ *     <prefix>url              the typed address, kept for every type but
+ *                              NULL: "no button" stores '' here too
  *
  * An internal target is an id, never an address, so a later slug change, a
  * renamed page or a new website language follows through by itself: href()
@@ -28,7 +29,11 @@ use App\Service\Language\AdminTranslator;
  * heen", an action) and lives in App\Service\LinkResolver.
  *
  * A ROW FROM BEFORE THE TYPE EXISTED has an address and no type, and is an
- * address: storedType() reads it so, and href() renders it so.
+ * address: storedType() reads it so, and href() renders it so. That is why a
+ * save of "no button" must empty the address as well: a NULL type with a
+ * leftover address is indistinguishable from such an old row and would bring
+ * the button back. Rows that were saved that way before this rule are left
+ * alone, since no migration can tell them from the old ones.
  */
 final class LinkChoice
 {
