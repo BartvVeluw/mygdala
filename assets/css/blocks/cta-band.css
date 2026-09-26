@@ -1,0 +1,123 @@
+/* ==========================================================================
+   Oproep met knop (cta_band) — CTA 2.0: layout, background, overlay, panel
+   Owner: App\Service\Blocks\CtaBandBlock::styles() (portfolio-detail.php,
+   which borrows a band, asks for it too). The band's base look — the card,
+   its accent line, the button row — is still in core.css, untouched, so a
+   band without any CTA 2.0 choice looks exactly as it always did.
+
+   THE LAYERS, from the back (partials/section-cta-band.php):
+     1. the band's theme colour: the card, or the full-width <section>
+     2. the picture (.cta-band__media img), object-fit: cover
+     3. the overlay (.cta-band__media::after), the theme's scrim colour
+     4. the text panel (.cta-band__content--panel), the theme's surface
+     5. the words
+   Every amount below is a preset of a closed list in
+   App\Service\CtaBandContent; nothing an editor types becomes CSS. The
+   colours are the theme's own triplets, so a light theme gets a light scrim
+   and a light panel, and its text stays readable on them.
+
+   FULL WIDTH is not a trick: every block's <section> already spans the page,
+   so a full-width band simply paints its layers on the <section> and keeps
+   its words in the ordinary .container. No 100vw, no negative margins, and
+   nothing that could make the page scroll sideways.
+   ========================================================================== */
+
+.cta-section{
+  --cta-overlay-light: 0.35;
+  --cta-overlay-medium: 0.55;
+  --cta-overlay-dark: 0.78;
+  --cta-panel-subtle: 0.55;
+  --cta-panel-medium: 0.72;
+  --cta-panel-strong: 0.88;
+  --cta-lead-narrow: 46ch;                  /* the .lead every page has */
+  --cta-lead-medium: var(--container-narrow);
+  --cta-lead-wide: 60rem;
+}
+
+/* --- 1. The full-width band: the section is the box -------------------- */
+.cta-section--full{
+  background:
+    radial-gradient(ellipse 900px 360px at 50% 0%, rgba(var(--color-primary-rgb), 0.10), transparent 65%),
+    var(--color-surface);
+  border-block: 1.5px solid var(--color-line-strong);
+  overflow: hidden;
+  isolation: isolate;
+}
+.cta-section--full::before{
+  content: "";
+  position: absolute;
+  top: 0; left: 10%; right: 10%;
+  height: 2px;
+  z-index: 2;
+  background: linear-gradient(90deg, transparent, var(--color-primary), var(--color-primary-bright), var(--color-primary), transparent);
+}
+.cta-section--full > .container{ position: relative; z-index: 1; }
+/* The card's padding goes: the section's own padding is the room now, and
+   the words line up with every other block's container. */
+.cta-section--full .cta-band{ padding: 0; border-radius: 0; }
+
+/* --- 2 + 3. The picture and its overlay -------------------------------- */
+.cta-band--has-media{ isolation: isolate; }
+.cta-band--card.cta-band--has-media::before{ z-index: 2; }
+.cta-band__media{
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+.cta-band__media img{
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.cta-band__media::after{
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: rgba(var(--color-media-scrim-rgb), var(--cta-overlay-medium));
+}
+.cta-band__media--overlay-none::after{ content: none; }
+.cta-band__media--overlay-light::after{ background: rgba(var(--color-media-scrim-rgb), var(--cta-overlay-light)); }
+.cta-band__media--overlay-dark::after{ background: rgba(var(--color-media-scrim-rgb), var(--cta-overlay-dark)); }
+
+.cta-band__content{ position: relative; z-index: 1; }
+
+/* --- 4. The text panel: only around the words -------------------------- */
+.cta-band__content--panel{
+  width: fit-content;
+  max-width: 100%;
+  margin-inline: auto;
+  padding: var(--sp-5) var(--sp-4);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-lg);
+  background: rgba(var(--color-surface-veil-rgb), var(--cta-panel-strong));
+}
+.cta-band__content--panel-subtle{ background: rgba(var(--color-surface-veil-rgb), var(--cta-panel-subtle)); }
+.cta-band__content--panel-medium{ background: rgba(var(--color-surface-veil-rgb), var(--cta-panel-medium)); }
+.cta-band__content--panel-solid{ background: var(--color-surface); }
+
+/* --- 5. The words: alignment and the lead's width ---------------------- */
+.cta-band--align-left{ text-align: left; }
+.cta-band--align-right{ text-align: right; }
+.cta-band--align-left .cta-band__content--panel{ margin-inline: 0 auto; }
+.cta-band--align-right .cta-band__content--panel{ margin-inline: auto 0; }
+.cta-band--align-left .lead{ margin-inline: 0 auto; }
+.cta-band--align-right .lead{ margin-inline: auto 0; }
+.cta-band--align-left .cta-band__actions{ justify-content: flex-start; }
+.cta-band--align-right .cta-band__actions{ justify-content: flex-end; }
+
+.cta-band--lead-narrow .lead{ max-width: var(--cta-lead-narrow); }
+.cta-band--lead-medium .lead{ max-width: var(--cta-lead-medium); }
+.cta-band--lead-wide .lead{ max-width: var(--cta-lead-wide); }
+.cta-band--lead-full .lead{ max-width: none; }
+
+/* --- Small screens ------------------------------------------------------ */
+/* A card with a picture or a panel gives the words more of the width: the
+   panel has its own padding, and two paddings on a 320px screen would leave
+   a column too narrow to read. A band without either keeps its padding. */
+@media (max-width: 640px){
+  .cta-band--card.cta-band--has-media,
+  .cta-band--card.cta-band--has-panel{ padding: var(--sp-5) var(--sp-3); }
+  .cta-band__content--panel{ padding: var(--sp-4) var(--sp-3); }
+}

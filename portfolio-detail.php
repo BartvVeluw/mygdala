@@ -128,9 +128,12 @@ if ($portfolioPage === null) {
 // Frontend assets for this page: App\Service\PageAssets always puts Core
 // and the site shell first, and this page adds whatever it needs on top.
 // This page is not built out of content blocks, so it asks for the site's
-// one lightbox itself.
+// one lightbox itself, and the stylesheet of the CTA band it borrows.
 if ($portfolioItem !== null) {
     \App\Service\PageAssets::requireScript('assets/js/lightbox.js');
+}
+if ($cta['state'] !== \App\Service\CtaBandContent::STATE_HIDDEN) {
+    \App\Service\PageAssets::requireStyle('assets/css/blocks/cta-band.css');
 }
 require __DIR__ . '/partials/page-assets.php';
 ?>

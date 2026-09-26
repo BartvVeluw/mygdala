@@ -4,14 +4,16 @@ namespace App\Service;
 
 use App\Repository\CtaBandRepository;
 use App\Service\Blocks\BlockLocalization;
+use App\Service\Media\ImageFocus;
+use App\Service\Media\MediaService;
+use App\Service\Routing\LinkChoice;
 use App\Service\Routing\RequestLanguage;
-use App\Service\Routing\TypedLink;
 
 /**
- * Content for the "CTA band" block (`.cta-band.cta-band--card`) — the
- * eyebrow/H2/lead/button(s) block that closes several pages.
+ * Content for the "CTA band" block (`.cta-band`) — the eyebrow/H2/lead/
+ * button(s) block that closes several pages.
  *
- * ONE standard reusable block type (phase 2 of
+ * ONE STANDARD REUSABLE BLOCK TYPE (phase 2 of
  * docs/content-blocks/ROADMAP.md): every instance is addressed by
  * (page_slug, section_key) and owns its own content, so two CTA bands on the
  * same page are two independent blocks rather than two views of one row —
@@ -23,13 +25,26 @@ use App\Service\Routing\TypedLink;
  * WORDS PER LANGUAGE (Multilingual 2.0 phase 3A). The eyebrow, title, lead and
  * both button labels are stored per website language in block_translations and
  * come out of App\Service\Blocks\BlockLocalization as one string each, in the
- * language of the request, the fallback already applied; the two URLs and
- * is_active stay in cta_bands, the same in every language. This class decides
- * no language itself.
+ * language of the request, the fallback already applied; the destinations, the
+ * presentation and is_active stay in cta_bands, the same in every language.
+ * This class decides no language itself.
  *
- * The secondary button is fully optional, and renders only with both a label
- * and a URL: a half-filled optional button would be broken or dead, so a
- * band without either has an empty secondary label AND URL here.
+ * CTA 2.0 (CONTENT-BLOCKS.md, "Oproep met knop"): the band also has a layout
+ * and an optional background, each a word from a closed list below, the same
+ * in every language; a stored value that is not on its list reads as the
+ * list's first entry, which is the presentation every band had before. The
+ * layers, from the back: the band's own theme colour, the picture, the overlay
+ * over the picture, the text panel, the words.
+ *
+ * THE BUTTONS. Each button's destination is the shape every block button has
+ * (App\Service\Routing\LinkChoice), so a page is followed by id through a
+ * slug change, a nesting change and every website language. A button renders
+ * only with a destination AND its label in the default language: an address
+ * alone never switches a button on, which is what keeps a stale address from
+ * an old row (or from before "Geen knop" emptied it) off the page. The second
+ * button renders only next to the first: without a first button there is no
+ * second one, whatever is stored for it. A button that does not render has an
+ * empty label AND href here.
  *
  * `is_active = false` on an *existing* row is a deliberate hide, and a
  * different case from a missing row. forSection()'s returned `state` field
@@ -60,19 +75,45 @@ class CtaBandContent
     /** The translatable fields of this block (CtaBandBlock::translatableFields()). */
     public const WORDS = ['eyebrow', 'title', 'lead', 'primary_label', 'secondary_label'];
 
+    /**
+     * How the words and the buttons are aligned. The first entry is the
+     * presentation every band had before CTA 2.0, and what an unknown stored
+     * value reads as; the same holds for every list below.
+     */
+    public const ALIGNMENTS = ['center', 'left', 'right'];
+
+    /**
+     * How wide the lead may run: 'narrow' is the 46ch every lead has,
+     * 'medium' the site's reading column, 'wide' wider still, 'full' the whole
+     * width of the band's text. The lengths live in assets/css/blocks/cta-band.css.
+     */
+    public const LEAD_WIDTHS = ['narrow', 'medium', 'wide', 'full'];
+
+    /**
+     * How strongly the overlay covers the background picture. It is the
+     * theme's scrim colour (--color-media-scrim-rgb), so it darkens in a dark
+     * theme and lightens in a light one, and the theme's text stays readable.
+     * Only drawn over a picture.
+     */
+    public const OVERLAYS = ['medium', 'none', 'light', 'dark'];
+
+    /** How opaque the text panel is: the theme's surface, from see-through to solid. */
+    public const PANEL_OPACITIES = ['strong', 'subtle', 'medium', 'solid'];
+
     private const TABLE = 'cta_bands';
 
     /** @var array<string, array<string, mixed>> */
     private static array $cache = [];
 
     /**
-     * @return array<string, mixed> 'state' (one of STATE_*), a string
-     *                              per field in WORDS, and the strings
-     *                              primary_url and secondary_url. lead and
-     *                              the secondary button may be empty.
-     *                              Templates must check 'state' !==
-     *                              STATE_HIDDEN before rendering the block
-     *                              at all.
+     * @return array<string, mixed> 'state' (one of STATE_*), a string per
+     *                              field in WORDS, the strings primary_url
+     *                              and secondary_url (the buttons' hrefs, ''
+     *                              for no button), and the presentation of
+     *                              presentation(). lead and either button
+     *                              may be empty. Templates must check
+     *                              'state' !== STATE_HIDDEN before rendering
+     *                              the block at all.
      */
     public static function forSection(string $pageSlug, string $sectionKey): array
     {
@@ -114,6 +155,49 @@ class CtaBandContent
         }
 
         return self::$cache[$cacheKey] = self::fromRow($row);
+    }
+
+    /**
+     * The layout and the background of a stored row, every word checked
+     * against its closed list; for the page and for the editor alike.
+     *
+     * The picture is decorative: the words say everything, so it has no alt
+     * text of its own, and an item that is gone (or is a video) is simply no
+     * picture.
+     *
+     * @param array<string, mixed> $row
+     *
+     * @return array{align: string, lead_width: string, full_width: bool, background: array{image_path: string, width: int|null, height: int|null}|null, background_focus: string, overlay: string, panel: string}
+     *         panel is '' for no text panel, else a word of PANEL_OPACITIES
+     */
+    public static function presentation(array $row): array
+    {
+        $media = MediaService::findImage(isset($row['background_media_id']) ? (int) $row['background_media_id'] : null);
+
+        return [
+            'align' => self::choice(self::ALIGNMENTS, $row['content_align'] ?? null),
+            'lead_width' => self::choice(self::LEAD_WIDTHS, $row['lead_width'] ?? null),
+            'full_width' => (bool) ($row['full_width'] ?? false),
+            'background' => $media === null ? null : [
+                'image_path' => $media->publicPath(),
+                'width' => $media->hasDimensions() ? $media->width : null,
+                'height' => $media->hasDimensions() ? $media->height : null,
+            ],
+            'background_focus' => ImageFocus::normalise($row['background_focus'] ?? null),
+            'overlay' => self::choice(self::OVERLAYS, $row['background_overlay'] ?? null),
+            'panel' => (bool) ($row['text_panel'] ?? false) ? self::choice(self::PANEL_OPACITIES, $row['text_panel_opacity'] ?? null) : '',
+        ];
+    }
+
+    /**
+     * A stored or posted word as a word of its list: itself when it is on it,
+     * else the list's first entry.
+     *
+     * @param list<string> $list one of the closed lists above
+     */
+    public static function choice(array $list, mixed $value): string
+    {
+        return is_string($value) && in_array($value, $list, true) ? $value : $list[0];
     }
 
     /**
@@ -160,20 +244,25 @@ class CtaBandContent
             $content[$field] = $hasWords ? BlockLocalization::text(self::TABLE, $bandId, $field) : '';
         }
 
-        // Typed by an editor, printed in the language being read
-        // (App\Service\Routing\TypedLink).
-        $content['primary_url'] = TypedLink::href((string) ($row['primary_url'] ?? ''));
-        $content['secondary_url'] = TypedLink::href((string) ($row['secondary_url'] ?? ''));
+        // Where each button goes, in the language being read. A button needs
+        // its destination and its label in the default language, whatever
+        // language is being read; the second one also needs the first.
+        $primaryHref = LinkChoice::href($row['primary_link_type'] ?? null, $row['primary_link_target_id'] ?? 0, (string) ($row['primary_url'] ?? ''));
+        $hasPrimary = $hasWords && $primaryHref !== '' && BlockLocalization::hasDefaultWords(self::TABLE, $bandId, 'primary_label');
 
-        // A secondary button only renders when it has both a label and a
-        // URL — a half-filled optional button would be broken/dead. The
-        // default language decides whether it has a label, whatever
-        // language is being read.
-        if (!BlockLocalization::hasDefaultWords(self::TABLE, (int) $row['id'], 'secondary_label') || $content['secondary_url'] === '') {
+        $secondaryHref = LinkChoice::href($row['secondary_link_type'] ?? null, $row['secondary_link_target_id'] ?? 0, (string) ($row['secondary_url'] ?? ''));
+        $hasSecondary = $hasPrimary && $secondaryHref !== '' && BlockLocalization::hasDefaultWords(self::TABLE, $bandId, 'secondary_label');
+
+        $content['primary_url'] = $hasPrimary ? $primaryHref : '';
+        $content['secondary_url'] = $hasSecondary ? $secondaryHref : '';
+        if (!$hasPrimary) {
+            $content['primary_label'] = '';
+        }
+        if (!$hasSecondary) {
             $content['secondary_label'] = '';
-            $content['secondary_url'] = '';
         }
 
+        $content += self::presentation($row);
         $content['state'] = self::STATE_ACTIVE;
 
         return $content;
@@ -189,6 +278,6 @@ class CtaBandContent
             $content[$field] = '';
         }
 
-        return $content + ['primary_url' => '', 'secondary_url' => ''];
+        return $content + ['primary_url' => '', 'secondary_url' => ''] + self::presentation([]);
     }
 }

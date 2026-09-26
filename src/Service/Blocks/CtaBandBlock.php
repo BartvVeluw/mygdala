@@ -4,13 +4,17 @@ namespace App\Service\Blocks;
 
 use App\Repository\CtaBandRepository;
 use App\Service\CtaBandContent;
+use App\Service\Routing\LinkChoice;
 
 require_once dirname(__DIR__, 3) . '/partials/section-cta-band.php';
 
 /**
  * The eyebrow/H2/lead/button(s) band that closes several pages. Repeatable
- * per instance since phase 2; its secondary button stays optional. Its words
- * are stored per website language in block_translations (BlockLocalization).
+ * per instance since phase 2. Since CTA 2.0 it has no, one or two buttons,
+ * each with a destination of the shared kind (LinkChoice), a layout (aligned,
+ * lead width, full width) and an optional background picture with an overlay
+ * and a text panel (CtaBandContent, CONTENT-BLOCKS.md). Its words are stored
+ * per website language in block_translations (BlockLocalization).
  */
 final class CtaBandBlock extends BlockDefinition
 {
@@ -60,9 +64,11 @@ final class CtaBandBlock extends BlockDefinition
     }
 
     /**
-     * The words of the band, per website language; the two URLs are the same
-     * in every language and stay in cta_bands. The lengths are the ones the
-     * editor always allowed.
+     * The words of the band, per website language; the destinations are the
+     * same in every language and stay in cta_bands. The lengths are the ones
+     * the editor always allowed. A button label is required only while its
+     * button has a destination, which the endpoint checks itself
+     * (api/admin/update-cta-band.php): a band without a button has none.
      */
     public function translatableFields(): array
     {
@@ -71,10 +77,15 @@ final class CtaBandBlock extends BlockDefinition
                 TranslatableField::plain('eyebrow', 150),
                 TranslatableField::plain('title', 255)->required(),
                 TranslatableField::plain('lead', 500),
-                TranslatableField::plain('primary_label', 150)->required(),
+                TranslatableField::plain('primary_label', 150),
                 TranslatableField::plain('secondary_label', 150),
             ],
         ];
+    }
+
+    public function styles(): array
+    {
+        return ['assets/css/blocks/cta-band.css'];
     }
 
     public function create(string $pageSlug): array
@@ -86,11 +97,12 @@ final class CtaBandBlock extends BlockDefinition
             // A newly added band must not assume this site's routes. It used
             // to start out pointing at /contact.php, a page that exists only
             // on the installation this CMS grew out of — anywhere else that
-            // is a 404 waiting for someone to notice. The block always
-            // renders its primary button, so the placeholder needs a
-            // destination: the site root is the one URL every installation
-            // answers, and it is obviously a value to change.
+            // is a 404 waiting for someone to notice. A new band starts with
+            // one button, so the placeholder needs a destination: the site
+            // root is the one URL every installation answers, and it is
+            // obviously a value to change.
             'primary_url' => '/',
+            'primary_link_type' => LinkChoice::URL,
             'secondary_url' => '',
             'is_active' => true,
         ]);
@@ -133,7 +145,7 @@ final class CtaBandBlock extends BlockDefinition
             'primary_url' => BlockSamples::LINK,
             'secondary_label' => $samples->localized('button_secondary'),
             'secondary_url' => BlockSamples::LINK,
-        ];
+        ] + CtaBandContent::presentation([]);
     }
 
     public function renderSample(array $content, string $revealGroup): void

@@ -13,7 +13,8 @@ use App\Service\Media\MediaUsageProvider;
  * The content blocks that pick their images from the Media Library: every
  * item of a Tekst met afbeelding, Detailsectie (its main image and its extra
  * images), the cards of a Kaarten-carrousel, the image behind a Paginakop,
- * and the Homepage Hero's image and video.
+ * the Homepage Hero's image and video, the icons of Kenmerken in kaartjes,
+ * and the background picture of an Oproep met knop.
  *
  * ONE QUERY FOR ALL OF THEM. A UNION rather than five round trips,
  * because this provider is called once per page of the library listing and
@@ -105,13 +106,19 @@ final class ContentBlockMediaUsage extends MediaUsageProvider
               FROM feature_grid_items fi
               JOIN feature_grids fg ON fg.id = fi.feature_grid_id
              WHERE fi.icon_media_id IN (' . $placeholders . ')
+
+            UNION ALL
+
+            SELECT cb.background_media_id, \'Oproep met knop (achtergrond)\', \'cta-band\', cb.page_slug, cb.section_key, NULL
+              FROM cta_bands cb
+             WHERE cb.background_media_id IN (' . $placeholders . ')
         ';
 
         $stmt = Database::connection()->prepare($sql);
         // The same id list once per branch: a named placeholder cannot be
         // reused across a statement here, so each branch gets its own
         // positional set.
-        $stmt->execute(array_merge(...array_fill(0, 8, $ids)));
+        $stmt->execute(array_merge(...array_fill(0, 9, $ids)));
 
         $usages = [];
 

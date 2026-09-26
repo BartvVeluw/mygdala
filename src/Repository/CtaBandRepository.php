@@ -55,23 +55,65 @@ class CtaBandRepository extends Repository
     }
 
     /**
+     * What a row stores when a caller leaves a setting out: no destination,
+     * and the presentation every band had before CTA 2.0 (the column
+     * defaults of db/migrations/20260926120000).
+     */
+    private const DEFAULTS = [
+        'primary_link_type' => null,
+        'primary_link_target_id' => null,
+        'secondary_link_type' => null,
+        'secondary_link_target_id' => null,
+        'content_align' => 'center',
+        'lead_width' => 'narrow',
+        'full_width' => false,
+        'background_media_id' => null,
+        'background_focus' => 'center',
+        'background_overlay' => 'medium',
+        'text_panel' => false,
+        'text_panel_opacity' => 'strong',
+    ];
+
+    /**
      * Inserts or updates the single row for this page_slug + section_key:
      * what is the same in every language. The band's words are stored per
      * website language through App\Service\Blocks\BlockLocalization
-     * (db/migrations/20260917170000).
+     * (db/migrations/20260917170000). The caller has already checked every
+     * value (api/admin/update-cta-band.php); this only writes.
      *
-     * @param array{primary_url: string, secondary_url: string, is_active: bool} $values
+     * @param array{primary_url: string, secondary_url: string, is_active: bool}&array<string, mixed> $values
+     *        plus any key of DEFAULTS
      */
     public function upsertSection(string $pageSlug, string $sectionKey, array $values): void
     {
+        $values += self::DEFAULTS;
+
         $stmt = $this->db->prepare(
             'INSERT INTO cta_bands
-                (page_slug, section_key, primary_url, secondary_url, is_active, created_at, updated_at)
+                (page_slug, section_key, primary_url, primary_link_type, primary_link_target_id,
+                 secondary_url, secondary_link_type, secondary_link_target_id,
+                 content_align, lead_width, full_width, background_media_id, background_focus,
+                 background_overlay, text_panel, text_panel_opacity, is_active, created_at, updated_at)
              VALUES
-                (:page_slug, :section_key, :primary_url, :secondary_url, :is_active, NOW(), NOW())
+                (:page_slug, :section_key, :primary_url, :primary_link_type, :primary_link_target_id,
+                 :secondary_url, :secondary_link_type, :secondary_link_target_id,
+                 :content_align, :lead_width, :full_width, :background_media_id, :background_focus,
+                 :background_overlay, :text_panel, :text_panel_opacity, :is_active, NOW(), NOW())
              ON DUPLICATE KEY UPDATE
                 primary_url = VALUES(primary_url),
+                primary_link_type = VALUES(primary_link_type),
+                primary_link_target_id = VALUES(primary_link_target_id),
                 secondary_url = VALUES(secondary_url),
+                secondary_link_type = VALUES(secondary_link_type),
+                secondary_link_target_id = VALUES(secondary_link_target_id),
+                content_align = VALUES(content_align),
+                lead_width = VALUES(lead_width),
+                full_width = VALUES(full_width),
+                background_media_id = VALUES(background_media_id),
+                background_focus = VALUES(background_focus),
+                background_overlay = VALUES(background_overlay),
+                text_panel = VALUES(text_panel),
+                text_panel_opacity = VALUES(text_panel_opacity),
                 is_active = VALUES(is_active),
                 updated_at = NOW()'
         );
@@ -80,7 +122,19 @@ class CtaBandRepository extends Repository
             'page_slug' => $pageSlug,
             'section_key' => $sectionKey,
             'primary_url' => $values['primary_url'],
+            'primary_link_type' => $values['primary_link_type'],
+            'primary_link_target_id' => $values['primary_link_target_id'],
             'secondary_url' => $values['secondary_url'] !== '' ? $values['secondary_url'] : null,
+            'secondary_link_type' => $values['secondary_link_type'],
+            'secondary_link_target_id' => $values['secondary_link_target_id'],
+            'content_align' => $values['content_align'],
+            'lead_width' => $values['lead_width'],
+            'full_width' => $values['full_width'] ? 1 : 0,
+            'background_media_id' => $values['background_media_id'],
+            'background_focus' => $values['background_focus'],
+            'background_overlay' => $values['background_overlay'],
+            'text_panel' => $values['text_panel'] ? 1 : 0,
+            'text_panel_opacity' => $values['text_panel_opacity'],
             'is_active' => $values['is_active'] ? 1 : 0,
         ]);
     }
