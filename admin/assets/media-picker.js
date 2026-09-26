@@ -42,7 +42,10 @@
  * one opened it, and that field's kind (data-media-picker-kind) decides what
  * the modal lists and what its upload accepts. The server applies the same
  * kind again (api/admin/media-list.php ?type=, api/admin/media-upload.php
- * kind=), and every endpoint behind a field checks the id once more.
+ * kind=), and every endpoint behind a field checks the id once more. A field
+ * that takes a picture OR a video ("visual") lists and uploads both, says
+ * which one was chosen next to its name, and keeps the chosen item's kind in
+ * data-media-picker-chosen for its screen (admin/assets/media-banner.js).
  *
  * An alt-text input linked to the field (data-media-alt-for="<its name>",
  * media_alt_field() in admin/_media_picker.php) is filled with the chosen
@@ -82,6 +85,7 @@
   var confirmButton = modal.querySelector("[data-media-modal-confirm]");
   var countEl = modal.querySelector("[data-media-modal-count]");
   var kinds = config.kinds || {};
+  var kindLabels = config.kindLabels || {};
   var messages = config.messages || {};
 
   /** The library screen's grid-or-list choice, shared: one preference per browser. */
@@ -487,6 +491,16 @@
     name.textContent = item.name;
     preview.appendChild(name);
 
+    // A field that takes both kinds says which one this is, and carries it
+    // for its screen (admin/_media_picker.php, MediaType::VISUAL).
+    field.setAttribute("data-media-picker-chosen", item.kind || "");
+    if (kindOf(field) === "visual" && kindLabels[item.kind]) {
+      var kindLabel = document.createElement("span");
+      kindLabel.className = "admin-media-picker__kind";
+      kindLabel.textContent = kindLabels[item.kind];
+      preview.appendChild(kindLabel);
+    }
+
     if (clear) {
       clear.hidden = false;
     }
@@ -607,6 +621,7 @@
     empty.textContent = field.getAttribute("data-media-picker-empty") || "";
     preview.appendChild(empty);
 
+    field.setAttribute("data-media-picker-chosen", "");
     clearButton.hidden = true;
     input.dispatchEvent(new Event("change", { bubbles: true }));
     fillAlt(field, null);

@@ -3396,6 +3396,14 @@ input[data-color-picker]{ width: 2.4rem; height: 2.4rem; padding: 0.15rem; borde
 .admin-media-picker__name{ font-size: 0.78rem; overflow-wrap: anywhere; }
 .admin-media-picker__empty{ font-size: 0.78rem; color: var(--admin-text-faint); }
 .admin-media-picker__missing{ font-size: 0.78rem; color: var(--admin-error); }
+/* A field that takes a picture or a video (MediaType::VISUAL) says which one was chosen. */
+.admin-media-picker__kind{
+  font-size: 0.72rem;
+  color: var(--admin-text-muted);
+  border: 1px solid var(--admin-border-strong);
+  border-radius: 999px;
+  padding: 0 var(--admin-sp-2);
+}
 
 .admin-media-picker__actions{ display: flex; flex-wrap: wrap; gap: var(--admin-sp-3); }
 
@@ -4650,6 +4658,25 @@ body.admin-block-picker-open{ overflow: hidden; }
 .admin-bp--chips i:nth-child(3){ flex: 0 0 21%; }
 .admin-bp--space{ height: 28px; border: 1px dashed var(--admin-border-strong); border-radius: 3px; }
 .admin-bp--chips i:nth-child(4){ flex: 0 0 16%; }
+
+.admin-bp--media{
+  position: relative;
+  height: 38px;
+  background: var(--admin-surface-hover);
+  border: 1px solid var(--admin-accent-soft-strong);
+  border-radius: 3px;
+  overflow: hidden;
+}
+.admin-bp--media i{ position: absolute; }
+.admin-bp--media i:nth-child(1){ top: 7px; right: 16%; width: 7px; height: 7px; border-radius: 50%; background: var(--admin-accent); }
+.admin-bp--media i:nth-child(2){
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 20px;
+  border-radius: 0;
+  clip-path: polygon(0 100%, 0 70%, 26% 20%, 46% 64%, 64% 36%, 100% 86%, 100% 100%);
+}
 
 /* --- The Contentblokken catalogue (admin/content-blocks.php) ---------- */
 

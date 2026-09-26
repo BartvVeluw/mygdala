@@ -37,6 +37,12 @@ namespace App\Service\Media;
  * the grid, and a picker for an icon lists and uploads nothing else. An
  * ordinary image field keeps listing every image, SVG included.
  *
+ * The third filter goes the other way: VISUAL widens a field to BOTH kinds,
+ * for a field that takes a picture or a video and lets the chosen item decide
+ * which it is (the Mediabanner, CONTENT-BLOCKS.md). It lists and uploads
+ * images and videos, and still nothing no kind claims. Like the share image it
+ * is not a section of the library.
+ *
  * Derived from `mime_type`, which the library already stores from the file's
  * own header, so a kind needs no column and no backfill. A row whose type is
  * unknown (an adopted file with an extension the adoption did not recognise)
@@ -52,6 +58,9 @@ final class MediaType
 
     /** A picker filter that is also a section of the library: an SVG image. */
     public const ICON = 'icon';
+
+    /** A picker filter over both kinds: an image or a video. */
+    public const VISUAL = 'visual';
 
     /** Each kind, and how every MIME type that belongs to it begins. */
     private const MIME_PREFIXES = [
@@ -98,10 +107,13 @@ final class MediaType
     /** Whether a picker may ask for this: a kind, or a filter on one. */
     public static function isPickerFilter(string $filter): bool
     {
-        return self::isKnown($filter) || $filter === self::SOCIAL_IMAGE || $filter === self::ICON;
+        return self::isKnown($filter) || in_array($filter, [self::SOCIAL_IMAGE, self::ICON, self::VISUAL], true);
     }
 
-    /** The kind a picker filter narrows, or null for an unknown one. */
+    /**
+     * The one kind a picker filter narrows, or null for an unknown one — and
+     * for VISUAL, which is no single kind but both.
+     */
     public static function kindOfFilter(string $filter): ?string
     {
         return match (true) {
@@ -126,9 +138,31 @@ final class MediaType
         };
     }
 
+    /**
+     * How the MIME types of the kinds a picker filter covers begin: one prefix
+     * for a kind or a filter on one, both for VISUAL, and none — no filter —
+     * for a filter this list does not have.
+     *
+     * @return list<string>
+     */
+    public static function mimePrefixesOfFilter(string $filter): array
+    {
+        if ($filter === self::VISUAL) {
+            return array_values(self::MIME_PREFIXES);
+        }
+
+        $prefix = self::mimePrefix((string) self::kindOfFilter($filter));
+
+        return $prefix === null ? [] : [$prefix];
+    }
+
     /** Whether a stored item with this MIME type is an answer to a picker filter. */
     public static function filterAccepts(string $filter, string $mimeType): bool
     {
+        if ($filter === self::VISUAL) {
+            return self::ofMime($mimeType) !== null;
+        }
+
         $kind = self::kindOfFilter($filter);
 
         if ($kind === null || self::ofMime($mimeType) !== $kind) {

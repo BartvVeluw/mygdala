@@ -228,19 +228,20 @@ final class MediaService
     {
         $page = max(1, $page);
         $perPage = max(1, min(100, $perPage));
-        // A kind, or a picker filter on one (MediaType::SOCIAL_IMAGE).
-        $mimePrefix = MediaType::mimePrefix((string) MediaType::kindOfFilter($type));
+        // A kind, a picker filter on one (MediaType::SOCIAL_IMAGE), or one
+        // over both (MediaType::VISUAL).
+        $mimePrefixes = MediaType::mimePrefixesOfFilter($type);
         $mimes = MediaType::mimesOfFilter($type);
 
         // A folder filter as MediaFolderService::filter() gives it; anything
         // else filters nothing, like an unknown kind.
         $folder = $folder === 'none' || (ctype_digit($folder) && (int) $folder > 0) ? $folder : '';
 
-        $rows = $this->repository->search($term, $perPage, ($page - 1) * $perPage, $mimePrefix, $mimes, $folder);
+        $rows = $this->repository->search($term, $perPage, ($page - 1) * $perPage, $mimePrefixes, $mimes, $folder);
 
         return [
             'items' => array_map(static fn (array $row): MediaItem => MediaItem::fromRow($row), $rows),
-            'total' => $this->repository->countSearch($term, $mimePrefix, $mimes, $folder),
+            'total' => $this->repository->countSearch($term, $mimePrefixes, $mimes, $folder),
         ];
     }
 
@@ -296,7 +297,9 @@ final class MediaService
         $name = trim($name);
 
         // A kind, or a picker filter on one: the filter narrows what may come
-        // back, the kind is what the uploader checks.
+        // back, the kind is what the uploader checks. A filter over both kinds
+        // (MediaType::VISUAL) leaves the kind open, like the library's own
+        // queue, and still takes nothing no kind claims.
         $filter = $kind !== null && MediaType::isPickerFilter($kind) ? $kind : null;
         $kind = $filter !== null ? MediaType::kindOfFilter($filter) : null;
 
@@ -304,7 +307,7 @@ final class MediaService
             $name = (string) ($file['name'] ?? '');
             $claimed = MediaUploader::kindOfName($name);
 
-            if ($claimed !== null && ($claimed !== $kind || !MediaUploader::nameFitsFilter($name, $filter))) {
+            if ($claimed !== null && (($kind !== null && $claimed !== $kind) || !MediaUploader::nameFitsFilter($name, $filter))) {
                 throw new \RuntimeException(AdminTranslator::trans('media.upload.wrong_kind.' . $filter));
             }
         }

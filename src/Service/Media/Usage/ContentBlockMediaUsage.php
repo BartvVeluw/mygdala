@@ -14,7 +14,8 @@ use App\Service\Media\MediaUsageProvider;
  * item of a Tekst met afbeelding, Detailsectie (its main image and its extra
  * images), the cards of a Kaarten-carrousel, the image behind a Paginakop,
  * the Homepage Hero's image and video, the icons of Kenmerken in kaartjes,
- * and the background picture of an Oproep met knop.
+ * the background picture of an Oproep met knop, and the picture or video of a
+ * Mediabanner with its poster.
  *
  * ONE QUERY FOR ALL OF THEM. A UNION rather than five round trips,
  * because this provider is called once per page of the library listing and
@@ -112,13 +113,25 @@ final class ContentBlockMediaUsage extends MediaUsageProvider
             SELECT cb.background_media_id, \'Oproep met knop (achtergrond)\', \'cta-band\', cb.page_slug, cb.section_key, NULL
               FROM cta_bands cb
              WHERE cb.background_media_id IN (' . $placeholders . ')
+
+            UNION ALL
+
+            SELECT mb.media_id, \'Mediabanner\', \'media-banner\', mb.page_slug, mb.section_key, NULL
+              FROM media_banners mb
+             WHERE mb.media_id IN (' . $placeholders . ')
+
+            UNION ALL
+
+            SELECT mb.poster_media_id, \'Mediabanner (poster)\', \'media-banner\', mb.page_slug, mb.section_key, NULL
+              FROM media_banners mb
+             WHERE mb.poster_media_id IN (' . $placeholders . ')
         ';
 
         $stmt = Database::connection()->prepare($sql);
         // The same id list once per branch: a named placeholder cannot be
         // reused across a statement here, so each branch gets its own
         // positional set.
-        $stmt->execute(array_merge(...array_fill(0, 9, $ids)));
+        $stmt->execute(array_merge(...array_fill(0, 11, $ids)));
 
         $usages = [];
 

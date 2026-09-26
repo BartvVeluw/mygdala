@@ -40,7 +40,11 @@ use App\Service\Media\MediaUploader;
  * (MediaType), and the modal then lists and uploads only that kind: an image
  * field never offers an MP4, and a video field is not buried in photos. The
  * endpoint behind the field checks the kind again (MediaService::findImage(),
- * findVideo(), BlockImage::fromRequest()).
+ * findVideo(), BlockImage::fromRequest()). One field takes both on purpose:
+ * MediaType::VISUAL, where the chosen item decides whether the use is a
+ * picture or a video (the Mediabanner). That field says which one was chosen
+ * next to its name, and the field carries the chosen item's kind in
+ * data-media-picker-chosen, so its screen can show what only one kind needs.
  *
  * THE ALT TEXT OF THIS USE. A field that has its own alt text next to it links
  * that input to the picker (media_alt_field()). The input then shows the alt
@@ -68,8 +72,9 @@ use App\Service\Media\MediaUploader;
  * @param string         $help      one line under the field, or ''
  * @param bool           $clearable whether "geen afbeelding" is a valid answer
  * @param string         $kind      MediaType::IMAGE, ::VIDEO, or a filter: ::SOCIAL_IMAGE (a share
- *                                  image: raster formats only, no SVG) or ::ICON (an SVG from
- *                                  the library's Iconen): what the field takes
+ *                                  image: raster formats only, no SVG), ::ICON (an SVG from
+ *                                  the library's Iconen) or ::VISUAL (an image or a video):
+ *                                  what the field takes
  */
 function media_picker_field(
     string $name,
@@ -79,23 +84,26 @@ function media_picker_field(
     bool $clearable = true,
     string $kind = MediaType::IMAGE
 ): void {
-    $kind = in_array($kind, [MediaType::VIDEO, MediaType::SOCIAL_IMAGE, MediaType::ICON], true) ? $kind : MediaType::IMAGE;
+    $kind = in_array($kind, [MediaType::VIDEO, MediaType::SOCIAL_IMAGE, MediaType::ICON, MediaType::VISUAL], true) ? $kind : MediaType::IMAGE;
     // Resolved here rather than in the signature: a PHP default value
     // cannot call a function, and this one has to be read per request.
     $label = $label !== '' ? $label : admin_t(match ($kind) {
         MediaType::VIDEO => 'media.picker.video_label',
         MediaType::ICON => 'media.picker.icon_label',
+        MediaType::VISUAL => 'media.picker.visual_label',
         default => 'common.image_label',
     });
     $empty = admin_t(match ($kind) {
         MediaType::VIDEO => 'media.picker.no_video',
         MediaType::ICON => 'media.picker.no_icon',
+        MediaType::VISUAL => 'media.picker.no_visual',
         default => 'media.no_image_chosen',
     });
     $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
     $fieldId = 'media-picker-' . preg_replace('/[^a-z0-9_-]/i', '-', $name) . '-' . bin2hex(random_bytes(4));
+    $chosenKind = $selected?->kind() ?? '';
     ?>
-    <div class="admin-media-picker" data-media-picker data-media-picker-kind="<?= $h($kind) ?>" data-media-picker-empty="<?= $h($empty) ?>">
+    <div class="admin-media-picker" data-media-picker data-media-picker-kind="<?= $h($kind) ?>" data-media-picker-empty="<?= $h($empty) ?>" data-media-picker-chosen="<?= $h($chosenKind) ?>">
       <span class="admin-media-picker__label" id="<?= $h($fieldId) ?>-label"><?= $h($label) ?></span>
 
       <input type="hidden" name="<?= $h($name) ?>" value="<?= $selected !== null ? (int) $selected->id : '' ?>" data-media-picker-input>
@@ -110,6 +118,9 @@ function media_picker_field(
             <img src="<?= $h($selected->displayPath()) ?>" alt="" loading="lazy">
           <?php endif; ?>
           <span class="admin-media-picker__name"><?= $h($selected->displayName()) ?></span>
+          <?php if ($kind === MediaType::VISUAL && $chosenKind !== ''): ?>
+            <span class="admin-media-picker__kind"><?= admin_te('media.picker.kind_' . $chosenKind) ?></span>
+          <?php endif; ?>
         <?php else: ?>
           <span class="admin-media-picker__empty"><?= $h($empty) ?></span>
         <?php endif; ?>
@@ -282,6 +293,16 @@ function media_picker_modal(): void
                   'upload' => admin_t('media.picker.upload_icon'),
                   'empty' => admin_t('media.picker.empty_icon'),
               ],
+              MediaType::VISUAL => [
+                  'accept' => MediaUploader::acceptAttribute(MediaType::VISUAL),
+                  'upload' => admin_t('media.picker.upload_visual'),
+                  'empty' => admin_t('media.picker.empty_visual'),
+              ],
+          ],
+          // What a field that takes both kinds says about the one chosen.
+          'kindLabels' => [
+              MediaType::IMAGE => admin_t('media.picker.kind_image'),
+              MediaType::VIDEO => admin_t('media.picker.kind_video'),
           ],
           'messages' => [
               'noAlt' => admin_t('media.alt.none_yet'),

@@ -112,11 +112,14 @@ class MediaRepository extends Repository
      * (App\Service\Media\MediaType), and a folder narrows it to one virtual
      * folder or to the items without one. No tags, no ranking — see MEDIA.md.
      *
-     * @param string|null $mimePrefix "image/", or null for every kind
+     * @param list<string>|string|null $mimePrefix "image/", several of them
+     *                                           (any one matches: a picture
+     *                                           or a video), or null or []
+     *                                           for every kind
      *
      * @return list<array<string, mixed>>
      */
-    public function search(string $term = '', int $limit = self::PAGE_SIZE, int $offset = 0, ?string $mimePrefix = null, ?array $mimes = null, string $folder = ''): array
+    public function search(string $term = '', int $limit = self::PAGE_SIZE, int $offset = 0, array|string|null $mimePrefix = null, ?array $mimes = null, string $folder = ''): array
     {
         [$where, $params] = $this->searchClause($term, $mimePrefix, $mimes, $folder);
 
@@ -130,7 +133,7 @@ class MediaRepository extends Repository
     }
 
     /** How many items the same search matches, for the pager. */
-    public function countSearch(string $term = '', ?string $mimePrefix = null, ?array $mimes = null, string $folder = ''): int
+    public function countSearch(string $term = '', array|string|null $mimePrefix = null, ?array $mimes = null, string $folder = ''): int
     {
         [$where, $params] = $this->searchClause($term, $mimePrefix, $mimes, $folder);
 
@@ -153,7 +156,7 @@ class MediaRepository extends Repository
      *
      * @return array{0: string, 1: array<string, string>}
      */
-    private function searchClause(string $term, ?string $mimePrefix, ?array $mimes = null, string $folder = ''): array
+    private function searchClause(string $term, array|string|null $mimePrefix, ?array $mimes = null, string $folder = ''): array
     {
         $conditions = [];
         $params = [];
@@ -169,9 +172,18 @@ class MediaRepository extends Repository
             $params += ['name' => $pattern, 'term' => $pattern, 'alt' => $pattern];
         }
 
-        if ($mimePrefix !== null && $mimePrefix !== '') {
-            $conditions[] = "mime_type LIKE :mime ESCAPE '\\\\'";
-            $params['mime'] = self::escapeLike($mimePrefix) . '%';
+        // How the MIME type begins: one kind, or any of several kinds.
+        $prefixes = array_values(array_filter(
+            is_array($mimePrefix) ? $mimePrefix : [$mimePrefix],
+            static fn (mixed $prefix): bool => is_string($prefix) && $prefix !== ''
+        ));
+        if ($prefixes !== []) {
+            $likes = [];
+            foreach ($prefixes as $index => $prefix) {
+                $likes[] = 'mime_type LIKE :mime_' . $index . " ESCAPE '\\\\'";
+                $params['mime_' . $index] = self::escapeLike($prefix) . '%';
+            }
+            $conditions[] = '(' . implode(' OR ', $likes) . ')';
         }
 
         // Exact MIME types on top of the kind: a picker filter such as the

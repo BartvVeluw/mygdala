@@ -94,6 +94,9 @@ final class BlockPreview
     /** An empty band with a dashed outline — room and nothing in it. */
     public const SPACE = 'space';
 
+    /** One wide picture filling a band, a sun and hills on it — a picture or video and no words. */
+    public const MEDIA = 'media';
+
     /**
      * Every part, in no meaningful order — this is a set, not a sequence.
      *
@@ -119,6 +122,7 @@ final class BlockPreview
         self::TWO_CARDS,
         self::CHIPS,
         self::SPACE,
+        self::MEDIA,
     ];
 
     /**
