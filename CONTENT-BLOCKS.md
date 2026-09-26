@@ -531,8 +531,8 @@ in `assets/css/blocks/rich-text.css`).
 een telefoon elk één stap lager). Die ruimte komt bovenop de ruimte die de
 blokken eromheen al hebben. Het blok print één leeg element met
 `aria-hidden="true"`: geen kop, geen tekst, niets focusbaars. Het heeft geen
-woorden, dus geen `block_translations`. Het is het enige blok met rijen en
-zonder woorden, en staat daarom met naam in
+woorden, dus geen `block_translations`. Het was het eerste blok met rijen en
+zonder woorden (de Mediabanner is het tweede), en staat daarom met naam in
 `BlockDefinitionContractTest::WORDLESS_WITH_ROWS` en
 `BlockSampleContractTest::WORDLESS`. De editor (`admin/spacer.php`) toont
 alleen *Hoogte*. Tonen of verbergen doe je met het oog in de paginabouwer.
@@ -573,9 +573,9 @@ is geen kleurkiezer: kleuren komen uit Thema & huisstijl.
 de hele pagina, met de inhoud in een `.container`. Een oproep over de volle
 breedte schildert zijn lagen daarom op de `<section>` (`.cta-section--full`)
 in plaats van op de kaart, en de woorden blijven in de gewone container. Geen
-`100vw`, geen negatieve marges, geen horizontale scroll. Een ander blok dat
-een achtergrond over de volle breedte wil (straks de Mediabanner) doet
-hetzelfde: lagen op de sectie, inhoud in de container. De oproep houdt de
+`100vw`, geen negatieve marges, geen horizontale scroll. De Mediabanner doet
+hetzelfde (zie hieronder): zijn beeld staat dan in de sectie zelf in plaats
+van in de container. De oproep houdt de
 gewone sectieruimte en groeit met zijn woorden mee; er is geen hoogte-instelling.
 
 **Knoppen: geen, één of twee.** Beide knoppen gebruiken het gedeelde linkveld
@@ -608,8 +608,141 @@ mediakiezer.
 
 **Niet in CTA 2.0**: een video- of diavoorstellingachtergrond, een vrije
 hoogte, vrije CSS of dekking, eigen kleuren, blokken binnen de oproep,
-animatie-instellingen, paginathema's en de Mediabanner. Wie beeld of video met
-een bewust gekozen hoogte wil, krijgt straks de Mediabanner.
+animatie-instellingen en paginathema's. Wie beeld of video met een bewust
+gekozen hoogte wil, gebruikt de Mediabanner (hieronder).
+
+## Mediabanner
+
+`db/migrations/20260926130000`. Eén afbeelding of één video uit de
+Mediabibliotheek als eigen sectie op de pagina: een sfeerfoto, een brede
+banner, een productfoto of een korte video tussen andere blokken. Er staat
+**geen tekst** op; wie woorden bij een beeld wil, gebruikt de Oproep met knop
+of Tekst met afbeelding. Het blok heeft geen woorden en dus niets in
+`block_translations`: net als de Witruimte staat het in
+`BlockDefinitionContractTest::WORDLESS_WITH_ROWS`.
+
+| Bestand | Wat |
+|---|---|
+| `src/Service/Blocks/MediaBannerBlock.php` | Definitie, categorie *Beeld & media*, voorbeeldvorm `BlockPreview::MEDIA` |
+| `src/Service/MediaBannerContent.php` | Het leesmodel en het hele videocontract |
+| `src/Repository/MediaBannerRepository.php` | Tabel `media_banners` |
+| `partials/section-media-banner.php` | `render_section_media_banner($content, $tightTop)` |
+| `admin/media-banner.php` + `admin/assets/media-banner.js` | De editor |
+| `api/admin/update-media-banner.php` | Het endpoint |
+| `assets/css/blocks/media-banner.css`, `assets/js/blocks/media-banner.js` | Hoogtes en breedte; minder beweging |
+
+**Het gekozen item beslist.** Het blok bewaart een `media_id` en nooit een
+type. Is het item een afbeelding (`MediaType::IMAGE`, ook SVG), dan toont de
+banner een `<img>`; is het een video (MP4 of WebM), dan een native `<video>`.
+Iets anders (een verdwenen item, een bestand zonder soort) is niets om te
+tonen, en de banner rendert dan niets, net als zonder keuze
+(`MediaBannerContent::usableItem()`). Er is dus geen keuzelijst "afbeelding of
+video" die het met het item oneens kan zijn. De kiezer gebruikt het filter
+`MediaType::VISUAL` (`MEDIA.md`, *De mediakiezer*).
+
+| Kolom | Waarden (standaard eerst) | Wat het doet |
+|---|---|---|
+| `media_id` | een id uit de Mediabibliotheek of `NULL` | De afbeelding of video. `ON DELETE RESTRICT` en een tak in `ContentBlockMediaUsage` |
+| `width` | `content`, `full` (`WIDTHS`) | Binnen de `.container`, met de afgeronde hoeken van het thema (`--radius-lg`, zoals elk beeld in een blok), of over de volle paginabreedte zonder hoeken |
+| `height` | `medium`, `small`, `large`, `xlarge` (`HEIGHTS`) | Zie *Hoogtes* hieronder |
+| `image_focus` | de negen punten van `ImageFocus`, `center` eerst | Alleen bij een afbeelding: welk deel in beeld blijft (`object-position`), hetzelfde veld als de Paginakop en de Oproep met knop. Een video staat altijd in het midden |
+| `video_autoplay`, `video_loop`, `video_controls` | `0`, `0`, `1` | Alleen bij een video. Zie *Het videocontract* |
+| `poster_media_id` | een afbeelding uit de bibliotheek of `NULL` | Alleen bij een video: het beeld zolang hij nog niet speelt. `ON DELETE RESTRICT` en een eigen tak in `ContentBlockMediaUsage` |
+
+De videokolommen hebben een voorvoegsel omdat `LOOP` in MySQL een gereserveerd
+woord is.
+
+**Hoogtes.** Een vaste lijst, geen getal en geen viewporthoogte om in te
+typen. De maten staan als tokens in `assets/css/blocks/media-banner.css` en
+groeien met de breedte van het venster tussen een onder- en een bovengrens,
+zoals de hoogtes van Tekst met afbeelding. Extra groot loopt nooit verder dan
+90% van de vensterhoogte. Op een telefoon (≤ 640px) is elke hoogte een vaste,
+lagere stap.
+
+| Hoogte | Breed scherm | Telefoon |
+|---|---|---|
+| `small` | `clamp(15rem, 22vw, 18.75rem)`: 240–300px | `12rem` (192px) |
+| `medium` | `clamp(18rem, 30vw, 25rem)`: 288–400px | `15rem` (240px) |
+| `large` | `clamp(22rem, 42vw, 35rem)`: 352–560px | `19rem` (304px) |
+| `xlarge` | `min(clamp(26rem, 52vw, 44rem), 90vh)`: 416–704px | `min(24rem, 80vh)` (384px) |
+
+Afbeelding en video vullen het vlak altijd (`object-fit: cover`): ze worden
+bijgesneden, nooit uitgerekt en nooit met balken ernaast. `contain` zit er
+bewust niet in: dit is een banner, geen afbeeldingsviewer.
+
+**Volle breedte zonder truc**, precies zoals de Oproep met knop: de
+`<section>` loopt al over de hele pagina, dus een banner over de volle
+breedte zet zijn vlak rechtstreeks in de sectie in plaats van in een
+`.container`. Geen `100vw`, geen negatieve marges, geen horizontale scroll.
+Er is geen gedeelde CSS-primitive met de oproep: het patroon is hetzelfde,
+maar de oproep schildert lagen en de banner zet één vlak neer, en dat is te
+weinig om een abstractie te rechtvaardigen.
+
+**Ruimte.** De banner heeft de ruimte van elke sectie (`--sp-7` boven en
+onder). Direct onder een paginakop valt de ruimte erboven weg (`$tightTop`,
+class `media-banner-section--tight-top`), net als bij het Tekstblok. Twee
+banners direct na elkaar houden één sectieruimte tussen zich
+(`.media-banner-section + .media-banner-section`). Na een Witruimte komt de
+ruimte van de Witruimte erbij, zoals na elk blok. Er is geen eigen
+ruimte-instelling: daarvoor is de Witruimte.
+
+**Het videocontract** (`MediaBannerContent::fromRow()`, en nergens anders):
+
+- **Automatisch afspelen is altijd zonder geluid.** Er is geen kolom
+  `muted`: `autoplay` komt altijd samen met `muted`, en een browser zou
+  automatisch afspelen met geluid ook weigeren.
+- **Een video die niet vanzelf speelt, heeft altijd bediening.** Anders kan
+  een bezoeker hem nooit starten. Het endpoint weigert *niet automatisch
+  afspelen* zonder *bediening*, en het leesmodel en de partial zetten de
+  bediening er in dat geval toch bij.
+- Altijd `playsinline` (een telefoon springt niet naar volledig scherm) en
+  `preload="metadata"`: zonder autoplay laadt de browser alleen het begin van
+  het bestand. Met autoplay laadt de browser de video volgens zijn eigen
+  regels; twee autoplay-banners op één pagina laden allebei hun video. Er is
+  geen eigen JavaScript om dat te sturen.
+- Een video zonder bediening is versiering en krijgt `aria-hidden="true"`,
+  zoals de video van de Homepage-hero; met bediening niet.
+- **Minder beweging.** `assets/js/blocks/media-banner.js` zet een video die
+  vanzelf speelt stil en geeft hem zijn bediening, als de bezoeker in het
+  systeem om minder beweging heeft gevraagd (`prefers-reduced-motion`).
+  Zonder die voorkeur, of zonder JavaScript, doet de video wat zijn
+  attributen zeggen.
+- Een poster is een afbeelding uit de bibliotheek. Een automatisch gemaakt
+  stilstaand beeld is er niet: op gedeelde hosting kan niets een frame uit
+  een video snijden, en daarom toont de kiezer bij een video ook een icoon.
+
+**Wat een keuze betekent, beslist het gekozen item.** Bij een afbeelding
+slaat het endpoint het focuspunt op en laat het de geposte video-opties
+liggen: de opgeslagen opties blijven staan, zodat een banner die weer een
+video krijgt ze terug heeft, en een afbeelding krijgt nooit video-instellingen
+die ze niet kan tonen. Bij een video is het omgekeerd. De poster wordt geleegd
+zodra het item geen video is: een poster die niemand ziet, mag een item niet
+als gebruikt laten tellen en daardoor onverwijderbaar maken. Een schakelaar is
+`1` of afwezig; elke andere waarde weigert het endpoint bij het veld.
+
+**Toegankelijkheid.** De alt-tekst van een afbeelding is die van de
+Mediabibliotheek; leeg is een decoratieve afbeelding (`alt=""`). Er is geen
+eigen alt-veld in het blok. De alt-tekst van de bibliotheek bestaat in één
+taal, dus op `/en/` leest een schermlezer dezelfde tekst
+(`docs/multilingual/ARCHITECTURE.md`). **Video heeft in V1 geen ondertitels en
+geen toegankelijke naam**: er is geen `<track>` en geen tekstveld. De editor
+zegt dat: gesproken tekst hoort als ondertiteling in het beeld zelf. Een video
+die vanzelf speelt, zichzelf herhaalt en langer dan vijf seconden duurt, heeft
+bediening nodig om hem te kunnen stoppen (WCAG 2.2.2); de helptekst bij
+*Bediening tonen* zegt dat, het blok dwingt het niet af.
+
+**De editor** heeft drie kaarten: Media (één kiezer voor afbeelding of video,
+met het type naast de naam), Weergave (breedte, hoogte, en bij een afbeelding
+het focuspunt) en Video (automatisch afspelen, herhalen, bediening en de
+poster, alleen bij een video). `admin/assets/media-banner.js` toont wat bij
+het gekozen type hoort; de server print dezelfde `hidden` voor wat er
+opgeslagen is. Een nieuw blok begint leeg (geen media, inhoudsbreedte,
+middel, midden, bediening aan) en rendert niets tot er een afbeelding of
+video gekozen is. Tonen of verbergen doe je met het oog in de paginabouwer.
+
+**Niet in de Mediabanner 1.0**: tekst over het beeld, knoppen, YouTube of
+Vimeo, transcoderen, automatisch een poster maken, een ondertiteleditor, een
+vrije hoogte of vrije CSS, parallax, een diavoorstelling en paginathema's.
 
 ## Tests
 

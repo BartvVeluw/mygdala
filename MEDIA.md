@@ -179,6 +179,13 @@ In de bibliotheek krijgt een video een video-icoon in plaats van een
 voorbeeld; het itemscherm toont een `<video>` die pas iets laadt als iemand
 op afspelen drukt.
 
+Op de site staat een video in de Homepage-hero en in de Mediabanner
+(`CONTENT-BLOCKS.md`, "Mediabanner"), altijd als native `<video>` met het
+bestand uit de bibliotheek. Een video-item heeft geen alt-tekst (het
+itemscherm vraagt er geen) en geen ondertitels; een beeld vóór het afspelen
+is een gewone afbeelding die de gebruiksplek zelf kiest, nooit een frame
+uit de video.
+
 **Dubbele uploads.** Twee keer hetzelfde bestand levert één item op. Er wordt
 op checksum gekeken vóór het opslaan (vangt een GIF) en nog eens ná het
 optimaliseren (vangt een foto, die immers heringepakt wordt); in het tweede
@@ -744,6 +751,19 @@ controleert het nog eens: `BlockImage::fromRequest()` en
 `MediaService::findVideo()` omgekeerd. Een SVG is een afbeelding en staat in
 elke afbeeldingskiezer, **behalve die van een deel-afbeelding**.
 
+**Afbeelding óf video: één veld.** Het derde kiezerfilter gaat de andere
+kant op: `MediaType::VISUAL` neemt beide soorten, voor een gebruiksplek waar
+het gekozen item zelf bepaalt of het een afbeelding of een video is (de
+Mediabanner, `CONTENT-BLOCKS.md`). De modal toont en uploadt dan afbeeldingen
+en video's (`media-list.php?type=visual`, `media-upload.php` met
+`kind=visual`: de soort blijft open, zoals in de wachtrij van de bibliotheek
+zelf), en nog steeds niets zonder soort. Het veld zet het type naast de naam
+(*Afbeelding* of *Video*) en draagt het in `data-media-picker-chosen`, zodat
+het scherm kan tonen wat alleen bij die soort hoort. Het endpoint leest het
+id via zijn eigen regel (`MediaBannerContent::usableItem()`: een afbeelding
+of een video, verder niets). Het is geen onderdeel van het filter boven de
+bibliotheek.
+
 **Deel-afbeelding: geen SVG.** Sociale netwerken tonen geen SVG als preview.
 Daarom heeft `MediaType` naast de soorten één *kiezerfilter*:
 `MediaType::SOCIAL_IMAGE`, een afbeelding in een van de rasterformaten
@@ -799,6 +819,7 @@ de lijst controleert elk id opnieuw.
 | Galerij van een Portfolio-projectpagina (module) | `portfolio_item_images.media_id`, `image_path`/`thumbnail_path` meegeschreven; eigen alt van een oude foto, anders die van het item |
 | Deel-afbeelding van product en collectie (Shop) | `products.og_media_id`, `collections.og_media_id`, oude `og_image_path` meegeschreven |
 | Homepage-hero: afbeelding en video | `homepage_hero.media_id` (met eigen alt-tekst per taal) en `homepage_hero.video_media_id`, oude `image_path` / `video_path` als terugval. Het videoveld is de eerste videokiezer (`media_picker_field(…, MediaType::VIDEO)`) |
+| Mediabanner (`media_banner`) | `media_banners.media_id`, een afbeelding of een video in één veld (`media_picker_field(…, MediaType::VISUAL)`), en `media_banners.poster_media_id`, het beeld vóór het afspelen van een video. Geen oud pad en geen eigen alt-tekst: een afbeelding krijgt de alt-tekst van de bibliotheek, leeg is decoratief. Twee takken in `ContentBlockMediaUsage`: *Mediabanner op "…"* en *Mediabanner (poster) op "…"*. Het endpoint leegt de poster zodra het item geen video is, dus een poster die niemand ziet telt niet als gebruik. `ON DELETE RESTRICT` op allebei |
 
 **Nog op een eigen pad**, ongewijzigd en werkend:
 

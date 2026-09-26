@@ -662,6 +662,18 @@ eerste en verdwijnt met *Geen knop* (`CONTENT-BLOCKS.md`, "Oproep met knop").
 In de Contentblokken-bibliotheek toont hij zijn standaardweergave
 (`CtaBandContent::presentation([])`): kaart, midden, twee knoppen.
 
+De Mediabanner (`admin/media-banner.php`, `api/admin/update-media-banner.php`)
+heeft ook geen rijen en volgt hetzelfde: één formulier met drie kaarten
+(*Media* met één kiezer voor een afbeelding of een video, *Weergave* met
+breedte, hoogte en bij een afbeelding het focuspunt, en *Video* met
+automatisch afspelen, herhalen, bediening en een beeld vóór het afspelen,
+alleen bij een video), één opslag en na een geweigerde opslag alles terug
+met de melding bij het veld. Er is geen keuze *afbeelding of video*: het
+gekozen item beslist (`CONTENT-BLOCKS.md`, "Mediabanner"). In de
+blokkenkiezer is zijn vorm `BlockPreview::MEDIA`, een brede band met een
+landschapje; in de bibliotheek toont hij de voorbeeldafbeelding van
+`BlockSamples` over de inhoudsbreedte, in de middelste hoogte.
+
 De statistieken zijn een gewone rijenlijst: *Statistiek toevoegen*, ↑/↓ en
 *Verwijderen* werken op het scherm zonder herladen, en pas *Opslaan* bewaart
 alles in één transactie (`row-list.js`, `EditorChildList`).

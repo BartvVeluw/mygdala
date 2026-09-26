@@ -83,6 +83,12 @@ en `GenericBlockDefaultsTest` bewaken beide.
   belanden alle instanties in één stagger-groep en verschijnt de tweede te
   laat. `render_section_feature_grid()` is het voorbeeld. Hetzelfde geldt
   voor DOM-id's en blok-JS.
+- **Een blok zonder woorden** (Witruimte, Mediabanner) geeft in
+  `translatableFields()` een lege lijst en staat met naam in
+  `BlockDefinitionContractTest::WORDLESS_WITH_ROWS`. Een blok dat een
+  afbeelding óf een video neemt, gebruikt één mediakiezer met
+  `MediaType::VISUAL` en laat het gekozen item beslissen (`MEDIA.md`), nooit
+  een eigen keuzelijst voor het type.
 - **Een onbekend bloktype is geen fout**: de sectie wordt overgeslagen en de
   rest van de pagina rendert normaal.
 - **Een partial rendert alleen, en een blok heeft een voorbeeld.** Wat de

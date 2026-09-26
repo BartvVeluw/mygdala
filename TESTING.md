@@ -608,6 +608,8 @@ gebruiksbepaling of verwijderen (`MEDIA.md`):
                         map), echte blokinstanties, echte bestanden, en wie
                         waar een bestand gebruikt wordt te lezen krijgt
 --testsuite blocks      als je een blok aansloot op de kiezer
+                        (MediaBannerHttpTest bewijst het filter
+                        afbeelding-of-video: lijst en upload)
 --testsuite shop        als het een product of collectie raakt
 --testsuite modules     als het Portfolio raakt
 --testsuite migration   na een migratie van de bibliotheek
