@@ -763,42 +763,65 @@ final class BlockRowEditorsHttpTest extends TestCase
     }
 
     /**
-     * "Geen knop" on the secondary button stores no address either. A row
-     * without a link type but with an address reads as an address
-     * (LinkChoice::storedType(): the Heroes from before link types existed),
-     * so a leftover address reopened the editor on "Eigen adres" with an
-     * empty label, and the next save of anything was refused.
+     * "Geen knop" on the secondary button is no button, whatever else is
+     * posted. Its label and address are hidden with it and the browser still
+     * sends their old values: neither may refuse the save, and the address is
+     * stored empty, because a row without a link type but with an address
+     * reads as an address (LinkChoice::storedType(): the Heroes from before
+     * link types existed) and would bring the button back.
      */
-    public function testGeenKnopOnTheHerosSecondButtonStoresNoAddress(): void
+    public function testGeenKnopOnTheHerosSecondButtonIgnoresItsHiddenLabelAndAddress(): void
     {
         $this->place('homepage_hero');
         $session = $this->signIn(null);
         $hero = \App\Service\HomepageHeroContent::class;
+        $secondButton = function () use ($hero): string {
+            $hero::clearCache();
+            $content = $hero::current();
+            ob_start();
+            try {
+                render_section_homepage_hero($content);
+            } finally {
+                $html = (string) ob_get_clean();
+            }
+
+            return $html;
+        };
+        $chosenKind = fn (): ?string => $this->xpath($this->screen($session, 'homepage_hero'))
+            ->query('//select[@name="secondary_link_type"]/option[@selected]')->item(0)?->getAttribute('value');
+        require_once dirname(__DIR__, 2) . '/partials/section-homepage-hero.php';
 
         $this->assertSaved($this->save($session, 'homepage_hero', 'nl', ['secondary_link_type' => 'url', 'secondary_url' => '/x', 'secondary_label' => 'Meer'], []));
         self::assertSame(['url', '/x'], [$this->parentRow('homepage_hero')['secondary_link_type'], $this->parentRow('homepage_hero')['secondary_url']]);
-        $hero::clearCache();
-        self::assertSame(['/x', 'Meer'], [$hero::current()['secondary_url'], $hero::current()['secondary_label']]);
+        self::assertStringContainsString('<a href="/x" class="btn btn--ghost">Meer</a>', $secondButton());
 
-        // The address is hidden with "Geen knop", not emptied: the browser still sends it.
-        $this->assertSaved($this->save($session, 'homepage_hero', 'nl', ['secondary_link_type' => 'none', 'secondary_url' => '/x', 'secondary_label' => ''], []));
+        // "Geen knop" with the old label and address still in the hidden fields.
+        $this->assertSaved($this->save($session, 'homepage_hero', 'nl', ['secondary_link_type' => 'none', 'secondary_url' => '/x', 'secondary_label' => 'Meer'], []), 'a hidden label refuses nothing');
         $row = $this->parentRow('homepage_hero');
         self::assertNull($row['secondary_link_type']);
         self::assertSame('', (string) $row['secondary_url'], 'no address left to read as one');
-        self::assertSame('/contact', (string) $row['primary_url'], 'the primary button keeps its address');
+        self::assertSame(['url', '/contact'], [$row['primary_link_type'], (string) $row['primary_url']], 'the primary button is untouched');
         $hero::clearCache();
         self::assertSame(['', ''], [$hero::current()['secondary_url'], $hero::current()['secondary_label']]);
-        $screen = $this->xpath($this->screen($session, 'homepage_hero'));
-        self::assertSame('none', $screen->query('//select[@name="secondary_link_type"]/option[@selected]')->item(0)?->getAttribute('value'));
+        $html = $secondButton();
+        self::assertStringNotContainsString('btn--ghost', $html, 'no second button');
+        self::assertStringContainsString('<a href="/contact" class="btn">Bekijk', $html, 'the first one stays');
+        self::assertSame('none', $chosenKind());
+
+        // A translation save with a hidden label is no button either.
+        $this->assertSaved($this->save($this->signIn('en'), 'homepage_hero', 'en', ['title' => 'We make it', 'secondary_link_type' => 'none', 'secondary_url' => '/x', 'secondary_label' => 'More'], []));
+        self::assertSame('', (string) $this->parentRow('homepage_hero')['secondary_url']);
+
+        // A button again needs its label in the default language.
+        $this->assertRefused($this->save($session, 'homepage_hero', 'nl', ['secondary_link_type' => 'url', 'secondary_url' => '/x', 'secondary_label' => ''], []), 'a button without a label');
+        self::assertNull($this->parentRow('homepage_hero')['secondary_link_type'], 'nothing stored');
 
         // A Hero from before the link types: an address and no type is a button.
         Database::connection()->prepare("UPDATE homepage_hero SET secondary_link_type = NULL, secondary_link_target_id = NULL, secondary_url = '/oud' WHERE id = ?")->execute([$this->parentId]);
         BlockLocalization::save('homepage_hero', $this->parentId, 'nl', ['secondary_label' => 'Meer'] + array_intersect_key(self::CASES['homepage_hero']['base'], BlockLocalization::fields('homepage_hero')));
         BlockLocalization::clearCache();
-        $hero::clearCache();
-        self::assertSame(['/oud', 'Meer'], [$hero::current()['secondary_url'], $hero::current()['secondary_label']]);
-        $screen = $this->xpath($this->screen($session, 'homepage_hero'));
-        self::assertSame('url', $screen->query('//select[@name="secondary_link_type"]/option[@selected]')->item(0)?->getAttribute('value'));
+        self::assertStringContainsString('<a href="/oud" class="btn btn--ghost">Meer</a>', $secondButton());
+        self::assertSame('url', $chosenKind());
     }
 
     public function testAnExistingImageWithoutAltTextDoesNotStopASaveOfTheOtherFields(): void

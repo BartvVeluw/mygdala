@@ -56,11 +56,14 @@
  * URLs, the highlight size, the media, the layout and the files are the same
  * in every language.
  *
- * THE SECONDARY BUTTON needs a label and a URL, or neither. The label that
- * counts is the default language's — the one every other language falls back
- * to — so a translation save checks the stored default label, and a
- * translated label without a URL is refused too, since it could never show.
- * THE BADGE follows the same rule: a title and a text in the default
+ * THE SECONDARY BUTTON, when it has a destination, needs a label. The label
+ * that counts is the default language's — the one every other language
+ * falls back to — so a translation save checks the stored default label.
+ * "Geen knop" is no button whatever else is posted: its label and address
+ * are hidden with it and may still hold old values, so the label is not
+ * checked and the address is stored empty (a row without a type but with an
+ * address would read as an address, LinkChoice::storedType()).
+ * THE BADGE needs a title and a text in the default
  * language, or neither, and translated badge words only for a badge the
  * default language completes.
  *
@@ -235,11 +238,13 @@ if ($languageIsWritable) {
         $fieldErrors['image_alt'] ??= AdminTranslator::trans('block_hero.error_alt_required');
     }
 
-    // A secondary button needs both a label and a destination, or neither —
-    // a half-filled optional button would be broken/dead on the frontend.
+    // A secondary button needs its label in the default language. "Geen
+    // knop" checks nothing: the label is hidden with it and may still carry
+    // the old words, which never show without a destination
+    // (HomepageHeroContent), as in every block button.
     $defaultSecondaryLabel = $isDefaultLanguage ? $words['secondary_label'] : $storedDefault('secondary_label');
     $secondaryIsButton = $settings['secondary_link_type'] !== null;
-    if (($defaultSecondaryLabel !== '') !== $secondaryIsButton || ($words['secondary_label'] !== '' && !$secondaryIsButton)) {
+    if ($secondaryIsButton && $defaultSecondaryLabel === '') {
         $fieldErrors['secondary_url'] ??= AdminTranslator::trans('validation.secondary_button_label_and_url');
     }
 
