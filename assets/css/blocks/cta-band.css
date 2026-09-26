@@ -88,36 +88,41 @@
 
 .cta-band__content{ position: relative; z-index: 1; }
 
-/* --- 4. The text panel: only around the words -------------------------- */
+/* --- 4. The text panel: the band's content zone ------------------------ */
+/* The panel wraps the eyebrow, the title, the lead and the buttons, and is
+   exactly as wide as the content zone they already have: the card's inner
+   width, or the .container of a full-width band. It never takes its width
+   from the lead — the lead width is the lead's alone (section 5) — so the
+   title keeps the width it has without a panel, and a narrow lead sits
+   inside a panel that is wider than it. There is no panel-width setting. */
 .cta-band__content--panel{
-  width: fit-content;
-  max-width: 100%;
-  margin-inline: auto;
   padding: var(--sp-5) var(--sp-4);
   border: 1px solid var(--color-line);
   border-radius: var(--radius-lg);
   background: rgba(var(--color-surface-veil-rgb), var(--cta-panel-strong));
 }
-/* The panel wraps the text column, not the band. With a lead, the title
-   takes no part in the panel's own width (width 0, then the full width it
-   gets), so the panel is as wide as the lead at its chosen width, in the
-   lead's own font, and the title wraps inside it. Without a lead the title
-   decides, as any fit-content box would. */
-.cta-band__content--panel:has(> .lead) > h2{ width: 0; min-width: 100%; }
 .cta-band__content--panel-subtle{ background: rgba(var(--color-surface-veil-rgb), var(--cta-panel-subtle)); }
 .cta-band__content--panel-medium{ background: rgba(var(--color-surface-veil-rgb), var(--cta-panel-medium)); }
 .cta-band__content--panel-solid{ background: var(--color-surface); }
 
 /* --- 5. The words: alignment and the lead's width ---------------------- */
+/* The alignment moves every line of words AND the lead's own box: a lead
+   narrower than the content zone sits against its left edge, in its middle,
+   or against its right edge, so a centred narrow lead is really centred and
+   a right-aligned one leaves no gap on the right. The buttons follow the
+   same alignment across the whole content zone. */
 .cta-band--align-left{ text-align: left; }
+.cta-band--align-center{ text-align: center; }
 .cta-band--align-right{ text-align: right; }
-.cta-band--align-left .cta-band__content--panel{ margin-inline: 0 auto; }
-.cta-band--align-right .cta-band__content--panel{ margin-inline: auto 0; }
 .cta-band--align-left .lead{ margin-inline: 0 auto; }
+.cta-band--align-center .lead{ margin-inline: auto; }
 .cta-band--align-right .lead{ margin-inline: auto 0; }
 .cta-band--align-left .cta-band__actions{ justify-content: flex-start; }
+.cta-band--align-center .cta-band__actions{ justify-content: center; }
 .cta-band--align-right .cta-band__actions{ justify-content: flex-end; }
 
+/* The lead width is the LEAD's maximum width and nothing else's: not the
+   title's, not the eyebrow's, not the buttons', not the panel's. */
 .cta-band--lead-narrow .lead{ max-width: var(--cta-lead-narrow); }
 .cta-band--lead-medium .lead{ max-width: var(--cta-lead-medium); }
 .cta-band--lead-wide .lead{ max-width: var(--cta-lead-wide); }

@@ -165,6 +165,88 @@ final class CtaBandRenderTest extends TestCase
         self::assertStringNotContainsString('cta-band--has-media', $picture);
     }
 
+    /** @return iterable<string, array{string}> */
+    public static function leadWidths(): iterable
+    {
+        foreach (CtaBandContent::LEAD_WIDTHS as $width) {
+            yield $width => [$width];
+        }
+    }
+
+    /**
+     * With the panel on, the lead width is still a mark on the band that only
+     * the lead's rule reads: the panel, the title and the button row carry no
+     * lead-width class of their own.
+     */
+    #[DataProvider('leadWidths')]
+    public function testWithThePanelOnTheLeadWidthMarksOnlyTheBand(string $width): void
+    {
+        $html = $this->render(['panel' => 'strong', 'lead_width' => $width] + $this->legacy());
+
+        self::assertStringContainsString('class="cta-band cta-band--card cta-band--align-center cta-band--lead-' . $width . ' cta-band--has-panel"', $html);
+        self::assertStringContainsString('<div class="cta-band__content cta-band__content--panel cta-band__content--panel-strong">', $html, 'the panel has no width class');
+        self::assertStringContainsString('<h2>Samenwerken?</h2>', $html, 'the title has no class');
+        self::assertStringContainsString('<div class="cta-band__actions">', $html, 'the button row has no width class');
+        self::assertStringContainsString('<p class="lead">', $html);
+        self::assertSame(1, substr_count($html, '--lead-'), 'the lead width appears once, on the band');
+    }
+
+    #[DataProvider('leadWidths')]
+    public function testWithThePanelOffTheWordsAreAsBefore(string $width): void
+    {
+        $html = $this->render(['lead_width' => $width] + $this->legacy());
+
+        self::assertStringContainsString('<div class="cta-band__content">', $html);
+        self::assertStringContainsString('class="cta-band cta-band--card cta-band--align-center cta-band--lead-' . $width . '"', $html);
+        self::assertStringNotContainsString('panel', $html);
+    }
+
+    /**
+     * The lead width is the lead's maximum width and nothing else's: every
+     * rule that reads a lead-width class styles `.lead`, and the panel, the
+     * title and the button row take no width from it (the panel is the
+     * content zone, not a box around the lead).
+     */
+    public function testTheLeadWidthReachesOnlyTheLead(): void
+    {
+        $rules = $this->rules();
+
+        $leadRules = array_filter($rules, static fn (array $rule): bool => str_contains($rule[0], '--lead-'));
+        self::assertCount(count(CtaBandContent::LEAD_WIDTHS), $leadRules);
+        foreach ($leadRules as [$selector, $body]) {
+            self::assertMatchesRegularExpression('~^\.cta-band--lead-[a-z]+ \.lead$~', $selector, 'only the lead');
+            self::assertMatchesRegularExpression('~^\s*max-width:[^;]+;\s*$~', $body, 'and only its max-width');
+        }
+
+        foreach ($rules as [$selector, $body]) {
+            self::assertStringNotContainsString(':has(', $selector, 'the title takes no width from the lead');
+            if (preg_match('~(h2|__actions|__content--panel(-[a-z]+)?|\.eyebrow)$~', $selector) === 1) {
+                self::assertDoesNotMatchRegularExpression('~(^|;)\s*(max-width|width|min-width)\s*:~', $body, $selector . ' has no width of its own');
+            }
+        }
+
+        $panel = array_filter($rules, static fn (array $rule): bool => $rule[0] === '.cta-band__content--panel');
+        self::assertNotEmpty($panel, 'the base rule and the small-screen padding');
+        foreach ($panel as [, $body]) {
+            self::assertStringNotContainsString('fit-content', $body, 'the panel fills the content zone');
+        }
+    }
+
+    /** The alignment positions the lead's own box, not only its text, and the button row. */
+    public function testTheAlignmentPositionsTheLeadBoxAndTheButtons(): void
+    {
+        $rules = [];
+        foreach ($this->rules() as [$selector, $body]) {
+            $rules[$selector] = trim($body);
+        }
+
+        foreach (['left' => ['0 auto', 'flex-start'], 'center' => ['auto', 'center'], 'right' => ['auto 0', 'flex-end']] as $align => [$margin, $justify]) {
+            self::assertSame('text-align: ' . $align . ';', $rules['.cta-band--align-' . $align] ?? null, $align);
+            self::assertSame('margin-inline: ' . $margin . ';', $rules['.cta-band--align-' . $align . ' .lead'] ?? null, $align . ': the lead box itself moves');
+            self::assertSame('justify-content: ' . $justify . ';', $rules['.cta-band--align-' . $align . ' .cta-band__actions'] ?? null, $align . ': the buttons follow');
+        }
+    }
+
     public function testTheStylesheetHasARuleForEveryWordAndNoViewportTricks(): void
     {
         $css = (string) file_get_contents(dirname(__DIR__, 2) . '/assets/css/blocks/cta-band.css');
@@ -187,6 +269,27 @@ final class CtaBandRenderTest extends TestCase
         self::assertDoesNotMatchRegularExpression('~margin(-inline|-left|-right)?\s*:\s*calc\(~', $rules, 'no negative-margin breakout');
         self::assertStringContainsString('--color-media-scrim-rgb', $rules, 'the overlay is the theme scrim');
         self::assertStringContainsString('--color-surface-veil-rgb', $rules, 'the panel is the theme surface');
+    }
+
+    /**
+     * Every rule of assets/css/blocks/cta-band.css, one entry per selector of
+     * a selector list, the ones inside @media included.
+     *
+     * @return list<array{string, string}> [selector, declarations]
+     */
+    private function rules(): array
+    {
+        $css = (string) preg_replace('~/\*.*?\*/~s', '', (string) file_get_contents(dirname(__DIR__, 2) . '/assets/css/blocks/cta-band.css'));
+        preg_match_all('~([^{}]+)\{([^{}]*)\}~', $css, $matches, PREG_SET_ORDER);
+
+        $rules = [];
+        foreach ($matches as [, $selectors, $body]) {
+            foreach (explode(',', $selectors) as $selector) {
+                $rules[] = [trim((string) preg_replace('~\s+~', ' ', $selector)), $body];
+            }
+        }
+
+        return $rules;
     }
 
     /** @return array<string, mixed> a band as CtaBandContent gave it before CTA 2.0: no presentation keys */
