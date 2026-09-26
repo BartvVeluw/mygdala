@@ -43,7 +43,9 @@ use App\Repository\RichTextRepository;
  * Input a refused save hands back is shown again only in the language it was
  * typed in, and the form then starts out unsaved in the save bar.
  *
- * ALIGNMENT AND BUTTON. The alignment (RichTextContent::ALIGNMENTS) and where
+ * ALIGNMENT, WIDTH AND BUTTON. The alignment (RichTextContent::ALIGNMENTS),
+ * the width (RichTextContent::WIDTHS: the narrow reading column or the site's
+ * normal content width) and where
  * the optional button goes are the same in every language; the button's label
  * is a word of the language on screen. The destination is the shared field
  * every block button uses (admin/_link_target_field.php, LinkChoice), and its
@@ -89,6 +91,7 @@ $buttonLabel = $oldInThisLanguage
     : BlockLocalization::raw('rich_text_sections', $sectionId, RichTextContent::BUTTON_LABEL, $editLanguage);
 $align = is_array($old) ? (string) ($old['text_align'] ?? '') : (string) ($section['text_align'] ?? '');
 $align = array_key_exists($align, RichTextContent::ALIGNMENTS) ? $align : (string) array_key_first(RichTextContent::ALIGNMENTS);
+$width = RichTextContent::width(is_array($old) ? (string) ($old['content_width'] ?? '') : (string) ($section['content_width'] ?? ''));
 
 // The button's destination on screen: as handed back, else as stored.
 $buttonStoredType = LinkChoice::storedType($section['button_link_type'] ?? null, (string) ($section['button_url'] ?? ''));
@@ -160,6 +163,19 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
             </label>
           <?php endforeach; ?>
         </div>
+      </div>
+
+      <div class="admin-form-row">
+        <span class="admin-form-row__label" id="rich-text-width-label"><?= admin_te('block_richtext.breedte') ?> <?= admin_help(admin_t('block_richtext.breedte'), admin_t('help.block_richtext.breedte')) ?></span>
+        <div class="admin-segmented" role="radiogroup" aria-labelledby="rich-text-width-label"<?= editor_field_invalid($fieldErrors, 'content_width') ?>>
+          <?php foreach (array_keys(RichTextContent::WIDTHS) as $value): ?>
+            <label class="admin-segmented__option">
+              <input type="radio" name="content_width" value="<?= $h($value) ?>"<?= $width === $value ? ' checked' : '' ?>>
+              <span><?= admin_te('block_richtext.breedte_' . $value) ?></span>
+            </label>
+          <?php endforeach; ?>
+        </div>
+        <?php editor_field_error($fieldErrors, 'content_width'); ?>
       </div>
 
       <div data-nav-link-group>

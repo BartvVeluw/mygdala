@@ -91,6 +91,9 @@ final class BlockPreview
     /** A row of small pills — jump links. */
     public const CHIPS = 'chips';
 
+    /** An empty band with a dashed outline — room and nothing in it. */
+    public const SPACE = 'space';
+
     /**
      * Every part, in no meaningful order — this is a set, not a sequence.
      *
@@ -115,6 +118,7 @@ final class BlockPreview
         self::FIELDS,
         self::TWO_CARDS,
         self::CHIPS,
+        self::SPACE,
     ];
 
     /**

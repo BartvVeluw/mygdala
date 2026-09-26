@@ -73,17 +73,18 @@ class RichTextRepository extends Repository
 
     /**
      * What the editor sets besides the body and "Actief", the same in every
-     * language: the alignment and the optional button's destination
+     * language: the alignment, the width and the optional button's destination
      * (App\Service\Routing\LinkChoice). The button's label is a word, saved
      * through BlockLocalization.
      *
-     * @param array{text_align: string, button_link_type: string|null, button_link_target_id: int|null, button_url: string} $values
+     * @param array{text_align: string, content_width: string, button_link_type: string|null, button_link_target_id: int|null, button_url: string} $values
      */
     public function updateSettings(int $id, array $values): void
     {
         $stmt = $this->db->prepare(
             'UPDATE rich_text_sections SET
                 text_align = :text_align,
+                content_width = :content_width,
                 button_link_type = :button_link_type,
                 button_link_target_id = :button_link_target_id,
                 button_url = :button_url,
@@ -93,6 +94,7 @@ class RichTextRepository extends Repository
 
         $stmt->execute([
             'text_align' => $values['text_align'],
+            'content_width' => $values['content_width'],
             'button_link_type' => $values['button_link_type'],
             'button_link_target_id' => $values['button_link_target_id'],
             'button_url' => $values['button_url'] === '' ? null : $values['button_url'],

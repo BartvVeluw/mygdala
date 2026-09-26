@@ -6,8 +6,8 @@ use App\Repository\TextImageSplitRepository;
 use App\Service\Blocks\BlockLocalization;
 use App\Service\Media\BlockImage;
 use App\Service\Media\ImageFocus;
+use App\Service\Routing\LinkChoice;
 use App\Service\Routing\RequestLanguage;
-use App\Service\Routing\TypedLink;
 
 /**
  * Content for the "Tekst met afbeelding" block: an ordered list of ITEMS,
@@ -213,10 +213,15 @@ class TextImageSplitContent
         $image = $image['image_path'] !== '' ? $image : null;
 
         $words = BlockLocalization::words(self::ITEMS, $itemId);
-        $buttonUrl = TypedLink::href((string) ($item['button_url'] ?? ''));
+        // The shared rule of every block button (LinkChoice): a page, blog
+        // post or product by id, resolved now in the language being read, or
+        // the typed address. An item from before the type has only an
+        // address, and is one.
+        $buttonUrl = LinkChoice::href($item['button_link_type'] ?? null, $item['button_link_target_id'] ?? 0, (string) ($item['button_url'] ?? ''));
 
         // A button only renders with a label in the default language and a
-        // URL — a half-filled optional button would be broken or dead.
+        // destination — a half-filled optional button would be broken or
+        // dead, and so would one whose page is gone or not published.
         if (!BlockLocalization::hasDefaultWords(self::ITEMS, $itemId, 'button_label') || $buttonUrl === '') {
             $words['button_label'] = '';
             $buttonUrl = '';

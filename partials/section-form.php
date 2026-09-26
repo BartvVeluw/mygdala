@@ -27,6 +27,12 @@
  * library can hand it a form built in memory and show the real markup
  * (App\Service\Blocks\BlockSamples).
  *
+ * HEADING ALIGNMENT. 'header_align' (FormBlockContent::HEADER_ALIGNMENTS)
+ * places the heading and the introduction left, centred or right. It is a
+ * class on those two elements only, so the form's labels, fields and button
+ * keep their own layout whatever is chosen. Left, the default, adds no class:
+ * an existing block renders exactly as it did.
+ *
  * @param array<string, mixed> $content see FormBlockContent::forSection()
  * @param FormDefinition|null  $form    null when there is nothing to show
  * @param FormRenderState      $state   this instance's state
@@ -45,16 +51,18 @@ function render_section_form(array $content, ?FormDefinition $form, FormRenderSt
 
     $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
     $text = static fn (string $field): string => $content[$field];
+    $align = (string) ($content['header_align'] ?? 'left');
+    $alignClass = in_array($align, ['center', 'right'], true) ? ' form-block__head--' . $align : '';
     ?>
   <section class="form-block">
     <div class="container">
       <div class="form-block__card contact-card" data-reveal>
         <?php if ($text('title') !== ''): ?>
-          <h2 class="form-block__title"><?= $h($text('title')) ?></h2>
+          <h2 class="form-block__title<?= $alignClass ?>"><?= $h($text('title')) ?></h2>
         <?php endif; ?>
 
         <?php if ($text('intro') !== ''): ?>
-          <p class="form-block__intro"><?= $h($text('intro')) ?></p>
+          <p class="form-block__intro<?= $alignClass ?>"><?= $h($text('intro')) ?></p>
         <?php endif; ?>
 
         <?php render_form($form, $state); ?>

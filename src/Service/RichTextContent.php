@@ -70,6 +70,19 @@ class RichTextContent
         'right' => 'Rechts',
     ];
 
+    /**
+     * How wide the text runs, a closed list: 'medium' is the narrow reading
+     * column (--container-narrow) every text block had before this choice
+     * existed, and stays the default, so an existing block adds no class and
+     * looks as it did; 'large' is the site's normal content width
+     * (--container), the one every other wide block uses. Value => the CMS
+     * label.
+     */
+    public const WIDTHS = [
+        'medium' => 'Medium',
+        'large' => 'Breed',
+    ];
+
     private const TABLE = 'rich_text_sections';
 
     /** @var array<string, array<string, mixed>> */
@@ -81,10 +94,10 @@ class RichTextContent
      *        language whatever is being read — the terms-and-conditions hash
      *        (App\Service\LegalPages::termsContent()).
      *
-     * @return array{state: string, body: string, align: string, button_label: string, button_href: string}
+     * @return array{state: string, body: string, align: string, width: string, button_label: string, button_href: string}
      *         templates must check 'state' !== STATE_HIDDEN before rendering
      *         the section. 'body' is sanitized HTML in that language, empty
-     *         when there is none; 'align' a key of ALIGNMENTS; the button
+     *         when there is none; 'align' a key of ALIGNMENTS, 'width' one of WIDTHS; the button
      *         is there only when both its label and its href are.
      */
     public static function forSection(string $pageSlug, string $sectionKey, ?string $language = null): array
@@ -118,6 +131,7 @@ class RichTextContent
         // translation is no button.
         $bodyId = (int) $row['id'];
         $align = (string) ($row['text_align'] ?? '');
+        $width = (string) ($row['content_width'] ?? '');
         $label = BlockLocalization::hasDefaultWords(self::TABLE, $bodyId, self::BUTTON_LABEL)
             ? BlockLocalization::value(self::TABLE, $bodyId, self::BUTTON_LABEL, $language)
             : '';
@@ -131,21 +145,28 @@ class RichTextContent
                 ? BlockLocalization::value(self::TABLE, $bodyId, self::BODY, $language)
                 : '',
             'align' => array_key_exists($align, self::ALIGNMENTS) ? $align : (string) array_key_first(self::ALIGNMENTS),
+            'width' => self::width($width),
             self::BUTTON_LABEL => $href !== '' ? $label : '',
             'button_href' => $label !== '' ? $href : '',
         ];
     }
 
     /** Also drops the block words BlockLocalization holds for this request. */
+    /** A stored width, or the default for anything this class does not know. */
+    public static function width(string $stored): string
+    {
+        return array_key_exists($stored, self::WIDTHS) ? $stored : (string) array_key_first(self::WIDTHS);
+    }
+
     public static function clearCache(): void
     {
         self::$cache = [];
         BlockLocalization::clearCache();
     }
 
-    /** @return array{state: string, body: string, align: string, button_label: string, button_href: string} */
+    /** @return array{state: string, body: string, align: string, width: string, button_label: string, button_href: string} */
     private static function emptyContent(string $state): array
     {
-        return ['state' => $state, self::BODY => '', 'align' => 'left', self::BUTTON_LABEL => '', 'button_href' => ''];
+        return ['state' => $state, self::BODY => '', 'align' => 'left', 'width' => self::width(''), self::BUTTON_LABEL => '', 'button_href' => ''];
     }
 }

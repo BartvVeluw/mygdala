@@ -2426,6 +2426,11 @@ input[data-color-picker]{ width: 2.4rem; height: 2.4rem; padding: 0.15rem; borde
 /* The frame is 10rem high where it fits, so a tall shape stays small. */
 .admin-tis-item .admin-image-focus__preview{ width: min(100%, calc(10rem * var(--admin-tis-frame-shape))); min-width: 6rem; }
 .admin-tis-layout{ display: flex; flex-wrap: wrap; gap: var(--admin-sp-3) var(--admin-sp-5); margin: var(--admin-sp-3) 0; }
+/* An item's button: its heading, the shared destination field and the label,
+   in the row's own rhythm. */
+.admin-tis-button{ display: flex; flex-direction: column; gap: var(--admin-sp-3); }
+.admin-tis-button > h3{ margin: 0; font-size: 1rem; }
+.admin-tis-button .admin-field{ margin: 0; }
 
 /* The Paginakop (admin/page-hero.php): the focus preview takes the shape of
    the chosen place. A band behind the text is wide, and wider the lower it is
@@ -2475,6 +2480,16 @@ input[data-color-picker]{ width: 2.4rem; height: 2.4rem; padding: 0.15rem; borde
 .admin-row-card:has(.admin-row-card__remove-input:checked) .admin-row-card__removing,
 .admin-row-card:has(.admin-row-card__remove-input:checked) .admin-row-card__remove-off{ display: block; }
 .admin-row-card:has(.admin-row-card__remove-input:checked) .admin-row-card__remove-on{ display: none; }
+/* A collapsible row (editor_row_open() with $collapse): the summary line of
+   the shared disclosure (.admin-collapse) takes the legend's place, with the
+   tools floating on its right, so a folded row is one line you can still
+   move or mark. The fields fold with the <details>; the tools never do. */
+.admin-row-card--collapsible > .admin-row-card__head{ float: right; margin-left: var(--admin-sp-2); }
+.admin-row-card__collapse > .admin-collapse__summary{ min-height: 2rem; padding: 0 0.2rem; }
+.admin-row-card__summary{ font-weight: 600; overflow-wrap: anywhere; }
+.admin-row-card__summary .admin-badge{ margin-left: 0.3rem; font-weight: 500; }
+.admin-row-card__collapse > .admin-row-card__body{ margin-top: var(--admin-sp-2); padding-top: var(--admin-sp-3); border-top: 1px solid var(--admin-border); }
+.admin-row-card:has(.admin-row-card__remove-input:checked) .admin-row-card__summary{ opacity: 0.45; }
 /* Two words side by side where there is room (a figure and its caption). */
 .admin-row-card__pair{ display: grid; grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr)); gap: var(--admin-sp-3); }
 @media (max-width: 600px){
@@ -4633,6 +4648,7 @@ body.admin-block-picker-open{ overflow: hidden; }
 .admin-bp--chips i:nth-child(1){ flex: 0 0 24%; }
 .admin-bp--chips i:nth-child(2){ flex: 0 0 30%; }
 .admin-bp--chips i:nth-child(3){ flex: 0 0 21%; }
+.admin-bp--space{ height: 28px; border: 1px dashed var(--admin-border-strong); border-radius: 3px; }
 .admin-bp--chips i:nth-child(4){ flex: 0 0 16%; }
 
 /* --- The Contentblokken catalogue (admin/content-blocks.php) ---------- */

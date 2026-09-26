@@ -109,16 +109,23 @@
      * Leaving through one of an item's own controls records it. Not the
      * summary and not the drag handle: opening a row is not "working on it",
      * and a drag never reloads the page.
+     *
+     * Not in a list marked data-admin-collapse-no-return: its rows are edited
+     * in place (the rows of a block editor, admin/_editor_rows.php), so a
+     * click inside one (a rich-text button, "Kies afbeelding") is editing,
+     * never leaving, and the next load should not jump to that row.
      */
-    group.addEventListener("click", function (event) {
-      var control = event.target.closest ? event.target.closest("a[href], button") : null;
-      if (!control || control.tagName === "SUMMARY") return;
+    if (!group.hasAttribute("data-admin-collapse-no-return")) {
+      group.addEventListener("click", function (event) {
+        var control = event.target.closest ? event.target.closest("a[href], button") : null;
+        if (!control || control.tagName === "SUMMARY") return;
 
-      var item = control.closest("details[data-admin-collapse-id]");
-      if (!item || item.closest("[data-admin-collapse-group]") !== group) return;
+        var item = control.closest("details[data-admin-collapse-id]");
+        if (!item || item.closest("[data-admin-collapse-group]") !== group) return;
 
-      write(returnKey, item.getAttribute("data-admin-collapse-id"));
-    });
+        write(returnKey, item.getAttribute("data-admin-collapse-id"));
+      });
+    }
 
     if (!focusItem) return;
 

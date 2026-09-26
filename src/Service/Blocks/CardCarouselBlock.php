@@ -180,6 +180,8 @@ final class CardCarouselBlock extends BlockDefinition
         return [
             'id' => 0,
             'desktop_layout' => CardCarouselContent::LAYOUT_ORBIT,
+            'header_align' => CardCarouselContent::headerAlign(''),
+            'image_height' => CardCarouselContent::imageHeight(''),
             'eyebrow' => $samples->localized('eyebrow'),
             'title' => $samples->localized('title'),
             'lead' => $samples->localized('lead'),

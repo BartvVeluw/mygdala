@@ -163,6 +163,31 @@
   .orbit-carousel{ --orbit-card-w: 240px; --orbit-card-h: 430px; --orbit-media-h: 120px; --orbit-rx: 220; --orbit-rz: 170; }
 }
 
+/* The picture height a carousel chose (CardCarouselContent::IMAGE_HEIGHTS),
+   the same for every card in it. Medium is the default and has no class: the
+   heights above. Small and large move the picture's share of the card and
+   grow or shrink the card by exactly that much, so the text below keeps the
+   room it always had and the stage (worked out from --orbit-card-h) still
+   contains the front card. The card's width never changes, and the picture
+   is cropped (object-fit: cover), never stretched, whatever its aspect ratio.
+   Here, before the phone and "naast elkaar" rules below, because those set
+   the card's height to auto and must win. */
+.orbit-carousel--media-small{ --orbit-media-h: 112px; --orbit-card-h: 424px; }
+.orbit-carousel--media-large{ --orbit-media-h: 208px; --orbit-card-h: 520px; }
+@media (max-width: 900px){
+  .orbit-carousel--media-small{ --orbit-media-h: 96px; --orbit-card-h: 406px; }
+  .orbit-carousel--media-large{ --orbit-media-h: 168px; --orbit-card-h: 478px; }
+}
+
+/* Where the heading above the carousel sits (CardCarouselContent::HEADER_ALIGNMENTS).
+   Left is the default: the shared .section-head, no class. The lead is a
+   narrower block of its own (max-width in core.css), so it moves with the
+   text rather than staying at the left edge of the heading. */
+.card-carousel__head--center{ margin-inline: auto; text-align: center; }
+.card-carousel__head--center .lead{ margin-inline: auto; }
+.card-carousel__head--right{ margin-left: auto; text-align: right; }
+.card-carousel__head--right .lead{ margin-left: auto; }
+
 /* Mobile: flat, native horizontal snap-scroll — no 3D, real swipe support.
    The side padding is half of what is left beside one card (plus the
    stage's own bleed into the container's gutter), so the FIRST and the LAST

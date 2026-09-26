@@ -6,6 +6,7 @@ require_once __DIR__ . '/../vendor/autoload.php';
 require_once __DIR__ . '/_translate.php';
 require_once __DIR__ . '/_save_bar.php';
 require_once __DIR__ . '/_localized_fields.php';
+require_once __DIR__ . '/_admin_ui.php';
 
 use App\Repository\FormBlockRepository;
 use App\Repository\FormRepository;
@@ -83,7 +84,9 @@ $editLanguage = admin_localized_language();
 $values = $old ?? [
     'form_id' => $currentFormId === null ? '' : (string) $currentFormId,
     'is_active' => (bool) $section['is_active'],
+    'header_align' => (string) ($section['header_align'] ?? ''),
 ];
+$headerAlign = \App\Service\FormBlockContent::headerAlign((string) ($values['header_align'] ?? ''));
 
 $sectionId = (int) $section['id'];
 $oldInThisLanguage = is_array($old) && ($old['language_code'] ?? null) === $editLanguage;
@@ -162,6 +165,18 @@ $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, '
         <label><?= admin_te('forms.inleiding') ?>
           <textarea name="intro" maxlength="1000" rows="3"<?= $placeholder ?>><?= $h($word('intro')) ?></textarea>
         </label>
+      </div>
+
+      <div class="admin-form-row">
+        <span class="admin-form-row__label" id="form-block-align-label"><?= admin_te('forms.kop_uitlijning') ?> <?= admin_help(admin_t('forms.kop_uitlijning'), admin_t('help.forms.kop_uitlijning')) ?></span>
+        <div class="admin-segmented" role="radiogroup" aria-labelledby="form-block-align-label">
+          <?php foreach (\App\Service\FormBlockContent::HEADER_ALIGNMENTS as $value): ?>
+            <label class="admin-segmented__option">
+              <input type="radio" name="header_align" value="<?= $h($value) ?>"<?= $headerAlign === $value ? ' checked' : '' ?>>
+              <span><?= admin_te('forms.kop_uitlijning_' . $value) ?></span>
+            </label>
+          <?php endforeach; ?>
+        </div>
       </div>
 
       <label class="admin-checkbox-label">

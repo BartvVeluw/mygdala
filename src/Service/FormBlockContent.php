@@ -40,6 +40,14 @@ class FormBlockContent
     public const STATE_HIDDEN = 'hidden';
 
     /** The owner table of this block's words (FormBlock::translatableFields()). */
+    /**
+     * Where the block's heading and introduction sit above the form, a closed
+     * list: 'left' is how every form block looked before the choice existed
+     * and stays the default (no class). Only the heading and the
+     * introduction follow it; the form's own labels and fields never do.
+     */
+    public const HEADER_ALIGNMENTS = ['left', 'center', 'right'];
+
     private const TABLE = 'form_blocks';
 
     /** @var array<string, array<string, mixed>> */
@@ -76,6 +84,7 @@ class FormBlockContent
         return self::$cache[$cacheKey] = [
             'state' => self::STATE_ACTIVE,
             'form_id' => $row['form_id'] === null ? null : (int) $row['form_id'],
+            'header_align' => self::headerAlign((string) ($row['header_align'] ?? '')),
         ] + BlockLocalization::words(self::TABLE, (int) $row['id']);
     }
 
@@ -87,7 +96,14 @@ class FormBlockContent
         return [
             'state' => $state,
             'form_id' => null,
+            'header_align' => self::HEADER_ALIGNMENTS[0],
         ] + BlockLocalization::words(self::TABLE, 0);
+    }
+
+    /** A stored alignment, or the default for anything this class does not know. */
+    public static function headerAlign(string $stored): string
+    {
+        return in_array($stored, self::HEADER_ALIGNMENTS, true) ? $stored : self::HEADER_ALIGNMENTS[0];
     }
 
     /**

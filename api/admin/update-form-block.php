@@ -80,9 +80,15 @@ foreach (array_keys(BlockLocalization::fields('form_blocks')) as $field) {
     $words[$field] = trim((string) ($_POST[$field] ?? ''));
 }
 
+// Where the heading and introduction sit: a closed list, the same in every
+// language. An unknown value is refused; a request without it keeps what is
+// stored.
+$headerAlign = (string) ($_POST['header_align'] ?? FormBlockContent::headerAlign((string) ($section['header_align'] ?? '')));
+
 $settings = [
     'form_id' => $formId,
     'is_active' => isset($_POST['is_active']),
+    'header_align' => $headerAlign,
 ];
 
 $errors = [];
@@ -95,11 +101,15 @@ if (!$languageIsWritable) {
     }
 }
 
+if (!in_array($headerAlign, FormBlockContent::HEADER_ALIGNMENTS, true)) {
+    $errors[] = AdminTranslator::trans('forms.error_kop_uitlijning');
+}
+
 if ($formId !== null && (new FormRepository())->find($formId) === null) {
     $errors[] = AdminTranslator::trans('validation.gekozen_formulier_bestaat');
 }
 
-$old = ['language_code' => $languageCode] + $words + ['form_id' => (string) ($formId ?? ''), 'is_active' => $settings['is_active']];
+$old = ['language_code' => $languageCode] + $words + ['form_id' => (string) ($formId ?? ''), 'is_active' => $settings['is_active'], 'header_align' => $headerAlign];
 
 if ($errors !== []) {
     $_SESSION['admin_form_block_errors'] = $errors;

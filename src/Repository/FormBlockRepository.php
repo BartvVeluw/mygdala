@@ -54,23 +54,34 @@ class FormBlockRepository extends Repository
      */
     public function upsertSection(string $pageSlug, string $sectionKey, array $values): void
     {
+        // The alignment is written only when the caller names it (the editor
+        // does, a new block does not), so a caller that does not know about it
+        // never resets a stored one; a new row gets the column default.
+        $hasAlign = array_key_exists('header_align', $values);
+
         $stmt = $this->db->prepare(
             'INSERT INTO form_blocks
-                (page_slug, section_key, form_id, is_active, created_at, updated_at)
+                (page_slug, section_key, form_id, is_active' . ($hasAlign ? ', header_align' : '') . ', created_at, updated_at)
              VALUES
-                (:page_slug, :section_key, :form_id, :is_active, NOW(), NOW())
+                (:page_slug, :section_key, :form_id, :is_active' . ($hasAlign ? ', :header_align' : '') . ', NOW(), NOW())
              ON DUPLICATE KEY UPDATE
                 form_id = VALUES(form_id),
-                is_active = VALUES(is_active),
+                is_active = VALUES(is_active),' . ($hasAlign ? '
+                header_align = VALUES(header_align),' : '') . '
                 updated_at = NOW()'
         );
 
-        $stmt->execute([
+        $params = [
             'page_slug' => $pageSlug,
             'section_key' => $sectionKey,
             'form_id' => self::positiveIntOrNull($values['form_id'] ?? null),
             'is_active' => ($values['is_active'] ?? true) ? 1 : 0,
-        ]);
+        ];
+        if ($hasAlign) {
+            $params['header_align'] = (string) $values['header_align'];
+        }
+
+        $stmt->execute($params);
     }
 
     /**

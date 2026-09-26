@@ -61,6 +61,7 @@ final class BlockDefinitions
         'detail_section' => DetailSectionBlock::class,
         'card_carousel' => CardCarouselBlock::class,
         'item_gallery' => ItemGalleryBlock::class,
+        'spacer' => SpacerBlock::class,
         // Fixed blocks — content a page template used to hardcode, now
         // positioned like any other block but never added or deleted by hand.
         'quicknav' => QuicknavBlock::class,

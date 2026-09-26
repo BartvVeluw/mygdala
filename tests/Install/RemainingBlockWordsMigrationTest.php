@@ -117,9 +117,10 @@ final class RemainingBlockWordsMigrationTest extends TestCase
      * words and not what this test is about.
      */
     private const LATER_COLUMNS = [
-        'card_carousels' => ['desktop_layout'],
+        'card_carousels' => ['desktop_layout', 'header_align', 'image_height'],
         'carousel_cards' => ['link_type', 'link_target_id', 'image_focus'],
         'feature_grid_items' => ['icon_media_id'],
+        'form_blocks' => ['header_align'],
         'homepage_hero' => ['primary_link_type', 'primary_link_target_id', 'secondary_link_type', 'secondary_link_target_id', 'media_id', 'video_media_id'],
         'page_heroes' => ['image_mode', 'hero_height', 'image_focus'],
     ];

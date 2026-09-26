@@ -110,7 +110,7 @@ final class RichTextBlock extends BlockDefinition
             return;
         }
 
-        render_section_rich_text($content);
+        render_section_rich_text($content, $tightTop);
     }
 
     public function sampleContent(BlockSamples $samples): ?array
@@ -118,6 +118,7 @@ final class RichTextBlock extends BlockDefinition
         return [
             RichTextContent::BODY => $samples->localizedRichText(),
             'align' => 'left',
+            'width' => RichTextContent::width(''),
             RichTextContent::BUTTON_LABEL => $samples->localized('button'),
             'button_href' => BlockSamples::LINK,
         ];

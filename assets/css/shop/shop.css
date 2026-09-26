@@ -88,13 +88,6 @@ a.product-card:hover .product-card__cta svg{ transform: translateX(3px); }
    redefined here for it. Only the two things collections add of their own
    need styling: the tile row that links into them, and the image +
    description block at the top of a collection page. */
-.collection-tiles__heading{
-  font-size: 1.35rem;
-  font-weight: 400;
-  margin: 0 0 var(--sp-3);
-}
-.collection-tiles__heading + .shop-grid{ margin-top: 0; }
-
 .collection-tiles{
   display: grid;
   grid-template-columns: repeat(4, 1fr);

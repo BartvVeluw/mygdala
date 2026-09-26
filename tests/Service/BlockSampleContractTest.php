@@ -49,6 +49,14 @@ final class BlockSampleContractTest extends TestCase
     ];
 
     /**
+     * Blocks whose whole point is to print no words. Their preview is checked
+     * the other way round: it must stay wordless.
+     */
+    private const WORDLESS = [
+        'spacer' => 'room between two blocks and nothing else (partials/section-spacer.php)',
+    ];
+
+    /**
      * Words of the site this CMS grew out of, and of what it sells. A sample
      * shows on every installation, so none of them belongs in one.
      */
@@ -408,6 +416,11 @@ final class BlockSampleContractTest extends TestCase
         }
 
         $words = self::renderedWords(self::render($definition, $sample));
+        if (isset(self::WORDLESS[$type])) {
+            $this->assertSame('', trim($words), "{$type} is wordless by design, and must stay so");
+
+            return;
+        }
         $this->assertNotSame('', trim($words), "{$type} renders no words, so this test proves nothing about it");
 
         foreach (self::RENDERED_SITE_COPY as $copy) {

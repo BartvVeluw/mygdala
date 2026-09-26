@@ -102,15 +102,23 @@ class TextImageSplitRepository extends Repository
      * (App\Service\Media\BlockImage::fromRequest()). The layout values are
      * keys the caller has already checked (App\Service\TextImageSplitContent::layout()).
      *
-     * @param array<string, mixed> $values media_id, image_path, image_side, image_column, image_height, image_focus, button_url
+     * The button's destination is App\Service\Routing\LinkChoice's shape:
+     * button_link_type (NULL, 'url' or a LinkTargets type, checked by the
+     * caller), button_link_target_id for an internal type, and button_url, the
+     * typed address, kept whatever the type.
+     *
+     * @param array<string, mixed> $values media_id, image_path, image_side, image_column, image_height, image_focus,
+     *                                     button_link_type, button_link_target_id, button_url
      */
     public function createItem(int $sectionId, array $values): int
     {
         $stmt = $this->db->prepare(
             'INSERT INTO text_image_split_items
-                (text_image_split_id, media_id, image_path, image_side, image_column, image_height, image_focus, button_url, sort_order, created_at, updated_at)
+                (text_image_split_id, media_id, image_path, image_side, image_column, image_height, image_focus,
+                 button_link_type, button_link_target_id, button_url, sort_order, created_at, updated_at)
              VALUES
-                (:text_image_split_id, :media_id, :image_path, :image_side, :image_column, :image_height, :image_focus, :button_url, :sort_order, NOW(), NOW())'
+                (:text_image_split_id, :media_id, :image_path, :image_side, :image_column, :image_height, :image_focus,
+                 :button_link_type, :button_link_target_id, :button_url, :sort_order, NOW(), NOW())'
         );
         $stmt->execute([
             'text_image_split_id' => $sectionId,
@@ -122,7 +130,7 @@ class TextImageSplitRepository extends Repository
 
     /**
      * What is the same in every language of one item: its picture, its
-     * layout and its button address. Its words are saved through
+     * layout and its button's destination. Its words are saved through
      * BlockLocalization in the same transaction; the id never changes, so the
      * words of every language stay attached to it.
      *
@@ -138,6 +146,8 @@ class TextImageSplitRepository extends Repository
                 image_column = :image_column,
                 image_height = :image_height,
                 image_focus = :image_focus,
+                button_link_type = :button_link_type,
+                button_link_target_id = :button_link_target_id,
                 button_url = :button_url,
                 updated_at = NOW()
              WHERE id = :id'
@@ -220,6 +230,8 @@ class TextImageSplitRepository extends Repository
             'image_column' => (string) $values['image_column'],
             'image_height' => (string) $values['image_height'],
             'image_focus' => (string) $values['image_focus'],
+            'button_link_type' => self::nullIfEmpty(isset($values['button_link_type']) ? (string) $values['button_link_type'] : null),
+            'button_link_target_id' => (int) ($values['button_link_target_id'] ?? 0) > 0 ? (int) $values['button_link_target_id'] : null,
             'button_url' => self::nullIfEmpty(trim((string) ($values['button_url'] ?? ''))),
         ];
     }

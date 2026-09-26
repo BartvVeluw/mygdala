@@ -19,3 +19,9 @@
 /* The button sits under the text, aligned with it by the same text-align. */
 .rich-text__actions{ margin: 0; }
 .rich-content + .rich-text__actions{ margin-top: var(--sp-4); }
+
+/* Two text blocks directly after each other read as one column, as they
+   always did: the second does not add its own top padding to the first one's
+   bottom padding. Every other neighbour gets the ordinary section spacing
+   above a text block (partials/section-rich-text.php, SPACING). */
+.rich-text-section + .rich-text-section{ padding-top: 0; }

@@ -44,6 +44,15 @@ final class BlockDefinitionContractTest extends TestCase
     private const ADDABLE_WITHOUT_CONTENT = ['product_grid', 'shop_collections'];
 
     /**
+     * Blocks that own rows and have no words at all: every setting of theirs
+     * is the same in every language. A closed list, so a block that forgot to
+     * declare its words is still caught.
+     */
+    private const WORDLESS_WITH_ROWS = [
+        'spacer' => 'only a height (App\Service\SpacerContent::SIZES)',
+    ];
+
+    /**
      * Everything a block must answer for itself. These are abstract on
      * BlockDefinition on purpose — see testTheContractIsAbstract().
      */
@@ -385,6 +394,13 @@ final class BlockDefinitionContractTest extends TestCase
 
         if ($definition->contentTable() === null) {
             $this->assertSame([], $declared, "{$type} owns no rows, so it has no words of its own to declare");
+
+            return;
+        }
+
+        if (isset(self::WORDLESS_WITH_ROWS[$type])) {
+            $this->assertSame([], $declared, "{$type} is listed as wordless and declares words");
+            $this->assertSame([], $definition->childTables(), "{$type} is listed as wordless and has child tables");
 
             return;
         }

@@ -74,6 +74,10 @@ $isActive = isset($_POST['is_active']);
 $align = (string) ($_POST['text_align'] ?? '');
 $align = array_key_exists($align, RichTextContent::ALIGNMENTS) ? $align : (string) array_key_first(RichTextContent::ALIGNMENTS);
 
+// The width is a closed list too, and an unknown one is refused (the editor
+// only offers the two); a request without it keeps what is stored.
+$width = (string) ($_POST['content_width'] ?? RichTextContent::width((string) ($section['content_width'] ?? '')));
+
 // The optional button: the shared destination rule (LinkChoice), and a label
 // only while there IS a button. "Geen knop" checks nothing.
 $buttonType = (string) ($_POST['button_link_type'] ?? LinkChoice::NONE);
@@ -94,6 +98,7 @@ $old = [
     RichTextContent::BUTTON_LABEL => $buttonLabel,
     'is_active' => $isActive,
     'text_align' => $align,
+    'content_width' => $width,
     'button_link_type' => $buttonType,
     'button_link_target' => $buttonTargets,
     'button_url' => $buttonUrl,
@@ -106,6 +111,10 @@ if (!$languageIsWritable) {
 } else {
     foreach (BlockLocalization::messageKeys(BlockLocalization::problems('rich_text_sections', $languageCode, [RichTextContent::BODY => $body, RichTextContent::BUTTON_LABEL => $buttonLabel])) as $key) {
         $errors[] = AdminTranslator::trans($key);
+    }
+
+    if (!array_key_exists($width, RichTextContent::WIDTHS)) {
+        $fieldErrors['content_width'] = AdminTranslator::trans('block_richtext.error_breedte');
     }
 
     if ($link['error'] !== null) {
@@ -140,6 +149,7 @@ try {
     $repository->upsertSection($pageSlug, $sectionKey, ['is_active' => $isActive]);
     $repository->updateSettings((int) $section['id'], [
         'text_align' => $align,
+        'content_width' => $width,
         'button_link_type' => $link['link_type'],
         'button_link_target_id' => $link['link_target_id'],
         'button_url' => $buttonUrl,

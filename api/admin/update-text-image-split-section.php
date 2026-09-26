@@ -5,8 +5,8 @@
  *
  * Saves the WHOLE editor of one Tekst met afbeelding block
  * (admin/text-image-split.php?section=...) in one request: whether it shows,
- * and its items — each with its words, its picture, its layout and its button
- * address — their order, new ones and the ones marked for removal. One form,
+ * and its items — each with its words, its picture, its layout and its button's
+ * destination (LinkChoice) — their order, new ones and the ones marked for removal. One form,
  * one save (PAGE-EDITOR.md, "Eén formulier per blok-editor"); there is no
  * endpoint per item.
  *
@@ -28,7 +28,7 @@
  * App\Service\Blocks\EditorChildList.
  *
  * AN ITEM NEEDS text or a picture — an eyebrow, a title, a body or a whole
- * button (label and URL), exactly what makes TextImageSplitContent show it:
+ * button (label and destination), exactly what makes TextImageSplitContent show it:
  * a completely empty item is refused with a message on the item, not silently
  * dropped (a new item with nothing typed or chosen is no item at all, as in
  * every list). What counts is the default language, which decides whether an
@@ -64,6 +64,7 @@ use App\Service\Csrf;
 use App\Service\Language\LanguageCode;
 use App\Service\Language\SiteLanguages;
 use App\Service\Media\BlockImage;
+use App\Service\Routing\LinkChoice;
 use App\Service\TextImageSplitContent;
 use App\Repository\TextImageSplitRepository;
 
@@ -121,10 +122,30 @@ foreach ($storedId > 0 ? $repository->findItemsBySectionId($storedId) : [] as $i
 // The editor shows the library's alt text in each item's alt field; sent
 // back unchanged it stays "the library's" (BlockImage::ownAlt(), MEDIA.md).
 $post = ['items' => BlockImage::ownAltInRows($_POST['items'] ?? null, $languageCode === $defaultLanguage)] + $_POST;
-// The layout radios arrive already chosen on a new item: they alone do not
-// make it an item.
+// The button's destination field (admin/_link_target_field.php) posts one
+// list of items per kind, `button_link_target[<kind>]`. Only the chosen kind's
+// counts, and a row's fields are plain values, so it becomes one value here.
+if (is_array($post['items'])) {
+    foreach ($post['items'] as $key => $fields) {
+        if (is_array($fields)) {
+            // A request without a kind (from before the kind existed) means
+            // what it always meant: a button when both its label and its
+            // address are filled, and otherwise none, without a message.
+            if (!isset($fields['button_link_type'])) {
+                $hasBoth = trim((string) (is_string($fields['button_url'] ?? null) ? $fields['button_url'] : '')) !== ''
+                    && trim((string) (is_string($fields['button_label'] ?? null) ? $fields['button_label'] : '')) !== '';
+                $fields['button_link_type'] = $hasBoth ? LinkChoice::URL : LinkChoice::NONE;
+                $post['items'][$key]['button_link_type'] = $fields['button_link_type'];
+            }
+            $targets = is_array($fields['button_link_target'] ?? null) ? $fields['button_link_target'] : [];
+            $post['items'][$key]['button_link_target'] = (string) ($targets[(string) ($fields['button_link_type'] ?? '')] ?? '');
+        }
+    }
+}
+// The layout radios and the button's kind arrive already chosen on a new
+// item: they alone do not make it an item.
 $action = EditorRows::parseAction($_POST['editor_action'] ?? null);
-$preset = ['image_side', 'image_column', 'image_height', 'image_focus'];
+$preset = ['image_side', 'image_column', 'image_height', 'image_focus', 'button_link_type'];
 $items = EditorChildList::fromRequest($post, 'items', 'text_image_split_items', array_keys($storedItems), $action, $preset);
 
 /**
@@ -147,15 +168,30 @@ $pictureOf = static function (array $row) use ($storedItems): array {
     return ['media_id' => null, 'image_path' => ''];
 };
 
-/** An item's own checks besides its words: a known picture, and something to show. */
-$itemProblems = static function (array $row) use ($pictureOf, $languageCode, $defaultLanguage): array {
+/**
+ * The button's destination, by the rule every block button shares
+ * (LinkChoice): nothing, an item of the website by id, or a typed address. A
+ * kind whose module is off stays as stored when it comes back unchanged.
+ * Worked out once per row: validation and the save both ask.
+ */
+$links = [];
+$linkOf = static function (array $row) use (&$links, $storedItems): array {
+    $storedItem = $storedItems[$row['id']] ?? [];
+
+    return $links[$row['key']] ??= LinkChoice::fromRequest(
+        (string) ($row['fields']['button_link_type'] ?? LinkChoice::NONE),
+        $row['fields']['button_link_target'] ?? null,
+        (string) ($row['fields']['button_url'] ?? ''),
+        (string) ($storedItem['button_link_type'] ?? ''),
+        (int) ($storedItem['button_link_target_id'] ?? 0)
+    );
+};
+
+/** An item's own checks besides its words: a known picture, a valid button, and something to show. */
+$itemProblems = static function (array $row) use ($pictureOf, $linkOf, $languageCode, $defaultLanguage): array {
     $posted = $row['fields']['media_id'] ?? '';
     if ($posted !== '' && $posted !== '0' && BlockImage::fromRequest($posted)['media_id'] === null) {
         return ['media_id' => AdminTranslator::trans('editor_rows.error_media_unknown')];
-    }
-
-    if ($pictureOf($row)['image_path'] !== '') {
-        return [];
     }
 
     // The default language decides whether the item has words: typed when
@@ -166,8 +202,24 @@ $itemProblems = static function (array $row) use ($pictureOf, $languageCode, $de
         ? $fields[$field]->normalise($row['fields'][$field] ?? '')
         : BlockLocalization::raw('text_image_split_items', $row['id'], $field, $defaultLanguage);
 
+    $link = $linkOf($row);
+    if ($link['error'] !== null) {
+        return ['button_url' => $link['error']];
+    }
+
+    // A chosen destination is a button, and a button needs its words in the
+    // default language; a translation may stay empty and falls back to them.
+    $hasButton = $link['link_type'] !== null;
+    if ($hasButton && $typed && $words('button_label') === '') {
+        return ['button_label' => AdminTranslator::trans('block_textimage.knoptekst_verplicht')];
+    }
+
+    if ($pictureOf($row)['image_path'] !== '') {
+        return [];
+    }
+
     if ($words('eyebrow') !== '' || $words('title') !== '' || $words('body') !== ''
-        || ($words('button_label') !== '' && trim((string) ($row['fields']['button_url'] ?? '')) !== '')
+        || ($words('button_label') !== '' && $hasButton)
     ) {
         return [];
     }
@@ -175,10 +227,23 @@ $itemProblems = static function (array $row) use ($pictureOf, $languageCode, $de
     return ['title' => AdminTranslator::trans('block_textimage.error_item_leeg')];
 };
 
-/** What is the same in every language of an item, as the repository stores it. */
-$valuesOf = static fn (array $row): array => $pictureOf($row)
-    + TextImageSplitContent::layout($row['fields'])
-    + ['button_url' => trim((string) ($row['fields']['button_url'] ?? ''))];
+/**
+ * What is the same in every language of an item, as the repository stores it.
+ * "Geen knop" stores no address either: a row without a type but with an
+ * address reads as an address (LinkChoice::storedType(), for the items from
+ * before the type), so a leftover address would bring the button back.
+ */
+$valuesOf = static function (array $row) use ($pictureOf, $linkOf): array {
+    $link = $linkOf($row);
+
+    return $pictureOf($row)
+        + TextImageSplitContent::layout($row['fields'])
+        + [
+            'button_link_type' => $link['link_type'],
+            'button_link_target_id' => $link['link_target_id'],
+            'button_url' => $link['link_type'] === null ? '' : trim((string) ($row['fields']['button_url'] ?? '')),
+        ];
+};
 
 $errors = [];
 $fieldErrors = [];

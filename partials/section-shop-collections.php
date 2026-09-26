@@ -16,6 +16,11 @@
  * order stays managed via Collecties, not as page content — this block only
  * decides WHERE on the page the tiles render.
  *
+ * NO HEADING OF ITS OWN. It used to print a fixed "Collecties" above the
+ * tiles, words no editor had typed and none could change or remove. The block
+ * has no title field, so it prints no title at all (Content Blocks Polish 1);
+ * an editor who wants one puts a Tekstblok above it.
+ *
  * The collections arrive as an argument, read by
  * App\Service\Blocks\ShopCollectionsBlock::render(), so this file only
  * renders and the block library can show it with sample tiles.
@@ -30,7 +35,6 @@ function render_section_shop_collections(array $shopCollections): void
     ?>
   <section style="padding-top:0;">
     <div class="container">
-      <h2 class="collection-tiles__heading"><?= \App\Service\Language\SiteText::escaped(['nl' => 'Collecties', 'en' => 'Collections']) ?></h2>
       <div class="collection-tiles">
         <?php foreach ($shopCollections as $shopCollection): ?>
           <?php

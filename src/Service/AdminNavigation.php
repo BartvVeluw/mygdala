@@ -152,6 +152,7 @@ class AdminNavigation
                     'card-carousel.php',
                     'carousel-card.php',
                     'item-gallery.php',
+                    'spacer.php',
                     // A module's block editor is still a page-builder screen,
                     // guarded by pages.manage like the rest (the Portfolio's
                     // Projecten). While its module is off it answers 404.

@@ -7,10 +7,13 @@
  * (App\Service\SectionRegistry's `product_grid`).
  *
  * The grid itself is fetched client-side by assets/js/shop/shop.js; products,
- * photos and stock are managed via Producten. The "Alle producten" heading
- * only appears when the collection tiles above it do (identical condition to
- * the original template — CollectionContent::activeForShop() is cached, so
- * asking a second time costs no extra query).
+ * photos and stock are managed via Producten.
+ *
+ * NO HEADING OF ITS OWN. It used to print a fixed "Alle producten" whenever
+ * collection tiles were on the shop, words no editor had typed and none could
+ * change or remove. The block has no title field, so it prints no title at
+ * all (Content Blocks Polish 1); an editor who wants one puts a Tekstblok
+ * above it.
  *
  * The closing "Zoek je iets specifieks?" paragraph used to be hardcoded
  * here. Phase 2 moved it into an ordinary Rich text block directly below
@@ -20,13 +23,9 @@
  */
 function render_section_product_grid(): void
 {
-    $shopCollections = \App\Service\CollectionContent::activeForShop();
     ?>
   <section style="padding-top:0;">
     <div class="container">
-      <?php if ($shopCollections !== []): ?>
-        <h2 class="collection-tiles__heading"><?= \App\Service\Language\SiteText::escaped(['nl' => 'Alle producten', 'en' => 'All products']) ?></h2>
-      <?php endif; ?>
       <div class="shop-grid" data-products-grid>
         <p class="lead" data-products-loading><?= \App\Service\Language\SiteText::escaped(['nl' => 'Producten laden…', 'en' => 'Loading products…']) ?></p>
       </div>

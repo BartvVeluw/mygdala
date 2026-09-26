@@ -10,12 +10,15 @@ require_once __DIR__ . '/_admin_ui.php';
 require_once __DIR__ . '/_editor_rows.php';
 require_once __DIR__ . '/_media_picker.php';
 require_once __DIR__ . '/_image_focus.php';
+require_once __DIR__ . '/_link_target_field.php';
+require_once __DIR__ . '/_admin_collapse.php';
 
 use App\Service\AdminAuth;
 use App\Service\Blocks\BlockLocalization;
 use App\Service\Csrf;
 use App\Service\Media\BlockImage;
 use App\Service\Media\MediaService;
+use App\Service\Routing\LinkChoice;
 use App\Service\TextImageSplitContent;
 use App\Repository\TextImageSplitRepository;
 
@@ -38,11 +41,23 @@ use App\Repository\TextImageSplitRepository;
  * whole form, one empty item waits at the end of the list, and the body is a
  * plain textarea of HTML.
  *
+ * EVERY ITEM FOLDS ON ITS OWN (Content Blocks Polish 1): the shared
+ * disclosure of admin/_admin_collapse.php through editor_row_open()'s
+ * $collapse, with "Item 2 — Over ons" as its button. A lone item, a new one
+ * and one with a message are open; the others of a longer list start folded
+ * and are remembered as the editor left them. Folding posts nothing.
+ *
+ * THE BUTTON is the shared destination field of every block button
+ * (admin/_link_target_field.php, App\Service\Routing\LinkChoice): no button, a
+ * page, blog post or product by id, or a typed address, one
+ * [data-nav-link-group] per item (admin/assets/navigation-item.js). An item
+ * from before the kind has only an address, and shows as one.
+ *
  * ONE WEBSITE LANGUAGE AT A TIME (Multilingual 2.0, admin/_localized_fields.php):
  * an item's eyebrow, title, body, button label and alt text show the language
  * chosen in the CMS shell, as stored and without the default language's
  * words in an empty translation. A save writes that language only. The
- * picture, the layout, the button URL and "Actief" are the same in every
+ * picture, the layout, the button's destination and "Actief" are the same in every
  * language and stay on screen in each. An item keeps its id however often it
  * is saved or moved, so the words of the other languages stay with it. A NEW
  * item is written in the default language, like a new page. Input a refused
@@ -118,6 +133,8 @@ $itemRows = editor_rows_on_screen(
     static function (array $item) use ($editLanguage): array {
         $fields = [
             'media_id' => (string) (int) ($item['media_id'] ?? 0),
+            'button_link_type' => LinkChoice::storedType($item['button_link_type'] ?? null, (string) ($item['button_url'] ?? '')),
+            'button_link_target' => (string) (int) ($item['button_link_target_id'] ?? 0),
             'button_url' => (string) ($item['button_url'] ?? ''),
         ] + TextImageSplitContent::layout($item);
 
@@ -154,6 +171,27 @@ $itemRow = static function (string $key, array $fields, int $position, int $coun
     [, $hint] = editor_row_word_hints($key, '', $placeholder);
     $layout = TextImageSplitContent::layout($fields);
 
+    // Folded or open: a new item and one with a message are open (the
+    // message's item opens whatever was remembered), a lone item too, the
+    // others start folded and remember how the editor left them.
+    $hasMessage = false;
+    foreach (array_keys($fieldErrors) as $errorKey) {
+        if (str_starts_with((string) $errorKey, 'items.' . $key . '.')) {
+            $hasMessage = true;
+        }
+    }
+    $collapse = [
+        'title' => (string) ($fields['title'] ?? ''),
+        'open' => !ctype_digit($key) || $hasMessage || $count === 1,
+        'force' => $hasMessage,
+    ];
+
+    // The button's destination on screen: its kind, the chosen item of that
+    // kind, and the typed address (LinkChoice, admin/_link_target_field.php).
+    $storedType = $stored === null ? '' : LinkChoice::storedType($stored['button_link_type'] ?? null, (string) ($stored['button_url'] ?? ''));
+    $linkType = (string) ($fields['button_link_type'] ?? LinkChoice::NONE);
+    $linkTargets = $linkType !== '' && (int) ($fields['button_link_target'] ?? 0) > 0 ? [$linkType => (int) $fields['button_link_target']] : [];
+
     // What the focus preview shows: the chosen library item, else a picture
     // from before the library that only the stored row knows.
     $mediaId = (int) ($fields['media_id'] ?? 0);
@@ -161,9 +199,9 @@ $itemRow = static function (string $key, array $fields, int $position, int $coun
     $legacyPath = $stored !== null && (int) ($stored['media_id'] ?? 0) === 0 ? BlockImage::fromOwner($stored, null)['image_path'] : '';
     $previewSrc = $media !== null ? $media->displayPath() : $legacyPath;
 
-    editor_row_open('items', $key, admin_t('block_textimage.item'), $position, $count, ($fields['remove'] ?? '') !== '', 'admin-tis-item');
+    editor_row_open('items', $key, admin_t('block_textimage.item'), $position, $count, ($fields['remove'] ?? '') !== '', 'admin-tis-item', $collapse);
     editor_row_text('items', $key, 'eyebrow', admin_t('block_textimage.eyebrow'), 150, $fields, $fieldErrors, $hint !== '' ? $hint : ' placeholder="Optioneel"');
-    editor_row_text('items', $key, 'title', admin_t('block_textimage.titel_h2'), 255, $fields, $fieldErrors, $hint);
+    editor_row_text('items', $key, 'title', admin_t('block_textimage.titel_h2'), 255, $fields, $fieldErrors, $hint . ' data-row-list-title-source');
     editor_row_rich('items', $key, 'body', admin_t('block_textimage.tekst'), $fields, $fieldErrors);
     echo '<p class="admin-text-muted">' . admin_te('block_textimage.er_titel_ingevuld_krijgt') . '</p>';
 
@@ -189,10 +227,29 @@ $itemRow = static function (string $key, array $fields, int $position, int $coun
         admin_t('block_textimage.focus_voorbeeld')
     );
 
-    editor_row_text('items', $key, 'button_label', admin_t('block_textimage.knoptekst'), 150, $fields, $fieldErrors, $hint !== '' ? $hint : ' placeholder="Optioneel"');
-    editor_row_text('items', $key, 'button_url', admin_t('block_textimage.knop_url'), 255, $fields, $fieldErrors, ' placeholder="Bijv. /contact — leeg = geen knop"');
-    echo '<p class="admin-text-muted">' . admin_te('block_textimage.knoptekst_url_horen_elkaar') . '</p>';
-    editor_row_close();
+    // The button: the shared destination field every block button has, in a
+    // group of its own so each item's label follows its own kind
+    // (admin/assets/navigation-item.js).
+    echo '<div class="admin-tis-button" data-nav-link-group>';
+    echo '<h3>' . admin_te('block_textimage.knop_optioneel') . '</h3>';
+    $buttonErrorKey = 'items.' . $key . '.button_url';
+    link_target_field([
+        'id' => editor_row_id('items', $key, 'button-link'),
+        'type_name' => editor_row_name('items', $key, 'button_link_type'),
+        'target_name' => editor_row_name('items', $key, 'button_link_target'),
+        'url_name' => editor_row_name('items', $key, 'button_url'),
+        'type' => $linkType,
+        'targets' => $linkTargets,
+        'url' => (string) ($fields['button_url'] ?? ''),
+        'stored_type' => $storedType,
+        'invalid' => editor_field_invalid($fieldErrors, $buttonErrorKey),
+        'error' => static fn () => editor_field_error($fieldErrors, $buttonErrorKey),
+    ]);
+    echo '<div data-nav-link-field="' . $h(link_target_shown_kinds($storedType)) . '">';
+    editor_row_text('items', $key, 'button_label', admin_t('block_textimage.knoptekst'), 150, $fields, $fieldErrors, $hint);
+    echo '</div>';
+    echo '</div>';
+    editor_row_close(true);
 };
 ?>
 <!doctype html>
@@ -227,7 +284,7 @@ $itemRow = static function (string $key, array $fields, int $position, int $coun
     </div>
   <?php endif; ?>
 
-  <form method="post" action="/api/admin/update-text-image-split-section.php" class="admin-product-form" data-save-name="<?= $h($section['section_label']) ?>"<?= is_array($old) ? ' data-save-bar-unsaved' : '' ?>>
+  <form method="post" action="/api/admin/update-text-image-split-section.php" class="admin-product-form" data-nav-item-form data-save-name="<?= $h($section['section_label']) ?>"<?= is_array($old) ? ' data-save-bar-unsaved' : '' ?>>
     <?php /* Enter in a text field presses the FIRST submit button of a form.
              This one is a plain save, so Enter never moves a row. */ ?>
     <button type="submit" class="admin-visually-hidden" tabindex="-1" aria-hidden="true"><?= admin_te('common.save') ?></button>
@@ -253,7 +310,7 @@ $itemRow = static function (string $key, array $fields, int $position, int $coun
       <?php endif; ?>
 
       <input type="hidden" name="items_present" value="1">
-      <div class="admin-row-cards" data-row-list="text-image-split-items">
+      <div class="admin-row-cards" data-row-list="text-image-split-items" data-admin-collapse-group="text-image-split-items" data-admin-collapse-scope="<?= $splitId ?>" data-admin-collapse-no-return>
         <?php foreach ($itemRows as $position => $row): ?>
           <?php $itemRow($row['key'], $row['fields'], $position, count($itemRows), $row['stored']); ?>
         <?php endforeach; ?>
@@ -276,6 +333,8 @@ $itemRow = static function (string $key, array $fields, int $position, int $coun
 <?php media_picker_script(); ?>
 <script src="<?= \App\Service\AssetVersion::url('/admin/assets/row-list.js') ?>" defer></script>
 <script src="<?= \App\Service\AssetVersion::url('/admin/assets/image-focus.js') ?>" defer></script>
+<script src="<?= \App\Service\AssetVersion::url('/admin/assets/navigation-item.js') ?>" defer></script>
+<?php admin_collapse_script(); ?>
 <?php save_bar_script(); ?>
 </body>
 </html>

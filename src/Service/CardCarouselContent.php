@@ -94,6 +94,23 @@ class CardCarouselContent
     public const LAYOUTS = [self::LAYOUT_ORBIT, self::LAYOUT_ROW];
 
     /** The owner tables of this block's words (CardCarouselBlock::translatableFields()). */
+    /**
+     * Where the carousel's heading (bovenlabel, titel and lead) sits, a
+     * closed list: 'left' is how every carousel looked before the choice
+     * existed and stays the default (no class). The cards themselves do not
+     * follow it.
+     */
+    public const HEADER_ALIGNMENTS = ['left', 'center', 'right'];
+
+    /**
+     * How tall the picture of every card of this carousel is, a closed list:
+     * 'medium' is today's height and the default (no class); 'small' leaves
+     * more of the card to its text, 'large' gives the picture more. The
+     * heights are tokens in assets/css/blocks/card-carousel.css, the same for
+     * every card of one carousel.
+     */
+    public const IMAGE_HEIGHTS = ['small', 'medium', 'large'];
+
     private const TABLE = 'card_carousels';
     private const CARDS = 'carousel_cards';
     private const TAGS = 'carousel_card_tags';
@@ -106,6 +123,8 @@ class CardCarouselContent
      *                                title and lead (a string each)
      *                                and 'cards': a list (possibly empty) of
      *                                desktop_layout (one of LAYOUTS),
+     *                                header_align (one of HEADER_ALIGNMENTS),
+     *                                image_height (one of IMAGE_HEIGHTS),
      *                                index_label ('' for none), image_path
      *                                (+ image_alt, a string, image_width /
      *                                image_height and image_position), title, body and
@@ -152,6 +171,8 @@ class CardCarouselContent
         $content = [
             'id' => $carouselId,
             'desktop_layout' => self::layout((string) ($row['desktop_layout'] ?? '')),
+            'header_align' => self::headerAlign((string) ($row['header_align'] ?? '')),
+            'image_height' => self::imageHeight((string) ($row['image_height'] ?? '')),
         ] + BlockLocalization::words(self::TABLE, $carouselId);
 
         try {
@@ -249,6 +270,18 @@ class CardCarouselContent
         return in_array($stored, self::LAYOUTS, true) ? $stored : self::LAYOUT_ORBIT;
     }
 
+    /** A stored heading alignment, or the default for anything this class does not know. */
+    public static function headerAlign(string $stored): string
+    {
+        return in_array($stored, self::HEADER_ALIGNMENTS, true) ? $stored : self::HEADER_ALIGNMENTS[0];
+    }
+
+    /** A stored picture height, or the default ('medium') for anything this class does not know. */
+    public static function imageHeight(string $stored): string
+    {
+        return in_array($stored, self::IMAGE_HEIGHTS, true) ? $stored : 'medium';
+    }
+
     /**
      * Where a card's button goes, in the language being read, or '' for no
      * button.
@@ -267,6 +300,7 @@ class CardCarouselContent
      */
     private static function emptyContent(): array
     {
-        return ['id' => 0, 'desktop_layout' => self::LAYOUT_ORBIT] + BlockLocalization::words(self::TABLE, 0) + ['cards' => []];
+        return ['id' => 0, 'desktop_layout' => self::LAYOUT_ORBIT, 'header_align' => self::headerAlign(''), 'image_height' => self::imageHeight('')]
+            + BlockLocalization::words(self::TABLE, 0) + ['cards' => []];
     }
 }

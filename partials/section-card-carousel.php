@@ -32,6 +32,13 @@ require_once __DIR__ . '/eyebrow.php';
  * like the control labels below, is fixed interface text, written per
  * language right here (App\Service\Language\SiteText::pick()).
  *
+ * HEADING AND PICTURES. 'header_align' (CardCarouselContent::HEADER_ALIGNMENTS)
+ * places the heading above the carousel left, centred or right; the cards
+ * do not follow it. 'image_height' (CardCarouselContent::IMAGE_HEIGHTS) sets
+ * one picture height for every card of this carousel. Both become a class
+ * here, and the defaults (left, medium) add none, so an existing carousel
+ * renders exactly as it did.
+ *
  * Caller must already have checked $content['state'] !==
  * CardCarouselContent::STATE_HIDDEN before calling this.
  *
@@ -49,11 +56,15 @@ function render_section_card_carousel(array $content): void
     // "Kaarten naast elkaar": the flat strip on every screen
     // (CardCarouselContent::LAYOUT_ROW); anything else is the rotating ring.
     $isRow = ($content['desktop_layout'] ?? '') === \App\Service\CardCarouselContent::LAYOUT_ROW;
+    $align = (string) ($content['header_align'] ?? 'left');
+    $headClass = in_array($align, ['center', 'right'], true) ? ' card-carousel__head--' . $align : '';
+    $imageHeight = (string) ($content['image_height'] ?? 'medium');
+    $mediaClass = in_array($imageHeight, ['small', 'large'], true) ? ' orbit-carousel--media-' . $imageHeight : '';
     ?>
       <section class="bg-soft">
         <div class="container">
           <?php if ($hasHead): ?>
-          <div class="section-head" data-reveal>
+          <div class="section-head<?= $headClass ?>" data-reveal>
             <?php render_eyebrow($content['eyebrow']); ?>
             <?php if ($content['title'] !== ''): ?>
             <h2><?= $h($content['title']) ?></h2>
@@ -65,7 +76,7 @@ function render_section_card_carousel(array $content): void
           <?php endif; ?>
 
           <div
-            class="orbit-carousel<?= $isRow ? ' orbit-carousel--row' : '' ?>"
+            class="orbit-carousel<?= $isRow ? ' orbit-carousel--row' : '' ?><?= $mediaClass ?>"
             data-orbit
             data-orbit-speed="9"
             data-orbit-layout="<?= $isRow ? 'row' : 'orbit' ?>"

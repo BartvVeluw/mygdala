@@ -20,6 +20,9 @@
  *       [data-row-list-move="up"]    ↑ / ↓ — disabled at the ends, redone here
  *       [data-row-list-remove]       takes the row off the screen
  *       [data-row-list-number]       its place, 1-based; rewritten after every change
+ *                                    (every one in the row: a collapsible row has two)
+ *       [data-row-list-title]        a collapsible row's title in its summary line,
+ *                                    following [data-row-list-title-source] as it is typed
  *       [data-row-list-removing]     a removal MARK (a checkbox): the row stays
  *                                    on screen and is removed by the save
  *   [data-row-list-add="<list id>"]  appends a copy of the list's
@@ -58,10 +61,13 @@
       all.forEach(function (row, position) {
         var up = row.querySelector('[data-row-list-move="up"]');
         var down = row.querySelector('[data-row-list-move="down"]');
-        var number = row.querySelector("[data-row-list-number]");
         if (up) up.disabled = position === 0;
         if (down) down.disabled = position === all.length - 1;
-        if (number) number.textContent = String(position + 1);
+        // A collapsible row says its place twice: in its legend and in its
+        // summary line (admin/_editor_rows.php).
+        Array.prototype.forEach.call(row.querySelectorAll("[data-row-list-number]"), function (number) {
+          if (number.closest("[data-row-list-row]") === row) number.textContent = String(position + 1);
+        });
       });
 
       if (add && max > 0) {
@@ -78,6 +84,21 @@
       if (event.target && event.target.hasAttribute && event.target.hasAttribute("data-row-list-removing")) {
         refresh();
       }
+    });
+
+    // A collapsible row's summary line carries its title
+    // ([data-row-list-title]), and follows the field that is typed into
+    // ([data-row-list-title-source]), so a folded row can be told apart.
+    list.addEventListener("input", function (event) {
+      var source = event.target;
+      if (!source || !source.hasAttribute || !source.hasAttribute("data-row-list-title-source")) return;
+
+      var row = source.closest("[data-row-list-row]");
+      var title = row ? row.querySelector("[data-row-list-title]") : null;
+      if (!title) return;
+
+      var value = source.value.trim();
+      title.textContent = value === "" ? "" : " — " + value;
     });
 
     function changed() {

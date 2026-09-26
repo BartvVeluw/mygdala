@@ -14,7 +14,9 @@
  * part through the same attributes. A form with more than one button wraps
  * each in its own [data-nav-link-group]: the fields inside a group follow
  * that group's kind, and a field outside every group follows the form's
- * first kind, which is all a form with one button needs.
+ * first kind, which is all a form with one button needs. A list of rows with
+ * a button each (the items of Tekst met afbeelding) is the same thing: a
+ * group per row, including rows added on screen after this file ran.
  *
  * Nothing here is needed to use the screen. Without this file every field is
  * on screen and api/admin/_nav_item_input.php stores only the one that
@@ -39,16 +41,14 @@
   /** The kind select a field follows: its group's, else the form's first. */
   function kindFor(field) {
     var group = field.closest("[data-nav-link-group]");
-    return (group && group.querySelector("[data-nav-link-type]")) || kind;
+    return (group && group.querySelector("[data-nav-link-type]")) || form.querySelector("[data-nav-link-type]");
   }
 
   function syncDestination() {
-    if (!kind) return;
-
     form.querySelectorAll("[data-nav-link-field]").forEach(function (field) {
       var kinds = (field.getAttribute("data-nav-link-field") || "").split(" ");
       var select = kindFor(field);
-      field.hidden = kinds.indexOf(select.value) === -1;
+      if (select) field.hidden = kinds.indexOf(select.value) === -1;
     });
   }
 
@@ -74,9 +74,13 @@
     });
   }
 
-  form.querySelectorAll("[data-nav-link-type]").forEach(function (select) {
-    select.addEventListener("change", syncDestination);
+  // Listened for on the form, so a button in a row added later (a Tekst met
+  // afbeelding item, admin/assets/row-list.js) follows its kind as well; an
+  // added row is sorted out the moment it arrives.
+  form.addEventListener("change", function (event) {
+    if (event.target && event.target.hasAttribute && event.target.hasAttribute("data-nav-link-type")) syncDestination();
   });
+  form.addEventListener("row-list:added", syncDestination);
   if (presentation) presentation.addEventListener("change", syncPresentation);
 
   syncPresentation();

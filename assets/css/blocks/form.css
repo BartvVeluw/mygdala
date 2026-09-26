@@ -128,6 +128,17 @@
   margin-bottom: var(--sp-3);
 }
 
+/* Where the heading and introduction sit (FormBlockContent::HEADER_ALIGNMENTS).
+   Only these two elements carry the class, so the form below them keeps its
+   own layout. Left is the default and has no class. */
+.form-block__head--center {
+  text-align: center;
+}
+
+.form-block__head--right {
+  text-align: right;
+}
+
 /* The submit button is full width inside a card; give it a little air above
    the last field. */
 .vvl-form .btn--block {

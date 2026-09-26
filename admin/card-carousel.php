@@ -86,6 +86,8 @@ BlockLocalization::preloadBlocks(['card_carousels' => [$carouselId]]);
 $oldInThisLanguage = is_array($old) && ($old['language_code'] ?? null) === $editLanguage;
 $isActive = is_array($old) ? !empty($old['is_active']) : (bool) $carousel['is_active'];
 $layout = CardCarouselContent::layout(is_array($old) ? (string) ($old['desktop_layout'] ?? '') : (string) ($carousel['desktop_layout'] ?? ''));
+$headerAlign = CardCarouselContent::headerAlign(is_array($old) ? (string) ($old['header_align'] ?? '') : (string) ($carousel['header_align'] ?? ''));
+$imageHeight = CardCarouselContent::imageHeight(is_array($old) ? (string) ($old['image_height'] ?? '') : (string) ($carousel['image_height'] ?? ''));
 
 /** The heading's words on screen: typed and handed back in this language, else stored in it. */
 $carouselWord = static function (string $field) use ($old, $oldInThisLanguage, $carouselId, $editLanguage): string {
@@ -261,6 +263,30 @@ $activeCount = count(array_filter($cards, static fn (array $state): bool => $sta
           <?php endforeach; ?>
         </div>
       </fieldset>
+
+      <div class="admin-form-row">
+        <span class="admin-form-row__label" id="carousel-align-label"><?= admin_te('block_carousel.kop_uitlijning') ?> <?= admin_help(admin_t('block_carousel.kop_uitlijning'), admin_t('help.block_carousel.kop_uitlijning')) ?></span>
+        <div class="admin-segmented" role="radiogroup" aria-labelledby="carousel-align-label">
+          <?php foreach (CardCarouselContent::HEADER_ALIGNMENTS as $value): ?>
+            <label class="admin-segmented__option">
+              <input type="radio" name="header_align" value="<?= $h($value) ?>"<?= $headerAlign === $value ? ' checked' : '' ?>>
+              <span><?= admin_te('block_carousel.kop_uitlijning_' . $value) ?></span>
+            </label>
+          <?php endforeach; ?>
+        </div>
+      </div>
+
+      <div class="admin-form-row">
+        <span class="admin-form-row__label" id="carousel-image-height-label"><?= admin_te('block_carousel.afbeeldingshoogte') ?> <?= admin_help(admin_t('block_carousel.afbeeldingshoogte'), admin_t('help.block_carousel.afbeeldingshoogte')) ?></span>
+        <div class="admin-segmented" role="radiogroup" aria-labelledby="carousel-image-height-label">
+          <?php foreach (CardCarouselContent::IMAGE_HEIGHTS as $value): ?>
+            <label class="admin-segmented__option">
+              <input type="radio" name="image_height" value="<?= $h($value) ?>"<?= $imageHeight === $value ? ' checked' : '' ?>>
+              <span><?= admin_te('block_carousel.afbeeldingshoogte_' . $value) ?></span>
+            </label>
+          <?php endforeach; ?>
+        </div>
+      </div>
 
       <div class="admin-field admin-field--inline">
         <label class="admin-checkbox-label">

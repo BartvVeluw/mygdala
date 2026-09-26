@@ -134,6 +134,7 @@ final class FormBlock extends BlockDefinition
     {
         return [
             'form_id' => null,
+            'header_align' => \App\Service\FormBlockContent::HEADER_ALIGNMENTS[0],
             'form' => $samples->form(),
             'title' => $samples->localized('form_title'),
             'intro' => $samples->localized('form_intro'),

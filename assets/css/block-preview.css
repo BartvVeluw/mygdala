@@ -4,7 +4,7 @@
 
    On the site a block never stands alone: a header or another block sits
    above it, and several blocks leave out their own top spacing because of
-   that (padding-top:0 in partials/section-rich-text.php and its neighbours).
+   that (padding-top:0 in partials/section-product-grid.php and its neighbours).
    Alone in a frame they would touch its edge. So the preview gives the block
    the room a page would, around it and never inside it.
 

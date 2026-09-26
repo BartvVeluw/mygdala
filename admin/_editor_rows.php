@@ -138,14 +138,40 @@ function editor_error_id(string $errorKey): string
  * the place right after a move), the marker that says the row was on the
  * form, and the row's tools: ↑, ↓ and the removal mark. $class is an extra
  * class for a screen's own styling of its rows.
+ *
+ * COLLAPSIBLE ROWS. With $collapse the row's fields fold away behind a
+ * summary line "<noun> <place> — <title>", the shared disclosure of
+ * admin/_admin_collapse.php (a <details>, so the button, its expanded state,
+ * the keyboard and the tab order are the browser's). The tools stay outside
+ * it, so a folded row can still be moved and marked. The fieldset keeps its
+ * name through a legend only a screen reader reads. What the screen passes:
+ *
+ *     title  the row's own title on screen, '' for none; row-list.js follows
+ *            the field marked data-row-list-title-source while it is typed
+ *     open   whether the row starts open (a new row, one with a message)
+ *     force  open whatever the editor last left it at (a row with a message):
+ *            data-admin-collapse-open
+ *
+ * The screen puts data-admin-collapse-group/-scope on the list so the open
+ * rows are remembered over a save, plus data-admin-collapse-no-return (a
+ * click inside a row is editing, not leaving it), and closes the row with
+ * editor_row_close(true). Folding changes nothing that is posted.
+ *
+ * @param array{title: string, open: bool, force?: bool}|null $collapse
  */
-function editor_row_open(string $list, string $key, string $noun, int $position, int $count, bool $removed, string $class = ''): void
+function editor_row_open(string $list, string $key, string $noun, int $position, int $count, bool $removed, string $class = '', ?array $collapse = null): void
 {
     $h = static fn (string $value): string => htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
     $isNew = !ctype_digit($key);
+    $number = $key === '__KEY__' ? '' : (string) ($position + 1);
+    $badge = $isNew ? ' <span class="admin-badge admin-badge--info">' . admin_te('editor_rows.nieuw') . '</span>' : '';
     ?>
-    <fieldset class="admin-row-card<?= $class !== '' ? ' ' . $h($class) : '' ?>" data-row-list-row>
-      <legend class="admin-row-card__legend"><?= $h($noun) ?> <span data-row-list-number><?= $key === '__KEY__' ? '' : $position + 1 ?></span><?php if ($isNew): ?> <span class="admin-badge admin-badge--info"><?= admin_te('editor_rows.nieuw') ?></span><?php endif; ?></legend>
+    <fieldset class="admin-row-card<?= $collapse !== null ? ' admin-row-card--collapsible' : '' ?><?= $class !== '' ? ' ' . $h($class) : '' ?>" data-row-list-row>
+      <?php if ($collapse === null): ?>
+      <legend class="admin-row-card__legend"><?= $h($noun) ?> <span data-row-list-number><?= $number ?></span><?= $badge ?></legend>
+      <?php else: ?>
+      <legend class="admin-visually-hidden"><?= $h($noun) ?> <span data-row-list-number><?= $number ?></span></legend>
+      <?php endif; ?>
       <input type="hidden" name="<?= $h(editor_row_name($list, $key, 'present')) ?>" value="1">
       <div class="admin-row-card__head">
         <span class="admin-row-card__tools">
@@ -161,13 +187,21 @@ function editor_row_open(string $list, string $key, string $noun, int $position,
         </span>
       </div>
       <p class="admin-row-card__removing"><?= admin_te('editor_rows.wordt_verwijderd') ?></p>
+      <?php if ($collapse !== null): ?>
+      <details class="admin-collapse admin-row-card__collapse" data-admin-collapse-id="<?= $h($key) ?>"<?= $collapse['open'] ? ' open' : '' ?><?= !empty($collapse['force']) ? ' data-admin-collapse-open' : '' ?>>
+        <summary class="admin-collapse__summary">
+          <span class="admin-collapse__caret" aria-hidden="true"></span>
+          <span class="admin-collapse__title admin-row-card__summary"><?= $h($noun) ?> <span data-row-list-number><?= $number ?></span><span data-row-list-title><?= $collapse['title'] !== '' ? ' — ' . $h($collapse['title']) : '' ?></span><?= $badge ?></span>
+        </summary>
+      <?php endif; ?>
       <div class="admin-row-card__body">
     <?php
 }
 
-function editor_row_close(): void
+/** The end of one row; $collapsible when it was opened with a $collapse. */
+function editor_row_close(bool $collapsible = false): void
 {
-    echo "      </div>\n    </fieldset>\n";
+    echo "      </div>\n" . ($collapsible ? "      </details>\n" : '') . "    </fieldset>\n";
 }
 
 /**

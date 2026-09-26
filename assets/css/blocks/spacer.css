@@ -1,0 +1,22 @@
+/* ==========================================================================
+   Content block: Witruimte (partials/section-spacer.php)
+   Asked for by App\Service\Blocks\SpacerBlock::styles().
+
+   Room between two blocks, on top of the spacing every section already has
+   (section, --sp-7 above and below, core.css). Each height is a step of the
+   spacing scale, never a number of its own. On a phone every height is one
+   step lower, so the largest room does not swallow a small screen.
+   ========================================================================== */
+
+.spacer{ display: block; }
+.spacer--small{ height: var(--sp-4); }
+.spacer--medium{ height: var(--sp-6); }
+.spacer--large{ height: var(--sp-7); }
+.spacer--xlarge{ height: var(--sp-8); }
+
+@media (max-width: 640px){
+  .spacer--small{ height: var(--sp-3); }
+  .spacer--medium{ height: var(--sp-5); }
+  .spacer--large{ height: var(--sp-6); }
+  .spacer--xlarge{ height: var(--sp-7); }
+}

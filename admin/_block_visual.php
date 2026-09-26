@@ -52,6 +52,7 @@ const ADMIN_BLOCK_PREVIEW_CHILDREN = [
     BlockPreview::FIELDS => 4,
     BlockPreview::TWO_CARDS => 2,
     BlockPreview::CHIPS => 4,
+    BlockPreview::SPACE => 0,
 ];
 
 /**
