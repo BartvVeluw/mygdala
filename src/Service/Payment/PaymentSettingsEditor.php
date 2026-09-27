@@ -7,6 +7,7 @@ namespace App\Service\Payment;
 use App\Repository\OrderRepository;
 use App\Repository\SiteSettingRepository;
 use App\Service\Language\AdminTranslator;
+use App\Service\Language\SiteLanguages;
 use App\Service\SiteSettings;
 
 /**
@@ -26,6 +27,10 @@ use App\Service\SiteSettings;
  *   confirm_live_key_replace     '1' when the owner confirms replacing the
  *                                live key of a shop that already took
  *                                payments
+ *   payment_methods[]            the method ids the checkout offers, in
+ *                                order; only read when the form says it
+ *                                carried the list (payment_methods_submitted),
+ *                                so unticking every box is a choice too
  *
  * THE RULES
  *
@@ -41,6 +46,15 @@ use App\Service\SiteSettings;
  *     at the moment it is saved.
  *   - Replacing the live key of a shop that is live and has taken payments
  *     needs the confirmation box.
+ *   - AVAILABLE BEFORE ENABLED. At least one method stays on. A method that
+ *     is not on yet may only be switched on when Mollie offers it for the
+ *     key that will be active after this save, asked now; when Mollie
+ *     cannot be asked, only methods that were already on may stay on. A
+ *     method that was on and Mollie no longer offers may stay on (the
+ *     screen warns), so a passing hiccup at Mollie never forces a change.
+ *     The names Mollie gives the chosen methods in every website language
+ *     are stored with them (ShopPaymentMethods), so the checkout never asks
+ *     Mollie anything.
  *
  * The keys are sealed by App\Service\Secrets\SecretStore; the mode is the
  * site setting `shop_payment_mode`. Messages come from the catalog, keyed by
@@ -53,6 +67,16 @@ final class PaymentSettingsEditor
     private ?string $mode;
     private bool $modeSubmitted;
     private bool $confirmLiveReplace;
+    private bool $methodsSubmitted;
+
+    /** @var list<string> */
+    private array $methods = [];
+
+    /** @var list<PaymentMethodOption>|false|null false: not asked yet; null: could not be asked */
+    private array|false|null $available = false;
+
+    /** @var array<string, array<string, string>> method id => language code => name */
+    private array $names = [];
 
     /** @var array<string, string> */
     private array $errors = [];
@@ -75,6 +99,16 @@ final class PaymentSettingsEditor
         $this->modeSubmitted = array_key_exists('payment_mode', $post);
         $this->mode = $this->modeSubmitted ? self::text($post['payment_mode']) : null;
         $this->confirmLiveReplace = ($post['confirm_live_key_replace'] ?? null) === '1';
+        $this->methodsSubmitted = ($post['payment_methods_submitted'] ?? null) === '1';
+
+        if ($this->methodsSubmitted) {
+            foreach (is_array($post['payment_methods'] ?? null) ? $post['payment_methods'] : [] as $id) {
+                $id = self::text($id);
+                if ($id !== '' && !in_array($id, $this->methods, true)) {
+                    $this->methods[] = $id;
+                }
+            }
+        }
     }
 
     /**
@@ -90,6 +124,7 @@ final class PaymentSettingsEditor
 
         if ($this->configuration->isPinnedByEnvironment()) {
             $this->validatePinned();
+            $this->validateMethods();
 
             return $this->errors;
         }
@@ -115,6 +150,8 @@ final class PaymentSettingsEditor
         if ($this->errors === [] && $this->targetMode() === MollieConfiguration::MODE_LIVE) {
             $this->checkLive();
         }
+
+        $this->validateMethods();
 
         return $this->errors;
     }
@@ -146,10 +183,25 @@ final class PaymentSettingsEditor
 
         $from = $this->configuration->storedMode();
         $to = $this->targetMode();
-        if ($this->modeSubmitted && $to !== $from) {
+        if (!$this->configuration->isPinnedByEnvironment() && $this->modeSubmitted && $to !== $from) {
             $settings->upsertMany([MollieConfiguration::MODE_SETTING => $to]);
             SiteSettings::clearCache();
             $events[] = 'payment mode changed from ' . $from . ' to ' . $to;
+        }
+
+        if ($this->methodsSubmitted) {
+            $before = ShopPaymentMethods::enabled();
+            $names = array_intersect_key(array_replace(ShopPaymentMethods::storedNames(), $this->names), array_flip($this->methods));
+
+            $settings->upsertMany([
+                ShopPaymentMethods::SETTING_KEY => ShopPaymentMethods::serialise($this->methods),
+                ShopPaymentMethods::NAMES_SETTING_KEY => json_encode($names, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?: '',
+            ]);
+            SiteSettings::clearCache();
+
+            if ($before !== $this->methods) {
+                $events[] = 'payment methods changed from ' . implode(',', $before) . ' to ' . implode(',', $this->methods);
+            }
         }
 
         return $events;
@@ -219,6 +271,122 @@ final class PaymentSettingsEditor
         $result = MollieConnectionResult::check($this->provider, $this->configuration, $key, MollieConfiguration::MODE_LIVE, $this->language);
         if (!$result->ok()) {
             $this->errors[$field] = AdminTranslator::trans('payments.error.live_check_failed', ['reason' => $result->message()]);
+        }
+    }
+
+    /**
+     * The payment methods, checked against what Mollie offers for the key
+     * that will be active after this save; then their names in every
+     * website language, for the checkout.
+     */
+    private function validateMethods(): void
+    {
+        if (!$this->methodsSubmitted) {
+            return;
+        }
+
+        if ($this->methods === []) {
+            $this->errors['payment_methods'] = AdminTranslator::trans('payments.error.methods_none');
+
+            return;
+        }
+
+        foreach ($this->methods as $id) {
+            if (!ShopPaymentMethods::isMethodId($id)) {
+                $this->errors['payment_methods'] = AdminTranslator::trans('payments.error.methods_invalid');
+
+                return;
+            }
+        }
+
+        $new = array_values(array_diff($this->methods, ShopPaymentMethods::enabled()));
+        $available = $this->available(SiteLanguages::defaultCode());
+
+        if ($new !== []) {
+            if ($available === null) {
+                $this->errors['payment_methods'] = AdminTranslator::trans('payments.error.methods_unverifiable');
+
+                return;
+            }
+
+            $offered = array_map(static fn (PaymentMethodOption $option): string => $option->id, $available);
+            foreach ($new as $id) {
+                if (!in_array($id, $offered, true)) {
+                    $this->errors['payment_methods'] = AdminTranslator::trans('payments.error.method_unavailable', ['method' => $id]);
+
+                    return;
+                }
+            }
+        }
+
+        if ($this->errors !== [] || $available === null) {
+            return;
+        }
+
+        // Every website language's names, while Mollie answers; a language
+        // Mollie does not answer for keeps the name stored before.
+        foreach (SiteLanguages::activeCodes() as $code) {
+            $options = $code === SiteLanguages::defaultCode() ? $available : $this->fetch($code);
+            foreach ($options ?? [] as $option) {
+                if (in_array($option->id, $this->methods, true)) {
+                    $this->names[$option->id][$code] = $option->name;
+                }
+            }
+        }
+    }
+
+    /**
+     * What Mollie offers for the key that will be active after this save,
+     * named in $language; null when there is no such key or Mollie cannot be
+     * asked. Asked once per save.
+     *
+     * @return list<PaymentMethodOption>|null
+     */
+    private function available(string $language): ?array
+    {
+        if ($this->available === false) {
+            $this->available = $this->fetch($language);
+        }
+
+        return $this->available;
+    }
+
+    /**
+     * @return list<PaymentMethodOption>|null
+     */
+    private function fetch(string $language): ?array
+    {
+        $key = $this->keyAfterSave();
+        if ($key === null) {
+            return null;
+        }
+
+        try {
+            return $this->provider->checkKey($key, $language);
+        } catch (PaymentProviderException $e) {
+            error_log('[payments] payment methods could not be asked: ' . $e->getMessage());
+
+            return null;
+        }
+    }
+
+    /** The key payments will be made with once this save is written, if any. */
+    private function keyAfterSave(): ?string
+    {
+        if ($this->configuration->isPinnedByEnvironment()) {
+            return $this->configuration->environmentKey();
+        }
+
+        $mode = $this->targetMode();
+        $typed = $mode === MollieConfiguration::MODE_LIVE ? $this->liveKey : $this->testKey;
+        if ($typed !== '' && MollieConfiguration::modeOfKey($typed) === $mode) {
+            return $typed;
+        }
+
+        try {
+            return $this->configuration->keyFor($mode);
+        } catch (PaymentProviderException) {
+            return null;
         }
     }
 

@@ -191,6 +191,14 @@ class SiteSettings
         // here: they are sealed in secret_settings.
         'shop_payment_mode' => 'test',
 
+        // Which payment methods the checkout offers, as Mollie method ids in
+        // the owner's order (App\Service\Payment\ShopPaymentMethods): by
+        // default exactly the two the checkout always offered, so an update
+        // switches on nothing new. Their names in every website language, as
+        // Mollie gave them when the owner saved, as JSON; empty until then.
+        'shop_payment_methods' => 'ideal,creditcard',
+        'shop_payment_method_names' => '',
+
         // CMS-editable order-confirmation email copy (customer email only —
         // see App\Mail\OrderConfirmationBuilder / App\Mail\EmailPlaceholders
         // for the small, safe {{placeholder}} substitution supported here).

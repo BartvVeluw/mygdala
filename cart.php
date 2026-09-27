@@ -107,7 +107,14 @@ require __DIR__ . '/partials/header.php';
           <a href="<?= htmlspecialchars(\App\Service\Routing\LocalizedUrl::path('/checkout.php'), ENT_QUOTES, 'UTF-8') ?>" class="btn btn--block"><?= \App\Service\Language\SiteText::escaped(['nl' => 'Afrekenen', 'en' => 'Proceed to checkout']) ?>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
           </a>
-          <p class="order-summary__note"><?= \App\Service\Language\SiteText::escaped(['nl' => 'Betaling via iDEAL en overige methoden bij Mollie. Prijzen zijn inclusief btw.', 'en' => 'Payment via iDEAL and other methods through Mollie. Prices include VAT.']) ?></p>
+          <p class="order-summary__note"><?php
+            // The methods the checkout really offers (Shop → Betalingen),
+            // never a fixed list that could name one the shop switched off.
+            $cartPaymentNames = implode(', ', array_column(\App\Service\Payment\ShopPaymentMethods::forCheckout(), 'name'));
+          ?><?= htmlspecialchars(\App\Service\Language\SiteText::pick([
+              'nl' => 'Betalen met ' . $cartPaymentNames . ', via Mollie. Prijzen zijn inclusief btw.',
+              'en' => 'Pay with ' . $cartPaymentNames . ', through Mollie. Prices include VAT.',
+          ]), ENT_QUOTES, 'UTF-8') ?></p>
         </aside>
 
       </div>

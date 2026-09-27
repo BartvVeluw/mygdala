@@ -48,7 +48,9 @@
  *       (straat/plaats are only used as posted for a non-NL "land" — for NL
  *        they are always replaced by the canonical PDOK street/city)
  *     "verzendmethode": "afhalen" | "verzenden",
- *     "betaalmethode": "ideal" | "kaart",
+ *     "betaalmethode": "ideal" | "creditcard" | … (a method the owner offers,
+ *       App\Service\Payment\ShopPaymentMethods; the old "kaart" still means
+ *       credit card),
  *     "items": [
  *       { "id": 3, "qty": 2 },
  *       { "id": 4, "qty": 1, "variant_id": 7,
@@ -98,6 +100,7 @@ use App\Service\OrderItemNameSnapshot;
 use App\Service\Payment\PaymentProviderException;
 use App\Service\Payment\PaymentProviders;
 use App\Service\Payment\PaymentRequest;
+use App\Service\Payment\ShopPaymentMethods;
 use App\Service\Personalization\Money;
 use App\Service\Personalization\PersonalizationValidationException;
 use App\Service\Personalization\PersonalizationValidator;
@@ -117,11 +120,6 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 }
 
 const SHIPPING_METHOD_CHOICES = ['afhalen', 'verzenden'];
-
-const PAYMENT_METHODS = [
-    'ideal' => 'ideal',
-    'kaart' => 'creditcard',
-];
 
 function fail(int $status, string $message): never
 {
@@ -274,7 +272,10 @@ if (!$billingSameAsShipping) {
     $billingAddress = parseAndResolveAddress($body, 'facturatie_', $facturatieVoornaam, $facturatieAchternaam, $facturatieLand);
 }
 
-if (!is_string($betaalmethode) || !array_key_exists($betaalmethode, PAYMENT_METHODS)) {
+// Only a method the owner offers on Shop → Betalingen, never one a request
+// names: the list is stored, so this asks Mollie nothing.
+$paymentMethod = ShopPaymentMethods::resolveChoice($betaalmethode);
+if ($paymentMethod === null) {
     fail(400, 'Invalid payment method.');
 }
 
@@ -711,7 +712,7 @@ try {
     // to read it from.
     $payment = $paymentProvider->createPayment(new PaymentRequest(
         $order,
-        PAYMENT_METHODS[$betaalmethode],
+        $paymentMethod,
         $checkoutLanguage
     ));
 

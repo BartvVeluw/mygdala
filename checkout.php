@@ -213,21 +213,26 @@ require __DIR__ . '/partials/header.php';
 
           <div class="checkout-section">
             <h2><span class="step-num">4</span><span><?= \App\Service\Language\SiteText::escaped(['nl' => 'Betaalmethode', 'en' => 'Payment method']) ?></span></h2>
-            <div class="radio-card-group" role="radiogroup" aria-label="Betaalmethode">
-              <label class="radio-card">
-                <input type="radio" name="betaalmethode" value="ideal" checked>
-                <span class="radio-card__label">
-                  <strong>iDEAL</strong>
-                  <span><?= \App\Service\Language\SiteText::escaped(['nl' => 'Direct betalen via je eigen bank', 'en' => 'Pay directly through your own bank']) ?></span>
-                </span>
-              </label>
-              <label class="radio-card">
-                <input type="radio" name="betaalmethode" value="kaart">
-                <span class="radio-card__label">
-                  <strong><?= \App\Service\Language\SiteText::escaped(['nl' => 'Creditcard', 'en' => 'Credit card']) ?></strong>
-                  <span>Visa, Mastercard</span>
-                </span>
-              </label>
+            <?php
+              // The methods the owner offers on Shop → Betalingen, in their
+              // order and with the names Mollie gave them when they were
+              // saved (App\Service\Payment\ShopPaymentMethods): no request
+              // to Mollie on a page view. The first is chosen; with one there
+              // is nothing to choose, and it simply shows as chosen.
+              $paymentMethods = \App\Service\Payment\ShopPaymentMethods::forCheckout();
+            ?>
+            <div class="radio-card-group" role="radiogroup" aria-label="<?= \App\Service\Language\SiteText::escaped(['nl' => 'Betaalmethode', 'en' => 'Payment method']) ?>">
+              <?php foreach ($paymentMethods as $index => $paymentMethod): ?>
+                <label class="radio-card">
+                  <input type="radio" name="betaalmethode" value="<?= htmlspecialchars($paymentMethod['id'], ENT_QUOTES, 'UTF-8') ?>"<?= $index === 0 ? ' checked' : '' ?>>
+                  <span class="radio-card__label">
+                    <strong><?= htmlspecialchars($paymentMethod['name'], ENT_QUOTES, 'UTF-8') ?></strong>
+                    <?php if ($paymentMethod['note'] !== ''): ?>
+                      <span><?= htmlspecialchars($paymentMethod['note'], ENT_QUOTES, 'UTF-8') ?></span>
+                    <?php endif; ?>
+                  </span>
+                </label>
+              <?php endforeach; ?>
             </div>
             <p class="hint" style="margin-top:var(--sp-2);"><?= \App\Service\Language\SiteText::escaped(['nl' => 'Veilig afrekenen via Mollie. Je wordt na het plaatsen van de bestelling doorgestuurd naar je betaalomgeving.', 'en' => 'Secure checkout via Mollie. After placing your order you\'ll be redirected to your payment environment.']) ?></p>
             <?php

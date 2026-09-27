@@ -3,8 +3,8 @@
 /**
  * POST /api/admin/update-payment-settings.php
  *
- * Saves Shop → Betalingen (admin/payments.php): a new Test or Live API key
- * and the mode. Everything is
+ * Saves Shop → Betalingen (admin/payments.php): a new Test or Live API key,
+ * the mode, and which payment methods the checkout offers. Everything is
  * checked first (App\Service\Payment\PaymentSettingsEditor), then written in
  * one transaction, so a refused save changes nothing — the product editor's
  * contract (api/admin/update-product.php, ADMIN-UI.md "Een editor die

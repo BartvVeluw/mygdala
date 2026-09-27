@@ -5733,6 +5733,11 @@ body.admin-block-picker-open{ overflow: hidden; }
 
 .admin-payments-pinned p{ margin: 0 0 var(--admin-sp-2); max-width: 70ch; }
 
+.admin-payments-methods{ margin: 0 0 var(--admin-sp-3); padding: 0; border: 0; min-width: 0; }
+.admin-payments-methods > legend{ padding: 0; font-weight: 600; margin-bottom: var(--admin-sp-2); }
+.admin-payments-methods__list{ list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--admin-sp-2); }
+.admin-payments-methods__item{ display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--admin-sp-1) var(--admin-sp-3); padding: var(--admin-sp-2) var(--admin-sp-3); border: 1px solid var(--admin-border); border-radius: var(--admin-radius-md); }
+
 .admin-payments-howto{ margin: 0 0 var(--admin-sp-4); padding-left: 1.4rem; max-width: 70ch; }
 .admin-payments-howto li + li{ margin-top: var(--admin-sp-2); }
 

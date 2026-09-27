@@ -15,6 +15,7 @@ use App\Service\Language\AdminLocale;
 use App\Service\Payment\MollieConfiguration;
 use App\Service\Payment\MolliePaymentProvider;
 use App\Service\Payment\MollieSetupStatus;
+use App\Service\Payment\ShopPaymentMethods;
 use App\Service\ShopOverview;
 
 /**
@@ -30,7 +31,10 @@ use App\Service\ShopOverview;
  *   Stappenplan   six steps from "make a Mollie account" to "go live", the
  *                 first unfinished one open
  *   The editor    ONE form with one Opslaan (the dynamic editor,
- *                 admin/_admin_editor.php): the two API keys and the mode.
+ *                 admin/_admin_editor.php): the two API keys, the mode and
+ *                 the payment methods the checkout offers — each method
+ *                 Mollie offers for the active key, ticked when the shop
+ *                 offers it (App\Service\Payment\ShopPaymentMethods).
  *                 Key fields are never filled in: after saving a key only
  *                 its masked form ("test_••••••••abcd") is shown, and an
  *                 empty field keeps the stored key. With the key pinned by
@@ -76,6 +80,32 @@ $liveReplaceNeedsConfirmation = !$pinned
     && $storedMode === MollieConfiguration::MODE_LIVE
     && $storedKeys[MollieConfiguration::MODE_LIVE] !== null
     && $hasPayments;
+
+/*
+ * The payment methods: what Mollie offers for the active key (the status
+ * call already asked, in the CMS language) next to what the shop offers.
+ * Offered first, in the owner's order, then the rest in Mollie's order. A
+ * method the shop offers that Mollie does not (or no longer) offers stays in
+ * the list, marked, so it can be switched off.
+ */
+$availableKnown = $status->connection !== null && $status->connection->ok();
+$availableNames = [];
+foreach ($status->methods() as $option) {
+    $availableNames[$option->id] = $option->name;
+}
+$enabledMethods = ShopPaymentMethods::enabled();
+$methodRows = [];
+foreach (array_merge($enabledMethods, array_keys($availableNames)) as $id) {
+    if (isset($methodRows[$id])) {
+        continue;
+    }
+    $methodRows[$id] = [
+        'name' => $availableNames[$id] ?? ShopPaymentMethods::name($id, $language),
+        'enabled' => in_array($id, $enabledMethods, true),
+        'available' => $availableKnown ? isset($availableNames[$id]) : null,
+    ];
+}
+$methodsNeverChosen = !ShopPaymentMethods::isChosen();
 
 $baseUrl = AppUrl::base();
 $webhookUrl = $provider->webhookUrl();
@@ -308,6 +338,49 @@ $testButton = static function (string $mode, string $labelKey) use ($h): string 
             </div>
           </fieldset>
           <p class="admin-text-muted"><?= admin_te('payments.mode.explain') ?></p>
+        <?php endif; ?>
+      </div>
+    </section>
+
+    <section class="admin-card" id="payments-methods" data-admin-editor-section="methods" aria-labelledby="payments-methods-title">
+      <div class="admin-payments-heading">
+        <h2 id="payments-methods-title"><?= admin_te('payments.methods.title') ?></h2>
+        <?= admin_help(admin_t('payments.methods.title'), admin_t('help.payments.methods')) ?>
+      </div>
+      <div class="admin-alert admin-alert--error" data-admin-editor-errors="methods" hidden></div>
+
+      <div data-admin-editor-region="payments-methods">
+        <input type="hidden" name="payment_methods_submitted" value="1">
+        <p><?= admin_te('payments.methods.intro') ?></p>
+        <?php if ($methodsNeverChosen): ?>
+          <p class="admin-alert admin-alert--warning"><?= admin_te('payments.methods.default_note') ?></p>
+        <?php endif; ?>
+        <?php if (!$availableKnown): ?>
+          <p class="admin-alert admin-alert--warning"><?= admin_te('payments.methods.unknown_note') ?></p>
+        <?php elseif ($status->mode !== null): ?>
+          <p class="admin-text-muted"><?= admin_te('payments.methods.mode_note', ['mode' => admin_t('payments.status.mode_' . $status->mode)]) ?></p>
+        <?php endif; ?>
+
+        <fieldset class="admin-payments-methods" data-admin-editor-error-for="payment_methods">
+          <legend><?= admin_te('payments.methods.legend') ?></legend>
+          <ul class="admin-payments-methods__list">
+            <?php foreach ($methodRows as $id => $row): ?>
+              <li class="admin-payments-methods__item">
+                <label class="admin-checkbox-label">
+                  <input type="checkbox" class="admin-checkbox" name="payment_methods[]" value="<?= $h($id) ?>"<?= $row['enabled'] ? ' checked' : '' ?><?= $row['available'] === null && !$row['enabled'] ? ' disabled' : '' ?>>
+                  <?= $h($row['name']) ?>
+                </label>
+                <?php if ($row['available'] === true): ?>
+                  <span class="admin-badge admin-badge--info"><?= admin_te('payments.methods.available') ?></span>
+                <?php elseif ($row['available'] === false): ?>
+                  <span class="admin-badge admin-badge--warning"><?= admin_te('payments.methods.unavailable') ?></span>
+                <?php endif; ?>
+              </li>
+            <?php endforeach; ?>
+          </ul>
+        </fieldset>
+        <?php if (array_filter($methodRows, static fn (array $row): bool => $row['enabled'] && $row['available'] === false) !== []): ?>
+          <p class="admin-alert admin-alert--warning"><?= admin_te('payments.methods.unavailable_note') ?></p>
         <?php endif; ?>
       </div>
     </section>
