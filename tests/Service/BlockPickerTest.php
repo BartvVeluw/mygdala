@@ -10,6 +10,7 @@ use App\Service\Blocks\BlockCategories;
 use App\Service\Blocks\BlockDefinitions;
 use App\Service\Blocks\BlockSamples;
 use App\Service\Language\AdminLocale;
+use App\Service\Language\AdminTranslator;
 use App\Service\SectionRegistry;
 use PHPUnit\Framework\TestCase;
 
@@ -562,6 +563,104 @@ final class BlockPickerTest extends TestCase
             );
             $this->assertSame($card['category'], $this->one($xpath, '//button[@value="' . $type . '"]')->getAttribute('data-block-category'));
         }
+    }
+
+
+    // --- Category names: plain text in, escaped once on the way out ----
+
+    /**
+     * A category name is plain text in every CMS language: the picker and
+     * the catalogue escape it on output ($h), so a catalogue entry that is
+     * already escaped ("Images &amp; media") reaches the editor as the
+     * literal "&amp;". NL always said "Beeld & media"; EN said it with the
+     * entity until it was fixed at the source.
+     */
+    public function testCategoryNamesArePlainTextInEveryCmsLanguage(): void
+    {
+        foreach (['nl', 'en'] as $locale) {
+            foreach (BlockCategories::keys() as $key) {
+                $label = AdminTranslator::trans('blockcategory.' . $key, [], $locale);
+
+                $this->assertSame(
+                    html_entity_decode($label, ENT_QUOTES | ENT_HTML5, 'UTF-8'),
+                    $label,
+                    "blockcategory.{$key} ({$locale}) holds an HTML entity; write the character itself"
+                );
+                $this->assertStringNotContainsString('<', $label, "blockcategory.{$key} ({$locale}) holds markup");
+            }
+        }
+
+        AdminLocale::overrideForTests('en');
+        $this->assertSame('Images & media', BlockCategories::label(BlockCategories::MEDIA));
+        $this->assertSame('Action & interaction', BlockCategories::label(BlockCategories::ACTION));
+    }
+
+    /**
+     * The English picker shows "Images & media" and "Action & interaction",
+     * escaped exactly once in the markup, and the Shop and Portfolio headings
+     * and the gallery presets keep their names and their categories.
+     */
+    public function testTheEnglishPickerShowsItsCategoriesAsWritten(): void
+    {
+        ModuleRegistry::overrideForTests(['shop' => true, 'portfolio' => true, 'multilingual' => true]);
+        AdminLocale::overrideForTests('en');
+
+        $html = $this->renderPicker();
+        $xpath = $this->xpath($html);
+
+        $this->assertStringNotContainsString('&amp;amp;', $html, 'nothing is escaped twice');
+        $this->assertStringContainsString('>Images &amp; media<', $html);
+        $this->assertStringContainsString('>Action &amp; interaction<', $html);
+
+        $chips = [];
+        foreach ($xpath->query('//button[@data-block-picker-filter!=""]') as $chip) {
+            $chips[$chip->getAttribute('data-block-picker-filter')] = trim($chip->textContent);
+        }
+        $headings = [];
+        foreach ($xpath->query('//section[@data-block-picker-group]') as $group) {
+            $headings[$group->getAttribute('data-block-picker-group')] = trim($this->one($xpath, './/h3', $group)->textContent);
+        }
+        foreach ([
+            BlockCategories::MEDIA => 'Images & media',
+            BlockCategories::ACTION => 'Action & interaction',
+            BlockCategories::SHOP => 'Shop',
+            BlockCategories::PORTFOLIO => 'Portfolio',
+        ] as $category => $name) {
+            $this->assertSame($name, $chips[$category] ?? null, "filter chip {$category}");
+            $this->assertSame($name, $headings[$category] ?? null, "group heading {$category}");
+        }
+
+        $cards = [];
+        foreach ($this->cards() as $card) {
+            $cards[$card['value']] = [$card['label'], $card['category']];
+        }
+        $this->assertSame(['Collection gallery', BlockCategories::SHOP], $cards['item_gallery:collection']);
+        $this->assertSame(['Portfolio gallery', BlockCategories::PORTFOLIO], $cards['item_gallery:portfolio']);
+        $this->assertSame(['Projects', BlockCategories::PORTFOLIO], $cards['project_cards']);
+
+        $this->assertStringContainsString('images & media', $this->one($xpath, '//button[@value="media_banner"]')->getAttribute('data-block-terms'), 'the search terms hold the name as written');
+    }
+
+    /**
+     * Fixing the source did not switch escaping off: a category name that
+     * really holds markup still reaches the page as text.
+     */
+    public function testACategoryNameIsStillEscapedOnTheWayOut(): void
+    {
+        AdminLocale::overrideForTests('en');
+        $catalogs = new \ReflectionProperty(AdminTranslator::class, 'catalogs');
+        $english = AdminTranslator::catalog('en');
+        $english['blockcategory.media'] = '<script>alert(1)</script> & media';
+        $catalogs->setValue(null, ['en' => $english] + $catalogs->getValue());
+
+        try {
+            $html = $this->renderPicker();
+        } finally {
+            AdminTranslator::clearCache();
+        }
+
+        $this->assertStringNotContainsString('<script>alert(1)</script>', $html);
+        $this->assertStringContainsString('>&lt;script&gt;alert(1)&lt;/script&gt; &amp; media<', $html);
     }
 
     /**

@@ -2379,8 +2379,8 @@ With "Full background" the media fills the whole Hero and the text sits on top o
     // --- Block categories and the last empty states
     'blockcategory.hero' => 'Head of the page',
     'blockcategory.content' => 'Content',
-    'blockcategory.media' => 'Images &amp; media',
-    'blockcategory.action' => 'Action &amp; interaction',
+    'blockcategory.media' => 'Images & media',
+    'blockcategory.action' => 'Action & interaction',
     'blockcategory.shop' => 'Shop',
     'blockcategory.portfolio' => 'Portfolio',
     'page.no_sections_short' => 'No sections',
