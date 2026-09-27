@@ -47,7 +47,8 @@ class DashboardMetrics
 {
     /**
      * The one `orders.status` value that means Mollie confirmed the money —
-     * the same literal App\Service\OrderPaymentSync::mapStatus() writes and
+     * the same literal as App\Service\Payment\PaymentSnapshot::PAID, which
+     * App\Service\OrderPaymentSync writes, and the one
      * OrderRepository::markHandled() guards on.
      */
     public const PAID_STATUS = 'paid';

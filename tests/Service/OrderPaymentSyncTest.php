@@ -7,6 +7,8 @@ namespace Tests\Service;
 use App\Repository\OrderRepository;
 use App\Service\OrderConfirmationService;
 use App\Service\OrderPaymentSync;
+use App\Service\Payment\MolliePaymentProvider;
+use App\Service\Payment\PaymentSnapshot;
 use Mollie\Api\Contracts\Authenticator;
 use Mollie\Api\Contracts\Connector;
 use Mollie\Api\Contracts\HttpAdapterContract;
@@ -46,11 +48,18 @@ use PHPUnit\Framework\TestCase;
  * touch a database. Mollie's Payment/Refund/RefundCollection are real SDK
  * value objects built via reflection (skipping their constructor, which
  * needs a live API connector) with only the public properties the code under
- * test actually reads.
+ * test actually reads. They reach OrderPaymentSync the way they do in
+ * production: through MolliePaymentProvider::snapshot(), which maps Mollie's
+ * status onto the Shop's own and leaves the refunds for later.
  */
 final class OrderPaymentSyncTest extends TestCase
 {
-    private function payment(string $id, string $status, ?string $paidAt = null): Payment
+    private function payment(string $id, string $status, ?string $paidAt = null): PaymentSnapshot
+    {
+        return MolliePaymentProvider::snapshot($this->molliePayment($id, $status, $paidAt));
+    }
+
+    private function molliePayment(string $id, string $status, ?string $paidAt = null): Payment
     {
         $payment = (new \ReflectionClass(Payment::class))->newInstanceWithoutConstructor();
         $payment->id = $id;
@@ -61,9 +70,9 @@ final class OrderPaymentSyncTest extends TestCase
         return $payment;
     }
 
-    private function paymentWithRefund(string $id, string $refundId, string $amount, string $refundStatus): Payment
+    private function paymentWithRefund(string $id, string $refundId, string $amount, string $refundStatus): PaymentSnapshot
     {
-        $payment = $this->payment($id, 'paid', '2026-03-14T10:30:00+00:00');
+        $payment = $this->molliePayment($id, 'paid', '2026-03-14T10:30:00+00:00');
         $payment->amountRefunded = (object) ['value' => $amount, 'currency' => 'EUR'];
         $payment->_links = (object) ['refunds' => (object) ['href' => 'https://api.mollie.com/v2/payments/' . $id . '/refunds']];
 
@@ -80,7 +89,7 @@ final class OrderPaymentSyncTest extends TestCase
         $connectorProperty->setAccessible(true);
         $connectorProperty->setValue($payment, $connector);
 
-        return $payment;
+        return MolliePaymentProvider::snapshot($payment);
     }
 
     private function fakeConfirmations(): OrderConfirmationService

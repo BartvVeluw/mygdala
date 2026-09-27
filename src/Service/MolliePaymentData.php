@@ -10,9 +10,11 @@ use App\Repository\OrderRepository;
  * The payment api/checkout.php asks Mollie to create for an order, built from
  * the stored order row.
  *
- * Pure: no database, no HTTP and no settings read — the endpoint hands in
- * the site name, its base URL and the payment method — so what ends up on a
- * customer's bank statement is unit-tested (Tests\Service\MolliePaymentDataTest).
+ * Pure: no database, no HTTP and no settings read — its one caller,
+ * App\Service\Payment\MolliePaymentProvider, hands in the site name, the
+ * configured base URL (App\Service\AppUrl, never the request's Host header)
+ * and the payment method — so what ends up on a customer's bank statement is
+ * unit-tested (Tests\Service\MolliePaymentDataTest).
  * The same split as OrderCsvExport, which formats the rows
  * admin/orders-export.php fetches.
  *
@@ -26,6 +28,15 @@ use App\Repository\OrderRepository;
  */
 final class MolliePaymentData
 {
+    /** Where Mollie reports a payment's changes, under the site's base URL. */
+    public const WEBHOOK_PATH = '/api/mollie-webhook.php';
+
+    /** The webhook address for $baseUrl: what each payment carries and the Betalingen screen shows. */
+    public static function webhookUrl(string $baseUrl): string
+    {
+        return rtrim($baseUrl, '/') . self::WEBHOOK_PATH;
+    }
+
     /**
      * @param array<string, mixed> $order an `orders` row as OrderRepository::findById() returns it
      * @param string $method a Mollie payment method id, already mapped from the checkout's own choice
@@ -68,7 +79,7 @@ final class MolliePaymentData
         ];
 
         if ($withWebhook) {
-            $payment['webhookUrl'] = $baseUrl . '/api/mollie-webhook.php';
+            $payment['webhookUrl'] = self::webhookUrl($baseUrl);
         }
 
         return $payment;

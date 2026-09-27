@@ -4,8 +4,9 @@
  * GET /api/order-status.php?order=123[&lang=en]
  *
  * Used by the return page (bestelling-status.php) the customer lands on
- * after Mollie's checkout. If the order is still "pending" we ask Mollie
- * for the live payment status first (the webhook may not have arrived
+ * after Mollie's checkout. If the order is still "pending" we ask the
+ * payment provider (App\Service\Payment\PaymentProviders) for the live
+ * payment status first (the webhook may not have arrived
  * yet — or, in local dev without a public URL, never will) and sync the
  * order before responding, using the same logic the webhook uses.
  *
@@ -27,9 +28,9 @@ require_once __DIR__ . '/../vendor/autoload.php';
 
 
 use App\Repository\OrderRepository;
-use App\Service\MollieClientFactory;
 use App\Service\OrderItemNameSnapshot;
 use App\Service\OrderPaymentSync;
+use App\Service\Payment\PaymentProviders;
 use App\Service\Routing\ApiLanguage;
 
 header('Content-Type: application/json; charset=utf-8');
@@ -62,7 +63,7 @@ try {
 
     if ($order['status'] === 'pending' && $order['mollie_payment_id']) {
         try {
-            $payment = MollieClientFactory::client()->payments->get($order['mollie_payment_id']);
+            $payment = PaymentProviders::active()->fetchPayment((string) $order['mollie_payment_id']);
             $synced = (new OrderPaymentSync($orderRepository))->sync($payment);
             if ($synced !== null) {
                 $order = $synced;

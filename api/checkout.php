@@ -94,9 +94,10 @@ use App\Repository\ProductVariantRepository;
 use App\Service\Address\AddressValidationException;
 use App\Service\Address\CheckoutAddressResolver;
 use App\Service\LegalPages;
-use App\Service\MollieClientFactory;
 use App\Service\OrderItemNameSnapshot;
-use App\Service\MolliePaymentData;
+use App\Service\Payment\PaymentProviderException;
+use App\Service\Payment\PaymentProviders;
+use App\Service\Payment\PaymentRequest;
 use App\Service\Personalization\Money;
 use App\Service\Personalization\PersonalizationValidationException;
 use App\Service\Personalization\PersonalizationValidator;
@@ -105,8 +106,6 @@ use App\Service\Shipping\ShippingCalculationService;
 use App\Service\ShopLocalization;
 use App\Service\Shipping\ShippingUnavailableException;
 use App\Service\TurnstileVerifier;
-use Mollie\Api\Exceptions\ApiException;
-use Mollie\Api\Types\PaymentMethod;
 
 header('Content-Type: application/json; charset=utf-8');
 
@@ -120,8 +119,8 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 const SHIPPING_METHOD_CHOICES = ['afhalen', 'verzenden'];
 
 const PAYMENT_METHODS = [
-    'ideal' => PaymentMethod::IDEAL,
-    'kaart' => PaymentMethod::CREDITCARD,
+    'ideal' => 'ideal',
+    'kaart' => 'creditcard',
 ];
 
 function fail(int $status, string $message): never
@@ -205,6 +204,16 @@ $body = json_decode($raw ?: '', true);
 
 if (!is_array($body)) {
     fail(400, 'Invalid request body.');
+}
+
+// Nothing is checked, looked up or stored for an order that cannot be paid:
+// without a usable payment key (App\Service\Payment\PaymentProvider::
+// isConfigured(), no network call) the customer hears it now, before any
+// address lookup, and no pending order is left behind without a payment.
+$paymentProvider = PaymentProviders::active();
+if (!$paymentProvider->isConfigured()) {
+    error_log('[api/checkout.php] no usable payment configuration; checkout refused before anything was stored.');
+    fail(503, 'Online payment is not available right now. Please try again later.');
 }
 
 $voornaam = requiredString($body['voornaam'] ?? null, 100);
@@ -683,12 +692,6 @@ if ($checkoutLanguage === null || !\App\Service\Language\SiteLanguages::isActive
     $checkoutLanguage = \App\Service\Routing\LanguageResolver::defaultLanguage();
 }
 
-$scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
-$host = $_SERVER['HTTP_HOST'] ?? 'localhost';
-$baseUrl = $scheme . '://' . $host;
-$hostname = explode(':', $host)[0];
-$isLocalHost = in_array($hostname, ['localhost', '127.0.0.1'], true);
-
 try {
     // The order as it was just stored, with the number OrderRepository::create()
     // gave it inside the transaction above. The payment carries exactly the
@@ -698,26 +701,25 @@ try {
         throw new \RuntimeException('Order ' . $orderId . ' could not be read back after it was created.');
     }
 
-    $payment = MollieClientFactory::client()->payments->create(MolliePaymentData::forOrder(
+    // The provider builds the payment from the stored order: the amount is
+    // the order's own total, and the return and webhook addresses come from
+    // the configured base URL (App\Service\AppUrl), never from this
+    // request's Host header. The language is the one this checkout happened
+    // in, so the customer comes back to the order page in it
+    // (docs/multilingual/ROUTING.md); the browser sends it with the order
+    // because this endpoint is reached by fetch() and has no URL of its own
+    // to read it from.
+    $payment = $paymentProvider->createPayment(new PaymentRequest(
         $order,
-        \App\Service\SiteSettings::get('site_name'),
-        $baseUrl,
         PAYMENT_METHODS[$betaalmethode],
-        // Mollie rejects webhook URLs that point at localhost/private hosts — skip it there
-        // (local testing falls back to the return page re-checking the payment status live).
-        !$isLocalHost,
-        // The language this checkout happened in, so the customer comes back
-        // to the order page in it (docs/multilingual/ROUTING.md). The browser
-        // sends it with the order because this endpoint is reached by fetch()
-        // and has no URL of its own to read it from.
         $checkoutLanguage
     ));
 
     (new OrderRepository($db))->setMolliePaymentId($orderId, $payment->id);
 
-    echo json_encode(['checkoutUrl' => $payment->getCheckoutUrl()]);
-} catch (ApiException $e) {
-    error_log('[api/checkout.php] Mollie error: ' . $e->getMessage());
+    echo json_encode(['checkoutUrl' => $payment->checkoutUrl]);
+} catch (PaymentProviderException $e) {
+    error_log('[api/checkout.php] payment provider: ' . $e->getMessage());
     fail(502, 'Could not start the payment right now. Please try again.');
 } catch (\Throwable $e) {
     error_log('[api/checkout.php] ' . $e->getMessage());

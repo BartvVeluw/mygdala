@@ -114,10 +114,13 @@ final class OrderNumberSnapshotContractTest extends TestCase
             );
         }
 
-        // The Mollie payment is built from the stored order, not assembled in the endpoint.
+        // The Mollie payment is built from the stored order, not assembled in
+        // the endpoint: the checkout hands the provider the order it read
+        // back, and only the provider builds Mollie's body from it.
         $checkout = $this->code('api/checkout.php');
-        $this->assertStringContainsString('MolliePaymentData::forOrder(', $checkout);
+        $this->assertStringContainsString('new PaymentRequest(', $checkout);
         $this->assertStringNotContainsString("'order_number'", $checkout);
+        $this->assertStringContainsString('MolliePaymentData::forOrder(', $this->code('src/Service/Payment/MolliePaymentProvider.php'));
     }
 
     /* ------------------------------------------------------------------ */
