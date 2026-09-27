@@ -109,6 +109,7 @@
             <file>tests/Update/VersionAndPathTest.php</file>
             <file>tests/Update/ReleaseManifestTest.php</file>
             <file>tests/Service/AdminEditorResponseTest.php</file>
+            <file>tests/Service/ProductGalleryTransitionTest.php</file>
         </testsuite>
 
         <!-- Architecture and source contracts: these read the project's own
@@ -316,6 +317,7 @@
             <file>tests/Service/ThemeSettingsTest.php</file>
             <file>tests/Service/SiteSettingsValidatorTest.php</file>
             <file>tests/Service/ShopSettingsTest.php</file>
+            <file>tests/Service/ProductGalleryTransitionTest.php</file>
             <file>tests/Service/TurnstileVerifierTest.php</file>
             <file>tests/Update/VersionAndPathTest.php</file>
             <file>tests/Update/ReleaseManifestTest.php</file>
@@ -392,6 +394,7 @@
             <file>tests/Install/BlogSettingsTextMigrationTest.php</file>
             <file>tests/Install/ShopWordsMigrationTest.php</file>
             <file>tests/Install/ShopPicturesAndOverviewMigrationTest.php</file>
+            <file>tests/Install/ProductGalleryTransitionMigrationTest.php</file>
             <file>tests/Install/ContentBlocksPolishMigrationTest.php</file>
             <file>tests/Install/SimpleBlocksPolishMigrationTest.php</file>
             <file>tests/Install/CtaBandMigrationTest.php</file>
@@ -698,6 +701,7 @@
             <file>tests/Repository/ProductDeletionIntegrationTest.php</file>
             <file>tests/Install/ShopWordsMigrationTest.php</file>
             <file>tests/Install/ShopPicturesAndOverviewMigrationTest.php</file>
+            <file>tests/Install/ProductGalleryTransitionMigrationTest.php</file>
             <file>tests/Install/OrderItemNameSnapshotMigrationTest.php</file>
             <directory>tests/Service/Address</directory>
             <file>tests/Service/CollectionAddressEditorTest.php</file>
@@ -725,6 +729,7 @@
             <file>tests/Service/ShopApiLanguageTest.php</file>
             <file>tests/Service/ShopScriptTextContractTest.php</file>
             <file>tests/Service/ShopGalleryContractTest.php</file>
+            <file>tests/Service/ProductGalleryTransitionTest.php</file>
             <file>tests/Service/QueryIdentityLanguageSwitchTest.php</file>
             <directory>tests/Service/Shipping</directory>
             <file>tests/Service/ShopSeoAdminTest.php</file>
@@ -738,6 +743,7 @@
             <file>tests/Service/PublicRouteLanguageTest.php</file>
             <file>tests/Service/ProductVariantEditorTest.php</file>
             <file>tests/Service/ProductEditorHttpTest.php</file>
+            <file>tests/Service/ProductGalleryTransitionHttpTest.php</file>
             <file>tests/Service/ProductEditorContractTest.php</file>
             <file>tests/Service/AdminSidebarMenuHttpTest.php</file>
         </testsuite>

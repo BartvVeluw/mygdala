@@ -274,8 +274,57 @@ final class ShopSettingsTest extends TestCase
         $this->assertSame([], ShopSettings::validate(['invoice_footer_text' => $legacy], ['invoice_footer_text' => $legacy] + SiteSettings::defaults())['errors']);
     }
 
+    // --- the product gallery's default transition (Product Gallery 2.0) ----
+
+    public function testTheGalleryTransitionIsOneOfThreeWords(): void
+    {
+        foreach (['none', 'fade', 'slide'] as $word) {
+            $result = ShopSettings::validate(['shop_gallery_transition' => $word], SiteSettings::defaults());
+
+            $this->assertSame([], $result['errors'], $word);
+            $this->assertSame(['shop_gallery_transition' => $word], $result['values'], $word);
+        }
+
+        foreach (['', 'zoom', 'Fade', 'fade ', 'slide;x', ['fade']] as $other) {
+            $result = ShopSettings::validate(['shop_gallery_transition' => $other], SiteSettings::defaults());
+
+            $this->assertSame(['Kies Geen, Vervagen of Schuiven als overgang.'], $result['errors'], var_export($other, true));
+            $this->assertArrayNotHasKey('shop_gallery_transition', $result['values'], 'a refused word is never written');
+        }
+    }
+
+    public function testTheGalleryTransitionHasItsOwnTabAndKeepsTheOldLookByDefault(): void
+    {
+        $this->assertSame(['shop_gallery_transition'], ShopSettings::TABS['productpagina']);
+        $this->assertContains('shop_gallery_transition', ShopSettings::CHOICES);
+        $this->assertSame('fade', SiteSettings::defaults()['shop_gallery_transition']);
+
+        // A save of another tab never touches it.
+        $this->assertArrayNotHasKey('shop_gallery_transition', ShopSettings::validate(['order_number_prefix' => 'ORD'], SiteSettings::defaults())['values']);
+
+        $panel = $this->panels()['productpagina'];
+        $this->assertStringContainsString('<select class="admin-select" id="shop-gallery-transition" name="shop_gallery_transition">', $panel);
+        $this->assertStringContainsString("admin_field_label('shop-gallery-transition', admin_t('shop.gallery_transition.shop_label'), admin_t('help.shop.gallery_transition.shop'))", $panel);
+        $this->assertStringContainsString('foreach (\App\Service\ProductGalleryTransition::ALL as $transitionOption)', $panel, 'the options are the closed list, not typed out');
+
+        foreach (['nl' => ['Productpagina', 'Standaard overgang productgalerij', 'Geen', 'Vervagen', 'Schuiven'], 'en' => ['Product page', 'Default product gallery transition', 'None', 'Fade', 'Slide']] as $locale => $words) {
+            $catalog = self::catalog($locale);
+            $this->assertSame($words, [
+                $catalog['shop.gallery_transition.tab'],
+                $catalog['shop.gallery_transition.shop_label'],
+                $catalog['shop.gallery_transition.none'],
+                $catalog['shop.gallery_transition.fade'],
+                $catalog['shop.gallery_transition.slide'],
+            ], $locale);
+            $this->assertArrayHasKey('help.shop.gallery_transition.shop', $catalog);
+            $this->assertArrayHasKey('help.shop.gallery_transition.product', $catalog);
+            $this->assertArrayHasKey('validation.gallery_transition_invalid', $catalog);
+        }
+    }
+
     public function testASaveOnlyEverReturnsToOneOfTheTabs(): void
     {
+        $this->assertSame('productpagina', ShopSettings::section('productpagina'));
         $this->assertSame('emails', ShopSettings::section('emails'));
         $this->assertSame('bedrijf', ShopSettings::section('../settings'));
         $this->assertSame('bedrijf', ShopSettings::section(['emails']));
