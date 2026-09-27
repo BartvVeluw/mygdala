@@ -10,6 +10,15 @@ use App\Service\SiteSettings;
 class OrderRepository extends Repository
 {
     /**
+     * How an order's payment was started (`orders.payment_mode`): with a test
+     * key or a live one. NULL is an order from before this was recorded,
+     * which keeps behaving as a real sale (MODULES.md, "Betalingen").
+     */
+    public const PAYMENT_MODE_TEST = 'test';
+    public const PAYMENT_MODE_LIVE = 'live';
+    public const PAYMENT_MODES = [self::PAYMENT_MODE_TEST, self::PAYMENT_MODE_LIVE];
+
+    /**
      * The admin's own handling workflow for an order, deliberately just two
      * states: "Open" (still needs the owner's attention) and "Afgehandeld"
      * (dealt with). Completely separate from the Mollie-driven payment status
@@ -406,10 +415,35 @@ class OrderRepository extends Repository
         return $amount === null ? null : self::decimal($amount);
     }
 
-    public function setMolliePaymentId(int $orderId, string $paymentId): void
+    /**
+     * The payment the provider just started for this order, and the mode it
+     * was started in (`payment_mode`, PAYMENT_MODES). Written once, here,
+     * when the payment is created, and never derived later from the shop's
+     * current mode or key: a test order stays a test order when the shop
+     * goes live. Anything outside PAYMENT_MODES is stored as NULL (unknown).
+     */
+    public function setMolliePaymentId(int $orderId, string $paymentId, ?string $paymentMode = null): void
     {
-        $stmt = $this->db->prepare('UPDATE orders SET mollie_payment_id = :payment_id, updated_at = NOW() WHERE id = :id');
-        $stmt->execute(['payment_id' => $paymentId, 'id' => $orderId]);
+        $stmt = $this->db->prepare(
+            'UPDATE orders SET mollie_payment_id = :payment_id, payment_mode = :payment_mode, updated_at = NOW() WHERE id = :id'
+        );
+        $stmt->execute([
+            'payment_id' => $paymentId,
+            'payment_mode' => in_array($paymentMode, self::PAYMENT_MODES, true) ? $paymentMode : null,
+            'id' => $orderId,
+        ]);
+    }
+
+    /**
+     * Whether $order was paid with a test key (`payment_mode = 'test'`): no
+     * real money, so no revenue and no invoice from the real sequence. An
+     * order from before the mode was recorded (NULL) is NOT a test order.
+     *
+     * @param array<string, mixed> $order
+     */
+    public static function isTestOrder(array $order): bool
+    {
+        return ($order['payment_mode'] ?? null) === self::PAYMENT_MODE_TEST;
     }
 
     /**

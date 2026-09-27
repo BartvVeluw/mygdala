@@ -63,7 +63,8 @@ try {
 
     if ($order['status'] === 'pending' && $order['mollie_payment_id']) {
         try {
-            $payment = PaymentProviders::active()->fetchPayment((string) $order['mollie_payment_id']);
+            // With the key of the mode the order was paid in (NULL: an older order).
+            $payment = PaymentProviders::active()->fetchPayment((string) $order['mollie_payment_id'], $order['payment_mode'] ?? null);
             $synced = (new OrderPaymentSync($orderRepository))->sync($payment);
             if ($synced !== null) {
                 $order = $synced;

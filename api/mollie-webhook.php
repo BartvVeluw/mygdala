@@ -10,6 +10,11 @@
  * applies what Mollie answers to the order that holds that payment id.
  * Nothing else in the request is read.
  *
+ * WITH WHICH KEY. The order holding the payment id says in which mode its
+ * payment was created (`orders.payment_mode`); the payment is asked for with
+ * that mode's key, never with whatever mode the shop is in now. Only an order
+ * from before the mode was recorded falls back to trying both keys.
+ *
  * THE ANSWER DECIDES WHETHER MOLLIE TRIES AGAIN. Mollie delivers a webhook
  * again, a limited number of times over several hours, until it gets a 2xx.
  * So the status code says whether trying again can help:
@@ -61,7 +66,7 @@ if (!is_string($paymentId) || preg_match('/^tr_[A-Za-z0-9]{1,60}$/', $paymentId)
 }
 
 try {
-    $known = (new OrderRepository())->findByMolliePaymentId($paymentId) !== null;
+    $order = (new OrderRepository())->findByMolliePaymentId($paymentId);
 } catch (\Throwable $e) {
     error_log('[api/mollie-webhook.php] ' . $paymentId . ' could not be looked up: ' . PaymentProviderException::redact($e->getMessage()));
     http_response_code(503);
@@ -69,14 +74,16 @@ try {
     exit;
 }
 
-if (!$known) {
+if ($order === null) {
     error_log('[api/mollie-webhook.php] no order holds payment ' . $paymentId . '; Mollie was not asked');
     http_response_code(200);
     exit;
 }
 
 try {
-    $payment = PaymentProviders::active()->fetchPayment($paymentId);
+    // With the credentials of the mode the order recorded when its payment
+    // was created, whatever mode the shop is in now (NULL: an older order).
+    $payment = PaymentProviders::active()->fetchPayment($paymentId, $order['payment_mode'] ?? null);
 } catch (PaymentProviderException $e) {
     error_log('[api/mollie-webhook.php] ' . $paymentId . ' ' . $e->getMessage());
 

@@ -58,9 +58,16 @@ interface PaymentProvider
      * The payment as the provider knows it now: always asked again, never
      * taken from a request.
      *
-     * @throws PaymentProviderException NOT_FOUND when no configured key knows it
+     * $mode is the mode the ORDER recorded when the payment was created
+     * ('test' or 'live', `orders.payment_mode`): the payment is then asked for
+     * with that mode's credentials only, whatever mode the shop is in now.
+     * Null is an order from before the mode was recorded; only then may a
+     * provider try the credentials it has one after the other.
+     *
+     * @throws PaymentProviderException NOT_FOUND when the credentials asked do not know it,
+     *                                  NOT_CONFIGURED when there are none for $mode
      */
-    public function fetchPayment(string $paymentId): PaymentSnapshot;
+    public function fetchPayment(string $paymentId, ?string $mode = null): PaymentSnapshot;
 
     /**
      * The payment methods the provider offers for the active configuration,

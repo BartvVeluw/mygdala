@@ -716,7 +716,9 @@ try {
         $checkoutLanguage
     ));
 
-    (new OrderRepository($db))->setMolliePaymentId($orderId, $payment->id);
+    // The mode the payment was started in stays with the order for good
+    // (orders.payment_mode): a test order remains one after the shop goes live.
+    (new OrderRepository($db))->setMolliePaymentId($orderId, $payment->id, $payment->mode);
 
     echo json_encode(['checkoutUrl' => $payment->checkoutUrl]);
 } catch (PaymentProviderException $e) {

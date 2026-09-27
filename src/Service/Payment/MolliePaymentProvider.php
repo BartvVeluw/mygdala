@@ -31,9 +31,10 @@ use Mollie\Api\Resources\Payment;
  *                       back to, and Mollie reports to, the configured base
  *                       URL (App\Service\AppUrl) and never the Host header of
  *                       the request that happened to start the checkout
- *   fetchPayment()      payments->get with the active key, and once more with
- *                       the other mode's stored key when the active one does
- *                       not know the payment (a mode switch in between)
+ *   fetchPayment()      payments->get with the key of the mode the order
+ *                       recorded; for an order from before that was recorded,
+ *                       the active key and then once more the other mode's
+ *                       stored key (a mode switch in between)
  *   availableMethods()  methods->allEnabled: what Mollie has switched on for
  *                       the website profile of the active key; read-only
  *
@@ -82,7 +83,8 @@ final class MolliePaymentProvider implements PaymentProvider
 
     public function createPayment(PaymentRequest $request): CreatedPayment
     {
-        $client = $this->client($this->configuration->activeKey());
+        $key = $this->configuration->activeKey();
+        $client = $this->client($key);
         $baseUrl = $this->baseUrl();
 
         try {
@@ -103,21 +105,50 @@ final class MolliePaymentProvider implements PaymentProvider
             throw new PaymentProviderException(PaymentProviderException::REJECTED, 'Mollie created payment ' . $payment->id . ' without a checkout URL');
         }
 
-        return new CreatedPayment((string) $payment->id, $checkoutUrl);
+        // The mode Mollie says the payment is in; it cannot differ from the
+        // key's own, which is the answer when Mollie leaves it out.
+        $mode = in_array($payment->mode ?? null, MollieConfiguration::MODES, true)
+            ? (string) $payment->mode
+            : (string) MollieConfiguration::modeOfKey($key);
+
+        return new CreatedPayment((string) $payment->id, $checkoutUrl, $mode);
     }
 
     /**
-     * With the active key first. A payment is only visible to a key of the
-     * mode it was made in, so when Mollie does not know it under the active
-     * key and the OTHER mode has a stored key, it is asked once more with
-     * that one: a test payment still reaches its order after the shop went
-     * live, and a live payment after the owner switched back to test to try
-     * something. Only a not-found answer leads to the second question; when
-     * that one fails too, the payment is not found, unless Mollie could not
-     * be reached, which the webhook must hear as temporary.
+     * A payment is only visible to a key of the mode it was made in.
+     *
+     * WITH THE ORDER'S MODE ('test' or 'live'): that mode's key and nothing
+     * else, whatever mode the shop is in now. A test order from before the
+     * switch to live is looked up with the test key; no other key is tried,
+     * so a payment can never be found under credentials it does not belong
+     * to. No key for that mode is NOT_CONFIGURED.
+     *
+     * WITHOUT ONE (an order from before the mode was recorded): the active
+     * key first, and when Mollie does not know the payment and the OTHER
+     * mode has a stored key, once more with that one. Only a not-found answer
+     * leads to the second question; when that one fails too, the payment is
+     * not found, unless Mollie could not be reached, which the webhook must
+     * hear as temporary.
      */
-    public function fetchPayment(string $paymentId): PaymentSnapshot
+    public function fetchPayment(string $paymentId, ?string $mode = null): PaymentSnapshot
     {
+        if ($mode !== null) {
+            if (!in_array($mode, MollieConfiguration::MODES, true)) {
+                throw new PaymentProviderException(PaymentProviderException::NOT_CONFIGURED, 'unknown payment mode "' . $mode . '"');
+            }
+
+            $modeKey = $this->configuration->keyFor($mode);
+            if ($modeKey === null || MollieConfiguration::modeOfKey($modeKey) !== $mode) {
+                throw new PaymentProviderException(PaymentProviderException::NOT_CONFIGURED, 'no ' . $mode . ' key to look up a ' . $mode . ' payment');
+            }
+
+            try {
+                return self::snapshot($this->client($modeKey)->payments->get($paymentId));
+            } catch (\Throwable $e) {
+                throw self::translate($e);
+            }
+        }
+
         $key = $this->configuration->activeKey();
 
         try {
