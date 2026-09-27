@@ -18,7 +18,9 @@ use Dompdf\Options;
  * ultimately originates from admin-entered CMS text.
  *
  * Pure function of its inputs: given the same order/items/sellerSnapshot/
- * invoiceNumber/invoiceDate, always produces the same PDF bytes — this is
+ * invoiceNumber/invoiceDate, always produces the same PDF content (the
+ * bytes differ only by the creation time and random document id dompdf
+ * stamps on every file) — this is
  * what makes an invoice PDF reproducible later purely from what's already
  * stored (order snapshot + invoices.seller_snapshot), independent of
  * whatever Site Settings/products look like by then.

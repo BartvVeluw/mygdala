@@ -243,9 +243,12 @@ $orderNumber = OrderRepository::orderNumber($order);
     <?php if ($invoice !== null): ?>
       <p><?= admin_t('shop.factuurnummer', ['v1' => htmlspecialchars((string) $invoice['invoice_number'], ENT_QUOTES, 'UTF-8')]) ?></strong></p>
       <p><?= admin_t('shop.factuurdatum', ['v1' => htmlspecialchars(date('d-m-Y', strtotime((string) $invoice['invoice_date'])), ENT_QUOTES, 'UTF-8')]) ?></p>
-      <p>
-        <a href="/api/admin/invoice-download.php?order_id=<?= (int) $order['id'] ?>" target="_blank" rel="noopener"><?= admin_t('shop.bekijk_factuur_pdf') ?>
-        <a href="/api/admin/invoice-download.php?order_id=<?= (int) $order['id'] ?>&mode=download"><?= admin_te('shop.download_pdf') ?></a>
+      <?php /* The PDF the customer received, read-only: a new tab, so this
+               screen stays open (api/admin/invoice-download.php). */ ?>
+      <p class="admin-text-muted"><?= admin_te('shop.factuur_bekijken_uitleg') ?></p>
+      <p class="admin-invoice-actions">
+        <a class="admin-btn-link" href="/api/admin/invoice-download.php?order_id=<?= (int) $order['id'] ?>" target="_blank" rel="noopener"><?= admin_te('shop.factuur_bekijken') ?></a>
+        <a class="admin-btn-secondary" href="/api/admin/invoice-download.php?order_id=<?= (int) $order['id'] ?>&amp;mode=download"><?= admin_te('shop.download_pdf') ?></a>
       </p>
       <?php if ($canManageOrders): ?>
       <form method="post" action="/api/admin/resend-order-confirmation.php" class="admin-fulfilment-form">

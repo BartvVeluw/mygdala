@@ -147,7 +147,7 @@ class OrderConfirmationService
                 $shopFromName,
                 [[
                     'path' => $invoicePdfPath,
-                    'name' => 'factuur-' . $invoice['invoice_number'] . '.pdf',
+                    'name' => InvoiceService::pdfFilename((string) $invoice['invoice_number']),
                     'mime' => 'application/pdf',
                 ]]
             );

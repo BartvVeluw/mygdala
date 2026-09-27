@@ -28,7 +28,7 @@ use PDO;
  * (a filesystem write can't be part of a DB transaction); if that disk
  * write fails, the invoice row/number already exist and the file can be
  * reproduced later via regeneratePdfIfMissing() from the same frozen
- * snapshot — deterministic, so nothing is re-invented.
+ * snapshot — same content, so nothing is re-invented.
  */
 class InvoiceService
 {
@@ -134,12 +134,10 @@ class InvoiceService
     }
 
     /**
-     * Rebuilds the PDF file from the invoice's own frozen seller_snapshot
-     * (never from current Site Settings) if it's missing from disk — e.g.
-     * after moving hosting, or a disk write that failed right after the
-     * invoice row was committed. Deterministic: same invoice number/date,
-     * same bytes as if generated at issuance time. Never allocates a new
-     * number or touches the DB row.
+     * Rebuilds the PDF file from the invoice's own frozen data (see
+     * renderIssued()) if it's missing from disk — e.g. after moving hosting,
+     * or a disk write that failed right after the invoice row was committed.
+     * Never allocates a new number or touches the DB row.
      */
     public function regeneratePdfIfMissing(array $invoice, array $order, array $customer, array $items): void
     {
@@ -147,13 +145,76 @@ class InvoiceService
             return;
         }
 
+        $this->storage->write((string) $invoice['pdf_path'], $this->renderIssued($invoice, $order, $customer, $items));
+    }
+
+    /**
+     * What the customer received for $orderId, for reading only — the CMS's
+     * "Factuur bekijken" (api/admin/invoice-download.php). That is the stored
+     * PDF, the very file the confirmation mail attached; or, when that file
+     * has gone missing, the same invoice rendered again in memory from its
+     * frozen data. Null when the order has no invoice (yet).
+     *
+     * Looking never issues an invoice, allocates a number, writes a file or
+     * touches a row. A missing file stays missing here: putting it back is the
+     * mail path's job (regeneratePdfIfMissing()).
+     *
+     * @return array{invoice: array<string, mixed>, pdf: string}|null
+     */
+    public function issuedPdfForOrder(int $orderId): ?array
+    {
+        $invoice = $this->invoices->findByOrderId($orderId);
+        if ($invoice === null) {
+            return null;
+        }
+
+        $path = (string) $invoice['pdf_path'];
+        if ($this->storage->exists($path)) {
+            return ['invoice' => $invoice, 'pdf' => $this->storage->read($path)];
+        }
+
+        $order = $this->orders->findById($orderId);
+        if ($order === null) {
+            return null;
+        }
+
+        $customerStmt = $this->db->prepare('SELECT * FROM customers WHERE id = :id');
+        $customerStmt->execute(['id' => $order['customer_id']]);
+        $customer = $customerStmt->fetch();
+
+        return [
+            'invoice' => $invoice,
+            'pdf' => $this->renderIssued($invoice, $order, $customer === false ? [] : $customer, $this->orders->findItems($orderId)),
+        ];
+    }
+
+    /**
+     * An issued invoice rendered again from what was frozen when it was
+     * issued: its own number, date and seller_snapshot (never current Site
+     * Settings) and the order's own snapshot rows. Writes nothing.
+     *
+     * Same content as the first render, not the same bytes: dompdf stamps
+     * every file with the moment it was rendered and a random document id.
+     */
+    private function renderIssued(array $invoice, array $order, array $customer, array $items): string
+    {
         $sellerSnapshot = json_decode((string) $invoice['seller_snapshot'], true, 512, JSON_THROW_ON_ERROR);
         $orderNumber = OrderRepository::orderNumber($order);
         $invoiceDate = new \DateTimeImmutable((string) $invoice['invoice_date']);
 
-        $pdfBytes = $this->renderer->render($order, $customer, $items, $sellerSnapshot, (string) $invoice['invoice_number'], $invoiceDate, $orderNumber);
+        return $this->renderer->render($order, $customer, $items, $sellerSnapshot, (string) $invoice['invoice_number'], $invoiceDate, $orderNumber);
+    }
 
-        $this->storage->write((string) $invoice['pdf_path'], $pdfBytes);
+    /**
+     * The file name an invoice travels under: the confirmation mail's
+     * attachment and the CMS preview and download. The invoice number carries
+     * the Shop's own prefix, which is free text in Shop-instellingen, so
+     * anything outside [A-Za-z0-9._-] becomes "-" before it reaches a header.
+     * A prefix of letters and digits gives exactly the name it always had.
+     */
+    public static function pdfFilename(string $invoiceNumber): string
+    {
+        return 'factuur-' . preg_replace('/[^A-Za-z0-9._-]/', '-', $invoiceNumber) . '.pdf';
     }
 
     /**

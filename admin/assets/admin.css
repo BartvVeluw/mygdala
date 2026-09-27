@@ -1562,6 +1562,8 @@ a{ color: var(--admin-accent); }
 .admin-url-confirm__actions{ display: flex; flex-wrap: wrap; align-items: center; gap: var(--admin-sp-3); margin-top: var(--admin-sp-4); }
 
 .admin-fulfilment-form{ display: flex; align-items: end; gap: var(--admin-sp-4); flex-wrap: wrap; }
+/* "Factuur bekijken" and "Download PDF" on admin/order.php. */
+.admin-invoice-actions{ display: flex; align-items: center; gap: var(--admin-sp-3); flex-wrap: wrap; }
 .admin-fulfilment-form label{ display: flex; flex-direction: column; gap: 0.3rem; font-size: 0.85rem; color: var(--admin-text-muted); }
 
 .admin-inline-form{ display: inline; }
