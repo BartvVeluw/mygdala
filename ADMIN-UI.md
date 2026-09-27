@@ -14,6 +14,10 @@ nergens anders.
 | Teksten | `src/Service/Language/messages/nl.php` en `en.php`, sleutels `ui.*` en `help.*` |
 | Tests | `Tests\Service\AdminUiPrimitivesTest` (suites `contract`, `fast`, `cms`) |
 
+Twee hoofdstukken verderop hebben hun eigen bestanden, en noemen die daar:
+[de menu's in de zijbalk](#menus-in-de-zijbalk) en
+[de editor die opslaat zonder te herladen](#een-editor-die-opslaat-zonder-te-herladen).
+
 ## Vier afspraken
 
 - **Eén versie per component.** Een scherm vraagt een bouwsteen aan en
@@ -277,6 +281,198 @@ de kolommen, links en social profielen van Footer
 `onsubmit="return confirm(…)"`. Een scherm dat overgaat, haalt die weg en
 gebruikt de twee functies hierboven; meer is het niet.
 
+## Menu's in de zijbalk
+
+Een module kan haar schermen onder één regel in de zijbalk zetten: een
+**menu**. De Shop doet dat sinds Shop Admin UX 2.0. Het gaat om negen
+schermen: Producten, Collecties, Gerelateerde producten, Personalisatie,
+Verzendinstellingen, Carrier-tarieven, Shop-instellingen, Bestellingen en
+Retourverzoeken. Die staan niet meer los tussen Pagina's en Portfolio, maar
+onder één regel *Shop* met een pijltje.
+
+| Wat | Waar |
+|---|---|
+| Het menu zelf (naam, icoon, plek) | `ModuleDefinition::adminNavigationMenus()`, bij de Shop `ShopModule::adminNavigationMenus()` |
+| Welke schermen erin staan | de sleutel `menu` op een zijbalkregel (`ShopModule::ADMIN_MENU`; Personalisatie hangt aan de Shop en zet zich erin) |
+| Wat een gebruiker ziet | `AdminNavigation::sidebar()`: regels en menu's in volgorde |
+| Tekenen | `admin/_header.php` |
+| In- en uitklappen | `admin/assets/admin-sidebar.js` |
+| Tests | `Tests\Module\AdminSidebarMenuTest` (`contract`, `fast`, `modules`), `Tests\Service\AdminSidebarMenuHttpTest` (`shop`) |
+
+Afspraken:
+
+- **Core noemt geen menu.** Een menu is een bijdrage van een module, zoals
+  haar regels. Staat de module uit, dan is er geen menu en geen lege
+  submenucontainer.
+- **Het menu neemt de plek van zijn `order`.** De Shop staat op 300, waar
+  Producten stond. De regels erin houden hun eigen volgorde, dus
+  Bestellingen (500) staat nu binnen het menu en niet meer onder Portfolio en
+  Blog.
+- **`items()` blijft de platte lijst.** De guards, de markering van het
+  actieve scherm en de tests vragen naar regels. `sidebar()` is de vorm die
+  de schil tekent. Een gebruiker die geen enkele regel van een menu mag
+  openen, ziet het menu niet. De eerste regel van `sidebar()` is ook het
+  scherm waarop hij na het inloggen landt.
+- **Een echte knop.** De menuregel is een `<button type="button">` met
+  `aria-expanded` en `aria-controls`. Enter, Spatie, de tabvolgorde en de
+  focusring komen van de browser. De regels erin blijven gewone links, en de
+  actieve krijgt `aria-current="page"`.
+- **De server bepaalt of het menu open staat.** Het menu staat open op zijn
+  eigen schermen, met het actieve scherm gemarkeerd, en dicht op alle andere.
+  Er wordt dus niets onthouden en er klapt niets open nadat de pagina getekend
+  is. Zonder script staat elk menu open (een `<noscript>`-regel).
+- **Dezelfde maat als elke regel.** De knop gebruikt `.admin-sidebar__link`
+  en haalt de gedeelde knoplook eraf. Hoogte, icoon en tekst liggen gelijk met
+  de links erboven en eronder. De regels in het menu hangen aan een dunne lijn
+  onder het icoon, en hun tekst lijnt uit met de naam van het menu.
+
+## Een editor die opslaat zonder te herladen
+
+Sinds Shop Admin UX 2.0 heeft het CMS een tweede manier van opslaan naast de
+opslagbalk (`PAGE-EDITOR.md`, "De opslagbalk"). Het gaat om **één formulier,
+één knop *Opslaan***, waarmee het hele scherm in één verzoek wordt bewaard,
+zonder dat de pagina herlaadt. De producteditor is het eerste scherm dat
+hiermee werkt. Elke editor die uit één formulier bestaat, kan volgen. Het
+hele CMS in één keer omzetten is uitdrukkelijk géén doel.
+
+| Wat | Waar |
+|---|---|
+| Markup: balk, samenvatting, vertrekdialoog, script | `admin/_admin_editor.php` |
+| Gedrag | `admin/assets/admin-editor.js` |
+| Het antwoord van een endpoint | `App\Service\AdminEditorResponse` |
+| Uiterlijk | `admin/assets/admin.css`, sectie "The dynamic editor" (de balk is `.admin-save-bar`, de dialoog `.admin-confirm`) |
+| Teksten | sleutels `editor.*` in `nl.php` en `en.php` |
+| Tests | `AdminEditorContractTest`, `AdminEditorResponseTest` (`contract`/`unit`, `fast`, `cms`), `ProductEditorHttpTest` (`shop`) |
+
+### Het contract
+
+- **Verzoek.** Het hele formulier als `FormData`, met
+  `Accept: application/json`. Tijdens het versturen is het formulier `inert`,
+  zodat wat verstuurd wordt en wat op het scherm staat gelijk blijven.
+- **Antwoord.** Altijd dezelfde vorm (`AdminEditorResponse`):
+  - `200 {"ok": true, "message", "data", "errors": {}}` als alles is
+    opgeslagen;
+  - `422 {"ok": false, …, "errors": {…}}` als er niets is opgeslagen;
+  - `500` als de database faalde.
+
+  `errors` is gesleuteld op de **naam van het formulierveld**
+  (`price`, `options[new0][name]`) of op de **sleutel van een sectie**
+  (`variants`), elk met een lijst meldingen. Een melding zonder plek staat
+  onder `_form`. `data.redirect` stuurt de browser door, bijvoorbeeld naar een
+  nieuw item dat nu een eigen adres heeft.
+- **Hetzelfde endpoint zonder script.** Zonder `Accept: application/json`
+  krijgt een formulier de gewone PRG-redirect met sessie-flash. Er is één set
+  regels voor beide.
+- **De guards blijven zoals ze zijn.** Login, permissie, POST en CSRF
+  antwoorden eerst, in hun eigen vorm. Het script leest hun statuscode en
+  zegt het in CMS-woorden:
+  - 401: je bent uitgelogd;
+  - 403: te oud of geen recht;
+  - elk ander antwoord, en geen verbinding: opslaan mislukt.
+
+  In al die gevallen blijft wat er getypt is op het scherm staan.
+- **Alles of niets.** Een endpoint van dit soort controleert eerst alles en
+  schrijft dan alles in één transactie (bij het product:
+  `api/admin/update-product.php`). Een geweigerde opslag schrijft niets, dus
+  ook geen geldig veld dat toevallig naast een fout stond.
+
+### Na het opslaan: de regio's
+
+Een rij die op het scherm is toegevoegd, heeft nog geen id (`new0`). Na een
+geslaagde opslag vraagt het script de pagina **op haar eigen adres** opnieuw
+op. Daarna vervangt het elk element met `data-admin-editor-region="<sleutel>"`
+door de versie van de server, waarop elke rij haar echte id draagt. Zo maakt
+een volgende opslag een rij niet nog een keer aan. De pagina blijft de enige
+plek die de editor tekent. Welke `<details>` open stonden en de scrollpositie
+blijven behouden. Scripts die iets in een regio verbeteren, horen
+`admin-editor:replaced` op die regio:
+
+- `row-list.js` bedraadt de lijsten;
+- `admin.js` zet de rich-texteditors op;
+- `product-gallery.js` begint opnieuw.
+
+Lukt dat opvragen niet, dan herlaadt de pagina. Wat er dan op het scherm
+stond, zou de volgende opslag verkeerd versturen.
+
+### Wat "gewijzigd" betekent
+
+Gewijzigd is een vlag en geen vergelijking, net als bij de opslagbalk. Elke
+`input` of `change` binnen het formulier zet de vlag. Die komt van:
+
+- typen, een select, een checkbox;
+- de mediakiezer, die een `change` geeft als hij een veld vult;
+- `row-list.js` bij toevoegen, verwijderen of verplaatsen van een rij;
+- `product-gallery.js` bij elke wijziging aan de afbeeldingen.
+
+Een script dat het formulier op een andere manier verandert, stuurt
+`admin-editor:change`. **Niet** gewijzigd wordt het scherm door:
+
+- een sectie open- of dichtklappen (een `<details>`-toggle);
+- uitleg openen;
+- de mediakiezer openen en weer sluiten zonder keuze (zijn zoekveld staat
+  buiten het formulier);
+- het opnieuw tekenen van een regio na een opslag.
+
+Na een geslaagde opslag is het scherm schoon. Na elke mislukte opslag blijft
+het gewijzigd.
+
+### Meldingen
+
+De sleutel van een melding wijst haar plek aan, in deze volgorde:
+
+1. **Een veld met die `name`.** De melding komt onder het veld (of het label
+   eromheen), het veld krijgt `aria-invalid` en `aria-describedby`, en de
+   sectie eromheen gaat open.
+2. **Een element met `data-admin-editor-error-for="<naam>"`.** Dit is voor
+   een melding over een groep velden, zoals de keuzes van een nieuwe variant.
+3. **Een sectie met `data-admin-editor-section="<sleutel>"`.** De melding komt
+   in haar `[data-admin-editor-errors]`, en een ingeklapte sectie gaat open.
+
+Alle meldingen staan daarnaast in de samenvatting boven het formulier
+(`admin_editor_summary()`, `role="alert"`). Die krijgt de focus, zodat een
+schermlezer ze als eerste voorleest. Een browsercontrole (`required`) die
+faalt in een dichte sectie, opent die sectie eerst.
+
+### Weggaan met wijzigingen die nog niet zijn opgeslagen
+
+- **Navigatie binnen het CMS** krijgt de eigen dialoog *Niet-opgeslagen
+  wijzigingen* (`admin_editor_leave_dialog()`). Dat is een gewone klik op een
+  link naar een andere pagina van deze site, of een formulier buiten de editor
+  dat wegnavigeert (de taalwissel, *Uitloggen*). De dialoog heeft drie
+  antwoorden:
+  - *Blijven* staat eerst en heeft de focus;
+  - *Zonder opslaan doorgaan*;
+  - *Opslaan en doorgaan* gaat pas door als de server alles heeft opgeslagen.
+    Bij een geweigerde opslag sluit de dialoog en staan de meldingen er.
+- **Het is een native modale `<dialog>`**, net als `admin_confirm_dialog()`.
+  De pagina erachter is inert, Tab blijft binnen de dialoog, en Escape of een
+  klik op de gedimde pagina betekent *Blijven*. De focus gaat terug naar de
+  link die de vraag opriep. Op een telefoon staan de knoppen onder elkaar.
+- **Niet onderschept** worden:
+  - een link met `target="_blank"` of `download`;
+  - een klik met Ctrl, Cmd, Shift of Alt;
+  - `mailto:`, `tel:` en een ander domein;
+  - een sprong naar een anker op dezelfde pagina;
+  - een link met `data-admin-editor-leave` (bijvoorbeeld *Annuleren*: dat
+    antwoord is al gegeven).
+- **Wat de browser zelf doet** kan alleen de eigen vraag van de browser
+  krijgen (`beforeunload`): herladen, het tabblad sluiten, de adresbalk,
+  Terug. Geen enkele pagina mag die vraag opmaken. Het is het laatste
+  vangnet, en alleen actief zolang er iets niet is opgeslagen.
+
+### Een volgende editor omzetten
+
+1. Het scherm wordt **één formulier** (de rijen van een lijst als
+   `admin/_editor_rows.php` / `row-list.js`, geen formulier per rij), met
+   `data-admin-editor` en de onderdelen uit `_admin_editor.php` in plaats van
+   `_save_bar.php`.
+2. Het endpoint valideert alles vóórdat het schrijft, geeft zijn meldingen een
+   veldnaam als sleutel, en antwoordt met `AdminEditorResponse` als
+   `wantsJson()`. De redirect voor een formulier zonder script blijft.
+3. Wat na een opslag een id krijgt, zit in een `data-admin-editor-region`.
+4. Een test zoals `ProductEditorHttpTest`, die hetzelfde verzoek met en zonder
+   JSON stuurt.
+
 ## Waar het al gebruikt wordt
 
 De schermen hieronder, als bewijs dat de bouwstenen herbruikbaar zijn. De rest van het
@@ -288,7 +484,7 @@ het werkte.
 | Mediabibliotheek (`admin/media.php`) | De upload is `admin_file_input()` met `multiple`; het sleepvak, de lijst met nieuwe bestanden en de voorbeelden eromheen zijn van dat scherm zelf, en nieuwe bestanden komen in de map die open staat (`MEDIA.md`). Links de mappen als links (`?folder=`, *Alle media*, *Geen map*, elke map met zijn aantal; op een smal scherm een doorlopende rij erboven), met *Nieuwe map*, en bij een open map *Map hernoemen* (een `<details>`) en *Map verwijderen* in `admin_confirm_dialog()`. Zoekveld (`?q=`, blijft binnen de open map) en de soort bestand als `.admin-select` (`?type=`), die het raster verversen zonder te herladen. *Raster* \| *Lijst* als twee knoppen met `aria-pressed` (`.admin-media-view`), onthouden in `localStorage`. Per kaart een `.admin-checkbox` om meerdere bestanden tegelijk te selecteren; de selectiebalk verplaatst naar een map (`.admin-select`) of verwijdert. *Bewerken* op een kaart opent *Media bewerken* (naam en alt-tekst, één opslag). Het itemscherm heeft één formulier *Naam en alt-tekst* onder de opslagbalk. *Verwijderen* op een item vraagt eerst in `admin_confirm_dialog()`; een selectie verwijderen heeft een eigen dialoog, omdat die per keer toont wat er echt weggaat en wat blijft staan |
 | Instellingen (`admin/settings.php`) | Infobalk bij *Algemeen* en bij *Adresgegevens*; uitleg bij naam van de website, e-mailadres, telefoonnummer, plaats, plaats en land van het adres, KVK-nummer, standaardtaal, standaard meta description en indexeren. De standaardtaal is een `.admin-select`, indexeren een switch |
 | Shop-instellingen (`admin/shop-settings.php`) | Infobalk per tabblad; uitleg bij elk veld; één `?` bij *Invulvelden* die elk invulveld van de bestelmail uitlegt, opgebouwd uit `EmailPlaceholders::KNOWN`; *Herstel standaardtekst* als `.admin-btn-secondary` (`admin/assets/shop-settings.js`); het tabblad *Productoverzicht* met één `.admin-select` (*Geen overzichtspagina* of een bestaande pagina, een concept gemarkeerd) met uitleg, en een melding als de gekozen pagina nog een concept is of nog geen blok *Productgrid* heeft (`MODULES.md`, "Shop") |
-| Product en collectie (`admin/product-form.php`, `admin/collection.php`) | Beide met de opslagbalk. Op een product de afbeeldingen als raster (`admin/_product_gallery.php`, `admin/assets/product-gallery.js`): *Afbeelding toevoegen* opent de mediakiezer, ← en → per afbeelding (knoppen met een `aria-label` dat de afbeelding noemt, en een live regio die de nieuwe positie zegt) en slepen met de muis veranderen dezelfde volgorde, × haalt hem weg, en pas *Opslaan* bewaart. Per variant een eigen strook met dezelfde bediening, de productafbeeldingen als tegels om aan te vinken (`aria-pressed`), en *Eigen beschrijving voor deze variant* als switch. Op een collectie de afbeelding met de mediakiezer, en per product *Bewerken* naar de producteditor voor wie producten mag beheren. De deel-afbeelding op beide is de mediakiezer in deel-afbeeldingsmodus (`MediaType::SOCIAL_IMAGE`); een oude eigen upload staat erboven met *Deel-afbeelding verwijderen* |
+| Product en collectie (`admin/product-form.php`, `admin/collection.php`) | Het product is de dynamische editor (hierboven, "Een editor die opslaat zonder te herladen"): één formulier van kaarten met één *Opslaan* in de balk, zonder herladen; de collectie heeft de opslagbalk. Op een product staan *Afbeeldingen* en *Varianten* elk in een eigen kaart die inklapt (`.admin-collapse--card`, met het aantal in de kopregel; open of dicht onthoudt het tabblad, `admin-collapse.js`). *Afbeeldingen* is alleen de pool van het product als raster (`admin/_product_gallery.php`, `admin/assets/product-gallery.js`): *Afbeelding toevoegen* opent de mediakiezer, ← en → per afbeelding (knoppen met een `aria-label` dat de afbeelding noemt, en een live regio die de nieuwe positie zegt) en slepen met de muis veranderen dezelfde volgorde, × haalt hem weg. *Varianten* (`admin/_product_variants.php`, `admin/assets/product-variants.js`): de opties als rijkaarten (`.admin-row-card`) met hun waardes, *Optie toevoegen*, *Waarde toevoegen* en *Variant toevoegen* als rijen op het scherm (`row-list.js`), ↑ ↓ en *Verwijderen*; een optie of waarde die een variant gebruikt en een variant waar een bestelling naar wijst hebben een uitgeschakelde *Verwijderen* met een regel die zegt waarom. Per variant de prijs, *Actief* als switch, een eigen strook met dezelfde bediening als de pool, de productafbeeldingen als tegels om aan te vinken (`aria-pressed`) en *Eigen beschrijving voor deze variant* als switch; een nieuwe variant kiest per optie een waarde uit wat er op het scherm staat. Op een collectie de afbeelding met de mediakiezer, en per product *Bewerken* naar de producteditor voor wie producten mag beheren. De deel-afbeelding op beide is de mediakiezer in deel-afbeeldingsmodus (`MediaType::SOCIAL_IMAGE`); een oude eigen upload staat erboven met *Deel-afbeelding verwijderen* |
 | Pagina's (`admin/pages.php`) | Infobalk; zoekveld (`?q=`, filtert de al geladen lijst via `PageContent::matchesAdminSearch()` en toont een treffer met elke pagina erboven, gemarkeerd als *bovenliggend*); knoppen uit de familie; de status als badge met woord én kleur: `.admin-badge--draft` (amber, `--admin-warning`) en `.admin-badge--published` (groen, `--admin-success`). De lijst is een boom in twee groepen, *Websitepagina's* (open) en *Service & juridisch* (dicht, met aantal): een knop met `aria-expanded` per groep en per pagina met onderliggende pagina's, ingesprongen per niveau, in- en uitklappen zonder herladen en onthouden in `localStorage` (`admin/assets/page-tree.js`); per rij *Bewerken*, *Bekijken* (of *Preview* voor een concept) en *Subpagina toevoegen* (`docs/pages/NESTING.md`) |
 | Formulieren (`admin/forms.php`, `admin/form.php`) | In het overzicht een infobalk en de status als badge met woord én kleur: `.admin-badge--paid` voor *Actief*, `.admin-badge--draft` voor *Inactief*. In de editor staat *Actief* bovenaan als switch; uitleg bij *Actief*, de naam, het bedankbericht en het e-mailadres voor de melding. *Inzendingen bewaren in het CMS* (switch) en *Antwoordadres van de melding* (`.admin-select`) staan onder *Geavanceerd*, een `<details>` in de stijl van de inklapbare rijen (`.admin-collapse--card`) met in de kop of inzendingen bewaard worden; hij opent na een geweigerde opslag. De editor heeft de opslagbalk. *Veld toevoegen* is een native `<dialog>` met radiokaarten (`.admin-template-card`) en het label met uitleg; zonder script rendert de link hem open in de pagina. Elke radio heet alleen het type (`aria-labelledby`) en krijgt de uitleg als beschrijving (`aria-describedby`). De velden staan als compacte rijen in de stijl van *Header & navigatie* (`.admin-section-row`, ↑ en ↓ als `.admin-row-move`, *Bewerken* als `.admin-section-row__edit`, *Verwijderen* als `.admin-btn-danger`), met een tweede regel voor type, verplicht, breedte en opties of, bij een uploadveld, de toegestane soorten en de maximale grootte. Naast de velden staat het voorbeeld (`admin/form-preview.php`) in een eigen frame, met de breedteknoppen van de blokbibliotheek (`.admin-block-preview__viewport`: *Desktop* en *Mobiel*). De eigen knop *Opslaan* van de editor en de veldeditor draagt `data-save-bar-fallback`: met script is de opslagbalk de enige knop. De veldeditor (`admin/form-field.php`) heeft uitleg bij label, uitleg en voorbeeldtekst, *Verplicht invullen* als switch, *Breedte in het formulier* als `.admin-select`, bij *Bestand uploaden* de kaart *Bestanden* met een `.admin-checkbox` per toegestane soort (naast elkaar, `.admin-form-file-types`) en *Maximale grootte* als `.admin-select` — nooit een vrij tekstveld en nooit een bestandskiezer, *Ander soort veld kiezen* en *Technische gegevens* als `<details>` in de stijl van de inklapbare rijen, ↑ en ↓ per optie als `.admin-btn-ghost`, en de opslagbalk. Een inzending (`admin/form-submission.php`) noemt een bestand bij zijn veld als downloadlink met soort en grootte, en *Bestand ontbreekt* als badge wanneer het van schijf weg is; een lange bestandsnaam breekt af (`.admin-submission-file`). Het offerte-/contactblok (`admin/contact-form.php`) heeft geen bijlageschakelaar meer, alleen de zin waar je een uploadveld toevoegt. Veld, formulier en inzending verwijderen vraagt eerst in `admin_confirm_dialog()` (`FORMS.md`) |
 | Pagina bewerken en Nieuwe pagina (`admin/page.php`, `admin/page-new.php`) | De *Titel* en de SEO-velden zijn velden per websitetaal (`admin/_localized_fields.php`): één regel *Taal: …* boven de tabbladen met de badge *standaardtaal*, alleen de velden van die taal, niets van een andere taal verborgen meegestuurd; een nieuwe pagina schrijft in de standaardtaal en het adres komt uit die titel. Uitleg bij *Webadres* (het woord *slug* staat alleen in die uitleg); op een bestaande pagina het adres als link en het veld achter *Webadres wijzigen*, een `<details>` in de stijl van de inklapbare rijen; op een nieuwe pagina een live voorbeeld van het hele adres. *Bovenliggende pagina* als `.admin-select` met uitleg (de boom ingesprongen, zonder de pagina zelf en alles eronder), *Beheergroep* als segmentkeuze met uitleg voor een hoofdpagina of de regel welke groep een geneste pagina volgt, en het pad dat een opslag oplevert, bijgewerkt terwijl je kiest en typt (`admin/_page_placement.php`, `admin/assets/page-placement.js`, `docs/pages/NESTING.md`); een pagina met een vaste URL zegt dat ze altijd op het hoogste niveau staat. Onder *Status* staat *Kruimelpad tonen op deze pagina* als switch met uitleg, behalve op de homepage (`HEADER-FOOTER.md`). SEO: een infobalk over wat SEO is, en uitleg bij de SEO-titel (met de automatische titel) en bij de *Omschrijving voor zoekmachines*. Op *Nieuwe pagina* staat de SEO-kaart vóór *Template* en klapt hij dicht (`.admin-collapse--card`). In de blokkenkiezer het zoekveld (`.admin-search`); op elke blokrij *Verbergen*/*Tonen* (`.admin-btn-secondary`) en *Verwijderen* (`.admin-btn-danger`), dat eerst vraagt in `admin_confirm_dialog()` |

@@ -141,6 +141,7 @@ hij gebruikt.
 | Bijdrage | Methode | Wie leest het |
 |---|---|---|
 | Adminnavigatie | `adminNavigationItems()` | `App\Service\AdminNavigation` |
+| Een menu in de zijbalk (de Shop) | `adminNavigationMenus()`, plus `menu` op een regel | `App\Service\AdminNavigation::sidebar()` (`ADMIN-UI.md`, "Menu's in de zijbalk") |
 | Permissies | `permissionGroups()`, `permissionImplications()` | `App\Service\AdminPermissions` |
 | Applicatieroutes | `routes()` | `App\Service\RouteRegistry` |
 | Gereserveerde slugs | `reservedSlugs()` | `App\Service\ReservedRoutes` |
@@ -336,7 +337,8 @@ Alles wat er ook zou zijn zonder webshop.
 - Producten, varianten, opties, productafbeeldingen —
   `ProductRepository`, `ProductVariantRepository`, `ProductOptionRepository`,
   `ProductImageRepository`, `ProductVariantImageRepository`, `ProductGallery`,
-  `admin/products.php`, `admin/product-form.php`, `admin/_product_gallery.php`.
+  `ProductVariantEditor`, `admin/products.php`, `admin/product-form.php`,
+  `admin/_product_gallery.php`, `admin/_product_variants.php`.
   **Eén afbeeldingenpool per product.** Een afbeelding is van het product
   (`product_images`, met `media_id` naar de Mediabibliotheek); een variant
   kiest daaruit een deelverzameling in een eigen volgorde
@@ -344,11 +346,41 @@ Alles wat er ook zou zijn zonder webshop.
   kiest toont alle afbeeldingen van het product, dus een variant toevoegen
   verbergt nooit een productfoto. Een variant verwijderen haalt alleen zijn
   koppelingen weg; een bibliotheekbestand verwijdert de Shop nooit
-  (`ShopMediaUsage`, `MEDIA.md`). Alles staat in het ene productformulier:
-  ← →, slepen, weghalen en aanvinken veranderen alleen het scherm, en
-  *Opslaan* (of de opslagbalk) bewaart het. De oude `variant_images`, met eigen
+  (`ShopMediaUsage`, `MEDIA.md`). De oude `variant_images`, met eigen
   bestanden per variant, is door `20260923120000` omgezet naar dit model en
   wordt niet meer gelezen.
+- **De producteditor is één dynamische editor** (Shop Admin UX 2.0,
+  `ADMIN-UI.md`, "Een editor die opslaat zonder te herladen"). Eén
+  formulier en één *Opslaan*, zonder herladen:
+  - het product zelf, zijn collecties en SEO;
+  - de kaart *Afbeeldingen*, met alleen de pool van het product;
+  - de kaart *Varianten*: de opties met hun waardes, en de varianten met
+    hun prijs, schakelaar, afbeeldingen uit de pool en eigen beschrijving.
+
+  Een optie, waarde of variant toevoegen, verplaatsen of weghalen verandert
+  alleen het scherm. Rijen gaan op sleutel: een id, of `new<n>` voor een rij
+  die net getypt is. Een nieuwe variant kiest zijn waardes ook op sleutel,
+  dus hij kan bestaan uit een optie en een waarde van hetzelfde bezoek.
+
+  `api/admin/update-product.php` controleert alles en schrijft alles in één
+  transactie (`ProductVariantEditor`). De volgorde op het scherm is de
+  volgorde die wordt opgeslagen. De server weigert een optie of waarde weg
+  te halen die een blijvende variant gebruikt. Dat geldt ook voor een
+  variant waar een bestelling naar wijst (zet hem op inactief), en voor een
+  tweede variant met dezelfde combinatie. Een weggehaalde variant mag in
+  dezelfde opslag zijn optie meenemen.
+
+  De twaalf endpoints die dit per rij deden, met een herlaadbeurt per klik
+  (`create-`, `update-`, `delete-` en `move-product-option`,
+  `-option-value` en `-variant`), bestaan niet meer.
+
+  Een nieuw product is de enige aparte stap. `create-product.php` maakt de
+  rij, want opties en varianten hebben het id nodig, en opent daarna direct
+  de editor van dat product (`?created=1`).
+- **In de zijbalk één menu *Shop*** (`ShopModule::adminNavigationMenus()`,
+  `ADMIN-UI.md`, "Menu's in de zijbalk"). Het staat op de plek waar
+  Producten stond en bevat alle Shop-schermen plus Personalisatie, in hun
+  eigen volgorde. Staat de Shop uit, dan is er geen menu en geen regel.
 - Variantbeschrijving — optioneel, per websitetaal, in
   `product_variant_translations` via `ShopLocalization`. Wat een bezoeker
   leest is `eigen tekst van de variant in deze taal ?? productbeschrijving in

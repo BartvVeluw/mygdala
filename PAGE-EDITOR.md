@@ -471,6 +471,13 @@ staat vast onderaan, rechts van de sidebar, en op mobiel over de volle
 breedte; `.admin-save-bar-spacer` houdt onderaan `<main>` de ruimte vrij, dus
 alleen schermen mét balk betalen ervoor.
 
+**De volgende stap is de dynamische editor** (`ADMIN-UI.md`, "Een editor die
+opslaat zonder te herladen"). Die ziet er hetzelfde uit, maar is één formulier
+dat opslaat zonder de pagina te herladen, en vraagt in een eigen dialoog
+voordat je met wijzigingen wegnavigeert. De producteditor gebruikt hem sinds
+Shop Admin UX 2.0. De schermen hieronder houden de opslagbalk tot ze één voor
+één worden omgezet. Een scherm gebruikt de een of de ander, nooit beide.
+
 ### Wat de balk NIET is
 
 Geen pagina-breed formulier en geen nieuw endpoint. Elk formulier op deze

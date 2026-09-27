@@ -687,6 +687,44 @@ nooit met een `LIKE`-patroon, waarin `_` op elk teken matcht.
 --testsuite http        als je een pagina/route/rendering raakte
 ```
 
+**Wijziging aan de producteditor, de dynamische editor of de menu's in de zijbalk**
+
+Het opslaan zonder herladen, de meldingen per veld, de vertrekdialoog, de
+opties en varianten van een product, of de zijbalk met het menu *Shop*
+(`ADMIN-UI.md`, "Een editor die opslaat zonder te herladen" en "Menu's in de
+zijbalk"):
+
+```
+--testsuite fast        AdminEditorResponseTest (de ene antwoordvorm),
+                        AdminEditorContractTest en ProductEditorContractTest
+                        (wat gewijzigd maakt en wat niet, welke navigatie de
+                        dialoog krijgt, rijen op sleutel, wat later binnenkomt)
+                        en AdminSidebarMenuTest (het menu als bijdrage van de
+                        module, knop en links) — database noch webserver nodig
+--testsuite shop        voegt ProductVariantEditorTest toe (opties, waardes en
+                        varianten in één opslag, weigeringen vóór er iets
+                        geschreven wordt, een teruggedraaide transactie laat
+                        niets achter), ProductEditorHttpTest (hetzelfde
+                        verzoek met en zonder JSON: 200/422 met meldingen op
+                        veldnaam en niets opgeslagen, of de redirect) en
+                        AdminSidebarMenuHttpTest (per account en met de Shop
+                        uit: één menu, open op zijn eigen schermen)
+```
+
+Wat een klik in de browser doet, bewijst geen van deze tests. Na een
+wijziging aan `admin-editor.js`, `product-variants.js`, `row-list.js` of
+`admin-sidebar.js` loop je het na in de Browser-pane:
+
+- optie en waarde toevoegen zonder herladen;
+- een variant uit die nieuwe waarde maken;
+- opslaan: de rijen hebben daarna hun id;
+- een geweigerde opslag opent de ingeklapte sectie;
+- een zijbalklink met wijzigingen geeft de dialoog, en *Opslaan en doorgaan*
+  gaat pas door na een geslaagde opslag;
+- Ctrl-klik en een nieuw tabblad worden niet onderschept.
+
+Doe dat op een wegwerpkopie van de database, niet op ontwikkeling.
+
 **Wijziging aan een koppelpunt tussen Core en een module**
 
 Alles wat `AdminNavigation`, `AdminPermissions`, `RouteRegistry`,

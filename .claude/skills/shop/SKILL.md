@@ -21,13 +21,13 @@ je aan de modulegrens zelf werkt.
 | Laag | Paden |
 |---|---|
 | Module | `src/Module/ShopModule.php` |
-| Catalogus | `src/Repository/Product*.php`, `ProductVariantImageRepository.php`, `src/Service/ProductGallery.php`, `ShopOverview.php`, `ShopMediaUsage.php`, `src/Service/ProductSeo.php`, `ProductDeletionService.php`, `ProductImageUploader.php` |
+| Catalogus | `src/Repository/Product*.php`, `ProductVariantImageRepository.php`, `src/Service/ProductGallery.php`, `ProductVariantEditor.php`, `ShopOverview.php`, `ShopMediaUsage.php`, `src/Service/ProductSeo.php`, `ProductDeletionService.php`, `ProductImageUploader.php` |
 | Collecties | `src/Service/Collection*.php`, `src/Repository/CollectionRepository.php` |
 | Bestellingen | `src/Repository/{Order,Customer,Invoice}*.php`, `src/Service/Order*.php`, `InvoiceService.php`, `InvoiceStorage.php`, `PdfInvoiceRenderer.php`, `MollieClientFactory.php`, `MolliePaymentData.php` |
 | Verzending | `src/Service/Shipping/`, `src/Service/Address/`, `src/Repository/{Shipping,Carrier}*.php` |
 | Dashboard | `src/Service/Dashboard*.php`, `src/Repository/DashboardRepository.php`, `admin/_dashboard_shop.php` |
-| Adminschermen | `admin/{products,product-form,collections,collection,orders,order,orders-export,shipping,carrier-rates,related-products}.php`, `admin/withdrawal-request*.php` |
-| Admin-endpoints | `api/admin/*{product,variant,collection,shipping,carrier,invoice,fulfilment,withdrawal}*.php`, `api/admin/{order,resend-order,sync-postnl-rates}*.php`, `api/admin/_shop_share_image.php` (de deel-afbeelding uit de Mediabibliotheek) |
+| Adminschermen | `admin/{products,product-form,collections,collection,orders,order,orders-export,shipping,carrier-rates,related-products}.php`, `admin/withdrawal-request*.php`, `admin/_product_{gallery,variants}.php` + `admin/assets/product-{gallery,variants}.js` (de producteditor) |
+| Admin-endpoints | `api/admin/*{product,variant,collection,shipping,carrier,invoice,fulfilment,withdrawal}*.php` (de producteditor heeft er één: `update-product.php`, plus `create-product.php` voor de eerste stap), `api/admin/{order,resend-order,sync-postnl-rates}*.php`, `api/admin/_shop_share_image.php` (de deel-afbeelding uit de Mediabibliotheek) |
 | Publieke endpoints | `api/{checkout,shipping-quote,shipping-zones,mollie-webhook,order-status,product,products,address-lookup-nl,withdrawal-request}.php` |
 | Publieke routes | `shop.php`, `product.php`, `collectie.php`, `cart.php`, `checkout.php`, `bestelling-status.php`, `herroeping.php` |
 | Frontend | `assets/css/shop/`, `assets/js/shop/` |
@@ -49,6 +49,12 @@ en `OrderItemPersonalizationRepository` horen bij de Personalisatie-module.
 - **De mini-winkelwagen zit in de gedeelde header** en wordt gevraagd door
   `ShopModule::shellStyles()`, niet door Core. Dat is het enige Shop-bestand
   dat overal laadt.
+- **De producteditor is één formulier met één opslag** (`ADMIN-UI.md`, "Een
+  editor die opslaat zonder te herladen"). Een optie, waarde of variant is
+  een rij op het scherm. `update-product.php` controleert alles en schrijft
+  alles in één transactie (`ProductVariantEditor`). Voeg geen endpoint per
+  rij toe. Een nieuw veld gaat in hetzelfde formulier, met een melding op
+  zijn veldnaam.
 - **Raak geen Core-bestand aan om iets van de Shop te regelen.** Core mag
   geen Shop-klasse en geen Shop-assetpad noemen:
   `Tests\Module\ShopDisabledTest` faalt daarop. Moet Core iets weten, voeg
